@@ -52,12 +52,12 @@ AC refs point at BUILD_PROMPT sections. Test approach in brackets.
 - [x] M2-T08 Submit: `Idempotency-Key`, server re-evaluation (form-schema-php), attachment manifest, retired-version and revoked-access rejection, gap-free numbering (ON CONFLICT + FOR UPDATE) — §9.2, §8.10 AC [feature incl. concurrency]
 - [x] M2-T09 `submission_values` projector (submit/resubmit/void) + `app:reproject {form?}` — §8.4, §6.4 [feature]
 - [x] M2-T10 `GET /sync/manifest?since=` (forms, versions, revocations, tasks placeholder) — §9.2, §10 [feature]
-- [ ] M2-T11 OpenAPI 3.1 via dedoc/scramble at `/docs/api` (platform admins) — §10 [smoke test]
+- [x] M2-T11 OpenAPI 3.1 via dedoc/scramble at `/docs/api` (platform admins) — §10 [smoke test]
 - [ ] M2-T12 Field App shell `resources/field-app`: Vite (base `/app/`, entries app + preview), React 19, TanStack Router/Query, Tailwind 4, shadcn/ui, DE/EN i18n, login + 2FA + device registration, served by Laravel catch-all — §9.1, §6.1 [vitest + build]
 - [ ] M2-T13 Renderer (form-schema-js/react): all v1.0 types, live calculations via `evaluate()`, pointer errors, wizard/scroll, repeater cards/table + virtualization, signature_pad, photo capture/compression, location — §9.1, §9.2 [vitest + RTL]
 - [ ] M2-T14 Field App screens: home (drafts, start new), catalog, fill (server autosave), review & sign, submit, my submissions, settings — §9.1 [vitest + Playwright mobile]
 - [ ] M2-T15 Builder preview: `preview.html` entry in an iframe, origin-checked postMessage of the unsaved definition, phone/tablet toggle — §8.2, §6.1 [Playwright]
-- [ ] M2-T16 Fillable-PDF import: fixture generator (pdf-lib), qpdf JSON parser job, mapping table, repeater detection, `x-import`, import report, limits; ADR qpdf vs pdf.js — §8.13 [feature on fixtures]
+- [x] M2-T16 Fillable-PDF import: fixture generator (pdf-lib), qpdf JSON parser job, mapping table, repeater detection, `x-import`, import report, limits; ADR qpdf vs pdf.js — §8.13 [feature on fixtures]
 - [ ] M2-T17 E2E journeys 2 (template → edit → preview → publish) and 8 (PDF import); API isolation cases — §12 [Playwright]
 - [ ] M2-T18 Gate M2
 
