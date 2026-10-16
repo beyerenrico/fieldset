@@ -72,7 +72,7 @@ class RoleResource extends Resource
     private static function permissionOptions(?Role $record): array
     {
         $options = OrganizationOptions::grantablePermissions();
-        foreach ($record === null ? [] : $record->permissions as $permission) {
+        foreach ($record instanceof Role ? $record->permissions : [] as $permission) {
             $options[(int) $permission->id] ??= Permission::tryFrom($permission->name)?->label() ?? $permission->name;
         }
         ksort($options);

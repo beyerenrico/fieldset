@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 use App\Domain\Audit\Models\Activity;
 use App\Domain\Forms\Actions\SyncFormAccess;
+use App\Domain\Identity\Models\Organization;
 use App\Domain\Identity\Tenancy\TenantContext;
 use App\Domain\Submissions\Models\IdempotencyKey;
 use App\Http\Api\ApiResponse;
 use App\Http\Api\V1\Middleware\IdempotentRequest;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
@@ -22,7 +24,7 @@ beforeEach(function (): void {
 function idempotentEcho(): void
 {
     Route::middleware(['api', 'auth:sanctum', 'organization', IdempotentRequest::class])
-        ->post('api/v1/_test/idempotent', fn () => ApiResponse::ok(['empty' => new stdClass, 'list' => [], 'at' => microtime(true)]));
+        ->post('api/v1/_test/idempotent', fn (): JsonResponse => ApiResponse::ok(['empty' => new stdClass, 'list' => [], 'at' => microtime(true)]));
 }
 
 it('does not store error responses: the same key succeeds after the missing attachment was uploaded', function (): void {
@@ -93,7 +95,7 @@ it('replays JSON objects as objects', function (): void {
 it('keeps keys apart per organization for the same user', function (): void {
     idempotentEcho();
     $second = makeOrganization($this->s->owner, 'Second GmbH');
-    $call = fn ($org) => $this->withHeaders([...apiHeaders($this->s->owner, $org), 'Idempotency-Key' => 'shared-key-001'])
+    $call = fn (Organization $org) => $this->withHeaders([...apiHeaders($this->s->owner, $org), 'Idempotency-Key' => 'shared-key-001'])
         ->postJson('/api/v1/_test/idempotent', []);
 
     $call($this->s->org)->assertOk()->assertHeaderMissing('Idempotent-Replayed');

@@ -19,9 +19,9 @@ use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /** Idempotent uploads and authorized downloads of submission attachments (§9.2, §11). */
-final class AttachmentController
+final readonly class AttachmentController
 {
-    public function __construct(private readonly SubmissionVisibility $visibility) {}
+    public function __construct(private SubmissionVisibility $visibility) {}
 
     public function store(Request $request, string $uuid, StoreAttachment $store): JsonResponse
     {

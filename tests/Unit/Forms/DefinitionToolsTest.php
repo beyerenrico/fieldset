@@ -22,7 +22,7 @@ function nestedDefinition(): stdClass
 }
 
 it('walks elements in nested columns and repeaters in document order', function (): void {
-    expect(array_map(fn ($e) => $e->id, DefinitionTools::elements(nestedDefinition())))->toBe(['c', 'a', 'r', 'b']);
+    expect(array_map(fn (stdClass $e) => $e->id, DefinitionTools::elements(nestedDefinition())))->toBe(['c', 'a', 'r', 'b']);
 });
 
 it('regenerates every id without touching the input', function (): void {
@@ -32,7 +32,7 @@ it('regenerates every id without touching the input', function (): void {
         return 'id-'.++$n;
     });
 
-    expect(array_map(fn ($e) => $e->id, DefinitionTools::elements($copy)))->toBe(['id-2', 'id-3', 'id-4', 'id-5'])
+    expect(array_map(fn (stdClass $e) => $e->id, DefinitionTools::elements($copy)))->toBe(['id-2', 'id-3', 'id-4', 'id-5'])
         ->and($copy->pages[0]->id)->toBe('id-1')
         ->and($original->pages[0]->elements[0]->id)->toBe('c');
 });
@@ -44,7 +44,7 @@ it('reports page and settings changes and ignores page key renames for element p
     $to->settings = (object) ['layout' => 'wizard'];
     $to->pages[] = (object) ['id' => 'p2', 'key' => 'q', 'title' => 'Q', 'elements' => []];
 
-    $entries = collect(DefinitionDiff::compare($from, $to))->map(fn (DiffEntry $e) => [$e->change, $e->type, $e->id])->all();
+    $entries = collect(DefinitionDiff::compare($from, $to))->map(fn (DiffEntry $e): array => [$e->change, $e->type, $e->id])->all();
 
     expect($entries)->toBe([
         [DiffEntry::CHANGED, 'form', 'definition'],
@@ -68,7 +68,7 @@ it('reports moved and removed pages and skips malformed nodes', function (): voi
     $to = DefinitionTools::copy($from);
     $to->pages = [$to->pages[1], $to->pages[0]]; // swap p1/p2, drop p3
 
-    $entries = collect(DefinitionDiff::compare($from, $to))->map(fn (DiffEntry $e) => [$e->change, $e->type, $e->id])->all();
+    $entries = collect(DefinitionDiff::compare($from, $to))->map(fn (DiffEntry $e): array => [$e->change, $e->type, $e->id])->all();
 
     expect($entries)->toContain([DiffEntry::MOVED, 'page', 'p2'], [DiffEntry::MOVED, 'page', 'p1'], [DiffEntry::REMOVED, 'page', 'p3'])
         ->and(DefinitionTools::elements($from))->toHaveCount(5); // malformed entries are skipped, the typed stub is kept

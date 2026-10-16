@@ -35,12 +35,12 @@ final class SyncController
         $cursor = Carbon::now()->toIso8601String();
 
         $fillable = $access->fillable($user)->with('currentVersion')->get();
-        $viaMembership = $since === null ? [] : $this->formsReachedThroughNewMemberships($user, $tenant->require(), $since);
-        $changed = $since === null ? $fillable : $fillable->filter(fn (Form $f): bool => $f->updated_at === null
-            || $f->updated_at->greaterThanOrEqualTo($since) || in_array((int) $f->id, $viaMembership, true));
+        $viaMembership = $since instanceof Carbon ? $this->formsReachedThroughNewMemberships($user, $tenant->require(), $since) : [];
+        $changed = $since instanceof Carbon ? $fillable->filter(fn (Form $f): bool => $f->updated_at === null
+            || $f->updated_at->greaterThanOrEqualTo($since) || in_array((int) $f->id, $viaMembership, true)) : $fillable;
         $fillableIds = $fillable->pluck('id')->map(fn (mixed $id): int => (int) $id)->values()->all();
-        $revoked = $since === null ? [] : Form::query()->where('updated_at', '>=', $since)->whereNotIn('id', $fillableIds)
-            ->pluck('id')->map(fn (mixed $id): int => (int) $id)->values()->all();
+        $revoked = $since instanceof Carbon ? Form::query()->where('updated_at', '>=', $since)->whereNotIn('id', $fillableIds)
+            ->pluck('id')->map(fn (mixed $id): int => (int) $id)->values()->all() : [];
 
         return ApiResponse::ok([
             'cursor' => $cursor,

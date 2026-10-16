@@ -7,6 +7,8 @@ namespace App\Domain\Forms\Models;
 use App\Domain\Identity\Models\Group;
 use App\Domain\Identity\Tenancy\BelongsToOrganization;
 use Database\Factories\FormAccessFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -23,16 +25,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $role_name
  */
 #[UseFactory(FormAccessFactory::class)]
+#[Fillable(['form_id', 'group_id', 'role_name'])]
+#[Table(name: 'form_access')]
 class FormAccess extends Model
 {
     use BelongsToOrganization;
 
     /** @use HasFactory<FormAccessFactory> */
     use HasFactory;
-
-    protected $table = 'form_access';
-
-    protected $fillable = ['form_id', 'group_id', 'role_name'];
 
     protected $attributes = ['group_id' => null, 'role_name' => null];
 

@@ -30,9 +30,9 @@ final class BuilderMapper
     public function toState(stdClass $definition): array
     {
         $codec = $this->codec(KeyTypes::fromDefinition($definition));
-        $state = ['_source' => Json::encode(self::without($definition, 'pages'))];
-        $state += $this->read($codec, $definition, self::definitionFields());
-        $state['pages'] = array_map(fn (mixed $page): array => $this->pageToState($codec, $page), self::list($definition->pages ?? []));
+        $state = ['_source' => Json::encode($this->without($definition, 'pages'))];
+        $state += $this->read($codec, $definition, $this->definitionFields());
+        $state['pages'] = array_map(fn (mixed $page): array => $this->pageToState($codec, $page), $this->list($definition->pages ?? []));
 
         return $state;
     }
@@ -43,9 +43,9 @@ final class BuilderMapper
         $this->seenIds = [];
         $codec = $this->codec(KeyTypes::fromState($state));
         $source = FieldCodec::decodeObject($state['_source'] ?? null);
-        $definition = $this->apply($codec, $source, $state, self::definitionFields());
-        self::dropIncompleteNumbering($definition, $source);
-        $definition->pages = array_map(fn (mixed $page): stdClass => $this->pageFromState($codec, $page), array_values(self::arr($state['pages'] ?? [])));
+        $definition = $this->apply($codec, $source, $state, $this->definitionFields());
+        $this->dropIncompleteNumbering($definition, $source);
+        $definition->pages = array_map(fn (mixed $page): stdClass => $this->pageFromState($codec, $page), array_values($this->arr($state['pages'] ?? [])));
 
         return $definition;
     }
@@ -55,16 +55,16 @@ final class BuilderMapper
     {
         $page = $page instanceof stdClass ? $page : new stdClass;
 
-        return ['_source' => Json::encode(self::without($page, 'elements')), 'id' => self::str($page->id ?? null)]
-            + $this->read($codec, $page, self::pageFields())
+        return ['_source' => Json::encode($this->without($page, 'elements')), 'id' => $this->str($page->id ?? null)]
+            + $this->read($codec, $page, $this->pageFields())
             + ['elements' => $this->blocksToState($codec, $page->elements ?? [])];
     }
 
     private function pageFromState(FieldCodec $codec, mixed $state): stdClass
     {
-        $state = self::arr($state);
-        $page = $this->apply($codec, FieldCodec::decodeObject($state['_source'] ?? null), $state, self::pageFields());
-        $id = self::str($state['id'] ?? null);
+        $state = $this->arr($state);
+        $page = $this->apply($codec, FieldCodec::decodeObject($state['_source'] ?? null), $state, $this->pageFields());
+        $id = $this->str($state['id'] ?? null);
         if ($id !== '' || property_exists($page, 'id')) {
             $page->id = $id !== '' ? $id : BlankDefinition::id();
         }
@@ -77,22 +77,22 @@ final class BuilderMapper
     private function blocksToState(FieldCodec $codec, mixed $elements): array
     {
         $blocks = [];
-        foreach (self::list($elements) as $element) {
+        foreach ($this->list($elements) as $element) {
             if (! $element instanceof stdClass) {
                 continue;
             }
-            $type = self::str($element->type ?? null);
-            $data = ['_source' => Json::encode(self::without($element, 'elements', 'columns')), 'id' => self::str($element->id ?? null),
-                'key' => self::str($element->key ?? null), 'key_locked' => in_array($element->id ?? null, $this->lockedIds, true)];
+            $type = $this->str($element->type ?? null);
+            $data = ['_source' => Json::encode($this->without($element, 'elements', 'columns')), 'id' => $this->str($element->id ?? null),
+                'key' => $this->str($element->key ?? null), 'key_locked' => in_array($element->id ?? null, $this->lockedIds, true)];
             $data += $this->read($codec, $element, ElementFields::for($type));
             if (in_array($type, self::CONTAINERS, true)) {
                 $data['elements'] = $this->blocksToState($codec, $element->elements ?? []);
             }
             if ($type === 'columns') {
                 $data['columns'] = array_map(fn (mixed $column): array => [
-                    '_source' => Json::encode(self::without($column instanceof stdClass ? $column : new stdClass, 'elements')),
+                    '_source' => Json::encode($this->without($column instanceof stdClass ? $column : new stdClass, 'elements')),
                     'elements' => $this->blocksToState($codec, $column instanceof stdClass ? ($column->elements ?? []) : []),
-                ], self::list($element->columns ?? []));
+                ], $this->list($element->columns ?? []));
             }
             $blocks[] = ['type' => $type, 'data' => $data];
         }
@@ -104,10 +104,10 @@ final class BuilderMapper
     private function blocksFromState(FieldCodec $codec, mixed $blocks): array
     {
         $elements = [];
-        foreach (array_values(self::arr($blocks)) as $block) {
-            $block = self::arr($block);
-            $type = self::str($block['type'] ?? null);
-            $data = self::arr($block['data'] ?? []);
+        foreach (array_values($this->arr($blocks)) as $block) {
+            $block = $this->arr($block);
+            $type = $this->str($block['type'] ?? null);
+            $data = $this->arr($block['data'] ?? []);
             $source = FieldCodec::decodeObject($data['_source'] ?? null);
             $element = $this->apply($codec, $source, $data, ElementFields::for($type));
             $element->type = $type;
@@ -117,14 +117,14 @@ final class BuilderMapper
             }
             if ($type === 'columns') {
                 $element->columns = array_map(function (mixed $column) use ($codec): stdClass {
-                    $column = self::arr($column);
+                    $column = $this->arr($column);
                     $object = FieldCodec::decodeObject($column['_source'] ?? null);
                     $object->elements = $this->blocksFromState($codec, $column['elements'] ?? []);
 
                     return $object;
-                }, array_values(self::arr($data['columns'] ?? [])));
+                }, array_values($this->arr($data['columns'] ?? [])));
             }
-            $elements[] = self::ordered($element);
+            $elements[] = $this->ordered($element);
         }
 
         return $elements;
@@ -133,9 +133,9 @@ final class BuilderMapper
     /** @param  array<string, mixed>  $data */
     private function assignIdentity(stdClass $element, stdClass $source, array $data): void
     {
-        $id = self::str($data['id'] ?? null);
-        $key = self::str($data['key'] ?? null);
-        $originalKey = self::str($source->key ?? null);
+        $id = $this->str($data['id'] ?? null);
+        $key = $this->str($data['key'] ?? null);
+        $originalKey = $this->str($source->key ?? null);
 
         if ($id !== '' && in_array($id, $this->lockedIds, true) && $originalKey !== '') {
             $key = $originalKey;
@@ -198,7 +198,7 @@ final class BuilderMapper
     }
 
     /** @return list<F> */
-    private static function definitionFields(): array
+    private function definitionFields(): array
     {
         return [
             new F('title', ['title'], F::STRING), new F('locale', ['locale'], F::STRING),
@@ -211,14 +211,14 @@ final class BuilderMapper
     }
 
     /** @return list<F> */
-    private static function pageFields(): array
+    private function pageFields(): array
     {
         return [new F('key', ['key'], F::STRING), new F('title', ['title'], F::STRING),
             new F('description', ['description'], F::STRING), new F('visible_if', ['visibleIf'], F::LOGIC)];
     }
 
     /** Clearing the numbering format in the builder removes numbering altogether. */
-    private static function dropIncompleteNumbering(stdClass $definition, stdClass $source): void
+    private function dropIncompleteNumbering(stdClass $definition, stdClass $source): void
     {
         $numbering = JsonPath::get($definition, ['settings', 'numbering']);
         if ($numbering instanceof stdClass && ! is_string($numbering->format ?? null)) {
@@ -231,7 +231,7 @@ final class BuilderMapper
     }
 
     /** id, type and key first for readable JSON. */
-    private static function ordered(stdClass $element): stdClass
+    private function ordered(stdClass $element): stdClass
     {
         $ordered = new stdClass;
         foreach (['id', 'type', 'key'] as $first) {
@@ -246,7 +246,7 @@ final class BuilderMapper
         return $ordered;
     }
 
-    private static function without(stdClass $node, string ...$properties): stdClass
+    private function without(stdClass $node, string ...$properties): stdClass
     {
         $copy = Json::decode(Json::encode($node));
         $copy = $copy instanceof stdClass ? $copy : new stdClass;
@@ -258,18 +258,18 @@ final class BuilderMapper
     }
 
     /** @return list<mixed> */
-    private static function list(mixed $value): array
+    private function list(mixed $value): array
     {
         return is_array($value) ? array_values($value) : [];
     }
 
     /** @return array<array-key, mixed> */
-    private static function arr(mixed $value): array
+    private function arr(mixed $value): array
     {
         return is_array($value) ? $value : [];
     }
 
-    private static function str(mixed $value): string
+    private function str(mixed $value): string
     {
         return is_string($value) ? $value : '';
     }

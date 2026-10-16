@@ -6,7 +6,9 @@ namespace App\Domain\Submissions\Models;
 
 use App\Domain\Identity\Tenancy\BelongsToOrganization;
 use Database\Factories\AttachmentFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
+use Illuminate\Database\Eloquent\Attributes\WithoutIncrementing;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -29,6 +31,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int|null $created_by
  */
 #[UseFactory(AttachmentFactory::class)]
+#[Fillable(['uuid', 'submission_uuid', 'kind', 'element_key', 'original_name', 'mime', 'size', 'sha256', 'disk', 'path', 'created_by'])]
+#[WithoutIncrementing]
 class Attachment extends Model
 {
     use BelongsToOrganization;
@@ -40,11 +44,7 @@ class Attachment extends Model
 
     protected $primaryKey = 'uuid';
 
-    public $incrementing = false;
-
     protected $keyType = 'string';
-
-    protected $fillable = ['uuid', 'submission_uuid', 'kind', 'element_key', 'original_name', 'mime', 'size', 'sha256', 'disk', 'path', 'created_by'];
 
     protected $attributes = ['original_name' => null, 'created_by' => null];
 

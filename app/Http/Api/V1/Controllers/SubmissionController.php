@@ -19,9 +19,9 @@ use Illuminate\Http\Request;
 use stdClass;
 
 /** Drafts, submit, list and detail (§9.2, §10). Thin: all rules live in the Submissions domain. */
-final class SubmissionController
+final readonly class SubmissionController
 {
-    public function __construct(private readonly SubmissionVisibility $visibility) {}
+    public function __construct(private SubmissionVisibility $visibility) {}
 
     public function index(Request $request): JsonResponse
     {

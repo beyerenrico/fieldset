@@ -7,6 +7,7 @@ namespace App\Domain\Submissions\Models;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Tenancy\BelongsToOrganization;
 use Database\Factories\SubmissionEventFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -26,6 +27,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon $created_at
  */
 #[UseFactory(SubmissionEventFactory::class)]
+#[Fillable(['submission_uuid', 'from_status', 'to_status', 'actor_id', 'comment'])]
 class SubmissionEvent extends Model
 {
     use BelongsToOrganization;
@@ -34,8 +36,6 @@ class SubmissionEvent extends Model
     use HasFactory;
 
     public const UPDATED_AT = null;
-
-    protected $fillable = ['submission_uuid', 'from_status', 'to_status', 'actor_id', 'comment'];
 
     protected $attributes = ['from_status' => null, 'actor_id' => null, 'comment' => null];
 

@@ -63,5 +63,5 @@ it('escapes values inside link destinations without breaking the URL', function 
 it('builds templates from stored step configuration and rejects oversized ones', function (): void {
     expect(MailTemplate::fromArray(['subject' => 'S', 'body' => 'B', 'extra' => 1])->toArray())->toBe(['subject' => 'S', 'body' => 'B'])
         ->and(MailTemplate::fromArray(['subject' => ['x']])->subject)->toBe('')
-        ->and(fn () => new MailTemplate(str_repeat('x', 256), ''))->toThrow(InvalidArgumentException::class);
+        ->and(fn (): MailTemplate => new MailTemplate(str_repeat('x', 256), ''))->toThrow(InvalidArgumentException::class);
 });

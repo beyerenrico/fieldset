@@ -18,7 +18,7 @@ final readonly class ExportDefinition
 
     public function handle(Form $form, ?FormVersion $version, User $actor): string
     {
-        $definition = $version !== null ? $version->definition : $form->draft_definition;
+        $definition = $version instanceof FormVersion ? $version->definition : $form->draft_definition;
         $settings = $definition->settings ?? null;
         $document = $settings instanceof stdClass ? ($settings->document ?? null) : null;
 

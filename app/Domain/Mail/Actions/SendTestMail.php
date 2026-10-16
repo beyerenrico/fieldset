@@ -11,9 +11,9 @@ use App\Domain\Mail\Mailables\TestMail;
 use App\Domain\Mail\Models\MailMessage;
 
 /** Queues a branded test mail to the acting user with the saved mail settings. */
-final class SendTestMail
+final readonly class SendTestMail
 {
-    public function __construct(private readonly TenantContext $tenant, private readonly QueueMail $queue) {}
+    public function __construct(private TenantContext $tenant, private QueueMail $queue) {}
 
     public function handle(User $user): MailMessage
     {

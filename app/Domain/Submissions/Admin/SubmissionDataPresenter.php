@@ -33,10 +33,10 @@ final readonly class SubmissionDataPresenter
     public function pages(stdClass $definition, stdClass $data): array
     {
         $pages = [];
-        foreach (self::list($definition->pages ?? null) as $page) {
-            $items = $this->items(self::list($page->elements ?? null), $data);
+        foreach ($this->list($definition->pages ?? null) as $page) {
+            $items = $this->items($this->list($page->elements ?? null), $data);
             if ($items !== []) {
-                $pages[] = ['title' => self::text($page->title ?? null, self::text($page->key ?? null, '')), 'items' => $items];
+                $pages[] = ['title' => $this->text($page->title ?? null, $this->text($page->key ?? null, '')), 'items' => $items];
             }
         }
 
@@ -51,18 +51,18 @@ final readonly class SubmissionDataPresenter
     {
         $items = [];
         foreach ($elements as $element) {
-            $type = self::text($element->type ?? null, '');
+            $type = $this->text($element->type ?? null, '');
             if ($type === 'section') {
-                $children = $this->items(self::list($element->elements ?? null), $scope);
+                $children = $this->items($this->list($element->elements ?? null), $scope);
                 if ($children !== []) {
-                    $items[] = ['kind' => 'group', 'label' => self::text($element->label ?? null, ''), 'items' => $children];
+                    $items[] = ['kind' => 'group', 'label' => $this->text($element->label ?? null, ''), 'items' => $children];
                 }
             } elseif ($type === 'columns') {
-                foreach (self::list($element->columns ?? null) as $column) {
-                    array_push($items, ...$this->items(self::list($column->elements ?? null), $scope));
+                foreach ($this->list($element->columns ?? null) as $column) {
+                    array_push($items, ...$this->items($this->list($column->elements ?? null), $scope));
                 }
-            } elseif (! in_array($type, self::LAYOUT, true) && property_exists($scope, self::text($element->key ?? null, ''))) {
-                $items[] = $this->item($element, $scope->{self::text($element->key ?? null, '')});
+            } elseif (! in_array($type, self::LAYOUT, true) && property_exists($scope, $this->text($element->key ?? null, ''))) {
+                $items[] = $this->item($element, $scope->{$this->text($element->key ?? null, '')});
             }
         }
 
@@ -72,7 +72,7 @@ final readonly class SubmissionDataPresenter
     /** @return array<string, mixed> */
     private function item(stdClass $element, mixed $value): array
     {
-        $label = self::text($element->label ?? null, self::text($element->key ?? null, ''));
+        $label = $this->text($element->label ?? null, $this->text($element->key ?? null, ''));
 
         return match ($element->type ?? null) {
             'repeater' => $this->table($element, $label, $value),
@@ -85,18 +85,18 @@ final readonly class SubmissionDataPresenter
     /** @return array<string, mixed> */
     private function table(stdClass $element, string $label, mixed $rows): array
     {
-        $columns = $this->dataElements(self::list($element->elements ?? null));
+        $columns = $this->dataElements($this->list($element->elements ?? null));
         $cells = fn (mixed $row): array => array_map(
-            fn (stdClass $column): array => $row instanceof stdClass && property_exists($row, self::text($column->key ?? null, ''))
-                ? $this->item($column, $row->{self::text($column->key ?? null, '')})
-                : ['kind' => 'field', 'label' => self::text($column->label ?? null, ''), 'value' => ValueFormatter::EMPTY],
+            fn (stdClass $column): array => $row instanceof stdClass && property_exists($row, $this->text($column->key ?? null, ''))
+                ? $this->item($column, $row->{$this->text($column->key ?? null, '')})
+                : ['kind' => 'field', 'label' => $this->text($column->label ?? null, ''), 'value' => ValueFormatter::EMPTY],
             $columns,
         );
 
         return [
             'kind' => 'table',
             'label' => $label,
-            'columns' => array_map(fn (stdClass $c): string => self::text($c->label ?? null, self::text($c->key ?? null, '')), $columns),
+            'columns' => array_map(fn (stdClass $c): string => $this->text($c->label ?? null, $this->text($c->key ?? null, '')), $columns),
             'rows' => array_map($cells, is_array($rows) ? array_values($rows) : []),
         ];
     }
@@ -109,7 +109,7 @@ final readonly class SubmissionDataPresenter
         }
 
         $signedAt = is_string($value->signedAt ?? null) ? $this->formatter->dateTime($value->signedAt) : null;
-        $caption = implode(' · ', array_filter([self::text($value->signerName ?? null, ''), $signedAt], fn (?string $s): bool => $s !== null && $s !== ''));
+        $caption = implode(' · ', array_filter([$this->text($value->signerName ?? null, ''), $signedAt], fn (?string $s): bool => $s !== null && $s !== ''));
 
         return ['kind' => 'media', 'label' => $label, 'files' => $this->files([$value->attachment ?? null]), 'caption' => $caption !== '' ? $caption : null];
     }
@@ -149,12 +149,12 @@ final readonly class SubmissionDataPresenter
     {
         $result = [];
         foreach ($elements as $element) {
-            $type = self::text($element->type ?? null, '');
+            $type = $this->text($element->type ?? null, '');
             if ($type === 'section') {
-                array_push($result, ...$this->dataElements(self::list($element->elements ?? null)));
+                array_push($result, ...$this->dataElements($this->list($element->elements ?? null)));
             } elseif ($type === 'columns') {
-                foreach (self::list($element->columns ?? null) as $column) {
-                    array_push($result, ...$this->dataElements(self::list($column->elements ?? null)));
+                foreach ($this->list($element->columns ?? null) as $column) {
+                    array_push($result, ...$this->dataElements($this->list($column->elements ?? null)));
                 }
             } elseif (! in_array($type, self::LAYOUT, true)) {
                 $result[] = $element;
@@ -165,12 +165,12 @@ final readonly class SubmissionDataPresenter
     }
 
     /** @return list<stdClass> */
-    private static function list(mixed $value): array
+    private function list(mixed $value): array
     {
         return is_array($value) ? array_values(array_filter($value, fn (mixed $v): bool => $v instanceof stdClass)) : [];
     }
 
-    private static function text(mixed $value, string $fallback): string
+    private function text(mixed $value, string $fallback): string
     {
         return is_string($value) && $value !== '' ? $value : $fallback;
     }

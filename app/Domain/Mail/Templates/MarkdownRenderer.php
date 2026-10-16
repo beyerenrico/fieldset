@@ -23,7 +23,7 @@ final class MarkdownRenderer
 
     private function converter(): MarkdownConverter
     {
-        if ($this->converter === null) {
+        if (! $this->converter instanceof MarkdownConverter) {
             $environment = new Environment(['html_input' => 'escape', 'allow_unsafe_links' => false, 'max_nesting_level' => 20]);
             $environment->addExtension(new CommonMarkCoreExtension);
             $this->converter = new MarkdownConverter($environment);

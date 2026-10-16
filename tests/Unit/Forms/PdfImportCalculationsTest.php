@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Forms\Import\Mapping\CalculationMapper;
+use App\Domain\Forms\Import\Model\TextRun;
 use App\Domain\Forms\Import\Qpdf\ContentStreamText;
 use FormSchema\Json\Json;
 
@@ -68,7 +69,7 @@ it('extracts positioned text from content streams', function (): void {
 
     $runs = ContentStreamText::extract($stream, 3, ['F2' => true]);
 
-    expect(array_map(fn ($r) => [$r->text, $r->x, $r->y, $r->page], $runs))->toBe([
+    expect(array_map(fn (TextRun $r): array => [$r->text, $r->x, $r->y, $r->page], $runs))->toBe([
         ['Customer:', 110.0, 720.0, 3],
         ['Unit price', 50.0, 600.0, 3],
         ['next (line)', 50.0, 586.0, 3],

@@ -113,13 +113,13 @@ final class SubmissionValueProjector
             'path' => mb_substr($path, 0, 255),
             'role' => is_string($element->role ?? null) ? $element->role : null,
             'value_text' => is_scalar($value) ? (is_bool($value) ? ($value ? 'true' : 'false') : (string) $value) : json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
-            'value_num' => $numeric ? self::numeric($value) : null,
+            'value_num' => $numeric ? $this->numeric($value) : null,
             'value_date' => in_array($element->type, ['date', 'datetime'], true) && is_string($value) ? substr($value, 0, 10) : null,
         ];
     }
 
     /** Fits numeric(38,10)? Otherwise only the text column carries the value. */
-    private static function numeric(mixed $value): ?string
+    private function numeric(mixed $value): ?string
     {
         $text = is_int($value) ? (string) $value : (is_string($value) ? $value : '');
 

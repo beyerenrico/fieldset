@@ -28,7 +28,7 @@ final class RowDetector
         $columns = [];
         $templates = [];
         foreach ($fields as $field) {
-            $candidate = in_array($field->type, self::ELIGIBLE, true) ? self::candidate($field->field->name) : null;
+            $candidate = in_array($field->type, self::ELIGIBLE, true) ? $this->candidate($field->field->name) : null;
             if ($candidate === null) {
                 continue;
             }
@@ -114,7 +114,7 @@ final class RowDetector
             ? ($kind === 'h-col' ? '*.{n}' : '*{n}')
             : $templates[$first];
 
-        return new Table($stem, $template, $columns, $indices, self::aligned($columns));
+        return new Table($stem, $template, $columns, $indices, $this->aligned($columns));
     }
 
     /**
@@ -123,7 +123,7 @@ final class RowDetector
      *
      * @return array{kind: string, stem: ?string, column: string, index: int, template: string}|null
      */
-    private static function candidate(string $name): ?array
+    private function candidate(string $name): ?array
     {
         if (preg_match_all('/\d+/', $name, $matches, PREG_OFFSET_CAPTURE) === 0) {
             return null;
@@ -133,7 +133,7 @@ final class RowDetector
         foreach ($matches[0] as [$digits, $offset]) {
             $prefix = substr($name, 0, $offset);
             $suffix = substr($name, $offset + strlen($digits));
-            $candidate = self::shape($prefix, $suffix, (int) $digits);
+            $candidate = $this->shape($prefix, $suffix, (int) $digits);
             if ($candidate !== null && strlen($digits) <= 4
                 && ($best === null || self::KIND_PRIORITY[$candidate['kind']] >= self::KIND_PRIORITY[$best['kind']])) {
                 $best = $candidate;
@@ -144,15 +144,15 @@ final class RowDetector
     }
 
     /** @return array{kind: string, stem: ?string, column: string, index: int, template: string}|null */
-    private static function shape(string $prefix, string $suffix, int $index): ?array
+    private function shape(string $prefix, string $suffix, int $index): ?array
     {
         $dotBefore = str_ends_with($prefix, '.');
         $dotAfter = str_starts_with($suffix, '.');
         [$kind, $stem, $column, $template] = match (true) {
             $dotBefore && $dotAfter => ['h-stem', substr($prefix, 0, -1), substr($suffix, 1), $prefix.'{n}.*'],
             $dotBefore && $suffix === '' => ['h-col', null, substr($prefix, 0, -1), $prefix.'{n}'],
-            $prefix !== '' && $suffix !== '' && ! $dotBefore && ! $dotAfter => ['f-stem', self::trimSeparators($prefix), self::trimSeparators($suffix), $prefix.'{n}*'],
-            $prefix !== '' && $suffix === '' && ! $dotBefore => ['f-end', null, self::trimSeparators($prefix), '*{n}'],
+            $prefix !== '' && $suffix !== '' && ! $dotBefore && ! $dotAfter => ['f-stem', $this->trimSeparators($prefix), $this->trimSeparators($suffix), $prefix.'{n}*'],
+            $prefix !== '' && $suffix === '' && ! $dotBefore => ['f-end', null, $this->trimSeparators($prefix), '*{n}'],
             default => [null, null, '', ''],
         };
 
@@ -163,7 +163,7 @@ final class RowDetector
         return ['kind' => $kind, 'stem' => $stem, 'column' => $column, 'index' => $index, 'template' => $template];
     }
 
-    private static function trimSeparators(string $part): string
+    private function trimSeparators(string $part): string
     {
         return trim($part, ' _-#.:');
     }
@@ -182,7 +182,7 @@ final class RowDetector
      *
      * @param  array<string, array<int, MappedField>>  $columns
      */
-    private static function aligned(array $columns): bool
+    private function aligned(array $columns): bool
     {
         $rows = [];
         foreach ($columns as $cells) {

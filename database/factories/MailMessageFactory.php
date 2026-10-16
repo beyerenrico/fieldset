@@ -26,7 +26,7 @@ class MailMessageFactory extends Factory
             'status' => MailStatus::Queued,
             'mailable_class' => TestMail::class,
             'payload' => fn (array $attrs): string => serialize(
-                (new TestMail(app(TenantContext::class)->require()))->to($attrs['recipient_email'])
+                new TestMail(app(TenantContext::class)->require())->to($attrs['recipient_email'])
             ),
             'queued_at' => now(),
         ];

@@ -93,7 +93,7 @@ final class ScriptPatterns
             $symbol === '$' || $upper === 'US$' || $upper === 'USD' => 'USD',
             $symbol === '£' || $upper === 'GBP' => 'GBP',
             $symbol === '¥' || $upper === 'JPY' => 'JPY',
-            $upper === 'CHF' || $upper === 'FR.' || $upper === 'SFR.' => 'CHF',
+            in_array($upper, ['CHF', 'FR.', 'SFR.'], true) => 'CHF',
             $upper === 'ZŁ' || $upper === 'PLN' => 'PLN',
             preg_match('/^[A-Z]{3}$/', $symbol) === 1 => $symbol,
             default => '?',
@@ -132,7 +132,7 @@ final class ScriptPatterns
     /** @return list<string> */
     private static function commaList(string $list): array
     {
-        return array_values(array_filter(array_map('trim', explode(',', $list)), static fn (string $name): bool => $name !== ''));
+        return array_values(array_filter(array_map(trim(...), explode(',', $list)), static fn (string $name): bool => $name !== ''));
     }
 
     private static function unescape(string $value): string

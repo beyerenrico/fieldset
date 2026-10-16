@@ -62,7 +62,7 @@ final class CsvInvitationParser
             $contents = substr($contents, 3);
         }
 
-        return mb_check_encoding($contents, 'UTF-8') ? $contents : (string) mb_convert_encoding($contents, 'UTF-8', 'Windows-1252');
+        return mb_check_encoding($contents, 'UTF-8') ? $contents : mb_convert_encoding($contents, 'UTF-8', 'Windows-1252');
     }
 
     private function delimiter(string $contents): string

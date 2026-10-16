@@ -84,7 +84,7 @@ class EditForm extends EditRecord
         } catch (InvalidDefinitionException|InvalidArgumentException $e) {
             Notification::make()->danger()->title($e->getMessage())->send();
 
-            throw new Halt;
+            throw new Halt($e->getMessage(), $e->getCode(), $e);
         }
 
         return $record;
@@ -124,8 +124,8 @@ class EditForm extends EditRecord
         if (! $autosave) {
             app(SyncFormAccess::class)->handle(
                 $record,
-                array_values(array_map('intval', is_array($data['access_groups'] ?? null) ? $data['access_groups'] : [])),
-                array_values(array_map('strval', is_array($data['access_roles'] ?? null) ? $data['access_roles'] : [])),
+                array_values(array_map(intval(...), is_array($data['access_groups'] ?? null) ? $data['access_groups'] : [])),
+                array_values(array_map(strval(...), is_array($data['access_roles'] ?? null) ? $data['access_roles'] : [])),
                 $this->actor(),
             );
         }
@@ -179,7 +179,7 @@ class EditForm extends EditRecord
             ->action(function (): StreamedResponse {
                 $json = app(ExportDefinition::class)->handle($this->record, null, $this->actor());
 
-                return response()->streamDownload(fn () => print ($json), $this->record->key.'.draft.form.json', ['Content-Type' => 'application/json']);
+                return response()->streamDownload(fn (): int => print ($json), $this->record->key.'.draft.form.json', ['Content-Type' => 'application/json']);
             });
     }
 

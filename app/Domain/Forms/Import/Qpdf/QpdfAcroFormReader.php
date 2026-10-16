@@ -70,7 +70,7 @@ final readonly class QpdfAcroFormReader implements AcroFormReader
         if ($refs !== [] && count($refs) <= self::MAX_STREAMS) {
             $objects = array_map(static fn (string $ref): string => '--json-object='.str_replace(' ', ',', substr($ref, 0, -2)), $refs);
             [$data] = $this->run(['--json=2', '--json-key=qpdf', '--json-stream-data=inline', '--decode-level=generalized', ...$objects, $path]);
-            $streams = self::streams($data);
+            $streams = $this->streams($data);
         }
 
         return ['structure' => $structure, 'streams' => $streams, 'warnings' => $repaired ? ['damaged_file'] : []];
@@ -161,7 +161,7 @@ final readonly class QpdfAcroFormReader implements AcroFormReader
      * @param  array<string, mixed>  $data
      * @return array<string, string> `N G R` => decoded bytes
      */
-    private static function streams(array $data): array
+    private function streams(array $data): array
     {
         $streams = [];
         $objects = is_array($data['qpdf'][1] ?? null) ? $data['qpdf'][1] : [];

@@ -116,7 +116,7 @@ it('does not send a message twice when the job runs again after success', functi
     $message = $this->queue->handle(new TestMail($this->org->id), 'ann@example.com');
     MailFixtures::arrayTransport()->flush();
 
-    (new DeliverMail($message->id))->handle(app(OrganizationMailer::class), app(AuditLogger::class));
+    new DeliverMail($message->id)->handle(app(OrganizationMailer::class), app(AuditLogger::class));
 
     expect(MailFixtures::arrayTransport()->messages())->toHaveCount(0)
         ->and($message->fresh()->attempts)->toBe(1);

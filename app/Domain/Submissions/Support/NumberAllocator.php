@@ -30,7 +30,7 @@ final class NumberAllocator
             throw new LogicException('Numbers must be allocated inside the submit transaction.');
         }
 
-        [$format, $reset] = self::settings($version->definition);
+        [$format, $reset] = $this->settings($version->definition);
         $period = NumberFormat::period($reset, $at);
         $orgId = $version->organization_id;
         $formId = $version->form_id;
@@ -76,7 +76,7 @@ final class NumberAllocator
     }
 
     /** @return array{0: string, 1: string} format and reset rule */
-    private static function settings(stdClass $definition): array
+    private function settings(stdClass $definition): array
     {
         $numbering = $definition->settings->numbering ?? null;
         if (! $numbering instanceof stdClass || ! is_string($numbering->format ?? null)) {

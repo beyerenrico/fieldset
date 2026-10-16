@@ -11,7 +11,10 @@ use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Tenancy\BelongsToOrganization;
 use App\Domain\Submissions\Enums\SubmissionStatus;
 use Database\Factories\SubmissionFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\RouteKey;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
+use Illuminate\Database\Eloquent\Attributes\WithoutIncrementing;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -43,6 +46,9 @@ use stdClass;
  * @property-read FormVersion $formVersion
  */
 #[UseFactory(SubmissionFactory::class)]
+#[Fillable(['uuid', 'form_id', 'form_version_id', 'data', 'revision', 'created_by', 'updated_by', 'device', 'geo'])]
+#[RouteKey('uuid')]
+#[WithoutIncrementing]
 class Submission extends Model
 {
     use BelongsToOrganization;
@@ -52,11 +58,7 @@ class Submission extends Model
 
     protected $primaryKey = 'uuid';
 
-    public $incrementing = false;
-
     protected $keyType = 'string';
-
-    protected $fillable = ['uuid', 'form_id', 'form_version_id', 'data', 'revision', 'created_by', 'updated_by', 'device', 'geo'];
 
     protected $attributes = [
         'status' => 'draft', 'revision' => 1, 'number' => null, 'submitted_by' => null, 'submitted_at' => null,
@@ -73,11 +75,6 @@ class Submission extends Model
             'revision' => 'integer',
             'submitted_at' => 'datetime',
         ];
-    }
-
-    public function getRouteKeyName(): string
-    {
-        return 'uuid';
     }
 
     /** @return BelongsTo<Form, $this> */

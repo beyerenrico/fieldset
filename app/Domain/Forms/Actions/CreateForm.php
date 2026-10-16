@@ -40,9 +40,9 @@ final readonly class CreateForm
         $organization = $this->tenant->organization();
         $locale = $organization?->locale === 'en' ? 'en-GB' : 'de-DE';
 
-        $definition = $definition === null
-            ? BlankDefinition::make(BlankDefinition::keyFromName($name), $name, $locale)
-            : Json::decode(Json::encode($definition));
+        $definition = $definition instanceof stdClass
+            ? Json::decode(Json::encode($definition))
+            : BlankDefinition::make(BlankDefinition::keyFromName($name), $name, $locale);
         $base = is_string($definition->key ?? null) ? $definition->key : BlankDefinition::keyFromName($name);
         $definition->title = $name;
 

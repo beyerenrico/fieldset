@@ -33,7 +33,7 @@ final readonly class StoreAttachment
     public function handle(User $user, Submission $submission, string $attachmentUuid, string $kind, string $elementKey, string $bytes, ?string $originalName): array
     {
         $existing = $this->existing($attachmentUuid, $submission);
-        if ($existing !== null) {
+        if ($existing instanceof Attachment) {
             return [$existing, false];
         }
 
@@ -48,7 +48,7 @@ final readonly class StoreAttachment
 
         $validation = $element->validation ?? null;
         $maxKb = $validation instanceof stdClass && is_int($validation->maxSizeKb ?? null) ? $validation->maxSizeKb : intdiv(UploadInspector::MAX_BYTES, 1024);
-        $accept = $validation instanceof stdClass && is_array($validation->accept ?? null) ? array_values(array_filter($validation->accept, 'is_string')) : [];
+        $accept = $validation instanceof stdClass && is_array($validation->accept ?? null) ? array_values(array_filter($validation->accept, is_string(...))) : [];
         $file = $this->inspector->inspect($bytes, $kind, $maxKb * 1024, $accept);
 
         try {

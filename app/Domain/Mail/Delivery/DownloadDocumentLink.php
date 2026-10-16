@@ -17,9 +17,9 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
  * Serves a document link: 404 for unknown tokens, 410 Gone once expired (or when the file was
  * removed by retention), otherwise streams the file and records "document.downloaded".
  */
-final class DownloadDocumentLink
+final readonly class DownloadDocumentLink
 {
-    public function __construct(private readonly TenantContext $tenant, private readonly AuditLogger $audit) {}
+    public function __construct(private TenantContext $tenant, private AuditLogger $audit) {}
 
     public function handle(string $token): StreamedResponse
     {

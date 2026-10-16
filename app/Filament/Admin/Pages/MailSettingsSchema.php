@@ -37,7 +37,7 @@ final class MailSettingsSchema
                     TextInput::make('smtp_port')->label(__('mail.settings.smtp_port'))->integer()->minValue(1)->maxValue(65535)
                         ->required(fn (Get $get): bool => (bool) $get('smtp_enabled'))->visible(fn (Get $get): bool => (bool) $get('smtp_enabled')),
                     Select::make('smtp_encryption')->label(__('mail.settings.smtp_encryption'))->options(SmtpEncryption::options())
-                        ->live()->afterStateUpdated(fn (?string $state, Set $set) => $set('smtp_port', SmtpEncryption::tryFrom((string) $state)?->defaultPort()))
+                        ->live()->afterStateUpdated(fn (?string $state, Set $set): mixed => $set('smtp_port', SmtpEncryption::tryFrom((string) $state)?->defaultPort()))
                         ->required(fn (Get $get): bool => (bool) $get('smtp_enabled'))->visible(fn (Get $get): bool => (bool) $get('smtp_enabled')),
                     TextInput::make('smtp_from_address')->label(__('mail.settings.smtp_from_address'))->email()->maxLength(254)
                         ->helperText(__('mail.settings.smtp_from_address_help'))
@@ -61,7 +61,7 @@ final class MailSettingsSchema
      */
     public static function fill(?MailSetting $settings): array
     {
-        if ($settings === null) {
+        if (! $settings instanceof MailSetting) {
             return ['smtp_enabled' => false, 'smtp_encryption' => SmtpEncryption::StartTls->value, 'smtp_port' => 587];
         }
 

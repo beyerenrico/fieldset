@@ -16,9 +16,9 @@ use InvalidArgumentException;
  * The only way to send organization mail (§8.8): logs the message as queued and dispatches
  * DeliverMail after the surrounding transaction commits.
  */
-final class QueueMail
+final readonly class QueueMail
 {
-    public function __construct(private readonly TenantContext $tenant) {}
+    public function __construct(private TenantContext $tenant) {}
 
     public function handle(BrandedMail $mail, string $email, ?string $name = null, ?string $submissionUuid = null): MailMessage
     {

@@ -46,6 +46,6 @@ final class DeviceStatus
             return self::WIPE;
         }
 
-        return $sessionUser !== null && $sessionUser->is($device->user) ? self::OK : self::REAUTH;
+        return $sessionUser instanceof User && $sessionUser->is($device->user) ? self::OK : self::REAUTH;
     }
 }

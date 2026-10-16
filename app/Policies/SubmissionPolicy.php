@@ -16,13 +16,7 @@ final class SubmissionPolicy extends TenantPolicy
     /** Lists (admin inbox) need any scope of the row; SubmissionVisibility narrows the rows. */
     public function viewAny(User $user): bool
     {
-        foreach ([Permission::SubmissionsViewAll, Permission::SubmissionsViewOwnForms, Permission::SubmissionsViewAssigned, Permission::SubmissionsViewOwn] as $permission) {
-            if ($this->allows($user, $permission)) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_any([Permission::SubmissionsViewAll, Permission::SubmissionsViewOwnForms, Permission::SubmissionsViewAssigned, Permission::SubmissionsViewOwn], fn (Permission $permission): bool => $this->allows($user, $permission));
     }
 
     public function view(User $user, Submission $submission): bool

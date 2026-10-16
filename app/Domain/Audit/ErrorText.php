@@ -22,7 +22,7 @@ final class ErrorText
         $text = str_replace(array_values(array_filter($secrets, static fn (?string $s): bool => $s !== null && $s !== '')), Redactor::MASK, $error);
         $text = (string) preg_replace('#([a-z][a-z0-9+.-]*://)[^/\s:@]+:[^/\s@]*@#i', '$1'.Redactor::MASK.'@', $text);
         $text = (string) preg_replace(self::KEY_VALUE, '$1$2'.Redactor::MASK, $text);
-        $text = str_replace(rtrim(base_path(), '/').'/', '', $text);
+        $text = (string) preg_replace('#(?<![\w./-])'.preg_quote(rtrim(base_path(), '/'), '#').'/#', '', $text);
         $text = trim((string) preg_replace('/[\s\x00-\x1F\x7F]+/u', ' ', $text));
         if ($text === '') {
             return '—';

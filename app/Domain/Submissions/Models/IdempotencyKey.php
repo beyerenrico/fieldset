@@ -6,6 +6,7 @@ namespace App\Domain\Submissions\Models;
 
 use App\Domain\Identity\Tenancy\BelongsToOrganization;
 use Database\Factories\IdempotencyKeyFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -25,6 +26,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $response raw JSON body
  */
 #[UseFactory(IdempotencyKeyFactory::class)]
+#[Fillable(['user_id', 'key', 'request_hash', 'status_code', 'response'])]
 class IdempotencyKey extends Model
 {
     use BelongsToOrganization;
@@ -35,8 +37,6 @@ class IdempotencyKey extends Model
     use MassPrunable;
 
     public const UPDATED_AT = null;
-
-    protected $fillable = ['user_id', 'key', 'request_hash', 'status_code', 'response'];
 
     /**
      * Platform-level housekeeping across all organizations (`model:prune` runs without a tenant).

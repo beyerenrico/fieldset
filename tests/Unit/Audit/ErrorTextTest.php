@@ -22,6 +22,14 @@ it('drops the application path, control characters and collapses whitespace', fu
     expect($text)->toBe('Unable to open storage/app/x.pdf at line 3');
 });
 
+it('strips only path prefixes, also when the application lives at a short path like /app', function (): void {
+    app()->setBasePath('/app');
+
+    $text = ErrorText::scrub('Unable to open /app/storage/app/x.pdf (see "/app/vendor/a.php") in my/app/notes');
+
+    expect($text)->toBe('Unable to open storage/app/x.pdf (see "vendor/a.php") in my/app/notes');
+});
+
 it('truncates long messages', function (): void {
     $text = ErrorText::scrub(str_repeat('a', 2000));
 

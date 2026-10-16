@@ -19,11 +19,11 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * the attachment must belong to a submission the user may see (§8.6). Anything else is a 404, so foreign
  * ids are never confirmed.
  */
-final class AttachmentDownloadController
+final readonly class AttachmentDownloadController
 {
     public const int LINK_MINUTES = 60;
 
-    public function __construct(private readonly TenantContext $tenant) {}
+    public function __construct(private TenantContext $tenant) {}
 
     public static function signedUrl(Organization $organization, Attachment $attachment): string
     {

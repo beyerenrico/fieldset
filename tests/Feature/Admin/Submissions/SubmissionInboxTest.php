@@ -60,7 +60,7 @@ it('shows all submissions to owners, admins and viewers', function (SystemRole $
 })->with([SystemRole::Owner, SystemRole::Admin, SystemRole::Viewer]);
 
 it('shows designers the submissions of forms they created plus their own', function (): void {
-    $own = app(TenantContext::class)->run($this->s->org, fn () => InboxScenario::submission($this->s->ownerForm, $this->s->designer, 'submitted', 'SR-2026-00003', '2026-10-06 08:00'));
+    $own = app(TenantContext::class)->run($this->s->org, fn (): Submission => InboxScenario::submission($this->s->ownerForm, $this->s->designer, 'submitted', 'SR-2026-00003', '2026-10-06 08:00'));
     actingInAdmin($this->s->designer, $this->s->org);
 
     Livewire::test(ListSubmissions::class)

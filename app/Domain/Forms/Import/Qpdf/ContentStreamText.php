@@ -60,7 +60,7 @@ final class ContentStreamText
     {
         $operands = [];
         $arrays = [];
-        foreach (self::tokens($content) as [$kind, $value]) {
+        foreach ($this->tokens($content) as [$kind, $value]) {
             if (count($this->runs) >= self::MAX_RUNS) {
                 return;
             }
@@ -86,7 +86,7 @@ final class ContentStreamText
         match ($operator) {
             'q' => $this->ctmStack[] = $this->ctm,
             'Q' => $this->ctm = array_pop($this->ctmStack) ?? [1, 0, 0, 1, 0, 0],
-            'cm' => count($n) === 6 ? $this->ctm = self::multiply($n, $this->ctm) : null,
+            'cm' => count($n) === 6 ? $this->ctm = $this->multiply($n, $this->ctm) : null,
             'BT' => $this->tm = $this->tlm = [1, 0, 0, 1, 0, 0],
             'Tf' => $this->setFont($operands),
             'TL' => $this->leading = $n[0] ?? 0.0,
@@ -94,10 +94,10 @@ final class ContentStreamText
             'TD' => $this->moveLine($n[0] ?? 0.0, $n[1] ?? 0.0, true),
             'Tm' => count($n) === 6 ? $this->tm = $this->tlm = $n : null,
             'T*' => $this->moveLine(0.0, -$this->leading),
-            'Tj' => $this->show(self::strings($operands)),
-            "'" => $this->nextLineShow(self::strings($operands)),
-            '"' => $this->nextLineShow(self::strings(array_slice($operands, 2))),
-            'TJ' => $this->show(self::strings($operands)),
+            'Tj' => $this->show($this->strings($operands)),
+            "'" => $this->nextLineShow($this->strings($operands)),
+            '"' => $this->nextLineShow($this->strings(array_slice($operands, 2))),
+            'TJ' => $this->show($this->strings($operands)),
             default => null,
         };
     }
@@ -119,7 +119,7 @@ final class ContentStreamText
         if ($setLeading) {
             $this->leading = -$ty;
         }
-        $this->tlm = self::multiply([1, 0, 0, 1, $tx, $ty], $this->tlm);
+        $this->tlm = $this->multiply([1, 0, 0, 1, $tx, $ty], $this->tlm);
         $this->tm = $this->tlm;
     }
 
@@ -131,12 +131,12 @@ final class ContentStreamText
 
     private function show(string $bytes): void
     {
-        $text = isset($this->undecodableFonts[$this->font]) ? '' : self::decode($bytes);
+        $text = isset($this->undecodableFonts[$this->font]) ? '' : $this->decode($bytes);
         $chars = mb_strlen($text);
-        $m = self::multiply($this->tm, $this->ctm);
+        $m = $this->multiply($this->tm, $this->ctm);
         // Undecodable (two-byte) text still advances the pen by an estimate.
         $advance = 0.5 * $this->size * ($text === '' ? strlen($bytes) / 2 : $chars);
-        $this->tm = self::multiply([1, 0, 0, 1, $advance, 0], $this->tm);
+        $this->tm = $this->multiply([1, 0, 0, 1, $advance, 0], $this->tm);
 
         $clean = trim((string) preg_replace('/\s+/u', ' ', (string) preg_replace('/[\x00-\x1F\x7F]/u', ' ', $text)));
         if ($clean === '' || preg_match('/[\p{L}\p{N}]/u', $clean) !== 1) {
@@ -162,7 +162,7 @@ final class ContentStreamText
     }
 
     /** @param  list<array{0: string, 1: mixed}>  $operands */
-    private static function strings(array $operands): string
+    private function strings(array $operands): string
     {
         $out = '';
         foreach ($operands as [$kind, $value]) {
@@ -182,9 +182,9 @@ final class ContentStreamText
         return $out;
     }
 
-    private static function decode(string $bytes): string
+    private function decode(string $bytes): string
     {
-        return (string) mb_convert_encoding($bytes, 'UTF-8', 'Windows-1252');
+        return mb_convert_encoding($bytes, 'UTF-8', 'Windows-1252');
     }
 
     /**
@@ -192,7 +192,7 @@ final class ContentStreamText
      * @param  list<float>  $b
      * @return list<float>
      */
-    private static function multiply(array $a, array $b): array
+    private function multiply(array $a, array $b): array
     {
         return [
             $a[0] * $b[0] + $a[1] * $b[2],
@@ -209,7 +209,7 @@ final class ContentStreamText
      *
      * @return \Generator<int, array{0: string, 1: mixed}>
      */
-    private static function tokens(string $s): \Generator
+    private function tokens(string $s): \Generator
     {
         $length = strlen($s);
         $i = 0;
@@ -218,12 +218,12 @@ final class ContentStreamText
             if (str_contains(self::WHITESPACE, $c)) {
                 $i++;
             } elseif ($c === '%') {
-                $i = self::skipLine($s, $i);
+                $i = $this->skipLine($s, $i);
             } elseif ($c === '(') {
-                [$value, $i] = self::literal($s, $i + 1);
+                [$value, $i] = $this->literal($s, $i + 1);
                 yield ['str', $value];
             } elseif ($c === '<' && ($s[$i + 1] ?? '') === '<') {
-                $i = self::skipDictionary($s, $i);
+                $i = $this->skipDictionary($s, $i);
             } elseif ($c === '<') {
                 $end = strpos($s, '>', $i) ?: $length;
                 $hex = (string) preg_replace('/[^0-9A-Fa-f]/', '', substr($s, $i + 1, $end - $i - 1));
@@ -233,19 +233,19 @@ final class ContentStreamText
                 yield [$c, null];
                 $i++;
             } elseif ($c === '/') {
-                $end = self::regularEnd($s, $i + 1);
+                $end = $this->regularEnd($s, $i + 1);
                 yield ['name', substr($s, $i + 1, $end - $i - 1)];
                 $i = $end;
             } elseif (str_contains(self::DELIMITERS, $c)) {
                 $i++; // stray ')', '>', '{', '}'
             } else {
-                $end = self::regularEnd($s, $i);
+                $end = $this->regularEnd($s, $i);
                 $word = substr($s, $i, $end - $i);
                 $i = $end;
                 if (is_numeric($word)) {
                     yield ['num', (float) $word];
                 } elseif ($word === 'BI') {
-                    $i = self::skipInlineImage($s, $i);
+                    $i = $this->skipInlineImage($s, $i);
                 } else {
                     yield ['op', $word];
                 }
@@ -254,7 +254,7 @@ final class ContentStreamText
     }
 
     /** @return array{0: string, 1: int} */
-    private static function literal(string $s, int $i): array
+    private function literal(string $s, int $i): array
     {
         $out = '';
         $depth = 1;
@@ -284,7 +284,7 @@ final class ContentStreamText
         return [$out, $i];
     }
 
-    private static function regularEnd(string $s, int $i): int
+    private function regularEnd(string $s, int $i): int
     {
         $length = strlen($s);
         while ($i < $length && ! str_contains(self::WHITESPACE.self::DELIMITERS, $s[$i])) {
@@ -294,14 +294,14 @@ final class ContentStreamText
         return $i;
     }
 
-    private static function skipLine(string $s, int $i): int
+    private function skipLine(string $s, int $i): int
     {
         $end = strcspn($s, "\r\n", $i);
 
         return $i + $end;
     }
 
-    private static function skipDictionary(string $s, int $i): int
+    private function skipDictionary(string $s, int $i): int
     {
         $depth = 0;
         $length = strlen($s);
@@ -315,7 +315,7 @@ final class ContentStreamText
                     return $i;
                 }
             } elseif ($s[$i] === '(') {
-                [, $i] = self::literal($s, $i + 1);
+                [, $i] = $this->literal($s, $i + 1);
             } else {
                 $i++;
             }
@@ -324,7 +324,7 @@ final class ContentStreamText
         return $i;
     }
 
-    private static function skipInlineImage(string $s, int $i): int
+    private function skipInlineImage(string $s, int $i): int
     {
         if (preg_match('/\sEI(?=[\s]|$)/', $s, $m, PREG_OFFSET_CAPTURE, $i) === 1) {
             return (int) $m[0][1] + 3;

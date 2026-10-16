@@ -136,7 +136,7 @@ final readonly class FieldMapper
 
     private function button(AcroField $field): MappedField|string
     {
-        $options = self::options($field->options);
+        $options = $this->options($field->options);
         if ($field->isRadio()) {
             return $options === [] ? 'no_options' : new MappedField($field, 'radio', ['options' => $options]);
         }
@@ -150,7 +150,7 @@ final readonly class FieldMapper
 
     private function choice(AcroField $field): MappedField|string
     {
-        $options = self::options($field->options);
+        $options = $this->options($field->options);
         if ($options === []) {
             return 'no_options';
         }
@@ -166,7 +166,7 @@ final readonly class FieldMapper
      * @param  list<array{value: string, label: string}>  $options
      * @return list<array{value: string, label: string}>
      */
-    private static function options(array $options): array
+    private function options(array $options): array
     {
         $unique = [];
         foreach ($options as $option) {

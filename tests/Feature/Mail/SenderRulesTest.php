@@ -81,7 +81,7 @@ it('maps the encryption choice to the SMTP transport options', function (SmtpEnc
 it('refuses private SMTP hosts at send time (SSRF guard) and logs the failure', function (): void {
     MailSetting::factory()->withSmtp('169.254.169.254', 25, SmtpEncryption::None)->create();
 
-    expect(fn () => sendTestMail())->toThrow(RuntimeException::class, 'is not allowed');
+    expect(fn (): MailMessage => sendTestMail())->toThrow(RuntimeException::class, 'is not allowed');
     expect(MailMessage::query()->sole())->status->toBe(MailStatus::Failed)->error->toContain('not allowed');
 });
 

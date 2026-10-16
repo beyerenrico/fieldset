@@ -43,7 +43,7 @@ it('renders a submitted service report read-only with labels, tables, money and 
 
 it('keeps the labels of the pinned version after the form changes', function (): void {
     $scenario = InboxScenario::make();
-    $submission = app(TenantContext::class)->run($scenario->org, fn () => InboxScenario::submission(
+    $submission = app(TenantContext::class)->run($scenario->org, fn (): Submission => InboxScenario::submission(
         $scenario->ownerForm, $scenario->worker, 'submitted', 'SR-2026-00009', '2026-10-07 09:00', ['customer_name' => 'Musterbau AG'],
     ));
     app(TenantContext::class)->run($scenario->org, function () use ($scenario): void {

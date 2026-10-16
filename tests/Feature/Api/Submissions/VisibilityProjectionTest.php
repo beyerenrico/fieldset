@@ -35,7 +35,7 @@ it('shows workers only their own submissions unless their group shares them', fu
     $mine = draftFor($this->s->worker);
     $theirs = draftFor($peer);
 
-    $list = fn ($user) => $this->withHeaders(apiHeaders($user, $this->s->org))->getJson('/api/v1/submissions')->json('data.*.uuid');
+    $list = fn (User $user) => $this->withHeaders(apiHeaders($user, $this->s->org))->getJson('/api/v1/submissions')->json('data.*.uuid');
     expect($list($this->s->worker))->toBe([$mine]);
 
     app(TenantContext::class)->run($this->s->org, function () use ($peer): void {

@@ -36,10 +36,10 @@ final readonly class ImportPdfForm
     {
         $this->tenant->require();
         $document = $this->reader->read($path);
-        $title = self::title($name, $document->title, $fileName);
+        $title = $this->title($name, $document->title, $fileName);
         $locale = $this->tenant->organization()?->locale === 'en' ? 'en-GB' : 'de-DE';
 
-        $result = (new PdfDefinitionBuilder(lowConfidence: $this->lowConfidence))->build($document, $title, $locale);
+        $result = new PdfDefinitionBuilder(lowConfidence: $this->lowConfidence)->build($document, $title, $locale);
         if ($result->definition->pages === []) {
             throw new PdfImportException('no_fields');
         }
@@ -53,7 +53,7 @@ final readonly class ImportPdfForm
         });
     }
 
-    private static function title(?string $name, ?string $pdfTitle, ?string $fileName): string
+    private function title(?string $name, ?string $pdfTitle, ?string $fileName): string
     {
         $fromFile = $fileName === null ? '' : trim((string) preg_replace('/[\s_\-]+/u', ' ', pathinfo($fileName, PATHINFO_FILENAME)));
         foreach ([$name, $pdfTitle, $fromFile !== '' ? mb_strtoupper(mb_substr($fromFile, 0, 1)).mb_substr($fromFile, 1) : null] as $candidate) {

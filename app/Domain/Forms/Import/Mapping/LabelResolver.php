@@ -32,7 +32,7 @@ final class LabelResolver
      */
     public function resolve(AcroField $field, array $texts, string $fallbackName, ?string $tooltip = null): array
     {
-        $tooltip = self::tidy($tooltip ?? $field->tooltip ?? '');
+        $tooltip = $this->tidy($tooltip ?? $field->tooltip ?? '');
         if ($tooltip !== '') {
             return ['label' => $tooltip, 'source' => self::TOOLTIP];
         }
@@ -72,7 +72,7 @@ final class LabelResolver
         if ($best === null) {
             return null;
         }
-        $label = self::tidy($best[1]);
+        $label = $this->tidy($best[1]);
 
         return $label === '' ? null : $label;
     }
@@ -110,7 +110,7 @@ final class LabelResolver
         return $words === '' ? 'Field' : mb_strtoupper(mb_substr($words, 0, 1)).mb_substr($words, 1);
     }
 
-    private static function tidy(string $label): string
+    private function tidy(string $label): string
     {
         $label = trim((string) preg_replace('/\s+/u', ' ', $label));
 

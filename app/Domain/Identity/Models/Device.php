@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Identity\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
@@ -23,12 +25,10 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $wipe_requested_at
  * @property-read User $user
  */
+#[Fillable(['user_id', 'device_uuid', 'secret_hash', 'name', 'platform'])]
+#[Hidden(['secret_hash'])]
 class Device extends Model
 {
-    protected $fillable = ['user_id', 'device_uuid', 'secret_hash', 'name', 'platform'];
-
-    protected $hidden = ['secret_hash'];
-
     protected $attributes = ['name' => null, 'platform' => null, 'last_seen_at' => null, 'revoked_at' => null, 'wipe_requested_at' => null];
 
     protected function casts(): array

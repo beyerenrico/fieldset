@@ -40,7 +40,7 @@ final readonly class SaveSubmissionDraft
             $existing = Submission::query()->whereKey($uuid)->lockForUpdate()->first();
             if ($existing === null) {
                 $created = $this->create($user, $uuid, $formVersionId, $data, $device, $geo);
-                if ($created !== null) {
+                if ($created instanceof Submission) {
                     return [$created, true];
                 }
                 // A concurrent request created the uuid after our lookup: continue as its repeat.
@@ -90,7 +90,7 @@ final readonly class SaveSubmissionDraft
         if ($submission->form_version_id !== $formVersionId) {
             throw new ApiException('version_mismatch', __('submissions.errors.version_mismatch'), 409);
         }
-        if (self::repeatsLastSave($user, $submission, $data, $revision)) {
+        if ($this->repeatsLastSave($user, $submission, $data, $revision)) {
             return $submission;
         }
         if ($revision !== $submission->revision) {
@@ -110,7 +110,7 @@ final readonly class SaveSubmissionDraft
     }
 
     /** The request repeats the save that produced the stored revision (its response was lost). */
-    private static function repeatsLastSave(User $user, Submission $submission, stdClass $data, ?int $revision): bool
+    private function repeatsLastSave(User $user, Submission $submission, stdClass $data, ?int $revision): bool
     {
         return $submission->status->isEditable()
             && $submission->updated_by === $user->id
