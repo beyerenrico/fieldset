@@ -90,14 +90,14 @@ AC refs point at BUILD_PROMPT sections. Test approach in brackets.
 - [x] M4-T12 Gate M4
 
 ## M5 Reports + dashboards (branch `m5-reports`)
-- [ ] M5-T01 Submission explorer per form: Filament page with dynamic columns from schema keys (union across versions by key, labels from the newest version), filters (date, status, submitter, group, field values for select/boolean/date/number), search, bulk actions; queries `submission_values`; visibility per §8.6 — §8.4 [Livewire + AC: three versions]
-- [ ] M5-T02 Exports: custom queued export job (openspout, reusing Filament's `Export` model + completion notifications) as XLSX (repeaters on a second sheet linked by number) and CSV, bulk PDF ZIP of renditions; `export_ready` notification event; decimal-exact money — §8.4 [feature + AC: 10k in background, notifies]
-- [ ] M5-T03 Saved reports: form + filters + group-by + metric (count, sum, avg) as table and chart, decimal-exact sums in SQL; share within the organization by permission; scheduled report emails (weekly/monthly, CSV attachment) — §8.4 [feature]
-- [ ] M5-T04 Dashboards: role-aware defaults (Owner KPIs: submissions this week, pending reviews, stale drafts, documents sent; submissions over time per form; workflow failures — Reviewer: review queue, recent submissions — Designer: draft forms, recently published), date-range filter, per-org cache with short TTL; pin saved reports as widgets — §8.1 [Livewire + AC: tenant scoping]
-- [ ] M5-T05 Performance: load generator (`app:seed-load {org} {count}`), `submission_values` and widget queries index-backed at 100k submissions (EXPLAIN-based tests), export of 10k measured — §8.1 AC, §8.4 AC [feature + measurement]
-- [ ] M5-T06 Permissions: "Reports and exports" column (§8.6) + "View submissions" row for exported rows; audit exports — §8.6, §8.11 [matrix tests]
-- [ ] M5-T07 E2E: explorer columns across versions, export downloads with notification, saved report pinned on the dashboard — §12
-- [ ] M5-T08 Gate M5
+- [x] M5-T01 Submission explorer per form: Filament page with dynamic columns from schema keys (union across versions by key, labels from the newest version), filters (date, status, submitter, group, field values for select/boolean/date/number), search, bulk actions; queries `submission_values`; visibility per §8.6 — §8.4 [Livewire + AC: three versions]
+- [x] M5-T02 Exports: custom queued export job (openspout, reusing Filament's `Export` model + completion notifications) as XLSX (repeaters on a second sheet linked by number) and CSV, bulk PDF ZIP of renditions; `export_ready` notification event; decimal-exact money — §8.4 [feature + AC: 10k in background, notifies]
+- [x] M5-T03 Saved reports: form + filters + group-by + metric (count, sum, avg) as table and chart, decimal-exact sums in SQL; share within the organization by permission; scheduled report emails (weekly/monthly, CSV attachment) — §8.4 [feature]
+- [x] M5-T04 Dashboards: role-aware defaults (Owner KPIs: submissions this week, pending reviews, stale drafts, documents sent; submissions over time per form; workflow failures — Reviewer: review queue, recent submissions — Designer: draft forms, recently published), date-range filter, per-org cache with short TTL; pin saved reports as widgets — §8.1 [Livewire + AC: tenant scoping]
+- [x] M5-T05 Performance: load generator (`app:seed-load {org} {count}`), `submission_values` and widget queries index-backed at 100k submissions (EXPLAIN-based tests), export of 10k measured — §8.1 AC, §8.4 AC [feature + measurement]
+- [x] M5-T06 Permissions: "Reports and exports" column (§8.6) + "View submissions" row for exported rows; audit exports — §8.6, §8.11 [matrix tests]
+- [x] M5-T07 E2E: explorer columns across versions, export downloads with notification, saved report pinned on the dashboard — §12
+- [x] M5-T08 Gate M5
 
 ## M6 Offline-first — break down at M5 gate
 - Dexie store; outbox + sync engine (start/online/visibilitychange/manual, Background Sync enhancement); attachment queue + compression + EXIF strip; conflict UI on 409; storage persistence + iOS install prompt; logout wipe; device wipe; incremental manifest: fetch every `fillable_form_ids` entry not cached (role grants touch no form, ADR 0027); E2E journeys 3, 7.

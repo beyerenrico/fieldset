@@ -71,3 +71,11 @@
 - Reviews: no critical/high; ~25 medium/low fixed (47fcef4, 58d6e8e).
 - Gate: PHP 3594 tests, coverage 94.84 %, PHPStan 0/0, Rector/Pint clean, JS 606/110/297, E2E 18/18 ×2.
   CHANGELOG + release notes; tag v0.1.0.
+
+## 2026-10-17 M5 gate
+- Two parallel agents (reports, dashboards) → beb328b, 521fa13; integration: pins, Filament export route
+  guard, trigram search (a1dc346); E2E M5 journey; custom views inline-styled (no theme, LEARNINGS #42).
+- Reviews: no critical; 3 high + ~20 medium/low fixed by one fix agent (34dcabe), which also found scheduled
+  mails failing on lazy loading for orgs with several reports.
+- Gate: PHP 3766 tests, coverage 94.98 %, PHPStan 0/0, Rector/Pint clean, JS 606/110/297, conformance
+  390/391, E2E 20/20 ×2 on fresh seeds.
