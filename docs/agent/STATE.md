@@ -1,26 +1,28 @@
-# State: 2026-10-16T21:00Z
-Milestone: M2 Field App online · Tasks in flight: M2-T18 gate (review fixes)
-Status: all M2 features committed (API, PDF import, Scramble, renderer, Field App, preview, E2E journeys).
-Gate checks run once: PHP 2986 tests, coverage 94.65 % (SDK 99.69, Schema/Tenancy 100), PHPStan 0/0,
-JS 606 + 93 + 122 tests, conformance 391, E2E 9/9. Three reviews done (security, backend correctness,
-frontend pending at time of writing). Device-session revocation fixed (0925fa3). A subagent fixes the
-remaining backend findings (idempotency, numbering, draft retries, attachments, manifest, reprojection)
-on DB form_schema_test_b and leaves changes uncommitted.
-Branch: m2-field-app · Last commit: see `git log -1`
+# State: 2026-10-16T23:00Z
+Milestone: M3 Documents + email · Branch m3-documents (M2 merged, tag m2-done)
+Tasks in flight (3 subagents, shared working tree, nothing committed by them):
+- Documents agent: M3-T01..T05 (branding page, designs + versions, renderer, renditions, preview PDF)
+  — tests on DB form_schema_test_b.
+- Mail agent: M3-T06/T07 (mail settings, mail log + retry, branded mailables, document links 410)
+  — tests on DB form_schema_test_c.
+- Admin agent: M3-T09..T11 (submissions inbox, 3 templates, CSV invitations) — DB form_schema_test_d.
+Committed prerequisites: spatie/laravel-pdf ^2.14, Branding value object (7e1a806).
+Last commit: see `git log -1`
 
 ## Next actions
-1. Review + commit the backend fix batch (stage explicit paths only); fix frontend review findings.
-2. Re-run gate: `./scripts/coverage.sh`, both PHPStan configs, `npm run typecheck lint test build`,
-   `npm run conformance`, rebuild Docker, `migrate:fresh --seed` + `cache:clear`, `npm run e2e`.
-3. Write docs/agent/milestones/M2.md, tick M2-T12..T15, T17, T18, JOURNAL; merge --no-ff to main, tag
-   m2-done; branch m3-documents; start M3 (PLAN M3-T01..T12).
+1. As each agent reports: review its diff, run its tests on a free DB, stage its listed paths
+   explicitly, commit.
+2. Integration (after all three): implement Rendition as DocumentDelivery file, M3-T08 send to
+   customer (`POST /submissions/{uuid}/send` + admin action), renditions in the inbox "Documents"
+   section, demo seed (design, branding), docs/api update.
+3. E2E M3 journey: submit in Field App → PDF in admin → email in Mailpit (with PDF); rebuild Docker.
+4. Gate M3: coverage.sh, PHPStan 0/0, JS checks, conformance, E2E, reviewers, M3.md, merge, tag.
 
 ## Known problems
-- Builder page is heavy (~4 MB HTML for the service report) — QUESTIONS #8.
-- Preview iframe same-origin (QUESTIONS #10, M8 task).
-- E2E: Filament login throttle per IP — clear the cache between quick re-runs (LEARNINGS #25).
+- Builder page heavy (QUESTIONS #8); preview iframe same-origin (QUESTIONS #10, M8).
+- E2E: Filament login throttle — `php artisan cache:clear` in the app container between quick reruns.
 
 ## Resume commands
 docker compose up -d postgres redis gotenberg mailpit app queue scheduler
-DB_DATABASE=form_schema_test_c php artisan test --compact
+DB_DATABASE=form_schema_test php artisan test --compact   # default DB is free while agents run
 npm run conformance
