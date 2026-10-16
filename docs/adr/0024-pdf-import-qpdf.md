@@ -49,3 +49,8 @@ object table (strings `u:`/`b:`, names `/X`, references `N G R`), which has ever
   estimated glyph widths; composite (Type0) fonts and text inside form XObjects are ignored.
 - The importer depends on qpdf JSON v2; a future qpdf with JSON v3 needs a parser update (the
   version is pinned by `--json=2`).
+
+## Deviation
+PDF pages without any importable field are not turned into empty form pages (§8.13 says "each PDF
+page becomes a page"); the import report lists them as a warning. Empty pages would only add lint
+warnings and blank wizard steps. Reversible in `PdfDefinitionBuilder` if every page should be kept.

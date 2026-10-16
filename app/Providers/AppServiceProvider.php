@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Domain\Audit\Listeners\LogAuthEvents;
+use App\Domain\Identity\Enums\Permission;
 use App\Domain\Identity\Models\Group;
 use App\Domain\Identity\Models\Membership;
 use App\Domain\Identity\Models\Organization;
 use App\Domain\Identity\Models\Role;
+use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Support\OrganizationPermissions;
 use App\Domain\Identity\Tenancy\TenantContext;
 use App\Domain\Submissions\Models\IdempotencyKey;
@@ -57,6 +59,12 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(SubmissionEvent::class, InternalRecordPolicy::class);
         Gate::policy(NumberSequence::class, InternalRecordPolicy::class);
         Gate::policy(IdempotencyKey::class, InternalRecordPolicy::class);
+
+        // OpenAPI docs (/docs/api, M2-T11): platform admins and organization admins (members.manage).
+        Gate::define('viewApiDocs', fn (?User $user = null): bool => $user instanceof User && $user->isActive() && (
+            in_array($user->email, config('app.platform_admins', []), true)
+            || $user->activeOrganizations()->get()->contains(fn ($org): bool => $user->hasPermissionIn($org, Permission::MembersManage))
+        ));
 
         RateLimiter::for('api', function (Request $request): Limit {
             $user = $request->user();
