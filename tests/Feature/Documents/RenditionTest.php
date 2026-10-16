@@ -7,6 +7,7 @@ use App\Domain\Documents\Designs\Actions\PublishDesign;
 use App\Domain\Documents\Designs\DesignResolver;
 use App\Domain\Documents\Events\RenditionCreated;
 use App\Domain\Documents\Models\Rendition;
+use App\Domain\Documents\Rendering\DocumentRenderer;
 use App\Domain\Documents\Rendering\RenderBudgetExceededException;
 use App\Domain\Documents\Renditions\GenerateRendition;
 use App\Domain\Documents\Renditions\RenderSubmission;
@@ -67,7 +68,7 @@ it('stores an immutable rendition with versions, hashes and page count on submit
 
     expect($rendition->form_version_id)->toBe($this->s->version->id)
         ->and($rendition->design_version_id)->toBeInt()
-        ->and($rendition->renderer_version)->toBe('1.1.0')
+        ->and($rendition->renderer_version)->toBe(DocumentRenderer::VERSION)
         ->and($rendition->page_count)->toBe(2)
         ->and($rendition->file_sha256)->toBe(hash('sha256', $file))
         ->and($rendition->size)->toBe(strlen($file))

@@ -37,9 +37,9 @@ test('journey 4: reject, resubmit, approve, PDF to the customer', async ({ brows
   // The reviewer rejects with a comment.
   const reviewer = await phone(browser, 'reviewer@demo.test');
   await openTask(reviewer, number);
-  await reviewer.getByRole('button', { name: 'Ablehnen' }).click();
+  await reviewer.getByRole('button', { name: 'Änderungen anfordern' }).click();
   await reviewer.getByRole('textbox', { name: 'Was soll geändert werden?' }).fill(COMMENT);
-  await reviewer.getByRole('dialog').getByRole('button', { name: 'Ablehnen' }).click();
+  await reviewer.getByRole('dialog').getByRole('button', { name: 'Änderungen anfordern' }).click();
   await expect(reviewer.getByText(/Sie haben Änderungen angefordert/)).toBeVisible();
   await reviewer.screenshot({ path: evidence('20-rejected'), fullPage: true });
 

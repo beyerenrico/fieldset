@@ -27,13 +27,26 @@ final readonly class DocumentMeta
         public int $organizationId = 0,
     ) {}
 
+    /**
+     * The document-relevant part of the workflow status: only "void" and "draft" (or a preview) change
+     * what is printed; review and approval steps must not change the input hash (§8.10 AC).
+     */
+    public function statusMark(): ?string
+    {
+        return match (true) {
+            $this->status === 'void' => 'void',
+            $this->status === 'draft' || $this->preview => 'draft',
+            default => null,
+        };
+    }
+
     /** @return array<string, mixed> */
     public function toArray(): array
     {
         return [
             'organization_name' => $this->organizationName,
             'number' => $this->number,
-            'status' => $this->status,
+            'status_mark' => $this->statusMark(),
             'submitted_at' => $this->submittedAt,
             'timezone' => $this->timezone,
             'form_key' => $this->formKey,

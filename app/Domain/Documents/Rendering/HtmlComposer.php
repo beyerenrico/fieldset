@@ -102,11 +102,7 @@ final readonly class HtmlComposer
         $mark = match ($input->design->watermark) {
             'draft' => 'draft',
             'void' => 'void',
-            'auto' => match (true) {
-                $input->meta->status === 'void' => 'void',
-                $input->meta->status === 'draft' || $input->meta->preview => 'draft',
-                default => null,
-            },
+            'auto' => $input->meta->statusMark(),
             default => null,
         };
 
