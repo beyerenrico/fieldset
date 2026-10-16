@@ -1,0 +1,21 @@
+# Local development overrides: publish service ports on non-default host ports and add Mailpit.
+services:
+  postgres:
+    ports:
+      - "${FORWARD_DB_PORT:-54329}:5432"
+  redis:
+    ports:
+      - "${FORWARD_REDIS_PORT:-63799}:6379"
+  gotenberg:
+    networks: [renderer, default]
+    ports:
+      - "${FORWARD_GOTENBERG_PORT:-13000}:3000"
+  mailpit:
+    image: axllent/mailpit:v1.31
+    ports:
+      - "${FORWARD_MAILPIT_UI_PORT:-18025}:8025"
+      - "${FORWARD_MAILPIT_SMTP_PORT:-11025}:1025"
+  app:
+    environment:
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
