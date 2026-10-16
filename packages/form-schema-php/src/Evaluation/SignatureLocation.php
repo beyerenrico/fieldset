@@ -59,6 +59,6 @@ final class SignatureLocation
 
     private static function inRange(mixed $value, float $min, float $max): bool
     {
-        return (is_int($value) || is_float($value)) && $value >= $min && $value <= $max;
+        return (is_int($value) || (is_float($value) && is_finite($value))) && $value >= $min && $value <= $max;
     }
 }

@@ -20,14 +20,14 @@ use stdClass;
  */
 final class JsonLogic implements LogicEvaluator
 {
-    /** Nesting limit; deeper expressions throw NestingTooDeepException instead of overflowing. */
-    public const MAX_DEPTH = 512;
+    /** Nesting limit (spec §4.2): deeper expressions are evaluation errors. */
+    public const MAX_DEPTH = LogicDepth::LIMIT;
 
     /** @var array<string, Operation> */
     private readonly array $operations;
 
-    /** Current recursion depth of evaluate(). */
-    private int $depth = 0;
+    /** True while an outermost evaluation is running (nested calls come from operators). */
+    private bool $running = false;
 
     public function __construct()
     {
@@ -53,18 +53,44 @@ final class JsonLogic implements LogicEvaluator
         $this->operations = $operations;
     }
 
+    /**
+     * Evaluates an expression; an evaluation error (unknown operator, nesting deeper than 512
+     * levels) makes the whole expression null (spec §4.2).
+     */
     public function evaluate(mixed $logic, mixed $data): mixed
     {
-        if ($this->depth >= self::MAX_DEPTH) {
+        if ($this->running) {
+            return $this->evaluateNode($logic, $data);
+        }
+
+        try {
+            return $this->evaluateStrict($logic, $data);
+        } catch (LogicError) {
+            return null;
+        }
+    }
+
+    /**
+     * Like evaluate(), but throws the LogicError instead of returning null.
+     *
+     * @throws LogicError
+     */
+    public function evaluateStrict(mixed $logic, mixed $data): mixed
+    {
+        if ($this->running) {
+            return $this->evaluateNode($logic, $data);
+        }
+
+        if (LogicDepth::exceeds($logic, self::MAX_DEPTH)) {
             throw new NestingTooDeepException(self::MAX_DEPTH);
         }
 
-        $this->depth++;
+        $this->running = true;
 
         try {
             return $this->evaluateNode($logic, $data);
         } finally {
-            $this->depth--;
+            $this->running = false;
         }
     }
 

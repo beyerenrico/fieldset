@@ -35,11 +35,17 @@ final class DuplicateRule implements LintRule
         $findings = [];
 
         foreach ($definition->pages as $page) {
-            if ($page->key !== '' && isset($seen[$page->key])) {
-                $findings[] = LintFinding::error('duplicate_page_key', $page->path, ['key' => $page->key]);
+            $key = $page->get('key');
+
+            if (! is_string($key)) {
+                continue;
             }
 
-            $seen[$page->key] = true;
+            if (isset($seen[$key])) {
+                $findings[] = LintFinding::error('duplicate_page_key', $page->path, ['key' => $key]);
+            }
+
+            $seen[$key] = true;
         }
 
         return $findings;

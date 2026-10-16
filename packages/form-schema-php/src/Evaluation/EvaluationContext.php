@@ -11,9 +11,13 @@ use stdClass;
  */
 final readonly class EvaluationContext
 {
+    /**
+     * @param  string|null  $today  `YYYY-MM-DD`; null when the host supplies none
+     * @param  string|null  $now  RFC 3339 date-time; null when the host supplies none
+     */
     public function __construct(
-        public string $today,
-        public string $now,
+        public ?string $today = null,
+        public ?string $now = null,
         public ?string $userName = null,
         public ?string $userEmail = null,
         public ?string $orgName = null,
@@ -22,7 +26,7 @@ final readonly class EvaluationContext
 
     /**
      * Accepts the conformance shape: `today`, `now`, `user {name, email}`, `org {name}`, `formVersion`.
-     * Missing `today`/`now` default to the current UTC date and time.
+     * Missing values resolve to null (spec §5.5); there is no current-time fallback.
      *
      * @param  array<array-key, mixed>  $context
      */
@@ -33,8 +37,8 @@ final readonly class EvaluationContext
         $version = $context['formVersion'] ?? null;
 
         return new self(
-            self::string($context['today'] ?? null) ?? gmdate('Y-m-d'),
-            self::string($context['now'] ?? null) ?? gmdate('Y-m-d\TH:i:s\Z'),
+            self::string($context['today'] ?? null),
+            self::string($context['now'] ?? null),
             self::string($user['name'] ?? null),
             self::string($user['email'] ?? null),
             self::string($org['name'] ?? null),

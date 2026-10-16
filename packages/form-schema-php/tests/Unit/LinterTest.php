@@ -169,7 +169,7 @@ test('structural, duplicate, role and numbering rules', function (stdClass $defi
         ['key' => 'd', 'title' => 'D', 'elements' => [fs_element('divider', 'line')]],
         ['key' => '', 'title' => 'E', 'elements' => [fs_element('divider', 'line2')]],
         ['key' => '', 'title' => 'F', 'elements' => [fs_element('divider', 'line3')]],
-    ]]), ['warning|empty_page|/pages/0', 'warning|empty_page|/pages/1', 'warning|empty_page|/pages/2']],
+    ]]), ['error|duplicate_page_key|/pages/5', 'warning|empty_page|/pages/0', 'warning|empty_page|/pages/1', 'warning|empty_page|/pages/2']],
     'numbering absent' => fn () => [fs_definition([], ['settings' => ['layout' => 'scroll']]), ['warning|empty_page|/pages/0']],
     'numbering not an object' => fn () => [fs_definition([fs_element('divider', 'd')], ['settings' => ['numbering' => 'SR-{SEQ:4}']]), []],
     'numbering format not a string' => fn () => [fs_definition([fs_element('divider', 'd')], ['settings' => ['numbering' => ['format' => 5]]]), []],

@@ -8,6 +8,8 @@ use FormSchema\Definition\Element;
 use FormSchema\Json\JsNumber;
 use FormSchema\Logic\DateValue;
 use FormSchema\Logic\Decimal;
+use FormSchema\Support\EcmaRegex;
+use FormSchema\Support\Text;
 
 /**
  * Type checks of §5.6 (codes `type_mismatch` … `invalid_location`). A value failing them is
@@ -17,11 +19,12 @@ final class TypeChecker
 {
     public const UUID = '/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/D';
 
-    private const NOT_SPACE_OR_AT = '[^\s@\x{00A0}\x{1680}\x{2000}-\x{200A}\x{2028}\x{2029}\x{202F}\x{205F}\x{3000}\x{FEFF}]';
+    /** Email shape, matched with the §3.4 semantics (JavaScript whitespace, `$` end-only). */
+    public const EMAIL = '^[^\s@]+@[^\s@]+\.[^\s@]+$';
 
-    private const EMAIL = '/^'.self::NOT_SPACE_OR_AT.'+@'.self::NOT_SPACE_OR_AT.'+\.'.self::NOT_SPACE_OR_AT.'+$/uD';
+    public const EMAIL_MAX_LENGTH = 254;
 
-    private const PHONE = '/^\+?[0-9 ()\.\/-]{3,32}$/D';
+    public const PHONE = '^\+?[0-9 ()./-]{3,32}$';
 
     public static function check(Element $element, mixed $value): ?Violation
     {
@@ -31,8 +34,8 @@ final class TypeChecker
 
         return match ($element->type) {
             'text', 'textarea' => is_string($value) ? null : self::mismatch(),
-            'email' => self::matches($value, self::EMAIL, 'invalid_email'),
-            'phone' => self::matches($value, self::PHONE, 'invalid_phone'),
+            'email' => self::matches($value, self::EMAIL, 'invalid_email', self::EMAIL_MAX_LENGTH),
+            'phone' => self::matches($value, self::PHONE, 'invalid_phone', EcmaRegex::MAX_SUBJECT_LENGTH),
             'number', 'money' => self::decimal($element, $value),
             'date' => self::valid($value, DateValue::parseDate($value) !== null, 'invalid_date'),
             'time' => self::valid($value, DateValue::parseTime($value) !== null, 'invalid_time'),
@@ -73,13 +76,15 @@ final class TypeChecker
         return new Violation('type_mismatch');
     }
 
-    private static function matches(mixed $value, string $pattern, string $code): ?Violation
+    private static function matches(mixed $value, string $pattern, string $code, int $maxLength): ?Violation
     {
         if (! is_string($value)) {
             return self::mismatch();
         }
 
-        return preg_match($pattern, $value) === 1 ? null : new Violation($code);
+        $valid = Text::length($value) <= $maxLength && EcmaRegex::matches($pattern, $value);
+
+        return $valid ? null : new Violation($code);
     }
 
     private static function valid(mixed $value, bool $valid, string $code): ?Violation
@@ -105,11 +110,20 @@ final class TypeChecker
             return new Violation('invalid_number');
         }
 
-        if ($element->type === 'money' && Decimal::fractionDigits($value) > $element->scale()) {
-            return new Violation('scale_exceeded', ['scale' => $element->scale()]);
+        if ($element->type !== 'money') {
+            return null;
         }
 
-        return null;
+        $scale = $element->scale();
+        $fraction = Decimal::fractionDigits($value);
+
+        if ($fraction > $scale) {
+            return new Violation('scale_exceeded', ['scale' => $scale]);
+        }
+
+        $normalized = Decimal::digits($value) - $fraction + $scale;
+
+        return $normalized > Decimal::MAX_DIGITS ? new Violation('invalid_number') : null;
     }
 
     private static function option(Element $element, mixed $value): ?Violation

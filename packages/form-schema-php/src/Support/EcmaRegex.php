@@ -4,15 +4,21 @@ declare(strict_types=1);
 
 namespace FormSchema\Support;
 
+use FormSchema\Support\Pattern\PatternParser;
+
 /**
- * ECMAScript-compatible `pattern` constraints (spec §3.3) translated to PCRE.
+ * `pattern` constraints in the restricted ECMAScript syntax of spec §3.4, matched through PCRE.
  *
- * Patterns are implicitly unanchored; lookbehind and backreferences are rejected.
+ * Translated patterns run in UTF mode without Unicode properties; every class is spelled out as
+ * code point ranges, so \d, \w, \s, \b and `.` have exactly the ECMAScript `u`-mode meaning.
  */
 final class EcmaRegex
 {
-    /** Unicode white space that JavaScript's `\s` includes beyond ASCII. */
-    private const UNICODE_SPACES = '\x{00A0}\x{1680}\x{2000}-\x{200A}\x{2028}\x{2029}\x{202F}\x{205F}\x{3000}\x{FEFF}';
+    /** Values longer than this (in code points) fail the check. */
+    public const MAX_SUBJECT_LENGTH = 4096;
+
+    /** @var array<string, string|false> */
+    private static array $cache = [];
 
     public static function isValid(string $pattern): bool
     {
@@ -20,131 +26,48 @@ final class EcmaRegex
     }
 
     /**
-     * True when the subject matches; an invalid pattern never rejects a value.
+     * True when the value passes. An invalid pattern is no constraint (true); values over 4,096
+     * code points, invalid UTF-8 and engine errors (e.g. backtracking limits) fail closed (false).
      */
     public static function matches(string $pattern, string $subject): bool
     {
         $pcre = self::toPcre($pattern);
 
-        return $pcre === null || preg_match($pcre, $subject) === 1;
+        if ($pcre === null) {
+            return true;
+        }
+
+        if (preg_match('//u', $subject) !== 1 || Text::length($subject) > self::MAX_SUBJECT_LENGTH) {
+            return false;
+        }
+
+        return preg_match($pcre, $subject) === 1;
     }
 
     /**
-     * PCRE equivalent (with delimiters and modifiers), or null when invalid or unsupported.
+     * PCRE (with delimiters) for a valid pattern, or null when it is outside the subset.
      */
     public static function toPcre(string $pattern): ?string
     {
-        $body = self::translate($pattern);
+        if (! array_key_exists($pattern, self::$cache)) {
+            self::$cache[$pattern] = self::compile($pattern);
+        }
+
+        $pcre = self::$cache[$pattern];
+
+        return $pcre === false ? null : $pcre;
+    }
+
+    private static function compile(string $pattern): string|false
+    {
+        $body = PatternParser::translate($pattern);
 
         if ($body === null) {
-            return null;
+            return false;
         }
 
-        $pcre = '/'.$body.'/uD';
+        $pcre = '~(*UTF)'.$body.'~';
 
-        return @preg_match($pcre, '') === false ? null : $pcre;
-    }
-
-    private static function translate(string $pattern): ?string
-    {
-        $out = '';
-        $inClass = false;
-        $length = strlen($pattern);
-
-        for ($i = 0; $i < $length; $i++) {
-            $char = $pattern[$i];
-
-            if ($char === '\\') {
-                $escape = self::escape($pattern, $i, $inClass);
-
-                if ($escape === null) {
-                    return null;
-                }
-
-                [$text, $consumed] = $escape;
-                $out .= $text;
-                $i += $consumed;
-
-                continue;
-            }
-
-            if (! $inClass && $char === '(' && preg_match('/\G\(\?<[=!]/', $pattern, $m, 0, $i) === 1) {
-                return null;
-            }
-
-            [$text, $inClass, $skip] = self::plain($pattern, $i, $inClass);
-            $out .= $text;
-            $i += $skip;
-        }
-
-        return $out;
-    }
-
-    /**
-     * @return array{string, bool, int} translated text, new class state, extra bytes consumed
-     */
-    private static function plain(string $pattern, int $i, bool $inClass): array
-    {
-        $char = $pattern[$i];
-
-        if (! $inClass && $char === '[') {
-            if (substr($pattern, $i, 3) === '[^]') {
-                return ['[\s\S]', false, 2];
-            }
-
-            if (substr($pattern, $i, 2) === '[]') {
-                return ['(?!)', false, 1];
-            }
-
-            return ['[', true, 0];
-        }
-
-        if ($inClass && $char === ']') {
-            return [']', false, 0];
-        }
-
-        return match (true) {
-            $char === '/' => ['\/', $inClass, 0],
-            $char === '.' && ! $inClass => ['[^\n\r\x{2028}\x{2029}]', false, 0],
-            default => [$char, $inClass, 0],
-        };
-    }
-
-    /**
-     * @return array{string, int}|null translated escape and extra bytes consumed; null if unsupported
-     */
-    private static function escape(string $pattern, int $i, bool $inClass): ?array
-    {
-        if (preg_match('/\Gu([0-9a-fA-F]{4})/', $pattern, $m, 0, $i + 1) === 1) {
-            return ['\x{'.$m[1].'}', 5];
-        }
-
-        if (preg_match('/\G./su', $pattern, $m, 0, $i + 1) !== 1) {
-            return null;
-        }
-
-        $next = $m[0];
-
-        if (! $inClass && (preg_match('/^[1-9]$/', $next) === 1 || substr($pattern, $i + 1, 2) === 'k<')) {
-            return null;
-        }
-
-        return [self::escapeText($next, $inClass), strlen($next)];
-    }
-
-    /**
-     * JavaScript escapes that differ from PCRE; letters without meaning are identity escapes.
-     */
-    private static function escapeText(string $char, bool $inClass): string
-    {
-        return match (true) {
-            $char === 's' => $inClass ? '\s'.self::UNICODE_SPACES : '[\s'.self::UNICODE_SPACES.']',
-            $char === 'S' && ! $inClass => '[^\s'.self::UNICODE_SPACES.']',
-            $char === 'v' => '\x0B',
-            $char === '0' => '\x00',
-            strlen($char) > 1 => $char,
-            preg_match('/^[a-zA-Z]$/', $char) === 1 && preg_match('/^[dDwWsSbBtnfrcxk]$/', $char) !== 1 => $char,
-            default => '\\'.$char,
-        };
+        return @preg_match($pcre, '') === false ? false : $pcre;
     }
 }

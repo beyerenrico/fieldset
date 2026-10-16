@@ -55,15 +55,14 @@ test('EvaluationContext::fromArray accepts stdClass maps for user and org', func
         ->and($context->now)->toBe('2026-01-31T23:59:59Z');
 });
 
-test('EvaluationContext::fromArray defaults today and now to the current UTC date and time', function (array $input): void {
-    $before = gmdate('Y-m-d');
+test('EvaluationContext::fromArray leaves missing today and now null (no clock fallback)', function (array $input): void {
     $context = EvaluationContext::fromArray($input);
-    $after = gmdate('Y-m-d');
 
-    expect($context->today)->toMatch('/^\d{4}-\d{2}-\d{2}$/')
-        ->and([$before, $after])->toContain($context->today)
-        ->and($context->now)->toMatch('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/')
-        ->and(substr($context->now, 0, 10))->toBeIn([$before, $after]);
+    expect($context->today)->toBeNull()
+        ->and($context->now)->toBeNull()
+        ->and($context->builtins()->{'$today'})->toBeNull()
+        ->and($context->builtins()->{'$now'})->toBeNull()
+        ->and((new EvaluationContext)->today)->toBeNull();
 })->with([
     'missing' => [[]],
     'not strings' => [['today' => 20261016, 'now' => null]],

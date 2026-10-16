@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use FormSchema\Json\Json;
 use FormSchema\Logic\JsonLogic;
+use FormSchema\Logic\LogicDepth;
 use FormSchema\Logic\LogicError;
 use FormSchema\Logic\NestingTooDeepException;
 use FormSchema\Logic\OperatorNames;
@@ -37,9 +38,11 @@ describe('JsonLogic', function (): void {
         expect((new JsonLogic)->evaluate($logic, fs_tree(['a' => 2])))->toBe([1, 2]);
     });
 
-    test('throws UnknownOperatorException for operators outside the dialect', function (string $logic, string $operator): void {
+    test('evaluateStrict throws UnknownOperatorException; evaluate makes the expression null', function (string $logic, string $operator): void {
+        expect((new JsonLogic)->evaluate(Json::decode($logic), new stdClass))->toBeNull();
+
         try {
-            (new JsonLogic)->evaluate(Json::decode($logic), new stdClass);
+            (new JsonLogic)->evaluateStrict(Json::decode($logic), new stdClass);
             $this->fail('Expected UnknownOperatorException');
         } catch (UnknownOperatorException $exception) {
             expect($exception->operator)->toBe($operator)
@@ -64,29 +67,31 @@ describe('JsonLogic', function (): void {
             ->and(LogicError::MAX_DEPTH)->toBe('max_depth');
     });
 
-    test('evaluates nesting up to MAX_DEPTH levels', function (Closure $wrap): void {
-        $logic = true;
-        for ($i = 1; $i < JsonLogic::MAX_DEPTH; $i++) {
-            $logic = $wrap($logic);
-        }
-
-        expect(JsonLogic::MAX_DEPTH)->toBe(512)
-            ->and((new JsonLogic)->evaluate($logic, null))->not->toBeNull();
-    })->with([
-        'arrays' => [static fn (mixed $inner): array => [$inner]],
-        'operations' => [static fn (mixed $inner): stdClass => (object) ['!!' => $inner]],
-    ]);
-
-    test('throws NestingTooDeepException beyond MAX_DEPTH and recovers afterwards', function (Closure $wrap): void {
+    test('evaluates expressions nested exactly MAX_DEPTH levels', function (Closure $wrap): void {
         $logic = true;
         for ($i = 0; $i < JsonLogic::MAX_DEPTH; $i++) {
             $logic = $wrap($logic);
         }
 
+        expect(JsonLogic::MAX_DEPTH)->toBe(512)
+            ->and((new JsonLogic)->evaluate($logic, null))->not->toBeNull()
+            ->and((new JsonLogic)->evaluateStrict($logic, null))->not->toBeNull();
+    })->with([
+        'arrays' => [static fn (mixed $inner): array => [$inner]],
+        'operations' => [static fn (mixed $inner): stdClass => (object) ['!' => $inner]],
+    ]);
+
+    test('nesting beyond MAX_DEPTH is null, evaluateStrict throws, and the evaluator recovers', function (Closure $wrap): void {
+        $logic = true;
+        for ($i = 0; $i <= JsonLogic::MAX_DEPTH; $i++) {
+            $logic = $wrap($logic);
+        }
+
         $evaluator = new JsonLogic;
+        expect($evaluator->evaluate($logic, null))->toBeNull();
 
         try {
-            $evaluator->evaluate($logic, null);
+            $evaluator->evaluateStrict($logic, null);
             $this->fail('Expected NestingTooDeepException');
         } catch (NestingTooDeepException $exception) {
             expect($exception->reason)->toBe(LogicError::MAX_DEPTH)
@@ -96,11 +101,22 @@ describe('JsonLogic', function (): void {
         }
 
         expect($evaluator->evaluate(fs_tree(['!' => [false]]), null))->toBeTrue()
-            ->and($evaluator->evaluate(is_array($logic) ? $logic[0] : $logic->{'!!'}, null))->not->toBeNull();
+            ->and($evaluator->evaluate(is_array($logic) ? $logic[0] : $logic->{'!'}, null))->not->toBeNull();
     })->with([
         'arrays' => [static fn (mixed $inner): array => [$inner]],
-        'operations' => [static fn (mixed $inner): stdClass => (object) ['!!' => $inner]],
+        'operations' => [static fn (mixed $inner): stdClass => (object) ['!' => $inner]],
     ]);
+
+    test('LogicDepth counts objects and arrays', function (): void {
+        expect(LogicDepth::of(1))->toBe(0)
+            ->and(LogicDepth::of([]))->toBe(1)
+            ->and(LogicDepth::of(fs_tree(['!' => [true]])))->toBe(2)
+            ->and(LogicDepth::of(fs_tree(['a' => 1, 'b' => [[1]]])))->toBe(3)
+            ->and(LogicDepth::of([[[1]]], 2))->toBe(2)
+            ->and(LogicDepth::of([1], 0))->toBe(0)
+            ->and(LogicDepth::exceeds([[1]], 1))->toBeTrue()
+            ->and(LogicDepth::exceeds([[1]], 2))->toBeFalse();
+    });
 
     test('does not evaluate branches that are not taken', function (string $logic, mixed $expected): void {
         expect((new JsonLogic)->evaluate(Json::decode($logic), new stdClass))->toBe($expected);

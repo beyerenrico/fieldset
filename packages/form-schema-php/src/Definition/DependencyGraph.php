@@ -54,21 +54,27 @@ final readonly class DependencyGraph
     }
 
     /**
-     * Evaluation order: dependencies first, document order otherwise. Members of a cycle keep
-     * the order in which the depth-first traversal reaches them.
+     * Evaluation order (spec §5.5): a topological sort where, among the elements whose
+     * dependencies are done, the earliest in document order goes first. When nothing is ready
+     * (a cycle, which lint rejects) the earliest pending element is taken.
      *
      * @return list<Element>
      */
     public function order(): array
     {
-        $state = [];
+        $pending = array_map('strval', array_keys($this->nodes));
+        $done = [];
         $ordered = [];
 
-        foreach (array_keys($this->nodes) as $path) {
-            $this->visit((string) $path, $state, $ordered);
+        while ($pending !== []) {
+            $index = $this->firstReady($pending, $done);
+            $path = $pending[$index];
+            array_splice($pending, $index, 1);
+            $done[$path] = true;
+            $ordered[] = $this->nodes[$path];
         }
 
-        return array_map(fn (string $path): Element => $this->nodes[$path], $ordered);
+        return $ordered;
     }
 
     /**
@@ -96,23 +102,24 @@ final readonly class DependencyGraph
     }
 
     /**
-     * @param  array<string, bool>  $state  path => done (false while on the stack)
-     * @param  list<string>  $ordered
+     * @param  list<string>  $pending  in document order
+     * @param  array<string, true>  $done
      */
-    private function visit(string $path, array &$state, array &$ordered): void
+    private function firstReady(array $pending, array $done): int
     {
-        if (array_key_exists($path, $state)) {
-            return;
+        foreach ($pending as $index => $path) {
+            $ready = true;
+
+            foreach ($this->edges[$path] ?? [] as $dependency) {
+                $ready = $ready && ($dependency === $path || isset($done[$dependency]));
+            }
+
+            if ($ready) {
+                return $index;
+            }
         }
 
-        $state[$path] = false;
-
-        foreach ($this->edges[$path] ?? [] as $dependency) {
-            $this->visit($dependency, $state, $ordered);
-        }
-
-        $state[$path] = true;
-        $ordered[] = $path;
+        return 0;
     }
 
     /**

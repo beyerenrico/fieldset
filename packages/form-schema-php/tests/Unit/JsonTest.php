@@ -24,12 +24,15 @@ describe('Json::decode', function (): void {
         expect(fn () => Json::decode('{"a":'))->toThrow(JsonException::class);
     });
 
-    test('limits nesting to MAX_DEPTH including the innermost level', function (): void {
-        $nested = static fn (int $levels): string => str_repeat('[', $levels).str_repeat(']', $levels);
+    test('accepts exactly MAX_DEPTH levels of objects and arrays', function (): void {
+        $arrays = static fn (int $levels): string => str_repeat('[', $levels).'1'.str_repeat(']', $levels);
+        $objects = static fn (int $levels): string => str_repeat('{"a":', $levels).'1'.str_repeat('}', $levels);
 
-        expect(Json::MAX_DEPTH)->toBe(4096)
-            ->and(Json::decode($nested(Json::MAX_DEPTH - 1)))->toBeArray()
-            ->and(fn () => Json::decode($nested(Json::MAX_DEPTH)))->toThrow(JsonException::class);
+        expect(Json::MAX_DEPTH)->toBe(1024)
+            ->and(Json::decode($arrays(1024)))->toBeArray()
+            ->and(Json::decode($objects(1024)))->toBeInstanceOf(stdClass::class)
+            ->and(fn () => Json::decode($arrays(1025)))->toThrow(JsonException::class)
+            ->and(fn () => Json::decode($objects(1025)))->toThrow(JsonException::class);
     });
 });
 

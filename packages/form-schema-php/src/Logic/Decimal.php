@@ -18,9 +18,21 @@ final class Decimal
 
     public const MAX_DIVISION_SCALE = 20;
 
+    /** Decimal strings hold at most 60 digits (integer plus fraction digits, spec §5.1). */
+    public const MAX_DIGITS = 60;
+
     public static function isDecimalString(mixed $value): bool
     {
-        return is_string($value) && preg_match(self::PATTERN, $value) === 1;
+        return is_string($value) && preg_match(self::PATTERN, $value) === 1
+            && self::digits($value) <= self::MAX_DIGITS;
+    }
+
+    /**
+     * Number of digits of a decimal string (sign and point excluded).
+     */
+    public static function digits(string $value): int
+    {
+        return strlen($value) - substr_count($value, '-') - substr_count($value, '.');
     }
 
     /**

@@ -97,8 +97,15 @@ both SDKs were cross-checked on ~40,000 generated logic, evaluation, lint and ex
 - `min`/`max` use the aggregate form when the first operand is an array or the only operand;
   `dec.div`/`dec.round` scales must be JSON integers 0–20; date-time differences use exact
   fractional seconds.
-- `JsonLogic` throws `LogicError` (`UnknownOperatorException`, `NestingTooDeepException` beyond 512
-  levels); inside the evaluator such an expression yields `null`.
+- `JsonLogic::evaluate()` returns `null` for evaluation errors (unknown operator, nesting deeper
+  than 512 levels of objects/arrays); `evaluateStrict()` throws the `LogicError` instead.
+  `Json::decode()` rejects documents nested deeper than 1,024 levels.
+- `pattern` uses the restricted ECMAScript subset of §3.4 (`Support\Pattern\PatternParser`); valid
+  patterns are translated to PCRE with every class spelled out as code point ranges, values over
+  4,096 code points and engine errors fail closed.
+- Decimal strings hold at most 60 digits; calculations run in topological order with ready
+  elements taken in document order (a repeater reference depends on its row calculations).
+- Missing `today`/`now` in the context resolve to `null`.
 - Normalization errors are always reported (before validation errors); a `null` repeater is empty;
   repeater `minItems` applies to an empty list; `rating` has no type check (`out_of_range`);
   attachment shape errors are `invalid_attachment`; non-object signature/location values are

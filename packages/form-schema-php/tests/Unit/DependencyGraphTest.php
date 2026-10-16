@@ -47,7 +47,8 @@ test('order puts dependencies first and keeps document order otherwise', functio
     'chain defined backwards' => fn () => [[$calc('a', $add('b')), $calc('b', $add('c')), $calc('c', 1)], ['c', 'b', 'a']],
     'shared dependency' => fn () => [[$calc('a', $add('c')), $calc('b', $add('c')), $calc('c', 1)], ['c', 'a', 'b']],
     'diamond' => fn () => [[$calc('top', $add('l', 'r')), $calc('l', $add('base')), $calc('r', $add('base')), $calc('base', 1)], ['base', 'l', 'r', 'top']],
-    'cycle members once each' => fn () => [[$calc('a', $add('b')), $calc('b', $add('a')), $calc('c', 1)], ['b', 'a', 'c']],
+    'cycle members once each' => fn () => [[$calc('a', $add('b')), $calc('b', $add('a')), $calc('c', 1)], ['c', 'a', 'b']],
+    'ready elements in document order' => fn () => [[$calc('a', 1), $calc('b', $add('d')), $calc('c', 1), $calc('d', 1)], ['a', 'c', 'd', 'b']],
     'row calculations before the aggregate' => fn () => [[
         $calc('total', ['sum' => [['var' => 'items'], 'line']]),
         fs_element('repeater', 'items', ['label' => 'Items', 'elements' => [

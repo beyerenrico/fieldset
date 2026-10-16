@@ -185,7 +185,9 @@ test('signature and location shapes', function (string $type, mixed $value, ?str
 test('SignatureLocation checks values without an element', function (): void {
     expect(SignatureLocation::checkSignature(null))->toEqual(new Violation('type_mismatch'))
         ->and(SignatureLocation::checkLocation('x'))->toEqual(new Violation('type_mismatch'))
-        ->and(SignatureLocation::checkLocation((object) ['accuracy' => INF, 'capturedAt' => '2026-10-16T09:41:00Z', 'lat' => 0, 'lng' => 0]))->toBeNull()
+        ->and(SignatureLocation::checkLocation((object) ['accuracy' => 1.5, 'capturedAt' => '2026-10-16T09:41:00Z', 'lat' => 0, 'lng' => 0]))->toBeNull()
+        ->and(SignatureLocation::checkLocation((object) ['accuracy' => INF, 'capturedAt' => '2026-10-16T09:41:00Z', 'lat' => 0, 'lng' => 0])?->code)
+        ->toBe('invalid_location')
         ->and(SignatureLocation::checkLocation((object) ['accuracy' => 1, 'capturedAt' => '2026-10-16T09:41:00Z', 'lat' => NAN, 'lng' => 0])?->code)
         ->toBe('invalid_location');
 });

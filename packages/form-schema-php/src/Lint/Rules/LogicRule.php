@@ -10,10 +10,11 @@ use FormSchema\Definition\Reference;
 use FormSchema\Definition\ReferenceResolver;
 use FormSchema\Lint\LintFinding;
 use FormSchema\Lint\LintRule;
+use FormSchema\Logic\LogicDepth;
 
 /**
- * Checks every logic property (unknown_reference, unknown_operator, decimal_builtin_operator,
- * float_literal) and `signerNameFrom` references.
+ * Checks every logic property (logic_too_deep, unknown_reference, unknown_operator,
+ * decimal_builtin_operator, float_literal) and `signerNameFrom` references.
  */
 final class LogicRule implements LintRule
 {
@@ -26,7 +27,7 @@ final class LogicRule implements LintRule
 
         foreach ($definition->pages as $page) {
             if ($page->has('visibleIf')) {
-                array_push($findings, ...$linter->lint($page->get('visibleIf'), '', $page->path.'/visibleIf'));
+                array_push($findings, ...self::property($linter, $page->get('visibleIf'), '', $page->path.'/visibleIf'));
             }
         }
 
@@ -34,7 +35,7 @@ final class LogicRule implements LintRule
             foreach (self::logicProperties($element) as $property) {
                 array_push(
                     $findings,
-                    ...$linter->lint($element->get($property), $element->scopeId, $element->path.'/'.$property),
+                    ...self::property($linter, $element->get($property), $element->scopeId, $element->path.'/'.$property),
                 );
             }
 
@@ -42,6 +43,20 @@ final class LogicRule implements LintRule
         }
 
         return $findings;
+    }
+
+    /**
+     * Logic nested deeper than 512 levels is reported as `logic_too_deep` and not walked further.
+     *
+     * @return list<LintFinding>
+     */
+    private static function property(LogicLinter $linter, mixed $logic, string $scopeId, string $path): array
+    {
+        if (LogicDepth::exceeds($logic)) {
+            return [LintFinding::error('logic_too_deep', $path)];
+        }
+
+        return $linter->lint($logic, $scopeId, $path);
     }
 
     /**

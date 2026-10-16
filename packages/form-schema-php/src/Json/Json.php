@@ -15,18 +15,18 @@ use stdClass;
  */
 final class Json
 {
-    /** Depth limit passed to json_decode() (PHP's parser tops out just below 5000). */
-    public const MAX_DEPTH = 4096;
+    /** Maximum nesting of objects and arrays accepted by decode() (spec §4.2). */
+    public const MAX_DEPTH = 1024;
 
     /**
-     * Decodes JSON into a JSON tree; at most MAX_DEPTH - 1 nested arrays/objects are accepted
-     * (PHP counts the innermost value as a level).
+     * Decodes JSON into a JSON tree; documents nested deeper than MAX_DEPTH objects/arrays are
+     * rejected. json_decode() counts the innermost value as a level, hence MAX_DEPTH + 1.
      *
      * @throws JsonException for invalid JSON or deeper nesting
      */
     public static function decode(string $json): mixed
     {
-        return json_decode($json, false, self::MAX_DEPTH, JSON_THROW_ON_ERROR);
+        return json_decode($json, false, self::MAX_DEPTH + 1, JSON_THROW_ON_ERROR);
     }
 
     /**

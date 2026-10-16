@@ -27,4 +27,25 @@ final class Text
     {
         return count(self::codePoints($value));
     }
+
+    /**
+     * Code point of a single UTF-8 encoded character.
+     */
+    public static function ord(string $char): int
+    {
+        $first = ord($char[0] ?? "\0");
+
+        return match (true) {
+            $first < 0x80 => $first,
+            $first < 0xE0 => (($first & 0x1F) << 6) | self::continuation($char, 1),
+            $first < 0xF0 => (($first & 0x0F) << 12) | (self::continuation($char, 1) << 6) | self::continuation($char, 2),
+            default => (($first & 0x07) << 18) | (self::continuation($char, 1) << 12)
+                | (self::continuation($char, 2) << 6) | self::continuation($char, 3),
+        };
+    }
+
+    private static function continuation(string $char, int $index): int
+    {
+        return ord($char[$index] ?? "\0") & 0x3F;
+    }
 }

@@ -137,7 +137,8 @@ matches identically and no pattern can trigger catastrophic backtracking. Anythi
 is a lint error (`invalid_pattern`); evaluators treat an invalid pattern as "no constraint".
 
 - **Atoms:** literal characters except the syntax characters `^ $ \ . * + ? ( ) [ ] { } |`; `.`;
-  character classes `[…]` / `[^…]` with literals, ranges `a-z` and the class escapes below; escapes
+  character classes `[…]` / `[^…]` with literals, ranges `a-z` and the class escapes below (an unescaped
+  `[` inside a class is invalid); escapes
   `\d \D \w \W \s \S`, `\t \n \r \f \v`, `\0` (not followed by a digit), `\xHH`, `\uHHHH`,
   `\u{H…}` (≤ 10FFFF), and an escaped syntax character or `/` or `-`. `\b` / `\B` are assertions
   outside classes and invalid inside them.
@@ -185,7 +186,8 @@ branch. `!`/`!!` apply truthiness to their first argument (or the argument itsel
 string forms (`null` → `""`, numbers in shortest round-trip form, booleans `true`/`false`); `in` converts a
 non-string needle with JavaScript `String()`; `substr` counts code points. `+ - * / %` operate on IEEE-754
 doubles (NaN or infinite results become `null`) and MUST NOT be used on number or money values (lint
-error). Unknown operators and nesting deeper than 512 levels are evaluation errors; evaluators treat the
+error). Unknown operators and nesting deeper than 512 levels (counting nested objects and arrays; a scalar is 0,
+`{"!": true}` is 1) are evaluation errors; evaluators treat the
 whole expression as `null`. Definitions and submission data nested deeper than 1,024 levels (objects and arrays) are rejected when
 they are decoded.
 
@@ -278,9 +280,10 @@ Given a definition, input data and context, a conforming evaluator:
       decision is visible to later elements of the same pass (an element found invisible reads as `null`);
    b. apply defaults (§5.2) to visible elements;
    c. compute calculated values in dependency order, treating invisible values as `null`. The order is a
-      topological sort of the **static** dependencies (a `var` whose first path segment resolves through
-      the scope chain to another calculated element; references inside per-item arguments of iteration
-      operators, computed paths and whole-scope references do not count); among elements that are ready,
+      topological sort of the **static** dependencies (a `var` — including `$root.x` — whose first path
+      segment resolves through the scope chain to another calculated element, or to a repeater, which
+      depends on every calculated element inside its rows; references inside per-item arguments of
+      iteration operators, computed paths and whole-scope references do not count); among elements that are ready,
       the earliest in document order goes first. Each value sees the values computed before it in the
       same round. Missing `today`/`now` context values resolve to `null`.
 3. **Strips** invisible elements' values from the data (keys removed; invisible repeaters removed with

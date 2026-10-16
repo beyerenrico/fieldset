@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace FormSchema\Evaluation;
 
 use FormSchema\Definition\Definition;
+use FormSchema\Json\Json;
 use FormSchema\Logic\LogicError;
 use FormSchema\Logic\LogicEvaluator;
 use stdClass;
@@ -125,8 +126,13 @@ final class EvaluationState
         }
     }
 
+    /**
+     * Canonical JSON of data and visibility; rounds compare it structurally (spec §5.5).
+     */
     public function fingerprint(): string
     {
-        return serialize([$this->values, $this->visibility]);
+        $data = DataTree::toJson($this->definition, $this->definition->rootScope(), $this->values);
+
+        return Json::canonical([$data, (object) $this->visibility]);
     }
 }
