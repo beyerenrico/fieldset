@@ -13,8 +13,10 @@ use Filament\Widgets\StatsOverviewWidget\Stat;
 use Illuminate\Support\Number;
 
 /**
- * KPIs (§8.1 Owner): submissions in the range, open review tasks, stale drafts, and — for organization
- * managers, who may read the delivery log — documents sent in the range.
+ * KPIs (§8.1 Owner): submissions in the range (visible to the viewer, without drafts and void, like
+ * reports), open review tasks, stale drafts, and — for organization managers, who may read the delivery
+ * log — documents sent in the range. Each stat says what it counts; the section says how fresh the
+ * cached numbers are.
  */
 class KpiOverviewWidget extends StatsOverviewWidget
 {
@@ -27,6 +29,11 @@ class KpiOverviewWidget extends StatsOverviewWidget
         return __('dashboard.kpis.heading');
     }
 
+    protected function getDescription(): ?string
+    {
+        return $this->freshness('kpis');
+    }
+
     /** @return list<Stat> */
     protected function getStats(): array
     {
@@ -36,7 +43,7 @@ class KpiOverviewWidget extends StatsOverviewWidget
 
         $stats = [
             Stat::make(__('dashboard.kpis.submissions'), $this->number($kpis['submissions']))
-                ->description($range)->icon(Heroicon::OutlinedInboxArrowDown),
+                ->description(__('dashboard.kpis.submissions_hint').' · '.$range)->icon(Heroicon::OutlinedInboxArrowDown),
             Stat::make(__('dashboard.kpis.pending_reviews'), $this->number($kpis['pending_reviews']))
                 ->description(__('dashboard.kpis.pending_reviews_hint'))->icon(Heroicon::OutlinedClipboardDocumentCheck),
             Stat::make(__('dashboard.kpis.stale_drafts'), $this->number($kpis['stale_drafts']))
@@ -44,7 +51,7 @@ class KpiOverviewWidget extends StatsOverviewWidget
         ];
         if ($context->can(Permission::OrganizationManage)) {
             $stats[] = Stat::make(__('dashboard.kpis.documents_sent'), $this->number($kpis['documents_sent']))
-                ->description($range)->icon(Heroicon::OutlinedPaperAirplane);
+                ->description(__('dashboard.kpis.documents_sent_hint').' · '.$range)->icon(Heroicon::OutlinedPaperAirplane);
         }
 
         return $stats;

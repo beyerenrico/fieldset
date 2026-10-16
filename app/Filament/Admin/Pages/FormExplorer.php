@@ -8,6 +8,7 @@ use App\Domain\Forms\Models\Form;
 use App\Domain\Identity\Models\Organization;
 use App\Domain\Identity\Models\User;
 use App\Domain\Reports\Enums\ExportFormat;
+use App\Domain\Reports\Exports\ExportRefused;
 use App\Domain\Reports\Exports\StartExport;
 use App\Domain\Reports\Filters\ReportFilters;
 use App\Domain\Reports\ReportForms;
@@ -136,7 +137,13 @@ class FormExplorer extends Page implements HasTable
 
             return;
         }
-        app(StartExport::class)->handle($this->viewer(), $form, $format, $this->reportFilters(), self::timezone(), $uuids);
+        try {
+            app(StartExport::class)->handle($this->viewer(), $form, $format, $this->reportFilters(), self::timezone(), $uuids);
+        } catch (ExportRefused $refused) {
+            Notification::make()->warning()->title(__('reports.export.refused'))->body($refused->getMessage())->send();
+
+            return;
+        }
 
         Notification::make()->success()->title(__('reports.export.started.title'))
             ->body(__('reports.export.started.body'))->send();

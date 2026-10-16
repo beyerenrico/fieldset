@@ -33,8 +33,11 @@ final readonly class ReportValue
         return $text;
     }
 
-    /** Explorer cell text in the viewer's locale and time zone. */
-    public static function display(ReportField $field, ?string $text, ValueFormatter $formatter): string
+    /**
+     * Explorer cell text in the viewer's locale and time zone. Money uses the currency of the submission's
+     * version; choices use the option labels of all versions (FieldCatalog merges them).
+     */
+    public static function display(ReportField $field, ?string $text, ValueFormatter $formatter, ?int $versionId = null): string
     {
         $value = self::decode($field, $text);
 
@@ -42,7 +45,8 @@ final readonly class ReportValue
             $value === null => ValueFormatter::EMPTY,
             in_array($field->type, ['photo', 'file'], true) => trans_choice('reports.value.files', self::count($value)),
             $field->type === 'signature' => self::signer($value),
-            default => $formatter->format($field->element, $value),
+            in_array($field->type, ['select', 'radio', 'multiselect'], true) => self::choices($field, $value),
+            default => $formatter->format($field->elementFor($versionId), $value),
         };
     }
 
@@ -57,16 +61,23 @@ final readonly class ReportValue
         return match (true) {
             $value === null => null,
             is_bool($value) => $value,
-            in_array($field->type, ['select', 'radio'], true) => $field->options()[self::scalar($value)] ?? self::scalar($value),
-            $field->type === 'multiselect' => implode(', ', array_map(
-                fn (mixed $v): string => $field->options()[self::scalar($v)] ?? self::scalar($v),
-                is_array($value) ? $value : [$value],
-            )),
+            in_array($field->type, ['select', 'radio', 'multiselect'], true) => self::choices($field, $value),
             in_array($field->type, ['photo', 'file'], true) => self::count($value),
             $field->type === 'signature' => self::signer($value),
             $field->type === 'location' && $value instanceof stdClass => self::scalar($value->lat ?? '').', '.self::scalar($value->lng ?? ''),
             default => self::scalar($value),
         };
+    }
+
+    /** Option labels (all versions) of a choice value; unknown values as they are. */
+    private static function choices(ReportField $field, mixed $value): string
+    {
+        $options = $field->options();
+
+        return implode(', ', array_map(
+            static fn (mixed $v): string => $options[self::scalar($v)] ?? self::scalar($v),
+            is_array($value) ? $value : [$value],
+        ));
     }
 
     private static function count(mixed $value): int

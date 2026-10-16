@@ -70,7 +70,7 @@ it('has a date-range filter that is handed to the widgets', function (): void {
         ->set('filters.startDate', '2026-09-01')
         ->set('filters.endDate', '2026-09-30')
         ->assertSet('filters', ['startDate' => '2026-09-01', 'endDate' => '2026-09-30'])
-        ->assertSee('01.09. – 30.09.2026');
+        ->assertSee('09/01 – 09/30/2026');   // the app locale's date format (de: 01.09. – 30.09.2026)
 });
 
 it('renders every widget with its empty state when there is no data', function (): void {

@@ -39,16 +39,20 @@ final class ReportsScenario
 
     private int $sequence = 0;
 
-    public static function make(): self
+    /**
+     * @param  array<int, array{currency: string, scale?: int}>  $money  per version number: currency (and scale) of `amount`
+     */
+    public static function make(array $money = []): self
     {
         $s = new self;
         $s->org = makeOrganization();
         $s->owner = ownerOf($s->org);
         $s->worker = User::factory()->memberOf($s->org, SystemRole::FieldWorker)->create(['name' => 'Walter Worker']);
 
-        app(TenantContext::class)->run($s->org, function () use ($s): void {
+        app(TenantContext::class)->run($s->org, function () use ($s, $money): void {
             $s->form = Form::factory()->create(['key' => 'service', 'name' => 'Service report', 'created_by' => $s->owner->id]);
             foreach ([1 => self::v1(), 2 => self::v2(), 3 => self::v3()] as $number => $elements) {
+                $elements = array_map(fn (array $e): array => $e['key'] === 'amount' && isset($money[$number]) ? [...$e, ...$money[$number]] : $e, $elements);
                 $s->versions[$number] = FormVersion::factory()->create([
                     'form_id' => $s->form->id, 'version' => $number, 'definition' => self::definition($elements),
                 ]);

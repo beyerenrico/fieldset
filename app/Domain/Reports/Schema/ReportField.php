@@ -8,8 +8,10 @@ use stdClass;
 
 /**
  * One data key of a form across its versions (BUILD_PROMPT §8.4): the element of the newest version
- * that has the key supplies label, type and options. Repeater children carry a dotted key
- * (`items.qty`, as projected into submission_values) and the key of their repeater.
+ * that has the key supplies label and type; options are the union over all versions (newest label wins,
+ * so values of removed options keep their label). `versions` holds each version's own element (form
+ * version id => element), used for per-submission money currency and scale. Repeater children carry a
+ * dotted key (`items.qty`, as projected into submission_values) and the key of their repeater.
  */
 final readonly class ReportField
 {
@@ -25,13 +27,23 @@ final readonly class ReportField
 
     private const array GROUPABLE = ['select', 'radio', 'checkbox', 'toggle', 'text', 'email', 'rating', 'date', 'datetime', 'hidden'];
 
+    /** @param  array<int, stdClass>  $versions  form version id => that version's element, newest first */
     public function __construct(
         public string $key,
         public string $label,
         public string $type,
         public stdClass $element,
         public ?string $repeater = null,
+        public array $versions = [],
     ) {}
+
+    /** The element of a submission's version (same key), or the newest element. */
+    public function elementFor(?int $versionId): stdClass
+    {
+        $element = $versionId === null ? null : ($this->versions[$versionId] ?? null);
+
+        return $element instanceof stdClass ? $element : $this->element;
+    }
 
     public function isRepeater(): bool
     {
@@ -85,20 +97,67 @@ final readonly class ReportField
 
     public function currency(): string
     {
-        return is_string($this->element->currency ?? null) ? $this->element->currency : '';
+        return $this->currencyOf($this->element);
     }
 
-    /** @return array<string, string> option value => label (select, radio, multiselect) */
+    /** Currency of the key in a submission's version (the newest version's for unknown versions). */
+    public function currencyFor(?int $versionId): string
+    {
+        return $this->currencyOf($this->elementFor($versionId));
+    }
+
+    /** @return array<int, string> form version id => currency, for the versions where the key is money */
+    public function currencies(): array
+    {
+        if (! $this->isMoney()) {
+            return [];
+        }
+        $currencies = [];
+        foreach ($this->versions as $versionId => $element) {
+            if ($this->isMoneyElement($element)) {
+                $currencies[$versionId] = $this->currencyOf($element);
+            }
+        }
+
+        return $currencies;
+    }
+
+    /** Fraction digits of money in a currency: the largest `scale` of the versions using it (default 2). */
+    public function scaleFor(string $currency): int
+    {
+        $scales = [];
+        foreach ($this->versions === [] ? [$this->element] : $this->versions as $element) {
+            if ($this->isMoneyElement($element) && $this->currencyOf($element) === $currency) {
+                $scales[] = is_int($element->scale ?? null) ? max(0, min(10, $element->scale)) : 2;
+            }
+        }
+
+        return $scales === [] ? 2 : max($scales);
+    }
+
+    /** @return array<string, string> option value => label over all versions (select, radio, multiselect) */
     public function options(): array
     {
         $options = [];
-        foreach (is_array($this->element->options ?? null) ? $this->element->options : [] as $option) {
-            if ($option instanceof stdClass && is_scalar($option->value ?? null)) {
-                $value = (string) $option->value;
-                $options[$value] = is_string($option->label ?? null) && $option->label !== '' ? $option->label : $value;
+        foreach ([$this->element, ...array_values($this->versions)] as $element) {
+            foreach (is_array($element->options ?? null) ? $element->options : [] as $option) {
+                if ($option instanceof stdClass && is_scalar($option->value ?? null)) {
+                    $value = (string) $option->value;
+                    $options[$value] ??= is_string($option->label ?? null) && $option->label !== '' ? $option->label : $value;
+                }
             }
         }
 
         return $options;
+    }
+
+    private function isMoneyElement(stdClass $element): bool
+    {
+        return ($element->type ?? null) === 'money' || (($element->type ?? null) === 'calculated' && ($element->format ?? null) === 'money');
+    }
+
+    private function currencyOf(stdClass $element): string
+    {
+        return is_string($element->currency ?? null) ? $element->currency : '';
     }
 }

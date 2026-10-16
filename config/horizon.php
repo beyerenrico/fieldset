@@ -212,6 +212,21 @@ return [
             'timeout' => 60,
             'nice' => 0,
         ],
+        // Report exports (ADR 0033, review M5): their own queue and a single process, so large exports run
+        // one after another and never block mails, renditions or workflows on `default`. The job sets its own
+        // timeout (reports.exports.timeout, below the connection's retry_after).
+        'supervisor-exports' => [
+            'connection' => 'redis',
+            'queue' => [env('REPORTS_EXPORT_QUEUE', 'exports')],
+            'balance' => 'simple',
+            'maxProcesses' => 1,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 256,
+            'tries' => 1,
+            'timeout' => 90,
+            'nice' => 0,
+        ],
     ],
 
     'environments' => [

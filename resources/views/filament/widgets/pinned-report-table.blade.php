@@ -1,4 +1,5 @@
-{{-- Pinned saved report as a compact table (ADR 0034): the first rows, how many more, the total and a link to the full report. --}}
+{{-- Pinned saved report as a compact table (ADR 0034): the first rows, how many more, the total, notes (groups cut off, mixed
+     currencies) and a link to the full report. --}}
 @php
     /**
      * @var \App\Domain\Reports\Saved\ReportResult $result
@@ -14,6 +15,9 @@
 @endphp
 <x-filament-widgets::widget class="fi-wi-pinned-report">
     <x-filament::section :heading="$heading" :description="$description">
+        @foreach (\App\Domain\Reports\Saved\ReportCsv::notes($result) as $note)
+            <p role="note" style="margin:0 0 .5rem;font-size:.875rem">{{ $note }}</p>
+        @endforeach
         @if ($result->rows === [])
             <p style="font-size:.875rem;{{ $muted }}">{{ __('reports.result.empty') }}</p>
         @else
@@ -40,13 +44,13 @@
                                 <td style="{{ $cell }}">{{ $row->label }}</td>
                                 <td style="{{ $num }}">{{ $formatter->decimal((string) $row->submissions) }}</td>
                                 @if ($withMetric)
-                                    <td style="{{ $num }}">{{ $result->display($row->value($result->metric), $formatter) }}</td>
+                                    <td style="{{ $num }}">{{ $result->displayValue($row, $formatter) }}</td>
                                 @endif
                             </tr>
                         @endforeach
                         @if ($more > 0)
                             <tr>
-                                <td colspan="{{ $withMetric ? 3 : 2 }}" style="{{ $cell }};{{ $muted }}">{{ __('dashboard.pinned.more', ['count' => $more]) }}</td>
+                                <td colspan="{{ $withMetric ? 3 : 2 }}" style="{{ $cell }};{{ $muted }}">{{ trans_choice('dashboard.pinned.more', $more, ['count' => $more]) }}</td>
                             </tr>
                         @endif
                     </tbody>
@@ -55,7 +59,7 @@
                             <th scope="row" style="padding:.5rem .75rem;text-align:start">{{ $result->total->label }}</th>
                             <td style="padding:.5rem .75rem;text-align:end;font-variant-numeric:tabular-nums">{{ $formatter->decimal((string) $result->total->submissions) }}</td>
                             @if ($withMetric)
-                                <td style="padding:.5rem .75rem;text-align:end;font-variant-numeric:tabular-nums">{{ $result->display($result->total->value($result->metric), $formatter) }}</td>
+                                <td style="padding:.5rem .75rem;text-align:end;font-variant-numeric:tabular-nums">{{ $result->displayValue($result->total, $formatter) }}</td>
                             @endif
                         </tr>
                     </tfoot>

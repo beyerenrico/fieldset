@@ -10,6 +10,7 @@ use App\Domain\Reports\Enums\ReportVisibility;
 use App\Domain\Reports\Models\ReportExport;
 use App\Domain\Reports\Models\SavedReport;
 use App\Domain\Reports\ReportForms;
+use App\Domain\Reports\Saved\SaveReport;
 use App\Filament\Admin\Resources\SavedReports\SavedReportResource;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
@@ -46,9 +47,11 @@ final class FormExplorerActions
                         ->default(ReportVisibility::Private->value),
                 ])
                 ->action(function (array $data) use ($page): void {
-                    $report = SavedReport::query()->create([
+                    // Calendar days keep the viewer's time zone they were chosen in (review L4).
+                    $report = app(SaveReport::class)->handle($page->viewer(), null, [
                         'form_id' => $page->selectedForm()?->id, 'name' => $data['name'], 'visibility' => $data['visibility'],
-                        'filters' => $page->reportFilters()->toArray(), 'created_by' => $page->viewer()->id, 'recipients' => [],
+                        'filters' => $page->reportFilters()->inTimezone(FormExplorer::timezone())->toArray(),
+                        'metric' => 'count', 'schedule' => 'none', 'recipients' => [],
                     ]);
                     $page->redirect(SavedReportResource::getUrl('edit', ['record' => $report]));
                 }),

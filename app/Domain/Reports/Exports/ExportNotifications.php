@@ -24,12 +24,13 @@ final readonly class ExportNotifications
     public function ready(ReportExport $export, User $user, int $skipped = 0): void
     {
         $key = $export->format === ExportFormat::PdfZip && $skipped > 0 ? 'ready_partial' : 'ready';
-        $this->send($export, $user, $key, ['rows' => $export->successful_rows, 'skipped' => $skipped], self::downloadUrl($export));
+        $this->send($export, $user, $key, ['rows' => $export->successful_rows, 'count' => $export->successful_rows, 'skipped' => $skipped], self::downloadUrl($export), null, 'reports.notifications.download');
     }
 
+    /** A failure looks like one: danger colour and icon, no link (review U5). */
     public function failed(ReportExport $export, User $user): void
     {
-        $this->send($export, $user, 'failed', [], null);
+        $this->send($export, $user, 'failed', [], null, 'danger');
     }
 
     /** Admin download route (session + ReportExportPolicy); answers 410 once the file expired. */
@@ -41,7 +42,7 @@ final readonly class ExportNotifications
     }
 
     /** @param  array<string, int>  $params */
-    private function send(ReportExport $export, User $user, string $key, array $params, ?string $url): void
+    private function send(ReportExport $export, User $user, string $key, array $params, ?string $url, ?string $status = null, ?string $actionKey = null): void
     {
         $this->notifier->send(new NotificationMessage(
             NotificationEvent::ExportReady,
@@ -55,6 +56,9 @@ final readonly class ExportNotifications
             ],
             $url,
             $export->organization_id,
+            null,
+            $status,
+            $actionKey,
         ), [$user]);
     }
 }

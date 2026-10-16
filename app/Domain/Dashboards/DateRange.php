@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Dashboards;
 
+use App\Support\Dates\LocalDate;
 use Carbon\CarbonImmutable;
 use Throwable;
 
@@ -69,11 +70,10 @@ final readonly class DateRange
         return $days;
     }
 
+    /** The range in the app locale ("11.10. – 17.10.2026", "10/11 – 10/17/2026"). */
     public function label(): string
     {
-        return $this->start->isSameDay($this->end)
-            ? $this->start->format('d.m.Y')
-            : $this->start->format('d.m.').' – '.$this->end->format('d.m.Y');
+        return LocalDate::range($this->start, $this->end);
     }
 
     public function cacheKey(): string

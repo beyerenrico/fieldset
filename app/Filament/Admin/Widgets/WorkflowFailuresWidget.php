@@ -22,7 +22,7 @@ class WorkflowFailuresWidget extends TableWidget
     {
         return $table
             ->heading(__('dashboard.workflow_failures.heading'))
-            ->description(fn (): string => $this->dashboardContext()->range->label())
+            ->description(fn (): string => $this->rangeAndFreshness('workflow_failures'))
             ->records(fn (): array => self::keyed($this->dashboardData()->workflowFailures($this->dashboardContext()), 'id'))
             ->paginated(false)
             ->emptyStateHeading(__('dashboard.workflow_failures.empty'))
@@ -30,7 +30,7 @@ class WorkflowFailuresWidget extends TableWidget
             ->columns([
                 TextColumn::make('workflow')->label(__('dashboard.columns.workflow')),
                 TextColumn::make('error')->label(__('dashboard.columns.error'))->placeholder('—')->wrap(),
-                TextColumn::make('finished_at')->label(__('dashboard.columns.failed_at'))->dateTime()
+                TextColumn::make('finished_at')->label(__('dashboard.columns.failed_at'))->isoDateTime('L LT')
                     ->timezone(SubmissionResource::displayTimezone()),
             ]);
     }

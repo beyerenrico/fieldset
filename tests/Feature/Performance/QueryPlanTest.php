@@ -62,6 +62,7 @@ function catalog(): array
     return [
         ...$catalog->widgets(test()->owner, test()->reviewer, $range),
         ...$catalog->valueLookups(test()->org->id, test()->form->id, $keys, now()->subDays(36)->toDateTimeString()),
+        ...$catalog->reports(test()->owner, test()->reviewer, test()->form, $keys, now()->subDays(36)->toDateTimeString()),
     ];
 }
 
@@ -93,7 +94,11 @@ it('backs every widget query and value lookup with an index, and uses the dashbo
         ->and($scans('kpi: submissions in range'))->toContain('submissions_org_submitted_at_idx')
         ->and($scans('chart: submissions per form and day'))->toContain('submissions_org_submitted_at_idx')
         ->and($scans('kpi: stale drafts'))->toContain('submissions_org_drafts_updated_at_idx')
-        ->and($scans('explorer: page of a form, newest first'))->toContain('submissions_org_form_submitted_at_idx');
+        ->and($scans('explorer: page of a form, newest first'))->toContain('submissions_org_form_submitted_uuid_idx')
+        ->and(array_keys($queries))->toContain(   // the real explorer and saved report queries (review M2), not simplified copies
+            'explorer: page of a form, newest first', 'explorer: page, reviewer visibility', 'explorer: page filtered by a number range',
+            'explorer: page filtered by a choice', 'report: sum of a number grouped by a choice since a date', 'report: total of that report',
+        );
 });
 
 it('picks index plans on its own for the selective lookups', function (): void {

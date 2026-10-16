@@ -24,8 +24,10 @@ use Throwable;
 /**
  * Sends due scheduled reports (`reports:send-scheduled`, hourly). Per organization (time zone) and
  * recipient: each recipient gets the numbers THEY may see (SavedReportQuery as that user) for the past
- * period, in their locale, as a CSV attachment. A report is due once per period; missed runs catch up
- * on the next run, and a report created after the due moment waits for the next period.
+ * period, in their locale, as a CSV attachment. The mail period replaces a relative period of the report
+ * (an absolute from/until range still applies). A report is due once per period; missed runs catch up
+ * on the next run, and a report created (or switched on, SaveReport sets last_sent_at) after the due
+ * moment waits for the next period.
  */
 final readonly class ScheduledReports
 {
@@ -47,7 +49,7 @@ final readonly class ScheduledReports
         foreach ($due->groupBy('organization_id') as $organizationId => $reports) {
             $sent += $this->tenant->run((int) $organizationId, function () use ($reports, $now): int {
                 $count = 0;
-                foreach (SavedReport::query()->whereIn('id', $reports->pluck('id'))->get() as $report) {
+                foreach (SavedReport::query()->with('form')->whereIn('id', $reports->pluck('id'))->get() as $report) {
                     try {
                         $count += $this->sendIfDue($report, $now);
                     } catch (Throwable $e) {
@@ -97,7 +99,9 @@ final readonly class ScheduledReports
         app()->setLocale($locale);
 
         try {
-            $result = $this->query->run($report, $period->range, $recipient);
+            // The mail covers its own period: a relative period of the report (this week, last 7 days…) would
+            // be evaluated at send time and miss the past period, so it is replaced (ADR 0033 amendment).
+            $result = $this->query->run($report, $period->range, $recipient, periodFromRange: true);
             $tz = SavedReportQuery::timezone($report);
             $label = $period->range->from->setTimezone($tz)->settings(['locale' => $locale])->isoFormat('L').' – '
                 .$period->range->until->setTimezone($tz)->subDay()->settings(['locale' => $locale])->isoFormat('L');
@@ -112,13 +116,16 @@ final readonly class ScheduledReports
         $this->mail->handle($mail, $recipient->email, $recipient->name);
     }
 
+    /** Total line plus the result's notes (groups cut off, mixed currencies). */
     private function summary(ReportResult $result, ValueFormatter $formatter): string
     {
-        return $result->metric === ReportMetric::Count
-            ? (string) __('reports.mail.summary_count', ['submissions' => $result->total->submissions])
-            : (string) __('reports.mail.summary', [
+        $summary = $result->metric === ReportMetric::Count
+            ? trans_choice('reports.mail.summary_count', $result->total->submissions, ['submissions' => $result->total->submissions])
+            : trans_choice('reports.mail.summary', $result->total->submissions, [
                 'submissions' => $result->total->submissions, 'metric' => $result->metric->label().' '.$result->metricLabel,
-                'value' => $result->display($result->total->value($result->metric), $formatter),
+                'value' => $result->displayValue($result->total, $formatter),
             ]);
+
+        return implode("\n\n", [$summary, ...ReportCsv::notes($result)]);
     }
 }

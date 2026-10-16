@@ -81,6 +81,7 @@ it('charts one line per busiest form, sums the rest as other forms and buckets d
     D::submission($this->form, $this->owner, 'submitted', D::day('2026-10-16'));
     D::submission($other, $this->owner, 'submitted', D::day('2026-10-16'));
     actingInAdmin($this->owner, $this->org);
+    app()->setLocale('de');   // day labels follow the locale
 
     $data = D::call(Livewire::test(SubmissionsChartWidget::class), 'getData');
 
@@ -89,8 +90,9 @@ it('charts one line per busiest form, sums the rest as other forms and buckets d
         ->and($data['datasets'][0]['data'])->toBe([0, 0, 0, 0, 0, 1, 1])
         ->and($data['datasets'][1]['label'])->toBe(__('dashboard.chart.other_forms'))
         ->and($data['datasets'][1]['data'])->toBe([0, 0, 0, 0, 0, 0, 1])
-        ->and(D::call(Livewire::test(SubmissionsChartWidget::class), 'getChartAssistiveContent'))
-        ->toBe($this->form->name.': 2, '.__('dashboard.chart.other_forms').': 1');
+        ->and((string) D::call(Livewire::test(SubmissionsChartWidget::class), 'getChartAssistiveContent'))
+        ->toContain('<th scope="row">'.e($this->form->name).'</th><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>1</td><td>1</td><td>2</td>')
+        ->toContain('<th scope="row">'.e(__('dashboard.chart.other_forms')).'</th>');
 });
 
 it('queues only open tasks the reviewer may act on, most urgent first, and flags overdue ones', function (): void {

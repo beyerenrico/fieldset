@@ -11,6 +11,7 @@ beforeEach(fn () => Carbon::setTestNow(Carbon::parse('2026-10-16 23:30', 'UTC'))
 afterEach(fn () => Carbon::setTestNow());
 
 it('defaults to the last 7 local days including today', function (): void {
+    app()->setLocale('de');   // labels follow the locale (LocalDate); en: 10/11 – 10/17/2026
     $range = DateRange::fromFilters(null, 'Europe/Berlin');
 
     expect($range->start->toDateString())->toBe('2026-10-11')
@@ -20,6 +21,7 @@ it('defaults to the last 7 local days including today', function (): void {
 });
 
 it('turns local whole days into UTC bounds', function (): void {
+    app()->setLocale('de');
     $range = DateRange::fromFilters(['startDate' => '2026-10-01', 'endDate' => '2026-10-01'], 'Europe/Berlin');
 
     expect($range->startUtc()->toDateTimeString())->toBe('2026-09-30 22:00:00')

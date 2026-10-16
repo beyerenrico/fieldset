@@ -57,10 +57,15 @@ final class NotificationRenderer
         return in_array($scheme, ['http', 'https'], true) && filter_var($url, FILTER_VALIDATE_URL) !== false ? $url : null;
     }
 
-    /** @param  array<string, string>  $params */
+    /**
+     * A `count` parameter selects the plural form ("1 Einreichung|:count Einreichungen"); lines without
+     * plural forms are unaffected by it.
+     *
+     * @param  array<string, string>  $params
+     */
     private function translate(string $key, array $params, string $locale): string
     {
-        $line = trans($key, $params, $locale);
+        $line = is_numeric($params['count'] ?? null) ? trans_choice($key, (int) $params['count'], $params, $locale) : trans($key, $params, $locale);
 
         return is_string($line) ? $line : $key;
     }

@@ -101,9 +101,8 @@ final readonly class ReportScope
 
         match ($filter->operator) {
             FieldFilter::IN => $query->whereIn('submissions.uuid', $this->in($values, $filter, $field)),
-            FieldFilter::IS => $filter->values[0] === true
-                ? $query->whereIn('submissions.uuid', $values->where('value_text', 'true'))
-                : $query->whereNotIn('submissions.uuid', $values->where('value_text', 'true')),
+            // "No" is an answered false: submissions without the field (other versions) or answer do not match.
+            FieldFilter::IS => $query->whereIn('submissions.uuid', $values->where('value_text', $filter->values[0] === true ? 'true' : 'false')),
             default => $query->whereIn('submissions.uuid', $this->between($values, $filter, $field)),
         };
     }

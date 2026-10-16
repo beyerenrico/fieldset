@@ -96,7 +96,7 @@ final readonly class NotificationDelivery
             return; // organization mail needs a sender and branding; in-app only without one
         }
 
-        $mail = new NotificationMail($organization->id, $rendered->title, $rendered->body, $rendered->absoluteUrl(), $rendered->locale);
+        $mail = new NotificationMail($organization->id, $rendered->title, $rendered->body, $rendered->absoluteUrl(), $rendered->locale, $message->actionKey);
         $this->queueMail->handle($mail, $user->email, $user->name, $message->submissionUuid);
     }
 

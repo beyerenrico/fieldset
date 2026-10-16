@@ -38,6 +38,18 @@ final readonly class DashboardQueries
             ->where('submitted_at', '<', $range->endUtc());
     }
 
+    /**
+     * Submissions the viewer may see (§8.6) submitted in the range, counted like reports: no drafts and no
+     * void submissions (ReportFilters::effectiveStatuses). KPI "submissions" and the chart use it.
+     *
+     * @return Builder<Submission>
+     */
+    public function reportableInRange(User $user, DateRange $range): Builder
+    {
+        return $this->visibility->apply($this->submittedInRange($range), $user)
+            ->whereNotIn('submissions.status', [SubmissionStatus::Draft->value, SubmissionStatus::Void->value]);
+    }
+
     /** @return Builder<Task> open review tasks (index: organization_id, status, due_at) */
     public function pendingReviews(): Builder
     {
@@ -69,15 +81,16 @@ final readonly class DashboardQueries
     }
 
     /**
-     * Rows (form_id, day, total) per form and day in the viewer's time zone. `submitted_at` is a UTC
+     * Rows (form_id, day, total) per form and day in the viewer's time zone, over the submissions the viewer
+     * may see, without drafts and void (reportableInRange). `submitted_at` is a UTC
      * timestamp without time zone, hence the double conversion; GROUP BY uses the output alias so the
      * time zone is bound once.
      *
      * @return Builder<Submission>
      */
-    public function submissionsPerFormPerDay(DateRange $range): Builder
+    public function submissionsPerFormPerDay(User $user, DateRange $range): Builder
     {
-        return $this->submittedInRange($range)
+        return $this->reportableInRange($user, $range)
             ->select('form_id')
             ->selectRaw("date(timezone(?, timezone('UTC', submitted_at))) as day", [$range->timezone])
             ->selectRaw('count(*) as total')

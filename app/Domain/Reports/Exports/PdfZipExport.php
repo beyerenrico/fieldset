@@ -9,7 +9,6 @@ use App\Domain\Documents\Renditions\RenditionLinks;
 use App\Domain\Reports\Models\ReportExport;
 use App\Domain\Submissions\Models\Submission;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 use ZipArchive;
@@ -21,8 +20,11 @@ use ZipArchive;
  */
 final readonly class PdfZipExport
 {
-    /** @param  Builder<Submission>  $query */
-    public function write(ReportExport $export, Builder $query, string $directory): ExportFile
+    /**
+     * @param  Builder<Submission>  $query
+     * @param  list<string>  $uuids  snapshot of the rows in explorer order (ExportRowReader::selection; no OFFSET paging)
+     */
+    public function write(ReportExport $export, Builder $query, array $uuids, string $directory): ExportFile
     {
         $zipPath = $directory.'/export.zip';
         $zip = new ZipArchive;
@@ -33,22 +35,27 @@ final readonly class PdfZipExport
         $maxBytes = (int) config('reports.pdf_zip.max_bytes');
         $maxFiles = (int) config('reports.pdf_zip.max_files');
         $state = ['rows' => 0, 'included' => 0, 'bytes' => 0, 'names' => []];
-        $query->select(['submissions.uuid', 'submissions.number'])->reorder()->orderBy('submissions.uuid')
-            ->chunk(max(1, (int) config('reports.exports.chunk_size', 500)), function (Collection $chunk) use ($zip, $directory, $maxBytes, $maxFiles, $export, &$state): void {
-                $latest = $this->latestRenditions(array_values(array_map(strval(...), $chunk->pluck('uuid')->all())));
-                foreach ($chunk as $submission) {
-                    $state['rows']++;
-                    $rendition = $latest[$submission->uuid] ?? null;
-                    if ($rendition === null || $state['included'] >= $maxFiles || $maxBytes < $state['bytes'] + $rendition->size) {
-                        continue;
-                    }
-                    if ($this->add($zip, $directory, $rendition, $submission->number, $state['names'])) {
-                        $state['included']++;
-                        $state['bytes'] += $rendition->size;
-                    }
+        $base = (clone $query)->reorder()->select(['submissions.uuid', 'submissions.number']);
+        foreach (array_chunk($uuids, max(1, (int) config('reports.exports.chunk_size', 500))) as $chunk) {
+            $found = (clone $base)->whereIn('submissions.uuid', $chunk)->get()->keyBy('uuid');
+            $latest = $this->latestRenditions($chunk);
+            foreach ($chunk as $uuid) {
+                $submission = $found->get($uuid);
+                if (! $submission instanceof Submission) {
+                    continue; // no longer visible or matching since the snapshot
                 }
-                $export->forceFill(['processed_rows' => $state['rows'], 'successful_rows' => $state['included']])->save();
-            });
+                $state['rows']++;
+                $rendition = $latest[$uuid] ?? null;
+                if ($rendition === null || $state['included'] >= $maxFiles || $maxBytes < $state['bytes'] + $rendition->size) {
+                    continue;
+                }
+                if ($this->add($zip, $directory, $rendition, $submission->number, $state['names'])) {
+                    $state['included']++;
+                    $state['bytes'] += $rendition->size;
+                }
+            }
+            $export->forceFill(['processed_rows' => $state['rows'], 'successful_rows' => $state['included']])->save();
+        }
 
         if ($state['included'] === 0) {
             $zip->addFromString('README.txt', (string) __('reports.export.pdf_none'));

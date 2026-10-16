@@ -78,7 +78,7 @@ final class XlsxExportWriter implements ExportWriter
         return new WrittenFile($this->path, 'xlsx');
     }
 
-    /** @param  list<string|int|bool|DateCell|null>  $cells */
+    /** @param  list<string|int|bool|DateCell|DecimalCell|null>  $cells */
     private function write(Sheet $sheet, array $cells): void
     {
         if ($this->current !== $sheet) {
@@ -88,9 +88,10 @@ final class XlsxExportWriter implements ExportWriter
         $this->writer->addRow(new Row(array_map($this->cell(...), $cells)));
     }
 
-    private function cell(string|int|bool|DateCell|null $value): Cell
+    private function cell(string|int|bool|DateCell|DecimalCell|null $value): Cell
     {
         return match (true) {
+            $value instanceof DecimalCell => new StringCell($value->value, null),
             $value === null, $value === '' => new EmptyCell(null, null),
             is_bool($value) => new BooleanCell($value, null),
             is_int($value) => new NumericCell($value, null),

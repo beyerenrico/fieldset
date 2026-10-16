@@ -11,30 +11,38 @@ use App\Domain\Reports\Enums\ReportMetric;
 use App\Domain\Reports\Enums\ReportSchedule;
 use App\Domain\Reports\Enums\ReportVisibility;
 use App\Domain\Reports\Filters\DateRange;
-use App\Domain\Reports\Filters\FieldFilter;
+use App\Domain\Reports\Filters\ReportFilters;
 use App\Domain\Reports\ReportForms;
 use App\Domain\Reports\Saved\ReportGrouping;
 use App\Domain\Reports\Saved\SaveReport;
 use App\Domain\Reports\Schema\FieldCatalog;
-use App\Domain\Reports\Schema\ReportField;
 use App\Domain\Submissions\Enums\SubmissionStatus;
-use Filament\Forms\Components\Repeater;
+use App\Filament\Admin\Pages\FormExplorerFilters;
+use App\Filament\Admin\Resources\Submissions\SubmissionResource;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 
 /**
- * Saved report form. Group-by and metric fields depend on the chosen form (its FieldCatalog); field
- * filters are entered as lines (choices: one value per line; ranges: from and until). toForm()/fromForm()
- * convert between the stored filters and the form state; SaveReport validates everything again.
+ * Saved report form. Group-by, metric, submitter and field-filter inputs depend on the chosen form (its
+ * FieldCatalog). Every stored filter has a field (review H1): period or a custom date range (calendar
+ * days in the time zone they were chosen in), statuses, submitters, groups, search and typed field
+ * filters (SavedReportFieldFilters), so saving the form never drops filters set in the explorer.
+ * toForm()/fromForm() convert between the stored filters and the form state; SaveReport validates again.
  */
 final class SavedReportForm
 {
+    /** Period option that shows the from/until date pickers. */
+    public const string CUSTOM_PERIOD = 'custom';
+
     public static function configure(Schema $schema): Schema
     {
+        $custom = fn (Get $get): bool => $get('filters.period') === self::CUSTOM_PERIOD;
+
         return $schema->columns(2)->components([
             Section::make()->columnSpanFull()->columns(2)->schema([
                 TextInput::make('name')->label(__('reports.saved.name'))->required()->maxLength(120),
@@ -47,26 +55,34 @@ final class SavedReportForm
                 Select::make('metric_key')->label(__('reports.saved.metric_key'))->helperText(__('reports.saved.metric_key_help'))
                     ->visible(fn (Get $get): bool => in_array($get('metric'), [ReportMetric::Sum->value, ReportMetric::Avg->value], true))
                     ->required(fn (Get $get): bool => in_array($get('metric'), [ReportMetric::Sum->value, ReportMetric::Avg->value], true))
-                    ->options(fn (Get $get): array => self::fieldOptions(self::catalog($get('form_id'))->numeric())),
+                    ->options(fn (Get $get): array => SavedReportFieldFilters::fieldOptions(self::catalog($get('form_id'))->numeric())),
                 Select::make('visibility')->label(__('reports.saved.visibility'))->required()->default(ReportVisibility::Private->value)
                     ->options(self::enumOptions(ReportVisibility::cases())),
             ]),
             Section::make(__('reports.saved.filters'))->columnSpanFull()->columns(3)->schema([
-                Select::make('filters.period')->label(__('reports.saved.period'))->placeholder(__('reports.period.all'))
-                    ->options(collect(DateRange::PERIODS)->mapWithKeys(fn (string $p): array => [$p => __('reports.period.'.$p)])->all()),
+                Select::make('filters.period')->label(__('reports.saved.period'))->placeholder(__('reports.period.all'))->live()
+                    ->options([
+                        ...collect(DateRange::PERIODS)->mapWithKeys(fn (string $p): array => [$p => __('reports.period.'.$p)])->all(),
+                        self::CUSTOM_PERIOD => __('reports.period.custom'),
+                    ]),
+                DatePicker::make('filters.from')->label(__('reports.filter.submitted_from'))->visible($custom)
+                    ->required(fn (Get $get): bool => $custom($get) && blank($get('filters.until')))
+                    ->helperText(fn (Get $get): string => __('reports.saved.days_timezone', ['timezone' => self::daysTimezone($get('filters.timezone'))])),
+                DatePicker::make('filters.until')->label(__('reports.filter.submitted_until'))->visible($custom)
+                    ->minDate(fn (Get $get): mixed => $get('filters.from')),
+                Hidden::make('filters.timezone'),
                 Select::make('filters.statuses')->label(__('reports.saved.statuses'))->multiple()->helperText(__('reports.saved.statuses_help'))
                     ->options(self::statusOptions()),
+                Select::make('filters.submitters')->label(__('reports.column.submitter'))->multiple()->searchable()
+                    ->options(fn (Get $get): array => self::submitterOptions($get('form_id'))),
                 Select::make('filters.groups')->label(__('reports.saved.groups'))->multiple()
                     ->options(fn (): array => Group::query()->orderBy('name')->pluck('name', 'id')->map(fn (mixed $n): string => (string) $n)->all()),
-                Repeater::make('field_filters')->label(__('reports.saved.field_filters'))->columnSpanFull()->columns(2)->defaultItems(0)
-                    ->schema([
-                        Select::make('key')->label(__('reports.saved.field'))->required()
-                            ->options(fn (Get $get): array => self::fieldOptions(self::catalog($get('../../form_id'))->filterable())),
-                        Textarea::make('values')->label(__('reports.saved.values'))->rows(2)->helperText(__('reports.saved.values_help')),
-                    ]),
+                TextInput::make('filters.search')->label(__('reports.saved.search'))->helperText(__('reports.saved.search_help'))->maxLength(100),
+                SavedReportFieldFilters::repeater(),
             ]),
-            Section::make(__('reports.saved.schedule'))->columnSpanFull()->columns(2)->schema([
+            Section::make(__('reports.saved.schedule_section'))->columnSpanFull()->columns(2)->schema([
                 Select::make('schedule')->label(__('reports.saved.schedule'))->required()->live()->default(ReportSchedule::None->value)
+                    ->helperText(__('reports.saved.schedule_help'))
                     ->options(self::enumOptions(ReportSchedule::cases())),
                 Select::make('recipients')->label(__('reports.saved.recipients'))->multiple()->helperText(__('reports.saved.recipients_help'))
                     ->visible(fn (Get $get): bool => $get('schedule') !== ReportSchedule::None->value)
@@ -76,66 +92,76 @@ final class SavedReportForm
     }
 
     /**
-     * Stored filters → form state (field filters as lines).
+     * Stored filters → form state (custom range as period "custom", field filters as typed rows).
      *
      * @param  array<string, mixed>  $data  model attributes
      * @return array<string, mixed>
      */
     public static function toForm(array $data): array
     {
-        $filters = is_array($data['filters'] ?? null) ? $data['filters'] : [];
-        $data['field_filters'] = array_values(array_map(static fn (mixed $f): array => [
-            'key' => is_array($f) ? ($f['key'] ?? null) : null,
-            'values' => is_array($f) && is_array($f['values'] ?? null)
-                ? implode("\n", array_map(static fn (mixed $v): string => is_bool($v) ? ($v ? 'true' : 'false') : (string) $v, $f['values'])) : '',
-        ], is_array($filters['fields'] ?? null) ? $filters['fields'] : []));
+        $filters = ReportFilters::fromArray(is_array($data['filters'] ?? null) ? $data['filters'] : []);
+        $state = $filters->toArray();
+        $state['period'] = $filters->period ?? ($filters->from !== null || $filters->until !== null ? self::CUSTOM_PERIOD : null);
+        unset($state['fields']);
+        $data['filters'] = $state;
+        $data['field_filters'] = SavedReportFieldFilters::toForm($filters->toArray()['fields'], self::catalog($data['form_id'] ?? null));
 
         return $data;
     }
 
     /**
-     * Form state → SaveReport input (field filters with the operator of the field's type).
+     * Form state → SaveReport input: a relative period clears the custom days; custom days keep the time
+     * zone they were chosen in (the editor's display time zone for new ones).
      *
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
     public static function fromForm(array $data): array
     {
-        $catalog = self::catalog($data['form_id'] ?? null);
-        $fields = [];
-        foreach (is_array($data['field_filters'] ?? null) ? $data['field_filters'] : [] as $row) {
-            $field = is_array($row) && is_string($row['key'] ?? null) ? $catalog->get($row['key']) : null;
-            $lines = is_array($row) ? array_map(trim(...), explode("\n", (string) ($row['values'] ?? ''))) : [];
-            if ($field instanceof ReportField) {
-                $fields[] = self::fieldFilter($field, $lines);
-            }
-        }
         $filters = is_array($data['filters'] ?? null) ? $data['filters'] : [];
+        $custom = ($filters['period'] ?? null) === self::CUSTOM_PERIOD;
+        $filters = [
+            ...$filters,
+            'period' => $custom ? null : ($filters['period'] ?? null),
+            'from' => $custom ? self::day($filters['from'] ?? null) : null,
+            'until' => $custom ? self::day($filters['until'] ?? null) : null,
+            'timezone' => $custom ? self::daysTimezone($filters['timezone'] ?? null) : null,
+            'fields' => SavedReportFieldFilters::fromForm(is_array($data['field_filters'] ?? null) ? $data['field_filters'] : [], self::catalog($data['form_id'] ?? null)),
+        ];
         unset($data['field_filters']);
 
-        return [...$data, 'filters' => [...$filters, 'fields' => $fields]];
+        return [...$data, 'filters' => $filters];
     }
 
-    /**
-     * @param  list<string>  $lines
-     * @return array<string, mixed>
-     */
-    private static function fieldFilter(ReportField $field, array $lines): array
-    {
-        return match ($field->filterKind()) {
-            ReportField::FILTER_SELECT => ['key' => $field->key, 'operator' => FieldFilter::IN, 'values' => array_values(array_filter($lines, fn (string $l): bool => $l !== ''))],
-            ReportField::FILTER_BOOLEAN => ['key' => $field->key, 'operator' => FieldFilter::IS, 'values' => [in_array(mb_strtolower($lines[0] ?? ''), ['true', 'yes', 'ja', '1'], true)]],
-            default => ['key' => $field->key, 'operator' => FieldFilter::BETWEEN, 'values' => [
-                ($lines[0] ?? '') === '' ? null : str_replace(',', '.', $lines[0]), ($lines[1] ?? '') === '' ? null : str_replace(',', '.', $lines[1]),
-            ]],
-        };
-    }
-
+    /** The catalog of a form the current user may report on (memoized per request and form). */
     public static function catalog(mixed $formId): FieldCatalog
+    {
+        $id = is_numeric($formId) ? (int) $formId : null;
+        $user = self::user();
+
+        return once(function () use ($id, $user): FieldCatalog {
+            $form = $id === null ? null : app(ReportForms::class)->find($user, $id);
+
+            return $form instanceof Form ? FieldCatalog::forForm($form) : FieldCatalog::fromDefinitions([]);
+        });
+    }
+
+    private static function daysTimezone(mixed $timezone): string
+    {
+        return is_string($timezone) && in_array($timezone, timezone_identifiers_list(), true) ? $timezone : SubmissionResource::displayTimezone();
+    }
+
+    private static function day(mixed $value): ?string
+    {
+        return is_string($value) && $value !== '' ? substr($value, 0, 10) : null;
+    }
+
+    /** @return array<int, string> */
+    private static function submitterOptions(mixed $formId): array
     {
         $form = is_numeric($formId) ? app(ReportForms::class)->find(self::user(), (int) $formId) : null;
 
-        return $form instanceof Form ? FieldCatalog::forForm($form) : FieldCatalog::fromDefinitions([]);
+        return $form instanceof Form ? FormExplorerFilters::submitterOptions($form, self::user()) : [];
     }
 
     /** @return array<string, string> */
@@ -147,15 +173,6 @@ final class SavedReportForm
         }
 
         return $options;
-    }
-
-    /**
-     * @param  list<ReportField>  $fields
-     * @return array<string, string>
-     */
-    private static function fieldOptions(array $fields): array
-    {
-        return collect($fields)->mapWithKeys(fn (ReportField $f): array => [$f->key => $f->repeater === null ? $f->label : $f->key.' ('.$f->label.')'])->all();
     }
 
     /**

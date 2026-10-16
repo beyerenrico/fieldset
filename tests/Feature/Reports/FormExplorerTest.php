@@ -45,6 +45,29 @@ it('builds one column per key of all three versions with the newest label', func
         ->and(array_keys($table->getColumns()))->toContain('number', 'status', 'creator.name', 'submitted_at');
 });
 
+it('keeps a wide table readable: wrapped headers, number always visible, field columns beyond six hidden (review U6)', function (): void {
+    config(['reports.explorer.visible_field_columns' => 6]);
+    $table = explorer($this->s)->instance()->getTable();
+    $fields = array_values(array_filter($table->getColumns(), fn ($c): bool => str_starts_with($c->getName(), 'field_')));
+
+    expect(array_key_first($table->getColumns()))->toBe('number')
+        ->and($table->getColumn('number')->isToggleable())->toBeFalse()
+        ->and(array_map(fn ($c): bool => $c->isToggledHiddenByDefault(), $fields))->toBe([false, false, false, false, false, false, true])
+        ->and($table->getColumn('field_customer')->canHeaderWrap())->toBeTrue();
+});
+
+it('formats dates per locale and money with the currency of each version (review U1, M1)', function (): void {
+    $s = ReportsScenario::make([1 => ['currency' => 'CHF']]);
+    $old = $s->submit($s->worker, ['amount' => '12.50'], version: 1, submittedAt: '2026-10-01 09:00');
+    $new = $s->submit($s->worker, ['amount' => '7.00'], version: 3, submittedAt: '2026-10-02 09:00');
+
+    explorer($s)->assertTableColumnStateSet('field_amount', '12.50 CHF', $old)->assertTableColumnStateSet('field_amount', '7.00 EUR', $new)
+        ->assertTableColumnFormattedStateSet('submitted_at', '10/01/2026 11:00 AM', $old);
+    app()->setLocale('de');
+    explorer($s)->assertTableColumnFormattedStateSet('submitted_at', '01.10.2026 11:00', $old)
+        ->assertTableColumnStateSet('field_amount', '12,50 CHF', $old);
+});
+
 it('shows the values of every version, formatted by type, and hides void by default', function (): void {
     explorer($this->s)
         ->assertCanSeeTableRecords([$this->new, $this->mid, $this->old], inOrder: true)
@@ -64,7 +87,9 @@ it('filters by field values per type, status, date, submitter and group, and sea
     explorer($s)->filterTable('field_kind', ['repair'])->assertCanSeeTableRecords([$this->old, $this->new])->assertCanNotSeeTableRecords([$this->mid]);
     explorer($s)->filterTable('field_amount', ['min' => '0.15', 'max' => '1000'])->assertCanSeeTableRecords([$this->new])->assertCanNotSeeTableRecords([$this->old, $this->mid]);
     explorer($s)->filterTable('field_done', 'true')->assertCanSeeTableRecords([$this->new])->assertCanNotSeeTableRecords([$this->old, $this->mid]);
-    explorer($s)->filterTable('field_done', 'false')->assertCanSeeTableRecords([$this->old, $this->mid])->assertCanNotSeeTableRecords([$this->new]);
+    // "No" matches an answered false only, not submissions whose version has no such field (review L1).
+    $notDone = $s->submit($s->worker, ['customer' => 'Offen', 'done' => false], version: 3, submittedAt: '2026-10-09 08:00');
+    explorer($s)->filterTable('field_done', 'false')->assertCanSeeTableRecords([$notDone])->assertCanNotSeeTableRecords([$this->new, $this->old, $this->mid]);
     explorer($s)->filterTable('field_visit_date', ['from' => '2026-10-01', 'until' => '2026-10-05'])->assertCanSeeTableRecords([$this->mid])->assertCanNotSeeTableRecords([$this->new, $this->old]);
     explorer($s)->filterTable('status', ['void'])->assertCanSeeTableRecords([$this->void])->assertCanNotSeeTableRecords([$this->new]);
     explorer($s)->filterTable('submitted', ['from' => '2026-10-02', 'until' => '2026-10-06'])->assertCanSeeTableRecords([$this->mid])->assertCanNotSeeTableRecords([$this->old, $this->new]);

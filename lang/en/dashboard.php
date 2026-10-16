@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 return [
+    'cached_at' => 'As of :time',
     'filters' => [
         'start' => 'From',
         'end' => 'Until',
@@ -10,6 +11,8 @@ return [
     ],
 
     'kpis' => [
+        'submissions_hint' => 'Submitted in the range, without drafts and void ones (as in reports)',
+        'documents_sent_hint' => 'Documents sent to customers',
         'heading' => 'Key figures',
         'submissions' => 'Submissions',
         'pending_reviews' => 'Pending reviews',
@@ -20,6 +23,7 @@ return [
     ],
 
     'chart' => [
+        'total' => 'Total',
         'heading' => 'Submissions over time per form',
         'other_forms' => 'Other forms',
         'empty' => 'No submissions in this period.',
@@ -52,7 +56,9 @@ return [
     ],
 
     'pinned' => [
-        'more' => ':count more groups',
+        'range' => 'Range: :range',
+        'no_overlap' => 'The report’s period (:report) does not overlap the dashboard range (:dashboard).',
+        'more' => ':count more group|:count more groups',
         'open' => 'Open report',
     ],
 

@@ -136,9 +136,11 @@ final readonly class ExportRunner
             $query->whereIn('submissions.uuid', $options->uuids);
         }
 
+        $uuids = ExportRowReader::selection($query, $options->uuids === null ? StartExport::maxRows() : count($options->uuids));
+
         return $export->format === ExportFormat::PdfZip
-            ? $this->pdfZip->write($export, $query, $directory)
-            : $this->tabular->write($export, $query, $catalog, $options, $directory);
+            ? $this->pdfZip->write($export, $query, $uuids, $directory)
+            : $this->tabular->write($export, $query, $uuids, $catalog, $options, $directory);
     }
 
     /**

@@ -59,6 +59,17 @@ it('interprets calendar days and periods in the time zone', function (): void {
         ->and($days?->intersect($lastWeek)->from->equalTo($lastWeek?->from))->toBeTrue();
 });
 
+it('interprets calendar days in the time zone they were chosen in (review L4)', function (): void {
+    $filters = ReportFilters::fromArray(['from' => '2026-10-01', 'until' => '2026-10-01', 'timezone' => 'America/New_York']);
+    $range = $filters->dateRange('Europe/Berlin');
+
+    expect($filters->timezone)->toBe('America/New_York')
+        ->and($filters->toArray()['timezone'])->toBe('America/New_York')
+        ->and($range?->from->toIso8601String())->toBe('2026-10-01T04:00:00+00:00')
+        ->and(ReportFilters::fromArray(['from' => '2026-10-01', 'timezone' => 'Mars/Base'])->timezone)->toBeNull()
+        ->and(ReportFilters::fromArray(['timezone' => 'Europe/Berlin'])->timezone)->toBeNull();   // no days: nothing to anchor
+});
+
 it('finds the latest due moment of weekly and monthly schedules', function (): void {
     $weekly = SchedulePeriod::latest(ReportSchedule::Weekly, CarbonImmutable::parse('2026-10-14 12:00', 'UTC'), 'Europe/Berlin');
     $beforeSeven = SchedulePeriod::latest(ReportSchedule::Weekly, CarbonImmutable::parse('2026-10-12 06:30', 'Europe/Berlin'), 'Europe/Berlin');

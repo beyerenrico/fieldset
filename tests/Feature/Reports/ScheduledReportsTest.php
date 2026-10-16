@@ -75,6 +75,40 @@ it('mails monthly reports on the 1st and waits a period for reports created afte
     expect($report->refresh()->schedule->value)->toBe('monthly');
 });
 
+it('covers the mail period even when the report has a relative period (review H3)', function (): void {
+    $s = $this->s;
+    $lastSeven = scheduledReport($s, $s->owner, ['name' => 'Last seven', 'filters' => ['period' => 'last_7_days'], 'recipients' => [$s->owner->id]]);
+    $thisWeek = scheduledReport($s, $s->owner, ['name' => 'This week', 'filters' => ['period' => 'this_week'], 'recipients' => [$s->owner->id]]);
+    $thisMonth = scheduledReport($s, $s->owner, ['name' => 'This month', 'schedule' => 'monthly', 'filters' => ['period' => 'this_month'], 'recipients' => [$s->owner->id]]);
+    app(TenantContext::class)->clear();
+
+    expect(sendDue('2026-10-12 07:05'))->toBe(2)       // weekly: the previous Monday–Sunday (week 41)
+        ->and(sendDue('2026-11-01 07:30'))->toBe(3);   // monthly: October (+ the weekly ones for the week of 26 October)
+
+    foreach (['last-seven', 'this-week'] as $slug) {
+        Mail::assertSent(ScheduledReportMail::class, fn (ScheduledReportMail $m): bool => str_starts_with($m->filename, $slug.'-2026-10-05')
+            && str_contains($m->csv, 'Total,2,10.3'));
+    }
+    Mail::assertSent(ScheduledReportMail::class, fn (ScheduledReportMail $m): bool => str_starts_with($m->filename, 'this-month-2026-10-01')
+        && str_contains($m->csv, 'Total,3,109.3'));
+    expect([$lastSeven->refresh()->filters['period'], $thisWeek->refresh()->filters['period'], $thisMonth->refresh()->filters['period']])
+        ->toBe(['last_7_days', 'this_week', 'this_month']);   // the report itself keeps its period
+});
+
+it('does not mail an old period right after a schedule is switched on (review L2)', function (): void {
+    $s = $this->s;
+    $this->travelTo(CarbonImmutable::parse('2026-09-01 08:00', 'UTC'));
+    $report = scheduledReport($s, $s->owner, ['schedule' => 'none', 'recipients' => [$s->owner->id]]);
+    $this->travelTo(CarbonImmutable::parse('2026-10-06 10:00', 'UTC'));   // Tuesday; the latest weekly due time was Monday 07:00
+    $report = app(SaveReport::class)->handle($s->owner, $report, [...$report->only(['form_id', 'name', 'metric', 'metric_key', 'visibility']),
+        'metric' => 'sum', 'schedule' => 'weekly', 'recipients' => [$s->owner->id]]);
+    app(TenantContext::class)->clear();
+
+    expect($report->last_sent_at?->toIso8601String())->toBe('2026-10-06T10:00:00+00:00')
+        ->and(sendDue('2026-10-06 12:30'))->toBe(0)
+        ->and(sendDue('2026-10-12 07:05'))->toBe(1);
+});
+
 it('sends private reports only to their creator', function (): void {
     $report = scheduledReport($this->s, $this->s->owner, ['visibility' => 'private', 'recipients' => [$this->s->owner->id, $this->reviewer->id]]);
 

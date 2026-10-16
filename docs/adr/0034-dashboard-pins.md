@@ -37,3 +37,20 @@ segment, widget and date range (DashboardCache). A saved report is computed for 
 Pins are not ordered or hidden by the user yet (§8.1 "Later"); `position` is ready for it. A user who
 loses `reports.view` entirely while the dashboard is open gets a 403 on the widget's next poll (the page
 reload is clean). Pins of a report the viewer temporarily cannot see are removed, not suspended.
+
+## Amendment 2026-10-17: M5 review fixes
+- **Subtitle (U4):** a pinned widget names the range it actually covers — dashboard range ∩ the report's own
+  date filter, in the viewer's time zone and locale — and, when they do not overlap, says so with both ranges
+  instead of showing an unexplained empty widget. Notes (groups cut off, mixed currencies) appear in the table
+  or, for charts, in the subtitle.
+- **Freshness (U3):** DashboardCache entries are `{value, at}`; role widgets and pinned reports show "Stand hh:mm"
+  (display time zone) because cached numbers can lag up to the TTL.
+- **KPIs like reports (U3, §8.1/§8.6):** "Einreichungen" and the per-form chart count the submissions the viewer
+  may see, without drafts and void (`DashboardQueries::reportableInRange`, cache scope Visibility); each KPI says
+  what it counts. Today only organization managers and view-all roles get the KPIs, so the numbers equal the
+  organization's, but a narrower custom role would see its own.
+- **Chart (U2):** series differ by point style and dash pattern as well as colour; a visually hidden table gives
+  per-form (and, up to 31 days, per-day) numbers; an empty range shows the empty state. Day labels and the range
+  label use the locale (LocalDate, ICU patterns), not a hard-coded German format.
+- **Actions (U9):** "Vom Dashboard entfernen / Remove from dashboard" with its own icon. Pin and unpin stay
+  adjacent and only one is visible, so Livewire morphs the same button and keyboard focus stays on it.

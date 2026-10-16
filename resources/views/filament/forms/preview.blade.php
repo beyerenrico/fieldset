@@ -26,8 +26,11 @@
     x-init="$nextTick(() => send())"
 >
     <div style="display:flex;gap:.5rem;margin-bottom:.75rem">
-        <x-filament::button size="sm" color="gray" x-on:click="size = 'phone'" x-bind:class="size === 'phone' ? 'ring-2' : ''">{{ __('forms.preview.phone') }}</x-filament::button>
-        <x-filament::button size="sm" color="gray" x-on:click="size = 'tablet'" x-bind:class="size === 'tablet' ? 'ring-2' : ''">{{ __('forms.preview.tablet') }}</x-filament::button>
+        {{-- Selected size: aria-pressed for assistive tech and an inline outline (no custom theme compiles ring utilities, LEARNINGS #42). --}}
+        <x-filament::button size="sm" color="gray" x-on:click="size = 'phone'" x-bind:aria-pressed="size === 'phone' ? 'true' : 'false'"
+            x-bind:style="size === 'phone' ? 'outline:2px solid var(--primary-600, #2563eb);outline-offset:2px' : ''">{{ __('forms.preview.phone') }}</x-filament::button>
+        <x-filament::button size="sm" color="gray" x-on:click="size = 'tablet'" x-bind:aria-pressed="size === 'tablet' ? 'true' : 'false'"
+            x-bind:style="size === 'tablet' ? 'outline:2px solid var(--primary-600, #2563eb);outline-offset:2px' : ''">{{ __('forms.preview.tablet') }}</x-filament::button>
     </div>
     <iframe
         x-ref="frame"

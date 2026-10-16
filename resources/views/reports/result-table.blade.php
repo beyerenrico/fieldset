@@ -1,4 +1,5 @@
-{{-- Saved report result (M5-T03): one row per group plus the total; values are exact decimal strings formatted per locale. --}}
+{{-- Saved report result (M5-T03): one row per group plus the total; values are exact decimal strings formatted per locale
+     (money per currency; groups mixing currencies show a dash). Notes say when groups were cut off or currencies mixed. --}}
 @php
     /** @var \App\Domain\Reports\Saved\ReportResult $result */
     $formatter = new \App\Domain\Submissions\Admin\ValueFormatter(app()->getLocale(), config('app.timezone'));
@@ -9,6 +10,9 @@
     $num = 'text-align:end;font-variant-numeric:tabular-nums';
 @endphp
 <div class="fi-ta-ctn" style="position:relative;overflow-x:auto">
+    @foreach (\App\Domain\Reports\Saved\ReportCsv::notes($result) as $note)
+        <p role="note" style="margin:0;padding:.75rem 1rem;font-size:.875rem;border-bottom:1px solid rgba(127,127,127,.2)">{{ $note }}</p>
+    @endforeach
     @if ($result->rows === [])
         <p style="padding:1.5rem;font-size:.875rem;opacity:.8">{{ __('reports.result.empty') }}</p>
     @else
@@ -28,7 +32,7 @@
                         <td style="{{ $cell }}">{{ $row->label }}</td>
                         <td style="{{ $cell }};{{ $num }}">{{ $formatter->decimal((string) $row->submissions) }}</td>
                         @if ($withMetric)
-                            <td style="{{ $cell }};{{ $num }}">{{ $result->display($row->value($result->metric), $formatter) }}</td>
+                            <td style="{{ $cell }};{{ $num }}">{{ $result->displayValue($row, $formatter) }}</td>
                         @endif
                     </tr>
                 @endforeach
@@ -38,7 +42,7 @@
                     <th scope="row" style="padding:.75rem 1rem;text-align:start">{{ $result->total->label }}</th>
                     <td style="padding:.75rem 1rem;{{ $num }}">{{ $formatter->decimal((string) $result->total->submissions) }}</td>
                     @if ($withMetric)
-                        <td style="padding:.75rem 1rem;{{ $num }}">{{ $result->display($result->total->value($result->metric), $formatter) }}</td>
+                        <td style="padding:.75rem 1rem;{{ $num }}">{{ $result->displayValue($result->total, $formatter) }}</td>
                     @endif
                 </tr>
             </tfoot>

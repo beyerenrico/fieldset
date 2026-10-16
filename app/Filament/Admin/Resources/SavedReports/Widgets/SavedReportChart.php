@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Admin\Resources\SavedReports\Widgets;
 
 use App\Domain\Identity\Models\User;
+use App\Domain\Reports\Enums\ReportMetric;
 use App\Domain\Reports\Models\SavedReport;
 use App\Domain\Reports\Saved\ReportResult;
 use App\Domain\Reports\SavedReportQuery;
@@ -28,7 +29,12 @@ class SavedReportChart extends ChartWidget
     {
         $result = $this->result();
 
-        return $result instanceof ReportResult ? $result->metric->label().' · '.$result->metricLabel : null;
+        if (! $result instanceof ReportResult) {
+            return null;
+        }
+
+        // A count names its metric once ("Number of submissions"), sum/avg add the field.
+        return $result->metric === ReportMetric::Count ? $result->metric->label() : $result->metric->label().' · '.$result->metricLabel;
     }
 
     protected function getType(): string

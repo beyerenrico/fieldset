@@ -23,6 +23,7 @@ class ReviewQueueWidget extends TableWidget
 
         return $table
             ->heading(__('dashboard.review_queue.heading'))
+            ->description(fn (): ?string => $this->freshness('review_queue'))
             ->records(fn (): array => self::keyed($this->dashboardData()->reviewQueue($this->dashboardContext()), 'id'))
             ->paginated(false)
             ->emptyStateHeading(__('dashboard.review_queue.empty'))
@@ -30,7 +31,7 @@ class ReviewQueueWidget extends TableWidget
             ->columns([
                 TextColumn::make('number')->label(__('dashboard.columns.number'))->placeholder('—'),
                 TextColumn::make('form')->label(__('dashboard.columns.form')),
-                TextColumn::make('due_at')->label(__('dashboard.columns.due_at'))->dateTime()->timezone($timezone)->placeholder('—')
+                TextColumn::make('due_at')->label(__('dashboard.columns.due_at'))->isoDateTime('L LT')->timezone($timezone)->placeholder('—')
                     // Overdue is said in words and with an icon, not by colour alone.
                     ->color(fn (array $record): ?string => $record['overdue'] ? 'danger' : null)
                     ->icon(fn (array $record): ?string => $record['overdue'] ? 'heroicon-o-exclamation-triangle' : null)

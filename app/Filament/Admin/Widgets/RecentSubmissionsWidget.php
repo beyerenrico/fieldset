@@ -22,7 +22,7 @@ class RecentSubmissionsWidget extends TableWidget
     {
         return $table
             ->heading(__('dashboard.recent_submissions.heading'))
-            ->description(fn (): string => $this->dashboardContext()->range->label())
+            ->description(fn (): string => $this->rangeAndFreshness('recent_submissions'))
             ->records(fn (): array => self::keyed($this->dashboardData()->recentSubmissions($this->dashboardContext()), 'uuid'))
             ->paginated(false)
             ->emptyStateHeading(__('dashboard.recent_submissions.empty'))
@@ -34,7 +34,7 @@ class RecentSubmissionsWidget extends TableWidget
                     ->formatStateUsing(fn (string $state): string => SubmissionStatus::from($state)->label())
                     ->color(fn (string $state): string => SubmissionResource::statusColor(SubmissionStatus::from($state))),
                 TextColumn::make('submitter')->label(__('dashboard.columns.submitter'))->placeholder('—'),
-                TextColumn::make('submitted_at')->label(__('dashboard.columns.submitted_at'))->dateTime()
+                TextColumn::make('submitted_at')->label(__('dashboard.columns.submitted_at'))->isoDateTime('L LT')
                     ->timezone(SubmissionResource::displayTimezone()),
             ]);
     }

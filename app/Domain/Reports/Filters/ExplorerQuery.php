@@ -47,6 +47,19 @@ final class ExplorerQuery
         return $query->withCasts($casts);
     }
 
+    /**
+     * The explorer's default order: newest first, uuid as the tie-breaker. Index-backed by
+     * submissions (organization_id, form_id, submitted_at, uuid) read backwards; every non-draft has a
+     * submitted_at (drafts are never explorer rows), so no NULLS LAST is needed.
+     *
+     * @param  Builder<Submission>  $query
+     * @return Builder<Submission>
+     */
+    public static function defaultOrder(Builder $query): Builder
+    {
+        return $query->orderByDesc('submissions.submitted_at')->orderByDesc('submissions.uuid');
+    }
+
     /** Typed value of a top-level key for ORDER BY (repeaters: their row count). */
     public static function sortExpression(ReportField $field): QueryBuilder
     {

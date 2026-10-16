@@ -33,7 +33,11 @@ final readonly class DashboardBenchmark
     public function queries(User $manager, User $reviewer, Form $form, array $keys, string $since, int $runs): array
     {
         $range = DateRange::lastDays(7, 'Europe/Berlin');
-        $all = [...$this->catalog->widgets($manager, $reviewer, $range), ...$this->catalog->valueLookups($form->organization_id, $form->id, $keys, $since)];
+        $all = [
+            ...$this->catalog->widgets($manager, $reviewer, $range),
+            ...$this->catalog->valueLookups($form->organization_id, $form->id, $keys, $since),
+            ...$this->catalog->reports($manager, $reviewer, $form, $keys, $since),
+        ];
         $results = [];
         foreach ($all as $name => $query) {
             QueryPlan::explain($query, analyze: true); // warm-up

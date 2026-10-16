@@ -42,11 +42,20 @@ test.describe.serial('reports and dashboards', () => {
     test('explores, exports and saves a report', async ({ page }) => {
       test.setTimeout(180_000);
       await page.goto('/admin/demo/explorer?form=1');
-      for (const column of ['Nummer', 'Kunde', 'Art des Einsatzes', 'Brutto']) {
+      for (const column of ['Nummer', 'Kunde', 'Art des Einsatzes']) {
         await expect(page.getByRole('columnheader', { name: column }).first()).toBeVisible();
       }
       const row = page.getByRole('row').filter({ hasText: number });
       await expect(row).toContainText(CUSTOMER);
+      // Field columns after the first six start hidden; show "Brutto" through the column manager.
+      await page.getByRole('button', { name: /spalten auswählen|select columns/i }).first().click();
+      await page.getByRole('checkbox', { name: 'Brutto', exact: true }).filter({ visible: true }).check();
+      const apply = page.getByRole('button', { name: /spalten anwenden|apply columns/i }).filter({ visible: true });
+      if (await apply.count()) {
+        await apply.first().click();
+      }
+      await page.keyboard.press('Escape');
+      await expect(page.getByRole('columnheader', { name: 'Brutto' }).first()).toBeVisible();
       await expect(row).toContainText('116,03');
       await page.screenshot({ path: evidence('01-explorer'), fullPage: true });
 
@@ -75,7 +84,7 @@ test.describe.serial('reports and dashboards', () => {
 
       await page.getByRole('link', { name: /^(anzeigen|view)$/i }).first().click(); // saving opens the edit page
       await page.getByRole('button', { name: /an dashboard anheften|pin to dashboard/i }).first().click();
-      await expect(page.getByRole('button', { name: /lösen|unpin/i }).first()).toBeVisible();
+      await expect(page.getByRole('button', { name: /vom dashboard entfernen|remove from dashboard/i }).first()).toBeVisible();
       await page.goto('/admin/demo');
       // Filament widgets load lazily once they scroll into view.
       await expect(async () => {

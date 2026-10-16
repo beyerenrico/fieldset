@@ -12,6 +12,7 @@ use App\Filament\Admin\Resources\SavedReports\Pages\ListSavedReports;
 use App\Filament\Admin\Resources\SavedReports\Pages\ViewSavedReport;
 use App\Filament\Admin\Resources\SavedReports\SavedReportResource;
 use App\Filament\Admin\Resources\SavedReports\Widgets\SavedReportChart;
+use App\Filament\Admin\Resources\Submissions\SubmissionResource;
 use Livewire\Livewire;
 use Tests\Feature\Reports\ReportsScenario;
 
@@ -33,7 +34,7 @@ it('creates a report from the form with group-by, metric and field filters', fun
             'name' => 'Revenue by kind', 'form_id' => $this->s->form->id, 'group_by' => 'field:kind', 'metric' => 'sum',
             'metric_key' => 'amount', 'visibility' => 'organization', 'schedule' => 'none',
             'filters' => ['period' => null, 'statuses' => ['submitted'], 'groups' => []],
-            'field_filters' => [['key' => 'amount', 'values' => "0\n1"]],
+            'field_filters' => [['key' => 'amount', 'min' => '0', 'max' => '1']],
         ])
         ->call('create')->assertHasNoFormErrors();
 
@@ -95,4 +96,84 @@ it('saves the explorer filters as a report', function (): void {
 
     $report = app(TenantContext::class)->run($this->s->org, fn () => SavedReport::query()->sole());
     expect($report->name)->toBe('Repairs')->and($report->filters['fields'])->toEqual([['key' => 'kind', 'operator' => 'in', 'values' => ['repair']]]);
+});
+
+it('keeps every explorer filter through save as report, edit and save (review H1)', function (): void {
+    $s = $this->s;
+    actingInAdmin($s->owner, $s->org);
+    Livewire::withQueryParams(['form' => $s->form->id])->test(FormExplorer::class)
+        ->filterTable('submitted', ['from' => '2026-10-01', 'until' => '2026-10-02'])
+        ->filterTable('submitter', [$s->worker->id])
+        ->filterTable('field_kind', ['repair'])
+        ->filterTable('field_amount', ['min' => '0.1', 'max' => '1'])
+        ->searchTable('Walter')
+        ->callAction('saveReport', ['name' => 'Kept', 'visibility' => 'private'])
+        ->assertRedirect();
+
+    $report = app(TenantContext::class)->run($s->org, fn () => SavedReport::query()->sole());
+    $stored = $report->filters;
+    expect($stored)->toMatchArray([
+        'from' => '2026-10-01', 'until' => '2026-10-02', 'submitters' => [$s->worker->id], 'search' => 'Walter',
+        'timezone' => SubmissionResource::displayTimezone(),
+    ])->and($stored['fields'])->toEqual([
+        ['key' => 'amount', 'operator' => 'between', 'values' => ['0.1', '1']],
+        ['key' => 'kind', 'operator' => 'in', 'values' => ['repair']],
+    ]);
+
+    Livewire::test(EditSavedReport::class, ['record' => $report->id])
+        ->assertFormSet([
+            'filters.period' => 'custom', 'filters.from' => '2026-10-01', 'filters.until' => '2026-10-02',
+            'filters.submitters' => [$s->worker->id], 'filters.search' => 'Walter',
+        ])
+        ->assertSee(__('reports.period.custom'))
+        ->call('save')->assertHasNoFormErrors();
+
+    expect($report->refresh()->filters)->toEqual($stored);
+});
+
+it('edits field filters with typed inputs per field type (review H2)', function (): void {
+    actingInAdmin($this->s->owner, $this->s->org);
+
+    Livewire::test(CreateSavedReport::class)
+        ->fillForm([
+            'name' => 'Typed', 'form_id' => $this->s->form->id, 'metric' => 'count', 'visibility' => 'private', 'schedule' => 'none',
+            'filters' => ['period' => 'custom', 'from' => '2026-10-01', 'until' => null],
+            'field_filters' => [
+                ['key' => 'kind', 'values' => ['repair', 'maintenance']],
+                ['key' => 'done', 'bool' => 'false'],
+                ['key' => 'visit_date', 'from' => '2026-10-01', 'until' => '2026-10-31'],
+                ['key' => 'amount', 'min' => '1,5', 'max' => null],
+            ],
+        ])
+        ->assertSee(__('reports.saved.add_field_filter'))
+        ->call('create')->assertHasNoFormErrors();
+
+    $report = app(TenantContext::class)->run($this->s->org, fn () => SavedReport::query()->sole());
+    expect($report->filters['from'])->toBe('2026-10-01')->and($report->filters['period'])->toBeNull()
+        ->and($report->filters['fields'])->toEqual([
+            ['key' => 'kind', 'operator' => 'in', 'values' => ['repair', 'maintenance']],
+            ['key' => 'done', 'operator' => 'is', 'values' => [false]],
+            ['key' => 'visit_date', 'operator' => 'between', 'values' => ['2026-10-01', '2026-10-31']],
+            ['key' => 'amount', 'operator' => 'between', 'values' => ['1.5', null]],
+        ]);
+});
+
+it('rejects invalid or empty field filter values instead of dropping them (review H2)', function (): void {
+    actingInAdmin($this->s->owner, $this->s->org);
+    $base = ['name' => 'Broken', 'form_id' => $this->s->form->id, 'metric' => 'count', 'visibility' => 'private', 'schedule' => 'none'];
+
+    Livewire::test(CreateSavedReport::class)
+        ->fillForm([...$base, 'field_filters' => [['key' => 'amount', 'min' => 'abc', 'max' => null]]])
+        ->call('create')->assertHasFormErrors(['field_filters.0.min']);
+    Livewire::test(CreateSavedReport::class)
+        ->fillForm([...$base, 'field_filters' => [['key' => 'kind', 'values' => []]]])
+        ->call('create')->assertHasFormErrors(['field_filters.0.values']);
+    Livewire::test(CreateSavedReport::class)
+        ->fillForm([...$base, 'field_filters' => [['key' => 'visit_date', 'from' => null, 'until' => null]]])
+        ->call('create')->assertHasFormErrors(['field_filters.0.from']);
+    Livewire::test(CreateSavedReport::class)
+        ->fillForm([...$base, 'filters' => ['period' => 'custom', 'from' => null, 'until' => null]])
+        ->call('create')->assertHasFormErrors(['filters.from']);
+
+    expect(app(TenantContext::class)->run($this->s->org, fn () => SavedReport::query()->count()))->toBe(0);
 });

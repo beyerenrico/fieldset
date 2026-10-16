@@ -20,6 +20,7 @@ class DraftFormsWidget extends TableWidget
     {
         return $table
             ->heading(__('dashboard.draft_forms.heading'))
+            ->description(fn (): ?string => $this->freshness('draft_forms'))
             ->records(fn (): array => self::keyed($this->dashboardData()->draftForms($this->dashboardContext()), 'id'))
             ->paginated(false)
             ->emptyStateHeading(__('dashboard.draft_forms.empty'))
@@ -27,7 +28,7 @@ class DraftFormsWidget extends TableWidget
             ->columns([
                 TextColumn::make('name')->label(__('dashboard.columns.form'))
                     ->description(fn (array $record): ?string => $record['category']),
-                TextColumn::make('updated_at')->label(__('dashboard.columns.updated_at'))->dateTime()
+                TextColumn::make('updated_at')->label(__('dashboard.columns.updated_at'))->isoDateTime('L LT')
                     ->timezone(SubmissionResource::displayTimezone()),
             ]);
     }

@@ -48,3 +48,6 @@
 41. pg_trgm GIN (1.6) also serves `=`: after adding a trigram index, "unindexed column" probes on that column get an index plan.
 42. The admin panel has no custom Filament theme, so Tailwind utility classes in our own Blade views (text-gray-500, py-2, flex…) are NOT compiled and render unstyled. Use Filament components / `fi-*` classes or inline styles in custom views.
 43. Filament widgets are lazy: E2E must scroll them into view before asserting their content.
+44. Laravel `once()` keys the memo by the caller's file/line and the closure's `use` variables: pass the varying input (form id, user) through `use`, or every call returns the first result.
+45. Strict mode throws on lazy loading only when a query returned several models — code tested with one record (e.g. one scheduled report per organization) passes and fails in production; eager-load in every loop over query results, and do not let `report($e)` hide it in tests.
+46. Filament action buttons have no wire:key: two adjacent actions with complementary visible() (pin/unpin) are morphed in place by Livewire, so keyboard focus stays on the button after toggling.

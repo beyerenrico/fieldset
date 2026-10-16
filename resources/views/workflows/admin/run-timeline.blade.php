@@ -5,8 +5,9 @@
     $tz = \App\Filament\Admin\Resources\Submissions\SubmissionResource::displayTimezone();
     // Inline styles: the panel has no custom theme, so arbitrary Tailwind utilities are not compiled.
     $muted = 'opacity:.85';
-    $danger = 'color:var(--danger-700, #b91c1c)';
-    $warning = 'color:var(--warning-700, #a16207)';
+    // light-dark(): the 700 shades on light, the 400 shades on Filament's dark background (≥ 4.5:1 both; `.dark` sets color-scheme).
+    $danger = 'color:light-dark(var(--danger-700, #b91c1c), var(--danger-400, #f87171))';
+    $warning = 'color:light-dark(var(--warning-700, #a16207), var(--warning-400, #facc15))';
 @endphp
 <ol style="display:grid;gap:1rem;list-style:none;margin:0;padding:0">
     @foreach ($run->stepRuns as $step)

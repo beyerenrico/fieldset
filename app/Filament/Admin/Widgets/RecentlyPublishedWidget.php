@@ -20,7 +20,7 @@ class RecentlyPublishedWidget extends TableWidget
     {
         return $table
             ->heading(__('dashboard.recently_published.heading'))
-            ->description(fn (): string => $this->dashboardContext()->range->label())
+            ->description(fn (): string => $this->rangeAndFreshness('recently_published'))
             ->records(fn (): array => self::keyed($this->dashboardData()->recentlyPublished($this->dashboardContext()), 'id'))
             ->paginated(false)
             ->emptyStateHeading(__('dashboard.recently_published.empty'))
@@ -29,7 +29,7 @@ class RecentlyPublishedWidget extends TableWidget
                 TextColumn::make('form')->label(__('dashboard.columns.form')),
                 TextColumn::make('version')->label(__('dashboard.columns.version'))->prefix('v'),
                 TextColumn::make('publisher')->label(__('dashboard.columns.publisher'))->placeholder('—'),
-                TextColumn::make('published_at')->label(__('dashboard.columns.published_at'))->dateTime()
+                TextColumn::make('published_at')->label(__('dashboard.columns.published_at'))->isoDateTime('L LT')
                     ->timezone(SubmissionResource::displayTimezone()),
             ]);
     }

@@ -12,11 +12,14 @@ use App\Domain\Reports\Filters\DateRange;
 use App\Domain\Reports\Models\SavedReport;
 use App\Domain\Reports\SavedReportQuery;
 use App\Filament\Admin\Pages\Dashboard;
+use App\Filament\Admin\Resources\SavedReports\Actions\PinActions;
 use App\Filament\Admin\Resources\SavedReports\Pages\ListSavedReports;
 use App\Filament\Admin\Resources\SavedReports\Pages\ViewSavedReport;
 use App\Filament\Admin\Resources\SavedReports\SavedReportResource;
+use App\Filament\Admin\Resources\SavedReports\Widgets\SavedReportChart;
 use App\Filament\Admin\Resources\Submissions\SubmissionResource;
 use App\Filament\Admin\Widgets\PinnedReportWidget;
+use Filament\Actions\Action;
 use Filament\Widgets\WidgetConfiguration;
 use Illuminate\Auth\Access\AuthorizationException;
 use Livewire\Features\SupportTesting\Testable;
@@ -162,7 +165,7 @@ it('draws time groups as a line and many groups or a single total as a compact t
 
     config(['dashboards.pinned_reports.max_chart_groups' => 1, 'dashboards.pinned_reports.table_rows' => 1]);
     pinnedWidget($grouped)->assertOk()->assertDontSee('<canvas', false)
-        ->assertSeeInOrder(['Repair', '0.30 EUR', __('dashboard.pinned.more', ['count' => 1]), __('reports.result.total'), '5.30 EUR'])
+        ->assertSeeInOrder(['Repair', '0.30 EUR', trans_choice('dashboard.pinned.more', 1, ['count' => 1]), __('reports.result.total'), '5.30 EUR'])
         ->assertDontSee('5.00 EUR')
         ->assertSee(e(SavedReportResource::getUrl('view', ['record' => $grouped])), false);
 });
@@ -230,4 +233,31 @@ it('drops the widget and the pin when the viewer loses access or the report is d
 
     expect(pinnedWidgetsOnDashboard())->toBe([])->and(DashboardPin::query()->count())->toBe(0);
     pinnedWidget($kept)->assertOk()->assertDontSee('Kept');
+});
+
+it('says which range the pinned report covers and explains an empty overlap (review U4)', function (): void {
+    $narrowed = reportToPin($this->s, ['name' => 'From 3 October', 'filters' => ['from' => '2026-10-03', 'until' => '2026-10-31']]);
+    $outside = reportToPin($this->s, ['name' => 'September', 'filters' => ['from' => '2026-09-01', 'until' => '2026-09-30']]);
+    pinReport($this->s, $this->s->owner, $narrowed);
+    pinReport($this->s, $this->s->owner, $outside);
+    actingInAdmin($this->s->owner, $this->s->org);
+
+    expect((string) D::call(pinnedWidget($narrowed), 'getDescription'))->toContain(__('dashboard.pinned.range', ['range' => '10/03 – 10/07/2026']));
+    pinnedWidget($outside)->assertOk()->assertSee(__('dashboard.pinned.no_overlap', ['report' => '09/01 – 09/30/2026', 'dashboard' => '10/01 – 10/07/2026']));
+});
+
+it('labels unpinning clearly, keeps pin and unpin next to each other for keyboard focus, and avoids a doubled chart heading (review U9)', function (): void {
+    $report = reportToPin($this->s, ['metric' => 'count', 'metric_key' => null]);
+    actingInAdmin($this->s->owner, $this->s->org);
+    app()->setLocale('de');
+
+    $page = Livewire::test(ViewSavedReport::class, ['record' => $report->id]);
+    $names = array_map(fn ($a): string => $a->getName(), array_values(array_filter($page->instance()->getCachedHeaderActions(), fn ($a): bool => $a instanceof Action)));
+    $pin = array_search('pin', $names, true);
+
+    expect($names[$pin + 1])->toBe('unpin')
+        ->and(PinActions::unpin()->getLabel())->toBe('Vom Dashboard entfernen')
+        ->and(PinActions::unpin()->getIcon())->not->toBe(PinActions::pin()->getIcon());
+    $page->assertSee('Auswerten')->assertDontSee('Im Explorer öffnen');
+    expect((string) D::call(Livewire::test(SavedReportChart::class, ['record' => $report]), 'getHeading'))->toBe(__('reports.metric.count'));
 });

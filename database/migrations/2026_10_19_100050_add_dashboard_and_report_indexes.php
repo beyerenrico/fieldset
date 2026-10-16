@@ -19,32 +19,35 @@ use Illuminate\Support\Facades\DB;
  *    "since a date" aggregates could not use submitted_at (220 ms → index walk that stops at the limit);
  *  - submission_values (submission_uuid, key) replaces (submission_uuid): the per-submission joins of saved
  *    reports and exports look up one key of one submission; deletes and the FK keep using the prefix.
+ * Built CONCURRENTLY outside a transaction, so a deployment on a large table does not block writes (review L3).
  */
 return new class extends Migration
 {
+    public $withinTransaction = false;
+
     public function up(): void
     {
-        DB::statement('CREATE INDEX IF NOT EXISTS submissions_org_submitted_at_idx ON submissions (organization_id, submitted_at)');
-        DB::statement('CREATE INDEX IF NOT EXISTS submissions_org_form_submitted_at_idx ON submissions (organization_id, form_id, submitted_at)');
-        DB::statement("CREATE INDEX IF NOT EXISTS submissions_org_drafts_updated_at_idx ON submissions (organization_id, updated_at) WHERE status = 'draft'");
-        DB::statement('CREATE INDEX IF NOT EXISTS tasks_completed_by_idx ON tasks (completed_by)');
+        DB::statement('CREATE INDEX CONCURRENTLY IF NOT EXISTS submissions_org_submitted_at_idx ON submissions (organization_id, submitted_at)');
+        DB::statement('CREATE INDEX CONCURRENTLY IF NOT EXISTS submissions_org_form_submitted_at_idx ON submissions (organization_id, form_id, submitted_at)');
+        DB::statement("CREATE INDEX CONCURRENTLY IF NOT EXISTS submissions_org_drafts_updated_at_idx ON submissions (organization_id, updated_at) WHERE status = 'draft'");
+        DB::statement('CREATE INDEX CONCURRENTLY IF NOT EXISTS tasks_completed_by_idx ON tasks (completed_by)');
 
-        DB::statement('CREATE INDEX IF NOT EXISTS submission_values_org_form_key_submitted_at_idx ON submission_values (organization_id, form_id, key, submitted_at)');
-        DB::statement('DROP INDEX IF EXISTS submission_values_organization_id_form_id_key_status_submitted_'); // Laravel's name, truncated to 63 bytes
-        DB::statement('CREATE INDEX IF NOT EXISTS submission_values_submission_key_idx ON submission_values (submission_uuid, key)');
-        DB::statement('DROP INDEX IF EXISTS submission_values_submission_uuid_index');
+        DB::statement('CREATE INDEX CONCURRENTLY IF NOT EXISTS submission_values_org_form_key_submitted_at_idx ON submission_values (organization_id, form_id, key, submitted_at)');
+        DB::statement('DROP INDEX CONCURRENTLY IF EXISTS submission_values_organization_id_form_id_key_status_submitted_'); // Laravel's name, truncated to 63 bytes
+        DB::statement('CREATE INDEX CONCURRENTLY IF NOT EXISTS submission_values_submission_key_idx ON submission_values (submission_uuid, key)');
+        DB::statement('DROP INDEX CONCURRENTLY IF EXISTS submission_values_submission_uuid_index');
     }
 
     public function down(): void
     {
-        DB::statement('CREATE INDEX IF NOT EXISTS submission_values_submission_uuid_index ON submission_values (submission_uuid)');
-        DB::statement('DROP INDEX IF EXISTS submission_values_submission_key_idx');
-        DB::statement('CREATE INDEX IF NOT EXISTS submission_values_organization_id_form_id_key_status_submitted_ ON submission_values (organization_id, form_id, key, status, submitted_at)');
-        DB::statement('DROP INDEX IF EXISTS submission_values_org_form_key_submitted_at_idx');
+        DB::statement('CREATE INDEX CONCURRENTLY IF NOT EXISTS submission_values_submission_uuid_index ON submission_values (submission_uuid)');
+        DB::statement('DROP INDEX CONCURRENTLY IF EXISTS submission_values_submission_key_idx');
+        DB::statement('CREATE INDEX CONCURRENTLY IF NOT EXISTS submission_values_organization_id_form_id_key_status_submitted_ ON submission_values (organization_id, form_id, key, status, submitted_at)');
+        DB::statement('DROP INDEX CONCURRENTLY IF EXISTS submission_values_org_form_key_submitted_at_idx');
 
-        DB::statement('DROP INDEX IF EXISTS tasks_completed_by_idx');
-        DB::statement('DROP INDEX IF EXISTS submissions_org_drafts_updated_at_idx');
-        DB::statement('DROP INDEX IF EXISTS submissions_org_form_submitted_at_idx');
-        DB::statement('DROP INDEX IF EXISTS submissions_org_submitted_at_idx');
+        DB::statement('DROP INDEX CONCURRENTLY IF EXISTS tasks_completed_by_idx');
+        DB::statement('DROP INDEX CONCURRENTLY IF EXISTS submissions_org_drafts_updated_at_idx');
+        DB::statement('DROP INDEX CONCURRENTLY IF EXISTS submissions_org_form_submitted_at_idx');
+        DB::statement('DROP INDEX CONCURRENTLY IF EXISTS submissions_org_submitted_at_idx');
     }
 };

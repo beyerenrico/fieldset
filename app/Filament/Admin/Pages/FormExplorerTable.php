@@ -25,9 +25,12 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 /**
- * Explorer table: fixed columns (number, status, submitter, submitted at, version) plus one column per
- * top-level key of all versions, formatted per type and locale (decimal strings, dates, booleans,
- * option labels; repeaters as row counts). Values come pivoted from `submission_values` (ExplorerQuery).
+ * Explorer table: fixed columns (number — first, always visible — status, submitter, submitted at,
+ * version) plus one column per top-level key of all versions, formatted per type and locale (decimal
+ * strings, money in the currency of the submission's version, dates, booleans, option labels of all
+ * versions; repeaters as row counts). Field headers wrap; field columns after the first
+ * `reports.explorer.visible_field_columns` start hidden (toggleable). Values come pivoted from
+ * `submission_values` (ExplorerQuery).
  */
 final class FormExplorerTable
 {
@@ -42,10 +45,13 @@ final class FormExplorerTable
             ->query(fn (): Builder => $form instanceof Form
                 ? ExplorerQuery::withValues(app(ReportScope::class)->base($page->viewer(), $form), $catalog)->with(['creator:id,name', 'formVersion:id,version'])
                 : Submission::query()->whereRaw('false'))
-            ->defaultSort(fn (Builder $query): Builder => $query->orderByRaw('submissions.submitted_at desc nulls last')->orderByDesc('submissions.uuid'))
+            ->defaultSort(fn (Builder $query): Builder => ExplorerQuery::defaultOrder($query))
             ->columns([
                 ...self::baseColumns($form, $tz),
-                ...array_map(fn (ReportField $field): Column => self::fieldColumn($field, $formatter), $catalog->topLevel()),
+                ...array_map(
+                    fn (ReportField $field, int $i): Column => self::fieldColumn($field, $formatter)->toggleable(isToggledHiddenByDefault: $i >= self::visibleFieldColumns()),
+                    $catalog->topLevel(), array_keys($catalog->topLevel()),
+                ),
             ])
             ->filters($form instanceof Form ? FormExplorerFilters::make($form, $catalog, $tz, $page->viewer()) : [])
             ->filtersFormColumns(3)
@@ -74,23 +80,29 @@ final class FormExplorerTable
                 ->formatStateUsing(fn (SubmissionStatus $state): string => $state->label())
                 ->color(fn (SubmissionStatus $state): string => SubmissionResource::statusColor($state)),
             TextColumn::make('creator.name')->label(__('reports.column.submitter'))->placeholder('—'),
-            TextColumn::make('submitted_at')->label(__('reports.column.submitted_at'))->dateTime()->timezone($tz)->sortable()->placeholder('—'),
+            TextColumn::make('submitted_at')->label(__('reports.column.submitted_at'))->isoDateTime('L LT')->timezone($tz)->sortable()->placeholder('—'),
             TextColumn::make('formVersion.version')->label(__('reports.column.version'))->prefix('v')->toggleable(isToggledHiddenByDefault: true),
         ];
     }
 
     private static function fieldColumn(ReportField $field, ValueFormatter $formatter): TextColumn
     {
-        $column = TextColumn::make('field_'.$field->key)->label($field->label)->toggleable()
+        $column = TextColumn::make('field_'.$field->key)->label($field->label)->wrapHeader()
             ->sortable(query: fn (Builder $query, string $direction): Builder => $query->orderBy(ExplorerQuery::sortExpression($field), $direction === 'desc' ? 'desc' : 'asc'));
 
         if ($field->isRepeater()) {
             return $column->state(fn (Submission $record): int => ExplorerQuery::rowCount($record, $field->key))
-                ->suffix(' '.__('reports.explorer.rows'))->alignEnd();
+                ->formatStateUsing(fn (int $state): string => trans_choice('reports.explorer.rows', $state, ['count' => $state]))->alignEnd();
         }
 
-        return $column->state(fn (Submission $record): string => ReportValue::display($field, ExplorerQuery::values($record)[$field->key] ?? null, $formatter))
+        return $column->state(fn (Submission $record): string => ReportValue::display($field, ExplorerQuery::values($record)[$field->key] ?? null, $formatter, $record->form_version_id))
             ->alignment($field->isNumeric() ? 'end' : 'start')->limit(80)->wrap();
+    }
+
+    /** Field columns shown by default; the others start hidden and can be toggled on (wide forms stay readable). */
+    private static function visibleFieldColumns(): int
+    {
+        return max(1, (int) config('reports.explorer.visible_field_columns', 6));
     }
 
     private static function bulkExport(string $name, ExportFormat $format, Heroicon $icon): BulkAction

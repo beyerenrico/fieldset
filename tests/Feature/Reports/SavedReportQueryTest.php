@@ -75,7 +75,7 @@ it('groups by status, submitter, version and month in the organization time zone
     $s->submit($s->worker, ['kind' => 'repair'], version: 3, status: 'approved', submittedAt: '2026-10-15 10:00');
     $s->submit($s->owner, ['kind' => 'repair'], version: 3, submittedAt: '2026-11-02 10:00');
 
-    expect(resultRows(runReport($s, savedReport($s, ['group_by' => 'month']))))->toBe(['2026-10' => [2, '2'], '2026-11' => [1, '1']])
+    expect(resultRows(runReport($s, savedReport($s, ['group_by' => 'month']))))->toBe(['October 2026' => [2, '2'], 'November 2026' => [1, '1']])
         ->and(resultRows(runReport($s, savedReport($s, ['group_by' => 'status']))))->toBe(['Submitted' => [2, '2'], 'Approved' => [1, '1']])
         ->and(resultRows(runReport($s, savedReport($s, ['group_by' => 'submitter']))))->toBe(['Walter Worker' => [2, '2'], $s->owner->name => [1, '1']])
         ->and(resultRows(runReport($s, savedReport($s, ['group_by' => 'version']))))->toBe(['v3' => [2, '2'], 'v1' => [1, '1']]);

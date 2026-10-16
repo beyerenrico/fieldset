@@ -9,8 +9,10 @@ use Carbon\CarbonImmutable;
 
 /**
  * Filters of the explorer, exports and saved reports (stored as jsonb in saved_reports.filters and in
- * export options). Days are calendar days in the caller's time zone; `period` is a relative range
- * (DateRange::PERIODS) that wins over from/until. No statuses means every status except draft and void.
+ * export options). from/until are calendar days in `timezone` when set (the time zone they were chosen
+ * in: the explorer viewer's, or the editor's in the saved report form), else in the caller's time zone;
+ * `period` is a relative range (DateRange::PERIODS) that wins over from/until. No statuses means every
+ * status except draft and void.
  */
 final readonly class ReportFilters
 {
@@ -29,6 +31,7 @@ final readonly class ReportFilters
         public array $groups = [],
         public array $fields = [],
         public ?string $search = null,
+        public ?string $timezone = null,
     ) {}
 
     /** @param  array<array-key, mixed>  $data */
@@ -48,10 +51,13 @@ final readonly class ReportFilters
         }
         $search = is_string($data['search'] ?? null) ? mb_substr(trim($data['search']), 0, 100) : '';
         $period = is_string($data['period'] ?? null) && in_array($data['period'], DateRange::PERIODS, true) ? $data['period'] : null;
+        [$from, $until] = [$day($data['from'] ?? null), $day($data['until'] ?? null)];
+        $timezone = is_string($data['timezone'] ?? null) && in_array($data['timezone'], timezone_identifiers_list(), true) ? $data['timezone'] : null;
 
         return new self(
-            $day($data['from'] ?? null), $day($data['until'] ?? null), $period, $statuses,
+            $from, $until, $period, $statuses,
             self::ids($data['submitters'] ?? []), self::ids($data['groups'] ?? []), $fields, $search === '' ? null : $search,
+            $from === null && $until === null ? null : $timezone,
         );
     }
 
@@ -62,15 +68,28 @@ final readonly class ReportFilters
             'from' => $this->from, 'until' => $this->until, 'period' => $this->period, 'statuses' => $this->statuses,
             'submitters' => $this->submitters, 'groups' => $this->groups,
             'fields' => array_map(static fn (FieldFilter $f): array => $f->toArray(), $this->fields), 'search' => $this->search,
+            'timezone' => $this->timezone,
         ];
     }
 
-    /** The submitted_at range these filters select, or null for all time. */
+    /** The submitted_at range these filters select, or null for all time (periods in $timezone, days in theirs). */
     public function dateRange(string $timezone, ?CarbonImmutable $now = null): ?DateRange
     {
         return $this->period !== null
             ? DateRange::period($this->period, $timezone, $now)
-            : DateRange::days($this->from, $this->until, $timezone);
+            : DateRange::days($this->from, $this->until, $this->timezone ?? $timezone);
+    }
+
+    /** The same filters without a relative period (scheduled mails cover their own period, ADR 0033). */
+    public function withoutPeriod(): self
+    {
+        return new self($this->from, $this->until, null, $this->statuses, $this->submitters, $this->groups, $this->fields, $this->search, $this->timezone);
+    }
+
+    /** The same filters with calendar days anchored in a time zone. */
+    public function inTimezone(string $timezone): self
+    {
+        return self::fromArray([...$this->toArray(), 'timezone' => $timezone]);
     }
 
     /** @return list<string> statuses to include */

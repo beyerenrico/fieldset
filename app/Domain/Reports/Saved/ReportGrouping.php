@@ -9,12 +9,16 @@ use App\Domain\Identity\Models\User;
 use App\Domain\Reports\Schema\FieldCatalog;
 use App\Domain\Reports\Schema\ReportField;
 use App\Domain\Submissions\Enums\SubmissionStatus;
+use Carbon\CarbonImmutable;
+use Throwable;
 
 /**
  * The group-by of a saved report: none, a submission column (status, submitter, version, day, week,
  * month of submitted_at in the report's time zone) or a groupable top-level key (`field:<key>`; dates
  * are grouped by month). Produces the SQL expression over the aliases `s` (submissions) and `g`
- * (submission_values of the key) and turns group keys into labels.
+ * (submission_values of the key) and turns group keys into labels. Time keys stay sortable ISO strings
+ * (2026-10-06, 2026-W41, 2026-10); their labels follow the app locale ("06.10.2026", "KW 41 2026",
+ * "Oktober 2026") in the table, chart, pinned widget, CSV and mail.
  */
 final readonly class ReportGrouping
 {
@@ -78,6 +82,7 @@ final readonly class ReportGrouping
         $keys = array_values(array_filter($keys, is_string(...)));
 
         return match (true) {
+            $this->isTime() => array_combine($keys, array_map($this->periodLabel(...), $keys)),
             $this->column === 'status' => array_combine($keys, array_map(static fn (string $k): string => SubmissionStatus::tryFrom($k)?->label() ?? $k, $keys)),
             $this->column === 'submitter' => User::query()->whereIn('id', array_map(intval(...), $keys))->pluck('name', 'id')
                 ->mapWithKeys(fn (mixed $name, mixed $id): array => [(string) $id => (string) $name])->all(),
@@ -87,5 +92,21 @@ final readonly class ReportGrouping
             $this->field instanceof ReportField => $this->field->options(),
             default => [],
         };
+    }
+
+    /** "2026-10-06" → L ("10/06/2026"), "2026-W41" → "Week 41 2026", "2026-10" → "October 2026" (app locale). */
+    private function periodLabel(string $key): string
+    {
+        $settings = ['locale' => app()->getLocale()];
+        try {
+            return match (true) {
+                preg_match('/^(\d{4})-W(\d{2})$/', $key, $m) === 1 => (string) __('reports.group.week_label', ['week' => (int) $m[2], 'year' => $m[1]]),
+                preg_match('/^\d{4}-\d{2}-\d{2}$/', $key) === 1 => CarbonImmutable::createFromFormat('!Y-m-d', $key)?->settings($settings)->isoFormat('L') ?? $key,
+                preg_match('/^\d{4}-\d{2}$/', $key) === 1 => CarbonImmutable::createFromFormat('!Y-m', $key)?->settings($settings)->isoFormat('MMMM YYYY') ?? $key,
+                default => $key,
+            };
+        } catch (Throwable) {
+            return $key;
+        }
     }
 }

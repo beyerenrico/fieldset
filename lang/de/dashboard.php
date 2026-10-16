@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 return [
+    'cached_at' => 'Stand :time',
     'filters' => [
         'start' => 'Von',
         'end' => 'Bis',
@@ -10,6 +11,8 @@ return [
     ],
 
     'kpis' => [
+        'submissions_hint' => 'Eingereicht im Zeitraum, ohne Entwürfe und Stornierte (wie in Berichten)',
+        'documents_sent_hint' => 'An Kundinnen und Kunden versendete Dokumente',
         'heading' => 'Kennzahlen',
         'submissions' => 'Einreichungen',
         'pending_reviews' => 'Offene Prüfungen',
@@ -20,6 +23,7 @@ return [
     ],
 
     'chart' => [
+        'total' => 'Summe',
         'heading' => 'Einreichungen im Zeitverlauf je Formular',
         'other_forms' => 'Weitere Formulare',
         'empty' => 'Keine Einreichungen in diesem Zeitraum.',
@@ -52,7 +56,9 @@ return [
     ],
 
     'pinned' => [
-        'more' => ':count weitere Gruppen',
+        'range' => 'Zeitraum: :range',
+        'no_overlap' => 'Der Zeitraum des Berichts (:report) überschneidet sich nicht mit dem Dashboard-Zeitraum (:dashboard).',
+        'more' => ':count weitere Gruppe|:count weitere Gruppen',
         'open' => 'Bericht öffnen',
     ],
 

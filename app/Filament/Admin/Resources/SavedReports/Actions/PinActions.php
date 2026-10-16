@@ -14,9 +14,11 @@ use Filament\Support\Icons\Heroicon;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
- * "Pin to dashboard" / "Unpin" for a saved report (§8.1 v1.0, ADR 0034), on the table and the report page.
- * Pinning needs SavedReportPolicy::view; unpinning one's own pin is always possible. The table selects a
- * per-row flag (withPinnedFlag) so visibility does not cost a query per row.
+ * "Pin to dashboard" / "Remove from dashboard" for a saved report (§8.1 v1.0, ADR 0034), on the table and
+ * the report page. Pinning needs SavedReportPolicy::view; unpinning one's own pin is always possible. The
+ * table selects a per-row flag (withPinnedFlag) so visibility does not cost a query per row. Callers list
+ * pin() and unpin() next to each other: only one is visible, so Livewire morphs the same button in place
+ * and keyboard focus stays on it after toggling (Filament action buttons carry no wire:key).
  */
 final class PinActions
 {
@@ -26,7 +28,7 @@ final class PinActions
     {
         return Action::make('pin')
             ->label(__('reports.saved.pin'))
-            ->icon(Heroicon::OutlinedBookmark)
+            ->icon(Heroicon::OutlinedSquaresPlus)
             ->color('gray')
             ->authorize('view')
             ->visible(fn (SavedReport $record): bool => ! self::isPinned($record))
@@ -41,7 +43,7 @@ final class PinActions
     {
         return Action::make('unpin')
             ->label(__('reports.saved.unpin'))
-            ->icon(Heroicon::OutlinedBookmarkSlash)
+            ->icon(Heroicon::OutlinedXCircle)
             ->color('gray')
             ->visible(fn (SavedReport $record): bool => self::isPinned($record))
             ->action(function (SavedReport $record): void {

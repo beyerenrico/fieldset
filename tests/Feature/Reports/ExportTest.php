@@ -66,21 +66,22 @@ it('writes an XLSX with exact decimal strings and the repeater rows on their own
     $main = $sheets['Submissions'];
 
     expect(array_keys($sheets))->toBe(['Submissions', 'Items'])
-        ->and($main[0])->toBe(['Number', 'Status', 'Submitted by', 'Submitted at', 'Version', 'Client name', 'Amount', 'Kind', 'Visit date', 'Items', 'Done', 'Notes']);
+        ->and($main[0])->toBe(['Number', 'Status', 'Submitted by', 'Submitted at', 'Version', 'Client name', 'Amount', 'Amount (currency)', 'Kind', 'Visit date', 'Items', 'Done', 'Notes']);
     $byNumber = collect(array_slice($main, 1))->keyBy(0);
     expect($byNumber[$this->old->number][5])->toBe('=HYPERLINK("x")')          // a string cell, not a formula
         ->and($byNumber[$this->old->number][6])->toBe('1234.50')
+        ->and($byNumber[$this->old->number][7])->toBe('EUR')                    // currency of the submission's version
         ->and($byNumber[$this->mid->number][6])->toBe('0.10')
-        ->and($byNumber[$this->mid->number][7])->toBe('Maintenance')
-        ->and($byNumber[$this->mid->number][8])->toBeInstanceOf(DateTimeImmutable::class)
-        ->and($byNumber[$this->mid->number][9])->toBe(2)
-        ->and($byNumber[$this->new->number][10])->toBeTrue()
-        ->and($byNumber[$this->old->number][11])->toBe('Old note')
+        ->and($byNumber[$this->mid->number][8])->toBe('Maintenance')
+        ->and($byNumber[$this->mid->number][9])->toBeInstanceOf(DateTimeImmutable::class)
+        ->and($byNumber[$this->mid->number][10])->toBe(2)
+        ->and($byNumber[$this->new->number][11])->toBeTrue()
+        ->and($byNumber[$this->old->number][12])->toBe('Old note')
         ->and($byNumber[$this->old->number][4])->toBe(1)
         ->and($sheets['Items'])->toBe([
-            ['Number', 'Row', 'Description', 'Qty', 'Price'],
-            [$this->mid->number, '1', 'Switch', '1', '89.00'],
-            [$this->mid->number, '2', 'Labour', '1.5', '65.00'],
+            ['Number', 'Row', 'Description', 'Qty', 'Price', 'Price (currency)'],
+            [$this->mid->number, '1', 'Switch', '1', '89.00', 'EUR'],
+            [$this->mid->number, '2', 'Labour', '1.5', '65.00', 'EUR'],
         ]);
 });
 

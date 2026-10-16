@@ -43,7 +43,7 @@ final class FormExplorerFilters
                 ->options(self::statusOptions())->default(ReportFilters::fromArray([])->effectiveStatuses())
                 ->query(fn (Builder $query, array $data) => $scope->statuses($query, self::statuses($data))),
             SelectFilter::make('submitter')->label(__('reports.column.submitter'))->multiple()->searchable()
-                ->options(fn (): array => self::submitterOptions($scope, $form, $user))
+                ->options(fn (): array => self::submitterOptions($form, $user))
                 ->query(fn (Builder $query, array $data) => $scope->submitters($query, self::ids($data))),
             SelectFilter::make('group')->label(__('reports.filter.group'))->multiple()
                 ->options(fn (): array => Group::query()->orderBy('name')->pluck('name', 'id')->map(fn (mixed $n): string => (string) $n)->all())
@@ -149,10 +149,10 @@ final class FormExplorerFilters
         return $options;
     }
 
-    /** @return array<int, string> users who created visible submissions of the form */
-    private static function submitterOptions(ReportScope $scope, Form $form, User $user): array
+    /** @return array<int, string> users who created visible submissions of the form (explorer and saved report form) */
+    public static function submitterOptions(Form $form, User $user): array
     {
-        $creators = $scope->base($user, $form)->whereNotNull('submissions.created_by')->select('submissions.created_by');
+        $creators = app(ReportScope::class)->base($user, $form)->whereNotNull('submissions.created_by')->select('submissions.created_by');
 
         return User::query()->whereIn('id', $creators)->orderBy('name')->pluck('name', 'id')->map(fn (mixed $n): string => (string) $n)->all();
     }

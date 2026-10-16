@@ -6,17 +6,21 @@ namespace App\Domain\Reports\Exports\Writers;
 
 use OpenSpout\Common\Entity\Cell\StringCell;
 use OpenSpout\Common\Entity\Row;
+use OpenSpout\Writer\CSV\Options;
 use OpenSpout\Writer\CSV\Writer;
 use RuntimeException;
 use ZipArchive;
 
 /**
- * CSV via openspout (UTF-8 with BOM, comma, RFC 4180 quoting). Without repeaters the export is one
- * `submissions.csv`; with repeaters a ZIP holds it plus one CSV per repeater (ADR 0033). Text that a
+ * CSV via openspout (UTF-8 with BOM, RFC 4180 quoting) in the requester's locale dialect (CsvDialect:
+ * de `;` and decimal comma, en `,` and point; digits are never changed). Without repeaters the export is
+ * one `submissions.csv`; with repeaters a ZIP holds it plus one CSV per repeater (ADR 0033). Text that a
  * spreadsheet would run as a formula (= + - @ tab CR, not a number) is prefixed with an apostrophe.
  */
 final class CsvExportWriter implements ExportWriter
 {
+    private readonly CsvDialect $dialect;
+
     private string $directory;
 
     private Writer $main;
@@ -26,6 +30,11 @@ final class CsvExportWriter implements ExportWriter
 
     /** @var array<string, string> file name => local path */
     private array $files = [];
+
+    public function __construct(?CsvDialect $dialect = null)
+    {
+        $this->dialect = $dialect ?? CsvDialect::forLocale('en');
+    }
 
     public function open(string $directory, ExportSheet $main, array $repeaters): void
     {
@@ -73,14 +82,16 @@ final class CsvExportWriter implements ExportWriter
     /** Neutralizes spreadsheet formulas in text cells (OWASP CSV injection). */
     public static function text(string $value): string
     {
-        return preg_match('/^[=+\-@\t\r]/', $value) === 1 && preg_match('/^-?\d+(\.\d+)?$/', $value) !== 1 ? "'".$value : $value;
+        return preg_match('/^[=+\-@\t\r]/', $value) === 1 && preg_match('/^-?\d+([.,]\d+)?$/', $value) !== 1 ? "'".$value : $value;
     }
 
     /** @param  list<string>  $headers */
     private function writer(string $stem, array $headers): Writer
     {
         $path = $this->directory.'/'.$stem.'.csv';
-        $writer = new Writer;
+        $options = new Options;
+        $options->FIELD_DELIMITER = $this->dialect->delimiter;
+        $writer = new Writer($options);
         $writer->openToFile($path);
         $writer->addRow($this->row($headers));
         $this->files[$stem.'.csv'] = $path;
@@ -88,14 +99,15 @@ final class CsvExportWriter implements ExportWriter
         return $writer;
     }
 
-    /** @param  list<string|int|bool|DateCell|null>  $cells */
+    /** @param  list<string|int|bool|DateCell|DecimalCell|null>  $cells */
     private function row(array $cells): Row
     {
-        return new Row(array_map(static fn (string|int|bool|DateCell|null $value): StringCell => new StringCell(match (true) {
+        return new Row(array_map(fn (string|int|bool|DateCell|DecimalCell|null $value): StringCell => new StringCell(match (true) {
             $value === null => '',
             is_bool($value) => $value ? 'true' : 'false',
             is_int($value) => (string) $value,
             $value instanceof DateCell => $value->text(),
+            $value instanceof DecimalCell => $this->dialect->decimal($value->value),
             default => self::text($value),
         }, null), $cells));
     }

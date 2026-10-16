@@ -11,6 +11,7 @@ use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Tenancy\TenantContext;
 use App\Domain\Reports\Enums\ReportMetric;
 use App\Domain\Reports\Models\SavedReport;
+use App\Domain\Reports\Saved\ReportCsv;
 use App\Domain\Reports\Saved\ReportResult;
 use App\Domain\Reports\Saved\ReportRow;
 use App\Domain\Submissions\Admin\ValueFormatter;
@@ -62,15 +63,31 @@ class PinnedReportWidget extends ChartWidget
         return $this->report()?->name;
     }
 
+    /**
+     * Metric · the range actually used (dashboard range ∩ the report's own period, review U4) · freshness.
+     * An empty overlap says so instead of showing an unexplained empty widget.
+     */
     public function getDescription(): ?string
     {
         $result = $this->result();
-        if (! $result instanceof ReportResult) {
+        $report = $this->report();
+        if (! $result instanceof ReportResult || ! $report instanceof SavedReport) {
             return null;
         }
         $metric = $result->metric === ReportMetric::Count ? $result->metricLabel : $result->metric->label().' · '.$result->metricLabel;
+        $used = PinnedReportData::usedRange($report, $this->dashboardContext()->range);
+        $range = $used['empty']
+            ? (string) __('dashboard.pinned.no_overlap', ['report' => $used['report'], 'dashboard' => $this->dashboardContext()->range->label()])
+            : (string) __('dashboard.pinned.range', ['range' => $used['label']]);
+        $at = app(PinnedReportData::class)->computedAt($this->dashboardContext(), $report);
+        $freshness = $at === null ? null : (string) __('dashboard.cached_at', [
+            'time' => $at->setTimezone($this->dashboardContext()->range->timezone)->settings(['locale' => app()->getLocale()])->isoFormat('LT'),
+        ]);
 
-        return $metric.' · '.$this->dashboardContext()->range->label();
+        // The compact table shows the notes itself; a chart carries them in its description.
+        $notes = $this->showsTable($result) ? [] : ReportCsv::notes($result);
+
+        return implode(' · ', array_filter([$metric, $range, $freshness, ...$notes]));
     }
 
     protected function getType(): string
@@ -110,10 +127,10 @@ class PinnedReportWidget extends ChartWidget
         }
         $formatter = $this->formatter();
 
-        return implode(', ', array_map(
-            fn (ReportRow $row): string => $row->label.': '.$result->display($row->value($result->metric), $formatter),
-            $result->rows,
-        ));
+        return implode(', ', [
+            ...array_map(fn (ReportRow $row): string => $row->label.': '.$result->displayValue($row, $formatter), $result->rows),
+            ...ReportCsv::notes($result),
+        ]);
     }
 
     public function render(): View

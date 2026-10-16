@@ -23,7 +23,8 @@ use InvalidArgumentException;
  * Creates or updates a saved report from untrusted input (Filament form): the form must be one the
  * actor can report on, group-by and metric key must exist in the form's catalog, filters are normalized
  * (ReportFilters) and recipients are reduced to active members with `reports.view` — only the creator
- * for a private report.
+ * for a private report. Switching a schedule on or changing it sets `last_sent_at` to now, so the first
+ * mail covers the next complete period.
  */
 final readonly class SaveReport
 {
@@ -44,7 +45,7 @@ final readonly class SaveReport
         $attributes = [
             'form_id' => $form->id,
             'name' => mb_substr(trim(is_string($data['name'] ?? null) ? $data['name'] : ''), 0, 120) ?: (string) __('reports.saved.label'),
-            'filters' => ReportFilters::fromArray(is_array($data['filters'] ?? null) ? $data['filters'] : [])->toArray(),
+            'filters' => $this->filters(is_array($data['filters'] ?? null) ? $data['filters'] : []),
             'group_by' => ReportGrouping::parse(is_string($data['group_by'] ?? null) ? $data['group_by'] : null, $catalog)->value(),
             'metric' => $metric,
             'metric_key' => $this->metricKey($metric, $catalog, $data['metric_key'] ?? null),
@@ -53,13 +54,16 @@ final readonly class SaveReport
             'recipients' => $this->recipients(is_array($data['recipients'] ?? null) ? $data['recipients'] : [], $visibility, $creatorId),
         ];
 
-        if ($report instanceof SavedReport) {
-            $report->fill($attributes)->save();
-
-            return $report;
+        $report ??= new SavedReport(['created_by' => $actor->id]);
+        $scheduleChanged = ! $report->exists || $report->schedule !== $attributes['schedule'];
+        $report->fill($attributes);
+        if ($scheduleChanged && $attributes['schedule'] !== ReportSchedule::None) {
+            // Baseline for the next mail: switching a schedule on (or changing it) never mails a past period at once.
+            $report->forceFill(['last_sent_at' => now()]);
         }
+        $report->save();
 
-        return SavedReport::query()->create([...$attributes, 'created_by' => $actor->id]);
+        return $report;
     }
 
     /**
@@ -74,6 +78,22 @@ final readonly class SaveReport
         return $organization->activeMembers()->orderBy('name')->get(['users.id', 'users.name', 'users.status'])
             ->filter(fn (User $user): bool => $user->isActive() && $user->hasPermissionIn($organization->id, Permission::ReportsView))
             ->mapWithKeys(fn (User $user): array => [$user->id => $user->name])->all();
+    }
+
+    /**
+     * Normalized filters; a field filter that does not survive normalization is an error, not dropped.
+     *
+     * @param  array<array-key, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function filters(array $data): array
+    {
+        $filters = ReportFilters::fromArray($data);
+        if (count($filters->fields) !== count(is_array($data['fields'] ?? null) ? $data['fields'] : [])) {
+            throw new InvalidArgumentException((string) __('reports.saved.invalid_filter'));
+        }
+
+        return $filters->toArray();
     }
 
     private function metricKey(ReportMetric $metric, FieldCatalog $catalog, mixed $key): ?string

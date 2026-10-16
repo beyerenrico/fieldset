@@ -49,6 +49,22 @@ trait InteractsWithDashboard
         return app(DashboardData::class);
     }
 
+    /** "As of 14:05" for a widget's cached data (review U3: cached numbers can lag up to the TTL). */
+    protected function freshness(string $widget): ?string
+    {
+        $at = $this->dashboardData()->computedAt($this->dashboardContext(), $widget);
+
+        return $at === null ? null : (string) __('dashboard.cached_at', [
+            'time' => $at->setTimezone(SubmissionResource::displayTimezone())->settings(['locale' => app()->getLocale()])->isoFormat('LT'),
+        ]);
+    }
+
+    /** The range label, followed by the freshness of the widget's cached data. */
+    protected function rangeAndFreshness(string $widget): string
+    {
+        return implode(' · ', array_filter([$this->dashboardContext()->range->label(), $this->freshness($widget)]));
+    }
+
     /**
      * Rows keyed by a unique column (Filament custom-data tables use the keys as record ids).
      *

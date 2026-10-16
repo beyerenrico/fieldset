@@ -27,7 +27,7 @@ final class RunExport implements ShouldQueue
     {
         $this->timeout = max(10, (int) config('reports.exports.timeout', 85));
         $this->afterCommit();
-        $this->onQueue((string) config('reports.exports.queue', 'default'));
+        $this->onQueue((string) config('reports.exports.queue', 'exports'));
     }
 
     public function handle(TenantContext $tenant, ExportRunner $runner): void
