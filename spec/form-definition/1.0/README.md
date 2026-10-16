@@ -136,8 +136,9 @@ implement the dialect below exactly; they MUST NOT rely on host-language compari
 
 - Falsy: `false`, `null`, `0`, `""`, `[]`. Everything else is truthy (including `"0"` and `{}`).
 - `==` / `!=` use JavaScript abstract equality restricted to JSON values: `null == null`; a number and a
-  string compare as numbers (`Number(string)`, empty string = 0, unparsable = NaN); a boolean converts to
-  1/0 first; arrays compare by converting to their comma-joined string; objects are never equal.
+  string compare as numbers (`Number(string)` rules: whitespace trimmed, empty string = 0, `0x`/exponent
+  forms accepted, unparsable = NaN); a boolean converts to 1/0 first; arrays (also array vs array)
+  compare by converting to their comma-joined string; objects are never equal.
 - `===` / `!==` compare type and value; arrays and objects are never strictly equal.
 - `<`, `<=`, `>`, `>=`: if both operands are strings, compare by Unicode code points; otherwise convert
   both to numbers (`null` → 0, booleans → 1/0, numeric strings → number, other → NaN; any NaN → false).
@@ -153,8 +154,11 @@ versions of §5.3. Any other operator is a lint error (`unknown_operator`).
 `or`/`and` return the deciding operand (not a boolean) and short-circuit. `if` evaluates only the chosen
 branch. `!`/`!!` apply truthiness to their first argument (or the argument itself if not an array).
 `in` tests substring (string haystack) or membership (array haystack, strict equality). `cat` joins the
-string forms (`null` → `""`, numbers in shortest round-trip form, booleans `true`/`false`). `+ - * / %`
-operate on IEEE-754 doubles and MUST NOT be used on number or money values (lint error).
+string forms (`null` → `""`, numbers in shortest round-trip form, booleans `true`/`false`); `in` converts a
+non-string needle with JavaScript `String()`; `substr` counts code points. `+ - * / %` operate on IEEE-754
+doubles (NaN or infinite results become `null`) and MUST NOT be used on number or money values (lint
+error). Unknown operators and nesting deeper than 512 levels are evaluation errors; evaluators treat the
+whole expression as `null`.
 
 ### 4.3 Variables and scope
 
@@ -195,22 +199,22 @@ applied to `calculated` elements.
 Operands of decimal operators are decimal strings, JSON integers (a JSON number with an integral value,
 such as `2` or `2.0`, up to 2^53), or `null`. Anything else (JSON numbers with a fractional part, invalid
 strings, booleans, arrays, objects) counts as `null`. Aggregates (`sum`, `min`, `max`, `count`) treat a
-non-array first operand as an empty array.
+non-array first operand as an empty array (for `min`/`max` see the table).
 
 | Operator | Result |
 |---|---|
 | `dec.add` / `dec.sub` `[a, b, …]` | exact; result scale = largest input scale; `null` if any operand is `null` |
 | `dec.mul` `[a, b, …]` | exact; result scale = sum of input scales; `null` if any operand is `null` |
-| `dec.div` `[a, b, scale]` | rounded half-up (away from zero) to `scale` (required integer 0–20); `null` if `b` is 0 or an operand is `null` |
-| `dec.round` `[a, scale]` | rounded half-up to `scale` |
+| `dec.div` `[a, b, scale]` | rounded half-up (away from zero) to `scale` (required JSON integer 0–20, else `null`); `null` if `b` is 0 or an operand is `null` |
+| `dec.round` `[a, scale]` | rounded half-up to `scale` (JSON integer 0–20, else `null`) |
 | `dec.eq`, `dec.gt`, `dec.gte`, `dec.lt`, `dec.lte` `[a, b]` | numeric comparison; `false` if either is `null` |
 | `sum` `[array, rowKey?]` | decimal sum of `array[i][rowKey]` (or of the items when `rowKey` is omitted), skipping `null`; `"0"` for an empty array; scale = largest item scale |
-| `min` / `max` `[array, rowKey]` or `[a, b, …]` | smallest/largest decimal, skipping `null`; `null` if none |
+| `min` / `max` `[array, rowKey?]` or `[a, b, …]` | aggregate form when the first operand is an array or the only operand, otherwise variadic over all operands; smallest/largest decimal, skipping `null`; `null` if none; the result keeps the winning item's own scale, ties keep the first |
 | `count` `[array]` | number of non-`null` items as an integer |
 | `date.diff` `[from, to, unit]` | integer `to − from`, truncated toward zero. Dates: `days`, `weeks`, `months`, `years`. Date-times: `minutes`, `hours`, `days` (24 h). Mixed or invalid input → `null` |
 | `date.add` `[value, amount, unit]` | date (or date-time keeping its offset) plus integer `amount` (JSON integer or integer string); months/years clamp the day to the month's end. Units as for `date.diff`. Date-times are output as `YYYY-MM-DDTHH:MM:SS` plus the input's offset (`Z` stays `Z`), without fractional seconds |
 
-Month difference between dates `a ≤ b`: `(yb − ya) × 12 + (mb − ma)`, minus 1 when `db < da`;
+`date.diff` on date-times includes fractional seconds before truncating. Month difference between dates `a ≤ b`: `(yb − ya) × 12 + (mb − ma)`, minus 1 when `db < da`;
 `date.diff(b, a) = −date.diff(a, b)`; `years = trunc(months / 12)`; `weeks = trunc(days / 7)`.
 
 ### 5.4 Calculated elements
@@ -231,14 +235,17 @@ Given a definition, input data and context, a conforming evaluator:
 
 1. **Normalizes** the input: drops keys not defined in the scope (recursively in rows; layout keys are
    never data keys); a repeater value that is not an array becomes `[]` and reports `type_mismatch`;
-   non-object rows are dropped with `type_mismatch` at the row pointer; money values that pass the type
+   non-object rows are dropped with `type_mismatch` at the row pointer (later rows shift down; a `null`
+   repeater counts as empty). Normalization errors are reported even if the repeater ends up invisible
+   and in addition to validation errors; money values that pass the type
    check are rewritten with exactly `scale` fraction digits. Logic sees a **view** of the data in which
    values failing their element's type check (§5.6, codes up to `invalid_location` in the table) are
    `null`; the data itself keeps them for error reporting.
-2. Sets every `calculated` value to `null`, then repeats up to 5 rounds until visibility and calculated
-   values stop changing:
+2. Sets every `calculated` value to `null`, then repeats up to 5 rounds until visibility **and** the data
+   (calculated values and applied defaults) stop changing:
    a. compute visibility top-down in document order: a page, container or element is visible when its own
-      `visibleIf` is truthy (missing = visible) and its parent is visible; inside repeaters per row;
+      `visibleIf` is truthy (missing = visible) and its parent is visible; inside repeaters per row. Each
+      decision is visible to later elements of the same pass (an element found invisible reads as `null`);
    b. apply defaults (§5.2) to visible elements;
    c. compute calculated values in dependency order, treating invisible values as `null`.
 3. **Strips** invisible elements' values from the data (keys removed; invisible repeaters removed with
@@ -261,8 +268,15 @@ Errors are objects `{ "pointer": "/items/2/qty", "code": "...", "params"?: {...}
 Pointers (RFC 6901) into the submission data. Codes are stable and localized by clients.
 
 An element is **required** when `required` is true or `requiredIf` is truthy. A value is **empty** when
-it is missing, `null`, `""`, or `[]`. Empty values are valid unless required. Type checks run before
-constraints; the first failing check of an element is reported (one error per element per value).
+it is missing, `null`, `""`, or `[]`. Empty values are valid unless required — except that a repeater's
+`minItems` also applies to an empty or missing list (`min_items`). Type checks run before constraints;
+the first failing check of an element is reported (one validation error per element per value).
+`rating` has no type check: any non-integer or out-of-range value is `out_of_range`. Attachment shape
+errors are always `invalid_attachment`. A non-object signature or location is `type_mismatch`; objects
+must have exactly the documented members, otherwise `invalid_signature` / `invalid_location`. A
+`hidden` value that is not a string, integer or boolean is replaced by its default when one applies,
+otherwise `type_mismatch`. Email is matched with JavaScript regex semantics (`$` does not match before
+a trailing newline).
 
 | Code | When |
 |---|---|
@@ -318,7 +332,10 @@ Pointer into the **definition**. A definition with lint errors MUST NOT be publi
 | `empty_page` | warning | page without elements |
 
 `path` points at the offending property (for logic: the logic property itself, e.g.
-`/pages/0/elements/3/visibleIf`). References inside the per-item argument of `map`, `filter`, `reduce`,
+`/pages/0/elements/3/visibleIf`; `reserved_type` at `/type`; `duplicate_id` at the element). References
+must resolve to **data** keys (layout keys are not data); built-in objects check their member
+(`$user.name|email`, `$org.name`, `$form.version`). Whole-scope references (`""`, `$root`, `$row`) add no
+calculation dependencies. References inside the per-item argument of `map`, `filter`, `reduce`,
 `all`, `none` and `some` are not reference-checked. A cycle is reported once, at the first calculated
 element of the cycle in document order (pre-order traversal of pages and elements). Duplicates are
 reported at the second and later occurrences.
@@ -354,4 +371,5 @@ preserved by tools that round-trip definitions. Documented extensions:
 
 Implementations SHOULD export a JSON Schema 2020-12 describing the **data** of a definition (types and
 structure only; not a validator): root object with one property per data element; repeaters as arrays of
-objects; number/money as strings with the decimal pattern; date/time formats as `format`.
+objects; number/money as strings with the decimal pattern; `date`/`date-time` as `format`, `time` as a
+pattern (JSON Schema's `time` format requires an offset). The schema describes non-empty values.
