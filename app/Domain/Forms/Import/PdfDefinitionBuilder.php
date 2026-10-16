@@ -14,6 +14,7 @@ use App\Domain\Forms\Import\Mapping\ReadingOrder;
 use App\Domain\Forms\Import\Mapping\RowDetector;
 use App\Domain\Forms\Import\Mapping\Table;
 use App\Domain\Forms\Import\Mapping\UnmappedField;
+use App\Domain\Forms\Import\Model\AcroField;
 use App\Domain\Forms\Import\Model\AcroFormDocument;
 use App\Domain\Forms\Support\BlankDefinition;
 use FormSchema\Json\Json;
@@ -50,7 +51,7 @@ final readonly class PdfDefinitionBuilder
         $items = $this->keyed(ReadingOrder::sort($this->placed($tables, $scalars)));
         [$items, $expressions, $failed, $warnings, $caps] = $this->compile($items);
         foreach ($failed as $name => $reason) {
-            $unmapped[] = new UnmappedField($name, self::pageOf($document, $name), $reason);
+            $unmapped[] = new UnmappedField($name, $this->pageOf($document, $name), $reason);
         }
 
         $writer = new ElementWriter($this->labels, $document);
@@ -69,7 +70,7 @@ final readonly class PdfDefinitionBuilder
         }
 
         return new PdfImportResult($definition, new ImportReport(
-            self::sortUnmapped($document, $unmapped),
+            $this->sortUnmapped($document, $unmapped),
             $warnings,
             $this->stats($document, $definition, $unmapped, $tables),
         ));
@@ -101,7 +102,7 @@ final readonly class PdfDefinitionBuilder
         foreach ($items as $item) {
             if (isset($item['table'])) {
                 $table = $item['table'];
-                $item['key'] = $root->allocate($table->stem === null ? 'rows' : self::plural(KeyAllocator::snake($table->stem)));
+                $item['key'] = $root->allocate($table->stem === null ? 'rows' : $this->plural(KeyAllocator::snake($table->stem)));
                 $row = new KeyAllocator;
                 $item['columns'] = [];
                 foreach (array_keys($table->columns) as $name) {
@@ -127,16 +128,16 @@ final readonly class PdfDefinitionBuilder
     {
         $failed = [];
         do {
-            $refs = self::refs($items, $failed);
+            $refs = $this->refs($items, $failed);
             $expressions = [];
             $warnings = [];
             $caps = [];
             $new = [];
-            foreach (self::calculatedCells($items) as [$cell, $cells, $row]) {
+            foreach ($this->calculatedCells($items) as [$cell, $cells, $row]) {
                 if (isset($failed[$cell->field->name])) {
                     continue;
                 }
-                $result = $this->calculations->compile($cell->calculation ?? ['function' => '', 'fields' => []], $refs, self::scale($cell), $row);
+                $result = $this->calculations->compile($cell->calculation ?? ['function' => '', 'fields' => []], $refs, $this->scale($cell), $row);
                 if (is_string($result)) {
                     foreach ($cells as $member) {
                         $new[$member->field->name] = $result;
@@ -157,7 +158,7 @@ final readonly class PdfDefinitionBuilder
             $failed += $new;
         } while ($new !== []);
 
-        return [self::withoutFailed($items, $failed), $expressions, $failed, $warnings, $caps];
+        return [$this->withoutFailed($items, $failed), $expressions, $failed, $warnings, $caps];
     }
 
     /**
@@ -166,7 +167,7 @@ final readonly class PdfDefinitionBuilder
      * @param  list<Item>  $items
      * @return list<array{0: MappedField, 1: list<MappedField>, 2: array{repeater: string, index: int}|null}>
      */
-    private static function calculatedCells(array $items): array
+    private function calculatedCells(array $items): array
     {
         $cells = [];
         foreach ($items as $item) {
@@ -195,7 +196,7 @@ final readonly class PdfDefinitionBuilder
         foreach ($cells as $cell) {
             $index = $refs[$cell->field->name]['index'] ?? null;
             $result = $cell->calculation === null || $index === null ? null
-                : $this->calculations->compile($cell->calculation, $refs, self::scale($cell), ['repeater' => $repeater, 'index' => $index]);
+                : $this->calculations->compile($cell->calculation, $refs, $this->scale($cell), ['repeater' => $repeater, 'index' => $index]);
             if (! is_array($result) || Json::canonical($result['expression']) !== $expected) {
                 return false;
             }
@@ -209,7 +210,7 @@ final readonly class PdfDefinitionBuilder
      * @param  array<string, string>  $failed
      * @return array<string, Ref>
      */
-    private static function refs(array $items, array $failed): array
+    private function refs(array $items, array $failed): array
     {
         $refs = [];
         foreach ($items as $item) {
@@ -237,7 +238,7 @@ final readonly class PdfDefinitionBuilder
      * @param  array<string, string>  $failed
      * @return list<Item>
      */
-    private static function withoutFailed(array $items, array $failed): array
+    private function withoutFailed(array $items, array $failed): array
     {
         $kept = [];
         foreach ($items as $item) {
@@ -337,15 +338,15 @@ final readonly class PdfDefinitionBuilder
      * @param  list<UnmappedField>  $unmapped
      * @return list<UnmappedField>
      */
-    private static function sortUnmapped(AcroFormDocument $document, array $unmapped): array
+    private function sortUnmapped(AcroFormDocument $document, array $unmapped): array
     {
-        $order = array_flip(array_map(static fn ($f): string => $f->name, $document->fields));
+        $order = array_flip(array_map(static fn (AcroField $f): string => $f->name, $document->fields));
         usort($unmapped, static fn (UnmappedField $a, UnmappedField $b): int => ($order[$a->field] ?? 0) <=> ($order[$b->field] ?? 0));
 
         return $unmapped;
     }
 
-    private static function pageOf(AcroFormDocument $document, string $name): int
+    private function pageOf(AcroFormDocument $document, string $name): int
     {
         foreach ($document->fields as $field) {
             if ($field->name === $name) {
@@ -356,14 +357,14 @@ final readonly class PdfDefinitionBuilder
         return 0;
     }
 
-    private static function scale(MappedField $field): int
+    private function scale(MappedField $field): int
     {
         $scale = $field->properties['scale'] ?? null;
 
         return is_int($scale) ? $scale : (($field->properties['format'] ?? null) === 'money' ? 2 : 6);
     }
 
-    private static function plural(string $key): string
+    private function plural(string $key): string
     {
         return str_ends_with($key, 's') ? $key : $key.'s';
     }

@@ -56,7 +56,7 @@ it('imports a fillable PDF as an unpublished draft with an import report', funct
         ->and($form->status->value)->toBe('draft')
         ->and($form->versions()->count())->toBe(0)
         ->and($form->import_report->file)->toBe('service-sheet.pdf')
-        ->and(array_map(fn ($u) => [$u->field, $u->page, $u->reason], $form->import_report->unmapped))->toBe([
+        ->and(array_map(fn ($u): array => [$u->field, $u->page, $u->reason], $form->import_report->unmapped))->toBe([
             ['InternalRef', 1, 'hidden'], ['PrintButton', 1, 'push_button'], ['Discount', 2, 'custom_calculation'],
         ])
         ->and($form->import_report->stats->imported)->toBe(49)
@@ -148,7 +148,7 @@ it('cannot publish the imported draft until it passes the linter', function (): 
 
     // Deleting a field that a calculation uses (grand_total = net_total + travel) is a lint error.
     $broken = Json::decode(Json::encode($original));
-    $broken->pages[1]->elements = array_values(array_filter($broken->pages[1]->elements, fn ($e) => $e->key !== 'travel'));
+    $broken->pages[1]->elements = array_values(array_filter($broken->pages[1]->elements, fn ($e): bool => $e->key !== 'travel'));
     app(SaveDraft::class)->handle($form, $broken, $this->designer);
 
     expect(fn () => app(PublishForm::class)->handle($form->refresh(), 'v1', $this->designer))->toThrow(InvalidDefinitionException::class)

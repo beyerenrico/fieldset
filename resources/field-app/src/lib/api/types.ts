@@ -116,6 +116,8 @@ export interface Submission {
     readonly created_at: string;
     readonly updated_at: string;
     readonly can_edit: boolean;
+    /** `POST /submissions/{uuid}/send` would be accepted for this user now. */
+    readonly can_send: boolean;
 }
 
 export interface PaginationMeta {
@@ -127,6 +129,41 @@ export interface PaginationMeta {
 export interface Page<T> {
     readonly items: readonly T[];
     readonly meta: PaginationMeta;
+}
+
+/** One rendered PDF of a submission (`GET /submissions/{uuid}/document`). */
+export interface Rendition {
+    readonly uuid: string;
+    readonly form_version_id: number;
+    readonly design_version_id: number | null;
+    readonly renderer_version: string;
+    readonly page_count: number;
+    readonly size: number;
+    readonly file_sha256: string;
+    readonly input_hash: string;
+    readonly created_at: string;
+}
+
+export interface SubmissionDocument {
+    /** Signed download link, usable without the session until `expires_at`. */
+    readonly url: string;
+    readonly expires_at: string;
+    readonly rendition: Rendition;
+}
+
+/** `waiting_for_document`: the mail goes out once the PDF exists; `queued`: mail queued now. */
+export type SendStatus = 'waiting_for_document' | 'queued';
+
+export interface SendRecipient {
+    readonly email: string;
+    readonly name: string | null;
+}
+
+/** 202 answer of `POST /submissions/{uuid}/send`. */
+export interface DocumentSend {
+    readonly id: number;
+    readonly status: SendStatus;
+    readonly recipient: SendRecipient;
 }
 
 export const EDITABLE_STATUSES: readonly SubmissionStatus[] = ['draft', 'changes_requested'];

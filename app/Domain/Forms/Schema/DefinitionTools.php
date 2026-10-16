@@ -45,6 +45,23 @@ final class DefinitionTools
         return $found;
     }
 
+    /**
+     * Key of the first element with the semantic role (spec §8, D11) in the top-level data scope:
+     * sections and columns are searched, repeater rows are their own scope and are skipped.
+     */
+    public static function keyForRole(stdClass $definition, string $role): ?string
+    {
+        $pages = is_array($definition->pages ?? null) ? $definition->pages : [];
+        foreach ($pages as $page) {
+            $key = $page instanceof stdClass ? self::findRole($page, $role) : null;
+            if ($key !== null) {
+                return $key;
+            }
+        }
+
+        return null;
+    }
+
     public static function copy(stdClass $value): stdClass
     {
         $copy = Json::decode(Json::encode($value));
@@ -77,6 +94,28 @@ final class DefinitionTools
                 self::walk($node->{$child}, $visit);
             }
         }
+    }
+
+    private static function findRole(stdClass $container, string $role): ?string
+    {
+        $children = is_array($container->elements ?? null) ? $container->elements : [];
+        foreach ($children as $element) {
+            if (! $element instanceof stdClass || ($element->type ?? null) === 'repeater') {
+                continue;
+            }
+            if (($element->role ?? null) === $role && is_string($element->key ?? null)) {
+                return $element->key;
+            }
+            $nested = [$element, ...(is_array($element->columns ?? null) ? $element->columns : [])];
+            foreach ($nested as $scope) {
+                $key = $scope instanceof stdClass ? self::findRole($scope, $role) : null;
+                if ($key !== null) {
+                    return $key;
+                }
+            }
+        }
+
+        return null;
     }
 
     /** @param  list<stdClass>  $found */

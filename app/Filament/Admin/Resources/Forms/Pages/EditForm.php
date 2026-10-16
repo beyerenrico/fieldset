@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Filament\Admin\Resources\Forms\Pages;
 
+use App\Domain\Documents\Rendering\PreviewDocument;
+use App\Domain\Documents\Rendering\RenderBudgetExceededException;
+use App\Domain\Documents\Rendering\RenderFailedException;
 use App\Domain\Forms\Actions\ExportDefinition;
 use App\Domain\Forms\Actions\PublishForm;
 use App\Domain\Forms\Actions\SaveDraft;
@@ -16,14 +19,17 @@ use App\Domain\Forms\Models\FormAccess;
 use App\Domain\Forms\Schema\DefinitionTools;
 use App\Domain\Forms\Support\DefinitionChecker;
 use App\Domain\Forms\Support\InvalidDefinitionException;
+use App\Domain\Identity\Models\Organization;
 use App\Domain\Identity\Models\User;
 use App\Filament\Admin\Resources\Forms\FormResource;
 use Filament\Actions\Action;
+use Filament\Facades\Filament;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Filament\Schemas\Schema;
 use Filament\Support\Exceptions\Halt;
+use FormSchema\Definition\InvalidDefinitionException as InvalidSpecDefinition;
 use FormSchema\Json\Json;
 use Illuminate\Database\Eloquent\Model;
 use InvalidArgumentException;
@@ -78,7 +84,7 @@ class EditForm extends EditRecord
         } catch (InvalidDefinitionException|InvalidArgumentException $e) {
             Notification::make()->danger()->title($e->getMessage())->send();
 
-            throw new Halt;
+            throw new Halt($e->getMessage(), $e->getCode(), $e);
         }
 
         return $record;
@@ -118,8 +124,8 @@ class EditForm extends EditRecord
         if (! $autosave) {
             app(SyncFormAccess::class)->handle(
                 $record,
-                array_values(array_map('intval', is_array($data['access_groups'] ?? null) ? $data['access_groups'] : [])),
-                array_values(array_map('strval', is_array($data['access_roles'] ?? null) ? $data['access_roles'] : [])),
+                array_values(array_map(intval(...), is_array($data['access_groups'] ?? null) ? $data['access_groups'] : [])),
+                array_values(array_map(strval(...), is_array($data['access_roles'] ?? null) ? $data['access_roles'] : [])),
                 $this->actor(),
             );
         }
@@ -127,7 +133,32 @@ class EditForm extends EditRecord
 
     protected function getHeaderActions(): array
     {
-        return [$this->publishAction(), $this->exportDraftAction(), $this->dismissImportReportAction()];
+        return [$this->publishAction(), $this->previewPdfAction(), $this->exportDraftAction(), $this->dismissImportReportAction()];
+    }
+
+    /** "Preview PDF" (§8.2): the unsaved definition with sample data and the design it selects. */
+    private function previewPdfAction(): Action
+    {
+        return Action::make('previewPdf')->label(__('documents.actions.preview_pdf'))->icon('heroicon-o-document-arrow-down')->color('gray')
+            ->authorize(fn (): bool => auth()->user()?->can('view', $this->record) ?? false)
+            ->action(function (): ?StreamedResponse {
+                try {
+                    $definition = $this->mapper()->toDefinition(is_array($this->data) ? $this->data : []);
+                    /** @var Organization $organization */
+                    $organization = Filament::getTenant();
+                    $pdf = app(PreviewDocument::class)->forDefinition($definition, $organization, $this->actor())->pdf;
+                } catch (InvalidArgumentException|InvalidSpecDefinition) {
+                    Notification::make()->danger()->title(__('documents.errors.preview_invalid'))->send();
+
+                    return null;
+                } catch (RenderFailedException|RenderBudgetExceededException $e) {
+                    Notification::make()->danger()->title(__('documents.errors.preview_failed'))->body($e->getMessage())->send();
+
+                    return null;
+                }
+
+                return response()->streamDownload(fn (): int => print ($pdf), $this->record->key.'.preview.pdf', ['Content-Type' => 'application/pdf']);
+            });
     }
 
     private function dismissImportReportAction(): Action
@@ -148,7 +179,7 @@ class EditForm extends EditRecord
             ->action(function (): StreamedResponse {
                 $json = app(ExportDefinition::class)->handle($this->record, null, $this->actor());
 
-                return response()->streamDownload(fn () => print ($json), $this->record->key.'.draft.form.json', ['Content-Type' => 'application/json']);
+                return response()->streamDownload(fn (): int => print ($json), $this->record->key.'.draft.form.json', ['Content-Type' => 'application/json']);
             });
     }
 

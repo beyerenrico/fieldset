@@ -78,7 +78,7 @@ it('turns the 8-row materials table into one repeater without a row limit', func
         ->and(property_exists($rows, 'maxItems'))->toBeFalse()
         ->and(property_exists($rows, 'minItems'))->toBeFalse()
         ->and($rows->label)->toBe('Materials')
-        ->and(array_map(fn ($e) => [$e->key, $e->type, $e->label], $rows->elements))->toBe([
+        ->and(array_map(fn ($e): array => [$e->key, $e->type, $e->label], $rows->elements))->toBe([
             ['desc', 'text', 'Description'], ['qty', 'number', 'Qty'], ['price', 'money', 'Unit price'], ['total', 'calculated', 'Total'],
         ])
         ->and($rows->{'x-import'}->field)->toBe('Row{n}*');
@@ -98,7 +98,7 @@ it('compiles Acrobat built-in calculations into decimal JsonLogic', function ():
 });
 
 it('lists every field that was not imported, with page and reason', function (): void {
-    expect(array_map(fn (UnmappedField $u) => $u->toArray(), $this->result->report->unmapped))->toBe([
+    expect(array_map(fn (UnmappedField $u): array => $u->toArray(), $this->result->report->unmapped))->toBe([
         ['field' => 'InternalRef', 'page' => 1, 'reason' => 'hidden'],
         ['field' => 'PrintButton', 'page' => 1, 'reason' => 'push_button'],
         ['field' => 'Discount', 'page' => 2, 'reason' => 'custom_calculation'],
@@ -153,6 +153,6 @@ it('detects hierarchical and single-column numbered names as repeaters', functio
         ->and($items->{'x-import'}->field)->toBe('items.{n}.*')
         ->and(Fx::json(Fx::element($d, 'sum')->expression))->toBe('{"sum":[{"var":"items"},"total"]}')
         ->and(Fx::json(Fx::element($d, 'cheapest')->expression))->toBe('{"min":[{"var":"items"},"price"]}')
-        ->and(array_map(fn ($e) => [$e->key, $e->label], $notes->elements))->toBe([['notes', 'Remarks']])
+        ->and(array_map(fn ($e): array => [$e->key, $e->label], $notes->elements))->toBe([['notes', 'Remarks']])
         ->and($notes->label)->toBe('Remarks');
 });

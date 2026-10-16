@@ -46,7 +46,7 @@ final readonly class ElementWriter
         $columnLabels = [];
         foreach ($table->columns as $name => $cells) {
             $first = Table::first($cells);
-            $label = $this->labels->resolve($first->field, $texts, (string) $name, self::rowTooltip($cells));
+            $label = $this->labels->resolve($first->field, $texts, (string) $name, $this->rowTooltip($cells));
             $columnLabels[] = $label['label'];
             $confidence = min($first->confidence, LabelResolver::CONFIDENCE[$label['source']], $structure, $caps[$first->field->name] ?? 1.0);
             $elements[] = $this->element($first, $columnKeys[$name], $label['label'], $expressions[$first->field->name] ?? null,
@@ -61,7 +61,7 @@ final readonly class ElementWriter
         $repeater->label = $label;
         $repeater->display = 'table';
         $repeater->elements = $elements;
-        $repeater->{'x-import'} = self::provenance($table->template, $table->page(), $table->rect(), min($structure * 0.9, $labelConfidence));
+        $repeater->{'x-import'} = $this->provenance($table->template, $table->page(), $table->rect(), min($structure * 0.9, $labelConfidence));
 
         return $repeater;
     }
@@ -86,10 +86,10 @@ final readonly class ElementWriter
                 default => $value,
             };
         }
-        if ($mapped->isCalculated() && $expression !== null) {
+        if ($mapped->isCalculated() && $expression instanceof stdClass) {
             $element->expression = $expression;
         }
-        $element->{'x-import'} = self::provenance($field, $page, $rect, $confidence);
+        $element->{'x-import'} = $this->provenance($field, $page, $rect, $confidence);
 
         return $element;
     }
@@ -104,7 +104,7 @@ final readonly class ElementWriter
         if (count($table->columns) === 1) {
             return [$columnLabels[0], self::REPEATER_NAME_CONFIDENCE];
         }
-        $candidates = array_values(array_filter($texts, static fn ($run): bool => ! in_array($run->text, $columnLabels, true)));
+        $candidates = array_values(array_filter($texts, static fn (TextRun $run): bool => ! in_array($run->text, $columnLabels, true)));
         $rect = $table->rect();
         $above = $this->labels->nearestText([$rect[0], $rect[1], $rect[2], $rect[3]], $candidates, self::REPEATER_ABOVE_GAP);
         if ($above !== null) {
@@ -119,14 +119,14 @@ final readonly class ElementWriter
      *
      * @param  array<int, MappedField>  $cells
      */
-    private static function rowTooltip(array $cells): ?string
+    private function rowTooltip(array $cells): ?string
     {
         $tips = array_map(static fn (MappedField $c): ?string => $c->field->tooltip, $cells);
         $first = array_key_first($tips);
         if ($first === null || $tips[$first] === null) {
             return null;
         }
-        if (count(array_unique(array_map('strval', $tips))) === 1) {
+        if (count(array_unique(array_map(strval(...), $tips))) === 1) {
             return $tips[$first];
         }
         $stripped = trim((string) preg_replace('/\s+/u', ' ', (string) preg_replace('/(?<!\d)'.$first.'(?!\d)/', '', $tips[$first])), " \t-:#.");
@@ -137,7 +137,7 @@ final readonly class ElementWriter
     /**
      * @param  array{0: float, 1: float, 2: float, 3: float}  $rect
      */
-    private static function provenance(string $field, int $page, array $rect, float $confidence): stdClass
+    private function provenance(string $field, int $page, array $rect, float $confidence): stdClass
     {
         return (object) [
             'source' => 'acroform',

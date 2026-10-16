@@ -15,7 +15,7 @@ use stdClass;
  *  'json' => string]. Number/money fields compile to decimal operators (spec §5.3); boolean fields
  * compare with boolean literals. Anything the visual editor cannot express stays in raw JSON mode.
  */
-final class LogicCompiler
+final readonly class LogicCompiler
 {
     public const array OPERATORS = ['eq', 'neq', 'empty', 'not_empty', 'gt', 'gte', 'lt', 'lte', 'checked', 'unchecked', 'contains'];
 
@@ -29,7 +29,7 @@ final class LogicCompiler
     private const array ORDERED = ['gt' => ['>', 'dec.gt'], 'gte' => ['>=', 'dec.gte'], 'lt' => ['<', 'dec.lt'], 'lte' => ['<=', 'dec.lte']];
 
     /** @param  array<string, string>  $fieldTypes  key => element type */
-    public function __construct(private readonly array $fieldTypes = []) {}
+    public function __construct(private array $fieldTypes = []) {}
 
     /** @return array{mode: string, match: string, groups: list<array{match: string, rules: list<array{field: string, operator: string, value: string|null}>}>, json: string} */
     public function toUi(mixed $expression): array
@@ -66,7 +66,7 @@ final class LogicCompiler
         $groups = [];
         foreach (is_array($state['groups'] ?? null) ? array_values($state['groups']) : [] as $group) {
             $compiled = is_array($group) ? $this->compileGroup($group) : null;
-            if ($compiled !== null) {
+            if ($compiled instanceof stdClass) {
                 $groups[] = $compiled;
             }
         }
@@ -88,7 +88,7 @@ final class LogicCompiler
         if ($rules === []) {
             return null;
         }
-        $compiled = array_map(fn (array $rule): stdClass => $this->compileRule($rule), $rules);
+        $compiled = array_map($this->compileRule(...), $rules);
 
         return count($compiled) === 1 ? $compiled[0] : (object) [($group['match'] ?? 'all') === 'any' ? 'or' : 'and' => $compiled];
     }
@@ -106,7 +106,7 @@ final class LogicCompiler
         $operator = is_string($rule['operator'] ?? null) ? $rule['operator'] : 'eq';
 
         return match (true) {
-            $boolean && in_array($operator, ['eq', 'neq'], true) => (object) [$operator === 'eq' ? '===' : '!==' => [$var, self::truthy($value)]],
+            $boolean && in_array($operator, ['eq', 'neq'], true) => (object) [$operator === 'eq' ? '===' : '!==' => [$var, $this->truthy($value)]],
             $option && in_array($operator, ['eq', 'neq'], true) => (object) [$operator === 'eq' ? '===' : '!==' => [$var, $value]],
             $operator === 'neq' => $decimal ? (object) ['!' => (object) ['dec.eq' => [$var, $value]]] : (object) ['!=' => [$var, $value]],
             in_array($operator, ['empty', 'unchecked'], true) => (object) ['!' => $var],
@@ -125,7 +125,7 @@ final class LogicCompiler
             return ['match' => 'all', 'groups' => [$group]];
         }
 
-        [$operator, $items] = self::junction($expression);
+        [$operator, $items] = $this->junction($expression);
         if ($operator === null) {
             return null;
         }
@@ -149,7 +149,7 @@ final class LogicCompiler
             return ['match' => 'all', 'rules' => [$rule]];
         }
 
-        [$operator, $items] = self::junction($node);
+        [$operator, $items] = $this->junction($node);
         if ($operator === null) {
             return null;
         }
@@ -166,7 +166,7 @@ final class LogicCompiler
     }
 
     /** @return array{0: string|null, 1: list<mixed>} */
-    private static function junction(mixed $node): array
+    private function junction(mixed $node): array
     {
         if (! $node instanceof stdClass || count(get_object_vars($node)) !== 1) {
             return [null, []];
@@ -189,7 +189,7 @@ final class LogicCompiler
         $args = $node->{$op};
 
         if ($op === '!' || $op === '!!') {
-            $field = self::varName($args);
+            $field = $this->varName($args);
             if ($field !== null) {
                 return ['field' => $field, 'operator' => $op === '!' ? 'empty' : 'not_empty', 'value' => null];
             }
@@ -212,12 +212,12 @@ final class LogicCompiler
     private function parseBinary(string $op, array $args): ?array
     {
         if ($op === 'in') {
-            $field = self::varName($args[1] ?? null);
+            $field = $this->varName($args[1] ?? null);
 
             return $field !== null && is_scalar($args[0] ?? null) ? ['field' => $field, 'operator' => 'contains', 'value' => (string) $args[0]] : null;
         }
 
-        $field = self::varName($args[0] ?? null);
+        $field = $this->varName($args[0] ?? null);
         if ($field !== null && in_array($op, ['===', '!=='], true) && (is_bool($args[1] ?? null) || is_string($args[1] ?? null))) {
             $literal = $args[1];
 
@@ -245,12 +245,12 @@ final class LogicCompiler
         }
     }
 
-    private static function truthy(string $value): bool
+    private function truthy(string $value): bool
     {
         return in_array(strtolower(trim($value)), ['true', '1', 'yes', 'ja'], true);
     }
 
-    private static function varName(mixed $node): ?string
+    private function varName(mixed $node): ?string
     {
         return $node instanceof stdClass && count(get_object_vars($node)) === 1 && is_string($node->var ?? null) ? $node->var : null;
     }

@@ -6,6 +6,7 @@ namespace App\Filament\Admin\Resources\Forms\Builder;
 
 use App\Domain\Forms\Builder\BlockCloner;
 use App\Domain\Forms\Builder\ElementFields;
+use App\Domain\Forms\Builder\FieldSpec;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Builder;
 use Filament\Forms\Components\Builder\Block;
@@ -108,7 +109,7 @@ final class ElementBlocks
     /** @return list<Component> */
     private static function schema(string $type, int $depth): array
     {
-        $fields = array_map(fn ($spec): string => $spec->ui, ElementFields::for($type));
+        $fields = array_map(fn (FieldSpec $spec): string => $spec->ui, ElementFields::for($type));
         $has = static fn (string $ui): bool => in_array($ui, $fields, true);
 
         $main = array_values(array_filter([
@@ -151,7 +152,7 @@ final class ElementBlocks
             $has('rows') ? TextInput::make('rows')->label(__('forms.element.rows'))->integer()->minValue(2)->maxValue(20) : null,
             $has('max') ? TextInput::make('max')->label(__('forms.element.max'))->integer()->minValue(3)->maxValue(10) : null,
             $has('signer_name_from') ? Select::make('signer_name_from')->label(__('forms.element.signer_name_from'))
-                ->options(fn ($livewire): array => LogicEditor::fieldOptions($livewire)) : null,
+                ->options(fn (\Livewire\Component $livewire): array => LogicEditor::fieldOptions($livewire)) : null,
             $has('format') ? Select::make('format')->label(__('forms.element.format'))->default('number')
                 ->options(['number' => __('forms.element.format_number'), 'money' => __('forms.element.format_money'), 'text' => __('forms.element.format_text')]) : null,
             $has('display') ? Select::make('display')->label(__('forms.element.display'))->default('cards')

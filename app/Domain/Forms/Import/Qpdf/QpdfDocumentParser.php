@@ -22,12 +22,12 @@ final class QpdfDocumentParser
      */
     public function parse(array $structure, array $streams = []): AcroFormDocument
     {
-        $objects = new QpdfObjects(self::objectTable($structure), $streams);
-        $pages = self::pages($structure);
+        $objects = new QpdfObjects($this->objectTable($structure), $streams);
+        $pages = $this->pages($structure);
 
         return new AcroFormDocument(
             count($pages),
-            $this->fields($objects, self::fieldEntries($structure)),
+            $this->fields($objects, $this->fieldEntries($structure)),
             $this->texts($objects, $pages),
             $this->title($objects),
         );
@@ -41,14 +41,14 @@ final class QpdfDocumentParser
      */
     public function streamRefs(array $structure): array
     {
-        $objects = new QpdfObjects(self::objectTable($structure));
+        $objects = new QpdfObjects($this->objectTable($structure));
         $refs = [];
-        foreach (self::pages($structure) as $page) {
+        foreach ($this->pages($structure) as $page) {
             foreach (is_array($page['contents'] ?? null) ? $page['contents'] : [] as $ref) {
                 $refs[] = $ref;
             }
         }
-        foreach (self::fieldEntries($structure) as $entry) {
+        foreach ($this->fieldEntries($structure) as $entry) {
             foreach ($this->actionDictionaries($objects, $entry) as $action) {
                 $js = $objects->dict($action)['/JS'] ?? null;
                 if ($objects->isStream($js)) {
@@ -76,7 +76,7 @@ final class QpdfDocumentParser
 
         $fields = [];
         foreach ($groups as $name => $widgets) {
-            $fields[] = $this->field($objects, (string) $name, $widgets);
+            $fields[] = $this->field($objects, $name, $widgets);
         }
 
         return $fields;
@@ -86,8 +86,8 @@ final class QpdfDocumentParser
     private function field(QpdfObjects $objects, string $name, array $widgets): AcroField
     {
         $first = $widgets[0];
-        $chain = $objects->chain(self::widgetRef($first));
-        $terminal = self::terminal($chain);
+        $chain = $objects->chain($this->widgetRef($first));
+        $terminal = $this->terminal($chain);
         $type = ltrim((string) ($first['fieldtype'] ?? ''), '/');
         $type = $type !== '' ? $type : (string) $objects->name(QpdfObjects::inherited($chain, '/FT'));
         $flags = is_int($first['fieldflags'] ?? null) ? $first['fieldflags'] : 0;
@@ -101,7 +101,7 @@ final class QpdfDocumentParser
             annotationFlags: array_reduce($widgets, static fn (int $carry, array $w): int => $carry & (int) ($w['annotation']['annotationflags'] ?? 0), PHP_INT_MAX),
             page: (int) ($first['pageposfrom1'] ?? 0),
             rect: $this->rect($objects, $widgets),
-            tooltip: self::clean($objects->text($terminal['/TU'] ?? null)),
+            tooltip: $this->clean($objects->text($terminal['/TU'] ?? null)),
             maxLength: $maxLength !== null && $maxLength >= 1 ? (int) $maxLength : null,
             options: $type === 'Btn' ? $this->exportValues($objects, $widgets, $chain) : $this->choiceOptions($objects, $chain),
             formatScript: $actions['/F'],
@@ -136,8 +136,8 @@ final class QpdfDocumentParser
      */
     private function actionDictionaries(QpdfObjects $objects, array $entry): array
     {
-        $chain = $objects->chain(self::widgetRef($entry));
-        $merged = [...$objects->dict($chain[0]['/AA'] ?? null), ...$objects->dict(self::terminal($chain)['/AA'] ?? null)];
+        $chain = $objects->chain($this->widgetRef($entry));
+        $merged = [...$objects->dict($chain[0]['/AA'] ?? null), ...$objects->dict($this->terminal($chain)['/AA'] ?? null)];
 
         return array_intersect_key($merged, ['/F' => true, '/K' => true, '/C' => true]);
     }
@@ -150,7 +150,7 @@ final class QpdfDocumentParser
     {
         $box = null;
         foreach ($widgets as $widget) {
-            $raw = array_map(fn (mixed $n): float => $objects->number($n) ?? 0.0, $objects->array($objects->dict(self::widgetRef($widget))['/Rect'] ?? null));
+            $raw = array_map(fn (mixed $n): float => $objects->number($n) ?? 0.0, $objects->array($objects->dict($this->widgetRef($widget))['/Rect'] ?? null));
             if (count($raw) !== 4) {
                 continue;
             }
@@ -175,13 +175,13 @@ final class QpdfDocumentParser
         $opt = $objects->array(QpdfObjects::inherited($chain, '/Opt'));
         $values = [];
         foreach ($widgets as $widget) {
-            $appearance = $objects->dict($objects->dict(self::widgetRef($widget))['/AP'] ?? null);
+            $appearance = $objects->dict($objects->dict($this->widgetRef($widget))['/AP'] ?? null);
             $normal = $appearance['/N'] ?? null;
             if ($objects->isStream($normal)) {
                 continue; // a single appearance (push button), not a state dictionary
             }
             foreach (array_keys($objects->dict($normal)) as $state) {
-                $state = self::decodeName((string) $state);
+                $state = $this->decodeName((string) $state);
                 if ($state === 'Off' || $state === '') {
                     continue;
                 }
@@ -240,7 +240,7 @@ final class QpdfDocumentParser
         $fonts = [];
         foreach ($objects->dict($resources['/Font'] ?? null) as $name => $font) {
             if ($objects->name($objects->dict($font)['/Subtype'] ?? null) === 'Type0') {
-                $fonts[self::decodeName((string) $name)] = true;
+                $fonts[$this->decodeName((string) $name)] = true;
             }
         }
 
@@ -251,14 +251,14 @@ final class QpdfDocumentParser
     {
         $info = $objects->dict($objects->trailer()['/Info'] ?? null);
 
-        return self::clean($objects->text($info['/Title'] ?? null));
+        return $this->clean($objects->text($info['/Title'] ?? null));
     }
 
     /**
      * @param  list<array<string, mixed>>  $chain
      * @return array<string, mixed>
      */
-    private static function terminal(array $chain): array
+    private function terminal(array $chain): array
     {
         foreach ($chain as $dict) {
             if (array_key_exists('/T', $dict)) {
@@ -270,7 +270,7 @@ final class QpdfDocumentParser
     }
 
     /** @param  array<string, mixed>  $entry */
-    private static function widgetRef(array $entry): string
+    private function widgetRef(array $entry): string
     {
         $ref = $entry['annotation']['object'] ?? $entry['object'] ?? '';
 
@@ -278,12 +278,12 @@ final class QpdfDocumentParser
     }
 
     /** Name keys come as "/Name" with #xx escapes. */
-    private static function decodeName(string $name): string
+    private function decodeName(string $name): string
     {
         return (string) preg_replace_callback('/#([0-9A-Fa-f]{2})/', static fn (array $m): string => chr((int) hexdec($m[1])), ltrim($name, '/'));
     }
 
-    private static function clean(?string $text): ?string
+    private function clean(?string $text): ?string
     {
         $text = trim((string) preg_replace('/\s+/u', ' ', (string) $text));
 
@@ -294,7 +294,7 @@ final class QpdfDocumentParser
      * @param  array<string, mixed>  $structure
      * @return array<string, mixed>
      */
-    private static function objectTable(array $structure): array
+    private function objectTable(array $structure): array
     {
         $qpdf = $structure['qpdf'] ?? null;
 
@@ -305,7 +305,7 @@ final class QpdfDocumentParser
      * @param  array<string, mixed>  $structure
      * @return list<array<string, mixed>>
      */
-    private static function pages(array $structure): array
+    private function pages(array $structure): array
     {
         return is_array($structure['pages'] ?? null) ? array_values(array_filter($structure['pages'], is_array(...))) : [];
     }
@@ -314,7 +314,7 @@ final class QpdfDocumentParser
      * @param  array<string, mixed>  $structure
      * @return list<array<string, mixed>>
      */
-    private static function fieldEntries(array $structure): array
+    private function fieldEntries(array $structure): array
     {
         $fields = $structure['acroform']['fields'] ?? null;
 

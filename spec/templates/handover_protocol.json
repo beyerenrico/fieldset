@@ -1,0 +1,452 @@
+{
+  "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+  "specVersion": "1.0.0",
+  "key": "handover_protocol",
+  "title": "Übergabeprotokoll",
+  "locale": "de-DE",
+  "settings": {
+    "layout": "wizard",
+    "numbering": {
+      "format": "UP-{YYYY}-{SEQ:5}",
+      "reset": "yearly"
+    },
+    "document": {
+      "design": "default"
+    },
+    "sendToCustomer": true
+  },
+  "pages": [
+    {
+      "id": "2e374c46-297d-54fd-aae0-710360d668c5",
+      "key": "parties",
+      "title": "Objekt & Beteiligte",
+      "elements": [
+        {
+          "type": "radio",
+          "key": "handover_type",
+          "label": "Vorgang",
+          "required": true,
+          "options": [
+            {
+              "value": "handover",
+              "label": "Übergabe"
+            },
+            {
+              "value": "return",
+              "label": "Rücknahme"
+            }
+          ],
+          "id": "47cb6f6c-d89c-50bb-bdd7-d4b0f757f3b3"
+        },
+        {
+          "type": "select",
+          "key": "object_type",
+          "label": "Art des Objekts",
+          "required": true,
+          "options": [
+            {
+              "value": "apartment",
+              "label": "Wohnung"
+            },
+            {
+              "value": "commercial",
+              "label": "Gewerbeeinheit"
+            },
+            {
+              "value": "building",
+              "label": "Gebäude"
+            },
+            {
+              "value": "machine",
+              "label": "Maschine / Anlage"
+            },
+            {
+              "value": "vehicle",
+              "label": "Fahrzeug"
+            },
+            {
+              "value": "other",
+              "label": "Sonstiges"
+            }
+          ],
+          "id": "23d4c648-e0c0-5416-a437-c7b6ee525d51"
+        },
+        {
+          "type": "text",
+          "key": "object_description",
+          "label": "Objekt",
+          "required": true,
+          "placeholder": "z. B. 2. OG links, Lager Halle 3",
+          "validation": {
+            "maxLength": 160
+          },
+          "id": "ca71f9c2-23a7-5342-b2dc-d9c2bfc1388b"
+        },
+        {
+          "type": "textarea",
+          "key": "site_address",
+          "label": "Anschrift / Standort",
+          "rows": 2,
+          "role": "site.address",
+          "id": "0385b7f3-47e2-5d00-9a03-1cd5cacc0d9a"
+        },
+        {
+          "type": "text",
+          "key": "asset_serial",
+          "label": "Serien- / Inventarnummer",
+          "role": "asset.serial",
+          "visibleIf": {
+            "in": [
+              {
+                "var": "object_type"
+              },
+              [
+                "machine",
+                "vehicle"
+              ]
+            ]
+          },
+          "id": "e419cdf0-77cc-54cc-b78d-f5777dfcd06f"
+        },
+        {
+          "type": "date",
+          "key": "handover_date",
+          "label": "Datum",
+          "required": true,
+          "default": {
+            "var": "$today"
+          },
+          "role": "document.date",
+          "id": "64a15644-7ffc-52c4-8e12-0f14962dc3a3"
+        },
+        {
+          "type": "text",
+          "key": "handing_over_name",
+          "label": "Übergeben von",
+          "required": true,
+          "default": {
+            "var": "$user.name"
+          },
+          "validation": {
+            "maxLength": 120
+          },
+          "id": "9925d4d6-3850-5834-8b25-ff44d8b86deb"
+        },
+        {
+          "type": "text",
+          "key": "receiver_name",
+          "label": "Übernommen von",
+          "required": true,
+          "validation": {
+            "maxLength": 120
+          },
+          "role": "customer.name",
+          "id": "452aa305-c4de-5b25-ac19-43e14b02b664"
+        },
+        {
+          "type": "email",
+          "key": "receiver_email",
+          "label": "E-Mail (für das Protokoll)",
+          "role": "customer.email",
+          "id": "ed8c48d3-88c4-53f6-a78c-54146918dfb8"
+        }
+      ]
+    },
+    {
+      "id": "850d7bff-2f53-5125-9fe5-240c49b67a9f",
+      "key": "condition",
+      "title": "Zustand",
+      "elements": [
+        {
+          "type": "repeater",
+          "key": "areas",
+          "label": "Räume / Bereiche",
+          "display": "cards",
+          "minItems": 1,
+          "addLabel": "Bereich hinzufügen",
+          "elements": [
+            {
+              "type": "text",
+              "key": "area",
+              "label": "Raum / Bereich",
+              "required": true,
+              "validation": {
+                "maxLength": 80
+              },
+              "id": "a949224d-5735-54a4-9aae-5ef2aaa5918b"
+            },
+            {
+              "type": "radio",
+              "key": "condition",
+              "label": "Zustand",
+              "required": true,
+              "options": [
+                {
+                  "value": "good",
+                  "label": "Einwandfrei"
+                },
+                {
+                  "value": "wear",
+                  "label": "Gebrauchsspuren"
+                },
+                {
+                  "value": "defect",
+                  "label": "Mangel"
+                }
+              ],
+              "id": "1cf6139d-1abd-540b-b323-40bd77775f78"
+            },
+            {
+              "type": "textarea",
+              "key": "defect_note",
+              "label": "Mangelbeschreibung",
+              "required": true,
+              "rows": 3,
+              "visibleIf": {
+                "===": [
+                  {
+                    "var": "condition"
+                  },
+                  "defect"
+                ]
+              },
+              "id": "0933fbf0-1143-5f22-b811-31396ef3dc93"
+            },
+            {
+              "type": "photo",
+              "key": "area_photos",
+              "label": "Fotos",
+              "multiple": true,
+              "validation": {
+                "maxFiles": 10,
+                "maxSizeKb": 8192
+              },
+              "id": "4ab19577-2467-5849-8d9b-507eed1398e0"
+            }
+          ],
+          "id": "d02bcda7-629d-5178-a697-0678c382255d"
+        },
+        {
+          "type": "calculated",
+          "key": "defect_count",
+          "label": "Anzahl Mängel",
+          "format": "number",
+          "scale": 0,
+          "expression": {
+            "count": [
+              {
+                "filter": [
+                  {
+                    "var": "areas"
+                  },
+                  {
+                    "===": [
+                      {
+                        "var": "condition"
+                      },
+                      "defect"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "id": "9a7da0ad-08a7-5e28-8e57-1c8d1ea3bdfb"
+        },
+        {
+          "type": "textarea",
+          "key": "general_remarks",
+          "label": "Allgemeine Bemerkungen",
+          "rows": 3,
+          "id": "872c1022-7bb2-59c8-9799-0dee40d81ae1"
+        }
+      ]
+    },
+    {
+      "id": "49570ec6-fdea-5704-88ad-7b10bfa6d143",
+      "key": "inventory",
+      "title": "Zähler & Schlüssel",
+      "elements": [
+        {
+          "type": "repeater",
+          "key": "meters",
+          "label": "Zählerstände",
+          "display": "table",
+          "addLabel": "Zähler hinzufügen",
+          "elements": [
+            {
+              "type": "select",
+              "key": "meter_type",
+              "label": "Zähler",
+              "required": true,
+              "options": [
+                {
+                  "value": "electricity",
+                  "label": "Strom"
+                },
+                {
+                  "value": "gas",
+                  "label": "Gas"
+                },
+                {
+                  "value": "water",
+                  "label": "Wasser"
+                },
+                {
+                  "value": "heat",
+                  "label": "Wärme"
+                },
+                {
+                  "value": "operating_hours",
+                  "label": "Betriebsstunden"
+                },
+                {
+                  "value": "other",
+                  "label": "Sonstiges"
+                }
+              ],
+              "id": "1a1c5885-c8a0-5893-b8ba-280f36b5cd07"
+            },
+            {
+              "type": "text",
+              "key": "meter_number",
+              "label": "Zählernummer",
+              "validation": {
+                "maxLength": 40
+              },
+              "role": "asset.serial",
+              "id": "e9b7aed3-566c-5b2b-8e7c-d79e966614f8"
+            },
+            {
+              "type": "number",
+              "key": "reading",
+              "label": "Zählerstand",
+              "required": true,
+              "validation": {
+                "min": 0
+              },
+              "id": "1b7e0d87-2a30-56dc-8ad5-c994636eda3b"
+            },
+            {
+              "type": "photo",
+              "key": "meter_photo",
+              "label": "Foto",
+              "validation": {
+                "maxSizeKb": 8192
+              },
+              "id": "ac47bfbf-0957-551a-8919-dc158386f41e"
+            }
+          ],
+          "id": "fcf023c7-a865-5b99-a66a-1d51cf85ce75"
+        },
+        {
+          "type": "repeater",
+          "key": "keys",
+          "label": "Schlüssel",
+          "display": "table",
+          "addLabel": "Schlüssel hinzufügen",
+          "elements": [
+            {
+              "type": "text",
+              "key": "key_label",
+              "label": "Bezeichnung",
+              "required": true,
+              "validation": {
+                "maxLength": 80
+              },
+              "role": "line_item.description",
+              "id": "3711e041-95c1-5ac6-bf0a-89ea532fd421"
+            },
+            {
+              "type": "number",
+              "key": "key_count",
+              "label": "Anzahl",
+              "required": true,
+              "validation": {
+                "min": 1,
+                "step": 1
+              },
+              "role": "line_item.qty",
+              "id": "c19913b6-e761-5e68-a84b-55f1cf62bada"
+            }
+          ],
+          "id": "881cfd04-520d-5b4f-94ec-2a1bc41922f9"
+        },
+        {
+          "type": "calculated",
+          "key": "keys_total",
+          "label": "Schlüssel gesamt",
+          "format": "number",
+          "scale": 0,
+          "expression": {
+            "sum": [
+              {
+                "var": "keys"
+              },
+              "key_count"
+            ]
+          },
+          "id": "edba4207-5ef5-51f9-9369-076bdf179234"
+        },
+        {
+          "type": "multiselect",
+          "key": "documents_handed_over",
+          "label": "Übergebene Unterlagen",
+          "options": [
+            {
+              "value": "manual",
+              "label": "Bedienungsanleitung"
+            },
+            {
+              "value": "warranty",
+              "label": "Garantie- / Gewährleistungsunterlagen"
+            },
+            {
+              "value": "certificates",
+              "label": "Prüfbescheinigungen"
+            },
+            {
+              "value": "plans",
+              "label": "Pläne / Zeichnungen"
+            },
+            {
+              "value": "other",
+              "label": "Sonstiges"
+            }
+          ],
+          "id": "8b5a9ee6-8c33-5da5-b178-704254b3cd91"
+        }
+      ]
+    },
+    {
+      "id": "0568fcfc-ae71-5c85-bdf8-25182fa3bd51",
+      "key": "signatures",
+      "title": "Unterschriften",
+      "elements": [
+        {
+          "type": "checkbox",
+          "key": "condition_accepted",
+          "label": "Der Zustand wurde gemeinsam festgestellt und wird anerkannt.",
+          "required": true,
+          "id": "846bce7f-16c7-5904-8f99-c03783e67583"
+        },
+        {
+          "type": "signature",
+          "key": "handing_over_signature",
+          "label": "Unterschrift Übergebender",
+          "required": true,
+          "signerNameFrom": "handing_over_name",
+          "id": "fd4f814a-6d7c-5952-aa81-a2225870faa3"
+        },
+        {
+          "type": "signature",
+          "key": "receiver_signature",
+          "label": "Unterschrift Übernehmender",
+          "required": true,
+          "signerNameFrom": "receiver_name",
+          "id": "8df55fc4-4e53-5053-8185-e04700595c3d"
+        }
+      ]
+    }
+  ]
+}

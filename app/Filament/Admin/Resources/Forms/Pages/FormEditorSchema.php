@@ -57,7 +57,7 @@ final class FormEditorSchema
             ->visible(fn (?Form $record): bool => $record?->import_report instanceof stdClass)
             ->description(fn (?Form $record): string => ImportReportPresenter::summary($record?->import_report))
             ->footer(fn (?Form $record): array => [UnorderedList::make(array_map(
-                static fn (string $line): Text => Text::make($line),
+                Text::make(...),
                 ImportReportPresenter::lines($record?->import_report),
             ))->columns(1)]);
     }

@@ -30,7 +30,7 @@ final class CalculationCompiler
                 'mode' => is_string($parsed['mode'] ?? null) ? $parsed['mode'] : 'json',
                 'repeater' => isset($parsed['repeater']) && is_string($parsed['repeater']) ? $parsed['repeater'] : null,
                 'column' => isset($parsed['column']) && is_string($parsed['column']) ? $parsed['column'] : null,
-                'fields' => isset($parsed['fields']) && is_array($parsed['fields']) ? array_values(array_map('strval', $parsed['fields'])) : [],
+                'fields' => isset($parsed['fields']) && is_array($parsed['fields']) ? array_values(array_map(strval(...), $parsed['fields'])) : [],
                 'field' => isset($parsed['field']) && is_string($parsed['field']) ? $parsed['field'] : null,
                 'rate' => isset($parsed['rate']) && is_string($parsed['rate']) ? $parsed['rate'] : null,
                 'json' => '',
@@ -81,28 +81,28 @@ final class CalculationCompiler
             return null;
         }
 
-        if ($op === 'sum' && count($args) === 2 && self::var($args[0]) !== null && is_string($args[1])) {
-            return ['mode' => 'sum', 'repeater' => self::var($args[0]), 'column' => $args[1]];
+        if ($op === 'sum' && count($args) === 2 && $this->var($args[0]) !== null && is_string($args[1])) {
+            return ['mode' => 'sum', 'repeater' => $this->var($args[0]), 'column' => $args[1]];
         }
 
         $mode = array_search($op, self::FIELD_OPS, true);
         if ($mode !== false) {
-            $fields = array_map(self::var(...), $args);
+            $fields = array_map($this->var(...), $args);
 
             return in_array(null, $fields, true) ? null : ['mode' => $mode, 'fields' => $fields];
         }
 
         if ($op === 'dec.round' && count($args) === 2 && $args[1] === 2 && $args[0] instanceof stdClass) {
             $mul = $args[0]->{'dec.mul'} ?? null;
-            if (is_array($mul) && count($mul) === 2 && self::var($mul[0]) !== null && is_string($mul[1])) {
-                return ['mode' => 'percent', 'field' => self::var($mul[0]), 'rate' => $mul[1]];
+            if (is_array($mul) && count($mul) === 2 && $this->var($mul[0]) !== null && is_string($mul[1])) {
+                return ['mode' => 'percent', 'field' => $this->var($mul[0]), 'rate' => $mul[1]];
             }
         }
 
         return null;
     }
 
-    private static function var(mixed $node): ?string
+    private function var(mixed $node): ?string
     {
         return $node instanceof stdClass && count(get_object_vars($node)) === 1 && is_string($node->var ?? null) ? $node->var : null;
     }

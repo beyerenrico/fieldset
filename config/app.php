@@ -28,6 +28,11 @@ return [
     'platform_admins' => array_values(array_filter(array_map('trim', explode(',', (string) env('PLATFORM_ADMIN_EMAILS', ''))))),
 
     /*
+    | Member invitations per organization in 24 hours (CSV import refuses files over the remaining cap).
+    */
+    'invitations_per_day' => (int) env('APP_INVITATIONS_PER_DAY', 1000),
+
+    /*
     |--------------------------------------------------------------------------
     | Application Environment
     |--------------------------------------------------------------------------

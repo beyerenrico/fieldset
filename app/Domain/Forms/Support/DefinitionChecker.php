@@ -25,8 +25,7 @@ final readonly class DefinitionChecker
             return new DefinitionReport($meta->errors, []);
         }
 
-        $published = $form === null ? [] : $form->versions()->get()
-            ->map(fn (FormVersion $v): mixed => $v->definition)->values()->all();
+        $published = $form?->versions()->get()->map(fn (FormVersion $v): mixed => $v->definition)->values()->all() ?? [];
 
         return new DefinitionReport([], $this->linter->lint($definition, array_values($published)));
     }

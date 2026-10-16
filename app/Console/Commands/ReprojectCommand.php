@@ -9,6 +9,8 @@ use App\Domain\Identity\Tenancy\TenantContext;
 use App\Domain\Submissions\Enums\SubmissionStatus;
 use App\Domain\Submissions\Models\Submission;
 use App\Domain\Submissions\Projection\SubmissionValueProjector;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
@@ -17,12 +19,10 @@ use Illuminate\Support\Facades\DB;
  * row lock and projected in its own transaction, so a concurrent submit or transition never interleaves
  * with its delete + insert. `changes_requested` submissions keep their last submitted values.
  */
+#[Description('Rebuild the submission_values read model')]
+#[Signature('app:reproject {form? : Form id to limit the rebuild to}')]
 final class ReprojectCommand extends Command
 {
-    protected $signature = 'app:reproject {form? : Form id to limit the rebuild to}';
-
-    protected $description = 'Rebuild the submission_values read model';
-
     public function handle(TenantContext $tenant, SubmissionValueProjector $projector): int
     {
         $formId = $this->argument('form');

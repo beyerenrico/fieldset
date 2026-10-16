@@ -4,14 +4,21 @@ declare(strict_types=1);
 
 namespace App\Domain\Submissions\Actions;
 
+use App\Domain\Identity\Models\User;
+use App\Domain\Mail\CustomerSend\CustomerSendGate;
 use App\Domain\Submissions\Models\Attachment;
 use App\Domain\Submissions\Models\Submission;
 
 /** The `submission` object of the API contract (docs/api/field-app-v1.md). */
 final class SubmissionPresenter
 {
-    /** @return array<string, mixed> */
-    public static function present(Submission $submission): array
+    /**
+     * `can_send` is computed for the viewer, who must be able to see the submission (every caller
+     * presents only visible submissions); without a viewer it is false.
+     *
+     * @return array<string, mixed>
+     */
+    public static function present(Submission $submission, ?User $viewer = null): array
     {
         $submission->loadMissing(['attachments', 'formVersion']);
 
@@ -29,6 +36,7 @@ final class SubmissionPresenter
             'created_at' => $submission->created_at->toIso8601String(),
             'updated_at' => $submission->updated_at->toIso8601String(),
             'can_edit' => $submission->status->isEditable(),
+            'can_send' => $viewer instanceof User && CustomerSendGate::allows($viewer, $submission),
         ];
     }
 

@@ -18,7 +18,7 @@ final class CalculationEditor
 {
     public static function make(): Fieldset
     {
-        $is = static fn (string ...$modes) => static fn (Get $get): bool => in_array($get('mode'), $modes, true);
+        $is = static fn (string ...$modes): \Closure => static fn (Get $get): bool => in_array($get('mode'), $modes, true);
 
         return Fieldset::make(__('forms.element.expression'))
             ->statePath('expression')

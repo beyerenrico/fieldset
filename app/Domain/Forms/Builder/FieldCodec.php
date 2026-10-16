@@ -24,10 +24,10 @@ final readonly class FieldCodec
             FieldSpec::BOOL => $value === true,
             FieldSpec::INT => is_int($value) || (is_float($value) && floor($value) === $value) ? (int) $value : null,
             FieldSpec::NUMERIC => $absent ? null : (is_string($value) ? $value : Json::encode($value)),
-            FieldSpec::OPTIONS => is_array($value) ? array_map(self::optionToUi(...), array_values($value)) : [],
+            FieldSpec::OPTIONS => is_array($value) ? array_map($this->optionToUi(...), array_values($value)) : [],
             FieldSpec::LOGIC => $this->logic->toUi($absent ? null : $value),
             FieldSpec::CALC => $this->calc->toUi($absent ? null : $value),
-            FieldSpec::DEFAULT, FieldSpec::DEFAULT_BOOL, FieldSpec::DEFAULT_INT => $absent ? null : self::defaultToUi($value),
+            FieldSpec::DEFAULT, FieldSpec::DEFAULT_BOOL, FieldSpec::DEFAULT_INT => $absent ? null : $this->defaultToUi($value),
             FieldSpec::LIST => is_array($value) ? array_values(array_map(static fn (mixed $v): string => is_scalar($v) ? (string) $v : '', $value)) : [],
             default => $absent ? null : (is_string($value) ? $value : (is_scalar($value) ? (string) $value : null)),
         };
@@ -36,18 +36,18 @@ final readonly class FieldCodec
     public function fromUi(FieldSpec $spec, mixed $ui): mixed
     {
         $result = match ($spec->kind) {
-            FieldSpec::BOOL => $ui === true || $ui === 1 || $ui === '1' ? true : null,
+            FieldSpec::BOOL => in_array($ui, [true, 1, '1'], true) ? true : null,
             FieldSpec::INT => is_numeric($ui) && preg_match('/^-?\d+$/', (string) $ui) === 1 ? (int) $ui : null,
-            FieldSpec::NUMERIC => self::numericFromUi($ui),
-            FieldSpec::OPTIONS => self::optionsFromUi($ui),
+            FieldSpec::NUMERIC => $this->numericFromUi($ui),
+            FieldSpec::OPTIONS => $this->optionsFromUi($ui),
             FieldSpec::LOGIC => $this->logic->fromUi(is_array($ui) ? $ui : null),
             FieldSpec::CALC => $this->calc->fromUi(is_array($ui) ? $ui : null),
-            FieldSpec::DEFAULT => self::defaultFromUi($ui),
-            FieldSpec::DEFAULT_BOOL => self::typedDefault($ui, static fn (string $t): ?bool => match (strtolower($t)) {
+            FieldSpec::DEFAULT => $this->defaultFromUi($ui),
+            FieldSpec::DEFAULT_BOOL => $this->typedDefault($ui, static fn (string $t): ?bool => match (strtolower($t)) {
                 'true', '1', 'yes', 'ja' => true, 'false', '0', 'no', 'nein' => false, default => null,
             }),
-            FieldSpec::DEFAULT_INT => self::typedDefault($ui, static fn (string $t): ?int => preg_match('/^-?\d{1,9}$/', $t) === 1 ? (int) $t : null),
-            FieldSpec::LIST => is_array($ui) ? array_values(array_filter(array_map('strval', $ui), static fn (string $v): bool => $v !== '')) : null,
+            FieldSpec::DEFAULT_INT => $this->typedDefault($ui, static fn (string $t): ?int => preg_match('/^-?\d{1,9}$/', $t) === 1 ? (int) $t : null),
+            FieldSpec::LIST => is_array($ui) ? array_values(array_filter(array_map(strval(...), $ui), static fn (string $v): bool => $v !== '')) : null,
             default => is_string($ui) && $ui !== '' ? $ui : null,
         };
 
@@ -66,7 +66,7 @@ final readonly class FieldCodec
     }
 
     /** @return array{_source: string, value: string, label: string} */
-    private static function optionToUi(mixed $option): array
+    private function optionToUi(mixed $option): array
     {
         $source = $option instanceof stdClass ? clone $option : new stdClass;
 
@@ -78,7 +78,7 @@ final readonly class FieldCodec
     }
 
     /** @return list<stdClass>|null */
-    private static function optionsFromUi(mixed $ui): ?array
+    private function optionsFromUi(mixed $ui): ?array
     {
         if (! is_array($ui)) {
             return null;
@@ -97,7 +97,7 @@ final readonly class FieldCodec
         return $options;
     }
 
-    private static function numericFromUi(mixed $ui): int|string|null
+    private function numericFromUi(mixed $ui): int|string|null
     {
         $text = is_scalar($ui) ? trim((string) $ui) : '';
         if ($text === '') {
@@ -112,15 +112,15 @@ final readonly class FieldCodec
      *
      * @param  \Closure(string): (bool|int|null)  $literal
      */
-    private static function typedDefault(mixed $ui, \Closure $literal): mixed
+    private function typedDefault(mixed $ui, \Closure $literal): mixed
     {
         $text = is_scalar($ui) ? trim((string) $ui) : '';
         $value = $text === '' ? null : $literal($text);
 
-        return $value ?? self::defaultFromUi($ui);
+        return $value ?? $this->defaultFromUi($ui);
     }
 
-    private static function defaultToUi(mixed $value): string
+    private function defaultToUi(mixed $value): string
     {
         if (is_bool($value)) {
             return $value ? 'true' : 'false';
@@ -133,7 +133,7 @@ final readonly class FieldCodec
         return $isPlain ? $value : Json::encode($value);
     }
 
-    private static function defaultFromUi(mixed $ui): mixed
+    private function defaultFromUi(mixed $ui): mixed
     {
         $text = is_scalar($ui) ? trim((string) $ui) : '';
         if ($text === '') {

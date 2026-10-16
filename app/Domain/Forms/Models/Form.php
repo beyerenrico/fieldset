@@ -9,6 +9,7 @@ use App\Domain\Forms\Enums\FormStatus;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Tenancy\BelongsToOrganization;
 use Database\Factories\FormFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -32,14 +33,13 @@ use stdClass;
  * @property int|null $updated_by
  */
 #[UseFactory(FormFactory::class)]
+#[Fillable(['key', 'name', 'category', 'status', 'draft_definition', 'import_report', 'created_by', 'updated_by'])]
 class Form extends Model
 {
     use BelongsToOrganization;
 
     /** @use HasFactory<FormFactory> */
     use HasFactory;
-
-    protected $fillable = ['key', 'name', 'category', 'status', 'draft_definition', 'import_report', 'created_by', 'updated_by'];
 
     protected $attributes = [
         'status' => 'draft',

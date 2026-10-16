@@ -15,9 +15,9 @@ use Illuminate\Http\Request;
 use stdClass;
 
 /** Forms the user may fill and their versions (§10). Access is enforced on every call (§9.3). */
-final class FormController
+final readonly class FormController
 {
-    public function __construct(private readonly FormAccessResolver $access) {}
+    public function __construct(private FormAccessResolver $access) {}
 
     public function index(Request $request): JsonResponse
     {

@@ -70,7 +70,7 @@ it('maps fields per the §8.13 table and reports what it cannot import', functio
 ]);
 
 it('guesses the default currency for unknown symbols and warns', function (): void {
-    $result = (new FieldMapper('CHF'))->map(new AcroField('a', 'Tx', 0, 4, 1, [0, 0, 1, 1], formatScript: 'AFNumber_Format(3, 0, 0, 0, "Kč", false);'));
+    $result = new FieldMapper('CHF')->map(new AcroField('a', 'Tx', 0, 4, 1, [0, 0, 1, 1], formatScript: 'AFNumber_Format(3, 0, 0, 0, "Kč", false);'));
 
     expect($result)->toBeInstanceOf(MappedField::class)
         ->and($result->properties)->toBe(['currency' => 'CHF', 'scale' => 3])

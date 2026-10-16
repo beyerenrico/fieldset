@@ -76,7 +76,7 @@ final readonly class QpdfObjects
     public function text(mixed $value): ?string
     {
         if (is_string($value) && self::isRef($value)) {
-            return $this->isStream($value) ? self::bytesToUtf8($this->streamData($value)) : $this->text($this->resolve($value));
+            return $this->isStream($value) ? $this->bytesToUtf8($this->streamData($value)) : $this->text($this->resolve($value));
         }
 
         if (! is_string($value)) {
@@ -85,7 +85,7 @@ final readonly class QpdfObjects
 
         return match (true) {
             str_starts_with($value, 'u:') => substr($value, 2),
-            str_starts_with($value, 'b:') => self::bytesToUtf8((string) hex2bin(strlen($value) % 2 === 0 ? substr($value, 2) : substr($value, 2).'0')),
+            str_starts_with($value, 'b:') => $this->bytesToUtf8((string) hex2bin(strlen($value) % 2 === 0 ? substr($value, 2) : substr($value, 2).'0')),
             default => null,
         };
     }
@@ -140,7 +140,7 @@ final readonly class QpdfObjects
         return null;
     }
 
-    private static function bytesToUtf8(?string $bytes): ?string
+    private function bytesToUtf8(?string $bytes): ?string
     {
         if ($bytes === null) {
             return null;

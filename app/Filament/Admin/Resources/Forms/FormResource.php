@@ -98,7 +98,7 @@ class FormResource extends Resource
                 $actor = auth()->user();
                 $json = app(ExportDefinition::class)->handle($record, $record->currentVersion, $actor);
 
-                return response()->streamDownload(fn () => print ($json), Str::slug($record->key).'.form.json', ['Content-Type' => 'application/json']);
+                return response()->streamDownload(fn (): int => print ($json), Str::slug($record->key).'.form.json', ['Content-Type' => 'application/json']);
             });
     }
 

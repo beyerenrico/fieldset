@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Support\TenantIsolation;
 
+use App\Domain\Documents\Models\Rendition;
 use App\Domain\Forms\Models\Form;
 use App\Domain\Forms\Models\FormVersion;
 use App\Domain\Identity\Models\Organization;
@@ -50,6 +51,18 @@ final class ApiRouteCases
                 $attachment = app(TenantContext::class)->run($v, fn () => Attachment::factory()->create(['submission_uuid' => self::victimSubmission($v)->uuid]));
 
                 return ['GET', "/api/v1/submissions/{$attachment->submission_uuid}/attachments/{$attachment->uuid}"];
+            },
+            'api.submissions.document' => function (Organization $v): array {
+                $rendition = app(TenantContext::class)->run($v, fn () => Rendition::factory()->create(['submission_uuid' => self::victimSubmission($v)->uuid]));
+
+                return ['GET', "/api/v1/submissions/{$rendition->submission_uuid}/document"];
+            },
+            'api.submissions.send' => function (Organization $v): array {
+                $submission = self::victimSubmission($v);
+                app(TenantContext::class)->run($v, fn () => $submission->forceFill(['status' => 'submitted', 'number' => 'X-1'])->save());
+
+                return ['POST', "/api/v1/submissions/{$submission->uuid}/send", ['email' => 'victim@example.com'], 'attacker',
+                    ['Idempotency-Key' => (string) Str::uuid()]];
             },
         ];
     }

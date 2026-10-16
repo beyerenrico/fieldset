@@ -8,7 +8,9 @@ use App\Domain\Forms\Casts\JsonTree;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Tenancy\BelongsToOrganization;
 use Database\Factories\FormVersionFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
+use Illuminate\Database\Eloquent\Attributes\WithoutTimestamps;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -35,19 +37,17 @@ use stdClass;
  * @property-read Form $form
  */
 #[UseFactory(FormVersionFactory::class)]
+#[Fillable([
+    'form_id', 'version', 'definition', 'data_json_schema', 'checksum', 'design_version_id',
+    'changelog', 'published_by', 'published_at',
+])]
+#[WithoutTimestamps]
 class FormVersion extends Model
 {
     use BelongsToOrganization;
 
     /** @use HasFactory<FormVersionFactory> */
     use HasFactory;
-
-    public $timestamps = false;
-
-    protected $fillable = [
-        'form_id', 'version', 'definition', 'data_json_schema', 'checksum', 'design_version_id',
-        'changelog', 'published_by', 'published_at',
-    ];
 
     protected $attributes = ['design_version_id' => null, 'retired_at' => null];
 

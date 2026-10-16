@@ -55,7 +55,7 @@ final class CalculationMapper
 
         $expression = $this->expression($calculation['function'], $scalars, array_keys($columns), $scale);
 
-        return $expression === null ? 'unsupported_calculation' : ['expression' => $expression, 'warnings' => $warnings];
+        return $expression instanceof stdClass ? ['expression' => $expression, 'warnings' => $warnings] : 'unsupported_calculation';
     }
 
     /**

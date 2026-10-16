@@ -7,17 +7,19 @@ import {
     fetchFormVersion,
     fetchMe,
     fetchSubmission,
+    fetchSubmissionDocument,
     fetchSyncManifest,
     listSubmissions,
     login,
     logout,
     putSubmission,
+    sendSubmissionDocument,
     submitSubmission,
     twoFactorChallenge,
     uploadAttachment,
 } from '../../src/lib/api/endpoints.ts';
 import { apiTransport } from '../../src/lib/autosave/api-transport.ts';
-import { makeSubmission } from '../utils/fixtures.ts';
+import { makeDocument, makeSubmission } from '../utils/fixtures.ts';
 import { createBackend, fail, ok } from '../utils/backend.ts';
 import { server, setupTestServer } from '../utils/server.ts';
 
@@ -215,5 +217,53 @@ describe('endpoints', () => {
             ),
         );
         await expect(downloadAttachment('u1', 'a2')).rejects.toMatchObject({ code: 'not_found' });
+    });
+
+    it('reads the submission document and maps document_not_ready', async () => {
+        server.use(
+            http.get('*/api/v1/submissions/:uuid/document', ({ params }) =>
+                params.uuid === 'ready'
+                    ? ok({ document: makeDocument() })
+                    : fail(404, 'document_not_ready'),
+            ),
+        );
+        expect((await fetchSubmissionDocument('ready')).rendition.page_count).toBe(2);
+        await expect(fetchSubmissionDocument('later')).rejects.toMatchObject({
+            status: 404,
+            code: 'document_not_ready',
+        });
+    });
+
+    it('sends the document with the Idempotency-Key and returns the send record', async () => {
+        let key: string | null = null;
+        let body: unknown = null;
+        server.use(
+            http.post('*/api/v1/submissions/:uuid/send', async ({ request }) => {
+                key = request.headers.get('Idempotency-Key');
+                body = await request.json();
+                return ok(
+                    {
+                        send: {
+                            id: 5,
+                            status: 'queued',
+                            recipient: { email: 'kunde@example.test', name: null },
+                        },
+                    },
+                    { status: 202 },
+                );
+            }),
+        );
+        const send = await sendSubmissionDocument(
+            'u1',
+            { email: 'kunde@example.test' },
+            'key-send-1',
+        );
+        expect(key).toBe('key-send-1');
+        expect(body).toEqual({ email: 'kunde@example.test' });
+        expect(send).toEqual({
+            id: 5,
+            status: 'queued',
+            recipient: { email: 'kunde@example.test', name: null },
+        });
     });
 });

@@ -16,6 +16,8 @@ use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Queue\Attributes\Timeout;
+use Illuminate\Queue\Attributes\Tries;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Traits\Localizable;
@@ -26,14 +28,12 @@ use Throwable;
  * Context (§6.2). The upload is read from the private disk and always deleted afterwards; the user
  * gets a database notification on success or failure.
  */
+#[Timeout(300)]
+#[Tries(1)]
 final class ImportFillablePdf implements ShouldQueue
 {
     use Localizable;
     use Queueable;
-
-    public int $tries = 1;
-
-    public int $timeout = 300;
 
     public function __construct(
         public User $user,

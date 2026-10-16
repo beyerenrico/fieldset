@@ -23,4 +23,6 @@ export const paths = {
     attachment: (uuid: string, attachmentUuid: string): string =>
         `${API_BASE}/submissions/${enc(uuid)}/attachments/${enc(attachmentUuid)}`,
     submit: (uuid: string): string => `${API_BASE}/submissions/${enc(uuid)}/submit`,
+    document: (uuid: string): string => `${API_BASE}/submissions/${enc(uuid)}/document`,
+    send: (uuid: string): string => `${API_BASE}/submissions/${enc(uuid)}/send`,
 } as const;

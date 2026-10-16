@@ -12,6 +12,7 @@ import { useSession } from '../hooks/useSession.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { EDITABLE_STATUSES, type AttachmentRecord } from '../lib/api/types.ts';
 import { buildEvaluationContext } from '../lib/session/eval-context.ts';
+import { DocumentSection } from './detail/DocumentSection.tsx';
 
 const route = getRouteApi('/_auth/submissions/$uuid');
 
@@ -80,6 +81,7 @@ export function SubmissionDetailScreen(): ReactNode {
                     </Link>
                 </Button>
             ) : null}
+            <DocumentSection submission={current} definition={version.data?.definition} />
             {version.isPending ? <Loading /> : null}
             {version.isError ? (
                 <ErrorState error={version.error} onRetry={() => void version.refetch()} />

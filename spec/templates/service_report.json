@@ -33,6 +33,14 @@
           "id": "ccf443dc-c82c-5987-b8ea-78f1d9d83c0e"
         },
         {
+          "type": "email",
+          "key": "customer_email",
+          "label": "E-Mail Kunde",
+          "help": "Für den Versand des Berichts an den Kunden.",
+          "role": "customer.email",
+          "id": "109016c8-e986-5ab2-851c-3fcff8b97f3d"
+        },
+        {
           "type": "textarea",
           "key": "site_address",
           "label": "Einsatzort",
@@ -114,7 +122,7 @@
         {
           "type": "repeater",
           "key": "items",
-          "label": "Material & Arbeitszeit",
+          "label": "Positionen",
           "display": "table",
           "minItems": 1,
           "addLabel": "Zeile hinzufügen",

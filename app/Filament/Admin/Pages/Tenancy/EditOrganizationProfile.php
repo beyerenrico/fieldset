@@ -9,15 +9,24 @@ use App\Domain\Identity\Models\Organization;
 use App\Domain\Identity\Models\User;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Pages\Tenancy\EditTenantProfile;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Text;
 use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Arr;
 
+/**
+ * Organization settings: name, language and time zone. Company details and the rest of the branding
+ * have one place of truth, the Branding page (ManageBranding / UpdateBranding); this page never writes
+ * them, so saving it cannot wipe keys set there.
+ */
 class EditOrganizationProfile extends EditTenantProfile
 {
+    /** The only organization columns this page may change. */
+    public const array FIELDS = ['name', 'locale', 'timezone'];
+
     public static function getLabel(): string
     {
         return __('identity.organization.settings');
@@ -43,13 +52,15 @@ class EditOrganizationProfile extends EditTenantProfile
                     ->options(fn (): array => array_combine(timezone_identifiers_list(), timezone_identifiers_list()))
                     ->searchable()->required(),
             ]),
-            Section::make(__('identity.organization.company_details'))->schema([
-                Textarea::make('company_details.address')->label(__('identity.organization.address'))->rows(3),
-                TextInput::make('company_details.tax_id')->label(__('identity.organization.tax_id'))->maxLength(64),
-                TextInput::make('company_details.iban')->label(__('identity.organization.iban'))->maxLength(34),
-                TextInput::make('company_details.bic')->label(__('identity.organization.bic'))->maxLength(11),
-                Textarea::make('company_details.legal_footer')->label(__('identity.organization.legal_footer'))->rows(2),
-            ])->columns(2),
+            Text::make(__('identity.organization.company_details_hint')),
         ]);
+    }
+
+    /** @param  array<string, mixed>  $data */
+    protected function handleRecordUpdate(Model $record, array $data): Model
+    {
+        $record->update(Arr::only($data, self::FIELDS));
+
+        return $record;
     }
 }

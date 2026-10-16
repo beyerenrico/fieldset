@@ -11,6 +11,7 @@ use App\Domain\Identity\Tenancy\TenantContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Testing\TestResponse;
 use Tests\Support\FieldAppApi;
 use Tests\Support\FieldAppScenario;
 
@@ -28,7 +29,7 @@ function publishSecondVersion(): FormVersion
 
 it('answers a PUT retried after a lost response with the current draft instead of a conflict', function (): void {
     $uuid = FieldAppScenario::uuid();
-    $put = fn (array $data, ?int $revision = null) => FieldAppApi::put($this->s, $this->s->worker, $uuid, $data, $revision);
+    $put = fn (array $data, ?int $revision = null): TestResponse => FieldAppApi::put($this->s, $this->s->worker, $uuid, $data, $revision);
 
     $put(['customer_name' => 'A'])->assertCreated();
     $put(['customer_name' => 'A'])->assertOk()->assertJsonPath('data.submission.revision', 1);          // create retried

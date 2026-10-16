@@ -39,7 +39,7 @@ final readonly class SubmitSubmission
     {
         [$submitted, $fresh] = DB::transaction(function () use ($user, $organization, $submission, $revision): array {
             $locked = Submission::query()->whereKey($submission->uuid)->lockForUpdate()->firstOrFail();
-            if (self::alreadySubmitted($user, $locked, $revision)) {
+            if ($this->alreadySubmitted($user, $locked, $revision)) {
                 return [$locked, false];
             }
             $this->guard($user, $locked, $revision);
@@ -76,7 +76,7 @@ final readonly class SubmitSubmission
      * The submit of `$revision` already happened: this user submitted it, the submit consumed exactly
      * that revision (it increments it) and the submission has not come back for editing since.
      */
-    private static function alreadySubmitted(User $user, Submission $submission, int $revision): bool
+    private function alreadySubmitted(User $user, Submission $submission, int $revision): bool
     {
         return $submission->submitted_by === $user->id
             && $submission->created_by === $user->id
@@ -94,7 +94,7 @@ final readonly class SubmitSubmission
             throw new ApiException('not_editable', __('submissions.errors.not_editable'), 409);
         }
         if ($revision !== $submission->revision) {
-            throw new ApiException('revision_conflict', __('submissions.errors.revision_conflict'), 409, ['submission' => SubmissionPresenter::present($submission)]);
+            throw new ApiException('revision_conflict', __('submissions.errors.revision_conflict'), 409, ['submission' => SubmissionPresenter::present($submission, $user)]);
         }
         if ($submission->status === SubmissionStatus::Draft && $submission->formVersion->isRetired()) {
             throw new ApiException('version_retired', __('submissions.errors.version_retired'), 409);

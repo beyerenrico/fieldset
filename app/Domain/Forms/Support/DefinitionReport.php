@@ -26,13 +26,7 @@ final readonly class DefinitionReport
             return true;
         }
 
-        foreach ($this->findings as $finding) {
-            if ($finding->severity === 'error') {
-                return true;
-            }
-        }
-
-        return false;
+        return array_any($this->findings, fn (LintFinding $finding): bool => $finding->severity === 'error');
     }
 
     /** @return list<LintFinding> */

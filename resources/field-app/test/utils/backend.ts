@@ -1,7 +1,7 @@
 /** In-memory fake of the Field App API for MSW (test fixture: mutable on purpose). */
 import type { JsonObject } from '@form-schema-app/form-schema-js';
 import { http, HttpResponse, type JsonBodyType } from 'msw';
-import type { FormSummary, Me, Submission } from '../../src/lib/api/types.ts';
+import type { FormSummary, Me, Submission, SubmissionDocument } from '../../src/lib/api/types.ts';
 import { FORMS, makeMe, makeSubmission, makeVersion } from './fixtures.ts';
 
 export const ok = (data: unknown, init: ResponseInit = {}, meta: unknown = null) =>
@@ -25,6 +25,10 @@ export interface BackendState {
     submissions: Map<string, Submission>;
     puts: { uuid: string; body: Record<string, unknown> }[];
     submits: { uuid: string; key: string | null; body: unknown }[];
+    /** Rendered PDFs per submission uuid (missing: 404 `document_not_ready`). */
+    documents: Map<string, SubmissionDocument>;
+    documentCalls: number;
+    sends: { uuid: string; key: string | null; body: unknown }[];
     loggedIn: boolean;
     twoFactor: boolean;
     deviceSecret: string;
@@ -38,6 +42,9 @@ export function createBackend(overrides: Partial<BackendState> = {}) {
         submissions: new Map(),
         puts: [],
         submits: [],
+        documents: new Map(),
+        documentCalls: 0,
+        sends: [],
         loggedIn: true,
         twoFactor: false,
         deviceSecret: 'secret-1',
@@ -89,6 +96,19 @@ export function createBackend(overrides: Partial<BackendState> = {}) {
         http.get('*/api/v1/forms/:form/versions/:version', ({ params }) =>
             ok(makeVersion(Number(params.version), Number(params.form))),
         ),
+        http.get('*/api/v1/submissions/:uuid/document', ({ params }) => {
+            state.documentCalls++;
+            const found = state.documents.get(String(params.uuid));
+            return found === undefined ? fail(404, 'document_not_ready') : ok({ document: found });
+        }),
+        http.post('*/api/v1/submissions/:uuid/send', async ({ params, request }) => {
+            const uuid = String(params.uuid);
+            const body = (await request.json()) as { email?: string; name?: string };
+            state.sends.push({ uuid, key: request.headers.get('Idempotency-Key'), body });
+            const status = state.documents.has(uuid) ? 'queued' : 'waiting_for_document';
+            const recipient = { email: body.email ?? '', name: body.name ?? null };
+            return ok({ send: { id: state.sends.length, status, recipient } }, { status: 202 });
+        }),
         http.get('*/api/v1/submissions/:uuid', ({ params }) => {
             const found = state.submissions.get(String(params.uuid));
             return found === undefined ? fail(404, 'not_found') : ok({ submission: found });

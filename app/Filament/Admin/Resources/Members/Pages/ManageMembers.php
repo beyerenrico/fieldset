@@ -8,6 +8,7 @@ use App\Domain\Identity\Actions\InviteMember;
 use App\Domain\Identity\Models\Membership;
 use App\Domain\Identity\Models\Organization;
 use App\Domain\Identity\Models\User;
+use App\Filament\Admin\Resources\Members\Actions\ImportMembersCsvAction;
 use App\Filament\Admin\Resources\Members\MemberResource;
 use App\Filament\Admin\Support\OrganizationOptions;
 use Filament\Actions\Action;
@@ -52,6 +53,7 @@ class ManageMembers extends ManageRecords
                     );
                     Notification::make()->success()->title(__('identity.member.invited'))->send();
                 }),
+            ImportMembersCsvAction::make(),
         ];
     }
 }
