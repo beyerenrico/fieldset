@@ -145,9 +145,9 @@ describe('send to customer', () => {
         expect(backend.state.sends).toHaveLength(0);
     });
 
-    it('reports "waiting for the PDF" and closes the dialog', async () => {
+    it('reports "waiting for the PDF", closes the dialog and focuses the outcome', async () => {
         const backend = setup();
-        const { user } = renderApp(`/submissions/${UUID}`);
+        const { user, container } = renderApp(`/submissions/${UUID}`);
         const dialog = await openDialog(user);
         await user.click(within(dialog).getByRole('button', { name: 'Send' }));
         const outcome = await screen.findByText(
@@ -155,7 +155,10 @@ describe('send to customer', () => {
         );
         expect(outcome.parentElement).toHaveAttribute('role', 'status');
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Send to customer' })).toHaveFocus();
+        // The page was inert while the dialog was open: focus carries the outcome to AT.
+        expect(container).not.toHaveAttribute('inert');
+        expect(outcome).toHaveAttribute('tabindex', '-1');
+        expect(outcome).toHaveFocus();
         expect(backend.state.sends).toEqual([
             {
                 uuid: UUID,
@@ -175,12 +178,17 @@ describe('send to customer', () => {
         await user.type(email, ' office@kunde.test ');
         await user.clear(within(dialog).getByLabelText('Name (optional)'));
         await user.click(within(dialog).getByRole('button', { name: 'Send' }));
-        expect(await screen.findByText('Sent to office@kunde.test.')).toBeInTheDocument();
-        expect(backend.state.sends[0]?.body).toEqual({ email: 'office@kunde.test' });
+        expect(await screen.findByText('Sending to office@kunde.test is scheduled.')).toHaveFocus();
+        // A cleared name means "no name" (no fallback to the customer.name role on the server).
+        expect(backend.state.sends[0]?.body).toEqual({ email: 'office@kunde.test', name: '' });
         await user.click(screen.getByRole('button', { name: 'Send to customer' }));
         dialog = screen.getByRole('dialog');
         await user.click(within(dialog).getByRole('button', { name: 'Send' }));
-        await screen.findByText('Sent to erika@example.test.');
+        await screen.findByText('Sending to erika@example.test is scheduled.');
+        expect(backend.state.sends[1]?.body).toEqual({
+            email: 'erika@example.test',
+            name: 'Erika Kundin',
+        });
         expect(new Set(keys(backend.state)).size).toBe(2);
     });
 
@@ -254,7 +262,7 @@ describe('send to customer', () => {
         const dialog = await openDialog(user);
         await user.click(within(dialog).getByRole('button', { name: 'Send' }));
         expect(await within(dialog).findByRole('alert')).toHaveTextContent(
-            'You are offline. The email was not requested – send it again when you are online.',
+            'The connection was interrupted. The email may not have been requested – sending again is safe.',
         );
         await user.click(within(dialog).getByRole('button', { name: 'Send' }));
         await screen.findByText(/Will be sent to erika@example.test/);
@@ -323,6 +331,31 @@ describe('send to customer', () => {
             'This submission is no longer available.',
         );
         expect(posts).toBe(1);
+    });
+
+    it('announces a success that arrives after the dialog was closed, without moving focus', async () => {
+        setup();
+        let release: () => void = () => undefined;
+        const gate = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+        server.use(
+            http.post('*/api/v1/submissions/:uuid/send', async () => {
+                await gate;
+                return undefined;
+            }),
+        );
+        const { user, container } = renderApp(`/submissions/${UUID}`);
+        const dialog = await openDialog(user);
+        await user.click(within(dialog).getByRole('button', { name: 'Send' }));
+        await user.keyboard('{Escape}');
+        expect(container).not.toHaveAttribute('inert');
+        const opener = screen.getByRole('button', { name: 'Send to customer' });
+        expect(opener).toHaveFocus();
+        release();
+        const outcome = await screen.findByText(/Will be sent to erika@example.test/);
+        expect(outcome.parentElement).toHaveAttribute('role', 'status');
+        expect(opener).toHaveFocus();
     });
 
     it('does not close a dialog that was reopened while an earlier send was running', async () => {

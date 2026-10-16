@@ -56,16 +56,8 @@ test.describe.serial('documents and email', () => {
     await expect(dialog.getByRole('textbox', { name: /e-mail/i })).toHaveValue(CUSTOMER_EMAIL);
     await page.screenshot({ path: evidence('02-send-dialog') });
     await dialog.getByRole('button', { name: /^(senden|send)$/i }).click();
-    await expect(
-      page
-        .getByText(
-          new RegExp(
-            `(gesendet|sent).*${CUSTOMER_EMAIL.replace(/[.]/g, '\\.')}|${CUSTOMER_EMAIL.replace(/[.]/g, '\\.')}`,
-            'i',
-          ),
-        )
-        .first(),
-    ).toBeVisible();
+    await expect(page.getByText(/(versand an|sending to) .* (ist eingeplant|is scheduled)|sobald das pdf fertig|as soon as the pdf/i).first()).toBeVisible();
+    await expect(page.getByText(CUSTOMER_EMAIL).first()).toBeVisible();
     await page.screenshot({ path: evidence('03-sent'), fullPage: true });
     await context.close();
   });

@@ -215,7 +215,7 @@ export async function fetchSubmissionDocument(uuid: string): Promise<SubmissionD
 
 export interface SendInput {
     readonly email: string;
-    /** Omitted: the server uses the submitted value of the `customer.name` element. */
+    /** Omitted: the server uses the `customer.name` element's value; `""` means "no name". */
     readonly name?: string;
 }
 

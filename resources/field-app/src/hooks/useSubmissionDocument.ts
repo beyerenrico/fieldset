@@ -2,7 +2,7 @@
 import { useQuery, type QueryState, type UseQueryResult } from '@tanstack/react-query';
 import { useRef } from 'react';
 import { fetchSubmissionDocument } from '../lib/api/endpoints.ts';
-import { isApiError } from '../lib/api/errors.ts';
+import { isApiError, type ApiError } from '../lib/api/errors.ts';
 import type { SubmissionDocument } from '../lib/api/types.ts';
 
 /** Backoff between checks while the PDF is rendered (~1.5 min), then until "Check again". */
@@ -20,16 +20,33 @@ export function isDocumentNotReady(error: unknown): boolean {
     return isApiError(error, 404, 'document_not_ready');
 }
 
+/** Rendering failed permanently (409 `document_failed`); the office is notified and can re-render. */
+export function isDocumentFailed(error: unknown): error is ApiError {
+    return isApiError(error, 409, 'document_failed');
+}
+
+/** The server's user-facing text for a permanent failure, or `null` when it sent none. */
+export function documentFailureMessage(error: unknown): string | null {
+    if (!isDocumentFailed(error)) {
+        return null;
+    }
+    const text = error.message.trim();
+    return text === '' || text === error.code ? null : text;
+}
+
 /**
- * Next automatic refetch in ms, or `false` to stop. With a link (also after a failed refresh):
- * shortly before it expires. Without one: backoff by `polls`, the "not ready" answers since mount
- * or the last manual check.
+ * Next automatic refetch in ms, or `false` to stop. A permanent failure stops (only a manual check
+ * asks again). With a link (also after another failed refresh): shortly before it expires. Without
+ * one: backoff by `polls`, the "not ready" answers since mount or the last manual check.
  */
 export function documentRefetchDelay(
     state: DocumentQueryState,
     polls: number,
     now: number = Date.now(),
 ): number | false {
+    if (isDocumentFailed(state.error)) {
+        return false;
+    }
     if (state.data !== undefined) {
         const expires = Date.parse(state.data.expires_at);
         if (Number.isNaN(expires)) {

@@ -133,6 +133,7 @@ export const de: Messages = {
     'document.checkAgain': 'Erneut prüfen',
     'document.error': 'Das PDF konnte nicht geladen werden.',
     'document.offline': 'Keine Verbindung. Das PDF lässt sich öffnen, sobald Sie online sind.',
+    'document.failed': 'Das PDF konnte nicht erstellt werden. Das Büro wurde informiert.',
     'send.open': 'An Kunden senden',
     'send.title': 'An Kunden senden',
     'send.description': 'Das PDF dieser Einreichung wird per E-Mail versendet.',
@@ -143,7 +144,7 @@ export const de: Messages = {
     'send.emailRequired': 'Bitte die E-Mail-Adresse eingeben.',
     'send.emailInvalid': 'Bitte eine gültige E-Mail-Adresse eingeben.',
     'send.nameInvalid': 'Bitte den Namen prüfen.',
-    'send.queued': 'An {email} gesendet.',
+    'send.queued': 'Der Versand an {email} ist eingeplant.',
     'send.waiting': 'Wird an {email} gesendet, sobald das PDF fertig ist.',
     'sendError.validation_failed': 'Bitte die markierten Felder prüfen.',
     'sendError.send_not_allowed': 'Diese Einreichung darf nicht versendet werden.',
@@ -152,7 +153,7 @@ export const de: Messages = {
     'sendError.idempotency_key_reused':
         'Der Empfänger hat sich beim Senden geändert. Bitte erneut senden.',
     'sendError.network':
-        'Keine Verbindung. Die E-Mail wurde nicht angefordert – bitte online erneut senden.',
+        'Die Verbindung wurde unterbrochen. Möglicherweise wurde der Versand nicht angefordert – erneut senden ist sicher.',
     'sendError.unknown': 'Das Senden ist fehlgeschlagen. Bitte erneut versuchen.',
     'status.draft': 'Entwurf',
     'status.submitted': 'Eingereicht',

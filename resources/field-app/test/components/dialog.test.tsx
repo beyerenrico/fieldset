@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState, type ReactNode } from 'react';
 import { describe, expect, it } from 'vitest';
@@ -65,5 +65,59 @@ describe('Dialog', () => {
         await user.keyboard('{Escape}');
         expect(outside).toHaveAttribute('inert');
         outside.remove();
+    });
+
+    it('keeps focus inside on a backdrop click, and Escape still closes', async () => {
+        const user = userEvent.setup();
+        render(
+            <Harness>
+                <button type="button">Inside</button>
+            </Harness>,
+        );
+        await user.click(screen.getByRole('button', { name: 'Open' }));
+        const inside = screen.getByRole('button', { name: 'Inside' });
+        const backdrop = screen.getByRole('dialog').parentElement!;
+        await user.click(backdrop);
+        expect(inside).toHaveFocus();
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+        await user.keyboard('{Escape}');
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Open' })).toHaveFocus();
+    });
+
+    it('closes on Escape even when focus has left the dialog', async () => {
+        const user = userEvent.setup();
+        render(
+            <Harness>
+                <button type="button">Inside</button>
+            </Harness>,
+        );
+        await user.click(screen.getByRole('button', { name: 'Open' }));
+        act(() => {
+            screen.getByRole('button', { name: 'Inside' }).blur();
+        });
+        expect(document.body).toHaveFocus();
+        await user.keyboard('{Escape}');
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('leaves an Escape that a control inside already handled alone', async () => {
+        const user = userEvent.setup();
+        render(
+            <Harness>
+                <input
+                    aria-label="Search"
+                    onKeyDown={(event) => {
+                        if (event.key === 'Escape') {
+                            event.preventDefault();
+                        }
+                    }}
+                />
+            </Harness>,
+        );
+        await user.click(screen.getByRole('button', { name: 'Open' }));
+        expect(screen.getByRole('textbox', { name: 'Search' })).toHaveFocus();
+        await user.keyboard('{Escape}');
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
     });
 });

@@ -55,9 +55,10 @@ export function isValidEmail(value: string): boolean {
     return value.length <= MAX_EMAIL_LENGTH && EMAIL_PATTERN.test(value);
 }
 
-/** Request body: trimmed values; an empty name is omitted (the server falls back to the role). */
+/**
+ * Request body: trimmed values, the name always as typed. The dialog is prefilled from the roles,
+ * so the user sees what is used; a cleared name is sent as `""` ("no name", no role fallback).
+ */
 export function toSendInput(draft: RecipientDraft): SendInput {
-    const email = draft.email.trim();
-    const name = draft.name.trim();
-    return name === '' ? { email } : { email, name };
+    return { email: draft.email.trim(), name: draft.name.trim() };
 }

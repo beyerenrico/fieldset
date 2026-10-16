@@ -1,6 +1,6 @@
 /** Submission detail "Document (PDF)": ready link, polling while rendered, errors. */
 import { focusManager, onlineManager, QueryClientProvider } from '@tanstack/react-query';
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createAppQueryClient } from '../../src/App.tsx';
@@ -69,9 +69,89 @@ describe('submission document', () => {
         await vi.advanceTimersByTimeAsync(3_000);
         expect(backend.state.documentCalls).toBe(2);
         await vi.advanceTimersByTimeAsync(1_000);
-        expect(await screen.findByRole('link', { name: /Open PDF/ })).toBeInTheDocument();
+        const link = await screen.findByRole('link', { name: /Open PDF/ });
         expect(backend.state.documentCalls).toBe(3);
         expect(screen.queryByText(NOT_READY)).not.toBeInTheDocument();
+        // Automatic polls never move focus.
+        expect(link).not.toHaveFocus();
+    });
+
+    it('moves focus to "Open PDF" when a manual check finds the PDF', async () => {
+        const backend = setup();
+        const { user } = renderApp(`/submissions/${UUID}`);
+        await screen.findByText(NOT_READY);
+        backend.state.documents.set(UUID, makeDocument());
+        await user.click(screen.getByRole('button', { name: 'Check again' }));
+        const link = await screen.findByRole('link', { name: /Open PDF/ });
+        await vi.waitFor(() => {
+            expect(link).toHaveFocus();
+        });
+        expect(screen.queryByRole('button', { name: 'Check again' })).not.toBeInTheDocument();
+    });
+
+    it('moves focus to the control that replaces "Try again"', async () => {
+        setup();
+        let calls = 0;
+        server.use(
+            http.get('*/api/v1/submissions/:uuid/document', () => {
+                calls++;
+                return calls === 1 ? fail(403, 'forbidden') : fail(404, 'document_not_ready');
+            }),
+        );
+        const { user } = renderApp(`/submissions/${UUID}`);
+        await screen.findByRole('alert');
+        await user.click(screen.getByRole('button', { name: 'Try again' }));
+        const check = await screen.findByRole('button', { name: 'Check again' });
+        await vi.waitFor(() => {
+            expect(check).toHaveFocus();
+        });
+    });
+
+    it('shows a permanent render failure, stops polling and offers a manual check', async () => {
+        setup();
+        let calls = 0;
+        server.use(
+            http.get('*/api/v1/submissions/:uuid/document', () => {
+                calls++;
+                return fail(409, 'document_failed', null, 'The PDF exceeds the size limit.');
+            }),
+        );
+        const { user } = renderApp(`/submissions/${UUID}`);
+        const alert = await screen.findByRole('alert');
+        expect(alert).toHaveTextContent('The PDF exceeds the size limit.');
+        expect(screen.queryByText(NOT_READY)).not.toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: /Open PDF/ })).not.toBeInTheDocument();
+        await vi.advanceTimersByTimeAsync(200_000);
+        expect(calls).toBe(1);
+        const check = within(alert).getByRole('button', { name: 'Check again' });
+        await user.click(check);
+        await vi.waitFor(() => {
+            expect(calls).toBe(2);
+        });
+        await vi.advanceTimersByTimeAsync(200_000);
+        expect(calls).toBe(2);
+        expect(check).toHaveFocus();
+    });
+
+    it('falls back to a localized failure text and shows the PDF once it exists', async () => {
+        setup();
+        let failed = true;
+        server.use(
+            http.get('*/api/v1/submissions/:uuid/document', () =>
+                failed ? fail(409, 'document_failed', null, '') : ok({ document: makeDocument() }),
+            ),
+        );
+        const { user } = renderApp(`/submissions/${UUID}`);
+        expect(await screen.findByRole('alert')).toHaveTextContent(
+            'The PDF could not be created. The office has been notified.',
+        );
+        failed = false;
+        await user.click(screen.getByRole('button', { name: 'Check again' }));
+        const link = await screen.findByRole('link', { name: /Open PDF/ });
+        await vi.waitFor(() => {
+            expect(link).toHaveFocus();
+        });
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
 
     it('stops polling after the backoff schedule; "Check again" restarts it', async () => {

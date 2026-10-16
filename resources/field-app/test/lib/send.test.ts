@@ -1,7 +1,9 @@
 import type { FormDefinition } from '@form-schema-app/form-schema-js';
 import { describe, expect, it } from 'vitest';
 import {
+    documentFailureMessage,
     documentRefetchDelay,
+    isDocumentFailed,
     linkNeedsRefresh,
     POLL_DELAYS_MS,
 } from '../../src/hooks/useSubmissionDocument.ts';
@@ -93,8 +95,11 @@ describe('send recipient defaults', () => {
         expect(isValidEmail(`${'a'.repeat(250)}@b.de`)).toBe(false);
     });
 
-    it('trims the request body and omits an empty name', () => {
-        expect(toSendInput({ email: ' a@b.de ', name: '  ' })).toEqual({ email: 'a@b.de' });
+    it('trims the request body and sends an empty name as "" (no role fallback)', () => {
+        expect(toSendInput({ email: ' a@b.de ', name: '  ' })).toEqual({
+            email: 'a@b.de',
+            name: '',
+        });
         expect(toSendInput({ email: 'a@b.de', name: ' Ana ' })).toEqual({
             email: 'a@b.de',
             name: 'Ana',
@@ -121,6 +126,7 @@ describe('send idempotency keys', () => {
 
 describe('document refetch delay', () => {
     const notReady = new ApiError(404, 'document_not_ready', 'not ready');
+    const failed = new ApiError(409, 'document_failed', 'Too large.');
     const base = { data: undefined, error: null, errorUpdateCount: 0 };
     const waiting = { ...base, status: 'error' as const, error: notReady };
 
@@ -135,6 +141,7 @@ describe('document refetch delay', () => {
         expect(
             documentRefetchDelay({ ...base, status: 'error', error: new NetworkError('x') }, 1),
         ).toBe(false);
+        expect(documentRefetchDelay({ ...base, status: 'error', error: failed }, 1)).toBe(false);
         expect(documentRefetchDelay({ ...base, status: 'pending' }, 0)).toBe(false);
     });
 
@@ -150,6 +157,26 @@ describe('document refetch delay', () => {
         expect(at('2026-10-16T10:00:30Z')).toBe(10_000);
         expect(at('2026-10-16T09:59:00Z', 'error')).toBe(10_000);
         expect(at('not a date')).toBe(false);
+    });
+
+    it('stops refreshing a link once rendering failed permanently', () => {
+        expect(
+            documentRefetchDelay(
+                { ...base, status: 'error', error: failed, data: makeDocument() },
+                0,
+            ),
+        ).toBe(false);
+    });
+
+    it("reads the server's text for a permanent failure, if it sent one", () => {
+        expect(isDocumentFailed(failed)).toBe(true);
+        expect(isDocumentFailed(notReady)).toBe(false);
+        expect(documentFailureMessage(failed)).toBe('Too large.');
+        expect(
+            documentFailureMessage(new ApiError(409, 'document_failed', 'document_failed')),
+        ).toBeNull();
+        expect(documentFailureMessage(new ApiError(409, 'document_failed', '  '))).toBeNull();
+        expect(documentFailureMessage(notReady)).toBeNull();
     });
 
     it('knows when a link needs a refresh (tab comes back to the foreground)', () => {

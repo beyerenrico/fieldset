@@ -1,9 +1,17 @@
 /**
  * Modal dialog (WAI-ARIA APG dialog pattern; jsdom lacks `<dialog>.showModal()`): labelled,
- * focus moves in and is trapped, Escape closes, the rest of the page is inert, and focus returns
- * to the element that opened it.
+ * focus moves in and is trapped (a backdrop click does not take it out), Escape closes wherever
+ * focus is, the rest of the page is inert, and focus returns to the element that opened it.
  */
-import { useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from 'react';
+import {
+    useEffect,
+    useEffectEvent,
+    useId,
+    useRef,
+    type KeyboardEvent,
+    type MouseEvent,
+    type ReactNode,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '../../lib/cn.ts';
 
@@ -76,6 +84,7 @@ export function Dialog({
     const descriptionId = useId();
     const layer = useRef<HTMLDivElement>(null);
     const panel = useRef<HTMLDivElement>(null);
+    const close = useEffectEvent(onClose);
 
     useEffect(() => {
         if (!open || layer.current === null || panel.current === null) {
@@ -85,7 +94,17 @@ export function Dialog({
             document.activeElement instanceof HTMLElement ? document.activeElement : null;
         const restoreInert = makeOthersInert(layer.current);
         (focusables(panel.current)[0] ?? panel.current).focus();
+        // On the document, not the panel: Escape must work even if focus ended up on <body>.
+        const onEscape = (event: globalThis.KeyboardEvent): void => {
+            if (event.key === 'Escape' && !event.defaultPrevented) {
+                event.preventDefault();
+                event.stopPropagation();
+                close();
+            }
+        };
+        document.addEventListener('keydown', onEscape);
         return () => {
+            document.removeEventListener('keydown', onEscape);
             restoreInert();
             opener?.focus();
         };
@@ -95,17 +114,20 @@ export function Dialog({
         return null;
     }
     const onKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
-        if (event.key === 'Escape') {
-            event.preventDefault();
-            event.stopPropagation();
-            onClose();
-        } else if (event.key === 'Tab' && panel.current !== null) {
+        if (event.key === 'Tab' && panel.current !== null) {
             trapTab(event, panel.current);
+        }
+    };
+    // A press on the backdrop would move focus to <body>; keep it in the dialog.
+    const onBackdropMouseDown = (event: MouseEvent<HTMLDivElement>): void => {
+        if (event.target === event.currentTarget) {
+            event.preventDefault();
         }
     };
     return createPortal(
         <div
             ref={layer}
+            onMouseDown={onBackdropMouseDown}
             className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center"
         >
             <div
