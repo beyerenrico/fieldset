@@ -91,9 +91,9 @@ export function FormRenderer(props: FormRendererProps): ReactElement {
             externalErrors.get(pointer) ??
             (showErrors || touched.has(pointer) ? clientErrors.get(pointer) : undefined),
         hasRequiredError: (pointer) => clientErrors.get(pointer)?.code === 'required',
-        isReadOnly: (node: ElementNode) =>
+        isReadOnly: (node: ElementNode, pointer: string) =>
             (readOnly && !(except ?? []).includes(node.element.type)) ||
-            node.raw['readOnlyIf'] === true,
+            result.readOnly[pointer] === true,
         reveal,
     };
     const layout = props.layout ?? model.definition.settings?.layout ?? 'scroll';

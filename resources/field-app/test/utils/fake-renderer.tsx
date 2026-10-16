@@ -3,7 +3,13 @@ import type { EvaluationResult } from '@form-schema-app/form-schema-js';
 import type { FormRendererProps } from '@form-schema-app/form-schema-react';
 import type { ReactNode } from 'react';
 
-const RESULT: EvaluationResult = { data: {}, errors: [], visibility: {} };
+const RESULT: EvaluationResult = {
+    data: {},
+    errors: [],
+    visibility: {},
+    required: {},
+    readOnly: {},
+};
 
 export function FakeRenderer(props: FormRendererProps): ReactNode {
     const { data, onChange, primaryAction, attachments } = props;

@@ -32,9 +32,9 @@ export interface RendererContextValue {
     readonly touch: (pointer: string) => void;
     /** The error to display for a pointer (respects touched state and `showErrors`). */
     readonly visibleError: (pointer: string) => FieldError | undefined;
-    /** True when evaluate() reports `required` for the pointer (drives the marker for `requiredIf`). */
+    /** True when evaluate() reports a `required` error for the pointer. */
     readonly hasRequiredError: (pointer: string) => boolean;
-    readonly isReadOnly: (node: ElementNode) => boolean;
+    readonly isReadOnly: (node: ElementNode, pointer: string) => boolean;
     readonly reveal: RevealRegistry;
 }
 

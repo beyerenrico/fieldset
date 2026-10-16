@@ -289,3 +289,50 @@ describe('validation rules', () => {
         expect(codes(definition, { r: true, l: [] })).toEqual(['/r out_of_range']);
     });
 });
+
+describe('presentation state', () => {
+    const definition = form([
+        el('boolean', 'locked'),
+        el('text', 'name', { required: true, readOnlyIf: { var: 'locked' } }),
+        el('text', 'reason', { requiredIf: { '!': { var: 'locked' } }, readOnlyIf: true }),
+        el('text', 'hiddenNote', { visibleIf: false, readOnlyIf: true }),
+        el('repeater', 'rows', {
+            elements: [
+                el('text', 'kind'),
+                el('text', 'detail', {
+                    requiredIf: { '==': [{ var: '$row.kind' }, 'x'] },
+                    readOnlyIf: { '==': [{ var: '$row.kind' }, 'fixed'] },
+                }),
+            ],
+        }),
+    ]);
+
+    it('reports required and read-only state of visible data elements, rows in their own scope', () => {
+        const data = { locked: true, rows: [{ kind: 'x' }, { kind: 'fixed' }] };
+        const result = evaluate(definition, data, CONTEXT);
+        expect(result.required).toEqual({
+            '/locked': false,
+            '/name': true,
+            '/reason': false,
+            '/rows': false,
+            '/rows/0/kind': false,
+            '/rows/0/detail': true,
+            '/rows/1/kind': false,
+            '/rows/1/detail': false,
+        });
+        expect(result.readOnly).toMatchObject({
+            '/locked': false,
+            '/name': true,
+            '/reason': true,
+            '/rows/0/detail': false,
+            '/rows/1/detail': true,
+        });
+        expect(result.readOnly).not.toHaveProperty('/hiddenNote');
+    });
+
+    it('follows the data: unlocking makes the field editable and the reason required', () => {
+        const result = evaluate(definition, { locked: false }, CONTEXT);
+        expect(result.readOnly['/name']).toBe(false);
+        expect(result.required['/reason']).toBe(true);
+    });
+});

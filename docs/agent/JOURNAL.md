@@ -34,3 +34,11 @@
   defaults, numbering removal, save halt, boolean/option rules, nested groups, audit diffs, grant drift,
   diff auth; spec hardening (regex subset, limits, calc order) + 140 cases, both SDKs re-aligned.
 - Gate: PHP 2837 tests, JS 604, coverage 95.62 % (SDK 99.69, Schema 100), E2E 4/4. Report milestones/M1.md.
+
+## 2026-10-16 M2 implementation
+- Backend API (151f575): submissions with client UUIDs, events, attachments, gap-free numbers,
+  idempotency keys, devices, projector, status machine (ADR 0025/0026), SPA/preview serving, contract doc.
+- PDF importer (db19a37, ADR 0024), Scramble OpenAPI gated (32c41ac), M3 breakdown in PLAN.
+- Frontend subagent: form-schema-react renderer, Field App, preview entry (8b3f0e5; 214 tests, ~97 % cov).
+- E2E (5cb36c5): Field App phone journey found a contract mismatch (submission responses not wrapped
+  in `{ submission }`) → fixed backend. Preview shows title; admin E2E reuse sessions (login throttle).

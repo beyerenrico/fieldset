@@ -53,4 +53,11 @@ export interface EvaluationResult {
     readonly errors: readonly ValidationError[];
     /** Scope pointer of every element (layout included) → visibility. */
     readonly visibility: Readonly<Record<string, boolean>>;
+    /**
+     * Presentation state (not compared by conformance runners): pointer of every visible data element
+     * → required (`required` or a truthy `requiredIf`).
+     */
+    readonly required: Readonly<Record<string, boolean>>;
+    /** Pointer of every visible data element → read-only (truthy `readOnlyIf`, §3 presentation hint). */
+    readonly readOnly: Readonly<Record<string, boolean>>;
 }

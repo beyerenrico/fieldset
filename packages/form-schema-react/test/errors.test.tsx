@@ -81,6 +81,27 @@ describe('defaults and read-only hints', () => {
         renderForm(form);
         expect(screen.getByLabelText('Locked')).toBeDisabled();
     });
+
+    it('evaluates readOnlyIf logic and marks requiredIf fields before any error', async () => {
+        const dynamic = definition([
+            page('p', [
+                el({ type: 'checkbox', key: 'company', label: 'Company' }),
+                el({ type: 'text', key: 'vat', label: 'VAT id', requiredIf: { var: 'company' } }),
+                el({
+                    type: 'text',
+                    key: 'ref',
+                    label: 'Reference',
+                    readOnlyIf: { var: 'company' },
+                }),
+            ]),
+        ]);
+        const { user } = renderForm(dynamic);
+        expect(screen.getByLabelText('Reference')).toBeEnabled();
+        expect(screen.getByLabelText(/^VAT id/)).not.toHaveAttribute('aria-required');
+        await user.click(screen.getByLabelText('Company'));
+        expect(screen.getByLabelText('Reference')).toBeDisabled();
+        expect(screen.getByLabelText(/^VAT id/)).toHaveAttribute('aria-required', 'true');
+    });
 });
 
 describe('external errors', () => {

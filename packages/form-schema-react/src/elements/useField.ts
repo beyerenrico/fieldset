@@ -60,8 +60,8 @@ export function useField(node: ElementNode, base: DataPath): FieldState {
         label: stringOf(node, 'label') ?? node.key,
         help,
         placeholder: stringOf(node, 'placeholder'),
-        required: node.raw['required'] === true || context.hasRequiredError(pointer),
-        disabled: context.isReadOnly(node),
+        required: context.result.required[pointer] === true || context.hasRequiredError(pointer),
+        disabled: context.isReadOnly(node, pointer),
         value: displayValue(context, path),
         error,
         errorText:

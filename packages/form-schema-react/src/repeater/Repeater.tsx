@@ -39,7 +39,7 @@ export function Repeater({
     const count = rowCount(getAt(context.data, path), getAt(context.result.data, path));
     const min = bound(node, 'minItems');
     const max = bound(node, 'maxItems');
-    const disabled = context.isReadOnly(node);
+    const disabled = context.isReadOnly(node, pointer);
     const error = context.visibleError(pointer);
     const label = typeof node.raw['label'] === 'string' ? node.raw['label'] : node.key;
     const addLabel =
