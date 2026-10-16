@@ -32,3 +32,7 @@ Format: question · chosen option · impact · how to reverse.
 11. `app:reproject` rebuilds `submission_values` from current data, so a `changes_requested`
    submission is skipped until resubmitted (ADR 0027) · accepted · reports built during a full rebuild
    miss those submissions temporarily · keep a snapshot of the last submitted data per submission.
+12. Branding is not versioned (ADR 0028): a logo/colour change alters later re-renders' input_hash
+   and look, while form and design versions stay pinned · accepted (branding is organization identity,
+   not document content) · old PDFs are immutable anyway; re-renders after a rebrand show the new brand ·
+   snapshot branding into design versions or renditions if exact re-renders across rebrands matter.

@@ -49,3 +49,9 @@
 - E2E found 3 real bugs: unwrapped `{ submission }`, repeater table widening phones, template key race.
 - Gate: PHP 3016 tests, coverage 94.77 %, PHPStan 0/0, JS 606/110/164, conformance 391, E2E 9/9 ×2.
   Report milestones/M2.md. ADR 0027; QUESTIONS #9–11.
+
+## 2026-10-17 M3 implementation
+- Three parallel subagents (own test DBs, strict file ownership): mail (ede6e34), admin inbox +
+  templates + CSV invitations (63d5aca), documents: branding, designs, Gotenberg renditions, builder
+  PDF preview (7abcf4b, ADR 0028). Shared routes/web.php committed per batch by staging a split copy.
+- Contract for send-to-customer (b56114a); backend + Field App agents implement it in parallel.

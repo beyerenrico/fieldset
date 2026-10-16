@@ -62,17 +62,17 @@ AC refs point at BUILD_PROMPT sections. Test approach in brackets.
 - [x] M2-T18 Gate M2
 
 ## M3 Documents + email (branch `m3-documents`)
-- [ ] M3-T01 Branding: logo upload (private disk, sniffed, re-encoded), primary/accent colors, bundled OFL font choice, company details; applied to PDFs and mails — §8.5 [Livewire + unit]
-- [ ] M3-T02 Designs: `designs` (draft settings) + immutable `design_versions` (trigger), publish/rollback/diff like forms; Filament Design resource (paper, orientation, margins, header/footer with tokens, layout style, repeaters table/cards, photo grid, empty fields, signature placement, watermark) — §8.5, §8.10 [feature]
-- [ ] M3-T03 Renderer: canonical render input (definition, data, branding, design version, meta) → Blade + print CSS (paged media, repeated table headers, keepTogether, no truncation), inlined assets (photos downscaled ≤ 1600 px, logo, fonts), 25 MB budget, Gotenberg client via spatie/laravel-pdf Gotenberg driver — §8.5 [unit + integration vs Gotenberg]
-- [ ] M3-T04 Renditions: `renditions` (input_hash, file_sha256, renderer/form/design versions, page count), queued GenerateRendition on SubmissionSubmitted, re-render = new rendition, immutable; `GET /submissions/{uuid}/document` signed URL — §8.5, §8.10 AC, §10 [feature + Gotenberg integration: 60-line repeater, page count, text]
-- [ ] M3-T05 "Preview PDF" in the builder with sample data — §8.2 [Livewire]
-- [ ] M3-T06 Mail: per-org sender name/reply-to, optional SMTP override (encrypted) + test mail, queued branded Markdown mailables, `mail_messages` log with retry — §8.8 [feature with Mail fake + Mailpit integration]
-- [ ] M3-T07 Document delivery: attachment up to a size limit or expiring signed link (default 14 days, 410 when expired) — §8.8 [feature]
+- [x] M3-T01 Branding: logo upload (private disk, sniffed, re-encoded), primary/accent colors, bundled OFL font choice, company details; applied to PDFs and mails — §8.5 [Livewire + unit]
+- [x] M3-T02 Designs: `designs` (draft settings) + immutable `design_versions` (trigger), publish/rollback/diff like forms; Filament Design resource (paper, orientation, margins, header/footer with tokens, layout style, repeaters table/cards, photo grid, empty fields, signature placement, watermark) — §8.5, §8.10 [feature]
+- [x] M3-T03 Renderer: canonical render input (definition, data, branding, design version, meta) → Blade + print CSS (paged media, repeated table headers, keepTogether, no truncation), inlined assets (photos downscaled ≤ 1600 px, logo, fonts), 25 MB budget, Gotenberg client via spatie/laravel-pdf Gotenberg driver — §8.5 [unit + integration vs Gotenberg]
+- [x] M3-T04 Renditions: `renditions` (input_hash, file_sha256, renderer/form/design versions, page count), queued GenerateRendition on SubmissionSubmitted, re-render = new rendition, immutable; `GET /submissions/{uuid}/document` signed URL — §8.5, §8.10 AC, §10 [feature + Gotenberg integration: 60-line repeater, page count, text]
+- [x] M3-T05 "Preview PDF" in the builder with sample data — §8.2 [Livewire]
+- [x] M3-T06 Mail: per-org sender name/reply-to, optional SMTP override (encrypted) + test mail, queued branded Markdown mailables, `mail_messages` log with retry — §8.8 [feature with Mail fake + Mailpit integration]
+- [x] M3-T07 Document delivery: attachment up to a size limit or expiring signed link (default 14 days, 410 when expired) — §8.8 [feature]
 - [ ] M3-T08 Send to customer: `POST /submissions/{uuid}/send` queued until number + PDF exist; admin action — §9.2, §10 [feature]
-- [ ] M3-T09 Admin submissions inbox: list per form/org with status filters, detail view (data, attachments, events, renditions, re-render) — §8.12 [Livewire]
-- [ ] M3-T10 Templates: delivery note, timesheet, handover protocol — §7.6 [template lint + publish tests]
-- [ ] M3-T11 CSV bulk member invitations — §8.12 [feature]
+- [x] M3-T09 Admin submissions inbox: list per form/org with status filters, detail view (data, attachments, events, renditions, re-render) — §8.12 [Livewire]
+- [x] M3-T10 Templates: delivery note, timesheet, handover protocol — §7.6 [template lint + publish tests]
+- [x] M3-T11 CSV bulk member invitations — §8.12 [feature]
 - [ ] M3-T12 Gate M3 (E2E: submit in Field App → PDF in admin → email arrives in Mailpit)
 
 ## M4 Workflows + notifications — break down at M3 gate
