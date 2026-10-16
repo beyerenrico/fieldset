@@ -1,0 +1,279 @@
+{
+  "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+  "specVersion": "1.0.0",
+  "key": "timesheet",
+  "title": "Stundenzettel",
+  "locale": "de-DE",
+  "settings": {
+    "layout": "wizard",
+    "numbering": {
+      "format": "SZ-{YYYY}-{SEQ:5}",
+      "reset": "yearly"
+    },
+    "document": {
+      "design": "default"
+    },
+    "sendToCustomer": true
+  },
+  "pages": [
+    {
+      "id": "3b0a391b-843d-5cb3-8f9e-2836db7f6407",
+      "key": "job",
+      "title": "Mitarbeiter & Auftrag",
+      "elements": [
+        {
+          "type": "text",
+          "key": "employee",
+          "label": "Mitarbeiter",
+          "required": true,
+          "default": {
+            "var": "$user.name"
+          },
+          "validation": {
+            "maxLength": 120
+          },
+          "id": "16f63e60-0b4f-5b03-af04-a1be44534332"
+        },
+        {
+          "type": "text",
+          "key": "customer_name",
+          "label": "Kunde",
+          "required": true,
+          "validation": {
+            "maxLength": 120
+          },
+          "role": "customer.name",
+          "id": "b82280bd-164c-5df6-9dab-fea08f4d3df2"
+        },
+        {
+          "type": "textarea",
+          "key": "site_address",
+          "label": "Einsatzort",
+          "rows": 2,
+          "role": "site.address",
+          "id": "3c7af983-37a6-5e23-a386-171cdf80802e"
+        },
+        {
+          "type": "text",
+          "key": "project",
+          "label": "Projekt / Auftrag",
+          "validation": {
+            "maxLength": 80
+          },
+          "id": "eefe2eb6-2ded-5e71-84bd-3dd1a170d762"
+        },
+        {
+          "type": "date",
+          "key": "period_start",
+          "label": "Zeitraum von",
+          "required": true,
+          "default": {
+            "var": "$today"
+          },
+          "role": "document.date",
+          "id": "fdc9f06c-f9a9-57c3-9cc2-3fcaba8f59b2"
+        },
+        {
+          "type": "date",
+          "key": "period_end",
+          "label": "Zeitraum bis",
+          "id": "1c69f13b-7e46-5134-bca2-105e6f79bc3a"
+        }
+      ]
+    },
+    {
+      "id": "92a46bc1-5178-5fd1-8efc-6d0669a8dd92",
+      "key": "times",
+      "title": "Arbeitszeiten",
+      "elements": [
+        {
+          "type": "repeater",
+          "key": "entries",
+          "label": "Arbeitszeiten",
+          "help": "Arbeit über Mitternacht bitte auf zwei Zeilen erfassen.",
+          "display": "table",
+          "minItems": 1,
+          "maxItems": 62,
+          "addLabel": "Zeile hinzufügen",
+          "elements": [
+            {
+              "type": "date",
+              "key": "work_date",
+              "label": "Datum",
+              "required": true,
+              "default": {
+                "var": "$today"
+              },
+              "id": "3fe99bce-2f9b-5c5b-8081-3420468b1fff"
+            },
+            {
+              "type": "time",
+              "key": "start_time",
+              "label": "Beginn",
+              "required": true,
+              "id": "8d597383-3e45-51bc-bc30-4b84338874cf"
+            },
+            {
+              "type": "time",
+              "key": "end_time",
+              "label": "Ende",
+              "required": true,
+              "id": "7bf6df62-72e6-5d52-bcf8-4e063ba8f8ae"
+            },
+            {
+              "type": "number",
+              "key": "break_minutes",
+              "label": "Pause (Min.)",
+              "default": "0",
+              "validation": {
+                "min": 0,
+                "max": 600,
+                "step": 1
+              },
+              "id": "eb781a9b-9991-5413-b72e-023ccec17f25"
+            },
+            {
+              "type": "text",
+              "key": "activity",
+              "label": "Tätigkeit",
+              "validation": {
+                "maxLength": 200
+              },
+              "role": "line_item.description",
+              "id": "ab6da7f3-0596-5959-a86c-32f5b01cce99"
+            },
+            {
+              "type": "calculated",
+              "key": "hours",
+              "label": "Stunden",
+              "format": "number",
+              "scale": 2,
+              "role": "line_item.qty",
+              "expression": {
+                "dec.div": [
+                  {
+                    "dec.sub": [
+                      {
+                        "date.diff": [
+                          {
+                            "cat": [
+                              {
+                                "var": "work_date"
+                              },
+                              "T",
+                              {
+                                "substr": [
+                                  {
+                                    "var": "start_time"
+                                  },
+                                  0,
+                                  5
+                                ]
+                              },
+                              ":00Z"
+                            ]
+                          },
+                          {
+                            "cat": [
+                              {
+                                "var": "work_date"
+                              },
+                              "T",
+                              {
+                                "substr": [
+                                  {
+                                    "var": "end_time"
+                                  },
+                                  0,
+                                  5
+                                ]
+                              },
+                              ":00Z"
+                            ]
+                          },
+                          "minutes"
+                        ]
+                      },
+                      {
+                        "var": [
+                          "break_minutes",
+                          "0"
+                        ]
+                      }
+                    ]
+                  },
+                  60,
+                  2
+                ]
+              },
+              "id": "a7f064e1-b5f5-594a-9dba-0efc57ab856a"
+            }
+          ],
+          "id": "ff11f969-6ff2-5596-9b7b-e82f28a20ef1"
+        },
+        {
+          "type": "calculated",
+          "key": "total_hours",
+          "label": "Stunden gesamt",
+          "format": "number",
+          "scale": 2,
+          "expression": {
+            "sum": [
+              {
+                "var": "entries"
+              },
+              "hours"
+            ]
+          },
+          "id": "86862a92-23aa-580d-915d-effddf1683aa"
+        },
+        {
+          "type": "textarea",
+          "key": "notes",
+          "label": "Bemerkungen",
+          "rows": 3,
+          "id": "c8eed9e2-b316-5f33-b78e-ee03627edef7"
+        }
+      ]
+    },
+    {
+      "id": "8a98855a-d4c7-5875-a3fa-cc20ec7cb04c",
+      "key": "confirm",
+      "title": "Bestätigung",
+      "elements": [
+        {
+          "type": "checkbox",
+          "key": "hours_confirmed",
+          "label": "Die aufgeführten Arbeitszeiten werden bestätigt.",
+          "required": true,
+          "id": "1dcd3ea9-3b46-5784-b1e4-822b028cae8b"
+        },
+        {
+          "type": "text",
+          "key": "customer_signer",
+          "label": "Name des Unterzeichners (Kunde)",
+          "required": true,
+          "validation": {
+            "maxLength": 120
+          },
+          "id": "34f25ca3-07ec-56aa-8a15-f15c13dff3a9"
+        },
+        {
+          "type": "signature",
+          "key": "customer_signature",
+          "label": "Unterschrift Kunde",
+          "required": true,
+          "signerNameFrom": "customer_signer",
+          "id": "f758f918-aa00-5f13-9518-827ba791a92e"
+        },
+        {
+          "type": "signature",
+          "key": "employee_signature",
+          "label": "Unterschrift Mitarbeiter",
+          "signerNameFrom": "employee",
+          "id": "9ed00a13-2cdb-5d71-83c4-5c011133987f"
+        }
+      ]
+    }
+  ]
+}

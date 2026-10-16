@@ -30,6 +30,36 @@
         "de": "Prüfprotokoll",
         "en": "Inspection checklist"
       }
+    },
+    {
+      "key": "delivery_note",
+      "version": "1.0.0",
+      "file": "delivery_note.json",
+      "category": "logistics",
+      "title": {
+        "de": "Lieferschein",
+        "en": "Delivery note"
+      }
+    },
+    {
+      "key": "timesheet",
+      "version": "1.0.0",
+      "file": "timesheet.json",
+      "category": "time",
+      "title": {
+        "de": "Stundenzettel",
+        "en": "Timesheet"
+      }
+    },
+    {
+      "key": "handover_protocol",
+      "version": "1.0.0",
+      "file": "handover_protocol.json",
+      "category": "handover",
+      "title": {
+        "de": "Übergabeprotokoll",
+        "en": "Handover protocol"
+      }
     }
   ]
 }

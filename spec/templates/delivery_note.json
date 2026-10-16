@@ -1,0 +1,313 @@
+{
+  "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+  "specVersion": "1.0.0",
+  "key": "delivery_note",
+  "title": "Lieferschein",
+  "locale": "de-DE",
+  "settings": {
+    "layout": "wizard",
+    "numbering": {
+      "format": "LS-{YYYY}-{SEQ:5}",
+      "reset": "yearly"
+    },
+    "document": {
+      "design": "default"
+    },
+    "sendToCustomer": true
+  },
+  "pages": [
+    {
+      "id": "c7b8d332-820a-557c-b8b1-61b38c5cd391",
+      "key": "delivery",
+      "title": "Kunde & Lieferung",
+      "elements": [
+        {
+          "type": "text",
+          "key": "customer_name",
+          "label": "Kunde",
+          "required": true,
+          "validation": {
+            "maxLength": 120
+          },
+          "role": "customer.name",
+          "id": "3cfd4272-6262-5286-8ef4-8eec9cae745f"
+        },
+        {
+          "type": "textarea",
+          "key": "customer_address",
+          "label": "Kundenanschrift",
+          "rows": 3,
+          "role": "customer.address",
+          "id": "8d51789f-fd9a-551f-80fc-2445f58bea86"
+        },
+        {
+          "type": "textarea",
+          "key": "delivery_address",
+          "label": "Lieferanschrift",
+          "help": "Leer lassen, wenn identisch mit der Kundenanschrift.",
+          "rows": 3,
+          "role": "site.address",
+          "id": "28271e52-7e30-5c24-a284-d6afafbfecae"
+        },
+        {
+          "type": "date",
+          "key": "delivery_date",
+          "label": "Lieferdatum",
+          "required": true,
+          "default": {
+            "var": "$today"
+          },
+          "role": "document.date",
+          "id": "449ec7e5-6448-5ec2-a27f-00b7cac4d6d1"
+        },
+        {
+          "type": "text",
+          "key": "order_reference",
+          "label": "Auftrags- / Bestellnummer",
+          "validation": {
+            "maxLength": 60
+          },
+          "id": "0dcf5944-f9b1-5477-a9f5-6e283afb05f8"
+        },
+        {
+          "type": "text",
+          "key": "driver",
+          "label": "Fahrer / Zusteller",
+          "default": {
+            "var": "$user.name"
+          },
+          "id": "1e5c75bf-02d4-5533-9d71-ae8fff46ab58"
+        }
+      ]
+    },
+    {
+      "id": "28842c33-32cd-51be-87d3-a8356709c290",
+      "key": "items",
+      "title": "Positionen",
+      "elements": [
+        {
+          "type": "repeater",
+          "key": "items",
+          "label": "Gelieferte Positionen",
+          "display": "table",
+          "minItems": 1,
+          "addLabel": "Position hinzufügen",
+          "elements": [
+            {
+              "type": "text",
+              "key": "article_no",
+              "label": "Artikel-Nr.",
+              "validation": {
+                "maxLength": 40
+              },
+              "id": "075243c0-3652-56ed-8e15-13e5d2a57196"
+            },
+            {
+              "type": "text",
+              "key": "description",
+              "label": "Bezeichnung",
+              "required": true,
+              "role": "line_item.description",
+              "id": "45d730e2-716f-5f43-ab05-06161551dffd"
+            },
+            {
+              "type": "number",
+              "key": "qty_ordered",
+              "label": "Bestellt",
+              "validation": {
+                "min": 0
+              },
+              "id": "bb5bf8be-0d8f-5f00-a283-4e97aa964b3b"
+            },
+            {
+              "type": "number",
+              "key": "qty",
+              "label": "Geliefert",
+              "required": true,
+              "validation": {
+                "min": 0
+              },
+              "role": "line_item.qty",
+              "id": "d17042b5-1b96-58f1-87f1-a72376a1fc74"
+            },
+            {
+              "type": "select",
+              "key": "unit",
+              "label": "Einheit",
+              "options": [
+                {
+                  "value": "pcs",
+                  "label": "Stk."
+                },
+                {
+                  "value": "m",
+                  "label": "m"
+                },
+                {
+                  "value": "kg",
+                  "label": "kg"
+                },
+                {
+                  "value": "l",
+                  "label": "l"
+                },
+                {
+                  "value": "pal",
+                  "label": "Pal."
+                },
+                {
+                  "value": "pkg",
+                  "label": "Pkg."
+                }
+              ],
+              "role": "line_item.unit",
+              "id": "e8007810-3e7e-5309-ac17-ad87ffac0976"
+            },
+            {
+              "type": "calculated",
+              "key": "qty_open",
+              "label": "Offen",
+              "format": "number",
+              "scale": 2,
+              "expression": {
+                "dec.sub": [
+                  {
+                    "var": "qty_ordered"
+                  },
+                  {
+                    "var": "qty"
+                  }
+                ]
+              },
+              "id": "001a9aa9-cd2c-5ea2-ae20-74b8984f8eb9"
+            },
+            {
+              "type": "text",
+              "key": "note",
+              "label": "Bemerkung",
+              "validation": {
+                "maxLength": 200
+              },
+              "id": "bb57afc2-6038-51b2-b6cb-c712ea1f00df"
+            }
+          ],
+          "id": "b07c225d-0ef7-5293-8eb4-adc1b8fc0d02"
+        },
+        {
+          "type": "calculated",
+          "key": "position_count",
+          "label": "Anzahl Positionen",
+          "format": "number",
+          "scale": 0,
+          "expression": {
+            "count": [
+              {
+                "var": "items"
+              }
+            ]
+          },
+          "id": "14942f87-2307-5846-8a31-db96cec29016"
+        },
+        {
+          "type": "calculated",
+          "key": "total_qty",
+          "label": "Gelieferte Menge gesamt",
+          "format": "number",
+          "scale": 2,
+          "expression": {
+            "sum": [
+              {
+                "var": "items"
+              },
+              "qty"
+            ]
+          },
+          "id": "bd15f52a-616e-5da9-832c-7a973d730f2b"
+        }
+      ]
+    },
+    {
+      "id": "43be0931-1146-5cc3-a3dc-97b080b72ebc",
+      "key": "receipt",
+      "title": "Empfang & Unterschrift",
+      "elements": [
+        {
+          "type": "radio",
+          "key": "receipt_status",
+          "label": "Ware erhalten",
+          "required": true,
+          "options": [
+            {
+              "value": "complete",
+              "label": "Vollständig und unbeschädigt"
+            },
+            {
+              "value": "partial",
+              "label": "Teillieferung"
+            },
+            {
+              "value": "damaged",
+              "label": "Beschädigt"
+            }
+          ],
+          "id": "b7d69131-0b5d-5b8c-b2e6-bad257ec2b5f"
+        },
+        {
+          "type": "textarea",
+          "key": "receipt_notes",
+          "label": "Abweichungen / Schäden",
+          "required": true,
+          "rows": 4,
+          "visibleIf": {
+            "in": [
+              {
+                "var": "receipt_status"
+              },
+              [
+                "partial",
+                "damaged"
+              ]
+            ]
+          },
+          "id": "ce52dd4b-b43f-5b97-b48b-51916da7eb2f"
+        },
+        {
+          "type": "photo",
+          "key": "photos",
+          "label": "Fotos",
+          "multiple": true,
+          "validation": {
+            "maxFiles": 10,
+            "maxSizeKb": 8192
+          },
+          "id": "4d79dfd1-f279-5261-844f-6ff256f6cbe2"
+        },
+        {
+          "type": "text",
+          "key": "receiver_name",
+          "label": "Name des Empfängers",
+          "required": true,
+          "validation": {
+            "maxLength": 120
+          },
+          "id": "6041a508-4870-5a92-adac-aacbef97ca02"
+        },
+        {
+          "type": "signature",
+          "key": "receiver_signature",
+          "label": "Unterschrift Empfänger",
+          "required": true,
+          "signerNameFrom": "receiver_name",
+          "id": "cb52fb80-38c7-5891-9d41-7c9932f35ed8"
+        },
+        {
+          "type": "signature",
+          "key": "driver_signature",
+          "label": "Unterschrift Fahrer",
+          "signerNameFrom": "driver",
+          "id": "a49388df-1184-58a4-8e72-3a1f3cae637d"
+        }
+      ]
+    }
+  ]
+}
