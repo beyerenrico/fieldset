@@ -22,6 +22,7 @@ use App\Domain\Forms\Support\InvalidDefinitionException;
 use App\Domain\Identity\Models\Organization;
 use App\Domain\Identity\Models\User;
 use App\Filament\Admin\Resources\Forms\FormResource;
+use App\Filament\Admin\Resources\Forms\RelationManagers\VersionsRelationManager;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Textarea;
@@ -208,6 +209,7 @@ class EditForm extends EditRecord
                 }
                 $this->fillForm();
                 Notification::make()->success()->title(__('forms.versions.published', ['version' => $version->version]))->send();
+                $this->dispatch(VersionsRelationManager::REFRESH_EVENT);
             });
     }
 

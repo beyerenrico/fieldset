@@ -25,6 +25,12 @@ use Illuminate\Database\Eloquent\Model;
 /** Version history timeline with diff, rollback and retire (BUILD_PROMPT §8.10). */
 class VersionsRelationManager extends RelationManager
 {
+    /** Dispatched by the builder after publishing so the history shows the new version at once. */
+    public const string REFRESH_EVENT = 'form-versions-updated';
+
+    /** @var array<string, string> */
+    protected $listeners = [self::REFRESH_EVENT => '$refresh'];
+
     protected static string $relationship = 'versions';
 
     /** Re-authorize on every Livewire request: permissions may change while a tab stays open. */

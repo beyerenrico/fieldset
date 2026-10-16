@@ -70,7 +70,8 @@ it('publishes from the builder with a changelog', function (): void {
 
     Livewire::test(EditForm::class, ['record' => $form->getRouteKey()])
         ->callAction('publish', ['changelog' => 'Erste Version'])
-        ->assertHasNoActionErrors();
+        ->assertHasNoActionErrors()
+        ->assertDispatched(VersionsRelationManager::REFRESH_EVENT);
 
     expect(FormVersion::query()->where('form_id', $form->id)->value('version'))->toBe(1);
 });
