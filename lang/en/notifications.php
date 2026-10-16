@@ -11,6 +11,7 @@ return [
         'workflow_failed' => 'A workflow failed (administrators)',
         'form_available' => 'A new or updated form is available',
         'workflow_notice' => 'Messages from workflows',
+        'export_ready' => 'An export I requested is ready',
     ],
     'channels' => ['database' => 'In the app', 'mail' => 'Email'],
     'preferences' => [

@@ -84,6 +84,7 @@ final class StoredNotification extends Notification
             NotificationEvent::WorkflowFailed => ['danger', Heroicon::OutlinedExclamationTriangle],
             NotificationEvent::FormAvailable => ['info', Heroicon::OutlinedDocumentPlus],
             NotificationEvent::WorkflowNotice => ['info', Heroicon::OutlinedChatBubbleLeftEllipsis],
+            NotificationEvent::ExportReady => ['success', Heroicon::OutlinedArrowDownTray],
         };
     }
 }

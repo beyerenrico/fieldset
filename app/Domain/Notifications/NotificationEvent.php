@@ -6,7 +6,7 @@ namespace App\Domain\Notifications;
 
 /**
  * Notification events (BUILD_PROMPT §8.9). Users choose channels per event in their preferences.
- * `export_ready` (M5) and `sso_misconfigured` (M7) are added with their milestones.
+ * `sso_misconfigured` (M7) is added with its milestone.
  */
 enum NotificationEvent: string
 {
@@ -17,4 +17,6 @@ enum NotificationEvent: string
     case FormAvailable = 'form_available';
     /** Free-text message of a workflow `notify` step. */
     case WorkflowNotice = 'workflow_notice';
+    /** A requested export (XLSX, CSV, PDF ZIP) finished or failed (M5, §8.4). */
+    case ExportReady = 'export_ready';
 }

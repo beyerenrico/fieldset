@@ -10,6 +10,7 @@ use App\Domain\Forms\Actions\SetFormStatus;
 use App\Domain\Forms\Enums\FormStatus;
 use App\Domain\Forms\Models\Form;
 use App\Domain\Identity\Models\User;
+use App\Filament\Admin\Pages\FormExplorer;
 use App\Filament\Admin\Resources\Forms\Pages\EditForm;
 use App\Filament\Admin\Resources\Forms\Pages\ListForms;
 use App\Filament\Admin\Resources\Forms\RelationManagers\VersionsRelationManager;
@@ -74,6 +75,7 @@ class FormResource extends Resource
                 EditAction::make()->label(__('forms.builder.title')),
                 self::duplicateAction(),
                 self::exportAction(),
+                self::exploreAction(),
                 self::archiveAction(),
             ]);
     }
@@ -100,6 +102,14 @@ class FormResource extends Resource
 
                 return response()->streamDownload(fn (): int => print ($json), Str::slug($record->key).'.form.json', ['Content-Type' => 'application/json']);
             });
+    }
+
+    /** Link to the submission explorer of the form (M5-T01); shown to users with reports.view. */
+    private static function exploreAction(): Action
+    {
+        return Action::make('explore')->label(__('reports.explorer.open'))->icon(Heroicon::OutlinedTableCells)->color('gray')
+            ->visible(fn (Form $record): bool => $record->current_version_id !== null && FormExplorer::canAccess())
+            ->url(fn (Form $record): string => FormExplorer::getUrl(['form' => $record->id]));
     }
 
     private static function archiveAction(): Action
