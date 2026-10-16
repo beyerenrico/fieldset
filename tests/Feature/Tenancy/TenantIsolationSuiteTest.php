@@ -9,6 +9,7 @@ use App\Domain\Identity\Tenancy\TenantContext;
 use App\Domain\Identity\Tenancy\TenantNotSetException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Routing\Route as RoutingRoute;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Symfony\Component\Finder\Finder;
 use Tests\Support\TenantIsolation\ApiRouteCases;
@@ -29,6 +30,29 @@ function tenantOwnedModels(): array
 
     return $models;
 }
+
+/*
+ * Tables with an organization_id column that are deliberately NOT guarded by the throwing
+ * OrganizationScope, each with the reason and the control that replaces it.
+ */
+const UNSCOPED_TENANT_TABLES = [
+    'organization_user' => 'Membership: listed across organizations (tenant switcher, /me); Filament ownership scope + MembershipPolicy',
+    'group_user' => 'pivot of Group (scoped); written only by SyncMemberGroups inside TenantContext::run',
+    'roles' => 'spatie global permission cache must load every organization\'s roles; RolePolicy checks ownership',
+    'model_has_roles' => 'spatie pivot, filtered by team (organization) id by spatie itself',
+    'model_has_permissions' => 'spatie pivot, filtered by team (organization) id by spatie itself',
+    'activity_log' => 'append-only audit log written from any context; read only through ActivityPolicy (audit.view, same org)',
+    'personal_access_tokens' => 'Sanctum tokens resolved before the tenant is known; ResolveOrganization rejects foreign-org tokens',
+];
+
+it('guards every table with an organization_id column (or documents why not)', function (): void {
+    $tables = collect(DB::select("select table_name from information_schema.columns where column_name = 'organization_id' and table_schema = current_schema()"))
+        ->pluck('table_name')->sort()->values()->all();
+    $scoped = array_map(fn (string $model): string => (new $model)->getTable(), tenantOwnedModels());
+
+    expect(array_values(array_diff($tables, $scoped, array_keys(UNSCOPED_TENANT_TABLES))))->toBe([])
+        ->and(array_values(array_diff(array_keys(UNSCOPED_TENANT_TABLES), $tables)))->toBe([]);
+});
 
 it('finds the tenant-owned models', function (): void {
     expect(tenantOwnedModels())->toContain(Group::class);

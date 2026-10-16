@@ -65,9 +65,12 @@ it('never stores secrets in audit properties or diffs', function (): void {
         'webhook_secret' => 'abc',
     ]);
     $user->update(['password' => 'new-password-1']);
+    $hash = $user->fresh()->getAuthPassword();
 
     $raw = Activity::query()->get()->toJson();
     expect($raw)->not->toContain('hunter2')->not->toContain('new-password-1')->not->toContain('"abc"')
+        ->not->toContain($hash)
+        ->and(Activity::query()->where('event', 'auth.password_changed')->count())->toBe(1)
         ->and(Activity::query()->where('event', 'settings.updated')->sole()->properties['smtp']['host'])->toBe('mail.example.com');
 });
 

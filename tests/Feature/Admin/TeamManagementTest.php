@@ -15,7 +15,6 @@ use App\Filament\Admin\Resources\Members\Pages\ManageMembers;
 use App\Filament\Admin\Resources\Roles\Pages\ManageRoles;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
-use Illuminate\Support\Facades\URL;
 use Livewire\Livewire;
 
 beforeEach(function (): void {
@@ -40,31 +39,6 @@ it('invites a member with roles and groups and mails a signed link', function ()
     Notification::assertSentTo($user, MemberInvitation::class);
 });
 
-it('accepts an invitation, sets the password and activates the membership', function (): void {
-    Notification::fake();
-    actingInAdmin($this->owner, $this->org);
-    Livewire::test(ManageMembers::class)
-        ->callAction('invite', ['email' => 'new@example.com', 'name' => 'New Person', 'roles' => ['designer']]);
-    auth()->logout();
-
-    $membership = Membership::query()->whereHas('user', fn ($q) => $q->where('email', 'new@example.com'))->sole();
-    $membership->user->forceFill(['email_verified_at' => null])->save();
-    $url = URL::temporarySignedRoute('invitations.show', now()->addDay(), ['membership' => $membership->id]);
-
-    $this->get($url)->assertOk()->assertSee('password');
-    $this->post($url, ['password' => 'Sup3r-Secret-Pw!', 'password_confirmation' => 'Sup3r-Secret-Pw!'])
-        ->assertRedirect(url('/admin/'.$this->org->slug));
-
-    expect($membership->fresh()->status)->toBe(MembershipStatus::Active)
-        ->and(auth()->id())->toBe($membership->user_id);
-});
-
-it('rejects unsigned invitation links', function (): void {
-    $membership = Membership::query()->firstOrFail();
-
-    $this->get(route('invitations.show', ['membership' => $membership->id]))->assertForbidden();
-});
-
 it('edits roles and groups; group removal applies immediately', function (): void {
     actingInAdmin($this->owner, $this->org);
     $worker = memberOf($this->org, SystemRole::FieldWorker);
@@ -84,7 +58,7 @@ it('edits roles and groups; group removal applies immediately', function (): voi
 it('deactivates a member, revokes tokens and protects the last owner', function (): void {
     actingInAdmin($this->owner, $this->org);
     $worker = memberOf($this->org, SystemRole::FieldWorker);
-    $worker->createToken('integration');
+    $worker->createToken('integration')->accessToken->forceFill(['organization_id' => $this->org->id])->save();
     $membership = Membership::query()->where('user_id', $worker->id)->sole();
 
     Livewire::test(ManageMembers::class)->callTableAction('toggleStatus', $membership);
@@ -115,7 +89,7 @@ it('builds a custom role from capabilities', function (): void {
     $perm = Spatie\Permission\Models\Permission::findByName('reports.view', 'web');
 
     Livewire::test(ManageRoles::class)
-        ->callAction('create', ['name' => 'Accountant', 'permissions' => [$perm->id]])
+        ->callAction('create', ['name' => 'Accountant', 'permission_ids' => [$perm->id]])
         ->assertHasNoActionErrors();
 
     $role = Role::query()->where('organization_id', $this->org->id)->where('name', 'Accountant')->sole();

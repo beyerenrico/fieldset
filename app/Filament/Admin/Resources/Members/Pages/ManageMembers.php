@@ -7,6 +7,7 @@ namespace App\Filament\Admin\Resources\Members\Pages;
 use App\Domain\Identity\Actions\InviteMember;
 use App\Domain\Identity\Models\Membership;
 use App\Domain\Identity\Models\Organization;
+use App\Domain\Identity\Models\User;
 use App\Filament\Admin\Resources\Members\MemberResource;
 use App\Filament\Admin\Support\OrganizationOptions;
 use Filament\Actions\Action;
@@ -39,12 +40,15 @@ class ManageMembers extends ManageRecords
                 ->action(function (array $data): void {
                     /** @var Organization $organization */
                     $organization = Filament::getTenant();
+                    /** @var User $actor */
+                    $actor = auth()->user();
                     app(InviteMember::class)->handle(
+                        $actor,
                         $organization,
                         $data['email'],
                         $data['name'],
                         array_values($data['roles']),
-                        array_values(array_map('intval', $data['groups'] ?? [])),
+                        array_values(array_map(intval(...), $data['groups'] ?? [])),
                     );
                     Notification::make()->success()->title(__('identity.member.invited'))->send();
                 }),

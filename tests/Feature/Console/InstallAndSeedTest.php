@@ -20,6 +20,14 @@ it('installs the first organization and owner', function (): void {
         ->and($owner->hasPermissionIn($org, Permission::OrganizationDelete))->toBeTrue();
 });
 
+it('is idempotent: a second run changes nothing', function (): void {
+    $args = ['--organization' => 'A', '--name' => 'B', '--email' => 'a@example.com', '--password' => 'long-enough-pw'];
+    $this->artisan('app:install', $args)->assertSuccessful();
+    $this->artisan('app:install', [...$args, '--organization' => 'Second'])->assertSuccessful();
+
+    expect(Organization::query()->pluck('name')->all())->toBe(['A']);
+});
+
 it('rejects weak input without creating anything', function (): void {
     $this->artisan('app:install', [
         '--organization' => 'X', '--name' => 'Y', '--email' => 'not-an-email', '--password' => 'short',

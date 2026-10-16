@@ -9,12 +9,11 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\Pivot;
-use Spatie\Activitylog\Models\Concerns\LogsActivity;
-use Spatie\Activitylog\Support\LogOptions;
 
 /**
  * A user's membership in an organization (`organization_user`). Not tenant-scoped: a user's
- * memberships are listed across organizations (tenant switcher, `GET /me`).
+ * memberships are listed across organizations (tenant switcher, `GET /me`). Audited explicitly by
+ * the identity actions (member.invited, member.joined, member.roles_changed, …).
  *
  * @property int $id
  * @property int $organization_id
@@ -29,8 +28,6 @@ use Spatie\Activitylog\Support\LogOptions;
 class Membership extends Pivot
 {
     public $incrementing = true;
-
-    use LogsActivity;
 
     protected function casts(): array
     {
@@ -57,10 +54,5 @@ class Membership extends Pivot
     public function defaultGroup(): BelongsTo
     {
         return $this->belongsTo(Group::class, 'default_group_id');
-    }
-
-    public function getActivitylogOptions(): LogOptions
-    {
-        return LogOptions::defaults()->logOnly(['organization_id', 'user_id', 'status', 'default_group_id'])->logOnlyDirty()->dontLogEmptyChanges()->useLogName('audit');
     }
 }

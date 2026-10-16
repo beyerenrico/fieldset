@@ -14,8 +14,8 @@ tablet (also offline) to produce reports, invoices, checklists and other documen
 
 ```bash
 cp .env.example .env
-docker compose up -d --build          # app on http://localhost:8080
-docker compose exec app php artisan key:generate --force   # first run only, then restart app
+sed -i.bak "s|^APP_KEY=.*|APP_KEY=base64:$(openssl rand -base64 32)|" .env   # once
+docker compose up -d --build --wait                        # app on http://localhost:8080
 docker compose exec app php artisan app:install            # first organization + owner
 ```
 

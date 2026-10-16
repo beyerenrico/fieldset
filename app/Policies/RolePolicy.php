@@ -35,7 +35,7 @@ final class RolePolicy extends TenantPolicy
     /** System roles cannot be deleted; custom roles can. */
     public function delete(User $user, Role $role): bool
     {
-        return SystemRole::tryFrom($role->name) === null && $this->allowsFor($user, $role, Permission::MembersManage);
+        return ! $role->isSystemRole() && $this->allowsFor($user, $role, Permission::MembersManage);
     }
 
     public function deleteAny(User $user): bool

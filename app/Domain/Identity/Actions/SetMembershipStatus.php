@@ -6,50 +6,45 @@ namespace App\Domain\Identity\Actions;
 
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Identity\Enums\MembershipStatus;
-use App\Domain\Identity\Enums\Permission;
 use App\Domain\Identity\Models\Membership;
-use App\Domain\Identity\Support\OrganizationPermissions;
-use DomainException;
+use App\Domain\Identity\Models\User;
+use App\Domain\Identity\Support\RoleAssignmentGuard;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
-/** Deactivates or reactivates a membership; the last active Owner can never be deactivated. */
-final class SetMembershipStatus
+/**
+ * Deactivates or reactivates a membership. Only Owners may deactivate an Owner, and the last active
+ * Owner can never be deactivated. Deactivation revokes the member's API tokens for this organization.
+ */
+final readonly class SetMembershipStatus
 {
     public function __construct(
-        private readonly OrganizationPermissions $permissions,
-        private readonly AuditLogger $audit,
+        private RoleAssignmentGuard $guard,
+        private AuditLogger $audit,
     ) {}
 
-    public function handle(Membership $membership, MembershipStatus $status): Membership
+    public function handle(Membership $membership, MembershipStatus $status, ?User $actor = null): Membership
     {
-        if ($status === MembershipStatus::Deactivated && $this->isLastOwner($membership)) {
-            throw new DomainException(__('identity.member.last_owner'));
-        }
+        $organization = $membership->organization;
+        $target = $membership->user;
 
-        $membership->forceFill(['status' => $status])->save();
+        DB::transaction(function () use ($membership, $status, $actor, $organization, $target): void {
+            if ($status === MembershipStatus::Deactivated && $this->guard->isOwner($target, $organization)) {
+                if ($actor instanceof User && ! $this->guard->isOwner($actor, $organization)) {
+                    throw ValidationException::withMessages(['status' => __('identity.member.only_owner_deactivates_owner')]);
+                }
+                $this->guard->ensureAnotherOwnerRemains($organization, $target);
+            }
 
-        if ($status === MembershipStatus::Deactivated) {
-            // Revoke API tokens so integrations lose access immediately.
-            $membership->user->tokens()->delete();
-        }
+            $membership->forceFill(['status' => $status])->save();
 
-        $this->audit->record('member.status_changed', $membership, ['status' => $status->value]);
+            if ($status === MembershipStatus::Deactivated) {
+                $target->tokens()->where('organization_id', $organization->id)->delete();
+            }
+        });
+
+        $this->audit->record('member.status_changed', $membership, ['status' => $status->value], $actor);
 
         return $membership;
-    }
-
-    private function isLastOwner(Membership $membership): bool
-    {
-        if (! $this->permissions->has($membership->user, $membership->organization_id, Permission::OrganizationDelete)) {
-            return false;
-        }
-
-        $owners = Membership::query()
-            ->where('organization_id', $membership->organization_id)
-            ->where('status', MembershipStatus::Active->value)
-            ->with('user')
-            ->get()
-            ->filter(fn (Membership $m): bool => $this->permissions->has($m->user, $m->organization_id, Permission::OrganizationDelete));
-
-        return $owners->count() <= 1;
     }
 }

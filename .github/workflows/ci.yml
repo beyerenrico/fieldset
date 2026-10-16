@@ -92,12 +92,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: cp .env.example .env
+      - uses: actions/setup-node@v4
+        with: { node-version: '${{ env.NODE_VERSION }}', cache: npm }
+      - name: Configure environment
+        run: |
+          cp .env.example .env
+          sed -i "s|^APP_KEY=.*|APP_KEY=base64:$(openssl rand -base64 32)|" .env
+          sed -i "s|^APP_ALLOW_REGISTRATION=.*|APP_ALLOW_REGISTRATION=true|" .env
       - run: docker compose up -d --build --wait
-      - run: docker compose exec -T app php artisan key:generate --force && docker compose restart app
-      - run: test -d tests/Browser && npm ci && npx playwright install --with-deps chromium && npm run e2e || echo "No E2E journeys yet"
+      - run: docker compose exec -T app php artisan db:seed --force
+      - run: npm ci
+      - run: PLAYWRIGHT_BROWSERS_PATH=storage/playwright npx playwright install --with-deps chromium
+      - run: npm run e2e
       - if: always()
-        run: docker compose logs --tail=200 app
+        run: docker compose logs --tail=200 app queue
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with: { name: playwright-results, path: storage/playwright-results }
 
   audit:
     runs-on: ubuntu-latest

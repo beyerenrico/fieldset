@@ -9,11 +9,14 @@ use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
-use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Database\Eloquent\Model;
+use Laravel\Fortify\Events\TwoFactorAuthenticationFailed;
 
-/** Writes every authentication event to the audit log (BUILD_PROMPT §8.7, §8.11). */
+/**
+ * Writes authentication events to the audit log (BUILD_PROMPT §8.7, §8.11). Password changes (including
+ * resets), MFA enrolment and recovery-code use are audited by the User model itself, once each.
+ */
 final readonly class LogAuthEvents
 {
     public function __construct(private AuditLogger $audit) {}
@@ -41,9 +44,9 @@ final readonly class LogAuthEvents
         $this->audit->record('auth.lockout', null, ['email' => $event->request->input('email')]);
     }
 
-    public function passwordReset(PasswordReset $event): void
+    public function mfaFailed(TwoFactorAuthenticationFailed $event): void
     {
-        $this->forUser('auth.password_reset', $event->user);
+        $this->forUser('auth.mfa_failed', $event->user);
     }
 
     public function verified(Verified $event): void
@@ -59,7 +62,7 @@ final readonly class LogAuthEvents
             Logout::class => 'logout',
             Failed::class => 'failed',
             Lockout::class => 'lockout',
-            PasswordReset::class => 'passwordReset',
+            TwoFactorAuthenticationFailed::class => 'mfaFailed',
             Verified::class => 'verified',
         ];
     }

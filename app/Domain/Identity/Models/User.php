@@ -28,6 +28,8 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\Fortify;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Sanctum\HasApiTokens;
@@ -85,10 +87,34 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
         ];
     }
 
+    /** Set while an action audits the password change itself (e.g. accepting an invitation). */
+    private static bool $suppressPasswordAudit = false;
+
+    /**
+     * @template T
+     *
+     * @param  \Closure(): T  $callback
+     * @return T
+     */
+    public static function withoutPasswordAudit(\Closure $callback): mixed
+    {
+        self::$suppressPasswordAudit = true;
+
+        try {
+            return $callback();
+        } finally {
+            self::$suppressPasswordAudit = false;
+        }
+    }
+
     protected static function booted(): void
     {
         // MFA enrolment changes from either Filament or Fortify are audited once (§8.11).
         static::updated(static function (self $user): void {
+            if ($user->wasChanged('password') && ! self::$suppressPasswordAudit) {
+                app(AuditLogger::class)->record('auth.password_changed', $user);
+            }
+
             if ($user->wasChanged('two_factor_confirmed_at')) {
                 app(AuditLogger::class)->record(
                     $user->two_factor_confirmed_at === null ? 'auth.mfa_disabled' : 'auth.mfa_enabled',
@@ -244,11 +270,23 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
      */
     public function replaceRecoveryCode($code): void
     {
-        $remaining = array_values(array_filter(
-            $this->recoveryCodes(),
-            static fn (string $candidate): bool => ! hash_equals($candidate, (string) $code),
-        ));
+        // Re-read under a row lock so a code can never be used twice by concurrent requests.
+        DB::transaction(function () use ($code): void {
+            $fresh = self::query()->whereKey($this->getKey())->lockForUpdate()->firstOrFail();
+            $codes = $fresh->two_factor_recovery_codes === null ? [] : $fresh->recoveryCodes();
+            $remaining = array_values(array_filter(
+                $codes,
+                static fn (string $candidate): bool => ! hash_equals($candidate, (string) $code),
+            ));
 
-        $this->saveAppAuthenticationRecoveryCodes($remaining);
+            if (count($remaining) === count($codes)) {
+                throw ValidationException::withMessages(['recovery_code' => __('auth.failed')]);
+            }
+
+            $fresh->saveAppAuthenticationRecoveryCodes($remaining);
+            $this->setRawAttributes($fresh->getAttributes(), true);
+        });
+
+        app(AuditLogger::class)->record('auth.recovery_code_used', $this, [], $this);
     }
 }

@@ -6,6 +6,8 @@ namespace App\Domain\Identity\Tenancy;
 
 use App\Domain\Identity\Models\Organization;
 use Closure;
+use Illuminate\Foundation\Bus\PendingChain;
+use Illuminate\Foundation\Bus\PendingDispatch;
 use Illuminate\Support\Facades\Context;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -74,7 +76,7 @@ final class TenantContext
         $this->set($organization);
 
         try {
-            return $callback();
+            return $this->guardDispatch($callback());
         } finally {
             $previous === null ? $this->clear() : $this->set($previous);
         }
@@ -93,10 +95,32 @@ final class TenantContext
         $this->bypassDepth++;
 
         try {
-            return $callback();
+            return $this->guardDispatch($callback());
         } finally {
             $this->bypassDepth--;
         }
+    }
+
+    /**
+     * A PendingDispatch returned from the callback would dispatch on destruct, i.e. after the tenant
+     * has been restored, carrying the wrong organization (LEARNINGS #6). Dispatch it now, while the
+     * tenant is still set, and return null.
+     */
+    private function guardDispatch(mixed $result): mixed
+    {
+        if ($result instanceof PendingChain) {
+            $result->dispatch();
+
+            return null;
+        }
+
+        if ($result instanceof PendingDispatch) {
+            unset($result); // last reference: __destruct dispatches here, inside the tenant
+
+            return null;
+        }
+
+        return $result;
     }
 
     public function isBypassed(): bool

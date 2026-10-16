@@ -6,56 +6,29 @@ namespace App\Actions\Fortify;
 
 use App\Domain\Identity\Models\User;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\Contracts\UpdatesUserProfileInformation;
 
+/**
+ * Field App profile updates: name, locale and time zone only. Email changes go through the admin
+ * profile with Filament's email-change verification, so nobody can claim an address they do not own.
+ */
 class UpdateUserProfileInformation implements UpdatesUserProfileInformation
 {
     /**
-     * Validate and update the given user's profile information.
-     *
-     * @param  array<string, string>  $input
-     *
-     * @throws ValidationException
+     * @param  array<string, mixed>  $input
      */
     public function update(User $user, array $input): void
     {
-        Validator::make($input, [
+        $data = Validator::make($input, [
             'name' => ['required', 'string', 'max:255'],
-
-            'email' => [
-                'required',
-                'string',
-                'email',
-                'max:255',
-                Rule::unique('users')->ignore($user->id),
-            ],
+            'locale' => ['nullable', 'in:de,en'],
+            'timezone' => ['nullable', 'timezone:all'],
         ])->validateWithBag('updateProfileInformation');
 
-        if ($input['email'] !== $user->email) {
-            $this->updateVerifiedUser($user, $input);
-        } else {
-            $user->forceFill([
-                'name' => $input['name'],
-                'email' => $input['email'],
-            ])->save();
-        }
-    }
-
-    /**
-     * Update the given verified user's profile information.
-     *
-     * @param  array<string, string>  $input
-     */
-    protected function updateVerifiedUser(User $user, array $input): void
-    {
         $user->forceFill([
-            'name' => $input['name'],
-            'email' => $input['email'],
-            'email_verified_at' => null,
+            'name' => $data['name'],
+            'locale' => $data['locale'] ?? $user->locale,
+            'timezone' => $data['timezone'] ?? $user->timezone,
         ])->save();
-
-        $user->sendEmailVerificationNotification();
     }
 }

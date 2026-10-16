@@ -4,15 +4,16 @@ declare(strict_types=1);
 
 namespace App\Filament\Admin\Resources\Members;
 
-use App\Domain\Identity\Actions\AddMember;
+use App\Domain\Identity\Actions\ChangeMemberRoles;
+use App\Domain\Identity\Actions\SetDefaultGroup;
 use App\Domain\Identity\Actions\SetMembershipStatus;
 use App\Domain\Identity\Actions\SyncMemberGroups;
 use App\Domain\Identity\Enums\MembershipStatus;
 use App\Domain\Identity\Models\Membership;
+use App\Domain\Identity\Models\User;
 use App\Filament\Admin\Resources\Members\Pages\ManageMembers;
 use App\Filament\Admin\Support\OrganizationOptions;
 use BackedEnum;
-use DomainException;
 use Filament\Actions\Action;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Select;
@@ -23,6 +24,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Validation\ValidationException;
 
 class MemberResource extends Resource
 {
@@ -94,16 +96,24 @@ class MemberResource extends Resource
             ])
             ->schema([
                 CheckboxList::make('roles')->label(__('identity.member.roles'))
-                    ->options(fn (): array => OrganizationOptions::roles())->required(),
+                    ->options(fn (): array => OrganizationOptions::roles())
+                    ->disabled(fn (Membership $record): bool => $record->user->is(auth()->user()))
+                    ->required(fn (Membership $record): bool => ! $record->user->is(auth()->user()))
+                    ->helperText(fn (Membership $record): ?string => $record->user->is(auth()->user()) ? (string) __('identity.member.cannot_edit_own_roles') : null),
                 Select::make('groups')->label(__('identity.member.groups'))->multiple()
                     ->options(fn (): array => OrganizationOptions::groups()),
                 Select::make('default_group_id')->label(__('identity.member.default_group'))
                     ->options(fn (): array => OrganizationOptions::groups()),
             ])
             ->action(function (Membership $record, array $data): void {
-                app(AddMember::class)->handle($record->organization, $record->user, array_values($data['roles']), $record->status);
-                app(SyncMemberGroups::class)->handle($record->organization, $record->user, array_values(array_map('intval', $data['groups'] ?? [])));
-                $record->update(['default_group_id' => $data['default_group_id'] ?? null]);
+                /** @var User $actor */
+                $actor = auth()->user();
+                $roles = array_values(array_map(strval(...), $data['roles']));
+                if ($roles !== [] && ! $record->user->is($actor)) {
+                    app(ChangeMemberRoles::class)->handle($actor, $record, $roles);
+                }
+                app(SyncMemberGroups::class)->handle($record->organization, $record->user, array_values(array_map(intval(...), $data['groups'] ?? [])), $actor);
+                app(SetDefaultGroup::class)->handle($record, isset($data['default_group_id']) ? (int) $data['default_group_id'] : null, $actor);
             });
     }
 
@@ -118,9 +128,9 @@ class MemberResource extends Resource
             ->action(function (Membership $record): void {
                 try {
                     app(SetMembershipStatus::class)->handle($record, $record->status === MembershipStatus::Deactivated
-                        ? MembershipStatus::Active : MembershipStatus::Deactivated);
-                } catch (DomainException $e) {
-                    Notification::make()->danger()->title($e->getMessage())->send();
+                        ? MembershipStatus::Active : MembershipStatus::Deactivated, auth()->user());
+                } catch (ValidationException $e) {
+                    Notification::make()->danger()->title($e->validator->errors()->first())->send();
                 }
             });
     }

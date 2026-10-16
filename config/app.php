@@ -20,7 +20,7 @@ return [
     /*
     | Self-service organization registration on /admin (ADR 0004).
     */
-    'allow_registration' => (bool) env('APP_ALLOW_REGISTRATION', true),
+    'allow_registration' => (bool) env('APP_ALLOW_REGISTRATION', false),
 
     /*
     | Platform operators (Horizon dashboard, future /platform panel): comma-separated emails.

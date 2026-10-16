@@ -17,6 +17,10 @@
 <main>
     <h1>{{ __('identity.invitation.title') }}</h1>
     <p>{{ __('identity.invitation.body', ['organization' => $membership->organization->name]) }}</p>
+    @if ($needsLogin)
+        <p>{{ __('identity.invitation.login_first') }}</p>
+        <p><a href="{{ $loginUrl }}">{{ __('identity.invitation.login') }}</a></p>
+    @else
     <form method="post" action="{{ request()->fullUrl() }}">
         @csrf
         @if ($needsPassword)
@@ -28,6 +32,7 @@
         @endif
         <button type="submit">{{ __('identity.invitation.accept') }}</button>
     </form>
+    @endif
 </main>
 </body>
 </html>

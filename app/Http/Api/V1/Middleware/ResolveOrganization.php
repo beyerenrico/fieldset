@@ -11,6 +11,7 @@ use App\Domain\Identity\Tenancy\TenantContext;
 use App\Http\Api\ApiException;
 use Closure;
 use Illuminate\Http\Request;
+use Laravel\Sanctum\PersonalAccessToken;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -39,6 +40,13 @@ final readonly class ResolveOrganization
         }
 
         $organization = $user->activeOrganizations()->whereKey((int) $header)->first();
+
+        // Integration tokens are bound to one organization.
+        $token = $user->currentAccessToken();
+        if ($token instanceof PersonalAccessToken && $token->exists && $token->getAttribute('organization_id') !== null
+            && (int) $token->getAttribute('organization_id') !== (int) $header) {
+            $organization = null;
+        }
 
         if (! $organization instanceof Organization) {
             throw new ApiException('organization_forbidden', __('api.organization_forbidden'), 403);

@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace App\Filament\Admin\Resources\Roles;
 
+use App\Domain\Identity\Actions\DeleteRole;
+use App\Domain\Identity\Actions\SaveRole;
 use App\Domain\Identity\Enums\Permission;
+use App\Domain\Identity\Models\Organization;
 use App\Domain\Identity\Models\Role;
+use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Tenancy\TenantContext;
 use App\Filament\Admin\Resources\Roles\Pages\ManageRoles;
 use App\Filament\Admin\Support\OrganizationOptions;
@@ -21,10 +25,8 @@ use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Validation\Rules\Unique;
-use Spatie\Permission\Models\Permission as PermissionModel;
-use Spatie\Permission\PermissionRegistrar;
 
-/** Custom roles as a checkbox list of capabilities (ADR 0017). */
+/** Custom roles as a checkbox list of capabilities (ADR 0017). Saves go through SaveRole. */
 class RoleResource extends Resource
 {
     protected static ?string $model = Role::class;
@@ -56,11 +58,37 @@ class RoleResource extends Resource
                 ->unique(ignoreRecord: true, modifyRuleUsing: fn (Unique $rule): Unique => $rule
                     ->where('organization_id', app(TenantContext::class)->require())
                     ->where('guard_name', 'web')),
-            CheckboxList::make('permissions')->label(__('identity.role.permissions'))
-                ->relationship('permissions', 'name')
-                ->getOptionLabelFromRecordUsing(fn (PermissionModel $record): string => Permission::tryFrom($record->name)?->label() ?? $record->name)
+            CheckboxList::make('permission_ids')->label(__('identity.role.permissions'))
+                ->options(fn (?Role $record): array => self::permissionOptions($record))
                 ->columns(2)->bulkToggleable(),
         ]);
+    }
+
+    /**
+     * Grantable permissions plus the ones the role already has (so they can be removed).
+     *
+     * @return array<int, string>
+     */
+    private static function permissionOptions(?Role $record): array
+    {
+        $options = OrganizationOptions::grantablePermissions();
+        foreach ($record === null ? [] : $record->permissions as $permission) {
+            $options[(int) $permission->id] ??= Permission::tryFrom($permission->name)?->label() ?? $permission->name;
+        }
+        ksort($options);
+
+        return $options;
+    }
+
+    /** @param  array{name?: string, permission_ids?: list<int|string>}  $data */
+    public static function save(?Role $record, array $data): Role
+    {
+        /** @var User $actor */
+        $actor = auth()->user();
+        /** @var Organization $organization */
+        $organization = app(TenantContext::class)->organization();
+
+        return app(SaveRole::class)->handle($actor, $organization, $record, $data['name'] ?? null, array_values($data['permission_ids'] ?? []));
     }
 
     public static function table(Table $table): Table
@@ -74,8 +102,19 @@ class RoleResource extends Resource
                 TextColumn::make('permissions_count')->label(__('identity.role.permissions'))->counts('permissions'),
             ])
             ->recordActions([
-                EditAction::make()->after(fn () => app(PermissionRegistrar::class)->forgetCachedPermissions()),
-                DeleteAction::make(),
+                EditAction::make()
+                    ->fillForm(fn (Role $record): array => [
+                        'name' => $record->name,
+                        'permission_ids' => $record->permissions->pluck('id')->all(),
+                    ])
+                    ->using(fn (Role $record, array $data): Role => self::save($record, $data)),
+                DeleteAction::make()->using(function (Role $record): bool {
+                    /** @var User $actor */
+                    $actor = auth()->user();
+                    app(DeleteRole::class)->handle($actor, $record);
+
+                    return true;
+                }),
             ]);
     }
 

@@ -37,6 +37,7 @@ class AdminPanelProvider extends PanelProvider
             ->login()
             ->passwordReset()
             ->emailVerification()
+            ->emailChangeVerification()
             ->profile(isSimple: false)
             ->multiFactorAuthentication([
                 SharedAppAuthentication::make()->recoverable()->brandName((string) config('app.name')),
