@@ -29,6 +29,8 @@ return [
         'plural' => 'Gruppen',
         'name' => 'Name',
         'description' => 'Beschreibung',
+        'share_submissions' => 'Mitglieder sehen gegenseitig ihre Einreichungen',
+        'share_submissions_help' => 'Außendienstmitarbeiter dieser Gruppe können die Einreichungen der anderen Mitglieder in der Field App öffnen.',
         'members' => 'Mitglieder',
     ],
     'role' => [

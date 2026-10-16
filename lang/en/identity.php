@@ -29,6 +29,8 @@ return [
         'plural' => 'Groups',
         'name' => 'Name',
         'description' => 'Description',
+        'share_submissions' => 'Members see each other\'s submissions',
+        'share_submissions_help' => 'Field workers of this group can open submissions of the other members in the Field App.',
         'members' => 'Members',
     ],
     'role' => [

@@ -21,9 +21,10 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property int $organization_id
  * @property string $name
  * @property string|null $description
+ * @property bool $share_submissions
  */
 #[UseFactory(GroupFactory::class)]
-#[Fillable(['name', 'description'])]
+#[Fillable(['name', 'description', 'share_submissions'])]
 class Group extends Model
 {
     use BelongsToOrganization;
@@ -32,6 +33,13 @@ class Group extends Model
     use HasFactory;
 
     use LogsActivity;
+
+    protected $attributes = ['share_submissions' => false];
+
+    protected function casts(): array
+    {
+        return ['share_submissions' => 'boolean'];
+    }
 
     /** @return BelongsToMany<User, $this> */
     public function users(): BelongsToMany
@@ -43,6 +51,6 @@ class Group extends Model
 
     public function getActivitylogOptions(): LogOptions
     {
-        return LogOptions::defaults()->logOnly(['name', 'description'])->logOnlyDirty()->dontLogEmptyChanges()->useLogName('audit');
+        return LogOptions::defaults()->logOnly(['name', 'description', 'share_submissions'])->logOnlyDirty()->dontLogEmptyChanges()->useLogName('audit');
     }
 }

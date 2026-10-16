@@ -43,6 +43,7 @@ const UNSCOPED_TENANT_TABLES = [
     'model_has_permissions' => 'spatie pivot, filtered by team (organization) id by spatie itself',
     'activity_log' => 'append-only audit log written from any context; read only through ActivityPolicy (audit.view, same org)',
     'personal_access_tokens' => 'Sanctum tokens resolved before the tenant is known; ResolveOrganization rejects foreign-org tokens',
+    'submission_values' => 'reporting read model written only by SubmissionValueProjector inside the tenant; read through tenant-scoped report services (M5)',
 ];
 
 it('guards every table with an organization_id column (or documents why not)', function (): void {
@@ -67,7 +68,7 @@ it('isolates every tenant-owned model across organizations', function (string $m
     $b = $tenant->run($orgB, fn () => $model::factory()->create());
 
     $tenant->set($orgA);
-    expect($model::query()->pluck('id')->all())->toBe([$a->getKey()])
+    expect($model::query()->pluck((new $model)->getKeyName())->all())->toBe([$a->getKey()])
         ->and($model::query()->find($b->getKey()))->toBeNull()
         ->and($model::query()->whereKey($b->getKey())->update(['organization_id' => DB::raw('organization_id')]))->toBe(0)
         ->and($model::query()->whereKey($b->getKey())->delete())->toBe(0);
@@ -91,9 +92,9 @@ it('denies cross-tenant access on every tenant-scoped API route', function (): v
         $victim = Organization::factory()->create();
         $attackerOrg = makeOrganization(name: 'Attacker '.$name);
         $attacker = ownerOf($attackerOrg);
-        [$method, $uri, $payload, $headerOrg] = array_pad($case($victim, $attackerOrg, $attacker), 4, null);
+        [$method, $uri, $payload, $headerOrg, $extra] = array_pad($case($victim, $attackerOrg, $attacker), 5, null);
 
-        $headers = apiHeaders($attacker, ($headerOrg ?? 'attacker') === 'victim' ? $victim : $attackerOrg);
+        $headers = [...apiHeaders($attacker, ($headerOrg ?? 'attacker') === 'victim' ? $victim : $attackerOrg), ...($extra ?? [])];
         $response = $this->withHeaders($headers)->json($method, $uri, $payload ?? []);
 
         expect($response->status())->toBeIn([403, 404], "Route {$name} leaked across tenants")

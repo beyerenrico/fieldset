@@ -18,3 +18,5 @@
 13. PCOV only collects files under pcov.directory (auto = ./app) — set pcov.directory to the repo root or packages/ show 0 %.
 14. `php artisan test` runs Pest in a subprocess without `php -d` ini flags (pcov.directory lost) — run coverage with vendor/bin/pest directly.
 15. Livewire 4 caps dot-path depth at 10 and payloads at 1 MB (config livewire.payload); the nested Builder needs ~25 — overridden in config/livewire.php.
+16. Parallel agents: use DB_DATABASE=form_schema_test_b|c php artisan test (phpunit.xml <env> does not override exported env vars).
+17. Rector's LARAVEL_130 set rewrites model $fillable/$hidden into #[Fillable]/#[Hidden] attributes — edit the attribute, not a property.

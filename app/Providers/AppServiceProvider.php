@@ -11,7 +11,11 @@ use App\Domain\Identity\Models\Organization;
 use App\Domain\Identity\Models\Role;
 use App\Domain\Identity\Support\OrganizationPermissions;
 use App\Domain\Identity\Tenancy\TenantContext;
+use App\Domain\Submissions\Models\IdempotencyKey;
+use App\Domain\Submissions\Models\NumberSequence;
+use App\Domain\Submissions\Models\SubmissionEvent;
 use App\Policies\GroupPolicy;
+use App\Policies\InternalRecordPolicy;
 use App\Policies\MembershipPolicy;
 use App\Policies\OrganizationPolicy;
 use App\Policies\RolePolicy;
@@ -49,6 +53,10 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Group::class, GroupPolicy::class);
         Gate::policy(Membership::class, MembershipPolicy::class);
         Gate::policy(Role::class, RolePolicy::class);
+        // Other models use auto-discovered App\Policies\{Model}Policy; bookkeeping records share one deny-all policy.
+        Gate::policy(SubmissionEvent::class, InternalRecordPolicy::class);
+        Gate::policy(NumberSequence::class, InternalRecordPolicy::class);
+        Gate::policy(IdempotencyKey::class, InternalRecordPolicy::class);
 
         RateLimiter::for('api', function (Request $request): Limit {
             $user = $request->user();

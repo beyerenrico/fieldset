@@ -14,7 +14,10 @@ return new class extends Migration
             $table->id();
             $table->string('log_name')->nullable()->index();
             $table->text('description');
-            $table->nullableMorphs('subject', 'subject');
+            // String ids: subjects include integer-keyed models and UUID-keyed submissions/attachments.
+            $table->string('subject_type')->nullable();
+            $table->string('subject_id', 36)->nullable();
+            $table->index(['subject_type', 'subject_id'], 'subject');
             $table->string('event')->nullable();
             $table->nullableMorphs('causer', 'causer');
             $table->json('attribute_changes')->nullable();
