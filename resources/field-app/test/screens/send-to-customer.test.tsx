@@ -215,6 +215,19 @@ describe('send to customer', () => {
         expect(sent[1]).toBe(sent[0]);
     });
 
+    it('explains the send limit on 429 too_many_requests', async () => {
+        setup();
+        server.use(
+            http.post('*/api/v1/submissions/:uuid/send', () => fail(429, 'too_many_requests')),
+        );
+        const { user } = renderApp(`/submissions/${UUID}`);
+        const dialog = await openDialog(user);
+        await user.click(within(dialog).getByRole('button', { name: 'Send' }));
+        expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+            'This document was sent too often. Please try again later.',
+        );
+    });
+
     it('shows server validation errors on the fields', async () => {
         setup();
         server.use(

@@ -154,6 +154,8 @@ export const de: Messages = {
         'Der Empfänger hat sich beim Senden geändert. Bitte erneut senden.',
     'sendError.network':
         'Die Verbindung wurde unterbrochen. Möglicherweise wurde der Versand nicht angefordert – erneut senden ist sicher.',
+    'sendError.too_many_requests':
+        'Dieses Dokument wurde zu oft versendet. Bitte später erneut versuchen.',
     'sendError.unknown': 'Das Senden ist fehlgeschlagen. Bitte erneut versuchen.',
     'status.draft': 'Entwurf',
     'status.submitted': 'Eingereicht',

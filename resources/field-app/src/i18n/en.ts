@@ -144,6 +144,7 @@ export const en = {
     'sendError.idempotency_key_reused': 'The recipient changed while sending. Please send again.',
     'sendError.network':
         'The connection was interrupted. The email may not have been requested – sending again is safe.',
+    'sendError.too_many_requests': 'This document was sent too often. Please try again later.',
     'sendError.unknown': 'Sending failed. Please try again.',
     'status.draft': 'Draft',
     'status.submitted': 'Submitted',

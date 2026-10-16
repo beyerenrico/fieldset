@@ -16,6 +16,7 @@ const KNOWN_CODES: readonly string[] = [
     'not_submitted',
     'not_found',
     'idempotency_key_reused',
+    'too_many_requests',
 ];
 
 const FIELD_MESSAGES: Readonly<Record<string, readonly [RecipientField, MessageKey]>> = {
