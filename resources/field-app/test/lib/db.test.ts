@@ -80,3 +80,18 @@ describe('offline store', () => {
         expect(await nextSeq()).toBe(1);
     });
 });
+
+describe('current scope', () => {
+    it('needs both a user and an organization', async () => {
+        const { currentScope, setCurrentUserId } = await import('../../src/lib/db/scope.ts');
+        const { setOrganizationId } = await import('../../src/lib/session/org-store.ts');
+        setCurrentUserId(null);
+        setOrganizationId(3);
+        expect(currentScope()).toBeNull();
+        setCurrentUserId(9);
+        expect(currentScope()).toEqual({ orgId: 3, userId: 9 });
+        setOrganizationId(null);
+        expect(currentScope()).toBeNull();
+        setCurrentUserId(null);
+    });
+});
