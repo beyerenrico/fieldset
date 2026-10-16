@@ -19,3 +19,12 @@ services:
     environment:
       MAIL_HOST: mailpit
       MAIL_PORT: 1025
+  # Mail is queued (M3), so the worker and scheduler need the in-network Mailpit too.
+  queue:
+    environment:
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
+  scheduler:
+    environment:
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025

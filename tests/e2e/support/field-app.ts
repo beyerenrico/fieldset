@@ -30,6 +30,7 @@ export async function fillAndSubmitServiceReport(
   page: Page,
   customer: string,
   snap: Snap = noSnap,
+  customerEmail?: string,
 ): Promise<string> {
   await page.goto('/app/forms');
   await page.getByText('Servicebericht', { exact: true }).first().click();
@@ -37,6 +38,9 @@ export async function fillAndSubmitServiceReport(
 
   // Page 1: customer & job
   await page.getByRole('textbox', { name: /^Kunde/ }).fill(customer);
+  if (customerEmail !== undefined) {
+    await page.getByRole('textbox', { name: /^E-Mail Kunde/ }).fill(customerEmail);
+  }
   await page.getByRole('combobox', { name: /Art des Einsatzes/ }).selectOption('maintenance');
   await page
     .getByRole('textbox', { name: /Durchgeführte Arbeiten/ })
