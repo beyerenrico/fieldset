@@ -22,6 +22,8 @@ use Illuminate\Support\Facades\DB;
 /**
  * Submit (§9.2): server re-validates and recomputes, checks the attachment manifest, assigns the number
  * in the same transaction as the status change (gap-free), projects values and announces the event.
+ * Naturally idempotent: repeating the submit of the revision it consumed (a retry after a lost
+ * response, with or without the same Idempotency-Key) answers with the current submission.
  */
 final readonly class SubmitSubmission
 {
@@ -35,8 +37,11 @@ final readonly class SubmitSubmission
 
     public function handle(User $user, Organization $organization, Submission $submission, int $revision): Submission
     {
-        $submitted = DB::transaction(function () use ($user, $organization, $submission, $revision): Submission {
+        [$submitted, $fresh] = DB::transaction(function () use ($user, $organization, $submission, $revision): array {
             $locked = Submission::query()->whereKey($submission->uuid)->lockForUpdate()->firstOrFail();
+            if (self::alreadySubmitted($user, $locked, $revision)) {
+                return [$locked, false];
+            }
             $this->guard($user, $locked, $revision);
 
             $now = Carbon::now();
@@ -57,12 +62,27 @@ final readonly class SubmitSubmission
             $this->transition->handle($locked, SubmissionStatus::Submitted, $user, null, 'submission.submitted');
             $this->projector->project($locked);
 
-            return $locked;
+            return [$locked, true];
         });
 
-        DB::afterCommit(fn () => event(new SubmissionSubmitted($submitted->uuid, $submitted->organization_id)));
+        if ($fresh) {
+            DB::afterCommit(fn () => event(new SubmissionSubmitted($submitted->uuid, $submitted->organization_id)));
+        }
 
         return $submitted;
+    }
+
+    /**
+     * The submit of `$revision` already happened: this user submitted it, the submit consumed exactly
+     * that revision (it increments it) and the submission has not come back for editing since.
+     */
+    private static function alreadySubmitted(User $user, Submission $submission, int $revision): bool
+    {
+        return $submission->submitted_by === $user->id
+            && $submission->created_by === $user->id
+            && $submission->status !== SubmissionStatus::Draft
+            && ! $submission->status->isEditable()
+            && $revision === $submission->revision - 1;
     }
 
     private function guard(User $user, Submission $submission, int $revision): void

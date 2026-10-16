@@ -20,3 +20,15 @@ Format: question · chosen option · impact · how to reverse.
 8. Builder v1 page weight · the Filament Builder renders every block schema (incl. nested block pickers
    and logic editors); the service-report editor HTML is ~4 MB · acceptable for v1, Builder v2 (M7) is
    the planned replacement · if needed earlier: lazy-load block bodies or collapse nested pickers.
+9. Devices are user-level, so an admin of org A with `members.manage` who revokes a member's device
+   also signs that phone out of org B (M2 security review) · accepted: one device = one install of
+   the Field App, wipe must clear all local data · an org admin can disrupt a shared user's work in
+   another org · scope revocation per org (device × organization) if multi-org field workers matter.
+10. Builder preview iframe is same-origin with `sandbox="allow-scripts allow-same-origin"`, which
+   gives no isolation from the admin page (M2 security review) · accepted for M2: the preview page
+   has a strict CSP (`script-src 'self'`), Markdown has HTML off, images only `data:` · a renderer XSS
+   would run with the designer's admin session · M8 task: serve the preview from an opaque origin
+   (drop `allow-same-origin`, CORS on preview assets, `source`-checked postMessage).
+11. `app:reproject` rebuilds `submission_values` from current data, so a `changes_requested`
+   submission is skipped until resubmitted (ADR 0027) · accepted · reports built during a full rebuild
+   miss those submissions temporarily · keep a snapshot of the last submitted data per submission.

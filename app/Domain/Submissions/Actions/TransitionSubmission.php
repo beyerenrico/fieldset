@@ -9,15 +9,17 @@ use App\Domain\Identity\Models\User;
 use App\Domain\Submissions\Enums\SubmissionStatus;
 use App\Domain\Submissions\Models\Submission;
 use App\Domain\Submissions\Models\SubmissionEvent;
+use App\Domain\Submissions\Projection\SubmissionValueProjector;
 use App\Http\Api\ApiException;
 
 /**
  * The only way to change a submission's status (§6.5): validates the transition, writes one
- * submission_events row and one audit entry. Callers wrap it in their transaction.
+ * submission_events row and one audit entry, and keeps `submission_values.status` in sync. Callers
+ * wrap it in their transaction.
  */
 final readonly class TransitionSubmission
 {
-    public function __construct(private AuditLogger $audit) {}
+    public function __construct(private AuditLogger $audit, private SubmissionValueProjector $projector) {}
 
     public function handle(Submission $submission, SubmissionStatus $to, ?User $actor, ?string $comment = null, string $event = 'submission.status_changed'): Submission
     {
@@ -28,6 +30,7 @@ final readonly class TransitionSubmission
 
         $submission->status = $to;
         $submission->save();
+        $this->projector->syncStatus($submission);
 
         SubmissionEvent::query()->create([
             'submission_uuid' => $submission->uuid,

@@ -18,6 +18,6 @@ class IdempotencyKeyFactory extends Factory
 
     public function definition(): array
     {
-        return ['user_id' => User::factory(), 'key' => (string) Str::uuid(), 'request_hash' => str_repeat('0', 64), 'status_code' => 200, 'response' => (object) []];
+        return ['user_id' => User::factory(), 'key' => (string) Str::uuid(), 'request_hash' => str_repeat('0', 64), 'status_code' => 200, 'response' => '{}'];
     }
 }

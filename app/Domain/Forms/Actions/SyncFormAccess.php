@@ -12,7 +12,10 @@ use App\Domain\Identity\Models\Role;
 use App\Domain\Identity\Models\User;
 use Illuminate\Support\Facades\DB;
 
-/** Replaces who may fill a form in the Field App: groups and roles of the same organization. */
+/**
+ * Replaces who may fill a form in the Field App: groups and roles of the same organization. A changed
+ * grant touches the form so incremental sync manifests (`since`) list it again.
+ */
 final readonly class SyncFormAccess
 {
     public function __construct(private AuditLogger $audit) {}
@@ -30,7 +33,9 @@ final readonly class SyncFormAccess
         sort($roles);
         $before = $this->current($form);
 
-        DB::transaction(function () use ($form, $groups, $roles): void {
+        $after = ['groups' => $groups, 'roles' => $roles];
+
+        DB::transaction(function () use ($form, $groups, $roles, $before, $after): void {
             FormAccess::query()->where('form_id', $form->id)->delete();
             foreach ($groups as $groupId) {
                 FormAccess::query()->create(['form_id' => $form->id, 'group_id' => $groupId]);
@@ -38,9 +43,11 @@ final readonly class SyncFormAccess
             foreach ($roles as $role) {
                 FormAccess::query()->create(['form_id' => $form->id, 'role_name' => $role]);
             }
+            if ($before !== $after) {
+                Form::query()->whereKey($form->id)->update(['updated_at' => now()]);
+            }
         });
 
-        $after = ['groups' => $groups, 'roles' => $roles];
         if ($before !== $after) {
             $this->audit->record('form.access_changed', $form, ['before' => $before, 'after' => $after], $actor);
         }

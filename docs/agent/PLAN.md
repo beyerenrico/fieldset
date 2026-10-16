@@ -88,4 +88,4 @@ AC refs point at BUILD_PROMPT sections. Test approach in brackets.
 - OIDC per org (Socialite), domain verification (DNS TXT, fake resolver), home-realm discovery, JIT + claim mapping, enforce SSO + break-glass; Keycloak in CI; SAML (socialiteproviders/saml2); Builder v2 page (palette/canvas/inspector, SortableJS, keyboard moves, undo/redo).
 
 ## M8 Hardening → 1.0 — break down at M7 gate
-- Audit log UI + CSV + retention pruning (+ optional hash chain); GDPR (per-form retention, legal hold, user export/erasure); accessibility audit; load tests (100k submissions); security review; CSP/HSTS; docs site, install + upgrade + backup guides; web push (if feasible); `/platform` operator panel; FINAL_REPORT.
+- Audit log UI + CSV + retention pruning (+ optional hash chain); GDPR (per-form retention, legal hold, user export/erasure); accessibility audit; load tests (100k submissions); security review; CSP/HSTS; builder preview on an opaque origin (QUESTIONS #10); docs site, install + upgrade + backup guides; web push (if feasible); `/platform` operator panel; FINAL_REPORT.

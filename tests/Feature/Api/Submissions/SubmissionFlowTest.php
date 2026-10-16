@@ -151,12 +151,15 @@ it('locks drafts after submit and lets only the creator edit', function (): void
 
     putDraft($uuid, ['customer_name' => 'changed'], 2)->assertStatus(409)->assertJsonPath('error.code', 'not_editable');
 
+    // Another worker who cannot see the draft gets 404 (no existence oracle); a visible draft that is
+    // not their own gets 403 (DraftSafetyTest).
     $other = memberOf($this->s->org, SystemRole::FieldWorker);
     $draft = FieldAppScenario::uuid();
     putDraft($draft, ['customer_name' => 'mine']);
     $this->withHeaders(apiHeaders($other, $this->s->org))
         ->putJson("/api/v1/submissions/{$draft}", ['form_version_id' => $this->s->version->id, 'data' => ['customer_name' => 'x'], 'revision' => 1])
-        ->assertForbidden();
+        ->assertNotFound();
+    expect(DB::table('submissions')->where('uuid', $draft)->value('revision'))->toBe(1);
 });
 
 it('writes a status event and audit entry per transition', function (): void {

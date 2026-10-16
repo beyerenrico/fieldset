@@ -1,22 +1,26 @@
-# State: 2026-10-16T19:00Z
-Milestone: M2 Field App online · Tasks in flight: M2-T12..T14 (subagent: renderer + Field App), M2-T16 (subagent: PDF import)
-Status: backend API done (M2-T01..T10): submissions/attachments/numbering/devices/access/visibility,
-projector, sync manifest, SPA + preview serving routes, builder preview tab. Contract:
-docs/api/field-app-v1.md. Two subagents are running; they commit nothing themselves.
+# State: 2026-10-16T21:00Z
+Milestone: M2 Field App online · Tasks in flight: M2-T18 gate (review fixes)
+Status: all M2 features committed (API, PDF import, Scramble, renderer, Field App, preview, E2E journeys).
+Gate checks run once: PHP 2986 tests, coverage 94.65 % (SDK 99.69, Schema/Tenancy 100), PHPStan 0/0,
+JS 606 + 93 + 122 tests, conformance 391, E2E 9/9. Three reviews done (security, backend correctness,
+frontend pending at time of writing). Device-session revocation fixed (0925fa3). A subagent fixes the
+remaining backend findings (idempotency, numbering, draft retries, attachments, manifest, reprojection)
+on DB form_schema_test_b and leaves changes uncommitted.
 Branch: m2-field-app · Last commit: see `git log -1`
 
 ## Next actions
-1. When the frontend subagent reports: review, run `npm run build`, check /app and /form-preview in the
-   Docker stack, commit packages/form-schema-react + resources/field-app.
-2. When the PDF subagent reports: review, run its tests (DB form_schema_test_b), commit.
-3. Then (no agents running): `composer require dedoc/scramble` (M2-T11, OpenAPI at /docs/api, gated).
-4. Playwright journeys 2 (with preview) and 8 (PDF import) + a mobile Field App journey; M2 gate.
+1. Review + commit the backend fix batch (stage explicit paths only); fix frontend review findings.
+2. Re-run gate: `./scripts/coverage.sh`, both PHPStan configs, `npm run typecheck lint test build`,
+   `npm run conformance`, rebuild Docker, `migrate:fresh --seed` + `cache:clear`, `npm run e2e`.
+3. Write docs/agent/milestones/M2.md, tick M2-T12..T15, T17, T18, JOURNAL; merge --no-ff to main, tag
+   m2-done; branch m3-documents; start M3 (PLAN M3-T01..T12).
 
 ## Known problems
 - Builder page is heavy (~4 MB HTML for the service report) — QUESTIONS #8.
-- Dev DB `form_schema` was wiped by a migrate:fresh during M2: re-run `docker compose exec app php artisan db:seed --force` before E2E.
+- Preview iframe same-origin (QUESTIONS #10, M8 task).
+- E2E: Filament login throttle per IP — clear the cache between quick re-runs (LEARNINGS #25).
 
 ## Resume commands
-docker compose up -d postgres redis gotenberg mailpit
-DB_DATABASE=form_schema_test_c php artisan test --compact   # while agents use the other test DBs
+docker compose up -d postgres redis gotenberg mailpit app queue scheduler
+DB_DATABASE=form_schema_test_c php artisan test --compact
 npm run conformance

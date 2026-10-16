@@ -13,6 +13,10 @@ use stdClass;
  * Projects submitted values into `submission_values` (BUILD_PROMPT §8.4) so reports, filters and
  * aggregates never parse jsonb ad hoc. Repeater values are projected per row with their JSON Pointer
  * path and a dotted key (`items.qty`). Drafts are not projected.
+ *
+ * The read model reflects the last *submitted* data. While a submission is `changes_requested` its
+ * data may hold unsubmitted edits, so projecting it only syncs the status of the existing rows; the
+ * values are re-projected on resubmit. Status transitions keep the status column in sync (syncStatus).
  */
 final class SubmissionValueProjector
 {
@@ -22,6 +26,12 @@ final class SubmissionValueProjector
 
     public function project(Submission $submission): void
     {
+        if ($submission->status === SubmissionStatus::ChangesRequested) {
+            $this->syncStatus($submission);
+
+            return;
+        }
+
         DB::table('submission_values')->where('submission_uuid', $submission->uuid)->delete();
         if ($submission->status === SubmissionStatus::Draft) {
             return;
@@ -43,6 +53,13 @@ final class SubmissionValueProjector
         foreach (array_chunk($rows, 500) as $chunk) {
             DB::table('submission_values')->insert(array_map(fn (array $row): array => $base + $row, $chunk));
         }
+    }
+
+    /** Updates the status column of the projected rows (status transitions without new data). */
+    public function syncStatus(Submission $submission): void
+    {
+        DB::table('submission_values')->where('submission_uuid', $submission->uuid)
+            ->update(['status' => $submission->status->value]);
     }
 
     /**

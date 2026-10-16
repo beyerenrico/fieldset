@@ -9,7 +9,8 @@ use finfo;
 
 /**
  * Upload validation (BUILD_PROMPT §11): content sniffing (never the client header), a per-kind MIME
- * allow-list, size limits, and image re-encoding with GD (drops EXIF and any embedded payload).
+ * allow-list, size limits, dimension limits, and image re-encoding with GD (drops EXIF and any
+ * embedded payload).
  */
 final class UploadInspector
 {
@@ -70,6 +71,7 @@ final class UploadInspector
 
     private function reencode(string $bytes, string $mime): string
     {
+        self::guardDimensions($bytes);
         $image = @imagecreatefromstring($bytes);
         if ($image === false) {
             throw new ApiException('file_type_not_allowed', __('submissions.errors.file_type_not_allowed'), 422);
@@ -88,5 +90,20 @@ final class UploadInspector
         imagedestroy($image);
 
         return $out;
+    }
+
+    /** Decompression bombs: header dimensions are checked before GD allocates the pixel buffer. */
+    private static function guardDimensions(string $bytes): void
+    {
+        $size = @getimagesizefromstring($bytes);
+        if ($size === false) {
+            throw new ApiException('file_type_not_allowed', __('submissions.errors.file_type_not_allowed'), 422);
+        }
+
+        [$width, $height] = $size;
+        $maxSide = (int) config('submissions.image_max_side', 12_000);
+        if ($width > $maxSide || $height > $maxSide || $width * $height > (int) config('submissions.image_max_pixels', 40_000_000)) {
+            throw new ApiException('image_too_large', __('submissions.errors.image_too_large'), 422, ['width' => $width, 'height' => $height]);
+        }
     }
 }

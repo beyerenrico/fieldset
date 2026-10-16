@@ -49,11 +49,13 @@ final class AttachmentController
         $record = Attachment::query()->where('submission_uuid', $submission->uuid)->whereKey(strtolower($attachment))->first()
             ?? throw new ApiException('not_found', __('api.not_found'), 404);
 
+        // Images may render inline; everything else downloads. The CSP sandboxes a file opened directly.
         return Storage::disk($record->disk)->response($record->path, $record->original_name ?? basename($record->path), [
             'Content-Type' => $record->mime,
             'X-Content-Type-Options' => 'nosniff',
+            'Content-Security-Policy' => "default-src 'none'; sandbox",
             'Cache-Control' => 'private, max-age=0',
-        ]);
+        ], str_starts_with($record->mime, 'image/') ? 'inline' : 'attachment');
     }
 
     private function submission(Request $request, string $uuid): Submission
