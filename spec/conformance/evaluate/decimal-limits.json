@@ -1,0 +1,87 @@
+{
+  "description": "number and money values have at most 60 digits (spec §5.1)",
+  "definition": {
+    "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+    "specVersion": "1.0.0",
+    "key": "decimal_limits",
+    "title": "Decimal Limits",
+    "locale": "de-DE",
+    "pages": [
+      {
+        "key": "p",
+        "title": "P",
+        "elements": [
+          {
+            "type": "number",
+            "key": "n",
+            "label": "N",
+            "id": "00000000-0000-4000-8000-000000000001"
+          },
+          {
+            "type": "money",
+            "key": "m",
+            "label": "M",
+            "currency": "EUR",
+            "id": "00000000-0000-4000-8000-000000000002"
+          }
+        ]
+      }
+    ]
+  },
+  "context": {
+    "today": "2026-10-16",
+    "now": "2026-10-16T09:41:00+02:00",
+    "user": {
+      "name": "Willi Worker",
+      "email": "worker@demo.test"
+    },
+    "org": {
+      "name": "Demo GmbH"
+    },
+    "formVersion": 3
+  },
+  "tests": [
+    {
+      "description": "60 digits are valid",
+      "data": {
+        "n": "100000000000000000000000000000000000000000000000000000000000",
+        "m": "1000000000000000000000000000000000000000000000000000000000.00"
+      },
+      "expected": {
+        "errors": [],
+        "data": {
+          "n": "100000000000000000000000000000000000000000000000000000000000",
+          "m": "1000000000000000000000000000000000000000000000000000000000.00"
+        }
+      }
+    },
+    {
+      "description": "61 digits are invalid_number",
+      "data": {
+        "n": "1000000000000000000000000000000000000000000000000000000000000"
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/n",
+            "code": "invalid_number"
+          }
+        ]
+      }
+    },
+    {
+      "description": "money normalization may not push a value over the limit",
+      "data": {
+        "m": "100000000000000000000000000000000000000000000000000000000000"
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/m",
+            "code": "invalid_number"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -14,7 +14,7 @@
   "properties": {
     "$schema": {
       "type": "string",
-      "format": "uri"
+      "pattern": "^[A-Za-z][A-Za-z0-9+.-]*:[^\\s]+$"
     },
     "specVersion": {
       "type": "string",
@@ -133,7 +133,7 @@
       "properties": {
         "registry": {
           "type": "string",
-          "format": "uri"
+          "pattern": "^[A-Za-z][A-Za-z0-9+.-]*:[^\\s]+$"
         },
         "template": {
           "$ref": "#/$defs/key"
@@ -1074,7 +1074,7 @@
             "properties": {
               "src": {
                 "type": "string",
-                "pattern": "^(data:image/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+|asset:[0-9a-fA-F-]{36})$"
+                "pattern": "^(data:image/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+|asset:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$"
               },
               "alt": {
                 "type": "string"

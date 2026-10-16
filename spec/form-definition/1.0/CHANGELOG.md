@@ -9,3 +9,8 @@
   errors, repeater `minItems` on empty lists, rating/attachment/signature/location/hidden checks,
   JS `Number()` and `==` array rules, variadic `min`/`max`, operator error handling, lint path and
   reference rules, data-contract `time` pattern.
+- Hardened (M1 review, before release): restricted ECMAScript pattern subset with fixed semantics and
+  no nested quantifiers (§3.4), 4,096-code-point pattern subject limit, 60-digit decimal limit,
+  512-level nesting limit and `logic_too_deep`, calculation order (topological, document order for
+  ties), 254-code-point email limit, finite location numbers, explicit check order, meta-schema URI
+  pattern instead of `format: uri`, strict asset UUIDs.

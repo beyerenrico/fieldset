@@ -1,0 +1,358 @@
+{
+  "description": "Datetime bounds compare instants, time bounds mix HH:MM/HH:MM:SS, offset/leap-second validation (spec \u00a73.3, \u00a75.6); both SDKs pass \u2014 coverage only",
+  "definition": {
+    "specVersion": "1.0.0",
+    "key": "b_dates",
+    "title": "B",
+    "locale": "de-DE",
+    "pages": [
+      {
+        "key": "p",
+        "title": "P",
+        "elements": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "type": "date",
+            "key": "d",
+            "label": "d"
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "type": "time",
+            "key": "t",
+            "label": "t"
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000003",
+            "type": "datetime",
+            "key": "dt",
+            "label": "dt"
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000004",
+            "type": "date",
+            "key": "dmin",
+            "label": "dmin",
+            "validation": {
+              "min": "2026-01-01",
+              "max": "2026-12-31"
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000005",
+            "type": "datetime",
+            "key": "dtmin",
+            "label": "dtmin",
+            "validation": {
+              "min": "2026-10-16T10:00:00+02:00",
+              "max": "2026-10-16T12:00:00Z"
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000006",
+            "type": "time",
+            "key": "tmin",
+            "label": "tmin",
+            "validation": {
+              "min": "08:00",
+              "max": "17:30:30"
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000007",
+            "type": "date",
+            "key": "dbad",
+            "label": "dbad",
+            "validation": {
+              "min": "2026-13-01",
+              "max": 20261231
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000008",
+            "type": "time",
+            "key": "tbad",
+            "label": "tbad",
+            "validation": {
+              "min": "8:00",
+              "max": "24:00"
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000009",
+            "type": "datetime",
+            "key": "dtbad",
+            "label": "dtbad",
+            "validation": {
+              "min": "2026-10-16",
+              "max": "2026-10-16T12:00:00"
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000010",
+            "type": "date",
+            "key": "dd",
+            "label": "dd",
+            "default": {
+              "date.add": [
+                {
+                  "var": "$today"
+                },
+                1,
+                "months"
+              ]
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000011",
+            "type": "datetime",
+            "key": "dtd",
+            "label": "dtd",
+            "default": {
+              "var": "$now"
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000012",
+            "type": "calculated",
+            "key": "age",
+            "label": "age",
+            "expression": {
+              "date.diff": [
+                {
+                  "var": "d"
+                },
+                {
+                  "var": "$today"
+                },
+                "years"
+              ]
+            },
+            "format": "number",
+            "scale": 0
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000013",
+            "type": "calculated",
+            "key": "hrs",
+            "label": "hrs",
+            "expression": {
+              "date.diff": [
+                {
+                  "var": "dt"
+                },
+                {
+                  "var": "$now"
+                },
+                "hours"
+              ]
+            },
+            "format": "number",
+            "scale": 0
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000014",
+            "type": "text",
+            "key": "vis",
+            "label": "vis",
+            "visibleIf": {
+              "<": [
+                {
+                  "var": "d"
+                },
+                {
+                  "var": "$today"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "context": {
+    "today": "2026-10-16",
+    "now": "2026-10-16T09:41:00+02:00",
+    "user": {
+      "name": "Willi Worker",
+      "email": "worker@demo.test"
+    },
+    "org": {
+      "name": "Demo GmbH"
+    },
+    "formVersion": 3
+  },
+  "tests": [
+    {
+      "description": "date 1900-02-29",
+      "data": {
+        "d": "1900-02-29"
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/d",
+            "code": "invalid_date"
+          }
+        ]
+      }
+    },
+    {
+      "description": "date 0000-02-29",
+      "data": {
+        "d": "0000-02-29"
+      },
+      "expected": {
+        "errors": []
+      }
+    },
+    {
+      "description": "datetime 2026-10-16T23:59:60Z",
+      "data": {
+        "dt": "2026-10-16T23:59:60Z"
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/dt",
+            "code": "invalid_datetime"
+          }
+        ]
+      }
+    },
+    {
+      "description": "datetime 2026-10-16T09:41:00-00:00",
+      "data": {
+        "dt": "2026-10-16T09:41:00-00:00"
+      },
+      "expected": {
+        "errors": []
+      }
+    },
+    {
+      "description": "datetime 2026-10-16T09:41:00+24:00",
+      "data": {
+        "dt": "2026-10-16T09:41:00+24:00"
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/dt",
+            "code": "invalid_datetime"
+          }
+        ]
+      }
+    },
+    {
+      "description": "datetime 2026-10-16T09:41:00.Z",
+      "data": {
+        "dt": "2026-10-16T09:41:00.Z"
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/dt",
+            "code": "invalid_datetime"
+          }
+        ]
+      }
+    },
+    {
+      "description": "dt bounds instant equal min other offset",
+      "data": {
+        "dtmin": "2026-10-16T08:00:00Z"
+      },
+      "expected": {
+        "errors": []
+      }
+    },
+    {
+      "description": "dt bounds below min",
+      "data": {
+        "dtmin": "2026-10-16T07:59:59.999Z"
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/dtmin",
+            "code": "min"
+          }
+        ]
+      }
+    },
+    {
+      "description": "dt bounds string-greater but instant-less",
+      "data": {
+        "dtmin": "2026-10-16T11:00:00+04:00"
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/dtmin",
+            "code": "min"
+          }
+        ]
+      }
+    },
+    {
+      "description": "dt bounds max instant eq",
+      "data": {
+        "dtmin": "2026-10-16T14:00:00+02:00"
+      },
+      "expected": {
+        "errors": []
+      }
+    },
+    {
+      "description": "dt bounds max frac",
+      "data": {
+        "dtmin": "2026-10-16T12:00:00.001Z"
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/dtmin",
+            "code": "max"
+          }
+        ]
+      }
+    },
+    {
+      "description": "time bounds",
+      "data": {
+        "tmin": "07:59:59"
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/tmin",
+            "code": "min"
+          }
+        ]
+      }
+    },
+    {
+      "description": "time bounds max ss",
+      "data": {
+        "tmin": "17:30:30"
+      },
+      "expected": {
+        "errors": []
+      }
+    },
+    {
+      "description": "time bounds max ss2",
+      "data": {
+        "tmin": "17:30:31"
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/tmin",
+            "code": "max"
+          }
+        ]
+      }
+    }
+  ]
+}

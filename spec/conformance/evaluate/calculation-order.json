@@ -1,0 +1,310 @@
+{
+  "description": "Calculation order between statically unrelated calculated elements must be identical across implementations (spec \u00a75.4/\u00a75.5; definition is lint-clean). Expected assumes order = depth-first, dependencies first, document order (PHP); README must pin this down",
+  "definition": {
+    "specVersion": "1.0.0",
+    "key": "probe",
+    "title": "Probe",
+    "locale": "de-DE",
+    "pages": [
+      {
+        "key": "main",
+        "title": "Main",
+        "elements": [
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "type": "calculated",
+            "key": "p1",
+            "label": "p1",
+            "format": "text",
+            "expression": {
+              "cat": [
+                {
+                  "var": "a1"
+                },
+                "p"
+              ]
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000003",
+            "type": "calculated",
+            "key": "z1",
+            "label": "z1",
+            "format": "text",
+            "expression": {
+              "cat": [
+                {
+                  "map": [
+                    [
+                      {
+                        "var": ""
+                      }
+                    ],
+                    {
+                      "var": "p1"
+                    }
+                  ]
+                },
+                "z"
+              ]
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000004",
+            "type": "calculated",
+            "key": "a1",
+            "label": "a1",
+            "format": "text",
+            "expression": {
+              "cat": [
+                "",
+                "a"
+              ]
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000005",
+            "type": "calculated",
+            "key": "p2",
+            "label": "p2",
+            "format": "text",
+            "expression": {
+              "cat": [
+                {
+                  "var": "a2"
+                },
+                "p"
+              ]
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000006",
+            "type": "calculated",
+            "key": "z2",
+            "label": "z2",
+            "format": "text",
+            "expression": {
+              "cat": [
+                {
+                  "map": [
+                    [
+                      {
+                        "var": ""
+                      }
+                    ],
+                    {
+                      "var": "p2"
+                    }
+                  ]
+                },
+                "z"
+              ]
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000007",
+            "type": "calculated",
+            "key": "a2",
+            "label": "a2",
+            "format": "text",
+            "expression": {
+              "cat": [
+                {
+                  "var": "z1"
+                },
+                "a"
+              ]
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000008",
+            "type": "calculated",
+            "key": "p3",
+            "label": "p3",
+            "format": "text",
+            "expression": {
+              "cat": [
+                {
+                  "var": "a3"
+                },
+                "p"
+              ]
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000009",
+            "type": "calculated",
+            "key": "z3",
+            "label": "z3",
+            "format": "text",
+            "expression": {
+              "cat": [
+                {
+                  "map": [
+                    [
+                      {
+                        "var": ""
+                      }
+                    ],
+                    {
+                      "var": "p3"
+                    }
+                  ]
+                },
+                "z"
+              ]
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000010",
+            "type": "calculated",
+            "key": "a3",
+            "label": "a3",
+            "format": "text",
+            "expression": {
+              "cat": [
+                {
+                  "var": "z2"
+                },
+                "a"
+              ]
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000011",
+            "type": "calculated",
+            "key": "p4",
+            "label": "p4",
+            "format": "text",
+            "expression": {
+              "cat": [
+                {
+                  "var": "a4"
+                },
+                "p"
+              ]
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000012",
+            "type": "calculated",
+            "key": "z4",
+            "label": "z4",
+            "format": "text",
+            "expression": {
+              "cat": [
+                {
+                  "map": [
+                    [
+                      {
+                        "var": ""
+                      }
+                    ],
+                    {
+                      "var": "p4"
+                    }
+                  ]
+                },
+                "z"
+              ]
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000013",
+            "type": "calculated",
+            "key": "a4",
+            "label": "a4",
+            "format": "text",
+            "expression": {
+              "cat": [
+                {
+                  "var": "z3"
+                },
+                "a"
+              ]
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000014",
+            "type": "calculated",
+            "key": "p5",
+            "label": "p5",
+            "format": "text",
+            "expression": {
+              "cat": [
+                {
+                  "var": "a5"
+                },
+                "p"
+              ]
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000015",
+            "type": "calculated",
+            "key": "z5",
+            "label": "z5",
+            "format": "text",
+            "expression": {
+              "cat": [
+                {
+                  "map": [
+                    [
+                      {
+                        "var": ""
+                      }
+                    ],
+                    {
+                      "var": "p5"
+                    }
+                  ]
+                },
+                "z"
+              ]
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000016",
+            "type": "calculated",
+            "key": "a5",
+            "label": "a5",
+            "format": "text",
+            "expression": {
+              "cat": [
+                {
+                  "var": "z4"
+                },
+                "a"
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "context": {
+    "today": "2026-10-16",
+    "now": "2026-10-16T09:41:00+02:00",
+    "user": {
+      "name": "Willi Worker",
+      "email": "worker@demo.test"
+    },
+    "org": {
+      "name": "Demo GmbH"
+    },
+    "formVersion": 3
+  },
+  "tests": [
+    {
+      "description": "5 blocks p_k -> a_k (static), z_k reads p_k through a map body (not a static dependency), a_{k+1} -> z_k (static). Dependency-first DFS in document order needs 1 round; min-index-ready ordering needs 6 > 5 rounds",
+      "data": {},
+      "expected": {
+        "errors": [],
+        "calculated": {
+          "/z1": "apz",
+          "/z5": "apzapzapzapzapz"
+        }
+      }
+    }
+  ]
+}

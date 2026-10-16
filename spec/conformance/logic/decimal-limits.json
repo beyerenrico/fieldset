@@ -1,0 +1,110 @@
+{
+  "description": "Decimal operands are limited to 60 digits (spec §5.1, §5.3)",
+  "tests": [
+    {
+      "description": "60-digit operand is exact",
+      "logic": {
+        "dec.add": [
+          "100000000000000000000000000000000000000000000000000000000000",
+          "1"
+        ]
+      },
+      "data": {},
+      "expected": "100000000000000000000000000000000000000000000000000000000001"
+    },
+    {
+      "description": "61-digit operand counts as null",
+      "logic": {
+        "dec.add": [
+          "1000000000000000000000000000000000000000000000000000000000000",
+          "1"
+        ]
+      },
+      "data": {},
+      "expected": null
+    },
+    {
+      "description": "60 digits split across integer and fraction",
+      "logic": {
+        "dec.add": [
+          "100000000000000000000000000000.000000000000000000000000000001",
+          "0"
+        ]
+      },
+      "data": {},
+      "expected": "100000000000000000000000000000.000000000000000000000000000001"
+    },
+    {
+      "description": "intermediate result over 60 digits counts as null in the next operator",
+      "logic": {
+        "dec.add": [
+          {
+            "dec.mul": [
+              "9999999999999999999999999999999999999999",
+              "9999999999999999999999999999999999999999"
+            ]
+          },
+          "1"
+        ]
+      },
+      "data": {},
+      "expected": null
+    },
+    {
+      "description": "multiplication result itself may exceed 60 digits",
+      "logic": {
+        "dec.mul": [
+          "9999999999999999999999999999999999999999",
+          "10"
+        ]
+      },
+      "data": {},
+      "expected": "99999999999999999999999999999999999999990"
+    },
+    {
+      "description": "sum skips over-long items",
+      "logic": {
+        "sum": [
+          {
+            "var": "rows"
+          },
+          "v"
+        ]
+      },
+      "data": {
+        "rows": [
+          {
+            "v": "1000000000000000000000000000000000000000000000000000000000000"
+          },
+          {
+            "v": "1.5"
+          }
+        ]
+      },
+      "expected": "1.5"
+    },
+    {
+      "description": "comparison with an over-long operand is false",
+      "logic": {
+        "dec.gt": [
+          "1000000000000000000000000000000000000000000000000000000000000",
+          "1"
+        ]
+      },
+      "data": {},
+      "expected": false
+    },
+    {
+      "description": "division with an over-long operand is null",
+      "logic": {
+        "dec.div": [
+          "1000000000000000000000000000000000000000000000000000000000000",
+          "3",
+          2
+        ]
+      },
+      "data": {},
+      "expected": null
+    }
+  ]
+}

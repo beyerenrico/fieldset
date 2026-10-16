@@ -1,0 +1,62 @@
+{
+  "description": "location accuracy beyond double range (spec \u00a73.2 'accuracy: number \u2265 0'); PHP decodes 1e400 to INF and accepts it",
+  "context": {
+    "today": "2026-10-16",
+    "now": "2026-10-16T09:41:00+02:00",
+    "user": {
+      "name": "Willi Worker",
+      "email": "worker@demo.test"
+    },
+    "org": {
+      "name": "Demo GmbH"
+    },
+    "formVersion": 3
+  },
+  "definition": {
+    "specVersion": "1.0.0",
+    "key": "b_loc",
+    "title": "B",
+    "locale": "de-DE",
+    "pages": [
+      {
+        "key": "p",
+        "title": "P",
+        "elements": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "type": "location",
+            "key": "loc",
+            "label": "Loc"
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "type": "signature",
+            "key": "sig",
+            "label": "Sig"
+          }
+        ]
+      }
+    ]
+  },
+  "tests": [
+    {
+      "description": "accuracy 1e400 (not a finite double) is invalid_location",
+      "data": {
+        "loc": {
+          "lat": 1,
+          "lng": 2,
+          "accuracy": 1e400,
+          "capturedAt": "2026-10-16T09:41:00Z"
+        }
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/loc",
+            "code": "invalid_location"
+          }
+        ]
+      }
+    }
+  ]
+}

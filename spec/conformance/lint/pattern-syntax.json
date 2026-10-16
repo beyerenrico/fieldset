@@ -1,0 +1,1451 @@
+{
+  "description": "invalid_pattern follows the restricted ECMAScript subset (spec §3.4)",
+  "tests": [
+    {
+      "description": "inline flags (?i) is invalid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "(?i)abc"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "invalid_pattern",
+          "path": "/pages/0/elements/0/validation/pattern"
+        }
+      ]
+    },
+    {
+      "description": "comment group is invalid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "(?#c)a"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "invalid_pattern",
+          "path": "/pages/0/elements/0/validation/pattern"
+        }
+      ]
+    },
+    {
+      "description": "atomic group is invalid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "(?>a)b"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "invalid_pattern",
+          "path": "/pages/0/elements/0/validation/pattern"
+        }
+      ]
+    },
+    {
+      "description": "possessive ++ is invalid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "a++"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "invalid_pattern",
+          "path": "/pages/0/elements/0/validation/pattern"
+        }
+      ]
+    },
+    {
+      "description": "possessive *+ is invalid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "a*+"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "invalid_pattern",
+          "path": "/pages/0/elements/0/validation/pattern"
+        }
+      ]
+    },
+    {
+      "description": "possessive ?+ is invalid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "a?+"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "invalid_pattern",
+          "path": "/pages/0/elements/0/validation/pattern"
+        }
+      ]
+    },
+    {
+      "description": "python named group is invalid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "(?P<n>a)"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "invalid_pattern",
+          "path": "/pages/0/elements/0/validation/pattern"
+        }
+      ]
+    },
+    {
+      "description": "branch reset is invalid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "(?|a|b)"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "invalid_pattern",
+          "path": "/pages/0/elements/0/validation/pattern"
+        }
+      ]
+    },
+    {
+      "description": "subroutine call is invalid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "(a)(?1)"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "invalid_pattern",
+          "path": "/pages/0/elements/0/validation/pattern"
+        }
+      ]
+    },
+    {
+      "description": "PCRE verb is invalid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "(*UTF)a"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "invalid_pattern",
+          "path": "/pages/0/elements/0/validation/pattern"
+        }
+      ]
+    },
+    {
+      "description": "named group is invalid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "(?<n>a)"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "invalid_pattern",
+          "path": "/pages/0/elements/0/validation/pattern"
+        }
+      ]
+    },
+    {
+      "description": "lookbehind is invalid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "(?<=a)b"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "invalid_pattern",
+          "path": "/pages/0/elements/0/validation/pattern"
+        }
+      ]
+    },
+    {
+      "description": "negative lookbehind is invalid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "(?<!a)b"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "invalid_pattern",
+          "path": "/pages/0/elements/0/validation/pattern"
+        }
+      ]
+    },
+    {
+      "description": "backreference \\1 is invalid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "(a)\\1"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "invalid_pattern",
+          "path": "/pages/0/elements/0/validation/pattern"
+        }
+      ]
+    },
+    {
+      "description": "named backreference is invalid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "\\k<n>"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "invalid_pattern",
+          "path": "/pages/0/elements/0/validation/pattern"
+        }
+      ]
+    },
+    {
+      "description": "unicode property escape is invalid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "\\p{L}"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "invalid_pattern",
+          "path": "/pages/0/elements/0/validation/pattern"
+        }
+      ]
+    },
+    {
+      "description": "quantifier bound above 1000 is invalid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "a{1001}"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "invalid_pattern",
+          "path": "/pages/0/elements/0/validation/pattern"
+        }
+      ]
+    },
+    {
+      "description": "range above 1000 is invalid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "a{2,1001}"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "invalid_pattern",
+          "path": "/pages/0/elements/0/validation/pattern"
+        }
+      ]
+    },
+    {
+      "description": "reversed range is invalid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "a{3,2}"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "invalid_pattern",
+          "path": "/pages/0/elements/0/validation/pattern"
+        }
+      ]
+    },
+    {
+      "description": "nested quantifier (a+)+ is invalid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "(a+)+"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "invalid_pattern",
+          "path": "/pages/0/elements/0/validation/pattern"
+        }
+      ]
+    },
+    {
+      "description": "quantified alternation (a|b)* is invalid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "(a|b)*"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "invalid_pattern",
+          "path": "/pages/0/elements/0/validation/pattern"
+        }
+      ]
+    },
+    {
+      "description": "repeated group with inner quantifier is invalid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "(\\d{3}-){2}"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "invalid_pattern",
+          "path": "/pages/0/elements/0/validation/pattern"
+        }
+      ]
+    },
+    {
+      "description": "\\b inside a class is invalid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "[\\b]"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "invalid_pattern",
+          "path": "/pages/0/elements/0/validation/pattern"
+        }
+      ]
+    },
+    {
+      "description": "control escape \\cA is invalid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "\\cA"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "invalid_pattern",
+          "path": "/pages/0/elements/0/validation/pattern"
+        }
+      ]
+    },
+    {
+      "description": "identity escape of a letter is invalid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "\\q"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "invalid_pattern",
+          "path": "/pages/0/elements/0/validation/pattern"
+        }
+      ]
+    },
+    {
+      "description": "unterminated class is invalid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "[a-z"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "invalid_pattern",
+          "path": "/pages/0/elements/0/validation/pattern"
+        }
+      ]
+    },
+    {
+      "description": "lone quantifier is invalid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "*a"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "invalid_pattern",
+          "path": "/pages/0/elements/0/validation/pattern"
+        }
+      ]
+    },
+    {
+      "description": "unbalanced group is invalid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "(ab"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "invalid_pattern",
+          "path": "/pages/0/elements/0/validation/pattern"
+        }
+      ]
+    },
+    {
+      "description": "POSIX class is invalid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "[[:alpha:]]"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "invalid_pattern",
+          "path": "/pages/0/elements/0/validation/pattern"
+        }
+      ]
+    },
+    {
+      "description": "empty quantifier lower bound is invalid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "a{,3}"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "invalid_pattern",
+          "path": "/pages/0/elements/0/validation/pattern"
+        }
+      ]
+    },
+    {
+      "description": "octal escape is invalid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "\\012"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "invalid_pattern",
+          "path": "/pages/0/elements/0/validation/pattern"
+        }
+      ]
+    },
+    {
+      "description": "IBAN-like is valid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "^[A-Z]{2}[0-9]{2}[A-Z0-9 ]{11,30}$"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "description": "optional group with inner quantifier is valid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "(\\d{3}-)?\\d{4}"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "description": "\\u escape is valid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "^\\u00e9$"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "description": "\\u{} escape is valid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "^\\u{1F600}$"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "description": "quantified group without quantifier inside is valid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "(?:ab)+"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "description": "lookahead is valid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "(?=\\d)\\w+"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "description": "email-like is valid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "[^\\s@]+@[^\\s@]+\\.[^\\s@]+"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "description": "bound 1000 is valid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "a{1000}"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "description": "optional alternation is valid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "(ab|cd)?x"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "description": "lazy quantifier is valid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "a+?b"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "description": "escaped syntax characters is valid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "\\(\\)\\[\\]\\{\\}\\.\\*\\+\\?\\^\\$\\|\\/\\-\\\\"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "description": "\\x escape is valid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "\\x41"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "description": "\\0 escape is valid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "\\0"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "description": "class with escapes and ranges is valid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "pattern_case",
+        "title": "Pattern Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "t",
+                "label": "T",
+                "validation": {
+                  "pattern": "[\\d\\sA-F_-]"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": []
+    }
+  ]
+}

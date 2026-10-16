@@ -116,7 +116,7 @@ an `id` and a `key` but never data.
 | Constraint | Applies to | Meaning |
 |---|---|---|
 | `minLength`, `maxLength` | text, textarea, email, phone | length in Unicode code points |
-| `pattern` | text, textarea, phone | ECMAScript-compatible regular expression, implicitly unanchored; MUST NOT use lookbehind or backreferences |
+| `pattern` | text, textarea, phone | regular expression in the restricted ECMAScript syntax of §3.4, implicitly unanchored |
 | `min`, `max` | number, money | inclusive bounds (JSON numbers or decimal strings) |
 | `min`, `max` | date, datetime, time | inclusive bounds as value strings of the same type |
 | `min`, `max` | multiselect | number of selected options |
@@ -126,6 +126,34 @@ an `id` and a `key` but never data.
 | `maxSizeKb` | photo, file, signature | enforced by the server on upload, not by the validator |
 
 Numeric constraint values in a definition MAY be JSON numbers with at most 15 significant digits.
+
+Checks of one element run in this order and stop at the first failure: type/format → `scale` →
+`min_length` → `max_length` → `pattern`, and `min` → `max` → `step` (numbers, money, dates, counts).
+
+### 3.4 Pattern syntax and semantics
+
+`pattern` uses a **restricted subset of ECMAScript regular expressions** so every implementation
+matches identically and no pattern can trigger catastrophic backtracking. Anything outside the subset
+is a lint error (`invalid_pattern`); evaluators treat an invalid pattern as "no constraint".
+
+- **Atoms:** literal characters except the syntax characters `^ $ \ . * + ? ( ) [ ] { } |`; `.`;
+  character classes `[…]` / `[^…]` with literals, ranges `a-z` and the class escapes below; escapes
+  `\d \D \w \W \s \S`, `\t \n \r \f \v`, `\0` (not followed by a digit), `\xHH`, `\uHHHH`,
+  `\u{H…}` (≤ 10FFFF), and an escaped syntax character or `/` or `-`. `\b` / `\B` are assertions
+  outside classes and invalid inside them.
+- **Structure:** `^`, `$`, groups `(…)`, `(?:…)`, lookaheads `(?=…)`, `(?!…)`, alternation `|`.
+- **Quantifiers:** `*`, `+`, `?`, `{n}`, `{n,}`, `{n,m}` with `n ≤ m ≤ 1000`, each optionally followed by
+  `?` (lazy).
+- **Not allowed:** backreferences, named groups, lookbehind, inline flags, Unicode property escapes,
+  and any other syntax; a quantifier other than `?`/`{0,1}` applied to a group that contains a
+  quantifier or an alternation (e.g. `(a+)+`, `(a|b)*`, `(\d{3}-){2}`).
+- **Semantics:** ECMAScript with the `u` flag, case-sensitive, no multiline/dotAll: matching works on
+  code points; `.` matches any code point except `\n \r \u2028 \u2029`; `^`/`$` match only at the start
+  and end of the value; `\d` = `[0-9]`, `\w` = `[A-Za-z0-9_]`, `\b` uses that `\w`; `\s` = the
+  ECMAScript WhiteSpace and LineTerminator set (`\t \n \v \f \r`, space, U+00A0, U+1680,
+  U+2000–U+200A, U+2028, U+2029, U+202F, U+205F, U+3000, U+FEFF — not U+0085 or U+180E).
+- **Size:** a value longer than 4,096 code points fails the `pattern` check; if an engine hits an internal
+  matching limit the check fails as well (fail closed).
 
 ## 4. Logic (JsonLogic dialect)
 
@@ -158,7 +186,8 @@ string forms (`null` → `""`, numbers in shortest round-trip form, booleans `tr
 non-string needle with JavaScript `String()`; `substr` counts code points. `+ - * / %` operate on IEEE-754
 doubles (NaN or infinite results become `null`) and MUST NOT be used on number or money values (lint
 error). Unknown operators and nesting deeper than 512 levels are evaluation errors; evaluators treat the
-whole expression as `null`.
+whole expression as `null`. Definitions and submission data nested deeper than 1,024 levels (objects and arrays) are rejected when
+they are decoded.
 
 ### 4.3 Variables and scope
 
@@ -184,7 +213,8 @@ Values of invisible elements (§5.5) resolve to `null`.
 
 ### 5.1 Decimal strings
 
-`number` and `money` values are **decimal strings** matching `^-?(0|[1-9][0-9]*)(\.[0-9]+)?$`.
+`number` and `money` values are **decimal strings** matching `^-?(0|[1-9][0-9]*)(\.[0-9]+)?$` with at
+most **60 digits** in total (integer plus fraction digits). Longer strings are `invalid_number`.
 JSON numbers are rejected for these types (`decimal_string_required`). Canonical output form: no exponent,
 no `+`, `-0` normalized to `0` (keeping scale, e.g. `0.00`).
 
@@ -196,8 +226,8 @@ applied to `calculated` elements.
 
 ### 5.3 Custom operators
 
-Operands of decimal operators are decimal strings, JSON integers (a JSON number with an integral value,
-such as `2` or `2.0`, up to 2^53), or `null`. Anything else (JSON numbers with a fractional part, invalid
+Operands of decimal operators are decimal strings of at most 60 digits, JSON integers (a JSON number
+whose IEEE-754 double value is integral, such as `2` or `2.0`, with magnitude ≤ 2^53), or `null`. Anything else (JSON numbers with a fractional part, invalid
 strings, booleans, arrays, objects) counts as `null`. Aggregates (`sum`, `min`, `max`, `count`) treat a
 non-array first operand as an empty array (for `min`/`max` see the table).
 
@@ -247,7 +277,12 @@ Given a definition, input data and context, a conforming evaluator:
       `visibleIf` is truthy (missing = visible) and its parent is visible; inside repeaters per row. Each
       decision is visible to later elements of the same pass (an element found invisible reads as `null`);
    b. apply defaults (§5.2) to visible elements;
-   c. compute calculated values in dependency order, treating invisible values as `null`.
+   c. compute calculated values in dependency order, treating invisible values as `null`. The order is a
+      topological sort of the **static** dependencies (a `var` whose first path segment resolves through
+      the scope chain to another calculated element; references inside per-item arguments of iteration
+      operators, computed paths and whole-scope references do not count); among elements that are ready,
+      the earliest in document order goes first. Each value sees the values computed before it in the
+      same round. Missing `today`/`now` context values resolve to `null`.
 3. **Strips** invisible elements' values from the data (keys removed; invisible repeaters removed with
    their rows).
 4. **Validates** every visible data element (§5.6) in document order, rows in index order.
@@ -275,8 +310,10 @@ the first failing check of an element is reported (one validation error per elem
 errors are always `invalid_attachment`. A non-object signature or location is `type_mismatch`; objects
 must have exactly the documented members, otherwise `invalid_signature` / `invalid_location`. A
 `hidden` value that is not a string, integer or boolean is replaced by its default when one applies,
-otherwise `type_mismatch`. Email is matched with JavaScript regex semantics (`$` does not match before
-a trailing newline).
+otherwise `type_mismatch`. Email values longer than 254 code points are `invalid_email`; shorter ones
+are matched against the email pattern with the §3.4 semantics. Location numbers must be finite. Type
+checks run before the required check for non-empty values (a required checkbox holding `"true"` is
+`type_mismatch`).
 
 | Code | When |
 |---|---|
@@ -323,7 +360,8 @@ Pointer into the **definition**. A definition with lint errors MUST NOT be publi
 | `cycle` | error | cyclic dependency between calculated elements |
 | `invalid_numbering_format` | error | numbering format invalid (§7.3) |
 | `invalid_repeater_bounds` | error | `minItems` > `maxItems` |
-| `invalid_pattern` | error | `pattern` is not a valid regular expression |
+| `invalid_pattern` | error | `pattern` is outside the §3.4 subset |
+| `logic_too_deep` | error | a logic expression nests deeper than 512 levels |
 | `reserved_type` | error | element type reserved for later versions (e.g. `record`) |
 | `key_locked` | error | element id published earlier with a different key |
 | `key_type_changed` | error | key published earlier with a different type |

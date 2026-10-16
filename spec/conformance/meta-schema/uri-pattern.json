@@ -1,0 +1,180 @@
+{
+  "description": "$schema and source.registry use a scheme:rest pattern (meta-schema)",
+  "tests": [
+    {
+      "description": "$schema 'https://localhost/spec/form-definition/1.0/meta-schema.json'",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "m",
+        "title": "M",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "A",
+                "id": "00000000-0000-4000-8000-000000000002"
+              }
+            ]
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "description": "$schema 'urn:form-schema-app:bundled-templates'",
+      "definition": {
+        "$schema": "urn:form-schema-app:bundled-templates",
+        "specVersion": "1.0.0",
+        "key": "m",
+        "title": "M",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "A",
+                "id": "00000000-0000-4000-8000-000000000003"
+              }
+            ]
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "description": "$schema 'http://example.org:99999/x'",
+      "definition": {
+        "$schema": "http://example.org:99999/x",
+        "specVersion": "1.0.0",
+        "key": "m",
+        "title": "M",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "A",
+                "id": "00000000-0000-4000-8000-000000000004"
+              }
+            ]
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "description": "$schema 'no-scheme'",
+      "definition": {
+        "$schema": "no-scheme",
+        "specVersion": "1.0.0",
+        "key": "m",
+        "title": "M",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "A",
+                "id": "00000000-0000-4000-8000-000000000005"
+              }
+            ]
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "$schema 'http: spaced'",
+      "definition": {
+        "$schema": "http: spaced",
+        "specVersion": "1.0.0",
+        "key": "m",
+        "title": "M",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "A",
+                "id": "00000000-0000-4000-8000-000000000006"
+              }
+            ]
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "$schema ''",
+      "definition": {
+        "$schema": "",
+        "specVersion": "1.0.0",
+        "key": "m",
+        "title": "M",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "A",
+                "id": "00000000-0000-4000-8000-000000000007"
+              }
+            ]
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "$schema '1http://x'",
+      "definition": {
+        "$schema": "1http://x",
+        "specVersion": "1.0.0",
+        "key": "m",
+        "title": "M",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "A",
+                "id": "00000000-0000-4000-8000-000000000008"
+              }
+            ]
+          }
+        ]
+      },
+      "valid": false
+    }
+  ]
+}

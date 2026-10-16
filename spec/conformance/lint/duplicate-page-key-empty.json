@@ -1,0 +1,47 @@
+{
+  "description": "duplicate_page_key also applies to empty page keys (spec §7)",
+  "tests": [
+    {
+      "description": "two pages with the same empty key",
+      "definition": {
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "",
+            "title": "",
+            "elements": [
+              {
+                "id": "00000000-0000-4000-8000-000000000001",
+                "type": "text",
+                "key": "a",
+                "label": "a"
+              }
+            ]
+          },
+          {
+            "key": "",
+            "title": "",
+            "elements": [
+              {
+                "id": "00000000-0000-4000-8000-000000000002",
+                "type": "text",
+                "key": "b",
+                "label": "b"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "duplicate_page_key",
+          "path": "/pages/1"
+        }
+      ]
+    }
+  ]
+}

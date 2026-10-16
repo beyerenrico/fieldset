@@ -60,3 +60,33 @@ it('rewrites var paths, $root paths, fallbacks and row keys', function (): void 
 
     expect(Json::encode($out))->toBe('{"and":[{"var":"qty2"},{"var":["qty2.x",{"var":"price2"}]},{"var":"$root.qty2"},{"sum":[{"var":"rows2"},"qty2"]}]}');
 });
+
+it('reports moved and removed pages and skips malformed nodes', function (): void {
+    $from = nestedDefinition();
+    $from->pages[] = (object) ['id' => 'p2', 'key' => 'q', 'title' => 'Q', 'elements' => ['not an element', (object) ['type' => 'text']]];
+    $from->pages[] = (object) ['id' => 'p3', 'key' => 'r', 'title' => 'R', 'elements' => []];
+    $to = DefinitionTools::copy($from);
+    $to->pages = [$to->pages[1], $to->pages[0]]; // swap p1/p2, drop p3
+
+    $entries = collect(DefinitionDiff::compare($from, $to))->map(fn (DiffEntry $e) => [$e->change, $e->type, $e->id])->all();
+
+    expect($entries)->toContain([DiffEntry::MOVED, 'page', 'p2'], [DiffEntry::MOVED, 'page', 'p1'], [DiffEntry::REMOVED, 'page', 'p3'])
+        ->and(DefinitionTools::elements($from))->toHaveCount(5); // malformed entries are skipped, the typed stub is kept
+});
+
+it('leaves scalars untouched when regenerating ids', function (): void {
+    $definition = (object) ['pages' => ['scalar', (object) ['id' => 'x', 'key' => 'p', 'elements' => []]]];
+
+    $copy = DefinitionTools::regenerateIds($definition, fn (): string => 'new');
+
+    expect($copy->pages[0])->toBe('scalar')->and($copy->pages[1]->id)->toBe('new');
+});
+
+it('rewrites signerNameFrom, ignores empty rename maps and non-path var arguments', function (): void {
+    $element = (object) ['signerNameFrom' => 'customer', 'visibleIf' => (object) ['var' => 1]];
+    KeyRewriter::element($element, []);
+    expect($element->signerNameFrom)->toBe('customer');
+
+    KeyRewriter::element($element, ['customer' => 'customer_copy']);
+    expect($element->signerNameFrom)->toBe('customer_copy')->and(Json::encode($element->visibleIf))->toBe('{"var":1}');
+});
