@@ -55,3 +55,11 @@
   templates + CSV invitations (63d5aca), documents: branding, designs, Gotenberg renditions, builder
   PDF preview (7abcf4b, ADR 0028). Shared routes/web.php committed per batch by staging a split copy.
 - Contract for send-to-customer (b56114a); backend + Field App agents implement it in parallel.
+
+## 2026-10-17 M3 gate
+- Integration: send to customer (API + Field App + admin), inbox documents, company details single
+  source, demo branding; E2E journey submit → PDF → send → Mailpit → inbox.
+- Reviews (security, correctness, UX/a11y): 3 high + ~25 medium/low fixed by two fix subagents
+  (9589753, c3051c6). Gate also fixed tooling: Mailpit for worker, coverage container services, CI Rector
+  drift (0f68661).
+- Gate: PHP 3346 tests, coverage 95.09 %, PHPStan 0/0, Rector/Pint clean, JS 606/110/213, E2E 12/12.

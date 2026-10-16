@@ -69,11 +69,11 @@ AC refs point at BUILD_PROMPT sections. Test approach in brackets.
 - [x] M3-T05 "Preview PDF" in the builder with sample data — §8.2 [Livewire]
 - [x] M3-T06 Mail: per-org sender name/reply-to, optional SMTP override (encrypted) + test mail, queued branded Markdown mailables, `mail_messages` log with retry — §8.8 [feature with Mail fake + Mailpit integration]
 - [x] M3-T07 Document delivery: attachment up to a size limit or expiring signed link (default 14 days, 410 when expired) — §8.8 [feature]
-- [ ] M3-T08 Send to customer: `POST /submissions/{uuid}/send` queued until number + PDF exist; admin action — §9.2, §10 [feature]
+- [x] M3-T08 Send to customer: `POST /submissions/{uuid}/send` queued until number + PDF exist; admin action — §9.2, §10 [feature]
 - [x] M3-T09 Admin submissions inbox: list per form/org with status filters, detail view (data, attachments, events, renditions, re-render) — §8.12 [Livewire]
 - [x] M3-T10 Templates: delivery note, timesheet, handover protocol — §7.6 [template lint + publish tests]
 - [x] M3-T11 CSV bulk member invitations — §8.12 [feature]
-- [ ] M3-T12 Gate M3 (E2E: submit in Field App → PDF in admin → email arrives in Mailpit)
+- [x] M3-T12 Gate M3 (E2E: submit in Field App → PDF in admin → email arrives in Mailpit)
 
 ## M4 Workflows + notifications — break down at M3 gate
 - Workflow model + Builder steps; triggers; conditions; runs with snapshot + idempotency; steps send_email/notify/request_review/set_status/generate_document/webhook (HMAC, backoff, SSRF guard); tasks + review UI + API; run timeline + retry; notifications (db + mail, preferences, digest); field app tasks + notification center; E2E journey 4; MVP 0.x release notes.

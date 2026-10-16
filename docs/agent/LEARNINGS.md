@@ -34,3 +34,5 @@
 29. PHPStan types `Carbon::locale()` as `string|static`; use `->settings(['locale' => …])` for a localized Carbon.
 30. Model strict mode (lazy-loading prevention) also bites policies called on collection items: preset relations with `setRelation()` or eager-load before authorizing each row.
 31. `documents.render_on_submit` is off in testing (no Gotenberg calls from unrelated tests); tests that need renditions (send to customer, documents) must enable it.
+32. Run `vendor/bin/rector --dry-run` in every gate: CI runs it and it had silently drifted on ~70 files. Skipped rules (rector.php): unused-parameter removal on policies (Gate passes args positionally), arrow-fn return types in tests (infers Pest mixin class), nullsafe coalesce (PHPStan nullsafe.neverNull).
+33. The coverage container runs at base path /app: string-replacing base_path() corrupts any text containing "/app/" — anchor path stripping to path starts.
