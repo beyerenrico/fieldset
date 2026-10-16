@@ -19,8 +19,10 @@ final readonly class RetireVersion
             return $version;
         }
 
-        $version->retired_at = now();
-        $version->save();
+        // Query-level update: only retired_at changes (the trigger allows exactly this), even if the
+        // in-memory model holds re-encoded JSON attributes that would look dirty.
+        FormVersion::query()->whereKey($version->id)->whereNull('retired_at')->update(['retired_at' => now()]);
+        $version->refresh();
 
         $this->audit->record('form.version_retired', $version, ['form_id' => $version->form_id, 'version' => $version->version], $actor);
 

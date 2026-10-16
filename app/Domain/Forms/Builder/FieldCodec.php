@@ -27,7 +27,7 @@ final readonly class FieldCodec
             FieldSpec::OPTIONS => is_array($value) ? array_map(self::optionToUi(...), array_values($value)) : [],
             FieldSpec::LOGIC => $this->logic->toUi($absent ? null : $value),
             FieldSpec::CALC => $this->calc->toUi($absent ? null : $value),
-            FieldSpec::DEFAULT => $absent ? null : self::defaultToUi($value),
+            FieldSpec::DEFAULT, FieldSpec::DEFAULT_BOOL, FieldSpec::DEFAULT_INT => $absent ? null : self::defaultToUi($value),
             FieldSpec::LIST => is_array($value) ? array_values(array_map(static fn (mixed $v): string => is_scalar($v) ? (string) $v : '', $value)) : [],
             default => $absent ? null : (is_string($value) ? $value : (is_scalar($value) ? (string) $value : null)),
         };
@@ -43,6 +43,10 @@ final readonly class FieldCodec
             FieldSpec::LOGIC => $this->logic->fromUi(is_array($ui) ? $ui : null),
             FieldSpec::CALC => $this->calc->fromUi(is_array($ui) ? $ui : null),
             FieldSpec::DEFAULT => self::defaultFromUi($ui),
+            FieldSpec::DEFAULT_BOOL => self::typedDefault($ui, static fn (string $t): ?bool => match (strtolower($t)) {
+                'true', '1', 'yes', 'ja' => true, 'false', '0', 'no', 'nein' => false, default => null,
+            }),
+            FieldSpec::DEFAULT_INT => self::typedDefault($ui, static fn (string $t): ?int => preg_match('/^-?\d{1,9}$/', $t) === 1 ? (int) $t : null),
             FieldSpec::LIST => is_array($ui) ? array_values(array_filter(array_map('strval', $ui), static fn (string $v): bool => $v !== '')) : null,
             default => is_string($ui) && $ui !== '' ? $ui : null,
         };
@@ -103,8 +107,27 @@ final readonly class FieldCodec
         return preg_match('/^-?(0|[1-9]\d{0,14})$/', $text) === 1 ? (int) $text : $text;
     }
 
+    /**
+     * Literal defaults of typed elements become JSON booleans/integers; logic stays logic.
+     *
+     * @param  \Closure(string): (bool|int|null)  $literal
+     */
+    private static function typedDefault(mixed $ui, \Closure $literal): mixed
+    {
+        $text = is_scalar($ui) ? trim((string) $ui) : '';
+        $value = $text === '' ? null : $literal($text);
+
+        return $value ?? self::defaultFromUi($ui);
+    }
+
     private static function defaultToUi(mixed $value): string
     {
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+        if (is_int($value)) {
+            return (string) $value;
+        }
         $isPlain = is_string($value) && ! in_array(substr($value, 0, 1), ['{', '[', '"'], true);
 
         return $isPlain ? $value : Json::encode($value);

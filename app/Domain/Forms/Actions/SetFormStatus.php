@@ -20,8 +20,13 @@ final readonly class SetFormStatus
             $status = FormStatus::Draft;
         }
 
+        $before = $form->status;
+        if ($before === $status) {
+            return $form;
+        }
+
         $form->forceFill(['status' => $status, 'updated_by' => $actor->id])->save();
-        $this->audit->record('form.status_changed', $form, ['status' => $status->value], $actor);
+        $this->audit->record('form.status_changed', $form, ['before' => $before->value, 'after' => $status->value], $actor);
 
         return $form;
     }

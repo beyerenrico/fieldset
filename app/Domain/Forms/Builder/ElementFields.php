@@ -25,7 +25,7 @@ final class ElementFields
     public static function for(string $type): array
     {
         return match (true) {
-            in_array($type, self::INPUT_TYPES, true), in_array($type, self::CAPTURE_TYPES, true) => [...self::data(), ...self::extra($type)],
+            in_array($type, self::INPUT_TYPES, true), in_array($type, self::CAPTURE_TYPES, true) => [...self::data($type), ...self::extra($type)],
             $type === 'calculated' => [...self::presentation(), self::f('role', 'role'), ...self::pdf(), ...self::extra($type)],
             $type === 'hidden' => [self::f('label', 'label'), new F('default', ['default'], F::DEFAULT), self::f('role', 'role')],
             $type === 'repeater' => [...self::presentation(), self::bool('required', 'required'), ...self::pdf(), ...self::extra($type)],
@@ -34,15 +34,21 @@ final class ElementFields
     }
 
     /** @return list<F> */
-    private static function data(): array
+    private static function data(string $type): array
     {
+        $defaultKind = match ($type) {
+            'checkbox', 'toggle' => F::DEFAULT_BOOL,
+            'rating' => F::DEFAULT_INT,
+            default => F::DEFAULT,
+        };
+
         return [
             ...self::presentation(),
             self::f('placeholder', 'placeholder'),
             self::bool('required', 'required'),
             new F('required_if', ['requiredIf'], F::LOGIC),
             new F('read_only_if', ['readOnlyIf'], F::LOGIC),
-            new F('default', ['default'], F::DEFAULT),
+            new F('default', ['default'], $defaultKind),
             self::f('role', 'role'),
             ...self::pdf(),
         ];

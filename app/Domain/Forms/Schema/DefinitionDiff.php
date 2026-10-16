@@ -18,9 +18,9 @@ final class DefinitionDiff
     /** @return list<DiffEntry> */
     public static function compare(stdClass $from, stdClass $to): array
     {
+        $entries = [...self::formChanges($from, $to), ...self::pageChanges($from, $to)];
         $before = self::index($from);
         $after = self::index($to);
-        $entries = [];
 
         foreach ($after as $rawId => $node) {
             $id = (string) $rawId; // numeric-string keys become ints in PHP arrays
@@ -47,6 +47,61 @@ final class DefinitionDiff
         return $entries;
     }
 
+    /** @return list<DiffEntry> settings and other definition-level properties */
+    private static function formChanges(stdClass $from, stdClass $to): array
+    {
+        $changed = self::changedProperties($from, $to, ['pages']);
+
+        return $changed === [] ? [] : [new DiffEntry(DiffEntry::CHANGED, 'definition', self::str($to->key ?? ''), 'form', self::str($to->title ?? ''), $changed)];
+    }
+
+    /** @return list<DiffEntry> pages matched by id (or key when a page has no id) */
+    private static function pageChanges(stdClass $from, stdClass $to): array
+    {
+        $before = self::pages($from);
+        $after = self::pages($to);
+        $entries = [];
+        foreach ($after as $id => [$page, $position]) {
+            $label = self::str($page->title ?? '');
+            if (! isset($before[$id])) {
+                $entries[] = new DiffEntry(DiffEntry::ADDED, $id, self::str($page->key ?? ''), 'page', $label);
+
+                continue;
+            }
+            $changed = self::changedProperties($before[$id][0], $page, ['elements']);
+            if ($changed !== []) {
+                $entries[] = new DiffEntry(DiffEntry::CHANGED, $id, self::str($page->key ?? ''), 'page', $label, $changed);
+            } elseif ($before[$id][1] !== $position) {
+                $entries[] = new DiffEntry(DiffEntry::MOVED, $id, self::str($page->key ?? ''), 'page', $label);
+            }
+        }
+        foreach ($before as $id => [$page]) {
+            if (! isset($after[$id])) {
+                $entries[] = new DiffEntry(DiffEntry::REMOVED, $id, self::str($page->key ?? ''), 'page', self::str($page->title ?? ''));
+            }
+        }
+
+        return $entries;
+    }
+
+    /** @return array<string, array{0: stdClass, 1: int}> */
+    private static function pages(stdClass $definition): array
+    {
+        $pages = [];
+        foreach (array_values(is_array($definition->pages ?? null) ? $definition->pages : []) as $position => $page) {
+            if ($page instanceof stdClass) {
+                $pages[self::pageId($page)] = [$page, $position];
+            }
+        }
+
+        return $pages;
+    }
+
+    private static function pageId(stdClass $page): string
+    {
+        return is_string($page->id ?? null) ? $page->id : 'page:'.self::str($page->key ?? '');
+    }
+
     /** @return array<string, array{element: stdClass, parent: string, position: int}> */
     private static function index(stdClass $definition): array
     {
@@ -54,7 +109,7 @@ final class DefinitionDiff
         $pages = is_array($definition->pages ?? null) ? $definition->pages : [];
         foreach ($pages as $page) {
             if ($page instanceof stdClass) {
-                self::indexChildren($page, 'page:'.self::str($page->key ?? ''), $index);
+                self::indexChildren($page, self::pageId($page), $index);
             }
         }
 
@@ -81,13 +136,16 @@ final class DefinitionDiff
         }
     }
 
-    /** @return list<string> */
-    private static function changedProperties(stdClass $a, stdClass $b): array
+    /**
+     * @param  list<string>  $ignore
+     * @return list<string>
+     */
+    private static function changedProperties(stdClass $a, stdClass $b, array $ignore = self::CHILD_PROPERTIES): array
     {
         $names = array_unique([...array_keys(get_object_vars($a)), ...array_keys(get_object_vars($b))]);
         $changed = [];
         foreach ($names as $name) {
-            if (in_array($name, self::CHILD_PROPERTIES, true)) {
+            if (in_array($name, $ignore, true)) {
                 continue;
             }
             $left = property_exists($a, $name) ? Json::canonical($a->{$name}) : null;

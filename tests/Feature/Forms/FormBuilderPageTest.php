@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Domain\Forms\Actions\CreateForm;
 use App\Domain\Forms\Actions\CreateFormFromTemplate;
 use App\Domain\Forms\Actions\PublishForm;
+use App\Domain\Forms\Actions\SaveDraft;
 use App\Domain\Forms\Models\Form;
 use App\Domain\Forms\Models\FormAccess;
 use App\Domain\Forms\Models\FormVersion;
@@ -13,6 +14,7 @@ use App\Domain\Identity\Models\Group;
 use App\Filament\Admin\Resources\Forms\Pages\EditForm;
 use App\Filament\Admin\Resources\Forms\Pages\ListForms;
 use App\Filament\Admin\Resources\Forms\RelationManagers\VersionsRelationManager;
+use Illuminate\Support\Str;
 use Livewire\Livewire;
 
 beforeEach(function (): void {
@@ -116,3 +118,69 @@ it('forbids the builder to roles without forms.manage', function (SystemRole $ro
     $this->get("/admin/{$this->org->slug}/forms")->assertForbidden();
     $this->get("/admin/{$this->org->slug}/forms/{$form->id}/edit")->assertForbidden();
 })->with([SystemRole::Reviewer, SystemRole::Viewer]);
+
+it('clones a block server-side with a new id and suffixed key', function (): void {
+    $form = app(CreateFormFromTemplate::class)->handle($this->designer, 'service_report');
+    $page = Livewire::test(EditForm::class, ['record' => $form->getRouteKey()]);
+    $data = $page->get('data');
+    $pageKey = array_key_first($data['pages']);
+    $itemKey = array_key_first($data['pages'][$pageKey]['elements']);
+
+    $page->callFormComponentAction("pages.{$pageKey}.elements", 'clone', arguments: ['item' => $itemKey])->call('save');
+
+    $elements = $form->refresh()->draft_definition->pages[0]->elements;
+    $keys = array_map(fn ($e) => $e->key, $elements);
+    expect($keys)->toContain('customer_name', 'customer_name_copy')
+        ->and(count(array_unique(array_map(fn ($e) => $e->id, $elements))))->toBe(count($elements));
+});
+
+it('halts with a notification instead of failing on a structurally invalid save', function (): void {
+    [$form] = app(CreateForm::class)->handle($this->designer, 'Broken');
+
+    Livewire::test(EditForm::class, ['record' => $form->getRouteKey()])
+        ->set('data.design', str_repeat('x', 80)) // meta-schema: design maxLength 64
+        ->call('save')
+        ->assertNotified();
+
+    expect($form->refresh()->draft_definition->settings->document ?? null)->toBeNull();
+});
+
+it('disables publishing while lint errors exist', function (): void {
+    [$form] = app(CreateForm::class)->handle($this->designer, 'Dupes');
+    $definition = $form->draft_definition;
+    $definition->pages[0]->elements = [
+        (object) ['id' => (string) Str::uuid7(), 'type' => 'text', 'key' => 'a', 'label' => 'A'],
+        (object) ['id' => (string) Str::uuid7(), 'type' => 'text', 'key' => 'a', 'label' => 'B'],
+    ];
+    app(SaveDraft::class)->handle($form, $definition, $this->designer);
+
+    Livewire::test(EditForm::class, ['record' => $form->getRouteKey()])
+        ->assertActionDisabled('publish');
+});
+
+it('retires a version and shows a diff from the version history', function (): void {
+    $form = app(CreateFormFromTemplate::class)->handle($this->designer, 'invoice');
+    $v1 = app(PublishForm::class)->handle($form, 'v1', $this->designer);
+
+    Livewire::test(VersionsRelationManager::class, ['ownerRecord' => $form, 'pageClass' => EditForm::class])
+        ->mountTableAction('diff', $v1)
+        ->assertHasNoTableActionErrors();
+    Livewire::test(VersionsRelationManager::class, ['ownerRecord' => $form, 'pageClass' => EditForm::class])
+        ->callTableAction('retire', $v1);
+
+    expect($v1->refresh()->isRetired())->toBeTrue();
+});
+
+it('locks keys of published elements in the builder', function (): void {
+    $form = app(CreateFormFromTemplate::class)->handle($this->designer, 'service_report');
+    app(PublishForm::class)->handle($form, 'v1', $this->designer);
+
+    $page = Livewire::test(EditForm::class, ['record' => $form->getRouteKey()]);
+    $data = $page->get('data');
+    $pageKey = array_key_first($data['pages']);
+    $itemKey = array_key_first($data['pages'][$pageKey]['elements']);
+    expect($data['pages'][$pageKey]['elements'][$itemKey]['data']['key_locked'])->toBeTrue();
+
+    $page->set("data.pages.{$pageKey}.elements.{$itemKey}.data.key", 'renamed')->call('save');
+    expect($form->refresh()->draft_definition->pages[0]->elements[0]->key)->toBe('customer_name');
+});

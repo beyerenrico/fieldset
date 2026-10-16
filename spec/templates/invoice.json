@@ -85,7 +85,12 @@
                 "var": "invoice_date"
               },
               {
-                "var": "payment_terms_days"
+                "dec.round": [
+                  {
+                    "var": "payment_terms_days"
+                  },
+                  0
+                ]
               },
               "days"
             ]

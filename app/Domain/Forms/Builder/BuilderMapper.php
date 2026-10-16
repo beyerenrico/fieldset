@@ -42,7 +42,9 @@ final class BuilderMapper
     {
         $this->seenIds = [];
         $codec = $this->codec(KeyTypes::fromState($state));
-        $definition = $this->apply($codec, FieldCodec::decodeObject($state['_source'] ?? null), $state, self::definitionFields());
+        $source = FieldCodec::decodeObject($state['_source'] ?? null);
+        $definition = $this->apply($codec, $source, $state, self::definitionFields());
+        self::dropIncompleteNumbering($definition, $source);
         $definition->pages = array_map(fn (mixed $page): stdClass => $this->pageFromState($codec, $page), array_values(self::arr($state['pages'] ?? [])));
 
         return $definition;
@@ -213,6 +215,19 @@ final class BuilderMapper
     {
         return [new F('key', ['key'], F::STRING), new F('title', ['title'], F::STRING),
             new F('description', ['description'], F::STRING), new F('visible_if', ['visibleIf'], F::LOGIC)];
+    }
+
+    /** Clearing the numbering format in the builder removes numbering altogether. */
+    private static function dropIncompleteNumbering(stdClass $definition, stdClass $source): void
+    {
+        $numbering = JsonPath::get($definition, ['settings', 'numbering']);
+        if ($numbering instanceof stdClass && ! is_string($numbering->format ?? null)) {
+            JsonPath::unset($definition, ['settings', 'numbering'], (object) []);
+            $settings = $definition->settings ?? null;
+            if ($settings instanceof stdClass && get_object_vars($settings) === [] && ! property_exists($source, 'settings')) {
+                unset($definition->settings);
+            }
+        }
     }
 
     /** id, type and key first for readable JSON. */

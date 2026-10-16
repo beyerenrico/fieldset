@@ -11,8 +11,9 @@ use stdClass;
 
 /**
  * Visual condition builder ↔ JsonLogic (BUILD_PROMPT §8.2 logic editor). UI state:
- * ['mode' => none|rules|json, 'match' => all|any, 'rules' => [[field, operator, value]], 'json' => string].
- * Number and money fields compile to decimal operators (spec §5.3), never to built-in comparisons.
+ * ['mode' => none|rules|json, 'match' => all|any, 'groups' => [['match' => all|any, 'rules' => [[field, operator, value]]]],
+ *  'json' => string]. Number/money fields compile to decimal operators (spec §5.3); boolean fields
+ * compare with boolean literals. Anything the visual editor cannot express stays in raw JSON mode.
  */
 final class LogicCompiler
 {
@@ -20,22 +21,27 @@ final class LogicCompiler
 
     private const array DECIMAL_TYPES = ['number', 'money', 'calculated'];
 
+    private const array BOOLEAN_TYPES = ['checkbox', 'toggle'];
+
     private const array ORDERED = ['gt' => ['>', 'dec.gt'], 'gte' => ['>=', 'dec.gte'], 'lt' => ['<', 'dec.lt'], 'lte' => ['<=', 'dec.lte']];
 
     /** @param  array<string, string>  $fieldTypes  key => element type */
     public function __construct(private readonly array $fieldTypes = []) {}
 
-    /** @return array{mode: string, match: string, rules: list<array{field: string, operator: string, value: string|null}>, json: string} */
+    /** @return array{mode: string, match: string, groups: list<array{match: string, rules: list<array{field: string, operator: string, value: string|null}>}>, json: string} */
     public function toUi(mixed $expression): array
     {
-        $state = ['mode' => 'none', 'match' => 'all', 'rules' => [], 'json' => ''];
+        $state = ['mode' => 'none', 'match' => 'all', 'groups' => [], 'json' => ''];
         if ($expression === null) {
             return $state;
         }
 
         $parsed = $this->parse($expression);
-        if ($parsed !== null && Json::canonical($this->compile($parsed['match'], $parsed['rules'])) === Json::canonical($expression)) {
-            return [...$state, 'mode' => 'rules', ...$parsed];
+        if ($parsed !== null) {
+            $candidate = [...$state, 'mode' => 'rules', ...$parsed];
+            if (Json::canonical($this->fromUi($candidate)) === Json::canonical($expression)) {
+                return $candidate;
+            }
         }
 
         return [...$state, 'mode' => 'json', 'json' => Json::encode($expression)];
@@ -47,78 +53,125 @@ final class LogicCompiler
         $mode = $state['mode'] ?? 'none';
 
         if ($mode === 'json') {
-            $json = trim((string) ($state['json'] ?? ''));
-            if ($json === '') {
-                return null;
-            }
-            try {
-                return Json::decode($json);
-            } catch (JsonException) {
-                throw new InvalidArgumentException(__('forms.errors.invalid_definition'));
-            }
+            return $this->decodeJson((string) (is_scalar($state['json'] ?? null) ? $state['json'] : ''));
         }
 
         if ($mode !== 'rules') {
             return null;
         }
 
+        $groups = [];
+        foreach (is_array($state['groups'] ?? null) ? array_values($state['groups']) : [] as $group) {
+            $compiled = is_array($group) ? $this->compileGroup($group) : null;
+            if ($compiled !== null) {
+                $groups[] = $compiled;
+            }
+        }
+
+        if ($groups === []) {
+            return null;
+        }
+
+        return count($groups) === 1 ? $groups[0] : (object) [($state['match'] ?? 'all') === 'any' ? 'or' : 'and' => $groups];
+    }
+
+    /** @param  array<array-key, mixed>  $group */
+    private function compileGroup(array $group): ?stdClass
+    {
         $rules = array_values(array_filter(
-            is_array($state['rules'] ?? null) ? $state['rules'] : [],
+            is_array($group['rules'] ?? null) ? $group['rules'] : [],
             static fn (mixed $r): bool => is_array($r) && is_string($r['field'] ?? null) && $r['field'] !== '',
         ));
-
-        return $rules === [] ? null : $this->compile(($state['match'] ?? 'all') === 'any' ? 'any' : 'all', $rules);
-    }
-
-    /** @param  list<array<string, mixed>>  $rules */
-    private function compile(string $match, array $rules): mixed
-    {
+        if ($rules === []) {
+            return null;
+        }
         $compiled = array_map(fn (array $rule): stdClass => $this->compileRule($rule), $rules);
 
-        return count($compiled) === 1 ? $compiled[0] : (object) [$match === 'any' ? 'or' : 'and' => $compiled];
+        return count($compiled) === 1 ? $compiled[0] : (object) [($group['match'] ?? 'all') === 'any' ? 'or' : 'and' => $compiled];
     }
 
-    /** @param  array<string, mixed>  $rule */
+    /** @param  array<array-key, mixed>  $rule */
     private function compileRule(array $rule): stdClass
     {
         $field = (string) $rule['field'];
         $var = (object) ['var' => $field];
-        $value = isset($rule['value']) ? (string) $rule['value'] : '';
-        $decimal = in_array($this->fieldTypes[$field] ?? '', self::DECIMAL_TYPES, true);
-        $operator = (string) ($rule['operator'] ?? 'eq');
+        $value = is_scalar($rule['value'] ?? null) ? (string) $rule['value'] : '';
+        $type = $this->fieldTypes[$field] ?? '';
+        $decimal = in_array($type, self::DECIMAL_TYPES, true);
+        $boolean = in_array($type, self::BOOLEAN_TYPES, true);
+        $operator = is_string($rule['operator'] ?? null) ? $rule['operator'] : 'eq';
 
-        return match ($operator) {
-            'neq' => $decimal ? (object) ['!' => (object) ['dec.eq' => [$var, $value]]] : (object) ['!=' => [$var, $value]],
-            'empty', 'unchecked' => (object) ['!' => $var],
-            'not_empty', 'checked' => (object) ['!!' => $var],
-            'gt', 'gte', 'lt', 'lte' => (object) [self::ORDERED[$operator][$decimal ? 1 : 0] => [$var, $value]],
-            'contains' => (object) ['in' => [$value, $var]],
+        return match (true) {
+            $boolean && in_array($operator, ['eq', 'neq'], true) => (object) [$operator === 'eq' ? '===' : '!==' => [$var, self::truthy($value)]],
+            $operator === 'neq' => $decimal ? (object) ['!' => (object) ['dec.eq' => [$var, $value]]] : (object) ['!=' => [$var, $value]],
+            in_array($operator, ['empty', 'unchecked'], true) => (object) ['!' => $var],
+            in_array($operator, ['not_empty', 'checked'], true) => (object) ['!!' => $var],
+            isset(self::ORDERED[$operator]) => (object) [self::ORDERED[$operator][$decimal ? 1 : 0] => [$var, $value]],
+            $operator === 'contains' => (object) ['in' => [$value, $var]],
             default => $decimal ? (object) ['dec.eq' => [$var, $value]] : (object) ['==' => [$var, $value]],
         };
     }
 
-    /** @return array{match: string, rules: list<array{field: string, operator: string, value: string|null}>}|null */
+    /** @return array{match: string, groups: list<array{match: string, rules: list<array{field: string, operator: string, value: string|null}>}>}|null */
     private function parse(mixed $expression): ?array
     {
-        if (! $expression instanceof stdClass) {
+        $group = $this->parseGroup($expression);
+        if ($group !== null) {
+            return ['match' => 'all', 'groups' => [$group]];
+        }
+
+        [$operator, $items] = self::junction($expression);
+        if ($operator === null) {
             return null;
         }
-        $vars = get_object_vars($expression);
-        $operator = count($vars) === 1 ? (string) array_key_first($vars) : '';
-
-        if (in_array($operator, ['and', 'or'], true) && is_array($vars[$operator]) && count($vars[$operator]) > 1) {
-            $rules = array_map(fn (mixed $part): ?array => $this->parseRule($part), $vars[$operator]);
-            if (in_array(null, $rules, true)) {
+        $groups = [];
+        foreach ($items as $item) {
+            $parsed = $this->parseGroup($item);
+            if ($parsed === null) {
                 return null;
             }
-
-            /** @var list<array{field: string, operator: string, value: string|null}> $rules */
-            return ['match' => $operator === 'or' ? 'any' : 'all', 'rules' => $rules];
+            $groups[] = $parsed;
         }
 
-        $rule = $this->parseRule($expression);
+        return ['match' => $operator === 'or' ? 'any' : 'all', 'groups' => $groups];
+    }
 
-        return $rule === null ? null : ['match' => 'all', 'rules' => [$rule]];
+    /** @return array{match: string, rules: list<array{field: string, operator: string, value: string|null}>}|null */
+    private function parseGroup(mixed $node): ?array
+    {
+        $rule = $this->parseRule($node);
+        if ($rule !== null) {
+            return ['match' => 'all', 'rules' => [$rule]];
+        }
+
+        [$operator, $items] = self::junction($node);
+        if ($operator === null) {
+            return null;
+        }
+        $rules = [];
+        foreach ($items as $item) {
+            $parsed = $this->parseRule($item);
+            if ($parsed === null) {
+                return null;
+            }
+            $rules[] = $parsed;
+        }
+
+        return ['match' => $operator === 'or' ? 'any' : 'all', 'rules' => $rules];
+    }
+
+    /** @return array{0: string|null, 1: list<mixed>} */
+    private static function junction(mixed $node): array
+    {
+        if (! $node instanceof stdClass || count(get_object_vars($node)) !== 1) {
+            return [null, []];
+        }
+        $operator = (string) array_key_first(get_object_vars($node));
+        $items = $node->{$operator};
+
+        return in_array($operator, ['and', 'or'], true) && is_array($items) && count($items) > 1
+            ? [$operator, array_values($items)]
+            : [null, []];
     }
 
     /** @return array{field: string, operator: string, value: string|null}|null */
@@ -144,28 +197,54 @@ final class LogicCompiler
             return null;
         }
 
-        if ($op === 'in') {
-            $field = self::varName($args[1]);
+        return $this->parseBinary($op, $args);
+    }
 
-            return $field !== null && is_scalar($args[0]) ? ['field' => $field, 'operator' => 'contains', 'value' => (string) $args[0]] : null;
+    /**
+     * @param  array<array-key, mixed>  $args
+     * @return array{field: string, operator: string, value: string|null}|null
+     */
+    private function parseBinary(string $op, array $args): ?array
+    {
+        if ($op === 'in') {
+            $field = self::varName($args[1] ?? null);
+
+            return $field !== null && is_scalar($args[0] ?? null) ? ['field' => $field, 'operator' => 'contains', 'value' => (string) $args[0]] : null;
+        }
+
+        $field = self::varName($args[0] ?? null);
+        if ($field !== null && in_array($op, ['===', '!=='], true) && is_bool($args[1] ?? null)) {
+            return ['field' => $field, 'operator' => $op === '===' ? 'eq' : 'neq', 'value' => $args[1] ? 'true' : 'false'];
         }
 
         $map = ['==' => 'eq', 'dec.eq' => 'eq', '!=' => 'neq', '>' => 'gt', 'dec.gt' => 'gt', '>=' => 'gte', 'dec.gte' => 'gte',
             '<' => 'lt', 'dec.lt' => 'lt', '<=' => 'lte', 'dec.lte' => 'lte'];
-        $field = self::varName($args[0]);
-        if (! isset($map[$op]) || $field === null || ! is_string($args[1])) {
+        if (! isset($map[$op]) || $field === null || ! is_string($args[1] ?? null)) {
             return null;
         }
 
         return ['field' => $field, 'operator' => $map[$op], 'value' => $args[1]];
     }
 
+    private function decodeJson(string $json): mixed
+    {
+        if (trim($json) === '') {
+            return null;
+        }
+        try {
+            return Json::decode($json);
+        } catch (JsonException) {
+            throw new InvalidArgumentException(__('forms.errors.invalid_definition'));
+        }
+    }
+
+    private static function truthy(string $value): bool
+    {
+        return in_array(strtolower(trim($value)), ['true', '1', 'yes', 'ja'], true);
+    }
+
     private static function varName(mixed $node): ?string
     {
-        if ($node instanceof stdClass && count(get_object_vars($node)) === 1 && is_string($node->var ?? null)) {
-            return $node->var;
-        }
-
-        return null;
+        return $node instanceof stdClass && count(get_object_vars($node)) === 1 && is_string($node->var ?? null) ? $node->var : null;
     }
 }

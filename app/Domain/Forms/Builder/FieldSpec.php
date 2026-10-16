@@ -23,6 +23,12 @@ final readonly class FieldSpec
 
     public const string DEFAULT = 'default';
 
+    /** Default of a boolean element (checkbox, toggle): "true"/"false" become JSON booleans. */
+    public const string DEFAULT_BOOL = 'default_bool';
+
+    /** Default of an integer element (rating): digits become a JSON integer. */
+    public const string DEFAULT_INT = 'default_int';
+
     public const string LIST = 'list';
 
     /** @param  list<string>  $path */

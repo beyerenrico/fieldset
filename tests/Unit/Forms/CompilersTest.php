@@ -14,10 +14,12 @@ dataset('logic round trips', [
     'date compare' => ['{"<":[{"var":"day"},"2026-12-31"]}', 'rules'],
     'unsupported shape' => ['{"some":[{"var":"rows"},{"var":"ok"}]}', 'json'],
     'boolean literal' => ['true', 'json'],
+    'checkbox equals true' => ['{"===":[{"var":"ok"},true]}', 'rules'],
+    'groups of groups' => ['{"or":[{"and":[{"!!":{"var":"a"}},{"dec.lt":[{"var":"qty"},"3"]}]},{"==":[{"var":"type"},"repair"]}]}', 'rules'],
 ]);
 
 it('decompiles and recompiles logic without loss', function (string $json, string $mode): void {
-    $compiler = new LogicCompiler(['qty' => 'number', 'type' => 'select', 'day' => 'date', 'tags' => 'multiselect', 'a' => 'text']);
+    $compiler = new LogicCompiler(['qty' => 'number', 'type' => 'select', 'day' => 'date', 'tags' => 'multiselect', 'a' => 'text', 'ok' => 'checkbox']);
     $expression = Json::decode($json);
     $ui = $compiler->toUi($expression);
 
@@ -41,3 +43,10 @@ it('decompiles and recompiles calculations without loss', function (string $json
     expect($ui['mode'])->toBe($mode)
         ->and(Json::canonical($compiler->fromUi($ui)))->toBe(Json::canonical($expression));
 })->with('calc round trips');
+
+it('compiles checkbox equality to a boolean comparison', function (): void {
+    $compiler = new LogicCompiler(['ok' => 'checkbox']);
+    $ui = ['mode' => 'rules', 'match' => 'all', 'groups' => [['match' => 'all', 'rules' => [['field' => 'ok', 'operator' => 'eq', 'value' => 'true']]]], 'json' => ''];
+
+    expect(Json::encode($compiler->fromUi($ui)))->toBe('{"===":[{"var":"ok"},true]}');
+});

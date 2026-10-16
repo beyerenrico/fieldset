@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Filament\Admin\Resources\Forms\Builder;
 
+use App\Domain\Forms\Builder\BlockCloner;
 use App\Domain\Forms\Builder\ElementFields;
+use Filament\Actions\Action;
 use Filament\Forms\Components\Builder;
 use Filament\Forms\Components\Builder\Block;
 use Filament\Forms\Components\Hidden;
@@ -49,6 +51,15 @@ final class ElementBlocks
             ->collapsible()
             ->collapsed()
             ->cloneable()
+            ->cloneAction(fn (Action $action): Action => $action->action(function (array $arguments, Builder $component): void {
+                $items = $component->getRawState() ?? [];
+                if (! is_array($items) || ! array_key_exists($arguments['item'], $items)) {
+                    return;
+                }
+                $items[(string) $component->generateUuid()] = BlockCloner::clone($items[$arguments['item']]);
+                $component->rawState($items);
+                $component->callAfterStateUpdated();
+            }))
             ->reorderable()
             ->blockNumbers(false)
             ->blockPickerColumns(3)

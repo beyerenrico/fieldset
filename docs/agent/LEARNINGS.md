@@ -15,3 +15,5 @@
 10. `migrate:fresh` drops tables but not PL/pgSQL functions: use CREATE OR REPLACE FUNCTION + DROP TRIGGER IF EXISTS in migrations.
 11. A failing SQL statement inside RefreshDatabase's transaction aborts it (Postgres 25P02); wrap expected-to-fail raw statements in DB::transaction() (savepoint).
 12. queue:work in tests stops after one job when the process exceeds --memory (default 128 MB) — pass --memory=4096 in worker tests.
+13. PCOV only collects files under pcov.directory (auto = ./app) — set pcov.directory to the repo root or packages/ show 0 %.
+14. `php artisan test` runs Pest in a subprocess without `php -d` ini flags (pcov.directory lost) — run coverage with vendor/bin/pest directly.

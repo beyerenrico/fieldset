@@ -19,8 +19,7 @@ test('designer builds a form from the service report template and publishes v1',
 
   await page.getByRole('button', { name: /from template|aus vorlage|vorlage/i }).click();
   const dialog = page.getByRole('dialog');
-  await dialog.locator('select, [role="combobox"]').first().click();
-  await page.getByRole('option', { name: /servicebericht|service report/i }).first().click();
+  await dialog.locator('select').first().selectOption('service_report');
   await dialog.locator('input[type="text"]').last().fill('Servicebericht E2E');
   await dialog.getByRole('button', { name: /submit|absenden|erstellen|create/i }).first().click();
 

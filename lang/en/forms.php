@@ -117,6 +117,7 @@ return [
         'advanced' => 'Advanced',
     ],
     'types' => [
+        'form' => 'Form settings', 'page' => 'Page',
         'text' => 'Text', 'textarea' => 'Long text', 'email' => 'Email', 'phone' => 'Phone', 'number' => 'Number',
         'money' => 'Money', 'date' => 'Date', 'time' => 'Time', 'datetime' => 'Date and time', 'select' => 'Dropdown',
         'multiselect' => 'Multiple choice', 'radio' => 'Single choice', 'checkbox' => 'Checkbox', 'toggle' => 'Switch',
@@ -133,6 +134,8 @@ return [
         'match' => 'Match',
         'match_all' => 'all rules (AND)',
         'match_any' => 'any rule (OR)',
+        'match_groups' => 'Combine groups with',
+        'groups' => 'Rule groups',
         'rules' => 'Rules',
         'field' => 'Field',
         'operator' => 'Operator',

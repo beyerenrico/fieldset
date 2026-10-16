@@ -78,9 +78,11 @@ it('compiles visual rules on number fields to decimal operators', function (): v
     $state = $mapper->toState(sampleDefinition());
     expect($state['pages'][0]['elements'][1]['data']['visible_if'])->toMatchArray(['mode' => 'rules', 'match' => 'all']);
 
-    $state['pages'][0]['elements'][1]['data']['visible_if'] = ['mode' => 'rules', 'match' => 'any', 'rules' => [
-        ['field' => 'qty', 'operator' => 'gte', 'value' => '5'],
-        ['field' => 'qty', 'operator' => 'empty', 'value' => null],
+    $state['pages'][0]['elements'][1]['data']['visible_if'] = ['mode' => 'rules', 'match' => 'all', 'groups' => [
+        ['match' => 'any', 'rules' => [
+            ['field' => 'qty', 'operator' => 'gte', 'value' => '5'],
+            ['field' => 'qty', 'operator' => 'empty', 'value' => null],
+        ]],
     ], 'json' => ''];
     $back = $mapper->toDefinition($state);
 
@@ -120,4 +122,31 @@ it('maps nested repeaters, sections and columns', function (): void {
     expect($section['type'])->toBe('section')
         ->and($section['data']['elements'])->not->toBeEmpty()
         ->and($section['data']['elements'][0]['data']['options'][0]['value'])->toBe('ok');
+});
+
+it('stores typed defaults for boolean and integer elements', function (): void {
+    $definition = sampleDefinition();
+    $definition->pages[0]->elements[] = (object) ['id' => '00000000-0000-4000-8000-000000000010', 'type' => 'checkbox', 'key' => 'ok', 'label' => 'OK'];
+    $definition->pages[0]->elements[] = (object) ['id' => '00000000-0000-4000-8000-000000000011', 'type' => 'rating', 'key' => 'stars', 'label' => 'Stars'];
+    $mapper = new BuilderMapper;
+    $state = $mapper->toState($definition);
+    $state['pages'][0]['elements'][2]['data']['default'] = 'true';
+    $state['pages'][0]['elements'][3]['data']['default'] = '4';
+
+    $elements = $mapper->toDefinition($state)->pages[0]->elements;
+
+    expect($elements[2]->default)->toBeTrue()->and($elements[3]->default)->toBe(4)
+        ->and($elements[0]->default ?? null)->toBeNull();
+});
+
+it('removes numbering when its format is cleared', function (): void {
+    $definition = Json::decode((string) file_get_contents(base_path('spec/templates/invoice.json')));
+    $mapper = new BuilderMapper;
+    $state = $mapper->toState($definition);
+    $state['numbering_format'] = '';
+
+    $back = $mapper->toDefinition($state);
+
+    expect(property_exists($back->settings, 'numbering'))->toBeFalse()
+        ->and($back->settings->layout)->toBe('wizard');
 });

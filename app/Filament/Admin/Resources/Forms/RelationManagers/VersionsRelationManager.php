@@ -27,6 +27,17 @@ class VersionsRelationManager extends RelationManager
 {
     protected static string $relationship = 'versions';
 
+    /** Re-authorize on every Livewire request: permissions may change while a tab stays open. */
+    public function hydrate(): void
+    {
+        abort_unless(auth()->user()?->can('view', $this->ownerForm()) ?? false, 403);
+    }
+
+    public static function canViewForRecord(Model $ownerRecord, string $pageClass): bool
+    {
+        return auth()->user()?->can('view', $ownerRecord) ?? false;
+    }
+
     public static function getTitle(Model $ownerRecord, string $pageClass): string
     {
         return __('forms.versions.title');
@@ -52,6 +63,7 @@ class VersionsRelationManager extends RelationManager
     private function diffAction(): Action
     {
         return Action::make('diff')->label(__('forms.actions.diff'))->icon('heroicon-o-arrows-right-left')->color('gray')
+            ->authorize(fn (): bool => auth()->user()?->can('view', $this->ownerForm()) ?? false)
             ->modalSubmitAction(false)
             ->schema(fn (FormVersion $record): array => [
                 Select::make('against')->label(__('forms.versions.diff_to'))->live()->default('draft')

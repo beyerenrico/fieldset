@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Admin\Resources\Forms\Pages;
 
+use App\Domain\Forms\Actions\ExportDefinition;
 use App\Domain\Forms\Actions\PublishForm;
 use App\Domain\Forms\Actions\SaveDraft;
 use App\Domain\Forms\Actions\SyncFormAccess;
@@ -21,10 +22,12 @@ use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Filament\Schemas\Schema;
+use Filament\Support\Exceptions\Halt;
 use FormSchema\Json\Json;
 use Illuminate\Database\Eloquent\Model;
 use InvalidArgumentException;
 use stdClass;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Builder v1 page: edits the draft through the Filament Builder, lints after every save, autosaves
@@ -69,7 +72,13 @@ class EditForm extends EditRecord
     protected function handleRecordUpdate(Model $record, array $data): Model
     {
         /** @var Form $record */
-        $this->persist($record, $data, autosave: false);
+        try {
+            $this->persist($record, $data, autosave: false);
+        } catch (InvalidDefinitionException|InvalidArgumentException $e) {
+            Notification::make()->danger()->title($e->getMessage())->send();
+
+            throw new Halt;
+        }
 
         return $record;
     }
@@ -117,17 +126,32 @@ class EditForm extends EditRecord
 
     protected function getHeaderActions(): array
     {
-        return [$this->publishAction(), FormResource::exportAction()->record($this->record)];
+        return [$this->publishAction(), $this->exportDraftAction()];
+    }
+
+    private function exportDraftAction(): Action
+    {
+        return Action::make('exportDraft')->label(__('forms.actions.export_json'))->icon('heroicon-o-arrow-down-tray')->color('gray')
+            ->authorize(fn (): bool => auth()->user()?->can('view', $this->record) ?? false)
+            ->action(function (): StreamedResponse {
+                $json = app(ExportDefinition::class)->handle($this->record, null, $this->actor());
+
+                return response()->streamDownload(fn () => print ($json), $this->record->key.'.draft.form.json', ['Content-Type' => 'application/json']);
+            });
     }
 
     private function publishAction(): Action
     {
         return Action::make('publish')->label(__('forms.actions.publish'))->icon('heroicon-o-rocket-launch')->color('success')
+            ->disabled(fn (): bool => $this->hasLintErrors())
+            ->tooltip(fn (): ?string => $this->hasLintErrors() ? (string) __('forms.errors.invalid_definition') : null)
             ->authorize(fn (): bool => auth()->user()?->can('publish', $this->record) ?? false)
             ->schema([Textarea::make('changelog')->label(__('forms.versions.changelog'))->required()->rows(3)])
             ->action(function (array $data): void {
                 try {
-                    $this->save(shouldRedirect: false, shouldSendSavedNotification: false);
+                    // The draft is stored as part of the publish action, which writes the one audit entry.
+                    $state = $this->form->getState();
+                    $this->persist($this->record, is_array($state) ? $state : [], autosave: true);
                     $version = app(PublishForm::class)->handle($this->record->refresh(), (string) $data['changelog'], $this->actor());
                 } catch (InvalidDefinitionException $e) {
                     $this->lint = $e->report->toArray();

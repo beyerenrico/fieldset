@@ -17,7 +17,7 @@ final readonly class DuplicateForm
     public function handle(Form $form, User $actor): Form
     {
         $definition = DefinitionTools::regenerateIds($form->draft_definition, BlankDefinition::id(...));
-        $definition->key = $form->key.'_copy';
+        $definition->key = mb_substr($form->key, 0, 59).'_copy';
 
         [$copy] = $this->create->handle($actor, __('forms.actions.copy_name', ['name' => $form->name]), $definition, $form->category, 'form.duplicated');
 

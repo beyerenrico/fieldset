@@ -55,11 +55,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
-        with: { php-version: '${{ env.PHP_VERSION }}', coverage: pcov }
+        with: { php-version: '${{ env.PHP_VERSION }}', coverage: pcov, ini-values: 'pcov.directory=., memory_limit=2G' }
       - run: sudo apt-get update && sudo apt-get install -y qpdf
       - run: composer install --no-interaction --prefer-dist --no-progress
       - run: cp .env.example .env && php artisan key:generate
-      - run: php artisan test --compact --coverage-clover=storage/coverage/clover.xml --min=80
+      - run: vendor/bin/pest --compact --coverage-clover=storage/coverage/clover.xml --min=80
       - run: php scripts/coverage-thresholds.php storage/coverage/clover.xml
 
   js-tests:

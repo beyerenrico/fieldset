@@ -117,6 +117,7 @@ return [
         'advanced' => 'Erweitert',
     ],
     'types' => [
+        'form' => 'Formulareinstellungen', 'page' => 'Seite',
         'text' => 'Text', 'textarea' => 'Langer Text', 'email' => 'E-Mail', 'phone' => 'Telefon', 'number' => 'Zahl',
         'money' => 'Betrag', 'date' => 'Datum', 'time' => 'Uhrzeit', 'datetime' => 'Datum und Uhrzeit', 'select' => 'Dropdown',
         'multiselect' => 'Mehrfachauswahl', 'radio' => 'Einzelauswahl', 'checkbox' => 'Kontrollkästchen', 'toggle' => 'Schalter',
@@ -133,6 +134,8 @@ return [
         'match' => 'Übereinstimmung',
         'match_all' => 'alle Regeln (UND)',
         'match_any' => 'mindestens eine Regel (ODER)',
+        'match_groups' => 'Gruppen verknüpfen mit',
+        'groups' => 'Regelgruppen',
         'rules' => 'Regeln',
         'field' => 'Feld',
         'operator' => 'Operator',
