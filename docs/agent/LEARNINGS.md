@@ -51,3 +51,4 @@
 44. Laravel `once()` keys the memo by the caller's file/line and the closure's `use` variables: pass the varying input (form id, user) through `use`, or every call returns the first result.
 45. Strict mode throws on lazy loading only when a query returned several models — code tested with one record (e.g. one scheduled report per organization) passes and fails in production; eager-load in every loop over query results, and do not let `report($e)` hide it in tests.
 46. Filament action buttons have no wire:key: two adjacent actions with complementary visible() (pin/unpin) are morphed in place by Livewire, so keyboard focus stays on the button after toggling.
+47. Run E2E through `npm run e2e` (sets PLAYWRIGHT_BROWSERS_PATH=storage/playwright); plain `npx playwright test` looks in ~/Library/Caches and fails with "Executable does not exist".
