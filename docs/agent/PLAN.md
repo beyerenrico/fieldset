@@ -39,7 +39,7 @@ AC refs point at BUILD_PROMPT sections. Test approach in brackets.
 - [x] M1-T15 Logic editor v1: condition repeater (field/operator/value, AND/OR groups) compiling to JsonLogic, guided calculated expression editor, raw JSON view — §8.2 [unit + Livewire]
 - [x] M1-T16 Draft autosave, lint panel blocking publish, publish modal (required changelog), version timeline, rollback, retire, diff UI — §8.2, §8.10 [Livewire tests]
 - [x] M1-T17 JSON import/export (definition + design ref), templates in `spec/templates/` (service report, invoice, inspection checklist; rest in M3), create-from-template gallery setting `source` — §7.6, §8.12, D12 [feature tests]
-- [ ] M1-T18 Gate M1
+- [x] M1-T18 Gate M1
 
 ## M2 Field App online (branch `m2-field-app`)
 - [ ] M2-T01 Devices: `devices` table, register on login (secret shown once, hash stored), `POST /api/v1/auth/device-status` (ok/reauth/wipe) by device secret, revoke + wipe, user deactivation revokes sessions/tokens/devices — §9.3, §6.4 [feature tests]

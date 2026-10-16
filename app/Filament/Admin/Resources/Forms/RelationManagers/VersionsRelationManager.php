@@ -46,6 +46,8 @@ class VersionsRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table
+            ->modelLabel(__('forms.versions.version'))
+            ->pluralModelLabel(__('forms.versions.title'))
             ->defaultSort('version', 'desc')
             ->modifyQueryUsing(fn ($query) => $query->with('publisher'))
             ->columns([
