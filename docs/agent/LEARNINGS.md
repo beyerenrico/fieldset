@@ -46,3 +46,5 @@
 39. `cache.serializable_classes` is false: cached values must be plain arrays (objects do not come back) — round-trip DTOs with toArray()/fromArray().
 40. Filament widgets run `canView()` on every Livewire request (CanAuthorizeAccess boots before hydrate), not only on mount: a widget whose class stops being offered fails its next poll with 403.
 41. pg_trgm GIN (1.6) also serves `=`: after adding a trigram index, "unindexed column" probes on that column get an index plan.
+42. The admin panel has no custom Filament theme, so Tailwind utility classes in our own Blade views (text-gray-500, py-2, flex…) are NOT compiled and render unstyled. Use Filament components / `fi-*` classes or inline styles in custom views.
+43. Filament widgets are lazy: E2E must scroll them into view before asserting their content.

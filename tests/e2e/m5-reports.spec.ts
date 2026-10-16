@@ -72,6 +72,17 @@ test.describe.serial('reports and dashboards', () => {
       await modal.getByRole('button', { name: 'Absenden' }).click();
       await expect(page.getByText(REPORT).first()).toBeVisible({ timeout: 20_000 });
       await page.screenshot({ path: evidence('03-saved-report'), fullPage: true });
+
+      await page.getByRole('link', { name: /^(anzeigen|view)$/i }).first().click(); // saving opens the edit page
+      await page.getByRole('button', { name: /an dashboard anheften|pin to dashboard/i }).first().click();
+      await expect(page.getByRole('button', { name: /lösen|unpin/i }).first()).toBeVisible();
+      await page.goto('/admin/demo');
+      // Filament widgets load lazily once they scroll into view.
+      await expect(async () => {
+        await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+        await expect(page.getByText(REPORT).first()).toBeVisible({ timeout: 2_000 });
+      }).toPass({ timeout: 30_000 });
+      await page.screenshot({ path: evidence('04-dashboard-pinned'), fullPage: true });
     });
   });
 });
