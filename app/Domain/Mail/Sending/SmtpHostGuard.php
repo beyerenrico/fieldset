@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Mail\Sending;
 
+use App\Support\Network\PublicAddress;
 use RuntimeException;
 
 /**
@@ -67,13 +68,7 @@ final class SmtpHostGuard
      */
     private function publicAddresses(array $addresses): ?array
     {
-        foreach ($addresses as $address) {
-            if (filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_GLOBAL_RANGE) === false) {
-                return null;
-            }
-        }
-
-        return $addresses === [] ? null : $addresses;
+        return PublicAddress::allPublic($addresses) ? $addresses : null;
     }
 
     /** @return list<string> */

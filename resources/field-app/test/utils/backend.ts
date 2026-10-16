@@ -1,8 +1,17 @@
 /** In-memory fake of the Field App API for MSW (test fixture: mutable on purpose). */
 import type { JsonObject } from '@form-schema-app/form-schema-js';
 import { http, HttpResponse, type JsonBodyType } from 'msw';
-import type { FormSummary, Me, Submission, SubmissionDocument } from '../../src/lib/api/types.ts';
-import { FORMS, makeMe, makeSubmission, makeVersion } from './fixtures.ts';
+import type {
+    AppNotification,
+    FormSummary,
+    Me,
+    NotificationPreference,
+    Submission,
+    SubmissionDocument,
+    Task,
+} from '../../src/lib/api/types.ts';
+import { FORMS, PREFERENCES, makeMe, makeSubmission, makeVersion } from './fixtures.ts';
+import { workflowHandlers } from './workflow-backend.ts';
 
 export const ok = (data: unknown, init: ResponseInit = {}, meta: unknown = null) =>
     HttpResponse.json({ success: true, data, error: null, meta } as JsonBodyType, init);
@@ -32,6 +41,14 @@ export interface BackendState {
     loggedIn: boolean;
     twoFactor: boolean;
     deviceSecret: string;
+    tasks: Task[];
+    taskCalls: string[];
+    completions: { id: number; key: string | null; body: unknown }[];
+    notifications: AppNotification[];
+    notificationCalls: number;
+    reads: unknown[];
+    preferences: readonly NotificationPreference[];
+    preferenceSaves: unknown[];
 }
 
 export function createBackend(overrides: Partial<BackendState> = {}) {
@@ -48,6 +65,14 @@ export function createBackend(overrides: Partial<BackendState> = {}) {
         loggedIn: true,
         twoFactor: false,
         deviceSecret: 'secret-1',
+        tasks: [],
+        taskCalls: [],
+        completions: [],
+        notifications: [],
+        notificationCalls: 0,
+        reads: [],
+        preferences: PREFERENCES,
+        preferenceSaves: [],
         ...overrides,
     };
     const guard = () => (state.loggedIn ? null : fail(401, 'unauthenticated'));
@@ -150,12 +175,14 @@ export function createBackend(overrides: Partial<BackendState> = {}) {
             const submitted = {
                 ...existing,
                 status: 'submitted' as const,
-                number: 'SR-2026-00012',
+                // A resubmit (changes requested) keeps the number.
+                number: existing.number ?? 'SR-2026-00012',
                 can_edit: false,
             };
             state.submissions.set(uuid, submitted);
             return ok({ submission: submitted });
         }),
+        ...workflowHandlers(state),
     ];
     return { state, handlers };
 }

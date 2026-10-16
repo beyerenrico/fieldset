@@ -4,6 +4,7 @@ import { apiRequest } from './client.ts';
 import { ApiError } from './errors.ts';
 import { rawRequest, type ApiResponse, type RequestOptions } from './http.ts';
 import { refreshCsrfCookie } from './device-status.ts';
+import { toMeta } from './pagination.ts';
 import { paths } from './paths.ts';
 import type {
     AttachmentKind,
@@ -15,7 +16,6 @@ import type {
     LoginResult,
     Me,
     Page,
-    PaginationMeta,
     Submission,
     SubmissionDocument,
     SubmissionStatus,
@@ -179,20 +179,6 @@ export interface SubmissionFilter {
     readonly status?: SubmissionStatus | undefined;
     readonly formId?: number | undefined;
     readonly page?: number | undefined;
-}
-
-const EMPTY_META: PaginationMeta = { current_page: 1, last_page: 1, total: 0 };
-
-function toMeta(meta: Readonly<Record<string, unknown>> | null, count: number): PaginationMeta {
-    const read = (key: keyof PaginationMeta, fallback: number): number => {
-        const value = meta?.[key];
-        return typeof value === 'number' ? value : fallback;
-    };
-    return {
-        current_page: read('current_page', EMPTY_META.current_page),
-        last_page: read('last_page', EMPTY_META.last_page),
-        total: read('total', count),
-    };
 }
 
 export async function listSubmissions(filter: SubmissionFilter = {}): Promise<Page<Submission>> {

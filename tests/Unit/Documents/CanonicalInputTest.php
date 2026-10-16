@@ -75,6 +75,16 @@ it('changes the input hash when data, design, versions or assets change', functi
         ->not->toBe(docInputHash(docSampleInput(assets: ['u1' => $asset(str_repeat('b', 64))])));
 });
 
+it('keeps the input hash across workflow statuses; only the watermark state counts', function (): void {
+    $submitted = docInputHash(docSampleInput());
+
+    foreach (['in_review', 'changes_requested', 'approved', 'completed'] as $status) {
+        expect(docInputHash(docSampleInput(meta: ['status' => $status])))->toBe($submitted, $status);
+    }
+    expect(docInputHash(docSampleInput(meta: ['status' => 'void'])))->not->toBe($submitted)
+        ->and(docInputHash(docSampleInput(meta: ['status' => 'draft'])))->not->toBe($submitted);
+});
+
 it('honours pdf hints, visibility and escapes every value', function (): void {
     $html = app(HtmlComposer::class)->compose(docSampleInput(visibility: ['/h' => false]))->body;
 

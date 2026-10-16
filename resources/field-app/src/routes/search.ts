@@ -42,8 +42,17 @@ export function parseSubmissionsSearch(search: Raw): SubmissionsSearch {
 
 export interface DetailSearch {
     readonly submitted?: boolean;
+    /** The submit was a resubmit after "changes requested" (number kept). */
+    readonly resubmitted?: boolean;
 }
 
+const isTrue = (value: unknown): boolean => value === true || value === 'true';
+
 export function parseDetailSearch(search: Raw): DetailSearch {
-    return search.submitted === true || search.submitted === 'true' ? { submitted: true } : {};
+    if (!isTrue(search.submitted)) {
+        return {};
+    }
+    return isTrue(search.resubmitted)
+        ? { submitted: true, resubmitted: true }
+        : { submitted: true };
 }

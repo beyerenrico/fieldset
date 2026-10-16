@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { setOrganizationId } from '../../src/lib/session/org-store.ts';
 import { createBackend, fail } from '../utils/backend.ts';
 import { makeSubmission } from '../utils/fixtures.ts';
-import { renderApp } from '../utils/render-app.tsx';
+import { preloadLazyScreens, renderApp } from '../utils/render-app.tsx';
 import { server, setupTestServer } from '../utils/server.ts';
 
 vi.mock('@form-schema-app/form-schema-react', async (importOriginal) => {
@@ -14,6 +14,7 @@ vi.mock('@form-schema-app/form-schema-react', async (importOriginal) => {
 });
 
 setupTestServer();
+preloadLazyScreens();
 
 const UUID = '0192f1c4-0000-7000-8000-0000000000bb';
 

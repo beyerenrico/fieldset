@@ -5,6 +5,7 @@ import { toLanguage } from '../i18n/preferences.ts';
 import { useSession } from '../hooks/useSession.ts';
 import { cn } from '../lib/cn.ts';
 import { BottomNav } from './BottomNav.tsx';
+import { NotificationBell } from './NotificationBell.tsx';
 import { OnlineIndicator } from './OnlineIndicator.tsx';
 
 /** Authenticated layout. The window scrolls (the renderer virtualizes against it). */
@@ -32,7 +33,10 @@ export function AppShell(): ReactNode {
                     <span className="truncate text-lg font-bold">
                         {organization?.name ?? t('app.title')}
                     </span>
-                    <OnlineIndicator />
+                    <span className="flex shrink-0 items-center gap-1">
+                        <OnlineIndicator />
+                        <NotificationBell />
+                    </span>
                 </div>
             </header>
             <main

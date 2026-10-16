@@ -1,28 +1,24 @@
-# State: 2026-10-16T23:00Z
-Milestone: M3 Documents + email · Branch m3-documents (M2 merged, tag m2-done)
-Tasks in flight (3 subagents, shared working tree, nothing committed by them):
-- Documents agent: M3-T01..T05 (branding page, designs + versions, renderer, renditions, preview PDF)
-  — tests on DB form_schema_test_b.
-- Mail agent: M3-T06/T07 (mail settings, mail log + retry, branded mailables, document links 410)
-  — tests on DB form_schema_test_c.
-- Admin agent: M3-T09..T11 (submissions inbox, 3 templates, CSV invitations) — DB form_schema_test_d.
-Committed prerequisites: spatie/laravel-pdf ^2.14, Branding value object (7e1a806).
+# State: 2026-10-17T20:00Z
+Milestone: M4 Workflows + notifications → MVP 0.1.0 · Branch m4-workflows · Gate in progress
+Done: M4-T01..T10 committed (engine, steps, triggers, review tasks, Filament UI, notifications, tasks API,
+Field App tasks/review/notifications, demo workflow, E2E journeys 1, 4, 5 — 18/18 E2E green).
+Gate so far: PHP 3538 tests, coverage 94.8 %, PHPStan/Rector/Pint clean. Three reviews done (no
+critical/high). Two fix subagents running (backend on DB form_schema_test_b; Field App JS only);
+nothing committed by them.
+Release docs drafted: CHANGELOG.md (0.1.0), README (aae7dbe); release notes docs/releases/0.1.0.md TODO.
 Last commit: see `git log -1`
 
 ## Next actions
-1. As each agent reports: review its diff, run its tests on a free DB, stage its listed paths
-   explicitly, commit.
-2. Integration (after all three): implement Rendition as DocumentDelivery file, M3-T08 send to
-   customer (`POST /submissions/{uuid}/send` + admin action), renditions in the inbox "Documents"
-   section, demo seed (design, branding), docs/api update.
-3. E2E M3 journey: submit in Field App → PDF in admin → email in Mailpit (with PDF); rebuild Docker.
-4. Gate M3: coverage.sh, PHPStan 0/0, JS checks, conformance, E2E, reviewers, M3.md, merge, tag.
+1. Review + commit both fix batches (stage explicit paths; restore evidence PNGs of earlier milestones).
+2. Rebuild Docker, migrate:fresh --seed, cache:clear, full E2E; coverage.sh; JS checks; conformance.
+3. docs/agent/milestones/M4.md, docs/releases/0.1.0.md, tick M4-T11/T12, JOURNAL; root package.json
+   version 0.1.0; merge --no-ff to main, tag m4-done and v0.1.0; branch m5-reports; break down M5.
 
 ## Known problems
 - Builder page heavy (QUESTIONS #8); preview iframe same-origin (QUESTIONS #10, M8).
 - E2E: Filament login throttle — `php artisan cache:clear` in the app container between quick reruns.
 
 ## Resume commands
-docker compose up -d postgres redis gotenberg mailpit app queue scheduler
-DB_DATABASE=form_schema_test php artisan test --compact   # default DB is free while agents run
-npm run conformance
+docker compose up -d
+DB_DATABASE=form_schema_test php artisan test --compact
+vendor/bin/rector --dry-run --no-progress-bar   # CI gate, must be 0 files

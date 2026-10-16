@@ -6,7 +6,7 @@ import { getOrganizationId, setOrganizationId } from '../../src/lib/session/org-
 import { kvGet, kvSet } from '../../src/lib/storage/kv.ts';
 import { createBackend, ok } from '../utils/backend.ts';
 import { ORG_A, ORG_B, makeMe, makeSubmission } from '../utils/fixtures.ts';
-import { renderApp } from '../utils/render-app.tsx';
+import { preloadLazyScreens, renderApp } from '../utils/render-app.tsx';
 import { server, setupTestServer } from '../utils/server.ts';
 
 vi.mock('@form-schema-app/form-schema-react', async (importOriginal) => {
@@ -16,6 +16,7 @@ vi.mock('@form-schema-app/form-schema-react', async (importOriginal) => {
 });
 
 setupTestServer();
+preloadLazyScreens();
 
 beforeEach(() => {
     setOrganizationId(1);

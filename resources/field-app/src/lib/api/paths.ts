@@ -25,4 +25,9 @@ export const paths = {
     submit: (uuid: string): string => `${API_BASE}/submissions/${enc(uuid)}/submit`,
     document: (uuid: string): string => `${API_BASE}/submissions/${enc(uuid)}/document`,
     send: (uuid: string): string => `${API_BASE}/submissions/${enc(uuid)}/send`,
+    tasks: `${API_BASE}/tasks`,
+    completeTask: (id: number): string => `${API_BASE}/tasks/${enc(String(id))}/complete`,
+    notifications: `${API_BASE}/notifications`,
+    notificationsRead: `${API_BASE}/notifications/read`,
+    notificationPreferences: `${API_BASE}/me/notification-preferences`,
 } as const;

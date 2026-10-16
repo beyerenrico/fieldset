@@ -7,12 +7,14 @@ use App\Domain\Documents\Designs\Actions\PublishDesign;
 use App\Domain\Documents\Designs\DesignResolver;
 use App\Domain\Documents\Events\RenditionCreated;
 use App\Domain\Documents\Models\Rendition;
+use App\Domain\Documents\Rendering\DocumentRenderer;
 use App\Domain\Documents\Rendering\RenderBudgetExceededException;
 use App\Domain\Documents\Renditions\GenerateRendition;
 use App\Domain\Documents\Renditions\RenderSubmission;
 use App\Domain\Identity\Tenancy\TenantContext;
 use App\Domain\Submissions\Actions\TransitionSubmission;
 use App\Domain\Submissions\Enums\SubmissionStatus;
+use App\Domain\Workflows\Triggers\StartWorkflowsForEvent;
 use Illuminate\Database\QueryException;
 use Illuminate\Queue\Attributes\CountCrashesAsExceptions;
 use Illuminate\Queue\Attributes\MaxExceptions;
@@ -53,7 +55,10 @@ it('does not queue renders when render_on_submit is off', function (): void {
     config(['documents.render_on_submit' => false]);
     DocumentFixtures::submit($this->s, DocumentFixtures::draft($this->s));
 
-    Queue::assertNothingPushed();
+    // The only job is the queued workflow start of the status change (ADR 0032 amendment), no render.
+    Queue::assertNotPushed(GenerateRendition::class);
+    Queue::assertPushed(StartWorkflowsForEvent::class);
+    Queue::assertCount(1);
 });
 
 it('stores an immutable rendition with versions, hashes and page count on submit', function (): void {
@@ -63,7 +68,7 @@ it('stores an immutable rendition with versions, hashes and page count on submit
 
     expect($rendition->form_version_id)->toBe($this->s->version->id)
         ->and($rendition->design_version_id)->toBeInt()
-        ->and($rendition->renderer_version)->toBe('1.1.0')
+        ->and($rendition->renderer_version)->toBe(DocumentRenderer::VERSION)
         ->and($rendition->page_count)->toBe(2)
         ->and($rendition->file_sha256)->toBe(hash('sha256', $file))
         ->and($rendition->size)->toBe(strlen($file))

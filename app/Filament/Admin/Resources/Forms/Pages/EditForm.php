@@ -22,6 +22,7 @@ use App\Domain\Forms\Support\InvalidDefinitionException;
 use App\Domain\Identity\Models\Organization;
 use App\Domain\Identity\Models\User;
 use App\Filament\Admin\Resources\Forms\FormResource;
+use App\Filament\Admin\Resources\Forms\RelationManagers\VersionsRelationManager;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Textarea;
@@ -32,6 +33,7 @@ use Filament\Support\Exceptions\Halt;
 use FormSchema\Definition\InvalidDefinitionException as InvalidSpecDefinition;
 use FormSchema\Json\Json;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 use stdClass;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -193,8 +195,11 @@ class EditForm extends EditRecord
             ->action(function (array $data): void {
                 try {
                     // The draft is stored as part of the publish action, which writes the one audit entry.
-                    $state = $this->form->getState();
-                    $this->persist($this->record, is_array($state) ? $state : [], autosave: true);
+                    $state = $this->validatedStateForPublish();
+                    if ($state === null) {
+                        return;
+                    }
+                    $this->persist($this->record, $state, autosave: true);
                     $version = app(PublishForm::class)->handle($this->record->refresh(), (string) $data['changelog'], $this->actor());
                 } catch (InvalidDefinitionException $e) {
                     $this->lint = $e->report->toArray();
@@ -204,7 +209,29 @@ class EditForm extends EditRecord
                 }
                 $this->fillForm();
                 Notification::make()->success()->title(__('forms.versions.published', ['version' => $version->version]))->send();
+                $this->dispatch(VersionsRelationManager::REFRESH_EVENT);
             });
+    }
+
+    /**
+     * The builder state, or null after reporting field errors: the errors sit on fields behind the
+     * publish dialog, so the dialog closes and a notification says what to fix.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function validatedStateForPublish(): ?array
+    {
+        try {
+            $state = $this->form->getState();
+        } catch (ValidationException $e) {
+            $this->unmountAction(false);
+            $this->setErrorBag($e->validator->errors());
+            Notification::make()->danger()->title(__('forms.errors.fix_fields'))->body(collect($e->errors())->flatten()->first())->send();
+
+            return null;
+        }
+
+        return is_array($state) ? $state : [];
     }
 
     public function hasLintErrors(): bool

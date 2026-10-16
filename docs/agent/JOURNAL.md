@@ -63,3 +63,11 @@
   (9589753, c3051c6). Gate also fixed tooling: Mailpit for worker, coverage container services, CI Rector
   drift (0f68661).
 - Gate: PHP 3346 tests, coverage 95.09 %, PHPStan 0/0, Rector/Pint clean, JS 606/110/213, E2E 12/12.
+
+## 2026-10-17 M4 gate + MVP 0.1.0
+- Three parallel agents (workflows, notifications, Field App) → 2c5404c, 619e833; demo workflow;
+  E2E journeys 1, 4, 5. E2E found 3 real bugs (empty builder keys, stale version history, status in
+  input_hash → renderer 1.2.0).
+- Reviews: no critical/high; ~25 medium/low fixed (47fcef4, 58d6e8e).
+- Gate: PHP 3594 tests, coverage 94.84 %, PHPStan 0/0, Rector/Pint clean, JS 606/110/297, E2E 18/18 ×2.
+  CHANGELOG + release notes; tag v0.1.0.

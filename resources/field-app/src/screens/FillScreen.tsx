@@ -2,6 +2,7 @@ import { FormRenderer } from '@form-schema-app/form-schema-react';
 import { getRouteApi, Link, useNavigate } from '@tanstack/react-router';
 import { useState, type ReactNode } from 'react';
 import { ConflictPanel } from '../components/ConflictPanel.tsx';
+import { ReviewNote } from '../components/ReviewNote.tsx';
 import { SaveIndicator } from '../components/SaveIndicator.tsx';
 import { UploadsHint } from '../components/UploadsHint.tsx';
 import { Alert } from '../components/ui/alert.tsx';
@@ -53,6 +54,9 @@ export function FillForm({
                 <h1 className="text-2xl font-bold">{version.definition.title}</h1>
                 <SaveIndicator state={snapshot.state} />
             </div>
+            {submission?.status === 'changes_requested' ? (
+                <ReviewNote review={submission.review} />
+            ) : null}
             {snapshot.state === 'locked' ? (
                 <Alert role="alert">
                     <p>{t('fill.locked')}</p>

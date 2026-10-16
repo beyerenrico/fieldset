@@ -62,6 +62,9 @@ class Rendition extends Model implements DeliverableDocument
 
     public const string REASON_RERENDER = 'rerender';
 
+    /** A workflow `generate_document` step with a chosen design (M4). */
+    public const string REASON_WORKFLOW = 'workflow';
+
     public const UPDATED_AT = null;
 
     protected $attributes = ['created_by' => null, 'request_id' => null];

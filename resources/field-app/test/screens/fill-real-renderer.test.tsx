@@ -3,10 +3,11 @@ import { screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setOrganizationId } from '../../src/lib/session/org-store.ts';
 import { createBackend } from '../utils/backend.ts';
-import { renderApp } from '../utils/render-app.tsx';
+import { preloadLazyScreens, renderApp } from '../utils/render-app.tsx';
 import { server, setupTestServer } from '../utils/server.ts';
 
 setupTestServer();
+preloadLazyScreens();
 
 const UUID = '0192f1c4-0000-7000-8000-0000000000cc';
 

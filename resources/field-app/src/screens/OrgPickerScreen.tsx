@@ -1,17 +1,16 @@
-import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { Building2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Button } from '../components/ui/button.tsx';
 import { useSession } from '../hooks/useSession.ts';
+import { useSwitchOrganization } from '../hooks/useSwitchOrganization.ts';
 import { useT } from '../i18n/I18nProvider.tsx';
-import { setOrganizationId } from '../lib/session/org-store.ts';
 
 export function OrgPickerScreen(): ReactNode {
     const t = useT();
     const { me } = useSession();
     const navigate = useNavigate();
-    const queryClient = useQueryClient();
+    const switchOrganization = useSwitchOrganization();
 
     return (
         <section className="flex flex-col gap-4">
@@ -25,10 +24,7 @@ export function OrgPickerScreen(): ReactNode {
                             size="lg"
                             className="w-full justify-start"
                             onClick={() => {
-                                setOrganizationId(organization.id);
-                                queryClient.removeQueries({
-                                    predicate: (query) => query.queryKey[0] !== 'me',
-                                });
+                                switchOrganization(organization.id);
                                 void navigate({ to: '/' });
                             }}
                         >

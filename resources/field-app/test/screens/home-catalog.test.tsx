@@ -6,10 +6,11 @@ import { UUID_V7 } from '../../src/lib/ids.ts';
 import { setOrganizationId } from '../../src/lib/session/org-store.ts';
 import { createBackend, fail } from '../utils/backend.ts';
 import { makeSubmission } from '../utils/fixtures.ts';
-import { renderApp } from '../utils/render-app.tsx';
+import { preloadLazyScreens, renderApp } from '../utils/render-app.tsx';
 import { server, setupTestServer } from '../utils/server.ts';
 
 setupTestServer();
+preloadLazyScreens();
 
 beforeEach(() => {
     setOrganizationId(1);
@@ -42,6 +43,44 @@ describe('home', () => {
         ]);
         expect(links[0]).toHaveTextContent('Inspection');
         expect(links[0]).toHaveTextContent('Changes requested');
+    });
+
+    it("lists only drafts the user may edit, not other people's visible submissions", async () => {
+        const backend = createBackend();
+        backend.state.submissions.set('mine', makeSubmission({ uuid: 'mine' }));
+        backend.state.submissions.set(
+            'theirs-draft',
+            makeSubmission({ uuid: 'theirs-draft', can_edit: false }),
+        );
+        backend.state.submissions.set(
+            'theirs-changes',
+            makeSubmission({
+                uuid: 'theirs-changes',
+                status: 'changes_requested',
+                can_edit: false,
+                review: { outcome: 'rejected', comment: 'Fix it', by: null, at: null },
+            }),
+        );
+        server.use(...backend.handlers);
+        renderApp('/');
+        const drafts = await screen.findByRole('region', { name: 'Continue drafts' });
+        const links = await within(drafts).findAllByRole('link');
+        expect(links.map((link) => link.getAttribute('href'))).toEqual(['/app/fill/mine']);
+        expect(drafts).not.toHaveTextContent('Edit and resubmit');
+        expect(drafts).not.toHaveTextContent('Fix it');
+    });
+
+    it('shows a reviewer no drafts when every visible one belongs to someone else', async () => {
+        const backend = createBackend();
+        backend.state.submissions.set(
+            'theirs',
+            makeSubmission({ uuid: 'theirs', status: 'changes_requested', can_edit: false }),
+        );
+        server.use(...backend.handlers);
+        renderApp('/');
+        const drafts = await screen.findByRole('region', { name: 'Continue drafts' });
+        expect(await within(drafts).findByText('No open drafts.')).toBeInTheDocument();
+        expect(within(drafts).queryByRole('link')).not.toBeInTheDocument();
     });
 
     it('shows favorites and recent forms, purged by fillable_form_ids, and starts a draft', async () => {

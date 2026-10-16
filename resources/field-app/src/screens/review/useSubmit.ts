@@ -30,7 +30,13 @@ export interface SubmitState {
     readonly submit: () => Promise<void>;
 }
 
-export function useSubmit(uuid: string, version: FormVersion, editor: DraftEditor): SubmitState {
+/** `resubmit`: the submission had changes requested (the detail then says "Resubmitted"). */
+export function useSubmit(
+    uuid: string,
+    version: FormVersion,
+    editor: DraftEditor,
+    resubmit = false,
+): SubmitState {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const [busy, setBusy] = useState(false);
@@ -78,7 +84,7 @@ export function useSubmit(uuid: string, version: FormVersion, editor: DraftEdito
             await navigate({
                 to: '/submissions/$uuid',
                 params: { uuid },
-                search: { submitted: true },
+                search: resubmit ? { submitted: true, resubmitted: true } : { submitted: true },
             });
         } catch (error) {
             const server = serverCopy(error);

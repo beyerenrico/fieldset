@@ -1,11 +1,14 @@
 import type { FormDefinition } from '@form-schema-app/form-schema-js';
 import type {
+    AppNotification,
     FormSummary,
     FormVersion,
     Me,
+    NotificationPreference,
     Organization,
     Submission,
     SubmissionDocument,
+    Task,
 } from '../../src/lib/api/types.ts';
 
 export const ORG_A: Organization = {
@@ -155,3 +158,47 @@ export function makeDocument(overrides: Partial<SubmissionDocument> = {}): Submi
         ...overrides,
     };
 }
+
+export function makeTask(overrides: Partial<Task> = {}): Task {
+    return {
+        id: 41,
+        type: 'review',
+        status: 'open',
+        outcome: null,
+        comment: null,
+        due_at: '2026-10-20T12:00:00+02:00',
+        overdue: false,
+        created_at: '2026-10-16T10:00:00+02:00',
+        assignee: { type: 'group', id: 9, name: 'Reviewers' },
+        submission: {
+            uuid: '0192f1c4-0000-7000-8000-0000000000a1',
+            number: 'SR-2026-00012',
+            status: 'in_review',
+            form: { id: 3, name: 'Service report' },
+            submitted_by: { id: 8, name: 'Susi Submitter' },
+            submitted_at: '2026-10-16T09:41:00+02:00',
+        },
+        ...overrides,
+    };
+}
+
+export function makeNotification(overrides: Partial<AppNotification> = {}): AppNotification {
+    return {
+        id: 'n1',
+        event: 'review_assigned',
+        title: 'Review requested',
+        body: 'Service report SR-2026-00012 is waiting for your review.',
+        url: '/app/submissions/0192f1c4-0000-7000-8000-0000000000a1',
+        organization_id: 1,
+        read_at: null,
+        created_at: '2026-10-16T10:00:00+02:00',
+        ...overrides,
+    };
+}
+
+export const PREFERENCES: readonly NotificationPreference[] = [
+    { event: 'review_assigned', channels: { database: true, mail: true } },
+    { event: 'changes_requested', channels: { database: true, mail: false } },
+    { event: 'submission_approved', channels: { database: false, mail: false } },
+    { event: 'form_available', channels: { database: true, mail: false } },
+];

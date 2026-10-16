@@ -9,13 +9,15 @@ use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Support\OrganizationPermissions;
 use App\Domain\Identity\Tenancy\TenantContext;
 use App\Domain\Submissions\Models\Submission;
+use App\Domain\Workflows\Enums\TaskStatus;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
 /**
  * Which submissions a user may see (BUILD_PROMPT §8.6 "View all submissions" row): all
  * (view_all), forms they created (designer), submissions of members of their sharing groups
- * (reviewer "assigned/group", worker "+group if granted"), and their own.
+ * (reviewer "assigned/group", worker "+group if granted"), open review tasks assigned to them or their groups
+ * and tasks they decided (M4, `view_assigned` only), and their own.
  */
 final readonly class SubmissionVisibility
 {
@@ -36,7 +38,7 @@ final readonly class SubmissionVisibility
 
         $peerIds = $this->groupPeers($user, $orgId);
 
-        return $query->where(function (Builder $q) use ($user, $can, $peerIds): void {
+        return $query->where(function (Builder $q) use ($user, $can, $peerIds, $orgId): void {
             $q->whereRaw('false');
             if ($can(Permission::SubmissionsViewOwn)) {
                 $q->orWhere('created_by', $user->id);
@@ -47,7 +49,27 @@ final readonly class SubmissionVisibility
             if ($peerIds !== [] && ($can(Permission::SubmissionsViewOwn) || $can(Permission::SubmissionsViewAssigned))) {
                 $q->orWhereIn('created_by', $peerIds);
             }
+            if ($can(Permission::SubmissionsViewAssigned)) {
+                $this->assigned($q, $user, $orgId);
+            }
         });
+    }
+
+    /**
+     * Review assignments (M4, ADR 0032 amending 0030), for `view_assigned` holders only: submissions with an
+     * OPEN review task assigned to the user or one of their groups, and those whose review the user decided.
+     * Assignment alone never grants visibility, and a closed or cancelled task stops granting it.
+     *
+     * @param  Builder<Submission>  $query
+     */
+    private function assigned(Builder $query, User $user, int $orgId): void
+    {
+        $myGroups = fn ($g) => $g->select('group_id')->from('group_user')->where('user_id', $user->id)->where('organization_id', $orgId);
+        $openForMe = fn ($t) => $t->where('status', TaskStatus::Open->value)
+            ->where(fn ($mine) => $mine->where('assignee_user_id', $user->id)->orWhereIn('assignee_group_id', $myGroups));
+
+        $query->orWhereIn('uuid', fn ($sub) => $sub->select('submission_uuid')->from('tasks')->where('organization_id', $orgId)
+            ->where(fn ($t) => $t->where($openForMe)->orWhere('completed_by', $user->id)));
     }
 
     public function canView(User $user, Submission $submission): bool

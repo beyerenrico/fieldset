@@ -75,8 +75,19 @@ AC refs point at BUILD_PROMPT sections. Test approach in brackets.
 - [x] M3-T11 CSV bulk member invitations — §8.12 [feature]
 - [x] M3-T12 Gate M3 (E2E: submit in Field App → PDF in admin → email arrives in Mailpit)
 
-## M4 Workflows + notifications — break down at M3 gate
-- Workflow model + Builder steps; triggers; conditions; runs with snapshot + idempotency; steps send_email/notify/request_review/set_status/generate_document/webhook (HMAC, backoff, SSRF guard); tasks + review UI + API; run timeline + retry; notifications (db + mail, preferences, digest); field app tasks + notification center; E2E journey 4; MVP 0.x release notes.
+## M4 Workflows + notifications → MVP 0.x (branch `m4-workflows`)
+- [x] M4-T01 Workflow engine: `workflows` (trigger + config, conditions jsonb, steps jsonb, active), `workflow_runs` (definition snapshot, unique (workflow, submission, event id)), `workflow_step_runs` (status, attempts, log); event matching, JsonLogic conditions via form-schema-php, sequential queued steps with backoff, pause/resume, failure visible + admins notified + manual retry — §8.3 [feature: idempotency, duplicate events, retries]
+- [x] M4-T02 Steps `send_email` (fixed / field value / submitter / group recipients, template with tokens, PDF attachment or link via SendDocuments), `notify` (users/groups/roles, channels), `set_status`, `generate_document` (chosen design), `webhook` (`webhook_endpoints`, encrypted secret, HMAC-SHA256 + timestamp headers, exponential retries, SSRF guard incl. redirects and IP pinning) — §8.3 [feature + AC: 127.0.0.1/10.0.0.0/8/169.254.169.254 refused]
+- [x] M4-T03 Triggers: submission.submitted, status_changed (to), approved, rejected, form.published, schedule (cron), manual (button on a submission); "no review configured → completed" and "approved → completed after post-approval steps" (ADR) — §8.3, §6.5 [feature]
+- [x] M4-T04 Review tasks: `tasks` (review, assignee user/group, due_at SLA, outcome, comment); `request_review` step creates the task and sets in_review; approve resumes the run, reject sets changes_requested with comment and notifies the submitter; resubmit starts a new event; overdue reminders — §8.3, §6.5 [feature]
+- [x] M4-T05 Filament: Workflow resource (steps as Builder, conditions editor), Runs relation manager with per-step timeline, logs and retry; "My tasks" page; approve/reject with comment and manual workflows in the submissions inbox — §8.3, §8.12 [Livewire]
+- [x] M4-T06 Notifications: real Notifier (database + branded mail via the mail module, queued), per-user preferences per event and channel, events review assigned / changes requested / approved / workflow failed / new form available, admin bell (Filament database notifications, polling), API `GET /notifications`, `POST /notifications/read`, preferences API — §8.9, §10 [feature: recipients + preferences AC]
+- [x] M4-T07 API: `GET /tasks`, `POST /tasks/{id}/complete` (approve/reject + comment, idempotent), submission `review` + `open_task_id`, tasks in the sync manifest; contract + isolation cases — §10, §9.2 [feature]
+- [x] M4-T08 Field App: open tasks on home, approve/reject on the submission detail, changes-requested banner with the reviewer comment + edit + resubmit, notification centre (badge, list, mark read), notification preferences in settings — §9.1, §8.9 [vitest]
+- [x] M4-T09 Demo seed: reviewer group, "Prüfen und an Kunden senden" workflow (request_review → send_email with PDF to the customer field), a webhook endpoint example (disabled) — [seeder test]
+- [x] M4-T10 E2E: journey 4 (reject → resubmit → approve → PDF in Mailpit with correct totals), journey 5 (v2 rename + new field, re-render keeps input_hash/text/pages, rollback creates v3), journey 1 (owner registers an organization and invites a designer and a field worker; dev stack enables registration) — §12, §8.3 AC
+- [x] M4-T11 MVP release 0.1.0: CHANGELOG.md, README quick start + feature overview, release notes, tag `v0.1.0` — §13
+- [x] M4-T12 Gate M4
 
 ## M5 Reports + dashboards — break down at M4 gate
 - Submission explorer (dynamic columns across versions, filters, search, bulk); custom export job (openspout, repeater sheet, Export model notifications); bulk PDF ZIP; saved reports + charts + pin; role-aware dashboards with cached widgets; scheduled report emails; 100k-row index check.

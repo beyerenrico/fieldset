@@ -19,6 +19,7 @@ import { CatalogScreen } from '../screens/CatalogScreen.tsx';
 import { HomeScreen } from '../screens/HomeScreen.tsx';
 import { LoginScreen } from '../screens/LoginScreen.tsx';
 import { NotFoundScreen } from '../screens/NotFoundScreen.tsx';
+import { NotificationsScreen } from '../screens/NotificationsScreen.tsx';
 import { OrgPickerScreen } from '../screens/OrgPickerScreen.tsx';
 import { SettingsScreen } from '../screens/SettingsScreen.tsx';
 import { SubmissionsScreen } from '../screens/SubmissionsScreen.tsx';
@@ -106,6 +107,11 @@ const routes = [
         component: SubmissionDetailScreen,
     }),
     createRoute({ getParentRoute: () => authRoute, path: 'settings', component: SettingsScreen }),
+    createRoute({
+        getParentRoute: () => authRoute,
+        path: 'notifications',
+        component: NotificationsScreen,
+    }),
 ] as const;
 
 export const routeTree = rootRoute.addChildren([loginRoute, authRoute.addChildren(routes)]);

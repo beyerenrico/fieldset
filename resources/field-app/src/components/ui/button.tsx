@@ -1,11 +1,12 @@
 // Adapted from shadcn/ui (MIT, https://ui.shadcn.com/docs/components/button): 44 px targets.
+// `aria-disabled="true"` (used where focus must stay on the button) looks like `disabled`.
 import { Slot } from '@radix-ui/react-slot';
 import { cva, type VariantProps } from 'class-variance-authority';
 import type { ComponentProps, ReactNode } from 'react';
 import { cn } from '../../lib/cn.ts';
 
 export const buttonVariants = cva(
-    'inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-md text-base font-semibold transition-colors focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-5 [&_svg]:shrink-0',
+    'inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-md text-base font-semibold transition-colors focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&_svg]:size-5 [&_svg]:shrink-0',
     {
         variants: {
             variant: {

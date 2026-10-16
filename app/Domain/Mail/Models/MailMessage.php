@@ -31,6 +31,7 @@ use UnexpectedValueException;
  * @property string $subject
  * @property MailStatus $status
  * @property string|null $submission_uuid
+ * @property int|null $workflow_step_run_id set for mails of a workflow `send_email` step (caps, ADR 0032)
  * @property string $mailable_class
  * @property string|null $message_id
  * @property string|null $error
@@ -54,7 +55,7 @@ class MailMessage extends Model
     use HasFactory;
 
     protected $attributes = [
-        'recipient_name' => null, 'status' => 'queued', 'submission_uuid' => null, 'message_id' => null,
+        'recipient_name' => null, 'status' => 'queued', 'submission_uuid' => null, 'workflow_step_run_id' => null, 'message_id' => null,
         'error' => null, 'attempts' => 0, 'sent_at' => null, 'failed_at' => null,
     ];
 

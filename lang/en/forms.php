@@ -177,6 +177,7 @@ return [
         'published' => 'Version :version published',
     ],
     'errors' => [
+        'fix_fields' => 'Please fix the highlighted fields before publishing.',
         'invalid_definition' => 'The definition is invalid. Fix the listed problems first.',
         'changelog_required' => 'A changelog note is required.',
         'import_too_large' => 'The file is too large.',

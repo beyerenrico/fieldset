@@ -74,7 +74,8 @@ export interface SyncManifest {
     readonly fillable_form_ids: readonly number[];
     /** Best-effort list of revoked forms. */
     readonly revoked_form_ids: readonly number[];
-    readonly tasks: readonly unknown[];
+    /** Open review tasks of the user (same shape as `GET /tasks`). */
+    readonly tasks: readonly Task[];
 }
 
 export type SubmissionStatus =
@@ -118,6 +119,10 @@ export interface Submission {
     readonly can_edit: boolean;
     /** `POST /submissions/{uuid}/send` would be accepted for this user now. */
     readonly can_send: boolean;
+    /** Latest review decision (null before any; absent on servers before M4). */
+    readonly review?: ReviewDecision | null;
+    /** Open review task of this submission that the current user may complete, else null. */
+    readonly open_task_id?: number | null;
 }
 
 export interface PaginationMeta {
@@ -167,3 +172,83 @@ export interface DocumentSend {
 }
 
 export const EDITABLE_STATUSES: readonly SubmissionStatus[] = ['draft', 'changes_requested'];
+
+export interface PersonRef {
+    readonly id: number;
+    readonly name: string;
+}
+
+export type ReviewOutcome = 'approved' | 'rejected';
+
+/** `submission.review`: the latest decision of a reviewer. */
+export interface ReviewDecision {
+    readonly outcome: ReviewOutcome;
+    readonly comment: string | null;
+    readonly by: PersonRef | null;
+    readonly at: string | null;
+}
+
+/** `cancelled`: the submission left review another way (voided, status changed); nothing to do. */
+export type TaskStatus = 'open' | 'completed' | 'cancelled';
+
+export interface TaskAssignee extends PersonRef {
+    readonly type: 'user' | 'group';
+}
+
+export interface TaskSubmission {
+    readonly uuid: string;
+    readonly number: string | null;
+    readonly status: SubmissionStatus;
+    readonly form: PersonRef;
+    readonly submitted_by: PersonRef | null;
+    readonly submitted_at: string | null;
+}
+
+/** Review task (`GET /tasks`, M4). */
+export interface Task {
+    readonly id: number;
+    readonly type: 'review';
+    readonly status: TaskStatus;
+    readonly outcome: ReviewOutcome | null;
+    readonly comment: string | null;
+    readonly due_at: string | null;
+    readonly overdue: boolean;
+    readonly created_at: string;
+    readonly assignee: TaskAssignee;
+    readonly submission: TaskSubmission;
+}
+
+/** Body value of `POST /tasks/{id}/complete`. */
+export type TaskDecision = 'approve' | 'reject';
+
+export interface TaskCompletion {
+    readonly task: Task;
+    readonly submission: Submission;
+}
+
+/** In-app notification (`GET /notifications`); title/body are in the user's language. */
+export interface AppNotification {
+    readonly id: string;
+    readonly event: string;
+    readonly title: string;
+    readonly body: string | null;
+    /** Field App path (`/app/...`) or an admin URL; null: nothing to open. */
+    readonly url: string | null;
+    /** Organization it belongs to (the list spans all of them); null: none; absent: older server. */
+    readonly organization_id?: number | null;
+    readonly read_at: string | null;
+    readonly created_at: string;
+}
+
+export interface NotificationPage extends Page<AppNotification> {
+    readonly unread: number;
+}
+
+export type NotificationChannel = 'database' | 'mail';
+
+export const NOTIFICATION_CHANNELS: readonly NotificationChannel[] = ['database', 'mail'];
+
+export interface NotificationPreference {
+    readonly event: string;
+    readonly channels: Readonly<Record<NotificationChannel, boolean>>;
+}
