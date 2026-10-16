@@ -44,4 +44,8 @@ return [
 
     'image_max_side' => (int) env('SUBMISSIONS_IMAGE_MAX_SIDE', 12_000),
 
+    // Accepted images above this many pixels are scaled down when stored, so the renderer (which refuses
+    // sources above 25 MP, ImageDownscaler::MAX_SOURCE_PIXELS) can print every photo.
+    'image_store_max_pixels' => (int) env('SUBMISSIONS_IMAGE_STORE_MAX_PIXELS', 25_000_000),
+
 ];

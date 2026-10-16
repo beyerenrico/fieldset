@@ -38,6 +38,14 @@ final readonly class RenderInput
         return is_string($locale) && $locale !== '' ? $locale : self::FALLBACK_LOCALE;
     }
 
+    /** BCP 47 tag for `<html lang>` (e.g. de-DE, de-AT), so assistive technology and hyphenation use the right variant. */
+    public function languageTag(): string
+    {
+        $tag = str_replace('_', '-', $this->locale());
+
+        return preg_match('/^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/', $tag) === 1 ? $tag : self::FALLBACK_LOCALE;
+    }
+
     /** UI language of fixed document strings (yes/no, page labels): de or en (D7). */
     public function language(): string
     {

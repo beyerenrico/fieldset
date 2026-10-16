@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Admin\Pages;
 
 use App\Domain\Documents\Branding\Branding;
+use App\Domain\Documents\Branding\ColorContrast;
 use App\Domain\Documents\Branding\StoreLogo;
 use App\Domain\Documents\Branding\UpdateBranding;
 use App\Domain\Identity\Enums\Permission;
@@ -105,8 +106,10 @@ class ManageBranding extends Page
                     ->maxSize((int) config('documents.logo_max_kb', 2048))
                     ->disk((string) config('documents.disk', 'local'))->visibility('private')
                     ->saveUploadedFileUsing(fn (TemporaryUploadedFile $file): string => app(StoreLogo::class)->handle($this->organization(), (string) $file->get())),
-                ColorPicker::make('primary_color')->label(__('documents.branding.primary_color'))->hex()->required()->regex('/^#[0-9a-fA-F]{6}$/'),
-                ColorPicker::make('accent_color')->label(__('documents.branding.accent_color'))->hex()->required()->regex('/^#[0-9a-fA-F]{6}$/'),
+                ColorPicker::make('primary_color')->label(__('documents.branding.primary_color'))->hex()->required()->regex('/^#[0-9a-fA-F]{6}$/')
+                    ->live()->helperText(fn (?string $state): ?string => self::contrastWarning($state)),
+                ColorPicker::make('accent_color')->label(__('documents.branding.accent_color'))->hex()->required()->regex('/^#[0-9a-fA-F]{6}$/')
+                    ->live()->helperText(fn (?string $state): ?string => self::contrastWarning($state)),
                 Select::make('font')->label(__('documents.branding.font'))->options(Branding::FONTS)->required()->native(false)
                     ->helperText(__('documents.branding.font_help')),
             ])->columns(2),
@@ -142,6 +145,19 @@ class ManageBranding extends Page
             return;
         }
         Notification::make()->success()->title(__('documents.branding.saved'))->send();
+    }
+
+    /** Live hint under a color picker when text in that color would miss 4.5:1 on white (WCAG 2.2 AA). */
+    public static function contrastWarning(?string $color): ?string
+    {
+        if ($color === null || preg_match('/^#[0-9a-f]{6}$/i', $color) !== 1) {
+            return null;
+        }
+        $ratio = ColorContrast::ratio($color, ColorContrast::WHITE);
+
+        return $ratio >= ColorContrast::AA ? null : (string) __('documents.branding.contrast_warning', [
+            'ratio' => number_format($ratio, 1, app()->getLocale() === 'de' ? ',' : '.', ''),
+        ]);
     }
 
     private function organization(): Organization

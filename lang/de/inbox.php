@@ -35,7 +35,7 @@ return [
         'system' => 'System',
         'missing_file' => 'Noch nicht hochgeladen',
         'open_file' => ':name öffnen',
-        'rows' => ':count Zeilen',
+        'rows' => '{1} :count Zeile|[0,*] :count Zeilen',
         'row' => 'Zeile',
     ],
     'documents' => [
@@ -53,6 +53,14 @@ return [
         'rerender' => 'PDF neu erzeugen',
         'rerender_help' => 'Erzeugt ein neues PDF mit der Design-Version der Einreichung und dem aktuellen Branding. Bestehende PDFs bleiben unverändert.',
         'rerender_queued' => 'Das neue PDF wird erzeugt. Laden Sie die Seite gleich neu.',
+        'rerender_throttled' => 'Ein neues PDF wurde gerade erst angefordert. Versuchen Sie es in :seconds Sekunden erneut.',
+        'failure' => [
+            'title' => 'PDF-Erzeugung fehlgeschlagen',
+            'budget_exceeded' => 'Das Dokument ist zu groß für die PDF-Erzeugung (zu viele oder zu große Fotos).',
+            'render_failed' => 'Der PDF-Dienst konnte das Dokument auch nach mehreren Versuchen nicht erzeugen.',
+            'details' => '{1} Letzter Versuch :when (:count Versuch).|[2,*] Letzter Versuch :when (:count Versuche).',
+            'hint' => 'Mit „PDF neu erzeugen“ erneut versuchen. Kunden-E-Mails, die auf dieses PDF warteten, wurden nicht gesendet.',
+        ],
     ],
     'value' => ['yes' => 'Ja', 'no' => 'Nein'],
 ];

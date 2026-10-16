@@ -8,7 +8,8 @@ use App\Domain\Documents\Branding\Branding;
 
 /**
  * View model for the branded mail layout: colors, logo and the company footer (§8.5 branding
- * applied to emails). Colors are validated hex values from Branding.
+ * applied to emails). Colors are validated hex values from Branding; text in a brand color and the
+ * label on a brand-colored button use the readable variants (4.5:1, M3 review #14).
  */
 final readonly class MailLayout
 {
@@ -22,6 +23,8 @@ final readonly class MailLayout
         public string $companyName,
         public ?string $logoCid,
         public array $footer,
+        public string $primaryText = '#1d4ed8',
+        public string $onPrimary = '#ffffff',
     ) {}
 
     public static function from(Branding $branding, ?string $logoCid): self
@@ -34,6 +37,9 @@ final readonly class MailLayout
             }
         }
 
-        return new self($branding->primaryColor, $branding->accentColor, $branding->companyName, $logoCid, $footer);
+        return new self(
+            $branding->primaryColor, $branding->accentColor, $branding->companyName, $logoCid, $footer,
+            $branding->primaryText(), $branding->onPrimary(),
+        );
     }
 }

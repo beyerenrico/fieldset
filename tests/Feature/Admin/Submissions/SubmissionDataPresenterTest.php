@@ -64,7 +64,7 @@ it('builds pages with grouped sections, flattened columns and formatted values',
     $items = $pages[0]['items'];
     expect($items[0]['kind'])->toBe('group')
         ->and(array_column($items[0]['items'], 'value'))->toBe(['1.234.567,5', '-1.000,00 EUR', '16.10.2026', '16.10.2026 10:05'])
-        ->and(array_column(array_slice($items, 1, 5), 'value'))->toBe(['Beta, zzz', 'Nein', '7 / 10', '52.52, 13.405 (± 12 m)', '—'])
+        ->and(array_column(array_slice($items, 1, 5), 'value'))->toBe(['Beta, zzz', 'Nein', '7 / 10', '52,52; 13,405 (± 12 m)', '—'])
         ->and(array_column($items, 'label'))->not->toContain('Never filled')
         ->and($items[6]['files'])->toBe([
             ['name' => 'front.jpg', 'url' => 'https://files.test/'.$photo, 'image' => true, 'missing' => false],

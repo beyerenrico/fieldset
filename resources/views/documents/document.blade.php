@@ -11,7 +11,8 @@
 </head>
 <body class="layout-{{ $design['layout'] }}">
 @if ($watermark !== null)
-<div class="watermark" aria-hidden="true">{{ $watermark }}</div>
+{{-- Visually decorative, but read by assistive technology (tagged PDF): it changes what the document means. --}}
+<div class="watermark">{{ $watermark }}</div>
 @endif
 <header class="doc-title">
   <h1>{{ $title }}</h1>
@@ -22,13 +23,15 @@
   </dl>
 </header>
 @foreach ($pages as $page)
+@php($pageTitled = count($pages) > 1 && $page['title'] !== '')
 <section class="page-block">
-  @if (count($pages) > 1 && $page['title'] !== '')
+  @if ($pageTitled)
     <h2 class="page-title">{{ $page['title'] }}</h2>
   @endif
   <div class="fields">
     @foreach ($page['nodes'] as $node)
-      @include('documents.partials.node', ['node' => $node])
+      {{-- Heading outline without skipped levels: h1 title → (h2 page title) → section headings. --}}
+      @include('documents.partials.node', ['node' => $node, 'level' => $pageTitled ? 3 : 2])
     @endforeach
   </div>
 </section>

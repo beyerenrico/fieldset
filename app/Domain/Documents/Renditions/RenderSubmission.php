@@ -25,7 +25,8 @@ use Throwable;
  * Renders a submission into a new immutable rendition (§8.5): pinned design version, form version,
  * renderer version, input hash, file hash and page count; the PDF lands on the private disk. An
  * automatic render whose input equals the latest rendition's (a retried job, a duplicate event)
- * returns that rendition; an explicit re-render always creates a new one.
+ * returns that rendition; an explicit re-render always creates a new one, once per request id (a re-run
+ * of the same job returns the rendition it already created). A new rendition clears a recorded failure.
  */
 final readonly class RenderSubmission
 {
@@ -36,8 +37,12 @@ final readonly class RenderSubmission
         private AuditLogger $audit,
     ) {}
 
-    public function handle(Submission $submission, string $reason = Rendition::REASON_SUBMITTED, ?User $actor = null): Rendition
+    public function handle(Submission $submission, string $reason = Rendition::REASON_SUBMITTED, ?User $actor = null, ?string $requestId = null): Rendition
     {
+        $done = $this->forRequest($requestId);
+        if ($done instanceof Rendition) {
+            return $done;
+        }
         $designVersion = $this->designs->forSubmission($submission);
         $prepared = $this->renderer->prepare($this->inputs->forSubmission($submission, $designVersion));
         $latest = $this->latest($submission);
@@ -55,7 +60,7 @@ final readonly class RenderSubmission
 
         try {
             $rendition = $this->persist($submission, $designVersion, $document, [
-                'uuid' => $uuid, 'disk' => $disk, 'path' => $path, 'reason' => $reason, 'created_by' => $actor?->id,
+                'uuid' => $uuid, 'disk' => $disk, 'path' => $path, 'reason' => $reason, 'created_by' => $actor?->id, 'request_id' => $requestId,
             ]);
         } catch (Throwable $e) {
             Storage::disk($disk)->delete($path);
@@ -89,12 +94,16 @@ final readonly class RenderSubmission
      * Inserts under a per-submission advisory lock: re-checks the duplicate and the design pin, so
      * concurrent renders (a re-delivered job, a re-render racing the first render) stay consistent.
      *
-     * @param  array{uuid: string, disk: string, path: string, reason: string, created_by: int|null}  $file
+     * @param  array{uuid: string, disk: string, path: string, reason: string, created_by: int|null, request_id: string|null}  $file
      */
     private function persist(Submission $submission, DesignVersion $designVersion, RenderedDocument $document, array $file): Rendition
     {
         return DB::transaction(function () use ($submission, $designVersion, $document, $file): Rendition {
             DB::select('select pg_advisory_xact_lock(?)', [self::lockId($submission->uuid)]);
+            $done = $this->forRequest($file['request_id']);
+            if ($done instanceof Rendition) {
+                return $done;
+            }
             $latest = $this->latest($submission);
             if ($latest instanceof Rendition && $this->isDuplicate($file['reason'], $latest, $document->inputHash)) {
                 return $latest;
@@ -104,12 +113,20 @@ final readonly class RenderSubmission
                 throw RenderFailedException::because(new RuntimeException('The design version was pinned by a concurrent render; retry.'));
             }
 
+            RecordRenditionFailure::clear($submission->uuid);
+
             return Rendition::query()->create([...$file,
                 'submission_uuid' => $submission->uuid, 'form_version_id' => $submission->form_version_id,
                 'design_version_id' => $designVersion->id, 'input_hash' => $document->inputHash, 'file_sha256' => $document->sha256(),
                 'renderer_version' => $document->rendererVersion, 'page_count' => $document->pageCount, 'size' => strlen($document->pdf),
             ]);
         });
+    }
+
+    /** The rendition an earlier run of the same render request already created. */
+    private function forRequest(?string $requestId): ?Rendition
+    {
+        return $requestId === null ? null : Rendition::query()->where('request_id', $requestId)->first();
     }
 
     private function latest(Submission $submission): ?Rendition

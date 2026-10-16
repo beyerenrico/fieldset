@@ -8,25 +8,26 @@ use App\Domain\Documents\Events\RenditionCreated;
 use App\Domain\Documents\Models\Rendition;
 use App\Domain\Identity\Tenancy\TenantContext;
 use App\Domain\Mail\Actions\DeliverCustomerSend;
+use App\Domain\Mail\Enums\DocumentSendFailure;
 use App\Domain\Mail\Enums\DocumentSendStatus;
 use App\Domain\Mail\Models\DocumentSend;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Queue\Attributes\Backoff;
+use Illuminate\Queue\Attributes\Tries;
 use Throwable;
 
 /**
  * Mails the "send to customer" requests that waited for the PDF once a rendition exists (§9.2 "goes out
  * after sync, once the number and PDF exist"). Queued with its own retries, so a failure never fails the
- * render job; the tenant is restored explicitly from the event. After the last attempt the waiting
- * requests are marked failed and can be sent again from the inbox.
+ * render job; the tenant is restored explicitly from the event. DeliverCustomerSend re-checks each request
+ * (voided submission, rights, a rendition older than the latest submit keeps it waiting). After the last
+ * attempt the waiting requests are marked failed and can be sent again from the inbox.
  */
+#[Backoff([10, 60])]
+#[Tries(3)]
 final class SendWaitingDocuments implements ShouldQueue
 {
     public bool $afterCommit = true;
-
-    public int $tries = 3;
-
-    /** @var list<int> */
-    public array $backoff = [10, 60];
 
     public function __construct(private readonly TenantContext $tenant, private readonly DeliverCustomerSend $deliver) {}
 
@@ -44,12 +45,11 @@ final class SendWaitingDocuments implements ShouldQueue
         });
     }
 
+    /** Conditional: a request that was queued meanwhile (concurrent send) keeps its status. */
     public function failed(RenditionCreated $event, ?Throwable $exception): void
     {
         $this->tenant->run($event->organizationId, function () use ($event, $exception): void {
-            foreach ($this->waiting($event->submissionUuid) as $send) {
-                $send->markFailed($exception?->getMessage() ?: 'Sending failed.');
-            }
+            DocumentSend::failWaiting($event->submissionUuid, DocumentSendFailure::DeliveryFailed, $exception?->getMessage() ?: 'Sending failed.');
         });
     }
 

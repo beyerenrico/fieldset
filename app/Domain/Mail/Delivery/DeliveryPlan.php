@@ -21,6 +21,18 @@ final readonly class DeliveryPlan
         return $this->attachments === [] && $this->links === [];
     }
 
+    /** Every document travels as an attachment (mail wording "enclosed" fits). */
+    public function isAttachedOnly(): bool
+    {
+        return $this->attachments !== [] && $this->links === [];
+    }
+
+    /** The same plan with the links' expiry replaced (links refreshed before a delivery attempt). */
+    public function withLinks(DeliveredLink ...$links): self
+    {
+        return new self($this->attachments, array_values($links));
+    }
+
     /**
      * Tokens describing the first document. In attachment mode {{document.link}} becomes a
      * localized "see attachment" phrase, so templates read well in both modes.

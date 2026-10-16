@@ -15,7 +15,8 @@ use Spatie\LaravelPdf\PdfBuilder;
 /**
  * HTML → PDF through Gotenberg's Chromium route via spatie/laravel-pdf's Gotenberg driver (ADR 0028).
  * The driver posts only index.html, header.html and footer.html, which is why every asset is inlined.
- * Paper, orientation and margins come from the design version.
+ * Paper, orientation and margins come from the design version. The PDF is tagged (`generateTaggedPdf`),
+ * so headings, tables, text alternatives and the document language reach assistive technology.
  */
 final class GotenbergClient
 {
@@ -29,7 +30,8 @@ final class GotenbergClient
             ->footerHtml($html->footer)
             ->format($design->paper)
             ->margins($margins['top'], $margins['right'], $margins['bottom'], $margins['left'], Unit::Millimeter)
-            ->orientation($design->orientation === 'landscape' ? Orientation::Landscape : Orientation::Portrait);
+            ->orientation($design->orientation === 'landscape' ? Orientation::Landscape : Orientation::Portrait)
+            ->tagged();
 
         try {
             return $builder->generatePdfContent();

@@ -15,6 +15,12 @@ return [
         'backoff' => [30, 120],
     ],
 
+    // Caps on "send to customer" (API and admin inbox); over the cap the API answers 429 too_many_requests.
+    'customer_send' => [
+        'per_submission_per_day' => (int) env('MESSAGING_CUSTOMER_SENDS_PER_SUBMISSION_PER_DAY', 10),
+        'per_organization_per_hour' => (int) env('MESSAGING_CUSTOMER_SENDS_PER_ORGANIZATION_PER_HOUR', 200),
+    ],
+
     // Documents up to this total size are attached; larger ones are sent as expiring links.
     'attachment_max_bytes' => (int) env('MESSAGING_ATTACHMENT_MAX_BYTES', 10 * 1024 * 1024),
 
@@ -31,6 +37,8 @@ return [
         // Enable only for development (Mailpit) or trusted self-hosted relays.
         'allow_private_hosts' => (bool) env('MESSAGING_SMTP_ALLOW_PRIVATE_HOSTS', false),
         'timeout' => (int) env('MESSAGING_SMTP_TIMEOUT', 15),
+        // Submission ports allowed for organization SMTP servers (any port with allow_private_hosts).
+        'allowed_ports' => [25, 465, 587, 2525],
     ],
 
 ];

@@ -63,14 +63,18 @@ it('keeps the stored password when the field is left empty and audits only chang
 
     Livewire::test(MailSettings::class)
         ->assertFormSet(['smtp_password' => null, 'smtp_host' => 'smtp.example.com'])
-        ->fillForm(['smtp_host' => 'mail.example.org'])
+        ->fillForm(['smtp_from_address' => 'billing@example.com'])
         ->call('save')
         ->assertHasNoFormErrors();
 
     $audit = Activity::query()->where('event', 'mail_settings.updated')->sole();
     expect(MailSetting::query()->sole()->smtp_password)->toBe('smtp-secret')
-        ->and($audit->properties['before'])->toBe(['smtp_host' => 'smtp.example.com'])
-        ->and($audit->properties['after'])->toBe(['smtp_host' => 'mail.example.org']);
+        ->and($audit->properties['before'])->toBe(['smtp_from_address' => 'office@example.com'])
+        ->and($audit->properties['after'])->toBe(['smtp_from_address' => 'billing@example.com']);
+
+    // A new server needs the password again (M3 review #7): the stored one is never sent elsewhere.
+    Livewire::test(MailSettings::class)->fillForm(['smtp_host' => 'mail.example.org'])->call('save')->assertHasFormErrors(['smtp_password']);
+    expect(MailSetting::query()->sole()->smtp_host)->toBe('smtp.example.com');
 
     Livewire::test(MailSettings::class)->fillForm(['smtp_password' => 'rotated'])->call('save');
     $rotation = Activity::query()->where('event', 'mail_settings.updated')->latest('id')->first();

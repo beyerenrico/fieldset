@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Mail\Models;
 
+use App\Domain\Audit\ErrorText;
 use App\Domain\Identity\Tenancy\BelongsToOrganization;
 use App\Domain\Mail\Enums\MailStatus;
 use App\Domain\Mail\Policies\MailMessagePolicy;
@@ -16,6 +17,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Mail\Mailable;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use UnexpectedValueException;
 
 /**
@@ -51,9 +53,6 @@ class MailMessage extends Model
     /** @use HasFactory<MailMessageFactory> */
     use HasFactory;
 
-    /** Longest error text kept per message. */
-    public const int ERROR_LIMIT = 2000;
-
     protected $attributes = [
         'recipient_name' => null, 'status' => 'queued', 'submission_uuid' => null, 'message_id' => null,
         'error' => null, 'attempts' => 0, 'sent_at' => null, 'failed_at' => null,
@@ -88,14 +87,42 @@ class MailMessage extends Model
         return $this->status === MailStatus::Failed;
     }
 
-    public function recordAttempt(): void
+    /**
+     * Atomically moves the message from `$from` to `$to` (one conditional UPDATE) and refreshes the model.
+     * Only the caller that changed the row may act on it: two workers or two retries never both win.
+     *
+     * @param  array<string, mixed>  $extra
+     */
+    public function transition(MailStatus $from, MailStatus $to, array $extra = []): bool
     {
-        $this->increment('attempts');
+        // By primary key like save(): the row is already loaded, the worker's tenant may not be set yet.
+        $changed = $this->newModelQuery()->whereKey($this->id)->where('status', $from->value)
+            ->update([...$extra, 'status' => $to->value]) === 1;
+        if ($changed) {
+            $this->refresh();
+        }
+
+        return $changed;
     }
 
-    public function recordError(string $error): void
+    /** Claims a queued message for one delivery attempt (queued → sending). */
+    public function claimForSending(): bool
     {
-        $this->forceFill(['error' => mb_substr($error, 0, self::ERROR_LIMIT)])->save();
+        return $this->transition(MailStatus::Queued, MailStatus::Sending, ['attempts' => DB::raw('attempts + 1')]);
+    }
+
+    /** The transport threw: the message was not accepted, so the next attempt may claim it again. */
+    public function releaseAfterError(string $error): void
+    {
+        $this->transition(MailStatus::Sending, MailStatus::Queued, ['error' => ErrorText::scrub($error)]);
+    }
+
+    /** Message-ID set on every attempt, so receivers can drop a duplicate of the same log entry. */
+    public function messageIdHeader(): string
+    {
+        $host = parse_url((string) config('app.url'), PHP_URL_HOST);
+
+        return 'mail-'.$this->id.'@'.(is_string($host) && $host !== '' ? $host : 'localhost');
     }
 
     public function markSent(?string $messageId): void
@@ -107,13 +134,6 @@ class MailMessage extends Model
 
     public function markFailed(string $error): void
     {
-        $this->forceFill([
-            'status' => MailStatus::Failed, 'error' => mb_substr($error, 0, self::ERROR_LIMIT), 'failed_at' => now(),
-        ])->save();
-    }
-
-    public function requeue(): void
-    {
-        $this->forceFill(['status' => MailStatus::Queued, 'error' => null, 'failed_at' => null, 'queued_at' => now()])->save();
+        $this->forceFill(['status' => MailStatus::Failed, 'error' => ErrorText::scrub($error), 'failed_at' => now()])->save();
     }
 }

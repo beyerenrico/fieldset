@@ -150,63 +150,131 @@
               "scale": 2,
               "role": "line_item.qty",
               "expression": {
-                "dec.div": [
+                "if": [
                   {
-                    "dec.sub": [
+                    "dec.lt": [
                       {
-                        "date.diff": [
+                        "dec.div": [
                           {
-                            "cat": [
+                            "dec.sub": [
                               {
-                                "var": "work_date"
-                              },
-                              "T",
-                              {
-                                "substr": [
+                                "date.diff": [
                                   {
-                                    "var": "start_time"
+                                    "cat": [
+                                      {
+                                        "var": "work_date"
+                                      },
+                                      "T",
+                                      {
+                                        "substr": [
+                                          {
+                                            "var": "start_time"
+                                          },
+                                          0,
+                                          5
+                                        ]
+                                      },
+                                      ":00Z"
+                                    ]
                                   },
-                                  0,
-                                  5
+                                  {
+                                    "cat": [
+                                      {
+                                        "var": "work_date"
+                                      },
+                                      "T",
+                                      {
+                                        "substr": [
+                                          {
+                                            "var": "end_time"
+                                          },
+                                          0,
+                                          5
+                                        ]
+                                      },
+                                      ":00Z"
+                                    ]
+                                  },
+                                  "minutes"
                                 ]
                               },
-                              ":00Z"
-                            ]
-                          },
-                          {
-                            "cat": [
                               {
-                                "var": "work_date"
-                              },
-                              "T",
-                              {
-                                "substr": [
-                                  {
-                                    "var": "end_time"
-                                  },
-                                  0,
-                                  5
+                                "var": [
+                                  "break_minutes",
+                                  "0"
                                 ]
-                              },
-                              ":00Z"
+                              }
                             ]
                           },
-                          "minutes"
+                          60,
+                          2
                         ]
                       },
-                      {
-                        "var": [
-                          "break_minutes",
-                          "0"
-                        ]
-                      }
+                      "0"
                     ]
                   },
-                  60,
-                  2
+                  "0.00",
+                  {
+                    "dec.div": [
+                      {
+                        "dec.sub": [
+                          {
+                            "date.diff": [
+                              {
+                                "cat": [
+                                  {
+                                    "var": "work_date"
+                                  },
+                                  "T",
+                                  {
+                                    "substr": [
+                                      {
+                                        "var": "start_time"
+                                      },
+                                      0,
+                                      5
+                                    ]
+                                  },
+                                  ":00Z"
+                                ]
+                              },
+                              {
+                                "cat": [
+                                  {
+                                    "var": "work_date"
+                                  },
+                                  "T",
+                                  {
+                                    "substr": [
+                                      {
+                                        "var": "end_time"
+                                      },
+                                      0,
+                                      5
+                                    ]
+                                  },
+                                  ":00Z"
+                                ]
+                              },
+                              "minutes"
+                            ]
+                          },
+                          {
+                            "var": [
+                              "break_minutes",
+                              "0"
+                            ]
+                          }
+                        ]
+                      },
+                      60,
+                      2
+                    ]
+                  }
                 ]
               },
-              "id": "a7f064e1-b5f5-594a-9dba-0efc57ab856a"
+              "id": "a7f064e1-b5f5-594a-9dba-0efc57ab856a",
+              "help": "Negative Zeiten (Ende vor Beginn, Pause zu lang) zählen als 0."
             }
           ],
           "id": "ff11f969-6ff2-5596-9b7b-e82f28a20ef1"

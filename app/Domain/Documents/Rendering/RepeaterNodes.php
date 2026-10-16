@@ -8,16 +8,23 @@ use stdClass;
 
 /**
  * Repeaters in print (§8.5): a table (header row repeated on every page, rows never split) or one
- * card per row, per the design or — with the "auto" style — the repeater's own `display`.
+ * card per row, per the design or — with the "auto" style — the repeater's own `display`. Table cells
+ * carry text (the view prints "—" when empty) or photo thumbnails; files print their names.
  *
  * @phpstan-import-type Node from DocumentTree
+ *
+ * @phpstan-type Cell array{text: string, images: list<string>}
  */
 final readonly class RepeaterNodes
 {
+    /** Long edge of photo thumbnails in table cells (keeps the render request small). */
+    public const int THUMBNAIL_EDGE = 400;
+
     public function __construct(
         private DocumentTree $tree,
         private RenderInput $input,
         private ValueFormatter $format,
+        private AssetInliner $assets,
     ) {}
 
     /**
@@ -51,7 +58,7 @@ final readonly class RepeaterNodes
         $body = [];
         foreach ($rows as $index => $row) {
             $path = [...$rowPath, [$key, $index]];
-            $body[] = array_map(fn (stdClass $column): string => $this->cell($column, $row, $path), $columns);
+            $body[] = array_map(fn (stdClass $column): array => $this->cell($column, $row, $path), $columns);
         }
 
         return [
@@ -82,20 +89,39 @@ final readonly class RepeaterNodes
         return ['kind' => 'cards', 'label' => DocumentTree::label($element), 'cards' => $cards];
     }
 
-    /** @param  list<array{string, int}>  $path */
-    private function cell(stdClass $column, stdClass $row, array $path): string
+    /**
+     * @param  list<array{string, int}>  $path
+     * @return Cell
+     */
+    private function cell(stdClass $column, stdClass $row, array $path): array
     {
         if (! $this->tree->isShown($column, $path)) {
-            return '';
+            return ['text' => '', 'images' => []];
         }
         $value = $row->{DocumentTree::text($column->key ?? '')} ?? null;
+        if (($column->type ?? null) === 'photo') {
+            $images = $this->thumbnails($value);
 
-        return match ($column->type ?? null) {
+            return ['text' => $images === [] && $value !== null && $value !== [] ? '✓' : '', 'images' => $images];
+        }
+
+        return ['text' => match ($column->type ?? null) {
             'repeater' => is_array($value) ? (string) count($value) : '',
-            'photo', 'file' => is_array($value) ? (string) count($value) : ($value === null ? '' : '1'),
+            'file' => $this->tree->fileNames($value),
             'signature' => $value instanceof stdClass ? DocumentTree::text($value->signerName ?? '✓') : '',
             default => $this->format->format($column, $value),
-        };
+        }, 'images' => []];
+    }
+
+    /** @return list<string> */
+    private function thumbnails(mixed $value): array
+    {
+        $uuids = is_array($value) ? $value : ($value === null ? [] : [$value]);
+
+        return array_values(array_filter(array_map(
+            fn (mixed $uuid): ?string => $this->assets->attachment($this->input, $uuid, self::THUMBNAIL_EDGE),
+            $uuids,
+        )));
     }
 
     /**

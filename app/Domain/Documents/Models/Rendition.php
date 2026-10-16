@@ -39,6 +39,7 @@ use LogicException;
  * @property int $size
  * @property string $reason
  * @property int|null $created_by
+ * @property string|null $request_id
  * @property Carbon $created_at
  * @property-read Submission $submission
  * @property-read FormVersion $formVersion
@@ -47,7 +48,7 @@ use LogicException;
 #[UseFactory(RenditionFactory::class)]
 #[Fillable([
     'uuid', 'submission_uuid', 'form_version_id', 'design_version_id', 'input_hash', 'file_sha256',
-    'renderer_version', 'page_count', 'disk', 'path', 'size', 'reason', 'created_by',
+    'renderer_version', 'page_count', 'disk', 'path', 'size', 'reason', 'created_by', 'request_id',
 ])]
 #[RouteKey('uuid')]
 class Rendition extends Model implements DeliverableDocument
@@ -63,7 +64,7 @@ class Rendition extends Model implements DeliverableDocument
 
     public const UPDATED_AT = null;
 
-    protected $attributes = ['created_by' => null];
+    protected $attributes = ['created_by' => null, 'request_id' => null];
 
     protected function casts(): array
     {

@@ -82,6 +82,23 @@ it('computes timesheet hours per row from start, end and break, and their sum', 
         ->and($result->data->total_hours)->toBe('12.33');
 });
 
+it('never lets a timesheet row or the total go negative (end before start, long break)', function (): void {
+    $version = publishTemplate('timesheet');
+
+    $result = evaluateTemplate($version, ['entries' => [
+        ['work_date' => '2026-10-12', 'start_time' => '16:00', 'end_time' => '08:00'],
+        ['work_date' => '2026-10-13', 'start_time' => '08:00', 'end_time' => '09:00', 'break_minutes' => '90'],
+        ['work_date' => '2026-10-14', 'start_time' => '08:00', 'end_time' => '10:30'],
+        ['work_date' => '2026-10-15', 'start_time' => '08:00'],
+    ]], $this->designer, $this->org);
+
+    expect($result->data->entries[0]->hours)->toBe('0.00')
+        ->and($result->data->entries[1]->hours)->toBe('0.00')
+        ->and($result->data->entries[2]->hours)->toBe('2.50')
+        ->and($result->data->entries[3]->hours)->toBeNull()
+        ->and($result->data->total_hours)->toBe('2.50');
+});
+
 it('totals delivered quantities and the open quantity per delivery-note line', function (): void {
     $version = publishTemplate('delivery_note');
 

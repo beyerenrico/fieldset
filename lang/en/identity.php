@@ -69,8 +69,8 @@ return [
         'email' => 'Email',
         'result' => 'Result',
         'ok' => 'Ready',
-        'sent' => ':count invitations sent',
-        'skipped' => ':count rows with errors were skipped.',
+        'sent' => '{0} No invitations sent|{1} :count invitation sent|[2,*] :count invitations sent',
+        'skipped' => '{1} :count row with errors was skipped:|[2,*] :count rows with errors were skipped:',
         'nothing_to_send' => 'No row can be invited. Fix the file and upload it again.',
         'failed' => 'Line :line: :message',
         'errors' => [
@@ -79,6 +79,7 @@ return [
             'empty' => 'The file contains no members.',
             'missing_columns' => 'The header row needs the columns: :columns.',
             'too_many_rows' => 'The file has more than :max rows.',
+            'daily_limit' => 'At most :max invitations can be sent per day; :remaining are left today. Split the file or try again tomorrow.',
             'invalid_email' => 'Invalid email address.',
             'name_too_long' => 'The name may not be longer than :max characters.',
             'roles_required' => 'At least one role is required.',

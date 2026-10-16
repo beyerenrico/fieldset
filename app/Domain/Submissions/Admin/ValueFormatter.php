@@ -22,7 +22,7 @@ final readonly class ValueFormatter
 
     public function format(stdClass $element, mixed $value): string
     {
-        if ($value === null || $value === '' || $value === []) {
+        if (in_array($value, [null, '', []], true)) {
             return self::EMPTY;
         }
 
@@ -116,15 +116,18 @@ final readonly class ValueFormatter
         return $this->scalar($value);
     }
 
+    /** Coordinates with the locale's decimal separator; "; " between them where that separator is a comma. */
     private function location(mixed $value): string
     {
         if (! $value instanceof stdClass || ! is_numeric($value->lat ?? null) || ! is_numeric($value->lng ?? null)) {
             return $this->scalar($value);
         }
 
-        $text = $value->lat.', '.$value->lng;
+        $separator = new NumberFormatter($this->locale, NumberFormatter::DECIMAL)->getSymbol(NumberFormatter::DECIMAL_SEPARATOR_SYMBOL) ?: '.';
+        $coordinate = fn (mixed $number): string => str_replace('.', $separator, $this->scalar($number));
+        $text = $coordinate($value->lat).($separator === ',' ? '; ' : ', ').$coordinate($value->lng);
 
-        return is_numeric($value->accuracy ?? null) ? $text.' (± '.$value->accuracy.' m)' : $text;
+        return is_numeric($value->accuracy ?? null) ? $text.' (± '.$coordinate($value->accuracy).' m)' : $text;
     }
 
     private function scalar(mixed $value): string

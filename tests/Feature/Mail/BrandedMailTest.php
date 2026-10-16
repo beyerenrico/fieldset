@@ -2,8 +2,11 @@
 
 declare(strict_types=1);
 
+use App\Domain\Documents\Branding\Branding;
+use App\Domain\Documents\Branding\ColorContrast;
 use App\Domain\Identity\Tenancy\TenantContext;
 use App\Domain\Mail\Actions\QueueMail;
+use App\Domain\Mail\Delivery\DocumentDelivery;
 use App\Domain\Mail\Mailables\BrandedMail;
 use App\Domain\Mail\Mailables\TestMail;
 use App\Domain\Mail\Templates\MailTemplate;
@@ -41,7 +44,7 @@ it('renders the template in the organization branding with escaped token values'
 });
 
 it('shows the company name instead of a logo when no usable logo is stored', function (): void {
-    $html = (new TestMail($this->org->id))->to('ann@example.com', 'Ann')->render();
+    $html = new TestMail($this->org->id)->to('ann@example.com', 'Ann')->render();
 
     expect($html)->not->toContain('cid:')->toContain('Acme Service GmbH');
 });
@@ -79,4 +82,17 @@ it('provides submission, form and recipient tokens', function (): void {
         'submission.date' => '17.10.2026', 'form.name' => $submission->form->name,
     ])->and(array_keys($tokens))->each->toBeIn(MailTokens::AVAILABLE)
         ->and(app(TenantContext::class)->id())->toBe($this->org->id);
+});
+
+it('keeps link text and the download button readable with a light brand color', function (): void {
+    config(['messaging.attachment_max_bytes' => 10]);
+    $this->org->update(['branding' => ['primary_color' => '#facc15', 'accent_color' => '#facc15']]);
+    $plan = app(DocumentDelivery::class)->plan(MailFixtures::document(5000));
+    $branding = Branding::forOrganization($this->org->refresh());
+
+    $html = new BrandedMail($this->org->id, new MailTemplate('Doc', 'See [our site](https://example.com).'), [], $plan)->render();
+
+    expect($html)->toContain('.mail-body a { color: '.$branding->primaryText().'; }')
+        ->toContain('background-color:#facc15;color:#111827;')
+        ->and(ColorContrast::ratio($branding->primaryText(), '#ffffff'))->toBeGreaterThanOrEqual(ColorContrast::AA);
 });

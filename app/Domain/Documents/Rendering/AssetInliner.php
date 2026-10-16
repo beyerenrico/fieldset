@@ -20,14 +20,15 @@ final readonly class AssetInliner
 
     public function __construct(private ImageDownscaler $images) {}
 
-    public function attachment(RenderInput $input, mixed $uuid): ?string
+    /** @param  int|null  $maxEdge  smaller edge for thumbnails; default: print size per kind */
+    public function attachment(RenderInput $input, mixed $uuid, ?int $maxEdge = null): ?string
     {
         $asset = $input->asset($uuid);
         $bytes = $asset?->bytes();
         if (! $asset instanceof RenderAsset || $bytes === null || ! str_starts_with($asset->mime, 'image/')) {
             return null;
         }
-        $edge = $asset->kind === 'signature' ? self::SIGNATURE_MAX_EDGE : (int) config('documents.photo_max_edge', 1600);
+        $edge = $maxEdge ?? ($asset->kind === 'signature' ? self::SIGNATURE_MAX_EDGE : (int) config('documents.photo_max_edge', 1600));
 
         return $this->images->dataUri($bytes, $edge);
     }

@@ -16,6 +16,7 @@ use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Notifications\MemberInvitation;
 use App\Domain\Identity\Tenancy\TenantContext;
 use App\Filament\Admin\Resources\Members\Pages\ManageMembers;
+use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
@@ -73,7 +74,7 @@ describe('parsing', function (): void {
 
     // Datasets resolve before the app boots: translate inside the test.
     it('rejects unusable files', function (string $csv, string $key, array $params): void {
-        expect(fn () => (new CsvInvitationParser)->parse($csv))->toThrow(CsvInvitationException::class, __('identity.csv_import.errors.'.$key, $params));
+        expect(fn (): array => (new CsvInvitationParser)->parse($csv))->toThrow(CsvInvitationException::class, __('identity.csv_import.errors.'.$key, $params));
     })->with([
         'no roles column' => ["email,name\na@example.com,A\n", 'missing_columns', ['columns' => 'roles']],
         'header only' => ["email,roles\n\n", 'empty', []],
@@ -147,7 +148,7 @@ describe('Members page', function (): void {
         Livewire::test(ManageMembers::class)
             ->callAction('importCsv', ['file' => csvFile("email;name;roles;groups\nanna@example.com;Anna;field_worker;Crew Nord\nbad;Bad;viewer;\nben@example.com;Ben;reviewer|viewer;\n")])
             ->assertHasNoActionErrors()
-            ->assertNotified(__('identity.csv_import.sent', ['count' => 2]));
+            ->assertNotified(trans_choice('identity.csv_import.sent', 2, ['count' => 2]));
 
         $anna = User::query()->where('email', 'anna@example.com')->sole();
         $ben = User::query()->where('email', 'ben@example.com')->sole();
@@ -198,6 +199,38 @@ describe('Members page', function (): void {
         'all rows invalid' => ["email,roles\nbad,viewer\n", 'nothing_to_send', []],
         'missing column' => ["email,name\na@example.com,A\n", 'errors.missing_columns', ['columns' => 'roles']],
     ]);
+
+    it('lists every skipped row one per line in a persistent notification, with plural-aware counts', function (): void {
+        actingInAdmin($this->owner, $this->org);
+
+        $line = fn (int $n): string => e(__('identity.csv_import.failed', ['line' => $n, 'message' => __('identity.csv_import.errors.invalid_email')]));
+
+        Livewire::test(ManageMembers::class)
+            ->callAction('importCsv', ['file' => csvFile("email,roles\nanna@example.com,viewer\nbad,viewer\nalso-bad,viewer\n")])
+            ->assertNotified(FilamentNotification::make()->warning()->persistent()
+                ->title(trans_choice('identity.csv_import.sent', 1, ['count' => 1]))
+                ->body(e(trans_choice('identity.csv_import.skipped', 2, ['count' => 2])).'<br>'.$line(3).'<br>'.$line(4)));
+
+        expect(trans_choice('identity.csv_import.sent', 1, ['count' => 1]))->not->toBe(trans_choice('identity.csv_import.sent', 2, ['count' => 2]));
+    });
+
+    it('enforces the daily invitation cap per organization before sending anything', function (): void {
+        config(['app.invitations_per_day' => 3]);
+        actingInAdmin($this->owner, $this->org);
+        app(TenantContext::class)->run($this->org, fn () => app(InviteMember::class)->handle($this->owner, $this->org, 'early@example.com', 'Early', [SystemRole::Viewer]));
+        Notification::fake();
+
+        Livewire::test(ManageMembers::class)
+            ->callAction('importCsv', ['file' => csvFile('email,roles
+a@example.com,viewer
+b@example.com,viewer
+c@example.com,viewer
+')])
+            ->assertNotified(__('identity.csv_import.errors.daily_limit', ['max' => 3, 'remaining' => 2]));
+
+        Notification::assertNothingSent();
+        expect(User::query()->where('email', 'a@example.com')->exists())->toBeFalse();
+    });
 
     it('keeps the guard for admins: escalating rows are skipped, the rest is sent', function (): void {
         $admin = memberOf($this->org, SystemRole::Admin);

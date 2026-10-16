@@ -9,7 +9,7 @@
 <meta name="color-scheme" content="light">
 <title>{{ $subjectLine }}</title>
 <style>
-    .mail-body a { color: {{ $layout->primaryColor }}; }
+    .mail-body a { color: {{ $layout->primaryText }}; }
     .mail-body p { margin: 0 0 16px; }
     .mail-body h1, .mail-body h2, .mail-body h3 { color: #18181b; margin: 0 0 12px; line-height: 1.3; }
     .mail-body ul, .mail-body ol { margin: 0 0 16px; padding-left: 24px; }
@@ -27,7 +27,7 @@
 @if ($layout->logoCid !== null)
 <img src="cid:{{ $layout->logoCid }}" alt="{{ $layout->companyName }}" style="display:block;max-height:56px;max-width:220px;border:0;">
 @else
-<span style="font-size:20px;font-weight:700;color:{{ $layout->primaryColor }};">{{ $layout->companyName }}</span>
+<span style="font-size:20px;font-weight:700;color:{{ $layout->primaryText }};">{{ $layout->companyName }}</span>
 @endif
 </td>
 </tr>
@@ -39,7 +39,7 @@
 @foreach ($links as $link)
 <tr>
 <td class="mail-pad" style="padding:0 32px 16px;">
-<a href="{{ $link->url }}" style="display:inline-block;padding:10px 18px;border-radius:6px;background-color:{{ $layout->primaryColor }};color:#ffffff;font-weight:600;text-decoration:none;">{{ __('mail.document.download', ['name' => $link->filename]) }}</a>
+<a href="{{ $link->url }}" style="display:inline-block;padding:10px 18px;border-radius:6px;background-color:{{ $layout->primaryColor }};color:{{ $layout->onPrimary }};font-weight:600;text-decoration:none;">{{ __('mail.document.download', ['name' => $link->filename]) }}</a>
 <div style="margin-top:6px;font-size:12px;color:#71717a;">{{ __('mail.document.expires', ['date' => $link->expiresAt->settings(['locale' => app()->getLocale()])->isoFormat('LL')]) }}</div>
 </td>
 </tr>

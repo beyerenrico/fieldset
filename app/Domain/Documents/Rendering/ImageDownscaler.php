@@ -4,16 +4,21 @@ declare(strict_types=1);
 
 namespace App\Domain\Documents\Rendering;
 
+use App\Domain\Submissions\Support\ExifOrientation;
 use GdImage;
 
 /**
- * Prepares images for print (§8.5): scales the long edge down to at most `$maxEdge` pixels and
- * re-encodes (PNG keeps transparency for signatures and logos, everything else becomes JPEG), then
- * returns a data: URI. Header dimensions are checked before GD allocates pixels (decompression bombs).
+ * Prepares images for print (§8.5): applies the EXIF orientation, scales the long edge down to at most
+ * `$maxEdge` pixels and re-encodes (PNG keeps transparency for signatures and logos, everything else
+ * becomes JPEG), then returns a data: URI. Header dimensions are checked before GD allocates pixels
+ * (decompression bombs): sources above 25 MP are refused, which bounds the render worker's memory to
+ * roughly 25 MP × 4 bytes for the source plus the print-size copy (~110 MB per photo, freed one by one;
+ * the queue workers run with PHP's memory_limit of 512 MB, docker/app/php.ini). Uploads are stored at
+ * most at that size (submissions.image_store_max_pixels).
  */
 final class ImageDownscaler
 {
-    public const int MAX_SOURCE_PIXELS = 40_000_000;
+    public const int MAX_SOURCE_PIXELS = 25_000_000;
 
     private const int JPEG_QUALITY = 82;
 
@@ -23,13 +28,17 @@ final class ImageDownscaler
         if ($size === false || $size[0] < 1 || $size[1] < 1 || $size[0] * $size[1] > self::MAX_SOURCE_PIXELS) {
             return null;
         }
-        $image = @imagecreatefromstring($bytes);
-        if ($image === false) {
+        $decoded = @imagecreatefromstring($bytes);
+        if ($decoded === false) {
             return null;
+        }
+        $image = ExifOrientation::apply($decoded, ExifOrientation::read($bytes));
+        if ($image !== $decoded) {
+            imagedestroy($decoded);
         }
 
         $png = $size['mime'] === 'image/png';
-        $scaled = $this->scale($image, $size[0], $size[1], $maxEdge, $png);
+        $scaled = $this->scale($image, max(1, imagesx($image)), max(1, imagesy($image)), $maxEdge, $png);
         $encoded = $this->encode($scaled, $png);
         imagedestroy($scaled);
         if ($scaled !== $image) {

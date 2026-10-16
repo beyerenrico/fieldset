@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Domain\Mail\Models;
 
+use App\Domain\Audit\ErrorText;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Tenancy\BelongsToOrganization;
+use App\Domain\Mail\Enums\DocumentSendFailure;
 use App\Domain\Mail\Enums\DocumentSendStatus;
 use App\Domain\Mail\Policies\DocumentSendPolicy;
 use App\Domain\Submissions\Models\Submission;
@@ -32,6 +34,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $mail_message_id
  * @property int|null $rendition_id
  * @property string|null $error
+ * @property DocumentSendFailure|null $failure_reason
  * @property Carbon|null $queued_at
  * @property Carbon $created_at
  * @property Carbon $updated_at
@@ -49,16 +52,28 @@ class DocumentSend extends Model
     /** @use HasFactory<DocumentSendFactory> */
     use HasFactory;
 
-    public const int ERROR_LIMIT = 2000;
-
     protected $attributes = [
         'recipient_name' => null, 'status' => 'waiting_for_document', 'requested_by' => null, 'mail_message_id' => null,
-        'rendition_id' => null, 'error' => null, 'queued_at' => null,
+        'rendition_id' => null, 'error' => null, 'failure_reason' => null, 'queued_at' => null,
     ];
 
     protected function casts(): array
     {
-        return ['status' => DocumentSendStatus::class, 'queued_at' => 'datetime'];
+        return ['status' => DocumentSendStatus::class, 'failure_reason' => DocumentSendFailure::class, 'queued_at' => 'datetime'];
+    }
+
+    /**
+     * Fails the waiting requests of a submission in one conditional update, so a request that was queued
+     * meanwhile is never overwritten. Returns the number of failed requests.
+     */
+    public static function failWaiting(string $submissionUuid, DocumentSendFailure $reason, ?string $error = null): int
+    {
+        return static::query()->where('submission_uuid', $submissionUuid)
+            ->where('status', DocumentSendStatus::WaitingForDocument->value)
+            ->update([
+                'status' => DocumentSendStatus::Failed->value, 'failure_reason' => $reason->value,
+                'error' => $error === null ? null : ErrorText::scrub($error), 'updated_at' => now(),
+            ]);
     }
 
     public function markQueued(int $mailMessageId, int $renditionId): void
@@ -69,9 +84,11 @@ class DocumentSend extends Model
         ])->save();
     }
 
-    public function markFailed(string $error): void
+    public function markFailed(DocumentSendFailure $reason, ?string $error = null): void
     {
-        $this->forceFill(['status' => DocumentSendStatus::Failed, 'error' => mb_substr($error, 0, self::ERROR_LIMIT)])->save();
+        $this->forceFill([
+            'status' => DocumentSendStatus::Failed, 'failure_reason' => $reason, 'error' => $error === null ? null : ErrorText::scrub($error),
+        ])->save();
     }
 
     /** @return BelongsTo<Submission, $this> */

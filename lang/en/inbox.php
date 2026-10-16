@@ -35,7 +35,7 @@ return [
         'system' => 'System',
         'missing_file' => 'Not uploaded yet',
         'open_file' => 'Open :name',
-        'rows' => ':count rows',
+        'rows' => '{1} :count row|[0,*] :count rows',
         'row' => 'Row',
     ],
     'documents' => [
@@ -53,6 +53,14 @@ return [
         'rerender' => 'Re-render PDF',
         'rerender_help' => 'Creates a new PDF with the submission\'s design version and the current branding. Existing PDFs stay unchanged.',
         'rerender_queued' => 'The new PDF is being created. Reload the page in a moment.',
+        'rerender_throttled' => 'A new PDF was requested a moment ago. Try again in :seconds seconds.',
+        'failure' => [
+            'title' => 'PDF generation failed',
+            'budget_exceeded' => 'The document is too large to render (too many or too large photos).',
+            'render_failed' => 'The PDF service could not create the document, even after several attempts.',
+            'details' => '{1} Last attempt :when (:count attempt).|[2,*] Last attempt :when (:count attempts).',
+            'hint' => 'Use “Re-render PDF” to try again. Customer emails waiting for this PDF were not sent.',
+        ],
     ],
     'value' => ['yes' => 'Yes', 'no' => 'No'],
 ];

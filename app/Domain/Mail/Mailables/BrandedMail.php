@@ -7,6 +7,7 @@ namespace App\Domain\Mail\Mailables;
 use App\Domain\Documents\Branding\Branding;
 use App\Domain\Identity\Models\Organization;
 use App\Domain\Mail\Delivery\DeliveryPlan;
+use App\Domain\Mail\Delivery\DocumentDelivery;
 use App\Domain\Mail\Delivery\DocumentFile;
 use App\Domain\Mail\Templates\MailTemplate;
 use App\Domain\Mail\Templates\MarkdownRenderer;
@@ -35,12 +36,15 @@ class BrandedMail extends Mailable
     /** Logo types every mail client displays. */
     private const array LOGO_TYPES = ['image/png', 'image/jpeg', 'image/gif'];
 
-    /** @param  array<string, string>  $tokens */
+    /**
+     * @param  array<string, string>  $tokens
+     * @param  DeliveryPlan|null  $documents  replaced only by refreshDocumentLinks()
+     */
     public function __construct(
         public readonly int $organizationId,
         public readonly MailTemplate $template,
         public readonly array $tokens = [],
-        public readonly ?DeliveryPlan $documents = null,
+        public ?DeliveryPlan $documents = null,
         ?string $locale = null,
     ) {
         if ($locale !== null) {
@@ -91,7 +95,7 @@ class BrandedMail extends Mailable
             from: $from === null ? null : new Address($from['address'], $from['name'] ?? null),
             replyTo: array_map(static fn (array $r): Address => new Address($r['address'], $r['name'] ?? null), $this->replyTo),
             subject: $this->subjectLine(),
-            using: [fn (Email $email) => $this->embedLogo($email)],
+            using: [$this->embedLogo(...)],
         );
     }
 
@@ -107,7 +111,7 @@ class BrandedMail extends Mailable
             'bodyHtml' => new HtmlString(app(MarkdownRenderer::class)->toHtml($replacer->markdown($body, $tokens))),
             'bodyText' => $replacer->plain($body, $tokens),
             'layout' => MailLayout::from($branding, $this->logo($branding) === null ? null : self::LOGO_CID),
-            'links' => $this->documents === null ? [] : $this->documents->links,
+            'links' => $this->documents->links ?? [],
         ]);
     }
 
@@ -117,13 +121,21 @@ class BrandedMail extends Mailable
         return array_map(
             static fn (DocumentFile $file): Attachment => Attachment::fromStorageDisk($file->disk, $file->path)
                 ->as($file->filename)->withMime($file->mime),
-            $this->documents === null ? [] : $this->documents->attachments,
+            $this->documents->attachments ?? [],
         );
+    }
+
+    /** Extends the links to now + TTL before a delivery attempt (DeliverMail), so tokens and buttons stay valid. */
+    public function refreshDocumentLinks(DocumentDelivery $delivery): void
+    {
+        if ($this->documents instanceof DeliveryPlan) {
+            $this->documents = $delivery->refresh($this->documents);
+        }
     }
 
     public function hasDocuments(): bool
     {
-        return $this->documents !== null && ! $this->documents->isEmpty();
+        return $this->documents instanceof DeliveryPlan && ! $this->documents->isEmpty();
     }
 
     protected function organization(): Organization
@@ -142,7 +154,7 @@ class BrandedMail extends Mailable
 
         $logo = $this->logo(Branding::forOrganization($this->organization()));
         if ($logo !== null) {
-            $email->addPart((new DataPart($logo['bytes'], 'logo', $logo['mime']))->asInline()->setContentId(self::LOGO_CID));
+            $email->addPart(new DataPart($logo['bytes'], 'logo', $logo['mime'])->asInline()->setContentId(self::LOGO_CID));
         }
     }
 
@@ -155,7 +167,7 @@ class BrandedMail extends Mailable
 
         $disk = Storage::disk((string) config('documents.disk', 'local')); // where the branding page stores it
         $bytes = $disk->exists($branding->logoPath) ? $disk->get($branding->logoPath) : null;
-        $mime = $bytes === null ? null : (new finfo(FILEINFO_MIME_TYPE))->buffer($bytes);
+        $mime = $bytes === null ? null : new finfo(FILEINFO_MIME_TYPE)->buffer($bytes);
 
         return is_string($bytes) && in_array($mime, self::LOGO_TYPES, true) ? ['bytes' => $bytes, 'mime' => $mime] : null;
     }

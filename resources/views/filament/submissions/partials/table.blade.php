@@ -2,7 +2,7 @@
 <div style="position:relative;overflow-x:auto">
     <table style="width:100%;border-collapse:collapse;font-size:.875rem">
         <caption style="padding-bottom:.25rem;text-align:start;font-weight:600">
-            {{ $item['label'] }} <span style="font-weight:400;opacity:.7">({{ __('inbox.detail.rows', ['count' => count($item['rows'])]) }})</span>
+            {{ $item['label'] }} <span style="font-weight:400;opacity:.7">({{ trans_choice('inbox.detail.rows', count($item['rows']), ['count' => count($item['rows'])]) }})</span>
         </caption>
         <thead>
             <tr>

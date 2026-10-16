@@ -43,7 +43,8 @@ it('formats element values by type', function (): void {
         ->and($f->format((object) ['type' => 'checkbox'], true))->toBe('Ja')
         ->and($f->format((object) ['type' => 'rating', 'max' => 5], 4))->toBe('4 / 5')
         ->and($f->format((object) ['type' => 'calculated', 'format' => 'money', 'currency' => 'EUR'], '97.50'))->toBe("97,50\u{a0}€")
-        ->and($f->format((object) ['type' => 'location'], (object) ['lat' => 52.5, 'lng' => 13.4, 'accuracy' => 8]))->toBe('52.5, 13.4 (± 8 m)')
+        ->and($f->format((object) ['type' => 'location'], (object) ['lat' => 52.5, 'lng' => 13.4, 'accuracy' => 8]))->toBe('52,5; 13,4 (± 8 m)')
+        ->and(new ValueFormatter('en-US', 'UTC')->format((object) ['type' => 'location'], (object) ['lat' => -33.8688, 'lng' => 151.2093, 'accuracy' => 4.5]))->toBe('-33.8688, 151.2093 (± 4.5 m)')
         ->and($f->format((object) ['type' => 'text'], null))->toBe('')
         ->and($f->isNumeric((object) ['type' => 'calculated', 'format' => 'text']))->toBeFalse()
         ->and($f->isNumeric((object) ['type' => 'money']))->toBeTrue();

@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Domain\Mail\Delivery\DocumentDelivery;
 use App\Domain\Mail\Http\DocumentLinkController;
 use App\Http\Controllers\Admin\AttachmentDownloadController;
+use App\Http\Controllers\Admin\RenditionDownloadController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\SpaController;
 use Illuminate\Support\Facades\Route;
@@ -25,6 +26,10 @@ Route::get('form-preview/{path?}', [SpaController::class, 'preview'])->where('pa
 Route::middleware(['auth', 'signed'])->group(function (): void {
     Route::get('admin/{organization}/attachments/{attachment}', AttachmentDownloadController::class)->name('admin.attachments.show');
 });
+
+// Admin inbox PDF download (M3 review #18): admin session + RenditionPolicy; mints a fresh signed link on click.
+Route::get('admin/{organization}/renditions/{rendition}', RenditionDownloadController::class)
+    ->middleware(['auth', 'throttle:60,1'])->name('admin.renditions.download');
 
 // Expiring document links from mails (§8.8): random token, 404 unknown, 410 Gone after expiry.
 Route::get('documents/links/{token}', DocumentLinkController::class)

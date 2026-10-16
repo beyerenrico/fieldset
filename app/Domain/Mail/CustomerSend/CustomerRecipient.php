@@ -11,7 +11,9 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * The recipient of a "send to customer" mail. Missing values default to the submitted values of the
- * elements with the roles `customer.email` / `customer.name` (top-level scope of the pinned version).
+ * elements with the roles `customer.email` / `customer.name` (top-level scope of the pinned version). A
+ * name that is present but null or blank means "no name" (docs/api/field-app-v1.md); only an omitted name
+ * falls back to the role value.
  */
 final readonly class CustomerRecipient
 {
@@ -26,17 +28,18 @@ final readonly class CustomerRecipient
     public function __construct(public string $email, public ?string $name) {}
 
     /**
-     * Explicit values win; blanks fall back to the role values. Invalid input throws a ValidationException
-     * on `email` / `name` (the API renders it as `validation_failed` with JSON Pointers).
+     * Explicit values win; a blank email falls back to the role value, a blank name only when the name was
+     * not provided at all. Invalid input throws a ValidationException on `email` / `name` (the API renders it
+     * as `validation_failed` with JSON Pointers).
      *
      * @throws ValidationException
      */
-    public static function resolve(Submission $submission, mixed $email = null, mixed $name = null): self
+    public static function resolve(Submission $submission, mixed $email = null, mixed $name = null, bool $nameProvided = false): self
     {
         $defaults = self::defaults($submission);
         $input = [
             'email' => self::filled($email) ? $email : $defaults['email'],
-            'name' => self::filled($name) ? $name : $defaults['name'],
+            'name' => self::filled($name) || $nameProvided ? $name : $defaults['name'],
         ];
 
         /** @var array{email: string, name?: string|null} $valid */
@@ -69,6 +72,6 @@ final readonly class CustomerRecipient
 
     private static function filled(mixed $value): bool
     {
-        return $value !== null && ! (is_string($value) && trim($value) === '');
+        return $value !== null && (! is_string($value) || trim($value) !== '');
     }
 }

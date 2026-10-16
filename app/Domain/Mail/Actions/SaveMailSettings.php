@@ -10,6 +10,7 @@ use App\Domain\Identity\Models\User;
 use App\Domain\Mail\Enums\SmtpEncryption;
 use App\Domain\Mail\Models\MailSetting;
 use App\Domain\Mail\Sending\SmtpHostGuard;
+use BackedEnum;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -17,27 +18,34 @@ use Illuminate\Validation\Validator as ValidatorInstance;
 
 /**
  * Saves the current organization's mail settings and audits the change (§8.11). An empty password
- * keeps the stored one. Credentials never reach the audit log: changed secrets appear as
- * "[redacted]" only.
+ * keeps the stored one, unless the connection (server, port, user name, encryption) changes: then the
+ * password must be entered again, so a stored password is never sent to a server it was not entered for
+ * (without a user name it is dropped instead). Credentials never reach the audit log: changed secrets
+ * appear as "[redacted]" only.
  */
-final class SaveMailSettings
+final readonly class SaveMailSettings
 {
     private const array FIELDS = ['sender_name', 'reply_to_address', 'smtp_enabled', 'smtp_host', 'smtp_port', 'smtp_encryption', 'smtp_username', 'smtp_from_address'];
 
     private const array SECRETS = ['smtp_username', 'smtp_password'];
 
-    public function __construct(private readonly AuditLogger $audit, private readonly SmtpHostGuard $guard) {}
+    /** Fields that decide where the stored password is sent. */
+    private const array CONNECTION = ['smtp_host', 'smtp_port', 'smtp_username', 'smtp_encryption'];
+
+    public function __construct(private AuditLogger $audit, private SmtpHostGuard $guard) {}
 
     /** @param  array<string, mixed>  $input */
     public function handle(array $input, ?User $actor = null): MailSetting
     {
-        $data = $this->validate($input);
         $settings = MailSetting::current() ?? new MailSetting;
+        $data = $this->validate($input, $settings);
         $before = $settings->exists ? $this->snapshot($settings) : [];
 
         $settings->fill(Arr::only($data, self::FIELDS));
         if (filled($data['smtp_password'] ?? null)) {
             $settings->smtp_password = (string) $data['smtp_password'];
+        } elseif ($settings->isDirty(self::CONNECTION)) {
+            $settings->smtp_password = null; // connection changed while SMTP is off or without a user name
         }
         $settings->save();
 
@@ -57,7 +65,7 @@ final class SaveMailSettings
      * @param  array<string, mixed>  $input
      * @return array<string, mixed>
      */
-    private function validate(array $input): array
+    private function validate(array $input, MailSetting $current): array
     {
         $enabled = filter_var($input['smtp_enabled'] ?? false, FILTER_VALIDATE_BOOL);
         $required = $enabled ? 'required' : 'nullable';
@@ -72,12 +80,48 @@ final class SaveMailSettings
             'smtp_username' => ['nullable', 'string', 'max:255'],
             'smtp_password' => ['nullable', 'string', 'max:255'],
             'smtp_from_address' => [$required, 'email:rfc', 'max:254'],
-        ], [], $this->attributeNames())->after(function (ValidatorInstance $validator) use ($input, $enabled): void {
+        ], [], $this->attributeNames())->after(function (ValidatorInstance $validator) use ($input, $enabled, $current): void {
             $host = $input['smtp_host'] ?? null;
             if ($enabled && is_string($host) && $host !== '' && ! $validator->errors()->has('smtp_host') && ! $this->guard->isAllowed($host)) {
                 $validator->errors()->add('smtp_host', __('mail.settings.host_not_allowed'));
             }
+            $port = $input['smtp_port'] ?? null;
+            if ($enabled && is_numeric($port) && ! $validator->errors()->has('smtp_port') && ! $this->guard->isAllowedPort((int) $port)) {
+                $validator->errors()->add('smtp_port', __('mail.settings.port_not_allowed'));
+            }
+            if ($enabled && $this->needsPasswordAgain($input, $current)) {
+                $validator->errors()->add('smtp_password', __('mail.settings.password_required_again'));
+            }
         })->validate();
+    }
+
+    /**
+     * A stored password with a user name, a changed connection field and no new password.
+     *
+     * @param  array<string, mixed>  $input
+     */
+    private function needsPasswordAgain(array $input, MailSetting $current): bool
+    {
+        if (! $current->hasPassword() || filled($input['smtp_password'] ?? null)) {
+            return false;
+        }
+        $username = array_key_exists('smtp_username', $input) ? $input['smtp_username'] : $current->smtp_username;
+        if (blank($username)) {
+            return false;
+        }
+        $stored = [
+            'smtp_host' => $current->smtp_host, 'smtp_port' => $current->smtp_port,
+            'smtp_username' => $current->smtp_username, 'smtp_encryption' => $current->smtp_encryption?->value,
+        ];
+        foreach (self::CONNECTION as $field) {
+            $value = $input[$field] ?? null;
+            $value = $value instanceof BackedEnum ? $value->value : $value;
+            if (array_key_exists($field, $input) && (string) (is_scalar($value) ? $value : '') !== (string) $stored[$field]) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** @return array<string, mixed> */

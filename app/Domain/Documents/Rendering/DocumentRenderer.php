@@ -14,8 +14,11 @@ use UnexpectedValueException;
  */
 final readonly class DocumentRenderer
 {
-    /** Bump whenever templates or CSS change in a way that alters output. */
-    public const string VERSION = '1.0.0';
+    /**
+     * Bump whenever templates or CSS change in a way that alters output.
+     * 1.1.0: tagged PDF, heading outline, text alternatives, locale tag, readable brand colors, table thumbnails.
+     */
+    public const string VERSION = '1.1.0';
 
     public function __construct(private HtmlComposer $composer, private GotenbergClient $gotenberg) {}
 

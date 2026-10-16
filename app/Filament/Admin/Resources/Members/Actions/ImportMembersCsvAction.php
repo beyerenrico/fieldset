@@ -26,7 +26,8 @@ use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
 /**
  * CSV bulk invitations on the Members page (BUILD_PROMPT §8.12, M3-T11): upload → per-row report →
- * send the valid rows. The file is never stored; it is re-read and re-checked on submit.
+ * send the valid rows. The file is never stored; it is re-read and re-checked on submit. Skipped and failed
+ * rows are listed one per line in a persistent notification; the daily cap is checked before sending.
  */
 final class ImportMembersCsvAction
 {
@@ -69,14 +70,42 @@ final class ImportMembersCsvAction
         $organization = Filament::getTenant();
         /** @var User $actor */
         $actor = auth()->user();
-        $result = app(SendBulkInvitations::class)->handle($actor, $organization, $report);
+        try {
+            $result = app(SendBulkInvitations::class)->handle($actor, $organization, $report);
+        } catch (CsvInvitationException $e) {
+            Notification::make()->danger()->title($e->getMessage())->persistent()->send();
 
-        $body = array_map(fn (int $line, string $message): string => __('identity.csv_import.failed', ['line' => $line, 'message' => $message]), array_keys($result['failed']), $result['failed']);
-        if ($report->invalid() !== []) {
-            array_unshift($body, __('identity.csv_import.skipped', ['count' => count($report->invalid())]));
+            throw new Halt($e->getMessage(), $e->getCode(), $e);
         }
-        Notification::make()->success()->title(__('identity.csv_import.sent', ['count' => $result['invited']]))
-            ->body($body !== [] ? implode("\n", $body) : null)->send();
+
+        $lines = self::problemLines($report, $result['failed']);
+        $notification = Notification::make()->success()->title(trans_choice('identity.csv_import.sent', $result['invited'], ['count' => $result['invited']]));
+        if ($lines !== []) {
+            // Persistent, one line per skipped or failed row (escaped; Filament renders the body as sanitized HTML).
+            $notification->warning()->persistent()->body(implode('<br>', array_map(e(...), $lines)));
+        }
+        $notification->send();
+    }
+
+    /**
+     * @param  array<int, string>  $failed  send-time failures by CSV line
+     * @return list<string>
+     */
+    private static function problemLines(BulkInvitationReport $report, array $failed): array
+    {
+        $lines = [];
+        foreach ($report->invalid() as $row) {
+            $lines[$row->line] = __('identity.csv_import.failed', ['line' => $row->line, 'message' => implode(' ', $row->errors)]);
+        }
+        foreach ($failed as $line => $message) {
+            $lines[$line] = __('identity.csv_import.failed', ['line' => $line, 'message' => $message]);
+        }
+        ksort($lines);
+        if ($report->invalid() !== []) {
+            array_unshift($lines, trans_choice('identity.csv_import.skipped', count($report->invalid()), ['count' => count($report->invalid())]));
+        }
+
+        return array_values($lines);
     }
 
     /** Report for the review step; null while there is no readable file. */
@@ -96,7 +125,7 @@ final class ImportMembersCsvAction
         } catch (CsvInvitationException $e) {
             Notification::make()->danger()->title($e->getMessage())->send();
 
-            throw new Halt;
+            throw new Halt($e->getMessage(), $e->getCode(), $e);
         }
     }
 

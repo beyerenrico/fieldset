@@ -69,8 +69,8 @@ return [
         'email' => 'E-Mail',
         'result' => 'Ergebnis',
         'ok' => 'Bereit',
-        'sent' => ':count Einladungen gesendet',
-        'skipped' => ':count fehlerhafte Zeilen wurden übersprungen.',
+        'sent' => '{0} Keine Einladungen gesendet|{1} :count Einladung gesendet|[2,*] :count Einladungen gesendet',
+        'skipped' => '{1} :count fehlerhafte Zeile wurde übersprungen:|[2,*] :count fehlerhafte Zeilen wurden übersprungen:',
         'nothing_to_send' => 'Keine Zeile kann eingeladen werden. Korrigieren Sie die Datei und laden Sie sie erneut hoch.',
         'failed' => 'Zeile :line: :message',
         'errors' => [
@@ -79,6 +79,7 @@ return [
             'empty' => 'Die Datei enthält keine Mitglieder.',
             'missing_columns' => 'Die Kopfzeile braucht die Spalten: :columns.',
             'too_many_rows' => 'Die Datei hat mehr als :max Zeilen.',
+            'daily_limit' => 'Pro Tag sind höchstens :max Einladungen möglich; heute sind noch :remaining übrig. Teilen Sie die Datei auf oder versuchen Sie es morgen erneut.',
             'invalid_email' => 'Ungültige E-Mail-Adresse.',
             'name_too_long' => 'Der Name darf höchstens :max Zeichen lang sein.',
             'roles_required' => 'Mindestens eine Rolle ist erforderlich.',

@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Domain\Audit\Models\Activity;
 use App\Domain\Documents\Designs\Actions\PublishDesign;
 use App\Domain\Documents\Designs\DesignResolver;
+use App\Domain\Documents\Events\RenditionCreated;
 use App\Domain\Documents\Models\Rendition;
 use App\Domain\Documents\Rendering\RenderBudgetExceededException;
 use App\Domain\Documents\Renditions\GenerateRendition;
@@ -13,10 +14,14 @@ use App\Domain\Identity\Tenancy\TenantContext;
 use App\Domain\Submissions\Actions\TransitionSubmission;
 use App\Domain\Submissions\Enums\SubmissionStatus;
 use Illuminate\Database\QueryException;
+use Illuminate\Queue\Attributes\CountCrashesAsExceptions;
+use Illuminate\Queue\Attributes\MaxExceptions;
 use Illuminate\Queue\Attributes\Timeout;
+use Illuminate\Queue\Attributes\Tries;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -58,7 +63,7 @@ it('stores an immutable rendition with versions, hashes and page count on submit
 
     expect($rendition->form_version_id)->toBe($this->s->version->id)
         ->and($rendition->design_version_id)->toBeInt()
-        ->and($rendition->renderer_version)->toBe('1.0.0')
+        ->and($rendition->renderer_version)->toBe('1.1.0')
         ->and($rendition->page_count)->toBe(2)
         ->and($rendition->file_sha256)->toBe(hash('sha256', $file))
         ->and($rendition->size)->toBe(strlen($file))
@@ -80,7 +85,8 @@ it('sends only inlined HTML to the renderer: paper, margins, header and footer f
         ->and($parts['paperWidth'])->toBe('8.27in')->and($parts['marginTop'])->toBe('28mm')
         ->and($parts['index.html'])->toContain('Beispiel GmbH')->toContain('data:image/png;base64,')
         ->and($parts['index.html'])->not->toMatch('#(src|href)="https?://#')
-        ->and($parts['footer.html'])->toContain('class="pageNumber"');
+        ->and($parts['footer.html'])->toContain('class="pageNumber"')
+        ->and($parts['generateTaggedPdf'])->toBe('true');
 });
 
 it('re-renders into a new rendition with the same design version and input hash', function (): void {
@@ -161,4 +167,29 @@ it('keeps the submit successful when the renderer is down', function (): void {
 
     expect($submission->status)->toBe(SubmissionStatus::Submitted)->and($submission->number)->not->toBeNull()
         ->and(docRenditionsOf($submission->uuid))->toHaveCount(0);
+});
+
+it('retries by time and exceptions, so releases while another render runs never use up attempts', function (): void {
+    $job = new GenerateRendition('0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c', 1);
+    $reflection = new ReflectionClass($job);
+
+    expect($reflection->getAttributes(Tries::class))->toBe([])
+        ->and($reflection->getAttributes(MaxExceptions::class)[0]->newInstance()->maxExceptions)->toBe(3)
+        ->and($reflection->getAttributes(CountCrashesAsExceptions::class))->toHaveCount(1)
+        ->and($job->retryUntil()->getTimestamp())->toBeGreaterThan(now()->addMinutes(10)->getTimestamp());
+});
+
+it('creates one rendition, audit entry and event per re-render request, even when the job runs again', function (): void {
+    $submission = DocumentFixtures::submit($this->s, DocumentFixtures::draft($this->s));
+    Event::fake([RenditionCreated::class]);
+    $job = unserialize(serialize(new GenerateRendition($submission->uuid, $this->s->org->id, Rendition::REASON_RERENDER, $this->s->owner->id)));
+
+    $job->handle(app(RenderSubmission::class), $this->tenant);
+    $job->handle(app(RenderSubmission::class), $this->tenant); // killed worker: the same payload runs again
+
+    expect(docRenditionsOf($submission->uuid))->toHaveCount(2)
+        ->and(docRenditionsOf($submission->uuid)->last()->request_id)->toBe($job->requestId)
+        ->and(Activity::query()->where('event', 'submission.pdf_generated')->count())->toBe(2);
+    Event::assertDispatchedTimes(RenditionCreated::class, 1);
+    Http::assertSentCount(2);
 });

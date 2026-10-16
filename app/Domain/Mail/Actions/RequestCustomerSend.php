@@ -8,6 +8,7 @@ use App\Domain\Documents\Models\Rendition;
 use App\Domain\Documents\Renditions\RenderSubmission;
 use App\Domain\Identity\Models\User;
 use App\Domain\Mail\CustomerSend\CustomerRecipient;
+use App\Domain\Mail\CustomerSend\CustomerSendLimits;
 use App\Domain\Mail\Enums\DocumentSendStatus;
 use App\Domain\Mail\Models\DocumentSend;
 use App\Domain\Submissions\Models\Submission;
@@ -18,7 +19,8 @@ use Illuminate\Support\Facades\DB;
  * rendition the mail is queued at once, otherwise the request waits and SendWaitingDocuments mails it
  * when the first rendition is created. Holding the per-submission rendition lock while checking means
  * a rendition committed concurrently is either seen here or announces itself after this commit.
- * Authorization (CustomerSendGate + visibility) is the caller's job.
+ * Authorization (CustomerSendGate + visibility) is the caller's job; the caps (CustomerSendLimits) are
+ * checked here, under the lock, for every caller.
  */
 final readonly class RequestCustomerSend
 {
@@ -28,6 +30,7 @@ final readonly class RequestCustomerSend
     {
         return DB::transaction(function () use ($actor, $submission, $recipient): DocumentSend {
             DB::select('select pg_advisory_xact_lock(?)', [RenderSubmission::lockId($submission->uuid)]);
+            CustomerSendLimits::assertWithin($submission);
 
             $send = DocumentSend::query()->create([
                 'submission_uuid' => $submission->uuid,

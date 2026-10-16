@@ -33,11 +33,14 @@ final readonly class HtmlComposer
         $tree = new DocumentTree($input, $format, $this->assets, $this->sanitizer)->build();
         $tokens = $this->tokens($input, $format);
         $shared = [
-            'lang' => $input->language(),
+            'lang' => $input->languageTag(),
             'fontFamily' => FontLibrary::family($input->branding->font),
             'margins' => $design->margins,
             'primary' => $input->branding->primaryColor,
             'accent' => $input->branding->accentColor,
+            'primaryText' => $input->branding->primaryText(),
+            'accentText' => $input->branding->accentText(),
+            'onPrimary' => $input->branding->onPrimary(),
         ];
         $hfFont = FontLibrary::css($input->branding->font, [400, 700]);
 

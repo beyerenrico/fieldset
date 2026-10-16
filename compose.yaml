@@ -94,6 +94,8 @@ services:
       - gotenberg
       - --chromium-deny-private-ips=true
       - --chromium-deny-public-ips=true
+      # Documents are app-owned HTML without scripts; header/footer page numbers are Chromium placeholders.
+      - --chromium-disable-javascript=true
       - --api-body-limit=30MB
       - --api-timeout=60s
       - --log-format=json

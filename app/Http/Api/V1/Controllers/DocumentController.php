@@ -6,6 +6,7 @@ namespace App\Http\Api\V1\Controllers;
 
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Documents\Models\Rendition;
+use App\Domain\Documents\Models\RenditionFailure;
 use App\Domain\Documents\Renditions\RenditionLinks;
 use App\Domain\Documents\Renditions\RenditionPresenter;
 use App\Domain\Identity\Models\User;
@@ -21,8 +22,9 @@ use RuntimeException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
- * Documents of a submission (§10): a short-lived signed URL to the latest rendition, and the signed
- * download itself, which re-checks that the user the link was issued to may still see the submission.
+ * Documents of a submission (§10): a short-lived signed URL to the latest rendition (or why there is
+ * none), and the signed download itself, which re-checks that the user the link was issued to may still
+ * see the submission.
  */
 final readonly class DocumentController
 {
@@ -38,7 +40,7 @@ final readonly class DocumentController
             throw new ApiException('not_found', __('api.not_found'), 404);
         }
         $rendition = Rendition::query()->where('submission_uuid', $submission->uuid)->orderByDesc('id')->first()
-            ?? throw new ApiException('document_not_ready', __('documents.errors.not_ready'), 404);
+            ?? throw $this->missing($submission);
         $expiresAt = RenditionLinks::expiresAt();
 
         return ApiResponse::ok(['document' => [
@@ -46,6 +48,16 @@ final readonly class DocumentController
             'expires_at' => $expiresAt->toIso8601String(),
             'rendition' => RenditionPresenter::present($rendition),
         ]]);
+    }
+
+    /** No rendition yet: 409 `document_failed` after a permanent failure (ADR 0031), else 404 `document_not_ready`. */
+    private function missing(Submission $submission): ApiException
+    {
+        $failure = RenditionFailure::query()->where('submission_uuid', $submission->uuid)->first();
+
+        return $failure instanceof RenditionFailure
+            ? new ApiException('document_failed', $failure->userMessage(), 409)
+            : new ApiException('document_not_ready', __('documents.errors.not_ready'), 404);
     }
 
     /** GET /documents/{rendition}?user=&expires=&signature= (signed, no session needed) */

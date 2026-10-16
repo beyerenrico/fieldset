@@ -92,6 +92,9 @@ return [
         'preview_number' => 'VORSCHAU',
         'watermark_draft' => 'ENTWURF',
         'watermark_void' => 'UNGÜLTIG',
+        'photo_alt' => ':label – Foto :index von :count',
+        'signature_alt' => 'Unterschrift von :name',
+        'photos_omitted' => '{1} :count Foto konnte nicht gedruckt werden (unlesbar oder zu groß).|[2,*] :count Fotos konnten nicht gedruckt werden (unlesbar oder zu groß).',
     ],
     'sample' => [
         'text' => 'Beispiel: :label',
@@ -106,6 +109,7 @@ return [
         'accent_color' => 'Akzentfarbe',
         'font' => 'Schrift',
         'font_help' => 'Mitgelieferte Open-Source-Schriften (SIL Open Font License).',
+        'contrast_warning' => 'Geringer Kontrast auf Weiß (:ratio:1; Text braucht mindestens 4,5:1). PDFs und E-Mails verwenden für Text einen dunkleren Ton dieser Farbe und darauf dunkle Schrift.',
         'company' => 'Firmenangaben',
         'company_fields' => [
             'legal_name' => 'Firmierung',
@@ -135,6 +139,10 @@ return [
         'budget_exceeded' => 'Das Dokument ist zu groß für die PDF-Erzeugung (:size MB von erlaubten :limit MB). Bitte weniger oder kleinere Fotos verwenden.',
         'render_failed' => 'Das PDF konnte nicht erzeugt werden. Bitte später erneut versuchen.',
         'not_ready' => 'Das Dokument wurde noch nicht erzeugt.',
+        'failed' => [
+            'budget_exceeded' => 'Das PDF konnte nicht erzeugt werden, weil das Dokument zu groß ist (zu viele oder zu große Fotos). Das Büro sieht das und kann es neu erzeugen.',
+            'render_failed' => 'Das PDF konnte nicht erzeugt werden. Das Büro sieht das und kann es neu erzeugen.',
+        ],
         'preview_failed' => 'Die Vorschau konnte nicht erzeugt werden.',
         'preview_invalid' => 'Das Formular enthält Fehler; bitte vor der PDF-Vorschau beheben.',
     ],

@@ -57,4 +57,26 @@ final class DocumentDelivery
 
         return new DeliveredLink($link->id, $file->filename, route('documents.link', ['token' => $token]), $expiresAt);
     }
+
+    /**
+     * Before every delivery attempt (M3 review #4): extends the plan's links to now + TTL (never shortens
+     * them), so a mail retried days later carries working links and a correct {{document.expires}}.
+     */
+    public function refresh(DeliveryPlan $plan): DeliveryPlan
+    {
+        if ($plan->links === []) {
+            return $plan;
+        }
+        $expiresAt = CarbonImmutable::now()->addDays((int) config('messaging.links.ttl_days'));
+        $links = [];
+        foreach ($plan->links as $link) {
+            $row = DocumentLink::query()->find($link->linkId);
+            if ($row instanceof DocumentLink && $row->expires_at->lt($expiresAt)) {
+                $row->forceFill(['expires_at' => $expiresAt])->save();
+            }
+            $links[] = new DeliveredLink($link->linkId, $link->filename, $link->url, $row?->expires_at->toImmutable() ?? $link->expiresAt);
+        }
+
+        return $plan->withLinks(...$links);
+    }
 }

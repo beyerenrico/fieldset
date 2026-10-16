@@ -97,6 +97,7 @@ it('waits for the PDF and sends it when the first rendition is created', functio
 
 it('sends a PDF over the attachment limit as an expiring link', function (): void {
     config(['messaging.attachment_max_bytes' => 10]);
+    $this->s->org->forceFill(['locale' => 'de'])->save();
     $submission = deliverySubmitted();
 
     deliverySend($submission)->assertStatus(202);
@@ -106,7 +107,9 @@ it('sends a PDF over the attachment limit as an expiring link', function (): voi
     expect($email->getAttachments())->toHaveCount(0)
         ->and($link->submission_uuid)->toBe($submission->uuid)
         ->and($link->filename)->toBe($submission->number.'.pdf')
-        ->and((string) $email->getHtmlBody())->toContain('/documents/links/');
+        ->and((string) $email->getHtmlBody())->toContain('/documents/links/')
+        ->toContain('über den folgenden Link können Sie das Dokument')   // never "anbei" without an attachment
+        ->not->toContain('anbei');
 });
 
 it('never sends one request twice', function (): void {

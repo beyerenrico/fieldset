@@ -92,6 +92,9 @@ return [
         'preview_number' => 'PREVIEW',
         'watermark_draft' => 'DRAFT',
         'watermark_void' => 'VOID',
+        'photo_alt' => ':label – photo :index of :count',
+        'signature_alt' => 'Signature of :name',
+        'photos_omitted' => '{1} :count photo could not be printed (unreadable or too large).|[2,*] :count photos could not be printed (unreadable or too large).',
     ],
     'sample' => [
         'text' => 'Sample: :label',
@@ -106,6 +109,7 @@ return [
         'accent_color' => 'Accent color',
         'font' => 'Font',
         'font_help' => 'Bundled open-source fonts (SIL Open Font License).',
+        'contrast_warning' => 'Low contrast on white (:ratio:1; text needs at least 4.5:1). PDFs and emails use a darker shade of this color for text and dark text on it.',
         'company' => 'Company details',
         'company_fields' => [
             'legal_name' => 'Legal name',
@@ -135,6 +139,10 @@ return [
         'budget_exceeded' => 'The document is too large to render (:size MB of :limit MB allowed). Reduce the number or size of photos.',
         'render_failed' => 'The PDF could not be generated. Please try again later.',
         'not_ready' => 'The document has not been generated yet.',
+        'failed' => [
+            'budget_exceeded' => 'The PDF could not be generated because the document is too large (too many or too large photos). The office can see this and re-render it.',
+            'render_failed' => 'The PDF could not be generated. The office can see this and re-render it.',
+        ],
         'preview_failed' => 'The preview could not be generated.',
         'preview_invalid' => 'The form has errors; fix them before previewing the PDF.',
     ],

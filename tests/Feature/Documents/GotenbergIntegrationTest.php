@@ -48,6 +48,18 @@ it('renders a 60-line repeater across several pages with repeated headers and co
         ->and($rendition->file_sha256)->toBe(hash('sha256', (string) $pdf));
 });
 
+it('produces a tagged PDF with page numbers while the renderer runs without JavaScript', function (): void {
+    $submission = DocumentFixtures::submit($this->s, DocumentFixtures::draft($this->s, lines: 30));
+    $rendition = app(TenantContext::class)->run($this->s->org, fn () => Rendition::query()->where('submission_uuid', $submission->uuid)->sole());
+    $pdf = (string) Storage::disk(DocumentFixtures::DISK)->get($rendition->path);
+    $text = DocumentFixtures::pdfText($pdf);
+
+    expect(DocumentFixtures::pdfInfo($pdf))->toMatch('/Tagged:\s+yes/')
+        ->and($rendition->page_count)->toBeGreaterThan(1)
+        ->and($text)->toMatch('/\b1\s*\/\s*'.$rendition->page_count.'\b/')              // footer "{{page}} / {{pages}}"
+        ->and($text)->toMatch('/\b'.$rendition->page_count.'\s*\/\s*'.$rendition->page_count.'\b/');
+});
+
 it('re-renders an old submission with its own design version after the design changed', function (): void {
     $submission = DocumentFixtures::submit($this->s, DocumentFixtures::draft($this->s));
     $tenant = app(TenantContext::class);

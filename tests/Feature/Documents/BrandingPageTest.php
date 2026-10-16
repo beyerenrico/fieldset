@@ -110,3 +110,17 @@ it('is only available with the organization settings capability', function (): v
     expect(ManageBranding::canAccess())->toBeFalse();
     Livewire::test(ManageBranding::class)->assertForbidden();
 });
+
+it('warns live under the color pickers when a color is too light for text on white', function (): void {
+    $warning = fn (string $color): string => (string) ManageBranding::contrastWarning($color);
+
+    Livewire::test(ManageBranding::class)
+        ->fillForm(['primary_color' => '#facc15'])
+        ->assertSee($warning('#facc15'))
+        ->fillForm(['primary_color' => '#1d4ed8', 'accent_color' => '#67e8f9'])
+        ->assertDontSee($warning('#facc15'))
+        ->assertSee($warning('#67e8f9'));
+
+    expect(ManageBranding::contrastWarning('#1d4ed8'))->toBeNull()
+        ->and($warning('#facc15'))->toContain('1.5:1');
+});

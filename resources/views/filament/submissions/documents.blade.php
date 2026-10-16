@@ -3,12 +3,20 @@
     Renditions are immutable; "Re-render" and "Send to customer" are header actions of the page.
 --}}
 @php
+    /** @var array<string, mixed>|null $failure */
     /** @var list<array<string, mixed>> $renditions */
     /** @var list<array<string, mixed>> $sends */
     $th = 'padding:.375rem .5rem;border-bottom:1px solid rgba(127,127,127,.35);text-align:start;font-weight:600;white-space:nowrap';
     $td = 'padding:.375rem .5rem;border-bottom:1px solid rgba(127,127,127,.2);vertical-align:top';
 @endphp
 <div data-section="submission-documents" style="display:grid;gap:1.25rem">
+    @if ($failure !== null)
+        <div data-section="rendition-failure" role="alert" style="padding:.75rem 1rem;border:1px solid var(--danger-600, #dc2626);border-inline-start-width:4px;border-radius:.5rem">
+            <p style="margin:0;font-weight:600">{{ __('inbox.documents.failure.title') }}</p>
+            <p style="margin:.25rem 0 0">{{ $failure['message'] }}</p>
+            <p style="margin:.25rem 0 0;font-size:.8125rem">{{ $failure['details'] }} {{ __('inbox.documents.failure.hint') }}</p>
+        </div>
+    @endif
     @if ($renditions === [])
         <p>{{ __('inbox.detail.no_documents') }}</p>
     @else
@@ -39,7 +47,7 @@
                             <td style="{{ $td }}"><code title="{{ $rendition['input_hash'] }}">{{ $rendition['hash'] }}</code></td>
                             <td style="{{ $td }}">
                                 @if ($rendition['url'] !== null)
-                                    <x-filament::link :href="$rendition['url']" icon="heroicon-o-arrow-down-tray" target="_blank" rel="noopener">
+                                    <x-filament::link :href="$rendition['url']" icon="heroicon-o-arrow-down-tray" target="_blank" rel="noopener noreferrer">
                                         {{ __('inbox.documents.download') }}
                                     </x-filament::link>
                                 @endif

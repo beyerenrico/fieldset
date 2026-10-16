@@ -31,7 +31,7 @@ final class DocumentTree
         private readonly AssetInliner $assets,
         private readonly RichTextSanitizer $sanitizer,
     ) {
-        $this->repeaters = new RepeaterNodes($this, $input, $format);
+        $this->repeaters = new RepeaterNodes($this, $input, $format, $assets);
     }
 
     /** @return array{pages: list<array{title: string, nodes: list<Node>}>, signatures: list<Node>} */
@@ -160,19 +160,26 @@ final class DocumentTree
         ];
     }
 
-    /** @return Node|null */
+    /**
+     * Photos that cannot be printed (unreadable, or above the renderer's pixel limit) are counted, so the
+     * document says so instead of dropping them silently (§8.5 "nothing is ever truncated").
+     *
+     * @return Node|null
+     */
     private function photos(stdClass $element, stdClass $scope): ?array
     {
         $raw = $scope->{self::text($element->key ?? '')} ?? null;
-        $images = array_values(array_filter(array_map(
-            fn (mixed $uuid): ?string => $this->assets->attachment($this->input, $uuid),
-            is_array($raw) ? $raw : ($raw === null ? [] : [$raw]),
-        )));
-        if ($images === [] && ! $this->input->design->showEmpty) {
+        $uuids = is_array($raw) ? $raw : ($raw === null ? [] : [$raw]);
+        $images = array_values(array_filter(array_map(fn (mixed $uuid): ?string => $this->assets->attachment($this->input, $uuid), $uuids)));
+        $omitted = count($uuids) - count($images);
+        if ($images === [] && $omitted === 0 && ! $this->input->design->showEmpty) {
             return null;
         }
 
-        return ['kind' => 'photos', 'label' => self::label($element), 'images' => $images, 'columns' => $this->input->design->photoColumns];
+        return [
+            'kind' => 'photos', 'label' => self::label($element), 'images' => $images, 'omitted' => $omitted,
+            'columns' => $this->input->design->photoColumns,
+        ];
     }
 
     /** @return Node|null */
@@ -198,7 +205,8 @@ final class DocumentTree
         return $node;
     }
 
-    private function fileNames(mixed $raw): string
+    /** Names of the uploaded files of a file element (the uuid when no name is known). */
+    public function fileNames(mixed $raw): string
     {
         $names = [];
         foreach (is_array($raw) ? $raw : ($raw === null ? [] : [$raw]) as $uuid) {

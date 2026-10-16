@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace App\Domain\Mail\Enums;
 
 /**
- * Delivery state of a mail_messages row (§8.8): queued until the transport accepted the message,
- * failed after the last attempt. Failed mail can be retried, which puts it back to queued.
+ * Delivery state of a mail_messages row (§8.8): queued until a worker claims it (sending), sent once the
+ * transport accepted it, failed after the last attempt or when an attempt was interrupted mid-send.
+ * Failed mail can be retried, which puts it back to queued.
  */
 enum MailStatus: string
 {
     case Queued = 'queued';
+    case Sending = 'sending';
     case Sent = 'sent';
     case Failed = 'failed';
 
@@ -23,6 +25,7 @@ enum MailStatus: string
     {
         return match ($this) {
             self::Queued => 'warning',
+            self::Sending => 'info',
             self::Sent => 'success',
             self::Failed => 'danger',
         };

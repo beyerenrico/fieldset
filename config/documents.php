@@ -49,6 +49,28 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Sweep (ADR 0031)
+    |--------------------------------------------------------------------------
+    |
+    | `documents:sweep` (every five minutes) re-dispatches renders of submissions that are older than
+    | `after_minutes` and have neither a current rendition nor a recorded permanent failure, at most
+    | `batch` per run. Each submission is swept at most once per `after_minutes`.
+    |
+    */
+
+    'sweep' => [
+        'after_minutes' => (int) env('DOCUMENTS_SWEEP_AFTER_MINUTES', 10),
+        'batch' => (int) env('DOCUMENTS_SWEEP_BATCH', 100),
+    ],
+
+    // "Re-render PDF" in the admin inbox: every render is a Gotenberg call and a new stored file.
+    'rerender' => [
+        'per_submission_per_minute' => (int) env('DOCUMENTS_RERENDER_PER_SUBMISSION_PER_MINUTE', 1),
+        'per_user_per_minute' => (int) env('DOCUMENTS_RERENDER_PER_USER_PER_MINUTE', 10),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Organization logo (branding page)
     |--------------------------------------------------------------------------
     */

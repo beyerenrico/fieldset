@@ -158,14 +158,16 @@ final readonly class ValueFormatter
         return $this->scalar($value);
     }
 
+    /** Coordinates with the locale's decimal separator; "; " between them where that separator is a comma. */
     private function location(mixed $value): string
     {
         if (! $value instanceof stdClass || ! is_numeric($value->lat ?? null) || ! is_numeric($value->lng ?? null)) {
             return '';
         }
-        $text = sprintf('%s, %s', $this->scalar($value->lat), $this->scalar($value->lng));
+        $coordinate = fn (mixed $number): string => str_replace('.', $this->decimalSeparator, $this->scalar($number));
+        $text = $coordinate($value->lat).($this->decimalSeparator === ',' ? '; ' : ', ').$coordinate($value->lng);
 
-        return is_numeric($value->accuracy ?? null) ? $text.' (± '.$this->scalar($value->accuracy).' m)' : $text;
+        return is_numeric($value->accuracy ?? null) ? $text.' (± '.$coordinate($value->accuracy).' m)' : $text;
     }
 
     private function intl(int $dateType, int $timeType, string $timezone): IntlDateFormatter

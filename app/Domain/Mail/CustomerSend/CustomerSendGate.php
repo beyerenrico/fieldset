@@ -6,6 +6,7 @@ namespace App\Domain\Mail\CustomerSend;
 
 use App\Domain\Identity\Enums\Permission;
 use App\Domain\Identity\Models\User;
+use App\Domain\Mail\Enums\DocumentSendFailure;
 use App\Domain\Submissions\Enums\SubmissionStatus;
 use App\Domain\Submissions\Models\Submission;
 use stdClass;
@@ -38,6 +39,23 @@ final class CustomerSendGate
             || $user->hasPermissionIn($organizationId, Permission::OrganizationManage);
 
         return $submission->created_by === $user->id || $mayActForOthers ? null : self::NOT_ALLOWED;
+    }
+
+    /**
+     * Re-check when the mail is about to be queued (M3 review #5): a voided submission never gets a customer
+     * mail; a request whose requester lost the right (or whose form version disallows sending) fails too.
+     * A request without requester (user deleted) only needs the submission-level rules.
+     */
+    public static function deliveryRefusal(?User $requester, Submission $submission): ?DocumentSendFailure
+    {
+        if ($submission->status === SubmissionStatus::Void) {
+            return DocumentSendFailure::SubmissionVoid;
+        }
+        $allowed = $requester instanceof User
+            ? self::refusal($requester, $submission) === null
+            : $submission->status !== SubmissionStatus::Draft && self::enabled($submission);
+
+        return $allowed ? null : DocumentSendFailure::NotAllowed;
     }
 
     public static function allows(User $user, Submission $submission): bool
