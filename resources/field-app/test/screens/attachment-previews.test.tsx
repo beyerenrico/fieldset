@@ -5,7 +5,7 @@ import * as endpoints from '../../src/lib/api/endpoints.ts';
 import { setOrganizationId } from '../../src/lib/session/org-store.ts';
 import { createBackend } from '../utils/backend.ts';
 import { makeSubmission } from '../utils/fixtures.ts';
-import { renderApp } from '../utils/render-app.tsx';
+import { preloadLazyScreens, renderApp } from '../utils/render-app.tsx';
 import { server, setupTestServer } from '../utils/server.ts';
 
 vi.mock('@form-schema-app/form-schema-react', async (importOriginal) => {
@@ -15,6 +15,7 @@ vi.mock('@form-schema-app/form-schema-react', async (importOriginal) => {
 });
 
 setupTestServer();
+preloadLazyScreens();
 
 let counter = 0;
 const createObjectURL = vi.fn(() => `blob:preview-${String(++counter)}`);

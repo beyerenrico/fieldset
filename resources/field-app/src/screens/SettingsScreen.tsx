@@ -7,11 +7,11 @@ import { Button } from '../components/ui/button.tsx';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card.tsx';
 import { Label } from '../components/ui/label.tsx';
 import { useSession } from '../hooks/useSession.ts';
+import { useSwitchOrganization } from '../hooks/useSwitchOrganization.ts';
 import { useI18n, type Language } from '../i18n/I18nProvider.tsx';
 import { logout } from '../lib/api/endpoints.ts';
 import { rememberNotice } from '../lib/session/auth-events.ts';
 import { clearLocalData } from '../lib/session/local-data.ts';
-import { setOrganizationId } from '../lib/session/org-store.ts';
 import { NotificationPreferences } from './settings/NotificationPreferences.tsx';
 
 const SELECT =
@@ -74,7 +74,7 @@ function LogoutCard(): ReactNode {
 export function SettingsScreen(): ReactNode {
     const { t, language, setLanguage, preferences, setLargeText } = useI18n();
     const { me, organization } = useSession();
-    const queryClient = useQueryClient();
+    const switchOrganization = useSwitchOrganization();
     const id = useId();
 
     return (
@@ -140,10 +140,7 @@ export function SettingsScreen(): ReactNode {
                             className={SELECT}
                             value={organization?.id ?? ''}
                             onChange={(event) => {
-                                setOrganizationId(Number(event.target.value));
-                                queryClient.removeQueries({
-                                    predicate: (query) => query.queryKey[0] !== 'me',
-                                });
+                                switchOrganization(Number(event.target.value));
                             }}
                         >
                             {me.organizations.map((candidate) => (

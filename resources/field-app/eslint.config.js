@@ -26,7 +26,9 @@ export default defineConfig(
             '@typescript-eslint/only-throw-error': [
                 'error',
                 {
-                    allow: [{ from: 'package', package: '@tanstack/router-core', name: 'Redirect' }],
+                    allow: [
+                        { from: 'package', package: '@tanstack/router-core', name: 'Redirect' },
+                    ],
                 },
             ],
         },

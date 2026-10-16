@@ -145,20 +145,22 @@ export const de: Messages = {
     'decision.title': 'Ihre Prüfung',
     'decision.hint': 'Diese Einreichung wartet auf Ihre Entscheidung.',
     'decision.approve': 'Freigeben',
-    'decision.reject': 'Ablehnen',
+    'decision.requestChanges': 'Änderungen anfordern',
     'decision.approveTitle': 'Einreichung freigeben?',
-    'decision.approveDescription': 'Der Ablauf wird mit dem nächsten Schritt fortgesetzt.',
-    'decision.rejectTitle': 'Ablehnen und Änderungen anfordern',
-    'decision.rejectDescription':
+    'decision.approveDescription': 'Der Workflow wird mit dem nächsten Schritt fortgesetzt.',
+    'decision.requestChangesTitle': 'Änderungen anfordern?',
+    'decision.requestChangesDescription':
         'Die einreichende Person wird benachrichtigt und kann das Formular bearbeiten und erneut einreichen.',
     'decision.comment': 'Was soll geändert werden?',
     'decision.commentRequired': 'Bitte beschreiben Sie, was geändert werden soll.',
     'decision.commentInvalid': 'Bitte den Kommentar prüfen (höchstens 2000 Zeichen).',
     'decision.approved': 'Sie haben diese Einreichung freigegeben.',
-    'decision.rejected':
+    'decision.changesRequested':
         'Sie haben Änderungen angefordert. Die einreichende Person wurde benachrichtigt.',
     'decisionError.task_closed':
-        'Diese Prüfung wurde bereits abgeschlossen, möglicherweise von jemand anderem. Der aktuelle Stand wird angezeigt.',
+        'Diese Prüfung wurde bereits abgeschlossen oder wird nicht mehr benötigt. Der aktuelle Stand wird angezeigt.',
+    'decisionError.invalid_transition':
+        'Der Status dieser Einreichung hat sich geändert, daher ist diese Prüfung nicht mehr möglich. Der aktuelle Stand wird angezeigt.',
     'decisionError.not_found': 'Sie können diese Prüfung nicht mehr abschließen.',
     'decisionError.validation_failed': 'Bitte prüfen Sie Ihre Eingabe.',
     'decisionError.idempotency_key_reused':
@@ -220,19 +222,20 @@ export const de: Messages = {
     'settings.logoutConfirmAction': 'Abmelden und Daten löschen',
     'settings.version': 'Version {version}',
     'prefs.title': 'Benachrichtigungen',
-    'prefs.hint': 'Legen Sie fest, wie Sie über welches Ereignis informiert werden.',
+    'prefs.hint':
+        'Legen Sie für jedes Ereignis fest, wie Sie benachrichtigt werden. Die Einstellungen gelten in allen Ihren Organisationen.',
     'prefs.database': 'In der App',
     'prefs.mail': 'E-Mail',
     'prefs.empty': 'Es gibt keine einstellbaren Benachrichtigungen.',
     'prefs.saved': 'Benachrichtigungseinstellungen gespeichert.',
     'prefs.error': 'Die Einstellungen konnten nicht gespeichert werden. Bitte erneut versuchen.',
     'prefs.offline': 'Keine Verbindung. Bitte erneut speichern, sobald Sie online sind.',
-    'event.review_assigned': 'Prüfung mir zugewiesen',
-    'event.changes_requested': 'Änderungen angefordert',
-    'event.submission_approved': 'Einreichung freigegeben',
-    'event.workflow_failed': 'Ablauf fehlgeschlagen',
-    'event.form_available': 'Neues Formular verfügbar',
-    'event.workflow_notice': 'Nachrichten aus Abläufen',
+    'event.review_assigned': 'Mir wurde eine Prüfung zugewiesen',
+    'event.changes_requested': 'Änderungen an meiner Einreichung angefordert',
+    'event.submission_approved': 'Meine Einreichung wurde freigegeben',
+    'event.workflow_failed': 'Ein Workflow ist fehlgeschlagen (Administration)',
+    'event.form_available': 'Ein neues oder geändertes Formular ist verfügbar',
+    'event.workflow_notice': 'Nachrichten aus Workflows',
     'notifications.title': 'Benachrichtigungen',
     'notifications.bellUnread': 'Benachrichtigungen, {count} ungelesen',
     'notifications.empty': 'Noch keine Benachrichtigungen.',
@@ -243,6 +246,9 @@ export const de: Messages = {
     'notifications.markFailed':
         'Die Benachrichtigungen konnten nicht als gelesen markiert werden. Bitte erneut versuchen.',
     'notifications.new': 'Neu',
+    'notifications.organization': 'Organisation: {name}',
+    'notifications.orgGone':
+        'Sie gehören nicht mehr zur Organisation dieser Benachrichtigung, daher lässt sie sich nicht öffnen.',
     'notFound.title': 'Seite nicht gefunden',
     'notFound.home': 'Zur Startseite',
 };

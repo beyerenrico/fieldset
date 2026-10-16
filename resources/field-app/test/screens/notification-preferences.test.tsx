@@ -23,14 +23,22 @@ describe('notification preferences', () => {
         server.use(...createBackend().handlers);
         renderApp('/settings');
         const region = await preferences();
-        const review = await within(region).findByRole('group', { name: 'Review assigned to me' });
+        const review = await within(region).findByRole('group', {
+            name: 'A review is assigned to me',
+        });
         expect(within(review).getByRole('checkbox', { name: 'In the app' })).toBeChecked();
         expect(within(review).getByRole('checkbox', { name: 'Email' })).toBeChecked();
-        const changes = within(region).getByRole('group', { name: 'Changes requested' });
+        const changes = within(region).getByRole('group', {
+            name: 'Changes are requested on my submission',
+        });
         expect(within(changes).getByRole('checkbox', { name: 'In the app' })).toBeChecked();
         expect(within(changes).getByRole('checkbox', { name: 'Email' })).not.toBeChecked();
-        expect(within(region).getByRole('group', { name: 'Submission approved' })).toBeVisible();
-        expect(within(region).getByRole('group', { name: 'New form available' })).toBeVisible();
+        expect(
+            within(region).getByRole('group', { name: 'My submission is approved' }),
+        ).toBeVisible();
+        expect(
+            within(region).getByRole('group', { name: 'A new or updated form is available' }),
+        ).toBeVisible();
     });
 
     it('saves all events and announces success', async () => {
@@ -38,9 +46,11 @@ describe('notification preferences', () => {
         server.use(...backend.handlers);
         const { user } = renderApp('/settings');
         const region = await preferences();
-        const approved = await within(region).findByRole('group', { name: 'Submission approved' });
+        const approved = await within(region).findByRole('group', {
+            name: 'My submission is approved',
+        });
         await user.click(within(approved).getByRole('checkbox', { name: 'Email' }));
-        const review = within(region).getByRole('group', { name: 'Review assigned to me' });
+        const review = within(region).getByRole('group', { name: 'A review is assigned to me' });
         await user.click(within(review).getByRole('checkbox', { name: 'In the app' }));
         await user.click(within(region).getByRole('button', { name: 'Save' }));
         const saved = await within(region).findByText('Notification settings saved.');
@@ -72,7 +82,7 @@ describe('notification preferences', () => {
         );
         const { user } = renderApp('/settings');
         const region = await preferences();
-        await within(region).findByRole('group', { name: 'Review assigned to me' });
+        await within(region).findByRole('group', { name: 'A review is assigned to me' });
         await user.click(within(region).getByRole('button', { name: 'Save' }));
         expect(await within(region).findByRole('alert')).toHaveTextContent(
             'The settings could not be saved. Please try again.',
@@ -124,12 +134,45 @@ describe('notification preferences', () => {
         ).toBeVisible();
     });
 
+    it('names workflow events like the admin panel (lang/*/notifications.php)', async () => {
+        const events = [
+            { event: 'workflow_failed', channels: { database: true, mail: true } },
+            { event: 'workflow_notice', channels: { database: true, mail: false } },
+        ];
+        server.use(...createBackend().handlers);
+        server.use(http.get('*/api/v1/me/notification-preferences', () => ok({ events })));
+        const { unmount } = renderApp('/settings');
+        const region = await preferences();
+        expect(
+            await within(region).findByRole('group', {
+                name: 'A workflow failed (administrators)',
+            }),
+        ).toBeVisible();
+        expect(
+            within(region).getByRole('group', { name: 'Messages from workflows' }),
+        ).toBeVisible();
+        unmount();
+        writeJson('settings', { language: 'de', largeText: false });
+        renderApp('/settings');
+        const german = await screen.findByRole('region', { name: 'Benachrichtigungen' });
+        expect(
+            await within(german).findByRole('group', {
+                name: 'Ein Workflow ist fehlgeschlagen (Administration)',
+            }),
+        ).toBeVisible();
+        expect(
+            within(german).getByRole('group', { name: 'Nachrichten aus Workflows' }),
+        ).toBeVisible();
+    });
+
     it('speaks German', async () => {
         writeJson('settings', { language: 'de', largeText: false });
         server.use(...createBackend().handlers);
         renderApp('/settings');
         const region = await screen.findByRole('region', { name: 'Benachrichtigungen' });
-        const review = await within(region).findByRole('group', { name: 'Prüfung mir zugewiesen' });
+        const review = await within(region).findByRole('group', {
+            name: 'Mir wurde eine Prüfung zugewiesen',
+        });
         expect(within(review).getByRole('checkbox', { name: 'In der App' })).toBeChecked();
         expect(within(review).getByRole('checkbox', { name: 'E-Mail' })).toBeChecked();
         expect(within(region).getByRole('button', { name: 'Speichern' })).toBeVisible();

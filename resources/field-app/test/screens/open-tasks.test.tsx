@@ -4,13 +4,14 @@ import { http } from 'msw';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { setOrganizationId } from '../../src/lib/session/org-store.ts';
 import { writeJson } from '../../src/lib/storage/local.ts';
-import { createBackend, fail } from '../utils/backend.ts';
+import { createBackend, fail, ok } from '../utils/backend.ts';
 import { makeSubmission, makeTask } from '../utils/fixtures.ts';
-import { renderApp } from '../utils/render-app.tsx';
+import { preloadLazyScreens, renderApp } from '../utils/render-app.tsx';
 import { server, setupTestServer } from '../utils/server.ts';
 import { resetVisibilityAfterEach, setVisibility } from '../utils/visibility.ts';
 
 setupTestServer();
+preloadLazyScreens();
 resetVisibilityAfterEach();
 
 beforeEach(() => {
@@ -78,6 +79,29 @@ describe('home: open tasks', () => {
         });
         expect(screen.queryByRole('region', { name: 'Open tasks' })).not.toBeInTheDocument();
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('leaves out tasks that are no longer open (cancelled or completed meanwhile)', async () => {
+        server.use(...createBackend().handlers);
+        server.use(
+            http.get('*/api/v1/tasks', () =>
+                ok(
+                    [
+                        makeTask({ id: 1, status: 'cancelled' }),
+                        OVERDUE,
+                        makeTask({ id: 2, status: 'completed', outcome: 'approved' }),
+                    ],
+                    {},
+                    { current_page: 1, last_page: 1, total: 3 },
+                ),
+            ),
+        );
+        renderApp('/');
+        const section = await screen.findByRole('region', { name: 'Open tasks' });
+        const links = within(section).getAllByRole('link');
+        expect(links.map((link) => link.getAttribute('href'))).toEqual([
+            '/app/submissions/u-overdue',
+        ]);
     });
 
     it('omits a missing number, submitter and due date', async () => {

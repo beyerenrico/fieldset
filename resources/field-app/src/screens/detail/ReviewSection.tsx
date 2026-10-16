@@ -1,5 +1,5 @@
-/** Review panel on the submission detail (§8.3, M4): approve / reject an open task assigned to me. */
-import { Check, X } from 'lucide-react';
+/** Review panel on the submission detail (§8.3, M4): approve or request changes on my open task. */
+import { Check, MessageSquareWarning } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Alert } from '../../components/ui/alert.tsx';
 import { Button } from '../../components/ui/button.tsx';
@@ -48,8 +48,8 @@ function DecisionPanel({ onOpen }: PanelProps): ReactNode {
                         onOpen('reject');
                     }}
                 >
-                    <X aria-hidden="true" />
-                    {t('decision.reject')}
+                    <MessageSquareWarning aria-hidden="true" />
+                    {t('decision.requestChanges')}
                 </Button>
             </div>
         </section>
@@ -120,7 +120,7 @@ export function ReviewSection({ submission }: { readonly submission: Submission 
                     >
                         {state.result === 'approved'
                             ? t('decision.approved')
-                            : t('decision.rejected')}
+                            : t('decision.changesRequested')}
                     </Alert>
                 )}
             </div>
@@ -151,8 +151,8 @@ export function ReviewSection({ submission }: { readonly submission: Submission 
             <Dialog
                 open={dialog === 'reject'}
                 onClose={cancel}
-                title={t('decision.rejectTitle')}
-                description={t('decision.rejectDescription')}
+                title={t('decision.requestChangesTitle')}
+                description={t('decision.requestChangesDescription')}
             >
                 <RejectForm
                     busy={state.busy}

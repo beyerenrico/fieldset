@@ -15,7 +15,10 @@ import { completeTask, type TaskCompletionInput } from '../../lib/api/workflow.t
 import { reportAuthError } from '../../lib/session/auth-events.ts';
 import { clearTaskIdempotencyKey, getTaskIdempotencyKey } from '../../lib/submit/idempotency.ts';
 
-/** `done`: recorded; `closed`: the task is gone (decided elsewhere / no access); `retry`: fix + retry. */
+/**
+ * `done`: recorded; `closed`: nothing left to decide (decided elsewhere, cancelled, the submission's
+ * status changed, or no access) – the current state is loaded; `retry`: fix the input or retry.
+ */
 export type CompletionResult = 'done' | 'closed' | 'retry';
 
 export interface CompleteTaskState {
@@ -30,6 +33,7 @@ export interface CompleteTaskState {
 
 const CLOSED: ReadonlySet<MessageKey> = new Set([
     'decisionError.task_closed',
+    'decisionError.invalid_transition',
     'decisionError.not_found',
 ]);
 
@@ -39,6 +43,10 @@ function problemOf(error: unknown): MessageKey {
     }
     if (isConflict(error, 'task_closed')) {
         return 'decisionError.task_closed';
+    }
+    // The submission is no longer in review (e.g. voided): retrying can never succeed.
+    if (isConflict(error, 'invalid_transition')) {
+        return 'decisionError.invalid_transition';
     }
     if (isApiError(error, 404)) {
         return 'decisionError.not_found';

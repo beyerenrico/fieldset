@@ -1,5 +1,9 @@
-/** Marks notifications as read and updates the bell and the list caches with the server's count. */
-import { useQueryClient } from '@tanstack/react-query';
+/**
+ * Marks notifications as read, optimistically: polls in flight are cancelled first (a late answer
+ * with the old state would undo the change), the bell and the list update at once, a failure rolls
+ * back, and both are refetched once the request has settled.
+ */
+import { useQueryClient, type InfiniteData, type QueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import type { MessageKey } from '../i18n/en.ts';
 import { NetworkError } from '../lib/api/errors.ts';
@@ -16,18 +20,55 @@ export interface MarkReadState {
     readonly markRead: (ids?: readonly string[]) => Promise<boolean>;
 }
 
-function readPage(
-    page: NotificationPage,
-    ids: readonly string[] | undefined,
-    unread: number,
-    now: string,
-): NotificationPage {
+/** Every notification query (bell and list, any organization key). */
+const NOTIFICATIONS = { queryKey: ['notifications'] } as const;
+
+type ListData = InfiniteData<NotificationPage, number>;
+
+interface Snapshot {
+    readonly summary: NotificationPage | undefined;
+    readonly list: ListData | undefined;
+}
+
+interface Change {
+    readonly ids: readonly string[] | undefined;
+    readonly now: string;
+    /** Number of the targeted notifications that were still unread (counted once). */
+    readonly newlyRead: number;
+}
+
+const isTarget = (item: AppNotification, ids: readonly string[] | undefined): boolean =>
+    item.read_at === null && (ids === undefined || ids.includes(item.id));
+
+function countNewlyRead(snapshot: Snapshot, ids: readonly string[] | undefined): number {
+    const pages = [
+        ...(snapshot.list?.pages ?? []),
+        ...(snapshot.summary ? [snapshot.summary] : []),
+    ];
+    const unreadIds = pages.flatMap((page) => page.items.filter((item) => isTarget(item, ids)));
+    return new Set(unreadIds.map((item) => item.id)).size;
+}
+
+/** `unread`: the server's count once known; before that the count is reduced locally. */
+function readPage(page: NotificationPage, change: Change, unread?: number): NotificationPage {
     const items = page.items.map((item): AppNotification =>
-        item.read_at === null && (ids === undefined || ids.includes(item.id))
-            ? { ...item, read_at: now }
-            : item,
+        isTarget(item, change.ids) ? { ...item, read_at: change.now } : item,
     );
-    return { ...page, items, unread };
+    const local = change.ids === undefined ? 0 : Math.max(0, page.unread - change.newlyRead);
+    return { ...page, items, unread: unread ?? local };
+}
+
+function writeAll(
+    queryClient: QueryClient,
+    org: number | null,
+    update: (page: NotificationPage) => NotificationPage,
+): void {
+    queryClient.setQueryData(notificationSummaryQueryOptions(org).queryKey, (page) =>
+        page === undefined ? page : update(page),
+    );
+    queryClient.setQueryData(notificationListQueryOptions(org).queryKey, (data) =>
+        data === undefined ? data : { ...data, pages: data.pages.map(update) },
+    );
 }
 
 export function useMarkRead(): MarkReadState {
@@ -39,22 +80,26 @@ export function useMarkRead(): MarkReadState {
     const markRead = async (ids?: readonly string[]): Promise<boolean> => {
         setBusy(true);
         setProblem(null);
+        await queryClient.cancelQueries(NOTIFICATIONS);
+        const summaryKey = notificationSummaryQueryOptions(org).queryKey;
+        const listKey = notificationListQueryOptions(org).queryKey;
+        const snapshot: Snapshot = {
+            summary: queryClient.getQueryData(summaryKey),
+            list: queryClient.getQueryData(listKey),
+        };
+        const change: Change = {
+            ids,
+            now: new Date().toISOString(),
+            newlyRead: countNewlyRead(snapshot, ids),
+        };
+        writeAll(queryClient, org, (page) => readPage(page, change));
         try {
             const unread = await markNotificationsRead(ids);
-            const now = new Date().toISOString();
-            queryClient.setQueryData(notificationSummaryQueryOptions(org).queryKey, (page) =>
-                page === undefined ? page : readPage(page, ids, unread, now),
-            );
-            queryClient.setQueryData(notificationListQueryOptions(org).queryKey, (data) =>
-                data === undefined
-                    ? data
-                    : {
-                          ...data,
-                          pages: data.pages.map((page) => readPage(page, ids, unread, now)),
-                      },
-            );
+            writeAll(queryClient, org, (page) => readPage(page, change, unread));
             return true;
         } catch (error) {
+            queryClient.setQueryData(summaryKey, snapshot.summary);
+            queryClient.setQueryData(listKey, snapshot.list);
             if (!reportAuthError(error)) {
                 setProblem(
                     error instanceof NetworkError ? 'error.offline' : 'notifications.markFailed',
@@ -63,6 +108,7 @@ export function useMarkRead(): MarkReadState {
             return false;
         } finally {
             setBusy(false);
+            void queryClient.invalidateQueries(NOTIFICATIONS);
         }
     };
 

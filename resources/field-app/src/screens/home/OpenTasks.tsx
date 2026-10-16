@@ -59,11 +59,18 @@ function TaskItem({ task }: { readonly task: Task }): ReactNode {
     );
 }
 
-/** Hidden while loading, when empty and when the list cannot be loaded (no noise for workers). */
+/**
+ * Hidden while loading, when empty and when the list cannot be loaded (no noise for workers). A task
+ * that is no longer open (completed elsewhere or cancelled because the submission left review) is
+ * left out: there is nothing to do, and the next refresh drops it anyway.
+ */
 export function OpenTasks(): ReactNode {
     const t = useT();
     const org = useOrganizationId();
-    const tasks = useQuery(openTasksQueryOptions(org));
+    const tasks = useQuery({
+        ...openTasksQueryOptions(org),
+        select: (items) => items.filter((task) => task.status === 'open'),
+    });
     if (tasks.data === undefined || tasks.data.length === 0) {
         return null;
     }

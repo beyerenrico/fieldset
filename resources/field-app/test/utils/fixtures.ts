@@ -189,6 +189,7 @@ export function makeNotification(overrides: Partial<AppNotification> = {}): AppN
         title: 'Review requested',
         body: 'Service report SR-2026-00012 is waiting for your review.',
         url: '/app/submissions/0192f1c4-0000-7000-8000-0000000000a1',
+        organization_id: 1,
         read_at: null,
         created_at: '2026-10-16T10:00:00+02:00',
         ...overrides,

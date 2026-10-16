@@ -1,15 +1,16 @@
 /** Notification centre (§8.9): header bell with unread badge, list, mark read, open targets. */
-import { screen, waitFor, within } from '@testing-library/react';
-import { http } from 'msw';
+import { act, screen, waitFor, within } from '@testing-library/react';
+import { http, HttpResponse } from 'msw';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { setOrganizationId } from '../../src/lib/session/org-store.ts';
 import { writeJson } from '../../src/lib/storage/local.ts';
 import { createBackend, fail, ok } from '../utils/backend.ts';
 import { makeNotification, makeSubmission } from '../utils/fixtures.ts';
-import { renderApp } from '../utils/render-app.tsx';
+import { preloadLazyScreens, renderApp } from '../utils/render-app.tsx';
 import { server, setupTestServer } from '../utils/server.ts';
 
 setupTestServer();
+preloadLazyScreens();
 
 beforeEach(() => {
     setOrganizationId(1);
@@ -124,6 +125,67 @@ describe('notifications screen', () => {
         expect(within(items[2]!).queryByText('New')).not.toBeInTheDocument();
         expect(within(items[3]!).getByText('New')).toBeInTheDocument();
         expect(screen.getByText('3 unread')).toBeInTheDocument();
+        // One organization only: no organization names on the items.
+        expect(list).not.toHaveTextContent('Demo GmbH');
+    });
+
+    it('shows "Mark all as read" disabled while nothing is unread and ignores presses', async () => {
+        const backend = createBackend({
+            notifications: [makeNotification({ read_at: '2026-10-16T11:00:00+02:00' })],
+        });
+        server.use(...backend.handlers);
+        const { user } = renderApp('/notifications');
+        await screen.findByRole('list', { name: 'Notifications' });
+        const markAll = screen.getByRole('button', { name: 'Mark all as read' });
+        expect(markAll).toHaveAttribute('aria-disabled', 'true');
+        expect(markAll.className).toContain('aria-disabled:opacity-50');
+        await user.click(markAll);
+        expect(backend.state.reads).toHaveLength(0);
+        expect(screen.queryByText('All notifications are marked as read.')).toBeNull();
+    });
+
+    it('keeps items read when a poll that started before marking answers afterwards', async () => {
+        const backend = setup();
+        const { user, queryClient } = renderApp('/notifications');
+        const markAll = await screen.findByRole('button', { name: 'Mark all as read' });
+        await screen.findByText('3 unread');
+        const before = backend.state.notifications;
+        let holdPolls = true;
+        let held = 0;
+        let answered = 0;
+        let release: () => void = () => undefined;
+        const gate = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+        server.use(
+            http.get('*/api/v1/notifications', async () => {
+                if (!holdPolls) {
+                    return undefined; // later requests reach the backend
+                }
+                held++;
+                await gate;
+                answered++;
+                const meta = { current_page: 1, last_page: 1, total: before.length, unread: 3 };
+                return ok(before, {}, meta);
+            }),
+        );
+        // The minute poll of the bell and the list starts and answers late with the old state.
+        void queryClient.refetchQueries({ queryKey: ['notifications'] });
+        await waitFor(() => {
+            expect(held).toBe(2);
+        });
+        holdPolls = false;
+        await user.click(markAll);
+        expect(await screen.findByText('All notifications are marked as read.')).toBeVisible();
+        release();
+        await waitFor(() => {
+            expect(answered).toBe(2);
+        });
+        await act(() => new Promise((resolve) => setTimeout(resolve, 100)));
+        expect(screen.getByText('0 unread')).toBeInTheDocument();
+        expect(screen.queryByText('New')).not.toBeInTheDocument();
+        expect(await bell(0)).toBeInTheDocument();
+        expect(backend.state.reads).toEqual([{}]);
     });
 
     it('marks all as read, announces it and updates the bell', async () => {
@@ -223,9 +285,28 @@ describe('notifications screen', () => {
         expect(await screen.findByRole('alert')).toHaveTextContent(
             'Could not mark as read. Please try again.',
         );
+        // The optimistic update is rolled back.
+        expect(screen.getByText('2 unread')).toBeInTheDocument();
+        expect(screen.getByText('New')).toBeInTheDocument();
         await user.click(screen.getByRole('button', { name: 'Load more' }));
         expect(await screen.findByText('Page 2')).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Load more' })).not.toBeInTheDocument();
+    });
+
+    it('rolls a single item back when marking it fails offline', async () => {
+        setup();
+        server.use(http.post('*/api/v1/notifications/read', () => HttpResponse.error()));
+        const { user } = renderApp('/notifications');
+        const heading = await screen.findByRole('heading', { name: 'Please call the office' });
+        const item = heading.closest('li')!;
+        await user.click(within(item).getByRole('button', { name: 'Mark as read' }));
+        expect(await screen.findByRole('alert')).toHaveTextContent(
+            'You are offline. Check your connection and try again.',
+        );
+        expect(heading).toHaveFocus();
+        expect(within(item).getByText('New')).toBeInTheDocument();
+        expect(within(item).getByRole('button', { name: 'Mark as read' })).toBeInTheDocument();
+        expect(screen.getByText('3 unread')).toBeInTheDocument();
     });
 
     it('explains an empty list and a failed load', async () => {

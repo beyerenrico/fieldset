@@ -188,7 +188,8 @@ export interface ReviewDecision {
     readonly at: string | null;
 }
 
-export type TaskStatus = 'open' | 'completed';
+/** `cancelled`: the submission left review another way (voided, status changed); nothing to do. */
+export type TaskStatus = 'open' | 'completed' | 'cancelled';
 
 export interface TaskAssignee extends PersonRef {
     readonly type: 'user' | 'group';
@@ -233,6 +234,8 @@ export interface AppNotification {
     readonly body: string | null;
     /** Field App path (`/app/...`) or an admin URL; null: nothing to open. */
     readonly url: string | null;
+    /** Organization it belongs to (the list spans all of them); null: none; absent: older server. */
+    readonly organization_id?: number | null;
     readonly read_at: string | null;
     readonly created_at: string;
 }

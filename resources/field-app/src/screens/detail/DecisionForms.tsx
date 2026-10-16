@@ -1,4 +1,4 @@
-/** Contents of the review dialogs: confirm an approval, or reject with a required comment. */
+/** Contents of the review dialogs: confirm an approval, or request changes with a required comment. */
 import { useEffect, useId, useRef, useState, type ReactNode, type SubmitEvent } from 'react';
 import { Alert } from '../../components/ui/alert.tsx';
 import { Button } from '../../components/ui/button.tsx';
@@ -142,7 +142,7 @@ export function RejectForm({
             </div>
             <Actions
                 busy={busy}
-                confirmLabel={t('decision.reject')}
+                confirmLabel={t('decision.requestChanges')}
                 destructive
                 onCancel={onCancel}
             />

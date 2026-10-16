@@ -1,4 +1,4 @@
-/** Submission detail: approve / reject an open review task (idempotent, errors, focus, live). */
+/** Submission detail: approve / request changes on an open review task (idempotent, errors, focus). */
 import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -6,7 +6,7 @@ import { setOrganizationId } from '../../src/lib/session/org-store.ts';
 import { writeJson } from '../../src/lib/storage/local.ts';
 import { createBackend, fail } from '../utils/backend.ts';
 import { makeSubmission, makeTask } from '../utils/fixtures.ts';
-import { renderApp } from '../utils/render-app.tsx';
+import { preloadLazyScreens, renderApp } from '../utils/render-app.tsx';
 import { server, setupTestServer } from '../utils/server.ts';
 
 vi.mock('@form-schema-app/form-schema-react', async (importOriginal) => {
@@ -16,9 +16,12 @@ vi.mock('@form-schema-app/form-schema-react', async (importOriginal) => {
 });
 
 setupTestServer();
+preloadLazyScreens();
 
 const UUID = '0192f1c4-0000-7000-8000-0000000000a1';
 const TASK_ID = 41;
+const TASK_CLOSED =
+    'This review has already been completed or is no longer needed. The current state is shown.';
 
 beforeEach(() => {
     setOrganizationId(1);
@@ -46,9 +49,9 @@ async function panel() {
     return screen.findByRole('region', { name: 'Your review' });
 }
 
-async function openReject(user: User) {
-    await user.click(within(await panel()).getByRole('button', { name: 'Reject' }));
-    return screen.getByRole('dialog', { name: 'Reject and request changes' });
+async function openRequestChanges(user: User) {
+    await user.click(within(await panel()).getByRole('button', { name: 'Request changes' }));
+    return screen.getByRole('dialog', { name: 'Request changes?' });
 }
 
 async function openApprove(user: User) {
@@ -99,10 +102,10 @@ describe('review decision', () => {
         expect(backend.state.completions).toHaveLength(0);
     });
 
-    it('requires a comment to reject, then rejects and shows the comment', async () => {
+    it('requires a comment to request changes, then requests them and shows the comment', async () => {
         const backend = setup();
         const { user } = renderApp(`/submissions/${UUID}`);
-        const dialog = await openReject(user);
+        const dialog = await openRequestChanges(user);
         expect(dialog).toHaveAccessibleDescription(
             'The submitter is notified and can edit and resubmit the form.',
         );
@@ -110,14 +113,14 @@ describe('review decision', () => {
         expect(comment).toHaveFocus();
         expect(comment).toHaveAttribute('maxlength', '2000');
         await user.type(comment, '   ');
-        await user.click(within(dialog).getByRole('button', { name: 'Reject' }));
+        await user.click(within(dialog).getByRole('button', { name: 'Request changes' }));
         expect(comment).toHaveAttribute('aria-invalid', 'true');
         expect(comment).toHaveAccessibleDescription('Please describe what needs to be changed.');
         expect(comment).toHaveFocus();
         expect(backend.state.completions).toHaveLength(0);
         await user.type(comment, 'Bitte Seriennummer ergänzen ');
         expect(comment).not.toHaveAccessibleDescription();
-        await user.click(within(dialog).getByRole('button', { name: 'Reject' }));
+        await user.click(within(dialog).getByRole('button', { name: 'Request changes' }));
         const outcome = await screen.findByText(
             'You requested changes. The submitter has been notified.',
         );
@@ -133,13 +136,15 @@ describe('review decision', () => {
         expect(within(note).queryByRole('link')).not.toBeInTheDocument();
     });
 
-    it('closes the reject dialog with Escape and returns focus', async () => {
+    it('closes the request-changes dialog with Escape and returns focus', async () => {
         setup();
         const { user } = renderApp(`/submissions/${UUID}`);
-        await openReject(user);
+        await openRequestChanges(user);
         await user.keyboard('{Escape}');
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-        expect(within(await panel()).getByRole('button', { name: 'Reject' })).toHaveFocus();
+        expect(
+            within(await panel()).getByRole('button', { name: 'Request changes' }),
+        ).toHaveFocus();
     });
 
     it('says so when someone else already decided (409 task_closed) and refreshes', async () => {
@@ -153,9 +158,7 @@ describe('review decision', () => {
             open_task_id: null,
         });
         await user.click(within(dialog).getByRole('button', { name: 'Approve' }));
-        const alert = await screen.findByText(
-            'This review has already been completed, possibly by someone else. The current state is shown.',
-        );
+        const alert = await screen.findByText(TASK_CLOSED);
         expect(alert).toHaveAttribute('role', 'alert');
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         expect(alert).toHaveFocus();
@@ -163,6 +166,58 @@ describe('review decision', () => {
         await waitFor(() => {
             expect(screen.queryByRole('region', { name: 'Your review' })).not.toBeInTheDocument();
         });
+    });
+
+    it('treats a cancelled task (409 task_closed) as no longer needed and refreshes', async () => {
+        const backend = setup();
+        backend.state.tasks = [makeTask({ id: TASK_ID, status: 'cancelled' })];
+        const { user } = renderApp(`/submissions/${UUID}`);
+        const dialog = await openRequestChanges(user);
+        await user.type(within(dialog).getByLabelText('What needs to be changed?'), 'Too late');
+        // Meanwhile the office voided the submission; the task was cancelled.
+        backend.state.submissions.set(UUID, {
+            ...backend.state.submissions.get(UUID)!,
+            status: 'void',
+            open_task_id: null,
+        });
+        await user.click(within(dialog).getByRole('button', { name: 'Request changes' }));
+        expect(await screen.findByText(TASK_CLOSED)).toHaveFocus();
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(await screen.findByText('Void')).toBeInTheDocument();
+        await waitFor(() => {
+            expect(screen.queryByRole('region', { name: 'Your review' })).not.toBeInTheDocument();
+        });
+        expect(sessionStorage.getItem(`fsa.idem.task.${String(TASK_ID)}`)).toBeNull();
+    });
+
+    it('explains 409 invalid_transition once, closes the dialog and refreshes (no retry loop)', async () => {
+        const backend = setup();
+        server.use(
+            http.post('*/api/v1/tasks/:id/complete', () => {
+                backend.state.completions.push({ id: TASK_ID, key: null, body: null });
+                return fail(409, 'invalid_transition');
+            }),
+        );
+        const { user } = renderApp(`/submissions/${UUID}`);
+        const dialog = await openApprove(user);
+        backend.state.submissions.set(UUID, {
+            ...backend.state.submissions.get(UUID)!,
+            status: 'completed',
+            open_task_id: null,
+        });
+        await user.click(within(dialog).getByRole('button', { name: 'Approve' }));
+        const alert = await screen.findByText(
+            'The status of this submission has changed, so this review is no longer possible. The current state is shown.',
+        );
+        expect(alert).toHaveAttribute('role', 'alert');
+        expect(alert).toHaveFocus();
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(await screen.findByText('Completed')).toBeInTheDocument();
+        await waitFor(() => {
+            expect(screen.queryByRole('region', { name: 'Your review' })).not.toBeInTheDocument();
+        });
+        expect(backend.state.completions).toHaveLength(1);
+        expect(sessionStorage.getItem(`fsa.idem.task.${String(TASK_ID)}`)).toBeNull();
     });
 
     it('explains 404 for a task the user can no longer act on', async () => {
@@ -188,10 +243,10 @@ describe('review decision', () => {
             ),
         );
         const { user } = renderApp(`/submissions/${UUID}`);
-        const dialog = await openReject(user);
+        const dialog = await openRequestChanges(user);
         const comment = within(dialog).getByLabelText('What needs to be changed?');
         await user.type(comment, 'Zu lang');
-        await user.click(within(dialog).getByRole('button', { name: 'Reject' }));
+        await user.click(within(dialog).getByRole('button', { name: 'Request changes' }));
         await waitFor(() => {
             expect(comment).toHaveAccessibleDescription(
                 'Please check the comment (at most 2000 characters).',
@@ -200,7 +255,7 @@ describe('review decision', () => {
         expect(comment).toHaveAttribute('aria-invalid', 'true');
         expect(comment).toHaveFocus();
         expect(within(dialog).getByRole('alert')).toHaveTextContent('Please check your input.');
-        await user.click(within(dialog).getByRole('button', { name: 'Reject' }));
+        await user.click(within(dialog).getByRole('button', { name: 'Request changes' }));
         await waitFor(() => {
             expect(comment).not.toHaveAccessibleDescription();
         });
@@ -272,11 +327,17 @@ describe('review decision', () => {
         setup();
         const { user } = renderApp(`/submissions/${UUID}`);
         const region = await screen.findByRole('region', { name: 'Ihre Prüfung' });
-        await user.click(within(region).getByRole('button', { name: 'Ablehnen' }));
-        const dialog = screen.getByRole('dialog', { name: 'Ablehnen und Änderungen anfordern' });
+        expect(within(region).queryByRole('button', { name: 'Ablehnen' })).not.toBeInTheDocument();
+        await user.click(within(region).getByRole('button', { name: 'Änderungen anfordern' }));
+        const dialog = screen.getByRole('dialog', { name: 'Änderungen anfordern?' });
+        expect(
+            within(dialog).getByRole('button', { name: 'Änderungen anfordern' }),
+        ).toBeInTheDocument();
         expect(within(dialog).getByLabelText('Was soll geändert werden?')).toHaveFocus();
         await user.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
         await user.click(within(region).getByRole('button', { name: 'Freigeben' }));
-        expect(screen.getByRole('dialog', { name: 'Einreichung freigeben?' })).toBeInTheDocument();
+        expect(
+            screen.getByRole('dialog', { name: 'Einreichung freigeben?' }),
+        ).toHaveAccessibleDescription('Der Workflow wird mit dem nächsten Schritt fortgesetzt.');
     });
 });
