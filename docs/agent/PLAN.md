@@ -86,8 +86,8 @@ AC refs point at BUILD_PROMPT sections. Test approach in brackets.
 - [x] M4-T08 Field App: open tasks on home, approve/reject on the submission detail, changes-requested banner with the reviewer comment + edit + resubmit, notification centre (badge, list, mark read), notification preferences in settings — §9.1, §8.9 [vitest]
 - [x] M4-T09 Demo seed: reviewer group, "Prüfen und an Kunden senden" workflow (request_review → send_email with PDF to the customer field), a webhook endpoint example (disabled) — [seeder test]
 - [x] M4-T10 E2E: journey 4 (reject → resubmit → approve → PDF in Mailpit with correct totals), journey 5 (v2 rename + new field, re-render keeps input_hash/text/pages, rollback creates v3), journey 1 (owner registers an organization and invites a designer and a field worker; dev stack enables registration) — §12, §8.3 AC
-- [ ] M4-T11 MVP release 0.1.0: CHANGELOG.md, README quick start + feature overview, release notes, tag `v0.1.0` — §13
-- [ ] M4-T12 Gate M4
+- [x] M4-T11 MVP release 0.1.0: CHANGELOG.md, README quick start + feature overview, release notes, tag `v0.1.0` — §13
+- [x] M4-T12 Gate M4
 
 ## M5 Reports + dashboards — break down at M4 gate
 - Submission explorer (dynamic columns across versions, filters, search, bulk); custom export job (openspout, repeater sheet, Export model notifications); bulk PDF ZIP; saved reports + charts + pin; role-aware dashboards with cached widgets; scheduled report emails; 100k-row index check.
