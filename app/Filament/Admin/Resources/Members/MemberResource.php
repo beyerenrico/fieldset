@@ -8,7 +8,9 @@ use App\Domain\Identity\Actions\ChangeMemberRoles;
 use App\Domain\Identity\Actions\SetDefaultGroup;
 use App\Domain\Identity\Actions\SetMembershipStatus;
 use App\Domain\Identity\Actions\SyncMemberGroups;
+use App\Domain\Identity\Devices\RevokeDevice;
 use App\Domain\Identity\Enums\MembershipStatus;
+use App\Domain\Identity\Models\Device;
 use App\Domain\Identity\Models\Membership;
 use App\Domain\Identity\Models\User;
 use App\Filament\Admin\Resources\Members\Pages\ManageMembers;
@@ -80,7 +82,7 @@ class MemberResource extends Resource
                         fn (MembershipStatus $s): array => [$s->value => __('identity.member.statuses.'.$s->value)],
                     )->all()),
             ])
-            ->recordActions([self::editAction(), self::statusAction()]);
+            ->recordActions([self::editAction(), self::devicesAction(), self::statusAction()]);
     }
 
     private static function editAction(): Action
@@ -114,6 +116,26 @@ class MemberResource extends Resource
                 }
                 app(SyncMemberGroups::class)->handle($record->organization, $record->user, array_values(array_map(intval(...), $data['groups'] ?? [])), $actor);
                 app(SetDefaultGroup::class)->handle($record, isset($data['default_group_id']) ? (int) $data['default_group_id'] : null, $actor);
+            });
+    }
+
+    /** Revokes all Field App installs of a member; each device wipes its data at the next contact (§9.3). */
+    private static function devicesAction(): Action
+    {
+        return Action::make('revokeDevices')
+            ->label(__('identity.member.revoke_devices'))
+            ->icon(Heroicon::OutlinedDevicePhoneMobile)->color('warning')
+            ->requiresConfirmation()
+            ->modalDescription(fn (Membership $record): string => __('identity.member.revoke_devices_help', [
+                'count' => Device::query()->where('user_id', $record->user_id)->whereNull('revoked_at')->count(),
+            ]))
+            ->authorize(fn (Membership $record): bool => auth()->user()?->can('update', $record) ?? false)
+            ->action(function (Membership $record): void {
+                $devices = Device::query()->where('user_id', $record->user_id)->whereNull('revoked_at')->with('user')->get();
+                foreach ($devices as $device) {
+                    app(RevokeDevice::class)->handle($device, auth()->user());
+                }
+                Notification::make()->success()->title(__('identity.member.devices_revoked', ['count' => $devices->count()]))->send();
             });
     }
 
