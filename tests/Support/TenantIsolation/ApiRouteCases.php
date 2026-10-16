@@ -12,6 +12,7 @@ use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Tenancy\TenantContext;
 use App\Domain\Submissions\Models\Attachment;
 use App\Domain\Submissions\Models\Submission;
+use App\Domain\Workflows\Models\Task;
 use Illuminate\Support\Str;
 
 /**
@@ -63,6 +64,15 @@ final class ApiRouteCases
 
                 return ['POST', "/api/v1/submissions/{$submission->uuid}/send", ['email' => 'victim@example.com'], 'attacker',
                     ['Idempotency-Key' => (string) Str::uuid()]];
+            },
+            // Review tasks (M4-T07): the victim's task is assigned to the attacker's user id.
+            'api.tasks.index' => fn (Organization $v): array => ['GET', '/api/v1/tasks', [], 'victim'],
+            'api.tasks.complete' => function (Organization $v, Organization $a, User $attacker): array {
+                $task = app(TenantContext::class)->run($v, fn () => Task::factory()->create([
+                    'submission_uuid' => self::victimSubmission($v)->uuid, 'assignee_user_id' => $attacker->id,
+                ]));
+
+                return ['POST', "/api/v1/tasks/{$task->id}/complete", ['outcome' => 'approve'], 'attacker', ['Idempotency-Key' => (string) Str::uuid()]];
             },
         ];
     }

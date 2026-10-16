@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * Which submissions a user may see (BUILD_PROMPT §8.6 "View all submissions" row): all
  * (view_all), forms they created (designer), submissions of members of their sharing groups
- * (reviewer "assigned/group", worker "+group if granted"), and their own.
+ * (reviewer "assigned/group", worker "+group if granted"), review tasks assigned to them (M4), and their own.
  */
 final readonly class SubmissionVisibility
 {
@@ -36,7 +36,7 @@ final readonly class SubmissionVisibility
 
         $peerIds = $this->groupPeers($user, $orgId);
 
-        return $query->where(function (Builder $q) use ($user, $can, $peerIds): void {
+        return $query->where(function (Builder $q) use ($user, $can, $peerIds, $orgId): void {
             $q->whereRaw('false');
             if ($can(Permission::SubmissionsViewOwn)) {
                 $q->orWhere('created_by', $user->id);
@@ -47,6 +47,27 @@ final readonly class SubmissionVisibility
             if ($peerIds !== [] && ($can(Permission::SubmissionsViewOwn) || $can(Permission::SubmissionsViewAssigned))) {
                 $q->orWhereIn('created_by', $peerIds);
             }
+            $this->assigned($q, $user, $orgId, $can(Permission::SubmissionsViewAssigned));
+        });
+    }
+
+    /**
+     * Review assignments (M4, ADR 0030): `view_assigned` holders see submissions with a review task
+     * assigned to them or one of their groups; an assignee user always sees the submission to decide.
+     *
+     * @param  Builder<Submission>  $query
+     */
+    private function assigned(Builder $query, User $user, int $orgId, bool $viaGroups): void
+    {
+        $query->orWhereIn('uuid', function ($sub) use ($user, $orgId, $viaGroups): void {
+            $sub->select('submission_uuid')->from('tasks')->where('organization_id', $orgId)
+                ->where(function ($t) use ($user, $orgId, $viaGroups): void {
+                    $t->where('assignee_user_id', $user->id);
+                    if ($viaGroups) {
+                        $t->orWhereIn('assignee_group_id', fn ($g) => $g->select('group_id')->from('group_user')
+                            ->where('user_id', $user->id)->where('organization_id', $orgId));
+                    }
+                });
         });
     }
 

@@ -9,6 +9,10 @@ use App\Domain\Forms\Models\FormAccess;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Tenancy\TenantContext;
 use App\Domain\Submissions\Support\FormAccessResolver;
+use App\Domain\Workflows\Enums\TaskStatus;
+use App\Domain\Workflows\Models\Task;
+use App\Domain\Workflows\Tasks\TaskAccess;
+use App\Domain\Workflows\Tasks\TaskPresenter;
 use App\Http\Api\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,7 +22,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * `GET /sync/manifest?since=` (§9.2): forms changed since the cursor, plus the complete list of
  * fillable form ids so the client can purge revoked forms even when the revocation happened through a
- * group change that touches no form.
+ * group change that touches no form, and every open review task the user may complete (M4).
  *
  * "Changed" is inclusive (`>=`, the cursor has second precision) and covers forms whose grants changed
  * (SyncFormAccess touches the form) or that the user reached through a group membership added since
@@ -26,7 +30,10 @@ use Illuminate\Support\Facades\DB;
  */
 final class SyncController
 {
-    public function manifest(Request $request, FormAccessResolver $access, TenantContext $tenant): JsonResponse
+    /** Open review tasks in the manifest (newest first, complete up to this many). */
+    public const int TASK_LIMIT = 200;
+
+    public function manifest(Request $request, FormAccessResolver $access, TenantContext $tenant, TaskAccess $tasks): JsonResponse
     {
         $request->validate(['since' => ['nullable', 'date']]);
         /** @var User $user */
@@ -47,7 +54,8 @@ final class SyncController
             'forms' => $changed->map(fn (Form $form): array => FormController::summary($form))->values()->all(),
             'fillable_form_ids' => $fillableIds,
             'revoked_form_ids' => $revoked,
-            'tasks' => [],
+            'tasks' => TaskPresenter::presentMany($tasks->actionable(Task::query(), $user)->where('status', TaskStatus::Open->value)
+                ->orderByDesc('created_at')->orderByDesc('id')->limit(self::TASK_LIMIT)->get()),
         ]);
     }
 

@@ -8,8 +8,11 @@ use App\Http\Api\V1\Controllers\DeviceController;
 use App\Http\Api\V1\Controllers\DocumentController;
 use App\Http\Api\V1\Controllers\FormController;
 use App\Http\Api\V1\Controllers\MeController;
+use App\Http\Api\V1\Controllers\NotificationController;
+use App\Http\Api\V1\Controllers\NotificationPreferenceController;
 use App\Http\Api\V1\Controllers\SubmissionController;
 use App\Http\Api\V1\Controllers\SyncController;
+use App\Http\Api\V1\Controllers\TaskController;
 use App\Http\Api\V1\Middleware\IdempotentRequest;
 use Illuminate\Support\Facades\Route;
 
@@ -24,6 +27,13 @@ Route::get('documents/{rendition}', [DocumentController::class, 'download'])->mi
 Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('me', MeController::class)->name('api.me');
     Route::post('devices', [DeviceController::class, 'store'])->name('api.devices.store');
+
+    // --- Notifications (M4-T06): user-level, no organization header ---
+    Route::get('notifications', [NotificationController::class, 'index'])->name('api.notifications.index');
+    Route::post('notifications/read', [NotificationController::class, 'read'])->name('api.notifications.read');
+    Route::get('me/notification-preferences', [NotificationPreferenceController::class, 'show'])->name('api.notification-preferences.show');
+    Route::put('me/notification-preferences', [NotificationPreferenceController::class, 'update'])->name('api.notification-preferences.update');
+    // --- end Notifications ---
 
     Route::middleware('organization')->group(function (): void {
         Route::get('forms', [FormController::class, 'index'])->name('api.forms.index');
@@ -42,5 +52,11 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::get('submissions/{uuid}/document', [DocumentController::class, 'show'])->name('api.submissions.document');
         Route::post('submissions/{uuid}/send', [CustomerSendController::class, 'store'])
             ->middleware([IdempotentRequest::class, 'throttle:30,1'])->name('api.submissions.send');
+
+        // --- Review tasks (M4-T07) ---
+        Route::get('tasks', [TaskController::class, 'index'])->name('api.tasks.index');
+        Route::post('tasks/{id}/complete', [TaskController::class, 'complete'])
+            ->middleware(IdempotentRequest::class)->name('api.tasks.complete');
+        // --- end Review tasks ---
     });
 });

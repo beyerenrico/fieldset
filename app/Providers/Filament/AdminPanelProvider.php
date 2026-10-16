@@ -6,11 +6,14 @@ namespace App\Providers\Filament;
 
 use App\Domain\Identity\Auth\SharedAppAuthentication;
 use App\Domain\Identity\Models\Organization;
+use App\Filament\Admin\Pages\NotificationPreferences;
 use App\Filament\Admin\Pages\Tenancy\EditOrganizationProfile;
 use App\Filament\Admin\Pages\Tenancy\RegisterOrganization;
 use App\Http\Middleware\EndRevokedDeviceSession;
 use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\SetTenantFromFilament;
+use Filament\Actions\Action;
+use Filament\Facades\Filament;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -19,6 +22,7 @@ use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\Support\Icons\Heroicon;
 use Filament\Widgets\AccountWidget;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
@@ -53,6 +57,14 @@ class AdminPanelProvider extends PanelProvider
             ->discoverWidgets(in: app_path('Filament/Admin/Widgets'), for: 'App\Filament\Admin\Widgets')
             ->widgets([AccountWidget::class])
             ->databaseNotifications()
+            ->databaseNotificationsPolling('30s') // no Reverb: the bell polls (§8.9)
+            ->userMenuItems([
+                Action::make('notificationPreferences')
+                    ->label(fn (): string => __('notifications.preferences.title'))
+                    ->icon(Heroicon::OutlinedBell)
+                    ->url(fn (): string => NotificationPreferences::getUrl())
+                    ->visible(fn (): bool => Filament::getTenant() !== null),
+            ])
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,

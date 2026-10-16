@@ -8,9 +8,11 @@ use App\Domain\Notifications\NotificationEvent;
 use App\Domain\Notifications\NotificationMessage;
 use App\Domain\Notifications\Notifier;
 use App\Domain\Notifications\NullNotifier;
+use App\Domain\Notifications\QueuedNotifier;
 
-it('binds a null notifier until the channels are wired', function (): void {
-    expect(app(Notifier::class))->toBeInstanceOf(NullNotifier::class);
+it('binds the queued notifier now that the channels are wired (M4-T06)', function (): void {
+    expect(app(Notifier::class))->toBeInstanceOf(QueuedNotifier::class)
+        ->and(new NullNotifier)->toBeInstanceOf(Notifier::class);
 });
 
 it('records recipients per event in the fake', function (): void {

@@ -8,13 +8,14 @@ use App\Domain\Identity\Models\User;
 use App\Domain\Mail\CustomerSend\CustomerSendGate;
 use App\Domain\Submissions\Models\Attachment;
 use App\Domain\Submissions\Models\Submission;
+use App\Domain\Workflows\Tasks\ReviewState;
 
 /** The `submission` object of the API contract (docs/api/field-app-v1.md). */
 final class SubmissionPresenter
 {
     /**
-     * `can_send` is computed for the viewer, who must be able to see the submission (every caller
-     * presents only visible submissions); without a viewer it is false.
+     * `can_send` and `open_task_id` are computed for the viewer, who must be able to see the submission
+     * (every caller presents only visible submissions); without a viewer they are false / null.
      *
      * @return array<string, mixed>
      */
@@ -37,6 +38,8 @@ final class SubmissionPresenter
             'updated_at' => $submission->updated_at->toIso8601String(),
             'can_edit' => $submission->status->isEditable(),
             'can_send' => $viewer instanceof User && CustomerSendGate::allows($viewer, $submission),
+            'review' => ReviewState::review($submission),
+            'open_task_id' => ReviewState::openTaskId($submission, $viewer),
         ];
     }
 

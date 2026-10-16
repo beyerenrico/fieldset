@@ -6,6 +6,7 @@ namespace App\Domain\Forms\Actions;
 
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Forms\Enums\FormStatus;
+use App\Domain\Forms\Events\FormPublished;
 use App\Domain\Forms\Models\Form;
 use App\Domain\Forms\Models\FormVersion;
 use App\Domain\Forms\Support\DefinitionChecker;
@@ -20,6 +21,7 @@ use stdClass;
 /**
  * Publish = meta-schema check, lint, then an immutable snapshot as version N+1 with checksum,
  * data contract and changelog (BUILD_PROMPT §7.6). Invalid definitions can never be published.
+ * FormPublished fires after commit (workflow trigger `form.published`).
  */
 final readonly class PublishForm
 {
@@ -68,6 +70,9 @@ final readonly class PublishForm
             $this->audit->record($event, $version, [
                 'form_id' => $form->id, 'version' => $version->version, 'checksum' => $version->checksum,
             ], $actor);
+
+            $published = new FormPublished($form->id, $version->id, $form->organization_id, $actor->id);
+            DB::afterCommit(static fn () => event($published));
 
             return $version;
         });

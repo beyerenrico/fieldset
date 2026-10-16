@@ -27,6 +27,8 @@ use Throwable;
  * automatic render whose input equals the latest rendition's (a retried job, a duplicate event)
  * returns that rendition; an explicit re-render always creates a new one, once per request id (a re-run
  * of the same job returns the rendition it already created). A new rendition clears a recorded failure.
+ * A workflow `generate_document` step passes an explicit design version (M4): it is used instead of the
+ * pinned one, and the first rendition of a submission pins whichever design it used.
  */
 final readonly class RenderSubmission
 {
@@ -37,13 +39,13 @@ final readonly class RenderSubmission
         private AuditLogger $audit,
     ) {}
 
-    public function handle(Submission $submission, string $reason = Rendition::REASON_SUBMITTED, ?User $actor = null, ?string $requestId = null): Rendition
+    public function handle(Submission $submission, string $reason = Rendition::REASON_SUBMITTED, ?User $actor = null, ?string $requestId = null, ?DesignVersion $design = null): Rendition
     {
         $done = $this->forRequest($requestId);
         if ($done instanceof Rendition) {
             return $done;
         }
-        $designVersion = $this->designs->forSubmission($submission);
+        $designVersion = $design ?? $this->designs->forSubmission($submission);
         $prepared = $this->renderer->prepare($this->inputs->forSubmission($submission, $designVersion));
         $latest = $this->latest($submission);
         if ($latest instanceof Rendition && $this->isDuplicate($reason, $latest, $prepared->inputHash)) {
@@ -61,7 +63,7 @@ final readonly class RenderSubmission
         try {
             $rendition = $this->persist($submission, $designVersion, $document, [
                 'uuid' => $uuid, 'disk' => $disk, 'path' => $path, 'reason' => $reason, 'created_by' => $actor?->id, 'request_id' => $requestId,
-            ]);
+            ], $design instanceof DesignVersion);
         } catch (Throwable $e) {
             Storage::disk($disk)->delete($path);
             throw $e;
@@ -96,9 +98,9 @@ final readonly class RenderSubmission
      *
      * @param  array{uuid: string, disk: string, path: string, reason: string, created_by: int|null, request_id: string|null}  $file
      */
-    private function persist(Submission $submission, DesignVersion $designVersion, RenderedDocument $document, array $file): Rendition
+    private function persist(Submission $submission, DesignVersion $designVersion, RenderedDocument $document, array $file, bool $explicitDesign = false): Rendition
     {
-        return DB::transaction(function () use ($submission, $designVersion, $document, $file): Rendition {
+        return DB::transaction(function () use ($submission, $designVersion, $document, $file, $explicitDesign): Rendition {
             DB::select('select pg_advisory_xact_lock(?)', [self::lockId($submission->uuid)]);
             $done = $this->forRequest($file['request_id']);
             if ($done instanceof Rendition) {
@@ -109,7 +111,7 @@ final readonly class RenderSubmission
                 return $latest;
             }
             $pinned = Rendition::query()->where('submission_uuid', $submission->uuid)->orderBy('id')->value('design_version_id');
-            if (is_numeric($pinned) && (int) $pinned !== $designVersion->id) {
+            if (! $explicitDesign && is_numeric($pinned) && (int) $pinned !== $designVersion->id) {
                 throw RenderFailedException::because(new RuntimeException('The design version was pinned by a concurrent render; retry.'));
             }
 
