@@ -5,6 +5,7 @@ import type {
     Me,
     Organization,
     Submission,
+    SubmissionDocument,
 } from '../../src/lib/api/types.ts';
 
 export const ORG_A: Organization = {
@@ -131,6 +132,26 @@ export function makeSubmission(overrides: Partial<Submission> = {}): Submission 
         created_at: '2026-10-16T08:00:00+02:00',
         updated_at: '2026-10-16T09:00:00+02:00',
         can_edit: true,
+        can_send: false,
+        ...overrides,
+    };
+}
+
+export function makeDocument(overrides: Partial<SubmissionDocument> = {}): SubmissionDocument {
+    return {
+        url: 'http://localhost:3000/api/v1/documents/r1?user=7&expires=1&signature=abc',
+        expires_at: new Date(Date.now() + 5 * 60_000).toISOString(),
+        rendition: {
+            uuid: 'r1',
+            form_version_id: 7,
+            design_version_id: 1,
+            renderer_version: 'gotenberg-8',
+            page_count: 2,
+            size: 48_213,
+            file_sha256: 'f'.repeat(64),
+            input_hash: 'e'.repeat(64),
+            created_at: '2026-10-16T09:42:00+02:00',
+        },
         ...overrides,
     };
 }

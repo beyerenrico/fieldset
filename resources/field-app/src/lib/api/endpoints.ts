@@ -9,6 +9,7 @@ import type {
     AttachmentKind,
     AttachmentRecord,
     DeviceRegistration,
+    DocumentSend,
     FormSummary,
     FormVersion,
     LoginResult,
@@ -16,6 +17,7 @@ import type {
     Page,
     PaginationMeta,
     Submission,
+    SubmissionDocument,
     SubmissionStatus,
     SyncManifest,
 } from './types.ts';
@@ -203,4 +205,30 @@ export async function listSubmissions(filter: SubmissionFilter = {}): Promise<Pa
 
 export async function fetchSubmission(uuid: string): Promise<Submission> {
     return (await apiRequest<{ submission: Submission }>(paths.submission(uuid))).data.submission;
+}
+
+/** Latest rendition with a signed link; 404 `document_not_ready` while the PDF is rendered. */
+export async function fetchSubmissionDocument(uuid: string): Promise<SubmissionDocument> {
+    const response = await apiRequest<{ document: SubmissionDocument }>(paths.document(uuid));
+    return response.data.document;
+}
+
+export interface SendInput {
+    readonly email: string;
+    /** Omitted: the server uses the submitted value of the `customer.name` element. */
+    readonly name?: string;
+}
+
+/** "Send to customer" (§9.2): 202 with the send record; same idempotency rules as submit. */
+export async function sendSubmissionDocument(
+    uuid: string,
+    input: SendInput,
+    idempotencyKey: string,
+): Promise<DocumentSend> {
+    const response = await apiRequest<{ send: DocumentSend }>(paths.send(uuid), {
+        method: 'POST',
+        body: input,
+        headers: { 'Idempotency-Key': idempotencyKey },
+    });
+    return response.data.send;
 }
