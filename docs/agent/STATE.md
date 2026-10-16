@@ -1,18 +1,20 @@
-# State: 2026-10-17T20:00Z
-Milestone: M4 Workflows + notifications → MVP 0.1.0 · Branch m4-workflows · Gate in progress
-Done: M4-T01..T10 committed (engine, steps, triggers, review tasks, Filament UI, notifications, tasks API,
-Field App tasks/review/notifications, demo workflow, E2E journeys 1, 4, 5 — 18/18 E2E green).
-Gate so far: PHP 3538 tests, coverage 94.8 %, PHPStan/Rector/Pint clean. Three reviews done (no
-critical/high). Two fix subagents running (backend on DB form_schema_test_b; Field App JS only);
-nothing committed by them.
-Release docs drafted: CHANGELOG.md (0.1.0), README (aae7dbe); release notes docs/releases/0.1.0.md TODO.
+# State: 2026-10-17T23:30Z
+Milestone: M5 Reports + dashboards · Branch m5-reports (M4 merged, tags m4-done + v0.1.0 MVP)
+Tasks in flight (2 subagents, shared working tree, nothing committed by them):
+- Reports agent: M5-T01 explorer, T02 exports (openspout, Filament Export model, export_ready),
+  T03 saved reports + scheduled mails, T06 permissions — DB form_schema_test_b.
+- Dashboards agent: M5-T04 role-aware widgets + date filter + cache, T05 load generator, indexes,
+  EXPLAIN tests, measurements (evidence/M5/performance.md) — DB form_schema_test_c; may seed 100k rows
+  into the dev DB temporarily and restore it.
 Last commit: see `git log -1`
 
 ## Next actions
-1. Review + commit both fix batches (stage explicit paths; restore evidence PNGs of earlier milestones).
-2. Rebuild Docker, migrate:fresh --seed, cache:clear, full E2E; coverage.sh; JS checks; conformance.
-3. docs/agent/milestones/M4.md, docs/releases/0.1.0.md, tick M4-T11/T12, JOURNAL; root package.json
-   version 0.1.0; merge --no-ff to main, tag m4-done and v0.1.0; branch m5-reports; break down M5.
+1. Review + commit each batch (explicit paths; AdminPanelProvider and NotificationEvent are touched by
+   one agent each).
+2. Integration: pin saved reports as dashboard widgets (SavedReportQuery API + dashboard extension
+   point); E2E M5-T07 (explorer across versions, export with notification, pinned report).
+3. Gate M5: coverage.sh, PHPStan 0/0, Rector + Pint, JS, conformance, Docker rebuild + reseed, E2E,
+   three reviewers, M5.md; merge, tag m5-done; branch m6-offline; break down M6.
 
 ## Known problems
 - Builder page heavy (QUESTIONS #8); preview iframe same-origin (QUESTIONS #10, M8).
