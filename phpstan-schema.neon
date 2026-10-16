@@ -1,0 +1,9 @@
+# Strictest level for the schema core (BUILD_PROMPT §12).
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    level: 10
+    paths:
+        - packages/form-schema-php/src
+    tmpDir: storage/phpstan-schema

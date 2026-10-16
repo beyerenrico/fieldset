@@ -1,0 +1,94 @@
+# Production-like stack. Dev overrides (host ports, mailpit) live in compose.dev.yaml;
+# set COMPOSE_FILE=compose.yaml:compose.dev.yaml in .env for local development.
+name: form-schema-app
+
+x-app: &app
+  build:
+    context: .
+    dockerfile: docker/app/Dockerfile
+  image: form-schema-app:local
+  env_file: .env
+  environment:
+    DB_CONNECTION: pgsql
+    DB_HOST: postgres
+    DB_PORT: 5432
+    REDIS_HOST: redis
+    REDIS_PORT: 6379
+    GOTENBERG_URL: http://gotenberg:3000
+  volumes:
+    - app-storage:/var/www/html/storage/app
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  restart: unless-stopped
+
+services:
+  app:
+    <<: *app
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    networks: [default, renderer]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/up"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  queue:
+    <<: *app
+    command: ["php", "artisan", "horizon"]
+    networks: [default, renderer]
+
+  scheduler:
+    <<: *app
+    command: ["php", "artisan", "schedule:work"]
+    networks: [default]
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-form_schema}
+      POSTGRES_USER: ${DB_USERNAME:-form_schema}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-secret}
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: valkey/valkey:8-alpine
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # The renderer has no network access (BUILD_PROMPT §8.5): Chromium may not fetch private or
+  # public addresses, and the container sits on an internal network shared only with app/queue.
+  gotenberg:
+    image: gotenberg/gotenberg:8.38.1-chromium
+    command:
+      - gotenberg
+      - --chromium-deny-private-ips=true
+      - --chromium-deny-public-ips=true
+      - --api-body-limit=30MB
+      - --api-timeout=60s
+      - --log-format=json
+    networks: [renderer]
+    restart: unless-stopped
+
+networks:
+  renderer:
+    internal: true
+
+volumes:
+  pg-data:
+  app-storage:
