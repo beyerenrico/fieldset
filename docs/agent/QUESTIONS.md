@@ -17,3 +17,6 @@ Format: question · chosen option · impact · how to reverse.
    public hosted instance must enable it · set env to true.
 7. Unconfirmed Fortify 2FA secret is replaced if the user then enrols in Filament · accepted (the
    unconfirmed secret was never active) · none.
+8. Builder v1 page weight · the Filament Builder renders every block schema (incl. nested block pickers
+   and logic editors); the service-report editor HTML is ~4 MB · acceptable for v1, Builder v2 (M7) is
+   the planned replacement · if needed earlier: lazy-load block bodies or collapse nested pickers.

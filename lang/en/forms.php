@@ -159,6 +159,7 @@ return [
         'calc_rate' => 'Rate (e.g. 0.19)',
         'calc_field' => 'Field',
     ],
+    'preview' => ['title' => 'Preview', 'phone' => 'Phone', 'tablet' => 'Tablet'],
     'versions' => [
         'title' => 'Versions',
         'version' => 'Version',

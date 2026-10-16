@@ -35,6 +35,7 @@ final class FormEditorSchema
             Tabs::make('editor')->persistTabInQueryString()->tabs([
                 Tab::make(__('forms.builder.title'))->icon('heroicon-o-squares-plus')->schema([self::pages()]),
                 Tab::make(__('forms.builder.settings'))->icon('heroicon-o-cog-6-tooth')->schema(self::settings()),
+                Tab::make(__('forms.preview.title'))->icon('heroicon-o-device-phone-mobile')->schema([View::make('filament.forms.preview')]),
                 Tab::make(__('forms.form.access'))->icon('heroicon-o-key')->schema(self::access()),
                 Tab::make(__('forms.builder.raw_json'))->icon('heroicon-o-code-bracket')->schema([View::make('filament.forms.raw-json')]),
             ]),

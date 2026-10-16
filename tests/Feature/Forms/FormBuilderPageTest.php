@@ -203,3 +203,11 @@ it('accepts edits deep inside nested blocks and logic groups', function (): void
     $note = $form->refresh()->draft_definition->pages[1]->elements[0]->elements[1];
     expect(Json::encode($note->visibleIf))->toBe('{"===":[{"var":"doors"},"na"]}');
 });
+
+it('renders the live preview with the unsaved definition', function (): void {
+    $form = app(CreateFormFromTemplate::class)->handle($this->designer, 'service_report');
+    $page = Livewire::test(EditForm::class, ['record' => $form->getRouteKey()])->set('data.title', 'Ungespeichert');
+
+    expect($page->instance()->previewDefinitionJson())->toContain('"title":"Ungespeichert"');
+    $page->assertSee('form-preview', false);
+});

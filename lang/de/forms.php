@@ -159,6 +159,7 @@ return [
         'calc_rate' => 'Satz (z. B. 0.19)',
         'calc_field' => 'Feld',
     ],
+    'preview' => ['title' => 'Vorschau', 'phone' => 'Smartphone', 'tablet' => 'Tablet'],
     'versions' => [
         'title' => 'Versionen',
         'version' => 'Version',

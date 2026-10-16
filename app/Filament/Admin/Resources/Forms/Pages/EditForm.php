@@ -205,6 +205,16 @@ class EditForm extends EditRecord
         return [];
     }
 
+    /** The unsaved builder state as a definition, for the live preview iframe. */
+    public function previewDefinitionJson(): string
+    {
+        try {
+            return Json::encode($this->mapper()->toDefinition(is_array($this->data) ? $this->data : []));
+        } catch (InvalidArgumentException) {
+            return Json::encode($this->record->draft_definition);
+        }
+    }
+
     public function draftJson(): string
     {
         return json_encode(Json::decode(Json::encode($this->record->draft_definition)), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: '{}';
