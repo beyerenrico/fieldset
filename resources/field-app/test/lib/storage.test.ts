@@ -4,6 +4,7 @@ import {
     saveDeviceRecord,
     dropDeviceSecret,
 } from '../../src/lib/device/credentials.ts';
+import { db, getMeta, setMeta } from '../../src/lib/db/db.ts';
 import { deviceName, ensureDeviceRegistered } from '../../src/lib/device/register.ts';
 import {
     getFavorites,
@@ -14,28 +15,12 @@ import {
 } from '../../src/lib/forms/shortcuts.ts';
 import { UUID_V7, newId } from '../../src/lib/ids.ts';
 import { clearLocalData } from '../../src/lib/session/local-data.ts';
-import { kvClear, kvDelete, kvGet, kvSet, wipeAll } from '../../src/lib/storage/kv.ts';
 import { clearAppKeys, readJson, removeKey, writeJson } from '../../src/lib/storage/local.ts';
 import { clearIdempotencyKey, getIdempotencyKey } from '../../src/lib/submit/idempotency.ts';
 import { createBackend } from '../utils/backend.ts';
 import { server, setupTestServer } from '../utils/server.ts';
 
 setupTestServer();
-
-describe('kv store', () => {
-    it('gets, sets, deletes, clears and wipes', async () => {
-        await kvSet('a', { b: 1 });
-        expect(await kvGet('a')).toEqual({ b: 1 });
-        await kvDelete('a');
-        expect(await kvGet('a')).toBeUndefined();
-        await kvSet('c', 1);
-        await kvClear();
-        expect(await kvGet('c')).toBeUndefined();
-        await kvSet('d', 1);
-        await wipeAll();
-        expect(await kvGet('d')).toBeUndefined();
-    });
-});
 
 describe('local storage helpers', () => {
     it('reads JSON with fallbacks and clears only app keys', () => {
@@ -119,12 +104,12 @@ describe('device registration', () => {
         server.use(...createBackend({ deviceSecret: 'rotated' }).handlers);
         await saveDeviceRecord({ deviceUuid: 'dev-1', secret: null });
         expect(await ensureDeviceRegistered()).toEqual({ deviceUuid: 'dev-1', secret: 'rotated' });
-        await kvSet('outbox', [1]);
+        await setMeta('seq', 7);
         await clearLocalData({ keepDeviceId: true });
         expect(await getDeviceRecord()).toEqual({ deviceUuid: 'dev-1', secret: null });
-        expect(await kvGet('outbox')).toBeUndefined();
+        expect(await getMeta('seq')).toBeUndefined();
         await dropDeviceSecret();
-        await kvSet('device', 'garbage');
+        await db.meta.put({ key: 'device', value: 'garbage' });
         expect(await getDeviceRecord()).toBeUndefined();
         await dropDeviceSecret();
     });

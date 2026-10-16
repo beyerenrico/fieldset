@@ -1,5 +1,12 @@
 /** English UI texts. Keys and `{placeholders}` must match de.ts (parity test). */
+import { accountEn } from './offline/account.en.ts';
+import { shellEn } from './offline/shell.en.ts';
+import { syncEn } from './offline/sync.en.ts';
+
 export const en = {
+    ...syncEn,
+    ...shellEn,
+    ...accountEn,
     'app.title': 'Field App',
     'nav.label': 'Main navigation',
     'nav.home': 'Home',

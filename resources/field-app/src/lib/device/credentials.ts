@@ -1,13 +1,8 @@
-/** Device credentials in IndexedDB: the uuid survives logout, the secret is dropped when stale. */
-import { kvGet, kvSet } from '../storage/kv.ts';
+/** Device credentials in the offline store: the uuid survives logout, the secret is dropped when stale. */
+import { getMeta, setMeta } from '../db/db.ts';
+import type { DeviceRecord } from '../db/schema.ts';
 
-const KEY = 'device';
-
-export interface DeviceRecord {
-    readonly deviceUuid: string;
-    /** `null` when the server no longer knows the secret (re-register after the next login). */
-    readonly secret: string | null;
-}
+export type { DeviceRecord } from '../db/schema.ts';
 
 function isRecord(value: unknown): value is DeviceRecord {
     if (typeof value !== 'object' || value === null) {
@@ -21,12 +16,12 @@ function isRecord(value: unknown): value is DeviceRecord {
 }
 
 export async function getDeviceRecord(): Promise<DeviceRecord | undefined> {
-    const value = await kvGet<unknown>(KEY);
+    const value: unknown = await getMeta('device');
     return isRecord(value) ? value : undefined;
 }
 
 export async function saveDeviceRecord(record: DeviceRecord): Promise<void> {
-    await kvSet(KEY, record);
+    await setMeta('device', record);
 }
 
 /** Keeps the uuid but forgets the secret (`device_unknown`). */

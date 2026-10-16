@@ -1,6 +1,6 @@
 /** Clearing local data (logout, wipe). Other modules register hooks, e.g. the query cache. */
 import { getDeviceRecord, saveDeviceRecord } from '../device/credentials.ts';
-import { wipeAll } from '../storage/kv.ts';
+import { clearAllTables } from '../db/db.ts';
 import { clearAppKeys } from '../storage/local.ts';
 import { reloadOrganizationId } from './org-store.ts';
 
@@ -25,7 +25,7 @@ export interface ClearOptions {
 
 export async function clearLocalData(options: ClearOptions): Promise<void> {
     const device = options.keepDeviceId ? await getDeviceRecord() : undefined;
-    await wipeAll();
+    await clearAllTables();
     clearAppKeys(PRESERVED_KEYS);
     reloadOrganizationId();
     if (device !== undefined) {

@@ -3,9 +3,11 @@ import { RouterProvider, type RouterHistory } from '@tanstack/react-router';
 import { useEffect, useState, type ReactNode } from 'react';
 import { I18nProvider } from './i18n/I18nProvider.tsx';
 import { ApiError, isAuthLost } from './lib/api/errors.ts';
+import { startCatalogSync } from './lib/catalog/catalog.ts';
 import { disposeDraftSessions } from './lib/drafts/draft-session.ts';
 import { onAuthLost, reportAuthError } from './lib/session/auth-events.ts';
 import { onLocalDataCleared } from './lib/session/local-data.ts';
+import { startSyncEngine } from './lib/sync/engine.ts';
 import { createAppRouter, type AppRouter } from './routes/router.tsx';
 
 const MAX_RETRIES = 2;
@@ -41,6 +43,15 @@ export interface AppProps {
 export function App({ queryClient: given, history }: AppProps): ReactNode {
     const [queryClient] = useState(() => given ?? createAppQueryClient());
     const [router] = useState<AppRouter>(() => createAppRouter(queryClient, history));
+
+    useEffect(() => {
+        const stopSync = startSyncEngine();
+        const stopCatalog = startCatalogSync();
+        return () => {
+            stopSync();
+            stopCatalog();
+        };
+    }, []);
 
     useEffect(() => {
         // Deferred: clearing synchronously would cancel the request that is reporting the loss.

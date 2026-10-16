@@ -7,6 +7,8 @@ import { cn } from '../lib/cn.ts';
 import { BottomNav } from './BottomNav.tsx';
 import { NotificationBell } from './NotificationBell.tsx';
 import { OnlineIndicator } from './OnlineIndicator.tsx';
+import { PwaPrompts } from './pwa/PwaPrompts.tsx';
+import { SyncStatusBadge } from './sync/SyncStatusBadge.tsx';
 
 /** Authenticated layout. The window scrolls (the renderer virtualizes against it). */
 export function AppShell(): ReactNode {
@@ -35,10 +37,12 @@ export function AppShell(): ReactNode {
                     </span>
                     <span className="flex shrink-0 items-center gap-1">
                         <OnlineIndicator />
+                        <SyncStatusBadge />
                         <NotificationBell />
                     </span>
                 </div>
             </header>
+            <PwaPrompts />
             <main
                 id="main"
                 tabIndex={-1}

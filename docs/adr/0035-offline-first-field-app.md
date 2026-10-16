@@ -1,0 +1,122 @@
+# 0035: Offline-first Field App (Dexie store, outbox, sync engine, service worker)
+- Status: accepted
+- Date: 2026-10-17
+
+## Context
+§9.2 and §9.3, and journeys 3 and 7. M2 shipped an API that was ready for offline use (ADR 0006, 0027), but the client was online-first:
+- Autosave sent a PUT directly (`src/lib/autosave/api-transport.ts`).
+- Submit and send keys lived in sessionStorage.
+- IndexedDB held only the device record (the M2 `kv` store).
+- Starting the app required a live `GET /me` (`routes/router.tsx`).
+
+Versions, checked on the npm registry on 2026-10-17: dexie 4.4.6 (Apache-2.0), vite-plugin-pwa 2.0.0 (MIT), workbox-build and workbox-window 7.4.1 (MIT), fake-indexeddb 6.2.6 (tests).
+
+## Decision
+### Store
+- One Dexie database, `fsa-offline` (`src/lib/db`). It has these tables:
+  - `drafts` (uuid; [orgId+userId], updatedAt)
+  - `outbox` (id; submissionUuid, [orgId+userId], seq, nextAttemptAt)
+  - `attachments` (uuid; submissionUuid, state)
+  - `forms` ([orgId+id]; orgId)
+  - `formVersions` (id; orgId, [orgId+form_id])
+  - `meta` (key: device, session, sync, seq, catalog:<orgId>)
+- Every row carries orgId and userId, and every read filters by both. Another user who signs in on the device sees none of these rows, and nothing is ever sent under their session.
+- File bytes are stored as ArrayBuffer plus a MIME type, not as a Blob. This works in older Safari and with fake-indexeddb under jsdom.
+- A schema change adds `db.version(n)` with an upgrade. A shipped version is never edited.
+- The M2 database `form-schema-field-app` held only the device record. `migrateLegacyStore()` moves that record into `meta.device` and deletes the old database.
+
+### Local-first autosave
+- The AutosaveController keeps its API and rules: one write in flight, latest data wins, stop and dispose. DraftSession, WorkTracker, conflict-diff and ConflictPanel stay as they are.
+- What changes:
+  - The transport now writes the DraftRow (data, localVersion + 1) and coalesces a `draft.save` op.
+  - Debounce is 300 ms, with a maxWait of 2 s.
+  - Writes are flushed on `pagehide`, `freeze` and `visibilitychange` to hidden.
+  - Controller states now mean "saved on this device". Sync state comes from DraftRow.sync.
+- A reopened draft starts from the local row when that row is newer than the server copy.
+- When the session is lost, local writes are flushed before the sessions are disposed.
+
+### Outbox
+- Op ids have the form `${kind}:${uuid}[:${attachmentUuid}]`, so enqueueing the same op again coalesces it. There are four kinds:
+  - `draft.save`: the body is read when the op is sent.
+  - `attachment.upload`: one per attachment.
+  - `submit`
+  - `send`
+- Order within one submission:
+  1. `draft.save`, to create the draft on the server (uploads need an existing, editable draft).
+  2. Every `attachment.upload`.
+  3. `draft.save` again, to update with revision = serverRevision.
+  4. `submit`
+  5. `send`
+- `submit` and `send` persist `{ idempotencyKey, body }`, so a retry sends the same bytes. A new submit revision gets a new key. Submit carries `client_submitted_at`.
+- Each request sends the row's orgId as `X-Organization-Id`, set per request.
+- Retries back off as min(15 min, 5 s·2^(n−1)) plus jitter. They apply to network errors, 5xx, 408 and 429 (Retry-After is honoured). The backoff resets on success, on `online` and on "Sync now". Nothing is ever dropped.
+- These answers block the submission until the user decides:
+  - 409 `revision_conflict`, unless the response can be adopted
+  - `not_editable`, `version_retired`, `version_mismatch`, `attachment_conflict`
+  - 403 (form access revoked), 404, 413
+  - 422 on submit: the draft becomes editable again, with pointer errors
+  - 422 on upload: the attachment is marked failed and the user replaces it
+- 401 and 419 go through `device-status`:
+  - `ok`: retry.
+  - `reauth`: the engine pauses and the outbox is left untouched.
+  - `wipe`: clear everything.
+- 403 `organization_forbidden`: refetch `/me`. If the user no longer belongs to that organization, purge its rows.
+
+### Sync engine
+- Triggers:
+  - app start
+  - the `online` event
+  - `visibilitychange` to visible
+  - an enqueue
+  - "Sync now"
+  - login
+  - every 60 s while the app is visible and the outbox is not empty
+  - a message from the service worker
+- Only one tab syncs at a time. It holds the Web Lock `fsa-sync` (requested with ifAvailable), and other tabs skip the run. Where Web Locks are missing, a mutex inside the tab is the fallback.
+- Requests travel between tabs over a BroadcastChannel (`src/lib/sync/triggers.ts`).
+- Background Sync is a wake-up on Chromium only: when an op is enqueued offline, the app registers the tag `fsa-outbox`, and the service worker's `sync` handler posts to open clients. In M6 there is no executor inside the service worker (QUESTIONS #13).
+
+### Conflicts
+- A 409 whose server data equals the data that was sent is a lost response, and it is adopted.
+- Any other 409 sets the draft to `conflict` and stores the server copy. That submission's ops pause, and a queued submit waits. The user chooses:
+  - "Keep mine": serverRevision is set to the conflict revision and the local data is pushed again.
+  - "Use server": the local data becomes the server data.
+- `not_editable` blocks the draft and offers "discard" or "save as a new draft".
+- `version_retired` offers "copy to the current version" (a new uuid; keys are stable, §7.6).
+
+### Catalog cache
+- `meta['catalog:<org>'].cursor` drives `GET /sync/manifest?since=`, which is inclusive and upserts by id.
+- A fillable form id that is missing locally, or whose checksum changed, is fetched through `GET /forms/{f}/versions/{v}`. The cursor is saved only after every fetch has succeeded.
+- Forms that are not in `fillable_form_ids` are purged. A version stays cached while a local draft still uses it.
+- Catalog queries read the cache first and the network second. Offline with nothing cached raises `NotCachedError`.
+
+### Service worker (vite-plugin-pwa)
+- Mode and scope: generateSW, registerType `prompt`, scope and base `/app/`. `preview.html` stays on the separate preview build in `/form-preview/`, which has no plugin, no Dexie and sits outside the scope.
+- Precache: JS, CSS, fonts, icons and the web manifest. The app shell is fetched through the Laravel catch-all, so it keeps the CSP that SpaController sets; the static `public/app/index.html` is never precached on its own.
+- Navigation and API: the navigation fallback is the shell. API paths, Sanctum and auth are denylisted, and API responses get no runtime caching.
+- Updates: a new version shows a banner. When the user accepts, open drafts are flushed and the new worker is activated. A Dexie `versionchange` in an old tab shows a reload banner.
+
+### Persistence and install
+- `navigator.storage.persist()` is called after the first login. Settings shows `estimate()` and whether storage is persisted.
+- iOS outside standalone mode shows install instructions. While unsynced items exist, it also warns that iOS deletes data after 7 days without use, and that home-screen apps are exempt (WebKit). On Chromium, `beforeinstallprompt` drives an Install button.
+
+### Logout, wipe, reauth
+- **Logout:** count the unsynced items (ops, dirty drafts, pending attachments), warn, and offer "Sync now". Then:
+  1. POST `/auth/logout` (best effort).
+  2. Clear all Dexie tables, keeping `meta.device` with the uuid only.
+  3. Delete all caches and unregister the service worker.
+  4. Keep only `fsa.settings` in localStorage.
+  5. Reload to the login page.
+- **Wipe:** the same, but without the device uuid, without a warning and without syncing.
+- **Reauth:** nothing is cleared, and login requests a sync. If a different user signs in, the previous user's items stay hidden and unsent (QUESTIONS #15).
+
+### Backend
+- Deactivating a membership ends the member's sessions. When the member has no other active membership left, it also sets `wipe_requested_at` on their devices. Before this change, only the API tokens were deleted.
+- Customer send is idempotent by key on `document_sends`, so it still holds after stored idempotency keys are pruned (24 h). Without this, a lost response replayed more than 24 h later would email the customer twice.
+- Submit accepts `client_submitted_at`, which is stored and displayed. Number, period, `submitted_at` and `$today` stay on server time (QUESTIONS #14).
+
+## Consequences
+- The device is the source of truth for unsynced work; a lost device loses that work.
+- The server stays authoritative for numbers, calculations and time.
+- Many M2 screen tests that assumed a server PUT on autosave are rewritten.
+- The ownership split for the parallel agents and the frozen shared modules are recorded in `docs/agent/milestones/M6.md`.

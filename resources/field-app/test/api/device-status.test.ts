@@ -6,7 +6,7 @@ import { DeviceWipedError, ReauthRequiredError } from '../../src/lib/api/errors.
 import { getDeviceRecord, saveDeviceRecord } from '../../src/lib/device/credentials.ts';
 import { onLocalDataCleared } from '../../src/lib/session/local-data.ts';
 import { getOrganizationId, setOrganizationId } from '../../src/lib/session/org-store.ts';
-import { kvGet, kvSet } from '../../src/lib/storage/kv.ts';
+import { getMeta, setMeta } from '../../src/lib/db/db.ts';
 import { readJson, writeJson } from '../../src/lib/storage/local.ts';
 import { fail, ok } from '../utils/backend.ts';
 import { server, setupTestServer } from '../utils/server.ts';
@@ -51,7 +51,7 @@ describe('device-status recovery', () => {
 
     it('reauth → ReauthRequiredError and keeps local data', async () => {
         await saveDeviceRecord(DEVICE);
-        await kvSet('outbox', ['pending']);
+        await setMeta('seq', 7); // stands in for unsynced local data
         server.use(
             http.get('*/api/v1/forms', () => fail(401, 'unauthenticated')),
             http.post('*/api/v1/auth/device-status', () => ok({ status: 'reauth' })),
@@ -59,12 +59,12 @@ describe('device-status recovery', () => {
         const error = await apiRequest('/api/v1/forms').catch((e: unknown) => e);
         expect(error).toBeInstanceOf(ReauthRequiredError);
         expect((error as ReauthRequiredError).expired).toBe(true);
-        expect(await kvGet('outbox')).toEqual(['pending']);
+        expect(await getMeta('seq')).toBe(7);
     });
 
     it('wipe → clears IndexedDB, app storage and caches, then throws DeviceWipedError', async () => {
         await saveDeviceRecord(DEVICE);
-        await kvSet('outbox', ['pending']);
+        await setMeta('seq', 7); // stands in for unsynced local data
         setOrganizationId(1);
         writeJson('favorites.1', [3]);
         writeJson('settings', { largeText: true });
@@ -79,7 +79,7 @@ describe('device-status recovery', () => {
         );
         await expect(apiRequest('/api/v1/forms')).rejects.toBeInstanceOf(DeviceWipedError);
         stop();
-        expect(await kvGet('outbox')).toBeUndefined();
+        expect(await getMeta('seq')).toBeUndefined();
         expect(await getDeviceRecord()).toBeUndefined();
         expect(getOrganizationId()).toBeNull();
         expect(readJson('favorites.1', null)).toBeNull();

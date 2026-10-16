@@ -1,7 +1,13 @@
 /** Deutsche UI-Texte. Schlüssel und `{Platzhalter}` müssen zu en.ts passen (Paritätstest). */
 import type { Messages } from './en.ts';
+import { accountDe } from './offline/account.de.ts';
+import { shellDe } from './offline/shell.de.ts';
+import { syncDe } from './offline/sync.de.ts';
 
 export const de: Messages = {
+    ...syncDe,
+    ...shellDe,
+    ...accountDe,
     'app.title': 'Field App',
     'nav.label': 'Hauptnavigation',
     'nav.home': 'Start',

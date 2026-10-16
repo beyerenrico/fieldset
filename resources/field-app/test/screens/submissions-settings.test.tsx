@@ -3,7 +3,7 @@ import { http } from 'msw';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getDeviceRecord, saveDeviceRecord } from '../../src/lib/device/credentials.ts';
 import { getOrganizationId, setOrganizationId } from '../../src/lib/session/org-store.ts';
-import { kvGet, kvSet } from '../../src/lib/storage/kv.ts';
+import { getMeta, setMeta } from '../../src/lib/db/db.ts';
 import { createBackend, ok } from '../utils/backend.ts';
 import { ORG_A, ORG_B, makeMe, makeSubmission } from '../utils/fixtures.ts';
 import { preloadLazyScreens, renderApp } from '../utils/render-app.tsx';
@@ -113,7 +113,7 @@ describe('settings', () => {
         const backend = createBackend();
         server.use(...backend.handlers);
         await saveDeviceRecord({ deviceUuid: 'dev', secret: 'sec' });
-        await kvSet('outbox', [1]);
+        await setMeta('seq', 7); // stands in for unsynced local data
         const { user, history } = renderApp('/settings');
         await user.click(await screen.findByRole('button', { name: 'Sign out' }));
         const dialog = screen.getByRole('alertdialog', { name: 'Sign out' });
@@ -126,7 +126,7 @@ describe('settings', () => {
         );
         expect(history.location.pathname).toBe('/app/login');
         expect(backend.state.loggedIn).toBe(false);
-        expect(await kvGet('outbox')).toBeUndefined();
+        expect(await getMeta('seq')).toBeUndefined();
         expect(await getDeviceRecord()).toEqual({ deviceUuid: 'dev', secret: null });
     });
 });
