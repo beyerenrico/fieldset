@@ -63,7 +63,7 @@ return new class extends Migration
         // Published versions are immutable (BUILD_PROMPT §7.6): the only allowed update is retiring
         // (retired_at NULL -> value). Deletes need an explicit session flag (organization erasure).
         DB::unprepared(<<<'SQL'
-            CREATE FUNCTION form_versions_immutable() RETURNS trigger AS $$
+            CREATE OR REPLACE FUNCTION form_versions_immutable() RETURNS trigger AS $$
             BEGIN
                 IF TG_OP = 'DELETE' THEN
                     IF current_setting('app.allow_immutable_delete', true) = 'on' THEN
@@ -79,6 +79,7 @@ return new class extends Migration
             END;
             $$ LANGUAGE plpgsql;
 
+            DROP TRIGGER IF EXISTS form_versions_immutable_trg ON form_versions;
             CREATE TRIGGER form_versions_immutable_trg
                 BEFORE UPDATE OR DELETE ON form_versions
                 FOR EACH ROW EXECUTE FUNCTION form_versions_immutable();

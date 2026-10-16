@@ -54,9 +54,15 @@ class EditForm extends EditRecord
         $grants = FormAccess::query()->where('form_id', $this->record->id)->get();
         $state['access_groups'] = $grants->whereNotNull('group_id')->pluck('group_id')->map(fn ($id): int => (int) $id)->values()->all();
         $state['access_roles'] = $grants->whereNotNull('role_name')->pluck('role_name')->values()->all();
-        $this->lastSavedHash = md5(serialize($state));
 
         return $state;
+    }
+
+    /** Remember the hydrated state so autosave only writes real changes. */
+    protected function afterFill(): void
+    {
+        $raw = $this->form->getRawState();
+        $this->lastSavedHash = md5(serialize(is_array($raw) ? $raw : $raw->toArray()));
     }
 
     /** @param  array<string, mixed>  $data */
@@ -71,7 +77,9 @@ class EditForm extends EditRecord
     /** Called by the polling element in the editor schema. Never throws; never audits. */
     public function autosave(): void
     {
-        $state = $this->form->getRawState();
+        $raw = $this->form->getRawState();
+        /** @var array<string, mixed> $state */
+        $state = is_array($raw) ? $raw : $raw->toArray();
         $hash = md5(serialize($state));
         if ($hash === $this->lastSavedHash || ! (auth()->user()?->can('update', $this->record) ?? false)) {
             return;

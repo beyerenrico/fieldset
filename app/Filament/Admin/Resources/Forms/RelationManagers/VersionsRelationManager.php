@@ -55,7 +55,7 @@ class VersionsRelationManager extends RelationManager
             ->modalSubmitAction(false)
             ->schema(fn (FormVersion $record): array => [
                 Select::make('against')->label(__('forms.versions.diff_to'))->live()->default('draft')
-                    ->options(['draft' => __('forms.versions.draft')] + $this->form()->versions()->pluck('version', 'id')
+                    ->options(['draft' => __('forms.versions.draft')] + $this->ownerForm()->versions()->pluck('version', 'id')
                         ->mapWithKeys(fn ($v, $id): array => [(string) $id => 'v'.$v])->all()),
                 View::make('filament.forms.version-diff')->viewData(fn ($get): array => [
                     'entries' => $this->diffEntries($record, (string) ($get('against') ?? 'draft')),
@@ -67,8 +67,8 @@ class VersionsRelationManager extends RelationManager
     private function diffEntries(FormVersion $from, string $against): array
     {
         $to = $against === 'draft'
-            ? $this->form()->draft_definition
-            : FormVersion::query()->where('form_id', $this->form()->id)->findOrFail((int) $against)->definition;
+            ? $this->ownerForm()->draft_definition
+            : FormVersion::query()->where('form_id', $this->ownerForm()->id)->findOrFail((int) $against)->definition;
 
         return DefinitionDiff::compare($from->definition, $to);
     }
@@ -77,10 +77,10 @@ class VersionsRelationManager extends RelationManager
     {
         return Action::make('rollback')->label(__('forms.actions.rollback'))->icon('heroicon-o-arrow-uturn-left')->color('warning')
             ->requiresConfirmation()
-            ->authorize(fn (): bool => auth()->user()?->can('publish', $this->form()) ?? false)
+            ->authorize(fn (): bool => auth()->user()?->can('publish', $this->ownerForm()) ?? false)
             ->schema([Textarea::make('changelog')->label(__('forms.versions.changelog'))->rows(2)])
             ->action(function (FormVersion $record, array $data): void {
-                $version = app(RollbackForm::class)->handle($this->form(), $record, $this->actor(), $data['changelog'] ?? null);
+                $version = app(RollbackForm::class)->handle($this->ownerForm(), $record, $this->actor(), $data['changelog'] ?? null);
                 Notification::make()->success()->title(__('forms.versions.published', ['version' => $version->version]))->send();
                 $this->redirect(request()->header('Referer') ?? url()->current());
             });
@@ -95,7 +95,7 @@ class VersionsRelationManager extends RelationManager
             ->action(fn (FormVersion $record) => app(RetireVersion::class)->handle($record, $this->actor()));
     }
 
-    private function form(): Form
+    private function ownerForm(): Form
     {
         /** @var Form $form */
         $form = $this->getOwnerRecord();

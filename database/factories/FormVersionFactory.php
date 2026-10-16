@@ -21,9 +21,9 @@ class FormVersionFactory extends Factory
         return [
             'form_id' => Form::factory(),
             'version' => 1,
-            'definition' => fn (array $attrs): mixed => Form::query()->findOrFail($attrs['form_id'])->draft_definition,
+            'definition' => fn (array $attrs): mixed => Form::query()->whereKey($attrs['form_id'])->firstOrFail()->draft_definition,
             'data_json_schema' => (object) ['type' => 'object'],
-            'checksum' => fn (array $attrs): string => Json::checksum(Form::query()->findOrFail($attrs['form_id'])->draft_definition),
+            'checksum' => fn (array $attrs): string => Json::checksum(Form::query()->whereKey($attrs['form_id'])->firstOrFail()->draft_definition),
             'changelog' => 'Initial version',
             'published_at' => now(),
         ];

@@ -18,7 +18,8 @@ beforeEach(function (): void {
     app(TenantContext::class)->set($this->org);
 });
 
-dataset('templates', fn (): array => array_column(TemplateCatalog::bundled()->all(), 'key'));
+// Datasets resolve before the app boots, so no base_path() here.
+dataset('templates', fn (): array => array_column((new TemplateCatalog(dirname(__DIR__, 3).'/spec/templates'))->all(), 'key'));
 
 it('ships templates that pass the meta-schema and the linter without errors', function (string $key): void {
     $report = app(DefinitionChecker::class)->check(TemplateCatalog::bundled()->definition($key));

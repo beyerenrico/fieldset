@@ -69,7 +69,7 @@ class ListForms extends ListRecords
             ->authorize(fn (): bool => auth()->user()?->can('create', Form::class) ?? false)
             ->schema([
                 FileUpload::make('file')->label(__('forms.actions.file'))->acceptedFileTypes(['application/json', 'text/plain'])
-                    ->maxSize(ImportDefinition::MAX_BYTES / 1024)->storeFiles(false),
+                    ->maxSize(intdiv(ImportDefinition::MAX_BYTES, 1024))->storeFiles(false),
                 Textarea::make('json')->label('JSON')->rows(6),
             ])
             ->action(function (array $data): void {

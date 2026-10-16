@@ -69,7 +69,7 @@ it('isolates every tenant-owned model across organizations', function (string $m
     $tenant->set($orgA);
     expect($model::query()->pluck('id')->all())->toBe([$a->getKey()])
         ->and($model::query()->find($b->getKey()))->toBeNull()
-        ->and($model::query()->whereKey($b->getKey())->update(['updated_at' => now()]))->toBe(0)
+        ->and($model::query()->whereKey($b->getKey())->update(['organization_id' => DB::raw('organization_id')]))->toBe(0)
         ->and($model::query()->whereKey($b->getKey())->delete())->toBe(0);
 
     $tenant->clear();

@@ -26,7 +26,15 @@ final class CalculationCompiler
         $parsed = $this->parse($expression);
 
         if ($parsed !== null) {
-            $candidate = [...$state, ...$parsed];
+            $candidate = [
+                'mode' => is_string($parsed['mode'] ?? null) ? $parsed['mode'] : 'json',
+                'repeater' => isset($parsed['repeater']) && is_string($parsed['repeater']) ? $parsed['repeater'] : null,
+                'column' => isset($parsed['column']) && is_string($parsed['column']) ? $parsed['column'] : null,
+                'fields' => isset($parsed['fields']) && is_array($parsed['fields']) ? array_values(array_map('strval', $parsed['fields'])) : [],
+                'field' => isset($parsed['field']) && is_string($parsed['field']) ? $parsed['field'] : null,
+                'rate' => isset($parsed['rate']) && is_string($parsed['rate']) ? $parsed['rate'] : null,
+                'json' => '',
+            ];
             if (Json::canonical($this->fromUi($candidate)) === Json::canonical($expression)) {
                 return $candidate;
             }

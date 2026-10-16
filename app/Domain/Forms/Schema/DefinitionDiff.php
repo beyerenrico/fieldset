@@ -22,7 +22,8 @@ final class DefinitionDiff
         $after = self::index($to);
         $entries = [];
 
-        foreach ($after as $id => $node) {
+        foreach ($after as $rawId => $node) {
+            $id = (string) $rawId; // numeric-string keys become ints in PHP arrays
             if (! isset($before[$id])) {
                 $entries[] = self::entry(DiffEntry::ADDED, $id, $node['element']);
 
@@ -37,9 +38,9 @@ final class DefinitionDiff
             }
         }
 
-        foreach ($before as $id => $node) {
-            if (! isset($after[$id])) {
-                $entries[] = self::entry(DiffEntry::REMOVED, $id, $node['element']);
+        foreach ($before as $rawId => $node) {
+            if (! isset($after[$rawId])) {
+                $entries[] = self::entry(DiffEntry::REMOVED, (string) $rawId, $node['element']);
             }
         }
 
@@ -68,12 +69,13 @@ final class DefinitionDiff
             if (! $element instanceof stdClass || ! is_string($element->id ?? null)) {
                 continue;
             }
-            $index[$element->id] = ['element' => $element, 'parent' => $parent, 'position' => $position];
-            self::indexChildren($element, $element->id, $index);
+            $id = $element->id;
+            $index[$id] = ['element' => $element, 'parent' => $parent, 'position' => $position];
+            self::indexChildren($element, $id, $index);
             $columns = is_array($element->columns ?? null) ? $element->columns : [];
             foreach (array_values($columns) as $i => $column) {
                 if ($column instanceof stdClass) {
-                    self::indexChildren($column, $element->id.'#'.$i, $index);
+                    self::indexChildren($column, $id.'#'.$i, $index);
                 }
             }
         }

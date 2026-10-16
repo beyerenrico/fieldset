@@ -11,3 +11,7 @@
 6. `Job::dispatch()` returns a PendingDispatch that dispatches on __destruct. TenantContext::run()/withoutTenant() now dispatch a returned PendingDispatch inside the tenant (guardDispatch); still prefer block closures.
 7. Filament tenant association (creating hook) did not fire inside Livewire::test for the Role resource; set organization_id explicitly in actions (ManageRoles mutateDataUsing). scopedUnique() errors have no 'unique' rule key — assert on the field only.
 8. Never run composer (post-autoload-dump runs filament:upgrade → view:clear) while a test run is in progress: compiled views vanish and Livewire tests fail with ViewException.
+9. TypeScript 7.0 (native) is npm latest but typescript-eslint 8.71 supports <6.1: workspace pins ~6.0.3.
+10. `migrate:fresh` drops tables but not PL/pgSQL functions: use CREATE OR REPLACE FUNCTION + DROP TRIGGER IF EXISTS in migrations.
+11. A failing SQL statement inside RefreshDatabase's transaction aborts it (Postgres 25P02); wrap expected-to-fail raw statements in DB::transaction() (savepoint).
+12. queue:work in tests stops after one job when the process exceeds --memory (default 128 MB) — pass --memory=4096 in worker tests.

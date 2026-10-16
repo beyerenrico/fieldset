@@ -92,7 +92,7 @@ final class ElementBlocks
                 TextInput::make('key')->label(__('forms.element.key'))->required()->maxLength(64)
                     ->regex('/^[a-z][a-z0-9_]{0,63}$/')
                     ->disabled(fn (Get $get): bool => (bool) $get('key_locked'))->dehydrated()
-                    ->helperText(fn (Get $get): ?string => $get('key_locked') ? __('forms.builder.key_locked') : null),
+                    ->helperText(fn (Get $get): ?string => $get('key_locked') ? (string) __('forms.builder.key_locked') : null),
                 $has('text') ? Textarea::make('text')->label(__('forms.element.text'))->required()->columnSpanFull() : null,
                 $has('help') ? TextInput::make('help')->label(__('forms.element.help'))->columnSpanFull() : null,
                 $has('placeholder') ? TextInput::make('placeholder')->label(__('forms.element.placeholder')) : null,

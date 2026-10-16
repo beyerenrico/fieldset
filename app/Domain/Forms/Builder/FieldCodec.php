@@ -29,7 +29,7 @@ final readonly class FieldCodec
             FieldSpec::CALC => $this->calc->toUi($absent ? null : $value),
             FieldSpec::DEFAULT => $absent ? null : self::defaultToUi($value),
             FieldSpec::LIST => is_array($value) ? array_values(array_map(static fn (mixed $v): string => is_scalar($v) ? (string) $v : '', $value)) : [],
-            default => is_string($value) ? $value : (is_scalar($value) ? (string) $value : null),
+            default => $absent ? null : (is_string($value) ? $value : (is_scalar($value) ? (string) $value : null)),
         };
     }
 

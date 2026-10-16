@@ -17,7 +17,7 @@ class FormFactory extends Factory
 
     public function definition(): array
     {
-        $name = ucfirst(fake()->unique()->words(3, true));
+        $name = rtrim(fake()->unique()->sentence(3), '.');
         $key = BlankDefinition::keyFromName($name).'_'.fake()->unique()->numberBetween(1, 99999);
 
         return [

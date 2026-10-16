@@ -103,9 +103,9 @@ it('keeps published versions immutable in the model and in the database', functi
 
     expect(fn () => $version->update(['changelog' => 'rewritten']))->toThrow(LogicException::class)
         ->and(fn () => $version->delete())->toThrow(LogicException::class)
-        ->and(fn () => DB::table('form_versions')->where('id', $version->id)->update(['changelog' => 'sneaky']))
+        ->and(fn () => DB::transaction(fn () => DB::table('form_versions')->where('id', $version->id)->update(['changelog' => 'sneaky'])))
         ->toThrow(QueryException::class, 'immutable')
-        ->and(fn () => DB::table('form_versions')->where('id', $version->id)->delete())
+        ->and(fn () => DB::transaction(fn () => DB::table('form_versions')->where('id', $version->id)->delete()))
         ->toThrow(QueryException::class, 'immutable');
 });
 
@@ -115,7 +115,7 @@ it('allows exactly one update: retiring', function (): void {
 
     app(RetireVersion::class)->handle($version, $this->designer);
     expect($version->refresh()->isRetired())->toBeTrue()
-        ->and(fn () => DB::table('form_versions')->where('id', $version->id)->update(['retired_at' => now()->addDay()]))
+        ->and(fn () => DB::transaction(fn () => DB::table('form_versions')->where('id', $version->id)->update(['retired_at' => now()->addDay()])))
         ->toThrow(QueryException::class);
 });
 
