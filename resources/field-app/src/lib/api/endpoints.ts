@@ -99,7 +99,11 @@ export interface DraftInput {
     readonly revision: number;
 }
 
-export async function putSubmission(uuid: string, input: DraftInput): Promise<Submission> {
+export async function putSubmission(
+    uuid: string,
+    input: DraftInput,
+    options: { readonly keepalive?: boolean } = {},
+): Promise<Submission> {
     const body: Record<string, unknown> = {
         form_version_id: input.formVersionId,
         data: input.data,
@@ -110,6 +114,7 @@ export async function putSubmission(uuid: string, input: DraftInput): Promise<Su
     const response = await apiRequest<{ submission: Submission }>(paths.submission(uuid), {
         method: 'PUT',
         body,
+        ...(options.keepalive === true ? { keepalive: true } : {}),
     });
     return response.data.submission;
 }

@@ -79,6 +79,23 @@ describe('API attachment adapter: uploads', () => {
         expect(adapter.get(info.id)?.url).toBe('blob:url-1');
     });
 
+    it('registers every upload with the tracker while it runs', async () => {
+        uploadOk();
+        const tracked: Promise<unknown>[] = [];
+        const adapter = createApiAttachmentAdapter({
+            submissionUuid: 's',
+            initial: [],
+            ensureSaved: () => Promise.resolve(),
+            track: (work) => {
+                tracked.push(work);
+                return work;
+            },
+        });
+        const pending = adapter.upload(request);
+        expect(tracked).toEqual([pending]);
+        await expect(pending).resolves.toMatchObject({ fileName: 'photo.jpg' });
+    });
+
     it('rejects with a typed, localized error for 422 upload errors', async () => {
         vi.spyOn(endpoints, 'uploadAttachment').mockRejectedValue(
             new ApiError(422, 'file_too_large', 'Too large'),

@@ -102,6 +102,13 @@ export interface FormRendererProps {
     readonly messages?: Partial<RendererMessages>;
     /** Called with every new evaluation result (visibility, data, errors). */
     readonly onEvaluate?: (result: EvaluationResult) => void;
+    /**
+     * Called when an asynchronous edit starts (photo/file upload including compression, signature
+     * encoding and upload, location capture). The promise always resolves, never rejects: after the
+     * result was written through `onChange`, or when the edit failed or its row was removed. Hosts
+     * await these before saving or submitting.
+     */
+    readonly onAsyncWork?: (work: Promise<void>) => void;
     /** Wizard layout: called when the visible page changes. */
     readonly onPageChange?: (index: number, count: number) => void;
     /** Prefix for DOM ids, needed when several renderers share a page. */

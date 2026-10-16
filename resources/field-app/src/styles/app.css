@@ -90,6 +90,12 @@
     --fsr-radius: var(--radius);
 }
 
+/* WCAG 2.4.11: fields focused while scrolling up stay clear of the sticky header (3.5rem + 2px);
+   the renderer adds the bottom padding for its sticky footer. */
+html {
+    scroll-padding-top: 4.5rem;
+}
+
 /* Optional larger text (Settings): app chrome via rem, forms via the renderer variable. */
 html.text-large {
     font-size: 112.5%;

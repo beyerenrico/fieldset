@@ -16,6 +16,7 @@ import {
     twoFactorChallenge,
     uploadAttachment,
 } from '../../src/lib/api/endpoints.ts';
+import { apiTransport } from '../../src/lib/autosave/api-transport.ts';
 import { makeSubmission } from '../utils/fixtures.ts';
 import { createBackend, fail, ok } from '../utils/backend.ts';
 import { server, setupTestServer } from '../utils/server.ts';
@@ -77,6 +78,29 @@ describe('endpoints', () => {
             { form_version_id: 7, data: { a: 1 } },
             { form_version_id: 7, data: { a: 2 }, revision: 1 },
         ]);
+    });
+
+    it('forwards keepalive for the page-hide save (transport → putSubmission)', async () => {
+        const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+            Promise.resolve(
+                Response.json({
+                    success: true,
+                    data: { submission: makeSubmission({ revision: 2 }) },
+                    error: null,
+                    meta: null,
+                }),
+            ),
+        );
+        await apiTransport.save({
+            uuid: 'u1',
+            formVersionId: 7,
+            data: { a: 1 },
+            revision: 1,
+            keepalive: true,
+        });
+        await apiTransport.save({ uuid: 'u1', formVersionId: 7, data: { a: 1 }, revision: 2 });
+        expect(spy.mock.calls.map((call) => call[1]?.keepalive)).toEqual([true, undefined]);
+        spy.mockRestore();
     });
 
     it('uploads attachments as multipart with the client uuid', async () => {

@@ -6,6 +6,16 @@ test.use({ ...devices['Pixel 7'] });
 
 const evidence = (name: string) => `docs/agent/milestones/evidence/M2/${name}.png`;
 
+// WCAG 1.4.10: nothing may widen the page beyond the phone's width.
+async function expectNoHorizontalScroll(page: Page) {
+  const [scrollWidth, width] = await page.evaluate(() => [
+    document.documentElement.scrollWidth,
+    window.innerWidth,
+  ]);
+  expect(scrollWidth).toBeLessThanOrEqual(width);
+  expect(width).toBe(page.viewportSize()?.width);
+}
+
 async function login(page: Page, email: string) {
   await page.goto('/app/');
   await page.getByLabel(/^(email|e-mail)$/i).fill(email);
@@ -53,6 +63,7 @@ test('field worker fills, signs and submits the service report', async ({ page }
     .first()
     .fill('65.00');
   await expect(page.getByText(/97,50/).first()).toBeVisible();
+  await expectNoHorizontalScroll(page);
   await page.screenshot({ path: evidence('03-fill-items'), fullPage: true });
   await page.getByRole('button', { name: /^(next|weiter)$/i }).click();
 
@@ -74,11 +85,11 @@ test('field worker fills, signs and submits the service report', async ({ page }
   await page.getByRole('button', { name: /^(review|prüfen|überprüfen)$/i }).click();
   await expect(page).toHaveURL(/\/review$/);
   const submitButton = page.getByRole('button', { name: /^(submit|einreichen|absenden)$/i });
-  await page.mouse.wheel(0, 600);
+  await expectNoHorizontalScroll(page);
+  await expect(submitButton).toBeInViewport();
   await page.screenshot({ path: evidence('05-review-sticky-footer') });
-  // Keyboard activation: Playwright's scroll-into-view fights the sticky footer; users tap it normally.
-  await submitButton.focus();
-  await page.keyboard.press('Enter');
+  await submitButton.click();
   await expect(page.getByText(/SR-\d{4}-\d{5}/).first()).toBeVisible({ timeout: 20_000 });
+  await expectNoHorizontalScroll(page);
   await page.screenshot({ path: evidence('06-submitted'), fullPage: true });
 });

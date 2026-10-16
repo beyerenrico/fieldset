@@ -1,7 +1,6 @@
 /** Code-based route tree (basepath /app). */
 import type { QueryClient } from '@tanstack/react-query';
 import {
-    Outlet,
     createRootRouteWithContext,
     createRoute,
     createRouter,
@@ -10,10 +9,11 @@ import {
     type RouterHistory,
 } from '@tanstack/react-router';
 import { AppShell } from '../components/AppShell.tsx';
+import { RootLayout } from '../components/RootLayout.tsx';
 import { RouteError } from '../components/RouteError.tsx';
 import { meQueryOptions } from '../hooks/queries.ts';
 import { isApiError, isAuthLost } from '../lib/api/errors.ts';
-import { noticeFor } from '../lib/session/auth-events.ts';
+import { noticeFor, rememberNotice } from '../lib/session/auth-events.ts';
 import { resolveOrganization } from '../lib/session/organization.ts';
 import { CatalogScreen } from '../screens/CatalogScreen.tsx';
 import { HomeScreen } from '../screens/HomeScreen.tsx';
@@ -45,7 +45,7 @@ export interface RouterContext {
 }
 
 const rootRoute = createRootRouteWithContext<RouterContext>()({
-    component: Outlet,
+    component: RootLayout,
     notFoundComponent: NotFoundScreen,
 });
 
@@ -68,7 +68,7 @@ const authRoute = createRoute({
             }
         } catch (error) {
             if (isAuthLost(error) || isApiError(error, 401) || isApiError(error, 419)) {
-                const notice = noticeFor(error);
+                const notice = rememberNotice(noticeFor(error));
                 throw redirect({ to: '/login', search: notice === undefined ? {} : { notice } });
             }
             throw error;

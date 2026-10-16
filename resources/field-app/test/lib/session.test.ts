@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { DeviceWipedError, ReauthRequiredError } from '../../src/lib/api/errors.ts';
-import { noticeFor, onAuthLost, reportAuthError } from '../../src/lib/session/auth-events.ts';
+import {
+    noticeFor,
+    onAuthLost,
+    rememberNotice,
+    reportAuthError,
+    resetAuthNotice,
+} from '../../src/lib/session/auth-events.ts';
 import { buildEvaluationContext, zonedNow } from '../../src/lib/session/eval-context.ts';
 import { getOrganizationId, setOrganizationId } from '../../src/lib/session/org-store.ts';
 import { resolveOrganization } from '../../src/lib/session/organization.ts';
@@ -70,5 +76,21 @@ describe('auth events', () => {
         stop();
         reportAuthError(new DeviceWipedError('x'));
         expect(seen).toEqual(['wiped']);
+    });
+
+    it('keeps the strongest notice until the next login', () => {
+        const seen: unknown[] = [];
+        const stop = onAuthLost((notice) => seen.push(notice));
+        reportAuthError(new ReauthRequiredError('x', false));
+        reportAuthError(new ReauthRequiredError('x'));
+        reportAuthError(new DeviceWipedError('x'));
+        reportAuthError(new ReauthRequiredError('x', false));
+        reportAuthError(new ReauthRequiredError('x'));
+        expect(rememberNotice('logout')).toBe('wiped');
+        resetAuthNotice();
+        expect(rememberNotice('logout')).toBe('logout');
+        reportAuthError(new ReauthRequiredError('x'));
+        stop();
+        expect(seen).toEqual([undefined, 'reauth', 'wiped', 'wiped', 'wiped', 'logout']);
     });
 });

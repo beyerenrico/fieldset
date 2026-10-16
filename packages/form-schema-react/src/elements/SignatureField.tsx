@@ -1,6 +1,6 @@
 /** signature: captured drawing uploaded as PNG plus signer name and timestamp. */
-import type { ElementNode, JsonValue } from '@form-schema-app/form-schema-js';
-import { useState, type ReactElement } from 'react';
+import type { ElementNode, JsonObject, JsonValue } from '@form-schema-app/form-schema-js';
+import { useRef, useState, type ReactElement } from 'react';
 import { isJsonObject, type DataPath } from '../data/path.ts';
 import { formatDateTime } from '../format/intl.ts';
 import { nowRfc3339 } from '../format/datetime.ts';
@@ -43,27 +43,45 @@ export function SignatureField({
     const [busy, setBusy] = useState(false);
     const [failure, setFailure] = useState<string | null>(null);
     const [localUrl, setLocalUrl] = useState<string | null>(null);
+    /** Guards against a second confirm before the busy state rendered (double tap). */
+    const running = useRef(false);
 
-    const confirm = async (blob: Blob, signerName: string): Promise<void> => {
+    /** Uploads the PNG and returns the field value. */
+    const save = async (blob: Blob, signerName: string): Promise<JsonObject> => {
+        const png = blob.type === 'image/png' ? blob : new Blob([blob], { type: 'image/png' });
+        const info = await attachments.upload({
+            file: png,
+            fileName: 'signature.png',
+            kind: 'signature',
+            elementKey: node.key,
+            pointer: field.pointer,
+        });
+        setLocalUrl(info.url ?? null);
+        return { attachment: info.id, signerName, signedAt: nowRfc3339() };
+    };
+
+    const confirm = async (encoding: Promise<Blob | null>, signerName: string): Promise<void> => {
+        if (running.current) {
+            return;
+        }
+        running.current = true;
+        const edit = field.context.startEdit(field.path);
         setBusy(true);
         setFailure(null);
         try {
-            const png = blob.type === 'image/png' ? blob : new Blob([blob], { type: 'image/png' });
-            const info = await attachments.upload({
-                file: png,
-                fileName: 'signature.png',
-                kind: 'signature',
-                elementKey: node.key,
-                pointer: field.pointer,
-            });
-            setLocalUrl(info.url ?? null);
-            field.setValue({ attachment: info.id, signerName, signedAt: nowRfc3339() });
-            setEditing(false);
+            const blob = await encoding;
+            if (blob !== null) {
+                const value = await save(blob, signerName);
+                edit.update(() => value);
+                setEditing(false);
+            }
         } catch (error: unknown) {
             setFailure(uploadErrorText(error, messages.uploadFailed));
         } finally {
+            running.current = false;
             setBusy(false);
             field.touch();
+            edit.finish();
         }
     };
 
@@ -107,8 +125,8 @@ export function SignatureField({
                         current?.signerName ?? signerNameDefault(node, base, field.context)
                     }
                     busy={busy}
-                    onConfirm={(blob, name) => {
-                        void confirm(blob, name);
+                    onConfirm={(encoding, name) => {
+                        void confirm(encoding, name);
                     }}
                 />
             )}

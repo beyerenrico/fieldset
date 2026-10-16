@@ -3,6 +3,7 @@ import { getRouteApi, Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { ConflictPanel } from '../components/ConflictPanel.tsx';
 import { SaveIndicator } from '../components/SaveIndicator.tsx';
+import { UploadsHint } from '../components/UploadsHint.tsx';
 import { Alert } from '../components/ui/alert.tsx';
 import { Button } from '../components/ui/button.tsx';
 import { useDraftEditor } from '../hooks/useDraftEditor.ts';
@@ -26,6 +27,7 @@ function ReviewForm({
     const editor = useDraftEditor(uuid, submission, version);
     const { busy, problem, showErrors, submit } = useSubmit(uuid, version, editor);
     const { snapshot } = editor;
+    const uploading = editor.pendingWork > 0;
 
     return (
         <div className="flex flex-col gap-3">
@@ -54,6 +56,7 @@ function ReviewForm({
                     {t(problem)}
                 </Alert>
             )}
+            <UploadsHint visible={uploading} />
             <FormRenderer
                 definition={version.definition}
                 data={editor.data}
@@ -66,11 +69,16 @@ function ReviewForm({
                 readOnly
                 readOnlyExcept={['signature']}
                 showErrors={showErrors}
+                onAsyncWork={editor.onAsyncWork}
                 primaryAction={{
                     label: busy ? t('review.submitting') : t('review.submit'),
                     onClick: () => void submit(),
                     busy,
-                    disabled: busy || snapshot.state === 'conflict' || snapshot.state === 'locked',
+                    disabled:
+                        busy ||
+                        uploading ||
+                        snapshot.state === 'conflict' ||
+                        snapshot.state === 'locked',
                 }}
             />
         </div>

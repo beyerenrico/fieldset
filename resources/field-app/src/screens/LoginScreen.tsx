@@ -4,6 +4,8 @@ import { useState, type ReactNode } from 'react';
 import { Alert } from '../components/ui/alert.tsx';
 import { useT } from '../i18n/I18nProvider.tsx';
 import { ensureDeviceRegistered } from '../lib/device/register.ts';
+import { disposeDraftSessions } from '../lib/drafts/draft-session.ts';
+import { resetAuthNotice } from '../lib/session/auth-events.ts';
 import { CredentialsForm } from './login/CredentialsForm.tsx';
 import { TwoFactorForm } from './login/TwoFactorForm.tsx';
 
@@ -23,7 +25,10 @@ export function LoginScreen(): ReactNode {
             // Login still works; device-status recovery is unavailable until the next login.
             console.warn('Device registration failed', error);
         }
-        queryClient.removeQueries({ queryKey: ['me'] });
+        // Nothing cached or open from a previous session may reach this user.
+        resetAuthNotice();
+        disposeDraftSessions();
+        queryClient.clear();
         await navigate({ to: '/' });
     };
 

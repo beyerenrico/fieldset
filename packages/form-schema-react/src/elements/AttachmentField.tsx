@@ -3,6 +3,7 @@ import type { ElementNode, JsonValue } from '@form-schema-app/form-schema-js';
 import { useEffect, useRef, useState, type ChangeEvent, type ReactElement } from 'react';
 import type { DataPath } from '../data/path.ts';
 import { compressImage } from '../media/compress-image.ts';
+import type { PendingEdit } from '../state/pending-edits.ts';
 import type { AttachmentInfo, AttachmentKind } from '../types.ts';
 import { attachmentIds, uploadErrorText } from './attachment-ids.ts';
 import { AttachmentList } from './AttachmentList.tsx';
@@ -59,7 +60,7 @@ function useUploader(field: FieldState, multiple: boolean) {
     const localUrl = useLocalUrls();
     const request = { kind, elementKey: field.node.key, pointer: field.pointer };
 
-    const uploadOne = async (file: File): Promise<void> => {
+    const uploadOne = async (file: File, edit: PendingEdit): Promise<void> => {
         const prepared =
             kind === 'photo'
                 ? await compressImage(file, file.name)
@@ -80,31 +81,40 @@ function useUploader(field: FieldState, multiple: boolean) {
         };
         setInfos((current) => new Map(current).set(info.id, stored));
         let replaced: string | undefined;
-        field.context.updateValue(field.path, (current: JsonValue | undefined) => {
+        const applied = edit.update((current: JsonValue | undefined) => {
             if (multiple) {
                 return [...attachmentIds(current), info.id];
             }
             replaced = attachmentIds(current)[0];
             return info.id;
         });
-        if (replaced !== undefined && replaced !== info.id) {
+        if (applied && replaced !== undefined && replaced !== info.id) {
             void attachments.remove?.(replaced, request);
         }
     };
 
     const upload = async (files: readonly File[]): Promise<void> => {
-        setFailure(null);
-        for (const file of files) {
-            setPending((count) => count + 1);
-            try {
-                await uploadOne(file);
-            } catch (error: unknown) {
-                setFailure(uploadErrorText(error, messages.uploadFailed));
-            } finally {
-                setPending((count) => count - 1);
-            }
+        if (files.length === 0) {
+            return;
         }
-        field.touch();
+        setFailure(null);
+        // One tracked edit per batch, started before compression (hosts wait for it).
+        const edit = field.context.startEdit(field.path);
+        try {
+            for (const file of files) {
+                setPending((count) => count + 1);
+                try {
+                    await uploadOne(file, edit);
+                } catch (error: unknown) {
+                    setFailure(uploadErrorText(error, messages.uploadFailed));
+                } finally {
+                    setPending((count) => count - 1);
+                }
+            }
+            field.touch();
+        } finally {
+            edit.finish();
+        }
     };
 
     const remove = (id: string): void => {

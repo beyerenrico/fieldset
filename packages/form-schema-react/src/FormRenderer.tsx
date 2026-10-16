@@ -4,12 +4,21 @@ import {
     type ElementNode,
     type EvaluationContext,
 } from '@form-schema-app/form-schema-js';
-import { useEffect, useId, useMemo, useState, type ReactElement } from 'react';
+import {
+    useEffect,
+    useId,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+    type ReactElement,
+} from 'react';
 import { RendererContext, type RendererContextValue } from './context.tsx';
 import { resolveMessages } from './i18n/messages.ts';
 import { ScrollLayout } from './layout/ScrollLayout.tsx';
 import { WizardLayout } from './layout/WizardLayout.tsx';
 import { collectErrors, firstByPointer } from './state/errors.ts';
+import { beginEdit, createPendingEdits } from './state/pending-edits.ts';
 import { createRevealRegistry } from './state/reveal.ts';
 import { useRendererState } from './state/useRendererState.ts';
 import { listInstances, visiblePageIndexes } from './structure/instances.ts';
@@ -48,8 +57,15 @@ export function FormRenderer(props: FormRendererProps): ReactElement {
         [props.uiLocale, locale, props.messages],
     );
     const [reveal] = useState(createRevealRegistry);
+    const [edits] = useState(createPendingEdits);
     const summaryFocusKey = useSummaryFocus(showErrors);
-    const { onEvaluate } = props;
+    const { onEvaluate, onAsyncWork } = props;
+    // Async completions write through the latest pipeline (definition or onChange may change).
+    const writer = useRef(state.updateExisting);
+
+    useLayoutEffect(() => {
+        writer.current = state.updateExisting;
+    }, [state.updateExisting]);
 
     useEffect(() => {
         onEvaluate?.(result);
@@ -86,6 +102,14 @@ export function FormRenderer(props: FormRendererProps): ReactElement {
         attachments,
         setValue: state.setValue,
         updateValue: state.updateValue,
+        startEdit: (path) =>
+            beginEdit(
+                edits,
+                path,
+                (target, updater) => writer.current(target, updater),
+                onAsyncWork,
+            ),
+        rowRemoved: edits.rowRemoved,
         touch: state.touch,
         visibleError: (pointer) =>
             externalErrors.get(pointer) ??

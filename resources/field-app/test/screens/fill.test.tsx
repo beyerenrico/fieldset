@@ -35,8 +35,7 @@ function setup(submission?: Parameters<typeof makeSubmission>[0]) {
     return backend;
 }
 
-const saveState = () =>
-    screen.getAllByRole('status').find((element) => element.dataset.state !== undefined);
+const saveState = () => document.querySelector<HTMLElement>('[data-state]');
 
 describe('fill screen', () => {
     it('creates the draft on the first autosave and updates with the revision', async () => {

@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
     ApiError,
     NetworkError,
@@ -157,5 +157,28 @@ describe('helpers', () => {
     it('reads and decodes cookies', () => {
         expect(readCookie('XSRF-TOKEN')).toBe('xsrf=token');
         expect(readCookie('missing')).toBeNull();
+    });
+});
+
+describe('keepalive', () => {
+    const okResponse = () => Response.json({ success: true, data: null, error: null, meta: null });
+
+    it('marks small bodies keepalive and leaves large ones (> 64 KiB) to a normal request', async () => {
+        const spy = vi
+            .spyOn(globalThis, 'fetch')
+            .mockImplementation(() => Promise.resolve(okResponse()));
+        await rawRequest('/api/v1/x', { method: 'PUT', body: { a: 1 }, keepalive: true });
+        await rawRequest('/api/v1/x', {
+            method: 'PUT',
+            body: { a: 'x'.repeat(70 * 1024) },
+            keepalive: true,
+        });
+        await rawRequest('/api/v1/x', { method: 'PUT', body: { a: 1 } });
+        expect(spy.mock.calls.map((call) => call[1]?.keepalive)).toEqual([
+            true,
+            undefined,
+            undefined,
+        ]);
+        spy.mockRestore();
     });
 });

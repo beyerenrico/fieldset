@@ -43,9 +43,10 @@ function definition(title: string, locale = 'en-GB'): Record<string, unknown> {
     return { specVersion: '1.0.0', key: 'demo', title, locale, pages: [] };
 }
 
-function send(data: unknown, origin = ORIGIN): void {
+/** In jsdom the preview is its own parent: messages from the builder come from `window`. */
+function send(data: unknown, origin = ORIGIN, source: MessageEventSource | null = window): void {
     act(() => {
-        window.dispatchEvent(new MessageEvent('message', { data, origin }));
+        window.dispatchEvent(new MessageEvent('message', { data, origin, source }));
     });
 }
 
@@ -65,7 +66,9 @@ describe('PreviewApp', () => {
     it('renders a definition sent from its own origin in preview mode', () => {
         setup();
         send({ type: PREVIEW_MESSAGE, definition: definition('Service report') });
-        expect(screen.getByRole('heading', { level: 1, name: 'Service report' })).toBeInTheDocument();
+        expect(
+            screen.getByRole('heading', { level: 1, name: 'Service report' }),
+        ).toBeInTheDocument();
         expect(screen.getByTestId('renderer-title')).toHaveTextContent('Service report');
         expect(screen.getByTestId('mode')).toHaveTextContent('preview');
         expect(screen.getByTestId('user')).toHaveTextContent('Max Mustermann');
@@ -77,6 +80,12 @@ describe('PreviewApp', () => {
         send({ type: PREVIEW_MESSAGE, definition: definition('Evil') }, 'https://evil.example');
         send({ type: 'something-else', definition: definition('Other') });
         send('plain string');
+        send({ type: PREVIEW_MESSAGE, definition: definition('Sibling') }, ORIGIN, null);
+        send(
+            { type: PREVIEW_MESSAGE, definition: definition('Port') },
+            ORIGIN,
+            new MessageChannel().port1,
+        );
         expect(screen.queryByRole('heading')).not.toBeInTheDocument();
         expect(screen.getByRole('status')).toHaveTextContent(previewTexts('en').waiting);
     });
@@ -130,6 +139,7 @@ describe('parsePreviewMessage', () => {
         const result = parsePreviewMessage(
             {
                 origin: ORIGIN,
+                source: window,
                 data: {
                     type: PREVIEW_MESSAGE,
                     definition: definition('X'),
@@ -138,6 +148,7 @@ describe('parsePreviewMessage', () => {
                 },
             },
             ORIGIN,
+            window,
         );
         expect(result).toEqual({
             kind: 'update',
@@ -151,10 +162,26 @@ describe('parsePreviewMessage', () => {
 
     it('ignores non-object data and context', () => {
         const result = parsePreviewMessage(
-            { origin: ORIGIN, data: { type: PREVIEW_MESSAGE, definition: definition('X'), data: [] } },
+            {
+                origin: ORIGIN,
+                source: window,
+                data: { type: PREVIEW_MESSAGE, definition: definition('X'), data: [] },
+            },
             ORIGIN,
+            window,
         );
         expect(result).toEqual({ kind: 'update', update: { definition: definition('X') } });
+    });
+
+    it('ignores same-origin messages that do not come from the parent window', () => {
+        const message = { type: PREVIEW_MESSAGE, definition: definition('X') };
+        const other = new MessageChannel().port1;
+        expect(
+            parsePreviewMessage({ origin: ORIGIN, source: other, data: message }, ORIGIN, window),
+        ).toEqual({ kind: 'ignore' });
+        expect(
+            parsePreviewMessage({ origin: ORIGIN, source: null, data: message }, ORIGIN, window),
+        ).toEqual({ kind: 'ignore' });
     });
 });
 

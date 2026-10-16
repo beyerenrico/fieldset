@@ -3,6 +3,7 @@ import { getRouteApi, Link, useNavigate } from '@tanstack/react-router';
 import { useState, type ReactNode } from 'react';
 import { ConflictPanel } from '../components/ConflictPanel.tsx';
 import { SaveIndicator } from '../components/SaveIndicator.tsx';
+import { UploadsHint } from '../components/UploadsHint.tsx';
 import { Alert } from '../components/ui/alert.tsx';
 import { Button } from '../components/ui/button.tsx';
 import { useDraftEditor } from '../hooks/useDraftEditor.ts';
@@ -28,9 +29,12 @@ export function FillForm({
     const [busy, setBusy] = useState(false);
     const [problem, setProblem] = useState<string | null>(null);
 
+    const uploading = editor.pendingWork > 0;
+
     const review = async (): Promise<void> => {
         setBusy(true);
         setProblem(null);
+        await editor.whenIdle();
         const result = await editor.controller.flush({ ensureCreated: true });
         setBusy(false);
         if (result.state === 'offline' || result.state === 'error' || result.revision === 0) {
@@ -72,6 +76,7 @@ export function FillForm({
                     {problem}
                 </Alert>
             )}
+            <UploadsHint visible={uploading} />
             <FormRenderer
                 definition={version.definition}
                 data={editor.data}
@@ -82,11 +87,12 @@ export function FillForm({
                 uiLocale={language}
                 readOnly={snapshot.state === 'locked'}
                 showErrors={editor.serverErrors.length > 0}
+                onAsyncWork={editor.onAsyncWork}
                 primaryAction={{
                     label: t('fill.review'),
                     onClick: () => void review(),
                     busy,
-                    disabled: busy || snapshot.state === 'locked',
+                    disabled: busy || uploading || snapshot.state === 'locked',
                 }}
             />
         </div>

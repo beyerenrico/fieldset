@@ -130,6 +130,42 @@ describe('review and submit', () => {
         expect(keys[1]).not.toBe(keys[0]);
     });
 
+    it('adopts an identical server copy on a submit conflict and submits again', async () => {
+        const backend = setup();
+        const same = makeSubmission({ uuid: UUID, revision: 4, data: { customer: 'ACME' } });
+        let attempt = 0;
+        server.use(
+            http.post('*/api/v1/submissions/:uuid/submit', async ({ request }) => {
+                backend.state.submits.push({
+                    uuid: UUID,
+                    key: request.headers.get('Idempotency-Key'),
+                    body: await request.json(),
+                });
+                attempt++;
+                return attempt === 1
+                    ? fail(409, 'revision_conflict', { submission: same })
+                    : HttpResponse.json({
+                          success: true,
+                          data: { submission: { ...same, status: 'submitted', number: 'N-1' } },
+                          error: null,
+                          meta: null,
+                      });
+            }),
+        );
+        const { user, history } = renderApp(`/fill/${UUID}/review`);
+        await screen.findByRole('heading', { name: 'Review and sign' });
+        await user.click(screen.getByRole('button', { name: 'Submit' }));
+        await waitFor(() => {
+            expect(history.location.pathname).toBe(`/app/submissions/${UUID}`);
+        });
+        expect(backend.state.submits.map((submit) => submit.body)).toEqual([
+            { revision: 3 },
+            { revision: 4 },
+        ]);
+        expect(backend.state.submits[1]?.key).not.toBe(backend.state.submits[0]?.key);
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    });
+
     it('opens the conflict panel on a submit revision_conflict', async () => {
         setup();
         const server_copy = makeSubmission({

@@ -1,4 +1,4 @@
-/** Submit flow (§9.2): flush, client validation, Idempotency-Key, server error handling. */
+/** Submit flow (§9.2): wait for uploads, flush, client validation, Idempotency-Key, errors. */
 import { evaluate } from '@form-schema-app/form-schema-js';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
@@ -8,7 +8,8 @@ import type { DraftEditor } from '../../hooks/useDraftEditor.ts';
 import { submissionQueryOptions } from '../../hooks/queries.ts';
 import { submitSubmission } from '../../lib/api/endpoints.ts';
 import { ApiError, NetworkError, isConflict, validationDetails } from '../../lib/api/errors.ts';
-import type { FormVersion, Submission } from '../../lib/api/types.ts';
+import type { FormVersion } from '../../lib/api/types.ts';
+import { serverCopy } from '../../lib/autosave/server-copy.ts';
 import { reportAuthError } from '../../lib/session/auth-events.ts';
 import { clearIdempotencyKey, getIdempotencyKey } from '../../lib/submit/idempotency.ts';
 import { setSubmitErrors } from '../../lib/submit/error-store.ts';
@@ -29,11 +30,6 @@ export interface SubmitState {
     readonly submit: () => Promise<void>;
 }
 
-function serverCopy(error: ApiError): Submission | null {
-    const details = error.details as { submission?: Submission } | null;
-    return details?.submission ?? null;
-}
-
 export function useSubmit(uuid: string, version: FormVersion, editor: DraftEditor): SubmitState {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
@@ -48,12 +44,6 @@ export function useSubmit(uuid: string, version: FormVersion, editor: DraftEdito
             setShowErrors(true);
             return 'submitError.validation_failed';
         }
-        if (isConflict(error, 'revision_conflict')) {
-            const server = serverCopy(error);
-            if (server !== null) {
-                editor.controller.reportConflict(server);
-            }
-        }
         if (isConflict(error, 'idempotency_key_reused')) {
             clearIdempotencyKey(uuid, revision);
         }
@@ -67,33 +57,13 @@ export function useSubmit(uuid: string, version: FormVersion, editor: DraftEdito
         return 'submitError.unknown';
     };
 
-    const submit = async (): Promise<void> => {
-        setBusy(true);
-        setProblem(null);
-        const saved = await editor.controller.flush({ ensureCreated: true });
-        if (saved.state === 'conflict' || saved.state === 'locked') {
-            setProblem(
-                saved.state === 'locked'
-                    ? 'submitError.not_editable'
-                    : 'submitError.revision_conflict',
-            );
-            setBusy(false);
-            return;
-        }
-        if (saved.state === 'offline' || saved.state === 'error' || saved.revision === 0) {
-            setProblem('review.saveFirst');
-            setBusy(false);
-            return;
-        }
-        if (
-            evaluate(version.definition, editor.controller.data, editor.context).errors.length > 0
-        ) {
-            setShowErrors(true);
-            setProblem('review.fixErrors');
-            setBusy(false);
-            return;
-        }
-        const revision = saved.revision;
+    const fail = (key: MessageKey): void => {
+        setProblem(key);
+        setBusy(false);
+    };
+
+    /** Sends the submit; an identical server copy (lost response) is adopted and sent once more. */
+    const send = async (revision: number, retried: boolean): Promise<void> => {
         try {
             const result = await submitSubmission(
                 uuid,
@@ -111,9 +81,40 @@ export function useSubmit(uuid: string, version: FormVersion, editor: DraftEdito
                 search: { submitted: true },
             });
         } catch (error) {
-            setProblem(handleError(error, revision));
-            setBusy(false);
+            const server = serverCopy(error);
+            if (server !== null && !editor.controller.reportConflict(server) && !retried) {
+                await send(server.revision, true);
+                return;
+            }
+            fail(handleError(error, revision));
         }
+    };
+
+    const submit = async (): Promise<void> => {
+        setBusy(true);
+        setProblem(null);
+        await editor.whenIdle();
+        const saved = await editor.controller.flush({ ensureCreated: true });
+        if (saved.state === 'conflict' || saved.state === 'locked') {
+            fail(
+                saved.state === 'locked'
+                    ? 'submitError.not_editable'
+                    : 'submitError.revision_conflict',
+            );
+            return;
+        }
+        if (saved.state === 'offline' || saved.state === 'error' || saved.revision === 0) {
+            fail('review.saveFirst');
+            return;
+        }
+        if (
+            evaluate(version.definition, editor.controller.data, editor.context).errors.length > 0
+        ) {
+            setShowErrors(true);
+            fail('review.fixErrors');
+            return;
+        }
+        await send(saved.revision, false);
     };
 
     return { busy, problem, showErrors, submit };

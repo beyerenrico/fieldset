@@ -1,14 +1,20 @@
-/** Shared state of the fill and review screens: data, autosave, context, attachments. */
+/** Shared state of the fill and review screens: data, autosave, context, attachments, uploads. */
 import type { EvaluationContext, JsonObject } from '@form-schema-app/form-schema-js';
 import type { AttachmentAdapter } from '@form-schema-app/form-schema-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
 import { useT, type Translate } from '../i18n/I18nProvider.tsx';
 import type { ValidationDetail } from '../lib/api/errors.ts';
 import type { AttachmentRecord, FormVersion, Submission } from '../lib/api/types.ts';
 import type { AutosaveController } from '../lib/autosave/controller.ts';
 import type { AutosaveSnapshot } from '../lib/autosave/types.ts';
-import { useAutosave } from '../lib/autosave/useAutosave.ts';
+import {
+    openDraftSession,
+    retainDraftSession,
+    type DraftSession,
+    type DraftSessionInit,
+} from '../lib/drafts/draft-session.ts';
+import { reportAuthError } from '../lib/session/auth-events.ts';
 import { buildEvaluationContext } from '../lib/session/eval-context.ts';
 import {
     getSubmitErrors,
@@ -28,6 +34,12 @@ export interface DraftEditor {
     readonly attachments: AttachmentAdapter;
     readonly serverErrors: readonly ValidationDetail[];
     readonly resolveConflict: (choice: 'mine' | 'server') => void;
+    /** Uploads, signatures and location captures still running (also from a left screen). */
+    readonly pendingWork: number;
+    /** Hand to the renderer's `onAsyncWork`. */
+    readonly onAsyncWork: (work: Promise<void>) => void;
+    /** Resolves once every pending edit has been written. */
+    readonly whenIdle: () => Promise<void>;
 }
 
 const NO_RECORDS: readonly AttachmentRecord[] = [];
@@ -39,6 +51,13 @@ export function uploadErrorText(t: Translate, code: string): string {
         : t('upload.failed');
 }
 
+/** The draft's session (shared with other screens), retained while mounted. */
+export function useDraftSession(init: DraftSessionInit): DraftSession {
+    const session = openDraftSession(init);
+    useEffect(() => retainDraftSession(session), [session]);
+    return session;
+}
+
 export function useDraftEditor(
     uuid: string,
     submission: Submission | null,
@@ -47,27 +66,28 @@ export function useDraftEditor(
     const t = useT();
     const queryClient = useQueryClient();
     const { me, organization } = useSession();
-    const initial = submission?.data ?? {};
-    const [data, setData] = useState<JsonObject>(initial);
-    const { controller, snapshot } = useAutosave({
+    const session = useDraftSession({
         uuid,
         formVersionId: version.id,
-        revision: submission?.revision ?? 0,
-        data: initial,
+        submission,
+        // Also after the screens are gone: reopening the draft starts from the saved copy.
+        onSaved: (saved) => {
+            queryClient.setQueryData(submissionQueryOptions(uuid).queryKey, saved);
+        },
+        onAuthLost: reportAuthError,
     });
+    const { controller, work } = session;
+    const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
+    const data = useSyncExternalStore(controller.subscribe, () => controller.data);
+    const pendingWork = useSyncExternalStore(work.subscribe, work.getPending);
     const serverErrors = useSyncExternalStore(subscribeSubmitErrors, () => getSubmitErrors(uuid));
     const context = useMemo(
         () => buildEvaluationContext(me, organization, version.version),
         [me, organization, version.version],
     );
 
-    useEffect(() => {
-        if (snapshot.submission !== null) {
-            queryClient.setQueryData(submissionQueryOptions(uuid).queryKey, snapshot.submission);
-        }
-    }, [queryClient, snapshot.submission, uuid]);
-
     const attachments = useApiAttachments({
+        adapter: session.attachments,
         submissionUuid: uuid,
         records: snapshot.submission?.attachments ?? submission?.attachments ?? NO_RECORDS,
         ensureSaved: async () => {
@@ -81,18 +101,22 @@ export function useDraftEditor(
 
     const onChange = useCallback(
         (next: JsonObject) => {
-            setData(next);
             controller.update(next);
             setSubmitErrors(uuid, []);
         },
         [controller, uuid],
     );
-
     const resolveConflict = useCallback(
         (choice: 'mine' | 'server') => {
-            setData(controller.resolveConflict(choice));
+            controller.resolveConflict(choice);
         },
         [controller],
+    );
+    const onAsyncWork = useCallback(
+        (pending: Promise<void>) => {
+            void work.track(pending);
+        },
+        [work],
     );
 
     return {
@@ -104,5 +128,8 @@ export function useDraftEditor(
         attachments,
         serverErrors,
         resolveConflict,
+        pendingWork,
+        onAsyncWork,
+        whenIdle: work.idle,
     };
 }

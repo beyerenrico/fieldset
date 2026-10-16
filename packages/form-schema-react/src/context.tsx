@@ -9,6 +9,7 @@ import type {
 import { createContext, useContext } from 'react';
 import type { DataPath } from './data/path.ts';
 import type { RendererMessages } from './i18n/messages.ts';
+import type { PendingEdit } from './state/pending-edits.ts';
 import type { RevealRegistry } from './state/reveal.ts';
 import type { AttachmentAdapter, FieldError, RendererMode } from './types.ts';
 
@@ -29,6 +30,13 @@ export interface RendererContextValue {
     readonly setValue: (path: DataPath, value: JsonValue | undefined) => void;
     /** Updates a value from the latest data (safe for async completions). */
     readonly updateValue: (path: DataPath, updater: ValueUpdater) => void;
+    /**
+     * Starts an asynchronous edit (upload, signature, location) of the value at `path`. Its
+     * `update` follows removed repeater rows and is dropped when the row is gone; always `finish`.
+     */
+    readonly startEdit: (path: DataPath) => PendingEdit;
+    /** A repeater removed row `index` of the list at `arrayPath` (shifts pending edits). */
+    readonly rowRemoved: (arrayPath: DataPath, index: number) => void;
     readonly touch: (pointer: string) => void;
     /** The error to display for a pointer (respects touched state and `showErrors`). */
     readonly visibleError: (pointer: string) => FieldError | undefined;

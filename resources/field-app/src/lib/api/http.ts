@@ -19,6 +19,8 @@ export interface RequestOptions {
     readonly recover?: boolean;
     /** `blob` returns the raw body (file downloads); errors are still parsed as JSON. */
     readonly responseType?: 'json' | 'blob';
+    /** Let the request outlive the page (page hide); only honoured for JSON bodies ≤ 64 KiB. */
+    readonly keepalive?: boolean;
 }
 
 export interface ApiResponse<T> {
@@ -29,6 +31,8 @@ export interface ApiResponse<T> {
 }
 
 const MUTATING = new Set<HttpMethod>(['POST', 'PUT', 'PATCH', 'DELETE']);
+/** Browsers reject keepalive requests whose (pending) bodies exceed 64 KiB. */
+const KEEPALIVE_LIMIT = 64 * 1024;
 
 export function readCookie(name: string): string | null {
     const match = document.cookie
@@ -155,6 +159,12 @@ export async function rawRequest<T>(
         init.body = options.formData;
     } else if (options.body !== undefined) {
         init.body = JSON.stringify(options.body);
+        if (
+            options.keepalive === true &&
+            new TextEncoder().encode(init.body).byteLength <= KEEPALIVE_LIMIT
+        ) {
+            init.keepalive = true;
+        }
     }
     let response: Response;
     try {

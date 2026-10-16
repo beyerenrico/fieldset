@@ -50,7 +50,7 @@ export function RepeaterTable({ node, path, count, actions }: RowsProps): ReactE
                         </tr>
                     )}
                     {indexes.map((index) => (
-                        <tr key={index} ref={measure} data-index={index}>
+                        <tr key={actions.keys[index] ?? index} ref={measure} data-index={index}>
                             <th scope="row" className="fsr-table__index">
                                 <span aria-hidden="true">{index + 1}</span>
                                 <span className="fsr-sr-only">

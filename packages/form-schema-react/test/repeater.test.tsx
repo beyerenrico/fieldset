@@ -27,6 +27,18 @@ describe('repeater cards', () => {
         expect(screen.getByRole('button', { name: 'Add item' })).toHaveFocus();
     });
 
+    it('focuses the add button after removing a row from a full repeater', async () => {
+        const { user, lastData } = renderForm(orderForm, {
+            items: [{ title: 'A' }, { title: 'B' }, { title: 'C' }],
+        });
+        const add = screen.getByRole('button', { name: 'Add item' });
+        expect(add).toBeDisabled();
+        await user.click(screen.getByRole('button', { name: 'Remove entry 2' }));
+        expect(lastData()['items']).toEqual([{ title: 'A' }, { title: 'C' }]);
+        expect(add).toBeEnabled();
+        expect(add).toHaveFocus();
+    });
+
     it('computes row-level calculations and aggregates live', async () => {
         const { user } = renderForm(orderForm, {
             items: [{ title: 'A', qty: '2', price: '1.50' }],

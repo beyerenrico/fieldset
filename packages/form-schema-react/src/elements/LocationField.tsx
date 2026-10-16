@@ -48,14 +48,17 @@ export function LocationField({
     const text = describe(field.value, locale, messages);
 
     const capture = async (): Promise<void> => {
+        const edit = field.context.startEdit(field.path);
         setStatus('locating');
         try {
-            field.setValue(await captureLocation());
+            const value = await captureLocation();
+            edit.update(() => value);
             setStatus('idle');
         } catch (error: unknown) {
             setStatus(error instanceof LocationError ? error.reason : 'unavailable');
         } finally {
             field.touch();
+            edit.finish();
         }
     };
     const failure =

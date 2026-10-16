@@ -2,11 +2,17 @@
 import type { AttachmentAdapter } from '@form-schema-app/form-schema-react';
 import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import type { AttachmentRecord } from '../lib/api/types.ts';
-import { createApiAttachmentAdapter, type UploadHandlers } from '../lib/attachments/api-adapter.ts';
+import {
+    createApiAttachmentAdapter,
+    type ApiAttachmentAdapter,
+    type UploadHandlers,
+} from '../lib/attachments/api-adapter.ts';
 
 export interface UseApiAttachmentsOptions extends UploadHandlers {
     readonly submissionUuid: string;
     readonly records: readonly AttachmentRecord[];
+    /** Adapter owned by a draft session (kept on unmount); otherwise one is created here. */
+    readonly adapter?: ApiAttachmentAdapter;
 }
 
 /** The adapter handed to the renderer; `version` changes when a preview URL appears. */
@@ -17,15 +23,15 @@ export interface VersionedAttachmentAdapter extends AttachmentAdapter {
 /**
  * One adapter per submission uuid (object URLs survive autosaves and re-renders). The returned
  * object changes identity when previews arrive, so the renderer re-renders and `get(id)` yields
- * the blob URL. Object URLs are revoked on unmount.
+ * the blob URL. Object URLs of an adapter created here are revoked on unmount.
  */
 export function useApiAttachments(options: UseApiAttachmentsOptions): VersionedAttachmentAdapter {
-    const { submissionUuid, records, ensureSaved, describeError } = options;
+    const { submissionUuid, records, ensureSaved, describeError, adapter: shared } = options;
     const adapter = useMemo(
-        () => createApiAttachmentAdapter({ submissionUuid, initial: [], ensureSaved }),
+        () => shared ?? createApiAttachmentAdapter({ submissionUuid, initial: [], ensureSaved }),
         // The handlers are refreshed below; a new adapter only for a new submission.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [submissionUuid],
+        [submissionUuid, shared],
     );
     useEffect(() => {
         adapter.setHandlers(
@@ -34,9 +40,11 @@ export function useApiAttachments(options: UseApiAttachmentsOptions): VersionedA
     }, [adapter, ensureSaved, describeError]);
     useEffect(
         () => () => {
-            adapter.dispose();
+            if (adapter !== shared) {
+                adapter.dispose();
+            }
         },
-        [adapter],
+        [adapter, shared],
     );
     useEffect(() => {
         adapter.merge(records);

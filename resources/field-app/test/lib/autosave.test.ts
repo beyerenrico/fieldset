@@ -120,7 +120,7 @@ describe('AutosaveController', () => {
         window.dispatchEvent(new Event('online'));
         await vi.advanceTimersByTimeAsync(0);
         expect(autosave.getSnapshot()).toMatchObject({ state: 'saved', revision: 1 });
-        autosave.stop();
+        void autosave.stop();
     });
 
     it('enters conflict on revision_conflict and resolves with "keep mine"', async () => {
@@ -218,6 +218,6 @@ describe('AutosaveController', () => {
         unsubscribe();
         autosave.acceptServer(makeSubmission({ revision: 4 }));
         expect(autosave.getSnapshot().revision).toBe(4);
-        autosave.stop();
+        void autosave.stop();
     });
 });

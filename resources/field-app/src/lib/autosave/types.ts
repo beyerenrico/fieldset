@@ -10,6 +10,8 @@ export interface SaveRequest {
     readonly data: JsonObject;
     /** 0 creates the draft. */
     readonly revision: number;
+    /** Final save while the page is being hidden: may outlive the page (fetch `keepalive`). */
+    readonly keepalive?: boolean;
 }
 
 /** Where drafts go. M2: `PUT /submissions/{uuid}`; M6: a Dexie outbox that syncs later. */
@@ -38,4 +40,12 @@ export interface AutosaveOptions {
     readonly debounceMs?: number;
     readonly retryMs?: number;
     readonly onAuthLost?: (error: unknown) => void;
+    /** Every server copy the controller accepts (successful saves, adopted lost responses). */
+    readonly onSaved?: (submission: Submission) => void;
+}
+
+export interface FlushOptions {
+    /** Forces a PUT when the draft does not exist on the server yet. */
+    readonly ensureCreated?: boolean;
+    readonly keepalive?: boolean;
 }

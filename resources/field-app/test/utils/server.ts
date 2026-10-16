@@ -1,6 +1,8 @@
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { afterAll, afterEach, beforeAll, beforeEach } from 'vitest';
+import { disposeDraftSessions } from '../../src/lib/drafts/draft-session.ts';
+import { resetAuthNotice } from '../../src/lib/session/auth-events.ts';
 import { reloadOrganizationId } from '../../src/lib/session/org-store.ts';
 import { wipeAll } from '../../src/lib/storage/kv.ts';
 
@@ -9,7 +11,7 @@ export const server = setupServer(
     http.get('*/sanctum/csrf-cookie', () => new HttpResponse(null, { status: 204 })),
 );
 
-/** MSW lifecycle + clean storage for every test. */
+/** MSW lifecycle + clean storage, auth notices and draft sessions for every test. */
 export function setupTestServer(): void {
     beforeAll(() => {
         server.listen({ onUnhandledFrame: 'error' });
@@ -19,6 +21,8 @@ export function setupTestServer(): void {
         sessionStorage.clear();
         await wipeAll();
         reloadOrganizationId();
+        resetAuthNotice();
+        disposeDraftSessions();
         document.cookie = 'XSRF-TOKEN=xsrf%3Dtoken; path=/';
     });
     afterEach(() => {

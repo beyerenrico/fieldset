@@ -1,6 +1,6 @@
 /** repeater: rows as cards (default) or a table; add/remove within minItems/maxItems. */
 import type { ElementNode, JsonValue } from '@form-schema-app/form-schema-js';
-import { useRef, type ReactElement } from 'react';
+import { useEffect, useRef, type ReactElement } from 'react';
 import { useRenderer } from '../context.tsx';
 import { getAt, pointerId, toPointer, type DataPath } from '../data/path.ts';
 import { errorMessage } from '../i18n/errors.ts';
@@ -8,6 +8,7 @@ import { RequiredMarker } from '../elements/Field.tsx';
 import { firstInput, rowCount } from '../structure/instances.ts';
 import { RepeaterCards } from './RepeaterCards.tsx';
 import { RepeaterTable } from './RepeaterTable.tsx';
+import { useRowKeys } from './useRowKeys.ts';
 
 function bound(node: ElementNode, key: 'minItems' | 'maxItems'): number | null {
     const value = node.raw[key];
@@ -21,6 +22,8 @@ function rowsOf(value: JsonValue | undefined): readonly JsonValue[] {
 export interface RowActions {
     readonly canRemove: boolean;
     readonly remove: (index: number) => void;
+    /** Stable React key per row index. */
+    readonly keys: readonly string[];
 }
 
 export function Repeater({
@@ -36,7 +39,10 @@ export function Repeater({
     const pointer = toPointer(path);
     const id = pointerId(context.idBase, pointer);
     const addButton = useRef<HTMLButtonElement>(null);
+    // After a removal "add" takes focus once the re-render enabled it (disabled at maxItems).
+    const focusAdd = useRef(false);
     const count = rowCount(getAt(context.data, path), getAt(context.result.data, path));
+    const rows = useRowKeys(count);
     const min = bound(node, 'minItems');
     const max = bound(node, 'maxItems');
     const disabled = context.isReadOnly(node, pointer);
@@ -53,15 +59,24 @@ export function Repeater({
             context.reveal.reveal(next, pointerId(context.idBase, next));
         }
     };
+    useEffect(() => {
+        if (focusAdd.current) {
+            focusAdd.current = false;
+            addButton.current?.focus();
+        }
+    });
     const actions: RowActions = {
         canRemove: !disabled && (min === null || count > min),
         remove: (index) => {
+            context.rowRemoved(path, index);
+            rows.drop(index);
             context.updateValue(path, (current) =>
                 rowsOf(current).filter((_, row) => row !== index),
             );
             context.touch(pointer);
-            addButton.current?.focus();
+            focusAdd.current = true;
         },
+        keys: rows.keys,
     };
     const table = node.raw['display'] === 'table';
     return (

@@ -7,7 +7,8 @@
     --fsr-color-primary: #1d4ed8;
     --fsr-color-primary-contrast: #ffffff;
     --fsr-color-danger: #b91c1c;
-    --fsr-color-focus: #f59e0b;
+    /* amber-700: 5.0:1 on white, 4.6:1 on the surface (WCAG 1.4.11 needs 3:1). */
+    --fsr-color-focus: #b45309;
     --fsr-radius: 0.5rem;
     --fsr-gap: 1rem;
     --fsr-control-height: 2.75rem;

@@ -22,21 +22,28 @@ function Icon({ state }: { readonly state: SaveState }): ReactNode {
     }
 }
 
+/** States worth interrupting for; routine saving progress is only shown, never announced. */
+const ANNOUNCED: ReadonlySet<SaveState> = new Set(['offline', 'error', 'conflict', 'locked']);
+
 export function SaveIndicator({ state }: { readonly state: SaveState }): ReactNode {
     const t = useT();
     const problem = state === 'error' || state === 'conflict' || state === 'locked';
+    const text = t(`save.${state}`);
     return (
-        <p
-            role="status"
-            aria-live="polite"
-            data-state={state}
-            className={cn(
-                'inline-flex items-center gap-1 text-sm font-semibold',
-                problem ? 'text-destructive' : 'text-muted-foreground',
-            )}
-        >
-            <Icon state={state} />
-            {t(`save.${state}`)}
-        </p>
+        <>
+            <p
+                data-state={state}
+                className={cn(
+                    'inline-flex items-center gap-1 text-sm font-semibold',
+                    problem ? 'text-destructive' : 'text-muted-foreground',
+                )}
+            >
+                <Icon state={state} />
+                {text}
+            </p>
+            <span role="status" className="sr-only">
+                {ANNOUNCED.has(state) ? text : null}
+            </span>
+        </>
     );
 }

@@ -30,15 +30,22 @@ function looksLikeDefinition(value: unknown): value is FormDefinition {
 }
 
 /**
- * Accepts only `{ type: 'form-schema-preview', definition, data?, context? }` sent from the
- * preview's own origin. Messages from other origins or of other types are ignored.
+ * Accepts only `{ type: 'form-schema-preview', definition, data?, context? }` sent by the parent
+ * window (the builder) from the preview's own origin. Messages from other origins, other windows
+ * of the same origin, or of other types are ignored.
  */
 export function parsePreviewMessage(
-    event: Pick<MessageEvent, 'origin' | 'data'>,
+    event: Pick<MessageEvent, 'origin' | 'data' | 'source'>,
     expectedOrigin: string,
+    expectedSource: MessageEventSource | null,
 ): PreviewParseResult {
     const message: unknown = event.data;
-    if (event.origin !== expectedOrigin || !isObject(message)) {
+    if (
+        event.origin !== expectedOrigin ||
+        event.source === null ||
+        event.source !== expectedSource ||
+        !isObject(message)
+    ) {
         return { kind: 'ignore' };
     }
     if (message.type !== PREVIEW_MESSAGE) {
@@ -48,9 +55,7 @@ export function parsePreviewMessage(
         return { kind: 'invalid' };
     }
     const data = isObject(message.data) ? (message.data as JsonObject) : undefined;
-    const context = isObject(message.context)
-        ? (message.context as EvaluationContext)
-        : undefined;
+    const context = isObject(message.context) ? (message.context as EvaluationContext) : undefined;
     return {
         kind: 'update',
         update: {

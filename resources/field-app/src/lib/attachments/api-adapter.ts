@@ -37,6 +37,8 @@ export interface ApiAttachmentAdapterOptions extends UploadHandlers {
     readonly initial: readonly AttachmentRecord[];
     /** Parallel preview downloads (default 3). */
     readonly concurrency?: number;
+    /** Registers every upload while it runs (saves and submits wait for them). */
+    readonly track?: <T>(work: Promise<T>) => Promise<T>;
 }
 
 export interface ApiAttachmentAdapter extends AttachmentAdapter {
@@ -120,30 +122,33 @@ export function createApiAttachmentAdapter(
 
     merge(options.initial);
 
-    return {
-        async upload(request: AttachmentUpload): Promise<AttachmentInfo> {
-            await handlers.ensureSaved();
-            let record: AttachmentRecord;
-            try {
-                record = await uploadAttachment(options.submissionUuid, {
-                    file: request.file,
-                    fileName: request.fileName,
-                    attachmentUuid: newId(),
-                    kind: request.kind,
-                    elementKey: request.elementKey,
-                });
-            } catch (error) {
-                if (error instanceof ApiError && error.status === 422) {
-                    const text = handlers.describeError?.(error.code) ?? error.message;
-                    throw new AttachmentUploadError(error.code, text);
-                }
-                throw error;
+    const upload = async (request: AttachmentUpload): Promise<AttachmentInfo> => {
+        await handlers.ensureSaved();
+        let record: AttachmentRecord;
+        try {
+            record = await uploadAttachment(options.submissionUuid, {
+                file: request.file,
+                fileName: request.fileName,
+                attachmentUuid: newId(),
+                kind: request.kind,
+                elementKey: request.elementKey,
+            });
+        } catch (error) {
+            if (error instanceof ApiError && error.status === 422) {
+                const text = handlers.describeError?.(error.code) ?? error.message;
+                throw new AttachmentUploadError(error.code, text);
             }
-            const info: AttachmentInfo = { ...fromRecord(record), fileName: request.fileName };
-            infos.set(info.id, info);
-            const url = setUrl(info.id, request.file);
-            return url === undefined ? info : { ...info, url };
-        },
+            throw error;
+        }
+        const info: AttachmentInfo = { ...fromRecord(record), fileName: request.fileName };
+        infos.set(info.id, info);
+        const url = setUrl(info.id, request.file);
+        return url === undefined ? info : { ...info, url };
+    };
+    const track = options.track ?? (<T>(work: Promise<T>): Promise<T> => work);
+
+    return {
+        upload: (request: AttachmentUpload): Promise<AttachmentInfo> => track(upload(request)),
         get(id: string): AttachmentInfo | undefined {
             const info = infos.get(id);
             const url = urls.get(id);

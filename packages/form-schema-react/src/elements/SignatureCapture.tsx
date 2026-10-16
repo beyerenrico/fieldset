@@ -7,7 +7,8 @@ export interface SignatureCaptureProps {
     readonly field: FieldState;
     readonly initialName: string;
     readonly busy: boolean;
-    readonly onConfirm: (blob: Blob, signerName: string) => void;
+    /** Receives the PNG encoding still in progress, so the parent turns busy in the same tap. */
+    readonly onConfirm: (encoding: Promise<Blob | null>, signerName: string) => void;
 }
 
 export function SignatureCapture({
@@ -41,10 +42,9 @@ export function SignatureCapture({
         pad.current?.clear();
         setHasStrokes(false);
     };
-    const confirm = async (): Promise<void> => {
-        const blob = await pad.current?.toBlob();
-        if (blob !== null && blob !== undefined) {
-            onConfirm(blob, name.trim());
+    const confirm = (): void => {
+        if (pad.current !== null) {
+            onConfirm(pad.current.toBlob(), name.trim());
         }
     };
     const ready = hasStrokes && name.trim() !== '' && !busy;
@@ -81,9 +81,7 @@ export function SignatureCapture({
                     type="button"
                     className="fsr-button fsr-button--primary"
                     disabled={!ready}
-                    onClick={() => {
-                        void confirm();
-                    }}
+                    onClick={confirm}
                 >
                     {messages.confirmSignature}
                 </button>

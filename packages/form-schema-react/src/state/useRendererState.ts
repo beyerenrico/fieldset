@@ -17,8 +17,21 @@ export interface RendererState {
     readonly touched: ReadonlySet<string>;
     readonly setValue: (path: DataPath, value: JsonValue | undefined) => void;
     readonly updateValue: (path: DataPath, updater: ValueUpdater) => void;
+    /** Like `updateValue`, but never creates repeater rows; `false` when a row is missing. */
+    readonly updateExisting: (path: DataPath, updater: ValueUpdater) => boolean;
     readonly touch: (pointer: string) => void;
     readonly touchAll: (pointers: Iterable<string>) => void;
+}
+
+/** True when every repeater row along `path` exists in `data`. */
+export function rowsExist(data: JsonObject, path: DataPath): boolean {
+    return path.every((segment, position) => {
+        if (typeof segment !== 'number') {
+            return true;
+        }
+        const rows = getAt(data, path.slice(0, position));
+        return Array.isArray(rows) && segment < rows.length;
+    });
 }
 
 export function useRendererState(
@@ -35,18 +48,32 @@ export function useRendererState(
         latest.current = { data, result };
     }, [data, result]);
 
-    const updateValue = useCallback(
-        (path: DataPath, updater: ValueUpdater): void => {
+    const apply = useCallback(
+        (path: DataPath, updater: ValueUpdater, existingOnly: boolean): boolean => {
             const current = latest.current;
             const base = materializeDefaults(model, current.data, current.result.data);
+            if (existingOnly && !rowsExist(base, path)) {
+                return false;
+            }
             const next = setAt(base, path, updater(getAt(base, path)));
             const nextResult = evaluateCached(model, next, context);
             const out = materializeDefaults(model, next, nextResult.data);
             remember(out, { model, context, result: nextResult });
             latest.current = { data: out, result: nextResult };
             onChange?.(out, nextResult);
+            return true;
         },
         [model, context, onChange],
+    );
+    const updateValue = useCallback(
+        (path: DataPath, updater: ValueUpdater): void => {
+            apply(path, updater, false);
+        },
+        [apply],
+    );
+    const updateExisting = useCallback(
+        (path: DataPath, updater: ValueUpdater): boolean => apply(path, updater, true),
+        [apply],
     );
     const setValue = useCallback(
         (path: DataPath, value: JsonValue | undefined): void => {
@@ -68,5 +95,5 @@ export function useRendererState(
             return next.size === previous.size ? previous : next;
         });
     }, []);
-    return { result, touched, setValue, updateValue, touch, touchAll };
+    return { result, touched, setValue, updateValue, updateExisting, touch, touchAll };
 }

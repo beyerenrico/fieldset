@@ -11,6 +11,8 @@ export interface PreviewAppProps {
     readonly target?: Pick<Window, 'postMessage'>;
     /** The only origin accepted for incoming messages; defaults to the preview's own origin. */
     readonly origin?: string;
+    /** The only window accepted as sender; defaults to `window.parent` (the builder). */
+    readonly source?: MessageEventSource;
 }
 
 const EMPTY: JsonObject = {};
@@ -22,6 +24,7 @@ const EMPTY: JsonObject = {};
 export function PreviewApp({
     target = window.parent,
     origin = window.location.origin,
+    source = window.parent,
 }: PreviewAppProps): ReactElement {
     const [update, setUpdate] = useState<PreviewUpdate | null>(null);
     const [invalid, setInvalid] = useState(false);
@@ -38,7 +41,7 @@ export function PreviewApp({
 
     useEffect(() => {
         const onMessage = (event: MessageEvent): void => {
-            const parsed = parsePreviewMessage(event, origin);
+            const parsed = parsePreviewMessage(event, origin, source);
             if (parsed.kind === 'ignore') {
                 return;
             }
@@ -55,7 +58,7 @@ export function PreviewApp({
         return () => {
             window.removeEventListener('message', onMessage);
         };
-    }, [origin, target]);
+    }, [origin, source, target]);
 
     const definition = update?.definition;
     const locale = definition?.locale ?? navigator.language;

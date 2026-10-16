@@ -146,6 +146,12 @@
     background: var(--fsr-color-bg);
 }
 
+/* WCAG 2.4.11: fields scrolled into view on focus stay clear of the sticky footer (~70 px). The
+   window is the scroller in both hosts (Field App, builder preview). */
+html:has(.fsr-footer) {
+    scroll-padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
+}
+
 .fsr-footer__primary {
     flex: 1 1 auto;
     max-width: 24em;
@@ -170,8 +176,9 @@
 }
 
 .fsr-summary__list a {
-    display: inline-block;
-    min-height: 2em;
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--fsr-control-height);
     color: var(--fsr-color-danger);
     font-weight: 600;
 }

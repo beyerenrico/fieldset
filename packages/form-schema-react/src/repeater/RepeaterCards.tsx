@@ -31,7 +31,12 @@ export function RepeaterCards({ node, path, count, actions }: RowsProps): ReactE
             {indexes.map((index) => {
                 const label = rowLabel(node, index, messages);
                 return (
-                    <li key={index} ref={measure} data-index={index} className="fsr-cards__item">
+                    <li
+                        key={actions.keys[index] ?? index}
+                        ref={measure}
+                        data-index={index}
+                        className="fsr-cards__item"
+                    >
                         <fieldset className="fsr-card">
                             <legend className="fsr-card__title">{label}</legend>
                             <div className="fsr-stack">

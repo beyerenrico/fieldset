@@ -9,6 +9,7 @@ import { Label } from '../components/ui/label.tsx';
 import { useSession } from '../hooks/useSession.ts';
 import { useI18n, type Language } from '../i18n/I18nProvider.tsx';
 import { logout } from '../lib/api/endpoints.ts';
+import { rememberNotice } from '../lib/session/auth-events.ts';
 import { clearLocalData } from '../lib/session/local-data.ts';
 import { setOrganizationId } from '../lib/session/org-store.ts';
 
@@ -31,7 +32,7 @@ function LogoutCard(): ReactNode {
         }
         await clearLocalData({ keepDeviceId: true });
         queryClient.clear();
-        await navigate({ to: '/login', search: { notice: 'logout' } });
+        await navigate({ to: '/login', search: { notice: rememberNotice('logout') ?? 'logout' } });
     };
 
     if (!confirming) {

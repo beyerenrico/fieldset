@@ -5,6 +5,8 @@ export default defineConfig({
         environment: 'jsdom',
         include: ['test/**/*.test.{ts,tsx}'],
         setupFiles: ['test/setup.ts'],
+        // Style tests read the stylesheets as text (`?raw`); Vitest blanks unprocessed CSS.
+        css: { include: [/\/src\/styles\/.+\.css/] },
         // Date-time tests assert device offsets; pin the zone so CI (UTC) matches.
         env: { TZ: 'Europe/Berlin' },
         coverage: {

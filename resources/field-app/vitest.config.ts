@@ -9,6 +9,8 @@ export default defineConfig({
         environmentOptions: { jsdom: { url: 'http://localhost:3000/app/' } },
         include: ['test/**/*.test.{ts,tsx}'],
         setupFiles: ['test/setup.ts'],
+        // Style tests read the stylesheet as text (`?raw`); Vitest blanks unprocessed CSS.
+        css: { include: [/\/src\/styles\/.+\.css/] },
         coverage: {
             provider: 'v8',
             include: ['src/**/*.{ts,tsx}'],

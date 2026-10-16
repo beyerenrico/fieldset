@@ -52,7 +52,12 @@ const definition = {
 function send(message: unknown): void {
     act(() => {
         window.dispatchEvent(
-            new MessageEvent('message', { data: message, origin: window.location.origin }),
+            // The builder is the parent window (in jsdom the preview is its own parent).
+            new MessageEvent('message', {
+                data: message,
+                origin: window.location.origin,
+                source: window,
+            }),
         );
     });
 }
