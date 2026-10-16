@@ -6,6 +6,7 @@ namespace App\Policies;
 
 use App\Domain\Identity\Enums\Permission;
 use App\Domain\Identity\Models\User;
+use App\Domain\Mail\CustomerSend\CustomerSendGate;
 use App\Domain\Submissions\Models\Submission;
 use App\Domain\Submissions\Support\SubmissionVisibility;
 
@@ -32,6 +33,12 @@ final class SubmissionPolicy extends TenantPolicy
     public function update(User $user, Submission $submission): bool
     {
         return $this->owns($submission) && $submission->created_by === $user->id && $submission->status->isEditable();
+    }
+
+    /** "Send to customer" (§9.2): same rules as POST /submissions/{uuid}/send, admin inbox included. */
+    public function sendToCustomer(User $user, Submission $submission): bool
+    {
+        return $this->view($user, $submission) && CustomerSendGate::allows($user, $submission);
     }
 
     public function delete(User $user, Submission $submission): bool

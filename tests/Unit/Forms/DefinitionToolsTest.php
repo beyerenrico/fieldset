@@ -90,3 +90,25 @@ it('rewrites signerNameFrom, ignores empty rename maps and non-path var argument
     KeyRewriter::element($element, ['customer' => 'customer_copy']);
     expect($element->signerNameFrom)->toBe('customer_copy')->and(Json::encode($element->visibleIf))->toBe('{"var":1}');
 });
+
+it('finds the key of a role in the top-level scope through sections and columns, never inside repeaters', function (): void {
+    $definition = Json::decode(json_encode(['pages' => [
+        ['elements' => [
+            ['type' => 'repeater', 'key' => 'contacts', 'elements' => [['type' => 'email', 'key' => 'row_email', 'role' => 'customer.email']]],
+        ]],
+        ['elements' => [
+            ['type' => 'section', 'key' => 's', 'elements' => [
+                ['type' => 'columns', 'key' => 'c', 'columns' => [
+                    ['elements' => [['type' => 'text', 'key' => 'name', 'role' => 'customer.name']]],
+                    ['elements' => [['type' => 'email', 'key' => 'mail', 'role' => 'customer.email']]],
+                ]],
+            ]],
+            ['type' => 'email', 'key' => 'second_mail', 'role' => 'customer.email'],
+        ]],
+    ]]));
+
+    expect(DefinitionTools::keyForRole($definition, 'customer.email'))->toBe('mail')
+        ->and(DefinitionTools::keyForRole($definition, 'customer.name'))->toBe('name')
+        ->and(DefinitionTools::keyForRole($definition, 'site.address'))->toBeNull()
+        ->and(DefinitionTools::keyForRole(new stdClass, 'customer.email'))->toBeNull();
+});

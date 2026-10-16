@@ -94,7 +94,7 @@ final readonly class SubmitSubmission
             throw new ApiException('not_editable', __('submissions.errors.not_editable'), 409);
         }
         if ($revision !== $submission->revision) {
-            throw new ApiException('revision_conflict', __('submissions.errors.revision_conflict'), 409, ['submission' => SubmissionPresenter::present($submission)]);
+            throw new ApiException('revision_conflict', __('submissions.errors.revision_conflict'), 409, ['submission' => SubmissionPresenter::present($submission, $user)]);
         }
         if ($submission->status === SubmissionStatus::Draft && $submission->formVersion->isRetired()) {
             throw new ApiException('version_retired', __('submissions.errors.version_retired'), 409);

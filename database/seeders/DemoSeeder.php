@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Domain\Documents\Branding\StoreLogo;
+use App\Domain\Documents\Branding\UpdateBranding;
+use App\Domain\Documents\Designs\DesignResolver;
 use App\Domain\Forms\Actions\CreateFormFromTemplate;
 use App\Domain\Forms\Actions\PublishForm;
 use App\Domain\Forms\Actions\SyncFormAccess;
@@ -18,8 +21,9 @@ use App\Domain\Identity\Tenancy\TenantContext;
 use Illuminate\Database\Seeder;
 
 /**
- * Demo organization with one user per persona. Password for every demo user: "password".
- * Never run in production (DatabaseSeeder guards this).
+ * Demo organization with one user per persona, branding (colors, company details, a generated logo),
+ * the default document design and a published service report with "send to customer" enabled.
+ * Password for every demo user: "password". Never run in production (DatabaseSeeder guards this).
  */
 final class DemoSeeder extends Seeder
 {
@@ -54,12 +58,52 @@ final class DemoSeeder extends Seeder
             $groups->handle($org, $user, $groupIds);
         }
 
-        // A published service report that the field crew may fill (demo for the Field App).
-        $tenant->run($org, function () use ($owner): void {
+        // A published service report that the field crew may fill (demo for the Field App). The template
+        // sets settings.sendToCustomer, so workers can email the PDF; the default design renders it.
+        $tenant->run($org, function () use ($org, $owner): void {
+            $this->brand($org);
+            app(DesignResolver::class)->defaultDesign();
             $form = app(CreateFormFromTemplate::class)->handle($owner, 'service_report');
             app(PublishForm::class)->handle($form, 'Erste Version', $owner);
             app(SyncFormAccess::class)->handle($form, [], ['field_worker'], $owner);
         });
+    }
+
+    /** Demo branding for PDFs and mails: colors, company details and a small generated logo. */
+    private function brand(Organization $org): void
+    {
+        app(UpdateBranding::class)->handle($org, [
+            'primary_color' => '#0f766e',
+            'accent_color' => '#d97706',
+            'font' => 'inter',
+            'logo_path' => app(StoreLogo::class)->handle($org, self::logoPng()),
+            'company' => [
+                'legal_name' => 'Demo Haustechnik GmbH',
+                'address' => "Musterstraße 12\n10115 Berlin",
+                'email' => 'service@demo.test',
+                'phone' => '+49 30 1234567',
+                'website' => 'https://demo.test',
+                'vat_id' => 'DE123456789',
+                'bank_name' => 'Demo Bank',
+                'iban' => 'DE02120300000000202051',
+                'bic' => 'BYLADEM1001',
+                'legal_footer' => 'Amtsgericht Berlin-Charlottenburg HRB 000000 · Geschäftsführung: Olivia Owner',
+            ],
+        ]);
+    }
+
+    /** A 360×96 PNG: teal badge with the initials "DH" (GD built-in font, no font files needed). */
+    public static function logoPng(): string
+    {
+        $image = imagecreatetruecolor(360, 96);
+        imagefill($image, 0, 0, (int) imagecolorallocate($image, 255, 255, 255));
+        imagefilledrectangle($image, 0, 0, 96, 95, (int) imagecolorallocate($image, 15, 118, 110));
+        imagestring($image, 5, 36, 40, 'DH', (int) imagecolorallocate($image, 255, 255, 255));
+        imagestring($image, 5, 112, 40, 'Demo Haustechnik', (int) imagecolorallocate($image, 15, 118, 110));
+        ob_start();
+        imagepng($image);
+
+        return (string) ob_get_clean();
     }
 
     private function user(string $email, string $name): User

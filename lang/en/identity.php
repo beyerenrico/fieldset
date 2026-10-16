@@ -100,11 +100,6 @@ return [
         'name' => 'Name',
         'locale' => 'Language',
         'timezone' => 'Time zone',
-        'company_details' => 'Company details',
-        'address' => 'Address',
-        'tax_id' => 'Tax ID',
-        'iban' => 'IBAN',
-        'bic' => 'BIC',
-        'legal_footer' => 'Legal footer',
+        'company_details_hint' => 'Address, tax and bank details and the legal footer are maintained on the Branding page.',
     ],
 ];

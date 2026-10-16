@@ -27,7 +27,7 @@ use Illuminate\Database\Eloquent\Model;
  * Admin submissions inbox (M3-T09, BUILD_PROMPT §8.12). Read-only until the review actions of M4.
  * Rows follow the §8.6 "View all submissions" row through SubmissionVisibility — the same rules as the
  * API: Owner/Admin/Viewer all; Designer the forms they created plus their own; Reviewer the members of
- * their submission-sharing groups plus their own (assignment arrives with M4 tasks).
+ * their submission-sharing groups plus their own (assignment arrives with M4 tasks). ADR 0030.
  */
 class SubmissionResource extends Resource
 {

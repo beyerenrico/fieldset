@@ -26,20 +26,21 @@ final class SubmissionController
     public function index(Request $request): JsonResponse
     {
         $request->validate(['status' => ['nullable', 'string', 'max:24'], 'form_id' => ['nullable', 'integer']]);
-        $page = $this->visibility->apply(Submission::query(), $this->user($request))
+        $user = $this->user($request);
+        $page = $this->visibility->apply(Submission::query(), $user)
             ->when($request->filled('status'), fn ($q) => $q->where('status', (string) $request->query('status')))
             ->when($request->filled('form_id'), fn ($q) => $q->where('form_id', (int) $request->query('form_id')))
             ->with(['attachments', 'formVersion'])->orderByDesc('updated_at')->paginate(50);
 
         return ApiResponse::ok(
-            collect($page->items())->map(fn (Submission $s): array => SubmissionPresenter::present($s))->all(),
+            collect($page->items())->map(fn (Submission $s): array => SubmissionPresenter::present($s, $user))->all(),
             ['current_page' => $page->currentPage(), 'last_page' => $page->lastPage(), 'total' => $page->total()],
         );
     }
 
     public function show(Request $request, string $uuid): JsonResponse
     {
-        return ApiResponse::ok(['submission' => SubmissionPresenter::present($this->visible($request, $uuid))]);
+        return ApiResponse::ok(['submission' => SubmissionPresenter::present($this->visible($request, $uuid), $this->user($request))]);
     }
 
     public function upsert(Request $request, string $uuid, SaveSubmissionDraft $save): JsonResponse
@@ -61,7 +62,7 @@ final class SubmissionController
             ($body->geo ?? null) instanceof stdClass ? $body->geo : null,
         );
 
-        return ApiResponse::ok(['submission' => SubmissionPresenter::present($submission->refresh())], null, $created ? 201 : 200);
+        return ApiResponse::ok(['submission' => SubmissionPresenter::present($submission->refresh(), $this->user($request))], null, $created ? 201 : 200);
     }
 
     public function submit(Request $request, string $uuid, SubmitSubmission $submit, TenantContext $tenant): JsonResponse
@@ -72,7 +73,7 @@ final class SubmissionController
 
         $submitted = $submit->handle($this->user($request), $organization, $submission, (int) $request->input('revision'));
 
-        return ApiResponse::ok(['submission' => SubmissionPresenter::present($submitted->refresh())]);
+        return ApiResponse::ok(['submission' => SubmissionPresenter::present($submitted->refresh(), $this->user($request))]);
     }
 
     private function visible(Request $request, string $uuid): Submission

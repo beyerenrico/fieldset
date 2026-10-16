@@ -57,6 +57,13 @@ final class ApiRouteCases
 
                 return ['GET', "/api/v1/submissions/{$rendition->submission_uuid}/document"];
             },
+            'api.submissions.send' => function (Organization $v): array {
+                $submission = self::victimSubmission($v);
+                app(TenantContext::class)->run($v, fn () => $submission->forceFill(['status' => 'submitted', 'number' => 'X-1'])->save());
+
+                return ['POST', "/api/v1/submissions/{$submission->uuid}/send", ['email' => 'victim@example.com'], 'attacker',
+                    ['Idempotency-Key' => (string) Str::uuid()]];
+            },
         ];
     }
 

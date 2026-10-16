@@ -6,6 +6,7 @@ namespace App\Filament\Admin\Resources\Submissions\Schemas;
 
 use App\Domain\Forms\Models\FormVersion;
 use App\Domain\Identity\Models\Organization;
+use App\Domain\Identity\Models\User;
 use App\Domain\Submissions\Admin\SubmissionDataPresenter;
 use App\Domain\Submissions\Admin\ValueFormatter;
 use App\Domain\Submissions\Enums\SubmissionStatus;
@@ -20,8 +21,8 @@ use Filament\Schemas\Components\View;
 use Filament\Schemas\Schema;
 
 /**
- * Detail view: header facts, the data with labels of the pinned form version, documents (filled by the
- * renditions work, M3-T04) and the status history.
+ * Detail view: header facts, the data with labels of the pinned form version, documents (renditions with
+ * download links and "send to customer" requests, M3-T04/T08) and the status history.
  */
 final class SubmissionInfolist
 {
@@ -45,9 +46,10 @@ final class SubmissionInfolist
             Section::make(__('inbox.detail.data'))->id('data')->schema([
                 View::make('filament.submissions.data')->viewData(fn (Submission $record): array => ['pages' => self::pages($record, $tz)]),
             ]),
-            // TODO(M3-T04): the renditions work fills this section (list, download, re-render).
             Section::make(__('inbox.detail.documents'))->id('documents')->schema([
-                View::make('filament.submissions.documents')->viewData(fn (Submission $record): array => ['submission' => $record]),
+                View::make('filament.submissions.documents')->viewData(fn (Submission $record): array => SubmissionDocuments::viewData(
+                    $record, auth()->user() instanceof User ? auth()->user() : null, $tz,
+                )),
             ]),
             Section::make(__('inbox.detail.events'))->id('events')->collapsible()->schema([
                 View::make('filament.submissions.events')->viewData(fn (Submission $record): array => [

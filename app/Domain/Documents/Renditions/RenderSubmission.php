@@ -6,6 +6,7 @@ namespace App\Domain\Documents\Renditions;
 
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Documents\Designs\DesignResolver;
+use App\Domain\Documents\Events\RenditionCreated;
 use App\Domain\Documents\Models\DesignVersion;
 use App\Domain\Documents\Models\Rendition;
 use App\Domain\Documents\Rendering\DocumentRenderer;
@@ -70,8 +71,18 @@ final readonly class RenderSubmission
             'rendition' => $rendition->uuid, 'reason' => $reason, 'design_version_id' => $designVersion->id,
             'form_version_id' => $submission->form_version_id, 'input_hash' => $rendition->input_hash, 'pages' => $rendition->page_count,
         ], $actor);
+        DB::afterCommit(fn () => event(new RenditionCreated($rendition->id, $submission->uuid, $submission->organization_id)));
 
         return $rendition;
+    }
+
+    /**
+     * Advisory lock id serializing rendition inserts of one submission. "Send to customer" takes it
+     * too, so a send request never misses a rendition committed at the same moment.
+     */
+    public static function lockId(string $submissionUuid): int
+    {
+        return crc32('renditions:'.$submissionUuid);
     }
 
     /**
@@ -83,7 +94,7 @@ final readonly class RenderSubmission
     private function persist(Submission $submission, DesignVersion $designVersion, RenderedDocument $document, array $file): Rendition
     {
         return DB::transaction(function () use ($submission, $designVersion, $document, $file): Rendition {
-            DB::select('select pg_advisory_xact_lock(?)', [crc32('renditions:'.$submission->uuid)]);
+            DB::select('select pg_advisory_xact_lock(?)', [self::lockId($submission->uuid)]);
             $latest = $this->latest($submission);
             if ($latest instanceof Rendition && $this->isDuplicate($file['reason'], $latest, $document->inputHash)) {
                 return $latest;

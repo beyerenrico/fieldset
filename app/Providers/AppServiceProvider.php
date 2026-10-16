@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Domain\Audit\Listeners\LogAuthEvents;
+use App\Domain\Documents\Events\RenditionCreated;
 use App\Domain\Documents\Renditions\QueueRenditionOnSubmit;
 use App\Domain\Identity\Enums\Permission;
 use App\Domain\Identity\Models\Group;
@@ -14,6 +15,7 @@ use App\Domain\Identity\Models\Role;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Support\OrganizationPermissions;
 use App\Domain\Identity\Tenancy\TenantContext;
+use App\Domain\Mail\Listeners\SendWaitingDocuments;
 use App\Domain\Submissions\Events\SubmissionSubmitted;
 use App\Domain\Submissions\Models\IdempotencyKey;
 use App\Domain\Submissions\Models\NumberSequence;
@@ -53,6 +55,7 @@ class AppServiceProvider extends ServiceProvider
 
         Event::subscribe(LogAuthEvents::class);
         Event::listen(SubmissionSubmitted::class, QueueRenditionOnSubmit::class);
+        Event::listen(RenditionCreated::class, SendWaitingDocuments::class);
 
         Gate::policy(Organization::class, OrganizationPolicy::class);
         Gate::policy(Group::class, GroupPolicy::class);

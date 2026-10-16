@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Api\V1\Controllers\AttachmentController;
+use App\Http\Api\V1\Controllers\CustomerSendController;
 use App\Http\Api\V1\Controllers\DeviceController;
 use App\Http\Api\V1\Controllers\DocumentController;
 use App\Http\Api\V1\Controllers\FormController;
@@ -39,5 +40,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
             ->middleware('throttle:120,1')->name('api.attachments.store');
         Route::get('submissions/{uuid}/attachments/{attachment}', [AttachmentController::class, 'show'])->name('api.attachments.show');
         Route::get('submissions/{uuid}/document', [DocumentController::class, 'show'])->name('api.submissions.document');
+        Route::post('submissions/{uuid}/send', [CustomerSendController::class, 'store'])
+            ->middleware([IdempotentRequest::class, 'throttle:30,1'])->name('api.submissions.send');
     });
 });

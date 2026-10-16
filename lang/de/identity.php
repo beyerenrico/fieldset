@@ -100,11 +100,6 @@ return [
         'name' => 'Name',
         'locale' => 'Sprache',
         'timezone' => 'Zeitzone',
-        'company_details' => 'Firmendaten',
-        'address' => 'Anschrift',
-        'tax_id' => 'Steuernummer / USt-IdNr.',
-        'iban' => 'IBAN',
-        'bic' => 'BIC',
-        'legal_footer' => 'Rechtlicher Fußtext',
+        'company_details_hint' => 'Anschrift, Steuer- und Bankdaten sowie die Fußzeile pflegen Sie auf der Seite „Branding“.',
     ],
 ];

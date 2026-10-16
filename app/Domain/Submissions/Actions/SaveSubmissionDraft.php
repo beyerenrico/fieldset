@@ -94,7 +94,7 @@ final readonly class SaveSubmissionDraft
             return $submission;
         }
         if ($revision !== $submission->revision) {
-            throw new ApiException('revision_conflict', __('submissions.errors.revision_conflict'), 409, ['submission' => SubmissionPresenter::present($submission)]);
+            throw new ApiException('revision_conflict', __('submissions.errors.revision_conflict'), 409, ['submission' => SubmissionPresenter::present($submission, $user)]);
         }
         if (! $submission->status->isEditable()) {
             throw new ApiException('not_editable', __('submissions.errors.not_editable'), 409);
