@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 
 /**
- * Status history row (§6.4). Append-only.
+ * Status history row (§6.4). Append-only: only the processing marker `workflows_processed_at` is set later.
  *
  * @property int $id
  * @property int $organization_id
@@ -25,6 +25,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $actor_id
  * @property string|null $comment
  * @property Carbon $created_at
+ * @property Carbon|null $workflows_processed_at processing marker of the workflow trigger job (ADR 0032)
  */
 #[UseFactory(SubmissionEventFactory::class)]
 #[Fillable(['submission_uuid', 'from_status', 'to_status', 'actor_id', 'comment'])]
@@ -41,7 +42,7 @@ class SubmissionEvent extends Model
 
     protected function casts(): array
     {
-        return ['created_at' => 'datetime'];
+        return ['created_at' => 'datetime', 'workflows_processed_at' => 'datetime'];
     }
 
     /** @return BelongsTo<User, $this> */

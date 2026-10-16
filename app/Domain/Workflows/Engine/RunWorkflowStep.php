@@ -53,7 +53,9 @@ final class RunWorkflowStep implements ShouldQueue
     /** @return list<object> */
     public function middleware(): array
     {
-        return [new WithoutOverlapping("workflow-step:{$this->runId}:{$this->stepIndex}")->releaseAfter(15)->expireAfter(120)];
+        // A duplicate of a step that is running right now is dropped, not released: releases count as
+        // attempts and could exhaust the tries. The running job (or the stalled-run sweep) finishes the step.
+        return [new WithoutOverlapping("workflow-step:{$this->runId}:{$this->stepIndex}")->dontRelease()->expireAfter(120)];
     }
 
     public function handle(TenantContext $tenant, WorkflowRunner $runner): void

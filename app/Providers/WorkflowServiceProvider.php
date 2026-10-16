@@ -7,6 +7,7 @@ namespace App\Providers;
 use App\Domain\Forms\Events\FormPublished;
 use App\Domain\Submissions\Events\SubmissionStatusChanged;
 use App\Domain\Workflows\Console\WorkflowsTick;
+use App\Domain\Workflows\Tasks\Listeners\CancelReviewTasksOnStatusChange;
 use App\Domain\Workflows\Triggers\Listeners\StartWorkflowsOnFormPublished;
 use App\Domain\Workflows\Triggers\Listeners\StartWorkflowsOnStatusChange;
 use App\Support\Network\DnsHostResolver;
@@ -25,6 +26,7 @@ final class WorkflowServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        Event::listen(SubmissionStatusChanged::class, CancelReviewTasksOnStatusChange::class);
         Event::listen(SubmissionStatusChanged::class, StartWorkflowsOnStatusChange::class);
         Event::listen(FormPublished::class, StartWorkflowsOnFormPublished::class);
 

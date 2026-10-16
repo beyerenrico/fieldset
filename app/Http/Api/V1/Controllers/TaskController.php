@@ -21,7 +21,8 @@ use Illuminate\Validation\Rule;
 /**
  * Review tasks (M4, docs/api/field-app-v1.md): `GET /tasks` lists tasks assigned to the user or their
  * groups that they may complete; `POST /tasks/{id}/complete` (behind IdempotentRequest) approves or
- * rejects. Order of checks: not actionable → 404, invalid body → 422, already completed → 409.
+ * rejects. Order of checks: not assigned (or open but not actionable) → 404, invalid body → 422, completed or
+ * cancelled → 409 `task_closed`, run failed → 409 `review_blocked`.
  */
 final readonly class TaskController
 {
@@ -43,8 +44,8 @@ final readonly class TaskController
     public function complete(Request $request, string $id, CompleteReviewTask $complete): JsonResponse
     {
         $user = $this->user($request);
-        $task = ctype_digit($id) && strlen($id) < 19 ? $this->access->actionable(Task::query()->whereKey((int) $id), $user)->first() : null;
-        if (! $task instanceof Task) {
+        $task = ctype_digit($id) && strlen($id) < 19 ? $this->access->assigned(Task::query()->whereKey((int) $id), $user)->first() : null;
+        if (! $task instanceof Task || ($task->isOpen() && ! $this->access->canComplete($user, $task))) {
             throw new ApiException('not_found', __('api.not_found'), 404);
         }
         $request->validate([

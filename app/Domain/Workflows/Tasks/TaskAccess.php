@@ -17,7 +17,8 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Who may act on review tasks (§8.3, §8.6 "Review and approve"):
- *  - completing needs `submissions.review` or being the assignee user, and seeing the submission;
+ *  - completing needs `submissions.review` or being the assignee user, and seeing the submission (task-based
+ *    visibility needs `submissions.view_assigned` and an open task, ADR 0032: assignment alone grants nothing);
  *  - the API and "My tasks" list tasks assigned to the user or one of their groups that the user may
  *    complete (group members without `submissions.review` only see tasks assigned to them personally).
  */
@@ -55,23 +56,35 @@ final readonly class TaskAccess
     }
 
     /**
-     * Tasks assigned to the user or their groups that the user may complete.
+     * Tasks assigned to the user or their groups that the user may complete (or decided: completed tasks
+     * stay listed for the decider).
      *
      * @param  Builder<Task>  $query
      * @return Builder<Task>
      */
     public function actionable(Builder $query, User $user): Builder
     {
+        return $this->assigned($query, $user)
+            ->whereIn('submission_uuid', $this->visibility->apply(Submission::query(), $user)->select('uuid'));
+    }
+
+    /**
+     * Tasks assigned to the user, or to one of their groups when they hold `submissions.review` — whether or
+     * not they can still see the submission (the API answers 409 for closed ones instead of 404).
+     *
+     * @param  Builder<Task>  $query
+     * @return Builder<Task>
+     */
+    public function assigned(Builder $query, User $user): Builder
+    {
         $groupIds = $this->mayReview($user) ? $this->groupIds($user) : [];
 
-        return $query
-            ->where(function (Builder $q) use ($user, $groupIds): void {
-                $q->where('assignee_user_id', $user->id);
-                if ($groupIds !== []) {
-                    $q->orWhereIn('assignee_group_id', $groupIds);
-                }
-            })
-            ->whereIn('submission_uuid', $this->visibility->apply(Submission::query(), $user)->select('uuid'));
+        return $query->where(function (Builder $q) use ($user, $groupIds): void {
+            $q->where('assignee_user_id', $user->id);
+            if ($groupIds !== []) {
+                $q->orWhereIn('assignee_group_id', $groupIds);
+            }
+        });
     }
 
     /** The open task of a submission that is assigned to the user (or their group) and that they may complete (API `open_task_id`). */

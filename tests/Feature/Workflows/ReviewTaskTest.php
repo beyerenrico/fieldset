@@ -57,7 +57,8 @@ it('creates a review task for the group, sets in_review, notifies the group and 
         ->and($run->status)->toBe(RunStatus::Waiting)
         ->and($run->stepRuns->pluck('status')->all())->toBe([StepStatus::Waiting, StepStatus::Pending])
         ->and($this->notifier->recipientsOf(NotificationEvent::ReviewAssigned))->toBe([$this->reviewer->id])
-        ->and($this->notifier->sentFor(NotificationEvent::ReviewAssigned)[0]['message']->url)->toBe('/app/submissions/'.$submission->uuid);
+        // Reviewers have admin access, so the link opens the admin inbox detail (review U4).
+        ->and($this->notifier->sentFor(NotificationEvent::ReviewAssigned)[0]['message']->url)->toEndWith('/admin/'.$this->s->org->slug.'/submissions/'.$submission->uuid);
 });
 
 it('approves: submission approved, run continues and completes, submission completed, submitter notified', function (): void {
@@ -128,10 +129,10 @@ it('completes a task only once', function (): void {
 });
 
 it('lets reviewers (submissions.review) or the assignee user who can see the submission complete', function (): void {
-    $submission = W::submitted($this->s);
-    $task = W::task($this->s->org, $submission);
     $workerInGroup = memberOf($this->s->org, SystemRole::FieldWorker);
     $this->tenant->run($this->s->org, fn () => app(SyncMemberGroups::class)->handle($this->s->org, $workerInGroup, [$this->group->id]));
+    $submission = W::submitted($this->s);   // the worker is a group member when the review is requested
+    $task = W::task($this->s->org, $submission);
     $otherReviewer = W::reviewer($this->s->org);
     $access = fn (User $user): bool => $this->tenant->run($this->s->org, fn (): bool => app(TaskAccess::class)->canComplete($user, $task));
     $listed = fn (User $user): array => $this->tenant->run($this->s->org, fn (): array => app(TaskAccess::class)->actionable(Task::query(), $user)->pluck('id')->all());
@@ -142,10 +143,14 @@ it('lets reviewers (submissions.review) or the assignee user who can see the sub
         ->and($listed($this->s->owner))->toBe([])                       // but it is not assigned to them
         ->and($access($workerInGroup))->toBeFalse()                     // group member without submissions.review
         ->and($listed($workerInGroup))->toBe([])
+        ->and($this->notifier->recipientsOf(NotificationEvent::ReviewAssigned))->toBe([$this->reviewer->id])   // nor notified
         ->and($access($otherReviewer))->toBeFalse();                    // cannot see the submission
 
-    $this->tenant->run($this->s->org, fn () => $task->forceFill(['assignee_group_id' => null, 'assignee_user_id' => $workerInGroup->id])->save());
-    expect($access($workerInGroup))->toBeTrue()->and($listed($workerInGroup))->toBe([$task->id]);
+    // A personal assignment needs a view permission too (ADR 0032): view_assigned yes, a field worker no.
+    $this->tenant->run($this->s->org, fn () => $task->forceFill(['assignee_group_id' => null, 'assignee_user_id' => $otherReviewer->id])->save());
+    expect($access($otherReviewer))->toBeTrue()->and($listed($otherReviewer))->toBe([$task->id]);
+    $this->tenant->run($this->s->org, fn () => $task->forceFill(['assignee_user_id' => $workerInGroup->id])->save());
+    expect($access($workerInGroup))->toBeFalse()->and($listed($workerInGroup))->toBe([]);
 });
 
 it('lets assigned reviewers see the submission (ADR 0030 widening)', function (): void {

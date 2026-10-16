@@ -34,11 +34,32 @@ final class EnrichActivity extends LogActivityAction
         foreach (['properties', 'attribute_changes'] as $column) {
             $value = $activity->getAttribute($column);
             if ($value instanceof Collection) {
-                $activity->setAttribute($column, new Collection(Redactor::redact($value->all())));
+                $activity->setAttribute($column, new Collection(Redactor::redact($this->masked($activity, $column, $value->all()))));
             } elseif (is_array($value)) {
-                $activity->setAttribute($column, Redactor::redact($value));
+                $activity->setAttribute($column, Redactor::redact($this->masked($activity, $column, $value)));
             }
         }
+    }
+
+    /**
+     * Value masking of the subject (MasksAuditAttributes) for the attribute diff.
+     *
+     * @param  array<array-key, mixed>  $changes
+     * @return array<array-key, mixed>
+     */
+    private function masked(Model $activity, string $column, array $changes): array
+    {
+        $subject = $activity->getRelationValue('subject');
+        if ($column !== 'attribute_changes' || ! $subject instanceof MasksAuditAttributes) {
+            return $changes;
+        }
+        foreach (['attributes', 'old'] as $key) {
+            if (is_array($changes[$key] ?? null)) {
+                $changes[$key] = $subject->maskAuditAttributes($changes[$key]);
+            }
+        }
+
+        return $changes;
     }
 
     private function organizationId(Model $activity): ?int

@@ -24,7 +24,9 @@ use Illuminate\Validation\ValidationException;
  * submission becomes `approved` and the run continues (SubmissionApproved to the submitter). Reject
  * (comment required): `changes_requested` with the comment on the submission event, the run ends as
  * `rejected` and the submitter is notified (ChangesRequested); a resubmit starts a new run. A task is
- * completed once (409 `task_closed`). Authorization is the caller's job (TaskAccess).
+ * completed once (409 `task_closed`); a task whose submission left review or whose run ended is cancelled
+ * and answers `task_closed` too; a run that failed (or is being retried) answers 409 `review_blocked` and
+ * keeps the task open for after the retry (ADR 0032). Authorization is the caller's job (TaskAccess).
  */
 final readonly class CompleteReviewTask
 {
@@ -34,41 +36,74 @@ final readonly class CompleteReviewTask
         private TransitionSubmission $transition,
         private WorkflowRunner $runner,
         private WorkflowNotifications $notifications,
+        private CancelOpenReviewTasks $cancel,
     ) {}
 
     public function handle(Task $task, User $actor, TaskOutcome $outcome, ?string $comment): Task
     {
         $comment = $this->comment($outcome, $comment);
 
-        return DB::transaction(function () use ($task, $actor, $outcome, $comment): Task {
+        $result = DB::transaction(function () use ($task, $actor, $outcome, $comment): Task|ApiException {
             $locked = Task::query()->whereKey($task->id)->lockForUpdate()->firstOrFail();
             if (! $locked->isOpen()) {
-                throw new ApiException('task_closed', __('workflows.tasks.errors.closed'), 409);
+                throw $this->closed();
             }
             $submission = Submission::query()->whereKey($locked->submission_uuid)->lockForUpdate()->firstOrFail();
-            $locked->forceFill([
-                'status' => TaskStatus::Completed, 'outcome' => $outcome, 'comment' => $comment,
-                'completed_by' => $actor->id, 'completed_at' => now(),
-            ])->save();
-            $run = $locked->workflow_run_id === null ? null : WorkflowRun::query()->find($locked->workflow_run_id);
-            $output = ['task_id' => $locked->id, 'outcome' => $outcome->value, 'completed_by' => $actor->id];
-
-            if ($outcome === TaskOutcome::Approved) {
-                $this->transition->handle($submission, SubmissionStatus::Approved, $actor, $comment, 'submission.approved');
-                if ($run instanceof WorkflowRun) {
-                    $this->runner->resume($run, $output, __('workflows.log.approved', ['name' => $actor->name]));
-                }
-                DB::afterCommit(fn () => $this->notifications->approved($submission));
-            } else {
-                $this->transition->handle($submission, SubmissionStatus::ChangesRequested, $actor, $comment, 'submission.rejected');
-                if ($run instanceof WorkflowRun) {
-                    $this->runner->end($run, RunStatus::Rejected, $output, __('workflows.log.rejected', ['name' => $actor->name]));
-                }
-                DB::afterCommit(fn () => $this->notifications->changesRequested($submission, (string) $comment));
+            $run = $locked->workflow_run_id === null ? null : WorkflowRun::query()->whereKey($locked->workflow_run_id)->lockForUpdate()->first();
+            $problem = $this->problem($locked, $submission, $run);
+            if ($problem instanceof ApiException) {
+                return $problem;   // committed: a cancelled task stays cancelled
             }
+            $this->decide($locked, $submission, $run, $actor, $outcome, $comment);
 
             return $locked;
         });
+
+        return $result instanceof ApiException ? throw $result : $result;
+    }
+
+    /** Why the task cannot be decided now (cancelling it when it is moot), else null. */
+    private function problem(Task $task, Submission $submission, ?WorkflowRun $run): ?ApiException
+    {
+        $inReview = $submission->status === SubmissionStatus::InReview;
+        if ($inReview && (! $run instanceof WorkflowRun || $this->runner->isResumable($run))) {
+            return null;
+        }
+        if ($inReview && $run instanceof WorkflowRun && (! $run->status->isFinished() || $run->status === RunStatus::Failed)) {
+            throw new ApiException('review_blocked', __('workflows.tasks.errors.blocked'), 409);
+        }
+        $this->cancel->cancel($task, $submission->status);
+
+        return $this->closed();
+    }
+
+    private function decide(Task $task, Submission $submission, ?WorkflowRun $run, User $actor, TaskOutcome $outcome, ?string $comment): void
+    {
+        $task->forceFill([
+            'status' => TaskStatus::Completed, 'outcome' => $outcome, 'comment' => $comment,
+            'completed_by' => $actor->id, 'completed_at' => now(),
+        ])->save();
+        $output = ['task_id' => $task->id, 'outcome' => $outcome->value, 'completed_by' => $actor->id];
+
+        if ($outcome === TaskOutcome::Approved) {
+            $this->transition->handle($submission, SubmissionStatus::Approved, $actor, $comment, 'submission.approved');
+            if ($run instanceof WorkflowRun) {
+                $this->runner->resume($run, $output, __('workflows.log.approved', ['name' => $actor->name]));
+            }
+            DB::afterCommit(fn () => $this->notifications->approved($submission));
+
+            return;
+        }
+        $this->transition->handle($submission, SubmissionStatus::ChangesRequested, $actor, $comment, 'submission.rejected');
+        if ($run instanceof WorkflowRun) {
+            $this->runner->end($run, RunStatus::Rejected, $output, __('workflows.log.rejected', ['name' => $actor->name]));
+        }
+        DB::afterCommit(fn () => $this->notifications->changesRequested($submission, (string) $comment));
+    }
+
+    private function closed(): ApiException
+    {
+        return new ApiException('task_closed', __('workflows.tasks.errors.closed'), 409);
     }
 
     /** Trimmed comment; required (and limited) for a rejection. */

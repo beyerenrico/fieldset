@@ -80,6 +80,12 @@ class WorkflowStepRun extends Model
         $this->output = [...$this->output, ...$values];
     }
 
+    /** Removes output keys (not saved). */
+    public function forgetOutput(string ...$keys): void
+    {
+        $this->output = array_diff_key($this->output, array_flip($keys));
+    }
+
     /** @return BelongsTo<WorkflowRun, $this> */
     public function run(): BelongsTo
     {

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Domain\Workflows\Triggers;
 
 use App\Domain\Forms\Models\Form;
-use App\Domain\Submissions\Enums\SubmissionStatus;
 use App\Domain\Submissions\Models\Submission;
+use App\Domain\Submissions\Models\SubmissionEvent;
 use App\Domain\Workflows\Engine\LifecycleRules;
 use App\Domain\Workflows\Engine\WorkflowRunner;
 use App\Domain\Workflows\Models\Workflow;
@@ -16,8 +16,10 @@ use Illuminate\Support\Facades\DB;
 /**
  * Matches an event against the organization's active workflows (trigger, forms, JsonLogic conditions)
  * and starts one run per match — a repeated event finds the existing runs (unique per workflow,
- * submission and event id), so duplicates never run steps twice. After a submit without a workflow that
- * manages the status, the submission moves to `completed` (ADR 0032). Runs inside the tenant.
+ * submission and event id), so duplicates never run steps twice. A status change is then marked processed
+ * (SweepUnstartedEvents skips it) and the lifecycle rules apply: after a submit without a workflow that
+ * manages the status the submission moves to `completed`; after an approval it completes once the
+ * post-approval runs are done (ADR 0032). Runs inside the tenant (status changes: StartWorkflowsForEvent).
  */
 final readonly class StartWorkflows
 {
@@ -49,8 +51,11 @@ final readonly class StartWorkflows
                 }
                 $runs[] = $run;
             }
-            if ($submission instanceof Submission && $event->toStatus === SubmissionStatus::Submitted) {
-                $this->lifecycle->afterSubmitted($submission->uuid, $event->eventId);
+            if ($event->submissionEventId !== null) {
+                SubmissionEvent::query()->whereKey($event->submissionEventId)->whereNull('workflows_processed_at')->update(['workflows_processed_at' => now()]);
+            }
+            if ($submission instanceof Submission) {
+                $this->lifecycle->afterEvent($submission->uuid, $event);
             }
 
             return $runs;

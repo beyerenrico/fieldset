@@ -54,11 +54,25 @@ final class WorkflowOptions
         return Design::query()->orderBy('name')->pluck('name', 'key')->all();
     }
 
-    /** @return array<int, string> */
+    /** @return array<int, string> endpoints by name, disabled ones marked "(inactive)" */
     public static function endpoints(): array
     {
         return WebhookEndpoint::query()->orderBy('name')->get(['id', 'name', 'active'])
-            ->mapWithKeys(fn (WebhookEndpoint $e): array => [$e->id => $e->active ? $e->name : $e->name.' (—)'])->all();
+            ->mapWithKeys(fn (WebhookEndpoint $e): array => [$e->id => $e->active ? $e->name : $e->name.' '.__('workflows.webhooks.inactive_suffix')])->all();
+    }
+
+    /**
+     * @param  list<SubmissionStatus>  $statuses
+     * @return array<string, string>
+     */
+    public static function statusOptions(array $statuses): array
+    {
+        $options = [];
+        foreach ($statuses as $status) {
+            $options[$status->value] = $status->label();
+        }
+
+        return $options;
     }
 
     /**

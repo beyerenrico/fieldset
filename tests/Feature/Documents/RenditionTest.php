@@ -13,6 +13,7 @@ use App\Domain\Documents\Renditions\RenderSubmission;
 use App\Domain\Identity\Tenancy\TenantContext;
 use App\Domain\Submissions\Actions\TransitionSubmission;
 use App\Domain\Submissions\Enums\SubmissionStatus;
+use App\Domain\Workflows\Triggers\StartWorkflowsForEvent;
 use Illuminate\Database\QueryException;
 use Illuminate\Queue\Attributes\CountCrashesAsExceptions;
 use Illuminate\Queue\Attributes\MaxExceptions;
@@ -53,7 +54,10 @@ it('does not queue renders when render_on_submit is off', function (): void {
     config(['documents.render_on_submit' => false]);
     DocumentFixtures::submit($this->s, DocumentFixtures::draft($this->s));
 
-    Queue::assertNothingPushed();
+    // The only job is the queued workflow start of the status change (ADR 0032 amendment), no render.
+    Queue::assertNotPushed(GenerateRendition::class);
+    Queue::assertPushed(StartWorkflowsForEvent::class);
+    Queue::assertCount(1);
 });
 
 it('stores an immutable rendition with versions, hashes and page count on submit', function (): void {

@@ -7,6 +7,7 @@ namespace App\Domain\Workflows\Webhooks;
 use App\Domain\Workflows\Engine\StepFailedException;
 use App\Domain\Workflows\Models\WebhookEndpoint;
 use App\Support\Network\HostResolver;
+use GuzzleHttp\Psr7\Utils;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
@@ -16,10 +17,14 @@ use RuntimeException;
  * Posts a signed JSON body to a webhook endpoint (§10 "Outbound webhooks"): `X-Signature: sha256=<hex
  * HMAC-SHA256 of "{timestamp}.{body}" with the endpoint secret>` and `X-Timestamp` (Unix seconds); receivers
  * should reject requests older than 5 minutes. Timeouts, connection errors, 408/425/429 and 5xx are retried
- * (the step job's exponential backoff); redirects and other 4xx answers fail at once.
+ * (the step job's exponential backoff); redirects and other 4xx answers fail at once. Only the first 64 KB
+ * of a response body are kept.
  */
 final readonly class WebhookClient
 {
+    /** At most this much of a response body is kept (it is never used beyond the status). */
+    public const int BODY_LIMIT = 64 * 1024;
+
     public function __construct(private HostResolver $resolver) {}
 
     public static function signature(string $secret, string $timestamp, string $body): string
@@ -33,7 +38,7 @@ final readonly class WebhookClient
         $timestamp = (string) now()->getTimestamp();
 
         try {
-            $response = Http::withOptions($target->options())
+            $response = Http::withOptions([...$target->options(), 'sink' => new CappedStream(Utils::streamFor(''), self::BODY_LIMIT)])
                 ->timeout(max(1, (int) config('workflows.webhooks.timeout', 10)))
                 ->connectTimeout(max(1, (int) config('workflows.webhooks.connect_timeout', 5)))
                 ->withHeaders([

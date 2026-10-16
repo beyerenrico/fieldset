@@ -7,14 +7,16 @@ namespace App\Domain\Workflows\Steps;
 use App\Domain\Submissions\Actions\TransitionSubmission;
 use App\Domain\Submissions\Enums\SubmissionStatus;
 use App\Domain\Submissions\Models\Submission;
+use App\Domain\Workflows\Actions\WorkflowDefinitionRules;
 use App\Domain\Workflows\Engine\StepContext;
 use App\Domain\Workflows\Engine\StepFailedException;
 use App\Domain\Workflows\Engine\StepResult;
 use Illuminate\Support\Facades\DB;
 
 /**
- * `set_status`: moves the submission to `status` through TransitionSubmission (state machine, event row,
- * audit). Already at the target: nothing to do. A transition the machine forbids fails the run.
+ * `set_status`: moves the submission to `status` (`completed` or `void` only, ADR 0032: never into or out
+ * of a review) through TransitionSubmission (state machine, event row, audit). Already at the target:
+ * nothing to do. Another target or a transition the machine forbids fails the run.
  */
 final readonly class SetStatusStep implements StepHandler
 {
@@ -23,8 +25,11 @@ final readonly class SetStatusStep implements StepHandler
     public function execute(StepContext $context): StepResult
     {
         $target = SubmissionStatus::tryFrom((string) $context->string('status'));
-        if (! $target instanceof SubmissionStatus || $target === SubmissionStatus::Draft) {
+        if (! $target instanceof SubmissionStatus) {
             throw new StepFailedException(__('workflows.errors.invalid_status'));
+        }
+        if (! in_array($target, WorkflowDefinitionRules::SET_STATUS_TARGETS, true)) {
+            throw new StepFailedException(__('workflows.errors.status_not_allowed', ['status' => $target->label()]));
         }
         $uuid = $context->requireSubmission()->uuid;
 

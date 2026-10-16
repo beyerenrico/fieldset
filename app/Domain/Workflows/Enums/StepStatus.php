@@ -12,6 +12,7 @@ enum StepStatus: string
     case Waiting = 'waiting';
     case Completed = 'completed';
     case Failed = 'failed';
+    case Cancelled = 'cancelled';
 
     public function label(): string
     {
@@ -21,7 +22,7 @@ enum StepStatus: string
     public function color(): string
     {
         return match ($this) {
-            self::Pending => 'gray',
+            self::Pending, self::Cancelled => 'gray',
             self::Running => 'info',
             self::Waiting => 'warning',
             self::Completed => 'success',

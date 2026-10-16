@@ -8,6 +8,7 @@ use App\Domain\Identity\Models\User;
 use App\Domain\Workflows\Actions\SaveWebhookEndpoint;
 use App\Domain\Workflows\Models\WebhookEndpoint;
 use App\Domain\Workflows\Webhooks\WebhookTarget;
+use App\Domain\Workflows\Webhooks\WebhookUrl;
 use App\Filament\Admin\Resources\Workflows\WebhookEndpoints\Pages\ManageWebhookEndpoints;
 use BackedEnum;
 use Closure;
@@ -65,7 +66,8 @@ class WebhookEndpointResource extends Resource
                     }
                 }),
             TextInput::make('secret')->label(__('workflows.webhooks.secret'))->password()->revealable()->maxLength(255)
-                ->helperText(__('workflows.webhooks.secret_help'))->dehydrated(),
+                ->helperText(fn (string $operation): string => __($operation === 'create' ? 'workflows.webhooks.secret_help_create' : 'workflows.webhooks.secret_help_edit'))
+                ->dehydrated(),
             Toggle::make('active')->label(__('workflows.webhooks.active'))->default(true),
         ]);
     }
@@ -76,13 +78,15 @@ class WebhookEndpointResource extends Resource
             ->defaultSort('name')
             ->columns([
                 TextColumn::make('name')->label(__('workflows.webhooks.name'))->searchable()->sortable(),
-                TextColumn::make('url')->label(__('workflows.webhooks.url'))->limit(60)->fontFamily('mono'),
+                TextColumn::make('url')->label(__('workflows.webhooks.url'))->fontFamily('mono')->limit(80)
+                    ->formatStateUsing(fn (string $state): string => WebhookUrl::mask($state)),   // tokens stay hidden
                 IconColumn::make('active')->label(__('workflows.webhooks.active'))->boolean(),
             ])
             ->recordActions([
                 EditAction::make()->using(fn (WebhookEndpoint $record, array $data): WebhookEndpoint => self::save($record, $data))
                     ->fillForm(fn (WebhookEndpoint $record): array => ['name' => $record->name, 'url' => $record->url, 'active' => $record->active, 'secret' => null]),
-                DeleteAction::make(),
+                // Not while a workflow posts to it: disabled, the tooltip names the workflow.
+                DeleteAction::make()->authorizationTooltip()->modalDescription(__('workflows.webhooks.delete_confirm')),
             ]);
     }
 

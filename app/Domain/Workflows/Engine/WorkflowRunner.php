@@ -149,6 +149,35 @@ final readonly class WorkflowRunner
         $locked->forceFill(['status' => $status, 'finished_at' => now()])->save();
     }
 
+    /**
+     * Ends a run that waits for a review task the submission no longer needs (it left review another way):
+     * the waiting step (the task's, when given) and the run become `cancelled`. Runs in any other state are
+     * left alone. Callers hold a transaction.
+     */
+    public function cancel(int $runId, ?int $stepRunId, string $message): void
+    {
+        $run = WorkflowRun::query()->whereKey($runId)->lockForUpdate()->first();
+        if (! $run instanceof WorkflowRun) {
+            return;
+        }
+        $step = $this->stepRow($run, $run->current_step);
+        $waiting = $run->status === RunStatus::Waiting || ($run->status === RunStatus::Running && $step->status === StepStatus::Running);
+        if (! $waiting || ($stepRunId !== null && $step->id !== $stepRunId)) {
+            return;
+        }
+        $step->appendLog('info', $message);
+        $step->forceFill(['status' => StepStatus::Cancelled, 'finished_at' => now()])->save();
+        $run->forceFill(['status' => RunStatus::Cancelled, 'finished_at' => now()])->save();
+    }
+
+    /** Whether a run can take a review decision now: waiting at its review step, or still recording the pause. */
+    public function isResumable(WorkflowRun $run): bool
+    {
+        $stepStatus = WorkflowStepRun::query()->where('workflow_run_id', $run->id)->where('index', $run->current_step)->first()?->status;
+
+        return $run->status === RunStatus::Waiting || ($run->status === RunStatus::Running && $stepStatus === StepStatus::Running);
+    }
+
     /** Records a permanent failure (after the last retry or a StepFailedException), audits it and notifies admins. */
     public function fail(int $runId, int $index, ?Throwable $e): void
     {
@@ -180,6 +209,7 @@ final readonly class WorkflowRunner
             }
             $step = $this->stepRow($locked, $locked->current_step);
             $step->appendLog('info', __('workflows.log.retried', ['name' => $actor->name]));
+            $step->forgetOutput('in_flight');   // the administrator decided to send an interrupted webhook again
             $step->forceFill(['status' => StepStatus::Pending, 'error' => null, 'finished_at' => null])->save();
             $locked->forceFill(['status' => RunStatus::Running, 'error' => null, 'finished_at' => null])->save();
             $this->audit->record('workflow.run_retried', $locked, ['workflow_id' => $locked->workflow_id, 'step' => $locked->current_step], $actor);
@@ -211,9 +241,7 @@ final readonly class WorkflowRunner
     private function waitingRun(WorkflowRun $run): WorkflowRun
     {
         $locked = WorkflowRun::query()->whereKey($run->id)->lockForUpdate()->firstOrFail();
-        $stepStatus = WorkflowStepRun::query()->where('workflow_run_id', $locked->id)->where('index', $locked->current_step)->first()?->status;
-        $recording = $locked->status === RunStatus::Running && $stepStatus === StepStatus::Running;
-        if ($locked->status !== RunStatus::Waiting && ! $recording) {
+        if (! $this->isResumable($locked)) {
             throw new InvalidArgumentException(__('workflows.errors.not_waiting'));
         }
 

@@ -44,6 +44,6 @@ class EditWorkflow extends EditRecord
 
     protected function getHeaderActions(): array
     {
-        return [DeleteAction::make()];
+        return [WorkflowResource::deleteAction(DeleteAction::make())];
     }
 }

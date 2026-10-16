@@ -14,8 +14,9 @@ use App\Domain\Workflows\Tasks\ReviewState;
 final class SubmissionPresenter
 {
     /**
-     * `can_send` and `open_task_id` are computed for the viewer, who must be able to see the submission
-     * (every caller presents only visible submissions); without a viewer they are false / null.
+     * `can_edit`, `can_send` and `open_task_id` are computed for the viewer, who must be able to see the
+     * submission (every caller presents only visible submissions); without a viewer they are false / null.
+     * `can_edit`: the viewer created it and the status is editable (draft, changes_requested).
      *
      * @return array<string, mixed>
      */
@@ -36,7 +37,7 @@ final class SubmissionPresenter
             'submitted_at' => $submission->submitted_at?->toIso8601String(),
             'created_at' => $submission->created_at->toIso8601String(),
             'updated_at' => $submission->updated_at->toIso8601String(),
-            'can_edit' => $submission->status->isEditable(),
+            'can_edit' => $viewer instanceof User && $submission->created_by === $viewer->id && $submission->status->isEditable(),
             'can_send' => $viewer instanceof User && CustomerSendGate::allows($viewer, $submission),
             'review' => ReviewState::review($submission),
             'open_task_id' => ReviewState::openTaskId($submission, $viewer),

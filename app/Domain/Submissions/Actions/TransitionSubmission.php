@@ -27,7 +27,7 @@ final readonly class TransitionSubmission
     {
         $from = $submission->status;
         if (! $from->canTransitionTo($to)) {
-            throw new ApiException('invalid_transition', __('submissions.errors.invalid_transition', ['from' => $from->value, 'to' => $to->value]), 409);
+            throw new ApiException('invalid_transition', __('submissions.errors.invalid_transition', ['from' => $from->label(), 'to' => $to->label()]), 409);
         }
 
         $submission->status = $to;

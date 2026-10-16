@@ -9,11 +9,11 @@ use App\Support\Network\HostResolver;
 use App\Support\Network\PublicAddress;
 
 /**
- * SSRF guard of the webhook step (§8.3, §11): http(s) URLs without credentials whose host resolves only
- * to public addresses (private, loopback, link-local, CGNAT, multicast, reserved, IPv6 and IPv4-mapped
+ * SSRF guard of the webhook step (§8.3, §11): http(s) URLs without credentials on a web port (80, 443, 8080,
+ * 8443) whose host resolves only to public addresses (private, loopback, link-local, CGNAT, multicast, reserved, IPv6 and IPv4-mapped
  * ranges are refused). The request then connects to the validated address (curl CURLOPT_RESOLVE), so a
  * DNS answer that changes between check and connect cannot redirect it; Host header and TLS SNI keep the
- * host name. `workflows.webhooks.allow_private_hosts` lifts the address check for development.
+ * host name. `workflows.webhooks.allow_private_hosts` lifts the address and port checks for development.
  */
 final readonly class WebhookTarget
 {
@@ -22,6 +22,7 @@ final readonly class WebhookTarget
     public static function resolve(string $url, HostResolver $resolver): self
     {
         [$host, $port] = self::parse($url);
+        self::checkPort($port);
         $literal = filter_var($host, FILTER_VALIDATE_IP) !== false;
         $addresses = $literal ? [$host] : $resolver->resolve($host);
         if (! (bool) config('workflows.webhooks.allow_private_hosts') && ! PublicAddress::allPublic($addresses)) {
@@ -39,7 +40,8 @@ final readonly class WebhookTarget
     public static function syntaxProblem(string $url): ?string
     {
         try {
-            [$host] = self::parse($url);
+            [$host, $port] = self::parse($url);
+            self::checkPort($port);
         } catch (StepFailedException $e) {
             return $e->getMessage();
         }
@@ -65,6 +67,15 @@ final readonly class WebhookTarget
         }
 
         return $options;
+    }
+
+    /** Web ports only (`workflows.webhooks.allowed_ports`), unless private hosts are allowed for development. */
+    private static function checkPort(int $port): void
+    {
+        $allowed = array_map(intval(...), (array) config('workflows.webhooks.allowed_ports', [80, 443, 8080, 8443]));
+        if (! (bool) config('workflows.webhooks.allow_private_hosts') && ! in_array($port, $allowed, true)) {
+            throw new StepFailedException(__('workflows.errors.webhook_port', ['port' => $port]));
+        }
     }
 
     /** @return array{0: string, 1: int} */

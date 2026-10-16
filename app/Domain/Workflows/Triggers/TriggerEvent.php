@@ -29,6 +29,7 @@ final readonly class TriggerEvent
         public ?int $workflowId = null,
         public ?int $actorId = null,
         public ?int $formVersionId = null,
+        public ?int $submissionEventId = null,
     ) {}
 
     public static function statusChanged(SubmissionStatusChanged $event): self
@@ -36,6 +37,7 @@ final readonly class TriggerEvent
         return new self(
             TriggerType::SubmissionStatusChanged, 'submission_event:'.$event->submissionEventId, $event->submissionUuid,
             fromStatus: SubmissionStatus::tryFrom($event->fromStatus), toStatus: SubmissionStatus::tryFrom($event->toStatus), actorId: $event->actorId,
+            submissionEventId: $event->submissionEventId,
         );
     }
 
@@ -49,14 +51,17 @@ final readonly class TriggerEvent
         return new self(TriggerType::Schedule, 'schedule:'.$minute->copy()->utc()->format('Y-m-d\TH:i'), workflowId: $workflow->id);
     }
 
-    public static function manual(Workflow $workflow, string $submissionUuid, int $actorId): self
+    public static function manual(Workflow $workflow, string $submissionUuid, int $actorId, ?string $eventId = null): self
     {
-        return new self(TriggerType::Manual, 'manual:'.Str::uuid7(), $submissionUuid, workflowId: $workflow->id, actorId: $actorId);
+        return new self(TriggerType::Manual, $eventId ?? 'manual:'.Str::uuid7(), $submissionUuid, workflowId: $workflow->id, actorId: $actorId);
     }
 
     public function withForm(?int $formId): self
     {
-        return new self($this->kind, $this->eventId, $this->submissionUuid, $formId, $this->fromStatus, $this->toStatus, $this->workflowId, $this->actorId, $this->formVersionId);
+        return new self(
+            $this->kind, $this->eventId, $this->submissionUuid, $formId, $this->fromStatus, $this->toStatus, $this->workflowId,
+            $this->actorId, $this->formVersionId, $this->submissionEventId,
+        );
     }
 
     /**

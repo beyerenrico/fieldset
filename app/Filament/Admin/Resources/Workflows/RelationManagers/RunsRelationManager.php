@@ -7,6 +7,7 @@ namespace App\Filament\Admin\Resources\Workflows\RelationManagers;
 use App\Domain\Identity\Models\User;
 use App\Domain\Workflows\Engine\WorkflowRunner;
 use App\Domain\Workflows\Enums\RunStatus;
+use App\Domain\Workflows\Enums\TriggerType;
 use App\Domain\Workflows\Models\Workflow;
 use App\Domain\Workflows\Models\WorkflowRun;
 use App\Filament\Admin\Resources\Submissions\SubmissionResource;
@@ -49,7 +50,8 @@ class RunsRelationManager extends RelationManager
             ->poll('15s')
             ->columns([
                 TextColumn::make('id')->label(__('workflows.runs.id'))->prefix('#'),
-                TextColumn::make('trigger')->label(__('workflows.runs.trigger'))->badge(),
+                TextColumn::make('trigger')->label(__('workflows.runs.trigger'))->badge()
+                    ->formatStateUsing(fn (string $state): string => TriggerType::tryFrom($state)?->label() ?? $state),
                 TextColumn::make('submission.number')->label(__('workflows.runs.submission'))->placeholder('—')
                     ->url(fn (WorkflowRun $record): ?string => $record->submission_uuid === null ? null : SubmissionResource::getUrl('view', ['record' => $record->submission_uuid])),
                 TextColumn::make('status')->label(__('workflows.runs.status'))->badge()
@@ -57,8 +59,8 @@ class RunsRelationManager extends RelationManager
                     ->color(fn (WorkflowRun $record): string => $record->status->color()),
                 TextColumn::make('current_step')->label(__('workflows.runs.step'))
                     ->formatStateUsing(fn (WorkflowRun $record): string => ($record->current_step + 1).' / '.count($record->steps())),
-                TextColumn::make('started_at')->label(__('workflows.runs.started_at'))->dateTime()->placeholder('—'),
-                TextColumn::make('finished_at')->label(__('workflows.runs.finished_at'))->dateTime()->placeholder('—'),
+                TextColumn::make('started_at')->label(__('workflows.runs.started_at'))->dateTime()->timezone(SubmissionResource::displayTimezone())->placeholder('—'),
+                TextColumn::make('finished_at')->label(__('workflows.runs.finished_at'))->dateTime()->timezone(SubmissionResource::displayTimezone())->placeholder('—'),
                 TextColumn::make('error')->label(__('workflows.runs.error'))->limit(80)->placeholder('—')->color('danger'),
             ])
             ->recordActions([$this->timelineAction(), $this->retryAction()]);

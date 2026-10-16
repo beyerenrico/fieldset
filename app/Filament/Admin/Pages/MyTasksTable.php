@@ -31,8 +31,12 @@ final class MyTasksTable
                 TextColumn::make('submission.form.name')->label(__('workflows.tasks.form')),
                 TextColumn::make('assignee')->label(__('workflows.tasks.assignee'))
                     ->state(fn (Task $record): ?string => $record->assigneeUser->name ?? $record->assigneeGroup?->name),
-                TextColumn::make('due_at')->label(__('workflows.tasks.due_at'))->dateTime()->sortable()->placeholder('—')
-                    ->color(fn (Task $record): ?string => $record->isOverdue() ? 'danger' : null),
+                TextColumn::make('due_at')->label(__('workflows.tasks.due_at'))->dateTime()->timezone(SubmissionResource::displayTimezone())
+                    ->sortable()->placeholder('—')
+                    // Overdue is said in words and with an icon, not by colour alone.
+                    ->color(fn (Task $record): ?string => $record->isOverdue() ? 'danger' : null)
+                    ->icon(fn (Task $record): ?string => $record->isOverdue() ? 'heroicon-o-exclamation-triangle' : null)
+                    ->description(fn (Task $record): ?string => $record->isOverdue() ? (string) __('workflows.tasks.overdue') : null),
                 TextColumn::make('created_at')->label(__('workflows.tasks.created_at'))->since()->sortable(),
             ])
             ->recordActions([

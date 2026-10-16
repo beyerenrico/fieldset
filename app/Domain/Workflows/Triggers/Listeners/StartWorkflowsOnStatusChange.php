@@ -4,24 +4,22 @@ declare(strict_types=1);
 
 namespace App\Domain\Workflows\Triggers\Listeners;
 
-use App\Domain\Identity\Tenancy\TenantContext;
 use App\Domain\Submissions\Events\SubmissionStatusChanged;
-use App\Domain\Workflows\Triggers\StartWorkflows;
-use App\Domain\Workflows\Triggers\TriggerEvent;
+use App\Domain\Workflows\Triggers\StartWorkflowsForEvent;
+use Illuminate\Support\Facades\Bus;
 use Throwable;
 
 /**
- * Submission triggers (submitted, status_changed, approved, rejected). Runs after the transition
- * committed; errors are reported, never thrown (the transition already succeeded).
+ * Submission triggers (submitted, status_changed, approved, rejected). Runs after the transition committed
+ * and queues StartWorkflowsForEvent (conditions and runs are handled there, ADR 0032); a dispatch error is
+ * reported, never thrown (the transition already succeeded) — SweepUnstartedEvents retries it.
  */
 final readonly class StartWorkflowsOnStatusChange
 {
-    public function __construct(private TenantContext $tenant, private StartWorkflows $start) {}
-
     public function handle(SubmissionStatusChanged $event): void
     {
         try {
-            $this->tenant->run($event->organizationId, fn (): array => $this->start->handle(TriggerEvent::statusChanged($event)));
+            Bus::dispatch(StartWorkflowsForEvent::fromEvent($event));
         } catch (Throwable $e) {
             report($e);
         }

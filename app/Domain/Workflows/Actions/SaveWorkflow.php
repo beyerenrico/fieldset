@@ -15,8 +15,9 @@ use InvalidArgumentException;
 
 /**
  * Creates or updates a workflow (§8.3): normalizes the trigger configuration to what the trigger uses
- * (`to_status`, `cron`, `form_ids`), rejects unusable JsonLogic conditions and unknown step types, and
- * keeps steps in the Builder shape `[{type, data}]`. Create/update are audited by the model (§8.11).
+ * (`to_status`, `cron`, `form_ids`), rejects unusable JsonLogic conditions, unknown step types and
+ * definitions that break WorkflowDefinitionRules (limits, set_status targets, recipients, one review per
+ * submit), and keeps steps in the Builder shape `[{type, data}]`. Create/update are audited by the model (§8.11).
  */
 final readonly class SaveWorkflow
 {
@@ -38,13 +39,17 @@ final readonly class SaveWorkflow
         if ($steps === []) {
             throw new InvalidArgumentException(__('workflows.validation.steps_required'));
         }
+        WorkflowDefinitionRules::check($steps);
+        $config = self::triggerConfig($type, $data['trigger_config'] ?? []);
+        $active = (bool) ($data['active'] ?? true);
+        WorkflowDefinitionRules::assertNoReviewConflict($workflow, $type, $config, $steps, $active);
 
         $attributes = [
             'name' => trim($data['name']),
             'description' => trim((string) ($data['description'] ?? '')) ?: null,
-            'active' => (bool) ($data['active'] ?? true),
+            'active' => $active,
             'trigger_type' => $type,
-            'trigger_config' => self::triggerConfig($type, $data['trigger_config'] ?? []),
+            'trigger_config' => $config,
             'conditions' => $conditions,
             'steps' => $steps,
             'updated_by' => $actor->id,

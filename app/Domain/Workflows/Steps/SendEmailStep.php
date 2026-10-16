@@ -26,7 +26,8 @@ use Illuminate\Support\Facades\DB;
  * Markdown body and submission tokens. `document`: `attachment` (attached up to the size limit, else a
  * link), `link` (always an expiring link) or `none`. The PDF is the newest rendition since the latest
  * submit; without one it is rendered now (retried with the step on renderer errors). Mails already queued
- * by an earlier attempt are remembered in the step output and never queued twice.
+ * by an earlier attempt are remembered in the step output and never queued twice. Each mail is linked to the
+ * step run and counted against WorkflowMailLimits.
  */
 final readonly class SendEmailStep implements StepHandler
 {
@@ -58,8 +59,11 @@ final readonly class SendEmailStep implements StepHandler
             if (isset($queued[$key])) {
                 continue;
             }
+            WorkflowMailLimits::assertWithin($context->submission?->uuid);
             DB::transaction(function () use ($context, $template, $recipient, $rendition, $mode, $key, &$queued): void {
-                $queued[$key] = $this->queueOne($context, $template, $recipient, $rendition, $mode)->id;
+                $message = $this->queueOne($context, $template, $recipient, $rendition, $mode);
+                $message->forceFill(['workflow_step_run_id' => $context->step->id])->save();
+                $queued[$key] = $message->id;
                 $context->step->mergeOutput(['mail_message_ids' => $queued]);
                 $context->step->save();
             });

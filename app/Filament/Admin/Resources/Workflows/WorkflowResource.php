@@ -66,7 +66,13 @@ class WorkflowResource extends Resource
                 TextColumn::make('runs_count')->label(__('workflows.fields.runs_count'))->sortable(),
                 TextColumn::make('updated_at')->label(__('workflows.fields.updated_at'))->since()->sortable(),
             ])
-            ->recordActions([EditAction::make(), DeleteAction::make()]);
+            ->recordActions([EditAction::make(), self::deleteAction(DeleteAction::make())]);
+    }
+
+    /** Delete with a confirmation; a workflow that ran stays (disabled, the tooltip says why). */
+    public static function deleteAction(DeleteAction $action): DeleteAction
+    {
+        return $action->authorizationTooltip()->modalDescription(__('workflows.delete.confirm'));
     }
 
     public static function getRelations(): array

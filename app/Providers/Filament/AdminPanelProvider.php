@@ -6,6 +6,7 @@ namespace App\Providers\Filament;
 
 use App\Domain\Identity\Auth\SharedAppAuthentication;
 use App\Domain\Identity\Models\Organization;
+use App\Filament\Admin\Livewire\DatabaseNotifications;
 use App\Filament\Admin\Pages\NotificationPreferences;
 use App\Filament\Admin\Pages\Tenancy\EditOrganizationProfile;
 use App\Filament\Admin\Pages\Tenancy\RegisterOrganization;
@@ -56,7 +57,7 @@ class AdminPanelProvider extends PanelProvider
             ->pages([Dashboard::class])
             ->discoverWidgets(in: app_path('Filament/Admin/Widgets'), for: 'App\Filament\Admin\Widgets')
             ->widgets([AccountWidget::class])
-            ->databaseNotifications()
+            ->databaseNotifications(livewireComponent: DatabaseNotifications::class)   // inbox membership rule (M4 review S2)
             ->databaseNotificationsPolling('30s') // no Reverb: the bell polls (§8.9)
             ->userMenuItems([
                 Action::make('notificationPreferences')

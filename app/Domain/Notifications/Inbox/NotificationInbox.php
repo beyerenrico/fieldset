@@ -6,14 +6,17 @@ namespace App\Domain\Notifications\Inbox;
 
 use App\Domain\Identity\Models\User;
 use App\Domain\Notifications\Delivery\StoredNotification;
+use Closure;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Notifications\DatabaseNotification;
 
 /**
  * A user's in-app notifications for the API (§8.9, §10): only their own and only those sent by the
- * Notifier (type app.notification), across all their organizations; each item carries its
- * organization_id. Other Filament database notifications (e.g. PDF import results) stay admin-only.
+ * Notifier (type app.notification), across the organizations they are still an active member of (plus
+ * notifications without an organization); each item carries its organization_id. A deactivated membership
+ * hides that organization's notifications (they come back on reactivation; M4 review S2). Other Filament
+ * database notifications (e.g. PDF import results) stay admin-only.
  */
 final class NotificationInbox
 {
@@ -62,12 +65,31 @@ final class NotificationInbox
         ];
     }
 
+    /**
+     * Constraint for a notifications query: the user's active organizations and notifications without one
+     * (shared with the admin bell).
+     *
+     * @return Closure(mixed): void for Eloquent and query builders of the `notifications` table
+     */
+    public static function activeMemberships(User $user): Closure
+    {
+        $organizationIds = array_map(strval(...), $user->activeOrganizations()->pluck('organizations.id')->all());
+
+        return static function ($query) use ($organizationIds): void {
+            $query->whereNull('data->organization_id');
+            if ($organizationIds !== []) {
+                $query->orWhereIn('data->organization_id', $organizationIds);
+            }
+        };
+    }
+
     /** @return Builder<DatabaseNotification> */
     private function query(User $user): Builder
     {
         return DatabaseNotification::query()
             ->where('notifiable_type', $user->getMorphClass())
             ->where('notifiable_id', $user->getKey())
-            ->where('type', StoredNotification::TYPE);
+            ->where('type', StoredNotification::TYPE)
+            ->where(self::activeMemberships($user));
     }
 }

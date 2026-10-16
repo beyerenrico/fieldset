@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Admin\Resources\Workflows\Schemas;
 
+use App\Domain\Identity\Tenancy\TenantContext;
 use App\Domain\Submissions\Enums\SubmissionStatus;
 use App\Domain\Workflows\Enums\TriggerType;
 use App\Domain\Workflows\Models\Workflow;
@@ -41,7 +42,8 @@ final class WorkflowForm
                 Select::make('to_status')->label(__('workflows.fields.to_status'))->placeholder(__('workflows.fields.any_status'))
                     ->options(fn (): array => WorkflowOptions::statuses([SubmissionStatus::Draft]))
                     ->visible(fn (Get $get): bool => $get('trigger_type') === TriggerType::SubmissionStatusChanged->value),
-                TextInput::make('cron')->label(__('workflows.fields.cron'))->helperText(__('workflows.fields.cron_help'))
+                TextInput::make('cron')->label(__('workflows.fields.cron'))
+                    ->helperText(fn (): string => __('workflows.fields.cron_help', ['timezone' => app(TenantContext::class)->organization()->timezone ?? 'UTC']))
                     ->visible(fn (Get $get): bool => $get('trigger_type') === TriggerType::Schedule->value)
                     ->required(fn (Get $get): bool => $get('trigger_type') === TriggerType::Schedule->value)
                     ->rule(fn (): Closure => function (string $attribute, mixed $value, Closure $fail): void {
