@@ -1,0 +1,112 @@
+import { screen, within } from '@testing-library/react';
+import { http } from 'msw';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { getFavorites, recordRecent, toggleFavorite } from '../../src/lib/forms/shortcuts.ts';
+import { UUID_V7 } from '../../src/lib/ids.ts';
+import { setOrganizationId } from '../../src/lib/session/org-store.ts';
+import { createBackend, fail } from '../utils/backend.ts';
+import { makeSubmission } from '../utils/fixtures.ts';
+import { renderApp } from '../utils/render-app.tsx';
+import { server, setupTestServer } from '../utils/server.ts';
+
+setupTestServer();
+
+beforeEach(() => {
+    setOrganizationId(1);
+});
+
+describe('home', () => {
+    it('lists drafts (incl. changes requested) and links to fill', async () => {
+        const backend = createBackend();
+        backend.state.submissions.set(
+            'd1',
+            makeSubmission({ uuid: 'd1', updated_at: '2026-10-15T08:00:00Z' }),
+        );
+        backend.state.submissions.set(
+            'd2',
+            makeSubmission({
+                uuid: 'd2',
+                form_id: 4,
+                status: 'changes_requested',
+                updated_at: '2026-10-16T08:00:00Z',
+            }),
+        );
+        backend.state.submissions.set('s1', makeSubmission({ uuid: 's1', status: 'submitted' }));
+        server.use(...backend.handlers);
+        renderApp('/');
+        const drafts = await screen.findByRole('region', { name: 'Continue drafts' });
+        const links = await within(drafts).findAllByRole('link');
+        expect(links.map((link) => link.getAttribute('href'))).toEqual([
+            '/app/fill/d2',
+            '/app/fill/d1',
+        ]);
+        expect(links[0]).toHaveTextContent('Inspection');
+        expect(links[0]).toHaveTextContent('Changes requested');
+    });
+
+    it('shows favorites and recent forms, purged by fillable_form_ids, and starts a draft', async () => {
+        toggleFavorite(1, 4);
+        toggleFavorite(1, 99);
+        recordRecent(1, 5);
+        const backend = createBackend({ fillable: [3, 4, 5] });
+        server.use(...backend.handlers);
+        const { user, history } = renderApp('/');
+        expect(await screen.findByText('No open drafts.')).toBeInTheDocument();
+        const start = await screen.findByRole('button', { name: 'Start Inspection' });
+        expect(screen.getByRole('button', { name: 'Start Timesheet' })).toBeInTheDocument();
+        expect(getFavorites(1)).toEqual([4]);
+        await user.click(start);
+        await screen.findByRole('heading', { name: 'Service report' });
+        const [, , , uuid] = history.location.pathname.split('/');
+        expect(uuid).toMatch(UUID_V7);
+        expect(history.location.search).toBe('?formId=4&versionId=8');
+    });
+
+    it('explains empty shortcuts and retries failed drafts', async () => {
+        server.use(...createBackend().handlers);
+        server.use(http.get('*/api/v1/submissions', () => fail(403, 'forbidden')));
+        renderApp('/');
+        expect(await screen.findByText(/Mark forms as favorites/)).toBeInTheDocument();
+        expect(await screen.findByRole('button', { name: 'Try again' })).toBeInTheDocument();
+    });
+});
+
+describe('catalog', () => {
+    it('searches, filters by category, toggles favorites and starts a form', async () => {
+        server.use(...createBackend().handlers);
+        const { user, history } = renderApp('/forms');
+        const list = await screen.findAllByRole('button', { name: /^Start / });
+        expect(list).toHaveLength(3);
+        await user.type(screen.getByLabelText('Search forms'), 'insp');
+        expect(screen.getAllByRole('button', { name: /^Start / })).toHaveLength(1);
+        await user.clear(screen.getByLabelText('Search forms'));
+        await user.click(screen.getByRole('button', { name: 'Other' }));
+        expect(screen.getByRole('button', { name: 'Other' })).toHaveAttribute(
+            'aria-pressed',
+            'true',
+        );
+        expect(
+            screen.getAllByRole('button', { name: /^Start / }).map((b) => b.textContent),
+        ).toEqual(['Timesheet']);
+        await user.click(screen.getByRole('button', { name: 'All' }));
+        await user.type(screen.getByLabelText('Search forms'), 'zzz');
+        expect(screen.getByText('No forms found.')).toBeInTheDocument();
+        await user.clear(screen.getByLabelText('Search forms'));
+        const star = screen.getByRole('button', { name: 'Add Service report to favorites' });
+        await user.click(star);
+        expect(
+            screen.getByRole('button', { name: 'Remove Service report from favorites' }),
+        ).toHaveAttribute('aria-pressed', 'true');
+        expect(getFavorites(1)).toEqual([3]);
+        await user.click(screen.getByRole('button', { name: 'Start Service report' }));
+        await screen.findByRole('heading', { name: 'Service report' });
+        expect(history.location.pathname).toMatch(/^\/app\/fill\//);
+    });
+
+    it('shows an error with retry', async () => {
+        server.use(...createBackend().handlers);
+        server.use(http.get('*/api/v1/forms', () => fail(403, 'forbidden')));
+        renderApp('/forms');
+        expect(await screen.findByRole('button', { name: 'Try again' })).toBeInTheDocument();
+    });
+});

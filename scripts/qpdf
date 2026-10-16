@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# qpdf wrapper for hosts without qpdf (ADR 0024). Uses a local qpdf when one is on PATH, otherwise
+# runs qpdf from the CI image, mounting the directory of every file argument at the same path.
+# Override the image with QPDF_DOCKER_IMAGE.
+set -euo pipefail
+
+self="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+local_qpdf="$(command -v qpdf 2>/dev/null || true)"
+if [[ -n "$local_qpdf" && "$local_qpdf" != "$self" ]]; then
+    exec "$local_qpdf" "$@"
+fi
+
+image="${QPDF_DOCKER_IMAGE:-form-schema-app-ci}"
+mounts=()
+seen=" "
+for arg in "$@"; do
+    candidate="${arg#*=}"
+    [[ "$candidate" == */* ]] || continue # only path-like arguments are mounted
+    if [[ -e "$candidate" ]]; then
+        dir="$(cd "$(dirname "$candidate")" && pwd -P)"
+    elif [[ "$candidate" == /* && -d "$(dirname "$candidate")" ]]; then
+        dir="$(cd "$(dirname "$candidate")" && pwd -P)" # output file that does not exist yet
+    else
+        continue
+    fi
+    if [[ "$seen" != *" $dir "* ]]; then
+        mounts+=(-v "$dir:$dir")
+        seen="$seen$dir "
+    fi
+done
+
+# Resolve symlinked paths (macOS /tmp -> /private/tmp) so arguments match the mounted paths.
+args=()
+for arg in "$@"; do
+    prefix=""
+    value="$arg"
+    if [[ "$arg" == --*=* ]]; then
+        prefix="${arg%%=*}="
+        value="${arg#*=}"
+    fi
+    if [[ "$value" == */* && -e "$value" ]]; then
+        value="$(cd "$(dirname "$value")" && pwd -P)/$(basename "$value")"
+    elif [[ "$value" == /* && -d "$(dirname "$value")" ]]; then
+        value="$(cd "$(dirname "$value")" && pwd -P)/$(basename "$value")"
+    fi
+    args+=("$prefix$value")
+done
+
+exec docker run --rm -i --network none ${mounts[@]+"${mounts[@]}"} "$image" qpdf ${args[@]+"${args[@]}"}

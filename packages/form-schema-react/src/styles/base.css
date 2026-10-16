@@ -1,0 +1,136 @@
+.fsr-root {
+    --fsr-color-text: #111827;
+    --fsr-color-muted: #4b5563;
+    --fsr-color-bg: #ffffff;
+    --fsr-color-surface: #f3f4f6;
+    --fsr-color-border: #6b7280;
+    --fsr-color-primary: #1d4ed8;
+    --fsr-color-primary-contrast: #ffffff;
+    --fsr-color-danger: #b91c1c;
+    /* amber-700: 5.0:1 on white, 4.6:1 on the surface (WCAG 1.4.11 needs 3:1). */
+    --fsr-color-focus: #b45309;
+    --fsr-radius: 0.5rem;
+    --fsr-gap: 1rem;
+    --fsr-control-height: 2.75rem;
+
+    box-sizing: border-box;
+    color: var(--fsr-color-text);
+    background: var(--fsr-color-bg);
+    font-size: calc(1rem * var(--fsr-font-scale, 1));
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+}
+
+/* Dark tokens follow the OS unless the host forces a scheme with .fsr-light / .fsr-dark. */
+@media (prefers-color-scheme: dark) {
+    .fsr-root:not(.fsr-light) {
+        --fsr-color-text: #f9fafb;
+        --fsr-color-muted: #d1d5db;
+        --fsr-color-bg: #111827;
+        --fsr-color-surface: #1f2937;
+        --fsr-color-border: #9ca3af;
+        --fsr-color-primary: #93c5fd;
+        --fsr-color-primary-contrast: #111827;
+        --fsr-color-danger: #fca5a5;
+        --fsr-color-focus: #fbbf24;
+    }
+}
+
+.fsr-root.fsr-dark {
+    --fsr-color-text: #f9fafb;
+    --fsr-color-muted: #d1d5db;
+    --fsr-color-bg: #111827;
+    --fsr-color-surface: #1f2937;
+    --fsr-color-border: #9ca3af;
+    --fsr-color-primary: #93c5fd;
+    --fsr-color-primary-contrast: #111827;
+    --fsr-color-danger: #fca5a5;
+    --fsr-color-focus: #fbbf24;
+}
+
+.fsr-root *,
+.fsr-root *::before,
+.fsr-root *::after {
+    box-sizing: inherit;
+}
+
+.fsr-root :focus-visible {
+    outline: 3px solid var(--fsr-color-focus);
+    outline-offset: 2px;
+}
+
+.fsr-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.fsr-stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--fsr-gap);
+}
+
+.fsr-muted {
+    margin: 0;
+    color: var(--fsr-color-muted);
+}
+
+.fsr-banner {
+    margin: 0 0 var(--fsr-gap);
+    padding: 0.75em 1em;
+    border: 2px dashed var(--fsr-color-primary);
+    border-radius: var(--fsr-radius);
+    background: var(--fsr-color-surface);
+    font-weight: 600;
+}
+
+.fsr-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5em;
+    min-height: var(--fsr-control-height);
+    min-width: var(--fsr-control-height);
+    padding: 0.5em 1em;
+    border: 2px solid var(--fsr-color-primary);
+    border-radius: var(--fsr-radius);
+    background: var(--fsr-color-bg);
+    color: var(--fsr-color-primary);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.fsr-button--primary {
+    background: var(--fsr-color-primary);
+    color: var(--fsr-color-primary-contrast);
+}
+
+.fsr-button--quiet {
+    border-color: transparent;
+    background: transparent;
+}
+
+.fsr-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+.fsr-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5em;
+}
+
+.fsr-status {
+    margin: 0;
+    color: var(--fsr-color-muted);
+}

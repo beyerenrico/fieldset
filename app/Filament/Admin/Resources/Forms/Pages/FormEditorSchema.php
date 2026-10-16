@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Filament\Admin\Resources\Forms\Pages;
 
+use App\Domain\Forms\Import\ImportReportPresenter;
+use App\Domain\Forms\Models\Form;
 use App\Domain\Identity\Models\Group;
 use App\Domain\Identity\Models\Role;
 use App\Domain\Identity\Tenancy\TenantContext;
@@ -16,29 +18,48 @@ use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Schemas\Components\Callout;
 use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
+use Filament\Schemas\Components\Text;
+use Filament\Schemas\Components\UnorderedList;
 use Filament\Schemas\Components\View;
 use Filament\Schemas\Schema;
+use stdClass;
 
-/** Layout of the form editor: lint panel, builder, settings, access, raw JSON. */
+/** Layout of the form editor: lint panel, PDF import report, builder, settings, access, raw JSON. */
 final class FormEditorSchema
 {
     public static function configure(Schema $schema): Schema
     {
         return $schema->columns(1)->components([
             View::make('filament.forms.lint-panel'),
+            self::importReport(),
             Hidden::make('_source'),
             Tabs::make('editor')->persistTabInQueryString()->tabs([
                 Tab::make(__('forms.builder.title'))->icon('heroicon-o-squares-plus')->schema([self::pages()]),
                 Tab::make(__('forms.builder.settings'))->icon('heroicon-o-cog-6-tooth')->schema(self::settings()),
+                Tab::make(__('forms.preview.title'))->icon('heroicon-o-device-phone-mobile')->schema([View::make('filament.forms.preview')]),
                 Tab::make(__('forms.form.access'))->icon('heroicon-o-key')->schema(self::access()),
                 Tab::make(__('forms.builder.raw_json'))->icon('heroicon-o-code-bracket')->schema([View::make('filament.forms.raw-json')]),
             ]),
         ]);
+    }
+
+    /** The PDF import report stays visible until someone dismisses it (BUILD_PROMPT §8.13). */
+    private static function importReport(): Callout
+    {
+        return Callout::make(__('forms.import.report.title'))
+            ->warning()
+            ->visible(fn (?Form $record): bool => $record?->import_report instanceof stdClass)
+            ->description(fn (?Form $record): string => ImportReportPresenter::summary($record?->import_report))
+            ->footer(fn (?Form $record): array => [UnorderedList::make(array_map(
+                static fn (string $line): Text => Text::make($line),
+                ImportReportPresenter::lines($record?->import_report),
+            ))->columns(1)]);
     }
 
     private static function pages(): Repeater
@@ -62,7 +83,7 @@ final class FormEditorSchema
     private static function settings(): array
     {
         return [Grid::make(2)->schema([
-            TextInput::make('title')->label(__('forms.form.name'))->required()->maxLength(200),
+            TextInput::make('title')->label(__('forms.form.name'))->required()->maxLength(200)->live(onBlur: true),
             Select::make('locale')->label(__('forms.builder.locale'))->required()
                 ->options(['de-DE' => 'Deutsch (Deutschland)', 'de-AT' => 'Deutsch (Österreich)', 'de-CH' => 'Deutsch (Schweiz)', 'en-GB' => 'English (UK)', 'en-US' => 'English (US)']),
             Select::make('layout')->label(__('forms.builder.layout'))

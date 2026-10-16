@@ -1,0 +1,5 @@
+/* @form-schema-app/form-schema-react styles. Theme via the --fsr-* custom properties. */
+@import './base.css';
+@import './fields.css';
+@import './layout.css';
+@import './repeater.css';

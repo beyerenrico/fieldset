@@ -94,6 +94,32 @@ function isRequired(runtime: Runtime, instance: Instance, state: EvalState): boo
     );
 }
 
+function isReadOnly(runtime: Runtime, instance: Instance, state: EvalState): boolean {
+    const raw = instance.node.raw;
+    return (
+        hasOwn(raw, 'readOnlyIf') &&
+        truthy(evaluateFor(runtime, instance, state, getOwn(raw, 'readOnlyIf')))
+    );
+}
+
+/** Required and read-only state of every visible data element, for renderers. */
+function presentation(
+    runtime: Runtime,
+    state: EvalState,
+): Pick<EvaluationResult, 'required' | 'readOnly'> {
+    const visible = listInstances(runtime.model, state.data).filter(
+        (instance) => instance.node.isData && state.visibility[instance.pointer] === true,
+    );
+    return {
+        required: Object.fromEntries(
+            visible.map((instance) => [instance.pointer, isRequired(runtime, instance, state)]),
+        ),
+        readOnly: Object.fromEntries(
+            visible.map((instance) => [instance.pointer, isReadOnly(runtime, instance, state)]),
+        ),
+    };
+}
+
 /** Validates every visible data element in document order, rows in index order. */
 function validateAll(runtime: Runtime, state: EvalState, data: JsonObject): ValidationError[] {
     return listInstances(runtime.model, data).flatMap((instance) => {
@@ -143,5 +169,6 @@ export function evaluate(
         data: stripped,
         errors: [...normalized.errors, ...validateAll(runtime, state, stripped)],
         visibility: state.visibility,
+        ...presentation(runtime, state),
     };
 }

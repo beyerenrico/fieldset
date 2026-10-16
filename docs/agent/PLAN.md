@@ -42,27 +42,38 @@ AC refs point at BUILD_PROMPT sections. Test approach in brackets.
 - [x] M1-T18 Gate M1
 
 ## M2 Field App online (branch `m2-field-app`)
-- [ ] M2-T01 Devices: `devices` table, register on login (secret shown once, hash stored), `POST /api/v1/auth/device-status` (ok/reauth/wipe) by device secret, revoke + wipe, user deactivation revokes sessions/tokens/devices — §9.3, §6.4 [feature tests]
-- [ ] M2-T02 Submissions schema: `submissions` (client uuid PK, version pin, jsonb data, revision, number), `submission_events`, `attachments` (client uuid, private disk, sha256), `number_sequences` — §6.4, §9.2 [migration + model tests]
-- [ ] M2-T03 Submission state machine (spatie/laravel-model-states) with events + audit per transition — §6.5 [unit + feature]
-- [ ] M2-T04 Access: FormAccessResolver (Owner/Admin all, else group/role grants), submission visibility per role, policies; `form_access_revoked` — §8.6, §9.3 [matrix tests]
-- [ ] M2-T05 API forms: `GET /forms`, `GET /forms/{form}/versions/{version}` (access-filtered) — §10 [feature + isolation cases]
-- [ ] M2-T06 API drafts: `PUT /submissions/{uuid}` (create/update, revision → 409), `GET /submissions`, `GET /submissions/{uuid}` — §9.2, §10 [feature]
-- [ ] M2-T07 Attachments: `POST /submissions/{uuid}/attachments` idempotent by client uuid, finfo sniffing, allow-list, size limits, image re-encode (EXIF stripped) — §11, §9.2 [feature]
-- [ ] M2-T08 Submit: `Idempotency-Key`, server re-evaluation (form-schema-php), attachment manifest, retired-version and revoked-access rejection, gap-free numbering (ON CONFLICT + FOR UPDATE) — §9.2, §8.10 AC [feature incl. concurrency]
-- [ ] M2-T09 `submission_values` projector (submit/resubmit/void) + `app:reproject {form?}` — §8.4, §6.4 [feature]
-- [ ] M2-T10 `GET /sync/manifest?since=` (forms, versions, revocations, tasks placeholder) — §9.2, §10 [feature]
-- [ ] M2-T11 OpenAPI 3.1 via dedoc/scramble at `/docs/api` (platform admins) — §10 [smoke test]
-- [ ] M2-T12 Field App shell `resources/field-app`: Vite (base `/app/`, entries app + preview), React 19, TanStack Router/Query, Tailwind 4, shadcn/ui, DE/EN i18n, login + 2FA + device registration, served by Laravel catch-all — §9.1, §6.1 [vitest + build]
-- [ ] M2-T13 Renderer (form-schema-js/react): all v1.0 types, live calculations via `evaluate()`, pointer errors, wizard/scroll, repeater cards/table + virtualization, signature_pad, photo capture/compression, location — §9.1, §9.2 [vitest + RTL]
-- [ ] M2-T14 Field App screens: home (drafts, start new), catalog, fill (server autosave), review & sign, submit, my submissions, settings — §9.1 [vitest + Playwright mobile]
-- [ ] M2-T15 Builder preview: `preview.html` entry in an iframe, origin-checked postMessage of the unsaved definition, phone/tablet toggle — §8.2, §6.1 [Playwright]
-- [ ] M2-T16 Fillable-PDF import: fixture generator (pdf-lib), qpdf JSON parser job, mapping table, repeater detection, `x-import`, import report, limits; ADR qpdf vs pdf.js — §8.13 [feature on fixtures]
-- [ ] M2-T17 E2E journeys 2 (template → edit → preview → publish) and 8 (PDF import); API isolation cases — §12 [Playwright]
-- [ ] M2-T18 Gate M2
+- [x] M2-T01 Devices: `devices` table, register on login (secret shown once, hash stored), `POST /api/v1/auth/device-status` (ok/reauth/wipe) by device secret, revoke + wipe, user deactivation revokes sessions/tokens/devices — §9.3, §6.4 [feature tests]
+- [x] M2-T02 Submissions schema: `submissions` (client uuid PK, version pin, jsonb data, revision, number), `submission_events`, `attachments` (client uuid, private disk, sha256), `number_sequences` — §6.4, §9.2 [migration + model tests]
+- [x] M2-T03 Submission state machine (in-house enum + action, ADR 0025) with events + audit per transition — §6.5 [unit + feature]
+- [x] M2-T04 Access: FormAccessResolver (Owner/Admin all, else group/role grants), submission visibility per role, policies; `form_access_revoked` — §8.6, §9.3 [matrix tests]
+- [x] M2-T05 API forms: `GET /forms`, `GET /forms/{form}/versions/{version}` (access-filtered) — §10 [feature + isolation cases]
+- [x] M2-T06 API drafts: `PUT /submissions/{uuid}` (create/update, revision → 409), `GET /submissions`, `GET /submissions/{uuid}` — §9.2, §10 [feature]
+- [x] M2-T07 Attachments: `POST /submissions/{uuid}/attachments` idempotent by client uuid, finfo sniffing, allow-list, size limits, image re-encode (EXIF stripped) — §11, §9.2 [feature]
+- [x] M2-T08 Submit: `Idempotency-Key`, server re-evaluation (form-schema-php), attachment manifest, retired-version and revoked-access rejection, gap-free numbering (ON CONFLICT + FOR UPDATE) — §9.2, §8.10 AC [feature incl. concurrency]
+- [x] M2-T09 `submission_values` projector (submit/resubmit/void) + `app:reproject {form?}` — §8.4, §6.4 [feature]
+- [x] M2-T10 `GET /sync/manifest?since=` (forms, versions, revocations, tasks placeholder) — §9.2, §10 [feature]
+- [x] M2-T11 OpenAPI 3.1 via dedoc/scramble at `/docs/api` (platform admins) — §10 [smoke test]
+- [x] M2-T12 Field App shell `resources/field-app`: Vite (base `/app/`, entries app + preview), React 19, TanStack Router/Query, Tailwind 4, shadcn/ui, DE/EN i18n, login + 2FA + device registration, served by Laravel catch-all — §9.1, §6.1 [vitest + build]
+- [x] M2-T13 Renderer (form-schema-js/react): all v1.0 types, live calculations via `evaluate()`, pointer errors, wizard/scroll, repeater cards/table + virtualization, signature_pad, photo capture/compression, location — §9.1, §9.2 [vitest + RTL]
+- [x] M2-T14 Field App screens: home (drafts, start new), catalog, fill (server autosave), review & sign, submit, my submissions, settings — §9.1 [vitest + Playwright mobile]
+- [x] M2-T15 Builder preview: `preview.html` entry in an iframe, origin-checked postMessage of the unsaved definition, phone/tablet toggle — §8.2, §6.1 [Playwright]
+- [x] M2-T16 Fillable-PDF import: fixture generator (pdf-lib), qpdf JSON parser job, mapping table, repeater detection, `x-import`, import report, limits; ADR qpdf vs pdf.js — §8.13 [feature on fixtures]
+- [x] M2-T17 E2E journeys 2 (template → edit → preview → publish) and 8 (PDF import); API isolation cases — §12 [Playwright]
+- [x] M2-T18 Gate M2
 
-## M3 Documents + email — break down at M2 gate
-- Branding (logo, colors, OFL fonts, company details); designs + design versions + rollback; Blade print templates; Gotenberg rendering (inlined assets, size budget); renditions (input_hash, file_sha256); Preview PDF; mail settings (per-org SMTP encrypted, test mail), `mail_messages` log + retry; signed expiring links (410); send to customer; remaining templates (delivery note, timesheet, handover protocol).
+## M3 Documents + email (branch `m3-documents`)
+- [ ] M3-T01 Branding: logo upload (private disk, sniffed, re-encoded), primary/accent colors, bundled OFL font choice, company details; applied to PDFs and mails — §8.5 [Livewire + unit]
+- [ ] M3-T02 Designs: `designs` (draft settings) + immutable `design_versions` (trigger), publish/rollback/diff like forms; Filament Design resource (paper, orientation, margins, header/footer with tokens, layout style, repeaters table/cards, photo grid, empty fields, signature placement, watermark) — §8.5, §8.10 [feature]
+- [ ] M3-T03 Renderer: canonical render input (definition, data, branding, design version, meta) → Blade + print CSS (paged media, repeated table headers, keepTogether, no truncation), inlined assets (photos downscaled ≤ 1600 px, logo, fonts), 25 MB budget, Gotenberg client via spatie/laravel-pdf Gotenberg driver — §8.5 [unit + integration vs Gotenberg]
+- [ ] M3-T04 Renditions: `renditions` (input_hash, file_sha256, renderer/form/design versions, page count), queued GenerateRendition on SubmissionSubmitted, re-render = new rendition, immutable; `GET /submissions/{uuid}/document` signed URL — §8.5, §8.10 AC, §10 [feature + Gotenberg integration: 60-line repeater, page count, text]
+- [ ] M3-T05 "Preview PDF" in the builder with sample data — §8.2 [Livewire]
+- [ ] M3-T06 Mail: per-org sender name/reply-to, optional SMTP override (encrypted) + test mail, queued branded Markdown mailables, `mail_messages` log with retry — §8.8 [feature with Mail fake + Mailpit integration]
+- [ ] M3-T07 Document delivery: attachment up to a size limit or expiring signed link (default 14 days, 410 when expired) — §8.8 [feature]
+- [ ] M3-T08 Send to customer: `POST /submissions/{uuid}/send` queued until number + PDF exist; admin action — §9.2, §10 [feature]
+- [ ] M3-T09 Admin submissions inbox: list per form/org with status filters, detail view (data, attachments, events, renditions, re-render) — §8.12 [Livewire]
+- [ ] M3-T10 Templates: delivery note, timesheet, handover protocol — §7.6 [template lint + publish tests]
+- [ ] M3-T11 CSV bulk member invitations — §8.12 [feature]
+- [ ] M3-T12 Gate M3 (E2E: submit in Field App → PDF in admin → email arrives in Mailpit)
 
 ## M4 Workflows + notifications — break down at M3 gate
 - Workflow model + Builder steps; triggers; conditions; runs with snapshot + idempotency; steps send_email/notify/request_review/set_status/generate_document/webhook (HMAC, backoff, SSRF guard); tasks + review UI + API; run timeline + retry; notifications (db + mail, preferences, digest); field app tasks + notification center; E2E journey 4; MVP 0.x release notes.
@@ -71,10 +82,10 @@ AC refs point at BUILD_PROMPT sections. Test approach in brackets.
 - Submission explorer (dynamic columns across versions, filters, search, bulk); custom export job (openspout, repeater sheet, Export model notifications); bulk PDF ZIP; saved reports + charts + pin; role-aware dashboards with cached widgets; scheduled report emails; 100k-row index check.
 
 ## M6 Offline-first — break down at M5 gate
-- Dexie store; outbox + sync engine (start/online/visibilitychange/manual, Background Sync enhancement); attachment queue + compression + EXIF strip; conflict UI on 409; storage persistence + iOS install prompt; logout wipe; device wipe; E2E journeys 3, 7.
+- Dexie store; outbox + sync engine (start/online/visibilitychange/manual, Background Sync enhancement); attachment queue + compression + EXIF strip; conflict UI on 409; storage persistence + iOS install prompt; logout wipe; device wipe; incremental manifest: fetch every `fillable_form_ids` entry not cached (role grants touch no form, ADR 0027); E2E journeys 3, 7.
 
 ## M7 SSO + Builder v2 — break down at M6 gate
 - OIDC per org (Socialite), domain verification (DNS TXT, fake resolver), home-realm discovery, JIT + claim mapping, enforce SSO + break-glass; Keycloak in CI; SAML (socialiteproviders/saml2); Builder v2 page (palette/canvas/inspector, SortableJS, keyboard moves, undo/redo).
 
 ## M8 Hardening → 1.0 — break down at M7 gate
-- Audit log UI + CSV + retention pruning (+ optional hash chain); GDPR (per-form retention, legal hold, user export/erasure); accessibility audit; load tests (100k submissions); security review; CSP/HSTS; docs site, install + upgrade + backup guides; web push (if feasible); `/platform` operator panel; FINAL_REPORT.
+- Audit log UI + CSV + retention pruning (+ optional hash chain); GDPR (per-form retention, legal hold, user export/erasure); accessibility audit; load tests (100k submissions); security review; CSP/HSTS; builder preview on an opaque origin (QUESTIONS #10); docs site, install + upgrade + backup guides; web push (if feasible); `/platform` operator panel; FINAL_REPORT.

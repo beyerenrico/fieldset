@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Domain\Identity\Enums\MembershipStatus;
 use App\Domain\Identity\Enums\Permission;
 use App\Domain\Identity\Enums\SystemRole;
+use App\Domain\Identity\Models\Device;
 use App\Domain\Identity\Models\Group;
 use App\Domain\Identity\Models\Membership;
 use App\Domain\Identity\Models\Role;
@@ -15,6 +16,7 @@ use App\Filament\Admin\Resources\Members\Pages\ManageMembers;
 use App\Filament\Admin\Resources\Roles\Pages\ManageRoles;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Str;
 use Livewire\Livewire;
 
 beforeEach(function (): void {
@@ -122,4 +124,14 @@ it('does not expose another organization\'s records through policies', function 
 
     expect($this->owner->can('update', $foreignRole))->toBeFalse()
         ->and($this->owner->can('view', Membership::query()->where('organization_id', $other->id)->first()))->toBeFalse();
+});
+
+it('revokes all devices of a member', function (): void {
+    actingInAdmin($this->owner, $this->org);
+    $worker = memberOf($this->org, SystemRole::FieldWorker);
+    $device = Device::query()->create(['user_id' => $worker->id, 'device_uuid' => (string) Str::uuid(), 'secret_hash' => 'x']);
+
+    Livewire::test(ManageMembers::class)->callTableAction('revokeDevices', Membership::query()->where('user_id', $worker->id)->sole());
+
+    expect($device->refresh()->revoked_at)->not->toBeNull()->and($device->wipe_requested_at)->not->toBeNull();
 });

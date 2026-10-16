@@ -11,6 +11,7 @@
     "require": {
         "php": "^8.4",
         "brick/math": "^1.0",
+        "dedoc/scramble": "^0.13.48",
         "filament/filament": "^5.10",
         "form-schema/form-schema-php": "@dev",
         "laravel/fortify": "^1.41",

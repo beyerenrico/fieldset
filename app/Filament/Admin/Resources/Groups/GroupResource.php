@@ -11,6 +11,7 @@ use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
@@ -48,6 +49,8 @@ class GroupResource extends Resource
             TextInput::make('name')->label(__('identity.group.name'))->required()->maxLength(120)
                 ->scopedUnique(ignoreRecord: true),
             Textarea::make('description')->label(__('identity.group.description'))->rows(3),
+            Toggle::make('share_submissions')->label(__('identity.group.share_submissions'))
+                ->helperText(__('identity.group.share_submissions_help')),
         ]);
     }
 

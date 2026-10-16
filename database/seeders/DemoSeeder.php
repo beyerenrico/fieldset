@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Domain\Forms\Actions\CreateFormFromTemplate;
+use App\Domain\Forms\Actions\PublishForm;
+use App\Domain\Forms\Actions\SyncFormAccess;
 use App\Domain\Identity\Actions\AddMember;
 use App\Domain\Identity\Actions\CreateOrganization;
 use App\Domain\Identity\Actions\SyncMemberGroups;
@@ -50,6 +53,13 @@ final class DemoSeeder extends Seeder
             $add->handle($org, $user, $roles);
             $groups->handle($org, $user, $groupIds);
         }
+
+        // A published service report that the field crew may fill (demo for the Field App).
+        $tenant->run($org, function () use ($owner): void {
+            $form = app(CreateFormFromTemplate::class)->handle($owner, 'service_report');
+            app(PublishForm::class)->handle($form, 'Erste Version', $owner);
+            app(SyncFormAccess::class)->handle($form, [], ['field_worker'], $owner);
+        });
     }
 
     private function user(string $email, string $name): User

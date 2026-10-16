@@ -15,6 +15,9 @@ return [
         'joined_at' => 'Beigetreten',
         'invite' => 'Mitglied einladen',
         'invited' => 'Einladung versendet',
+        'revoke_devices' => 'Geräte sperren',
+        'revoke_devices_help' => 'Alle :count aktiven Field-App-Installationen dieses Mitglieds werden abgemeldet und löschen ihre lokalen Daten beim nächsten Kontakt.',
+        'devices_revoked' => ':count Geräte gesperrt',
         'deactivate' => 'Deaktivieren',
         'reactivate' => 'Reaktivieren',
         'cannot_edit_own_roles' => 'Sie können Ihre eigenen Rollen nicht ändern.',
@@ -29,6 +32,8 @@ return [
         'plural' => 'Gruppen',
         'name' => 'Name',
         'description' => 'Beschreibung',
+        'share_submissions' => 'Mitglieder sehen gegenseitig ihre Einreichungen',
+        'share_submissions_help' => 'Außendienstmitarbeiter dieser Gruppe können die Einreichungen der anderen Mitglieder in der Field App öffnen.',
         'members' => 'Mitglieder',
     ],
     'role' => [

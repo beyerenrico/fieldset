@@ -32,6 +32,8 @@
         <env name="DB_URL" value=""/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
+        <!-- PDF import (ADR 0024): local qpdf if installed, otherwise qpdf from the CI image via Docker. -->
+        <env name="QPDF_BINARY" value="scripts/qpdf"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>

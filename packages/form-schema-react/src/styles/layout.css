@@ -1,0 +1,184 @@
+.fsr-page {
+    display: flex;
+    flex-direction: column;
+    gap: var(--fsr-gap);
+    margin-bottom: calc(var(--fsr-gap) * 2);
+}
+
+.fsr-page__title {
+    margin: 0;
+    font-size: 1.375em;
+    line-height: 1.3;
+}
+
+.fsr-page__description {
+    margin: 0;
+    color: var(--fsr-color-muted);
+}
+
+.fsr-heading {
+    margin: 0.5em 0 0;
+    line-height: 1.3;
+}
+
+.fsr-heading--1 {
+    font-size: 1.375em;
+}
+
+.fsr-heading--2 {
+    font-size: 1.2em;
+}
+
+.fsr-heading--3 {
+    font-size: 1.05em;
+}
+
+.fsr-markdown > :first-child {
+    margin-top: 0;
+}
+
+.fsr-markdown > :last-child {
+    margin-bottom: 0;
+}
+
+.fsr-markdown a {
+    color: var(--fsr-color-primary);
+    text-decoration: underline;
+}
+
+.fsr-divider {
+    width: 100%;
+    margin: 0.5em 0;
+    border: 0;
+    border-top: 1px solid var(--fsr-color-border);
+}
+
+.fsr-image {
+    max-width: 100%;
+    height: auto;
+}
+
+.fsr-image-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25em;
+    min-height: 6em;
+    padding: 1em;
+    border: 2px dashed var(--fsr-color-border);
+    border-radius: var(--fsr-radius);
+    color: var(--fsr-color-muted);
+    text-align: center;
+}
+
+.fsr-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75em;
+    padding: var(--fsr-gap);
+    border: 1px solid var(--fsr-color-border);
+    border-radius: var(--fsr-radius);
+}
+
+.fsr-section__title {
+    margin: 0;
+    font-size: 1.1em;
+    font-weight: 700;
+}
+
+.fsr-section--collapsible > summary {
+    display: flex;
+    align-items: center;
+    min-height: var(--fsr-control-height);
+    cursor: pointer;
+}
+
+.fsr-columns {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--fsr-gap);
+}
+
+@media (min-width: 40em) {
+    .fsr-columns--2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .fsr-columns--3 {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .fsr-columns--4 {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+.fsr-progress {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25em;
+    margin-bottom: var(--fsr-gap);
+}
+
+.fsr-progress__text {
+    margin: 0;
+    color: var(--fsr-color-muted);
+    font-weight: 600;
+}
+
+.fsr-progress__bar {
+    width: 100%;
+    height: 0.5em;
+    accent-color: var(--fsr-color-primary);
+}
+
+.fsr-footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    display: flex;
+    gap: 0.5em;
+    justify-content: flex-end;
+    margin-top: var(--fsr-gap);
+    padding: 0.75em 0 calc(0.75em + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--fsr-color-border);
+    background: var(--fsr-color-bg);
+}
+
+/* WCAG 2.4.11: fields scrolled into view on focus stay clear of the sticky footer (~70 px). The
+   window is the scroller in both hosts (Field App, builder preview). */
+html:has(.fsr-footer) {
+    scroll-padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
+}
+
+.fsr-footer__primary {
+    flex: 1 1 auto;
+    max-width: 24em;
+}
+
+.fsr-summary {
+    margin-bottom: var(--fsr-gap);
+    padding: var(--fsr-gap);
+    border: 3px solid var(--fsr-color-danger);
+    border-radius: var(--fsr-radius);
+}
+
+.fsr-summary__title {
+    margin: 0 0 0.5em;
+    font-size: 1.1em;
+    color: var(--fsr-color-danger);
+}
+
+.fsr-summary__list {
+    margin: 0;
+    padding-left: 1.25em;
+}
+
+.fsr-summary__list a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--fsr-control-height);
+    color: var(--fsr-color-danger);
+    font-weight: 600;
+}

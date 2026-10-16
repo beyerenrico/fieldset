@@ -33,3 +33,6 @@ Thumbs.db
 /storage/coverage
 /storage/playwright
 /storage/playwright-results
+/storage/playwright-auth
+/public/app
+/public/form-preview

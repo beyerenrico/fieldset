@@ -7,6 +7,7 @@ namespace App\Filament\Admin\Resources\Forms\Pages;
 use App\Domain\Forms\Actions\CreateForm;
 use App\Domain\Forms\Actions\CreateFormFromTemplate;
 use App\Domain\Forms\Actions\ImportDefinition;
+use App\Domain\Forms\Jobs\ImportFillablePdf;
 use App\Domain\Forms\Models\Form;
 use App\Domain\Forms\Support\InvalidDefinitionException;
 use App\Domain\Forms\Templates\TemplateCatalog;
@@ -29,7 +30,31 @@ class ListForms extends ListRecords
 
     protected function getHeaderActions(): array
     {
-        return [$this->blankAction(), $this->templateAction(), $this->importAction()];
+        return [$this->blankAction(), $this->templateAction(), $this->importAction(), $this->importPdfAction()];
+    }
+
+    /** Fillable PDF → draft form, parsed by a queued job (BUILD_PROMPT §8.13). */
+    private function importPdfAction(): Action
+    {
+        return Action::make('importPdf')->label(__('forms.import.action'))->icon('heroicon-o-document-arrow-up')->color('gray')
+            ->authorize(fn (): bool => auth()->user()?->can('create', Form::class) ?? false)
+            ->modalDescription(__('forms.import.action_help'))
+            ->schema([
+                FileUpload::make('file')->label(__('forms.import.file'))->required()
+                    ->acceptedFileTypes(['application/pdf'])
+                    ->maxSize(intdiv((int) config('forms.pdf_import.max_bytes'), 1024))
+                    ->disk((string) config('forms.pdf_import.disk'))->visibility('private')
+                    ->directory((string) config('forms.pdf_import.directory'))
+                    ->storeFileNamesIn('file_name'),
+                TextInput::make('name')->label(__('forms.form.name'))->maxLength(200)->helperText(__('forms.import.name_help')),
+            ])
+            ->action(function (array $data): void {
+                $path = is_array($data['file']) ? (string) (array_values($data['file'])[0] ?? '') : (string) $data['file'];
+                $fileName = is_array($data['file_name'] ?? null) ? (array_values($data['file_name'])[0] ?? null) : ($data['file_name'] ?? null);
+                ImportFillablePdf::dispatch($this->actor(), $path, ($data['name'] ?? '') !== '' ? $data['name'] : null,
+                    is_string($fileName) ? $fileName : null, app()->getLocale(), (string) config('forms.pdf_import.disk'));
+                Notification::make()->info()->title(__('forms.import.queued'))->body(__('forms.import.queued_body'))->send();
+            });
     }
 
     private function blankAction(): Action

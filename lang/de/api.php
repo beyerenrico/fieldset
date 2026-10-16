@@ -10,6 +10,7 @@ return [
     'organization_forbidden' => 'Sie sind kein aktives Mitglied dieser Organisation.',
     'too_many_requests' => 'Zu viele Anfragen. Bitte gleich erneut versuchen.',
     'validation_failed' => 'Die Daten sind ungültig.',
+    'payload_too_large' => 'Die Anfrage ist zu groß.',
     'method_not_allowed' => 'Diese Methode ist nicht erlaubt.',
     'conflict' => 'Die Ressource wurde zwischenzeitlich geändert.',
     'gone' => 'Dieser Link ist abgelaufen.',

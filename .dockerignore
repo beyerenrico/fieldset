@@ -11,3 +11,5 @@ public/build
 public/hot
 docs/agent/milestones/evidence
 **/node_modules
+public/app
+public/form-preview
