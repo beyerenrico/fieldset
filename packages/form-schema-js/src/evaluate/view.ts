@@ -2,7 +2,6 @@
 import type { ElementNode, ScopeNode } from '../definition/model.ts';
 import { getOwn, isPlainObject, type JsonObject, type JsonValue } from '../json/types.ts';
 import { evaluateLogic } from '../logic/evaluator.ts';
-import { LogicError } from '../logic/operation.ts';
 import type { Located } from './instances.ts';
 import { getAt } from './data.ts';
 import { isEmpty, typeIssue } from './checks/type-checks.ts';
@@ -103,12 +102,5 @@ export function scopeObject(
 
 /** Evaluates logic; an unknown operator (a lint error) or excessive nesting evaluates to `null`. */
 export function evaluateSafely(logic: unknown, scope: JsonObject): unknown {
-    try {
-        return evaluateLogic(logic, scope);
-    } catch (error) {
-        if (error instanceof LogicError) {
-            return null;
-        }
-        throw error;
-    }
+    return evaluateLogic(logic, scope);
 }

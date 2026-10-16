@@ -3,6 +3,7 @@ import { collectionOperators } from './ops/collections.ts';
 import { coreOperators } from './ops/core.ts';
 import { dateOperators } from './ops/date.ts';
 import { decimalOperators } from './ops/decimal.ts';
+import { exceedsDepth } from '../json/types.ts';
 import { isOperation, LogicError, operationOf, type Operator } from './operation.ts';
 
 const OPERATORS: ReadonlyMap<string, Operator> = new Map(
@@ -17,31 +18,55 @@ const OPERATORS: ReadonlyMap<string, Operator> = new Map(
 /** Every operator name of §4.2 and §5.3. Anything else is lint `unknown_operator`. */
 export const KNOWN_OPERATORS: ReadonlySet<string> = new Set(OPERATORS.keys());
 
-/** Nesting limit; deeper expressions throw `LogicError('max_depth')` instead of a stack overflow. */
+/** Logic nested deeper than this (objects and arrays, §4.2) is an evaluation error. */
 export const MAX_LOGIC_DEPTH = 512;
 
-let depth = 0;
+const shallowEnough = new WeakMap<object, boolean>();
+
+/** True when the expression nests objects/arrays deeper than 512 levels (cached per object). */
+export function isLogicTooDeep(logic: unknown): boolean {
+    if (typeof logic !== 'object' || logic === null) {
+        return false;
+    }
+    const cached = shallowEnough.get(logic);
+    if (cached !== undefined) {
+        return !cached;
+    }
+    const tooDeep = exceedsDepth(logic, MAX_LOGIC_DEPTH);
+    shallowEnough.set(logic, !tooDeep);
+    return tooDeep;
+}
 
 /**
  * Evaluates a JsonLogic expression against `data` (the scope object). Arrays evaluate to the
  * list of their evaluated items; objects with more than one key and primitives are literals.
- * Throws `LogicError` for operators outside the dialect and for nesting beyond `MAX_LOGIC_DEPTH`.
+ * Throws `LogicError` for operators outside the dialect and for nesting beyond 512 levels.
  */
-export function evaluateLogic(logic: unknown, data: unknown): unknown {
-    if (depth >= MAX_LOGIC_DEPTH) {
+export function evaluateLogicStrict(logic: unknown, data: unknown): unknown {
+    if (isLogicTooDeep(logic)) {
         throw new LogicError('max_depth', '');
     }
-    depth++;
+    return evaluateNode(logic, data);
+}
+
+/**
+ * Evaluates a JsonLogic expression; evaluation errors (unknown operators, nesting deeper than
+ * 512 levels) make the whole expression `null` (§4.2).
+ */
+export function evaluateLogic(logic: unknown, data: unknown): unknown {
     try {
-        return evaluateNode(logic, data);
-    } finally {
-        depth--;
+        return evaluateLogicStrict(logic, data);
+    } catch (error) {
+        if (error instanceof LogicError) {
+            return null;
+        }
+        throw error;
     }
 }
 
 function evaluateNode(logic: unknown, data: unknown): unknown {
     if (Array.isArray(logic)) {
-        return (logic as readonly unknown[]).map((item) => evaluateLogic(item, data));
+        return (logic as readonly unknown[]).map((item) => evaluateNode(item, data));
     }
     if (!isOperation(logic)) {
         return logic ?? null;
@@ -51,7 +76,7 @@ function evaluateNode(logic: unknown, data: unknown): unknown {
     if (operator === undefined) {
         throw new LogicError('unknown_operator', op);
     }
-    return operator(args, data, evaluateLogic) ?? null;
+    return operator(args, data, evaluateNode) ?? null;
 }
 
 /** Pluggable evaluator interface (ADR 0021). */

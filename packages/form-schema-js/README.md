@@ -18,7 +18,7 @@ import {
     canonicalJson, // canonical JSON (§6)
     checksum, // SHA-256 hex of the canonical JSON
     validateDefinition, // meta-schema (JSON Schema 2020-12) → { valid, errors[{path, message}] }
-    evaluateLogic, // JsonLogic dialect (§4, §5.3)
+    evaluateLogic, // JsonLogic dialect (§4, §5.3); errors → null (evaluateLogicStrict throws)
     parseDefinition, // immutable model: nodes with scope + JSON paths
     lint, // §7 findings [{severity, code, path, params?}]
     evaluate, // §5.5 → { data, errors[{pointer, code, params?}], visibility }
@@ -58,7 +58,6 @@ context are exported as well.
 | Package                              | Version           | License    | Use                                                        |
 | ------------------------------------ | ----------------- | ---------- | ---------------------------------------------------------- |
 | `ajv` (`ajv/dist/2020`)              | ^8.20.0           | MIT        | meta-schema validation, `unevaluatedProperties`            |
-| `ajv-formats`                        | ^3.0.1            | MIT        | `uri` format                                               |
 | `decimal.js`                         | ^10.6.0           | MIT        | exact decimals, own clone: precision 1000, `ROUND_HALF_UP` |
 | `@noble/hashes`                      | ^2.4.0            | MIT        | synchronous SHA-256                                        |
 | `typescript`                         | ~6.0.3            | Apache-2.0 | dev                                                        |
@@ -67,6 +66,7 @@ context are exported as well.
 | `typescript-eslint`                  | ^8.71.2           | MIT        | dev                                                        |
 | `prettier`, `eslint-config-prettier` | ^3.9.10, ^10.1.8  | MIT        | dev                                                        |
 | `@types/node`                        | ^24               | MIT        | dev (tests only)                                           |
+| `ajv-formats`                        | ^3.0.1            | MIT        | dev (tests validate the exported data schema)              |
 
 **TypeScript version:** npm `latest` is 7.0.2, but `typescript-eslint` 8.71.2 declares the peer
 range `typescript >=4.8.4 <6.1.0`. The package therefore pins the newest supported line,
@@ -74,7 +74,23 @@ range `typescript >=4.8.4 <6.1.0`. The package therefore pins the newest support
 
 ## Implementation notes
 
-Where the spec leaves room, the SDK chooses the reading below (the conformance cases agree):
+Most of these points are now normative in the spec README; the rest are SDK choices:
+
+- **Patterns (§3.4):** a hand-written parser accepts exactly the restricted subset (no nested
+  quantifiers on groups, bounds ≤ 1000, no backreferences, named groups, lookbehind, inline flags,
+  property escapes) and re-emits the pattern for `new RegExp(source, 'u')`; the only rewrite is `\-`
+  outside a class, which Unicode mode cannot parse escaped. An unescaped `[` inside a class is
+  rejected (avoids POSIX-class ambiguity). Values longer than 4,096 code points fail `pattern`.
+- **Limits:** decimal strings have at most 60 digits (money also after padding to its scale);
+  `decodeJson` rejects documents nested deeper than 1,024 levels; logic deeper than 512 levels of
+  objects and arrays (a scalar is depth 0, `{"!": true}` depth 1) evaluates to `null` and is linted
+  as `logic_too_deep` without further checks of that property.
+- **Calculation order (§5.5):** Kahn's algorithm over static dependencies with the ready set ordered
+  by document order. A reference to a repeater depends on every calculated element in its rows
+  (row calculations before aggregates; also used for `cycle`).
+- **Meta-schema:** Ajv tracks evaluated properties in a plain object, so `Object.prototype` names
+  such as `constructor` would slip past `unevaluatedProperties`; the element schema additionally
+  forbids those names (`ownProperties: true` as well).
 
 - **Rounds (§5.5 step 2):** visibility is decided top-down and each decision is visible to later
   elements of the same pass. A round counts as stable only if visibility _and_ the data (calculated
@@ -97,8 +113,8 @@ Where the spec leaves room, the SDK chooses the reading below (the conformance c
   scale and ties keep the first item. `dec.div`/`dec.round` scales must be JSON integers 0–20.
   `date.diff` on date-times includes fractional seconds before truncating; `date.add` drops them.
   `substr` counts code points; `in` converts a non-string needle like JavaScript `String()`.
-  Unknown operators and nesting deeper than 512 levels throw `LogicError`; `evaluate` treats both
-  as `null`.
+  Unknown operators and nesting deeper than 512 levels make `evaluateLogic` return `null`;
+  `evaluateLogicStrict` throws `LogicError` instead.
 - **Unvalidated definitions:** out-of-range `scale` values (money outside 0–4, calculated outside
   0–10) fall back to the defaults instead of throwing.
 - **Lint:** references must resolve to _data_ keys (layout keys are not data); built-in objects check

@@ -120,6 +120,18 @@ describe('lint rules beyond the conformance suite', () => {
         ]);
     });
 
+    it('reports logic_too_deep only and adds no dependencies for over-deep logic', () => {
+        let deep: unknown = { var: 'nope' };
+        for (let level = 0; level < 600; level++) {
+            deep = { regex: [deep] };
+        }
+        const definition = form([
+            el('calculated', 'a', { expression: deep }),
+            el('calculated', 'b', { expression: { var: 'a' } }),
+        ]);
+        expect(brief(lint(definition))).toEqual(['logic_too_deep /pages/0/elements/0/expression']);
+    });
+
     it('flags lint errors but not warnings as blocking', () => {
         expect(hasLintErrors(lint(form([el('text', 'a', { role: 'nope.nope' })])))).toBe(false);
         expect(hasLintErrors(lint(form([el('text', 'a'), el('text', 'a')])))).toBe(true);

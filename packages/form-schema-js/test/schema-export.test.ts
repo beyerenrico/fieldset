@@ -29,6 +29,18 @@ describe('validateDefinition', () => {
         });
     });
 
+    it('rejects prototype member names on elements with a readable message', () => {
+        const definition = JSON.parse(
+            JSON.stringify(form([el('text', 'a')])).replace('"label"', '"constructor":1,"label"'),
+        ) as unknown;
+        expect(validateDefinition(definition).errors).toEqual([
+            {
+                path: '/pages/0/elements/0',
+                message: 'must NOT have unevaluated properties (constructor)',
+            },
+        ]);
+    });
+
     it('accepts the conformance service report and caches the compiled validator', () => {
         const suite = JSON.parse(
             readFileSync(join(SPEC, 'conformance/evaluate/service-report.json'), 'utf8'),

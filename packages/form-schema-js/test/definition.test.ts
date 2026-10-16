@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { cycleStarts, dependencyGraph, evaluationOrder } from '../src/definition/dependencies.ts';
-import { compilePattern, usesForbiddenSyntax } from '../src/definition/pattern.ts';
 import { resolveReference, targetElement } from '../src/definition/resolve.ts';
 import { DefinitionError, isDefinitionModel, parseDefinition } from '../src/index.ts';
 import { el, form, page } from './helpers.ts';
@@ -147,25 +146,6 @@ describe('calculation dependencies', () => {
             'b',
         ]);
         expect(cycleStarts(graph).map((node) => node.key)).toEqual(['a']);
-    });
-});
-
-describe('patterns', () => {
-    it('rejects lookbehind and backreferences outside classes', () => {
-        expect(usesForbiddenSyntax('(?<=a)b')).toBe(true);
-        expect(usesForbiddenSyntax('(?<!a)b')).toBe(true);
-        expect(usesForbiddenSyntax('(a)\\1')).toBe(true);
-        expect(usesForbiddenSyntax('(?<n>a)\\k<n>')).toBe(true);
-        expect(usesForbiddenSyntax('[\\1(?<=]')).toBe(false);
-        expect(usesForbiddenSyntax('(?<name>a)\\d')).toBe(false);
-    });
-
-    it('compiles in Unicode mode with a legacy fallback and caches results', () => {
-        expect(compilePattern('^\\w+$')?.flags).toBe('u');
-        expect(compilePattern('\\-')?.flags).toBe('');
-        expect(compilePattern('(')).toBeNull();
-        expect(compilePattern('(')).toBeNull();
-        expect(compilePattern('(?<=x)')).toBeNull();
     });
 });
 

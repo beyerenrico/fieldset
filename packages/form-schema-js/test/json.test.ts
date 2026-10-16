@@ -7,7 +7,7 @@ import {
     JsonDecodeError,
 } from '../src/index.ts';
 import { toPointer } from '../src/json/pointer.ts';
-import { getOwn, isJsonInteger, toJson } from '../src/json/types.ts';
+import { exceedsDepth, getOwn, isJsonInteger, jsonEquals, toJson } from '../src/json/types.ts';
 
 describe('decodeJson', () => {
     it('parses JSON text', () => {
@@ -17,6 +17,39 @@ describe('decodeJson', () => {
     it('throws JsonDecodeError on malformed input', () => {
         expect(() => decodeJson('{"a":')).toThrow(JsonDecodeError);
         expect(() => decodeJson('nope')).toThrow(/Invalid JSON/);
+    });
+});
+
+function nested(levels: number): string {
+    return '['.repeat(levels) + ']'.repeat(levels);
+}
+
+describe('nesting limits', () => {
+    it('decodes 1,024 levels and rejects deeper documents', () => {
+        expect(exceedsDepth(decodeJson(nested(1024)), 1024)).toBe(false);
+        expect(() => decodeJson(nested(1025))).toThrow(/nested deeper than 1024/);
+        expect(() => decodeJson(`{"a":${nested(1025)}}`)).toThrow(JsonDecodeError);
+    });
+
+    it('ignores brackets inside strings', () => {
+        const text = `[${JSON.stringify('[{\\"'.repeat(2000))}]`;
+        expect(decodeJson(text)).toHaveLength(1);
+    });
+
+    it('canonicalizes 1,024-level documents without overflowing', () => {
+        expect(canonicalJson(decodeJson(nested(1024)))).toBe(nested(1024));
+        expect(checksum(decodeJson(nested(1024)))).toMatch(/^[0-9a-f]{64}$/);
+    });
+
+    it('measures depth and compares structurally', () => {
+        expect(exceedsDepth({ a: [1] }, 2)).toBe(false);
+        expect(exceedsDepth({ a: [1] }, 1)).toBe(true);
+        expect(exceedsDepth('x', 0)).toBe(false);
+        expect(jsonEquals({ a: [1, { b: null }] }, { a: [1, { b: null }] })).toBe(true);
+        expect(jsonEquals({ a: 1 }, { b: 1 })).toBe(false);
+        expect(jsonEquals([1], { 0: 1 })).toBe(false);
+        expect(jsonEquals({ a: 1 }, { a: 1, b: 2 })).toBe(false);
+        expect(jsonEquals('a', 'b')).toBe(false);
     });
 });
 
@@ -67,9 +100,9 @@ describe('compareCodePoints', () => {
 
 describe('json helpers', () => {
     it('toJson copies, freezes and drops non-JSON values', () => {
-        const source = { a: [1, Number.NaN, -0], b: undefined, c: new Date(0), d: { e: 'x' } };
+        const source = { a: [1, Infinity, -0], b: undefined, c: new Date(0), d: { e: 'x' } };
         const copy = toJson(source);
-        expect(copy).toEqual({ a: [1, null, 0], c: null, d: { e: 'x' } });
+        expect(copy).toEqual({ a: [1, Infinity, 0], c: null, d: { e: 'x' } });
         expect(Object.isFrozen(copy)).toBe(true);
         expect(toJson(Object.create(null) as object)).toEqual({});
     });

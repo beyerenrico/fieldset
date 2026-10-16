@@ -1,7 +1,7 @@
 /** Type checks of §5.6 (codes `type_mismatch` … `invalid_location`) for non-empty values. */
 import { parseDate, parseDateTime, parseTime } from '../../date/calendar.ts';
 import type { ElementNode } from '../../definition/model.ts';
-import { fractionDigits, isDecimalString } from '../../decimal/decimal.ts';
+import { fitsScale, fractionDigits, isDecimalString } from '../../decimal/decimal.ts';
 import {
     arrayProp,
     getOwn,
@@ -21,7 +21,9 @@ export interface Issue {
 
 type TypeCheck = (node: ElementNode, value: JsonValue) => Issue | null;
 
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
+/** Email addresses longer than this many code points are invalid (§5.6). */
+const MAX_EMAIL_LENGTH = 254;
 const PHONE = /^\+?[0-9 ()./-]{3,32}$/;
 const MISMATCH: Issue = { code: 'type_mismatch' };
 
@@ -61,11 +63,12 @@ function decimalCheck(node: ElementNode, value: JsonValue): Issue | null {
     if (typeof value !== 'string') {
         return MISMATCH;
     }
-    if (!isDecimalString(value)) {
+    const scale = moneyScale(node);
+    const money = node.type === 'money';
+    if (!isDecimalString(value) || (money && !fitsScale(value, scale))) {
         return issue('invalid_number');
     }
-    const scale = moneyScale(node);
-    return node.type === 'money' && fractionDigits(value) > scale
+    return money && fractionDigits(value) > scale
         ? { code: 'scale_exceeded', params: { scale } }
         : null;
 }
@@ -124,7 +127,10 @@ const hiddenCheck: TypeCheck = (_node, value) =>
 const TYPE_CHECKS: Readonly<Record<string, TypeCheck>> = {
     text: stringCheck(() => true, 'type_mismatch'),
     textarea: stringCheck(() => true, 'type_mismatch'),
-    email: stringCheck((text) => EMAIL.test(text), 'invalid_email'),
+    email: stringCheck(
+        (text) => Array.from(text).length <= MAX_EMAIL_LENGTH && EMAIL.test(text),
+        'invalid_email',
+    ),
     phone: stringCheck((text) => PHONE.test(text), 'invalid_phone'),
     date: stringCheck((text) => parseDate(text) !== null, 'invalid_date'),
     time: stringCheck((text) => parseTime(text) !== null, 'invalid_time'),

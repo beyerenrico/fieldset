@@ -1,7 +1,7 @@
 /** Structural lint rules: duplicates, bounds, patterns, reserved types, roles, empty pages. */
 import { RESERVED_TYPES } from '../definition/element-types.ts';
 import type { DefinitionModel, ElementNode, ScopeNode } from '../definition/model.ts';
-import { compilePattern } from '../definition/pattern.ts';
+import { isValidPattern } from '../definition/pattern.ts';
 import { arrayProp, integerProp, isPlainObject, objectProp, stringProp } from '../json/types.ts';
 import { knownRoles } from '../spec-assets.ts';
 import { finding, type LintCode, type LintFinding } from './types.ts';
@@ -73,7 +73,7 @@ function repeaterBounds(node: ElementNode): LintFinding[] {
 
 function invalidPattern(node: ElementNode): LintFinding[] {
     const pattern = stringProp(objectProp(node.raw, 'validation') ?? {}, 'pattern');
-    return pattern !== undefined && compilePattern(pattern) === null
+    return pattern !== undefined && !isValidPattern(pattern)
         ? [finding('invalid_pattern', `${node.path}/validation/pattern`, { pattern })]
         : [];
 }

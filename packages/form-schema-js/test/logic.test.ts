@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
     evaluateLogic,
+    evaluateLogicStrict,
     jsonLogicDialect,
     KNOWN_OPERATORS,
+    MAX_LOGIC_DEPTH,
     LogicError,
     truthy,
 } from '../src/index.ts';
@@ -12,10 +14,11 @@ import { literalVarPath, pathLiteral, visitLogic } from '../src/logic/walk.ts';
 const run = (logic: unknown, data: unknown = {}) => evaluateLogic(logic, data);
 
 describe('evaluator basics', () => {
-    it('throws LogicError for unknown operators', () => {
-        expect(() => run({ regex: ['a', 'b'] })).toThrow(LogicError);
+    it('evaluates unknown operators to null; the strict variant throws LogicError', () => {
+        expect(run({ '!!': [{ regex: ['a', 'b'] }] })).toBeNull();
+        expect(() => evaluateLogicStrict({ regex: ['a', 'b'] }, {})).toThrow(LogicError);
         try {
-            run({ nope: [] });
+            evaluateLogicStrict({ nope: [] }, {});
         } catch (error) {
             expect(error).toMatchObject({ code: 'unknown_operator', operator: 'nope' });
         }
@@ -36,13 +39,21 @@ describe('evaluator basics', () => {
 });
 
 describe('robustness', () => {
-    it('caps nesting depth with LogicError instead of overflowing the stack', () => {
-        let logic: unknown = true;
-        for (let level = 0; level < 20000; level++) {
-            logic = { '!': [logic] };
-        }
-        expect(() => run(logic)).toThrow(/nested too deeply/);
-        expect(run({ '!': [{ '!': [true] }] })).toBe(true);
+    it('limits nesting to 512 levels of objects and arrays', () => {
+        const nest = (levels: number, wrap: (inner: unknown) => unknown): unknown =>
+            Array.from({ length: levels }).reduce<unknown>((inner) => wrap(inner), true);
+        expect(run(nest(512, (inner) => ({ '!': inner })))).toBe(true);
+        expect(run(nest(513, (inner) => ({ '!': inner })))).toBeNull();
+        expect(run(nest(256, (inner) => ({ '!': [inner] })))).toBe(true);
+        expect(run(nest(257, (inner) => ({ '!': [inner] })))).toBeNull();
+        expect(run(nest(20000, (inner) => ({ '!': [inner] })))).toBeNull();
+        expect(() =>
+            evaluateLogicStrict(
+                nest(600, (inner) => [inner]),
+                {},
+            ),
+        ).toThrow(/nested too deeply/);
+        expect(MAX_LOGIC_DEPTH).toBe(512);
     });
 
     it('aggregates very large lists', () => {
@@ -212,7 +223,7 @@ describe('decimal operators', () => {
             '1.50',
         );
         // A literal one-key object is an operation in JsonLogic, so `v` is an unknown operator.
-        expect(() => run({ sum: [[{ v: '1' }], 'v'] })).toThrow(LogicError);
+        expect(run({ sum: [[{ v: '1' }], 'v'] })).toBeNull();
         expect(run({ max: [null, '3', 'x'] })).toBe('3');
         expect(run({ min: ['2', 1] })).toBe('1');
         expect(run({ min: [] })).toBeNull();

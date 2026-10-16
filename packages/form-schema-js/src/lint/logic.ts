@@ -2,7 +2,7 @@
 import type { DefinitionModel, ElementNode, ScopeNode } from '../definition/model.ts';
 import { isNumericElement, resolveReference, targetElement } from '../definition/resolve.ts';
 import { getOwn, hasOwn, isJsonInteger, stringProp, type RawObject } from '../json/types.ts';
-import { KNOWN_OPERATORS } from '../logic/evaluator.ts';
+import { isLogicTooDeep, KNOWN_OPERATORS } from '../logic/evaluator.ts';
 import {
     BUILTIN_NUMERIC_OPERATORS,
     DECIMAL_OPERATORS,
@@ -68,8 +68,14 @@ const RULES: readonly Rule[] = [
     decimalBuiltin,
 ];
 
-/** Lints one logic property; `path` points at the property itself. */
+/**
+ * Lints one logic property; `path` points at the property itself. An expression nested deeper
+ * than 512 levels is reported as `logic_too_deep` only and not traversed.
+ */
 export function lintLogic(logic: unknown, scope: ScopeNode, path: string): LintFinding[] {
+    if (isLogicTooDeep(logic)) {
+        return [finding('logic_too_deep', path)];
+    }
     const findings: LintFinding[] = [];
     visitLogic(logic, (visit) => {
         for (const rule of RULES) {

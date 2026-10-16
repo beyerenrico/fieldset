@@ -7,8 +7,47 @@ export class JsonDecodeError extends Error {
     override readonly name = 'JsonDecodeError';
 }
 
-/** Parses JSON text. Throws `JsonDecodeError` with the parser message on malformed input. */
+/** Documents nested deeper than this (objects and arrays) are rejected on decode (§4.2). */
+export const MAX_JSON_DEPTH = 1024;
+
+const QUOTE = 34;
+const BACKSLASH = 92;
+const OPENERS = new Set([91, 123]);
+const CLOSERS = new Set([93, 125]);
+
+/** Scans JSON text for object/array nesting deeper than `limit` (strings are skipped). */
+function nestsDeeperThan(text: string, limit: number): boolean {
+    let depth = 0;
+    let inString = false;
+    for (let index = 0; index < text.length; index++) {
+        const code = text.charCodeAt(index);
+        if (inString) {
+            index += code === BACKSLASH ? 1 : 0;
+            inString = code !== QUOTE;
+        } else if (code === QUOTE) {
+            inString = true;
+        } else if (OPENERS.has(code)) {
+            depth++;
+            if (depth > limit) {
+                return true;
+            }
+        } else if (CLOSERS.has(code)) {
+            depth--;
+        }
+    }
+    return false;
+}
+
+/**
+ * Parses JSON text. Throws `JsonDecodeError` on malformed input and on documents nested deeper
+ * than 1,024 levels.
+ */
 export function decodeJson(text: string): JsonValue {
+    if (nestsDeeperThan(text, MAX_JSON_DEPTH)) {
+        throw new JsonDecodeError(
+            `Invalid JSON: nested deeper than ${String(MAX_JSON_DEPTH)} levels`,
+        );
+    }
     try {
         return JSON.parse(text) as JsonValue;
     } catch (error) {

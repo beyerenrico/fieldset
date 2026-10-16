@@ -1,5 +1,5 @@
 {
-  "description": "Calculation order between statically unrelated calculated elements must be identical across implementations (spec \u00a75.4/\u00a75.5; definition is lint-clean). Expected assumes order = depth-first, dependencies first, document order (PHP); README must pin this down",
+  "description": "Calculation order between statically unrelated calculated elements (spec §5.5): topological on static dependencies, document order for ties; references inside iteration bodies are not dependencies. This case does not converge within the 5-round cap.",
   "definition": {
     "specVersion": "1.0.0",
     "key": "probe",
@@ -302,7 +302,7 @@
         "errors": [],
         "calculated": {
           "/z1": "apz",
-          "/z5": "apzapzapzapzapz"
+          "/z5": "zapzapzapzapz"
         }
       }
     }

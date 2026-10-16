@@ -1,5 +1,6 @@
 /** Dependency graph between calculated elements (spec §5.4, lint `cycle`). */
 import { getOwn } from '../json/types.ts';
+import { isLogicTooDeep } from '../logic/evaluator.ts';
 import { pathLiteral, visitLogic } from '../logic/walk.ts';
 import type { DefinitionModel, ElementNode } from './model.ts';
 import { calculatedWithin, resolveReference } from './resolve.ts';
@@ -14,7 +15,11 @@ export type DependencyGraph = ReadonlyMap<ElementNode, readonly ElementNode[]>;
  */
 export function dependenciesOf(node: ElementNode): ElementNode[] {
     const dependencies = new Set<ElementNode>();
-    visitLogic(getOwn(node.raw, 'expression'), ({ op, args, inIteration }) => {
+    const expression = getOwn(node.raw, 'expression');
+    if (isLogicTooDeep(expression)) {
+        return [];
+    }
+    visitLogic(expression, ({ op, args, inIteration }) => {
         const path = op === 'var' && !inIteration ? pathLiteral(args[0]) : null;
         if (path === null || path === '') {
             return;

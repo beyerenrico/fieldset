@@ -58,14 +58,15 @@ export function isJsonInteger(value: unknown): value is number {
 
 /**
  * Deep copy of a JSON-like value into fresh frozen JSON. `undefined` object members are dropped,
- * non-finite numbers and non-JSON values (functions, symbols, bigint, class instances) become `null`.
+ * non-JSON values (functions, symbols, bigint, class instances) become `null`. Non-finite numbers
+ * (e.g. `1e400` parsed as `Infinity`) are kept so validation can reject them.
  */
 export function toJson(value: unknown): JsonValue {
     if (value === null || typeof value === 'string' || typeof value === 'boolean') {
         return value;
     }
     if (typeof value === 'number') {
-        return Number.isFinite(value) ? normalizeZero(value) : null;
+        return normalizeZero(value);
     }
     if (Array.isArray(value)) {
         return Object.freeze(value.map((item: unknown) => toJson(item)));
@@ -93,4 +94,39 @@ function isPlainPrototype(value: object): boolean {
 /** `-0` is not representable in JSON output; normalize it to `0`. */
 export function normalizeZero(value: number): number {
     return Object.is(value, -0) ? 0 : value;
+}
+
+/** True when `value` nests objects/arrays deeper than `limit` levels (a scalar has depth 0). */
+export function exceedsDepth(value: unknown, limit: number): boolean {
+    if (typeof value !== 'object' || value === null) {
+        return false;
+    }
+    if (limit <= 0) {
+        return true;
+    }
+    const children: readonly unknown[] = Array.isArray(value) ? value : Object.values(value);
+    return children.some((child) => exceedsDepth(child, limit - 1));
+}
+
+/** Structural equality of JSON values. */
+export function jsonEquals(left: unknown, right: unknown): boolean {
+    if (left === right) {
+        return true;
+    }
+    if (Array.isArray(left) || Array.isArray(right)) {
+        return (
+            Array.isArray(left) &&
+            Array.isArray(right) &&
+            left.length === right.length &&
+            left.every((item: unknown, index) => jsonEquals(item, right[index]))
+        );
+    }
+    if (!isPlainObject(left) || !isPlainObject(right)) {
+        return false;
+    }
+    const keys = Object.keys(left);
+    return (
+        keys.length === Object.keys(right).length &&
+        keys.every((key) => hasOwn(right, key) && jsonEquals(left[key], right[key]))
+    );
 }

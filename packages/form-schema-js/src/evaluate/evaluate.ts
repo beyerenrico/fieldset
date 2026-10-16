@@ -1,9 +1,15 @@
 /** Evaluation algorithm (spec §5.5): normalize, settle, strip, validate. */
 import { dependencyGraph, evaluationOrder } from '../definition/dependencies.ts';
 import { parseDefinition, type DefinitionModel, type ScopeNode } from '../definition/model.ts';
-import { canonicalJson } from '../json/codec.ts';
 import { toPointer } from '../json/pointer.ts';
-import { getOwn, hasOwn, isPlainObject, type JsonObject, type JsonValue } from '../json/types.ts';
+import {
+    getOwn,
+    hasOwn,
+    isPlainObject,
+    jsonEquals,
+    type JsonObject,
+    type JsonValue,
+} from '../json/types.ts';
 import { truthy } from '../logic/coerce.ts';
 import { validateValue } from './checks/validate-value.ts';
 import { getAt, type DataPath } from './data.ts';
@@ -43,7 +49,7 @@ function settle(runtime: Runtime, initial: EvalState): EvalState {
         );
         const stable =
             sameVisibility(before.visibility, state.visibility) &&
-            canonicalJson(before.data) === canonicalJson(state.data);
+            jsonEquals(before.data, state.data);
         if (stable) {
             break;
         }

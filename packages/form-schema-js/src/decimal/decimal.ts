@@ -20,18 +20,41 @@ export interface Dec {
     readonly scale: number;
 }
 
-export function isDecimalString(value: unknown): value is string {
-    return typeof value === 'string' && DECIMAL_PATTERN.test(value);
-}
+/** Decimal strings have at most 60 digits in total (spec §5.1). */
+export const MAX_DECIMAL_DIGITS = 60;
 
 export function fractionDigits(decimalString: string): number {
     const dot = decimalString.indexOf('.');
     return dot === -1 ? 0 : decimalString.length - dot - 1;
 }
 
+export function integerDigits(decimalString: string): number {
+    const unsigned = decimalString.startsWith('-') ? decimalString.slice(1) : decimalString;
+    const dot = unsigned.indexOf('.');
+    return dot === -1 ? unsigned.length : dot;
+}
+
+/** Matches the decimal grammar of §5.1 with at most 60 digits. */
+export function isDecimalString(value: unknown): value is string {
+    return (
+        typeof value === 'string' &&
+        DECIMAL_PATTERN.test(value) &&
+        integerDigits(value) + fractionDigits(value) <= MAX_DECIMAL_DIGITS
+    );
+}
+
+/** True when a money string stays within 60 digits once padded to `scale` fraction digits. */
+export function fitsScale(decimalString: string, scale: number): boolean {
+    return (
+        integerDigits(decimalString) + Math.max(fractionDigits(decimalString), scale) <=
+        MAX_DECIMAL_DIGITS
+    );
+}
+
 /**
- * Coerces a decimal operand (§5.3): decimal strings and JSON integers are accepted, everything
- * else (floats, invalid strings, booleans, arrays, objects, null) yields `null`.
+ * Coerces a decimal operand (§5.3): decimal strings of at most 60 digits and JSON integers are
+ * accepted, everything else (floats, longer or invalid strings, booleans, arrays, objects, null)
+ * yields `null`. Results of decimal operators may exceed 60 digits.
  */
 export function toDec(value: unknown): Dec | null {
     if (isDecimalString(value)) {

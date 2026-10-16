@@ -110,6 +110,24 @@ describe('scopes and calculations', () => {
         });
     });
 
+    it('evaluates logic nested deeper than 512 levels as null', () => {
+        let deep: unknown = true;
+        for (let level = 0; level < 600; level++) {
+            deep = { '!!': [deep] };
+        }
+        const definition = form([el('text', 'a', { visibleIf: deep })]);
+        expect(evaluate(definition, { a: 'x' }, CONTEXT).visibility).toEqual({ '/a': false });
+    });
+
+    it('rejects non-finite location numbers and keeps them for reporting', () => {
+        const definition = form([el('location', 'loc'), el('text', 't')]);
+        const loc = { lat: 1, lng: 2, accuracy: Infinity, capturedAt: '2026-10-16T09:41:00Z' };
+        expect(errorsOf(definition, { loc, t: -Infinity })).toEqual([
+            { pointer: '/loc', code: 'invalid_location' },
+            { pointer: '/t', code: 'type_mismatch' },
+        ]);
+    });
+
     it('evaluates unknown operators as null', () => {
         const definition = form([el('text', 'a', { visibleIf: { nope: [] } })]);
         expect(evaluate(definition, { a: 'x' }, CONTEXT)).toMatchObject({

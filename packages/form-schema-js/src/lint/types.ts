@@ -16,6 +16,7 @@ export type LintCode =
     | 'invalid_numbering_format'
     | 'invalid_repeater_bounds'
     | 'invalid_pattern'
+    | 'logic_too_deep'
     | 'reserved_type'
     | 'key_locked'
     | 'key_type_changed'

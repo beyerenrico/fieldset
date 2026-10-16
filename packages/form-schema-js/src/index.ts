@@ -9,7 +9,13 @@ export {
 export type { JsonObject, JsonPrimitive, JsonValue } from './json/types.ts';
 export { validateDefinition } from './schema/validate.ts';
 export type { SchemaError, SchemaValidationResult } from './schema/validate.ts';
-export { evaluateLogic, jsonLogicDialect, KNOWN_OPERATORS } from './logic/evaluator.ts';
+export {
+    evaluateLogic,
+    evaluateLogicStrict,
+    jsonLogicDialect,
+    KNOWN_OPERATORS,
+    MAX_LOGIC_DEPTH,
+} from './logic/evaluator.ts';
 export type { LogicEvaluator } from './logic/evaluator.ts';
 export { LogicError } from './logic/operation.ts';
 export { truthy } from './logic/coerce.ts';

@@ -1,7 +1,7 @@
 /** Constraint checks of §3.3/§5.6 for values that passed their type check. */
 import { temporalPosition } from '../../date/instant.ts';
 import type { ElementNode } from '../../definition/model.ts';
-import { compilePattern } from '../../definition/pattern.ts';
+import { matchesPattern } from '../../definition/pattern.ts';
 import { constraintDecimal, Decimal } from '../../decimal/decimal.ts';
 import {
     getOwn,
@@ -43,8 +43,7 @@ const textual: Constraint = (node, value, validation) => {
         return limit('max_length', maxLength);
     }
     const pattern = PATTERN_TYPES.has(node.type) ? stringProp(validation, 'pattern') : undefined;
-    const regex = pattern === undefined ? null : compilePattern(pattern);
-    return regex === null || regex.test(text) ? null : { code: 'pattern' };
+    return pattern === undefined || matchesPattern(pattern, text) ? null : { code: 'pattern' };
 };
 
 /** `min`/`max` comparison shared by numeric and temporal values. */

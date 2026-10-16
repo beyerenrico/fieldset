@@ -1,6 +1,12 @@
 /** Input normalization (spec §5.5 step 1). */
 import type { ElementNode, ScopeNode } from '../definition/model.ts';
-import { Decimal, formatDecimal, fractionDigits, isDecimalString } from '../decimal/decimal.ts';
+import {
+    Decimal,
+    fitsScale,
+    formatDecimal,
+    fractionDigits,
+    isDecimalString,
+} from '../decimal/decimal.ts';
 import { toPointer } from '../json/pointer.ts';
 import {
     getOwn,
@@ -21,7 +27,7 @@ export interface Normalized {
 
 /** Money that passes the type check is rewritten with exactly `scale` fraction digits. */
 export function normalizeMoney(value: JsonValue, scale: number): JsonValue {
-    return isDecimalString(value) && fractionDigits(value) <= scale
+    return isDecimalString(value) && fractionDigits(value) <= scale && fitsScale(value, scale)
         ? formatDecimal(new Decimal(value), scale)
         : value;
 }
