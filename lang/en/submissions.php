@@ -20,5 +20,6 @@ return [
         'idempotency_key_required' => 'Send an Idempotency-Key header.',
         'idempotency_key_reused' => 'This Idempotency-Key was already used for a different request.',
         'device_unknown' => 'Unknown device.',
+        'device_revoked' => 'This device was signed out.',
     ],
 ];

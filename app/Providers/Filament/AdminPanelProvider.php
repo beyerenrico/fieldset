@@ -8,6 +8,7 @@ use App\Domain\Identity\Auth\SharedAppAuthentication;
 use App\Domain\Identity\Models\Organization;
 use App\Filament\Admin\Pages\Tenancy\EditOrganizationProfile;
 use App\Filament\Admin\Pages\Tenancy\RegisterOrganization;
+use App\Http\Middleware\EndRevokedDeviceSession;
 use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\SetTenantFromFilament;
 use Filament\Http\Middleware\Authenticate;
@@ -57,6 +58,7 @@ class AdminPanelProvider extends PanelProvider
                 AddQueuedCookiesToResponse::class,
                 StartSession::class,
                 AuthenticateSession::class,
+                EndRevokedDeviceSession::class,
                 ShareErrorsFromSession::class,
                 PreventRequestForgery::class,
                 SubstituteBindings::class,

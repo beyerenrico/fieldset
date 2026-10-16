@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Api\ApiExceptionRenderer;
 use App\Http\Api\V1\Middleware\ResolveOrganization;
 use App\Http\Middleware\AssignRequestId;
+use App\Http\Middleware\EndRevokedDeviceSession;
 use App\Http\Middleware\SetLocale;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -22,8 +23,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->prepend(AssignRequestId::class);
         $middleware->statefulApi();
-        $middleware->appendToGroup('web', SetLocale::class);
-        $middleware->appendToGroup('api', SetLocale::class);
+        $middleware->appendToGroup('web', [SetLocale::class, EndRevokedDeviceSession::class]);
+        $middleware->appendToGroup('api', [SetLocale::class, EndRevokedDeviceSession::class]);
         $middleware->redirectGuestsTo('/admin/login');
         $middleware->throttleApi('api');
         $middleware->alias(['organization' => ResolveOrganization::class]);

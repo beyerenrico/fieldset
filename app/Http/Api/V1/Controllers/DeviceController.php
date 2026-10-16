@@ -9,6 +9,7 @@ use App\Domain\Identity\Devices\RegisterDevice;
 use App\Domain\Identity\Models\User;
 use App\Http\Api\ApiException;
 use App\Http\Api\ApiResponse;
+use App\Http\Middleware\EndRevokedDeviceSession;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -25,6 +26,10 @@ final class DeviceController
         /** @var User $user */
         $user = $request->user();
         [$device, $secret] = $register->handle($user, $data['device_uuid'], $data['name'] ?? null, $data['platform'] ?? null);
+        if ($request->hasSession()) {
+            // Bind this session to the device so revoking the device ends it (§9.3).
+            $request->session()->put(EndRevokedDeviceSession::SESSION_KEY, $device->id);
+        }
 
         return ApiResponse::ok(['device_uuid' => $device->device_uuid, 'secret' => $secret], null, 201);
     }

@@ -20,5 +20,6 @@ return [
         'idempotency_key_required' => 'Bitte einen Idempotency-Key-Header senden.',
         'idempotency_key_reused' => 'Dieser Idempotency-Key wurde bereits für eine andere Anfrage verwendet.',
         'device_unknown' => 'Unbekanntes Gerät.',
+        'device_revoked' => 'Dieses Gerät wurde abgemeldet.',
     ],
 ];

@@ -6,6 +6,7 @@ use App\Domain\Identity\Actions\DeactivateUser;
 use App\Domain\Identity\Devices\RevokeDevice;
 use App\Domain\Identity\Enums\SystemRole;
 use App\Domain\Identity\Models\Device;
+use App\Http\Middleware\EndRevokedDeviceSession;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -104,6 +105,36 @@ it('registers devices and answers device-status with ok, reauth and wipe', funct
 
     $this->withHeaders(['X-Device-Id' => $deviceUuid, 'X-Device-Secret' => 'wrong'])->postJson('/api/v1/auth/device-status')
         ->assertUnauthorized()->assertJsonPath('error.code', 'device_unknown');
+});
+
+it('ends the session bound to a device on its next request once the device is revoked', function (): void {
+    $this->flushHeaders();
+    app('auth')->forgetGuards();
+    $this->actingAs($this->s->worker, 'web');
+    $stateful = ['Referer' => 'http://localhost/app/', 'X-Organization-Id' => (string) $this->s->org->id, 'Accept' => 'application/json'];
+    $deviceUuid = (string) Str::uuid();
+
+    $this->withHeaders($stateful)->postJson('/api/v1/devices', ['device_uuid' => $deviceUuid, 'name' => 'Pixel'])->assertCreated();
+    $device = Device::query()->where('device_uuid', $deviceUuid)->sole();
+    expect(session(EndRevokedDeviceSession::SESSION_KEY))->toBe($device->id);
+    $this->withHeaders($stateful)->getJson('/api/v1/me')->assertOk();
+
+    app(RevokeDevice::class)->handle($device, $this->s->owner);
+    $this->withHeaders($stateful)->getJson('/api/v1/me')->assertUnauthorized()->assertJsonPath('error.code', 'device_revoked');
+    expect(auth('web')->check())->toBeFalse()->and(session()->has(EndRevokedDeviceSession::SESSION_KEY))->toBeFalse();
+});
+
+it('ends a web session bound to a revoked device with a redirect to the login', function (): void {
+    $this->flushHeaders();
+    app('auth')->forgetGuards();
+    $device = Device::query()->create(['user_id' => $this->s->owner->id, 'device_uuid' => (string) Str::uuid(), 'secret_hash' => 'x']);
+    $this->actingAs($this->s->owner, 'web')->withSession([EndRevokedDeviceSession::SESSION_KEY => $device->id]);
+    $this->get('/admin')->assertRedirect();
+    expect(auth('web')->check())->toBeTrue();
+
+    app(RevokeDevice::class)->handle($device, null);
+    $this->get('/admin')->assertRedirect('/admin/login');
+    expect(auth('web')->check())->toBeFalse();
 });
 
 it('deactivating a user revokes tokens, sessions and requests a wipe on every device', function (): void {
