@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Api\V1\Controllers\AttachmentController;
 use App\Http\Api\V1\Controllers\DeviceController;
+use App\Http\Api\V1\Controllers\DocumentController;
 use App\Http\Api\V1\Controllers\FormController;
 use App\Http\Api\V1\Controllers\MeController;
 use App\Http\Api\V1\Controllers\SubmissionController;
@@ -17,6 +18,7 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::post('auth/device-status', [DeviceController::class, 'status'])->middleware('throttle:30,1')->name('api.devices.status');
+Route::get('documents/{rendition}', [DocumentController::class, 'download'])->middleware(['signed', 'throttle:60,1'])->name('documents.download');
 
 Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('me', MeController::class)->name('api.me');
@@ -36,5 +38,6 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::post('submissions/{uuid}/attachments', [AttachmentController::class, 'store'])
             ->middleware('throttle:120,1')->name('api.attachments.store');
         Route::get('submissions/{uuid}/attachments/{attachment}', [AttachmentController::class, 'show'])->name('api.attachments.show');
+        Route::get('submissions/{uuid}/document', [DocumentController::class, 'show'])->name('api.submissions.document');
     });
 });

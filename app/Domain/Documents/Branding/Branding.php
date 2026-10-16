@@ -60,6 +60,19 @@ final readonly class Branding
         );
     }
 
+    /** @return array{primary_color: string, accent_color: string, font: string, logo_path: string|null, company_name: string, company: array<string, string>} */
+    public function toArray(): array
+    {
+        return [
+            'primary_color' => $this->primaryColor,
+            'accent_color' => $this->accentColor,
+            'font' => $this->font,
+            'logo_path' => $this->logoPath,
+            'company_name' => $this->companyName,
+            'company' => $this->company,
+        ];
+    }
+
     private static function color(mixed $value, string $fallback): string
     {
         return is_string($value) && preg_match('/^#[0-9a-f]{6}$/i', $value) === 1 ? strtolower($value) : $fallback;
