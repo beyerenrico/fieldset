@@ -18,6 +18,8 @@ use App\Domain\Identity\Support\OrganizationPermissions;
 use App\Domain\Identity\Tenancy\TenantContext;
 use App\Domain\Mail\Listeners\FailWaitingDocuments;
 use App\Domain\Mail\Listeners\SendWaitingDocuments;
+use App\Domain\Notifications\Notifier;
+use App\Domain\Notifications\NullNotifier;
 use App\Domain\Submissions\Events\SubmissionSubmitted;
 use App\Domain\Submissions\Models\IdempotencyKey;
 use App\Domain\Submissions\Models\NumberSequence;
@@ -43,6 +45,7 @@ class AppServiceProvider extends ServiceProvider
         // Scoped: fresh per request and per queued job (BUILD_PROMPT §6.2).
         $this->app->scoped(TenantContext::class);
         $this->app->scoped(OrganizationPermissions::class);
+        $this->app->bind(Notifier::class, NullNotifier::class);
     }
 
     public function boot(): void
