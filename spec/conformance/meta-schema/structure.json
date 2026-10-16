@@ -1,0 +1,521 @@
+{
+  "description": "Meta-schema acceptance (spec §2-3)",
+  "tests": [
+    {
+      "description": "minimal valid definition",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "meta",
+        "title": "Meta",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "description": "x- extensions are allowed everywhere",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "meta",
+        "title": "Meta",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "id": "00000000-0000-4000-8000-000000000001",
+                "x-import": {
+                  "source": "acroform",
+                  "field": "Name",
+                  "page": 1,
+                  "rect": [
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "confidence": 0.9
+                }
+              }
+            ],
+            "x-p": 1
+          }
+        ],
+        "x-vendor": {
+          "a": 1
+        }
+      },
+      "valid": true
+    },
+    {
+      "description": "unknown top-level property",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "meta",
+        "title": "Meta",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ],
+        "foo": 1
+      },
+      "valid": false
+    },
+    {
+      "description": "unknown element property",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "meta",
+        "title": "Meta",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "id": "00000000-0000-4000-8000-000000000001",
+                "colour": "red"
+              }
+            ]
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "record type is reserved",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "meta",
+        "title": "Meta",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "id": "00000000-0000-4000-8000-000000000001"
+              },
+              {
+                "id": "00000000-0000-4000-8000-000000000002",
+                "type": "record",
+                "key": "r",
+                "label": "R"
+              }
+            ]
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "key must be snake_case",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "meta",
+        "title": "Meta",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "CustomerName",
+                "label": "a",
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "id must be a uuid",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "meta",
+        "title": "Meta",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "id": "123"
+              }
+            ]
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "money requires currency",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "meta",
+        "title": "Meta",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "id": "00000000-0000-4000-8000-000000000001"
+              },
+              {
+                "id": "00000000-0000-4000-8000-000000000003",
+                "type": "money",
+                "key": "m",
+                "label": "M"
+              }
+            ]
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "select requires options",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "meta",
+        "title": "Meta",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "id": "00000000-0000-4000-8000-000000000001"
+              },
+              {
+                "id": "00000000-0000-4000-8000-000000000004",
+                "type": "select",
+                "key": "s",
+                "label": "S"
+              }
+            ]
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "options on a text element are not allowed",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "meta",
+        "title": "Meta",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "id": "00000000-0000-4000-8000-000000000001",
+                "options": [
+                  {
+                    "value": "a",
+                    "label": "A"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "columns need 2-4 columns",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "meta",
+        "title": "Meta",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "id": "00000000-0000-4000-8000-000000000001"
+              },
+              {
+                "id": "00000000-0000-4000-8000-000000000005",
+                "type": "columns",
+                "key": "c",
+                "columns": [
+                  {
+                    "elements": []
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "specVersion must be 1.0.x",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "2.0.0",
+        "key": "meta",
+        "title": "Meta",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "source lineage",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "meta",
+        "title": "Meta",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ],
+        "source": {
+          "registry": "https://templates.example.org",
+          "template": "service_report",
+          "version": "1.2.0"
+        }
+      },
+      "valid": true
+    },
+    {
+      "description": "i18n label maps",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "meta",
+        "title": "Meta",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "id": "00000000-0000-4000-8000-000000000001",
+                "i18n": {
+                  "label": {
+                    "pl": "Ilość",
+                    "en-GB": "Quantity"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "description": "image must be a data URI or asset reference",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "meta",
+        "title": "Meta",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "id": "00000000-0000-4000-8000-000000000001"
+              },
+              {
+                "id": "00000000-0000-4000-8000-000000000006",
+                "type": "image",
+                "key": "img",
+                "src": "https://evil.example/x.png"
+              }
+            ]
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "nested repeater in section in columns",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "meta",
+        "title": "Meta",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "id": "00000000-0000-4000-8000-000000000001"
+              },
+              {
+                "id": "00000000-0000-4000-8000-000000000007",
+                "type": "columns",
+                "key": "c",
+                "columns": [
+                  {
+                    "elements": [
+                      {
+                        "id": "00000000-0000-4000-8000-000000000008",
+                        "type": "section",
+                        "key": "s",
+                        "elements": [
+                          {
+                            "id": "00000000-0000-4000-8000-000000000009",
+                            "type": "repeater",
+                            "key": "r",
+                            "label": "R",
+                            "elements": [
+                              {
+                                "id": "00000000-0000-4000-8000-000000000010",
+                                "type": "text",
+                                "key": "t",
+                                "label": "T"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "elements": []
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "description": "pages must not be empty",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "meta",
+        "title": "Meta",
+        "locale": "de-DE",
+        "pages": []
+      },
+      "valid": false
+    }
+  ]
+}

@@ -1,0 +1,1640 @@
+{
+  "description": "Linter rules (spec §7)",
+  "tests": [
+    {
+      "description": "clean definition has no findings",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "id": "00000000-0000-4000-8000-000000000001"
+              },
+              {
+                "type": "number",
+                "key": "b",
+                "label": "b",
+                "id": "00000000-0000-4000-8000-000000000002"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "description": "duplicate key in root scope (across a section)",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "id": "00000000-0000-4000-8000-000000000001"
+              },
+              {
+                "type": "section",
+                "key": "s",
+                "elements": [
+                  {
+                    "type": "text",
+                    "key": "a",
+                    "label": "a",
+                    "id": "00000000-0000-4000-8000-000000000003"
+                  }
+                ],
+                "id": "00000000-0000-4000-8000-000000000002"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "duplicate_key",
+          "path": "/pages/0/elements/1/elements/0"
+        }
+      ]
+    },
+    {
+      "description": "same key in repeater row and root is allowed",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "id": "00000000-0000-4000-8000-000000000001"
+              },
+              {
+                "type": "repeater",
+                "key": "r",
+                "label": "R",
+                "elements": [
+                  {
+                    "type": "text",
+                    "key": "a",
+                    "label": "a",
+                    "id": "00000000-0000-4000-8000-000000000003"
+                  }
+                ],
+                "id": "00000000-0000-4000-8000-000000000002"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "description": "duplicate key across pages",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p1",
+            "title": "P1",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          },
+          {
+            "key": "p2",
+            "title": "P2",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "id": "00000000-0000-4000-8000-000000000002"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "duplicate_key",
+          "path": "/pages/1/elements/0"
+        }
+      ]
+    },
+    {
+      "description": "duplicate page key",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          },
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "b",
+                "label": "b",
+                "id": "00000000-0000-4000-8000-000000000002"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "duplicate_page_key",
+          "path": "/pages/1"
+        }
+      ]
+    },
+    {
+      "description": "duplicate option value",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "select",
+                "key": "s",
+                "label": "S",
+                "options": [
+                  {
+                    "value": "a",
+                    "label": "A"
+                  },
+                  {
+                    "value": "a",
+                    "label": "B"
+                  }
+                ],
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "duplicate_option_value",
+          "path": "/pages/0/elements/0/options/1"
+        }
+      ]
+    },
+    {
+      "description": "unknown var reference",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "visibleIf": {
+                  "==": [
+                    {
+                      "var": "nope"
+                    },
+                    "x"
+                  ]
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "unknown_reference",
+          "path": "/pages/0/elements/0/visibleIf"
+        }
+      ]
+    },
+    {
+      "description": "built-ins and dotted paths resolve",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "default": {
+                  "cat": [
+                    {
+                      "var": "$user.name"
+                    },
+                    {
+                      "var": "$org.name"
+                    },
+                    {
+                      "var": "$form.version"
+                    },
+                    {
+                      "var": "$today"
+                    },
+                    {
+                      "var": "$now"
+                    }
+                  ]
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              },
+              {
+                "type": "signature",
+                "key": "sig",
+                "label": "Sig",
+                "id": "00000000-0000-4000-8000-000000000002"
+              },
+              {
+                "type": "text",
+                "key": "b",
+                "label": "b",
+                "visibleIf": {
+                  "var": "sig.signerName"
+                },
+                "id": "00000000-0000-4000-8000-000000000003"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "description": "$root reference must exist at root",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "repeater",
+                "key": "r",
+                "label": "R",
+                "elements": [
+                  {
+                    "type": "text",
+                    "key": "x",
+                    "label": "x",
+                    "visibleIf": {
+                      "var": "$root.missing"
+                    },
+                    "id": "00000000-0000-4000-8000-000000000002"
+                  }
+                ],
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "unknown_reference",
+          "path": "/pages/0/elements/0/elements/0/visibleIf"
+        }
+      ]
+    },
+    {
+      "description": "row keys are not visible at root",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "repeater",
+                "key": "r",
+                "label": "R",
+                "elements": [
+                  {
+                    "type": "text",
+                    "key": "x",
+                    "label": "x",
+                    "id": "00000000-0000-4000-8000-000000000002"
+                  }
+                ],
+                "id": "00000000-0000-4000-8000-000000000001"
+              },
+              {
+                "type": "text",
+                "key": "y",
+                "label": "y",
+                "visibleIf": {
+                  "var": "x"
+                },
+                "id": "00000000-0000-4000-8000-000000000003"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "unknown_reference",
+          "path": "/pages/0/elements/1/visibleIf"
+        }
+      ]
+    },
+    {
+      "description": "iteration operators scope var to the item",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "repeater",
+                "key": "r",
+                "label": "R",
+                "elements": [
+                  {
+                    "type": "text",
+                    "key": "status",
+                    "label": "status",
+                    "id": "00000000-0000-4000-8000-000000000002"
+                  }
+                ],
+                "id": "00000000-0000-4000-8000-000000000001"
+              },
+              {
+                "type": "text",
+                "key": "any_failed",
+                "label": "any_failed",
+                "visibleIf": {
+                  "some": [
+                    {
+                      "var": "r"
+                    },
+                    {
+                      "==": [
+                        {
+                          "var": "status"
+                        },
+                        "failed"
+                      ]
+                    }
+                  ]
+                },
+                "id": "00000000-0000-4000-8000-000000000003"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "description": "signerNameFrom must reference a key",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "signature",
+                "key": "sig",
+                "label": "S",
+                "signerNameFrom": "nobody",
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "unknown_reference",
+          "path": "/pages/0/elements/0/signerNameFrom"
+        }
+      ]
+    },
+    {
+      "description": "sum row key must exist in the repeater",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "repeater",
+                "key": "r",
+                "label": "R",
+                "elements": [
+                  {
+                    "type": "number",
+                    "key": "q",
+                    "label": "q",
+                    "id": "00000000-0000-4000-8000-000000000002"
+                  }
+                ],
+                "id": "00000000-0000-4000-8000-000000000001"
+              },
+              {
+                "type": "calculated",
+                "key": "t",
+                "label": "T",
+                "expression": {
+                  "sum": [
+                    {
+                      "var": "r"
+                    },
+                    "nope"
+                  ]
+                },
+                "id": "00000000-0000-4000-8000-000000000003"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "unknown_reference",
+          "path": "/pages/0/elements/1/expression"
+        }
+      ]
+    },
+    {
+      "description": "unknown operator",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "visibleIf": {
+                  "regex": [
+                    "x",
+                    "y"
+                  ]
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "unknown_operator",
+          "path": "/pages/0/elements/0/visibleIf"
+        }
+      ]
+    },
+    {
+      "description": "builtin comparison on a number field",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "number",
+                "key": "q",
+                "label": "q",
+                "id": "00000000-0000-4000-8000-000000000001"
+              },
+              {
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "visibleIf": {
+                  ">": [
+                    {
+                      "var": "q"
+                    },
+                    5
+                  ]
+                },
+                "id": "00000000-0000-4000-8000-000000000002"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "decimal_builtin_operator",
+          "path": "/pages/0/elements/1/visibleIf"
+        }
+      ]
+    },
+    {
+      "description": "builtin arithmetic on money",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "money",
+                "key": "p",
+                "label": "P",
+                "currency": "EUR",
+                "id": "00000000-0000-4000-8000-000000000001"
+              },
+              {
+                "type": "calculated",
+                "key": "t",
+                "label": "T",
+                "expression": {
+                  "*": [
+                    {
+                      "var": "p"
+                    },
+                    2
+                  ]
+                },
+                "id": "00000000-0000-4000-8000-000000000002"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "decimal_builtin_operator",
+          "path": "/pages/0/elements/1/expression"
+        }
+      ]
+    },
+    {
+      "description": "builtin equality on a numeric calculated value",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "number",
+                "key": "q",
+                "label": "q",
+                "id": "00000000-0000-4000-8000-000000000001"
+              },
+              {
+                "type": "calculated",
+                "key": "c",
+                "label": "C",
+                "expression": {
+                  "dec.add": [
+                    {
+                      "var": "q"
+                    },
+                    "1"
+                  ]
+                },
+                "id": "00000000-0000-4000-8000-000000000002"
+              },
+              {
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "visibleIf": {
+                  "==": [
+                    {
+                      "var": "c"
+                    },
+                    "2"
+                  ]
+                },
+                "id": "00000000-0000-4000-8000-000000000003"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "decimal_builtin_operator",
+          "path": "/pages/0/elements/2/visibleIf"
+        }
+      ]
+    },
+    {
+      "description": "builtin comparison on text calculated values is fine",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "calculated",
+                "key": "c",
+                "label": "C",
+                "format": "text",
+                "expression": "x",
+                "id": "00000000-0000-4000-8000-000000000001"
+              },
+              {
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "visibleIf": {
+                  "==": [
+                    {
+                      "var": "c"
+                    },
+                    "x"
+                  ]
+                },
+                "id": "00000000-0000-4000-8000-000000000002"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "description": "decimal operators on numbers are fine",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "number",
+                "key": "q",
+                "label": "q",
+                "id": "00000000-0000-4000-8000-000000000001"
+              },
+              {
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "visibleIf": {
+                  "dec.gt": [
+                    {
+                      "var": "q"
+                    },
+                    "5"
+                  ]
+                },
+                "id": "00000000-0000-4000-8000-000000000002"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "description": "float literal in a decimal operator",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "number",
+                "key": "q",
+                "label": "q",
+                "id": "00000000-0000-4000-8000-000000000001"
+              },
+              {
+                "type": "calculated",
+                "key": "c",
+                "label": "C",
+                "expression": {
+                  "dec.mul": [
+                    {
+                      "var": "q"
+                    },
+                    0.19
+                  ]
+                },
+                "id": "00000000-0000-4000-8000-000000000002"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "float_literal",
+          "path": "/pages/0/elements/1/expression"
+        }
+      ]
+    },
+    {
+      "description": "integer literal in a decimal operator is fine",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "number",
+                "key": "q",
+                "label": "q",
+                "id": "00000000-0000-4000-8000-000000000001"
+              },
+              {
+                "type": "calculated",
+                "key": "c",
+                "label": "C",
+                "expression": {
+                  "dec.mul": [
+                    {
+                      "var": "q"
+                    },
+                    2
+                  ]
+                },
+                "id": "00000000-0000-4000-8000-000000000002"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "description": "cycle between calculated elements",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "calculated",
+                "key": "a",
+                "label": "A",
+                "expression": {
+                  "dec.add": [
+                    {
+                      "var": "b"
+                    },
+                    "1"
+                  ]
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              },
+              {
+                "type": "calculated",
+                "key": "b",
+                "label": "B",
+                "expression": {
+                  "dec.add": [
+                    {
+                      "var": "a"
+                    },
+                    "1"
+                  ]
+                },
+                "id": "00000000-0000-4000-8000-000000000002"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "cycle",
+          "path": "/pages/0/elements/0/expression"
+        }
+      ]
+    },
+    {
+      "description": "self reference is a cycle",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "calculated",
+                "key": "a",
+                "label": "A",
+                "expression": {
+                  "dec.add": [
+                    {
+                      "var": "a"
+                    },
+                    "1"
+                  ]
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "cycle",
+          "path": "/pages/0/elements/0/expression"
+        }
+      ]
+    },
+    {
+      "description": "aggregate over a repeater whose row calculation depends on the aggregate is a cycle",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "repeater",
+                "key": "r",
+                "label": "R",
+                "elements": [
+                  {
+                    "type": "calculated",
+                    "key": "share",
+                    "label": "S",
+                    "expression": {
+                      "dec.div": [
+                        {
+                          "var": "$root.total"
+                        },
+                        "2",
+                        2
+                      ]
+                    },
+                    "id": "00000000-0000-4000-8000-000000000002"
+                  }
+                ],
+                "id": "00000000-0000-4000-8000-000000000001"
+              },
+              {
+                "type": "calculated",
+                "key": "total",
+                "label": "T",
+                "expression": {
+                  "sum": [
+                    {
+                      "var": "r"
+                    },
+                    "share"
+                  ]
+                },
+                "id": "00000000-0000-4000-8000-000000000003"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "cycle",
+          "path": "/pages/0/elements/0/elements/0/expression"
+        }
+      ]
+    },
+    {
+      "description": "invalid numbering: missing SEQ",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "numbering": {
+            "format": "SR-{YYYY}",
+            "reset": "yearly"
+          }
+        }
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "invalid_numbering_format",
+          "path": "/settings/numbering/format"
+        }
+      ]
+    },
+    {
+      "description": "invalid numbering: yearly reset without year",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "numbering": {
+            "format": "SR-{SEQ:5}",
+            "reset": "yearly"
+          }
+        }
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "invalid_numbering_format",
+          "path": "/settings/numbering/format"
+        }
+      ]
+    },
+    {
+      "description": "invalid numbering: unknown token",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "numbering": {
+            "format": "{FOO}-{SEQ:4}"
+          }
+        }
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "invalid_numbering_format",
+          "path": "/settings/numbering/format"
+        }
+      ]
+    },
+    {
+      "description": "valid monthly numbering",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "numbering": {
+            "format": "INV-{YY}{MM}-{SEQ:4}",
+            "reset": "monthly"
+          }
+        }
+      },
+      "expected": []
+    },
+    {
+      "description": "repeater bounds",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "repeater",
+                "key": "r",
+                "label": "R",
+                "minItems": 5,
+                "maxItems": 2,
+                "elements": [
+                  {
+                    "type": "text",
+                    "key": "x",
+                    "label": "x",
+                    "id": "00000000-0000-4000-8000-000000000002"
+                  }
+                ],
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "invalid_repeater_bounds",
+          "path": "/pages/0/elements/0"
+        }
+      ]
+    },
+    {
+      "description": "invalid pattern",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "validation": {
+                  "pattern": "([a-z"
+                },
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "invalid_pattern",
+          "path": "/pages/0/elements/0/validation/pattern"
+        }
+      ]
+    },
+    {
+      "description": "unknown role is a warning",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "role": "customer.shoe_size",
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "warning",
+          "code": "unknown_role",
+          "path": "/pages/0/elements/0/role"
+        }
+      ]
+    },
+    {
+      "description": "duplicate role in one scope",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "role": "customer.name",
+                "id": "00000000-0000-4000-8000-000000000001"
+              },
+              {
+                "type": "text",
+                "key": "b",
+                "label": "b",
+                "role": "customer.name",
+                "id": "00000000-0000-4000-8000-000000000002"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "error",
+          "code": "duplicate_role",
+          "path": "/pages/0/elements/1/role"
+        }
+      ]
+    },
+    {
+      "description": "same role in repeater rows and root is fine",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "number",
+                "key": "net",
+                "label": "net",
+                "role": "totals.net",
+                "id": "00000000-0000-4000-8000-000000000001"
+              },
+              {
+                "type": "repeater",
+                "key": "r",
+                "label": "R",
+                "elements": [
+                  {
+                    "type": "text",
+                    "key": "d",
+                    "label": "d",
+                    "role": "line_item.description",
+                    "id": "00000000-0000-4000-8000-000000000003"
+                  }
+                ],
+                "id": "00000000-0000-4000-8000-000000000002"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "description": "empty page is a warning",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "id": "00000000-0000-4000-8000-000000000001"
+              }
+            ]
+          },
+          {
+            "key": "q",
+            "title": "Q",
+            "elements": []
+          }
+        ]
+      },
+      "expected": [
+        {
+          "severity": "warning",
+          "code": "empty_page",
+          "path": "/pages/1"
+        }
+      ]
+    },
+    {
+      "description": "renaming a published key is refused",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "renamed",
+                "label": "a",
+                "id": "00000000-0000-4000-8000-000000000001"
+              },
+              {
+                "type": "number",
+                "key": "b",
+                "label": "b",
+                "id": "00000000-0000-4000-8000-000000000002"
+              }
+            ]
+          }
+        ]
+      },
+      "published": [
+        {
+          "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+          "specVersion": "1.0.0",
+          "key": "lint_case",
+          "title": "Lint Case",
+          "locale": "de-DE",
+          "pages": [
+            {
+              "key": "p",
+              "title": "P",
+              "elements": [
+                {
+                  "type": "text",
+                  "key": "a",
+                  "label": "a",
+                  "id": "00000000-0000-4000-8000-000000000001"
+                },
+                {
+                  "type": "number",
+                  "key": "b",
+                  "label": "b",
+                  "id": "00000000-0000-4000-8000-000000000002"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "expected": [
+        {
+          "severity": "error",
+          "code": "key_locked",
+          "path": "/pages/0/elements/0/key"
+        }
+      ]
+    },
+    {
+      "description": "changing the type of a published key is refused",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "id": "00000000-0000-4000-8000-000000000001"
+              },
+              {
+                "id": "00000000-0000-4000-8000-000000000099",
+                "type": "text",
+                "key": "b",
+                "label": "b"
+              }
+            ]
+          }
+        ]
+      },
+      "published": [
+        {
+          "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+          "specVersion": "1.0.0",
+          "key": "lint_case",
+          "title": "Lint Case",
+          "locale": "de-DE",
+          "pages": [
+            {
+              "key": "p",
+              "title": "P",
+              "elements": [
+                {
+                  "type": "text",
+                  "key": "a",
+                  "label": "a",
+                  "id": "00000000-0000-4000-8000-000000000001"
+                },
+                {
+                  "type": "number",
+                  "key": "b",
+                  "label": "b",
+                  "id": "00000000-0000-4000-8000-000000000002"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "expected": [
+        {
+          "severity": "error",
+          "code": "key_type_changed",
+          "path": "/pages/0/elements/1"
+        }
+      ]
+    },
+    {
+      "description": "label changes and new fields are fine",
+      "definition": {
+        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "type": "text",
+                "key": "a",
+                "label": "New label",
+                "id": "00000000-0000-4000-8000-000000000001"
+              },
+              {
+                "type": "number",
+                "key": "b",
+                "label": "b",
+                "id": "00000000-0000-4000-8000-000000000002"
+              },
+              {
+                "id": "00000000-0000-4000-8000-000000000098",
+                "type": "text",
+                "key": "c",
+                "label": "c"
+              }
+            ]
+          }
+        ]
+      },
+      "published": [
+        {
+          "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+          "specVersion": "1.0.0",
+          "key": "lint_case",
+          "title": "Lint Case",
+          "locale": "de-DE",
+          "pages": [
+            {
+              "key": "p",
+              "title": "P",
+              "elements": [
+                {
+                  "type": "text",
+                  "key": "a",
+                  "label": "a",
+                  "id": "00000000-0000-4000-8000-000000000001"
+                },
+                {
+                  "type": "number",
+                  "key": "b",
+                  "label": "b",
+                  "id": "00000000-0000-4000-8000-000000000002"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "expected": []
+    }
+  ]
+}

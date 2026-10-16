@@ -1,0 +1,101 @@
+{
+  "description": "image src asset:<uuid> requires a UUID (spec §3.2)",
+  "tests": [
+    {
+      "description": "asset reference with 36 dashes is not a UUID",
+      "definition": {
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "id": "00000000-0000-4000-8000-000000000001",
+                "type": "image",
+                "key": "i",
+                "src": "asset:------------------------------------"
+              }
+            ]
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "asset reference with 36 hex digits and no dashes is not a UUID",
+      "definition": {
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "id": "00000000-0000-4000-8000-000000000001",
+                "type": "image",
+                "key": "i",
+                "src": "asset:000000000000000000000000000000000000"
+              }
+            ]
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "asset reference with misplaced dashes is not a UUID",
+      "definition": {
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "id": "00000000-0000-4000-8000-000000000001",
+                "type": "image",
+                "key": "i",
+                "src": "asset:00000000000-0000-4000-8000-0000000"
+              }
+            ]
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "control: asset UUID is valid",
+      "definition": {
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "id": "00000000-0000-4000-8000-000000000001",
+                "type": "image",
+                "key": "i",
+                "src": "asset:00000000-0000-4000-8000-000000000009"
+              }
+            ]
+          }
+        ]
+      },
+      "valid": true
+    }
+  ]
+}

@@ -20,6 +20,7 @@
         </include>
     </source>
     <php>
+        <ini name="memory_limit" value="1G"/>
         <env name="APP_ENV" value="testing"/>
         <env name="APP_ALLOW_REGISTRATION" value="true"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>

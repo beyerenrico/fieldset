@@ -1,0 +1,288 @@
+{
+  "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+  "specVersion": "1.0.0",
+  "key": "service_report",
+  "title": "Servicebericht",
+  "locale": "de-DE",
+  "settings": {
+    "layout": "wizard",
+    "numbering": {
+      "format": "SR-{YYYY}-{SEQ:5}",
+      "reset": "yearly"
+    },
+    "document": {
+      "design": "default"
+    },
+    "sendToCustomer": true
+  },
+  "pages": [
+    {
+      "id": "f673bcaa-c235-5623-ae33-501b59a7ad5a",
+      "key": "job",
+      "title": "Kunde & Auftrag",
+      "elements": [
+        {
+          "type": "text",
+          "key": "customer_name",
+          "label": "Kunde",
+          "required": true,
+          "validation": {
+            "maxLength": 120
+          },
+          "role": "customer.name",
+          "id": "ccf443dc-c82c-5987-b8ea-78f1d9d83c0e"
+        },
+        {
+          "type": "textarea",
+          "key": "site_address",
+          "label": "Einsatzort",
+          "rows": 3,
+          "role": "site.address",
+          "id": "c39b3ccf-d3b5-522a-95a0-93a4403c603e"
+        },
+        {
+          "type": "date",
+          "key": "service_date",
+          "label": "Einsatzdatum",
+          "required": true,
+          "default": {
+            "var": "$today"
+          },
+          "role": "document.date",
+          "id": "54b6b0e4-b01e-52f6-8f99-87f9612614e6"
+        },
+        {
+          "type": "text",
+          "key": "technician",
+          "label": "Techniker",
+          "default": {
+            "var": "$user.name"
+          },
+          "id": "fee1a193-c63c-5328-a9ef-bd36c40d8ee4"
+        },
+        {
+          "type": "select",
+          "key": "service_type",
+          "label": "Art des Einsatzes",
+          "required": true,
+          "options": [
+            {
+              "value": "maintenance",
+              "label": "Wartung"
+            },
+            {
+              "value": "repair",
+              "label": "Reparatur"
+            },
+            {
+              "value": "installation",
+              "label": "Installation"
+            }
+          ],
+          "id": "201c504a-9f74-5235-a078-fdbf633f40a1"
+        },
+        {
+          "type": "textarea",
+          "key": "defect",
+          "label": "Fehlerbeschreibung",
+          "required": true,
+          "visibleIf": {
+            "==": [
+              {
+                "var": "service_type"
+              },
+              "repair"
+            ]
+          },
+          "id": "5835fd14-e98e-58d2-8b9f-c6f03dd521a1"
+        },
+        {
+          "type": "textarea",
+          "key": "work_done",
+          "label": "Durchgeführte Arbeiten",
+          "required": true,
+          "rows": 5,
+          "id": "4a45409d-69ce-57c4-87ee-7182837953fc"
+        }
+      ]
+    },
+    {
+      "id": "f5f6ddd9-7b7c-5927-8f2b-12a18c8b6213",
+      "key": "work",
+      "title": "Material & Arbeitszeit",
+      "elements": [
+        {
+          "type": "repeater",
+          "key": "items",
+          "label": "Material & Arbeitszeit",
+          "display": "table",
+          "minItems": 1,
+          "addLabel": "Zeile hinzufügen",
+          "elements": [
+            {
+              "type": "text",
+              "key": "description",
+              "label": "Beschreibung",
+              "required": true,
+              "role": "line_item.description",
+              "id": "9a309026-763f-50cd-a297-36566c444d1c"
+            },
+            {
+              "type": "number",
+              "key": "qty",
+              "label": "Menge",
+              "required": true,
+              "validation": {
+                "min": 0,
+                "step": 0.25
+              },
+              "role": "line_item.qty",
+              "id": "20abf591-89c0-5cfe-9457-6704a69f81e2"
+            },
+            {
+              "type": "select",
+              "key": "unit",
+              "label": "Einheit",
+              "options": [
+                {
+                  "value": "h",
+                  "label": "Std."
+                },
+                {
+                  "value": "pcs",
+                  "label": "Stk."
+                },
+                {
+                  "value": "m",
+                  "label": "m"
+                }
+              ],
+              "role": "line_item.unit",
+              "id": "08e7de44-f4c3-5662-81fc-729529ee6412"
+            },
+            {
+              "type": "money",
+              "key": "unit_price",
+              "label": "Einzelpreis",
+              "currency": "EUR",
+              "required": true,
+              "role": "line_item.unit_price",
+              "id": "30540395-2a15-5fc3-ae29-2414f7dc333b"
+            },
+            {
+              "type": "calculated",
+              "key": "line_total",
+              "label": "Gesamt",
+              "format": "money",
+              "currency": "EUR",
+              "role": "line_item.total",
+              "expression": {
+                "dec.mul": [
+                  {
+                    "var": "qty"
+                  },
+                  {
+                    "var": "unit_price"
+                  }
+                ]
+              },
+              "id": "b994d2a9-ede2-5b78-b113-cbaca9bc9103"
+            }
+          ],
+          "id": "677e402d-f91c-56d3-bb70-65cb6dcbb624"
+        },
+        {
+          "type": "calculated",
+          "key": "net_total",
+          "label": "Netto",
+          "format": "money",
+          "currency": "EUR",
+          "role": "totals.net",
+          "expression": {
+            "sum": [
+              {
+                "var": "items"
+              },
+              "line_total"
+            ]
+          },
+          "id": "88dfe186-310c-5a1c-8358-a2fc323b06ce"
+        },
+        {
+          "type": "calculated",
+          "key": "vat",
+          "label": "USt. 19 %",
+          "format": "money",
+          "currency": "EUR",
+          "role": "totals.tax",
+          "expression": {
+            "dec.round": [
+              {
+                "dec.mul": [
+                  {
+                    "var": "net_total"
+                  },
+                  "0.19"
+                ]
+              },
+              2
+            ]
+          },
+          "id": "9f6014bc-3294-5355-b8b9-31e3d4f38b22"
+        },
+        {
+          "type": "calculated",
+          "key": "gross_total",
+          "label": "Brutto",
+          "format": "money",
+          "currency": "EUR",
+          "role": "totals.gross",
+          "expression": {
+            "dec.add": [
+              {
+                "var": "net_total"
+              },
+              {
+                "var": "vat"
+              }
+            ]
+          },
+          "id": "4cfcf11b-e9bf-580c-94e3-85974ece8309"
+        }
+      ]
+    },
+    {
+      "id": "6f681657-3eab-52d0-be11-d5a71e342545",
+      "key": "finish",
+      "title": "Fotos & Unterschrift",
+      "elements": [
+        {
+          "type": "photo",
+          "key": "photos",
+          "label": "Fotos",
+          "multiple": true,
+          "validation": {
+            "maxFiles": 20,
+            "maxSizeKb": 8192
+          },
+          "id": "2b727d52-751f-5e9b-a8ce-e411f0f81b17"
+        },
+        {
+          "type": "checkbox",
+          "key": "work_accepted",
+          "label": "Arbeiten ordnungsgemäß ausgeführt und abgenommen",
+          "required": true,
+          "id": "afb94d2d-9f50-5a09-95a4-dbd6cc26497e"
+        },
+        {
+          "type": "signature",
+          "key": "customer_signature",
+          "label": "Unterschrift Kunde",
+          "required": true,
+          "signerNameFrom": "customer_name",
+          "id": "dc813dfb-ea47-584b-b3d1-06f402fb147d"
+        }
+      ]
+    }
+  ]
+}

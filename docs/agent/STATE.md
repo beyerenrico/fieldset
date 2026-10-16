@@ -1,27 +1,25 @@
-# State: 2026-10-16T15:30Z
-Milestone: M1 Schema core + Builder v1 · Task: M1-T01..T09 (spec + both SDKs)
-Status: M0 merged to main (tag m0-done). Spec 1.0 README, meta-schema, roles.json and the
-conformance suite (136 logic, 55 evaluate, 37 lint, 17 meta-schema, 5 checksum) are drafted.
-Branch: m1-schema-builder · Last commit: see `git log -1`
+# State: 2026-10-16T17:00Z
+Milestone: M2 Field App online · Task: M2-T01 Devices
+Status: M1 merged to main (tag m1-done). Spec 1.0 + 390 conformance cases, both SDKs, forms domain,
+Builder v1 done. M2 breakdown is in PLAN.md (M2-T01..T18).
+Branch: m2-field-app · Last commit: see `git log -1`
 
 ## Next actions
-1. Dispatch two subagents in parallel: form-schema-php (packages/form-schema-php) and form-schema-js
-   (packages/form-schema-js), both implementing README §2–§10 against spec/conformance.
-2. Meanwhile: M1-T10 forms/form_versions migrations+models (store definitions as JSON text-faithful
-   jsonb, decode objects as stdClass via a custom cast), M1-T11 publish/rollback/retire actions.
-3. Integrate SDK results, run `npm run conformance`, then Builder v1 (M1-T13..T17).
+1. M2-T02 submissions schema first (devices depend on users only, submissions on forms):
+   submissions (client uuid PK), submission_events, attachments, number_sequences.
+2. M2-T03 state machine (spatie/laravel-model-states — install, verify v2.14 API in vendor).
+3. M2-T01 devices + device-status; then API endpoints M2-T05..T10.
+4. Field App (M2-T12..T14) can be delegated to a subagent once the API contract exists
+   (renderer goes into packages/form-schema-js/src/react or a sibling package).
 
 ## Files in flight
-- spec/form-definition/1.0/*, spec/conformance/** (commit at branch start)
+- none
 
 ## Known problems
-- Empty JSON object vs array: PHP SDK must use json_decode(..., false) trees (stdClass) so `{}`
-  survives (checksums, `{}` truthiness). Builder `_extra` is a JSON string for the same reason.
-
-## Tried and rejected
-- Wrapping json-logic-php/js (ADR 0021)
+- None open. LEARNINGS 8–15 cover tooling gotchas (composer during tests, pcov, Livewire limits).
 
 ## Resume commands
 docker compose up -d postgres redis gotenberg mailpit
-php artisan test --compact
-./scripts/coverage.sh        # coverage gate in docker/ci image
+php artisan test --compact            # or scratchpad t.sh wrapper
+npm run conformance && npm test -w packages/form-schema-js
+./scripts/coverage.sh                 # coverage gate (pcov in docker/ci image)

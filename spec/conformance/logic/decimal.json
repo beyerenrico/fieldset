@@ -1,0 +1,503 @@
+{
+  "description": "Decimal operators (spec §5.3)",
+  "tests": [
+    {
+      "description": "add keeps larger scale",
+      "logic": {
+        "dec.add": [
+          "1.5",
+          "2.25"
+        ]
+      },
+      "data": {},
+      "expected": "3.75"
+    },
+    {
+      "description": "add many",
+      "logic": {
+        "dec.add": [
+          "0.1",
+          "0.2",
+          "0.3"
+        ]
+      },
+      "data": {},
+      "expected": "0.6"
+    },
+    {
+      "description": "0.1 + 0.2 exact",
+      "logic": {
+        "dec.add": [
+          "0.1",
+          "0.2"
+        ]
+      },
+      "data": {},
+      "expected": "0.3"
+    },
+    {
+      "description": "add integer and string",
+      "logic": {
+        "dec.add": [
+          1,
+          "0.50"
+        ]
+      },
+      "data": {},
+      "expected": "1.50"
+    },
+    {
+      "description": "add with null is null",
+      "logic": {
+        "dec.add": [
+          "1",
+          null
+        ]
+      },
+      "data": {},
+      "expected": null
+    },
+    {
+      "description": "add with invalid string is null",
+      "logic": {
+        "dec.add": [
+          "1",
+          "abc"
+        ]
+      },
+      "data": {},
+      "expected": null
+    },
+    {
+      "description": "add with float literal is null",
+      "logic": {
+        "dec.add": [
+          "1",
+          0.5
+        ]
+      },
+      "data": {},
+      "expected": null
+    },
+    {
+      "description": "sub",
+      "logic": {
+        "dec.sub": [
+          "10.00",
+          "0.5"
+        ]
+      },
+      "data": {},
+      "expected": "9.50"
+    },
+    {
+      "description": "sub to negative",
+      "logic": {
+        "dec.sub": [
+          "1",
+          "2.5"
+        ]
+      },
+      "data": {},
+      "expected": "-1.5"
+    },
+    {
+      "description": "sub to zero keeps scale, no negative zero",
+      "logic": {
+        "dec.sub": [
+          "1.0",
+          "1.0"
+        ]
+      },
+      "data": {},
+      "expected": "0.0"
+    },
+    {
+      "description": "mul sums scales",
+      "logic": {
+        "dec.mul": [
+          "1.5",
+          "65.00"
+        ]
+      },
+      "data": {},
+      "expected": "97.500"
+    },
+    {
+      "description": "mul qty by price",
+      "logic": {
+        "dec.mul": [
+          "1",
+          "89.00"
+        ]
+      },
+      "data": {},
+      "expected": "89.00"
+    },
+    {
+      "description": "mul negative zero normalized",
+      "logic": {
+        "dec.mul": [
+          "-0",
+          "1.5"
+        ]
+      },
+      "data": {},
+      "expected": "0.0"
+    },
+    {
+      "description": "mul with null",
+      "logic": {
+        "dec.mul": [
+          null,
+          "2"
+        ]
+      },
+      "data": {},
+      "expected": null
+    },
+    {
+      "description": "div rounds half-up",
+      "logic": {
+        "dec.div": [
+          "10",
+          "3",
+          4
+        ]
+      },
+      "data": {},
+      "expected": "3.3333"
+    },
+    {
+      "description": "div half-up away from zero",
+      "logic": {
+        "dec.div": [
+          "-1",
+          "8",
+          2
+        ]
+      },
+      "data": {},
+      "expected": "-0.13"
+    },
+    {
+      "description": "div exact half",
+      "logic": {
+        "dec.div": [
+          "1",
+          "8",
+          2
+        ]
+      },
+      "data": {},
+      "expected": "0.13"
+    },
+    {
+      "description": "div by zero is null",
+      "logic": {
+        "dec.div": [
+          "1",
+          "0",
+          2
+        ]
+      },
+      "data": {},
+      "expected": null
+    },
+    {
+      "description": "div scale zero",
+      "logic": {
+        "dec.div": [
+          "5",
+          "2",
+          0
+        ]
+      },
+      "data": {},
+      "expected": "3"
+    },
+    {
+      "description": "round half-up",
+      "logic": {
+        "dec.round": [
+          "35.435",
+          2
+        ]
+      },
+      "data": {},
+      "expected": "35.44"
+    },
+    {
+      "description": "round negative half away from zero",
+      "logic": {
+        "dec.round": [
+          "-2.5",
+          0
+        ]
+      },
+      "data": {},
+      "expected": "-3"
+    },
+    {
+      "description": "round pads to scale",
+      "logic": {
+        "dec.round": [
+          "7",
+          2
+        ]
+      },
+      "data": {},
+      "expected": "7.00"
+    },
+    {
+      "description": "round VAT example",
+      "logic": {
+        "dec.round": [
+          {
+            "dec.mul": [
+              "186.50",
+              "0.19"
+            ]
+          },
+          2
+        ]
+      },
+      "data": {},
+      "expected": "35.44"
+    },
+    {
+      "description": "eq ignores trailing zeros",
+      "logic": {
+        "dec.eq": [
+          "1.00",
+          "1"
+        ]
+      },
+      "data": {},
+      "expected": true
+    },
+    {
+      "description": "gt numeric",
+      "logic": {
+        "dec.gt": [
+          "10.00",
+          "9.50"
+        ]
+      },
+      "data": {},
+      "expected": true
+    },
+    {
+      "description": "gte equal",
+      "logic": {
+        "dec.gte": [
+          "2",
+          "2.0"
+        ]
+      },
+      "data": {},
+      "expected": true
+    },
+    {
+      "description": "lt",
+      "logic": {
+        "dec.lt": [
+          "-1",
+          "0"
+        ]
+      },
+      "data": {},
+      "expected": true
+    },
+    {
+      "description": "lte",
+      "logic": {
+        "dec.lte": [
+          "3",
+          "2.99"
+        ]
+      },
+      "data": {},
+      "expected": false
+    },
+    {
+      "description": "comparison with null is false",
+      "logic": {
+        "dec.gt": [
+          null,
+          "0"
+        ]
+      },
+      "data": {},
+      "expected": false
+    },
+    {
+      "description": "sum over rows",
+      "logic": {
+        "sum": [
+          {
+            "var": "items"
+          },
+          "line_total"
+        ]
+      },
+      "data": {
+        "items": [
+          {
+            "line_total": "89.00"
+          },
+          {
+            "line_total": "97.50"
+          }
+        ]
+      },
+      "expected": "186.50"
+    },
+    {
+      "description": "sum skips null",
+      "logic": {
+        "sum": [
+          {
+            "var": "items"
+          },
+          "v"
+        ]
+      },
+      "data": {
+        "items": [
+          {
+            "v": "1.5"
+          },
+          {
+            "v": null
+          },
+          {}
+        ]
+      },
+      "expected": "1.5"
+    },
+    {
+      "description": "sum of empty is 0",
+      "logic": {
+        "sum": [
+          [],
+          "v"
+        ]
+      },
+      "data": {},
+      "expected": "0"
+    },
+    {
+      "description": "sum of plain items",
+      "logic": {
+        "sum": [
+          [
+            "1",
+            "2.5",
+            3
+          ]
+        ]
+      },
+      "data": {},
+      "expected": "6.5"
+    },
+    {
+      "description": "sum non-array is 0",
+      "logic": {
+        "sum": [
+          null,
+          "v"
+        ]
+      },
+      "data": {},
+      "expected": "0"
+    },
+    {
+      "description": "min over rows",
+      "logic": {
+        "min": [
+          {
+            "var": "items"
+          },
+          "v"
+        ]
+      },
+      "data": {
+        "items": [
+          {
+            "v": "3"
+          },
+          {
+            "v": "-1.5"
+          },
+          {
+            "v": null
+          }
+        ]
+      },
+      "expected": "-1.5"
+    },
+    {
+      "description": "max over arguments",
+      "logic": {
+        "max": [
+          "1",
+          "10",
+          "9.99"
+        ]
+      },
+      "data": {},
+      "expected": "10"
+    },
+    {
+      "description": "min of nothing is null",
+      "logic": {
+        "min": [
+          [],
+          "v"
+        ]
+      },
+      "data": {},
+      "expected": null
+    },
+    {
+      "description": "count rows",
+      "logic": {
+        "count": [
+          {
+            "var": "items"
+          }
+        ]
+      },
+      "data": {
+        "items": [
+          {},
+          {},
+          null
+        ]
+      },
+      "expected": 2
+    },
+    {
+      "description": "count non-array",
+      "logic": {
+        "count": [
+          null
+        ]
+      },
+      "data": {},
+      "expected": 0
+    },
+    {
+      "description": "large values exact",
+      "logic": {
+        "dec.add": [
+          "99999999999999999999.99",
+          "0.01"
+        ]
+      },
+      "data": {},
+      "expected": "100000000000000000000.00"
+    }
+  ]
+}

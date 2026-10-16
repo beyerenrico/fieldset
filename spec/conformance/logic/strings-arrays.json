@@ -1,0 +1,365 @@
+{
+  "description": "String and array operators",
+  "tests": [
+    {
+      "description": "in substring",
+      "logic": {
+        "in": [
+          "ell",
+          "hello"
+        ]
+      },
+      "data": {},
+      "expected": true
+    },
+    {
+      "description": "in array strict",
+      "logic": {
+        "in": [
+          "1",
+          [
+            1,
+            2
+          ]
+        ]
+      },
+      "data": {},
+      "expected": false
+    },
+    {
+      "description": "in array member",
+      "logic": {
+        "in": [
+          "b",
+          [
+            "a",
+            "b"
+          ]
+        ]
+      },
+      "data": {},
+      "expected": true
+    },
+    {
+      "description": "cat strings and numbers",
+      "logic": {
+        "cat": [
+          "SR-",
+          5,
+          "-",
+          true
+        ]
+      },
+      "data": {},
+      "expected": "SR-5-true"
+    },
+    {
+      "description": "cat null is empty",
+      "logic": {
+        "cat": [
+          "a",
+          null,
+          "b"
+        ]
+      },
+      "data": {},
+      "expected": "ab"
+    },
+    {
+      "description": "substr start",
+      "logic": {
+        "substr": [
+          "form schema",
+          5
+        ]
+      },
+      "data": {},
+      "expected": "schema"
+    },
+    {
+      "description": "substr negative start",
+      "logic": {
+        "substr": [
+          "form schema",
+          -6
+        ]
+      },
+      "data": {},
+      "expected": "schema"
+    },
+    {
+      "description": "substr length",
+      "logic": {
+        "substr": [
+          "form schema",
+          0,
+          4
+        ]
+      },
+      "data": {},
+      "expected": "form"
+    },
+    {
+      "description": "substr negative length",
+      "logic": {
+        "substr": [
+          "form schema",
+          0,
+          -7
+        ]
+      },
+      "data": {},
+      "expected": "form"
+    },
+    {
+      "description": "merge flattens one level",
+      "logic": {
+        "merge": [
+          [
+            1,
+            2
+          ],
+          3,
+          [
+            4
+          ]
+        ]
+      },
+      "data": {},
+      "expected": [
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "description": "map over rows",
+      "logic": {
+        "map": [
+          {
+            "var": "items"
+          },
+          {
+            "var": "description"
+          }
+        ]
+      },
+      "data": {
+        "items": [
+          {
+            "description": "a"
+          },
+          {
+            "description": "b"
+          }
+        ]
+      },
+      "expected": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "description": "filter rows",
+      "logic": {
+        "filter": [
+          {
+            "var": "items"
+          },
+          {
+            "==": [
+              {
+                "var": "ok"
+              },
+              false
+            ]
+          }
+        ]
+      },
+      "data": {
+        "items": [
+          {
+            "ok": true
+          },
+          {
+            "ok": false
+          }
+        ]
+      },
+      "expected": [
+        {
+          "ok": false
+        }
+      ]
+    },
+    {
+      "description": "some row matches",
+      "logic": {
+        "some": [
+          {
+            "var": "items"
+          },
+          {
+            "===": [
+              {
+                "var": "status"
+              },
+              "failed"
+            ]
+          }
+        ]
+      },
+      "data": {
+        "items": [
+          {
+            "status": "ok"
+          },
+          {
+            "status": "failed"
+          }
+        ]
+      },
+      "expected": true
+    },
+    {
+      "description": "all on empty array is false",
+      "logic": {
+        "all": [
+          [],
+          true
+        ]
+      },
+      "data": {},
+      "expected": false
+    },
+    {
+      "description": "all rows match",
+      "logic": {
+        "all": [
+          {
+            "var": "items"
+          },
+          {
+            "var": "done"
+          }
+        ]
+      },
+      "data": {
+        "items": [
+          {
+            "done": true
+          },
+          {
+            "done": true
+          }
+        ]
+      },
+      "expected": true
+    },
+    {
+      "description": "none matches",
+      "logic": {
+        "none": [
+          {
+            "var": "items"
+          },
+          {
+            "var": "done"
+          }
+        ]
+      },
+      "data": {
+        "items": [
+          {
+            "done": false
+          }
+        ]
+      },
+      "expected": true
+    },
+    {
+      "description": "reduce with accumulator",
+      "logic": {
+        "reduce": [
+          {
+            "var": "xs"
+          },
+          {
+            "cat": [
+              {
+                "var": "accumulator"
+              },
+              {
+                "var": "current"
+              }
+            ]
+          },
+          ""
+        ]
+      },
+      "data": {
+        "xs": [
+          "a",
+          "b",
+          "c"
+        ]
+      },
+      "expected": "abc"
+    },
+    {
+      "description": "float arithmetic is IEEE (lint forbids it on number fields)",
+      "logic": {
+        "+": [
+          1,
+          2
+        ]
+      },
+      "data": {},
+      "expected": 3
+    },
+    {
+      "description": "subtraction unary",
+      "logic": {
+        "-": [
+          2
+        ]
+      },
+      "data": {},
+      "expected": -2
+    },
+    {
+      "description": "modulo",
+      "logic": {
+        "%": [
+          7,
+          3
+        ]
+      },
+      "data": {},
+      "expected": 1
+    },
+    {
+      "description": "division",
+      "logic": {
+        "/": [
+          6,
+          3
+        ]
+      },
+      "data": {},
+      "expected": 2
+    },
+    {
+      "description": "multiplication",
+      "logic": {
+        "*": [
+          2,
+          3
+        ]
+      },
+      "data": {},
+      "expected": 6
+    }
+  ]
+}

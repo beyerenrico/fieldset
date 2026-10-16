@@ -20,3 +20,17 @@
   guard, single-use invitations, email-change verification, real Context-before-unserialize proof.
 - Gate: 190 tests, PHPStan 0, coverage 90.08 % (tenancy 100 %), E2E 3/3. Report: milestones/M0.md.
 - Drafted Spec 1.0 + conformance suite; ADR 0021 own JsonLogic evaluator.
+
+## 2026-10-16 M1 implementation
+- Spec 1.0 + 250 conformance cases; parallel subagents built form-schema-js (389b967) and
+  form-schema-php (cd6b21c); both pass all cases, parity fuzzed (~40k inputs).
+- Forms domain: forms/form_versions/form_access, immutability trigger, publish/rollback/retire/diff,
+  import/export, 3 templates, lossless BuilderMapper (`_source`, ADR 0022), Filament builder pages.
+- Fixes: absent-sentinel leak in FieldCodec, idempotent trigger migration, worker --memory in tests.
+- 2525 tests green; PHPStan lvl 8 app / lvl 10 SDK + Forms/Schema.
+
+## 2026-10-16 M1 gate
+- Three reviewer subagents (security, correctness, SDK conformance). Fixed: clone identity/refs, typed
+  defaults, numbering removal, save halt, boolean/option rules, nested groups, audit diffs, grant drift,
+  diff auth; spec hardening (regex subset, limits, calc order) + 140 cases, both SDKs re-aligned.
+- Gate: PHP 2837 tests, JS 604, coverage 95.62 % (SDK 99.69, Schema 100), E2E 4/4. Report milestones/M1.md.

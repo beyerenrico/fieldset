@@ -1,0 +1,121 @@
+{
+  "description": "email: JS whitespace semantics and a 254-code-point limit (spec §5.6)",
+  "definition": {
+    "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+    "specVersion": "1.0.0",
+    "key": "email_limits",
+    "title": "Email Limits",
+    "locale": "de-DE",
+    "pages": [
+      {
+        "key": "p",
+        "title": "P",
+        "elements": [
+          {
+            "type": "email",
+            "key": "e",
+            "label": "E",
+            "id": "00000000-0000-4000-8000-000000000001"
+          }
+        ]
+      }
+    ]
+  },
+  "context": {
+    "today": "2026-10-16",
+    "now": "2026-10-16T09:41:00+02:00",
+    "user": {
+      "name": "Willi Worker",
+      "email": "worker@demo.test"
+    },
+    "org": {
+      "name": "Demo GmbH"
+    },
+    "formVersion": 3
+  },
+  "tests": [
+    {
+      "description": "U+0085 is not whitespace",
+      "data": {
+        "e": "ab@example.com"
+      },
+      "expected": {
+        "errors": []
+      }
+    },
+    {
+      "description": "U+180E is not whitespace",
+      "data": {
+        "e": "a᠎b@example.com"
+      },
+      "expected": {
+        "errors": []
+      }
+    },
+    {
+      "description": "U+00A0 is whitespace",
+      "data": {
+        "e": "a b@example.com"
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/e",
+            "code": "invalid_email"
+          }
+        ]
+      }
+    },
+    {
+      "description": "U+FEFF is whitespace",
+      "data": {
+        "e": "a﻿b@example.com"
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/e",
+            "code": "invalid_email"
+          }
+        ]
+      }
+    },
+    {
+      "description": "254 code points are allowed",
+      "data": {
+        "e": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.com"
+      },
+      "expected": {
+        "errors": []
+      }
+    },
+    {
+      "description": "255 code points are invalid",
+      "data": {
+        "e": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.com"
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/e",
+            "code": "invalid_email"
+          }
+        ]
+      }
+    },
+    {
+      "description": "trailing newline is invalid",
+      "data": {
+        "e": "a@b.de\n"
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/e",
+            "code": "invalid_email"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+    "name": "@form-schema-app/form-schema-js",
+    "version": "1.0.0",
+    "description": "Reference TypeScript SDK for Form Schema Spec 1.0 (validation, linting, logic, evaluation)",
+    "private": true,
+    "type": "module",
+    "license": "MIT",
+    "sideEffects": false,
+    "exports": {
+        ".": "./src/index.ts"
+    },
+    "types": "./src/index.ts",
+    "files": [
+        "src",
+        "LICENSE",
+        "README.md"
+    ],
+    "scripts": {
+        "build": "tsc -p tsconfig.build.json",
+        "test": "vitest run",
+        "conformance": "vitest run test/conformance.test.ts",
+        "coverage": "vitest run --coverage",
+        "lint": "eslint .",
+        "typecheck": "tsc --noEmit",
+        "format": "prettier --write .",
+        "format:check": "prettier --check ."
+    },
+    "devDependencies": {
+        "@eslint/js": "^10.0.1",
+        "@types/node": "^24.19.2",
+        "@vitest/coverage-v8": "^5.0.5",
+        "ajv-formats": "^3.0.1",
+        "eslint": "^10.12.0",
+        "eslint-config-prettier": "^10.1.8",
+        "prettier": "^3.9.10",
+        "typescript": "~6.0.3",
+        "typescript-eslint": "^8.71.2",
+        "vitest": "^5.0.5"
+    },
+    "dependencies": {
+        "@noble/hashes": "^2.4.0",
+        "ajv": "^8.20.0",
+        "decimal.js": "^10.6.0"
+    }
+}

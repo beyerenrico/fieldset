@@ -1,0 +1,371 @@
+{
+  "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+  "specVersion": "1.0.0",
+  "key": "inspection_checklist",
+  "title": "Prüfprotokoll",
+  "locale": "de-DE",
+  "settings": {
+    "layout": "wizard",
+    "numbering": {
+      "format": "PP-{YYYY}-{SEQ:5}",
+      "reset": "yearly"
+    },
+    "document": {
+      "design": "default"
+    },
+    "sendToCustomer": true
+  },
+  "pages": [
+    {
+      "id": "b7d3ff9e-6aa1-5de1-affb-875e00e83102",
+      "key": "object",
+      "title": "Prüfobjekt",
+      "elements": [
+        {
+          "type": "text",
+          "key": "customer_name",
+          "label": "Kunde",
+          "required": true,
+          "role": "customer.name",
+          "id": "d5d42e5b-bfd8-5b33-ad21-a0d8450d0fc5"
+        },
+        {
+          "type": "text",
+          "key": "asset_serial",
+          "label": "Seriennummer",
+          "required": true,
+          "role": "asset.serial",
+          "id": "dfdb402a-ff97-5e61-a145-826d4fe46322"
+        },
+        {
+          "type": "textarea",
+          "key": "site_address",
+          "label": "Standort",
+          "rows": 2,
+          "role": "site.address",
+          "id": "7844a7cf-e20a-56ae-b40d-dfd356c81792"
+        },
+        {
+          "type": "date",
+          "key": "inspection_date",
+          "label": "Prüfdatum",
+          "required": true,
+          "default": {
+            "var": "$today"
+          },
+          "role": "document.date",
+          "id": "30e3afb6-44cf-5f1f-90e6-a6d8b0d287a1"
+        },
+        {
+          "type": "text",
+          "key": "inspector",
+          "label": "Prüfer",
+          "required": true,
+          "default": {
+            "var": "$user.name"
+          },
+          "id": "a13cfd44-da34-5a1c-ba51-b62490478317"
+        },
+        {
+          "type": "location",
+          "key": "location",
+          "label": "GPS-Position",
+          "id": "440cb1a9-e9ba-5c0b-b0ba-66a6bdaecd97"
+        }
+      ]
+    },
+    {
+      "id": "636390ce-497a-56f8-a052-84aa7078aa41",
+      "key": "checks",
+      "title": "Prüfpunkte",
+      "elements": [
+        {
+          "type": "section",
+          "key": "checks_section",
+          "label": "Prüfpunkte",
+          "elements": [
+            {
+              "type": "radio",
+              "key": "doors",
+              "label": "Türen und Schließeinrichtung",
+              "required": true,
+              "options": [
+                {
+                  "value": "ok",
+                  "label": "In Ordnung"
+                },
+                {
+                  "value": "defect",
+                  "label": "Mangel"
+                },
+                {
+                  "value": "na",
+                  "label": "Nicht zutreffend"
+                }
+              ],
+              "id": "ded997aa-6e55-560e-b7ed-3740eea2a035"
+            },
+            {
+              "type": "textarea",
+              "key": "doors_note",
+              "label": "Mangelbeschreibung",
+              "required": true,
+              "visibleIf": {
+                "===": [
+                  {
+                    "var": "doors"
+                  },
+                  "defect"
+                ]
+              },
+              "id": "6eccc377-6302-5c09-bb75-ec5b6f4fdb13"
+            },
+            {
+              "type": "radio",
+              "key": "emergency_stop",
+              "label": "Not-Halt-Einrichtung",
+              "required": true,
+              "options": [
+                {
+                  "value": "ok",
+                  "label": "In Ordnung"
+                },
+                {
+                  "value": "defect",
+                  "label": "Mangel"
+                },
+                {
+                  "value": "na",
+                  "label": "Nicht zutreffend"
+                }
+              ],
+              "id": "24cf8d5c-9ab1-5fc1-a22c-c851c3be4f0e"
+            },
+            {
+              "type": "textarea",
+              "key": "emergency_stop_note",
+              "label": "Mangelbeschreibung",
+              "required": true,
+              "visibleIf": {
+                "===": [
+                  {
+                    "var": "emergency_stop"
+                  },
+                  "defect"
+                ]
+              },
+              "id": "61d4352c-c5bb-5183-b1cc-d75cabec1f4d"
+            },
+            {
+              "type": "radio",
+              "key": "lighting",
+              "label": "Beleuchtung",
+              "required": true,
+              "options": [
+                {
+                  "value": "ok",
+                  "label": "In Ordnung"
+                },
+                {
+                  "value": "defect",
+                  "label": "Mangel"
+                },
+                {
+                  "value": "na",
+                  "label": "Nicht zutreffend"
+                }
+              ],
+              "id": "ee5e8f3c-f54e-5820-a509-4dbb3d907b09"
+            },
+            {
+              "type": "textarea",
+              "key": "lighting_note",
+              "label": "Mangelbeschreibung",
+              "required": true,
+              "visibleIf": {
+                "===": [
+                  {
+                    "var": "lighting"
+                  },
+                  "defect"
+                ]
+              },
+              "id": "85868fa6-4de0-5861-a0a0-571c9e8dd72b"
+            },
+            {
+              "type": "radio",
+              "key": "signage",
+              "label": "Beschilderung",
+              "required": true,
+              "options": [
+                {
+                  "value": "ok",
+                  "label": "In Ordnung"
+                },
+                {
+                  "value": "defect",
+                  "label": "Mangel"
+                },
+                {
+                  "value": "na",
+                  "label": "Nicht zutreffend"
+                }
+              ],
+              "id": "9bc6c5b4-da71-5c33-ab20-6e5b4ed56775"
+            },
+            {
+              "type": "textarea",
+              "key": "signage_note",
+              "label": "Mangelbeschreibung",
+              "required": true,
+              "visibleIf": {
+                "===": [
+                  {
+                    "var": "signage"
+                  },
+                  "defect"
+                ]
+              },
+              "id": "cdbaa11c-11b6-520b-ab96-101e0aa693fc"
+            },
+            {
+              "type": "radio",
+              "key": "cleanliness",
+              "label": "Sauberkeit",
+              "required": true,
+              "options": [
+                {
+                  "value": "ok",
+                  "label": "In Ordnung"
+                },
+                {
+                  "value": "defect",
+                  "label": "Mangel"
+                },
+                {
+                  "value": "na",
+                  "label": "Nicht zutreffend"
+                }
+              ],
+              "id": "2527fb1e-066f-5aec-aeab-1179dd887dea"
+            },
+            {
+              "type": "textarea",
+              "key": "cleanliness_note",
+              "label": "Mangelbeschreibung",
+              "required": true,
+              "visibleIf": {
+                "===": [
+                  {
+                    "var": "cleanliness"
+                  },
+                  "defect"
+                ]
+              },
+              "id": "e6d76ecd-ec53-5ddb-ad53-14e861e3462d"
+            }
+          ],
+          "id": "62fe4a70-b062-5fe9-879f-a4a3da59d61a"
+        },
+        {
+          "type": "calculated",
+          "key": "result",
+          "label": "Ergebnis",
+          "format": "text",
+          "expression": {
+            "if": [
+              {
+                "or": [
+                  {
+                    "===": [
+                      {
+                        "var": "doors"
+                      },
+                      "defect"
+                    ]
+                  },
+                  {
+                    "===": [
+                      {
+                        "var": "emergency_stop"
+                      },
+                      "defect"
+                    ]
+                  },
+                  {
+                    "===": [
+                      {
+                        "var": "lighting"
+                      },
+                      "defect"
+                    ]
+                  },
+                  {
+                    "===": [
+                      {
+                        "var": "signage"
+                      },
+                      "defect"
+                    ]
+                  },
+                  {
+                    "===": [
+                      {
+                        "var": "cleanliness"
+                      },
+                      "defect"
+                    ]
+                  }
+                ]
+              },
+              "Mängel festgestellt",
+              "Ohne Mängel"
+            ]
+          },
+          "id": "b00f2639-0a9f-5ebe-ae96-04f8f498521b"
+        },
+        {
+          "type": "date",
+          "key": "next_inspection",
+          "label": "Nächste Prüfung",
+          "default": {
+            "date.add": [
+              {
+                "var": "$today"
+              },
+              1,
+              "years"
+            ]
+          },
+          "id": "d5d67235-2eeb-5b43-910f-6760a956f97b"
+        }
+      ]
+    },
+    {
+      "id": "3c71c079-d09b-572d-ac83-ae232ff3e682",
+      "key": "finish",
+      "title": "Fotos & Unterschrift",
+      "elements": [
+        {
+          "type": "photo",
+          "key": "photos",
+          "label": "Fotos",
+          "multiple": true,
+          "validation": {
+            "maxFiles": 30,
+            "maxSizeKb": 8192
+          },
+          "id": "16158b8d-0e3a-5762-9bc5-0cfe5b959bce"
+        },
+        {
+          "type": "signature",
+          "key": "customer_signature",
+          "label": "Unterschrift Kunde",
+          "required": true,
+          "signerNameFrom": "customer_name",
+          "id": "505016a1-959b-5054-abdc-e3a7035567c3"
+        }
+      ]
+    }
+  ]
+}

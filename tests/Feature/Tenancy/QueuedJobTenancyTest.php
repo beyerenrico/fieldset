@@ -22,7 +22,8 @@ function runWorker(int $maxJobs = 1): void
     app()->forgetScopedInstances();
 
     // --max-jobs (not --once) so the worker loop runs its per-job scope reset between jobs.
-    Artisan::call('queue:work', ['connection' => 'database', '--max-jobs' => $maxJobs, '--stop-when-empty' => true, '--tries' => 1]);
+    // --memory: the worker otherwise stops after one job once the long test process exceeds 128 MB.
+    Artisan::call('queue:work', ['connection' => 'database', '--max-jobs' => $maxJobs, '--stop-when-empty' => true, '--tries' => 1, '--memory' => 4096]);
 }
 
 beforeEach(function (): void {

@@ -1,0 +1,188 @@
+{
+  "description": "Element unevaluatedProperties also rejects Object.prototype member names (meta-schema, spec §3.1)",
+  "tests": [
+    {
+      "description": "unknown element property constructor is rejected",
+      "definition": {
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "id": "00000000-0000-4000-8000-000000000001",
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "constructor": 1
+              }
+            ]
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "unknown element property toString is rejected",
+      "definition": {
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "id": "00000000-0000-4000-8000-000000000001",
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "toString": 1
+              }
+            ]
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "unknown element property hasOwnProperty is rejected",
+      "definition": {
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "id": "00000000-0000-4000-8000-000000000001",
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "hasOwnProperty": 1
+              }
+            ]
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "unknown element property valueOf is rejected",
+      "definition": {
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "id": "00000000-0000-4000-8000-000000000001",
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "valueOf": 1
+              }
+            ]
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "unknown element property __proto__ is rejected",
+      "definition": {
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "id": "00000000-0000-4000-8000-000000000001",
+                "type": "text",
+                "key": "a",
+                "label": "a",
+                "__proto__": 1
+              }
+            ]
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "unknown property constructor on a section is rejected",
+      "definition": {
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "id": "00000000-0000-4000-8000-000000000001",
+                "type": "section",
+                "key": "s",
+                "elements": [],
+                "constructor": true
+              }
+            ]
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "unknown property toString on a repeater row element is rejected",
+      "definition": {
+        "specVersion": "1.0.0",
+        "key": "lint_case",
+        "title": "Lint Case",
+        "locale": "de-DE",
+        "pages": [
+          {
+            "key": "p",
+            "title": "P",
+            "elements": [
+              {
+                "id": "00000000-0000-4000-8000-000000000002",
+                "type": "repeater",
+                "key": "r",
+                "label": "r",
+                "elements": [
+                  {
+                    "id": "00000000-0000-4000-8000-000000000001",
+                    "type": "number",
+                    "key": "n",
+                    "label": "n",
+                    "toString": "x"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "valid": false
+    }
+  ]
+}

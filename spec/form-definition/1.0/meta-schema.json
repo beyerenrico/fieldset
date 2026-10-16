@@ -1,0 +1,1108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+  "title": "Form Definition (Form Schema Spec 1.0)",
+  "description": "Validates the structure of a Form Definition. Semantic rules are enforced by the linter (README §7).",
+  "type": "object",
+  "required": [
+    "specVersion",
+    "key",
+    "title",
+    "locale",
+    "pages"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9+.-]*:[^\\s]+$"
+    },
+    "specVersion": {
+      "type": "string",
+      "pattern": "^1\\.0\\.[0-9]+$"
+    },
+    "key": {
+      "$ref": "#/$defs/key"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "description": {
+      "type": "string"
+    },
+    "locale": {
+      "type": "string",
+      "pattern": "^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+    },
+    "settings": {
+      "type": "object",
+      "properties": {
+        "layout": {
+          "enum": [
+            "wizard",
+            "scroll"
+          ]
+        },
+        "numbering": {
+          "type": "object",
+          "properties": {
+            "format": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "reset": {
+              "enum": [
+                "never",
+                "yearly",
+                "monthly"
+              ]
+            }
+          },
+          "required": [
+            "format"
+          ],
+          "patternProperties": {
+            "^x-": true
+          },
+          "additionalProperties": false
+        },
+        "document": {
+          "type": "object",
+          "properties": {
+            "design": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          },
+          "patternProperties": {
+            "^x-": true
+          },
+          "additionalProperties": false
+        },
+        "sendToCustomer": {
+          "type": "boolean"
+        }
+      },
+      "patternProperties": {
+        "^x-": true
+      },
+      "additionalProperties": false
+    },
+    "pages": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "key": {
+            "$ref": "#/$defs/key"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string"
+          },
+          "visibleIf": {
+            "$ref": "#/$defs/logic"
+          },
+          "elements": {
+            "$ref": "#/$defs/elements"
+          }
+        },
+        "required": [
+          "key",
+          "title",
+          "elements"
+        ],
+        "patternProperties": {
+          "^x-": true
+        },
+        "additionalProperties": false
+      }
+    },
+    "source": {
+      "type": "object",
+      "properties": {
+        "registry": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9+.-]*:[^\\s]+$"
+        },
+        "template": {
+          "$ref": "#/$defs/key"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?$"
+        }
+      },
+      "required": [
+        "template",
+        "version"
+      ],
+      "patternProperties": {
+        "^x-": true
+      },
+      "additionalProperties": false
+    }
+  },
+  "patternProperties": {
+    "^x-": true
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "key": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{0,63}$"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+    },
+    "logic": {
+      "description": "JsonLogic expression or boolean (spec §4)",
+      "type": [
+        "boolean",
+        "object",
+        "string",
+        "number",
+        "array",
+        "null"
+      ]
+    },
+    "langMap": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+      },
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "i18n": {
+      "type": "object",
+      "properties": {
+        "label": {
+          "$ref": "#/$defs/langMap"
+        },
+        "help": {
+          "$ref": "#/$defs/langMap"
+        },
+        "placeholder": {
+          "$ref": "#/$defs/langMap"
+        }
+      },
+      "patternProperties": {
+        "^x-": true
+      },
+      "additionalProperties": false
+    },
+    "numberLike": {
+      "oneOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "string",
+          "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$"
+        }
+      ]
+    },
+    "option": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "i18n": {
+          "type": "object",
+          "properties": {
+            "label": {
+              "$ref": "#/$defs/langMap"
+            }
+          },
+          "patternProperties": {
+            "^x-": true
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "value",
+        "label"
+      ],
+      "patternProperties": {
+        "^x-": true
+      },
+      "additionalProperties": false
+    },
+    "options": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/option"
+      }
+    },
+    "pdf": {
+      "type": "object",
+      "properties": {
+        "hidden": {
+          "type": "boolean"
+        },
+        "label": {
+          "type": "string"
+        },
+        "width": {
+          "enum": [
+            "full",
+            "half",
+            "third"
+          ]
+        },
+        "keepTogether": {
+          "type": "boolean"
+        }
+      },
+      "patternProperties": {
+        "^x-": true
+      },
+      "additionalProperties": false
+    },
+    "validation": {
+      "type": "object",
+      "properties": {
+        "min": {
+          "oneOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "max": {
+          "oneOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "minLength": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "maxLength": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "pattern": {
+          "type": "string",
+          "minLength": 1
+        },
+        "step": {
+          "$ref": "#/$defs/numberLike"
+        },
+        "accept": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z]+/([a-z0-9.+-]+|\\*)$"
+          }
+        },
+        "maxFiles": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxSizeKb": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "patternProperties": {
+        "^x-": true
+      },
+      "additionalProperties": false
+    },
+    "elements": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/element"
+      }
+    },
+    "element": {
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "key"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "type": {
+          "enum": [
+            "text",
+            "textarea",
+            "email",
+            "phone",
+            "number",
+            "money",
+            "date",
+            "time",
+            "datetime",
+            "select",
+            "radio",
+            "multiselect",
+            "checkbox",
+            "toggle",
+            "rating",
+            "photo",
+            "file",
+            "signature",
+            "location",
+            "calculated",
+            "hidden",
+            "repeater",
+            "section",
+            "columns",
+            "heading",
+            "paragraph",
+            "divider",
+            "image",
+            "page_break"
+          ]
+        },
+        "key": {
+          "$ref": "#/$defs/key"
+        },
+        "label": {
+          "type": "string"
+        },
+        "help": {
+          "type": "string"
+        },
+        "placeholder": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "visibleIf": {
+          "$ref": "#/$defs/logic"
+        },
+        "requiredIf": {
+          "$ref": "#/$defs/logic"
+        },
+        "readOnlyIf": {
+          "$ref": "#/$defs/logic"
+        },
+        "default": {
+          "$ref": "#/$defs/logic"
+        },
+        "validation": {
+          "$ref": "#/$defs/validation"
+        },
+        "pdf": {
+          "$ref": "#/$defs/pdf"
+        },
+        "role": {
+          "type": "string",
+          "pattern": "^[a-z_]+(\\.[a-z_]+)*$"
+        },
+        "i18n": {
+          "$ref": "#/$defs/i18n"
+        }
+      },
+      "patternProperties": {
+        "^x-": true
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "text"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {},
+            "required": [
+              "label"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "textarea"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "rows": {
+                "type": "integer",
+                "minimum": 2,
+                "maximum": 20
+              }
+            },
+            "required": [
+              "label"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "email"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {},
+            "required": [
+              "label"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "phone"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {},
+            "required": [
+              "label"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "number"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {},
+            "required": [
+              "label"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "money"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "currency": {
+                "type": "string",
+                "pattern": "^[A-Z]{3}$"
+              },
+              "scale": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 4
+              }
+            },
+            "required": [
+              "label",
+              "currency"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "date"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {},
+            "required": [
+              "label"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "time"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {},
+            "required": [
+              "label"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "datetime"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {},
+            "required": [
+              "label"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "select"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "options": {
+                "$ref": "#/$defs/options"
+              }
+            },
+            "required": [
+              "label",
+              "options"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "radio"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "options": {
+                "$ref": "#/$defs/options"
+              }
+            },
+            "required": [
+              "label",
+              "options"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "multiselect"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "options": {
+                "$ref": "#/$defs/options"
+              }
+            },
+            "required": [
+              "label",
+              "options"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "checkbox"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {},
+            "required": [
+              "label"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "toggle"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {},
+            "required": [
+              "label"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "rating"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "max": {
+                "type": "integer",
+                "minimum": 3,
+                "maximum": 10
+              }
+            },
+            "required": [
+              "label"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "photo"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "multiple": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "label"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "file"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "multiple": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "label"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "signature"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "signerNameFrom": {
+                "$ref": "#/$defs/key"
+              }
+            },
+            "required": [
+              "label"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "location"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {},
+            "required": [
+              "label"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "calculated"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "expression": {
+                "$ref": "#/$defs/logic"
+              },
+              "format": {
+                "enum": [
+                  "number",
+                  "money",
+                  "text"
+                ]
+              },
+              "scale": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10
+              },
+              "currency": {
+                "type": "string",
+                "pattern": "^[A-Z]{3}$"
+              }
+            },
+            "required": [
+              "label",
+              "expression"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "hidden"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {},
+            "required": []
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "repeater"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "elements": {
+                "$ref": "#/$defs/elements"
+              },
+              "display": {
+                "enum": [
+                  "cards",
+                  "table"
+                ]
+              },
+              "minItems": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "maxItems": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "addLabel": {
+                "type": "string"
+              },
+              "itemLabel": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "label",
+              "elements"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "section"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "elements": {
+                "$ref": "#/$defs/elements"
+              },
+              "collapsible": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "elements"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "columns"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "columns": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 4,
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "$ref": "#/$defs/id"
+                    },
+                    "elements": {
+                      "$ref": "#/$defs/elements"
+                    }
+                  },
+                  "required": [
+                    "elements"
+                  ],
+                  "patternProperties": {
+                    "^x-": true
+                  },
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "columns"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "heading"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "text": {
+                "type": "string",
+                "minLength": 1
+              },
+              "level": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 3
+              }
+            },
+            "required": [
+              "text"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "paragraph"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "text": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "text"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "divider"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {},
+            "required": []
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "image"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "src": {
+                "type": "string",
+                "pattern": "^(data:image/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+|asset:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$"
+              },
+              "alt": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "src"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "page_break"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {},
+            "required": []
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    }
+  }
+}

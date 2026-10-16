@@ -1,0 +1,245 @@
+{
+  "description": "Date operator edge cases not covered by logic/dates.json (spec §5.3); both SDKs pass — coverage only",
+  "tests": [
+    {
+      "description": "add to datetime drops fractional seconds",
+      "logic": {
+        "date.add": [
+          "2026-01-15T23:30:00.999Z",
+          1,
+          "minutes"
+        ]
+      },
+      "data": {},
+      "expected": "2026-01-15T23:31:00Z"
+    },
+    {
+      "description": "add negative minutes drops fraction (no borrow)",
+      "logic": {
+        "date.add": [
+          "2026-01-15T23:30:00.999Z",
+          -1,
+          "minutes"
+        ]
+      },
+      "data": {},
+      "expected": "2026-01-15T23:29:00Z"
+    },
+    {
+      "description": "add keeps -00:00 offset as written",
+      "logic": {
+        "date.add": [
+          "2026-01-15T23:30:00-00:00",
+          1,
+          "hours"
+        ]
+      },
+      "data": {},
+      "expected": "2026-01-16T00:30:00-00:00"
+    },
+    {
+      "description": "add -1 month clamps to month end",
+      "logic": {
+        "date.add": [
+          "2026-03-31",
+          -1,
+          "months"
+        ]
+      },
+      "data": {},
+      "expected": "2026-02-28"
+    },
+    {
+      "description": "add -13 months clamps",
+      "logic": {
+        "date.add": [
+          "2026-03-31",
+          -13,
+          "months"
+        ]
+      },
+      "data": {},
+      "expected": "2025-02-28"
+    },
+    {
+      "description": "integral float amount is an integer",
+      "logic": {
+        "date.add": [
+          "2026-01-15",
+          2.0,
+          "days"
+        ]
+      },
+      "data": {},
+      "expected": "2026-01-17"
+    },
+    {
+      "description": "fractional JSON amount is null",
+      "logic": {
+        "date.add": [
+          "2026-01-15",
+          2.5,
+          "days"
+        ]
+      },
+      "data": {},
+      "expected": null
+    },
+    {
+      "description": "months on date-time is null",
+      "logic": {
+        "date.add": [
+          "2026-01-31T10:00:00Z",
+          1,
+          "months"
+        ]
+      },
+      "data": {},
+      "expected": null
+    },
+    {
+      "description": "hours on date is null",
+      "logic": {
+        "date.add": [
+          "2026-01-15",
+          1,
+          "hours"
+        ]
+      },
+      "data": {},
+      "expected": null
+    },
+    {
+      "description": "negative month diff mirrors positive (end of month)",
+      "logic": {
+        "date.diff": [
+          "2026-02-28",
+          "2026-01-31",
+          "months"
+        ]
+      },
+      "data": {},
+      "expected": 0
+    },
+    {
+      "description": "negative month diff across month ends",
+      "logic": {
+        "date.diff": [
+          "2026-03-31",
+          "2026-01-31",
+          "months"
+        ]
+      },
+      "data": {},
+      "expected": -2
+    },
+    {
+      "description": "negative month diff: day rule applied after swapping",
+      "logic": {
+        "date.diff": [
+          "2026-03-30",
+          "2026-02-28",
+          "months"
+        ]
+      },
+      "data": {},
+      "expected": -1
+    },
+    {
+      "description": "negative years truncate toward zero",
+      "logic": {
+        "date.diff": [
+          "2028-02-28",
+          "2024-02-29",
+          "years"
+        ]
+      },
+      "data": {},
+      "expected": -3
+    },
+    {
+      "description": "negative weeks truncate toward zero",
+      "logic": {
+        "date.diff": [
+          "2026-01-10",
+          "2026-01-01",
+          "weeks"
+        ]
+      },
+      "data": {},
+      "expected": -1
+    },
+    {
+      "description": "datetime diff includes fraction before truncation",
+      "logic": {
+        "date.diff": [
+          "2026-01-10T10:00:00.5Z",
+          "2026-01-10T10:01:00Z",
+          "minutes"
+        ]
+      },
+      "data": {},
+      "expected": 0
+    },
+    {
+      "description": "negative datetime diff with fraction truncates toward zero",
+      "logic": {
+        "date.diff": [
+          "2026-01-10T10:02:00Z",
+          "2026-01-10T10:00:00.5Z",
+          "minutes"
+        ]
+      },
+      "data": {},
+      "expected": -1
+    },
+    {
+      "description": "negative hours with fraction truncate toward zero",
+      "logic": {
+        "date.diff": [
+          "2026-01-10T10:00:00Z",
+          "2026-01-10T08:00:00.5Z",
+          "hours"
+        ]
+      },
+      "data": {},
+      "expected": -1
+    },
+    {
+      "description": "fraction before 1970",
+      "logic": {
+        "date.diff": [
+          "1969-12-31T23:59:59.5Z",
+          "1970-01-01T00:01:00Z",
+          "minutes"
+        ]
+      },
+      "data": {},
+      "expected": 1
+    },
+    {
+      "description": "datetime days are 24 h across offset change",
+      "logic": {
+        "date.diff": [
+          "2026-03-28T12:00:00+01:00",
+          "2026-03-29T11:59:59+02:00",
+          "days"
+        ]
+      },
+      "data": {},
+      "expected": 0
+    },
+    {
+      "description": "weeks on date-times is null",
+      "logic": {
+        "date.diff": [
+          "2026-01-10T10:00:00Z",
+          "2026-02-10T10:00:00Z",
+          "weeks"
+        ]
+      },
+      "data": {},
+      "expected": null
+    }
+  ]
+}

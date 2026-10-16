@@ -37,10 +37,15 @@ final readonly class SaveRole
 
         $this->guard->authorizePermissionGrant($actor, $organization, array_values(array_diff($names, $beforePermissions)));
 
-        $role = DB::transaction(function () use ($organization, $role, $name, $names): Role {
+        $role = DB::transaction(function () use ($organization, $role, $name, $names, $beforeName): Role {
             $role ??= new Role(['guard_name' => 'web']);
             if ($name !== null && ! $role->isSystemRole()) {
                 $role->name = $name;
+            }
+            if ($beforeName !== null && $beforeName !== $role->name) {
+                // Form grants reference roles by name: follow the rename (security review M1).
+                DB::table('form_access')->where('organization_id', $organization->id)->where('role_name', $beforeName)
+                    ->update(['role_name' => $role->name, 'updated_at' => now()]);
             }
             $role->organization_id = $organization->id;
             $role->save();

@@ -1,0 +1,814 @@
+{
+  "description": "The BUILD_PROMPT §7.2 service report",
+  "definition": {
+    "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+    "specVersion": "1.0.0",
+    "key": "service_report",
+    "title": "Service Report",
+    "locale": "de-DE",
+    "pages": [
+      {
+        "key": "job",
+        "title": "Job",
+        "elements": [
+          {
+            "type": "text",
+            "key": "customer_name",
+            "label": "Customer",
+            "required": true,
+            "validation": {
+              "maxLength": 120
+            },
+            "role": "customer.name",
+            "id": "00000000-0000-4000-8000-000000000001"
+          },
+          {
+            "type": "date",
+            "key": "service_date",
+            "label": "Service date",
+            "default": {
+              "var": "$today"
+            },
+            "id": "00000000-0000-4000-8000-000000000002"
+          },
+          {
+            "type": "select",
+            "key": "service_type",
+            "label": "Service type",
+            "required": true,
+            "options": [
+              {
+                "value": "maintenance",
+                "label": "Maintenance"
+              },
+              {
+                "value": "repair",
+                "label": "Repair"
+              }
+            ],
+            "id": "00000000-0000-4000-8000-000000000003"
+          },
+          {
+            "type": "textarea",
+            "key": "defect",
+            "label": "Defect description",
+            "required": true,
+            "visibleIf": {
+              "==": [
+                {
+                  "var": "service_type"
+                },
+                "repair"
+              ]
+            },
+            "id": "00000000-0000-4000-8000-000000000004"
+          }
+        ]
+      },
+      {
+        "key": "work",
+        "title": "Work",
+        "elements": [
+          {
+            "type": "repeater",
+            "key": "items",
+            "label": "Material & labour",
+            "display": "table",
+            "minItems": 1,
+            "addLabel": "Add line",
+            "elements": [
+              {
+                "type": "text",
+                "key": "description",
+                "label": "Description",
+                "required": true,
+                "id": "00000000-0000-4000-8000-000000000006"
+              },
+              {
+                "type": "number",
+                "key": "qty",
+                "label": "Qty",
+                "validation": {
+                  "min": 0,
+                  "step": 0.25
+                },
+                "id": "00000000-0000-4000-8000-000000000007"
+              },
+              {
+                "type": "money",
+                "key": "unit_price",
+                "label": "Unit price",
+                "currency": "EUR",
+                "id": "00000000-0000-4000-8000-000000000008"
+              },
+              {
+                "type": "calculated",
+                "key": "line_total",
+                "label": "Total",
+                "format": "money",
+                "expression": {
+                  "dec.mul": [
+                    {
+                      "var": "qty"
+                    },
+                    {
+                      "var": "unit_price"
+                    }
+                  ]
+                },
+                "id": "00000000-0000-4000-8000-000000000009"
+              }
+            ],
+            "id": "00000000-0000-4000-8000-000000000005"
+          },
+          {
+            "type": "calculated",
+            "key": "net_total",
+            "label": "Net total",
+            "format": "money",
+            "expression": {
+              "sum": [
+                {
+                  "var": "items"
+                },
+                "line_total"
+              ]
+            },
+            "id": "00000000-0000-4000-8000-000000000010"
+          },
+          {
+            "type": "calculated",
+            "key": "vat",
+            "label": "VAT 19 %",
+            "format": "money",
+            "expression": {
+              "dec.round": [
+                {
+                  "dec.mul": [
+                    {
+                      "var": "net_total"
+                    },
+                    "0.19"
+                  ]
+                },
+                2
+              ]
+            },
+            "id": "00000000-0000-4000-8000-000000000011"
+          },
+          {
+            "type": "photo",
+            "key": "photos",
+            "label": "Photos",
+            "multiple": true,
+            "validation": {
+              "maxFiles": 20,
+              "maxSizeKb": 8192
+            },
+            "id": "00000000-0000-4000-8000-000000000012"
+          },
+          {
+            "type": "signature",
+            "key": "customer_signature",
+            "label": "Customer signature",
+            "required": true,
+            "signerNameFrom": "customer_name",
+            "id": "00000000-0000-4000-8000-000000000013"
+          }
+        ]
+      }
+    ],
+    "settings": {
+      "layout": "wizard",
+      "numbering": {
+        "format": "SR-{YYYY}-{SEQ:5}",
+        "reset": "yearly"
+      },
+      "document": {
+        "design": "default"
+      }
+    }
+  },
+  "context": {
+    "today": "2026-10-16",
+    "now": "2026-10-16T09:41:00+02:00",
+    "user": {
+      "name": "Willi Worker",
+      "email": "worker@demo.test"
+    },
+    "org": {
+      "name": "Demo GmbH"
+    },
+    "formVersion": 3
+  },
+  "tests": [
+    {
+      "description": "the spec example computes totals and validates",
+      "data": {
+        "customer_name": "Beispiel GmbH",
+        "service_date": "2026-10-16",
+        "service_type": "repair",
+        "defect": "Door switch misaligned",
+        "items": [
+          {
+            "description": "Safety switch",
+            "qty": "1",
+            "unit_price": "89.00"
+          },
+          {
+            "description": "Labour (h)",
+            "qty": "1.5",
+            "unit_price": "65.00"
+          }
+        ],
+        "photos": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "customer_signature": {
+          "attachment": "0192f1c4-8b2f-7d4c-8b66-2e3f4a5b6c7d",
+          "signerName": "Beispiel GmbH",
+          "signedAt": "2026-10-16T09:41:00+02:00"
+        }
+      },
+      "expected": {
+        "errors": [],
+        "data": {
+          "customer_name": "Beispiel GmbH",
+          "service_date": "2026-10-16",
+          "service_type": "repair",
+          "defect": "Door switch misaligned",
+          "items": [
+            {
+              "description": "Safety switch",
+              "qty": "1",
+              "unit_price": "89.00",
+              "line_total": "89.00"
+            },
+            {
+              "description": "Labour (h)",
+              "qty": "1.5",
+              "unit_price": "65.00",
+              "line_total": "97.50"
+            }
+          ],
+          "photos": [
+            "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+          ],
+          "customer_signature": {
+            "attachment": "0192f1c4-8b2f-7d4c-8b66-2e3f4a5b6c7d",
+            "signerName": "Beispiel GmbH",
+            "signedAt": "2026-10-16T09:41:00+02:00"
+          },
+          "net_total": "186.50",
+          "vat": "35.44"
+        },
+        "calculated": {
+          "/items/0/line_total": "89.00",
+          "/items/1/line_total": "97.50",
+          "/net_total": "186.50",
+          "/vat": "35.44"
+        },
+        "visibility": {
+          "/defect": true
+        }
+      }
+    },
+    {
+      "description": "hidden defect is stripped and not required",
+      "data": {
+        "customer_name": "Beispiel GmbH",
+        "service_date": "2026-10-16",
+        "service_type": "maintenance",
+        "defect": "Door switch misaligned",
+        "items": [
+          {
+            "description": "Safety switch",
+            "qty": "1",
+            "unit_price": "89.00"
+          },
+          {
+            "description": "Labour (h)",
+            "qty": "1.5",
+            "unit_price": "65.00"
+          }
+        ],
+        "photos": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "customer_signature": {
+          "attachment": "0192f1c4-8b2f-7d4c-8b66-2e3f4a5b6c7d",
+          "signerName": "Beispiel GmbH",
+          "signedAt": "2026-10-16T09:41:00+02:00"
+        }
+      },
+      "expected": {
+        "errors": [],
+        "data": {
+          "customer_name": "Beispiel GmbH",
+          "service_date": "2026-10-16",
+          "service_type": "maintenance",
+          "items": [
+            {
+              "description": "Safety switch",
+              "qty": "1",
+              "unit_price": "89.00",
+              "line_total": "89.00"
+            },
+            {
+              "description": "Labour (h)",
+              "qty": "1.5",
+              "unit_price": "65.00",
+              "line_total": "97.50"
+            }
+          ],
+          "photos": [
+            "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+          ],
+          "customer_signature": {
+            "attachment": "0192f1c4-8b2f-7d4c-8b66-2e3f4a5b6c7d",
+            "signerName": "Beispiel GmbH",
+            "signedAt": "2026-10-16T09:41:00+02:00"
+          },
+          "net_total": "186.50",
+          "vat": "35.44"
+        },
+        "visibility": {
+          "/defect": false
+        }
+      }
+    },
+    {
+      "description": "client-supplied calculated values are ignored",
+      "data": {
+        "customer_name": "Beispiel GmbH",
+        "service_date": "2026-10-16",
+        "service_type": "repair",
+        "defect": "Door switch misaligned",
+        "items": [
+          {
+            "description": "Safety switch",
+            "qty": "1",
+            "unit_price": "89.00"
+          },
+          {
+            "description": "Labour (h)",
+            "qty": "1.5",
+            "unit_price": "65.00"
+          }
+        ],
+        "photos": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "customer_signature": {
+          "attachment": "0192f1c4-8b2f-7d4c-8b66-2e3f4a5b6c7d",
+          "signerName": "Beispiel GmbH",
+          "signedAt": "2026-10-16T09:41:00+02:00"
+        },
+        "net_total": "1.00",
+        "vat": "999"
+      },
+      "expected": {
+        "errors": [],
+        "calculated": {
+          "/net_total": "186.50",
+          "/vat": "35.44"
+        }
+      }
+    },
+    {
+      "description": "missing required values",
+      "data": {
+        "service_type": "repair",
+        "items": [
+          {
+            "qty": "1"
+          }
+        ]
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/customer_name",
+            "code": "required"
+          },
+          {
+            "pointer": "/defect",
+            "code": "required"
+          },
+          {
+            "pointer": "/items/0/description",
+            "code": "required"
+          },
+          {
+            "pointer": "/customer_signature",
+            "code": "required"
+          }
+        ],
+        "calculated": {
+          "/items/0/line_total": null,
+          "/net_total": "0.00",
+          "/vat": "0.00"
+        }
+      }
+    },
+    {
+      "description": "default $today applies when date is missing",
+      "data": {
+        "customer_name": "Beispiel GmbH",
+        "service_type": "repair",
+        "defect": "Door switch misaligned",
+        "items": [
+          {
+            "description": "Safety switch",
+            "qty": "1",
+            "unit_price": "89.00"
+          },
+          {
+            "description": "Labour (h)",
+            "qty": "1.5",
+            "unit_price": "65.00"
+          }
+        ],
+        "photos": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "customer_signature": {
+          "attachment": "0192f1c4-8b2f-7d4c-8b66-2e3f4a5b6c7d",
+          "signerName": "Beispiel GmbH",
+          "signedAt": "2026-10-16T09:41:00+02:00"
+        }
+      },
+      "expected": {
+        "errors": [],
+        "calculated": {},
+        "data": {
+          "customer_name": "Beispiel GmbH",
+          "service_date": "2026-10-16",
+          "service_type": "repair",
+          "defect": "Door switch misaligned",
+          "items": [
+            {
+              "description": "Safety switch",
+              "qty": "1",
+              "unit_price": "89.00",
+              "line_total": "89.00"
+            },
+            {
+              "description": "Labour (h)",
+              "qty": "1.5",
+              "unit_price": "65.00",
+              "line_total": "97.50"
+            }
+          ],
+          "photos": [
+            "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+          ],
+          "customer_signature": {
+            "attachment": "0192f1c4-8b2f-7d4c-8b66-2e3f4a5b6c7d",
+            "signerName": "Beispiel GmbH",
+            "signedAt": "2026-10-16T09:41:00+02:00"
+          },
+          "net_total": "186.50",
+          "vat": "35.44"
+        }
+      }
+    },
+    {
+      "description": "repeater below minItems",
+      "data": {
+        "customer_name": "Beispiel GmbH",
+        "service_date": "2026-10-16",
+        "service_type": "repair",
+        "defect": "Door switch misaligned",
+        "items": [],
+        "photos": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "customer_signature": {
+          "attachment": "0192f1c4-8b2f-7d4c-8b66-2e3f4a5b6c7d",
+          "signerName": "Beispiel GmbH",
+          "signedAt": "2026-10-16T09:41:00+02:00"
+        }
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/items",
+            "code": "min_items"
+          }
+        ],
+        "calculated": {
+          "/net_total": "0.00"
+        }
+      }
+    },
+    {
+      "description": "JSON numbers are rejected for number and money",
+      "data": {
+        "customer_name": "Beispiel GmbH",
+        "service_date": "2026-10-16",
+        "service_type": "repair",
+        "defect": "Door switch misaligned",
+        "items": [
+          {
+            "description": "x",
+            "qty": 2,
+            "unit_price": "1.00"
+          }
+        ],
+        "photos": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "customer_signature": {
+          "attachment": "0192f1c4-8b2f-7d4c-8b66-2e3f4a5b6c7d",
+          "signerName": "Beispiel GmbH",
+          "signedAt": "2026-10-16T09:41:00+02:00"
+        }
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/items/0/qty",
+            "code": "decimal_string_required"
+          }
+        ],
+        "calculated": {
+          "/items/0/line_total": null
+        }
+      }
+    },
+    {
+      "description": "number constraints: min and step",
+      "data": {
+        "customer_name": "Beispiel GmbH",
+        "service_date": "2026-10-16",
+        "service_type": "repair",
+        "defect": "Door switch misaligned",
+        "items": [
+          {
+            "description": "a",
+            "qty": "-1",
+            "unit_price": "1.00"
+          },
+          {
+            "description": "b",
+            "qty": "0.3",
+            "unit_price": "1.00"
+          }
+        ],
+        "photos": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "customer_signature": {
+          "attachment": "0192f1c4-8b2f-7d4c-8b66-2e3f4a5b6c7d",
+          "signerName": "Beispiel GmbH",
+          "signedAt": "2026-10-16T09:41:00+02:00"
+        }
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/items/0/qty",
+            "code": "min"
+          },
+          {
+            "pointer": "/items/1/qty",
+            "code": "step"
+          }
+        ]
+      }
+    },
+    {
+      "description": "unknown keys are dropped at every level",
+      "data": {
+        "customer_name": "Beispiel GmbH",
+        "service_date": "2026-10-16",
+        "service_type": "repair",
+        "defect": "Door switch misaligned",
+        "items": [
+          {
+            "description": "Safety switch",
+            "qty": "1",
+            "unit_price": "89.00",
+            "extra": 1
+          }
+        ],
+        "photos": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "customer_signature": {
+          "attachment": "0192f1c4-8b2f-7d4c-8b66-2e3f4a5b6c7d",
+          "signerName": "Beispiel GmbH",
+          "signedAt": "2026-10-16T09:41:00+02:00"
+        },
+        "hacker": "x"
+      },
+      "expected": {
+        "errors": [],
+        "data": {
+          "customer_name": "Beispiel GmbH",
+          "service_date": "2026-10-16",
+          "service_type": "repair",
+          "defect": "Door switch misaligned",
+          "items": [
+            {
+              "description": "Safety switch",
+              "qty": "1",
+              "unit_price": "89.00",
+              "line_total": "89.00"
+            }
+          ],
+          "photos": [
+            "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+          ],
+          "customer_signature": {
+            "attachment": "0192f1c4-8b2f-7d4c-8b66-2e3f4a5b6c7d",
+            "signerName": "Beispiel GmbH",
+            "signedAt": "2026-10-16T09:41:00+02:00"
+          },
+          "net_total": "89.00",
+          "vat": "16.91"
+        }
+      }
+    },
+    {
+      "description": "invalid option",
+      "data": {
+        "customer_name": "Beispiel GmbH",
+        "service_date": "2026-10-16",
+        "service_type": "upgrade",
+        "defect": "Door switch misaligned",
+        "items": [
+          {
+            "description": "Safety switch",
+            "qty": "1",
+            "unit_price": "89.00"
+          },
+          {
+            "description": "Labour (h)",
+            "qty": "1.5",
+            "unit_price": "65.00"
+          }
+        ],
+        "photos": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "customer_signature": {
+          "attachment": "0192f1c4-8b2f-7d4c-8b66-2e3f4a5b6c7d",
+          "signerName": "Beispiel GmbH",
+          "signedAt": "2026-10-16T09:41:00+02:00"
+        }
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/service_type",
+            "code": "invalid_option"
+          }
+        ],
+        "visibility": {
+          "/defect": false
+        }
+      }
+    },
+    {
+      "description": "text maxLength",
+      "data": {
+        "customer_name": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "service_date": "2026-10-16",
+        "service_type": "repair",
+        "defect": "Door switch misaligned",
+        "items": [
+          {
+            "description": "Safety switch",
+            "qty": "1",
+            "unit_price": "89.00"
+          },
+          {
+            "description": "Labour (h)",
+            "qty": "1.5",
+            "unit_price": "65.00"
+          }
+        ],
+        "photos": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "customer_signature": {
+          "attachment": "0192f1c4-8b2f-7d4c-8b66-2e3f4a5b6c7d",
+          "signerName": "Beispiel GmbH",
+          "signedAt": "2026-10-16T09:41:00+02:00"
+        }
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/customer_name",
+            "code": "max_length"
+          }
+        ]
+      }
+    },
+    {
+      "description": "signature must be a complete object",
+      "data": {
+        "customer_name": "Beispiel GmbH",
+        "service_date": "2026-10-16",
+        "service_type": "repair",
+        "defect": "Door switch misaligned",
+        "items": [
+          {
+            "description": "Safety switch",
+            "qty": "1",
+            "unit_price": "89.00"
+          },
+          {
+            "description": "Labour (h)",
+            "qty": "1.5",
+            "unit_price": "65.00"
+          }
+        ],
+        "photos": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "customer_signature": {
+          "attachment": "nope"
+        }
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/customer_signature",
+            "code": "invalid_signature"
+          }
+        ]
+      }
+    },
+    {
+      "description": "photo list must hold attachment ids",
+      "data": {
+        "customer_name": "Beispiel GmbH",
+        "service_date": "2026-10-16",
+        "service_type": "repair",
+        "defect": "Door switch misaligned",
+        "items": [
+          {
+            "description": "Safety switch",
+            "qty": "1",
+            "unit_price": "89.00"
+          },
+          {
+            "description": "Labour (h)",
+            "qty": "1.5",
+            "unit_price": "65.00"
+          }
+        ],
+        "photos": [
+          "not-a-uuid"
+        ],
+        "customer_signature": {
+          "attachment": "0192f1c4-8b2f-7d4c-8b66-2e3f4a5b6c7d",
+          "signerName": "Beispiel GmbH",
+          "signedAt": "2026-10-16T09:41:00+02:00"
+        }
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/photos",
+            "code": "invalid_attachment"
+          }
+        ]
+      }
+    },
+    {
+      "description": "repeater value that is not an array",
+      "data": {
+        "customer_name": "Beispiel GmbH",
+        "service_date": "2026-10-16",
+        "service_type": "repair",
+        "defect": "Door switch misaligned",
+        "items": "oops",
+        "photos": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "customer_signature": {
+          "attachment": "0192f1c4-8b2f-7d4c-8b66-2e3f4a5b6c7d",
+          "signerName": "Beispiel GmbH",
+          "signedAt": "2026-10-16T09:41:00+02:00"
+        }
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/items",
+            "code": "type_mismatch"
+          },
+          {
+            "pointer": "/items",
+            "code": "min_items"
+          }
+        ]
+      }
+    }
+  ]
+}

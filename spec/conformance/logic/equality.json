@@ -1,0 +1,239 @@
+{
+  "description": "Equality and comparison semantics (spec §4.1)",
+  "tests": [
+    {
+      "description": "string vs number loose equality",
+      "logic": {
+        "==": [
+          "1",
+          1
+        ]
+      },
+      "data": {},
+      "expected": true
+    },
+    {
+      "description": "numeric strings are compared as strings with ==",
+      "logic": {
+        "==": [
+          "1.00",
+          "1"
+        ]
+      },
+      "data": {},
+      "expected": false
+    },
+    {
+      "description": "'01' == '1' is false (both strings)",
+      "logic": {
+        "==": [
+          "01",
+          "1"
+        ]
+      },
+      "data": {},
+      "expected": false
+    },
+    {
+      "description": "empty string == 0",
+      "logic": {
+        "==": [
+          "",
+          0
+        ]
+      },
+      "data": {},
+      "expected": true
+    },
+    {
+      "description": "null == null",
+      "logic": {
+        "==": [
+          null,
+          null
+        ]
+      },
+      "data": {},
+      "expected": true
+    },
+    {
+      "description": "null == 0 is false",
+      "logic": {
+        "==": [
+          null,
+          0
+        ]
+      },
+      "data": {},
+      "expected": false
+    },
+    {
+      "description": "boolean converts to number",
+      "logic": {
+        "==": [
+          true,
+          1
+        ]
+      },
+      "data": {},
+      "expected": true
+    },
+    {
+      "description": "boolean vs string '1'",
+      "logic": {
+        "==": [
+          true,
+          "1"
+        ]
+      },
+      "data": {},
+      "expected": true
+    },
+    {
+      "description": "!= inverse",
+      "logic": {
+        "!=": [
+          "a",
+          "b"
+        ]
+      },
+      "data": {},
+      "expected": true
+    },
+    {
+      "description": "strict equality type",
+      "logic": {
+        "===": [
+          "1",
+          1
+        ]
+      },
+      "data": {},
+      "expected": false
+    },
+    {
+      "description": "strict equality value",
+      "logic": {
+        "===": [
+          "a",
+          "a"
+        ]
+      },
+      "data": {},
+      "expected": true
+    },
+    {
+      "description": "strict inequality",
+      "logic": {
+        "!==": [
+          1,
+          "1"
+        ]
+      },
+      "data": {},
+      "expected": true
+    },
+    {
+      "description": "string comparison is lexicographic",
+      "logic": {
+        ">": [
+          "10.00",
+          "9.50"
+        ]
+      },
+      "data": {},
+      "expected": false
+    },
+    {
+      "description": "string < string",
+      "logic": {
+        "<": [
+          "2026-10-16",
+          "2026-10-17"
+        ]
+      },
+      "data": {},
+      "expected": true
+    },
+    {
+      "description": "number vs numeric string compares numerically",
+      "logic": {
+        ">": [
+          10,
+          "9.5"
+        ]
+      },
+      "data": {},
+      "expected": true
+    },
+    {
+      "description": "null compares as 0",
+      "logic": {
+        "<": [
+          null,
+          1
+        ]
+      },
+      "data": {},
+      "expected": true
+    },
+    {
+      "description": "NaN comparison is false",
+      "logic": {
+        "<": [
+          "abc",
+          1
+        ]
+      },
+      "data": {},
+      "expected": false
+    },
+    {
+      "description": "between with <",
+      "logic": {
+        "<": [
+          1,
+          2,
+          3
+        ]
+      },
+      "data": {},
+      "expected": true
+    },
+    {
+      "description": "between with <= inclusive",
+      "logic": {
+        "<=": [
+          1,
+          1,
+          3
+        ]
+      },
+      "data": {},
+      "expected": true
+    },
+    {
+      "description": "between fails",
+      "logic": {
+        "<": [
+          1,
+          4,
+          3
+        ]
+      },
+      "data": {},
+      "expected": false
+    },
+    {
+      "description": ">= numbers",
+      "logic": {
+        ">=": [
+          2,
+          2
+        ]
+      },
+      "data": {},
+      "expected": true
+    }
+  ]
+}
