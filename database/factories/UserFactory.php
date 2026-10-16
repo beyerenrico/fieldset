@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
-use App\Models\User;
+use App\Domain\Identity\Actions\AddMember;
+use App\Domain\Identity\Enums\SystemRole;
+use App\Domain\Identity\Enums\UserStatus;
+use App\Domain\Identity\Models\Organization;
+use App\Domain\Identity\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -43,5 +47,21 @@ class UserFactory extends Factory
         return $this->state(fn (array $attributes): array => [
             'email_verified_at' => null,
         ]);
+    }
+
+    public function deactivated(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'status' => UserStatus::Deactivated,
+            'deactivated_at' => now(),
+        ]);
+    }
+
+    /** Adds the user to an organization with the given roles (roles must already be seeded). */
+    public function memberOf(Organization $organization, SystemRole ...$roles): static
+    {
+        return $this->afterCreating(function (User $user) use ($organization, $roles): void {
+            app(AddMember::class)->handle($organization, $user, $roles === [] ? [SystemRole::FieldWorker] : array_values($roles));
+        });
     }
 }

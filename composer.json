@@ -10,14 +10,13 @@
     "license": "AGPL-3.0-only",
     "require": {
         "php": "^8.4",
-        "bezhansalleh/filament-shield": "^4.3",
         "brick/math": "^1.0",
         "filament/filament": "^5.10",
         "jwadhams/json-logic-php": "^1.5.1",
         "laravel/fortify": "^1.41",
         "laravel/framework": "^13.17",
         "laravel/horizon": "^5.50",
-        "laravel/sanctum": "^4.3",
+        "laravel/sanctum": "^4.0",
         "laravel/tinker": "^3.0",
         "opis/json-schema": "^2.6",
         "predis/predis": "^3.7",
@@ -48,7 +47,10 @@
     "autoload-dev": {
         "psr-4": {
             "Tests\\": "tests/"
-        }
+        },
+        "files": [
+            "tests/Support/helpers.php"
+        ]
     },
     "scripts": {
         "setup": [
@@ -69,7 +71,8 @@
         ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
-            "@php artisan package:discover --ansi"
+            "@php artisan package:discover --ansi",
+            "@php artisan filament:upgrade"
         ],
         "post-update-cmd": [
             "@php artisan vendor:publish --tag=laravel-assets --ansi --force"

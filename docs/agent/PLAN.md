@@ -4,20 +4,21 @@ Legend: `[ ]` open · `[x]` done (DoD §15 holds) · `[~] blocked: <reason>`.
 AC refs point at BUILD_PROMPT sections. Test approach in brackets.
 
 ## M0 Foundation (branch `m0-foundation`)
-- [ ] M0-T01 Laravel 13 skeleton, Pest 5, Pint, Larastan (lvl 8), Rector, `.env.example`, agent-logs ignore — §5, §12 [smoke test, `phpstan`, `pint --test`]
+- [x] M0-T01 Laravel 13 skeleton, Pest 5, Pint, Larastan (lvl 8), Rector, `.env.example`, agent-logs ignore — §5, §12 [smoke test, `phpstan`, `pint --test`]
 - [ ] M0-T02 Docker: Dockerfile (PHP 8.4, qpdf), compose `app queue scheduler postgres redis gotenberg mailpit`; Gotenberg deny-ips + own network + body limit; dev host ports — §11 Operability, §8.5 [compose config test, `/up` check]
 - [ ] M0-T03 CI (GitHub Actions): lint → static → PHP tests → JS tests → conformance → E2E → image; license check + `composer audit`/`npm audit` — §12, §11 [workflow lint via `actionlint` if available]
-- [ ] M0-T04 Filament 5 admin panel `/admin`, `Organization` tenant, registration + profile pages, persistent tenant middleware — §6.2, §8.12 [Livewire feature tests]
-- [ ] M0-T05 Tenancy core: `TenantContext` (scoped) + `Context::addHidden('organization_id')`, `BelongsToOrganization` (throwing scope, auto `organization_id`), `withoutTenant()`, JobProcessing reset of tenant + spatie team id; prove Context restores before model unserialize — §6.2 [unit + queued job tests]
-- [ ] M0-T06 API base: `/api/v1`, envelope, `X-Organization-Id` middleware (membership check), rate limits, `GET /me` — §10, §6.2 [feature tests]
-- [ ] M0-T07 Auth: Fortify headless (login, 2FA, reset, verification), Filament login + MFA sharing one TOTP secret with Fortify, rate-limited login, long rolling Field App session config — §8.7, §9.3 [feature tests incl. shared-secret test]
-- [ ] M0-T08 Organization membership (`organization_user` status/default_group), `groups`/`group_user` — §6.4, §8.6 [model tests]
-- [ ] M0-T09 Roles: spatie permission teams (team = org), seeded Owner/Admin/Designer/Reviewer/Field Worker/Viewer + permission matrix, Shield, `canAccessPanel` keeps Field Workers out, policy base — §8.6 [matrix permission tests]
-- [ ] M0-T10 Audit plumbing: activitylog with org, actor type, IP, UA, request id, secret redaction; auth events logged — §8.11 [feature tests: one entry per action, no secrets]
-- [ ] M0-T11 i18n DE/EN: lang files, locale resolution (user > org), key-parity test — D7, §11 [unit test]
-- [ ] M0-T12 Tenant isolation suite: enumerate tenant-owned models (reflection) + API routes; cross-tenant read/write fails — §6.2 [feature test, grows each milestone]
+- [x] M0-T04 Filament 5 admin panel `/admin`, `Organization` tenant, registration + profile pages, persistent tenant middleware — §6.2, §8.12 [Livewire feature tests]
+- [x] M0-T05 Tenancy core: `TenantContext` (scoped) + `Context::addHidden('organization_id')`, `BelongsToOrganization` (throwing scope, auto `organization_id`), `withoutTenant()`, JobProcessing reset of tenant + spatie team id; prove Context restores before model unserialize — §6.2 [unit + queued job tests]
+- [x] M0-T06 API base: `/api/v1`, envelope, `X-Organization-Id` middleware (membership check), rate limits, `GET /me` — §10, §6.2 [feature tests]
+- [x] M0-T07 Auth: Fortify headless (login, 2FA, reset, verification), Filament login + MFA sharing one TOTP secret with Fortify, rate-limited login, long rolling Field App session config — §8.7, §9.3 [feature tests incl. shared-secret test]
+- [x] M0-T08 Organization membership (`organization_user` status/default_group), `groups`/`group_user` — §6.4, §8.6 [model tests]
+- [ ] M0-T09 Roles: spatie permission teams (team = org), seeded Owner/Admin/Designer/Reviewer/Field Worker/Viewer + permission matrix (done), capability catalog instead of Shield (ADR 0017), `canAccessPanel` keeps Field Workers out (done), policies (pending with T16) — §8.6 [matrix permission tests]
+- [x] M0-T10 Audit plumbing: activitylog with org, actor type, IP, UA, request id, secret redaction; auth events logged — §8.11 [feature tests: one entry per action, no secrets]
+- [x] M0-T11 i18n DE/EN: lang files, locale resolution (user > org), key-parity test — D7, §11 [unit test]
+- [x] M0-T12 Tenant isolation suite: enumerate tenant-owned models (reflection) + API routes; cross-tenant read/write fails — §6.2 [feature test, grows each milestone]
 - [ ] M0-T13 `app:install` command (first org + owner), demo seeder, `/up` — §11 [command test]
 - [ ] M0-T14 LICENSE (AGPL + MIT for spec/packages), README, SECURITY.md, CONTRIBUTING — D1, §11 [n/a]
+- [ ] M0-T16 Members/Groups/Roles Filament resources + policies; invite user by email (signed link, set password) — §8.6, §8.12, journey 1 [Livewire + policy tests]
 - [ ] M0-T15 Gate M0 (§16.6): green suite, demo screenshots, reviewer subagents, `milestones/M0.md`, merge + tag
 
 ## M1 Schema core + Builder v1 (branch `m1-schema-builder`)

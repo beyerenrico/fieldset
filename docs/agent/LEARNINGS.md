@@ -8,3 +8,4 @@
    with a clear marker only when the binary is absent — never silently).
 4. Interactive CLIs (pest --init, filament:install without flags) hang: always pass --no-interaction / write files by hand.
 5. Tool output on this host is compact JSON (laravel/pao): e.g. {"tool":"pest","result":"passed",...}.
+6. `Job::dispatch()` returns a PendingDispatch that dispatches on __destruct. Inside `fn () => Job::dispatch()` passed to TenantContext::run() it fires AFTER the tenant is restored. Use block closures.

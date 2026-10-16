@@ -1,24 +1,27 @@
-# State: 2026-10-16T09:30Z
-Milestone: M0 Foundation · Task: M0-T01 Laravel 13 skeleton + quality tooling
-Status: bootstrap done (ADRs 0001–0015, PLAN, memory files). M0 not started.
-Branch: main → create `m0-foundation` next · Last commit: see `git log -1`
+# State: 2026-10-16T11:30Z
+Milestone: M0 Foundation · Task: M0-T16 Members/Groups/Roles resources + policies + invitations
+Status: tenancy, auth (shared MFA), API base, audit, i18n, roles matrix, isolation harness done
+and green (149 tests). Docker image builds. CI, app:install, docs, admin resources pending.
+Branch: m0-foundation · Last commit: see `git log -1`
 
 ## Next actions
-1. `git checkout -b m0-foundation`
-2. M0-T01: install laravel/laravel ^13 into the repo root (keep docs/, spec/, AGENTS.md), Pest 5,
-   Larastan, Pint, Rector; Postgres test DB via Docker (host port 54329)
-3. M0-T02: Dockerfile + compose.yaml
+1. M0-T16: Filament resources Members (invite, roles, groups, deactivate), Groups, Roles (capability
+   checkbox list); policies per model using `User::hasPermissionIn()`; invitation mail + accept page
+2. M0-T13: `app:install` command + DemoSeeder (owner, designer, reviewer, worker, coordinator)
+3. M0-T14: LICENSE files, README, SECURITY.md, CONTRIBUTING.md
+4. M0-T03: .github/workflows/ci.yml; M0-T02: verify `docker compose up` app + /up
+5. M0-T15 gate
 
 ## Files in flight
-- none
+- none (all committed)
 
 ## Known problems
-- Host has its own Postgres on 5432 and Redis on 6379 (brew). Do NOT use them; use Docker services
-  on non-default host ports (see LEARNINGS #1).
+- None open. See LEARNINGS #6 (PendingDispatch destruct timing inside TenantContext::run).
 
 ## Tried and rejected
-- none
+- Filament Shield: per-resource permissions don't match §8.6 capability rows (ADR 0017)
 
 ## Resume commands
 docker compose up -d postgres redis gotenberg mailpit
 php artisan test --compact
+vendor/bin/phpstan analyse --memory-limit=1G --no-progress

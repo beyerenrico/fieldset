@@ -15,7 +15,12 @@ return [
     |
     */
 
-    'name' => env('APP_NAME', 'Laravel'),
+    'name' => env('APP_NAME', 'form-schema-app'),
+
+    /*
+    | Self-service organization registration on /admin (ADR 0004).
+    */
+    'allow_registration' => (bool) env('APP_ALLOW_REGISTRATION', true),
 
     /*
     |--------------------------------------------------------------------------
