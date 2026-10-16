@@ -7,6 +7,7 @@
     "license": "AGPL-3.0-only",
     "scripts": {
         "dev": "vite",
+        "dev:preview": "vite -c vite.preview.config.ts",
         "build": "npm run build:app && npm run build:preview",
         "build:app": "vite build",
         "build:preview": "vite build -c vite.preview.config.ts",

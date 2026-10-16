@@ -14,7 +14,7 @@ const texts = {
     },
 } as const;
 
-export type PreviewTexts = (typeof texts)['en'];
+export type PreviewTexts = Readonly<Record<keyof (typeof texts)['en'], string>>;
 
 export function previewTexts(locale: string | undefined): PreviewTexts {
     return (locale ?? '').toLowerCase().startsWith('de') ? texts.de : texts.en;

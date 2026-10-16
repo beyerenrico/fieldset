@@ -22,6 +22,13 @@ export default defineConfig(
             'max-lines': ['error', { max: 300, skipBlankLines: true, skipComments: true }],
             'max-depth': ['error', 4],
             'no-console': ['error', { allow: ['warn', 'error'] }],
+            // TanStack Router control flow: `throw redirect(...)` / `throw notFound()`.
+            '@typescript-eslint/only-throw-error': [
+                'error',
+                {
+                    allow: [{ from: 'package', package: '@tanstack/router-core', name: 'Redirect' }],
+                },
+            ],
         },
     },
     {

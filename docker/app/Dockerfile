@@ -12,6 +12,8 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 COPY packages ./packages
 COPY resources ./resources
+# form-schema-js imports the normative spec JSON (meta-schema, roles) at build time.
+COPY spec ./spec
 RUN npm ci --ignore-scripts || npm install --ignore-scripts
 COPY vite.config.js ./
 COPY public ./public
@@ -33,6 +35,8 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 COPY . .
 COPY --from=vendor /app/vendor ./vendor
 COPY --from=assets /app/public/build ./public/build
+COPY --from=assets /app/public/app ./public/app
+COPY --from=assets /app/public/form-preview ./public/form-preview
 RUN composer dump-autoload --optimize --no-dev --classmap-authoritative \
  && php artisan filament:assets \
  && chown -R www-data:www-data storage bootstrap/cache
