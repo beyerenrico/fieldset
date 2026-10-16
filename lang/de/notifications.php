@@ -11,6 +11,7 @@ return [
         'workflow_failed' => 'Ein Workflow ist fehlgeschlagen (Administration)',
         'form_available' => 'Ein neues oder geändertes Formular ist verfügbar',
         'workflow_notice' => 'Nachrichten aus Workflows',
+        'export_ready' => 'Ein angeforderter Export ist fertig',
     ],
     'channels' => ['database' => 'In der App', 'mail' => 'E-Mail'],
     'preferences' => [

@@ -32,9 +32,9 @@ final class StoredNotification extends Notification
     /** @return array<string, mixed> */
     public static function payload(NotificationMessage $message, RenderedNotification $rendered, ?int $organizationId): array
     {
-        [$status, $icon] = self::style($message->event);
+        [$status, $icon] = self::style($message->event, $message->status);
         $actions = $rendered->url === null ? [] : [
-            Action::make('open')->label(trans('notifications.open', [], $rendered->locale))
+            Action::make('open')->label(trans($message->actionKey ?? 'notifications.open', [], $rendered->locale))
                 ->url($rendered->url)->markAsRead()->button(),
         ];
 
@@ -74,9 +74,13 @@ final class StoredNotification extends Notification
         return $this->data;
     }
 
-    /** @return array{0: string, 1: Heroicon} Filament status (color) and icon per event */
-    private static function style(NotificationEvent $event): array
+    /** @return array{0: string, 1: Heroicon} Filament status (color) and icon per event, or for an explicit "danger" */
+    private static function style(NotificationEvent $event, ?string $status = null): array
     {
+        if ($status === 'danger') {
+            return ['danger', Heroicon::OutlinedExclamationTriangle];
+        }
+
         return match ($event) {
             NotificationEvent::ReviewAssigned => ['info', Heroicon::OutlinedClipboardDocumentCheck],
             NotificationEvent::ChangesRequested => ['warning', Heroicon::OutlinedArrowUturnLeft],
@@ -84,6 +88,7 @@ final class StoredNotification extends Notification
             NotificationEvent::WorkflowFailed => ['danger', Heroicon::OutlinedExclamationTriangle],
             NotificationEvent::FormAvailable => ['info', Heroicon::OutlinedDocumentPlus],
             NotificationEvent::WorkflowNotice => ['info', Heroicon::OutlinedChatBubbleLeftEllipsis],
+            NotificationEvent::ExportReady => ['success', Heroicon::OutlinedArrowDownTray],
         };
     }
 }

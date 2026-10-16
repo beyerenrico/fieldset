@@ -28,6 +28,7 @@ use App\Policies\InternalRecordPolicy;
 use App\Policies\MembershipPolicy;
 use App\Policies\OrganizationPolicy;
 use App\Policies\RolePolicy;
+use Filament\Actions\Exports\Models\Export;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
@@ -70,6 +71,9 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(SubmissionEvent::class, InternalRecordPolicy::class);
         Gate::policy(NumberSequence::class, InternalRecordPolicy::class);
         Gate::policy(IdempotencyKey::class, InternalRecordPolicy::class);
+        // Filament's /filament/exports/{export}/download only checks ownership (no tenant). Report exports
+        // (ReportExport, own policy) are served by the tenant-scoped admin route only (ADR 0033).
+        Gate::policy(Export::class, InternalRecordPolicy::class);
 
         // OpenAPI docs (/docs/api, M2-T11): platform admins and organization admins (members.manage).
         Gate::define('viewApiDocs', fn (?User $user = null): bool => $user instanceof User && $user->isActive() && (

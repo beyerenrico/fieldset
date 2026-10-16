@@ -238,6 +238,7 @@ export const de: Messages = {
     'event.workflow_failed': 'Ein Workflow ist fehlgeschlagen (Administration)',
     'event.form_available': 'Ein neues oder geändertes Formular ist verfügbar',
     'event.workflow_notice': 'Nachrichten aus Workflows',
+    'event.export_ready': 'Ein angeforderter Export ist fertig',
     'notifications.title': 'Benachrichtigungen',
     'notifications.bellUnread': 'Benachrichtigungen, {count} ungelesen',
     'notifications.empty': 'Noch keine Benachrichtigungen.',

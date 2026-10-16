@@ -100,13 +100,13 @@ describe('notification preferences', () => {
         server.use(
             http.get('*/api/v1/me/notification-preferences', () =>
                 ok({
-                    events: [{ event: 'export_ready', channels: { database: true, mail: true } }],
+                    events: [{ event: 'report_shared', channels: { database: true, mail: true } }],
                 }),
             ),
         );
         const { unmount } = renderApp('/settings');
         const region = await preferences();
-        expect(await within(region).findByRole('group', { name: 'export ready' })).toBeVisible();
+        expect(await within(region).findByRole('group', { name: 'report shared' })).toBeVisible();
         unmount();
         server.use(http.get('*/api/v1/me/notification-preferences', () => ok({ events: [] })));
         renderApp('/settings');
@@ -134,10 +134,11 @@ describe('notification preferences', () => {
         ).toBeVisible();
     });
 
-    it('names workflow events like the admin panel (lang/*/notifications.php)', async () => {
+    it('names workflow and export events like the admin panel (lang/*/notifications.php)', async () => {
         const events = [
             { event: 'workflow_failed', channels: { database: true, mail: true } },
             { event: 'workflow_notice', channels: { database: true, mail: false } },
+            { event: 'export_ready', channels: { database: true, mail: true } },
         ];
         server.use(...createBackend().handlers);
         server.use(http.get('*/api/v1/me/notification-preferences', () => ok({ events })));
@@ -151,6 +152,11 @@ describe('notification preferences', () => {
         expect(
             within(region).getByRole('group', { name: 'Messages from workflows' }),
         ).toBeVisible();
+        const exportReady = within(region).getByRole('group', {
+            name: 'An export I requested is ready',
+        });
+        expect(within(exportReady).getByRole('checkbox', { name: 'Email' })).toBeChecked();
+        expect(within(region).queryByRole('group', { name: 'export ready' })).toBeNull();
         unmount();
         writeJson('settings', { language: 'de', largeText: false });
         renderApp('/settings');
@@ -162,6 +168,9 @@ describe('notification preferences', () => {
         ).toBeVisible();
         expect(
             within(german).getByRole('group', { name: 'Nachrichten aus Workflows' }),
+        ).toBeVisible();
+        expect(
+            within(german).getByRole('group', { name: 'Ein angeforderter Export ist fertig' }),
         ).toBeVisible();
     });
 

@@ -38,6 +38,7 @@ it('emails by default only for events where someone has to act or learns an outc
     expect($mailByDefault)->toBe([
         NotificationEvent::ReviewAssigned, NotificationEvent::ChangesRequested,
         NotificationEvent::SubmissionApproved, NotificationEvent::WorkflowFailed,
+        NotificationEvent::ExportReady,
     ]);
     foreach (NotificationEvent::cases() as $event) {
         expect(ChannelPreferences::default($event, Notifier::CHANNEL_DATABASE))->toBeTrue()

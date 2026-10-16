@@ -24,6 +24,7 @@ final class NotificationMail extends BrandedMail
         string $body,
         public readonly ?string $actionUrl,
         string $locale,
+        public readonly ?string $actionKey = null,
     ) {
         parent::__construct(
             $organizationId,
@@ -50,11 +51,12 @@ final class NotificationMail extends BrandedMail
             ($bodyHtml instanceof Htmlable ? $bodyHtml->toHtml() : '')
             .view('mail.notification-action', [
                 'url' => $this->actionUrl,
+                'label' => (string) __($this->actionKey ?? 'notifications.open'),
                 'layout' => $with['layout'] ?? null,
             ])->render(),
         );
         $with['bodyText'] = (is_string($with['bodyText'] ?? null) ? $with['bodyText'] : '')
-            .($this->actionUrl === null ? '' : "\n\n".__('notifications.open').': '.$this->actionUrl)
+            .($this->actionUrl === null ? '' : "\n\n".__($this->actionKey ?? 'notifications.open').': '.$this->actionUrl)
             ."\n\n".__('notifications.mail.preferences_hint');
 
         return new Content(view: 'mail.branded', text: 'mail.branded-text', with: $with);

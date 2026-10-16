@@ -39,6 +39,7 @@ it('returns every event with the default channels', function (): void {
             'workflow_failed' => ['database' => true, 'mail' => true],
             'form_available' => ['database' => true, 'mail' => false],
             'workflow_notice' => ['database' => true, 'mail' => false],
+            'export_ready' => ['database' => true, 'mail' => true],
         ]);
 });
 
@@ -80,7 +81,7 @@ it('rejects unknown events, channels and non-boolean values', function (array $b
 
     expect(NotificationPreference::query()->count())->toBe(0);
 })->with([
-    'unknown event' => [['events' => [['event' => 'export_ready', 'channels' => ['mail' => true]]]], '/events/0/event'],
+    'unknown event' => [['events' => [['event' => 'sso_misconfigured', 'channels' => ['mail' => true]]]], '/events/0/event'],   // arrives with M7
     'unknown channel' => [['events' => [['event' => 'review_assigned', 'channels' => ['push' => true]]]], '/events/0/channels'],
     'not a boolean' => [['events' => [['event' => 'review_assigned', 'channels' => ['mail' => 'yes']]]], '/events/0/channels/mail'],
     'number instead of boolean' => [['events' => [['event' => 'review_assigned', 'channels' => ['mail' => 1]]]], '/events/0/channels/mail'],

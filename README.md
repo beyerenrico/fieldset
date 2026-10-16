@@ -39,6 +39,7 @@ cp .env.example .env && composer install && php artisan key:generate
 docker compose up -d postgres redis gotenberg mailpit      # services on non-default host ports
 php artisan migrate --seed                                 # demo data, password "password"
 php artisan serve --port=8080
+php artisan horizon                                        # queue workers: `default` and `exports` (report exports, one at a time)
 php artisan test --compact
 ```
 
