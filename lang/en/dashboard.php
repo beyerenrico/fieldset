@@ -51,6 +51,11 @@ return [
         'empty' => 'No versions published in this period.',
     ],
 
+    'pinned' => [
+        'more' => ':count more groups',
+        'open' => 'Open report',
+    ],
+
     'columns' => [
         'number' => 'Number',
         'form' => 'Form',

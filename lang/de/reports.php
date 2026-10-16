@@ -130,6 +130,10 @@ return [
         'download_csv' => 'CSV herunterladen',
         'explore' => 'Im Explorer öffnen',
         'invalid_metric' => 'Summe und Durchschnitt brauchen ein Zahlen- oder Betragsfeld.',
+        'pin' => 'An Dashboard anheften',
+        'unpin' => 'Lösen',
+        'pinned' => 'An Ihr Dashboard angeheftet',
+        'unpinned' => 'Von Ihrem Dashboard gelöst',
     ],
     'mail' => [
         'subject' => '{{ report.name }}: {{ report.period }}',

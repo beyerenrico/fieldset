@@ -114,7 +114,8 @@ it('picks index plans on its own for the selective lookups', function (): void {
 });
 
 it('flags sequential scans and condition-less index walks of large tables', function (): void {
-    $plan = planWithoutSeqScans(DB::table('submission_values')->where('value_text', 'x'));
+    // `path` has no index (value_text equality is served by the trigram index since SearchPlanTest's migration).
+    $plan = planWithoutSeqScans(DB::table('submission_values')->where('path', 'x'));
 
     expect($plan->fullScans())->toBe(['Seq Scan on submission_values'])
         ->and(planWithoutSeqScans(DB::table('submission_values')->orderBy('id')->limit(5))->fullScans())

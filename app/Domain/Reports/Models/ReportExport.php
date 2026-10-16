@@ -24,8 +24,8 @@ use Illuminate\Support\Carbon;
  * A queued export of the submission explorer (BUILD_PROMPT §8.4, ADR 0033). Reuses Filament's Export
  * model and `exports` table (processed/total/successful rows, file disk, completion) with tenancy, the
  * form, the format, the options the job needs and an expiry. Filament's own exporter and download route
- * are not used: columns are per form, so RunExport writes the file and ExportDownloadController serves
- * it to the requesting user only. `file_name` is the download name including the extension. Files are
+ * are not used (the route is denied: Export has the deny-all InternalRecordPolicy): columns are per form,
+ * so RunExport writes the file and ExportDownloadController serves it to the requesting user only. `file_name` is the download name including the extension. Files are
  * pruned (`model:prune`) reports.exports.keep_days after creation; downloads answer 410 after expiry.
  *
  * @property int $id

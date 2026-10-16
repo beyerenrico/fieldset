@@ -9,6 +9,7 @@ use App\Domain\Reports\Enums\ReportMetric;
 use App\Domain\Reports\Enums\ReportSchedule;
 use App\Domain\Reports\Enums\ReportVisibility;
 use App\Domain\Reports\Models\SavedReport;
+use App\Filament\Admin\Resources\SavedReports\Actions\PinActions;
 use App\Filament\Admin\Resources\SavedReports\Pages\CreateSavedReport;
 use App\Filament\Admin\Resources\SavedReports\Pages\EditSavedReport;
 use App\Filament\Admin\Resources\SavedReports\Pages\ListSavedReports;
@@ -78,6 +79,7 @@ class SavedReportResource extends Resource
     {
         return $table
             ->defaultSort('name')
+            ->modifyQueryUsing(fn (Builder $query): Builder => PinActions::withPinnedFlag($query))
             ->columns([
                 TextColumn::make('name')->label(__('reports.saved.name'))->searchable()->sortable(),
                 TextColumn::make('form.name')->label(__('reports.saved.form')),
@@ -90,7 +92,7 @@ class SavedReportResource extends Resource
                 TextColumn::make('creator.name')->label(__('reports.saved.created_by'))->placeholder('—'),
                 TextColumn::make('updated_at')->label(__('forms.form.updated_at'))->since()->sortable(),
             ])
-            ->recordActions([ViewAction::make(), EditAction::make(), DeleteAction::make()]);
+            ->recordActions([ViewAction::make(), EditAction::make(), PinActions::pin(), PinActions::unpin(), DeleteAction::make()]);
     }
 
     public static function getPages(): array

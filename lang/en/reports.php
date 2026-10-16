@@ -130,6 +130,10 @@ return [
         'download_csv' => 'Download CSV',
         'explore' => 'Open in explorer',
         'invalid_metric' => 'Sum and average need a number or money field.',
+        'pin' => 'Pin to dashboard',
+        'unpin' => 'Unpin',
+        'pinned' => 'Pinned to your dashboard',
+        'unpinned' => 'Removed from your dashboard',
     ],
     'mail' => [
         'subject' => '{{ report.name }}: {{ report.period }}',

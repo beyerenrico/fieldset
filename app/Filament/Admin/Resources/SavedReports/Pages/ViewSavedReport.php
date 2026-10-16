@@ -10,6 +10,7 @@ use App\Domain\Reports\Saved\ReportCsv;
 use App\Domain\Reports\Saved\ReportResult;
 use App\Domain\Reports\SavedReportQuery;
 use App\Filament\Admin\Pages\FormExplorer;
+use App\Filament\Admin\Resources\SavedReports\Actions\PinActions;
 use App\Filament\Admin\Resources\SavedReports\SavedReportResource;
 use App\Filament\Admin\Resources\SavedReports\Widgets\SavedReportChart;
 use Filament\Actions\Action;
@@ -67,6 +68,8 @@ class ViewSavedReport extends ViewRecord
                 )),
             Action::make('explore')->label(__('reports.saved.explore'))->icon(Heroicon::OutlinedTableCells)->color('gray')
                 ->url(fn (): string => FormExplorer::getUrl(['form' => $this->record->form_id])),
+            PinActions::pin(),
+            PinActions::unpin(),
             EditAction::make(),
         ];
     }

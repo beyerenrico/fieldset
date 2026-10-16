@@ -71,3 +71,14 @@ over convenience. Repeater rows whose values are all empty are not counted (they
 The explorer search scans the form's values (`ILIKE`, no trigram index). Very large exports are bounded
 by the job timeout until a long-running export queue exists. The Field App shows `export_ready` with its
 generic label fallback until it gets a translation.
+
+## Amendment 2026-10-16: M5 integration
+- Filament's own download route (`/filament/exports/{export}/download`) checks only ownership, not the
+  tenant. `Filament\Actions\Exports\Models\Export` now has the deny-all `InternalRecordPolicy`, so that
+  route answers 403 for every export, also for the requester; ReportExport keeps `ReportExportPolicy`
+  and the tenant-scoped `admin/{org}/exports/{id}` route.
+- Explorer search: GIN trigram index `submission_values_value_text_trgm_idx` (pg_trgm, a trusted extension;
+  the migration skips the index with a warning where the extension cannot be installed). The planner picks
+  it on its own for a rare term at 2,500 submissions (SearchPlanTest). It also serves `value_text =`.
+- The Field App labels `export_ready` like `lang/*/notifications.php`.
+- Saved reports can be pinned to the dashboard (ADR 0034).

@@ -9,6 +9,8 @@ use App\Domain\Reports\Enums\ReportMetric;
 /**
  * One group of a saved report result. `sum` and `avg` are exact decimal strings from Postgres numeric
  * arithmetic (trailing zeros trimmed), null when the group has no value for the metric key.
+ *
+ * @phpstan-type ReportRowArray array{key: ?string, label: string, submissions: int, sum: ?string, avg: ?string, values: int}
  */
 final readonly class ReportRow
 {
@@ -20,6 +22,18 @@ final readonly class ReportRow
         public ?string $avg = null,
         public int $values = 0,
     ) {}
+
+    /** @param  ReportRowArray  $row */
+    public static function fromArray(array $row): self
+    {
+        return new self($row['key'], $row['label'], $row['submissions'], $row['sum'], $row['avg'], $row['values']);
+    }
+
+    /** @return ReportRowArray plain array (cacheable; cache.serializable_classes is false) */
+    public function toArray(): array
+    {
+        return ['key' => $this->key, 'label' => $this->label, 'submissions' => $this->submissions, 'sum' => $this->sum, 'avg' => $this->avg, 'values' => $this->values];
+    }
 
     /** The metric value as a decimal string ("12", "0.3", "1234.5"); null for an average without values. */
     public function value(ReportMetric $metric): ?string

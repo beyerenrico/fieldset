@@ -13,10 +13,10 @@ use Filament\Widgets\WidgetConfiguration;
  * and asked in that order; the dashboard shows the union (first occurrence of a class wins, configured
  * instances — WidgetConfiguration — are kept as they are, so one widget class can appear several times).
  *
- * Extension point: pinned saved reports (§8.4) are another source that returns one configured widget per
- * pinned report, e.g. `PinnedReportWidget::make(['savedReportId' => $id])`. A widget class served by a
- * source must also deny direct Livewire access in `canView()` when the source would not offer it
- * (see DashboardWidgetRegistry::offers()).
+ * Pinned saved reports (§8.4, ADR 0034) are such a source (PinnedReportsSource): one configured widget per
+ * pin, `PinnedReportWidget::make(['savedReportId' => $id])`. A widget class served by a source must also
+ * deny direct Livewire access in `canView()` when the source would not offer it (see
+ * DashboardWidgetRegistry::offers()), or guard every instance itself like PinnedReportWidget.
  */
 interface DashboardWidgetSource
 {

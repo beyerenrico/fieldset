@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Dashboards\Widgets\PinnedReportsSource;
 use App\Domain\Dashboards\Widgets\RoleWidgetSource;
 
 /*
@@ -29,9 +30,16 @@ return [
 
     /*
      * Widget sources (DashboardWidgetSource), asked in this order for the widgets of the current user.
-     * The role-aware defaults come first; pinned saved reports plug in here as another source.
+     * The role-aware defaults come first, then the saved reports the user pinned (ADR 0034).
      */
     'widget_sources' => [
         RoleWidgetSource::class,
+        PinnedReportsSource::class,
+    ],
+
+    // Pinned saved reports: a chart up to this many groups (else a compact table of the first rows).
+    'pinned_reports' => [
+        'max_chart_groups' => 12,
+        'table_rows' => 10,
     ],
 ];

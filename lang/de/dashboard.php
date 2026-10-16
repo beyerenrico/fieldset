@@ -51,6 +51,11 @@ return [
         'empty' => 'In diesem Zeitraum wurden keine Versionen veröffentlicht.',
     ],
 
+    'pinned' => [
+        'more' => ':count weitere Gruppen',
+        'open' => 'Bericht öffnen',
+    ],
+
     'columns' => [
         'number' => 'Nummer',
         'form' => 'Formular',

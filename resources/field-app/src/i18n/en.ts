@@ -224,6 +224,7 @@ export const en = {
     'event.workflow_failed': 'A workflow failed (administrators)',
     'event.form_available': 'A new or updated form is available',
     'event.workflow_notice': 'Messages from workflows',
+    'event.export_ready': 'An export I requested is ready',
     'notifications.title': 'Notifications',
     'notifications.bellUnread': 'Notifications, {count} unread',
     'notifications.empty': 'No notifications yet.',
