@@ -75,6 +75,36 @@ it('publishes from the builder with a changelog', function (): void {
     expect(FormVersion::query()->where('form_id', $form->id)->value('version'))->toBe(1);
 });
 
+it('suggests a key from the label of a new element and keeps an existing key', function (): void {
+    $form = app(CreateFormFromTemplate::class)->handle($this->designer, 'service_report');
+    $page = Livewire::test(EditForm::class, ['record' => $form->getRouteKey()]);
+    $data = $page->get('data');
+    $firstPage = array_key_first($data['pages']);
+    [$first, $second] = array_keys($data['pages'][$firstPage]['elements']);
+    $path = fn (string $element, string $field): string => "data.pages.{$firstPage}.elements.{$element}.data.{$field}";
+
+    $page->set($path($first, 'key'), '')->set($path($first, 'label'), 'Prüfdatum Übergabe 2.0');
+    $page->set($path($second, 'label'), 'Anderer Text');
+
+    expect($page->get($path($first, 'key')))->toBe('pruefdatum_uebergabe_2_0')
+        ->and($page->get($path($second, 'key')))->toBe('customer_email');
+});
+
+it('reports publish validation errors instead of silently keeping the dialog open', function (): void {
+    $form = app(CreateFormFromTemplate::class)->handle($this->designer, 'inspection_checklist');
+    $page = Livewire::test(EditForm::class, ['record' => $form->getRouteKey()]);
+    $data = $page->get('data');
+    $firstPage = array_key_first($data['pages']);
+    $first = array_key_first($data['pages'][$firstPage]['elements']);
+
+    $page->set("data.pages.{$firstPage}.elements.{$first}.data.key", '')
+        ->callAction('publish', ['changelog' => 'Erste Version'])
+        ->assertNotified(__('forms.errors.fix_fields'))
+        ->assertHasFormErrors(["pages.{$firstPage}.elements.{$first}.data.key"]);
+
+    expect(FormVersion::query()->where('form_id', $form->id)->exists())->toBeFalse();
+});
+
 it('saves form access grants', function (): void {
     [$form] = app(CreateForm::class)->handle($this->designer, 'Access');
     $crew = Group::query()->create(['name' => 'Crew']);

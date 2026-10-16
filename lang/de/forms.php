@@ -177,6 +177,7 @@ return [
         'published' => 'Version :version veröffentlicht',
     ],
     'errors' => [
+        'fix_fields' => 'Bitte korrigieren Sie vor dem Veröffentlichen die markierten Felder.',
         'invalid_definition' => 'Die Definition ist ungültig. Beheben Sie zuerst die aufgeführten Probleme.',
         'changelog_required' => 'Eine Notiz im Änderungsprotokoll ist erforderlich.',
         'import_too_large' => 'Die Datei ist zu groß.',

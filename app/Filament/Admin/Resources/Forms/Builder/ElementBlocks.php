@@ -7,6 +7,7 @@ namespace App\Filament\Admin\Resources\Forms\Builder;
 use App\Domain\Forms\Builder\BlockCloner;
 use App\Domain\Forms\Builder\ElementFields;
 use App\Domain\Forms\Builder\FieldSpec;
+use App\Domain\Forms\Builder\KeySuggester;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Builder;
 use Filament\Forms\Components\Builder\Block;
@@ -21,6 +22,7 @@ use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 
 /**
  * Builder v1: one Filament Builder block per element type (BUILD_PROMPT §8.2). Repeater and section
@@ -106,6 +108,15 @@ final class ElementBlocks
             : '';
     }
 
+    /** A new element gets a key derived from its label; existing or locked keys are never changed. */
+    private static function suggestKey(Get $get, Set $set, ?string $state): void
+    {
+        if ($get('key_locked') || filled($get('key')) || blank($state)) {
+            return;
+        }
+        $set('key', KeySuggester::fromLabel($state));
+    }
+
     /** @return list<Component> */
     private static function schema(string $type, int $depth): array
     {
@@ -115,7 +126,8 @@ final class ElementBlocks
         $main = array_values(array_filter([
             Hidden::make('id'), Hidden::make('_source'), Hidden::make('key_locked'),
             Grid::make(2)->schema(array_values(array_filter([
-                $has('label') ? TextInput::make('label')->label(__('forms.element.label'))->required($type !== 'section' && $type !== 'hidden')->live(onBlur: true) : null,
+                $has('label') ? TextInput::make('label')->label(__('forms.element.label'))->required($type !== 'section' && $type !== 'hidden')->live(onBlur: true)
+                    ->afterStateUpdated(self::suggestKey(...)) : null,
                 TextInput::make('key')->label(__('forms.element.key'))->required()->maxLength(64)
                     ->regex('/^[a-z][a-z0-9_]{0,63}$/')
                     ->disabled(fn (Get $get): bool => (bool) $get('key_locked'))->dehydrated()
