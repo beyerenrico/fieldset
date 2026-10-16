@@ -14,6 +14,7 @@ const TITLES: Readonly<Record<string, MessageKey>> = {
     '/_auth/submissions': 'submissions.title',
     '/_auth/submissions/$uuid': 'detail.title',
     '/_auth/settings': 'settings.title',
+    '/_auth/notifications': 'notifications.title',
 };
 
 /** The heading may render later (lazy screens, loading data): poll briefly for it. */

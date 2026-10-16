@@ -12,6 +12,7 @@ import { logout } from '../lib/api/endpoints.ts';
 import { rememberNotice } from '../lib/session/auth-events.ts';
 import { clearLocalData } from '../lib/session/local-data.ts';
 import { setOrganizationId } from '../lib/session/org-store.ts';
+import { NotificationPreferences } from './settings/NotificationPreferences.tsx';
 
 const SELECT =
     'min-h-11 w-full rounded-md border-2 border-input bg-background px-3 text-base focus-visible:outline-3 focus-visible:outline-ring';
@@ -129,6 +130,7 @@ export function SettingsScreen(): ReactNode {
                     </label>
                 </CardContent>
             </Card>
+            <NotificationPreferences />
             {me.organizations.length > 1 ? (
                 <Card>
                     <CardContent className="flex flex-col gap-2 pt-4">

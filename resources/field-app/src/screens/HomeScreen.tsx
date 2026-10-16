@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { ChevronRight } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { ReviewNote } from '../components/ReviewNote.tsx';
 import { ErrorState, Loading } from '../components/RouteError.tsx';
 import { StatusBadge } from '../components/StatusBadge.tsx';
 import { Button } from '../components/ui/button.tsx';
@@ -11,7 +12,8 @@ import { useFormatters } from '../hooks/useFormatters.ts';
 import { useOrganizationId, useSession } from '../hooks/useSession.ts';
 import { useShortcuts, useStartForm } from '../hooks/useShortcuts.ts';
 import { useT } from '../i18n/I18nProvider.tsx';
-import type { FormSummary } from '../lib/api/types.ts';
+import type { FormSummary, Submission } from '../lib/api/types.ts';
+import { OpenTasks } from './home/OpenTasks.tsx';
 
 function FormShortcuts({
     title,
@@ -49,10 +51,56 @@ function FormShortcuts({
     );
 }
 
+/** Inside the draft's link: the reviewer comment and the call to action (one target per draft). */
+function ChangesRequested({ review }: { readonly review: Submission['review'] }): ReactNode {
+    const t = useT();
+    return (
+        <>
+            <ReviewNote review={review} compact />
+            <span className="mt-1 inline-flex min-h-11 items-center gap-1 self-start font-semibold text-primary underline underline-offset-4">
+                {t('changes.editResubmit')}
+                <ChevronRight aria-hidden="true" className="size-5" />
+            </span>
+        </>
+    );
+}
+
+function DraftItem({
+    draft,
+    formName,
+}: {
+    readonly draft: Submission;
+    readonly formName: string;
+}): ReactNode {
+    const t = useT();
+    const { dateTime } = useFormatters();
+    return (
+        <Card className="hover:bg-muted">
+            <Link
+                to="/fill/$uuid"
+                params={{ uuid: draft.uuid }}
+                className="flex min-h-14 flex-col gap-1 p-4 focus-visible:outline-3 focus-visible:outline-ring"
+            >
+                <span className="flex items-center justify-between gap-2">
+                    <span className="flex flex-col">
+                        <span className="font-semibold">{formName}</span>
+                        <span className="text-sm text-muted-foreground">
+                            {t('home.updated', { date: dateTime(draft.updated_at) })}
+                        </span>
+                    </span>
+                    {draft.status === 'draft' ? null : <StatusBadge status={draft.status} />}
+                </span>
+                {draft.status === 'changes_requested' ? (
+                    <ChangesRequested review={draft.review} />
+                ) : null}
+            </Link>
+        </Card>
+    );
+}
+
 function Drafts(): ReactNode {
     const t = useT();
     const org = useOrganizationId();
-    const { dateTime } = useFormatters();
     const drafts = useQuery(draftsQueryOptions(org));
     const forms = useQuery(formsQueryOptions(org));
     if (drafts.isPending) {
@@ -70,23 +118,7 @@ function Drafts(): ReactNode {
         <ul className="flex flex-col gap-2">
             {drafts.data.map((draft) => (
                 <li key={draft.uuid}>
-                    <Card className="hover:bg-muted">
-                        <Link
-                            to="/fill/$uuid"
-                            params={{ uuid: draft.uuid }}
-                            className="flex min-h-14 items-center justify-between gap-2 p-4 focus-visible:outline-3 focus-visible:outline-ring"
-                        >
-                            <span className="flex flex-col">
-                                <span className="font-semibold">{nameOf(draft.form_id)}</span>
-                                <span className="text-sm text-muted-foreground">
-                                    {t('home.updated', { date: dateTime(draft.updated_at) })}
-                                </span>
-                            </span>
-                            {draft.status === 'draft' ? null : (
-                                <StatusBadge status={draft.status} />
-                            )}
-                        </Link>
-                    </Card>
+                    <DraftItem draft={draft} formName={nameOf(draft.form_id)} />
                 </li>
             ))}
         </ul>
@@ -107,6 +139,7 @@ export function HomeScreen(): ReactNode {
     return (
         <div className="flex flex-col gap-8">
             <h1 className="text-2xl font-bold">{t('home.greeting', { name: me.user.name })}</h1>
+            <OpenTasks />
             <section aria-labelledby="home-drafts" className="flex flex-col gap-3">
                 <h2 id="home-drafts" className="text-xl font-bold">
                     {t('home.drafts')}

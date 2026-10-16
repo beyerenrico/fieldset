@@ -25,9 +25,14 @@ function ReviewForm({
 }): ReactNode {
     const { t, language } = useI18n();
     const editor = useDraftEditor(uuid, submission, version);
-    const { busy, problem, showErrors, submit } = useSubmit(uuid, version, editor);
     const { snapshot } = editor;
+    const current = snapshot.submission ?? submission;
+    /** Changes were requested: submitting again keeps the number (§6.5). */
+    const resubmit = current?.status === 'changes_requested';
+    const { busy, problem, showErrors, submit } = useSubmit(uuid, version, editor, resubmit);
     const uploading = editor.pendingWork > 0;
+    const submitLabel = resubmit ? t('review.resubmit') : t('review.submit');
+    const busyLabel = resubmit ? t('review.resubmitting') : t('review.submitting');
 
     return (
         <div className="flex flex-col gap-3">
@@ -38,6 +43,11 @@ function ReviewForm({
                 </div>
                 <SaveIndicator state={snapshot.state} />
             </div>
+            {resubmit && current.number !== null ? (
+                <p className="text-muted-foreground">
+                    {t('review.numberKept', { number: current.number })}
+                </p>
+            ) : null}
             <Button asChild variant="outline" className="self-start">
                 <Link to="/fill/$uuid" params={{ uuid }}>
                     {t('review.backToForm')}
@@ -71,7 +81,7 @@ function ReviewForm({
                 showErrors={showErrors}
                 onAsyncWork={editor.onAsyncWork}
                 primaryAction={{
-                    label: busy ? t('review.submitting') : t('review.submit'),
+                    label: busy ? busyLabel : submitLabel,
                     onClick: () => void submit(),
                     busy,
                     disabled:
