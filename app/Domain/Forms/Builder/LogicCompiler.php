@@ -23,6 +23,9 @@ final class LogicCompiler
 
     private const array BOOLEAN_TYPES = ['checkbox', 'toggle'];
 
+    /** Option values are strings: compare them strictly. */
+    private const array OPTION_TYPES = ['select', 'radio'];
+
     private const array ORDERED = ['gt' => ['>', 'dec.gt'], 'gte' => ['>=', 'dec.gte'], 'lt' => ['<', 'dec.lt'], 'lte' => ['<=', 'dec.lte']];
 
     /** @param  array<string, string>  $fieldTypes  key => element type */
@@ -99,10 +102,12 @@ final class LogicCompiler
         $type = $this->fieldTypes[$field] ?? '';
         $decimal = in_array($type, self::DECIMAL_TYPES, true);
         $boolean = in_array($type, self::BOOLEAN_TYPES, true);
+        $option = in_array($type, self::OPTION_TYPES, true);
         $operator = is_string($rule['operator'] ?? null) ? $rule['operator'] : 'eq';
 
         return match (true) {
             $boolean && in_array($operator, ['eq', 'neq'], true) => (object) [$operator === 'eq' ? '===' : '!==' => [$var, self::truthy($value)]],
+            $option && in_array($operator, ['eq', 'neq'], true) => (object) [$operator === 'eq' ? '===' : '!==' => [$var, $value]],
             $operator === 'neq' => $decimal ? (object) ['!' => (object) ['dec.eq' => [$var, $value]]] : (object) ['!=' => [$var, $value]],
             in_array($operator, ['empty', 'unchecked'], true) => (object) ['!' => $var],
             in_array($operator, ['not_empty', 'checked'], true) => (object) ['!!' => $var],
@@ -213,8 +218,10 @@ final class LogicCompiler
         }
 
         $field = self::varName($args[0] ?? null);
-        if ($field !== null && in_array($op, ['===', '!=='], true) && is_bool($args[1] ?? null)) {
-            return ['field' => $field, 'operator' => $op === '===' ? 'eq' : 'neq', 'value' => $args[1] ? 'true' : 'false'];
+        if ($field !== null && in_array($op, ['===', '!=='], true) && (is_bool($args[1] ?? null) || is_string($args[1] ?? null))) {
+            $literal = $args[1];
+
+            return ['field' => $field, 'operator' => $op === '===' ? 'eq' : 'neq', 'value' => is_bool($literal) ? ($literal ? 'true' : 'false') : $literal];
         }
 
         $map = ['==' => 'eq', 'dec.eq' => 'eq', '!=' => 'neq', '>' => 'gt', 'dec.gt' => 'gt', '>=' => 'gte', 'dec.gte' => 'gte',

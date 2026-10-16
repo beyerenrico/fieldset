@@ -14,6 +14,7 @@ use App\Domain\Identity\Models\Group;
 use App\Filament\Admin\Resources\Forms\Pages\EditForm;
 use App\Filament\Admin\Resources\Forms\Pages\ListForms;
 use App\Filament\Admin\Resources\Forms\RelationManagers\VersionsRelationManager;
+use FormSchema\Json\Json;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
 
@@ -183,4 +184,22 @@ it('locks keys of published elements in the builder', function (): void {
 
     $page->set("data.pages.{$pageKey}.elements.{$itemKey}.data.key", 'renamed')->call('save');
     expect($form->refresh()->draft_definition->pages[0]->elements[0]->key)->toBe('customer_name');
+});
+
+it('accepts edits deep inside nested blocks and logic groups', function (): void {
+    $form = app(CreateFormFromTemplate::class)->handle($this->designer, 'inspection_checklist');
+    $page = Livewire::test(EditForm::class, ['record' => $form->getRouteKey()]);
+    $data = $page->get('data');
+    $pageKey = array_keys($data['pages'])[1];                         // "checks" page
+    $sectionKey = array_key_first($data['pages'][$pageKey]['elements']);
+    $section = $data['pages'][$pageKey]['elements'][$sectionKey]['data'];
+    $noteKey = array_keys($section['elements'])[1];                   // doors_note (visibleIf rule)
+    $groupKey = array_key_first($section['elements'][$noteKey]['data']['visible_if']['groups']);
+    $ruleKey = array_key_first($section['elements'][$noteKey]['data']['visible_if']['groups'][$groupKey]['rules']);
+    $base = "data.pages.{$pageKey}.elements.{$sectionKey}.data.elements.{$noteKey}.data.visible_if.groups.{$groupKey}.rules.{$ruleKey}";
+
+    $page->set("{$base}.value", 'na')->call('save')->assertHasNoFormErrors();
+
+    $note = $form->refresh()->draft_definition->pages[1]->elements[0]->elements[1];
+    expect(Json::encode($note->visibleIf))->toBe('{"===":[{"var":"doors"},"na"]}');
 });

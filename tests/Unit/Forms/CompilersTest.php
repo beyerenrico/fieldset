@@ -7,7 +7,9 @@ use App\Domain\Forms\Builder\LogicCompiler;
 use FormSchema\Json\Json;
 
 dataset('logic round trips', [
-    'equals text' => ['{"==":[{"var":"type"},"repair"]}', 'rules'],
+    'equals option strictly' => ['{"===":[{"var":"type"},"repair"]}', 'rules'],
+    'loose equals on an option field stays raw' => ['{"==":[{"var":"type"},"repair"]}', 'json'],
+    'equals text' => ['{"==":[{"var":"a"},"x"]}', 'rules'],
     'decimal compare' => ['{"dec.gt":[{"var":"qty"},"5"]}', 'rules'],
     'and group' => ['{"and":[{"!!":{"var":"a"}},{"in":["x",{"var":"tags"}]}]}', 'rules'],
     'not equal number' => ['{"!":{"dec.eq":[{"var":"qty"},"1"]}}', 'rules'],
@@ -15,7 +17,7 @@ dataset('logic round trips', [
     'unsupported shape' => ['{"some":[{"var":"rows"},{"var":"ok"}]}', 'json'],
     'boolean literal' => ['true', 'json'],
     'checkbox equals true' => ['{"===":[{"var":"ok"},true]}', 'rules'],
-    'groups of groups' => ['{"or":[{"and":[{"!!":{"var":"a"}},{"dec.lt":[{"var":"qty"},"3"]}]},{"==":[{"var":"type"},"repair"]}]}', 'rules'],
+    'groups of groups' => ['{"or":[{"and":[{"!!":{"var":"a"}},{"dec.lt":[{"var":"qty"},"3"]}]},{"===":[{"var":"type"},"repair"]}]}', 'rules'],
 ]);
 
 it('decompiles and recompiles logic without loss', function (string $json, string $mode): void {
