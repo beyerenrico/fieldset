@@ -48,11 +48,18 @@ services:
     <<: *app
     command: ["php", "artisan", "horizon"]
     networks: [default, renderer]
+    healthcheck:
+      test: ["CMD", "php", "artisan", "horizon:status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   scheduler:
     <<: *app
     command: ["php", "artisan", "schedule:work"]
     networks: [default]
+    healthcheck:
+      disable: true
 
   postgres:
     image: postgres:16-alpine

@@ -23,6 +23,11 @@ return [
     'allow_registration' => (bool) env('APP_ALLOW_REGISTRATION', true),
 
     /*
+    | Platform operators (Horizon dashboard, future /platform panel): comma-separated emails.
+    */
+    'platform_admins' => array_values(array_filter(array_map('trim', explode(',', (string) env('PLATFORM_ADMIN_EMAILS', ''))))),
+
+    /*
     |--------------------------------------------------------------------------
     | Application Environment
     |--------------------------------------------------------------------------

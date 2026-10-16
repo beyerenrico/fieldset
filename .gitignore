@@ -31,3 +31,5 @@ Thumbs.db
 /storage/agent-logs
 /storage/phpstan*
 /storage/coverage
+/storage/playwright
+/storage/playwright-results
