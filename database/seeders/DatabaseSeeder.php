@@ -4,24 +4,17 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
-use App\Domain\Identity\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use App\Domain\Identity\Actions\SyncPermissionCatalog;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
-    /**
-     * Seed the application's database.
-     */
-    public function run(): void
+    public function run(SyncPermissionCatalog $catalog): void
     {
-        // User::factory(10)->create();
+        $catalog->handle();
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        if (! app()->isProduction()) {
+            $this->call(DemoSeeder::class);
+        }
     }
 }

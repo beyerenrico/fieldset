@@ -21,6 +21,8 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property int $user_id
  * @property MembershipStatus $status
  * @property int|null $default_group_id
+ * @property-read Organization $organization non-null FK (cascade on delete)
+ * @property-read User $user non-null FK (cascade on delete)
  */
 #[Fillable(['organization_id', 'user_id', 'status', 'default_group_id', 'invited_at', 'joined_at'])]
 #[Table(name: 'organization_user')]

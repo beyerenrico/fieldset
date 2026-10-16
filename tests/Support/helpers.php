@@ -6,6 +6,8 @@ use App\Domain\Identity\Actions\CreateOrganization;
 use App\Domain\Identity\Enums\SystemRole;
 use App\Domain\Identity\Models\Organization;
 use App\Domain\Identity\Models\User;
+use App\Domain\Identity\Tenancy\TenantContext;
+use Filament\Facades\Filament;
 use Laravel\Sanctum\Sanctum;
 
 /** Creates an organization (roles seeded) owned by a new or given user. */
@@ -34,4 +36,13 @@ function apiHeaders(User $user, Organization $organization): array
     Sanctum::actingAs($user);
 
     return ['X-Organization-Id' => (string) $organization->id, 'Accept' => 'application/json'];
+}
+
+/** Authenticates in the admin panel with the organization as Filament tenant and TenantContext. */
+function actingInAdmin(User $user, Organization $organization): void
+{
+    test()->actingAs($user);
+    Filament::setCurrentPanel('admin');
+    Filament::setTenant($organization);
+    app(TenantContext::class)->set($organization);
 }

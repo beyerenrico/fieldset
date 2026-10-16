@@ -5,13 +5,22 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Domain\Audit\Listeners\LogAuthEvents;
+use App\Domain\Identity\Models\Group;
+use App\Domain\Identity\Models\Membership;
+use App\Domain\Identity\Models\Organization;
+use App\Domain\Identity\Models\Role;
 use App\Domain\Identity\Support\OrganizationPermissions;
 use App\Domain\Identity\Tenancy\TenantContext;
+use App\Policies\GroupPolicy;
+use App\Policies\MembershipPolicy;
+use App\Policies\OrganizationPolicy;
+use App\Policies\RolePolicy;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
@@ -35,6 +44,11 @@ class AppServiceProvider extends ServiceProvider
         });
 
         Event::subscribe(LogAuthEvents::class);
+
+        Gate::policy(Organization::class, OrganizationPolicy::class);
+        Gate::policy(Group::class, GroupPolicy::class);
+        Gate::policy(Membership::class, MembershipPolicy::class);
+        Gate::policy(Role::class, RolePolicy::class);
 
         RateLimiter::for('api', function (Request $request): Limit {
             $user = $request->user();
