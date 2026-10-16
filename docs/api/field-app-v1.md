@@ -35,6 +35,7 @@ Non-multipart request bodies larger than 2 MB (`submissions.max_payload_bytes`) 
 | `GET /submissions?status=&form_id=&page=` | session + org | Submissions visible to the user (own; group if granted). Paginated, `meta: {current_page, last_page, total}`. |
 | `GET /submissions/{uuid}` | session + org | `{ submission }` |
 | `GET /submissions/{uuid}/document` | session + org | Latest rendition (PDF) of a submission the user may see: `{ document: { url, expires_at, rendition: { uuid, form_version_id, design_version_id, renderer_version, page_count, size, file_sha256, input_hash, created_at } } }`. `url` is a signed link valid for 5 minutes (`documents.link_ttl_minutes`), usable without the session (`GET /api/v1/documents/{rendition_uuid}?user=…&expires=…&signature=…` → `application/pdf` download); the download re-checks that the user it was issued to can still see the submission (else 404), a tampered or expired link → 403. No rendition yet (rendering is queued after submit) → **404** `document_not_ready`; a submission the user cannot see → 404 `not_found`. |
+| `POST /submissions/{uuid}/send` | session + org, header `Idempotency-Key` | Email the document to a recipient (§9.2 "send to customer", M3). Body `{ email?, name? }`; defaults are the submitted values of the elements with roles `customer.email` / `customer.name`. Allowed when the pinned version has `settings.sendToCustomer: true`, the submission is no longer a draft (and not `void`), and the user created it or holds `submissions.review`/`organization.manage` and can see it. → **202** `{ send: { id, status, recipient: { email, name } } }` with `status: "waiting_for_document"` (no rendition yet; the mail goes out automatically once the PDF exists) or `"queued"` (mail queued; its delivery appears in the admin mail log). Errors: 409 `send_not_allowed`, 409 `not_submitted`, 422 `validation_failed` (`/email` missing or invalid), 404 for submissions the user cannot see. Same idempotency rules as submit. |
 
 `submission` object:
 ```json
@@ -44,9 +45,12 @@ Non-multipart request bodies larger than 2 MB (`submissions.max_payload_bytes`) 
   "revision": 4, "number": "SR-2026-00012", "data": { },
   "attachments": [{ "uuid": "…", "kind": "photo", "element_key": "photos", "mime": "image/jpeg", "size": 12345, "url": "…" }],
   "submitted_at": "2026-10-16T09:41:00+02:00", "created_at": "…", "updated_at": "…",
-  "can_edit": true
+  "can_edit": true,
+  "can_send": false
 }
 ```
+
+`can_send` is true when `POST /submissions/{uuid}/send` would be accepted for this user now.
 
 ## Evaluation context for the client renderer
 
