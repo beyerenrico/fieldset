@@ -20,6 +20,8 @@ export async function fieldAppLogin(page: Page, email: string): Promise<void> {
   await page.getByLabel(/^(email|e-mail)$/i).fill(email);
   await page.getByLabel(/^(password|passwort)$/i).fill('password');
   await page.getByRole('button', { name: /^(sign in|anmelden)$/i }).click();
+  // Navigating before the session and device registration finished would land back on the login.
+  await expect(page.getByText(/^(hello|hallo), /i)).toBeVisible({ timeout: 20_000 });
 }
 
 /**

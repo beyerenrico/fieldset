@@ -107,6 +107,8 @@ jobs:
       - run: docker compose exec -T app php artisan db:seed --force
       - run: npm ci
       - run: PLAYWRIGHT_BROWSERS_PATH=storage/playwright npx playwright install --with-deps chromium
+      # Journey 5 compares re-rendered PDFs with pdftotext/pdfinfo.
+      - run: sudo apt-get update && sudo apt-get install -y poppler-utils
       - run: npm run e2e
       - if: always()
         run: docker compose logs --tail=200 app queue
