@@ -41,3 +41,5 @@
 36. `apiHeaders()` (Sanctum::actingAs) switches the default guard to `sanctum`; a later `actingInAdmin()` in the same test then fails in Filament's TenantSet (null user) — call `auth()->shouldUse('web')` first.
 37. Filament shows a disabled action with a reason only when the policy returns `Response::deny('message')` and the action has `->authorizationTooltip()`; a plain `false` hides it.
 38. Status-change workflow starts are queued (StartWorkflowsForEvent, ADR 0032 amendment); with the sync queue they still run inline after commit, so tests see runs right after a submit. Mounted-action form values are not in the Livewire HTML — assert them with `assertActionDataSet()`.
+36b. `SET LOCAL` outlives a released savepoint (RefreshDatabase transactions) — reset it explicitly in EXPLAIN tests.
+36c. Server-side prepares: a GROUP BY that repeats a bound-parameter expression fails — group by the output alias.
