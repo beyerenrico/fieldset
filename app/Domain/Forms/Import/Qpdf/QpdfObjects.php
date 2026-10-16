@@ -53,6 +53,14 @@ final readonly class QpdfObjects
         return is_array($resolved) && array_is_list($resolved) ? $resolved : [];
     }
 
+    /** @return array<string, mixed> */
+    public function trailer(): array
+    {
+        $trailer = $this->objects['trailer']['value'] ?? null;
+
+        return is_array($trailer) ? $trailer : [];
+    }
+
     public function isStream(mixed $ref): bool
     {
         return self::isRef($ref) && isset($this->objects['obj:'.$ref]['stream']);
@@ -116,7 +124,11 @@ final readonly class QpdfObjects
         return $chain;
     }
 
-    /** First value of an (inheritable) key along a /Parent chain. */
+    /**
+     * First value of an (inheritable) key along a /Parent chain.
+     *
+     * @param  list<array<string, mixed>>  $chain
+     */
     public static function inherited(array $chain, string $key): mixed
     {
         foreach ($chain as $dict) {

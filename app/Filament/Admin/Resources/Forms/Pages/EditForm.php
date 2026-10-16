@@ -10,6 +10,7 @@ use App\Domain\Forms\Actions\SaveDraft;
 use App\Domain\Forms\Actions\SyncFormAccess;
 use App\Domain\Forms\Builder\BuilderMapper;
 use App\Domain\Forms\Builder\KeyTypes;
+use App\Domain\Forms\Import\DismissImportReport;
 use App\Domain\Forms\Models\Form;
 use App\Domain\Forms\Models\FormAccess;
 use App\Domain\Forms\Schema\DefinitionTools;
@@ -126,7 +127,18 @@ class EditForm extends EditRecord
 
     protected function getHeaderActions(): array
     {
-        return [$this->publishAction(), $this->exportDraftAction()];
+        return [$this->publishAction(), $this->exportDraftAction(), $this->dismissImportReportAction()];
+    }
+
+    private function dismissImportReportAction(): Action
+    {
+        return Action::make('dismissImportReport')->label(__('forms.import.report.dismiss'))->icon('heroicon-o-x-mark')->color('gray')
+            ->visible(fn (): bool => $this->record->import_report !== null)
+            ->authorize(fn (): bool => auth()->user()?->can('update', $this->record) ?? false)
+            ->action(function (): void {
+                app(DismissImportReport::class)->handle($this->record, $this->actor());
+                Notification::make()->success()->title(__('forms.import.report.dismissed'))->send();
+            });
     }
 
     private function exportDraftAction(): Action

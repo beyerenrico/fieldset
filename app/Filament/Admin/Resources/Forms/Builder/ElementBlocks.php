@@ -87,7 +87,22 @@ final class ElementBlocks
         $caption = (string) ($state['label'] ?? $state['text'] ?? '');
         $key = (string) ($state['key'] ?? '');
 
-        return trim($typeLabel.($caption !== '' ? ': '.$caption : '').($key !== '' ? " ({$key})" : ''));
+        return trim($typeLabel.($caption !== '' ? ': '.$caption : '').($key !== '' ? " ({$key})" : '').self::importHint($state));
+    }
+
+    /**
+     * Elements imported from a PDF with low confidence are marked for review (BUILD_PROMPT §8.13).
+     *
+     * @param  array<string, mixed>|null  $state
+     */
+    private static function importHint(?array $state): string
+    {
+        $source = json_decode(is_string($state['_source'] ?? null) ? $state['_source'] : '', true);
+        $confidence = is_array($source) ? ($source['x-import']['confidence'] ?? null) : null;
+
+        return (is_int($confidence) || is_float($confidence)) && $confidence < (float) config('forms.pdf_import.low_confidence', 0.6)
+            ? ' ⚠ '.__('forms.import.check_hint')
+            : '';
     }
 
     /** @return list<Component> */
