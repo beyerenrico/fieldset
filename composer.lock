@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "f5de2dba631f4ff419231d2152a18560",
+    "content-hash": "5e07d8151dd6da13318030e35e5073f8",
     "packages": [
         {
             "name": "anourvalar/eloquent-serialize",
@@ -1783,6 +1783,40 @@
                 "source": "https://github.com/filamentphp/filament"
             },
             "time": "2026-10-13T22:59:04+00:00"
+        },
+        {
+            "name": "form-schema/form-schema-php",
+            "version": "dev-m1-schema-builder",
+            "dist": {
+                "type": "path",
+                "url": "packages/form-schema-php",
+                "reference": "7f1a311acd2ad7deba910a30ddcd7b5795e607c1"
+            },
+            "require": {
+                "brick/math": "^1.0",
+                "ext-json": "*",
+                "opis/json-schema": "^2.6",
+                "php": "^8.4"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "FormSchema\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "FormSchema\\Tests\\": "tests/"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "Reference PHP implementation of the Form Schema Spec 1.0: meta-schema validation, linter, JsonLogic dialect, evaluator.",
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
         },
         {
             "name": "fruitcake/php-cors",
@@ -14174,7 +14208,9 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {},
+    "stability-flags": {
+        "form-schema/form-schema-php": 20
+    },
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {

@@ -1,0 +1,1480 @@
+{
+  "description": "Validation of every input type",
+  "definition": {
+    "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+    "specVersion": "1.0.0",
+    "key": "types",
+    "title": "Types",
+    "locale": "de-DE",
+    "pages": [
+      {
+        "key": "all",
+        "title": "All",
+        "elements": [
+          {
+            "type": "text",
+            "key": "code",
+            "label": "Code",
+            "validation": {
+              "minLength": 2,
+              "pattern": "^[A-Z]+$"
+            },
+            "id": "00000000-0000-4000-8000-000000000001"
+          },
+          {
+            "type": "email",
+            "key": "email",
+            "label": "Email",
+            "id": "00000000-0000-4000-8000-000000000002"
+          },
+          {
+            "type": "phone",
+            "key": "phone",
+            "label": "Phone",
+            "id": "00000000-0000-4000-8000-000000000003"
+          },
+          {
+            "type": "number",
+            "key": "amount",
+            "label": "Amount",
+            "validation": {
+              "min": "1.5",
+              "max": 100
+            },
+            "id": "00000000-0000-4000-8000-000000000004"
+          },
+          {
+            "type": "money",
+            "key": "price",
+            "label": "Price",
+            "currency": "EUR",
+            "id": "00000000-0000-4000-8000-000000000005"
+          },
+          {
+            "type": "money",
+            "key": "rate",
+            "label": "Rate",
+            "currency": "EUR",
+            "scale": 4,
+            "id": "00000000-0000-4000-8000-000000000006"
+          },
+          {
+            "type": "date",
+            "key": "day",
+            "label": "Day",
+            "validation": {
+              "min": "2026-01-01",
+              "max": "2026-12-31"
+            },
+            "id": "00000000-0000-4000-8000-000000000007"
+          },
+          {
+            "type": "time",
+            "key": "at",
+            "label": "At",
+            "id": "00000000-0000-4000-8000-000000000008"
+          },
+          {
+            "type": "datetime",
+            "key": "when",
+            "label": "When",
+            "id": "00000000-0000-4000-8000-000000000009"
+          },
+          {
+            "type": "radio",
+            "key": "choice",
+            "label": "Choice",
+            "options": [
+              {
+                "value": "a",
+                "label": "A"
+              },
+              {
+                "value": "b",
+                "label": "B"
+              }
+            ],
+            "id": "00000000-0000-4000-8000-000000000010"
+          },
+          {
+            "type": "multiselect",
+            "key": "tags",
+            "label": "Tags",
+            "validation": {
+              "max": 2
+            },
+            "options": [
+              {
+                "value": "x",
+                "label": "X"
+              },
+              {
+                "value": "y",
+                "label": "Y"
+              },
+              {
+                "value": "z",
+                "label": "Z"
+              }
+            ],
+            "id": "00000000-0000-4000-8000-000000000011"
+          },
+          {
+            "type": "checkbox",
+            "key": "consent",
+            "label": "Consent",
+            "required": true,
+            "id": "00000000-0000-4000-8000-000000000012"
+          },
+          {
+            "type": "toggle",
+            "key": "urgent",
+            "label": "Urgent",
+            "id": "00000000-0000-4000-8000-000000000013"
+          },
+          {
+            "type": "rating",
+            "key": "stars",
+            "label": "Stars",
+            "id": "00000000-0000-4000-8000-000000000014"
+          },
+          {
+            "type": "file",
+            "key": "doc",
+            "label": "Document",
+            "id": "00000000-0000-4000-8000-000000000015"
+          },
+          {
+            "type": "photo",
+            "key": "pics",
+            "label": "Pictures",
+            "multiple": true,
+            "validation": {
+              "maxFiles": 2
+            },
+            "id": "00000000-0000-4000-8000-000000000016"
+          },
+          {
+            "type": "location",
+            "key": "where",
+            "label": "Where",
+            "id": "00000000-0000-4000-8000-000000000017"
+          },
+          {
+            "type": "hidden",
+            "key": "ref",
+            "default": "web",
+            "id": "00000000-0000-4000-8000-000000000018"
+          },
+          {
+            "type": "heading",
+            "key": "h1",
+            "text": "Section",
+            "id": "00000000-0000-4000-8000-000000000019"
+          }
+        ]
+      }
+    ]
+  },
+  "context": {
+    "today": "2026-10-16",
+    "now": "2026-10-16T09:41:00+02:00",
+    "user": {
+      "name": "Willi Worker",
+      "email": "worker@demo.test"
+    },
+    "org": {
+      "name": "Demo GmbH"
+    },
+    "formVersion": 3
+  },
+  "tests": [
+    {
+      "description": "all valid; money normalized to scale; hidden default applied",
+      "data": {
+        "code": "AB",
+        "email": "a@b.de",
+        "phone": "+49 30 1234-56",
+        "amount": "1.5",
+        "price": "89",
+        "rate": "1.2345",
+        "day": "2026-10-16",
+        "at": "09:41",
+        "when": "2026-10-16T09:41:00+02:00",
+        "choice": "a",
+        "tags": [
+          "x",
+          "z"
+        ],
+        "consent": true,
+        "urgent": false,
+        "stars": 4,
+        "doc": "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c",
+        "pics": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "where": {
+          "lat": 52.52,
+          "lng": 13.405,
+          "accuracy": 12.5,
+          "capturedAt": "2026-10-16T09:41:00+02:00"
+        }
+      },
+      "expected": {
+        "errors": [],
+        "data": {
+          "code": "AB",
+          "email": "a@b.de",
+          "phone": "+49 30 1234-56",
+          "amount": "1.5",
+          "price": "89.00",
+          "rate": "1.2345",
+          "day": "2026-10-16",
+          "at": "09:41",
+          "when": "2026-10-16T09:41:00+02:00",
+          "choice": "a",
+          "tags": [
+            "x",
+            "z"
+          ],
+          "consent": true,
+          "urgent": false,
+          "stars": 4,
+          "doc": "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c",
+          "pics": [
+            "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+          ],
+          "where": {
+            "lat": 52.52,
+            "lng": 13.405,
+            "accuracy": 12.5,
+            "capturedAt": "2026-10-16T09:41:00+02:00"
+          },
+          "ref": "web"
+        }
+      }
+    },
+    {
+      "description": "empty optional values are valid (consent still required)",
+      "data": {
+        "consent": true
+      },
+      "expected": {
+        "errors": [],
+        "data": {
+          "consent": true,
+          "ref": "web"
+        }
+      }
+    },
+    {
+      "description": "checkbox required must be true",
+      "data": {
+        "code": "AB",
+        "email": "a@b.de",
+        "phone": "+49 30 1234-56",
+        "amount": "1.5",
+        "price": "89",
+        "rate": "1.2345",
+        "day": "2026-10-16",
+        "at": "09:41",
+        "when": "2026-10-16T09:41:00+02:00",
+        "choice": "a",
+        "tags": [
+          "x",
+          "z"
+        ],
+        "consent": false,
+        "urgent": false,
+        "stars": 4,
+        "doc": "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c",
+        "pics": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "where": {
+          "lat": 52.52,
+          "lng": 13.405,
+          "accuracy": 12.5,
+          "capturedAt": "2026-10-16T09:41:00+02:00"
+        }
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/consent",
+            "code": "required"
+          }
+        ]
+      }
+    },
+    {
+      "description": "hidden keeps a client value",
+      "data": {
+        "code": "AB",
+        "email": "a@b.de",
+        "phone": "+49 30 1234-56",
+        "amount": "1.5",
+        "price": "89",
+        "rate": "1.2345",
+        "day": "2026-10-16",
+        "at": "09:41",
+        "when": "2026-10-16T09:41:00+02:00",
+        "choice": "a",
+        "tags": [
+          "x",
+          "z"
+        ],
+        "consent": true,
+        "urgent": false,
+        "stars": 4,
+        "doc": "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c",
+        "pics": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "where": {
+          "lat": 52.52,
+          "lng": 13.405,
+          "accuracy": 12.5,
+          "capturedAt": "2026-10-16T09:41:00+02:00"
+        },
+        "ref": "partner-42"
+      },
+      "expected": {
+        "errors": [],
+        "data": {
+          "code": "AB",
+          "email": "a@b.de",
+          "phone": "+49 30 1234-56",
+          "amount": "1.5",
+          "price": "89.00",
+          "rate": "1.2345",
+          "day": "2026-10-16",
+          "at": "09:41",
+          "when": "2026-10-16T09:41:00+02:00",
+          "choice": "a",
+          "tags": [
+            "x",
+            "z"
+          ],
+          "consent": true,
+          "urgent": false,
+          "stars": 4,
+          "doc": "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c",
+          "pics": [
+            "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+          ],
+          "where": {
+            "lat": 52.52,
+            "lng": 13.405,
+            "accuracy": 12.5,
+            "capturedAt": "2026-10-16T09:41:00+02:00"
+          },
+          "ref": "partner-42"
+        }
+      }
+    },
+    {
+      "description": "text minLength and pattern",
+      "data": {
+        "code": "A",
+        "email": "a@b.de",
+        "phone": "+49 30 1234-56",
+        "amount": "1.5",
+        "price": "89",
+        "rate": "1.2345",
+        "day": "2026-10-16",
+        "at": "09:41",
+        "when": "2026-10-16T09:41:00+02:00",
+        "choice": "a",
+        "tags": [
+          "x",
+          "z"
+        ],
+        "consent": true,
+        "urgent": false,
+        "stars": 4,
+        "doc": "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c",
+        "pics": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "where": {
+          "lat": 52.52,
+          "lng": 13.405,
+          "accuracy": 12.5,
+          "capturedAt": "2026-10-16T09:41:00+02:00"
+        }
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/code",
+            "code": "min_length"
+          }
+        ]
+      }
+    },
+    {
+      "description": "text pattern",
+      "data": {
+        "code": "ab",
+        "email": "a@b.de",
+        "phone": "+49 30 1234-56",
+        "amount": "1.5",
+        "price": "89",
+        "rate": "1.2345",
+        "day": "2026-10-16",
+        "at": "09:41",
+        "when": "2026-10-16T09:41:00+02:00",
+        "choice": "a",
+        "tags": [
+          "x",
+          "z"
+        ],
+        "consent": true,
+        "urgent": false,
+        "stars": 4,
+        "doc": "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c",
+        "pics": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "where": {
+          "lat": 52.52,
+          "lng": 13.405,
+          "accuracy": 12.5,
+          "capturedAt": "2026-10-16T09:41:00+02:00"
+        }
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/code",
+            "code": "pattern"
+          }
+        ]
+      }
+    },
+    {
+      "description": "text must be a string",
+      "data": {
+        "code": 12,
+        "email": "a@b.de",
+        "phone": "+49 30 1234-56",
+        "amount": "1.5",
+        "price": "89",
+        "rate": "1.2345",
+        "day": "2026-10-16",
+        "at": "09:41",
+        "when": "2026-10-16T09:41:00+02:00",
+        "choice": "a",
+        "tags": [
+          "x",
+          "z"
+        ],
+        "consent": true,
+        "urgent": false,
+        "stars": 4,
+        "doc": "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c",
+        "pics": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "where": {
+          "lat": 52.52,
+          "lng": 13.405,
+          "accuracy": 12.5,
+          "capturedAt": "2026-10-16T09:41:00+02:00"
+        }
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/code",
+            "code": "type_mismatch"
+          }
+        ]
+      }
+    },
+    {
+      "description": "invalid email",
+      "data": {
+        "code": "AB",
+        "email": "nope@",
+        "phone": "+49 30 1234-56",
+        "amount": "1.5",
+        "price": "89",
+        "rate": "1.2345",
+        "day": "2026-10-16",
+        "at": "09:41",
+        "when": "2026-10-16T09:41:00+02:00",
+        "choice": "a",
+        "tags": [
+          "x",
+          "z"
+        ],
+        "consent": true,
+        "urgent": false,
+        "stars": 4,
+        "doc": "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c",
+        "pics": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "where": {
+          "lat": 52.52,
+          "lng": 13.405,
+          "accuracy": 12.5,
+          "capturedAt": "2026-10-16T09:41:00+02:00"
+        }
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/email",
+            "code": "invalid_email"
+          }
+        ]
+      }
+    },
+    {
+      "description": "invalid phone",
+      "data": {
+        "code": "AB",
+        "email": "a@b.de",
+        "phone": "call me",
+        "amount": "1.5",
+        "price": "89",
+        "rate": "1.2345",
+        "day": "2026-10-16",
+        "at": "09:41",
+        "when": "2026-10-16T09:41:00+02:00",
+        "choice": "a",
+        "tags": [
+          "x",
+          "z"
+        ],
+        "consent": true,
+        "urgent": false,
+        "stars": 4,
+        "doc": "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c",
+        "pics": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "where": {
+          "lat": 52.52,
+          "lng": 13.405,
+          "accuracy": 12.5,
+          "capturedAt": "2026-10-16T09:41:00+02:00"
+        }
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/phone",
+            "code": "invalid_phone"
+          }
+        ]
+      }
+    },
+    {
+      "description": "number below min (decimal string bound)",
+      "data": {
+        "code": "AB",
+        "email": "a@b.de",
+        "phone": "+49 30 1234-56",
+        "amount": "1.49",
+        "price": "89",
+        "rate": "1.2345",
+        "day": "2026-10-16",
+        "at": "09:41",
+        "when": "2026-10-16T09:41:00+02:00",
+        "choice": "a",
+        "tags": [
+          "x",
+          "z"
+        ],
+        "consent": true,
+        "urgent": false,
+        "stars": 4,
+        "doc": "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c",
+        "pics": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "where": {
+          "lat": 52.52,
+          "lng": 13.405,
+          "accuracy": 12.5,
+          "capturedAt": "2026-10-16T09:41:00+02:00"
+        }
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/amount",
+            "code": "min"
+          }
+        ]
+      }
+    },
+    {
+      "description": "number above max",
+      "data": {
+        "code": "AB",
+        "email": "a@b.de",
+        "phone": "+49 30 1234-56",
+        "amount": "100.01",
+        "price": "89",
+        "rate": "1.2345",
+        "day": "2026-10-16",
+        "at": "09:41",
+        "when": "2026-10-16T09:41:00+02:00",
+        "choice": "a",
+        "tags": [
+          "x",
+          "z"
+        ],
+        "consent": true,
+        "urgent": false,
+        "stars": 4,
+        "doc": "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c",
+        "pics": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "where": {
+          "lat": 52.52,
+          "lng": 13.405,
+          "accuracy": 12.5,
+          "capturedAt": "2026-10-16T09:41:00+02:00"
+        }
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/amount",
+            "code": "max"
+          }
+        ]
+      }
+    },
+    {
+      "description": "invalid number string",
+      "data": {
+        "code": "AB",
+        "email": "a@b.de",
+        "phone": "+49 30 1234-56",
+        "amount": "1,5",
+        "price": "89",
+        "rate": "1.2345",
+        "day": "2026-10-16",
+        "at": "09:41",
+        "when": "2026-10-16T09:41:00+02:00",
+        "choice": "a",
+        "tags": [
+          "x",
+          "z"
+        ],
+        "consent": true,
+        "urgent": false,
+        "stars": 4,
+        "doc": "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c",
+        "pics": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "where": {
+          "lat": 52.52,
+          "lng": 13.405,
+          "accuracy": 12.5,
+          "capturedAt": "2026-10-16T09:41:00+02:00"
+        }
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/amount",
+            "code": "invalid_number"
+          }
+        ]
+      }
+    },
+    {
+      "description": "leading zeros are not decimal strings",
+      "data": {
+        "code": "AB",
+        "email": "a@b.de",
+        "phone": "+49 30 1234-56",
+        "amount": "01.5",
+        "price": "89",
+        "rate": "1.2345",
+        "day": "2026-10-16",
+        "at": "09:41",
+        "when": "2026-10-16T09:41:00+02:00",
+        "choice": "a",
+        "tags": [
+          "x",
+          "z"
+        ],
+        "consent": true,
+        "urgent": false,
+        "stars": 4,
+        "doc": "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c",
+        "pics": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "where": {
+          "lat": 52.52,
+          "lng": 13.405,
+          "accuracy": 12.5,
+          "capturedAt": "2026-10-16T09:41:00+02:00"
+        }
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/amount",
+            "code": "invalid_number"
+          }
+        ]
+      }
+    },
+    {
+      "description": "money scale exceeded",
+      "data": {
+        "code": "AB",
+        "email": "a@b.de",
+        "phone": "+49 30 1234-56",
+        "amount": "1.5",
+        "price": "1.005",
+        "rate": "1.2345",
+        "day": "2026-10-16",
+        "at": "09:41",
+        "when": "2026-10-16T09:41:00+02:00",
+        "choice": "a",
+        "tags": [
+          "x",
+          "z"
+        ],
+        "consent": true,
+        "urgent": false,
+        "stars": 4,
+        "doc": "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c",
+        "pics": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "where": {
+          "lat": 52.52,
+          "lng": 13.405,
+          "accuracy": 12.5,
+          "capturedAt": "2026-10-16T09:41:00+02:00"
+        }
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/price",
+            "code": "scale_exceeded"
+          }
+        ]
+      }
+    },
+    {
+      "description": "money with custom scale",
+      "data": {
+        "code": "AB",
+        "email": "a@b.de",
+        "phone": "+49 30 1234-56",
+        "amount": "1.5",
+        "price": "89",
+        "rate": "1.23456",
+        "day": "2026-10-16",
+        "at": "09:41",
+        "when": "2026-10-16T09:41:00+02:00",
+        "choice": "a",
+        "tags": [
+          "x",
+          "z"
+        ],
+        "consent": true,
+        "urgent": false,
+        "stars": 4,
+        "doc": "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c",
+        "pics": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "where": {
+          "lat": 52.52,
+          "lng": 13.405,
+          "accuracy": 12.5,
+          "capturedAt": "2026-10-16T09:41:00+02:00"
+        }
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/rate",
+            "code": "scale_exceeded"
+          }
+        ]
+      }
+    },
+    {
+      "description": "invalid calendar date",
+      "data": {
+        "code": "AB",
+        "email": "a@b.de",
+        "phone": "+49 30 1234-56",
+        "amount": "1.5",
+        "price": "89",
+        "rate": "1.2345",
+        "day": "2026-02-30",
+        "at": "09:41",
+        "when": "2026-10-16T09:41:00+02:00",
+        "choice": "a",
+        "tags": [
+          "x",
+          "z"
+        ],
+        "consent": true,
+        "urgent": false,
+        "stars": 4,
+        "doc": "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c",
+        "pics": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "where": {
+          "lat": 52.52,
+          "lng": 13.405,
+          "accuracy": 12.5,
+          "capturedAt": "2026-10-16T09:41:00+02:00"
+        }
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/day",
+            "code": "invalid_date"
+          }
+        ]
+      }
+    },
+    {
+      "description": "date above max",
+      "data": {
+        "code": "AB",
+        "email": "a@b.de",
+        "phone": "+49 30 1234-56",
+        "amount": "1.5",
+        "price": "89",
+        "rate": "1.2345",
+        "day": "2027-01-01",
+        "at": "09:41",
+        "when": "2026-10-16T09:41:00+02:00",
+        "choice": "a",
+        "tags": [
+          "x",
+          "z"
+        ],
+        "consent": true,
+        "urgent": false,
+        "stars": 4,
+        "doc": "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c",
+        "pics": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "where": {
+          "lat": 52.52,
+          "lng": 13.405,
+          "accuracy": 12.5,
+          "capturedAt": "2026-10-16T09:41:00+02:00"
+        }
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/day",
+            "code": "max"
+          }
+        ]
+      }
+    },
+    {
+      "description": "invalid time",
+      "data": {
+        "code": "AB",
+        "email": "a@b.de",
+        "phone": "+49 30 1234-56",
+        "amount": "1.5",
+        "price": "89",
+        "rate": "1.2345",
+        "day": "2026-10-16",
+        "at": "25:00",
+        "when": "2026-10-16T09:41:00+02:00",
+        "choice": "a",
+        "tags": [
+          "x",
+          "z"
+        ],
+        "consent": true,
+        "urgent": false,
+        "stars": 4,
+        "doc": "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c",
+        "pics": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "where": {
+          "lat": 52.52,
+          "lng": 13.405,
+          "accuracy": 12.5,
+          "capturedAt": "2026-10-16T09:41:00+02:00"
+        }
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/at",
+            "code": "invalid_time"
+          }
+        ]
+      }
+    },
+    {
+      "description": "time with seconds is valid",
+      "data": {
+        "code": "AB",
+        "email": "a@b.de",
+        "phone": "+49 30 1234-56",
+        "amount": "1.5",
+        "price": "89",
+        "rate": "1.2345",
+        "day": "2026-10-16",
+        "at": "09:41:30",
+        "when": "2026-10-16T09:41:00+02:00",
+        "choice": "a",
+        "tags": [
+          "x",
+          "z"
+        ],
+        "consent": true,
+        "urgent": false,
+        "stars": 4,
+        "doc": "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c",
+        "pics": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "where": {
+          "lat": 52.52,
+          "lng": 13.405,
+          "accuracy": 12.5,
+          "capturedAt": "2026-10-16T09:41:00+02:00"
+        }
+      },
+      "expected": {
+        "errors": []
+      }
+    },
+    {
+      "description": "datetime needs an offset",
+      "data": {
+        "code": "AB",
+        "email": "a@b.de",
+        "phone": "+49 30 1234-56",
+        "amount": "1.5",
+        "price": "89",
+        "rate": "1.2345",
+        "day": "2026-10-16",
+        "at": "09:41",
+        "when": "2026-10-16T09:41:00",
+        "choice": "a",
+        "tags": [
+          "x",
+          "z"
+        ],
+        "consent": true,
+        "urgent": false,
+        "stars": 4,
+        "doc": "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c",
+        "pics": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "where": {
+          "lat": 52.52,
+          "lng": 13.405,
+          "accuracy": 12.5,
+          "capturedAt": "2026-10-16T09:41:00+02:00"
+        }
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/when",
+            "code": "invalid_datetime"
+          }
+        ]
+      }
+    },
+    {
+      "description": "radio invalid option",
+      "data": {
+        "code": "AB",
+        "email": "a@b.de",
+        "phone": "+49 30 1234-56",
+        "amount": "1.5",
+        "price": "89",
+        "rate": "1.2345",
+        "day": "2026-10-16",
+        "at": "09:41",
+        "when": "2026-10-16T09:41:00+02:00",
+        "choice": "c",
+        "tags": [
+          "x",
+          "z"
+        ],
+        "consent": true,
+        "urgent": false,
+        "stars": 4,
+        "doc": "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c",
+        "pics": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "where": {
+          "lat": 52.52,
+          "lng": 13.405,
+          "accuracy": 12.5,
+          "capturedAt": "2026-10-16T09:41:00+02:00"
+        }
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/choice",
+            "code": "invalid_option"
+          }
+        ]
+      }
+    },
+    {
+      "description": "multiselect duplicates",
+      "data": {
+        "code": "AB",
+        "email": "a@b.de",
+        "phone": "+49 30 1234-56",
+        "amount": "1.5",
+        "price": "89",
+        "rate": "1.2345",
+        "day": "2026-10-16",
+        "at": "09:41",
+        "when": "2026-10-16T09:41:00+02:00",
+        "choice": "a",
+        "tags": [
+          "x",
+          "x"
+        ],
+        "consent": true,
+        "urgent": false,
+        "stars": 4,
+        "doc": "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c",
+        "pics": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "where": {
+          "lat": 52.52,
+          "lng": 13.405,
+          "accuracy": 12.5,
+          "capturedAt": "2026-10-16T09:41:00+02:00"
+        }
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/tags",
+            "code": "invalid_option"
+          }
+        ]
+      }
+    },
+    {
+      "description": "multiselect max count",
+      "data": {
+        "code": "AB",
+        "email": "a@b.de",
+        "phone": "+49 30 1234-56",
+        "amount": "1.5",
+        "price": "89",
+        "rate": "1.2345",
+        "day": "2026-10-16",
+        "at": "09:41",
+        "when": "2026-10-16T09:41:00+02:00",
+        "choice": "a",
+        "tags": [
+          "x",
+          "y",
+          "z"
+        ],
+        "consent": true,
+        "urgent": false,
+        "stars": 4,
+        "doc": "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c",
+        "pics": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "where": {
+          "lat": 52.52,
+          "lng": 13.405,
+          "accuracy": 12.5,
+          "capturedAt": "2026-10-16T09:41:00+02:00"
+        }
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/tags",
+            "code": "max"
+          }
+        ]
+      }
+    },
+    {
+      "description": "multiselect must be an array",
+      "data": {
+        "code": "AB",
+        "email": "a@b.de",
+        "phone": "+49 30 1234-56",
+        "amount": "1.5",
+        "price": "89",
+        "rate": "1.2345",
+        "day": "2026-10-16",
+        "at": "09:41",
+        "when": "2026-10-16T09:41:00+02:00",
+        "choice": "a",
+        "tags": "x",
+        "consent": true,
+        "urgent": false,
+        "stars": 4,
+        "doc": "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c",
+        "pics": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "where": {
+          "lat": 52.52,
+          "lng": 13.405,
+          "accuracy": 12.5,
+          "capturedAt": "2026-10-16T09:41:00+02:00"
+        }
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/tags",
+            "code": "type_mismatch"
+          }
+        ]
+      }
+    },
+    {
+      "description": "toggle must be boolean",
+      "data": {
+        "code": "AB",
+        "email": "a@b.de",
+        "phone": "+49 30 1234-56",
+        "amount": "1.5",
+        "price": "89",
+        "rate": "1.2345",
+        "day": "2026-10-16",
+        "at": "09:41",
+        "when": "2026-10-16T09:41:00+02:00",
+        "choice": "a",
+        "tags": [
+          "x",
+          "z"
+        ],
+        "consent": true,
+        "urgent": "yes",
+        "stars": 4,
+        "doc": "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c",
+        "pics": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "where": {
+          "lat": 52.52,
+          "lng": 13.405,
+          "accuracy": 12.5,
+          "capturedAt": "2026-10-16T09:41:00+02:00"
+        }
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/urgent",
+            "code": "type_mismatch"
+          }
+        ]
+      }
+    },
+    {
+      "description": "rating out of range",
+      "data": {
+        "code": "AB",
+        "email": "a@b.de",
+        "phone": "+49 30 1234-56",
+        "amount": "1.5",
+        "price": "89",
+        "rate": "1.2345",
+        "day": "2026-10-16",
+        "at": "09:41",
+        "when": "2026-10-16T09:41:00+02:00",
+        "choice": "a",
+        "tags": [
+          "x",
+          "z"
+        ],
+        "consent": true,
+        "urgent": false,
+        "stars": 6,
+        "doc": "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c",
+        "pics": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "where": {
+          "lat": 52.52,
+          "lng": 13.405,
+          "accuracy": 12.5,
+          "capturedAt": "2026-10-16T09:41:00+02:00"
+        }
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/stars",
+            "code": "out_of_range"
+          }
+        ]
+      }
+    },
+    {
+      "description": "rating must be an integer",
+      "data": {
+        "code": "AB",
+        "email": "a@b.de",
+        "phone": "+49 30 1234-56",
+        "amount": "1.5",
+        "price": "89",
+        "rate": "1.2345",
+        "day": "2026-10-16",
+        "at": "09:41",
+        "when": "2026-10-16T09:41:00+02:00",
+        "choice": "a",
+        "tags": [
+          "x",
+          "z"
+        ],
+        "consent": true,
+        "urgent": false,
+        "stars": "4",
+        "doc": "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c",
+        "pics": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "where": {
+          "lat": 52.52,
+          "lng": 13.405,
+          "accuracy": 12.5,
+          "capturedAt": "2026-10-16T09:41:00+02:00"
+        }
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/stars",
+            "code": "out_of_range"
+          }
+        ]
+      }
+    },
+    {
+      "description": "single file must not be a list",
+      "data": {
+        "code": "AB",
+        "email": "a@b.de",
+        "phone": "+49 30 1234-56",
+        "amount": "1.5",
+        "price": "89",
+        "rate": "1.2345",
+        "day": "2026-10-16",
+        "at": "09:41",
+        "when": "2026-10-16T09:41:00+02:00",
+        "choice": "a",
+        "tags": [
+          "x",
+          "z"
+        ],
+        "consent": true,
+        "urgent": false,
+        "stars": 4,
+        "doc": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "pics": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "where": {
+          "lat": 52.52,
+          "lng": 13.405,
+          "accuracy": 12.5,
+          "capturedAt": "2026-10-16T09:41:00+02:00"
+        }
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/doc",
+            "code": "invalid_attachment"
+          }
+        ]
+      }
+    },
+    {
+      "description": "too many photos",
+      "data": {
+        "code": "AB",
+        "email": "a@b.de",
+        "phone": "+49 30 1234-56",
+        "amount": "1.5",
+        "price": "89",
+        "rate": "1.2345",
+        "day": "2026-10-16",
+        "at": "09:41",
+        "when": "2026-10-16T09:41:00+02:00",
+        "choice": "a",
+        "tags": [
+          "x",
+          "z"
+        ],
+        "consent": true,
+        "urgent": false,
+        "stars": 4,
+        "doc": "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c",
+        "pics": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c",
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c",
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "where": {
+          "lat": 52.52,
+          "lng": 13.405,
+          "accuracy": 12.5,
+          "capturedAt": "2026-10-16T09:41:00+02:00"
+        }
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/pics",
+            "code": "max_items"
+          }
+        ]
+      }
+    },
+    {
+      "description": "location latitude out of range",
+      "data": {
+        "code": "AB",
+        "email": "a@b.de",
+        "phone": "+49 30 1234-56",
+        "amount": "1.5",
+        "price": "89",
+        "rate": "1.2345",
+        "day": "2026-10-16",
+        "at": "09:41",
+        "when": "2026-10-16T09:41:00+02:00",
+        "choice": "a",
+        "tags": [
+          "x",
+          "z"
+        ],
+        "consent": true,
+        "urgent": false,
+        "stars": 4,
+        "doc": "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c",
+        "pics": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "where": {
+          "lat": 91,
+          "lng": 13.405,
+          "accuracy": 12.5,
+          "capturedAt": "2026-10-16T09:41:00+02:00"
+        }
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/where",
+            "code": "invalid_location"
+          }
+        ]
+      }
+    },
+    {
+      "description": "layout elements never carry data",
+      "data": {
+        "code": "AB",
+        "email": "a@b.de",
+        "phone": "+49 30 1234-56",
+        "amount": "1.5",
+        "price": "89",
+        "rate": "1.2345",
+        "day": "2026-10-16",
+        "at": "09:41",
+        "when": "2026-10-16T09:41:00+02:00",
+        "choice": "a",
+        "tags": [
+          "x",
+          "z"
+        ],
+        "consent": true,
+        "urgent": false,
+        "stars": 4,
+        "doc": "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c",
+        "pics": [
+          "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+        ],
+        "where": {
+          "lat": 52.52,
+          "lng": 13.405,
+          "accuracy": 12.5,
+          "capturedAt": "2026-10-16T09:41:00+02:00"
+        },
+        "h1": "x"
+      },
+      "expected": {
+        "errors": [],
+        "data": {
+          "code": "AB",
+          "email": "a@b.de",
+          "phone": "+49 30 1234-56",
+          "amount": "1.5",
+          "price": "89.00",
+          "rate": "1.2345",
+          "day": "2026-10-16",
+          "at": "09:41",
+          "when": "2026-10-16T09:41:00+02:00",
+          "choice": "a",
+          "tags": [
+            "x",
+            "z"
+          ],
+          "consent": true,
+          "urgent": false,
+          "stars": 4,
+          "doc": "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c",
+          "pics": [
+            "0192f1c4-7a1e-7c3b-9a55-1d2e3f4a5b6c"
+          ],
+          "where": {
+            "lat": 52.52,
+            "lng": 13.405,
+            "accuracy": 12.5,
+            "capturedAt": "2026-10-16T09:41:00+02:00"
+          },
+          "ref": "web"
+        }
+      }
+    }
+  ]
+}

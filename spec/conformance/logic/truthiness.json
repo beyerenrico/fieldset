@@ -1,0 +1,195 @@
+{
+  "description": "JsonLogic truthiness (spec §4.1)",
+  "tests": [
+    {
+      "description": "0 is falsy",
+      "logic": {
+        "!!": [
+          0
+        ]
+      },
+      "data": {},
+      "expected": false
+    },
+    {
+      "description": "string '0' is truthy",
+      "logic": {
+        "!!": [
+          "0"
+        ]
+      },
+      "data": {},
+      "expected": true
+    },
+    {
+      "description": "empty string is falsy",
+      "logic": {
+        "!!": [
+          ""
+        ]
+      },
+      "data": {},
+      "expected": false
+    },
+    {
+      "description": "empty array is falsy",
+      "logic": {
+        "!!": [
+          []
+        ]
+      },
+      "data": {},
+      "expected": false
+    },
+    {
+      "description": "non-empty array is truthy",
+      "logic": {
+        "!!": [
+          [
+            0
+          ]
+        ]
+      },
+      "data": {},
+      "expected": true
+    },
+    {
+      "description": "null is falsy",
+      "logic": {
+        "!!": [
+          null
+        ]
+      },
+      "data": {},
+      "expected": false
+    },
+    {
+      "description": "empty object is truthy",
+      "logic": {
+        "!!": [
+          {
+            "var": "o"
+          }
+        ]
+      },
+      "data": {
+        "o": {}
+      },
+      "expected": true
+    },
+    {
+      "description": "! negates",
+      "logic": {
+        "!": [
+          true
+        ]
+      },
+      "data": {},
+      "expected": false
+    },
+    {
+      "description": "! with non-array argument",
+      "logic": {
+        "!": false
+      },
+      "data": {},
+      "expected": true
+    },
+    {
+      "description": "if picks then on '0'",
+      "logic": {
+        "if": [
+          "0",
+          "yes",
+          "no"
+        ]
+      },
+      "data": {},
+      "expected": "yes"
+    },
+    {
+      "description": "if with else-if chain",
+      "logic": {
+        "if": [
+          false,
+          1,
+          null,
+          2,
+          3
+        ]
+      },
+      "data": {},
+      "expected": 3
+    },
+    {
+      "description": "if without else returns null",
+      "logic": {
+        "if": [
+          false,
+          1
+        ]
+      },
+      "data": {},
+      "expected": null
+    },
+    {
+      "description": "or returns first truthy operand",
+      "logic": {
+        "or": [
+          0,
+          "",
+          "x",
+          "y"
+        ]
+      },
+      "data": {},
+      "expected": "x"
+    },
+    {
+      "description": "or returns last operand when all falsy",
+      "logic": {
+        "or": [
+          0,
+          ""
+        ]
+      },
+      "data": {},
+      "expected": ""
+    },
+    {
+      "description": "and returns first falsy operand",
+      "logic": {
+        "and": [
+          1,
+          0,
+          2
+        ]
+      },
+      "data": {},
+      "expected": 0
+    },
+    {
+      "description": "and returns last operand when all truthy",
+      "logic": {
+        "and": [
+          1,
+          "a"
+        ]
+      },
+      "data": {},
+      "expected": "a"
+    },
+    {
+      "description": "?: alias of if",
+      "logic": {
+        "?:": [
+          true,
+          "a",
+          "b"
+        ]
+      },
+      "data": {},
+      "expected": "a"
+    }
+  ]
+}

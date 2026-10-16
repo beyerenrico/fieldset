@@ -1,0 +1,272 @@
+{
+  "description": "Calculated formats, scale and dependency order",
+  "definition": {
+    "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+    "specVersion": "1.0.0",
+    "key": "calculations",
+    "title": "Calculations",
+    "locale": "de-DE",
+    "pages": [
+      {
+        "key": "main",
+        "title": "Main",
+        "elements": [
+          {
+            "type": "calculated",
+            "key": "gross",
+            "label": "Gross",
+            "format": "money",
+            "expression": {
+              "dec.add": [
+                {
+                  "var": "net"
+                },
+                {
+                  "var": "tax"
+                }
+              ]
+            },
+            "id": "00000000-0000-4000-8000-000000000001"
+          },
+          {
+            "type": "calculated",
+            "key": "tax",
+            "label": "Tax",
+            "format": "money",
+            "expression": {
+              "dec.mul": [
+                {
+                  "var": "net"
+                },
+                "0.19"
+              ]
+            },
+            "id": "00000000-0000-4000-8000-000000000002"
+          },
+          {
+            "type": "calculated",
+            "key": "net",
+            "label": "Net",
+            "format": "money",
+            "expression": {
+              "sum": [
+                {
+                  "var": "lines"
+                },
+                "total"
+              ]
+            },
+            "id": "00000000-0000-4000-8000-000000000003"
+          },
+          {
+            "type": "repeater",
+            "key": "lines",
+            "label": "Lines",
+            "elements": [
+              {
+                "type": "number",
+                "key": "hours",
+                "label": "Hours",
+                "id": "00000000-0000-4000-8000-000000000005"
+              },
+              {
+                "type": "calculated",
+                "key": "total",
+                "label": "Total",
+                "format": "money",
+                "scale": 2,
+                "expression": {
+                  "dec.mul": [
+                    {
+                      "var": "hours"
+                    },
+                    {
+                      "var": "$root.rate"
+                    }
+                  ]
+                },
+                "id": "00000000-0000-4000-8000-000000000006"
+              }
+            ],
+            "id": "00000000-0000-4000-8000-000000000004"
+          },
+          {
+            "type": "money",
+            "key": "rate",
+            "label": "Rate",
+            "currency": "EUR",
+            "id": "00000000-0000-4000-8000-000000000007"
+          },
+          {
+            "type": "calculated",
+            "key": "avg",
+            "label": "Average",
+            "expression": {
+              "dec.div": [
+                {
+                  "var": "net"
+                },
+                {
+                  "count": [
+                    {
+                      "var": "lines"
+                    }
+                  ]
+                },
+                10
+              ]
+            },
+            "id": "00000000-0000-4000-8000-000000000008"
+          },
+          {
+            "type": "calculated",
+            "key": "days_left",
+            "label": "Days left",
+            "scale": 0,
+            "expression": {
+              "date.diff": [
+                {
+                  "var": "$today"
+                },
+                {
+                  "var": "due"
+                },
+                "days"
+              ]
+            },
+            "id": "00000000-0000-4000-8000-000000000009"
+          },
+          {
+            "type": "date",
+            "key": "due",
+            "label": "Due",
+            "id": "00000000-0000-4000-8000-000000000010"
+          },
+          {
+            "type": "calculated",
+            "key": "summary",
+            "label": "Summary",
+            "format": "text",
+            "expression": {
+              "cat": [
+                {
+                  "var": "$org.name"
+                },
+                ": ",
+                {
+                  "var": "gross"
+                }
+              ]
+            },
+            "id": "00000000-0000-4000-8000-000000000011"
+          },
+          {
+            "type": "calculated",
+            "key": "not_numeric",
+            "label": "Bad",
+            "format": "number",
+            "expression": "abc",
+            "id": "00000000-0000-4000-8000-000000000012"
+          },
+          {
+            "type": "calculated",
+            "key": "flag",
+            "label": "Flag",
+            "format": "text",
+            "expression": {
+              "dec.gt": [
+                {
+                  "var": "net"
+                },
+                "100"
+              ]
+            },
+            "id": "00000000-0000-4000-8000-000000000013"
+          }
+        ]
+      }
+    ]
+  },
+  "context": {
+    "today": "2026-10-16",
+    "now": "2026-10-16T09:41:00+02:00",
+    "user": {
+      "name": "Willi Worker",
+      "email": "worker@demo.test"
+    },
+    "org": {
+      "name": "Demo GmbH"
+    },
+    "formVersion": 3
+  },
+  "tests": [
+    {
+      "description": "calculations run in dependency order regardless of document order",
+      "data": {
+        "rate": "65",
+        "lines": [
+          {
+            "hours": "1.5"
+          },
+          {
+            "hours": "0.25"
+          }
+        ],
+        "due": "2026-10-31"
+      },
+      "expected": {
+        "errors": [],
+        "calculated": {
+          "/lines/0/total": "97.50",
+          "/lines/1/total": "16.25",
+          "/net": "113.75",
+          "/tax": "21.61",
+          "/gross": "135.36",
+          "/avg": "56.875000",
+          "/days_left": "15",
+          "/summary": "Demo GmbH: 135.36",
+          "/not_numeric": null,
+          "/flag": "true"
+        }
+      }
+    },
+    {
+      "description": "nulls propagate; aggregates of nothing",
+      "data": {
+        "lines": []
+      },
+      "expected": {
+        "errors": [],
+        "calculated": {
+          "/net": "0.00",
+          "/tax": "0.00",
+          "/gross": "0.00",
+          "/avg": null,
+          "/days_left": null,
+          "/summary": "Demo GmbH: 0.00",
+          "/flag": "false"
+        }
+      }
+    },
+    {
+      "description": "row calculation with missing input is null and skipped by sum",
+      "data": {
+        "rate": "10",
+        "lines": [
+          {
+            "hours": "2"
+          },
+          {}
+        ]
+      },
+      "expected": {
+        "errors": [],
+        "calculated": {
+          "/lines/0/total": "20.00",
+          "/lines/1/total": null,
+          "/net": "20.00"
+        }
+      }
+    }
+  ]
+}

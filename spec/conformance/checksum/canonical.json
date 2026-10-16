@@ -1,0 +1,61 @@
+{
+  "description": "Canonical JSON and checksum (spec §6)",
+  "tests": [
+    {
+      "description": "keys sorted, no whitespace",
+      "value": {
+        "b": 1,
+        "a": [
+          true,
+          null,
+          "x"
+        ]
+      },
+      "canonical": "{\"a\":[true,null,\"x\"],\"b\":1}",
+      "sha256": "54a65415ad370228851a1da4b31b6fd42dc58b19a50d35cae759325f7388ce64"
+    },
+    {
+      "description": "unicode unescaped, slash unescaped",
+      "value": {
+        "t": "Größe/Ø 10 €"
+      },
+      "canonical": "{\"t\":\"Größe/Ø 10 €\"}",
+      "sha256": "dc64c410a1313509cd25a3cebdff8caad71bf75937e5be1617e4133085d59bd3"
+    },
+    {
+      "description": "nested objects sorted by code point",
+      "value": {
+        "z": {
+          "b": "1",
+          "B": "2",
+          "a": {}
+        },
+        "Z": []
+      },
+      "canonical": "{\"Z\":[],\"z\":{\"B\":\"2\",\"a\":{},\"b\":\"1\"}}",
+      "sha256": "0b6b82fefbd1970556d6f8b777c642987250985b3f70de6f827b0feb7fed56b9"
+    },
+    {
+      "description": "numbers in shortest form",
+      "value": {
+        "n": [
+          0,
+          -1,
+          1.5,
+          0.25,
+          100
+        ]
+      },
+      "canonical": "{\"n\":[0,-1,1.5,0.25,100]}",
+      "sha256": "130a88dbfe728447011be0071525537a89d26c81e58ee763967ba2c50ef5d8b5"
+    },
+    {
+      "description": "control characters escaped",
+      "value": {
+        "s": "a\"b\\c\n"
+      },
+      "canonical": "{\"s\":\"a\\\"b\\\\c\\n\"}",
+      "sha256": "e248a477bfd6e01fc28c1db0115aee15c8de14cd6870b481f343e70008e5f812"
+    }
+  ]
+}

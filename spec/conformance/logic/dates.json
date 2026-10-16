@@ -1,0 +1,311 @@
+{
+  "description": "Date operators (spec §5.3)",
+  "tests": [
+    {
+      "description": "diff days",
+      "logic": {
+        "date.diff": [
+          "2026-10-01",
+          "2026-10-16",
+          "days"
+        ]
+      },
+      "data": {},
+      "expected": 15
+    },
+    {
+      "description": "diff days negative",
+      "logic": {
+        "date.diff": [
+          "2026-10-16",
+          "2026-10-01",
+          "days"
+        ]
+      },
+      "data": {},
+      "expected": -15
+    },
+    {
+      "description": "diff across leap day",
+      "logic": {
+        "date.diff": [
+          "2028-02-28",
+          "2028-03-01",
+          "days"
+        ]
+      },
+      "data": {},
+      "expected": 2
+    },
+    {
+      "description": "diff weeks truncates",
+      "logic": {
+        "date.diff": [
+          "2026-10-01",
+          "2026-10-16",
+          "weeks"
+        ]
+      },
+      "data": {},
+      "expected": 2
+    },
+    {
+      "description": "diff months whole",
+      "logic": {
+        "date.diff": [
+          "2026-01-31",
+          "2026-02-28",
+          "months"
+        ]
+      },
+      "data": {},
+      "expected": 0
+    },
+    {
+      "description": "diff months exact",
+      "logic": {
+        "date.diff": [
+          "2026-01-15",
+          "2026-03-15",
+          "months"
+        ]
+      },
+      "data": {},
+      "expected": 2
+    },
+    {
+      "description": "diff months negative",
+      "logic": {
+        "date.diff": [
+          "2026-03-15",
+          "2026-01-16",
+          "months"
+        ]
+      },
+      "data": {},
+      "expected": -1
+    },
+    {
+      "description": "diff years",
+      "logic": {
+        "date.diff": [
+          "2020-10-17",
+          "2026-10-16",
+          "years"
+        ]
+      },
+      "data": {},
+      "expected": 5
+    },
+    {
+      "description": "diff datetimes hours",
+      "logic": {
+        "date.diff": [
+          "2026-10-16T08:00:00+02:00",
+          "2026-10-16T09:30:00+01:00",
+          "hours"
+        ]
+      },
+      "data": {},
+      "expected": 2
+    },
+    {
+      "description": "diff datetimes minutes",
+      "logic": {
+        "date.diff": [
+          "2026-10-16T08:00:00Z",
+          "2026-10-16T08:45:30Z",
+          "minutes"
+        ]
+      },
+      "data": {},
+      "expected": 45
+    },
+    {
+      "description": "diff mixed types is null",
+      "logic": {
+        "date.diff": [
+          "2026-10-16",
+          "2026-10-16T08:00:00Z",
+          "days"
+        ]
+      },
+      "data": {},
+      "expected": null
+    },
+    {
+      "description": "diff invalid date is null",
+      "logic": {
+        "date.diff": [
+          "2026-02-30",
+          "2026-03-01",
+          "days"
+        ]
+      },
+      "data": {},
+      "expected": null
+    },
+    {
+      "description": "diff hours on dates is null",
+      "logic": {
+        "date.diff": [
+          "2026-10-01",
+          "2026-10-02",
+          "hours"
+        ]
+      },
+      "data": {},
+      "expected": null
+    },
+    {
+      "description": "add days",
+      "logic": {
+        "date.add": [
+          "2026-10-16",
+          30,
+          "days"
+        ]
+      },
+      "data": {},
+      "expected": "2026-11-15"
+    },
+    {
+      "description": "add negative days",
+      "logic": {
+        "date.add": [
+          "2026-03-01",
+          -1,
+          "days"
+        ]
+      },
+      "data": {},
+      "expected": "2026-02-28"
+    },
+    {
+      "description": "add months clamps",
+      "logic": {
+        "date.add": [
+          "2026-01-31",
+          1,
+          "months"
+        ]
+      },
+      "data": {},
+      "expected": "2026-02-28"
+    },
+    {
+      "description": "add months leap year",
+      "logic": {
+        "date.add": [
+          "2028-01-31",
+          1,
+          "months"
+        ]
+      },
+      "data": {},
+      "expected": "2028-02-29"
+    },
+    {
+      "description": "add years clamps leap day",
+      "logic": {
+        "date.add": [
+          "2028-02-29",
+          1,
+          "years"
+        ]
+      },
+      "data": {},
+      "expected": "2029-02-28"
+    },
+    {
+      "description": "add weeks",
+      "logic": {
+        "date.add": [
+          "2026-10-16",
+          2,
+          "weeks"
+        ]
+      },
+      "data": {},
+      "expected": "2026-10-30"
+    },
+    {
+      "description": "add integer string amount",
+      "logic": {
+        "date.add": [
+          "2026-10-16",
+          "1",
+          "days"
+        ]
+      },
+      "data": {},
+      "expected": "2026-10-17"
+    },
+    {
+      "description": "add hours keeps offset",
+      "logic": {
+        "date.add": [
+          "2026-10-16T23:30:00+02:00",
+          2,
+          "hours"
+        ]
+      },
+      "data": {},
+      "expected": "2026-10-17T01:30:00+02:00"
+    },
+    {
+      "description": "add to datetime Z",
+      "logic": {
+        "date.add": [
+          "2026-10-16T10:00:00Z",
+          90,
+          "minutes"
+        ]
+      },
+      "data": {},
+      "expected": "2026-10-16T11:30:00Z"
+    },
+    {
+      "description": "add null is null",
+      "logic": {
+        "date.add": [
+          null,
+          1,
+          "days"
+        ]
+      },
+      "data": {},
+      "expected": null
+    },
+    {
+      "description": "add fractional amount is null",
+      "logic": {
+        "date.add": [
+          "2026-10-16",
+          "1.5",
+          "days"
+        ]
+      },
+      "data": {},
+      "expected": null
+    },
+    {
+      "description": "compare dates with builtin <",
+      "logic": {
+        "<": [
+          {
+            "var": "a"
+          },
+          {
+            "var": "$today"
+          }
+        ]
+      },
+      "data": {
+        "a": "2026-10-01",
+        "$today": "2026-10-16"
+      },
+      "expected": true
+    }
+  ]
+}

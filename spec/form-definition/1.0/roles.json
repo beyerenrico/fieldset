@@ -1,0 +1,22 @@
+{
+  "$comment": "Semantic role vocabulary for Form Schema Spec 1.0 (README §8). Additions are non-breaking.",
+  "version": "1.0.0",
+  "roles": {
+    "customer.name": "Name of the customer (person or company)",
+    "customer.address": "Postal address of the customer",
+    "customer.email": "Email address of the customer",
+    "site.address": "Address of the job site",
+    "asset.serial": "Serial number of the serviced asset",
+    "document.date": "Date of the document (service, delivery or invoice date)",
+    "line_item.description": "Description of a line item",
+    "line_item.qty": "Quantity of a line item",
+    "line_item.unit": "Unit of a line item (h, pcs, m)",
+    "line_item.unit_price": "Net unit price of a line item",
+    "line_item.tax_rate": "Tax rate of a line item in percent",
+    "line_item.total": "Net total of a line item",
+    "totals.net": "Net total of the document",
+    "totals.tax": "Tax amount of the document",
+    "totals.gross": "Gross total of the document",
+    "payment.iban": "IBAN for payment"
+  }
+}

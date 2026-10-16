@@ -1,0 +1,156 @@
+{
+  "description": "var, missing, missing_some (spec §4.3)",
+  "tests": [
+    {
+      "description": "simple var",
+      "logic": {
+        "var": "a"
+      },
+      "data": {
+        "a": 1
+      },
+      "expected": 1
+    },
+    {
+      "description": "dotted path",
+      "logic": {
+        "var": "a.b"
+      },
+      "data": {
+        "a": {
+          "b": "x"
+        }
+      },
+      "expected": "x"
+    },
+    {
+      "description": "array index path",
+      "logic": {
+        "var": "items.1.qty"
+      },
+      "data": {
+        "items": [
+          {
+            "qty": "1"
+          },
+          {
+            "qty": "2"
+          }
+        ]
+      },
+      "expected": "2"
+    },
+    {
+      "description": "missing value is null",
+      "logic": {
+        "var": "nope"
+      },
+      "data": {
+        "a": 1
+      },
+      "expected": null
+    },
+    {
+      "description": "fallback when missing",
+      "logic": {
+        "var": [
+          "nope",
+          "dflt"
+        ]
+      },
+      "data": {},
+      "expected": "dflt"
+    },
+    {
+      "description": "fallback when null",
+      "logic": {
+        "var": [
+          "a",
+          "dflt"
+        ]
+      },
+      "data": {
+        "a": null
+      },
+      "expected": "dflt"
+    },
+    {
+      "description": "empty path returns scope",
+      "logic": {
+        "var": ""
+      },
+      "data": {
+        "a": 1
+      },
+      "expected": {
+        "a": 1
+      }
+    },
+    {
+      "description": "var with list argument",
+      "logic": {
+        "var": [
+          "a"
+        ]
+      },
+      "data": {
+        "a": 5
+      },
+      "expected": 5
+    },
+    {
+      "description": "missing lists absent keys",
+      "logic": {
+        "missing": [
+          "a",
+          "b",
+          "c"
+        ]
+      },
+      "data": {
+        "a": 1,
+        "c": ""
+      },
+      "expected": [
+        "b",
+        "c"
+      ]
+    },
+    {
+      "description": "missing_some satisfied",
+      "logic": {
+        "missing_some": [
+          1,
+          [
+            "a",
+            "b"
+          ]
+        ]
+      },
+      "data": {
+        "a": 1
+      },
+      "expected": []
+    },
+    {
+      "description": "missing_some unsatisfied",
+      "logic": {
+        "missing_some": [
+          2,
+          [
+            "a",
+            "b",
+            "c"
+          ]
+        ]
+      },
+      "data": {
+        "a": 1
+      },
+      "expected": [
+        "b",
+        "c"
+      ]
+    }
+  ]
+}

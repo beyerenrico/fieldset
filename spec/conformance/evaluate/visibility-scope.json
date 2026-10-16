@@ -1,0 +1,391 @@
+{
+  "description": "Visibility, scope resolution and defaults",
+  "definition": {
+    "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+    "specVersion": "1.0.0",
+    "key": "visibility",
+    "title": "Visibility",
+    "locale": "de-DE",
+    "pages": [
+      {
+        "key": "main",
+        "title": "Main",
+        "elements": [
+          {
+            "type": "toggle",
+            "key": "has_details",
+            "label": "Details?",
+            "id": "00000000-0000-4000-8000-000000000001"
+          },
+          {
+            "type": "section",
+            "key": "details",
+            "label": "Details",
+            "visibleIf": {
+              "var": "has_details"
+            },
+            "elements": [
+              {
+                "type": "text",
+                "key": "detail_text",
+                "label": "Text",
+                "required": true,
+                "id": "00000000-0000-4000-8000-000000000003"
+              },
+              {
+                "type": "columns",
+                "key": "cols",
+                "columns": [
+                  {
+                    "elements": [
+                      {
+                        "type": "text",
+                        "key": "left",
+                        "label": "Left",
+                        "id": "00000000-0000-4000-8000-000000000005"
+                      }
+                    ]
+                  },
+                  {
+                    "elements": [
+                      {
+                        "type": "text",
+                        "key": "right",
+                        "label": "Right",
+                        "requiredIf": {
+                          "!!": [
+                            {
+                              "var": "left"
+                            }
+                          ]
+                        },
+                        "id": "00000000-0000-4000-8000-000000000006"
+                      }
+                    ]
+                  }
+                ],
+                "id": "00000000-0000-4000-8000-000000000004"
+              }
+            ],
+            "id": "00000000-0000-4000-8000-000000000002"
+          },
+          {
+            "type": "text",
+            "key": "author",
+            "label": "Author",
+            "default": {
+              "var": "$user.name"
+            },
+            "id": "00000000-0000-4000-8000-000000000007"
+          },
+          {
+            "type": "number",
+            "key": "version_seen",
+            "label": "Version",
+            "default": {
+              "cat": [
+                {
+                  "var": "$form.version"
+                }
+              ]
+            },
+            "id": "00000000-0000-4000-8000-000000000008"
+          },
+          {
+            "type": "money",
+            "key": "threshold",
+            "label": "Threshold",
+            "currency": "EUR",
+            "default": "1000",
+            "id": "00000000-0000-4000-8000-000000000009"
+          },
+          {
+            "type": "repeater",
+            "key": "rows",
+            "label": "Rows",
+            "elements": [
+              {
+                "type": "text",
+                "key": "author",
+                "label": "Row author",
+                "id": "00000000-0000-4000-8000-000000000011"
+              },
+              {
+                "type": "money",
+                "key": "amount",
+                "label": "Amount",
+                "currency": "EUR",
+                "id": "00000000-0000-4000-8000-000000000012"
+              },
+              {
+                "type": "text",
+                "key": "note",
+                "label": "Note",
+                "visibleIf": {
+                  "dec.gt": [
+                    {
+                      "var": "amount"
+                    },
+                    {
+                      "var": "$root.threshold"
+                    }
+                  ]
+                },
+                "required": true,
+                "id": "00000000-0000-4000-8000-000000000013"
+              },
+              {
+                "type": "calculated",
+                "key": "label",
+                "label": "Label",
+                "format": "text",
+                "expression": {
+                  "cat": [
+                    {
+                      "var": "author"
+                    },
+                    "/",
+                    {
+                      "var": "$root.author"
+                    }
+                  ]
+                },
+                "id": "00000000-0000-4000-8000-000000000014"
+              }
+            ],
+            "id": "00000000-0000-4000-8000-000000000010"
+          },
+          {
+            "type": "calculated",
+            "key": "total",
+            "label": "Total",
+            "format": "money",
+            "expression": {
+              "sum": [
+                {
+                  "var": "rows"
+                },
+                "amount"
+              ]
+            },
+            "id": "00000000-0000-4000-8000-000000000015"
+          },
+          {
+            "type": "text",
+            "key": "approval",
+            "label": "Approval",
+            "required": true,
+            "visibleIf": {
+              "dec.gt": [
+                {
+                  "var": "total"
+                },
+                "5000"
+              ]
+            },
+            "id": "00000000-0000-4000-8000-000000000016"
+          }
+        ]
+      },
+      {
+        "key": "extra",
+        "title": "Extra",
+        "elements": [
+          {
+            "type": "text",
+            "key": "extra_note",
+            "label": "Extra",
+            "required": true,
+            "id": "00000000-0000-4000-8000-000000000017"
+          }
+        ],
+        "visibleIf": {
+          "var": "has_details"
+        }
+      }
+    ]
+  },
+  "context": {
+    "today": "2026-10-16",
+    "now": "2026-10-16T09:41:00+02:00",
+    "user": {
+      "name": "Willi Worker",
+      "email": "worker@demo.test"
+    },
+    "org": {
+      "name": "Demo GmbH"
+    },
+    "formVersion": 3
+  },
+  "tests": [
+    {
+      "description": "section and page hidden: children stripped, not required",
+      "data": {
+        "has_details": false,
+        "detail_text": "x",
+        "extra_note": "y",
+        "rows": []
+      },
+      "expected": {
+        "errors": [],
+        "visibility": {
+          "/details": false,
+          "/detail_text": false,
+          "/left": false,
+          "/extra_note": false,
+          "/approval": false
+        },
+        "data": {
+          "has_details": false,
+          "author": "Willi Worker",
+          "version_seen": "3",
+          "threshold": "1000.00",
+          "rows": [],
+          "total": "0.00"
+        }
+      }
+    },
+    {
+      "description": "section visible: children required; requiredIf from sibling column",
+      "data": {
+        "has_details": true,
+        "left": "L",
+        "rows": []
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/detail_text",
+            "code": "required"
+          },
+          {
+            "pointer": "/right",
+            "code": "required"
+          },
+          {
+            "pointer": "/extra_note",
+            "code": "required"
+          }
+        ],
+        "visibility": {
+          "/details": true,
+          "/right": true
+        }
+      }
+    },
+    {
+      "description": "row scope shadows root key; $root reaches the root",
+      "data": {
+        "author": "Anna",
+        "rows": [
+          {
+            "author": "Ben",
+            "amount": "10"
+          }
+        ]
+      },
+      "expected": {
+        "errors": [],
+        "calculated": {
+          "/rows/0/label": "Ben/Anna"
+        }
+      }
+    },
+    {
+      "description": "row key defined but empty still shadows the root key",
+      "data": {
+        "author": "Anna",
+        "rows": [
+          {
+            "amount": "10"
+          }
+        ]
+      },
+      "expected": {
+        "errors": [],
+        "calculated": {
+          "/rows/0/label": "/Anna"
+        }
+      }
+    },
+    {
+      "description": "row visibility uses $root and row values",
+      "data": {
+        "threshold": "100",
+        "rows": [
+          {
+            "amount": "50"
+          },
+          {
+            "amount": "150"
+          }
+        ]
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/rows/1/note",
+            "code": "required"
+          }
+        ],
+        "visibility": {
+          "/rows/0/note": false,
+          "/rows/1/note": true
+        }
+      }
+    },
+    {
+      "description": "visibility depends on a calculated aggregate",
+      "data": {
+        "rows": [
+          {
+            "amount": "3000"
+          },
+          {
+            "amount": "2500.50"
+          }
+        ]
+      },
+      "expected": {
+        "errors": [
+          {
+            "pointer": "/approval",
+            "code": "required"
+          },
+          {
+            "pointer": "/rows/0/note",
+            "code": "required"
+          },
+          {
+            "pointer": "/rows/1/note",
+            "code": "required"
+          }
+        ],
+        "calculated": {
+          "/total": "5500.50"
+        },
+        "visibility": {
+          "/approval": true
+        }
+      }
+    },
+    {
+      "description": "defaults do not override given values",
+      "data": {
+        "author": "Me",
+        "threshold": "5",
+        "rows": []
+      },
+      "expected": {
+        "errors": [],
+        "data": {
+          "author": "Me",
+          "version_seen": "3",
+          "threshold": "5.00",
+          "rows": [],
+          "total": "0.00"
+        }
+      }
+    }
+  ]
+}
