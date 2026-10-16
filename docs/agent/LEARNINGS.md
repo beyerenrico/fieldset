@@ -36,3 +36,5 @@
 31. `documents.render_on_submit` is off in testing (no Gotenberg calls from unrelated tests); tests that need renditions (send to customer, documents) must enable it.
 32. Run `vendor/bin/rector --dry-run` in every gate: CI runs it and it had silently drifted on ~70 files. Skipped rules (rector.php): unused-parameter removal on policies (Gate passes args positionally), arrow-fn return types in tests (infers Pest mixin class), nullsafe coalesce (PHPStan nullsafe.neverNull).
 33. The coverage container runs at base path /app: string-replacing base_path() corrupts any text containing "/app/" — anchor path stripping to path starts.
+34. `workflows.complete_without_review` (submitted → completed when no workflow reviews) is off in testing like `documents.render_on_submit`; workflow tests switch it on. In Docker/local it is on, so E2E submissions without a review workflow end up `completed`.
+35. Filament Builder E2E: blocks start collapsed and only expanded items render their inputs — scope locators to `.fi-fo-builder-item` filtered by the block heading; Livewire update URLs are `/livewire-<hash>/update`, not `/livewire/update`.

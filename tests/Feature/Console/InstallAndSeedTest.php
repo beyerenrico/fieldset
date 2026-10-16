@@ -6,11 +6,15 @@ use App\Domain\Documents\Branding\Branding;
 use App\Domain\Documents\Models\Design;
 use App\Domain\Forms\Models\Form;
 use App\Domain\Identity\Enums\Permission;
+use App\Domain\Identity\Models\Group;
 use App\Domain\Identity\Models\Organization;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Tenancy\TenantContext;
 use App\Domain\Mail\CustomerSend\CustomerSendGate;
 use App\Domain\Submissions\Models\Submission;
+use App\Domain\Workflows\Enums\TriggerType;
+use App\Domain\Workflows\Models\WebhookEndpoint;
+use App\Domain\Workflows\Models\Workflow;
 use Database\Seeders\DemoSeeder;
 use Illuminate\Support\Facades\Storage;
 use Tests\Feature\Documents\DocumentFixtures;
@@ -78,4 +82,28 @@ it('seeds demo branding, the default design and a sendable service report', func
         ->and($designs->sole()->currentVersion)->not->toBeNull()
         ->and($form->currentVersion?->version)->toBe(1)
         ->and(CustomerSendGate::enabled($probe))->toBeTrue();
+});
+
+it('seeds the review-then-send workflow and a disabled webhook example', function (): void {
+    DocumentFixtures::fakeDisk();
+    $this->seed(DemoSeeder::class);
+    $this->seed(DemoSeeder::class); // idempotent
+
+    $org = Organization::query()->where('slug', 'demo')->sole();
+    [$workflows, $endpoints, $office, $form] = app(TenantContext::class)->run($org, fn (): array => [
+        Workflow::query()->get(),
+        WebhookEndpoint::query()->get(),
+        Group::query()->where('name', 'Büro')->sole(),
+        Form::query()->where('key', 'service_report')->sole(),
+    ]);
+
+    expect($workflows)->toHaveCount(1)
+        ->and($workflows->sole()->active)->toBeTrue()
+        ->and($workflows->sole()->trigger_type)->toBe(TriggerType::SubmissionSubmitted)
+        ->and($workflows->sole()->trigger_config)->toBe(['form_ids' => [$form->id]])
+        ->and(array_column($workflows->sole()->steps, 'type'))->toBe(['request_review', 'send_email'])
+        ->and($workflows->sole()->steps[0]['data']['assignee_group_id'])->toBe($office->id)
+        ->and($workflows->sole()->steps[1]['data']['to_fields'])->toBe(['customer.email'])
+        ->and($endpoints)->toHaveCount(1)
+        ->and($endpoints->sole()->active)->toBeFalse();
 });

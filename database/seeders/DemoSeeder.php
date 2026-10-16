@@ -10,6 +10,7 @@ use App\Domain\Documents\Designs\DesignResolver;
 use App\Domain\Forms\Actions\CreateFormFromTemplate;
 use App\Domain\Forms\Actions\PublishForm;
 use App\Domain\Forms\Actions\SyncFormAccess;
+use App\Domain\Forms\Models\Form;
 use App\Domain\Identity\Actions\AddMember;
 use App\Domain\Identity\Actions\CreateOrganization;
 use App\Domain\Identity\Actions\SyncMemberGroups;
@@ -18,6 +19,9 @@ use App\Domain\Identity\Models\Group;
 use App\Domain\Identity\Models\Organization;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Tenancy\TenantContext;
+use App\Domain\Workflows\Actions\SaveWebhookEndpoint;
+use App\Domain\Workflows\Actions\SaveWorkflow;
+use App\Domain\Workflows\Enums\TriggerType;
 use Illuminate\Database\Seeder;
 
 /**
@@ -60,13 +64,37 @@ final class DemoSeeder extends Seeder
 
         // A published service report that the field crew may fill (demo for the Field App). The template
         // sets settings.sendToCustomer, so workers can email the PDF; the default design renders it.
-        $tenant->run($org, function () use ($org, $owner): void {
+        $tenant->run($org, function () use ($org, $owner, $office): void {
             $this->brand($org);
             app(DesignResolver::class)->defaultDesign();
             $form = app(CreateFormFromTemplate::class)->handle($owner, 'service_report');
             app(PublishForm::class)->handle($form, 'Erste Version', $owner);
             app(SyncFormAccess::class)->handle($form, [], ['field_worker'], $owner);
+            $this->workflows($form, $office, $owner);
         });
+    }
+
+    /**
+     * Demo automation (§8.3 AC): the office reviews every service report, then the PDF goes to the
+     * customer's email field. A webhook endpoint shows the integration setup; it stays disabled.
+     */
+    private function workflows(Form $form, Group $office, User $owner): void
+    {
+        app(SaveWorkflow::class)->handle(null, [
+            'name' => 'Prüfen und an Kunden senden',
+            'description' => 'Das Büro prüft jeden Servicebericht; danach erhält der Kunde das PDF.',
+            'trigger_type' => TriggerType::SubmissionSubmitted->value,
+            'trigger_config' => ['form_ids' => [$form->id]],
+            'steps' => [
+                ['type' => 'request_review', 'data' => ['assignee_type' => 'group', 'assignee_group_id' => $office->id, 'sla_hours' => 24]],
+                ['type' => 'send_email', 'data' => [
+                    'to_fields' => ['customer.email'], 'document' => 'attachment',
+                    'subject' => 'Ihr Servicebericht {{ submission.number }}',
+                    'body' => "Guten Tag {{ recipient.name }},\n\nanbei erhalten Sie den Servicebericht {{ submission.number }} von {{ org.name }}.\n\nFreundliche Grüße",
+                ]],
+            ],
+        ], $owner);
+        app(SaveWebhookEndpoint::class)->handle(null, ['name' => 'ERP (Beispiel)', 'url' => 'https://erp.example.com/hooks/form-schema', 'active' => false], $owner);
     }
 
     /** Demo branding for PDFs and mails: colors, company details and a small generated logo. */
