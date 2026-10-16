@@ -42,3 +42,10 @@
 - Frontend subagent: form-schema-react renderer, Field App, preview entry (8b3f0e5; 214 tests, ~97 % cov).
 - E2E (5cb36c5): Field App phone journey found a contract mismatch (submission responses not wrapped
   in `{ submission }`) → fixed backend. Preview shows title; admin E2E reuse sessions (login throttle).
+
+## 2026-10-16 M2 gate
+- Reviews (security, backend correctness, frontend races/a11y): 5 high + ~20 medium/low fixed via two
+  parallel fix subagents (f6f8ccf, b084e9f) and directly (0925fa3 device sessions, 2613bde readOnlyIf).
+- E2E found 3 real bugs: unwrapped `{ submission }`, repeater table widening phones, template key race.
+- Gate: PHP 3016 tests, coverage 94.77 %, PHPStan 0/0, JS 606/110/164, conformance 391, E2E 9/9 ×2.
+  Report milestones/M2.md. ADR 0027; QUESTIONS #9–11.
