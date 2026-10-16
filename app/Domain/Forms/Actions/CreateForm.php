@@ -14,6 +14,8 @@ use App\Domain\Forms\Support\InvalidDefinitionException;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Tenancy\TenantContext;
 use FormSchema\Json\Json;
+use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Facades\DB;
 use stdClass;
 
 /**
@@ -22,6 +24,8 @@ use stdClass;
  */
 final readonly class CreateForm
 {
+    private const int KEY_ATTEMPTS = 5;
+
     public function __construct(
         private DefinitionChecker $checker,
         private TenantContext $tenant,
@@ -39,7 +43,7 @@ final readonly class CreateForm
         $definition = $definition === null
             ? BlankDefinition::make(BlankDefinition::keyFromName($name), $name, $locale)
             : Json::decode(Json::encode($definition));
-        $definition->key = $this->uniqueKey(is_string($definition->key ?? null) ? $definition->key : BlankDefinition::keyFromName($name));
+        $base = is_string($definition->key ?? null) ? $definition->key : BlankDefinition::keyFromName($name);
         $definition->title = $name;
 
         $report = $this->checker->check($definition);
@@ -47,19 +51,33 @@ final readonly class CreateForm
             throw new InvalidDefinitionException($report);
         }
 
-        $form = Form::query()->create([
-            'key' => $definition->key,
-            'name' => $name,
-            'category' => $category,
-            'status' => FormStatus::Draft,
-            'draft_definition' => $definition,
-            'created_by' => $actor->id,
-            'updated_by' => $actor->id,
-        ]);
-
+        $form = $this->insert($actor, $base, $name, $category, $definition);
         $this->audit->record($event, $form, ['key' => $form->key, 'name' => $form->name], $actor);
 
         return [$form, $report];
+    }
+
+    /** Inserts with the first free key; a key taken concurrently between lookup and insert is retried. */
+    private function insert(User $actor, string $base, string $name, ?string $category, stdClass $definition): Form
+    {
+        for ($attempt = 1; ; $attempt++) {
+            $definition->key = $this->uniqueKey($base);
+            try {
+                return DB::transaction(fn (): Form => Form::query()->create([
+                    'key' => $definition->key,
+                    'name' => $name,
+                    'category' => $category,
+                    'status' => FormStatus::Draft,
+                    'draft_definition' => $definition,
+                    'created_by' => $actor->id,
+                    'updated_by' => $actor->id,
+                ]));
+            } catch (UniqueConstraintViolationException $e) {
+                if ($attempt >= self::KEY_ATTEMPTS) {
+                    throw $e;
+                }
+            }
+        }
     }
 
     private function uniqueKey(string $base): string

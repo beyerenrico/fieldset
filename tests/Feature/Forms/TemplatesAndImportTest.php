@@ -6,11 +6,13 @@ use App\Domain\Forms\Actions\CreateFormFromTemplate;
 use App\Domain\Forms\Actions\ExportDefinition;
 use App\Domain\Forms\Actions\ImportDefinition;
 use App\Domain\Forms\Actions\PublishForm;
+use App\Domain\Forms\Models\Form;
 use App\Domain\Forms\Support\DefinitionChecker;
 use App\Domain\Forms\Templates\TemplateCatalog;
 use App\Domain\Identity\Enums\SystemRole;
 use App\Domain\Identity\Tenancy\TenantContext;
 use FormSchema\Json\Json;
+use Illuminate\Support\Facades\DB;
 
 beforeEach(function (): void {
     $this->org = makeOrganization();
@@ -36,6 +38,28 @@ it('creates a form from a template with lineage and publishes it', function (str
     $version = app(PublishForm::class)->handle($form, 'from template', $this->designer);
     expect($version->version)->toBe(1);
 })->with('templates');
+
+it('picks the next free key when a concurrent request takes the computed key first', function (): void {
+    // Simulates another designer creating the same template between our key lookup and our insert. The
+    // simulated row lives in our savepoint and is rolled back with it, so the retry may reuse the key.
+    $raced = false;
+    Form::creating(function (Form $form) use (&$raced): void {
+        if (! $raced && $form->key === 'service_report_2') {
+            $raced = true;
+            DB::table('forms')->insert([
+                'organization_id' => $this->org->id, 'key' => 'service_report_2', 'name' => 'Other', 'status' => 'draft',
+                'draft_definition' => '{}', 'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
+    });
+    app(CreateFormFromTemplate::class)->handle($this->designer, 'service_report');
+
+    $form = app(CreateFormFromTemplate::class)->handle($this->designer, 'service_report');
+
+    expect($raced)->toBeTrue()->and($form->exists)->toBeTrue()
+        ->and($form->draft_definition->key)->toBe($form->key)
+        ->and(Form::query()->where('key', 'like', 'service_report%')->count())->toBe(2);
+});
 
 it('includes the required templates', function (): void {
     expect(array_column(TemplateCatalog::bundled()->all(), 'key'))->toContain('service_report', 'invoice', 'inspection_checklist');

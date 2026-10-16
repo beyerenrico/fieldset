@@ -82,7 +82,7 @@ AC refs point at BUILD_PROMPT sections. Test approach in brackets.
 - Submission explorer (dynamic columns across versions, filters, search, bulk); custom export job (openspout, repeater sheet, Export model notifications); bulk PDF ZIP; saved reports + charts + pin; role-aware dashboards with cached widgets; scheduled report emails; 100k-row index check.
 
 ## M6 Offline-first — break down at M5 gate
-- Dexie store; outbox + sync engine (start/online/visibilitychange/manual, Background Sync enhancement); attachment queue + compression + EXIF strip; conflict UI on 409; storage persistence + iOS install prompt; logout wipe; device wipe; E2E journeys 3, 7.
+- Dexie store; outbox + sync engine (start/online/visibilitychange/manual, Background Sync enhancement); attachment queue + compression + EXIF strip; conflict UI on 409; storage persistence + iOS install prompt; logout wipe; device wipe; incremental manifest: fetch every `fillable_form_ids` entry not cached (role grants touch no form, ADR 0027); E2E journeys 3, 7.
 
 ## M7 SSO + Builder v2 — break down at M6 gate
 - OIDC per org (Socialite), domain verification (DNS TXT, fake resolver), home-realm discovery, JIT + claim mapping, enforce SSO + break-glass; Keycloak in CI; SAML (socialiteproviders/saml2); Builder v2 page (palette/canvas/inspector, SortableJS, keyboard moves, undo/redo).
