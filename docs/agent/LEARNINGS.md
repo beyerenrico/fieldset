@@ -31,3 +31,6 @@
 26. A sticky footer that "intercepts pointer events" in Playwright on a phone viewport was a real bug: `position: absolute` sr-only labels inside an unpositioned `overflow-x: auto` table wrapper widened the page (769 px on a 412 px phone), so the layout viewport grew and the sticky footer sat below the screen. Check `document.documentElement.scrollWidth` vs `innerWidth` first; give overflow containers `position: relative`. (Supersedes the earlier focus+Enter workaround.)
 27. Livewire re-renders replace the builder preview iframe (wire:key = md5 of the definition); only `live()` fields trigger a re-render, so builder settings that the preview shows need `live(onBlur: true)`.
 28. Submit runs inside the idempotency middleware's transaction (ADR 0027): queue `after_commit` is false, so anything dispatched during a submit must use `DB::afterCommit()` or `->afterCommit()`, or workers see uncommitted rows.
+29. PHPStan types `Carbon::locale()` as `string|static`; use `->settings(['locale' => …])` for a localized Carbon.
+30. Model strict mode (lazy-loading prevention) also bites policies called on collection items: preset relations with `setRelation()` or eager-load before authorizing each row.
+31. `documents.render_on_submit` is off in testing (no Gotenberg calls from unrelated tests); tests that need renditions (send to customer, documents) must enable it.
