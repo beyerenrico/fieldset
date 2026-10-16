@@ -1,0 +1,35 @@
+{
+  "registry": "urn:form-schema-app:bundled-templates",
+  "templates": [
+    {
+      "key": "service_report",
+      "version": "1.0.0",
+      "file": "service_report.json",
+      "category": "service",
+      "title": {
+        "de": "Servicebericht",
+        "en": "Service report"
+      }
+    },
+    {
+      "key": "invoice",
+      "version": "1.0.0",
+      "file": "invoice.json",
+      "category": "finance",
+      "title": {
+        "de": "Rechnung",
+        "en": "Invoice"
+      }
+    },
+    {
+      "key": "inspection_checklist",
+      "version": "1.0.0",
+      "file": "inspection_checklist.json",
+      "category": "inspection",
+      "title": {
+        "de": "Prüfprotokoll",
+        "en": "Inspection checklist"
+      }
+    }
+  ]
+}

@@ -1,0 +1,207 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Filament\Admin\Resources\Forms\Pages;
+
+use App\Domain\Forms\Actions\PublishForm;
+use App\Domain\Forms\Actions\SaveDraft;
+use App\Domain\Forms\Actions\SyncFormAccess;
+use App\Domain\Forms\Builder\BuilderMapper;
+use App\Domain\Forms\Builder\KeyTypes;
+use App\Domain\Forms\Models\Form;
+use App\Domain\Forms\Models\FormAccess;
+use App\Domain\Forms\Schema\DefinitionTools;
+use App\Domain\Forms\Support\DefinitionChecker;
+use App\Domain\Forms\Support\InvalidDefinitionException;
+use App\Domain\Identity\Models\User;
+use App\Filament\Admin\Resources\Forms\FormResource;
+use Filament\Actions\Action;
+use Filament\Forms\Components\Textarea;
+use Filament\Notifications\Notification;
+use Filament\Resources\Pages\EditRecord;
+use Filament\Schemas\Schema;
+use FormSchema\Json\Json;
+use Illuminate\Database\Eloquent\Model;
+use InvalidArgumentException;
+use stdClass;
+
+/**
+ * Builder v1 page: edits the draft through the Filament Builder, lints after every save, autosaves
+ * and publishes (BUILD_PROMPT §8.2, §8.10).
+ *
+ * @property Form $record
+ */
+class EditForm extends EditRecord
+{
+    protected static string $resource = FormResource::class;
+
+    /** @var array{schema_errors: list<array{path: string, message: string}>, findings: list<array{severity: string, code: string, path: string}>} */
+    public array $lint = ['schema_errors' => [], 'findings' => []];
+
+    public ?string $lastSavedHash = null;
+
+    public function form(Schema $schema): Schema
+    {
+        return FormEditorSchema::configure($schema);
+    }
+
+    /** @param  array<string, mixed>  $data */
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        $this->refreshLint($this->record->draft_definition);
+        $state = $this->mapper()->toState($this->record->draft_definition);
+        $grants = FormAccess::query()->where('form_id', $this->record->id)->get();
+        $state['access_groups'] = $grants->whereNotNull('group_id')->pluck('group_id')->map(fn ($id): int => (int) $id)->values()->all();
+        $state['access_roles'] = $grants->whereNotNull('role_name')->pluck('role_name')->values()->all();
+        $this->lastSavedHash = md5(serialize($state));
+
+        return $state;
+    }
+
+    /** @param  array<string, mixed>  $data */
+    protected function handleRecordUpdate(Model $record, array $data): Model
+    {
+        /** @var Form $record */
+        $this->persist($record, $data, autosave: false);
+
+        return $record;
+    }
+
+    /** Called by the polling element in the editor schema. Never throws; never audits. */
+    public function autosave(): void
+    {
+        $state = $this->form->getRawState();
+        $hash = md5(serialize($state));
+        if ($hash === $this->lastSavedHash || ! (auth()->user()?->can('update', $this->record) ?? false)) {
+            return;
+        }
+
+        try {
+            $this->persist($this->record, $state, autosave: true);
+            $this->lastSavedHash = $hash;
+        } catch (InvalidArgumentException|InvalidDefinitionException) {
+            // Incomplete edits stay in the browser until they are valid enough to store.
+        }
+    }
+
+    /** @param  array<string, mixed>  $data */
+    private function persist(Form $record, array $data, bool $autosave): void
+    {
+        $definition = $this->mapper()->toDefinition($data);
+        try {
+            $report = app(SaveDraft::class)->handle($record, $definition, $this->actor(), $autosave);
+        } catch (InvalidDefinitionException $e) {
+            $this->lint = $e->report->toArray();
+            throw $e;
+        }
+        $this->lint = $report->toArray();
+
+        if (! $autosave) {
+            app(SyncFormAccess::class)->handle(
+                $record,
+                array_values(array_map('intval', is_array($data['access_groups'] ?? null) ? $data['access_groups'] : [])),
+                array_values(array_map('strval', is_array($data['access_roles'] ?? null) ? $data['access_roles'] : [])),
+                $this->actor(),
+            );
+        }
+    }
+
+    protected function getHeaderActions(): array
+    {
+        return [$this->publishAction(), FormResource::exportAction()->record($this->record)];
+    }
+
+    private function publishAction(): Action
+    {
+        return Action::make('publish')->label(__('forms.actions.publish'))->icon('heroicon-o-rocket-launch')->color('success')
+            ->authorize(fn (): bool => auth()->user()?->can('publish', $this->record) ?? false)
+            ->schema([Textarea::make('changelog')->label(__('forms.versions.changelog'))->required()->rows(3)])
+            ->action(function (array $data): void {
+                try {
+                    $this->save(shouldRedirect: false, shouldSendSavedNotification: false);
+                    $version = app(PublishForm::class)->handle($this->record->refresh(), (string) $data['changelog'], $this->actor());
+                } catch (InvalidDefinitionException $e) {
+                    $this->lint = $e->report->toArray();
+                    Notification::make()->danger()->title(__('forms.errors.invalid_definition'))->send();
+
+                    return;
+                }
+                $this->fillForm();
+                Notification::make()->success()->title(__('forms.versions.published', ['version' => $version->version]))->send();
+            });
+    }
+
+    public function hasLintErrors(): bool
+    {
+        if ($this->lint['schema_errors'] !== []) {
+            return true;
+        }
+
+        return collect($this->lint['findings'])->contains(fn (array $f): bool => $f['severity'] === 'error');
+    }
+
+    /** @return array<string, string> data element keys for logic and calculation selects */
+    public function fieldKeyOptions(): array
+    {
+        $keys = array_keys(KeyTypes::fromState(is_array($this->data) ? $this->data : []));
+        sort($keys);
+
+        return array_combine($keys, $keys);
+    }
+
+    /** @return array<string, string> */
+    public function repeaterKeyOptions(): array
+    {
+        $keys = array_keys(array_filter(KeyTypes::fromState(is_array($this->data) ? $this->data : []), fn (string $type): bool => $type === 'repeater'));
+
+        return array_combine($keys, $keys);
+    }
+
+    /** @return array<string, string> keys of the elements inside a repeater */
+    public function rowKeyOptions(string $repeater): array
+    {
+        $definition = $this->mapper()->toDefinition(is_array($this->data) ? $this->data : []);
+        foreach (DefinitionTools::elements($definition) as $element) {
+            if (($element->key ?? null) === $repeater && is_array($element->elements ?? null)) {
+                $keys = array_values(array_filter(array_map(fn (mixed $e): ?string => $e instanceof stdClass && is_string($e->key ?? null) ? $e->key : null, $element->elements)));
+
+                return array_combine($keys, $keys);
+            }
+        }
+
+        return [];
+    }
+
+    public function draftJson(): string
+    {
+        return json_encode(Json::decode(Json::encode($this->record->draft_definition)), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: '{}';
+    }
+
+    private function refreshLint(stdClass $definition): void
+    {
+        $this->lint = app(DefinitionChecker::class)->check($definition, $this->record)->toArray();
+    }
+
+    private function mapper(): BuilderMapper
+    {
+        $locked = [];
+        foreach ($this->record->versions()->get() as $version) {
+            foreach (DefinitionTools::elements($version->definition) as $element) {
+                if (is_string($element->id ?? null)) {
+                    $locked[] = $element->id;
+                }
+            }
+        }
+
+        return new BuilderMapper(array_values(array_unique($locked)));
+    }
+
+    private function actor(): User
+    {
+        /** @var User $user */
+        $user = auth()->user();
+
+        return $user;
+    }
+}

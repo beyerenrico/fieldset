@@ -1,0 +1,297 @@
+{
+  "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+  "specVersion": "1.0.0",
+  "key": "invoice",
+  "title": "Rechnung",
+  "locale": "de-DE",
+  "settings": {
+    "layout": "wizard",
+    "numbering": {
+      "format": "RE-{YYYY}-{SEQ:5}",
+      "reset": "yearly"
+    },
+    "document": {
+      "design": "default"
+    },
+    "sendToCustomer": true
+  },
+  "pages": [
+    {
+      "id": "f5b07fc4-c6cd-5bc7-b63a-6df6b7b49482",
+      "key": "customer",
+      "title": "Kunde",
+      "elements": [
+        {
+          "type": "text",
+          "key": "customer_name",
+          "label": "Kunde",
+          "required": true,
+          "role": "customer.name",
+          "id": "8bed492b-26af-59dd-9f50-d0017e84cde8"
+        },
+        {
+          "type": "textarea",
+          "key": "customer_address",
+          "label": "Rechnungsanschrift",
+          "required": true,
+          "rows": 3,
+          "role": "customer.address",
+          "id": "a8c5038f-179e-5aeb-a735-2c489e5359b0"
+        },
+        {
+          "type": "email",
+          "key": "customer_email",
+          "label": "E-Mail",
+          "role": "customer.email",
+          "id": "8acb21a7-7167-590d-87e9-d5effcca9400"
+        },
+        {
+          "type": "date",
+          "key": "invoice_date",
+          "label": "Rechnungsdatum",
+          "required": true,
+          "default": {
+            "var": "$today"
+          },
+          "role": "document.date",
+          "id": "c4c0ccea-799f-5274-92f6-5afc0380198c"
+        },
+        {
+          "type": "date",
+          "key": "service_period_end",
+          "label": "Leistungsdatum",
+          "id": "7ea7b4ca-12df-5aae-8ca0-d7f353ca27fd"
+        },
+        {
+          "type": "number",
+          "key": "payment_terms_days",
+          "label": "Zahlungsziel (Tage)",
+          "default": "14",
+          "validation": {
+            "min": 0,
+            "max": 120,
+            "step": 1
+          },
+          "id": "bd435f00-c2ab-5c72-8144-4fd28d546346"
+        },
+        {
+          "type": "calculated",
+          "key": "due_date",
+          "label": "Fällig am",
+          "format": "text",
+          "expression": {
+            "date.add": [
+              {
+                "var": "invoice_date"
+              },
+              {
+                "var": "payment_terms_days"
+              },
+              "days"
+            ]
+          },
+          "id": "c83c6a74-7a3d-5879-93e4-ea047c6a7ae2"
+        }
+      ]
+    },
+    {
+      "id": "555ee58e-09d3-525d-b276-e8dff1784248",
+      "key": "items",
+      "title": "Positionen",
+      "elements": [
+        {
+          "type": "repeater",
+          "key": "items",
+          "label": "Positionen",
+          "display": "table",
+          "minItems": 1,
+          "addLabel": "Position hinzufügen",
+          "elements": [
+            {
+              "type": "text",
+              "key": "description",
+              "label": "Beschreibung",
+              "required": true,
+              "role": "line_item.description",
+              "id": "d6aaa320-6499-5b3b-855c-66ec36a85d18"
+            },
+            {
+              "type": "number",
+              "key": "qty",
+              "label": "Menge",
+              "required": true,
+              "validation": {
+                "min": 0
+              },
+              "role": "line_item.qty",
+              "id": "44619f3b-5e58-5082-a102-f9d26f92c9df"
+            },
+            {
+              "type": "text",
+              "key": "unit",
+              "label": "Einheit",
+              "role": "line_item.unit",
+              "validation": {
+                "maxLength": 12
+              },
+              "id": "3a341281-ae85-5256-99ba-a060bec06da1"
+            },
+            {
+              "type": "money",
+              "key": "unit_price",
+              "label": "Einzelpreis netto",
+              "currency": "EUR",
+              "required": true,
+              "role": "line_item.unit_price",
+              "id": "9e4ef3cc-e068-5fce-90b0-49ff93a1bba3"
+            },
+            {
+              "type": "select",
+              "key": "tax_rate",
+              "label": "USt.-Satz",
+              "required": true,
+              "default": "19",
+              "role": "line_item.tax_rate",
+              "options": [
+                {
+                  "value": "19",
+                  "label": "19 %"
+                },
+                {
+                  "value": "7",
+                  "label": "7 %"
+                },
+                {
+                  "value": "0",
+                  "label": "0 %"
+                }
+              ],
+              "id": "7478fff0-9f86-5a42-b84b-bd780fa7022c"
+            },
+            {
+              "type": "calculated",
+              "key": "line_total",
+              "label": "Netto",
+              "format": "money",
+              "currency": "EUR",
+              "role": "line_item.total",
+              "expression": {
+                "dec.mul": [
+                  {
+                    "var": "qty"
+                  },
+                  {
+                    "var": "unit_price"
+                  }
+                ]
+              },
+              "id": "20cfbcd7-3fa3-5491-a815-5f4fad666fe5"
+            },
+            {
+              "type": "calculated",
+              "key": "line_tax",
+              "label": "USt.",
+              "format": "money",
+              "currency": "EUR",
+              "expression": {
+                "dec.div": [
+                  {
+                    "dec.mul": [
+                      {
+                        "var": "line_total"
+                      },
+                      {
+                        "var": "tax_rate"
+                      }
+                    ]
+                  },
+                  "100",
+                  2
+                ]
+              },
+              "id": "972c7e78-d16f-52f5-aef8-a0dc8bf5e036"
+            }
+          ],
+          "id": "324cde31-3379-5ec4-85e3-8aec009d1f0d"
+        },
+        {
+          "type": "calculated",
+          "key": "net_total",
+          "label": "Summe netto",
+          "format": "money",
+          "currency": "EUR",
+          "role": "totals.net",
+          "expression": {
+            "sum": [
+              {
+                "var": "items"
+              },
+              "line_total"
+            ]
+          },
+          "id": "030cce11-6bb2-575d-9d72-b2422366e9de"
+        },
+        {
+          "type": "calculated",
+          "key": "tax_total",
+          "label": "Umsatzsteuer",
+          "format": "money",
+          "currency": "EUR",
+          "role": "totals.tax",
+          "expression": {
+            "sum": [
+              {
+                "var": "items"
+              },
+              "line_tax"
+            ]
+          },
+          "id": "9188a421-eecf-59fa-ab44-06deac15232c"
+        },
+        {
+          "type": "calculated",
+          "key": "gross_total",
+          "label": "Gesamtbetrag",
+          "format": "money",
+          "currency": "EUR",
+          "role": "totals.gross",
+          "expression": {
+            "dec.add": [
+              {
+                "var": "net_total"
+              },
+              {
+                "var": "tax_total"
+              }
+            ]
+          },
+          "id": "eb65c2fc-1d37-5a59-9e45-4b48d78228f2"
+        }
+      ]
+    },
+    {
+      "id": "915a461f-18f7-514b-962f-b9c1bf333aab",
+      "key": "payment",
+      "title": "Zahlung",
+      "elements": [
+        {
+          "type": "text",
+          "key": "iban",
+          "label": "IBAN",
+          "role": "payment.iban",
+          "validation": {
+            "pattern": "^[A-Z]{2}[0-9]{2}[A-Z0-9 ]{11,30}$"
+          },
+          "id": "0279da97-a8fa-5cad-af02-10105e34a21c"
+        },
+        {
+          "type": "textarea",
+          "key": "notes",
+          "label": "Hinweise",
+          "rows": 3,
+          "id": "c3e222ee-69cd-581a-b8c8-94ef54d3802a"
+        }
+      ]
+    }
+  ]
+}
