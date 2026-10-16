@@ -13,3 +13,10 @@
 - Roles: capability catalog + per-org seeded roles, literal §8.6 matrix test (ADR 0017, Shield removed).
 - Audit: EnrichActivity (org/actor/ip/ua/request id), Redactor, append-only model, auth listener.
 - 149 tests green, PHPStan lvl 8 clean.
+
+## 2026-10-16 M0 gate
+- Members/Groups/Roles resources, invitations, app:install, demo seed, CI, licenses, Playwright E2E.
+- Reviewer subagents (security, correctness): 3 high + test-proof gap fixed (93d7328): role escalation
+  guard, single-use invitations, email-change verification, real Context-before-unserialize proof.
+- Gate: 190 tests, PHPStan 0, coverage 90.08 % (tenancy 100 %), E2E 3/3. Report: milestones/M0.md.
+- Drafted Spec 1.0 + conformance suite; ADR 0021 own JsonLogic evaluator.

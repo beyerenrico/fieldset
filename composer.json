@@ -12,7 +12,6 @@
         "php": "^8.4",
         "brick/math": "^1.0",
         "filament/filament": "^5.10",
-        "jwadhams/json-logic-php": "^1.5.1",
         "laravel/fortify": "^1.41",
         "laravel/framework": "^13.17",
         "laravel/horizon": "^5.50",

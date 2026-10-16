@@ -77,3 +77,9 @@ it('keeps the spatie team id in sync with the tenant', function (): void {
     expect($registrar->getPermissionsTeamId())->toBeNull()
         ->and($this->tenant->check())->toBeFalse();
 });
+
+it('exposes the owning organization relation', function (): void {
+    $group = $this->tenant->run($this->orgA, fn () => Group::query()->create(['name' => 'Crew']));
+
+    expect($group->organization->is($this->orgA))->toBeTrue();
+});

@@ -7,6 +7,7 @@ use App\Domain\Identity\Models\Organization;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Tenancy\TenantContext;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Context;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\Jobs\InspectGroupJob;
@@ -106,6 +107,13 @@ it('does not leak the tenant or spatie team between jobs in one worker loop', fu
 
 it('dispatches a PendingDispatch returned from a tenant callback inside that tenant', function (): void {
     $this->tenant->run($this->orgA, fn () => InspectTenantJob::dispatch());
+    runWorker();
+
+    expect(InspectTenantJob::$seen)->toBe([['tenant' => $this->orgA->id, 'team' => $this->orgA->id]]);
+});
+
+it('dispatches a PendingChain returned from a tenant callback inside that tenant', function (): void {
+    $this->tenant->run($this->orgA, fn () => Bus::chain([new InspectTenantJob]));
     runWorker();
 
     expect(InspectTenantJob::$seen)->toBe([['tenant' => $this->orgA->id, 'team' => $this->orgA->id]]);

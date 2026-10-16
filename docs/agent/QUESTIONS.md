@@ -10,3 +10,10 @@ Format: question · chosen option · impact · how to reverse.
    another tool from 2027 · implement B4 (ZUGFeRD) after tax-advisor review.
 4. Risky default: D4 offline UX only in M6 · API offline-ready from M2 (ADR 0006) · field use before
    M6 needs connectivity · none needed if M6 ships before 1.0.
+5. Filament MFA challenge failures are not audited (Filament fires no event) · accepted for now ·
+   failed admin TOTP attempts leave no trace (Fortify ones do) · add a Filament challenge subclass or
+   upstream event when available.
+6. Self-service registration default · off (`APP_ALLOW_REGISTRATION=false`) after security review ·
+   public hosted instance must enable it · set env to true.
+7. Unconfirmed Fortify 2FA secret is replaced if the user then enrols in Filament · accepted (the
+   unconfirmed secret was never active) · none.

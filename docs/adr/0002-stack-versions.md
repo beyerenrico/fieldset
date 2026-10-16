@@ -13,12 +13,12 @@ laravel/fortify ^1.41, spatie/laravel-permission ^8.3, bezhansalleh/filament-shi
 spatie/laravel-activitylog ^5.1, pxlrbt/filament-activity-log ^3.1.2, spatie/laravel-model-states
 ^2.14, spatie/laravel-medialibrary ^11.23, filament/spatie-laravel-media-library-plugin ^5.10,
 spatie/laravel-pdf ^2.14, laravel/socialite ^5.31, dutchcodingcompany/filament-socialite ^3.3,
-socialiteproviders/saml2 ^4.10, opis/json-schema ^2.6 (Apache-2.0), jwadhams/json-logic-php ^1.5.1,
+socialiteproviders/saml2 ^4.10, opis/json-schema ^2.6 (Apache-2.0), [json-logic-php dropped, ADR 0021],
 brick/math ^1.0, dedoc/scramble ^0.13.48, openspout/openspout ^5.12, pestphp/pest ^5.3 (+laravel ^5.0,
 livewire ^5.0, browser ^5.1), larastan ^3.13, pint ^1.32, driftingly/rector-laravel ^2.6.
 npm: react/react-dom 19.3, vite 8.3, @vitejs/plugin-react 6.1, @tanstack/react-router 1.170,
 @tanstack/react-query 5.104, tailwindcss 4.3, dexie 4.4 (Apache-2.0), vite-plugin-pwa 2.0,
-workbox-window 7.4, signature_pad 5.1, json-logic-js 2.0.5, decimal.js 10.6, vitest 5.0,
+workbox-window 7.4, signature_pad 5.1, decimal.js 10.6 [json-logic-js not used, ADR 0021], vitest 5.0,
 @playwright/test 1.64, eslint 10, prettier 3.9, ajv 8.20 (meta-schema validation in JS),
 sortablejs 1.15, pdf-lib 1.17 (fixture generation only). TypeScript: 7.0.2 is the latest; pin the
 newest version supported by typescript-eslint (decided at install, see LEARNINGS).
