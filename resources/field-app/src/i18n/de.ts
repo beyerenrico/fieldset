@@ -161,6 +161,8 @@ export const de: Messages = {
         'Diese Prüfung wurde bereits abgeschlossen oder wird nicht mehr benötigt. Der aktuelle Stand wird angezeigt.',
     'decisionError.invalid_transition':
         'Der Status dieser Einreichung hat sich geändert, daher ist diese Prüfung nicht mehr möglich. Der aktuelle Stand wird angezeigt.',
+    'decisionError.review_blocked':
+        'Der Workflow dieser Einreichung ist wegen eines Fehlers angehalten. Das Büro wurde informiert; bitte später erneut versuchen.',
     'decisionError.not_found': 'Sie können diese Prüfung nicht mehr abschließen.',
     'decisionError.validation_failed': 'Bitte prüfen Sie Ihre Eingabe.',
     'decisionError.idempotency_key_reused':

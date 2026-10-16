@@ -151,6 +151,8 @@ export const en = {
         'This review has already been completed or is no longer needed. The current state is shown.',
     'decisionError.invalid_transition':
         'The status of this submission has changed, so this review is no longer possible. The current state is shown.',
+    'decisionError.review_blocked':
+        'The workflow of this submission is paused because of an error. The office has been notified; please try again later.',
     'decisionError.not_found': 'You can no longer complete this review.',
     'decisionError.validation_failed': 'Please check your input.',
     'decisionError.idempotency_key_reused':

@@ -190,6 +190,20 @@ describe('review decision', () => {
         expect(sessionStorage.getItem(`fsa.idem.task.${String(TASK_ID)}`)).toBeNull();
     });
 
+    it('explains 409 review_blocked and keeps the task open for a later retry', async () => {
+        setup();
+        server.use(http.post('*/api/v1/tasks/:id/complete', () => fail(409, 'review_blocked')));
+        const { user } = renderApp(`/submissions/${UUID}`);
+        const dialog = await openApprove(user);
+        await user.click(within(dialog).getByRole('button', { name: 'Approve' }));
+        expect(
+            await within(dialog).findByText(
+                'The workflow of this submission is paused because of an error. The office has been notified; please try again later.',
+            ),
+        ).toHaveAttribute('role', 'alert');
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+
     it('explains 409 invalid_transition once, closes the dialog and refreshes (no retry loop)', async () => {
         const backend = setup();
         server.use(

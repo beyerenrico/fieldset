@@ -48,6 +48,10 @@ function problemOf(error: unknown): MessageKey {
     if (isConflict(error, 'invalid_transition')) {
         return 'decisionError.invalid_transition';
     }
+    // The workflow failed; the office retries it. The task stays open, so a later retry can work.
+    if (isConflict(error, 'review_blocked')) {
+        return 'decisionError.review_blocked';
+    }
     if (isApiError(error, 404)) {
         return 'decisionError.not_found';
     }
