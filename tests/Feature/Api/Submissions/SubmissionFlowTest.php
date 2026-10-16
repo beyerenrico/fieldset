@@ -59,8 +59,8 @@ it('serves the pinned version definition', function (): void {
 it('creates and updates drafts with optimistic revisions', function (): void {
     $uuid = FieldAppScenario::uuid();
 
-    putDraft($uuid, ['customer_name' => 'A'])->assertCreated()->assertJsonPath('data.revision', 1)->assertJsonPath('data.status', 'draft');
-    putDraft($uuid, ['customer_name' => 'B'], 1)->assertOk()->assertJsonPath('data.revision', 2);
+    putDraft($uuid, ['customer_name' => 'A'])->assertCreated()->assertJsonPath('data.submission.revision', 1)->assertJsonPath('data.submission.status', 'draft');
+    putDraft($uuid, ['customer_name' => 'B'], 1)->assertOk()->assertJsonPath('data.submission.revision', 2);
 
     putDraft($uuid, ['customer_name' => 'stale'], 1)->assertStatus(409)
         ->assertJsonPath('error.code', 'revision_conflict')
@@ -83,16 +83,16 @@ it('submits: validates on the server, recomputes totals and assigns gap-free num
 
     $response = submit($uuid, 1)->assertOk();
 
-    expect($response->json('data.status'))->toBe('submitted')
-        ->and($response->json('data.number'))->toBe('SR-'.now('Europe/Berlin')->format('Y').'-00001')
-        ->and($response->json('data.data.net_total'))->toBe('195.00')
-        ->and($response->json('data.data.gross_total'))->toBe('232.05');
+    expect($response->json('data.submission.status'))->toBe('submitted')
+        ->and($response->json('data.submission.number'))->toBe('SR-'.now('Europe/Berlin')->format('Y').'-00001')
+        ->and($response->json('data.submission.data.net_total'))->toBe('195.00')
+        ->and($response->json('data.submission.data.gross_total'))->toBe('232.05');
 
     $second = FieldAppScenario::uuid();
     $sig2 = FieldAppScenario::uuid();
     putDraft($second, FieldAppScenario::serviceReportData($sig2));
     uploadSignature($second, $sig2);
-    expect(submit($second, 1)->json('data.number'))->toEndWith('-00002');
+    expect(submit($second, 1)->json('data.submission.number'))->toEndWith('-00002');
 });
 
 it('rejects invalid data with JSON-pointer errors and allocates no number', function (): void {
@@ -123,7 +123,7 @@ it('replays a repeated Idempotency-Key and refuses it for another request', func
     $first = submit($uuid, 1, 'key-12345678')->assertOk();
     $replay = submit($uuid, 1, 'key-12345678')->assertOk()->assertHeader('Idempotent-Replayed', 'true');
 
-    expect($replay->json('data.number'))->toBe($first->json('data.number'))
+    expect($replay->json('data.submission.number'))->toBe($first->json('data.submission.number'))
         ->and(Activity::query()->where('event', 'submission.submitted')->count())->toBe(1);
     submit($uuid, 2, 'key-12345678')->assertStatus(409)->assertJsonPath('error.code', 'idempotency_key_reused');
     $this->withoutHeader('Idempotency-Key')->withHeaders($this->headers)->postJson("/api/v1/submissions/{$uuid}/submit", ['revision' => 2])

@@ -23,6 +23,12 @@ body {
     padding: 1rem;
 }
 
+.preview-title {
+    margin: 0 0 0.75rem;
+    font-size: 1.5rem;
+    line-height: 1.25;
+}
+
 .preview-status {
     margin: 2rem 0;
     text-align: center;

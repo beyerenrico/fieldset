@@ -17,7 +17,7 @@ vi.mock('@form-schema-app/form-schema-react', async (importActual) => {
         }
         return (
             <div>
-                <h1>{definition.title}</h1>
+                <p data-testid="renderer-title">{definition.title}</p>
                 <p data-testid="mode">{props.mode}</p>
                 <p data-testid="data">{JSON.stringify(props.data)}</p>
                 <p data-testid="errors">{String(props.showErrors)}</p>
@@ -65,7 +65,8 @@ describe('PreviewApp', () => {
     it('renders a definition sent from its own origin in preview mode', () => {
         setup();
         send({ type: PREVIEW_MESSAGE, definition: definition('Service report') });
-        expect(screen.getByRole('heading', { name: 'Service report' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 1, name: 'Service report' })).toBeInTheDocument();
+        expect(screen.getByTestId('renderer-title')).toHaveTextContent('Service report');
         expect(screen.getByTestId('mode')).toHaveTextContent('preview');
         expect(screen.getByTestId('user')).toHaveTextContent('Max Mustermann');
         expect(document.documentElement.lang).toBe('en-GB');

@@ -78,6 +78,7 @@ export function PreviewApp({
 
     return (
         <main className="preview-shell">
+            <h1 className="preview-title">{definition.title}</h1>
             <PreviewErrorBoundary
                 resetKey={definition}
                 fallback={

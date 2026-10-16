@@ -83,7 +83,7 @@ final class FormEditorSchema
     private static function settings(): array
     {
         return [Grid::make(2)->schema([
-            TextInput::make('title')->label(__('forms.form.name'))->required()->maxLength(200),
+            TextInput::make('title')->label(__('forms.form.name'))->required()->maxLength(200)->live(onBlur: true),
             Select::make('locale')->label(__('forms.builder.locale'))->required()
                 ->options(['de-DE' => 'Deutsch (Deutschland)', 'de-AT' => 'Deutsch (Österreich)', 'de-CH' => 'Deutsch (Schweiz)', 'en-GB' => 'English (UK)', 'en-US' => 'English (US)']),
             Select::make('layout')->label(__('forms.builder.layout'))

@@ -1,14 +1,17 @@
 # Field App API contract (`/api/v1`, milestone M2)
 
 Normative for the Field App and the backend; Scramble publishes the generated OpenAPI 3.1 document at
-`/docs/api`. All responses use the envelope `{ success, data, error: { code, message, details } | null, meta }`.
+`/docs/api`. Paths in the endpoint table are relative to `/api/v1`. All `/api/v1` responses use the envelope
+`{ success, data, error: { code, message, details } | null, meta }`.
 Validation errors: `error.code = "validation_failed"`, `error.details = [{ pointer, code, message? }]` with
 JSON Pointers into the request body (for submissions: into the submission data, e.g. `/items/2/qty`).
 
 ## Authentication
 
-- SPA cookie auth (Sanctum stateful, same origin): `GET /sanctum/csrf-cookie`, then
-  `POST /auth/login` `{ email, password, remember: true }` (Fortify, JSON). Response `{ two_factor: bool }`.
+- SPA cookie auth (Sanctum stateful, same origin). These paths are at the **site root**, not under
+  `/api/v1`, and Fortify answers with plain JSON (no envelope; validation errors use Laravel's
+  `{ message, errors }` with HTTP 422, throttling HTTP 429): `GET /sanctum/csrf-cookie`, then
+  `POST /auth/login` `{ email, password, remember: true }`. Response `{ two_factor: bool }`.
   If `two_factor` is true: `POST /auth/two-factor-challenge` `{ code }` or `{ recovery_code }` → 204.
   `POST /auth/logout` → 204. Send `X-XSRF-TOKEN` from the `XSRF-TOKEN` cookie on every mutating request.
 - Every tenant-scoped call sends `X-Organization-Id: <id>` (from `GET /me`).

@@ -39,7 +39,7 @@ final class SubmissionController
 
     public function show(Request $request, string $uuid): JsonResponse
     {
-        return ApiResponse::ok(SubmissionPresenter::present($this->visible($request, $uuid)));
+        return ApiResponse::ok(['submission' => SubmissionPresenter::present($this->visible($request, $uuid))]);
     }
 
     public function upsert(Request $request, string $uuid, SaveSubmissionDraft $save): JsonResponse
@@ -61,7 +61,7 @@ final class SubmissionController
             ($body->geo ?? null) instanceof stdClass ? $body->geo : null,
         );
 
-        return ApiResponse::ok(SubmissionPresenter::present($submission->refresh()), null, $created ? 201 : 200);
+        return ApiResponse::ok(['submission' => SubmissionPresenter::present($submission->refresh())], null, $created ? 201 : 200);
     }
 
     public function submit(Request $request, string $uuid, SubmitSubmission $submit, TenantContext $tenant): JsonResponse
@@ -72,7 +72,7 @@ final class SubmissionController
 
         $submitted = $submit->handle($this->user($request), $organization, $submission, (int) $request->input('revision'));
 
-        return ApiResponse::ok(SubmissionPresenter::present($submitted->refresh()));
+        return ApiResponse::ok(['submission' => SubmissionPresenter::present($submitted->refresh())]);
     }
 
     private function visible(Request $request, string $uuid): Submission
