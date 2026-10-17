@@ -45,7 +45,7 @@ php artisan test --compact
 
 Demo users (seeded with `php artisan db:seed`, password `password`): `owner@demo.test`,
 `admin@demo.test`, `designer@demo.test`, `reviewer@demo.test`, `coordinator@demo.test`,
-`worker@demo.test`, `mobile@demo.test` (second field worker), `viewer@demo.test`. The demo organization has a published service report and a
+`worker@demo.test`, `mobile@demo.test` and `tablet@demo.test` (more field workers), `viewer@demo.test`. The demo organization has a published service report and a
 "review, then email the PDF to the customer" workflow. Mailpit UI: http://localhost:18025.
 
 | URL | What |

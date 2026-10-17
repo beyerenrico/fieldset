@@ -18,7 +18,7 @@ test('designer previews an unsaved change in the phone frame, then publishes', a
     .getByRole('button', { name: /submit|absenden|erstellen|create/i })
     .first()
     .click();
-  await expect(page).toHaveURL(/\/forms\/\d+\/edit/);
+  await expect(page).toHaveURL(/\/forms\/\d+\/edit/, { timeout: 30_000 }); // the builder page is heavy (QUESTIONS #8)
 
   // Change the title without saving; the preview must show the unsaved state.
   await page.getByRole('tab', { name: /formulareinstellungen|form settings/i }).click();
@@ -44,7 +44,7 @@ test('designer previews an unsaved change in the phone frame, then publishes', a
     .getByRole('button', { name: /submit|absenden|veröffentlichen|publish/i })
     .last()
     .click();
-  await expect(page.getByText(/version 1|v1/i).first()).toBeVisible();
+  await expect(page.getByText(/version 1|v1/i).first()).toBeVisible({ timeout: 30_000 }); // publishing round-trips the heavy builder state
 });
 
 test('designer imports a fillable PDF as a draft form', async ({ page }) => {

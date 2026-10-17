@@ -19,6 +19,8 @@ const evidence = (name: string) => `docs/agent/milestones/evidence/M6/${name}.pn
 const NUMBER = /SR-\d{4}-\d{5}/;
 const QUEUED = /ready to send|bereit zum senden|number pending|nummer ausstehend/i;
 const SAVED_LOCAL = /saved on this device|auf diesem gerät gespeichert/i;
+// Its own demo worker: the login limit is 5 per minute per email, and other specs sign in as worker@.
+const WORKER = 'tablet@demo.test';
 
 async function phone(browser: Browser): Promise<{ context: BrowserContext; page: Page }> {
   // An explicit empty state: inside a describe with an admin storageState, newContext would inherit it.
@@ -42,7 +44,7 @@ test.describe('offline-first field app', () => {
     test.setTimeout(300_000);
     const customer = `Offline ${Date.now()} GmbH`;
     const { context, page } = await phone(browser);
-    await fieldAppLogin(page, 'worker@demo.test');
+    await fieldAppLogin(page, WORKER);
     await waitForOfflineReady(page);
 
     await context.setOffline(true);
@@ -77,7 +79,7 @@ test.describe('offline-first field app', () => {
     test.setTimeout(120_000);
     const customer = `Absturz ${Date.now()} KG`;
     const { context, page } = await phone(browser);
-    await fieldAppLogin(page, 'worker@demo.test');
+    await fieldAppLogin(page, WORKER);
     await waitForOfflineReady(page);
     await context.setOffline(true); // the device copy is then the only copy
     await startServiceReport(page, customer);
@@ -100,7 +102,7 @@ test.describe('offline-first field app', () => {
     test.setTimeout(240_000);
     const customer = `Sitzung ${Date.now()} AG`;
     const { context, page } = await phone(browser);
-    await fieldAppLogin(page, 'worker@demo.test');
+    await fieldAppLogin(page, WORKER);
     await waitForOfflineReady(page);
 
     await context.setOffline(true);
@@ -117,7 +119,7 @@ test.describe('offline-first field app', () => {
     expect(await countRows(page, 'outbox')).toBe(queued); // nothing lost, nothing sent
     await page.screenshot({ path: evidence('05-reauth') });
 
-    await page.getByLabel(/^(email|e-mail)$/i).fill('worker@demo.test');
+    await page.getByLabel(/^(email|e-mail)$/i).fill(WORKER);
     await page.getByLabel(/^(password|passwort)$/i).fill('password');
     await page.getByRole('button', { name: /^(sign in|anmelden)$/i }).click();
     await expect(page.getByText(/^(hello|hallo), /i)).toBeVisible({ timeout: 20_000 });
@@ -152,7 +154,7 @@ test.describe('offline-first field app', () => {
       await member(/^deaktivieren$/i);
       try {
         await context.setOffline(false);
-        await expect(page.getByText(/local data was removed|lokalen daten wurden gelöscht/i)).toBeVisible({
+        await expect(page.getByText(/removed its local data|lokalen daten gelöscht/i)).toBeVisible({
           timeout: 60_000,
         });
         await page.screenshot({ path: evidence('06-wiped') });

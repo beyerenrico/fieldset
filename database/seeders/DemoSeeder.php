@@ -53,8 +53,10 @@ final class DemoSeeder extends Seeder
             ['reviewer@demo.test', 'Rita Reviewer', [SystemRole::Reviewer], [$office->id]],
             ['coordinator@demo.test', 'Cora Coordinator', [SystemRole::Designer, SystemRole::Reviewer], [$office->id]],
             ['worker@demo.test', 'Willi Worker', [SystemRole::FieldWorker], [$north->id]],
-            // Second field worker: the offline E2E deactivates and reactivates this membership (M6).
+            // More field workers for the offline E2E (M6): one is deactivated and reactivated there, and the
+            // journeys spread their logins (the login limit is 5 per minute per email and IP).
             ['mobile@demo.test', 'Mia Mobil', [SystemRole::FieldWorker], [$north->id]],
+            ['tablet@demo.test', 'Tom Tablet', [SystemRole::FieldWorker], [$north->id]],
             ['viewer@demo.test', 'Vera Viewer', [SystemRole::Viewer], []],
         ];
 
