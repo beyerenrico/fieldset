@@ -5,7 +5,7 @@ All notable changes to this project are documented here. The format follows
 [Semantic Versioning](https://semver.org/) (0.x: the API and data model may still change).
 The Form Schema Spec has its own changelog in `spec/form-definition/1.0/CHANGELOG.md`.
 
-## 1.0.0 — 2026-10-19
+## 1.0.0 — 2026-10-23
 
 The first stable release: single sign-on and the canvas builder (M7), and hardening (M8) with the audit
 log, GDPR tools, security headers, integration tokens and the operator panel. Release notes:

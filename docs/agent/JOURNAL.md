@@ -118,3 +118,9 @@
   abandoned dev-only package (ignored by name, verified with Composer 2.10.3 in the CI image).
 - Gate: PHP 4652, coverage 95.11 %, PHPStan 0/0, Rector/Pint clean, JS 611/111/623/246, conformance
   391/392, E2E 75/75 ×2 with Keycloak. Version 1.0.0.
+
+## 2026-10-23 Release 1.0.0
+- Merged m8-hardening (28fad62), tag m8-done. Final full gate on main: PHP 4652, coverage 95.11 %,
+  PHPStan 0/0, Rector/Pint clean, JS 611/111/623/246, conformance 391/392, licenses/audits clean,
+  E2E 75/75 ×2. Release date aligned to 2026-10-23 (ADRs 0038 amendment, 0046 precede it).
+- FINAL_REPORT.md written; STATE "Run complete"; tag v1.0.0.

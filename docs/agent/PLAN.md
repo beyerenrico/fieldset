@@ -138,5 +138,5 @@ AC refs point at BUILD_PROMPT sections. Test approach in brackets.
 - [x] M8-T08 Carry-overs: reviewer detail error panel after approving (M7 E2E leftover page), builder v1 vs v2 default decision (QUESTIONS #8), web push only if feasible without new infra (else ADR "deferred"), open QUESTIONS that are tasks — [fixes + ADRs]
 - [x] M8-T11 Integration API tokens (§10 gap found by the docs review): Sanctum personal access tokens with abilities (scopes per resource), Filament UI to create (shown once), list, revoke; ability checks on /api/v1 routes; rate limit per token; audit; docs (api.md) — §10 [feature]
 - [x] M8-T12 Production env template `.env.production.example` (COMPOSE_FILE=compose.yaml, APP_ENV=production, JSON logs, secure cookies, TRUSTED_PROXIES), README quick start split dev/prod, remove no-op AWS_* vars — §11 Operability [docs + config]
-- [ ] M8-T09 Release 1.0: CHANGELOG, release notes, versions, final full gate on `main`, FINAL_REPORT.md, STATE "Run complete" — §16.10
+- [x] M8-T09 Release 1.0: CHANGELOG, release notes, versions, final full gate on `main`, FINAL_REPORT.md, STATE "Run complete" — §16.10
 - [x] M8-T10 Gate M8
