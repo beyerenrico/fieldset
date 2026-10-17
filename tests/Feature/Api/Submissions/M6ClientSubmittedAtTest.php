@@ -74,6 +74,15 @@ it('accepts a client clock up to five minutes ahead and refuses more', function 
     m6Submit($uuid, 1, ['client_submitted_at' => '2026-10-17T10:05:00Z'])->assertOk();
 });
 
+it('refuses implausibly old device times that the database cannot store (M6 review)', function (): void {
+    $uuid = FieldAppApi::readyDraft($this->s, $this->s->worker);
+
+    m6Submit($uuid, 1, ['client_submitted_at' => '0001-01-01T00:00+14:00'])->assertUnprocessable()
+        ->assertJsonPath('error.details.0.pointer', '/client_submitted_at')
+        ->assertJsonPath('error.details.0.code', 'after_or_equal');
+    m6Submit($uuid, 1, ['client_submitted_at' => '2000-01-01T00:00:00Z'])->assertOk();
+});
+
 it('refuses values that are not ISO 8601 date-times with an offset', function (mixed $value): void {
     $uuid = FieldAppApi::readyDraft($this->s, $this->s->worker);
 

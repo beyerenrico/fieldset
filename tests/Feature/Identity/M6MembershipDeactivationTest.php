@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Domain\Identity\Actions\AddMember;
 use App\Domain\Identity\Actions\SetMembershipStatus;
+use App\Domain\Identity\Devices\RevokeDevice;
 use App\Domain\Identity\Enums\MembershipStatus;
 use App\Domain\Identity\Enums\SystemRole;
 use App\Domain\Identity\Models\Device;
@@ -121,4 +122,18 @@ it('answers organization_forbidden for a deactivated membership that still holds
     $this->withHeaders(apiHeaders($this->member, $this->org))->getJson('/api/v1/forms')
         ->assertForbidden()->assertJsonPath('error.code', 'organization_forbidden');
     $this->getJson('/api/v1/me')->assertOk()->assertJsonPath('data.organizations', []);
+});
+
+it('ends every session and the remember-me token when an admin revokes a device (M6 review)', function (): void {
+    // A session re-created from the recaller cookie is not bound to the device, so only ending all
+    // sessions makes the revoked device reach device-status (and wipe) at its next request.
+    [$device] = m6Device($this->member);
+    m6Session($this->member, 'phone-session');
+    $this->member->forceFill(['remember_token' => 'recaller'])->save();
+
+    app(RevokeDevice::class)->handle($device, $this->owner);
+
+    expect(DB::table('sessions')->where('user_id', $this->member->id)->count())->toBe(0)
+        ->and($this->member->fresh()->remember_token)->toBeNull()
+        ->and($device->fresh()->wipe_requested_at)->not->toBeNull();
 });

@@ -21,7 +21,7 @@ Format: question · chosen option · impact · how to reverse.
    and logic editors); the service-report editor HTML is ~4 MB · acceptable for v1, Builder v2 (M7) is
    the planned replacement · if needed earlier: lazy-load block bodies or collapse nested pickers.
 9. Devices are user-level, so an admin of org A with `members.manage` who revokes a member's device
-   also signs that phone out of org B (M2 security review) · accepted: one device = one install of
+   also signs that phone out of org B (M2 security review); since M6 revoking a device also ends all of the user's sessions and the remember-me token (a recaller login is not bound to the device) · accepted: one device = one install of
    the Field App, wipe must clear all local data · an org admin can disrupt a shared user's work in
    another org · scope revocation per org (device × organization) if multi-org field workers matter.
 10. Builder preview iframe is same-origin with `sandbox="allow-scripts allow-same-origin"`, which
