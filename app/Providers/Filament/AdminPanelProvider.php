@@ -20,6 +20,7 @@ use App\Http\Middleware\EndRevokedDeviceSession;
 use App\Http\Middleware\Security\AdminSessionTimeout;
 use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\SetTenantFromFilament;
+use App\Http\Middleware\UseDefaultTenantOutsideTenantRoutes;
 use App\Support\Security\InitialsAvatarProvider;
 use Filament\Actions\Action;
 use Filament\Auth\Http\Controllers\EmailChangeVerificationController as FilamentEmailChangeVerificationController;
@@ -106,7 +107,9 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->authMiddleware([Authenticate::class])
             // Persistent: Livewire updates of admin pages count as activity (ASVS 3.3.2 idle/absolute timeouts).
-            ->authMiddleware([AdminSessionTimeout::class], isPersistent: true);
+            ->authMiddleware([AdminSessionTimeout::class], isPersistent: true)
+            // Pages without an organization in the URL (profile) get the user's default one for their layout.
+            ->authMiddleware([UseDefaultTenantOutsideTenantRoutes::class], isPersistent: true);
 
         if (config('app.allow_registration')) {
             $panel->registration()->tenantRegistration(RegisterOrganization::class);
