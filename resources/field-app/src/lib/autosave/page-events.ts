@@ -1,14 +1,19 @@
-/** Page events that trigger saves: back online, and the page being hidden (tab switch, kill). */
-export function watchPage(onOnline: () => void, onHidden: () => void): () => void {
+/**
+ * Moments when the page may be killed without further notice (§9.2 "a killed tab loses no data"):
+ * `pagehide`, `freeze` (Page Lifecycle, Chromium) and the page becoming hidden.
+ */
+export function watchPage(onLeaving: () => void): () => void {
     const onVisibility = (): void => {
         if (document.visibilityState === 'hidden') {
-            onHidden();
+            onLeaving();
         }
     };
-    window.addEventListener('online', onOnline);
+    window.addEventListener('pagehide', onLeaving);
+    document.addEventListener('freeze', onLeaving);
     document.addEventListener('visibilitychange', onVisibility);
     return () => {
-        window.removeEventListener('online', onOnline);
+        window.removeEventListener('pagehide', onLeaving);
+        document.removeEventListener('freeze', onLeaving);
         document.removeEventListener('visibilitychange', onVisibility);
     };
 }

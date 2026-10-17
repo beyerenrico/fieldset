@@ -1,16 +1,20 @@
 /**
  * One autosave controller, attachment adapter and work tracker per open draft, shared by the fill
- * and review screens. A session outlives its screens until pending edits are written and saved
- * (offline: until a retry went through); logout, wipe and a lost session end it without saving.
+ * and review screens. A session outlives its screens until pending edits are written on this
+ * device. Logout and wipe end it without writing (the store is being cleared); a lost session
+ * (reauth) writes pending edits on this device first, so expiry never loses data (ADR 0035).
  */
+import type { JsonObject } from '@form-schema-app/form-schema-js';
 import type { Submission } from '../api/types.ts';
 import {
     createApiAttachmentAdapter,
     type ApiAttachmentAdapter,
 } from '../attachments/api-adapter.ts';
-import { apiTransport } from '../autosave/api-transport.ts';
 import { AutosaveController } from '../autosave/controller.ts';
+import { createLocalTransport } from '../autosave/local-transport.ts';
 import type { SaveTransport } from '../autosave/types.ts';
+import type { Scope } from '../db/schema.ts';
+import { onAuthLost } from '../session/auth-events.ts';
 import { createWorkTracker, type WorkTracker } from './work-tracker.ts';
 
 export interface DraftSession {
@@ -22,12 +26,16 @@ export interface DraftSession {
 
 export interface DraftSessionInit {
     readonly uuid: string;
+    readonly scope: Scope;
+    readonly formId: number;
     readonly formVersionId: number;
-    /** Server copy to start from (null: the draft does not exist yet). */
+    /** Latest server copy known (null: the draft is not on the server yet). */
     readonly submission: Submission | null;
+    /** Data to start from (the local row's when it is newer than the server copy). */
+    readonly data: JsonObject;
+    /** Local version of an existing row (0: nothing written on this device yet). */
+    readonly localVersion?: number;
     readonly transport?: SaveTransport;
-    readonly onSaved?: (submission: Submission) => void;
-    readonly onAuthLost?: (error: unknown) => void;
 }
 
 interface Entry {
@@ -43,22 +51,29 @@ const entries = new Map<string, Entry>();
 
 function createSession(init: DraftSessionInit): DraftSession {
     const work = createWorkTracker();
+    const transport =
+        init.transport ??
+        createLocalTransport({
+            scope: init.scope,
+            uuid: init.uuid,
+            formId: init.formId,
+            formVersionId: init.formVersionId,
+            server: init.submission,
+        });
     const controller = new AutosaveController({
         uuid: init.uuid,
         formVersionId: init.formVersionId,
-        revision: init.submission?.revision ?? 0,
-        data: init.submission?.data ?? {},
-        transport: init.transport ?? apiTransport,
-        ...(init.onSaved === undefined ? {} : { onSaved: init.onSaved }),
-        ...(init.onAuthLost === undefined ? {} : { onAuthLost: init.onAuthLost }),
+        data: init.data,
+        transport,
+        localVersion: init.localVersion ?? 0,
     });
     const attachments = createApiAttachmentAdapter({
         submissionUuid: init.uuid,
         initial: init.submission?.attachments ?? [],
         // Replaced by the screens with a localized message (setHandlers).
         ensureSaved: async () => {
-            if ((await controller.flush({ ensureCreated: true })).revision === 0) {
-                throw new Error('The draft could not be saved.');
+            if ((await controller.flush({ ensureCreated: true })).state === 'error') {
+                throw new Error('The draft could not be saved on this device.');
             }
         },
         track: work.track,
@@ -83,6 +98,11 @@ export function openDraftSession(init: DraftSessionInit): DraftSession {
     return entry.session;
 }
 
+/** The open session of a draft, if any (a reopened screen keeps its in-memory edits). */
+export function findDraftSession(uuid: string): DraftSession | undefined {
+    return entries.get(uuid)?.session;
+}
+
 async function close(entry: Entry): Promise<void> {
     const { uuid, controller, work, attachments } = entry.session;
     const unused = (): boolean => entries.get(uuid) === entry && entry.users === 0;
@@ -93,10 +113,8 @@ async function close(entry: Entry): Promise<void> {
             if (!unused()) {
                 return;
             }
-            if (!controller.sessionLost) {
-                await controller.flush();
-                await controller.settled();
-            }
+            await controller.flush();
+            await controller.settled();
             if (!unused()) {
                 return;
             }
@@ -138,7 +156,17 @@ export function retainDraftSession(session: DraftSession): () => void {
     };
 }
 
-/** Ends every session without saving (logout, wipe, lost session, next login). */
+/** Ends one draft's session without writing (its local rows were discarded or copied). */
+export function endDraftSession(uuid: string): void {
+    const entry = entries.get(uuid);
+    if (entry !== undefined) {
+        entries.delete(uuid);
+        entry.session.controller.dispose();
+        entry.session.attachments.dispose();
+    }
+}
+
+/** Ends every session without writing (logout, wipe, next login: the store is cleared). */
 export function disposeDraftSessions(): void {
     for (const { session } of entries.values()) {
         session.controller.dispose();
@@ -146,3 +174,28 @@ export function disposeDraftSessions(): void {
     }
     entries.clear();
 }
+
+/**
+ * Lost session (reauth): writes every pending edit on this device, then ends the sessions. The
+ * entries leave the map at once, so a dispose that follows in the same tick finds nothing.
+ */
+export function saveAndDisposeDraftSessions(): Promise<void> {
+    const sessions = [...entries.values()].map((entry) => entry.session);
+    entries.clear();
+    return Promise.all(
+        sessions.map(async ({ controller, attachments }) => {
+            try {
+                await controller.stop();
+            } finally {
+                attachments.dispose();
+            }
+        }),
+    ).then(() => undefined);
+}
+
+// Registered on import, before the app's own listener (which disposes the sessions right away).
+onAuthLost((notice) => {
+    if (notice === 'reauth') {
+        void saveAndDisposeDraftSessions();
+    }
+});

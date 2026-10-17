@@ -2,11 +2,20 @@ import { screen, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as endpoints from '../../src/lib/api/endpoints.ts';
+import { db } from '../../src/lib/db/db.ts';
+import { setCurrentUserId } from '../../src/lib/db/scope.ts';
+import { enqueueAttachmentUpload } from '../../src/lib/outbox/outbox.ts';
 import { setOrganizationId } from '../../src/lib/session/org-store.ts';
 import { createBackend } from '../utils/backend.ts';
 import { makeSubmission } from '../utils/fixtures.ts';
 import { preloadLazyScreens, renderApp } from '../utils/render-app.tsx';
 import { server, setupTestServer } from '../utils/server.ts';
+
+// Uploads are local-first (ADR 0035): the adapter stores the file and queues it in the outbox.
+vi.mock('../../src/lib/outbox/outbox.ts', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('../../src/lib/outbox/outbox.ts')>()),
+    enqueueAttachmentUpload: vi.fn(() => Promise.resolve()),
+}));
 
 vi.mock('@form-schema-app/form-schema-react', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@form-schema-app/form-schema-react')>();
@@ -34,10 +43,13 @@ beforeEach(() => {
     counter = 0;
     Object.assign(URL, { createObjectURL, revokeObjectURL });
     setOrganizationId(1);
+    setCurrentUserId(7);
 });
 afterEach(() => {
     createObjectURL.mockClear();
     revokeObjectURL.mockClear();
+    vi.mocked(enqueueAttachmentUpload).mockClear();
+    setCurrentUserId(null);
 });
 
 function setup(status: 'draft' | 'submitted') {
@@ -78,11 +90,7 @@ describe('attachment previews', () => {
 
     it('shows previews on the fill screen and uses the local blob for fresh uploads', async () => {
         const orgHeaders = setup('draft');
-        const upload = vi
-            .spyOn(endpoints, 'uploadAttachment')
-            .mockImplementation((_uuid, input) =>
-                Promise.resolve({ ...PHOTO, uuid: input.attachmentUuid }),
-            );
+        const upload = vi.spyOn(endpoints, 'uploadAttachment');
         const { user } = renderApp(`/fill/${UUID}`);
         expect(await screen.findByRole('img', { name: 'photo preview' })).toHaveAttribute(
             'src',
@@ -97,6 +105,15 @@ describe('attachment previews', () => {
         });
         expect(createObjectURL).toHaveBeenLastCalledWith(expect.any(Blob));
         expect(orgHeaders).toEqual(['1']);
+        // Stored on the device and queued; the sync engine uploads it later.
+        const [row] = await db.attachments.toArray();
+        expect(row).toMatchObject({ submissionUuid: UUID, state: 'pending', orgId: 1, userId: 7 });
+        expect(enqueueAttachmentUpload).toHaveBeenCalledWith(
+            { orgId: 1, userId: 7 },
+            UUID,
+            row?.uuid,
+        );
+        expect(upload).not.toHaveBeenCalled();
         upload.mockRestore();
     });
 });

@@ -7,7 +7,7 @@ import {
     isValidationError,
     validationDetails,
 } from '../../src/lib/api/errors.ts';
-import { buildUrl, rawRequest, readCookie } from '../../src/lib/api/http.ts';
+import { buildUrl, parseRetryAfter, rawRequest, readCookie } from '../../src/lib/api/http.ts';
 import { setOrganizationId } from '../../src/lib/session/org-store.ts';
 import { fail, ok } from '../utils/backend.ts';
 import { server, setupTestServer } from '../utils/server.ts';
@@ -144,6 +144,49 @@ describe('rawRequest', () => {
         form.append('a', 'b');
         await rawRequest('/g', { method: 'POST', formData: form });
         expect(type).toMatch(/^multipart\/form-data/);
+    });
+});
+
+describe('Retry-After and per-request organization', () => {
+    it('reads Retry-After (seconds or HTTP date) into the ApiError', async () => {
+        server.use(
+            http.get('*/api/v1/slow', () =>
+                HttpResponse.json(
+                    {
+                        success: false,
+                        data: null,
+                        error: { code: 'too_many_requests', message: 'x' },
+                        meta: null,
+                    },
+                    { status: 429, headers: { 'Retry-After': '12' } },
+                ),
+            ),
+        );
+        await expect(rawRequest('/api/v1/slow')).rejects.toMatchObject({
+            status: 429,
+            code: 'too_many_requests',
+            retryAfterMs: 12_000,
+        });
+        const now = Date.parse('2026-10-17T10:00:00Z');
+        expect(parseRetryAfter('Sat, 17 Oct 2026 10:01:00 GMT', now)).toBe(60_000);
+        expect(parseRetryAfter(null)).toBeNull();
+        expect(parseRetryAfter('soon')).toBeNull();
+        expect(parseRetryAfter('-5')).toBe(0);
+    });
+
+    it('uses the organizationId option over the selected organization', async () => {
+        setOrganizationId(1);
+        let org: string | null = null;
+        server.use(
+            http.get('*/api/v1/y', ({ request }) => {
+                org = request.headers.get('X-Organization-Id');
+                return ok(null);
+            }),
+        );
+        await rawRequest('/api/v1/y', { organizationId: 9 });
+        expect(org).toBe('9');
+        await rawRequest('/api/v1/y', { organizationId: 9, tenant: false });
+        expect(org).toBeNull();
     });
 });
 

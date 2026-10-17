@@ -7,7 +7,9 @@ import { Button } from '../../components/ui/button.tsx';
 import { Dialog } from '../../components/ui/dialog.tsx';
 import { useT } from '../../i18n/I18nProvider.tsx';
 import type { DocumentSend } from '../../lib/api/types.ts';
+import { useDraftScope } from '../../hooks/useLocalDrafts.ts';
 import { customerDefaults, type RecipientDraft } from '../../lib/send/recipient.ts';
+import { QueuedSendNotice } from './QueuedSendNotice.tsx';
 import { SendForm } from './SendForm.tsx';
 import { useSendDocument } from './useSendDocument.ts';
 
@@ -42,12 +44,13 @@ function SendResult({ result, ref }: SendResultProps): ReactNode {
 
 export function SendToCustomer({ uuid, definition, data }: SendToCustomerProps): ReactNode {
     const t = useT();
-    const state = useSendDocument(uuid);
+    const state = useSendDocument(uuid, useDraftScope());
     const [open, setOpen] = useState(false);
     const defaults = useMemo(() => customerDefaults(definition, data), [definition, data]);
     /** Changes on every open and close: a late answer only acts on the dialog it was sent from. */
     const dialogRun = useRef(0);
     const resultMessage = useRef<HTMLDivElement>(null);
+    const queuedMessage = useRef<HTMLDivElement>(null);
     const focusResult = useRef(false);
 
     const openDialog = (): void => {
@@ -62,10 +65,12 @@ export function SendToCustomer({ uuid, definition, data }: SendToCustomerProps):
 
     const submit = async (recipient: RecipientDraft): Promise<void> => {
         const run = dialogRun.current;
-        if ((await state.send(recipient)) && dialogRun.current === run) {
-            focusResult.current = true;
-            closeDialog();
-        }
+        await state.send(recipient, () => {
+            if (dialogRun.current === run) {
+                focusResult.current = true;
+                closeDialog();
+            }
+        });
     };
 
     // The page is inert while the dialog is open, so the status region cannot speak then. Once the
@@ -73,7 +78,7 @@ export function SendToCustomer({ uuid, definition, data }: SendToCustomerProps):
     useEffect(() => {
         if (!open && focusResult.current) {
             focusResult.current = false;
-            resultMessage.current?.focus();
+            (resultMessage.current ?? queuedMessage.current)?.focus();
         }
     }, [open]);
 
@@ -87,6 +92,13 @@ export function SendToCustomer({ uuid, definition, data }: SendToCustomerProps):
             <div role="status">
                 {state.result === null ? null : (
                     <SendResult ref={resultMessage} result={state.result} />
+                )}
+                {state.queued === null || state.result !== null ? null : (
+                    <QueuedSendNotice
+                        ref={queuedMessage}
+                        queued={state.queued}
+                        onRemove={() => void state.removeQueued()}
+                    />
                 )}
             </div>
             {/* A send that fails after the dialog was closed must not vanish silently. */}

@@ -7,12 +7,14 @@ import { Button } from '../components/ui/button.tsx';
 import { Card } from '../components/ui/card.tsx';
 import { Label } from '../components/ui/label.tsx';
 import { formsQueryOptions } from '../hooks/queries.ts';
+import { retryUnlessOffline } from '../hooks/queries/submissions.ts';
 import { useFormatters } from '../hooks/useFormatters.ts';
 import { useOrganizationId } from '../hooks/useSession.ts';
 import { useT } from '../i18n/I18nProvider.tsx';
 import { listSubmissions } from '../lib/api/endpoints.ts';
 import { EDITABLE_STATUSES, SUBMISSION_STATUSES, type Submission } from '../lib/api/types.ts';
 import { parseSubmissionsSearch } from '../routes/search.ts';
+import { LocalSubmissions } from './home/LocalSubmissions.tsx';
 
 const route = getRouteApi('/_auth/submissions');
 
@@ -69,6 +71,8 @@ export function SubmissionsScreen(): ReactNode {
     const list = useInfiniteQuery({
         queryKey: ['submissions', org, 'list', status ?? 'all'],
         queryFn: ({ pageParam }) => listSubmissions({ status, page: pageParam }),
+        networkMode: 'always',
+        retry: retryUnlessOffline,
         initialPageParam: 1,
         getNextPageParam: (last) =>
             last.meta.current_page < last.meta.last_page ? last.meta.current_page + 1 : undefined,
@@ -102,6 +106,7 @@ export function SubmissionsScreen(): ReactNode {
                     ))}
                 </select>
             </div>
+            <LocalSubmissions nameOf={nameOf} />
             {list.isPending ? <Loading /> : null}
             {list.isError ? (
                 <ErrorState error={list.error} onRetry={() => void list.refetch()} />

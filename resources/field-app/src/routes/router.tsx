@@ -13,6 +13,7 @@ import { RootLayout } from '../components/RootLayout.tsx';
 import { RouteError } from '../components/RouteError.tsx';
 import { meQueryOptions } from '../hooks/queries.ts';
 import { isApiError, isAuthLost } from '../lib/api/errors.ts';
+import type { Me } from '../lib/api/types.ts';
 import { noticeFor, rememberNotice } from '../lib/session/auth-events.ts';
 import { resolveOrganization } from '../lib/session/organization.ts';
 import { CatalogScreen } from '../screens/CatalogScreen.tsx';
@@ -45,6 +46,20 @@ export interface RouterContext {
     readonly queryClient: QueryClient;
 }
 
+/**
+ * A loaded session (also a cached one while offline) never blocks navigation: a stale one is
+ * revalidated in the background, and a lost session surfaces through the query cache (App.tsx).
+ */
+async function sessionForRoute(queryClient: QueryClient): Promise<Me> {
+    const options = meQueryOptions();
+    const loaded = queryClient.getQueryData(options.queryKey);
+    if (loaded === undefined) {
+        return queryClient.query(options);
+    }
+    queryClient.query(options).catch(() => undefined);
+    return loaded;
+}
+
 const rootRoute = createRootRouteWithContext<RouterContext>()({
     component: RootLayout,
     notFoundComponent: NotFoundScreen,
@@ -62,7 +77,7 @@ const authRoute = createRoute({
     id: '_auth',
     beforeLoad: async ({ context, location }) => {
         try {
-            const me = await context.queryClient.query(meQueryOptions());
+            const me = await sessionForRoute(context.queryClient);
             const organization = resolveOrganization(me);
             if (organization === null && !location.pathname.endsWith('/org')) {
                 throw redirect({ to: '/org' });

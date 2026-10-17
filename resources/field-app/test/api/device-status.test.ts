@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { apiRequest } from '../../src/lib/api/client.ts';
 import { fetchDeviceStatus } from '../../src/lib/api/device-status.ts';
 import { DeviceWipedError, ReauthRequiredError } from '../../src/lib/api/errors.ts';
@@ -7,9 +7,16 @@ import { getDeviceRecord, saveDeviceRecord } from '../../src/lib/device/credenti
 import { onLocalDataCleared } from '../../src/lib/session/local-data.ts';
 import { getOrganizationId, setOrganizationId } from '../../src/lib/session/org-store.ts';
 import { getMeta, setMeta } from '../../src/lib/db/db.ts';
+import { hardReload } from '../../src/lib/session/reload.ts';
 import { readJson, writeJson } from '../../src/lib/storage/local.ts';
 import { fail, ok } from '../utils/backend.ts';
+import { stubBrowserCaches } from '../utils/c-rows.ts';
 import { server, setupTestServer } from '../utils/server.ts';
+
+vi.mock('../../src/lib/session/reload.ts', () => ({
+    LOGIN_PATH: '/app/login',
+    hardReload: vi.fn(),
+}));
 
 setupTestServer();
 
@@ -77,8 +84,13 @@ describe('device-status recovery', () => {
             http.get('*/api/v1/forms', () => fail(401, 'unauthenticated')),
             http.post('*/api/v1/auth/device-status', () => ok({ status: 'wipe' })),
         );
+        const browser = stubBrowserCaches();
         await expect(apiRequest('/api/v1/forms')).rejects.toBeInstanceOf(DeviceWipedError);
         stop();
+        browser.restore();
+        expect(browser.deleted).toEqual(['workbox-precache', 'runtime']);
+        expect(browser.unregister).toHaveBeenCalledTimes(1);
+        expect(hardReload).toHaveBeenCalledWith('/app/login?notice=wiped');
         expect(await getMeta('seq')).toBeUndefined();
         expect(await getDeviceRecord()).toBeUndefined();
         expect(getOrganizationId()).toBeNull();

@@ -1,14 +1,17 @@
-/** Draft sessions: one controller per draft, shared by screens, closed after pending work. */
+/** Draft sessions: one controller per draft, shared by screens, closed after pending local writes. */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { NetworkError, ReauthRequiredError } from '../../src/lib/api/errors.ts';
-import type { Submission } from '../../src/lib/api/types.ts';
+import { DeviceWipedError, ReauthRequiredError } from '../../src/lib/api/errors.ts';
 import type { SaveRequest, SaveTransport } from '../../src/lib/autosave/types.ts';
 import {
     disposeDraftSessions,
+    endDraftSession,
+    findDraftSession,
     openDraftSession,
     retainDraftSession,
 } from '../../src/lib/drafts/draft-session.ts';
 import { createWorkTracker } from '../../src/lib/drafts/work-tracker.ts';
+import { reportAuthError, resetAuthNotice } from '../../src/lib/session/auth-events.ts';
+import { SCOPE } from '../utils/a-store.ts';
 import { makeSubmission } from '../utils/fixtures.ts';
 
 function deferred<T>() {
@@ -23,20 +26,18 @@ function deferred<T>() {
 
 const tick = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
-function memoryTransport(revision = 1) {
+function memoryTransport() {
     const requests: SaveRequest[] = [];
-    let current = revision;
+    let version = 0;
     let failing = false;
     const transport: SaveTransport = {
         save: (request) => {
             requests.push(request);
             if (failing) {
-                return Promise.reject(new NetworkError('down'));
+                return Promise.reject(new Error('IndexedDB refused the write'));
             }
-            current += 1;
-            return Promise.resolve(
-                makeSubmission({ uuid: request.uuid, data: request.data, revision: current }),
-            );
+            version += 1;
+            return Promise.resolve({ localVersion: version });
         },
     };
     return {
@@ -48,18 +49,21 @@ function memoryTransport(revision = 1) {
     };
 }
 
-function open(transport: SaveTransport, extra: { onSaved?: (s: Submission) => void } = {}) {
+function open(transport: SaveTransport) {
     return openDraftSession({
         uuid: 'draft-1',
+        scope: SCOPE,
+        formId: 3,
         formVersionId: 7,
         submission: makeSubmission({ uuid: 'draft-1', revision: 1, data: { a: 0 } }),
+        data: { a: 0 },
         transport,
-        ...extra,
     });
 }
 
 afterEach(() => {
     disposeDraftSessions();
+    resetAuthNotice();
     vi.useRealTimers();
 });
 
@@ -92,11 +96,11 @@ describe('work tracker', () => {
 });
 
 describe('draft sessions', () => {
-    it('shares one session per draft and closes it after the last screen saved', async () => {
-        const saves: Submission[] = [];
+    it('shares one session per draft and closes it after the last screen wrote locally', async () => {
         const { requests, transport } = memoryTransport();
-        const session = open(transport, { onSaved: (saved) => saves.push(saved) });
+        const session = open(transport);
         expect(open(transport)).toBe(session);
+        expect(findDraftSession('draft-1')).toBe(session);
         const releaseFill = retainDraftSession(session);
         session.controller.update({ a: 1 });
         const releaseReview = retainDraftSession(session);
@@ -108,13 +112,10 @@ describe('draft sessions', () => {
         await vi.waitFor(() => {
             expect(open(transport)).not.toBe(session);
         });
-        expect(requests).toEqual([
-            { uuid: 'draft-1', formVersionId: 7, data: { a: 1 }, revision: 1 },
-        ]);
-        expect(saves.map((saved) => saved.revision)).toEqual([2]);
+        expect(requests).toEqual([{ uuid: 'draft-1', formVersionId: 7, data: { a: 1 } }]);
     });
 
-    it('waits for pending uploads and saves their result with the same revision chain', async () => {
+    it('waits for pending uploads and writes their result', async () => {
         const { requests, transport } = memoryTransport();
         const session = open(transport);
         const release = retainDraftSession(session);
@@ -130,7 +131,7 @@ describe('draft sessions', () => {
             expect(open(transport)).not.toBe(session);
         });
         expect(requests).toEqual([
-            { uuid: 'draft-1', formVersionId: 7, data: { a: 0, photo: 'att-1' }, revision: 1 },
+            { uuid: 'draft-1', formVersionId: 7, data: { a: 0, photo: 'att-1' } },
         ]);
     });
 
@@ -147,7 +148,7 @@ describe('draft sessions', () => {
         again();
     });
 
-    it('stays open while offline and closes once the retry saved', async () => {
+    it('stays open while the local write fails and closes once the retry wrote', async () => {
         vi.useFakeTimers({ shouldAdvanceTime: true });
         const { requests, transport, setFailing } = memoryTransport();
         setFailing(true);
@@ -155,37 +156,58 @@ describe('draft sessions', () => {
         const release = retainDraftSession(session);
         session.controller.update({ a: 2 });
         release();
-        await vi.advanceTimersByTimeAsync(100);
-        expect(session.controller.getSnapshot().state).toBe('offline');
+        await vi.advanceTimersByTimeAsync(400);
+        expect(session.controller.getSnapshot().state).toBe('error');
         expect(open(transport)).toBe(session);
         setFailing(false);
-        await vi.advanceTimersByTimeAsync(6000);
-        expect(requests.at(-1)).toMatchObject({ data: { a: 2 }, revision: 1 });
+        await vi.advanceTimersByTimeAsync(3000);
+        expect(requests.at(-1)).toMatchObject({ data: { a: 2 } });
         await vi.waitFor(() => {
             expect(open(transport)).not.toBe(session);
         });
     });
 
-    it('closes without saving after a lost session or on dispose', async () => {
-        const save = vi.fn(() => Promise.reject(new ReauthRequiredError('gone')));
-        const transport: SaveTransport = { save };
+    it('ends without writing on dispose (logout, wipe) and on endDraftSession', async () => {
+        const { requests, transport } = memoryTransport();
         const session = open(transport);
-        const release = retainDraftSession(session);
-        session.controller.update({ a: 1 });
-        await session.controller.flush();
-        release();
-        await vi.waitFor(() => {
-            expect(open(transport)).not.toBe(session);
-        });
-        expect(save).toHaveBeenCalledOnce();
-
-        const next = open(transport);
-        retainDraftSession(next);
-        next.controller.update({ a: 2 });
+        retainDraftSession(session);
+        session.controller.update({ a: 2 });
         disposeDraftSessions();
         await tick();
-        expect(retainDraftSession(next)).toBeTypeOf('function');
-        expect(save).toHaveBeenCalledOnce();
-        expect(open(transport)).not.toBe(next);
+        expect(retainDraftSession(session)).toBeTypeOf('function');
+        expect(open(transport)).not.toBe(session);
+        const next = open(transport);
+        next.controller.update({ a: 3 });
+        endDraftSession('draft-1');
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        expect(findDraftSession('draft-1')).toBeUndefined();
+        expect(requests).toEqual([]);
+    });
+
+    it('writes pending edits on this device when the session expires (reauth), then ends', async () => {
+        const { requests, transport } = memoryTransport();
+        const session = open(transport);
+        retainDraftSession(session);
+        session.controller.update({ a: 'typed just before expiry' });
+        reportAuthError(new ReauthRequiredError('Please sign in again.'));
+        // The app's own listener disposes right after: nothing is left for it.
+        disposeDraftSessions();
+        await vi.waitFor(() => {
+            expect(requests).toEqual([
+                { uuid: 'draft-1', formVersionId: 7, data: { a: 'typed just before expiry' } },
+            ]);
+        });
+        expect(findDraftSession('draft-1')).toBeUndefined();
+    });
+
+    it('writes nothing after a wipe (the store was cleared)', async () => {
+        const { requests, transport } = memoryTransport();
+        const session = open(transport);
+        retainDraftSession(session);
+        session.controller.update({ a: 1 });
+        reportAuthError(new DeviceWipedError('wiped'));
+        disposeDraftSessions();
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        expect(requests).toEqual([]);
     });
 });

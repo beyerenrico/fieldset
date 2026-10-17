@@ -1,12 +1,18 @@
+/**
+ * Fill screen, local-first (ADR 0035): every edit is saved on this device, the sync engine creates
+ * and updates the server draft; conflicts and blocking answers come from the draft's row.
+ */
 import { screen, waitFor, within } from '@testing-library/react';
+import { http, HttpResponse } from 'msw';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import * as endpoints from '../../src/lib/api/endpoints.ts';
+import { db } from '../../src/lib/db/db.ts';
 import { setOrganizationId } from '../../src/lib/session/org-store.ts';
+import { fakeUploads, createSyncBackend } from '../utils/a-backend.ts';
+import { FAKE_TIMERS, setupSyncScope } from '../utils/a-store.ts';
 import { createBackend, fail } from '../utils/backend.ts';
 import { makeSubmission } from '../utils/fixtures.ts';
 import { preloadLazyScreens, renderApp } from '../utils/render-app.tsx';
 import { server, setupTestServer } from '../utils/server.ts';
-import { http } from 'msw';
 
 vi.mock('@form-schema-app/form-schema-react', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@form-schema-app/form-schema-react')>();
@@ -16,15 +22,17 @@ vi.mock('@form-schema-app/form-schema-react', async (importOriginal) => {
 
 setupTestServer();
 preloadLazyScreens();
+setupSyncScope();
 
 const UUID = '0192f1c4-0000-7000-8000-0000000000aa';
 
 beforeEach(() => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.useFakeTimers(FAKE_TIMERS);
     setOrganizationId(1);
 });
 afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
 });
 
 function setup(submission?: Parameters<typeof makeSubmission>[0]) {
@@ -39,20 +47,32 @@ function setup(submission?: Parameters<typeof makeSubmission>[0]) {
 const saveState = () => document.querySelector<HTMLElement>('[data-state]');
 
 describe('fill screen', () => {
-    it('creates the draft on the first autosave and updates with the revision', async () => {
+    it('saves on this device at once and creates the server draft in the background', async () => {
         const backend = setup();
         const { user } = renderApp(`/fill/${UUID}?formId=3&versionId=7`);
         expect(await screen.findByRole('heading', { name: 'Service report' })).toBeInTheDocument();
         expect(saveState()).toHaveTextContent('No changes yet');
         await user.click(screen.getByRole('button', { name: 'fake-edit' }));
         expect(saveState()).toHaveTextContent('Unsaved changes');
-        await vi.advanceTimersByTimeAsync(1600);
+        await vi.advanceTimersByTimeAsync(400);
         await waitFor(() => {
-            expect(saveState()).toHaveTextContent('Saved');
+            expect(saveState()).toHaveTextContent('Saved on this device');
+        });
+        expect(await db.drafts.get(UUID)).toMatchObject({
+            data: { customer: 'Edited' },
+            localVersion: 1,
+            serverRevision: 0,
+        });
+        await vi.advanceTimersByTimeAsync(1200);
+        await waitFor(() => {
+            expect(backend.state.puts).toHaveLength(1);
         });
         expect(backend.state.puts).toEqual([
             { uuid: UUID, body: { form_version_id: 7, data: { customer: 'Edited' } } },
         ]);
+        await waitFor(() => {
+            expect(screen.getByTestId('sync-state')).toHaveTextContent('Synced');
+        });
         expect(screen.getByTestId('renderer')).toHaveAttribute('data-ui-locale', 'en');
     });
 
@@ -69,19 +89,22 @@ describe('fill screen', () => {
         const panel = await screen.findByRole('alertdialog', {
             name: 'Someone else changed this draft',
         });
+        expect(saveState()).toHaveTextContent('Conflict');
         const row = within(panel).getByRole('row', { name: /Customer/ });
         expect(row).toHaveTextContent('Edited');
         expect(row).toHaveTextContent('Server');
         await user.click(within(panel).getByRole('button', { name: 'Keep mine' }));
         await waitFor(() => {
-            expect(saveState()).toHaveTextContent('Saved');
+            expect(backend.state.puts.at(-1)?.body).toEqual({
+                form_version_id: 7,
+                data: { customer: 'Edited' },
+                revision: 2,
+            });
         });
-        expect(backend.state.puts.at(-1)?.body).toEqual({
-            form_version_id: 7,
-            data: { customer: 'Edited' },
-            revision: 2,
+        await waitFor(() => {
+            expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
         });
-        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+        expect(saveState()).toHaveTextContent('Saved on this device');
     });
 
     it('adopts the server version on request', async () => {
@@ -95,19 +118,30 @@ describe('fill screen', () => {
         await user.click(screen.getByRole('button', { name: 'fake-edit' }));
         await vi.advanceTimersByTimeAsync(1600);
         await user.click(await screen.findByRole('button', { name: 'Use server version' }));
-        expect(screen.getByTestId('renderer-data')).toHaveTextContent('{"customer":"Server"}');
-        expect(saveState()).toHaveTextContent('Saved');
+        await waitFor(() => {
+            expect(screen.getByTestId('renderer-data')).toHaveTextContent('{"customer":"Server"}');
+        });
+        expect(saveState()).toHaveTextContent('Saved on this device');
+        expect(await db.drafts.get(UUID)).toMatchObject({ sync: 'synced', serverRevision: 4 });
+        await vi.advanceTimersByTimeAsync(2000);
+        expect(backend.state.puts).toHaveLength(1);
     });
 
-    it('locks the form when the server says not_editable', async () => {
+    it('blocks the form when the server says not_editable and offers the ways out', async () => {
         setup({ revision: 1 });
         server.use(http.put('*/api/v1/submissions/:uuid', () => fail(409, 'not_editable')));
         const { user } = renderApp(`/fill/${UUID}`);
         await screen.findByRole('heading', { name: 'Service report' });
         await user.click(screen.getByRole('button', { name: 'fake-edit' }));
         await vi.advanceTimersByTimeAsync(1600);
-        expect(await screen.findByRole('link', { name: 'Open submission' })).toBeInTheDocument();
+        const panel = await screen.findByRole('alert', { name: 'Not synced' });
+        expect(panel).toHaveTextContent('can no longer be edited on the server');
+        expect(within(panel).getByRole('link', { name: 'Open submission' })).toBeInTheDocument();
+        expect(
+            within(panel).getByRole('button', { name: 'Save as a new draft' }),
+        ).toBeInTheDocument();
         expect(screen.getByTestId('renderer')).toHaveAttribute('data-readonly', 'true');
+        expect(screen.getByRole('button', { name: 'Review' })).toBeDisabled();
     });
 
     it('shows a locked notice for submissions that cannot be edited', async () => {
@@ -124,40 +158,40 @@ describe('fill screen', () => {
         expect(await screen.findByText(/This draft does not exist/)).toBeInTheDocument();
     });
 
-    it('forces the draft PUT before an attachment upload', async () => {
+    it('queues an attachment behind the draft: create PUT first, then the upload', async () => {
         const backend = setup();
-        const order: string[] = [];
-        const upload = vi
-            .spyOn(endpoints, 'uploadAttachment')
-            .mockImplementation((_uuid, input) => {
-                order.push(`upload:${String(backend.state.puts.length)}`);
-                return Promise.resolve({
-                    uuid: input.attachmentUuid,
-                    kind: 'photo',
-                    element_key: 'photos',
-                    mime: 'image/jpeg',
-                    size: 1,
-                    url: '/x',
-                });
-            });
+        const uploads = createSyncBackend({ submissions: backend.state.submissions });
+        fakeUploads(uploads.state);
         const { user } = renderApp(`/fill/${UUID}?formId=3&versionId=7`);
         await screen.findByRole('heading', { name: 'Service report' });
         await user.click(screen.getByRole('button', { name: 'fake-upload' }));
         await waitFor(() => {
-            expect(upload).toHaveBeenCalled();
+            expect(screen.getByTestId('renderer-data').textContent).toContain('photos');
         });
-        expect(order).toEqual(['upload:1']);
-        expect(backend.state.puts[0]?.body).toEqual({ form_version_id: 7, data: {} });
-        upload.mockRestore();
+        expect(backend.state.puts).toHaveLength(0);
+        expect(uploads.state.log).toHaveLength(0);
+        await vi.advanceTimersByTimeAsync(1600);
+        await waitFor(() => {
+            expect(uploads.state.log).toHaveLength(1);
+        });
+        expect(backend.state.puts).toHaveLength(1);
+        expect(backend.state.puts[0]?.body).toMatchObject({ form_version_id: 7 });
+        expect(backend.state.puts[0]?.body).not.toHaveProperty('revision');
+        const photo = (
+            JSON.parse(screen.getByTestId('renderer-data').textContent) as { photos: string }
+        ).photos;
+        expect(uploads.state.log[0]?.body).toMatchObject({ attachment_uuid: photo });
     });
 
-    it('stays on the form when the draft cannot be saved before review', async () => {
+    it('goes to review offline: the copy on this device is enough', async () => {
         setup();
-        server.use(http.put('*/api/v1/submissions/:uuid', () => fail(500, 'boom')));
+        server.use(http.put('*/api/v1/submissions/:uuid', () => HttpResponse.error()));
         const { user, history } = renderApp(`/fill/${UUID}?formId=3&versionId=7`);
         await screen.findByRole('heading', { name: 'Service report' });
+        await user.click(screen.getByRole('button', { name: 'fake-edit' }));
         await user.click(screen.getByRole('button', { name: 'Review' }));
-        expect(await screen.findByText(/could not be saved/)).toBeInTheDocument();
-        expect(history.location.pathname).toBe(`/app/fill/${UUID}`);
+        await screen.findByRole('heading', { name: 'Review and sign' });
+        expect(history.location.pathname).toBe(`/app/fill/${UUID}/review`);
+        expect(screen.getByTestId('renderer-data')).toHaveTextContent('{"customer":"Edited"}');
     });
 });

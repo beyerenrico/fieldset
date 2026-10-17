@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReviewDecision } from '../../src/lib/api/types.ts';
 import { setOrganizationId } from '../../src/lib/session/org-store.ts';
 import { writeJson } from '../../src/lib/storage/local.ts';
+import { setupSyncScope } from '../utils/a-store.ts';
 import { createBackend } from '../utils/backend.ts';
 import { makeSubmission } from '../utils/fixtures.ts';
 import { preloadLazyScreens, renderApp } from '../utils/render-app.tsx';
@@ -17,6 +18,7 @@ vi.mock('@form-schema-app/form-schema-react', async (importOriginal) => {
 
 setupTestServer();
 preloadLazyScreens();
+setupSyncScope();
 
 const UUID = '0192f1c4-0000-7000-8000-0000000000cc';
 const REVIEW: ReviewDecision = {
@@ -102,7 +104,11 @@ describe('changes requested', () => {
         expect(screen.getByText('Number SR-2026-00007', { selector: 'p' })).toBeInTheDocument();
         expect(history.location.pathname).toBe(`/app/submissions/${UUID}`);
         expect(backend.state.submits).toHaveLength(1);
-        expect(backend.state.submits[0]?.body).toEqual({ revision: 5 });
+        // The persisted submit body also carries the device time (ADR 0035).
+        expect(backend.state.submits[0]?.body).toEqual({
+            revision: 5,
+            client_submitted_at: expect.stringMatching(/^\d{4}-\d\d-\d\dT/) as unknown,
+        });
         expect(backend.state.submits[0]?.key).toMatch(/^[0-9a-f-]{36}$/);
         await waitFor(() => {
             expect(screen.queryByRole('region', { name: 'Changes requested' })).toBeNull();

@@ -16,7 +16,10 @@ import {
 import { UUID_V7, newId } from '../../src/lib/ids.ts';
 import { clearLocalData } from '../../src/lib/session/local-data.ts';
 import { clearAppKeys, readJson, removeKey, writeJson } from '../../src/lib/storage/local.ts';
-import { clearIdempotencyKey, getIdempotencyKey } from '../../src/lib/submit/idempotency.ts';
+import {
+    clearTaskIdempotencyKey,
+    getTaskIdempotencyKey,
+} from '../../src/lib/submit/idempotency.ts';
 import { createBackend } from '../utils/backend.ts';
 import { server, setupTestServer } from '../utils/server.ts';
 
@@ -46,13 +49,16 @@ describe('ids and idempotency keys', () => {
         expect(newId()).toMatch(UUID_V7);
     });
 
-    it('keeps one key per (submission, revision)', () => {
-        const first = getIdempotencyKey('u1', 2);
-        expect(getIdempotencyKey('u1', 2)).toBe(first);
-        expect(getIdempotencyKey('u1', 3)).not.toBe(first);
+    // Submit keys now travel with their request in the outbox (ADR 0035, agent A); the
+    // sessionStorage keys that remain are the review-task keys.
+    it('keeps one key per (task, decision)', () => {
+        const first = getTaskIdempotencyKey(1, 'approve');
+        expect(getTaskIdempotencyKey(1, 'approve')).toBe(first);
+        expect(getTaskIdempotencyKey(1, 'reject:x')).not.toBe(first);
         expect(first).toMatch(/^[A-Za-z0-9._:-]{8,128}$/);
-        clearIdempotencyKey('u1', 2);
-        expect(getIdempotencyKey('u1', 2)).not.toBe(first);
+        const second = getTaskIdempotencyKey(1, 'reject:x');
+        clearTaskIdempotencyKey(1);
+        expect(getTaskIdempotencyKey(1, 'reject:x')).not.toBe(second);
     });
 });
 

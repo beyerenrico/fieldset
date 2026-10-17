@@ -18,7 +18,6 @@ import {
     twoFactorChallenge,
     uploadAttachment,
 } from '../../src/lib/api/endpoints.ts';
-import { apiTransport } from '../../src/lib/autosave/api-transport.ts';
 import { makeDocument, makeSubmission } from '../utils/fixtures.ts';
 import { createBackend, fail, ok } from '../utils/backend.ts';
 import { server, setupTestServer } from '../utils/server.ts';
@@ -82,27 +81,27 @@ describe('endpoints', () => {
         ]);
     });
 
-    it('forwards keepalive for the page-hide save (transport → putSubmission)', async () => {
-        const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
-            Promise.resolve(
-                Response.json({
-                    success: true,
-                    data: { submission: makeSubmission({ revision: 2 }) },
-                    error: null,
-                    meta: null,
-                }),
-            ),
+    it('sends the organization of the outbox row instead of the selected one', async () => {
+        setOrganizationId(1);
+        const orgs: (string | null)[] = [];
+        server.use(
+            http.put('*/api/v1/submissions/:uuid', ({ request }) => {
+                orgs.push(request.headers.get('X-Organization-Id'));
+                return ok({ submission: makeSubmission() });
+            }),
+            http.post('*/api/v1/submissions/:uuid/submit', ({ request }) => {
+                orgs.push(request.headers.get('X-Organization-Id'));
+                return ok({ submission: makeSubmission({ status: 'submitted' }) });
+            }),
         );
-        await apiTransport.save({
-            uuid: 'u1',
-            formVersionId: 7,
-            data: { a: 1 },
-            revision: 1,
-            keepalive: true,
-        });
-        await apiTransport.save({ uuid: 'u1', formVersionId: 7, data: { a: 1 }, revision: 2 });
-        expect(spy.mock.calls.map((call) => call[1]?.keepalive)).toEqual([true, undefined]);
-        spy.mockRestore();
+        await putSubmission(
+            'u1',
+            { formVersionId: 7, data: {}, revision: 0 },
+            { organizationId: 2 },
+        );
+        await putSubmission('u1', { formVersionId: 7, data: {}, revision: 1 });
+        await submitSubmission('u1', { revision: 2 }, 'key-12345678', { organizationId: 3 });
+        expect(orgs).toEqual(['2', '1', '3']);
     });
 
     it('uploads attachments as multipart with the client uuid', async () => {
@@ -133,19 +132,26 @@ describe('endpoints', () => {
         spy.mockRestore();
     });
 
-    it('submits with the Idempotency-Key header and reports replays', async () => {
+    it('submits the persisted body with the Idempotency-Key header and reports replays', async () => {
         let key: string | null = null;
+        let body: unknown = null;
         server.use(
-            http.post('*/api/v1/submissions/:uuid/submit', ({ request }) => {
+            http.post('*/api/v1/submissions/:uuid/submit', async ({ request }) => {
                 key = request.headers.get('Idempotency-Key');
+                body = await request.json();
                 return ok(
                     { submission: makeSubmission({ status: 'submitted' }) },
                     { headers: { 'Idempotent-Replayed': 'true' } },
                 );
             }),
         );
-        const result = await submitSubmission('u1', 3, 'key-12345678');
+        const result = await submitSubmission(
+            'u1',
+            { revision: 3, client_submitted_at: '2026-10-17T09:41:00.000Z' },
+            'key-12345678',
+        );
         expect(key).toBe('key-12345678');
+        expect(body).toEqual({ revision: 3, client_submitted_at: '2026-10-17T09:41:00.000Z' });
         expect(result.replayed).toBe(true);
         expect(result.submission.status).toBe('submitted');
     });

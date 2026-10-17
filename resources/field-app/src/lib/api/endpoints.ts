@@ -101,10 +101,23 @@ export interface DraftInput {
     readonly revision: number;
 }
 
+/** Per-request options of the write endpoints (the outbox sends each row's organization). */
+export interface WriteOptions {
+    readonly organizationId?: number;
+    readonly keepalive?: boolean;
+}
+
+function writeOptions(options: WriteOptions): Pick<RequestOptions, 'organizationId' | 'keepalive'> {
+    return {
+        ...(options.organizationId === undefined ? {} : { organizationId: options.organizationId }),
+        ...(options.keepalive === true ? { keepalive: true } : {}),
+    };
+}
+
 export async function putSubmission(
     uuid: string,
     input: DraftInput,
-    options: { readonly keepalive?: boolean } = {},
+    options: WriteOptions = {},
 ): Promise<Submission> {
     const body: Record<string, unknown> = {
         form_version_id: input.formVersionId,
@@ -116,7 +129,7 @@ export async function putSubmission(
     const response = await apiRequest<{ submission: Submission }>(paths.submission(uuid), {
         method: 'PUT',
         body,
-        ...(options.keepalive === true ? { keepalive: true } : {}),
+        ...writeOptions(options),
     });
     return response.data.submission;
 }
@@ -132,6 +145,7 @@ export interface AttachmentInput {
 export async function uploadAttachment(
     uuid: string,
     input: AttachmentInput,
+    options: WriteOptions = {},
 ): Promise<AttachmentRecord> {
     const formData = new FormData();
     formData.append('file', input.file, input.fileName);
@@ -141,6 +155,7 @@ export async function uploadAttachment(
     const response = await apiRequest<{ attachment: AttachmentRecord }>(paths.attachments(uuid), {
         method: 'POST',
         formData,
+        ...writeOptions(options),
     });
     return response.data.attachment;
 }
@@ -159,15 +174,24 @@ export interface SubmitResult {
     readonly replayed: boolean;
 }
 
+/** Body of `POST /submissions/{uuid}/submit`; persisted with its key so a retry sends the same bytes. */
+export interface SubmitBody {
+    readonly revision: number;
+    /** Device time of the submit (ISO 8601); number, period and `$today` stay on server time. */
+    readonly client_submitted_at?: string;
+}
+
 export async function submitSubmission(
     uuid: string,
-    revision: number,
+    body: SubmitBody,
     idempotencyKey: string,
+    options: WriteOptions = {},
 ): Promise<SubmitResult> {
     const response = await apiRequest<{ submission: Submission }>(paths.submit(uuid), {
         method: 'POST',
-        body: { revision },
+        body,
         headers: { 'Idempotency-Key': idempotencyKey },
+        ...writeOptions(options),
     });
     return {
         submission: response.data.submission,
@@ -210,11 +234,13 @@ export async function sendSubmissionDocument(
     uuid: string,
     input: SendInput,
     idempotencyKey: string,
+    options: WriteOptions = {},
 ): Promise<DocumentSend> {
     const response = await apiRequest<{ send: DocumentSend }>(paths.send(uuid), {
         method: 'POST',
         body: input,
         headers: { 'Idempotency-Key': idempotencyKey },
+        ...writeOptions(options),
     });
     return response.data.send;
 }

@@ -9,10 +9,13 @@ import { Button } from '../components/ui/button.tsx';
 import { Card } from '../components/ui/card.tsx';
 import { draftsQueryOptions, formsQueryOptions } from '../hooks/queries.ts';
 import { useFormatters } from '../hooks/useFormatters.ts';
+import { useDraftScope, useLocalDrafts } from '../hooks/useLocalDrafts.ts';
 import { useOrganizationId, useSession } from '../hooks/useSession.ts';
 import { useShortcuts, useStartForm } from '../hooks/useShortcuts.ts';
 import { useT } from '../i18n/I18nProvider.tsx';
 import type { FormSummary, Submission } from '../lib/api/types.ts';
+import type { DraftSync } from '../lib/db/schema.ts';
+import { mergeDrafts } from './home/merge.ts';
 import { OpenTasks } from './home/OpenTasks.tsx';
 
 function FormShortcuts({
@@ -65,13 +68,14 @@ function ChangesRequested({ review }: { readonly review: Submission['review'] })
     );
 }
 
-function DraftItem({
-    draft,
-    formName,
-}: {
+interface DraftItemProps {
     readonly draft: Submission;
     readonly formName: string;
-}): ReactNode {
+    readonly sync: DraftSync | null;
+    readonly updatedAt: number;
+}
+
+function DraftItem({ draft, formName, sync, updatedAt }: DraftItemProps): ReactNode {
     const t = useT();
     const { dateTime } = useFormatters();
     return (
@@ -85,10 +89,15 @@ function DraftItem({
                     <span className="flex flex-col">
                         <span className="font-semibold">{formName}</span>
                         <span className="text-sm text-muted-foreground">
-                            {t('home.updated', { date: dateTime(draft.updated_at) })}
+                            {t('home.updated', {
+                                date: dateTime(new Date(updatedAt).toISOString()),
+                            })}
                         </span>
                     </span>
-                    {draft.status === 'draft' ? null : <StatusBadge status={draft.status} />}
+                    <span className="flex flex-wrap justify-end gap-1">
+                        {sync === null || sync === 'synced' ? null : <StatusBadge sync={sync} />}
+                        {draft.status === 'draft' ? null : <StatusBadge status={draft.status} />}
+                    </span>
                 </span>
                 {draft.status === 'changes_requested' ? (
                     <ChangesRequested review={draft.review} />
@@ -102,26 +111,40 @@ function Drafts(): ReactNode {
     const t = useT();
     const org = useOrganizationId();
     const drafts = useQuery(draftsQueryOptions(org));
+    const local = useLocalDrafts(useDraftScope());
     const forms = useQuery(formsQueryOptions(org));
-    if (drafts.isPending) {
+    const items = mergeDrafts(drafts.data, local);
+    if (local === undefined || (drafts.isPending && items.length === 0)) {
         return <Loading />;
     }
-    if (drafts.isError) {
+    if (drafts.isError && items.length === 0) {
         return <ErrorState error={drafts.error} onRetry={() => void drafts.refetch()} />;
     }
-    if (drafts.data.length === 0) {
+    if (items.length === 0) {
         return <p className="text-muted-foreground">{t('home.noDrafts')}</p>;
     }
     const nameOf = (id: number): string =>
         forms.data?.find((form) => form.id === id)?.name ?? t('submissions.formFallback', { id });
     return (
-        <ul className="flex flex-col gap-2">
-            {drafts.data.map((draft) => (
-                <li key={draft.uuid}>
-                    <DraftItem draft={draft} formName={nameOf(draft.form_id)} />
-                </li>
-            ))}
-        </ul>
+        <>
+            {drafts.isError ? (
+                <p role="status" className="text-sm text-muted-foreground">
+                    {t('sync.home.offline')}
+                </p>
+            ) : null}
+            <ul className="flex flex-col gap-2">
+                {items.map((item) => (
+                    <li key={item.submission.uuid}>
+                        <DraftItem
+                            draft={item.submission}
+                            formName={nameOf(item.submission.form_id)}
+                            sync={item.sync}
+                            updatedAt={item.updatedAt}
+                        />
+                    </li>
+                ))}
+            </ul>
+        </>
     );
 }
 

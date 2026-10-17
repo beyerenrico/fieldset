@@ -1,41 +1,40 @@
 /**
- * Debounced draft autosave (§9.2): never two saves in flight, the latest data wins, revisions are
- * tracked, conflicts/locks stop saving until resolved, network failures retry with backoff. After
- * `stop()`/`dispose()` or a lost session nothing is saved, scheduled or retried any more.
+ * Debounced local-first draft autosave (§9.2, ADR 0035): never two writes in flight, the latest
+ * data wins, a failed write retries with backoff. Writes go to this device (the transport); the
+ * sync engine sends them later. Pending edits are written when the page is hidden, frozen or
+ * left. After `stop()`/`dispose()` nothing is written, scheduled or retried any more.
  */
 import type { JsonObject } from '@form-schema-app/form-schema-js';
-import { ApiError, NetworkError, isAuthLost, isConflict } from '../api/errors.ts';
-import type { Submission } from '../api/types.ts';
-import { sameJson } from './same-json.ts';
-import { serverCopy } from './server-copy.ts';
 import { watchPage } from './page-events.ts';
 import { Timer } from './timer.ts';
 import type {
     AutosaveOptions,
     AutosaveSnapshot,
     FlushOptions,
+    SaveReceipt,
     SaveRequest,
-    SaveState,
 } from './types.ts';
 
-const DEBOUNCE_MS = 1500;
-const RETRY_MS = 5000;
-const MAX_RETRY_MS = 60000;
-const FAILURES: readonly SaveState[] = ['offline', 'error', 'conflict', 'locked'];
+const DEBOUNCE_MS = 300;
+const MAX_WAIT_MS = 2000;
+const RETRY_MS = 1000;
+const MAX_RETRY_MS = 30_000;
 
 export class AutosaveController {
     private snapshot: AutosaveSnapshot;
     private current: JsonObject;
     private dirty = false;
+    /** Write the row although nothing changed (ensureCreated before the first edit). */
+    private ensure = false;
+    /** Time of the oldest edit not written yet (maxWait). */
+    private pendingSince: number | null = null;
     private inflight: Promise<void> | null = null;
     private readonly debounce = new Timer();
-    private unwatch: (() => void) | null = null;
     private readonly retry = new Timer();
     private retryDelay: number;
+    private unwatch: (() => void) | null = null;
     /** Set by stop()/dispose(): edits, timers and retries are ignored from then on. */
     private stopped = false;
-    /** The last save lost the session (reauth/wipe): a final save would only fail again. */
-    private authLost = false;
     private readonly listeners = new Set<() => void>();
     private readonly options: AutosaveOptions;
 
@@ -45,9 +44,7 @@ export class AutosaveController {
         this.retryDelay = options.retryMs ?? RETRY_MS;
         this.snapshot = {
             state: 'idle',
-            revision: options.revision,
-            submission: null,
-            conflict: null,
+            localVersion: options.localVersion ?? 0,
             error: null,
             savedAt: null,
         };
@@ -67,22 +64,17 @@ export class AutosaveController {
         return this.current;
     }
 
-    /** True after a save failed because the session is gone (until a later save succeeds). */
-    get sessionLost(): boolean {
-        return this.authLost;
-    }
-
     update(data: JsonObject): void {
         if (this.stopped) {
             return;
         }
         this.current = data;
         this.dirty = true;
-        if (this.blocked()) {
-            this.notify();
-            return;
-        }
-        this.schedule(this.options.debounceMs ?? DEBOUNCE_MS);
+        const now = Date.now();
+        this.pendingSince ??= now;
+        const debounce = this.options.debounceMs ?? DEBOUNCE_MS;
+        const maxWait = this.options.maxWaitMs ?? MAX_WAIT_MS;
+        this.schedule(Math.max(0, Math.min(debounce, maxWait - (now - this.pendingSince))));
         if (this.snapshot.state === 'saving') {
             this.notify();
         } else {
@@ -90,75 +82,58 @@ export class AutosaveController {
         }
     }
 
-    /** Saves now and waits (no-op after stop/dispose). */
+    /** Writes now and waits (no-op after stop/dispose). */
     async flush(options: FlushOptions = {}): Promise<AutosaveSnapshot> {
         return this.stopped ? this.snapshot : this.flushNow(options);
     }
 
-    /** "Keep mine" re-saves the local data on top of the server revision; "server" adopts it. */
-    resolveConflict(choice: 'mine' | 'server'): JsonObject {
-        const server = this.snapshot.conflict;
-        if (server === null || this.stopped) {
-            return this.current;
+    /**
+     * Replaces the data without writing it (the caller writes the row, e.g. "Use server version").
+     * Pending edits are dropped; a write in flight lands first.
+     */
+    async replaceData(data: JsonObject): Promise<void> {
+        this.debounce.clear();
+        this.retry.clear();
+        this.dirty = false;
+        this.pendingSince = null;
+        while (this.inflight !== null) {
+            await this.inflight;
         }
-        if (choice === 'server') {
-            this.current = server.data;
-            this.adopt(server);
-            return server.data;
-        }
-        this.dirty = true;
-        this.set({ state: 'pending', revision: server.revision, conflict: null, error: null });
-        void this.run(false);
-        return this.current;
-    }
-
-    /** A conflict detected elsewhere (e.g. on submit); returns false when the copy was adopted. */
-    reportConflict(server: Submission): boolean {
-        if (sameJson(server.data, this.current)) {
-            this.adopt(server);
-            return false;
-        }
-        this.set({ state: 'conflict', conflict: server });
-        return true;
-    }
-
-    /** Adopts a newer server copy (e.g. after submit). */
-    acceptServer(submission: Submission): void {
-        this.set({ revision: submission.revision, submission });
+        this.dirty = false;
+        this.current = data;
+        this.set({ state: 'saved', error: null });
     }
 
     start(): void {
         if (!this.stopped) {
-            this.unwatch ??= watchPage(this.onOnline, () => void this.flush({ keepalive: true }));
+            this.unwatch ??= watchPage(() => void this.flush());
         }
     }
 
-    /** One final save (skipped after a lost session); afterwards nothing is saved any more. */
+    /** One final write; afterwards nothing is written any more. */
     async stop(): Promise<void> {
         if (this.stopped) {
             return;
         }
         this.stopped = true;
         this.detach();
-        if (!this.authLost) {
-            await this.flushNow({});
-        }
+        await this.flushNow({});
         this.detach();
     }
 
-    /** Stops without saving (logout, wipe, lost session). */
+    /** Stops without writing (logout, wipe: the store is being cleared). */
     dispose(): void {
         this.stopped = true;
         this.detach();
         this.notify();
     }
 
-    /** True while a save is in flight or scheduled (debounce or retry). */
+    /** True while a write is in flight or scheduled (debounce or retry). */
     busy(): boolean {
         return this.inflight !== null || this.debounce.active || this.retry.active;
     }
 
-    /** Resolves once no save is in flight or scheduled any more. */
+    /** Resolves once no write is in flight or scheduled any more. */
     settled(): Promise<void> {
         if (!this.busy()) {
             return Promise.resolve();
@@ -173,16 +148,9 @@ export class AutosaveController {
         });
     }
 
-    private readonly onOnline = (): void => {
-        if (this.snapshot.state === 'offline') {
-            this.retry.clear();
-            void this.run(false);
-        }
-    };
-
     private async flushNow(options: FlushOptions): Promise<AutosaveSnapshot> {
-        if (options.ensureCreated === true && this.snapshot.revision === 0) {
-            this.dirty = true;
+        if (options.ensureCreated === true && this.snapshot.localVersion === 0) {
+            this.ensure = true;
         }
         for (;;) {
             this.debounce.clear();
@@ -190,130 +158,80 @@ export class AutosaveController {
                 await this.inflight;
                 continue;
             }
-            if (!this.canSave()) {
+            if (!this.dirty && !this.ensure) {
                 break;
             }
-            await this.run(options.keepalive === true);
-            if (this.failed()) {
+            await this.run();
+            if (this.snapshot.state === 'error') {
                 break;
             }
         }
         return this.snapshot;
     }
 
-    private run(keepalive: boolean): Promise<void> {
+    private run(): Promise<void> {
         if (this.inflight !== null) {
             return this.inflight;
         }
-        if (!this.canSave()) {
+        const ensureOnly = !this.dirty && this.ensure;
+        if (!this.dirty && !ensureOnly) {
             this.notify();
             return Promise.resolve();
         }
         const data = this.current;
         this.dirty = false;
+        this.ensure = false;
+        this.pendingSince = null;
         this.retry.clear();
         const { uuid, formVersionId, transport } = this.options;
         const request: SaveRequest = {
             uuid,
             formVersionId,
             data,
-            revision: this.snapshot.revision,
-            ...(keepalive ? { keepalive: true } : {}),
+            ...(ensureOnly ? { ensureOnly: true } : {}),
         };
         this.inflight = transport.save(request).then(
-            (submission) => {
+            (receipt) => {
                 this.inflight = null;
-                this.saved(submission);
+                this.saved(receipt);
             },
             (error: unknown) => {
                 this.inflight = null;
-                this.fail(error, data);
+                this.fail(error, ensureOnly);
             },
         );
         this.set({ state: 'saving' });
         return this.inflight;
     }
 
-    private saved(submission: Submission): void {
-        this.authLost = false;
+    private saved(receipt: SaveReceipt): void {
         this.retryDelay = this.options.retryMs ?? RETRY_MS;
-        this.options.onSaved?.(submission);
-        this.continueIfDirty();
+        if (this.dirty && !this.debounce.active) {
+            this.schedule(0); // edits arrived while writing
+        }
         this.set({
             state: this.dirty ? 'pending' : 'saved',
-            revision: submission.revision,
-            submission,
+            localVersion: receipt.localVersion,
             error: null,
             savedAt: Date.now(),
         });
     }
 
-    private fail(error: unknown, sent: JsonObject): void {
-        const server = serverCopy(error);
-        if (
-            server !== null &&
-            (sameJson(server.data, sent) || sameJson(server.data, this.current))
-        ) {
-            // Our earlier write committed but its response was lost: same data, newer revision.
-            this.adopt(server);
-            return;
-        }
-        this.dirty = true;
-        if (error instanceof NetworkError) {
-            this.scheduleRetry();
-            this.set({ state: 'offline', error });
-        } else if (server !== null) {
-            this.set({ state: 'conflict', conflict: server, error });
-        } else if (isConflict(error, 'not_editable')) {
-            this.set({ state: 'locked', error });
-        } else if (isAuthLost(error)) {
-            this.authLost = true;
-            this.set({ state: 'error', error });
-            this.options.onAuthLost?.(error);
+    /** IndexedDB refused the write (quota, private mode, …): keep the data and retry. */
+    private fail(error: unknown, ensureOnly: boolean): void {
+        if (ensureOnly) {
+            this.ensure = true;
         } else {
-            if (error instanceof ApiError && error.status >= 500) {
-                this.scheduleRetry();
-            }
-            this.set({ state: 'error', error });
+            this.dirty = true;
+            this.pendingSince ??= Date.now();
         }
-    }
-
-    private adopt(server: Submission): void {
-        this.dirty = !sameJson(server.data, this.current);
-        this.retryDelay = this.options.retryMs ?? RETRY_MS;
-        this.options.onSaved?.(server);
-        this.continueIfDirty();
-        this.set({
-            state: this.dirty ? 'pending' : 'saved',
-            revision: server.revision,
-            submission: server,
-            conflict: null,
-            error: null,
-            savedAt: Date.now(),
-        });
-    }
-
-    private continueIfDirty(): void {
-        if (this.dirty && !this.blocked() && !this.debounce.active) {
-            this.schedule(0);
-        }
-    }
-
-    private canSave(): boolean {
-        return this.dirty && !this.blocked();
-    }
-
-    private blocked(): boolean {
-        return this.snapshot.state === 'conflict' || this.snapshot.state === 'locked';
-    }
-
-    private failed(): boolean {
-        return FAILURES.includes(this.snapshot.state);
+        this.scheduleRetry();
+        this.set({ state: 'error', error });
     }
 
     private schedule(ms: number): void {
         if (!this.stopped) {
-            this.debounce.start(ms, () => void this.run(false));
+            this.debounce.start(ms, () => void this.run());
         }
     }
 
@@ -323,10 +241,10 @@ export class AutosaveController {
         }
         const delay = this.retryDelay;
         this.retryDelay = Math.min(delay * 2, MAX_RETRY_MS);
-        this.retry.start(delay, () => void this.run(false));
+        this.retry.start(delay, () => void this.run());
     }
 
-    /** Removes the event listeners and every timer. */
+    /** Removes the page listeners and every timer. */
     private detach(): void {
         this.unwatch?.();
         this.unwatch = null;

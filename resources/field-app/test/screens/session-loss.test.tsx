@@ -6,10 +6,12 @@ import { ReauthRequiredError } from '../../src/lib/api/errors.ts';
 import { saveDeviceRecord } from '../../src/lib/device/credentials.ts';
 import { reportAuthError } from '../../src/lib/session/auth-events.ts';
 import { setOrganizationId } from '../../src/lib/session/org-store.ts';
+import { hardReload } from '../../src/lib/session/reload.ts';
 import { createBackend, fail, ok } from '../utils/backend.ts';
 import { makeSubmission } from '../utils/fixtures.ts';
 import { preloadLazyScreens, renderApp } from '../utils/render-app.tsx';
 import { server, setupTestServer } from '../utils/server.ts';
+import { FAKE_TIMERS } from '../utils/a-store.ts';
 
 vi.mock('@form-schema-app/form-schema-react', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@form-schema-app/form-schema-react')>();
@@ -17,13 +19,19 @@ vi.mock('@form-schema-app/form-schema-react', async (importOriginal) => {
     return { ...actual, FormRenderer: FakeRenderer };
 });
 
+vi.mock('../../src/lib/session/reload.ts', () => ({
+    LOGIN_PATH: '/app/login',
+    hardReload: vi.fn(),
+}));
+
 setupTestServer();
 preloadLazyScreens();
 
 const UUID = '0192f1c4-0000-7000-8000-0000000000f2';
 
 beforeEach(() => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
+    // setImmediate stays real: fake-indexeddb needs it, or Dexie commits too early (a-store.ts).
+    vi.useFakeTimers(FAKE_TIMERS);
     setOrganizationId(1);
 });
 afterEach(() => {
@@ -52,6 +60,7 @@ describe('lost sessions', () => {
         await vi.advanceTimersByTimeAsync(10_000);
         expect(screen.getByRole('status')).toHaveTextContent('local data was removed');
         expect(history.location.search).toContain('notice=wiped');
+        expect(hardReload).toHaveBeenCalledWith('/app/login?notice=wiped');
         expect(puts).toBe(1);
     });
 

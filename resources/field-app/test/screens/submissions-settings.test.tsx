@@ -1,10 +1,14 @@
 import { screen, within } from '@testing-library/react';
 import { http } from 'msw';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getDeviceRecord, saveDeviceRecord } from '../../src/lib/device/credentials.ts';
 import { getOrganizationId, setOrganizationId } from '../../src/lib/session/org-store.ts';
-import { getMeta, setMeta } from '../../src/lib/db/db.ts';
+import { hardReload } from '../../src/lib/session/reload.ts';
+import { db, getMeta, setMeta } from '../../src/lib/db/db.ts';
+import { runSync } from '../../src/lib/sync/engine.ts';
+import { onSyncRequested, type SyncReason } from '../../src/lib/sync/triggers.ts';
 import { createBackend, ok } from '../utils/backend.ts';
+import { seedUnsynced, stubBrowserCaches, stubStorageManager } from '../utils/c-rows.ts';
 import { ORG_A, ORG_B, makeMe, makeSubmission } from '../utils/fixtures.ts';
 import { preloadLazyScreens, renderApp } from '../utils/render-app.tsx';
 import { server, setupTestServer } from '../utils/server.ts';
@@ -15,11 +19,34 @@ vi.mock('@form-schema-app/form-schema-react', async (importOriginal) => {
     return { ...actual, FormRenderer: FakeRenderer };
 });
 
+vi.mock('../../src/lib/session/reload.ts', () => ({
+    LOGIN_PATH: '/app/login',
+    hardReload: vi.fn(),
+}));
+
+// The engine is agent A's: these tests drive "Sync now" through a stubbed run.
+vi.mock('../../src/lib/sync/engine.ts', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('../../src/lib/sync/engine.ts')>()),
+    startSyncEngine: () => () => undefined,
+    runSync: vi.fn(),
+}));
+
 setupTestServer();
 preloadLazyScreens();
 
+let restoreBrowser: (() => void)[] = [];
+
 beforeEach(() => {
     setOrganizationId(1);
+    vi.mocked(hardReload).mockClear();
+    vi.mocked(runSync).mockReset();
+});
+
+afterEach(() => {
+    for (const restore of restoreBrowser) {
+        restore();
+    }
+    restoreBrowser = [];
 });
 
 describe('my submissions', () => {
@@ -112,6 +139,8 @@ describe('settings', () => {
     it('logs out after confirmation and clears local data (keeps the device id)', async () => {
         const backend = createBackend();
         server.use(...backend.handlers);
+        const browser = stubBrowserCaches();
+        restoreBrowser.push(browser.restore);
         await saveDeviceRecord({ deviceUuid: 'dev', secret: 'sec' });
         await setMeta('seq', 7); // stands in for unsynced local data
         const { user, history } = renderApp('/settings');
@@ -128,5 +157,122 @@ describe('settings', () => {
         expect(backend.state.loggedIn).toBe(false);
         expect(await getMeta('seq')).toBeUndefined();
         expect(await getDeviceRecord()).toEqual({ deviceUuid: 'dev', secret: null });
+        expect(browser.deleted).toEqual(['workbox-precache', 'runtime']);
+        expect(browser.unregister).toHaveBeenCalledTimes(1);
+        expect(hardReload).toHaveBeenCalledWith('/app/login?notice=logout');
+    });
+
+    it('warns about unsynced items before logout and offers "Sync now"', async () => {
+        server.use(...createBackend().handlers);
+        await seedUnsynced();
+        vi.mocked(runSync).mockResolvedValue({
+            ran: true,
+            sent: 0,
+            blocked: 0,
+            remaining: 2,
+            state: 'error',
+        });
+        const { user } = renderApp('/settings');
+        await screen.findByText('Changes waiting to be sent');
+        await user.click(screen.getByRole('button', { name: 'Sign out' }));
+        const dialog = screen.getByRole('alertdialog', { name: 'Sign out' });
+        expect(
+            await within(dialog).findByText('Not synced yet: 3. Signing out deletes these items.'),
+        ).toBeInTheDocument();
+        await user.click(within(dialog).getByRole('button', { name: 'Sync now' }));
+        expect(runSync).toHaveBeenCalledWith({ manual: true });
+        expect(await within(dialog).findByRole('status')).toHaveTextContent(
+            'Sync failed. Your data stays on this device',
+        );
+        await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+        expect(await db.drafts.count()).toBe(1);
+        expect(hardReload).not.toHaveBeenCalled();
+    });
+
+    it('shows the last sync, unsynced counts and storage, and syncs on request', async () => {
+        server.use(...createBackend().handlers);
+        const storage = stubStorageManager({ persisted: true });
+        restoreBrowser.push(storage.restore);
+        await seedUnsynced();
+        const lastSuccessAt = Date.parse('2026-10-17T08:30:00Z');
+        await setMeta('sync', {
+            state: 'idle',
+            lastRunAt: lastSuccessAt,
+            lastSuccessAt,
+            lastError: null,
+        });
+        const reasons: SyncReason[] = [];
+        const stop = onSyncRequested((reason) => reasons.push(reason));
+        vi.mocked(runSync).mockResolvedValue({
+            ran: true,
+            sent: 3,
+            blocked: 0,
+            remaining: 0,
+            state: 'idle',
+        });
+        const { user } = renderApp('/settings');
+        expect(await screen.findByText(/^Last synced: /)).toBeInTheDocument();
+        const label = await screen.findByText('Drafts not synced');
+        const counts = within(label.closest('dl') as HTMLElement);
+        expect(counts.getAllByRole('definition').map((cell) => cell.textContent)).toEqual([
+            '1',
+            '1',
+            '1',
+            '0',
+        ]);
+        expect(await screen.findByText('12.5 MB of 2 GB used')).toBeInTheDocument();
+        expect(
+            screen.getByText('The browser keeps this data (persistent storage).'),
+        ).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Sync now' }));
+        expect(await screen.findByText('Everything is synced.')).toHaveAttribute('role', 'status');
+        expect(runSync).toHaveBeenCalledWith({ manual: true });
+        expect(reasons).toContain('manual');
+        stop();
+    });
+
+    it.each([
+        [
+            { ran: false, sent: 0, blocked: 0, remaining: 0, state: 'running' },
+            'A sync is already running.',
+        ],
+        [{ ran: true, sent: 0, blocked: 0, remaining: 1, state: 'offline' }, 'You are offline.'],
+        [
+            { ran: true, sent: 0, blocked: 0, remaining: 1, state: 'reauth' },
+            'Sign in again to sync.',
+        ],
+        [
+            { ran: true, sent: 1, blocked: 2, remaining: 2, state: 'idle' },
+            'before they can sync: 2',
+        ],
+        [
+            { ran: true, sent: 1, blocked: 0, remaining: 4, state: 'idle' },
+            'Still waiting to sync: 4',
+        ],
+    ] as const)('explains the outcome of "Sync now" (%#)', async (result, text) => {
+        server.use(...createBackend().handlers);
+        vi.mocked(runSync).mockResolvedValue(result);
+        const { user } = renderApp('/settings');
+        await user.click(await screen.findByRole('button', { name: 'Sync now' }));
+        expect(
+            await screen.findByText(
+                (content, element) =>
+                    element?.getAttribute('role') === 'status' && content.includes(text),
+            ),
+        ).toBeInTheDocument();
+    });
+
+    it('says when nothing was synced yet and storage details are unknown', async () => {
+        server.use(...createBackend().handlers);
+        vi.mocked(runSync).mockRejectedValue(new Error('boom'));
+        const { user } = renderApp('/settings');
+        expect(await screen.findByText('Not synced from this device yet.')).toBeInTheDocument();
+        expect(await screen.findByText('Everything on this device is synced.')).toBeInTheDocument();
+        expect(
+            await screen.findByText('This browser does not report the storage usage.'),
+        ).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'Sync now' }));
+        expect(await screen.findByText(/^Sync failed\./)).toBeInTheDocument();
     });
 });

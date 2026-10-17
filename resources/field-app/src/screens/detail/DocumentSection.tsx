@@ -9,14 +9,22 @@ import { SendToCustomer } from './SendToCustomer.tsx';
 export interface DocumentSectionProps {
     readonly submission: Submission;
     readonly definition: FormDefinition | undefined;
+    /** The submit waits in the outbox: a send can be queued behind it when the form allows it. */
+    readonly queuedSubmit?: boolean;
 }
 
-export function DocumentSection({ submission, definition }: DocumentSectionProps): ReactNode {
+export function DocumentSection({
+    submission,
+    definition,
+    queuedSubmit = false,
+}: DocumentSectionProps): ReactNode {
     const t = useT();
     const headingId = useId();
     // Drafts have no rendition yet; the PDF is rendered after submit.
-    const hasDocument = submission.status !== 'draft';
-    if (!hasDocument && !submission.can_send) {
+    const hasDocument = submission.status !== 'draft' && !queuedSubmit;
+    const canSend =
+        submission.can_send || (queuedSubmit && definition?.settings?.sendToCustomer === true);
+    if (!hasDocument && !canSend) {
         return null;
     }
     return (
@@ -28,7 +36,7 @@ export function DocumentSection({ submission, definition }: DocumentSectionProps
                 {t('document.title')}
             </h2>
             {hasDocument ? <DocumentStatus uuid={submission.uuid} /> : null}
-            {submission.can_send ? (
+            {canSend ? (
                 <SendToCustomer
                     uuid={submission.uuid}
                     definition={definition}

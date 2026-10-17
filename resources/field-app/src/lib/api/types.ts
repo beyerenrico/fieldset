@@ -114,6 +114,8 @@ export interface Submission {
     readonly data: JsonObject;
     readonly attachments: readonly AttachmentRecord[];
     readonly submitted_at: string | null;
+    /** Device time of the latest submit (M6; null when the client sent none). */
+    readonly client_submitted_at?: string | null;
     readonly created_at: string;
     readonly updated_at: string;
     readonly can_edit: boolean;

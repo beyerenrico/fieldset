@@ -12,12 +12,21 @@ export class ApiError extends Error {
     readonly status: number;
     readonly code: string;
     readonly details: unknown;
+    /** `Retry-After` of a 429/503 answer in ms (null when absent or unreadable). */
+    readonly retryAfterMs: number | null;
 
-    constructor(status: number, code: string, message: string, details: unknown = null) {
+    constructor(
+        status: number,
+        code: string,
+        message: string,
+        details: unknown = null,
+        retryAfterMs: number | null = null,
+    ) {
         super(message);
         this.status = status;
         this.code = code;
         this.details = details;
+        this.retryAfterMs = retryAfterMs;
     }
 }
 

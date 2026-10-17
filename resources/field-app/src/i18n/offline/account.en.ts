@@ -1,4 +1,41 @@
 /** M6 account texts (owned by agent C, ADR 0035). Keys must match account.de.ts. */
 export const accountEn = {
     'account.storage': 'Storage on this device',
+    'account.usage': '{used} of {quota} used',
+    'account.usageUnknown': 'This browser does not report the storage usage.',
+    'account.persisted': 'The browser keeps this data (persistent storage).',
+    'account.notPersisted': 'The browser may delete this data when storage runs low.',
+    'account.persistUnknown': 'This browser does not say whether it keeps the data.',
+    'account.syncTitle': 'Sync',
+    'account.lastSync': 'Last synced: {time}',
+    'account.neverSynced': 'Not synced from this device yet.',
+    'account.allSynced': 'Everything on this device is synced.',
+    'account.countDrafts': 'Drafts not synced',
+    'account.countOps': 'Changes waiting to be sent',
+    'account.countAttachments': 'Photos and files not uploaded',
+    'account.countBlocked': 'Need your decision',
+    'account.syncNow': 'Sync now',
+    'account.syncing': 'Syncing…',
+    'account.syncDone': 'Everything is synced.',
+    'account.syncRemaining': 'Still waiting to sync: {count}',
+    'account.syncBlocked': 'Need your decision before they can sync: {count}',
+    'account.syncOffline':
+        'You are offline. Your data stays on this device and syncs when you are online.',
+    'account.syncReauth': 'Your session has ended. Sign in again to sync.',
+    'account.syncBusy': 'A sync is already running.',
+    'account.syncError': 'Sync failed. Your data stays on this device – try again later.',
+    'account.reauthHint':
+        'Your session has ended. Sign in again to sync – your data stays on this device.',
+    'account.signInAgain': 'Sign in again',
+    'account.badgePending': 'Waiting to sync: {count}',
+    'account.badgeBlocked': 'Need your decision: {count}',
+    'account.badgeReauth': 'Sign in again to sync',
+    'account.logoutUnsynced': 'Not synced yet: {count}. Signing out deletes these items.',
+    'account.foreignTitle': 'Data of another user',
+    'account.foreignText':
+        'This device still holds unsynced items of another user ({count}). They stay hidden and are never sent with your account.',
+    'account.foreignKeep': 'Keep them',
+    'account.foreignDelete': 'Delete them',
+    'account.noOrganizations':
+        'Your account does not belong to an active organization. Please contact your administrator.',
 } as const;

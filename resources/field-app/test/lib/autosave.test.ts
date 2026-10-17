@@ -1,13 +1,11 @@
+/** AutosaveController (local-first, ADR 0035): debounce, maxWait, one write in flight, retries. */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, NetworkError, ReauthRequiredError } from '../../src/lib/api/errors.ts';
-import type { Submission } from '../../src/lib/api/types.ts';
 import { AutosaveController } from '../../src/lib/autosave/controller.ts';
-import type { SaveRequest, SaveTransport } from '../../src/lib/autosave/types.ts';
-import { makeSubmission } from '../utils/fixtures.ts';
+import type { SaveReceipt, SaveRequest, SaveTransport } from '../../src/lib/autosave/types.ts';
 
 interface Deferred {
     request: SaveRequest;
-    resolve: (submission: Submission) => void;
+    resolve: (receipt: SaveReceipt) => void;
     reject: (error: unknown) => void;
 }
 
@@ -15,28 +13,32 @@ function manualTransport() {
     const calls: Deferred[] = [];
     const transport: SaveTransport = {
         save: (request) =>
-            new Promise<Submission>((resolve, reject) => {
+            new Promise<SaveReceipt>((resolve, reject) => {
                 calls.push({ request, resolve, reject });
             }),
     };
     return { calls, transport };
 }
 
-const saved = (request: SaveRequest, revision: number): Submission =>
-    makeSubmission({ uuid: request.uuid, data: request.data, revision });
+/** Writes succeed at once and count up like the DraftRow's localVersion. */
+function countingTransport() {
+    let version = 0;
+    const save = vi.fn<(request: SaveRequest) => Promise<SaveReceipt>>(() => {
+        version += 1;
+        return Promise.resolve({ localVersion: version });
+    });
+    return { save, transport: { save } satisfies SaveTransport };
+}
 
 function controller(
     transport: SaveTransport,
-    revision = 0,
     extra: Partial<ConstructorParameters<typeof AutosaveController>[0]> = {},
 ) {
     return new AutosaveController({
         uuid: 'u1',
         formVersionId: 7,
-        revision,
         data: {},
         transport,
-        debounceMs: 1500,
         retryMs: 1000,
         ...extra,
     });
@@ -49,175 +51,146 @@ afterEach(() => {
     vi.useRealTimers();
 });
 
-describe('AutosaveController', () => {
-    it('debounces edits into one save and tracks the revision', async () => {
+describe('AutosaveController (local writes)', () => {
+    it('debounces edits by 300 ms into one write; "saved" means saved on this device', async () => {
         const { calls, transport } = manualTransport();
         const autosave = controller(transport);
         autosave.update({ a: 1 });
         autosave.update({ a: 2 });
         expect(autosave.getSnapshot().state).toBe('pending');
-        await vi.advanceTimersByTimeAsync(1499);
+        await vi.advanceTimersByTimeAsync(299);
         expect(calls).toHaveLength(0);
         await vi.advanceTimersByTimeAsync(1);
         expect(calls).toHaveLength(1);
-        expect(calls[0]?.request).toEqual({
-            uuid: 'u1',
-            formVersionId: 7,
-            data: { a: 2 },
-            revision: 0,
-        });
+        expect(calls[0]?.request).toEqual({ uuid: 'u1', formVersionId: 7, data: { a: 2 } });
         expect(autosave.getSnapshot().state).toBe('saving');
-        calls[0]?.resolve(saved(calls[0].request, 1));
+        calls[0]?.resolve({ localVersion: 1 });
         await vi.runOnlyPendingTimersAsync();
-        expect(autosave.getSnapshot()).toMatchObject({ state: 'saved', revision: 1 });
+        expect(autosave.getSnapshot()).toMatchObject({ state: 'saved', localVersion: 1 });
         expect(autosave.getSnapshot().savedAt).not.toBeNull();
     });
 
-    it('never runs two saves at once and sends the latest data afterwards', async () => {
+    it('writes at the latest 2 s after the first edit while edits keep coming', async () => {
+        const { save, transport } = countingTransport();
+        const autosave = controller(transport);
+        for (let step = 0; step < 9; step++) {
+            autosave.update({ step });
+            await vi.advanceTimersByTimeAsync(250);
+        }
+        expect(save).toHaveBeenCalledTimes(1);
+        expect(save.mock.calls[0]?.[0].data).toEqual({ step: 7 });
+        await vi.advanceTimersByTimeAsync(300);
+        expect(save).toHaveBeenCalledTimes(2);
+        expect(save.mock.calls[1]?.[0].data).toEqual({ step: 8 });
+    });
+
+    it('never runs two writes at once and writes the latest data afterwards', async () => {
         const { calls, transport } = manualTransport();
-        const autosave = controller(transport, 1);
+        const autosave = controller(transport);
         autosave.update({ a: 1 });
-        await vi.advanceTimersByTimeAsync(1500);
+        await vi.advanceTimersByTimeAsync(300);
         autosave.update({ a: 2 });
         autosave.update({ a: 3 });
         await vi.advanceTimersByTimeAsync(5000);
         expect(calls).toHaveLength(1);
-        calls[0]?.resolve(saved(calls[0].request, 2));
+        calls[0]?.resolve({ localVersion: 1 });
         await vi.advanceTimersByTimeAsync(10);
         expect(calls).toHaveLength(2);
-        expect(calls[1]?.request).toMatchObject({ data: { a: 3 }, revision: 2 });
-        calls[1]?.resolve(saved(calls[1].request, 3));
+        expect(calls[1]?.request.data).toEqual({ a: 3 });
+        calls[1]?.resolve({ localVersion: 2 });
         await vi.advanceTimersByTimeAsync(10);
-        expect(autosave.getSnapshot()).toMatchObject({ state: 'saved', revision: 3 });
+        expect(autosave.getSnapshot()).toMatchObject({ state: 'saved', localVersion: 2 });
     });
 
-    it('flush saves immediately; ensureCreated forces the first PUT', async () => {
-        const transport: SaveTransport = {
-            save: (request) => Promise.resolve(saved(request, request.revision + 1)),
-        };
+    it('flush writes at once; ensureCreated writes the row once before the first edit', async () => {
+        const { save, transport } = countingTransport();
         const autosave = controller(transport);
         const snapshot = await autosave.flush({ ensureCreated: true });
-        expect(snapshot).toMatchObject({ state: 'saved', revision: 1 });
+        expect(snapshot).toMatchObject({ state: 'saved', localVersion: 1 });
+        expect(save.mock.calls[0]?.[0]).toMatchObject({ data: {}, ensureOnly: true });
+        expect((await autosave.flush({ ensureCreated: true })).localVersion).toBe(1);
         autosave.update({ b: true });
-        expect((await autosave.flush()).revision).toBe(2);
-        expect((await autosave.flush()).revision).toBe(2);
+        expect((await autosave.flush()).localVersion).toBe(2);
+        expect((await autosave.flush()).localVersion).toBe(2);
+        expect(save).toHaveBeenCalledTimes(2);
         expect(autosave.data).toEqual({ b: true });
     });
 
-    it('goes offline on network errors and retries with backoff and on online', async () => {
-        let fail = true;
-        const save = vi.fn((request: SaveRequest) =>
-            fail ? Promise.reject(new NetworkError('down')) : Promise.resolve(saved(request, 1)),
+    it('does not force a row for a draft already on this device', async () => {
+        const { save, transport } = countingTransport();
+        const autosave = controller(transport, { localVersion: 4 });
+        await autosave.flush({ ensureCreated: true });
+        expect(save).not.toHaveBeenCalled();
+    });
+
+    it('keeps the data after a failed local write and retries with backoff', async () => {
+        let failing = true;
+        const save = vi.fn(() =>
+            failing
+                ? Promise.reject(new Error('QuotaExceededError'))
+                : Promise.resolve({ localVersion: 1 }),
         );
         const autosave = controller({ save });
-        autosave.start();
         autosave.update({ a: 1 });
-        await vi.advanceTimersByTimeAsync(1500);
-        expect(autosave.getSnapshot().state).toBe('offline');
+        await vi.advanceTimersByTimeAsync(300);
+        expect(autosave.getSnapshot().state).toBe('error');
         await vi.advanceTimersByTimeAsync(1000);
         expect(save).toHaveBeenCalledTimes(2);
-        fail = false;
-        window.dispatchEvent(new Event('online'));
-        await vi.advanceTimersByTimeAsync(0);
-        expect(autosave.getSnapshot()).toMatchObject({ state: 'saved', revision: 1 });
-        void autosave.stop();
-    });
-
-    it('enters conflict on revision_conflict and resolves with "keep mine"', async () => {
-        const server = makeSubmission({ revision: 5, data: { a: 'server' } });
-        const save = vi
-            .fn<(request: SaveRequest) => Promise<Submission>>()
-            .mockRejectedValueOnce(
-                new ApiError(409, 'revision_conflict', 'conflict', { submission: server }),
-            )
-            .mockImplementation((request) => Promise.resolve(saved(request, request.revision + 1)));
-        const autosave = controller({ save }, 3);
-        autosave.update({ a: 'mine' });
-        await vi.advanceTimersByTimeAsync(1500);
-        expect(autosave.getSnapshot()).toMatchObject({ state: 'conflict', conflict: server });
-        autosave.update({ a: 'mine again' });
-        await vi.advanceTimersByTimeAsync(5000);
-        expect(save).toHaveBeenCalledTimes(1);
-        const data = autosave.resolveConflict('mine');
-        expect(data).toEqual({ a: 'mine again' });
-        await vi.advanceTimersByTimeAsync(0);
-        expect(save).toHaveBeenLastCalledWith({
-            uuid: 'u1',
-            formVersionId: 7,
-            data: { a: 'mine again' },
-            revision: 5,
-        });
+        await vi.advanceTimersByTimeAsync(1999);
+        expect(save).toHaveBeenCalledTimes(2);
+        failing = false;
+        await vi.advanceTimersByTimeAsync(1);
+        expect(save).toHaveBeenCalledTimes(3);
         expect(autosave.getSnapshot()).toMatchObject({
             state: 'saved',
-            revision: 6,
-            conflict: null,
+            localVersion: 1,
+            error: null,
         });
     });
 
-    it('resolves a conflict with the server version', () => {
-        const server = makeSubmission({ revision: 9, data: { a: 'server' } });
-        const autosave = controller({ save: vi.fn() }, 3);
-        expect(autosave.resolveConflict('server')).toEqual({});
-        autosave.reportConflict(server);
-        const data = autosave.resolveConflict('server');
-        expect(data).toEqual({ a: 'server' });
-        expect(autosave.getSnapshot()).toMatchObject({
-            state: 'saved',
-            revision: 9,
-            conflict: null,
-        });
-        expect(autosave.data).toEqual({ a: 'server' });
-    });
-
-    it('locks on not_editable and stops saving', async () => {
-        const save = vi.fn(() => Promise.reject(new ApiError(409, 'not_editable', 'locked')));
-        const autosave = controller({ save }, 2);
-        autosave.update({ a: 1 });
-        await vi.advanceTimersByTimeAsync(1500);
-        expect(autosave.getSnapshot().state).toBe('locked');
-        autosave.update({ a: 2 });
-        expect((await autosave.flush()).state).toBe('locked');
-        expect(save).toHaveBeenCalledTimes(1);
-    });
-
-    it('reports auth loss and retries server errors', async () => {
-        const onAuthLost = vi.fn();
-        const save = vi
-            .fn<(request: SaveRequest) => Promise<Submission>>()
-            .mockRejectedValueOnce(new ReauthRequiredError('gone'))
-            .mockRejectedValueOnce(new ApiError(503, 'http_503', 'down'))
-            .mockImplementation((request) => Promise.resolve(saved(request, 1)));
-        const autosave = controller({ save }, 0, { onAuthLost });
-        autosave.update({ a: 1 });
-        await vi.advanceTimersByTimeAsync(1500);
-        expect(autosave.getSnapshot().state).toBe('error');
-        expect(onAuthLost).toHaveBeenCalledOnce();
-        autosave.update({ a: 2 });
-        await vi.advanceTimersByTimeAsync(1500);
-        expect(autosave.getSnapshot().state).toBe('error');
-        await vi.advanceTimersByTimeAsync(1000);
-        expect(autosave.getSnapshot()).toMatchObject({ state: 'saved', revision: 1 });
-    });
-
-    it('flushes when the page is hidden and notifies subscribers', async () => {
-        const save = vi.fn((request: SaveRequest) => Promise.resolve(saved(request, 1)));
-        const autosave = controller({ save });
-        const listener = vi.fn();
-        const unsubscribe = autosave.subscribe(listener);
+    it.each([
+        ['pagehide', () => window.dispatchEvent(new Event('pagehide'))],
+        ['freeze', () => document.dispatchEvent(new Event('freeze'))],
+        [
+            'visibilitychange to hidden',
+            () => {
+                Object.defineProperty(document, 'visibilityState', {
+                    configurable: true,
+                    value: 'hidden',
+                });
+                document.dispatchEvent(new Event('visibilitychange'));
+            },
+        ],
+    ])('writes pending edits on %s', async (_name, leave) => {
+        const { save, transport } = countingTransport();
+        const autosave = controller(transport);
         autosave.start();
         autosave.update({ a: 1 });
-        Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
-        document.dispatchEvent(new Event('visibilitychange'));
+        leave();
         await vi.advanceTimersByTimeAsync(0);
         expect(save).toHaveBeenCalledOnce();
         Object.defineProperty(document, 'visibilityState', {
             configurable: true,
             value: 'visible',
         });
-        expect(listener).toHaveBeenCalled();
-        unsubscribe();
-        autosave.acceptServer(makeSubmission({ revision: 4 }));
-        expect(autosave.getSnapshot().revision).toBe(4);
         void autosave.stop();
+    });
+
+    it('replaceData drops pending edits and lets a write in flight land first', async () => {
+        const { calls, transport } = manualTransport();
+        const autosave = controller(transport);
+        const listener = vi.fn();
+        autosave.subscribe(listener);
+        autosave.update({ a: 'mine' });
+        await vi.advanceTimersByTimeAsync(300);
+        autosave.update({ a: 'mine, later' });
+        const replaced = autosave.replaceData({ a: 'server' });
+        calls[0]?.resolve({ localVersion: 1 });
+        await replaced;
+        await vi.advanceTimersByTimeAsync(5000);
+        expect(calls).toHaveLength(1);
+        expect(autosave.data).toEqual({ a: 'server' });
+        expect(autosave.getSnapshot().state).toBe('saved');
+        expect(listener).toHaveBeenCalled();
     });
 });

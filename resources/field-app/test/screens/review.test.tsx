@@ -1,9 +1,18 @@
-import { screen, waitFor } from '@testing-library/react';
+/**
+ * Review and submit (§9.2, ADR 0035): the submit goes through the outbox with a persisted
+ * Idempotency-Key; online the answer is shown at once, offline the submission is queued.
+ */
+import type { FormDefinition } from '@form-schema-app/form-schema-js';
+import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { db } from '../../src/lib/db/db.ts';
+import { enqueueSubmit, opId } from '../../src/lib/outbox/outbox.ts';
 import { setOrganizationId } from '../../src/lib/session/org-store.ts';
-import { createBackend, fail } from '../utils/backend.ts';
-import { makeSubmission } from '../utils/fixtures.ts';
+import { createSyncBackend, failWith, summarize } from '../utils/a-backend.ts';
+import { SCOPE, draftRow, setupSyncScope } from '../utils/a-store.ts';
+import { createBackend, fail, ok } from '../utils/backend.ts';
+import { DEFINITION, makeSubmission, makeVersion } from '../utils/fixtures.ts';
 import { preloadLazyScreens, renderApp } from '../utils/render-app.tsx';
 import { server, setupTestServer } from '../utils/server.ts';
 
@@ -15,25 +24,34 @@ vi.mock('@form-schema-app/form-schema-react', async (importOriginal) => {
 
 setupTestServer();
 preloadLazyScreens();
+setupSyncScope();
 
 const UUID = '0192f1c4-0000-7000-8000-0000000000bb';
+const anyTime: unknown = expect.stringMatching(/^\d{4}-\d\d-\d\dT/);
 
 beforeEach(() => {
     setOrganizationId(1);
 });
+afterEach(() => {
+    vi.restoreAllMocks();
+});
 
 function setup(data: Record<string, unknown> = { customer: 'ACME' }) {
-    const backend = createBackend();
-    backend.state.submissions.set(
+    const reads = createBackend();
+    const writes = createSyncBackend({ submissions: reads.state.submissions });
+    reads.state.submissions.set(
         UUID,
         makeSubmission({ uuid: UUID, revision: 3, data: data as never }),
     );
-    server.use(...backend.handlers);
-    return backend;
+    server.use(...writes.handlers, ...reads.handlers);
+    return writes;
 }
 
+const submits = (backend: ReturnType<typeof setup>) =>
+    backend.state.log.filter((entry) => entry.path.endsWith('/submit'));
+
 describe('review and submit', () => {
-    it('goes from fill to review and submits with an Idempotency-Key', async () => {
+    it('goes from fill to review and submits with a persisted Idempotency-Key', async () => {
         const backend = setup();
         const { user, history } = renderApp(`/fill/${UUID}`);
         await screen.findByRole('heading', { name: 'Service report' });
@@ -44,14 +62,16 @@ describe('review and submit', () => {
         expect(renderer).toHaveAttribute('data-except', 'signature');
         await user.click(screen.getByRole('button', { name: 'Submit' }));
         expect(
-            await screen.findByText('Number SR-2026-00012', { selector: 'p' }),
+            await screen.findByText('Number SR-2026-00001', { selector: 'p' }),
         ).toBeInTheDocument();
         expect(screen.getByText('Submitted', { selector: 'p' })).toBeInTheDocument();
         expect(history.location.pathname).toBe(`/app/submissions/${UUID}`);
-        expect(backend.state.submits).toHaveLength(1);
-        expect(backend.state.submits[0]?.key).toMatch(/^[0-9a-f-]{36}$/);
-        expect(backend.state.submits[0]?.body).toEqual({ revision: 3 });
+        expect(submits(backend)).toHaveLength(1);
+        expect(submits(backend)[0]?.key).toMatch(/^[0-9a-f-]{36}$/);
+        expect(submits(backend)[0]?.body).toEqual({ revision: 3, client_submitted_at: anyTime });
+        // The key lives with the queued request in IndexedDB, never in sessionStorage.
         expect(sessionStorage.length).toBe(0);
+        expect(await db.outbox.count()).toBe(0);
     });
 
     it('blocks submitting when client validation fails', async () => {
@@ -63,126 +83,230 @@ describe('review and submit', () => {
             await screen.findByText('Please fix the marked fields before submitting.'),
         ).toBeInTheDocument();
         expect(screen.getByTestId('renderer')).toHaveAttribute('data-show-errors', 'true');
-        expect(backend.state.submits).toHaveLength(0);
+        expect(submits(backend)).toHaveLength(0);
+        expect(await db.outbox.count()).toBe(0);
     });
 
-    it('shows server pointer errors and reuses the key after a network failure', async () => {
-        setup();
-        const keys: (string | null)[] = [];
+    it('queues the submit offline ("number pending") and retries it with the same key', async () => {
+        const backend = setup();
         let attempt = 0;
         server.use(
             http.post('*/api/v1/submissions/:uuid/submit', ({ request }) => {
-                keys.push(request.headers.get('Idempotency-Key'));
+                backend.state.log.push({
+                    method: 'POST',
+                    path: `/api/v1/submissions/${UUID}/submit`,
+                    org: request.headers.get('X-Organization-Id'),
+                    key: request.headers.get('Idempotency-Key'),
+                    body: null,
+                });
                 attempt++;
-                if (attempt === 1) {
-                    return HttpResponse.error();
-                }
-                return fail(422, 'validation_failed', [
-                    { pointer: '/items/0/name', code: 'required' },
-                ]);
+                return attempt === 1
+                    ? HttpResponse.error()
+                    : fail(422, 'validation_failed', [
+                          { pointer: '/items/0/name', code: 'required' },
+                      ]);
             }),
+        );
+        const { user, history } = renderApp(`/fill/${UUID}/review`);
+        await screen.findByRole('heading', { name: 'Review and sign' });
+        await user.click(screen.getByRole('button', { name: 'Submit' }));
+
+        expect(await screen.findByText('Submission queued')).toBeInTheDocument();
+        expect(history.location.pathname).toBe(`/app/submissions/${UUID}`);
+        expect(screen.getAllByText('Number pending').length).toBeGreaterThan(0);
+        expect(screen.getByText('Waiting to sync')).toBeInTheDocument();
+
+        window.dispatchEvent(new Event('online')); // back online: the queue runs again
+        await waitFor(() => {
+            expect(screen.queryByText('Submission queued')).not.toBeInTheDocument();
+        });
+        const keys = backend.state.log.map((entry) => entry.key);
+        expect(keys).toHaveLength(2);
+        expect(keys[1]).toBe(keys[0]);
+
+        history.push(`/app/fill/${UUID}/review`);
+        await screen.findByRole('heading', { name: 'Review and sign' });
+        expect(screen.getByRole('list', { name: 'renderer errors' })).toHaveTextContent(
+            '/items/0/name:required',
+        );
+    });
+
+    it('shows server pointer errors of a refused submit', async () => {
+        const backend = setup();
+        backend.state.inject.set(
+            'POST submit',
+            failWith(422, 'validation_failed', [{ pointer: '/items/0/name', code: 'required' }]),
         );
         const { user } = renderApp(`/fill/${UUID}/review`);
         await screen.findByRole('heading', { name: 'Review and sign' });
         await user.click(screen.getByRole('button', { name: 'Submit' }));
-        expect(await screen.findByText(/You are offline/)).toBeInTheDocument();
-        await user.click(screen.getByRole('button', { name: 'Submit' }));
         expect(
             await screen.findByText('The server found problems in the marked fields.'),
         ).toBeInTheDocument();
-        expect(screen.getByRole('list', { name: 'renderer errors' })).toHaveTextContent(
-            '/items/0/name:required',
-        );
-        expect(keys[0]).not.toBeNull();
-        expect(keys[1]).toBe(keys[0]);
+        await waitFor(() => {
+            expect(screen.getByRole('list', { name: 'renderer errors' })).toHaveTextContent(
+                '/items/0/name:required',
+            );
+        });
+        expect(await db.outbox.get(opId('submit', UUID))).toBeUndefined();
     });
 
     it.each([
         ['version_retired', 409, 'This form version was retired. Start a new submission.'],
         ['form_access_revoked', 403, 'You no longer have access to this form.'],
         ['attachments_missing', 422, 'Some attachments are missing. Add them again and retry.'],
-        ['http_500', 500, 'Submitting failed. Please try again.'],
     ])('explains %s', async (code, status, text) => {
-        setup();
-        server.use(http.post('*/api/v1/submissions/:uuid/submit', () => fail(status, code)));
+        const backend = setup();
+        backend.state.inject.set('POST submit', failWith(status, code));
         const { user } = renderApp(`/fill/${UUID}/review`);
         await screen.findByRole('heading', { name: 'Review and sign' });
         await user.click(screen.getByRole('button', { name: 'Submit' }));
         expect(await screen.findByText(text)).toBeInTheDocument();
     });
 
-    it('generates a fresh key after idempotency_key_reused', async () => {
-        setup();
-        const keys: (string | null)[] = [];
-        server.use(
-            http.post('*/api/v1/submissions/:uuid/submit', ({ request }) => {
-                keys.push(request.headers.get('Idempotency-Key'));
-                return fail(409, 'idempotency_key_reused');
-            }),
-        );
-        const { user } = renderApp(`/fill/${UUID}/review`);
+    it('keeps a submit that met a server error queued and says it is retried', async () => {
+        const backend = setup();
+        backend.state.inject.set('POST submit', failWith(500, 'server_error'));
+        const { user, history } = renderApp(`/fill/${UUID}/review`);
         await screen.findByRole('heading', { name: 'Review and sign' });
         await user.click(screen.getByRole('button', { name: 'Submit' }));
-        await screen.findByText(/changed while submitting/);
-        await user.click(screen.getByRole('button', { name: 'Submit' }));
-        await waitFor(() => {
-            expect(keys).toHaveLength(2);
-        });
-        expect(keys[1]).not.toBe(keys[0]);
+        expect(await screen.findByText('Submission queued')).toBeInTheDocument();
+        expect(history.location.pathname).toBe(`/app/submissions/${UUID}`);
+        expect(screen.getByText(/The last attempt failed: server_error/)).toBeInTheDocument();
+        expect(await db.outbox.get(opId('submit', UUID))).toMatchObject({ attempts: 1 });
     });
 
-    it('adopts an identical server copy on a submit conflict and submits again', async () => {
+    it('sends again with a fresh key after idempotency_key_reused', async () => {
         const backend = setup();
-        const same = makeSubmission({ uuid: UUID, revision: 4, data: { customer: 'ACME' } });
-        let attempt = 0;
-        server.use(
-            http.post('*/api/v1/submissions/:uuid/submit', async ({ request }) => {
-                backend.state.submits.push({
-                    uuid: UUID,
-                    key: request.headers.get('Idempotency-Key'),
-                    body: await request.json(),
-                });
-                attempt++;
-                return attempt === 1
-                    ? fail(409, 'revision_conflict', { submission: same })
-                    : HttpResponse.json({
-                          success: true,
-                          data: { submission: { ...same, status: 'submitted', number: 'N-1' } },
-                          error: null,
-                          meta: null,
-                      });
-            }),
-        );
+        backend.state.inject.set('POST submit', () => {
+            backend.state.inject.delete('POST submit');
+            return failWith(409, 'idempotency_key_reused')();
+        });
         const { user, history } = renderApp(`/fill/${UUID}/review`);
         await screen.findByRole('heading', { name: 'Review and sign' });
         await user.click(screen.getByRole('button', { name: 'Submit' }));
         await waitFor(() => {
             expect(history.location.pathname).toBe(`/app/submissions/${UUID}`);
         });
-        expect(backend.state.submits.map((submit) => submit.body)).toEqual([
-            { revision: 3 },
-            { revision: 4 },
+        const keys = submits(backend).map((entry) => entry.key);
+        expect(keys).toHaveLength(2);
+        expect(keys[1]).not.toBe(keys[0]);
+    });
+
+    it('adopts an identical server copy on a submit conflict and submits again', async () => {
+        const backend = setup();
+        const same = makeSubmission({ uuid: UUID, revision: 4, data: { customer: 'ACME' } });
+        backend.state.inject.set('POST submit', () => {
+            backend.state.inject.delete('POST submit');
+            backend.state.submissions.set(UUID, same);
+            return failWith(409, 'revision_conflict', { submission: same })();
+        });
+        const { user, history } = renderApp(`/fill/${UUID}/review`);
+        await screen.findByRole('heading', { name: 'Review and sign' });
+        await user.click(screen.getByRole('button', { name: 'Submit' }));
+        await waitFor(() => {
+            expect(history.location.pathname).toBe(`/app/submissions/${UUID}`);
+        });
+        expect(submits(backend).map((submit) => submit.body)).toEqual([
+            { revision: 3, client_submitted_at: anyTime },
+            { revision: 4, client_submitted_at: anyTime },
         ]);
-        expect(backend.state.submits[1]?.key).not.toBe(backend.state.submits[0]?.key);
+        expect(submits(backend)[1]?.key).not.toBe(submits(backend)[0]?.key);
         expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     });
 
-    it('opens the conflict panel on a submit revision_conflict', async () => {
-        setup();
-        const server_copy = makeSubmission({
-            uuid: UUID,
-            revision: 9,
-            data: { customer: 'Other' },
-        });
-        server.use(
-            http.post('*/api/v1/submissions/:uuid/submit', () =>
-                fail(409, 'revision_conflict', { submission: server_copy }),
-            ),
+    it('opens the conflict panel on a submit revision_conflict; the submit waits', async () => {
+        const backend = setup();
+        const serverCopy = makeSubmission({ uuid: UUID, revision: 9, data: { customer: 'Other' } });
+        backend.state.inject.set(
+            'POST submit',
+            failWith(409, 'revision_conflict', { submission: serverCopy }),
         );
         const { user } = renderApp(`/fill/${UUID}/review`);
         await screen.findByRole('heading', { name: 'Review and sign' });
         await user.click(screen.getByRole('button', { name: 'Submit' }));
         expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
+        expect(
+            await screen.findByText('The draft was changed elsewhere. Choose a version first.'),
+        ).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled();
+        expect(await db.outbox.get(opId('submit', UUID))).toMatchObject({ state: 'pending' });
+    });
+});
+
+/** A form that may be sent to the customer, with the customer roles for the prefill. */
+const SEND_DEFINITION: FormDefinition = {
+    ...DEFINITION,
+    settings: { sendToCustomer: true },
+    pages: [
+        {
+            key: 'main',
+            title: 'Main',
+            elements: [
+                {
+                    id: '00000000-0000-4000-8000-000000000031',
+                    type: 'text',
+                    key: 'customer_name',
+                    label: 'Customer',
+                    role: 'customer.name',
+                },
+                {
+                    id: '00000000-0000-4000-8000-000000000032',
+                    type: 'email',
+                    key: 'customer_email',
+                    label: 'Email',
+                    role: 'customer.email',
+                },
+            ],
+        },
+    ],
+};
+
+describe('send behind a queued submission (offline, §9.2)', () => {
+    it('queues a send behind a queued submit; after sync it goes out after the submit', async () => {
+        const reads = createBackend();
+        const writes = createSyncBackend({ submissions: reads.state.submissions, offline: true });
+        server.use(...writes.handlers, ...reads.handlers);
+        server.use(
+            http.get('*/api/v1/forms/:form/versions/:version', () =>
+                ok({
+                    ...makeVersion(),
+                    definition: SEND_DEFINITION,
+                }),
+            ),
+            http.get(`*/api/v1/submissions/${UUID}`, () =>
+                writes.state.offline ? HttpResponse.error() : undefined,
+            ),
+        );
+        await db.drafts.put(
+            draftRow({
+                uuid: UUID,
+                data: { customer_name: 'Erika Kundin', customer_email: 'erika@example.test' },
+            }),
+        );
+        await enqueueSubmit(SCOPE, UUID, '2026-10-17T09:00:00.000Z');
+        const { user } = renderApp(`/submissions/${UUID}`);
+        expect(await screen.findByText('Submission queued')).toBeInTheDocument();
+        await screen.findByRole('heading', { name: 'Service report', level: 1 });
+        await user.click(screen.getByRole('button', { name: 'Send to customer' }));
+        const dialog = screen.getByRole('dialog', { name: 'Send to customer' });
+        await user.click(within(dialog).getByRole('button', { name: 'Send' }));
+        await vi.waitFor(() => {
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        });
+        expect(screen.getByText(/Sending to erika@example.test is queued/)).toBeInTheDocument();
+
+        writes.state.offline = false;
+        window.dispatchEvent(new Event('online'));
+        await vi.waitFor(() => {
+            expect(summarize(writes.state.log)).toEqual(['PUT create', 'SUBMIT', 'SEND']);
+        });
+        expect(writes.state.log[2]?.body).toEqual({
+            email: 'erika@example.test',
+            name: 'Erika Kundin',
+        });
+        await vi.waitFor(() => {
+            expect(screen.queryByText('Submission queued')).not.toBeInTheDocument();
+        });
     });
 });

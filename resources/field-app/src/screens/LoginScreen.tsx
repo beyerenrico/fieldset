@@ -3,33 +3,39 @@ import { getRouteApi, useNavigate } from '@tanstack/react-router';
 import { useState, type ReactNode } from 'react';
 import { Alert } from '../components/ui/alert.tsx';
 import { useT } from '../i18n/I18nProvider.tsx';
-import { ensureDeviceRegistered } from '../lib/device/register.ts';
-import { disposeDraftSessions } from '../lib/drafts/draft-session.ts';
-import { resetAuthNotice } from '../lib/session/auth-events.ts';
+import { requestSync } from '../lib/sync/triggers.ts';
+import { completeLogin } from './login/complete-login.ts';
 import { CredentialsForm } from './login/CredentialsForm.tsx';
+import { ForeignDataPrompt } from './login/ForeignDataPrompt.tsx';
 import { TwoFactorForm } from './login/TwoFactorForm.tsx';
 
 const route = getRouteApi('/login');
+
+type Step =
+    | { readonly kind: 'credentials' }
+    | { readonly kind: 'two-factor' }
+    | { readonly kind: 'foreign'; readonly userId: number; readonly count: number };
 
 export function LoginScreen(): ReactNode {
     const t = useT();
     const { notice } = route.useSearch();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
-    const [step, setStep] = useState<'credentials' | 'two-factor'>('credentials');
+    const [step, setStep] = useState<Step>({ kind: 'credentials' });
+
+    // Reauth keeps the outbox: the sync resumes under the new session (ADR 0035).
+    const enter = async (): Promise<void> => {
+        requestSync('login');
+        await navigate({ to: '/' });
+    };
 
     const complete = async (): Promise<void> => {
-        try {
-            await ensureDeviceRegistered();
-        } catch (error) {
-            // Login still works; device-status recovery is unavailable until the next login.
-            console.warn('Device registration failed', error);
+        const outcome = await completeLogin(queryClient);
+        if (outcome.userId !== null && outcome.foreignRows > 0) {
+            setStep({ kind: 'foreign', userId: outcome.userId, count: outcome.foreignRows });
+            return;
         }
-        // Nothing cached or open from a previous session may reach this user.
-        resetAuthNotice();
-        disposeDraftSessions();
-        queryClient.clear();
-        await navigate({ to: '/' });
+        await enter();
     };
 
     return (
@@ -38,24 +44,30 @@ export function LoginScreen(): ReactNode {
                 <p className="text-lg font-semibold text-muted-foreground">{t('app.title')}</p>
                 <h1 className="text-3xl font-bold">{t('auth.title')}</h1>
             </div>
-            {notice === undefined ? null : (
+            {notice === undefined || step.kind === 'foreign' ? null : (
                 <Alert variant={notice === 'wiped' ? 'destructive' : 'info'} role="status">
                     {t(`notice.${notice}`)}
                 </Alert>
             )}
-            {step === 'credentials' ? (
+            {step.kind === 'credentials' ? (
                 <CredentialsForm
                     onDone={(twoFactor) => {
                         if (twoFactor) {
-                            setStep('two-factor');
+                            setStep({ kind: 'two-factor' });
                         } else {
                             void complete();
                         }
                     }}
                 />
-            ) : (
-                <TwoFactorForm onDone={() => void complete()} />
-            )}
+            ) : null}
+            {step.kind === 'two-factor' ? <TwoFactorForm onDone={() => void complete()} /> : null}
+            {step.kind === 'foreign' ? (
+                <ForeignDataPrompt
+                    userId={step.userId}
+                    count={step.count}
+                    onDone={() => void enter()}
+                />
+            ) : null}
         </main>
     );
 }

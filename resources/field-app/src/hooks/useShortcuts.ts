@@ -1,16 +1,10 @@
-import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { fetchSyncManifest } from '../lib/api/endpoints.ts';
+import { useCallback, useEffect, useState } from 'react';
 import type { FormSummary } from '../lib/api/types.ts';
-import {
-    getFavorites,
-    getRecent,
-    purgeShortcuts,
-    recordRecent,
-    toggleFavorite,
-} from '../lib/forms/shortcuts.ts';
+import { onCatalogChanged } from '../lib/catalog/catalog.ts';
+import { getFavorites, getRecent, recordRecent, toggleFavorite } from '../lib/forms/shortcuts.ts';
 import { newId } from '../lib/ids.ts';
+import { useCatalogSync } from './queries/catalog.ts';
 import { useOrganizationId } from './useSession.ts';
 
 export interface Shortcuts {
@@ -19,39 +13,48 @@ export interface Shortcuts {
     readonly toggle: (formId: number) => void;
 }
 
-const keepAllowed = (ids: readonly number[], allowed: ReadonlySet<number> | null): number[] =>
-    allowed === null ? [...ids] : ids.filter((id) => allowed.has(id));
+interface StoredLists {
+    readonly org: number;
+    readonly favorites: readonly number[];
+    readonly recent: readonly number[];
+}
 
-/** Favorites + recent forms of the current organization, purged by the sync manifest. */
+const readLists = (org: number): StoredLists => ({
+    org,
+    favorites: getFavorites(org),
+    recent: getRecent(org),
+});
+
+/**
+ * Favorites + recent forms of the current organization. The catalog cache refresh (started here
+ * when stale) purges revoked forms from them through the manifest's `fillable_form_ids`.
+ */
 export function useShortcuts(): Shortcuts {
-    const org = useOrganizationId() ?? 0;
-    const [favorites, setFavorites] = useState(() => getFavorites(org));
-    const [recent] = useState(() => getRecent(org));
-    const manifest = useQuery({
-        queryKey: ['manifest', org],
-        queryFn: () => fetchSyncManifest(),
-        staleTime: 60_000,
-    });
-    const fillable = manifest.data?.fillable_form_ids;
-    const allowed = useMemo(() => (fillable === undefined ? null : new Set(fillable)), [fillable]);
+    const org = useOrganizationId();
+    const key = org ?? 0;
+    const [stored, setStored] = useState(() => readLists(key));
+    useCatalogSync(org);
 
-    useEffect(() => {
-        if (fillable !== undefined) {
-            purgeShortcuts(org, fillable);
-        }
-    }, [org, fillable]);
+    useEffect(
+        () =>
+            onCatalogChanged((changed) => {
+                if (changed === key) {
+                    setStored(readLists(key));
+                }
+            }),
+        [key],
+    );
 
     const toggle = useCallback(
         (formId: number) => {
-            setFavorites(toggleFavorite(org, formId));
+            toggleFavorite(key, formId);
+            setStored(readLists(key));
         },
-        [org],
+        [key],
     );
-    return {
-        favorites: keepAllowed(favorites, allowed),
-        recent: keepAllowed(recent, allowed),
-        toggle,
-    };
+    // After an organization switch the stored lists belong to the previous one.
+    const { favorites, recent } = stored.org === key ? stored : readLists(key);
+    return { favorites, recent, toggle };
 }
 
 /** Starts a new draft: client UUIDv7, pinned to the form's current version. */
