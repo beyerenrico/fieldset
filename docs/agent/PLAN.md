@@ -112,8 +112,20 @@ AC refs point at BUILD_PROMPT sections. Test approach in brackets.
 - [x] M6-T10 E2E: journey 3 (offline fill with 30 lines, photo, signature → reconnect → syncs once, number assigned), journey 7 (session expires offline → re-login → outbox syncs, no loss), killed tab, deactivated user wipe — §12
 - [x] M6-T11 Gate M6
 
-## M7 SSO + Builder v2 — break down at M6 gate
-- OIDC per org (Socialite), domain verification (DNS TXT, fake resolver), home-realm discovery, JIT + claim mapping, enforce SSO + break-glass; Keycloak in CI; SAML (socialiteproviders/saml2); Builder v2 page (palette/canvas/inspector, SortableJS, keyboard moves, undo/redo).
+## M7 SSO + Builder v2 (branch `m7-sso-builder`)
+- [ ] M7-T01 SSO architecture ADR + versions (laravel/socialite 5.31, socialiteproviders/manager 4.10 + keycloak/microsoft-azure, socialiteproviders/saml2 4.10, filament-socialite 3.3 only if it fits per-org dynamic providers); `identity_providers` (org, type oidc/saml, encrypted config, status) + `sso_domains` (org, domain, TXT token, verified_at) — §8.7, §6.4, §14.2 [model + encryption tests]
+- [ ] M7-T02 Domain verification: DNS TXT check behind a resolver interface (fake resolver in tests/CI), periodic re-check, uniqueness across orgs, audit — §8.7 [feature]
+- [ ] M7-T03 OIDC login per organization: dynamic Socialite provider (Entra, Google, generic OIDC/Keycloak) with PKCE/state/nonce, issuer + audience checks, callback → session; admin (Filament) and Field App (`/auth/sso/...` + device registration) — §8.7, §9.3 [feature with fake IdP]
+- [ ] M7-T04 Home-realm discovery: email-first login on admin and Field App; verified SSO domain → redirect to IdP; otherwise password — §8.7 [feature + Livewire + Field App test]
+- [ ] M7-T05 JIT provisioning + claim mapping: create user + membership with default role/group; optional claims → roles/groups (e.g. Entra groups); updates on each login; deactivated members refused — §8.7, §8.6 [feature]
+- [ ] M7-T06 Enforce SSO per org: password login (admin + Field App + API) rejected for its verified domains; break-glass Owner keeps password + MFA; password reset blocked for enforced domains — §8.7 AC [feature]
+- [ ] M7-T07 SSO admin UI (Filament): provider config (secret shown once), domains with TXT instructions + verify, test login, enforcement toggle with break-glass check; `sso_misconfigured` notification; audit of every auth event — §8.7, §8.9, §8.11 [Livewire]
+- [ ] M7-T08 Keycloak in Docker (dev + CI service) with a realm import (client, users, groups claim); E2E: SSO login creates the user with the mapped role; enforcement rejects password login — §8.7 AC, §12 [E2E]
+- [ ] M7-T09 SAML 2.0 via socialiteproviders/saml2: per-org metadata/ACS endpoints, signed assertions, same JIT/mapping/enforcement; Keycloak SAML client in the realm — §8.7 [feature + E2E if feasible]
+- [ ] M7-T10 Builder v2 architecture ADR: custom Filament page (palette/canvas/inspector), Livewire + Alpine + SortableJS (version check), canonical JSON as the only state, reuse of v1 inspector forms/logic editor, autosave + lint + preview integration — §8.2 [n/a]
+- [ ] M7-T11 Builder v2 canvas: drag from palette, reorder within/between pages and containers (sections, columns, repeaters), keyboard alternatives (move up/down/into/out), selection + inspector, undo/redo; same mapper/linter/publish as v1, switch v1 ↔ v2 without migration — §8.2 [Livewire + JS unit + a11y]
+- [ ] M7-T12 Builder v2 E2E: build the §7.2 example by drag and keyboard, publish, preview matches; v1 ↔ v2 round trip — §8.2 AC, §12 [E2E]
+- [ ] M7-T13 Gate M7
 
 ## M8 Hardening → 1.0 — break down at M7 gate
 - Audit log UI + CSV + retention pruning (+ optional hash chain); GDPR (per-form retention, legal hold, user export/erasure); accessibility audit; load tests (100k submissions); security review; CSP/HSTS; builder preview on an opaque origin (QUESTIONS #10); docs site, install + upgrade + backup guides; web push (if feasible); `/platform` operator panel; FINAL_REPORT.
