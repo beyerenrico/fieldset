@@ -77,3 +77,14 @@ it('clears all MFA data when Filament disables it', function (): void {
         ->two_factor_recovery_codes->toBeNull()
         ->two_factor_confirmed_at->toBeNull();
 });
+
+it('renders the set-up QR code as a single-encoded SVG data URI', function (): void {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+    $mfa = SharedAppAuthentication::make();
+
+    $uri = $mfa->generateQrCodeDataUri($mfa->generateSecret());
+
+    expect($uri)->toStartWith('data:image/svg+xml;base64,')
+        ->and(base64_decode(substr($uri, strlen('data:image/svg+xml;base64,')), true))->toContain('<svg');
+});
