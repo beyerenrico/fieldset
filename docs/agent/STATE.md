@@ -1,15 +1,14 @@
 # State: 2026-10-18T07:45Z
 Milestone: M7 SSO + Builder v2 · Branch m7-sso-builder (M6 merged, tags m6-done + v0.2.0)
-Tasks in flight: none. M7 to be broken down in PLAN (first action).
+Tasks in flight: two design agents (SSO → ADR 0036 draft, Builder v2 → ADR 0037 draft); M7 broken
+down in PLAN (d061673).
 Last commit: see `git log -1`
 
 ## Next actions
-1. Break down M7 in PLAN (BUILD_PROMPT §8.7 SSO, §8.2 Builder v2, §13 M7): OIDC per org (Socialite +
-   filament-socialite), domain verification (DNS TXT with a fake resolver), home-realm discovery, JIT +
-   claim mapping, enforced SSO + break-glass owner, Keycloak in Docker/CI, SAML (socialiteproviders/
-   saml2 4.10); Builder v2 page (palette/canvas/inspector, SortableJS, keyboard moves, undo/redo).
-2. ADRs: SSO architecture + versions (verify on Packagist), Builder v2 architecture.
-3. Dispatch parallel agents (SSO backend, Builder v2 UI) with disjoint ownership; E2E journeys; gate.
+1. Design results → write ADR 0036 (SSO) and 0037 (Builder v2); install packages; create the shared
+   skeleton (migrations/models/interfaces, routes, config) the designs ask for.
+2. Dispatch implementation agents with disjoint ownership (SSO backend, SSO UI/Field App/Keycloak,
+   Builder v2 server, Builder v2 client); E2E journeys; reviews; gate M7.
 
 ## Known problems
 - Builder v1 page heavy (QUESTIONS #8): E2E waits 30 s for its navigation/publish.
