@@ -6,11 +6,12 @@ import { db } from '../db/db.ts';
 import { unsyncedSummary, type UnsyncedSummary } from '../outbox/outbox.ts';
 
 export interface UnsyncedTotals extends UnsyncedSummary {
-    /** Queued ops + unsynced drafts + attachments not uploaded (the pending count shown to users). */
+    /** Queued ops + unsynced drafts + attachments not uploaded (details; users see `submissions`). */
     readonly pending: number;
 }
 
 export const EMPTY_TOTALS: UnsyncedTotals = {
+    submissions: 0,
     ops: 0,
     dirtyDrafts: 0,
     pendingAttachments: 0,
@@ -24,6 +25,7 @@ export function withPending(summary: UnsyncedSummary): UnsyncedTotals {
 
 function add(a: UnsyncedSummary, b: UnsyncedSummary): UnsyncedSummary {
     return {
+        submissions: a.submissions + b.submissions, // a uuid belongs to one organization
         ops: a.ops + b.ops,
         dirtyDrafts: a.dirtyDrafts + b.dirtyDrafts,
         pendingAttachments: a.pendingAttachments + b.pendingAttachments,

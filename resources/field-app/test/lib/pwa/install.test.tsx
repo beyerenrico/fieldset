@@ -10,7 +10,6 @@ import {
     isIos,
     isStandalone,
     needsIosDataWarning,
-    unsyncedCount,
 } from '../../../src/lib/pwa/install.ts';
 import {
     promptInstall,
@@ -71,9 +70,6 @@ describe('install decision', () => {
     });
 
     it('warns iOS users outside the home screen while unsynced work exists', () => {
-        expect(unsyncedCount({ ops: 2, dirtyDrafts: 1, pendingAttachments: 3, blocked: 9 })).toBe(
-            6,
-        );
         expect(needsIosDataWarning(IPHONE, 1)).toBe(true);
         expect(needsIosDataWarning(IPHONE, 0)).toBe(false);
         expect(needsIosDataWarning(IPHONE_HOME_SCREEN, 5)).toBe(false);
@@ -133,7 +129,8 @@ describe('install prompt', () => {
         ]);
         localStorage.setItem(`fsa.${INSTALL_DISMISSED_KEY}`, 'true');
         const { unmount } = renderWithI18n(<InstallPrompt platform={IPHONE} />);
-        const warning = await screen.findByText(/2 items are not synced yet/);
+        // Two attachments of one submission: one submission is not synced.
+        const warning = await screen.findByText(/Submissions not synced yet: 1\./);
         expect(warning.closest('[role="status"]')).toHaveTextContent('Add to Home Screen');
         await user.click(screen.getByRole('button', { name: 'Hide' }));
         expect(screen.queryByText(/not synced yet/)).not.toBeInTheDocument();
@@ -146,7 +143,7 @@ describe('install prompt', () => {
 
         sessionStorage.clear(); // a new browser session: the warning returns
         renderWithI18n(<InstallPrompt platform={IPHONE} />);
-        expect(await screen.findByText(/2 items are not synced yet/)).toBeInTheDocument();
+        expect(await screen.findByText(/Submissions not synced yet: 1\./)).toBeInTheDocument();
     });
 
     it('does not warn on the home screen or outside iOS', async () => {

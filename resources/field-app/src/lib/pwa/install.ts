@@ -4,7 +4,6 @@
  * warning, because WebKit deletes script-writable storage after 7 days without use unless the web
  * app was added to the home screen.
  */
-import type { UnsyncedSummary } from '../outbox/outbox.ts';
 import { readJson, writeJson } from '../storage/local.ts';
 
 export interface PlatformInfo {
@@ -62,11 +61,6 @@ export function chooseInstallOffer(options: {
         return 'button';
     }
     return isIos(platform) ? 'ios' : 'none';
-}
-
-/** Items that would be lost with the browser's storage (blocked ones are counted in ops/drafts). */
-export function unsyncedCount(summary: UnsyncedSummary): number {
-    return summary.ops + summary.dirtyDrafts + summary.pendingAttachments;
 }
 
 export function needsIosDataWarning(platform: PlatformInfo, unsynced: number): boolean {

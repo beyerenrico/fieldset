@@ -16,7 +16,6 @@ import {
     isStandalone,
     needsIosDataWarning,
     readPlatform,
-    unsyncedCount,
     type PlatformInfo,
 } from '../../lib/pwa/install.ts';
 import {
@@ -27,14 +26,14 @@ import {
 import { Alert } from '../ui/alert.tsx';
 import { Button } from '../ui/button.tsx';
 
-/** Unsynced items of the signed-in user; only queried where the iOS warning can apply. */
+/** Submissions not synced of the signed-in user; only queried where the iOS warning can apply. */
 function useUnsynced(enabled: boolean): number {
     const org = useOrganizationId();
     const scope = currentScope();
     return (
         useLiveQuery(
             async () =>
-                enabled && scope !== null ? unsyncedCount(await unsyncedSummary(scope)) : 0,
+                enabled && scope !== null ? (await unsyncedSummary(scope)).submissions : 0,
             [enabled, org, scope?.userId],
         ) ?? 0
     );

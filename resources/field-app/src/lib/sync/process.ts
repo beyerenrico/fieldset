@@ -3,13 +3,14 @@
  * update the draft (only when dirty) → submit → send. A step that is not done stops the rest.
  */
 import { ApiError } from '../api/errors.ts';
+import { EDITABLE_STATUSES } from '../api/types.ts';
 import { db } from '../db/db.ts';
 import type { DraftRow, OutboxRow } from '../db/schema.ts';
 import { opsOf } from '../outbox/outbox.ts';
 import { due, emitFailed, isFatal, type RunContext, type StepResult } from './failures.ts';
 import { saveDraft, uploadOne } from './ops-draft.ts';
 import { sendOne, submitOne } from './ops-submit.ts';
-import { blockOp, isPaused, markSyncing } from './store.ts';
+import { blockOp, dropOrphanUploads, isPaused, markBlocked, markSyncing } from './store.ts';
 
 type UploadOp = Extract<OutboxRow, { kind: 'attachment.upload' }>;
 
@@ -103,6 +104,25 @@ async function draftSteps(ctx: RunContext, uuid: string): Promise<StepResult> {
     return uploads;
 }
 
+/**
+ * A draft pinned to a version the catalog marks retired (manifest `retired_version_ids`) can no
+ * longer be submitted: it is blocked before any request, as the 409 `version_retired` would block
+ * it, so the screens offer "copy to the current version" right away.
+ */
+async function blockRetiredVersion(draft: DraftRow, ops: readonly OutboxRow[]): Promise<boolean> {
+    const editable = draft.server === null || EDITABLE_STATUSES.includes(draft.server.status);
+    if (!editable || (await db.formVersions.get(draft.formVersionId))?.retired !== true) {
+        return false;
+    }
+    const error = new ApiError(409, 'version_retired', 'This form version was retired.');
+    await markBlocked(draft.uuid, error.code);
+    const op = ops.find((candidate) => candidate.kind === 'submit') ?? ops[0];
+    if (op !== undefined) {
+        emitFailed(op, error, false); // an interactive submit shows this answer
+    }
+    return true;
+}
+
 export async function processSubmission(ctx: RunContext, uuid: string): Promise<StepResult> {
     const draft = await db.drafts.get(uuid);
     if (draft !== undefined && isPaused(draft.sync)) {
@@ -111,7 +131,11 @@ export async function processSubmission(ctx: RunContext, uuid: string): Promise<
     if (draft !== undefined && draft.userId !== ctx.userId) {
         return 'wait'; // never sent under another user's session
     }
+    await dropOrphanUploads(uuid);
     const ops = await opsOf(uuid);
+    if (draft !== undefined && (await blockRetiredVersion(draft, ops))) {
+        return 'blocked';
+    }
     if (draft === undefined && ops.some(isUpload)) {
         return 'wait'; // uploads need the draft: its row is written right after the file
     }

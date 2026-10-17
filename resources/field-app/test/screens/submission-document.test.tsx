@@ -11,6 +11,7 @@ import { createBackend, fail, ok } from '../utils/backend.ts';
 import { makeDocument, makeSubmission } from '../utils/fixtures.ts';
 import { preloadLazyScreens, renderApp } from '../utils/render-app.tsx';
 import { server, setupTestServer } from '../utils/server.ts';
+import { FAKE_TIMERS } from '../utils/a-store.ts';
 
 vi.mock('@form-schema-app/form-schema-react', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@form-schema-app/form-schema-react')>();
@@ -25,7 +26,8 @@ const UUID = '0192f1c4-0000-7000-8000-0000000000d1';
 const NOT_READY = 'The PDF is being created…';
 
 beforeEach(() => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
+    // setImmediate stays real: fake-indexeddb needs it, or Dexie transactions fail (a-store.ts).
+    vi.useFakeTimers(FAKE_TIMERS);
     setOrganizationId(1);
 });
 afterEach(() => {
@@ -131,7 +133,11 @@ describe('submission document', () => {
         });
         await vi.advanceTimersByTimeAsync(200_000);
         expect(calls).toBe(2);
-        expect(check).toHaveFocus();
+        // Focus moves in an effect after the check settles (DocumentStatus); the status block may
+        // re-render with a new button, so query the control again instead of holding the old node.
+        await vi.waitFor(() => {
+            expect(screen.getByRole('button', { name: 'Check again' })).toHaveFocus();
+        });
     });
 
     it('falls back to a localized failure text and shows the PDF once it exists', async () => {

@@ -1,11 +1,10 @@
 /** Shared failure handling of the outbox steps (ADR 0035). */
-import { fetchMe } from '../api/endpoints.ts';
-import { adoptSession } from '../session/offline-start.ts';
 import type { ApiError } from '../api/errors.ts';
 import type { OutboxRow } from '../db/schema.ts';
+import { handleOrganizationForbidden, type OrganizationAccess } from '../session/org-access.ts';
 import { classify } from './backoff.ts';
 import { emitOutboxEvent } from './events.ts';
-import { purgeOrganization, retryLater } from './store.ts';
+import { retryLater } from './store.ts';
 
 /** Per-run state of the engine; `sent` counts ops that the server accepted. */
 export interface RunContext {
@@ -49,23 +48,37 @@ export function emitFailed(op: OutboxRow, error: unknown, retrying: boolean): vo
     });
 }
 
-/** 403 organization_forbidden: purge the organization's rows when the membership is gone. */
+/** The membership check of org-access.ts; a lost session stops the run, anything else is unknown. */
+async function checkAccess(orgId: number): Promise<OrganizationAccess | 'reauth' | 'unknown'> {
+    try {
+        return await handleOrganizationForbidden(orgId);
+    } catch (failure) {
+        const kind = classify(failure).kind;
+        return kind === 'reauth' || kind === 'wiped' ? kind : 'unknown';
+    }
+}
+
+/**
+ * 403 organization_forbidden (shared with the query cache, session/org-access.ts): `/me` again; a
+ * lost organization's rows are purged (this op with them), no organization left → device-status
+ * (`wipe` clears the device). A member (e.g. a role change) or an unknown answer retries later.
+ */
 async function organizationForbidden(
     ctx: RunContext,
     op: OutboxRow,
     error: unknown,
-): Promise<void> {
-    try {
-        const me = await fetchMe();
-        await adoptSession(me);
-        if (!me.organizations.some((organization) => organization.id === op.orgId)) {
-            await purgeOrganization(op.orgId, op.userId);
-            return;
-        }
-    } catch {
-        // Unknown membership: keep everything and ask again later.
+): Promise<StepResult> {
+    const access = await checkAccess(op.orgId);
+    if (access === 'reauth' || access === 'wiped') {
+        return access;
+    }
+    if (access === 'purged') {
+        emitFailed(op, error, false);
+        return 'wait'; // nothing of this submission is left on the device
     }
     await retryLater(op, error, ctx.manual, null);
+    emitFailed(op, error, true);
+    return 'wait';
 }
 
 /** Retryable failures back off; server answers go to `answer` (the step decides what blocks). */
@@ -96,9 +109,7 @@ export async function handleFailure(
             return 'wait';
         case 'answer':
             if (failure.error.status === 403 && failure.error.code === 'organization_forbidden') {
-                await organizationForbidden(ctx, op, error);
-                emitFailed(op, error, true);
-                return 'wait';
+                return organizationForbidden(ctx, op, error);
             }
             return answer(failure.error);
     }

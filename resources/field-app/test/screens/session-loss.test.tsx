@@ -3,6 +3,7 @@ import { screen, waitFor } from '@testing-library/react';
 import { http } from 'msw';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ReauthRequiredError } from '../../src/lib/api/errors.ts';
+import { db } from '../../src/lib/db/db.ts';
 import { saveDeviceRecord } from '../../src/lib/device/credentials.ts';
 import { reportAuthError } from '../../src/lib/session/auth-events.ts';
 import { setOrganizationId } from '../../src/lib/session/org-store.ts';
@@ -62,6 +63,23 @@ describe('lost sessions', () => {
         expect(history.location.search).toContain('notice=wiped');
         expect(hardReload).toHaveBeenCalledWith('/app/login?notice=wiped');
         expect(puts).toBe(1);
+    });
+
+    it('writes pending edits on this device when the session expires (reauth)', async () => {
+        const backend = createBackend();
+        backend.state.submissions.set(UUID, makeSubmission({ uuid: UUID, revision: 1 }));
+        server.use(...backend.handlers);
+        const { user } = renderApp(`/fill/${UUID}`);
+        await screen.findByRole('heading', { name: 'Service report' });
+        await user.click(screen.getByRole('button', { name: 'fake-edit' }));
+        // Within the autosave debounce: only App's reauth handling can write the edit now.
+        backend.state.loggedIn = false;
+        reportAuthError(new ReauthRequiredError('expired'));
+        expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
+        await vi.waitFor(async () => {
+            expect((await db.drafts.get(UUID))?.data).toMatchObject({ customer: 'Edited' });
+        });
+        expect(hardReload).not.toHaveBeenCalled(); // nothing is cleared on reauth
     });
 
     it('drops every cached query when the session expires', async () => {

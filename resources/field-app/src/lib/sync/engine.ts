@@ -12,7 +12,7 @@ import { reportAuthError } from '../session/auth-events.ts';
 import { isFatal, type RunContext, type StepResult } from './failures.ts';
 import { withSyncLock } from './lock.ts';
 import { processSubmission } from './process.ts';
-import { settleSubmission } from './store.ts';
+import { resetStaleSyncing, settleSubmission } from './store.ts';
 import { onSyncRequested, type SyncReason } from './triggers.ts';
 
 export { discardLocalSubmission, resolveConflict } from './conflicts.ts';
@@ -87,6 +87,9 @@ async function processAll(ctx: RunContext): Promise<{ stop: StepResult | null; b
 async function runOnce(manual: boolean): Promise<SyncRunResult> {
     const userId = getCurrentUserId();
     const lastRunAt = Date.now();
+    if (userId !== null) {
+        await resetStaleSyncing(userId); // we hold the lock: no run of this user is in flight
+    }
     if (userId === null || !navigator.onLine) {
         const state: SyncState = userId === null ? 'idle' : 'offline';
         await writeSyncMeta({ state, lastRunAt });

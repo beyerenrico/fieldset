@@ -1,4 +1,4 @@
-/** Header sync badge: pending count, decisions needed, sign in again (ADR 0035, M6-T07). */
+/** Header sync badge: submissions not synced, decisions needed, sign in again (ADR 0035, M6-T07). */
 import { screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { db, setMeta } from '../../src/lib/db/db.ts';
@@ -29,25 +29,26 @@ const header = (): HTMLElement => {
 };
 
 describe('sync status badge', () => {
-    it('is hidden while everything is synced and counts pending items live', async () => {
+    it('is hidden while everything is synced and counts unsynced submissions live', async () => {
         server.use(...createBackend({ me: makeMe([ORG_A, ORG_B]) }).handlers);
         renderApp('/settings');
         await screen.findByRole('heading', { name: 'Settings' });
-        expect(screen.queryByRole('link', { name: /Waiting to sync/ })).not.toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: /not synced/ })).not.toBeInTheDocument();
 
         await seedUnsynced({ orgId: 1, userId: 7 }, 'a');
         await seedUnsynced({ orgId: 2, userId: 7 }, 'b'); // other organization of the same user
         await seedUnsynced({ orgId: 1, userId: 99 }, 'c'); // another user: never counted
-        const badge = await screen.findByRole('link', { name: 'Waiting to sync: 6' });
+        // Each seeded submission has a dirty draft, its op and a photo: one submission, not three.
+        const badge = await screen.findByRole('link', { name: 'Submissions not synced: 2' });
         expect(badge).toHaveAttribute('href', '/app/settings');
         expect(header()).toContainElement(badge);
-        expect(badge).toHaveTextContent('6');
+        expect(badge).toHaveTextContent('2');
 
         await db.outbox.clear();
         await db.attachments.clear();
         await db.drafts.clear();
         await waitFor(() => {
-            expect(screen.queryByRole('link', { name: /Waiting to sync/ })).not.toBeInTheDocument();
+            expect(screen.queryByRole('link', { name: /not synced/ })).not.toBeInTheDocument();
         });
     });
 
@@ -84,7 +85,7 @@ describe('sync status badge', () => {
             Array.from({ length: 120 }, (_, index) => saveOp(`s${String(index)}`)),
         );
         renderApp('/settings');
-        const badge = await screen.findByRole('link', { name: 'Waiting to sync: 120' });
+        const badge = await screen.findByRole('link', { name: 'Submissions not synced: 120' });
         expect(badge).toHaveTextContent('99+');
     });
 });

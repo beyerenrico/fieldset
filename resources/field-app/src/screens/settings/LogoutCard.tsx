@@ -18,7 +18,7 @@ function UnsyncedWarning(): ReactNode {
     const { t } = useI18n();
     const totals = useUnsyncedTotals();
     const syncNow = useSyncNow(t);
-    const unsynced = (totals?.pending ?? 0) + (totals?.blocked ?? 0);
+    const unsynced = totals?.submissions ?? 0;
     if (unsynced === 0 && syncNow.message === null) {
         return null;
     }

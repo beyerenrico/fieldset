@@ -1,6 +1,6 @@
 /** Draft sessions: one controller per draft, shared by screens, closed after pending local writes. */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { DeviceWipedError, ReauthRequiredError } from '../../src/lib/api/errors.ts';
+import { DeviceWipedError } from '../../src/lib/api/errors.ts';
 import type { SaveRequest, SaveTransport } from '../../src/lib/autosave/types.ts';
 import {
     disposeDraftSessions,
@@ -8,6 +8,7 @@ import {
     findDraftSession,
     openDraftSession,
     retainDraftSession,
+    saveAndDisposeDraftSessions,
 } from '../../src/lib/drafts/draft-session.ts';
 import { createWorkTracker } from '../../src/lib/drafts/work-tracker.ts';
 import { reportAuthError, resetAuthNotice } from '../../src/lib/session/auth-events.ts';
@@ -189,9 +190,11 @@ describe('draft sessions', () => {
         const session = open(transport);
         retainDraftSession(session);
         session.controller.update({ a: 'typed just before expiry' });
-        reportAuthError(new ReauthRequiredError('Please sign in again.'));
-        // The app's own listener disposes right after: nothing is left for it.
+        // App.tsx on a `reauth` notice (screens/session-loss.test.tsx covers the wiring).
+        const saved = saveAndDisposeDraftSessions();
+        // A dispose that follows (logout hooks) finds nothing left to drop.
         disposeDraftSessions();
+        await saved;
         await vi.waitFor(() => {
             expect(requests).toEqual([
                 { uuid: 'draft-1', formVersionId: 7, data: { a: 'typed just before expiry' } },

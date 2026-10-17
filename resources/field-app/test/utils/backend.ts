@@ -115,6 +115,7 @@ export function createBackend(overrides: Partial<BackendState> = {}) {
                 forms: state.forms,
                 fillable_form_ids: state.fillable ?? state.forms.map((form) => form.id),
                 revoked_form_ids: [],
+                retired_version_ids: [],
                 tasks: [],
             }),
         ),

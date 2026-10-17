@@ -134,6 +134,24 @@ describe('catalog refresh', () => {
         expect(await cachedVersionIds()).toEqual([7]);
     });
 
+    it('marks cached versions listed in retired_version_ids as retired', async () => {
+        const backend = createCatalogBackend({ manifestForms: [summary(3, 7)], fillable: [3] });
+        server.use(...backend.handlers);
+        await refreshCatalog(ORG);
+        await db.formVersions.put({ ...(await db.formVersions.get(7))!, id: 6 }); // older version
+        await db.drafts.put(draft('pinned-to-6', 6));
+        expect((await db.formVersions.get(6))?.retired).toBe(false);
+
+        backend.state.manifestForms = [];
+        backend.state.retired = [6, 99]; // 99 was never cached
+        await refreshCatalog(ORG);
+
+        expect((await db.formVersions.get(6))?.retired).toBe(true);
+        expect((await db.formVersions.get(7))?.retired).toBe(false);
+        expect(await db.formVersions.get(99)).toBeUndefined();
+        expect(await cachedVersionIds()).toEqual([6, 7]); // kept for the local draft
+    });
+
     it('purges favorites and recent forms as soon as the manifest arrives', async () => {
         toggleFavorite(ORG, 3);
         toggleFavorite(ORG, 99);

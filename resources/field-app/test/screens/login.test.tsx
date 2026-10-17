@@ -179,6 +179,7 @@ describe('login', () => {
                     forms: [],
                     fillable_form_ids: [],
                     revoked_form_ids: [],
+                    retired_version_ids: [],
                     tasks: [],
                 }),
             ),

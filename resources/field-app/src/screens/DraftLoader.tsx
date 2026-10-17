@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { ErrorState, Loading } from '../components/RouteError.tsx';
+import { VersionLoadError } from '../components/VersionLoadError.tsx';
 import { Alert } from '../components/ui/alert.tsx';
 import { Button } from '../components/ui/button.tsx';
 import { formVersionQueryOptions, submissionQueryOptions } from '../hooks/queries.ts';
@@ -95,7 +96,10 @@ export function DraftLoader({ uuid, formId, versionId, children }: DraftLoaderPr
     }
     if (versionQuery.isError) {
         return (
-            <ErrorState error={versionQuery.error} onRetry={() => void versionQuery.refetch()} />
+            <VersionLoadError
+                error={versionQuery.error}
+                onRetry={() => void versionQuery.refetch()}
+            />
         );
     }
     return children(start, versionQuery.data, scope);

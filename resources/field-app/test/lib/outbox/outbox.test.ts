@@ -92,6 +92,7 @@ describe('outbox', () => {
         await enqueueDraftSave(SCOPE, 's1');
         await enqueueDraftSave({ orgId: 1, userId: 8 }, 'other-user');
         expect(await unsyncedSummary(SCOPE)).toEqual({
+            submissions: 2, // s1 (draft, op, photo) and s2 (conflict)
             ops: 1,
             dirtyDrafts: 1,
             pendingAttachments: 1,

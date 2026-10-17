@@ -79,6 +79,7 @@ export function localSubmission(row: DraftRow): Submission {
         data: row.data,
         attachments: server?.attachments ?? [],
         submitted_at: server?.submitted_at ?? null,
+        client_submitted_at: server?.client_submitted_at ?? null,
         created_at: server?.created_at ?? new Date(row.createdAt).toISOString(),
         updated_at: new Date(row.updatedAt).toISOString(),
         can_edit: server?.can_edit ?? true,

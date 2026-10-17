@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { I18nProvider } from './i18n/I18nProvider.tsx';
 import { ApiError, isApiError, isAuthLost } from './lib/api/errors.ts';
 import { startCatalogSync } from './lib/catalog/catalog.ts';
-import { disposeDraftSessions } from './lib/drafts/draft-session.ts';
+import { disposeDraftSessions, saveAndDisposeDraftSessions } from './lib/drafts/draft-session.ts';
 import { loginUrl, onAccountEvent } from './lib/session/account.ts';
 import { onAuthLost, reportAuthError } from './lib/session/auth-events.ts';
 import { onLocalDataCleared, onLocalDataClearing } from './lib/session/local-data.ts';
@@ -65,8 +65,9 @@ export interface AppProps {
 }
 
 /**
- * Providers + router; session loss anywhere redirects to the login screen. Logout, wipe and a lost
- * session end open drafts without saving and drop every cached query (the next user starts empty).
+ * Providers + router; session loss anywhere redirects to the login screen. Logout and wipe end open
+ * drafts without saving, a lost session (reauth) saves them on this device first; every cached query
+ * is dropped (the next user starts empty).
  */
 export function App({ queryClient: given, history }: AppProps): ReactNode {
     const [queryClient] = useState(() => given ?? createAppQueryClient());
@@ -111,7 +112,12 @@ export function App({ queryClient: given, history }: AppProps): ReactNode {
             hardReload(loginUrl(event === 'wiped' ? 'wiped' : 'logout'));
         });
         const stopLost = onAuthLost((notice) => {
-            disposeDraftSessions();
+            // Expiry writes pending edits on this device first; a wipe ends them without writing.
+            if (notice === 'reauth') {
+                void saveAndDisposeDraftSessions();
+            } else {
+                disposeDraftSessions();
+            }
             queryClient.removeQueries({ queryKey: ['me'] });
             clearCache();
             void router.navigate({ to: '/login', search: notice === undefined ? {} : { notice } });

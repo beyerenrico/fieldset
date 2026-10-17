@@ -1,7 +1,7 @@
 /**
- * Pending-sync indicator next to the online state (ADR 0035, M6-T07): the number of unsynced items
- * (queued ops + unsynced drafts + attachments not uploaded), items that need a decision, or "sign in
- * again". Hidden when everything is synced. The full text is the link's accessible name.
+ * Pending-sync indicator next to the online state (ADR 0035, M6-T07): the number of submissions not
+ * synced (queued ops, unsynced drafts, attachments not uploaded), items that need a decision, or
+ * "sign in again". Hidden when everything is synced. The full text is the link's accessible name.
  */
 import { Link } from '@tanstack/react-router';
 import { CloudUpload, KeyRound, TriangleAlert } from 'lucide-react';
@@ -53,8 +53,8 @@ export function SyncStatusBadge(): ReactNode {
             </Link>
         );
     }
-    if (totals.pending > 0) {
-        const label = t('account.badgePending', { count: totals.pending });
+    if (totals.submissions > 0) {
+        const label = t('account.badgePending', { count: totals.submissions });
         return (
             <Link
                 to="/settings"
@@ -63,7 +63,7 @@ export function SyncStatusBadge(): ReactNode {
                 className={cn(BASE, 'border-2 border-border bg-background text-foreground')}
             >
                 <CloudUpload aria-hidden="true" className="size-5" />
-                <span aria-hidden="true">{count(totals.pending)}</span>
+                <span aria-hidden="true">{count(totals.submissions)}</span>
             </Link>
         );
     }

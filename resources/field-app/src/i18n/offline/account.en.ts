@@ -27,10 +27,10 @@ export const accountEn = {
     'account.reauthHint':
         'Your session has ended. Sign in again to sync – your data stays on this device.',
     'account.signInAgain': 'Sign in again',
-    'account.badgePending': 'Waiting to sync: {count}',
+    'account.badgePending': 'Submissions not synced: {count}',
     'account.badgeBlocked': 'Need your decision: {count}',
     'account.badgeReauth': 'Sign in again to sync',
-    'account.logoutUnsynced': 'Not synced yet: {count}. Signing out deletes these items.',
+    'account.logoutUnsynced': 'Submissions not synced yet: {count}. Signing out deletes them.',
     'account.foreignTitle': 'Data of another user',
     'account.foreignText':
         'This device still holds unsynced items of another user ({count}). They stay hidden and are never sent with your account.',

@@ -22,6 +22,8 @@ export interface CatalogBackend {
     /** `forms` of the next manifest (the delta since the cursor). */
     manifestForms: FormSummary[];
     fillable: number[];
+    /** `retired_version_ids` of the next manifest. */
+    retired: number[];
     cursor: string;
     /** Version checksum overrides by version id. */
     checksums: Map<number, string>;
@@ -40,6 +42,7 @@ export function createCatalogBackend(initial: Partial<CatalogBackend> = {}) {
         forms: [],
         manifestForms: [],
         fillable: [],
+        retired: [],
         cursor: 'c1',
         checksums: new Map(),
         failures: new Map(),
@@ -61,6 +64,7 @@ export function createCatalogBackend(initial: Partial<CatalogBackend> = {}) {
                     forms: state.manifestForms,
                     fillable_form_ids: state.fillable,
                     revoked_form_ids: [],
+                    retired_version_ids: state.retired,
                     tasks: [],
                 });
             }),

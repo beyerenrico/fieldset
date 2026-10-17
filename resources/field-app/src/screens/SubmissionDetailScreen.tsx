@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { ReviewNote } from '../components/ReviewNote.tsx';
 import { ErrorState, Loading } from '../components/RouteError.tsx';
 import { StatusBadge } from '../components/StatusBadge.tsx';
+import { VersionLoadError } from '../components/VersionLoadError.tsx';
 import { Alert, AlertTitle } from '../components/ui/alert.tsx';
 import { Button } from '../components/ui/button.tsx';
 import { formVersionQueryOptions } from '../hooks/queries.ts';
@@ -128,7 +129,7 @@ export function SubmissionDetailScreen(): ReactNode {
             />
             {version.isPending ? <Loading /> : null}
             {version.isError ? (
-                <ErrorState error={version.error} onRetry={() => void version.refetch()} />
+                <VersionLoadError error={version.error} onRetry={() => void version.refetch()} />
             ) : null}
             {version.data !== undefined ? (
                 <FormRenderer

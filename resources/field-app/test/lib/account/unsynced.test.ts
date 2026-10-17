@@ -23,13 +23,18 @@ describe('unsynced work', () => {
         await db.outbox.put(saveOp('blocked', { state: 'blocked' }));
 
         expect(await unsyncedForUser(7, [1, 2, 2])).toEqual({
+            submissions: 4, // a, b, conflict, blocked
             ops: 3,
             dirtyDrafts: 2,
             pendingAttachments: 2,
             blocked: 2,
             pending: 7,
         });
-        expect(await unsyncedForUser(7, [])).toMatchObject({ pending: 0, blocked: 0 });
+        expect(await unsyncedForUser(7, [])).toMatchObject({
+            submissions: 0,
+            pending: 0,
+            blocked: 0,
+        });
     });
 
     it('counts and deletes the rows of other users only', async () => {

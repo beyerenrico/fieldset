@@ -11,6 +11,11 @@ import { requestSync } from '../sync/triggers.ts';
 import { registerBackgroundSync } from './background-sync.ts';
 
 export interface UnsyncedSummary {
+    /**
+     * Distinct submissions with queued ops, unsynced or paused drafts, or attachments not uploaded:
+     * the number users see (one offline draft is one submission, not its op plus its draft).
+     */
+    readonly submissions: number;
     readonly ops: number;
     readonly dirtyDrafts: number;
     readonly pendingAttachments: number;
@@ -180,13 +185,19 @@ export async function unsyncedSummary(scope: Scope): Promise<UnsyncedSummary> {
         .where('state')
         .anyOf('pending', 'failed')
         .filter((row) => row.orgId === scope.orgId && row.userId === scope.userId)
-        .count();
+        .toArray();
+    const dirty = drafts.filter((draft) => draft.localVersion > draft.syncedVersion);
+    const paused = drafts.filter((draft) => draft.sync === 'conflict' || draft.sync === 'blocked');
+    const submissions = new Set([
+        ...ops.map((op) => op.submissionUuid),
+        ...[...dirty, ...paused].map((draft) => draft.uuid),
+        ...attachments.map((row) => row.submissionUuid),
+    ]);
     return {
+        submissions: submissions.size,
         ops: ops.length,
-        dirtyDrafts: drafts.filter((draft) => draft.localVersion > draft.syncedVersion).length,
-        pendingAttachments: attachments,
-        blocked:
-            ops.filter((op) => op.state === 'blocked').length +
-            drafts.filter((draft) => draft.sync === 'conflict' || draft.sync === 'blocked').length,
+        dirtyDrafts: dirty.length,
+        pendingAttachments: attachments.length,
+        blocked: ops.filter((op) => op.state === 'blocked').length + paused.length,
     };
 }

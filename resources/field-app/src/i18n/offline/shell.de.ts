@@ -9,7 +9,7 @@ export const shellDe: Readonly<Record<keyof typeof shellEn, string>> = {
         'App installieren: Tippen Sie auf „Teilen“ und dann auf „Zum Home-Bildschirm“.',
     'pwa.install.dismiss': 'Nicht jetzt',
     'pwa.ios.warning':
-        '{count} Einträge sind noch nicht synchronisiert. iOS löscht die Daten von Web-Apps, die nicht auf dem Home-Bildschirm liegen, nach 7 Tagen ohne Nutzung.',
+        'Noch nicht synchronisierte Einreichungen: {count}. iOS löscht die Daten von Web-Apps, die nicht auf dem Home-Bildschirm liegen, nach 7 Tagen ohne Nutzung.',
     'pwa.ios.hide': 'Ausblenden',
     'pwa.update.available': 'Eine neue Version der App ist verfügbar.',
     'pwa.update.apply': 'Jetzt aktualisieren',
@@ -25,5 +25,5 @@ export const shellDe: Readonly<Record<keyof typeof shellEn, string>> = {
         'Die Formulare sind offline noch nicht verfügbar. Verbinden Sie sich einmal mit dem Internet, um sie herunterzuladen.',
     'catalog.formNotCached': 'Offline nicht verfügbar',
     'catalog.versionNotCached':
-        'Dieses Formular ist offline noch nicht verfügbar. Öffnen Sie es einmal, während Sie online sind.',
+        'Diese Formularversion ist offline noch nicht verfügbar. Verbinden Sie sich einmal mit dem Internet, um sie herunterzuladen.',
 };

@@ -175,12 +175,34 @@ export async function markSyncing(uuid: string): Promise<void> {
     });
 }
 
-/** Removes every row of one user in one organization (membership gone: 403 organization_forbidden). */
-export async function purgeOrganization(orgId: number, userId: number): Promise<void> {
-    const key: [number, number] = [orgId, userId];
-    await db.transaction('rw', db.drafts, db.outbox, db.attachments, async () => {
-        await db.drafts.where('[orgId+userId]').equals(key).delete();
-        await db.outbox.where('[orgId+userId]').equals(key).delete();
-        await db.attachments.filter((row) => row.orgId === orgId && row.userId === userId).delete();
+/**
+ * A run starts (inside the sync lock): rows a killed tab left at `syncing` are queued again, since
+ * no run of this user is in flight now.
+ */
+export async function resetStaleSyncing(userId: number): Promise<void> {
+    await db.transaction('rw', db.drafts, async () => {
+        const stale = await db.drafts
+            .filter((row) => row.userId === userId && row.sync === 'syncing')
+            .toArray();
+        await db.drafts.bulkPut(stale.map((row) => ({ ...row, sync: 'queued' as const })));
+    });
+}
+
+/**
+ * Upload ops whose attachment row is gone (the user removed the file before it was uploaded): they
+ * are dropped, so they hold back neither the draft update nor the submit. The row is always written
+ * before its op (attachments/local-store.ts), so a missing row never means "not stored yet".
+ */
+export async function dropOrphanUploads(submissionUuid: string): Promise<void> {
+    await db.transaction('rw', db.outbox, db.attachments, async () => {
+        const ops = await db.outbox.where('submissionUuid').equals(submissionUuid).toArray();
+        for (const op of ops) {
+            if (op.kind !== 'attachment.upload') {
+                continue;
+            }
+            if ((await db.attachments.get(op.attachmentUuid)) === undefined) {
+                await db.outbox.delete(op.id);
+            }
+        }
     });
 }

@@ -7,7 +7,7 @@ import swSyncSource from '../../../public/sw-sync.js?raw';
 import { PwaPrompts } from '../../../src/components/pwa/PwaPrompts.tsx';
 import { createOfflineDb } from '../../../src/lib/db/db.ts';
 import { watchDatabaseVersion } from '../../../src/lib/pwa/db-version.ts';
-import { flushOpenDrafts } from '../../../src/lib/pwa/flush-drafts.ts';
+import { flushDraftSessions } from '../../../src/lib/drafts/draft-session.ts';
 import {
     BACKGROUND_SYNC_TAG,
     listenForServiceWorkerMessages,
@@ -21,12 +21,15 @@ import {
 import { onSyncRequested, resetSyncTriggersForTests } from '../../../src/lib/sync/triggers.ts';
 import { MAC, renderWithI18n } from '../../utils/b-pwa.tsx';
 
-vi.mock('../../../src/lib/pwa/flush-drafts.ts', () => ({ flushOpenDrafts: vi.fn() }));
+vi.mock('../../../src/lib/drafts/draft-session.ts', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('../../../src/lib/drafts/draft-session.ts')>()),
+    flushDraftSessions: vi.fn(),
+}));
 
 afterEach(() => {
     resetUpdateStateForTests();
     resetSyncTriggersForTests();
-    vi.mocked(flushOpenDrafts).mockReset();
+    vi.mocked(flushDraftSessions).mockReset();
 });
 
 describe('Background Sync wake-up', () => {
@@ -85,7 +88,7 @@ function fakeRegister() {
         options = given;
         return activate;
     };
-    vi.mocked(flushOpenDrafts).mockImplementation(() => {
+    vi.mocked(flushDraftSessions).mockImplementation(() => {
         order.push('flush');
         return Promise.resolve();
     });
@@ -104,9 +107,13 @@ describe('service worker updates', () => {
         sw.options().onNeedRefresh?.();
         const banner = await screen.findByRole('status');
         expect(banner).toHaveTextContent('A new version of the app is available.');
+        const pagehide = vi.fn();
+        window.addEventListener('pagehide', pagehide);
         await user.click(screen.getByRole('button', { name: 'Update now' }));
+        window.removeEventListener('pagehide', pagehide);
 
         expect(sw.order).toEqual(['flush', 'activate']);
+        expect(pagehide).not.toHaveBeenCalled(); // awaited directly, no synthetic event
         expect(reload).toHaveBeenCalledOnce();
         expect(screen.getByRole('button', { name: 'Updating…' })).toHaveAttribute(
             'aria-disabled',
@@ -119,7 +126,7 @@ describe('service worker updates', () => {
     it('activates even when flushing fails, and "Later" hides the banner', async () => {
         const user = userEvent.setup();
         const sw = fakeRegister();
-        vi.mocked(flushOpenDrafts).mockRejectedValue(new Error('flush failed'));
+        vi.mocked(flushDraftSessions).mockRejectedValue(new Error('flush failed'));
         const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined);
         startServiceWorker(sw.register, vi.fn());
         sw.options().onNeedRefresh?.();

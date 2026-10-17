@@ -177,7 +177,9 @@ describe('settings', () => {
         await user.click(screen.getByRole('button', { name: 'Sign out' }));
         const dialog = screen.getByRole('alertdialog', { name: 'Sign out' });
         expect(
-            await within(dialog).findByText('Not synced yet: 3. Signing out deletes these items.'),
+            await within(dialog).findByText(
+                'Submissions not synced yet: 1. Signing out deletes them.',
+            ),
         ).toBeInTheDocument();
         await user.click(within(dialog).getByRole('button', { name: 'Sync now' }));
         expect(runSync).toHaveBeenCalledWith({ manual: true });

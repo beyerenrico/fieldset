@@ -1,11 +1,11 @@
 /**
  * Service worker updates (registerType 'prompt', ADR 0035). A waiting worker shows the update
- * banner; accepting it flushes open drafts, activates the worker and reloads once it controls the
- * page. A Dexie `versionchange` (another tab upgraded the store) or `blocked` (an old tab holds the
+ * banner; accepting it writes the pending edits of open drafts on this device, activates the worker
+ * and reloads once it controls the page. A Dexie `versionchange` (another tab upgraded the store) or `blocked` (an old tab holds the
  * store) shows a reload banner instead.
  */
 import type { RegisterSWOptions } from 'vite-plugin-pwa/types';
-import { flushOpenDrafts } from './flush-drafts.ts';
+import { flushDraftSessions } from '../drafts/draft-session.ts';
 import { createStore } from './store.ts';
 
 /** `registerSW` of `virtual:pwa-register` (injected so tests can fake it). */
@@ -52,7 +52,7 @@ export async function applyUpdate(): Promise<void> {
     }
     store.set({ ...state, updating: true });
     try {
-        await flushOpenDrafts();
+        await flushDraftSessions();
     } catch (error) {
         console.error('Flushing drafts before the update failed', error);
     }

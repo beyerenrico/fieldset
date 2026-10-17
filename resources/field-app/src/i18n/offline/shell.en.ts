@@ -5,7 +5,7 @@ export const shellEn = {
     'pwa.install.ios': 'Install the app: tap Share, then “Add to Home Screen”.',
     'pwa.install.dismiss': 'Not now',
     'pwa.ios.warning':
-        '{count} items are not synced yet. iOS deletes the data of web apps that are not on the home screen after 7 days without use.',
+        'Submissions not synced yet: {count}. iOS deletes the data of web apps that are not on the home screen after 7 days without use.',
     'pwa.ios.hide': 'Hide',
     'pwa.update.available': 'A new version of the app is available.',
     'pwa.update.apply': 'Update now',
@@ -20,5 +20,5 @@ export const shellEn = {
     'catalog.formNotCached': 'Not available offline',
     /** For the fill/detail screens when getFormVersion raises NotCachedError. */
     'catalog.versionNotCached':
-        'This form is not available offline yet. Open it once while you are online.',
+        'This form version is not available offline yet. Connect to the internet once to download it.',
 } as const;

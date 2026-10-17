@@ -31,11 +31,11 @@ export const accountDe: Readonly<Record<keyof typeof accountEn, string>> = {
     'account.reauthHint':
         'Ihre Sitzung ist abgelaufen. Melden Sie sich erneut an, um zu synchronisieren – Ihre Daten bleiben auf diesem Gerät.',
     'account.signInAgain': 'Erneut anmelden',
-    'account.badgePending': 'Warten auf Synchronisierung: {count}',
+    'account.badgePending': 'Nicht synchronisierte Einreichungen: {count}',
     'account.badgeBlocked': 'Brauchen Ihre Entscheidung: {count}',
     'account.badgeReauth': 'Erneut anmelden, um zu synchronisieren',
     'account.logoutUnsynced':
-        'Noch nicht synchronisiert: {count}. Beim Abmelden werden diese Einträge gelöscht.',
+        'Noch nicht synchronisierte Einreichungen: {count}. Beim Abmelden werden sie gelöscht.',
     'account.foreignTitle': 'Daten eines anderen Benutzers',
     'account.foreignText':
         'Auf diesem Gerät liegen noch nicht synchronisierte Einträge eines anderen Benutzers ({count}). Sie bleiben verborgen und werden nie mit Ihrem Konto gesendet.',

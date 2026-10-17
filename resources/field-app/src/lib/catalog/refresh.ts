@@ -1,7 +1,8 @@
 /**
  * One catalog refresh (ADR 0035): manifest since the stored cursor → summaries (upsert by id; one
  * `GET /forms` when a fillable form is unknown) → missing or changed versions → one transaction that
- * stores forms and versions, purges what is no longer fillable and only then saves the cursor.
+ * stores forms and versions, marks retired versions, purges what is no longer fillable and only then
+ * saves the cursor.
  * Any failed fetch leaves the store untouched, so the next run repeats from the old cursor.
  */
 import { isApiError } from '../api/errors.ts';
@@ -115,17 +116,29 @@ async function purgeVersions(orgId: number, forms: readonly FormRow[]): Promise<
     await db.formVersions.bulkDelete(ids.filter((id) => !keep.has(id)));
 }
 
+/**
+ * Retiring changes no form row, so the manifest lists retired version ids instead: cached copies
+ * (kept while a local draft uses them) say `retired`, and the sync engine blocks those drafts.
+ */
+async function markRetired(orgId: number, retired: ReadonlySet<number>): Promise<void> {
+    const rows = await db.formVersions.where('orgId').equals(orgId).toArray();
+    const changed = rows.filter((row) => retired.has(row.id) && !row.retired);
+    await db.formVersions.bulkPut(changed.map((row) => ({ ...row, retired: true })));
+}
+
 interface CatalogWrite {
     readonly cursor: string;
     readonly forms: readonly FormSummary[];
     readonly versions: readonly FormVersion[];
     readonly fillable: ReadonlySet<number>;
+    readonly retired: ReadonlySet<number>;
 }
 
 async function writeCatalog(orgId: number, write: CatalogWrite): Promise<number[]> {
     const now = Date.now();
     return db.transaction('rw', [db.forms, db.formVersions, db.drafts, db.meta], async () => {
         await db.formVersions.bulkPut(write.versions.map((v) => ({ ...v, orgId, cachedAt: now })));
+        await markRetired(orgId, write.retired);
         await db.forms.bulkPut(write.forms.map((form) => ({ ...form, orgId, cachedAt: now })));
         const rows = await db.forms.where('orgId').equals(orgId).toArray();
         const purged = rows.filter((row) => !write.fillable.has(row.id));
@@ -155,6 +168,7 @@ export async function refreshCatalog(orgId: number): Promise<CatalogRefresh> {
         forms,
         versions: fetched,
         fillable,
+        retired: new Set(manifest.retired_version_ids),
     });
     emitCatalogChange(orgId, 'forms');
     return {

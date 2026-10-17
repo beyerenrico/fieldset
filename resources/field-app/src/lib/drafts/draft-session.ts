@@ -2,7 +2,8 @@
  * One autosave controller, attachment adapter and work tracker per open draft, shared by the fill
  * and review screens. A session outlives its screens until pending edits are written on this
  * device. Logout and wipe end it without writing (the store is being cleared); a lost session
- * (reauth) writes pending edits on this device first, so expiry never loses data (ADR 0035).
+ * (reauth) writes pending edits on this device first, so expiry never loses data (ADR 0035): App.tsx
+ * calls saveAndDisposeDraftSessions() then. An app update writes them and keeps the sessions open.
  */
 import type { JsonObject } from '@form-schema-app/form-schema-js';
 import type { Submission } from '../api/types.ts';
@@ -14,7 +15,6 @@ import { AutosaveController } from '../autosave/controller.ts';
 import { createLocalTransport } from '../autosave/local-transport.ts';
 import type { SaveTransport } from '../autosave/types.ts';
 import type { Scope } from '../db/schema.ts';
-import { onAuthLost } from '../session/auth-events.ts';
 import { createWorkTracker, type WorkTracker } from './work-tracker.ts';
 
 export interface DraftSession {
@@ -193,9 +193,11 @@ export function saveAndDisposeDraftSessions(): Promise<void> {
     ).then(() => undefined);
 }
 
-// Registered on import, before the app's own listener (which disposes the sessions right away).
-onAuthLost((notice) => {
-    if (notice === 'reauth') {
-        void saveAndDisposeDraftSessions();
-    }
-});
+/**
+ * Writes the pending edits of every open draft on this device and keeps the sessions open (a new
+ * service worker takes over and reloads the page; see pwa/sw-update.ts).
+ */
+export async function flushDraftSessions(): Promise<void> {
+    const sessions = [...entries.values()].map((entry) => entry.session);
+    await Promise.all(sessions.map(({ controller }) => controller.flush()));
+}
