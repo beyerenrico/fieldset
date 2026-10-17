@@ -13,7 +13,7 @@ import { Button } from '../components/ui/button.tsx';
 import { formVersionQueryOptions, submissionQueryOptions } from '../hooks/queries.ts';
 import { useDraftScope } from '../hooks/useLocalDrafts.ts';
 import { useT } from '../i18n/I18nProvider.tsx';
-import { isApiError } from '../lib/api/errors.ts';
+import { isApiError, NetworkError } from '../lib/api/errors.ts';
 import type { FormVersion } from '../lib/api/types.ts';
 import type { DraftRow, Scope } from '../lib/db/schema.ts';
 import { chooseStart, readLocalDraft, type DraftStart } from '../lib/drafts/local-drafts.ts';
@@ -67,7 +67,11 @@ export function DraftLoader({ uuid, formId, versionId, children }: DraftLoaderPr
     const scope = useDraftScope();
     const local = useLocalRow(uuid, scope);
     const submission = useQuery({ ...submissionQueryOptions(uuid), retry: false });
-    const missing = isApiError(submission.error, 404);
+    // A new draft (opened from the catalog with form and version) is not on the server yet: offline,
+    // the failed lookup means the same as a 404.
+    const isNew = formId !== undefined && versionId !== undefined;
+    const missing =
+        isApiError(submission.error, 404) || (isNew && submission.error instanceof NetworkError);
     const server = submission.data ?? null;
     const start =
         local === undefined

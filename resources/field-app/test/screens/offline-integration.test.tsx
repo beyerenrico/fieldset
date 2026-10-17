@@ -114,3 +114,20 @@ describe('local draft on a retired version', () => {
         expect(backend.state.puts.map((put) => put.uuid)).not.toContain(UUID);
     });
 });
+
+describe('new draft while offline', () => {
+    it('opens a form from the catalog cache without a connection (M6 E2E finding)', async () => {
+        const backend = createBackend();
+        server.use(...backend.handlers);
+        await db.formVersions.put({ ...makeVersion(7, 3), orgId: 1, cachedAt: 1 });
+        // The connection dropped after the app started: the draft lookup and the version fail.
+        server.use(
+            http.get('*/api/v1/submissions/:uuid', () => HttpResponse.error()),
+            http.get('*/api/v1/forms/:form/versions/:version', () => HttpResponse.error()),
+        );
+        renderApp(`/fill/${UUID}?formId=3&versionId=7`);
+
+        expect(await screen.findByRole('heading', { name: 'Service report' })).toBeInTheDocument();
+        expect(screen.queryByText(/No connection/)).not.toBeInTheDocument();
+    });
+});
