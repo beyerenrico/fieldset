@@ -120,3 +120,25 @@ Versions, checked on the npm registry on 2026-10-17: dexie 4.4.6 (Apache-2.0), v
 - The server stays authoritative for numbers, calculations and time.
 - Many M2 screen tests that assumed a server PUT on autosave are rewritten.
 - The ownership split for the parallel agents and the frozen shared modules are recorded in `docs/agent/milestones/M6.md`.
+
+## Amendment 2026-10-18: implementation notes (M6 agents B and C)
+- **Shell URL.** The service worker precaches index.html only under `/app/shell`, which is also its navigation fallback.
+  - No static file answers `/app/shell`, so Laravel's catch-all serves it with SpaController's CSP.
+  - The Caddyfile also rewrites `/app/index.html` and `/form-preview/preview.html` to Laravel. Before, those two URLs were served statically without the CSP; `/app/` and `/form-preview/` already went through Laravel.
+- **Background Sync script.** `sw-sync.js` is pulled in with `importScripts` and a content hash. The preview build sets `publicDir: false`, so no icons or SW files reach `/form-preview/`.
+- **Photos.** They are compressed once, by the renderer's AttachmentField, before the adapter stores them. There is no GPS opt-in setting yet, so GPS is always stripped by the canvas re-encode. Files the browser cannot decode (e.g. HEIC outside Safari) keep their EXIF locally, and the server strips it on upload.
+- **Catalog cache.** It is kept per organization, not per user, because forms are not user data.
+  - The forms list reads the cache only once a refresh has completed; before that it calls `GET /forms`, which purges revoked favourites at once.
+  - Queries use `networkMode: 'offlineFirst'`.
+- **Manifest.** It now returns `retired_version_ids`: the versions of fillable forms retired since the cursor. A version retired on a form that is no longer fillable shows up as a 409 `version_retired` on sync.
+- **Membership deactivation** goes through `EndUserAccess`, shared with DeactivateUser:
+  - It deletes the user's sessions and `remember_token`; the Field App logs in with "remember me".
+  - When no other active membership remains, it sets `wipe_requested_at` on the user's devices. The wipe stays even if the member is reactivated (QUESTIONS #16).
+- **`organization_forbidden`.** On this 403 the client refetches `/me`:
+  - If the organization is gone, it purges that user's rows for the organization and the organization's catalog.
+  - If no organization is left, it asks device-status and wipes on `wipe`.
+- **Durable send idempotency.** `document_sends.idempotency_key` is unique per organization, submission and key. A replay returns the existing send with 202, without a new row, without counting against the cap and without a second mail.
+- **`client_submitted_at`.** It must be ISO 8601 with an offset and at most 5 minutes in the future; otherwise the answer is 422 with pointer `/client_submitted_at`. A repeated submit leaves it unchanged. The admin submission view shows it when present.
+- **Offline start.** The last `/me` is kept in meta `session`. A network error, a 502/503/504, or no answer within 8 s starts the app from that cached session. A cached session counts as stale, so it is refetched when the connection returns.
+  - Login always fetches `/me` fresh. If that fetch fails, the cached session is dropped, so another user's session can never be opened.
+- **Logout and wipe.** Only `fsa.*` localStorage keys are cleared, because the admin panel shares the origin. `settings` and `pwa.installDismissed` are kept. An offline logout clears everything but does not reload, which would show the browser's offline page.

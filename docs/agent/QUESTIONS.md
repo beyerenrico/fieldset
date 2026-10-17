@@ -47,5 +47,9 @@ Format: question · chosen option · impact · how to reverse.
    customers expect it.
 15. Shared devices (ADR 0035): unsynced rows of user A stay hidden and unsent when user B signs in on the
    same device; the device secret belongs to whoever signed in last, so a wipe for A cannot reach them ·
-   accepted (field devices are usually personal); B is offered to delete them · A's unsynced work waits
+   accepted (field devices are usually personal); B is offered to delete them, keeping is the default · A's unsynced work waits
    until A signs in again · per-user device records if shared devices matter.
+16. A wipe requested by deactivating a member's last active membership stays when the member is
+   reactivated before the device connects again (M6, EndUserAccess) · accepted (the safe direction) ·
+   the device wipes once, unsynced work on it is lost, the member signs in and registers again · lift
+   `wipe_requested_at` on reactivation if admins often deactivate by mistake.
