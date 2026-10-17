@@ -10,9 +10,9 @@ tablet (also offline) to produce reports, invoices, checklists and other documen
 - **Form Schema Spec** — open, versioned JSON format for form definitions (`spec/`, MIT) with PHP and
   JavaScript SDKs (`packages/`, MIT)
 
-> Status: **0.1.0 (MVP)** — see [CHANGELOG.md](CHANGELOG.md) and
-> [release notes](docs/releases/0.1.0.md). Full offline mode, reports, SSO and the canvas builder are
-> planned for 1.0 (`docs/agent/PLAN.md`).
+> Status: **0.2.0** (reports, dashboards, offline-first Field App) — see [CHANGELOG.md](CHANGELOG.md)
+> and [release notes](docs/releases/0.2.0.md). SSO and the canvas builder are planned for 1.0
+> (`docs/agent/PLAN.md`).
 
 ## What you can do
 

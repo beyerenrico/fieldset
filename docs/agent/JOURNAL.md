@@ -79,3 +79,11 @@
   mails failing on lazy loading for orgs with several reports.
 - Gate: PHP 3766 tests, coverage 94.98 %, PHPStan 0/0, Rector/Pint clean, JS 606/110/297, conformance
   390/391, E2E 20/20 ×2 on fresh seeds.
+
+## 2026-10-18 M6 gate (offline-first)
+- Architecture agent → ADR 0035; foundation (Dexie db, triggers, stubs) by me; three parallel agents
+  (sync core, PWA/catalog/attachments, backend/session) + an integration agent.
+- E2E found 3 real bugs: offline new draft (a371724), renderer focus steal since M2 (3f38652), login
+  limit → third demo worker. Reviews: 4 high security/correctness + 4 high UX; all fixed (c597dde, d6479da).
+- Gate: PHP 3799, coverage 95.00 %, PHPStan 0/0, Rector/Pint clean, JS 608/111/557, conformance
+  391/392, E2E 24/24 ×2 (--workers=2: antivirus load ~100). Release 0.2.0.
