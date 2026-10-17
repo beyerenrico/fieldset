@@ -30,6 +30,7 @@ export interface Card {
     readonly key: HTMLElement;
     readonly lock: HTMLElement;
     readonly flag: HTMLElement;
+    readonly check: HTMLElement;
     readonly body: HTMLElement;
     /** Rendered state: the card is only patched when one of these changed. */
     node: object | null;
@@ -57,6 +58,7 @@ interface HeadParts {
     readonly key: HTMLElement;
     readonly lock: HTMLElement;
     readonly flag: HTMLElement;
+    readonly check: HTMLElement;
 }
 
 function headParts(kind: 'page' | 'element', ctx: CardContext): HeadParts {
@@ -81,7 +83,10 @@ function headParts(kind: 'page' | 'element', ctx: CardContext): HeadParts {
             icon('lock'),
             srOnly(ctx.tr.t('canvas.locked')),
         ]),
-        flag: h('span', { class: 'bv2-card__flag', hidden: true }, [icon('alert'), srOnly('')]),
+        // Errors and warnings differ by icon and visible text, not only by colour (decorated in render.ts).
+        flag: h('span', { class: 'bv2-card__flag', hidden: true }),
+        // Selection is shown by a tinted head and this check mark; focus keeps the outline.
+        check: h('span', { class: 'bv2-card__check', 'aria-hidden': 'true' }, [icon('check')]),
     };
 }
 
@@ -97,6 +102,7 @@ export function createCard(kind: 'page' | 'element', id: string, ctx: CardContex
     const head = h('div', { class: 'bv2-card__head' }, [
         parts.handle,
         parts.collapse,
+        parts.check,
         parts.typeIcon,
         title,
         parts.key,
@@ -116,6 +122,23 @@ export function createCard(kind: 'page' | 'element', id: string, ctx: CardContex
     );
     setAttrs(el, kind === 'page' ? { 'data-builder-page': id } : { 'data-builder-node': id });
     return { id, kind, el, ...parts, body, node: null, depth: -1, collapsed: false, lists: [] };
+}
+
+/** Shows the worst lint marker of a card as icon plus visible text ("Error" / "Warning"). */
+export function setFlag(card: Card, marker: 'error' | 'warning' | null, tr: Translator): void {
+    card.flag.hidden = marker === null;
+    const current = card.flag.dataset.marker ?? null;
+    if (marker === null || current === marker) {
+        return;
+    }
+    card.flag.dataset.marker = marker;
+    card.flag.title = tr.t(marker === 'error' ? 'canvas.has_errors' : 'canvas.has_warnings');
+    card.flag.replaceChildren(
+        icon(marker),
+        h('span', { class: 'bv2-card__flag-text' }, [
+            tr.t(marker === 'error' ? 'canvas.flag_error' : 'canvas.flag_warning'),
+        ]),
+    );
 }
 
 /** Updates texts and attributes from the node (cheap: attribute writes only happen on change). */

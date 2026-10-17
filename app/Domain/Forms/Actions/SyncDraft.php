@@ -18,7 +18,8 @@ use stdClass;
  * Stores a whole definition sent by a builder, guarded by the checksum of the draft the builder last saw
  * (ADR 0037). A different stored draft is a `conflict` unless the caller forces the write; structurally
  * invalid definitions are refused (`invalid`) and stay in the builder; lint findings are stored with the
- * draft (they block publishing) and returned. Explicit saves are audited, autosaves are not (SaveDraft).
+ * draft (they block publishing) and returned. Explicit saves are audited, autosaves are not (SaveDraft); an
+ * explicit save of what an autosave already stored still audits the changes since the last audited state.
  *
  * @phpstan-type SyncResult array{status: 'saved'|'unchanged'|'invalid'|'conflict', checksum: string, lint: array{schema_errors: list<array{path: string, message: string}>, findings: list<array{severity: string, code: string, path: string}>}, savedAt: ?string}
  */
@@ -46,7 +47,12 @@ final readonly class SyncDraft
             $stored = Json::checksum($form->draft_definition);
 
             if (Json::canonical($tree) === Json::canonical($form->draft_definition)) {
-                return $this->result('unchanged', $stored, $this->checker->check($tree, $form), $form);
+                $report = $this->checker->check($tree, $form);
+                if ($audit) {
+                    $this->saveDraft->auditPending($form, $actor, $report); // an autosave already stored it
+                }
+
+                return $this->result('unchanged', $stored, $report, $form);
             }
             if (! $force && $baseChecksum !== $stored) {
                 return $this->result('conflict', $stored, new DefinitionReport([], []), null);
@@ -66,7 +72,9 @@ final readonly class SyncDraft
     private function lockAndRefresh(Form $form): void
     {
         $locked = Form::query()->whereKey($form->getKey())->lockForUpdate()->firstOrFail();
-        $form->setRawAttributes($locked->getAttributes(), sync: true);
+        // Without sync first: syncOriginal() would merge a cast value the caller already read back in.
+        $form->setRawAttributes($locked->getAttributes());
+        $form->syncOriginal();
     }
 
     private function decode(string $json): mixed

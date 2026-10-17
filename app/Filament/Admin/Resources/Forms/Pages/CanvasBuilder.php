@@ -4,11 +4,6 @@ declare(strict_types=1);
 
 namespace App\Filament\Admin\Resources\Forms\Pages;
 
-use App\Domain\Documents\Rendering\PreviewDocument;
-use App\Domain\Documents\Rendering\RenderBudgetExceededException;
-use App\Domain\Documents\Rendering\RenderFailedException;
-use App\Domain\Forms\Actions\ExportDefinition;
-use App\Domain\Forms\Actions\PublishForm;
 use App\Domain\Forms\Actions\SyncDraft;
 use App\Domain\Forms\Builder\ElementCloner;
 use App\Domain\Forms\Builder\ElementFields;
@@ -16,29 +11,20 @@ use App\Domain\Forms\Builder\FieldCodec;
 use App\Domain\Forms\Builder\NodeMapper;
 use App\Domain\Forms\Builder\PaletteCatalog;
 use App\Domain\Forms\Models\Form;
-use App\Domain\Forms\Support\DefinitionChecker;
-use App\Domain\Forms\Support\InvalidDefinitionException;
 use App\Domain\Forms\Support\PublishedElementIds;
-use App\Domain\Identity\Models\Organization;
 use App\Domain\Identity\Models\User;
 use App\Filament\Admin\Resources\Forms\FormResource;
-use Filament\Actions\Action;
-use Filament\Facades\Filament;
-use Filament\Forms\Components\Textarea;
-use Filament\Notifications\Notification;
+use App\Filament\Admin\Resources\Forms\Pages\Concerns\CanvasDraftActions;
 use Filament\Resources\Pages\Concerns\InteractsWithRecord;
 use Filament\Resources\Pages\Page;
 use Filament\Schemas\Schema;
 use Filament\Support\Enums\Width;
-use FormSchema\Definition\InvalidDefinitionException as InvalidSpecDefinition;
 use FormSchema\Json\Json;
 use Illuminate\Validation\ValidationException;
-use InvalidArgumentException;
 use JsonException;
 use Livewire\Attributes\Json as JsonResponse;
 use Livewire\Attributes\Locked;
 use stdClass;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Builder v2 (ADR 0037): palette, canvas and inspector over the same draft as the classic builder. The
@@ -51,11 +37,15 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 final class CanvasBuilder extends Page
 {
+    use CanvasDraftActions;
     use InteractsWithRecord;
 
     public const string NODE_CHANGED = 'builder-v2:node-changed';
 
     public const string PUBLISHED = 'builder-v2:published';
+
+    /** Browser event {id, key, from}: the client applies `key` only while the key field still shows `from`. */
+    public const string KEY_SUGGESTED = 'builder-v2:key-suggested';
 
     protected static string $resource = FormResource::class;
 
@@ -182,6 +172,9 @@ final class CanvasBuilder extends Page
             return;
         }
         $this->inspectorScope = $scope;
+        if (! CanvasInspectorSchema::scope($scope)['autoKey']) {
+            $this->autoKeyFrom = null; // the client reports a key the user edited
+        }
         $state = $schema->getState(); // field errors render on failure; nothing is dispatched
         $node = $this->nodeMapper(CanvasInspectorSchema::scope($scope))->fromState($this->inspectorKind, $state, $this->inspectorType);
 
@@ -203,9 +196,21 @@ final class CanvasBuilder extends Page
 
     /**
      * Label → key for the inspected element (called by ElementBlocks): a blank key is always suggested;
-     * a palette node (autoKey) keeps following its label until its key is edited.
+     * a palette node (autoKey) keeps following its label until its key is edited. The suggestion goes to
+     * the client (KEY_SUGGESTED) instead of the key field: this request's answer would otherwise replace a
+     * key typed while it ran. Returns null, so ElementBlocks never sets the key itself.
      */
-    public function suggestElementKey(string $label, string $currentKey): ?string
+    public function suggestElementKey(string $label, string $currentKey): null
+    {
+        $key = $this->keySuggestion($label, $currentKey);
+        if ($key !== null && $key !== $currentKey) {
+            $this->dispatch(self::KEY_SUGGESTED, id: $this->inspectorId, key: $key, from: $currentKey);
+        }
+
+        return null;
+    }
+
+    private function keySuggestion(string $label, string $currentKey): ?string
     {
         $following = $this->autoKeyFrom !== null && $currentKey === $this->autoKeyFrom;
         if ($currentKey !== '' && ! $following) {
@@ -262,91 +267,9 @@ final class CanvasBuilder extends Page
         return CanvasInspectorSchema::configure($schema, $this->inspectorKind, $this->inspectorType);
     }
 
-    public function publishAction(): Action
-    {
-        return Action::make('publish')->label(__('forms.actions.publish'))->icon('heroicon-o-rocket-launch')->color('success')
-            ->authorize(fn (): bool => auth()->user()?->can('publish', $this->formRecord()) ?? false)
-            ->schema([Textarea::make('changelog')->label(__('forms.versions.changelog'))->required()->rows(3)])
-            ->mountUsing(function (Action $action, array $arguments, ?Schema $schema): void {
-                $this->guardDraft($action, $arguments, lint: true);
-                $schema?->fill();
-            })
-            ->action(function (Action $action, array $arguments, array $data): void {
-                $this->guardDraft($action, $arguments, lint: false);
-                try {
-                    $version = app(PublishForm::class)->handle($this->formRecord(), (string) $data['changelog'], $this->actor());
-                } catch (InvalidDefinitionException) {
-                    Notification::make()->danger()->title(__('forms.errors.invalid_definition'))->send();
-
-                    return;
-                }
-                Notification::make()->success()->title(__('forms.versions.published', ['version' => $version->version]))->send();
-                $this->dispatch(self::PUBLISHED, version: $version->version, lockedIds: PublishedElementIds::of($this->formRecord()));
-            });
-    }
-
-    /** "Preview PDF" of the stored draft (the client flushes its autosave first) with sample data. */
-    public function previewPdfAction(): Action
-    {
-        return Action::make('previewPdf')->label(__('documents.actions.preview_pdf'))->icon('heroicon-o-document-arrow-down')->color('gray')
-            ->authorize(fn (): bool => auth()->user()?->can('view', $this->formRecord()) ?? false)
-            ->action(function (Action $action, array $arguments): ?StreamedResponse {
-                $this->guardDraft($action, $arguments, lint: false);
-                $form = $this->formRecord();
-                try {
-                    /** @var Organization $organization */
-                    $organization = Filament::getTenant();
-                    $pdf = app(PreviewDocument::class)->forDefinition($form->draft_definition, $organization, $this->actor())->pdf;
-                } catch (InvalidArgumentException|InvalidSpecDefinition) {
-                    Notification::make()->danger()->title(__('documents.errors.preview_invalid'))->send();
-
-                    return null;
-                } catch (RenderFailedException|RenderBudgetExceededException $e) {
-                    Notification::make()->danger()->title(__('documents.errors.preview_failed'))->body($e->getMessage())->send();
-
-                    return null;
-                }
-
-                return response()->streamDownload(fn (): int => print ($pdf), $form->key.'.preview.pdf', ['Content-Type' => 'application/pdf']);
-            });
-    }
-
-    public function exportDraftAction(): Action
-    {
-        return Action::make('exportDraft')->label(__('forms.actions.export_json'))->icon('heroicon-o-arrow-down-tray')->color('gray')
-            ->authorize(fn (): bool => auth()->user()?->can('view', $this->formRecord()) ?? false)
-            ->action(function (Action $action, array $arguments): StreamedResponse {
-                $this->guardDraft($action, $arguments, lint: false);
-                $form = $this->formRecord();
-                $json = app(ExportDefinition::class)->handle($form, null, $this->actor());
-
-                return response()->streamDownload(fn (): int => print ($json), $form->key.'.draft.form.json', ['Content-Type' => 'application/json']);
-            });
-    }
-
     public function getTitle(): string
     {
         return (string) __('forms.canvas.title', ['name' => $this->formRecord()->name]);
-    }
-
-    /**
-     * Actions run on the stored draft, so they refuse a checksum other than the stored one (the client
-     * then saves or reloads first); publishing also refuses a draft with lint errors.
-     *
-     * @param  array<string, mixed>  $arguments
-     */
-    private function guardDraft(Action $action, array $arguments, bool $lint): void
-    {
-        $form = $this->formRecord()->refresh();
-        $checksum = is_string($arguments['checksum'] ?? null) ? $arguments['checksum'] : '';
-        if (! hash_equals(Json::checksum($form->draft_definition), $checksum)) {
-            Notification::make()->danger()->title(__('forms.canvas.stale_title'))->body(__('forms.canvas.stale_action'))->send();
-            $action->cancel();
-        }
-        if ($lint && app(DefinitionChecker::class)->check($form->draft_definition, $form)->hasErrors()) {
-            Notification::make()->danger()->title(__('forms.errors.invalid_definition'))->send();
-            $action->cancel();
-        }
     }
 
     /** @return SyncResult */

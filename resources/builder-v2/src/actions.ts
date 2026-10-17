@@ -12,10 +12,16 @@ import { uuidv7, withFreshIds } from './store/ids.ts';
 import { isObject, str } from './store/json.ts';
 import { applyOperation } from './store/ops.ts';
 import { checkOperation, type Refusal } from './store/rules.ts';
-import { insertionPoint, needsRepeaterConfirm, placeNewNode, type Placement } from './placement.ts';
+import {
+    firstAccepted,
+    insertionPoints,
+    needsRepeaterConfirm,
+    placeNewNode,
+    type Placement,
+} from './placement.ts';
 import { keysInScopeOf, uniqueKey } from './store/scope.ts';
 import type { BuilderStore } from './store/store.ts';
-import { listEntry, nodeEntry, type Definition } from './store/tree.ts';
+import { listEntry, nodeEntry, subtreeIds, type Definition } from './store/tree.ts';
 
 export type Reason = Refusal | 'edge' | 'declined' | 'unsaved';
 
@@ -50,12 +56,19 @@ export class Actions {
     insertFromPalette(type: string, placement?: Placement): boolean {
         const { store } = this.#deps;
         const template = this.#deps.palette.get(type);
-        const requested = placement ?? insertionPoint(this.#definition, store.state.selection);
-        if (template === undefined || requested === null) {
+        const node = template === undefined ? null : withFreshIds(template);
+        const candidates =
+            placement === undefined
+                ? insertionPoints(this.#definition, store.state.selection)
+                : [placement];
+        const requested =
+            node === null
+                ? null
+                : firstAccepted(this.#definition, node, candidates, store.maxContainerDepth);
+        if (node === null || requested === null) {
             this.refuse('unknown_target');
             return false;
         }
-        const node = withFreshIds(template);
         const place = placeNewNode(this.#definition, node, requested, store.maxContainerDepth);
         if (typeof place === 'string') {
             this.refuse(place);
@@ -164,12 +177,26 @@ export class Actions {
             entry.parentId ??
             (entry.kind === 'element' ? entry.pageId : null);
         const label = nodeLabel(entry.node, tr);
+        if (!this.#confirmRemove(entry.node, label)) {
+            this.#deps.announce(tr.t('announce.delete_cancelled', { label }));
+            return false;
+        }
         store.dispatch({ op: 'remove', id }, { label: tr.t('history.delete', { label }) });
         this.#deps.announce(tr.t('announce.deleted', { label }));
         if (next !== null) {
             this.#deps.focus({ id: next, part: 'card' });
         }
         return true;
+    }
+
+    /** Deleting a node with children or with a published (locked) key asks first. */
+    #confirmRemove(node: JsonObject, label: string): boolean {
+        const { tr, store } = this.#deps;
+        const ids = subtreeIds(node);
+        if (ids.some((nodeId) => store.state.lockedIds.has(nodeId))) {
+            return this.#deps.confirm(tr.t('confirm.delete_locked', { label }));
+        }
+        return ids.length <= 1 || this.#deps.confirm(tr.t('confirm.delete_children', { label }));
     }
 
     /** Duplicates a page or element through the server (fresh ids, unique keys, rewritten references). */

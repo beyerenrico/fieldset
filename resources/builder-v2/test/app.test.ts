@@ -88,10 +88,10 @@ describe('mountBuilder', () => {
         const { root, inspector } = mount();
         await settle();
         const undo = root.querySelector<HTMLButtonElement>('[data-builder-toolbar="undo"]')!;
-        expect(undo.disabled).toBe(true);
+        expect(undo.getAttribute('aria-disabled')).toBe('true');
         root.querySelector<HTMLElement>('[data-builder-add-page]')!.click();
         expect(root.querySelectorAll('[data-builder-page]')).toHaveLength(3);
-        expect(undo.disabled).toBe(false);
+        expect(undo.hasAttribute('aria-disabled')).toBe(false);
         key(inspector.querySelector('[data-test-input]')!, 'z', { ctrlKey: true });
         expect(root.querySelectorAll('[data-builder-page]')).toHaveLength(3);
         key(document.body, 'z', { ctrlKey: true });
@@ -135,8 +135,10 @@ describe('mountBuilder', () => {
         expect(root.dataset.builderSyncState).toBe('invalid');
         expect(root.querySelector<HTMLElement>('[data-builder-banner]')!.hidden).toBe(false);
         expect(
-            root.querySelector<HTMLButtonElement>('[data-builder-toolbar="publish"]')!.disabled,
-        ).toBe(true);
+            root
+                .querySelector<HTMLButtonElement>('[data-builder-toolbar="publish"]')!
+                .getAttribute('aria-disabled'),
+        ).toBe('true');
         expect(root.querySelectorAll('[data-builder-lint-item]')).toHaveLength(1);
     });
 
@@ -158,7 +160,7 @@ describe('mountBuilder', () => {
     });
 
     it('shows conflicts and overwrites with force', async () => {
-        const { root, wire } = mount();
+        const { root, wire } = mount({ confirm: () => true });
         await settle();
         root.querySelector<HTMLElement>('[data-builder-add-page]')!.click();
         wire.sync.mockResolvedValueOnce(
@@ -184,7 +186,7 @@ describe('mountBuilder', () => {
         await settle();
         expect(toggle.getAttribute('aria-pressed')).toBe('true');
         expect(
-            root.querySelector<HTMLIFrameElement>('iframe[data-builder-preview]')!.dataset.size,
+            document.querySelector<HTMLIFrameElement>('iframe[data-builder-preview]')!.dataset.size,
         ).toBe('tablet');
         root.querySelector<HTMLElement>('[data-builder-toolbar="json"]')!.click();
         await settle();

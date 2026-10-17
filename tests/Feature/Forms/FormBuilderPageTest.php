@@ -307,3 +307,33 @@ it('offers a Today preset for date defaults in the classic builder', function ()
 
     expect(Json::encode($form->fresh()->draft_definition->pages[0]->elements[3]->default))->toBe('{"var":"$today"}');
 });
+
+it('warns again on an explicit save and on the canvas action after a stale autosave warned once', function (): void {
+    $form = app(CreateFormFromTemplate::class)->handle($this->designer, 'service_report');
+    $page = Livewire::test(EditForm::class, ['record' => $form->getRouteKey()]);
+    $elsewhere = $form->fresh()->draft_definition;
+    $elsewhere->title = 'Aus dem Canvas-Builder';
+    app(SaveDraft::class)->handle($form->fresh(), $elsewhere, $this->designer, autosave: true);
+
+    $this->travel(1)->minutes();
+    $page->set('data.title', 'Veralteter Tab')->call('autosave')->assertNotified(__('forms.canvas.stale_title'));
+    $this->travel(1)->minutes();
+    $page->set('data.title', 'Noch veralteter')->call('autosave')->assertNotNotified(__('forms.canvas.stale_title'));
+    $page->call('save')->assertNotified(__('forms.canvas.stale_title'));
+    $page->callAction('canvas')->assertNotified(__('forms.canvas.stale_title'))->assertNoRedirect();
+
+    expect($form->fresh()->draft_definition->title)->toBe('Aus dem Canvas-Builder');
+});
+
+it('refuses to publish from the classic builder over a draft that changed elsewhere', function (): void {
+    $form = app(CreateFormFromTemplate::class)->handle($this->designer, 'service_report');
+    $page = Livewire::test(EditForm::class, ['record' => $form->getRouteKey()]);
+    $elsewhere = $form->fresh()->draft_definition;
+    $elsewhere->title = 'Aus dem Canvas-Builder';
+    app(SaveDraft::class)->handle($form->fresh(), $elsewhere, $this->designer, autosave: true);
+
+    $page->callAction('publish', ['changelog' => 'Erste Version'])->assertNotified(__('forms.canvas.stale_title'));
+
+    expect(FormVersion::query()->where('form_id', $form->id)->exists())->toBeFalse()
+        ->and($form->fresh()->draft_definition->title)->toBe('Aus dem Canvas-Builder');
+});

@@ -19,6 +19,7 @@ use App\Domain\Forms\Models\FormAccess;
 use App\Domain\Forms\Schema\DefinitionTools;
 use App\Domain\Forms\Support\DefinitionChecker;
 use App\Domain\Forms\Support\DefinitionReport;
+use App\Domain\Forms\Support\DraftChangedException;
 use App\Domain\Forms\Support\InvalidDefinitionException;
 use App\Domain\Forms\Support\PublishedElementIds;
 use App\Domain\Identity\Models\Organization;
@@ -117,7 +118,7 @@ class EditForm extends EditRecord
         }
 
         try {
-            if ($this->persist($this->record, $state, autosave: true)) {
+            if ($this->persist($this->record, $state, autosave: true, background: true)) {
                 $this->lastSavedHash = $hash;
             }
         } catch (InvalidArgumentException|InvalidDefinitionException) {
@@ -130,13 +131,15 @@ class EditForm extends EditRecord
      * and returns false).
      *
      * @param  array<string, mixed>  $data
+     * @param  bool  $autosave  not audited (autosaves, and the save that is part of publishing)
+     * @param  bool  $background  the polling autosave: its stale notice is shown once per page load
      */
-    private function persist(Form $record, array $data, bool $autosave): bool
+    private function persist(Form $record, array $data, bool $autosave, bool $background = false): bool
     {
         $definition = $this->mapper()->toDefinition($data);
         $result = app(SyncDraft::class)->handle($record, $definition, $this->loadedChecksum, $this->actor(), audit: ! $autosave);
         if ($result['status'] === 'conflict') {
-            $this->notifyStale();
+            $this->notifyStale($background);
 
             return false;
         }
@@ -158,10 +161,13 @@ class EditForm extends EditRecord
         return true;
     }
 
-    /** Once per page load: the draft was saved elsewhere (another tab or the canvas builder). */
-    private function notifyStale(): void
+    /**
+     * The draft was saved elsewhere (another tab or the canvas builder). The polling autosave says so once
+     * per page load (and stops trying); an explicit save, publish or the Canvas action always says so.
+     */
+    private function notifyStale(bool $background = false): void
     {
-        if ($this->staleNotified) {
+        if ($background && $this->staleNotified) {
             return;
         }
         $this->staleNotified = true;
@@ -261,7 +267,11 @@ class EditForm extends EditRecord
                     if (! $this->persist($this->record, $state, autosave: true)) {
                         return;
                     }
-                    $version = app(PublishForm::class)->handle($this->record->refresh(), (string) $data['changelog'], $this->actor());
+                    $version = app(PublishForm::class)->handle($this->record, (string) $data['changelog'], $this->actor(), expectedChecksum: $this->loadedChecksum);
+                } catch (DraftChangedException) {
+                    $this->notifyStale();
+
+                    return;
                 } catch (InvalidDefinitionException $e) {
                     $this->lint = $e->report->toArray();
                     Notification::make()->danger()->title(__('forms.errors.invalid_definition'))->send();

@@ -72,6 +72,21 @@ describe('lint panel', () => {
         expect(document.querySelector('[data-builder-lint-count]')!.textContent).toBe('3 problems');
         items[2]!.click();
         expect(onPick).toHaveBeenCalledWith({ kind: 'element', id: ID.qty });
+        // Severity is a visible prefix with its own icon, not only a colour.
+        const severity = (item: HTMLElement) => item.querySelector('.bv2-lint__severity')!;
+        expect(severity(items[0]!).textContent).toBe('Error:');
+        expect(severity(items[2]!).textContent).toBe('Warning:');
+        const iconPath = (item: HTMLElement) =>
+            severity(item).querySelector('svg path')!.getAttribute('d');
+        expect(iconPath(items[0]!)).not.toBe(iconPath(items[2]!));
+        panel.update(
+            lintItems(
+                { schema_errors: [], findings: report.findings.slice(0, 1) },
+                contractDefinition(),
+            ),
+            contractDefinition(),
+        );
+        expect(document.querySelector('[data-builder-lint-count]')!.textContent).toBe('1 problem');
         panel.update([], contractDefinition());
         expect(document.querySelector('[data-builder-lint-count]')!.textContent).toBe(
             'No problems found',

@@ -3,7 +3,7 @@
     // Livewire never morphs the wire:ignore root, so its content (and the not-free builderConfig()) is only
     // rendered on the first, non-Livewire request; later renders send an empty root.
     $initial = ! \Livewire\Livewire::isLivewireRequest();
-    $config = $initial ? $this->builderConfig() : ['palette' => [], 'urls' => ['preview' => '']];
+    $config = $initial ? $this->builderConfig() : ['palette' => []];
     $strings = ['ui' => __('builder_v2'), 'lint' => __('forms.lint'), 'types' => __('forms.types')];
     $icons = collect($config['palette'])->flatMap(fn (array $group): array => array_column($group['items'], 'icon'))->unique()->values();
     $toolbar = [
@@ -18,9 +18,10 @@
         ['classic', 'heroicon-o-queue-list', 'builder_v2.toolbar.classic', null],
     ];
 @endphp
-{{-- Builder v2 (ADR 0037). Livewire never renders the canvas: toolbar, palette, canvas and preview live under
-     one wire:ignore root driven by resources/builder-v2 (async-alpine loads it); only the inspector beside it
-     is morphed. Plain bv2- CSS with Filament variables: no theme compiles Tailwind for our views (LEARNINGS #42). --}}
+{{-- Builder v2 (ADR 0037). Livewire never renders the canvas: toolbar, palette and canvas live under one
+     wire:ignore root driven by resources/builder-v2 (async-alpine loads it); the inspector beside it is morphed,
+     and the preview after it has its own wire:ignore block (focus order: canvas, properties, preview).
+     Plain bv2- CSS with Filament variables: no theme compiles Tailwind for our views (LEARNINGS #42). --}}
 <x-filament-panels::page>
     @vite('resources/builder-v2/src/builder.css')
     <div class="bv2-layout">
@@ -57,7 +58,9 @@
             <p id="bv2-handle-help" class="bv2-sr-only">{{ __('builder_v2.canvas.handle_help') }}</p>
             <div class="bv2-sr-only" data-builder-live aria-live="polite" aria-atomic="true"></div>
 
-            <div class="bv2-toolbar" role="toolbar" aria-label="{{ __('builder_v2.toolbar.label') }}">
+            {{-- A plain group (no arrow-key toolbar pattern). Unavailable buttons are aria-disabled, so they keep focus
+                 and explain themselves when used; the publish reason is the button's description. --}}
+            <div class="bv2-toolbar" role="group" aria-label="{{ __('builder_v2.toolbar.label') }}">
                 @foreach ($toolbar as [$command, $icon, $label, $shortcut])
                     <button
                         type="button"
@@ -65,18 +68,32 @@
                         data-builder-toolbar="{{ $command }}"
                         @if ($shortcut) aria-keyshortcuts="{{ str_replace('Ctrl', 'Control', $shortcut) }}" title="{{ __($label) }} ({{ $shortcut }})" @endif
                         @if ($command === 'preview-toggle') aria-pressed="false" @endif
-                        @if (in_array($command, ['undo', 'redo'], true)) disabled @endif
+                        @if (in_array($command, ['undo', 'redo'], true)) aria-disabled="true" @endif
                     >@svg($icon, 'bv2-icon')<span>{{ __($label) }}</span></button>
                 @endforeach
+                <span class="bv2-sr-only" id="bv2-publish-reason" data-builder-publish-reason></span>
                 <span class="bv2-sync" data-builder-sync-label>{{ __('builder_v2.sync.idle') }}</span>
             </div>
             <div class="bv2-banner" data-builder-banner hidden></div>
 
-            <nav class="bv2-palette" data-builder-palette aria-label="{{ __('builder_v2.palette.label') }}"></nav>
+            <section class="bv2-palette" aria-labelledby="bv2-palette-title">
+                <h2 class="bv2-palette__title" id="bv2-palette-title">{{ __('builder_v2.palette.label') }}</h2>
+                <div class="bv2-palette__groups" data-builder-palette></div>
+            </section>
 
-            <section class="bv2-canvas" aria-label="{{ __('builder_v2.canvas.label') }}">
+            <section class="bv2-canvas" aria-label="{{ __('builder_v2.canvas.section_label') }}">
                 <div class="bv2-canvas__bar">
                     <button type="button" class="bv2-btn" data-builder-settings aria-pressed="false">@svg('heroicon-o-cog-6-tooth', 'bv2-icon')<span>{{ __('builder_v2.canvas.settings') }}</span></button>
+                    <button type="button" class="bv2-btn" data-builder-goto-inspector aria-keyshortcuts="Alt+P" title="{{ __('builder_v2.canvas.goto_inspector') }} (Alt+P)">@svg('heroicon-o-adjustments-horizontal', 'bv2-icon')<span>{{ __('builder_v2.canvas.goto_inspector') }}</span></button>
+                    <button type="button" class="bv2-btn" data-builder-help-toggle aria-expanded="false" aria-controls="bv2-help">@svg('heroicon-o-question-mark-circle', 'bv2-icon')<span>{{ __('builder_v2.help.toggle') }}</span></button>
+                </div>
+                <div class="bv2-help" id="bv2-help" data-builder-help role="region" aria-labelledby="bv2-help-title" hidden>
+                    <h2 class="bv2-help__title" id="bv2-help-title">{{ __('builder_v2.help.title') }}</h2>
+                    <dl class="bv2-help__list">
+                        @foreach (__('builder_v2.help.actions') as $name => $action)
+                            <div><dt>{{ __('builder_v2.help.keys.'.$name) }}</dt><dd>{{ $action }}</dd></div>
+                        @endforeach
+                    </dl>
                 </div>
                 <div class="bv2-lint" data-builder-lint role="region" aria-labelledby="bv2-lint-title">
                     <h2 class="bv2-lint__title" id="bv2-lint-title">{{ __('builder_v2.lint.label') }}: <span data-builder-lint-count data-count="0">{{ __('builder_v2.lint.ok') }}</span></h2>
@@ -84,16 +101,6 @@
                 </div>
                 <div class="bv2-tree" role="tree" aria-label="{{ __('builder_v2.canvas.label') }}" data-builder-tree data-builder-list data-builder-container="pages"></div>
                 <button type="button" class="bv2-btn bv2-add-page" data-builder-add-page>@svg('heroicon-o-plus', 'bv2-icon')<span>{{ __('builder_v2.canvas.add_page') }}</span></button>
-            </section>
-
-            <section class="bv2-preview" aria-label="{{ __('builder_v2.preview.label') }}">
-                <iframe
-                    data-builder-preview
-                    data-size="phone"
-                    src="{{ $config['urls']['preview'] }}"
-                    title="{{ __('builder_v2.preview.frame') }}"
-                    sandbox="allow-scripts allow-same-origin"
-                ></iframe>
             </section>
 
             <dialog class="bv2-dialog" data-builder-json aria-labelledby="bv2-json-title">
@@ -113,5 +120,18 @@
         >
             {{ $this->inspector }}
         </aside>
+
+        {{-- The preview follows the inspector in the focus order; its own wire:ignore block keeps the iframe alive. --}}
+        <div class="bv2-preview-block" wire:ignore wire:key="builder-v2-preview">
+            <section class="bv2-preview" data-builder-preview-pane data-size="phone" aria-label="{{ __('builder_v2.preview.label') }}">
+                <iframe
+                    data-builder-preview
+                    data-size="phone"
+                    src="{{ url('/form-preview/') }}"
+                    title="{{ __('builder_v2.preview.frame') }}"
+                    sandbox="allow-scripts allow-same-origin"
+                ></iframe>
+            </section>
+        </div>
     </div>
 </x-filament-panels::page>

@@ -94,6 +94,9 @@ function createKeyboard(
         onGrab: (id) => {
             view.setGrabbed(id);
         },
+        openMenu: (id) => {
+            view.openMenu(id);
+        },
     });
 }
 
@@ -148,7 +151,10 @@ export interface LintState {
     items: LintItem[];
 }
 
-/** Applies a server answer to the lint panel and the card markers (a conflict carries no lint). */
+/**
+ * Applies a server answer to the lint panel and the card markers (a conflict carries no lint), and
+ * announces once per answer when the number of problems changed.
+ */
 export function lintHandler(
     core: Core,
     view: CanvasView,
@@ -164,22 +170,30 @@ export function lintHandler(
             }
         },
     });
+    let previous: number | null = null; // the first answer sets the baseline silently
     return (result, checked) => {
-        if (result.status !== 'conflict') {
-            state.items = lintItems(result.lint, checked);
-            panel.update(state.items, checked);
-            view.setMarkers(markersOf(state.items));
-        }
-        if (result.status === 'invalid') {
-            announce(tr.t('announce.invalid', { count: result.lint.schema_errors.length }));
-        } else if (result.status === 'conflict') {
+        if (result.status === 'conflict') {
             announce(tr.t('announce.conflict'));
+            return;
         }
+        state.items = lintItems(result.lint, checked);
+        panel.update(state.items, checked);
+        view.setMarkers(markersOf(state.items));
+        const count = state.items.length;
+        if (result.status === 'invalid') {
+            announce(tr.choice('announce.invalid', result.lint.schema_errors.length));
+        } else if (previous !== null && count !== previous) {
+            announce(tr.choice('announce.lint_found', count));
+        }
+        previous = count;
     };
 }
 
+/** The preview lives in its own `wire:ignore` block after the inspector (focus order). */
 export function createPreview(core: Core): PreviewFeed | null {
-    const frame = core.root.querySelector<HTMLIFrameElement>('iframe[data-builder-preview]');
+    const frame = core.win.document.querySelector<HTMLIFrameElement>(
+        'iframe[data-builder-preview]',
+    );
     return frame === null
         ? null
         : new PreviewFeed(frame, {

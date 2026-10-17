@@ -91,7 +91,7 @@ describe('keyboard: pick up, move, drop', () => {
         key(document.activeElement!, 'ArrowRight');
         expect(containerOf(ID.items)).toEqual({ kind: 'children', parentId: ID.details });
         key(document.activeElement!, 'ArrowRight');
-        expect(live()).toBe('Not possible: containers can be nested at most 3 levels deep.');
+        expect(live()).toBe('Not possible: groups can be nested at most 3 levels deep.');
         expect(containerOf(ID.items)).toEqual({ kind: 'children', parentId: ID.details });
         key(document.activeElement!, 'Escape');
         expect(containerOf(ID.items)).toEqual({ kind: 'page', pageId: ID.pageItems });
@@ -162,7 +162,7 @@ describe('keyboard: navigation and commands', () => {
         card(ID.qty).focus();
         key(card(ID.qty), 'Delete');
         expect(nodeEntry(app.store.state.definition, ID.qty)).toBeNull();
-        expect(live()).toBe('Menge deleted. Press Ctrl+Z to undo.');
+        expect(live()).toBe('Menge deleted. Press Ctrl+Z (Cmd+Z on Mac) to undo.');
         expect(document.activeElement).toBe(card(ID.description));
         const event = key(card(ID.description), 'd', { ctrlKey: true });
         expect(event.defaultPrevented).toBe(true);

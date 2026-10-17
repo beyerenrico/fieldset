@@ -16,6 +16,7 @@ import {
     cardContainers,
     createCard,
     patchCard,
+    setFlag,
     syncLists,
     type Card,
     type CardContext,
@@ -138,13 +139,7 @@ export class CanvasRenderer {
                 'data-builder-grabbed': view.grabbedId === card.id,
             });
             card.lock.hidden = !locked;
-            card.flag.hidden = marker === null;
-            const srText = card.flag.lastElementChild;
-            if (srText !== null && marker !== null) {
-                srText.textContent = this.#ctx.tr.t(
-                    marker === 'error' ? 'canvas.has_errors' : 'canvas.has_warnings',
-                );
-            }
+            setFlag(card, marker, this.#ctx.tr);
         }
         const fallback =
             view.selection !== null && view.selection.kind !== 'settings'

@@ -174,7 +174,11 @@ describe('canvas renderer', () => {
             grabbedId: ID.qty,
         });
         expect(card(ID.day).dataset.builderMarker).toBe('error');
-        expect(card(ID.day).querySelector('.bv2-card__flag')!.textContent).toBe('Has errors');
+        // Severity is visible text plus its own icon (not colour only); the title keeps the long form.
+        expect(card(ID.day).querySelector('.bv2-card__flag')!.textContent).toBe('Error');
+        expect(card(ID.day).querySelector<HTMLElement>('.bv2-card__flag')!.title).toBe(
+            'Has errors',
+        );
         expect(card(ID.qty).hasAttribute('data-builder-grabbed')).toBe(true);
         renderer.render(
             applyOperation(before, { op: 'addColumn', parentId: ID.cols, index: 2 }),

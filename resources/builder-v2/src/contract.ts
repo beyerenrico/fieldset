@@ -110,6 +110,16 @@ export interface NodeChangedDetail {
     readonly node: string;
 }
 
+/**
+ * Browser event `builder-v2:key-suggested` (detail): the server's key suggestion after a label change.
+ * The client fills the key only while the field still shows `from` (the user has not typed a key).
+ */
+export interface KeySuggestedDetail {
+    readonly id: string | null;
+    readonly key: string;
+    readonly from: string;
+}
+
 /** Browser event `builder-v2:published` (detail). */
 export interface PublishedDetail {
     readonly version: number;

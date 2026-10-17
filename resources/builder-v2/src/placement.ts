@@ -6,6 +6,7 @@ import { canDrop, type Refusal } from './store/rules.ts';
 import {
     listEntry,
     nodeEntry,
+    ownContainers,
     repeaterAncestors,
     subtreeIds,
     type Definition,
@@ -21,19 +22,52 @@ function endOfPage(definition: Definition, pageId: string): Placement {
     return { target, index: listEntry(definition, target)?.ids.length ?? 0 };
 }
 
-/** After the selected element; else at the end of the selected page, else of the last page. */
-export function insertionPoint(definition: Definition, selection: Selection): Placement | null {
+function endOfList(definition: Definition, target: Container): Placement {
+    return { target, index: listEntry(definition, target)?.ids.length ?? 0 };
+}
+
+/**
+ * Where a palette insert goes, best first: into a selected group (the end of its first list, as
+ * for a selected page) and else right after it; after any other selected element; at the end of
+ * the selected page; else at the end of the last page.
+ */
+export function insertionPoints(definition: Definition, selection: Selection): Placement[] {
     const entry =
         selection !== null && selection.kind !== 'settings'
             ? nodeEntry(definition, selection.id)
             : null;
     if (entry?.kind === 'element') {
         const position = listEntry(definition, entry.container)?.ids.indexOf(entry.id) ?? -1;
-        return { target: entry.container, index: position + 1 };
+        const after: Placement = { target: entry.container, index: position + 1 };
+        const inside = ownContainers(entry.node)[0];
+        return inside === undefined ? [after] : [endOfList(definition, inside), after];
     }
     const pageId =
         entry?.kind === 'page' ? entry.id : listEntry(definition, { kind: 'pages' })?.ids.at(-1);
-    return pageId === undefined ? null : endOfPage(definition, pageId);
+    return pageId === undefined ? [] : [endOfPage(definition, pageId)];
+}
+
+/** The preferred insertion point (see insertionPoints). */
+export function insertionPoint(definition: Definition, selection: Selection): Placement | null {
+    return insertionPoints(definition, selection)[0] ?? null;
+}
+
+/** The first candidate the nesting rules accept for the node, else the last candidate. */
+export function firstAccepted(
+    definition: Definition,
+    node: JsonObject,
+    candidates: readonly Placement[],
+    maxContainerDepth: number,
+): Placement | null {
+    return (
+        candidates.find(
+            (place) =>
+                canDrop(definition, { node }, place.target, maxContainerDepth, place.index) ===
+                null,
+        ) ??
+        candidates.at(-1) ??
+        null
+    );
 }
 
 /** The requested place, or the end of the same page when the nesting rules refuse it. */

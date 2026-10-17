@@ -90,8 +90,8 @@ export async function editSelected(
       .first();
     if ((await field.inputValue()) !== text) {
       await field.fill(text);
-      // The label is live on blur and may suggest a key: wait for that round trip, or its answer
-      // replaces the key typed meanwhile (as it would for a person typing that fast).
+      // The label is live on blur and may suggest a key (builder-v2:key-suggested): wait for that
+      // round trip so the steps stay deterministic. A key typed meanwhile would be kept.
       const roundTrip = page.waitForResponse(isLivewireUpdate);
       await field.blur();
       await roundTrip;

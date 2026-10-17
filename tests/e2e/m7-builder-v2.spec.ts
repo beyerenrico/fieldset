@@ -138,9 +138,9 @@ test('designer builds the §7.2 example with the keyboard only', async ({ page }
   await insertByKeyboard(page, 'repeater');
   await editSelected(page, repeater);
   for (const child of repeater.elements ?? []) {
-    // Inserted after the selection (next to the repeater), then moved into it with →.
+    // With the repeater selected, the palette inserts into it; then after the previous row element.
     await insertByKeyboard(page, child.type);
-    await moveSelected(page, ['ArrowRight']);
+    await expect(selected(page).locator('xpath=ancestor::*[@data-builder-type="repeater"]')).toHaveCount(1);
     await editSelected(page, child);
   }
   // The next inserts land after the last row element; ← moves each one out of the repeater.

@@ -1,12 +1,14 @@
 /**
  * The per-card "Move" menu (ADR 0037): the single-pointer alternative to dragging (WCAG 2.5.7).
- * Built lazily when opened, so 300 cards do not carry 2,400 hidden menu items.
+ * Built lazily when opened, so 300 cards do not carry 2,400 hidden menu items. A Columns card also
+ * offers "Add column" and "Remove column N", so columns can be managed without a mouse.
  */
 import type { Actions } from '../actions.ts';
 import { h, setAttrs } from '../dom.ts';
 import type { Translator } from '../i18n.ts';
 import { checkOperation } from '../store/rules.ts';
 import type { BuilderStore } from '../store/store.ts';
+import { MAX_COLUMNS, MIN_COLUMNS, nodeEntry, ownContainers, typeOf } from '../store/tree.ts';
 import { labelOf } from './labels.ts';
 import { computeMove, MOVE_ACTIONS, type MoveDirection } from './moves.ts';
 import { focusNode } from './focus.ts';
@@ -23,6 +25,7 @@ interface MenuItem {
     readonly label: string;
     readonly enabled: boolean;
     readonly run: () => void;
+    readonly column?: number;
 }
 
 const DIRECTIONS: readonly [MoveDirection, string][] = [
@@ -68,6 +71,7 @@ export class MoveMenu {
         });
         return [
             ...moves,
+            ...this.#columnItems(id),
             {
                 action: 'duplicate',
                 label: tr.t('menu.duplicate'),
@@ -81,6 +85,36 @@ export class MoveMenu {
                 run: () => actions.remove(id),
             },
         ];
+    }
+
+    /** Add column / Remove column N for a Columns card; focus stays on the card afterwards. */
+    #columnItems(id: string): MenuItem[] {
+        const { store, actions, tr, tree } = this.#deps;
+        const entry = nodeEntry(store.state.definition, id);
+        if (entry?.kind !== 'element' || typeOf(entry.node) !== 'columns') {
+            return [];
+        }
+        const count = ownContainers(entry.node).length;
+        const add: MenuItem = {
+            action: 'add-column',
+            label: tr.t('menu.add_column'),
+            enabled: count < MAX_COLUMNS,
+            run: () => {
+                actions.addColumn(id);
+                focusNode(tree, { id, part: 'menu' });
+            },
+        };
+        const removes = Array.from({ length: count }, (_unused, column): MenuItem => ({
+            action: 'remove-column',
+            label: tr.t('menu.remove_column', { number: column + 1 }),
+            enabled: count > MIN_COLUMNS,
+            column,
+            run: () => {
+                actions.removeColumn(id, column);
+                focusNode(tree, { id, part: 'card' });
+            },
+        }));
+        return [add, ...removes];
     }
 
     open(button: HTMLElement, id: string): void {
@@ -101,6 +135,7 @@ export class MoveMenu {
                     role: 'menuitem',
                     tabindex: '-1',
                     'data-builder-action': item.action,
+                    'data-column': item.column === undefined ? null : String(item.column),
                     'aria-disabled': item.enabled ? null : 'true',
                 },
                 [item.label],

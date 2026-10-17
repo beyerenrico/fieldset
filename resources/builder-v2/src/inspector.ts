@@ -3,11 +3,23 @@
  * Livewire inspector are committed with `commitInspector(scope)`, and the server answers with the
  * browser event `builder-v2:node-changed`, applied here as an `update` (children kept, merged
  * into one undo step per node within a second). `builder-v2:published` refreshes the locked ids.
+ *
+ * - A commit that the server refused (field errors) or that failed reports `false` from flush().
+ * - node-changed waits while a keyboard grab holds transient moves, so Esc still restores them.
+ * - When the inspected node disappears (delete, undo of an insert), the form settings are shown.
+ * - Key suggestions arrive as `builder-v2:key-suggested` (see key-suggestion.ts).
  */
 import type { JsonObject } from '@form-schema-app/form-schema-js';
 import type { BuilderWire, InspectorKind, NodeChangedDetail, PublishedDetail } from './contract.ts';
 import type { Translator } from './i18n.ts';
 import { nodeLabel } from './canvas/labels.ts';
+import {
+    fillInput,
+    isKeyInput,
+    KEY_SUGGESTED_EVENT,
+    keyInput,
+    parseKeySuggestion,
+} from './key-suggestion.ts';
 import type { Selection } from './store/history.ts';
 import { isObject, jsonEquals, omit, str } from './store/json.ts';
 import { inspectorScope } from './store/scope.ts';
@@ -20,6 +32,7 @@ export const COMMIT_CHANGE_MS = 150;
 export const COMMIT_INPUT_MS = 700;
 
 const CHILD_KEYS = ['elements', 'columns', 'pages'];
+const SETTINGS: Selection = { kind: 'settings' };
 
 export interface InspectorDeps {
     readonly store: BuilderStore;
@@ -29,6 +42,12 @@ export interface InspectorDeps {
     /** The `[data-builder-inspector]` pane (outside the `wire:ignore` root). */
     readonly pane: HTMLElement | null;
     readonly win?: Window;
+}
+
+interface NodeChange {
+    readonly kind: InspectorKind;
+    readonly id: string | null;
+    readonly node: JsonObject;
 }
 
 /** The node as the inspector sees it: own properties only. */
@@ -50,9 +69,12 @@ function sameSelection(a: Selection, b: Selection): boolean {
     return a.kind === b.kind && (a.kind === 'settings' || (b.kind !== 'settings' && a.id === b.id));
 }
 
-function parseNodeChanged(
-    detail: unknown,
-): { kind: InspectorKind; id: string | null; node: JsonObject } | null {
+/** A keyboard grab moved nodes without recording them yet (Esc restores the recorded state). */
+function isTransient(state: StoreState): boolean {
+    return state.definition !== state.history.present.definition;
+}
+
+function parseNodeChanged(detail: unknown): NodeChange | null {
     const value = (Array.isArray(detail) ? detail[0] : detail) as
         Partial<NodeChangedDetail> | undefined;
     if (
@@ -77,7 +99,15 @@ export class InspectorGlue {
     readonly #win: Window;
     readonly #unsubscribe: () => void;
     #timer: ReturnType<typeof setTimeout> | null = null;
-    #commit: Promise<void> = Promise.resolve();
+    #commit: Promise<boolean> = Promise.resolve(true);
+    #inFlight = 0;
+    /** Whether the last commit was accepted (a node-changed event arrived for it). */
+    #accepted = true;
+    #received = false;
+    /** node-changed events that arrived during a keyboard grab. */
+    #queued: NodeChange[] = [];
+    /** True while the glue itself writes into an inspector field. */
+    #filling = false;
     /** The node the Livewire inspector currently shows (pending edits belong to it). */
     #inspected: Selection = null;
     /** The node last sent (or being sent) to `inspect()`. */
@@ -89,6 +119,7 @@ export class InspectorGlue {
         this.#unsubscribe = deps.store.subscribe(this.#onStore);
         this.#win.addEventListener(NODE_CHANGED_EVENT, this.#onNodeChanged);
         this.#win.addEventListener(PUBLISHED_EVENT, this.#onPublished);
+        this.#win.addEventListener(KEY_SUGGESTED_EVENT, this.#onKeySuggested);
         deps.pane?.addEventListener('change', this.#onChange);
         deps.pane?.addEventListener('input', this.#onInput);
     }
@@ -97,11 +128,17 @@ export class InspectorGlue {
         this.#unsubscribe();
         this.#win.removeEventListener(NODE_CHANGED_EVENT, this.#onNodeChanged);
         this.#win.removeEventListener(PUBLISHED_EVENT, this.#onPublished);
+        this.#win.removeEventListener(KEY_SUGGESTED_EVENT, this.#onKeySuggested);
         this.#deps.pane?.removeEventListener('change', this.#onChange);
         this.#deps.pane?.removeEventListener('input', this.#onInput);
         if (this.#timer !== null) {
             clearTimeout(this.#timer);
         }
+    }
+
+    /** Edits wait to be committed, or a commit is running. */
+    get busy(): boolean {
+        return this.#timer !== null || this.#inFlight > 0;
     }
 
     #scopeJson(state: StoreState, selection: Selection): string {
@@ -110,7 +147,8 @@ export class InspectorGlue {
 
     /**
      * Inspects on every explicit selection, after undo/redo, and whenever an operation selected
-     * another node (a palette insert, a duplicate, a new page); never for its own updates.
+     * another node (a palette insert, a duplicate, a new page); never for its own updates. Shows the
+     * form settings once the inspected node is gone; applies node changes held back by a grab.
      */
     readonly #onStore = (state: StoreState, change: Change): void => {
         const { selection } = state;
@@ -120,6 +158,15 @@ export class InspectorGlue {
             (selection !== null && (travelled || !sameSelection(selection, this.#requested)))
         ) {
             void this.inspect(state);
+        } else if (
+            selection === null &&
+            this.#requested !== null &&
+            inspectedNode(state.definition, this.#requested) === null
+        ) {
+            void this.inspect(state, SETTINGS);
+        }
+        if (this.#queued.length > 0 && !isTransient(state)) {
+            queueMicrotask(this.#drain); // not inside this store notification
         }
     };
 
@@ -127,22 +174,27 @@ export class InspectorGlue {
      * Sends the pending commit first, so edits never land on the next node, then inspects the
      * node as it is after that commit (skipped when a newer selection superseded it meanwhile).
      */
-    async inspect(state: StoreState = this.#deps.store.state): Promise<void> {
-        const { selection } = state;
-        this.#requested = selection;
+    async inspect(
+        state: StoreState = this.#deps.store.state,
+        target: Selection = state.selection,
+    ): Promise<void> {
+        this.#requested = target;
         await this.flush();
         const current = this.#deps.store.state;
-        const node = inspectedNode(current.definition, selection);
-        if (selection === null || node === null || !sameSelection(selection, this.#requested)) {
+        const node = inspectedNode(current.definition, target);
+        if (target === null || node === null || !sameSelection(target, this.#requested)) {
             return;
         }
-        const id = selection.kind === 'settings' ? null : selection.id;
-        this.#inspected = selection;
+        const id = target.kind === 'settings' ? null : target.id;
+        this.#inspected = target;
+        if (!this.busy) {
+            this.#accepted = true; // a refused edit of the previous node is gone with its fields
+        }
         await this.#deps.wire.inspect(
-            selection.kind,
+            target.kind,
             id,
             JSON.stringify(node),
-            this.#scopeJson(current, selection),
+            this.#scopeJson(current, target),
         );
     }
 
@@ -157,32 +209,70 @@ export class InspectorGlue {
         this.#schedule(COMMIT_CHANGE_MS);
     };
 
-    readonly #onInput = (): void => {
+    readonly #onInput = (event: Event): void => {
+        if (this.#filling) {
+            return;
+        }
+        const inspected = this.#inspected;
+        if (isKeyInput(event.target) && inspected !== null && inspected.kind === 'element') {
+            this.#deps.store.setAutoKey(inspected.id, false); // the user owns the key now
+        }
         this.#schedule(COMMIT_INPUT_MS);
     };
 
-    /** Commits pending inspector edits now (no-op when nothing is pending). */
-    flush(): Promise<void> {
-        if (this.#timer === null) {
-            return this.#commit;
-        }
-        clearTimeout(this.#timer);
-        this.#timer = null;
+    /**
+     * Commits pending inspector edits now; resolves to false when the last commit was refused
+     * (field errors are shown in the inspector) or failed.
+     */
+    flush(): Promise<boolean> {
         const inspected = this.#inspected;
-        if (inspected !== null) {
-            const scope = this.#scopeJson(this.#deps.store.state, inspected);
-            this.#commit = this.#commit
-                .then(() => this.#deps.wire.commitInspector(scope))
-                .catch(() => undefined);
+        if (this.#timer !== null) {
+            clearTimeout(this.#timer);
+            this.#timer = null;
+            if (inspected !== null) {
+                const scope = this.#scopeJson(this.#deps.store.state, inspected);
+                this.#inFlight += 1;
+                this.#commit = this.#commit.then(() => this.#commitOnce(scope));
+            }
         }
-        return this.#commit;
+        return this.#inFlight > 0 ? this.#commit : Promise.resolve(this.#accepted);
+    }
+
+    async #commitOnce(scope: string): Promise<boolean> {
+        this.#received = false;
+        try {
+            await this.#deps.wire.commitInspector(scope);
+            this.#accepted = this.#received; // Livewire dispatches before the call resolves
+        } catch {
+            this.#accepted = false;
+        } finally {
+            this.#inFlight -= 1;
+        }
+        return this.#accepted;
     }
 
     readonly #onNodeChanged = (event: Event): void => {
         const parsed = parseNodeChanged((event as CustomEvent<unknown>).detail);
-        if (parsed !== null) {
+        if (parsed === null) {
+            return;
+        }
+        this.#received = true;
+        if (isTransient(this.#deps.store.state)) {
+            this.#queued = [...this.#queued, parsed];
+        } else {
             this.apply(parsed.kind, parsed.id, parsed.node);
         }
+    };
+
+    readonly #drain = (): void => {
+        if (isTransient(this.#deps.store.state)) {
+            return;
+        }
+        const queued = this.#queued;
+        this.#queued = [];
+        queued.forEach((change) => {
+            this.apply(change.kind, change.id, change.node);
+        });
     };
 
     /** Applies an inspector result as an `update` (ignored when nothing changed). */
@@ -213,6 +303,33 @@ export class InspectorGlue {
             this.#deps.announce(tr.t('announce.refused', { reason: tr.t(`refusal.${refusal}`) }));
         }
     }
+
+    /** Fills a suggested key, unless the key field changed since the server saw it. */
+    readonly #onKeySuggested = (event: Event): void => {
+        const suggestion = parseKeySuggestion((event as CustomEvent<unknown>).detail);
+        const inspected = this.#inspected;
+        const input = keyInput(this.#deps.pane);
+        if (
+            suggestion === null ||
+            inspected?.kind !== 'element' ||
+            inspected.id !== suggestion.id ||
+            input === null ||
+            input.disabled
+        ) {
+            return;
+        }
+        if (input.value !== suggestion.from) {
+            this.#deps.store.setAutoKey(inspected.id, false); // typed while the request was out
+            return;
+        }
+        this.#filling = true;
+        try {
+            fillInput(input, suggestion.key);
+        } finally {
+            this.#filling = false;
+        }
+        this.#schedule(COMMIT_CHANGE_MS);
+    };
 
     readonly #onPublished = (event: Event): void => {
         const raw: unknown = (event as CustomEvent<unknown>).detail;

@@ -6,7 +6,7 @@ import type { PreviewFeed } from './preview.ts';
 import { toStrings, Translator } from './i18n.ts';
 import { InspectorGlue } from './inspector.ts';
 import { hasErrors } from './lint.ts';
-import { bindPage } from './page.ts';
+import { bindPage, focusFirstField } from './page.ts';
 import { SyncStatus } from './status.ts';
 import { canRedo, canUndo } from './store/history.ts';
 import { BuilderStore } from './store/store.ts';
@@ -70,8 +70,12 @@ function createScheduler(
     options: MountOptions,
 ): SyncScheduler {
     const onResult = lintHandler(core, canvas.view, lint);
+    // Both ways out of a conflict lose someone's changes: each one is confirmed first.
     const status = new SyncStatus(core.root, core.tr, {
         reload: () => {
+            if (!core.confirm(core.tr.t('conflict.confirm_reload'))) {
+                return;
+            }
             hooks.leaving = true;
             if (options.reload === undefined) {
                 core.win.location.reload();
@@ -80,7 +84,9 @@ function createScheduler(
             }
         },
         overwrite: () => {
-            void scheduler.overwrite();
+            if (core.confirm(core.tr.t('conflict.confirm_overwrite'))) {
+                void scheduler.overwrite();
+            }
         },
     });
     const scheduler = new SyncScheduler(
@@ -113,6 +119,7 @@ function createCommands(
         inspector: InspectorGlue;
         hooks: Hooks;
         preview: PreviewFeed | null;
+        lint: LintState;
     },
     options: MountOptions,
 ): Commands {
@@ -137,14 +144,25 @@ function createCommands(
             parts.canvas.keyboard.cancel();
         },
         onPreviewSize: (tablet) => {
-            root.dataset.builderPreviewSize = tablet ? 'tablet' : 'phone';
-            root.querySelector<HTMLIFrameElement>('iframe[data-builder-preview]')?.setAttribute(
-                'data-size',
-                tablet ? 'tablet' : 'phone',
-            );
+            const size = tablet ? 'tablet' : 'phone';
+            root.dataset.builderPreviewSize = size;
+            const frame = win.document.querySelector('iframe[data-builder-preview]');
+            frame?.setAttribute('data-size', size);
+            frame?.closest('[data-builder-preview-pane]')?.setAttribute('data-size', size);
             parts.hooks.updateToolbar();
         },
+        publishBlocked: () => publishBlock(core, parts.scheduler, parts.lint),
     });
+}
+
+/** Why publishing is blocked: a conflict, lint errors or an invalid (unsaved) draft. */
+function publishBlock(core: Core, scheduler: SyncScheduler, lint: LintState): string | null {
+    if (scheduler.state === 'conflict') {
+        return core.tr.t('toolbar.publish_conflict');
+    }
+    return hasErrors(lint.items) || scheduler.state === 'invalid'
+        ? core.tr.t('toolbar.publish_blocked')
+        : null;
 }
 
 /** Re-renders, feeds the preview and schedules autosaves on every store change. */
@@ -170,22 +188,26 @@ function followStore(
 }
 
 function toolbarUpdater(
-    store: BuilderStore,
+    core: Core,
     parts: { toolbar: Toolbar; scheduler: SyncScheduler; commands: Commands; lint: LintState },
 ): () => void {
     return () => {
-        const { history } = store.state;
-        const { scheduler } = parts;
-        const blocked =
-            hasErrors(parts.lint.items) ||
-            scheduler.state === 'invalid' ||
-            scheduler.state === 'conflict';
+        const { history } = core.store.state;
         parts.toolbar.update({
             canUndo: canUndo(history),
             canRedo: canRedo(history),
-            publishBlocked: blocked,
+            publishBlocked: publishBlock(core, parts.scheduler, parts.lint),
             tablet: parts.commands.tablet,
         });
+    };
+}
+
+/** "Go to properties": the first inspector field, or an announcement when there is none. */
+function propertiesFocuser(core: Core, pane: HTMLElement | null): () => void {
+    return () => {
+        if (!focusFirstField(pane)) {
+            core.announce(core.tr.t('announce.no_properties'));
+        }
     };
 }
 
@@ -197,27 +219,29 @@ export function mountBuilder(root: HTMLElement, options: MountOptions): BuilderA
     const lint: LintState = { items: [] };
     const hooks: Hooks = { updateToolbar: () => undefined, leaving: false };
     const scheduler = createScheduler(core, canvas, lint, hooks, options);
+    const pane = win.document.querySelector<HTMLElement>('[data-builder-inspector]');
     const inspector = new InspectorGlue({
         store,
         wire: core.wire,
         tr: core.tr,
         announce: core.announce,
-        pane: win.document.querySelector('[data-builder-inspector]'),
+        pane,
         win,
     });
     const commands = createCommands(
         core,
-        { canvas, scheduler, inspector, hooks, preview },
+        { canvas, scheduler, inspector, hooks, preview, lint },
         options,
     );
     const toolbar = new Toolbar(root, (command) => void commands.run(command), win.document);
-    hooks.updateToolbar = toolbarUpdater(store, { toolbar, scheduler, commands, lint });
+    hooks.updateToolbar = toolbarUpdater(core, { toolbar, scheduler, commands, lint });
     const unbindPage = bindPage(root, {
         win,
         actions: canvas.actions,
         store,
         jsonDialog: root.querySelector('dialog[data-builder-json]'),
         isDirty: () => !hooks.leaving && !commands.leaving && scheduler.isDirty(),
+        focusProperties: propertiesFocuser(core, pane),
     });
     const unsubscribe = followStore(core, { canvas, preview, scheduler, hooks });
     canvas.view.render();

@@ -1,6 +1,8 @@
 /**
  * Toolbar commands. Publish, Preview PDF, export and switching to the classic builder first flush
- * pending inspector edits and autosaves; they run only when the server holds the local copy.
+ * pending inspector edits and autosaves; they run only when the server holds the local copy and the
+ * inspector accepted its last edit. Undo/redo first wait for pending inspector edits, so an edit
+ * becomes its own undo step instead of landing on top of the undone state.
  */
 import type { Actions } from './actions.ts';
 import type { BuilderWire } from './contract.ts';
@@ -25,6 +27,8 @@ export interface CommandDeps {
     readonly jsonDialog: HTMLDialogElement | null;
     readonly cancelGrab: () => void;
     readonly onPreviewSize: (tablet: boolean) => void;
+    /** Why publishing is blocked right now (lint errors, invalid draft, conflict), or null. */
+    readonly publishBlocked: () => string | null;
 }
 
 const ACTIONS: Partial<Record<ToolbarCommand, 'publish' | 'previewPdf' | 'exportDraft'>> = {
@@ -51,9 +55,20 @@ export class Commands {
         return this.#leaving;
     }
 
+    /** Commits inspector edits (announces a refused edit); false when the inspector refused them. */
+    async #commitInspector(): Promise<boolean> {
+        if (await this.#deps.inspector.flush()) {
+            return true;
+        }
+        this.#deps.announce(this.#deps.tr.t('announce.inspector_failed'));
+        return false;
+    }
+
     /** Commits inspector edits and saves; announces why it could not. */
     async flush(): Promise<boolean> {
-        await this.#deps.inspector.flush();
+        if (!(await this.#commitInspector())) {
+            return false;
+        }
         const outcome = await this.#deps.scheduler.flush();
         this.#reportFailure(outcome);
         return outcome === 'ok';
@@ -66,15 +81,40 @@ export class Commands {
         }
     }
 
+    /**
+     * Publishing is blocked by lint errors, an invalid draft or a conflict: the click announces why.
+     * Unsaved edits are saved first, since they may be the fix.
+     */
+    async #publishAllowed(): Promise<boolean> {
+        const { scheduler } = this.#deps;
+        let blocked = this.#deps.publishBlocked();
+        if (blocked !== null && scheduler.isDirty() && scheduler.state !== 'conflict') {
+            if (!(await this.flush())) {
+                return false;
+            }
+            blocked = this.#deps.publishBlocked();
+        }
+        if (blocked !== null) {
+            this.#deps.announce(blocked);
+        }
+        return blocked === null;
+    }
+
     async run(command: ToolbarCommand): Promise<void> {
         const { actions, scheduler, tr } = this.#deps;
         this.#deps.cancelGrab();
         const action = ACTIONS[command];
+        if (command === 'publish' && !(await this.#publishAllowed())) {
+            return;
+        }
         if (action !== undefined) {
             if (await this.flush()) {
                 await this.#deps.wire.mountAction(action, { checksum: scheduler.checksum });
             }
             return;
+        }
+        if ((command === 'undo' || command === 'redo') && this.#deps.inspector.busy) {
+            await this.#deps.inspector.flush();
         }
         switch (command) {
             case 'undo':
@@ -84,7 +124,9 @@ export class Commands {
                 actions.redo();
                 return;
             case 'save': {
-                await this.#deps.inspector.flush();
+                if (!(await this.#commitInspector())) {
+                    return;
+                }
                 const outcome = await scheduler.save();
                 if (outcome === 'ok') {
                     this.#deps.announce(tr.t('announce.saved'));

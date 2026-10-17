@@ -122,8 +122,10 @@ it('audits explicit saves but not autosaves', function (): void {
     app(SyncDraft::class)->handle($this->form, Json::encode($second), $sync['checksum'], $this->designer, audit: true);
 
     $entries = Activity::query()->where('event', 'form.updated')->get();
+    // The explicit save is diffed against the last AUDITED state (the original draft), not the autosave.
     expect($entries)->toHaveCount(1)
-        ->and($entries[0]->properties['before']['checksum'])->toBe($sync['checksum']);
+        ->and($entries[0]->properties['before']['checksum'])->toBe($this->base)
+        ->and($entries[0]->properties['after']['checksum'])->toBe(Json::checksum($this->form->fresh()->draft_definition));
 });
 
 it('syncs and saves through the canvas page', function (): void {
@@ -142,4 +144,15 @@ it('syncs and saves through the canvas page', function (): void {
         ->and($page->effects['returns'][0]['status'])->toBe('conflict')
         ->and($this->form->fresh()->draft_definition->title)->toBe('Gespeichert')
         ->and(Activity::query()->where('event', 'form.updated')->count())->toBe(1);
+});
+
+it('detects a concurrent save even when the caller already read the draft (cached cast)', function (): void {
+    $stale = Form::query()->findOrFail($this->form->getKey());
+    $base = Json::checksum($stale->draft_definition); // fills the model's cast cache
+    app(SyncDraft::class)->handle($this->form->fresh(), Json::encode(syncedDefinition($this->form, fn (stdClass $d) => $d->title = 'Anderer Tab')), $base, $this->designer);
+
+    $result = app(SyncDraft::class)->handle($stale, Json::encode(syncedDefinition($this->form, fn (stdClass $d) => $d->title = 'Veralteter Tab')), $base, $this->designer);
+
+    expect($result['status'])->toBe('conflict')
+        ->and($this->form->fresh()->draft_definition->title)->toBe('Anderer Tab');
 });

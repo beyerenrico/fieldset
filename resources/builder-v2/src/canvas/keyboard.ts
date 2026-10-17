@@ -1,8 +1,9 @@
 /**
  * Keyboard model of the canvas (ADR 0037). Navigation: roving focus between cards (↑/↓, Home/End,
  * →/← expand, collapse or go to child/parent), Enter/Space selects, Delete removes, Ctrl+D
- * duplicates. On a handle, Space/Enter picks the card up; then arrows move it, PageUp/PageDown
- * change the page, Space/Enter drops and Esc restores the original position.
+ * duplicates, Shift+F10 or the context menu key opens the Move menu. On a handle, Space/Enter picks
+ * the card up; then arrows move it, PageUp/PageDown change the page, Space/Enter drops and Esc
+ * restores the original position.
  */
 import type { Actions } from '../actions.ts';
 import type { Translator } from '../i18n.ts';
@@ -26,6 +27,7 @@ export interface KeyboardDeps {
     readonly toggleCollapse: (id: string, collapsed?: boolean) => void;
     readonly isCollapsed: (id: string) => boolean;
     readonly onGrab: (id: string | null) => void;
+    readonly openMenu: (id: string) => void;
 }
 
 const GRAB_KEYS: Readonly<Record<string, MoveDirection>> = {
@@ -100,6 +102,10 @@ export class KeyboardController {
         const onHandle = (event.target as Element).matches('[data-builder-handle]');
         const onCard = event.target === card;
         const modifier = event.ctrlKey || event.metaKey;
+        if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
+            this.#deps.openMenu(id);
+            return true;
+        }
         if (modifier && event.key.toLowerCase() === 'd') {
             void this.#deps.actions.duplicate(id);
             return true;

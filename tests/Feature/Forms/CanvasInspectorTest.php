@@ -133,16 +133,28 @@ it('keeps the key of a published element locked', function (): void {
     expect(nodeChanged($page)['node']->key)->toBe('customer');
 });
 
+const CANVAS_NEW_NODE_JSON = '{"id":"0192f1c4-0000-7000-8000-00000000c001","type":"text","key":"text","label":"Text"}';
+
+/*
+ * Key suggestions never write the key field (a request in flight would replace what the user types
+ * meanwhile): the page dispatches KEY_SUGGESTED {id, key, from} and the client applies the key only
+ * while the field still shows `from`. `->set('inspectorData.key', …)` below plays the client's part.
+ */
 it('lets the key of a new palette node follow its label until the key is edited', function (): void {
     $definition = useContractDraft($this->form, $this->designer);
-    $node = Json::decode('{"id":"0192f1c4-0000-7000-8000-00000000c001","type":"text","key":"text","label":"Text"}');
+    $node = Json::decode(CANVAS_NEW_NODE_JSON);
     $scope = inspectorScope($definition, ['customer', 'day', 'items', 'text'], autoKey: true);
 
     $page = canvasPage($this->form)->call('inspect', 'element', $node->id, Json::encode($node), $scope)
-        ->set('inspectorData.label', 'Customer')->assertSet('inspectorData.key', 'customer_2')
-        ->set('inspectorData.label', 'Prüfdatum')->assertSet('inspectorData.key', 'pruefdatum')
+        ->set('inspectorData.label', 'Customer')->assertSet('inspectorData.key', 'text')
+        ->assertDispatched(CanvasBuilder::KEY_SUGGESTED, id: $node->id, key: 'customer_2', from: 'text')
+        ->set('inspectorData.key', 'customer_2')
+        ->set('inspectorData.label', 'Prüfdatum')->assertSet('inspectorData.key', 'customer_2')
+        ->assertDispatched(CanvasBuilder::KEY_SUGGESTED, id: $node->id, key: 'pruefdatum', from: 'customer_2')
+        ->set('inspectorData.key', 'pruefdatum')
         ->set('inspectorData.key', 'eigener_key')
-        ->set('inspectorData.label', 'Anders')->assertSet('inspectorData.key', 'eigener_key');
+        ->set('inspectorData.label', 'Anders')->assertSet('inspectorData.key', 'eigener_key')
+        ->assertNotDispatched(CanvasBuilder::KEY_SUGGESTED);
 
     $page->call('commitInspector', $scope);
     expect(nodeChanged($page)['node']->key)->toBe('eigener_key')
@@ -156,8 +168,34 @@ it('suggests a key only for a blank key when the node is not new', function (): 
 
     canvasPage($this->form)->call('inspect', 'element', $customer->id, Json::encode($customer), $scope)
         ->set('inspectorData.label', 'Auftraggeber')->assertSet('inspectorData.key', 'customer')
+        ->assertNotDispatched(CanvasBuilder::KEY_SUGGESTED)
         ->set('inspectorData.key', '')
-        ->set('inspectorData.label', 'Day')->assertSet('inspectorData.key', 'day_2');
+        ->set('inspectorData.label', 'Day')->assertSet('inspectorData.key', '')
+        ->assertDispatched(CanvasBuilder::KEY_SUGGESTED, id: $customer->id, key: 'day_2', from: '');
+});
+
+it('stops suggesting once the key differs from the last suggestion (typed while the label request ran)', function (): void {
+    $definition = useContractDraft($this->form, $this->designer);
+    $node = Json::decode(CANVAS_NEW_NODE_JSON);
+    $scope = inspectorScope($definition, ['customer', 'day', 'items', 'text'], autoKey: true);
+
+    canvasPage($this->form)->call('inspect', 'element', $node->id, Json::encode($node), $scope)
+        ->set('inspectorData.label', 'Kunde')
+        ->assertDispatched(CanvasBuilder::KEY_SUGGESTED, id: $node->id, key: 'kunde', from: 'text')
+        ->set('inspectorData.key', 'kundennummer') // the client kept what the user typed: no 'kunde'
+        ->set('inspectorData.label', 'Kunde (Firma)')->assertSet('inspectorData.key', 'kundennummer')
+        ->assertNotDispatched(CanvasBuilder::KEY_SUGGESTED);
+});
+
+it('stops following when the client reports an edited key (scope autoKey false)', function (): void {
+    $definition = useContractDraft($this->form, $this->designer);
+    $node = Json::decode(CANVAS_NEW_NODE_JSON);
+    $keys = ['customer', 'day', 'items', 'text'];
+
+    canvasPage($this->form)->call('inspect', 'element', $node->id, Json::encode($node), inspectorScope($definition, $keys, autoKey: true))
+        ->call('commitInspector', inspectorScope($definition, $keys, autoKey: false))
+        ->set('inspectorData.label', 'Kunde')->assertSet('inspectorData.key', 'text')
+        ->assertNotDispatched(CanvasBuilder::KEY_SUGGESTED);
 });
 
 it('compiles visual rules on number fields to decimal operators', function (): void {

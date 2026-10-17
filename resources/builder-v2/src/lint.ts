@@ -5,6 +5,7 @@
  */
 import type { LintReport } from './contract.ts';
 import type { Marker } from './canvas/render.ts';
+import { icon } from './canvas/icons.ts';
 import { h, setText } from './dom.ts';
 import type { Translator } from './i18n.ts';
 import { labelOf } from './canvas/labels.ts';
@@ -113,7 +114,7 @@ export class LintPanel {
                   : 'ok';
             setText(
                 this.#count,
-                items.length === 0 ? tr.t('lint.ok') : tr.t('lint.count', { count: items.length }),
+                items.length === 0 ? tr.t('lint.ok') : tr.choice('lint.count', items.length),
             );
         }
         this.#list?.replaceChildren(
@@ -141,6 +142,11 @@ export class LintPanel {
                 'data-severity': item.severity,
             },
             [
+                // Severity is told by icon and a visible prefix, not by colour alone (WCAG 1.4.1).
+                h('span', { class: 'bv2-lint__severity' }, [
+                    icon(item.severity),
+                    tr.t(item.severity === 'error' ? 'lint.error_prefix' : 'lint.warning_prefix'),
+                ]),
                 h('span', { class: 'bv2-lint__where' }, [where]),
                 h('span', { class: 'bv2-lint__text' }, [text]),
             ],

@@ -84,6 +84,14 @@ export class CanvasView {
         this.#deps.renderer.decorate(this.#viewState(this.#deps.store.state));
     }
 
+    /** Opens the Move menu of a card (Shift+F10 or the context menu key). */
+    openMenu(id: string): void {
+        const card = this.#deps.renderer.card(id);
+        if (card !== null) {
+            this.#deps.menu.open(card.menu, id);
+        }
+    }
+
     focus(mark: FocusMark): void {
         this.#deps.renderer.setActive(mark.id);
         focusNode(this.#deps.tree, mark);
@@ -170,7 +178,10 @@ export class CanvasView {
         } else if (button.dataset.builderAction === 'add-column' && owner !== undefined) {
             actions.addColumn(owner);
         } else if (button.dataset.builderAction === 'remove-column' && owner !== undefined) {
-            actions.removeColumn(owner, Number(button.dataset.column));
+            // The button goes away with its column: focus stays on the Columns card.
+            if (actions.removeColumn(owner, Number(button.dataset.column))) {
+                this.focus({ id: owner, part: 'card' });
+            }
         } else if (button.hasAttribute('data-builder-handle')) {
             this.#deps.store.select(
                 card.dataset.builderPage === undefined
