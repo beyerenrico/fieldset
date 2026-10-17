@@ -8,6 +8,7 @@ use App\Domain\Identity\Enums\SystemRole;
 use App\Domain\Identity\Models\Membership;
 use App\Domain\Identity\Support\OrganizationPermissions;
 use App\Domain\Identity\Tenancy\TenantContext;
+use App\Domain\Notifications\Delivery\NotificationRenderer;
 use App\Domain\Notifications\FakeNotifier;
 use App\Domain\Notifications\NotificationEvent;
 use App\Domain\Notifications\Notifier;
@@ -15,6 +16,8 @@ use App\Domain\Privacy\Enums\DataExportStatus;
 use App\Domain\Privacy\Exports\DataExportNotifications;
 use App\Domain\Privacy\Exports\RequestDataExport;
 use App\Domain\Privacy\Models\DataExport;
+use App\Filament\Admin\Pages\Privacy\MyData;
+use Filament\Facades\Filament;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -105,7 +108,45 @@ it('serves the file only through the signed link, to the requester, until it exp
 
     $this->travel(8)->days();
     $fresh = URL::signedRoute('privacy.exports.download', ['organization' => $this->s->org->slug, 'export' => $export->id]);
-    $this->actingAs($this->s->owner)->get($fresh)->assertStatus(410);
+    $this->actingAs($this->s->owner)->get($fresh)->assertStatus(410)
+        ->assertSee(trans_choice('privacy.exports.expired.body', 7, ['days' => 7]))
+        ->assertSee(__('privacy.exports.expired.back_my_data'))
+        ->assertSee(MyData::getUrl(panel: 'admin', tenant: $this->s->org), false);
+});
+
+it('leads from an expired audit log export back to the dashboard', function (): void {
+    $export = $this->tenant->run($this->s->org, fn (): DataExport => DataExport::factory()->create([
+        'requested_by' => $this->s->owner->id, 'kind' => 'audit_log', 'status' => 'completed', 'path' => 'exports/gone.csv', 'expires_at' => now()->addDay(),
+    ]));
+    $url = DataExportNotifications::downloadUrl($export);
+
+    $this->actingAs($this->s->owner)->get((string) $url)->assertStatus(410)
+        ->assertSee(__('privacy.exports.expired.back_dashboard'))
+        ->assertSee(Filament::getPanel('admin')->getUrl($this->s->org), false);
+});
+
+it('uses singular and plural forms for minutes and days', function (string $locale, string $key, string $one, string $many): void {
+    expect(trans_choice($key, 1, ['minutes' => 1, 'days' => 1], $locale))->toContain($one)
+        ->and(trans_choice($key, 7, ['minutes' => 7, 'days' => 7], $locale))->toContain($many);
+})->with([
+    ['en', 'privacy.exports.throttled', 'in 1 minute.', 'in 7 minutes.'],
+    ['de', 'privacy.exports.throttled', 'in 1 Minute erneut', 'in 7 Minuten erneut'],
+    ['en', 'privacy.exports.expired.body', 'for 1 day and', 'for 7 days and'],
+    ['de', 'privacy.exports.expired.body', '1 Tag aufbewahrt', '7 Tage aufbewahrt'],
+    ['en', 'privacy.notifications.ready_user_data.body', 'for 1 day.', 'for 7 days.'],
+    ['de', 'privacy.notifications.ready_audit_log.body', '1 Tag lang', '7 Tage lang'],
+]);
+
+it('renders the export notification with the plural form for the keep period', function (): void {
+    config(['privacy.exports.keep_days' => 1]);
+    $export = $this->tenant->run($this->s->org, fn (): DataExport => app(RequestDataExport::class)->userData($this->s->owner, $this->s->owner, 'en', 'UTC'));
+
+    $message = $this->notifier->sentFor(NotificationEvent::ExportReady)[0]['message'];
+    $rendered = app(NotificationRenderer::class)->render($message, $this->s->owner, $this->s->org);
+
+    expect($export->refresh()->status)->toBe(DataExportStatus::Completed)
+        ->and($rendered->body)->toBe(trans_choice('privacy.notifications.ready_user_data.body', 1, ['days' => 1], $rendered->locale))
+        ->and($rendered->body)->not->toContain('|');
 });
 
 it('prunes exports and their files after the keep period', function (): void {

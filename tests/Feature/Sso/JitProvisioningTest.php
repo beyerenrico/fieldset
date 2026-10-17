@@ -53,6 +53,7 @@ it('provisions a new user with the default role and group and signs them in once
     $membership = Membership::query()->where('organization_id', $this->org->id)->where('user_id', $user->id)->sole();
     expect(auth()->id())->toBe($user->id)
         ->and($user->name)->toBe('Jane Doe')
+        ->and($user->password_known)->toBeFalse()
         ->and($user->email_verified_at)->not->toBeNull()
         ->and(Hash::check('password', $user->password))->toBeFalse()
         ->and($membership->status)->toBe(MembershipStatus::Active)

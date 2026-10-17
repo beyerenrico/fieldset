@@ -67,7 +67,7 @@ PDF renditions (`input_hash`, `file_sha256`; a trigger refuses UPDATE and allows
   `model:prune` removes rows and files after `privacy.exports.keep_days` (7). One open export per requester
   and kind, `privacy.exports.per_hour` (10) requests.
 - **Erasure** (`EraseUser`). The account row stays so that records the organization must keep stay
-  attributed — to "Deleted user": name, email (`erased-{id}@erased.invalid`), password, MFA, locale and time
+  attributed — to "Deleted user": name, email (`erased-{id}-{random}@erased.invalid`), password, MFA, locale and time
   zone are replaced, `users.erased_at` set and the account deactivated; sessions, API tokens, external (SSO)
   identities, database notifications, notification preferences and the user's data exports are deleted;
   device names are cleared and every device asked to wipe; memberships are deactivated and roles and groups
@@ -85,6 +85,33 @@ PDF renditions (`input_hash`, `file_sha256`; a trigger refuses UPDATE and allows
 
 ## Consequences
 Field App devices may still hold cached copies of anonymized or deleted submissions until their next sync or
-wipe. A download link of an anonymized submission's PDF answers 404 (the file is gone; the rendition row
-stays). The Field App has no self-service export or erasure screen yet; field workers ask an Admin, who uses
+wipe. A download link of an anonymized submission's PDF answers 410 `document_anonymized` (the file is gone;
+the rendition row stays; see the amendment). The Field App has no self-service export or erasure screen yet; field workers ask an Admin, who uses
 "Personal data". The legal-hold minimum and the statutory periods are configuration, not legal advice.
+
+## Amendment (2026-10-17, M8 review)
+- **Decision under the row lock.** The batch read is only a candidate list. `RetainSubmission` locks the
+  submission row, takes the share lock on the form row (the one `SaveRetentionPolicy` and `PlaceLegalHold` take
+  for update) and then re-reads the holds, the form's current policy and the submission's status and due-ness
+  (`COALESCE(submitted_at, created_at)` older than the period) before it decides delete, anonymize or skip. A
+  draft submitted meanwhile, a submission resubmitted meanwhile, a period raised or set to "keep" during the run
+  is left alone; an action switched to delete is followed.
+- **Time box.** `ApplyOrganizationRetention` starts no new submission after 60 s (at least one per run) and
+  re-queues itself; its timeout (85 s) stays below the queue's `retry_after` (90 s), so a slow run is never
+  picked up twice. The run stays idempotent.
+- **Notifications.** Anonymization and deletion also delete the in-app notifications about the submission
+  (`notifications.data->>'submission_uuid'`): their rendered title and body can quote a review comment or a
+  customer name. Large instances may want an expression index on that key (not added here).
+- **Erasure.** The replaced address gets a random suffix (`erased-{id}-{random}@erased.invalid`), so an existing
+  account with the predictable address never blocks an erasure. An admin may not erase a platform operator's
+  account (the StartImpersonation rule: a `platform_admins` row); the operator access is removed first.
+- **No dead ends.** "Personal data" disables Erase, with the next step as tooltip, for accounts shared with
+  another organization and for platform operators. "Delete my account" asks SSO-only accounts (linked to an
+  external identity, no `auth.password_changed` entry, i.e. the random password of SSO provisioning) to type
+  their email address instead of a password they never had. Field workers have no admin access and still ask
+  an Admin, or the platform operator for a shared account.
+- **UI.** Errors of modals with inputs (domain validation included) stay at the field with the modal open
+  (§9.1); shortening a period (also from "keep") asks for a second confirmation with the number of submissions
+  the next nightly run removes; "Place legal hold" explains itself and is disabled while the period is below the
+  minimum. Erased accounts are stored with the neutral marker "Deleted user" and shown translated
+  (`privacy.erased_name`, `AccountScrubber::displayName`).

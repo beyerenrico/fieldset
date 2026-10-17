@@ -11,6 +11,7 @@ use App\Domain\Identity\Models\Organization;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Support\RoleAssignmentGuard;
 use App\Domain\Identity\Tenancy\TenantContext;
+use App\Domain\Platform\PlatformAdmins;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -25,7 +26,8 @@ use Illuminate\Validation\ValidationException;
  *
  * - Self-service: any user, for their own account.
  * - By an admin (members.manage): only accounts that belong to no other organization (the account is shared
- *   otherwise; the person can erase it themselves), and an Owner only by an Owner.
+ *   otherwise; the person can erase it themselves), never a platform operator's account (it would end their
+ *   /platform access; the same rule as StartImpersonation), and an Owner only by an Owner.
  */
 final readonly class EraseUser
 {
@@ -34,6 +36,7 @@ final readonly class EraseUser
         private AuditLogger $audit,
         private TenantContext $tenant,
         private AccountScrubber $scrubber,
+        private PlatformAdmins $platformAdmins,
     ) {}
 
     public function self(User $user): void
@@ -53,14 +56,7 @@ final readonly class EraseUser
             || ! Membership::query()->where('organization_id', $organization->id)->where('user_id', $target->id)->exists()) {
             throw new AuthorizationException;
         }
-        if ($actor->is($target)) {
-            throw ValidationException::withMessages(['erasure' => __('privacy.erasure.use_self_service')]);
-        }
-        // Any membership elsewhere, also a deactivated one: that organization's records point at the account too.
-        $elsewhere = Membership::query()->where('user_id', $target->id)->where('organization_id', '!=', $organization->id)->exists();
-        if ($elsewhere) {
-            throw ValidationException::withMessages(['erasure' => __('privacy.erasure.other_organizations')]);
-        }
+        $this->ensureAdminMayErase($actor, $target, $organization);
 
         DB::transaction(function () use ($actor, $target, $organization): void {
             if ($this->guard->isOwner($target, $organization)) {
@@ -71,6 +67,18 @@ final readonly class EraseUser
             }
             $this->erase($target, $actor, false);
         });
+    }
+
+    /** Any membership elsewhere, also a deactivated one: that organization's records point at the account too. */
+    public static function belongsElsewhere(User $user, Organization $organization): bool
+    {
+        return Membership::query()->where('user_id', $user->id)->where('organization_id', '!=', $organization->id)->exists();
+    }
+
+    /** Whether a typed confirmation is the account's email address (case and surrounding spaces ignored). */
+    public static function emailConfirms(User $user, mixed $typed): bool
+    {
+        return is_string($typed) && mb_strtolower(trim($typed)) === mb_strtolower($user->email);
     }
 
     public static function isErased(User $user): bool
@@ -85,6 +93,19 @@ final readonly class EraseUser
         }
         $this->scrubber->scrub($user);
         $this->audit->record('privacy.user_erased', $user, ['self_service' => $selfService], $actor);
+    }
+
+    private function ensureAdminMayErase(User $actor, User $target, Organization $organization): void
+    {
+        $refusal = match (true) {
+            $actor->is($target) => 'use_self_service',
+            $this->platformAdmins->granted($target) => 'platform_operator',
+            self::belongsElsewhere($target, $organization) => 'other_organizations',
+            default => null,
+        };
+        if ($refusal !== null) {
+            throw ValidationException::withMessages(['erasure' => __('privacy.erasure.'.$refusal)]);
+        }
     }
 
     /** @return list<Organization> */

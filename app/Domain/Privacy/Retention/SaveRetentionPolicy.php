@@ -33,7 +33,7 @@ final readonly class SaveRetentionPolicy
         return DB::transaction(function () use ($form, $months, $action, $actor): RetentionPolicy {
             // Serialized with PlaceLegalHold (same form row lock): the hold check below cannot go stale.
             DB::table('forms')->where('id', $form->id)->lockForUpdate()->first(['id']);
-            $this->validate($form, $months);
+            self::ensureValid($form, $months);
             $policy = RetentionPolicy::query()->firstOrNew(['form_id' => $form->id]);
             $before = $policy->exists ? ['months' => $policy->months, 'action' => $policy->action->value] : null;
             $after = ['months' => $months, 'action' => $action->value];
@@ -47,7 +47,8 @@ final readonly class SaveRetentionPolicy
         });
     }
 
-    private function validate(Form $form, ?int $months): void
+    /** Also called by the Retention page before it asks to confirm a shorter period (errors at the field). */
+    public static function ensureValid(Form $form, ?int $months): void
     {
         if ($months !== null && ($months < 1 || $months > self::MAX_MONTHS)) {
             throw ValidationException::withMessages(['months' => __('privacy.retention.months_invalid', ['max' => self::MAX_MONTHS])]);

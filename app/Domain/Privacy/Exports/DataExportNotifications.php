@@ -47,7 +47,7 @@ final readonly class DataExportNotifications
             NotificationEvent::ExportReady,
             "privacy.notifications.{$key}_{$export->kind->value}.title",
             "privacy.notifications.{$key}_{$export->kind->value}.body",
-            ['days' => DataExport::keepDays()],
+            ['days' => DataExport::keepDays(), 'count' => DataExport::keepDays()], // count: plural forms of the body
             $url,
             $export->organization_id,
             null,

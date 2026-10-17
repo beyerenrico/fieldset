@@ -31,10 +31,12 @@ function invitationLink(Membership $membership): string
 it('lets a new account set a password and signs it in exactly once', function (): void {
     $membership = inviteFlow('new@example.com');
     $url = invitationLink($membership);
+    expect($membership->user->password_known)->toBeFalse(); // ADR 0039: nobody knows the generated password
 
     $this->post($url, ['password' => 'Sup3r-Secret-Pw!', 'password_confirmation' => 'Sup3r-Secret-Pw!'])->assertRedirect();
     expect(auth()->id())->toBe($membership->user_id)
-        ->and($membership->fresh()->status)->toBe(MembershipStatus::Active);
+        ->and($membership->fresh()->status)->toBe(MembershipStatus::Active)
+        ->and($membership->user->fresh()->password_known)->toBeTrue();
 
     auth()->logout();
     $this->post($url, ['password' => 'Other-Secret-Pw!', 'password_confirmation' => 'Other-Secret-Pw!'])->assertStatus(410);

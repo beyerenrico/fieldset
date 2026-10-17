@@ -45,6 +45,9 @@ final readonly class InviteMember
                 ['email' => Str::lower(trim($email))],
                 ['name' => $name, 'password' => Str::password(40)],
             ));
+            if ($user->wasRecentlyCreated) {
+                $user->forceFill(['password_known' => false])->saveQuietly(); // set on acceptance (ADR 0039)
+            }
 
             $existing = Membership::query()->where('organization_id', $organization->id)->where('user_id', $user->id)->first();
             if ($existing !== null && $existing->status !== MembershipStatus::Invited) {

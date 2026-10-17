@@ -12,6 +12,7 @@ use App\Domain\Identity\Models\Membership;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Tenancy\TenantContext;
 use App\Domain\Mail\Models\MailMessage;
+use App\Domain\Platform\Models\PlatformAdmin;
 use App\Domain\Privacy\Erasure\AccountScrubber;
 use App\Domain\Privacy\Erasure\EraseUser;
 use App\Domain\Submissions\Models\Submission;
@@ -37,6 +38,7 @@ it('erases a member: personal data gone, access ended, submissions kept and re-a
     FieldAppApi::submit($this->s, $worker, $uuid, 1)->assertOk();
     $this->withHeaders(apiHeaders($worker, $this->s->org))->postJson('/api/v1/devices', ['device_uuid' => FieldAppScenario::uuid(), 'name' => "Max's phone"])->assertSuccessful();
     DB::table('sessions')->insert(['id' => 'abc', 'user_id' => $worker->id, 'payload' => '', 'last_activity' => time()]);
+    $before = (int) Activity::query()->max('id');
 
     $this->tenant->run($this->s->org, fn () => app(EraseUser::class)->byAdmin($this->s->owner, $worker));
 
@@ -53,8 +55,8 @@ it('erases a member: personal data gone, access ended, submissions kept and re-a
 
     $entry = Activity::query()->where('event', 'privacy.user_erased')->sole();
     expect($entry->causer_id)->toBe($this->s->owner->id)->and($entry->properties['self_service'])->toBeFalse()
-        ->and(Activity::query()->where('id', '>', $entry->id - 1)->get()->toJson())->not->toContain($email)
-        ->and(Activity::query()->where('subject_type', $worker->getMorphClass())->where('event', 'updated')->where('id', '>=', $entry->id - 5)->exists())->toBeFalse();
+        ->and(Activity::query()->where('id', '>', $before)->get()->toJson())->not->toContain($email)
+        ->and(Activity::query()->where('subject_type', $worker->getMorphClass())->where('event', 'updated')->where('id', '>', $before)->exists())->toBeFalse();
 
     $this->postJson('/auth/login', ['email' => $email, 'password' => 'password'])->assertUnprocessable();
 });
@@ -116,4 +118,27 @@ it('refuses an admin erasure while the account has any membership elsewhere, als
 
     expect(fn () => $this->tenant->run($this->s->org, fn () => app(EraseUser::class)->byAdmin($this->s->owner, $this->s->worker)))
         ->toThrow(ValidationException::class);
+});
+
+it('erases an account although its predictable erased address is taken', function (): void {
+    $worker = $this->s->worker;
+    User::factory()->create(['email' => 'erased-'.$worker->id.'@erased.invalid']);
+
+    $this->tenant->run($this->s->org, fn () => app(EraseUser::class)->byAdmin($this->s->owner, $worker));
+
+    expect(EraseUser::isErased($worker))->toBeTrue()
+        ->and(User::query()->findOrFail($worker->id)->email)->toMatch('/^erased-'.$worker->id.'-[a-z0-9]{12,}@erased\\.invalid$/');
+});
+
+it('refuses an admin erasure of a platform operator', function (): void {
+    PlatformAdmin::query()->create(['user_id' => $this->s->worker->id]);
+
+    try {
+        $this->tenant->run($this->s->org, fn () => app(EraseUser::class)->byAdmin($this->s->owner, $this->s->worker));
+        $this->fail('The erasure was not refused.');
+    } catch (ValidationException $e) {
+        expect($e->errors()['erasure'][0])->toBe(__('privacy.erasure.platform_operator'));
+    }
+
+    expect(EraseUser::isErased($this->s->worker))->toBeFalse();
 });

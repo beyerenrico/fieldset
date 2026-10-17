@@ -9,14 +9,15 @@ use App\Domain\Identity\Enums\Permission;
 use App\Domain\Identity\Models\Membership;
 use App\Domain\Identity\Models\Organization;
 use App\Domain\Identity\Models\User;
+use App\Domain\Privacy\Erasure\AccountScrubber;
 use App\Domain\Privacy\Erasure\EraseUser;
 use App\Domain\Privacy\Exports\RequestDataExport;
 use App\Filament\Admin\Resources\Submissions\SubmissionResource;
 use BackedEnum;
+use Closure;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\TextInput;
-use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Schemas\Components\EmbeddedTable;
 use Filament\Schemas\Schema;
@@ -29,7 +30,9 @@ use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Data subject requests for members (GDPR Art. 15/17/20, ADR 0039): export a member's personal data (queued
- * ZIP, link by notification) or erase their account. Owners and Admins (members.manage).
+ * ZIP, link by notification) or erase their account (typing the email address; errors stay at the field).
+ * Erase is disabled, with the next step as tooltip, for accounts shared with another organization and for
+ * platform operators. Owners and Admins (members.manage).
  */
 class PersonalData extends Page implements HasTable
 {
@@ -79,15 +82,24 @@ class PersonalData extends Page implements HasTable
         $organization = Filament::getTenant();
 
         return $table
-            ->query(fn (): Builder => Membership::query()->with('user')->where('organization_id', $organization?->getKey()))
+            ->query(fn (): Builder => $this->memberships($organization?->getKey()))
             ->defaultSort('id')
             ->columns([
-                TextColumn::make('user.name')->label(__('privacy.members.columns.name'))->searchable(),
+                TextColumn::make('user.name')->label(__('privacy.members.columns.name'))->searchable()
+                    ->formatStateUsing(fn (string $state): string => AccountScrubber::displayName($state)),
                 TextColumn::make('user.email')->label(__('privacy.members.columns.email'))->searchable(),
                 TextColumn::make('status')->label(__('privacy.members.columns.status'))->badge()
                     ->formatStateUsing(fn (MembershipStatus $state): string => (string) __('privacy.members.status.'.$state->value)),
             ])
             ->recordActions([$this->exportAction(), $this->eraseAction()]);
+    }
+
+    /** @return Builder<Membership> with why Erase is unavailable, without a query per row (EraseUser refuses both anyway) */
+    private function memberships(mixed $organizationId): Builder
+    {
+        return Membership::query()->with('user')->where('organization_user.organization_id', $organizationId)->select('organization_user.*')
+            ->selectRaw('EXISTS (SELECT 1 FROM organization_user AS other WHERE other.user_id = organization_user.user_id AND other.organization_id <> organization_user.organization_id) AS belongs_elsewhere')
+            ->selectRaw('EXISTS (SELECT 1 FROM platform_admins WHERE platform_admins.user_id = organization_user.user_id) AS platform_operator');
     }
 
     private function exportAction(): Action
@@ -104,19 +116,34 @@ class PersonalData extends Page implements HasTable
     {
         return Action::make('erase')->label(__('privacy.members.erase'))->icon(Heroicon::OutlinedTrash)->color('danger')
             ->hidden(fn (Membership $record): bool => $record->user_id === Filament::auth()->id() || EraseUser::isErased($record->user))
+            ->disabled(fn (Membership $record): bool => $this->unavailableBecause($record) !== null)
+            ->tooltip(fn (Membership $record): ?string => $this->unavailableBecause($record))
             ->modalHeading(__('privacy.members.erase_heading'))
             ->modalDescription(__('privacy.members.erase_description'))
             ->schema([
                 TextInput::make('confirmation')->label(__('privacy.members.erase_confirm'))->required()
-                    ->helperText(fn (Membership $record): string => (string) __('privacy.members.erase_confirm_help', ['email' => $record->user->email])),
+                    ->helperText(fn (Membership $record): string => (string) __('privacy.members.erase_confirm_help', ['email' => $record->user->email]))
+                    ->rule(fn (Membership $record): Closure => function (string $attribute, mixed $value, Closure $fail) use ($record): void {
+                        if (! EraseUser::emailConfirms($record->user, $value)) {
+                            $fail(__('privacy.members.erase_mismatch'));
+                        }
+                    }),
             ])
-            ->action(function (Membership $record, array $data): void {
-                if (mb_strtolower(trim((string) $data['confirmation'])) !== mb_strtolower($record->user->email)) {
-                    Notification::make()->warning()->title(__('privacy.members.erase_mismatch'))->send();
+            ->action(fn (Membership $record, Schema $schema): bool => PrivacyPage::attemptInForm(
+                fn () => app(EraseUser::class)->byAdmin(PrivacyPage::user(), $record->user),
+                __('privacy.members.erased'),
+                $schema,
+                ['confirmation'],
+            ));
+    }
 
-                    return;
-                }
-                PrivacyPage::attempt(fn () => app(EraseUser::class)->byAdmin(PrivacyPage::user(), $record->user), __('privacy.members.erased'));
-            });
+    /** The next step when an admin may not erase the account here (shared with another organization, an operator). */
+    private function unavailableBecause(Membership $record): ?string
+    {
+        return match (true) {
+            (bool) $record->getAttribute('platform_operator') => (string) __('privacy.erasure.platform_operator'),
+            (bool) $record->getAttribute('belongs_elsewhere') => (string) __('privacy.erasure.other_organizations'),
+            default => null,
+        };
     }
 }

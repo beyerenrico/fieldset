@@ -78,6 +78,7 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
         'two_factor_secret' => null,
         'two_factor_recovery_codes' => null,
         'two_factor_confirmed_at' => null,
+        'password_known' => true,
     ];
 
     protected function casts(): array
@@ -88,6 +89,7 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
             'status' => UserStatus::class,
             'deactivated_at' => 'datetime',
             'two_factor_confirmed_at' => 'datetime',
+            'password_known' => 'boolean',
         ];
     }
 
@@ -113,6 +115,13 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
 
     protected static function booted(): void
     {
+        // Setting a password makes it known (ADR 0039), unless the same save marks it unknown (SSO, invitation).
+        static::updating(static function (self $user): void {
+            if ($user->isDirty('password') && ! $user->isDirty('password_known')) {
+                $user->password_known = true;
+            }
+        });
+
         // MFA enrolment changes from either Filament or Fortify are audited once (§8.11).
         static::updated(static function (self $user): void {
             if ($user->wasChanged('password') && ! self::$suppressPasswordAudit) {

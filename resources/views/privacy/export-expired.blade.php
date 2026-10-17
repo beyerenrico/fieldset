@@ -1,5 +1,5 @@
 {{-- Expired or pruned data export download (ADR 0039): a friendly page with status 410. --}}
-@php /** @var int $days */ @endphp
+@php /** @var int $days */ /** @var string $backUrl */ /** @var string $backLabel */ @endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
@@ -14,12 +14,14 @@
             box-shadow: 0 1px 3px rgba(0, 0, 0, .1); }
         h1 { margin: 0 0 .75rem; font-size: 1.25rem; }
         p { margin: 0; line-height: 1.5; }
+        a { display: inline-block; margin-top: 1.25rem; color: light-dark(#1d4ed8, #93c5fd); font-weight: 600; }
     </style>
 </head>
 <body>
 <main>
     <h1>{{ __('privacy.exports.expired.title') }}</h1>
-    <p>{{ __('privacy.exports.expired.body', ['days' => $days]) }}</p>
+    <p>{{ trans_choice('privacy.exports.expired.body', $days, ['days' => $days]) }}</p>
+    <a href="{{ $backUrl }}">{{ $backLabel }}</a>
 </main>
 </body>
 </html>

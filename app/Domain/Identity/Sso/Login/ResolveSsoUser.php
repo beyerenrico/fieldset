@@ -97,6 +97,7 @@ final readonly class ResolveSsoUser
             'name' => $profile->name ?? Str::before($email, '@'),
             'email' => $email,
             'password' => Str::password(64),
+            'password_known' => false,
             'email_verified_at' => now(),
         ])->save();
 

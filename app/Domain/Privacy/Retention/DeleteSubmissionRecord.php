@@ -12,8 +12,8 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Deletes one submission for retention (ADR 0039): the row and everything that cascades from it (values,
- * events, attachments, renditions, sends, links, tasks, workflow runs), its mail log rows, and the stored
- * files after commit. A legal hold placed meanwhile is re-checked under the lock.
+ * events, attachments, renditions, sends, links, tasks, workflow runs), its mail log rows and in-app
+ * notifications, and the stored files after commit. A legal hold placed meanwhile is re-checked under the lock.
  * Rendition rows are immutable; their delete needs the session flag the renditions trigger checks
  * (app.allow_immutable_delete), switched off again right after. One audit entry `submission.deleted` keeps
  * the number and the rendition hashes.
@@ -30,7 +30,7 @@ final readonly class DeleteSubmissionRecord
                 return false;
             }
             $files = SubmissionFiles::of($locked->uuid);
-            SubmissionTraces::deleteMail($locked->uuid);
+            SubmissionTraces::delete($locked->uuid);
 
             // Transaction-local: a failed delete rolls the flag back with the transaction.
             DB::select("SELECT set_config('app.allow_immutable_delete', 'on', true)");

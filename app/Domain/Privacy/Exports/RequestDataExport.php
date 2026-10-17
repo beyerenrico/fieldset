@@ -85,7 +85,8 @@ final readonly class RequestDataExport
 
         $key = 'data-export:'.$requester->id;
         if (RateLimiter::tooManyAttempts($key, max(1, (int) config('privacy.exports.per_hour', 10)))) {
-            throw ValidationException::withMessages(['export' => __('privacy.exports.throttled', ['minutes' => (int) ceil(RateLimiter::availableIn($key) / 60)])]);
+            $minutes = max(1, (int) ceil(RateLimiter::availableIn($key) / 60));
+            throw ValidationException::withMessages(['export' => trans_choice('privacy.exports.throttled', $minutes, ['minutes' => $minutes])]);
         }
         RateLimiter::hit($key, 3600);
     }

@@ -15,6 +15,7 @@ use App\Filament\Admin\Pages\Privacy\LegalHolds;
 use App\Filament\Admin\Pages\Privacy\MyData;
 use App\Filament\Admin\Pages\Privacy\PersonalData;
 use App\Filament\Admin\Pages\Privacy\RetentionSettings;
+use Filament\Actions\Testing\TestAction;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use Tests\Support\FieldAppApi;
@@ -34,13 +35,16 @@ it('sets retention per form and places and releases a form legal hold', function
         ->assertCanSeeTableRecords([$this->s->form])
         ->assertSee(__('privacy.retention.keep'))
         ->callTableAction('retention', $this->s->form, ['months' => 130, 'action' => 'delete'])
+        ->assertActionMounted('confirmShorterRetention') // from "keep indefinitely" to 130 months
+        ->callMountedAction()
         ->assertNotified(__('privacy.retention.saved'))
         ->assertSee(trans_choice('privacy.retention.after_months', 130, ['action' => __('privacy.retention.actions.delete'), 'count' => 130]))
         ->callTableAction('hold', $this->s->form, ['reason' => 'Invoices: statutory retention'])
         ->assertNotified(__('privacy.holds.placed'))
         ->assertTableActionHidden('hold', $this->s->form)
         ->callTableAction('retention', $this->s->form, ['months' => 12, 'action' => 'delete'])
-        ->assertNotified(__('privacy.retention.below_hold_minimum', ['months' => 120]))
+        ->assertHasTableActionErrors(['months' => fn (array $rules, array $messages): bool => $messages === [__('privacy.retention.below_hold_minimum', ['months' => 120])]]);
+    Livewire::test(RetentionSettings::class)
         ->callTableAction('release', $this->s->form)
         ->assertNotified(__('privacy.holds.released'));
 
@@ -70,7 +74,8 @@ it('exports and erases members from the personal data page', function (): void {
         ->callTableAction('exportData', $membership)
         ->assertNotified(__('privacy.exports.queued'))
         ->callTableAction('erase', $membership, ['confirmation' => 'wrong@example.com'])
-        ->assertNotified(__('privacy.members.erase_mismatch'));
+        ->assertHasTableActionErrors(['confirmation' => fn (array $rules, array $messages): bool => $messages === [__('privacy.members.erase_mismatch')]])
+        ->assertActionMounted(TestAction::make('erase')->table($membership));
     expect(EraseUser::isErased($this->s->worker))->toBeFalse();
 
     Livewire::test(PersonalData::class)

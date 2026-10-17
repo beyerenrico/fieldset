@@ -20,11 +20,15 @@ use Spatie\Permission\PermissionRegistrar;
 
 /**
  * Replaces and removes an account's personal data for EraseUser (call inside a transaction). The attribute
- * changes are not written to the audit log (their old values are the personal data being erased).
+ * changes are not written to the audit log (their old values are the personal data being erased). The stored
+ * name is a neutral marker; screens show it translated (displayName). The address gets a random suffix, so an
+ * existing `erased-{id}@…` account never blocks the erasure.
  */
 final readonly class AccountScrubber
 {
     public const string ERASED_NAME = 'Deleted user';
+
+    public const string ERASED_DOMAIN = 'erased.invalid';
 
     public function __construct(private TenantContext $tenant) {}
 
@@ -32,7 +36,7 @@ final readonly class AccountScrubber
     {
         $oldEmail = mb_strtolower($user->email);
         activity()->withoutLogging(fn () => $user->forceFill([
-            'name' => self::ERASED_NAME, 'email' => 'erased-'.$user->id.'@erased.invalid', 'password' => Str::password(64),
+            'name' => self::ERASED_NAME, 'email' => $this->erasedEmail($user), 'password' => Str::password(64),
             'remember_token' => null, 'email_verified_at' => null, 'locale' => null, 'timezone' => null,
             'two_factor_secret' => null, 'two_factor_recovery_codes' => null, 'two_factor_confirmed_at' => null,
             'status' => UserStatus::Deactivated, 'deactivated_at' => $user->deactivated_at ?? now(), 'erased_at' => now(),
@@ -52,6 +56,17 @@ final readonly class AccountScrubber
         DB::table('password_reset_tokens')->whereRaw('lower(email) = ?', [$oldEmail])->delete();
         DB::table('mail_messages')->whereRaw('lower(recipient_email) = ?', [$oldEmail])->delete();
         $this->deleteExports($user);
+    }
+
+    /** The name to show for an account: erased accounts as "Deleted user" in the current locale. */
+    public static function displayName(string $name): string
+    {
+        return $name === self::ERASED_NAME ? (string) __('privacy.erased_name') : $name;
+    }
+
+    private function erasedEmail(User $user): string
+    {
+        return 'erased-'.$user->id.'-'.Str::lower(Str::random(16)).'@'.self::ERASED_DOMAIN;
     }
 
     private function removeAccess(User $user): void
