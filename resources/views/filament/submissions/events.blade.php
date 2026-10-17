@@ -19,7 +19,7 @@
                         <span aria-hidden="true">→</span>
                     @endif
                     <x-filament::badge :color="$badge($event->to_status)">{{ __('submissions.status.'.$event->to_status) }}</x-filament::badge>
-                    <span>· {{ $event->actor?->name ?? __('inbox.detail.system') }}</span>
+                    <span>· {{ $event->actor !== null ? \App\Domain\Privacy\Erasure\AccountScrubber::displayName($event->actor->name) : __('inbox.detail.system') }}</span>
                 </div>
                 @if ($event->comment !== null && $event->comment !== '')
                     <p style="margin:.25rem 0 0;white-space:pre-line">{{ $event->comment }}</p>

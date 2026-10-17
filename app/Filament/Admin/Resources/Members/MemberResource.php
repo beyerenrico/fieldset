@@ -13,6 +13,7 @@ use App\Domain\Identity\Enums\MembershipStatus;
 use App\Domain\Identity\Models\Device;
 use App\Domain\Identity\Models\Membership;
 use App\Domain\Identity\Models\User;
+use App\Domain\Privacy\Erasure\AccountScrubber;
 use App\Filament\Admin\Resources\Members\Pages\ManageMembers;
 use App\Filament\Admin\Support\OrganizationOptions;
 use BackedEnum;
@@ -60,7 +61,8 @@ class MemberResource extends Resource
     {
         return $table
             ->columns([
-                TextColumn::make('user.name')->label(__('identity.member.name'))->searchable()->sortable(),
+                TextColumn::make('user.name')->label(__('identity.member.name'))->searchable()->sortable()
+                    ->formatStateUsing(fn (string $state): string => AccountScrubber::displayName($state)),
                 TextColumn::make('user.email')->label(__('identity.member.email'))->searchable(),
                 TextColumn::make('roles')->label(__('identity.member.roles'))->badge()
                     ->state(fn (Membership $record): array => array_map(
