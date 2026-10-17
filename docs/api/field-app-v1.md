@@ -1,4 +1,4 @@
-# Field App API contract (`/api/v1`, milestone M2; offline additions M6; SSO M7)
+# Field App API contract (`/api/v1`, milestone M2; offline additions M6; SSO M7; integration tokens M8)
 
 Normative for the Field App and the backend; Scramble publishes the generated OpenAPI 3.1 document at
 `/docs/api`. Paths in the endpoint table are relative to `/api/v1`. All `/api/v1` responses use the envelope
@@ -16,6 +16,25 @@ Non-multipart request bodies larger than 2 MB (`submissions.max_payload_bytes`) 
   If `two_factor` is true: `POST /auth/two-factor-challenge` `{ code }` or `{ recovery_code }` → 204.
   `POST /auth/logout` → 204. Send `X-XSRF-TOKEN` from the `XSRF-TOKEN` cookie on every mutating request.
 - Every tenant-scoped call sends `X-Organization-Id: <id>` (from `GET /me`).
+- **Integration tokens (M8, ADR 0043).** Other systems authenticate with `Authorization: Bearer <id>|<secret>`, a
+  Sanctum personal access token created in the dashboard ("API tokens"; shown once). A token belongs to one user
+  and one organization; it can do at most the intersection of its abilities and the user's role permissions.
+  The rules below apply only to such tokens; the Field App session keeps full access and is unchanged.
+  - Abilities per endpoint: `forms:read` (`GET /forms`, `GET /forms/{form}/versions/{version}`);
+    `forms:read` + `tasks:read` (`GET /sync/manifest`); `submissions:read` (`GET /submissions`,
+    `GET /submissions/{uuid}`, `GET …/attachments/{attachment_uuid}`); `submissions:write`
+    (`PUT /submissions/{uuid}`, `POST …/attachments`, `POST …/submit`); `documents:read`
+    (`GET …/document`); `submissions:write` + `documents:read` (`POST …/send`); `tasks:read` (`GET /tasks`);
+    `tasks:write` (`POST /tasks/{id}/complete`); `notifications:read` (`GET /notifications`,
+    `POST /notifications/read`, `GET /me/notification-preferences`; only the token organization's
+    notifications). `GET /me`, `POST /devices` and `PUT /me/notification-preferences` are session-only.
+  - A missing ability → **403** `insufficient_ability`, `details: { required: [ability], missing: [ability] }`; a
+    session-only endpoint → **403** `session_required`. The wildcard `*` grants nothing.
+  - `X-Organization-Id` is optional: without it the token's organization applies; another organization → **403**
+    `organization_forbidden`. A token without organization → **403** `token_unbound`.
+  - Revoked or expired (optional expiry, 90 days preselected) → **401** `unauthenticated`. Deactivating the member
+    (or the user) deletes the tokens.
+  - Rate limit: 240/min per token (`app.api_rate_limit`), separate from the user's session bucket.
 - **Email-first sign-in (M7, ADR 0036).** The client asks for the email, then calls home-realm discovery:
   `POST /auth/sso/discover` `{ email }`. It is a web route at the site root like the Fortify calls: CSRF
   cookie and `X-XSRF-TOKEN`, plain JSON, invalid email → 422 `{ message, errors }`, throttled (10/min per address and IP, 300/min per IP) → 429.

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Notifications\Inbox;
 
 use App\Domain\Identity\Models\User;
+use App\Domain\Identity\Tokens\RequestToken;
 use App\Domain\Notifications\Delivery\StoredNotification;
 use Closure;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -67,13 +68,22 @@ final class NotificationInbox
 
     /**
      * Constraint for a notifications query: the user's active organizations and notifications without one
-     * (shared with the admin bell).
+     * (shared with the admin bell). An integration token sees only its own organization's notifications
+     * (ADR 0043).
      *
      * @return Closure(mixed): void for Eloquent and query builders of the `notifications` table
      */
     public static function activeMemberships(User $user): Closure
     {
         $organizationIds = array_map(strval(...), $user->activeOrganizations()->pluck('organizations.id')->all());
+        $tokenOrganization = RequestToken::organizationId($user);
+        if ($tokenOrganization !== null) {
+            $bound = array_values(array_intersect($organizationIds, [(string) $tokenOrganization]));
+
+            return static function ($query) use ($bound): void {
+                $query->whereIn('data->organization_id', $bound);
+            };
+        }
 
         return static function ($query) use ($organizationIds): void {
             $query->whereNull('data->organization_id');

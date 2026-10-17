@@ -21,9 +21,9 @@ The normative contract is [docs/api/field-app-v1.md](../api/field-app-v1.md). In
 - Writes are idempotent: submissions and attachments use client-generated UUIDs, and submit, customer
   send and review decisions take an `Idempotency-Key` header.
 - Non-multipart request bodies are limited to 2 MB (413 `payload_too_large`).
-- Rate limits: 240 requests per minute per user, and lower limits on some endpoints (for example 30
-  customer sends and 120 attachment uploads per minute). Over the limit the API answers 429
-  `too_many_requests`.
+- Rate limits: 240 requests per minute per user session and, separately, per integration token, and lower
+  limits on some endpoints (for example 30 customer sends and 120 attachment uploads per minute). Over the
+  limit the API answers 429 `too_many_requests`.
 
 Main endpoints (paths relative to `/api/v1`):
 
@@ -57,6 +57,9 @@ Both require a signed-in user (sign in at `/admin/login` first) who is an organi
 
 ## Authentication
 
+The API accepts two kinds of credentials: the Field App's cookie session (below) and
+[integration tokens](#integration-tokens) for other systems.
+
 The Field App uses cookie-based sessions on the same origin (Laravel Sanctum's SPA mode): it fetches
 `/sanctum/csrf-cookie`, signs in with `POST /auth/login` (or single sign-on) and sends the
 `X-XSRF-TOKEN` header on every write. For this to work, the instance's host name must be in
@@ -66,10 +69,70 @@ the [API contract](../api/field-app-v1.md#authentication).
 
 ## Integration tokens
 
-Planned, not available in 1.0. The database already binds API tokens (Laravel Sanctum personal access
-tokens) to one organization, and the API refuses such a token for any other organization, but there is
-no screen or command to create tokens, and endpoints do not check token abilities. Use
-[webhooks](#webhooks) to push data to other systems, and the exports in the dashboard to pull data.
+Other systems (an ERP, a BI tool, a script) call the API with a personal access token. A token belongs to
+one user and one organization, and it can never do more than that user's role allows in that organization.
+
+### Create a token
+
+1. In the dashboard, open "Team" → "API-Tokens" ("API tokens"). Every user who can open the dashboard
+   manages their own tokens there. Owners and Admins also see the tokens of all members of the organization
+   and can revoke them.
+2. Choose "Neues Token" ("New token"), enter a name (what the token is for), tick the permissions the
+   integration needs, and choose when the token expires (90 days by default; 7 to 365 days, or never).
+3. Copy the token from the dialog. It is shown **only once**; the server keeps only a hash. The dialog also
+   shows the organization ID.
+
+The list shows each token's name, permissions, last use and expiry. "Widerrufen" ("Revoke") ends access at
+once. Deactivating a member deletes that member's tokens for the organization; deactivating a user account
+deletes all of the user's tokens.
+
+A field-worker-only role cannot open the dashboard. For an integration that fills forms, create a user with a
+role that has dashboard access ("admin.access") and the form permissions the integration needs, for example a
+custom role "Integration".
+
+### Permissions (abilities)
+
+| Permission | Ability | Endpoints |
+|---|---|---|
+| Formulare lesen (Read forms) | `forms:read` | `GET /forms`, `GET /forms/{form}/versions/{version}` |
+| Einreichungen lesen (Read submissions) | `submissions:read` | `GET /submissions`, `GET /submissions/{uuid}`, `GET /submissions/{uuid}/attachments/{attachment}` |
+| Einreichungen schreiben (Write submissions) | `submissions:write` | `PUT /submissions/{uuid}`, `POST /submissions/{uuid}/attachments`, `POST /submissions/{uuid}/submit` |
+| Dokumente lesen (Read documents) | `documents:read` | `GET /submissions/{uuid}/document` |
+| Prüfaufgaben lesen (Read review tasks) | `tasks:read` | `GET /tasks` |
+| Prüfaufgaben erledigen (Complete review tasks) | `tasks:write` | `POST /tasks/{id}/complete` |
+| Benachrichtigungen lesen (Read notifications) | `notifications:read` | `GET /notifications`, `POST /notifications/read`, `GET /me/notification-preferences` |
+
+- `GET /sync/manifest` needs `forms:read` and `tasks:read`; `POST /submissions/{uuid}/send` needs
+  `submissions:write` and `documents:read` (it emails the PDF).
+- `GET /me`, `POST /devices` and `PUT /me/notification-preferences` are for the Field App only: tokens get 403
+  `session_required`.
+- The user's role is checked as well. For example, a token with `submissions:write` of a user who may not fill a
+  form still gets 403 for that form, and `GET /forms` lists only the forms the user may fill.
+- A token sees only the notifications of its own organization.
+
+### Call the API
+
+Send the token as a bearer token. The organization header is optional for tokens: without it the token's
+organization is used, and any other organization is refused.
+
+```sh
+curl "https://forms.example.com/api/v1/submissions?status=submitted" \
+  -H "Authorization: Bearer 12|t8Kq…" \
+  -H "Accept: application/json"
+```
+
+Errors (in the usual envelope):
+
+| Status and code | Meaning |
+|---|---|
+| 401 `unauthenticated` | Token unknown, revoked or expired |
+| 403 `insufficient_ability` | The token lacks a permission; `error.details.missing` lists it |
+| 403 `session_required` | Endpoint reserved for the Field App |
+| 403 `organization_forbidden` | `X-Organization-Id` names another organization, or the user is no longer a member |
+| 403 `token_unbound` | Token without organization (not created in the dashboard); create a new one |
+| 429 `too_many_requests` | Over 240 requests per minute for this token (each token has its own limit) |
+
+Creating and revoking a token and its first use appear in the audit log; the token value never does.
 
 ## Webhooks
 
