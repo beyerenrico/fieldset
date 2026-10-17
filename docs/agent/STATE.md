@@ -1,16 +1,17 @@
-# State: 2026-10-18T21:00Z
+# State: 2026-10-19T06:00Z
 Milestone: M8 Hardening → 1.0 · Branch m8-hardening (M7 merged, tag m7-done)
-Tasks in flight (3 agents, shared tree): G1 audit UI + GDPR (DB _b, ADRs 0038/0039), G2 security
-headers + opaque preview + /platform (DB _c, ADRs 0040/0041), G4 docs/guides + backup scripts (ADR 0042).
-Done: reviewer version access fix (d60d658, M8-T08 part).
+Phase 1 committed: audit/GDPR (fb9678a), integration tokens (57ff6fe), security/opaque preview/
+/platform/env templates (b4dbb3a), guides + backup scripts (b1bc71d), reviewer version access (d60d658).
+E2E 34/34 with the new CSP. PLAN: T01, T02, T03, T06, T07, T11, T12 done.
+In flight: G3 (exclusive Docker): CSP-violation E2E guard, a11y audit (axe), carry-overs (reviewer E2E
+assertion, anonymized PDF 410, builder v2 default ADR 0044, web push ADR 0045).
 Last commit: see `git log -1`
 
 ## Next actions
-1. M8 parallel work with disjoint ownership (one ADR per architectural choice):
-   - audit UI + retention + trigger/hash chain (T01) and GDPR retention/export/erasure (T02);
-   - security hardening incl. opaque preview origin (T03) and /platform panel (T06);
-   - a11y audit (T04), performance/load evidence (T05), docs/guides (T07), carry-overs (T08).
-2. Gate M8, then release 1.0 (T09): final gate on main, FINAL_REPORT.md, STATE "Run complete".
+1. After G3: performance/load evidence (T05, Docker-exclusive agent), then docs finalize (resolve
+   TODO-VERIFY markers in docs/guide, upgrade notes for M8, CHANGELOG 1.0, release notes).
+2. Three gate reviews; fixes; gate M8; release 1.0 (T09): final gate on main, FINAL_REPORT.md,
+   STATE "Run complete".
 
 ## Known problems
 - Phase 2 after G1/G2: a11y audit E2E (T04) incl. a reviewer-detail assertion in m4-review, builder
