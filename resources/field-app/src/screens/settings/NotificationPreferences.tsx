@@ -24,6 +24,7 @@ const EVENT_LABELS: Readonly<Record<string, MessageKey | undefined>> = {
     form_available: 'event.form_available',
     workflow_notice: 'event.workflow_notice',
     export_ready: 'event.export_ready',
+    sso_misconfigured: 'event.sso_misconfigured',
 };
 
 const CHANNEL_LABELS: Readonly<Record<NotificationChannel, MessageKey>> = {

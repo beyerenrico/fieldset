@@ -8,6 +8,8 @@ use App\Domain\Audit\AuditLogger;
 use App\Domain\Identity\Enums\MembershipStatus;
 use App\Domain\Identity\Enums\Permission;
 use App\Domain\Identity\Enums\UserStatus;
+use App\Domain\Identity\Sso\Contracts\PasswordAuthGate;
+use App\Domain\Identity\Sso\Exceptions\SsoRequiredException;
 use App\Domain\Identity\Support\OrganizationPermissions;
 use Database\Factories\UserFactory;
 use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthentication;
@@ -16,6 +18,7 @@ use Filament\Models\Contracts\FilamentUser;
 use Filament\Models\Contracts\HasDefaultTenant;
 use Filament\Models\Contracts\HasTenants;
 use Filament\Panel;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -162,6 +165,36 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
     public function groups(): BelongsToMany
     {
         return $this->belongsToMany(Group::class)->withPivot('organization_id')->withTimestamps();
+    }
+
+    /**
+     * Accounts at organizations' identity providers (ADR 0036). Tenant-scoped: query inside the tenant.
+     *
+     * @return HasMany<ExternalIdentity, $this>
+     */
+    public function externalIdentities(): HasMany
+    {
+        return $this->hasMany(ExternalIdentity::class);
+    }
+
+    /**
+     * Backstop for reset flows that use the broker's default notification (Fortify; ADR 0036, Enforcement):
+     * no reset link for an email whose domain enforces SSO. Filament's reset page notifies directly and
+     * needs its own check, like every flow that refuses earlier.
+     *
+     * @param  string  $token
+     */
+    public function sendPasswordResetNotification(#[SensitiveParameter] $token): void
+    {
+        try {
+            app(PasswordAuthGate::class)->assertPasswordReset($this->email);
+        } catch (SsoRequiredException) {
+            app(AuditLogger::class)->record('auth.password_reset_blocked', $this, ['via' => 'notification']);
+
+            return;
+        }
+
+        $this->notify(new ResetPassword($token));
     }
 
     public function isMemberOf(Organization|int $organization): bool

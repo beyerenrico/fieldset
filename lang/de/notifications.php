@@ -12,6 +12,7 @@ return [
         'form_available' => 'Ein neues oder geändertes Formular ist verfügbar',
         'workflow_notice' => 'Nachrichten aus Workflows',
         'export_ready' => 'Ein angeforderter Export ist fertig',
+        'sso_misconfigured' => 'Single Sign-on ist fehlerhaft konfiguriert (Administration)',
     ],
     'channels' => ['database' => 'In der App', 'mail' => 'E-Mail'],
     'preferences' => [

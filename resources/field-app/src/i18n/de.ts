@@ -254,6 +254,7 @@ export const de: Messages = {
     'event.form_available': 'Ein neues oder geändertes Formular ist verfügbar',
     'event.workflow_notice': 'Nachrichten aus Workflows',
     'event.export_ready': 'Ein angeforderter Export ist fertig',
+    'event.sso_misconfigured': 'Single Sign-on ist fehlerhaft konfiguriert (Administration)',
     'notifications.title': 'Benachrichtigungen',
     'notifications.bellUnread': 'Benachrichtigungen, {count} ungelesen',
     'notifications.empty': 'Noch keine Benachrichtigungen.',

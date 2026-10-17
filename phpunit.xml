@@ -35,6 +35,8 @@
         <!-- PDF import (ADR 0024): local qpdf if installed, otherwise qpdf from the CI image via Docker. -->
         <env name="QPDF_BINARY" value="scripts/qpdf"/>
         <env name="SESSION_DRIVER" value="array"/>
+        <!-- SSO (M7): tests never query real DNS; domain tests bind a fake TxtRecordResolver. -->
+        <env name="SSO_DNS_DRIVER" value="config"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>

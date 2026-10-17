@@ -15,16 +15,56 @@ services:
     ports:
       - "${FORWARD_MAILPIT_UI_PORT:-18025}:8025"
       - "${FORWARD_MAILPIT_SMTP_PORT:-11025}:1025"
+  # SSO (M7): Keycloak runs on the host-published http://keycloak.localhost:8180 (its issuer), which the
+  # containers reach through the host gateway; insecure IdPs and config-backed DNS are dev/CI only.
   app:
     environment:
       MAIL_HOST: mailpit
       MAIL_PORT: 1025
+      SSO_ALLOW_INSECURE_IDP: "true"
+      SSO_DNS_DRIVER: config
+    extra_hosts:
+      - "keycloak.localhost:host-gateway"
   # Mail is queued (M3), so the worker and scheduler need the in-network Mailpit too.
   queue:
     environment:
       MAIL_HOST: mailpit
       MAIL_PORT: 1025
+      SSO_ALLOW_INSECURE_IDP: "true"
+      SSO_DNS_DRIVER: config
+    extra_hosts:
+      - "keycloak.localhost:host-gateway"
   scheduler:
     environment:
       MAIL_HOST: mailpit
       MAIL_PORT: 1025
+      SSO_ALLOW_INSECURE_IDP: "true"
+      SSO_DNS_DRIVER: config
+    extra_hosts:
+      - "keycloak.localhost:host-gateway"
+  # OIDC/SAML IdP for development and E2E (ADR 0036). Opt-in: COMPOSE_PROFILES=sso (set in the CI e2e job).
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.5
+    profiles: [sso]
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin   # development only
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin   # development only
+      KC_HEALTH_ENABLED: "true"
+      KC_HOSTNAME: http://keycloak.localhost:8180
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+    ports:
+      - "8180:8080"
+    volumes:
+      - ./docker/keycloak:/opt/keycloak/data/import:ro
+    # The image has no curl: ask the management port (9000) for /health/ready over bash's /dev/tcp.
+    healthcheck:
+      test:
+        - CMD
+        - bash
+        - -c
+        - 'exec 3<>/dev/tcp/127.0.0.1/9000 && printf "GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n" >&3 && IFS= read -r line <&3 && [[ "$$line" == *" 200 "* ]]'
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s

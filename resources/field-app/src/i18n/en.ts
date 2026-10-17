@@ -239,6 +239,7 @@ export const en = {
     'event.form_available': 'A new or updated form is available',
     'event.workflow_notice': 'Messages from workflows',
     'event.export_ready': 'An export I requested is ready',
+    'event.sso_misconfigured': 'Single sign-on is misconfigured (administrators)',
     'notifications.title': 'Notifications',
     'notifications.bellUnread': 'Notifications, {count} unread',
     'notifications.empty': 'No notifications yet.',

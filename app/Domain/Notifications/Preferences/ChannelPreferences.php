@@ -16,8 +16,9 @@ use App\Domain\Notifications\Notifier;
  * Defaults (no stored row):
  * - in-app (`database`): on for every event;
  * - email (`mail`): on for review_assigned, changes_requested, submission_approved,
- *   workflow_failed and export_ready (someone has to act or learns the outcome of their own work or
- *   request); off for form_available and workflow_notice (informational, frequent: in-app is enough).
+ *   workflow_failed, export_ready and sso_misconfigured (someone has to act or learns the outcome of
+ *   their own work or request); off for form_available and workflow_notice (informational, frequent:
+ *   in-app is enough).
  */
 final class ChannelPreferences
 {
@@ -31,6 +32,7 @@ final class ChannelPreferences
         NotificationEvent::SubmissionApproved,
         NotificationEvent::WorkflowFailed,
         NotificationEvent::ExportReady,
+        NotificationEvent::SsoMisconfigured,
     ];
 
     public static function default(NotificationEvent $event, string $channel): bool

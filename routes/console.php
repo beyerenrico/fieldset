@@ -39,3 +39,9 @@ Artisan::command('reports:sweep-exports', function (ExportSweep $sweep): void {
 })->purpose('Fail exports whose worker died and remove leftover temp files');
 Schedule::command('reports:sweep-exports')->everyTenMinutes()->withoutOverlapping()->onOneServer();
 // --- end M5 reports ---
+
+// --- M7 SSO (ADR 0036) ---
+// Provider health (discovery, JWKS, SAML metadata) hourly; DNS re-check of verified domains daily.
+Schedule::command('sso:check-providers')->hourly()->withoutOverlapping()->onOneServer();
+Schedule::command('sso:recheck-domains')->daily()->withoutOverlapping()->onOneServer();
+// --- end M7 SSO ---

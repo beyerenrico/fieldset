@@ -12,6 +12,7 @@ return [
         'form_available' => 'A new or updated form is available',
         'workflow_notice' => 'Messages from workflows',
         'export_ready' => 'An export I requested is ready',
+        'sso_misconfigured' => 'Single sign-on is misconfigured (administrators)',
     ],
     'channels' => ['database' => 'In the app', 'mail' => 'Email'],
     'preferences' => [
