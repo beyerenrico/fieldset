@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
+use Tests\Support\FieldAppApi;
 use Tests\Support\FieldAppScenario;
 
 beforeEach(function (): void {
@@ -54,6 +55,25 @@ it('lists the forms the worker may fill', function (): void {
 it('serves the pinned version definition', function (): void {
     $this->withHeaders($this->headers)->getJson("/api/v1/forms/{$this->s->form->id}/versions/{$this->s->version->id}")
         ->assertOk()->assertJsonPath('data.definition.key', 'service_report')->assertJsonPath('data.checksum', $this->s->version->checksum);
+});
+
+it('serves the version of a visible submission to reviewers who cannot fill the form (M8 finding)', function (): void {
+    $uuid = FieldAppApi::readyDraft($this->s, $this->s->worker);
+    FieldAppApi::submit($this->s, $this->s->worker, $uuid, 1)->assertOk();
+    $viewer = memberOf($this->s->org, SystemRole::Viewer); // sees every submission, cannot fill forms
+    $url = "/api/v1/forms/{$this->s->form->id}/versions/{$this->s->version->id}";
+
+    $this->withHeaders(apiHeaders($viewer, $this->s->org))->getJson('/api/v1/forms')->assertOk()->assertJsonCount(0, 'data');
+    $this->withHeaders(apiHeaders($viewer, $this->s->org))->getJson($url)->assertOk()
+        ->assertJsonPath('data.id', $this->s->version->id);
+});
+
+it('still hides versions without a fill grant or a visible submission', function (): void {
+    $viewer = memberOf($this->s->org, SystemRole::Viewer);
+
+    $this->withHeaders(apiHeaders($viewer, $this->s->org))
+        ->getJson("/api/v1/forms/{$this->s->form->id}/versions/{$this->s->version->id}")
+        ->assertNotFound();
 });
 
 it('creates and updates drafts with optimistic revisions', function (): void {

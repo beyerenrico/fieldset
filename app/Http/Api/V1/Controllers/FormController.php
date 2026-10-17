@@ -7,7 +7,9 @@ namespace App\Http\Api\V1\Controllers;
 use App\Domain\Forms\Models\Form;
 use App\Domain\Forms\Models\FormVersion;
 use App\Domain\Identity\Models\User;
+use App\Domain\Submissions\Models\Submission;
 use App\Domain\Submissions\Support\FormAccessResolver;
+use App\Domain\Submissions\Support\SubmissionVisibility;
 use App\Http\Api\ApiException;
 use App\Http\Api\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -17,7 +19,7 @@ use stdClass;
 /** Forms the user may fill and their versions (§10). Access is enforced on every call (§9.3). */
 final readonly class FormController
 {
-    public function __construct(private FormAccessResolver $access) {}
+    public function __construct(private FormAccessResolver $access, private SubmissionVisibility $visibility) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -33,11 +35,12 @@ final readonly class FormController
         /** @var User $user */
         $user = $request->user();
         $model = Form::query()->find($form);
-        if ($model === null || ! $this->access->canFill($user, $model)) {
+        $formVersion = $model === null ? null : FormVersion::query()->where('form_id', $model->id)->whereKey($version)->first();
+        // Fillers get any version of their forms; reviewers and other viewers get the versions of submissions
+        // they may see (they cannot fill the form, but must render what they review).
+        if ($model === null || $formVersion === null || ! $this->access->canFill($user, $model) && ! $this->seesSubmissionOf($user, $formVersion)) {
             throw new ApiException('not_found', __('api.not_found'), 404);
         }
-        $formVersion = FormVersion::query()->where('form_id', $model->id)->whereKey($version)->first()
-            ?? throw new ApiException('not_found', __('api.not_found'), 404);
 
         $settings = $formVersion->definition->settings ?? null;
         $document = $settings instanceof stdClass ? ($settings->document ?? null) : null;
@@ -59,5 +62,10 @@ final readonly class FormController
             'id' => $form->id, 'key' => $form->key, 'name' => $form->name, 'category' => $form->category,
             'version' => $version === null ? null : ['id' => $version->id, 'version' => $version->version, 'checksum' => $version->checksum],
         ];
+    }
+
+    private function seesSubmissionOf(User $user, FormVersion $version): bool
+    {
+        return $this->visibility->apply(Submission::query(), $user)->where('form_version_id', $version->id)->exists();
     }
 }
