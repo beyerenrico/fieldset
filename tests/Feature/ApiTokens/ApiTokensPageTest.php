@@ -127,3 +127,14 @@ it('refuses to create tokens while impersonating', function (): void {
 
     Livewire::test(ApiTokens::class)->assertActionHidden('create');
 });
+
+it('shows created and expiry dates in the user\'s locale and timezone', function (): void {
+    $this->travelTo(CarbonImmutable::parse('2026-10-17 22:30:00', 'UTC'));
+    $this->designer->forceFill(['locale' => 'de', 'timezone' => 'Europe/Berlin'])->save();
+    TokenApi::issue($this->designer, $this->org, [A::FormsRead], CarbonImmutable::parse('2026-11-30 23:30:00', 'UTC'));
+    actingInAdmin($this->designer->fresh(), $this->org);
+    app()->setLocale('de');
+
+    // Berlin: created 18.10.2026 (CEST), expires 01.12.2026 (CET); day before month, never "Oct 17, 2026".
+    Livewire::test(ApiTokens::class)->assertOk()->assertSee('18.10.2026')->assertSee('01.12.2026')->assertDontSee('Oct 17, 2026');
+});

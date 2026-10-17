@@ -6,6 +6,10 @@ declare(strict_types=1);
 return [
     'brand' => 'Plattformbetrieb',
 
+    'login' => [
+        'sso_required' => 'Ihre Organisation verlangt für diese E-Mail-Adresse Single Sign-on, das Betreiber-Panel akzeptiert aber nur die Anmeldung mit Passwort. Verwenden Sie ein Betreiberkonto mit einer Adresse ohne erzwungenes Single Sign-on.',
+    ],
+
     'organizations' => [
         'label' => 'Organisation',
         'plural' => 'Organisationen',
@@ -42,14 +46,15 @@ return [
         'banner' => 'Sie sind als :target angemeldet, im Auftrag von :operator. Die Anmeldung endet um :until (noch :minutes Min.).',
         'exit' => 'Anmeldung als Mitglied beenden',
         'expired' => 'Die Zeitgrenze der Anmeldung als Mitglied ist erreicht. Sie sind wieder mit Ihrem eigenen Konto angemeldet.',
+        'operator_revoked' => 'Ihr Zugang als Plattformbetreiber wurde entzogen, daher wurde die Anmeldung als Mitglied beendet. Bitte melden Sie sich erneut an.',
         'api_blocked' => 'Die API ist nicht verfügbar, während ein Betreiber als Mitglied angemeldet ist.',
         'refused' => [
             'not_operator' => 'Nur aktive Plattformbetreiber können sich als Mitglied anmelden.',
             'already_impersonating' => 'Beenden Sie zuerst die laufende Anmeldung als Mitglied.',
             'reason_invalid' => 'Geben Sie einen Grund mit 10 bis 500 Zeichen ein.',
             'organization_unavailable' => 'Diese Organisation ist archiviert.',
-            'target_is_operator' => 'Als Plattformbetreiber kann man sich nicht anmelden.',
-            'target_not_admin_member' => 'Nur aktive Mitglieder mit Zugang zum Admin-Panel dieser Organisation sind möglich.',
+            'target_is_operator' => 'Eine Anmeldung als anderer Plattformbetreiber ist nicht möglich.',
+            'target_not_admin_member' => 'Sie können sich nur als aktives Mitglied mit Zugang zum Admin-Panel dieser Organisation anmelden.',
         ],
     ],
 

@@ -7,12 +7,13 @@ namespace App\Filament\Platform;
 use App\Domain\Identity\Models\User;
 use App\Domain\Platform\Impersonation\Impersonation;
 use App\Domain\Platform\Impersonation\ImpersonationStore;
+use App\Filament\Admin\Resources\Submissions\SubmissionResource;
 use Illuminate\Contracts\Auth\Factory as AuthFactory;
 use Illuminate\Support\HtmlString;
 
 /**
  * Renders the impersonation banner (Filament render hook BODY_START, every panel) while the signed-in user is
- * the impersonated target; nothing otherwise.
+ * the impersonated target; nothing otherwise. The end time is shown in the page's display timezone and locale.
  */
 final readonly class ImpersonationBanner
 {
@@ -31,7 +32,8 @@ final readonly class ImpersonationBanner
         return new HtmlString(view('filament.platform.impersonation-banner', [
             'operator' => $operator !== null ? $operator->name.' <'.$operator->email.'>' : '#'.$impersonation->operatorId,
             'target' => $target->name.' <'.$target->email.'>',
-            'until' => $impersonation->expiresAt->setTimezone((string) config('app.timezone', 'UTC'))->format('H:i'),
+            'until' => $impersonation->expiresAt->setTimezone(SubmissionResource::displayTimezone())
+                ->settings(['locale' => app()->getLocale()])->isoFormat('LT'),
             'minutes' => $impersonation->remainingMinutes(),
             'exitUrl' => route('filament.platform.impersonation.exit'),
         ])->render());

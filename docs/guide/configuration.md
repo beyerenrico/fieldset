@@ -148,9 +148,16 @@ exception, the request id and the user id, but no request data. They are sent fr
 | `SECURITY_HSTS_INCLUDE_SUBDOMAINS`, `SECURITY_HSTS_PRELOAD` | `false`, `false` | Add `includeSubDomains` / `preload`. Only if every subdomain serves HTTPS. |
 
 **Admin panel sessions** end after 30 minutes without activity (idle timeout) and 12 hours after the
-sign-in at the latest (absolute timeout). Both are set in `config/security.php`.
-<!-- ENV: admin session timeouts -->
-The Field App session is not affected: it keeps `SESSION_LIFETIME` (30 days, rolling).
+sign-in at the latest (absolute timeout). Both are set in `config/security.php`:
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `SECURITY_ADMIN_IDLE_MINUTES` | `30` | Minutes without an admin request (page or Livewire update) before the admin session ends. |
+| `SECURITY_ADMIN_ABSOLUTE_HOURS` | `12` | Hours after which the admin session ends, active or not. |
+
+The Field App session is not affected: it keeps `SESSION_LIFETIME` (30 days, rolling). The browser has one
+session, so someone who returns to `/admin` after a timeout is signed out of that browser completely and
+signs in again.
 
 Fixed: the Content Security Policy per area (admin and `/platform`, Field App, builder preview, API,
 Horizon, API documentation), `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin`,

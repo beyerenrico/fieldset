@@ -31,7 +31,7 @@ final readonly class SchedulerCheck implements HealthCheck
         }
 
         $minutes = (int) floor($lastRun->diffInMinutes(CarbonImmutable::now(), true));
-        $details = [(string) __('platform.health.scheduler.last_run') => $lastRun->toIso8601String()];
+        $details = [(string) __('platform.health.scheduler.last_run') => $lastRun];
         $summary = (string) __('platform.health.scheduler.ago', ['minutes' => $minutes]);
 
         return match (true) {

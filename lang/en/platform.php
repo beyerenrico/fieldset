@@ -6,6 +6,10 @@ declare(strict_types=1);
 return [
     'brand' => 'Platform operations',
 
+    'login' => [
+        'sso_required' => 'Your organization requires single sign-on for this email address, and the operator panel accepts only password sign-ins. Use an operator account whose address does not enforce single sign-on.',
+    ],
+
     'organizations' => [
         'label' => 'Organization',
         'plural' => 'Organizations',
@@ -42,6 +46,7 @@ return [
         'banner' => 'You are signed in as :target on behalf of :operator. The impersonation ends at :until (:minutes min left).',
         'exit' => 'Exit impersonation',
         'expired' => 'The impersonation time limit was reached. You are signed in as yourself again.',
+        'operator_revoked' => 'Your platform operator access was revoked, so the impersonation ended. Please sign in again.',
         'api_blocked' => 'The API is not available while an operator impersonates a member.',
         'refused' => [
             'not_operator' => 'Only active platform operators can impersonate members.',
@@ -107,7 +112,7 @@ return [
             'unknown' => 'Free disk space could not be determined.',
             'free' => 'Free',
             'total' => 'Total',
-            'percent_free' => ':percent % free on the storage volume.',
+            'percent_free' => ':percent% free on the storage volume.',
         ],
     ],
 ];

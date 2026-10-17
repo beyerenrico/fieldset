@@ -13,6 +13,8 @@ use App\Domain\Platform\Impersonation\ImpersonationRefused;
 use App\Domain\Platform\Impersonation\ImpersonationStore;
 use App\Domain\Platform\Impersonation\StartImpersonation;
 use App\Domain\Platform\Models\PlatformAdmin;
+use App\Domain\Privacy\Erasure\AccountScrubber;
+use App\Filament\Admin\Resources\Submissions\SubmissionResource;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Textarea;
@@ -37,14 +39,16 @@ final class OrganizationMembersTable
             ->query(Membership::query()->where('organization_id', $organization->id)->with('user'))
             ->defaultSort('joined_at', 'desc')
             ->columns([
-                TextColumn::make('user.name')->label(__('platform.members.name'))->searchable(),
+                TextColumn::make('user.name')->label(__('platform.members.name'))->searchable()
+                    ->formatStateUsing(fn (string $state): string => AccountScrubber::displayName($state)),
                 TextColumn::make('user.email')->label(__('platform.members.email'))->searchable(),
                 TextColumn::make('status')->label(__('platform.members.status'))->badge()
                     ->formatStateUsing(fn (MembershipStatus $state): string => __('identity.member.statuses.'.$state->value))
                     ->color(fn (MembershipStatus $state): string => $state === MembershipStatus::Active ? 'success' : 'gray'),
                 TextColumn::make('operator')->label(__('platform.members.operator'))->badge()->color('warning')
                     ->state(fn (Membership $record): ?string => in_array($record->user_id, $operators, true) ? (string) __('platform.members.is_operator') : null),
-                TextColumn::make('joined_at')->label(__('platform.members.joined'))->dateTime()->sortable(),
+                TextColumn::make('joined_at')->label(__('platform.members.joined'))->isoDateTime('L LT')
+                    ->timezone(SubmissionResource::displayTimezone())->sortable(),
             ])
             ->recordActions([self::impersonateAction($organization, $operators)]);
     }

@@ -4,42 +4,19 @@ declare(strict_types=1);
 
 use App\Domain\Audit\Models\Activity;
 use App\Domain\Identity\Enums\SystemRole;
-use App\Domain\Identity\Models\Membership;
-use App\Domain\Identity\Models\Organization;
 use App\Domain\Identity\Models\User;
 use App\Domain\Platform\Actions\GrantPlatformAdmin;
 use App\Domain\Platform\Impersonation\ImpersonationRefused;
 use App\Domain\Platform\Impersonation\ImpersonationStore;
 use App\Domain\Platform\Impersonation\StartImpersonation;
 use App\Filament\Platform\Resources\Organizations\Pages\OrganizationMembers;
+use Carbon\CarbonImmutable;
 use Livewire\Livewire;
 
 require_once __DIR__.'/Support.php';
 
-const IMPERSONATION_REASON = 'Ticket 4711: the workflow does not start';
-
-function platformMembershipOf(User $user, Organization $organization): Membership
-{
-    return Membership::query()->where('user_id', $user->id)->where('organization_id', $organization->id)->sole();
-}
-
-/** @return array{0: User, 1: User, 2: Organization} operator, target, organization */
-function platformImpersonationScenario(): array
-{
-    $org = makeOrganization(name: 'Acme GmbH');
-    $target = memberOf($org, SystemRole::Admin);
-    $operator = platformOperator();
-    actingAsPlatformOperator($operator);
-
-    return [$operator, $target, $org];
-}
-
-function platformStartImpersonation(User $operator, User $target, Organization $org): void
-{
-    app(StartImpersonation::class)->handle($operator, $org, $target, IMPERSONATION_REASON);
-}
-
 it('starts from the members page: switches the session to the target and audits it in the organization', function (): void {
+    $this->freezeSecond(); // expires_at is compared to the second: no rollover between the start and the check
     [$operator, $target, $org] = platformImpersonationScenario();
 
     Livewire::test(OrganizationMembers::class, ['record' => $org->id])
@@ -188,3 +165,14 @@ it('refuses the exit route without an impersonation', function (): void {
     $this->actingAs(ownerOf(makeOrganization()))->post(route('filament.platform.impersonation.exit'))->assertForbidden();
     expect(Activity::query()->where('event', 'platform.impersonation_ended')->count())->toBe(0);
 });
+
+it('shows the end time in the banner in the page\'s timezone and locale', function (string $locale, string $expected): void {
+    $this->travelTo(CarbonImmutable::parse('2026-10-17 12:00:00', 'UTC'));
+    [$operator, $target, $org] = platformImpersonationScenario();
+    $target->forceFill(['locale' => $locale, 'timezone' => 'Europe/Berlin'])->save();
+    platformStartImpersonation($operator, $target->fresh(), $org);
+
+    $this->get('/admin/'.$org->slug)->assertOk()
+        ->assertSee('data-platform-impersonation-banner', false)
+        ->assertSee($expected)->assertDontSee('12:30');
+})->with(['German' => ['de', '14:30'], 'English' => ['en', '2:30 PM']]);

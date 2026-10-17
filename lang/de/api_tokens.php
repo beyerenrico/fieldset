@@ -5,7 +5,7 @@ declare(strict_types=1);
 return [
     'navigation' => 'API-Tokens',
     'title' => 'API-Tokens',
-    'subheading' => 'Mit persönlichen Tokens nutzen andere Systeme die REST-API in Ihrem Namen, nur in dieser Organisation. Ein Token darf nie mehr als Ihre Rolle.',
+    'subheading' => 'Mit persönlichen Tokens nutzen andere Systeme die REST-API in Ihrem Namen, nur in dieser Organisation. Ein Token kann nie mehr, als Ihre Rolle erlaubt.',
 
     'abilities' => [
         'forms_read' => ['label' => 'Formulare lesen', 'description' => 'Ausfüllbare Formulare und ihre Versionen'],

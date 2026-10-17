@@ -13,9 +13,11 @@ use App\Filament\Admin\Pages\Auth\Login;
 use App\Filament\Admin\Pages\Auth\RequestPasswordReset;
 use App\Filament\Admin\Pages\Auth\ResetPassword;
 use App\Filament\Admin\Pages\NotificationPreferences;
+use App\Filament\Admin\Pages\Privacy\MyData;
 use App\Filament\Admin\Pages\Tenancy\EditOrganizationProfile;
 use App\Filament\Admin\Pages\Tenancy\RegisterOrganization;
 use App\Http\Middleware\EndRevokedDeviceSession;
+use App\Http\Middleware\Security\AdminSessionTimeout;
 use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\SetTenantFromFilament;
 use App\Support\Security\InitialsAvatarProvider;
@@ -31,11 +33,13 @@ use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
 use Filament\Support\Icons\Heroicon;
 use Filament\Widgets\AccountWidget;
+use Illuminate\Auth\Events\Login as LoginEvent;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Support\Facades\Event;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class AdminPanelProvider extends PanelProvider
@@ -81,6 +85,12 @@ class AdminPanelProvider extends PanelProvider
                     ->icon(Heroicon::OutlinedBell)
                     ->url(fn (): string => NotificationPreferences::getUrl())
                     ->visible(fn (): bool => Filament::getTenant() !== null),
+                // GDPR self-service (export, erasure) one click away for every signed-in member (§11 Privacy).
+                Action::make('myData')
+                    ->label(fn (): string => __('privacy.my_data.title'))
+                    ->icon(Heroicon::OutlinedIdentification)
+                    ->url(fn (): string => MyData::getUrl())
+                    ->visible(fn (): bool => MyData::canAccess()),
             ])
             ->middleware([
                 EncryptCookies::class,
@@ -94,12 +104,19 @@ class AdminPanelProvider extends PanelProvider
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
             ])
-            ->authMiddleware([Authenticate::class]);
+            ->authMiddleware([Authenticate::class])
+            // Persistent: Livewire updates of admin pages count as activity (ASVS 3.3.2 idle/absolute timeouts).
+            ->authMiddleware([AdminSessionTimeout::class], isPersistent: true);
 
         if (config('app.allow_registration')) {
             $panel->registration()->tenantRegistration(RegisterOrganization::class);
         }
 
         return $panel;
+    }
+
+    public function boot(): void
+    {
+        Event::listen(LoginEvent::class, [AdminSessionTimeout::class, 'restart']);
     }
 }

@@ -23,8 +23,14 @@ final class ExceptionMessage
         return match (true) {
             $e instanceof QueryException => self::database($e->getPrevious() ?? $e, $e->getSql()),
             $e instanceof PDOException => self::database($e, null),
-            default => self::withoutQueries(ErrorText::scrub($e->getMessage())),
+            default => self::text($e->getMessage()),
         };
+    }
+
+    /** Any other log text: the ErrorText scrubber plus URLs without query strings. */
+    public static function text(string $text): string
+    {
+        return self::withoutQueries(ErrorText::scrub($text));
     }
 
     private static function database(Throwable $driver, ?string $sql): string

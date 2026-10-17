@@ -6,6 +6,7 @@ use App\Domain\Platform\Health\HealthStatus;
 use App\Domain\Platform\Health\PlatformHealth;
 use App\Domain\Platform\Health\SchedulerHeartbeat;
 use App\Domain\Platform\Health\SystemProbes;
+use Carbon\CarbonImmutable;
 use Illuminate\Console\Events\ScheduledTaskStarting;
 use Illuminate\Console\Scheduling\CacheEventMutex;
 use Illuminate\Console\Scheduling\Event as ScheduledEvent;
@@ -116,3 +117,25 @@ it('records the scheduler heartbeat from scheduled task events', function (): vo
 
     expect(app(SchedulerHeartbeat::class)->lastRun())->not->toBeNull();
 });
+
+it('shows the last scheduler run and the disk space in the operator\'s timezone and locale', function (string $locale, array $expected, array $unexpected): void {
+    $this->travelTo(CarbonImmutable::parse('2026-10-17 12:00:00', 'UTC'));
+    platformFakeHorizon([(object) ['status' => 'running']]);
+    Http::fake(['gotenberg.test:3000/health' => Http::response(['status' => 'up'])]);
+    app(SchedulerHeartbeat::class)->record();
+    $operator = platformOperator();
+    $operator->forceFill(['locale' => $locale, 'timezone' => 'Europe/Berlin'])->save();
+    actingAsPlatformOperator($operator->fresh());
+
+    $page = $this->get('/platform/health')->assertOk();
+
+    foreach ($expected as $text) {
+        $page->assertSee($text);
+    }
+    foreach ($unexpected as $text) {
+        $page->assertDontSee($text);
+    }
+})->with([
+    'German' => ['de', ['17.10.2026 14:00:00', '50,0 GB', '100,0 GB', '50 % frei'], ['2026-10-17T12:00:00', '50.0 GB']],
+    'English' => ['en', ['10/17/2026 2:00:00 PM', '50.0 GB', '50% free'], ['2026-10-17T12:00:00', '50 % free']],
+]);

@@ -12,7 +12,9 @@ use Throwable;
  * Structured JSON logs (BUILD_PROMPT §11 Operability, ADR 0040): one JSON object per line with
  * `@timestamp`, `level`, `message`, `channel`, the request id (from Laravel's Context, set by
  * AssignRequestId) at the top level, redacted context/extra and exception stack traces with safe
- * messages (ExceptionMessage).
+ * messages (ExceptionMessage). The top-level message is safe too: Laravel's handler logs the raw exception
+ * message (PostgreSQL DETAIL, connection and database name, URL tokens), so it becomes the exception's safe
+ * message; any other message is scrubbed (ExceptionMessage::text).
  *
  * Selectable without code changes: LOG_STACK=stderr and LOG_STDERR_FORMATTER=App\Support\Logging\JsonLogFormatter
  * (the stock stderr channel reads its formatter from the environment), or a dedicated channel (ADR 0040).
@@ -38,7 +40,7 @@ final class JsonLogFormatter extends JsonFormatter
         return array_filter([
             '@timestamp' => $normalized['datetime'] ?? null,
             'level' => strtolower($record->level->getName()),
-            'message' => $normalized['message'] ?? $record->message,
+            'message' => $this->message($record, $normalized['message'] ?? null),
             'channel' => $record->channel,
             'service' => (string) config('app.name'),
             'environment' => (string) config('app.env'),
@@ -46,6 +48,24 @@ final class JsonLogFormatter extends JsonFormatter
             'context' => is_array($normalized['context'] ?? null) ? LogRedactor::redactPlain($normalized['context']) : null,
             'extra' => is_array($normalized['extra'] ?? null) ? LogRedactor::redactPlain($normalized['extra']) : null,
         ], static fn (mixed $value): bool => $value !== null && $value !== '');
+    }
+
+    /**
+     * The record message as it may be logged: the raw message of the context exception is replaced by its safe
+     * message (the whole message for Laravel's handler, which logs `$e->getMessage()`), the rest is scrubbed.
+     */
+    private function message(LogRecord $record, mixed $normalized): string
+    {
+        $message = is_string($normalized) ? $normalized : $record->message;
+        $exception = $record->context['exception'] ?? null;
+        if ($exception instanceof Throwable && $exception->getMessage() !== '') {
+            if ($message === $exception->getMessage()) {
+                return ExceptionMessage::safe($exception);
+            }
+            $message = str_replace($exception->getMessage(), ExceptionMessage::safe($exception), $message);
+        }
+
+        return $message === '' ? '' : ExceptionMessage::text($message);
     }
 
     /** Exception messages (and those of previous exceptions) without bound values or secrets. */

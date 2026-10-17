@@ -27,10 +27,11 @@ final readonly class DiskCheck implements HealthCheck
         }
 
         $percent = (int) floor($space['free'] / $space['total'] * 100);
-        $details = [
+        // Locale-aware numbers: "211.6 GB" in English, "211,6 GB" in German.
+        $details = Number::withLocale(app()->getLocale(), fn (): array => [
             (string) __('platform.health.disk.free') => Number::fileSize((int) $space['free'], precision: 1),
             (string) __('platform.health.disk.total') => Number::fileSize((int) $space['total'], precision: 1),
-        ];
+        ]);
         $summary = (string) __('platform.health.disk.percent_free', ['percent' => $percent]);
 
         return match (true) {

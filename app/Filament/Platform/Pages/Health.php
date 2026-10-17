@@ -8,7 +8,9 @@ use App\Domain\Identity\Models\User;
 use App\Domain\Platform\Health\HealthResult;
 use App\Domain\Platform\Health\PlatformHealth;
 use App\Domain\Platform\PlatformAdmins;
+use App\Filament\Admin\Resources\Submissions\SubmissionResource;
 use BackedEnum;
+use Carbon\CarbonInterface;
 use Filament\Facades\Filament;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
@@ -41,9 +43,21 @@ final class Health extends Page
         return __('platform.health.title');
     }
 
-    /** @return list<HealthResult> */
+    /** @return list<HealthResult> details ready to print: points in time in the display timezone and locale */
     public function results(): array
     {
-        return app(PlatformHealth::class)->run();
+        return array_map($this->displayed(...), app(PlatformHealth::class)->run());
+    }
+
+    private function displayed(HealthResult $result): HealthResult
+    {
+        $details = array_map(
+            static fn (string|int|CarbonInterface $value): string|int => $value instanceof CarbonInterface
+                ? $value->setTimezone(SubmissionResource::displayTimezone())->settings(['locale' => app()->getLocale()])->isoFormat('L LTS')
+                : $value,
+            $result->details,
+        );
+
+        return new HealthResult($result->key, $result->status, $result->summary, $details);
     }
 }

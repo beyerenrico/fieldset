@@ -41,11 +41,11 @@ final class ApiTokensTable
                     ->formatStateUsing(fn (mixed $state): string => TokenAbility::tryFrom((string) $state)?->label() ?? (string) $state),
                 TextColumn::make('last_used_at')->label(__('api_tokens.table.last_used'))->since()
                     ->timezone(SubmissionResource::displayTimezone())->placeholder(__('api_tokens.table.never_used')),
-                TextColumn::make('expires_at')->label(__('api_tokens.table.expires'))->date()
+                TextColumn::make('expires_at')->label(__('api_tokens.table.expires'))->isoDate('L')
                     ->timezone(SubmissionResource::displayTimezone())->placeholder(__('api_tokens.table.never_expires'))
                     ->color(fn (PersonalAccessToken $record): ?string => self::expired($record) ? 'danger' : null)
                     ->description(fn (PersonalAccessToken $record): ?string => self::expired($record) ? (string) __('api_tokens.table.expired') : null),
-                TextColumn::make('created_at')->label(__('api_tokens.table.created'))->date()
+                TextColumn::make('created_at')->label(__('api_tokens.table.created'))->isoDate('L')
                     ->timezone(SubmissionResource::displayTimezone())->sortable(),
             ])
             ->recordActions([self::revoke($user)]);

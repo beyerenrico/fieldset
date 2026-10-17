@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Domain\Audit\Models\Activity;
 use App\Domain\Identity\Enums\SystemRole;
 use App\Domain\Identity\Tokens\Actions\CreateApiToken;
+use App\Domain\Identity\Tokens\Actions\RecordFirstTokenUse;
 use App\Domain\Identity\Tokens\Actions\RevokeApiToken;
 use App\Domain\Identity\Tokens\TokenAbility as A;
 use App\Domain\Identity\Tokens\TokenExpiry;
@@ -122,4 +123,23 @@ it('audits the first use of a token once, as the token actor', function (): void
         ->and((int) $entries[0]->causer_id)->toBe($this->s->owner->id)
         ->and($token->getAttribute('first_used_at'))->not->toBeNull()
         ->and($token->last_used_at)->not->toBeNull();
+});
+
+it('audits the first use once when two first requests race on separately loaded token rows', function (): void {
+    $plain = TokenApi::issue($this->s->owner, $this->s->org, [A::FormsRead]);
+    // Both requests loaded the token before either recorded the use (no shared in-memory guard token).
+    $first = PersonalAccessToken::findToken($plain);
+    $second = PersonalAccessToken::findToken($plain);
+    expect($first)->not->toBe($second)
+        ->and($first?->getAttribute('first_used_at'))->toBeNull()
+        ->and($second?->getAttribute('first_used_at'))->toBeNull();
+
+    app(RecordFirstTokenUse::class)->handle($first);
+    $recorded = PersonalAccessToken::query()->whereKey($first->getKey())->value('first_used_at');
+    $this->travel(5)->seconds();
+    app(RecordFirstTokenUse::class)->handle($second);
+
+    expect(tokenAudit('api_token.first_used'))->toHaveCount(1)
+        ->and($recorded)->not->toBeNull()
+        ->and(PersonalAccessToken::query()->whereKey($first->getKey())->value('first_used_at'))->toBe($recorded);
 });

@@ -9,6 +9,7 @@ use App\Domain\Identity\Models\User;
 use App\Domain\Mail\Enums\DocumentSendFailure;
 use App\Domain\Submissions\Enums\SubmissionStatus;
 use App\Domain\Submissions\Models\Submission;
+use App\Http\Api\ExpectedApiException;
 use stdClass;
 
 /**
@@ -17,6 +18,9 @@ use stdClass;
  * void, and the user created it or holds submissions.review / organization.manage. Visibility is
  * checked by the caller (SubmissionVisibility, SubmissionPolicy::sendToCustomer); this class only
  * names the refusal so the API can answer with its error code.
+ * An anonymized submission has no PDF files any more (ADR 0039): never allowed, refusal() answers with the
+ * permanent, unreported 410 `document_anonymized` that the document downloads use, and a request still
+ * waiting for its PDF fails at delivery instead of queuing a mail without its document.
  */
 final class CustomerSendGate
 {
@@ -24,9 +28,16 @@ final class CustomerSendGate
 
     public const string NOT_ALLOWED = 'send_not_allowed';
 
-    /** @return self::NOT_SUBMITTED|self::NOT_ALLOWED|null null when the send is allowed */
+    /**
+     * @return self::NOT_SUBMITTED|self::NOT_ALLOWED|null null when the send is allowed
+     *
+     * @throws ExpectedApiException 410 `document_anonymized` for an anonymized submission
+     */
     public static function refusal(User $user, Submission $submission): ?string
     {
+        if ($submission->isAnonymized()) {
+            throw self::anonymized();
+        }
         if ($submission->status === SubmissionStatus::Draft) {
             return self::NOT_SUBMITTED;
         }
@@ -51,6 +62,9 @@ final class CustomerSendGate
         if ($submission->status === SubmissionStatus::Void) {
             return DocumentSendFailure::SubmissionVoid;
         }
+        if ($submission->isAnonymized()) {
+            return DocumentSendFailure::NotAllowed;
+        }
         $allowed = $requester instanceof User
             ? self::refusal($requester, $submission) === null
             : $submission->status !== SubmissionStatus::Draft && self::enabled($submission);
@@ -60,7 +74,13 @@ final class CustomerSendGate
 
     public static function allows(User $user, Submission $submission): bool
     {
-        return self::refusal($user, $submission) === null;
+        return ! $submission->isAnonymized() && self::refusal($user, $submission) === null;
+    }
+
+    /** The PDF files of an anonymized submission were deleted (ADR 0039): permanent and expected, not reported. */
+    public static function anonymized(): ExpectedApiException
+    {
+        return new ExpectedApiException('document_anonymized', (string) __('documents.errors.anonymized'), 410);
     }
 
     /** `settings.sendToCustomer` of the submission's pinned form version. */

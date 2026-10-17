@@ -7,6 +7,7 @@ namespace App\Domain\Platform\Impersonation;
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Tenancy\TenantContext;
+use App\Domain\Platform\PlatformAdmins;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Auth\Factory as AuthFactory;
 use Illuminate\Contracts\Session\Session;
@@ -14,8 +15,9 @@ use Illuminate\Contracts\Session\Session;
 /**
  * Ends an impersonation (ADR 0041) and audits `platform.impersonation_ended` with `ended_by`:
  * - `operator` (exit button) and `expired` (time limit) restore the operator's own session;
- * - `logout` (the target session signed out or no longer matches) only records the end.
- * An operator that was deleted or deactivated meanwhile is not restored: the session is signed out.
+ * - `logout` (the target session signed out or no longer matches) only records the end;
+ * - `operator_revoked` (the operator lost the platform grant or was deactivated) signs the session out.
+ * An operator that was deleted, deactivated or revoked meanwhile is never restored: the session is signed out.
  */
 final readonly class EndImpersonation
 {
@@ -25,6 +27,8 @@ final readonly class EndImpersonation
 
     public const string BY_LOGOUT = 'logout';
 
+    public const string BY_OPERATOR_REVOKED = 'operator_revoked';
+
     public function __construct(
         private ImpersonationStore $store,
         private SessionLogin $login,
@@ -32,6 +36,7 @@ final readonly class EndImpersonation
         private TenantContext $tenant,
         private AuthFactory $auth,
         private Session $session,
+        private PlatformAdmins $admins,
     ) {}
 
     /** @return User|null the restored operator */
@@ -54,7 +59,7 @@ final readonly class EndImpersonation
             return null;
         }
 
-        if ($operator === null || ! $operator->isActive()) {
+        if ($endedBy === self::BY_OPERATOR_REVOKED || $operator === null || ! $this->admins->check($operator)) {
             $this->auth->guard('web')->logout();
             $this->session->invalidate();
 

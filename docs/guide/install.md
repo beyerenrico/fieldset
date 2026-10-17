@@ -307,9 +307,8 @@ docker compose exec -T app php artisan audit:verify --heads
 {"verified_at":"2026-10-19T03:00:00+00:00","heads":{"0":{"seq":120,"hash":"9f2c…"},"7":{"seq":5312,"hash":"41ab…"}}}
 ```
 
-The key is the chain number: the organization id, or 0 for entries without an organization. When the
-chain numbers are 0, 1, 2 … without gaps, `heads` is printed as a list, and the position is the chain
-number.
+The key is the chain number: the organization id, or 0 for entries without an organization. `heads` is
+always an object. A chain that retention emptied completely shows its last pruned position.
 
 The chain alone cannot show that it was recomputed, or that its newest entries or a whole chain were
 removed. Copies of the heads outside the database can. Run the command at least daily, for example from
@@ -370,6 +369,7 @@ Keep in mind:
 | `chain C: entry #ID (seq N) does not match its hash` | The entry was changed after it was sealed. | Treat it as a security incident (below). |
 | `chain C: entries missing between seq A and B`, `entries before seq N are missing (no matching retention prune)` | Entries were deleted outside retention pruning. | Security incident. |
 | `chain C: entry #ID (seq N) does not link to seq M`, `first entry #ID does not start the chain` | Entries were replaced or inserted into the chain. | Security incident. |
+| `chain C: first entry #ID (seq N) does not continue from the retention cut at seq M` | Entries at the start of the chain were replaced or removed after a retention prune. | Security incident. |
 | A head lower than in your stored copy, or another hash at a stored position | The newest entries were removed or replaced. | Security incident. |
 
 In a security incident:

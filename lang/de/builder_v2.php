@@ -13,7 +13,7 @@ return [
         'publish' => 'Veröffentlichen',
         'preview_pdf' => 'PDF-Vorschau',
         'export' => 'Exportieren',
-        'classic' => 'Klassischer Builder',
+        'classic' => 'Klassischer Editor',
         'preview_toggle' => 'Tablet-Vorschau',
         'json' => 'JSON',
         'publish_blocked' => 'Beheben Sie vor dem Veröffentlichen die Fehler unter „Probleme“.',

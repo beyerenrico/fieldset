@@ -25,7 +25,9 @@ use Illuminate\Support\Facades\DB;
  * `send_email`: one branded, logged mail per recipient (mail module, §8.8) with the step's subject and
  * Markdown body and submission tokens. `document`: `attachment` (attached up to the size limit, else a
  * link), `link` (always an expiring link) or `none`. The PDF is the newest rendition since the latest
- * submit; without one it is rendered now (retried with the step on renderer errors). Mails already queued
+ * submit; without one it is rendered now (retried with the step on renderer errors). An anonymized submission
+ * has no PDF files any more (ADR 0039): a step with a document fails with that reason rather than mailing a
+ * text that promises a missing attachment or link (`none` still sends). Mails already queued
  * by an earlier attempt are remembered in the step output and never queued twice. Each mail is linked to the
  * step run and counted against WorkflowMailLimits.
  */
@@ -95,6 +97,9 @@ final readonly class SendEmailStep implements StepHandler
     /** The newest rendition created since the latest submit, else a fresh render (deduplicated by input). */
     private function document(Submission $submission): Rendition
     {
+        if ($submission->isAnonymized()) {
+            throw new StepFailedException(__('documents.errors.anonymized'));
+        }
         $latest = Rendition::query()->where('submission_uuid', $submission->uuid)->orderByDesc('id')->first();
         if ($latest instanceof Rendition && ($submission->submitted_at === null || $latest->created_at->greaterThanOrEqualTo($submission->submitted_at))) {
             return $latest;

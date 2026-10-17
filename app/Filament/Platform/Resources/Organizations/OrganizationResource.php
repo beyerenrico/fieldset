@@ -8,6 +8,7 @@ use App\Domain\Identity\Enums\MembershipStatus;
 use App\Domain\Identity\Models\Organization;
 use App\Domain\Identity\Models\User;
 use App\Domain\Platform\PlatformAdmins;
+use App\Filament\Admin\Resources\Submissions\SubmissionResource;
 use App\Filament\Platform\Resources\Organizations\Pages\ListOrganizations;
 use App\Filament\Platform\Resources\Organizations\Pages\OrganizationMembers;
 use BackedEnum;
@@ -93,7 +94,8 @@ final class OrganizationResource extends Resource
                 TextColumn::make('name')->label(__('platform.organizations.name'))->searchable()->sortable(),
                 TextColumn::make('slug')->label(__('platform.organizations.slug'))->searchable(),
                 TextColumn::make('active_members_count')->label(__('platform.organizations.members'))->numeric()->sortable(),
-                TextColumn::make('created_at')->label(__('platform.organizations.created'))->dateTime()->sortable(),
+                TextColumn::make('created_at')->label(__('platform.organizations.created'))->isoDateTime('L LT')
+                    ->timezone(SubmissionResource::displayTimezone())->sortable(),
                 TextColumn::make('status')->label(__('platform.organizations.status'))->badge()
                     ->state(fn (Organization $record): string => $record->trashed() ? 'archived' : 'active')
                     ->formatStateUsing(fn (string $state): string => __('platform.organizations.statuses.'.$state))
