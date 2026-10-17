@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { definition, el, orderForm, page, tableForm } from './fixtures/definitions.ts';
 import { plain, renderForm } from './helpers.tsx';
@@ -15,6 +15,28 @@ describe('repeater cards', () => {
         expect(screen.getByRole('group', { name: 'Item 2' })).toBeInTheDocument();
         await user.click(add);
         expect(add).toBeDisabled();
+    });
+
+    it('does not pull focus back to the new row once the user typed into another field', async () => {
+        const { lastData } = renderForm(orderForm, { items: [{ title: 'A' }] });
+        fireEvent.click(screen.getByRole('button', { name: 'Add item' }));
+        // The new row is not in the DOM when `add` runs, so the focus move is retried later.
+        // A fast user (or Playwright's fill) is already in the next field by then.
+        const title = screen.getAllByLabelText(/Title/)[1]!;
+        const qty = screen.getAllByLabelText('Qty')[1]!;
+        act(() => {
+            title.focus();
+        });
+        fireEvent.input(title, { target: { value: 'Pos 2' } });
+        act(() => {
+            qty.focus();
+        });
+        fireEvent.input(qty, { target: { value: '1.5' } });
+        await act(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 80));
+        });
+        expect(qty).toHaveFocus();
+        expect(lastData()['items']).toEqual([{ title: 'A' }, { title: 'Pos 2', qty: '1.5' }]);
     });
 
     it('removes rows but never below minItems', async () => {
