@@ -66,7 +66,7 @@ test.describe('designer', () => {
 
   test('the classic builder stays one row action away', async ({ page }) => {
     const row = await newFormRow(page, `CSP Klassisch ${Date.now()}`);
-    await row.getByRole('link', { name: /^\s*(classic builder|klassischer builder)\s*$/i }).click();
+    await row.getByRole('link', { name: /^\s*(classic|klassischer) (builder|editor)\s*$/i }).click();
     await expect(page).toHaveURL(/\/forms\/\d+\/edit/, { timeout: 30_000 });
     await expect(page.getByRole('tab', { name: /formulareinstellungen|form settings/i })).toBeVisible({ timeout: 30_000 });
   });

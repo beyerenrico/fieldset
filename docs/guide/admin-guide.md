@@ -153,7 +153,7 @@ App.
   it could not map, and marks uncertain elements with ⚠. Nothing is published automatically.
 
 Row actions in the list: "Editor" (opens the form in the default builder, see below), "Klassischer
-Builder" ("Classic builder"), "Duplizieren" ("Duplicate"), "JSON exportieren" (the published version),
+Editor" ("Classic builder"), "Duplizieren" ("Duplicate"), "JSON exportieren" (the published version),
 "Auswerten" ("Explore", opens the submission explorer) and "Archivieren" / "Wiederherstellen" ("Archive" /
 "Restore"). Clicking a row also opens the default builder. Forms are not deleted.
 
@@ -165,9 +165,9 @@ Both builders edit the same draft; you can switch at any time.
   properties panel ("Eigenschaften"). It saves automatically within a few seconds and has undo and redo
   ("Rückgängig", "Wiederholen"). Everything works with the keyboard; "Tastenkürzel" ("Keyboard
   shortcuts") lists the keys, for example Space to pick up an element, the arrow keys to move it,
-  Shift+F10 for the move menu, Alt+P for the properties and Ctrl/Cmd+Z to undo. "Klassischer Builder"
+  Shift+F10 for the move menu, Alt+P for the properties and Ctrl/Cmd+Z to undo. "Klassischer Editor"
   ("Classic builder") in its toolbar switches to the classic builder.
-- **Classic builder** ("Klassischer Builder"): pages with element blocks, reordered by drag and drop.
+- **Classic builder** ("Klassischer Editor"): pages with element blocks, reordered by drag and drop.
   Tabs: "Editor", "Formulareinstellungen" ("Form settings"), "Vorschau" ("Preview"), "Wer darf dieses
   Formular ausfüllen" ("Who may fill this form") and "Roh-JSON" ("Raw JSON"). It saves the draft every
   20 seconds. "Canvas-Builder" in its header switches back.
@@ -338,6 +338,9 @@ The settings apply in all your organizations.
 **Submission explorer.** "Auswertung" → "Einreichungen auswerten" ("Submission explorer"): choose a
 form ("Formular wählen") to get one column per field across all its versions. The first six field
 columns are visible; switch on more as needed. Filter by date, status, person, group and field values.
+The search box matches the whole term as typed, in the number, the submitter or any value. While a search
+is active, the list shows no total and "select all" selects the rows on the current page; "Export
+filtered rows" still exports every match.
 
 **Exports.** "Exportieren" ("Export"): all filtered rows as Excel (XLSX; list rows go to a second
 sheet), as CSV, or all PDFs as a ZIP. You can also export selected rows. Exports run in the background

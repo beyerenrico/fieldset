@@ -348,6 +348,9 @@ ALTER FUNCTION audit_prunable(timestamp) OWNER TO audit_owner;
 ALTER FUNCTION audit_prune(timestamp) OWNER TO audit_owner;
 ALTER FUNCTION audit_seal(bigint, bigint, char, char) OWNER TO audit_owner;
 
+-- Drop grants made earlier or by default privileges, then grant only what the application needs.
+REVOKE ALL ON activity_log FROM PUBLIC, <app_role>;
+REVOKE ALL ON SEQUENCE activity_log_id_seq FROM PUBLIC, <app_role>;
 GRANT SELECT, INSERT ON activity_log TO <app_role>;
 GRANT USAGE ON SEQUENCE activity_log_id_seq TO <app_role>;
 GRANT EXECUTE ON FUNCTION audit_seal(bigint, bigint, char, char), audit_prune(timestamp) TO <app_role>;

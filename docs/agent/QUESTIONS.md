@@ -76,3 +76,9 @@ Format: question · chosen option · impact · how to reverse.
    exempts path-dependent input, and the name, clear and confirm controls work by keyboard · accepted ·
    keyboard-only and switch users cannot sign on their own · add a "type your name as signature" mode if forms
    are filled by users who cannot draw (legal effect to be checked per organization).
+21. Three performance results sit at or over a §11 line at 1.0 (ADR 0046, M8-T05): the classic builder page
+   (1.05 s, 4.5 MB; not the default since ADR 0044), the Field App first load under Lighthouse's devtools
+   throttling (3.5 s; slow 4G 2.1 s), adding the 501st repeater row at 4× CPU (median 203 ms) · accepted for 1.0 ·
+   admins who open v1 wait about a second; field workers on very slow links wait longer for the first load ·
+   decide whether to retire v1 in 1.1 and which Field App load profile is binding; proposals in
+   `docs/agent/milestones/evidence/M8/performance.md`.

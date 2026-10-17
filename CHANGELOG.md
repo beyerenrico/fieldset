@@ -68,7 +68,16 @@ log, GDPR tools, security headers, integration tokens and the operator panel. Re
 - `compose.yaml` publishes the app port on `127.0.0.1` only; `APP_PORT` is a port number, and the
   reverse proxy runs on the host. `.env.production.example` trusts the Docker bridge range
   (`TRUSTED_PROXIES=172.16.0.0/12`).
-<!-- PERF: filled by orchestrator from evidence/M8/performance.md -->
+- Performance at 100k submissions (ADR 0046, evidence in `docs/agent/milestones/evidence/M8/performance.md`):
+  - Saved reports compute the groups and the totals in one query, and the chart renders with the page
+    instead of computing the report again: 651 → 365 ms (p95) for a report over all submissions.
+  - Explorer searches match the term as one phrase, as exports do, and page without a total while
+    searching. "Select all" then selects the visible page; "Export filtered rows" still exports every match.
+  - The API submission list loads reviews and open tasks once per page, and a new
+    `submissions (organization_id, updated_at)` index serves its order: the reviewer's list 268 → 125 ms.
+  - The reviewer inbox computes its filter options once per request: 420 → 316 ms.
+  - The Field App evaluates calculated values once per element instead of once per repeater row: typing in a
+    500-row repeater 2.8 s → under 170 ms with 4× CPU throttling.
 
 ### Removed
 - The `AWS_*` lines in `.env.example` (no S3 adapter is installed; they never had an effect).

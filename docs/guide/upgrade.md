@@ -228,7 +228,7 @@ Further optional settings: `API_RATE_LIMIT`, `LOG_JSON_STREAM`, `SENTRY_LEVEL`, 
 
 **What users notice.**
 - The forms list, new forms, the search and the dashboard open the canvas builder. The classic builder
-  is one click away ("Klassischer Builder"); bookmarks to `…/forms/<id>/edit` still open it. Forms with
+  is one click away ("Klassischer Editor"); bookmarks to `…/forms/<id>/edit` still open it. Forms with
   an open PDF import report still open in the classic builder.
 - New pages under "Compliance": audit log, retention, legal holds, personal data, my data. New page
   "Team" → "API-Tokens". See the [admin guide](admin-guide.md#audit-log).
