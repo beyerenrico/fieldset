@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 /*
  * Per-path coverage gates on top of the global --min=80 (BUILD_PROMPT §12):
- * schema core and tenancy code need at least 95% line coverage.
+ * schema core and tenancy code need at least 95% line coverage, the instance (fsa) domain 90% (plan U2).
  * Usage: php scripts/coverage-thresholds.php storage/coverage/clover.xml
  */
 
@@ -12,6 +12,7 @@ $thresholds = [
     'packages/form-schema-php/src/' => 95.0,
     'app/Domain/Forms/Schema/' => 95.0,
     'app/Domain/Identity/Tenancy/' => 95.0,
+    'app/Domain/Instance/' => 90.0,
 ];
 
 $file = $argv[1] ?? 'storage/coverage/clover.xml';

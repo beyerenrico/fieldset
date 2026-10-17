@@ -132,3 +132,9 @@
   29.9.1, Compose 5.6.0, PGDG client 16.15, age 1.3.2 + batchpass, cosign 3.1.3), ops/backup roles skip optimize.
   Size 2.12 GB → 648 MB (arm64 native, amd64 emulated), cosign kept (ADR 0065). Install suite added,
   excluded by `defaultTestSuite`. Image contract journey 6/6 on both archs.
+
+## 2026-10-18 M9-T03 instance domain core (U2)
+- app/Domain/Instance: DockerGateway (CLI argv via CommandRunner), versioned InstanceState, InstanceDirectory
+  with marker and safe writes, per-service EnvFiles, InstanceLock (holder container ID + start time), journal,
+  Supervisor, CommandResult/ExitCode (+1 internal error, ADR 0066), FsaCommand base with secret-flag guard.
+- 224 tests, coverage 97.6 % for the namespace, PHPStan 0, Rector 0. tests/Arch added to the Unit suite.

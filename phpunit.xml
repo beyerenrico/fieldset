@@ -8,6 +8,7 @@
     <testsuites>
         <testsuite name="Unit">
             <directory>tests/Unit</directory>
+            <directory>tests/Arch</directory>
             <directory>packages/form-schema-php/tests</directory>
         </testsuite>
         <testsuite name="Feature">
