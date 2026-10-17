@@ -4,15 +4,15 @@ Free, open-source, self-hostable digital forms for small and medium-sized busine
 Office staff design structured forms in an admin dashboard; field workers fill them on a phone or
 tablet (also offline) to produce reports, invoices, checklists and other documents.
 
-- **Admin dashboard** — Laravel 13 + Filament 5 at `/admin`: form builder, designs, workflows,
-  submissions inbox, review tasks, team and mail settings
-- **Field App** — React PWA at `/app`: fill, sign, photograph, submit, review, send the PDF
+- **Admin dashboard** — Laravel 13 + Filament 5 at `/admin`: form builders, designs, workflows,
+  submissions inbox, review tasks, reports and dashboards, team, SSO, audit log and privacy tools
+- **Field App** — React PWA at `/app`: fill (also offline), sign, photograph, submit, review, send the PDF
 - **Form Schema Spec** — open, versioned JSON format for form definitions (`spec/`, MIT) with PHP and
   JavaScript SDKs (`packages/`, MIT)
 
-> Status: **0.2.0** released (reports, dashboards, offline-first Field App); SSO (OIDC/SAML) and the
-> canvas builder are merged on `main` for 1.0 — see [CHANGELOG.md](CHANGELOG.md),
-> [release notes](docs/releases/0.2.0.md) and the [guides](docs/guide/index.md).
+> Status: **1.0.0** — the first stable release: everything from 0.2 plus single sign-on, the canvas
+> builder, the audit log, GDPR tools and security hardening. See [CHANGELOG.md](CHANGELOG.md), the
+> [1.0.0 release notes](docs/releases/1.0.0.md) and the [guides](docs/guide/index.md).
 
 ## What you can do
 
@@ -23,7 +23,38 @@ tablet (also offline) to produce reports, invoices, checklists and other documen
 3. A workflow assigns a review; the reviewer approves or requests changes; afterwards the customer gets
    the PDF by email. Webhooks notify other systems.
 
-## Quick start (Docker)
+## Features
+
+- **Forms** — six templates, import of fillable PDFs and JSON, a keyboard-operable drag-and-drop canvas
+  builder (the default) and the classic builder, logic and exact money calculations, live phone/tablet
+  preview in a sandbox, versions with diff, rollback and retire.
+- **Field App** — offline-first PWA: drafts on the device, an outbox that syncs exactly once, photos,
+  signatures, gap-free numbering by the server, review tasks, notifications, German and English.
+- **Documents and email** — branded, versioned designs; immutable PDFs rendered by Gotenberg; mail log
+  with retries; "send to customer".
+- **Workflows** — triggers, conditions, reviews with SLA reminders, emails, signed webhooks.
+- **Reports** — submission explorer across versions, XLSX/CSV/PDF-ZIP exports, saved and scheduled
+  reports, role-aware dashboards.
+- **Access** — roles and groups, two-factor authentication, single sign-on (OpenID Connect and SAML)
+  with domain verification, just-in-time accounts and enforcement.
+- **Audit log** — append-only in the database, a hash chain per organization checked by `audit:verify`
+  against chain heads kept outside the database, filters, CSV export, a history on key records,
+  retention (365 days by default).
+- **Privacy (GDPR)** — retention per form (delete or anonymize), legal holds, personal data export and
+  account erasure.
+- **Integrations** — REST API `/api/v1` with OpenAPI docs; personal API tokens with abilities and their
+  own rate limit.
+- **Security and operations** — a Content Security Policy per area, HSTS, admin session timeouts,
+  trusted proxies and a host allow-list, optional ClamAV upload scanning, JSON logs, Sentry-compatible error reporting, the
+  `/platform` operator panel with health checks and audited impersonation, backup and restore-drill
+  scripts.
+
+## Quick start
+
+**Production:** follow the [install guide](docs/guide/install.md). It starts from
+`.env.production.example` and covers the reverse proxy, `TRUSTED_PROXIES`, mail and backups.
+
+**Try it locally with Docker** (development settings, Mailpit catches all mail):
 
 ```bash
 cp .env.example .env
@@ -53,6 +84,7 @@ Demo users (seeded with `php artisan db:seed`, password `password`): `owner@demo
 | http://localhost:8080/admin | Admin dashboard |
 | http://localhost:8080/app | Field App (use a phone-sized window) |
 | http://localhost:8080/docs/api | OpenAPI documentation (admins) |
+| http://localhost:8080/platform | Operator panel (after `php artisan app:platform-admin <email>`) |
 
 Checks: `vendor/bin/pint --test`, `vendor/bin/phpstan analyse --memory-limit=1G`,
 `vendor/bin/rector --dry-run`, `./scripts/coverage.sh`, `npm run typecheck lint test`,
@@ -62,11 +94,13 @@ Checks: `vendor/bin/pint --test`, `vendor/bin/phpstan analyse --memory-limit=1G`
 
 Guides in [`docs/guide/`](docs/guide/index.md):
 
-- [Install (production, Docker Compose)](docs/guide/install.md) · [Upgrade](docs/guide/upgrade.md) ·
-  [Backup and restore](docs/guide/backup-restore.md) · [Configuration](docs/guide/configuration.md) ·
+- [Install (production, Docker Compose)](docs/guide/install.md) ·
+  [Upgrade from 0.x](docs/guide/upgrade.md) · [Backup and restore](docs/guide/backup-restore.md) · [Configuration](docs/guide/configuration.md) ·
   [Troubleshooting](docs/guide/troubleshooting.md)
 - [Admin guide](docs/guide/admin-guide.md) · [Field App guide](docs/guide/field-app-guide.md) ·
   [API and integrations](docs/guide/api.md)
+- [Changelog](CHANGELOG.md) · [Release notes](docs/releases/1.0.0.md) ·
+  [Architecture decisions](docs/adr/)
 
 ## Architecture
 

@@ -20,8 +20,10 @@ Contents:
 - [Reports, exports and dashboards](#reports-exports-and-dashboards)
 - [Email settings and the mail log](#email-settings-and-the-mail-log)
 - [Single sign-on (SSO)](#single-sign-on-sso)
+- [API tokens](#api-tokens)
 - [Audit log](#audit-log)
 - [Privacy and data retention](#privacy-and-data-retention)
+- [Platform operators (/platform)](#platform-operators-platform)
 
 ## Roles and what they may do
 
@@ -50,6 +52,8 @@ What each area needs:
 | Submissions inbox | all | all | own forms | assigned or group | all |
 | Approve / request changes, "Meine Aufgaben" | yes | yes | – | yes | – |
 | Submission explorer, saved reports, exports | yes | yes | yes | yes | yes |
+| Audit log; retention, legal holds, personal data of members | yes | yes | – | – | – |
+| Own API tokens, "Meine Daten" ("My data") | yes | yes | yes | yes | yes |
 
 Reports and exports only ever contain submissions the user may see. Owners and Admins can fill in
 every form in the Field App; everyone else needs a form access grant (see [Forms](#forms)).
@@ -69,6 +73,9 @@ with an authenticator app and keep the recovery codes. The same code works for t
 the Field App. "Wiederherstellungscodes neu generieren" ("Regenerate recovery codes") replaces the
 codes. Two-factor authentication is optional, except for the break-glass Owner of an organization
 that enforces SSO.
+
+The dashboard signs you out after 30 minutes without activity, and 12 hours after you signed in at the
+latest (the operator can change both). The Field App keeps you signed in for 30 days.
 
 ## Organization settings and branding
 
@@ -145,27 +152,33 @@ App.
   PDF are not imported. The builder shows a "PDF-Importbericht" ("PDF import report") with every field
   it could not map, and marks uncertain elements with ⚠. Nothing is published automatically.
 
-Row actions in the list: "Editor" (classic builder), "Canvas-Builder", "Duplizieren" ("Duplicate"),
-"JSON exportieren" (the published version), "Auswerten" ("Explore", opens the submission explorer) and
-"Archivieren" / "Wiederherstellen" ("Archive" / "Restore"). Forms are not deleted.
+Row actions in the list: "Editor" (opens the form in the default builder, see below), "Klassischer
+Builder" ("Classic builder"), "Duplizieren" ("Duplicate"), "JSON exportieren" (the published version),
+"Auswerten" ("Explore", opens the submission explorer) and "Archivieren" / "Wiederherstellen" ("Archive" /
+"Restore"). Clicking a row also opens the default builder. Forms are not deleted.
 
 ### Two builders
 
 Both builders edit the same draft; you can switch at any time.
 
-- **Classic builder** ("Editor", the default): pages with element blocks, reordered by drag and drop.
-  Tabs: "Editor", "Formulareinstellungen" ("Form settings"), "Vorschau" ("Preview"), "Wer darf dieses
-  Formular ausfüllen" ("Who may fill this form") and "Roh-JSON" ("Raw JSON"). It saves the draft every
-  20 seconds.
-- **Canvas builder** ("Canvas-Builder"): a palette of element types, the form canvas and a properties
-  panel ("Eigenschaften"). It saves automatically within a few seconds and has undo and redo
+- **Canvas builder** ("Canvas-Builder", the default): a palette of element types, the form canvas and a
+  properties panel ("Eigenschaften"). It saves automatically within a few seconds and has undo and redo
   ("Rückgängig", "Wiederholen"). Everything works with the keyboard; "Tastenkürzel" ("Keyboard
   shortcuts") lists the keys, for example Space to pick up an element, the arrow keys to move it,
   Shift+F10 for the move menu, Alt+P for the properties and Ctrl/Cmd+Z to undo. "Klassischer Builder"
-  ("Classic builder") switches back.
+  ("Classic builder") in its toolbar switches to the classic builder.
+- **Classic builder** ("Klassischer Builder"): pages with element blocks, reordered by drag and drop.
+  Tabs: "Editor", "Formulareinstellungen" ("Form settings"), "Vorschau" ("Preview"), "Wer darf dieses
+  Formular ausfüllen" ("Who may fill this form") and "Roh-JSON" ("Raw JSON"). It saves the draft every
+  20 seconds. "Canvas-Builder" in its header switches back.
 
-Form access ("Wer darf dieses Formular ausfüllen") is set in the classic builder only: tick the groups
-and roles that may fill in the form.
+New forms, the list, the search and the dashboard open the canvas builder. A form imported from a PDF
+opens in the classic builder as long as its "PDF-Importbericht" ("PDF import report") is shown, because
+only the classic builder shows the report.
+
+Some things are in the classic builder only: form access ("Wer darf dieses Formular ausfüllen": tick the
+groups and roles that may fill in the form), the "Versionen" ("Versions") tab with compare and rollback,
+the PDF import report, and the form's audit history ("Verlauf").
 
 If the draft was changed in another tab or by a colleague, the builder says so and offers to reload.
 
@@ -204,7 +217,8 @@ rounding errors, and the Field App shows the same result as the PDF.
 
 ### Versions and rollback
 
-The "Versionen" ("Versions") tab lists every published version with author, date and change note:
+The "Versionen" ("Versions") tab of the classic builder lists every published version with author,
+date and change note:
 - "Vergleichen" ("Compare") shows what was added, removed, changed or moved, against the draft or any
   other version.
 - "Auf diese Version zurücksetzen" ("Roll back to this version") publishes the old content as a new
@@ -442,8 +456,8 @@ for all addresses at your verified domains. The page lists the preconditions:
 - you are the break-glass Owner or have signed in through SSO yourself before.
 
 The break-glass Owner keeps password and two-factor sign-in for emergencies, for example when the
-identity provider is down. Each use is logged and notified. Turning enforcement on ends the password
-sessions of the affected members. Only an Owner can turn it off.
+identity provider is down. Each use is recorded in the [audit log](#audit-log). Turning enforcement on
+ends the password sessions of the affected members. Only an Owner can turn it off.
 
 ### Health and problems
 
@@ -455,23 +469,163 @@ Signing out of the app does not sign you out of the identity provider.
 
 See [Troubleshooting](troubleshooting.md#single-sign-on) for common errors.
 
+## API tokens
+
+Other systems (an ERP, a BI tool, a script) can use the REST API with a personal token. Open "Team" →
+"API-Tokens" ("API tokens"):
+- "Neues Token" ("New token"): a name, the permissions ("Berechtigungen") the integration needs, and
+  the expiry (90 days preselected; 7 to 365 days, or never). The token is shown **only once**; copy it
+  into the other system.
+- The list shows each token's permissions, last use and expiry. "Widerrufen" ("Revoke") ends access at
+  once.
+
+A token works only in this organization and never allows more than your own role. Everyone with
+dashboard access manages their own tokens; Owners and Admins also see and can revoke the tokens of all
+members. Deactivating a member deletes their tokens for the organization. Creating and revoking a token
+and its first use are recorded in the audit log. Details for developers:
+[API and integrations](api.md#integration-tokens).
+
 ## Audit log
 
-> TODO-VERIFY (M8-T01, in progress): describe the audit log screen once it lands: where it is in the
-> navigation, who can open it (Owner and Admin), filters (actor, action, subject, date), CSV export,
-> the "History" tab on records, retention (planned default 365 days) and tamper evidence. Until then:
-> the application already records an append-only audit trail of sign-ins, configuration changes and
-> the submission lifecycle, but there is no screen to browse it.
+"Compliance" → "Audit-Log" ("Audit log") shows what happened in your organization: when, who ("Ausgeführt
+von", a member, "System" or an API token), what ("Ereignis", "Event") and to which record ("Objekt",
+"Subject"), with the IP address. Owners and Admins can open it; for a custom role, tick the permission
+"Audit-Log". Nobody can change or delete entries: the dashboard has no such action, and the database
+refuses it.
+
+What is recorded, for example:
+- sign-ins and sign-outs, failed sign-ins and two-factor codes, lockouts after too many attempts;
+- changes to forms and versions, designs, workflows, roles, members, groups, SSO and mail settings,
+  each with the old and new values; passwords and other secrets appear as `[redacted]`;
+- the life of a submission: created, submitted, status changes, PDF created, downloaded or sent;
+- exports, API tokens, retention, legal holds, data exports and erasure;
+- every time a platform operator signs in as one of your members ("Identitätswechsel begonnen" /
+  "Identitätswechsel beendet", "Impersonation started" / "ended"), with the operator's name and the
+  reason. Everything the operator does meanwhile is recorded under the member's name, and each of these
+  entries also names the operator (`impersonator`).
+
+**Filter** by "Ausgeführt von", "Ereignis", "Objekttyp" ("Subject type") and a date range ("Von", "Bis",
+in your time zone). Open an entry to see all details: the changes, the user agent, the request ID and its
+position in the hash chain ("Hash-Kette").
+
+**Export.** "CSV exportieren" ("Export CSV") exports the filtered entries. Up to 2,000 entries download
+at once; larger exports run in the background, and a notification brings the download link, which works
+for 7 days. Each export is itself recorded.
+
+**History on records.** The pages of a form (classic builder), a submission, a workflow, the members
+page and the SSO page end with a "Verlauf" ("History") table: the audit entries of that record and its
+parts, for example a form's versions or a submission's emails.
+
+**Retention.** Entries older than 365 days are deleted every night; the operator can change the period
+(`AUDIT_RETENTION_DAYS`, at least 30 days). Entries are never deleted earlier.
+
+**Tamper evidence.** Every entry is sealed into a hash chain of your organization: each entry's
+fingerprint includes the one before. The operator's check (`audit:verify`) finds entries that were
+changed or removed by anyone who cannot rewrite the whole table. Someone with full access to the
+database could recompute the chain; the operator detects that by comparing it with copies of the chain's
+latest fingerprints kept outside the database. See
+[Protect the audit log](install.md#7-protect-the-audit-log).
 
 ## Privacy and data retention
 
-> TODO-VERIFY (M8-T02, in progress): describe per-form retention (delete or anonymize after N months),
-> legal hold, user data export and erasure, and where the admin actions are, once they land. Until then
-> there is no retention or erasure feature in the dashboard.
+The pages under "Compliance" help you meet data protection rules (GDPR): delete or anonymize old
+submissions, keep records that must be kept, and answer requests for personal data.
 
-What the application does today:
+### Retention per form
+
+"Compliance" → "Aufbewahrung" ("Retention"), Owners and Admins. The list shows each form's retention
+("Unbegrenzt aufbewahren", "Keep indefinitely", until you set one) and whether it is under legal hold.
+"Aufbewahrung" on a form:
+- "Aufbewahrungsfrist in Monaten" ("Retention period in months"), 1 to 1200, counted from the submit
+  date (drafts: from creation). Empty keeps submissions indefinitely.
+- "Danach" ("Then"):
+  - "Anonymisieren" ("Anonymize", preselected) keeps numbers, amounts, dates, times and choices, so
+    reports and totals stay correct. It removes what identifies people: text, email, phone, photo, file,
+    signature, location and hidden fields; fields marked as customer, site or payment details; the
+    device; every reference to the people involved (creator, submitter, reviewers and their comments);
+    and the submission's emails in the mail log. Attachments and PDF files are deleted; the record that
+    a PDF was issued (with its checksum) stays.
+  - "Löschen" ("Delete") removes the submission with its files, PDFs and emails.
+  - Drafts that are due are always deleted.
+
+A job runs every night and applies the retention. Each deleted or anonymized submission is recorded in
+the audit log.
+
+After anonymization the submission stays in the inbox and in reports with its kept values. Its PDF
+cannot be opened any more: the page shows "Die PDF-Dateien wurden bei der Anonymisierung dieser
+Einreichung gelöscht." ("The PDF files were deleted when this submission was anonymized."). Field App
+devices may keep a copy until their next sync.
+
+### Legal holds
+
+A legal hold keeps submissions that must not be deleted, for example invoices, which German law requires
+you to keep for years. While a hold is active, the retention job leaves the held submissions alone.
+- **A whole form:** on "Aufbewahrung", the action "Aufbewahrungssperre" ("Legal hold") with a reason.
+  The form's retention period must be at least 120 months (ten years; the operator can change this), or
+  indefinite. A shorter period is refused while the hold is active.
+- **One submission:** "Compliance" → "Aufbewahrungssperren" ("Legal holds") → "Einreichung sperren"
+  ("Hold a submission"); search it by number and give a reason.
+
+"Aufheben" ("Release") ends a hold; from the next night the retention applies again. Released holds stay
+as history; the list shows active holds until you change the filter "Aktiv" ("Active"). Placing and
+releasing holds are recorded in the audit log. The minimum period is a setting, not legal advice: check
+which periods apply to you.
+
+### Personal data of members
+
+"Compliance" → "Personenbezogene Daten" ("Personal data"), Owners and Admins:
+- **"Daten exportieren" ("Export data")** creates a ZIP file with the member's profile, memberships,
+  devices, submissions and audit entries in this organization. A notification brings the download link,
+  which works for 7 days. Passwords, two-factor secrets and tokens are never included.
+- **"Löschen" ("Erase")** erases the account after you type its email address. Name, email address,
+  password, two-factor secret, devices (they are asked to wipe), sessions, API tokens and SSO links are
+  removed. Submissions and audit entries stay, because the organization must keep them, and show
+  "Deleted user". Audit entries written before the erasure keep their values until the audit retention
+  removes them. This cannot be undone.
+
+Erasing is refused for your own account (use "Meine Daten"), for an account that also belongs to another
+organization (the person deletes it themselves), for the last Owner, and for an Owner unless you are an
+Owner.
+
+Field workers have no access to the dashboard. When they ask for their data or want their account
+deleted, an Owner or Admin uses this page.
+
+### My data
+
+"Compliance" → "Meine Daten" ("My data"), for everyone with dashboard access:
+- "Meine Daten exportieren" ("Export my data"): the same ZIP file for your own account. Only one export
+  of a kind runs at a time, and you can request 10 per hour.
+- "Mein Konto löschen" ("Delete my account") asks for your current password and erases your whole
+  account in all organizations, as described above. It is refused while you are the last Owner of an
+  organization. If you only ever signed in through single sign-on, you may not know a password; ask an
+  Owner or Admin.
+
+### What the application does in any case
+
 - Photos lose their metadata (EXIF), including the GPS position, before upload; the server strips it
   again.
 - Secrets (SMTP password, identity provider secrets, webhook secrets, two-factor secrets) are stored
   encrypted.
 - No trackers or telemetry.
+
+## Platform operators (/platform)
+
+This section is for the people who run the server. Operators get the role with
+`php artisan app:platform-admin <email>`
+([install guide](install.md#4-create-the-first-organization-and-owner)).
+They sign in at `/platform/login`, separately from `/admin`; a sign-in through an organization's single
+sign-on never opens `/platform`. Two-factor authentication is required, and the sign-in lasts at most 12
+hours (`PLATFORM_SESSION_HOURS`).
+
+- **"Organisationen" ("Organizations")**: every organization with active members, creation date and
+  status. "Mitglieder" ("Members") lists its members.
+- **"Zustand" ("Health")**: Horizon and its queues, failed jobs, Gotenberg, the mail transport, the
+  scheduler and the free disk space, each "OK", "Warnung" ("Warning") or "Fehler" ("Failing").
+- **"Als Mitglied anmelden" ("Impersonate")** on a member: the operator sees the admin dashboard as that
+  member, for support. A reason of 10 to 500 characters is required. It works only for active members
+  with dashboard access in an organization that is not archived, never for other operators and never in
+  the Field App or the API. A banner on every page shows who is signed in on whose behalf and when it
+  ends. "Anmeldung als Mitglied beenden" ("Exit impersonation") returns to `/platform`; after 30 minutes
+  (`PLATFORM_IMPERSONATION_MINUTES`) it ends by itself. Start and end appear in the organization's
+  [audit log](#audit-log) with the operator and the reason, and every entry written meanwhile records
+  the operator (`impersonator`). No API token can be created while impersonating.

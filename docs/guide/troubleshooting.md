@@ -7,6 +7,7 @@ Contents:
 - [General checks](#general-checks)
 - [The stack does not start](#the-stack-does-not-start)
 - [The dashboard looks broken behind HTTPS](#the-dashboard-looks-broken-behind-https)
+- [Every page answers 400 Bad Request](#every-page-answers-400-bad-request)
 - [PDFs are not created (Gotenberg)](#pdfs-are-not-created-gotenberg)
 - [Mail is not sent](#mail-is-not-sent)
 - [The queue does not run](#the-queue-does-not-run)
@@ -14,12 +15,14 @@ Contents:
 - [Field App](#field-app)
 - [Single sign-on](#single-sign-on)
 - [Login throttling and lockouts](#login-throttling-and-lockouts)
+- [Uploads are refused by the malware scan](#uploads-are-refused-by-the-malware-scan)
+- [Audit log](#audit-log)
 
 ## General checks
 
 ```bash
 docker compose ps                                     # app and queue "healthy", scheduler and gotenberg running
-docker compose logs --since 30m app queue scheduler   # JSON logs if LOG_CHANNEL=stderr
+docker compose logs --since 30m app queue scheduler   # JSON logs, one object per line
 curl -fsS http://127.0.0.1:8080/up                    # the application boots (not a database check)
 docker compose exec queue php artisan horizon:status  # "Horizon is running."
 docker compose exec app php artisan queue:failed      # failed jobs
@@ -28,11 +31,13 @@ docker compose exec app php artisan migrate:status    # every migration "Ran"
 ```
 
 Operators listed in `PLATFORM_ADMIN_EMAILS` can open the Horizon dashboard at `/horizon` (sign in at
-`/admin/login` first) to see queues, failed jobs and their errors.
+`/admin/login` first) to see queues, failed jobs and their errors. Platform operators see the same
+checks on one page at `/platform` → "Zustand" ("Health"): Horizon, failed jobs, Gotenberg, mail,
+scheduler and disk space.
 
-If logs are missing from `docker compose logs`, `.env` probably still has `LOG_CHANNEL=stack` from the
-example file; the logs are then in `storage/logs/laravel.log` inside each container. Set
-`LOG_CHANNEL=stderr` and recreate the containers.
+If logs are missing from `docker compose logs`, `.env` probably has `LOG_CHANNEL=stack` with
+`LOG_STACK=single` from `.env.example`; the logs are then in `storage/logs/laravel.log` inside each
+container. Set `LOG_STACK=json` (as in `.env.production.example`) and recreate the containers.
 
 After any change to `.env`: `docker compose up -d --force-recreate app queue scheduler`.
 
@@ -42,7 +47,7 @@ After any change to `.env`: `docker compose up -d --force-recreate app queue sch
 |---|---|
 | `SSO_ALLOW_INSECURE_IDP and SSO_DNS_DRIVER=config are not allowed in production.` | `compose.dev.yaml` is loaded (through `COMPOSE_FILE` in `.env`) or `.env` sets these values. Set `COMPOSE_FILE=compose.yaml`, `SSO_ALLOW_INSECURE_IDP=false`, `SSO_DNS_DRIVER=dns`. |
 | `No application encryption key has been specified.` | `APP_KEY` is empty. Restore it from your secret store; generate a new one only for a new, empty installation. |
-| `postgres` exits on the first start with `role "form_schema" does not exist` | `DB_USERNAME` was changed. The init script `docker/postgres/init/01-test-db.sql` expects the user `form_schema`. Use `DB_USERNAME=form_schema`, remove the half-initialized volume (`docker compose down`, then `docker volume rm form-schema-app_pg-data`, only on a new installation without data) and start again. |
+| `postgres` exits on the first start with `role "form_schema" does not exist` | `compose.dev.yaml` is loaded, whose test-database script expects the user `form_schema`, and `DB_USERNAME` is different. Set `COMPOSE_FILE=compose.yaml`, remove the half-initialized volume (`docker compose down`, then `docker volume rm form-schema-app_pg-data`, only on a new installation without data) and start again. |
 | `queue` or `scheduler` restart a few times right after the first start | They started before `app` finished the migrations. They recover on their own. |
 | `app` is unhealthy and the logs show a database error | Check `DB_PASSWORD` against the password the database volume was created with; changing it in `.env` does not change the database. |
 
@@ -51,11 +56,25 @@ After any change to `.env`: `docker compose up -d --force-recreate app queue sch
 Symptoms: the admin dashboard loads without styles or does not react, the browser console reports
 "mixed content", SSO redirect URIs start with `http://`, or all users share one login rate limit.
 
-> TODO-VERIFY (trusted proxies, M8-T03): at the time of writing the application does not trust
-> `X-Forwarded-*` headers, so behind a TLS-terminating reverse proxy it generates `http://` URLs. Replace
-> this note with the setting that fixes it once it exists.
+Cause: the application does not trust the reverse proxy, so it sees plain HTTP and the proxy's IP
+address. `TRUSTED_PROXIES` must contain the address the proxy connects from. For a reverse proxy on the
+host that connects to `127.0.0.1:8080`, that is the Docker bridge range `172.16.0.0/12` from
+`.env.production.example`. An empty value trusts no proxy. Recreate the containers after the change.
+Details: [install guide, step 5](install.md#5-reverse-proxy-and-tls).
 
-Also check that `APP_URL` starts with `https://` and that the proxy forwards the `Host` header.
+Also check that `APP_URL` starts with `https://`, and that the proxy forwards the `Host` header and sets
+`X-Forwarded-Proto`.
+
+**The reverse proxy cannot reach the app.** `compose.yaml` publishes the app port on `127.0.0.1` only,
+so the proxy must run on the same host and connect to `127.0.0.1:<APP_PORT>`. `APP_PORT` is a port
+number only; a value such as `127.0.0.1:8080` from older guides breaks the port mapping.
+
+## Every page answers 400 Bad Request
+
+Unless `APP_ENV` is `local` or `testing`, the application answers only to the host name of `APP_URL`,
+loopback names and the names in `TRUSTED_HOSTS`. Any other `Host` header, or `X-Forwarded-Host` from a
+trusted proxy, gets 400. Fix `APP_URL`, or add the extra name to `TRUSTED_HOSTS` (comma-separated), then
+recreate the containers.
 
 ## PDFs are not created (Gotenberg)
 
@@ -227,7 +246,8 @@ code and can turn enforcement off.
 | Admin login, email step | 10 per minute per IP | same |
 | SSO discovery (email step) | 10 per minute per email address and IP, 300 per minute per IP | |
 | Password reset | one email per user per minute | "Bitte warten Sie, bevor Sie es erneut versuchen." |
-| API | 240 requests per minute per user | 429 `too_many_requests` |
+| API | 240 requests per minute per integration token, otherwise per user (`API_RATE_LIMIT`) | 429 `too_many_requests` |
+| `/platform` login | 5 attempts per minute per IP | |
 
 The limits reset after a minute; waiting is the fix. Limits per IP assume the application sees the real
 client IP (see [the HTTPS note](#the-dashboard-looks-broken-behind-https)).
@@ -239,3 +259,27 @@ authentication again in the profile.
 (`/admin/login`) sends a reset link to any account, including field workers, who then sign in to the
 Field App with the new password; the Field App itself has no reset screen. Not available for addresses
 whose organization enforces SSO.
+
+**Signed out of the dashboard.** Admin sessions end after 30 minutes without activity and 12 hours after
+sign-in at the latest ([configuration](configuration.md#security-headers-and-proxies)). Sign in again.
+Field App sessions are not affected.
+
+## Uploads are refused by the malware scan
+
+Only when `UPLOADS_CLAMAV_ENABLED=true` ([configuration](configuration.md#submissions-and-uploads)).
+
+| Answer to the upload | Cause and fix |
+|---|---|
+| 503 `scanner_unavailable` | clamd did not answer. Check that it runs and that `UPLOADS_CLAMAV_HOST` and `UPLOADS_CLAMAV_PORT` are reachable from the `app` container. The Field App tries the upload again later. |
+| 422 `file_infected` | clamd found malware. The log has an `upload.infected` warning with the signature name, not the file. |
+| 422 `file_too_large` | The file is larger than clamd's `StreamMaxLength`. Raise that limit in clamd (attachments may be up to 25 MB). |
+
+## Audit log
+
+**`audit:verify` reports a problem.** See
+[When audit:verify fails](install.md#when-auditverify-fails). Right after an upgrade from 0.x it reports
+unsealed entries until `audit:seal` has sealed the older ones.
+
+**`activity_log is append-only` in the logs.** Something tried to change or delete audit entries, and
+the database refused it. Retention pruning uses `audit:prune`. Do not use `activitylog:clean`: the
+database refuses it too.

@@ -5,8 +5,9 @@ in `compose.yaml` loads `.env`; values in `.env` override the defaults built int
 change, recreate the containers: `docker compose up -d --force-recreate app queue scheduler` (the
 configuration is cached when a container starts).
 
-"Default" is the value the application uses when the variable is not set. Where `.env.example` sets a
-different value, the table says so. Settings marked *fixed* are configuration keys without an
+"Default" is the value the application uses when the variable is not set. Where `.env.example`
+(development) or `.env.production.example` (the production template) sets a different value, the table
+says so. Settings marked *fixed* are configuration keys without an
 environment variable; changing them means editing `config/` and rebuilding the image.
 
 Contents:
@@ -14,7 +15,8 @@ Contents:
 - [Docker Compose and the image](#docker-compose-and-the-image)
 - [Database](#database)
 - [Redis, queue, cache and sessions](#redis-queue-cache-and-sessions)
-- [Logging](#logging)
+- [Logging and error reporting](#logging-and-error-reporting)
+- [Security headers and proxies](#security-headers-and-proxies)
 - [Mail](#mail)
 - [Mail delivery rules](#mail-delivery-rules)
 - [Documents and PDF rendering](#documents-and-pdf-rendering)
@@ -24,6 +26,10 @@ Contents:
 - [Reports and exports](#reports-and-exports)
 - [Dashboards](#dashboards)
 - [Single sign-on](#single-sign-on)
+- [Audit log](#audit-log)
+- [Privacy and retention](#privacy-and-retention)
+- [Integration tokens](#integration-tokens)
+- [Platform operator panel](#platform-operator-panel)
 - [Files and storage](#files-and-storage)
 - [Other](#other)
 
@@ -34,7 +40,7 @@ Contents:
 | Variable | Default | Meaning |
 |---|---|---|
 | `APP_NAME` | `form-schema-app` | Name in mails, the browser title and the webhook `User-Agent`. |
-| `APP_ENV` | `production` (image); `.env.example`: `local` | `production` for real installations. Production refuses the SSO development settings. |
+| `APP_ENV` | `production` (image and production template); `.env.example`: `local` | `production` for real installations. Production refuses the SSO development settings. Outside `local` and `testing`, only known host names are answered ([why](install.md#5-reverse-proxy-and-tls)). |
 | `APP_DEBUG` | `false`; `.env.example`: `true` | Shows stack traces. Never `true` in production. |
 | `APP_KEY` | none | Encryption key, `base64:` + 32 random bytes. Required; back it up ([why](backup-restore.md#the-app_key)). |
 | `APP_PREVIOUS_KEYS` | empty | Comma-separated old keys, so data encrypted with them stays readable after a key change. |
@@ -42,12 +48,12 @@ Contents:
 | `APP_LOCALE` | `en` | Default language where no user or organization language applies (`de` or `en`). |
 | `APP_FALLBACK_LOCALE` | `en` | Language for missing translations. |
 | `APP_ALLOW_REGISTRATION` | `false` | Lets anyone register a user and an organization at `/admin`. Only for a public instance. |
-| `PLATFORM_ADMIN_EMAILS` | empty | Comma-separated emails of operators: access to `/horizon` and `/docs/api`. |
+| `PLATFORM_ADMIN_EMAILS` | empty | Comma-separated emails of operators: access to `/horizon` and `/docs/api`. The `/platform` panel uses its own operator list (`php artisan app:platform-admin`). |
 | `APP_INVITATIONS_PER_DAY` | `1000` | Member invitations per organization in 24 hours. |
 | `APP_MAINTENANCE_DRIVER` | `file` | Laravel maintenance mode driver. |
 | `BCRYPT_ROUNDS` | `12` | Password hashing cost. |
 | *fixed* `app.timezone` | `UTC` | Server time zone. Organizations and users have their own time zones for display and schedules. |
-| *fixed* API rate limit | 240 per minute | Per user (per IP for guests) on `/api/v1`. |
+| `API_RATE_LIMIT` | `240` | Requests per minute on `/api/v1`: per integration token, otherwise per signed-in user, otherwise per IP address. Each token has its own limit, separate from its user's Field App session. |
 
 ## Docker Compose and the image
 
@@ -55,12 +61,12 @@ Contents:
 |---|---|---|
 | `COMPOSE_FILE` | `compose.yaml`; `.env.example`: `compose.yaml:compose.dev.yaml` | Read by Docker Compose. Use `compose.yaml` alone in production. |
 | `COMPOSE_PROFILES` | empty | `sso` starts the development Keycloak (with `compose.dev.yaml` only). |
-| `APP_PORT` | `8080` | Host port (optionally `IP:port`, for example `127.0.0.1:8080`) published for the `app` service. |
+| `APP_PORT` | `8080` | Port number only. `compose.yaml` publishes the `app` service as `127.0.0.1:${APP_PORT}:8080`, on the loopback interface, for a reverse proxy on the same host. |
 | `FORWARD_DB_PORT`, `FORWARD_REDIS_PORT`, `FORWARD_GOTENBERG_PORT`, `FORWARD_MAILPIT_UI_PORT`, `FORWARD_MAILPIT_SMTP_PORT` | `54329`, `63799`, `13000`, `18025`, `11025` | Development only (`compose.dev.yaml`). |
 | `RUN_MIGRATIONS` | `true` for `app` (set in `compose.yaml`) | Run `php artisan migrate --force` when the container starts. |
 
 Set in the image (`docker/app/Dockerfile`) and overridden by `.env` when present: `APP_ENV=production`,
-`LOG_CHANNEL=stderr`, `LOG_STDERR_FORMATTER=Monolog\Formatter\JsonFormatter`, `SERVER_NAME=:8080`.
+`LOG_CHANNEL=stderr`, `LOG_STDERR_FORMATTER=App\Support\Logging\JsonLogFormatter`, `SERVER_NAME=:8080`.
 PHP limits (`docker/app/php.ini`): `memory_limit=512M`, `upload_max_filesize=25M`, `post_max_size=30M`.
 
 Gotenberg flags in `compose.yaml`: `--chromium-deny-private-ips=true`, `--chromium-deny-public-ips=true`,
@@ -74,7 +80,7 @@ Gotenberg flags in `compose.yaml`: `--chromium-deny-private-ips=true`, `--chromi
 |---|---|---|
 | `DB_CONNECTION` | `pgsql` (set in `compose.yaml`) | Only PostgreSQL is supported. |
 | `DB_HOST`, `DB_PORT` | `postgres`, `5432` (set in `compose.yaml`) | The values in `.env` are used only outside Docker. |
-| `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` | `form_schema`, `form_schema`, `secret` | Also create the database on the first start of the `postgres` service. Keep the user `form_schema` ([why](install.md#2-create-the-env-file)); set a strong password. |
+| `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` | `form_schema`, `form_schema`, `secret` | Also create the database and its user on the first start of the `postgres` service. Set a strong password. |
 | `DB_SSLMODE` | `prefer` | For an external PostgreSQL server. |
 | `DB_URL` | empty | Alternative connection URL. |
 
@@ -94,7 +100,7 @@ Gotenberg flags in `compose.yaml`: `--chromium-deny-private-ips=true`, `--chromi
 | `SESSION_DRIVER` | `database` | Sessions in PostgreSQL. |
 | `SESSION_LIFETIME` | `120`; `.env.example`: `43200` | Minutes. Keep 43200 (30 days, rolling) so field workers stay signed in while offline. |
 | `SESSION_ENCRYPT` | `false`; `.env.example`: `true` | Encrypt session data. |
-| `SESSION_SECURE_COOKIE` | unset; `.env.example`: `false` | Set `true` in production (HTTPS only). |
+| `SESSION_SECURE_COOKIE` | unset; `.env.example`: `false`; production template: `true` | Secure cookies for plain HTTP requests too. Requests over HTTPS (directly, through a trusted proxy, or when `APP_URL` is `https://`) always get Secure session and XSRF cookies. |
 | `SESSION_SAME_SITE` | `lax` | Keep `lax`. |
 | `SESSION_DOMAIN`, `SESSION_PATH` | none, `/` | Cookie scope. |
 | `SANCTUM_STATEFUL_DOMAINS` | localhost entries plus the `APP_URL` host | Hosts whose browser requests use the session cookie (the Field App). `.env.example` lists only `localhost`; set your host name. |
@@ -102,19 +108,54 @@ Gotenberg flags in `compose.yaml`: `--chromium-deny-private-ips=true`, `--chromi
 | `HORIZON_PREFIX`, `HORIZON_NAME`, `HORIZON_DOMAIN` | derived from `APP_NAME`, none, none | Horizon's Redis prefix and dashboard options. |
 | *fixed* Horizon supervisors | `supervisor-1`: queue `default`, up to 10 processes in production; `supervisor-exports`: queue `exports`, 1 process | Queues without a supervisor are never worked. |
 
-## Logging
+## Logging and error reporting
 
 `config/logging.php`
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `LOG_CHANNEL` | `stderr` (image); `.env.example`: `stack` | Use `stderr` in Docker so `docker compose logs` shows the logs. `stack` writes to a file inside the container. |
-| `LOG_STACK` | `single` | Channels of the `stack` channel. |
-| `LOG_LEVEL` | `debug` | `info` or `warning` in production. |
-| `LOG_STDERR_FORMATTER` | JSON (image) | Monolog formatter for `stderr`. |
+| `LOG_CHANNEL` | `stderr` (image); both templates: `stack` | `stack` sends logs to the channels in `LOG_STACK`. `stderr` writes to stderr with `LOG_STDERR_FORMATTER`. |
+| `LOG_STACK` | `single`; production template: `json` | Channels of `stack`, comma-separated. `json`: one JSON object per line on stderr. `single`: a file inside the container, lost when it is recreated. Add `sentry` for error reporting, for example `json,sentry`. |
+| `LOG_LEVEL` | `debug`; production template: `info` | `info` or `warning` in production. |
+| `LOG_STDERR_FORMATTER` | `App\Support\Logging\JsonLogFormatter` (image) | Formatter of the `stderr` channel. |
+| `LOG_JSON_STREAM` | `php://stderr` | Where the `json` channel writes. |
 | `LOG_DEPRECATIONS_CHANNEL` | `null` | PHP deprecation warnings. |
+| `SENTRY_DSN` | empty | DSN of a Sentry-compatible service (Sentry, GlitchTip and others), used by the `sentry` log channel: add `sentry` to `LOG_STACK` (with `LOG_CHANNEL=stack`). Without a valid DSN the channel discards everything. |
+| `SENTRY_LEVEL` | `error` | Lowest log level that is reported. |
+| `SENTRY_ENVIRONMENT` | `APP_ENV` | Environment name on each event. |
+| `SENTRY_RELEASE` | empty | Release name on each event. |
+| `SENTRY_TIMEOUT` | `2` | Seconds per report. |
 
 Every request gets an `X-Request-Id` (taken from the request or generated), which appears in the logs.
+
+The JSON lines contain `@timestamp`, `level`, `message`, `channel`, `service`, `environment`,
+`request_id`, the context and exception traces. Passwords, tokens, secrets and credential headers are
+redacted, and database errors never contain the query's values. Error reports to `SENTRY_DSN` carry the
+exception, the request id and the user id, but no request data. They are sent from the `app`, `queue` and
+`scheduler` containers, so allow outbound HTTPS to the DSN host if outbound traffic is restricted.
+
+## Security headers and proxies
+
+`config/security.php`, `config/trustedproxy.php`. Background:
+[install guide, step 5](install.md#5-reverse-proxy-and-tls).
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `TRUSTED_PROXIES` | empty (no proxy is trusted); production template: `172.16.0.0/12` | IP addresses or CIDR ranges, comma-separated. Only these may set `X-Forwarded-For`, `-Proto`, `-Host` and `-Port`. The template's range is the Docker bridge range, from which a reverse proxy on the host arrives at `127.0.0.1:8080`. Widen it only to the range your proxy actually connects from; never trust a range that untrusted clients can reach. |
+| `TRUSTED_HOSTS` | empty | Extra host names, comma-separated, besides the host of `APP_URL` and loopback names. Other hosts get 400 unless `APP_ENV` is `local` or `testing`. |
+| `SECURITY_HSTS_ENABLED` | empty (automatic) | Empty: send `Strict-Transport-Security` when the request is HTTPS or `APP_URL` is `https://`. `true`: always. `false`: never. |
+| `SECURITY_HSTS_MAX_AGE` | `31536000` (one year) | Seconds. |
+| `SECURITY_HSTS_INCLUDE_SUBDOMAINS`, `SECURITY_HSTS_PRELOAD` | `false`, `false` | Add `includeSubDomains` / `preload`. Only if every subdomain serves HTTPS. |
+
+**Admin panel sessions** end after 30 minutes without activity (idle timeout) and 12 hours after the
+sign-in at the latest (absolute timeout). Both are set in `config/security.php`.
+<!-- ENV: admin session timeouts -->
+The Field App session is not affected: it keeps `SESSION_LIFETIME` (30 days, rolling).
+
+Fixed: the Content Security Policy per area (admin and `/platform`, Field App, builder preview, API,
+Horizon, API documentation), `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin`,
+`X-Frame-Options`, a `Permissions-Policy` that allows only camera and location, and only for the Field
+App. The admin pages load no scripts, styles, fonts or images from other sites.
 
 ## Mail
 
@@ -191,6 +232,20 @@ dashboard.
 | `SUBMISSIONS_IMAGE_STORE_MAX_PIXELS` | `25000000` | Larger accepted images are scaled down when stored. |
 | *fixed* attachment size | 25 MB | Per file. |
 
+Optional malware scanning of the photos, signatures and files uploaded with submissions, through a ClamAV
+daemon (clamd) that you run yourself. `config/uploads.php`:
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `UPLOADS_CLAMAV_ENABLED` | `false` | Scan these uploads before they are stored. |
+| `UPLOADS_CLAMAV_HOST`, `UPLOADS_CLAMAV_PORT` | `clamav`, `3310` | clamd's TCP address, reachable from the `app` container. |
+| `UPLOADS_CLAMAV_TIMEOUT` | `10` | Seconds. |
+| `UPLOADS_CLAMAV_FAIL_OPEN` | `false` | `false`: an upload is refused with 503 `scanner_unavailable` when clamd gives no answer; the Field App tries again later. `true`: accept it unscanned. |
+
+An infected file is refused with 422 `file_infected` and logged as `upload.infected` with the signature
+name. A file larger than clamd's `StreamMaxLength` is refused with 422 `file_too_large`, also with
+`UPLOADS_CLAMAV_FAIL_OPEN=true`.
+
 ## Workflows and webhooks
 
 `config/workflows.php`
@@ -244,6 +299,47 @@ dashboard.
 | `SSO_SAML_SP_CERTIFICATE`, `SSO_SAML_SP_PRIVATE_KEY` | empty | Optional PEM key pair of the SAML service provider: signs authentication requests and is published in the metadata. |
 | *fixed* | TXT name `_form-schema-app-verification.<domain>`; unverify after 3 failed daily checks; IdP timeouts 10 s (connect 5 s); metadata cache 1 h; clock skew 60 s; misconfiguration notices at most every 6 h; login flows valid 10 minutes | |
 
+## Audit log
+
+`config/audit.php`. See [Protect the audit log](install.md#7-protect-the-audit-log).
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `AUDIT_RETENTION_DAYS` | `365` | `audit:prune` (daily at 03:15) deletes older entries. At least 30; the database refuses to delete younger entries. |
+| `AUDIT_EXPORT_SYNC_MAX_ROWS` | `2000` | Larger CSV exports of the audit log run in the background and arrive as a download link. |
+| `ACTIVITYLOG_ENABLED` | `true` | The audit trail. Keep it enabled. |
+
+## Privacy and retention
+
+`config/privacy.php`
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `PRIVACY_LEGAL_HOLD_MIN_MONTHS` | `120` (ten years) | Shortest retention period a form under legal hold may have. Check the periods that apply to you; this is not legal advice. |
+| `PRIVACY_RETENTION_BATCH` | `500` | Submissions per form and run of the nightly retention job (02:30); the job continues until all due submissions are done. |
+| `PRIVACY_EXPORT_KEEP_DAYS` | `7` | Personal data exports and queued audit log exports are deleted after this many days. |
+| `PRIVACY_EXPORTS_PER_HOUR` | `10` | Export requests per user and hour. |
+| `PRIVACY_EXPORT_DISK` | `local` | Disk for these exports. |
+
+## Integration tokens
+
+`config/api_tokens.php`
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `API_TOKEN_DEFAULT_EXPIRY_DAYS` | `90` | Expiry preselected for a new token. Users can still choose 7, 30, 90, 180 or 365 days, or never. |
+
+Tokens that expired more than 24 hours ago are deleted daily (`sanctum:prune-expired`).
+
+## Platform operator panel
+
+`config/platform.php`
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `PLATFORM_IMPERSONATION_MINUTES` | `30` | Longest impersonation of a member (1 to 240). |
+| `PLATFORM_SESSION_HOURS` | `12` | An operator must sign in at `/platform/login` again after this many hours. |
+
 ## Files and storage
 
 `config/filesystems.php`
@@ -252,19 +348,15 @@ dashboard.
 |---|---|---|
 | `FILESYSTEM_DISK` | `local` | Default disk (`storage/app/private`). |
 
-Only local disks are supported by the image: there is no S3 adapter installed, so the `AWS_*` variables in
-`.env.example` have no effect. Attachments always use the `local` disk. Nothing is stored on the public
+Only local disks are supported by the image: there is no S3 adapter installed. Attachments always use the
+`local` disk. Nothing is stored on the public
 disk; `php artisan storage:link` is not needed.
 
 ## Other
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `ACTIVITYLOG_ENABLED` | `true` | The audit trail. Keep it enabled. |
 | `API_VERSION` | `1.0.0` | Version shown in the OpenAPI document. |
 | `SCRAMBLE_DEV_TOOLS` | `APP_DEBUG` | Developer tools on the API documentation pages. |
 | `AUTH_PASSWORD_TIMEOUT` | `10800` | Seconds before a password confirmation is asked again. |
 | `VITE_APP_NAME` | `APP_NAME` | Build time only. |
-
-> TODO-VERIFY (M8): add the variables introduced by the hardening tasks (audit retention, privacy
-> retention, security headers, trusted proxies, error reporting, `/platform`) once they land.

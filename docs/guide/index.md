@@ -12,18 +12,18 @@ repository (ADR 0042).
 
 | Guide | Contents |
 |---|---|
-| [Install](install.md) | Production install with Docker Compose, the `.env` settings, the first organization, reverse proxy and TLS |
+| [Install](install.md) | Production install with Docker Compose, the `.env` settings, the first organization and platform operators, reverse proxy, trusted proxies and TLS, protecting the audit log |
 | [Upgrade](upgrade.md) | Upgrading from 0.x to 1.0: pre-flight checks, migrations, Horizon, the Field App update, rollback |
 | [Backup and restore](backup-restore.md) | What to back up, `APP_KEY`, `scripts/backup.sh`, `scripts/restore-drill.sh`, a full restore |
 | [Configuration reference](configuration.md) | Every environment variable and its default |
-| [Troubleshooting](troubleshooting.md) | PDFs, mail, queue, scheduler, Field App sync, SSO, login throttling |
+| [Troubleshooting](troubleshooting.md) | HTTPS and host names, PDFs, mail, queue, scheduler, Field App sync, SSO, login throttling, upload scanning, the audit log |
 
 ## For organizations
 
 | Guide | Contents |
 |---|---|
-| [Admin guide](admin-guide.md) | Roles, members and groups, forms and both builders, designs, submissions and reviews, workflows, reports and dashboards, mail settings, single sign-on |
-| [Field App guide](field-app-guide.md) | Installing the app, signing in, filling in and submitting forms, offline use and sync states, sending the PDF, reviews |
+| [Admin guide](admin-guide.md) | Roles, members and groups, forms and both builders, designs, submissions and reviews, workflows, reports and dashboards, mail settings, single sign-on, API tokens, the audit log, retention, legal holds and personal data, the `/platform` operator panel |
+| [Field App guide](field-app-guide.md) | Installing the app, signing in, filling in and submitting forms, offline use and sync states, sending the PDF, reviews, keyboard use, personal data requests |
 
 ## For developers and integrators
 

@@ -21,9 +21,9 @@ The normative contract is [docs/api/field-app-v1.md](../api/field-app-v1.md). In
 - Writes are idempotent: submissions and attachments use client-generated UUIDs, and submit, customer
   send and review decisions take an `Idempotency-Key` header.
 - Non-multipart request bodies are limited to 2 MB (413 `payload_too_large`).
-- Rate limits: 240 requests per minute per user session and, separately, per integration token, and lower
-  limits on some endpoints (for example 30 customer sends and 120 attachment uploads per minute). Over the
-  limit the API answers 429 `too_many_requests`.
+- Rate limits: 240 requests per minute (`API_RATE_LIMIT`) per user session and, separately, per
+  integration token, and lower limits on some endpoints (for example 30 customer sends and 120 attachment
+  uploads per minute). Over the limit the API answers 429 `too_many_requests`.
 
 Main endpoints (paths relative to `/api/v1`):
 
@@ -45,6 +45,11 @@ Main endpoints (paths relative to `/api/v1`):
 
 The API applies the same permissions as the dashboard: a user only sees forms, submissions and
 attachments of organizations they belong to and forms they were granted.
+
+`GET /submissions/{uuid}/document` answers 404 `document_not_ready` while the PDF is being created and
+409 `document_failed` when it could not be created. Once retention has anonymized the submission and
+deleted its PDF files, it answers 410 `document_anonymized`, also on the signed download link. That
+state is permanent: do not poll.
 
 ## OpenAPI documentation
 

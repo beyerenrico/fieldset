@@ -34,7 +34,9 @@ Contents:
    docker compose exec app php artisan migrate:status
    ```
 
-4. **Compare your `.env` with the new `.env.example`** (step 2 below lists the new settings for 1.0).
+4. **Compare your `.env` with the new templates**: `.env.production.example` for production and
+   `.env.example` for development. [What changes between versions](#what-changes-between-versions) lists
+   the new settings for 1.0.
 5. **Plan a short downtime.** The dashboard, the Field App sync and the API are unavailable while the
    `app` container restarts and runs the migrations, usually a minute or two. Field workers can keep
    working offline; their devices send everything afterwards. Large installations should allow longer:
@@ -52,6 +54,7 @@ git checkout v1.0.0
 
 # 2. Add new settings to .env (see "What changes between versions").
 git diff v0.2.0 v1.0.0 -- .env.example
+less .env.production.example     # new in 1.0: the production template
 
 # 3. Build the new image. There is no registry image to pull: the image is built from the checkout.
 docker compose build
@@ -68,7 +71,7 @@ Step 4 recreates all three application containers:
   `supervisor-exports` (added in 0.2). Recreating the container is the Horizon restart. If you run
   Horizon outside Docker, run `php artisan horizon:terminate` and let your process manager start it
   again.
-- `scheduler` picks up new scheduled tasks.
+- `scheduler` picks up new scheduled tasks. The scheduler runs in UTC (`app.timezone`).
 
 The web server configuration (`docker/app/Caddyfile`) is part of the image, so the rebuild applies its
 changes. If you replaced it with your own file, merge the changes listed below by hand.
@@ -122,14 +125,124 @@ Single sign-on and the canvas builder (milestone M7):
   Allow this in your firewall if outbound traffic is restricted (webhooks from `queue` already needed
   it).
 
-> **TODO-VERIFY (M8):** add the 1.0 hardening changes once they land: the audit log screen, its
-> retention job and the database trigger that blocks UPDATE/DELETE on audit entries (M8-T01); per-form
-> retention, data export and erasure (M8-T02); security headers, HSTS, secure cookies, trusted proxies
-> and the opaque preview origin (M8-T03); the `/platform` operator panel (M8-T06); any new environment
-> variables, scheduled tasks or Horizon queues from these tasks, and the 1.0 release notes link.
+Hardening for 1.0 (milestone M8, [release notes](../releases/1.0.0.md)):
+
+**New migrations.**
+- `2026_10_22_100000_harden_activity_log`: hash chain columns and four indexes on `activity_log`, the
+  append-only trigger, and the database functions `audit_prune()`, `audit_seal()` and
+  `audit_prunable()`. The indexes are not built concurrently, so writes to the audit log wait while they
+  build; plan for that on a large audit log.
+- `2026_10_22_100100_create_privacy_tables`: retention policies, legal holds and data exports, plus
+  `submissions.anonymized_at` and `users.erased_at`.
+- `2026_10_22_200000_create_platform_admins_table`: operators of the `/platform` panel.
+- `2026_10_22_300000_add_first_used_at_to_personal_access_tokens`: first use of integration tokens.
+
+`compose.yaml` no longer mounts `docker/postgres/init`, which created the test databases
+(`form_schema_test` and others) on a new database volume. Installations from 0.x may still have them;
+the application does not use them.
+
+The new service providers (the `/platform` panel, audit, privacy) are registered in
+`bootstrap/providers.php` and come with the new code; there is nothing to configure.
+
+**The audit log is append-only.** After the migration the database refuses every change and deletion of
+audit entries except through `audit_seal()` and `audit_prune()`.
+- Retention: `audit:prune` deletes entries older than `AUDIT_RETENTION_DAYS` (365 by default, at least
+  30). It replaces spatie's `activitylog:clean`, which the database now refuses. If you scheduled
+  `activitylog:clean` yourself, remove it.
+- Existing entries are not sealed into the hash chain yet. `audit:seal` seals them, oldest first,
+  5,000 every five minutes, and `audit:verify` reports unsealed entries until it is done. To finish at
+  once, run `docker compose exec app php artisan audit:seal --limit=100000` until it seals 0 entries.
+- Then set up the regular chain check: [Protect the audit log](install.md#7-protect-the-audit-log).
+
+**New scheduled tasks** (times in UTC; the `scheduler` service must run):
+
+| Task | When |
+|---|---|
+| `audit:seal` (catch-up sealing of the hash chain) | every 5 minutes |
+| `privacy:apply-retention` (per-form retention) | daily at 02:30 |
+| `audit:prune` (audit retention) | daily at 03:15 |
+| `model:prune` for expired personal data and audit log exports | daily at 00:00 |
+| `sanctum:prune-expired --hours=24` (expired integration tokens) | daily at 00:00 |
+
+**Horizon.** No new supervisor. Personal data and queued audit log exports run on the `exports` queue
+(`supervisor-exports`), retention runs on `default`. Recreating the `queue` container in step 4 restarts
+Horizon; outside Docker run `php artisan horizon:terminate`.
+
+**Reverse proxy on the host, `TRUSTED_PROXIES` set.**
+- `compose.yaml` now publishes the app port on `127.0.0.1` only (`127.0.0.1:${APP_PORT}:8080`). The
+  reverse proxy must run on the same host. `APP_PORT` is the port number only: if your `.env` has an
+  address in it, such as `APP_PORT=127.0.0.1:8080`, change it to `APP_PORT=8080`.
+- Before 1.0 the application trusted no proxy headers. Set `TRUSTED_PROXIES=172.16.0.0/12` as in
+  `.env.production.example`: a proxy on the host reaches the container from the Docker bridge range.
+  Without it, links and assets use `http://` and rate limits count the proxy's address. Never trust a
+  range that untrusted clients can reach ([install guide, step 5](install.md#5-reverse-proxy-and-tls)).
+- Unless `APP_ENV` is `local` or `testing`, requests for a host name other than the one in `APP_URL` get
+  400. Add further names to `TRUSTED_HOSTS`.
+
+**Admin sessions time out.** The admin dashboard now signs users out after 30 minutes without activity
+and 12 hours after sign-in at the latest (`config/security.php`). The Field App session is unchanged
+(30 days, rolling).
+
+**HTTPS headers.** Behind HTTPS, session cookies are always Secure, and `Strict-Transport-Security`
+(one year) is sent when the request is HTTPS or `APP_URL` starts with `https://`. Browsers then refuse
+plain HTTP for that host for a year; `SECURITY_HSTS_ENABLED=false` switches the header off. Every
+response now has a Content Security Policy: the admin pages load scripts, styles, fonts and images only
+from the instance itself, so customizations that load them from elsewhere are blocked.
+
+**Builder preview.** The preview runs in a sandbox on an opaque origin. The image's Caddyfile now sends
+`Access-Control-Allow-Origin: *` for `/form-preview/assets/*` and `X-Content-Type-Options: nosniff` for
+static files; the rebuild applies it. If you serve `public/` with another web server, add the same header
+for `/form-preview/assets/*`, or the preview cannot load its scripts.
+
+**Logs.** The image now formats stderr logs with `App\Support\Logging\JsonLogFormatter`: one JSON
+object per line, secrets redacted, with the request id. If your `.env` sets
+`LOG_STDERR_FORMATTER=Monolog\Formatter\JsonFormatter`, remove that line. The production template uses
+`LOG_CHANNEL=stack` and `LOG_STACK=json`; add `sentry` and `SENTRY_DSN` for error reporting
+([configuration](configuration.md#logging-and-error-reporting)). API answers with a 4xx status (validation
+errors, conflicts, not found) are no longer logged as errors.
+
+**New settings.** All have safe defaults; only `TRUSTED_PROXIES` needs a value (empty trusts no proxy).
+Details in the [configuration reference](configuration.md):
+
+```dotenv
+TRUSTED_PROXIES=172.16.0.0/12
+TRUSTED_HOSTS=
+SECURITY_HSTS_ENABLED=
+UPLOADS_CLAMAV_ENABLED=false
+UPLOADS_CLAMAV_HOST=clamav
+UPLOADS_CLAMAV_PORT=3310
+SENTRY_DSN=
+PLATFORM_IMPERSONATION_MINUTES=30
+PLATFORM_SESSION_HOURS=12
+API_TOKEN_DEFAULT_EXPIRY_DAYS=90
+AUDIT_RETENTION_DAYS=365
+PRIVACY_LEGAL_HOLD_MIN_MONTHS=120
+PRIVACY_EXPORT_KEEP_DAYS=7
+```
+
+Further optional settings: `API_RATE_LIMIT`, `LOG_JSON_STREAM`, `SENTRY_LEVEL`, `SENTRY_ENVIRONMENT`,
+`SENTRY_RELEASE`, `SENTRY_TIMEOUT`, `SECURITY_HSTS_MAX_AGE`, `SECURITY_HSTS_INCLUDE_SUBDOMAINS`,
+`SECURITY_HSTS_PRELOAD`, `UPLOADS_CLAMAV_TIMEOUT`, `UPLOADS_CLAMAV_FAIL_OPEN`,
+`AUDIT_EXPORT_SYNC_MAX_ROWS`, `PRIVACY_RETENTION_BATCH`, `PRIVACY_EXPORTS_PER_HOUR`,
+`PRIVACY_EXPORT_DISK`. The `AWS_*` lines were removed from `.env.example`; they never had an effect.
+
+**What users notice.**
+- The forms list, new forms, the search and the dashboard open the canvas builder. The classic builder
+  is one click away ("Klassischer Builder"); bookmarks to `…/forms/<id>/edit` still open it. Forms with
+  an open PDF import report still open in the classic builder.
+- New pages under "Compliance": audit log, retention, legal holds, personal data, my data. New page
+  "Team" → "API-Tokens". See the [admin guide](admin-guide.md#audit-log).
+- Nothing is deleted or anonymized until an Owner or Admin sets a retention period for a form.
+- The PDF of an anonymized submission answers **410 Gone** with a notice, in the dashboard, the Field App
+  and the API (`document_anonymized`).
+- Operators get the `/platform` panel: grant the role with `php artisan app:platform-admin <email>`.
+  `/horizon` and `/docs/api` still use `PLATFORM_ADMIN_EMAILS`.
 
 For integrators: the API stays `/api/v1`. 0.2 added `client_submitted_at` on submit and
-`retired_version_ids` in the sync manifest; see [API and integrations](api.md).
+`retired_version_ids` in the sync manifest. 1.0 adds integration tokens with abilities, a rate limit per
+token, and 410 `document_anonymized` on `GET /submissions/{uuid}/document` and the signed PDF download;
+treat it as permanent and do not poll. Field App sessions work as before. See
+[API and integrations](api.md).
 
 ## The Field App update
 
@@ -151,6 +264,7 @@ docker compose ps                                   # app and queue healthy
 docker compose exec app php artisan migrate:status  # every migration "Ran"
 docker compose exec queue php artisan horizon:status
 docker compose exec app php artisan schedule:list   # includes the new tasks
+docker compose exec app php artisan audit:verify    # after the old entries are sealed
 docker compose logs --since 15m app queue scheduler
 ```
 

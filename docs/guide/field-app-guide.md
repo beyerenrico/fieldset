@@ -21,6 +21,8 @@ Contents:
 - [Notifications](#notifications)
 - [Settings](#settings)
 - [Sign out, shared and lost devices](#sign-out-shared-and-lost-devices)
+- [Keyboard and accessibility](#keyboard-and-accessibility)
+- [Your personal data](#your-personal-data)
 
 ## Before you start
 
@@ -129,9 +131,10 @@ GPS position.
 **Location.** If the form has a location field, tap "Standort erfassen" ("Capture location"). The
 browser asks for permission first.
 
-**Signatures.** Sign in the box ("Bitte im Feld unten unterschreiben"), enter the signer's name
-("Name der unterschreibenden Person") and tap "Unterschrift bestätigen" ("Confirm signature"). The app
-stores the signature with the name and the time. This is a simple electronic signature.
+**Signatures.** Sign in the box ("Bitte im Feld unten unterschreiben") with a finger, a pen or a mouse,
+enter the signer's name ("Name der unterschreibenden Person") and tap "Unterschrift bestätigen"
+("Confirm signature"). "Löschen" ("Clear") empties the box. The app stores the signature with the name
+and the time. This is a simple electronic signature.
 
 ## Check and submit
 
@@ -209,6 +212,11 @@ discarded.
 Open a submission to see its document ("Dokument (PDF)"). While the PDF is being created the app shows
 "Das PDF wird erstellt …"; then tap "PDF öffnen" ("Open PDF"). The PDF needs a connection.
 
+Your organization can have old submissions anonymized after a set time. The PDF files of such a
+submission are deleted, and the app shows "Die PDF-Dateien wurden bei der Anonymisierung dieser
+Einreichung gelöscht." ("The PDF files were deleted when this submission was anonymized."). The PDF
+cannot be opened any more; ask your office if you need the information.
+
 If the form allows it, "An Kunden senden" ("Send to customer") emails the PDF. Enter the email address
 and, optionally, a name; the app fills them in when the form has customer fields.
 - Online: "Der Versand an … ist eingeplant." ("Sending to … is scheduled."), or the mail goes out as
@@ -276,3 +284,28 @@ The same happens when your account is deactivated.
 
 See also: [Troubleshooting](troubleshooting.md#field-app) for problems such as work that stays
 "Wartet auf Synchronisierung".
+
+## Keyboard and accessibility
+
+The app can be used with a keyboard, for example on a tablet with a keyboard:
+- Tab and Shift+Tab move through the page in reading order. The field with focus is outlined.
+- After you open a page, the focus is on its heading; in a form with several steps, on the heading of
+  the step.
+- Choose from a list by typing the first letters. Tick a check box with Space. Buttons such as "Prüfen"
+  ("Review") and "Einreichen" ("Submit") work with Enter.
+- **Signatures need a pointer:** a finger, a pen or a mouse. The name field, "Löschen" ("Clear") and
+  "Unterschrift bestätigen" ("Confirm signature") work with the keyboard. If you cannot draw a
+  signature, tell your office.
+
+"Größere Schrift" ("Larger text") in the settings makes the text in the app and in forms larger.
+
+The app was checked with automated accessibility tests (WCAG 2.2 AA) and keyboard tests. Tests with
+screen readers by people are still to come. Please tell your office about anything that does not work
+for you.
+
+## Your personal data
+
+The app has no screen to download your personal data or to delete your account. Ask an administrator
+of your organization (an Owner or Admin): they can export your data as a ZIP file or delete your account
+in the admin dashboard. Your submissions stay with your organization, because it must keep its records;
+after an account is deleted, they show "Deleted user".

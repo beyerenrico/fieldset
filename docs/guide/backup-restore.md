@@ -15,7 +15,7 @@ Contents:
 | What | Where | Why |
 |---|---|---|
 | PostgreSQL database | volume `pg-data`, service `postgres` | Everything except files: organizations, users, forms and versions, submissions and their values, workflows and runs, the mail log, settings, the audit trail. |
-| Storage volume | volume `app-storage`, mounted at `/var/www/html/storage/app` | `private/renditions/` (the PDFs), `private/attachments/` (photos, signatures, files), `private/branding/` (logos), `private/exports/` (report exports, deleted after 7 days). |
+| Storage volume | volume `app-storage`, mounted at `/var/www/html/storage/app` | `private/renditions/` (the PDFs), `private/attachments/` (photos, signatures, files), `private/branding/` (logos), `private/exports/` (report exports, deleted after 7 days), `private/data-exports/` (personal data and audit log exports, deleted after 7 days). |
 | `.env`, especially `APP_KEY` | the project directory | Without the same `APP_KEY`, encrypted data in the database cannot be read ([details](#the-app_key)). Keep it separate from the data backups. |
 | The release you run | `git describe --tags` in the project directory | Restore with the same release, then upgrade if needed. |
 
@@ -177,7 +177,9 @@ first and make sure you are restoring the right backup.
 7. **Check:** sign in at `/admin`, open a submission and download its PDF, send a test email, and look at
    "E-Mail-Protokoll" ("Mail log") for mails left "In Warteschlange" ("Queued"). Jobs that were waiting
    in Redis when the backup was taken are not part of it: missing PDFs and stalled workflow steps are
-   picked up again by the scheduler within minutes, but such mails may have to be sent again.
+   picked up again by the scheduler within minutes, but such mails may have to be sent again. Run
+   `docker compose exec app php artisan audit:verify`: the audit chains now end at the time of the
+   backup, so record the new chain heads ([Protect the audit log](install.md#7-protect-the-audit-log)).
 
 Anything created after the backup was taken is not in it. Field App devices keep the work that is still
 in their outbox and send it at their next sync; ask field workers to check "Einreichungen" →
