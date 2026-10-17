@@ -1,4 +1,5 @@
 import { expect, type Browser, type BrowserContext, type Page } from '@playwright/test';
+import { fieldAppContinueToSso } from './field-app';
 
 // The dev Keycloak (docker/keycloak, COMPOSE_PROFILES=sso). Its issuer is fixed by KC_HOSTNAME; Chromium
 // resolves *.localhost to loopback by itself and keeps Keycloak's Secure cookies over http there.
@@ -6,8 +7,6 @@ export const KEYCLOAK_URL = process.env.E2E_KEYCLOAK_URL ?? 'http://keycloak.loc
 export const KEYCLOAK_REALM = `${KEYCLOAK_URL}/realms/form-schema`;
 export const SSO_PASSWORD = 'password';
 
-const EMAIL = /^(email|e-mail)$/i;
-const CONTINUE = /^(continue|weiter)$/i;
 const HELLO = /^(hello|hallo), /i;
 
 /** A fresh browser context: no app session and no Keycloak SSO session from an earlier test. */
@@ -29,8 +28,8 @@ export async function keycloakLogin(page: Page, email: string, password = SSO_PA
 /** Field App: email → Continue (discovery says SSO) → Keycloak → back to the app's home. */
 export async function fieldAppSsoLogin(page: Page, email: string): Promise<void> {
   await page.goto('/app/login');
-  await page.getByLabel(EMAIL).fill(email);
-  await page.getByRole('button', { name: CONTINUE }).click();
+  // Enforced domains leave at once; others first offer "Continue with <organization>" or a password.
+  await fieldAppContinueToSso(page, email);
   await keycloakLogin(page, email);
   await expect(page.getByText(HELLO)).toBeVisible({ timeout: 30_000 });
   await expect(page).toHaveURL(/\/app\/$/); // `?sso=ok` is consumed

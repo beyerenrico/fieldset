@@ -1,32 +1,26 @@
 /**
  * Email-first sign-in (ADR 0036 "Home-realm discovery"): the email decides between the organization's
- * single sign-on and a password. The identity provider returns to `?sso=ok` (complete the sign-in on
- * this device) or `?sso_error=<code>` (explain and start over).
+ * central login and a password. An organization that enforces SSO is left for at once; otherwise the user
+ * chooses. The identity provider returns to `?sso=ok` (complete the sign-in on this device) or
+ * `?sso_error=<code>` (explain and start over; a password is offered when the IdP failed).
  */
 import { getRouteApi } from '@tanstack/react-router';
-import { useCallback, useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Alert } from '../components/ui/alert.tsx';
 import { usePendingLogout } from '../hooks/useSession.ts';
 import { useT } from '../i18n/I18nProvider.tsx';
-import type { DiscoveryResult, SsoErrorCode } from '../lib/api/types.ts';
+import type { SsoErrorCode } from '../lib/api/types.ts';
 import type { AuthNotice } from '../lib/session/auth-events.ts';
 import { CredentialsForm } from './login/CredentialsForm.tsx';
 import { EmailForm } from './login/EmailForm.tsx';
 import { ForeignDataPrompt } from './login/ForeignDataPrompt.tsx';
+import { SsoChoice } from './login/SsoChoice.tsx';
 import { SsoCompleting, SsoRedirect } from './login/SsoRedirect.tsx';
-import { continueToSso } from './login/sso-redirect.ts';
 import { TwoFactorForm } from './login/TwoFactorForm.tsx';
 import { useLoginCompletion, useSsoReturn } from './login/use-login-completion.ts';
+import { useLoginSteps, type LoginSteps } from './login/use-login-steps.ts';
 
 const route = getRouteApi('/login');
-
-type Step =
-    | { readonly kind: 'email'; readonly focus: boolean }
-    | { readonly kind: 'password' }
-    | { readonly kind: 'redirect'; readonly organization: string; readonly redirectUrl: string }
-    | { readonly kind: 'completing' }
-    | { readonly kind: 'two-factor' }
-    | { readonly kind: 'foreign'; readonly userId: number; readonly count: number };
 
 /** The reason for this page (logout, reauth, wipe) and a server sign-out that is still pending. */
 function LoginNotice({ notice }: { readonly notice: AuthNotice | undefined }): ReactNode {
@@ -48,28 +42,96 @@ function LoginNotice({ notice }: { readonly notice: AuthNotice | undefined }): R
     );
 }
 
-function useLoginSteps(sso: 'ok' | undefined, ssoError: SsoErrorCode | undefined) {
-    const [step, setStep] = useState<Step>(
-        sso === 'ok' ? { kind: 'completing' } : { kind: 'email', focus: false },
+interface StepProps {
+    readonly steps: LoginSteps;
+    /** Runs after the credentials (and 2FA) or the SSO login were accepted. */
+    readonly complete: () => Promise<void>;
+    /** Opens the app (after the question about another user's data). */
+    readonly enter: () => Promise<void>;
+}
+
+function EmailStep({
+    steps,
+    focus,
+}: {
+    readonly steps: LoginSteps;
+    readonly focus: boolean;
+}): ReactNode {
+    const t = useT();
+    return (
+        <EmailForm
+            email={steps.email}
+            onEmailChange={steps.setEmail}
+            onResult={steps.discovered}
+            notice={steps.error === undefined ? null : t(`auth.ssoError.${steps.error}`)}
+            focusOnMount={focus}
+            onPassword={steps.offerPassword ? steps.choosePassword : undefined}
+        />
     );
-    const [email, setEmail] = useState('');
-    const [error, setError] = useState(ssoError);
-    const onForeign = useCallback((userId: number, count: number) => {
-        setStep({ kind: 'foreign', userId, count });
-    }, []);
-    const discovered = (address: string, result: DiscoveryResult): void => {
-        setError(undefined);
-        setEmail(address);
-        if (result.mode === 'password') {
-            setStep({ kind: 'password' });
-            return;
-        }
-        // SSO: open drafts are saved and a pending sign-out is sent before the browser leaves.
-        const redirectUrl = result.redirect_url;
-        setStep({ kind: 'redirect', organization: result.organization, redirectUrl });
-        void continueToSso(redirectUrl);
-    };
-    return { step, setStep, email, setEmail, error, onForeign, discovered };
+}
+
+function PasswordStep({ steps, complete }: Omit<StepProps, 'enter'>): ReactNode {
+    return (
+        <CredentialsForm
+            email={steps.email}
+            onChangeEmail={steps.changeEmail}
+            // "Continue with central login" after `sso_required`: the user asked for it, so leave.
+            onDiscovered={(address, result) => {
+                steps.discovered(address, result, 'leave');
+            }}
+            onDone={(twoFactor) => {
+                if (twoFactor) {
+                    steps.toStep({ kind: 'two-factor' });
+                } else {
+                    void complete();
+                }
+            }}
+        />
+    );
+}
+
+function LoginStep({ steps, complete, enter }: StepProps): ReactNode {
+    const { step } = steps;
+    switch (step.kind) {
+        case 'email':
+            return <EmailStep steps={steps} focus={step.focus} />;
+        case 'password':
+            return <PasswordStep steps={steps} complete={complete} />;
+        case 'choice':
+            return (
+                <SsoChoice
+                    email={steps.email}
+                    organization={step.organization}
+                    onContinue={() => {
+                        steps.continueWith(step);
+                    }}
+                    onPassword={() => {
+                        steps.choosePassword(steps.email);
+                    }}
+                    onChangeEmail={steps.changeEmail}
+                />
+            );
+        case 'redirect':
+            return (
+                <SsoRedirect
+                    organization={step.organization}
+                    redirectUrl={step.redirectUrl}
+                    onChangeEmail={steps.changeEmail}
+                />
+            );
+        case 'completing':
+            return <SsoCompleting />;
+        case 'two-factor':
+            return <TwoFactorForm onDone={() => void complete()} />;
+        case 'foreign':
+            return (
+                <ForeignDataPrompt
+                    userId={step.userId}
+                    count={step.count}
+                    onDone={() => void enter()}
+                />
+            );
+    }
 }
 
 interface LoginFlowProps {
@@ -80,14 +142,12 @@ interface LoginFlowProps {
 
 function LoginFlow({ notice, sso, ssoError }: LoginFlowProps): ReactNode {
     const t = useT();
-    const { step, setStep, email, setEmail, error, onForeign, discovered } = useLoginSteps(
-        sso,
-        ssoError,
-    );
-    const { enter, complete } = useLoginCompletion(onForeign);
+    const steps = useLoginSteps(sso, ssoError);
+    const { enter, complete } = useLoginCompletion(steps.onForeign);
     useSsoReturn(sso === 'ok', complete);
 
-    const quiet = step.kind === 'foreign' || step.kind === 'completing' || step.kind === 'redirect';
+    const kind = steps.step.kind;
+    const quiet = kind === 'foreign' || kind === 'completing' || kind === 'redirect';
     return (
         <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-6 p-4">
             <div>
@@ -95,49 +155,7 @@ function LoginFlow({ notice, sso, ssoError }: LoginFlowProps): ReactNode {
                 <h1 className="text-3xl font-bold">{t('auth.title')}</h1>
             </div>
             {quiet ? null : <LoginNotice notice={notice} />}
-            {step.kind === 'email' ? (
-                <EmailForm
-                    email={email}
-                    onEmailChange={setEmail}
-                    onResult={discovered}
-                    notice={error === undefined ? null : t(`auth.ssoError.${error}`)}
-                    focusOnMount={step.focus}
-                />
-            ) : null}
-            {step.kind === 'password' ? (
-                <CredentialsForm
-                    email={email}
-                    onChangeEmail={() => {
-                        setStep({ kind: 'email', focus: true });
-                    }}
-                    onDiscovered={discovered}
-                    onDone={(twoFactor) => {
-                        if (twoFactor) {
-                            setStep({ kind: 'two-factor' });
-                        } else {
-                            void complete();
-                        }
-                    }}
-                />
-            ) : null}
-            {step.kind === 'redirect' ? (
-                <SsoRedirect
-                    organization={step.organization}
-                    redirectUrl={step.redirectUrl}
-                    onChangeEmail={() => {
-                        setStep({ kind: 'email', focus: true });
-                    }}
-                />
-            ) : null}
-            {step.kind === 'completing' ? <SsoCompleting /> : null}
-            {step.kind === 'two-factor' ? <TwoFactorForm onDone={() => void complete()} /> : null}
-            {step.kind === 'foreign' ? (
-                <ForeignDataPrompt
-                    userId={step.userId}
-                    count={step.count}
-                    onDone={() => void enter()}
-                />
-            ) : null}
+            <LoginStep steps={steps} complete={complete} enter={enter} />
         </main>
     );
 }

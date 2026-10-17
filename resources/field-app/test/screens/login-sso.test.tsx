@@ -101,7 +101,10 @@ describe('email step', () => {
     });
 
     it.each([
-        [HttpResponse.error(), 'You are offline. Signing in needs a connection.'],
+        [
+            HttpResponse.error(),
+            'No connection. Connect to mobile data or Wi-Fi, then tap Continue again.',
+        ],
         [
             HttpResponse.json({ message: 'x', errors: { email: ['bad'] } }, { status: 422 }),
             'Enter a valid email address.',
@@ -164,7 +167,7 @@ describe('single sign-on', () => {
         const { user } = renderApp('/login');
         await enterEmail(user);
         expect(
-            await screen.findByRole('heading', { name: 'Continue with single sign-on' }),
+            await screen.findByRole('heading', { name: 'Continue with central login' }),
         ).toBeInTheDocument();
         await waitFor(() => {
             expect(leaveForSso).toHaveBeenCalledWith(REDIRECT);
@@ -184,11 +187,11 @@ describe('single sign-on', () => {
         const { user } = renderApp('/login');
         await signIn(user, 'legacy@sso-demo.test', 'password');
         expect(await screen.findByRole('alert')).toHaveTextContent(
-            'Your organization requires single sign-on.',
+            'Your organization requires you to use its central login.',
         );
         expect(screen.queryByText('The email or password is not correct.')).toBeNull();
         backend.state.discovery = SSO;
-        await user.click(screen.getByRole('button', { name: 'Continue with single sign-on' }));
+        await user.click(screen.getByRole('button', { name: 'Continue with central login' }));
         await waitFor(() => {
             expect(leaveForSso).toHaveBeenCalledWith(REDIRECT);
         });
@@ -260,14 +263,14 @@ describe('return from the identity provider', () => {
     });
 
     it.each([
-        ['sso_failed', 'Single sign-on did not work. Please try again.'],
+        ['sso_failed', 'The central login did not work. Please try again.'],
         ['sso_denied', 'The sign-in was cancelled or refused by your organization.'],
         ['account_inactive', 'Your account is deactivated.'],
         ['not_member', 'Your account does not belong to this organization.'],
-        ['domain_not_verified', 'is not verified for single sign-on'],
+        ['domain_not_verified', 'is not verified for the central login'],
         ['email_unverified', 'Your organization has not confirmed your email address.'],
         ['provider_unavailable', 'The sign-in service of your organization cannot be reached.'],
-        ['something_new', 'Single sign-on did not work. Please try again.'],
+        ['something_new', 'The central login did not work. Please try again.'],
     ])('explains ?sso_error=%s and starts over with the email', async (code, text) => {
         signedOutBackend();
         const { user } = renderApp(`/login?sso_error=${code}`);

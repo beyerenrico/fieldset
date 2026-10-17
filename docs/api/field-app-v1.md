@@ -23,8 +23,12 @@ Non-multipart request bodies larger than 2 MB (`submissions.max_payload_bytes`) 
   (`organization`: display name; `enforced`: password login is refused). Discovery works per domain only
   (a verified domain → its organization's active provider) and never reveals whether a user exists.
   - `password`: the password step (`POST /auth/login` as above), with the email prefilled.
-  - `sso`: the client writes open drafts to the device, sends a pending `POST /auth/logout`, then
-    navigates the browser to `redirect_url` (`GET /auth/sso/{provider}/redirect?client=app…`, same origin).
+  - `sso` with `enforced: true`: the client writes open drafts to the device, sends a pending
+    `POST /auth/logout`, then navigates the browser to `redirect_url`
+    (`GET /auth/sso/{provider}/redirect?client=app…`, same origin).
+  - `sso` with `enforced: false`: the client offers "Continue with <organization>" or "Sign in with a
+    password" (the password step works as above). After `sso_failed` or `provider_unavailable` the
+    password option is offered too; the server still refuses enforced domains with `sso_required`.
   - Discovery needs the network. Offline, the client says so; an offline start from the cached session
     (M6) is unchanged.
 - **Return from the identity provider.** The SSO login ends with a redirect to `/app/login?sso=ok`: the

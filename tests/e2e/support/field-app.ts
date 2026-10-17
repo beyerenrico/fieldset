@@ -31,6 +31,39 @@ export async function fieldAppSignIn(page: Page, email: string, password = 'pass
   await page.getByRole('button', { name: /^(sign in|anmelden)$/i }).click();
 }
 
+/**
+ * Starts an SSO sign-in on the login page that is already open (ADR 0036): email → Continue. An
+ * organization that enforces SSO is left for at once; one that does not offers "Continue with
+ * <organization>" next to "Sign in with a password", so that choice is made here. Resolves once the
+ * browser has left the app for the identity provider.
+ */
+export async function fieldAppContinueToSso(page: Page, email: string): Promise<void> {
+  await page.getByLabel(/^(email|e-mail)$/i).fill(email);
+  await page.getByRole('button', { name: /^(continue|weiter)$/i }).click();
+  const timeout = 30_000;
+  const leftApp = (url: URL) => !url.pathname.startsWith('/app/');
+  const outcome = await Promise.race([
+    page.waitForURL(leftApp, { timeout }).then(
+      () => 'left' as const,
+      () => 'timeout' as const,
+    ),
+    page
+      .getByRole('button', { name: /^(sign in with a password|mit passwort anmelden)$/i })
+      .waitFor({ timeout })
+      .then(
+        () => 'choice' as const,
+        () => 'timeout' as const,
+      ),
+  ]);
+  if (outcome === 'timeout') {
+    throw new Error(`SSO sign-in for ${email} neither left the app nor offered a choice`);
+  }
+  if (outcome === 'choice') {
+    await page.getByRole('button', { name: /^(continue with|weiter mit) /i }).click();
+    await page.waitForURL(leftApp, { timeout });
+  }
+}
+
 export async function fieldAppLogin(page: Page, email: string): Promise<void> {
   await page.goto('/app/');
   await fieldAppSignIn(page, email);

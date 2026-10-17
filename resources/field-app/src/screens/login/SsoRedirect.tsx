@@ -1,11 +1,19 @@
 /**
  * Shown while the browser leaves for the organization's identity provider, and while the sign-in is
- * completed after its return (`?sso=ok`). The link is a fallback when the redirect does not start.
+ * completed after its return (`?sso=ok`). The visible "Continue with …" link is a fallback when the
+ * redirect does not start; "Use a different email" cancels a redirect that has not left yet.
  */
 import { LoaderCircle } from 'lucide-react';
 import { useLayoutEffect, useRef, type ReactNode } from 'react';
 import { Button } from '../../components/ui/button.tsx';
-import { useT } from '../../i18n/I18nProvider.tsx';
+import { useT, type Translate } from '../../i18n/I18nProvider.tsx';
+
+/** "Continue with SSO Demo GmbH", or the generic central login when the answer names no organization. */
+export function ssoContinueLabel(t: Translate, organization: string): string {
+    return organization === ''
+        ? t('auth.ssoContinueGeneric')
+        : t('auth.ssoContinue', { organization });
+}
 
 function Progress({ title, text }: { readonly title: string; readonly text: string }): ReactNode {
     const heading = useRef<HTMLHeadingElement>(null);
@@ -30,7 +38,7 @@ function Progress({ title, text }: { readonly title: string; readonly text: stri
 export interface SsoRedirectProps {
     readonly organization: string;
     readonly redirectUrl: string;
-    /** Back to the email step (e.g. after returning from the IdP with the browser's back button). */
+    /** Back to the email step: cancels the redirect, or after returning with the browser's back button. */
     readonly onChangeEmail: () => void;
 }
 
@@ -40,14 +48,11 @@ export function SsoRedirect({
     onChangeEmail,
 }: SsoRedirectProps): ReactNode {
     const t = useT();
-    const title =
-        organization === ''
-            ? t('auth.ssoContinueGeneric')
-            : t('auth.ssoContinue', { organization });
+    const title = ssoContinueLabel(t, organization);
     return (
         <div className="flex flex-col gap-4">
             <Progress title={title} text={t('auth.ssoRedirecting')} />
-            <Button asChild variant="outline" size="lg">
+            <Button asChild size="lg">
                 <a href={redirectUrl}>{title}</a>
             </Button>
             <Button type="button" variant="link" onClick={onChangeEmail}>
