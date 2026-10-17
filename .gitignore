@@ -39,3 +39,4 @@ Thumbs.db
 /storage/playwright-auth
 /public/app
 /public/form-preview
+/.claude/worktrees
