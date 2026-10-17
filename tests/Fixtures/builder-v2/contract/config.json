@@ -89,7 +89,7 @@
       }
     ]
   },
-  "checksum": "sha256:contract-fixture",
+  "checksum": "3f1d0c2b9a8e7f6d5c4b3a291807f6e5d4c3b2a1908f7e6d5c4b3a2918070f6e",
   "lockedIds": [
     "0192f1c4-0000-7000-8000-00000000b011"
   ],
@@ -138,12 +138,12 @@
         },
         {
           "type": "repeater",
-          "label": "Wiederholung",
-          "icon": "heroicon-o-queue-list",
+          "label": "Wiederholende Zeilen",
+          "icon": "heroicon-o-table-cells",
           "node": {
             "type": "repeater",
             "key": "rows",
-            "label": "Wiederholung",
+            "label": "Wiederholende Zeilen",
             "elements": []
           }
         },
@@ -168,7 +168,7 @@
     }
   ],
   "urls": {
-    "preview": "/form-preview/",
+    "preview": "http://localhost/form-preview",
     "classic": "/admin/demo/forms/42/edit"
   }
 }

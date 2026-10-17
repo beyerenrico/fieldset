@@ -28,3 +28,16 @@ it('clones a section with fresh ids, suffixed keys and rewritten references', fu
         ->and(Json::encode($section->elements[2]->visibleIf))->toBe('{"!!":{"var":"$root.other"}}')
         ->and($clone['data']['key_locked'])->toBeFalse();
 });
+
+it('gives a second copy a numbered key instead of a duplicate', function (): void {
+    $definition = Json::decode(json_encode(['specVersion' => '1.0.0', 'key' => 'k', 'title' => 'T', 'locale' => 'de-DE', 'pages' => [[
+        'key' => 'p', 'title' => 'P', 'elements' => [['id' => '00000000-0000-4000-8000-000000000001', 'type' => 'text', 'key' => 'note', 'label' => 'N']],
+    ]]]));
+    $block = (new BuilderMapper)->toState($definition)['pages'][0]['elements'][0];
+
+    $first = BlockCloner::clone($block, ['note']);
+    $second = BlockCloner::clone($block, ['note', 'note_copy']);
+
+    expect($first['data']['key'])->toBe('note_copy')->and($second['data']['key'])->toBe('note_copy2')
+        ->and($second['data']['id'])->not->toBe($first['data']['id']);
+});

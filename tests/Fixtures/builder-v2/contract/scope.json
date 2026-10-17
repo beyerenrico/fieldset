@@ -4,7 +4,9 @@
     "day": "date",
     "items": "repeater",
     "description": "text",
-    "qty": "number"
+    "qty": "number",
+    "details": "section",
+    "cols": "columns"
   },
   "rowKeys": {
     "items": [
@@ -14,6 +16,8 @@
   },
   "scopeKeys": [
     "customer",
+    "details",
+    "cols",
     "day",
     "items"
   ],

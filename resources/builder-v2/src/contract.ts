@@ -59,6 +59,7 @@ export interface PaletteGroup {
 export interface BuilderConfig {
     readonly formId: number;
     readonly definition: JsonObject;
+    /** `Json::checksum` of the stored draft: plain lowercase hex (no prefix). */
     readonly checksum: string;
     /** Ids that appear in a published version: their keys are locked. */
     readonly lockedIds: readonly string[];
@@ -72,6 +73,8 @@ export interface BuilderConfig {
 export interface InspectorScope {
     readonly keyTypes: Readonly<Record<string, string>>;
     readonly rowKeys: Readonly<Record<string, readonly string[]>>;
+    /** Every key in the node's scope, layout keys included (section, columns, heading…): the linter's
+     *  duplicate_key counts them, so autoKey suggestions must avoid them too. */
     readonly scopeKeys: readonly string[];
     /** The key still follows the label (new palette node, key not edited yet). */
     readonly autoKey: boolean;
@@ -97,7 +100,10 @@ export interface SyncResult {
     readonly savedAt: string | null;
 }
 
-/** Browser event `builder-v2:node-changed` (detail). `node` is a JSON string without children. */
+/**
+ * Browser event `builder-v2:node-changed` (detail). `node` is a JSON string with ALL own properties of
+ * the node and no children: replace the own properties (a missing one was removed), keep the children.
+ */
 export interface NodeChangedDetail {
     readonly kind: InspectorKind;
     readonly id: string | null;

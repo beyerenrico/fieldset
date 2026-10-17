@@ -68,19 +68,32 @@ final class FormEditorSchema
             ->itemLabel(fn (array $state): string => (string) ($state['title'] ?? __('forms.builder.page')))
             ->collapsible()->reorderable()->minItems(1)->defaultItems(1)
             ->addActionLabel(__('forms.builder.page').' +')
-            ->schema([
-                Hidden::make('_source'), Hidden::make('id'),
-                Grid::make(2)->schema([
-                    TextInput::make('title')->label(__('forms.builder.page_title'))->required()->live(onBlur: true),
-                    TextInput::make('key')->label(__('forms.builder.page_key'))->required()->regex('/^[a-z][a-z0-9_]{0,63}$/'),
-                ]),
-                Section::make(__('forms.element.logic'))->schema([LogicEditor::make('visible_if', __('forms.element.visible_if'))])->collapsed()->compact(),
-                ElementBlocks::builder(),
-            ]);
+            ->schema([...self::pageFields(), ElementBlocks::builder()]);
     }
 
-    /** @return list<Component> */
-    private static function settings(): array
+    /**
+     * A page's own fields (also the Builder v2 inspector for pages).
+     *
+     * @return list<Component>
+     */
+    public static function pageFields(): array
+    {
+        return [
+            Hidden::make('_source'), Hidden::make('id'),
+            Grid::make(2)->schema([
+                TextInput::make('title')->label(__('forms.builder.page_title'))->required()->live(onBlur: true),
+                TextInput::make('key')->label(__('forms.builder.page_key'))->required()->regex('/^[a-z][a-z0-9_]{0,63}$/'),
+            ]),
+            Section::make(__('forms.element.logic'))->schema([LogicEditor::make('visible_if', __('forms.element.visible_if'))])->collapsed()->compact(),
+        ];
+    }
+
+    /**
+     * The form settings fields (also the Builder v2 inspector for the settings).
+     *
+     * @return list<Component>
+     */
+    public static function settings(): array
     {
         return [Grid::make(2)->schema([
             TextInput::make('title')->label(__('forms.form.name'))->required()->maxLength(200)->live(onBlur: true),

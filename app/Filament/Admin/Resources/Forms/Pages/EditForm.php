@@ -9,7 +9,7 @@ use App\Domain\Documents\Rendering\RenderBudgetExceededException;
 use App\Domain\Documents\Rendering\RenderFailedException;
 use App\Domain\Forms\Actions\ExportDefinition;
 use App\Domain\Forms\Actions\PublishForm;
-use App\Domain\Forms\Actions\SaveDraft;
+use App\Domain\Forms\Actions\SyncDraft;
 use App\Domain\Forms\Actions\SyncFormAccess;
 use App\Domain\Forms\Builder\BuilderMapper;
 use App\Domain\Forms\Builder\KeyTypes;
@@ -18,7 +18,9 @@ use App\Domain\Forms\Models\Form;
 use App\Domain\Forms\Models\FormAccess;
 use App\Domain\Forms\Schema\DefinitionTools;
 use App\Domain\Forms\Support\DefinitionChecker;
+use App\Domain\Forms\Support\DefinitionReport;
 use App\Domain\Forms\Support\InvalidDefinitionException;
+use App\Domain\Forms\Support\PublishedElementIds;
 use App\Domain\Identity\Models\Organization;
 use App\Domain\Identity\Models\User;
 use App\Filament\Admin\Resources\Forms\FormResource;
@@ -40,7 +42,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Builder v1 page: edits the draft through the Filament Builder, lints after every save, autosaves
- * and publishes (BUILD_PROMPT §8.2, §8.10).
+ * and publishes (BUILD_PROMPT §8.2, §8.10). Every save is guarded by the checksum of the draft this
+ * page loaded, so a stale tab never overwrites what the canvas builder saved meanwhile (ADR 0037).
  *
  * @property Form $record
  */
@@ -53,6 +56,11 @@ class EditForm extends EditRecord
 
     public ?string $lastSavedHash = null;
 
+    /** Checksum of the stored draft this page last loaded or saved. */
+    public ?string $loadedChecksum = null;
+
+    public bool $staleNotified = false;
+
     public function form(Schema $schema): Schema
     {
         return FormEditorSchema::configure($schema);
@@ -61,6 +69,8 @@ class EditForm extends EditRecord
     /** @param  array<string, mixed>  $data */
     protected function mutateFormDataBeforeFill(array $data): array
     {
+        $this->loadedChecksum = Json::checksum($this->record->draft_definition);
+        $this->staleNotified = false;
         $this->refreshLint($this->record->draft_definition);
         $state = $this->mapper()->toState($this->record->draft_definition);
         $grants = FormAccess::query()->where('form_id', $this->record->id)->get();
@@ -82,11 +92,14 @@ class EditForm extends EditRecord
     {
         /** @var Form $record */
         try {
-            $this->persist($record, $data, autosave: false);
+            $saved = $this->persist($record, $data, autosave: false);
         } catch (InvalidDefinitionException|InvalidArgumentException $e) {
             Notification::make()->danger()->title($e->getMessage())->send();
 
             throw new Halt($e->getMessage(), $e->getCode(), $e);
+        }
+        if (! $saved) {
+            throw new Halt;
         }
 
         return $record;
@@ -99,29 +112,39 @@ class EditForm extends EditRecord
         /** @var array<string, mixed> $state */
         $state = is_array($raw) ? $raw : $raw->toArray();
         $hash = md5(serialize($state));
-        if ($hash === $this->lastSavedHash || ! (auth()->user()?->can('update', $this->record) ?? false)) {
+        if ($this->staleNotified || $hash === $this->lastSavedHash || ! (auth()->user()?->can('update', $this->record) ?? false)) {
             return;
         }
 
         try {
-            $this->persist($this->record, $state, autosave: true);
-            $this->lastSavedHash = $hash;
+            if ($this->persist($this->record, $state, autosave: true)) {
+                $this->lastSavedHash = $hash;
+            }
         } catch (InvalidArgumentException|InvalidDefinitionException) {
             // Incomplete edits stay in the browser until they are valid enough to store.
         }
     }
 
-    /** @param  array<string, mixed>  $data */
-    private function persist(Form $record, array $data, bool $autosave): void
+    /**
+     * Stores the builder state unless the draft changed since this page loaded it (then it notifies
+     * and returns false).
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function persist(Form $record, array $data, bool $autosave): bool
     {
         $definition = $this->mapper()->toDefinition($data);
-        try {
-            $report = app(SaveDraft::class)->handle($record, $definition, $this->actor(), $autosave);
-        } catch (InvalidDefinitionException $e) {
-            $this->lint = $e->report->toArray();
-            throw $e;
+        $result = app(SyncDraft::class)->handle($record, $definition, $this->loadedChecksum, $this->actor(), audit: ! $autosave);
+        if ($result['status'] === 'conflict') {
+            $this->notifyStale();
+
+            return false;
         }
-        $this->lint = $report->toArray();
+        $this->lint = $result['lint'];
+        if ($result['status'] === 'invalid') {
+            throw new InvalidDefinitionException(new DefinitionReport($result['lint']['schema_errors'], []));
+        }
+        $this->loadedChecksum = $result['checksum'];
 
         if (! $autosave) {
             app(SyncFormAccess::class)->handle(
@@ -131,11 +154,47 @@ class EditForm extends EditRecord
                 $this->actor(),
             );
         }
+
+        return true;
+    }
+
+    /** Once per page load: the draft was saved elsewhere (another tab or the canvas builder). */
+    private function notifyStale(): void
+    {
+        if ($this->staleNotified) {
+            return;
+        }
+        $this->staleNotified = true;
+        Notification::make()->danger()->persistent()
+            ->title(__('forms.canvas.stale_title'))->body(__('forms.canvas.stale_body'))
+            ->actions([Action::make('reload')->label(__('forms.canvas.reload'))->button()
+                ->url(FormResource::getUrl('edit', ['record' => $this->record]))])
+            ->send();
     }
 
     protected function getHeaderActions(): array
     {
-        return [$this->publishAction(), $this->previewPdfAction(), $this->exportDraftAction(), $this->dismissImportReportAction()];
+        return [$this->publishAction(), $this->previewPdfAction(), $this->exportDraftAction(), $this->canvasAction(), $this->dismissImportReportAction()];
+    }
+
+    /** Builder v2 (ADR 0037): saves the classic builder first, then opens the canvas builder on the same draft. */
+    private function canvasAction(): Action
+    {
+        return Action::make('canvas')->label(__('forms.canvas.open'))->icon('heroicon-o-squares-2x2')->color('gray')
+            ->authorize(fn (): bool => auth()->user()?->can('update', $this->record) ?? false)
+            ->action(function (): void {
+                $state = $this->form->getState();
+                try {
+                    $saved = $this->persist($this->record, is_array($state) ? $state : [], autosave: false);
+                } catch (InvalidDefinitionException|InvalidArgumentException $e) {
+                    Notification::make()->danger()->title($e->getMessage())->send();
+
+                    return;
+                }
+                if ($saved) {
+                    $this->redirect(FormResource::getUrl('canvas', ['record' => $this->record]));
+                }
+            });
     }
 
     /** "Preview PDF" (§8.2): the unsaved definition with sample data and the design it selects. */
@@ -199,7 +258,9 @@ class EditForm extends EditRecord
                     if ($state === null) {
                         return;
                     }
-                    $this->persist($this->record, $state, autosave: true);
+                    if (! $this->persist($this->record, $state, autosave: true)) {
+                        return;
+                    }
                     $version = app(PublishForm::class)->handle($this->record->refresh(), (string) $data['changelog'], $this->actor());
                 } catch (InvalidDefinitionException $e) {
                     $this->lint = $e->report->toArray();
@@ -297,16 +358,7 @@ class EditForm extends EditRecord
 
     private function mapper(): BuilderMapper
     {
-        $locked = [];
-        foreach ($this->record->versions()->get() as $version) {
-            foreach (DefinitionTools::elements($version->definition) as $element) {
-                if (is_string($element->id ?? null)) {
-                    $locked[] = $element->id;
-                }
-            }
-        }
-
-        return new BuilderMapper(array_values(array_unique($locked)));
+        return new BuilderMapper(PublishedElementIds::of($this->record));
     }
 
     private function actor(): User

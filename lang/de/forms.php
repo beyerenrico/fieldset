@@ -269,5 +269,24 @@ return [
     ],
     'canvas' => [
         'title' => 'Canvas-Builder: :name',
+        'open' => 'Canvas-Builder',
+        'palette' => [
+            'input' => 'Eingabe',
+            'capture' => 'Erfassung',
+            'computed' => 'Berechnung',
+            'structure' => 'Struktur',
+            'layout' => 'Layout',
+        ],
+        'option' => 'Option :number',
+        'invalid_json' => 'Die Definition ist kein JSON-Objekt.',
+        'inspector' => [
+            'empty' => 'Wählen Sie eine Seite oder ein Element, um die Eigenschaften zu bearbeiten.',
+        ],
+        'today' => 'Heute',
+        'now' => 'Jetzt',
+        'stale_title' => 'Der Entwurf wurde an anderer Stelle geändert',
+        'stale_body' => 'Dieser Entwurf wurde in einem anderen Tab oder Builder gespeichert. Laden Sie neu, um mit der aktuellen Fassung weiterzuarbeiten.',
+        'reload' => 'Neu laden',
+        'stale_action' => 'Der Entwurf hat sich seit dem Laden geändert. Speichern oder neu laden und erneut versuchen.',
     ],
 ];
