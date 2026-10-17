@@ -4,6 +4,7 @@
  * instances and routes clicks on cards (select, collapse, Move menu, columns).
  */
 import type { Actions } from './actions.ts';
+import { DragClickGuard } from './canvas/click-guard.ts';
 import { cardId, cardOf, focusMark, focusNode, type FocusMark } from './canvas/focus.ts';
 import type { MoveMenu } from './canvas/menu.ts';
 import type { CanvasRenderer, Marker, ViewState } from './canvas/render.ts';
@@ -28,10 +29,11 @@ export class CanvasView {
     #dragging = false;
     #pending = false;
     #renderedDefinition: object | null = null;
-    #dragEndedAt = Number.NEGATIVE_INFINITY;
+    readonly #clickGuard: DragClickGuard;
 
     constructor(deps: ViewDeps) {
         this.#deps = deps;
+        this.#clickGuard = new DragClickGuard(deps.tree.ownerDocument);
         deps.tree.addEventListener('click', this.#onClick);
         deps.tree.addEventListener('focusin', this.#onFocusIn);
     }
@@ -39,6 +41,7 @@ export class CanvasView {
     destroy(): void {
         this.#deps.tree.removeEventListener('click', this.#onClick);
         this.#deps.tree.removeEventListener('focusin', this.#onFocusIn);
+        this.#clickGuard.destroy();
     }
 
     #viewState(state: StoreState): ViewState {
@@ -115,16 +118,16 @@ export class CanvasView {
     setDragging(dragging: boolean): void {
         this.#dragging = dragging;
         if (!dragging) {
-            this.#dragEndedAt = Date.now();
+            this.#clickGuard.arm();
             if (this.#pending) {
                 this.render();
             }
         }
     }
 
-    /** True within 400 ms after a drag ended (suppresses the click that may follow). */
+    /** True, once, for the click a drag gesture ends with (it must not select or insert again). */
     justDragged(): boolean {
-        return Date.now() - this.#dragEndedAt < 400;
+        return this.#clickGuard.consume();
     }
 
     readonly #onFocusIn = (event: FocusEvent): void => {

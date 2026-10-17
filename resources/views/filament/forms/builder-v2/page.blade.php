@@ -104,7 +104,13 @@
         </div>
         @endif
 
-        <aside class="bv2-inspector" data-builder-inspector aria-label="{{ __('builder_v2.inspector.label') }}">
+        {{-- data-builder-inspected: the node the fields belong to (its id, "settings", or empty), updated with them. --}}
+        <aside
+            class="bv2-inspector"
+            data-builder-inspector
+            data-builder-inspected="{{ $this->inspectorKind === null ? '' : ($this->inspectorId ?? $this->inspectorKind) }}"
+            aria-label="{{ __('builder_v2.inspector.label') }}"
+        >
             {{ $this->inspector }}
         </aside>
     </div>

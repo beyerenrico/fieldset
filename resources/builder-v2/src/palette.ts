@@ -12,7 +12,7 @@ export interface PaletteDeps {
     readonly tr: Translator;
     readonly icons: TypeIcons;
     readonly insert: (type: string) => void;
-    /** True right after a drag ended (a click must not insert a second copy). */
+    /** True, once, for the click a drag gesture ends with (it must not insert a second copy). */
     readonly justDragged: () => boolean;
 }
 

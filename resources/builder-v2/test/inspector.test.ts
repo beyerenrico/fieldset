@@ -189,6 +189,41 @@ describe('inspector glue', () => {
         expect(commit).toHaveBeenCalledTimes(2);
     });
 
+    it('inspects a node that an operation selected (palette insert), not its own updates', async () => {
+        store.select({ kind: 'element', id: ID.customer });
+        await settle();
+        inspect.mockClear();
+        const id = '0192f1c4-0000-7000-8000-00000000b0ff';
+        store.dispatch(
+            {
+                op: 'insert',
+                target: { kind: 'page', pageId: ID.pageStart },
+                index: 1,
+                node: { id, type: 'text', key: 'new_text', label: 'Neu' },
+            },
+            { label: 'Insert', select: { kind: 'element', id } },
+        );
+        await settle();
+        expect(inspect).toHaveBeenCalledTimes(1);
+        expect(inspect).toHaveBeenLastCalledWith(
+            'element',
+            id,
+            expect.any(String),
+            expect.any(String),
+        );
+        nodeChanged({
+            kind: 'element',
+            id,
+            node: JSON.stringify({ id, type: 'text', key: 'new_text', label: 'Neuer Text' }),
+        });
+        store.dispatch(
+            { op: 'move', id, target: { kind: 'page', pageId: ID.pageStart }, index: 0 },
+            { label: 'Move' },
+        );
+        await settle();
+        expect(inspect).toHaveBeenCalledTimes(1);
+    });
+
     it('re-inspects after undo and takes locked ids from builder-v2:published', async () => {
         store.select({ kind: 'element', id: ID.customer });
         nodeChanged(contractFixture('node-changed'));
@@ -202,5 +237,14 @@ describe('inspector glue', () => {
         );
         expect([...store.state.lockedIds]).toHaveLength(2);
         expect(announce).toHaveBeenCalledWith('Version 1 published.');
+        // The inspected node is loaded again, so a key that is now published shows as locked.
+        await settle();
+        expect(inspect).toHaveBeenCalledTimes(2);
+        expect(inspect).toHaveBeenLastCalledWith(
+            'element',
+            ID.customer,
+            expect.any(String),
+            expect.any(String),
+        );
     });
 });

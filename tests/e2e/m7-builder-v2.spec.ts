@@ -10,6 +10,7 @@ import {
   pageCard,
   pageList,
   palette,
+  publishDraft,
   readDefinition,
   root,
   section72,
@@ -76,15 +77,28 @@ test('designer builds the §7.2 example by drag and drop', async ({ page }) => {
     'data-builder-key',
     'customer_name',
   );
+  // The Move menu is the single-pointer alternative to dragging (WCAG 2.5.7).
+  await nodeByKey(page, 'service_date').locator(':scope > .bv2-card__head > [data-builder-menu]').click();
+  await page.locator('[role="menu"] [data-builder-action="move-up"]').click();
+  await expect(pageList(page, 0).locator(':scope > [data-builder-node]').first()).toHaveAttribute(
+    'data-builder-key',
+    'service_date',
+  );
+  await page.locator('[data-builder-toolbar="undo"]').click();
+  await expect(pageList(page, 0).locator(':scope > [data-builder-node]').first()).toHaveAttribute(
+    'data-builder-key',
+    'customer_name',
+  );
 
   await expectSaved(page);
   expect(skeletonOf(await readDefinition(page))).toEqual(section72());
   await page.screenshot({ path: evidence('30-canvas-drag'), fullPage: true });
 
-  // The draft is stored: a reload shows the same structure.
+  // The draft is stored: a reload shows the same structure, which the designer then publishes.
   await page.reload();
   await expect(root(page)).toHaveAttribute('data-builder-ready', '');
   expect(skeletonOf(await readDefinition(page))).toEqual(section72());
+  await publishDraft(page, 'Servicebericht per Drag and Drop', 'mouse');
 });
 
 async function insertByKeyboard(page: Page, type: string): Promise<void> {
@@ -138,16 +152,20 @@ test('designer builds the §7.2 example with the keyboard only', async ({ page }
     await editSelected(page, element);
   }
 
-  // Keyboard move across pages and back, then the Move menu (single-pointer alternative).
-  await nodeByKey(page, 'defect').click();
+  // Keyboard move across pages and back, then the Move menu, opened and used with the keyboard.
+  await nodeByKey(page, 'defect').focus();
+  await page.keyboard.press('Enter');
+  await expect(selected(page)).toHaveAttribute('data-builder-key', 'defect');
   await moveSelected(page, ['PageDown']);
   await expect(pageList(page, 1).locator(':scope > [data-builder-node]').first()).toHaveAttribute(
     'data-builder-key',
     'defect',
   );
   await moveSelected(page, ['PageUp']);
-  await nodeByKey(page, 'service_date').locator('[data-builder-menu]').first().click();
-  await page.locator('[role="menu"] [data-builder-action="move-up"]').click();
+  await nodeByKey(page, 'service_date').locator(':scope > .bv2-card__head > [data-builder-menu]').focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('[role="menu"] [data-builder-action="move-up"]')).toBeFocused();
+  await page.keyboard.press('Enter');
   await expect(pageList(page, 0).locator(':scope > [data-builder-node]').first()).toHaveAttribute(
     'data-builder-key',
     'service_date',
@@ -156,6 +174,11 @@ test('designer builds the §7.2 example with the keyboard only', async ({ page }
 
   await expectSaved(page);
   expect(skeletonOf(await readDefinition(page))).toEqual(section72());
+  await publishDraft(page, 'Servicebericht per Tastatur', 'keyboard');
+  // The inspector reloads the selected element: its key is published now and locked.
+  await expect(
+    page.locator('[data-builder-inspector]').getByRole('textbox', { name: /^(schlüssel|key)/i }),
+  ).toBeDisabled();
   await page.screenshot({
     path: evidence('31-canvas-keyboard'),
     fullPage: true,

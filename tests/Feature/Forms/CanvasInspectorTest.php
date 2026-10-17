@@ -237,3 +237,17 @@ it('keeps the inspector state small and never in the page config', function (): 
     expect($page->get('inspectorData'))->not->toHaveKey('elements')
         ->and(strlen(json_encode($page->get('inspectorData'))))->toBeLessThan(4000);
 });
+
+it('marks the inspector pane with the node its fields belong to', function (): void {
+    $definition = useContractDraft($this->form, $this->designer);
+    $customer = findElement($definition, 'customer');
+    $scope = inspectorScope($definition);
+
+    canvasPage($this->form)->assertSeeHtml('data-builder-inspected=""')
+        ->call('inspect', 'element', $customer->id, Json::encode($customer), $scope)
+        ->assertSeeHtml('data-builder-inspected="'.$customer->id.'"')
+        ->call('inspect', 'page', $definition->pages[1]->id, Json::encode($definition->pages[1]), $scope)
+        ->assertSeeHtml('data-builder-inspected="'.$definition->pages[1]->id.'"')
+        ->call('inspect', 'settings', null, Json::encode($definition), $scope)
+        ->assertSeeHtml('data-builder-inspected="settings"');
+});

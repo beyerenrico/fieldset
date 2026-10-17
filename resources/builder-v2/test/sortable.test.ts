@@ -111,6 +111,28 @@ describe('SortableJS onEnd handling', () => {
         expect(to.children).toHaveLength(0);
     });
 
+    it('reads the insert position of a palette drop from the target list, not from SortableJS', () => {
+        const palette = list('', ['text'], 'data-builder-palette-item');
+        palette.removeAttribute('data-builder-container');
+        palette.setAttribute('data-builder-palette', '');
+        const to = list('page:p1', ['a', 'b']);
+        const item = palette.children[0] as HTMLElement;
+        const clone = item.cloneNode(true) as HTMLElement;
+        palette.insertBefore(clone, item);
+        to.append(item); // dropped below the last card
+        // SortableJS counts with the palette's draggable selector, which matches no card: always 0.
+        const event = {
+            item,
+            from: palette,
+            to,
+            oldDraggableIndex: 0,
+            newDraggableIndex: 0,
+        } as unknown as Sortable.SortableEvent;
+        expect(dropRequest(event)).toMatchObject({ kind: 'insert', type: 'text', index: 2 });
+        to.insertBefore(item, to.children[1] ?? null);
+        expect(dropRequest(event)).toMatchObject({ kind: 'insert', index: 1 });
+    });
+
     it('ignores drops that change nothing or land outside the canvas', () => {
         const from = list('page:p1', ['a']);
         const item = from.children[0] as HTMLElement;

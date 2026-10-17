@@ -43,6 +43,13 @@ export function inspectedNode(definition: Definition, selection: Selection): Jso
     return entry === null ? null : omit(entry.node, CHILD_KEYS);
 }
 
+function sameSelection(a: Selection, b: Selection): boolean {
+    if (a === null || b === null) {
+        return a === b;
+    }
+    return a.kind === b.kind && (a.kind === 'settings' || (b.kind !== 'settings' && a.id === b.id));
+}
+
 function parseNodeChanged(
     detail: unknown,
 ): { kind: InspectorKind; id: string | null; node: JsonObject } | null {
@@ -73,6 +80,8 @@ export class InspectorGlue {
     #commit: Promise<void> = Promise.resolve();
     /** The node the Livewire inspector currently shows (pending edits belong to it). */
     #inspected: Selection = null;
+    /** The node last sent (or being sent) to `inspect()`. */
+    #requested: Selection = null;
 
     constructor(deps: InspectorDeps) {
         this.#deps = deps;
@@ -99,21 +108,32 @@ export class InspectorGlue {
         return JSON.stringify(inspectorScope(state.definition, selection, state.autoKeyIds));
     }
 
+    /**
+     * Inspects on every explicit selection, after undo/redo, and whenever an operation selected
+     * another node (a palette insert, a duplicate, a new page); never for its own updates.
+     */
     readonly #onStore = (state: StoreState, change: Change): void => {
+        const { selection } = state;
+        const travelled = change.kind === 'undo' || change.kind === 'redo';
         if (
             change.kind === 'select' ||
-            ((change.kind === 'undo' || change.kind === 'redo') && state.selection !== null)
+            (selection !== null && (travelled || !sameSelection(selection, this.#requested)))
         ) {
             void this.inspect(state);
         }
     };
 
-    /** Sends the pending commit first, so edits never land on the next node. */
+    /**
+     * Sends the pending commit first, so edits never land on the next node, then inspects the
+     * node as it is after that commit (skipped when a newer selection superseded it meanwhile).
+     */
     async inspect(state: StoreState = this.#deps.store.state): Promise<void> {
-        await this.flush();
         const { selection } = state;
-        const node = inspectedNode(state.definition, selection);
-        if (selection === null || node === null) {
+        this.#requested = selection;
+        await this.flush();
+        const current = this.#deps.store.state;
+        const node = inspectedNode(current.definition, selection);
+        if (selection === null || node === null || !sameSelection(selection, this.#requested)) {
             return;
         }
         const id = selection.kind === 'settings' ? null : selection.id;
@@ -122,7 +142,7 @@ export class InspectorGlue {
             selection.kind,
             id,
             JSON.stringify(node),
-            this.#scopeJson(state, selection),
+            this.#scopeJson(current, selection),
         );
     }
 
@@ -206,6 +226,9 @@ export class InspectorGlue {
             store.setAutoKey(id, false);
         });
         store.setLockedIds(ids);
+        if (store.state.selection !== null) {
+            void this.inspect(); // shows a key that is now published as locked
+        }
         this.#deps.announce(
             tr.t('announce.published', {
                 version: typeof detail.version === 'number' ? detail.version : 0,

@@ -45,7 +45,9 @@
     position: relative;
     display: grid;
     gap: 1rem;
-    grid-template-columns: 13rem minmax(0, 1fr) minmax(20rem, 26rem);
+    /* The canvas never gets narrower than its cards (they would slide under the inspector and the
+       preview); the inspector grows with the canvas instead of taking its maximum first. */
+    grid-template-columns: 13rem minmax(min-content, 3fr) minmax(20rem, 2fr);
     grid-template-areas:
         'toolbar toolbar toolbar'
         'banner banner banner'

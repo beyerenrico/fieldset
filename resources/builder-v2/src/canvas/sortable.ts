@@ -78,7 +78,24 @@ export function revertDom(
     from.insertBefore(item, from.children[oldIndex ?? from.children.length] ?? null);
 }
 
-/** Reads the proposed drop (final index in the target list) from an onEnd event. */
+const CARD = '[data-builder-node], [data-builder-page]';
+
+/** The cards before the dropped item: its final index once the drop is applied. */
+function cardsBefore(item: HTMLElement): number {
+    let count = 0;
+    for (let el = item.previousElementSibling; el !== null; el = el.previousElementSibling) {
+        if (el.matches(CARD)) {
+            count += 1;
+        }
+    }
+    return count;
+}
+
+/**
+ * Reads the proposed drop (final index in the target list) from an onEnd event. The index comes
+ * from the item's place in the target list: SortableJS's newDraggableIndex counts with the source
+ * list's draggable selector, which for a palette clone matches no card and is always 0.
+ */
 export function dropRequest(
     event: Pick<
         Sortable.SortableEvent,
@@ -86,7 +103,8 @@ export function dropRequest(
     >,
 ): DropRequest | null {
     const target = containerOf(event.to);
-    const index = event.newDraggableIndex;
+    const index =
+        event.item.parentElement === event.to ? cardsBefore(event.item) : event.newDraggableIndex;
     if (target === null || index === undefined) {
         return null;
     }

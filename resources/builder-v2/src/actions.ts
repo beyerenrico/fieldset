@@ -243,7 +243,7 @@ export class Actions {
     }
 
     addPage(): boolean {
-        const { store, tr } = this.#deps;
+        const { tr } = this.#deps;
         const pages = listEntry(this.#definition, { kind: 'pages' })?.ids ?? [];
         const number = pages.length + 1;
         const key = uniqueKey(
@@ -259,7 +259,7 @@ export class Actions {
             'history.add_page',
         );
         if (ok) {
-            store.select({ kind: 'page', id: str(node.id) ?? '' });
+            // insert() already selected the page (and the inspector follows the selection).
             this.#deps.announce(tr.t('announce.page_added', { label: title }));
         }
         return ok;
