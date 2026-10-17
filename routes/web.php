@@ -62,7 +62,7 @@ Route::prefix('auth/sso')->name('sso.')->group(function (): void {
     Route::get('{provider}/callback', CallbackController::class)->whereUuid('provider')->middleware('throttle:30,1')->name('callback');
     Route::get('{provider}/saml/metadata', SamlMetadataController::class)->whereUuid('provider')->name('saml.metadata');
     // A cross-site POST from the IdP carries no Lax session cookie and must not start or overwrite a session.
-    Route::post('{provider}/saml/acs', SamlAcsController::class)->whereUuid('provider')
+    Route::post('{provider}/saml/acs', SamlAcsController::class)->whereUuid('provider')->middleware('throttle:30,1')
         ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class])
         ->name('saml.acs');
 });

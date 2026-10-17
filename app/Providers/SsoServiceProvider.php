@@ -53,12 +53,28 @@ final class SsoServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        self::refuseDevSettingsInProduction();
+
         // Managed only through the provider's settings (IdentityProviderPolicy); never exposed on their own.
         Gate::policy(IdentityProviderMapping::class, InternalRecordPolicy::class);
         Gate::policy(ExternalIdentity::class, InternalRecordPolicy::class);
 
         if ($this->app->runningInConsole()) {
             $this->commands([CheckProvidersCommand::class, RecheckSsoDomainsCommand::class]);
+        }
+    }
+
+    /**
+     * The insecure IdP mode (no SSRF guard) and the config-backed DNS driver are for dev/CI only. The dev
+     * compose override sets both, so a production deployment started with it must fail loudly (M7 review).
+     */
+    public static function refuseDevSettingsInProduction(): void
+    {
+        if (! app()->isProduction()) {
+            return;
+        }
+        if ((bool) config('sso.allow_insecure_idp') || config('sso.dns.driver') === 'config') {
+            throw new \RuntimeException('SSO_ALLOW_INSECURE_IDP and SSO_DNS_DRIVER=config are not allowed in production.');
         }
     }
 }
