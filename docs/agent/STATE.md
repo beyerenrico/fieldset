@@ -1,28 +1,26 @@
-# State: 2026-10-18T19:00Z
-Milestone: M7 SSO + Builder v2 · Branch m7-sso-builder (M6 merged, tags m6-done + v0.2.0)
-Done: M7 plan (d061673), ADR 0036 SSO + 0037 Builder v2, M7.md (ownership/interfaces), Builder v2
-skeleton (58c0a78), SSO composer packages (3b3d09c).
-M7 implementation + integration committed. Reviews done; fixes committed: SSO (c1b0c5a: Owner-only
-IdP security, front-channel spoofing, SAML subject, login CSRF), Field App login (67b582e), Builder v2
-E2E fixes (4a21074), production guard (c76cfc9).
-In flight: FB Builder v2 fix agent (review findings: a11y keyboard/focus, audit on save, publish race).
+# State: 2026-10-18T21:00Z
+Milestone: M8 Hardening → 1.0 · Branch m8-hardening (M7 merged, tag m7-done)
+Tasks in flight: none. M8 broken down in PLAN (M8-T01..T10).
 Last commit: see `git log -1`
 
 ## Next actions
-1. FB result → commit; rebuild (COMPOSE_PROFILES=sso), reseed, full E2E ×2 (--workers=2).
-2. Gate M7: coverage.sh, PHPStan, Rector, Pint, JS (4 workspaces), conformance, licenses; M7.md;
-   merge, tag m7-done; branch m8-hardening; break down M8.
+1. M8 parallel work with disjoint ownership (one ADR per architectural choice):
+   - audit UI + retention + trigger/hash chain (T01) and GDPR retention/export/erasure (T02);
+   - security hardening incl. opaque preview origin (T03) and /platform panel (T06);
+   - a11y audit (T04), performance/load evidence (T05), docs/guides (T07), carry-overs (T08).
+2. Gate M8, then release 1.0 (T09): final gate on main, FINAL_REPORT.md, STATE "Run complete".
 
 ## Known problems
-- Builder v1 page heavy (QUESTIONS #8): E2E waits 30 s for its navigation/publish.
-- Preview iframe same-origin (QUESTIONS #10, M8) — now also guards the Field App's IndexedDB.
-- E2E: `npm run e2e` (browsers in storage/playwright); `php artisan cache:clear` in the app container
-  between quick reruns; use `--workers=2` when the machine is loaded (antivirus spikes).
+- Reviewer's Field App detail showed a generic error panel after approving (M7 E2E leftover page) — T08.
+- Builder v1 page heavy (QUESTIONS #8); v2 exists, v1 still default — decide in T08.
+- E2E: `npm run e2e -- --workers=2` with `COMPOSE_PROFILES=sso` (Keycloak); `php artisan cache:clear` in
+  the app container between quick reruns; recreate Keycloak after realm changes
+  (`docker compose up -d --force-recreate keycloak`).
 - E2E runs rewrite evidence PNGs of earlier milestones: `git checkout` them before committing.
-- Field App tests that touch Dexie with fake timers must use FAKE_TIMERS (LEARNINGS #50).
+- Field App tests touching Dexie with fake timers must use FAKE_TIMERS (LEARNINGS #50).
 
 ## Resume commands
-docker compose up -d
+COMPOSE_PROFILES=sso docker compose up -d --wait
 DB_DATABASE=form_schema_test php artisan test --compact --parallel
-npm run test -w resources/field-app
+npm run test
 vendor/bin/rector --dry-run --no-progress-bar   # CI gate, must be 0 files

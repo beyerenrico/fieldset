@@ -87,3 +87,12 @@
   limit → third demo worker. Reviews: 4 high security/correctness + 4 high UX; all fixed (c597dde, d6479da).
 - Gate: PHP 3799, coverage 95.00 %, PHPStan 0/0, Rector/Pint clean, JS 608/111/557, conformance
   391/392, E2E 24/24 ×2 (--workers=2: antivirus load ~100). Release 0.2.0.
+
+## 2026-10-18 M7 gate (SSO + Builder v2)
+- Two design agents → ADR 0036 (SSO), 0037 (Builder v2); skeletons by me/an agent; five parallel agents
+  (SSO core/admin/Field App+Keycloak, Builder server/client) + an E2E fixer.
+- E2E found: admin login step actions, libcurl *.localhost (pinning), discovery throttle per IP, palette
+  drop index + inspector not following inserts. Reviews: 1 high security (IdP repoint by Admin), 3 high
+  UX/correctness; all fixed (c1b0c5a, 2a10f1b, 67b582e, c2a00a5).
+- Gate: PHP 4303, coverage 95.10 %, PHPStan 0/0, Rector/Pint clean, JS 608/111/614/243, conformance
+  391/392, E2E 34/34 ×2 with Keycloak.
