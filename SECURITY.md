@@ -3,7 +3,7 @@
 ## Reporting a vulnerability
 
 Please **do not** open a public issue for security problems. Email the maintainers at
-`security@localhost` (replace with the project's security contact before release) with:
+`beyer.enrico@outlook.com` with:
 
 - a description of the issue and its impact,
 - steps to reproduce or a proof of concept,
