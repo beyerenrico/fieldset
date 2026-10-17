@@ -65,3 +65,12 @@ Format: question · chosen option · impact · how to reverse.
    might not carry the session (ADR 0036) · untested (no device in this run) · field workers on iPhones
    who installed the app could fail to sign in with SSO · test on a real device in M8/1.0; fallback:
    start SSO in Safari, or use the password option when the organization does not enforce SSO.
+19. Web push (§8.9 "comes in v1.0") is deferred past 1.0 (ADR 0045): it needs VAPID secrets, a new crypto
+   dependency or hand-written RFC 8291/8292 code, outbound calls to push services, a subscriptions table with
+   GDPR handling and an `injectManifest` service worker · accepted for 1.0: in-app (polling) and email cover the
+   events · field workers learn about new tasks only when they open the app or read their mail · decide the
+   priority and the library (`minishlink/web-push` or own code) for 1.1.
+20. Handwritten signatures need a pointer (Field App, M8-T04): the pad has no typed alternative; WCAG 2.1.1
+   exempts path-dependent input, and the name, clear and confirm controls work by keyboard · accepted ·
+   keyboard-only and switch users cannot sign on their own · add a "type your name as signature" mode if forms
+   are filled by users who cannot draw (legal effect to be checked per organization).
