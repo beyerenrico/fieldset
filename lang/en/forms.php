@@ -267,4 +267,7 @@ return [
         'empty_page' => 'Page has no elements',
         'schema' => 'Structure error',
     ],
+    'canvas' => [
+        'title' => 'Canvas builder: :name',
+    ],
 ];

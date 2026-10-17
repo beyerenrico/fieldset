@@ -1,0 +1,5 @@
+{
+  "kind": "element",
+  "id": "0192f1c4-0000-7000-8000-00000000b011",
+  "node": "{\"id\": \"0192f1c4-0000-7000-8000-00000000b011\", \"type\": \"text\", \"key\": \"customer\", \"label\": \"Kunde (Firma)\", \"required\": true, \"x-crm\": {\"field\": \"name\"}}"
+}

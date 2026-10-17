@@ -1,0 +1,174 @@
+{
+  "formId": 42,
+  "definition": {
+    "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+    "specVersion": "1.0.0",
+    "key": "contract_form",
+    "title": "Vertragsformular",
+    "locale": "de-DE",
+    "settings": {
+      "layout": "wizard",
+      "numbering": {
+        "format": "CF-{YYYY}-{SEQ:5}",
+        "reset": "yearly"
+      }
+    },
+    "pages": [
+      {
+        "id": "0192f1c4-0000-7000-8000-00000000b001",
+        "key": "start",
+        "title": "Start",
+        "elements": [
+          {
+            "id": "0192f1c4-0000-7000-8000-00000000b011",
+            "type": "text",
+            "key": "customer",
+            "label": "Kunde",
+            "required": true,
+            "x-crm": {
+              "field": "name"
+            }
+          },
+          {
+            "id": "0192f1c4-0000-7000-8000-00000000b012",
+            "type": "section",
+            "key": "details",
+            "label": "Details",
+            "elements": [
+              {
+                "id": "0192f1c4-0000-7000-8000-00000000b013",
+                "type": "columns",
+                "key": "cols",
+                "columns": [
+                  {
+                    "elements": [
+                      {
+                        "id": "0192f1c4-0000-7000-8000-00000000b014",
+                        "type": "date",
+                        "key": "day",
+                        "label": "Tag"
+                      }
+                    ]
+                  },
+                  {
+                    "elements": []
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "0192f1c4-0000-7000-8000-00000000b002",
+        "key": "items_page",
+        "title": "Positionen",
+        "elements": [
+          {
+            "id": "0192f1c4-0000-7000-8000-00000000b021",
+            "type": "repeater",
+            "key": "items",
+            "label": "Positionen",
+            "elements": [
+              {
+                "id": "0192f1c4-0000-7000-8000-00000000b022",
+                "type": "text",
+                "key": "description",
+                "label": "Beschreibung",
+                "required": true
+              },
+              {
+                "id": "0192f1c4-0000-7000-8000-00000000b023",
+                "type": "number",
+                "key": "qty",
+                "label": "Menge"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "checksum": "sha256:contract-fixture",
+  "lockedIds": [
+    "0192f1c4-0000-7000-8000-00000000b011"
+  ],
+  "maxContainerDepth": 3,
+  "palette": [
+    {
+      "group": "input",
+      "label": "Eingabe",
+      "items": [
+        {
+          "type": "text",
+          "label": "Text",
+          "icon": "heroicon-o-pencil",
+          "node": {
+            "type": "text",
+            "key": "text",
+            "label": "Text"
+          }
+        },
+        {
+          "type": "number",
+          "label": "Zahl",
+          "icon": "heroicon-o-hashtag",
+          "node": {
+            "type": "number",
+            "key": "number",
+            "label": "Zahl"
+          }
+        }
+      ]
+    },
+    {
+      "group": "structure",
+      "label": "Struktur",
+      "items": [
+        {
+          "type": "section",
+          "label": "Abschnitt",
+          "icon": "heroicon-o-rectangle-group",
+          "node": {
+            "type": "section",
+            "key": "section",
+            "label": "Abschnitt",
+            "elements": []
+          }
+        },
+        {
+          "type": "repeater",
+          "label": "Wiederholung",
+          "icon": "heroicon-o-queue-list",
+          "node": {
+            "type": "repeater",
+            "key": "rows",
+            "label": "Wiederholung",
+            "elements": []
+          }
+        },
+        {
+          "type": "columns",
+          "label": "Spalten",
+          "icon": "heroicon-o-view-columns",
+          "node": {
+            "type": "columns",
+            "key": "columns",
+            "columns": [
+              {
+                "elements": []
+              },
+              {
+                "elements": []
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "urls": {
+    "preview": "/form-preview/",
+    "classic": "/admin/demo/forms/42/edit"
+  }
+}

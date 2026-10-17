@@ -1,0 +1,21 @@
+{
+  "keyTypes": {
+    "customer": "text",
+    "day": "date",
+    "items": "repeater",
+    "description": "text",
+    "qty": "number"
+  },
+  "rowKeys": {
+    "items": [
+      "description",
+      "qty"
+    ]
+  },
+  "scopeKeys": [
+    "customer",
+    "day",
+    "items"
+  ],
+  "autoKey": false
+}
