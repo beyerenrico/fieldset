@@ -24,6 +24,21 @@ export async function fieldAppLogin(page: Page, email: string): Promise<void> {
   await expect(page.getByText(/^(hello|hallo), /i)).toBeVisible({ timeout: 20_000 });
 }
 
+/** Draws a signature on the first signature pad and confirms it. */
+export async function signOnCanvas(page: Page): Promise<void> {
+  const canvas = page.locator('canvas').first();
+  await canvas.scrollIntoViewIfNeeded();
+  const box = await canvas.boundingBox();
+  if (box === null) throw new Error('signature canvas not visible');
+  await page.mouse.move(box.x + 20, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2, box.y + 15, { steps: 8 });
+  await page.mouse.move(box.x + box.width - 20, box.y + box.height - 15, { steps: 8 });
+  await page.mouse.up();
+  await page.getByRole('button', { name: /confirm signature|unterschrift bestätigen/i }).click();
+  await expect(page.getByText(/signed by|unterschrieben von/i).first()).toBeVisible();
+}
+
 /**
  * Fills the demo service report (three wizard steps), signs it and submits it from the review screen.
  * Returns the number the server assigned.
@@ -77,17 +92,7 @@ export async function fillAndSubmitServiceReport(
 
   // Page 3: acceptance and signature
   await page.getByRole('checkbox', { name: /ordnungsgemäß ausgeführt/ }).check();
-  const canvas = page.locator('canvas').first();
-  await canvas.scrollIntoViewIfNeeded();
-  const box = await canvas.boundingBox();
-  if (box === null) throw new Error('signature canvas not visible');
-  await page.mouse.move(box.x + 20, box.y + box.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(box.x + box.width / 2, box.y + 15, { steps: 8 });
-  await page.mouse.move(box.x + box.width - 20, box.y + box.height - 15, { steps: 8 });
-  await page.mouse.up();
-  await page.getByRole('button', { name: /confirm signature|unterschrift bestätigen/i }).click();
-  await expect(page.getByText(/signed by|unterschrieben von/i).first()).toBeVisible();
+  await signOnCanvas(page);
   await snap('04-signed', { fullPage: true });
 
   await page.getByRole('button', { name: /^(review|prüfen|überprüfen)$/i }).click();

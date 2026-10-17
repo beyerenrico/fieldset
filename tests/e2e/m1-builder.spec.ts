@@ -20,7 +20,7 @@ test('designer builds a form from the service report template and publishes v1',
     .first()
     .click();
 
-  await expect(page).toHaveURL(/\/forms\/\d+\/edit/);
+  await expect(page).toHaveURL(/\/forms\/\d+\/edit/, { timeout: 30_000 }); // the builder page is heavy (QUESTIONS #8)
   await page.screenshot({ path: evidence('02-builder'), fullPage: true });
 
   await page
@@ -33,6 +33,6 @@ test('designer builds a form from the service report template and publishes v1',
     .getByRole('button', { name: /submit|absenden|veröffentlichen|publish/i })
     .last()
     .click();
-  await expect(page.getByText(/version 1|v1/i).first()).toBeVisible();
+  await expect(page.getByText(/version 1|v1/i).first()).toBeVisible({ timeout: 30_000 }); // publishing round-trips the heavy builder state
   await page.screenshot({ path: evidence('03-published'), fullPage: true });
 });

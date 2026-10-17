@@ -74,6 +74,11 @@ export interface SyncManifest {
     readonly fillable_form_ids: readonly number[];
     /** Best-effort list of revoked forms. */
     readonly revoked_form_ids: readonly number[];
+    /**
+     * Versions of fillable forms retired since the cursor (all of them without one; M6): cached
+     * copies are marked `retired`, drafts pinned to them can no longer be submitted.
+     */
+    readonly retired_version_ids: readonly number[];
     /** Open review tasks of the user (same shape as `GET /tasks`). */
     readonly tasks: readonly Task[];
 }
@@ -114,6 +119,8 @@ export interface Submission {
     readonly data: JsonObject;
     readonly attachments: readonly AttachmentRecord[];
     readonly submitted_at: string | null;
+    /** Device time of the latest submit (M6; null when the client sent none or before a submit). */
+    readonly client_submitted_at: string | null;
     readonly created_at: string;
     readonly updated_at: string;
     readonly can_edit: boolean;

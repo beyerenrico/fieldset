@@ -132,6 +132,7 @@ export function makeSubmission(overrides: Partial<Submission> = {}): Submission 
         data: { customer: 'ACME' },
         attachments: [],
         submitted_at: null,
+        client_submitted_at: null,
         created_at: '2026-10-16T08:00:00+02:00',
         updated_at: '2026-10-16T09:00:00+02:00',
         can_edit: true,

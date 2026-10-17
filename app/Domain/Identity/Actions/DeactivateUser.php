@@ -6,8 +6,8 @@ namespace App\Domain\Identity\Actions;
 
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Identity\Enums\UserStatus;
-use App\Domain\Identity\Models\Device;
 use App\Domain\Identity\Models\User;
+use App\Domain\Identity\Sessions\EndUserAccess;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -23,8 +23,8 @@ final readonly class DeactivateUser
         DB::transaction(function () use ($user): void {
             $user->forceFill(['status' => UserStatus::Deactivated, 'deactivated_at' => now(), 'remember_token' => null])->save();
             $user->tokens()->delete();
-            DB::table('sessions')->where('user_id', $user->id)->delete();
-            Device::query()->where('user_id', $user->id)->whereNull('wipe_requested_at')->update(['wipe_requested_at' => now()]);
+            EndUserAccess::endSessions($user);
+            EndUserAccess::requestDeviceWipe($user);
         });
 
         $this->audit->record('user.deactivated', $user, [], $actor);

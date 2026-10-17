@@ -8,13 +8,15 @@ import { makeNotification } from '../utils/fixtures.ts';
 import { renderApp } from '../utils/render-app.tsx';
 import { server, setupTestServer } from '../utils/server.ts';
 import { resetVisibilityAfterEach, setVisibility } from '../utils/visibility.ts';
+import { FAKE_TIMERS } from '../utils/a-store.ts';
 
 setupTestServer();
 resetVisibilityAfterEach();
 
 beforeEach(() => {
     setOrganizationId(1);
-    vi.useFakeTimers({ shouldAdvanceTime: true });
+    // setImmediate stays real: fake-indexeddb needs it, or Dexie transactions fail (a-store.ts).
+    vi.useFakeTimers(FAKE_TIMERS);
 });
 
 afterEach(() => {

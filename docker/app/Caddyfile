@@ -7,5 +7,8 @@
 {$SERVER_NAME::8080} {
 	root * /var/www/html/public
 	encode zstd gzip
+	# The SPA shells always go through Laravel (SpaController adds the CSP), also when requested by file name.
+	@spaShell path /app/index.html /form-preview/preview.html
+	rewrite @spaShell /index.php
 	php_server
 }

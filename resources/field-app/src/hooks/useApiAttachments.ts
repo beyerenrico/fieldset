@@ -1,4 +1,4 @@
-/** API attachment adapter bound to one submission: previews, merging, cleanup. */
+/** Local-first attachment adapter bound to one submission: previews, merging, removal, cleanup. */
 import type { AttachmentAdapter } from '@form-schema-app/form-schema-react';
 import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import type { AttachmentRecord } from '../lib/api/types.ts';
@@ -23,7 +23,8 @@ export interface VersionedAttachmentAdapter extends AttachmentAdapter {
 /**
  * One adapter per submission uuid (object URLs survive autosaves and re-renders). The returned
  * object changes identity when previews arrive, so the renderer re-renders and `get(id)` yields
- * the blob URL. Object URLs of an adapter created here are revoked on unmount.
+ * the blob URL. Object URLs of an adapter created here are revoked on unmount. Removing a file that
+ * was not uploaded yet deletes it from the device.
  */
 export function useApiAttachments(options: UseApiAttachmentsOptions): VersionedAttachmentAdapter {
     const { submissionUuid, records, ensureSaved, describeError, adapter: shared } = options;
@@ -56,6 +57,7 @@ export function useApiAttachments(options: UseApiAttachmentsOptions): VersionedA
             version,
             upload: (request) => adapter.upload(request),
             get: (id) => adapter.get(id),
+            remove: (id, request) => adapter.remove?.(id, request),
         }),
         [adapter, version],
     );

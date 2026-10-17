@@ -19,19 +19,50 @@ function focusTarget(id: string): HTMLElement | null {
     return field?.querySelector<HTMLElement>('input, select, textarea, button') ?? field;
 }
 
-function focusWhenReady(id: string, attempt: number): void {
+/** Events that show the user moved on: a deferred focus must not pull them back. */
+const USER_EVENTS = ['pointerdown', 'keydown', 'input'] as const;
+
+/** Becomes `cancelled` on the first user interaction until `stop()` is called. */
+function watchUser(): { readonly cancelled: () => boolean; readonly stop: () => void } {
+    let moved = false;
+    const mark = (): void => {
+        moved = true;
+    };
+    for (const type of USER_EVENTS) {
+        document.addEventListener(type, mark, true);
+    }
+    return {
+        cancelled: () => moved,
+        stop: () => {
+            for (const type of USER_EVENTS) {
+                document.removeEventListener(type, mark, true);
+            }
+        },
+    };
+}
+
+type UserWatch = ReturnType<typeof watchUser>;
+
+function focusWhenReady(id: string, attempt: number, watch: UserWatch): void {
+    if (watch.cancelled()) {
+        watch.stop();
+        return;
+    }
     const target = focusTarget(id);
     if (target !== null) {
         target.focus();
         if (typeof target.scrollIntoView === 'function') {
             target.scrollIntoView({ block: 'center' });
         }
+        watch.stop();
         return;
     }
     if (attempt < MAX_ATTEMPTS) {
         setTimeout(() => {
-            focusWhenReady(id, attempt + 1);
+            focusWhenReady(id, attempt + 1, watch);
         }, 16);
+    } else {
+        watch.stop();
     }
 }
 
@@ -45,16 +76,17 @@ export function createRevealRegistry(): RevealRegistry {
             };
         },
         reveal: (pointer: string, id: string): void => {
+            const watch = watchUser();
             let pending = false;
             for (const listener of listeners) {
                 pending = listener(pointer) || pending;
             }
             if (pending) {
                 setTimeout(() => {
-                    focusWhenReady(id, 0);
+                    focusWhenReady(id, 0, watch);
                 }, 0);
             } else {
-                focusWhenReady(id, 0);
+                focusWhenReady(id, 0, watch);
             }
         },
     };

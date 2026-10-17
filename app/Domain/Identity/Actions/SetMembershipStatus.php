@@ -8,13 +8,20 @@ use App\Domain\Audit\AuditLogger;
 use App\Domain\Identity\Enums\MembershipStatus;
 use App\Domain\Identity\Models\Membership;
 use App\Domain\Identity\Models\User;
+use App\Domain\Identity\Sessions\EndUserAccess;
 use App\Domain\Identity\Support\RoleAssignmentGuard;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
  * Deactivates or reactivates a membership. Only Owners may deactivate an Owner, and the last active
- * Owner can never be deactivated. Deactivation revokes the member's API tokens for this organization.
+ * Owner can never be deactivated.
+ *
+ * Deactivation (§9.3, ADR 0035 "Backend") revokes the member's API tokens for this organization and ends
+ * all of the member's sessions (sessions are not bound to an organization; a member of other
+ * organizations signs in again, and the Field App then purges this organization's local rows). When no
+ * other active membership remains, every device of the member is asked to wipe at its next contact.
+ * Reactivating does not lift a requested wipe: the device wipes once and registers again.
  */
 final readonly class SetMembershipStatus
 {
@@ -39,12 +46,22 @@ final readonly class SetMembershipStatus
             $membership->forceFill(['status' => $status])->save();
 
             if ($status === MembershipStatus::Deactivated) {
-                $target->tokens()->where('organization_id', $organization->id)->delete();
+                $this->endAccess($target, $organization->id);
             }
         });
 
         $this->audit->record('member.status_changed', $membership, ['status' => $status->value], $actor);
 
         return $membership;
+    }
+
+    private function endAccess(User $target, int $organizationId): void
+    {
+        $target->tokens()->where('organization_id', $organizationId)->delete();
+        EndUserAccess::endSessions($target);
+
+        if (! $target->activeOrganizations()->exists()) {
+            EndUserAccess::requestDeviceWipe($target);
+        }
     }
 }

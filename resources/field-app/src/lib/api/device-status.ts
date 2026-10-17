@@ -1,10 +1,12 @@
 /**
  * Session recovery (§9.3): on 401/419 ask `POST /auth/device-status` — authenticated by the device
  * secret, never by the session — and act on `ok` / `reauth` / `wipe`. Concurrent callers share one
- * recovery. This module never triggers itself (device-status uses the raw request).
+ * recovery. This module never triggers itself (device-status uses the raw request). `wipe` removes
+ * everything (ADR 0035: IndexedDB incl. the device uuid, storage, caches, service worker) and reloads
+ * to the login page.
  */
 import { getDeviceRecord, dropDeviceSecret } from '../device/credentials.ts';
-import { clearLocalData } from '../session/local-data.ts';
+import { wipeDevice } from '../session/account.ts';
 import { ApiError, DeviceWipedError, ReauthRequiredError } from './errors.ts';
 import { rawRequest } from './http.ts';
 import { CSRF_COOKIE_PATH, paths } from './paths.ts';
@@ -49,7 +51,7 @@ async function recover(): Promise<void> {
         return;
     }
     if (status === 'wipe') {
-        await clearLocalData({ keepDeviceId: false });
+        await wipeDevice();
         throw new DeviceWipedError('This device was signed out and its data removed.');
     }
     throw new ReauthRequiredError('Please sign in again.', status === 'reauth');

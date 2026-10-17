@@ -99,8 +99,18 @@ AC refs point at BUILD_PROMPT sections. Test approach in brackets.
 - [x] M5-T07 E2E: explorer columns across versions, export downloads with notification, saved report pinned on the dashboard — §12
 - [x] M5-T08 Gate M5
 
-## M6 Offline-first — break down at M5 gate
-- Dexie store; outbox + sync engine (start/online/visibilitychange/manual, Background Sync enhancement); attachment queue + compression + EXIF strip; conflict UI on 409; storage persistence + iOS install prompt; logout wipe; device wipe; incremental manifest: fetch every `fillable_form_ids` entry not cached (role grants touch no form, ADR 0027); E2E journeys 3, 7.
+## M6 Offline-first (branch `m6-offline`)
+- [x] M6-T01 Local store: Dexie 4.4 schema (drafts with base server copy + revision, outbox, attachment blobs, cached forms/versions/designs/options, sync meta), migration of the M2 kv store (device credentials, autosave copies), versioned upgrades; ADR 0035 offline architecture + versions (Dexie 4.4.6, vite-plugin-pwa 2.0.0, Workbox 7.4.1, fake-indexeddb for tests) — §9.2, §14.2 [unit, fake-indexeddb]
+- [x] M6-T02 Local-first autosave: every change written to IndexedDB (debounced, flushed on pagehide/visibilitychange), drafts list and "Continue drafts" from the local store merged with the server; new drafts started offline get UUIDv7 ids — §9.2 [unit + AC: killed tab loses no data]
+- [x] M6-T03 Sync engine + outbox: ordered per submission (attachments → draft PUT with revision → submit with persisted Idempotency-Key → queued send), runs on app start, `online`, `visibilitychange`, "Sync now"; Background Sync tag as a Chromium-only wake-up; backoff, single-flight across tabs (Web Locks / BroadcastChannel); 401/419 → device-status (`reauth` keeps outbox, `wipe` clears) — §9.2, §9.3 [unit + AC: syncs exactly once]
+- [x] M6-T04 Attachment queue: photos (long edge ≤ 2048 px, EXIF stripped, GPS only on opt-in) and signatures stored as blobs, uploaded with client ids and the attachment manifest, resumable after reload, storage usage — §9.2 [unit]
+- [x] M6-T05 Conflicts: a 409 on a queued draft PUT pauses that submission's outbox, shows both versions (local vs server, field-level diff) and applies the user's choice; queued submit waits for the resolution — §9.2 [unit + component]
+- [x] M6-T06 Offline catalog + app shell: vite-plugin-pwa (Workbox precache of the /app shell, SW scope `/app`, `preview.html` outside the scope); cache every assigned form's published versions, designs and option lists; refresh through `/sync/manifest?since=`, fetch every `fillable_form_ids` entry not cached (ADR 0027), drop revoked forms — §5, §9.2 [unit + API feature]
+- [x] M6-T07 Offline UX: online/offline and pending-sync indicators, "number pending", queued send notice, Settings (storage usage, last sync, "Sync now"), `navigator.storage.persist()`, iOS install prompt + unsynced-data warning when not installed, Android install button — §9.1, §9.2 [component]
+- [x] M6-T08 Logout + wipe: logout warns about unsynced items, then clears Dexie, Cache Storage and the SW; `wipe` from device-status clears everything; deactivated user's next sync leaves no local data — §9.3 [unit + AC]
+- [x] M6-T09 Totals parity: calculated totals on the device equal the server's for the 30-line service report (JS evaluation vs stored server values) — §9.2 AC [feature + unit]
+- [x] M6-T10 E2E: journey 3 (offline fill with 30 lines, photo, signature → reconnect → syncs once, number assigned), journey 7 (session expires offline → re-login → outbox syncs, no loss), killed tab, deactivated user wipe — §12
+- [x] M6-T11 Gate M6
 
 ## M7 SSO + Builder v2 — break down at M6 gate
 - OIDC per org (Socialite), domain verification (DNS TXT, fake resolver), home-realm discovery, JIT + claim mapping, enforce SSO + break-glass; Keycloak in CI; SAML (socialiteproviders/saml2); Builder v2 page (palette/canvas/inspector, SortableJS, keyboard moves, undo/redo).

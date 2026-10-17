@@ -15,6 +15,8 @@ export interface RequestOptions {
     readonly headers?: Readonly<Record<string, string>>;
     /** Send `X-Organization-Id` (default true). */
     readonly tenant?: boolean;
+    /** Organization of this request (outbox rows); default: the selected organization. */
+    readonly organizationId?: number;
     /** Run the 401/419 device-status recovery (default true). */
     readonly recover?: boolean;
     /** `blob` returns the raw body (file downloads); errors are still parsed as JSON. */
@@ -71,7 +73,7 @@ function buildHeaders(method: HttpMethod, options: RequestOptions): Headers {
     if (xsrf !== null) {
         headers.set('X-XSRF-TOKEN', xsrf);
     }
-    const org = options.tenant === false ? null : getOrganizationId();
+    const org = options.tenant === false ? null : (options.organizationId ?? getOrganizationId());
     if (org !== null) {
         headers.set('X-Organization-Id', String(org));
     }
@@ -99,22 +101,37 @@ function laravelDetails(errors: unknown): ValidationDetail[] {
     });
 }
 
-function errorFrom(status: number, body: unknown): ApiError {
+/** `Retry-After` in seconds or as an HTTP date → ms from now (null when absent or unreadable). */
+export function parseRetryAfter(value: string | null, now: number = Date.now()): number | null {
+    if (value === null || value.trim() === '') {
+        return null;
+    }
+    const seconds = Number(value);
+    if (Number.isFinite(seconds)) {
+        return Math.max(0, seconds * 1000);
+    }
+    const date = Date.parse(value);
+    return Number.isNaN(date) ? null : Math.max(0, date - now);
+}
+
+function errorFrom(status: number, body: unknown, retryAfterMs: number | null = null): ApiError {
     const fallback = `http_${String(status)}`;
     if (!isRecord(body)) {
-        return new ApiError(status, fallback, `Request failed with status ${String(status)}`);
+        const message = `Request failed with status ${String(status)}`;
+        return new ApiError(status, fallback, message, null, retryAfterMs);
     }
     const error = isRecord(body.error) ? body.error : null;
     if (error !== null) {
         const code = typeof error.code === 'string' ? error.code : fallback;
         const message = typeof error.message === 'string' ? error.message : code;
-        return new ApiError(status, code, message, error.details ?? null);
+        return new ApiError(status, code, message, error.details ?? null, retryAfterMs);
     }
     const message = typeof body.message === 'string' ? body.message : fallback;
     if (status === 422 && 'errors' in body) {
         return new ApiError(status, 'validation_failed', message, laravelDetails(body.errors));
     }
-    return new ApiError(status, typeof body.code === 'string' ? body.code : fallback, message);
+    const code = typeof body.code === 'string' ? body.code : fallback;
+    return new ApiError(status, code, message, null, retryAfterMs);
 }
 
 async function readBody(response: Response): Promise<unknown> {
@@ -137,7 +154,8 @@ export async function parseResponse<T>(response: Response): Promise<ApiResponse<
     const body = await readBody(response);
     const envelope = isRecord(body) && typeof body.success === 'boolean';
     if (!response.ok || (envelope && body.success === false)) {
-        throw errorFrom(response.status, body);
+        const retryAfter = parseRetryAfter(response.headers.get('Retry-After'));
+        throw errorFrom(response.status, body, retryAfter);
     }
     const data = (envelope ? body.data : body) as T;
     const meta = envelope && isRecord(body.meta) ? body.meta : null;

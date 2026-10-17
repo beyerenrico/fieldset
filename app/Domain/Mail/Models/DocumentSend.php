@@ -34,6 +34,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $mail_message_id
  * @property int|null $rendition_id
  * @property string|null $error
+ * @property string|null $idempotency_key the `Idempotency-Key` of the API request that created it (unique per submission)
  * @property DocumentSendFailure|null $failure_reason
  * @property Carbon|null $queued_at
  * @property Carbon $created_at
@@ -44,7 +45,7 @@ use Illuminate\Support\Carbon;
  */
 #[UseFactory(DocumentSendFactory::class)]
 #[UsePolicy(DocumentSendPolicy::class)]
-#[Fillable(['submission_uuid', 'recipient_email', 'recipient_name', 'status', 'requested_by'])]
+#[Fillable(['submission_uuid', 'recipient_email', 'recipient_name', 'status', 'requested_by', 'idempotency_key'])]
 class DocumentSend extends Model
 {
     use BelongsToOrganization;
@@ -54,7 +55,7 @@ class DocumentSend extends Model
 
     protected $attributes = [
         'recipient_name' => null, 'status' => 'waiting_for_document', 'requested_by' => null, 'mail_message_id' => null,
-        'rendition_id' => null, 'error' => null, 'failure_reason' => null, 'queued_at' => null,
+        'rendition_id' => null, 'error' => null, 'failure_reason' => null, 'queued_at' => null, 'idempotency_key' => null,
     ];
 
     protected function casts(): array

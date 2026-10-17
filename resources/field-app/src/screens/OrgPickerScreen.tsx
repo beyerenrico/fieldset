@@ -15,7 +15,8 @@ export function OrgPickerScreen(): ReactNode {
     return (
         <section className="flex flex-col gap-4">
             <h1 className="text-2xl font-bold">{t('org.title')}</h1>
-            <p>{t('org.hint')}</p>
+            {/* A deactivated membership can leave none (ADR 0035); Settings still offers logout. */}
+            <p>{me.organizations.length === 0 ? t('account.noOrganizations') : t('org.hint')}</p>
             <ul className="flex flex-col gap-2">
                 {me.organizations.map((organization) => (
                     <li key={organization.id}>

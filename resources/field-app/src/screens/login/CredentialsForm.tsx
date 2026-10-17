@@ -5,6 +5,7 @@ import { Input } from '../../components/ui/input.tsx';
 import { Label } from '../../components/ui/label.tsx';
 import { useT } from '../../i18n/I18nProvider.tsx';
 import { login } from '../../lib/api/endpoints.ts';
+import { flushPendingLogout } from '../../lib/session/pending-logout.ts';
 import { authErrorMessage } from './errors.ts';
 
 export function CredentialsForm({
@@ -24,6 +25,8 @@ export function CredentialsForm({
         setBusy(true);
         setError(null);
         try {
+            // An unconfirmed sign-out ends the old session first (it could block the new login).
+            await flushPendingLogout();
             const result = await login({ email, password });
             onDone(result.two_factor);
         } catch (caught) {

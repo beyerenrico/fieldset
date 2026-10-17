@@ -10,9 +10,9 @@ tablet (also offline) to produce reports, invoices, checklists and other documen
 - **Form Schema Spec** — open, versioned JSON format for form definitions (`spec/`, MIT) with PHP and
   JavaScript SDKs (`packages/`, MIT)
 
-> Status: **0.1.0 (MVP)** — see [CHANGELOG.md](CHANGELOG.md) and
-> [release notes](docs/releases/0.1.0.md). Full offline mode, reports, SSO and the canvas builder are
-> planned for 1.0 (`docs/agent/PLAN.md`).
+> Status: **0.2.0** (reports, dashboards, offline-first Field App) — see [CHANGELOG.md](CHANGELOG.md)
+> and [release notes](docs/releases/0.2.0.md). SSO and the canvas builder are planned for 1.0
+> (`docs/agent/PLAN.md`).
 
 ## What you can do
 
@@ -45,7 +45,7 @@ php artisan test --compact
 
 Demo users (seeded with `php artisan db:seed`, password `password`): `owner@demo.test`,
 `admin@demo.test`, `designer@demo.test`, `reviewer@demo.test`, `coordinator@demo.test`,
-`worker@demo.test`, `viewer@demo.test`. The demo organization has a published service report and a
+`worker@demo.test`, `mobile@demo.test` and `tablet@demo.test` (more field workers), `viewer@demo.test`. The demo organization has a published service report and a
 "review, then email the PDF to the customer" workflow. Mailpit UI: http://localhost:18025.
 
 | URL | What |

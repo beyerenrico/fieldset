@@ -4,6 +4,7 @@ import { screen, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { setOrganizationId } from '../../src/lib/session/org-store.ts';
+import { setupSyncScope } from '../utils/a-store.ts';
 import { createBackend, fail, ok, type BackendState } from '../utils/backend.ts';
 import { DEFINITION, makeDocument, makeSubmission, makeVersion } from '../utils/fixtures.ts';
 import { preloadLazyScreens, renderApp } from '../utils/render-app.tsx';
@@ -17,6 +18,7 @@ vi.mock('@form-schema-app/form-schema-react', async (importOriginal) => {
 
 setupTestServer();
 preloadLazyScreens();
+setupSyncScope();
 
 const UUID = '0192f1c4-0000-7000-8000-0000000000e1';
 
@@ -156,10 +158,15 @@ describe('send to customer', () => {
         );
         expect(outcome.parentElement).toHaveAttribute('role', 'status');
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-        // The page was inert while the dialog was open: focus carries the outcome to AT.
-        expect(container).not.toHaveAttribute('inert');
+        // The page was inert while the dialog was open: focus carries the outcome to AT. The dialog's
+        // cleanup (a passive effect) lifts inert right after it unmounts.
+        await vi.waitFor(() => {
+            expect(container).not.toHaveAttribute('inert');
+        });
         expect(outcome).toHaveAttribute('tabindex', '-1');
-        expect(outcome).toHaveFocus();
+        await vi.waitFor(() => {
+            expect(outcome).toHaveFocus();
+        });
         expect(backend.state.sends).toEqual([
             {
                 uuid: UUID,
@@ -179,7 +186,11 @@ describe('send to customer', () => {
         await user.type(email, ' office@kunde.test ');
         await user.clear(within(dialog).getByLabelText('Name (optional)'));
         await user.click(within(dialog).getByRole('button', { name: 'Send' }));
-        expect(await screen.findByText('Sending to office@kunde.test is scheduled.')).toHaveFocus();
+        const sent = await screen.findByText('Sending to office@kunde.test is scheduled.');
+        // The outcome can render before the dialog closes; focus follows once the page is live again.
+        await vi.waitFor(() => {
+            expect(sent).toHaveFocus();
+        });
         // A cleared name means "no name" (no fallback to the customer.name role on the server).
         expect(backend.state.sends[0]?.body).toEqual({ email: 'office@kunde.test', name: '' });
         await user.click(screen.getByRole('button', { name: 'Send to customer' }));
@@ -249,13 +260,16 @@ describe('send to customer', () => {
         const email = within(dialog).getByLabelText('Email address');
         expect(email).toHaveAttribute('aria-invalid', 'true');
         expect(email).toHaveAccessibleDescription('Enter a valid email address.');
-        expect(email).toHaveFocus();
+        // The focus moves in an effect after the errors render (the answer now comes via the outbox).
+        await vi.waitFor(() => {
+            expect(email).toHaveFocus();
+        });
         expect(within(dialog).getByLabelText('Name (optional)')).toHaveAccessibleDescription(
             'Check the name.',
         );
     });
 
-    it('keeps the key after a network error, then resets it after success', async () => {
+    it('queues the send after a network error and sends it with the same key once online', async () => {
         const backend = setup();
         let calls = 0;
         server.use(
@@ -275,20 +289,29 @@ describe('send to customer', () => {
         const { user } = renderApp(`/submissions/${UUID}`);
         const dialog = await openDialog(user);
         await user.click(within(dialog).getByRole('button', { name: 'Send' }));
-        expect(await within(dialog).findByRole('alert')).toHaveTextContent(
-            'The connection was interrupted. The email may not have been requested – sending again is safe.',
-        );
-        await user.click(within(dialog).getByRole('button', { name: 'Send' }));
+        // Queued in the outbox (persisted key and body): the UI says it goes out after sync.
+        await vi.waitFor(() => {
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        });
+        const queued = screen.getByText(/Sending to erika@example.test is queued/);
+        expect(queued.closest('[role="status"]')).not.toBeNull();
+        await vi.waitFor(() => {
+            expect(queued).toHaveFocus();
+        });
+        window.dispatchEvent(new Event('online'));
         await screen.findByText(/Will be sent to erika@example.test/);
+        expect(screen.queryByText(/is queued/)).not.toBeInTheDocument();
         const [first, retry] = keys(backend.state);
         expect(retry).toBe(first);
         await user.click(screen.getByRole('button', { name: 'Send to customer' }));
         await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Send' }));
-        await screen.findByText(/Will be sent to/);
+        await vi.waitFor(() => {
+            expect(keys(backend.state)).toHaveLength(3);
+        });
         expect(keys(backend.state)[2]).not.toBe(first);
     });
 
-    it('drops the key after idempotency_key_reused so the retry runs with a new one', async () => {
+    it('sends again at once with a new key after idempotency_key_reused', async () => {
         const backend = setup();
         let calls = 0;
         server.use(
@@ -307,10 +330,6 @@ describe('send to customer', () => {
         );
         const { user } = renderApp(`/submissions/${UUID}`);
         const dialog = await openDialog(user);
-        await user.click(within(dialog).getByRole('button', { name: 'Send' }));
-        expect(await within(dialog).findByRole('alert')).toHaveTextContent(
-            'The recipient changed while sending. Please send again.',
-        );
         await user.click(within(dialog).getByRole('button', { name: 'Send' }));
         await screen.findByText(/Will be sent to/);
         const [first, retry] = keys(backend.state);

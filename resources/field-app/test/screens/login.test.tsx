@@ -1,11 +1,23 @@
 import { screen, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { db } from '../../src/lib/db/db.ts';
+import { getCurrentUserId } from '../../src/lib/db/scope.ts';
 import { getDeviceRecord, saveDeviceRecord } from '../../src/lib/device/credentials.ts';
+import { hardReload } from '../../src/lib/session/reload.ts';
+import { loadSession, saveSession } from '../../src/lib/session/session-cache.ts';
+import { countForeignRows } from '../../src/lib/session/unsynced.ts';
+import { onSyncRequested, type SyncReason } from '../../src/lib/sync/triggers.ts';
 import { createBackend, fail, ok } from '../utils/backend.ts';
+import { seedUnsynced, stubStorageManager } from '../utils/c-rows.ts';
 import { ORG_A, ORG_B, makeMe } from '../utils/fixtures.ts';
 import { renderApp } from '../utils/render-app.tsx';
 import { server, setupTestServer } from '../utils/server.ts';
+
+vi.mock('../../src/lib/session/reload.ts', () => ({
+    LOGIN_PATH: '/app/login',
+    hardReload: vi.fn(),
+}));
 
 setupTestServer();
 
@@ -28,6 +40,82 @@ describe('login', () => {
         ).toBeInTheDocument();
         expect(history.location.pathname).toBe('/app/');
         expect((await getDeviceRecord())?.secret).toBe('dev-secret');
+    });
+
+    it('resumes the sync after a reauth and asks for persistent storage (nothing cleared)', async () => {
+        await saveDeviceRecord({ deviceUuid: 'd1', secret: 's1' });
+        await seedUnsynced(); // the outbox of the same user survives the reauth
+        const storage = stubStorageManager({ persisted: false });
+        const reasons: SyncReason[] = [];
+        const stop = onSyncRequested((reason) => reasons.push(reason));
+        server.use(...createBackend({ loggedIn: false }).handlers);
+        const { user } = renderApp('/');
+        expect(await screen.findByRole('status')).toHaveTextContent('Your session has ended');
+        await signIn(user);
+        expect(await screen.findByRole('heading', { name: /Hello/ })).toBeInTheDocument();
+        stop();
+        storage.restore();
+        expect(reasons).toContain('login');
+        expect(storage.persist).toHaveBeenCalledTimes(1);
+        expect(await db.drafts.count()).toBe(1);
+        expect(getCurrentUserId()).toBe(7);
+        expect((await loadSession())?.userId).toBe(7);
+        expect(screen.queryByRole('heading', { name: 'Data of another user' })).toBeNull();
+    });
+
+    it('offers to delete unsynced items of another user after sign-in', async () => {
+        await seedUnsynced({ orgId: 1, userId: 99 }, 'theirs');
+        await seedUnsynced({ orgId: 1, userId: 7 }, 'mine');
+        server.use(...createBackend({ loggedIn: false }).handlers);
+        const { user } = renderApp('/login');
+        await signIn(user);
+        expect(
+            await screen.findByRole('heading', { name: 'Data of another user' }),
+        ).toBeInTheDocument();
+        // One submission (draft, op and photo of 'theirs'), not three rows.
+        expect(screen.getByText(/submissions of another user \(1\)/)).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'Delete them' }));
+        expect(
+            await screen.findByRole('heading', { name: 'Delete the data of another user?' }),
+        ).toHaveFocus();
+        expect(await countForeignRows(7)).toBe(3); // nothing deleted before the confirmation
+        await user.click(screen.getByRole('button', { name: 'Yes, delete them' }));
+        expect(await screen.findByRole('heading', { name: /Hello/ })).toBeInTheDocument();
+        expect(await countForeignRows(7)).toBe(0);
+        expect(await db.drafts.get('mine')).toBeDefined(); // own work stays (and syncs)
+    });
+
+    it("keeps the other user's items hidden when asked to", async () => {
+        await seedUnsynced({ orgId: 1, userId: 99 }, 'theirs');
+        server.use(...createBackend({ loggedIn: false }).handlers);
+        const { user } = renderApp('/login');
+        await signIn(user);
+        const title = await screen.findByRole('heading', { name: 'Data of another user' });
+        expect(title).toHaveFocus();
+        expect(
+            screen.getByText(/Keep them if that person will sign in here again to send them\./),
+        ).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'Delete them' }));
+        await user.click(await screen.findByRole('button', { name: 'Back' }));
+        expect(await screen.findByRole('heading', { name: 'Data of another user' })).toHaveFocus();
+        await user.click(screen.getByRole('button', { name: 'Keep them' }));
+        expect(await screen.findByRole('heading', { name: /Hello/ })).toBeInTheDocument();
+        expect(await db.drafts.count()).toBe(1);
+    });
+
+    it("never opens another user's cached session after a sign-in it cannot confirm", async () => {
+        vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        await saveSession({ ...makeMe(), user: { ...makeMe().user, id: 99, name: 'Previous' } });
+        server.use(...createBackend({ loggedIn: false }).handlers);
+        server.use(http.get('*/api/v1/me', () => HttpResponse.error()));
+        const { user } = renderApp('/login');
+        await signIn(user);
+        expect(await screen.findByRole('status')).toHaveTextContent(
+            'You are offline. This page needs a connection.',
+        );
+        expect(await loadSession()).toBeUndefined();
+        expect(screen.queryByText(/Previous/)).toBeNull();
+        expect(hardReload).not.toHaveBeenCalled();
     });
 
     it('asks for the 2FA code, accepts a recovery code, and rejects wrong codes', async () => {
@@ -84,10 +172,11 @@ describe('login', () => {
         server.use(...createBackend({ loggedIn: false }).handlers);
         server.use(http.post('*/api/v1/auth/device-status', () => ok({ status: 'wipe' })));
         renderApp('/forms');
-        expect(await screen.findByRole('status')).toHaveTextContent('local data was removed');
+        expect(await screen.findByRole('status')).toHaveTextContent('removed its local data');
         await waitFor(async () => {
             expect(await getDeviceRecord()).toBeUndefined();
         });
+        expect(hardReload).toHaveBeenCalledWith('/app/login?notice=wiped');
     });
 
     it('asks to pick an organization when the user has several', async () => {
@@ -99,6 +188,17 @@ describe('login', () => {
                 orgHeader = request.headers.get('X-Organization-Id');
                 return ok([]);
             }),
+            // A catalog refresh that wins the race must not bring back the default backend's forms.
+            http.get('*/api/v1/sync/manifest', () =>
+                ok({
+                    cursor: 'c1',
+                    forms: [],
+                    fillable_form_ids: [],
+                    revoked_form_ids: [],
+                    retired_version_ids: [],
+                    tasks: [],
+                }),
+            ),
         );
         const { user } = renderApp('/forms');
         expect(

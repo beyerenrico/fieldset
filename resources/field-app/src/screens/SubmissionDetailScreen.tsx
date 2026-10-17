@@ -5,16 +5,21 @@ import type { ReactNode } from 'react';
 import { ReviewNote } from '../components/ReviewNote.tsx';
 import { ErrorState, Loading } from '../components/RouteError.tsx';
 import { StatusBadge } from '../components/StatusBadge.tsx';
+import { VersionLoadError } from '../components/VersionLoadError.tsx';
 import { Alert, AlertTitle } from '../components/ui/alert.tsx';
 import { Button } from '../components/ui/button.tsx';
-import { formVersionQueryOptions, submissionQueryOptions } from '../hooks/queries.ts';
+import { formVersionQueryOptions } from '../hooks/queries.ts';
 import { useApiAttachments } from '../hooks/useApiAttachments.ts';
 import { useSession } from '../hooks/useSession.ts';
 import { useI18n, useT } from '../i18n/I18nProvider.tsx';
 import { EDITABLE_STATUSES, type AttachmentRecord, type Submission } from '../lib/api/types.ts';
+import type { DraftRow, DraftSync } from '../lib/db/schema.ts';
 import { buildEvaluationContext } from '../lib/session/eval-context.ts';
 import { DocumentSection } from './detail/DocumentSection.tsx';
 import { ReviewSection } from './detail/ReviewSection.tsx';
+import { SyncNotice } from './detail/SyncNotice.tsx';
+import { useSubmissionView } from './detail/useSubmissionView.ts';
+import { needsAttention } from './review/refusal.ts';
 
 const route = getRouteApi('/_auth/submissions/$uuid');
 
@@ -41,11 +46,28 @@ function SubmittedNotice({
     );
 }
 
-/** Changes requested (comment + resubmit), my open review task, or "continue editing". */
-function ReviewState({ submission }: { readonly submission: Submission }): ReactNode {
+/** The badge: the state on this device while it matters (paused, queued), else the status. */
+function syncBadge(row: DraftRow | null, queued: boolean): DraftSync | null {
+    if (needsAttention(row)) {
+        return row?.sync ?? null;
+    }
+    return queued ? 'queued' : null;
+}
+
+/**
+ * Changes requested (comment + resubmit), my open review task, or "continue editing". `paused`:
+ * queued or waiting for the user; the sync notice above leads on instead.
+ */
+function ReviewState({
+    submission,
+    paused,
+}: {
+    readonly submission: Submission;
+    readonly paused: boolean;
+}): ReactNode {
     const t = useT();
     const { uuid, status } = submission;
-    const editable = submission.can_edit && EDITABLE_STATUSES.includes(status);
+    const editable = !paused && submission.can_edit && EDITABLE_STATUSES.includes(status);
     const editLink = (label: string, className?: string): ReactNode => (
         <Button asChild size="lg" className={className}>
             <Link to="/fill/$uuid" params={{ uuid }}>
@@ -71,11 +93,11 @@ export function SubmissionDetailScreen(): ReactNode {
     const { uuid } = route.useParams();
     const { submitted, resubmitted } = route.useSearch();
     const { me, organization } = useSession();
-    const submission = useQuery(submissionQueryOptions(uuid));
-    const data = submission.data;
+    const view = useSubmissionView(uuid);
+    const data = view.submission;
     const version = useQuery({
         ...formVersionQueryOptions(data?.form_id ?? 0, data?.form_version_id ?? 0),
-        enabled: data !== undefined,
+        enabled: data !== null,
     });
     const attachments = useApiAttachments({
         submissionUuid: uuid,
@@ -83,46 +105,54 @@ export function SubmissionDetailScreen(): ReactNode {
         ensureSaved: readOnly,
     });
 
-    if (submission.isPending) {
+    if (view.isPending) {
         return <Loading />;
     }
-    if (submission.isError) {
-        return <ErrorState error={submission.error} onRetry={() => void submission.refetch()} />;
+    if (data === null) {
+        return <ErrorState error={view.error} onRetry={view.refetch} />;
     }
-    const current = submission.data;
+    const queued = view.queuedSubmit !== null;
+    const badge = syncBadge(view.row, queued);
     return (
         <div className="flex flex-col gap-4">
-            {submitted === true ? (
-                <SubmittedNotice number={current.number} resubmitted={resubmitted === true} />
+            <SyncNotice row={view.row} queued={queued} lastError={view.lastError} />
+            {submitted === true && !queued ? (
+                <SubmittedNotice number={data.number} resubmitted={resubmitted === true} />
             ) : null}
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <h1 className="text-2xl font-bold">
-                    {version.data?.definition.title ??
-                        current.number ??
-                        t('submitted.numberPending')}
+                    {version.data?.definition.title ?? data.number ?? t('detail.title')}
                 </h1>
                 <span className="flex items-center gap-2">
                     <span className="sr-only">{t('detail.status')}</span>
-                    <StatusBadge status={current.status} />
+                    {badge === null ? (
+                        <StatusBadge status={data.status} />
+                    ) : (
+                        <StatusBadge sync={badge} />
+                    )}
                 </span>
             </div>
-            {submitted === true ? null : (
+            {submitted === true && !queued ? null : (
                 <p className="text-muted-foreground">
-                    {current.number === null
-                        ? t('submissions.noNumber')
-                        : t('submitted.number', { number: current.number })}
+                    {data.number === null
+                        ? t(queued ? 'sync.list.numberPending' : 'submissions.noNumber')
+                        : t('submitted.number', { number: data.number })}
                 </p>
             )}
-            <ReviewState submission={current} />
-            <DocumentSection submission={current} definition={version.data?.definition} />
+            <ReviewState submission={data} paused={queued || needsAttention(view.row)} />
+            <DocumentSection
+                submission={data}
+                definition={version.data?.definition}
+                queuedSubmit={queued}
+            />
             {version.isPending ? <Loading /> : null}
             {version.isError ? (
-                <ErrorState error={version.error} onRetry={() => void version.refetch()} />
+                <VersionLoadError error={version.error} onRetry={() => void version.refetch()} />
             ) : null}
             {version.data !== undefined ? (
                 <FormRenderer
                     definition={version.data.definition}
-                    data={current.data}
+                    data={data.data}
                     context={buildEvaluationContext(me, organization, version.data.version)}
                     attachments={attachments}
                     uiLocale={language}

@@ -21,7 +21,7 @@ Format: question · chosen option · impact · how to reverse.
    and logic editors); the service-report editor HTML is ~4 MB · acceptable for v1, Builder v2 (M7) is
    the planned replacement · if needed earlier: lazy-load block bodies or collapse nested pickers.
 9. Devices are user-level, so an admin of org A with `members.manage` who revokes a member's device
-   also signs that phone out of org B (M2 security review) · accepted: one device = one install of
+   also signs that phone out of org B (M2 security review); since M6 revoking a device also ends all of the user's sessions and the remember-me token (a recaller login is not bound to the device) · accepted: one device = one install of
    the Field App, wipe must clear all local data · an org admin can disrupt a shared user's work in
    another org · scope revocation per org (device × organization) if multi-org field workers matter.
 10. Builder preview iframe is same-origin with `sandbox="allow-scripts allow-same-origin"`, which
@@ -36,3 +36,20 @@ Format: question · chosen option · impact · how to reverse.
    and look, while form and design versions stay pinned · accepted (branding is organization identity,
    not document content) · old PDFs are immutable anyway; re-renders after a rebrand show the new brand ·
    snapshot branding into design versions or renditions if exact re-renders across rebrands matter.
+13. Background Sync only wakes open tabs (ADR 0035): the service worker's `sync` event posts to open
+   clients; there is no executor inside the service worker · accepted for M6 (a worker-side sender would
+   need the XSRF cookie flow and device-status) · on Chromium, an outbox does not drain while the app is
+   closed · add a worker-side sender if field feedback shows apps are closed before syncing.
+14. Server time decides on sync (ADR 0035): number, period, `submitted_at` and `$today`/`$now` in
+   formulas use the server clock when the submission syncs; the device time is kept as
+   `client_submitted_at` · accepted (gap-free numbering needs server order) · a form filled on the 31st
+   and synced on the 1st gets the new period's number · use `client_submitted_at` for the period if
+   customers expect it.
+15. Shared devices (ADR 0035): unsynced rows of user A stay hidden and unsent when user B signs in on the
+   same device; the device secret belongs to whoever signed in last, so a wipe for A cannot reach them ·
+   accepted (field devices are usually personal); B is offered to delete them, keeping is the default · A's unsynced work waits
+   until A signs in again · per-user device records if shared devices matter.
+16. A wipe requested by deactivating a member's last active membership stays when the member is
+   reactivated before the device connects again (M6, EndUserAccess) · accepted (the safe direction) ·
+   the device wipes once, unsynced work on it is lost, the member signs in and registers again · lift
+   `wipe_requested_at` on reactivation if admins often deactivate by mistake.

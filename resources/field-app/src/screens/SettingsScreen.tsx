@@ -1,75 +1,16 @@
-import { useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from '@tanstack/react-router';
-import { LogOut } from 'lucide-react';
-import { useId, useState, type ReactNode } from 'react';
-import { Alert } from '../components/ui/alert.tsx';
-import { Button } from '../components/ui/button.tsx';
+import { useId, type ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card.tsx';
 import { Label } from '../components/ui/label.tsx';
 import { useSession } from '../hooks/useSession.ts';
 import { useSwitchOrganization } from '../hooks/useSwitchOrganization.ts';
 import { useI18n, type Language } from '../i18n/I18nProvider.tsx';
-import { logout } from '../lib/api/endpoints.ts';
-import { rememberNotice } from '../lib/session/auth-events.ts';
-import { clearLocalData } from '../lib/session/local-data.ts';
+import { LogoutCard } from './settings/LogoutCard.tsx';
 import { NotificationPreferences } from './settings/NotificationPreferences.tsx';
+import { StorageCard } from './settings/StorageCard.tsx';
+import { SyncCard } from './settings/SyncCard.tsx';
 
 const SELECT =
     'min-h-11 w-full rounded-md border-2 border-input bg-background px-3 text-base focus-visible:outline-3 focus-visible:outline-ring';
-
-function LogoutCard(): ReactNode {
-    const { t } = useI18n();
-    const navigate = useNavigate();
-    const queryClient = useQueryClient();
-    const [confirming, setConfirming] = useState(false);
-    const [busy, setBusy] = useState(false);
-
-    const signOut = async (): Promise<void> => {
-        setBusy(true);
-        try {
-            await logout();
-        } catch {
-            // Offline or already signed out: local data is cleared anyway.
-        }
-        await clearLocalData({ keepDeviceId: true });
-        queryClient.clear();
-        await navigate({ to: '/login', search: { notice: rememberNotice('logout') ?? 'logout' } });
-    };
-
-    if (!confirming) {
-        return (
-            <Button
-                variant="outline"
-                size="lg"
-                onClick={() => {
-                    setConfirming(true);
-                }}
-            >
-                <LogOut aria-hidden="true" />
-                {t('settings.logout')}
-            </Button>
-        );
-    }
-    return (
-        <Alert variant="destructive" role="alertdialog" aria-label={t('settings.logout')}>
-            <p>{t('settings.logoutConfirm')}</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-                <Button variant="destructive" disabled={busy} onClick={() => void signOut()}>
-                    {t('settings.logoutConfirmAction')}
-                </Button>
-                <Button
-                    variant="outline"
-                    disabled={busy}
-                    onClick={() => {
-                        setConfirming(false);
-                    }}
-                >
-                    {t('common.cancel')}
-                </Button>
-            </div>
-        </Alert>
-    );
-}
 
 export function SettingsScreen(): ReactNode {
     const { t, language, setLanguage, preferences, setLargeText } = useI18n();
@@ -80,6 +21,8 @@ export function SettingsScreen(): ReactNode {
     return (
         <div className="flex flex-col gap-4">
             <h1 className="text-2xl font-bold">{t('settings.title')}</h1>
+            <SyncCard />
+            <StorageCard />
             <Card>
                 <CardHeader>
                     <CardTitle>{t('settings.language')}</CardTitle>

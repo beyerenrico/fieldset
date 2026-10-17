@@ -8,12 +8,14 @@ import {
     POLL_DELAYS_MS,
 } from '../../src/hooks/useSubmissionDocument.ts';
 import { ApiError, NetworkError } from '../../src/lib/api/errors.ts';
+import { db } from '../../src/lib/db/db.ts';
+import { enqueueSend, opId } from '../../src/lib/outbox/outbox.ts';
 import { customerDefaults, isValidEmail, toSendInput } from '../../src/lib/send/recipient.ts';
-import {
-    clearSendIdempotencyKey,
-    getSendIdempotencyKey,
-} from '../../src/lib/submit/idempotency.ts';
+import { SCOPE } from '../utils/a-store.ts';
 import { makeDocument } from '../utils/fixtures.ts';
+import { setupTestServer } from '../utils/server.ts';
+
+setupTestServer();
 
 const ROLE_DEFINITION: FormDefinition = {
     specVersion: '1.0.0',
@@ -107,20 +109,34 @@ describe('send recipient defaults', () => {
     });
 });
 
-describe('send idempotency keys', () => {
-    it('keeps one key per submission and recipient until cleared', () => {
-        const first = getSendIdempotencyKey('s1', 'a@b.de|Ana');
-        expect(getSendIdempotencyKey('s1', 'a@b.de|Ana')).toBe(first);
-        const other = getSendIdempotencyKey('s1', 'c@d.de|');
+describe('send idempotency keys (persisted with the queued request, ADR 0035)', () => {
+    const keyOf = async (uuid: string): Promise<string | null> => {
+        const op = await db.outbox.get(opId('send', SCOPE.userId, uuid));
+        return op?.kind === 'send' ? op.request.idempotencyKey : null;
+    };
+
+    it('keeps one key per submission and recipient, a new one for another recipient', async () => {
+        await enqueueSend(SCOPE, 's1', { email: 'a@b.de', name: 'Ana' });
+        const first = await keyOf('s1');
+        expect(first).toMatch(/^[0-9a-f-]{36}$/);
+        await enqueueSend(SCOPE, 's1', { email: 'a@b.de', name: 'Ana' });
+        expect(await keyOf('s1')).toBe(first);
+        await enqueueSend(SCOPE, 's1', { email: 'c@d.de', name: '' });
+        const other = await keyOf('s1');
         expect(other).not.toBe(first);
-        expect(getSendIdempotencyKey('s2', 'c@d.de|')).not.toBe(other);
-        clearSendIdempotencyKey('s1');
-        expect(getSendIdempotencyKey('s1', 'c@d.de|')).not.toBe(other);
+        await enqueueSend(SCOPE, 's2', { email: 'c@d.de', name: '' });
+        expect(await keyOf('s2')).not.toBe(other);
+        expect(sessionStorage.length).toBe(0);
     });
 
-    it('ignores a corrupt stored entry', () => {
-        sessionStorage.setItem('fsa.idem.send.s3', '"broken"');
-        expect(getSendIdempotencyKey('s3', 'x')).toMatch(/^[0-9a-f-]{36}$/);
+    it('stores the body the key belongs to', async () => {
+        await enqueueSend(SCOPE, 's3', { email: 'x@y.de' });
+        const op = await db.outbox.get(opId('send', SCOPE.userId, 's3'));
+        expect(op).toMatchObject({
+            kind: 'send',
+            input: { email: 'x@y.de' },
+            request: { body: { email: 'x@y.de' } },
+        });
     });
 });
 

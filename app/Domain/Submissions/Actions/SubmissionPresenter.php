@@ -35,6 +35,7 @@ final class SubmissionPresenter
             'data' => $submission->data,
             'attachments' => $submission->attachments->map(fn (Attachment $a): array => self::attachment($a))->values()->all(),
             'submitted_at' => $submission->submitted_at?->toIso8601String(),
+            'client_submitted_at' => $submission->client_submitted_at?->toIso8601String(),
             'created_at' => $submission->created_at->toIso8601String(),
             'updated_at' => $submission->updated_at->toIso8601String(),
             'can_edit' => $viewer instanceof User && $submission->created_by === $viewer->id && $submission->status->isEditable(),

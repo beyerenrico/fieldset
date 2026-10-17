@@ -4,7 +4,7 @@ import { afterAll, afterEach, beforeAll, beforeEach } from 'vitest';
 import { disposeDraftSessions } from '../../src/lib/drafts/draft-session.ts';
 import { resetAuthNotice } from '../../src/lib/session/auth-events.ts';
 import { reloadOrganizationId } from '../../src/lib/session/org-store.ts';
-import { wipeAll } from '../../src/lib/storage/kv.ts';
+import { clearAllTables } from '../../src/lib/db/db.ts';
 
 /** Default: the CSRF cookie endpoint always answers 204. */
 export const server = setupServer(
@@ -19,7 +19,7 @@ export function setupTestServer(): void {
     beforeEach(async () => {
         localStorage.clear();
         sessionStorage.clear();
-        await wipeAll();
+        await clearAllTables();
         reloadOrganizationId();
         resetAuthNotice();
         disposeDraftSessions();

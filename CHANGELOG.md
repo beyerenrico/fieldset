@@ -5,6 +5,33 @@ All notable changes to this project are documented here. The format follows
 [Semantic Versioning](https://semver.org/) (0.x: the API and data model may still change).
 The Form Schema Spec has its own changelog in `spec/form-definition/1.0/CHANGELOG.md`.
 
+## 0.2.0 — 2026-10-18
+
+Reports and dashboards (M5) and offline-first filling (M6). Release notes: `docs/releases/0.2.0.md`.
+
+### Added
+- **Offline Field App** — local-first drafts in IndexedDB (Dexie), an outbox with ordered, idempotent
+  sync (create, uploads, update, submit, send), conflict and "needs your decision" handling, a cached
+  catalog via the incremental manifest, a service worker app shell, install and update prompts,
+  storage persistence, offline start, logout/wipe that clear all local data (ADR 0035).
+- **Submission explorer** — dynamic columns across versions, filters, search, per-version currency.
+- **Exports** — queued XLSX (repeaters on a second sheet), locale-aware CSV and PDF ZIP with a
+  notification; row caps and per-user limits on a dedicated queue.
+- **Saved reports** — filters, group-by, count/sum/avg (decimal-exact), table and chart, scheduled
+  emails, pinning to the dashboard.
+- **Dashboards** — role-aware widgets with a date range and a short per-organization cache.
+- **API** — `client_submitted_at` on submit, `retired_version_ids` in the manifest, idempotent customer
+  send by key (durable beyond the 24 h replay window).
+
+### Changed
+- Deactivating a member's last active membership ends their sessions and wipes their devices; revoking
+  a device ends the user's sessions and remember-me token.
+- The SPA shell files are always served through Laravel with the CSP.
+
+### Fixed
+- The renderer no longer pulls focus back to a newly added repeater row after the user moved on
+  (input could land in the wrong field).
+
 ## 0.1.0 — 2026-10-17 (MVP)
 
 The MVP (milestones M0–M4, BUILD_PROMPT §4.1). Release notes: `docs/releases/0.1.0.md`.

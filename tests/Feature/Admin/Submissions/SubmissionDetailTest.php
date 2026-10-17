@@ -119,3 +119,17 @@ it('offers no create, edit or delete', function (): void {
         ->and(SubmissionResource::getRecordTitle($scenario->workerReport))->toBe('SR-2026-00001')
         ->and(SubmissionResource::getRecordTitle($scenario->workerDraft))->toBe(__('inbox.label').' '.substr($scenario->workerDraft->uuid, 0, 8));
 });
+
+it('shows the device submit time only when the Field App sent one (M6)', function (): void {
+    app()->setLocale('en');
+    $scenario = InboxScenario::make();
+    $submission = app(TenantContext::class)->run($scenario->org, fn (): Submission => InboxScenario::submission(
+        $scenario->ownerForm, $scenario->worker, 'submitted', 'SR-2026-00010', '2026-10-07 09:00', ['customer_name' => 'Musterbau AG'],
+    ));
+
+    actingInAdmin($scenario->owner, $scenario->org);
+    Livewire::test(ViewSubmission::class, ['record' => $submission->uuid])->assertDontSee('Submitted on device');
+
+    app(TenantContext::class)->run($scenario->org, fn () => $submission->forceFill(['client_submitted_at' => '2026-10-06 22:15:00'])->save());
+    Livewire::test(ViewSubmission::class, ['record' => $submission->uuid])->assertSee('Submitted on device');
+});
