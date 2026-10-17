@@ -21,7 +21,8 @@ final readonly class DeactivateUser
     public function handle(User $user, ?User $actor): void
     {
         DB::transaction(function () use ($user): void {
-            $user->forceFill(['status' => UserStatus::Deactivated, 'deactivated_at' => now(), 'remember_token' => null])->save();
+            // One audit entry (user.deactivated), not also the model's attribute diff (§8.11 "exactly one").
+            activity()->withoutLogging(fn () => $user->forceFill(['status' => UserStatus::Deactivated, 'deactivated_at' => now(), 'remember_token' => null])->save());
             $user->tokens()->delete();
             EndUserAccess::endSessions($user);
             EndUserAccess::requestDeviceWipe($user);

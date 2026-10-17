@@ -23,6 +23,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Exceptions\Halt;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -72,8 +73,12 @@ class EditDesign extends EditRecord
             ->schema([Textarea::make('changelog')->label(__('documents.versions.changelog'))->required()->rows(3)])
             ->action(function (array $data): void {
                 $state = $this->form->getState();
-                $design = app(SaveDesignDraft::class)->handle($this->record, (string) ($state['name'] ?? ''), $this->settings($state), $this->actor());
-                $version = app(PublishDesign::class)->handle($design, (string) $data['changelog'], $this->actor());
+                // One transaction: pending edits are never saved unaudited when the publish fails.
+                $version = DB::transaction(function () use ($state, $data) {
+                    $design = app(SaveDesignDraft::class)->handle($this->record, (string) ($state['name'] ?? ''), $this->settings($state), $this->actor(), audit: false);
+
+                    return app(PublishDesign::class)->handle($design, (string) $data['changelog'], $this->actor());
+                });
                 $this->fillForm();
                 Notification::make()->success()->title(__('documents.versions.published', ['version' => $version->version]))->send();
             });

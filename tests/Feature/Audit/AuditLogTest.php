@@ -14,7 +14,7 @@ it('logs configuration changes once, with tenant, actor, IP and request id', fun
     $org = makeOrganization();
     $owner = ownerOf($org);
     $this->actingAs($owner);
-    Activity::query()->delete();
+    clearAuditLog();
 
     $org->update(['name' => 'Renamed GmbH']);
 

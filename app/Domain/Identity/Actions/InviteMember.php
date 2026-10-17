@@ -39,10 +39,12 @@ final readonly class InviteMember
         $this->guard->authorizeRoleChange($actor, $organization, null, [], $roleNames);
 
         $membership = DB::transaction(function () use ($organization, $email, $name, $roles, $groupIds): Membership {
-            $user = User::query()->firstOrCreate(
+            // member.invited (with the email) is the one audit entry of an invitation, also for a new account.
+            /** @var User $user */
+            $user = activity()->withoutLogging(fn (): User => User::query()->firstOrCreate(
                 ['email' => Str::lower(trim($email))],
                 ['name' => $name, 'password' => Str::password(40)],
-            );
+            ));
 
             $existing = Membership::query()->where('organization_id', $organization->id)->where('user_id', $user->id)->first();
             if ($existing !== null && $existing->status !== MembershipStatus::Invited) {

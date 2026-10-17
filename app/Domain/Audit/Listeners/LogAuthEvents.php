@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Audit\Listeners;
 
 use App\Domain\Audit\AuditLogger;
+use App\Domain\Audit\LockoutAudit;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Sso\Enforcement\DomainPasswordGate;
 use App\Domain\Identity\Sso\Login\LoginAuditContext;
@@ -60,7 +61,7 @@ final readonly class LogAuthEvents
 
     public function lockout(Lockout $event): void
     {
-        $this->audit->record('auth.lockout', null, ['email' => $event->request->input('email')]);
+        LockoutAudit::record($event->request->input('email'), 'fortify', $event->request->ip());
     }
 
     public function mfaFailed(TwoFactorAuthenticationFailed $event): void

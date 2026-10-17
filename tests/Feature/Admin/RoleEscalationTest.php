@@ -125,7 +125,7 @@ it('revokes only the tokens of the organization that deactivates the member', fu
 
 it('audits role and permission changes once each with before and after', function (): void {
     $viewer = memberOf($this->org, SystemRole::Viewer);
-    Activity::query()->delete();
+    clearAuditLog();
 
     app(ChangeMemberRoles::class)->handle($this->owner, membershipOf($viewer), ['reviewer']);
     $role = app(SaveRole::class)->handle($this->owner, $this->org, null, 'Accountant', [Spatie\Permission\Models\Permission::findByName('reports.view')->id]);

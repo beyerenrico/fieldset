@@ -73,6 +73,7 @@ class WebhookEndpoint extends Model implements MasksAuditAttributes
 
     public function getActivitylogOptions(): LogOptions
     {
-        return LogOptions::defaults()->logOnly(['name', 'url', 'active'])->logOnlyDirty()->dontLogEmptyChanges()->useLogName('audit');
+        // 'secret' is listed so a rotation is audited; the Redactor masks its values (§8.11).
+        return LogOptions::defaults()->logOnly(['name', 'url', 'active', 'secret'])->logOnlyDirty()->dontLogEmptyChanges()->useLogName('audit');
     }
 }

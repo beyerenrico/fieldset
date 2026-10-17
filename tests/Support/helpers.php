@@ -8,6 +8,7 @@ use App\Domain\Identity\Models\Organization;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Tenancy\TenantContext;
 use Filament\Facades\Filament;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 
 /** Creates an organization (roles seeded) owned by a new or given user. */
@@ -45,4 +46,15 @@ function actingInAdmin(User $user, Organization $organization): void
     Filament::setCurrentPanel('admin');
     Filament::setTenant($organization);
     app(TenantContext::class)->set($organization);
+}
+
+/**
+ * Empties the append-only audit log for a test (inside the test transaction): the trigger lets deletes through
+ * only with the transaction-local prune flag, which audit_prune() sets for its own delete (ADR 0038).
+ */
+function clearAuditLog(): void
+{
+    DB::select("SELECT set_config('app.audit_prune', 'on', true)");
+    DB::table('activity_log')->delete();
+    DB::select("SELECT set_config('app.audit_prune', 'off', true)");
 }
