@@ -107,3 +107,10 @@ Filament 5.10 and Livewire 4 each bundle their own Sortable. We use neither.
 - The TypeScript client is a second implementation of tree manipulation. It is checked by server validation and fidelity tests.
 - ElementBlocks, BuilderMapper, BlockCloner and EditForm get small refactors that v1's tests keep green.
 - Three copies of Sortable end up on the page, about 15 kB gzipped.
+
+## Amendment 2026-10-18: asset loading
+Vite app builds drop the entry's exports (`preserveEntrySignatures: false`), so async-alpine's plain `x-load-src` would register `false`.
+- The page therefore keeps `x-load` and registers the component in a small inline script on `alpine:initializing`: `Alpine.asyncData('builderV2', () => import(<Vite asset>).then(m => m.default ?? window.FormSchemaBuilderV2))`.
+- main.ts also sets `window.FormSchemaBuilderV2`.
+- The root content and `builderConfig()` render only on the first request; Livewire never morphs the `wire:ignore` root.
+- Bundle: 31.8 kB gzipped.

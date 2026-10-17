@@ -60,3 +60,5 @@
 53. Keycloak marks its cookies Secure even over http: the browser keeps them only on a secure context, so use `http://keycloak.localhost:8180` (Chromium treats *.localhost as secure), never an IP address.
 54. In containers with `extra_hosts: keycloak.localhost:host-gateway`, PHP `dns_get_record` returns 127.0.0.1 while `gethostbynamel`/getaddrinfo returns the gateway; resolve with getaddrinfo for SSRF checks and pinning.
 55. `php artisan test --parallel` / pest accept only one path argument; for a subset use `--filter` or a temporary phpunit config.
+56. socialiteproviders/saml2 4.10 does not check the Audience, LightSAML's Recipient check accepts any URL, and replay detection runs before signature validation: AppSaml2Provider adds these checks (ADR 0036 amendment). Never trust a SAML package's defaults without tests for each check.
+57. Vite app builds drop entry exports (`preserveEntrySignatures: false`): an entry loaded by async-alpine `x-load-src` must register its component explicitly (`Alpine.asyncData` + `import()`), see ADR 0037 amendment.

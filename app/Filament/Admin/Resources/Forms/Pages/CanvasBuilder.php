@@ -29,6 +29,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Concerns\InteractsWithRecord;
 use Filament\Resources\Pages\Page;
 use Filament\Schemas\Schema;
+use Filament\Support\Enums\Width;
 use FormSchema\Definition\InvalidDefinitionException as InvalidSpecDefinition;
 use FormSchema\Json\Json;
 use Illuminate\Validation\ValidationException;
@@ -59,6 +60,9 @@ final class CanvasBuilder extends Page
     protected static string $resource = FormResource::class;
 
     protected string $view = 'filament.forms.builder-v2.page';
+
+    /** Palette, canvas and inspector need the full width. */
+    protected Width|string|null $maxContentWidth = Width::Full;
 
     /** @var array<string, mixed> */
     public array $inspectorData = [];
