@@ -52,3 +52,8 @@
 45. Strict mode throws on lazy loading only when a query returned several models — code tested with one record (e.g. one scheduled report per organization) passes and fails in production; eager-load in every loop over query results, and do not let `report($e)` hide it in tests.
 46. Filament action buttons have no wire:key: two adjacent actions with complementary visible() (pin/unpin) are morphed in place by Livewire, so keyboard focus stays on the button after toggling.
 47. Run E2E through `npm run e2e` (sets PLAYWRIGHT_BROWSERS_PATH=storage/playwright); plain `npx playwright test` looks in ~/Library/Caches and fails with "Executable does not exist".
+48. Playwright: `browser.newContext()` inside a describe with `test.use({ storageState })` inherits that state; pass `storageState: { cookies: [], origins: [] }` for a fresh phone context.
+49. Playwright: CDP `Page.crash` never answers; do not await it, wait for `page.waitForEvent('crash')`.
+50. fake-indexeddb schedules with setImmediate: fake timers that fake it (`vi.useFakeTimers({ shouldAdvanceTime: true })` defaults) make Dexie throw PrematureCommitError/TransactionInactiveError. Use FAKE_TIMERS (test/utils/a-store.ts) in any test that touches the offline store.
+51. Deferred focus (retries via setTimeout) must cancel once the user interacts; otherwise fast typing lands in the wrong field (renderer reveal bug, M6).
+52. E2E on long repeaters: address rows by their row header ("Eintrag N"), never `.last()`; the list is virtualized above 25 rows.
