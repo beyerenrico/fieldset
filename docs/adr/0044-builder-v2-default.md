@@ -40,8 +40,8 @@ Requirements this touches:
 - **Classic stays reachable:** a "Classic builder" row action in the list, the existing "Classic builder" toolbar
   button in v2 (flushes pending saves first) and the "Canvas builder" header action in v1 (saves first). The
   classic route `forms/{record}/edit` is unchanged, so bookmarks and the versions/rollback table keep working.
-- Dashboard widgets (draft forms, recently published) keep linking to `edit`: their cached rows carry no import-report
-  flag. They can follow once the widget data does.
+- Dashboard widgets (draft forms, recently published) follow the same rule: their cached rows carry an `import` flag
+  (`FormResource::builderUrlFor()`).
 - Both builders keep working and are both covered: E2E m1/m2/m4-versions use the classic builder explicitly
   (toolbar button or the `edit` URL), m7-builder-v2 and m8-csp use the canvas, and Pest covers the default URLs
   (`BuilderDefaultTest`).

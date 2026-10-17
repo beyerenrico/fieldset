@@ -86,7 +86,7 @@ Constraints:
   until it expires; the download re-checks that the user may still see the submission.
 - The plain text of a new token is part of the Livewire state while its modal is open (as for webhook secrets);
   no request-recording tool (Telescope, Debugbar) is installed, and none should record Livewire payloads.
-- Expired tokens stay in the table until revoked (shown as "Expired"). Scheduling `sanctum:prune-expired` is
-  optional.
+- Expired tokens are shown as "Expired" and deleted by the daily `sanctum:prune-expired --hours=24` schedule
+  (routes/console.php), one day after they expire.
 - Tests that need ability checks must send real bearer tokens and call `forgetGuards()` between requests (the
   test application caches the user resolved by the sanctum guard).

@@ -25,7 +25,10 @@ it('keeps the production template production-safe', function (): void {
         'SSO_ALLOW_INSECURE_IDP' => 'false', 'SSO_DNS_DRIVER' => 'dns', 'SESSION_SECURE_COOKIE' => 'true',
         'MESSAGING_SMTP_ALLOW_PRIVATE_HOSTS' => 'false',
     ])->and($prod['APP_URL'])->toStartWith('https://')
-        ->and(array_keys($prod))->not->toContain('FORWARD_DB_PORT');
+        ->and(array_keys($prod))->not->toContain('FORWARD_DB_PORT')
+        // Only the Docker bridge range the host proxy arrives from (compose.yaml binds 127.0.0.1), never `*`.
+        ->and($prod['TRUSTED_PROXIES'])->toBe('172.16.0.0/12')
+        ->and((string) file_get_contents(base_path('compose.yaml')))->toContain('"127.0.0.1:${APP_PORT:-8080}:8080"');
 });
 
 it('lists the same settings in both templates (production drops only dev port forwards)', function (): void {
