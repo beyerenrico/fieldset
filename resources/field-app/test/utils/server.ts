@@ -6,9 +6,10 @@ import { resetAuthNotice } from '../../src/lib/session/auth-events.ts';
 import { reloadOrganizationId } from '../../src/lib/session/org-store.ts';
 import { clearAllTables } from '../../src/lib/db/db.ts';
 
-/** Default: the CSRF cookie endpoint always answers 204. */
+/** Defaults: the CSRF cookie endpoint answers 204; discovery (M7) answers password mode. */
 export const server = setupServer(
     http.get('*/sanctum/csrf-cookie', () => new HttpResponse(null, { status: 204 })),
+    http.post('*/auth/sso/discover', () => HttpResponse.json({ mode: 'password' })),
 );
 
 /** MSW lifecycle + clean storage, auth notices and draft sessions for every test. */

@@ -3,6 +3,7 @@ import type { JsonObject } from '@form-schema-app/form-schema-js';
 import { http, HttpResponse, type JsonBodyType } from 'msw';
 import type {
     AppNotification,
+    DiscoveryResult,
     FormSummary,
     Me,
     NotificationPreference,
@@ -40,6 +41,9 @@ export interface BackendState {
     sends: { uuid: string; key: string | null; body: unknown }[];
     loggedIn: boolean;
     twoFactor: boolean;
+    /** Answer of `POST /auth/sso/discover` (M7); every requested email is recorded. */
+    discovery: DiscoveryResult;
+    discoveries: string[];
     deviceSecret: string;
     tasks: Task[];
     taskCalls: string[];
@@ -64,6 +68,8 @@ export function createBackend(overrides: Partial<BackendState> = {}) {
         sends: [],
         loggedIn: true,
         twoFactor: false,
+        discovery: { mode: 'password' },
+        discoveries: [],
         deviceSecret: 'secret-1',
         tasks: [],
         taskCalls: [],
@@ -78,6 +84,11 @@ export function createBackend(overrides: Partial<BackendState> = {}) {
     const guard = () => (state.loggedIn ? null : fail(401, 'unauthenticated'));
     const handlers = [
         http.get('*/sanctum/csrf-cookie', () => new HttpResponse(null, { status: 204 })),
+        http.post('*/auth/sso/discover', async ({ request }) => {
+            const body = (await request.json()) as Record<string, string>;
+            state.discoveries.push(body.email ?? '');
+            return HttpResponse.json(state.discovery);
+        }),
         http.post('*/auth/login', () => {
             state.loggedIn = !state.twoFactor;
             return HttpResponse.json({ two_factor: state.twoFactor });

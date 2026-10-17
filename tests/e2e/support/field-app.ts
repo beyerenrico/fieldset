@@ -15,11 +15,25 @@ export async function expectNoHorizontalScroll(page: Page): Promise<void> {
   expect(width).toBe(page.viewportSize()?.width);
 }
 
+/**
+ * Signs in with a password on the login page that is already open. Email-first (M7, ADR 0036): email →
+ * Continue → discovery answers "password" → password → Sign in. The one-page form of M2–M6 (email and
+ * password together) still works, so the helper is safe on either build.
+ */
+export async function fieldAppSignIn(page: Page, email: string, password = 'password'): Promise<void> {
+  await page.getByLabel(/^(email|e-mail)$/i).fill(email);
+  const passwordField = page.getByLabel(/^(password|passwort)$/i);
+  if (!(await passwordField.isVisible())) {
+    await page.getByRole('button', { name: /^(continue|weiter)$/i }).click();
+    await expect(passwordField).toBeVisible({ timeout: 20_000 });
+  }
+  await passwordField.fill(password);
+  await page.getByRole('button', { name: /^(sign in|anmelden)$/i }).click();
+}
+
 export async function fieldAppLogin(page: Page, email: string): Promise<void> {
   await page.goto('/app/');
-  await page.getByLabel(/^(email|e-mail)$/i).fill(email);
-  await page.getByLabel(/^(password|passwort)$/i).fill('password');
-  await page.getByRole('button', { name: /^(sign in|anmelden)$/i }).click();
+  await fieldAppSignIn(page, email);
   // Navigating before the session and device registration finished would land back on the login.
   await expect(page.getByText(/^(hello|hallo), /i)).toBeVisible({ timeout: 20_000 });
 }

@@ -10,6 +10,7 @@ import type {
     AttachmentKind,
     AttachmentRecord,
     DeviceRegistration,
+    DiscoveryResult,
     DocumentSend,
     FormSummary,
     FormVersion,
@@ -50,6 +51,48 @@ export async function login(credentials: Credentials): Promise<LoginResult> {
         body: { ...credentials, remember: true },
     });
     return { two_factor: response.data?.two_factor === true };
+}
+
+/** Only http(s) targets are followed; a relative URL is resolved against this origin. */
+function ssoTarget(value: unknown): string | null {
+    if (typeof value !== 'string' || value === '') {
+        return null;
+    }
+    try {
+        const url = new URL(value, window.location.origin);
+        return url.protocol === 'https:' || url.protocol === 'http:' ? url.toString() : null;
+    } catch {
+        return null;
+    }
+}
+
+/** Narrows the untrusted discovery answer; anything but a usable SSO answer means password. */
+export function parseDiscovery(data: unknown): DiscoveryResult {
+    const body = typeof data === 'object' && data !== null ? (data as Record<string, unknown>) : {};
+    if (body.mode !== 'sso') {
+        return { mode: 'password' };
+    }
+    const redirectUrl = ssoTarget(body.redirect_url);
+    if (redirectUrl === null) {
+        throw new ApiError(502, 'invalid_discovery', 'The SSO answer has no usable redirect URL');
+    }
+    const organization = typeof body.organization === 'string' ? body.organization.trim() : '';
+    return {
+        mode: 'sso',
+        redirect_url: redirectUrl,
+        organization,
+        enforced: body.enforced === true,
+    };
+}
+
+/** Home-realm discovery (ADR 0036): needs the network; it never says whether the user exists. */
+export async function discover(email: string): Promise<DiscoveryResult> {
+    await refreshCsrfCookie();
+    const response = await authRequest<unknown>(paths.ssoDiscover, {
+        method: 'POST',
+        body: { email },
+    });
+    return parseDiscovery(response.data);
 }
 
 export type TwoFactorInput = { readonly code: string } | { readonly recovery_code: string };

@@ -1,5 +1,10 @@
 /** Search-param parsers for the routes (untrusted input → narrow types). */
-import { SUBMISSION_STATUSES, type SubmissionStatus } from '../lib/api/types.ts';
+import {
+    SSO_ERROR_CODES,
+    SUBMISSION_STATUSES,
+    type SsoErrorCode,
+    type SubmissionStatus,
+} from '../lib/api/types.ts';
 import type { AuthNotice } from '../lib/session/auth-events.ts';
 
 type Raw = Record<string, unknown>;
@@ -13,11 +18,28 @@ function positiveInt(value: unknown): number | undefined {
 
 export interface LoginSearch {
     readonly notice?: AuthNotice;
+    /** Back from a successful SSO login (`?sso=ok`): finish the sign-in on this device. */
+    readonly sso?: 'ok';
+    /** Back from a refused SSO login; an unknown code reads as `sso_failed`. */
+    readonly sso_error?: SsoErrorCode;
+}
+
+function parseSsoError(value: unknown): SsoErrorCode | undefined {
+    if (typeof value !== 'string' || value === '') {
+        return undefined;
+    }
+    return SSO_ERROR_CODES.find((code) => code === value) ?? 'sso_failed';
 }
 
 export function parseLoginSearch(search: Raw): LoginSearch {
     const notice = search.notice;
-    return notice === 'reauth' || notice === 'wiped' || notice === 'logout' ? { notice } : {};
+    const sso = search.sso === 'ok' ? 'ok' : undefined;
+    const ssoError = sso === undefined ? parseSsoError(search.sso_error) : undefined;
+    return {
+        ...(notice === 'reauth' || notice === 'wiped' || notice === 'logout' ? { notice } : {}),
+        ...(sso === undefined ? {} : { sso }),
+        ...(ssoError === undefined ? {} : { sso_error: ssoError }),
+    };
 }
 
 export interface FillSearch {

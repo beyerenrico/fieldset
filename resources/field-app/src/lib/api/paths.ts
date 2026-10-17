@@ -10,6 +10,7 @@ export const paths = {
     login: `${AUTH_BASE}/login`,
     twoFactorChallenge: `${AUTH_BASE}/two-factor-challenge`,
     logout: `${AUTH_BASE}/logout`,
+    ssoDiscover: `${AUTH_BASE}/sso/discover`,
     deviceStatus: `${API_BASE}/auth/device-status`,
     me: `${API_BASE}/me`,
     devices: `${API_BASE}/devices`,

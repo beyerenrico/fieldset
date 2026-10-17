@@ -46,6 +46,32 @@ export const de: Messages = {
     'auth.useCode': 'Authentifizierungscode verwenden',
     'auth.verify': 'Bestätigen',
     'auth.invalidCode': 'Der Code ist ungültig.',
+    'auth.emailHint':
+        'Geben Sie Ihre geschäftliche E-Mail-Adresse ein. Nutzt Ihre Organisation Single Sign-on, geht es dort weiter.',
+    'auth.continue': 'Weiter',
+    'auth.checking': 'Wird geprüft …',
+    'auth.changeEmail': 'Andere E-Mail-Adresse verwenden',
+    'auth.emailInvalid': 'Bitte geben Sie eine gültige E-Mail-Adresse ein.',
+    'auth.discoverOffline': 'Keine Verbindung. Für die Anmeldung ist eine Verbindung nötig.',
+    'auth.ssoContinue': 'Weiter mit {organization}',
+    'auth.ssoContinueGeneric': 'Weiter mit Single Sign-on',
+    'auth.ssoRedirecting': 'Sie werden zur Anmeldeseite Ihrer Organisation weitergeleitet …',
+    'auth.ssoCompleting': 'Die Anmeldung wird abgeschlossen …',
+    'auth.ssoRequired': 'Ihre Organisation verlangt die Anmeldung per Single Sign-on.',
+    'auth.ssoError.sso_failed':
+        'Die Anmeldung per Single Sign-on hat nicht funktioniert. Bitte versuchen Sie es erneut.',
+    'auth.ssoError.sso_denied':
+        'Die Anmeldung wurde von Ihrer Organisation abgebrochen oder abgelehnt.',
+    'auth.ssoError.account_inactive':
+        'Ihr Konto ist deaktiviert. Bitte wenden Sie sich an Ihre Administration.',
+    'auth.ssoError.not_member':
+        'Ihr Konto gehört nicht zu dieser Organisation. Bitte fragen Sie Ihre Administration nach einer Einladung.',
+    'auth.ssoError.domain_not_verified':
+        'Die Domain Ihrer E-Mail-Adresse ist nicht für Single Sign-on bestätigt. Bitte wenden Sie sich an Ihre Administration.',
+    'auth.ssoError.email_unverified':
+        'Ihre Organisation hat Ihre E-Mail-Adresse nicht bestätigt. Bitte wenden Sie sich an Ihre Administration.',
+    'auth.ssoError.provider_unavailable':
+        'Der Anmeldedienst Ihrer Organisation ist nicht erreichbar. Bitte versuchen Sie es später erneut.',
     'notice.reauth':
         'Die Sitzung ist abgelaufen. Melden Sie sich erneut an – die Daten auf diesem Gerät bleiben erhalten.',
     'notice.wiped':

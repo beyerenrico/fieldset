@@ -37,6 +37,32 @@ export interface LoginResult {
     readonly two_factor: boolean;
 }
 
+/** `POST /auth/sso/discover` (ADR 0036): the domain's organization signs in with SSO, or a password. */
+export type DiscoveryResult =
+    | { readonly mode: 'password' }
+    | {
+          readonly mode: 'sso';
+          /** Same-site URL that starts the SSO login (`/auth/sso/{provider}/redirect?client=app`). */
+          readonly redirect_url: string;
+          /** Name of the organization whose identity provider signs the user in. */
+          readonly organization: string;
+          /** The organization enforces SSO: a password login is refused. */
+          readonly enforced: boolean;
+      };
+
+/** `?sso_error=<code>` on the return to `/app/login` after a refused SSO login (M7 contract). */
+export const SSO_ERROR_CODES = [
+    'sso_failed',
+    'sso_denied',
+    'account_inactive',
+    'not_member',
+    'domain_not_verified',
+    'email_unverified',
+    'provider_unavailable',
+] as const;
+
+export type SsoErrorCode = (typeof SSO_ERROR_CODES)[number];
+
 export interface DeviceRegistration {
     readonly device_uuid: string;
     readonly secret: string;

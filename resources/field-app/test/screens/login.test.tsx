@@ -13,6 +13,7 @@ import { seedUnsynced, stubStorageManager } from '../utils/c-rows.ts';
 import { ORG_A, ORG_B, makeMe } from '../utils/fixtures.ts';
 import { renderApp } from '../utils/render-app.tsx';
 import { server, setupTestServer } from '../utils/server.ts';
+import { signIn } from '../utils/sign-in.ts';
 
 vi.mock('../../src/lib/session/reload.ts', () => ({
     LOGIN_PATH: '/app/login',
@@ -20,12 +21,6 @@ vi.mock('../../src/lib/session/reload.ts', () => ({
 }));
 
 setupTestServer();
-
-async function signIn(user: ReturnType<typeof renderApp>['user']) {
-    await user.type(await screen.findByLabelText('Email'), 'worker@demo.test');
-    await user.type(screen.getByLabelText('Password'), 'secret');
-    await user.click(screen.getByRole('button', { name: 'Sign in' }));
-}
 
 describe('login', () => {
     it('redirects to login without a session and signs in (device registered)', async () => {

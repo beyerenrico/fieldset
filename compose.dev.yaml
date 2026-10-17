@@ -23,6 +23,7 @@ services:
       MAIL_PORT: 1025
       SSO_ALLOW_INSECURE_IDP: "true"
       SSO_DNS_DRIVER: config
+      SSO_DNS_RECORDS: '{"_form-schema-app-verification.sso-demo.test":["form-schema-app-verification=c0ffee0000000000000000000000000000550001"],"_form-schema-app-verification.saml-demo.test":["form-schema-app-verification=c0ffee0000000000000000000000000000550002"]}'
     extra_hosts:
       - "keycloak.localhost:host-gateway"
   # Mail is queued (M3), so the worker and scheduler need the in-network Mailpit too.
@@ -32,6 +33,7 @@ services:
       MAIL_PORT: 1025
       SSO_ALLOW_INSECURE_IDP: "true"
       SSO_DNS_DRIVER: config
+      SSO_DNS_RECORDS: '{"_form-schema-app-verification.sso-demo.test":["form-schema-app-verification=c0ffee0000000000000000000000000000550001"],"_form-schema-app-verification.saml-demo.test":["form-schema-app-verification=c0ffee0000000000000000000000000000550002"]}'
     extra_hosts:
       - "keycloak.localhost:host-gateway"
   scheduler:
@@ -40,6 +42,7 @@ services:
       MAIL_PORT: 1025
       SSO_ALLOW_INSECURE_IDP: "true"
       SSO_DNS_DRIVER: config
+      SSO_DNS_RECORDS: '{"_form-schema-app-verification.sso-demo.test":["form-schema-app-verification=c0ffee0000000000000000000000000000550001"],"_form-schema-app-verification.saml-demo.test":["form-schema-app-verification=c0ffee0000000000000000000000000000550002"]}'
     extra_hosts:
       - "keycloak.localhost:host-gateway"
   # OIDC/SAML IdP for development and E2E (ADR 0036). Opt-in: COMPOSE_PROFILES=sso (set in the CI e2e job).

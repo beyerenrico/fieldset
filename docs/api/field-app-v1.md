@@ -1,4 +1,4 @@
-# Field App API contract (`/api/v1`, milestone M2; offline additions M6)
+# Field App API contract (`/api/v1`, milestone M2; offline additions M6; SSO M7)
 
 Normative for the Field App and the backend; Scramble publishes the generated OpenAPI 3.1 document at
 `/docs/api`. Paths in the endpoint table are relative to `/api/v1`. All `/api/v1` responses use the envelope
@@ -16,6 +16,27 @@ Non-multipart request bodies larger than 2 MB (`submissions.max_payload_bytes`) 
   If `two_factor` is true: `POST /auth/two-factor-challenge` `{ code }` or `{ recovery_code }` → 204.
   `POST /auth/logout` → 204. Send `X-XSRF-TOKEN` from the `XSRF-TOKEN` cookie on every mutating request.
 - Every tenant-scoped call sends `X-Organization-Id: <id>` (from `GET /me`).
+- **Email-first sign-in (M7, ADR 0036).** The client asks for the email, then calls home-realm discovery:
+  `POST /auth/sso/discover` `{ email }`. It is a web route at the site root like the Fortify calls: CSRF
+  cookie and `X-XSRF-TOKEN`, plain JSON, invalid email → 422 `{ message, errors }`, throttled (20/min) → 429.
+  The answer is `{ mode: "password" }` or `{ mode: "sso", redirect_url, organization, enforced }`
+  (`organization`: display name; `enforced`: password login is refused). Discovery works per domain only
+  (a verified domain → its organization's active provider) and never reveals whether a user exists.
+  - `password`: the password step (`POST /auth/login` as above), with the email prefilled.
+  - `sso`: the client writes open drafts to the device, sends a pending `POST /auth/logout`, then
+    navigates the browser to `redirect_url` (`GET /auth/sso/{provider}/redirect?client=app…`, same origin).
+  - Discovery needs the network. Offline, the client says so; an offline start from the cached session
+    (M6) is unchanged.
+- **Return from the identity provider.** The SSO login ends with a redirect to `/app/login?sso=ok`: the
+  session is established (and regenerated), and the client runs its normal post-login steps (`POST /devices`,
+  `GET /me`, the foreign-data prompt, a sync). Local 2FA is skipped for SSO logins (the IdP's job). A refused
+  login returns to `/app/login?sso_error=<code>`, with `code` one of `sso_failed`, `sso_denied`,
+  `account_inactive`, `not_member`, `domain_not_verified`, `email_unverified`, `provider_unavailable`
+  (clients show unknown codes as `sso_failed`).
+- **Enforced SSO.** When the email's domain is verified by an organization that enforces SSO,
+  `POST /auth/login` answers **422** `{ message, errors: { sso_required: [msg] } }` before any password check,
+  and `POST /auth/forgot-password` answers 422 with `errors.sso_required` too. The client offers single
+  sign-on (discovery again). Only the provider's break-glass Owner keeps password + 2FA.
 - Sessions are long and rolling (30 days). On **401/419**, call `POST /api/v1/auth/device-status` (below).
 - **Membership deactivated (M6):** deactivating a member in an organization deletes the member's API tokens
   for that organization, ends **all** of the member's sessions (sessions are not bound to an organization)
