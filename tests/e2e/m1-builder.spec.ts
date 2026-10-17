@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './support/test';
 import { adminState } from './support/auth';
 
 // M1 demo (journey 2 without preview, which arrives in M2): the designer creates a form from the
@@ -20,6 +20,9 @@ test('designer builds a form from the service report template and publishes v1',
     .first()
     .click();
 
+  // New forms open in the canvas builder (ADR 0044); this journey covers the classic builder, so it switches.
+  await expect(page).toHaveURL(/\/forms\/\d+\/canvas/, { timeout: 30_000 });
+  await page.locator('[data-builder-toolbar="classic"]').click();
   await expect(page).toHaveURL(/\/forms\/\d+\/edit/, { timeout: 30_000 }); // the builder page is heavy (QUESTIONS #8)
   await page.screenshot({ path: evidence('02-builder'), fullPage: true });
 

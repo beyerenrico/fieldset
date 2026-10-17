@@ -45,8 +45,8 @@ export async function createBlankCanvas(page: Page, name: string): Promise<void>
     .getByRole('button', { name: /submit|absenden|erstellen|create/i })
     .first()
     .click();
-  await expect(page).toHaveURL(/\/forms\/\d+\/edit/, { timeout: 30_000 });
-  await page.goto(page.url().replace(/\/edit(\?.*)?$/, '/canvas'));
+  // New forms open in the canvas builder, the default edit target (ADR 0044).
+  await expect(page).toHaveURL(/\/forms\/\d+\/canvas/, { timeout: 30_000 });
   await expect(root(page)).toHaveAttribute('data-builder-ready', '', {
     timeout: 15_000,
   });

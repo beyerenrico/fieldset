@@ -1,4 +1,4 @@
-import { test as setup } from '@playwright/test';
+import { test as setup } from './support/test';
 import { adminLogin, adminState, expectTenantDashboard } from './support/auth';
 
 for (const user of ['owner', 'designer'] as const) {

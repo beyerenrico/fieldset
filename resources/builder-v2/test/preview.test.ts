@@ -114,4 +114,24 @@ describe('preview feed', () => {
         expect(frame.dataset.size).toBe('tablet');
         expect(document.querySelectorAll('iframe')).toHaveLength(1);
     });
+
+    it('marks the iframe while focus is inside it, where CSS :focus never matches (WCAG 2.4.7)', () => {
+        const button = document.createElement('button');
+        document.body.append(button);
+        // Tab into the sandboxed preview: the builder's window blurs and the iframe is the active element.
+        frame.tabIndex = 0;
+        frame.focus();
+        window.dispatchEvent(new Event('blur'));
+        vi.advanceTimersByTime(0);
+        expect(frame.hasAttribute('data-builder-preview-focused')).toBe(true);
+
+        button.focus(); // focus comes back to the builder
+        expect(frame.hasAttribute('data-builder-preview-focused')).toBe(false);
+
+        feed.destroy();
+        frame.focus();
+        window.dispatchEvent(new Event('blur'));
+        vi.advanceTimersByTime(0);
+        expect(frame.hasAttribute('data-builder-preview-focused')).toBe(false);
+    });
 });

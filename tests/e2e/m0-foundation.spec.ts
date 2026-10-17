@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './support/test';
 import { adminLogin, adminState } from './support/auth';
 
 // M0 demo: an owner signs in, opens the tenant dashboard and the team pages; a field worker is

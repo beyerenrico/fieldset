@@ -1,4 +1,4 @@
-import { test, expect, devices, request as apiRequest, type APIRequestContext } from '@playwright/test';
+import { test, expect, devices, request as apiRequest, type APIRequestContext } from './support/test';
 import { adminState } from './support/auth';
 import { fieldAppLogin, fillAndSubmitServiceReport } from './support/field-app';
 

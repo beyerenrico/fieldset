@@ -1,4 +1,4 @@
-import { test, expect, devices } from '@playwright/test';
+import { test, expect, devices } from './support/test';
 import { fieldAppLogin, fillAndSubmitServiceReport } from './support/field-app';
 
 // M2 demo (journey 3 online part): a field worker on a phone fills the demo service report, signs it

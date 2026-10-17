@@ -1,4 +1,4 @@
-import { test, expect, devices, type Page } from '@playwright/test';
+import { test, expect, devices, type Page } from './support/test';
 import { adminState } from './support/auth';
 import { fieldAppLogin, fillAndSubmitServiceReport } from './support/field-app';
 

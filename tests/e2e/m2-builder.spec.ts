@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './support/test';
 import { adminState } from './support/auth';
 
 // M2 demo: journey 2 with the live preview (the unsaved definition rendered by the Field App renderer)
@@ -18,6 +18,9 @@ test('designer previews an unsaved change in the phone frame, then publishes', a
     .getByRole('button', { name: /submit|absenden|erstellen|create/i })
     .first()
     .click();
+  // New forms open in the canvas builder (ADR 0044); this journey covers the classic builder, so it switches.
+  await expect(page).toHaveURL(/\/forms\/\d+\/canvas/, { timeout: 30_000 });
+  await page.locator('[data-builder-toolbar="classic"]').click();
   await expect(page).toHaveURL(/\/forms\/\d+\/edit/, { timeout: 30_000 }); // the builder page is heavy (QUESTIONS #8)
 
   // Change the title without saving; the preview must show the unsaved state.
