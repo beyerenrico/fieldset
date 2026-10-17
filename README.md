@@ -10,9 +10,9 @@ tablet (also offline) to produce reports, invoices, checklists and other documen
 - **Form Schema Spec** — open, versioned JSON format for form definitions (`spec/`, MIT) with PHP and
   JavaScript SDKs (`packages/`, MIT)
 
-> Status: **0.2.0** (reports, dashboards, offline-first Field App) — see [CHANGELOG.md](CHANGELOG.md)
-> and [release notes](docs/releases/0.2.0.md). SSO and the canvas builder are planned for 1.0
-> (`docs/agent/PLAN.md`).
+> Status: **0.2.0** released (reports, dashboards, offline-first Field App); SSO (OIDC/SAML) and the
+> canvas builder are merged on `main` for 1.0 — see [CHANGELOG.md](CHANGELOG.md),
+> [release notes](docs/releases/0.2.0.md) and the [guides](docs/guide/index.md).
 
 ## What you can do
 
@@ -57,6 +57,16 @@ Demo users (seeded with `php artisan db:seed`, password `password`): `owner@demo
 Checks: `vendor/bin/pint --test`, `vendor/bin/phpstan analyse --memory-limit=1G`,
 `vendor/bin/rector --dry-run`, `./scripts/coverage.sh`, `npm run typecheck lint test`,
 `npm run conformance`, `npm run e2e` (against the Docker stack).
+
+## Documentation
+
+Guides in [`docs/guide/`](docs/guide/index.md):
+
+- [Install (production, Docker Compose)](docs/guide/install.md) · [Upgrade](docs/guide/upgrade.md) ·
+  [Backup and restore](docs/guide/backup-restore.md) · [Configuration](docs/guide/configuration.md) ·
+  [Troubleshooting](docs/guide/troubleshooting.md)
+- [Admin guide](docs/guide/admin-guide.md) · [Field App guide](docs/guide/field-app-guide.md) ·
+  [API and integrations](docs/guide/api.md)
 
 ## Architecture
 

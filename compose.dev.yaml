@@ -3,6 +3,9 @@ services:
   postgres:
     ports:
       - "${FORWARD_DB_PORT:-54329}:5432"
+    # Test databases for the PHP suite and parallel agents (owned by `form_schema`): development only.
+    volumes:
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
   redis:
     ports:
       - "${FORWARD_REDIS_PORT:-63799}:6379"

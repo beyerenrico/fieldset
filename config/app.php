@@ -140,4 +140,10 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+
+    /*
+    | Requests per minute per user or token on /api/v1 (AppServiceProvider rate limiter).
+    */
+    'api_rate_limit' => (int) env('API_RATE_LIMIT', 240),
+
 ];

@@ -18,7 +18,7 @@ Non-multipart request bodies larger than 2 MB (`submissions.max_payload_bytes`) 
 - Every tenant-scoped call sends `X-Organization-Id: <id>` (from `GET /me`).
 - **Email-first sign-in (M7, ADR 0036).** The client asks for the email, then calls home-realm discovery:
   `POST /auth/sso/discover` `{ email }`. It is a web route at the site root like the Fortify calls: CSRF
-  cookie and `X-XSRF-TOKEN`, plain JSON, invalid email → 422 `{ message, errors }`, throttled (20/min) → 429.
+  cookie and `X-XSRF-TOKEN`, plain JSON, invalid email → 422 `{ message, errors }`, throttled (10/min per address and IP, 300/min per IP) → 429.
   The answer is `{ mode: "password" }` or `{ mode: "sso", redirect_url, organization, enforced }`
   (`organization`: display name; `enforced`: password login is refused). Discovery works per domain only
   (a verified domain → its organization's active provider) and never reveals whether a user exists.
