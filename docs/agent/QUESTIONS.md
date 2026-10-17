@@ -82,3 +82,33 @@ Format: question · chosen option · impact · how to reverse.
    admins who open v1 wait about a second; field workers on very slow links wait longer for the first load ·
    decide whether to retire v1 in 1.1 and which Field App load profile is binding; proposals in
    `docs/agent/milestones/evidence/M8/performance.md`.
+22. Phone HTTPS is demo-grade (E11, ADR 0057): whether Android trusts a user-installed CA for PWA installs is
+   unverified; quick tunnels have no uptime guarantee, allow 200 in-flight requests, have no SSE and route traffic
+   through Cloudflare (verified, developers.cloudflare.com) · both options off by default and mutually exclusive,
+   tunnel recommended on Android, 4-hour expiry, path policy on the tunnel host · a phone demo can fail on Android
+   with the local CA or drop mid-demo on the tunnel; the instance is reachable from the internet while a tunnel
+   runs · test one iOS and one Android device per `RELEASING.md`; if Android refuses the CA, document the tunnel as
+   the only Android path.
+23. The image size budget is at risk (E17, ADR 0063): the added binaries measure about 210–220 MB uncompressed
+   (cosign alone 126–134 MiB), double the plan's "about 100+ MB", so slimming must remove about 1.3 GB from
+   today's 2.12 GB · keep KTD8 (cosign in the image), slim first, measure in M9-T02 · a miss means slower pulls on
+   a small VPS and strains the "minutes" promise · stop embedding cosign and run the pinned official cosign image
+   through the ops container's socket (saves ~130 MB, R58 identity unchanged) with an ADR, or accept a larger
+   budget.
+24. The hardware floor is a target until J10 measures it (E16, ADR 0062; U15 in M11): Gotenberg OOMs are reported
+   on small hosts, and an upgrade or restore needs room for a safety backup, a second database and a second
+   storage volume on 20 GB · keep 2 vCPU / 2 GB / 20 GB, tune the limits, record a miss with numbers · owners on
+   the smallest VPS may see OOM kills, or upgrades refused for lack of space (exit 3) · raise the published floor
+   (e.g. 4 GB RAM, 40 GB disk) if J10 shows no headroom.
+25. The first public publish is irreversible (E4, E14, E18; ADRs 0050, 0060, 0064): a public GHCR package cannot
+   be made private again (verified, docs.github.com), and the signer identity (`beyerenrico/form-schema-app`,
+   `release.yml`, `v*` tags) is built into every shipped `install.sh` and image · publishing stays a human step
+   per `RELEASING.md`; the first publish is a pre-release that does not move `latest`, followed by the post-publish
+   checklist · a mistake in the first public package stays public; moving the repository or renaming the workflow
+   breaks verification for installed versions · review `RELEASING.md` and `release.yml` before the first tag
+   push; an identity change needs a new `install.sh` and image release with an upgrade note.
+26. Backups stay on the instance's host, and the encrypted-backup key is handed over once (E13, ADR 0059) ·
+   default as E13: daily, keep 7, in the instance directory; `/platform` shows that backups are held only on this
+   host · losing the disk or host loses the backups with the data; losing the identity file or its passphrase
+   makes encrypted backups unreadable · document copying backups off-host; build offsite targets (Appendix B) if
+   owners do not.
