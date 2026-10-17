@@ -7,6 +7,9 @@ namespace App\Providers\Filament;
 use App\Domain\Identity\Auth\SharedAppAuthentication;
 use App\Domain\Identity\Models\Organization;
 use App\Filament\Admin\Livewire\DatabaseNotifications;
+use App\Filament\Admin\Pages\Auth\Login;
+use App\Filament\Admin\Pages\Auth\RequestPasswordReset;
+use App\Filament\Admin\Pages\Auth\ResetPassword;
 use App\Filament\Admin\Pages\NotificationPreferences;
 use App\Filament\Admin\Pages\Tenancy\EditOrganizationProfile;
 use App\Filament\Admin\Pages\Tenancy\RegisterOrganization;
@@ -39,8 +42,8 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
-            ->login()
-            ->passwordReset()
+            ->login(Login::class)                                            // email-first with home-realm discovery (ADR 0036)
+            ->passwordReset(RequestPasswordReset::class, ResetPassword::class) // refused for domains that enforce SSO
             ->emailVerification()
             ->emailChangeVerification()
             ->profile(isSimple: false)
