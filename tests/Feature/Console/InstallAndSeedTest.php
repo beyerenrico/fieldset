@@ -55,7 +55,7 @@ it('seeds one demo user per persona, idempotently', function (): void {
 
     $org = Organization::query()->where('slug', 'demo')->sole();
     $coordinator = User::query()->where('email', 'coordinator@demo.test')->sole();
-    expect($org->members()->count())->toBe(7)
+    expect($org->members()->count())->toBe(8)
         ->and($coordinator->hasPermissionIn($org, Permission::FormsManage))->toBeTrue()
         ->and($coordinator->hasPermissionIn($org, Permission::SubmissionsReview))->toBeTrue();
 });
