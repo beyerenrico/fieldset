@@ -20,6 +20,7 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
+use Filament\Tables\Table;
 use Illuminate\Http\UploadedFile;
 use InvalidArgumentException;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
@@ -27,6 +28,16 @@ use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 class ListForms extends ListRecords
 {
     protected static string $resource = FormResource::class;
+
+    /** The classic builder stays the default (row click, "Builder"); the canvas builder is one more row action (ADR 0037). */
+    public function table(Table $table): Table
+    {
+        return $table->pushRecordActions([
+            Action::make('canvas')->label(__('forms.canvas.open'))->icon('heroicon-o-squares-2x2')->color('gray')
+                ->authorize(fn (Form $record): bool => auth()->user()?->can('update', $record) ?? false)
+                ->url(fn (Form $record): string => FormResource::getUrl('canvas', ['record' => $record])),
+        ]);
+    }
 
     protected function getHeaderActions(): array
     {

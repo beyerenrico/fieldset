@@ -11,6 +11,7 @@ use App\Domain\Forms\Models\FormAccess;
 use App\Domain\Forms\Models\FormVersion;
 use App\Domain\Identity\Enums\SystemRole;
 use App\Domain\Identity\Models\Group;
+use App\Filament\Admin\Resources\Forms\FormResource;
 use App\Filament\Admin\Resources\Forms\Pages\EditForm;
 use App\Filament\Admin\Resources\Forms\Pages\ListForms;
 use App\Filament\Admin\Resources\Forms\RelationManagers\VersionsRelationManager;
@@ -241,4 +242,98 @@ it('renders the live preview with the unsaved definition', function (): void {
 
     expect($page->instance()->previewDefinitionJson())->toContain('"title":"Ungespeichert"');
     $page->assertSee('form-preview', false);
+});
+
+it('refuses to autosave over a draft that changed elsewhere and offers a reload', function (): void {
+    $form = app(CreateFormFromTemplate::class)->handle($this->designer, 'service_report');
+    $page = Livewire::test(EditForm::class, ['record' => $form->getRouteKey()]);
+    $elsewhere = $form->fresh()->draft_definition;
+    $elsewhere->title = 'Aus dem Canvas-Builder';
+    app(SaveDraft::class)->handle($form->fresh(), $elsewhere, $this->designer, autosave: true);
+
+    $this->travel(1)->minutes();
+    $page->set('data.title', 'Veralteter Tab')->call('autosave')->assertNotified(__('forms.canvas.stale_title'));
+
+    expect($form->fresh()->draft_definition->title)->toBe('Aus dem Canvas-Builder')
+        ->and($page->get('staleNotified'))->toBeTrue();
+});
+
+it('refuses an explicit save over a draft that changed elsewhere', function (): void {
+    $form = app(CreateFormFromTemplate::class)->handle($this->designer, 'service_report');
+    $page = Livewire::test(EditForm::class, ['record' => $form->getRouteKey()]);
+    $elsewhere = $form->fresh()->draft_definition;
+    $elsewhere->title = 'Aus dem Canvas-Builder';
+    app(SaveDraft::class)->handle($form->fresh(), $elsewhere, $this->designer, autosave: true);
+
+    $page->set('data.title', 'Veralteter Tab')->call('save')->assertNotified(__('forms.canvas.stale_title'));
+
+    expect($form->fresh()->draft_definition->title)->toBe('Aus dem Canvas-Builder');
+});
+
+it('keeps saving after its own saves', function (): void {
+    [$form] = app(CreateForm::class)->handle($this->designer, 'Mehrfach');
+    $page = Livewire::test(EditForm::class, ['record' => $form->getRouteKey()]);
+
+    $page->set('data.title', 'Erster')->call('save')->assertHasNoFormErrors();
+    $this->travel(1)->minutes();
+    $page->set('data.title', 'Zweiter')->call('autosave');
+
+    expect($form->fresh()->name)->toBe('Zweiter');
+});
+
+it('saves and opens the canvas builder on the same draft', function (): void {
+    $form = app(CreateFormFromTemplate::class)->handle($this->designer, 'service_report');
+
+    Livewire::test(EditForm::class, ['record' => $form->getRouteKey()])
+        ->set('data.title', 'Vor dem Wechsel')
+        ->callAction('canvas')
+        ->assertRedirect(FormResource::getUrl('canvas', ['record' => $form]));
+
+    expect($form->fresh()->draft_definition->title)->toBe('Vor dem Wechsel');
+});
+
+it('offers a Today preset for date defaults in the classic builder', function (): void {
+    $form = app(CreateFormFromTemplate::class)->handle($this->designer, 'service_report');
+    $definition = $form->draft_definition;
+    unset($definition->pages[0]->elements[3]->default); // service_date
+    app(SaveDraft::class)->handle($form, $definition, $this->designer);
+    $page = Livewire::test(EditForm::class, ['record' => $form->getRouteKey()]);
+    $data = $page->get('data');
+    $pageKey = array_key_first($data['pages']);
+    $dateKey = array_keys($data['pages'][$pageKey]['elements'])[3];
+    $path = "pages.{$pageKey}.elements.{$dateKey}.data.default";
+
+    $page->callFormComponentAction($path, 'today')->call('save')->assertHasNoFormErrors();
+
+    expect(Json::encode($form->fresh()->draft_definition->pages[0]->elements[3]->default))->toBe('{"var":"$today"}');
+});
+
+it('warns again on an explicit save and on the canvas action after a stale autosave warned once', function (): void {
+    $form = app(CreateFormFromTemplate::class)->handle($this->designer, 'service_report');
+    $page = Livewire::test(EditForm::class, ['record' => $form->getRouteKey()]);
+    $elsewhere = $form->fresh()->draft_definition;
+    $elsewhere->title = 'Aus dem Canvas-Builder';
+    app(SaveDraft::class)->handle($form->fresh(), $elsewhere, $this->designer, autosave: true);
+
+    $this->travel(1)->minutes();
+    $page->set('data.title', 'Veralteter Tab')->call('autosave')->assertNotified(__('forms.canvas.stale_title'));
+    $this->travel(1)->minutes();
+    $page->set('data.title', 'Noch veralteter')->call('autosave')->assertNotNotified(__('forms.canvas.stale_title'));
+    $page->call('save')->assertNotified(__('forms.canvas.stale_title'));
+    $page->callAction('canvas')->assertNotified(__('forms.canvas.stale_title'))->assertNoRedirect();
+
+    expect($form->fresh()->draft_definition->title)->toBe('Aus dem Canvas-Builder');
+});
+
+it('refuses to publish from the classic builder over a draft that changed elsewhere', function (): void {
+    $form = app(CreateFormFromTemplate::class)->handle($this->designer, 'service_report');
+    $page = Livewire::test(EditForm::class, ['record' => $form->getRouteKey()]);
+    $elsewhere = $form->fresh()->draft_definition;
+    $elsewhere->title = 'Aus dem Canvas-Builder';
+    app(SaveDraft::class)->handle($form->fresh(), $elsewhere, $this->designer, autosave: true);
+
+    $page->callAction('publish', ['changelog' => 'Erste Version'])->assertNotified(__('forms.canvas.stale_title'));
+
+    expect(FormVersion::query()->where('form_id', $form->id)->exists())->toBeFalse()
+        ->and($form->fresh()->draft_definition->title)->toBe('Aus dem Canvas-Builder');
 });

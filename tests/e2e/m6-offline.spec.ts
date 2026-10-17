@@ -1,6 +1,6 @@
 import { test, expect, devices, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import { adminState } from './support/auth';
-import { fieldAppLogin } from './support/field-app';
+import { fieldAppLogin, fieldAppSignIn } from './support/field-app';
 import {
   apiGet,
   countRows,
@@ -119,9 +119,7 @@ test.describe('offline-first field app', () => {
     expect(await countRows(page, 'outbox')).toBe(queued); // nothing lost, nothing sent
     await page.screenshot({ path: evidence('05-reauth') });
 
-    await page.getByLabel(/^(email|e-mail)$/i).fill(WORKER);
-    await page.getByLabel(/^(password|passwort)$/i).fill('password');
-    await page.getByRole('button', { name: /^(sign in|anmelden)$/i }).click();
+    await fieldAppSignIn(page, WORKER); // email-first login (M7)
     await expect(page.getByText(/^(hello|hallo), /i)).toBeVisible({ timeout: 20_000 });
 
     await expect

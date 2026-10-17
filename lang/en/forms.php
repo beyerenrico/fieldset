@@ -267,4 +267,26 @@ return [
         'empty_page' => 'Page has no elements',
         'schema' => 'Structure error',
     ],
+    'canvas' => [
+        'title' => 'Canvas builder: :name',
+        'open' => 'Canvas builder',
+        'palette' => [
+            'input' => 'Input',
+            'capture' => 'Capture',
+            'computed' => 'Computed',
+            'structure' => 'Structure',
+            'layout' => 'Layout',
+        ],
+        'option' => 'Option :number',
+        'invalid_json' => 'The definition is not a JSON object.',
+        'inspector' => [
+            'empty' => 'Select a page or an element to edit its properties.',
+        ],
+        'today' => 'Today',
+        'now' => 'Now',
+        'stale_title' => 'The draft was changed elsewhere',
+        'stale_body' => 'Someone saved this draft in another tab or builder. Reload to continue with the latest version.',
+        'reload' => 'Reload',
+        'stale_action' => 'The draft changed since you loaded it. Save or reload, then try again.',
+    ],
 ];

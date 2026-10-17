@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Middleware\Sso\BlockPasswordFlowsForSso;
 use Laravel\Fortify\Features;
 
 return [
@@ -103,7 +104,8 @@ return [
     |
     */
 
-    'middleware' => ['web'],
+    // BlockPasswordFlowsForSso (M7, ADR 0036) refuses password login/reset for SSO-enforced email domains.
+    'middleware' => ['web', BlockPasswordFlowsForSso::class],
 
     /*
     |--------------------------------------------------------------------------

@@ -6,7 +6,6 @@ namespace App\Domain\Notifications;
 
 /**
  * Notification events (BUILD_PROMPT §8.9). Users choose channels per event in their preferences.
- * `sso_misconfigured` (M7) is added with its milestone.
  */
 enum NotificationEvent: string
 {
@@ -19,4 +18,6 @@ enum NotificationEvent: string
     case WorkflowNotice = 'workflow_notice';
     /** A requested export (XLSX, CSV, PDF ZIP) finished or failed (M5, §8.4). */
     case ExportReady = 'export_ready';
+    /** An organization's SSO provider or enforcement is broken (Owners and Admins; M7, ADR 0036). */
+    case SsoMisconfigured = 'sso_misconfigured';
 }

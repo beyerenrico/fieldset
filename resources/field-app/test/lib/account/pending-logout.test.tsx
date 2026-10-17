@@ -20,6 +20,7 @@ import { seedUnsynced, setOnline, stubBrowserCaches } from '../../utils/c-rows.t
 import { makeMe } from '../../utils/fixtures.ts';
 import { renderApp } from '../../utils/render-app.tsx';
 import { server, setupTestServer } from '../../utils/server.ts';
+import { signIn } from '../../utils/sign-in.ts';
 
 vi.mock('../../../src/lib/session/reload.ts', () => ({
     LOGIN_PATH: '/app/login',
@@ -183,9 +184,7 @@ describe('pending server sign-out', () => {
             }),
         );
         const { user } = renderApp('/login');
-        await user.type(await screen.findByLabelText('Email'), 'worker@demo.test');
-        await user.type(screen.getByLabelText('Password'), 'secret');
-        await user.click(screen.getByRole('button', { name: 'Sign in' }));
+        await signIn(user);
         expect(await screen.findByRole('heading', { name: /Hello/ })).toBeInTheDocument();
         expect(order.slice(-2)).toEqual(['logout', 'login']);
         expect(hasPendingLogout()).toBe(false);

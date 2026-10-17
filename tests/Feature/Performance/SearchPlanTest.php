@@ -26,6 +26,10 @@ beforeEach(function (): void {
         ->where('value_text', 'not like', '[%')->orderBy('id')->first(['id', 'submission_uuid']);
     DB::table('submission_values')->where('id', $text->id)->update(['value_text' => 'Zyxquorp Kältetechnik GmbH']);
     $this->needle = $text->submission_uuid;
+    // ANALYZE samples 300 × statistics target rows at random: with the default target (100) the sample of
+    // ~55k value rows differs per run and the estimate occasionally tips the planner to a seq scan. A target
+    // of 1000 samples the whole table, so the plan is deterministic (rolled back with the test transaction).
+    DB::statement('ALTER TABLE submission_values ALTER COLUMN value_text SET STATISTICS 1000');
     DB::statement('ANALYZE submission_values, submissions');
     app(TenantContext::class)->set($this->org);
 });

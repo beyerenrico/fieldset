@@ -13,6 +13,7 @@ import { makeSubmission } from '../utils/fixtures.ts';
 import { preloadLazyScreens, renderApp } from '../utils/render-app.tsx';
 import { server, setupTestServer } from '../utils/server.ts';
 import { FAKE_TIMERS } from '../utils/a-store.ts';
+import { signIn } from '../utils/sign-in.ts';
 
 vi.mock('@form-schema-app/form-schema-react', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@form-schema-app/form-schema-react')>();
@@ -101,9 +102,7 @@ describe('lost sessions', () => {
         server.use(...backend.handlers);
         const { user, queryClient } = renderApp('/login');
         queryClient.setQueryData(['submission', 'someone-elses'], makeSubmission());
-        await user.type(await screen.findByLabelText('Email'), 'worker@demo.test');
-        await user.type(screen.getByLabelText('Password'), 'secret');
-        await user.click(screen.getByRole('button', { name: 'Sign in' }));
+        await signIn(user);
         await screen.findByRole('heading', { name: /Hello/ });
         expect(queryClient.getQueryData(['submission', 'someone-elses'])).toBeUndefined();
     });

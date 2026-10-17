@@ -8,6 +8,9 @@ use App\Actions\Fortify\ResetUserPassword;
 use App\Actions\Fortify\UpdateUserPassword;
 use App\Actions\Fortify\UpdateUserProfileInformation;
 use App\Domain\Identity\Models\User;
+use App\Domain\Identity\Sso\Contracts\PasswordAuthGate;
+use App\Domain\Identity\Sso\Exceptions\SsoRequiredException;
+use App\Domain\Identity\Sso\Login\BlockedPasswordFlow;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -31,9 +34,18 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::resetUserPasswordsUsing(ResetUserPassword::class);
         Fortify::redirectUserForTwoFactorAuthenticationUsing(RedirectIfTwoFactorAuthenticatable::class);
 
-        // Deactivated users cannot log in (BUILD_PROMPT §9.3).
+        // Enforced SSO answers 422 `sso_required` for every address of the domain (ADR 0036); only the valid
+        // break-glass Owner with the correct password passes, into the MFA challenge — a wrong break-glass
+        // password gets the same answer, so the account cannot be told apart. Deactivated users cannot log in (§9.3).
         Fortify::authenticateUsing(function (Request $request): ?User {
-            $user = User::query()->where('email', Str::lower((string) $request->input('email')))->first();
+            $email = Str::lower((string) $request->input('email'));
+            try {
+                app(PasswordAuthGate::class)->assertPasswordLoginWith($email, (string) $request->input('password'));
+            } catch (SsoRequiredException $e) {
+                throw app(BlockedPasswordFlow::class)->login($email, $e, 'fortify');
+            }
+
+            $user = User::query()->where('email', $email)->first();
 
             return $user !== null && $user->isActive() && Hash::check((string) $request->input('password'), $user->password)
                 ? $user

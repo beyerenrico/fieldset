@@ -8,6 +8,7 @@ use App\Domain\Forms\Builder\BlockCloner;
 use App\Domain\Forms\Builder\ElementFields;
 use App\Domain\Forms\Builder\FieldSpec;
 use App\Domain\Forms\Builder\KeySuggester;
+use App\Domain\Forms\Builder\PaletteCatalog;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Builder;
 use Filament\Forms\Components\Builder\Block;
@@ -23,28 +24,17 @@ use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
+use Livewire\Component as Livewire;
 
 /**
  * Builder v1: one Filament Builder block per element type (BUILD_PROMPT §8.2). Repeater and section
  * blocks nest another Builder; columns nest a Repeater of Builders. Every block carries hidden `id`
- * and `_source` so the mapper round-trips losslessly.
+ * and `_source` so the mapper round-trips losslessly. `fields()` is one element's schema without the
+ * nested builders: the Builder v2 inspector (ADR 0037) reuses it.
  */
 final class ElementBlocks
 {
     private const int MAX_DEPTH = 3;
-
-    private const array ICONS = [
-        'text' => 'heroicon-o-pencil', 'textarea' => 'heroicon-o-bars-3-bottom-left', 'email' => 'heroicon-o-at-symbol',
-        'phone' => 'heroicon-o-phone', 'number' => 'heroicon-o-hashtag', 'money' => 'heroicon-o-currency-euro',
-        'date' => 'heroicon-o-calendar', 'time' => 'heroicon-o-clock', 'datetime' => 'heroicon-o-calendar-days',
-        'select' => 'heroicon-o-chevron-up-down', 'multiselect' => 'heroicon-o-list-bullet', 'radio' => 'heroicon-o-stop-circle',
-        'checkbox' => 'heroicon-o-check-circle', 'toggle' => 'heroicon-o-power', 'rating' => 'heroicon-o-star',
-        'photo' => 'heroicon-o-camera', 'file' => 'heroicon-o-paper-clip', 'signature' => 'heroicon-o-pencil-square',
-        'location' => 'heroicon-o-map-pin', 'calculated' => 'heroicon-o-calculator', 'hidden' => 'heroicon-o-eye-slash',
-        'repeater' => 'heroicon-o-table-cells', 'section' => 'heroicon-o-rectangle-group', 'columns' => 'heroicon-o-view-columns',
-        'heading' => 'heroicon-o-h1', 'paragraph' => 'heroicon-o-document-text', 'divider' => 'heroicon-o-minus',
-        'image' => 'heroicon-o-photo', 'page_break' => 'heroicon-o-scissors',
-    ];
 
     public static function builder(string $name = 'elements', int $depth = 1): Builder
     {
@@ -54,12 +44,14 @@ final class ElementBlocks
             ->collapsible()
             ->collapsed()
             ->cloneable()
-            ->cloneAction(fn (Action $action): Action => $action->action(function (array $arguments, Builder $component): void {
+            ->cloneAction(fn (Action $action): Action => $action->action(function (array $arguments, Builder $component, Livewire $livewire): void {
                 $items = $component->getRawState() ?? [];
                 if (! is_array($items) || ! array_key_exists($arguments['item'], $items)) {
                     return;
                 }
-                $items[(string) $component->generateUuid()] = BlockCloner::clone($items[$arguments['item']]);
+                // Every key of the form counts as taken, so a second copy gets `_copy2` instead of a duplicate.
+                $taken = array_values(array_map(strval(...), array_keys(LogicEditor::fieldOptions($livewire))));
+                $items[(string) $component->generateUuid()] = BlockCloner::clone($items[$arguments['item']], $taken);
                 $component->rawState($items);
                 $component->callAfterStateUpdated();
             }))
@@ -79,7 +71,7 @@ final class ElementBlocks
 
         return array_map(fn (string $type): Block => Block::make($type)
             ->label(fn (?array $state): string => self::blockLabel($type, $state))
-            ->icon(self::ICONS[$type] ?? null)
+            ->icon(PaletteCatalog::icon($type))
             ->schema(self::schema($type, $depth)), $types);
     }
 
@@ -108,22 +100,65 @@ final class ElementBlocks
             : '';
     }
 
-    /** A new element gets a key derived from its label; existing or locked keys are never changed. */
-    private static function suggestKey(Get $get, Set $set, ?string $state): void
+    /**
+     * A new element gets a key derived from its label; existing or locked keys are never changed. A page
+     * may decide itself (`suggestElementKey`): the Builder v2 inspector keeps a palette node's key in step
+     * with its label until the key is edited.
+     */
+    private static function suggestKey(Get $get, Set $set, ?string $state, Livewire $livewire): void
     {
-        if ($get('key_locked') || filled($get('key')) || blank($state)) {
+        if ($get('key_locked') || blank($state)) {
             return;
         }
-        $set('key', KeySuggester::fromLabel($state));
+        if (method_exists($livewire, 'suggestElementKey')) {
+            $key = $livewire->suggestElementKey($state, (string) $get('key'));
+            if (is_string($key)) {
+                $set('key', $key);
+            }
+
+            return;
+        }
+        if (blank($get('key'))) {
+            $set('key', KeySuggester::fromLabel($state));
+        }
+    }
+
+    /**
+     * One element's fields without the nested element builders (Builder v2 inspector).
+     *
+     * @return list<Component>
+     */
+    public static function fields(string $type): array
+    {
+        [$head, $tail] = self::fieldParts($type);
+
+        return [...$head, ...$tail];
     }
 
     /** @return list<Component> */
     private static function schema(string $type, int $depth): array
     {
+        [$head, $tail] = self::fieldParts($type);
+        $nested = array_values(array_filter([
+            in_array($type, ['repeater', 'section'], true) ? self::builder('elements', $depth + 1) : null,
+            $type === 'columns' ? Repeater::make('columns')->label(__('forms.element.columns'))->minItems(2)->maxItems(4)->defaultItems(2)
+                ->schema([Hidden::make('_source'), self::builder('elements', $depth + 1)])->grid(2) : null,
+        ]));
+
+        return [...$head, ...$nested, ...$tail];
+    }
+
+    /**
+     * The fields before and after the place where v1 nests element builders.
+     *
+     * @return array{list<Component>, list<Component>}
+     */
+    private static function fieldParts(string $type): array
+    {
         $fields = array_map(fn (FieldSpec $spec): string => $spec->ui, ElementFields::for($type));
         $has = static fn (string $ui): bool => in_array($ui, $fields, true);
 
-        $main = array_values(array_filter([
+        $head = array_values(array_filter([
             Hidden::make('id'), Hidden::make('_source'), Hidden::make('key_locked'),
             Grid::make(2)->schema(array_values(array_filter([
                 $has('label') ? TextInput::make('label')->label(__('forms.element.label'))->required($type !== 'section' && $type !== 'hidden')->live(onBlur: true)
@@ -138,12 +173,9 @@ final class ElementBlocks
                 $has('required') ? Toggle::make('required')->label(__('forms.element.required'))->inline(false) : null,
             ]))),
             ...self::typeSpecific($type, $has),
-            $has('elements') || in_array($type, ['repeater', 'section'], true) ? self::builder('elements', $depth + 1) : null,
-            $type === 'columns' ? Repeater::make('columns')->label(__('forms.element.columns'))->minItems(2)->maxItems(4)->defaultItems(2)
-                ->schema([Hidden::make('_source'), self::builder('elements', $depth + 1)])->grid(2) : null,
         ]));
 
-        return [...$main, ...self::logicSection($has), ...self::advancedSection($has)];
+        return [$head, [...self::logicSection($has), ...self::advancedSection($type, $has)]];
     }
 
     /**
@@ -164,7 +196,7 @@ final class ElementBlocks
             $has('rows') ? TextInput::make('rows')->label(__('forms.element.rows'))->integer()->minValue(2)->maxValue(20) : null,
             $has('max') ? TextInput::make('max')->label(__('forms.element.max'))->integer()->minValue(3)->maxValue(10) : null,
             $has('signer_name_from') ? Select::make('signer_name_from')->label(__('forms.element.signer_name_from'))
-                ->options(fn (\Livewire\Component $livewire): array => LogicEditor::fieldOptions($livewire)) : null,
+                ->options(fn (Livewire $livewire): array => LogicEditor::fieldOptions($livewire)) : null,
             $has('format') ? Select::make('format')->label(__('forms.element.format'))->default('number')
                 ->options(['number' => __('forms.element.format_number'), 'money' => __('forms.element.format_money'), 'text' => __('forms.element.format_text')]) : null,
             $has('display') ? Select::make('display')->label(__('forms.element.display'))->default('cards')
@@ -205,10 +237,10 @@ final class ElementBlocks
      * @param  callable(string): bool  $has
      * @return list<Component>
      */
-    private static function advancedSection(callable $has): array
+    private static function advancedSection(string $type, callable $has): array
     {
         $fields = array_values(array_filter([
-            $has('default') ? TextInput::make('default')->label(__('forms.element.default'))->helperText('Text, or JsonLogic such as {"var": "$today"}') : null,
+            $has('default') ? self::defaultField($type) : null,
             $has('role') ? Select::make('role')->label(__('forms.element.role'))->options(RoleOptions::all())->searchable() : null,
             $has('v_min_length') ? TextInput::make('v_min_length')->label(__('forms.element.min_length'))->integer()->minValue(0) : null,
             $has('v_max_length') ? TextInput::make('v_max_length')->label(__('forms.element.max_length'))->integer()->minValue(1) : null,
@@ -224,5 +256,23 @@ final class ElementBlocks
         ]));
 
         return $fields === [] ? [] : [Section::make(__('forms.element.advanced'))->schema([Grid::make(2)->schema($fields)])->collapsed()->compact()];
+    }
+
+    /** Date and datetime defaults get a "Today"/"Now" preset, so nobody types `{"var": "$today"}`. */
+    private static function defaultField(string $type): TextInput
+    {
+        $field = TextInput::make('default')->label(__('forms.element.default'))->helperText('Text, or JsonLogic such as {"var": "$today"}');
+        $preset = match ($type) {
+            'date' => ['today', '$today', 'heroicon-o-calendar'],
+            'datetime' => ['now', '$now', 'heroicon-o-clock'],
+            default => null,
+        };
+        if ($preset === null) {
+            return $field;
+        }
+        [$name, $variable, $icon] = $preset;
+
+        return $field->suffixAction(Action::make($name)->label(__('forms.canvas.'.$name))->tooltip(__('forms.canvas.'.$name))->icon($icon)
+            ->action(fn (TextInput $component): TextInput => $component->state('{"var":"'.$variable.'"}')));
     }
 }

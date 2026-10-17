@@ -9,7 +9,16 @@ use App\Http\Controllers\Admin\AttachmentDownloadController;
 use App\Http\Controllers\Admin\RenditionDownloadController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\SpaController;
+use App\Http\Controllers\Sso\CallbackController;
+use App\Http\Controllers\Sso\DiscoverController;
+use App\Http\Controllers\Sso\RedirectController;
+use App\Http\Controllers\Sso\SamlAcsController;
+use App\Http\Controllers\Sso\SamlCompleteController;
+use App\Http\Controllers\Sso\SamlMetadataController;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
+use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Route;
+use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 Route::redirect('/', '/admin');
 
@@ -43,3 +52,18 @@ Route::get('documents/links/{token}', DocumentLinkController::class)
 Route::get('admin/{organization}/exports/{export}', ExportDownloadController::class)
     ->middleware(['auth', 'throttle:60,1'])->name('admin.exports.download');
 // --- end M5 reports ---
+
+// --- M7 SSO (BUILD_PROMPT §8.7, ADR 0036) ---
+// {provider} is the identity provider's uuid, resolved across organizations (no tenant yet).
+Route::prefix('auth/sso')->name('sso.')->group(function (): void {
+    Route::post('discover', DiscoverController::class)->middleware('throttle:sso-discover')->name('discover');
+    Route::get('saml/complete', SamlCompleteController::class)->name('saml.complete');
+    Route::get('{provider}/redirect', RedirectController::class)->whereUuid('provider')->middleware('throttle:30,1')->name('redirect');
+    Route::get('{provider}/callback', CallbackController::class)->whereUuid('provider')->middleware('throttle:30,1')->name('callback');
+    Route::get('{provider}/saml/metadata', SamlMetadataController::class)->whereUuid('provider')->name('saml.metadata');
+    // A cross-site POST from the IdP carries no Lax session cookie and must not start or overwrite a session.
+    Route::post('{provider}/saml/acs', SamlAcsController::class)->whereUuid('provider')->middleware('throttle:30,1')
+        ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class])
+        ->name('saml.acs');
+});
+// --- end M7 SSO ---

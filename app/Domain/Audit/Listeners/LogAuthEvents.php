@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Domain\Audit\Listeners;
 
 use App\Domain\Audit\AuditLogger;
+use App\Domain\Identity\Models\User;
+use App\Domain\Identity\Sso\Enforcement\DomainPasswordGate;
+use App\Domain\Identity\Sso\Login\LoginAuditContext;
 use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Auth\Events\Login;
@@ -16,6 +19,11 @@ use Laravel\Fortify\Events\TwoFactorAuthenticationFailed;
 /**
  * Writes authentication events to the audit log (BUILD_PROMPT §8.7, §8.11). Password changes (including
  * resets), MFA enrolment and recovery-code use are audited by the User model itself, once each.
+ *
+ * auth.login carries `method` (ADR 0036): `sso` with `provider`, `protocol`, `amr` and `email_verified_by`
+ * from LoginAuditContext (set by the SSO login before Auth::login); otherwise `break_glass` when the
+ * password login only passed enforced SSO as the provider's break-glass Owner — then also
+ * `auth.break_glass_login` — or `password`. Exactly one auth.login entry per login.
  */
 final readonly class LogAuthEvents
 {
@@ -23,7 +31,18 @@ final readonly class LogAuthEvents
 
     public function login(Login $event): void
     {
-        $this->forUser('auth.login', $event->user, ['guard' => $event->guard, 'remember' => $event->remember]);
+        $method = LoginAuditContext::method() ?? ($this->isBreakGlass($event->user) ? 'break_glass' : 'password');
+        $this->forUser('auth.login', $event->user, [
+            'guard' => $event->guard,
+            'remember' => $event->remember,
+            'method' => $method,
+            ...LoginAuditContext::details(),
+        ]);
+        LoginAuditContext::clear();
+
+        if ($method === 'break_glass') {
+            $this->forUser('auth.break_glass_login', $event->user, ['guard' => $event->guard]);
+        }
     }
 
     public function logout(Logout $event): void
@@ -65,6 +84,12 @@ final readonly class LogAuthEvents
             TwoFactorAuthenticationFailed::class => 'mfaFailed',
             Verified::class => 'verified',
         ];
+    }
+
+    /** Resolved lazily: subscribers are built at boot, the gate is only needed on a login. */
+    private function isBreakGlass(mixed $user): bool
+    {
+        return $user instanceof User && app(DomainPasswordGate::class)->bypassesEnforcement($user);
     }
 
     /** @param  array<string, mixed>  $properties */

@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
 
         if (! app()->isProduction()) {
             $this->call(DemoSeeder::class);
+            $this->call(SsoDemoSeeder::class);
         }
     }
 }

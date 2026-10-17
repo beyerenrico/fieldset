@@ -19,6 +19,7 @@
         "dev:field-app": "npm run dev -w resources/field-app"
     },
     "devDependencies": {
+        "@axe-core/playwright": "4.13.0",
         "@playwright/test": "^1.64.1",
         "@tailwindcss/vite": "^4.0.0",
         "concurrently": "^10.0.3",
@@ -33,6 +34,7 @@
     "workspaces": [
         "packages/form-schema-js",
         "packages/form-schema-react",
-        "resources/field-app"
+        "resources/field-app",
+        "resources/builder-v2"
     ]
 }

@@ -53,3 +53,12 @@ Format: question · chosen option · impact · how to reverse.
    reactivated before the device connects again (M6, EndUserAccess) · accepted (the safe direction) ·
    the device wipes once, unsynced work on it is lost, the member signs in and registers again · lift
    `wipe_requested_at` on reactivation if admins often deactivate by mistake.
+17. SSO domains reject public suffixes from a curated excerpt (`PublicSuffixes`), not the full Public
+   Suffix List (no PSL package installed) · accepted: the DNS TXT proof is the real control, the suffix
+   check only stops obvious mistakes (e.g. `co.uk`) · an exotic public suffix can be claimed but never
+   verified without control of its DNS · add a maintained PSL package if admins report confusing cases.
+18. SSO from the installed iOS PWA (standalone) leaves the app's scope for the external IdP; iOS may
+   open it in a separate browser context with its own cookie jar, so the return to `/app/login?sso=ok`
+   might not carry the session (ADR 0036) · untested (no device in this run) · field workers on iPhones
+   who installed the app could fail to sign in with SSO · test on a real device in M8/1.0; fallback:
+   start SSO in Safari, or use the password option when the organization does not enforce SSO.

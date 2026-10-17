@@ -44,6 +44,34 @@ export const en = {
     'auth.useCode': 'Use an authentication code',
     'auth.verify': 'Verify',
     'auth.invalidCode': 'The code is not valid.',
+    'auth.emailHint':
+        'Enter your work email. If your company uses a central login, we will take you there.',
+    'auth.continue': 'Continue',
+    'auth.checking': 'Checking…',
+    'auth.changeEmail': 'Use a different email',
+    'auth.emailInvalid': 'Enter a valid email address.',
+    'auth.discoverOffline':
+        'No connection. Connect to mobile data or Wi-Fi, then tap Continue again.',
+    'auth.ssoContinue': 'Continue with {organization}',
+    'auth.ssoContinueGeneric': 'Continue with central login',
+    'auth.ssoChoiceTitle': 'How would you like to sign in?',
+    'auth.usePassword': 'Sign in with a password',
+    'auth.ssoRedirecting': 'Taking you to the sign-in page of your organization…',
+    'auth.ssoCompleting': 'Completing the sign-in…',
+    'auth.ssoRequired': 'Your organization requires you to use its central login.',
+    'auth.ssoError.sso_failed': 'The central login did not work. Please try again.',
+    'auth.ssoError.sso_denied':
+        'The sign-in was cancelled or refused by your organization. If this keeps happening, contact your administrator.',
+    'auth.ssoError.account_inactive':
+        'Your account is deactivated. Please contact your administrator.',
+    'auth.ssoError.not_member':
+        'Your account does not belong to this organization. Please ask your administrator for an invitation.',
+    'auth.ssoError.domain_not_verified':
+        'The domain of your email address is not verified for the central login. Please contact your administrator.',
+    'auth.ssoError.email_unverified':
+        'Your organization has not confirmed your email address. Please contact your administrator.',
+    'auth.ssoError.provider_unavailable':
+        'The sign-in service of your organization cannot be reached. Please try again later. If this keeps happening, contact your administrator.',
     'notice.reauth': 'Your session has ended. Please sign in again – data on this device is kept.',
     'notice.wiped':
         'Your administrator signed this device out and removed its local data. Sign in again or contact your office.',
@@ -239,6 +267,7 @@ export const en = {
     'event.form_available': 'A new or updated form is available',
     'event.workflow_notice': 'Messages from workflows',
     'event.export_ready': 'An export I requested is ready',
+    'event.sso_misconfigured': 'Single sign-on is misconfigured (administrators)',
     'notifications.title': 'Notifications',
     'notifications.bellUnread': 'Notifications, {count} unread',
     'notifications.empty': 'No notifications yet.',

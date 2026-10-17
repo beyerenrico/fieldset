@@ -11,6 +11,7 @@ use App\Domain\Forms\Enums\FormStatus;
 use App\Domain\Forms\Models\Form;
 use App\Domain\Identity\Models\User;
 use App\Filament\Admin\Pages\FormExplorer;
+use App\Filament\Admin\Resources\Forms\Pages\CanvasBuilder;
 use App\Filament\Admin\Resources\Forms\Pages\EditForm;
 use App\Filament\Admin\Resources\Forms\Pages\ListForms;
 use App\Filament\Admin\Resources\Forms\RelationManagers\VersionsRelationManager;
@@ -135,6 +136,8 @@ class FormResource extends Resource
         return [
             'index' => ListForms::route('/'),
             'edit' => EditForm::route('/{record}/edit'),
+            // Builder v2 (ADR 0037): same draft as the classic builder.
+            'canvas' => CanvasBuilder::route('/{record}/canvas'),
         ];
     }
 }

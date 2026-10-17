@@ -1,0 +1,36 @@
+{
+  "description": "Structure of the BUILD_PROMPT §7.2 example (service report): pages, element types, keys and labels. Logic, options and calculations are edited in the inspector, which reuses the v1 fields covered by the M1/M2 journeys.",
+  "pages": [
+    {
+      "key": "job",
+      "title": "Customer & Job",
+      "elements": [
+        { "type": "text", "key": "customer_name", "label": "Customer" },
+        { "type": "date", "key": "service_date", "label": "Service date" },
+        { "type": "select", "key": "service_type", "label": "Service type" },
+        { "type": "textarea", "key": "defect", "label": "Defect description" }
+      ]
+    },
+    {
+      "key": "work",
+      "title": "Work & Material",
+      "elements": [
+        {
+          "type": "repeater",
+          "key": "items",
+          "label": "Material & labour",
+          "elements": [
+            { "type": "text", "key": "description", "label": "Description" },
+            { "type": "number", "key": "qty", "label": "Qty" },
+            { "type": "money", "key": "unit_price", "label": "Unit price" },
+            { "type": "calculated", "key": "line_total", "label": "Total" }
+          ]
+        },
+        { "type": "calculated", "key": "net_total", "label": "Net total" },
+        { "type": "calculated", "key": "vat", "label": "VAT 19 %" },
+        { "type": "photo", "key": "photos", "label": "Photos" },
+        { "type": "signature", "key": "customer_signature", "label": "Customer signature" }
+      ]
+    }
+  ]
+}
