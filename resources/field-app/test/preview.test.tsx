@@ -4,7 +4,14 @@ import userEvent from '@testing-library/user-event';
 import type { ReactElement } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { PreviewApp } from '../src/preview/PreviewApp.tsx';
-import { parsePreviewMessage, PREVIEW_MESSAGE, PREVIEW_READY } from '../src/preview/protocol.ts';
+import {
+    isPreviewReady,
+    parsePreviewMessage,
+    PREVIEW_MESSAGE,
+    PREVIEW_READY,
+    PREVIEW_SENDER_ORIGIN,
+    PREVIEW_TARGET_ORIGIN,
+} from '../src/preview/protocol.ts';
 import { sampleContext } from '../src/preview/sample-context.ts';
 import { previewTexts } from '../src/preview/texts.ts';
 
@@ -182,6 +189,54 @@ describe('parsePreviewMessage', () => {
         expect(
             parsePreviewMessage({ origin: ORIGIN, source: null, data: message }, ORIGIN, window),
         ).toEqual({ kind: 'ignore' });
+    });
+});
+
+describe('opaque-origin contract (ADR 0040)', () => {
+    const frameWindow = new MessageChannel().port1;
+    const readyMessage = { type: PREVIEW_READY };
+
+    it('names the target and sender origins of a sandboxed preview', () => {
+        expect(PREVIEW_TARGET_ORIGIN).toBe('*');
+        expect(PREVIEW_SENDER_ORIGIN).toBe('null');
+    });
+
+    it('lets the builder trust a ready message only from its iframe window with the opaque origin', () => {
+        expect(
+            isPreviewReady(
+                { source: frameWindow, origin: 'null', data: readyMessage },
+                frameWindow,
+            ),
+        ).toBe(true);
+    });
+
+    it('refuses ready messages from an unsandboxed preview, other windows or of other types', () => {
+        const other = new MessageChannel().port1;
+        const refused: Pick<MessageEvent, 'origin' | 'data' | 'source'>[] = [
+            { source: frameWindow, origin: ORIGIN, data: readyMessage },
+            { source: other, origin: 'null', data: readyMessage },
+            { source: null, origin: 'null', data: readyMessage },
+            { source: frameWindow, origin: 'null', data: { type: PREVIEW_MESSAGE } },
+            { source: frameWindow, origin: 'null', data: PREVIEW_READY },
+        ];
+        for (const event of refused) {
+            expect(isPreviewReady(event, frameWindow)).toBe(false);
+        }
+        expect(isPreviewReady({ source: null, origin: 'null', data: readyMessage }, null)).toBe(
+            false,
+        );
+    });
+
+    it('still accepts updates from the builder origin inside the sandbox (location.origin)', () => {
+        const message = { type: PREVIEW_MESSAGE, definition: definition('X') };
+        expect(
+            parsePreviewMessage({ origin: ORIGIN, source: window, data: message }, ORIGIN, window)
+                .kind,
+        ).toBe('update');
+        expect(
+            parsePreviewMessage({ origin: 'null', source: window, data: message }, ORIGIN, window)
+                .kind,
+        ).toBe('ignore');
     });
 });
 

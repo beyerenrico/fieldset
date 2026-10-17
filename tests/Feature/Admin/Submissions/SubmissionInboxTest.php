@@ -8,6 +8,7 @@ use App\Domain\Identity\Tenancy\TenantContext;
 use App\Domain\Submissions\Models\Submission;
 use App\Filament\Admin\Resources\Submissions\Pages\ListSubmissions;
 use App\Filament\Admin\Resources\Submissions\SubmissionResource;
+use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 use Tests\Feature\Admin\Submissions\InboxScenario;
 
@@ -50,6 +51,21 @@ it('offers only forms and submitters of visible submissions as filter options', 
 
     expect($table->getFilter('form_id')->getOptions())->toBe([$this->s->designerForm->id => $this->s->designerForm->name])
         ->and($table->getFilter('created_by')->getOptions())->toBe([$this->s->worker->id => 'Walter Worker']);
+});
+
+it('computes the filter options once per request and per viewer (M8-T05)', function (): void {
+    actingInAdmin($this->s->designer, $this->s->org);
+    $optionQueries = fn (): int => count(array_filter(DB::getQueryLog(), fn (array $q): bool => str_starts_with($q['query'], 'select "name", "id" from "forms"')));
+
+    DB::flushQueryLog();
+    DB::enableQueryLog();
+    $table = Livewire::test(ListSubmissions::class)->instance()->getTable();
+    $first = $table->getFilter('form_id')->getOptions();
+    $again = $table->getFilter('form_id')->getOptions();
+    expect($first)->toBe($again)->and($optionQueries())->toBe(1);
+
+    actingInAdmin($this->s->owner, $this->s->org);   // another viewer in the same process gets their own options
+    expect(Livewire::test(ListSubmissions::class)->instance()->getTable()->getFilter('form_id')->getOptions())->toHaveCount(2);
 });
 
 it('shows all submissions to owners, admins and viewers', function (SystemRole $role): void {

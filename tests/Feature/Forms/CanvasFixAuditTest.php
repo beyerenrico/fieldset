@@ -22,7 +22,7 @@ beforeEach(function (): void {
     app(TenantContext::class)->set($this->org);
     $this->form = app(CreateFormFromTemplate::class)->handle($this->designer, 'service_report');
     $this->base = Json::checksum($this->form->draft_definition);
-    Activity::query()->delete();
+    clearAuditLog();
 });
 
 function editedDraft(Form $form, string $title): string

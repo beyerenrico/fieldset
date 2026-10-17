@@ -29,4 +29,20 @@ final class AuditLogger
 
         return $logger->log($event);
     }
+
+    /**
+     * An entry by the system (scheduled jobs such as retention and pruning): never attributed to a user that
+     * happens to be signed in while the job runs synchronously.
+     *
+     * @param  array<string, mixed>  $properties
+     */
+    public function system(string $event, ?Model $subject = null, array $properties = []): ?Activity
+    {
+        $logger = activity('audit')->event($event)->withProperties($properties)->causedByAnonymous();
+        if ($subject instanceof Model) {
+            $logger->performedOn($subject);
+        }
+
+        return $logger->log($event);
+    }
 }

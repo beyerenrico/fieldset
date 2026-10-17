@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { evaluate, parseDefinition, type ValidationError } from '../src/index.ts';
+import { evaluate, parseDefinition, type JsonObject, type ValidationError } from '../src/index.ts';
+import { listInstances } from '../src/evaluate/instances.ts';
 import { CONTEXT, deepFreeze, el, form, type Raw } from './helpers.ts';
 
 const errorsOf = (definition: Raw, data: unknown): ValidationError[] => [
@@ -164,6 +165,64 @@ describe('scopes and calculations', () => {
         ]);
         const result = evaluate(definition, {}, CONTEXT);
         expect(result.data).toEqual({ rows: [{ amount: '2.00' }] });
+    });
+});
+
+describe('large repeaters (M8-T05)', () => {
+    const definition = form([
+        el('repeater', 'items', {
+            elements: [
+                el('number', 'qty'),
+                el('money', 'price', { currency: 'EUR' }),
+                el('calculated', 'line', {
+                    format: 'money',
+                    expression: { 'dec.mul': [{ var: 'qty' }, { var: 'price' }] },
+                }),
+                el('calculated', 'line_net', {
+                    format: 'money',
+                    expression: { 'dec.mul': [{ var: 'line' }, '0.5'] },
+                }),
+            ],
+        }),
+        el('calculated', 'total', {
+            format: 'money',
+            expression: { sum: [{ var: 'items' }, 'line_net'] },
+        }),
+    ]);
+    const rows = (count: number): Raw[] =>
+        Array.from({ length: count }, (_, i) => ({ qty: String((i % 8) + 1), price: '12.50' }));
+
+    it('computes every row and the totals of a 500-row repeater', () => {
+        const result = evaluate(definition, { items: rows(500) }, CONTEXT);
+        const items = result.data['items'] as Raw[];
+        expect(items).toHaveLength(500);
+        expect(items[0]).toEqual({ qty: '1', price: '12.50', line: '12.50', line_net: '6.25' });
+        expect(items[499]).toEqual({ qty: '4', price: '12.50', line: '50.00', line_net: '25.00' });
+        expect(result.data['total']).toBe('14012.50'); // 62 × (1+…+8) × 6.25 + (1+2+3+4) × 6.25
+    });
+
+    it('lists the instances once per data object and anew for a changed copy', () => {
+        const model = parseDefinition(definition);
+        const row: JsonObject = { qty: '1', price: '12.50' };
+        const data: JsonObject = { items: [row, row, row] };
+        const first = listInstances(model, data);
+        expect(listInstances(model, data)).toBe(first);
+        const more = listInstances(model, { items: [row, row, row, row] });
+        expect(more).not.toBe(first);
+        expect(more.filter((i) => i.node.key === 'line').map((i) => i.pointer)).toEqual([
+            '/items/0/line',
+            '/items/1/line',
+            '/items/2/line',
+            '/items/3/line',
+        ]);
+    });
+
+    it('stays linear in the number of rows (the logic view is built per element, not per row)', () => {
+        evaluate(definition, { items: rows(500) }, CONTEXT);
+        const started = performance.now();
+        evaluate(definition, { items: rows(500) }, CONTEXT);
+        // Was ~1 s on a laptop when every row rebuilt the view of all rows; now ~40 ms.
+        expect(performance.now() - started).toBeLessThan(500);
     });
 });
 

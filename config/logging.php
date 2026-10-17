@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Support\Logging\CreateSentryLogger;
+use App\Support\Logging\JsonLogFormatter;
 use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;
@@ -53,6 +55,27 @@ return [
     */
 
     'channels' => [
+
+        // Structured JSON with redaction (ADR 0040): LOG_STACK=json (or json,sentry).
+        'json' => [
+            'driver' => 'monolog',
+            'level' => env('LOG_LEVEL', 'debug'),
+            'handler' => StreamHandler::class,
+            'handler_with' => ['stream' => env('LOG_JSON_STREAM', 'php://stderr')],
+            'formatter' => JsonLogFormatter::class,
+            'processors' => [PsrLogMessageProcessor::class],
+        ],
+
+        // Sentry-compatible error reporting without an SDK; set SENTRY_DSN and add it to LOG_STACK.
+        'sentry' => [
+            'driver' => 'custom',
+            'via' => CreateSentryLogger::class,
+            'dsn' => env('SENTRY_DSN'),
+            'level' => env('SENTRY_LEVEL', 'error'),
+            'environment' => env('SENTRY_ENVIRONMENT', env('APP_ENV')),
+            'release' => env('SENTRY_RELEASE'),
+            'timeout' => (float) env('SENTRY_TIMEOUT', 2),
+        ],
 
         'stack' => [
             'driver' => 'stack',

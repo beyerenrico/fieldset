@@ -1,8 +1,10 @@
 import type { FormDefinition } from '@form-schema-app/form-schema-js';
 import { describe, expect, it } from 'vitest';
 import {
+    documentAnonymizedMessage,
     documentFailureMessage,
     documentRefetchDelay,
+    isDocumentAnonymized,
     isDocumentFailed,
     linkNeedsRefresh,
     POLL_DELAYS_MS,
@@ -175,6 +177,15 @@ describe('document refetch delay', () => {
         expect(at('not a date')).toBe(false);
     });
 
+    it('never polls or refreshes once the submission was anonymized (410 document_anonymized)', () => {
+        const gone = new ApiError(410, 'document_anonymized', 'The PDF files were deleted.');
+        expect(documentRefetchDelay({ ...base, status: 'error', error: gone }, 1)).toBe(false);
+        const expired = makeDocument({ expires_at: new Date(Date.now() - 1_000).toISOString() });
+        const withOldLink = { ...base, status: 'error' as const, error: gone, data: expired };
+        expect(documentRefetchDelay(withOldLink, 0)).toBe(false);
+        expect(linkNeedsRefresh(withOldLink)).toBe(false);
+    });
+
     it('stops refreshing a link once rendering failed permanently', () => {
         expect(
             documentRefetchDelay(
@@ -193,6 +204,20 @@ describe('document refetch delay', () => {
         ).toBeNull();
         expect(documentFailureMessage(new ApiError(409, 'document_failed', '  '))).toBeNull();
         expect(documentFailureMessage(notReady)).toBeNull();
+    });
+
+    it("reads the server's text for an anonymized submission, if it sent one", () => {
+        const gone = new ApiError(410, 'document_anonymized', 'The PDF files were deleted.');
+        expect(isDocumentAnonymized(gone)).toBe(true);
+        expect(isDocumentAnonymized(new ApiError(410, 'gone', 'Gone'))).toBe(false);
+        expect(isDocumentAnonymized(failed)).toBe(false);
+        expect(documentAnonymizedMessage(gone)).toBe('The PDF files were deleted.');
+        expect(
+            documentAnonymizedMessage(
+                new ApiError(410, 'document_anonymized', 'document_anonymized'),
+            ),
+        ).toBeNull();
+        expect(documentAnonymizedMessage(failed)).toBeNull();
     });
 
     it('knows when a link needs a refresh (tab comes back to the foreground)', () => {

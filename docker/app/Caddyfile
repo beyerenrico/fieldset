@@ -7,7 +7,17 @@
 {$SERVER_NAME::8080} {
 	root * /var/www/html/public
 	encode zstd gzip
-	# The SPA shells always go through Laravel (SpaController adds the CSP), also when requested by file name.
+
+	# Static files answer without Laravel: no MIME sniffing (Laravel's SecurityHeaders set the rest, ADR 0040).
+	header X-Content-Type-Options nosniff
+
+	# The builder preview runs sandboxed in an opaque origin (ADR 0040), so its module scripts, stylesheets
+	# (Vite emits crossorigin) and fonts are cross-origin CORS requests with "Origin: null": allow any origin
+	# without credentials. Only these public build assets, never Laravel routes.
+	@previewAssets path /form-preview/assets/*
+	header @previewAssets Access-Control-Allow-Origin *
+
+	# The SPA shells always go through Laravel (SecurityHeaders adds the CSP), also when requested by file name.
 	@spaShell path /app/index.html /form-preview/preview.html
 	rewrite @spaShell /index.php
 	php_server

@@ -97,7 +97,7 @@ it('backs every widget query and value lookup with an index, and uses the dashbo
         ->and($scans('explorer: page of a form, newest first'))->toContain('submissions_org_form_submitted_uuid_idx')
         ->and(array_keys($queries))->toContain(   // the real explorer and saved report queries (review M2), not simplified copies
             'explorer: page of a form, newest first', 'explorer: page, reviewer visibility', 'explorer: page filtered by a number range',
-            'explorer: page filtered by a choice', 'report: sum of a number grouped by a choice since a date', 'report: total of that report',
+            'explorer: page filtered by a choice', 'report: sum of a number grouped by a choice since a date',
         );
 });
 

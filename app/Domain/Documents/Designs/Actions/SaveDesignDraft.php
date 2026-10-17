@@ -16,8 +16,11 @@ final readonly class SaveDesignDraft
 {
     public function __construct(private AuditLogger $audit) {}
 
-    /** @param  array<string, mixed>  $settings */
-    public function handle(Design $design, string $name, array $settings, User $actor): Design
+    /**
+     * @param  array<string, mixed>  $settings
+     * @param  bool  $audit  false when a publish saves pending edits: its design.published entry is the one entry (§8.11)
+     */
+    public function handle(Design $design, string $name, array $settings, User $actor, bool $audit = true): Design
     {
         $name = trim($name);
         if ($name === '' || mb_strlen($name) > 120) {
@@ -35,7 +38,9 @@ final readonly class SaveDesignDraft
         }
 
         $design->forceFill(['name' => $name, 'settings' => $after, 'updated_by' => $actor->id])->save();
-        $this->audit->record('design.updated', $design, ['changed' => $changed], $actor);
+        if ($audit) {
+            $this->audit->record('design.updated', $design, ['changed' => $changed], $actor);
+        }
 
         return $design;
     }

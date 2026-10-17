@@ -164,3 +164,25 @@ it('closes a stale task whose submission already left review and answers task_cl
         ->toThrow(fn (ApiException $e) => expect($e->errorCode)->toBe('task_closed'));
     expect($task->refresh()->status)->toBe(TaskStatus::Cancelled);
 });
+
+it('answers canView exactly like the list query for every rule (M8-T05: one row checks its tasks with a correlated EXISTS)', function (): void {
+    $colleague = W::reviewer($this->s->org);
+    $group = W::group($this->s->org, 'Prüfer', $this->reviewer, $colleague);
+    W::workflow($this->s->org, [W::reviewStep($group)]);
+    $open = W::submitted($this->s);
+    $decided = W::submitted($this->s);
+    $this->tenant->run($this->s->org, fn () => app(CompleteReviewTask::class)->handle(W::task($this->s->org, $decided), $this->reviewer, TaskOutcome::Approved, null));
+    $users = [$this->reviewer, $colleague, W::reviewer($this->s->org), memberOf($this->s->org, SystemRole::Designer), $this->s->worker, $this->s->owner];
+
+    $checked = 0;
+    foreach ($users as $user) {
+        $listed = $this->tenant->run($this->s->org, fn (): array => app(SubmissionVisibility::class)->apply(Submission::query(), $user)->pluck('uuid')->all());
+        foreach ([$open, $decided] as $submission) {
+            expect(accessCanView($user, $submission))->toBe(in_array($submission->uuid, $listed, true));
+            $checked++;
+        }
+    }
+    expect($checked)->toBe(12)
+        ->and(accessCanView($colleague, $open))->toBeTrue()->and(accessCanView($colleague, $decided))->toBeFalse()
+        ->and(accessCanView($this->reviewer, $decided))->toBeTrue();
+});

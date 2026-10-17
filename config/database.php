@@ -88,6 +88,8 @@ return [
 
         'pgsql' => [
             'driver' => 'pgsql',
+            // Never put query bindings (personal data) into exception messages and logs (ADR 0040).
+            'mask_bindings_in_exception_messages' => true,
             'url' => env('DB_URL'),
             'host' => env('DB_HOST', '127.0.0.1'),
             'port' => env('DB_PORT', '5432'),

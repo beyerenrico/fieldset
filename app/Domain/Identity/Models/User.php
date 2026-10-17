@@ -11,6 +11,7 @@ use App\Domain\Identity\Enums\UserStatus;
 use App\Domain\Identity\Sso\Contracts\PasswordAuthGate;
 use App\Domain\Identity\Sso\Exceptions\SsoRequiredException;
 use App\Domain\Identity\Support\OrganizationPermissions;
+use App\Domain\Platform\PlatformAdmins;
 use Database\Factories\UserFactory;
 use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthentication;
 use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthenticationRecovery;
@@ -77,6 +78,7 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
         'two_factor_secret' => null,
         'two_factor_recovery_codes' => null,
         'two_factor_confirmed_at' => null,
+        'password_known' => true,
     ];
 
     protected function casts(): array
@@ -87,6 +89,7 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
             'status' => UserStatus::class,
             'deactivated_at' => 'datetime',
             'two_factor_confirmed_at' => 'datetime',
+            'password_known' => 'boolean',
         ];
     }
 
@@ -112,6 +115,13 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
 
     protected static function booted(): void
     {
+        // Setting a password makes it known (ADR 0039), unless the same save marks it unknown (SSO, invitation).
+        static::updating(static function (self $user): void {
+            if ($user->isDirty('password') && ! $user->isDirty('password_known')) {
+                $user->password_known = true;
+            }
+        });
+
         // MFA enrolment changes from either Filament or Fortify are audited once (§8.11).
         static::updated(static function (self $user): void {
             if ($user->wasChanged('password') && ! self::$suppressPasswordAudit) {
@@ -215,6 +225,11 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
     {
         if (! $this->isActive()) {
             return false;
+        }
+
+        // The /platform operator panel (ADR 0041): a platform_admins grant, no organization needed.
+        if ($panel->getId() === 'platform') {
+            return app(PlatformAdmins::class)->check($this);
         }
 
         if ($panel->getId() !== 'admin') {

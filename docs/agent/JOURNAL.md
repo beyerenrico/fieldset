@@ -96,3 +96,25 @@
   UX/correctness; all fixed (c1b0c5a, 2a10f1b, 67b582e, c2a00a5).
 - Gate: PHP 4303, coverage 95.10 %, PHPStan 0/0, Rector/Pint clean, JS 608/111/614/243, conformance
   391/392, E2E 34/34 ×2 with Keycloak.
+
+## 2026-10-19 M8 phase 2
+- G3: CSP guard on all journeys (no violations found), 36 axe scans + keyboard walkthroughs (2 fixes,
+  2 accepted exceptions), anonymized PDF 410, canvas builder default (ADR 0044), web push deferred (0045).
+- Orchestrator: dashboard links follow the builder default; 4xx ApiExceptions not reported; dev Postgres
+  max_locks_per_transaction=256 (parallel drop flake). QUESTIONS #5, #8 resolved.
+- Started G6 (perf, Docker-exclusive), G7 (docs 1.0) and the three gate reviews.
+
+## 2026-10-19 M8 gate reviews + fix batch
+- Reviews: security 2 medium/6 low, correctness 6 medium/6 low, UX 2 high/9 medium/6 low; all fixed by
+  F1 (privacy), F2a (audit), F2b (platform/security) plus orchestrator follow-ups, each with tests.
+- Decisions: chain stays unkeyed (shipped heads = tamper evidence, ADR 0038); admin idle 30 min /
+  absolute 12 h (ADR 0040); app port on loopback, TRUSTED_PROXIES=172.16.0.0/12; users.password_known.
+
+## 2026-10-23 M8 gate
+- G6 perf: 100k submissions; fixed saved reports, reviewer inbox, explorer search, API list, Field App
+  repeater evaluation (b4de720). Exceptions accepted in ADR 0046 (classic builder, devtools-throttled first
+  load, 501st row). Docs: CHANGELOG/release notes numbers, explorer search, audit REVOKE (verified on PG).
+- Gate found: CSP E2E expected the old label "Klassischer Builder"; `composer audit` failed on a newly
+  abandoned dev-only package (ignored by name, verified with Composer 2.10.3 in the CI image).
+- Gate: PHP 4652, coverage 95.11 %, PHPStan 0/0, Rector/Pint clean, JS 611/111/623/246, conformance
+  391/392, E2E 75/75 ×2 with Keycloak. Version 1.0.0.

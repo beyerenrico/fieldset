@@ -8,6 +8,7 @@ use App\Domain\Forms\Models\Form;
 use App\Domain\Identity\Models\User;
 use App\Domain\Submissions\Enums\SubmissionStatus;
 use App\Domain\Submissions\Models\Submission;
+use App\Domain\Submissions\Support\SubmissionVisibility;
 use App\Filament\Admin\Resources\Submissions\SubmissionResource;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\DatePicker;
@@ -82,23 +83,38 @@ final class SubmissionsTable
             });
     }
 
-    /** @return array<int, string> forms that have visible submissions */
+    /**
+     * Forms that have visible submissions. Filament asks for filter options more than once per request, and for a
+     * restricted viewer each answer reads all visible submissions (≈ 40 ms at 100k): computed once per request
+     * and viewer (M8-T05).
+     *
+     * @return array<int, string>
+     */
     private static function formOptions(): array
     {
-        return Form::query()->whereIn('id', self::visible()->select('form_id'))->orderBy('name')->pluck('name', 'id')
-            ->map(fn (mixed $name): string => (string) $name)->all();
+        $viewerId = (int) auth()->id();
+
+        return once(fn (): array => Form::query()->whereIn('id', self::visible($viewerId)->select('form_id'))->orderBy('name')->pluck('name', 'id')
+            ->map(fn (mixed $name): string => (string) $name)->all());
     }
 
-    /** @return array<int, string> users who created visible submissions */
+    /** @return array<int, string> users who created visible submissions (once per request and viewer, as above) */
     private static function submitterOptions(): array
     {
-        return User::query()->whereIn('id', self::visible()->whereNotNull('created_by')->select('created_by'))->orderBy('name')->pluck('name', 'id')
-            ->map(fn (mixed $name): string => (string) $name)->all();
+        $viewerId = (int) auth()->id();
+
+        return once(fn (): array => User::query()->whereIn('id', self::visible($viewerId)->whereNotNull('created_by')->select('created_by'))->orderBy('name')
+            ->pluck('name', 'id')->map(fn (mixed $name): string => (string) $name)->all());
     }
 
-    /** @return Builder<Submission> */
-    private static function visible(): Builder
+    /**
+     * The inbox rows of the viewer (as SubmissionResource::getEloquentQuery()). Takes the id, so the memo above is
+     * keyed by the viewer.
+     *
+     * @return Builder<Submission>
+     */
+    private static function visible(int $viewerId): Builder
     {
-        return SubmissionResource::getEloquentQuery();
+        return app(SubmissionVisibility::class)->apply(Submission::query(), User::query()->findOrFail($viewerId));
     }
 }

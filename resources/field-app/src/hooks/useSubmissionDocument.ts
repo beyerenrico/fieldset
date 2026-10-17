@@ -25,18 +25,30 @@ export function isDocumentFailed(error: unknown): error is ApiError {
     return isApiError(error, 409, 'document_failed');
 }
 
-/** The server's user-facing text for a permanent failure, or `null` when it sent none. */
-export function documentFailureMessage(error: unknown): string | null {
-    if (!isDocumentFailed(error)) {
-        return null;
-    }
+/** The submission was anonymized (410 `document_anonymized`): its PDF files were deleted for good. */
+export function isDocumentAnonymized(error: unknown): error is ApiError {
+    return isApiError(error, 410, 'document_anonymized');
+}
+
+/** The user-facing text the server sent with an error, or `null` when it sent none. */
+function serverText(error: ApiError): string | null {
     const text = error.message.trim();
     return text === '' || text === error.code ? null : text;
 }
 
+/** The server's user-facing text for a permanent failure, or `null` when it sent none. */
+export function documentFailureMessage(error: unknown): string | null {
+    return isDocumentFailed(error) ? serverText(error) : null;
+}
+
+/** The server's user-facing text for an anonymized submission, or `null` when it sent none. */
+export function documentAnonymizedMessage(error: unknown): string | null {
+    return isDocumentAnonymized(error) ? serverText(error) : null;
+}
+
 /**
  * Next automatic refetch in ms, or `false` to stop. A permanent failure stops (only a manual check
- * asks again). With a link (also after another failed refresh): shortly before it expires. Without
+ * asks again), an anonymized submission for good. With a link (also after another failed refresh): shortly before it expires. Without
  * one: backoff by `polls`, the "not ready" answers since mount or the last manual check.
  */
 export function documentRefetchDelay(
@@ -44,7 +56,7 @@ export function documentRefetchDelay(
     polls: number,
     now: number = Date.now(),
 ): number | false {
-    if (isDocumentFailed(state.error)) {
+    if (isDocumentFailed(state.error) || isDocumentAnonymized(state.error)) {
         return false;
     }
     if (state.data !== undefined) {
@@ -60,9 +72,9 @@ export function documentRefetchDelay(
     return false;
 }
 
-/** True when the link expires within the refresh margin (or already has). */
+/** True when the link expires within the refresh margin (or already has) and the PDF still exists. */
 export function linkNeedsRefresh(state: DocumentQueryState, now: number = Date.now()): boolean {
-    if (state.data === undefined) {
+    if (state.data === undefined || isDocumentAnonymized(state.error)) {
         return false;
     }
     const expires = Date.parse(state.data.expires_at);

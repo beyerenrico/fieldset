@@ -1,0 +1,175 @@
+{
+  "measuredAt": "2026-10-17T16:31:14.616Z",
+  "base": "http://localhost:8080",
+  "bundles": {
+    "initialFiles": [
+      {
+        "file": "assets/RefusalNotice-B7Kllpic.js",
+        "rawKb": 339.9,
+        "gzipKb": 107
+      },
+      {
+        "file": "assets/index-Cj3_nwP0.css",
+        "rawKb": 31.9,
+        "gzipKb": 7.1
+      },
+      {
+        "file": "assets/index-yQvV_W3H.js",
+        "rawKb": 311,
+        "gzipKb": 94.2
+      },
+      {
+        "file": "assets/rolldown-runtime-XKyaHtl9.js",
+        "rawKb": 0.7,
+        "gzipKb": 0.4
+      }
+    ],
+    "initialGzipKb": 208.8,
+    "initialBrotliKb": 182.8,
+    "allGzipKb": 324.5,
+    "lazyFiles": [
+      {
+        "file": "assets/FillScreen-4I8oE1LH.js",
+        "rawKb": 2,
+        "gzipKb": 1.1
+      },
+      {
+        "file": "assets/ReviewScreen-C5NKpybe.js",
+        "rawKb": 4.2,
+        "gzipKb": 1.9
+      },
+      {
+        "file": "assets/SubmissionDetailScreen-Cm-LCiCJ.js",
+        "rawKb": 22.6,
+        "gzipKb": 7.4
+      },
+      {
+        "file": "assets/SyncPanels-MPyeVtty.js",
+        "rawKb": 12.2,
+        "gzipKb": 4.4
+      },
+      {
+        "file": "assets/VersionLoadError-sdtSqWEc.js",
+        "rawKb": 261.6,
+        "gzipKb": 98.3
+      },
+      {
+        "file": "assets/queue-DJCGAfmr.js",
+        "rawKb": 0.6,
+        "gzipKb": 0.4
+      },
+      {
+        "file": "assets/workbox-window.prod.es5-Bd17z0YL.js",
+        "rawKb": 5.6,
+        "gzipKb": 2.2
+      }
+    ]
+  },
+  "profiles": {
+    "throttled": {
+      "name": "Lighthouse mobile (devtools throttling)",
+      "latency": 562.5,
+      "downloadThroughput": 188743.68,
+      "uploadThroughput": 86400,
+      "cpu": 4
+    },
+    "slow4g": {
+      "name": "slow 4G (150 ms RTT, 1.6 Mbit/s, 4x CPU)",
+      "latency": 150,
+      "downloadThroughput": 209715.2,
+      "uploadThroughput": 96000,
+      "cpu": 4
+    }
+  },
+  "load": {},
+  "fill": {
+    "unthrottled": {
+      "repeater500": {
+        "openMs": 215,
+        "stepToRowsMs": 135,
+        "typingTop": {
+          "pressed": 10,
+          "reportedOver16ms": 3,
+          "n": 3,
+          "p50": 24,
+          "p95": 104,
+          "max": 104,
+          "mean": 48
+        },
+        "typingBottom": {
+          "pressed": 10,
+          "reportedOver16ms": 11,
+          "n": 11,
+          "p50": 32,
+          "p95": 48,
+          "max": 48,
+          "mean": 33.5
+        },
+        "addRowMs": 53
+      },
+      "form300": {
+        "openMs": 204,
+        "typing": {
+          "pressed": 10,
+          "reportedOver16ms": 9,
+          "n": 9,
+          "p50": 16,
+          "p95": 16,
+          "max": 16,
+          "mean": 16
+        },
+        "nextStepMs": {
+          "n": 4,
+          "p50": 33,
+          "p95": 34,
+          "max": 34,
+          "mean": 29.3
+        }
+      }
+    },
+    "4x CPU": {
+      "repeater500": {
+        "openMs": 463,
+        "stepToRowsMs": 211,
+        "typingTop": {
+          "pressed": 10,
+          "reportedOver16ms": 3,
+          "n": 3,
+          "p50": 32,
+          "p95": 112,
+          "max": 112,
+          "mean": 56
+        },
+        "typingBottom": {
+          "pressed": 10,
+          "reportedOver16ms": 10,
+          "n": 10,
+          "p50": 112,
+          "p95": 136,
+          "max": 136,
+          "mean": 112
+        },
+        "addRowMs": 196
+      },
+      "form300": {
+        "openMs": 299,
+        "typing": {
+          "pressed": 10,
+          "reportedOver16ms": 11,
+          "n": 11,
+          "p50": 24,
+          "p95": 32,
+          "max": 32,
+          "mean": 24.7
+        },
+        "nextStepMs": {
+          "n": 4,
+          "p50": 50,
+          "p95": 52,
+          "max": 52,
+          "mean": 49.3
+        }
+      }
+    }
+  }
+}

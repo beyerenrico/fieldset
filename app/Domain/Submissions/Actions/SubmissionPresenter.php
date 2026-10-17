@@ -9,6 +9,7 @@ use App\Domain\Mail\CustomerSend\CustomerSendGate;
 use App\Domain\Submissions\Models\Attachment;
 use App\Domain\Submissions\Models\Submission;
 use App\Domain\Workflows\Tasks\ReviewState;
+use Illuminate\Database\Eloquent\Collection;
 
 /** The `submission` object of the API contract (docs/api/field-app-v1.md). */
 final class SubmissionPresenter
@@ -22,9 +23,24 @@ final class SubmissionPresenter
      */
     public static function present(Submission $submission, ?User $viewer = null): array
     {
-        $submission->loadMissing(['attachments', 'formVersion']);
+        return self::presentMany(new Collection([$submission]), $viewer)[0];
+    }
 
-        return [
+    /**
+     * A page of submissions: attachments, versions, latest decisions and the viewer's open tasks are loaded
+     * once for all rows (M8-T05: per row this was three task and group queries, 150 per API page).
+     *
+     * @param  Collection<int, Submission>  $submissions
+     * @return list<array<string, mixed>>
+     */
+    public static function presentMany(Collection $submissions, ?User $viewer = null): array
+    {
+        $submissions->loadMissing(['attachments', 'formVersion']);
+        $uuids = array_values($submissions->map(fn (Submission $s): string => $s->uuid)->all());
+        $reviews = ReviewState::reviewsOf($uuids);
+        $openTasks = ReviewState::openTaskIdsOf($uuids, $viewer);
+
+        return array_values($submissions->map(fn (Submission $submission): array => [
             'uuid' => $submission->uuid,
             'form_id' => $submission->form_id,
             'form_version_id' => $submission->form_version_id,
@@ -40,9 +56,9 @@ final class SubmissionPresenter
             'updated_at' => $submission->updated_at->toIso8601String(),
             'can_edit' => $viewer instanceof User && $submission->created_by === $viewer->id && $submission->status->isEditable(),
             'can_send' => $viewer instanceof User && CustomerSendGate::allows($viewer, $submission),
-            'review' => ReviewState::review($submission),
-            'open_task_id' => ReviewState::openTaskId($submission, $viewer),
-        ];
+            'review' => $reviews[$submission->uuid] ?? null,
+            'open_task_id' => $openTasks[$submission->uuid] ?? null,
+        ])->all());
     }
 
     /** @return array<string, mixed> */

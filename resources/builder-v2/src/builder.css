@@ -152,6 +152,11 @@
     outline: 2px solid var(--bv2-focus);
     outline-offset: 2px;
 }
+/* Focus inside the sandboxed preview: the iframe never matches :focus here (preview.ts marks it). */
+.bv2-layout iframe[data-builder-preview-focused] {
+    outline: 2px solid var(--bv2-focus);
+    outline-offset: 2px;
+}
 
 /* ---- toolbar, sync state, banner */
 .bv2-toolbar {

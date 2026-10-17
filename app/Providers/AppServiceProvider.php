@@ -16,6 +16,7 @@ use App\Domain\Identity\Models\Role;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Support\OrganizationPermissions;
 use App\Domain\Identity\Tenancy\TenantContext;
+use App\Domain\Identity\Tokens\ApiRateLimitKey;
 use App\Domain\Mail\Listeners\FailWaitingDocuments;
 use App\Domain\Mail\Listeners\SendWaitingDocuments;
 use App\Domain\Notifications\NotificationServiceProvider;
@@ -81,11 +82,8 @@ class AppServiceProvider extends ServiceProvider
             || $user->activeOrganizations()->get()->contains(fn (Organization|int $org): bool => $user->hasPermissionIn($org, Permission::MembersManage))
         ));
 
-        RateLimiter::for('api', function (Request $request): Limit {
-            $user = $request->user();
-
-            return Limit::perMinute((int) config('app.api_rate_limit', 240))
-                ->by($user !== null ? 'user:'.$user->getAuthIdentifier() : 'ip:'.$request->ip());
-        });
+        // Per integration token, else per user, else per IP (§10, ADR 0043).
+        RateLimiter::for('api', fn (Request $request): Limit => Limit::perMinute((int) config('app.api_rate_limit', 240))
+            ->by(ApiRateLimitKey::for($request)));
     }
 }

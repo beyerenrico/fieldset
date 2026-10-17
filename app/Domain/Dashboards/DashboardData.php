@@ -109,23 +109,25 @@ final readonly class DashboardData
             ])->all()));
     }
 
-    /** @return list<array{id: int, name: string, category: ?string, updated_at: string}> */
+    /** @return list<array{id: int, name: string, category: ?string, updated_at: string, import: bool}> */
     public function draftForms(DashboardContext $context): array
     {
         return $this->cache->remember($context, 'draft_forms', self::SCOPES['draft_forms'], fn (): array => array_values($this->queries
-            ->draftForms($this->limit())->get(['id', 'name', 'category', 'updated_at'])
+            ->draftForms($this->limit())->get(['id', 'name', 'category', 'updated_at', 'import_report'])
             ->map(fn (Form $form): array => [
                 'id' => $form->id, 'name' => $form->name, 'category' => $form->category, 'updated_at' => $form->updated_at?->toIso8601String() ?? '',
+                'import' => $form->import_report !== null,
             ])->all()));
     }
 
-    /** @return list<array{id: int, form_id: int, form: string, version: int, published_at: string, publisher: ?string}> */
+    /** @return list<array{id: int, form_id: int, form: string, version: int, published_at: string, publisher: ?string, import: bool}> */
     public function recentlyPublished(DashboardContext $context): array
     {
         return $this->cache->remember($context, 'recently_published', self::SCOPES['recently_published'], fn (): array => array_values($this->queries
-            ->recentlyPublished($context->range, $this->limit())->with('form:id,name', 'publisher:id,name')->get()
+            ->recentlyPublished($context->range, $this->limit())->with('form:id,name,import_report', 'publisher:id,name')->get()
             ->map(fn (FormVersion $version): array => [
                 'id' => $version->id, 'form_id' => $version->form_id, 'form' => $version->form->name, 'version' => $version->version,
+                'import' => $version->form->import_report !== null,
                 'published_at' => $version->published_at->toIso8601String(), 'publisher' => $version->publisher?->name,
             ])->all()));
     }

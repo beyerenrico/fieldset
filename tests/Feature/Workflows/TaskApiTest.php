@@ -6,6 +6,7 @@ use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Tenancy\TenantContext;
 use App\Domain\Workflows\Enums\TaskOutcome;
 use App\Domain\Workflows\Tasks\CompleteReviewTask;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Tests\Feature\Workflows\WorkflowFixtures as W;
@@ -106,4 +107,33 @@ it('lists completed tasks with their outcome', function (): void {
 
     $this->withHeaders(apiHeaders($this->reviewer, $this->s->org))->getJson('/api/v1/tasks?status=completed')->assertOk()
         ->assertJsonPath('data.0.outcome', 'approved')->assertJsonPath('data.0.comment', 'Passt');
+});
+
+it('lists submissions with review and open_task_id per row without per-row queries (M8-T05)', function (): void {
+    $decided = W::submitted($this->s);
+    app(TenantContext::class)->run($this->s->org, fn () => app(CompleteReviewTask::class)->handle(W::task($this->s->org, $decided), $this->reviewer, TaskOutcome::Approved, null));
+    $list = function (): array {
+        app('auth')->forgetGuards();
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $rows = $this->withHeaders(apiHeaders($this->reviewer, $this->s->org))->getJson('/api/v1/submissions')->assertOk()->json('data');
+
+        // Queries a per-row presenter would repeat: tasks, group memberships, attachments, versions.
+        $perRow = array_filter(DB::getQueryLog(), fn (array $q): bool => preg_match('/^select .* from "(tasks|group_user|attachments|form_versions)"/', $q['query']) === 1);
+
+        return [collect($rows)->keyBy('uuid'), count($perRow)];
+    };
+
+    [$rows, $queries] = $list();
+    expect($rows[$this->submission->uuid]['open_task_id'])->toBe($this->task->id)
+        ->and($rows[$this->submission->uuid]['review'])->toBeNull()
+        ->and($rows[$decided->uuid]['open_task_id'])->toBeNull()
+        ->and($rows[$decided->uuid]['review']['outcome'])->toBe('approved')
+        ->and($rows[$decided->uuid]['review']['by']['id'])->toBe($this->reviewer->id);
+
+    foreach (range(1, 4) as $i) {
+        W::submitted($this->s);
+    }
+    [$more, $queriesWithMore] = $list();
+    expect($more)->toHaveCount(6)->and($queriesWithMore)->toBe($queries);
 });

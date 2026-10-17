@@ -1,5 +1,5 @@
 # 0037: Builder v2 (canvas builder: palette, canvas, inspector)
-- Status: accepted
+- Status: accepted (default edit target amended by ADR 0044)
 - Date: 2026-10-18
 
 ## Context
@@ -27,7 +27,7 @@ Filament 5.10 and Livewire 4 each bundle their own Sortable. We use neither.
 - Navigation:
   - v1 has a "Canvas builder" action that saves first.
   - v2 has a "Classic builder" button that flushes pending saves first.
-  - The forms list keeps v1 as the default and adds a "Canvas builder" record action.
+  - The forms list keeps v1 as the default and adds a "Canvas builder" record action. (Superseded by ADR 0044: the canvas is the default, the list offers "Classic builder".)
 - Every v2 save sends `baseChecksum`, the checksum the server last acknowledged. A mismatch returns `conflict`, and the user chooses reload or overwrite. v1 autosave gets the same guard, so a stale tab never silently overwrites the other builder's work.
 
 ### State: the browser holds the working copy, the server validates whole definitions

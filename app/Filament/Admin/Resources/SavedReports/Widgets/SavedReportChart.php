@@ -12,18 +12,30 @@ use App\Domain\Reports\SavedReportQuery;
 use Filament\Widgets\ChartWidget;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Model;
+use Livewire\Attributes\Locked;
 
 /**
  * Chart of a saved report on its view page: a line over time groups, bars otherwise. Values are the
  * result's decimal strings (Chart.js parses them for drawing only; nothing is summed client-side).
+ * The view page hands over the result it computed (`result`), so one page view runs the report once
+ * and the chart renders with the page instead of a second, lazy request (M8-T05); without it the
+ * widget computes the result itself.
+ *
+ * @phpstan-import-type ReportResultArray from ReportResult
  */
 class SavedReportChart extends ChartWidget
 {
+    protected static bool $isLazy = false;
+
     public ?Model $record = null;
+
+    /** @var ReportResultArray|null ReportResult::toArray() of the view page */
+    #[Locked]
+    public ?array $result = null;
 
     protected ?string $maxHeight = '320px';
 
-    private ?ReportResult $result = null;
+    private ?ReportResult $computed = null;
 
     public function getHeading(): string|Htmlable|null
     {
@@ -64,6 +76,8 @@ class SavedReportChart extends ChartWidget
             return null;
         }
 
-        return $this->result ??= app(SavedReportQuery::class)->run($this->record, null, $user);
+        return $this->computed ??= is_array($this->result)
+            ? ReportResult::fromArray($this->result)
+            : app(SavedReportQuery::class)->run($this->record, null, $user);
     }
 }

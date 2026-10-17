@@ -6,12 +6,10 @@ namespace App\Filament\Admin\Pages\Auth;
 
 use App\Domain\Identity\Models\IdentityProvider;
 use App\Domain\Identity\Sso\Contracts\HomeRealmDiscovery;
-use App\Domain\Identity\Sso\Contracts\PasswordAuthGate;
 use App\Domain\Identity\Sso\Data\DiscoveryResult;
 use App\Domain\Identity\Sso\Enums\SsoClient;
 use App\Domain\Identity\Sso\Enums\SsoRefusal;
 use App\Domain\Identity\Sso\Exceptions\SsoRequiredException;
-use App\Domain\Identity\Sso\Login\BlockedPasswordFlow;
 use App\Domain\Identity\Sso\Login\SsoStartLink;
 use DanHarrin\LivewireRateLimiting\Exceptions\TooManyRequestsException;
 use Filament\Actions\Action;
@@ -28,9 +26,7 @@ use Filament\Support\Icons\Heroicon;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\HtmlString;
-use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
-use SensitiveParameter;
 use Throwable;
 
 /**
@@ -42,11 +38,14 @@ use Throwable;
  * Each step change moves the keyboard focus to the field of the new step; "Forgot password?" is reachable
  * with Tab (Filament renders it with tabindex=-1).
  * Before any password check the PasswordAuthGate may refuse an enforced domain: the error sits on the
- * email field with a link to SSO, and the refusal is audited. Filament's throttling (5/min per IP for
- * sign-in, 10/min for discovery) and its MFA flow stay as they are.
+ * email field with a link to SSO, and the refusal is audited (SecuresPasswordLogin, shared with /platform).
+ * Filament's throttling (5/min per IP for sign-in, 10/min for discovery) and its MFA flow stay as they are;
+ * lockouts and wrong MFA codes are audited with via=admin.
  */
 class Login extends BaseLogin
 {
+    use SecuresPasswordLogin;
+
     public const string STEP_EMAIL = 'email';
 
     public const string STEP_PASSWORD = 'password';
@@ -138,7 +137,7 @@ class Login extends BaseLogin
             return null;
         }
 
-        return parent::authenticate();
+        return $this->authenticateAudited();
     }
 
     public function getFormContentComponent(): Component
@@ -184,27 +183,19 @@ class Login extends BaseLogin
             : [Action::make('usePassword')->label(__('sso_admin.login.use_password'))->link()->action('usePassword')];
     }
 
-    /**
-     * Runs right after Filament's rate limit and before any password check.
-     *
-     * @param  array<string, mixed>  $data
-     * @return array<string, mixed>
-     */
-    protected function getCredentialsFromFormData(#[SensitiveParameter] array $data): array
+    protected function auditVia(): string
     {
-        $email = (string) ($data['email'] ?? '');
-        try {
-            app(PasswordAuthGate::class)->assertPasswordLoginWith($email, (string) ($data['password'] ?? ''));
-        } catch (SsoRequiredException $e) {
-            app(BlockedPasswordFlow::class)->login($email, $e, 'admin');
-            $this->userUndertakingMultiFactorAuthentication = null;
-            $provider = $e->discovery->provider;
-            $this->ssoUrl = $provider instanceof IdentityProvider ? app(SsoStartLink::class)->url($provider, SsoClient::Admin, $email) : null;
+        return 'admin';
+    }
 
-            throw ValidationException::withMessages(['data.email' => __('sso_admin.login.sso_required')]);
-        }
+    /** The gate refused a password login: the error goes on the email field, with a link to the organization's SSO. */
+    protected function passwordLoginRefused(SsoRequiredException $e): string
+    {
+        $provider = $e->discovery->provider;
+        $email = (string) ($this->data['email'] ?? '');
+        $this->ssoUrl = $provider instanceof IdentityProvider ? app(SsoStartLink::class)->url($provider, SsoClient::Admin, $email) : null;
 
-        return parent::getCredentialsFromFormData($data);
+        return (string) __('sso_admin.login.sso_required');
     }
 
     /** Filament's password field, with "Forgot password?" in the tab order. */

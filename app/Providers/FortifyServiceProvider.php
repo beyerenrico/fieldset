@@ -11,8 +11,10 @@ use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Sso\Contracts\PasswordAuthGate;
 use App\Domain\Identity\Sso\Exceptions\SsoRequiredException;
 use App\Domain\Identity\Sso\Login\BlockedPasswordFlow;
+use Illuminate\Auth\Events\Lockout;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
@@ -61,7 +63,12 @@ class FortifyServiceProvider extends ServiceProvider
         RateLimiter::for('login', function (Request $request): Limit {
             $throttleKey = Str::transliterate(Str::lower((string) $request->input(Fortify::username())).'|'.$request->ip());
 
-            return Limit::perMinute(5)->by($throttleKey);
+            // Throttled attempts are audited (Lockout -> auth.lockout once per window, §8.11); the 429 stays Laravel's.
+            return Limit::perMinute(5)->by($throttleKey)->response(function (Request $request, array $headers): never {
+                event(new Lockout($request));
+
+                throw new ThrottleRequestsException('Too Many Attempts.', null, $headers);
+            });
         });
 
         RateLimiter::for('two-factor', fn (Request $request): Limit => Limit::perMinute(5)->by((string) $request->session()->get('login.id')));

@@ -1,7 +1,9 @@
 /**
  * Live preview (ADR 0037): the same `/form-preview/` iframe and postMessage protocol as v1, fed
  * from the store at most every 250 ms. The iframe is created once (inside `wire:ignore`) and never
- * re-created; a ready message is only trusted from that iframe's window and origin.
+ * re-created. It is sandboxed without allow-same-origin (opaque origin, ADR 0040): updates go to
+ * its window with target origin '*', and a ready message is only trusted from that window with the
+ * opaque origin 'null'.
  */
 import type { PreviewUpdate } from '../../field-app/src/preview/protocol.ts';
 import type { Definition } from './store/tree.ts';
@@ -9,14 +11,16 @@ import type { Definition } from './store/tree.ts';
 /** Mirrors resources/field-app/src/preview/protocol.ts (checked by test/preview.test.ts). */
 export const PREVIEW_MESSAGE = 'form-schema-preview';
 export const PREVIEW_READY = 'form-schema-preview-ready';
+export const PREVIEW_TARGET_ORIGIN = '*';
+export const PREVIEW_SENDER_ORIGIN = 'null';
 export const PREVIEW_INTERVAL_MS = 250;
+/** Set on the iframe while focus is inside the preview (styled in builder.css). */
+export const PREVIEW_FOCUSED_ATTR = 'data-builder-preview-focused';
 
 export type PreviewSize = 'phone' | 'tablet';
 
 export interface PreviewDeps {
     readonly getDefinition: () => Definition;
-    /** Origin of the preview page (the iframe's `src`). */
-    readonly origin: string;
     readonly win?: Window;
     readonly now?: () => number;
 }
@@ -35,6 +39,8 @@ export class PreviewFeed {
         this.#deps = deps;
         this.#win = deps.win ?? window;
         this.#win.addEventListener('message', this.#onMessage);
+        this.#win.addEventListener('blur', this.#onWindowBlur);
+        this.#win.document.addEventListener('focusin', this.#syncFocus);
         frame.addEventListener('load', this.#onLoad);
         // The preview may already be listening (its ready message can precede this script).
         this.#send();
@@ -45,8 +51,25 @@ export class PreviewFeed {
         this.notify();
     };
 
+    /**
+     * Tab moves focus into the sandboxed (opaque-origin) document, and the iframe element then never
+     * matches :focus or :focus-visible in the builder's document: CSS alone cannot draw its focus
+     * indicator (WCAG 2.4.7), so the iframe is marked while it is the active element.
+     */
+    readonly #syncFocus = (): void => {
+        const focused = this.#win.document.activeElement === this.#frame;
+        this.#frame.toggleAttribute(PREVIEW_FOCUSED_ATTR, focused);
+    };
+
+    /** The builder's window blurs when focus enters the iframe; the active element settles after it. */
+    readonly #onWindowBlur = (): void => {
+        setTimeout(this.#syncFocus, 0);
+    };
+
     destroy(): void {
         this.#win.removeEventListener('message', this.#onMessage);
+        this.#win.removeEventListener('blur', this.#onWindowBlur);
+        this.#win.document.removeEventListener('focusin', this.#syncFocus);
         this.#frame.removeEventListener('load', this.#onLoad);
         if (this.#timer !== null) {
             clearTimeout(this.#timer);
@@ -59,11 +82,12 @@ export class PreviewFeed {
             typeof data === 'object' &&
             data !== null &&
             (data as { type?: unknown }).type === PREVIEW_READY;
+        const frameWindow = this.#frame.contentWindow;
         if (
             !isReady ||
-            event.origin !== this.#deps.origin ||
-            event.source === null ||
-            event.source !== this.#frame.contentWindow
+            event.origin !== PREVIEW_SENDER_ORIGIN ||
+            frameWindow === null ||
+            event.source !== frameWindow
         ) {
             return;
         }
@@ -106,7 +130,7 @@ export class PreviewFeed {
             type: PREVIEW_MESSAGE,
             definition: definition as unknown as PreviewUpdate['definition'],
         };
-        target.postMessage(update, this.#deps.origin);
+        target.postMessage(update, PREVIEW_TARGET_ORIGIN);
         this.#lastSent = definition;
         this.#lastSentAt = this.#now();
     }

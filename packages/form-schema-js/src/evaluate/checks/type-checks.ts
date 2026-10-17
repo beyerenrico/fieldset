@@ -73,14 +73,23 @@ function decimalCheck(node: ElementNode, value: JsonValue): Issue | null {
         : null;
 }
 
+const optionSets = new WeakMap<ElementNode, ReadonlySet<string>>();
+
+/** The option values of a choice element, built once per parsed element (checked for every row, M8-T05). */
 export function optionValues(node: ElementNode): ReadonlySet<string> {
+    const known = optionSets.get(node);
+    if (known !== undefined) {
+        return known;
+    }
     const options = arrayProp(node.raw, 'options') ?? [];
-    return new Set(
+    const values: ReadonlySet<string> = new Set(
         options.flatMap((option) => {
             const value = isPlainObject(option) ? stringProp(option, 'value') : undefined;
             return value === undefined ? [] : [value];
         }),
     );
+    optionSets.set(node, values);
+    return values;
 }
 
 const singleOption: TypeCheck = (node, value) => {

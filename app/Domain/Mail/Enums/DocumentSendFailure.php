@@ -19,6 +19,9 @@ enum DocumentSendFailure: string
     /** At delivery the request no longer passed CustomerSendGate (setting off, requester lost the right). */
     case NotAllowed = 'send_not_allowed';
 
+    /** Retention anonymized the submission and deleted its PDF files before the mail went out (ADR 0039). */
+    case DocumentAnonymized = 'document_anonymized';
+
     /** Queuing the mail failed after the last attempt. */
     case DeliveryFailed = 'delivery_failed';
 

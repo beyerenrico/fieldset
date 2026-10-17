@@ -1,6 +1,6 @@
 {
     "name": "@form-schema-app/builder-v2",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "description": "Builder v2 canvas (palette, canvas, inspector glue) for the Filament form editor (ADR 0037)",
     "private": true,
     "type": "module",

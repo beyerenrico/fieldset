@@ -3,24 +3,34 @@
     $definition = $this->previewDefinitionJson();
 @endphp
 {{-- Live preview (BUILD_PROMPT §8.2): the same renderer as the Field App, fed the UNSAVED definition via
-     an origin-checked postMessage. The iframe page has no service worker and no storage (§6.1). --}}
+     postMessage. The iframe page has no service worker and no storage (§6.1) and is sandboxed without
+     allow-same-origin, so it runs in an opaque origin (ADR 0040, QUESTIONS #10). Protocol
+     (resources/field-app/src/preview/protocol.ts): updates go to the iframe's window with target origin '*';
+     a ready message is trusted only from that window with the opaque origin 'null'. --}}
 <div
     wire:key="form-preview-{{ md5($definition) }}"
     x-data="{
         size: 'phone',
         definition: @js($definition),
+        onMessage: null,
         send() {
             const frame = this.$refs.frame;
             if (frame && frame.contentWindow) {
-                frame.contentWindow.postMessage({ type: 'form-schema-preview', definition: JSON.parse(this.definition) }, window.location.origin);
+                frame.contentWindow.postMessage({ type: 'form-schema-preview', definition: JSON.parse(this.definition) }, '*');
             }
         },
         init() {
-            window.addEventListener('message', (event) => {
-                if (event.origin === window.location.origin && event.data && event.data.type === 'form-schema-preview-ready') {
+            this.onMessage = (event) => {
+                const frame = this.$refs.frame;
+                if (frame && frame.contentWindow && event.source === frame.contentWindow && event.origin === 'null'
+                    && event.data && event.data.type === 'form-schema-preview-ready') {
                     this.send();
                 }
-            });
+            };
+            window.addEventListener('message', this.onMessage);
+        },
+        destroy() {
+            window.removeEventListener('message', this.onMessage);
         },
     }"
     x-init="$nextTick(() => send())"
@@ -39,6 +49,6 @@
         x-on:load="send()"
         x-bind:style="size === 'phone' ? 'width:390px;height:760px' : 'width:820px;height:760px'"
         style="width:390px;height:760px;border:1px solid #d1d5db;border-radius:1rem;background:#fff;max-width:100%"
-        sandbox="allow-scripts allow-same-origin"
+        sandbox="allow-scripts"
     ></iframe>
 </div>

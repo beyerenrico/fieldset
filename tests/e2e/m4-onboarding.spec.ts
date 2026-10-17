@@ -1,4 +1,4 @@
-import { test, expect, request as apiRequest, type APIRequestContext, type Page } from '@playwright/test';
+import { test, expect, request as apiRequest, type APIRequestContext, type Page } from './support/test';
 
 // Journey 1 (§12): an owner registers an organization (email verified via Mailpit) and invites a
 // designer and a field worker, who accept their invitations. Requires APP_ALLOW_REGISTRATION=true

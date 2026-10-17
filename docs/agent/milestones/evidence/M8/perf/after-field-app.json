@@ -1,0 +1,884 @@
+{
+  "measuredAt": "2026-10-17T15:26:32.700Z",
+  "base": "http://localhost:8080",
+  "bundles": {
+    "initialFiles": [
+      {
+        "file": "assets/RefusalNotice-B7Kllpic.js",
+        "rawKb": 339.9,
+        "gzipKb": 107
+      },
+      {
+        "file": "assets/index-Cj3_nwP0.css",
+        "rawKb": 31.9,
+        "gzipKb": 7.1
+      },
+      {
+        "file": "assets/index-yQvV_W3H.js",
+        "rawKb": 311,
+        "gzipKb": 94.2
+      },
+      {
+        "file": "assets/rolldown-runtime-XKyaHtl9.js",
+        "rawKb": 0.7,
+        "gzipKb": 0.4
+      }
+    ],
+    "initialGzipKb": 208.8,
+    "initialBrotliKb": 182.8,
+    "allGzipKb": 324.5,
+    "lazyFiles": [
+      {
+        "file": "assets/FillScreen-4I8oE1LH.js",
+        "rawKb": 2,
+        "gzipKb": 1.1
+      },
+      {
+        "file": "assets/ReviewScreen-C5NKpybe.js",
+        "rawKb": 4.2,
+        "gzipKb": 1.9
+      },
+      {
+        "file": "assets/SubmissionDetailScreen-Cm-LCiCJ.js",
+        "rawKb": 22.6,
+        "gzipKb": 7.4
+      },
+      {
+        "file": "assets/SyncPanels-MPyeVtty.js",
+        "rawKb": 12.2,
+        "gzipKb": 4.4
+      },
+      {
+        "file": "assets/VersionLoadError-sdtSqWEc.js",
+        "rawKb": 261.6,
+        "gzipKb": 98.3
+      },
+      {
+        "file": "assets/queue-DJCGAfmr.js",
+        "rawKb": 0.6,
+        "gzipKb": 0.4
+      },
+      {
+        "file": "assets/workbox-window.prod.es5-Bd17z0YL.js",
+        "rawKb": 5.6,
+        "gzipKb": 2.2
+      }
+    ]
+  },
+  "profiles": {
+    "throttled": {
+      "name": "Lighthouse mobile (devtools throttling)",
+      "latency": 562.5,
+      "downloadThroughput": 188743.68,
+      "uploadThroughput": 86400,
+      "cpu": 4
+    },
+    "slow4g": {
+      "name": "slow 4G (150 ms RTT, 1.6 Mbit/s, 4x CPU)",
+      "latency": 150,
+      "downloadThroughput": 209715.2,
+      "uploadThroughput": 96000,
+      "cpu": 4
+    }
+  },
+  "load": {
+    "login screen (signed out)": {
+      "throttled": [
+        {
+          "ttfb": 25.59999990463257,
+          "fcp": 3228,
+          "lcp": 3228,
+          "dcl": 2526.9000000953674,
+          "load": 2526.9000000953674,
+          "usable": 3545.0999999046326,
+          "wall": 5046,
+          "tbt": 18,
+          "transferKb": 228,
+          "requests": 7
+        },
+        {
+          "ttfb": 18.200000286102295,
+          "fcp": 3204,
+          "lcp": 3204,
+          "dcl": 2505.5,
+          "load": 2505.5,
+          "usable": 3521.7000002861023,
+          "wall": 5025,
+          "tbt": 9,
+          "transferKb": 228,
+          "requests": 7
+        },
+        {
+          "ttfb": 24.699999809265137,
+          "fcp": 3212,
+          "lcp": 3212,
+          "dcl": 2505.2999997138977,
+          "load": 2505.4000000953674,
+          "usable": 3522.7999997138977,
+          "wall": 5026,
+          "tbt": 17,
+          "transferKb": 228,
+          "requests": 7
+        },
+        {
+          "ttfb": 24.09999990463257,
+          "fcp": 3200,
+          "lcp": 3200,
+          "dcl": 2497.7999997138977,
+          "load": 2497.8999996185303,
+          "usable": 3514.0999999046326,
+          "wall": 5016,
+          "tbt": 9,
+          "transferKb": 228,
+          "requests": 7
+        },
+        {
+          "ttfb": 22.200000286102295,
+          "fcp": 3196,
+          "lcp": 3196,
+          "dcl": 2500,
+          "load": 2500.0999999046326,
+          "usable": 3515.800000190735,
+          "wall": 5019,
+          "tbt": 12,
+          "transferKb": 228,
+          "requests": 7
+        }
+      ],
+      "slow4g": [
+        {
+          "ttfb": 24.59999990463257,
+          "fcp": 1828,
+          "lcp": 1828,
+          "dcl": 1543.1999998092651,
+          "load": 1543.1999998092651,
+          "usable": 2055,
+          "wall": 3556,
+          "tbt": 15,
+          "transferKb": 228,
+          "requests": 7
+        },
+        {
+          "ttfb": 21.199999809265137,
+          "fcp": 1844,
+          "lcp": 1844,
+          "dcl": 1556.0999999046326,
+          "load": 1556.2999997138977,
+          "usable": 2068.8999996185303,
+          "wall": 3570,
+          "tbt": 14,
+          "transferKb": 228,
+          "requests": 7
+        },
+        {
+          "ttfb": 20.5,
+          "fcp": 1848,
+          "lcp": 1848,
+          "dcl": 1559.1999998092651,
+          "load": 1559.1999998092651,
+          "usable": 2074.2999997138977,
+          "wall": 3578,
+          "tbt": 8,
+          "transferKb": 228,
+          "requests": 7
+        },
+        {
+          "ttfb": 23.699999809265137,
+          "fcp": 1848,
+          "lcp": 1848,
+          "dcl": 1559.6999998092651,
+          "load": 1560.3000001907349,
+          "usable": 2073.9000000953674,
+          "wall": 3576,
+          "tbt": 10,
+          "transferKb": 228,
+          "requests": 7
+        },
+        {
+          "ttfb": 27.90000009536743,
+          "fcp": 1860,
+          "lcp": 1860,
+          "dcl": 1571.5999999046326,
+          "load": 1571.6999998092651,
+          "usable": 2083.5999999046326,
+          "wall": 3587,
+          "tbt": 14,
+          "transferKb": 228,
+          "requests": 7
+        }
+      ],
+      "unthrottled": [
+        {
+          "ttfb": 18.300000190734863,
+          "fcp": 140,
+          "lcp": 140,
+          "dcl": 84.09999990463257,
+          "load": 84.09999990463257,
+          "usable": 144.59999990463257,
+          "wall": 1649,
+          "tbt": 0,
+          "transferKb": 228,
+          "requests": 7
+        },
+        {
+          "ttfb": 26.799999713897705,
+          "fcp": 144,
+          "lcp": 144,
+          "dcl": 91.40000009536743,
+          "load": 91.5,
+          "usable": 152.19999980926514,
+          "wall": 1655,
+          "tbt": 0,
+          "transferKb": 228,
+          "requests": 7
+        },
+        {
+          "ttfb": 26.90000009536743,
+          "fcp": 148,
+          "lcp": 148,
+          "dcl": 91.30000019073486,
+          "load": 91.30000019073486,
+          "usable": 152,
+          "wall": 1655,
+          "tbt": 0,
+          "transferKb": 228,
+          "requests": 7
+        },
+        {
+          "ttfb": 29.90000009536743,
+          "fcp": 160,
+          "lcp": 160,
+          "dcl": 103.7999997138977,
+          "load": 103.7999997138977,
+          "usable": 165.90000009536743,
+          "wall": 1670,
+          "tbt": 0,
+          "transferKb": 228,
+          "requests": 7
+        },
+        {
+          "ttfb": 26.800000190734863,
+          "fcp": 148,
+          "lcp": 148,
+          "dcl": 94.59999990463257,
+          "load": 94.69999980926514,
+          "usable": 155.90000009536743,
+          "wall": 1661,
+          "tbt": 0,
+          "transferKb": 228,
+          "requests": 7
+        }
+      ],
+      "loadAvg": 3,
+      "repeatThrottled": {
+        "ttfb": 5.800000190734863,
+        "fcp": 700,
+        "lcp": 700,
+        "dcl": 64.5,
+        "load": 64.5,
+        "usable": 859.9000000953674,
+        "wall": 2365,
+        "tbt": 0,
+        "transferKb": 0,
+        "requests": 7
+      },
+      "throttledStats": {
+        "ttfb": {
+          "n": 5,
+          "p50": 24.1,
+          "p95": 25.6,
+          "max": 25.6,
+          "mean": 23
+        },
+        "fcp": {
+          "n": 5,
+          "p50": 3204,
+          "p95": 3228,
+          "max": 3228,
+          "mean": 3208
+        },
+        "lcp": {
+          "n": 5,
+          "p50": 3204,
+          "p95": 3228,
+          "max": 3228,
+          "mean": 3208
+        },
+        "dcl": {
+          "n": 5,
+          "p50": 2505.3,
+          "p95": 2526.9,
+          "max": 2526.9,
+          "mean": 2507.1
+        },
+        "load": {
+          "n": 5,
+          "p50": 2505.4,
+          "p95": 2526.9,
+          "max": 2526.9,
+          "mean": 2507.2
+        },
+        "usable": {
+          "n": 5,
+          "p50": 3521.7,
+          "p95": 3545.1,
+          "max": 3545.1,
+          "mean": 3523.9
+        },
+        "tbt": {
+          "n": 5,
+          "p50": 12,
+          "p95": 18,
+          "max": 18,
+          "mean": 13
+        }
+      },
+      "slow4gStats": {
+        "ttfb": {
+          "n": 5,
+          "p50": 23.7,
+          "p95": 27.9,
+          "max": 27.9,
+          "mean": 23.6
+        },
+        "fcp": {
+          "n": 5,
+          "p50": 1848,
+          "p95": 1860,
+          "max": 1860,
+          "mean": 1845.6
+        },
+        "lcp": {
+          "n": 5,
+          "p50": 1848,
+          "p95": 1860,
+          "max": 1860,
+          "mean": 1845.6
+        },
+        "dcl": {
+          "n": 5,
+          "p50": 1559.2,
+          "p95": 1571.6,
+          "max": 1571.6,
+          "mean": 1558
+        },
+        "load": {
+          "n": 5,
+          "p50": 1559.2,
+          "p95": 1571.7,
+          "max": 1571.7,
+          "mean": 1558.1
+        },
+        "usable": {
+          "n": 5,
+          "p50": 2073.9,
+          "p95": 2083.6,
+          "max": 2083.6,
+          "mean": 2071.1
+        },
+        "tbt": {
+          "n": 5,
+          "p50": 14,
+          "p95": 15,
+          "max": 15,
+          "mean": 12.2
+        }
+      },
+      "unthrottledStats": {
+        "ttfb": {
+          "n": 5,
+          "p50": 26.8,
+          "p95": 29.9,
+          "max": 29.9,
+          "mean": 25.7
+        },
+        "fcp": {
+          "n": 5,
+          "p50": 148,
+          "p95": 160,
+          "max": 160,
+          "mean": 148
+        },
+        "lcp": {
+          "n": 5,
+          "p50": 148,
+          "p95": 160,
+          "max": 160,
+          "mean": 148
+        },
+        "dcl": {
+          "n": 5,
+          "p50": 91.4,
+          "p95": 103.8,
+          "max": 103.8,
+          "mean": 93
+        },
+        "load": {
+          "n": 5,
+          "p50": 91.5,
+          "p95": 103.8,
+          "max": 103.8,
+          "mean": 93.1
+        },
+        "usable": {
+          "n": 5,
+          "p50": 152.2,
+          "p95": 165.9,
+          "max": 165.9,
+          "mean": 154.1
+        },
+        "tbt": {
+          "n": 5,
+          "p50": 0,
+          "p95": 0,
+          "max": 0,
+          "mean": 0
+        }
+      }
+    },
+    "home (signed in)": {
+      "throttled": [
+        {
+          "ttfb": 21.399999618530273,
+          "fcp": 3296,
+          "lcp": 3296,
+          "dcl": 2535.5999999046326,
+          "load": 2535.5999999046326,
+          "usable": 3552.8999996185303,
+          "wall": 5057,
+          "tbt": 40,
+          "transferKb": 261,
+          "requests": 15
+        },
+        {
+          "ttfb": 36.69999980926514,
+          "fcp": 3260,
+          "lcp": 3260,
+          "dcl": 2499.199999809265,
+          "load": 2499.199999809265,
+          "usable": 3514.5999999046326,
+          "wall": 5017,
+          "tbt": 39,
+          "transferKb": 261,
+          "requests": 15
+        },
+        {
+          "ttfb": 26.59999990463257,
+          "fcp": 3236,
+          "lcp": 3236,
+          "dcl": 2490.699999809265,
+          "load": 2490.699999809265,
+          "usable": 3505,
+          "wall": 5007,
+          "tbt": 27,
+          "transferKb": 261,
+          "requests": 15
+        },
+        {
+          "ttfb": 26,
+          "fcp": 3308,
+          "lcp": 3308,
+          "dcl": 2542.2999997138977,
+          "load": 2542.2999997138977,
+          "usable": 3560,
+          "wall": 5062,
+          "tbt": 35,
+          "transferKb": 261,
+          "requests": 15
+        },
+        {
+          "ttfb": 27.299999713897705,
+          "fcp": 3268,
+          "lcp": 3268,
+          "dcl": 2506.199999809265,
+          "load": 2506.2999997138977,
+          "usable": 3522.7999997138977,
+          "wall": 5024,
+          "tbt": 36,
+          "transferKb": 261,
+          "requests": 15
+        }
+      ],
+      "slow4g": [
+        {
+          "ttfb": 26.90000009536743,
+          "fcp": 1880,
+          "lcp": 1880,
+          "dcl": 1541.3000001907349,
+          "load": 1542,
+          "usable": 2074.2000002861023,
+          "wall": 3576,
+          "tbt": 26,
+          "transferKb": 261,
+          "requests": 15
+        },
+        {
+          "ttfb": 26.300000190734863,
+          "fcp": 1880,
+          "lcp": 1880,
+          "dcl": 1545.1000003814697,
+          "load": 1545.2000002861023,
+          "usable": 2071.9000000953674,
+          "wall": 3575,
+          "tbt": 22,
+          "transferKb": 261,
+          "requests": 15
+        },
+        {
+          "ttfb": 25.700000286102295,
+          "fcp": 1884,
+          "lcp": 1884,
+          "dcl": 1538.9000000953674,
+          "load": 1538.9000000953674,
+          "usable": 2072.800000190735,
+          "wall": 3574,
+          "tbt": 26,
+          "transferKb": 261,
+          "requests": 15
+        },
+        {
+          "ttfb": 29.800000190734863,
+          "fcp": 1880,
+          "lcp": 1880,
+          "dcl": 1537,
+          "load": 1537,
+          "usable": 2073.699999809265,
+          "wall": 3576,
+          "tbt": 21,
+          "transferKb": 261,
+          "requests": 15
+        },
+        {
+          "ttfb": 24.5,
+          "fcp": 1880,
+          "lcp": 1880,
+          "dcl": 1545.2999997138977,
+          "load": 1545.2999997138977,
+          "usable": 2067,
+          "wall": 3569,
+          "tbt": 20,
+          "transferKb": 261,
+          "requests": 15
+        }
+      ],
+      "unthrottled": [
+        {
+          "ttfb": 37.59999990463257,
+          "fcp": 188,
+          "lcp": 188,
+          "dcl": 109.7999997138977,
+          "load": 109.89999961853027,
+          "usable": 185.5,
+          "wall": 1689,
+          "tbt": 0,
+          "transferKb": 261,
+          "requests": 15
+        },
+        {
+          "ttfb": 27,
+          "fcp": 168,
+          "lcp": 168,
+          "dcl": 91.2999997138977,
+          "load": 91.2999997138977,
+          "usable": 167.19999980926514,
+          "wall": 1671,
+          "tbt": 0,
+          "transferKb": 261,
+          "requests": 15
+        },
+        {
+          "ttfb": 26.90000009536743,
+          "fcp": 168,
+          "lcp": 168,
+          "dcl": 90.40000009536743,
+          "load": 90.40000009536743,
+          "usable": 165.2999997138977,
+          "wall": 1668,
+          "tbt": 0,
+          "transferKb": 261,
+          "requests": 15
+        },
+        {
+          "ttfb": 24,
+          "fcp": 168,
+          "lcp": 168,
+          "dcl": 87.10000038146973,
+          "load": 87.2000002861023,
+          "usable": 163.7000002861023,
+          "wall": 1667,
+          "tbt": 0,
+          "transferKb": 261,
+          "requests": 15
+        },
+        {
+          "ttfb": 26.399999618530273,
+          "fcp": 172,
+          "lcp": 172,
+          "dcl": 92.59999990463257,
+          "load": 92.59999990463257,
+          "usable": 168.59999990463257,
+          "wall": 1672,
+          "tbt": 0,
+          "transferKb": 261,
+          "requests": 15
+        }
+      ],
+      "loadAvg": 4.8,
+      "repeatThrottled": {
+        "ttfb": 4.199999809265137,
+        "fcp": 768,
+        "lcp": 768,
+        "dcl": 74.7999997138977,
+        "load": 74.90000009536743,
+        "usable": 940.1999998092651,
+        "wall": 2444,
+        "tbt": 0,
+        "transferKb": 26,
+        "requests": 12
+      },
+      "throttledStats": {
+        "ttfb": {
+          "n": 5,
+          "p50": 26.6,
+          "p95": 36.7,
+          "max": 36.7,
+          "mean": 27.6
+        },
+        "fcp": {
+          "n": 5,
+          "p50": 3268,
+          "p95": 3308,
+          "max": 3308,
+          "mean": 3273.6
+        },
+        "lcp": {
+          "n": 5,
+          "p50": 3268,
+          "p95": 3308,
+          "max": 3308,
+          "mean": 3273.6
+        },
+        "dcl": {
+          "n": 5,
+          "p50": 2506.2,
+          "p95": 2542.3,
+          "max": 2542.3,
+          "mean": 2514.8
+        },
+        "load": {
+          "n": 5,
+          "p50": 2506.3,
+          "p95": 2542.3,
+          "max": 2542.3,
+          "mean": 2514.8
+        },
+        "usable": {
+          "n": 5,
+          "p50": 3522.8,
+          "p95": 3560,
+          "max": 3560,
+          "mean": 3531.1
+        },
+        "tbt": {
+          "n": 5,
+          "p50": 36,
+          "p95": 40,
+          "max": 40,
+          "mean": 35.4
+        }
+      },
+      "slow4gStats": {
+        "ttfb": {
+          "n": 5,
+          "p50": 26.3,
+          "p95": 29.8,
+          "max": 29.8,
+          "mean": 26.6
+        },
+        "fcp": {
+          "n": 5,
+          "p50": 1880,
+          "p95": 1884,
+          "max": 1884,
+          "mean": 1880.8
+        },
+        "lcp": {
+          "n": 5,
+          "p50": 1880,
+          "p95": 1884,
+          "max": 1884,
+          "mean": 1880.8
+        },
+        "dcl": {
+          "n": 5,
+          "p50": 1541.3,
+          "p95": 1545.3,
+          "max": 1545.3,
+          "mean": 1541.5
+        },
+        "load": {
+          "n": 5,
+          "p50": 1542,
+          "p95": 1545.3,
+          "max": 1545.3,
+          "mean": 1541.7
+        },
+        "usable": {
+          "n": 5,
+          "p50": 2072.8,
+          "p95": 2074.2,
+          "max": 2074.2,
+          "mean": 2071.9
+        },
+        "tbt": {
+          "n": 5,
+          "p50": 22,
+          "p95": 26,
+          "max": 26,
+          "mean": 23
+        }
+      },
+      "unthrottledStats": {
+        "ttfb": {
+          "n": 5,
+          "p50": 26.9,
+          "p95": 37.6,
+          "max": 37.6,
+          "mean": 28.4
+        },
+        "fcp": {
+          "n": 5,
+          "p50": 168,
+          "p95": 188,
+          "max": 188,
+          "mean": 172.8
+        },
+        "lcp": {
+          "n": 5,
+          "p50": 168,
+          "p95": 188,
+          "max": 188,
+          "mean": 172.8
+        },
+        "dcl": {
+          "n": 5,
+          "p50": 91.3,
+          "p95": 109.8,
+          "max": 109.8,
+          "mean": 94.2
+        },
+        "load": {
+          "n": 5,
+          "p50": 91.3,
+          "p95": 109.9,
+          "max": 109.9,
+          "mean": 94.3
+        },
+        "usable": {
+          "n": 5,
+          "p50": 167.2,
+          "p95": 185.5,
+          "max": 185.5,
+          "mean": 170.1
+        },
+        "tbt": {
+          "n": 5,
+          "p50": 0,
+          "p95": 0,
+          "max": 0,
+          "mean": 0
+        }
+      }
+    }
+  },
+  "fill": {
+    "unthrottled": {
+      "repeater500": {
+        "openMs": 209,
+        "stepToRowsMs": 115,
+        "typingTop": {
+          "pressed": 10,
+          "reportedOver16ms": 4,
+          "n": 4,
+          "p50": 24,
+          "p95": 96,
+          "max": 96,
+          "mean": 40
+        },
+        "typingBottom": {
+          "pressed": 10,
+          "reportedOver16ms": 11,
+          "n": 11,
+          "p50": 32,
+          "p95": 56,
+          "max": 56,
+          "mean": 35.6
+        },
+        "addRowMs": 88
+      },
+      "form300": {
+        "openMs": 206,
+        "typing": {
+          "pressed": 10,
+          "reportedOver16ms": 9,
+          "n": 9,
+          "p50": 16,
+          "p95": 16,
+          "max": 16,
+          "mean": 16
+        },
+        "nextStepMs": {
+          "n": 4,
+          "p50": 32,
+          "p95": 34,
+          "max": 34,
+          "mean": 28.3
+        }
+      }
+    },
+    "4x CPU": {
+      "repeater500": {
+        "openMs": 488,
+        "stepToRowsMs": 202,
+        "typingTop": {
+          "pressed": 10,
+          "reportedOver16ms": 3,
+          "n": 3,
+          "p50": 32,
+          "p95": 96,
+          "max": 96,
+          "mean": 50.7
+        },
+        "typingBottom": {
+          "pressed": 10,
+          "reportedOver16ms": 10,
+          "n": 10,
+          "p50": 128,
+          "p95": 168,
+          "max": 168,
+          "mean": 128
+        },
+        "addRowMs": 223
+      },
+      "form300": {
+        "openMs": 287,
+        "typing": {
+          "pressed": 10,
+          "reportedOver16ms": 11,
+          "n": 11,
+          "p50": 24,
+          "p95": 32,
+          "max": 32,
+          "mean": 25.5
+        },
+        "nextStepMs": {
+          "n": 4,
+          "p50": 47,
+          "p95": 51,
+          "max": 51,
+          "mean": 48
+        }
+      }
+    }
+  }
+}

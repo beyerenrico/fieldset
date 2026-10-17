@@ -27,7 +27,7 @@ beforeEach(function (): void {
     $this->designer = memberOf($this->org, SystemRole::Designer);
     app(TenantContext::class)->set($this->org);
     $this->form = app(CreateFormFromTemplate::class)->handle($this->designer, 'service_report');
-    Activity::query()->delete();
+    clearAuditLog();
 });
 
 function events(): array
@@ -75,7 +75,7 @@ it('never audits autosaves', function (): void {
 
 it('publishing from the builder writes only the publish entry', function (): void {
     actingInAdmin($this->designer, $this->org);
-    Activity::query()->delete();
+    clearAuditLog();
 
     Livewire::test(EditForm::class, ['record' => $this->form->getRouteKey()])
         ->set('data.title', 'Servicebericht 2')

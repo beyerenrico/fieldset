@@ -161,6 +161,43 @@ describe('submission document', () => {
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
 
+    it('shows that the PDF files were deleted on anonymization as a notice and never polls', async () => {
+        setup();
+        let calls = 0;
+        server.use(
+            http.get('*/api/v1/submissions/:uuid/document', () => {
+                calls++;
+                return fail(410, 'document_anonymized', null, 'The PDF files are gone for good.');
+            }),
+        );
+        renderApp(`/submissions/${UUID}`);
+        expect(await screen.findByText('The PDF files are gone for good.')).toHaveAttribute(
+            'role',
+            'status',
+        );
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Check again|Try again/ })).toBeNull();
+        expect(screen.queryByRole('link', { name: /Open PDF/ })).not.toBeInTheDocument();
+        await vi.advanceTimersByTimeAsync(200_000);
+        expect(calls).toBe(1);
+    });
+
+    it('falls back to a localized text when an anonymized submission comes without one', async () => {
+        setup();
+        server.use(
+            http.get('*/api/v1/submissions/:uuid/document', () =>
+                fail(410, 'document_anonymized', null, ''),
+            ),
+        );
+        renderApp(`/submissions/${UUID}`);
+        expect(
+            await screen.findByText(
+                'The PDF files were deleted when this submission was anonymized.',
+            ),
+        ).toHaveAttribute('role', 'status');
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
     it('stops polling after the backoff schedule; "Check again" restarts it', async () => {
         const backend = setup();
         const { user } = renderApp(`/submissions/${UUID}`);

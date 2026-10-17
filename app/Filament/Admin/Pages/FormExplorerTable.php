@@ -20,6 +20,7 @@ use Filament\Actions\BulkActionGroup;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\Column;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\PaginationMode;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -46,6 +47,11 @@ final class FormExplorerTable
                 ? ExplorerQuery::withValues(app(ReportScope::class)->base($page->viewer(), $form), $catalog)->with(['creator:id,name', 'formVersion:id,version'])
                 : Submission::query()->whereRaw('false'))
             ->defaultSort(fn (Builder $query): Builder => ExplorerQuery::defaultOrder($query))
+            // The search term is one phrase, as in exports (ReportFilters::$search), not split into words that
+            // must each match: two common words are two full scans of the values (M8-T05).
+            ->splitSearchTerms(false)
+            ->paginationMode(fn (FormExplorer $livewire): PaginationMode => self::paginationMode($livewire))
+            ->selectCurrentPageOnly(fn (FormExplorer $livewire): bool => self::paginationMode($livewire) === PaginationMode::Simple)
             ->columns([
                 ...self::baseColumns($form, $tz),
                 ...array_map(
@@ -97,6 +103,17 @@ final class FormExplorerTable
 
         return $column->state(fn (Submission $record): string => ReportValue::display($field, ExplorerQuery::values($record)[$field->key] ?? null, $formatter, $record->form_version_id))
             ->alignment($field->isNumeric() ? 'end' : 'start')->limit(80)->wrap();
+    }
+
+    /**
+     * A search ("any value contains …") pages without a total (M8-T05): counting every match of a common term
+     * reads all its values again (a term in a third of 100k submissions: 0.3–1 s just for the count). For the
+     * same reason "select all" then selects the rows on the page (Filament would count all matches for it);
+     * "Export filtered rows" still exports every match. Unsearched pages keep the total and select-all.
+     */
+    public static function paginationMode(FormExplorer $page): PaginationMode
+    {
+        return filled($page->getTableSearch()) ? PaginationMode::Simple : PaginationMode::Default;
     }
 
     /** Field columns shown by default; the others start hidden and can be toggled on (wide forms stay readable). */

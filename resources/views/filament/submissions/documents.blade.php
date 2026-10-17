@@ -4,6 +4,7 @@
 --}}
 @php
     /** @var array<string, mixed>|null $failure */
+    /** @var bool $anonymized */
     /** @var list<array<string, mixed>> $renditions */
     /** @var list<array<string, mixed>> $sends */
     $th = 'padding:.375rem .5rem;border-bottom:1px solid rgba(127,127,127,.35);text-align:start;font-weight:600;white-space:nowrap';
@@ -16,6 +17,9 @@
             <p style="margin:.25rem 0 0">{{ $failure['message'] }}</p>
             <p style="margin:.25rem 0 0;font-size:.8125rem">{{ $failure['details'] }} {{ __('inbox.documents.failure.hint') }}</p>
         </div>
+    @endif
+    @if ($anonymized)
+        <p data-section="documents-anonymized" style="margin:0;padding:.75rem 1rem;border:1px solid rgba(127,127,127,.35);border-inline-start-width:4px;border-radius:.5rem">{{ __('documents.errors.anonymized') }}</p>
     @endif
     @if ($renditions === [])
         <p>{{ __('inbox.detail.no_documents') }}</p>

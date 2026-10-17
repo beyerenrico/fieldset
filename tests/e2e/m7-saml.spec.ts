@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './support/test';
 import { fieldAppSsoLogin, freshPage, rolesIn } from './support/keycloak';
 
 // M7 SAML 2.0 (BUILD_PROMPT §8.7, ADR 0036 "SAML"): the Field App sends saml.reviewer to Keycloak's SAML

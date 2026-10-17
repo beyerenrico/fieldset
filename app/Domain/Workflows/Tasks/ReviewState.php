@@ -5,32 +5,55 @@ declare(strict_types=1);
 namespace App\Domain\Workflows\Tasks;
 
 use App\Domain\Identity\Models\User;
-use App\Domain\Submissions\Models\Submission;
 use App\Domain\Workflows\Enums\TaskStatus;
 use App\Domain\Workflows\Models\Task;
 
-/** Review fields of the API `submission` object: the latest decision and the viewer's open task. */
+/**
+ * Review fields of the API `submission` object: the latest decision and the viewer's open task, loaded
+ * for a whole page of submissions in one query each (SubmissionPresenter; M8-T05: per row this was three
+ * queries, 150 per API page).
+ *
+ * @phpstan-type Review array{outcome: string, comment: string|null, by: array{id: int, name: string}|null, at: string|null}
+ */
 final class ReviewState
 {
-    /** @return array{outcome: string, comment: string|null, by: array{id: int, name: string}|null, at: string|null}|null */
-    public static function review(Submission $submission): ?array
+    /**
+     * The latest decision per submission (completed review tasks with an outcome, newest completion first).
+     *
+     * @param  list<string>  $uuids
+     * @return array<string, Review> keyed by submission uuid; submissions without a decision are missing
+     */
+    public static function reviewsOf(array $uuids): array
     {
-        $task = Task::query()->where('submission_uuid', $submission->uuid)->where('status', TaskStatus::Completed->value)
-            ->whereNotNull('outcome')->with('completer')->orderByDesc('completed_at')->orderByDesc('id')->first();
-        if (! $task instanceof Task || $task->outcome === null) {
-            return null;
+        if ($uuids === []) {
+            return [];
+        }
+        $tasks = Task::query()->whereIn('submission_uuid', $uuids)->where('status', TaskStatus::Completed->value)
+            ->whereNotNull('outcome')->with('completer')->orderByDesc('completed_at')->orderByDesc('id')->get();
+
+        $reviews = [];
+        foreach ($tasks as $task) {
+            if ($task->outcome !== null && ! array_key_exists($task->submission_uuid, $reviews)) {
+                $reviews[$task->submission_uuid] = [
+                    'outcome' => $task->outcome->value,
+                    'comment' => $task->comment,
+                    'by' => $task->completer instanceof User ? ['id' => $task->completer->id, 'name' => $task->completer->name] : null,
+                    'at' => $task->completed_at?->toIso8601String(),
+                ];
+            }
         }
 
-        return [
-            'outcome' => $task->outcome->value,
-            'comment' => $task->comment,
-            'by' => $task->completer instanceof User ? ['id' => $task->completer->id, 'name' => $task->completer->name] : null,
-            'at' => $task->completed_at?->toIso8601String(),
-        ];
+        return $reviews;
     }
 
-    public static function openTaskId(Submission $submission, ?User $viewer): ?int
+    /**
+     * The viewer's open task per submission (TaskAccess::openTaskIdsFor).
+     *
+     * @param  list<string>  $uuids
+     * @return array<string, int> keyed by submission uuid
+     */
+    public static function openTaskIdsOf(array $uuids, ?User $viewer): array
     {
-        return $viewer instanceof User ? app(TaskAccess::class)->openTaskFor($viewer, $submission)?->id : null;
+        return $viewer instanceof User ? app(TaskAccess::class)->openTaskIdsFor($viewer, $uuids) : [];
     }
 }

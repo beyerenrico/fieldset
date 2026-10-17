@@ -8,6 +8,7 @@ use App\Domain\Documents\Models\Rendition;
 use App\Domain\Documents\Renditions\RenderSubmission;
 use App\Domain\Identity\Models\User;
 use App\Domain\Mail\CustomerSend\CustomerRecipient;
+use App\Domain\Mail\CustomerSend\CustomerSendGate;
 use App\Domain\Mail\CustomerSend\CustomerSendLimits;
 use App\Domain\Mail\Enums\DocumentSendStatus;
 use App\Domain\Mail\Models\DocumentSend;
@@ -37,6 +38,9 @@ final readonly class RequestCustomerSend
             $existing = self::existing($submission, $idempotencyKey);
             if ($existing instanceof DocumentSend) {
                 return $existing;
+            }
+            if ($submission->isAnonymized()) {
+                throw CustomerSendGate::anonymized(); // also when a caller skipped the gate (ADR 0039)
             }
             CustomerSendLimits::assertWithin($submission);
 

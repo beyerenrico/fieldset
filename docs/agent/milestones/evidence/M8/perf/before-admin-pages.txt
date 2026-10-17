@@ -1,0 +1,8 @@
+inbox (default)                      doc p50 150.3 p95 183 max 199.9 | lw(1) p95 59.6 | complete p95 310 | 318 kB | load 3.9
+explorer                             doc p50 125 p95 151.1 max 152.8 | lw(1) p95 59.2 | complete p95 294.3 | 474 kB | load 4.2
+saved report (all, by type)          doc p50 552.8 p95 650.5 max 651 | lw(4) p95 623.4 | complete p95 1192.6 | 114 kB | load 4.9
+saved report (last year, by month)   doc p50 338.8 p95 421.6 max 436.6 | lw(2) p95 399.2 | complete p95 772.9 | 113 kB | load 4.8
+reviewer: dashboard                  doc p50 76.6 p95 100.2 max 104.3 | lw(3) p95 313.3 | complete p95 451.1 | 91 kB | load 4.3
+reviewer: inbox                      doc p50 388.4 p95 419.7 max 441.3 | lw(2) p95 48.7 | complete p95 502.7 | 292 kB | load 3.5
+reviewer: submission detail          doc p50 125.5 p95 151.2 max 156.7 | lw(2) p95 50.7 | complete p95 250 | 129 kB | load 3.9
+explorer search: unique term         livewire p50 238.9 p95 271.8 max 285.9

@@ -68,6 +68,7 @@ it('requires a valid, unexpired signature and a session', function (): void {
     $this->actingAs($this->s->owner)->get($this->url.'x')->assertForbidden();
 
     $this->travel(AttachmentDownloadController::LINK_MINUTES + 1)->minutes();
+    $this->flushSession(); // a new sign-in: past the admin idle timeout the old session is gone (AdminSessionTimeout)
     $this->actingAs($this->s->owner)->get($this->url)->assertForbidden();
 });
 

@@ -13,6 +13,7 @@ Format: question · chosen option · impact · how to reverse.
 5. Filament MFA challenge failures are not audited (Filament fires no event) · accepted for now ·
    failed admin TOTP attempts leave no trace (Fortify ones do) · add a Filament challenge subclass or
    upstream event when available.
+   **Resolved in M8 (ADR 0038):** the admin login writes `auth.mfa_failed` for a wrong code.
 6. Self-service registration default · off (`APP_ALLOW_REGISTRATION=false`) after security review ·
    public hosted instance must enable it · set env to true.
 7. Unconfirmed Fortify 2FA secret is replaced if the user then enrols in Filament · accepted (the
@@ -20,6 +21,7 @@ Format: question · chosen option · impact · how to reverse.
 8. Builder v1 page weight · the Filament Builder renders every block schema (incl. nested block pickers
    and logic editors); the service-report editor HTML is ~4 MB · acceptable for v1, Builder v2 (M7) is
    the planned replacement · if needed earlier: lazy-load block bodies or collapse nested pickers.
+   **Resolved in M8 (ADR 0044):** the canvas builder (138 kB page) is the default; v1 stays reachable.
 9. Devices are user-level, so an admin of org A with `members.manage` who revokes a member's device
    also signs that phone out of org B (M2 security review); since M6 revoking a device also ends all of the user's sessions and the remember-me token (a recaller login is not bound to the device) · accepted: one device = one install of
    the Field App, wipe must clear all local data · an org admin can disrupt a shared user's work in
@@ -29,6 +31,9 @@ Format: question · chosen option · impact · how to reverse.
    has a strict CSP (`script-src 'self'`), Markdown has HTML off, images only `data:` · a renderer XSS
    would run with the designer's admin session · M8 task: serve the preview from an opaque origin
    (drop `allow-same-origin`, CORS on preview assets, `source`-checked postMessage).
+   **Resolved in M8 (ADR 0040):** the preview runs on an opaque origin (`sandbox="allow-scripts"` plus CSP
+   `sandbox allow-scripts`, `connect-src 'none'`, no storage); postMessage targets `'*'` and checks
+   `event.source` and the `'null'` origin; Caddy serves preview assets with CORS.
 11. `app:reproject` rebuilds `submission_values` from current data, so a `changes_requested`
    submission is skipped until resubmitted (ADR 0027) · accepted · reports built during a full rebuild
    miss those submissions temporarily · keep a snapshot of the last submitted data per submission.
@@ -62,3 +67,18 @@ Format: question · chosen option · impact · how to reverse.
    might not carry the session (ADR 0036) · untested (no device in this run) · field workers on iPhones
    who installed the app could fail to sign in with SSO · test on a real device in M8/1.0; fallback:
    start SSO in Safari, or use the password option when the organization does not enforce SSO.
+19. Web push (§8.9 "comes in v1.0") is deferred past 1.0 (ADR 0045): it needs VAPID secrets, a new crypto
+   dependency or hand-written RFC 8291/8292 code, outbound calls to push services, a subscriptions table with
+   GDPR handling and an `injectManifest` service worker · accepted for 1.0: in-app (polling) and email cover the
+   events · field workers learn about new tasks only when they open the app or read their mail · decide the
+   priority and the library (`minishlink/web-push` or own code) for 1.1.
+20. Handwritten signatures need a pointer (Field App, M8-T04): the pad has no typed alternative; WCAG 2.1.1
+   exempts path-dependent input, and the name, clear and confirm controls work by keyboard · accepted ·
+   keyboard-only and switch users cannot sign on their own · add a "type your name as signature" mode if forms
+   are filled by users who cannot draw (legal effect to be checked per organization).
+21. Three performance results sit at or over a §11 line at 1.0 (ADR 0046, M8-T05): the classic builder page
+   (1.05 s, 4.5 MB; not the default since ADR 0044), the Field App first load under Lighthouse's devtools
+   throttling (3.5 s; slow 4G 2.1 s), adding the 501st repeater row at 4× CPU (median 203 ms) · accepted for 1.0 ·
+   admins who open v1 wait about a second; field workers on very slow links wait longer for the first load ·
+   decide whether to retire v1 in 1.1 and which Field App load profile is binding; proposals in
+   `docs/agent/milestones/evidence/M8/performance.md`.

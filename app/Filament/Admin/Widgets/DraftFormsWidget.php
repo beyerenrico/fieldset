@@ -24,7 +24,7 @@ class DraftFormsWidget extends TableWidget
             ->records(fn (): array => self::keyed($this->dashboardData()->draftForms($this->dashboardContext()), 'id'))
             ->paginated(false)
             ->emptyStateHeading(__('dashboard.draft_forms.empty'))
-            ->recordUrl(fn (array $record): string => FormResource::getUrl('edit', ['record' => $record['id']]))
+            ->recordUrl(fn (array $record): string => FormResource::builderUrlFor($record['id'], (bool) ($record['import'] ?? false)))
             ->columns([
                 TextColumn::make('name')->label(__('dashboard.columns.form'))
                     ->description(fn (array $record): ?string => $record['category']),

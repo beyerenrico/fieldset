@@ -1,0 +1,409 @@
+# Install guide (Docker Compose, production)
+
+This guide installs form-schema-app on one Linux server with Docker Compose. For development on your
+own machine, see the README quick start instead.
+
+Contents:
+- [What runs where](#what-runs-where)
+- [Requirements](#requirements)
+- [1. Get the code](#1-get-the-code)
+- [2. Create the .env file](#2-create-the-env-file)
+- [3. Build and start](#3-build-and-start)
+- [4. Create the first organization and owner](#4-create-the-first-organization-and-owner)
+- [5. Reverse proxy and TLS](#5-reverse-proxy-and-tls)
+- [6. Check the installation](#6-check-the-installation)
+- [7. Protect the audit log](#7-protect-the-audit-log)
+- [Settings that must never reach production](#settings-that-must-never-reach-production)
+- [Next steps](#next-steps)
+
+## What runs where
+
+`compose.yaml` defines the production stack. All three application services use the same image,
+built from `docker/app/Dockerfile` (FrankenPHP with PHP 8.4, ADR 0020):
+
+| Service | What it does |
+|---|---|
+| `app` | Web server for the admin dashboard (`/admin`), the Field App (`/app`) and the API (`/api/v1`), plain HTTP on port 8080. Runs the database migrations on every start. |
+| `queue` | Horizon queue workers: PDFs, emails, workflows, notifications, retention runs (`default` queue) and report, personal data and audit log exports (`exports` queue, one at a time). |
+| `scheduler` | `php artisan schedule:work`: scheduled workflows and reminders, the PDF safety sweep, scheduled report emails, SSO health checks, audit log sealing and pruning, per-form retention, clean-up jobs. |
+| `postgres` | PostgreSQL 16 (volume `pg-data`). |
+| `redis` | Valkey 8: queues, cache, locks. No published port. |
+| `gotenberg` | PDF rendering with Chromium. It sits on the internal network `renderer`, shared only with `app` and `queue`, has no internet access, and may not fetch any private or public address. |
+
+Uploaded files, PDFs and logos live in the volume `app-storage` (`/var/www/html/storage/app`), which
+`app`, `queue` and `scheduler` share.
+
+`compose.dev.yaml` is for development only: it publishes the database, Redis and Gotenberg ports, adds
+Mailpit and the Keycloak identity provider, and switches on SSO test settings. Never use it in
+production (see [below](#settings-that-must-never-reach-production)).
+
+There is no prebuilt image in a registry: you build the image from the release you check out.
+
+## Requirements
+
+- A Linux server with Docker Engine and the Compose plugin v2 (`docker compose version`). Building the
+  image needs internet access to download base images and packages.
+- A DNS name for the instance, for example `forms.example.com`, and a reverse proxy **on the same
+  server** that terminates TLS (Caddy, nginx, Traefik). The app itself only speaks HTTP, and
+  `compose.yaml` publishes its port on `127.0.0.1` only.
+- An SMTP server or relay for outgoing mail. The image ships Laravel's SMTP transport (plus `sendmail`
+  and `log`); API transports such as Postmark, Resend or SES need extra Composer packages and are not
+  included.
+- PostgreSQL 15 or newer if you replace the bundled database (the migrations use `NULLS NOT
+  DISTINCT`); the stack and the tests use PostgreSQL 16.
+- A place outside the server for backups ([backup guide](backup-restore.md)).
+
+## 1. Get the code
+
+```bash
+git clone <repository URL> form-schema-app
+cd form-schema-app
+git tag                      # list releases
+git checkout v1.0.0          # the release you install
+```
+
+Keep this directory: Compose uses it as the project directory, and upgrades start from it.
+
+## 2. Create the .env file
+
+```bash
+cp .env.production.example .env
+chmod 600 .env
+```
+
+`.env.production.example` is the production template. It already sets `APP_ENV=production`,
+`APP_DEBUG=false`, `COMPOSE_FILE=compose.yaml`, JSON logs, `SESSION_SECURE_COOKIE=true` and the safe SSO
+values. Never start from `.env.example`: that file is for development. Every service reads `.env`, and
+its values override the defaults built into the image.
+
+Change at least the following lines:
+
+```dotenv
+APP_URL=https://forms.example.com
+
+DB_PASSWORD=<a long random password>
+
+SANCTUM_STATEFUL_DOMAINS=forms.example.com
+
+MAIL_HOST=smtp.example.com
+MAIL_PORT=587
+MAIL_USERNAME=<user>
+MAIL_PASSWORD=<password>
+MAIL_FROM_ADDRESS="forms@example.com"
+MAIL_FROM_NAME="Example Forms"
+
+# Who may open the Horizon queue dashboard at /horizon and the API documentation.
+PLATFORM_ADMIN_EMAILS=it@example.com
+```
+
+Then generate the application key:
+
+```bash
+sed -i "s|^APP_KEY=.*|APP_KEY=base64:$(openssl rand -base64 32)|" .env
+```
+
+**Store a copy of `APP_KEY` somewhere safe, outside the server** (for example in a password manager).
+The key encrypts SMTP passwords, identity provider secrets, webhook secrets, two-factor secrets and
+queued emails. If it is lost, these values cannot be read again and every user with two-factor
+authentication is locked out. See [Backup and restore](backup-restore.md#what-to-back-up).
+
+Notes on these settings:
+
+| Setting | Why |
+|---|---|
+| `COMPOSE_FILE=compose.yaml` (template) | Without it, Compose also loads `compose.dev.yaml`, and the app refuses to boot in production because of the SSO test settings in that file. |
+| `APP_ENV=production`, `APP_DEBUG=false` (template) | `.env.example` has `local` and `true`. In `local`, the Horizon dashboard is open to everyone and errors show stack traces. |
+| `APP_URL` | The public `https://` address. Links in emails and everything else generated in the background (queue, scheduler, console) use it. Its host name is also the only name the application answers to (see [step 5](#5-reverse-proxy-and-tls)). |
+| `APP_PORT` (template: `8080`) | The port number only. Compose publishes it as `127.0.0.1:${APP_PORT}:8080`, on the loopback interface, so only the reverse proxy on the same server can reach the app. |
+| `TRUSTED_PROXIES` (template: `172.16.0.0/12`) | The addresses whose `X-Forwarded-*` headers the application believes. The template's value is the Docker bridge range, from which a reverse proxy on the host arrives when it connects to `127.0.0.1:8080`. See [step 5](#5-reverse-proxy-and-tls). |
+| `LOG_CHANNEL=stack`, `LOG_STACK=json` (template) | One JSON object per line on stderr, with secrets redacted, so `docker compose logs` shows them. Add `sentry` for error reporting ([configuration reference](configuration.md#logging-and-error-reporting)). |
+| `DB_USERNAME` (template: `form_schema`) | The bundled `postgres` service creates this user on its first start, together with the database `DB_DATABASE`. |
+| `DB_PASSWORD`, `DB_DATABASE` | Used to create the database on the first start only. Changing them later does not change the existing database. `DB_HOST` and `DB_PORT` in `.env` are ignored by the containers (Compose sets `postgres:5432`). |
+| `SESSION_SECURE_COOKIE=true` (template) | Session cookies only over HTTPS. Behind HTTPS the application marks them Secure in any case. |
+| `SANCTUM_STATEFUL_DOMAINS` | The host name of `APP_URL` (no scheme, add `:port` if not 443). The Field App's sign-in cookie only works for hosts in this list. |
+| `MAIL_*` | The instance-wide mail transport. `MAIL_FROM_ADDRESS` should be on your own domain with SPF/DKIM set up; organizations set their own sender name and reply-to in the dashboard. Port 465 uses implicit TLS; other ports use STARTTLS when the server offers it. |
+| `PLATFORM_ADMIN_EMAILS` | Comma-separated emails of operators. They can open `/horizon` (after signing in at `/admin/login`) and the API documentation. |
+
+Leave these as they are in the template: `SESSION_DRIVER=database`, `SESSION_LIFETIME=43200`
+(30 days, needed for offline field work), `SESSION_ENCRYPT=true`, `QUEUE_CONNECTION=redis` (Horizon
+needs Redis), `CACHE_STORE=redis`, `APP_ALLOW_REGISTRATION=false`, `SSO_ALLOW_INSECURE_IDP=false` and
+`SSO_DNS_DRIVER=dns`. All other settings, including the audit log and privacy defaults, are listed in the
+[configuration reference](configuration.md).
+
+## 3. Build and start
+
+```bash
+docker compose build
+docker compose up -d --wait
+docker compose ps
+```
+
+On every start the `app` container caches the configuration and runs `php artisan migrate --force`.
+`queue` and `scheduler` do not wait for the migrations; on the very first start they may restart once
+until the tables exist.
+
+After changing `.env`, recreate the containers so that they read it again (a plain `restart` keeps the
+old environment):
+
+```bash
+docker compose up -d --force-recreate app queue scheduler
+```
+
+## 4. Create the first organization and owner
+
+```bash
+docker compose exec app php artisan app:install
+```
+
+The command asks for the organization name, the owner's name, email and password (at least 10
+characters). You can pass them as options instead:
+
+```bash
+docker compose exec app php artisan app:install \
+  --organization="Example GmbH" --name="Erika Muster" --email=erika@example.com --locale=de
+```
+
+`--locale` is `de` (default) or `en`. Without `--password` the command prompts for it, which keeps the
+password out of your shell history. The owner's email address is marked as verified.
+
+The command only works once: if an organization exists, it changes nothing. Further organizations are
+created by enabling self-registration (`APP_ALLOW_REGISTRATION=true`, only for a public instance); each
+registering user then creates their own organization at `/admin`.
+
+Sign in at `https://forms.example.com/admin/login` and continue with the [admin guide](admin-guide.md):
+branding, members, forms. Set up two-factor authentication for the owner account in the profile.
+
+**Platform operators (optional).** The operator panel at `/platform` lists all organizations, shows the
+health of the instance and lets operators sign in as a member for support. No operator exists after the
+installation. Grant the role to an existing user:
+
+```bash
+docker compose exec app php artisan app:platform-admin it@example.com            # grant
+docker compose exec app php artisan app:platform-admin it@example.com --revoke   # revoke
+```
+
+Operators sign in at `/platform/login` and must set up two-factor authentication at their first
+sign-in. See [Platform operators](admin-guide.md#platform-operators-platform).
+
+## 5. Reverse proxy and TLS
+
+Put a reverse proxy (Caddy, nginx, Traefik) on the host. It terminates TLS and forwards all paths to
+`http://127.0.0.1:8080` (the port is `APP_PORT`). Requirements:
+- forward the original `Host` header and set `X-Forwarded-For`, `X-Forwarded-Proto` and
+  `X-Forwarded-Host`;
+- allow request bodies of at least 30 MB (fillable PDF imports are up to 20 MB, attachments up to 25 MB;
+  PHP accepts up to 30 MB);
+- allow responses to take up to about 60 seconds (PDF previews are rendered while you wait);
+- do not cache `/app/`, `/api/` or `/admin/` responses. The Field App's service worker handles offline
+  caching itself.
+
+**Trusted proxies.** The application believes the `X-Forwarded-For`, `-Proto`, `-Host` and `-Port`
+headers only from the addresses in `TRUSTED_PROXIES` (IP addresses or CIDR ranges, comma-separated).
+Empty trusts no proxy. Without a trusted proxy the application sees plain HTTP and the proxy's address.
+It then builds `http://` links and asset URLs, the browser blocks the dashboard's scripts as mixed
+content, SSO redirect URIs start with `http://`, and rate limits and audit log entries use the proxy's
+IP address.
+- The template sets `TRUSTED_PROXIES=172.16.0.0/12`. A reverse proxy on the host that connects to
+  `127.0.0.1:8080` reaches the container from the Docker bridge network, which lies in this range.
+- You may narrow it to the address your proxy connects from. Widen it only to the range your proxy
+  actually connects from.
+- Never trust a range that untrusted clients can reach. They could then fake their IP address, which
+  bypasses rate limits and puts false addresses into the audit log, and pretend to use HTTPS.
+
+**Host names.** Unless `APP_ENV` is `local` or `testing`, the application answers only to the host name
+of `APP_URL`, to `localhost` and loopback addresses (for the container health check), and to the names
+in `TRUSTED_HOSTS` (comma-separated). Any other `Host` or forwarded host gets **400 Bad Request**. This
+keeps password-reset and invitation links from pointing to another domain.
+
+**HTTPS.** When a request arrives over HTTPS through a trusted proxy, or `APP_URL` starts with
+`https://`, the application marks the session cookies Secure and sends `Strict-Transport-Security`
+with a `max-age` of one year. Browsers then use only HTTPS for this host name for that year. The
+settings are in the [configuration reference](configuration.md#security-headers-and-proxies).
+
+Example with Caddy on the host (Caddy obtains and renews the certificate):
+
+```caddyfile
+forms.example.com {
+    request_body {
+        max_size 30MB
+    }
+    reverse_proxy 127.0.0.1:8080
+}
+```
+
+Example with nginx:
+
+```nginx
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name forms.example.com;
+    ssl_certificate     /etc/letsencrypt/live/forms.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/forms.example.com/privkey.pem;
+
+    client_max_body_size 30m;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_read_timeout 90s;
+    }
+}
+```
+
+The Field App needs HTTPS: browsers only install web apps and run service workers on secure origins.
+
+## 6. Check the installation
+
+```bash
+docker compose ps                                   # app and queue "healthy", scheduler running
+curl -fsS https://forms.example.com/up              # 200: the application boots
+docker compose exec queue php artisan horizon:status
+docker compose exec app php artisan schedule:list   # the scheduled tasks
+docker compose logs -f app queue scheduler
+```
+
+`/up` only shows that the application boots, not that the database or Redis are reachable. Then, in the
+dashboard:
+1. "E-Mail-Einstellungen" ("Mail settings") → "Test-E-Mail senden" ("Send test email"), and check that
+   it arrives and is "Gesendet" ("Sent") in "E-Mail-Protokoll" ("Mail log"). This also proves that the
+   queue runs.
+2. Create a form from a template, open "PDF-Vorschau" ("Preview PDF"): this proves that Gotenberg works.
+3. Open `https://forms.example.com/app` on a phone, sign in and install the app.
+
+Platform operators can also open "Zustand" ("Health") at `/platform`: it checks Horizon and the failed
+jobs, Gotenberg, the mail transport, the scheduler and the free disk space.
+
+## 7. Protect the audit log
+
+The audit log ([admin guide](admin-guide.md#audit-log)) is append-only. A database trigger refuses every
+change, deletion and `TRUNCATE` of audit entries, with two exceptions, both database functions:
+- `audit_seal()` adds a new entry to its hash chain, once;
+- `audit_prune()` deletes entries for retention, and never entries younger than 30 days.
+
+This stops every path through the application. It does not stop someone who controls the database: in
+the bundled `postgres` service the application connects as `DB_USERNAME`, which the official PostgreSQL
+image creates as a superuser and which owns the tables. That role can switch the trigger off.
+
+Every entry is also sealed into a hash chain per organization: each entry's SHA-256 hash covers its
+values and the previous entry's hash. The hash uses no secret key. `audit:verify` therefore detects
+changes made by anyone who cannot rewrite the table, but someone with full database access could change
+an entry and recompute every hash after it. Real tamper evidence needs copies of the chain heads outside
+the database, as described next.
+
+### Check the chains and keep their heads outside the database
+
+`audit:verify` recomputes every chain and exits with code 1 when it finds a problem. With `--heads` it
+also prints the head of every chain (last position and hash) as one JSON line:
+
+```bash
+docker compose exec -T app php artisan audit:verify --heads
+```
+
+```json
+{"verified_at":"2026-10-19T03:00:00+00:00","heads":{"0":{"seq":120,"hash":"9f2c…"},"7":{"seq":5312,"hash":"41ab…"}}}
+```
+
+The key is the chain number: the organization id, or 0 for entries without an organization. `heads` is
+always an object. A chain that retention emptied completely shows its last pruned position.
+
+The chain alone cannot show that it was recomputed, or that its newest entries or a whole chain were
+removed. Copies of the heads outside the database can. Run the command at least daily, for example from
+cron on the host, alert when it exits with code 1, and ship the JSON line to storage the database cannot
+reach (a log server, a write-once bucket). On every run, compare every chain with the stored copies:
+- the new `seq` must not be lower than the stored one;
+- the entry at the stored position must still have the stored hash, for example for chain 7:
+
+  ```bash
+  docker compose exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -At -c "SELECT hash FROM activity_log WHERE COALESCE(organization_id, 0) = 7 AND chain_seq = 5312"'
+  ```
+
+After a restore from a backup the chains go back to the time of the backup. Record the new heads and
+keep a note of the restore.
+
+### Optional: a maintenance role owns the audit log
+
+The hardened setup takes the audit log away from the application role. It needs two things:
+- The application connects as a role that is **not a superuser**. With the bundled `postgres` service
+  this means a separate login role for the application instead of `DB_USERNAME`, which this guide does
+  not cover.
+- A separate maintenance role owns the table `activity_log` and the functions `audit_prune`,
+  `audit_seal`, `audit_prunable` and the two trigger functions. The application role keeps only `SELECT`
+  and `INSERT` on the table, `USAGE` on its sequence, and `EXECUTE` on `audit_seal` and `audit_prune`.
+
+The `app.audit_prune` setting that the pruning function switches on then grants nothing, and the
+application can delete audit entries only through `audit_prune()`, never younger than 30 days. Run as a
+superuser, after a backup, with `<app_role>` replaced by the application's role. Try it on a restored
+copy first (`scripts/restore-drill.sh --keep`).
+
+```sql
+CREATE ROLE audit_owner NOLOGIN;
+ALTER TABLE activity_log OWNER TO audit_owner;
+ALTER FUNCTION activity_log_append_only() OWNER TO audit_owner;
+ALTER FUNCTION activity_log_no_truncate() OWNER TO audit_owner;
+ALTER FUNCTION audit_prunable(timestamp) OWNER TO audit_owner;
+ALTER FUNCTION audit_prune(timestamp) OWNER TO audit_owner;
+ALTER FUNCTION audit_seal(bigint, bigint, char, char) OWNER TO audit_owner;
+
+-- Drop grants made earlier or by default privileges, then grant only what the application needs.
+REVOKE ALL ON activity_log FROM PUBLIC, <app_role>;
+REVOKE ALL ON SEQUENCE activity_log_id_seq FROM PUBLIC, <app_role>;
+GRANT SELECT, INSERT ON activity_log TO <app_role>;
+GRANT USAGE ON SEQUENCE activity_log_id_seq TO <app_role>;
+GRANT EXECUTE ON FUNCTION audit_seal(bigint, bigint, char, char), audit_prune(timestamp) TO <app_role>;
+```
+
+Keep in mind:
+- A role that owns the database's schema can still drop the whole table. The stored chain heads show
+  that.
+- `scripts/backup.sh` dumps without owners and privileges. After a full restore, run the statements
+  above again.
+- A later migration that changes `activity_log` or these functions fails as the application role. Run
+  it as the maintenance role or a superuser.
+
+### When audit:verify fails
+
+| Output | Meaning | What to do |
+|---|---|---|
+| `N entries older than ten minutes are not sealed (run audit:seal)` | Sealing did not run. The scheduler is down, or after an upgrade from 0.x the older entries are still being sealed (5,000 every five minutes). | Check the [scheduler](troubleshooting.md#the-scheduler-does-not-run). Run `docker compose exec app php artisan audit:seal --limit=100000`, then verify again. |
+| `chain C: entry #ID (seq N) does not match its hash` | The entry was changed after it was sealed. | Treat it as a security incident (below). |
+| `chain C: entries missing between seq A and B`, `entries before seq N are missing (no matching retention prune)` | Entries were deleted outside retention pruning. | Security incident. |
+| `chain C: entry #ID (seq N) does not link to seq M`, `first entry #ID does not start the chain` | Entries were replaced or inserted into the chain. | Security incident. |
+| `chain C: first entry #ID (seq N) does not continue from the retention cut at seq M` | Entries at the start of the chain were replaced or removed after a retention prune. | Security incident. |
+| A head lower than in your stored copy, or another hash at a stored position | The newest entries were removed or replaced. | Security incident. |
+
+In a security incident:
+1. Change nothing in the database. Take a backup now (`scripts/backup.sh`) and copy it out of the
+   backup rotation, because the script deletes old backups.
+2. Keep the output. `C` is the chain number (organization id, 0 for platform entries); the entry ids
+   and positions show what is affected.
+3. Find the last good state: restore older backups with `scripts/restore-drill.sh --keep` and compare
+   the affected entries.
+4. Find out who could reach the database, and change the database password (in PostgreSQL first, then
+   `DB_PASSWORD` in `.env`).
+5. Tell the affected organizations that their audit log is not reliable evidence for that period.
+
+## Settings that must never reach production
+
+| Setting | Where it comes from | What happens in production |
+|---|---|---|
+| `SSO_ALLOW_INSECURE_IDP=true` | `compose.dev.yaml` (for the local Keycloak) | Allows `http://` and private-network identity providers without the SSRF guard. The app refuses to boot when `APP_ENV=production`. |
+| `SSO_DNS_DRIVER=config` with `SSO_DNS_RECORDS` | `compose.dev.yaml` and CI | Domain verification reads fake TXT records from the configuration instead of DNS. The app refuses to boot when `APP_ENV=production`. |
+| The `keycloak` service (profile `sso`) | `compose.dev.yaml` | A development identity provider with the fixed admin password `admin` and demo users. For development and E2E tests only; use your real identity provider. |
+| `mailpit` | `compose.dev.yaml` | Catches all mail instead of delivering it. |
+| `MESSAGING_SMTP_ALLOW_PRIVATE_HOSTS=true`, `WORKFLOWS_WEBHOOK_ALLOW_PRIVATE_HOSTS=true` | development | Lift the SSRF guards for organization SMTP servers and webhooks, so tenants could reach internal services. |
+| `APP_ENV=local`, `APP_DEBUG=true` | `.env.example` | Stack traces for visitors; Horizon dashboard open to everyone; no host name check. |
+| `TRUSTED_PROXIES` covering addresses that untrusted clients can reach (for example `*`) | a copied example | Clients can fake their IP address and HTTPS: rate limits are bypassed and audit entries get false addresses. |
+| Demo data (`php artisan db:seed`) | development | Creates demo users with the password `password`. Never seed a production database. |
+
+## Next steps
+
+- Back up the database, the storage volume and `APP_KEY`: [Backup and restore](backup-restore.md).
+- Schedule `audit:verify --heads` and keep its output elsewhere:
+  [Protect the audit log](#7-protect-the-audit-log).
+- Tune limits and optional settings: [Configuration reference](configuration.md).
+- Upgrading later: [Upgrade guide](upgrade.md).
+- If something does not work: [Troubleshooting](troubleshooting.md).

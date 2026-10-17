@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Notifications\Preferences;
 
+use App\Domain\Audit\AuditLogger;
 use App\Domain\Identity\Models\User;
 use App\Domain\Notifications\Models\NotificationPreference;
 use App\Domain\Notifications\NotificationEvent;
@@ -85,8 +86,32 @@ final class ChannelPreferences
             }
         }
 
-        if ($rows !== []) {
-            NotificationPreference::query()->upsert($rows, ['user_id', 'event', 'channel'], ['enabled', 'updated_at']);
+        if ($rows === []) {
+            return;
+        }
+        $before = $this->matrix($user);
+        NotificationPreference::query()->upsert($rows, ['user_id', 'event', 'channel'], ['enabled', 'updated_at']);
+        $this->audit($user, $before, $this->matrix($user));
+    }
+
+    /**
+     * One audit entry per effective change (§8.11 settings changes); saving unchanged choices writes none.
+     *
+     * @param  array<string, array<string, bool>>  $before
+     * @param  array<string, array<string, bool>>  $after
+     */
+    private function audit(User $user, array $before, array $after): void
+    {
+        $changed = [];
+        foreach ($after as $event => $channels) {
+            foreach ($channels as $channel => $enabled) {
+                if (($before[$event][$channel] ?? null) !== $enabled) {
+                    $changed[$event][$channel] = $enabled;
+                }
+            }
+        }
+        if ($changed !== []) {
+            app(AuditLogger::class)->record('notification_preferences.updated', $user, ['changed' => $changed], $user);
         }
     }
 

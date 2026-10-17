@@ -29,13 +29,13 @@ class ListForms extends ListRecords
 {
     protected static string $resource = FormResource::class;
 
-    /** The classic builder stays the default (row click, "Builder"); the canvas builder is one more row action (ADR 0037). */
+    /** The canvas builder is the default (row click, "Builder"); the classic builder stays one row action away (ADR 0044). */
     public function table(Table $table): Table
     {
         return $table->pushRecordActions([
-            Action::make('canvas')->label(__('forms.canvas.open'))->icon('heroicon-o-squares-2x2')->color('gray')
+            Action::make('classic')->label(__('builder_v2.toolbar.classic'))->icon('heroicon-o-queue-list')->color('gray')
                 ->authorize(fn (Form $record): bool => auth()->user()?->can('update', $record) ?? false)
-                ->url(fn (Form $record): string => FormResource::getUrl('canvas', ['record' => $record])),
+                ->url(fn (Form $record): string => FormResource::getUrl('edit', ['record' => $record])),
         ]);
     }
 
@@ -78,7 +78,7 @@ class ListForms extends ListRecords
             ])
             ->action(function (array $data): void {
                 [$form] = app(CreateForm::class)->handle($this->actor(), $data['name'], null, $data['category'] ?? null);
-                $this->redirect(FormResource::getUrl('edit', ['record' => $form]));
+                $this->redirect(FormResource::builderUrl($form));
             });
     }
 
@@ -95,7 +95,7 @@ class ListForms extends ListRecords
             ])
             ->action(function (array $data): void {
                 $form = app(CreateFormFromTemplate::class)->handle($this->actor(), $data['template'], ($data['name'] ?? '') !== '' ? $data['name'] : null);
-                $this->redirect(FormResource::getUrl('edit', ['record' => $form]));
+                $this->redirect(FormResource::builderUrl($form));
             });
     }
 
@@ -117,7 +117,7 @@ class ListForms extends ListRecords
 
                     return;
                 }
-                $this->redirect(FormResource::getUrl('edit', ['record' => $form]));
+                $this->redirect(FormResource::builderUrl($form));
             });
     }
 

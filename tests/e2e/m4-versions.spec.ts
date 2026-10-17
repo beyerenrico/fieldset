@@ -1,4 +1,4 @@
-import { test, expect, devices, type Page } from '@playwright/test';
+import { test, expect, devices, type Page } from './support/test';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -10,7 +10,7 @@ import { fieldAppLogin, fillAndSubmitServiceReport } from './support/field-app';
 // submission keeps the same input_hash, extracted text and page count; a rollback to v1 creates v3.
 // Needs pdftotext/pdfinfo (poppler-utils) on the machine running Playwright.
 const evidence = (name: string) => `docs/agent/milestones/evidence/M4/${name}.png`;
-const FORM_URL = '/admin/demo/forms/1/edit'; // the seeded "Servicebericht"
+const FORM_URL = '/admin/demo/forms/1/edit'; // the seeded "Servicebericht" in the classic builder (ADR 0044)
 
 interface RenditionRow {
   hash: string;

@@ -139,6 +139,7 @@ return [
         'budget_exceeded' => 'The document is too large to render (:size MB of :limit MB allowed). Reduce the number or size of photos.',
         'render_failed' => 'The PDF could not be generated. Please try again later.',
         'not_ready' => 'The document has not been generated yet.',
+        'anonymized' => 'The PDF files were deleted when this submission was anonymized.',
         'failed' => [
             'budget_exceeded' => 'The PDF could not be generated because the document is too large (too many or too large photos). The office can see this and re-render it.',
             'render_failed' => 'The PDF could not be generated. The office can see this and re-render it.',

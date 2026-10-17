@@ -1,4 +1,4 @@
-import { test, expect, devices, request as apiRequest, type Browser, type Page } from '@playwright/test';
+import { test, expect, devices, request as apiRequest, type Browser, type Page } from './support/test';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -29,6 +29,17 @@ async function openTask(page: Page, number: string): Promise<void> {
   await expect(page.getByRole('heading', { name: 'Ihre Prüfung' })).toBeVisible();
 }
 
+/**
+ * The reviewer's detail screen renders the submitted form (M8-T08: after approving it showed the generic
+ * error panel, VersionLoadError, because the reviewer could not load the form version; fixed in d60d658).
+ */
+async function expectFormContent(page: Page): Promise<void> {
+  await expect(page.getByText(/etwas ist schiefgelaufen|something went wrong/i)).toHaveCount(0);
+  await expect(page.getByText('Prüfung & Co. KG').first()).toBeVisible();
+  await expect(page.getByText(/Art des Einsatzes/).first()).toBeVisible();
+  await expect(page.getByText(/Wartung der Anlage, Filter getauscht/).first()).toBeVisible();
+}
+
 test('journey 4: reject, resubmit, approve, PDF to the customer', async ({ browser }) => {
   test.setTimeout(300_000);
   const worker = await phone(browser, 'worker@demo.test');
@@ -37,6 +48,7 @@ test('journey 4: reject, resubmit, approve, PDF to the customer', async ({ brows
   // The reviewer rejects with a comment.
   const reviewer = await phone(browser, 'reviewer@demo.test');
   await openTask(reviewer, number);
+  await expectFormContent(reviewer);
   await reviewer.getByRole('button', { name: 'Änderungen anfordern' }).click();
   await reviewer.getByRole('textbox', { name: 'Was soll geändert werden?' }).fill(COMMENT);
   await reviewer.getByRole('dialog').getByRole('button', { name: 'Änderungen anfordern' }).click();
@@ -73,6 +85,7 @@ test('journey 4: reject, resubmit, approve, PDF to the customer', async ({ brows
   await reviewer.getByRole('button', { name: 'Freigeben' }).click();
   await reviewer.getByRole('dialog').getByRole('button', { name: 'Freigeben' }).click();
   await expect(reviewer.getByText('Sie haben diese Einreichung freigegeben.')).toBeVisible();
+  await expectFormContent(reviewer);
   await reviewer.screenshot({ path: evidence('22-approved'), fullPage: true });
 
   // The workflow mails the PDF with the corrected totals to the customer's address.

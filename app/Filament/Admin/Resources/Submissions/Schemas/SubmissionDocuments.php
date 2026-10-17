@@ -19,12 +19,13 @@ use Illuminate\Support\Number;
  * (ADR 0031), every rendition (newest first) with the versions it used, its size and a short input hash, a
  * download link to the admin route that mints a fresh signed URL on click (the download re-checks the
  * viewer and is audited), and the "send to customer" requests with their mail status and fixed failure texts.
+ * An anonymized submission (ADR 0039) keeps its rendition rows as proof but has no PDF files: no download links.
  */
 final class SubmissionDocuments
 {
     public const int HASH_PREFIX = 12;
 
-    /** @return array{failure: array<string, mixed>|null, renditions: list<array<string, mixed>>, sends: list<array<string, mixed>>} */
+    /** @return array{failure: array<string, mixed>|null, anonymized: bool, renditions: list<array<string, mixed>>, sends: list<array<string, mixed>>} */
     public static function viewData(Submission $submission, ?User $viewer, string $timezone): array
     {
         $renditions = Rendition::query()->where('submission_uuid', $submission->uuid)
@@ -34,10 +35,12 @@ final class SubmissionDocuments
             ->with(['requester:id,name', 'mailMessage:id,status'])->orderByDesc('id')->get();
         $failure = RenditionFailure::query()->where('submission_uuid', $submission->uuid)->first();
         $slug = $submission->organization()->value('slug');
+        $downloader = $submission->isAnonymized() ? null : $viewer;
 
         return [
             'failure' => $failure === null ? null : self::failure($failure, $timezone),
-            'renditions' => array_values($renditions->map(fn (Rendition $r): array => self::rendition($r->setRelation('submission', $submission), $viewer, $timezone, (string) $slug))->all()),
+            'anonymized' => $submission->isAnonymized(),
+            'renditions' => array_values($renditions->map(fn (Rendition $r): array => self::rendition($r->setRelation('submission', $submission), $downloader, $timezone, (string) $slug))->all()),
             'sends' => array_values($sends->map(fn (DocumentSend $s): array => self::send($s, $timezone))->all()),
         ];
     }

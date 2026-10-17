@@ -7,14 +7,17 @@ namespace App\Domain\Submissions\Support;
 use App\Http\Api\ApiException;
 use finfo;
 use GdImage;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Upload validation (BUILD_PROMPT §11): content sniffing (never the client header), a per-kind MIME
- * allow-list, size limits, dimension limits, and image re-encoding with GD (drops EXIF and any
- * embedded payload). The EXIF orientation is applied to the pixels first, and photos above the print
- * limit (submissions.image_store_max_pixels, 25 MP) are scaled down, so every stored image can be rendered.
+ * allow-list (the stored extension comes from the sniffed type, never from the client's file name),
+ * size limits, dimension limits, an optional malware scan (UploadScanner, ClamAV, ADR 0040) and image
+ * re-encoding with GD (drops EXIF and any embedded payload). The EXIF orientation is applied to the
+ * pixels first, and photos above the print limit (submissions.image_store_max_pixels, 25 MP) are
+ * scaled down, so every stored image can be rendered.
  */
-final class UploadInspector
+final readonly class UploadInspector
 {
     public const int MAX_BYTES = 25 * 1024 * 1024;
 
@@ -27,6 +30,8 @@ final class UploadInspector
         'application/vnd.oasis.opendocument.text' => 'odt', 'application/vnd.oasis.opendocument.spreadsheet' => 'ods',
         'application/zip' => 'zip',
     ];
+
+    public function __construct(private UploadScanner $scanner = new NullUploadScanner) {}
 
     /**
      * @param  list<string>  $accept  element `validation.accept` (MIME types or type/* wildcards)
@@ -49,11 +54,39 @@ final class UploadInspector
             throw new ApiException('file_type_not_allowed', __('submissions.errors.file_type_not_allowed'), 422, ['mime' => $mime]);
         }
 
+        $this->scan($bytes, $mime);
+
         if (isset(self::IMAGE_TYPES[$mime])) {
             $bytes = $this->reencode($bytes, $mime);
         }
 
         return ['bytes' => $bytes, 'mime' => $mime, 'extension' => $allowed[$mime]];
+    }
+
+    /**
+     * The original bytes are scanned (also images, before re-encoding). Infected → 422; above the scanner's
+     * size limit → 422 file_too_large (never fail-open: padding must not skip the scan); no verdict → 503
+     * (the Field App retries later) unless uploads.clamav.fail_open.
+     */
+    private function scan(string $bytes, string $mime): void
+    {
+        try {
+            $result = $this->scanner->scan($bytes);
+        } catch (UploadScanFailed $e) {
+            if ($e->tooLarge) {
+                throw new ApiException('file_too_large', __('submissions.errors.file_too_large'), 422);
+            }
+            report($e);
+            if ((bool) config('uploads.clamav.fail_open', false)) {
+                return;
+            }
+            throw new ApiException('scanner_unavailable', __('submissions.errors.scanner_unavailable'), 503);
+        }
+
+        if (! $result->clean) {
+            Log::warning('upload.infected', ['signature' => $result->signature, 'mime' => $mime, 'bytes' => strlen($bytes)]);
+            throw new ApiException('file_infected', __('submissions.errors.file_infected'), 422);
+        }
     }
 
     /** @param  list<string>  $accept */

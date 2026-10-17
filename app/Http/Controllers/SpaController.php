@@ -10,38 +10,31 @@ use Illuminate\Http\Response;
  * Serves the Field App shell (/app/*, Vite base '/app/') and the builder preview (/form-preview/),
  * built by `npm run build` into public/app and public/form-preview (BUILD_PROMPT §6.1). Static assets are
  * served by the web server; this controller only answers for client-side routes.
+ *
+ * Security headers come from the global SecurityHeaders middleware, which defines one CSP per surface
+ * (ContentSecurityPolicy, ADR 0040): the preview is sandboxed into an opaque origin there.
  */
 final class SpaController
 {
     public function app(): Response
     {
-        return $this->html(public_path('app/index.html'), "frame-ancestors 'none'");
+        return $this->html(public_path('app/index.html'));
     }
 
     public function preview(): Response
     {
-        // The preview is embedded by the admin builder of the same origin only.
-        return $this->html(public_path('form-preview/preview.html'), "frame-ancestors 'self'");
+        return $this->html(public_path('form-preview/preview.html'));
     }
 
-    private function html(string $path, string $frameAncestors): Response
+    private function html(string $path): Response
     {
         if (! is_file($path)) {
             return new Response('The Field App has not been built yet (npm run build).', 503, ['Content-Type' => 'text/plain']);
         }
 
-        $csp = implode('; ', [
-            "default-src 'self'", "script-src 'self'", "style-src 'self' 'unsafe-inline'", "img-src 'self' data: blob:",
-            "font-src 'self' data:", "connect-src 'self'", "worker-src 'self'", "manifest-src 'self'", "object-src 'none'",
-            "base-uri 'self'", "form-action 'self'", $frameAncestors,
-        ]);
-
         return new Response((string) file_get_contents($path), 200, [
             'Content-Type' => 'text/html; charset=utf-8',
-            'Content-Security-Policy' => $csp,
             'Cache-Control' => 'no-cache',
-            'X-Content-Type-Options' => 'nosniff',
-            'Referrer-Policy' => 'same-origin',
         ]);
     }
 }

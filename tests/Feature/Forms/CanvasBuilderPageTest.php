@@ -155,10 +155,11 @@ it('previews and exports the stored draft', function (): void {
     expect(DocumentFixtures::sentParts()['index.html'])->toContain('Servicebericht');
 });
 
-it('offers the canvas builder as a row action next to the classic builder', function (): void {
+it('opens the canvas builder from the row and keeps the classic builder as a row action (ADR 0044)', function (): void {
     actingInAdmin($this->designer, $this->org);
 
     Livewire::test(ListForms::class)
-        ->assertActionVisible(TestAction::make('canvas')->table($this->form))
-        ->assertActionHasUrl(TestAction::make('canvas')->table($this->form), FormResource::getUrl('canvas', ['record' => $this->form]));
+        ->assertActionHasUrl(TestAction::make('edit')->table($this->form), FormResource::getUrl('canvas', ['record' => $this->form]))
+        ->assertActionVisible(TestAction::make('classic')->table($this->form))
+        ->assertActionHasUrl(TestAction::make('classic')->table($this->form), FormResource::getUrl('edit', ['record' => $this->form]));
 });

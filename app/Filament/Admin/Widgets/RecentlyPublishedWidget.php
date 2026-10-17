@@ -24,7 +24,7 @@ class RecentlyPublishedWidget extends TableWidget
             ->records(fn (): array => self::keyed($this->dashboardData()->recentlyPublished($this->dashboardContext()), 'id'))
             ->paginated(false)
             ->emptyStateHeading(__('dashboard.recently_published.empty'))
-            ->recordUrl(fn (array $record): string => FormResource::getUrl('edit', ['record' => $record['form_id']]))
+            ->recordUrl(fn (array $record): string => FormResource::builderUrlFor($record['form_id'], (bool) ($record['import'] ?? false)))
             ->columns([
                 TextColumn::make('form')->label(__('dashboard.columns.form')),
                 TextColumn::make('version')->label(__('dashboard.columns.version'))->prefix('v'),

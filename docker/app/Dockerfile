@@ -28,7 +28,7 @@ WORKDIR /var/www/html
 ENV SERVER_NAME=:8080 \
     APP_ENV=production \
     LOG_CHANNEL=stderr \
-    LOG_STDERR_FORMATTER=Monolog\\Formatter\\JsonFormatter
+    LOG_STDERR_FORMATTER=App\\Support\\Logging\\JsonLogFormatter
 COPY docker/app/php.ini /usr/local/etc/php/conf.d/zz-app.ini
 COPY docker/app/Caddyfile /etc/frankenphp/Caddyfile
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer

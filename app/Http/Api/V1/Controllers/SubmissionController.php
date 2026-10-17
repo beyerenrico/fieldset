@@ -15,6 +15,7 @@ use App\Domain\Submissions\Support\SubmissionVisibility;
 use App\Http\Api\ApiException;
 use App\Http\Api\ApiResponse;
 use FormSchema\Json\Json;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use stdClass;
@@ -34,7 +35,7 @@ final readonly class SubmissionController
             ->with(['attachments', 'formVersion'])->orderByDesc('updated_at')->paginate(50);
 
         return ApiResponse::ok(
-            collect($page->items())->map(fn (Submission $s): array => SubmissionPresenter::present($s, $user))->all(),
+            SubmissionPresenter::presentMany(new Collection($page->items()), $user),
             ['current_page' => $page->currentPage(), 'last_page' => $page->lastPage(), 'total' => $page->total()],
         );
     }

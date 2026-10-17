@@ -19,6 +19,8 @@ return [
         'file_too_large' => 'Die Datei ist zu groß.',
         'file_type_not_allowed' => 'Dieser Dateityp ist nicht erlaubt.',
         'image_too_large' => 'Das Bild ist in Breite oder Höhe zu groß. Bitte verwenden Sie ein kleineres Foto.',
+        'file_infected' => 'Diese Datei wurde vom Virenscanner abgelehnt.',
+        'scanner_unavailable' => 'Der Virenscanner ist nicht erreichbar. Der Upload wird später erneut versucht.',
         'idempotency_key_required' => 'Bitte einen Idempotency-Key-Header senden.',
         'idempotency_key_reused' => 'Dieser Idempotency-Key wurde bereits für eine andere Anfrage verwendet.',
         'device_unknown' => 'Unbekanntes Gerät.',

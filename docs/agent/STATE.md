@@ -1,23 +1,23 @@
-# State: 2026-10-18T21:00Z
-Milestone: M8 Hardening → 1.0 · Branch m8-hardening (M7 merged, tag m7-done)
-Tasks in flight: none. M8 broken down in PLAN (M8-T01..T10).
+# State: 2026-10-23T12:00Z
+Milestone: M8 Hardening → 1.0 · gate passed on m8-hardening; merging to main, tag m8-done
+M8 complete except T09 (release 1.0). Version 1.0.0 already bumped (24d363b); CHANGELOG and release
+notes carry performance and gate numbers; ADR 0046 records the performance exceptions.
+Gate: PHP 4652, coverage 95.11 %, PHPStan 0/0, Rector/Pint clean, JS 611/111/623/246, conformance
+391/392, licenses/audits clean (composer audit in the CI image, LEARNINGS #72), E2E 75/75 ×2.
 Last commit: see `git log -1`
 
 ## Next actions
-1. M8 parallel work with disjoint ownership (one ADR per architectural choice):
-   - audit UI + retention + trigger/hash chain (T01) and GDPR retention/export/erasure (T02);
-   - security hardening incl. opaque preview origin (T03) and /platform panel (T06);
-   - a11y audit (T04), performance/load evidence (T05), docs/guides (T07), carry-overs (T08).
-2. Gate M8, then release 1.0 (T09): final gate on main, FINAL_REPORT.md, STATE "Run complete".
+1. Merge m8-hardening → main (--no-ff), tag m8-done.
+2. T09: final full gate on main (coverage.sh, PHPStan x2, Rector, Pint, JS, conformance, audits, E2E),
+   tag v1.0.0, docs/agent/FINAL_REPORT.md, tick T09, STATE "Run complete".
 
 ## Known problems
-- Reviewer's Field App detail showed a generic error panel after approving (M7 E2E leftover page) — T08.
-- Builder v1 page heavy (QUESTIONS #8); v2 exists, v1 still default — decide in T08.
+- Performance exceptions (ADR 0046, QUESTIONS #21): classic builder page 1.05 s, Field App first load
+  under devtools throttling 3.5 s, 501st repeater row 203 ms.
 - E2E: `npm run e2e -- --workers=2` with `COMPOSE_PROFILES=sso` (Keycloak); `php artisan cache:clear` in
-  the app container between quick reruns; recreate Keycloak after realm changes
-  (`docker compose up -d --force-recreate keycloak`).
+  the app container between quick reruns.
 - E2E runs rewrite evidence PNGs of earlier milestones: `git checkout` them before committing.
-- Field App tests touching Dexie with fake timers must use FAKE_TIMERS (LEARNINGS #50).
+- Host Composer 2.8.12 fails `composer audit` on the ignored abandoned package; use the CI image.
 
 ## Resume commands
 COMPOSE_PROFILES=sso docker compose up -d --wait

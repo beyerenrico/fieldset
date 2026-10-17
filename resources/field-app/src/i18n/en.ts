@@ -1,4 +1,5 @@
 /** English UI texts. Keys and `{placeholders}` must match de.ts (parity test). */
+import { documentEn } from './document.en.ts';
 import { accountEn } from './offline/account.en.ts';
 import { shellEn } from './offline/shell.en.ts';
 import { syncEn } from './offline/sync.en.ts';
@@ -7,6 +8,7 @@ export const en = {
     ...syncEn,
     ...shellEn,
     ...accountEn,
+    ...documentEn,
     'app.title': 'Field App',
     'nav.label': 'Main navigation',
     'nav.home': 'Home',
@@ -202,15 +204,6 @@ export const en = {
     'decisionError.network':
         'The connection was interrupted. Trying again is safe – the decision is recorded only once.',
     'decisionError.unknown': 'The decision could not be saved. Please try again.',
-    'document.title': 'Document (PDF)',
-    'document.loading': 'Loading the PDF…',
-    'document.ready': 'The PDF is ready.',
-    'document.open': 'Open PDF',
-    'document.notReady': 'The PDF is being created…',
-    'document.checkAgain': 'Check again',
-    'document.error': 'The PDF could not be loaded.',
-    'document.offline': 'You are offline. The PDF can be opened when you are online.',
-    'document.failed': 'The PDF could not be created. The office has been notified.',
     'send.open': 'Send to customer',
     'send.title': 'Send to customer',
     'send.description': 'The PDF of this submission is sent by email.',

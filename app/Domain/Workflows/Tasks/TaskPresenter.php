@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Workflows\Tasks;
 
 use App\Domain\Identity\Models\User;
+use App\Domain\Privacy\Erasure\AccountScrubber;
 use App\Domain\Workflows\Models\Task;
 use Illuminate\Support\Collection;
 
@@ -55,7 +56,7 @@ final class TaskPresenter
                 'number' => $submission->number,
                 'status' => $submission->status->value,
                 'form' => ['id' => $submission->form->id, 'name' => $submission->form->name],
-                'submitted_by' => $submitter instanceof User ? ['id' => $submitter->id, 'name' => $submitter->name] : null,
+                'submitted_by' => $submitter instanceof User ? ['id' => $submitter->id, 'name' => AccountScrubber::displayName($submitter->name)] : null,
                 'submitted_at' => $submission->submitted_at?->toIso8601String(),
             ],
         ];
@@ -65,7 +66,7 @@ final class TaskPresenter
     private static function assignee(Task $task): array
     {
         return $task->assignee_user_id !== null
-            ? ['type' => 'user', 'id' => $task->assignee_user_id, 'name' => $task->assigneeUser?->name]
+            ? ['type' => 'user', 'id' => $task->assignee_user_id, 'name' => $task->assigneeUser !== null ? AccountScrubber::displayName($task->assigneeUser->name) : null]
             : ['type' => 'group', 'id' => $task->assignee_group_id, 'name' => $task->assigneeGroup?->name];
     }
 }

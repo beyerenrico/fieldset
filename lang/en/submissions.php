@@ -19,6 +19,8 @@ return [
         'file_too_large' => 'The file is too large.',
         'file_type_not_allowed' => 'This file type is not allowed.',
         'image_too_large' => 'The image dimensions are too large. Use a smaller photo.',
+        'file_infected' => 'This file was rejected by the virus scanner.',
+        'scanner_unavailable' => 'The virus scanner is not available. The upload will be retried later.',
         'idempotency_key_required' => 'Send an Idempotency-Key header.',
         'idempotency_key_reused' => 'This Idempotency-Key was already used for a different request.',
         'device_unknown' => 'Unknown device.',
