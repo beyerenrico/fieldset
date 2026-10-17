@@ -142,11 +142,16 @@ jobs:
           coverage: none
       - run: composer install --no-interaction --prefer-dist --no-progress
       - run: cp .env.example .env && php artisan key:generate
-      - name: Check that install.sh and the shim exist
+      - name: Check that install.sh and the shim exist and install.sh is the production build
         run: |
           for file in distribution/install.sh distribution/shim.sh; do
             [ -f "$file" ] || { echo "::error file=$file::$file is missing; a release ships it"; exit 1; }
           done
+          # Only the release harness generates build=harness (FSA_TRUST_KEY, plain http); never publish it (ADR 0070).
+          if [ "$(grep -cE '^[[:space:]]+build=production ' distribution/install.sh)" != 1 ] || grep -qE '^[[:space:]]+build=harness' distribution/install.sh; then
+            echo "::error file=distribution/install.sh::install.sh is not the production build"
+            exit 1
+          fi
       - name: Generate the manifest (every image by digest, asset checksums)
         env:
           VERSION: ${{ needs.prepare.outputs.version }}

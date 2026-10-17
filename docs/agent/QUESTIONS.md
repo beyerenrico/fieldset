@@ -120,3 +120,8 @@ Format: question · chosen option · impact · how to reverse.
    pin newer upstream digests where they exist, and document any remaining third-party finding) · a tagged
    release would stop at the scan job · decide whether third-party image findings without an upstream fix may
    be accepted with a dated, per-CVE exception list.
+28. fsa verifies release manifests with the pinned official cosign image, like install.sh (ADR 0070), so the
+   cosign binary in the app image (~130 MB of E17, ADR 0063/0065) is no longer used by fsa · kept in the image
+   for now (the harness journey still checks it verifies the harness signature) · it costs image size and adds
+   Go-stdlib Trivy findings (QUESTIONS 27) for no runtime use · decide whether to drop it from
+   `docker/app/Dockerfile` (and ADR 0060's "fsa uses the cosign binary in the image") or keep it for offline use.

@@ -11,6 +11,8 @@
 !composer.lock
 !config/
 !database/
+!distribution/manifest.schema.json
+!distribution/shim.sh
 !docker/app/
 !lang/
 !LICENSE

@@ -7,6 +7,9 @@ namespace App\Domain\Instance;
 use App\Domain\Instance\Docker\CliDockerGateway;
 use App\Domain\Instance\Docker\DockerGateway;
 use App\Domain\Instance\Docker\OpsContextRequired;
+use App\Domain\Instance\Release\BuildFlavor;
+use App\Domain\Instance\Release\ManifestSchema;
+use App\Domain\Instance\Release\TrustPolicy;
 use App\Domain\Instance\State\InstanceDirectory;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\ServiceProvider;
@@ -31,5 +34,8 @@ final class InstanceServiceProvider extends ServiceProvider
 
             return $app->make(CliDockerGateway::class);
         });
+        // Release verification (R58, ADR 0070): the identity is built in; FSA_TRUST_KEY only in harness builds.
+        $this->app->bind(TrustPolicy::class, static fn (): TrustPolicy => TrustPolicy::fromEnvironment(getenv(), BuildFlavor::current()));
+        $this->app->bind(ManifestSchema::class, static fn (): ManifestSchema => ManifestSchema::bundled());
     }
 }

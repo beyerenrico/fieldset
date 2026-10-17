@@ -31,6 +31,8 @@ use Throwable;
  *
  * - adds `--json`, `--yes`, `--dir` and `--secrets-file`;
  * - rejects a secret passed as a flag value, and any usage error, with exit 2 in the envelope;
+ * - when started by the shim or install.sh, requires their nonce file (exit 3: path not shared with Docker) and
+ *   file-path flags inside mounted directories (exit 2), see LaunchGuard;
  * - requires the instance-directory marker (unless `requiresInstance()` is false, i.e. `fsa version`) and binds
  *   the InstanceDirectory, which makes the DockerGateway resolvable (InstanceServiceProvider);
  * - registers the secret values of the instance's env files with the redactor, so they never reach any output;
@@ -80,6 +82,7 @@ abstract class FsaCommand extends Command
         $secretsFile = null;
 
         try {
+            $this->checkLaunch($facts);
             $secretsFile = $this->secretsFile();
             $context = $this->buildContext($facts, new ProgressReporter($this->progressOutput(), $json, $redactor), $redactor, $json);
             $this->confirmIfNeeded($context);
@@ -125,6 +128,14 @@ abstract class FsaCommand extends Command
         }
 
         return new FsaContext($facts, $progress, $redactor, $json, (bool) $this->option('yes'), $directory);
+    }
+
+    /** Nonce and file-path checks for a command started by the shim or install.sh (LaunchGuard, ADR 0070). */
+    private function checkLaunch(HostFacts $facts): void
+    {
+        $instancePath = $this->instancePath($facts);
+        LaunchGuard::assertVisible($facts, $instancePath);
+        LaunchGuard::assertFilePaths($facts, $instancePath, $this->options());
     }
 
     private function instancePath(HostFacts $facts): string

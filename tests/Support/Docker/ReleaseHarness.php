@@ -16,6 +16,8 @@ use Throwable;
  * generated per run. `publish()` mirrors the release workflow without accounts: build and push the app image
  * with SBOM and provenance, sign it, mirror every third-party pin by digest, generate the manifest with
  * `release:manifest`, sign it with `sign-blob --bundle`, and lay it out under dist/ like GitHub Releases.
+ * Image and install.sh are harness builds (`FSA_BUILD=harness`, InstallScriptBuild; ADR 0070): they accept the
+ * run's local key as FSA_TRUST_KEY and the plain-http release server.
  *
  * Everything Docker-side is named `fsa-test-harness-<id>` and removed by stop(). Per-run files live in
  * storage/fsa-test-harness/<id>/ (deleted by stop()); downloaded blobs and the build cache are kept in
@@ -190,7 +192,7 @@ final class ReleaseHarness
         $process = new Process([
             'docker', 'buildx', 'build', '--builder', $this->project, '--progress=plain', '--platform', implode(',', $platforms),
             '--sbom=true', '--provenance=mode=max', '-f', 'docker/app/Dockerfile',
-            '--build-arg', "APP_VERSION={$release}", '--build-arg', 'APP_REVISION='.TestImage::revision(), ...$tags,
+            '--build-arg', "APP_VERSION={$release}", '--build-arg', 'APP_REVISION='.TestImage::revision(), '--build-arg', 'FSA_BUILD=harness', ...$tags,
             ...(is_file("{$cache}/index.json") ? ['--cache-from', "type=local,src={$cache}"] : []),
             '--cache-to', "type=local,dest={$cache},mode=max", '--push', '--metadata-file', $metadata, '.',
         ], TestImage::repository());
@@ -218,7 +220,8 @@ final class ReleaseHarness
     {
         mkdir($directory, 0755, true);
         $assets = [];
-        foreach (['distribution/install.sh', 'distribution/shim.sh', 'distribution/stack/compose.stack.yaml'] as $asset) {
+        $assets[] = InstallScriptBuild::writeHarness("{$directory}/install.sh");
+        foreach (['distribution/shim.sh', 'distribution/stack/compose.stack.yaml'] as $asset) {
             if (is_file(TestImage::repository()."/{$asset}")) {
                 copy(TestImage::repository()."/{$asset}", $assets[] = "{$directory}/".basename($asset));
             }

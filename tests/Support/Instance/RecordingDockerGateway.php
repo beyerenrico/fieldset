@@ -13,6 +13,7 @@ use App\Domain\Instance\Docker\DockerVersions;
 use App\Domain\Instance\Docker\ImageInfo;
 use App\Domain\Instance\Docker\Labels;
 use App\Domain\Instance\Docker\ProcessOutcome;
+use Closure;
 use Throwable;
 
 /**
@@ -44,6 +45,9 @@ final class RecordingDockerGateway implements DockerGateway
     public array $config = ['services' => []];
 
     public string $logs = '';
+
+    /** Runs before each runContainer outcome, e.g. to change files the way a concurrent process would. */
+    public ?Closure $beforeRun = null;
 
     public DockerVersions $versions;
 
@@ -228,7 +232,10 @@ final class RecordingDockerGateway implements DockerGateway
 
     public function runContainer(ContainerSpec $spec, ?string $input = null, ?float $timeout = null): ProcessOutcome
     {
-        $this->record(__FUNCTION__, ['spec' => $spec]);
+        $this->record(__FUNCTION__, ['spec' => $spec, 'input' => $input, 'timeout' => $timeout]);
+        if ($this->beforeRun instanceof Closure) {
+            ($this->beforeRun)($spec);
+        }
 
         return $this->nextOutcome(__FUNCTION__, str_repeat('c', 64)."\n");
     }

@@ -49,7 +49,7 @@ it('writes a schema-valid manifest to a file', function (): void {
     try {
         $this->artisan('release:manifest', [
             'version' => 'v2.0.0-alpha.1', '--app-digest' => $appDigest, '--inputs' => $inputs,
-            '--asset' => [base_path('distribution/release.json')], '--output' => $output,
+            '--asset' => [base_path('distribution/release.json'), base_path('distribution/install.sh'), base_path('distribution/shim.sh')], '--output' => $output,
         ])->expectsOutputToContain('Release manifest for 2.0.0-alpha.1 (alpha) written to')->assertSuccessful();
 
         $json = (string) file_get_contents($output);
@@ -73,7 +73,7 @@ it('prints the manifest to stdout without --output', function (): void {
     try {
         $this->artisan('release:manifest', [
             'version' => '2.0.0', '--app-digest' => $appDigest, '--inputs' => $inputs, '--platform' => ['linux/arm64'],
-            '--upgrades-from' => 'v2.0.0-rc.1',
+            '--upgrades-from' => 'v2.0.0-rc.1', '--asset' => [base_path('distribution/install.sh'), base_path('distribution/shim.sh')],
         ])->expectsOutputToContain('"upgrades_from": "2.0.0-rc.1"')->assertSuccessful();
     } finally {
         unlink($inputs);
@@ -91,7 +91,11 @@ it('fails without the app digest, with a missing pin or an unwritable output', f
         $this->artisan('release:manifest', ['version' => '2.0.0', '--app-digest' => $appDigest, '--inputs' => $inputs.'.missing'])
             ->expectsOutputToContain('Cannot read the release inputs')->assertFailed();
         $this->artisan('release:manifest', ['version' => '2.0.0', '--app-digest' => $appDigest, '--inputs' => $inputs, '--output' => '/nonexistent/dir/manifest.json'])
-            ->expectsOutputToContain('Cannot write the manifest')->assertFailed();
+            ->expectsOutputToContain('A release ships the asset "install.sh"')->assertFailed();
+        $this->artisan('release:manifest', [
+            'version' => '2.0.0', '--app-digest' => $appDigest, '--inputs' => $inputs, '--output' => '/nonexistent/dir/manifest.json',
+            '--asset' => [base_path('distribution/install.sh'), base_path('distribution/shim.sh')],
+        ])->expectsOutputToContain('Cannot write the manifest')->assertFailed();
     } finally {
         unlink($inputs);
     }

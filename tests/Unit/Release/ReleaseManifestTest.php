@@ -26,12 +26,18 @@ function manifestBuilder(): ReleaseManifestBuilder
     return new ReleaseManifestBuilder(new ImageInspector(new RegistryClient), ManifestSchema::bundled());
 }
 
+/** @return list<string> the assets every release ships (U4) */
+function requiredAssets(): array
+{
+    return [base_path('distribution/install.sh'), base_path('distribution/shim.sh')];
+}
+
 it('lists every service image by digest with per-platform sizes and validates against the schema', function (): void {
     $registry = new FakeRegistry;
     [$inputs, $appDigest] = $registry->inputs();
     $registry->fake();
 
-    $manifest = manifestBuilder()->build(new ReleaseRequest(ReleaseVersion::parse('2.0.0-alpha.1'), $appDigest, $inputs));
+    $manifest = manifestBuilder()->build(new ReleaseRequest(ReleaseVersion::parse('2.0.0-alpha.1'), $appDigest, $inputs, assets: requiredAssets()));
     $json = $manifest->toJson();
     $data = json_decode($json, true);
 
@@ -49,8 +55,8 @@ it('lists every service image by digest with per-platform sizes and validates ag
         ])
         ->and($data['images']['app']['platforms']['linux/amd64']['compressed_size'])->toBe(21_000)
         ->and($data['images']['postgres']['digest'])->toBe($inputs->images['postgres']->digest)
-        ->and($data['assets'])->toBe([])
-        ->and($json)->toContain('"assets": {}')
+        ->and(array_keys($data['assets']))->toBe(['install.sh', 'shim.sh'])
+        ->and($data['assets']['install.sh']['sha256'])->toBe(hash_file('sha256', base_path('distribution/install.sh')))
         ->and($json)->not->toContain('certificate-identity')
         ->and($json)->toEndWith("}\n");
 
@@ -94,7 +100,7 @@ it('fails when the registry does not hold a pinned third-party digest', function
     $data['images']['mailpit'] = 'docker.io/axllent/mailpit:v1.31.6@sha256:'.str_repeat('d', 64);
     $registry->fake();
 
-    expect(fn () => manifestBuilder()->build(new ReleaseRequest(ReleaseVersion::parse('2.0.0'), $appDigest, ReleaseInputs::fromArray($data))))
+    expect(fn () => manifestBuilder()->build(new ReleaseRequest(ReleaseVersion::parse('2.0.0'), $appDigest, ReleaseInputs::fromArray($data), assets: requiredAssets())))
         ->toThrow(ReleaseException::class, 'docker.io/axllent/mailpit@sha256:'.str_repeat('d', 64).' is not in the registry');
 });
 
@@ -104,14 +110,14 @@ it('lists only the requested platforms and reads a local mirror for the harness'
     $registry->fake();
 
     $manifest = manifestBuilder()->build(new ReleaseRequest(
-        ReleaseVersion::parse('2.0.0-alpha.1-test'), $appDigest, $inputs, ['linux/arm64'], [], '127.0.0.1:5000',
+        ReleaseVersion::parse('2.0.0-alpha.1-test'), $appDigest, $inputs, ['linux/arm64'], requiredAssets(), '127.0.0.1:5000',
     ));
 
     expect($manifest->platforms)->toBe(['linux/arm64'])
         ->and($manifest->images['app']->pin->registry)->toBe('ghcr.io')
         ->and($manifest->images['caddy']->pin->registry)->toBe('docker.io')
         ->and($manifest->images['caddy']->platforms['linux/arm64']->compressedSize)->toBe(15)
-        ->and(fn () => manifestBuilder()->build(new ReleaseRequest(ReleaseVersion::parse('2.0.0'), $appDigest, $inputs, ['linux/arm64'], [], 'not a registry')))
+        ->and(fn () => manifestBuilder()->build(new ReleaseRequest(ReleaseVersion::parse('2.0.0'), $appDigest, $inputs, ['linux/arm64'], requiredAssets(), 'not a registry')))
         ->toThrow(ReleaseException::class, 'Invalid image registry');
 });
 
@@ -120,7 +126,7 @@ it('honours an upgrade-source override but never one newer than the release', fu
     [$inputs, $appDigest] = $registry->inputs();
     $registry->fake();
     $request = fn (string $version, ?string $from): ReleaseRequest => new ReleaseRequest(
-        ReleaseVersion::parse($version), $appDigest, $inputs, upgradesFrom: $from === null ? null : ReleaseVersion::parse($from),
+        ReleaseVersion::parse($version), $appDigest, $inputs, assets: requiredAssets(), upgradesFrom: $from === null ? null : ReleaseVersion::parse($from),
     );
 
     expect((string) manifestBuilder()->build($request('2.1.0', '2.0.0'))->upgradesFrom)->toBe('2.0.0')
@@ -132,7 +138,7 @@ it('round-trips through JSON after a schema check', function (): void {
     $registry = new FakeRegistry;
     [$inputs, $appDigest] = $registry->inputs();
     $registry->fake();
-    $manifest = manifestBuilder()->build(new ReleaseRequest(ReleaseVersion::parse('2.0.0-rc.1'), $appDigest, $inputs));
+    $manifest = manifestBuilder()->build(new ReleaseRequest(ReleaseVersion::parse('2.0.0-rc.1'), $appDigest, $inputs, assets: requiredAssets()));
 
     $parsed = ReleaseManifest::fromJson($manifest->toJson(), ManifestSchema::bundled());
 
@@ -144,7 +150,7 @@ it('rejects manifests that break the schema', function (Closure $tamper, string 
     $registry = new FakeRegistry;
     [$inputs, $appDigest] = $registry->inputs();
     $registry->fake();
-    $data = manifestBuilder()->build(new ReleaseRequest(ReleaseVersion::parse('2.0.0'), $appDigest, $inputs))->toArray();
+    $data = manifestBuilder()->build(new ReleaseRequest(ReleaseVersion::parse('2.0.0'), $appDigest, $inputs, assets: requiredAssets()))->toArray();
     $json = json_encode($tamper($data), JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
 
     expect(implode("\n", ManifestSchema::bundled()->errors($json)))->toContain($pointer)
@@ -161,7 +167,12 @@ it('rejects manifests that break the schema', function (Closure $tamper, string 
     'unknown channel' => [fn (array $data): array => [...$data, 'channel' => 'nightly'], '/channel'],
     'newer schema version' => [fn (array $data): array => [...$data, 'schema_version' => 2], '/schema_version'],
     'http notes url' => [fn (array $data): array => [...$data, 'notes_url' => 'http://example.com'], '/notes_url'],
-    'bad asset name' => [fn (array $data): array => [...$data, 'assets' => ['../install.sh' => ['sha256' => str_repeat('a', 64), 'size' => 1]]], '/assets'],
+    'bad asset name' => [fn (array $data): array => [...$data, 'assets' => [...$data['assets'], '../install.sh' => ['sha256' => str_repeat('a', 64), 'size' => 1]]], '/assets'],
+    'no install.sh' => [function (array $data): array {
+        unset($data['assets']['install.sh']);
+
+        return $data;
+    }, '/assets'],
 ]);
 
 it('reports invalid JSON as a schema error', function (): void {
@@ -175,9 +186,10 @@ it('keeps its invariants when built directly', function (): void {
         array_combine($platforms, array_map(fn (string $platform): PlatformImage => new PlatformImage($platform, $digest, 1), $platforms)),
     );
     $images = array_fill_keys(ReleaseManifest::SERVICES, $image(['linux/amd64']));
+    $assets = array_fill_keys(ReleaseManifest::REQUIRED_ASSETS, ['sha256' => str_repeat('a', 64), 'size' => 1]);
     $make = fn (array $overrides): ReleaseManifest => new ReleaseManifest(...[
         'version' => ReleaseVersion::parse('2.0.0'), 'upgradesFrom' => ReleaseVersion::parse('2.0.0'),
-        'notesUrl' => 'https://example.com/notes', 'platforms' => ['linux/amd64'], 'images' => $images, 'assets' => [], ...$overrides,
+        'notesUrl' => 'https://example.com/notes', 'platforms' => ['linux/amd64'], 'images' => $images, 'assets' => $assets, ...$overrides,
     ]);
 
     expect($make([])->channel()->value)->toBe('stable')
@@ -187,7 +199,8 @@ it('keeps its invariants when built directly', function (): void {
         ->and(fn () => $make(['platforms' => ['linux/riscv64']]))->toThrow(ReleaseException::class, 'Unsupported platform')
         ->and(fn () => $make(['images' => array_slice($images, 0, 3)]))->toThrow(ReleaseException::class, 'lists no image for the service "gotenberg"')
         ->and(fn () => $make(['images' => [...$images, 'caddy' => $image(['linux/amd64', 'linux/arm64'])]]))->toThrow(ReleaseException::class, 'The "caddy" image must list exactly')
-        ->and(fn () => $make(['assets' => ['install.sh' => ['sha256' => 'abc', 'size' => 1]]]))->toThrow(ReleaseException::class, 'Invalid asset entry')
+        ->and(fn () => $make(['assets' => [...$assets, 'install.sh' => ['sha256' => 'abc', 'size' => 1]]]))->toThrow(ReleaseException::class, 'Invalid asset entry')
+        ->and(fn () => $make(['assets' => ['install.sh' => $assets['install.sh']]]))->toThrow(ReleaseException::class, 'A release ships the asset "shim.sh"')
         ->and(fn () => new PlatformImage('linux/s390x', $digest, 1))->toThrow(ReleaseException::class, 'Unsupported platform')
         ->and(fn () => new PlatformImage('linux/amd64', $digest, 0))->toThrow(ReleaseException::class, 'size must be positive');
 });

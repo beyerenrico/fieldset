@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Support\Docker;
 
+use App\Domain\Instance\Release\ManifestVerifier;
 use RuntimeException;
 use Symfony\Component\Process\Process;
 
@@ -16,7 +17,7 @@ use Symfony\Component\Process\Process;
  */
 final readonly class Cosign
 {
-    public const string IMAGE = 'ghcr.io/sigstore/cosign/cosign:v3.1.3@sha256:9e5c2f2edc34351160407ca3416c61855bdf9403c3c5936e0f0be7fc261611b8';
+    public const string IMAGE = ManifestVerifier::COSIGN_IMAGE;
 
     /** Protects only the throwaway harness key. */
     public const string PASSWORD = 'fsa-test-harness';

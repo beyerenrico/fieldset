@@ -138,6 +138,8 @@ COPY storage ./storage
 COPY spec/LICENSE ./spec/LICENSE
 COPY spec/form-definition/1.0 ./spec/form-definition/1.0
 COPY spec/templates ./spec/templates
+# fsa validates release manifests against the schema (ManifestVerifier) and install.sh copies the shim from here.
+COPY distribution/manifest.schema.json distribution/shim.sh ./distribution/
 COPY packages/form-schema-php/composer.json packages/form-schema-php/LICENSE ./packages/form-schema-php/
 COPY packages/form-schema-php/src ./packages/form-schema-php/src
 COPY --from=vendor /app/vendor ./vendor
@@ -157,6 +159,12 @@ COPY --from=tools /out/doc/ /usr/share/doc/
 COPY --from=build /var/www/html /var/www/html
 COPY --chmod=0755 docker/app/entrypoint.sh /usr/local/bin/app-entrypoint
 COPY --chmod=0755 docker/app/fsa /usr/local/bin/fsa
+# Build flavor (R58, ADR 0070): only the release harness builds with FSA_BUILD=harness, which lets fsa verify
+# releases with a local test key (FSA_TRUST_KEY). Release builds keep the default; a file, not ENV, so that
+# `docker run -e` cannot change it.
+ARG FSA_BUILD=production
+RUN case "${FSA_BUILD}" in production | harness) ;; *) echo "FSA_BUILD must be production or harness" >&2; exit 1 ;; esac \
+ && printf '%s\n' "${FSA_BUILD}" > /var/www/html/distribution/.build-flavor
 # Version metadata last, so a version bump rebuilds no layer above (KTD9, R1).
 ARG APP_VERSION=0.0.0-dev
 ARG APP_REVISION=

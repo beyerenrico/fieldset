@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Domain\Instance\Release;
 
 use JsonException;
-use stdClass;
 
 /**
  * The release manifest (R2, R4, ADR 0060): version, channel, release-notes URL, oldest upgrade source,
@@ -21,6 +20,9 @@ final readonly class ReleaseManifest
     public const array SERVICES = ['app', ...ReleaseInputs::THIRD_PARTY_SERVICES];
 
     public const string ASSET_PATTERN = '^[A-Za-z0-9][A-Za-z0-9._-]*$';
+
+    /** Assets every release ships (U4): the bootstrap script and the shim it installs. */
+    public const array REQUIRED_ASSETS = ['install.sh', 'shim.sh'];
 
     /**
      * @param  list<string>  $platforms
@@ -92,15 +94,10 @@ final readonly class ReleaseManifest
         ];
     }
 
-    /** Pretty JSON with a trailing newline; an empty asset list stays a JSON object. */
+    /** Pretty JSON (4-space indent, the layout install.sh reads) with a trailing newline. */
     public function toJson(): string
     {
-        $tree = $this->toArray();
-        if ($tree['assets'] === []) {
-            $tree['assets'] = new stdClass;
-        }
-
-        return json_encode($tree, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)."\n";
+        return json_encode($this->toArray(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)."\n";
     }
 
     private function assertConsistent(): void
@@ -126,6 +123,12 @@ final readonly class ReleaseManifest
             sort($listed);
             if ($listed !== $expected) {
                 throw new ReleaseException(sprintf('The "%s" image must list exactly the platforms %s.', $service, implode(', ', $this->platforms)));
+            }
+        }
+
+        foreach (self::REQUIRED_ASSETS as $required) {
+            if (! array_key_exists($required, $this->assets)) {
+                throw new ReleaseException(sprintf('A release ships the asset "%s".', $required));
             }
         }
 

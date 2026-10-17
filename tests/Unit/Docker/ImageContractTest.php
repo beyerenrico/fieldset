@@ -23,6 +23,11 @@ dataset('build context', [
     'storage skeleton' => ['storage/framework/views/.gitignore', true],
     'bootstrap cache skeleton' => ['bootstrap/cache/.gitignore', true],
     'image scripts' => ['docker/app/entrypoint.sh', true],
+    'manifest schema' => ['distribution/manifest.schema.json', true],
+    'fsa shim' => ['distribution/shim.sh', true],
+    'install script' => ['distribution/install.sh', false],
+    'release inputs' => ['distribution/release.json', false],
+    'build flavor file' => ['distribution/.build-flavor', false],
     'tests' => ['tests/Unit/EnvTemplatesTest.php', false],
     'agent docs' => ['docs/agent/STATE.md', false],
     'guides' => ['docs/guide/install.md', false],
@@ -60,6 +65,16 @@ it('never copies the whole context or ships composer in the final stage', functi
         ->and($final)->toMatch('/^USER\s+www-data$/m')
         ->and($final)->toContain('/usr/local/bin/fsa')
         ->and($final)->toContain('ENTRYPOINT ["app-entrypoint"]');
+});
+
+it('ships the manifest schema and the shim, and records a production build flavor unless the harness asks (ADR 0070)', function (): void {
+    $dockerfile = DockerfileStages::fromFile(base_path('docker/app/Dockerfile'));
+
+    expect($dockerfile->stage('build'))->toContain('COPY distribution/manifest.schema.json distribution/shim.sh ./distribution/')
+        ->and($dockerfile->finalStage())->toMatch('/^ARG FSA_BUILD=production$/m')
+        ->and($dockerfile->finalStage())->toContain('production | harness')
+        ->and($dockerfile->finalStage())->toContain('> /var/www/html/distribution/.build-flavor')
+        ->and((string) file_get_contents(base_path('.github/workflows/release.yml')))->not->toContain('FSA_BUILD');
 });
 
 it('puts the XDG config and data homes on writable paths (R6)', function (): void {

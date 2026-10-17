@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Instance\Release\ReleaseVersion;
+use App\Domain\Instance\Release\SignerIdentity;
 
 /*
  * Guards on .github/workflows/release.yml (KTD22, ADR 0060, ADR 0067) that actionlint does not check: the tag
@@ -80,4 +81,16 @@ it('pins the signer identity to this workflow on a release tag', function (): vo
     }
 
     expect(releaseWorkflow())->toContain('CERTIFICATE_ISSUER: https://token.actions.githubusercontent.com');
+});
+
+it('uses the signer identity built into the image and install.sh (U4)', function (): void {
+    expect(signerIdentityPattern())->toBe(SignerIdentity::production()->identityRegexp)
+        ->and(releaseWorkflow())->toContain('CERTIFICATE_ISSUER: '.SignerIdentity::GITHUB_ACTIONS_ISSUER);
+});
+
+it('publishes the checked-in production install.sh unchanged, never a harness build (ADR 0070)', function (): void {
+    expect(releaseWorkflow())->toContain('install.sh is not the production build')
+        ->and(releaseWorkflow())->toContain('cp "${assets[@]}" distribution/manifest.schema.json dist/')
+        ->and(releaseWorkflow())->not->toMatch('/sed[^\n]*install\.sh/')
+        ->and(releaseWorkflow())->not->toContain('FSA_BUILD');
 });

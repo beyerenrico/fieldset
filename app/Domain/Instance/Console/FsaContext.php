@@ -35,6 +35,23 @@ final readonly class FsaContext
         return $this->directory instanceof InstanceDirectory;
     }
 
+    /**
+     * Hands a URL to the shim, which opens it in the host's browser after the command exits (§6.2, ADR 0056,
+     * ADR 0070). It travels in a 0600 file in the instance directory, never on stdout, so an agent driving fsa
+     * never sees a sign-in link. False when the host has no desktop session or the launcher cannot open URLs:
+     * the command then reports the URL another way (`secrets`, --secrets-file).
+     */
+    public function openInBrowser(#[SensitiveParameter] string $url): bool
+    {
+        $file = $this->facts->openUrlFile;
+        if ($file === null || $this->facts->desktop !== true || ! $this->hasDirectory() || preg_match('#^https?://[A-Za-z0-9._~:/?\#\[\]@!$&()*+,;=%-]+$#D', $url) !== 1) {
+            return false;
+        }
+        $this->directory()->write($file, $url."\n", 0600);
+
+        return true;
+    }
+
     /** A one-time output: registered for redaction everywhere else, to be added with CommandResult::withSecret. */
     public function secret(string $name, #[SensitiveParameter] string $value, ?CarbonImmutable $expiresAt = null): Secret
     {

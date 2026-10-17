@@ -153,3 +153,12 @@
   release:version, distribution/manifest.schema.json + release.json, harness (registry:3, release server,
   local cosign key), CI linters + install-journeys job, RELEASING.md, ADR 0067. Harness journey 7/7.
 - Trivy gate red on upstream findings (QUESTIONS 27), decided at the M9 gate.
+
+## 2026-10-18 M9-T07 install.sh, shim, manifest verification (U4)
+- distribution/install.sh + shim.sh (dash/shellcheck clean, truncation-safe), host-facts env contract, ops
+  container user/mount rules, nonce + mounted-path guard (LaunchGuard), file-flag parent mounts, open_url via a
+  0600 file. ManifestVerifier runs the pinned cosign image against the built-in identity; harness flavour
+  (`build=harness`, image `FSA_BUILD`) is the only way to use FSA_TRUST_KEY or http. ADR 0070, QUESTIONS 28.
+- Bootstrap journey 8/8 (fsa install replaced by a probe until U5), Unit suite 3546/3546, coverage 98.34 %.
+- Trivy research: all 34 app-image findings fixable by building Compose/age from source with Go 1.27.2 (+ x/net,
+  grpc bumps); third-party pins already newest. Decision for the gate below (M9 supply-chain task).
