@@ -8,6 +8,7 @@ use App\Domain\Identity\Enums\MembershipStatus;
 use App\Domain\Identity\Enums\UserStatus;
 use App\Domain\Identity\Models\Device;
 use App\Domain\Identity\Models\ExternalIdentity;
+use App\Domain\Identity\Models\LoginLink;
 use App\Domain\Identity\Models\Membership;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Support\OrganizationPermissions;
@@ -54,6 +55,7 @@ final readonly class AccountScrubber
         NotificationPreference::query()->where('user_id', $user->id)->delete();
         // Mail sent to the account (invitations, notifications) and pending password resets carry the address.
         DB::table('password_reset_tokens')->whereRaw('lower(email) = ?', [$oldEmail])->delete();
+        LoginLink::query()->where('user_id', $user->id)->delete(); // one-time sign-in links and the IPs that used them
         DB::table('mail_messages')->whereRaw('lower(recipient_email) = ?', [$oldEmail])->delete();
         $this->deleteExports($user);
     }

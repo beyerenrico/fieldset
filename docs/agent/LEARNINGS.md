@@ -88,3 +88,6 @@
 81. A PCRE `$` also matches before a trailing newline, so `"host\n"` passes `/^[a-z.]+$/`: use the `D` modifier or `\z` for every input-grammar regex.
 82. valkey-cli 8.1 reads `REDISCLI_AUTH` (not `VALKEYCLI_AUTH`) and exits 0 on NOAUTH, so a healthcheck must grep for PONG. `docker compose config` prints `$` as `$$`, but containers get the literal value.
 83. Postgres healthchecks should use `pg_isready -h 127.0.0.1` (TCP): over the socket, the temporary server of the first-start initialisation reports ready too early.
+84. The dev `app` container has no source mount: E2E for new code needs a rebuilt image (`form-schema-app:local`). A `docker compose cp` hot-patch only applies after `docker compose restart app` (opcache never re-checks files).
+85. A URL that differs only in its fragment loads nothing in a tab already on that path: pages that read a token from the fragment need a `hashchange` handler. Filament's one-time-code input submits itself after 6 digits; clicking "Sign in" afterwards races the navigation.
+86. `AuditLabelsTest` finds events only through the logger method names in its regex: a new `AuditLogger` method must be added there. `toEqualCanonicalizing` on associative arrays ignores keys.

@@ -8,6 +8,7 @@ use App\Domain\Reports\Http\ExportDownloadController;
 use App\Http\Controllers\Admin\AttachmentDownloadController;
 use App\Http\Controllers\Admin\RenditionDownloadController;
 use App\Http\Controllers\InvitationController;
+use App\Http\Controllers\LoginLinkController;
 use App\Http\Controllers\SpaController;
 use App\Http\Controllers\Sso\CallbackController;
 use App\Http\Controllers\Sso\DiscoverController;
@@ -28,6 +29,11 @@ Route::middleware('signed')->group(function (): void {
     Route::post('invitations/{membership}', [InvitationController::class, 'accept'])
         ->middleware('throttle:10,1')->name('invitations.accept');
 });
+
+// One-time sign-in links (BUILD_PROMPT_V2 R27/R28, ADR 0056): the token is in the fragment; only the POST
+// consumes it. The controller rate-limits the POST itself, to show its own DE/EN state.
+Route::get('login-link', [LoginLinkController::class, 'show'])->name('login-link.show');
+Route::post('login-link', [LoginLinkController::class, 'consume'])->name('login-link.consume');
 
 // Field App (React PWA) and the builder preview entry (BUILD_PROMPT §6.1).
 Route::get('app/{path?}', [SpaController::class, 'app'])->where('path', '.*')->name('field-app');

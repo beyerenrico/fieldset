@@ -144,3 +144,9 @@ Constraints:
   (id, email), covered by the hash chain (ADR 0038).
 - **Login:** `/platform/login` shares the admin login's SSO enforcement, lockout audit and `auth.mfa_failed` audit
   (`SecuresPasswordLogin`).
+
+## Amended 2026-10-17: Horizon behind the operator session (ADR 0068)
+- Horizon no longer reads `PLATFORM_ADMIN_EMAILS`: `viewHorizon` requires `PlatformAdmins::check()` and a valid
+  `PlatformSession` mark (a `/platform` sign-in with MFA, not older than `platform.session_hours`). The OpenAPI docs
+  still use the email list.
+- 2.0 installs grant the owner the operator role through `GrantPlatformAdmin` (`app:install`, plan U6).

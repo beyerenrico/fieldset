@@ -45,4 +45,21 @@ final class AuditLogger
 
         return $logger->log($event);
     }
+
+    /**
+     * An entry by the instance owner at the host's command line (`fsa`, KTD21/KTD26): actor type `cli`, no
+     * causer, and the host UID of whoever ran the command in `host_uid`.
+     *
+     * @param  array<string, mixed>  $properties
+     */
+    public function cli(string $event, ?Model $subject = null, array $properties = [], ?int $hostUid = null): ?Activity
+    {
+        $logger = activity('audit')->event($event)->withProperties([...$properties, 'host_uid' => $hostUid])->causedByAnonymous()
+            ->tap(static fn (Model $activity): Model => $activity->setAttribute('actor_type', EnrichActivity::CLI));
+        if ($subject instanceof Model) {
+            $logger->performedOn($subject);
+        }
+
+        return $logger->log($event);
+    }
 }

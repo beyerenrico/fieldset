@@ -36,3 +36,9 @@ enforcement. The plan (KTD21, U6) builds the links on top of them.
   0041 (plan U6).
 - For a user whose domain enforces SSO, the existing gate refuses the link, and that user signs in through SSO.
 - An owner who misses the 60 minutes runs `fsa login-link`. The recovery text says so in both languages.
+
+## Implementation (2026-10-17)
+See ADR 0068: one `login_links` table for both kinds (hashed token, plain `DELETE` on restore), the `/login-link`
+landing page and its states (plus "SSO required"), the hand-off through Filament's reset page and the admin
+login's MFA challenge, `AuditLogger::cli()`, and the app-side commands `app:install --owner-link`,
+`identity:login-link` and `identity:login-links` that `fsa` runs as socket-less one-offs.

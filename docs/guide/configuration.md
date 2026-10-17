@@ -48,7 +48,7 @@ Contents:
 | `APP_LOCALE` | `en` | Default language where no user or organization language applies (`de` or `en`). |
 | `APP_FALLBACK_LOCALE` | `en` | Language for missing translations. |
 | `APP_ALLOW_REGISTRATION` | `false` | Lets anyone register a user and an organization at `/admin`. Only for a public instance. |
-| `PLATFORM_ADMIN_EMAILS` | empty | Comma-separated emails of operators: access to `/horizon` and `/docs/api`. The `/platform` panel uses its own operator list (`php artisan app:platform-admin`). |
+| `PLATFORM_ADMIN_EMAILS` | empty | Comma-separated emails with access to `/docs/api`. `/horizon` and the `/platform` panel use the operator list (`php artisan app:platform-admin`) and need a `/platform` sign-in. |
 | `APP_INVITATIONS_PER_DAY` | `1000` | Member invitations per organization in 24 hours. |
 | `APP_MAINTENANCE_DRIVER` | `file` | Laravel maintenance mode driver. |
 | `BCRYPT_ROUNDS` | `12` | Password hashing cost. |

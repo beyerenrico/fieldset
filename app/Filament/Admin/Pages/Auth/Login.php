@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Admin\Pages\Auth;
 
+use App\Domain\Identity\LoginLinks\LoginLinkHandoff;
 use App\Domain\Identity\Models\IdentityProvider;
 use App\Domain\Identity\Sso\Contracts\HomeRealmDiscovery;
 use App\Domain\Identity\Sso\Data\DiscoveryResult;
@@ -44,6 +45,7 @@ use Throwable;
  */
 class Login extends BaseLogin
 {
+    use CompletesLoginLink;
     use SecuresPasswordLogin;
 
     public const string STEP_EMAIL = 'email';
@@ -70,6 +72,7 @@ class Login extends BaseLogin
         if ($refusal instanceof SsoRefusal) {
             Notification::make()->danger()->title(__('sso_admin.login.refused.'.$refusal->value))->persistent()->send();
         }
+        $this->resumeLoginLink(); // a consumed sign-in link of an admin with MFA: straight to the challenge
     }
 
     public function form(Schema $schema): Schema
@@ -121,6 +124,10 @@ class Login extends BaseLogin
 
     public function useOtherEmail(): void
     {
+        if ($this->loginLinkChallenge) {
+            app(LoginLinkHandoff::class)->forgetMfa();
+            $this->loginLinkChallenge = false;
+        }
         $this->step = self::STEP_EMAIL;
         $this->ssoUrl = null;
         $this->userUndertakingMultiFactorAuthentication = null;
@@ -131,6 +138,9 @@ class Login extends BaseLogin
 
     public function authenticate(): ?LoginResponse
     {
+        if ($this->loginLinkChallenge) {
+            return $this->completeLoginLink();
+        }
         if ($this->step !== self::STEP_PASSWORD) {
             $this->continueWithEmail();
 

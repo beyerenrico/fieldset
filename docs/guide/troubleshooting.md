@@ -30,8 +30,9 @@ docker compose exec app php artisan schedule:list     # scheduled tasks and thei
 docker compose exec app php artisan migrate:status    # every migration "Ran"
 ```
 
-Operators listed in `PLATFORM_ADMIN_EMAILS` can open the Horizon dashboard at `/horizon` (sign in at
-`/admin/login` first) to see queues, failed jobs and their errors. Platform operators see the same
+Platform operators (the owner created by `app:install`, others granted with `php artisan app:platform-admin`)
+can open the Horizon dashboard at `/horizon` after signing in at `/platform/login` (password and MFA) to see
+queues, failed jobs and their errors; an `/admin` session alone is not enough. Platform operators see the same
 checks on one page at `/platform` → "Zustand" ("Health"): Horizon, failed jobs, Gotenberg, mail,
 scheduler and disk space.
 
