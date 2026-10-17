@@ -1,28 +1,23 @@
-# State: 2026-10-19T14:00Z
-Milestone: M8 Hardening → 1.0 · Branch m8-hardening (M7 merged, tag m7-done)
-Phase 1+2 committed (audit/GDPR, tokens, security, /platform, a11y/CSP E2E, builder default, docs 1.0).
-Gate reviews done (security ASVS L2, correctness, UX/i18n); fix batch committed: privacy 3063dda,
-erased names 6be2e61, audit 3273672, platform/security b6ce51a, follow-ups 47cd12d, proxies c27c56f,
-password_known column (in 3063dda), notifications index c23befd.
-In flight: G6 perf/load (exclusive Docker; uncommitted Reports/Submissions/QueryPlan/form-schema-js files
-and scripts/perf/ are its WIP).
+# State: 2026-10-23T12:00Z
+Milestone: M8 Hardening → 1.0 · gate passed on m8-hardening; merging to main, tag m8-done
+M8 complete except T09 (release 1.0). Version 1.0.0 already bumped (24d363b); CHANGELOG and release
+notes carry performance and gate numbers; ADR 0046 records the performance exceptions.
+Gate: PHP 4652, coverage 95.11 %, PHPStan 0/0, Rector/Pint clean, JS 611/111/623/246, conformance
+391/392, licenses/audits clean (composer audit in the CI image, LEARNINGS #72), E2E 75/75 ×2.
 Last commit: see `git log -1`
 
 ## Next actions
-1. Collect G6/G7 and the reviews; fix batch; full gate (coverage.sh, PHPStan x2, Rector, Pint, JS x4,
-   conformance, licenses/audits, E2E x2 with COMPOSE_PROFILES=sso --workers=2); M8.md; merge, tag m8-done.
-2. Release 1.0 (T09): version bump, CHANGELOG/release notes perf numbers, final gate on main,
-   FINAL_REPORT.md, STATE "Run complete".
+1. Merge m8-hardening → main (--no-ff), tag m8-done.
+2. T09: final full gate on main (coverage.sh, PHPStan x2, Rector, Pint, JS, conformance, audits, E2E),
+   tag v1.0.0, docs/agent/FINAL_REPORT.md, tick T09, STATE "Run complete".
 
 ## Known problems
-- Phase 2 after G1/G2: a11y audit E2E (T04) incl. a reviewer-detail assertion in m4-review, builder
-  v2 as default (QUESTIONS #8, ADR), performance evidence (T05).
-- Builder v1 page heavy (QUESTIONS #8); v2 exists, v1 still default — decide in T08.
+- Performance exceptions (ADR 0046, QUESTIONS #21): classic builder page 1.05 s, Field App first load
+  under devtools throttling 3.5 s, 501st repeater row 203 ms.
 - E2E: `npm run e2e -- --workers=2` with `COMPOSE_PROFILES=sso` (Keycloak); `php artisan cache:clear` in
-  the app container between quick reruns; recreate Keycloak after realm changes
-  (`docker compose up -d --force-recreate keycloak`).
+  the app container between quick reruns.
 - E2E runs rewrite evidence PNGs of earlier milestones: `git checkout` them before committing.
-- Field App tests touching Dexie with fake timers must use FAKE_TIMERS (LEARNINGS #50).
+- Host Composer 2.8.12 fails `composer audit` on the ignored abandoned package; use the CI image.
 
 ## Resume commands
 COMPOSE_PROFILES=sso docker compose up -d --wait
