@@ -57,3 +57,6 @@
 50. fake-indexeddb schedules with setImmediate: fake timers that fake it (`vi.useFakeTimers({ shouldAdvanceTime: true })` defaults) make Dexie throw PrematureCommitError/TransactionInactiveError. Use FAKE_TIMERS (test/utils/a-store.ts) in any test that touches the offline store.
 51. Deferred focus (retries via setTimeout) must cancel once the user interacts; otherwise fast typing lands in the wrong field (renderer reveal bug, M6).
 52. E2E on long repeaters: address rows by their row header ("Eintrag N"), never `.last()`; the list is virtualized above 25 rows.
+53. Keycloak marks its cookies Secure even over http: the browser keeps them only on a secure context, so use `http://keycloak.localhost:8180` (Chromium treats *.localhost as secure), never an IP address.
+54. In containers with `extra_hosts: keycloak.localhost:host-gateway`, PHP `dns_get_record` returns 127.0.0.1 while `gethostbynamel`/getaddrinfo returns the gateway; resolve with getaddrinfo for SSRF checks and pinning.
+55. `php artisan test --parallel` / pest accept only one path argument; for a subset use `--filter` or a temporary phpunit config.
