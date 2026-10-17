@@ -6,6 +6,7 @@ namespace App\Http\Api\V1\Controllers;
 
 use App\Domain\Forms\Models\Form;
 use App\Domain\Forms\Models\FormAccess;
+use App\Domain\Forms\Models\FormVersion;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Tenancy\TenantContext;
 use App\Domain\Submissions\Support\FormAccessResolver;
@@ -27,6 +28,11 @@ use Illuminate\Support\Facades\DB;
  * "Changed" is inclusive (`>=`, the cursor has second precision) and covers forms whose grants changed
  * (SyncFormAccess touches the form) or that the user reached through a group membership added since
  * the cursor. Duplicates across manifests are expected; clients upsert by form id.
+ *
+ * `retired_version_ids` (M6): versions of fillable forms retired at or after the cursor (all retired
+ * versions without a cursor). Retiring a version changes no form row, so this is how a client learns
+ * that a cached version (kept for a local draft) accepts no new submissions. A form whose current
+ * version was retired is no longer fillable and drops out of `fillable_form_ids` instead.
  */
 final class SyncController
 {
@@ -54,9 +60,21 @@ final class SyncController
             'forms' => $changed->map(fn (Form $form): array => FormController::summary($form))->values()->all(),
             'fillable_form_ids' => $fillableIds,
             'revoked_form_ids' => $revoked,
+            'retired_version_ids' => $this->retiredVersionIds($fillableIds, $since),
             'tasks' => TaskPresenter::presentMany($tasks->actionable(Task::query(), $user)->where('status', TaskStatus::Open->value)
                 ->orderByDesc('created_at')->orderByDesc('id')->limit(self::TASK_LIMIT)->get()),
         ]);
+    }
+
+    /**
+     * @param  array<int, int>  $formIds
+     * @return list<int>
+     */
+    private function retiredVersionIds(array $formIds, ?Carbon $since): array
+    {
+        return $formIds === [] ? [] : array_values(FormVersion::query()->whereIn('form_id', $formIds)->whereNotNull('retired_at')
+            ->when($since instanceof Carbon, fn ($q) => $q->where('retired_at', '>=', $since))
+            ->orderBy('id')->pluck('id')->map(fn (mixed $id): int => (int) $id)->all());
     }
 
     /** @return list<int> ids of forms granted to groups the user joined (or re-joined) since the cursor */

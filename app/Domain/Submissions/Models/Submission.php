@@ -38,6 +38,7 @@ use stdClass;
  * @property int|null $updated_by
  * @property int|null $submitted_by
  * @property Carbon|null $submitted_at
+ * @property Carbon|null $client_submitted_at device time of the latest submit (informational, M6)
  * @property stdClass|null $device
  * @property stdClass|null $geo
  * @property Carbon $created_at
@@ -61,7 +62,7 @@ class Submission extends Model
     protected $keyType = 'string';
 
     protected $attributes = [
-        'status' => 'draft', 'revision' => 1, 'number' => null, 'submitted_by' => null, 'submitted_at' => null,
+        'status' => 'draft', 'revision' => 1, 'number' => null, 'submitted_by' => null, 'submitted_at' => null, 'client_submitted_at' => null,
         'device' => null, 'geo' => null,
     ];
 
@@ -74,6 +75,7 @@ class Submission extends Model
             'geo' => JsonTree::class,
             'revision' => 'integer',
             'submitted_at' => 'datetime',
+            'client_submitted_at' => 'datetime',
         ];
     }
 

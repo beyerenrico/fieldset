@@ -24,6 +24,8 @@ use Illuminate\Support\Facades\DB;
  * in the same transaction as the status change (gap-free), projects values and announces the event.
  * Naturally idempotent: repeating the submit of the revision it consumed (a retry after a lost
  * response, with or without the same Idempotency-Key) answers with the current submission.
+ * `$clientSubmittedAt` (the device's submit time, M6) is stored by every real submit, including a
+ * resubmit, and replaced by null when absent; a repeated submit leaves it unchanged.
  */
 final readonly class SubmitSubmission
 {
@@ -35,9 +37,9 @@ final readonly class SubmitSubmission
         private SubmissionValueProjector $projector,
     ) {}
 
-    public function handle(User $user, Organization $organization, Submission $submission, int $revision): Submission
+    public function handle(User $user, Organization $organization, Submission $submission, int $revision, ?Carbon $clientSubmittedAt = null): Submission
     {
-        [$submitted, $fresh] = DB::transaction(function () use ($user, $organization, $submission, $revision): array {
+        [$submitted, $fresh] = DB::transaction(function () use ($user, $organization, $submission, $revision, $clientSubmittedAt): array {
             $locked = Submission::query()->whereKey($submission->uuid)->lockForUpdate()->firstOrFail();
             if ($this->alreadySubmitted($user, $locked, $revision)) {
                 return [$locked, false];
@@ -57,6 +59,7 @@ final readonly class SubmitSubmission
                 'number' => $locked->number ?? $this->numbers->allocate($locked->formVersion, $now->copy()->setTimezone($organization->timezone)),
                 'submitted_by' => $user->id,
                 'submitted_at' => $now,
+                'client_submitted_at' => $clientSubmittedAt,
                 'updated_by' => $user->id,
             ]);
             $this->transition->handle($locked, SubmissionStatus::Submitted, $user, null, 'submission.submitted');

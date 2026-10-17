@@ -21,6 +21,8 @@ it('serves the field app shell for client routes with a strict CSP', function ()
         ->assertHeader('Content-Security-Policy')
         ->assertSee('id="root"', false);
     expect($this->get('/app')->headers->get('Content-Security-Policy'))->toContain("frame-ancestors 'none'");
+    // The service worker precaches the shell under /app/shell (ADR 0035), so it keeps this CSP offline.
+    expect($this->get('/app/shell?__WB_REVISION__=a')->assertOk()->headers->get('Content-Security-Policy'))->toContain("worker-src 'self'");
 
     if (! $existed) {
         File::delete($index);

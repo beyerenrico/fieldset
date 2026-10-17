@@ -7,6 +7,7 @@ return [
     'plural' => 'Submissions',
     'navigation' => 'Submissions',
     'column' => [
+        'client_submitted_at' => 'Submitted on device',
         'number' => 'Number',
         'form' => 'Form',
         'version' => 'Version',

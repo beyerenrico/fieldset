@@ -21,15 +21,23 @@ use Illuminate\Support\Facades\DB;
  * a rendition committed concurrently is either seen here or announces itself after this commit.
  * Authorization (CustomerSendGate + visibility) is the caller's job; the caps (CustomerSendLimits) are
  * checked here, under the lock, for every caller.
+ *
+ * Idempotent by key (M6, ADR 0035): a request that carries a key already used for this submission
+ * returns that send unchanged (no cap check, no new row, no second mail), whatever recipient it names
+ * now; the key identifies the request. This outlives the 24 h replay store of IdempotentRequest.
  */
 final readonly class RequestCustomerSend
 {
     public function __construct(private DeliverCustomerSend $deliver) {}
 
-    public function handle(User $actor, Submission $submission, CustomerRecipient $recipient): DocumentSend
+    public function handle(User $actor, Submission $submission, CustomerRecipient $recipient, ?string $idempotencyKey = null): DocumentSend
     {
-        return DB::transaction(function () use ($actor, $submission, $recipient): DocumentSend {
+        return DB::transaction(function () use ($actor, $submission, $recipient, $idempotencyKey): DocumentSend {
             DB::select('select pg_advisory_xact_lock(?)', [RenderSubmission::lockId($submission->uuid)]);
+            $existing = self::existing($submission, $idempotencyKey);
+            if ($existing instanceof DocumentSend) {
+                return $existing;
+            }
             CustomerSendLimits::assertWithin($submission);
 
             $send = DocumentSend::query()->create([
@@ -38,10 +46,21 @@ final readonly class RequestCustomerSend
                 'recipient_name' => $recipient->name,
                 'status' => DocumentSendStatus::WaitingForDocument,
                 'requested_by' => $actor->id,
+                'idempotency_key' => $idempotencyKey,
             ]);
             $rendition = Rendition::query()->where('submission_uuid', $submission->uuid)->orderByDesc('id')->first();
 
             return $rendition instanceof Rendition ? $this->deliver->handle($send, $rendition) : $send;
         });
+    }
+
+    /** The send an earlier request with this key created for the submission, if any. */
+    public static function existing(Submission $submission, ?string $idempotencyKey): ?DocumentSend
+    {
+        if ($idempotencyKey === null || $idempotencyKey === '') {
+            return null;
+        }
+
+        return DocumentSend::query()->where('submission_uuid', $submission->uuid)->where('idempotency_key', $idempotencyKey)->first();
     }
 }

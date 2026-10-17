@@ -1,0 +1,550 @@
+{
+  "description": "Totals parity (M6-T09): the bundled service report template (spec/templates/service_report.json) with 30 lines of awkward decimals; line totals round half-up to 2 places before the net sum, VAT 19 % rounds half-up",
+  "definition": {
+    "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+    "specVersion": "1.0.0",
+    "key": "service_report",
+    "title": "Servicebericht",
+    "locale": "de-DE",
+    "settings": {
+      "layout": "wizard",
+      "numbering": {
+        "format": "SR-{YYYY}-{SEQ:5}",
+        "reset": "yearly"
+      },
+      "document": {
+        "design": "default"
+      },
+      "sendToCustomer": true
+    },
+    "pages": [
+      {
+        "id": "f673bcaa-c235-5623-ae33-501b59a7ad5a",
+        "key": "job",
+        "title": "Kunde & Auftrag",
+        "elements": [
+          {
+            "type": "text",
+            "key": "customer_name",
+            "label": "Kunde",
+            "required": true,
+            "validation": {
+              "maxLength": 120
+            },
+            "role": "customer.name",
+            "id": "ccf443dc-c82c-5987-b8ea-78f1d9d83c0e"
+          },
+          {
+            "type": "email",
+            "key": "customer_email",
+            "label": "E-Mail Kunde",
+            "help": "Für den Versand des Berichts an den Kunden.",
+            "role": "customer.email",
+            "id": "109016c8-e986-5ab2-851c-3fcff8b97f3d"
+          },
+          {
+            "type": "textarea",
+            "key": "site_address",
+            "label": "Einsatzort",
+            "rows": 3,
+            "role": "site.address",
+            "id": "c39b3ccf-d3b5-522a-95a0-93a4403c603e"
+          },
+          {
+            "type": "date",
+            "key": "service_date",
+            "label": "Einsatzdatum",
+            "required": true,
+            "default": {
+              "var": "$today"
+            },
+            "role": "document.date",
+            "id": "54b6b0e4-b01e-52f6-8f99-87f9612614e6"
+          },
+          {
+            "type": "text",
+            "key": "technician",
+            "label": "Techniker",
+            "default": {
+              "var": "$user.name"
+            },
+            "id": "fee1a193-c63c-5328-a9ef-bd36c40d8ee4"
+          },
+          {
+            "type": "select",
+            "key": "service_type",
+            "label": "Art des Einsatzes",
+            "required": true,
+            "options": [
+              {
+                "value": "maintenance",
+                "label": "Wartung"
+              },
+              {
+                "value": "repair",
+                "label": "Reparatur"
+              },
+              {
+                "value": "installation",
+                "label": "Installation"
+              }
+            ],
+            "id": "201c504a-9f74-5235-a078-fdbf633f40a1"
+          },
+          {
+            "type": "textarea",
+            "key": "defect",
+            "label": "Fehlerbeschreibung",
+            "required": true,
+            "visibleIf": {
+              "==": [
+                {
+                  "var": "service_type"
+                },
+                "repair"
+              ]
+            },
+            "id": "5835fd14-e98e-58d2-8b9f-c6f03dd521a1"
+          },
+          {
+            "type": "textarea",
+            "key": "work_done",
+            "label": "Durchgeführte Arbeiten",
+            "required": true,
+            "rows": 5,
+            "id": "4a45409d-69ce-57c4-87ee-7182837953fc"
+          }
+        ]
+      },
+      {
+        "id": "f5f6ddd9-7b7c-5927-8f2b-12a18c8b6213",
+        "key": "work",
+        "title": "Material & Arbeitszeit",
+        "elements": [
+          {
+            "type": "repeater",
+            "key": "items",
+            "label": "Positionen",
+            "display": "table",
+            "minItems": 1,
+            "addLabel": "Zeile hinzufügen",
+            "elements": [
+              {
+                "type": "text",
+                "key": "description",
+                "label": "Beschreibung",
+                "required": true,
+                "role": "line_item.description",
+                "id": "9a309026-763f-50cd-a297-36566c444d1c"
+              },
+              {
+                "type": "number",
+                "key": "qty",
+                "label": "Menge",
+                "required": true,
+                "validation": {
+                  "min": 0,
+                  "step": 0.25
+                },
+                "role": "line_item.qty",
+                "id": "20abf591-89c0-5cfe-9457-6704a69f81e2"
+              },
+              {
+                "type": "select",
+                "key": "unit",
+                "label": "Einheit",
+                "options": [
+                  {
+                    "value": "h",
+                    "label": "Std."
+                  },
+                  {
+                    "value": "pcs",
+                    "label": "Stk."
+                  },
+                  {
+                    "value": "m",
+                    "label": "m"
+                  }
+                ],
+                "role": "line_item.unit",
+                "id": "08e7de44-f4c3-5662-81fc-729529ee6412"
+              },
+              {
+                "type": "money",
+                "key": "unit_price",
+                "label": "Einzelpreis",
+                "currency": "EUR",
+                "required": true,
+                "role": "line_item.unit_price",
+                "id": "30540395-2a15-5fc3-ae29-2414f7dc333b"
+              },
+              {
+                "type": "calculated",
+                "key": "line_total",
+                "label": "Gesamt",
+                "format": "money",
+                "currency": "EUR",
+                "role": "line_item.total",
+                "expression": {
+                  "dec.mul": [
+                    {
+                      "var": "qty"
+                    },
+                    {
+                      "var": "unit_price"
+                    }
+                  ]
+                },
+                "id": "b994d2a9-ede2-5b78-b113-cbaca9bc9103"
+              }
+            ],
+            "id": "677e402d-f91c-56d3-bb70-65cb6dcbb624"
+          },
+          {
+            "type": "calculated",
+            "key": "net_total",
+            "label": "Netto",
+            "format": "money",
+            "currency": "EUR",
+            "role": "totals.net",
+            "expression": {
+              "sum": [
+                {
+                  "var": "items"
+                },
+                "line_total"
+              ]
+            },
+            "id": "88dfe186-310c-5a1c-8358-a2fc323b06ce"
+          },
+          {
+            "type": "calculated",
+            "key": "vat",
+            "label": "USt. 19 %",
+            "format": "money",
+            "currency": "EUR",
+            "role": "totals.tax",
+            "expression": {
+              "dec.round": [
+                {
+                  "dec.mul": [
+                    {
+                      "var": "net_total"
+                    },
+                    "0.19"
+                  ]
+                },
+                2
+              ]
+            },
+            "id": "9f6014bc-3294-5355-b8b9-31e3d4f38b22"
+          },
+          {
+            "type": "calculated",
+            "key": "gross_total",
+            "label": "Brutto",
+            "format": "money",
+            "currency": "EUR",
+            "role": "totals.gross",
+            "expression": {
+              "dec.add": [
+                {
+                  "var": "net_total"
+                },
+                {
+                  "var": "vat"
+                }
+              ]
+            },
+            "id": "4cfcf11b-e9bf-580c-94e3-85974ece8309"
+          }
+        ]
+      },
+      {
+        "id": "6f681657-3eab-52d0-be11-d5a71e342545",
+        "key": "finish",
+        "title": "Fotos & Unterschrift",
+        "elements": [
+          {
+            "type": "photo",
+            "key": "photos",
+            "label": "Fotos",
+            "multiple": true,
+            "validation": {
+              "maxFiles": 20,
+              "maxSizeKb": 8192
+            },
+            "id": "2b727d52-751f-5e9b-a8ce-e411f0f81b17"
+          },
+          {
+            "type": "checkbox",
+            "key": "work_accepted",
+            "label": "Arbeiten ordnungsgemäß ausgeführt und abgenommen",
+            "required": true,
+            "id": "afb94d2d-9f50-5a09-95a4-dbd6cc26497e"
+          },
+          {
+            "type": "signature",
+            "key": "customer_signature",
+            "label": "Unterschrift Kunde",
+            "required": true,
+            "signerNameFrom": "customer_name",
+            "id": "dc813dfb-ea47-584b-b3d1-06f402fb147d"
+          }
+        ]
+      }
+    ]
+  },
+  "context": {
+    "today": "2026-10-16",
+    "now": "2026-10-16T09:41:00+02:00",
+    "user": {
+      "name": "Willi Worker",
+      "email": "worker@demo.test"
+    },
+    "org": {
+      "name": "Demo GmbH"
+    },
+    "formVersion": 3
+  },
+  "tests": [
+    {
+      "description": "30 lines: half-cent products (0.25 × 0.10, 0.25 × 0.30, 0.75 × 0.33), float-hostile sums (3 × 0.1 + 3 × 0.2), a zero quantity and large prices",
+      "data": {
+        "customer_name": "Beispiel GmbH",
+        "service_date": "2026-10-16",
+        "technician": "Willi Worker",
+        "service_type": "repair",
+        "defect": "Door switch misaligned",
+        "work_done": "Replaced switch, tested",
+        "items": [
+          {
+            "description": "Position 1",
+            "qty": "3",
+            "unit": "h",
+            "unit_price": "0.1"
+          },
+          {
+            "description": "Position 2",
+            "qty": "3",
+            "unit": "pcs",
+            "unit_price": "0.2"
+          },
+          {
+            "description": "Position 3",
+            "qty": "0.25",
+            "unit": "m",
+            "unit_price": "0.10"
+          },
+          {
+            "description": "Position 4",
+            "qty": "0.25",
+            "unit": "h",
+            "unit_price": "0.30"
+          },
+          {
+            "description": "Position 5",
+            "qty": "0.25",
+            "unit": "pcs",
+            "unit_price": "0.02"
+          },
+          {
+            "description": "Position 6",
+            "qty": "0.75",
+            "unit": "m",
+            "unit_price": "0.33"
+          },
+          {
+            "description": "Position 7",
+            "qty": "1.75",
+            "unit": "h",
+            "unit_price": "19.99"
+          },
+          {
+            "description": "Position 8",
+            "qty": "0.25",
+            "unit": "pcs",
+            "unit_price": "0.01"
+          },
+          {
+            "description": "Position 9",
+            "qty": "0.25",
+            "unit": "m",
+            "unit_price": "0.05"
+          },
+          {
+            "description": "Position 10",
+            "qty": "2.25",
+            "unit": "h",
+            "unit_price": "0.15"
+          },
+          {
+            "description": "Position 11",
+            "qty": "0.25",
+            "unit": "pcs",
+            "unit_price": "0.2"
+          },
+          {
+            "description": "Position 12",
+            "qty": "1.5",
+            "unit": "m",
+            "unit_price": "65.00"
+          },
+          {
+            "description": "Position 13",
+            "qty": "1",
+            "unit": "h",
+            "unit_price": "89.00"
+          },
+          {
+            "description": "Position 14",
+            "qty": "0.5",
+            "unit": "pcs",
+            "unit_price": "0.01"
+          },
+          {
+            "description": "Position 15",
+            "qty": "3",
+            "unit": "m",
+            "unit_price": "33.33"
+          },
+          {
+            "description": "Position 16",
+            "qty": "0.25",
+            "unit": "h",
+            "unit_price": "1234.56"
+          },
+          {
+            "description": "Position 17",
+            "qty": "12.75",
+            "unit": "pcs",
+            "unit_price": "0.07"
+          },
+          {
+            "description": "Position 18",
+            "qty": "0.75",
+            "unit": "m",
+            "unit_price": "0.45"
+          },
+          {
+            "description": "Position 19",
+            "qty": "4.25",
+            "unit": "h",
+            "unit_price": "2.50"
+          },
+          {
+            "description": "Position 20",
+            "qty": "0",
+            "unit": "pcs",
+            "unit_price": "999.99"
+          },
+          {
+            "description": "Position 21",
+            "qty": "1.25",
+            "unit": "m",
+            "unit_price": "7.77"
+          },
+          {
+            "description": "Position 22",
+            "qty": "0.25",
+            "unit": "h",
+            "unit_price": "0.99"
+          },
+          {
+            "description": "Position 23",
+            "qty": "3",
+            "unit": "pcs",
+            "unit_price": "0.70"
+          },
+          {
+            "description": "Position 24",
+            "qty": "2.75",
+            "unit": "m",
+            "unit_price": "11.11"
+          },
+          {
+            "description": "Position 25",
+            "qty": "0.25",
+            "unit": "h",
+            "unit_price": "0.18"
+          },
+          {
+            "description": "Position 26",
+            "qty": "10",
+            "unit": "pcs",
+            "unit_price": "0.1"
+          },
+          {
+            "description": "Position 27",
+            "qty": "0.5",
+            "unit": "m",
+            "unit_price": "0.15"
+          },
+          {
+            "description": "Position 28",
+            "qty": "6.25",
+            "unit": "h",
+            "unit_price": "1.01"
+          },
+          {
+            "description": "Position 29",
+            "qty": "0.75",
+            "unit": "pcs",
+            "unit_price": "0.06"
+          },
+          {
+            "description": "Position 30",
+            "qty": "3",
+            "unit": "m",
+            "unit_price": "0.3"
+          }
+        ],
+        "work_accepted": true,
+        "customer_signature": {
+          "attachment": "0192f1c4-8b2f-7d4c-8b66-2e3f4a5b6c7d",
+          "signerName": "Beispiel GmbH",
+          "signedAt": "2026-10-16T09:41:00+02:00"
+        }
+      },
+      "expected": {
+        "errors": [],
+        "calculated": {
+          "/items/0/line_total": "0.30",
+          "/items/1/line_total": "0.60",
+          "/items/2/line_total": "0.03",
+          "/items/3/line_total": "0.08",
+          "/items/4/line_total": "0.01",
+          "/items/5/line_total": "0.25",
+          "/items/6/line_total": "34.98",
+          "/items/7/line_total": "0.00",
+          "/items/8/line_total": "0.01",
+          "/items/9/line_total": "0.34",
+          "/items/10/line_total": "0.05",
+          "/items/11/line_total": "97.50",
+          "/items/12/line_total": "89.00",
+          "/items/13/line_total": "0.01",
+          "/items/14/line_total": "99.99",
+          "/items/15/line_total": "308.64",
+          "/items/16/line_total": "0.89",
+          "/items/17/line_total": "0.34",
+          "/items/18/line_total": "10.63",
+          "/items/19/line_total": "0.00",
+          "/items/20/line_total": "9.71",
+          "/items/21/line_total": "0.25",
+          "/items/22/line_total": "2.10",
+          "/items/23/line_total": "30.55",
+          "/items/24/line_total": "0.05",
+          "/items/25/line_total": "1.00",
+          "/items/26/line_total": "0.08",
+          "/items/27/line_total": "6.31",
+          "/items/28/line_total": "0.05",
+          "/items/29/line_total": "0.90",
+          "/net_total": "694.65",
+          "/vat": "131.98",
+          "/gross_total": "826.63"
+        }
+      }
+    }
+  ]
+}

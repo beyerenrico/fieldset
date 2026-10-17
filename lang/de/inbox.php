@@ -7,6 +7,7 @@ return [
     'plural' => 'Einreichungen',
     'navigation' => 'Einreichungen',
     'column' => [
+        'client_submitted_at' => 'Auf dem Gerät abgesendet',
         'number' => 'Nummer',
         'form' => 'Formular',
         'version' => 'Version',

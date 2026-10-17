@@ -41,6 +41,8 @@ final class SubmissionInfolist
                 TextEntry::make('creator.name')->label(__('inbox.column.submitter'))->placeholder('—'),
                 TextEntry::make('created_at')->label(__('inbox.column.created_at'))->dateTime()->timezone($tz),
                 TextEntry::make('submitted_at')->label(__('inbox.column.submitted_at'))->dateTime()->timezone($tz)->placeholder('—'),
+                TextEntry::make('client_submitted_at')->label(__('inbox.column.client_submitted_at'))->dateTime()->timezone($tz)
+                    ->placeholder('—')->visible(fn (Submission $record): bool => $record->client_submitted_at !== null),
                 TextEntry::make('updated_at')->label(__('inbox.column.updated_at'))->dateTime()->timezone($tz),
             ]),
             Section::make(__('inbox.detail.data'))->id('data')->schema([

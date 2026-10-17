@@ -10,6 +10,7 @@ use App\Domain\Submissions\Actions\SaveSubmissionDraft;
 use App\Domain\Submissions\Actions\SubmissionPresenter;
 use App\Domain\Submissions\Actions\SubmitSubmission;
 use App\Domain\Submissions\Models\Submission;
+use App\Domain\Submissions\Support\ClientSubmittedAt;
 use App\Domain\Submissions\Support\SubmissionVisibility;
 use App\Http\Api\ApiException;
 use App\Http\Api\ApiResponse;
@@ -67,11 +68,14 @@ final readonly class SubmissionController
 
     public function submit(Request $request, string $uuid, SubmitSubmission $submit, TenantContext $tenant): JsonResponse
     {
-        $request->validate(['revision' => ['required', 'integer', 'min:1']]);
+        $request->validate(['revision' => ['required', 'integer', 'min:1'], 'client_submitted_at' => ClientSubmittedAt::rules()]);
         $submission = $this->visible($request, $uuid);
         $organization = $tenant->organization() ?? throw new ApiException('organization_required', __('api.organization_required'), 400);
 
-        $submitted = $submit->handle($this->user($request), $organization, $submission, (int) $request->input('revision'));
+        $submitted = $submit->handle(
+            $this->user($request), $organization, $submission, (int) $request->input('revision'),
+            ClientSubmittedAt::parse($request->input('client_submitted_at')),
+        );
 
         return ApiResponse::ok(['submission' => SubmissionPresenter::present($submitted->refresh(), $this->user($request))]);
     }
