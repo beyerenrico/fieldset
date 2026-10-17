@@ -1,20 +1,22 @@
-# State: 2026-10-23T18:00Z
-**Run complete.** form-schema-app 1.0.0 is released on `main` (tag `v1.0.0`); all PLAN tasks M0–M8 ticked.
-Final full gate on main: PHP 4652 tests, coverage 95.11 %, PHPStan 0/0, Rector/Pint clean,
-JS 611/111/623/246, conformance 391/392, licenses and audits clean, E2E 75/75 ×2 with Keycloak.
-Report: docs/agent/FINAL_REPORT.md. Last commit: see `git log -1`
+# State: 2026-10-17T00:00Z
+v2 run started (BUILD_PROMPT_V2.md, plan `docs/plans/2026-10-17-001-feat-docker-distribution-v2-plan.md`).
+Branch `m9-release` from `main` (v1.0.0 + fixes). Bootstrap M9-T01 in progress: ADRs for E1–E18 next.
 
 ## Next actions
-None for this run. Follow-ups for humans: FINAL_REPORT "Recommended next steps" and QUESTIONS.md.
+1. M9-T01: ADRs 0047+ for E1–E18 (versions from BUILD_PROMPT_V2 §5 / Appendix A, checked 2026-10-17).
+2. M9-T02 (U1 image) and M9-T03 (U2 instance domain core) — independent, run in parallel.
+3. Then M9-T04 (U3), M9-T05 (U6), M9-T06 (U7), M9-T07 (U4), M9-T08 (U5), gate M9-T09.
+
+## Decisions taken at bootstrap
+- U7 is verified by building, signing and serving the harness release; the install through J1 belongs to
+  U5 (resolves the plan's deferred U5/U7 cycle).
 
 ## Known problems
-- Performance exceptions (ADR 0046, QUESTIONS #21): classic builder page 1.05 s, Field App first load
-  under devtools throttling 3.5 s, 501st repeater row 203 ms.
 - E2E runs rewrite evidence PNGs: `git checkout docs/agent/milestones/evidence` before committing.
 - Host Composer 2.8.12 fails `composer audit` on the ignored abandoned package; use the CI image.
 
 ## Resume commands
-COMPOSE_PROFILES=sso docker compose up -d --wait
+docker compose up -d --wait
 DB_DATABASE=form_schema_test php artisan test --compact --parallel
 npm run test
 vendor/bin/rector --dry-run --no-progress-bar   # CI gate, must be 0 files
