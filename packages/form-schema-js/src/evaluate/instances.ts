@@ -64,11 +64,26 @@ function collect(nodes: readonly ElementNode[], context: WalkContext, data: Json
     });
 }
 
-/** Every element instance in document order; repeater rows in index order. */
-export function listInstances(model: DefinitionModel, data: JsonValue): Instance[] {
-    return model.pages.flatMap((page) =>
+const listed = new WeakMap<object, WeakMap<DefinitionModel, readonly Instance[]>>();
+
+/**
+ * Every element instance in document order; repeater rows in index order. Memoized per data object:
+ * data is copy-on-write (data.ts), so the same object always has the same rows; one evaluation lists
+ * the instances of the same state several times (M8-T05).
+ */
+export function listInstances(model: DefinitionModel, data: JsonValue): readonly Instance[] {
+    const byModel = typeof data === 'object' && data !== null ? listed.get(data) : undefined;
+    const cached = byModel?.get(model);
+    if (cached !== undefined) {
+        return cached;
+    }
+    const instances = model.pages.flatMap((page) =>
         collect(page.elements, { base: [], rows: [], parentPointer: null }, data),
     );
+    if (typeof data === 'object' && data !== null) {
+        listed.set(data, (byModel ?? new WeakMap()).set(model, instances));
+    }
+    return instances;
 }
 
 /** Row chains for a scope: one chain per existing row combination of the enclosing repeaters. */

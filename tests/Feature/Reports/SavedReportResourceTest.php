@@ -13,6 +13,7 @@ use App\Filament\Admin\Resources\SavedReports\Pages\ViewSavedReport;
 use App\Filament\Admin\Resources\SavedReports\SavedReportResource;
 use App\Filament\Admin\Resources\SavedReports\Widgets\SavedReportChart;
 use App\Filament\Admin\Resources\Submissions\SubmissionResource;
+use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 use Tests\Feature\Reports\ReportsScenario;
 
@@ -176,4 +177,18 @@ it('rejects invalid or empty field filter values instead of dropping them (revie
         ->call('create')->assertHasFormErrors(['filters.from']);
 
     expect(app(TenantContext::class)->run($this->s->org, fn () => SavedReport::query()->count()))->toBe(0);
+});
+
+it('runs the report once per page view and renders the chart from that result (M8-T05)', function (): void {
+    $report = app(TenantContext::class)->run($this->s->org, fn () => SavedReport::factory()->create([
+        'form_id' => $this->s->form->id, 'name' => 'Revenue', 'group_by' => 'field:kind', 'metric' => 'sum', 'metric_key' => 'amount', 'created_by' => $this->s->owner->id,
+    ]));
+    actingInAdmin($this->s->owner, $this->s->org);
+
+    DB::flushQueryLog();
+    DB::enableQueryLog();
+    Livewire::test(ViewSavedReport::class, ['record' => $report->id])->assertOk()->assertSeeLivewire(SavedReportChart::class);
+    $aggregates = array_filter(DB::getQueryLog(), fn (array $q): bool => str_contains($q['query'], 'count(distinct s.uuid)'));
+
+    expect($aggregates)->toHaveCount(1);
 });

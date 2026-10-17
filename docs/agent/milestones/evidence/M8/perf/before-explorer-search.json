@@ -1,0 +1,27 @@
+{
+  "measuredAt": "2026-10-17T16:02:16.959Z",
+  "base": "http://localhost:8080",
+  "runs": 30,
+  "warmup": 3,
+  "pages": [],
+  "interactions": [
+    {
+      "interaction": "explorer search: 2 % of rows",
+      "n": 30,
+      "p50": 1675.6,
+      "p95": 105399,
+      "max": 110909,
+      "mean": 8372.6,
+      "load": 3.2
+    },
+    {
+      "interaction": "explorer search: 35 % of rows",
+      "n": 30,
+      "p50": 594.8,
+      "p95": 635.4,
+      "max": 672.1,
+      "mean": 582.5,
+      "load": 4.9
+    }
+  ]
+}

@@ -87,11 +87,26 @@ final readonly class TaskAccess
         });
     }
 
-    /** The open task of a submission that is assigned to the user (or their group) and that they may complete (API `open_task_id`). */
-    public function openTaskFor(User $user, Submission $submission): ?Task
+    /**
+     * API `open_task_id` for a page of submissions in one query: per submission the lowest open task that is
+     * assigned to the user (or their group) and that they may complete.
+     *
+     * @param  list<string>  $uuids
+     * @return array<string, int>
+     */
+    public function openTaskIdsFor(User $user, array $uuids): array
     {
-        return $this->actionable(Task::query(), $user)->where('submission_uuid', $submission->uuid)
-            ->where('status', TaskStatus::Open)->orderBy('id')->first();
+        if ($uuids === []) {
+            return [];
+        }
+        $ids = [];
+        $tasks = $this->actionable(Task::query(), $user)->whereIn('submission_uuid', $uuids)
+            ->where('status', TaskStatus::Open)->orderBy('id')->get(['id', 'submission_uuid']);
+        foreach ($tasks as $task) {
+            $ids[$task->submission_uuid] ??= $task->id;
+        }
+
+        return $ids;
     }
 
     /** Any open task of the submission the user may complete (admin inbox: reviewers may decide unassigned tasks). */

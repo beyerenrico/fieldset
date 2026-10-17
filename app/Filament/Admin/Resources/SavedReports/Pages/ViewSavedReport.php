@@ -50,6 +50,12 @@ class ViewSavedReport extends ViewRecord
         return [SavedReportChart::class];
     }
 
+    /** The chart gets the result of this page view instead of computing the report a second time. */
+    public function getWidgetData(): array
+    {
+        return [...parent::getWidgetData(), 'result' => $this->result()->toArray()];
+    }
+
     public function getHeaderWidgetsColumns(): int|array
     {
         return 1;

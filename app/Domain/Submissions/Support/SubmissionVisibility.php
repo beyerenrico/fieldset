@@ -29,6 +29,24 @@ final readonly class SubmissionVisibility
      */
     public function apply(Builder $query, User $user): Builder
     {
+        return $this->scope($query, $user, false);
+    }
+
+    public function canView(User $user, Submission $submission): bool
+    {
+        return $this->scope(Submission::query()->whereKey($submission->uuid), $user, true)->exists();
+    }
+
+    /**
+     * The visibility rules as one WHERE clause. `$single` (one submission, canView) checks the task branch as a
+     * correlated EXISTS, which reads the submission's own tasks through their index; lists keep the IN
+     * subquery, which Postgres hashes once (and runs in parallel) instead of probing per row (M8-T05).
+     *
+     * @param  Builder<Submission>  $query
+     * @return Builder<Submission>
+     */
+    private function scope(Builder $query, User $user, bool $single): Builder
+    {
         $orgId = $this->tenant->require();
         $can = fn (Permission $p): bool => $this->permissions->has($user, $orgId, $p);
 
@@ -38,7 +56,7 @@ final readonly class SubmissionVisibility
 
         $peerIds = $this->groupPeers($user, $orgId);
 
-        return $query->where(function (Builder $q) use ($user, $can, $peerIds, $orgId): void {
+        return $query->where(function (Builder $q) use ($user, $can, $peerIds, $orgId, $single): void {
             $q->whereRaw('false');
             if ($can(Permission::SubmissionsViewOwn)) {
                 $q->orWhere('created_by', $user->id);
@@ -50,7 +68,7 @@ final readonly class SubmissionVisibility
                 $q->orWhereIn('created_by', $peerIds);
             }
             if ($can(Permission::SubmissionsViewAssigned)) {
-                $this->assigned($q, $user, $orgId);
+                $this->assigned($q, $user, $orgId, $single);
             }
         });
     }
@@ -62,19 +80,19 @@ final readonly class SubmissionVisibility
      *
      * @param  Builder<Submission>  $query
      */
-    private function assigned(Builder $query, User $user, int $orgId): void
+    private function assigned(Builder $query, User $user, int $orgId, bool $single): void
     {
         $myGroups = fn ($g) => $g->select('group_id')->from('group_user')->where('user_id', $user->id)->where('organization_id', $orgId);
         $openForMe = fn ($t) => $t->where('status', TaskStatus::Open->value)
             ->where(fn ($mine) => $mine->where('assignee_user_id', $user->id)->orWhereIn('assignee_group_id', $myGroups));
+        $relevant = fn ($t) => $t->where('tasks.organization_id', $orgId)->where(fn ($r) => $r->where($openForMe)->orWhere('completed_by', $user->id));
 
-        $query->orWhereIn('uuid', fn ($sub) => $sub->select('submission_uuid')->from('tasks')->where('organization_id', $orgId)
-            ->where(fn ($t) => $t->where($openForMe)->orWhere('completed_by', $user->id)));
-    }
+        if ($single) {
+            $query->orWhereExists(fn ($sub) => $relevant($sub->selectRaw('1')->from('tasks')->whereColumn('tasks.submission_uuid', 'submissions.uuid')));
 
-    public function canView(User $user, Submission $submission): bool
-    {
-        return $this->apply(Submission::query()->whereKey($submission->uuid), $user)->exists();
+            return;
+        }
+        $query->orWhereIn('uuid', fn ($sub) => $relevant($sub->select('submission_uuid')->from('tasks')));
     }
 
     /** @return list<int> members of the user's groups that share submissions */

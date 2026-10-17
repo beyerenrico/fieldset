@@ -16,6 +16,7 @@ use App\Domain\Reports\Saved\ReportResult;
 use App\Domain\Reports\Saved\ReportRow;
 use App\Domain\Reports\Schema\FieldCatalog;
 use App\Domain\Reports\Schema\ReportField;
+use Closure;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Facades\DB;
@@ -58,35 +59,36 @@ final readonly class SavedReportQuery
 
         $plan = $this->plan($report, $viewer, $range, $periodFromRange);
         $max = self::maxGroups();
-        $rows = array_values($this->aggregate($plan, true, $max + 1)->get()->all());
+        $rows = $this->withoutJit(fn (): array => array_values($this->aggregate($plan, $max + 1)->get()->all()));
         $truncated = count($rows) > $max;
+        $total = $this->totalOf($rows);
         $rows = $this->ordered($plan->grouping, array_slice($rows, 0, $max));
         $labels = $plan->grouping->labels(array_map(static fn (stdClass $r): ?string => is_string($r->grp) ? $r->grp : null, $rows));
-        $total = $this->aggregate($plan, false)->first();
         $field = $plan->metricField;
 
         return new ReportResult(
             $plan->metric, $field?->key, $field instanceof ReportField ? $field->label : (string) __('reports.metric.count'),
             $plan->grouping->value(), $plan->grouping->label(),
             array_map(fn (stdClass $r): ReportRow => $this->row($r, $plan, $labels), $rows),
-            $total instanceof stdClass ? $this->row($total, $plan, [], (string) __('reports.result.total')) : new ReportRow(null, (string) __('reports.result.total'), 0),
+            $this->row($total, $plan, [], (string) __('reports.result.total')),
             $plan->isMoney(), $field?->currency() ?? '', $truncated,
-            $total instanceof stdClass && (int) $total->value_count > 0 ? $plan->currencies($this->versions($total)) : [],
+            (int) $total->value_count > 0 ? $plan->currencies($this->versions($total)) : [],
             $plan->scales(),
         );
     }
 
     /**
-     * The aggregate queries exactly as run() executes them (no authorization: callers authorize first;
-     * the EXPLAIN tests and the benchmark plan them).
+     * The aggregate query exactly as run() executes it (no authorization: callers authorize first;
+     * the EXPLAIN tests and the benchmark plan it). One query returns the groups and, in window columns,
+     * the totals over all groups (M8-T05: one pass over the values instead of a second total query).
      *
-     * @return array{rows: QueryBuilder, total: QueryBuilder}
+     * @return array{rows: QueryBuilder}
      */
     public function queries(SavedReport $report, User $viewer, ?DateRange $range = null, bool $periodFromRange = false): array
     {
         $plan = $this->plan($report, $viewer, $range, $periodFromRange);
 
-        return ['rows' => $this->aggregate($plan, true, self::maxGroups() + 1), 'total' => $this->aggregate($plan, false)];
+        return ['rows' => $this->aggregate($plan, self::maxGroups() + 1)];
     }
 
     public static function timezone(SavedReport $report): string
@@ -121,9 +123,16 @@ final readonly class SavedReportQuery
         );
     }
 
-    private function aggregate(ReportPlan $plan, bool $grouped, ?int $limit = null): QueryBuilder
+    /**
+     * The groups of the report, largest (or newest) first, with the totals over ALL groups as window columns
+     * (`all_*`, evaluated before the LIMIT, so a truncated result still has the full totals). Every submission
+     * falls into exactly one group (a status, submitter, version, period or the top-level value of a field),
+     * so the totals are the sums over the groups; the overall average is sum / count, which is how avg()
+     * computes it for numeric values.
+     */
+    private function aggregate(ReportPlan $plan, ?int $limit = null): QueryBuilder
     {
-        $grouping = $grouped ? $plan->grouping : ReportGrouping::parse(null, $plan->catalog);
+        $grouping = $plan->grouping;
         $metric = $plan->metricField;
         [$expression, $bindings] = $grouping->expression($plan->timezone);
         $query = DB::query()->fromSub($plan->submissions, 's')
@@ -132,23 +141,65 @@ final readonly class SavedReportQuery
             ->when($metric instanceof ReportField, fn (QueryBuilder $q) => $q->leftJoin('submission_values as m', fn (JoinClause $j) => $j
                 ->on('m.submission_uuid', '=', 's.uuid')->where('m.key', '=', $metric?->key)))
             ->selectRaw("{$expression} as grp", $bindings)
-            ->selectRaw('count(distinct s.uuid) as submissions');
+            ->selectRaw('count(distinct s.uuid) as submissions, sum(count(distinct s.uuid)) over () as all_submissions');
 
         $query = $metric instanceof ReportField
             ? $query->selectRaw('trim_scale(sum(m.value_num))::text as total, trim_scale(round(avg(m.value_num), 10))::text as average, count(m.value_num) as value_count')
-            : $query->selectRaw('null::text as total, null::text as average, 0 as value_count');
+                ->selectRaw('trim_scale(sum(sum(m.value_num)) over ())::text as all_total, sum(count(m.value_num)) over () as all_value_count')
+                ->selectRaw('trim_scale(round(sum(sum(m.value_num)) over () / nullif(sum(count(m.value_num)) over (), 0), 10))::text as all_average')
+            : $query->selectRaw('null::text as total, null::text as average, 0 as value_count, null::text as all_total, 0 as all_value_count, null::text as all_average');
         if ($plan->currencyByVersion !== []) {
-            // Which form versions (hence currencies) the values of a group come from.
-            $query->selectRaw("string_agg(distinct s.form_version_id::text, ',') filter (where m.value_num is not null) as versions");
+            // Which form versions (hence currencies) the values of a group, and of all groups, come from.
+            $versions = "string_agg(distinct s.form_version_id::text, ',') filter (where m.value_num is not null)";
+            $query->selectRaw("{$versions} as versions, string_agg({$versions}, ',') over () as all_versions");
         }
 
-        if ($grouped) {
-            // Time groups: the newest N (re-ordered oldest first by ordered()); others: the largest N.
-            $query->groupByRaw('1')->orderByRaw($grouping->isTime() ? '1 desc nulls last' : 'count(distinct s.uuid) desc, 1 asc nulls last')
-                ->when($limit !== null, fn (QueryBuilder $q) => $q->limit((int) $limit));
-        }
+        // Time groups: the newest N (re-ordered oldest first by ordered()); others: the largest N.
+        return $query->groupByRaw('1')->orderByRaw($grouping->isTime() ? '1 desc nulls last' : 'count(distinct s.uuid) desc, 1 asc nulls last')
+            ->when($limit !== null, fn (QueryBuilder $q) => $q->limit((int) $limit));
+    }
 
-        return $query;
+    /**
+     * Runs the aggregate with Postgres' JIT compiler off. The planner's cost estimate for an aggregate over a
+     * whole form (two scans of submission_values) is far above jit_above_cost, so Postgres compiles the query
+     * first: at 100k submissions that made it ~95 ms (≈ 30 %) slower than running it uncompiled (M8-T05).
+     * SET LOCAL needs a transaction (a savepoint inside an outer one), and is reset because it would outlive
+     * a released savepoint.
+     *
+     * @template T
+     *
+     * @param  Closure(): T  $query
+     * @return T
+     */
+    private function withoutJit(Closure $query): mixed
+    {
+        return DB::transaction(function () use ($query): mixed {
+            DB::statement('SET LOCAL jit = off');
+            try {
+                return $query();
+            } finally {
+                DB::statement('SET LOCAL jit TO DEFAULT');
+            }
+        });
+    }
+
+    /**
+     * The total row from the window columns of any group row; no groups means no submissions.
+     *
+     * @param  list<stdClass>  $rows
+     */
+    private function totalOf(array $rows): stdClass
+    {
+        $first = $rows[0] ?? new stdClass;
+
+        return (object) [
+            'grp' => null,
+            'submissions' => $first->all_submissions ?? 0,
+            'total' => $first->all_total ?? null,
+            'average' => $first->all_average ?? null,
+            'value_count' => $first->all_value_count ?? 0,
+            'versions' => $first->all_versions ?? null,
+        ];
     }
 
     /**

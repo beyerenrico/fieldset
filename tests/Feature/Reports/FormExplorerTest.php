@@ -10,6 +10,9 @@ use App\Domain\Notifications\Notifier;
 use App\Domain\Reports\Enums\ExportStatus;
 use App\Domain\Reports\Models\ReportExport;
 use App\Filament\Admin\Pages\FormExplorer;
+use App\Filament\Admin\Pages\FormExplorerTable;
+use Filament\Tables\Enums\PaginationMode;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
@@ -156,4 +159,29 @@ it('refuses a bulk selection above the limit instead of truncating it', function
         ->assertNotified(__('reports.export.too_many', ['max' => 1]));
 
     expect(ReportExport::query()->count())->toBe(0);
+});
+
+it('pages a search without counting every match, and keeps the total otherwise (M8-T05)', function (): void {
+    $counts = function (Testable $explorer, Closure $act): int {
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $act($explorer);
+
+        return count(array_filter(DB::getQueryLog(), fn (array $q): bool => str_starts_with($q['query'], 'select count(*) as "aggregate" from "submissions"')));
+    };
+    $explorer = explorer($this->s);
+
+    expect($counts($explorer, fn (Testable $e) => $e->searchTable('GmbH')->assertCanSeeTableRecords([$this->old])))->toBe(0)
+        ->and(FormExplorerTable::paginationMode($explorer->instance()))->toBe(PaginationMode::Simple)
+        ->and($explorer->instance()->getTable()->selectsCurrentPageOnly())->toBeTrue()
+        ->and($counts($explorer, fn (Testable $e) => $e->searchTable('')->assertCanSeeTableRecords([$this->old, $this->mid, $this->new])))->toBeGreaterThan(0)
+        ->and(FormExplorerTable::paginationMode($explorer->instance()))->toBe(PaginationMode::Default)
+        ->and($explorer->instance()->getTable()->selectsCurrentPageOnly())->toBeFalse();
+});
+
+it('searches the whole phrase, like the export of the filtered rows (M8-T05)', function (): void {
+    $s = $this->s;
+
+    explorer($s)->searchTable('Alt GmbH')->assertCanSeeTableRecords([$this->old])->assertCanNotSeeTableRecords([$this->mid, $this->new]);
+    explorer($s)->searchTable('GmbH Alt')->assertCanNotSeeTableRecords([$this->old, $this->mid, $this->new]);
 });

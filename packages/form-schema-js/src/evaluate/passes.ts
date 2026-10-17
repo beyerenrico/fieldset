@@ -135,23 +135,32 @@ export function formatCalculated(node: ElementNode, result: unknown): JsonValue 
     return decimal === null ? null : formatDecimal(decimal.value, scale);
 }
 
-/** Computes calculated values in dependency order, every row instance in index order. */
+/**
+ * Computes calculated values in dependency order. All instances of one element (every row, in
+ * index order) are evaluated against the same state and written afterwards, as the PHP evaluator
+ * does: an element never depends on itself (a cycle is a lint error), so the results are the same,
+ * and the logic view is built once per element instead of once per row (M8-T05: 500 rows took
+ * O(rows²) view work per evaluation).
+ */
 export function computeCalculated(runtime: Runtime, state: EvalState): EvalState {
-    return runtime.calculationOrder.reduce<EvalState>(
-        (outer, node) =>
-            instancesOf(node, outer.data).reduce<EvalState>((current, located) => {
-                const result = evaluateFor(
-                    runtime,
-                    located,
-                    current,
-                    getOwn(node.raw, 'expression'),
-                );
-                return {
-                    ...current,
-                    data: setIn(current.data, located.path, formatCalculated(node, result)),
-                };
-            }, outer),
-        state,
+    return runtime.calculationOrder.reduce<EvalState>((outer, node) => {
+        const expression = getOwn(node.raw, 'expression');
+        const results = instancesOf(node, outer.data).map((located) => ({
+            path: located.path,
+            value: formatCalculated(node, evaluateFor(runtime, located, outer, expression)),
+        }));
+        return results.length === 0 ? outer : { ...outer, data: setManyIn(outer.data, results) };
+    }, state);
+}
+
+/** Writes several values; each write copies only along its path (setIn). */
+function setManyIn(
+    data: JsonObject,
+    writes: readonly { readonly path: Located['path']; readonly value: JsonValue }[],
+): JsonObject {
+    return writes.reduce<JsonObject>(
+        (current, write) => setIn(current, write.path, write.value),
+        data,
     );
 }
 

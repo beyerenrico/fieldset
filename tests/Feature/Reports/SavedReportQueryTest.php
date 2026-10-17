@@ -12,6 +12,7 @@ use App\Domain\Reports\Saved\ReportRow;
 use App\Domain\Reports\SavedReportQuery;
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Facades\DB;
 use Tests\Feature\Reports\ReportsScenario;
 
 /* M5-T03 saved reports: count/sum/avg in SQL, decimal-exact, grouped, per viewer visibility. */
@@ -117,4 +118,48 @@ it('falls back to counting when the metric field is not numeric', function (): v
     $result = runReport($this->s, savedReport($this->s, ['metric' => 'sum', 'metric_key' => 'customer']));
 
     expect($result->metric->value)->toBe('count')->and($result->total->submissions)->toBe(1);
+});
+
+it('takes the totals of all groups from the one aggregate query, also when the groups are truncated (M8-T05)', function (): void {
+    $s = $this->s;
+    $s->submit($s->worker, ['amount' => '1', 'kind' => 'repair']);
+    $s->submit($s->worker, ['amount' => '2', 'kind' => 'repair']);
+    $s->submit($s->worker, ['amount' => '2', 'kind' => 'maintenance']);
+    config(['reports.saved.max_groups' => 1]);
+    $report = savedReport($s, ['metric' => 'avg', 'metric_key' => 'amount', 'group_by' => 'field:kind']);
+
+    DB::flushQueryLog();
+    DB::enableQueryLog();
+    $result = runReport($s, $report);
+    $aggregates = array_filter(DB::getQueryLog(), fn (array $q): bool => str_contains($q['query'], 'count(distinct s.uuid)'));
+
+    expect($result->truncated)->toBeTrue()
+        ->and(resultRows($result))->toBe(['Repair' => [2, '1.5']])
+        ->and($result->total->submissions)->toBe(3)
+        ->and($result->total->sum)->toBe('5')
+        ->and($result->total->avg)->toBe('1.6666666667')   // 5 / 3, rounded half-up like avg()
+        ->and($result->currencies)->toBe(['EUR'])
+        ->and($aggregates)->toHaveCount(1);
+});
+
+it('has an empty total when no submission matches', function (): void {
+    $result = runReport($this->s, savedReport($this->s, ['metric' => 'sum', 'metric_key' => 'amount', 'group_by' => 'field:kind']));
+
+    expect($result->rows)->toBe([])->and($result->total->submissions)->toBe(0)->and($result->total->sum)->toBeNull()
+        ->and($result->total->values)->toBe(0);
+});
+
+it('runs the aggregate without JIT compilation and leaves the setting as it was (M8-T05)', function (): void {
+    $this->s->submit($this->s->worker, ['amount' => '1', 'kind' => 'repair']);
+    $statements = [];
+    DB::listen(function ($query) use (&$statements): void {
+        $statements[] = $query->sql;
+    });
+
+    runReport($this->s, savedReport($this->s, ['metric' => 'sum', 'metric_key' => 'amount', 'group_by' => 'field:kind']));
+    $aggregate = array_key_first(array_filter($statements, fn (string $sql): bool => str_contains($sql, 'count(distinct s.uuid)')));
+
+    expect($statements[$aggregate - 1])->toBe('SET LOCAL jit = off')
+        ->and($statements[$aggregate + 1])->toBe('SET LOCAL jit TO DEFAULT')
+        ->and(DB::scalar('SHOW jit'))->toBe(DB::scalar('SELECT boot_val FROM pg_settings WHERE name = ?', ['jit']));
 });

@@ -101,7 +101,6 @@ final readonly class QueryCatalog
             'explorer: page filtered by a number range' => $filtered(new FieldFilter($keys['number'], FieldFilter::BETWEEN, ['100', '250'])),
             'explorer: page filtered by a choice' => $filtered(new FieldFilter($keys['choice'], FieldFilter::IN, [$keys['choice_value']])),
             'report: sum of a number grouped by a choice since a date' => $aggregates['rows'],
-            'report: total of that report' => $aggregates['total'],
         ];
     }
 }
