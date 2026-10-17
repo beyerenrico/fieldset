@@ -1,14 +1,19 @@
-# State: 2026-10-18T07:45Z
+# State: 2026-10-18T09:30Z
 Milestone: M7 SSO + Builder v2 · Branch m7-sso-builder (M6 merged, tags m6-done + v0.2.0)
-Tasks in flight: two design agents (SSO → ADR 0036 draft, Builder v2 → ADR 0037 draft); M7 broken
-down in PLAN (d061673).
+Done: M7 plan (d061673), ADR 0036 SSO + 0037 Builder v2, M7.md (ownership/interfaces), Builder v2
+skeleton (58c0a78), SSO composer packages (3b3d09c).
+Tasks in flight (3 agents, shared tree, nothing committed by them):
+- SSO skeleton (migrations, models, enums, interfaces + stubs, routes, config, Keycloak compose, CI)
+  — DB form_schema_test_c.
+- BA Builder v2 server (CanvasBuilder, NodeMapper, SyncDraft, inspector, actions) — DB _b.
+- BB Builder v2 client (resources/builder-v2 store/canvas/keyboard/sync, Blade, lang builder_v2).
 Last commit: see `git log -1`
 
 ## Next actions
-1. Design results → write ADR 0036 (SSO) and 0037 (Builder v2); install packages; create the shared
-   skeleton (migrations/models/interfaces, routes, config) the designs ask for.
-2. Dispatch implementation agents with disjoint ownership (SSO backend, SSO UI/Field App/Keycloak,
-   Builder v2 server, Builder v2 client); E2E journeys; reviews; gate M7.
+1. SSO skeleton → review, commit; dispatch SSO A (core), B (admin UI), C (Field App, Keycloak, E2E)
+   per docs/agent/milestones/M7.md.
+2. BA/BB → review, commit; BB writes Builder v2 E2E after BA; integration; reviews; gate M7.
+3. Known flake: SearchPlanTest (planner) fails sometimes under --parallel; passes alone — check ANALYZE.
 
 ## Known problems
 - Builder v1 page heavy (QUESTIONS #8): E2E waits 30 s for its navigation/publish.
