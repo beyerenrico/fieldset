@@ -13,6 +13,7 @@ Format: question · chosen option · impact · how to reverse.
 5. Filament MFA challenge failures are not audited (Filament fires no event) · accepted for now ·
    failed admin TOTP attempts leave no trace (Fortify ones do) · add a Filament challenge subclass or
    upstream event when available.
+   **Resolved in M8 (ADR 0038):** the admin login writes `auth.mfa_failed` for a wrong code.
 6. Self-service registration default · off (`APP_ALLOW_REGISTRATION=false`) after security review ·
    public hosted instance must enable it · set env to true.
 7. Unconfirmed Fortify 2FA secret is replaced if the user then enrols in Filament · accepted (the
@@ -20,6 +21,7 @@ Format: question · chosen option · impact · how to reverse.
 8. Builder v1 page weight · the Filament Builder renders every block schema (incl. nested block pickers
    and logic editors); the service-report editor HTML is ~4 MB · acceptable for v1, Builder v2 (M7) is
    the planned replacement · if needed earlier: lazy-load block bodies or collapse nested pickers.
+   **Resolved in M8 (ADR 0044):** the canvas builder (138 kB page) is the default; v1 stays reachable.
 9. Devices are user-level, so an admin of org A with `members.manage` who revokes a member's device
    also signs that phone out of org B (M2 security review); since M6 revoking a device also ends all of the user's sessions and the remember-me token (a recaller login is not bound to the device) · accepted: one device = one install of
    the Field App, wipe must clear all local data · an org admin can disrupt a shared user's work in

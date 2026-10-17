@@ -96,3 +96,10 @@
   UX/correctness; all fixed (c1b0c5a, 2a10f1b, 67b582e, c2a00a5).
 - Gate: PHP 4303, coverage 95.10 %, PHPStan 0/0, Rector/Pint clean, JS 608/111/614/243, conformance
   391/392, E2E 34/34 ×2 with Keycloak.
+
+## 2026-10-19 M8 phase 2
+- G3: CSP guard on all journeys (no violations found), 36 axe scans + keyboard walkthroughs (2 fixes,
+  2 accepted exceptions), anonymized PDF 410, canvas builder default (ADR 0044), web push deferred (0045).
+- Orchestrator: dashboard links follow the builder default; 4xx ApiExceptions not reported; dev Postgres
+  max_locks_per_transaction=256 (parallel drop flake). QUESTIONS #5, #8 resolved.
+- Started G6 (perf, Docker-exclusive), G7 (docs 1.0) and the three gate reviews.
