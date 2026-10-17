@@ -77,10 +77,15 @@ it('validates the input and throttles', function (): void {
     $this->postJson('/auth/sso/discover', ['email' => 'not-an-email'])->assertUnprocessable()->assertJsonValidationErrors('email');
     $this->postJson('/auth/sso/discover', ['email' => 'jane@acme.example', 'client' => 'https://evil.example'])->assertJsonValidationErrors('client');
 
-    foreach (range(3, 20) as $_) {
+    // 10 per address and IP (the refused request above already counted for jane)…
+    foreach (range(2, 10) as $_) {
         $this->postJson('/auth/sso/discover', ['email' => 'jane@acme.example'])->assertOk();
     }
     $this->postJson('/auth/sso/discover', ['email' => 'jane@acme.example'])->assertTooManyRequests();
+    // …while colleagues behind the same office IP can still sign in.
+    foreach (range(1, 25) as $n) {
+        $this->postJson('/auth/sso/discover', ['email' => "worker{$n}@acme.example"])->assertOk();
+    }
 });
 
 it('normalizes internationalized domains to punycode', function (): void {

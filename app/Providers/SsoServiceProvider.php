@@ -22,9 +22,13 @@ use App\Domain\Identity\Sso\Health\FetchProviderHealth;
 use App\Domain\Identity\Sso\Health\NotifySsoMisconfiguration;
 use App\Domain\Identity\Sso\Providers\DynamicProviderFactory;
 use App\Policies\InternalRecordPolicy;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 /**
@@ -54,6 +58,13 @@ final class SsoServiceProvider extends ServiceProvider
     public function boot(): void
     {
         self::refuseDevSettingsInProduction();
+
+        // Every email-first login runs discovery, and field crews often share one office IP: limit per
+        // address and IP, with a generous ceiling per IP against enumeration sweeps (M7 E2E finding).
+        RateLimiter::for('sso-discover', fn (Request $request): array => [
+            Limit::perMinute(10)->by('sso-discover:'.Str::lower((string) $request->input('email')).'|'.$request->ip()),
+            Limit::perMinute(300)->by('sso-discover-ip:'.$request->ip()),
+        ]);
 
         // Managed only through the provider's settings (IdentityProviderPolicy); never exposed on their own.
         Gate::policy(IdentityProviderMapping::class, InternalRecordPolicy::class);

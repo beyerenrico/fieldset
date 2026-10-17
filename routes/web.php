@@ -56,7 +56,7 @@ Route::get('admin/{organization}/exports/{export}', ExportDownloadController::cl
 // --- M7 SSO (BUILD_PROMPT §8.7, ADR 0036) ---
 // {provider} is the identity provider's uuid, resolved across organizations (no tenant yet).
 Route::prefix('auth/sso')->name('sso.')->group(function (): void {
-    Route::post('discover', DiscoverController::class)->middleware('throttle:20,1')->name('discover');
+    Route::post('discover', DiscoverController::class)->middleware('throttle:sso-discover')->name('discover');
     Route::get('saml/complete', SamlCompleteController::class)->name('saml.complete');
     Route::get('{provider}/redirect', RedirectController::class)->whereUuid('provider')->middleware('throttle:30,1')->name('redirect');
     Route::get('{provider}/callback', CallbackController::class)->whereUuid('provider')->middleware('throttle:30,1')->name('callback');
