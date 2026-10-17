@@ -131,12 +131,13 @@ class Login extends BaseLogin
         return Form::make([EmbeddedSchema::make('form')])
             ->id('form')
             ->livewireSubmitHandler(fn (): string => $this->step === self::STEP_PASSWORD ? 'authenticate' : 'continueWithEmail')
+            // Closures: the step can change within one request (Continue → password), and the actions follow it.
             ->footer([
-                Actions::make($this->getFormActions())
+                Actions::make(fn (): array => $this->getFormActions())
                     ->alignment($this->getFormActionsAlignment())
                     ->fullWidth($this->hasFullWidthFormActions())
                     ->key('form-actions'),
-                Actions::make($this->getStepLinkActions())->alignment($this->getFormActionsAlignment())->key('step-links'),
+                Actions::make(fn (): array => $this->getStepLinkActions())->alignment($this->getFormActionsAlignment())->key('step-links'),
             ])
             ->visible(fn (): bool => blank($this->userUndertakingMultiFactorAuthentication));
     }

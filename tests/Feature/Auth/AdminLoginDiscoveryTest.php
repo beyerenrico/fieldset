@@ -257,3 +257,17 @@ it('refuses to set a password through an old reset link once SSO is enforced', f
     expect(Hash::check('old-password', $boss->fresh()->password))->toBeTrue()
         ->and(Activity::query()->where('event', 'auth.password_reset_blocked')->sole()->properties['via'])->toBe('admin_reset');
 });
+
+it('offers "Sign in" (not "Continue") once the password step is shown', function (): void {
+    adminLoginFakeDiscovery(null);
+    adminLoginFakeGate(null);
+    app()->setLocale('en');
+
+    Livewire::test(Login::class)
+        ->fillForm(['email' => 'designer@demo.test'])
+        ->call('continueWithEmail')
+        ->assertSet('step', Login::STEP_PASSWORD)
+        ->assertSee(__('filament-panels::auth/pages/login.form.actions.authenticate.label'))
+        ->assertDontSee(__('sso_admin.login.continue'))
+        ->assertDontSee(__('sso_admin.login.use_password'));
+});
