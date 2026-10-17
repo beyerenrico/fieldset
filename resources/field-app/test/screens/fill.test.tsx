@@ -130,7 +130,10 @@ describe('fill screen', () => {
         await waitFor(() => {
             expect(screen.getByTestId('renderer-data')).toHaveTextContent('{"customer":"Server"}');
         });
-        expect(saveState()).toHaveTextContent('Saved on this device');
+        // The save state follows the stored row (live query), a moment after the editor's data.
+        await waitFor(() => {
+            expect(saveState()).toHaveTextContent('Saved on this device');
+        });
         expect(await db.drafts.get(UUID)).toMatchObject({ sync: 'synced', serverRevision: 4 });
         await vi.advanceTimersByTimeAsync(2000);
         expect(backend.state.puts).toHaveLength(1);

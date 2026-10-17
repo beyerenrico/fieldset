@@ -158,8 +158,11 @@ describe('send to customer', () => {
         );
         expect(outcome.parentElement).toHaveAttribute('role', 'status');
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-        // The page was inert while the dialog was open: focus carries the outcome to AT.
-        expect(container).not.toHaveAttribute('inert');
+        // The page was inert while the dialog was open: focus carries the outcome to AT. The dialog's
+        // cleanup (a passive effect) lifts inert right after it unmounts.
+        await vi.waitFor(() => {
+            expect(container).not.toHaveAttribute('inert');
+        });
         expect(outcome).toHaveAttribute('tabindex', '-1');
         await vi.waitFor(() => {
             expect(outcome).toHaveFocus();
@@ -292,7 +295,9 @@ describe('send to customer', () => {
         });
         const queued = screen.getByText(/Sending to erika@example.test is queued/);
         expect(queued.closest('[role="status"]')).not.toBeNull();
-        expect(queued).toHaveFocus();
+        await vi.waitFor(() => {
+            expect(queued).toHaveFocus();
+        });
         window.dispatchEvent(new Event('online'));
         await screen.findByText(/Will be sent to erika@example.test/);
         expect(screen.queryByText(/is queued/)).not.toBeInTheDocument();

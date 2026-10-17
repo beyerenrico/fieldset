@@ -142,14 +142,21 @@ describe('backoff', () => {
             expect(await db.outbox.get(SAVE_ID)).toMatchObject({ attempts: 1 });
         });
         const op = await db.outbox.get(SAVE_ID);
-        expect((op?.nextAttemptAt ?? 0) - Date.now()).toBeGreaterThan(29_000);
+        const due = op?.nextAttemptAt ?? 0;
+        expect(due - Date.now()).toBeGreaterThan(29_000);
 
-        await vi.advanceTimersByTimeAsync(29_000);
+        // shouldAdvanceTime lets the clock also move with real time (slow under load): stop short of the
+        // due time with headroom instead of advancing a fixed 29 s.
+        await vi.advanceTimersByTimeAsync(Math.max(0, due - Date.now() - 3000));
         expect(calls).toBe(1);
-        await vi.advanceTimersByTimeAsync(1500);
-        await vi.waitFor(async () => {
-            expect(await db.outbox.count()).toBe(0);
-        });
+        await vi.advanceTimersByTimeAsync(4500);
+        // The woken run is real work (Dexie + fetch); give it more than waitFor's default second.
+        await vi.waitFor(
+            async () => {
+                expect(await db.outbox.count()).toBe(0);
+            },
+            { timeout: 5000 },
+        );
         expect(calls).toBe(2);
         stop();
     });
