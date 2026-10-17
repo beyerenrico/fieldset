@@ -5,6 +5,8 @@ declare(strict_types=1);
 use App\Domain\Documents\Models\Rendition;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Tenancy\TenantContext;
+use App\Domain\Mail\Actions\RequestCustomerSend;
+use App\Domain\Mail\CustomerSend\CustomerRecipient;
 use App\Domain\Mail\CustomerSend\CustomerSendGate;
 use App\Domain\Mail\Enums\DocumentSendFailure;
 use App\Domain\Mail\Models\DocumentLink;
@@ -17,6 +19,7 @@ use App\Domain\Workflows\Enums\TriggerType;
 use App\Domain\Workflows\Triggers\StartWorkflows;
 use App\Domain\Workflows\Triggers\TriggerEvent;
 use App\Filament\Admin\Resources\Submissions\Pages\ViewSubmission;
+use App\Http\Api\ApiException;
 use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -94,8 +97,9 @@ it('fails a request that was still waiting when the submission was anonymized, w
 
     $submission = anonymizedSendAnonymize($this);
 
-    expect($refusal($this->s->owner, $submission))->toBe(DocumentSendFailure::NotAllowed)
-        ->and($refusal(null, $submission))->toBe(DocumentSendFailure::NotAllowed);
+    expect($refusal($this->s->owner, $submission))->toBe(DocumentSendFailure::DocumentAnonymized)
+        ->and($refusal(null, $submission))->toBe(DocumentSendFailure::DocumentAnonymized)
+        ->and(DocumentSendFailure::DocumentAnonymized->label())->toContain('anonymized');
 });
 
 it('fails a workflow email with the document (attachment or link) with the anonymization reason', function (string $mode): void {
@@ -122,4 +126,13 @@ it('still sends a workflow email without the document for an anonymized submissi
 
     expect(W::runs($this->s->org)->sole()->status)->toBe(RunStatus::Completed)
         ->and(anonymizedSendCounts($this)['mails'])->toBe(1);
+});
+
+it('refuses a direct send request for an anonymized submission even without the gate', function (): void {
+    $submission = anonymizedSendAnonymize($this);
+
+    expect(fn () => $this->tenant->run($this->s->org, fn () => app(RequestCustomerSend::class)
+        ->handle($this->s->owner, $submission, new CustomerRecipient('kunde@example.com', 'Kunde'))))
+        ->toThrow(fn (ApiException $e) => expect([$e->errorCode, $e->status])->toBe(['document_anonymized', 410]));
+    expect($this->tenant->run($this->s->org, fn (): int => DocumentSend::query()->where('submission_uuid', $submission->uuid)->count()))->toBe(0);
 });

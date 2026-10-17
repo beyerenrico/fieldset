@@ -128,3 +128,17 @@ Caddy adds `nosniff` to static files.
 | V14.5.3 Strict CORS allow-list | done | `*` only for public preview build assets, no credentials |
 | V14.5.x / V5.1 Host header | done | TrustHosts with the APP_URL host, loopback and TRUSTED_HOSTS outside local/testing |
 | V1.14.6 / V14.2.x No new dependencies | done | Sentry reporting and ClamAV client without packages |
+
+## Amendment 2026-10-19: M8 gate review (ASVS L2)
+- **Log messages:** the top-level `message` of a reported exception is the same safe text as
+  `context.exception.message` (`ExceptionMessage::safe`); any other message is scrubbed (`ExceptionMessage::text`:
+  error-text scrub plus query-string stripping). Postgres DETAIL lines, URL tokens and database names no longer
+  reach the JSON log.
+- **Admin session timeouts (V3.3.2):** `AdminSessionTimeout` ends an admin session after
+  `SECURITY_ADMIN_IDLE_MINUTES` (30) without an admin request or `SECURITY_ADMIN_ABSOLUTE_HOURS` (12) after the
+  first admin request following a sign-in. It runs as persistent panel middleware (Livewire updates count) and on
+  the admin download routes. On timeout: logout (the remember-me token is cycled), session invalidated,
+  translated notice on `/admin/login`. The Field App and the API do not pass through it, but the browser session
+  is shared, so a timeout signs the whole browser out.
+- **Trusted proxies:** compose.yaml publishes the app on 127.0.0.1 only; the production template trusts
+  `172.16.0.0/12` (the Docker bridge a host proxy arrives from) instead of `10.0.0.0/8`.

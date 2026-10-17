@@ -148,7 +148,11 @@ it('runs only on authenticated admin panel routes', function (): void {
 
     expect($with)->not->toBeEmpty()
         ->and($with->every(fn ($route): bool => $route->uri() === 'admin' || str_starts_with($route->uri(), 'admin/')))->toBeTrue()
-        ->and($with->contains(fn ($route): bool => in_array($route->getName(), ['filament.admin.auth.login', 'filament.admin.auth.password-reset.request'], true)))->toBeFalse();
+        ->and($with->contains(fn ($route): bool => in_array($route->getName(), ['filament.admin.auth.login', 'filament.admin.auth.password-reset.request'], true)))->toBeFalse()
+        // The admin download routes outside the panel count too.
+        ->and($with->map(fn ($route): ?string => $route->getName())->intersect([
+            'admin.attachments.show', 'admin.renditions.download', 'admin.exports.download', 'privacy.exports.download',
+        ])->count())->toBe(4);
     $fieldApp = $routes->filter(fn ($route): bool => preg_match('#^(app|auth|api)(/|$)#', $route->uri()) === 1);
     expect($fieldApp)->not->toBeEmpty()
         ->and($fieldApp->contains(fn ($route): bool => in_array(AdminSessionTimeout::class, $route->gatherMiddleware(), true)))->toBeFalse();

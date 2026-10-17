@@ -63,7 +63,7 @@ final class CustomerSendGate
             return DocumentSendFailure::SubmissionVoid;
         }
         if ($submission->isAnonymized()) {
-            return DocumentSendFailure::NotAllowed;
+            return DocumentSendFailure::DocumentAnonymized;
         }
         $allowed = $requester instanceof User
             ? self::refusal($requester, $submission) === null

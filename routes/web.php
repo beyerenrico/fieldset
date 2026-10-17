@@ -15,6 +15,7 @@ use App\Http\Controllers\Sso\RedirectController;
 use App\Http\Controllers\Sso\SamlAcsController;
 use App\Http\Controllers\Sso\SamlCompleteController;
 use App\Http\Controllers\Sso\SamlMetadataController;
+use App\Http\Middleware\Security\AdminSessionTimeout;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Route;
@@ -33,13 +34,13 @@ Route::get('app/{path?}', [SpaController::class, 'app'])->where('path', '.*')->n
 Route::get('form-preview/{path?}', [SpaController::class, 'preview'])->where('path', '.*')->name('form-preview');
 
 // Admin submissions inbox attachments (M3-T09): admin session + expiring signature; the controller authorizes.
-Route::middleware(['auth', 'signed'])->group(function (): void {
+Route::middleware(['auth', AdminSessionTimeout::class, 'signed'])->group(function (): void {
     Route::get('admin/{organization}/attachments/{attachment}', AttachmentDownloadController::class)->name('admin.attachments.show');
 });
 
 // Admin inbox PDF download (M3 review #18): admin session + RenditionPolicy; mints a fresh signed link on click.
 Route::get('admin/{organization}/renditions/{rendition}', RenditionDownloadController::class)
-    ->middleware(['auth', 'throttle:60,1'])->name('admin.renditions.download');
+    ->middleware(['auth', AdminSessionTimeout::class, 'throttle:60,1'])->name('admin.renditions.download');
 
 // Expiring document links from mails (§8.8): random token, 404 unknown, 410 Gone after expiry.
 Route::get('documents/links/{token}', DocumentLinkController::class)
@@ -50,7 +51,7 @@ Route::get('documents/links/{token}', DocumentLinkController::class)
 // --- M5 reports (BUILD_PROMPT §8.4) ---
 // Export downloads: admin session + ReportExportPolicy (requester only); 410 Gone once expired or pruned.
 Route::get('admin/{organization}/exports/{export}', ExportDownloadController::class)
-    ->middleware(['auth', 'throttle:60,1'])->name('admin.exports.download');
+    ->middleware(['auth', AdminSessionTimeout::class, 'throttle:60,1'])->name('admin.exports.download');
 // --- end M5 reports ---
 
 // --- M7 SSO (BUILD_PROMPT §8.7, ADR 0036) ---

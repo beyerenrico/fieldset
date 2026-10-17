@@ -107,6 +107,7 @@ it('serves the file only through the signed link, to the requester, until it exp
     expect(Activity::query()->where('event', 'data_export.downloaded')->count())->toBe(1);
 
     $this->travel(8)->days();
+    $this->flushSession(); // a new sign-in: the old admin session timed out meanwhile (AdminSessionTimeout)
     $fresh = URL::signedRoute('privacy.exports.download', ['organization' => $this->s->org->slug, 'export' => $export->id]);
     $this->actingAs($this->s->owner)->get($fresh)->assertStatus(410)
         ->assertSee(trans_choice('privacy.exports.expired.body', 7, ['days' => 7]))

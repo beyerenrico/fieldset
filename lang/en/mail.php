@@ -55,6 +55,7 @@ return [
             'document_failed' => 'The PDF could not be generated. Re-render it, then send it again.',
             'submission_void' => 'Not sent: the submission was voided.',
             'send_not_allowed' => 'Not sent: sending this document is no longer allowed for the person who requested it.',
+            'document_anonymized' => 'Not sent: the submission was anonymized and its PDF deleted.',
             'delivery_failed' => 'The email could not be queued. Send it again.',
         ],
         'errors' => [

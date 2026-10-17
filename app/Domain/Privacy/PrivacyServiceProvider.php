@@ -7,6 +7,7 @@ namespace App\Domain\Privacy;
 use App\Domain\Privacy\Console\ApplyRetentionCommand;
 use App\Domain\Privacy\Http\DataExportDownloadController;
 use App\Domain\Privacy\Models\DataExport;
+use App\Http\Middleware\Security\AdminSessionTimeout;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Database\Console\PruneCommand;
 use Illuminate\Support\Facades\Route;
@@ -31,7 +32,7 @@ final class PrivacyServiceProvider extends ServiceProvider
         });
 
         if (! $this->app->routesAreCached()) {
-            Route::middleware(['web', 'auth', 'signed', 'throttle:60,1'])
+            Route::middleware(['web', 'auth', AdminSessionTimeout::class, 'signed', 'throttle:60,1'])
                 ->get('admin/{organization}/data-exports/{export}', DataExportDownloadController::class)
                 ->name('privacy.exports.download');
         }

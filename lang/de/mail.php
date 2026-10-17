@@ -55,6 +55,7 @@ return [
             'document_failed' => 'Das PDF konnte nicht erzeugt werden. Erzeugen Sie es neu und senden Sie es dann erneut.',
             'submission_void' => 'Nicht gesendet: Die Einreichung wurde storniert.',
             'send_not_allowed' => 'Nicht gesendet: Die anfragende Person darf dieses Dokument nicht mehr senden.',
+            'document_anonymized' => 'Nicht gesendet: Die Einreichung wurde anonymisiert und ihr PDF gelöscht.',
             'delivery_failed' => 'Die E-Mail konnte nicht eingereiht werden. Senden Sie sie erneut.',
         ],
         'errors' => [

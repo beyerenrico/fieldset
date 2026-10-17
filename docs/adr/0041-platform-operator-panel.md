@@ -132,3 +132,15 @@ Constraints:
 | V8 Data protection | 8.3.x minimal exposure | Partial: operators see organization names, members' names and emails (needed for support); no submission data on `/platform` |
 | V13 API | 13.1.x API protected against session misuse | Done: impersonated sessions get 403 on `/api/v1` |
 | V14 Config | 14.4.x security headers | Inherited from ADR 0040 (panel CSP, HSTS, frame-ancestors) |
+
+## Amendment 2026-10-19: M8 gate review
+- **Revocation ends impersonation:** `EnforceImpersonationWindow` re-checks the operator (`PlatformAdmins::check`,
+  active account) on every request. If the check fails, the impersonation ends with `ended_by=operator_revoked`
+  (logout, session invalidated; the API answers 401 `impersonation_ended`), and the exit never restores a revoked
+  operator.
+- **Signed downloads:** the API block for impersonated sessions exempts `documents.download` when its signature is
+  valid (the admin "Download" redirects there); a tampered signature still gets 403.
+- **Attribution:** every audit entry written during an impersonation carries `properties.impersonator`
+  (id, email), covered by the hash chain (ADR 0038).
+- **Login:** `/platform/login` shares the admin login's SSO enforcement, lockout audit and `auth.mfa_failed` audit
+  (`SecuresPasswordLogin`).
