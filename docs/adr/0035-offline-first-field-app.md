@@ -142,3 +142,35 @@ Versions, checked on the npm registry on 2026-10-17: dexie 4.4.6 (Apache-2.0), v
 - **Offline start.** The last `/me` is kept in meta `session`. A network error, a 502/503/504, or no answer within 8 s starts the app from that cached session. A cached session counts as stale, so it is refetched when the connection returns.
   - Login always fetches `/me` fresh. If that fetch fails, the cached session is dropped, so another user's session can never be opened.
 - **Logout and wipe.** Only `fsa.*` localStorage keys are cleared, because the admin panel shares the origin. `settings` and `pwa.installDismissed` are kept. An offline logout clears everything but does not reload, which would show the browser's offline page.
+
+## Amendment 2026-10-18: M6 gate review fixes
+- **Op ids** include the user: `${kind}:${userId}:${uuid}[:${attachmentUuid}]`.
+  - Before every run and every submission, the engine checks that the in-memory user equals `meta.session.userId`. Otherwise it pauses as `stale` and sends nothing. A tab left open from a lost session therefore never sends under another user's session.
+  - The local transport refuses writes when the session is gone or belongs to someone else.
+- **One editor per draft.** The tab that opens a draft holds the Web Lock `fsa-draft:<uuid>`. Other tabs show the draft read-only. Without Web Locks the behaviour is as before.
+- **Lost answers.** Before each PUT the row records `{revision, localVersion, hash}`. A 409 that matches a recorded save with revision + 1 is adopted, and the current data is sent again.
+  - A lost submit answer is recognised by `client_submitted_at` and `submitted_at`, and the submit is finished instead of offering a duplicate.
+  - Edits written after the draft PUT are sent before the submit. `applySubmitted` marks only the version the submit covered.
+- **Decisions surface.** A background refusal or a blocked upload marks the draft blocked:
+  - 422 `validation_failed` → `submit_refused` (with the pointer errors);
+  - 422 `attachments_missing`, after one automatic re-upload → `attachments_missing`;
+  - a refused upload → `attachment_blocked`.
+
+  The draft's queued submit and send ops become `blocked` with a reason. Lists and the detail screen link to the review screen. A new submit lifts these three codes.
+- **The retired-version pre-block** applies only to drafts. A `changes_requested` resubmission goes to the server, which accepts it.
+- **Send/submit ops** are deleted, blocked or backed off only while the stored idempotency key equals the one sent.
+- **`meta.sync.state`:**
+  - `offline` after a network error, and the header then says "No connection";
+  - `idle` after any server answer;
+  - `error` while a server error is retried.
+- **Session safety:**
+  - A logout that cannot reach the server leaves `fsa.pendingLogout`. Until the server logout succeeds, the app treats itself as signed out and does not call `/me`.
+  - A reauth is remembered in `meta.session.reauth`, so an offline restart does not open the cached session.
+  - Each fresh `/me` purges rows and catalogs of organizations the user lost.
+  - The catalog meta records its user.
+  - Logout and wipe broadcast first, end the session, wait 150 ms for other tabs, and then purge.
+- **Device revoke** also ends all of the user's sessions and the remember-me token. A session re-created from the remember-me cookie is not bound to the device, so the revoked device could not otherwise reach device-status (QUESTIONS #9).
+- **UX:**
+  - The header shows pending work only offline, or after 10 s pending with no sync running. Decisions show at once.
+  - Only one banner shows at a time (reload > update > iOS warning > install), and install banners are hidden while filling.
+  - Restored drafts start as "Saved on this device". "Storage full" is a typed error, announced once.
