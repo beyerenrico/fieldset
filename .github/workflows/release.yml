@@ -1,0 +1,325 @@
+# Release workflow (BUILD_PROMPT_V2 §6.5, E14, E18; plan KTD22, U7; ADR 0060, ADR 0064, ADR 0067).
+#
+# A protected `v*` tag builds the multi-arch app image with SBOM and provenance, pushes it by digest, signs it
+# keylessly (recursive), builds and signs the release manifest and install.sh, scans every manifest image with
+# Trivy, tags the scanned digest, publishes the assets as a draft GitHub Release, pulls every digest without
+# credentials and only then publishes the release. Pre-release tags (-alpha, -beta, -rc) publish only their own
+# image tag and never move X.Y, X or latest. RELEASING.md describes the human steps around it.
+#
+# install.sh and the image verify signatures against this workflow's identity:
+#   https://github.com/beyerenrico/form-schema-app/.github/workflows/release.yml@refs/tags/v<semver>
+#   issuer https://token.actions.githubusercontent.com
+# Renaming this file, the repository or the owner changes that identity and needs a new install.sh and image.
+
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions: {}
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  PHP_VERSION: '8.4'
+  IMAGE: ghcr.io/beyerenrico/form-schema-app
+  COSIGN_RELEASE: v3.1.3
+  CERTIFICATE_ISSUER: https://token.actions.githubusercontent.com
+  CERTIFICATE_IDENTITY_REGEXP: '^https://github\.com/beyerenrico/form-schema-app/\.github/workflows/release\.yml@refs/tags/v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(alpha|beta|rc)(\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?$'
+  TRIVY_IMAGE: docker.io/aquasec/trivy:0.76.0@sha256:2416d1f74045b57274df1a340eee6b510cacd73c66a6ccb8da092b117eb7d222
+
+jobs:
+  prepare:
+    name: Validate the tag
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+      image_tags: ${{ steps.version.outputs.image_tags }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Read the version, channel and image tags
+        id: version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          json="$(php artisan release:version "$TAG")"
+          echo "$json"
+          {
+            echo "version=$(jq -r .version <<< "$json")"
+            echo "prerelease=$(jq -r .prerelease <<< "$json")"
+            echo "image_tags=$(jq -r '.image_tags | join(" ")' <<< "$json")"
+          } >> "$GITHUB_OUTPUT"
+
+  image:
+    name: Build, push and sign the app image
+    needs: prepare
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+        with:
+          platforms: arm64
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # Pushed by digest only: tags are added after the Trivy scan (job "tag"). No build cache, so a release never
+      # reuses layers another workflow wrote.
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        id: build
+        with:
+          context: .
+          file: docker/app/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          sbom: true
+          provenance: mode=max
+          no-cache: true
+          build-args: |
+            APP_VERSION=${{ needs.prepare.outputs.version }}
+            APP_REVISION=${{ github.sha }}
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        with:
+          cosign-release: ${{ env.COSIGN_RELEASE }}
+      - name: Sign the index and every manifest in it (keyless)
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: cosign sign --yes --recursive "${IMAGE}@${DIGEST}"
+      - name: Verify the signature against the identity install.sh expects
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          cosign verify "${IMAGE}@${DIGEST}" \
+            --certificate-identity-regexp "$CERTIFICATE_IDENTITY_REGEXP" \
+            --certificate-oidc-issuer "$CERTIFICATE_ISSUER" \
+            --certificate-github-workflow-trigger push > /dev/null
+
+  manifest:
+    name: Build and sign the release manifest
+    needs: [prepare, image]
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: read
+      packages: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Check that install.sh and the shim exist
+        run: |
+          for file in distribution/install.sh distribution/shim.sh; do
+            [ -f "$file" ] || { echo "::error file=$file::$file is missing; a release ships it"; exit 1; }
+          done
+      - name: Generate the manifest (every image by digest, asset checksums)
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+          DIGEST: ${{ needs.image.outputs.digest }}
+          RELEASE_REGISTRY_USERNAME: ${{ github.actor }}
+          RELEASE_REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p dist
+          assets=(distribution/install.sh distribution/shim.sh)
+          for optional in distribution/stack/compose.stack.yaml docs/guide/agent-guide.md; do
+            if [ -f "$optional" ]; then assets+=("$optional"); fi
+          done
+          php artisan release:manifest "$VERSION" --app-digest="$DIGEST" \
+            "${assets[@]/#/--asset=}" --output=dist/release-manifest.json
+          cp "${assets[@]}" distribution/manifest.schema.json dist/
+          cat dist/release-manifest.json
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        with:
+          cosign-release: ${{ env.COSIGN_RELEASE }}
+      - name: Sign the manifest and install.sh (keyless bundles)
+        run: |
+          for file in dist/release-manifest.json dist/install.sh; do
+            cosign sign-blob --yes --bundle "${file}.sigstore.json" "$file"
+            cosign verify-blob "$file" --bundle "${file}.sigstore.json" \
+              --certificate-identity-regexp "$CERTIFICATE_IDENTITY_REGEXP" \
+              --certificate-oidc-issuer "$CERTIFICATE_ISSUER"
+          done
+      - name: Write SHA256SUMS
+        working-directory: dist
+        run: sha256sum -- * > SHA256SUMS && cat SHA256SUMS
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-assets
+          path: dist/
+          if-no-files-found: error
+
+  scan:
+    name: Trivy scan of every manifest image
+    needs: manifest
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-assets
+          path: dist
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # Fixable critical or high findings fail the release (§10, ADR 0060). Registry credentials come from the
+      # Docker config written by the login above, so the GHCR token never goes to another registry.
+      - name: Scan the app image and every third-party digest on every platform
+        run: |
+          mkdir -p "$RUNNER_TEMP/trivy-cache"
+          status=0
+          while read -r reference platform; do
+            echo "::group::${reference} (${platform})"
+            docker run --rm -v "$HOME/.docker/config.json:/root/.docker/config.json:ro" \
+              -v "$RUNNER_TEMP/trivy-cache:/root/.cache/trivy" "$TRIVY_IMAGE" image \
+              --platform "$platform" --severity CRITICAL,HIGH --ignore-unfixed --exit-code 1 --no-progress \
+              "$reference" || status=1
+            echo "::endgroup::"
+          done < <(jq -r '.platforms[] as $platform | .images[] | "\(.registry)/\(.repository)@\(.digest) \($platform)"' dist/release-manifest.json)
+          exit "$status"
+
+  tag:
+    name: Tag the scanned digest
+    needs: [prepare, image, scan]
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # X.Y.Z, X.Y, X and latest for a stable release; only its own version for a pre-release (release:version).
+      - name: Point the release tags at the signed digest
+        env:
+          DIGEST: ${{ needs.image.outputs.digest }}
+          IMAGE_TAGS: ${{ needs.prepare.outputs.image_tags }}
+        run: |
+          read -r -a tags <<< "$IMAGE_TAGS"
+          for tag in "${tags[@]}"; do
+            docker buildx imagetools create --tag "${IMAGE}:${tag}" "${IMAGE}@${DIGEST}"
+            resolved="$(docker buildx imagetools inspect "${IMAGE}:${tag}" --format '{{json .Manifest}}' | jq -r .digest)"
+            if [ "$resolved" != "$DIGEST" ]; then
+              echo "::error::${IMAGE}:${tag} resolves to ${resolved}, not ${DIGEST}"
+              exit 1
+            fi
+          done
+
+  publish:
+    name: Publish the assets as a draft release
+    needs: [prepare, tag]
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-assets
+          path: dist
+      - name: Create the draft release with every asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          PRERELEASE: ${{ needs.prepare.outputs.prerelease }}
+        run: |
+          flags=(--draft --verify-tag --title "$TAG" --generate-notes)
+          if [ "$PRERELEASE" = "true" ]; then
+            flags+=(--prerelease --latest=false)
+          fi
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" "${flags[@]}" dist/*
+
+  verify-public:
+    name: Pull every published digest anonymously
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions: {}
+    # Fails until a human has made the GHCR package public (RELEASING.md); re-run this job afterwards.
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-assets
+          path: dist
+      - name: Pull each manifest image for each platform without credentials
+        run: |
+          status=0
+          while read -r reference platform; do
+            if ! docker pull --quiet --platform "$platform" "$reference"; then
+              echo "::error::anonymous pull failed: ${reference} (${platform})"
+              status=1
+            fi
+          done < <(jq -r '.platforms[] as $platform | .images[] | "\(.registry)/\(.repository)@\(.digest) \($platform)"' dist/release-manifest.json)
+          exit "$status"
+
+  finalize:
+    name: Publish the release
+    needs: [prepare, verify-public]
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-assets
+          path: dist
+      - name: Take the release out of draft
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          PRERELEASE: ${{ needs.prepare.outputs.prerelease }}
+        run: |
+          if [ "$PRERELEASE" = "true" ]; then
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease --latest=false
+          else
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+          fi
+      - name: Download the published manifest anonymously and compare
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          curl --proto '=https' --tlsv1.2 -fsSL -o published-manifest.json \
+            "https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/release-manifest.json"
+          cmp published-manifest.json dist/release-manifest.json

@@ -112,3 +112,11 @@ Format: question · chosen option · impact · how to reverse.
    host · losing the disk or host loses the backups with the data; losing the identity file or its passphrase
    makes encrypted backups unreadable · document copying backups off-host; build offsite targets (Appendix B) if
    owners do not.
+27. The Trivy gate (plan U7: no fixable critical/high in the app image or any third-party digest) fails today
+   on findings with no fixed upstream release: app image 34 HIGH in the vendored cosign/Compose/age Go binaries,
+   postgres 1 CRITICAL + 24 HIGH (gosu), gotenberg 87 HIGH, caddy 4 HIGH, cloudflared 1 HIGH; valkey and
+   mailpit clean · gate kept as written, no `.trivyignore`; CI `image-scan` stays red and is resolved at the M9
+   gate (rebuild the Go binaries with a current toolchain where the findings are in the Go standard library,
+   pin newer upstream digests where they exist, and document any remaining third-party finding) · a tagged
+   release would stop at the scan job · decide whether third-party image findings without an upstream fix may
+   be accepted with a dated, per-CVE exception list.

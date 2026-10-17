@@ -29,6 +29,9 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 /storage/agent-logs
+/storage/fsa-test-harness
+/storage/fsa-test-cache
+/dist
 /storage/phpstan*
 /storage/coverage
 /storage/playwright

@@ -144,3 +144,12 @@
   1728/1728 MiB worst case, estimates until U15), RuntimeWriter (0755/0644, gate kept on re-render),
   InputGrammar on every state value. Compose file is JSON (no symfony/yaml), all env in 0600 env files.
 - Valkey now password-protected with a labelled volume. 352 instance unit tests, real `compose config` journey.
+
+## 2026-10-18 M9-T05 sign-in links (U6), M9-T06 release pipeline (U7)
+- U6: app:install --owner-link/--password-file/--json, identity:login-link(s) for fsa one-offs, fragment+POST
+  landing, Horizon behind operator + /platform session (ADR 0068). Feature suite 1752/1752. Fixed the nightly
+  audit date-range test (display time zone).
+- U7: release.yml (buildx SBOM/provenance, cosign keyless, Trivy, anonymous pull), release:manifest and
+  release:version, distribution/manifest.schema.json + release.json, harness (registry:3, release server,
+  local cosign key), CI linters + install-journeys job, RELEASING.md, ADR 0067. Harness journey 7/7.
+- Trivy gate red on upstream findings (QUESTIONS 27), decided at the M9 gate.
