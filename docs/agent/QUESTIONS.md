@@ -53,3 +53,7 @@ Format: question · chosen option · impact · how to reverse.
    reactivated before the device connects again (M6, EndUserAccess) · accepted (the safe direction) ·
    the device wipes once, unsynced work on it is lost, the member signs in and registers again · lift
    `wipe_requested_at` on reactivation if admins often deactivate by mistake.
+17. SSO domains reject public suffixes from a curated excerpt (`PublicSuffixes`), not the full Public
+   Suffix List (no PSL package installed) · accepted: the DNS TXT proof is the real control, the suffix
+   check only stops obvious mistakes (e.g. `co.uk`) · an exotic public suffix can be claimed but never
+   verified without control of its DNS · add a maintained PSL package if admins report confusing cases.
