@@ -103,3 +103,9 @@
 - Orchestrator: dashboard links follow the builder default; 4xx ApiExceptions not reported; dev Postgres
   max_locks_per_transaction=256 (parallel drop flake). QUESTIONS #5, #8 resolved.
 - Started G6 (perf, Docker-exclusive), G7 (docs 1.0) and the three gate reviews.
+
+## 2026-10-19 M8 gate reviews + fix batch
+- Reviews: security 2 medium/6 low, correctness 6 medium/6 low, UX 2 high/9 medium/6 low; all fixed by
+  F1 (privacy), F2a (audit), F2b (platform/security) plus orchestrator follow-ups, each with tests.
+- Decisions: chain stays unkeyed (shipped heads = tamper evidence, ADR 0038); admin idle 30 min /
+  absolute 12 h (ADR 0040); app port on loopback, TRUSTED_PROXIES=172.16.0.0/12; users.password_known.
