@@ -50,6 +50,15 @@ it('allows http and private hosts only with sso.allow_insecure_idp', function ()
         ->and(fn () => ssoGuard()->guard(new Uri('ftp://keycloak/'), []))->toThrow(SsrfBlockedException::class);
 });
 
+it('pins the system resolver\'s answer in insecure mode (libcurl would map *.localhost to loopback itself)', function (): void {
+    config(['sso.allow_insecure_idp' => true]);
+
+    // `localhost` resolves everywhere; inside Docker, keycloak.localhost resolves to the host gateway instead.
+    $options = ssoGuard()->guard(new Uri('http://localhost:8180/realms/x'), []);
+
+    expect($options['curl'][CURLOPT_RESOLVE] ?? null)->toBe(['localhost:8180:127.0.0.1']);
+});
+
 it('guards every request of the client, follows no redirects and uses no proxy', function (): void {
     $seen = [];
     $client = ssoGuard(['ok.example.test' => ['93.184.215.14'], 'bad.example.test' => ['10.0.0.1']])

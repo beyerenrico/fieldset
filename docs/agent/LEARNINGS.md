@@ -62,3 +62,4 @@
 55. `php artisan test --parallel` / pest accept only one path argument; for a subset use `--filter` or a temporary phpunit config.
 56. socialiteproviders/saml2 4.10 does not check the Audience, LightSAML's Recipient check accepts any URL, and replay detection runs before signature validation: AppSaml2Provider adds these checks (ADR 0036 amendment). Never trust a SAML package's defaults without tests for each check.
 57. Vite app builds drop entry exports (`preserveEntrySignatures: false`): an entry loaded by async-alpine `x-load-src` must register its component explicitly (`Alpine.asyncData` + `import()`), see ADR 0037 amendment.
+58. libcurl resolves `localhost` and `*.localhost` to loopback by itself and ignores /etc/hosts (extra_hosts): Guzzle in a container cannot reach `keycloak.localhost` unless the host is pinned with CURLOPT_RESOLVE to the getaddrinfo answer (SsrfGuardedHttpClient does this in insecure mode).

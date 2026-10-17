@@ -73,17 +73,22 @@ final class SsrfGuardedHttpClient
         if ($uri->getUserInfo() !== '') {
             throw SsrfBlockedException::for($host, 'credentials in URL');
         }
+        $literal = filter_var($host, FILTER_VALIDATE_IP) !== false;
+        $port = $uri->getPort() ?? ($scheme === 'http' ? 80 : 443);
         if ($insecure) {
-            return $options;
+            // Dev/CI: any host, but still pinned to the system resolver's (getaddrinfo) answer. libcurl
+            // resolves `*.localhost` to loopback by itself and would ignore a container's extra_hosts entry.
+            $addresses = $literal ? [] : (gethostbynamel($host) ?: []);
+
+            return $addresses === [] ? $options : $this->pin($options, $host, $port, $addresses);
         }
 
-        $literal = filter_var($host, FILTER_VALIDATE_IP) !== false;
         $addresses = $literal ? [$host] : $this->resolver->resolve($host);
         if (! PublicAddress::allPublic($addresses)) {
             throw SsrfBlockedException::for($host, 'not a public address');
         }
 
-        return $literal ? $options : $this->pin($options, $host, $uri->getPort() ?? 443, $addresses);
+        return $literal ? $options : $this->pin($options, $host, $port, $addresses);
     }
 
     /**
