@@ -23,6 +23,7 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -59,7 +60,8 @@ class FormResource extends Resource
             ->columns([
                 TextColumn::make('name')->label(__('forms.form.name'))->searchable()->sortable(),
                 TextColumn::make('key')->label(__('forms.form.key'))->searchable()->toggleable()->fontFamily('mono'),
-                TextColumn::make('category')->label(__('forms.form.category'))->toggleable(),
+                // A placeholder: an empty cell would render an empty row link (axe link-name, M8-T04).
+                TextColumn::make('category')->label(__('forms.form.category'))->toggleable()->placeholder('—'),
                 TextColumn::make('status')->label(__('forms.form.status'))->badge()
                     ->formatStateUsing(fn (FormStatus $state): string => $state->label())
                     ->color(fn (FormStatus $state): string => match ($state) {
@@ -73,12 +75,34 @@ class FormResource extends Resource
                     ->options(collect(FormStatus::cases())->mapWithKeys(fn (FormStatus $s): array => [$s->value => $s->label()])->all()),
             ])
             ->recordActions([
-                EditAction::make()->label(__('forms.builder.title')),
+                // Row click and "Builder" open the default builder (ADR 0044); ListForms adds "Classic builder".
+                EditAction::make()->label(__('forms.builder.title'))->url(fn (Form $record): string => self::builderUrl($record)),
                 self::duplicateAction(),
                 self::exportAction(),
                 self::exploreAction(),
                 self::archiveAction(),
             ]);
+    }
+
+    /**
+     * The default edit target (ADR 0044): the canvas builder (v2). A PDF import draft opens in the classic
+     * builder while its import report is shown, because only the classic builder shows the report and the
+     * low-confidence markers.
+     */
+    public static function builderUrl(Form $record): string
+    {
+        return self::builderUrlFor($record, $record->import_report !== null);
+    }
+
+    /** builderUrl() for rows that carry only the id and whether an import report is open (dashboard widgets). */
+    public static function builderUrlFor(Form|int $record, bool $hasImportReport): string
+    {
+        return self::getUrl($hasImportReport ? 'edit' : 'canvas', ['record' => $record]);
+    }
+
+    public static function getGlobalSearchResultUrl(Model $record): ?string
+    {
+        return $record instanceof Form && self::canEdit($record) ? self::builderUrl($record) : null;
     }
 
     private static function duplicateAction(): Action
