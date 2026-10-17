@@ -16,7 +16,7 @@ use App\Domain\Instance\State\InstanceState;
 final readonly class ComposeProject
 {
     /** Compose's project-name grammar. */
-    public const string NAME_PATTERN = '/^[a-z0-9][a-z0-9_-]*$/';
+    public const string NAME_PATTERN = '/^[a-z0-9][a-z0-9_-]*$/D';
 
     public function __construct(
         public string $name,

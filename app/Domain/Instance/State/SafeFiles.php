@@ -40,11 +40,12 @@ final readonly class SafeFiles
         return $absolute;
     }
 
+    /** Missing parents are created 0700; an existing parent keeps its mode (runtime/ is 0755, KTD11). */
     public function write(string $relative, string $contents, int $mode = 0600): void
     {
         $absolute = $this->resolve($relative);
         if (str_contains($relative, '/')) {
-            $this->ensureDirectory(dirname($relative));
+            $this->ensureParents(dirname($relative));
         }
         self::writeAtomically($absolute, $contents, $mode);
     }
@@ -163,6 +164,16 @@ final readonly class SafeFiles
             if (file_exists($temporary)) {
                 @unlink($temporary);
             }
+        }
+    }
+
+    /** Like ensureDirectory(), without touching the mode of directories that exist (symlinks still refused). */
+    private function ensureParents(string $relative): void
+    {
+        $path = $this->root;
+        foreach (explode('/', $relative) as $segment) {
+            $path .= '/'.$segment;
+            $this->createDirectory($path, 0700);
         }
     }
 

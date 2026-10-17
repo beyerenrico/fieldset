@@ -16,9 +16,9 @@ use SensitiveParameter;
  */
 final readonly class EnvFiles
 {
-    private const string SERVICE = '/^[a-z0-9][a-z0-9_-]{0,62}$/';
+    private const string SERVICE = '/^[a-z0-9][a-z0-9_-]{0,62}$/D';
 
-    private const string KEY = '/^[A-Z_][A-Z0-9_]*$/';
+    private const string KEY = '/^[A-Z_][A-Z0-9_]*$/D';
 
     /** Keys whose values are secrets; the console base scrubs these values from every output (R50). */
     private const string SECRET_KEY = '/(PASSWORD|PASSPHRASE|SECRET|TOKEN|KEY|AUTH)/';

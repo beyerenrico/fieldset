@@ -219,7 +219,7 @@ return [
             'connection' => 'redis',
             'queue' => [env('REPORTS_EXPORT_QUEUE', 'exports')],
             'balance' => 'simple',
-            'maxProcesses' => 1,
+            'maxProcesses' => (int) env('HORIZON_EXPORTS_PROCESSES', 1),
             'maxTime' => 0,
             'maxJobs' => 0,
             'memory' => 256,
@@ -230,9 +230,11 @@ return [
     ],
 
     'environments' => [
+        // Worker counts come from env so `fsa` can size them to the instance's memory budget (E16, plan U3:
+        // ResourceBudget sets HORIZON_MAX_PROCESSES); without the variable the defaults below apply.
         'production' => [
             'supervisor-1' => [
-                'maxProcesses' => 10,
+                'maxProcesses' => (int) env('HORIZON_MAX_PROCESSES', 10),
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
             ],
@@ -240,7 +242,7 @@ return [
 
         'local' => [
             'supervisor-1' => [
-                'maxProcesses' => 3,
+                'maxProcesses' => (int) env('HORIZON_MAX_PROCESSES', 3),
             ],
         ],
     ],

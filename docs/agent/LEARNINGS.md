@@ -85,3 +85,6 @@
 78. Pest 5 arch: a subject array with several namespaces, or `->ignoring()` (which filters dependencies, not subjects), lets violations through. One rule per namespace; prove each rule by planting a violation once.
 79. Compose `env_file` quoting: single quotes are literal; double quotes interpolate `${}` and need `\\ \" \$` escapes. `COMPOSE_DISABLE_ENV_FILE=1` ignores the project `.env` but keeps `env_file`. `docker compose config` output contains env-file secrets: never put it into command output.
 80. Symfony Process: a missing binary may fork and exit 127 instead of throwing (check with `ExecutableFinder` first); a killed child makes `run()` throw `ProcessSignaledException`. `CommandStarting` is not dispatched under `runningUnitTests()`, and `Illuminate\Console\Command` already defines `context()`.
+81. A PCRE `$` also matches before a trailing newline, so `"host\n"` passes `/^[a-z.]+$/`: use the `D` modifier or `\z` for every input-grammar regex.
+82. valkey-cli 8.1 reads `REDISCLI_AUTH` (not `VALKEYCLI_AUTH`) and exits 0 on NOAUTH, so a healthcheck must grep for PONG. `docker compose config` prints `$` as `$$`, but containers get the literal value.
+83. Postgres healthchecks should use `pg_isready -h 127.0.0.1` (TCP): over the socket, the temporary server of the first-start initialisation reports ready too early.

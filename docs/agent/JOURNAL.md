@@ -138,3 +138,9 @@
   with marker and safe writes, per-service EnvFiles, InstanceLock (holder container ID + start time), journal,
   Supervisor, CommandResult/ExitCode (+1 internal error, ADR 0066), FsaCommand base with secret-flag guard.
 - 224 tests, coverage 97.6 % for the namespace, PHPStan 0, Rector 0. tests/Arch added to the Unit suite.
+
+## 2026-10-18 M9-T04 compose renderer (U3)
+- ComposeRenderer (per-service definitions; edge/tunnel/backup/proxy extension points), ResourceBudget (small
+  1728/1728 MiB worst case, estimates until U15), RuntimeWriter (0755/0644, gate kept on re-render),
+  InputGrammar on every state value. Compose file is JSON (no symfony/yaml), all env in 0600 env files.
+- Valkey now password-protected with a labelled volume. 352 instance unit tests, real `compose config` journey.

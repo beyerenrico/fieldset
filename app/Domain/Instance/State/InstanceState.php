@@ -6,6 +6,7 @@ namespace App\Domain\Instance\State;
 
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Output\ExitCode;
+use App\Domain\Instance\Output\InvalidInput;
 use Carbon\CarbonImmutable;
 
 /**
@@ -19,13 +20,9 @@ final readonly class InstanceState
 
     public const array MODES = ['local', 'domain', 'proxy'];
 
-    private const string UUID = '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/';
+    private const string UUID = '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/D';
 
-    private const string SLUG = '/^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$/';
-
-    private const string DIGEST_REF = '/^[^\s@]+@sha256:[0-9a-f]{64}$/';
-
-    private const string RECIPIENT = '/^age1[0-9a-z]{20,}$/';
+    private const string RECIPIENT = '/^age1[0-9a-z]{20,}$/D';
 
     private const string SECRET_KEY = '/(password|passphrase|secret|token|app_key|private_key)/i';
 
@@ -70,7 +67,7 @@ final readonly class InstanceState
         $version = SchemaVersion::parse($document['schema_version'] ?? null, 'instance state');
         $version->assertReadableBy(SchemaVersion::of(self::SCHEMA_VERSION), 'instance state');
         StateValidator::validate($document, [
-            'uuid' => self::UUID, 'slug' => self::SLUG, 'digest' => self::DIGEST_REF, 'recipient' => self::RECIPIENT,
+            'uuid' => self::UUID, 'slug' => InputGrammar::SLUG, 'digest' => InputGrammar::IMAGE_REFERENCE, 'recipient' => self::RECIPIENT,
         ]);
 
         return new self($document);
@@ -194,8 +191,13 @@ final readonly class InstanceState
         return $this->with('mode', $mode);
     }
 
+    /** The instance URL; it must pass the renderer grammar (http(s), no credentials, no query, exit 2 otherwise). */
     public function withUrl(?string $url): self
     {
+        if ($url !== null && ! InputGrammar::isUrl($url)) {
+            throw new InvalidInput('The instance URL must be an http(s) URL without credentials, query or unsafe characters.', 'invalid_url');
+        }
+
         return $this->with('url', $url);
     }
 
@@ -226,15 +228,36 @@ final readonly class InstanceState
         return $this->with('recipients', array_values(array_unique($recipients)));
     }
 
-    /** A non-secret setting (port, domain, locale …). Secret-looking keys are refused: they belong in env files. */
+    /**
+     * A non-secret setting (port, domain, locale …). Secret-looking keys are refused: they belong in env files.
+     * The value must pass the renderer grammar (InputGrammar), else exit 2.
+     */
     public function withSetting(string $key, string|int|bool|null $value): self
     {
-        if (preg_match(self::SECRET_KEY, $key) === 1) {
-            throw new InstanceException("The setting [{$key}] looks like a secret; secrets live only in the service env files.", ExitCode::InvalidInput, 'secret_in_state');
+        return $this->withSettings([$key => $value]);
+    }
+
+    /**
+     * Several settings at once, e.g. the portable settings of a backup (`--from-backup`) or the allow-listed
+     * values of an adopted 1.0 `.env`: each passes the same checks as a single flag, before anything changes.
+     *
+     * @param  array<array-key, mixed>  $values
+     */
+    public function withSettings(array $values): self
+    {
+        foreach ($values as $key => $value) {
+            $key = (string) $key;
+            if (preg_match(self::SECRET_KEY, $key) === 1) {
+                throw new InstanceException("The setting [{$key}] looks like a secret; secrets live only in the service env files.", ExitCode::InvalidInput, 'secret_in_state');
+            }
+            $problem = InputGrammar::settingProblem($key, $value);
+            if ($problem !== null) {
+                throw new InvalidInput("Invalid setting: {$problem}.", 'invalid_setting');
+            }
         }
         $settings = is_array($this->document['settings'] ?? null) ? $this->document['settings'] : [];
 
-        return $this->with('settings', [...$settings, $key => $value]);
+        return $this->with('settings', [...$settings, ...$values]);
     }
 
     /** @param  array<string, string|int|bool|null>  $data */

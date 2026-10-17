@@ -8,7 +8,8 @@ use App\Domain\Instance\Docker\ComposeProject;
 
 /**
  * Type and grammar checks of the keys InstanceState knows. Unknown keys are not checked: they belong to a newer
- * minor version and are carried through unchanged. Renderer-input grammar for mode settings is added by U3.
+ * minor version and are carried through unchanged. Every value a renderer reads (URL, digests, settings) must
+ * pass InputGrammar here too, so a hand-edited or hostile state file fails before anything is rendered (U3).
  */
 final class StateValidator
 {
@@ -31,8 +32,7 @@ final class StateValidator
         self::digests($document['digests'] ?? null, $patterns['digest'], 'digests');
         self::previous($document['previous'] ?? null, $patterns['digest']);
         self::list($document['recipients'] ?? [], $patterns['recipient'], 'recipients');
-        $settings = $document['settings'] ?? [];
-        self::check(is_array($settings) && ($settings === [] || ! array_is_list($settings)), 'settings must be an object');
+        self::settings($document['settings'] ?? []);
         $history = $document['history'] ?? [];
         self::check(is_array($history) && array_is_list($history), 'history must be a list');
     }
@@ -47,18 +47,20 @@ final class StateValidator
         }
     }
 
-    /** http(s) URL without userinfo (U3 adds the full renderer grammar). */
+    /** http(s) URL without userinfo, query or unsafe characters (InputGrammar). */
     private static function url(mixed $url): void
     {
-        if ($url === null) {
-            return;
+        self::check($url === null || InputGrammar::isUrl($url), 'url must be an http(s) URL without credentials');
+    }
+
+    private static function settings(mixed $settings): void
+    {
+        self::check(is_array($settings) && ($settings === [] || ! array_is_list($settings)), 'settings must be an object');
+        foreach ($settings as $key => $value) {
+            $problem = InputGrammar::settingProblem((string) $key, $value);
+            $label = preg_match('/^[a-z][a-z0-9_]{0,62}$/D', (string) $key) === 1 ? $key : '(invalid name)';
+            self::check($problem === null, "settings.{$label} is invalid: {$problem}");
         }
-        $parts = is_string($url) ? parse_url($url) : false;
-        self::check(
-            is_array($parts) && in_array($parts['scheme'] ?? '', ['http', 'https'], true) && isset($parts['host'])
-                && ! isset($parts['user']) && ! isset($parts['pass']) && preg_match('/[\s"\'$`\\\\]/', (string) $url) !== 1,
-            'url must be an http(s) URL without credentials',
-        );
     }
 
     private static function digests(mixed $digests, string $pattern, string $label): void
@@ -67,7 +69,7 @@ final class StateValidator
             self::fail("{$label} must be an object");
         }
         foreach ($digests as $role => $reference) {
-            self::check(preg_match('/^[a-z0-9][a-z0-9_-]*$/', (string) $role) === 1, "{$label} has an invalid role");
+            self::check(preg_match('/^[a-z0-9][a-z0-9_-]*$/D', (string) $role) === 1, "{$label} has an invalid role");
             self::pattern($reference, $pattern, "{$label}.{$role}");
         }
     }

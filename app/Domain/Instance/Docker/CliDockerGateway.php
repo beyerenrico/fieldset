@@ -26,9 +26,9 @@ final readonly class CliDockerGateway implements DockerGateway
         'Cannot connect to the Docker daemon', 'error during connect', 'permission denied while trying to connect',
     ];
 
-    private const string NAME = '/^[A-Za-z0-9][A-Za-z0-9_.-]*$/';
+    private const string NAME = '/^[A-Za-z0-9][A-Za-z0-9_.-]*$/D';
 
-    private const string ENV_NAME = '/^[A-Za-z_][A-Za-z0-9_]*$/';
+    private const string ENV_NAME = '/^[A-Za-z_][A-Za-z0-9_]*$/D';
 
     private const float QUERY_TIMEOUT = 120.0;
 
