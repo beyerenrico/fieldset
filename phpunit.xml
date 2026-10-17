@@ -3,6 +3,7 @@
          xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
          bootstrap="vendor/autoload.php"
          colors="true"
+         defaultTestSuite="Unit,Feature"
 >
     <testsuites>
         <testsuite name="Unit">
@@ -11,6 +12,11 @@
         </testsuite>
         <testsuite name="Feature">
             <directory>tests/Feature</directory>
+        </testsuite>
+        <!-- Install journeys (KTD23): real Docker, fsa-test-* resources, minutes per file. Not part of the
+             default run or coverage; select the suite by name (AGENTS.md, key commands). -->
+        <testsuite name="Install">
+            <directory>tests/Install</directory>
         </testsuite>
     </testsuites>
     <source>

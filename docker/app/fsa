@@ -1,0 +1,9 @@
+#!/bin/sh
+# fsa <command> [args…] runs `php artisan fsa:<command>`; without a command it lists them (KTD1, ADR 0065).
+set -e
+case "${1:-}" in
+"" | -*) exec php /var/www/html/artisan list fsa "$@" ;;
+esac
+command="$1"
+shift
+exec php /var/www/html/artisan "fsa:$command" "$@"

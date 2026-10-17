@@ -2,6 +2,8 @@
 	frankenphp
 	auto_https off
 	admin off
+	# Nothing to persist: the config comes from this file on every start (R6, ADR 0065).
+	persist_config off
 }
 
 {$SERVER_NAME::8080} {

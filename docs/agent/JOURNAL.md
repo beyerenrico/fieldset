@@ -124,3 +124,11 @@
   PHPStan 0/0, Rector/Pint clean, JS 611/111/623/246, conformance 391/392, licenses/audits clean,
   E2E 75/75 ×2. Release date aligned to 2026-10-23 (ADRs 0038 amendment, 0046 precede it).
 - FINAL_REPORT.md written; STATE "Run complete"; tag v1.0.0.
+
+## 2026-10-17 v2 bootstrap, M9-T01, M9-T02
+- Bootstrap: BUILD_PROMPT_V2 + plan committed (cb4a292), AGENTS.md points at both, M9–M13 in PLAN.md.
+- ADRs 0047–0064 for E1–E18 (versions checked today); QUESTIONS 22–26. Binary sizes are ~2× the plan's estimate.
+- U1 image: allow-list .dockerignore, toolchain purge + flattened base, per-arch pinned binaries (Docker CLI
+  29.9.1, Compose 5.6.0, PGDG client 16.15, age 1.3.2 + batchpass, cosign 3.1.3), ops/backup roles skip optimize.
+  Size 2.12 GB → 648 MB (arm64 native, amd64 emulated), cosign kept (ADR 0065). Install suite added,
+  excluded by `defaultTestSuite`. Image contract journey 6/6 on both archs.
