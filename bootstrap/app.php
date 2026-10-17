@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Platform\Http\EnforceImpersonationWindow;
+use App\Http\Api\ApiException;
 use App\Http\Api\ApiExceptionRenderer;
 use App\Http\Api\V1\Middleware\ResolveOrganization;
 use App\Http\Middleware\AssignRequestId;
@@ -48,6 +49,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request): bool => $request->is('api/*') || $request->expectsJson(),
         );
+        // Domain 4xx answers (validation, conflicts, not found) are client errors, not incidents.
+        $exceptions->dontReportWhen(fn (Throwable $e): bool => $e instanceof ApiException && $e->status < 500);
         $exceptions->render(fn (Throwable $e, Request $request) => $request->is('api/*')
             ? app(ApiExceptionRenderer::class)->render($e, $request)
             : null);

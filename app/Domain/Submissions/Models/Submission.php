@@ -41,6 +41,7 @@ use stdClass;
  * @property Carbon|null $client_submitted_at device time of the latest submit (informational, M6)
  * @property stdClass|null $device
  * @property stdClass|null $geo
+ * @property Carbon|null $anonymized_at set once by AnonymizeSubmission (ADR 0039); the PDF files are gone
  * @property Carbon $created_at
  * @property Carbon $updated_at
  * @property-read Form $form
@@ -76,7 +77,14 @@ class Submission extends Model
             'revision' => 'integer',
             'submitted_at' => 'datetime',
             'client_submitted_at' => 'datetime',
+            'anonymized_at' => 'datetime',
         ];
+    }
+
+    /** Anonymized (ADR 0039): personal data and the PDF files were removed; the rendition rows stay as proof. */
+    public function isAnonymized(): bool
+    {
+        return $this->anonymized_at !== null;
     }
 
     /** @return BelongsTo<Form, $this> */

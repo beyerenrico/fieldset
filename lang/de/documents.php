@@ -139,6 +139,7 @@ return [
         'budget_exceeded' => 'Das Dokument ist zu groß für die PDF-Erzeugung (:size MB von erlaubten :limit MB). Bitte weniger oder kleinere Fotos verwenden.',
         'render_failed' => 'Das PDF konnte nicht erzeugt werden. Bitte später erneut versuchen.',
         'not_ready' => 'Das Dokument wurde noch nicht erzeugt.',
+        'anonymized' => 'Die PDF-Dateien wurden bei der Anonymisierung dieser Einreichung gelöscht.',
         'failed' => [
             'budget_exceeded' => 'Das PDF konnte nicht erzeugt werden, weil das Dokument zu groß ist (zu viele oder zu große Fotos). Das Büro sieht das und kann es neu erzeugen.',
             'render_failed' => 'Das PDF konnte nicht erzeugt werden. Das Büro sieht das und kann es neu erzeugen.',

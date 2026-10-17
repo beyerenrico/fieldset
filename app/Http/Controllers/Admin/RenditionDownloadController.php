@@ -16,7 +16,8 @@ use Illuminate\Http\Request;
  * "Download" of a PDF in the admin inbox (M3 review #18): the page links here instead of embedding a
  * 5-minute signed URL that expires while the page stays open. Needs an admin session of a member of the
  * organization in the URL and RenditionPolicy::view; then redirects to a freshly minted signed download
- * (which re-checks the user and writes the "downloaded" audit entry). Anything else is a 404.
+ * (which re-checks the user and writes the "downloaded" audit entry). The PDF files of an anonymized
+ * submission are gone (ADR 0039): 410 with a user-facing message (errors/410), not reported. Anything else is a 404.
  */
 final readonly class RenditionDownloadController
 {
@@ -34,6 +35,7 @@ final readonly class RenditionDownloadController
                 ? Rendition::query()->with('submission')->where('uuid', strtolower($rendition))->first()
                 : null;
             abort_if($record === null || ! $user->can('view', $record), 404);
+            abort_if($record->submission->isAnonymized(), 410, __('documents.errors.anonymized'));
 
             return RenditionLinks::temporaryUrl($record, $user);
         });

@@ -1,5 +1,6 @@
 /** Deutsche UI-Texte. Schlüssel und `{Platzhalter}` müssen zu en.ts passen (Paritätstest). */
 import type { Messages } from './en.ts';
+import { documentDe } from './document.de.ts';
 import { accountDe } from './offline/account.de.ts';
 import { shellDe } from './offline/shell.de.ts';
 import { syncDe } from './offline/sync.de.ts';
@@ -8,6 +9,7 @@ export const de: Messages = {
     ...syncDe,
     ...shellDe,
     ...accountDe,
+    ...documentDe,
     'app.title': 'Field App',
     'nav.label': 'Hauptnavigation',
     'nav.home': 'Start',
@@ -214,15 +216,6 @@ export const de: Messages = {
         'Die Verbindung wurde unterbrochen. Sie können es gefahrlos erneut versuchen – die Entscheidung wird nur einmal gespeichert.',
     'decisionError.unknown':
         'Die Entscheidung konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.',
-    'document.title': 'Dokument (PDF)',
-    'document.loading': 'PDF wird geladen …',
-    'document.ready': 'Das PDF ist fertig.',
-    'document.open': 'PDF öffnen',
-    'document.notReady': 'Das PDF wird erstellt …',
-    'document.checkAgain': 'Erneut prüfen',
-    'document.error': 'Das PDF konnte nicht geladen werden.',
-    'document.offline': 'Keine Verbindung. Das PDF lässt sich öffnen, sobald Sie online sind.',
-    'document.failed': 'Das PDF konnte nicht erstellt werden. Das Büro wurde informiert.',
     'send.open': 'An Kunden senden',
     'send.title': 'An Kunden senden',
     'send.description': 'Das PDF dieser Einreichung wird per E-Mail versendet.',

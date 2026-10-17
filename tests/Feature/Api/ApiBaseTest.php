@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 use App\Domain\Identity\Enums\SystemRole;
 use App\Domain\Identity\Tenancy\TenantContext;
+use App\Http\Api\ApiException;
 use App\Http\Api\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Route;
 
 beforeEach(function (): void {
@@ -81,4 +83,16 @@ it('converts dot paths to JSON pointers with escaping', function (): void {
 it('echoes or assigns a request id', function (): void {
     $this->get('/up', ['X-Request-Id' => 'req-12345678'])->assertHeader('X-Request-Id', 'req-12345678');
     expect($this->get('/up')->headers->get('X-Request-Id'))->toMatch('/^[0-9a-f-]{36}$/');
+});
+
+it('reports domain 5xx errors but not 4xx answers', function (): void {
+    Route::middleware('api')->get('api/v1/_conflict', fn () => throw new ApiException('conflict', 'Stale draft.', 409));
+    Route::middleware('api')->get('api/v1/_broken', fn () => throw new ApiException('renderer_down', 'Renderer down.', 503));
+    Exceptions::fake();
+
+    $this->getJson('/api/v1/_conflict')->assertConflict()->assertJsonPath('error.code', 'conflict');
+    Exceptions::assertNothingReported();
+
+    $this->getJson('/api/v1/_broken')->assertServiceUnavailable();
+    Exceptions::assertReported(fn (ApiException $e): bool => $e->errorCode === 'renderer_down');
 });

@@ -1,10 +1,15 @@
-/** "Document (PDF)" state: open link, "being created" with polling, or a localized error. */
+/**
+ * "Document (PDF)" state: open link, "being created" with polling, a neutral notice once the PDF files
+ * were deleted on anonymization, or a localized error.
+ */
 import { FileText } from 'lucide-react';
 import { useEffect, useRef, type ReactNode, type RefObject } from 'react';
 import { Alert, AlertTitle } from '../../components/ui/alert.tsx';
 import { Button } from '../../components/ui/button.tsx';
 import {
+    documentAnonymizedMessage,
     documentFailureMessage,
+    isDocumentAnonymized,
     isDocumentFailed,
     isDocumentNotReady,
     useSubmissionDocument,
@@ -18,6 +23,10 @@ type DocumentQuery = SubmissionDocumentState['query'];
 
 /** Text of the always-mounted live region; `null` on failure (the alert speaks). */
 function statusMessage(pdf: DocumentQuery): MessageKey | null {
+    // Anonymized: the PDF files were deleted for good, so an older link is dead too.
+    if (isDocumentAnonymized(pdf.error)) {
+        return 'document.anonymized';
+    }
     // A permanent failure wins over an older link: the current PDF cannot be created.
     if (isDocumentFailed(pdf.error)) {
         return null;
@@ -30,6 +39,13 @@ function statusMessage(pdf: DocumentQuery): MessageKey | null {
         return pdf.fetchStatus === 'paused' ? 'document.offline' : 'document.loading';
     }
     return isDocumentNotReady(pdf.error) ? 'document.notReady' : null;
+}
+
+/** The anonymization notice prefers the server's text; every other status is a fixed text. */
+function statusText(pdf: DocumentQuery, message: MessageKey, t: Translate): string {
+    return message === 'document.anonymized'
+        ? (documentAnonymizedMessage(pdf.error) ?? t(message))
+        : t(message);
 }
 
 function problemTitle(error: Error | null, t: Translate): string {
@@ -82,7 +98,7 @@ export function DocumentStatus({ uuid }: { readonly uuid: string }): ReactNode {
                 role="status"
                 className={message === 'document.ready' || message === null ? 'sr-only' : undefined}
             >
-                {message === null ? null : t(message)}
+                {message === null ? null : statusText(pdf, message, t)}
             </p>
             {url === undefined ? null : (
                 <Button asChild variant="outline" size="lg" className="self-start">
