@@ -87,6 +87,7 @@ final class DomainsTable
                 TextInput::make('txt_name')->label(__('sso_admin.domains.txt_name'))->readOnly()->copyable(copyMessage: __('sso_admin.status.copied')),
                 TextInput::make('txt_type')->label(__('sso_admin.domains.txt_type'))->readOnly(),
                 TextInput::make('txt_value')->label(__('sso_admin.domains.txt_value'))->readOnly()->copyable(copyMessage: __('sso_admin.status.copied')),
+                Text::make(__('sso_admin.domains.dns_provider_note')),
                 Text::make(__('sso_admin.domains.dns_note')),
             ])
             ->fillForm(fn (SsoDomain $record): array => ['txt_name' => $record->txtName(), 'txt_type' => 'TXT', 'txt_value' => $record->txtValue()])

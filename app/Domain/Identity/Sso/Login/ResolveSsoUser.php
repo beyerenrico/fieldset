@@ -15,9 +15,12 @@ use Illuminate\Support\Str;
 
 /**
  * Identity resolution steps 1, 2 and 6 of ADR 0036 (inside the provider's tenant and a transaction):
- * 1. (provider, subject) → the linked user;
+ * 1. (provider, subject) → the linked user — refused (`domain_not_verified`, detail `domain_moved`) when the
+ *    user's email domain is now verified by another organization: that organization owns the address and
+ *    its IdP is the one that may sign the person in;
  * 2. otherwise link or create by email, only for a verified email in a domain the provider's organization
- *    holds verified (a new user only when JIT is on; random password, verified email);
+ *    holds verified (a new user only when JIT is on; random password, verified email). Linking an existing
+ *    account marks its email verified: the IdP vouched for it (an invited account then counts as existing);
  * 6. a linked user's email follows the IdP only within the organization's verified domains and only to a
  *    free address.
  */
@@ -41,6 +44,8 @@ final readonly class ResolveSsoUser
                 throw new SsoLoginRefused(SsoRefusal::NotMember);
             }
             $user = $this->create($email, $profile);
+        } elseif ($user->email_verified_at === null) {
+            $user->forceFill(['email_verified_at' => now()])->save();
         }
         $this->link->handle($provider, $user, $profile);
 
@@ -60,9 +65,18 @@ final readonly class ResolveSsoUser
         return EmailDomain::normalizeEmail($profile->email);
     }
 
+    /** @throws SsoLoginRefused */
     private function returning(IdentityProvider $provider, ExternalIdentity $identity, ExternalProfile $profile): User
     {
         $user = $identity->user;
+        $domain = EmailDomain::of($user->email);
+        $owner = $domain === null ? null : SsoDomain::verifiedOwnerOf($domain);
+        if ($owner instanceof SsoDomain && $owner->organization_id !== $provider->organization_id) {
+            RefusalDetail::set('domain_moved');
+
+            throw new SsoLoginRefused(SsoRefusal::DomainNotVerified);
+        }
+
         $email = $profile->email === null ? null : EmailDomain::normalizeEmail($profile->email);
 
         if ($email !== null && $email !== $user->email && $profile->emailVerified

@@ -17,20 +17,27 @@ beforeEach(function (): void {
     $this->provider = $this->tenant->run($this->org, fn (): IdentityProvider => IdentityProvider::factory()->active()->create());
 });
 
+/** The discovery URL without its per-session start token (SsoStartLink), and the token. */
+function discoveryUrlParts(string $url): array
+{
+    expect($url)->toMatch('/[?&]start=[A-Za-z0-9]{40}$/');
+
+    return [(string) preg_replace('/&start=[A-Za-z0-9]{40}$/', '', $url), substr($url, -40)];
+}
+
 it('answers sso for a verified domain with an active provider, with the client and login hint in the URL', function (): void {
-    $this->postJson('/auth/sso/discover', ['email' => 'Jane@ACME.example', 'client' => 'admin'])
-        ->assertOk()
-        ->assertExactJson([
-            'mode' => 'sso',
-            'redirect_url' => $this->provider->redirectUrl(SsoClient::Admin, 'jane@acme.example'),
-            'organization' => 'Acme GmbH',
-            'enforced' => false,
-        ]);
+    $admin = $this->postJson('/auth/sso/discover', ['email' => 'Jane@ACME.example', 'client' => 'admin'])->assertOk();
+    $admin->assertExactJson([
+        'mode' => 'sso',
+        'redirect_url' => $admin->json('redirect_url'),
+        'organization' => 'Acme GmbH',
+        'enforced' => false,
+    ]);
+    expect(discoveryUrlParts((string) $admin->json('redirect_url'))[0])->toBe($this->provider->redirectUrl(SsoClient::Admin, 'jane@acme.example'));
 
     $this->tenant->run($this->org, fn () => $this->provider->forceFill(['enforce_sso' => true])->save());
-    $this->postJson('/auth/sso/discover', ['email' => 'jane@acme.example'])
-        ->assertJsonPath('redirect_url', $this->provider->redirectUrl(SsoClient::App, 'jane@acme.example'))
-        ->assertJsonPath('enforced', true);
+    $app = $this->postJson('/auth/sso/discover', ['email' => 'jane@acme.example'])->assertJsonPath('enforced', true);
+    expect(discoveryUrlParts((string) $app->json('redirect_url'))[0])->toBe($this->provider->redirectUrl(SsoClient::App, 'jane@acme.example'));
 });
 
 it('keeps offering SSO while the provider is in error', function (): void {

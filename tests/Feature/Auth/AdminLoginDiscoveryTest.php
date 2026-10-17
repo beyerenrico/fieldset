@@ -61,6 +61,11 @@ function adminLoginFakeGate(?IdentityProvider $provider, string $domain = 'acme.
             $this->assert($email);
         }
 
+        public function assertPasswordLoginWith(string $email, string $password): void
+        {
+            $this->assert($email);
+        }
+
         public function assertPasswordReset(string $email): void
         {
             $this->assert($email);
@@ -170,8 +175,10 @@ it('refuses a password login the gate blocks before checking the password, with 
         ->fillForm(['email' => 'boss@acme.example', 'password' => 'wrong-password'])
         ->call('authenticate')
         ->assertHasErrors(['data.email'])
-        ->assertSet('ssoUrl', $this->provider->redirectUrl(SsoClient::Admin, 'boss@acme.example'))
         ->assertSee(__('sso_admin.login.sso_link'));
+    // A session-bound start link (login CSRF protection) to this provider's admin flow.
+    expect($page->get('ssoUrl'))->toStartWith($this->provider->redirectUrl(SsoClient::Admin, 'boss@acme.example'))
+        ->toContain('start=');
 
     expect($page->errors()->get('data.email'))->toBe([__('sso_admin.login.sso_required')]);
     $this->assertGuest();
@@ -259,7 +266,7 @@ it('refuses to set a password through an old reset link once SSO is enforced', f
 });
 
 it('offers "Sign in" (not "Continue") once the password step is shown', function (): void {
-    adminLoginFakeDiscovery(null);
+    adminLoginFakeDiscovery();
     adminLoginFakeGate(null);
     app()->setLocale('en');
 
@@ -270,4 +277,27 @@ it('offers "Sign in" (not "Continue") once the password step is shown', function
         ->assertSee(__('filament-panels::auth/pages/login.form.actions.authenticate.label'))
         ->assertDontSee(__('sso_admin.login.continue'))
         ->assertDontSee(__('sso_admin.login.use_password'));
+});
+
+it('moves the focus to the field of each step', function (): void {
+    adminLoginFakeDiscovery();
+
+    $page = Livewire::test(Login::class)
+        ->fillForm(['email' => 'designer@demo.test'])
+        ->call('continueWithEmail')
+        ->assertJs(Login::focusScript(Login::PASSWORD_INPUT));
+    $page->call('useOtherEmail')->assertJs(Login::focusScript(Login::EMAIL_INPUT));
+    Livewire::test(Login::class)->call('usePassword')->assertJs(Login::focusScript(Login::PASSWORD_INPUT));
+
+    expect(Login::focusScript(Login::PASSWORD_INPUT))->toContain('.fi-simple-main input[type=password]');
+});
+
+it('keeps "Forgot password?" in the tab order', function (): void {
+    adminLoginFakeDiscovery();
+
+    $html = Livewire::test(Login::class)->call('usePassword')->html();
+
+    expect($html)->toContain(Filament::getRequestPasswordResetUrl())
+        ->and(preg_match('/<a[^>]*href="'.preg_quote(Filament::getRequestPasswordResetUrl(), '/').'"[^>]*>/', $html, $link))->toBe(1)
+        ->and($link[0])->not->toContain('tabindex="-1"');
 });

@@ -21,6 +21,8 @@ use Symfony\Component\HttpFoundation\Response as HttpFoundationResponse;
  *   (InResponseTo, IdP-initiated SSO is not supported), and Destination and bearer Recipient must be our ACS;
  * - the replay check (one-time assertion id) runs after the signature check, atomically, so a forged
  *   response cannot burn a genuine assertion id;
+ * - an unsuccessful Status (read before any signature check, so anyone can post one) raises a fixed message:
+ *   the StatusMessage is free text from the browser and never reaches the audit or a notification;
  * - the AuthnRequest id is exposed so the flow can bind the response to it; force_reauth sets ForceAuthn.
  */
 final class AppSaml2Provider extends Provider
@@ -34,6 +36,8 @@ final class AppSaml2Provider extends Provider
     public const string REPLAYED = 'The identity provider repeated an assertion id';
 
     public const string WRONG_RECIPIENT = 'SAML: the response is addressed to another endpoint.';
+
+    public const string UNSUCCESSFUL_STATUS = 'SAML: the identity provider answered with an unsuccessful status.';
 
     /** One-time assertion ids are remembered this long (longer than any assertion validity). */
     private const int REPLAY_TTL = 86400;
@@ -92,6 +96,13 @@ final class AppSaml2Provider extends Provider
 
         if ($this->messageContext->getDeserializationContext()->getDocument()->doctype !== null) {
             throw new LightSamlXmlException(self::DTD_REFUSED);
+        }
+    }
+
+    protected function ensureSuccessfulStatus(): void
+    {
+        if ($this->messageContext->asResponse()?->getStatus()?->isSuccess() !== true) {
+            throw new LightSamlValidationException(self::UNSUCCESSFUL_STATUS);
         }
     }
 

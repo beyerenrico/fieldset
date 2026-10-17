@@ -42,7 +42,7 @@ beforeEach(function (): void {
 /** @return array{id: string, relay_state: string, acs: string, force_authn: bool} */
 function samlStart(FakeSamlIdp $idp, IdentityProvider $provider, SsoClient $client = SsoClient::App): array
 {
-    $location = (string) test()->get($provider->redirectUrl($client))->assertRedirect()->headers->get('Location');
+    $location = (string) test()->get(FakeOidcIdp::startUrl($provider, $client))->assertRedirect()->headers->get('Location');
     expect($location)->toStartWith(FakeSamlIdp::SSO_URL.'?SAMLRequest=');
 
     return $idp->authnRequest($location);
@@ -94,10 +94,11 @@ it('runs the ACS without a session: no cookie, and the result only completes in 
     $acs = samlPost($this->provider, $this->idp->response($request, $this->provider->samlEntityId(), ['email' => 'jane@acme.example']), $request['relay_state']);
 
     expect(collect($acs->headers->getCookies())->map->getName()->all())->not->toContain(config('session.cookie'));
-    // Another login started in this session replaces the flow: the ticket of the first is refused.
-    samlStart($this->idp, $this->provider);
+    // Another session (here: the starting one is gone) cannot redeem the ticket.
+    $this->flushSession();
     $this->get((string) $acs->headers->get('Location'))->assertRedirect('/app/login?sso_error=sso_failed');
     $this->assertGuest();
+    expect(Activity::query()->where('event', 'auth.sso_failed')->sole()->properties['detail'])->toBe('saml_ticket_binding');
 });
 
 it('serves the SP metadata with the entity id and the HTTP-POST ACS', function (): void {
@@ -109,15 +110,18 @@ it('serves the SP metadata with the entity id and the HTTP-POST ACS', function (
     $this->get(new FakeOidcIdp('https://x.example')->provider(makeOrganization(name: 'Oidc'))->samlEntityId())->assertNotFound();
 });
 
-it('refuses unsigned assertions and foreign signatures and reports the latter', function (?string $sign, string $reason): void {
+it('refuses unsigned assertions and foreign signatures without counting a posted response as a provider fault', function (?string $sign, string $cause): void {
     $request = samlStart($this->idp, $this->provider);
     $response = $this->idp->response($request, $this->provider->samlEntityId(), ['email' => 'jane@acme.example'], ['sign' => $sign]);
 
     samlFinish($this->provider, $response, $request['relay_state'])->assertRedirect('/app/login?sso_error=sso_failed');
 
     $this->assertGuest();
-    expect($this->reports)->toBe([$reason])
-        ->and($this->provider->fresh()->status)->toBe(IdentityProviderStatus::Error);
+    $failure = Activity::query()->where('event', 'auth.sso_failed')->sole();
+    expect($this->reports)->toBe([])
+        ->and($this->provider->fresh()->status)->toBe(IdentityProviderStatus::Active)
+        ->and($failure->properties['misconfiguration'])->toBeNull()
+        ->and($failure->properties['cause'])->toBe($cause);
 })->with([
     'unsigned' => [null, 'saml_signature'],
     'foreign key' => ['foreign', 'saml_signature'],
@@ -182,13 +186,15 @@ it('refuses wrong audience, IdP-initiated or foreign InResponseTo, wrong recipie
     'expired' => [['not_on_or_after' => '-10 minutes']],
 ]);
 
-it('reports an assertion from another issuer as misconfiguration', function (): void {
+it('audits an assertion from another issuer without reporting it (anyone can post one)', function (): void {
     $request = samlStart($this->idp, $this->provider);
     $response = $this->idp->response($request, $this->provider->samlEntityId(), ['email' => 'jane@acme.example'], ['issuer' => 'https://evil-idp.example']);
 
     samlFinish($this->provider, $response, $request['relay_state'])->assertRedirect('/app/login?sso_error=sso_failed');
 
-    expect($this->reports)->toBe(['saml_issuer']);
+    expect($this->reports)->toBe([])
+        ->and($this->provider->fresh()->status)->toBe(IdentityProviderStatus::Active)
+        ->and(Activity::query()->where('event', 'auth.sso_failed')->sole()->properties['cause'])->toBe('saml_issuer');
 });
 
 it('sets ForceAuthn with force_reauth and loads IdP metadata from a URL through the SSRF guard', function (): void {
@@ -207,6 +213,6 @@ it('sets ForceAuthn with force_reauth and loads IdP metadata from a URL through 
         ->and($fetched)->toBe(['https://idp.example.test/saml/metadata']);
 
     $blocked = $this->idp->provider(makeOrganization(name: 'Intranet'), [], ['metadata_xml' => null, 'metadata_url' => 'https://intranet.example.test/metadata']);
-    $this->get($blocked->redirectUrl(SsoClient::App))->assertRedirect('/app/login?sso_error=provider_unavailable');
+    $this->get(FakeOidcIdp::startUrl($blocked))->assertRedirect('/app/login?sso_error=provider_unavailable');
     expect($this->reports)->toBe(['blocked_host']);
 });

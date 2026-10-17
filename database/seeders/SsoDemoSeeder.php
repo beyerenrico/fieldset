@@ -113,6 +113,8 @@ final class SsoDemoSeeder extends Seeder
                 'metadata_url' => self::KEYCLOAK_REALM_URL.'/protocol/saml/descriptor',
                 'email_attribute' => 'email',
                 'groups_attribute' => 'groups',
+                // Keycloak sends an email NameID; the immutable user id (kc_user_id mapper) is the subject.
+                'subject_attribute' => 'kc_user_id',
             ], null);
             $this->mapping($org, $provider, 'form-reviewers', SystemRole::Reviewer);
         });

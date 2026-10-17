@@ -19,9 +19,12 @@ use Illuminate\Http\Request;
 use Throwable;
 
 /**
- * GET /auth/sso/{provider}/callback (OIDC redirect URI, response_mode=query; ADR 0036): the session's flow is
- * pulled first (one use), then the package exchanges the code (PKCE verifier) and validates state, nonce and
- * the id_token; flavor rules and identity resolution follow in OidcProfileFactory and FinishSsoLogin.
+ * GET /auth/sso/{provider}/callback (OIDC redirect URI, response_mode=query; ADR 0036): the returned `state`
+ * selects the session's flow (one use) before anything else is read, so an `error` redirect only counts for
+ * a flow this session started — and even then it is front-channel input, audited with an allow-listed code
+ * and never as a provider fault. Otherwise the package exchanges the code (PKCE verifier) and validates
+ * state, nonce and the id_token; flavor rules and identity resolution follow in OidcProfileFactory and
+ * FinishSsoLogin.
  */
 final class CallbackController
 {
@@ -33,9 +36,18 @@ final class CallbackController
         OidcProfileFactory $profiles,
         FinishSsoLogin $finish,
     ): RedirectResponse {
-        $flow = $flows->pull($request);
+        $flow = $flows->pullOidc($request);
         if (! $flow instanceof SsoFlow || ! $flow->belongsTo($provider) || $provider->type !== IdentityProviderType::Oidc) {
+            $flows->clearOidc($request);
+
             return $finish->flowRejected($flow->client ?? SsoClient::App, 'oidc_flow_missing', $provider);
+        }
+
+        $error = $request->query('error');
+        if ($error !== null) {
+            $flows->clearOidc($request);
+
+            return $finish->idpError($provider, $flow, is_string($error) ? $error : '');
         }
 
         try {

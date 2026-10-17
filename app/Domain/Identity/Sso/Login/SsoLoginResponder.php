@@ -14,6 +14,8 @@ use Illuminate\Http\RedirectResponse;
 /**
  * Where an SSO login lands (ADR 0036, M7 contract):
  * - app: `/app/login?sso=ok`, failures `/app/login?sso_error=<code>`;
+ * - an invitation the person came from (url.intended under /invitations/, set by the invitation link): back to
+ *   it for either client, to accept it now that the IdP has signed them in;
  * - admin: the intended Filament URL (or `/admin`), `/app/login?sso=ok` for a user without panel access;
  *   failures go to the Filament login `?sso_error=<code>`, also flashed as `sso_error` (text: `sso.errors.<code>`);
  * - test mode: back to the admin page that started it with the flash `sso.test_result`.
@@ -26,6 +28,11 @@ final class SsoLoginResponder
 
     public function success(SsoClient $client, User $user): RedirectResponse
     {
+        $intended = session('url.intended');
+        if (is_string($intended) && str_starts_with($intended, url('/invitations').'/')) {
+            return redirect()->intended(url('/app/login?'.http_build_query(['sso' => 'ok'])));
+        }
+
         if ($client === SsoClient::Admin && $user->canAccessPanel(Filament::getPanel('admin'))) {
             return redirect()->intended(url('/admin'));
         }

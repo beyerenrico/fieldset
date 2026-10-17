@@ -6,6 +6,7 @@ namespace App\Domain\Identity\Sso\Admin;
 
 use App\Domain\Identity\Models\IdentityProvider;
 use App\Domain\Identity\Models\Organization;
+use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Sso\Enums\IdentityProviderType;
 use App\Domain\Identity\Sso\Enums\OidcFlavor;
 use Illuminate\Support\Arr;
@@ -18,10 +19,15 @@ use Illuminate\Validation\Validator as ValidatorInstance;
  * Validates and normalizes an identity provider's settings per type and flavor (ADR 0036):
  * - issuer and metadata URLs are https unless `sso.allow_insecure_idp` (dev/CI only);
  * - Entra needs a tenant GUID (multi-tenant `common`/`organizations` is refused) and gets its issuer derived;
- *   Google gets the Google issuer;
+ *   Google gets the Google issuer; a generic issuer at Google or Microsoft is refused (their flavors check
+ *   the `hd` / `tid` claims, generic OIDC would not);
  * - an OIDC client secret is required while none is stored;
- * - SAML needs a metadata URL or pasted IdP metadata XML (no DTDs, an IDPSSODescriptor);
- * - the default role and group belong to the organization (SsoTargets).
+ * - SAML needs a metadata URL or pasted IdP metadata XML (no DTDs, an IDPSSODescriptor); the NameID format
+ *   is one of ProviderSettings::NAME_ID_FORMATS, persistent by default for a new SAML provider (an older one
+ *   without a format keeps none, which is persistent at runtime); any other format needs a subject attribute
+ *   with a stable id (the identity key, SamlSettings);
+ * - the default role and group belong to the organization, and a new default role is one the actor may
+ *   assign (SsoTargets).
  * Error keys are the input keys (`client_secret` for the secret).
  */
 final readonly class ProviderConfigValidator
@@ -42,7 +48,7 @@ final readonly class ProviderConfigValidator
      *
      * @throws ValidationException
      */
-    public function validate(Organization $org, IdentityProviderType $type, string $name, array $input, ?string $newSecret, ?IdentityProvider $existing): array
+    public function validate(Organization $org, IdentityProviderType $type, string $name, array $input, ?string $newSecret, ?IdentityProvider $existing, ?User $actor = null): array
     {
         $input['scopes'] = $this->scopeList($input['scopes'] ?? null);
         $data = [...$input, 'name' => $name, 'client_secret' => $newSecret];
@@ -56,11 +62,13 @@ final readonly class ProviderConfigValidator
         ];
 
         $valid = Validator::make($data, $rules, [], $this->attributeNames())
-            ->after(fn (ValidatorInstance $v) => $this->targets->check($v, $org, $data))
+            ->after(fn (ValidatorInstance $v) => $this->targets->check($v, $org, $data, $actor, $existing?->default_role_id))
+            ->after(fn (ValidatorInstance $v) => $this->checkFlavorForIssuer($v, $type, $data))
+            ->after(fn (ValidatorInstance $v) => $this->checkSamlSubject($v, $type, $data))
             ->validate();
 
         return [
-            'config' => $type === IdentityProviderType::Oidc ? $this->oidcConfig($valid) : $this->samlConfig($valid),
+            'config' => $type === IdentityProviderType::Oidc ? $this->oidcConfig($valid) : $this->samlConfig($valid, $existing),
             'columns' => [
                 'jit_enabled' => (bool) ($valid['jit_enabled'] ?? false),
                 'force_reauth' => (bool) ($valid['force_reauth'] ?? false),
@@ -68,6 +76,25 @@ final readonly class ProviderConfigValidator
                 'default_group_id' => isset($valid['default_group_id']) ? (int) $valid['default_group_id'] : null,
             ],
         ];
+    }
+
+    /**
+     * The stored config in the normalized form validate() would produce (defaults filled in, issuer derived),
+     * so a re-save of unchanged values compares equal even for providers stored before a default existed.
+     *
+     * @return array<string, mixed>
+     */
+    public function normalizedConfig(IdentityProvider $provider): array
+    {
+        $config = $provider->config;
+        // Runtime-only keys stay as stored: a save drops them, and that is a change (ProviderSettings).
+        $runtimeOnly = array_intersect_key($config, array_flip(ProviderSettings::RUNTIME_ONLY_KEYS));
+        if ($provider->type === IdentityProviderType::Saml) {
+            return [...$this->samlConfig($config, $provider), ...$runtimeOnly];
+        }
+        $config['scopes'] = is_array($config['scopes'] ?? null) ? array_values(array_filter($config['scopes'], is_string(...))) : [];
+
+        return [...$this->oidcConfig($config), ...$runtimeOnly];
     }
 
     /** @return array<string, list<mixed>> */
@@ -95,6 +122,8 @@ final readonly class ProviderConfigValidator
             'email_attribute' => ['nullable', 'string', 'max:255', self::NO_CONTROL],
             'name_attribute' => ['nullable', 'string', 'max:255', self::NO_CONTROL],
             'groups_attribute' => ['nullable', 'string', 'max:255', self::NO_CONTROL],
+            'name_id_format' => ['nullable', 'string', Rule::in(array_values(ProviderSettings::NAME_ID_FORMATS))],
+            'subject_attribute' => ['nullable', 'string', 'max:255', self::NO_CONTROL],
         ];
     }
 
@@ -115,7 +144,7 @@ final readonly class ProviderConfigValidator
      */
     private function oidcConfig(array $valid): array
     {
-        $flavor = OidcFlavor::from((string) $valid['flavor']);
+        $flavor = OidcFlavor::tryFrom((string) ($valid['flavor'] ?? '')) ?? OidcFlavor::Generic;
         $tenant = $flavor === OidcFlavor::Entra ? strtolower((string) $valid['tenant']) : null;
         /** @var list<string> $scopes */
         $scopes = $valid['scopes'] ?? [];
@@ -139,15 +168,51 @@ final readonly class ProviderConfigValidator
      * @param  array<string, mixed>  $valid
      * @return array<string, mixed>
      */
-    private function samlConfig(array $valid): array
+    private function samlConfig(array $valid, ?IdentityProvider $existing): array
     {
         $config = [];
         foreach (ProviderSettings::SAML_KEYS as $key) {
             $value = Arr::get($valid, $key);
             $config[$key] = is_string($value) && trim($value) !== '' ? trim($value) : null;
         }
+        if ($config['name_id_format'] === null && $existing?->type !== IdentityProviderType::Saml) {
+            $config['name_id_format'] = ProviderSettings::NAME_ID_FORMATS['persistent'];
+        }
 
         return $config;
+    }
+
+    /**
+     * A NameID that is not persistent is no identity key: then a subject attribute must name a stable id.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function checkSamlSubject(ValidatorInstance $v, IdentityProviderType $type, array $data): void
+    {
+        $format = is_string($data['name_id_format'] ?? null) && $data['name_id_format'] !== '' ? $data['name_id_format'] : null;
+        if ($type === IdentityProviderType::Saml && ! $v->errors()->has('name_id_format') && ! ProviderSettings::isStableNameIdFormat($format)
+            && blank($data['subject_attribute'] ?? null)) {
+            $v->errors()->add('subject_attribute', __('sso_admin.provider.errors.subject_attribute_required'));
+        }
+    }
+
+    /**
+     * Google and Microsoft issuers need their flavor: generic OIDC skips the Google `hd` and Entra `tid`
+     * checks, so any Google or Microsoft account could sign in.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function checkFlavorForIssuer(ValidatorInstance $v, IdentityProviderType $type, array $data): void
+    {
+        if ($type !== IdentityProviderType::Oidc || ($data['flavor'] ?? null) !== OidcFlavor::Generic->value || $v->errors()->has('issuer')) {
+            return;
+        }
+        $host = is_string($data['issuer'] ?? null) ? strtolower((string) parse_url($data['issuer'], PHP_URL_HOST)) : '';
+        if (in_array($host, ProviderSettings::GOOGLE_HOSTS, true)) {
+            $v->errors()->add('issuer', __('sso_admin.provider.errors.use_google_flavor'));
+        } elseif (in_array($host, ProviderSettings::MICROSOFT_HOSTS, true)) {
+            $v->errors()->add('issuer', __('sso_admin.provider.errors.use_entra_flavor'));
+        }
     }
 
     /** https (and no credentials, query or fragment) unless insecure IdPs are allowed for dev/CI. */

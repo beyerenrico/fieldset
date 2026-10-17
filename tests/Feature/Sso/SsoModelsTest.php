@@ -209,6 +209,8 @@ it('sends no reset link when the gate requires SSO and audits the block', functi
     {
         public function assertPasswordLogin(string $email): void {}
 
+        public function assertPasswordLoginWith(string $email, string $password): void {}
+
         public function assertPasswordReset(string $email): void
         {
             throw new SsoRequiredException(DiscoveryResult::password());

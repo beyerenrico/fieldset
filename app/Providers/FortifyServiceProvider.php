@@ -34,12 +34,13 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::resetUserPasswordsUsing(ResetUserPassword::class);
         Fortify::redirectUserForTwoFactorAuthenticationUsing(RedirectIfTwoFactorAuthenticatable::class);
 
-        // Enforced SSO refuses the password before it is checked (422 `sso_required`, ADR 0036); the
-        // break-glass Owner passes and continues into the MFA challenge. Deactivated users cannot log in (§9.3).
+        // Enforced SSO answers 422 `sso_required` for every address of the domain (ADR 0036); only the valid
+        // break-glass Owner with the correct password passes, into the MFA challenge — a wrong break-glass
+        // password gets the same answer, so the account cannot be told apart. Deactivated users cannot log in (§9.3).
         Fortify::authenticateUsing(function (Request $request): ?User {
             $email = Str::lower((string) $request->input('email'));
             try {
-                app(PasswordAuthGate::class)->assertPasswordLogin($email);
+                app(PasswordAuthGate::class)->assertPasswordLoginWith($email, (string) $request->input('password'));
             } catch (SsoRequiredException $e) {
                 throw app(BlockedPasswordFlow::class)->login($email, $e, 'fortify');
             }

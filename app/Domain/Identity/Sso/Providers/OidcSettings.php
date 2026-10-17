@@ -17,6 +17,10 @@ use InvalidArgumentException;
  * an IdP that the server reaches under another host than the browser, e.g. Keycloak in Docker),
  * `trust_unverified_email` (bool, alias `allow_unverified_email`; accept emails without `email_verified`,
  * audited on every login as `email_verified_by: trusted`).
+ *
+ * Google and Microsoft have their own flavors: a generic configuration whose issuer or discovery URL is on
+ * one of their hosts (requiredFlavor()) is refused, because it would skip the Google `hd` or the Entra `tid`
+ * rule and accept any account of that IdP.
  */
 final readonly class OidcSettings
 {
@@ -25,6 +29,12 @@ final readonly class OidcSettings
     private const string ENTRA_BASE = 'https://login.microsoftonline.com/';
 
     private const string GOOGLE_ISSUER = 'https://accounts.google.com';
+
+    /** Hosts whose issuers need the Google flavor. */
+    public const array GOOGLE_HOSTS = ['accounts.google.com'];
+
+    /** Hosts whose issuers need the Entra flavor (plus any host under microsoftonline.com). */
+    public const array MICROSOFT_HOSTS = ['login.microsoftonline.com', 'login.microsoft.com', 'login.windows.net', 'sts.windows.net'];
 
     private const string GUID = '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i';
 
@@ -66,6 +76,20 @@ final readonly class OidcSettings
         );
     }
 
+    /** The flavor an issuer or discovery URL requires (Google or Entra), or null for any other host. */
+    public static function requiredFlavor(string $issuerOrUrl): ?OidcFlavor
+    {
+        $url = trim($issuerOrUrl);
+        $host = parse_url(str_contains($url, '://') ? $url : 'https://'.$url, PHP_URL_HOST);
+        $host = is_string($host) ? rtrim(strtolower($host), '.') : '';
+
+        return match (true) {
+            in_array($host, self::GOOGLE_HOSTS, true) => OidcFlavor::Google,
+            in_array($host, self::MICROSOFT_HOSTS, true), str_ends_with($host, '.microsoftonline.com') => OidcFlavor::Entra,
+            default => null,
+        };
+    }
+
     public function discoveryUrl(): string
     {
         return rtrim($this->baseUrl, '/').'/.well-known/openid-configuration';
@@ -101,6 +125,10 @@ final readonly class OidcSettings
     {
         $issuer = self::string($config, 'issuer') ?? throw self::invalid('issuer is required');
         $base = self::string($config, 'discovery_url') ?? $issuer;
+        $required = self::requiredFlavor($issuer) ?? self::requiredFlavor($base);
+        if ($required instanceof OidcFlavor) {
+            throw self::invalid('this issuer needs the '.$required->value.' flavor');
+        }
         $base = (string) preg_replace('#/\.well-known/openid-configuration$#', '', rtrim($base, '/'));
 
         return [$base, $issuer];

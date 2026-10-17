@@ -16,6 +16,14 @@ interface PasswordAuthGate
     /** @throws SsoRequiredException */
     public function assertPasswordLogin(string $email): void;
 
+    /**
+     * Like assertPasswordLogin, but indistinguishable for every enforced address: only the valid
+     * break-glass Owner with the correct password passes, and every enforced address costs one hash.
+     *
+     * @throws SsoRequiredException
+     */
+    public function assertPasswordLoginWith(string $email, #[\SensitiveParameter] string $password): void;
+
     /** @throws SsoRequiredException */
     public function assertPasswordReset(string $email): void;
 

@@ -21,8 +21,10 @@ use Throwable;
 
 /**
  * The common end of the OIDC callback and the SAML completion (ADR 0036): complete the login and sign in,
- * answer test mode, or record a failure (auth.sso_failed / auth.sso_refused; provider faults also set
- * status=error and reach SsoMisconfigurationReporter) and send the client to its error page.
+ * answer test mode, or record a failure (auth.sso_failed / auth.sso_refused) and send the client to its error
+ * page. Only provider faults proven over the back channel set status=error and reach the
+ * SsoMisconfigurationReporter (FailureClassifier); input the browser brought — the OIDC `error` redirect, a
+ * posted SAML response — is audited with fixed codes (`cause`, `detail`) and never with its own text.
  */
 final readonly class FinishSsoLogin
 {
@@ -46,7 +48,7 @@ final readonly class FinishSsoLogin
         }
 
         try {
-            $user = $this->complete->handle($provider, $profile);
+            $user = $this->complete->handle($provider, $profile, $flow->invitation);
         } catch (SsoLoginRefused $e) {
             return $this->refused($provider, $flow, $e->reason, $profile);
         }
@@ -73,20 +75,40 @@ final readonly class FinishSsoLogin
         return $this->failureResponse($flow, $failure->code, $failure->detail);
     }
 
+    /**
+     * The IdP's error redirect (`?error=…` on the OIDC callback of a live flow): front-channel input anyone
+     * can send, so only an allow-listed error code reaches the audit and nothing counts as a provider fault.
+     */
+    public function idpError(IdentityProvider $provider, SsoFlow $flow, string $error): RedirectResponse
+    {
+        $code = $error === 'access_denied' ? SsoRefusal::SsoDenied : SsoRefusal::SsoFailed;
+        $cause = FailureClassifier::idpErrorCause($error);
+        $this->audit->record('auth.sso_failed', $provider, [
+            'provider' => $provider->uuid, 'reason' => $code->value, 'misconfiguration' => null, 'cause' => $cause, 'detail' => $cause,
+        ]);
+
+        return $this->failureResponse($flow, $code, $cause);
+    }
+
     public function recordRefusal(IdentityProvider $provider, SsoRefusal $reason, ?ExternalProfile $profile = null): void
     {
         $this->audit->record('auth.sso_refused', $provider, [
             'provider' => $provider->uuid, 'reason' => $reason->value, 'email' => $profile?->email, 'subject' => $profile?->subject,
+            'detail' => RefusalDetail::pull(),
         ]);
     }
 
-    /** Classifies and audits a failure; provider faults set status=error and notify (ADR 0036). */
-    public function recordFailure(IdentityProvider $provider, Throwable $e): SsoFailure
+    /**
+     * Classifies and audits a failure; provider faults set status=error and notify (ADR 0036).
+     *
+     * @param  bool  $frontChannel  the failure came out of a response the browser posted (SAML ACS)
+     */
+    public function recordFailure(IdentityProvider $provider, Throwable $e, bool $frontChannel = false): SsoFailure
     {
-        $failure = $this->classifier->classify($e, $provider->type);
+        $failure = $this->classifier->classify($e, $provider->type, $frontChannel);
         $this->audit->record('auth.sso_failed', $provider, [
             'provider' => $provider->uuid, 'reason' => $failure->code->value,
-            'misconfiguration' => $failure->misconfiguration, 'detail' => $failure->detail,
+            'misconfiguration' => $failure->misconfiguration, 'cause' => $failure->cause, 'detail' => $failure->detail,
         ]);
 
         if ($failure->misconfiguration !== null) {

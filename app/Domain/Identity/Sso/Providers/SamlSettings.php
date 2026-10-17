@@ -15,7 +15,12 @@ use LightSaml\SamlConstants;
  * `idp_certificate` (PEM or base64 body). `idp_entity_id` also selects the IdP in an EntitiesDescriptor.
  * Attributes: `email_attribute` (default "email"; the NameID when absent and the NameID format is
  * emailAddress), `name_attribute` (optional), `groups_attribute` (default "groups"); `name_id_format`
- * (default emailAddress).
+ * (requested in the AuthnRequest, default persistent).
+ *
+ * Identity key (ADR 0036, subject stability): a persistent NameID, or — when `subject_attribute` names a
+ * stable attribute such as an immutable user id — that attribute. An email, transient or unspecified NameID
+ * is never a key (an email can be reassigned, a transient id changes per login); SamlProfileFactory refuses
+ * such an assertion unless `subject_attribute` is set.
  */
 final readonly class SamlSettings
 {
@@ -28,6 +33,7 @@ final readonly class SamlSettings
         public string $emailAttribute,
         public ?string $nameAttribute,
         public string $groupsAttribute,
+        public ?string $subjectAttribute = null,
     ) {}
 
     /** @throws InvalidArgumentException on an incomplete configuration */
@@ -39,10 +45,11 @@ final readonly class SamlSettings
             self::string($config, 'idp_entity_id'),
             self::string($config, 'idp_sso_url'),
             self::string($config, 'idp_certificate'),
-            self::string($config, 'name_id_format') ?? SamlConstants::NAME_ID_FORMAT_EMAIL,
+            self::string($config, 'name_id_format') ?? SamlConstants::NAME_ID_FORMAT_PERSISTENT,
             self::string($config, 'email_attribute') ?? 'email',
             self::string($config, 'name_attribute'),
             self::string($config, 'groups_attribute') ?? 'groups',
+            self::string($config, 'subject_attribute'),
         );
 
         if ($settings->metadata === null && ($settings->ssoUrl === null || $settings->entityId === null || $settings->certificate === null)) {

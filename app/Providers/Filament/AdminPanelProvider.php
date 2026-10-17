@@ -7,6 +7,8 @@ namespace App\Providers\Filament;
 use App\Domain\Identity\Auth\SharedAppAuthentication;
 use App\Domain\Identity\Models\Organization;
 use App\Filament\Admin\Livewire\DatabaseNotifications;
+use App\Filament\Admin\Pages\Auth\EditProfile;
+use App\Filament\Admin\Pages\Auth\EmailChangeVerificationController;
 use App\Filament\Admin\Pages\Auth\Login;
 use App\Filament\Admin\Pages\Auth\RequestPasswordReset;
 use App\Filament\Admin\Pages\Auth\ResetPassword;
@@ -17,6 +19,7 @@ use App\Http\Middleware\EndRevokedDeviceSession;
 use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\SetTenantFromFilament;
 use Filament\Actions\Action;
+use Filament\Auth\Http\Controllers\EmailChangeVerificationController as FilamentEmailChangeVerificationController;
 use Filament\Facades\Filament;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -36,6 +39,14 @@ use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class AdminPanelProvider extends PanelProvider
 {
+    public function register(): void
+    {
+        parent::register();
+
+        // The email-change link is refused for addresses managed by SSO (gate review M7).
+        $this->app->bind(FilamentEmailChangeVerificationController::class, EmailChangeVerificationController::class);
+    }
+
     public function panel(Panel $panel): Panel
     {
         $panel = $panel
@@ -46,7 +57,7 @@ class AdminPanelProvider extends PanelProvider
             ->passwordReset(RequestPasswordReset::class, ResetPassword::class) // refused for domains that enforce SSO
             ->emailVerification()
             ->emailChangeVerification()
-            ->profile(isSimple: false)
+            ->profile(EditProfile::class, isSimple: false)                  // SSO-managed addresses stay put (gate review M7)
             ->multiFactorAuthentication([
                 SharedAppAuthentication::make()->recoverable()->brandName((string) config('app.name')),
             ])

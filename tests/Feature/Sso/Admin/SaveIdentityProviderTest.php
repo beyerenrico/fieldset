@@ -112,7 +112,8 @@ it('accepts SAML metadata by URL or pasted XML and drops any secret', function (
     $saml = ssoAdminSaveProvider(['metadata_url' => 'https://idp.acme.example/saml/descriptor', 'email_attribute' => 'email'], 'ignored', IdentityProviderType::Saml);
     expect($saml)->type->toBe(IdentityProviderType::Saml)->client_secret->toBeNull()
         ->and($saml->config)->toBe(['metadata_url' => 'https://idp.acme.example/saml/descriptor', 'metadata_xml' => null,
-            'email_attribute' => 'email', 'name_attribute' => null, 'groups_attribute' => null]);
+            'email_attribute' => 'email', 'name_attribute' => null, 'groups_attribute' => null,
+            'name_id_format' => 'urn:oasis:names:tc:SAML:2.0:nameid-format:persistent', 'subject_attribute' => null]); // gate review: persistent by default
 
     $xml = '<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" entityID="https://idp.acme.example">'
         .'<md:IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol"/></md:EntityDescriptor>';

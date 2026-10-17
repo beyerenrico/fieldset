@@ -14,8 +14,13 @@ use App\Domain\Identity\Sso\Enums\SsoClient;
 use App\Domain\Identity\Sso\Exceptions\SsoRequiredException;
 use App\Domain\Identity\Sso\Login\DomainProviderLookup;
 use App\Domain\Identity\Sso\Login\EmailDomain;
+use App\Domain\Identity\Sso\Login\SsoStartLink;
 use App\Domain\Identity\Support\OrganizationPermissions;
 use App\Domain\Identity\Tenancy\TenantContext;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+use SensitiveParameter;
 
 /**
  * Enforced SSO follows the email domain (ADR 0036, Enforcement): when the domain is verified by an
@@ -24,6 +29,10 @@ use App\Domain\Identity\Tenancy\TenantContext;
  * break-glass user while valid: active, an active Owner of that organization and with confirmed MFA (so a
  * break-glass password login always continues into the MFA challenge). A designated but invalid break-glass
  * user is refused and reported as `break_glass_invalid`. Lifting verification of the domain lifts it all.
+ *
+ * Password logins use assertPasswordLoginWith(): an enforced address answers sso_required unless it is the
+ * valid break-glass user with the correct password, and every enforced address costs exactly one password
+ * hash — so neither the answer nor its timing tells which address is the break-glass account.
  */
 final readonly class DomainPasswordGate implements PasswordAuthGate
 {
@@ -32,11 +41,40 @@ final readonly class DomainPasswordGate implements PasswordAuthGate
         private OrganizationPermissions $permissions,
         private SsoMisconfigurationReporter $reporter,
         private TenantContext $tenant,
+        private SsoStartLink $links,
     ) {}
 
+    /** Email-only check (invitations, flows without a password); prefer assertPasswordLoginWith() for logins. */
     public function assertPasswordLogin(string $email): void
     {
         $this->assertPasswordAllowed($email);
+    }
+
+    /**
+     * The password login check for the Fortify and Filament logins, run before their own credential check.
+     *
+     * @throws SsoRequiredException when the domain enforces SSO, unless these are the valid break-glass
+     *                              user's correct credentials
+     */
+    public function assertPasswordLoginWith(string $email, #[SensitiveParameter] string $password): void
+    {
+        $provider = $this->lookup->enforcingProviderFor($email);
+        if (! $provider instanceof IdentityProvider) {
+            return;
+        }
+
+        $email = EmailDomain::normalizeEmail($email);
+        $breakGlass = $this->breakGlassUser($provider);
+        // Always one hash, against the break-glass user's hash when there is one: same cost for every address.
+        $matches = Hash::check($password, $breakGlass->password ?? $this->dummyHash());
+        if ($breakGlass instanceof User && $breakGlass->email === $email && $matches) {
+            if ($this->isBreakGlassFor($breakGlass, $provider)) {
+                return;
+            }
+            $this->reportInvalidBreakGlass($provider);
+        }
+
+        throw $this->required($provider, $email);
     }
 
     public function assertPasswordReset(string $email): void
@@ -79,18 +117,41 @@ final readonly class DomainPasswordGate implements PasswordAuthGate
         }
 
         $email = EmailDomain::normalizeEmail($email);
-        $user = $provider->break_glass_user_id === null ? null : User::query()->whereKey($provider->break_glass_user_id)->first();
+        $user = $this->breakGlassUser($provider);
         if ($user instanceof User && $user->email === $email) {
             if ($this->isBreakGlassFor($user, $provider)) {
                 return;
             }
-            $this->tenant->run($provider->organization_id, fn () => $this->reporter->report(
-                $provider,
-                'break_glass_invalid',
-                'The break-glass user must be an active Owner with confirmed MFA.',
-            ));
+            $this->reportInvalidBreakGlass($provider);
         }
 
-        throw new SsoRequiredException(new DiscoveryResult($provider, $provider->redirectUrl(SsoClient::App, $email), true));
+        throw $this->required($provider, $email);
+    }
+
+    private function breakGlassUser(IdentityProvider $provider): ?User
+    {
+        return $provider->break_glass_user_id === null ? null : User::query()->whereKey($provider->break_glass_user_id)->first();
+    }
+
+    private function reportInvalidBreakGlass(IdentityProvider $provider): void
+    {
+        $this->tenant->run($provider->organization_id, fn () => $this->reporter->report(
+            $provider,
+            'break_glass_invalid',
+            'The break-glass user must be an active Owner with confirmed MFA.',
+        ));
+    }
+
+    private function required(IdentityProvider $provider, string $email): SsoRequiredException
+    {
+        return new SsoRequiredException(new DiscoveryResult($provider, $this->links->url($provider, SsoClient::App, $email), true));
+    }
+
+    /** A hash with the current hashing settings, for addresses without a break-glass user to compare with. */
+    private function dummyHash(): string
+    {
+        $key = 'sso:password-gate:dummy-hash:'.hash('sha256', (string) json_encode(config('hashing')));
+
+        return (string) Cache::rememberForever($key, static fn (): string => Hash::make(Str::random(40)));
     }
 }

@@ -35,7 +35,7 @@ beforeEach(function (): void {
 
 function startOidcLogin(IdentityProvider $provider, SsoClient $client = SsoClient::App, ?string $hint = null): string
 {
-    return (string) test()->get($provider->redirectUrl($client, $hint))->assertRedirect()->headers->get('Location');
+    return (string) test()->get(FakeOidcIdp::startUrl($provider, $client, $hint))->assertRedirect()->headers->get('Location');
 }
 
 it('redirects with state, nonce, PKCE S256, response_mode=query and the login hint', function (): void {
@@ -136,7 +136,7 @@ it('blocks an IdP whose host resolves to a private address (SSRF) and reports it
         return $this->provider;
     });
 
-    $this->get($provider->redirectUrl(SsoClient::App))->assertRedirect('/app/login?sso_error=provider_unavailable');
+    $this->get(FakeOidcIdp::startUrl($provider))->assertRedirect('/app/login?sso_error=provider_unavailable');
 
     expect($this->idp->requests)->toBe([])
         ->and($this->reporter->reports[0]['reason'])->toBe('blocked_host')
@@ -147,7 +147,7 @@ it('blocks plain http unless insecure IdPs are allowed (dev/CI)', function (): v
     $this->idp = FakeOidcIdp::bind('http://keycloak:8080/realms/acme', ['keycloak' => ['172.18.0.4']]);
     app(TenantContext::class)->run($this->org, fn () => $this->provider->forceFill(['config' => [...$this->provider->config, 'issuer' => 'http://keycloak:8080/realms/acme']])->save());
 
-    $this->get($this->provider->redirectUrl(SsoClient::App))->assertRedirect('/app/login?sso_error=provider_unavailable');
+    $this->get(FakeOidcIdp::startUrl($this->provider))->assertRedirect('/app/login?sso_error=provider_unavailable');
 
     config(['sso.allow_insecure_idp' => true]);
     $this->idp->login($this->provider->fresh(), ['sub' => 'kc-5', 'email' => 'jane@acme.example'])->assertRedirect('/app/login?sso=ok');

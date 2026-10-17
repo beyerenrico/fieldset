@@ -98,7 +98,7 @@ final class FakeSamlIdp
      *
      * @param  array{id: string, acs: string}  $request
      * @param  array<string, string|list<string>>  $attributes
-     * @param  array{name_id?: string, issuer?: string, audience?: string, in_response_to?: string, recipient?: string, sign?: string|null, not_on_or_after?: string, assertion_id?: string}  $options
+     * @param  array{name_id?: string, name_id_format?: string|null, issuer?: string, audience?: string, in_response_to?: string, recipient?: string, sign?: string|null, not_on_or_after?: string, assertion_id?: string, status?: string, status_message?: string}  $options
      */
     public function response(array $request, string $spEntityId, array $attributes = [], array $options = []): string
     {
@@ -112,7 +112,7 @@ final class FakeSamlIdp
 
         $response = (new Response)
             ->setInResponseTo($inResponseTo)
-            ->setStatus(new Status(new StatusCode(SamlConstants::STATUS_SUCCESS)))
+            ->setStatus(new Status(new StatusCode($options['status'] ?? SamlConstants::STATUS_SUCCESS), $options['status_message'] ?? null))
             ->addAssertion($assertion)
             ->setID(Helper::generateID())
             ->setIssueInstant(new DateTime)
@@ -167,7 +167,7 @@ final class FakeSamlIdp
     /**
      * @param  array{id: string, acs: string}  $request
      * @param  array<string, string|list<string>>  $attributes
-     * @param  array{name_id?: string, issuer?: string, audience?: string, in_response_to?: string, recipient?: string, not_on_or_after?: string, assertion_id?: string}  $options
+     * @param  array{name_id?: string, name_id_format?: string|null, issuer?: string, audience?: string, in_response_to?: string, recipient?: string, not_on_or_after?: string, assertion_id?: string}  $options
      */
     private function assertion(array $request, string $spEntityId, array $attributes, array $options): Assertion
     {
@@ -182,7 +182,7 @@ final class FakeSamlIdp
             ->setIssueInstant(new DateTime)
             ->setIssuer(new Issuer($options['issuer'] ?? self::ENTITY_ID))
             ->setSubject((new Subject)
-                ->setNameID(new NameID($options['name_id'] ?? 'jane@acme.example', SamlConstants::NAME_ID_FORMAT_EMAIL))
+                ->setNameID(new NameID($options['name_id'] ?? self::persistentId($attributes), array_key_exists('name_id_format', $options) ? $options['name_id_format'] : SamlConstants::NAME_ID_FORMAT_PERSISTENT))
                 ->addSubjectConfirmation((new SubjectConfirmation)
                     ->setMethod(SamlConstants::CONFIRMATION_METHOD_BEARER)
                     ->setSubjectConfirmationData((new SubjectConfirmationData)
@@ -198,6 +198,19 @@ final class FakeSamlIdp
                 ->setSessionIndex(Helper::generateID())
                 ->setAuthnContext((new AuthnContext)->setAuthnContextClassRef(SamlConstants::AUTHN_CONTEXT_PASSWORD_PROTECTED_TRANSPORT)))
             ->addItem($statement);
+    }
+
+    /**
+     * The default NameID: persistent and stable per person (derived from the email attribute), like a Keycloak
+     * client with the persistent NameID format.
+     *
+     * @param  array<string, string|list<string>>  $attributes
+     */
+    public static function persistentId(array $attributes): string
+    {
+        $email = $attributes['email'] ?? 'jane@acme.example';
+
+        return 'G-'.substr(hash('sha256', strtolower(is_array($email) ? (string) ($email[0] ?? '') : $email)), 0, 32);
     }
 
     private static function document(string $response): DOMDocument

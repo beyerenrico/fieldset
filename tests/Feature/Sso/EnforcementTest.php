@@ -101,10 +101,11 @@ it('refuses the reset in the action itself (backstop)', function (): void {
 it('sends an invited new account to SSO instead of letting it set a password', function (): void {
     $membership = app(InviteMember::class)->handle($this->owner, $this->org, 'new@acme.example', 'New Person', ['field_worker']);
     $url = URL::temporarySignedRoute('invitations.show', now()->addDay(), ['membership' => $membership->id]);
-    $sso = $this->provider->redirectUrl(SsoClient::App, 'new@acme.example');
+    $sso = $this->provider->redirectUrl(SsoClient::App, 'new@acme.example').'&start=';
 
-    $this->get($url)->assertRedirect($sso);
-    $this->post($url, ['password' => 'Sup3r-Secret-Pw!', 'password_confirmation' => 'Sup3r-Secret-Pw!'])->assertStatus(303)->assertRedirect($sso);
+    expect($this->get($url)->assertRedirect()->headers->get('Location'))->toStartWith($sso)->toMatch('/&start=[A-Za-z0-9]{40}$/');
+    expect($this->post($url, ['password' => 'Sup3r-Secret-Pw!', 'password_confirmation' => 'Sup3r-Secret-Pw!'])->assertStatus(303)->headers->get('Location'))
+        ->toStartWith($sso)->toMatch('/&start=[A-Za-z0-9]{40}$/');
 
     $this->assertGuest();
     expect($membership->fresh()->status)->toBe(MembershipStatus::Invited)

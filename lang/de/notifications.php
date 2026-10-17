@@ -38,6 +38,8 @@ return [
                 'signature' => 'Die Tokensignatur von „:provider“ konnte nicht geprüft werden: :detail',
                 'saml_signature' => 'Die Signatur der SAML-Assertion von „:provider“ konnte nicht geprüft werden: :detail',
                 'saml_issuer' => 'Die SAML-Assertions von „:provider“ stammen von einer anderen Entity-ID: :detail',
+                'saml_name_id' => 'Die SAML-Anmeldung von „:provider“ liefert keine dauerhafte Benutzer-ID: Stellen Sie das NameID-Format auf „persistent“ oder konfigurieren Sie ein Subjekt-Attribut.',
+                'saml_subject' => 'Der SAML-Anmeldung von „:provider“ fehlt das konfigurierte Subjekt-Attribut: :detail',
                 'invalid_client' => '„:provider“ hat die Client-ID oder das Client-Geheimnis abgelehnt (ist das Geheimnis abgelaufen?): :detail',
                 'config' => 'Die Konfiguration von „:provider“ ist unvollständig oder ungültig: :detail',
                 'blocked_host' => 'Die Adresse von „:provider“ zeigt auf einen gesperrten Host (privates oder unsicheres Netz): :detail',

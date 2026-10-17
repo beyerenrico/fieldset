@@ -9,7 +9,8 @@ use App\Domain\Identity\Sso\Enums\SsoClient;
 
 /**
  * One SSO login attempt, kept in the initiating session (ADR 0036): the provider, the return target (an
- * enum, never a URL from the request), test mode, and for test mode the admin page to return to.
+ * enum, never a URL from the request), test mode, for test mode the admin page to return to, and the
+ * invited membership of another organization when the person came to accept that invitation.
  */
 final readonly class SsoFlow
 {
@@ -20,6 +21,7 @@ final readonly class SsoFlow
         public bool $test,
         public ?string $returnUrl,
         public int $startedAt,
+        public ?int $invitation = null,
     ) {}
 
     public function belongsTo(IdentityProvider $provider): bool
@@ -32,12 +34,12 @@ final readonly class SsoFlow
         return time() - $this->startedAt > config()->integer('sso.flow_ttl', 600);
     }
 
-    /** @return array{id: string, provider: string, client: string, test: bool, return_url: string|null, started_at: int} */
+    /** @return array{id: string, provider: string, client: string, test: bool, return_url: string|null, started_at: int, invitation: int|null} */
     public function toArray(): array
     {
         return [
             'id' => $this->id, 'provider' => $this->providerUuid, 'client' => $this->client->value, 'test' => $this->test,
-            'return_url' => $this->returnUrl, 'started_at' => $this->startedAt,
+            'return_url' => $this->returnUrl, 'started_at' => $this->startedAt, 'invitation' => $this->invitation,
         ];
     }
 
@@ -55,6 +57,7 @@ final readonly class SsoFlow
             ($data['test'] ?? false) === true,
             is_string($data['return_url'] ?? null) ? $data['return_url'] : null,
             is_int($data['started_at'] ?? null) ? $data['started_at'] : 0,
+            is_int($data['invitation'] ?? null) ? $data['invitation'] : null,
         );
     }
 }

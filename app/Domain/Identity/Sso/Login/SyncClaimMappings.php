@@ -6,12 +6,12 @@ namespace App\Domain\Identity\Sso\Login;
 
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Identity\Actions\SyncMemberGroups;
-use App\Domain\Identity\Enums\SystemRole;
 use App\Domain\Identity\Models\IdentityProvider;
 use App\Domain\Identity\Models\IdentityProviderMapping;
 use App\Domain\Identity\Models\Membership;
 use App\Domain\Identity\Models\Role;
 use App\Domain\Identity\Models\User;
+use App\Domain\Identity\Sso\Admin\SsoTargets;
 use App\Domain\Identity\Sso\Data\ExternalProfile;
 use App\Domain\Identity\Support\OrganizationPermissions;
 use Illuminate\Support\Collection;
@@ -20,7 +20,9 @@ use Illuminate\Support\Facades\DB;
 /**
  * Identity resolution step 5 of ADR 0036 (inside the provider's tenant): roles and groups that are mapping
  * targets form an IdP-managed set re-synced on every login — a target is held exactly while a claim value
- * maps to it. Manual assignments (non-targets) and Owner are never touched. A claim that a mapping reads but
+ * maps to it. Manual assignments (non-targets) and Owner-level roles (Owner, or any role with
+ * organization.delete — SsoTargets::isOwnerLevel, the rule the admin side validates with) are never granted
+ * or removed, even when a stale or hand-made mapping targets them. A claim that a mapping reads but
  * the login lacks is audited (`sso.mapping_claim_missing`):
  * - the provider's groups claim (`groups_claim` / `groups_attribute`, alias `groups`) counts as empty, because
  *   IdPs omit an empty multi-valued claim (Keycloak's groups mapper, SAML attributes) and keeping roles of
@@ -33,6 +35,7 @@ final readonly class SyncClaimMappings
     public function __construct(
         private SyncMemberGroups $syncGroups,
         private OrganizationPermissions $permissions,
+        private SsoTargets $targets,
         private AuditLogger $audit,
     ) {}
 
@@ -88,8 +91,7 @@ final readonly class SyncClaimMappings
      */
     private function syncRoles(IdentityProvider $provider, User $user, Membership $membership, array $managed, array $wanted): void
     {
-        $owner = Role::query()->where('organization_id', $provider->organization_id)->where('name', SystemRole::Owner->value)->value('id');
-        $managed = array_values(array_diff($managed, [(int) $owner]));
+        $managed = $this->withoutOwnerLevel($provider, $managed);
         $current = array_values(DB::table('model_has_roles')->where('model_type', $user->getMorphClass())->where('model_id', $user->id)
             ->where('organization_id', $provider->organization_id)->pluck('role_id')->map(static fn (mixed $id): int => (int) $id)->all());
         $next = $this->next($current, $managed, $wanted);
@@ -106,6 +108,19 @@ final readonly class SyncClaimMappings
         $this->audit->record('member.roles_changed', $membership, [
             'before' => $before, 'after' => $this->roleNames($provider, $next), 'source' => 'sso', 'provider' => $provider->uuid,
         ]);
+    }
+
+    /**
+     * @param  list<int>  $roleIds
+     * @return list<int>
+     */
+    private function withoutOwnerLevel(IdentityProvider $provider, array $roleIds): array
+    {
+        $ownerLevel = Role::query()->where('organization_id', $provider->organization_id)->whereKey($roleIds)->get()
+            ->filter(fn (Role $role): bool => $this->targets->isOwnerLevel($role))
+            ->map(static fn (Role $role): int => (int) $role->id)->all();
+
+        return array_values(array_diff($roleIds, $ownerLevel));
     }
 
     /**

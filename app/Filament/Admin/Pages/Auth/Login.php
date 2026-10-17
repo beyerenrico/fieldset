@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Admin\Pages\Auth;
 
+use App\Domain\Identity\Models\IdentityProvider;
 use App\Domain\Identity\Sso\Contracts\HomeRealmDiscovery;
 use App\Domain\Identity\Sso\Contracts\PasswordAuthGate;
 use App\Domain\Identity\Sso\Data\DiscoveryResult;
@@ -11,10 +12,12 @@ use App\Domain\Identity\Sso\Enums\SsoClient;
 use App\Domain\Identity\Sso\Enums\SsoRefusal;
 use App\Domain\Identity\Sso\Exceptions\SsoRequiredException;
 use App\Domain\Identity\Sso\Login\BlockedPasswordFlow;
+use App\Domain\Identity\Sso\Login\SsoStartLink;
 use DanHarrin\LivewireRateLimiting\Exceptions\TooManyRequestsException;
 use Filament\Actions\Action;
 use Filament\Auth\Http\Responses\Contracts\LoginResponse;
 use Filament\Auth\Pages\Login as BaseLogin;
+use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Components\Actions;
 use Filament\Schemas\Components\Component;
@@ -23,6 +26,8 @@ use Filament\Schemas\Components\Form;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Contracts\Support\Htmlable;
+use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\HtmlString;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
 use SensitiveParameter;
@@ -34,6 +39,8 @@ use Throwable;
  *    revealing whether a user exists). A verified domain with SSO redirects to the identity provider.
  * 2. Otherwise the password step shows password, "remember me" and, after it, Filament's MFA challenge.
  * "Sign in with a password" skips discovery (break-glass Owner, organizations that do not enforce SSO).
+ * Each step change moves the keyboard focus to the field of the new step; "Forgot password?" is reachable
+ * with Tab (Filament renders it with tabindex=-1).
  * Before any password check the PasswordAuthGate may refuse an enforced domain: the error sits on the
  * email field with a link to SSO, and the refusal is audited. Filament's throttling (5/min per IP for
  * sign-in, 10/min for discovery) and its MFA flow stay as they are.
@@ -43,6 +50,11 @@ class Login extends BaseLogin
     public const string STEP_EMAIL = 'email';
 
     public const string STEP_PASSWORD = 'password';
+
+    /** Inputs of the login form, found by type: their ids follow Filament's state paths. */
+    public const string PASSWORD_INPUT = 'input[type=password]';
+
+    public const string EMAIL_INPUT = 'input[type=email]';
 
     #[Locked]
     public string $step = self::STEP_EMAIL;
@@ -97,6 +109,7 @@ class Login extends BaseLogin
         }
 
         $this->step = self::STEP_PASSWORD;
+        $this->focusInput(self::PASSWORD_INPUT);
     }
 
     /** Break-glass and organizations without SSO: straight to the password step. */
@@ -104,6 +117,7 @@ class Login extends BaseLogin
     {
         $this->step = self::STEP_PASSWORD;
         $this->ssoUrl = null;
+        $this->focusInput(self::PASSWORD_INPUT);
     }
 
     public function useOtherEmail(): void
@@ -113,6 +127,7 @@ class Login extends BaseLogin
         $this->userUndertakingMultiFactorAuthentication = null;
         $this->data = ['email' => $this->data['email'] ?? null, 'password' => null, 'remember' => $this->data['remember'] ?? false];
         $this->resetErrorBag();
+        $this->focusInput(self::EMAIL_INPUT);
     }
 
     public function authenticate(): ?LoginResponse
@@ -179,16 +194,41 @@ class Login extends BaseLogin
     {
         $email = (string) ($data['email'] ?? '');
         try {
-            app(PasswordAuthGate::class)->assertPasswordLogin($email);
+            app(PasswordAuthGate::class)->assertPasswordLoginWith($email, (string) ($data['password'] ?? ''));
         } catch (SsoRequiredException $e) {
             app(BlockedPasswordFlow::class)->login($email, $e, 'admin');
             $this->userUndertakingMultiFactorAuthentication = null;
-            $this->ssoUrl = $e->discovery->provider?->redirectUrl(SsoClient::Admin, $email);
+            $provider = $e->discovery->provider;
+            $this->ssoUrl = $provider instanceof IdentityProvider ? app(SsoStartLink::class)->url($provider, SsoClient::Admin, $email) : null;
 
             throw ValidationException::withMessages(['data.email' => __('sso_admin.login.sso_required')]);
         }
 
         return parent::getCredentialsFromFormData($data);
+    }
+
+    /** Filament's password field, with "Forgot password?" in the tab order. */
+    protected function getPasswordFormComponent(): Component
+    {
+        $component = parent::getPasswordFormComponent();
+        if ($component instanceof TextInput && filament()->hasPasswordReset()) {
+            $component->hint(new HtmlString(Blade::render(
+                '<x-filament::link :href="filament()->getRequestPasswordResetUrl()">{{ __(\'filament-panels::auth/pages/login.actions.request_password_reset.label\') }}</x-filament::link>',
+            )));
+        }
+
+        return $component;
+    }
+
+    /** The script that focuses a login input once the new step is rendered (after Livewire's morph). */
+    public static function focusScript(string $selector): string
+    {
+        return 'requestAnimationFrame(() => document.querySelector('.json_encode('.fi-simple-main '.$selector).')?.focus())';
+    }
+
+    private function focusInput(string $selector): void
+    {
+        $this->js(self::focusScript($selector));
     }
 
     private function discover(string $email): DiscoveryResult

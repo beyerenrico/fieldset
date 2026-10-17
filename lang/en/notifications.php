@@ -38,6 +38,8 @@ return [
                 'signature' => 'The token signature of “:provider” could not be verified: :detail',
                 'saml_signature' => 'The SAML assertion signature of “:provider” could not be verified: :detail',
                 'saml_issuer' => 'The SAML assertions of “:provider” come from another entity ID: :detail',
+                'saml_name_id' => 'The SAML sign-in of “:provider” sends no stable user ID: set the NameID format to persistent or configure a subject attribute.',
+                'saml_subject' => 'The SAML sign-in of “:provider” lacks the configured subject attribute: :detail',
                 'invalid_client' => '“:provider” rejected the client ID or the client secret (has the secret expired?): :detail',
                 'config' => 'The configuration of “:provider” is incomplete or invalid: :detail',
                 'blocked_host' => 'The address of “:provider” points to a blocked host (private or unsafe network): :detail',

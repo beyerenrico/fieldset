@@ -7,9 +7,12 @@ namespace Tests\Support\Sso;
 use App\Domain\Identity\Models\IdentityProvider;
 use App\Domain\Identity\Models\Organization;
 use App\Domain\Identity\Models\SsoDomain;
+use App\Domain\Identity\Sso\Contracts\SsoMisconfigurationReporter;
 use App\Domain\Identity\Sso\Enums\SsoClient;
+use App\Domain\Identity\Sso\Login\SsoStartLink;
 use App\Domain\Identity\Sso\Providers\SsrfGuardedHttpClient;
 use App\Domain\Identity\Tenancy\TenantContext;
+use ArrayObject;
 use Closure;
 use Firebase\JWT\JWT;
 use GuzzleHttp\Promise\Create;
@@ -41,7 +44,7 @@ final class FakeOidcIdp
     /** @var list<array{method: string, url: string}> */
     public array $requests = [];
 
-    /** @var array<string, int> path suffix => forced HTTP status */
+    /** @var array<string, array{status: int, json: array<string, mixed>|null}> path suffix => forced answer */
     private array $failures = [];
 
     /** @var array<string, array{claims: array<string, mixed>, challenge: string, key: string, kid: string}> */
@@ -103,9 +106,38 @@ final class FakeOidcIdp
      */
     public function login(IdentityProvider $provider, array $claims, SsoClient $client = SsoClient::App, array $options = []): TestResponse
     {
-        $redirect = test()->get($provider->redirectUrl($client))->assertRedirect();
+        $redirect = test()->get(self::startUrl($provider, $client))->assertRedirect();
 
         return test()->get($this->authorize((string) $redirect->headers->get('Location'), $claims, $options));
+    }
+
+    /** A login start URL with this session's start token, as discovery hands it out (SsoStartLink). */
+    public static function startUrl(IdentityProvider $provider, SsoClient $client = SsoClient::App, ?string $loginHint = null, ?int $invitation = null): string
+    {
+        return app(SsoStartLink::class)->url($provider, $client, $loginHint, $invitation);
+    }
+
+    /**
+     * Binds a misconfiguration reporter that records each report's reason; returns the live list.
+     *
+     * @return ArrayObject<int, string>
+     */
+    public static function spyReporter(): ArrayObject
+    {
+        /** @var ArrayObject<int, string> $reports */
+        $reports = new ArrayObject;
+        app()->instance(SsoMisconfigurationReporter::class, new readonly class($reports) implements SsoMisconfigurationReporter
+        {
+            /** @param  ArrayObject<int, string>  $reports */
+            public function __construct(private ArrayObject $reports) {}
+
+            public function report(IdentityProvider $p, string $reason, string $detail): void
+            {
+                $this->reports->append($reason);
+            }
+        });
+
+        return $reports;
     }
 
     public function handler(): Closure
@@ -113,9 +145,10 @@ final class FakeOidcIdp
         return fn (RequestInterface $request, array $options): PromiseInterface => Create::promiseFor($this->respond($request));
     }
 
-    public function failWith(string $pathSuffix, int $status): void
+    /** @param  array<string, mixed>|null  $json  a JSON error body instead of plain text */
+    public function failWith(string $pathSuffix, int $status, ?array $json = null): void
     {
-        $this->failures[$pathSuffix] = $status;
+        $this->failures[$pathSuffix] = ['status' => $status, 'json' => $json];
     }
 
     /** Publishes a new key (kid) and signs future tokens with it; the old key leaves the JWKS. */
@@ -175,9 +208,9 @@ final class FakeOidcIdp
         $path = $request->getUri()->getPath();
         $this->requests[] = ['method' => $request->getMethod(), 'url' => $url];
 
-        foreach ($this->failures as $suffix => $status) {
+        foreach ($this->failures as $suffix => $failure) {
             if (str_ends_with($path, $suffix)) {
-                return new Response($status, [], 'forced failure');
+                return $failure['json'] === null ? new Response($failure['status'], [], 'forced failure') : $this->json($failure['json'], $failure['status']);
             }
         }
 

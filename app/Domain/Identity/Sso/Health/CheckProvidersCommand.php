@@ -19,6 +19,8 @@ use Illuminate\Console\Command;
  * Hourly provider health check (ADR 0036; scheduled in routes/console.php): every provider that takes logins
  * (active or error) is checked; a failure sets status=error with last_error and reaches the
  * SsoMisconfigurationReporter (which throttles), a success clears the error and returns error → active.
+ * A check takes seconds per provider: the status is written conditionally (ProviderStatusRecorder), and a
+ * provider an admin drafted or disabled meanwhile keeps that status and is not reported.
  */
 #[Description('Check every active SSO provider (discovery, JWKS, SAML metadata)')]
 #[Signature('sso:check-providers')]
@@ -47,8 +49,10 @@ final class CheckProvidersCommand extends Command
                 }
 
                 $reason = $health->reason ?? 'unknown';
-                $status->failed($provider, $reason, (string) $health->detail);
-                $reporter->report($provider, $reason, (string) $health->detail);
+                $next = $status->failed($provider, $reason, (string) $health->detail);
+                if (in_array($next, DomainProviderLookup::LOGIN_STATUSES, true)) {
+                    $reporter->report($provider, $reason, (string) $health->detail);
+                }
                 $this->components->twoColumnDetail($provider->uuid, __('sso.command.failed', ['reason' => $reason]));
             });
         }

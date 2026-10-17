@@ -20,7 +20,9 @@ use Laravel\Socialite\Contracts\User as SocialiteUser;
  * flavor rules that are refusals (ADR 0036): Google needs `email_verified` and an `hd` that the
  * organization holds verified; generic OIDC needs `email_verified` unless the audited opt-in
  * `trust_unverified_email` is set; Entra's email is the UPN (`preferred_username`), which the directory
- * verified. `claims.email_verified_by` (claim|upn|trusted) goes into the login audit.
+ * verified. `claims.email_verified_by` (claim|upn|trusted) goes into the login audit. A token issued by
+ * Google or Microsoft only counts under that flavor (OidcSettings::requiredFlavor(), also refused at config
+ * time), so the `hd` and `tid` rules can never be skipped.
  */
 final readonly class OidcProfileFactory
 {
@@ -28,6 +30,7 @@ final readonly class OidcProfileFactory
     public function make(IdentityProvider $provider, OidcSettings $settings, SocialiteUser $user): ExternalProfile
     {
         $raw = $this->raw($user);
+        $this->assertFlavorFits($settings, $raw);
         $email = $user->getEmail();
         $email = is_string($email) && $email !== '' ? EmailDomain::normalizeEmail($email) : null;
         $verifiedBy = $this->verification($provider, $settings, $raw, $email);
@@ -84,6 +87,19 @@ final readonly class OidcProfileFactory
         }
 
         return 'claim';
+    }
+
+    /**
+     * @param  array<array-key, mixed>  $raw
+     *
+     * @throws InvalidArgumentException a configuration fault (status=error, reported)
+     */
+    private function assertFlavorFits(OidcSettings $settings, array $raw): void
+    {
+        $required = OidcSettings::requiredFlavor(is_string($raw['iss'] ?? null) ? $raw['iss'] : $settings->issuer);
+        if ($required instanceof OidcFlavor && $required !== $settings->flavor) {
+            throw new InvalidArgumentException(OidcSettings::CONFIG_ERROR.' a token of this issuer needs the '.$required->value.' flavor.');
+        }
     }
 
     /** @return array<array-key, mixed> */

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use App\Domain\Audit\Models\Activity;
 use App\Domain\Identity\Models\User;
-use App\Domain\Identity\Sso\Enums\SsoClient;
 use Tests\Support\Sso\FakeOidcIdp;
 
 const OIDC_FLAVOR_ENTRA_TENANT = '6f1d2c3b-4a59-4e8f-9b0a-1c2d3e4f5a6b';
@@ -73,7 +72,7 @@ describe('Microsoft Entra ID', function (): void {
     it('needs the tenant GUID', function (): void {
         $provider = $this->idp->provider(makeOrganization(name: 'Contoso'), [], ['flavor' => 'entra', 'tenant' => 'contoso.onmicrosoft.com']);
 
-        $this->get($provider->redirectUrl(SsoClient::App))->assertRedirect('/app/login?sso_error=provider_unavailable');
+        $this->get(FakeOidcIdp::startUrl($provider))->assertRedirect('/app/login?sso_error=provider_unavailable');
 
         expect(Activity::query()->where('event', 'auth.sso_failed')->sole()->properties['misconfiguration'])->toBe('config')
             ->and($this->idp->requests)->toBe([]);
