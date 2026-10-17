@@ -58,8 +58,8 @@ Route::get('admin/{organization}/exports/{export}', ExportDownloadController::cl
 Route::prefix('auth/sso')->name('sso.')->group(function (): void {
     Route::post('discover', DiscoverController::class)->middleware('throttle:20,1')->name('discover');
     Route::get('saml/complete', SamlCompleteController::class)->name('saml.complete');
-    Route::get('{provider}/redirect', RedirectController::class)->whereUuid('provider')->name('redirect');
-    Route::get('{provider}/callback', CallbackController::class)->whereUuid('provider')->name('callback');
+    Route::get('{provider}/redirect', RedirectController::class)->whereUuid('provider')->middleware('throttle:30,1')->name('redirect');
+    Route::get('{provider}/callback', CallbackController::class)->whereUuid('provider')->middleware('throttle:30,1')->name('callback');
     Route::get('{provider}/saml/metadata', SamlMetadataController::class)->whereUuid('provider')->name('saml.metadata');
     // A cross-site POST from the IdP carries no Lax session cookie and must not start or overwrite a session.
     Route::post('{provider}/saml/acs', SamlAcsController::class)->whereUuid('provider')
