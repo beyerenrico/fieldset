@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Filament\Admin\Pages\Auth;
 
+use App\Domain\Audit\AuditLogger;
+use App\Domain\Audit\LockoutAudit;
 use App\Domain\Identity\Models\IdentityProvider;
 use App\Domain\Identity\Sso\Contracts\HomeRealmDiscovery;
 use App\Domain\Identity\Sso\Contracts\PasswordAuthGate;
@@ -26,6 +28,7 @@ use Filament\Schemas\Components\Form;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Contracts\Support\Htmlable;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\HtmlString;
 use Illuminate\Validation\ValidationException;
@@ -138,7 +141,26 @@ class Login extends BaseLogin
             return null;
         }
 
-        return parent::authenticate();
+        // A wrong MFA code fails Filament's challenge without an auth event: audit it like Fortify's (§8.11).
+        $challenged = $this->userUndertakingMultiFactorAuthentication !== null;
+        try {
+            return parent::authenticate();
+        } catch (ValidationException $e) {
+            $user = $challenged && $this->userUndertakingMultiFactorAuthentication !== null ? $this->getUserUndertakingMultiFactorAuthentication() : null;
+            if ($user instanceof Model) {
+                app(AuditLogger::class)->record('auth.mfa_failed', $user, ['via' => 'admin'], $user);
+            }
+
+            throw $e;
+        }
+    }
+
+    /** Filament throttles without a Lockout event: audited once per throttle window (§8.11, LockoutAudit). */
+    protected function getRateLimitedNotification(TooManyRequestsException $exception): ?Notification
+    {
+        LockoutAudit::record($this->data['email'] ?? null, 'admin', request()->ip(), $exception->secondsUntilAvailable);
+
+        return parent::getRateLimitedNotification($exception);
     }
 
     public function getFormContentComponent(): Component

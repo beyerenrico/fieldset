@@ -198,7 +198,6 @@ export function createPreview(core: Core): PreviewFeed | null {
         ? null
         : new PreviewFeed(frame, {
               getDefinition: () => core.store.state.definition,
-              origin: new URL(core.config.urls.preview, core.win.location.href).origin,
               win: core.win,
           });
 }

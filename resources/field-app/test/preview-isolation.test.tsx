@@ -34,6 +34,8 @@ describe('builder preview build (/form-preview/)', () => {
         expect(previewConfig.publicDir).toBe(false);
         expect(previewConfig.build?.outDir).toBe('../../public/form-preview');
         expect(previewConfig.build?.rolldownOptions?.input).toEqual({ preview: 'preview.html' });
+        // connect-src 'none' in the sandboxed preview: no fetch()-based modulepreload polyfill.
+        expect(previewConfig.build?.modulePreload).toEqual({ polyfill: false });
         const names = pluginNames(previewConfig.plugins);
         expect(names.length).toBeGreaterThan(0);
         expect(names.filter((name) => name.includes('pwa'))).toEqual([]);
@@ -47,6 +49,18 @@ describe('builder preview build (/form-preview/)', () => {
         );
         expect(offline).toEqual([]);
         expect([...graph.packages].filter((name) => OFFLINE_PACKAGES.test(name))).toEqual([]);
+    });
+
+    it('never touches storage, which throws in the sandbox (opaque origin, ADR 0040)', () => {
+        const graph = importGraph(sources, '../src/preview/preview-main.tsx');
+        const reached = [
+            ...[...graph.files].map((file) => sources[file] ?? ''),
+            ...Object.values(rendererSources),
+        ];
+        expect(reached.length).toBeGreaterThan(1);
+        const storage = /\b(localStorage|sessionStorage|indexedDB|document\.cookie|caches\.open)\b/;
+        expect(storage.test('window.localStorage.getItem(key)')).toBe(true);
+        expect(reached.filter((source) => storage.test(source))).toEqual([]);
     });
 
     it('bundles a renderer that has no offline dependencies either', () => {

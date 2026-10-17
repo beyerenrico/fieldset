@@ -11,6 +11,7 @@ use App\Domain\Identity\Enums\UserStatus;
 use App\Domain\Identity\Sso\Contracts\PasswordAuthGate;
 use App\Domain\Identity\Sso\Exceptions\SsoRequiredException;
 use App\Domain\Identity\Support\OrganizationPermissions;
+use App\Domain\Platform\PlatformAdmins;
 use Database\Factories\UserFactory;
 use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthentication;
 use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthenticationRecovery;
@@ -215,6 +216,11 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
     {
         if (! $this->isActive()) {
             return false;
+        }
+
+        // The /platform operator panel (ADR 0041): a platform_admins grant, no organization needed.
+        if ($panel->getId() === 'platform') {
+            return app(PlatformAdmins::class)->check($this);
         }
 
         if ($panel->getId() !== 'admin') {

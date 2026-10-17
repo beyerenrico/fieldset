@@ -45,3 +45,6 @@ Schedule::command('reports:sweep-exports')->everyTenMinutes()->withoutOverlappin
 Schedule::command('sso:check-providers')->hourly()->withoutOverlapping()->onOneServer();
 Schedule::command('sso:recheck-domains')->daily()->withoutOverlapping()->onOneServer();
 // --- end M7 SSO ---
+
+// Integration tokens (ADR 0043): drop tokens that expired more than a day ago.
+Schedule::command('sanctum:prune-expired', ['--hours' => 24])->daily()->withoutOverlapping()->onOneServer();

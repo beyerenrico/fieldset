@@ -41,7 +41,7 @@
         >
             {{-- async-alpine downloads the client before Alpine initialises this root. Registered with asyncData
                  instead of x-load-src: Vite app builds drop entry exports, so main.ts also sets window.FormSchemaBuilderV2. --}}
-            <script>
+            <script @if (filled($cspNonce = \Illuminate\Support\Facades\Vite::cspNonce())) nonce="{{ $cspNonce }}" @endif>
                 (() => {
                     const register = () => window.Alpine.asyncData('builderV2', () =>
                         import(@js(\Illuminate\Support\Facades\Vite::asset('resources/builder-v2/src/main.ts')))
@@ -121,7 +121,8 @@
             {{ $this->inspector }}
         </aside>
 
-        {{-- The preview follows the inspector in the focus order; its own wire:ignore block keeps the iframe alive. --}}
+        {{-- The preview follows the inspector in the focus order; its own wire:ignore block keeps the iframe alive.
+             sandbox without allow-same-origin: the preview runs in an opaque origin (ADR 0040, QUESTIONS #10). --}}
         <div class="bv2-preview-block" wire:ignore wire:key="builder-v2-preview">
             <section class="bv2-preview" data-builder-preview-pane data-size="phone" aria-label="{{ __('builder_v2.preview.label') }}">
                 <iframe
@@ -129,7 +130,7 @@
                     data-size="phone"
                     src="{{ url('/form-preview/') }}"
                     title="{{ __('builder_v2.preview.frame') }}"
-                    sandbox="allow-scripts allow-same-origin"
+                    sandbox="allow-scripts"
                 ></iframe>
             </section>
         </div>

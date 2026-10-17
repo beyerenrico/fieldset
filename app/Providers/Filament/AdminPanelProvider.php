@@ -18,6 +18,7 @@ use App\Filament\Admin\Pages\Tenancy\RegisterOrganization;
 use App\Http\Middleware\EndRevokedDeviceSession;
 use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\SetTenantFromFilament;
+use App\Support\Security\InitialsAvatarProvider;
 use Filament\Actions\Action;
 use Filament\Auth\Http\Controllers\EmailChangeVerificationController as FilamentEmailChangeVerificationController;
 use Filament\Facades\Filament;
@@ -54,6 +55,8 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login(Login::class)                                            // email-first with home-realm discovery (ADR 0036)
+            // Local initials avatars: ui-avatars.com would leak names and is blocked by the CSP (ADR 0040).
+            ->defaultAvatarProvider(InitialsAvatarProvider::class)
             ->passwordReset(RequestPasswordReset::class, ResetPassword::class) // refused for domains that enforce SSO
             ->emailVerification()
             ->emailChangeVerification()

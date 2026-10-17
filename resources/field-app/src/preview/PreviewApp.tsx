@@ -9,7 +9,11 @@ import { previewTexts } from './texts.ts';
 export interface PreviewAppProps {
     /** Window that receives the ready message (the builder); defaults to `window.parent`. */
     readonly target?: Pick<Window, 'postMessage'>;
-    /** The only origin accepted for incoming messages; defaults to the preview's own origin. */
+    /**
+     * The builder's origin: the only origin accepted for incoming messages and the target origin of
+     * the ready message. Defaults to `location.origin`, which inside the sandbox (opaque document
+     * origin, ADR 0040) is still the origin of the preview URL, i.e. the builder's origin.
+     */
     readonly origin?: string;
     /** The only window accepted as sender; defaults to `window.parent` (the builder). */
     readonly source?: MessageEventSource;
@@ -19,7 +23,8 @@ const EMPTY: JsonObject = {};
 
 /**
  * Builder preview: renders the unsaved definition it receives via postMessage with the shared
- * renderer in preview mode. In-memory attachments only; no router, storage or service worker.
+ * renderer in preview mode. In-memory attachments only; no router, storage or service worker —
+ * the sandbox gives it an opaque origin, where storage APIs throw anyway.
  */
 export function PreviewApp({
     target = window.parent,
