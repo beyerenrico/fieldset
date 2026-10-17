@@ -93,6 +93,10 @@ describe('endpoints', () => {
                 orgs.push(request.headers.get('X-Organization-Id'));
                 return ok({ submission: makeSubmission({ status: 'submitted' }) });
             }),
+            http.get('*/api/v1/submissions/:uuid', ({ request }) => {
+                orgs.push(request.headers.get('X-Organization-Id'));
+                return ok({ submission: makeSubmission() });
+            }),
         );
         await putSubmission(
             'u1',
@@ -101,7 +105,8 @@ describe('endpoints', () => {
         );
         await putSubmission('u1', { formVersionId: 7, data: {}, revision: 1 });
         await submitSubmission('u1', { revision: 2 }, 'key-12345678', { organizationId: 3 });
-        expect(orgs).toEqual(['2', '1', '3']);
+        await fetchSubmission('u1', { organizationId: 4 });
+        expect(orgs).toEqual(['2', '1', '3', '4']);
     });
 
     it('uploads attachments as multipart with the client uuid', async () => {

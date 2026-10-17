@@ -34,6 +34,8 @@ export interface SyncBackendState {
     deviceStatus: 'ok' | 'reauth' | 'wipe';
     /** The next submit is processed, but its answer never arrives. */
     loseNextSubmit: boolean;
+    /** The next PUT is processed, but its answer never arrives. */
+    loseNextPut: boolean;
     /** Answers to inject before the normal handling, by "METHOD kind" (e.g. "POST submit"). */
     inject: Map<string, () => Response>;
 }
@@ -71,16 +73,17 @@ function nextDraft(state: SyncBackendState, uuid: string, body: Record<string, u
         state.submissions.set(uuid, created);
         return ok({ submission: created }, { status: 201 });
     }
-    if (!existing.can_edit) {
-        return fail(409, 'not_editable');
-    }
-    // Retries are safe: the last successful save again answers 200 with the current draft.
+    // Retries are safe: the last successful save again answers 200 with the current draft. As in
+    // SaveSubmissionDraft::update, revision_conflict is checked before not_editable.
     const sameData = JSON.stringify(existing.data) === JSON.stringify(body.data);
-    if (sameData && revision === existing.revision - 1) {
+    if (existing.can_edit && sameData && revision === existing.revision - 1) {
         return ok({ submission: existing });
     }
     if (revision !== existing.revision) {
         return fail(409, 'revision_conflict', { submission: existing });
+    }
+    if (!existing.can_edit) {
+        return fail(409, 'not_editable');
     }
     const updated = { ...existing, data: body.data as JsonObject, revision: existing.revision + 1 };
     state.submissions.set(uuid, updated);
@@ -98,7 +101,14 @@ function submit(state: SyncBackendState, uuid: string, key: string, raw: string)
     if (existing === undefined) {
         return fail(404, 'not_found');
     }
-    const body = JSON.parse(raw) as { revision: number };
+    const body = JSON.parse(raw) as { revision: number; client_submitted_at?: string };
+    // As SubmitSubmission: a repeat of the submit that consumed the revision answers 200, then
+    // not_editable, then revision_conflict.
+    if (!existing.can_edit && existing.status !== 'draft') {
+        return body.revision === existing.revision - 1
+            ? ok({ submission: existing })
+            : fail(409, 'not_editable');
+    }
     if (body.revision !== existing.revision) {
         return fail(409, 'revision_conflict', { submission: existing });
     }
@@ -109,7 +119,10 @@ function submit(state: SyncBackendState, uuid: string, key: string, raw: string)
     const submitted: Submission = {
         ...existing,
         status: 'submitted',
+        revision: existing.revision + 1,
         number: existing.number ?? `SR-2026-${String(state.replays.size + 1).padStart(5, '0')}`,
+        submitted_at: new Date().toISOString(),
+        client_submitted_at: body.client_submitted_at ?? null,
         can_edit: false,
     };
     state.submissions.set(uuid, submitted);
@@ -216,6 +229,7 @@ export function createSyncBackend(overrides: Partial<SyncBackendState> = {}) {
         loggedIn: true,
         deviceStatus: 'reauth',
         loseNextSubmit: false,
+        loseNextPut: false,
         inject: new Map(),
         ...overrides,
     };
@@ -266,10 +280,32 @@ export function createSyncBackend(overrides: Partial<SyncBackendState> = {}) {
         http.put(paths.put, async ({ request, params }) => {
             const body = (await request.json()) as Record<string, unknown>;
             record(state, request, body);
-            return gate('put', request) ?? nextDraft(state, String(params.uuid), body);
+            const answer = gate('put', request) ?? nextDraft(state, String(params.uuid), body);
+            if (state.loseNextPut) {
+                state.loseNextPut = false;
+                return HttpResponse.error(); // processed, then the connection dropped
+            }
+            return answer;
         }),
     ];
     return { state, handlers };
+}
+
+/**
+ * `GET /submissions/{uuid}` from the fake's state (opt-in: screen tests read through their own
+ * backend). Logged as "GET".
+ */
+export function readHandlers(state: SyncBackendState) {
+    return [
+        http.get(paths.put, ({ request, params }) => {
+            record(state, request, null);
+            if (state.offline) {
+                return HttpResponse.error();
+            }
+            const submission = state.submissions.get(String(params.uuid));
+            return submission === undefined ? fail(404, 'not_found') : ok({ submission });
+        }),
+    ];
 }
 
 /** Short names of the logged requests, e.g. "PUT create", "UPLOAD a1", "SUBMIT key". */
@@ -283,6 +319,9 @@ export function summarize(log: readonly LoggedRequest[]): string[] {
         }
         if (entry.path.endsWith('/send')) {
             return 'SEND';
+        }
+        if (entry.method === 'GET') {
+            return 'GET';
         }
         const body = entry.body as Record<string, unknown>;
         return 'revision' in body ? 'PUT update' : 'PUT create';

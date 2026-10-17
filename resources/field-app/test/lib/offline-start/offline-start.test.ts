@@ -17,8 +17,12 @@ import {
     isUnreachable,
 } from '../../../src/lib/session/offline-start.ts';
 import { forgetSession, loadSession, saveSession } from '../../../src/lib/session/session-cache.ts';
+import { reportAuthError } from '../../../src/lib/session/auth-events.ts';
+import { markPendingLogout } from '../../../src/lib/session/pending-logout.ts';
+import { db } from '../../../src/lib/db/db.ts';
 import { fail, ok } from '../../utils/backend.ts';
-import { ORG_A, ORG_B, makeMe } from '../../utils/fixtures.ts';
+import { seedUnsynced } from '../../utils/c-rows.ts';
+import { ORG_A, ORG_B, makeMe, makeVersion } from '../../utils/fixtures.ts';
 import { server, setupTestServer } from '../../utils/server.ts';
 
 vi.mock('../../../src/lib/session/reload.ts', () => ({
@@ -79,6 +83,9 @@ describe('fetchSessionMe', () => {
         );
         await expect(fetchSessionMe()).rejects.toBeInstanceOf(ReauthRequiredError);
         expect(await loadSession()).toBeDefined(); // reauth keeps everything
+        await vi.waitFor(async () => {
+            expect((await loadSession())?.reauth).toBe(true); // ... but may not open it offline
+        });
 
         server.use(http.post('*/api/v1/auth/device-status', () => ok({ status: 'wipe' })));
         await expect(fetchSessionMe()).rejects.toBeInstanceOf(DeviceWipedError);
@@ -100,6 +107,59 @@ describe('fetchSessionMe', () => {
         await expect(fetchFreshMe()).rejects.toBeInstanceOf(NetworkError);
         await forgetSession();
         expect(await loadSession()).toBeUndefined();
+    });
+
+    it('shows the login page instead of a session the server ended, keeping every row', async () => {
+        await saveSession(cachedMe);
+        await seedUnsynced();
+        reportAuthError(new ReauthRequiredError('expired'));
+        await vi.waitFor(async () => {
+            expect((await loadSession())?.reauth).toBe(true);
+        });
+        server.use(http.get('*/api/v1/me', () => HttpResponse.error()));
+        await expect(fetchSessionMe()).rejects.toMatchObject({
+            name: 'ReauthRequiredError',
+            expired: true,
+        });
+        expect(getCurrentUserId()).toBeNull();
+        expect(await db.drafts.count()).toBe(1);
+
+        // A fresh /me (sign-in) stores an unmarked session again.
+        server.use(http.get('*/api/v1/me', () => ok(cachedMe)));
+        await fetchFreshMe();
+        expect((await loadSession())?.reauth).toBeUndefined();
+        server.use(http.get('*/api/v1/me', () => HttpResponse.error()));
+        expect(await fetchSessionMe()).toEqual(cachedMe);
+    });
+
+    it('never asks /me while a sign-out waits for the server', async () => {
+        await saveSession(cachedMe);
+        let calls = 0;
+        server.use(
+            http.get('*/api/v1/me', () => {
+                calls++;
+                return ok(cachedMe);
+            }),
+        );
+        markPendingLogout();
+        await expect(fetchSessionMe()).rejects.toBeInstanceOf(ReauthRequiredError);
+        expect(calls).toBe(0);
+    });
+
+    it("purges the user's rows and catalogs of organizations missing from a fresh /me", async () => {
+        await seedUnsynced({ orgId: 1, userId: 7 }, 'in-a');
+        await seedUnsynced({ orgId: 2, userId: 7 }, 'in-b');
+        await seedUnsynced({ orgId: 2, userId: 99 }, 'theirs-in-b');
+        await db.formVersions.put({ ...makeVersion(8, 4), orgId: 3, cachedAt: 1 });
+        await db.meta.put({ key: 'catalog:2', value: { cursor: 'c', refreshedAt: 1 } });
+        await db.meta.put({ key: 'catalog:3', value: { cursor: 'c', refreshedAt: 1 } });
+        server.use(http.get('*/api/v1/me', () => ok(makeMe([ORG_A]))));
+        await fetchFreshMe();
+        expect(await db.drafts.toCollection().primaryKeys()).toEqual(['in-a', 'theirs-in-b']);
+        expect(await db.outbox.count()).toBe(2);
+        expect(await db.formVersions.count()).toBe(0);
+        expect(await db.meta.get('catalog:2')).toBeUndefined();
+        expect(await db.meta.get('catalog:3')).toBeUndefined();
     });
 
     it('ignores an unreadable cached session', async () => {

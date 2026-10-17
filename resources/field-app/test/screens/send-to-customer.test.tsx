@@ -161,7 +161,9 @@ describe('send to customer', () => {
         // The page was inert while the dialog was open: focus carries the outcome to AT.
         expect(container).not.toHaveAttribute('inert');
         expect(outcome).toHaveAttribute('tabindex', '-1');
-        expect(outcome).toHaveFocus();
+        await vi.waitFor(() => {
+            expect(outcome).toHaveFocus();
+        });
         expect(backend.state.sends).toEqual([
             {
                 uuid: UUID,
@@ -181,7 +183,11 @@ describe('send to customer', () => {
         await user.type(email, ' office@kunde.test ');
         await user.clear(within(dialog).getByLabelText('Name (optional)'));
         await user.click(within(dialog).getByRole('button', { name: 'Send' }));
-        expect(await screen.findByText('Sending to office@kunde.test is scheduled.')).toHaveFocus();
+        const sent = await screen.findByText('Sending to office@kunde.test is scheduled.');
+        // The outcome can render before the dialog closes; focus follows once the page is live again.
+        await vi.waitFor(() => {
+            expect(sent).toHaveFocus();
+        });
         // A cleared name means "no name" (no fallback to the customer.name role on the server).
         expect(backend.state.sends[0]?.body).toEqual({ email: 'office@kunde.test', name: '' });
         await user.click(screen.getByRole('button', { name: 'Send to customer' }));

@@ -13,11 +13,13 @@ import { useApiAttachments } from '../hooks/useApiAttachments.ts';
 import { useSession } from '../hooks/useSession.ts';
 import { useI18n, useT } from '../i18n/I18nProvider.tsx';
 import { EDITABLE_STATUSES, type AttachmentRecord, type Submission } from '../lib/api/types.ts';
+import type { DraftRow, DraftSync } from '../lib/db/schema.ts';
 import { buildEvaluationContext } from '../lib/session/eval-context.ts';
 import { DocumentSection } from './detail/DocumentSection.tsx';
-import { QueuedSubmitNotice } from './detail/QueuedSubmitNotice.tsx';
 import { ReviewSection } from './detail/ReviewSection.tsx';
+import { SyncNotice } from './detail/SyncNotice.tsx';
 import { useSubmissionView } from './detail/useSubmissionView.ts';
+import { needsAttention } from './review/refusal.ts';
 
 const route = getRouteApi('/_auth/submissions/$uuid');
 
@@ -44,17 +46,28 @@ function SubmittedNotice({
     );
 }
 
-/** Changes requested (comment + resubmit), my open review task, or "continue editing". */
+/** The badge: the state on this device while it matters (paused, queued), else the status. */
+function syncBadge(row: DraftRow | null, queued: boolean): DraftSync | null {
+    if (needsAttention(row)) {
+        return row?.sync ?? null;
+    }
+    return queued ? 'queued' : null;
+}
+
+/**
+ * Changes requested (comment + resubmit), my open review task, or "continue editing". `paused`:
+ * queued or waiting for the user; the sync notice above leads on instead.
+ */
 function ReviewState({
     submission,
-    queued,
+    paused,
 }: {
     readonly submission: Submission;
-    readonly queued: boolean;
+    readonly paused: boolean;
 }): ReactNode {
     const t = useT();
     const { uuid, status } = submission;
-    const editable = !queued && submission.can_edit && EDITABLE_STATUSES.includes(status);
+    const editable = !paused && submission.can_edit && EDITABLE_STATUSES.includes(status);
     const editLink = (label: string, className?: string): ReactNode => (
         <Button asChild size="lg" className={className}>
             <Link to="/fill/$uuid" params={{ uuid }}>
@@ -99,19 +112,24 @@ export function SubmissionDetailScreen(): ReactNode {
         return <ErrorState error={view.error} onRetry={view.refetch} />;
     }
     const queued = view.queuedSubmit !== null;
+    const badge = syncBadge(view.row, queued);
     return (
         <div className="flex flex-col gap-4">
-            {queued ? <QueuedSubmitNotice lastError={view.lastError} /> : null}
+            <SyncNotice row={view.row} queued={queued} lastError={view.lastError} />
             {submitted === true && !queued ? (
                 <SubmittedNotice number={data.number} resubmitted={resubmitted === true} />
             ) : null}
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <h1 className="text-2xl font-bold">
-                    {version.data?.definition.title ?? data.number ?? t('submitted.numberPending')}
+                    {version.data?.definition.title ?? data.number ?? t('detail.title')}
                 </h1>
                 <span className="flex items-center gap-2">
                     <span className="sr-only">{t('detail.status')}</span>
-                    {queued ? <StatusBadge sync="queued" /> : <StatusBadge status={data.status} />}
+                    {badge === null ? (
+                        <StatusBadge status={data.status} />
+                    ) : (
+                        <StatusBadge sync={badge} />
+                    )}
                 </span>
             </div>
             {submitted === true && !queued ? null : (
@@ -121,7 +139,7 @@ export function SubmissionDetailScreen(): ReactNode {
                         : t('submitted.number', { number: data.number })}
                 </p>
             )}
-            <ReviewState submission={data} queued={queued} />
+            <ReviewState submission={data} paused={queued || needsAttention(view.row)} />
             <DocumentSection
                 submission={data}
                 definition={version.data?.definition}

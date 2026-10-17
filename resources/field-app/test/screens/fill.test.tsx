@@ -86,9 +86,15 @@ describe('fill screen', () => {
         );
         await user.click(screen.getByRole('button', { name: 'fake-edit' }));
         await vi.advanceTimersByTimeAsync(1600);
-        const panel = await screen.findByRole('alertdialog', {
+        const panel = await screen.findByRole('region', {
             name: 'Someone else changed this draft',
         });
+        // It appeared on its own: announced once, focus stays where the user is.
+        expect(screen.getByRole('button', { name: 'fake-edit' })).toHaveFocus();
+        expect(screen.getAllByRole('status').map((status) => status.textContent)).toContain(
+            'Someone else changed this draft',
+        );
+        expect(screen.getByRole('button', { name: 'Review' })).toBeDisabled();
         expect(saveState()).toHaveTextContent('Conflict');
         const row = within(panel).getByRole('row', { name: /Customer/ });
         expect(row).toHaveTextContent('Edited');
@@ -102,8 +108,11 @@ describe('fill screen', () => {
             });
         });
         await waitFor(() => {
-            expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('region', { name: 'Someone else changed this draft' }),
+            ).not.toBeInTheDocument();
         });
+        expect(screen.getByRole('heading', { level: 1 })).toHaveFocus();
         expect(saveState()).toHaveTextContent('Saved on this device');
     });
 
@@ -117,7 +126,7 @@ describe('fill screen', () => {
         );
         await user.click(screen.getByRole('button', { name: 'fake-edit' }));
         await vi.advanceTimersByTimeAsync(1600);
-        await user.click(await screen.findByRole('button', { name: 'Use server version' }));
+        await user.click(await screen.findByRole('button', { name: 'Use office version' }));
         await waitFor(() => {
             expect(screen.getByTestId('renderer-data')).toHaveTextContent('{"customer":"Server"}');
         });
@@ -134,8 +143,11 @@ describe('fill screen', () => {
         await screen.findByRole('heading', { name: 'Service report' });
         await user.click(screen.getByRole('button', { name: 'fake-edit' }));
         await vi.advanceTimersByTimeAsync(1600);
-        const panel = await screen.findByRole('alert', { name: 'Not synced' });
-        expect(panel).toHaveTextContent('can no longer be edited on the server');
+        const panel = await screen.findByRole('region', { name: 'Needs your decision' });
+        expect(panel).toHaveTextContent('This submission can no longer be changed');
+        expect(panel).toHaveTextContent('save them as a new draft or discard them');
+        // A retry cannot help here: only the ways out are offered.
+        expect(within(panel).queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
         expect(within(panel).getByRole('link', { name: 'Open submission' })).toBeInTheDocument();
         expect(
             within(panel).getByRole('button', { name: 'Save as a new draft' }),

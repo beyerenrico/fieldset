@@ -4,12 +4,18 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AutosaveController } from '../../src/lib/autosave/controller.ts';
+import {
+    SessionEndedError,
+    StorageFullError,
+    isQuotaExceeded,
+} from '../../src/lib/autosave/errors.ts';
 import { createLocalTransport } from '../../src/lib/autosave/local-transport.ts';
 import type { SaveReceipt, SaveRequest } from '../../src/lib/autosave/types.ts';
 import { db } from '../../src/lib/db/db.ts';
+import { setCurrentUserId } from '../../src/lib/db/scope.ts';
 import { chooseStart, readLocalDraft } from '../../src/lib/drafts/local-drafts.ts';
 import { opId } from '../../src/lib/outbox/outbox.ts';
-import { SCOPE, draftRow, outboxIds, setupSyncScope } from '../utils/a-store.ts';
+import { SCOPE, draftRow, outboxIds, setupSyncScope, signInSession } from '../utils/a-store.ts';
 import { makeSubmission } from '../utils/fixtures.ts';
 import { setupTestServer } from '../utils/server.ts';
 
@@ -113,7 +119,7 @@ describe('local transport', () => {
             serverRevision: 0,
             sync: 'queued',
         });
-        expect(await outboxIds()).toEqual([opId('draft.save', UUID)]);
+        expect(await outboxIds()).toEqual([opId('draft.save', SCOPE.userId, UUID)]);
     });
 
     it('starts a server draft from its revision; ensureOnly keeps it clean', async () => {
@@ -134,7 +140,7 @@ describe('local transport', () => {
         expect(await outboxIds()).toEqual([]);
         await transport.save({ uuid: UUID, formVersionId: 7, data: { a: 'edit' } });
         expect(await db.drafts.get(UUID)).toMatchObject({ localVersion: 2, serverRevision: 4 });
-        expect(await outboxIds()).toEqual([opId('draft.save', UUID)]);
+        expect(await outboxIds()).toEqual([opId('draft.save', SCOPE.userId, UUID)]);
     });
 
     it('rebases a clean row behind a newer server copy; a paused row stays paused', async () => {
@@ -154,6 +160,45 @@ describe('local transport', () => {
         );
         await localTransport().save({ uuid: UUID, formVersionId: 7, data: { a: 2 } });
         expect(await db.drafts.get(UUID)).toMatchObject({ sync: 'conflict', submitErrors: [] });
+    });
+});
+
+describe('local transport guards', () => {
+    it('refuses writes once the session ended or another user signed in elsewhere', async () => {
+        const transport = localTransport();
+        await db.meta.delete('session'); // logout or wipe in another tab
+        await expect(
+            transport.save({ uuid: UUID, formVersionId: 7, data: { a: 1 } }),
+        ).rejects.toMatchObject({
+            code: 'session_ended',
+        });
+        await signInSession(8); // another user signed in in another tab
+        await expect(
+            transport.save({ uuid: UUID, formVersionId: 7, data: { a: 2 } }),
+        ).rejects.toBeInstanceOf(SessionEndedError);
+        await signInSession(SCOPE.userId);
+        setCurrentUserId(null); // this tab signed out
+        await expect(
+            transport.save({ uuid: UUID, formVersionId: 7, data: { a: 3 } }),
+        ).rejects.toBeInstanceOf(SessionEndedError);
+        expect(await db.drafts.count()).toBe(0);
+        expect(await db.outbox.count()).toBe(0);
+    });
+
+    it('reports a full storage (also Dexie-wrapped) as storage_full', async () => {
+        const quota = Object.assign(new Error('Quota exceeded'), { name: 'QuotaExceededError' });
+        vi.spyOn(db.drafts, 'put').mockRejectedValueOnce(quota);
+        const failure: unknown = await localTransport()
+            .save({ uuid: UUID, formVersionId: 7, data: { a: 1 } })
+            .catch((error: unknown) => error);
+        expect(failure).toBeInstanceOf(StorageFullError);
+        expect(failure).toMatchObject({ code: 'storage_full' });
+        const wrapped = Object.assign(new Error('Transaction aborted'), {
+            name: 'AbortError',
+            inner: quota,
+        });
+        expect(isQuotaExceeded(wrapped)).toBe(true);
+        expect(isQuotaExceeded(new Error('other'))).toBe(false);
     });
 });
 

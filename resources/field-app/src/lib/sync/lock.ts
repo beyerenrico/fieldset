@@ -4,7 +4,7 @@
  */
 export const SYNC_LOCK = 'fsa-sync';
 
-interface LockManagerLike {
+export interface LockManagerLike {
     request<T>(
         name: string,
         options: { ifAvailable: boolean },
@@ -12,7 +12,8 @@ interface LockManagerLike {
     ): Promise<T>;
 }
 
-function lockManager(): LockManagerLike | null {
+/** The browser's Web Locks, or null where they are missing (older Safari, jsdom). */
+export function lockManager(): LockManagerLike | null {
     const locks = (globalThis.navigator as { locks?: unknown } | undefined)?.locks;
     return typeof locks === 'object' &&
         locks !== null &&

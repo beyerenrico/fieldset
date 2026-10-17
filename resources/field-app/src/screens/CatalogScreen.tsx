@@ -43,48 +43,66 @@ interface FormRowProps {
     readonly unavailable: boolean;
 }
 
+function FavoriteButton({
+    name,
+    favorite,
+    onToggle,
+}: {
+    readonly name: string;
+    readonly favorite: boolean;
+    readonly onToggle: () => void;
+}): ReactNode {
+    const t = useT();
+    return (
+        <Button
+            variant="ghost"
+            size="icon"
+            aria-pressed={favorite}
+            aria-label={t(favorite ? 'catalog.unfavorite' : 'catalog.favorite', { name })}
+            onClick={onToggle}
+        >
+            <Star aria-hidden="true" className={cn(favorite && 'fill-current text-warning')} />
+        </Button>
+    );
+}
+
+/** The note sits outside the dimmed button at full contrast; the button refers to it. */
 function FormRow({ form, favorite, onToggle, unavailable }: FormRowProps): ReactNode {
     const t = useT();
     const start = useStartForm();
+    const noteId = useId();
     return (
-        <Card className="flex items-center gap-2 p-2">
-            <Button
-                variant="ghost"
-                className="min-w-0 flex-1 justify-start text-left"
-                aria-label={t('catalog.start', { name: form.name })}
-                aria-disabled={unavailable ? true : undefined}
-                onClick={() => {
-                    if (!unavailable) {
-                        start(form);
-                    }
-                }}
-            >
-                <span className="flex min-w-0 flex-col">
-                    <span className="truncate">{form.name}</span>
-                    {form.category === null ? null : (
-                        <span className="text-sm font-normal text-muted-foreground">
-                            {form.category}
-                        </span>
-                    )}
-                    {unavailable ? (
-                        <span className="inline-flex items-center gap-1 text-sm font-normal">
-                            <CloudOff aria-hidden="true" className="size-4" />
-                            {t('catalog.formNotCached')}
-                        </span>
-                    ) : null}
-                </span>
-            </Button>
-            <Button
-                variant="ghost"
-                size="icon"
-                aria-pressed={favorite}
-                aria-label={t(favorite ? 'catalog.unfavorite' : 'catalog.favorite', {
-                    name: form.name,
-                })}
-                onClick={onToggle}
-            >
-                <Star aria-hidden="true" className={cn(favorite && 'fill-current text-warning')} />
-            </Button>
+        <Card className="flex flex-col gap-1 p-2">
+            <div className="flex items-center gap-2">
+                <Button
+                    variant="ghost"
+                    className="min-w-0 flex-1 justify-start text-left"
+                    aria-label={t('catalog.start', { name: form.name })}
+                    aria-disabled={unavailable ? true : undefined}
+                    aria-describedby={unavailable ? noteId : undefined}
+                    onClick={() => {
+                        if (!unavailable) {
+                            start(form);
+                        }
+                    }}
+                >
+                    <span className="flex min-w-0 flex-col">
+                        <span className="truncate">{form.name}</span>
+                        {form.category === null ? null : (
+                            <span className="text-sm font-normal text-muted-foreground">
+                                {form.category}
+                            </span>
+                        )}
+                    </span>
+                </Button>
+                <FavoriteButton name={form.name} favorite={favorite} onToggle={onToggle} />
+            </div>
+            {unavailable ? (
+                <p id={noteId} className="flex items-center gap-1 px-4 text-sm text-foreground">
+                    <CloudOff aria-hidden="true" className="size-4" />
+                    {t('catalog.formNotCached')}
+                </p>
+            ) : null}
         </Card>
     );
 }

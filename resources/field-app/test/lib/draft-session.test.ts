@@ -10,9 +10,11 @@ import {
     retainDraftSession,
     saveAndDisposeDraftSessions,
 } from '../../src/lib/drafts/draft-session.ts';
+import { draftLockName } from '../../src/lib/drafts/draft-lock.ts';
 import { createWorkTracker } from '../../src/lib/drafts/work-tracker.ts';
+import { displayState } from '../../src/hooks/useDraftEditor.ts';
 import { reportAuthError, resetAuthNotice } from '../../src/lib/session/auth-events.ts';
-import { SCOPE } from '../utils/a-store.ts';
+import { SCOPE, installFakeLocks } from '../utils/a-store.ts';
 import { makeSubmission } from '../utils/fixtures.ts';
 
 function deferred<T>() {
@@ -212,5 +214,73 @@ describe('draft sessions', () => {
         disposeDraftSessions();
         await new Promise((resolve) => setTimeout(resolve, 400));
         expect(requests).toEqual([]);
+    });
+});
+
+describe('one editing tab per draft (Web Lock fsa-draft:<uuid>)', () => {
+    /** Another tab holds the draft's lock until the returned function runs. */
+    function holdInOtherTab(name: string): () => void {
+        let letGo: () => void = () => undefined;
+        void navigator.locks.request(
+            name,
+            { ifAvailable: true },
+            () =>
+                new Promise<void>((resolve) => {
+                    letGo = resolve;
+                }),
+        );
+        return () => {
+            letGo();
+        };
+    }
+
+    it('opens a draft read-only while another tab edits it and writes nothing', async () => {
+        const locks = installFakeLocks();
+        const letGo = holdInOtherTab(draftLockName('draft-1'));
+        try {
+            const { requests, transport } = memoryTransport();
+            const session = open(transport);
+            expect(await session.lock.ready).toBe('locked');
+            retainDraftSession(session);
+            session.controller.update({ a: 'not mine to write' });
+            await session.controller.flush({ ensureCreated: true });
+            await new Promise((resolve) => setTimeout(resolve, 400));
+            expect(requests).toEqual([]);
+            expect(displayState('saved', null, session.lock.getState())).toBe('locked');
+        } finally {
+            letGo();
+            locks.uninstall();
+        }
+    });
+
+    it('holds the lock while open and gives it up when the session ends', async () => {
+        const locks = installFakeLocks();
+        try {
+            const { requests, transport } = memoryTransport();
+            const session = open(transport);
+            expect(await session.lock.ready).toBe('held');
+            session.controller.update({ a: 1 });
+            await session.controller.flush();
+            expect(requests).toHaveLength(1);
+            expect(locks.granted).toEqual(['fsa-draft:draft-1']);
+
+            endDraftSession('draft-1');
+            await tick();
+            const next = open(transport);
+            expect(await next.lock.ready).toBe('held');
+            expect(locks.granted).toEqual(['fsa-draft:draft-1', 'fsa-draft:draft-1']);
+        } finally {
+            locks.uninstall();
+        }
+    });
+
+    it('works without Web Locks as before (no lock, writes go through)', async () => {
+        const { requests, transport } = memoryTransport();
+        const session = open(transport);
+        expect(await session.lock.ready).toBe('unsupported');
+        session.controller.update({ a: 1 });
+        await session.controller.flush();
+        expect(requests).toHaveLength(1);
+        expect(displayState('saved', null, 'unsupported')).toBe('saved');
     });
 });

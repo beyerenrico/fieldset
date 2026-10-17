@@ -14,6 +14,7 @@ import {
     resolveConflict,
     retryBlocked,
 } from '../../../src/lib/sync/conflicts.ts';
+import { enqueueAndRun } from '../../../src/lib/submit/queue.ts';
 import { runSync } from '../../../src/lib/sync/engine.ts';
 import { onOutboxEvent, type OutboxEvent } from '../../../src/lib/sync/events.ts';
 import { createSyncBackend, fakeUploads, failWith, summarize } from '../../utils/a-backend.ts';
@@ -65,7 +66,11 @@ describe('revision conflicts', () => {
         expect(row).toMatchObject({ sync: 'conflict', conflict: { revision: 2 } });
         expect(row?.conflict?.data).toEqual({ customer: 'Server' });
         expect(summarize(backend.state.log)).toEqual(['PUT update']);
-        expect(await db.outbox.get(opId('submit', UUID))).toMatchObject({ state: 'pending' });
+        // The queued submit waits on hold with the answer (it is put back to pending on a decision).
+        expect(await db.outbox.get(opId('submit', SCOPE.userId, UUID))).toMatchObject({
+            state: 'blocked',
+            lastError: { status: 409, code: 'revision_conflict' },
+        });
 
         await runSync({ manual: true }); // still paused until the user decides
         expect(backend.state.log).toHaveLength(1);
@@ -76,6 +81,10 @@ describe('revision conflicts', () => {
         await conflicted(backend);
         await resolveConflict(UUID, 'mine');
         expect(await db.drafts.get(UUID)).toMatchObject({ sync: 'queued', serverRevision: 2 });
+        expect(await db.outbox.get(opId('submit', SCOPE.userId, UUID))).toMatchObject({
+            state: 'pending',
+            lastError: null,
+        });
 
         await runSync({ manual: true });
 
@@ -101,7 +110,7 @@ describe('revision conflicts', () => {
             serverRevision: 2,
             conflict: null,
         });
-        expect(await db.outbox.get(opId('draft.save', UUID))).toBeUndefined();
+        expect(await db.outbox.get(opId('draft.save', SCOPE.userId, UUID))).toBeUndefined();
 
         await runSync({ manual: true });
 
@@ -206,7 +215,7 @@ describe('blocking answers', () => {
             error: { code: 'image_too_large' },
         });
         expect(summarize(backend.state.log)).toEqual(['PUT create', 'UPLOAD']);
-        expect(await db.outbox.get(opId('submit', UUID))).toMatchObject({
+        expect(await db.outbox.get(opId('submit', SCOPE.userId, UUID))).toMatchObject({
             state: 'blocked',
             lastError: { code: 'attachment_failed' },
         });
@@ -217,7 +226,7 @@ describe('blocking answers', () => {
         ]);
     });
 
-    it('422 on submit drops the submit and keeps the pointer errors on the draft', async () => {
+    it('422 on an interactive submit drops the submit and keeps the pointer errors on the draft', async () => {
         const backend = setup();
         backend.state.inject.set(
             'POST submit',
@@ -225,9 +234,10 @@ describe('blocking answers', () => {
         );
         await db.drafts.put(draftRow({ uuid: UUID, data: {} }));
         await enqueueDraftSave(SCOPE, UUID);
-        await enqueueSubmit(SCOPE, UUID, '2026-10-17T10:00:00.000Z');
-        await runSync({ manual: true });
-        expect(await db.outbox.get(opId('submit', UUID))).toBeUndefined();
+        await enqueueAndRun({ id: opId('submit', SCOPE.userId, UUID), submissionUuid: UUID }, () =>
+            enqueueSubmit(SCOPE, UUID, '2026-10-17T10:00:00.000Z'),
+        );
+        expect(await db.outbox.get(opId('submit', SCOPE.userId, UUID))).toBeUndefined();
         expect(await db.drafts.get(UUID)).toMatchObject({
             submitErrors: [{ pointer: '/customer', code: 'required' }],
             sync: 'synced',
@@ -287,19 +297,19 @@ describe('queued sends', () => {
         const input = { email: 'a@example.test', name: 'A' };
         await enqueueSend(SCOPE, UUID, input);
         await runSync({ manual: true });
-        const blocked = await db.outbox.get(opId('send', UUID));
+        const blocked = await db.outbox.get(opId('send', SCOPE.userId, UUID));
         expect(blocked).toMatchObject({
             state: 'blocked',
             lastError: { code: 'send_not_allowed' },
         });
 
         await enqueueSend(SCOPE, UUID, input);
-        const again = await db.outbox.get(opId('send', UUID));
+        const again = await db.outbox.get(opId('send', SCOPE.userId, UUID));
         expect(again?.state).toBe('pending');
         const key = (op: typeof again) => (op?.kind === 'send' ? op.request.idempotencyKey : null);
         expect(key(again)).toBe(key(blocked));
 
         await enqueueSend(SCOPE, UUID, { email: 'b@example.test', name: 'B' });
-        expect(key(await db.outbox.get(opId('send', UUID)))).not.toBe(key(blocked));
+        expect(key(await db.outbox.get(opId('send', SCOPE.userId, UUID)))).not.toBe(key(blocked));
     });
 });

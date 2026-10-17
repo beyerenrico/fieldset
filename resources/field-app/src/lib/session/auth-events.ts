@@ -1,5 +1,6 @@
 /** "Session lost" notifications (reauth or wipe) from anywhere in the app → router redirect. */
 import { DeviceWipedError, ReauthRequiredError, isAuthLost } from '../api/errors.ts';
+import { markSessionReauth } from './session-cache.ts';
 
 export type AuthNotice = 'reauth' | 'wiped' | 'logout';
 type Listener = (notice: AuthNotice | undefined) => void;
@@ -42,11 +43,21 @@ export function resetAuthNotice(): void {
     strongest = undefined;
 }
 
+/** The cached session may no longer open the app offline (offline-start.ts); rows stay. */
+export function rememberReauth(error: unknown): void {
+    if (error instanceof ReauthRequiredError) {
+        markSessionReauth().catch((failure: unknown) => {
+            console.warn('Marking the session for sign-in failed', failure);
+        });
+    }
+}
+
 /** Emits when `error` is a `ReauthRequiredError`/`DeviceWipedError`; returns whether it did. */
 export function reportAuthError(error: unknown): boolean {
     if (!isAuthLost(error)) {
         return false;
     }
+    rememberReauth(error);
     const notice = rememberNotice(noticeFor(error));
     for (const listener of listeners) {
         listener(notice);

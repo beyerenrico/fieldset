@@ -6,22 +6,27 @@ import { classify } from './backoff.ts';
 import { emitOutboxEvent } from './events.ts';
 import { retryLater } from './store.ts';
 
-/** Per-run state of the engine; `sent` counts ops that the server accepted. */
+/**
+ * Per-run state of the engine; `sent` counts ops that the server accepted, `contacted` is set by any
+ * server answer (also an error status): the sync state is `offline` only without one.
+ */
 export interface RunContext {
     readonly manual: boolean;
     readonly now: number;
     readonly userId: number;
     sent: number;
+    contacted: boolean;
 }
 
 /**
  * `ok`: done, continue with the next step. `wait`: retried later or not due. `blocked`: needs the
- * user. `offline`/`reauth`/`wiped`: stop the whole run.
+ * user. `offline`/`reauth`/`wiped`: stop the whole run. `stale`: this tab's user is no longer the
+ * signed-in user (another tab signed in or out), or the engine was stopped: stop without sending.
  */
-export type StepResult = 'ok' | 'wait' | 'blocked' | 'offline' | 'reauth' | 'wiped';
+export type StepResult = 'ok' | 'wait' | 'blocked' | 'offline' | 'reauth' | 'wiped' | 'stale';
 
 export const isFatal = (result: StepResult): boolean =>
-    result === 'offline' || result === 'reauth' || result === 'wiped';
+    result === 'offline' || result === 'reauth' || result === 'wiped' || result === 'stale';
 
 export function due(ctx: RunContext, op: OutboxRow): boolean {
     return op.state === 'pending' && (ctx.manual || op.nextAttemptAt <= ctx.now);
@@ -89,6 +94,7 @@ export async function handleFailure(
     answer: (error: ApiError) => Promise<StepResult>,
 ): Promise<StepResult> {
     const failure = classify(error);
+    ctx.contacted ||= failure.kind === 'answer' || failure.kind === 'retry';
     switch (failure.kind) {
         case 'reauth':
         case 'wiped':

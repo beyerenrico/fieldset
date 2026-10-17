@@ -16,6 +16,7 @@ import { isApiError, isAuthLost } from '../lib/api/errors.ts';
 import type { Me } from '../lib/api/types.ts';
 import { noticeFor, rememberNotice } from '../lib/session/auth-events.ts';
 import { resolveOrganization } from '../lib/session/organization.ts';
+import { flushPendingLogout, hasPendingLogout } from '../lib/session/pending-logout.ts';
 import { CatalogScreen } from '../screens/CatalogScreen.tsx';
 import { HomeScreen } from '../screens/HomeScreen.tsx';
 import { LoginScreen } from '../screens/LoginScreen.tsx';
@@ -76,6 +77,14 @@ const authRoute = createRoute({
     getParentRoute: () => rootRoute,
     id: '_auth',
     beforeLoad: async ({ context, location }) => {
+        if (hasPendingLogout()) {
+            // Signed out on this device; the server sign-out is sent in the background.
+            void flushPendingLogout();
+            throw redirect({
+                to: '/login',
+                search: { notice: rememberNotice('logout') ?? 'logout' },
+            });
+        }
         try {
             const me = await sessionForRoute(context.queryClient);
             const organization = resolveOrganization(me);

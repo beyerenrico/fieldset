@@ -2,7 +2,7 @@
 export const shellEn = {
     'pwa.install': 'Install app',
     'pwa.install.text': 'Install the app to use it offline and from your home screen.',
-    'pwa.install.ios': 'Install the app: tap Share, then “Add to Home Screen”.',
+    'pwa.install.ios': 'Tap Share (in Safari it may be under •••), then “Add to Home Screen”.',
     'pwa.install.dismiss': 'Not now',
     'pwa.ios.warning':
         'Submissions not synced yet: {count}. iOS deletes the data of web apps that are not on the home screen after 7 days without use.',
@@ -14,6 +14,10 @@ export const shellEn = {
     'pwa.db.outdated': 'The app was updated in another tab. Reload this page to continue.',
     'pwa.db.blocked': 'Close the other tabs of the app, then reload this page.',
     'pwa.reload': 'Reload',
+    /** Header: the browser reports a network, but the server could not be reached (lie-fi). */
+    'shell.noConnection': 'No connection',
+    /** A route that needs the server, while offline (not an error). */
+    'shell.routeOffline': 'You are offline. This page needs a connection.',
     'catalog.offlineCached': 'You are offline. These are the forms saved on this device.',
     'catalog.notCached':
         'The forms are not available offline yet. Connect to the internet once to download them.',

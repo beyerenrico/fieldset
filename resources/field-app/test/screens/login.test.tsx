@@ -72,8 +72,14 @@ describe('login', () => {
         expect(
             await screen.findByRole('heading', { name: 'Data of another user' }),
         ).toBeInTheDocument();
-        expect(screen.getByText(/another user \(3\)/)).toBeInTheDocument();
+        // One submission (draft, op and photo of 'theirs'), not three rows.
+        expect(screen.getByText(/submissions of another user \(1\)/)).toBeInTheDocument();
         await user.click(screen.getByRole('button', { name: 'Delete them' }));
+        expect(
+            await screen.findByRole('heading', { name: 'Delete the data of another user?' }),
+        ).toHaveFocus();
+        expect(await countForeignRows(7)).toBe(3); // nothing deleted before the confirmation
+        await user.click(screen.getByRole('button', { name: 'Yes, delete them' }));
         expect(await screen.findByRole('heading', { name: /Hello/ })).toBeInTheDocument();
         expect(await countForeignRows(7)).toBe(0);
         expect(await db.drafts.get('mine')).toBeDefined(); // own work stays (and syncs)
@@ -84,7 +90,15 @@ describe('login', () => {
         server.use(...createBackend({ loggedIn: false }).handlers);
         const { user } = renderApp('/login');
         await signIn(user);
-        await user.click(await screen.findByRole('button', { name: 'Keep them' }));
+        const title = await screen.findByRole('heading', { name: 'Data of another user' });
+        expect(title).toHaveFocus();
+        expect(
+            screen.getByText(/Keep them if that person will sign in here again to send them\./),
+        ).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'Delete them' }));
+        await user.click(await screen.findByRole('button', { name: 'Back' }));
+        expect(await screen.findByRole('heading', { name: 'Data of another user' })).toHaveFocus();
+        await user.click(screen.getByRole('button', { name: 'Keep them' }));
         expect(await screen.findByRole('heading', { name: /Hello/ })).toBeInTheDocument();
         expect(await db.drafts.count()).toBe(1);
     });
@@ -96,7 +110,9 @@ describe('login', () => {
         server.use(http.get('*/api/v1/me', () => HttpResponse.error()));
         const { user } = renderApp('/login');
         await signIn(user);
-        expect(await screen.findByRole('alert')).toHaveTextContent('You are offline');
+        expect(await screen.findByRole('status')).toHaveTextContent(
+            'You are offline. This page needs a connection.',
+        );
         expect(await loadSession()).toBeUndefined();
         expect(screen.queryByText(/Previous/)).toBeNull();
         expect(hardReload).not.toHaveBeenCalled();
@@ -156,7 +172,7 @@ describe('login', () => {
         server.use(...createBackend({ loggedIn: false }).handlers);
         server.use(http.post('*/api/v1/auth/device-status', () => ok({ status: 'wipe' })));
         renderApp('/forms');
-        expect(await screen.findByRole('status')).toHaveTextContent('local data was removed');
+        expect(await screen.findByRole('status')).toHaveTextContent('removed its local data');
         await waitFor(async () => {
             expect(await getDeviceRecord()).toBeUndefined();
         });

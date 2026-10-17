@@ -42,7 +42,7 @@ export function AppShell(): ReactNode {
                     </span>
                 </div>
             </header>
-            <PwaPrompts />
+            <PwaPrompts focusMode={focusMode} />
             <main
                 id="main"
                 tabIndex={-1}

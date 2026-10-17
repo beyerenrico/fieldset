@@ -3,6 +3,7 @@
  * refreshed through `/sync/manifest?since=`. Form versions are read from the cache first and the
  * network second. The forms list comes from the cache once a refresh completed (in this tab or an
  * earlier session), before that from `GET /forms`. Offline with nothing cached: NotCachedError.
+ * The cache is kept per organization for the user who filled it; another user's is purged.
  */
 import { fetchForms, fetchFormVersion } from '../api/endpoints.ts';
 import { ApiError, isAuthLost, NetworkError } from '../api/errors.ts';
@@ -15,7 +16,7 @@ import { getOrganizationId } from '../session/org-store.ts';
 import { onSyncRequested, type SyncReason } from '../sync/triggers.ts';
 import { fetchFormsFor, fetchFormVersionFor } from './api.ts';
 import { emitCatalogChange, onCatalogChanged } from './changes.ts';
-import { readCatalogMeta, refreshCatalog, toSummary, type CatalogRefresh } from './refresh.ts';
+import { readOwnCatalogMeta, refreshCatalog, toSummary, type CatalogRefresh } from './refresh.ts';
 
 export { onCatalogChanged };
 export type { CatalogChange } from './changes.ts';
@@ -70,7 +71,7 @@ export async function refreshCatalogIfStale(
     if (isOffline()) {
         return null;
     }
-    const meta = await readCatalogMeta(orgId);
+    const meta = await readOwnCatalogMeta(orgId);
     if (meta !== undefined && Date.now() - meta.refreshedAt < maxAgeMs) {
         return null;
     }
@@ -128,7 +129,7 @@ onCatalogChanged((orgId, change) => {
 
 /** Remembers (in the background) that an earlier session already completed the catalog. */
 function noteCompleteCatalog(orgId: number): void {
-    readCatalogMeta(orgId)
+    readOwnCatalogMeta(orgId)
         .then((meta) => {
             if (meta !== undefined) {
                 completeCatalogs.add(orgId);
@@ -137,14 +138,28 @@ function noteCompleteCatalog(orgId: number): void {
         .catch(reportRefreshError);
 }
 
-/** Cached forms while the catalog is complete; null once its meta is gone (logout, wipe). */
+/**
+ * Cached forms while the catalog is complete; null once its meta is gone (logout, wipe) or belongs
+ * to another user (purged).
+ */
 async function completeCachedForms(orgId: number): Promise<FormSummary[] | null> {
-    const [meta, forms] = await Promise.all([readCatalogMeta(orgId), cachedSummaries(orgId)]);
-    if (meta === undefined) {
+    if ((await readOwnCatalogMeta(orgId)) === undefined) {
         completeCatalogs.delete(orgId);
         return null;
     }
-    return forms;
+    return cachedSummaries(orgId);
+}
+
+/** Exactly the forms of `GET /forms`: rows of forms it no longer lists are deleted. */
+async function storeForms(orgId: number, forms: readonly FormSummary[]): Promise<void> {
+    const now = Date.now();
+    const listed = new Set(forms.map((form) => form.id));
+    await db.transaction('rw', db.forms, async () => {
+        await db.forms.bulkPut(forms.map((form) => ({ ...form, orgId, cachedAt: now })));
+        const rows = await db.forms.where('orgId').equals(orgId).toArray();
+        const stale = rows.filter((row) => !listed.has(row.id));
+        await db.forms.bulkDelete(stale.map((row): [number, number] => [orgId, row.id]));
+    });
 }
 
 /**
@@ -158,10 +173,7 @@ async function fetchAndStoreForms(orgId: number): Promise<FormSummary[]> {
         forms.map((form) => form.id),
     );
     emitCatalogChange(orgId, 'shortcuts');
-    const now = Date.now();
-    db.forms
-        .bulkPut(forms.map((form) => ({ ...form, orgId, cachedAt: now })))
-        .catch(reportRefreshError);
+    storeForms(orgId, forms).catch(reportRefreshError);
     return byName(forms);
 }
 
@@ -187,6 +199,7 @@ export async function loadForms(orgId: number | null): Promise<readonly FormSumm
             }
         }
     }
+    await readOwnCatalogMeta(orgId); // purges another user's catalog before anything is served
     const cached = await cachedSummaries(orgId);
     if (cached.length === 0) {
         throw new NotCachedError();

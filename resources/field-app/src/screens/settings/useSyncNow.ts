@@ -30,7 +30,8 @@ function outcomeOf(result: SyncRunResult): Outcome {
         return ['account.syncBlocked', { count: result.blocked }];
     }
     if (result.remaining > 0) {
-        return ['account.syncRemaining', { count: result.remaining }];
+        // `remaining` counts outbox operations, not submissions: no number for the user.
+        return ['account.syncRemaining'];
     }
     return ['account.syncDone'];
 }

@@ -1,6 +1,7 @@
 /**
  * The last `GET /me` answer in meta 'session' (ADR 0035): the app can start offline from it. It is
- * written on every successful fetch and removed with the other tables on logout and wipe.
+ * written on every successful fetch (which also clears a reauth mark) and removed with the other
+ * tables on logout and wipe.
  */
 import type { Me } from '../api/types.ts';
 import { db } from '../db/db.ts';
@@ -35,6 +36,20 @@ export async function loadSession(): Promise<SessionMeta | undefined> {
     } catch {
         return undefined;
     }
+}
+
+/**
+ * The server ended the session (reauth): keep every row, but an offline start must not open the
+ * cached session any more. A fresh `/me` (login) stores a new, unmarked session.
+ */
+export async function markSessionReauth(): Promise<void> {
+    await db.transaction('rw', db.meta, async () => {
+        const value: unknown = (await db.meta.get('session'))?.value;
+        if (isSessionMeta(value) && value.reauth !== true) {
+            const marked: SessionMeta = { ...value, reauth: true };
+            await db.meta.put({ key: 'session', value: marked });
+        }
+    });
 }
 
 /** Forgets the cached session (after a sign-in whose `me` could not be loaded). */

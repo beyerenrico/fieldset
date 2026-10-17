@@ -10,11 +10,20 @@ import { requestSync } from './triggers.ts';
 
 const TABLES = [db.drafts, db.outbox, db.attachments, db.meta] as const;
 
-/** Clears the backoff of every op of the submission (a decision is worth an immediate try). */
+/**
+ * Every op of the submission is pending again without backoff or error (a decision is worth an
+ * immediate try): blocked submits, sends and uploads included.
+ */
 async function wakeOps(uuid: string): Promise<void> {
     const ops = await db.outbox.where('submissionUuid').equals(uuid).toArray();
     await db.outbox.bulkPut(
-        ops.map((op) => ({ ...op, state: 'pending' as const, nextAttemptAt: 0, attempts: 0 })),
+        ops.map((op) => ({
+            ...op,
+            state: 'pending' as const,
+            nextAttemptAt: 0,
+            attempts: 0,
+            lastError: null,
+        })),
     );
 }
 
@@ -65,19 +74,31 @@ export async function resolveConflict(
         if (choice === 'mine') {
             await putDraftSaveOp(row, submissionUuid);
         } else {
-            await db.outbox.delete(opId('draft.save', submissionUuid));
+            await db.outbox
+                .where('submissionUuid')
+                .equals(submissionUuid)
+                .filter((op) => op.kind === 'draft.save')
+                .delete();
         }
         await wakeOps(submissionUuid);
     });
     requestSync('manual');
 }
 
-/** "Try again" after a blocking answer (access regained, the office reopened the submission, …). */
+/**
+ * "Try again" after a blocking answer (access regained, the office reopened the submission, a
+ * blocked attachment was replaced, …): the draft and its blocked ops are queued again.
+ */
 export async function retryBlocked(submissionUuid: string): Promise<void> {
     await db.transaction('rw', TABLES, async () => {
         const row = await db.drafts.get(submissionUuid);
         if (row?.sync === 'blocked') {
-            await db.drafts.put({ ...row, sync: 'queued', blockedBy: null });
+            await db.drafts.put({
+                ...row,
+                sync: 'queued',
+                blockedBy: null,
+                missingAttachments: [],
+            });
         }
         await wakeOps(submissionUuid);
     });
@@ -133,6 +154,49 @@ function renameReferences(row: DraftRow, renames: ReadonlyMap<string, string>): 
     return JSON.parse(json) as DraftRow['data'];
 }
 
+/** The new draft of a copy: not on the server yet, nothing synced, nothing blocking it. */
+function copiedRow(row: DraftRow, uuid: string, data: DraftRow['data'], target?: CopyTarget) {
+    const now = Date.now();
+    return {
+        ...row,
+        uuid,
+        formId: target?.formId ?? row.formId,
+        formVersionId: target?.formVersionId ?? row.formVersionId,
+        data,
+        localVersion: 1,
+        syncedVersion: 0,
+        serverRevision: 0,
+        server: null,
+        conflict: null,
+        sync: 'queued' as const,
+        blockedBy: null,
+        submitErrors: [],
+        missingAttachments: [],
+        sentSaves: [],
+        createdAt: now,
+        updatedAt: now,
+    };
+}
+
+async function queueCopiedUploads(row: DraftRow, copies: readonly AttachmentRow[]): Promise<void> {
+    for (const copy of copies) {
+        await db.outbox.put({
+            id: opId('attachment.upload', row.userId, copy.submissionUuid, copy.uuid),
+            kind: 'attachment.upload',
+            submissionUuid: copy.submissionUuid,
+            attachmentUuid: copy.uuid,
+            orgId: row.orgId,
+            userId: row.userId,
+            seq: await nextSeq(),
+            state: 'pending',
+            attempts: 0,
+            nextAttemptAt: 0,
+            lastError: null,
+            createdAt: Date.now(),
+        });
+    }
+}
+
 /**
  * "Save as a new draft" (not_editable) and "Copy to the current version" (version_retired): the
  * local data moves into a new submission (new uuid, element keys are stable, §7.6).
@@ -149,42 +213,10 @@ export async function copyToNewDraft(submissionUuid: string, target?: CopyTarget
             .equals(submissionUuid)
             .toArray();
         const { copies, renames } = copyAttachments(attachments, uuid);
-        const now = Date.now();
-        await db.drafts.put({
-            ...row,
-            uuid,
-            formId: target?.formId ?? row.formId,
-            formVersionId: target?.formVersionId ?? row.formVersionId,
-            data: renameReferences(row, renames),
-            localVersion: 1,
-            syncedVersion: 0,
-            serverRevision: 0,
-            server: null,
-            conflict: null,
-            sync: 'queued',
-            blockedBy: null,
-            submitErrors: [],
-            createdAt: now,
-            updatedAt: now,
-        });
+        await db.drafts.put(copiedRow(row, uuid, renameReferences(row, renames), target));
         await db.attachments.bulkPut(copies);
         await putDraftSaveOp(row, uuid);
-        for (const copy of copies) {
-            await db.outbox.put({
-                id: opId('attachment.upload', uuid, copy.uuid),
-                kind: 'attachment.upload',
-                submissionUuid: uuid,
-                attachmentUuid: copy.uuid,
-                orgId: row.orgId,
-                userId: row.userId,
-                seq: await nextSeq(),
-                state: 'pending',
-                attempts: 0,
-                nextAttemptAt: 0,
-                lastError: null,
-                createdAt: now,
-            });
-        }
+        await queueCopiedUploads(row, copies);
         await deleteSubmissionRows(submissionUuid);
     });
     afterEnqueue();

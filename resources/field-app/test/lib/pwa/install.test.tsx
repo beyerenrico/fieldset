@@ -7,7 +7,10 @@ import { setCurrentUserId } from '../../../src/lib/db/scope.ts';
 import {
     chooseInstallOffer,
     INSTALL_DISMISSED_KEY,
+    IOS_WARNING_HIDDEN_KEY,
+    IOS_WARNING_SNOOZE_MS,
     isIos,
+    isIosWarningHidden,
     isStandalone,
     needsIosDataWarning,
 } from '../../../src/lib/pwa/install.ts';
@@ -28,6 +31,7 @@ import {
     MAC,
     renderWithI18n,
 } from '../../utils/b-pwa.tsx';
+import { setOnline } from '../../utils/c-rows.ts';
 import { setupTestServer } from '../../utils/server.ts';
 
 setupTestServer();
@@ -43,6 +47,7 @@ afterEach(() => {
     stopCapture();
     resetInstallPromptForTests();
     setCurrentUserId(null);
+    vi.restoreAllMocks();
 });
 
 describe('install decision', () => {
@@ -111,7 +116,11 @@ describe('install prompt', () => {
     it('remembers a dismissal on this device', async () => {
         const user = userEvent.setup();
         const { unmount } = renderWithI18n(<InstallPrompt platform={IPHONE} />);
-        expect(await screen.findByText(/tap Share, then “Add to Home Screen”/)).toBeInTheDocument();
+        expect(
+            await screen.findByText(
+                'Tap Share (in Safari it may be under •••), then “Add to Home Screen”.',
+            ),
+        ).toBeInTheDocument();
         await user.click(screen.getByRole('button', { name: 'Not now' }));
         expect(screen.queryByRole('status')).not.toBeInTheDocument();
         expect(localStorage.getItem(`fsa.${INSTALL_DISMISSED_KEY}`)).toBe('true');
@@ -120,8 +129,9 @@ describe('install prompt', () => {
         expect(screen.queryByRole('status')).not.toBeInTheDocument();
     });
 
-    it('warns about unsynced items on iOS, hideable for this session only', async () => {
+    it('warns about unsynced items on iOS, hideable on this device for 7 days', async () => {
         const user = userEvent.setup();
+        setOnline(false); // offline the count shows at once (online it waits, see below)
         await db.attachments.bulkPut([
             attachmentRow({ uuid: 'a1' }),
             attachmentRow({ uuid: 'a2', state: 'failed' }),
@@ -136,17 +146,22 @@ describe('install prompt', () => {
         expect(screen.queryByText(/not synced yet/)).not.toBeInTheDocument();
         unmount();
 
+        sessionStorage.clear(); // a new browser session: still hidden on this device
         const second = renderWithI18n(<InstallPrompt platform={IPHONE} />);
         await new Promise((resolve) => setTimeout(resolve, 30));
         expect(screen.queryByRole('status')).not.toBeInTheDocument();
         second.unmount();
 
-        sessionStorage.clear(); // a new browser session: the warning returns
+        const hiddenAt = Number(localStorage.getItem(`fsa.${IOS_WARNING_HIDDEN_KEY}`));
+        expect(isIosWarningHidden(hiddenAt + IOS_WARNING_SNOOZE_MS - 1)).toBe(true);
+        expect(isIosWarningHidden(hiddenAt + IOS_WARNING_SNOOZE_MS)).toBe(false);
+        vi.spyOn(Date, 'now').mockReturnValue(hiddenAt + IOS_WARNING_SNOOZE_MS);
         renderWithI18n(<InstallPrompt platform={IPHONE} />);
         expect(await screen.findByText(/Submissions not synced yet: 1\./)).toBeInTheDocument();
     });
 
     it('does not warn on the home screen or outside iOS', async () => {
+        setOnline(false);
         await db.attachments.put(attachmentRow());
         renderWithI18n(<InstallPrompt platform={IPHONE_HOME_SCREEN} />);
         renderWithI18n(<InstallPrompt platform={ANDROID} />);

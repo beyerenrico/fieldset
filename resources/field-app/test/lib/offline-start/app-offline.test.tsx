@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getCurrentUserId, setCurrentUserId } from '../../../src/lib/db/scope.ts';
 import { saveDeviceRecord } from '../../../src/lib/device/credentials.ts';
 import { setOrganizationId } from '../../../src/lib/session/org-store.ts';
-import { saveSession } from '../../../src/lib/session/session-cache.ts';
+import { markSessionReauth, saveSession } from '../../../src/lib/session/session-cache.ts';
 import { createBackend, fail, ok } from '../../utils/backend.ts';
 import { ORG_A, ORG_B, makeMe } from '../../utils/fixtures.ts';
 import { renderApp } from '../../utils/render-app.tsx';
@@ -71,9 +71,25 @@ describe('offline start', () => {
         expect(screen.getByRole('status')).toHaveTextContent('Your session has ended');
     });
 
+    it('shows the sign-in with the reauth notice when the server had ended the session', async () => {
+        await saveSession(makeMe([ORG_A, ORG_B]));
+        await markSessionReauth();
+        server.use(...offline());
+        const { history } = renderApp('/settings');
+        expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
+        expect(screen.getByRole('status')).toHaveTextContent('Your session has ended');
+        expect(history.location.search).toContain('notice=reauth');
+        expect(getCurrentUserId()).toBeNull();
+    });
+
     it('shows the offline error without a cached session', async () => {
         server.use(...offline());
         renderApp('/settings');
-        expect(await screen.findByRole('alert')).toHaveTextContent('You are offline');
+        // Offline is not an error: a neutral status with a retry, no alert.
+        expect(await screen.findByRole('status')).toHaveTextContent(
+            'You are offline. This page needs a connection.',
+        );
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
     });
 });

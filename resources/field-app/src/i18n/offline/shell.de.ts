@@ -6,7 +6,7 @@ export const shellDe: Readonly<Record<keyof typeof shellEn, string>> = {
     'pwa.install.text':
         'Installieren Sie die App, um sie offline und vom Home-Bildschirm aus zu nutzen.',
     'pwa.install.ios':
-        'App installieren: Tippen Sie auf „Teilen“ und dann auf „Zum Home-Bildschirm“.',
+        'Tippen Sie auf „Teilen“ (in Safari ggf. unter „•••“), dann auf „Zum Home-Bildschirm“.',
     'pwa.install.dismiss': 'Nicht jetzt',
     'pwa.ios.warning':
         'Noch nicht synchronisierte Einreichungen: {count}. iOS löscht die Daten von Web-Apps, die nicht auf dem Home-Bildschirm liegen, nach 7 Tagen ohne Nutzung.',
@@ -19,6 +19,8 @@ export const shellDe: Readonly<Record<keyof typeof shellEn, string>> = {
         'Die App wurde in einem anderen Tab aktualisiert. Laden Sie diese Seite neu, um fortzufahren.',
     'pwa.db.blocked': 'Schließen Sie die anderen Tabs der App und laden Sie diese Seite neu.',
     'pwa.reload': 'Neu laden',
+    'shell.noConnection': 'Keine Verbindung',
+    'shell.routeOffline': 'Sie sind offline. Diese Seite benötigt eine Verbindung.',
     'catalog.offlineCached':
         'Sie sind offline. Das sind die auf diesem Gerät gespeicherten Formulare.',
     'catalog.notCached':

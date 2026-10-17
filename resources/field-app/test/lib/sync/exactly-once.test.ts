@@ -20,7 +20,7 @@ setupSyncScope();
 
 const UUID = '0192f1c4-0000-7000-8000-00000000e001';
 const PHOTOS = ['0192f1c4-0000-7000-8000-00000000e0a1', '0192f1c4-0000-7000-8000-00000000e0a2'];
-const SUBMIT_ID = opId('submit', UUID);
+const SUBMIT_ID = opId('submit', SCOPE.userId, UUID);
 
 let online = true;
 

@@ -111,15 +111,25 @@ describe('review and submit', () => {
         await screen.findByRole('heading', { name: 'Review and sign' });
         await user.click(screen.getByRole('button', { name: 'Submit' }));
 
-        expect(await screen.findByText('Submission queued')).toBeInTheDocument();
+        expect(await screen.findByText('Ready to send')).toBeInTheDocument();
         expect(history.location.pathname).toBe(`/app/submissions/${UUID}`);
-        expect(screen.getAllByText('Number pending').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Number pending')).toHaveLength(1);
         expect(screen.getByText('Waiting to sync')).toBeInTheDocument();
 
         window.dispatchEvent(new Event('online')); // back online: the queue runs again
         await waitFor(() => {
-            expect(screen.queryByText('Submission queued')).not.toBeInTheDocument();
+            expect(screen.queryByText('Ready to send')).not.toBeInTheDocument();
         });
+        // A refusal nobody waited for does not silently turn back into a draft (F1 contract).
+        expect(
+            await screen.findByText(
+                'Not submitted: 1 field needs fixing. Open the form, correct the marked field and submit again.',
+            ),
+        ).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Open the form' })).toHaveAttribute(
+            'href',
+            `/app/fill/${UUID}/review`,
+        );
         const keys = backend.state.log.map((entry) => entry.key);
         expect(keys).toHaveLength(2);
         expect(keys[1]).toBe(keys[0]);
@@ -170,9 +180,14 @@ describe('review and submit', () => {
         const { user, history } = renderApp(`/fill/${UUID}/review`);
         await screen.findByRole('heading', { name: 'Review and sign' });
         await user.click(screen.getByRole('button', { name: 'Submit' }));
-        expect(await screen.findByText('Submission queued')).toBeInTheDocument();
+        expect(await screen.findByText('Ready to send')).toBeInTheDocument();
         expect(history.location.pathname).toBe(`/app/submissions/${UUID}`);
-        expect(screen.getByText(/The last attempt failed: server_error/)).toBeInTheDocument();
+        expect(
+            screen.getByText(
+                'The last attempt failed because of a temporary problem. It is tried again automatically.',
+            ),
+        ).toBeInTheDocument();
+        expect(screen.queryByText(/server_error/)).not.toBeInTheDocument();
         expect(await db.outbox.get(opId('submit', UUID))).toMatchObject({ attempts: 1 });
     });
 
@@ -212,7 +227,9 @@ describe('review and submit', () => {
             { revision: 4, client_submitted_at: anyTime },
         ]);
         expect(submits(backend)[1]?.key).not.toBe(submits(backend)[0]?.key);
-        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('region', { name: 'Someone else changed this draft' }),
+        ).not.toBeInTheDocument();
     });
 
     it('opens the conflict panel on a submit revision_conflict; the submit waits', async () => {
@@ -225,12 +242,22 @@ describe('review and submit', () => {
         const { user } = renderApp(`/fill/${UUID}/review`);
         await screen.findByRole('heading', { name: 'Review and sign' });
         await user.click(screen.getByRole('button', { name: 'Submit' }));
-        expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
+        const panel = await screen.findByRole('region', {
+            name: 'Someone else changed this draft',
+        });
+        // The panel follows the user's own action (Submit): focus moves to its heading.
+        await waitFor(() => {
+            expect(within(panel).getByRole('heading', { level: 2 })).toHaveFocus();
+        });
         expect(
             await screen.findByText('The draft was changed elsewhere. Choose a version first.'),
         ).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled();
-        expect(await db.outbox.get(opId('submit', UUID))).toMatchObject({ state: 'pending' });
+        // The submit waits behind the decision (F1 contract: a paused submission's ops are blocked).
+        expect(await db.outbox.get(opId('submit', UUID))).toMatchObject({
+            kind: 'submit',
+            state: 'blocked',
+        });
     });
 });
 
@@ -286,7 +313,7 @@ describe('send behind a queued submission (offline, §9.2)', () => {
         );
         await enqueueSubmit(SCOPE, UUID, '2026-10-17T09:00:00.000Z');
         const { user } = renderApp(`/submissions/${UUID}`);
-        expect(await screen.findByText('Submission queued')).toBeInTheDocument();
+        expect(await screen.findByText('Ready to send')).toBeInTheDocument();
         await screen.findByRole('heading', { name: 'Service report', level: 1 });
         await user.click(screen.getByRole('button', { name: 'Send to customer' }));
         const dialog = screen.getByRole('dialog', { name: 'Send to customer' });
@@ -306,7 +333,7 @@ describe('send behind a queued submission (offline, §9.2)', () => {
             name: 'Erika Kundin',
         });
         await vi.waitFor(() => {
-            expect(screen.queryByText('Submission queued')).not.toBeInTheDocument();
+            expect(screen.queryByText('Ready to send')).not.toBeInTheDocument();
         });
     });
 });

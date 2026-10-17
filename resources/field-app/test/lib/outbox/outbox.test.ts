@@ -28,8 +28,14 @@ afterEach(() => {
     vi.restoreAllMocks();
 });
 
+/** draft.save ops need their draft row (no orphans). */
+async function seedDrafts(...rows: Parameters<typeof draftRow>[0][]): Promise<void> {
+    await db.drafts.bulkPut(rows.map((row) => draftRow(row)));
+}
+
 describe('outbox', () => {
-    it('coalesces by `${kind}:${uuid}[:${attachment}]` and keeps the enqueue order', async () => {
+    it('coalesces by `${kind}:${user}:${uuid}[:${attachment}]` and keeps the enqueue order', async () => {
+        await seedDrafts({ uuid: 's1' });
         await enqueueDraftSave(SCOPE, 's1');
         await enqueueAttachmentUpload(SCOPE, 's1', 'a1');
         await enqueueDraftSave(SCOPE, 's1');
@@ -37,17 +43,20 @@ describe('outbox', () => {
         await enqueueAttachmentUpload(SCOPE, 's1', 'a2');
         await enqueueSubmit(SCOPE, 's1', '2026-10-17T10:00:00.000Z');
         expect(await outboxIds()).toEqual([
-            'draft.save:s1',
-            'attachment.upload:s1:a1',
-            'attachment.upload:s1:a2',
-            'submit:s1',
+            'draft.save:7:s1',
+            'attachment.upload:7:s1:a1',
+            'attachment.upload:7:s1:a2',
+            'submit:7:s1',
         ]);
-        expect(opId('attachment.upload', 's1', 'a2')).toBe('attachment.upload:s1:a2');
+        expect(opId('attachment.upload', 7, 's1', 'a2')).toBe('attachment.upload:7:s1:a2');
+        // The short form uses the signed-in user.
+        expect(opId('attachment.upload', 's1', 'a2')).toBe('attachment.upload:7:s1:a2');
         const seqs = (await db.outbox.orderBy('seq').toArray()).map((op) => op.seq);
         expect(seqs).toEqual([...seqs].sort((a, b) => a - b));
     });
 
     it('requests a sync on every enqueue', async () => {
+        await seedDrafts({ uuid: 's1' });
         const reasons: string[] = [];
         const stop = onSyncRequested((reason) => reasons.push(reason));
         await enqueueDraftSave(SCOPE, 's1');
@@ -75,11 +84,12 @@ describe('outbox', () => {
     });
 
     it('lists the ops of one user across organizations and removes single ops', async () => {
+        await seedDrafts({ uuid: 's1' }, { uuid: 's2', orgId: 2 }, { uuid: 's3', userId: 8 });
         await enqueueDraftSave(SCOPE, 's1');
         await enqueueDraftSave({ orgId: 2, userId: 7 }, 's2');
         await enqueueDraftSave({ orgId: 1, userId: 8 }, 's3');
         expect((await opsOfUser(7)).map((op) => op.submissionUuid)).toEqual(['s1', 's2']);
-        await removeOp(opId('draft.save', 's2'));
+        await removeOp(opId('draft.save', 7, 's2'));
         expect((await opsOfUser(7)).map((op) => op.submissionUuid)).toEqual(['s1']);
     });
 
@@ -89,6 +99,7 @@ describe('outbox', () => {
             draftRow({ uuid: 's2', localVersion: 1, syncedVersion: 1, sync: 'conflict' }),
         );
         await db.attachments.put(attachmentRow({ uuid: 'a1', submissionUuid: 's1' }));
+        await seedDrafts({ uuid: 'other-user', userId: 8, localVersion: 1, syncedVersion: 1 });
         await enqueueDraftSave(SCOPE, 's1');
         await enqueueDraftSave({ orgId: 1, userId: 8 }, 'other-user');
         expect(await unsyncedSummary(SCOPE)).toEqual({
@@ -109,6 +120,7 @@ describe('Background Sync wake-up (Chromium only)', () => {
             configurable: true,
             value: { getRegistration: () => Promise.resolve({ sync: { register } }) },
         });
+        await seedDrafts({ uuid: 's1' });
         await enqueueDraftSave(SCOPE, 's1');
         await vi.waitFor(() => {
             expect(register).toHaveBeenCalledWith(BACKGROUND_SYNC_TAG);
@@ -136,6 +148,7 @@ describe('Background Sync wake-up (Chromium only)', () => {
             configurable: true,
             value: { getRegistration: () => Promise.resolve({ sync: { register } }) },
         });
+        await seedDrafts({ uuid: 's1' });
         await enqueueDraftSave(SCOPE, 's1');
         await new Promise((resolve) => setTimeout(resolve, 10));
         expect(register).not.toHaveBeenCalled();

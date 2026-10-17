@@ -1,6 +1,10 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { SaveIndicator } from '../../src/components/SaveIndicator.tsx';
+import {
+    isStorageFull,
+    SaveIndicator,
+    type SaveIndicatorProps,
+} from '../../src/components/SaveIndicator.tsx';
 import { I18nProvider } from '../../src/i18n/I18nProvider.tsx';
 import type { SaveState } from '../../src/lib/autosave/types.ts';
 import type { DraftSync } from '../../src/lib/db/schema.ts';
@@ -49,5 +53,51 @@ describe('SaveIndicator', () => {
     ])('announces %s', (state, text) => {
         renderState(state);
         expect(screen.getByRole('status')).toHaveTextContent(text);
+    });
+
+    const STORAGE_FULL =
+        "Not saved – this device's storage is full. Keep this page open, then sync or free up space.";
+
+    it('names a full storage instead of a generic error (also wrapped as a cause)', () => {
+        const full = new Error('sync run failed', { cause: { code: 'storage_full' } });
+        const { container } = render(
+            <I18nProvider>
+                <SaveIndicator state="error" error={full} />
+            </I18nProvider>,
+        );
+        expect(container.querySelector('[data-state="error"]')).toHaveTextContent(STORAGE_FULL);
+        expect(screen.getByRole('status')).toHaveTextContent(STORAGE_FULL);
+        expect(isStorageFull({ code: 'storage_full' })).toBe(true);
+        expect(isStorageFull(new Error('QuotaExceededError'))).toBe(false);
+    });
+
+    it('announces a failed write once while it is retried (error → saving → error)', () => {
+        const error = { code: 'storage_full' };
+        const view = (props: SaveIndicatorProps) => (
+            <I18nProvider>
+                <SaveIndicator {...props} />
+            </I18nProvider>
+        );
+        const { rerender } = render(view({ state: 'error', error }));
+        const region = screen.getByRole('status');
+        const node = region.firstChild;
+        rerender(view({ state: 'saving', error }));
+        expect(region).toHaveTextContent(STORAGE_FULL); // not cleared while retrying
+        expect(region.firstChild).toBe(node);
+        rerender(view({ state: 'error', error }));
+        expect(region.firstChild).toBe(node);
+        rerender(view({ state: 'saved', error: null }));
+        expect(region).toHaveTextContent(/^$/);
+    });
+
+    it('says when another tab edits the draft', () => {
+        render(
+            <I18nProvider>
+                <SaveIndicator state="locked" lockedElsewhere />
+            </I18nProvider>,
+        );
+        expect(screen.getByRole('status')).toHaveTextContent(
+            'Open in another tab – read-only here',
+        );
     });
 });

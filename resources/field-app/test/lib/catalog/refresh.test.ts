@@ -190,6 +190,30 @@ describe('catalog refresh', () => {
         expect(await cachedFormIds()).toEqual([4, 5]);
     });
 
+    it('retries a changed version that answered 403 even after the cursor moved on', async () => {
+        const backend = createCatalogBackend({ manifestForms: [summary(4, 8)], fillable: [4] });
+        server.use(...backend.handlers);
+        await refreshCatalog(ORG);
+        expect(await cachedVersionIds()).toEqual([8]);
+
+        // Version 9 replaces 8, but answers 403 for a moment (e.g. a grant being changed).
+        backend.state.manifestForms = [summary(4, 9)];
+        backend.state.cursor = 'cursor-2';
+        backend.state.failures.set(9, 403);
+        const result = await refreshCatalog(ORG);
+        expect(result.upserted).toBe(0);
+        expect(await cachedFormIds()).toEqual([]); // no row pointing at the old version 8
+
+        // The manifest since cursor-2 no longer mentions form 4: it is looked up again.
+        backend.state.failures.clear();
+        backend.state.manifestForms = [];
+        backend.state.forms = [summary(4, 9)];
+        await refreshCatalog(ORG);
+        expect(await cachedFormIds()).toEqual([4]);
+        expect(await cachedVersionIds()).toEqual([9]);
+        expect((await db.forms.get([ORG, 4]))?.version.id).toBe(9);
+    });
+
     it('skips a form whose version answers 404 and fetches it again on the next run', async () => {
         const backend = createCatalogBackend({
             manifestForms: [summary(3, 7), summary(4, 8)],

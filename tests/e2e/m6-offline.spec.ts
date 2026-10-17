@@ -17,7 +17,7 @@ import {
 // phone context; the service worker serves the app shell offline and the Dexie store keeps the work.
 const evidence = (name: string) => `docs/agent/milestones/evidence/M6/${name}.png`;
 const NUMBER = /SR-\d{4}-\d{5}/;
-const QUEUED = /submission queued|einreichung vorgemerkt|number pending|nummer ausstehend/i;
+const QUEUED = /ready to send|bereit zum senden|number pending|nummer ausstehend/i;
 const SAVED_LOCAL = /saved on this device|auf diesem gerät gespeichert/i;
 
 async function phone(browser: Browser): Promise<{ context: BrowserContext; page: Page }> {

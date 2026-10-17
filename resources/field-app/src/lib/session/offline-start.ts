@@ -1,12 +1,16 @@
 /**
- * `GET /me` with an offline fallback (ADR 0035): every successful answer is stored in meta 'session'
- * and sets the current user of the offline store. When the server cannot be reached and a cached
- * session exists, the app starts from it; 401/419 still run the device-status flow (reauth, wipe).
+ * `GET /me` with an offline fallback (ADR 0035): every successful answer is stored in meta 'session',
+ * sets the current user of the offline store and purges organizations the user lost. When the server
+ * cannot be reached and a cached session exists, the app starts from it, unless the server ended that
+ * session (reauth mark) or a sign-out is pending; 401/419 still run the device-status flow.
  */
 import { fetchMe } from '../api/endpoints.ts';
-import { ApiError, NetworkError } from '../api/errors.ts';
+import { ApiError, NetworkError, ReauthRequiredError } from '../api/errors.ts';
 import type { Me } from '../api/types.ts';
 import { setCurrentUserId } from '../db/scope.ts';
+import { rememberReauth } from './auth-events.ts';
+import { purgeRevokedOrganizations } from './org-purge.ts';
+import { hasPendingLogout } from './pending-logout.ts';
 import { loadSession, saveSession } from './session-cache.ts';
 
 /** On a hanging connection ("lie-fi") a cached session wins after this long. */
@@ -41,11 +45,17 @@ export function onSessionRefreshed(listener: SessionListener): () => void {
 }
 
 async function remember(me: Me): Promise<Me> {
-    setCurrentUserId(me.user.id);
+    // Session first: the sync engine only sends while the current user equals meta.session's user.
     try {
         await saveSession(me);
     } catch (error) {
         console.warn('Saving the session failed', error);
+    }
+    setCurrentUserId(me.user.id);
+    try {
+        await purgeRevokedOrganizations(me);
+    } catch (error) {
+        console.warn('Purging lost organizations failed', error);
     }
     return me;
 }
@@ -89,6 +99,10 @@ export function fetchFreshMe(): Promise<Me> {
 
 /** The query function of `['me']`. */
 export async function fetchSessionMe(): Promise<Me> {
+    if (hasPendingLogout()) {
+        // Signed out on this device: the old cookies must not open the app again.
+        throw new ReauthRequiredError('Signed out on this device.', false);
+    }
     const cached = await loadSession();
     const request = fetchFreshMe();
     if (cached === undefined) {
@@ -101,9 +115,13 @@ export async function fetchSessionMe(): Promise<Me> {
         }
         request.catch(() => undefined); // Settles later; the next refetch reports its outcome.
     } catch (error) {
+        rememberReauth(error);
         if (!isUnreachable(error)) {
             throw error;
         }
+    }
+    if (cached.reauth === true) {
+        throw new ReauthRequiredError('Please sign in again.');
     }
     return adoptCached(cached.me, cached.userId);
 }

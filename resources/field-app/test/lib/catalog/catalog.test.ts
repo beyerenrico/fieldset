@@ -112,6 +112,46 @@ describe('forms list', () => {
     });
 });
 
+describe('catalog of another user', () => {
+    it('stores the user with the cursor and purges a catalog cached for someone else', async () => {
+        const backend = createCatalogBackend({ manifestForms: [summary(3, 7)], fillable: [3] });
+        server.use(...backend.handlers);
+        await runCatalogRefresh(ORG);
+        expect(await readCatalogMeta(ORG)).toMatchObject({ cursor: 'c1', userId: 7 });
+        expect((await loadForms(ORG)).map((form) => form.id)).toEqual([3]);
+
+        setCurrentUserId(8); // another user signed in on this device (reauth with a new account)
+        goOffline();
+        await expect(loadForms(ORG)).rejects.toBeInstanceOf(NotCachedError);
+        expect(await db.forms.count()).toBe(0);
+        expect(await db.formVersions.count()).toBe(0);
+        expect(await readCatalogMeta(ORG)).toBeUndefined();
+    });
+
+    it("refreshes another user's catalog from scratch, not from the old cursor", async () => {
+        const backend = createCatalogBackend({ manifestForms: [summary(3, 7)], fillable: [3] });
+        server.use(...backend.handlers);
+        await runCatalogRefresh(ORG);
+        setCurrentUserId(8);
+        backend.state.cursor = 'c2';
+        await runCatalogRefresh(ORG);
+        expect(backend.state.calls.manifest).toEqual([null, null]);
+        expect(await readCatalogMeta(ORG)).toMatchObject({ cursor: 'c2', userId: 8 });
+    });
+
+    it('drops cached forms that GET /forms no longer lists', async () => {
+        await db.forms.bulkPut([
+            { ...summary(3, 7), orgId: ORG, cachedAt: 1 },
+            { ...summary(9, 90), orgId: ORG, cachedAt: 1 },
+        ]);
+        server.use(...createCatalogBackend({ forms: [summary(3, 7)] }).handlers);
+        expect((await loadForms(ORG)).map((form) => form.id)).toEqual([3]);
+        await vi.waitFor(async () => {
+            expect(await db.forms.toCollection().primaryKeys()).toEqual([[ORG, 3]]);
+        });
+    });
+});
+
 describe('refresh scheduling', () => {
     it('runs one refresh per organization at a time in this tab and notifies listeners', async () => {
         const backend = createCatalogBackend({ manifestForms: [summary(3, 7)], fillable: [3] });

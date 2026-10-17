@@ -15,6 +15,22 @@ import type {
     SaveRequest,
 } from './types.ts';
 
+/** Two failures are the same when type, code and message match (a retry failing again). */
+function sameFailure(previous: unknown, next: unknown): boolean {
+    if (previous === next) {
+        return true;
+    }
+    if (!(previous instanceof Error) || !(next instanceof Error)) {
+        return false;
+    }
+    const codeOf = (error: Error): unknown => ('code' in error ? error.code : undefined);
+    return (
+        previous.constructor === next.constructor &&
+        previous.message === next.message &&
+        codeOf(previous) === codeOf(next)
+    );
+}
+
 const DEBOUNCE_MS = 300;
 const MAX_WAIT_MS = 2000;
 const RETRY_MS = 1000;
@@ -42,9 +58,11 @@ export class AutosaveController {
         this.options = options;
         this.current = options.data;
         this.retryDelay = options.retryMs ?? RETRY_MS;
+        const localVersion = options.localVersion ?? 0;
         this.snapshot = {
-            state: 'idle',
-            localVersion: options.localVersion ?? 0,
+            // A restored draft is already saved on this device.
+            state: localVersion > 0 ? 'saved' : 'idle',
+            localVersion,
             error: null,
             savedAt: null,
         };
@@ -200,7 +218,9 @@ export class AutosaveController {
                 this.fail(error, ensureOnly);
             },
         );
-        this.set({ state: 'saving' });
+        if (this.snapshot.state !== 'error') {
+            this.set({ state: 'saving' }); // a retry keeps showing the error until it succeeds
+        }
         return this.inflight;
     }
 
@@ -217,7 +237,11 @@ export class AutosaveController {
         });
     }
 
-    /** IndexedDB refused the write (quota, private mode, …): keep the data and retry. */
+    /**
+     * IndexedDB refused the write (quota, private mode, ended session, …): keep the data and retry.
+     * The same failure again keeps the snapshot (and its error object) as it is: listeners hear
+     * about a new error, not about every retry.
+     */
     private fail(error: unknown, ensureOnly: boolean): void {
         if (ensureOnly) {
             this.ensure = true;
@@ -226,6 +250,13 @@ export class AutosaveController {
             this.pendingSince ??= Date.now();
         }
         this.scheduleRetry();
+        const previous = this.snapshot;
+        if (previous.state === 'error' && sameFailure(previous.error, error)) {
+            if (!this.busy()) {
+                this.notify(); // no retry follows (stopped): waiters of settled() must hear it
+            }
+            return;
+        }
         this.set({ state: 'error', error });
     }
 

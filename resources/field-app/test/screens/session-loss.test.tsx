@@ -59,7 +59,7 @@ describe('lost sessions', () => {
         await vi.advanceTimersByTimeAsync(1600);
         expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
         await vi.advanceTimersByTimeAsync(10_000);
-        expect(screen.getByRole('status')).toHaveTextContent('local data was removed');
+        expect(screen.getByRole('status')).toHaveTextContent('removed its local data');
         expect(history.location.search).toContain('notice=wiped');
         expect(hardReload).toHaveBeenCalledWith('/app/login?notice=wiped');
         expect(puts).toBe(1);

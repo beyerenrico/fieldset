@@ -11,15 +11,16 @@ import { ensureDeviceRegistered } from '../../lib/device/register.ts';
 import { disposeDraftSessions } from '../../lib/drafts/draft-session.ts';
 import { resetAuthNotice } from '../../lib/session/auth-events.ts';
 import { fetchFreshMe } from '../../lib/session/offline-start.ts';
+import { clearPendingLogout } from '../../lib/session/pending-logout.ts';
 import { forgetSession } from '../../lib/session/session-cache.ts';
-import { countForeignRows } from '../../lib/session/unsynced.ts';
+import { countForeignSubmissions } from '../../lib/session/unsynced.ts';
 import { persist } from '../../lib/storage/persistence.ts';
 
 export interface LoginOutcome {
     /** The signed-in user's id, or null when `/me` failed (the route guard deals with it). */
     readonly userId: number | null;
-    /** Unsynced drafts, ops and attachments of other users on this device. */
-    readonly foreignRows: number;
+    /** Submissions of other users with unsynced data on this device. */
+    readonly foreignSubmissions: number;
 }
 
 /**
@@ -39,6 +40,7 @@ async function loadMe(queryClient: QueryClient): Promise<Me | null> {
 }
 
 export async function completeLogin(queryClient: QueryClient): Promise<LoginOutcome> {
+    clearPendingLogout(); // the new session replaces whatever the server still held
     try {
         await ensureDeviceRegistered();
     } catch (error) {
@@ -52,8 +54,8 @@ export async function completeLogin(queryClient: QueryClient): Promise<LoginOutc
     const me = await loadMe(queryClient);
     void persist(); // §9.2: ask the browser to keep the offline store (no-op once granted).
     if (me === null) {
-        return { userId: null, foreignRows: 0 };
+        return { userId: null, foreignSubmissions: 0 };
     }
-    const foreignRows = await countForeignRows(me.user.id).catch(() => 0);
-    return { userId: me.user.id, foreignRows };
+    const foreignSubmissions = await countForeignSubmissions(me.user.id).catch(() => 0);
+    return { userId: me.user.id, foreignSubmissions };
 }

@@ -6,14 +6,31 @@ import type { AttachmentRow, DraftRow, Scope } from '../../src/lib/db/schema.ts'
 import { setCurrentUserId } from '../../src/lib/db/scope.ts';
 import { resetSyncEngineForTests } from '../../src/lib/sync/engine.ts';
 import { resetSyncTriggersForTests } from '../../src/lib/sync/triggers.ts';
+import { ORG_A, makeMe } from './fixtures.ts';
 
 export const SCOPE: Scope = { orgId: 1, userId: 7 };
 
-/** Signed-in user 7 (the fixtures' worker) for every test; engine and triggers start clean. */
+/**
+ * meta 'session' as the last login of `userId` writes it (the engine and the local transport only
+ * work for that user).
+ */
+export async function signInSession(userId: number = SCOPE.userId): Promise<void> {
+    const me = makeMe([ORG_A]);
+    await db.meta.put({
+        key: 'session',
+        value: { userId, me: { ...me, user: { ...me.user, id: userId } }, savedAt: Date.now() },
+    });
+}
+
+/**
+ * Signed-in user 7 (the fixtures' worker) for every test, also as the last login (meta 'session');
+ * engine and triggers start clean. Call after setupTestServer() (it empties the store first).
+ */
 export function setupSyncScope(): void {
-    beforeEach(() => {
+    beforeEach(async () => {
         setCurrentUserId(SCOPE.userId);
         resetSyncEngineForTests();
+        await signInSession();
     });
     afterEach(() => {
         resetSyncTriggersForTests();

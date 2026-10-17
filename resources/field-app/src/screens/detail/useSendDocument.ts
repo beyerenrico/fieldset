@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import type { MessageKey } from '../../i18n/en.ts';
 import { ApiError, NetworkError, validationDetails } from '../../lib/api/errors.ts';
 import type { DocumentSend } from '../../lib/api/types.ts';
+import type { SendInput } from '../../lib/api/endpoints.ts';
 import type { OutboxRow, Scope } from '../../lib/db/schema.ts';
 import { enqueueSend, opId, removeOp } from '../../lib/outbox/outbox.ts';
 import { toSendInput, type RecipientDraft } from '../../lib/send/recipient.ts';
@@ -46,7 +47,10 @@ export interface SendState {
      */
     readonly send: (recipient: RecipientDraft, onAccepted?: () => void) => Promise<boolean>;
     readonly clearProblem: () => void;
+    /** "Cancel sending": drops the queued send. */
     readonly removeQueued: () => Promise<void>;
+    /** "Try again" on a refused send: the same recipient again (same key). */
+    readonly retryQueued: () => Promise<void>;
 }
 
 function fieldErrorsOf(error: unknown): FieldErrors {
@@ -131,11 +135,10 @@ export function useSendDocument(uuid: string, scope: Scope | null): SendState {
 
     useLateOutcomes(uuid, sending, apply);
 
-    const send = async (recipient: RecipientDraft, onAccepted?: () => void): Promise<boolean> => {
+    const run = async (input: SendInput, onAccepted?: () => void): Promise<boolean> => {
         if (scope === null) {
             return false;
         }
-        const input = toSendInput(recipient);
         setBusy(true);
         setResult(null);
         setProblem(null);
@@ -157,6 +160,9 @@ export function useSendDocument(uuid: string, scope: Scope | null): SendState {
         }
     };
 
+    const send = (recipient: RecipientDraft, onAccepted?: () => void): Promise<boolean> =>
+        run(toSendInput(recipient), onAccepted);
+
     return {
         busy,
         result,
@@ -169,5 +175,10 @@ export function useSendDocument(uuid: string, scope: Scope | null): SendState {
             setFieldErrors({});
         },
         removeQueued: () => removeOp(opId('send', uuid)),
+        retryQueued: async () => {
+            if (queued !== null) {
+                await run(queued.input);
+            }
+        },
     };
 }

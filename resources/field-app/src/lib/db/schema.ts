@@ -46,6 +46,20 @@ export interface DraftRow extends Scope {
     readonly submitErrors: readonly ValidationDetail[];
     readonly createdAt: number;
     readonly updatedAt: number;
+    /** Attachment uuids of a background submit refused with 422 `attachments_missing`. */
+    readonly missingAttachments?: readonly string[];
+    /**
+     * PUTs sent on the current base revision whose answer has not arrived (lost responses): a later
+     * 409 whose server copy is one of them is adopted instead of opening a conflict.
+     */
+    readonly sentSaves?: readonly SentSave[];
+}
+
+/** One PUT as it left the device: base revision, local version and a stable hash of its data. */
+export interface SentSave {
+    readonly revision: number;
+    readonly version: number;
+    readonly hash: string;
 }
 
 export interface OutboxError {
@@ -61,7 +75,7 @@ export interface PersistedRequest {
 }
 
 interface OutboxBase extends Scope {
-    /** `${kind}:${submissionUuid}` (+ `:${attachmentUuid}`): enqueueing again coalesces. */
+    /** `${kind}:${userId}:${submissionUuid}` (+ `:${attachmentUuid}`): enqueueing again coalesces. */
     readonly id: string;
     readonly submissionUuid: string;
     /** Global enqueue order (nextSeq). */
@@ -81,6 +95,8 @@ export type OutboxRow =
           readonly kind: 'submit';
           readonly clientSubmittedAt: string;
           readonly request: PersistedRequest | null;
+          /** Local attachments were queued again once after 422 `attachments_missing`. */
+          readonly reuploaded?: boolean;
       })
     | (OutboxBase & {
           readonly kind: 'send';
@@ -120,6 +136,8 @@ export interface SessionMeta {
     readonly userId: number;
     readonly me: Me;
     readonly savedAt: number;
+    /** The server ended this session (reauth): an offline start shows the login page instead. */
+    readonly reauth?: boolean;
 }
 
 export type SyncState = 'idle' | 'running' | 'offline' | 'reauth' | 'error';
@@ -134,6 +152,8 @@ export interface SyncMeta {
 export interface CatalogMeta {
     readonly cursor: string;
     readonly refreshedAt: number;
+    /** The user whose manifest filled this cache; another user's catalog is purged, not served. */
+    readonly userId?: number;
 }
 
 export interface MetaValues {

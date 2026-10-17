@@ -1,4 +1,7 @@
-/** Install button (Chromium) or Add-to-Home-Screen instructions and data warning (iOS). */
+/**
+ * Install button (Chromium) or Add-to-Home-Screen instructions and data warning (iOS). The warning
+ * follows the header badge's rule (usePendingVisible.ts), so autosaves do not swap it in and out.
+ */
 import { Download, Share } from 'lucide-react';
 import { useState, useSyncExternalStore, type ReactNode } from 'react';
 import { useOrganizationId } from '../../hooks/useSession.ts';
@@ -23,6 +26,7 @@ import {
     promptInstall,
     subscribeInstallPrompt,
 } from '../../lib/pwa/install-prompt.ts';
+import { usePendingVisible } from '../sync/usePendingVisible.ts';
 import { Alert } from '../ui/alert.tsx';
 import { Button } from '../ui/button.tsx';
 
@@ -77,7 +81,7 @@ function InstallOffer({
             </p>
             <span className="flex gap-2">
                 {ios ? null : (
-                    <Button onClick={() => void promptInstall()}>
+                    <Button variant="outline" onClick={() => void promptInstall()}>
                         <Download aria-hidden="true" />
                         {t('pwa.install')}
                     </Button>
@@ -96,9 +100,10 @@ export function InstallPrompt({ platform }: { readonly platform?: PlatformInfo }
     const [dismissed, setDismissed] = useState(isInstallDismissed);
     const [warningHidden, setWarningHidden] = useState(isIosWarningHidden);
     const unsynced = useUnsynced(isIos(info) && !isStandalone(info) && !warningHidden);
+    const showWarning = usePendingVisible(unsynced);
     const offer = chooseInstallOffer({ platform: info, canPrompt: deferred !== null, dismissed });
 
-    if (!warningHidden && needsIosDataWarning(info, unsynced)) {
+    if (!warningHidden && showWarning && needsIosDataWarning(info, unsynced)) {
         return (
             <IosDataWarning
                 count={unsynced}

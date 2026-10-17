@@ -13,8 +13,21 @@ type Hook = () => void | Promise<void>;
 const hooks = new Set<Hook>();
 const beforeHooks = new Set<Hook>();
 
-/** UI preferences survive logout and wipe; they hold no personal data. */
-export const PRESERVED_KEYS: readonly string[] = ['settings', 'pwa.installDismissed'];
+/**
+ * Kept by logout and wipe: UI preferences (no personal data) and the marker of a sign-out the
+ * server has not confirmed yet (pending-logout.ts).
+ */
+export const PRESERVED_KEYS: readonly string[] = [
+    'settings',
+    'pwa.installDismissed',
+    'pwa.iosWarningHidden',
+    'pendingLogout',
+];
+
+/** Other tabs get this long to drop their open drafts after the announcement (account.ts). */
+export const OTHER_TABS_GRACE_MS = 150;
+
+const endingHooks = new Set<Hook>();
 
 export function onLocalDataCleared(hook: Hook): () => void {
     hooks.add(hook);
@@ -31,6 +44,14 @@ export function onLocalDataClearing(hook: Hook): () => void {
     beforeHooks.add(hook);
     return () => {
         beforeHooks.delete(hook);
+    };
+}
+
+/** Runs when logout or wipe starts, before the grace period, e.g. to stop this tab's sync engine. */
+export function onSessionEnding(hook: Hook): () => void {
+    endingHooks.add(hook);
+    return () => {
+        endingHooks.delete(hook);
     };
 }
 
@@ -86,6 +107,18 @@ export async function unregisterServiceWorkers(): Promise<void> {
     } catch (error) {
         console.warn('Unregistering the service worker failed', error);
     }
+}
+
+/**
+ * First step of logout and wipe, right after the other tabs were told: forget the user (the offline
+ * store refuses writes without one), run the ending hooks (stop syncing), then wait for other tabs.
+ */
+export async function endSession(graceMs: number = OTHER_TABS_GRACE_MS): Promise<void> {
+    setCurrentUserId(null);
+    await runHooks(endingHooks);
+    await new Promise<void>((resolve) => {
+        setTimeout(resolve, graceMs);
+    });
 }
 
 /** Everything logout and wipe remove from this device (IndexedDB, storage, caches, service worker). */

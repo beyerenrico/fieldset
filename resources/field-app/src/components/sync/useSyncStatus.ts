@@ -1,5 +1,6 @@
 /** Live sync state of the signed-in user for the header badge and Settings (ADR 0035). */
 import { useMemo } from 'react';
+import { useOnline } from '../../hooks/useOnline.ts';
 import { useSession } from '../../hooks/useSession.ts';
 import { db } from '../../lib/db/db.ts';
 import { useLiveQuery } from '../../lib/db/live.ts';
@@ -27,4 +28,19 @@ export function useSyncMeta(): SyncMeta | null | undefined {
         const value: unknown = (await db.meta.get('sync'))?.value;
         return isSyncMeta(value) ? value : null;
     }, []);
+}
+
+export type Connection = 'online' | 'offline' | 'unreachable';
+
+/**
+ * The browser's network state, corrected by the last sync run: a network that reaches nothing
+ * ("lie-fi") counts as `unreachable` until the server answers again.
+ */
+export function useConnection(): Connection {
+    const online = useOnline();
+    const sync = useSyncMeta();
+    if (!online) {
+        return 'offline';
+    }
+    return sync?.state === 'offline' ? 'unreachable' : 'online';
 }

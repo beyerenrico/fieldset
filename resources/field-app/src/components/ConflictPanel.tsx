@@ -9,14 +9,26 @@ export interface ConflictPanelProps {
     readonly mine: JsonObject;
     readonly server: JsonObject;
     readonly onChoose: (choice: 'mine' | 'server') => void;
+    /**
+     * Moves focus to the panel's heading (only after the user's own action, e.g. Submit); a panel
+     * that appears on its own is announced by the screen's status line instead.
+     */
+    readonly autoFocus?: boolean;
+    /** Called once focus was moved, so the request is not repeated. */
+    readonly onAutoFocused?: () => void;
 }
 
-/** "Server version vs mine" (§9.2 conflicts): both versions side by side, the user decides. */
+/** Wrapping labels: long German texts must fit a 360 px screen. */
+const PANEL_BUTTON = 'h-auto whitespace-normal text-center';
+
+/** "Office version vs mine" (§9.2 conflicts): both versions side by side, the user decides. */
 export function ConflictPanel({
     definition,
     mine,
     server,
     onChoose,
+    autoFocus = false,
+    onAutoFocused,
 }: ConflictPanelProps): ReactNode {
     const t = useT();
     const titleId = useId();
@@ -26,16 +38,19 @@ export function ConflictPanel({
         empty: t('common.empty'),
         yes: t('common.yes'),
         no: t('common.no'),
-        rows: (count) => t('conflict.rows', { count }),
+        rows: (count) => (count === 1 ? t('conflict.oneRow') : t('conflict.rows', { count })),
     };
 
     useEffect(() => {
-        heading.current?.focus();
-    }, []);
+        if (autoFocus) {
+            heading.current?.focus();
+            onAutoFocused?.();
+        }
+    }, [autoFocus, onAutoFocused]);
 
     return (
         <section
-            role="alertdialog"
+            role="region"
             aria-labelledby={titleId}
             className="my-4 rounded-lg border-2 border-destructive bg-card p-4"
         >
@@ -46,7 +61,7 @@ export function ConflictPanel({
             {diffs.length === 0 ? (
                 <p className="mt-3 text-muted-foreground">{t('conflict.noDiff')}</p>
             ) : (
-                <div className="mt-3 overflow-x-auto">
+                <div className="relative mt-3 overflow-x-auto">
                     <table className="w-full border-collapse text-left text-sm">
                         <thead>
                             <tr className="border-b-2 border-border">
@@ -77,6 +92,7 @@ export function ConflictPanel({
             )}
             <div className="mt-4 flex flex-wrap gap-2">
                 <Button
+                    className={PANEL_BUTTON}
                     onClick={() => {
                         onChoose('mine');
                     }}
@@ -85,6 +101,7 @@ export function ConflictPanel({
                 </Button>
                 <Button
                     variant="outline"
+                    className={PANEL_BUTTON}
                     onClick={() => {
                         onChoose('server');
                     }}

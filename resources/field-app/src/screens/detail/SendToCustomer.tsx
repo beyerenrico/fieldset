@@ -74,13 +74,18 @@ export function SendToCustomer({ uuid, definition, data }: SendToCustomerProps):
     };
 
     // The page is inert while the dialog is open, so the status region cannot speak then. Once the
-    // dialog has closed (its cleanup ran first: page live again), focus carries the outcome to AT.
+    // dialog has closed (its cleanup ran first: page live again), focus carries the outcome to AT. The
+    // outcome may render after the dialog closed (the send settles later): keep the request until then.
     useEffect(() => {
-        if (!open && focusResult.current) {
-            focusResult.current = false;
-            (resultMessage.current ?? queuedMessage.current)?.focus();
+        if (open || !focusResult.current) {
+            return;
         }
-    }, [open]);
+        const target = resultMessage.current ?? queuedMessage.current;
+        if (target !== null) {
+            focusResult.current = false;
+            target.focus();
+        }
+    }, [open, state.result, state.queued]);
 
     return (
         <div className="flex flex-col">
@@ -97,7 +102,9 @@ export function SendToCustomer({ uuid, definition, data }: SendToCustomerProps):
                     <QueuedSendNotice
                         ref={queuedMessage}
                         queued={state.queued}
+                        busy={state.busy}
                         onRemove={() => void state.removeQueued()}
+                        onRetry={() => void state.retryQueued()}
                     />
                 )}
             </div>

@@ -141,6 +141,35 @@ describe('service worker updates', () => {
     });
 });
 
+describe('service worker updates in other tabs', () => {
+    it('writes the open drafts of a tab that did not apply the update before it reloads', async () => {
+        const sw = fakeRegister();
+        const reload = vi.fn(() => {
+            sw.order.push('reload');
+        });
+        startServiceWorker(sw.register, reload);
+        // vite-plugin-pwa calls onNeedReload in every controlled tab once the new worker took over.
+        sw.options().onNeedReload?.();
+        await vi.waitFor(() => {
+            expect(reload).toHaveBeenCalledOnce();
+        });
+        expect(sw.order).toEqual(['flush', 'reload']);
+    });
+
+    it('still reloads when that flush fails', async () => {
+        const sw = fakeRegister();
+        vi.mocked(flushDraftSessions).mockRejectedValue(new Error('flush failed'));
+        const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+        const reload = vi.fn();
+        startServiceWorker(sw.register, reload);
+        sw.options().onNeedReload?.();
+        await vi.waitFor(() => {
+            expect(reload).toHaveBeenCalledOnce();
+        });
+        expect(logged).toHaveBeenCalled();
+    });
+});
+
 describe('offline store schema changes', () => {
     it('shows a reload banner when another tab upgrades the store', async () => {
         const user = userEvent.setup();

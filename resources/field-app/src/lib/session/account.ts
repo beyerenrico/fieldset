@@ -4,7 +4,7 @@
  * Logout lives in sign-out.ts (it calls the API; this module must stay importable from device-status).
  */
 import type { AuthNotice } from './auth-events.ts';
-import { purgeDevice } from './local-data.ts';
+import { endSession, purgeDevice } from './local-data.ts';
 import { LOGIN_PATH, hardReload } from './reload.ts';
 
 export const ACCOUNT_CHANNEL = 'fsa-account';
@@ -62,10 +62,12 @@ export function onAccountEvent(listener: Listener): () => void {
 
 /**
  * `device-status` answered `wipe` (§9.3): remove everything including the device uuid, without a
- * warning and without syncing, then reload to the login page with the "wiped" notice.
+ * warning and without syncing, then reload to the login page with the "wiped" notice. The other
+ * tabs hear it first, so none of them writes or sends while the data is removed.
  */
 export async function wipeDevice(): Promise<void> {
-    await purgeDevice({ keepDeviceId: false });
     announceAccountEvent('wiped');
+    await endSession();
+    await purgeDevice({ keepDeviceId: false });
     hardReload(loginUrl('wiped'));
 }

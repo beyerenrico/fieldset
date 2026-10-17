@@ -17,6 +17,7 @@ import {
     type DraftSession,
     type DraftSessionInit,
 } from '../lib/drafts/draft-session.ts';
+import type { DraftLockState } from '../lib/drafts/draft-lock.ts';
 import type { DraftStart } from '../lib/drafts/local-drafts.ts';
 import { buildEvaluationContext } from '../lib/session/eval-context.ts';
 import { resolveConflict as resolveStoredConflict } from '../lib/sync/engine.ts';
@@ -31,7 +32,10 @@ export interface DraftEditor {
     readonly onChange: (data: JsonObject) => void;
     readonly controller: AutosaveController;
     readonly snapshot: AutosaveSnapshot;
-    /** What the save indicator shows: the local state, or the row's conflict / lock. */
+    /**
+     * What the save indicator shows: the local state, or the row's conflict / lock. `locked`: the
+     * draft is read-only (another tab edits it, or the server no longer allows edits).
+     */
     readonly saveState: SaveState;
     /** Sync state of the draft (null before the first local write). */
     readonly sync: DraftSync | null;
@@ -75,7 +79,15 @@ export function useDraftSession(init: DraftSessionInit): DraftSession {
     return session;
 }
 
-function displayState(state: SaveState, row: DraftRow | null): SaveState {
+/** `locked` (read-only) while another tab edits the draft or the server no longer allows edits. */
+export function displayState(
+    state: SaveState,
+    row: DraftRow | null,
+    lock: DraftLockState,
+): SaveState {
+    if (lock === 'locked') {
+        return 'locked';
+    }
     if (row?.sync === 'conflict') {
         return 'conflict';
     }
@@ -103,6 +115,7 @@ export function useDraftEditor(
     const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
     const data = useSyncExternalStore(controller.subscribe, () => controller.data);
     const pendingWork = useSyncExternalStore(work.subscribe, work.getPending);
+    const lock = useSyncExternalStore(session.lock.subscribe, session.lock.getState);
     const local = useLocalSubmission(uuid, scope);
     const row = local?.row ?? start.local;
     const ops = local?.ops ?? NO_OPS;
@@ -170,7 +183,7 @@ export function useDraftEditor(
         onChange,
         controller,
         snapshot,
-        saveState: displayState(snapshot.state, row),
+        saveState: displayState(snapshot.state, row, lock),
         sync: row?.sync ?? null,
         row,
         ops,

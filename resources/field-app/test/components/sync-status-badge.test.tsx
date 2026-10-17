@@ -1,10 +1,10 @@
 /** Header sync badge: submissions not synced, decisions needed, sign in again (ADR 0035, M6-T07). */
 import { screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { db, setMeta } from '../../src/lib/db/db.ts';
 import { setOrganizationId } from '../../src/lib/session/org-store.ts';
 import { createBackend } from '../utils/backend.ts';
-import { draftRow, saveOp, seedUnsynced } from '../utils/c-rows.ts';
+import { draftRow, saveOp, seedUnsynced, setOnline } from '../utils/c-rows.ts';
 import { ORG_A, ORG_B, makeMe } from '../utils/fixtures.ts';
 import { renderApp } from '../utils/render-app.tsx';
 import { server, setupTestServer } from '../utils/server.ts';
@@ -19,6 +19,9 @@ setupTestServer();
 beforeEach(() => {
     setOrganizationId(1);
 });
+afterEach(() => {
+    vi.restoreAllMocks();
+});
 
 const header = (): HTMLElement => {
     const element = document.querySelector('header');
@@ -30,6 +33,7 @@ const header = (): HTMLElement => {
 
 describe('sync status badge', () => {
     it('is hidden while everything is synced and counts unsynced submissions live', async () => {
+        setOnline(false); // offline the count shows at once (pending-visible.test.tsx: online)
         server.use(...createBackend({ me: makeMe([ORG_A, ORG_B]) }).handlers);
         renderApp('/settings');
         await screen.findByRole('heading', { name: 'Settings' });
@@ -81,6 +85,13 @@ describe('sync status badge', () => {
 
     it('caps the visible number', async () => {
         server.use(...createBackend().handlers);
+        // The last run could not reach the server: counts as offline ("lie-fi").
+        await setMeta('sync', {
+            state: 'offline',
+            lastRunAt: 1,
+            lastSuccessAt: null,
+            lastError: null,
+        });
         await db.outbox.bulkPut(
             Array.from({ length: 120 }, (_, index) => saveOp(`s${String(index)}`)),
         );

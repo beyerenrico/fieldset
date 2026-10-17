@@ -8,7 +8,7 @@ import { useEffect } from 'react';
 import { submissionQueryOptions } from '../../hooks/queries.ts';
 import { useDraftScope, useLocalSubmission } from '../../hooks/useLocalDrafts.ts';
 import type { Submission } from '../../lib/api/types.ts';
-import type { OutboxError, OutboxRow } from '../../lib/db/schema.ts';
+import type { DraftRow, OutboxError, OutboxRow } from '../../lib/db/schema.ts';
 import { localSubmission } from '../../lib/drafts/local-drafts.ts';
 import { onOutboxEvent } from '../../lib/sync/events.ts';
 
@@ -16,6 +16,8 @@ export interface SubmissionView {
     readonly submission: Submission | null;
     /** True when `submission` is the copy on this device. */
     readonly isLocal: boolean;
+    /** The row on this device (sync state, blocking code, refused fields), also when not shown. */
+    readonly row: DraftRow | null;
     /** A submit waits in the outbox. */
     readonly queuedSubmit: OutboxRow | null;
     /** Why the last attempt of a queued op failed (retried automatically or blocked). */
@@ -60,6 +62,7 @@ export function useSubmissionView(uuid: string): SubmissionView {
     return {
         submission,
         isLocal,
+        row,
         queuedSubmit,
         lastError: ops.find((op) => op.lastError !== null)?.lastError ?? null,
         isPending: local === undefined || (submission === null && query.isPending),

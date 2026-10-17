@@ -47,7 +47,9 @@ describe('catalog screen offline', () => {
         await vi.waitFor(() => {
             expect(unavailable).toHaveAttribute('aria-disabled', 'true');
         });
-        expect(unavailable).toHaveTextContent('Not available offline');
+        // The note is visible outside the dimmed button and is its description.
+        expect(unavailable).toHaveAccessibleDescription('Not available offline');
+        expect(unavailable).not.toContainElement(screen.getByText('Not available offline'));
         expect(
             screen.getByText('You are offline. These are the forms saved on this device.'),
         ).toBeInTheDocument();

@@ -20,8 +20,10 @@ export type InstallOffer = 'none' | 'button' | 'ios';
 
 /** Per device, kept in localStorage (`fsa.` prefix). */
 export const INSTALL_DISMISSED_KEY = 'pwa.installDismissed';
-/** Per browser session: the data warning returns while unsynced work remains. */
+/** Per device, with the time it was hidden: the data warning returns after IOS_WARNING_SNOOZE_MS. */
 export const IOS_WARNING_HIDDEN_KEY = 'pwa.iosWarningHidden';
+/** Matches WebKit's 7 days without use after which it deletes the data. */
+export const IOS_WARNING_SNOOZE_MS = 7 * 24 * 60 * 60 * 1000;
 
 export function readPlatform(): PlatformInfo {
     const nav = navigator as Navigator & { readonly standalone?: boolean };
@@ -75,10 +77,13 @@ export function dismissInstall(): void {
     writeJson(INSTALL_DISMISSED_KEY, true);
 }
 
-export function isIosWarningHidden(): boolean {
-    return readJson<unknown>(IOS_WARNING_HIDDEN_KEY, false, 'session') === true;
+export function isIosWarningHidden(now: number = Date.now()): boolean {
+    const hiddenAt = readJson<unknown>(IOS_WARNING_HIDDEN_KEY, null);
+    return (
+        typeof hiddenAt === 'number' && now >= hiddenAt && now - hiddenAt < IOS_WARNING_SNOOZE_MS
+    );
 }
 
-export function hideIosWarning(): void {
-    writeJson(IOS_WARNING_HIDDEN_KEY, true, 'session');
+export function hideIosWarning(now: number = Date.now()): void {
+    writeJson(IOS_WARNING_HIDDEN_KEY, now);
 }

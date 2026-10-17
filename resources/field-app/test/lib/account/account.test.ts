@@ -11,8 +11,10 @@ import {
     wipeDevice,
 } from '../../../src/lib/session/account.ts';
 import {
+    OTHER_TABS_GRACE_MS,
     onLocalDataCleared,
     onLocalDataClearing,
+    onSessionEnding,
     purgeDevice,
 } from '../../../src/lib/session/local-data.ts';
 import { getOrganizationId, setOrganizationId } from '../../../src/lib/session/org-store.ts';
@@ -128,6 +130,33 @@ describe('wipe', () => {
 });
 
 describe('other tabs', () => {
+    it.each([
+        ['logout', () => signOut()],
+        ['wiped', () => wipeDevice()],
+    ] as const)(
+        'hear %s before anything is removed; this tab stops writing and syncing first',
+        async (event, end) => {
+            const seen: string[] = [];
+            const other = new BroadcastChannel(ACCOUNT_CHANNEL);
+            other.onmessage = (message: MessageEvent<{ event: string }>) => {
+                void db.drafts.count().then((drafts) => {
+                    seen.push(`${message.data.event}:drafts=${String(drafts)}`);
+                });
+            };
+            const stopEnding = onSessionEnding(() => {
+                seen.push(`ending:user=${String(getCurrentUserId())}`);
+            });
+            server.use(http.post('*/auth/logout', () => new HttpResponse(null, { status: 204 })));
+            const started = Date.now();
+            await end();
+            stopEnding();
+            other.close();
+            expect(seen).toEqual(['ending:user=null', `${event}:drafts=1`]);
+            expect(Date.now() - started).toBeGreaterThanOrEqual(OTHER_TABS_GRACE_MS - 5);
+            expect(await db.drafts.count()).toBe(0);
+        },
+    );
+
     it('hears logout and wipe of another tab, not its own announcements', async () => {
         const seen: string[] = [];
         const stop = onAccountEvent((event) => seen.push(event));

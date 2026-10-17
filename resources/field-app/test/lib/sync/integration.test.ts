@@ -35,7 +35,7 @@ setupSyncScope();
 
 const UUID = '0192f1c4-0000-7000-8000-00000000d001';
 const PHOTO = '0192f1c4-0000-7000-8000-00000000d0a1';
-const SAVE_ID = opId('draft.save', UUID);
+const SAVE_ID = opId('draft.save', SCOPE.userId, UUID);
 
 afterEach(() => {
     Reflect.deleteProperty(navigator, 'onLine');
@@ -132,7 +132,7 @@ describe('retired versions (manifest retired_version_ids)', () => {
         await seedDraft();
 
         const outcome = await enqueueAndRun(
-            { id: opId('submit', UUID), submissionUuid: UUID },
+            { id: opId('submit', SCOPE.userId, UUID), submissionUuid: UUID },
             () => enqueueSubmit(SCOPE, UUID, '2026-10-17T10:00:00.000Z'),
         );
 
@@ -171,7 +171,7 @@ describe('attachments removed before their upload', () => {
         await seedDraft();
         await db.attachments.put(attachmentRow({ uuid: PHOTO, submissionUuid: UUID }));
         await enqueueAttachmentUpload(SCOPE, UUID, PHOTO);
-        const uploadId = opId('attachment.upload', UUID, PHOTO);
+        const uploadId = opId('attachment.upload', SCOPE.userId, UUID, PHOTO);
         const upload = await db.outbox.get(uploadId);
         // It backs off after failed attempts (blocked ones are dropped the same way).
         await db.outbox.put({ ...upload!, attempts: 3, nextAttemptAt: Date.now() + 60_000 });

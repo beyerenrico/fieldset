@@ -213,8 +213,15 @@ export async function listSubmissions(filter: SubmissionFilter = {}): Promise<Pa
     return { items, meta: toMeta(response.meta, items.length) };
 }
 
-export async function fetchSubmission(uuid: string): Promise<Submission> {
-    return (await apiRequest<{ submission: Submission }>(paths.submission(uuid))).data.submission;
+/** One submission; the outbox passes its row's organization (`organizationId`). */
+export async function fetchSubmission(
+    uuid: string,
+    options: Pick<WriteOptions, 'organizationId'> = {},
+): Promise<Submission> {
+    const response = await apiRequest<{ submission: Submission }>(paths.submission(uuid), {
+        ...writeOptions(options),
+    });
+    return response.data.submission;
 }
 
 /** Latest rendition with a signed link; 404 `document_not_ready` while the PDF is rendered. */

@@ -6,14 +6,18 @@
 import { evaluate } from '@form-schema-app/form-schema-js';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
+import { isStorageFull } from '../../components/SaveIndicator.tsx';
 import type { MessageKey } from '../../i18n/en.ts';
 import type { DraftEditor } from '../../hooks/useDraftEditor.ts';
 import { submissionQueryOptions } from '../../hooks/queries.ts';
 import { ApiError, isValidationError } from '../../lib/api/errors.ts';
 import type { FormVersion, Submission } from '../../lib/api/types.ts';
+import type { AutosaveSnapshot } from '../../lib/autosave/types.ts';
 import { enqueueSubmit, opId } from '../../lib/outbox/outbox.ts';
 import { enqueueAndRun, type QueuedOutcome } from '../../lib/submit/queue.ts';
+import { retryBlocked } from '../../lib/sync/conflicts.ts';
+import { isFixable } from './refusal.ts';
 
 const KNOWN_CODES: readonly string[] = [
     'version_retired',
@@ -28,6 +32,9 @@ export interface SubmitState {
     readonly busy: boolean;
     readonly problem: MessageKey | null;
     readonly showErrors: boolean;
+    /** The answer opened a decision panel: the screen moves focus there once it shows. */
+    readonly focusPanel: boolean;
+    readonly panelFocused: () => void;
     readonly submit: () => Promise<void>;
 }
 
@@ -49,15 +56,29 @@ export function submitProblem(outcome: QueuedOutcome): MessageKey | null {
     return 'submitError.unknown';
 }
 
+/** A conflict or a blocking answer (not a 422, which the user fixes in the form). */
+function opensPanel(outcome: QueuedOutcome): boolean {
+    return (
+        outcome.status === 'failed' &&
+        !outcome.retrying &&
+        outcome.error instanceof ApiError &&
+        outcome.error.status !== 422
+    );
+}
+
 /** Problems before the submit is queued: the draft must be written and valid. */
-function precheck(editor: DraftEditor, state: string, invalid: boolean): MessageKey | null {
-    if (state === 'error') {
-        return 'review.saveFirst';
+function precheck(
+    editor: DraftEditor,
+    saved: AutosaveSnapshot,
+    invalid: boolean,
+): MessageKey | null {
+    if (saved.state === 'error') {
+        return isStorageFull(saved.error) ? 'save.storageFull' : 'review.saveFirst';
     }
     if (editor.conflict !== null) {
         return 'submitError.revision_conflict';
     }
-    if (editor.blockedBy !== null) {
+    if (editor.blockedBy !== null && !isFixable(editor.blockedBy)) {
         return KNOWN_CODES.includes(editor.blockedBy)
             ? (`submitError.${editor.blockedBy}` as MessageKey)
             : 'submitError.unknown';
@@ -65,25 +86,29 @@ function precheck(editor: DraftEditor, state: string, invalid: boolean): Message
     return invalid ? 'review.fixErrors' : null;
 }
 
-/** `resubmit`: the submission had changes requested (the detail then says "Resubmitted"). */
-export function useSubmit(
-    uuid: string,
-    version: FormVersion,
-    editor: DraftEditor,
-    resubmit = false,
-): SubmitState {
+/** A local failure that kept the submit from being queued (e.g. the device storage is full). */
+function thrownProblem(error: unknown): MessageKey {
+    console.error('Submitting failed', error);
+    return isStorageFull(error) ? 'save.storageFull' : 'submitError.unknown';
+}
+
+/** Queues the submit; a refused one (fixed in the form since) is unblocked and sent again. */
+function queueSubmit(editor: DraftEditor, uuid: string): Promise<QueuedOutcome> {
+    const resend = isFixable(editor.blockedBy);
+    const id = opId('submit', editor.scope.userId, uuid);
+    return enqueueAndRun({ id, submissionUuid: uuid }, async () => {
+        await enqueueSubmit(editor.scope, uuid, new Date().toISOString());
+        if (resend) {
+            await retryBlocked(uuid);
+        }
+    });
+}
+
+/** After the server took the submit (or it was queued): the detail, which says which one. */
+function useShowSubmitted(uuid: string, resubmit: boolean) {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
-    const [busy, setBusy] = useState(false);
-    const [problem, setProblem] = useState<MessageKey | null>(null);
-    const [showErrors, setShowErrors] = useState(false);
-
-    const fail = (key: MessageKey): void => {
-        setProblem(key);
-        setBusy(false);
-    };
-
-    const done = async (submission: Submission | null): Promise<void> => {
+    return async (submission: Submission | null): Promise<void> => {
         if (submission !== null) {
             queryClient.setQueryData(submissionQueryOptions(uuid).queryKey, submission);
         }
@@ -94,32 +119,58 @@ export function useSubmit(
             search: resubmit ? { submitted: true, resubmitted: true } : { submitted: true },
         });
     };
+}
 
-    const submit = async (): Promise<void> => {
-        setBusy(true);
-        setProblem(null);
+/** `resubmit`: the submission had changes requested (the detail then says "Resubmitted"). */
+export function useSubmit(
+    uuid: string,
+    version: FormVersion,
+    editor: DraftEditor,
+    resubmit = false,
+): SubmitState {
+    const done = useShowSubmitted(uuid, resubmit);
+    const [busy, setBusy] = useState(false);
+    const [problem, setProblem] = useState<MessageKey | null>(null);
+    const [showErrors, setShowErrors] = useState(false);
+    const [focusPanel, setFocusPanel] = useState(false);
+    const panelFocused = useCallback(() => {
+        setFocusPanel(false);
+    }, []);
+
+    const attempt = async (): Promise<void> => {
         await editor.whenIdle();
         const saved = await editor.controller.flush({ ensureCreated: true });
         const invalid =
             evaluate(version.definition, editor.controller.data, editor.context).errors.length > 0;
-        const early = precheck(editor, saved.state, invalid);
+        const early = precheck(editor, saved, invalid);
         if (early !== null) {
             setShowErrors(early === 'review.fixErrors');
-            fail(early);
+            setProblem(early);
             return;
         }
-        const outcome = await enqueueAndRun(
-            { id: opId('submit', uuid), submissionUuid: uuid },
-            () => enqueueSubmit(editor.scope, uuid, new Date().toISOString()),
-        );
+        const outcome = await queueSubmit(editor, uuid);
         const refused = submitProblem(outcome);
         if (refused !== null) {
             setShowErrors(refused === 'submitError.validation_failed');
-            fail(refused);
+            setProblem(refused);
+            setFocusPanel(opensPanel(outcome));
             return;
         }
         await done(outcome.status === 'done' ? (outcome.result as Submission) : null);
     };
 
-    return { busy, problem, showErrors, submit };
+    const submit = async (): Promise<void> => {
+        setBusy(true);
+        setProblem(null);
+        setFocusPanel(false);
+        try {
+            await attempt();
+        } catch (error: unknown) {
+            setProblem(thrownProblem(error));
+        } finally {
+            setBusy(false); // always: a thrown error must not leave the button busy
+        }
+    };
+
+    return { busy, problem, showErrors, focusPanel, panelFocused, submit };
 }

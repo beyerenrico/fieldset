@@ -20,7 +20,7 @@ setupTestServer();
 setupSyncScope();
 
 const UUID = '0192f1c4-0000-7000-8000-00000000c001';
-const SAVE_ID = opId('draft.save', UUID);
+const SAVE_ID = opId('draft.save', SCOPE.userId, UUID);
 
 afterEach(() => {
     vi.useRealTimers();
@@ -235,7 +235,7 @@ describe('triggers and scope', () => {
         await db.drafts.put(draftRow({ uuid: 'other', data: { b: 1 } }));
         await db.outbox.put({
             ...SCOPE,
-            id: opId('draft.save', 'other'),
+            id: opId('draft.save', SCOPE.userId, 'other'),
             kind: 'draft.save',
             submissionUuid: 'other',
             seq: 99,
@@ -265,7 +265,7 @@ describe('triggers and scope', () => {
             ['/api/v1/submissions/mine-org-2', '2'],
         ]);
         expect(result.remaining).toBe(0);
-        expect(await db.outbox.get(opId('draft.save', 'someone-else'))).toBeDefined();
+        expect(await db.outbox.get(opId('draft.save', 8, 'someone-else'))).toBeDefined();
     });
 
     it('writes the sync meta on every run', async () => {
@@ -303,7 +303,7 @@ describe('triggers and scope', () => {
         const backend = setup();
         backend.state.submissions.set(UUID, makeSubmission({ uuid: UUID, status: 'submitted' }));
         await enqueueSend(SCOPE, UUID, { email: 'kunde@example.test', name: 'Kunde' });
-        const op = await db.outbox.get(opId('send', UUID));
+        const op = await db.outbox.get(opId('send', SCOPE.userId, UUID));
         await runSync({ manual: true });
         expect(backend.state.log).toEqual([
             expect.objectContaining({

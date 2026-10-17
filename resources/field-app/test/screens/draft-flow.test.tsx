@@ -123,7 +123,9 @@ describe('attachments being stored', () => {
         await screen.findByText('Number SR-2026-00001', { selector: 'p' });
         expect(summarize(backend.state.log)).toEqual(['UPLOAD', 'PUT update', 'SUBMIT']);
         expect(backend.state.log[2]?.body).toMatchObject({ revision: 2 });
-        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('region', { name: 'Someone else changed this draft' }),
+        ).not.toBeInTheDocument();
     });
 });
 
@@ -150,7 +152,9 @@ describe('reopening a draft', () => {
         expect(
             backend.state.log.map((entry) => (entry.body as { revision?: number }).revision),
         ).toEqual([1, undefined, 2]);
-        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('region', { name: 'Someone else changed this draft' }),
+        ).not.toBeInTheDocument();
     });
 
     it('starts from the copy on this device while offline', async () => {
@@ -167,6 +171,7 @@ describe('reopening a draft', () => {
         history.push(`/app/fill/${UUID}`);
         await screen.findByRole('heading', { name: 'Service report' });
         expect(data()).toEqual({ customer: 'Edited' });
-        expect(document.querySelector('[data-state]')).toHaveTextContent('No changes yet');
+        // A restored draft is already saved on this device (F1 controller).
+        expect(document.querySelector('[data-state]')).toHaveTextContent('Saved on this device');
     });
 });

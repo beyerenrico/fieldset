@@ -3,18 +3,26 @@
  * update the draft (only when dirty) → submit → send. A step that is not done stops the rest.
  */
 import { ApiError } from '../api/errors.ts';
-import { EDITABLE_STATUSES } from '../api/types.ts';
 import { db } from '../db/db.ts';
 import type { DraftRow, OutboxRow } from '../db/schema.ts';
 import { opsOf } from '../outbox/outbox.ts';
 import { due, emitFailed, isFatal, type RunContext, type StepResult } from './failures.ts';
 import { saveDraft, uploadOne } from './ops-draft.ts';
 import { sendOne, submitOne } from './ops-submit.ts';
-import { blockOp, dropOrphanUploads, isPaused, markBlocked, markSyncing } from './store.ts';
+import {
+    blockOp,
+    dropOrphanSaves,
+    dropOrphanUploads,
+    isPaused,
+    markBlocked,
+    markSyncing,
+} from './store.ts';
 
 type UploadOp = Extract<OutboxRow, { kind: 'attachment.upload' }>;
 
 const isUpload = (op: OutboxRow): op is UploadOp => op.kind === 'attachment.upload';
+
+const isDirty = (draft: DraftRow): boolean => draft.localVersion > draft.syncedVersion;
 
 /** Uploads every due attachment; true when none is left (blocked or waiting ones count as left). */
 async function uploadAll(ctx: RunContext, ops: readonly OutboxRow[]): Promise<StepResult> {
@@ -25,7 +33,7 @@ async function uploadAll(ctx: RunContext, ops: readonly OutboxRow[]): Promise<St
             continue;
         }
         const result = await uploadOne(ctx, op);
-        if (isFatal(result)) {
+        if (isFatal(result) || result === 'blocked') {
             return result;
         }
         left ||= result !== 'ok';
@@ -44,7 +52,11 @@ async function referencesFailedAttachment(draft: DraftRow): Promise<boolean> {
     return failed.some((row) => data.includes(row.uuid));
 }
 
-async function submitStep(ctx: RunContext, uuid: string): Promise<StepResult> {
+/**
+ * The submit of a clean draft. `dirty`: edits were written since the draft steps ran; they go out
+ * first, so the submit never marks unsent edits as synced.
+ */
+async function submitStep(ctx: RunContext, uuid: string): Promise<StepResult | 'dirty'> {
     const op = (await opsOf(uuid)).find((candidate) => candidate.kind === 'submit');
     if (op?.kind !== 'submit') {
         return 'ok';
@@ -53,6 +65,9 @@ async function submitStep(ctx: RunContext, uuid: string): Promise<StepResult> {
         return 'wait';
     }
     const draft = await db.drafts.get(uuid);
+    if (draft !== undefined && isDirty(draft)) {
+        return 'dirty';
+    }
     if (draft !== undefined && (await referencesFailedAttachment(draft))) {
         const error = new ApiError(422, 'attachment_failed', 'An attachment must be replaced.');
         await blockOp(op, error);
@@ -87,15 +102,11 @@ async function draftSteps(ctx: RunContext, uuid: string): Promise<StepResult> {
         }
     }
     const uploads = await uploadAll(ctx, await opsOf(uuid));
-    if (isFatal(uploads)) {
+    if (isFatal(uploads) || uploads === 'blocked') {
         return uploads;
     }
     const current = await db.drafts.get(uuid);
-    if (
-        current !== undefined &&
-        !isPaused(current.sync) &&
-        current.localVersion > current.syncedVersion
-    ) {
+    if (current !== undefined && !isPaused(current.sync) && isDirty(current)) {
         const updated = await saveDraft(ctx, current);
         if (updated !== 'ok') {
             return updated;
@@ -104,23 +115,48 @@ async function draftSteps(ctx: RunContext, uuid: string): Promise<StepResult> {
     return uploads;
 }
 
+/** Draft steps, then the submit; edits written meanwhile get one more pass before the submit. */
+async function draftsThenSubmit(ctx: RunContext, uuid: string): Promise<StepResult> {
+    for (let pass = 0; pass < 2; pass++) {
+        const drafts = await draftSteps(ctx, uuid);
+        if (drafts !== 'ok') {
+            return drafts;
+        }
+        const submitted = await submitStep(ctx, uuid);
+        if (submitted !== 'dirty') {
+            return submitted;
+        }
+    }
+    return 'wait'; // still typing: the next enqueue runs the engine again
+}
+
 /**
- * A draft pinned to a version the catalog marks retired (manifest `retired_version_ids`) can no
- * longer be submitted: it is blocked before any request, as the 409 `version_retired` would block
- * it, so the screens offer "copy to the current version" right away.
+ * A draft that was never submitted, pinned to a version the catalog marks retired (manifest
+ * `retired_version_ids`), can no longer be submitted: it is blocked before any request, as the 409
+ * `version_retired` would block it, so the screens offer "copy to the current version" right away.
+ * A changes_requested submission is not affected: the server accepts its resubmit.
  */
 async function blockRetiredVersion(draft: DraftRow, ops: readonly OutboxRow[]): Promise<boolean> {
-    const editable = draft.server === null || EDITABLE_STATUSES.includes(draft.server.status);
-    if (!editable || (await db.formVersions.get(draft.formVersionId))?.retired !== true) {
+    const neverSubmitted = draft.server === null || draft.server.status === 'draft';
+    if (!neverSubmitted || (await db.formVersions.get(draft.formVersionId))?.retired !== true) {
         return false;
     }
     const error = new ApiError(409, 'version_retired', 'This form version was retired.');
-    await markBlocked(draft.uuid, error.code);
+    await markBlocked(draft.uuid, error.code, error);
     const op = ops.find((candidate) => candidate.kind === 'submit') ?? ops[0];
     if (op !== undefined) {
         emitFailed(op, error, false); // an interactive submit shows this answer
     }
     return true;
+}
+
+/** Orphans are dropped: draft.save ops without a draft, uploads without an attachment row. */
+async function dropOrphans(uuid: string, draft: DraftRow | undefined): Promise<OutboxRow[]> {
+    if (draft === undefined) {
+        await dropOrphanSaves(uuid);
+    }
+    await dropOrphanUploads(uuid);
+    return opsOf(uuid);
 }
 
 export async function processSubmission(ctx: RunContext, uuid: string): Promise<StepResult> {
@@ -131,8 +167,7 @@ export async function processSubmission(ctx: RunContext, uuid: string): Promise<
     if (draft !== undefined && draft.userId !== ctx.userId) {
         return 'wait'; // never sent under another user's session
     }
-    await dropOrphanUploads(uuid);
-    const ops = await opsOf(uuid);
+    const ops = await dropOrphans(uuid, draft);
     if (draft !== undefined && (await blockRetiredVersion(draft, ops))) {
         return 'blocked';
     }
@@ -144,13 +179,6 @@ export async function processSubmission(ctx: RunContext, uuid: string): Promise<
         return ops.some((op) => op.state === 'blocked') ? 'blocked' : 'wait';
     }
     await markSyncing(uuid);
-    const drafts = await draftSteps(ctx, uuid);
-    if (drafts !== 'ok') {
-        return drafts;
-    }
-    const submitted = await submitStep(ctx, uuid);
-    if (submitted !== 'ok') {
-        return submitted;
-    }
-    return sendStep(ctx, uuid);
+    const submitted = await draftsThenSubmit(ctx, uuid);
+    return submitted === 'ok' ? sendStep(ctx, uuid) : submitted;
 }

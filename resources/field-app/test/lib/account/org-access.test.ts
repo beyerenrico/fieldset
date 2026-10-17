@@ -102,7 +102,8 @@ describe('organization_forbidden', () => {
         expect(results).toEqual(['purged', 'purged']);
         expect(meCalls).toBe(1);
         expect(await getDeviceRecord()).toEqual({ deviceUuid: 'dev-1', secret: 'sec-1' });
-        expect(await db.drafts.count()).toBe(2);
+        // No organization left: the user's rows of org 2 go too (purge on every fresh /me).
+        expect(await db.drafts.toCollection().primaryKeys()).toEqual(['other-user']);
     });
 
     it('propagates a lost session instead of guessing', async () => {

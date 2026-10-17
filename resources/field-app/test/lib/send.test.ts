@@ -111,7 +111,7 @@ describe('send recipient defaults', () => {
 
 describe('send idempotency keys (persisted with the queued request, ADR 0035)', () => {
     const keyOf = async (uuid: string): Promise<string | null> => {
-        const op = await db.outbox.get(opId('send', uuid));
+        const op = await db.outbox.get(opId('send', SCOPE.userId, uuid));
         return op?.kind === 'send' ? op.request.idempotencyKey : null;
     };
 
@@ -131,7 +131,7 @@ describe('send idempotency keys (persisted with the queued request, ADR 0035)', 
 
     it('stores the body the key belongs to', async () => {
         await enqueueSend(SCOPE, 's3', { email: 'x@y.de' });
-        const op = await db.outbox.get(opId('send', 's3'));
+        const op = await db.outbox.get(opId('send', SCOPE.userId, 's3'));
         expect(op).toMatchObject({
             kind: 'send',
             input: { email: 'x@y.de' },

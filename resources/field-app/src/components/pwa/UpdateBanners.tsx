@@ -26,7 +26,7 @@ export function DatabaseBanner({ reload }: { readonly reload: () => void }): Rea
             <p className="min-w-0 flex-1">
                 {t(database === 'blocked' ? 'pwa.db.blocked' : 'pwa.db.outdated')}
             </p>
-            <Button onClick={reload}>
+            <Button variant="outline" onClick={reload}>
                 <RefreshCw aria-hidden="true" />
                 {t('pwa.reload')}
             </Button>
@@ -45,6 +45,7 @@ export function UpdateBanner(): ReactNode {
             <p className="min-w-0 flex-1">{t('pwa.update.available')}</p>
             <span className="flex gap-2">
                 <Button
+                    variant="outline"
                     // aria-disabled keeps focus on the button while the update runs.
                     aria-disabled={updating ? true : undefined}
                     onClick={() => void applyUpdate()}

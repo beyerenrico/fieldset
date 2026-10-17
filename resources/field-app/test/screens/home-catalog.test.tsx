@@ -146,9 +146,10 @@ describe('drafts on this device (ADR 0035)', () => {
         renderApp('/');
         const drafts = await screen.findByRole('region', { name: 'Continue drafts' });
         const links = await within(drafts).findAllByRole('link');
+        // d1 waits for a decision: it opens the review screen, where its panel is.
         expect(links.map((link) => link.getAttribute('href'))).toEqual([
             '/app/fill/l1',
-            '/app/fill/d1',
+            '/app/fill/d1/review',
         ]);
         expect(links[0]).toHaveTextContent('Inspection');
         expect(links[0]).toHaveTextContent('Waiting to sync');
@@ -175,7 +176,7 @@ describe('drafts on this device (ADR 0035)', () => {
         const links = within(local).getAllByRole('link');
         expect(links.map((link) => link.getAttribute('href'))).toEqual([
             '/app/fill/l1',
-            '/app/fill/d1',
+            '/app/fill/d1/review',
             '/app/submissions/q1',
         ]);
         expect(links[2]).toHaveTextContent('Number pending');

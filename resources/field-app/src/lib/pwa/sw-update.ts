@@ -36,12 +36,29 @@ export function startServiceWorker(
         onNeedRefresh: () => {
             store.update((state) => ({ ...state, needRefresh: true }));
         },
-        // Called once the new worker controls the page (drafts were flushed before).
-        onNeedReload: reload,
+        // Called in every controlled tab once the new worker takes over: tabs that did not apply
+        // the update write their open drafts first (this tab flushed in applyUpdate).
+        onNeedReload: () => void reloadAfterFlush(reload),
         onRegisterError: (error: unknown) => {
             console.error('Service worker registration failed', error);
         },
     });
+}
+
+/** A failed flush does not block: drafts already live in IndexedDB up to the last autosave. */
+async function flushQuietly(): Promise<void> {
+    try {
+        await flushDraftSessions();
+    } catch (error) {
+        console.error('Flushing drafts before the update failed', error);
+    }
+}
+
+async function reloadAfterFlush(reload: () => void): Promise<void> {
+    if (!store.get().updating) {
+        await flushQuietly();
+    }
+    reload();
 }
 
 /** Flushes open drafts (a failed flush does not block: drafts already live in IndexedDB), then activates. */
@@ -51,11 +68,7 @@ export async function applyUpdate(): Promise<void> {
         return;
     }
     store.set({ ...state, updating: true });
-    try {
-        await flushDraftSessions();
-    } catch (error) {
-        console.error('Flushing drafts before the update failed', error);
-    }
+    await flushQuietly();
     await activate();
 }
 

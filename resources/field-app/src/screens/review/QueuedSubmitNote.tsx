@@ -6,11 +6,11 @@ import { useT } from '../../i18n/I18nProvider.tsx';
 
 export function QueuedSubmitNote({ editor }: { readonly editor: DraftEditor }): ReactNode {
     const t = useT();
+    // A paused submission (conflict, blocked) explains itself in its own panel or notice.
+    const waiting = editor.queuedSubmit && editor.conflict === null && editor.blockedBy === null;
     return (
-        <div role="status">
-            {editor.queuedSubmit ? (
-                <Alert variant="info">{t('sync.submitQueued.editing')}</Alert>
-            ) : null}
+        <div role="status" className={waiting ? undefined : 'sr-only'}>
+            {waiting ? <Alert variant="info">{t('sync.submitQueued.editing')}</Alert> : null}
         </div>
     );
 }

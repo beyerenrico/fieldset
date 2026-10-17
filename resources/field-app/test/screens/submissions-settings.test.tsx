@@ -146,7 +146,9 @@ describe('settings', () => {
         const { user, history } = renderApp('/settings');
         await user.click(await screen.findByRole('button', { name: 'Sign out' }));
         const dialog = screen.getByRole('alertdialog', { name: 'Sign out' });
+        expect(dialog).toHaveFocus();
         await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+        expect(screen.getByRole('button', { name: 'Sign out' })).toHaveFocus();
         await user.click(screen.getByRole('button', { name: 'Sign out' }));
         await user.click(screen.getByRole('button', { name: 'Sign out and remove data' }));
         expect(await screen.findByText('You have been signed out.')).toHaveAttribute(
@@ -173,7 +175,7 @@ describe('settings', () => {
             state: 'error',
         });
         const { user } = renderApp('/settings');
-        await screen.findByText('Changes waiting to be sent');
+        await screen.findByText('Submissions not synced');
         await user.click(screen.getByRole('button', { name: 'Sign out' }));
         const dialog = screen.getByRole('alertdialog', { name: 'Sign out' });
         expect(
@@ -214,13 +216,18 @@ describe('settings', () => {
         });
         const { user } = renderApp('/settings');
         expect(await screen.findByText(/^Last synced: /)).toBeInTheDocument();
-        const label = await screen.findByText('Drafts not synced');
+        // The header's two counts (submissions, decisions), plus photos while any wait.
+        const label = await screen.findByText('Submissions not synced');
         const counts = within(label.closest('dl') as HTMLElement);
+        expect(counts.getAllByRole('term').map((cell) => cell.textContent)).toEqual([
+            'Submissions not synced',
+            'Need your decision',
+            'Photos and files not uploaded',
+        ]);
         expect(counts.getAllByRole('definition').map((cell) => cell.textContent)).toEqual([
             '1',
-            '1',
-            '1',
             '0',
+            '1',
         ]);
         expect(await screen.findByText('12.5 MB of 2 GB used')).toBeInTheDocument();
         expect(
@@ -250,7 +257,7 @@ describe('settings', () => {
         ],
         [
             { ran: true, sent: 1, blocked: 0, remaining: 4, state: 'idle' },
-            'Still waiting to sync: 4',
+            'Some data is still waiting to sync.',
         ],
     ] as const)('explains the outcome of "Sync now" (%#)', async (result, text) => {
         server.use(...createBackend().handlers);
@@ -263,6 +270,34 @@ describe('settings', () => {
                     element?.getAttribute('role') === 'status' && content.includes(text),
             ),
         ).toBeInTheDocument();
+    });
+
+    it('links the decisions to the submissions and keeps focus on a busy "Sync now"', async () => {
+        server.use(...createBackend().handlers);
+        await seedUnsynced();
+        await db.drafts.put({ ...(await db.drafts.get('s1'))!, sync: 'conflict' });
+        let finish: (value: Awaited<ReturnType<typeof runSync>>) => void = () => undefined;
+        vi.mocked(runSync).mockReturnValue(
+            new Promise((resolve) => {
+                finish = resolve;
+            }),
+        );
+        const { user } = renderApp('/settings');
+        const decisions = await screen.findByRole('link', { name: 'Need your decision' });
+        expect(decisions).toHaveAttribute('href', '/app/submissions');
+
+        const button = screen.getByRole('button', { name: 'Sync now' });
+        await user.click(button);
+        const busy = screen.getByRole('button', { name: 'Syncing…' });
+        expect(busy).toHaveAttribute('aria-disabled', 'true');
+        expect(busy).not.toBeDisabled();
+        expect(busy).toHaveFocus();
+        await user.click(busy);
+        expect(runSync).toHaveBeenCalledOnce();
+        finish({ ran: true, sent: 1, blocked: 0, remaining: 0, state: 'idle' });
+        expect(await screen.findByRole('button', { name: 'Sync now' })).not.toHaveAttribute(
+            'aria-disabled',
+        );
     });
 
     it('says when nothing was synced yet and storage details are unknown', async () => {

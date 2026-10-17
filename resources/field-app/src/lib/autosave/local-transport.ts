@@ -1,13 +1,17 @@
 /**
  * Local-first autosave transport (ADR 0035): every save writes the DraftRow (localVersion + 1) and
  * coalesces one `draft.save` op in the same transaction. The sync engine reads the row's data when
- * it sends the op, so the server always gets the latest local state.
+ * it sends the op, so the server always gets the latest local state. A write is refused once the
+ * session ended (SessionEndedError) and a full storage is reported as StorageFullError.
  */
 import type { JsonObject } from '@form-schema-app/form-schema-js';
 import type { Submission } from '../api/types.ts';
 import { db } from '../db/db.ts';
 import type { DraftRow, Scope } from '../db/schema.ts';
+import { getCurrentUserId } from '../db/scope.ts';
 import { afterEnqueue, putDraftSaveOp } from '../outbox/outbox.ts';
+import { sessionUserId } from '../sync/session-guard.ts';
+import { isQuotaExceeded, SessionEndedError, StorageFullError } from './errors.ts';
 import type { SaveReceipt, SaveRequest, SaveTransport } from './types.ts';
 
 export interface LocalDraftInit {
@@ -73,11 +77,22 @@ function ensured(row: DraftRow): DraftRow {
     };
 }
 
+/**
+ * Inside the write transaction: the draft's user is still this tab's user and the last signed-in
+ * user (a logout, wipe or another login in another tab ends the session; nothing is written back).
+ */
+async function assertSession(userId: number): Promise<void> {
+    if (getCurrentUserId() !== userId || (await sessionUserId()) !== userId) {
+        throw new SessionEndedError();
+    }
+}
+
 async function write(
     init: LocalDraftInit,
     request: SaveRequest,
 ): Promise<SaveReceipt & { queued: boolean }> {
     return db.transaction('rw', db.drafts, db.outbox, db.meta, async () => {
+        await assertSession(init.scope.userId);
         const now = Date.now();
         const existing = await db.drafts.get(init.uuid);
         if (existing !== undefined && request.ensureOnly === true) {
@@ -94,10 +109,22 @@ async function write(
     });
 }
 
+/** The write, with a full storage reported as StorageFullError (Dexie wraps the DOMException). */
+async function writeOrExplain(
+    init: LocalDraftInit,
+    request: SaveRequest,
+): Promise<SaveReceipt & { queued: boolean }> {
+    try {
+        return await write(init, request);
+    } catch (error) {
+        throw isQuotaExceeded(error) ? new StorageFullError(error) : error;
+    }
+}
+
 export function createLocalTransport(init: LocalDraftInit): SaveTransport {
     return {
         save: async (request) => {
-            const { localVersion, queued } = await write(init, request);
+            const { localVersion, queued } = await writeOrExplain(init, request);
             if (queued) {
                 afterEnqueue();
             }

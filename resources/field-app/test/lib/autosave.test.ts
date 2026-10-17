@@ -1,6 +1,7 @@
 /** AutosaveController (local-first, ADR 0035): debounce, maxWait, one write in flight, retries. */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AutosaveController } from '../../src/lib/autosave/controller.ts';
+import { StorageFullError } from '../../src/lib/autosave/errors.ts';
 import type { SaveReceipt, SaveRequest, SaveTransport } from '../../src/lib/autosave/types.ts';
 
 interface Deferred {
@@ -146,6 +147,38 @@ describe('AutosaveController (local writes)', () => {
             localVersion: 1,
             error: null,
         });
+    });
+
+    it('keeps one error object and stays quiet while retries fail the same way', async () => {
+        const save = vi.fn(() => Promise.reject(new StorageFullError()));
+        const autosave = controller({ save });
+        const listener = vi.fn();
+        autosave.subscribe(listener);
+        autosave.update({ a: 1 });
+        await vi.advanceTimersByTimeAsync(300);
+        const first = autosave.getSnapshot();
+        expect(first).toMatchObject({ state: 'error', error: { code: 'storage_full' } });
+        const heard = listener.mock.calls.length;
+
+        await vi.advanceTimersByTimeAsync(1000 + 2000 + 4000); // three retries
+        expect(save).toHaveBeenCalledTimes(4);
+        expect(listener).toHaveBeenCalledTimes(heard);
+        expect(autosave.getSnapshot()).toBe(first);
+
+        save.mockImplementation(() => Promise.reject(new Error('another failure')));
+        await vi.advanceTimersByTimeAsync(8000);
+        expect(autosave.getSnapshot().error).toEqual(new Error('another failure'));
+        expect(listener).toHaveBeenCalledTimes(heard + 1);
+        autosave.dispose();
+    });
+
+    it('starts a restored draft as "saved on this device"', () => {
+        const { transport } = countingTransport();
+        expect(controller(transport, { localVersion: 3 }).getSnapshot()).toMatchObject({
+            state: 'saved',
+            localVersion: 3,
+        });
+        expect(controller(transport).getSnapshot().state).toBe('idle');
     });
 
     it.each([

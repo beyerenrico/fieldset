@@ -56,6 +56,21 @@ export async function countForeignRows(userId: number): Promise<number> {
     return drafts + ops + attachments;
 }
 
+/** Submissions (by uuid) with a draft, outbox op or attachment of users other than `userId`. */
+export async function countForeignSubmissions(userId: number): Promise<number> {
+    const other = (row: { readonly userId: number }): boolean => row.userId !== userId;
+    const [drafts, ops, attachments] = await Promise.all([
+        db.drafts.filter(other).toArray(),
+        db.outbox.filter(other).toArray(),
+        db.attachments.filter(other).toArray(),
+    ]);
+    return new Set([
+        ...drafts.map((row) => row.uuid),
+        ...ops.map((row) => row.submissionUuid),
+        ...attachments.map((row) => row.submissionUuid),
+    ]).size;
+}
+
 /** Deletes every draft, outbox op and attachment that does not belong to `userId`. */
 export async function deleteForeignRows(userId: number): Promise<void> {
     const other = (row: { readonly userId: number }): boolean => row.userId !== userId;

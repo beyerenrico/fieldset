@@ -8,32 +8,14 @@
 import { fetchDeviceStatus } from '../api/device-status.ts';
 import { fetchMe } from '../api/endpoints.ts';
 import { DeviceWipedError } from '../api/errors.ts';
-import { db } from '../db/db.ts';
-import type { Scope } from '../db/schema.ts';
 import { wipeDevice } from './account.ts';
 import { reportAuthError } from './auth-events.ts';
 import { adoptSession } from './offline-start.ts';
+import { purgeOrganizationRows } from './org-purge.ts';
+
+export { purgeOrganizationRows };
 
 export type OrganizationAccess = 'member' | 'purged' | 'wiped';
-
-/** Removes one user's drafts, outbox ops and attachments of one organization, plus its catalog cache. */
-export async function purgeOrganizationRows(scope: Scope): Promise<void> {
-    const key: [number, number] = [scope.orgId, scope.userId];
-    await db.transaction(
-        'rw',
-        [db.drafts, db.outbox, db.attachments, db.forms, db.formVersions, db.meta],
-        async () => {
-            await db.drafts.where('[orgId+userId]').equals(key).delete();
-            await db.outbox.where('[orgId+userId]').equals(key).delete();
-            await db.attachments
-                .filter((row) => row.orgId === scope.orgId && row.userId === scope.userId)
-                .delete();
-            await db.forms.where('orgId').equals(scope.orgId).delete();
-            await db.formVersions.where('orgId').equals(scope.orgId).delete();
-            await db.meta.delete(`catalog:${String(scope.orgId)}` as `catalog:${number}`);
-        },
-    );
-}
 
 const running = new Map<number, Promise<OrganizationAccess>>();
 
