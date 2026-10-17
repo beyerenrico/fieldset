@@ -29,6 +29,9 @@ Format: question · chosen option · impact · how to reverse.
    has a strict CSP (`script-src 'self'`), Markdown has HTML off, images only `data:` · a renderer XSS
    would run with the designer's admin session · M8 task: serve the preview from an opaque origin
    (drop `allow-same-origin`, CORS on preview assets, `source`-checked postMessage).
+   **Resolved in M8 (ADR 0040):** the preview runs on an opaque origin (`sandbox="allow-scripts"` plus CSP
+   `sandbox allow-scripts`, `connect-src 'none'`, no storage); postMessage targets `'*'` and checks
+   `event.source` and the `'null'` origin; Caddy serves preview assets with CORS.
 11. `app:reproject` rebuilds `submission_values` from current data, so a `changes_requested`
    submission is skipped until resubmitted (ADR 0027) · accepted · reports built during a full rebuild
    miss those submissions temporarily · keep a snapshot of the last submitted data per submission.
