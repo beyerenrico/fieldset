@@ -10,6 +10,7 @@ use App\Domain\Audit\Query\AuditLogFilters;
 use App\Domain\Audit\Query\AuditLogQuery;
 use App\Domain\Identity\Models\Membership;
 use App\Domain\Identity\Tenancy\TenantContext;
+use App\Domain\Privacy\Erasure\AccountScrubber;
 use App\Filament\Admin\Resources\AuditLogs\Pages\ListAuditLogs;
 use App\Filament\Admin\Resources\AuditLogs\Schemas\AuditEntryInfolist;
 use App\Filament\Admin\Resources\Submissions\SubmissionResource;
@@ -27,7 +28,7 @@ use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Read-only audit log of the current organization (BUILD_PROMPT §8.11, ADR 0038): filters by actor, event,
- * subject type and date range, a detail view, and CSV export (ListAuditLogs). Visible to audit.view holders
+ * subject type, date range and impersonation, a detail view, and CSV export (ListAuditLogs). Visible to audit.view holders
  * (ActivityPolicy). Entries are never created, edited or deleted here.
  */
 class AuditLogResource extends Resource
@@ -37,7 +38,7 @@ class AuditLogResource extends Resource
     /** The activity log has no tenant relationship: the query is scoped to the organization explicitly. */
     protected static bool $isScopedToTenant = false;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedShieldCheck;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClipboardDocumentList;
 
     protected static ?int $navigationSort = 90;
 
@@ -66,7 +67,8 @@ class AuditLogResource extends Resource
     /** @return Builder<Activity> */
     public static function getEloquentQuery(): Builder
     {
-        return AuditLogQuery::forCurrentOrganization()->with('causer');
+        // Subjects are eager-loaded per type for their names (AuditLabels::subject), never per row.
+        return AuditLogQuery::forCurrentOrganization()->with(['causer', 'subject']);
     }
 
     public static function infolist(Schema $schema): Schema
@@ -80,17 +82,19 @@ class AuditLogResource extends Resource
             ->defaultSort('id', 'desc')
             ->columns(self::columns())
             ->filters(self::filters())
-            ->recordActions([ViewAction::make()->slideOver()]);
+            ->recordActions([ViewAction::make()->slideOver()])
+            ->emptyStateHeading(__('audit.empty'));
     }
 
     /** @return list<TextColumn> */
     public static function columns(): array
     {
         return [
-            TextColumn::make('created_at')->label(__('audit.fields.time'))->dateTime()->timezone(SubmissionResource::displayTimezone()),
+            TextColumn::make('created_at')->label(__('audit.fields.time'))->isoDateTime('L LT')->timezone(SubmissionResource::displayTimezone()),
             TextColumn::make('event')->label(__('audit.fields.event'))->badge()->color('gray')
                 ->formatStateUsing(fn (?string $state): string => AuditLabels::event($state)),
-            TextColumn::make('actor')->label(__('audit.fields.actor'))->state(fn (Activity $record): string => AuditLabels::actor($record)),
+            TextColumn::make('actor')->label(__('audit.fields.actor'))->state(fn (Activity $record): string => AuditLabels::actor($record))
+                ->description(fn (Activity $record): ?string => AuditLabels::onBehalfOf($record)),
             TextColumn::make('subject_type')->label(__('audit.fields.subject'))->state(fn (Activity $record): string => AuditLabels::subject($record)),
             TextColumn::make('ip_address')->label(__('audit.fields.ip_address'))->placeholder('—')->toggleable(),
             TextColumn::make('request_id')->label(__('audit.fields.request_id'))->placeholder('—')->toggleable(isToggledHiddenByDefault: true),
@@ -117,6 +121,8 @@ class AuditLogResource extends Resource
                     DatePicker::make('until')->label(__('audit.filters.until')),
                 ])
                 ->query(fn (Builder $query, array $data): Builder => AuditLogFilters::fromTableFilters(['created_at' => $data], SubmissionResource::displayTimezone())->apply($query)),
+            Filter::make('impersonated')->label(__('audit.filters.impersonated'))->toggle()
+                ->query(fn (Builder $query): Builder => new AuditLogFilters(impersonated: true)->apply($query)),
         ];
     }
 
@@ -136,7 +142,7 @@ class AuditLogResource extends Resource
         $options = [AuditLogFilters::SYSTEM => (string) __('audit.actor_types.system')];
         foreach (Membership::query()->with('user:id,name,email')->where('organization_id', $organizationId)->get() as $membership) {
             if ($membership->user !== null) {
-                $options['user:'.$membership->user->id] = $membership->user->name.' ('.$membership->user->email.')';
+                $options['user:'.$membership->user->id] = AccountScrubber::displayName($membership->user->name).' ('.$membership->user->email.')';
             }
         }
 

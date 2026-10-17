@@ -27,7 +27,8 @@ final class VerifyAuditLogCommand extends Command
             $this->components->error($problem);
         }
         if ((bool) $this->option('heads')) {
-            $this->line((string) json_encode(['verified_at' => now()->toIso8601String(), 'heads' => $report->heads], JSON_UNESCAPED_SLASHES));
+            // Always an object keyed by chain number: a plain array of chains 0, 1, 2 … would print as a JSON list.
+            $this->line((string) json_encode(['verified_at' => now()->toIso8601String(), 'heads' => (object) $report->heads], JSON_UNESCAPED_SLASHES));
         }
         if (! $report->intact()) {
             return self::FAILURE;

@@ -45,6 +45,16 @@ it('shows a form\'s history, including its versions, on the form page', function
     expect(HistoryScope::forRecord($other->form)->apply(Activity::query()->where('organization_id', $this->s->org->id))->count())->toBe(0);
 });
 
+it('shows a form\'s history below the canvas builder, the default form page (ADR 0044)', function (): void {
+    app(AuditLogger::class)->record('form.exported', $this->s->form, [], $this->s->owner);
+
+    $this->get(FormResource::getUrl('canvas', ['record' => $this->s->form]))->assertOk()
+        ->assertSeeLivewire(HistoryHook::COMPONENT)
+        ->assertSee(__('audit.events.form.exported'))->assertSee(__('audit.events.form.published'))
+        // After the builder layout (palette, canvas, inspector, preview), not inside it.
+        ->assertSeeInOrder(['data-builder-preview-pane', 'fi-audit-history', __('audit.history.heading')], false);
+});
+
 it('shows the history on the submission, workflow, members and SSO pages', function (): void {
     $uuid = FieldAppApi::readyDraft($this->s, $this->s->worker);
     FieldAppApi::submit($this->s, $this->s->worker, $uuid, 1)->assertOk();

@@ -8,6 +8,7 @@ use App\Domain\Audit\History\HistoryScope;
 use App\Domain\Audit\Models\Activity;
 use App\Domain\Identity\Tenancy\TenantContext;
 use App\Filament\Admin\Pages\Sso\SsoSettings;
+use App\Filament\Admin\Resources\Forms\Pages\CanvasBuilder;
 use App\Filament\Admin\Resources\Forms\Pages\EditForm;
 use App\Filament\Admin\Resources\Members\Pages\ManageMembers;
 use App\Filament\Admin\Resources\Submissions\Pages\ViewSubmission;
@@ -26,8 +27,8 @@ final class HistoryHook
 {
     public const string COMPONENT = 'audit-record-history';
 
-    /** @var list<class-string<Page>> */
-    public const array PAGES = [EditForm::class, ViewSubmission::class, EditWorkflow::class, ManageMembers::class, SsoSettings::class];
+    /** @var list<class-string<Page>> CanvasBuilder is the default form page (ADR 0044); EditForm the classic one. */
+    public const array PAGES = [CanvasBuilder::class, EditForm::class, ViewSubmission::class, EditWorkflow::class, ManageMembers::class, SsoSettings::class];
 
     public static function render(): ?View
     {

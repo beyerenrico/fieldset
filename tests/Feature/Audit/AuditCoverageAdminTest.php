@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Audit\Export\ExportAuditLog;
+use App\Domain\Audit\Models\Activity;
 use App\Domain\Audit\Query\AuditLogFilters;
 use App\Domain\Documents\Branding\UpdateBranding;
 use App\Domain\Identity\Actions\AcceptInvitation;
@@ -45,6 +46,8 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\AuditTrail;
 use Tests\Support\FieldAppScenario;
+
+require_once __DIR__.'/../Platform/Support.php';
 
 /*
  * §8.11 AC, part 3 (users, SSO, mail settings, settings changes, exports, impersonation): each action writes
@@ -139,15 +142,17 @@ it('writes one entry per export: report, form definition, audit log and personal
         ->and(AuditTrail::of(fn () => app(RequestDataExport::class)->userData($this->s->owner, $this->s->worker, 'en', 'UTC')))->toBe(['privacy.data_export_requested']);
 });
 
-it('audits impersonation start and end on /platform (contract with M8-T06)', function (): void {
-    $start = StartImpersonation::class;
-    $end = EndImpersonation::class;
-    if (! class_exists($start) || ! class_exists($end)) {
-        $this->markTestSkipped('Impersonation (M8-T06, /platform) is not built yet: StartImpersonation/EndImpersonation are absent.');
-    }
+it('writes one entry each for an impersonation start and end on /platform', function (): void {
+    $operator = platformOperator(); // tests/Feature/Platform/Support.php, shared with ImpersonationTest
+    actingAsPlatformOperator($operator);
+    $impersonation = null;
 
-    // The operator panel writes these entries in the impersonated organization (behaviour tested in tests/Feature/Platform).
-    expect((string) file_get_contents((string) new ReflectionClass($start)->getFileName()))->toContain("'platform.impersonation_started'")
-        ->and((string) file_get_contents((string) new ReflectionClass($end)->getFileName()))->toContain("'platform.impersonation_ended'")
-        ->and(__('audit.events.platform.impersonation_started'))->not->toBe('audit.events.platform.impersonation_started');
+    expect(AuditTrail::of(function () use ($operator, &$impersonation): void {
+        $impersonation = app(StartImpersonation::class)->handle($operator, $this->s->org, $this->s->owner, 'Ticket 4711: the workflow does not start');
+    }))->toBe(['platform.impersonation_started'])
+        ->and(auth()->id())->toBe($this->s->owner->id)
+        ->and(AuditTrail::of(fn () => app(EndImpersonation::class)->handle($impersonation, EndImpersonation::BY_OPERATOR)))->toBe(['platform.impersonation_ended'])
+        ->and(auth()->id())->toBe($operator->id)
+        ->and(Activity::query()->whereIn('event', ['platform.impersonation_started', 'platform.impersonation_ended'])->pluck('organization_id')->map(fn (mixed $id): int => (int) $id)->unique()->values()->all())
+        ->toBe([$this->s->org->id]);
 });

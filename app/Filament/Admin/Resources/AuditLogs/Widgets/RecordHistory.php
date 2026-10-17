@@ -10,6 +10,7 @@ use App\Domain\Audit\Models\Activity;
 use App\Domain\Audit\Query\AuditLogQuery;
 use App\Domain\Identity\Models\Membership;
 use App\Domain\Identity\Tenancy\TenantContext;
+use App\Domain\Privacy\Erasure\AccountScrubber;
 use App\Filament\Admin\Resources\AuditLogs\Schemas\AuditEntryInfolist;
 use App\Filament\Admin\Resources\Submissions\SubmissionResource;
 use Filament\Actions\ViewAction;
@@ -51,12 +52,13 @@ class RecordHistory extends TableWidget
 
         return $table
             ->heading(__('audit.history.heading'))
-            ->query(fn (): Builder => $scope->apply(AuditLogQuery::forCurrentOrganization()->with('causer')))
+            ->query(fn (): Builder => $scope->apply(AuditLogQuery::forCurrentOrganization()->with(['causer', 'subject'])))
             ->defaultSort('id', 'desc')
             ->columns([
-                TextColumn::make('created_at')->label(__('audit.fields.time'))->dateTime()->timezone(SubmissionResource::displayTimezone()),
+                TextColumn::make('created_at')->label(__('audit.fields.time'))->isoDateTime('L LT')->timezone(SubmissionResource::displayTimezone()),
                 TextColumn::make('event')->label(__('audit.fields.event'))->badge()->color('gray')->formatStateUsing(fn (?string $state): string => AuditLabels::event($state)),
-                TextColumn::make('actor')->label(__('audit.fields.actor'))->state(fn (Activity $record): string => AuditLabels::actor($record)),
+                TextColumn::make('actor')->label(__('audit.fields.actor'))->state(fn (Activity $record): string => AuditLabels::actor($record))
+                    ->description(fn (Activity $record): ?string => AuditLabels::onBehalfOf($record)),
                 TextColumn::make('subject_type')->label(__('audit.fields.subject'))->state(fn (Activity $record): string => AuditLabels::subject($record))
                     ->visible($this->scope !== HistoryScope::RECORD),
             ])
@@ -72,7 +74,7 @@ class RecordHistory extends TableWidget
         return SelectFilter::make('member')->label(__('audit.history.member'))->searchable()
             ->options(fn (): array => Membership::query()->with('user:id,name,email')->where('organization_id', app(TenantContext::class)->require())->get()
                 ->filter(fn (Membership $m): bool => $m->user !== null)
-                ->mapWithKeys(fn (Membership $m): array => [(string) $m->user_id => $m->user->name.' ('.$m->user->email.')'])->all())
+                ->mapWithKeys(fn (Membership $m): array => [(string) $m->user_id => AccountScrubber::displayName($m->user->name).' ('.$m->user->email.')'])->all())
             ->query(fn (Builder $query, array $data): Builder => is_numeric($data['value'] ?? null)
                 ? new HistoryScope(HistoryScope::MEMBERS)->apply($query, (int) $data['value'])
                 : $query);

@@ -15,7 +15,7 @@ use Throwable;
  * number, the previous entry's hash and its own hash over its stored values. Sealing in commit order keeps
  * long transactions from serializing each other (only the short sealing transactions queue per chain), and
  * a rolled-back entry never enters the chain. Entries whose sealing did not run (crash between commit and
- * seal) are sealed by `audit:seal`.
+ * seal) are sealed by `audit:seal`. A chain that retention pruned completely continues after its anchor.
  */
 final class AuditChain
 {
@@ -46,9 +46,7 @@ final class AuditChain
             if (! $entry instanceof stdClass) {
                 return false; // sealed by a concurrent sealer while this one waited for the lock
             }
-            $head = $this->head($chain);
-            $seq = $head instanceof stdClass ? (int) $head->chain_seq + 1 : 1;
-            $prev = $head instanceof stdClass ? (string) $head->hash : self::GENESIS;
+            [$seq, $prev] = $this->next($chain);
 
             // audit_seal(): the one UPDATE the append-only trigger allows (SECURITY DEFINER, ADR 0038).
             return (bool) DB::scalar('SELECT audit_seal(?, ?, ?, ?)', [$id, $seq, $prev, self::hash($prev, $seq, $entry)]);
@@ -96,6 +94,23 @@ final class AuditChain
     public static function chainOf(mixed $organizationId): int
     {
         return $organizationId === null ? 0 : (int) $organizationId;
+    }
+
+    /**
+     * Position and previous hash of a chain's next entry: after its head; for a chain that retention pruned
+     * completely, after its anchor (the last deleted entry), never seq 1 again; otherwise the genesis.
+     *
+     * @return array{0: int, 1: string}
+     */
+    private function next(int $chain): array
+    {
+        $head = $this->head($chain);
+        if ($head instanceof stdClass) {
+            return [(int) $head->chain_seq + 1, (string) $head->hash];
+        }
+        $anchor = PruneAnchors::forSealing()[$chain] ?? null;
+
+        return $anchor === null ? [1, self::GENESIS] : [$anchor['seq'] + 1, $anchor['hash']];
     }
 
     /** Latest sealed entry of a chain (served by activity_log_chain_idx). */

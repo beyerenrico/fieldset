@@ -10,8 +10,10 @@ use stdClass;
 /**
  * Recomputes the audit hash chains (`audit:verify`, ADR 0038). Per chain, entries in sequence order must
  * form an unbroken run: each hash matches the stored values, each prev_hash is the previous entry's hash and
- * the sequence has no gaps. A chain that starts after 1 must start where the latest retention prune cut it
- * (the anchors in the newest `audit.pruned` entry). Read-only.
+ * the sequence has no gaps. A chain with an anchor (the cut of the latest retention prune, in the newest sealed
+ * `audit.pruned` entry) must start right after it, also when it was pruned completely and continued; any
+ * other chain starts at seq 1 from the genesis hash. A chain left without entries reports its anchor as head,
+ * so comparing the heads with stored copies shows the removal of its newer entries. Read-only.
  */
 final readonly class ChainVerifier
 {
@@ -22,7 +24,7 @@ final readonly class ChainVerifier
     public function verify(?int $chain = null): ChainReport
     {
         $anchors = PruneAnchors::latest();
-        $chains = $chain === null ? $this->chains() : [$chain];
+        $chains = $chain === null ? $this->chains(array_keys($anchors)) : [$chain];
         $problems = [];
         $heads = [];
         $checked = 0;
@@ -47,13 +49,20 @@ final readonly class ChainVerifier
         return new ChainReport(count($chains), $checked, $unsealed, $problems, $heads);
     }
 
-    /** @return list<int> */
-    private function chains(): array
+    /**
+     * Chains with sealed entries plus chains known only from their anchor (pruned completely).
+     *
+     * @param  list<int>  $anchored
+     * @return list<int>
+     */
+    private function chains(array $anchored): array
     {
         $chains = DB::table('activity_log')->whereNotNull('chain_seq')
             ->selectRaw('DISTINCT COALESCE(organization_id, 0) AS chain')->orderBy('chain')->pluck('chain')->all();
+        $chains = array_unique([...array_map(static fn (mixed $c): int => is_numeric($c) ? (int) $c : 0, $chains), ...$anchored]);
+        sort($chains);
 
-        return array_values(array_map(static fn (mixed $c): int => is_numeric($c) ? (int) $c : 0, $chains));
+        return $chains;
     }
 
     /**
@@ -83,7 +92,7 @@ final readonly class ChainVerifier
             }
         } while ($rows->count() === self::CHUNK);
 
-        $head = $previous === null ? null : ['seq' => (int) $previous->chain_seq, 'hash' => (string) $previous->hash];
+        $head = $previous === null ? $anchor : ['seq' => (int) $previous->chain_seq, 'hash' => (string) $previous->hash];
 
         return [$count, $problems, $head];
     }
@@ -109,11 +118,12 @@ final readonly class ChainVerifier
     private function checkStart(int $chain, stdClass $row, ?array $anchor): ?string
     {
         $seq = (int) $row->chain_seq;
+        if ($anchor !== null) {
+            return $anchor['seq'] === $seq - 1 && $anchor['hash'] === $row->prev_hash
+                ? null : "chain {$chain}: first entry #{$row->id} (seq {$seq}) does not continue from the retention cut at seq {$anchor['seq']}";
+        }
         if ($seq === 1) {
             return $row->prev_hash === AuditChain::GENESIS ? null : "chain {$chain}: first entry #{$row->id} does not start the chain";
-        }
-        if ($anchor !== null && $anchor['seq'] === $seq - 1 && $anchor['hash'] === $row->prev_hash) {
-            return null;
         }
 
         return "chain {$chain}: entries before seq {$seq} are missing (no matching retention prune)";

@@ -14,15 +14,27 @@ use stdClass;
  */
 final class PruneAnchors
 {
-    /** @return array<int, array{seq: int, hash: string}> */
+    /**
+     * The anchors `audit:verify` checks against. Only sealed prune entries count: a row inserted outside the
+     * application is not part of the chain yet.
+     *
+     * @return array<int, array{seq: int, hash: string}>
+     */
     public static function latest(): array
     {
-        // Only sealed prune entries count: a row inserted outside the application is not part of the chain yet.
-        $properties = DB::table('activity_log')->where('event', 'audit.pruned')->whereNull('organization_id')
-            ->whereNotNull('hash')->orderByDesc('id')->value('properties');
-        $decoded = is_string($properties) ? json_decode($properties, true) : null;
+        return self::read(sealedOnly: true);
+    }
 
-        return self::normalize(is_array($decoded) ? ($decoded['anchors'] ?? []) : []);
+    /**
+     * The anchors sealing continues from when a chain has no entries left. The newest prune entry counts even
+     * while it is unsealed: it commits together with its cuts and may be the very entry being sealed (the
+     * platform chain after a full prune), or be sealed only after the first new entry of a pruned chain.
+     *
+     * @return array<int, array{seq: int, hash: string}>
+     */
+    public static function forSealing(): array
+    {
+        return self::read(sealedOnly: false);
     }
 
     /**
@@ -43,6 +55,16 @@ final class PruneAnchors
         ksort($anchors);
 
         return $anchors;
+    }
+
+    /** @return array<int, array{seq: int, hash: string}> */
+    private static function read(bool $sealedOnly): array
+    {
+        $properties = DB::table('activity_log')->where('event', 'audit.pruned')->whereNull('organization_id')
+            ->when($sealedOnly, fn ($query) => $query->whereNotNull('hash'))->orderByDesc('id')->value('properties');
+        $decoded = is_string($properties) ? json_decode($properties, true) : null;
+
+        return self::normalize(is_array($decoded) ? ($decoded['anchors'] ?? []) : []);
     }
 
     /**

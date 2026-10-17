@@ -37,10 +37,12 @@ EnrichActivity adds organization, actor type, IP, user agent and request id, and
   `audit_prune()` refuses any cutoff younger than 30 days, whoever calls it.
   Scope of the protection: the trigger stops every application path (Eloquent, query builder, a stray
   `DELETE`). Any session can set the custom setting, and in the default Docker install the application role
-  owns the table, so a database owner (or SQL injection as the owner) can still delete or disable triggers;
-  against that the hash chain gives tamper *evidence*. **Hardened install** (documented for operators): a
-  maintenance role owns `activity_log` and the three functions; the application role gets `SELECT, INSERT`
-  on the table (and its sequence) and `EXECUTE` on `audit_seal()` and `audit_prune()` only. The setting then
+  is a superuser that owns the table (amendment below), so it (or SQL injection as it) can still delete or
+  disable triggers; against that only chain heads kept outside the database give tamper *evidence*.
+  **Hardened install** (docs/guide/install.md §7): a maintenance role owns `activity_log` and the five
+  functions (`audit_seal`, `audit_prune`, `audit_prunable`, `activity_log_append_only`,
+  `activity_log_no_truncate`); the application role gets `SELECT, INSERT` on the table, `USAGE` on its
+  sequence and `EXECUTE` on `audit_seal()` and `audit_prune()` only. The setting then
   grants nothing (privileges are checked before the trigger), and pruning stays limited to entries older
   than 30 days.
 - **Retention.** `audit:prune` (daily 03:15) deletes entries older than `audit.retention_days` (default 365,
@@ -91,3 +93,46 @@ Every audit write costs one extra short transaction after commit (sealing). Audi
 keep their old values until retention removes them (ADR 0039). A hardened deployment can move table
 ownership to a maintenance role; the default Docker setup does not. Attachment downloads are not in the
 §8.11 list and stay unaudited.
+
+## Amendment 2026-10-23: M8 review
+- **The chain is not keyed; evidence against the database owner lives outside the database.** The hash is
+  plain SHA-256 over the stored values. Whoever can write `activity_log` with the trigger off (a superuser, the
+  table owner, SQL injection as either) can change an entry and recompute every later hash, and `audit:verify`
+  then passes. Decision: keep it unkeyed. A key the application holds is readable by the same attacker who
+  controls the application host, and an external signer is out of scope for 1.0. Real tamper evidence against
+  the database owner needs the output of `audit:verify --heads`, shipped regularly (at least daily) to storage
+  the database cannot reach and compared on every run: a chain's `seq` never goes down, and the entry at a
+  stored position keeps its stored hash. `--heads` prints one copy-ready JSON line,
+  `{"verified_at":"<ISO time>","heads":{"<chain>":{"seq":<n>,"hash":"<sha256>"}}}`, where the chain is the
+  organization id (0 for platform entries). `heads` is always an object; it used to print as a JSON list when
+  the chain numbers were exactly 0…n−1.
+- **Default Docker install.** The application connects as `DB_USERNAME`, which the official `postgres` image
+  creates as `POSTGRES_USER`: a **superuser**, not only the table owner. The trigger therefore only stops
+  application paths. The hardened setup is the one in docs/guide/install.md §7, with **five** functions moving
+  to the maintenance role (the decision text said three; corrected above). Its SQL was run on 2026-10-23
+  against a migrated test database, as a stand-in non-superuser application role inside a rolled-back
+  transaction: INSERT … RETURNING, `audit_seal()` (once per entry) and `audit_prune()` work; UPDATE, DELETE
+  (also with `app.audit_prune` on), TRUNCATE, `DISABLE`/`DROP TRIGGER`, replacing the trigger function, changing
+  the owner and calling `audit_prunable()` are refused. A role that owns the schema can still `DROP TABLE`
+  (documented there).
+- **Impersonation (ASVS V7.1.4).** Entries written while a platform operator impersonates a member (ADR 0041)
+  carry `impersonator` `{id, email}` in `properties`, which the hash covers (`AuditImpersonator`, added by
+  EnrichActivity). Only while the session's signed-in user is the impersonation's target, only on entries
+  caused by the target or by nobody (system), never in console runs. The start and end entries are the
+  operator's own (causer) and carry no mark. The audit log shows "on behalf of operator X" under the actor,
+  the operator in the entry detail, and filters by it (`AuditLogFilters::$impersonated`, also for CSV).
+- **Flooding.** `auth.lockout` is written once per throttle window, login path and IP (no longer per address:
+  a client trying a new address per request wrote one undeletable entry each). `auth.failed` is capped at 20
+  per IP per 10 minutes (`FailedLoginAudit`), followed by one `auth.failed_suppressed` entry for the window.
+- **A fully pruned chain continues from its anchor.** When retention deletes every entry of a chain (an
+  organization inactive for longer than the retention), sealing continues at anchor seq + 1 with the anchor
+  hash instead of restarting at seq 1 from the genesis; the anchor comes from the newest `audit.pruned` entry,
+  also while it is unsealed (it commits with its cut and can be the entry being sealed, for chain 0).
+  `audit:verify` requires that start whenever an anchor exists, and reports a chain left without entries
+  with its anchor as head, so the removal of its newer entries shows when heads are compared. A seq-1 start
+  of an anchored chain (what the earlier code wrote after a full prune) is now a failure.
+- **Coverage and readability.** The impersonation coverage check runs `StartImpersonation`/`EndImpersonation`
+  and asserts one entry each. A test scans `app/` for every event name written and requires an English and a
+  German label. The detail view labels keys (`audit.attributes.*`), shows `before`/`after` as old → new rows,
+  Yes/No, times as `L LT` in the viewer's time zone and masked values as "hidden (secret)". The History section
+  is also on the canvas builder, the default form page (ADR 0044).

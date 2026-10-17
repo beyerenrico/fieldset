@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Audit\Listeners;
 
 use App\Domain\Audit\AuditLogger;
+use App\Domain\Audit\FailedLoginAudit;
 use App\Domain\Audit\LockoutAudit;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Sso\Enforcement\DomainPasswordGate;
@@ -19,7 +20,8 @@ use Laravel\Fortify\Events\TwoFactorAuthenticationFailed;
 
 /**
  * Writes authentication events to the audit log (BUILD_PROMPT §8.7, §8.11). Password changes (including
- * resets), MFA enrolment and recovery-code use are audited by the User model itself, once each.
+ * resets), MFA enrolment and recovery-code use are audited by the User model itself, once each. Failed
+ * sign-ins and lockouts are capped per IP (FailedLoginAudit, LockoutAudit): the log stays flood-proof.
  *
  * auth.login carries `method` (ADR 0036): `sso` with `provider`, `protocol`, `amr` and `email_verified_by`
  * from LoginAuditContext (set by the SSO login before Auth::login); otherwise `break_glass` when the
@@ -53,10 +55,11 @@ final readonly class LogAuthEvents
 
     public function failed(Failed $event): void
     {
-        $this->audit->record('auth.failed', $event->user instanceof Model ? $event->user : null, [
+        $email = $event->credentials['email'] ?? null;
+        FailedLoginAudit::record($event->user instanceof Model ? $event->user : null, [
             'guard' => $event->guard,
-            'email' => is_string($event->credentials['email'] ?? null) ? $event->credentials['email'] : null,
-        ]);
+            'email' => is_string($email) ? mb_substr(trim($email), 0, 254) : null,
+        ], request()->ip());
     }
 
     public function lockout(Lockout $event): void

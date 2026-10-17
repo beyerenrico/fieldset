@@ -13,7 +13,8 @@ use Laravel\Sanctum\PersonalAccessToken;
 use Spatie\Activitylog\Actions\LogActivityAction;
 
 /**
- * Adds tenant, actor type, IP, user agent and request id to every audit entry and redacts secrets.
+ * Adds tenant, actor type, IP, user agent and request id to every audit entry, names the platform operator
+ * while one impersonates a member (AuditImpersonator), and redacts secrets.
  */
 final class EnrichActivity extends LogActivityAction
 {
@@ -31,6 +32,8 @@ final class EnrichActivity extends LogActivityAction
             $activity->setAttribute('user_agent', mb_substr((string) $request->userAgent(), 0, 1000) ?: null);
         }
 
+        $this->markImpersonator($activity);
+
         foreach (['properties', 'attribute_changes'] as $column) {
             $value = $activity->getAttribute($column);
             if ($value instanceof Collection) {
@@ -39,6 +42,18 @@ final class EnrichActivity extends LogActivityAction
                 $activity->setAttribute($column, Redactor::redact($this->masked($activity, $column, $value)));
             }
         }
+    }
+
+    /** `impersonator` {id, email} in the properties while an operator impersonates the signed-in member. */
+    private function markImpersonator(Model $activity): void
+    {
+        $impersonator = AuditImpersonator::current($activity->getAttribute('causer_id'));
+        if ($impersonator === null) {
+            return;
+        }
+        $properties = $activity->getAttribute('properties');
+        $plain = $properties instanceof Collection ? $properties->all() : (is_array($properties) ? $properties : []);
+        $activity->setAttribute('properties', new Collection(array_replace($plain, [AuditImpersonator::PROPERTY => $impersonator])));
     }
 
     /**
