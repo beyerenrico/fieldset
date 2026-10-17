@@ -46,7 +46,8 @@ it('refuses non-https, credentials and private, loopback, link-local or mixed an
 it('allows http and private hosts only with sso.allow_insecure_idp', function (): void {
     config(['sso.allow_insecure_idp' => true]);
 
-    expect(ssoGuard(['keycloak' => ['172.18.0.4']])->guard(new Uri('http://keycloak:8080/realms/x'), []))->toBe([])
+    // `.invalid` never resolves (RFC 2606): no pinning, and the private host is still allowed.
+    expect(ssoGuard(['keycloak.invalid' => ['172.18.0.4']])->guard(new Uri('http://keycloak.invalid:8080/realms/x'), []))->toBe([])
         ->and(fn () => ssoGuard()->guard(new Uri('ftp://keycloak/'), []))->toThrow(SsrfBlockedException::class);
 });
 
