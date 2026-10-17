@@ -51,15 +51,17 @@ test.describe('single sign-on through Keycloak (OIDC)', () => {
     const { context, page } = await freshPage(browser);
     await page.goto('/app/login');
     await page.getByLabel(/^(email|e-mail)$/i).fill('legacy@sso-demo.test');
-    const discovery = page.waitForResponse((response) => response.url().endsWith('/auth/sso/discover'));
-    await page.getByRole('button', { name: /^(continue|weiter)$/i }).click();
-    expect(await (await discovery).json()).toMatchObject({
-      mode: 'sso',
-      organization: 'SSO Demo GmbH',
-      enforced: true,
+    // The app leaves for the IdP as soon as discovery answers, so read the body on the way through.
+    let discovery: unknown = null;
+    await page.route('**/auth/sso/discover', async (route) => {
+      const response = await route.fetch();
+      discovery = await response.json();
+      await route.fulfill({ response });
     });
+    await page.getByRole('button', { name: /^(continue|weiter)$/i }).click();
     // Straight on to the identity provider: the app never shows its own password field.
     await page.waitForURL((url) => url.href.startsWith(KEYCLOAK_REALM), { timeout: 30_000 });
+    expect(discovery).toMatchObject({ mode: 'sso', organization: 'SSO Demo GmbH', enforced: true });
     await expect(page.locator('#username')).toBeVisible();
     await page.screenshot({ path: evidence('sso-03-enforced-keycloak') });
 
