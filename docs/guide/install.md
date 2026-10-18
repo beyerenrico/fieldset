@@ -138,7 +138,8 @@ docker compose up -d --wait
 docker compose ps
 ```
 
-On every start the `app` container caches the configuration and runs `php artisan migrate --force`.
+On every start the `app` container caches the configuration and runs
+`php artisan migrate --force --isolated`.
 `queue` and `scheduler` do not wait for the migrations; on the very first start they may restart once
 until the tables exist.
 

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Support\Database\ConcurrentIndex;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
@@ -27,22 +28,22 @@ return new class extends Migration
 
     public function up(): void
     {
-        DB::statement('CREATE INDEX CONCURRENTLY IF NOT EXISTS submissions_org_submitted_at_idx ON submissions (organization_id, submitted_at)');
-        DB::statement('CREATE INDEX CONCURRENTLY IF NOT EXISTS submissions_org_form_submitted_at_idx ON submissions (organization_id, form_id, submitted_at)');
-        DB::statement("CREATE INDEX CONCURRENTLY IF NOT EXISTS submissions_org_drafts_updated_at_idx ON submissions (organization_id, updated_at) WHERE status = 'draft'");
-        DB::statement('CREATE INDEX CONCURRENTLY IF NOT EXISTS tasks_completed_by_idx ON tasks (completed_by)');
+        ConcurrentIndex::create('submissions_org_submitted_at_idx', 'ON submissions (organization_id, submitted_at)');
+        ConcurrentIndex::create('submissions_org_form_submitted_at_idx', 'ON submissions (organization_id, form_id, submitted_at)');
+        ConcurrentIndex::create('submissions_org_drafts_updated_at_idx', "ON submissions (organization_id, updated_at) WHERE status = 'draft'");
+        ConcurrentIndex::create('tasks_completed_by_idx', 'ON tasks (completed_by)');
 
-        DB::statement('CREATE INDEX CONCURRENTLY IF NOT EXISTS submission_values_org_form_key_submitted_at_idx ON submission_values (organization_id, form_id, key, submitted_at)');
+        ConcurrentIndex::create('submission_values_org_form_key_submitted_at_idx', 'ON submission_values (organization_id, form_id, key, submitted_at)');
         DB::statement('DROP INDEX CONCURRENTLY IF EXISTS submission_values_organization_id_form_id_key_status_submitted_'); // Laravel's name, truncated to 63 bytes
-        DB::statement('CREATE INDEX CONCURRENTLY IF NOT EXISTS submission_values_submission_key_idx ON submission_values (submission_uuid, key)');
+        ConcurrentIndex::create('submission_values_submission_key_idx', 'ON submission_values (submission_uuid, key)');
         DB::statement('DROP INDEX CONCURRENTLY IF EXISTS submission_values_submission_uuid_index');
     }
 
     public function down(): void
     {
-        DB::statement('CREATE INDEX CONCURRENTLY IF NOT EXISTS submission_values_submission_uuid_index ON submission_values (submission_uuid)');
+        ConcurrentIndex::create('submission_values_submission_uuid_index', 'ON submission_values (submission_uuid)');
         DB::statement('DROP INDEX CONCURRENTLY IF EXISTS submission_values_submission_key_idx');
-        DB::statement('CREATE INDEX CONCURRENTLY IF NOT EXISTS submission_values_organization_id_form_id_key_status_submitted_ ON submission_values (organization_id, form_id, key, status, submitted_at)');
+        ConcurrentIndex::create('submission_values_organization_id_form_id_key_status_submitted_', 'ON submission_values (organization_id, form_id, key, status, submitted_at)');
         DB::statement('DROP INDEX CONCURRENTLY IF EXISTS submission_values_org_form_key_submitted_at_idx');
 
         DB::statement('DROP INDEX CONCURRENTLY IF EXISTS tasks_completed_by_idx');

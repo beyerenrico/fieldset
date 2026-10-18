@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Domain\Instance\Console\FilePathFlags;
 use App\Domain\Instance\State\InstanceState;
 use Tests\Support\Docker\DistributionScripts;
+use Tests\Support\Instance\FsaCommandFlags;
 
 /*
  * U4 / M9-T07: distribution/shim.sh, installed as <instance dir>/fsa (§6.2, KTD2, ADR 0049, ADR 0070): the ops
@@ -107,7 +108,17 @@ it('takes the first argument that is no flag as the command and puts --dir <inst
     'flags around the command' => [['--yes', 'uninstall', '--json'], ['uninstall', '--dir', '{dir}', '--yes', '--json'], 'uninstall'],
     'literal -- before a positional (fsa login-link -- owner@…)' => [['--json', 'login-link', '--', 'owner@example.com'], ['login-link', '--dir', '{dir}', '--json', '--', 'owner@example.com'], 'login-link'],
     'file flag after -- stays literal' => [['--json', 'login-link', '--', '--secrets-file'], ['login-link', '--dir', '{dir}', '--json', '--', '--secrets-file'], 'login-link'],
+    'value flag before the command keeps its value' => [['--behind-proxy', 'traefik', '--json', 'install'], ['install', '--dir', '{dir}', '--behind-proxy', 'traefik', '--json'], 'install'],
+    'optional-value flags before the command' => [['--port', '8080', '--org', 'Acme', '--json', 'install', '--yes'], ['install', '--dir', '{dir}', '--port', '8080', '--org', 'Acme', '--json', '--yes'], 'install'],
+    'flag=value before the command' => [['--domain=forms.example', '--json', 'install'], ['install', '--dir', '{dir}', '--domain=forms.example', '--json'], 'install'],
+    'value flag after the command' => [['--json', 'logs', '--tail', '50', 'app'], ['logs', '--dir', '{dir}', '--json', '--tail', '50', 'app'], 'logs'],
 ]);
+
+it('knows every value-taking option of the fsa commands, so a flag before the command keeps its value', function (): void {
+    preg_match("/^fsa_value_flags='([^']+)'$/m", (string) file_get_contents(base_path('distribution/shim.sh')), $listed);
+
+    expect(preg_split('/\s+/', trim($listed[1] ?? '')))->toBe(FsaCommandFlags::valueFlags());
+});
 
 it('lists the commands without a command, and adds --dir only to a command', function (): void {
     $this->scripts->run($this->dir.'/fsa', [], $this->env);

@@ -18,13 +18,13 @@ final class InputGrammar
 {
     public const string SLUG = '/^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$/D';
 
-    /** A Docker image reference pinned by digest (registry host with optional port, lowercase path, sha256). */
     /** Proxy mode's setups (R17, ADR 0076): Traefik or caddy-docker-proxy labels on a shared network, or a loopback port. */
     public const array PROXIES = ['traefik', 'caddy', 'port'];
 
     /** A Docker network or container name, as the daemon accepts it. */
     public const string DOCKER_NAME = '/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/D';
 
+    /** A Docker image reference pinned by digest (registry host with optional port, lowercase path, sha256). */
     public const string IMAGE_REFERENCE = '/^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)*(?::[0-9]{1,5})?\/)?[a-z0-9]+(?:(?:\.|_|__|-+)[a-z0-9]+)*(?:\/[a-z0-9]+(?:(?:\.|_|__|-+)[a-z0-9]+)*)*@sha256:[0-9a-f]{64}$/D';
 
     private const string LABEL = '/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/iD';

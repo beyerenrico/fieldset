@@ -66,9 +66,16 @@ it('sets the ACME contact, the directory and the custom root for the directory\'
 });
 
 it('serves the domain with automatic HTTPS (no tls or redirect override) and proxies everything else to the app unchanged', function (): void {
-    $site = caddyBlock(caddyfile(new EdgeSite('forms.example.com')), '"forms.example.com" {');
+    $file = caddyfile(new EdgeSite('forms.example.com'));
+    $site = caddyBlock($file, '"forms.example.com" {');
 
-    expect($site)->toContain("\thandle {", "\t\treverse_proxy app:8080")
+    // Caddy sets X-Forwarded-For/-Proto/-Host itself but passes a client's X-Forwarded-Port on (ADR 0079).
+    expect($site)->toContain("\thandle {")
+        ->and(caddyBlock($file, "\t\treverse_proxy app:8080 {"))->toBe([
+            "\t\treverse_proxy app:8080 {",
+            "\t\t\theader_up -X-Forwarded-Port",
+            "\t\t}",
+        ])
         ->and(implode("\n", $site))->not->toContain('tls ')
         ->not->toContain('auto_https')
         ->not->toContain('header_down')
@@ -93,10 +100,14 @@ it('puts /_mail/ behind forward_auth to the app, then Mailpit with the edge-inje
             "\t\t\theader_up -Authorization",
             "\t\t\theader_up -Upgrade",
             "\t\t\theader_up -Connection",
+            "\t\t\theader_up -X-Forwarded-Port",
             "\t\t}",
         ])
+        // Mailpit never sees the operator's session (MFA'd /platform cookie) or the XSRF token (ADR 0079).
         ->and(caddyBlock($file, "\t\treverse_proxy mailpit:8025 {"))->toBe([
             "\t\treverse_proxy mailpit:8025 {",
+            "\t\t\theader_up -Cookie",
+            "\t\t\theader_up -X-XSRF-TOKEN",
             "\t\t\theader_up Authorization \"{env.FSA_CATCHER_AUTHORIZATION}\"",
             "\t\t\tstream_timeout 5m",
             "\t\t}",

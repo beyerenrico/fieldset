@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Artisan;
 use Tests\Support\Docker\DockerfileStages;
 use Tests\Support\Docker\DockerIgnore;
 use Tests\Support\Docker\ScriptHarness;
+use Tests\Support\Instance\FsaCommandFlags;
 
 /*
  * U1 / M9-T02: the app image contract as written in docker/app (R1, R5, R6, E17, KTD8, KTD9, ADR 0065).
@@ -192,13 +193,40 @@ describe('entrypoint roles', function (): void {
     it('caches config and migrates on request for the app roles', function (): void {
         expect($this->harness->run('docker/app/entrypoint.sh', ['frankenphp', 'run'], ['RUN_MIGRATIONS' => 'true']))->toBe([
             'php artisan optimize --quiet',
-            'php artisan migrate --force --no-interaction',
+            'php artisan migrate --force --isolated=75 --no-interaction',
             'frankenphp run',
         ])->and($this->harness->run('docker/app/entrypoint.sh', ['php', 'artisan', 'horizon']))->toBe([
             'php artisan optimize --quiet',
             'php artisan horizon',
         ]);
     });
+
+    it('waits while another container migrates (exit 75), then migrates itself (ADR 0079)', function (): void {
+        $this->harness->exitCodes('php', [0, 75, 75, 0]);
+
+        expect($this->harness->run('docker/app/entrypoint.sh', ['frankenphp', 'run'], ['RUN_MIGRATIONS' => 'true']))->toBe([
+            'php artisan optimize --quiet',
+            'php artisan migrate --force --isolated=75 --no-interaction',
+            'sleep 5',
+            'php artisan migrate --force --isolated=75 --no-interaction',
+            'sleep 5',
+            'php artisan migrate --force --isolated=75 --no-interaction',
+            'frankenphp run',
+        ]);
+    });
+
+    it('never starts the app when migrating fails or the other migrator does not finish', function (array $codes, int $exit, int $migrations): void {
+        $this->harness->exitCodes('php', [0, ...$codes]);
+        $process = $this->harness->attempt('docker/app/entrypoint.sh', ['frankenphp', 'run'], ['RUN_MIGRATIONS' => 'true']);
+        $calls = $this->harness->calls();
+
+        expect($process->getExitCode())->toBe($exit)
+            ->and($calls)->not->toContain('frankenphp run')
+            ->and(array_count_values($calls)['php artisan migrate --force --isolated=75 --no-interaction'] ?? 0)->toBe($migrations);
+    })->with([
+        'a failing migration' => [[1], 1, 1],
+        'still locked after 60 attempts' => [array_fill(0, 60, 75), 75, 60],
+    ]);
 
     it('skips optimize and migrations for fsa and the backup daemon', function (array $command, string $call): void {
         $command = array_map(fn (string $part): string => str_replace('{bin}', $this->harness->bin, $part), $command);
@@ -232,6 +260,11 @@ describe('fsa wrapper', function (): void {
         'flags before and after' => [['--yes', 'uninstall', '--json'], 'php /var/www/html/artisan fsa:uninstall --yes --json'],
         'value flags before the command' => [['--dir', '/srv/fsa', '--secrets-file', 'link.json', 'login-link', 'a@b.test'], 'php /var/www/html/artisan fsa:login-link --dir /srv/fsa --secrets-file link.json a@b.test'],
         'install --version after a leading flag' => [['--json', 'install', '--version', '2.0.0'], 'php /var/www/html/artisan fsa:install --json --release 2.0.0'],
+        'value flag before the command' => [['--behind-proxy', 'traefik', 'install', '--json'], 'php /var/www/html/artisan fsa:install --behind-proxy traefik --json'],
+        'optional-value flag before the command' => [['--port', '8080', '--url', 'http://x.test', 'install'], 'php /var/www/html/artisan fsa:install --port 8080 --url http://x.test'],
+        'flag=value before the command' => [['--behind-proxy=traefik', 'install'], 'php /var/www/html/artisan fsa:install --behind-proxy=traefik'],
+        'install --version before the command' => [['--version', '2.0.0', 'install'], 'php /var/www/html/artisan fsa:install --release 2.0.0'],
+        'logs value flag before the command' => [['--tail', '50', 'logs', 'app'], 'php /var/www/html/artisan fsa:logs --tail 50 app'],
         'positional after --' => [['login-link', '--', '--json'], 'php /var/www/html/artisan fsa:login-link -- --json'],
         'image role' => [['backup-daemon'], 'php /var/www/html/artisan fsa:backup-daemon'],
     ]);
@@ -254,7 +287,7 @@ describe('fsa wrapper', function (): void {
             'errors' => [[
                 'code' => 'unknown_command',
                 'message' => "Unknown fsa command: {$command}",
-                'hint' => 'Available commands: config, doctor, install, login-link, logs, status, uninstall, version. Run fsa without arguments to list them.',
+                'hint' => 'Available commands: config, doctor, install, login-link, logs, status, uninstall, version. Run fsa without arguments to list them; put flags after the command or write them as --flag=value.',
                 'retryable' => false,
             ]],
         ])->and($process->getErrorOutput())->toBe('');
@@ -264,6 +297,7 @@ describe('fsa wrapper', function (): void {
         'quote in the name' => [['--json', 'x"y\\z'], true],
         'two words' => [['--json', 'logs status'], true],
         'human' => [['backup'], false],
+        'value of a flag no command knows' => [['--json', '--colour', 'red', 'install'], true],
     ]);
 
     it('knows exactly the registered fsa commands (users) and the image role entry points', function (): void {
@@ -277,5 +311,11 @@ describe('fsa wrapper', function (): void {
         expect(explode(' ', $commands[1] ?? ''))->toBe($visible)
             ->and(explode(' ', $roles[1] ?? ''))->toBe(['backup-daemon'])
             ->and(array_diff($hidden, ['backup-daemon']))->toBe([]);
+    });
+
+    it('knows every value-taking option of the fsa commands, so a flag before the command keeps its value', function (): void {
+        preg_match("/^value_flags='([^']+)'$/m", (string) file_get_contents(base_path('docker/app/fsa')), $listed);
+
+        expect(preg_split('/\\s+/', trim($listed[1] ?? '')))->toBe(FsaCommandFlags::valueFlags());
     });
 });

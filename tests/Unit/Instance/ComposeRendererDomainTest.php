@@ -107,6 +107,16 @@ it('renders the Caddyfile next to the compose file and labels the edge with its 
         ->and($changed->service('edge')['labels'][EdgeService::CONFIG_LABEL])->not->toBe(hash('sha256', $caddyfile));
 });
 
+it('folds the custom ACME CA root into the edge label, so a root-only change recreates the edge (ADR 0079)', function (): void {
+    $first = DomainFixtures::render(['acme_ca_root' => str_repeat('a', 64)]);
+    $second = DomainFixtures::render(['acme_ca_root' => str_repeat('b', 64)]);
+    $label = static fn ($rendered): string => $rendered->service('edge')['labels'][EdgeService::CONFIG_LABEL];
+
+    expect($first->files['edge/Caddyfile'])->toBe($second->files['edge/Caddyfile'])
+        ->and($label($first))->not->toBe($label($second))
+        ->and($label($first))->not->toBe($label(DomainFixtures::render()));
+});
+
 it('hands the edge only the catcher credential it injects, and serves the catcher under /_mail/', function (): void {
     $rendered = DomainFixtures::render();
 

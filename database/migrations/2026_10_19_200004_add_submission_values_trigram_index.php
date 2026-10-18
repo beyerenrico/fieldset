@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Support\Database\ConcurrentIndex;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -30,7 +31,7 @@ return new class extends Migration
             return;
         }
 
-        DB::statement('CREATE INDEX CONCURRENTLY IF NOT EXISTS '.self::INDEX.' ON submission_values USING gin (value_text gin_trgm_ops)');
+        ConcurrentIndex::create(self::INDEX, 'ON submission_values USING gin (value_text gin_trgm_ops)');
     }
 
     public function down(): void

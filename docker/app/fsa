@@ -1,7 +1,9 @@
 #!/bin/sh
 # fsa [flags] <command> [args…] runs `php artisan fsa:<command>`; without a command it lists them (KTD1, ADR 0065).
-# - The first argument that is not a flag (or the value of --dir or a file-path flag) is the command; flags before
-#   it move after it, so `fsa --json status` is `fsa:status --json`. Without a command, --json lists as JSON.
+# - The first argument that is not a flag (or the value of a flag in value_flags: every value-taking option of the
+#   fsa:* commands, kept in step by ImageContractTest) is the command; flags before it move after it, so
+#   `fsa --json status` is `fsa:status --json` and `fsa --behind-proxy traefik install` is
+#   `fsa:install --behind-proxy traefik`. `--flag=value` always works. Without a command, --json lists as JSON.
 # - An unknown command exits 2 with an `unknown_command` error (the fsa JSON envelope on stdout with --json),
 #   never Laravel's plain text. `commands` lists the fsa:* commands for users, `roles` the entry points of image
 #   roles (the backup service); tests/Unit/Docker/ImageContractTest.php keeps both in step with the registered
@@ -11,13 +13,23 @@
 set -e
 commands='config doctor install login-link logs status uninstall version'
 roles='backup-daemon'
+value_flags='--acme-ca --acme-ca-root-file --acme-email --behind-proxy --dir --domain --from-backup --locale --org
+--orphans --owner-email --owner-name --phone-https --port --proxy-network --release --secrets-file --since --tail
+--trusted-proxy --url --version'
+
+takes_value() {
+	for flag in $value_flags; do
+		[ "$flag" != "$1" ] || return 0
+	done
+	return 1
+}
 
 json_string() {
 	printf '"%s"' "$(printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr -d '\000-\037')"
 }
 
 unknown_command() { # <command> <json: 0|1>
-	hint="Available commands: $(printf '%s' "$commands" | sed 's/ /, /g'). Run fsa without arguments to list them."
+	hint="Available commands: $(printf '%s' "$commands" | sed 's/ /, /g'). Run fsa without arguments to list them; put flags after the command or write them as --flag=value."
 	if [ "$2" = 1 ]; then
 		printf '{"schema_version":1,"command":%s,"status":"failed","changed":false,"data":{},"secrets":[],"warnings":[],"errors":[{"code":"unknown_command","message":%s,"hint":%s,"retryable":false}]}\n' \
 			"$(json_string "$1")" "$(json_string "Unknown fsa command: $1")" "$(json_string "$hint")"
@@ -40,8 +52,7 @@ while [ "$n" -gt 0 ]; do
 		case $arg in
 		--) ended=1 ;;
 		--json) json=1 ;;
-		--dir | --secrets-file | --output | --from-backup | --*-file | --*-out) [ "$found" = 1 ] || value=1 ;;
-		-*) ;;
+		-*) [ "$found" = 1 ] || ! takes_value "$arg" || value=1 ;;
 		*) if [ "$found" = 0 ]; then command=$arg found=1 && continue; fi ;;
 		esac
 	fi

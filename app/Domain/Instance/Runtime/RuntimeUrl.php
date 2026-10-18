@@ -12,11 +12,18 @@ use Illuminate\Routing\UrlGenerator;
 /**
  * URL root and scheme from the runtime state (R56, KTD11).
  *
- * - A request on an allowed host (local URL, instance URL, extra hosts, active tunnel) keeps its own origin, so a
- *   localhost request during a tunnel still links to localhost. Any other host, and every job, uses the public URL:
- *   the active tunnel, else the instance URL.
+ * - A request on an allowed host (local URL, instance URL, extra hosts, active tunnel) links to its own scheme and
+ *   host, so a localhost request during a tunnel still links to localhost. The port comes from the URL configured for
+ *   that host (local URL, tunnel: 443, instance URL, which extra hosts follow), never from Host or X-Forwarded-Port,
+ *   so a client cannot put a port of its choice into a password-reset link (ADR 0079). Any other host, and every job,
+ *   uses the public URL: the active tunnel, else the instance URL.
+ * - The link scheme is the request's own even when the host's URL is https: Laravel verifies signed URLs against
+ *   the request's scheme and host, so a URL signed in a plain-http request (a proxy that is no longer trusted, a host
+ *   proxy without X-Forwarded-Proto) must be http to verify. The browser still lands on https: the request counts as
+ *   HTTPS below, so HSTS and upgrade-insecure-requests lift the same-origin http links (ADR 0079).
  * - HTTPS is expected when the request is secure, or when the URL configured for its host is https. Loopback over
- *   plain http never counts as HTTPS, so it never gets HSTS or Secure cookies.
+ *   plain http never counts as HTTPS, so it never gets HSTS or Secure cookies. Nothing marks a plain-http request
+ *   secure.
  * - Sanctum's stateful domains gain the allowed hosts, so the Field App keeps its cookie session on each of them.
  */
 final readonly class RuntimeUrl
@@ -33,7 +40,7 @@ final readonly class RuntimeUrl
         }
         $path = $state->isTunnelHost($host) || $state->isLocalHost($host) ? '' : (string) parse_url($state->instanceUrl, PHP_URL_PATH);
 
-        return new ResolvedRequest(rtrim($this->origin($request, $https).$path, '/'), $https, $viaTunnel);
+        return new ResolvedRequest(rtrim($this->origin($request, $this->configuredUrl($state, $host)).$path, '/'), $https, $viaTunnel);
     }
 
     /** Records the resolution on the request: SecureTransport and SecureCookies read it, early answers included. */
@@ -68,18 +75,36 @@ final readonly class RuntimeUrl
         if ($state->isTunnelHost($host)) {
             return $state->tunnel->isActive($now);
         }
-        $url = $state->isLocalHost($host) ? (string) $state->localUrl : $state->instanceUrl;
 
-        return str_starts_with($url, 'https://');
+        return str_starts_with($this->configuredUrl($state, $host), 'https://');
     }
 
-    /** The request's scheme and host with the port it addressed, unless that port is the scheme's default. */
-    private function origin(Request $request, bool $https): string
+    /** The URL configured for a host: the tunnel's, the local URL (any loopback spelling), else the instance URL. */
+    private function configuredUrl(RuntimeState $state, string $host): string
     {
-        $port = parse_url('http://'.$request->getHttpHost(), PHP_URL_PORT);
-        $default = $https ? 443 : 80;
+        if ($state->isTunnelHost($host)) {
+            return 'https://'.$state->tunnel->hostname;
+        }
 
-        return ($https ? 'https' : 'http').'://'.$request->getHost().(is_int($port) && $port !== $default ? ':'.$port : '');
+        return $state->isLocalHost($host) ? (string) $state->localUrl : $state->instanceUrl;
+    }
+
+    /**
+     * The request's own scheme and host, and the port of the URL configured for that host: always when the schemes
+     * agree (left out when it is the default), else only when the request addressed that very port. A client-chosen
+     * port (Host, X-Forwarded-Port) never gets in, and a plain-http request on an https URL keeps the port Laravel
+     * verifies its signed URLs against.
+     */
+    private function origin(Request $request, string $configured): string
+    {
+        $scheme = $request->getScheme();
+        $port = parse_url($configured, PHP_URL_PORT);
+        $port = is_int($port) ? $port : (str_starts_with($configured, 'https://') ? 443 : 80);
+        if (! str_starts_with($configured, $scheme.'://') && (int) $request->getPort() !== $port) {
+            $port = null;
+        }
+
+        return $scheme.'://'.$request->getHost().($port !== null && $port !== ($scheme === 'https' ? 443 : 80) ? ':'.$port : '');
     }
 
     private function forceRoot(string $root): void
