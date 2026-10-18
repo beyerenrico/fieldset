@@ -12,13 +12,13 @@
             "operation": null,
             "lock": null,
             "disk": {
-                "free_gib": 158.1
+                "free_gib": 155
             },
             "last_backup": null,
             "version": "2.0.0-alpha.1-test",
             "mode": "domain",
             "url": "https://fsa-test-j02.test",
-            "project": "fsa-fsa-test-j02-ad3e",
+            "project": "fsa-fsa-test-j02-4d6c",
             "port": null,
             "health": "ok",
             "services": {
@@ -59,6 +59,7 @@
                 "mode": "capture",
                 "catcher_url": "https://fsa-test-j02.test/_mail/"
             },
+            "proxy": null,
             "sign_in_links": {
                 "count": 1,
                 "links": [
@@ -67,8 +68,8 @@
                         "email": "owner@example.test",
                         "kind": "owner",
                         "state": "unused",
-                        "created_at": "2026-10-18T08:25:34Z",
-                        "expires_at": "2026-10-18T09:25:34Z",
+                        "created_at": "2026-10-18T12:18:37Z",
+                        "expires_at": "2026-10-18T13:18:37Z",
                         "used_at": null,
                         "used_ip": null,
                         "created_by": "cli",

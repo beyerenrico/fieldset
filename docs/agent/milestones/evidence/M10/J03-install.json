@@ -1,7 +1,7 @@
 {
-    "command": "install.sh --dir <work>/fsa-test-j03 --version 2.0.0-alpha.1-test --behind-proxy traefik --proxy-network fsa-test-proxy-713b9b --url https://forms.fsa-test.example --org \"Proxy Org\" --owner-email owner@example.test --locale en --secrets-file <work>/owner-link.json --json",
+    "command": "install.sh --dir <work>/fsa-test-j03 --version 2.0.0-alpha.1-test --behind-proxy traefik --proxy-network fsa-test-proxy-325efe --url https://forms.fsa-test.example --org \"Proxy Org\" --owner-email owner@example.test --locale en --secrets-file <work>/owner-link.json --json",
     "exit_code": 0,
-    "seconds": 52,
+    "seconds": 44.3,
     "stdout": {
         "schema_version": 1,
         "command": "install",
@@ -12,12 +12,12 @@
             "version": "2.0.0-alpha.1-test",
             "mode": "proxy",
             "dir": "<work>/fsa-test-j03",
-            "project": "fsa-fsa-test-j03-2e77",
+            "project": "fsa-fsa-test-j03-1af2",
             "port": null,
             "proxy": {
                 "setup": "traefik",
-                "network": "fsa-test-proxy-713b9b",
-                "container": "fsa-test-harness-713b9b-traefik-1",
+                "network": "fsa-test-proxy-325efe",
+                "container": "fsa-test-harness-325efe-traefik-1",
                 "trusted": [
                     "172.24.0.2"
                 ]
@@ -33,7 +33,7 @@
                 "<work>/fsa-test-j03/fsa doctor --post"
             ],
             "sign_in_link": {
-                "expires_at": "2026-10-18T12:25:52Z",
+                "expires_at": "2026-10-18T13:19:37Z",
                 "delivered": "secrets_file"
             }
         },
@@ -41,7 +41,7 @@
             {
                 "name": "sign_in_link",
                 "written_to": "<work>/owner-link.json",
-                "expires_at": "2026-10-18T12:25:52Z"
+                "expires_at": "2026-10-18T13:19:37Z"
             }
         ],
         "warnings": [],
@@ -49,7 +49,7 @@
     },
     "traefik_address": "172.24.0.2",
     "attached_to_shared_network": [
-        "fsa-fsa-test-j03-2e77-app-1",
-        "fsa-test-harness-713b9b-traefik-1"
+        "fsa-test-harness-325efe-traefik-1",
+        "fsa-fsa-test-j03-1af2-app-1"
     ]
 }

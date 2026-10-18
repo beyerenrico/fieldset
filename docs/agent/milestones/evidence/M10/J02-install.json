@@ -1,7 +1,7 @@
 {
     "command": "install.sh --dir <work>/fsa-test-j02 --version 2.0.0-alpha.1-test --org J2 Org --owner-email owner@example.test --locale en --domain fsa-test-j02.test --acme-email ops@example.test --acme-ca https://pebble:14000/dir --acme-ca-root-file <harness>/pebble-https-root.pem --secrets-file <work>/owner-link.json --json",
     "exit_code": 0,
-    "seconds": 46.5,
+    "seconds": 45.3,
     "edge_connected_while": "created",
     "stdout": {
         "schema_version": 1,
@@ -13,7 +13,7 @@
             "version": "2.0.0-alpha.1-test",
             "mode": "domain",
             "dir": "<work>/fsa-test-j02",
-            "project": "fsa-fsa-test-j02-ad3e",
+            "project": "fsa-fsa-test-j02-4d6c",
             "port": null,
             "mail": {
                 "mode": "capture",
@@ -26,7 +26,7 @@
                 "<work>/fsa-test-j02/fsa doctor --post"
             ],
             "sign_in_link": {
-                "expires_at": "2026-10-18T09:25:34Z",
+                "expires_at": "2026-10-18T13:18:37Z",
                 "delivered": "secrets_file"
             }
         },
@@ -34,7 +34,7 @@
             {
                 "name": "sign_in_link",
                 "written_to": "<work>/owner-link.json",
-                "expires_at": "2026-10-18T09:25:34Z"
+                "expires_at": "2026-10-18T13:18:37Z"
             }
         ],
         "warnings": [],
