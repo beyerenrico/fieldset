@@ -71,7 +71,7 @@ image would then reject new releases.
    | prepare | validates the tag (`release:version`) and computes the image tags |
    | image | buildx multi-arch build with `--sbom=true --provenance=mode=max`, pushed by digest only; `cosign sign --recursive` (keyless); verifies the identity |
    | manifest | `php artisan release:manifest` (every image by digest), `cosign sign-blob --bundle` for the manifest and `install.sh`, `SHA256SUMS` |
-   | scan | Trivy on the app image and every third-party digest on both platforms; a fixable critical or high finding fails the release |
+   | scan | Trivy on the app image (no exceptions) and every third-party digest (only its own exception file, ADR 0071) on both platforms; a fixable critical or high finding fails the release |
    | tag | points the release's image tags at the scanned digest, and checks that the digest is unchanged |
    | publish | creates a **draft** GitHub Release with every asset |
    | verify-public | pulls every manifest digest on both platforms **without credentials** |
@@ -83,8 +83,14 @@ image would then reject new releases.
 5. Run the post-publish checklist below.
 
 When `scan` finds a fixable critical or high vulnerability, nothing is tagged or published. The image exists in
-GHCR only by digest. Fix it (base image, binary pin or third-party pin in `distribution/release.json`), delete
-the tag, and tag a new version. Do not move a published tag.
+GHCR only by digest. Fix it (base image, Go toolchain or source pin in `docker/app/Dockerfile`, or third-party pin
+in `distribution/release.json`), delete the tag, and tag a new version. Do not move a published tag.
+
+Scan policy (ADR 0071): the app image allows no exception. A third-party image may carry dated exceptions in
+`distribution/trivy/<service>.trivyignore.yaml`, only for findings that no released upstream image fixes. Each
+entry is scoped to one component and has a statement and an `expired_at` at most 90 days out. Before tagging,
+check the dates: an expired entry fails `scan`. Refresh the pin when a fixed image exists; otherwise renew the
+entry in a reviewed commit with a current statement. The `scan` log lists every suppressed finding.
 
 ## Building and testing a release locally (harness)
 
