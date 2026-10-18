@@ -43,15 +43,28 @@ final readonly class ScriptHarness
      */
     public function run(string $script, array $arguments, array $environment = []): array
     {
-        file_put_contents($this->log, '');
-        $process = new Process(['sh', $this->repository.'/'.$script, ...$arguments], $this->repository, [
-            'PATH' => $this->bin.':/usr/bin:/bin',
-            'STUB_LOG' => $this->log,
-            'RUN_MIGRATIONS' => false,
-            ...$environment,
-        ]);
-        $process->mustRun();
+        $this->process($script, $arguments, $environment)->mustRun();
 
+        return $this->calls();
+    }
+
+    /**
+     * Runs the script without requiring exit 0; the recorded calls are in `calls()`.
+     *
+     * @param  list<string>  $arguments
+     * @param  array<string, string|false>  $environment  false removes an inherited variable
+     */
+    public function attempt(string $script, array $arguments, array $environment = []): Process
+    {
+        $process = $this->process($script, $arguments, $environment);
+        $process->run();
+
+        return $process;
+    }
+
+    /** @return list<string> the calls recorded by the last run, one per line */
+    public function calls(): array
+    {
         return array_values(array_filter(explode("\n", (string) file_get_contents($this->log))));
     }
 
@@ -64,6 +77,22 @@ final readonly class ScriptHarness
         @unlink($this->log);
         @rmdir($this->bin);
         @rmdir(dirname($this->bin));
+    }
+
+    /**
+     * @param  list<string>  $arguments
+     * @param  array<string, string|false>  $environment
+     */
+    private function process(string $script, array $arguments, array $environment): Process
+    {
+        file_put_contents($this->log, '');
+
+        return new Process(['sh', $this->repository.'/'.$script, ...$arguments], $this->repository, [
+            'PATH' => $this->bin.':/usr/bin:/bin',
+            'STUB_LOG' => $this->log,
+            'RUN_MIGRATIONS' => false,
+            ...$environment,
+        ]);
     }
 
     private function writeExecutable(string $name, string $contents): void

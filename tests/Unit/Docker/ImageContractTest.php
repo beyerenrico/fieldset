@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Support\Facades\Artisan;
 use Tests\Support\Docker\DockerfileStages;
 use Tests\Support\Docker\DockerIgnore;
 use Tests\Support\Docker\ScriptHarness;
@@ -212,5 +213,55 @@ describe('fsa wrapper', function (): void {
         'command with options' => [['install', '--mode', 'local', '--json'], 'php /var/www/html/artisan fsa:install --mode local --json'],
         'no command' => [[], 'php /var/www/html/artisan list fsa'],
         'list options only' => [['--format=json'], 'php /var/www/html/artisan list fsa --format=json'],
+        'list as JSON' => [['--json'], 'php /var/www/html/artisan list fsa --format=json'],
+        'flag before the command' => [['--json', 'status'], 'php /var/www/html/artisan fsa:status --json'],
+        'flags before and after' => [['--yes', 'uninstall', '--json'], 'php /var/www/html/artisan fsa:uninstall --yes --json'],
+        'value flags before the command' => [['--dir', '/srv/fsa', '--secrets-file', 'link.json', 'login-link', 'a@b.test'], 'php /var/www/html/artisan fsa:login-link --dir /srv/fsa --secrets-file link.json a@b.test'],
+        'install --version after a leading flag' => [['--json', 'install', '--version', '2.0.0'], 'php /var/www/html/artisan fsa:install --json --release 2.0.0'],
+        'positional after --' => [['login-link', '--', '--json'], 'php /var/www/html/artisan fsa:login-link -- --json'],
+        'image role' => [['backup-daemon'], 'php /var/www/html/artisan fsa:backup-daemon'],
     ]);
+
+    it('answers an unknown command with exit 2 and an unknown_command error, never artisan', function (array $arguments, bool $json): void {
+        $process = $this->harness->attempt('docker/app/fsa', $arguments);
+        $command = array_values(array_filter($arguments, fn (string $arg): bool => ! str_starts_with($arg, '-')))[0];
+
+        expect($process->getExitCode())->toBe(2)
+            ->and($this->harness->calls())->toBe([]);
+        if (! $json) {
+            expect($process->getOutput())->toBe('')
+                ->and($process->getErrorOutput())->toContain("fsa: unknown command: {$command}")
+                ->and($process->getErrorOutput())->toContain('Available commands: doctor, install, login-link');
+
+            return;
+        }
+        expect(json_decode($process->getOutput(), true, 512, JSON_THROW_ON_ERROR))->toBe([
+            'schema_version' => 1, 'command' => $command, 'status' => 'failed', 'changed' => false, 'data' => [], 'secrets' => [], 'warnings' => [],
+            'errors' => [[
+                'code' => 'unknown_command',
+                'message' => "Unknown fsa command: {$command}",
+                'hint' => 'Available commands: doctor, install, login-link, logs, status, uninstall, version. Run fsa without arguments to list them.',
+                'retryable' => false,
+            ]],
+        ])->and($process->getErrorOutput())->toBe('');
+    })->with([
+        'not yet shipped' => [['config', 'show', '--json'], true],
+        'typo with a leading flag' => [['--json', 'stauts'], true],
+        'quote in the name' => [['--json', 'x"y\\z'], true],
+        'two words' => [['--json', 'logs status'], true],
+        'human' => [['backup'], false],
+    ]);
+
+    it('knows exactly the registered fsa commands (users) and the image role entry points', function (): void {
+        $wrapper = (string) file_get_contents(base_path('docker/app/fsa'));
+        preg_match("/^commands='([a-z -]+)'$/m", $wrapper, $commands);
+        preg_match("/^roles='([a-z -]+)'$/m", $wrapper, $roles);
+        $registered = collect(Artisan::all())->filter(fn ($command, string $name): bool => str_starts_with($name, 'fsa:'));
+        $visible = $registered->reject(fn ($command): bool => $command->isHidden())->keys()->map(fn (string $name): string => substr($name, 4))->sort()->values()->all();
+        $hidden = $registered->filter(fn ($command): bool => $command->isHidden())->keys()->map(fn (string $name): string => substr($name, 4))->all();
+
+        expect(explode(' ', $commands[1] ?? ''))->toBe($visible)
+            ->and(explode(' ', $roles[1] ?? ''))->toBe(['backup-daemon'])
+            ->and(array_diff($hidden, ['backup-daemon']))->toBe([]);
+    });
 });
