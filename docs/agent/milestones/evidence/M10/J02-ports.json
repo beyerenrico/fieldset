@@ -1,6 +1,6 @@
 {
     "published": {
-        "fsa-fsa-test-j02-07bb-edge-1": [
+        "fsa-fsa-test-j02-ad3e-edge-1": [
             "80/tcp -> 0.0.0.0:80",
             "80/tcp -> [::]:80",
             "443/tcp -> 0.0.0.0:443",

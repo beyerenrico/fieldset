@@ -11,7 +11,7 @@
         "ui": 200,
         "api": 200,
         "csp": [
-            "default-src 'self'; script-src 'nonce-6yVlvD1rsmNCPzfCzyCqBi'; style-src * 'unsafe-inline'; frame-src 'self'; img-src * data: blob:; font-src * data:; media-src 'self'; connect-src 'self' ws: wss:; object-src 'none'; base-uri 'self';",
+            "default-src 'self'; script-src 'nonce-0iieLaSgpIGnGyDJ9LH3wK'; style-src * 'unsafe-inline'; frame-src 'self'; img-src * data: blob:; font-src * data:; media-src 'self'; connect-src 'self' ws: wss:; object-src 'none'; base-uri 'self';",
             "frame-ancestors 'self'"
         ],
         "x_frame_options": "SAMEORIGIN"
