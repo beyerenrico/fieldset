@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Console;
 
+use App\Domain\Instance\Config\ConfigKeys;
 use App\Domain\Instance\Config\ConfigRequest;
 use App\Domain\Instance\Config\ConfigSetter;
 use App\Domain\Instance\Config\ConfigShow;
@@ -20,7 +21,7 @@ use Illuminate\Console\Attributes\Signature;
  * lock and journal: validate (exit 2), confirm a URL change (exit 6 without --yes or a terminal), preflight (exit 3),
  * apply, verify, and revert on failure (exit 4, `reverted: true`; exit 8 when the revert fails too and the instance is
  * stopped). The same value again is `changed: false` without touching Docker. Mail settings arrive with M11
- * (2.0.0-beta.1): `config set mail` exits 2 and says so.
+ * (2.0.0-beta.1): `config set mail` exits 2 `setting_not_available`, with or without a value.
  */
 #[Description('Show the settings (secrets redacted) or change one: fsa config show | fsa config set <key> <value>')]
 #[Signature('fsa:config
@@ -55,6 +56,9 @@ final class ConfigCommand extends FsaCommand
     {
         $key = $this->argument('key');
         $value = $this->argument('value');
+        if (is_string($key) && trim($key) !== '') {
+            ConfigKeys::check(strtolower(trim($key))); // a later or unknown key says so before a value is asked for
+        }
         if (! is_string($key) || $key === '' || ! is_string($value) || trim($value) === '') {
             throw InvalidInput::usage('Use `fsa config set <key> <value>`; `fsa config show` lists the keys.');
         }

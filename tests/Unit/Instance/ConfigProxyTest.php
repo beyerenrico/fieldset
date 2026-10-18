@@ -164,7 +164,7 @@ it('reverts the URL when the app does not answer for the new host', function ():
 
     [$code, $json] = $config->set('url', 'https://forms2.example.com', ['--yes' => true]);
 
-    expect($code)->toBe(4, json_encode($json))
+    expect($code)->toBe(5, json_encode($json))
         ->and($json['errors'][0]['code'])->toBe('url_check_failed')
         ->and($json['data'])->toMatchArray(['reverted' => true, 'url' => 'https://forms.example.com'])
         ->and($config->state()->url())->toBe('https://forms.example.com');

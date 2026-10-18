@@ -18,7 +18,8 @@ use Tests\Support\Docker\TestImage;
  * HTTPS serves a certificate that verifies against Pebble's issuing root → the same value again changes nothing →
  * `config set mode local` returns to the loopback URL and removes the edge → a domain whose ACME order cannot
  * succeed (the edge is not on the harness ACME network, so it reaches neither Pebble nor its challenges) reverts to
- * local mode with `reverted: true` while the old URL keeps serving → both successful changes are audited → uninstall.
+ * local mode (exit 5 `rolled_back`, `reverted: true`, one progress event per certificate attempt; ADR 0078) while the
+ * old URL keeps serving → both successful changes are audited → uninstall.
  * Transcripts go to docs/agent/milestones/evidence/M10/ (paths and links redacted).
  */
 
@@ -74,6 +75,18 @@ function cfgHostAddress(): string
     $addresses = array_values(array_filter(preg_split('/\s+/', trim($process->getOutput())) ?: []));
 
     return $addresses[0] ?? '1.1.1.1';
+}
+
+/**
+ * The NDJSON progress events of a --json run (stderr).
+ *
+ * @return list<array<string, mixed>>
+ */
+function cfgProgress(Process $process): array
+{
+    $events = array_map(static fn (string $line): mixed => json_decode($line, true), preg_split('/\R/', $process->getErrorOutput()) ?: []);
+
+    return array_values(array_filter($events, static fn (mixed $event): bool => is_array($event) && isset($event['phase'], $event['message'])));
 }
 
 /** @param  list<string>  $command */
@@ -183,8 +196,12 @@ it('switches to domain mode against Pebble, recreating only the affected service
     $kept = array_keys(array_filter($before, static fn (array $container, string $service): bool => ($after[$service] ?? null) === $container, ARRAY_FILTER_USE_BOTH));
     $this->journey->evidence('CFG-domain-switch.json', ['command' => 'fsa config set domain '.CFG_DOMAIN.' --acme-ca <pebble> --acme-ca-root-file <harness>/pebble-https-root.pem --yes --json', 'exit_code' => $process->getExitCode(), 'seconds' => round(microtime(true) - $started, 1), 'stdout' => $json, 'containers_before' => $before, 'containers_after' => $after, 'kept_running' => $kept], 'M10');
 
+    $events = cfgProgress($process);
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput()."\n".$process->getOutput()."\n".$this->acme->logs())
         ->and($json['data'])->toMatchArray(['mode' => 'domain', 'url' => 'https://'.CFG_DOMAIN, 'reverted' => false, 'audited' => true])
+        ->and(collect($events)->contains(fn (array $event): bool => ($event['attempt'] ?? null) === 1 && ($event['max_seconds'] ?? null) === 420))->toBeTrue()
+        ->and(collect($events)->contains(fn (array $event): bool => $event['phase'] === 'verify' && isset($event['max_seconds']) && str_starts_with($event['message'], 'Starting verify')))->toBeTrue()
+        ->and(collect($events)->contains(fn (array $event): bool => $event['phase'] === 'workers' && str_starts_with($event['message'], 'Completed workers')))->toBeTrue()
         ->and($json['data']['services']['added'])->toBe(['edge'])
         ->and($json['data']['services']['recreated'])->toEqualCanonicalizing(['app', 'queue', 'scheduler', 'mailpit'])
         ->and($kept)->toEqualCanonicalizing(['postgres', 'redis', 'gotenberg'])
@@ -240,9 +257,14 @@ it('reverts to local mode with reverted: true when the ACME order fails, and the
     $up = InstanceJourney::http((int) $GLOBALS['fsaCfgPort'])->get('/up');
     $this->journey->evidence('CFG-revert.json', ['command' => 'fsa config set domain '.CFG_FAIL_DOMAIN.' --acme-ca <pebble> --acme-ca-root-file <harness>/pebble-https-root.pem --yes --json (edge kept off the ACME network)', 'exit_code' => $process->getExitCode(), 'seconds' => round(microtime(true) - $started, 1), 'stdout' => $json, 'state_mode' => $state['mode'], 'local_up' => $up->getStatusCode()], 'M10');
 
-    expect($process->getExitCode())->toBe(4, $process->getErrorOutput().$process->getOutput())
+    $attempts = collect(cfgProgress($process))->filter(fn (array $event): bool => isset($event['attempt']));
+    expect($process->getExitCode())->toBe(5, $process->getErrorOutput().$process->getOutput())
+        ->and($json['status'])->toBe('rolled_back')
         ->and($json['changed'])->toBeFalse()
-        ->and($json['errors'][0]['code'])->toBe('certificate_failed')
+        ->and($json['errors'][0])->toMatchArray(['code' => 'certificate_failed', 'retryable' => false])
+        ->and($json['data']['fix_first'])->toContain(CFG_FAIL_DOMAIN)
+        ->and($attempts->count())->toBeGreaterThan(1)
+        ->and($attempts->last()['elapsed_seconds'])->toBeLessThanOrEqual(420)
         ->and($json['data'])->toMatchArray(['reverted' => true, 'mode' => 'local', 'url' => 'http://localhost:'.$GLOBALS['fsaCfgPort']])
         ->and($state['mode'])->toBe('local')
         ->and($state['url'])->toBeNull()

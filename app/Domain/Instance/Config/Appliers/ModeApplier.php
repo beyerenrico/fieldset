@@ -8,6 +8,7 @@ use App\Domain\Instance\Config\ConfigChange;
 use App\Domain\Instance\Config\ConfigRequest;
 use App\Domain\Instance\Config\SettingApplier;
 use App\Domain\Instance\HostFacts;
+use App\Domain\Instance\Install\InstallFlags;
 use App\Domain\Instance\Output\InvalidInput;
 use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
@@ -18,7 +19,7 @@ use App\Domain\Instance\State\InstanceState;
  * domain and proxy settings are cleared, and the app and the catcher UI publish loopback ports again: the ones the
  * instance had, or the next free ones when those are taken now. The edge subnet and the ACME inputs stay, so a later
  * `config set domain` reuses them. The other directions need more than one value: `config set domain <name>` enters
- * domain mode; proxy mode is chosen at install (exit 2 with that hint).
+ * domain mode; proxy mode is chosen at install only (exit 2: uninstall and a fresh install, ADR 0078).
  */
 final readonly class ModeApplier implements SettingApplier
 {
@@ -30,7 +31,7 @@ final readonly class ModeApplier implements SettingApplier
         match ($mode) {
             'local' => null,
             'domain' => throw new InvalidInput('Domain mode needs the domain.', 'use_another_key', 'Run `fsa config set domain <name>` (with --acme-email or --acme-staging as needed).'),
-            'proxy' => throw new InvalidInput('Proxy mode needs the proxy, its network and the public URL, which only `fsa install` takes in this version.', 'mode_not_settable', 'Keep the current mode, or reinstall with --behind-proxy traefik|caddy|port --url <origin> (back up first).'),
+            'proxy' => throw new InvalidInput('Proxy mode needs the proxy, its network and the public URL, which only `fsa install` takes in this version.', 'mode_not_settable', InstallFlags::PROXY_SWITCH),
             default => throw new InvalidInput('Invalid value for mode.', 'invalid_value', 'Use local; enter domain mode with `fsa config set domain <name>`.'),
         };
         if ($state->mode() === 'local') {

@@ -19,7 +19,8 @@ use App\Domain\Instance\State\InstanceState;
 /**
  * Loopback ports (R10, R15, AE4). For `fsa install` it selects them: the app gets 8080 or the next free port
  * (an explicit --port must be free), the mail catcher UI 8025 or the next free one; the choice lands in the
- * install journal and the state, so a resumed or repeated install keeps its own ports without probing again.
+ * install journal and the state, so a resumed or repeated install keeps its own ports without probing again. An
+ * install on a shared proxy network publishes no app port, so only the catcher UI's is chosen.
  * For `fsa doctor` it checks the instance's ports: a port published by the instance's own running container
  * (app, mailpit) is served by it and not probed.
  *
@@ -56,6 +57,9 @@ final readonly class PortsCheck implements DoctorCheck
 
     private function select(DoctorContext $context, string $image): CheckResult
     {
+        if (! $context->publishesAppPort) {
+            return $this->selectCatcherOnly($context, $image);
+        }
         $taken = [];
         $requested = $context->requestedPort;
         if ($requested !== null && ! $this->probe->isFree($requested, $image, $context->uuid)) {
@@ -69,6 +73,21 @@ final readonly class PortsCheck implements DoctorCheck
         $summary = "App on 127.0.0.1:{$port}, mail catcher UI on 127.0.0.1:{$mail}".($taken === [] ? '.' : ' (in use: '.implode(', ', $taken).').');
 
         return CheckResult::ok($this->key(), $summary, ['ports' => ['app' => $port, 'mail_ui' => $mail], 'taken' => $taken]);
+    }
+
+    /**
+     * On a shared proxy network the app publishes nothing (ADR 0076), so only the catcher UI needs a loopback port
+     * (ADR 0078: a taken 8080–8099 must not stop a Traefik or caddy-docker-proxy install).
+     */
+    private function selectCatcherOnly(DoctorContext $context, string $image): CheckResult
+    {
+        $taken = [];
+        $mail = $this->firstFree(InstanceSettings::DEFAULT_MAIL_UI_PORT, [], $image, $context->uuid, $taken);
+        if ($mail === null) {
+            return CheckResult::fail($this->key(), 'No free loopback port for the mail catcher UI found (tried '.implode(', ', $taken).').', 'Free one of these ports.', ['ports' => [], 'taken' => $taken]);
+        }
+
+        return CheckResult::ok($this->key(), "Mail catcher UI on 127.0.0.1:{$mail}; the app publishes no port on the proxy network.", ['ports' => ['mail_ui' => $mail], 'taken' => $taken]);
     }
 
     /**

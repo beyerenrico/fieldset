@@ -1,7 +1,7 @@
 {
     "command": "fsa config set domain fsa-test-cfg.test --acme-ca <pebble> --acme-ca-root-file <harness>/pebble-https-root.pem --yes --json",
     "exit_code": 0,
-    "seconds": 39.6,
+    "seconds": 63.2,
     "stdout": {
         "schema_version": 1,
         "command": "config",
@@ -64,7 +64,11 @@
                     "data_exports": 0
                 }
             },
-            "audited": true
+            "audited": true,
+            "next_commands": [
+                "<work>/fsa-test-cfg/fsa login-link <owner-email>",
+                "<work>/fsa-test-cfg/fsa status"
+            ]
         },
         "secrets": [],
         "warnings": [
@@ -83,66 +87,66 @@
     },
     "containers_before": {
         "app": {
-            "id": "66fc300f4a1f",
-            "started": "2026-10-18T09:33:16.143047297Z"
+            "id": "e8144ddeda6a",
+            "started": "2026-10-18T11:29:28.716423427Z"
         },
         "gotenberg": {
-            "id": "109a259dc304",
-            "started": "2026-10-18T09:33:15.478811838Z"
+            "id": "43de2c19a0f6",
+            "started": "2026-10-18T11:29:28.086411051Z"
         },
         "mailpit": {
-            "id": "0c6f3537ec95",
-            "started": "2026-10-18T09:33:15.61573013Z"
+            "id": "637d797e66c2",
+            "started": "2026-10-18T11:29:27.972625926Z"
         },
         "postgres": {
-            "id": "e508d6cdd5b3",
-            "started": "2026-10-18T09:33:05.7721105Z"
+            "id": "eab7fff059a2",
+            "started": "2026-10-18T11:29:18.346847213Z"
         },
         "queue": {
-            "id": "aee5c70356a3",
-            "started": "2026-10-18T09:33:15.98777763Z"
+            "id": "cdaccb3c75f9",
+            "started": "2026-10-18T11:29:28.59511476Z"
         },
         "redis": {
-            "id": "fc995569702f",
-            "started": "2026-10-18T09:33:05.940758167Z"
+            "id": "c1668c2bd5e3",
+            "started": "2026-10-18T11:29:18.236662047Z"
         },
         "scheduler": {
-            "id": "ca55629dce14",
-            "started": "2026-10-18T09:33:16.32714238Z"
+            "id": "f416c228a147",
+            "started": "2026-10-18T11:29:28.48285876Z"
         }
     },
     "containers_after": {
         "app": {
-            "id": "8dd63176a970",
-            "started": "2026-10-18T09:33:59.105896303Z"
+            "id": "36f1fc47adda",
+            "started": "2026-10-18T11:30:13.217701169Z"
         },
         "edge": {
-            "id": "6e36dfacc49e",
-            "started": "2026-10-18T09:34:14.804644379Z"
+            "id": "11c186807bae",
+            "started": "2026-10-18T11:30:28.846387093Z"
         },
         "gotenberg": {
-            "id": "109a259dc304",
-            "started": "2026-10-18T09:33:15.478811838Z"
+            "id": "43de2c19a0f6",
+            "started": "2026-10-18T11:29:28.086411051Z"
         },
         "mailpit": {
-            "id": "429feb0f9e83",
-            "started": "2026-10-18T09:33:58.658299803Z"
+            "id": "dc46e28d78db",
+            "started": "2026-10-18T11:30:12.708519086Z"
         },
         "postgres": {
-            "id": "e508d6cdd5b3",
-            "started": "2026-10-18T09:33:05.7721105Z"
+            "id": "eab7fff059a2",
+            "started": "2026-10-18T11:29:18.346847213Z"
         },
         "queue": {
-            "id": "9a0d6d03e473",
-            "started": "2026-10-18T09:33:59.490640178Z"
+            "id": "a22a2456d85f",
+            "started": "2026-10-18T11:30:36.779571541Z"
         },
         "redis": {
-            "id": "fc995569702f",
-            "started": "2026-10-18T09:33:05.940758167Z"
+            "id": "c1668c2bd5e3",
+            "started": "2026-10-18T11:29:18.236662047Z"
         },
         "scheduler": {
-            "id": "62fad8cd8909",
-            "started": "2026-10-18T09:33:59.314633053Z"
+            "id": "3ba30f5a4390",
+            "started": "2026-10-18T11:30:36.668330597Z"
         }
     },
     "kept_running": [

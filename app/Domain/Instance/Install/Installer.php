@@ -54,6 +54,7 @@ final readonly class Installer
         private InstanceStack $stack,
         private AppCommands $app,
         private SmokeTest $smoke,
+        private ProxySetup $proxy,
     ) {}
 
     public function situation(): InstallSituation
@@ -127,8 +128,8 @@ final readonly class Installer
 
             return $data;
         });
-        $run->phase('start', fn (): array => $this->stack->up($project, []));
-        $run->phase('smoke', fn (): array => $this->smoke->run($state, $project), changes: false);
+        $run->phase('start', fn (): array => $this->stack->up($project, []), maxSeconds: InstanceStack::WAIT_SECONDS);
+        $run->phase('smoke', fn (): array => $this->smoke->run($state, $project, $context->progress), changes: false, maxSeconds: SmokeTest::maxSeconds($state));
         $warnings = ($installed['already_installed'] ?? false) === true
             ? [['app_already_installed', 'The database already held an organization: --org, --owner-email, --owner-name and --locale were not applied.', 'Change them in the admin panel; the sign-in link goes to the owner given here.']]
             : [];
@@ -218,7 +219,7 @@ final readonly class Installer
         foreach (is_array($preflight['orphans'] ?? null) ? $preflight['orphans'] : [] as $uuid) {
             $result = $result->withWarning('orphans_found', "Containers of another installation ({$uuid}) ran from this directory.", "Check first that it does not run elsewhere (`docker ps -a --filter label=app.form-schema.instance={$uuid}` shows its containers and their directories). If it was deleted by hand, remove its leftovers with `fsa uninstall --orphans {$uuid} --yes`; fsa refuses while any of its containers runs.");
         }
-        foreach ($warnings as [$code, $message, $hint]) {
+        foreach ([...$warnings, ...array_filter([AcmeStaging::warning($state, $this->directory->root.'/fsa')])] as [$code, $message, $hint]) {
             $result = $result->withWarning($code, $message, $hint);
         }
 
@@ -233,12 +234,14 @@ final readonly class Installer
     {
         $state = $this->directory->state();
         $digest = RecordDigest::fromEnvFiles(new EnvFiles($this->directory));
-        $changed = $request->changedFlags(InstallRecord::applied($state), InstallRecord::comparator($digest));
+        $trusted = fn (string $given): bool => $this->proxy->isTrusted($state, $given);
+        $changed = $request->changedFlags(InstallRecord::applied($state), InstallRecord::comparator($digest, $trusted));
         if ($changed !== []) {
             throw new InvalidInput(
-                'This instance is installed; '.implode(', ', $changed).' differ from its installation.',
+                'This instance is installed; '.implode(', ', $changed).' differ from its installation. fsa install changes nothing on an installed instance.',
                 'use_config_set',
-                'fsa install changes nothing on an installed instance: change settings with `fsa config set <key> <value>` (`fsa config show` lists them; `fsa upgrade` arrives in a later release), or remove the instance with `fsa uninstall` and install again with the new flags.',
+                InstallFlags::hint($changed, $state),
+                ['flags' => InstallFlags::keys($changed, $state)],
             );
         }
         $email = $request->ownerEmailIfKnown();
@@ -343,7 +346,7 @@ final readonly class Installer
             ]]),
             'mail' => ['mode' => $settings->capturesMail() ? 'capture' : 'smtp', 'catcher_url' => $settings->catcherUrl()],
             'owner_email' => $ownerEmail,
-            'next_commands' => ["{$fsa} status", "{$fsa} login-link {$linkFor}", "{$fsa} doctor --post"],
+            'next_commands' => [...(AcmeStaging::active($state) ? [AcmeStaging::command($fsa)] : []), "{$fsa} status", "{$fsa} login-link {$linkFor}", "{$fsa} doctor --post"],
         ];
     }
 }

@@ -49,7 +49,7 @@ it('passes on a healthy host and reports every check in order', function (): voi
     [$code, $json] = $this->fixture->run('fsa:doctor');
 
     expect($code)->toBe(0, json_encode($json))
-        ->and(array_column($json['data']['checks'], 'key'))->toBe(['docker', 'architecture', 'memory', 'disk', 'path_sharing', 'permissions', 'stale_files', 'dns', 'registry', 'clock', 'ports'])
+        ->and(array_column($json['data']['checks'], 'key'))->toBe(['docker', 'architecture', 'memory', 'disk', 'path_sharing', 'permissions', 'stale_files', 'dns', 'registry', 'clock', 'ports', 'proxy'])
         ->and(doctorChecks($json)['dns']['status'])->toBe('skipped')
         ->and(doctorChecks($json)['path_sharing']['status'])->toBe('skipped')
         ->and(doctorChecks($json)['registry']['summary'])->toBe('Every image is already on this host.')

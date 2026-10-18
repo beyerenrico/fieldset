@@ -9,9 +9,10 @@ use App\Domain\Instance\InstanceException;
 /** Invalid usage or input (exit 2). */
 final class InvalidInput extends InstanceException
 {
-    public function __construct(string $message, string $errorCode = 'invalid_input', ?string $hint = null)
+    /** @param  array<string, mixed>  $data  non-secret context under `data` (e.g. the flags a repeated install changed) */
+    public function __construct(string $message, string $errorCode = 'invalid_input', ?string $hint = null, array $data = [])
     {
-        parent::__construct($message, ExitCode::InvalidInput, $errorCode, $hint);
+        parent::__construct($message, ExitCode::InvalidInput, $errorCode, $hint, false, $data);
     }
 
     /** R50/AE9: a secret was passed as a flag value. Only the flag name is echoed, never the value. */

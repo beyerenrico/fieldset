@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Instance\Compose\EdgeNetwork;
+use App\Domain\Instance\Compose\Services\EdgeService;
 use App\Domain\Instance\Docker\CliDockerGateway;
 use App\Domain\Instance\Docker\ContainerSpec;
 use App\Domain\Instance\Docker\DockerInfo;
@@ -129,7 +130,8 @@ it('asks the edge for HTTPS until it holds a certificate, then checks the redire
 
     expect($https->network)->toBe($state->project().'_edge')
         ->and($https->labels)->toBe(Labels::forInstance($state->uuid(), 'smoke'))
-        ->and($https->command)->toContain('--resolve', "forms.example.com:443:{$address}", '--retry-all-errors', '--insecure', 'https://forms.example.com/up')
+        ->and($https->command)->toContain('--resolve', "forms.example.com:443:{$address}", '--insecure', 'https://forms.example.com/up')
+        ->and($https->command)->not->toContain('--retry') // one attempt per container; SmokeTest loops (ADR 0078)
         ->and($http->network)->toBe($state->project().'_edge')
         ->and($http->command)->toContain("forms.example.com:80:{$address}", 'http://forms.example.com/up')
         ->and($http->command)->not->toContain('--insecure');
@@ -294,7 +296,8 @@ it('reports domain mode in status and serves 80/443 from its own edge in doctor'
 it('warns about the CA\'s duplicate-certificate limit before and after uninstalling a domain instance', function (): void {
     installDomain($this->fixture);
     $uuid = $this->fixture->state()->uuid();
-    $this->fixture->docker->withResource(new DockerResource(DockerResource::VOLUME, 'proj_edge-data', Labels::forInstance($uuid)));
+    $volume = EdgeService::volumeName($this->fixture->state()->project());
+    $this->fixture->docker->withResource(new DockerResource(DockerResource::VOLUME, $volume, Labels::forInstance($uuid)));
 
     [$asked, $prompt] = $this->fixture->run('fsa:uninstall');
     [$code, $json] = $this->fixture->run('fsa:uninstall', ['--yes' => true]);
@@ -302,7 +305,7 @@ it('warns about the CA\'s duplicate-certificate limit before and after uninstall
     expect($asked)->toBe(6)
         ->and($prompt['errors'][0]['message'])->toContain('required: The certificates for forms.example.com')
         ->and($code)->toBe(0, json_encode($json))
-        ->and($json['data']['removed']['volumes'])->toBe(['proj_edge-data'])
+        ->and($json['data']['removed']['volumes'])->toBe([$volume])
         ->and(collect($json['warnings'])->firstWhere('code', 'certificates_removed')['hint'])->toContain('--acme-staging');
 });
 

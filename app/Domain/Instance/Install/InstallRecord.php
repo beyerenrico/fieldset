@@ -80,9 +80,14 @@ final class InstallRecord
         foreach (InstallRequest::PROXY_FLAGS as $key) {
             $proxy[$key] = is_string($recorded[$key] ?? null) ? $recorded[$key] : null;
         }
-        // `fsa config set` (ADR 0077) may have changed mode, URL or network since: compare with the state as it is now.
+        // `fsa config set` (ADR 0077) may have changed mode, URL, network or trusted proxy since: compare with the state
+        // as it is now. --trusted-proxy is compared with the proxy the instance trusts (comparator(), ADR 0078).
         $settings = InstanceSettings::of($state);
-        $proxy = [...$proxy, 'proxy' => $settings->proxy(), 'url' => $settings->proxy() === null ? null : $state->url(), 'proxy_network' => $settings->proxy() === null ? null : $settings->proxyNetwork()];
+        $proxy = [
+            ...$proxy, 'proxy' => $settings->proxy(), 'url' => $settings->proxy() === null ? null : $state->url(),
+            'proxy_network' => $settings->proxy() === null ? null : $settings->proxyNetwork(),
+            'trusted_proxy' => $settings->joinsProxyNetwork() ? $settings->proxyContainer() : null,
+        ];
 
         return [
             ...$app,
@@ -95,15 +100,21 @@ final class InstallRecord
     }
 
     /**
-     * Compares one recorded input with an explicit flag: personal inputs through their digest.
+     * Compares one recorded input with an explicit flag: personal inputs through their digest; --trusted-proxy through
+     * `$trusted`, which knows the trusted proxy by container name, ID prefix or address (install reports the name,
+     * `config set trusted-proxy` takes any of them, ADR 0078).
      *
+     * @param  (Closure(string): bool)|null  $trusted
      * @return Closure(string, string|int|null, string|int): bool true when equal
      */
-    public static function comparator(?RecordDigest $digest): Closure
+    public static function comparator(?RecordDigest $digest, ?Closure $trusted = null): Closure
     {
-        return static function (string $key, string|int|null $recorded, string|int $given) use ($digest): bool {
+        return static function (string $key, string|int|null $recorded, string|int $given) use ($digest, $trusted): bool {
             if (in_array($key, self::PERSONAL, true) && is_string($recorded) && str_starts_with($recorded, RecordDigest::PREFIX)) {
                 return $digest instanceof RecordDigest && $digest->matches($recorded, (string) $given);
+            }
+            if ($key === 'trusted_proxy' && $trusted instanceof Closure) {
+                return $trusted((string) $given);
             }
 
             return (string) $recorded === (string) $given;

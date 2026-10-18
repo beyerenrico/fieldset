@@ -14,8 +14,11 @@ use App\Domain\Instance\Docker\Labels;
 use App\Domain\Instance\Docker\ProcessOutcome;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Output\ExitCode;
+use App\Domain\Instance\Output\ProgressReporter;
 use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
+use Carbon\CarbonImmutable;
+use Illuminate\Support\Sleep;
 use Throwable;
 
 /**
@@ -32,6 +35,10 @@ use Throwable;
  * redirect. The HTTPS check skips chain verification: the edge has exactly one issuer, the configured ACME CA, and
  * never serves a self-signed fallback for the domain, so a completed handshake means a certificate from that CA
  * (the journeys verify the chain against Pebble's root).
+ *
+ * The certificate wait is a loop in PHP, one short `curl` per attempt (ADR 0078): every attempt is a progress event
+ * ("attempt 7/40, 35 s of at most 420 s"), and a signal that interrupts the command lands between attempts instead
+ * of after one opaque seven-minute container.
  */
 final readonly class SmokeTest
 {
@@ -41,35 +48,53 @@ final readonly class SmokeTest
 
     private const float TIMEOUT = 240.0;
 
-    /** HTTPS attempts against the edge, 5 s apart: ACME orders take seconds, a failed one is retried after a minute. */
+    /** HTTPS attempts against the edge: ACME orders take seconds, a failed one is retried by Caddy after a minute. */
     public const int CERTIFICATE_ATTEMPTS = 40;
 
-    private const float EDGE_TIMEOUT = 420.0;
+    /** Seconds between two attempts. */
+    public const int CERTIFICATE_DELAY = 5;
+
+    /** Seconds all attempts may take together; the loop stops at whichever limit comes first. */
+    public const int CERTIFICATE_SECONDS = 420;
+
+    /** curl's limit for one attempt. */
+    private const int ATTEMPT_SECONDS = 15;
+
+    /** Process timeout around one edge container (start plus one attempt). */
+    private const float EDGE_TIMEOUT = 60.0;
 
     public function __construct(private DockerGateway $docker) {}
 
-    /** @return array<string, mixed> */
-    public function run(InstanceState $state, ComposeProject $project): array
+    /**
+     * @param  string  $phase  the journaled phase this runs in (`smoke` for install, `verify` for config set)
+     * @return array<string, mixed>
+     */
+    public function run(InstanceState $state, ComposeProject $project, ?ProgressReporter $progress = null, string $phase = 'smoke'): array
     {
         $port = InstanceSettings::of($state)->port();
         $this->curl($state, $project->name.'_default', "localhost:{$port}", array_map(static fn (string $path): string => "http://app:8080{$path}", self::APP_PATHS));
         $this->curl($state, $project->name.'_'.GotenbergService::NETWORK, null, ['http://'.GotenbergService::NAME.':3000/health']);
-        $edge = $state->mode() === 'domain' ? $this->edge($state, $project) : [];
+        $edge = $state->mode() === 'domain' ? $this->edge($state, $project, $progress, $phase) : [];
 
         return ['checked' => [...self::APP_PATHS, 'gotenberg /health', ...$edge]];
     }
 
+    /** The longest the smoke test can take for this state: both curl containers, and in domain mode the edge's wait. */
+    public static function maxSeconds(InstanceState $state): int
+    {
+        $edge = $state->mode() === 'domain' ? self::CERTIFICATE_SECONDS + 2 * (int) self::EDGE_TIMEOUT : 0;
+
+        return 2 * (int) self::TIMEOUT + $edge;
+    }
+
     /** @return list<string> what was checked through the edge */
-    private function edge(InstanceState $state, ComposeProject $project): array
+    private function edge(InstanceState $state, ComposeProject $project, ?ProgressReporter $progress, string $phase): array
     {
         $settings = InstanceSettings::of($state);
         $domain = (string) $settings->domain();
         $address = EdgeNetwork::edgeAddress((string) $settings->edgeSubnet());
         $network = $project->name.'_'.EdgeNetwork::NAME;
-        $https = $this->edgeCurl($state, $network, [
-            '--fail', '--insecure', '--max-time', '20', '--retry', (string) self::CERTIFICATE_ATTEMPTS, '--retry-delay', '5', '--retry-all-errors',
-            '--resolve', "{$domain}:443:{$address}", '--output', '/dev/null', '--write-out', '%{http_code}', "https://{$domain}/up",
-        ]);
+        $https = $this->certificate($state, $network, $domain, $address, $progress, $phase);
         if (! $https->successful()) {
             throw new InstanceException(
                 "The edge got no certificate for {$domain} from {$settings->acmeCa()}.",
@@ -88,6 +113,30 @@ final readonly class SmokeTest
         }
 
         return ["https://{$domain}/up", "http://{$domain} → https"];
+    }
+
+    /**
+     * HTTPS against the edge until it serves a certificate: one attempt per container, CERTIFICATE_DELAY seconds
+     * apart, at most CERTIFICATE_ATTEMPTS attempts within CERTIFICATE_SECONDS; each attempt is a progress event.
+     */
+    private function certificate(InstanceState $state, string $network, string $domain, string $address, ?ProgressReporter $progress, string $phase): ProcessOutcome
+    {
+        $started = CarbonImmutable::now();
+        for ($attempt = 1; ; $attempt++) {
+            $elapsed = (int) $started->diffInSeconds(CarbonImmutable::now(), true);
+            $progress?->event($phase, ProgressReporter::INFO, "Waiting for the certificate for {$domain} (attempt {$attempt}/".self::CERTIFICATE_ATTEMPTS.", {$elapsed} s of at most ".self::CERTIFICATE_SECONDS.' s)', [
+                'attempt' => $attempt, 'attempts' => self::CERTIFICATE_ATTEMPTS, 'elapsed_seconds' => $elapsed, 'max_seconds' => self::CERTIFICATE_SECONDS,
+            ]);
+            $outcome = $this->edgeCurl($state, $network, [
+                '--fail', '--insecure', '--connect-timeout', '5', '--max-time', (string) self::ATTEMPT_SECONDS,
+                '--resolve', "{$domain}:443:{$address}", '--output', '/dev/null', '--write-out', '%{http_code}', "https://{$domain}/up",
+            ]);
+            $elapsed = (int) $started->diffInSeconds(CarbonImmutable::now(), true);
+            if ($outcome->successful() || $attempt >= self::CERTIFICATE_ATTEMPTS || $elapsed + self::CERTIFICATE_DELAY >= self::CERTIFICATE_SECONDS) {
+                return $outcome;
+            }
+            Sleep::for(self::CERTIFICATE_DELAY)->seconds();
+        }
     }
 
     /** @param  list<string>  $arguments */

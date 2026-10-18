@@ -100,7 +100,7 @@ it('reverts after an unexpected exception during apply and reports it as an inte
 
     [$code, $json] = $config->set('port', '8090', ['--yes' => true]);
 
-    expect($code)->toBe(4, json_encode($json))
+    expect($code)->toBe(5, json_encode($json))
         ->and($json['errors'][0]['code'])->toBe('internal_error')
         ->and($json['data']['failure'])->toBe(['exception' => RuntimeException::class])
         ->and($json['data']['reverted'])->toBeTrue();
@@ -115,13 +115,17 @@ it('says so when stopping the instance fails after a failed revert', function ()
             throw new DockerCommandFailed('compose up', new ProcessOutcome(1, '', 'no space left on device'));
         }
     };
-    $config->instance->docker->failOn('composeStop', new DockerCommandFailed('compose stop', new ProcessOutcome(1, '', 'daemon gone')));
+    $config->instance->docker->onCall['composeStop'] = function (array $args): void {
+        if (in_array('app', $args['services'], true)) { // the stop after the failed revert, not apply's worker stop
+            throw new DockerCommandFailed('compose stop', new ProcessOutcome(1, '', 'daemon gone'));
+        }
+    };
 
     [$code, $json] = $config->set('domain', ConfigFixture::DOMAIN, ['--yes' => true]);
 
     expect($code)->toBe(8)
         ->and($json['data']['stopped'])->toBeFalse()
-        ->and($json['data']['recovery'][0])->toContain('stopping the instance failed as well')
+        ->and($json['data']['recovery'][0])->toContain('stopping the services failed as well')
         ->and($json['data']['revert_failure']['code'])->toBe('services_unhealthy');
 });
 
@@ -140,62 +144,61 @@ it('removes a CA root the previous settings did not trust when the change revert
     $config->set('domain', ConfigFixture::DOMAIN, ['--yes' => true]);
     $file = TemporaryInstance::path().'.pem';
     file_put_contents($file, ConfigFixture::pem());
-    $config->certificateFailures = 1;
+    $config->refuseCa = 'ca.example.com';
 
     [$code, $json] = $config->set('acme-ca', 'https://ca.example.com/dir', ['--acme-ca-root-file' => $file]);
 
-    expect($code)->toBe(4, json_encode($json))
+    expect($code)->toBe(5, json_encode($json))
         ->and($config->instance->directory->exists('edge/acme-ca-root.pem'))->toBeFalse()
         ->and($config->state()->setting('acme_ca_root'))->toBeNull();
     unlink($file);
 });
 
-it('replays the recorded preflight on resume instead of probing ports its first attempt already took', function (): void {
+it('resumes a change killed during apply from the journal: the recorded target, no new port probe or plan', function (): void {
     $config = new ConfigFixture;
-    $ups = 0;
-    $config->smokeFails = function () use (&$ups): bool {
-        return $ups === 1;
-    };
-    $config->instance->docker->onCall['composeUp'] = function () use (&$ups): void {
-        if (++$ups === 2) {
-            throw new DockerCommandFailed('compose up', new ProcessOutcome(1, '', 'no space left on device'));
-        }
-    };
-    [$failed] = $config->set('port', '8090', ['--yes' => true]);
-    $config->takenLoopback = [8090]; // as if the first attempt's app still held it
-    $config->smokeFails = null;
+    $config->interruptedDuringApply(new ConfigRequest('port', '8090'));
+    $config->takenLoopback = [8090]; // as if the killed attempt's app still held it
     $mark = $config->mark();
 
     [$code, $json] = $config->set('port', '8090', ['--yes' => true]);
 
     $probes = array_filter($config->callsSince($mark, 'runContainer'), fn (array $call): bool => $call['spec']->entrypoint === 'true');
-    expect($failed)->toBe(8)
-        ->and($code)->toBe(0, json_encode($json))
+    expect($code)->toBe(0, json_encode($json))
         ->and($probes)->toBe([])
-        ->and($config->state()->setting('port'))->toBe(8090);
+        ->and($json['data']['previous'])->toBe(['url' => 'http://localhost:8080', 'mode' => 'local'])
+        ->and($config->state()->setting('port'))->toBe(8090)
+        ->and($config->openJournal())->toBeNull();
 });
 
-it('keeps the edge subnet of the first attempt on resume and reuses a leftover edge network', function (): void {
+it('keeps the edge subnet a killed attempt recorded and does not choose one again', function (): void {
     $config = new ConfigFixture;
-    $project = $config->state()->project();
-    $config->instance->docker->networkResponder = fn (string $name): ?NetworkInfo => $name === $project.'_edge' ? new NetworkInfo('e1', $name, false, ['10.213.9.0/28'], ['10.213.9.1']) : null;
-    $config->certificate = false;
-    $ups = 0;
-    $config->instance->docker->onCall['composeUp'] = function () use (&$ups): void {
-        if (++$ups === 2) {
-            throw new DockerCommandFailed('compose up', new ProcessOutcome(1, '', 'no space left on device'));
-        }
-    };
-    [$failed] = $config->set('domain', ConfigFixture::DOMAIN, ['--yes' => true]);
-    $config->instance->docker->networkResponder = null;
-    $config->certificate = true;
+    $config->interruptedDuringApply(new ConfigRequest('domain', ConfigFixture::DOMAIN), fn ($after) => $after->withSetting('edge_subnet', '10.213.9.0/28'));
+    $mark = $config->mark();
 
     [$code, $json] = $config->set('domain', ConfigFixture::DOMAIN, ['--yes' => true]);
 
-    expect($failed)->toBe(8)
-        ->and($code)->toBe(0, json_encode($json))
+    expect($code)->toBe(0, json_encode($json))
         ->and($config->state()->setting('edge_subnet'))->toBe('10.213.9.0/28')
-        ->and($config->instance->docker->called('networkSubnets'))->toBe([]);
+        ->and($config->methodsSince($mark))->not->toContain('networkSubnets');
+});
+
+it('takes the resumed target from the journal before any engine lookup, so a stopped proxy does not block the resume', function (): void {
+    $id = str_repeat('7', 64);
+    $network = fn (string $address): NetworkInfo => new NetworkInfo('net0', 'edge-net', false, ['172.20.0.0/16'], ['172.20.0.1'], [new NetworkEndpoint($id, 'traefik-1', $address)]);
+    $config = new ConfigFixture(['--behind-proxy' => 'traefik', '--proxy-network' => 'edge-net', '--url' => 'https://forms.example.com'], function (InstanceCommandFixture $fixture) use ($id, $network): void {
+        $fixture->docker->containers[$id] = new ContainerInfo($id, 'traefik-1', 'running', null, null, 'traefik:v3');
+        $fixture->docker->withNetwork($network('172.20.0.5'));
+    });
+    $config->instance->docker->withNetwork($network('172.20.0.9')); // Traefik was recreated with a new address
+    $config->interruptedDuringApply(new ConfigRequest('trusted-proxy', 'auto'));
+    $config->instance->docker->networkDetails = []; // the proxy and its network are gone now
+    $mark = $config->mark();
+
+    [$code, $json] = $config->set('trusted-proxy', 'auto');
+
+    expect($code)->toBe(0, json_encode($json))
+        ->and($config->methodsSince($mark))->not->toContain('inspectNetwork')
+        ->and($config->state()->setting('trusted_proxies'))->toBe('172.20.0.9');
 });
 
 it('keeps a verified change when the audit one-off cannot even start', function (): void {

@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Support\Instance;
 
+use App\Domain\Instance\Config\ConfigKeys;
+use App\Domain\Instance\Config\ConfigRequest;
 use App\Domain\Instance\Docker\ContainerSpec;
 use App\Domain\Instance\Docker\ProcessOutcome;
+use App\Domain\Instance\HostFacts;
 use App\Domain\Instance\Operations\JournalRecord;
 use App\Domain\Instance\Operations\OperationJournal;
 use App\Domain\Instance\State\InstanceState;
@@ -28,8 +31,11 @@ final class ConfigFixture
     /** Whether the edge serves a certificate (HTTPS check). */
     public bool $certificate = true;
 
-    /** HTTPS checks to fail before the edge serves a certificate (e.g. 1: the change fails, its revert passes). */
+    /** HTTPS checks to fail before the edge serves a certificate (each attempt of the certificate wait counts). */
     public int $certificateFailures = 0;
+
+    /** An ACME directory that refuses certificates: HTTPS fails while the rendered Caddyfile names it. */
+    public ?string $refuseCa = null;
 
     /** Smoke-test curls to fail: a closure deciding per call (URL list, curl arguments), or null for none. */
     public ?Closure $smokeFails = null;
@@ -147,11 +153,36 @@ final class ConfigFixture
         return array_map(static fn (array $phase): string => $phase['name'].':'.$phase['status'], $record->phases());
     }
 
+    /**
+     * Leaves an open journal as a `config set` killed (SIGKILL) during apply would: snapshot and preflight completed,
+     * apply started, the target state saved. `$refine` adjusts the target the preflight recorded.
+     *
+     * @param  (Closure(InstanceState): InstanceState)|null  $refine
+     */
+    public function interruptedDuringApply(ConfigRequest $request, ?Closure $refine = null): InstanceState
+    {
+        $before = $this->state();
+        $applier = app(ConfigKeys::class)->applier($request->key);
+        $change = $applier->preflight($applier->plan($before, $request), app(HostFacts::class));
+        $after = $refine instanceof Closure ? $refine($change->after) : $change->after;
+        $journal = new OperationJournal($this->instance->directory);
+        $journal->begin('config', posix_getuid(), $request->toContext());
+        $journal->startPhase('snapshot', [], false);
+        $journal->completePhase('snapshot', [...$change->summary(), 'previous' => $before->toArray(), 'ca_root' => null]);
+        $journal->startPhase('preflight', [], false);
+        $journal->completePhase('preflight', ['pulled' => [], 'to' => $change->to, 'after' => $after->toArray(), 'warnings' => []]);
+        $journal->startPhase('apply');
+        $this->instance->directory->saveState($after);
+
+        return $after;
+    }
+
     private function answer(ContainerSpec $spec): ?ProcessOutcome
     {
         if ($spec->entrypoint === 'true') {
-            [$ip, $port] = explode(':', $spec->ports[0] ?? '');
-            $taken = $ip === '0.0.0.0' ? $this->takenHost : $this->takenLoopback;
+            preg_match('/^(.*):(\d+):\d+$/D', $spec->ports[0] ?? '', $binding);
+            [, $ip, $port] = $binding + [null, '', '0'];
+            $taken = in_array($ip, ['0.0.0.0', '[::]'], true) ? $this->takenHost : $this->takenLoopback;
 
             return in_array((int) $port, $taken, true)
                 ? new ProcessOutcome(125, '', "docker: Error response from daemon: Bind for {$ip}:{$port} failed: port is already allocated.")
@@ -165,10 +196,17 @@ final class ConfigFixture
         $last = $urls[array_key_last($urls)] ?? '';
 
         return match (true) {
-            str_starts_with($last, 'https://') => $this->certificate && $this->certificateFailures-- <= 0 ? new ProcessOutcome(0, '200') : new ProcessOutcome(35, '000', 'curl: (35) TLS connect error'),
+            str_starts_with($last, 'https://') => $this->certificate && ! $this->caRefused() && $this->certificateFailures-- <= 0 ? new ProcessOutcome(0, '200') : new ProcessOutcome(35, '000', 'curl: (35) TLS connect error'),
             str_starts_with($last, 'http://') && ! str_starts_with($last, 'http://app:') && ! str_starts_with($last, 'http://gotenberg:') => new ProcessOutcome(0, '308 '.str_replace('http://', 'https://', $last)),
             $this->smokeFails instanceof Closure && ($this->smokeFails)($urls, $spec->command) => new ProcessOutcome(22, '', 'curl: (22) The requested URL returned error: 503'),
             default => new ProcessOutcome(0, "200 http://app:8080/up\n"),
         };
+    }
+
+    private function caRefused(): bool
+    {
+        $caddyfile = $this->instance->directory->read('edge/Caddyfile');
+
+        return $this->refuseCa !== null && is_string($caddyfile) && str_contains($caddyfile, $this->refuseCa);
     }
 }

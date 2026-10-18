@@ -79,7 +79,7 @@ it('reverts to the old port when the smoke test fails after the change', functio
 
     [$code, $json] = $this->config->set('port', '8090', ['--yes' => true]);
 
-    expect($code)->toBe(4, json_encode($json))
+    expect($code)->toBe(5, json_encode($json))
         ->and($json['errors'][0]['code'])->toBe('smoke_failed')
         ->and($json['errors'][0]['hint'])->toContain('fsa logs')->not->toContain('fsa install')
         ->and($json['data'])->toMatchArray(['reverted' => true, 'url' => 'http://localhost:8080'])

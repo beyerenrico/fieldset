@@ -156,7 +156,10 @@ final readonly class InstanceSettings
         return $this->string('proxy_network');
     }
 
-    /** The proxy's container on that network, as resolved at install (for `fsa doctor` and `config set`). */
+    /**
+     * The proxy's container on that network, as resolved at install or by `config set trusted-proxy`: `fsa doctor` and
+     * `fsa status` re-resolve it to warn when its address moved, `config set trusted-proxy auto` follows it.
+     */
     public function proxyContainer(): ?string
     {
         return $this->string('proxy_container');

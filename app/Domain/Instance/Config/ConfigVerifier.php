@@ -11,6 +11,7 @@ use App\Domain\Instance\Docker\Labels;
 use App\Domain\Instance\Install\SmokeTest;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Output\ExitCode;
+use App\Domain\Instance\Output\ProgressReporter;
 use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
 
@@ -26,12 +27,15 @@ final readonly class ConfigVerifier
 {
     public const string ROLE = 'config-verify';
 
+    /** Process timeout of the proxy-mode host check (curl with its retries). */
+    public const int HOST_CHECK_SECONDS = 180;
+
     public function __construct(private DockerGateway $docker, private SmokeTest $smoke) {}
 
     /** @return array{checked: list<string>} */
-    public function verify(InstanceState $state, ComposeProject $project): array
+    public function verify(InstanceState $state, ComposeProject $project, ?ProgressReporter $progress = null, string $phase = 'verify'): array
     {
-        $checked = $this->smoke->run($state, $project)['checked'] ?? [];
+        $checked = $this->smoke->run($state, $project, $progress, $phase)['checked'] ?? [];
         $host = $this->urlHost($state);
         if ($host !== null) {
             $this->checkHost($state, $project, $host);
@@ -62,7 +66,7 @@ final readonly class ConfigVerifier
             labels: Labels::forInstance($state->uuid(), self::ROLE),
             network: $project->name.'_default',
             entrypoint: 'curl',
-        ), null, 180.0);
+        ), null, (float) self::HOST_CHECK_SECONDS);
         if (! $outcome->successful()) {
             throw new InstanceException(
                 "The app does not answer for {$host}.",
