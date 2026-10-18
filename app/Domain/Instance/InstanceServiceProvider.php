@@ -4,6 +4,13 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance;
 
+use App\Domain\Instance\Console\DoctorCommand;
+use App\Domain\Instance\Console\InstallCommand;
+use App\Domain\Instance\Console\LoginLinkCommand;
+use App\Domain\Instance\Console\LogsCommand;
+use App\Domain\Instance\Console\StatusCommand;
+use App\Domain\Instance\Console\UninstallCommand;
+use App\Domain\Instance\Console\VersionCommand;
 use App\Domain\Instance\Docker\CliDockerGateway;
 use App\Domain\Instance\Docker\DockerGateway;
 use App\Domain\Instance\Docker\OpsContextRequired;
@@ -20,10 +27,16 @@ use Illuminate\Support\ServiceProvider;
  *
  * The Docker gateway resolves only after an `fsa:*` command has opened a marked instance directory
  * (FsaCommand binds the InstanceDirectory); anywhere else, web and queue included, resolving it throws.
- * The `fsa:*` commands themselves are registered here as they arrive (U5 onwards).
+ * The `fsa:*` commands are registered here as they arrive (U5 onwards); constructing them touches nothing.
  */
 final class InstanceServiceProvider extends ServiceProvider
 {
+    /** @var list<class-string> */
+    public const array COMMANDS = [
+        InstallCommand::class, DoctorCommand::class, StatusCommand::class, LogsCommand::class,
+        VersionCommand::class, UninstallCommand::class, LoginLinkCommand::class,
+    ];
+
     public function register(): void
     {
         $this->app->singleton(HostFacts::class, static fn (): HostFacts => HostFacts::fromEnvironment(getenv()));
@@ -37,5 +50,12 @@ final class InstanceServiceProvider extends ServiceProvider
         // Release verification (R58, ADR 0070): the identity is built in; FSA_TRUST_KEY only in harness builds.
         $this->app->bind(TrustPolicy::class, static fn (): TrustPolicy => TrustPolicy::fromEnvironment(getenv(), BuildFlavor::current()));
         $this->app->bind(ManifestSchema::class, static fn (): ManifestSchema => ManifestSchema::bundled());
+    }
+
+    public function boot(): void
+    {
+        if ($this->app->runningInConsole()) {
+            $this->commands(self::COMMANDS);
+        }
     }
 }

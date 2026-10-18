@@ -8,6 +8,7 @@ use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\Docker\ContainerInfo;
 use App\Domain\Instance\Docker\ContainerSpec;
 use App\Domain\Instance\Docker\DockerGateway;
+use App\Domain\Instance\Docker\DockerInfo;
 use App\Domain\Instance\Docker\DockerResource;
 use App\Domain\Instance\Docker\DockerVersions;
 use App\Domain\Instance\Docker\ImageInfo;
@@ -51,9 +52,18 @@ final class RecordingDockerGateway implements DockerGateway
 
     public DockerVersions $versions;
 
+    public DockerInfo $info;
+
+    /** Answers runContainer calls by spec (null falls back to the queue); e.g. port probes, cosign, smoke checks. */
+    public ?Closure $runResponder = null;
+
+    /** Answers composeRun calls by command (null falls back to the queue); e.g. one-off artisan commands. */
+    public ?Closure $composeRunResponder = null;
+
     public function __construct()
     {
         $this->versions = new DockerVersions('29.9.0', '29.9.0', '5.6.0');
+        $this->info = new DockerInfo('29.9.0', 'Ubuntu 24.04', 'x86_64', 4 * 1024 ** 3, 2, false, '2026-10-18T10:00:00Z');
     }
 
     public static function bind(): self
@@ -142,6 +152,35 @@ final class RecordingDockerGateway implements DockerGateway
         return $this->versions;
     }
 
+    public function info(): DockerInfo
+    {
+        $this->record(__FUNCTION__);
+
+        return $this->info;
+    }
+
+    /** @param  Closure(ContainerSpec): ?ProcessOutcome  $responder */
+    public function respondToRun(Closure $responder): self
+    {
+        $this->runResponder = $responder;
+
+        return $this;
+    }
+
+    /** @param  Closure(list<string>, ?string): ?ProcessOutcome  $responder  command and stdin */
+    public function respondToComposeRun(Closure $responder): self
+    {
+        $this->composeRunResponder = $responder;
+
+        return $this;
+    }
+
+    /** @return list<string> methods called since the given index of the call log */
+    public function methodsSince(int $index): array
+    {
+        return array_slice($this->methods(), $index);
+    }
+
     public function composeUp(ComposeProject $project, array $services = [], ?int $waitTimeout = null, bool $removeOrphans = false): void
     {
         $this->record(__FUNCTION__, ['project' => $project->name, 'services' => $services, 'waitTimeout' => $waitTimeout, 'removeOrphans' => $removeOrphans]);
@@ -164,9 +203,10 @@ final class RecordingDockerGateway implements DockerGateway
 
     public function composeRun(ComposeProject $project, string $service, array $command = [], array $env = [], ?string $user = null, ?string $input = null, ?float $timeout = null, bool $withDependencies = false): ProcessOutcome
     {
-        $this->record(__FUNCTION__, ['project' => $project->name, 'service' => $service, 'command' => $command, 'env' => array_keys($env), 'user' => $user]);
+        $this->record(__FUNCTION__, ['project' => $project->name, 'service' => $service, 'command' => $command, 'env' => array_keys($env), 'user' => $user, 'timeout' => $timeout]);
+        $answer = $this->composeRunResponder instanceof Closure ? ($this->composeRunResponder)($command, $input) : null;
 
-        return $this->nextOutcome(__FUNCTION__);
+        return $answer instanceof ProcessOutcome ? $answer : $this->nextOutcome(__FUNCTION__);
     }
 
     public function composeLogs(ComposeProject $project, array $services = [], ?string $since = null, ?int $tail = null): string
@@ -236,8 +276,9 @@ final class RecordingDockerGateway implements DockerGateway
         if ($this->beforeRun instanceof Closure) {
             ($this->beforeRun)($spec);
         }
+        $answer = $this->runResponder instanceof Closure ? ($this->runResponder)($spec) : null;
 
-        return $this->nextOutcome(__FUNCTION__, str_repeat('c', 64)."\n");
+        return $answer instanceof ProcessOutcome ? $answer : $this->nextOutcome(__FUNCTION__, str_repeat('c', 64)."\n");
     }
 
     public function removeContainer(string $id, bool $force = true): void

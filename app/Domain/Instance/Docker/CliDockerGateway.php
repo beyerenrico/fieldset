@@ -46,6 +46,11 @@ final readonly class CliDockerGateway implements DockerGateway
         return new DockerVersions($version($engine['Client'] ?? null), $version($engine['Server'] ?? null), ltrim($compose, 'v'));
     }
 
+    public function info(): DockerInfo
+    {
+        return DockerInfo::fromJson(DockerJson::object($this->call(['info', '--format', '{{json .}}'], 'info')->stdout, 'info'));
+    }
+
     public function composeUp(ComposeProject $project, array $services = [], ?int $waitTimeout = null, bool $removeOrphans = false): void
     {
         $flags = ['--detach', '--wait', ...($waitTimeout === null ? [] : ['--wait-timeout', (string) $waitTimeout]), ...($removeOrphans ? ['--remove-orphans'] : [])];

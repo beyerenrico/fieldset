@@ -16,6 +16,9 @@ interface DockerGateway
 {
     public function versions(): DockerVersions;
 
+    /** The engine's view of the host: architecture, memory, rootless, clock (doctor). */
+    public function info(): DockerInfo;
+
     /** @param  list<string>  $services  empty = all services */
     public function composeUp(ComposeProject $project, array $services = [], ?int $waitTimeout = null, bool $removeOrphans = false): void;
 

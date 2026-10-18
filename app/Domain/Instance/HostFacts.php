@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Instance;
 
 use App\Domain\Instance\Docker\DockerRuntime;
+use App\Domain\Instance\Release\ImagePin;
 
 /**
  * Facts about the host that the ops container cannot observe itself, and how it was launched. The shim and
@@ -25,6 +26,8 @@ use App\Domain\Instance\Docker\DockerRuntime;
  * - FSA_NONCE: name of the nonce file the launcher wrote into the instance directory and every writable mount
  * - FSA_MOUNTS: one `ro:<path>` or `rw:<path>` line per parent directory of a file-path flag
  * - FSA_OPEN_URL_FILE: name of the file in the instance directory where a command hands a URL to the shim
+ * - FSA_RELEASE_MANIFEST: install.sh only, the verified `<dir>/releases/<version>/release-manifest.json`
+ * - FSA_REGISTRY: a registry mirror every image is pulled from instead of its own (ADR 0050)
  */
 final readonly class HostFacts
 {
@@ -54,6 +57,8 @@ final readonly class HostFacts
         public ?string $nonce = null,
         public array $mounts = [],
         public ?string $openUrlFile = null,
+        public ?string $releaseManifest = null,
+        public ?string $registry = null,
     ) {}
 
     /** @param  array<string, string>  $env  e.g. getenv() */
@@ -79,6 +84,8 @@ final readonly class HostFacts
             nonce: $match('FSA_NONCE', self::NONCE_PATTERN),
             mounts: self::mounts($env['FSA_MOUNTS'] ?? ''),
             openUrlFile: $match('FSA_OPEN_URL_FILE', self::OPEN_URL_PATTERN),
+            releaseManifest: self::absolutePath($env['FSA_RELEASE_MANIFEST'] ?? null),
+            registry: $match('FSA_REGISTRY', '/'.ImagePin::REGISTRY_PATTERN.'/D'),
         );
     }
 
@@ -86,6 +93,17 @@ final readonly class HostFacts
     public function callerUid(): int
     {
         return $this->uid ?? (function_exists('posix_getuid') ? posix_getuid() : 0);
+    }
+
+    public function callerGid(): int
+    {
+        return $this->gid ?? (function_exists('posix_getgid') ? posix_getgid() : 0);
+    }
+
+    /** Whether a prompt can be shown: the launcher attached a terminal, or (no launcher) the input is interactive. */
+    public function hasTerminal(bool $interactiveInput): bool
+    {
+        return $this->tty ?? $interactiveInput;
     }
 
     /** The in-container owner UID (KTD2): as reported, else derived from the runtime, else this process's UID. */

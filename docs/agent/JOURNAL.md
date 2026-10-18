@@ -162,3 +162,10 @@
 - Bootstrap journey 8/8 (fsa install replaced by a probe until U5), Unit suite 3546/3546, coverage 98.34 %.
 - Trivy research: all 34 app-image findings fixable by building Compose/age from source with Go 1.27.2 (+ x/net,
   grpc bumps); third-party pins already newest. Decision for the gate below (M9 supply-chain task).
+
+## 2026-10-18 M9-T08 lifecycle commands (U5)
+- fsa install (journaled phases doctor→secrets→state→pull→up→migrate→app_install→start→smoke→done, resumable,
+  idempotent, port fallback), doctor (12 checks incl. permissions, DNS preflight), status, logs, version,
+  uninstall (--keep-backups, --orphans), login-link via socket-less one-offs. ADR 0072.
+- J1/J12/Bootstrap 17/17 (J1 install 45 s), Unit+Feature 5421/5421, coverage 98.12 %. `--version` clash fixed
+  in the fsa wrapper. QUESTIONS 29–31.

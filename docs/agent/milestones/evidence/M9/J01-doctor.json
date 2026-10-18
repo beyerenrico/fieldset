@@ -1,0 +1,145 @@
+{
+    "command": "fsa doctor --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "doctor",
+        "status": "ok",
+        "changed": false,
+        "data": {
+            "checks": [
+                {
+                    "key": "docker",
+                    "status": "ok",
+                    "summary": "Docker Engine 29.2.1, Compose 5.6.0.",
+                    "hint": null,
+                    "details": {
+                        "engine": "29.2.1",
+                        "client": "29.9.1",
+                        "compose": "5.6.0"
+                    }
+                },
+                {
+                    "key": "architecture",
+                    "status": "ok",
+                    "summary": "The engine runs linux/arm64.",
+                    "hint": null,
+                    "details": {
+                        "platform": "linux/arm64",
+                        "release_platforms": [
+                            "linux/amd64",
+                            "linux/arm64"
+                        ],
+                        "os": "Docker Desktop"
+                    }
+                },
+                {
+                    "key": "memory",
+                    "status": "ok",
+                    "summary": "15972 MiB of memory.",
+                    "hint": null,
+                    "details": {
+                        "total_mib": 15972,
+                        "minimum_mib": 2048
+                    }
+                },
+                {
+                    "key": "disk",
+                    "status": "ok",
+                    "summary": "175.7 GiB free.",
+                    "hint": null,
+                    "details": {
+                        "free_gib": 175.7,
+                        "path": "<work>/fsa-test-j01"
+                    }
+                },
+                {
+                    "key": "path_sharing",
+                    "status": "ok",
+                    "summary": "The Docker engine shares the instance directory with fsa.",
+                    "hint": null,
+                    "details": {
+                        "dir": "<work>/fsa-test-j01",
+                        "mounts": [
+                            "<harness>/keys"
+                        ]
+                    }
+                },
+                {
+                    "key": "permissions",
+                    "status": "ok",
+                    "summary": "Only the instance owner can change the instance files.",
+                    "hint": null,
+                    "details": {
+                        "owner_uid": 0
+                    }
+                },
+                {
+                    "key": "stale_files",
+                    "status": "ok",
+                    "summary": "No stale hand-over files.",
+                    "hint": null,
+                    "details": {
+                        "removed": []
+                    }
+                },
+                {
+                    "key": "dns",
+                    "status": "skipped",
+                    "summary": "Local mode: no domain to resolve.",
+                    "hint": null,
+                    "details": []
+                },
+                {
+                    "key": "registry",
+                    "status": "ok",
+                    "summary": "Every image is already on this host.",
+                    "hint": null,
+                    "details": {
+                        "missing": []
+                    }
+                },
+                {
+                    "key": "clock",
+                    "status": "skipped",
+                    "summary": "No reference clock: fsa contacts no server just for the time.",
+                    "hint": null,
+                    "details": []
+                },
+                {
+                    "key": "ports",
+                    "status": "ok",
+                    "summary": "Ports 8081, 8025 are served by this instance.",
+                    "hint": null,
+                    "details": {
+                        "ports": {
+                            "app": 8081,
+                            "mail_ui": 8025
+                        }
+                    }
+                },
+                {
+                    "key": "services",
+                    "status": "ok",
+                    "summary": "All 7 services run and are healthy.",
+                    "hint": null,
+                    "details": {
+                        "services": {
+                            "app": "running (healthy)",
+                            "queue": "running (healthy)",
+                            "scheduler": "running",
+                            "postgres": "running (healthy)",
+                            "redis": "running (healthy)",
+                            "gotenberg": "running",
+                            "mailpit": "running (healthy)"
+                        }
+                    }
+                }
+            ],
+            "post": true
+        },
+        "secrets": [],
+        "warnings": [],
+        "errors": []
+    }
+}

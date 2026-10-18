@@ -1,0 +1,289 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Domain\Instance\Install;
+
+use App\Domain\Instance\Console\FsaContext;
+use App\Domain\Instance\Docker\ComposeProject;
+use App\Domain\Instance\InstanceException;
+use App\Domain\Instance\Lifecycle\AppCommands;
+use App\Domain\Instance\Lifecycle\OneOffResult;
+use App\Domain\Instance\Lifecycle\SignInDelivery;
+use App\Domain\Instance\Operations\ContainerIdentity;
+use App\Domain\Instance\Operations\JournalRecord;
+use App\Domain\Instance\Operations\OperationJournal;
+use App\Domain\Instance\Operations\OperationRun;
+use App\Domain\Instance\Operations\Supervisor;
+use App\Domain\Instance\Output\CommandResult;
+use App\Domain\Instance\Output\ExitCode;
+use App\Domain\Instance\Output\InvalidInput;
+use App\Domain\Instance\State\InstanceDirectory;
+use App\Domain\Instance\State\InstanceSettings;
+use App\Domain\Instance\State\InstanceState;
+use Carbon\CarbonImmutable;
+
+/**
+ * `fsa install` in local mode (F2, R9–R15, R54, R63, R69, ADR 0072). Under the instance lock, with every phase
+ * journaled before it starts:
+ *
+ * doctor (verify the release, preflight, choose ports, refuse foreign projects) → secrets → state (and the
+ * rendered files) → pull → up (Postgres and Valkey) → migrate (one-off) → app_install (one-off: organization,
+ * owner, operator role, owner link) → start (the whole stack, `up --wait`) → smoke → done.
+ *
+ * A failure in the doctor phase changes nothing (exit 3/7/10, journal archived). A later failure leaves the
+ * journal open (exit 4 for health, 3 for pulls): the same command resumes after the last completed phase with the
+ * secrets already written, and accepts corrected flags only for phases that have not run. On a finished
+ * instance the same flags change nothing (`changed: false`, no Docker call); different ones exit 2.
+ */
+final readonly class Installer
+{
+    public const string OPERATION = 'install';
+
+    /** Services the migrations need; the app roles start only once the schema exists. */
+    public const array INFRASTRUCTURE = ['postgres', 'redis'];
+
+    public function __construct(
+        private InstanceDirectory $directory,
+        private OperationJournal $journal,
+        private Supervisor $supervisor,
+        private ContainerIdentity $identity,
+        private InstallPreflight $preflight,
+        private InstanceStack $stack,
+        private AppCommands $app,
+        private SmokeTest $smoke,
+    ) {}
+
+    public function situation(): InstallSituation
+    {
+        if ($this->journal->current()?->operation() === self::OPERATION) {
+            return InstallSituation::Resume;
+        }
+        $state = $this->directory->hasState() ? $this->directory->state() : null;
+
+        return $state instanceof InstanceState && InstallRecord::isInstalled($state) ? InstallSituation::Finished : InstallSituation::Fresh;
+    }
+
+    public function install(InstallRequest $request, FsaContext $context, bool $secretsToFile): CommandResult
+    {
+        if ($this->situation() === InstallSituation::Finished) {
+            return $this->unchanged($request);
+        }
+        $current = $this->journal->current();
+        if ($current instanceof JournalRecord && $current->operation() === self::OPERATION) {
+            $request = $this->resumable($request, $current);
+        }
+        $holder = $this->identity->holder('fsa', $context->facts->callerUid());
+
+        return $this->supervisor->run(
+            self::OPERATION,
+            $holder,
+            fn (OperationRun $run): CommandResult => $this->steps($run, $request, $context, $secretsToFile),
+            resume: true,
+            context: $request->toContext(),
+            progress: $context->progress,
+        );
+    }
+
+    private function steps(OperationRun $run, InstallRequest $request, FsaContext $context, bool $secretsToFile): CommandResult
+    {
+        if ($run->record()->phases() === [] && $this->directory->hasState() && InstallRecord::isInstalled($this->directory->state())) {
+            return $this->unchanged($request); // another install finished while this one waited for the lock
+        }
+        if ($run->record()->phases() !== []) {
+            $run->note('flags', $request->toContext());
+        }
+        $preflight = $run->phase('doctor', fn (): array => $this->preflight->run($request, $context->facts), changes: false);
+        if ($request->domain() !== null) {
+            throw new InvalidInput('Domain mode arrives with 2.0.0-alpha.2; the DNS preflight for '.$request->domain().' passed.', 'unsupported_mode', 'Install in local mode now (without --domain) and switch later, or wait for the next pre-release.');
+        }
+        $run->phase('secrets', fn (): array => $this->stack->ensureSecrets($context->redactor));
+        $run->phase('state', fn (): array => $this->stack->writeState($preflight, $context->facts));
+        $state = $this->directory->state();
+        $project = ComposeProject::forInstance($state, $this->directory);
+        $run->phase('pull', fn (): array => $this->stack->pull(), changes: false);
+        $run->phase('up', fn (): array => $this->stack->up($project, self::INFRASTRUCTURE));
+        $run->phase('migrate', fn (): array => $this->migrate($project));
+        $link = null;
+        $installed = $run->phase('app_install', function () use ($project, $request, $context, &$link): array {
+            [$data, $link] = $this->appInstall($project, $request, $context);
+
+            return $data;
+        });
+        $run->phase('start', fn (): array => $this->stack->up($project, []));
+        $run->phase('smoke', fn (): array => $this->smoke->run($state, $project), changes: false);
+        $warnings = ($installed['already_installed'] ?? false) === true
+            ? [['app_already_installed', 'The database already held an organization: --org, --owner-email, --owner-name and --locale were not applied.', 'Change them in the admin panel; the sign-in link goes to the owner given here.']]
+            : [];
+        $run->phase('done', function () use ($project, $request, $context, &$link, &$warnings): array {
+            [$link, $more] = $this->finish($project, $request, $context, $link);
+            $warnings = [...$warnings, ...$more];
+
+            return ['link_issued' => $link !== null];
+        });
+
+        return $this->result($this->directory->state(), $request, $preflight, $warnings, $link, $context, $secretsToFile);
+    }
+
+    /** @return array{migrated: true} */
+    private function migrate(ComposeProject $project): array
+    {
+        $outcome = $this->app->migrate($project);
+        if (! $outcome->successful()) {
+            $output = implode("\n", array_slice(preg_split('/\R/', trim($outcome->stdout)) ?: [], -10));
+            throw new InstanceException('The database migrations failed.', ExitCode::HealthCheckFailed, 'migrate_failed', 'Read the output, fix the cause, then run `fsa install` again with the same flags: it resumes here.', true, ['output' => trim($output."\n".$outcome->stderrTail(10))]);
+        }
+
+        return ['migrated' => true];
+    }
+
+    /** @return array{0: array<string, mixed>, 1: array{value: string, expires_at: CarbonImmutable|null}|null} */
+    private function appInstall(ComposeProject $project, InstallRequest $request, FsaContext $context): array
+    {
+        $result = $this->app->install($project, $request, $context->facts->callerUid());
+        if (! $result->ok) {
+            throw $this->oneOffFailure('app:install', $result, $result->errorCode() === 'invalid_input');
+        }
+        $link = $result->secret(SignInDelivery::SECRET);
+        if ($link !== null) {
+            $context->redactor->register($link['value']);
+        }
+        $owner = is_array($result->data['owner'] ?? null) ? $result->data['owner'] : [];
+
+        return [[
+            'already_installed' => $result->hasWarning('already_installed'),
+            'organization' => is_array($result->data['organization'] ?? null) ? ($result->data['organization']['name'] ?? null) : null,
+            'operator' => ($owner['operator'] ?? null) === true,
+        ], $link];
+    }
+
+    /**
+     * Marks the instance installed and makes sure a sign-in link goes out: the owner link of this run, or a fresh
+     * 15-minute link when app:install ran in an earlier attempt (its link went unused with that failure).
+     *
+     * @param  array{value: string, expires_at: CarbonImmutable|null}|null  $link
+     * @return array{0: array{value: string, expires_at: CarbonImmutable|null}|null, 1: list<array{0: string, 1: string, 2: string|null}>}
+     */
+    private function finish(ComposeProject $project, InstallRequest $request, FsaContext $context, ?array $link): array
+    {
+        $warnings = [];
+        if ($link === null) {
+            $fresh = $this->app->loginLink($project, $request->ownerEmail(), $context->facts->callerUid());
+            $link = $fresh->ok ? $fresh->secret(SignInDelivery::SECRET) : null;
+            if ($link === null) {
+                $warnings[] = ['sign_in_link_unavailable', 'No sign-in link could be issued: '.$fresh->errorMessage(), "Run `fsa login-link {$request->ownerEmail()}` once the cause is fixed."];
+            } else {
+                $context->redactor->register($link['value']);
+            }
+        }
+        $state = $this->directory->state();
+        if (! InstallRecord::isInstalled($state)) {
+            $this->directory->saveState($state->withHistoryEntry(InstallRecord::EVENT, InstallRecord::entry($request, $state)));
+        }
+
+        return [$link, $warnings];
+    }
+
+    /**
+     * @param  array<string, mixed>  $preflight
+     * @param  list<array{0: string, 1: string, 2: string|null}>  $warnings
+     * @param  array{value: string, expires_at: CarbonImmutable|null}|null  $link
+     */
+    private function result(InstanceState $state, InstallRequest $request, array $preflight, array $warnings, ?array $link, FsaContext $context, bool $secretsToFile): CommandResult
+    {
+        $result = CommandResult::ok(self::OPERATION, $this->summary($state, $request->ownerEmail()), changed: true);
+        foreach (is_array($preflight['warnings'] ?? null) ? $preflight['warnings'] : [] as $warning) {
+            $result = $result->withWarning((string) $warning['code'], (string) $warning['message'], is_string($warning['hint'] ?? null) ? $warning['hint'] : null);
+        }
+        foreach (is_array($preflight['orphans'] ?? null) ? $preflight['orphans'] : [] as $uuid) {
+            $result = $result->withWarning('orphans_found', "Containers of another installation ({$uuid}) ran from this directory.", "If that directory was deleted by hand, remove them with `fsa uninstall --orphans {$uuid} --yes`.");
+        }
+        foreach ($warnings as [$code, $message, $hint]) {
+            $result = $result->withWarning($code, $message, $hint);
+        }
+
+        return $link === null ? $result : SignInDelivery::deliver($result, $context, $link['value'], $link['expires_at'], $secretsToFile);
+    }
+
+    /** A finished instance: same flags change nothing (R13, AE3), different flags are a `config set` (exit 2). */
+    private function unchanged(InstallRequest $request): CommandResult
+    {
+        $state = $this->directory->state();
+        $changed = $request->changedFlags(InstallRecord::applied($state));
+        if ($changed !== []) {
+            throw new InvalidInput(
+                'This instance is installed; '.implode(', ', $changed).' differ from its installation.',
+                'use_config_set',
+                'fsa install changes nothing on an installed instance: use `fsa config set` for settings and `fsa upgrade` for another version.',
+            );
+        }
+        $email = InstallRecord::recorded($state)['owner_email'] ?? '';
+
+        return CommandResult::ok(self::OPERATION, [...$this->summary($state, is_string($email) ? $email : ''), 'installed_at' => InstallRecord::recorded($state)['at'] ?? null], changed: false);
+    }
+
+    /** On resume: the earlier inputs still apply; a flag whose phase already ran must not change (exit 2). */
+    private function resumable(InstallRequest $request, JournalRecord $record): InstallRequest
+    {
+        $recorded = [...$record->context(), ...$this->lastFlags($record)];
+        $applied = [];
+        if ($record->hasCompleted('doctor')) {
+            $doctor = $record->phaseData('doctor');
+            $applied = ['version' => $doctor['version'] ?? null, 'port' => $doctor['port'] ?? null, 'domain' => null];
+        }
+        if ($record->hasCompleted('app_install')) {
+            foreach (InstallRequest::APP_FLAGS as $key) {
+                $applied[$key] = is_string($recorded[$key] ?? null) ? $recorded[$key] : null;
+            }
+        }
+        $changed = $request->changedFlags($applied);
+        if ($changed !== []) {
+            throw new InvalidInput(
+                'The interrupted install already applied '.implode(', ', $changed).' with other values.',
+                'flag_already_applied',
+                'Run `fsa install` again with the values of the first run (or without these flags) to resume, or `fsa uninstall --yes` to start over.',
+            );
+        }
+
+        return $request->over($recorded);
+    }
+
+    /** @return array<string, mixed> the inputs recorded by the last resumed run (corrections included) */
+    private function lastFlags(JournalRecord $record): array
+    {
+        $flags = array_filter($record->events(), static fn (array $event): bool => $event['type'] === 'flags');
+
+        return $flags === [] ? [] : $flags[array_key_last($flags)]['data'];
+    }
+
+    private function oneOffFailure(string $command, OneOffResult $result, bool $userInput): InstanceException
+    {
+        return new InstanceException(
+            "`{$command}` failed: ".$result->errorMessage(),
+            $userInput ? ExitCode::InvalidInput : ExitCode::HealthCheckFailed,
+            $userInput ? 'invalid_input' : 'app_install_failed',
+            $userInput ? 'Correct the flag and run `fsa install` again: it resumes here.' : 'Read the output, fix the cause, then run `fsa install` again with the same flags: it resumes here.',
+            ! $userInput,
+            ['code' => $result->errorCode(), 'output' => $result->output],
+        );
+    }
+
+    /** @return array<string, mixed> */
+    private function summary(InstanceState $state, string $ownerEmail): array
+    {
+        $settings = InstanceSettings::of($state);
+        $fsa = $this->directory->root.'/fsa';
+
+        return [
+            'url' => $settings->instanceUrl(),
+            'version' => $state->version(),
+            'mode' => $state->mode(),
+            'dir' => $this->directory->root,
+            'project' => $state->project(),
+            'port' => $settings->port(),
+            'mail' => ['mode' => $settings->capturesMail() ? 'capture' : 'smtp', 'catcher_url' => $settings->capturesMail() ? 'http://localhost:'.$settings->mailUiPort() : null],
+            'owner_email' => $ownerEmail,
+            'next_commands' => ["{$fsa} status", "{$fsa} login-link {$ownerEmail}", "{$fsa} doctor --post"],
+        ];
+    }
+}

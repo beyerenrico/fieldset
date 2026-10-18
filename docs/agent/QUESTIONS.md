@@ -125,3 +125,12 @@ Format: question · chosen option · impact · how to reverse.
    for now (the harness journey still checks it verifies the harness signature) · it costs image size and adds
    Go-stdlib Trivy findings (QUESTIONS 27) for no runtime use · decide whether to drop it from
    `docker/app/Dockerfile` (and ADR 0060's "fsa uses the cosign binary in the image") or keep it for offline use.
+29. A resumed install after the app_install phase issues a 15-minute admin sign-in link, not the 60-minute
+   owner link (U5, ADR 0072) · kept: `app:install` does not re-issue owner links · an owner whose first link
+   expired gets a shorter link on resume · make `app:install --owner-link` re-issue an owner link for an owner
+   without a password.
+30. `fsa uninstall` leaves the empty instance directory, because it is the ops container's bind mount ·
+   kept · an empty directory remains · let the shim `rmdir` it after a successful uninstall.
+31. `fsa uninstall --orphans <uuid>` does not check whether that instance is alive in another directory ·
+   kept: operator names the UUID explicitly · a typo could remove a live instance's resources · add a liveness
+   check (running containers with that label) and require `--yes` twice.

@@ -1,9 +1,27 @@
 #!/bin/sh
 # fsa <command> [args…] runs `php artisan fsa:<command>`; without a command it lists them (KTD1, ADR 0065).
+# Symfony's console answers a literal --version with the framework version before any command runs, so the
+# --version flag of `fsa install` (§7) is passed on as --release, up to a literal -- (ADR 0072).
 set -e
 case "${1:-}" in
 "" | -*) exec php /var/www/html/artisan list fsa "$@" ;;
 esac
 command="$1"
 shift
+n=$#
+rewrite=0
+[ "$command" != install ] || rewrite=1
+while [ "$n" -gt 0 ]; do
+	arg=$1
+	shift
+	n=$((n - 1))
+	if [ "$rewrite" = 1 ]; then
+		case $arg in
+		--) rewrite=0 ;;
+		--version) arg=--release ;;
+		--version=*) arg=--release=${arg#--version=} ;;
+		esac
+	fi
+	set -- "$@" "$arg"
+done
 exec php /var/www/html/artisan "fsa:$command" "$@"

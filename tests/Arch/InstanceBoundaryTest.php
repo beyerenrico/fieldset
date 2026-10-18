@@ -26,6 +26,8 @@ const INSTANCE_OPS_NAMESPACES = [
     'App\Domain\Instance\Console',
     'App\Domain\Instance\Compose',
     'App\Domain\Instance\Doctor',
+    'App\Domain\Instance\Install',
+    'App\Domain\Instance\Lifecycle',
     'App\Domain\Instance\Backup',
     'App\Domain\Instance\Restore',
     'App\Domain\Instance\Upgrade',

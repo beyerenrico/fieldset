@@ -13,15 +13,16 @@ use App\Domain\Instance\State\InstanceState;
 use Symfony\Component\Process\Process;
 use Tests\Support\Docker\Cosign;
 use Tests\Support\Docker\ReleaseHarness;
+use Tests\Support\Docker\SharedHarness;
 use Tests\Support\Docker\TestImage;
 
 /*
  * U4 / M9-T07: install.sh and the shim against the local release harness with real Docker (R7, R8, R58, KTD2,
- * ADR 0070). One harness release (harness builds of the image and install.sh) serves the whole file. Until U5's
- * `fsa install` exists, a `docker` wrapper on PATH swaps the ops container's `fsa` entrypoint for
- * tests/Install/Harness/ops-probe.php, which reports the handover from inside the real container and runs the
- * image's launch checks; everything else (verification, pulls, mounts, user, socket) is real. Follow-up for
- * U5's J1: drop the probe and assert `fsa install` itself (exit 6 without a TTY for a missing required flag).
+ * ADR 0070). The shared harness release (harness builds of the image and install.sh, SharedHarness) serves the
+ * whole file. To observe the hand-over contract (argv, user, environment, mounts) a `docker` wrapper on PATH can
+ * swap the ops container's `fsa` entrypoint for tests/Install/Harness/ops-probe.php, which reports it from inside
+ * the real container; FSA_PROBE_OFF=1 lets the real fsa commands run (U5: `fsa install` exits 6 for a missing
+ * flag without a TTY, `fsa doctor` fails the nonce check). Full installs are J1 and J12.
  */
 
 beforeAll(function (): void {
@@ -30,23 +31,15 @@ beforeAll(function (): void {
     }
 
     try {
-        $harness = ReleaseHarness::start();
-        $GLOBALS['fsaBootstrap'] = ['harness' => $harness, 'release' => $harness->publish(ReleaseHarness::TEST_VERSION), 'work' => bootstrapWorkspace($harness->directory.'/bootstrap')];
+        [$harness, $release] = SharedHarness::get();
+        $GLOBALS['fsaBootstrap'] = ['harness' => $harness, 'release' => $release, 'work' => bootstrapWorkspace($harness->directory.'/bootstrap')];
     } catch (Throwable $exception) {
         $GLOBALS['fsaBootstrapError'] = $exception;
-        if (isset($harness)) {
-            $harness->stop();
-        }
     }
 });
 
 afterAll(function (): void {
-    if (isset($GLOBALS['fsaBootstrap'])) {
-        ['harness' => $harness, 'release' => $release] = $GLOBALS['fsaBootstrap'];
-        new Process(['docker', 'image', 'rm', $harness->registry().'/beyerenrico/form-schema-app@'.$release->appDigest])->run();
-        $harness->stop();
-    }
-
+    // The shared harness (and the pulled app image with it) stays for the other journeys; SharedHarness stops it.
     unset($GLOBALS['fsaBootstrap'], $GLOBALS['fsaBootstrapError']);
 });
 
@@ -83,7 +76,7 @@ function bootstrapWorkspace(string $work): string
                 shift
                 n=$((n - 1))
                 if [ "$prev" = --entrypoint ] && [ "$a" = fsa ]; then
-                    set -- "$@" /fsa-probe/probe.sh -v "$FSA_PROBE_DIR:/fsa-probe:ro"
+                    if [ -n "${FSA_PROBE_OFF:-}" ]; then set -- "$@" fsa; else set -- "$@" /fsa-probe/probe.sh -v "$FSA_PROBE_DIR:/fsa-probe:ro"; fi
                     [ -z "${FSA_PROBE_HIDE_NONCE:-}" ] || rm -f "$FSA_PROBE_HIDE_NONCE"/.fsa-nonce-*
                 elif [ -n "${FSA_PROBE_DROP_MOUNT:-}" ] && [ "$a" = "$FSA_PROBE_DROP_MOUNT:$FSA_PROBE_DROP_MOUNT" ]; then
                     set -- "$@" "$FSA_PROBE_DIR:/fsa-probe-dropped:ro"
@@ -152,7 +145,9 @@ function bootstrapInstall(object $test, string $name, array $arguments = [], arr
 function bootstrapWriteState(object $test, string $directory): void
 {
     $uid = posix_getuid();
-    $state = InstanceState::create('6a0f3c1e-2b4d-4e8f-9a1b-3c5d7e9f0a2b', $directory, $uid, posix_getgid(), $uid)
+    // The in-container owner UID (KTD2): 0 under Docker Desktop, where container root writes as the host user.
+    $desktop = PHP_OS_FAMILY === 'Darwin' || str_contains((string) shell_exec('docker info --format "{{.OperatingSystem}}"'), 'Docker Desktop');
+    $state = InstanceState::create('6a0f3c1e-2b4d-4e8f-9a1b-3c5d7e9f0a2b', $directory, $uid, posix_getgid(), $desktop ? 0 : $uid)
         ->withRelease(ReleaseHarness::TEST_VERSION, ['app' => $test->appReference]);
     file_put_contents($directory.'/state.json', $state->toJson());
 }
@@ -246,17 +241,30 @@ it('(d) verifies, pulls by digest and hands over to the ops container with mount
         ->and(glob($directory.'/.fsa-nonce-*'))->toBe([]);
 });
 
-it('(e) the shim fails the nonce check with exit 3 and a file-sharing hint when the daemon cannot see the directory', function (): void {
+it('(d) the real fsa install exits 6 without a terminal when a required flag is missing (R26)', function (): void {
+    [$process, $directory] = bootstrapInstall($this, 'missing-flag', ['--owner-email', 'owner@example.test', '--json'], ['FSA_PROBE_OFF' => '1']);
+    $json = json_decode($process->getOutput(), true);
+
+    expect($process->getExitCode())->toBe(6, $process->getErrorOutput().$process->getOutput())
+        ->and($json['command'])->toBe('install')
+        ->and($json['errors'][0]['code'])->toBe('input_required')
+        ->and($json['data']['missing'])->toBe(['--org'])
+        ->and(file_exists($directory.'/state.json'))->toBeFalse()
+        ->and(glob($directory.'/.fsa-nonce-*'))->toBe([]);
+});
+
+it('(e) the shim runs the real fsa doctor, which fails the nonce check with exit 3 when the daemon cannot see the directory', function (): void {
     [, $directory] = bootstrapInstall($this, 'shim-instance');
     bootstrapWriteState($this, $directory);
 
-    $visible = bootstrapRun($this, [$directory.'/fsa', 'doctor', '--json']);
-    $hidden = bootstrapRun($this, [$directory.'/fsa', 'doctor', '--json'], ['FSA_PROBE_HIDE_NONCE' => $directory]);
-    $error = bootstrapProbe($hidden)['error'] ?? [];
+    $visible = bootstrapRun($this, [$directory.'/fsa', 'doctor', '--json'], ['FSA_PROBE_OFF' => '1']);
+    $hidden = bootstrapRun($this, [$directory.'/fsa', 'doctor', '--json'], ['FSA_PROBE_OFF' => '1', 'FSA_PROBE_HIDE_NONCE' => $directory]);
+    $checks = array_column(json_decode($visible->getOutput(), true)['data']['checks'] ?? [], 'status', 'key');
+    $error = json_decode($hidden->getOutput(), true)['errors'][0] ?? [];
 
     expect($visible->getExitCode())->toBe(0, $visible->getErrorOutput().$visible->getOutput())
-        ->and(bootstrapProbe($visible)['probe']['argv'])->toBe(['doctor', '--json', '--dir', $directory])
-        ->and(bootstrapProbe($visible)['probe']['env']['FSA_LAUNCHER'])->toBe('shim')
+        ->and($checks['path_sharing'] ?? null)->toBe('ok')
+        ->and($checks['permissions'] ?? null)->toBe('ok')
         ->and($hidden->getExitCode())->toBe(3)
         ->and($error['code'] ?? null)->toBe('path_not_shared')
         ->and($error['hint'] ?? '')->toContain('File sharing');

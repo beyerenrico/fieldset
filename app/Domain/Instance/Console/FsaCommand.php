@@ -110,6 +110,15 @@ abstract class FsaCommand extends Command
         return null;
     }
 
+    /**
+     * Whether the command may ask a question: never with --json (stdout carries one document), never without a
+     * terminal, and not under --yes (which promises a run without questions) unless the caller ignores it.
+     */
+    protected function canPrompt(FsaContext $context, bool $ignoreYes = false): bool
+    {
+        return ! $context->json && ($ignoreYes || ! $context->yes) && $context->facts->hasTerminal($this->input->isInteractive());
+    }
+
     /** Envelope `command`: the name without the `fsa:` prefix. */
     protected function resultName(): string
     {
@@ -153,7 +162,7 @@ abstract class FsaCommand extends Command
             return;
         }
         // With --json stdout carries exactly one document, so a prompt would corrupt it: treat it like no TTY.
-        if ($context->json || ! ($context->facts->tty ?? $this->input->isInteractive())) {
+        if (! $this->canPrompt($context, ignoreYes: true)) {
             throw new ConfirmationRequired($question);
         }
         if (! $this->confirm($question)) {

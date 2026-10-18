@@ -1,0 +1,75 @@
+{
+    "command": "fsa uninstall --yes --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "uninstall",
+        "status": "ok",
+        "changed": true,
+        "data": {
+            "uuid": "060e1377-7811-4197-9683-5f5da0ead163",
+            "removed": {
+                "containers": [
+                    "fsa-fsa-test-j01-f3bb-mailpit-1",
+                    "fsa-fsa-test-j01-f3bb-queue-1",
+                    "fsa-fsa-test-j01-f3bb-app-1",
+                    "fsa-fsa-test-j01-f3bb-gotenberg-1",
+                    "fsa-fsa-test-j01-f3bb-scheduler-1",
+                    "fsa-fsa-test-j01-f3bb-postgres-1",
+                    "fsa-fsa-test-j01-f3bb-redis-1"
+                ],
+                "networks": [
+                    "fsa-fsa-test-j01-f3bb_default",
+                    "fsa-fsa-test-j01-f3bb_renderer"
+                ],
+                "volumes": [
+                    "fsa-fsa-test-j01-f3bb_app-storage",
+                    "fsa-fsa-test-j01-f3bb_mailpit-data",
+                    "fsa-fsa-test-j01-f3bb_pg-data",
+                    "fsa-fsa-test-j01-f3bb_valkey-data"
+                ]
+            },
+            "dir": "<work>/fsa-test-j01",
+            "deleted_files": [
+                ".fsa-instance",
+                "compose.yaml",
+                "env",
+                "fsa",
+                "operations",
+                "releases",
+                "runtime",
+                "state.json"
+            ],
+            "kept": []
+        },
+        "secrets": [],
+        "warnings": [],
+        "errors": []
+    },
+    "labelled_before": {
+        "containers": [
+            "fsa-fsa-test-j01-f3bb-mailpit-1",
+            "fsa-fsa-test-j01-f3bb-queue-1",
+            "fsa-fsa-test-j01-f3bb-app-1",
+            "fsa-fsa-test-j01-f3bb-gotenberg-1",
+            "fsa-fsa-test-j01-f3bb-scheduler-1",
+            "fsa-fsa-test-j01-f3bb-postgres-1",
+            "fsa-fsa-test-j01-f3bb-redis-1"
+        ],
+        "volumes": [
+            "fsa-fsa-test-j01-f3bb_app-storage",
+            "fsa-fsa-test-j01-f3bb_mailpit-data",
+            "fsa-fsa-test-j01-f3bb_pg-data",
+            "fsa-fsa-test-j01-f3bb_valkey-data"
+        ],
+        "networks": [
+            "fsa-fsa-test-j01-f3bb_default",
+            "fsa-fsa-test-j01-f3bb_renderer"
+        ]
+    },
+    "labelled_after": {
+        "containers": [],
+        "volumes": [],
+        "networks": []
+    }
+}
