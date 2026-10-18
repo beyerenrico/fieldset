@@ -1,5 +1,5 @@
 # 0065: App image: ops binaries, slimming and measured size
-- Status: accepted
+- Status: accepted; the binary table and "cosign stays in the image" are superseded by ADR 0071
 - Date: 2026-10-17
 
 ## Context

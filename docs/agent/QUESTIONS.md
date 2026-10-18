@@ -112,16 +112,26 @@ Format: question · chosen option · impact · how to reverse.
    host · losing the disk or host loses the backups with the data; losing the identity file or its passphrase
    makes encrypted backups unreadable · document copying backups off-host; build offsite targets (Appendix B) if
    owners do not.
-27. The Trivy gate (plan U7: no fixable critical/high in the app image or any third-party digest) fails today
-   on findings with no fixed upstream release: app image 34 HIGH in the vendored cosign/Compose/age Go binaries,
-   postgres 1 CRITICAL + 24 HIGH (gosu), gotenberg 87 HIGH, caddy 4 HIGH, cloudflared 1 HIGH; valkey and
-   mailpit clean · gate kept as written, no `.trivyignore`; CI `image-scan` stays red and is resolved at the M9
-   gate (rebuild the Go binaries with a current toolchain where the findings are in the Go standard library,
-   pin newer upstream digests where they exist, and document any remaining third-party finding) · a tagged
-   release would stop at the scan job · decide whether third-party image findings without an upstream fix may
-   be accepted with a dated, per-CVE exception list.
-28. fsa verifies release manifests with the pinned official cosign image, like install.sh (ADR 0070), so the
-   cosign binary in the app image (~130 MB of E17, ADR 0063/0065) is no longer used by fsa · kept in the image
-   for now (the harness journey still checks it verifies the harness signature) · it costs image size and adds
-   Go-stdlib Trivy findings (QUESTIONS 27) for no runtime use · decide whether to drop it from
-   `docker/app/Dockerfile` (and ADR 0060's "fsa uses the cosign binary in the image") or keep it for offline use.
+27. (Open: confirm the exception policy.) The Trivy gate (plan U7: no fixable critical/high in the app image or
+   any third-party digest) failed at M9 on findings that no released upstream image fixes. App image: 34 HIGH in
+   the vendored cosign, Compose and age Go binaries. postgres: 1 CRITICAL + 24 HIGH (gosu). gotenberg: 87 HIGH.
+   caddy: 4 HIGH (reachable). cloudflared: 1 HIGH. valkey and mailpit were clean.
+   · Chosen (ADR 0071): what we build is scanned strictly. cosign leaves the image, and Compose and age are rebuilt
+   from their verified release tags with Go 1.27.2, which brings the app image to 0, with no exception file.
+   Third-party images get per-service, per-finding exceptions in `distribution/trivy/<service>.trivyignore.yaml`,
+   scoped by path or purl, each with a statement, expiring after 90 days (gosu: unreachable, upstream policy) or 30
+   days (gotenberg, caddy, cloudflared: fixed upstream, no image release yet). `release.yml` applies only the
+   image's own file and lists what it suppresses.
+   · Impact: releases pass the scan while caddy's 4 reachable Go findings and gotenberg's Chromium findings run in
+   production until a fixed image ships, at most 30 days. Expired entries fail the release again.
+   · To reverse: delete `distribution/trivy/` and the `--ignorefile` branch of `release.yml`'s scan loop; the gate
+   is then strict for every image again. Or shorten the expiry, or drop single entries (for example caddy's).
+28. (Resolved by ADR 0071.) fsa verifies release manifests with the pinned official cosign image, like install.sh
+   (ADR 0070), so the cosign binary in the app image (~130 MB of E17, ADR 0063/0065) had no user left.
+   · Chosen: dropped from `docker/app/Dockerfile`. The harness journey and `tests/Support/Docker/Cosign.php`
+   verify with the pinned image, and the image contract tests assert that cosign is absent. Offline use was no
+   reason to keep it: keyless verification needs Sigstore's TUF root either way.
+   · Impact: the image is 141 MB (arm64) and 150 MB (amd64) smaller, with 21 fewer Trivy findings, and one cosign
+   build to keep current instead of two.
+   · To reverse: restore cosign's release download (both architectures' checksums), its LICENSE in the `tools`
+   stage and its entry in `docker/app/binaries.json`, and revert the image contract assertions.

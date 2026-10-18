@@ -1,5 +1,5 @@
 # 0060: Signed multi-arch images, attestations and a signed release manifest
-- Status: accepted
+- Status: accepted; amended by ADR 0070 and ADR 0071 (fsa uses the pinned cosign image; the image ships none)
 - Date: 2026-10-17
 
 ## Context
