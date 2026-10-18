@@ -126,3 +126,21 @@ HTTPS is `fsa install --phone-https` and `fsa tunnel start` (U14).
 - Consistent with QUESTIONS 39: `config set` (domain, local CA) refuses; `fsa tunnel start` rotates the demo
   accounts itself inside its operation, as before.
 
+## Amendment 2026-10-19: the demo organization is marked, the slug `demo` reserved (M11 gate)
+- Gap: demo-ness was "the organization with the slug `demo`", and slugs were not reserved. `fsa install --org Demo
+  --demo` gave the owner's real organization the slug `demo`: the seeder answered `already_seeded`, no demo users
+  existed, and the check counted `non_demo = 0`, so `fsa tunnel start` exposed the real organization without the R65
+  `--yes` confirmation.
+- Marker: `organizations.is_demo` (boolean, default false; migration `2026_10_25_100000_add_is_demo_to_organizations`
+  with a partial unique index, so at most one organization is the demo, a deleted one included). It is not fillable:
+  only `CreateOrganization::handle(..., demo: true)` sets it, and only `DemoSeeder` passes that. Every decision reads
+  it: `DemoAccounts::organization()` (the seeder's and `app:demo-seed`'s "already seeded"), and the check's
+  `organizations.non_demo` (`where is_demo = false`). Demo accounts stay the e-mail table of `DemoAccounts`.
+- Reservation: `CreateOrganization` skips the slug `demo` when it generates one (a real organization named "Demo",
+  "DEMO" or "Démo" gets `demo-2`, …) and refuses it as an explicit slug (InvalidArgumentException). `app:install`,
+  the registration page and the SSO demo seeder all go through it. The demo organization takes `demo`, or the next
+  free slug when a real organization holds `demo` from before the reservation.
+- Upgrade: the migration marks the organization with the slug `demo` only when `owner@demo.test` is its member (the
+  seeder's owner); a real organization that took the slug stays unmarked, and a later `fsa demo` seeds the demo
+  beside it (as `demo-2`).
+

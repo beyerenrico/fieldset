@@ -12,7 +12,9 @@ use Illuminate\Database\Eloquent\Collection;
 /**
  * The demo organization and its accounts (DemoSeeder, BUILD_PROMPT_V2 R29): one user per persona with the roles and
  * groups the seeder gives them. The table is the single list of "demo users": the seeder creates them, `fsa demo
- * --rotate-passwords` rotates exactly these (ADR 0081).
+ * --rotate-passwords` rotates exactly these (ADR 0081). The demo organization is the one marked `is_demo` (only the
+ * seeder marks it, through CreateOrganization), never "the one with the slug demo": `demo` is its usual slug, reserved
+ * since the M11 gate, but a real organization may hold it from before.
  */
 final class DemoAccounts
 {
@@ -62,10 +64,10 @@ final class DemoAccounts
         return [['email' => self::OWNER, 'name' => self::OWNER_NAME, 'roles' => [SystemRole::Owner->value]], ...$people];
     }
 
-    /** The demo organization, also when it was deleted (a deleted one still blocks the slug). */
+    /** The demo organization (`is_demo`), also when it was deleted (a deleted one still blocks a new seeding). */
     public static function organization(): ?Organization
     {
-        return Organization::query()->withTrashed()->where('slug', self::ORGANIZATION_SLUG)->first();
+        return Organization::query()->withTrashed()->where('is_demo', true)->first();
     }
 
     /** @return Collection<int, User> the demo accounts that exist, whatever their status */
