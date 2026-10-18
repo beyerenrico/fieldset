@@ -94,7 +94,7 @@
                 "delivered": "data"
             },
             "sign_in_link": {
-                "expires_at": "2026-10-18T17:00:50Z",
+                "expires_at": "2026-10-18T22:35:32Z",
                 "delivered": "secrets"
             }
         },
@@ -102,7 +102,7 @@
             {
                 "name": "sign_in_link",
                 "value": "http://localhost:8081/login-link#<redacted>",
-                "expires_at": "2026-10-18T17:00:50Z"
+                "expires_at": "2026-10-18T22:35:32Z"
             }
         ],
         "warnings": [],

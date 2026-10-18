@@ -128,6 +128,10 @@
     "check_after": {
         "checked": 9,
         "count": 0,
-        "users": []
+        "users": [],
+        "organizations": {
+            "total": 2,
+            "non_demo": 1
+        }
     }
 }

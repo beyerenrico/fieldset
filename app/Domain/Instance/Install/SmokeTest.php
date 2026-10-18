@@ -28,7 +28,8 @@ use Throwable;
  * compose network and asks the app the way a browser on the published port would (Host: localhost:<port>,
  * which the app's trusted-host list accepts): `/up` and the admin login page (which needs the database and the
  * session table). A second one asks Gotenberg on the internal renderer network for its health. Both carry the
- * instance label. PDF render and test mail join with the capture-mode unit (U12).
+ * instance label. These are the HTTP checks `fsa install` and `fsa config set` (phase `verify`) share; the install adds
+ * a PDF render and a test mail (InstallSmoke, ADR 0072 amendment), which a settings change does not repeat.
  *
  * Domain mode (U8, ADR 0075) adds the edge, asked on its own network at its fixed address with the domain as SNI and
  * Host: first HTTPS until the edge holds a certificate (exit 4 `certificate_failed` with the edge's log when it gets

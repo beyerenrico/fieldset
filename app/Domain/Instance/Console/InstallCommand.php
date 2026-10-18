@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Console;
 
+use App\Domain\Instance\Config\Appliers\MailValues;
+use App\Domain\Instance\Config\SmtpCredentials;
 use App\Domain\Instance\Install\AcmeCaRoot;
 use App\Domain\Instance\Install\Installer;
+use App\Domain\Instance\Install\InstallMail;
 use App\Domain\Instance\Install\InstallRequest;
 use App\Domain\Instance\Install\InstallSituation;
 use App\Domain\Instance\InstanceException;
@@ -25,8 +28,10 @@ use Illuminate\Console\Attributes\Signature;
  * finished one. A new install needs --org and --owner-email: prompted in a terminal, exit 2 (`input_required`)
  * without one or under --yes/--json; exit 6 stays reserved for confirmations (§7). --demo adds the demo data after the
  * stack started (ADR 0081). --phone-https local-ca serves https://<LAN address> through the edge with the instance's
- * own CA; --phone-https tunnel starts the quick tunnel once the install finished (ADR 0082). Flags of later
- * pre-releases are recognised and refused with exit 2.
+ * own CA; --phone-https tunnel starts the quick tunnel once the install finished (ADR 0082). --smtp-host and the other
+ * SMTP flags install straight into SMTP mode, without the mail catcher (InstallMail, ADR 0080 amendment): the password
+ * comes from --password-file or --password-stdin (SmtpInput), never from a flag value. Flags of later pre-releases are
+ * recognised and refused with exit 2.
  */
 #[Description('Create and start an instance (local, domain or proxy mode), or resume an unfinished install')]
 #[Signature('fsa:install
@@ -48,6 +53,14 @@ use Illuminate\Console\Attributes\Signature;
         {--phone-https= : Local mode: HTTPS for phones with local-ca (the instance\'s own CA on the LAN address) or tunnel (a quick tunnel through Cloudflare, 4 hours)}
         {--lan-address= : --phone-https local-ca: the IPv4 LAN address to serve (default: the best address the host reports)}
         {--demo : Add the demo organization, forms, workflow and users (random passwords, listed once, unless loopback-only)}
+        {--smtp-host= : Deliver mail through this SMTP server from the start instead of capturing it (no mail catcher)}
+        {--smtp-port= : The SMTP server\'s port (default 587, or 465 with --smtp-encryption tls)}
+        {--smtp-encryption= : starttls (when offered, the default) or tls (implicit TLS)}
+        {--smtp-username= : The SMTP account; its password from --password-file or --password-stdin}
+        {--password-file= : Read the SMTP password from this file (mode 0600)}
+        {--password-stdin : Read the SMTP password from stdin (a hidden prompt in a terminal; install.sh: terminal only)}
+        {--from-address= : The sender address of instance mail (default forms@<domain>, else forms@localhost)}
+        {--from-name= : The sender name of instance mail}
         {--encrypt : Encrypted backups (2.0.0-rc.1)}
         {--from-backup= : Create the instance from a backup (2.0.0-rc.1)}
         {--open : Open the owner sign-in link in the browser of a desktop session instead of printing it}')]
@@ -70,10 +83,14 @@ final class InstallCommand extends FsaCommand
         $this->refuseLaterOptions();
         $request = $this->withAcmeOptions(InstallRequest::fromOptions($this->options()));
         $request = $this->option('demo') === true ? $request->withDemo() : $request;
+        $smtp = SmtpInput::fromCommand($this, $context);
+        InstallMail::assertFlags($request->explicit(), $smtp->usernameGiven(), $smtp->passwordSource());
         $installer = $this->laravel->make(Installer::class);
         if ($installer->situation() === InstallSituation::Fresh) {
             $request = $this->askMissing($request, $context);
         }
+        $account = MailValues::credentials($smtp->usernameGiven(), $smtp->credentials($context));
+        $request = $account instanceof SmtpCredentials ? $request->withSmtpCredentials($account) : $request;
 
         $toFile = is_string($this->option('secrets-file')) && $this->option('secrets-file') !== '';
         $result = $installer->install($request, $context, $toFile);

@@ -19,5 +19,7 @@ return [
     'test_mail' => [
         'subject' => 'form-schema-app: test mail',
         'body' => 'This test mail from the form-schema-app instance at :url confirms the new SMTP settings. Mail is now delivered, no longer captured.',
+        'install_capture' => 'This test mail from the installation of the form-schema-app instance at :url confirms that mail reaches the mail catcher. Mail is captured, not delivered, until SMTP is set up with `fsa config set mail smtp`.',
+        'install_smtp' => 'This test mail from the installation of the form-schema-app instance at :url confirms that the SMTP server accepts its mail.',
     ],
 ];

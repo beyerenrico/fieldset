@@ -113,3 +113,48 @@ flag guard refuses.
   `sender_localhost` (pass `--from-address`).
 - Unverified until the human checklist: a real provider's SMTP with STARTTLS and with implicit TLS (J4 uses Mailpit over
   plain SMTP with AUTH), and the banner's DE text on a real screen reader.
+
+## Amendment 2026-10-18: install --smtp-* flags
+Closes the gap U12 left (§7 lists `--smtp-*` for `install`; E8 "capture mode until SMTP is configured"; R11 "a test
+mail into capture or the configured SMTP"). `fsa install --smtp-host <host> [--smtp-port <port>] [--smtp-encryption
+starttls|tls] [--smtp-username <user> --password-file <path>|--password-stdin] [--from-address <email>] [--from-name
+<text>]` installs straight into SMTP mode.
+- **One parser for both commands.** `Console\SmtpInput` holds what `config set mail` did inline: the flags as
+  `MailOptions`, the account as `SmtpCredentials`, the password from a file or stdin (hidden prompt in a terminal, one
+  trailing newline dropped, at most 4096 bytes), registered with the redactor as soon as it is read. The grammar is
+  `MailValues`/`ConfigValues` for both (`Install\InstallMail::validate`). `install` has no `--test-to` (the smoke test
+  mails the owner) and no `--remove-catcher` (no catcher is created).
+- **Phases** (`Install\InstallMail`). The server flags are consumed by the doctor phase and journaled in its data under
+  `mail` (`mail: smtp`, `smtp_host`, `smtp_port` (default 587, 465 with `tls`), `smtp_scheme` (`smtps` for `tls`), and
+  `mail_from_address`/`mail_from_name` when given): the doctor chooses no catcher UI port (`DoctorContext::$catcher`;
+  on a shared proxy network no loopback port at all) and checks no Mailpit image, and the state phase writes these
+  settings, so the renderer leaves Mailpit, its volume, `FSA_MAIL_CAPTURE`, the `/_mail/` route and the edge's catcher
+  credential out and renders MAIL_* for the server into app, queue and scheduler. The account is consumed by the state
+  phase: `InstanceStack::writeState` renders it into the app roles' env files (0600) only, like `config set mail smtp`
+  stores it; the journal context records `smtp_credentials: 1` and the non-secret flags, never the user name or the
+  password; state, envelope, progress and phase data never hold them.
+- **Exit codes** (all exit 2 before any Docker call unless noted): an SMTP flag without `--smtp-host` →
+  `input_required` (`data.missing: ["--smtp-host"]`); `--smtp-username` without a password source, an empty password,
+  or a resume before the state phase without the password again → `password_required`; a password source without
+  `--smtp-username`, both sources, or an unreadable file → `invalid_flag`; a malformed value → `invalid_value`; a
+  password as a flag value → `secret_in_argument` (SecretFlagGuard, unchanged); `--password-stdin` under install.sh
+  without a terminal → `password_stdin_unavailable` (ADR 0070 amendment). The smoke test's mail refused by the server →
+  exit 4 `test_mail_failed`, retryable, journal open at `smoke` (ADR 0072 amendment).
+- **Resume and repeat.** After the doctor phase other server flags are `flag_already_applied`; after the state phase so
+  is another account (compared with the env file, `InstallMail::comparator`). A finished instance compares the flags
+  with its state as it is now (`fsa config set mail` may have changed it; the sender as in effect) and the account with
+  the env file: the same flags and password are `changed: false`; others are `use_config_set` with `key: mail` and a
+  hint naming `fsa config set mail smtp|capture`.
+- **A refused test mail** is retryable for a server that was briefly unreachable (the resume re-runs the smoke test).
+  Other settings or another account cannot be corrected on a resume (the state phase rendered them and the stack runs
+  with them): the hint names `fsa uninstall --yes` and a new install with corrected flags, or an install in capture mode
+  and `fsa config set mail smtp`, which tests the server and keeps capture when it refuses. Rejected: re-rendering and
+  restarting the app roles inside the smoke phase of a resumed install (a second apply path beside `config set`, for a
+  case uninstall covers on an instance without data). A local install without `--from-address` warns
+  `sender_localhost` in the result and names it in the `test_mail_failed` hint.
+- **Orthogonal to the modes.** `--smtp-*` combines with `--domain` (sender default `forms@<domain>`), proxy mode,
+  `--phone-https` and `--demo`. `fsa config show` (`settings.mail.mode: smtp`, `catcher: removed`, which also means
+  "never created") and `fsa status` (`mail.mode: smtp`, no `mailpit` service) needed no change.
+- Verified by `tests/Unit/Instance/InstallSmtpTest.php`, `InstallSmokeTest.php` and J4's last case (a second instance
+  installed with `--smtp-*` and a password file; the smoke test's mail arrives at a stand-in Mailpit attached to the
+  instance's default network while install.sh runs; no catcher container).

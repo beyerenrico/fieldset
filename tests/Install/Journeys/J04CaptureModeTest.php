@@ -15,8 +15,10 @@ use Tests\Support\Docker\TestImage;
  * one for an organization with its own SMTP server, the command only to the operator (HTTP, then Playwright with axe)
  * → `fsa config set mail smtp` against a second Mailpit standing in as the real SMTP server, the password on stdin →
  * the test mail and the next invitation arrive there, the catcher keeps its mail and receives nothing → the catcher
- * container and volume go only with `--remove-catcher` → `fsa config set mail capture` brings it back. Every Docker
- * resource is named or labelled `fsa-test-…` and removed afterwards.
+ * container and volume go only with `--remove-catcher` → `fsa config set mail capture` brings it back. Finally a second
+ * instance installs straight into SMTP mode (`--smtp-*`, the password from a file, ADR 0080 amendment): no catcher,
+ * and the smoke test's mail (R11) arrives at a stand-in Mailpit attached to the instance's network while install.sh
+ * runs. Every Docker resource is named or labelled `fsa-test-…` and removed afterwards.
  */
 
 const J04_OWNER = 'owner@example.test';
@@ -38,15 +40,18 @@ beforeAll(function (): void {
 });
 
 afterAll(function (): void {
-    // The stand-in first: attached to the instance's default network, it would keep that network from being removed.
-    if (isset($GLOBALS['fsaJ04Smtp'])) {
-        j04Docker(['rm', '-f', '-v', $GLOBALS['fsaJ04Smtp']]);
+    // The stand-ins first: attached to an instance's default network, they would keep that network from being removed.
+    foreach (['fsaJ04Smtp', 'fsaJ04Relay'] as $standIn) {
+        if (isset($GLOBALS[$standIn])) {
+            j04Docker(['rm', '-f', '-v', $GLOBALS[$standIn]]);
+        }
     }
     if (isset($GLOBALS['fsaJ04'])) {
         InstanceJourney::cleanup($GLOBALS['fsaJ04']->work.'/fsa-test-j04', $GLOBALS['fsaJ04Uuid'] ?? null);
+        InstanceJourney::cleanup($GLOBALS['fsaJ04']->work.'/fsa-test-j04-smtp', $GLOBALS['fsaJ04SmtpUuid'] ?? null);
     }
     unset($GLOBALS['fsaJ04'], $GLOBALS['fsaJ04Error'], $GLOBALS['fsaJ04Uuid'], $GLOBALS['fsaJ04Port'], $GLOBALS['fsaJ04MailPort'],
-        $GLOBALS['fsaJ04Catcher'], $GLOBALS['fsaJ04Setup'], $GLOBALS['fsaJ04Smtp'], $GLOBALS['fsaJ04SmtpPort']);
+        $GLOBALS['fsaJ04Catcher'], $GLOBALS['fsaJ04Setup'], $GLOBALS['fsaJ04Smtp'], $GLOBALS['fsaJ04SmtpPort'], $GLOBALS['fsaJ04Relay'], $GLOBALS['fsaJ04SmtpUuid']);
 });
 
 beforeEach(function (): void {
@@ -160,9 +165,11 @@ it('catches an invitation in the catcher, read with the operator\'s catcher logi
     $setup = j04Helper(['setup', J04_OWNER]);
     $GLOBALS['fsaJ04Setup'] = $setup;
     $invitation = j04AwaitMessage($GLOBALS['fsaJ04MailPort'], $GLOBALS['fsaJ04Catcher'], 'invitee@example.test', 120);
+    $smokeMail = j04AwaitMessage($GLOBALS['fsaJ04MailPort'], $GLOBALS['fsaJ04Catcher'], J04_OWNER, 10, 'test mail'); // the install smoke test's (R11)
     $this->journey->evidence('J04-catcher.json', [
         'command' => 'fsa config show --catcher-login --secrets-file <work>/catcher-login.json --json', 'exit_code' => $show->getExitCode(), 'stdout' => InstanceJourney::json($show),
         'catcher_without_login' => $anonymous['status'], 'invitation' => $invitation === null ? null : ['subject' => $invitation['Subject'] ?? null, 'to' => $invitation['To'] ?? null],
+        'install_test_mail' => $smokeMail === null ? null : ['subject' => $smokeMail['Subject'] ?? null, 'message_id' => $smokeMail['MessageID'] ?? null],
     ]);
 
     expect($show->getExitCode())->toBe(0, $show->getOutput())
@@ -171,7 +178,8 @@ it('catches an invitation in the catcher, read with the operator\'s catcher logi
         ->and(substr(sprintf('%o', fileperms($file)), -3))->toBe('600')
         ->and($anonymous['status'])->toBe(401)
         ->and($setup)->toHaveKeys(['org_a', 'org_b', 'cookies'])
-        ->and($invitation)->not->toBeNull('no invitation reached the catcher');
+        ->and($invitation)->not->toBeNull('no invitation reached the catcher')
+        ->and($smokeMail)->not->toBeNull('the install smoke test\'s mail is not in the catcher');
 });
 
 it('shows each organization its banner variant and only the operator the command (AE1, R59)', function (): void {
@@ -300,4 +308,82 @@ it('refuses an SMTP password as a flag value with exit 2 through the shim (AE9)'
     expect($process->getExitCode())->toBe(2)
         ->and($json['errors'][0]['code'] ?? null)->toBe('secret_in_argument')
         ->and($process->getOutput().$process->getErrorOutput())->not->toContain(J04_SMTP_PASSWORD);
+});
+
+/**
+ * While install.sh runs: starts the stand-in SMTP server once the state names the release's Mailpit image, and attaches
+ * it to the instance's default network once Compose created it (the smoke test sends its mail much later).
+ *
+ * @param  array{port: int, connected: int|null}  $relay
+ * @return array{port: int, connected: int|null}
+ */
+function j04AttachRelay(string $dir, string $name, array $relay): array
+{
+    $state = json_decode((string) @file_get_contents($dir.'/state.json'), true);
+    if ($relay['port'] === 0 && is_string($state['digests']['mailpit'] ?? null)) {
+        j04Docker(['run', '-d', '--name', $name, '--label', 'app.form-schema.test=j04', '-e', 'MP_SMTP_AUTH_ACCEPT_ANY=1', '-e', 'MP_SMTP_AUTH_ALLOW_INSECURE=1', '-p', '127.0.0.1::8025', $state['digests']['mailpit']]);
+        $relay['port'] = (int) (explode(':', trim(explode("\n", trim(j04Docker(['port', $name, '8025/tcp'])->getOutput()))[0]))[1] ?? 0);
+    }
+    $network = is_string($state['project'] ?? null) ? $state['project'].'_default' : null;
+    if ($relay['port'] > 0 && $relay['connected'] === null && $network !== null && j04Docker(['network', 'inspect', $network])->isSuccessful()) {
+        $relay['connected'] = j04Docker(['network', 'connect', $network, $name])->getExitCode();
+    }
+
+    return $relay;
+}
+
+/** Instance files (not the env files, where the account belongs) that contain the text. */
+function j04FilesContaining(string $dir, string $text): array
+{
+    $found = [];
+    foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir, FilesystemIterator::SKIP_DOTS)) as $file) {
+        $path = (string) $file;
+        if ($file->isFile() && ! str_contains($path, '/env/') && is_readable($path) && str_contains((string) file_get_contents($path), $text)) {
+            $found[] = substr($path, strlen($dir) + 1);
+        }
+    }
+
+    return $found;
+}
+
+it('installs straight into SMTP mode with --smtp-* and a password file: no catcher, the smoke test mail at the stand-in', function (): void {
+    // One instance at a time keeps the journey inside the host's means: the capture instance (and its stand-in) go first.
+    j04Docker(['rm', '-f', '-v', $GLOBALS['fsaJ04Smtp'] ?? 'fsa-test-j04-none']);
+    InstanceJourney::cleanup($this->dir, $GLOBALS['fsaJ04Uuid'] ?? null);
+    $dir = $this->journey->work.'/fsa-test-j04-smtp';
+    $GLOBALS['fsaJ04Relay'] = 'fsa-test-j04-relay-'.bin2hex(random_bytes(2));
+    $passwordFile = $this->journey->work.'/smtp-password';
+    file_put_contents($passwordFile, J04_SMTP_PASSWORD."\n");
+    chmod($passwordFile, 0600);
+    $flags = ['--org', 'SMTP Org', '--owner-email', J04_OWNER, '--locale', 'en', '--smtp-host', $GLOBALS['fsaJ04Relay'], '--smtp-port', '1025',
+        '--smtp-username', J04_SMTP_USER, '--password-file', $passwordFile, '--from-address', 'forms@example.test', '--secrets-file', $this->journey->work.'/smtp-owner-link.json', '--json'];
+    $began = microtime(true);
+    $process = $this->journey->installProcess($dir, $flags);
+    $process->start();
+    $relay = ['port' => 0, 'connected' => null];
+    while ($process->isRunning()) {
+        $relay = j04AttachRelay($dir, $GLOBALS['fsaJ04Relay'], $relay);
+        usleep(500_000);
+    }
+    $json = InstanceJourney::json($process);
+    $GLOBALS['fsaJ04SmtpUuid'] = InstanceJourney::uuid($dir);
+    $test = $relay['port'] > 0 ? j04AwaitMessage($relay['port'], null, J04_OWNER, 30, 'test mail') : null;
+    $catchers = trim(j04Docker(['ps', '-aq', '--filter', 'label=app.form-schema.instance='.$GLOBALS['fsaJ04SmtpUuid'], '--filter', 'label=app.form-schema.role=mailpit'])->getOutput());
+    $show = InstanceJourney::json($this->journey->fsa($dir, ['config', 'show', '--json']));
+    $status = InstanceJourney::json($this->journey->fsa($dir, ['status', '--json']));
+    $this->journey->evidence('J04-install-smtp.json', ['command' => 'install.sh --dir <work>/fsa-test-j04-smtp … --smtp-host fsa-test-j04-relay-… --smtp-port 1025 --smtp-username '.J04_SMTP_USER.' --password-file <work>/smtp-password --from-address forms@example.test --json',
+        'exit_code' => $process->getExitCode(), 'seconds' => round(microtime(true) - $began, 1), 'stdout' => $json, 'relay_connected' => $relay['connected'],
+        'test_mail_at_stand_in' => $test === null ? null : ['subject' => $test['Subject'] ?? null, 'to' => $test['To'] ?? null], 'config_show_mail' => $show['data']['settings']['mail'] ?? null, 'status_mail' => $status['data']['mail'] ?? null]);
+
+    expect($process->getExitCode())->toBe(0, $process->getErrorOutput()."\n".$process->getOutput())
+        ->and($relay['connected'])->toBe(0)
+        ->and($json['data']['mail'])->toBe(['mode' => 'smtp', 'catcher_url' => null])
+        ->and($test)->not->toBeNull('the smoke test\'s mail did not reach the stand-in SMTP server')
+        ->and($catchers)->toBe('')
+        ->and($show['data']['settings']['mail']['mode'] ?? null)->toBe('smtp')
+        ->and($status['data']['mail']['mode'] ?? null)->toBe('smtp')
+        ->and(array_keys($status['data']['services'] ?? []))->not->toContain('mailpit')
+        ->and($process->getOutput().$process->getErrorOutput())->not->toContain(J04_SMTP_PASSWORD)->not->toContain(J04_SMTP_USER)
+        ->and(j04FilesContaining($dir, J04_SMTP_PASSWORD))->toBe([])
+        ->and(substr(sprintf('%o', fileperms($dir.'/env/app.env')), -3))->toBe('600');
 });

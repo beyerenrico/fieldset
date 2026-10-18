@@ -247,3 +247,21 @@ opens, never to stdout or stderr. Otherwise the 0600 file stays, and a warning n
   fake tunnel instead of cloudflared and may shorten its 4-hour lifetime.
 - `FSA_LAN_ADDRESSES` also gives the local CA its default LAN address (`LanAddress::best`: the first private IPv4,
   else the first usable one) and feeds the doctor's `lan_address` check.
+
+## Amendment 2026-10-18: install --smtp-* flags through the launchers
+`fsa install` takes the SMTP flags of `fsa config set mail smtp` (ADR 0080 amendment).
+- **Flag lists unchanged.** The value-flag lists of `docker/app/fsa` (`value_flags`) and `distribution/shim.sh`
+  (`fsa_value_flags`) already hold `--smtp-host --smtp-port --smtp-encryption --smtp-username --from-address
+  --from-name --password-file` since U12; ImageContractTest and ShimScriptTest derive the expected list from the
+  registered commands and still pass. install.sh passes these flags on unchanged; `--password-file` is an input
+  file-path flag (`--…-file`), so `fsa_run` makes it absolute and mounts its parent read-only for both launchers.
+- **`--password-stdin` under install.sh.** install.sh never passes its own stdin on: with `curl … | sh` it is the
+  script itself (ADR 0070: no stdin, or `/dev/tty` as the container's stdin when the container gets `-it`). So
+  install.sh now reads `--password-stdin` (and passes it on) and, among its no-network input checks, refuses it with
+  exit 2 `password_stdin_unavailable` unless the container will get the terminal: stdout a terminal, `/dev/tty`
+  opens, no `--json` (`fsa_install_stdin_ok`, the same conditions as the shim's `fsa_wants_tty` for install.sh). Then
+  fsa reads the password with its hidden prompt from `/dev/tty`. The hint names `--password-file=<path>`. The ops
+  container applies the same rule (`SmtpInput`: `FSA_LAUNCHER=install.sh` and `FSA_TTY` not 1), so a launcher that
+  skipped the check still cannot read a script as a password. The shim is unchanged: it passes piped stdin with `-i`,
+  so `printf %s "$PASS" | <dir>/fsa install … --password-stdin` works for a resume or repeat. Rejected: detecting
+  whether install.sh's stdin is the script (a pipe from curl and a pipe from printf look alike).

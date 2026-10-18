@@ -49,10 +49,10 @@
                 {
                     "key": "disk",
                     "status": "ok",
-                    "summary": "144.5 GiB free.",
+                    "summary": "141.8 GiB free.",
                     "hint": null,
                     "details": {
-                        "free_gib": 144.5,
+                        "free_gib": 141.8,
                         "path": "<work>/fsa-test-j06"
                     }
                 },

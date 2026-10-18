@@ -401,6 +401,44 @@ it('passes --yes on to fsa install and never asks about the PATH link with --yes
     '--no-link given' => ['0', '0', '0', '1', false],
 ]);
 
+it('refuses --password-stdin without a terminal with exit 2 before any download or Docker call: its stdin is the script (ADR 0070)', function (array $extra): void {
+    $process = $this->scripts->run($this->production, ['--dir', $this->dir, '--smtp-host', 'smtp.example.com', '--smtp-username', 'relay', '--password-stdin', ...$extra], $this->env);
+    $error = json_decode($process->getOutput(), true)['errors'][0] ?? [];
+
+    expect($process->getExitCode())->toBe(2, $process->getErrorOutput())
+        ->and($process->getErrorOutput())->toContain('--password-stdin cannot read the SMTP password here')
+        ->and($this->scripts->calls())->toBe([])
+        ->and(file_exists($this->dir))->toBeFalse();
+    if ($extra !== []) {
+        expect($error['code'] ?? null)->toBe('password_stdin_unavailable')
+            ->and($error['hint'])->toContain('--password-file=<path>');
+    }
+})->with(['human output' => [[]], '--json' => [['--json']]]);
+
+it('lets fsa prompt for --password-stdin only on a terminal without --json, as the shim hands it over', function (string $json, string $stdout, string $tty, bool $ok): void {
+    $process = $this->scripts->source(base_path('distribution/install.sh'), "fsa_install_stdin_ok {$json} {$stdout} {$tty} && echo prompt || echo refuse");
+
+    expect(trim($process->getOutput()))->toBe($ok ? 'prompt' : 'refuse');
+})->with([
+    'person at a terminal' => ['0', '1', '1', true],
+    '--json' => ['1', '1', '1', false],
+    'stdout redirected' => ['0', '0', '1', false],
+    'no terminal' => ['0', '1', '0', false],
+]);
+
+it('passes --password-file on as an input file flag, mounted read-only', function (): void {
+    mkdir($this->scripts->root.'/keys');
+    file_put_contents($this->scripts->root.'/keys/smtp-password', 'relay-secret');
+    $process = $this->scripts->run($this->production, ['--dir', $this->dir, '--smtp-host', 'smtp.example.com', '--smtp-username', 'relay', '--password-file', $this->scripts->root.'/keys/smtp-password'], $this->env);
+    $ops = $this->scripts->opsRuns()[0] ?? [];
+    $keys = (string) realpath($this->scripts->root.'/keys');
+
+    expect($process->getExitCode())->toBe(0, $process->getErrorOutput())
+        ->and($ops)->toContain('-v', "{$keys}:{$keys}:ro")
+        ->and($ops)->toContain('--password-file='.$keys.'/smtp-password', '--smtp-host', 'smtp.example.com', '--smtp-username', 'relay')
+        ->and(implode(' ', $ops))->not->toContain('relay-secret');
+});
+
 it('links with --yes only when --link is given', function (): void {
     $quiet = $this->scripts->run($this->production, ['--dir', $this->dir, '--yes'], $this->env);
     $linked = $this->scripts->run($this->production, ['--dir', $this->dir, '--yes', '--link'], $this->env);
