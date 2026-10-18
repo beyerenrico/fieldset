@@ -12,7 +12,8 @@ use Illuminate\Database\DatabaseManager;
 
 /**
  * The isolation mutex of `migrate --isolated` (the app entrypoint with RUN_MIGRATIONS, ADR 0079): a session-level
- * Postgres advisory lock on the connection the migrator uses. Concurrent app starts take turns, and a migrator that
+ * Postgres advisory lock on the default connection (the migrator's, unless `--database` names another; the lock
+ * still serializes, since every migrator takes it there). Concurrent app starts take turns, and a migrator that
  * dies (container killed mid-migration) releases the lock with its session, so the next start migrates at once. The
  * framework's cache lock would outlive it for an hour, and the database cache store has no lock table on a fresh
  * database. Other isolated commands, and non-Postgres connections, keep the framework's cache mutex.
