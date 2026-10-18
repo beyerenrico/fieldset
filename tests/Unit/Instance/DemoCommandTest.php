@@ -3,7 +3,9 @@
 declare(strict_types=1);
 
 use App\Domain\Instance\Console\FsaCommand;
+use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\Docker\ProcessOutcome;
+use App\Domain\Instance\Lifecycle\AppCommands;
 use App\Domain\Instance\Operations\InstanceLock;
 use App\Domain\Instance\Operations\JournalRecord;
 use App\Domain\Instance\Operations\OperationJournal;
@@ -257,4 +259,16 @@ it('refuses an instance that is not installed yet (exit 2) before any one-off', 
         ->and($json['errors'][0]['code'])->toBe('not_installed')
         ->and($json['errors'][0]['hint'])->toContain('fsa install --demo')
         ->and($fresh->docker->calls)->toBe([]);
+});
+
+it('runs the read-only default-password check for U14 as a socket-less one-off', function (): void {
+    $this->fixture->oneOffs['app:demo-passwords'] = InstanceCommandFixture::oneOffJson(['command' => 'app:demo-passwords', 'status' => 'ok',
+        'data' => ['checked' => 10, 'count' => 1, 'users' => [['email' => 'real@example.com', 'demo' => false]]]]);
+
+    $result = app(AppCommands::class)->demoPasswordCheck(ComposeProject::forInstance($this->fixture->state(), $this->fixture->directory));
+
+    expect($result->ok)->toBeTrue()
+        ->and($result->data)->toBe(['checked' => 10, 'count' => 1, 'users' => [['email' => 'real@example.com', 'demo' => false]]])
+        ->and($this->fixture->oneOffCalls('app:demo-passwords')[0]['service'])->toBe('app')
+        ->and($this->fixture->oneOffCalls('app:demo-passwords')[0]['command'])->toBe(['php', 'artisan', 'app:demo-passwords', '--check', '--json']);
 });
