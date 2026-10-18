@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Instance\Operations\OperationJournal;
 use GuzzleHttp\Client;
 use GuzzleHttp\Cookie\CookieJar;
 use GuzzleHttp\RequestOptions;
@@ -16,10 +17,12 @@ use Tests\Support\Docker\TestImage;
 /*
  * J5, demo part (BUILD_PROMPT_V2 §11, AE2, R29, R30; plan U13; ADR 0081), with real Docker against the harness release:
  *
- * - A loopback-only local install with --demo: the demo users sign in with `password` (Fortify's headless login, as the
- *   Field App does, then the session reaches /api/v1/me); the app-side check finds all nine; `fsa demo` changes nothing
- *   and its demo owner link signs in; `fsa demo --rotate-passwords` makes `password` and an existing remembered session
- *   fail and the printed passwords work; the check then finds none.
+ * - A loopback-only local install with --demo whose own organization is named "Demo" (the demo is seeded beside it, M11
+ *   gate): the demo users sign in with `password` (Fortify's headless login, as the Field App does, then the session
+ *   reaches /api/v1/me); the app-side check finds all nine and one organization besides the demo; `fsa demo` changes
+ *   no demo data and its new demo owner link signs in; `fsa config set domain` is refused in its preflight (exit 3
+ *   `default_password_in_use`) with nothing changed; `fsa demo --rotate-passwords` makes `password` and an existing
+ *   remembered session fail and the printed passwords work; the check then finds none.
  * - A domain-mode install with --demo against Pebble (as J2): `password` is refused, and every demo user signs in over
  *   HTTPS with the random password printed once into --secrets-file.
  *
@@ -142,7 +145,7 @@ function j05Docker(array $command): Process
 it('installs a loopback-only local demo whose users sign in with password', function (): void {
     $link = $this->journey->work.'/j05-owner-link.json';
     $started = microtime(true);
-    $process = $this->journey->install($this->local, ['--org', 'J5 Org', '--owner-email', 'owner@example.test', '--locale', 'en', '--demo', '--secrets-file', $link, '--json']);
+    $process = $this->journey->install($this->local, ['--org', 'Demo', '--owner-email', 'owner@example.test', '--locale', 'en', '--demo', '--secrets-file', $link, '--json']);
     $seconds = round(microtime(true) - $started, 1);
     $json = InstanceJourney::json($process);
     $GLOBALS['fsaJ05LocalUuid'] = InstanceJourney::uuid($this->local);
@@ -150,27 +153,28 @@ it('installs a loopback-only local demo whose users sign in with password', func
     $client = j05Client($GLOBALS['fsaJ05Port']);
     $login = j05Login($client, 'worker@demo.test', 'password');
     $me = j05Me($client);
-    $this->journey->evidence('J05-local-install.json', ['command' => 'install.sh --dir <work>/fsa-test-j05-local --version '.ReleaseHarness::version().' --org "J5 Org" --owner-email owner@example.test --locale en --demo --secrets-file <work>/j05-owner-link.json --json', 'exit_code' => $process->getExitCode(), 'seconds' => $seconds, 'stdout' => $json, 'login_with_password' => [$login->getStatusCode(), json_decode((string) $login->getBody(), true)], 'me' => $me]);
+    $this->journey->evidence('J05-local-install.json', ['command' => 'install.sh --dir <work>/fsa-test-j05-local --version '.ReleaseHarness::version().' --org Demo --owner-email owner@example.test --locale en --demo --secrets-file <work>/j05-owner-link.json --json', 'exit_code' => $process->getExitCode(), 'seconds' => $seconds, 'stdout' => $json, 'login_with_password' => [$login->getStatusCode(), json_decode((string) $login->getBody(), true)], 'me' => $me]);
 
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput()."\n".$process->getOutput())
-        ->and($json['data']['demo'])->toMatchArray(['seeded' => true, 'passwords' => 'default', 'default_password' => 'password', 'exposure' => [], 'delivered' => 'data'])
+        ->and($json['data']['demo'])->toMatchArray(['organization' => 'Demo Haustechnik GmbH', 'seeded' => true, 'passwords' => 'default', 'default_password' => 'password', 'exposure' => [], 'delivered' => 'data'])
         ->and(array_column($json['data']['demo']['users'], 'email'))->toBe(J05_DEMO_USERS)
         ->and(array_keys(j05Secrets($link)))->toBe(['sign_in_link'])
         ->and($login->getStatusCode())->toBe(200, (string) $login->getBody())
         ->and($me)->toBe([200, 'worker@demo.test']);
 });
 
-it('finds all nine demo accounts on password with the app-side check', function (): void {
+it('finds all nine demo accounts on password and the owner\'s organization "Demo" as a real one with the app-side check', function (): void {
     $check = j05Check($GLOBALS['fsaJ05LocalUuid']);
     $this->journey->evidence('J05-local-check.json', ['command' => 'docker exec <app> php artisan app:demo-passwords --check --json', 'stdout' => $check]);
 
     expect($check['status'] ?? null)->toBe('ok', json_encode($check))
         ->and($check['data']['count'])->toBe(9)
         ->and(array_column($check['data']['users'], 'email'))->toEqualCanonicalizing(J05_DEMO_USERS)
-        ->and(array_unique(array_column($check['data']['users'], 'demo')))->toBe([true]);
+        ->and(array_unique(array_column($check['data']['users'], 'demo')))->toBe([true])
+        ->and($check['data']['organizations'])->toBe(['total' => 2, 'non_demo' => 1]);
 });
 
-it('changes nothing with fsa demo on the seeded instance and hands out a demo owner link that signs in', function (): void {
+it('changes no demo data with fsa demo on the seeded instance and reports the new demo owner link, which signs in', function (): void {
     $file = $this->journey->work.'/j05-demo-link.json';
     $process = $this->journey->fsa($this->local, ['demo', '--secrets-file', $file, '--json']);
     $json = InstanceJourney::json($process);
@@ -181,7 +185,8 @@ it('changes nothing with fsa demo on the seeded instance and hands out a demo ow
     $this->journey->evidence('J05-local-demo.json', ['command' => 'fsa demo --secrets-file <work>/j05-demo-link.json --json', 'exit_code' => $process->getExitCode(), 'stdout' => $json, 'link_consumed' => [$consumed->getStatusCode(), $consumed->getHeaderLine('Location')]]);
 
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput().$process->getOutput())
-        ->and($json['changed'])->toBeFalse()
+        ->and($json['changed'])->toBeTrue()
+        ->and(array_column($json['warnings'], 'code'))->toBe(['sign_in_link_issued'])
         ->and($json['data']['demo'])->toMatchArray(['seeded' => false, 'passwords' => 'default', 'default_password_users' => 9])
         ->and($json['data']['sign_in_link']['delivered'])->toBe('secrets_file')
         ->and($process->getOutput())->not->toContain('/login-link#')
@@ -189,6 +194,26 @@ it('changes nothing with fsa demo on the seeded instance and hands out a demo ow
         ->and($consumed->getStatusCode())->toBe(303)
         ->and($consumed->getHeaderLine('Location'))->toContain('/admin')
         ->and($consumed->getHeaderLine('Location'))->not->toContain($token);
+});
+
+it('refuses config set domain while the demo accounts sign in with password: exit 3 in the preflight, nothing changed', function (): void {
+    $state = (string) file_get_contents($this->local.'/state.json');
+    $started = microtime(true);
+    $process = $this->journey->fsa($this->local, ['config', 'set', 'domain', J05_DOMAIN, '--yes', '--json']);
+    $seconds = round(microtime(true) - $started, 1);
+    $json = InstanceJourney::json($process);
+    $client = j05Client($GLOBALS['fsaJ05Port']);
+    $login = j05Login($client, 'viewer@demo.test', 'password');
+    $this->journey->evidence('J05-local-config-domain-refused.json', ['command' => 'fsa config set domain '.J05_DOMAIN.' --yes --json', 'exit_code' => $process->getExitCode(), 'seconds' => $seconds, 'stdout' => $json, 'state_unchanged' => $state === file_get_contents($this->local.'/state.json'), 'login_with_password_on_loopback' => $login->getStatusCode()]);
+
+    expect($process->getExitCode())->toBe(3, $process->getErrorOutput().$process->getOutput())
+        ->and($json['errors'][0]['code'])->toBe('default_password_in_use')
+        ->and($json['errors'][0]['hint'])->toContain('fsa demo --rotate-passwords')
+        ->and($json['data']['users'])->toEqualCanonicalizing(J05_DEMO_USERS)
+        ->and(file_get_contents($this->local.'/state.json'))->toBe($state)
+        ->and(file_exists($this->local.'/'.OperationJournal::CURRENT))->toBeFalse()
+        ->and($login->getStatusCode())->toBe(200, (string) $login->getBody())
+        ->and(j05Me($client))->toBe([200, 'viewer@demo.test']);
 });
 
 it('rotates the demo passwords: password and a remembered session stop working, the printed passwords work', function (): void {
