@@ -307,7 +307,7 @@ it('renders local mode only until the edge and proxy units extend it', function 
     } catch (InstanceException $e) {
         expect($e->errorCode)->toBe('unsupported_mode')->and($e->exitCode)->toBe(ExitCode::InvalidInput);
     }
-})->with(['domain', 'proxy']);
+})->with(['proxy']);
 
 it('writes the compose file, 0600 env files and the runtime directory, and drops the env files of removed services', function (): void {
     $directory = TemporaryInstance::directory();

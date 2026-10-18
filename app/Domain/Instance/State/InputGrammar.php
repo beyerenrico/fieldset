@@ -44,6 +44,9 @@ final class InputGrammar
         'mail' => ['capture', 'smtp'], 'smtp_scheme' => ['smtp', 'smtps'], 'size' => ResourceBudget::SIZES,
         'db_database' => 'identifier', 'db_username' => 'identifier',
         'mail_from_address' => 'email', 'mail_from_name' => 'text',
+        // Domain mode (U8, ADR 0075): ACME contact and directory, the SHA-256 of the custom ACME CA root the edge
+        // trusts (edge/acme-ca-root.pem), and the edge network's private IPv4 subnet.
+        'acme_email' => 'email', 'acme_ca' => 'https_url', 'acme_ca_root' => 'sha256', 'edge_subnet' => 'subnet',
     ];
 
     private const array PROBLEMS = [
@@ -54,6 +57,9 @@ final class InputGrammar
         'identifier' => 'must be a lowercase identifier',
         'email' => 'must be an e-mail address',
         'text' => 'must be plain text without quotes, $, backslashes or control characters',
+        'https_url' => 'must be an https URL without credentials, query or fragment',
+        'sha256' => 'must be a lowercase SHA-256 hex digest',
+        'subnet' => 'must be a private IPv4 subnet (CIDR, /16 to /29)',
     ];
 
     /** RFC 1123 host name (no wildcard, no trailing dot) or an IPv4/IPv6 address. */
@@ -94,6 +100,30 @@ final class InputGrammar
             && (! array_key_exists('port', $parts) || self::isPort($parts['port']))
             && preg_match(self::URL_PATH, $parts['path'] ?? '') === 1
             && str_starts_with($value, $parts['scheme'].'://'.$host);
+    }
+
+    public static function isHttpsUrl(mixed $value): bool
+    {
+        return is_string($value) && str_starts_with($value, 'https://') && self::isUrl($value);
+    }
+
+    /**
+     * A private IPv4 subnet in CIDR notation, /16 to /29, aligned to its prefix: `10.213.4.32/28`. The edge
+     * network (U8) and later the tunnel network get a fixed subnet so their peers have fixed addresses.
+     */
+    public static function isPrivateSubnet(mixed $value): bool
+    {
+        if (! is_string($value) || preg_match('/^([0-9.]+)\/([0-9]{2})$/D', $value, $parts) !== 1) {
+            return false;
+        }
+        $prefix = (int) $parts[2];
+        $long = filter_var($parts[1], FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) === false ? false : ip2long($parts[1]);
+        if ($long === false || $prefix < 16 || $prefix > 29 || ($long & ~(-1 << (32 - $prefix)) & 0xFFFFFFFF) !== 0) {
+            return false;
+        }
+
+        return filter_var($parts[1], FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE) === false
+            && filter_var($parts[1], FILTER_VALIDATE_IP, FILTER_FLAG_NO_RES_RANGE) !== false;
     }
 
     public static function isPort(mixed $value): bool
@@ -185,6 +215,9 @@ final class InputGrammar
             'host_list' => is_string($value) && self::hostList($value) !== null,
             'identifier' => self::isIdentifier($value),
             'email' => self::isEmail($value),
+            'https_url' => self::isHttpsUrl($value),
+            'sha256' => is_string($value) && preg_match('/^[0-9a-f]{64}$/D', $value) === 1,
+            'subnet' => self::isPrivateSubnet($value),
             default => self::isText($value),
         };
     }

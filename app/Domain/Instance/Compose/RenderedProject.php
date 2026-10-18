@@ -21,11 +21,13 @@ final readonly class RenderedProject
     /**
      * @param  array<string, mixed>  $document
      * @param  array<string, array<string, string>>  $environments  service => env file contents
+     * @param  array<string, string>  $files  further instance-directory files (path => contents), e.g. edge/Caddyfile
      */
     public function __construct(
         public string $project,
         public array $document,
         #[SensitiveParameter] public array $environments,
+        public array $files = [],
     ) {}
 
     public function yaml(): string
@@ -52,11 +54,16 @@ final readonly class RenderedProject
     }
 
     /**
-     * Env files first (the compose file references them), then the compose file; env files of services that are
-     * no longer rendered are removed, so no secret outlives its service.
+     * Service files and env files first (the compose file references them), then the compose file; env files of
+     * services that are no longer rendered are removed, so no secret outlives its service. Service files hold no
+     * secret and are read by non-root containers: 0644 in 0755 folders, like the runtime directory.
      */
     public function writeTo(InstanceDirectory $directory): void
     {
+        foreach ($this->files as $path => $contents) {
+            $directory->ensureDirectory(dirname($path), 0755);
+            $directory->write($path, $contents, 0644);
+        }
         $env = new EnvFiles($directory);
         foreach ($this->environments as $service => $values) {
             $env->write($service, $values);

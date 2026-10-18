@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Instance\Compose;
 
 use App\Domain\Instance\Compose\Services\AppRoles;
+use App\Domain\Instance\Compose\Services\EdgeService;
 use App\Domain\Instance\Compose\Services\GotenbergService;
 use App\Domain\Instance\Compose\Services\MailpitService;
 use App\Domain\Instance\Compose\Services\PostgresService;
@@ -22,18 +23,19 @@ use App\Domain\Instance\State\RuntimeWriter;
  * contributes services; the renderer adds what every service gets (labels, memory limit, env file, log cap,
  * restart policy), declares and labels volumes and networks, and checks the result (ComposeGuard).
  *
- * Extension points for later units: add a definition to `defaultDefinitions()` (edge with its own network and
- * fixed address U8, tunnel with `restart: "no"` U14, backup with `ServiceEnvironments::backup()` U16), or branch on
- * the mode inside a definition (proxy ports and external network, U9). Lift the mode check in `render()` with
- * the unit that renders that mode.
+ * Extension points for later units: add a definition to `defaultDefinitions()` (tunnel with `restart: "no"` U14,
+ * backup with `ServiceEnvironments::backup()` U16), or branch on the mode inside a definition (proxy ports and
+ * external network, U9). Lift the mode check in `render()` with the unit that renders that mode. Domain mode (U8)
+ * adds EdgeService with its own network and fixed address; definitions may also contribute instance-directory
+ * files (the edge's Caddyfile), which `write()` puts next to the compose file.
  */
 final readonly class ComposeRenderer
 {
     /** The service whose definition `compose run` one-offs use (migrate, app:install, login links, grants). */
     public const string ONE_OFF_SERVICE = AppRoles::APP;
 
-    /** Modes this version renders; domain (U8) and proxy (U9) join with their units. */
-    public const array MODES = ['local'];
+    /** Modes this version renders; proxy (U9) joins with its unit. */
+    public const array MODES = ['local', 'domain'];
 
     private const array LOGGING = ['driver' => 'json-file', 'options' => ['max-size' => '10m', 'max-file' => '3']];
 
@@ -49,7 +51,7 @@ final readonly class ComposeRenderer
     /** @return list<ServiceDefinition> */
     public static function defaultDefinitions(): array
     {
-        return [new AppRoles, new PostgresService, new ValkeyService, new GotenbergService, new MailpitService];
+        return [new AppRoles, new PostgresService, new ValkeyService, new GotenbergService, new MailpitService, new EdgeService];
     }
 
     /** @param  bool  $emulated  the images run emulated: memory limits doubled (RenderContext) */
@@ -61,6 +63,7 @@ final readonly class ComposeRenderer
         $context = new RenderContext($state, $secrets, $emulated);
         $document = ['name' => $state->project(), 'services' => [], 'networks' => ['default' => []], 'volumes' => []];
         $environments = [];
+        $files = [];
         foreach ($this->definitions as $definition) {
             foreach ($definition->specs($context) as $spec) {
                 if (array_key_exists($spec->name, $document['services'])) {
@@ -71,13 +74,14 @@ final readonly class ComposeRenderer
                 $environments[$spec->name] = $spec->environment;
                 $document['volumes'] = [...$document['volumes'], ...$spec->volumes];
                 $document['networks'] = [...$document['networks'], ...$spec->networks];
+                $files = [...$files, ...$spec->files];
             }
         }
         $document['volumes'] = $this->labelled($document['volumes'], $context);
         $document['networks'] = $this->labelled($document['networks'], $context);
         ComposeGuard::assertSafe($document, $environments);
 
-        return new RenderedProject($state->project(), $document, $environments);
+        return new RenderedProject($state->project(), $document, $environments, $files);
     }
 
     /**

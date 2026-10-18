@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Compose\Services;
 
+use App\Domain\Instance\Compose\EdgeNetwork;
 use App\Domain\Instance\Compose\ImageRole;
 use App\Domain\Instance\Compose\RenderContext;
 use App\Domain\Instance\Compose\ServiceDefinition;
@@ -22,7 +23,7 @@ final readonly class MailpitService implements ServiceDefinition
 
     private const string VOLUME = 'mailpit-data';
 
-    private const int UI_PORT = 8025;
+    public const int UI_PORT = 8025;
 
     public function specs(RenderContext $context): array
     {
@@ -35,7 +36,8 @@ final readonly class MailpitService implements ServiceDefinition
             'image' => $context->image(ImageRole::Mailpit),
             ...$ports,
             'volumes' => [['type' => 'volume', 'source' => self::VOLUME, 'target' => dirname(ServiceEnvironments::MAILPIT_DATABASE)]],
-            'networks' => ['default'],
+            // Domain mode: the edge serves the UI under /_mail/ (MP_WEBROOT) and reaches Mailpit on its network.
+            'networks' => $context->mode() === 'domain' ? ['default', EdgeNetwork::NAME] : ['default'],
         ], new ServiceEnvironments($context)->mailpit(), [self::VOLUME => []])];
     }
 }
