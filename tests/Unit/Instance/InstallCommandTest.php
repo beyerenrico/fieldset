@@ -42,7 +42,8 @@ it('installs a local instance phase by phase and hands out the owner link only u
         ->and($json['status'])->toBe('ok')
         ->and($json['changed'])->toBeTrue()
         ->and($json['data'])->toMatchArray(['url' => 'http://localhost:8080', 'port' => 8080, 'version' => '2.0.0-alpha.1', 'mode' => 'local', 'owner_email' => 'owner@example.com'])
-        ->and($json['data']['mail'])->toBe(['mode' => 'capture', 'catcher_url' => 'http://localhost:8025'])
+        // M11 gate: the catcher UI asks for its login, so the result says where to get it (local and proxy mode).
+        ->and($json['data']['mail'])->toBe(['mode' => 'capture', 'catcher_url' => 'http://localhost:8025', 'catcher_login_command' => 'fsa config show --catcher-login'])
         ->and($json['data']['sign_in_link'])->toBe(['expires_at' => '2026-10-18T11:00:00Z', 'delivered' => 'secrets'])
         ->and($json['secrets'])->toBe([['name' => 'sign_in_link', 'value' => InstanceCommandFixture::LINK, 'expires_at' => '2026-10-18T11:00:00Z']])
         ->and(json_encode([$json['data'], $json['warnings'], $json['errors']]))->not->toContain('owner-token')

@@ -75,7 +75,7 @@ final readonly class StatusReport
         $data = [...$data,
             'version' => $state->version(), 'mode' => $state->mode(), 'url' => $settings->instanceUrl(), 'project' => $state->project(),
             'port' => $settings->publishesAppPort() ? $settings->port() : null, 'health' => $health, 'services' => $services,
-            'mail' => ['mode' => $settings->capturesMail() ? 'capture' : 'smtp', 'catcher_url' => $settings->catcherUrl()],
+            'mail' => MailSummary::of($state),
             'proxy' => $proxy,
             ...$phone['data'], // the local CA and the quick tunnel (ADR 0082)
         ];

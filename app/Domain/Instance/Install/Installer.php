@@ -10,6 +10,7 @@ use App\Domain\Instance\Demo\DemoData;
 use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Lifecycle\AppCommands;
+use App\Domain\Instance\Lifecycle\MailSummary;
 use App\Domain\Instance\Lifecycle\OneOffResult;
 use App\Domain\Instance\Lifecycle\SignInDelivery;
 use App\Domain\Instance\LocalCa\LocalCaInfo;
@@ -359,7 +360,7 @@ final readonly class Installer
             ...($settings->proxy() === null ? [] : ['proxy' => [
                 'setup' => $settings->proxy(), 'network' => $settings->proxyNetwork(), 'container' => $settings->proxyContainer(), 'trusted' => $settings->trustedProxies(),
             ]]),
-            'mail' => ['mode' => $settings->capturesMail() ? 'capture' : 'smtp', 'catcher_url' => $settings->catcherUrl()],
+            'mail' => MailSummary::of($state),
             // Local-CA mode (ADR 0082): the trust page for the phone and the root's fingerprint to compare there.
             ...($settings->localCa() ? ['phone_https' => LocalCaInfo::data($state, $this->directory)] : []),
             'owner_email' => $ownerEmail,

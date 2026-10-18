@@ -8,6 +8,7 @@ use App\Domain\Instance\Console\FsaContext;
 use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\Install\InstallRecord;
 use App\Domain\Instance\Lifecycle\AppCommands;
+use App\Domain\Instance\Lifecycle\MailSummary;
 use App\Domain\Instance\Lifecycle\SignInDelivery;
 use App\Domain\Instance\Operations\ContainerIdentity;
 use App\Domain\Instance\Operations\OperationRun;
@@ -104,7 +105,7 @@ final readonly class DemoOperation
         return [
             'url' => $settings->instanceUrl(),
             'mode' => $state->mode(),
-            'mail' => ['mode' => $settings->capturesMail() ? 'capture' : 'smtp', 'catcher_url' => $settings->catcherUrl()],
+            'mail' => MailSummary::of($state),
             'next_commands' => ["{$fsa} status", "{$fsa} login-link ".DemoCredentials::OWNER, "{$fsa} demo --rotate-passwords"],
         ];
     }

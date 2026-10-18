@@ -55,7 +55,7 @@ it('switches capture mode to SMTP with the password from stdin, keeps the catche
     $state = $this->config->state();
     expect($code)->toBe(0, json_encode($json))
         ->and($json['data'])->toMatchArray(['key' => 'mail', 'from' => 'capture', 'to' => 'smtp://smtp.example.com:587 (catcher kept)', 'reverted' => false])
-        ->and($json['data']['mail'])->toMatchArray(['mode' => 'smtp', 'catcher' => 'kept', 'catcher_url' => 'http://localhost:8025', 'captured' => ['invitations' => 2, 'password_resets' => 1], 'remove_catcher_command' => 'fsa config set mail smtp --remove-catcher'])
+        ->and($json['data']['mail'])->toMatchArray(['mode' => 'smtp', 'catcher' => 'kept', 'catcher_url' => 'http://localhost:8025', 'captured' => ['invitations' => 2, 'password_resets' => 1], 'remove_catcher_command' => 'fsa config set mail smtp --remove-catcher', 'catcher_login_command' => 'fsa config show --catcher-login'])
         ->and($json['data']['checked'])->toContain('test mail to owner@example.com accepted by smtp://smtp.example.com:587 (catcher kept)')
         ->and(collect($json['warnings'])->pluck('code')->all())->toContain('captured_mail')
         ->and($state->setting('mail'))->toBe('smtp')

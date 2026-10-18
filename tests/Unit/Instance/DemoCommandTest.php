@@ -61,6 +61,7 @@ it('seeds a loopback-only instance with the documented password in data and hand
         ->and($json['data']['demo'])->toMatchArray(['organization' => 'Demo Haustechnik GmbH', 'seeded' => true, 'passwords' => 'default', 'default_password' => 'password', 'exposure' => [], 'delivered' => 'data', 'login_url' => DemoFixtures::LOGIN_URL])
         ->and(array_column($json['data']['demo']['users'], 'email'))->toBe(DemoFixtures::EMAILS)
         ->and($json['data']['url'])->toBe('http://localhost:8080')
+        ->and($json['data']['mail'])->toBe(['mode' => 'capture', 'catcher_url' => 'http://localhost:8025', 'catcher_login_command' => 'fsa config show --catcher-login'])
         ->and($json['data']['next_commands'])->toContain($this->fixture->directory->root.'/fsa demo --rotate-passwords')
         ->and($link[0]['command'])->toBe(['php', 'artisan', 'identity:login-link', '--actor-uid='.posix_getuid(), '--json', '--', 'owner@demo.test'])
         ->and($json['data']['sign_in_link']['delivered'])->toBe('secrets')

@@ -33,7 +33,7 @@ it('reports version, mode, URL, mail, services, health and unused sign-in links 
     expect($code)->toBe(0)
         ->and($json['changed'])->toBeFalse()
         ->and($json['data'])->toMatchArray(['installed' => true, 'version' => '2.0.0-alpha.1', 'mode' => 'local', 'url' => 'http://localhost:8080', 'health' => 'ok', 'operation' => null, 'lock' => null, 'last_backup' => null])
-        ->and($json['data']['mail'])->toBe(['mode' => 'capture', 'catcher_url' => 'http://localhost:8025'])
+        ->and($json['data']['mail'])->toBe(['mode' => 'capture', 'catcher_url' => 'http://localhost:8025', 'catcher_login_command' => 'fsa config show --catcher-login'])
         ->and($json['data']['services']['app'])->toBe(['state' => 'running', 'health' => null])
         ->and($json['data']['sign_in_links'])->toBe(['count' => 1, 'links' => [['id' => 1, 'email' => 'owner@example.com', 'kind' => 'owner', 'state' => 'unused']]])
         ->and($json['data']['disk']['free_gib'])->toEqual(50.0)
