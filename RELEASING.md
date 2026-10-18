@@ -70,7 +70,8 @@ image would then reject new releases.
    |---|---|
    | prepare | validates the tag (`release:version`) and computes the image tags |
    | image | buildx multi-arch build with `--sbom=true --provenance=mode=max`, pushed by digest only; `cosign sign --recursive` (keyless); verifies the identity |
-   | manifest | `php artisan release:manifest` (every image by digest), `cosign sign-blob --bundle` for the manifest and `install.sh`, `SHA256SUMS` |
+   | manifest | `php artisan release:manifest` (every image by digest) with production dependencies only (`composer install --no-dev --no-scripts --no-plugins`); refuses a harness build of `install.sh`; **no OIDC token** |
+   | sign | runs no PHP or Composer: checks that the manifest's `images.app` digest is the one the image job pushed and that every file equals the tagged commit's and its checksum in the manifest, then `cosign sign-blob --bundle` for the manifest and `install.sh` (keyless) and writes `SHA256SUMS` |
    | scan | Trivy on the app image (no exceptions) and every third-party digest (only its own exception file, ADR 0071) on both platforms; a fixable critical or high finding fails the release |
    | tag | points the release's image tags at the scanned digest, and checks that the digest is unchanged |
    | publish | creates a **draft** GitHub Release with every asset |
