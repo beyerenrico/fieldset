@@ -159,6 +159,7 @@ final readonly class DistributionScripts
             'FSA_RELEASE_URL' => false,
             'FSA_REGISTRY' => false,
             'DOCKER_DEFAULT_PLATFORM' => false,
+            'FSA_TEST_DNS' => false,
             'DISPLAY' => false,
             'WAYLAND_DISPLAY' => false,
             'SSH_CONNECTION' => false,

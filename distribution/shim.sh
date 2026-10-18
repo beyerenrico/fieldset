@@ -342,9 +342,10 @@ fsa_run_container() { # <fsa args…>: the ops container (ADR 0070); returns its
 	set +f
 	IFS=$fsa_old_ifs
 	[ -z "$fsa_group" ] || set -- --group-add "$fsa_group" "$@"
+	# FSA_TEST_DNS: fixed DNS answers for the doctor, honoured only by release-harness images (ADR 0075).
 	for fsa_var in FSA_LAUNCHER FSA_TTY FSA_HOST_UID FSA_HOST_GID FSA_HOST_OS FSA_INSTANCE_DIR FSA_LAN_ADDRESSES FSA_DESKTOP \
 		FSA_TZ FSA_DOCKER_RUNTIME FSA_CONTAINER_UID FSA_DOCKER_SOCKET FSA_NONCE FSA_MOUNTS FSA_OPEN_URL_FILE \
-		FSA_TRUST_KEY FSA_REGISTRY FSA_RELEASE_URL FSA_RELEASE_MANIFEST DOCKER_DEFAULT_PLATFORM; do
+		FSA_TRUST_KEY FSA_REGISTRY FSA_RELEASE_URL FSA_RELEASE_MANIFEST DOCKER_DEFAULT_PLATFORM FSA_TEST_DNS; do
 		set -- -e "$fsa_var" "$@"
 	done
 	# HOME and DOCKER_CONFIG on a tmpfs only this container sees: nothing on the host can plant a Docker CLI plugin
