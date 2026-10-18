@@ -152,3 +152,9 @@ HTTPS is `fsa install --phone-https` and `fsa tunnel start` (U14).
   entry gains `links_revoked` (unused sign-in links deleted); the JSON `data` keeps its shape. `fsa demo` issues its
   owner link after the rotation, so that link stays valid.
 
+## Amendment 2026-10-19: `fsa demo` reports its new sign-in link as a change (M11 gate)
+- A repeated `fsa demo` on an existing demo issues a new demo owner link (it replaces an earlier unused one) and was
+  reported as `changed: false`. It is now `changed: true` with the warning `sign_in_link_issued`; when no link can be
+  issued (`sign_in_link_unavailable`) and nothing else changed, it stays `changed: false`. `fsa demo` keeps handing out
+  a link on every run (F2, R30: it is how the operator gets into the demo); `--rotate-passwords` still issues none.
+

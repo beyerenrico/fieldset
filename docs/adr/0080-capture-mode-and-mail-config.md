@@ -158,3 +158,20 @@ starttls|tls] [--smtp-username <user> --password-file <path>|--password-stdin] [
 - Verified by `tests/Unit/Instance/InstallSmtpTest.php`, `InstallSmokeTest.php` and J4's last case (a second instance
   installed with `--smtp-*` and a password file; the smoke test's mail arrives at a stand-in Mailpit attached to the
   instance's default network while install.sh runs; no catcher container).
+
+## Amendment 2026-10-19: operator-email links on a repeat, retry_after, open journals (M11 gate)
+- Gap: a repeat for an operator without a password issued a new owner link every time and reported `changed: true`,
+  which invalidated the link delivered before (and a repeat within 60 s hit the broker's throttle), although this ADR
+  says the same address is `changed: false`.
+- Link rule (`SetOperatorEmail`): the owner link is issued when the account has no password of its own and it was
+  created or newly granted the role; on a repeat only when no usable link is left (unused and not expired). A usable
+  link is kept, never replaced. Chosen over a `--new-link` flag: no new option for the launchers and agents, and the
+  delivered link stays the only one; a lost link is replaced by the same command once it expired (at most 60
+  minutes; `fsa login-link` does not cover an operator without an organization, see QUESTIONS).
+- Reporting: the one-off's `data.link` is `issued`, `outstanding` or `none`, with `data.link_expires_at`. fsa reports
+  `changed: false` plus the warning `sign_in_link_outstanding` (expiry, and the command to repeat after it) for a kept
+  link, and `changed: true` plus the warning `sign_in_link_issued` when a repeat issued a new link. `rate_limited`
+  (exit 9) carries `data.retry_after: 60` (the broker's throttle).
+- Open journal: under the lock, `config set operator-email` refuses while any operation's journal is open (exit 9
+  `operation_unfinished`, naming the command that resumes it), like every other key, after the expired-tunnel sweep.
+

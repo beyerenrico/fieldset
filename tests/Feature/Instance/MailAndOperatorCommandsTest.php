@@ -147,10 +147,37 @@ it('grants an existing account with a password without a link, and answers a rep
     [$again] = mailCommandJson('instance:operator-email', ['--email' => 'ops@example.com']);
 
     expect($exit)->toBe(0)
-        ->and($json['data'])->toMatchArray(['created' => false, 'granted' => true, 'password_set' => true])
+        ->and($json['data'])->toMatchArray(['created' => false, 'granted' => true, 'password_set' => true, 'link' => 'none', 'link_expires_at' => null])
         ->and($json['secrets'])->toBe([])
         ->and($again['changed'])->toBeFalse()
         ->and($again['data']['granted'])->toBeFalse();
+});
+
+it('keeps the delivered sign-in link on a repeat while it can still be used: no new link, changed: false', function (): void {
+    [$first] = mailCommandJson('instance:operator-email', ['--email' => 'new-ops@example.com']);
+    $user = User::query()->where('email', 'new-ops@example.com')->sole();
+    $delivered = LoginLink::query()->where('user_id', $user->id)->sole();
+
+    [$again, $exit] = mailCommandJson('instance:operator-email', ['--email' => 'new-ops@example.com']);
+
+    expect($first['data'])->toMatchArray(['link' => 'issued', 'link_expires_at' => $first['secrets'][0]['expires_at']])
+        ->and($exit)->toBe(0)
+        ->and($again['changed'])->toBeFalse()
+        ->and($again['secrets'])->toBe([])
+        ->and($again['data'])->toMatchArray(['created' => false, 'granted' => false, 'password_set' => false, 'link' => 'outstanding', 'link_expires_at' => $first['secrets'][0]['expires_at']])
+        ->and(LoginLink::query()->where('user_id', $user->id)->sole()->is($delivered))->toBeTrue();
+});
+
+it('issues a new sign-in link on a repeat once the earlier one expired unused', function (): void {
+    mailCommandJson('instance:operator-email', ['--email' => 'new-ops@example.com']);
+    $this->travel(61)->minutes();
+
+    [$again, $exit] = mailCommandJson('instance:operator-email', ['--email' => 'new-ops@example.com']);
+
+    expect($exit)->toBe(0, json_encode($again))
+        ->and($again['changed'])->toBeTrue()
+        ->and($again['data'])->toMatchArray(['created' => false, 'granted' => false, 'link' => 'issued'])
+        ->and($again['secrets'][0]['name'])->toBe('sign_in_link');
 });
 
 it('revokes every other operator with --revoke-previous', function (): void {

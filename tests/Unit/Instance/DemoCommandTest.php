@@ -112,17 +112,29 @@ it('counts a tunnel or phone HTTPS on a local instance, and an unreadable runtim
     'unreadable runtime' => ['broken', ['runtime_unreadable']],
 ]);
 
-it('changes nothing when the demo exists on a loopback instance and still tells the documented password', function (): void {
+it('changes no demo data when the demo exists on a loopback instance, still tells the documented password, and reports the new link', function (): void {
     $this->fixture->oneOffs['app:demo-seed'] = DemoFixtures::existing(9);
 
     [$code, $json] = $this->fixture->run('fsa:demo');
 
     expect($code)->toBe(0)
-        ->and($json['changed'])->toBeFalse()
+        ->and($json['changed'])->toBeTrue()
         ->and($json['data']['demo'])->toMatchArray(['seeded' => false, 'passwords' => 'default', 'default_password' => 'password', 'default_password_users' => 9])
-        ->and($json['warnings'])->toBe([])
+        ->and(collect($json['warnings'])->pluck('code')->all())->toBe(['sign_in_link_issued'])
+        ->and($json['warnings'][0]['message'])->toContain('owner@demo.test')
         ->and($this->fixture->oneOffCalls('app:demo-passwords'))->toBe([])
         ->and($json['data']['sign_in_link']['delivered'])->toBe('secrets');
+});
+
+it('reports nothing changed when the demo exists and no new link could be issued', function (): void {
+    $this->fixture->oneOffs['app:demo-seed'] = DemoFixtures::existing(9);
+    $this->fixture->oneOffs['identity:login-link'] = InstanceCommandFixture::oneOffJson(['command' => 'identity:login-link', 'status' => 'failed', 'errors' => [['code' => 'rate_limited', 'message' => 'Too many links.', 'hint' => null, 'retryable' => true]]]);
+
+    [$code, $json] = $this->fixture->run('fsa:demo');
+
+    expect($code)->toBe(0)
+        ->and($json['changed'])->toBeFalse()
+        ->and(collect($json['warnings'])->pluck('code')->all())->toBe(['sign_in_link_unavailable']);
 });
 
 it('rotates an existing demo that still has the documented password once the instance is reachable beyond loopback', function (): void {
@@ -151,7 +163,7 @@ it('says how to get new passwords when an existing demo already has random ones'
     [$code, $json] = $this->fixture->run('fsa:demo');
 
     expect($code)->toBe(0)
-        ->and($json['changed'])->toBeFalse()
+        ->and($json['changed'])->toBeTrue() // the new demo owner link
         ->and($json['data']['demo'])->toMatchArray(['passwords' => null, 'delivered' => null])
         ->and($json['warnings'][0]['code'])->toBe('demo_passwords_not_shown')
         ->and($json['warnings'][0]['hint'])->toContain('fsa demo --rotate-passwords')
