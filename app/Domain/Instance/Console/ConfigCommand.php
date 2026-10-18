@@ -41,8 +41,8 @@ use Illuminate\Console\Attributes\Signature;
         {--acme-ca= : config set domain: another ACME directory URL}
         {--acme-ca-root-file= : config set domain or acme-ca: PEM root of a private ACME directory\'s HTTPS certificate}
         {--smtp-host= : config set mail smtp: the SMTP server}
-        {--smtp-port= : config set mail smtp: its port (default 587, or 465 with --smtp-encryption tls)}
-        {--smtp-encryption= : config set mail smtp: starttls (when offered, the default) or tls (implicit TLS)}
+        {--smtp-port= : config set mail smtp: its port (default 587; 465 with --smtp-encryption tls, 25 with none)}
+        {--smtp-encryption= : config set mail smtp: starttls (required, the default), tls (implicit TLS) or none (a relay without TLS)}
         {--smtp-username= : config set mail smtp: the SMTP account; its password from --password-stdin or --password-file}
         {--password-stdin : config set mail smtp: read the SMTP password from stdin (a hidden prompt in a terminal)}
         {--password-file= : config set mail smtp: read the SMTP password from this file (mode 0600)}

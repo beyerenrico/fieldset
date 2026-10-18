@@ -127,3 +127,38 @@ it('brings the account back with its server when a move to another server withou
     expect($code)->toBe(5, json_encode($json))
         ->and(safetyEnv($this->config))->toMatchArray(['MAIL_HOST' => 'smtp.example.com', 'MAIL_USERNAME' => SAFETY_USER, 'MAIL_PASSWORD' => SAFETY_PASSWORD]);
 });
+
+it('requires TLS for STARTTLS, with or without an account, so a stripped STARTTLS never sends the password in clear', function (bool $account): void {
+    [$code, $json] = $account ? safetySmtp($this->config) : $this->config->set('mail', 'smtp', ['--smtp-host' => 'smtp.example.com', '--from-address' => 'forms@example.com']);
+
+    expect($code)->toBe(0, json_encode($json))
+        ->and($json['data']['to'])->toBe('smtp://smtp.example.com:587 (catcher kept)')
+        ->and(safetyEnv($this->config))->toMatchArray(['MAIL_PORT' => '587', 'MAIL_REQUIRE_TLS' => 'true'])
+        ->and(safetyEnv($this->config))->not->toHaveKey('MAIL_SCHEME')->not->toHaveKey('MAIL_AUTO_TLS')
+        ->and(new EnvFiles($this->config->instance->directory)->read('queue'))->toMatchArray(['MAIL_REQUIRE_TLS' => 'true']);
+})->with(['account' => true, 'no account' => false]);
+
+it('sends implicit TLS for `tls` without the STARTTLS requirement', function (): void {
+    [$code, $json] = safetySmtp($this->config, ['--smtp-encryption' => 'tls']);
+
+    expect($code)->toBe(0, json_encode($json))
+        ->and(safetyEnv($this->config))->toMatchArray(['MAIL_SCHEME' => 'smtps', 'MAIL_PORT' => '465'])
+        ->and(safetyEnv($this->config))->not->toHaveKey('MAIL_REQUIRE_TLS')->not->toHaveKey('MAIL_AUTO_TLS');
+});
+
+it('talks plain SMTP to a relay only when asked with --smtp-encryption none, and warns when an account goes along', function (bool $account): void {
+    [$code, $json] = $account
+        ? safetySmtp($this->config, ['--smtp-encryption' => 'none'])
+        : $this->config->set('mail', 'smtp', ['--smtp-host' => 'relay.internal', '--smtp-encryption' => 'none', '--from-address' => 'forms@example.com']);
+
+    $warnings = collect($json['warnings'])->pluck('code')->all();
+    expect($code)->toBe(0, json_encode($json))
+        ->and($json['data']['to'])->toEndWith(':25 (no TLS) (catcher kept)')
+        ->and(safetyEnv($this->config))->toMatchArray(['MAIL_SCHEME' => 'smtp', 'MAIL_PORT' => '25', 'MAIL_AUTO_TLS' => 'false'])
+        ->and(safetyEnv($this->config))->not->toHaveKey('MAIL_REQUIRE_TLS')
+        ->and($this->config->state()->setting('smtp_scheme'))->toBe('smtp')
+        ->and(in_array('smtp_plaintext_auth', $warnings, true))->toBe($account);
+
+    [, $show] = $this->config->show();
+    expect($show['data']['settings']['mail']['smtp']['encryption'])->toBe('none');
+})->with(['account' => true, 'no account' => false]);

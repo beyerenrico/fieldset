@@ -22,9 +22,10 @@ use App\Domain\Instance\State\InstanceState;
 /**
  * `fsa config set mail smtp|capture` (R22, R25, KTD13, ADR 0054, ADR 0080).
  *
- * - `smtp`: the server from `--smtp-host` (required from capture mode), `--smtp-port`, `--smtp-encryption starttls|tls`,
- *   an account from `--smtp-username` with the password from `--password-stdin` or `--password-file` (never a flag
- *   value: exit 2), the sender from `--from-address`/`--from-name`. Flags left out keep their values, the credentials
+ * - `smtp`: the server from `--smtp-host` (required from capture mode), `--smtp-port`, `--smtp-encryption`
+ *   `starttls|tls|none` (STARTTLS required, implicit TLS, or a plain relay: `smtp_plaintext_auth` warns when an account
+ *   goes along), an account from `--smtp-username` with the password from `--password-stdin` or `--password-file`
+ *   (never a flag value: exit 2), the sender from `--from-address`/`--from-name`. Flags left out keep their values, the credentials
  *   included, except that another `--smtp-host` without an account drops the stored one (`smtp_credentials_dropped`):
  *   an account is never sent to a server it was not given for. App, queue and scheduler get the new mailer; verify
  *   sends a test mail through it (to `--test-to`, else the longest-standing operator) and a refused one reverts to the
@@ -95,8 +96,9 @@ final readonly class MailApplier implements SettingApplier, SettingHooks
             return 'capture';
         }
         $scheme = $settings->smtpScheme() === InstanceSettings::SMTP_IMPLICIT_TLS ? 'smtps' : 'smtp';
+        $plain = $settings->smtpScheme() === InstanceSettings::SMTP_PLAIN ? ' (no TLS)' : '';
 
-        return "{$scheme}://{$settings->smtpHost()}:{$settings->smtpPort()}".($settings->keepsCatcher() ? ' (catcher kept)' : '');
+        return "{$scheme}://{$settings->smtpHost()}:{$settings->smtpPort()}{$plain}".($settings->keepsCatcher() ? ' (catcher kept)' : '');
     }
 
     private function capture(InstanceState $state, MailOptions $options, ?SmtpCredentials $credentials): ConfigChange
@@ -135,8 +137,12 @@ final readonly class MailApplier implements SettingApplier, SettingHooks
         }
         $current = $this->current($configured);
         $change = new ConfigChange(self::KEY, $state, $after, self::describe($state), self::describe($after), credentials: $credentials instanceof SmtpCredentials && ! $current->equals($credentials) ? $credentials : null);
-        if (! $credentials instanceof SmtpCredentials && $current->username !== null && $host !== $settings->smtpHost()) {
+        $kept = $current->username !== null && $host === $settings->smtpHost();
+        if (! $credentials instanceof SmtpCredentials && $current->username !== null && ! $kept) {
             $change = $change->withWarning('smtp_credentials_dropped', "The SMTP account of {$settings->smtpHost()} is not sent to {$host}: the change drops it.", "Pass --smtp-username <user> with --password-stdin or --password-file if {$host} needs an account.");
+        }
+        if ($scheme === InstanceSettings::SMTP_PLAIN && ($credentials instanceof SmtpCredentials || $kept)) {
+            $change = $change->withWarning('smtp_plaintext_auth', "The SMTP password goes to {$host} unencrypted (--smtp-encryption none).", 'Use --smtp-encryption starttls or tls unless the relay runs on this host or your own trusted network.');
         }
         $sender = InstanceSettings::of($after)->mailFromAddress();
 

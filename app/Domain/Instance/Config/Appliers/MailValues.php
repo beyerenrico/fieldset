@@ -12,13 +12,14 @@ use SensitiveParameter;
 
 /**
  * The grammar of the `fsa config set mail smtp` flags (R25, ADR 0080), exit 2 for anything else: host names as for
- * every other setting (InputGrammar), the encryption as `starttls` (STARTTLS when the server offers it, port 587) or
- * `tls` (implicit TLS, port 465), and credentials that an env file can hold (no line break or NUL).
+ * every other setting (InputGrammar), the encryption as `starttls` (STARTTLS required, port 587), `tls` (implicit TLS,
+ * port 465) or `none` (plain SMTP to a relay without TLS, port 25; the app's own per-organization SMTP uses the same
+ * three, SmtpEncryption), and credentials that an env file can hold (no line break or NUL).
  */
 final class MailValues
 {
-    /** `--smtp-encryption` => the stored `smtp_scheme` (null: STARTTLS when offered). */
-    public const array ENCRYPTIONS = ['starttls' => null, 'tls' => InstanceSettings::SMTP_IMPLICIT_TLS];
+    /** `--smtp-encryption` => the stored `smtp_scheme` (null: STARTTLS, required). */
+    public const array ENCRYPTIONS = ['starttls' => null, 'tls' => InstanceSettings::SMTP_IMPLICIT_TLS, 'none' => InstanceSettings::SMTP_PLAIN];
 
     private const int MAX_USERNAME = 255;
 
@@ -49,7 +50,7 @@ final class MailValues
     {
         $value = strtolower(trim($value));
         if (! array_key_exists($value, self::ENCRYPTIONS)) {
-            throw new InvalidInput('Invalid value for --smtp-encryption.', 'invalid_value', 'Use starttls (STARTTLS when the server offers it, port 587) or tls (implicit TLS, port 465).');
+            throw new InvalidInput('Invalid value for --smtp-encryption.', 'invalid_value', 'Use starttls (STARTTLS required, port 587), tls (implicit TLS, port 465) or none (a relay without TLS on your own network, port 25).');
         }
 
         return self::ENCRYPTIONS[$value];
@@ -57,12 +58,16 @@ final class MailValues
 
     public static function defaultPort(?string $scheme): int
     {
-        return $scheme === InstanceSettings::SMTP_IMPLICIT_TLS ? InstanceSettings::DEFAULT_SMTPS_PORT : InstanceSettings::DEFAULT_SMTP_PORT;
+        return match ($scheme) {
+            InstanceSettings::SMTP_IMPLICIT_TLS => InstanceSettings::DEFAULT_SMTPS_PORT,
+            InstanceSettings::SMTP_PLAIN => InstanceSettings::DEFAULT_PLAIN_SMTP_PORT,
+            default => InstanceSettings::DEFAULT_SMTP_PORT,
+        };
     }
 
     public static function encryption(?string $scheme): string
     {
-        return $scheme === InstanceSettings::SMTP_IMPLICIT_TLS ? 'tls' : 'starttls';
+        return (string) (array_search($scheme, self::ENCRYPTIONS, true) ?: 'starttls');
     }
 
     public static function senderName(string $value): string

@@ -6,6 +6,7 @@ namespace App\Domain\Instance\Compose;
 
 use App\Domain\Instance\Runtime\CatcherRoute;
 use App\Domain\Instance\State\InstanceSecrets;
+use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InvalidState;
 use App\Domain\Instance\State\RuntimeWriter;
 
@@ -216,7 +217,9 @@ final readonly class ServiceEnvironments
 
     /**
      * Capture mode: SMTP to the bundled Mailpit (KTD13), and FSA_MAIL_CAPTURE for the banner and the health check (ADR
-     * 0080); else the configured server.
+     * 0080); else the configured server: STARTTLS required (MAIL_REQUIRE_TLS, so a server, or an attacker, that hides
+     * STARTTLS gets neither the account nor the mail), implicit TLS (MAIL_SCHEME=smtps), or a plain relay
+     * (MAIL_SCHEME=smtp, MAIL_AUTO_TLS=false) only when `--smtp-encryption none` asked for it (ADR 0080 amendment).
      *
      * @return array<string, string>
      */
@@ -235,6 +238,8 @@ final readonly class ServiceEnvironments
             'MAIL_HOST' => $host,
             'MAIL_PORT' => (string) $settings->smtpPort(),
             'MAIL_SCHEME' => (string) $settings->smtpScheme(),
+            'MAIL_REQUIRE_TLS' => $settings->smtpScheme() === null ? 'true' : '',
+            'MAIL_AUTO_TLS' => $settings->smtpScheme() === InstanceSettings::SMTP_PLAIN ? 'false' : '',
             'MAIL_USERNAME' => (string) $secrets->smtpUsername,
             'MAIL_PASSWORD' => (string) $secrets->smtpPassword,
             ...$sender,

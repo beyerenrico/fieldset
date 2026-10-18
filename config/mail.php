@@ -49,6 +49,10 @@ return [
             'password' => env('MAIL_PASSWORD'),
             'timeout' => null,
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
+            // Symfony's EsmtpTransportFactory options (fsa instances, ADR 0080 amendment): `require_tls` refuses a server
+            // that offers no STARTTLS before any AUTH or mail, `auto_tls` false never starts STARTTLS (a plain relay).
+            'require_tls' => env('MAIL_REQUIRE_TLS', false),
+            'auto_tls' => env('MAIL_AUTO_TLS', true),
         ],
 
         'ses' => [
