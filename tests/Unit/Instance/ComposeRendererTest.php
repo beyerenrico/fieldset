@@ -298,7 +298,7 @@ it('sizes Horizon, FrankenPHP, Gotenberg, Postgres and Valkey from the budget', 
         ->and($rendered->service('redis')['command'])->toBe(['valkey-server', '--maxmemory', $budget->valkeyMaxMemory(), '--maxmemory-policy', 'volatile-lru']);
 })->with(ResourceBudget::SIZES);
 
-it('renders local mode only until the edge and proxy units extend it', function (string $mode): void {
+it('renders local and proxy mode only until the edge unit extends it', function (string $mode): void {
     $state = ComposeFixtures::state()->withMode($mode)->withUrl('https://forms.example.com');
 
     try {
@@ -307,7 +307,7 @@ it('renders local mode only until the edge and proxy units extend it', function 
     } catch (InstanceException $e) {
         expect($e->errorCode)->toBe('unsupported_mode')->and($e->exitCode)->toBe(ExitCode::InvalidInput);
     }
-})->with(['domain', 'proxy']);
+})->with(['domain']);
 
 it('writes the compose file, 0600 env files and the runtime directory, and drops the env files of removed services', function (): void {
     $directory = TemporaryInstance::directory();

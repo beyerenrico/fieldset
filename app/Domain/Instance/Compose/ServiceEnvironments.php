@@ -41,6 +41,7 @@ final readonly class ServiceEnvironments
             ...$this->database($this->context->secrets->dbPassword, $this->context->settings->dbUsername()),
             ...$this->cache(),
             ...$this->mail(),
+            ...$this->trustedProxies(),
             ...match ($role) {
                 'app' => ['FRANKENPHP_CONFIG' => 'num_threads '.$budget->frankenphpThreads()],
                 'queue' => ['HORIZON_MAX_PROCESSES' => (string) $budget->horizonProcesses(), 'HORIZON_EXPORTS_PROCESSES' => (string) $budget->horizonExportsProcesses()],
@@ -134,6 +135,19 @@ final readonly class ServiceEnvironments
             // The read-only runtime mount (KTD11): config('instance.runtime_path'), read by App\Domain\Instance\Runtime.
             'FSA_RUNTIME_PATH' => RuntimeWriter::CONTAINER_PATH,
         ];
+    }
+
+    /**
+     * Proxy mode (R17, ADR 0076): X-Forwarded-* are honoured from exactly the proxy's address, never from a range a
+     * neighbouring container on the shared network could send from.
+     *
+     * @return array<string, string>
+     */
+    private function trustedProxies(): array
+    {
+        $proxies = $this->context->mode() === 'proxy' ? $this->context->settings->trustedProxies() : [];
+
+        return $proxies === [] ? [] : ['TRUSTED_PROXIES' => implode(',', $proxies)];
     }
 
     /** @return array<string, string> */

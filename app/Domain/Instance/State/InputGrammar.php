@@ -19,6 +19,12 @@ final class InputGrammar
     public const string SLUG = '/^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$/D';
 
     /** A Docker image reference pinned by digest (registry host with optional port, lowercase path, sha256). */
+    /** Proxy mode's setups (R17, ADR 0076): Traefik or caddy-docker-proxy labels on a shared network, or a loopback port. */
+    public const array PROXIES = ['traefik', 'caddy', 'port'];
+
+    /** A Docker network or container name, as the daemon accepts it. */
+    public const string DOCKER_NAME = '/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/D';
+
     public const string IMAGE_REFERENCE = '/^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)*(?::[0-9]{1,5})?\/)?[a-z0-9]+(?:(?:\.|_|__|-+)[a-z0-9]+)*(?:\/[a-z0-9]+(?:(?:\.|_|__|-+)[a-z0-9]+)*)*@sha256:[0-9a-f]{64}$/D';
 
     private const string LABEL = '/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/iD';
@@ -44,6 +50,7 @@ final class InputGrammar
         'mail' => ['capture', 'smtp'], 'smtp_scheme' => ['smtp', 'smtps'], 'size' => ResourceBudget::SIZES,
         'db_database' => 'identifier', 'db_username' => 'identifier',
         'mail_from_address' => 'email', 'mail_from_name' => 'text',
+        'proxy' => self::PROXIES, 'proxy_network' => 'docker_name', 'proxy_container' => 'docker_name', 'trusted_proxies' => 'ip_list',
     ];
 
     private const array PROBLEMS = [
@@ -54,6 +61,8 @@ final class InputGrammar
         'identifier' => 'must be a lowercase identifier',
         'email' => 'must be an e-mail address',
         'text' => 'must be plain text without quotes, $, backslashes or control characters',
+        'docker_name' => 'must be a Docker network or container name',
+        'ip_list' => 'must be a comma-separated list of IP addresses (single addresses, no ranges)',
     ];
 
     /** RFC 1123 host name (no wildcard, no trailing dot) or an IPv4/IPv6 address. */
@@ -127,6 +136,26 @@ final class InputGrammar
         return is_string($value) && mb_strlen($value) <= self::MAX_TEXT && preg_match('//u', $value) === 1 && preg_match(self::UNSAFE, $value) !== 1;
     }
 
+    public static function isDockerName(mixed $value): bool
+    {
+        return is_string($value) && preg_match(self::DOCKER_NAME, $value) === 1;
+    }
+
+    /**
+     * "a, b" → ["a", "b"] for single IP addresses; null when an entry is empty, a range or not an IP address.
+     *
+     * @return list<string>|null
+     */
+    public static function ipList(string $value): ?array
+    {
+        if (trim($value) === '') {
+            return [];
+        }
+        $addresses = array_map(trim(...), explode(',', $value));
+
+        return count($addresses) <= self::MAX_HOSTS && array_all($addresses, self::isIp(...)) ? $addresses : null;
+    }
+
     public static function isImageReference(mixed $value): bool
     {
         return is_string($value) && preg_match(self::IMAGE_REFERENCE, $value) === 1;
@@ -183,6 +212,8 @@ final class InputGrammar
             'host' => self::isHost($value),
             'ip' => self::isIp($value),
             'host_list' => is_string($value) && self::hostList($value) !== null,
+            'ip_list' => is_string($value) && self::ipList($value) !== null,
+            'docker_name' => self::isDockerName($value),
             'identifier' => self::isIdentifier($value),
             'email' => self::isEmail($value),
             default => self::isText($value),
