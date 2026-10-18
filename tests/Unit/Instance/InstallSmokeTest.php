@@ -191,7 +191,9 @@ it('names config set mail when --smtp-host is added to an instance installed in 
 
     expect($code)->toBe(2)
         ->and($json['errors'][0]['code'])->toBe('use_config_set')
-        ->and($json['data']['flags'])->toBe([['flag' => '--smtp-host', 'key' => 'mail']]);
+        ->and($json['data']['flags'])->toBe([['flag' => '--smtp-host', 'key' => 'mail']])
+        // M11 gate: the same command as the capture banner, sender included (forms@localhost is refused by most servers).
+        ->and($json['errors'][0]['hint'])->toContain('`fsa config set mail smtp --smtp-host <host> --smtp-username <user> --from-address <address> --password-stdin`');
 });
 
 it('verifies `fsa config set` without rendering a PDF or sending a mail (only the install smoke test does)', function (): void {

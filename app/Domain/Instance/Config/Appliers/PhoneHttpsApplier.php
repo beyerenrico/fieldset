@@ -11,8 +11,8 @@ use App\Domain\Instance\Config\SettingHooks;
 use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\HostFacts;
 use App\Domain\Instance\LocalCa\LanAddress;
+use App\Domain\Instance\LocalCa\LocalCaDeletion;
 use App\Domain\Instance\LocalCa\LocalCaInfo;
-use App\Domain\Instance\LocalCa\LocalCaStore;
 use App\Domain\Instance\Output\InvalidInput;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceSettings;
@@ -28,7 +28,8 @@ use App\Domain\Instance\State\InstanceState;
  *   verified against it without SNI, port 80 serving only the trust page. The result names the trust page and the
  *   root's fingerprint.
  * - `off`: the edge goes, the URL is the loopback one again, and once that runs the CA (keys included) is deleted from
- *   the certificate volume; a later `local-ca` creates a new one, which phones must trust anew.
+ *   the certificate volume; a later `local-ca` creates a new one, which phones must trust anew. A deletion that failed
+ *   stays pending in the state (LocalCaDeletion): `off` again retries it, `local-ca` deletes it before its edge starts.
  *
  * The quick tunnel has its own command (`fsa tunnel`); domain and proxy mode already serve HTTPS (R61: exit 2).
  */
@@ -40,7 +41,7 @@ final readonly class PhoneHttpsApplier implements SettingApplier, SettingHooks
         private InstanceDirectory $directory,
         private HostFacts $facts,
         private LocalCaPreflight $preflight,
-        private LocalCaStore $store,
+        private LocalCaDeletion $deletion,
     ) {}
 
     public function plan(InstanceState $state, ConfigRequest $request): ConfigChange
@@ -55,22 +56,26 @@ final readonly class PhoneHttpsApplier implements SettingApplier, SettingHooks
             default => null,
         };
         $from = $settings->phoneHttps() ?? 'off';
-        if ($value === $from) {
-            return new ConfigChange(self::KEY, $state, $state, $from, $value);
+        if ($value === $from) { // `off` again retries a CA deletion that failed (a change of the pending setting)
+            return new ConfigChange(self::KEY, $state, $value === 'off' ? $state->withSetting(LocalCaDeletion::SETTING, null) : $state, $from, $value);
         }
         if ($value === 'off') {
             return new ConfigChange(self::KEY, $state, $state->withSetting('phone_https', null)->withUrl(null), $from, $value);
         }
         $address = $this->address($settings);
 
-        return new ConfigChange(self::KEY, $state, $state->withSettings(['phone_https' => 'local-ca', 'lan_address' => $address])->withUrl('https://'.$address), $from, $value);
+        return new ConfigChange(self::KEY, $state, $state->withSettings(['phone_https' => 'local-ca', 'lan_address' => $address, LocalCaDeletion::SETTING => null])->withUrl('https://'.$address), $from, $value);
     }
 
     public function preflight(ConfigChange $change, HostFacts $facts): ConfigChange
     {
-        return InstanceSettings::of($change->after)->localCa()
-            ? $change->withAfter($this->preflight->check($change->before, $change->after, $facts))
-            : $change;
+        if (! InstanceSettings::of($change->after)->localCa()) {
+            return $change;
+        }
+        $checked = $change->withAfter($this->preflight->check($change->before, $change->after, $facts));
+        $this->deletion->beforeNewCa($change->before);
+
+        return $checked;
     }
 
     public function verifySeconds(): int
@@ -92,12 +97,8 @@ final readonly class PhoneHttpsApplier implements SettingApplier, SettingHooks
 
             return ['data' => ['phone_https' => LocalCaInfo::data($change->after, $this->directory, $this->facts)], 'warnings' => $warnings];
         }
-        if (InstanceSettings::of($change->before)->localCa()) {
-            $this->store->deleteKey($change->before);
-
-            return ['data' => ['phone_https' => ['mode' => null, 'ca_deleted' => true]], 'warnings' => [
-                ['code' => 'local_ca_deleted', 'message' => 'The local CA and its keys were deleted. Remove its certificate from the phones that trusted it.', 'hint' => null],
-            ]];
+        if (InstanceSettings::of($change->before)->localCa() || LocalCaDeletion::pending($change->before)) {
+            return $this->deletion->delete($change->before);
         }
 
         return ['data' => [], 'warnings' => []];

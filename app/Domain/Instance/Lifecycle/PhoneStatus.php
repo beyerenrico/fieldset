@@ -7,6 +7,7 @@ namespace App\Domain\Instance\Lifecycle;
 use App\Domain\Instance\Doctor\Checks\LanAddressCheck;
 use App\Domain\Instance\HostFacts;
 use App\Domain\Instance\LocalCa\LanAddress;
+use App\Domain\Instance\LocalCa\LocalCaDeletion;
 use App\Domain\Instance\LocalCa\LocalCaInfo;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceState;
@@ -37,6 +38,9 @@ final readonly class PhoneStatus
         }
         if ($tunnel['state'] === 'stopped') {
             $warnings[] = ['tunnel_stopped', 'The quick tunnel does not run any more (cloudflared is not restarted: a restart would get a new address).', 'The next fsa command that changes something removes it; `fsa tunnel start` starts a new one.'];
+        }
+        if (LocalCaDeletion::pending($state)) {
+            $warnings[] = ['local_ca_delete_pending', 'The local CA turned off earlier could not be deleted: its keys are still on the edge\'s certificate volume.', 'Run `'.LocalCaDeletion::RETRY_COMMAND.'` to delete it.'];
         }
 
         return ['data' => ['phone_https' => $localCa ?? ($tunnel['state'] === 'none' ? null : ['mode' => 'tunnel']), 'tunnel' => $tunnel['state'] === 'none' ? null : $tunnel], 'warnings' => $warnings];
