@@ -41,6 +41,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->append([ResolveInstanceRuntime::class, SecureCookies::class]);
         // Behind a TLS-terminating reverse proxy: which proxies are trusted is read per request from
         // config('trustedproxy.proxies') (TRUSTED_PROXIES: IPs/CIDRs or *; empty = none). Config is not loaded yet here.
+        // X-Forwarded-Port stays trusted: Traefik (proxy mode) and host proxies set it. On an `fsa` instance links take
+        // their port from the configured URL, never from it, and the edge strips it (ADR 0079).
         $middleware->trustProxies(headers: Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_HOST
             | Request::HEADER_X_FORWARDED_PORT | Request::HEADER_X_FORWARDED_PROTO);
         // Host allow-list (APP_URL host, loopback, TRUSTED_HOSTS, runtime hosts) outside local/testing: no

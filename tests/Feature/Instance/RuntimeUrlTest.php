@@ -61,9 +61,10 @@ it('keeps localhost links for a localhost request during an active tunnel', func
     runtimeRequest('http://forms.lan:8080/api/_runtime-probe')->assertOk()->assertJson(['url' => 'http://forms.lan:8080/admin']);
     runtimeRequest('http://localhost:8080/api/_runtime-probe', RuntimeFixture::PEER)->assertOk()
         ->assertJson(['url' => 'https://'.RuntimeFixture::TUNNEL.'/admin', 'host' => RuntimeFixture::TUNNEL, 'secure' => true]);
-    // The tunnel host is https even when a request for it arrives as plain http from another peer.
+    // A plain-http request for the tunnel host from another peer still gets HSTS (the host is https), but its links
+    // keep the request's own scheme, so a URL signed in it verifies where it was made (ADR 0079).
     runtimeRequest('http://'.RuntimeFixture::TUNNEL.'/api/_runtime-probe')->assertOk()
-        ->assertJson(['url' => 'https://'.RuntimeFixture::TUNNEL.'/admin', 'secure' => false])
+        ->assertJson(['url' => 'http://'.RuntimeFixture::TUNNEL.'/admin', 'secure' => false])
         ->assertHeader('Strict-Transport-Security', 'max-age=31536000');
     // Every loopback spelling keeps its own origin, so a sign-in on 127.0.0.1 is not sent to localhost's cookies.
     runtimeRequest('http://127.0.0.1:8080/api/_runtime-probe')->assertOk()->assertJson(['url' => 'http://127.0.0.1:8080/admin']);
@@ -148,6 +149,63 @@ it('pins the tunnel peer to https on the tunnel host, so links signed there veri
 
     expect($signed)->toStartWith('https://'.RuntimeFixture::TUNNEL.'/api/_runtime-signed?signature=');
     runtimeRequest($signed, RuntimeFixture::PEER, ['X-Forwarded-Proto' => 'http', 'X-Forwarded-Host' => 'localhost'])->assertOk()->assertSee('signed ok');
+});
+
+it('keeps the request\'s own scheme in links when plain http reaches an https host, so signed URLs verify (stale proxy)', function (): void {
+    RuntimeFixture::install(RuntimeFixture::domain('forms.example'));
+    // The recorded proxy address; the request comes from a recreated proxy with a new one, whose headers are ignored.
+    config(['trustedproxy.proxies' => '10.213.0.2']);
+    $stale = ['X-Forwarded-Proto' => 'https', 'X-Forwarded-Port' => '443'];
+
+    $probe = runtimeRequest('http://forms.example/api/_runtime-probe', '10.213.0.9', $stale)->assertOk()
+        ->assertJson(['url' => 'http://forms.example/admin', 'route' => 'http://forms.example/app', 'secure' => false])
+        ->assertHeader('Strict-Transport-Security', 'max-age=31536000');
+    $signed = (string) $probe->json('signed');
+
+    expect($signed)->toStartWith('http://forms.example/api/_runtime-signed?signature=');
+    runtimeRequest($signed, '10.213.0.9', $stale)->assertOk()->assertSee('signed ok');
+});
+
+it('answers plain http on an https host without a redirect loop: same-scheme redirects, Secure cookies, upgrade-insecure-requests', function (): void {
+    RuntimeFixture::install(RuntimeFixture::domain('forms.example'));
+
+    // The browser sits behind a TLS-terminating proxy that sends no X-Forwarded-Proto: it follows the same-origin
+    // http redirect through upgrade-insecure-requests and HSTS, and the app serves the target without redirecting again.
+    runtimeRequest('http://forms.example/admin', '172.23.0.1')->assertRedirect('http://forms.example/admin/login');
+    $login = runtimeRequest('http://forms.example/admin/login', '172.23.0.1')->assertOk()
+        ->assertHeader('Strict-Transport-Security', 'max-age=31536000');
+
+    expect(runtimeCookie($login, '__Host-'.$this->session)?->isSecure())->toBeTrue()
+        ->and($login->headers->get('Content-Security-Policy'))->toContain('upgrade-insecure-requests');
+});
+
+it('takes the link port from the URL configured for the host, never from X-Forwarded-Port or the Host header', function (): void {
+    RuntimeFixture::install([...RuntimeFixture::domain('forms.example'), 'extra_hosts' => ['forms.lan']]);
+    config(['trustedproxy.proxies' => '10.213.0.2']);
+    $edge = fn (array $headers) => runtimeRequest('http://forms.example/api/_runtime-probe', '10.213.0.2', ['X-Forwarded-Proto' => 'https', ...$headers]);
+
+    $edge(['X-Forwarded-Port' => '8443'])->assertOk()->assertJson(['url' => 'https://forms.example/admin', 'secure' => true]);
+    $edge(['X-Forwarded-Host' => 'forms.example:8443'])->assertOk()->assertJson(['url' => 'https://forms.example/admin']);
+    runtimeRequest('https://forms.example:8443/api/_runtime-probe')->assertOk()->assertJson(['url' => 'https://forms.example/admin']);
+    // Extra hosts follow the instance URL (scheme, port and path).
+    runtimeRequest('https://forms.lan:9443/api/_runtime-probe')->assertOk()->assertJson(['url' => 'https://forms.lan/admin']);
+});
+
+it('keeps a non-default port only where the configured URL has it', function (): void {
+    RuntimeFixture::install([...RuntimeFixture::tunnel(), 'instance_url' => 'https://forms.example:8443', 'local_url' => 'http://localhost:8080']);
+
+    runtimeRequest('https://forms.example:8443/api/_runtime-probe')->assertOk()->assertJson(['url' => 'https://forms.example:8443/admin']);
+    runtimeRequest('https://forms.example/api/_runtime-probe')->assertOk()->assertJson(['url' => 'https://forms.example:8443/admin']);
+    // Plain http on that URL (an untrusted proxy passing Host on): the configured port stays when the request addressed
+    // it, so the signed URL verifies; any other port is dropped.
+    $signed = (string) runtimeRequest('http://forms.example:8443/api/_runtime-probe', '10.213.0.9')->assertOk()
+        ->assertJson(['url' => 'http://forms.example:8443/admin'])->json('signed');
+    runtimeRequest($signed, '10.213.0.9')->assertOk()->assertSee('signed ok');
+    runtimeRequest('http://forms.example:9443/api/_runtime-probe', '10.213.0.9')->assertOk()->assertJson(['url' => 'http://forms.example/admin']);
+    runtimeRequest('http://localhost:9999/api/_runtime-probe')->assertOk()->assertJson(['url' => 'http://localhost:8080/admin']);
+    runtimeRequest('http://127.0.0.1:8080/api/_runtime-probe')->assertOk()->assertJson(['url' => 'http://127.0.0.1:8080/admin']);
+    runtimeRequest('http://localhost:8080/api/_runtime-probe', RuntimeFixture::PEER)->assertOk()
+        ->assertJson(['url' => 'https://'.RuntimeFixture::TUNNEL.'/admin']);
 });
 
 it('adds the allowed hosts to Sanctum\'s stateful domains', function (): void {
