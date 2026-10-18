@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Instance\Console\LaunchGuard;
+use App\Domain\Instance\HostFacts;
 use App\Domain\Instance\Release\ManifestSchema;
 use App\Domain\Instance\Release\ManifestVerifier;
 use App\Domain\Instance\Release\SignerIdentity;
@@ -200,6 +201,45 @@ it('hands over to fsa install in an ops container with the host facts, mounts an
     }
 });
 
+it('keeps DOCKER_DEFAULT_PLATFORM for its docker calls but cosign\'s and hands it to the ops container (ADR 0070)', function (?string $platform): void {
+    $process = $this->scripts->run($this->production, ['--dir', $this->dir, '--json'], [...$this->env, 'DOCKER_DEFAULT_PLATFORM' => $platform ?? false]);
+    $p = $platform ?? '';
+    $events = collect(explode("\n", trim($process->getErrorOutput())))->map(fn (string $line): array => json_decode($line, true) ?? []);
+
+    // version, inspect, pull + create cosign (the engine's platform), cp, start, rm, pull app, cat shim, docker info, ops container
+    expect($process->getExitCode())->toBe(0, $process->getErrorOutput())
+        ->and(array_map(fn (array $call): string => $call[0].'='.$call[1], $this->scripts->dockerPlatforms()))
+        ->toBe(["version={$p}", "image={$p}", 'pull=', 'create=', "cp={$p}", "start={$p}", "rm={$p}", "pull={$p}", "run={$p}", "info={$p}", "run={$p}"])
+        ->and(implode(' ', $this->scripts->opsRuns()[0]))->toContain('-e DOCKER_DEFAULT_PLATFORM ')
+        ->and($this->scripts->opsEnvironment()['DOCKER_DEFAULT_PLATFORM'] ?? null)->toBe($platform)
+        ->and($events->firstWhere('phase', 'pull')['message'])->toEndWith('@'.ReleaseFixtures::APP_DIGEST.($platform === null ? '' : " for {$platform}"));
+})->with(['unset' => null, 'amd64 (emulated on Apple Silicon)' => 'linux/amd64', 'arm64' => 'linux/arm64', 'with a variant' => 'linux/arm64/v8']);
+
+it('refuses a DOCKER_DEFAULT_PLATFORM no release ships with exit 2 invalid_platform before any Docker call', function (string $platform): void {
+    $process = $this->scripts->run($this->production, ['--dir', $this->dir, '--json'], [...$this->env, 'DOCKER_DEFAULT_PLATFORM' => $platform]);
+    $error = json_decode($process->getOutput(), true)['errors'][0] ?? [];
+
+    expect($process->getExitCode())->toBe(2, $process->getErrorOutput())
+        ->and($error['code'] ?? null)->toBe('invalid_platform')
+        ->and($error['hint'])->toBe("Unset DOCKER_DEFAULT_PLATFORM to use the engine's own platform.")
+        ->and($this->scripts->calls())->toBe([])
+        ->and(file_exists($this->dir))->toBeFalse();
+})->with(['linux/s390x', 'amd64', 'linux/arm/v7', 'linux/amd64,linux/arm64', 'windows/amd64', 'linux/arm64/v8 --privileged', "linux/amd64\nlinux/s390x"]);
+
+it('accepts the same DOCKER_DEFAULT_PLATFORM values in install.sh, the shim and HostFacts', function (): void {
+    $values = ['linux/amd64', 'linux/arm64', 'linux/arm64/v8', 'linux/amd64/v2', 'linux/s390x', 'linux/arm/v7', 'amd64', 'linux/amd64/',
+        'linux/amd64/v10', 'linux/amd64,linux/arm64', 'Linux/AMD64', 'linux/arm64/v8 x', "linux/amd64\nlinux/arm64"];
+    $snippet = 'for p in '.implode(' ', array_map(escapeshellarg(...), $values)).'; do %s "$p" && printf 1 || printf 0; done';
+
+    $install = $this->scripts->source(base_path('distribution/install.sh'), sprintf($snippet, 'fsa_install_platform_ok'))->getOutput();
+    $shim = $this->scripts->source(base_path('distribution/shim.sh'), sprintf($snippet, 'fsa_platform_ok'))->getOutput();
+    $php = implode('', array_map(fn (string $value): string => HostFacts::fromEnvironment(['DOCKER_DEFAULT_PLATFORM' => $value])->platform === null ? '0' : '1', $values));
+
+    expect($php)->toBe('1111000000000')
+        ->and($install)->toBe($php)
+        ->and($shim)->toBe($php);
+});
+
 it('resolves the release and the image from the manifest, honouring FSA_REGISTRY', function (array $env, string $version, int $status, string $expected): void {
     $process = $this->scripts->source(base_path('distribution/install.sh'), 'json=0; version="'.$version.'"; fsa_install_read_manifest "'.$this->release.'/release-manifest.json" && printf "%s %s" "$release" "$ref"', $env);
 
@@ -241,6 +281,7 @@ it('validates flags and the instance directory with exit 2 before touching Docke
     'bad version' => [['--version', '2.0', '--dir', '{dir}'], [], '--version must look like'],
     'version with a newline' => [['--version', "2.0.0\nx", '--dir', '{dir}'], [], '--version must look like'],
     'bad registry' => [['--dir', '{dir}'], ['FSA_REGISTRY' => 'https://evil'], 'FSA_REGISTRY must be a registry host'],
+    'bad platform' => [['--dir', '{dir}'], ['DOCKER_DEFAULT_PLATFORM' => 'linux/s390x'], 'DOCKER_DEFAULT_PLATFORM must be linux/amd64 or linux/arm64'],
     'dir with a colon' => [['--dir', '/tmp/a:b'], [], 'Cannot use /tmp/a:b'],
     'dir in the shared /tmp' => [['--dir', '/tmp/fsa'], [], 'Cannot use /tmp/fsa as the instance directory: fsa mounts it'],
     'dir over the app code' => [['--dir', '/var/www/fsa'], [], 'Cannot use /var/www/fsa as the instance directory: fsa mounts it'],

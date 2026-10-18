@@ -111,6 +111,8 @@ final readonly class ManifestVerifier
             // Keyless verification fetches Sigstore's trusted root (TUF); a local key needs no network.
             network: $this->trust->usesKey() || $this->trust->trustedRoot !== null ? 'none' : null,
             user: $this->user ?? $this->processUser(),
+            // Verifying does not depend on the platform; DOCKER_DEFAULT_PLATFORM would re-pull a present image (ADR 0070).
+            enginePlatform: true,
         );
     }
 
@@ -147,7 +149,7 @@ final readonly class ManifestVerifier
         }
 
         try {
-            $this->docker->pullImage(self::COSIGN_IMAGE);
+            $this->docker->pullImage(self::COSIGN_IMAGE, enginePlatform: true);
         } catch (DockerCommandFailed $e) {
             throw new InstanceException('Cannot pull the cosign image that verifies releases: '.$e->getMessage(), ExitCode::PreflightFailed, 'cosign_unavailable', 'Check that the host can reach ghcr.io.', true, [], $e);
         }

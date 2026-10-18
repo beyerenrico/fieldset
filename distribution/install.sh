@@ -12,8 +12,9 @@
 # `fsa` shim from the image and hands over to `fsa install` in an ops container. Flags go to `fsa install`;
 # install.sh reads --dir, --version, --json and --yes too, and handles --link/--no-link (PATH link) and --help
 # itself. With --json, stdout carries only the JSON result and stderr only NDJSON events. FSA_RELEASE_URL and
-# FSA_REGISTRY point at a mirror. Everything is in functions and runs from the last line, so a truncated download
-# executes nothing.
+# FSA_REGISTRY point at a mirror. Docker's DOCKER_DEFAULT_PLATFORM (linux/amd64 or linux/arm64) picks the platform
+# of the images install.sh and fsa pull and run (cosign excepted), e.g. amd64 under emulation on Apple Silicon.
+# Everything is in functions and runs from the last line, so a truncated download executes nothing.
 
 fsa_install_trust() {
 	build=production # the release harness generates a copy with build=harness (ADR 0070); never edit by hand
@@ -76,6 +77,11 @@ fsa_install_reserved() { # <normalized path>: the same rule and list as the shim
 	return 1
 }
 
+fsa_install_platform_ok() { # <DOCKER_DEFAULT_PLATFORM>: the same rule as the shim's fsa_platform_ok (ADR 0070)
+	case $1 in linux/amd64 | linux/arm64 | linux/amd64/v[1-9] | linux/arm64/v[1-9]) return 0 ;; esac
+	return 1
+}
+
 fsa_install_check_inputs() { # everything that needs no network: exit 2 before any download
 	if [ -n "${FSA_TRUST_KEY:-}" ]; then
 		[ "$build" = harness ] || fsa_install_fail 2 trust_key_not_allowed 'FSA_TRUST_KEY is accepted only by release-harness builds of install.sh.' 'Unset FSA_TRUST_KEY; releases are verified against the signer identity built into install.sh.'
@@ -91,6 +97,12 @@ fsa_install_check_inputs() { # everything that needs no network: exit 2 before a
 	esac
 	if [ -n "${FSA_REGISTRY:-}" ] && ! printf '%s\n' "$FSA_REGISTRY" | grep -Eqx '(localhost|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+|[0-9]{1,3}(\.[0-9]{1,3}){3})(:[0-9]{1,5})?'; then
 		fsa_install_fail 2 invalid_registry 'FSA_REGISTRY must be a registry host, optionally with a port.'
+	fi
+	# The docker CLI reads DOCKER_DEFAULT_PLATFORM for every pull, create and run (cosign's clear it); the shim
+	# hands it to fsa.
+	if [ -n "${DOCKER_DEFAULT_PLATFORM:-}" ] && ! fsa_install_platform_ok "$DOCKER_DEFAULT_PLATFORM"; then
+		fsa_install_fail 2 invalid_platform "DOCKER_DEFAULT_PLATFORM must be linux/amd64 or linux/arm64 (a variant such as linux/arm64/v8 is fine), not $DOCKER_DEFAULT_PLATFORM." \
+			"Unset DOCKER_DEFAULT_PLATFORM to use the engine's own platform."
 	fi
 	semver='(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(alpha|beta|rc)(\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?'
 	if [ -n "$version" ] && { case $version in *"$nl"*) true ;; *) false ;; esac || ! printf '%s\n' "$version" | grep -Eqx "$semver"; }; then
@@ -146,6 +158,11 @@ fsa_install_docker() { # <docker args...>: Docker's stderr goes to $tmp/docker.e
 
 fsa_install_docker_error() { tail -n 1 "$tmp/docker.err" 2>/dev/null || true; }
 
+fsa_install_cosign_docker() { # <docker args...>: fsa_install_docker for cosign, as the engine's own platform: verifying
+	# does not depend on it, and Docker's classic image store keeps one platform per by-digest reference (ADR 0070)
+	env DOCKER_DEFAULT_PLATFORM= docker "$@" 2>"$tmp/docker.err"
+}
+
 fsa_install_verify() { # <dir with the manifest and its bundle>: cosign verify-blob in the pinned image (R58)
 	work=$1
 	stage=$work/verify
@@ -160,10 +177,10 @@ fsa_install_verify() { # <dir with the manifest and its bundle>: cosign verify-b
 			--certificate-oidc-issuer "$oidc_issuer" --certificate-github-workflow-trigger "$workflow_trigger"
 	fi
 	chmod 0755 "$stage" && chmod 0644 "$stage"/*
-	docker image inspect "$cosign_image" >/dev/null 2>&1 || fsa_install_docker pull -q "$cosign_image" >/dev/null ||
+	docker image inspect "$cosign_image" >/dev/null 2>&1 || fsa_install_cosign_docker pull -q "$cosign_image" >/dev/null ||
 		fsa_install_fail 3 cosign_unavailable "Cannot pull the cosign image that verifies releases: $(fsa_install_docker_error)" 'Check that the host can reach ghcr.io.' true
 	# docker cp instead of a bind mount: works for temporary directories Docker Desktop or Colima do not share.
-	cid=$(fsa_install_docker create -e HOME=/tmp "$@" /verify/release-manifest.json) ||
+	cid=$(fsa_install_cosign_docker create -e HOME=/tmp "$@" /verify/release-manifest.json) ||
 		fsa_install_fail 3 verify_failed "Cannot create the cosign container: $(fsa_install_docker_error)"
 	status=0
 	{ docker cp "$stage" "$cid:/verify" && docker start -a "$cid"; } >"$work/verify.log" 2>&1 || status=$?
@@ -221,6 +238,7 @@ fsa_install_usage() {
 	printf '  --version <version>); from 2.0.0 on also .../releases/latest/download for the newest stable release.\n'
 	printf '  --yes answers every question and does not link fsa into PATH unless --link is given.\n'
 	printf 'Flags, prompts and exit codes: docs/guide/install.md. FSA_RELEASE_URL, FSA_REGISTRY: mirrors.\n'
+	printf 'DOCKER_DEFAULT_PLATFORM=linux/amd64 or linux/arm64: pull and run that platform (another one runs emulated).\n'
 }
 
 fsa_install_main() {
@@ -267,7 +285,7 @@ fsa_install_main() {
 	fsa_install_download "$base/release-manifest.json.sigstore.json" "$tmp/release-manifest.json.sigstore.json" 'signature bundle'
 	fsa_install_verify "$tmp"
 	fsa_install_read_manifest "$tmp/release-manifest.json"
-	fsa_install_phase pull "Pulling $ref"
+	fsa_install_phase pull "Pulling $ref${DOCKER_DEFAULT_PLATFORM:+ for $DOCKER_DEFAULT_PLATFORM}"
 	fsa_install_docker pull -q "$ref" >/dev/null ||
 		fsa_install_fail 3 image_unavailable "Cannot pull $ref: $(fsa_install_docker_error)" 'Check the network and FSA_REGISTRY, then run install.sh again.' true
 	fsa_install_prepare_dir

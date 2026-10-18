@@ -52,12 +52,13 @@ final readonly class ComposeRenderer
         return [new AppRoles, new PostgresService, new ValkeyService, new GotenbergService, new MailpitService];
     }
 
-    public function render(InstanceState $state, InstanceSecrets $secrets): RenderedProject
+    /** @param  bool  $emulated  the images run emulated: memory limits doubled (RenderContext) */
+    public function render(InstanceState $state, InstanceSecrets $secrets, bool $emulated = false): RenderedProject
     {
         if (! in_array($state->mode(), self::MODES, true)) {
             throw new InstanceException("This version cannot render mode [{$state->mode()}] yet.", ExitCode::InvalidInput, 'unsupported_mode');
         }
-        $context = new RenderContext($state, $secrets);
+        $context = new RenderContext($state, $secrets, $emulated);
         $document = ['name' => $state->project(), 'services' => [], 'networks' => ['default' => []], 'volumes' => []];
         $environments = [];
         foreach ($this->definitions as $definition) {
@@ -83,9 +84,9 @@ final readonly class ComposeRenderer
      * Renders and writes everything the stack reads from the instance directory: the runtime directory first
      * (the app fails closed without it, KTD11), then the env files, then the compose file.
      */
-    public function write(InstanceDirectory $directory, InstanceState $state, InstanceSecrets $secrets): RenderedProject
+    public function write(InstanceDirectory $directory, InstanceState $state, InstanceSecrets $secrets, bool $emulated = false): RenderedProject
     {
-        $rendered = $this->render($state, $secrets);
+        $rendered = $this->render($state, $secrets, $emulated);
         new RuntimeWriter($directory)->write($state);
         $rendered->writeTo($directory);
 
@@ -101,7 +102,7 @@ final readonly class ComposeRenderer
             ...$spec->definition,
             'env_file' => ['./'.InstanceDirectory::ENV_DIR.'/'.$spec->name.'.env'],
             'labels' => [...$labels, ...$context->labels($spec->name)],
-            'mem_limit' => $context->budget->memoryLimit($spec->name),
+            'mem_limit' => $context->memoryLimit($spec->name),
             'restart' => $spec->definition['restart'] ?? 'unless-stopped',
             'logging' => self::LOGGING,
         ];

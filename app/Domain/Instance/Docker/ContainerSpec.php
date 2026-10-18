@@ -6,7 +6,9 @@ namespace App\Domain\Instance\Docker;
 
 /**
  * A `docker run` outside the compose project: the detached supervisor (KTD5) and throwaway probes (port checks).
- * Environment values travel in the CLI's process environment (`-e NAME`), never in argv.
+ * Environment values travel in the CLI's process environment (`-e NAME`), never in argv. `enginePlatform` runs the
+ * image as the engine's own platform even when DOCKER_DEFAULT_PLATFORM selects another (ADR 0070): for tools whose
+ * platform does not matter (cosign), since Docker's classic image store keeps one platform per by-digest reference.
  */
 final readonly class ContainerSpec
 {
@@ -34,6 +36,7 @@ final readonly class ContainerSpec
         public bool $detach = false,
         public bool $remove = true,
         public ?string $restart = null,
+        public bool $enginePlatform = false,
     ) {}
 
     /**
@@ -47,7 +50,7 @@ final readonly class ContainerSpec
             image: $this->image, command: $this->command, name: $name, labels: [...$this->labels, ...$labels],
             env: $this->env, volumes: $this->volumes, ports: $this->ports, network: $this->network, user: $this->user,
             entrypoint: $this->entrypoint, workdir: $this->workdir, groupAdd: $this->groupAdd,
-            detach: true, remove: true, restart: 'no',
+            detach: true, remove: true, restart: 'no', enginePlatform: $this->enginePlatform,
         );
     }
 }

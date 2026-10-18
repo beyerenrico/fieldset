@@ -8,6 +8,9 @@ use App\Domain\Instance\Docker\DockerRuntime;
 use App\Domain\Instance\Docker\DockerUnavailable;
 use App\Domain\Instance\Docker\DockerVersions;
 use App\Domain\Instance\Docker\ProcessOutcome;
+use App\Domain\Instance\Doctor\Checks\ArchitectureCheck;
+use App\Domain\Instance\Doctor\CheckStatus;
+use App\Domain\Instance\Doctor\DoctorContext;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\State\InstanceState;
 use Tests\Support\Instance\InstanceCommandFixture;
@@ -123,6 +126,38 @@ it('fails below the memory floor, warns close to it and fails an unsupported arc
     'unknown size' => [0, 'x86_64', 'memory', 'warn'],
     's390x' => [4096, 's390x', 'architecture', 'fail'],
 ]);
+
+it('checks the platform DOCKER_DEFAULT_PLATFORM selects and warns that emulation is slow (ADR 0070)', function (?string $selected, string $arch, string $status, string $summary, array $details): void {
+    $this->fixture->docker->info = new DockerInfo('29.9.0', 'Docker Desktop', $arch, 8 * 1024 ** 3, 4);
+    $this->fixture->facts(['platform' => $selected]);
+
+    [$code, $json] = $this->fixture->run('fsa:doctor');
+    $check = doctorChecks($json)['architecture'];
+
+    expect($code)->toBe(0, json_encode($json))
+        ->and($check['status'])->toBe($status)
+        ->and($check['summary'])->toContain($summary)
+        ->and($check['details'])->toMatchArray([...$details, 'docker_default_platform' => $selected]);
+})->with([
+    'unset' => [null, 'aarch64', 'ok', 'The engine runs linux/arm64.', ['platform' => 'linux/arm64', 'engine_platform' => 'linux/arm64', 'emulated' => false]],
+    'the engine\'s own, with a variant' => ['linux/arm64/v8', 'aarch64', 'ok', 'The engine runs linux/arm64.', ['platform' => 'linux/arm64', 'emulated' => false]],
+    'amd64 on Apple Silicon' => ['linux/amd64', 'aarch64', 'warn', 'DOCKER_DEFAULT_PLATFORM runs the linux/amd64 images under emulation, which is much slower', ['platform' => 'linux/amd64', 'engine_platform' => 'linux/arm64', 'emulated' => true]],
+    'arm64 on an amd64 engine' => ['linux/arm64', 'x86_64', 'warn', 'The engine runs linux/amd64;', ['platform' => 'linux/arm64', 'emulated' => true]],
+]);
+
+it('fails a selected platform the release does not ship and hints by what the engine could run instead', function (): void {
+    $check = function (?string $selected, string $arch, array $platforms): array {
+        $this->fixture->docker->info = new DockerInfo('29.9.0', 'Docker Desktop', $arch, 8 * 1024 ** 3, 4);
+        $result = new ArchitectureCheck()->run(new DoctorContext($this->fixture->facts(['platform' => $selected]), $this->fixture->directory, $this->fixture->docker, $this->fixture->probes, platforms: $platforms));
+
+        return [$result->status, $result->summary, $result->hint];
+    };
+
+    expect($check('linux/arm64', 'aarch64', ['linux/amd64']))->toBe([CheckStatus::Fail, 'DOCKER_DEFAULT_PLATFORM selects linux/arm64; this release ships linux/amd64.', 'Set DOCKER_DEFAULT_PLATFORM to one of these platforms, or unset it.'])
+        ->and($check(null, 'aarch64', ['linux/amd64'])[0])->toBe(CheckStatus::Fail)
+        ->and($check('linux/amd64', 'aarch64', ['linux/amd64'])[2])->toBe('Fine for a trial; run a production instance on a linux/amd64 host.')
+        ->and($check('linux/amd64', 'aarch64', ['linux/amd64', 'linux/arm64'])[2])->toBe('Unset DOCKER_DEFAULT_PLATFORM to run the linux/arm64 images this release also ships.');
+});
 
 it('fails on a nearly full disk, warns on a small one and when it cannot tell', function (?float $gib, string $status): void {
     $this->fixture->probes->free = $gib === null ? null : $gib * 1024 ** 3;

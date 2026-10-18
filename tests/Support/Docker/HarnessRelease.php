@@ -23,6 +23,12 @@ final readonly class HarnessRelease
         public array $platforms,
     ) {}
 
+    /** @return array<string, string> DOCKER_DEFAULT_PLATFORM when the release has to run emulated (ReleaseHarness) */
+    public function platformEnvironment(): array
+    {
+        return ReleaseHarness::platformEnvironment($this->platforms);
+    }
+
     public function manifestPath(): string
     {
         return "{$this->directory}/".ReleaseHarness::MANIFEST;

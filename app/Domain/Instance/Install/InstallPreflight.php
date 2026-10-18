@@ -38,7 +38,7 @@ final readonly class InstallPreflight
         private ProjectConflicts $conflicts,
     ) {}
 
-    /** @return array<string, mixed> uuid, project, version, digests, port, mail_ui_port, warnings, orphans */
+    /** @return array<string, mixed> uuid, project, version, digests, port, mail_ui_port, emulated, warnings, orphans */
     public function run(InstallRequest $request, HostFacts $facts): array
     {
         $state = $this->directory->hasState() ? $this->directory->state() : null;
@@ -69,6 +69,8 @@ final readonly class InstallPreflight
             'digests' => $digests,
             'port' => $ports['app'],
             'mail_ui_port' => $ports['mail_ui'],
+            // DOCKER_DEFAULT_PLATFORM selects another architecture than the engine's: the renderer doubles memory limits.
+            'emulated' => ($report->result('architecture')?->details['emulated'] ?? false) === true,
             'warnings' => array_map(static fn (CheckResult $warning): array => ['code' => 'doctor_'.$warning->key, 'message' => $warning->summary, 'hint' => $warning->hint], $report->warnings()),
             'orphans' => $this->conflicts->orphans($this->directory->root, $uuid),
         ];

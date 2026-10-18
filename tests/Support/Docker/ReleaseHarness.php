@@ -34,6 +34,8 @@ final class ReleaseHarness
 
     private bool $builder = false;
 
+    private static ?string $native = null;
+
     private function __construct(
         public readonly string $project,
         public readonly string $directory,
@@ -94,9 +96,30 @@ final class ReleaseHarness
             return array_values(array_filter(array_map(trim(...), explode(',', $list))));
         }
 
-        $architecture = trim(self::mustRun(['docker', 'info', '--format', '{{.Architecture}}'])->getOutput());
+        return [TestImage::platform() ?? self::nativePlatform()];
+    }
 
-        return [TestImage::platform() ?? 'linux/'.(in_array($architecture, ['aarch64', 'arm64'], true) ? 'arm64' : 'amd64')];
+    /** The Docker engine's own platform: linux/arm64 or linux/amd64. */
+    public static function nativePlatform(): string
+    {
+        if (self::$native === null) {
+            $architecture = trim(self::mustRun(['docker', 'info', '--format', '{{.Architecture}}'])->getOutput());
+            self::$native = 'linux/'.(in_array($architecture, ['aarch64', 'arm64'], true) ? 'arm64' : 'amd64');
+        }
+
+        return self::$native;
+    }
+
+    /**
+     * DOCKER_DEFAULT_PLATFORM for a release of one platform that is not the engine's (FSA_TEST_PLATFORM or a single
+     * FSA_HARNESS_PLATFORMS entry): install.sh, the shim and fsa then pull and run it under emulation (§15.6).
+     *
+     * @param  list<string>  $platforms
+     * @return array<string, string>
+     */
+    public static function platformEnvironment(array $platforms): array
+    {
+        return count($platforms) === 1 && $platforms[0] !== self::nativePlatform() ? ['DOCKER_DEFAULT_PLATFORM' => $platforms[0]] : [];
     }
 
     /**

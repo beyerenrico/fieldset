@@ -59,13 +59,14 @@ it('runs the pinned cosign image against the anchored production identity and re
         ->and($spec->user)->toBe('501:20')
         ->and($spec->env)->toBe(['HOME' => '/tmp'])
         ->and($spec->remove)->toBeTrue()
+        ->and($spec->enginePlatform)->toBeTrue()
         ->and($call['input'])->toBe(file_get_contents($this->manifest));
 });
 
 it('pulls the cosign image only when it is missing', function (): void {
     manifestVerifier($this->docker, TrustPolicy::keyless(SignerIdentity::production()))->verify($this->manifest, $this->bundle);
 
-    expect($this->docker->called('pullImage'))->toBe([['reference' => ManifestVerifier::COSIGN_IMAGE]])
+    expect($this->docker->called('pullImage'))->toBe([['reference' => ManifestVerifier::COSIGN_IMAGE, 'enginePlatform' => true]])
         ->and(array_slice($this->docker->methods(), 0, 3))->toBe(['inspectImage', 'pullImage', 'runContainer']);
 });
 

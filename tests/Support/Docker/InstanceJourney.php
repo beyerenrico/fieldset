@@ -12,7 +12,8 @@ use Symfony\Component\Process\Process;
  * instance's fsa shim, and Docker queries by the instance label. Instance directories live in the harness
  * workspace (shared with Docker Desktop) and are named `fsa-test-…`; `cleanup()` removes everything labelled
  * with the instance UUID, whatever state a failed test left behind. SSH_CONNECTION keeps the shim from opening
- * a browser on a desktop host.
+ * a browser on a desktop host. A release built for another platform than the engine's runs emulated: install.sh
+ * and the shim get DOCKER_DEFAULT_PLATFORM (HarnessRelease::platformEnvironment()).
  */
 final readonly class InstanceJourney
 {
@@ -143,6 +144,7 @@ final readonly class InstanceJourney
             'FSA_REGISTRY' => $this->harness->registry(),
             'FSA_TRUST_KEY' => $this->harness->cosign->publicKey(),
             'SSH_CONNECTION' => 'fsa-test 0 fsa-test 0',
+            ...$this->release->platformEnvironment(),
             ...$env,
         ]);
         $process->setTimeout(1800);

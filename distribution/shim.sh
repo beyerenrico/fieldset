@@ -9,7 +9,8 @@
 # The first argument that is not a flag (or a flag's value) is the command; `--dir <instance>` goes right after
 # it. HOME and DOCKER_CONFIG live on a container-private tmpfs, and no mount may cover a system path of the
 # image or a directory other users can write to (fsa_reserved_path, LaunchGuard). With --json, stdout carries only
-# the command's JSON document and stderr only NDJSON events (KTD3).
+# the command's JSON document and stderr only NDJSON events (KTD3). Docker's DOCKER_DEFAULT_PLATFORM, when set
+# (linux/amd64 or linux/arm64), picks the platform of the ops container and, passed on, of every image fsa runs.
 #
 # Contract with install.sh (keep stable): FSA_SHIM_LIBRARY=1 only defines the functions, and
 # `fsa_run <instance dir> <image> <fsa command> [args...]` returns the command's exit code.
@@ -139,6 +140,11 @@ fsa_host_facts() { # exports the FSA_* host facts; sets fsa_user, fsa_group and 
 	export FSA_HOST_UID FSA_HOST_GID FSA_HOST_OS FSA_TZ FSA_LAN_ADDRESSES FSA_DESKTOP FSA_DOCKER_RUNTIME FSA_CONTAINER_UID FSA_DOCKER_SOCKET
 }
 
+fsa_platform_ok() { # <DOCKER_DEFAULT_PLATFORM>: a platform releases ship, optionally with a variant (ADR 0070)
+	case $1 in linux/amd64 | linux/arm64 | linux/amd64/v[1-9] | linux/arm64/v[1-9]) return 0 ;; esac
+	return 1
+}
+
 fsa_check_path() { # <path>: refuse what a bind mount cannot carry
 	case $1 in
 	*:* | *,* | *"$fsa_nl"*) fsa_fail 2 invalid_path "Paths with ':', ',' or line breaks cannot be mounted: $1" 'Use another path.' ;;
@@ -261,6 +267,10 @@ fsa_run_setup() { # host facts, the terminal decision, the nonce and the hand-ov
 	! fsa_reserved_path "$fsa_dir" || fsa_fail 2 path_reserved \
 		"fsa does not run an instance in $fsa_dir: Docker would mount it over files of the fsa container." \
 		'Install the instance under your home directory or /opt (install.sh --dir).'
+	if [ -n "${DOCKER_DEFAULT_PLATFORM:-}" ] && ! fsa_platform_ok "$DOCKER_DEFAULT_PLATFORM"; then
+		fsa_fail 2 invalid_platform "DOCKER_DEFAULT_PLATFORM must be linux/amd64 or linux/arm64 (a variant such as linux/arm64/v8 is fine), not $DOCKER_DEFAULT_PLATFORM." \
+			"Unset DOCKER_DEFAULT_PLATFORM to use the engine's own platform."
+	fi
 	fsa_host_facts
 	FSA_LAUNCHER=${FSA_LAUNCHER:-shim}
 	fsa_stdin_tty=0 fsa_stdout_tty=0 fsa_tty_usable=0
@@ -334,7 +344,7 @@ fsa_run_container() { # <fsa args…>: the ops container (ADR 0070); returns its
 	[ -z "$fsa_group" ] || set -- --group-add "$fsa_group" "$@"
 	for fsa_var in FSA_LAUNCHER FSA_TTY FSA_HOST_UID FSA_HOST_GID FSA_HOST_OS FSA_INSTANCE_DIR FSA_LAN_ADDRESSES FSA_DESKTOP \
 		FSA_TZ FSA_DOCKER_RUNTIME FSA_CONTAINER_UID FSA_DOCKER_SOCKET FSA_NONCE FSA_MOUNTS FSA_OPEN_URL_FILE \
-		FSA_TRUST_KEY FSA_REGISTRY FSA_RELEASE_URL FSA_RELEASE_MANIFEST; do
+		FSA_TRUST_KEY FSA_REGISTRY FSA_RELEASE_URL FSA_RELEASE_MANIFEST DOCKER_DEFAULT_PLATFORM; do
 		set -- -e "$fsa_var" "$@"
 	done
 	# HOME and DOCKER_CONFIG on a tmpfs only this container sees: nothing on the host can plant a Docker CLI plugin

@@ -12,13 +12,13 @@
             "operation": null,
             "lock": null,
             "disk": {
-                "free_gib": 175.7
+                "free_gib": 165.4
             },
             "last_backup": null,
             "version": "2.0.0-alpha.1-test",
             "mode": "local",
             "url": "http://localhost:8081",
-            "project": "fsa-fsa-test-j01-f3bb",
+            "project": "fsa-fsa-test-j01-a98d",
             "port": 8081,
             "health": "ok",
             "services": {

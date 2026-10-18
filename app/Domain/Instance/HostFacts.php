@@ -29,12 +29,19 @@ use App\Domain\Instance\Release\ImagePin;
  * - FSA_OPEN_URL_FILE: name of the file in the instance directory where a command hands a URL to the shim
  * - FSA_RELEASE_MANIFEST: install.sh only, the verified `<dir>/releases/<version>/release-manifest.json`
  * - FSA_REGISTRY: a registry mirror every image is pulled from instead of its own (ADR 0050)
+ * - DOCKER_DEFAULT_PLATFORM: Docker's own variable, passed through when the caller set it: `linux/amd64` or
+ *   `linux/arm64`, optionally with a variant (`linux/arm64/v8`). The ops container ran as that platform, and every
+ *   docker and compose process fsa starts inherits it, so the images are pulled and run as that platform (another
+ *   architecture than the engine's runs emulated; the doctor's architecture check reports it). Cosign runs as the
+ *   engine's own platform (ContainerSpec::$enginePlatform)
  */
 final readonly class HostFacts
 {
     public const string NONCE_PATTERN = '/^\.fsa-nonce-[0-9a-f]{16,64}$/D';
 
     public const string OPEN_URL_PATTERN = '/^\.fsa-open-url-[0-9a-f]{16,64}$/D';
+
+    public const string PLATFORM_PATTERN = '/^linux\/(amd64|arm64)(\/v[1-9])?$/D';
 
     private const string TIMEZONE_PATTERN = '/^[A-Za-z][A-Za-z0-9_+-]*(\/[A-Za-z0-9_+-]+){0,2}$/D';
 
@@ -60,6 +67,7 @@ final readonly class HostFacts
         public ?string $openUrlFile = null,
         public ?string $releaseManifest = null,
         public ?string $registry = null,
+        public ?string $platform = null,
     ) {}
 
     /** @param  array<string, string>  $env  e.g. getenv() */
@@ -87,6 +95,7 @@ final readonly class HostFacts
             openUrlFile: $match('FSA_OPEN_URL_FILE', self::OPEN_URL_PATTERN),
             releaseManifest: self::absolutePath($env['FSA_RELEASE_MANIFEST'] ?? null),
             registry: $match('FSA_REGISTRY', '/'.ImagePin::REGISTRY_PATTERN.'/D'),
+            platform: $match('DOCKER_DEFAULT_PLATFORM', self::PLATFORM_PATTERN),
         );
     }
 
@@ -111,6 +120,12 @@ final readonly class HostFacts
     public function ownerUidInContainers(): int
     {
         return $this->containerUid ?? $this->runtime?->containerOwnerUid($this->callerUid()) ?? $this->callerUid();
+    }
+
+    /** The `linux/<arch>` DOCKER_DEFAULT_PLATFORM selects (without its variant), or null for the engine's own. */
+    public function requestedPlatform(): ?string
+    {
+        return $this->platform === null ? null : implode('/', array_slice(explode('/', $this->platform), 0, 2));
     }
 
     /** Started by the shim or install.sh, which wrote a nonce and mounted the directories it lists. */

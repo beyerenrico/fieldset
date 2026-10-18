@@ -37,3 +37,5 @@ E16. The "small VPS" promise needs a number. Today the app image is 2.12 GB and 
   - 20 GB therefore suits small data sets. The doctor checks free space before an upgrade or restore and exits 3
     when it is short.
 - The 1.0 performance targets for admin pages and the API must still hold at the E16 limits (§10).
+- (Amended 2026-10-18: the limits are for native images. An instance that runs another architecture under
+  emulation (`DOCKER_DEFAULT_PLATFORM`, ADR 0070) gets every limit doubled; emulation is for trials, not E16 hosts.)

@@ -105,9 +105,9 @@ final readonly class CliDockerGateway implements DockerGateway
         return DockerJson::object($this->compose($project, ['config', '--format', 'json'], 'compose config')->stdout, 'compose config');
     }
 
-    public function pullImage(string $reference): void
+    public function pullImage(string $reference, bool $enginePlatform = false): void
     {
-        $this->call(['pull', '--quiet', $reference], 'pull', null);
+        $this->succeed($this->attempt([$this->binary, 'pull', '--quiet', $reference], $this->platformEnv($enginePlatform), null, null), 'pull');
     }
 
     public function inspectImage(string $reference): ?ImageInfo
@@ -147,7 +147,9 @@ final readonly class CliDockerGateway implements DockerGateway
 
     public function runContainer(ContainerSpec $spec, ?string $input = null, ?float $timeout = null): ProcessOutcome
     {
-        return $this->attempt([$this->binary, 'run', ...RunArguments::for($spec, $input !== null), ...$this->envFlags($spec->env), $spec->image, ...$spec->command], $spec->env, $input, $timeout);
+        $env = [...$spec->env, ...$this->platformEnv($spec->enginePlatform)];
+
+        return $this->attempt([$this->binary, 'run', ...RunArguments::for($spec, $input !== null), ...$this->envFlags($spec->env), $spec->image, ...$spec->command], $env, $input, $timeout);
     }
 
     public function removeContainer(string $id, bool $force = true): void
@@ -199,8 +201,18 @@ final readonly class CliDockerGateway implements DockerGateway
     }
 
     /**
+     * Unsets DOCKER_DEFAULT_PLATFORM, which the ops container passes on otherwise (ADR 0070): the engine's own platform.
+     *
+     * @return array<string, false>
+     */
+    private function platformEnv(bool $enginePlatform): array
+    {
+        return $enginePlatform ? ['DOCKER_DEFAULT_PLATFORM' => false] : [];
+    }
+
+    /**
      * @param  list<string>  $command
-     * @param  array<string, string>  $env
+     * @param  array<string, string|false>  $env  added to the inherited environment; false unsets
      */
     private function attempt(array $command, array $env, ?string $input, ?float $timeout, ?string $stdoutFile = null): ProcessOutcome
     {

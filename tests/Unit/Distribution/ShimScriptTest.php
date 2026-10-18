@@ -56,6 +56,31 @@ it('runs the command in the ops image recorded in the state, never the previous 
         ->and($this->scripts->opsEnvironment())->toMatchArray(['FSA_LAUNCHER' => 'shim', 'FSA_TTY' => '0', 'FSA_INSTANCE_DIR' => $this->dir]);
 });
 
+it('runs the ops container as DOCKER_DEFAULT_PLATFORM and passes it on, so fsa\'s docker calls use it too (ADR 0070)', function (): void {
+    $process = $this->scripts->run($this->dir.'/fsa', ['status', '--json'], [...$this->env, 'DOCKER_DEFAULT_PLATFORM' => 'linux/amd64']);
+
+    expect($process->getExitCode())->toBe(0, $process->getErrorOutput())
+        ->and(implode(' ', $this->scripts->opsRuns()[0]))->toContain('-e DOCKER_DEFAULT_PLATFORM ')
+        ->and($this->scripts->opsEnvironment())->toMatchArray(['DOCKER_DEFAULT_PLATFORM' => 'linux/amd64', 'FSA_LAUNCHER' => 'shim'])
+        ->and($this->scripts->dockerPlatforms())->toBe([['info', 'linux/amd64'], ['run', 'linux/amd64']]);
+});
+
+it('refuses an invalid DOCKER_DEFAULT_PLATFORM with exit 2 before calling Docker, and passes none when unset', function (): void {
+    $bad = $this->scripts->run($this->dir.'/fsa', ['status', '--json'], [...$this->env, 'DOCKER_DEFAULT_PLATFORM' => 'linux/riscv64']);
+    $json = json_decode($bad->getOutput(), true);
+    $calls = $this->scripts->calls('docker');
+    $unset = $this->scripts->run($this->dir.'/fsa', ['status'], $this->env);
+
+    expect($bad->getExitCode())->toBe(2)
+        ->and($json['command'])->toBe('status')
+        ->and($json['errors'][0]['code'])->toBe('invalid_platform')
+        ->and($json['errors'][0]['message'])->toContain('not linux/riscv64')
+        ->and($calls)->toBe([])
+        ->and(glob($this->dir.'/.fsa-nonce-*'))->toBe([])
+        ->and($unset->getExitCode())->toBe(0, $unset->getErrorOutput())
+        ->and($this->scripts->opsEnvironment())->not->toHaveKey('DOCKER_DEFAULT_PLATFORM');
+});
+
 it('keeps HOME and DOCKER_CONFIG on a container-private tmpfs owned by the container user, never /tmp', function (array $env, string $owner): void {
     $process = $this->scripts->run($this->dir.'/fsa', ['status'], [...$this->env, ...$env]);
     $run = $this->scripts->opsRuns()[0];

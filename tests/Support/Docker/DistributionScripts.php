@@ -16,7 +16,8 @@ use Symfony\Component\Process\Process;
  * STUB_OPS_EXIT, STUB_OPS_STDERR (printed on stderr by the ops run), STUB_OPS_HOOK (a script run as the ops
  * container, with the run's argv), STUB_PULL_STDERR, STUB_RELEASE_DIR (files `curl` serves by base name; a missing
  * file is HTTP 404, exit 22), STUB_CURL_EXIT (a network failure: that curl exit code, HTTP code 000) and STUB_UNAME
- * (`uname -s`).
+ * (`uname -s`). Every docker call also logs its subcommand with the DOCKER_DEFAULT_PLATFORM it saw (`dockerPlatforms()`),
+ * and the ops-container dump includes that variable next to the FSA_* ones.
  */
 final readonly class DistributionScripts
 {
@@ -98,7 +99,24 @@ final readonly class DistributionScripts
         return array_values(array_map(static fn (array $call): array => array_slice($call, 1), $runs));
     }
 
-    /** @return array<string, string> FSA_* variables the last ops container would get (dumped by the stub) */
+    /**
+     * The DOCKER_DEFAULT_PLATFORM each docker call saw, in call order: [subcommand, platform or ''].
+     *
+     * @return list<array{0: string, 1: string}>
+     */
+    public function dockerPlatforms(): array
+    {
+        $calls = [];
+        foreach (explode("\x1e", (string) @file_get_contents($this->root.'/docker-platforms')) as $entry) {
+            if ($entry !== '') {
+                $calls[] = array_pad(explode("\x1f", $entry, 2), 2, '');
+            }
+        }
+
+        return $calls;
+    }
+
+    /** @return array<string, string> FSA_* variables and DOCKER_DEFAULT_PLATFORM the last ops container would get (dumped by the stub) */
     public function opsEnvironment(): array
     {
         $env = [];
@@ -140,6 +158,7 @@ final readonly class DistributionScripts
             'FSA_TRUST_KEY' => false,
             'FSA_RELEASE_URL' => false,
             'FSA_REGISTRY' => false,
+            'DOCKER_DEFAULT_PLATFORM' => false,
             'DISPLAY' => false,
             'WAYLAND_DISPLAY' => false,
             'SSH_CONNECTION' => false,
@@ -166,6 +185,7 @@ final readonly class DistributionScripts
 
     private const string DOCKER_STUB = "#!/bin/sh\n".self::RECORD."\n".<<<'SH_WRAP'
     record docker "$@"
+    printf '%s\037%s\036' "$1" "${DOCKER_DEFAULT_PLATFORM:-}" >> "$STUB_ROOT/docker-platforms"
     [ "${STUB_DOCKER_DOWN:-0}" = 0 ] || { echo 'Cannot connect to the Docker daemon' >&2; exit 1; }
     case $1 in
     version) echo 29.0.0 ;;
@@ -181,7 +201,7 @@ final readonly class DistributionScripts
             [ "$a" != /var/www/html/distribution/shim.sh ] || exec cat "$STUB_SHIM"
         done
         : > "$STUB_ROOT/ops-env"
-        for v in $(env | sed -n 's/^\(FSA_[A-Z_]*\)=.*/\1/p'); do
+        for v in $(env | sed -n -e 's/^\(FSA_[A-Z_]*\)=.*/\1/p' -e 's/^\(DOCKER_DEFAULT_PLATFORM\)=.*/\1/p'); do
             eval "val=\${$v}"
             printf '%s=%s\036' "$v" "$val" >> "$STUB_ROOT/ops-env"
         done

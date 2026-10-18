@@ -80,7 +80,7 @@ final readonly class InstanceStack
         $state = $state->withRelease((string) $preflight['version'], $digests)
             ->withSettings(['port' => (int) $preflight['port'], 'mail_ui_port' => (int) $preflight['mail_ui_port']]);
         $this->directory->saveState($state);
-        $rendered = $this->renderer->write($this->directory, $state, $this->secrets());
+        $rendered = $this->renderer->write($this->directory, $state, $this->secrets(), ($preflight['emulated'] ?? false) === true);
         $this->docker->composeConfig(ComposeProject::forInstance($state, $this->directory));
 
         return ['project' => $state->project(), 'services' => $rendered->services()];

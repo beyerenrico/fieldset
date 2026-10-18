@@ -26,6 +26,9 @@
                     "hint": null,
                     "details": {
                         "platform": "linux/arm64",
+                        "engine_platform": "linux/arm64",
+                        "emulated": false,
+                        "docker_default_platform": null,
                         "release_platforms": [
                             "linux/amd64",
                             "linux/arm64"
@@ -46,10 +49,10 @@
                 {
                     "key": "disk",
                     "status": "ok",
-                    "summary": "175.7 GiB free.",
+                    "summary": "165.4 GiB free.",
                     "hint": null,
                     "details": {
-                        "free_gib": 175.7,
+                        "free_gib": 165.4,
                         "path": "<work>/fsa-test-j01"
                     }
                 },
@@ -115,7 +118,8 @@
                         "ports": {
                             "app": 8081,
                             "mail_ui": 8025
-                        }
+                        },
+                        "taken": []
                     }
                 },
                 {

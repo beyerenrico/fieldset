@@ -257,9 +257,9 @@ final class RecordingDockerGateway implements DockerGateway
         return $this->config;
     }
 
-    public function pullImage(string $reference): void
+    public function pullImage(string $reference, bool $enginePlatform = false): void
     {
-        $this->record(__FUNCTION__, ['reference' => $reference]);
+        $this->record(__FUNCTION__, ['reference' => $reference, ...($enginePlatform ? ['enginePlatform' => true] : [])]);
     }
 
     public function inspectImage(string $reference): ?ImageInfo

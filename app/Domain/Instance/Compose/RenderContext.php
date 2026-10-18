@@ -10,9 +10,16 @@ use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
 use App\Domain\Instance\State\InvalidState;
 
-/** What a ServiceDefinition renders from: the validated state, its settings and budget, and the secrets. */
+/**
+ * What a ServiceDefinition renders from: the validated state, its settings and budget, and the secrets. `emulated`:
+ * the images run as another architecture than the engine's (DOCKER_DEFAULT_PLATFORM, ADR 0070); every memory limit
+ * is then doubled, because the E16 budget is for native images and each emulated process carries its translator
+ * (amd64 mailpit on Apple Silicon: about 57 MiB instead of 13, so its 48 MiB limit killed it).
+ */
 final readonly class RenderContext
 {
+    public const int EMULATION_MEMORY_FACTOR = 2;
+
     public InstanceSettings $settings;
 
     public ResourceBudget $budget;
@@ -20,9 +27,16 @@ final readonly class RenderContext
     public function __construct(
         public InstanceState $state,
         public InstanceSecrets $secrets,
+        public bool $emulated = false,
     ) {
         $this->settings = InstanceSettings::of($state);
         $this->budget = ResourceBudget::forSize($this->settings->size());
+    }
+
+    /** Compose `mem_limit` of a service: its budget, doubled under emulation. */
+    public function memoryLimit(string $service): string
+    {
+        return ($this->budget->limitMib($service) * ($this->emulated ? self::EMULATION_MEMORY_FACTOR : 1)).'m';
     }
 
     public function mode(): string

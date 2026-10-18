@@ -56,7 +56,7 @@ beforeEach(function (): void {
 it('AE4 + AE3: takes the next free port when 8080 is taken, keeps it, and changes nothing on a re-run', function (): void {
     $dir = $this->journey->work.'/fsa-test-j12-ports';
     // 8080 is taken by this blocker, or already by something else (the blocker then fails to start): either way taken.
-    new Process(['docker', 'run', '-d', '--rm', '--name', 'fsa-test-j12-port-blocker', '-p', '127.0.0.1:8080:8080', '--entrypoint', 'sleep', $this->journey->release->appReference, '900'])->run();
+    new Process(['docker', 'run', '-d', '--rm', '--name', 'fsa-test-j12-port-blocker', '-p', '127.0.0.1:8080:8080', '--entrypoint', 'sleep', $this->journey->release->appReference, '900'], null, $this->journey->release->platformEnvironment())->run();
 
     $first = $this->journey->install($dir, [...J12_FLAGS, '--json']);
     $json = InstanceJourney::json($first);
@@ -70,7 +70,13 @@ it('AE4 + AE3: takes the next free port when 8080 is taken, keeps it, and change
     $until = time() + 1;
     $again = InstanceJourney::json($second);
     $text = $this->journey->install($dir, J12_FLAGS);
-    $events = InstanceJourney::events($since, $until, ['label=app.form-schema.instance='.$uuid]);
+    // Healthchecks run `exec` in the running containers on their own schedule (exec_create/exec_start/exec_die,
+    // health_status): they are not changes. Every other instance event (create, start, stop, die, destroy,
+    // network or volume events) is.
+    $events = array_values(array_filter(
+        InstanceJourney::events($since, $until, ['label=app.form-schema.instance='.$uuid]),
+        fn (string $event): bool => preg_match('/^container (exec_(create|start|die)|health_status)\b/', $event) !== 1,
+    ));
     $this->journey->evidence('J12-ae3-ae4.json', ['first' => ['exit_code' => $first->getExitCode(), 'stdout' => $json], 'second' => ['exit_code' => $second->getExitCode(), 'stdout' => $again, 'instance_events' => $events], 'third_text' => $text->getOutput()]);
 
     expect($first->getExitCode())->toBe(0, $first->getErrorOutput()."\n".$first->getOutput())

@@ -13,6 +13,7 @@ use App\Domain\Instance\Docker\SymfonyCommandRunner;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Output\ExitCode;
 use App\Domain\Instance\Output\InvalidInput;
+use Symfony\Component\Process\Process;
 use Tests\Support\Instance\ScriptedCommandRunner;
 use Tests\Support\Instance\TemporaryInstance;
 
@@ -331,4 +332,35 @@ it('runs real processes without a shell, with timeouts and start failures', func
         ->and($slow->successful())->toBeFalse()
         ->and($missing->started)->toBeFalse()
         ->and($missing->exitCode)->toBe(127);
+});
+
+it('lets every docker and compose process inherit DOCKER_DEFAULT_PLATFORM from the ops container, cosign\'s excepted (ADR 0070)', function (): void {
+    $directory = TemporaryInstance::path();
+    mkdir($directory);
+    $docker = $directory.'/docker';
+    file_put_contents($docker, "#!/bin/sh\nprintf '%s=%s\\n' \"\$1\" \"\${DOCKER_DEFAULT_PLATFORM:-unset}\" >> \"\$PLATFORM_LOG\"\n");
+    chmod($docker, 0755);
+    // A PHP CLI process started with the variable, as `fsa` (php artisan) is in the ops container; GPCS (php.ini
+    // production) leaves $_ENV empty, so the variable reaches the processes through the inherited environment.
+    $script = <<<'PHP'
+        require $argv[1].'/vendor/autoload.php';
+        $gateway = new App\Domain\Instance\Docker\CliDockerGateway(new App\Domain\Instance\Docker\SymfonyCommandRunner, $argv[2]);
+        $project = new App\Domain\Instance\Docker\ComposeProject('fsa-forms-ab12', '/srv/forms/compose.yaml', '/srv/forms');
+        $image = 'app@sha256:'.str_repeat('a', 64);
+        $gateway->pullImage($image);
+        $gateway->composeUp($project);
+        $gateway->composeRun($project, 'app', ['true'], ['APP_KEY' => 'base64:x']);
+        $gateway->runContainer(new App\Domain\Instance\Docker\ContainerSpec(image: $image));
+        $gateway->pullImage($image, enginePlatform: true);
+        $gateway->runContainer(new App\Domain\Instance\Docker\ContainerSpec(image: $image, enginePlatform: true));
+        PHP;
+    $run = function (array $env) use ($script, $docker, $directory): string {
+        @unlink($directory.'/platforms.log');
+        new Process([PHP_BINARY, '-d', 'variables_order=GPCS', '-r', $script, base_path(), $docker], null, ['PLATFORM_LOG' => $directory.'/platforms.log', ...$env])->mustRun();
+
+        return (string) file_get_contents($directory.'/platforms.log');
+    };
+
+    expect($run(['DOCKER_DEFAULT_PLATFORM' => 'linux/amd64']))->toBe("pull=linux/amd64\ncompose=linux/amd64\ncompose=linux/amd64\nrun=linux/amd64\npull=unset\nrun=unset\n")
+        ->and($run(['DOCKER_DEFAULT_PLATFORM' => false]))->toBe("pull=unset\ncompose=unset\ncompose=unset\nrun=unset\npull=unset\nrun=unset\n");
 });

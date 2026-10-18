@@ -54,6 +54,17 @@ it('takes the verified release manifest and the registry mirror from install.sh'
         ->and(new HostFacts(tty: false)->hasTerminal(true))->toBeFalse();
 });
 
+it('takes DOCKER_DEFAULT_PLATFORM from the launcher, keeping a variant but comparing without it (ADR 0070)', function (): void {
+    $variant = HostFacts::fromEnvironment(['DOCKER_DEFAULT_PLATFORM' => 'linux/arm64/v8']);
+
+    expect($variant->platform)->toBe('linux/arm64/v8')
+        ->and($variant->requestedPlatform())->toBe('linux/arm64')
+        ->and(HostFacts::fromEnvironment(['DOCKER_DEFAULT_PLATFORM' => 'linux/amd64'])->requestedPlatform())->toBe('linux/amd64')
+        ->and(HostFacts::fromEnvironment(['DOCKER_DEFAULT_PLATFORM' => 'linux/s390x'])->platform)->toBeNull()
+        ->and(HostFacts::fromEnvironment(['DOCKER_DEFAULT_PLATFORM' => ''])->platform)->toBeNull()
+        ->and(HostFacts::fromEnvironment([])->requestedPlatform())->toBeNull();
+});
+
 it('probes a port by publishing a throwaway container and reads the engine wording', function (string $stderr, ?bool $free): void {
     $docker = new RecordingDockerGateway;
     $docker->queueOutcome('runContainer', new ProcessOutcome($stderr === '' ? 0 : 125, '', $stderr));

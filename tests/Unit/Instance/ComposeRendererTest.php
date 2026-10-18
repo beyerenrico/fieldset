@@ -63,6 +63,17 @@ it('gives every service a memory limit from the budget and restart unless-stoppe
         ->and(array_sum($rendered->memoryLimits()))->toBeLessThanOrEqual($budget->availableMib());
 })->with(ResourceBudget::SIZES);
 
+it('doubles every memory limit when the images run emulated, and changes nothing else (ADR 0070)', function (): void {
+    $native = ComposeFixtures::render();
+    $emulated = new ComposeRenderer()->render(ComposeFixtures::state(), ComposeFixtures::secrets(), emulated: true);
+    $withoutLimits = fn (array $services): array => array_map(fn (array $service): array => array_diff_key($service, ['mem_limit' => true]), $services);
+
+    expect($emulated->memoryLimits())->toBe(array_map(fn (int $mib): int => $mib * RenderContext::EMULATION_MEMORY_FACTOR, $native->memoryLimits()))
+        ->and($emulated->document['services']['mailpit']['mem_limit'])->toBe('96m')
+        ->and($withoutLimits($emulated->document['services']))->toBe($withoutLimits($native->document['services']))
+        ->and($emulated->environments)->toBe($native->environments);
+});
+
 it('runs every service from the digest pinned in the state', function (): void {
     $services = ComposeFixtures::render()->document['services'];
     $digests = ComposeFixtures::digests();

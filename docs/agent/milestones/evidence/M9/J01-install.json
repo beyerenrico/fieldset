@@ -1,7 +1,7 @@
 {
     "command": "install.sh --dir <work>/fsa-test-j01 --version 2.0.0-alpha.1-test --org \"Journey Org\" --owner-email owner@example.test --owner-name \"Jo Owner\" --locale en --secrets-file <work>/owner-link.json --json",
     "exit_code": 0,
-    "seconds": 45.2,
+    "seconds": 56.7,
     "stdout": {
         "schema_version": 1,
         "command": "install",
@@ -12,7 +12,7 @@
             "version": "2.0.0-alpha.1-test",
             "mode": "local",
             "dir": "<work>/fsa-test-j01",
-            "project": "fsa-fsa-test-j01-f3bb",
+            "project": "fsa-fsa-test-j01-a98d",
             "port": 8081,
             "mail": {
                 "mode": "capture",
@@ -25,7 +25,7 @@
                 "<work>/fsa-test-j01/fsa doctor --post"
             ],
             "sign_in_link": {
-                "expires_at": "2026-10-18T01:55:31Z",
+                "expires_at": "2026-10-18T05:11:35Z",
                 "delivered": "secrets_file"
             }
         },
@@ -33,25 +33,25 @@
             {
                 "name": "sign_in_link",
                 "written_to": "<work>/owner-link.json",
-                "expires_at": "2026-10-18T01:55:31Z"
+                "expires_at": "2026-10-18T05:11:35Z"
             }
         ],
         "warnings": [],
         "errors": []
     },
     "stderr_ndjson": [
-        "{\"ts\":\"2026-10-18T00:55:19Z\",\"phase\":\"verify\",\"level\":\"info\",\"message\":\"Verifying release 2.0.0-alpha.1-test from http://127.0.0.1:64647\"}",
-        "{\"ts\":\"2026-10-18T00:55:19Z\",\"phase\":\"pull\",\"level\":\"info\",\"message\":\"Pulling <registry>/beyerenrico/form-schema-app@sha256:54372f56bd95404415c1d56dc99d71afa9e1365ef4f8193e6e353fa5ac87333f\"}",
-        "{\"ts\":\"2026-10-18T00:55:19Z\",\"phase\":\"handover\",\"level\":\"info\",\"message\":\"Starting fsa install 2.0.0-alpha.1-test in <work>/fsa-test-j01\"}",
-        "{\"ts\":\"2026-10-18T00:55:20Z\",\"phase\":\"doctor\",\"level\":\"info\",\"message\":\"Starting doctor\"}",
-        "{\"ts\":\"2026-10-18T00:55:21Z\",\"phase\":\"secrets\",\"level\":\"info\",\"message\":\"Starting secrets\"}",
-        "{\"ts\":\"2026-10-18T00:55:21Z\",\"phase\":\"state\",\"level\":\"info\",\"message\":\"Starting state\"}",
-        "{\"ts\":\"2026-10-18T00:55:21Z\",\"phase\":\"pull\",\"level\":\"info\",\"message\":\"Starting pull\"}",
-        "{\"ts\":\"2026-10-18T00:55:22Z\",\"phase\":\"up\",\"level\":\"info\",\"message\":\"Starting up\"}",
-        "{\"ts\":\"2026-10-18T00:55:27Z\",\"phase\":\"migrate\",\"level\":\"info\",\"message\":\"Starting migrate\"}",
-        "{\"ts\":\"2026-10-18T00:55:29Z\",\"phase\":\"app_install\",\"level\":\"info\",\"message\":\"Starting app_install\"}",
-        "{\"ts\":\"2026-10-18T00:55:31Z\",\"phase\":\"start\",\"level\":\"info\",\"message\":\"Starting start\"}",
-        "{\"ts\":\"2026-10-18T00:56:03Z\",\"phase\":\"smoke\",\"level\":\"info\",\"message\":\"Starting smoke\"}",
-        "{\"ts\":\"2026-10-18T00:56:03Z\",\"phase\":\"done\",\"level\":\"info\",\"message\":\"Starting done\"}"
+        "{\"ts\":\"2026-10-18T04:11:11Z\",\"phase\":\"verify\",\"level\":\"info\",\"message\":\"Verifying release 2.0.0-alpha.1-test from http://127.0.0.1:54857\"}",
+        "{\"ts\":\"2026-10-18T04:11:12Z\",\"phase\":\"pull\",\"level\":\"info\",\"message\":\"Pulling <registry>/beyerenrico/form-schema-app@sha256:7542738798118b98e667a93b3f9e37ebe1ef97bb61ee53a607148090dff74780\"}",
+        "{\"ts\":\"2026-10-18T04:11:23Z\",\"phase\":\"handover\",\"level\":\"info\",\"message\":\"Starting fsa install 2.0.0-alpha.1-test in <work>/fsa-test-j01\"}",
+        "{\"ts\":\"2026-10-18T04:11:24Z\",\"phase\":\"doctor\",\"level\":\"info\",\"message\":\"Starting doctor\"}",
+        "{\"ts\":\"2026-10-18T04:11:26Z\",\"phase\":\"secrets\",\"level\":\"info\",\"message\":\"Starting secrets\"}",
+        "{\"ts\":\"2026-10-18T04:11:26Z\",\"phase\":\"state\",\"level\":\"info\",\"message\":\"Starting state\"}",
+        "{\"ts\":\"2026-10-18T04:11:26Z\",\"phase\":\"pull\",\"level\":\"info\",\"message\":\"Starting pull\"}",
+        "{\"ts\":\"2026-10-18T04:11:26Z\",\"phase\":\"up\",\"level\":\"info\",\"message\":\"Starting up\"}",
+        "{\"ts\":\"2026-10-18T04:11:32Z\",\"phase\":\"migrate\",\"level\":\"info\",\"message\":\"Starting migrate\"}",
+        "{\"ts\":\"2026-10-18T04:11:34Z\",\"phase\":\"app_install\",\"level\":\"info\",\"message\":\"Starting app_install\"}",
+        "{\"ts\":\"2026-10-18T04:11:35Z\",\"phase\":\"start\",\"level\":\"info\",\"message\":\"Starting start\"}",
+        "{\"ts\":\"2026-10-18T04:12:07Z\",\"phase\":\"smoke\",\"level\":\"info\",\"message\":\"Starting smoke\"}",
+        "{\"ts\":\"2026-10-18T04:12:08Z\",\"phase\":\"done\",\"level\":\"info\",\"message\":\"Starting done\"}"
     ]
 }

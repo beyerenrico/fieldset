@@ -25,6 +25,9 @@
                     "hint": null,
                     "details": {
                         "platform": "linux/arm64",
+                        "engine_platform": "linux/arm64",
+                        "emulated": false,
+                        "docker_default_platform": null,
                         "release_platforms": [
                             "linux/arm64"
                         ],
@@ -44,10 +47,10 @@
                 {
                     "key": "disk",
                     "status": "ok",
-                    "summary": "175.7 GiB free.",
+                    "summary": "165.5 GiB free.",
                     "hint": null,
                     "details": {
-                        "free_gib": 175.7,
+                        "free_gib": 165.5,
                         "path": "<work>/fsa-test-j12-ae5"
                     }
                 },
@@ -118,8 +121,10 @@
                     "summary": "App on 127.0.0.1:8082, mail catcher UI on 127.0.0.1:8026 (in use: 8080, 8081, 8025).",
                     "hint": null,
                     "details": {
-                        "port": 8082,
-                        "mail_ui_port": 8026,
+                        "ports": {
+                            "app": 8082,
+                            "mail_ui": 8026
+                        },
                         "taken": [
                             8080,
                             8081,
@@ -141,7 +146,7 @@
         ]
     },
     "image_pulls": [
-        "<registry>/beyerenrico/form-schema-app@sha256:54372f56bd95404415c1d56dc99d71afa9e1365ef4f8193e6e353fa5ac87333f"
+        "<registry>/beyerenrico/form-schema-app@sha256:8af11717d1b276b329b5f7bb2738190b49bb97308d25f2b6a6c8d3bd20d179de"
     ],
     "service_starts": []
 }

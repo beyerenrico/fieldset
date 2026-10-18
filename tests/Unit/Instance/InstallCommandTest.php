@@ -3,9 +3,11 @@
 declare(strict_types=1);
 
 use App\Domain\Instance\Docker\DockerCommandFailed;
+use App\Domain\Instance\Docker\DockerInfo;
 use App\Domain\Instance\Docker\Labels;
 use App\Domain\Instance\Docker\ProcessOutcome;
 use App\Domain\Instance\Install\RecordDigest;
+use App\Domain\Instance\Lifecycle\ComposeFile;
 use App\Domain\Instance\Operations\OperationJournal;
 use App\Domain\Instance\State\EnvFiles;
 use App\Domain\Instance\State\InstanceState;
@@ -519,3 +521,19 @@ it('refuses an empty answer to a prompt with exit 2', function (): void {
         ->assertExitCode(2);
     expect($this->fixture->docker->calls)->toBe([]);
 });
+
+it('doubles the memory limits and warns when DOCKER_DEFAULT_PLATFORM runs another architecture (ADR 0070)', function (?string $platform, string $mailpit): void {
+    $this->fixture->docker->info = new DockerInfo('29.9.0', 'Docker Desktop', 'aarch64', 8 * 1024 ** 3, 4, false, '2026-10-18T10:00:00Z');
+    $this->fixture->facts(['platform' => $platform]);
+
+    [$code, $json] = installOnce($this->fixture);
+    $services = ComposeFile::document($this->fixture->directory)['services'];
+
+    expect($code)->toBe(0, json_encode($json))
+        ->and($services['mailpit']['mem_limit'])->toBe($mailpit)
+        ->and(collect($json['warnings'])->pluck('code')->contains('doctor_architecture'))->toBe($platform === 'linux/amd64');
+})->with([
+    'native' => [null, '48m'],
+    'the engine\'s own platform selected' => ['linux/arm64', '48m'],
+    'amd64 emulated on arm64' => ['linux/amd64', '96m'],
+]);

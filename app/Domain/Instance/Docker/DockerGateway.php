@@ -73,7 +73,8 @@ interface DockerGateway
     /** @return array<string, mixed> the normalized model (`compose config --format json`); throws when invalid */
     public function composeConfig(ComposeProject $project): array;
 
-    public function pullImage(string $reference): void;
+    /** @param  bool  $enginePlatform  the engine's own platform, whatever DOCKER_DEFAULT_PLATFORM says (ContainerSpec) */
+    public function pullImage(string $reference, bool $enginePlatform = false): void;
 
     public function inspectImage(string $reference): ?ImageInfo;
 

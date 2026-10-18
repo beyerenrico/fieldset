@@ -1,7 +1,7 @@
 # 0070: install.sh, the fsa shim, host facts and manifest verification (as built)
 - Status: accepted; amended 2026-10-18 at the M9 gate (sign-in link hand-over policy, exit 2 for missing input;
   private HOME, reserved paths, command position, terminal and `--json` rules, launcher error codes, `--yes`,
-  link fallback, the image's `fsa` wrapper)
+  link fallback, the image's `fsa` wrapper, the `DOCKER_DEFAULT_PLATFORM` pass-through)
 - Date: 2026-10-18
 
 ## Context
@@ -104,6 +104,29 @@ U5 (`fsa install`, doctor, status …) and U18 (`fsa upgrade`) build on the cont
 | `FSA_OPEN_URL_FILE` | `.fsa-open-url-<32 hex>` in the instance directory, only with a desktop session |
 | `FSA_TRUST_KEY`, `FSA_REGISTRY`, `FSA_RELEASE_URL` | passed through when set |
 | `FSA_RELEASE_MANIFEST` | install.sh only: `<dir>/releases/<version>/release-manifest.json` (verified) |
+| `DOCKER_DEFAULT_PLATFORM` | Docker's own variable, passed through when set (amended 2026-10-18, below) |
+
+(Amended 2026-10-18: `DOCKER_DEFAULT_PLATFORM`. When the caller sets it, install.sh (`fsa_install_platform_ok`,
+with the other no-network input checks) and the shim (`fsa_platform_ok`, before `docker info`) accept only
+`linux/amd64` or `linux/arm64`, optionally with a variant (`linux/arm64/v8`); anything else is exit 2
+`invalid_platform`. The launchers keep it in their environment, so the docker CLI applies it to their own pulls,
+creates and runs (the app image, the shim copy, the ops container), and pass it into the ops container with
+`-e DOCKER_DEFAULT_PLATFORM`. There `HostFacts::platform` validates it the same way (a parity test runs the same
+values through all three), and every docker and compose process fsa starts inherits it through Symfony Process's
+inherited environment (tested with a PHP CLI child), so compose pulls and runs the services as that platform too.
+Cosign is the exception: install.sh pulls and creates it with the variable cleared (`fsa_install_cosign_docker`),
+and `ManifestVerifier` pulls and runs it with `enginePlatform` (`ContainerSpec`, `DockerGateway::pullImage`), so
+verification runs as the engine's own platform. Verifying does not depend on the platform, and Docker's classic
+image store keeps one platform per by-digest reference: with a native cosign present, an amd64 run failed to
+re-pull it ("cannot overwrite digest"). The doctor's `architecture` check compares the selected platform (variant
+dropped) with the release's platforms and warns when it differs from the engine's, because emulation is much
+slower; its details carry `platform`, `engine_platform`, `emulated` and `docker_default_platform`. When
+`emulated`, `fsa install` renders every memory limit doubled (`RenderContext::EMULATION_MEMORY_FACTOR`): each
+emulated process carries its translator, and amd64 mailpit on Apple Silicon took about 57 MiB instead of 13, so
+its E16 limit (48 MiB, ADR 0062) OOM-killed it. Uses: amd64 images on Apple Silicon, and J1/J12 under emulation
+(BUILD_PROMPT_V2 §15.6): the harness sets it when a release has one platform that is not the engine's. It is not
+stored in the state, so every later `fsa` call needs it in the environment again, as Docker itself does; a
+detached supervisor (upgrade, restore) must pass it on in its container env.)
 
 **Ops container** (`fsa_run` in the shim, used by both launchers): `docker run --rm --init --label
 app.form-schema.role=ops --user <user> [--group-add <socket gid>] -e HOME=/tmp -e DOCKER_CONFIG=/tmp/.docker
