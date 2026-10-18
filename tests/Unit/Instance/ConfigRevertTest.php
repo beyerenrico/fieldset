@@ -101,6 +101,9 @@ it('says the services did not come back when only the revert\'s files were resto
 });
 
 it('does not claim the previous settings are back when the revert could not write them', function (): void {
+    if (posix_getuid() === 0) {
+        $this->markTestSkipped('root writes into a read-only directory (CI container); runs on the host.');
+    }
     $this->config->certificate = false;
     $directory = $this->config->instance->directory;
     $this->config->instance->docker->onCall['composeUp'] = function () use ($directory): void {
