@@ -6,7 +6,7 @@
 // Field App sessions (worker, reviewer, owner) call /api/v1 from inside the signed-in Field App page with
 // the headers the app sends (fetch + performance.now(), the body read included); the integration token
 // of fixtures.json calls it from Node with a Bearer header. Sequential requests, one client.
-import { fieldAppContext, fixtures, launch, printTable, stats, waitForQuiet, writeResult, BASE } from './lib.mjs';
+import { fieldAppContext, fixtures, launch, nodeGet, printTable, stats, waitForQuiet, writeResult, BASE } from './lib.mjs';
 
 const args = Object.fromEntries(
     process.argv.slice(2).map((a) => a.replace(/^--/, '').split('=')).map(([k, v]) => [k, v ?? 'true']),
@@ -69,11 +69,8 @@ async function inPage(page, path) {
 
 async function withToken(path) {
     const started = performance.now();
-    const response = await fetch(BASE + path, {
-        headers: { Accept: 'application/json', Authorization: `Bearer ${f.token}`, 'X-Organization-Id': String(org) },
-    });
-    const body = await response.text();
-    return { ms: performance.now() - started, status: response.status, bytes: body.length, retryAfter: Number(response.headers.get('Retry-After') ?? 0) };
+    const response = await nodeGet(BASE + path, { Accept: 'application/json', Authorization: `Bearer ${f.token}`, 'X-Organization-Id': String(org) });
+    return { ms: performance.now() - started, status: response.status, bytes: response.body.length, retryAfter: Number(response.headers['retry-after'] ?? 0) };
 }
 
 async function series(name, call) {
