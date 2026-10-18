@@ -120,3 +120,9 @@ Host from the peer address. J6 uses the host's LAN address (the shim's rule) and
 - Unverified until the human checklist (`RELEASING.md`, ADR 0064): a real quick tunnel against Cloudflare (hostname
   from `/quicktunnel`, the Host cloudflared forwards), iOS and Android trusting the root, and Android PWA installs with a
   user CA.
+
+## Amendment 2026-10-19: the Android tunnel advice turns the local CA off first (M11 gate)
+The trust page exists only in local-CA mode, where `fsa tunnel start` exits 2 `invalid_combination` (`TunnelRules`).
+Its Android tunnel recommendation (`phone_trust.android.tunnel`, DE/EN) therefore names both steps: turn the CA off
+with `fsa config set phone-https off --yes`, then run `fsa tunnel start`. A Feature test takes the command from
+TunnelRules' refusal hint and finds it on the page before `fsa tunnel start`, in both languages.

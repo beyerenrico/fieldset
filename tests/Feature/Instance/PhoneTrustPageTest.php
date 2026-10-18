@@ -3,8 +3,10 @@
 declare(strict_types=1);
 
 use App\Domain\Identity\Models\User;
+use App\Domain\Instance\Output\InvalidInput;
 use App\Domain\Instance\Runtime\LocalCaRoot;
 use App\Domain\Instance\Runtime\PhoneTrustRoute;
+use App\Domain\Instance\Tunnel\TunnelRules;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Cookie\CookieValuePrefix;
 use Illuminate\Http\Request;
@@ -15,6 +17,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Testing\TestResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Tests\Support\Instance\LocalCaFixture;
+use Tests\Support\Instance\PhoneFixtures;
 use Tests\Support\Instance\RuntimeFixture;
 
 require_once __DIR__.'/Support.php';
@@ -99,6 +102,21 @@ it('explains the iOS and Android steps, the tunnel on Android, the unsynced data
         ->toContain('für jede beliebige Website bürgen')->toContain('fsa status');
     expect(substr_count((string) $response->getContent(), '<ol data-steps='))->toBe(2);
 });
+
+it('tells Android users to turn the local CA off before the tunnel, which refuses to start next to it (R61)', function (string $lang): void {
+    $hint = '';
+    try {
+        TunnelRules::assertCanStart(PhoneFixtures::localCa());
+    } catch (InvalidInput $refusal) {
+        $hint = (string) $refusal->hint;
+    }
+    preg_match('/`(fsa [^`]+)`/', $hint, $command);
+    $text = phoneTrustText(phoneTrust(PhoneTrustRoute::PATH.'?lang='.$lang)->assertOk());
+
+    expect($command[1] ?? null)->toBe('fsa config set phone-https off --yes')
+        ->and($text)->toContain($command[1])->toContain('fsa tunnel start')
+        ->and(strpos($text, $command[1]))->toBeLessThan(strpos($text, 'fsa tunnel start'));
+})->with(['de', 'en']);
 
 it('speaks English with ?lang=en or an English browser, German otherwise', function (array $query, array $headers, string $lang): void {
     $response = phoneTrust(PhoneTrustRoute::PATH.$query[0], 'http', $headers)->assertOk()->assertSee('<html lang="'.$lang.'">', false);
