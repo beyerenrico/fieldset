@@ -121,7 +121,7 @@ it('signs only after checking the manifest against the pushed image digest and t
     expect($check)->toBeGreaterThan(0)
         ->and($check)->toBeLessThan((int) strpos($sign, 'cosign sign-blob'))
         ->and($sign)->toContain('DIGEST: ${{ needs.image.outputs.digest }}')
-        ->and($sign)->toContain(".images.app.digest")
+        ->and($sign)->toContain('.images.app.digest')
         ->and($sign)->toContain('cmp -s "$file" "tagged/${tagged[$name]}"')
         ->and($sign)->toContain('does not match its checksum in the manifest')
         ->and($sign)->toContain('name: release-unsigned')
