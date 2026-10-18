@@ -59,6 +59,7 @@ final class InstallFlags
             self::proxySwitch($flags, $state) ? self::PROXY_SWITCH : null,
             $app === [] ? null : implode(', ', $app).' apply only to a new instance: change the organization and its users in the admin panel.',
             in_array('--version', $rest, true) ? 'Another version arrives with `fsa upgrade` (2.0.0-rc.1).' : null,
+            in_array('--demo', $rest, true) ? 'Add the demo data to this instance with `fsa demo`.' : null,
             '`fsa config show` lists what `fsa config set` can change; `fsa uninstall` and a fresh install apply anything else.',
         ]));
     }

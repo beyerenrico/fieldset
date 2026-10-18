@@ -44,6 +44,30 @@ final readonly class AppCommands
         return $this->json($project, ['php', 'artisan', 'identity:login-link', '--actor-uid='.$actorUid, '--json', '--', $email]);
     }
 
+    /**
+     * Seeds the demo organization, forms, workflow and users (`fsa install --demo`, `fsa demo`; ADR 0081): `default`
+     * keeps the documented password, `random` prints one password per new demo user under `secrets`.
+     */
+    public function demoSeed(ComposeProject $project, string $passwords, int $actorUid): OneOffResult
+    {
+        return $this->json($project, ['php', 'artisan', 'app:demo-seed', '--passwords='.$passwords, '--actor-uid='.$actorUid, '--json']);
+    }
+
+    /** New random passwords for every demo account, their sessions and API tokens revoked (`fsa demo --rotate-passwords`). */
+    public function rotateDemoPasswords(ComposeProject $project, int $actorUid): OneOffResult
+    {
+        return $this->json($project, ['php', 'artisan', 'app:demo-passwords', '--rotate', '--actor-uid='.$actorUid, '--json']);
+    }
+
+    /**
+     * Which accounts, demo or not, still sign in with `password` (read-only; ADR 0081). `data.count` above 0 means the
+     * tunnel and the local-CA edge must not start (R29, U14); `data.users` lists `{email, demo}`.
+     */
+    public function demoPasswordCheck(ComposeProject $project): OneOffResult
+    {
+        return $this->json($project, ['php', 'artisan', 'app:demo-passwords', '--check', '--json']);
+    }
+
     /** Sign-in links without their tokens (`fsa status`). */
     public function loginLinks(ComposeProject $project, bool $unusedOnly = true): OneOffResult
     {
