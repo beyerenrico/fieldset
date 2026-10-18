@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Instance\Compose\EdgeNetwork;
+use App\Domain\Instance\Compose\Services\EdgeService;
 use App\Domain\Instance\Docker\CliDockerGateway;
 use App\Domain\Instance\Docker\ContainerSpec;
 use App\Domain\Instance\Docker\DockerInfo;
@@ -295,7 +296,8 @@ it('reports domain mode in status and serves 80/443 from its own edge in doctor'
 it('warns about the CA\'s duplicate-certificate limit before and after uninstalling a domain instance', function (): void {
     installDomain($this->fixture);
     $uuid = $this->fixture->state()->uuid();
-    $this->fixture->docker->withResource(new DockerResource(DockerResource::VOLUME, 'proj_edge-data', Labels::forInstance($uuid)));
+    $volume = EdgeService::volumeName($this->fixture->state()->project());
+    $this->fixture->docker->withResource(new DockerResource(DockerResource::VOLUME, $volume, Labels::forInstance($uuid)));
 
     [$asked, $prompt] = $this->fixture->run('fsa:uninstall');
     [$code, $json] = $this->fixture->run('fsa:uninstall', ['--yes' => true]);
@@ -303,7 +305,7 @@ it('warns about the CA\'s duplicate-certificate limit before and after uninstall
     expect($asked)->toBe(6)
         ->and($prompt['errors'][0]['message'])->toContain('required: The certificates for forms.example.com')
         ->and($code)->toBe(0, json_encode($json))
-        ->and($json['data']['removed']['volumes'])->toBe(['proj_edge-data'])
+        ->and($json['data']['removed']['volumes'])->toBe([$volume])
         ->and(collect($json['warnings'])->firstWhere('code', 'certificates_removed')['hint'])->toContain('--acme-staging');
 });
 

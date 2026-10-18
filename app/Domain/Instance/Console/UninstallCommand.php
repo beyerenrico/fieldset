@@ -35,20 +35,28 @@ final class UninstallCommand extends FsaCommand
         $prompt = $this->option('keep-backups')
             ? "Write a final backup into {$root}/backups/, then remove this instance with all its data (containers, volumes, networks) and every file in {$root} except backups/?"
             : "Remove this instance with all its data (containers, volumes, networks) and every file in {$root}, including backups/? No final backup is made (use --keep-backups for one).";
-        $domain = $this->domain($context);
+        $notice = $this->certificateNotice($context);
 
-        return $domain === null ? $prompt : Uninstaller::certificateWarning($domain).' '.$prompt;
+        return $notice === null ? $prompt : $notice.' '.$prompt;
     }
 
-    /** Domain mode: the prompt warns about the CA's duplicate-certificate limit first (plan Risks, ADR 0075). */
-    private function domain(FsaContext $context): ?string
+    /**
+     * When the instance holds certificates (its edge volume exists, ADR 0078), the prompt warns about the CA's
+     * duplicate-certificate limit first (plan Risks, ADR 0075). If Docker cannot be asked, domain mode decides.
+     */
+    private function certificateNotice(FsaContext $context): ?string
     {
         try {
-            $directory = $context->directory();
-
-            return $directory->hasState() ? InstanceSettings::of($directory->state())->domain() : null;
+            return $this->laravel->make(Uninstaller::class)->certificateNotice();
         } catch (InstanceException) {
-            return null;
+            try {
+                $directory = $context->directory();
+                $domain = $directory->hasState() ? InstanceSettings::of($directory->state())->domain() : null;
+
+                return $domain === null ? null : Uninstaller::certificateWarning($domain);
+            } catch (InstanceException) {
+                return null;
+            }
         }
     }
 
