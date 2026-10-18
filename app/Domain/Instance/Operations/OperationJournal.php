@@ -8,18 +8,23 @@ use App\Domain\Instance\Output\ResultStatus;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InvalidState;
 use Carbon\CarbonImmutable;
+use Closure;
 
 /**
  * The operation journal (R54, plan "Upgrade journal"). Every phase is written before its step starts, as a whole
  * document via temp-file-plus-rename with fsync, so a killed process leaves the last started phase and its resume
- * data behind. A finished operation moves to the history; an unfinished one blocks new operations until it is
- * resumed or rolled back. The journal stays private to the ops side (KTD24).
+ * data behind. A finished operation moves to the history, which keeps the newest HISTORY_LIMIT journals; an
+ * unfinished one blocks new operations until it is resumed or rolled back. The journal stays private to the ops
+ * side (KTD24).
  */
 final readonly class OperationJournal
 {
     public const string CURRENT = InstanceDirectory::OPERATIONS_DIR.'/current.json';
 
     public const string HISTORY_DIR = InstanceDirectory::OPERATIONS_DIR.'/history';
+
+    /** Archived journals kept; older ones are deleted when an operation finishes. */
+    public const int HISTORY_LIMIT = 20;
 
     public function __construct(private InstanceDirectory $directory) {}
 
@@ -72,18 +77,21 @@ final readonly class OperationJournal
     }
 
     /**
-     * Records the outcome and moves the journal to the history.
+     * Records the outcome and moves the journal to the history (oldest archives beyond HISTORY_LIMIT are deleted).
      *
      * @param  array<string, mixed>  $data
+     * @param  (Closure(JournalRecord): JournalRecord)|null  $archive  rewrites the record before it is archived
      */
-    public function finish(ResultStatus $outcome, array $data = []): JournalRecord
+    public function finish(ResultStatus $outcome, array $data = [], ?Closure $archive = null): JournalRecord
     {
-        $record = $this->save($this->open()->withOutcome($outcome, $data, $this->now()));
+        $record = $this->open()->withOutcome($outcome, $data, $this->now());
+        $record = $this->save($archive instanceof Closure ? $archive($record) : $record);
         $name = CarbonImmutable::parse($record->startedAt())->format('Ymd\THis\Z').'-'.$record->operation().'-'.$record->id().'.json';
         $this->directory->ensureDirectory(self::HISTORY_DIR);
         if (! $this->directory->files()->rename(self::CURRENT, self::HISTORY_DIR.'/'.$name)) {
             throw new InvalidState('The finished operation journal could not be archived.');
         }
+        $this->prune();
 
         return $record;
     }
@@ -98,6 +106,15 @@ final readonly class OperationJournal
         }
 
         return $records;
+    }
+
+    /** Archive names start with the UTC start time, so name order is age order. */
+    private function prune(): void
+    {
+        $names = array_values(array_filter($this->directory->files()->list(self::HISTORY_DIR), static fn (string $name): bool => str_ends_with($name, '.json')));
+        foreach (array_slice($names, 0, max(0, count($names) - self::HISTORY_LIMIT)) as $name) {
+            $this->directory->files()->delete(self::HISTORY_DIR.'/'.$name);
+        }
     }
 
     private function open(): JournalRecord

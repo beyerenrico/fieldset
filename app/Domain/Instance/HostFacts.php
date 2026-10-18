@@ -18,7 +18,8 @@ use App\Domain\Instance\Release\ImagePin;
  * - FSA_HOST_OS: `uname -s` in lower case, e.g. linux, darwin
  * - FSA_INSTANCE_DIR: the instance directory, mounted at the same absolute path
  * - FSA_LAN_ADDRESSES: space-separated candidate LAN addresses of the host (the ops container sees only its bridge)
- * - FSA_DESKTOP: 1 when a desktop session can open a browser (the shim then opens `open_url`)
+ * - FSA_DESKTOP: 1 when a desktop session can open a browser (the shim opens what a command hands over in
+ *   FSA_OPEN_URL_FILE, ADR 0070)
  * - FSA_TZ: the host time zone (IANA name)
  * - FSA_DOCKER_RUNTIME: rootful | rootless | desktop (DockerRuntime)
  * - FSA_CONTAINER_UID: the in-container owner UID (host UID on rootful, 0 otherwise)

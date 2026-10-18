@@ -98,7 +98,7 @@ it('refuses to begin while an earlier operation is unfinished and names it', fun
     } catch (OperationUnfinished $e) {
         expect($e->exitCode)->toBe(ExitCode::AbortedUnchanged)
             ->and($e->getMessage())->toContain('upgrade')->toContain('migrate')
-            ->and($e->hint)->toContain('fsa upgrade --resume')
+            ->and($e->hint)->toBe('Run `fsa upgrade` again with the same flags to resume it.')
             ->and($e->data['operation'])->toBe('upgrade')
             ->and($e->data['last_phase'])->toBe('migrate');
     }
@@ -121,6 +121,34 @@ it('archives a finished operation and keeps it in the history', function (): voi
         ->and($history[0]->id())->toBe($finished->id())
         ->and($history[0]->resumeData())->toMatchArray(['port' => 8080, 'url' => 'http://localhost:8080'])
         ->and($this->journal->begin('upgrade', 501)->operation())->toBe('upgrade');
+});
+
+it('keeps only the newest archived journals', function (): void {
+    foreach (range(1, OperationJournal::HISTORY_LIMIT + 3) as $minute) {
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-10-17 10:00:00')->addMinutes($minute));
+        $this->journal->begin('install', 501, ['n' => $minute]);
+        $this->journal->finish(ResultStatus::Ok);
+    }
+
+    $kept = array_map(static fn ($record): mixed => $record->context()['n'], $this->journal->history(100));
+
+    expect($kept)->toHaveCount(OperationJournal::HISTORY_LIMIT)
+        ->and($kept[0])->toBe(OperationJournal::HISTORY_LIMIT + 3)
+        ->and(end($kept))->toBe(4);
+});
+
+it('lets the caller rewrite the record before it is archived, e.g. personal inputs replaced by digests', function (): void {
+    $this->journal->begin('install', 501, ['owner_email' => 'o@example.com', 'organization' => 'Acme', 'port' => 8080]);
+    $this->journal->note('flags', ['owner_email' => 'p@example.com', 'owner_name' => 'Pat']);
+    $this->journal->note('resumed', ['host_uid' => 501]);
+
+    $archived = $this->journal->finish(ResultStatus::Ok, [], static fn ($record) => $record->withValuesReplaced(['owner_email', 'owner_name'], static fn (string $value): ?string => $value === 'Pat' ? null : 'digest:'.strlen($value)));
+    $stored = (string) json_encode($this->journal->history()[0]->toArray());
+
+    expect($archived->context())->toBe(['owner_email' => 'digest:13', 'organization' => 'Acme', 'port' => 8080])
+        ->and($archived->events()[0]['data'])->toBe(['owner_email' => 'digest:13', 'owner_name' => null])
+        ->and($archived->events()[1]['data'])->toBe(['host_uid' => 501])
+        ->and($stored)->not->toContain('example.com')->not->toContain('Pat');
 });
 
 it('records failed phases and events such as a lock takeover', function (): void {

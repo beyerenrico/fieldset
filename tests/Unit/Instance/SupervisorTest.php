@@ -190,17 +190,62 @@ it('archives a rolled-back operation and keeps a failed rollback open', function
 })->with([
     'rolled back' => [ExitCode::RolledBack, false],
     'rollback failed' => [ExitCode::RollbackFailed, true],
+    'aborted after a change (e.g. cancelled)' => [ExitCode::AbortedUnchanged, true],
+    'confirmation required after a change' => [ExitCode::ConfirmationRequired, true],
 ]);
 
-it('marks the phase failed and releases the lock when a step throws an unexpected error', function (): void {
-    expect(fn () => $this->supervisor->run('install', $this->holder, function (OperationRun $run): CommandResult {
+it('turns an unexpected error after a change into exit 1 with the journal left open for resume', function (): void {
+    $result = $this->supervisor->run('install', $this->holder, function (OperationRun $run): CommandResult {
         $run->phase('up', fn (): array => throw new RuntimeException('boom'));
 
         return CommandResult::ok('install');
-    }))->toThrow(RuntimeException::class, 'boom');
+    });
 
-    expect($this->journal->current()?->phases()[0]['status'])->toBe('failed')
+    expect($result->exitCode)->toBe(ExitCode::InternalError)
+        ->and($result->changed)->toBeTrue()
+        ->and($result->errors[0]->code)->toBe('internal_error')
+        ->and($result->data['exception'])->toBe(RuntimeException::class)
+        ->and($this->journal->current()?->phases()[0]['status'])->toBe('failed')
+        ->and(array_column($this->journal->current()?->events() ?? [], 'type'))->toBe(['failed'])
         ->and($this->lock->current())->toBeNull();
+});
+
+it('turns an unexpected error before any change into exit 9 and archives the journal (ADR 0066)', function (): void {
+    $result = $this->supervisor->run('install', $this->holder, function (OperationRun $run): CommandResult {
+        $run->phase('doctor', fn (): array => throw new LogicException('bug'), changes: false);
+
+        return CommandResult::ok('install');
+    });
+
+    expect($result->exitCode)->toBe(ExitCode::AbortedUnchanged)
+        ->and($result->changed)->toBeFalse()
+        ->and($this->journal->current())->toBeNull()
+        ->and($this->journal->history()[0]->outcome())->toBe(ResultStatus::Aborted);
+});
+
+it('writes the lock heartbeat around every phase while it holds the lock', function (): void {
+    $seen = [];
+    $this->supervisor->run('install', $this->holder, function (OperationRun $run) use (&$seen): CommandResult {
+        $run->phase('migrate', function () use (&$seen): array {
+            $seen[] = $this->lock->current()?->heartbeatAt;
+
+            return [];
+        });
+        $seen[] = $this->lock->current()?->heartbeatAt;
+
+        return CommandResult::ok('install');
+    });
+
+    expect($seen[0])->not->toBeNull()
+        ->and($seen[1])->not->toBeNull();
+});
+
+it('never fails an operation because the heartbeat cannot be written', function (): void {
+    $run = new OperationRun($this->journal, $this->journal->begin('install', 501), null, static fn () => throw new RuntimeException('disk full'));
+
+    $data = $run->phase('migrate', static fn (): array => ['ok' => true]);
+
+    expect($data)->toBe(['ok' => true]);
 });
 
 it('starts one detached, labelled supervisor container per instance', function (): void {

@@ -37,7 +37,8 @@ use Throwable;
  *   the InstanceDirectory, which makes the DockerGateway resolvable (InstanceServiceProvider);
  * - registers the secret values of the instance's env files with the redactor, so they never reach any output;
  * - asks for confirmation of destructive commands, or exits 6 without a TTY (or with --json) and without --yes;
- * - maps exceptions to exit codes and renders the envelope, with progress on stderr.
+ * - maps exceptions to exit codes and renders the envelope, with progress on stderr; if rendering itself fails,
+ *   a minimal envelope still goes out (exit 1, `render_failed`), never a stack trace.
  */
 abstract class FsaCommand extends Command
 {
@@ -93,7 +94,11 @@ abstract class FsaCommand extends Command
             $result = CommandResult::failed($this->resultName(), ExitCode::InternalError, 'internal_error', $e->getMessage(), null, false, ['exception' => $e::class]);
         }
 
-        return new ResultRenderer($redactor)->render($result, $this->output, $json, $secretsFile);
+        try {
+            return new ResultRenderer($redactor)->render($result, $this->output, $json, $secretsFile);
+        } catch (Throwable $e) {
+            return $this->renderFallback($result, $e, $json);
+        }
     }
 
     abstract protected function perform(FsaContext $context): CommandResult;
@@ -119,6 +124,12 @@ abstract class FsaCommand extends Command
         return ! $context->json && ($ignoreYes || ! $context->yes) && $context->facts->hasTerminal($this->input->isInteractive());
     }
 
+    /** Whether the caller asked for the browser hand-over of a sign-in link (`--open` of install and login-link). */
+    protected function opensBrowser(): bool
+    {
+        return false;
+    }
+
     /** Envelope `command`: the name without the `fsa:` prefix. */
     protected function resultName(): string
     {
@@ -136,7 +147,7 @@ abstract class FsaCommand extends Command
             }
         }
 
-        return new FsaContext($facts, $progress, $redactor, $json, (bool) $this->option('yes'), $directory);
+        return new FsaContext($facts, $progress, $redactor, $json, (bool) $this->option('yes'), $directory, $this->opensBrowser());
     }
 
     /** Nonce and file-path checks for a command started by the shim or install.sh (LaunchGuard, ADR 0070). */
@@ -186,6 +197,19 @@ abstract class FsaCommand extends Command
         }
 
         return $path;
+    }
+
+    /**
+     * The envelope could not be rendered (e.g. an output stream failed): a minimal document built without the
+     * result's data, secrets or messages, so nothing unredacted can leak through it.
+     */
+    private function renderFallback(CommandResult $result, Throwable $e, bool $json): int
+    {
+        $failed = CommandResult::failed($result->command, ExitCode::InternalError, 'render_failed', 'The result could not be printed: '.$e::class.'.', 'Run the command again; `fsa status` shows what it changed.', true, ['exit_code' => $result->exitCode->value], $result->changed);
+        $document = json_encode($failed->toArray(), CommandResult::JSON_FLAGS);
+        $this->output->writeln($json ? $document : 'fsa '.$result->command.': failed (the result could not be printed)', OutputInterface::OUTPUT_RAW);
+
+        return ExitCode::InternalError->value;
     }
 
     private function renderEarly(InputInterface $input, OutputInterface $output, InstanceException $e): int

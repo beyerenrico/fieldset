@@ -60,6 +60,12 @@ final class RecordingDockerGateway implements DockerGateway
     /** Answers composeRun calls by command (null falls back to the queue); e.g. one-off artisan commands. */
     public ?Closure $composeRunResponder = null;
 
+    /**
+     * Answers composeRunToFile calls: (entrypoint, command, output file) => outcome, writing the file itself.
+     * Without one, a successful run writes a minimal pg_dump or tar stream (fakeStream()).
+     */
+    public ?Closure $fileRunResponder = null;
+
     public function __construct()
     {
         $this->versions = new DockerVersions('29.9.0', '29.9.0', '5.6.0');
@@ -207,6 +213,27 @@ final class RecordingDockerGateway implements DockerGateway
         $answer = $this->composeRunResponder instanceof Closure ? ($this->composeRunResponder)($command, $input) : null;
 
         return $answer instanceof ProcessOutcome ? $answer : $this->nextOutcome(__FUNCTION__);
+    }
+
+    public function composeRunToFile(ComposeProject $project, string $service, array $command, string $outputFile, array $env = [], ?string $entrypoint = null, ?float $timeout = null): ProcessOutcome
+    {
+        $this->record(__FUNCTION__, ['project' => $project->name, 'service' => $service, 'command' => $command, 'file' => $outputFile, 'env' => array_keys($env), 'entrypoint' => $entrypoint, 'timeout' => $timeout]);
+        $answer = $this->fileRunResponder instanceof Closure ? ($this->fileRunResponder)($entrypoint, $command, $outputFile) : null;
+        if ($answer instanceof ProcessOutcome) {
+            return $answer;
+        }
+        file_put_contents($outputFile, self::fakeStream($entrypoint));
+        chmod($outputFile, 0600);
+
+        return new ProcessOutcome(0);
+    }
+
+    /** The start of a pg_dump custom-format file, or one empty ustar block plus the end-of-archive blocks. */
+    public static function fakeStream(?string $entrypoint): string
+    {
+        return $entrypoint === 'pg_dump'
+            ? "PGDMP\x01\x0e\x00fake custom-format dump"
+            : str_pad(str_pad('./', 257, "\0")."ustar\x0000", 512, "\0").str_repeat("\0", 1024);
     }
 
     public function composeLogs(ComposeProject $project, array $services = [], ?string $since = null, ?int $tail = null): string

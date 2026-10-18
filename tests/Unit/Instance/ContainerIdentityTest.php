@@ -38,6 +38,12 @@ it('falls back to the hostname, which Docker sets to the short container ID', fu
     expect(new ContainerIdentity($docker, '/nonexistent', '0123456789ab')->current()?->id)->toBe('0123456789ab');
 });
 
+it('does not take a hostname with a trailing newline for a container ID', function (): void {
+    $docker = (new RecordingDockerGateway)->withRunningContainer('0123456789ab', '2026-10-17T10:00:00.1Z');
+
+    expect(new ContainerIdentity($docker, '/nonexistent', "0123456789ab\n")->current())->toBeNull();
+});
+
 it('reports no container outside Docker, so the lock is never judged stale', function (): void {
     $docker = new RecordingDockerGateway;
 

@@ -18,6 +18,7 @@ use App\Domain\Instance\Operations\Supervisor;
 use App\Domain\Instance\Output\CommandResult;
 use App\Domain\Instance\Output\ExitCode;
 use App\Domain\Instance\Output\InvalidInput;
+use App\Domain\Instance\State\EnvFiles;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
@@ -82,7 +83,19 @@ final readonly class Installer
             resume: true,
             context: $request->toContext(),
             progress: $context->progress,
+            archive: $this->withoutPersonalInputs(...),
         );
+    }
+
+    /**
+     * The archived journal keeps digests of the owner's e-mail and name, never the values (before the secrets
+     * phase there is no key yet and they are dropped). The open journal needs them to resume.
+     */
+    private function withoutPersonalInputs(JournalRecord $record): JournalRecord
+    {
+        $digest = RecordDigest::fromEnvFiles(new EnvFiles($this->directory));
+
+        return $record->withValuesReplaced(InstallRecord::PERSONAL, static fn (string $value): ?string => $digest?->digest($value));
     }
 
     private function steps(OperationRun $run, InstallRequest $request, FsaContext $context, bool $secretsToFile): CommandResult
@@ -115,8 +128,9 @@ final readonly class Installer
         $warnings = ($installed['already_installed'] ?? false) === true
             ? [['app_already_installed', 'The database already held an organization: --org, --owner-email, --owner-name and --locale were not applied.', 'Change them in the admin panel; the sign-in link goes to the owner given here.']]
             : [];
-        $run->phase('done', function () use ($project, $request, $context, &$link, &$warnings): array {
-            [$link, $more] = $this->finish($project, $request, $context, $link);
+        $applied = ($installed['already_installed'] ?? false) !== true;
+        $run->phase('done', function () use ($project, $request, $context, $applied, &$link, &$warnings): array {
+            [$link, $more] = $this->finish($project, $request, $context, $link, $applied);
             $warnings = [...$warnings, ...$more];
 
             return ['link_issued' => $link !== null];
@@ -162,9 +176,10 @@ final readonly class Installer
      * 15-minute link when app:install ran in an earlier attempt (its link went unused with that failure).
      *
      * @param  array{value: string, expires_at: CarbonImmutable|null}|null  $link
+     * @param  bool  $applied  whether app:install applied this run's app flags (not `already_installed`)
      * @return array{0: array{value: string, expires_at: CarbonImmutable|null}|null, 1: list<array{0: string, 1: string, 2: string|null}>}
      */
-    private function finish(ComposeProject $project, InstallRequest $request, FsaContext $context, ?array $link): array
+    private function finish(ComposeProject $project, InstallRequest $request, FsaContext $context, ?array $link, bool $applied): array
     {
         $warnings = [];
         if ($link === null) {
@@ -178,7 +193,8 @@ final readonly class Installer
         }
         $state = $this->directory->state();
         if (! InstallRecord::isInstalled($state)) {
-            $this->directory->saveState($state->withHistoryEntry(InstallRecord::EVENT, InstallRecord::entry($request, $state)));
+            $digest = RecordDigest::fromEnvFiles(new EnvFiles($this->directory));
+            $this->directory->saveState($state->withHistoryEntry(InstallRecord::EVENT, InstallRecord::entry($request, $state, $digest, $applied)));
         }
 
         return [$link, $warnings];
@@ -196,30 +212,36 @@ final readonly class Installer
             $result = $result->withWarning((string) $warning['code'], (string) $warning['message'], is_string($warning['hint'] ?? null) ? $warning['hint'] : null);
         }
         foreach (is_array($preflight['orphans'] ?? null) ? $preflight['orphans'] : [] as $uuid) {
-            $result = $result->withWarning('orphans_found', "Containers of another installation ({$uuid}) ran from this directory.", "If that directory was deleted by hand, remove them with `fsa uninstall --orphans {$uuid} --yes`.");
+            $result = $result->withWarning('orphans_found', "Containers of another installation ({$uuid}) ran from this directory.", "Check first that it does not run elsewhere (`docker ps -a --filter label=app.form-schema.instance={$uuid}` shows its containers and their directories). If it was deleted by hand, remove its leftovers with `fsa uninstall --orphans {$uuid} --yes`; fsa refuses while any of its containers runs.");
         }
         foreach ($warnings as [$code, $message, $hint]) {
             $result = $result->withWarning($code, $message, $hint);
         }
 
-        return $link === null ? $result : SignInDelivery::deliver($result, $context, $link['value'], $link['expires_at'], $secretsToFile);
+        return $link === null ? $result : SignInDelivery::deliver($result, $context, $link['value'], $link['expires_at'], $secretsToFile, $request->ownerEmail());
     }
 
-    /** A finished instance: same flags change nothing (R13, AE3), different flags are a `config set` (exit 2). */
+    /**
+     * A finished instance: same flags change nothing (R13, AE3), different flags exit 2. No sign-in link is issued
+     * on this path (`data.sign_in_link: null`); the warning names `fsa login-link` for one.
+     */
     private function unchanged(InstallRequest $request): CommandResult
     {
         $state = $this->directory->state();
-        $changed = $request->changedFlags(InstallRecord::applied($state));
+        $digest = RecordDigest::fromEnvFiles(new EnvFiles($this->directory));
+        $changed = $request->changedFlags(InstallRecord::applied($state), InstallRecord::comparator($digest));
         if ($changed !== []) {
             throw new InvalidInput(
                 'This instance is installed; '.implode(', ', $changed).' differ from its installation.',
                 'use_config_set',
-                'fsa install changes nothing on an installed instance: use `fsa config set` for settings and `fsa upgrade` for another version.',
+                'fsa install changes nothing on an installed instance. `fsa config set` and `fsa upgrade` arrive in later releases; for now keep the instance as it is, or remove it with `fsa uninstall` and install again with the new flags.',
             );
         }
-        $email = InstallRecord::recorded($state)['owner_email'] ?? '';
+        $email = $request->ownerEmailIfKnown();
+        $data = [...$this->summary($state, $email), 'installed_at' => InstallRecord::recorded($state)['at'] ?? null, SignInDelivery::SECRET => null];
 
-        return CommandResult::ok(self::OPERATION, [...$this->summary($state, is_string($email) ? $email : ''), 'installed_at' => InstallRecord::recorded($state)['at'] ?? null], changed: false);
+        return CommandResult::ok(self::OPERATION, $data, changed: false)
+            ->withWarning('no_sign_in_link', 'The instance is already installed, so no sign-in link was issued.', 'Run '.SignInDelivery::loginLinkCommand($email).' for a one-time sign-in link.');
     }
 
     /** On resume: the earlier inputs still apply; a flag whose phase already ran must not change (exit 2). */
@@ -269,10 +291,11 @@ final readonly class Installer
     }
 
     /** @return array<string, mixed> */
-    private function summary(InstanceState $state, string $ownerEmail): array
+    private function summary(InstanceState $state, ?string $ownerEmail): array
     {
         $settings = InstanceSettings::of($state);
         $fsa = $this->directory->root.'/fsa';
+        $linkFor = $ownerEmail ?? '<owner-email>';
 
         return [
             'url' => $settings->instanceUrl(),
@@ -283,7 +306,7 @@ final readonly class Installer
             'port' => $settings->port(),
             'mail' => ['mode' => $settings->capturesMail() ? 'capture' : 'smtp', 'catcher_url' => $settings->capturesMail() ? 'http://localhost:'.$settings->mailUiPort() : null],
             'owner_email' => $ownerEmail,
-            'next_commands' => ["{$fsa} status", "{$fsa} login-link {$ownerEmail}", "{$fsa} doctor --post"],
+            'next_commands' => ["{$fsa} status", "{$fsa} login-link {$linkFor}", "{$fsa} doctor --post"],
         ];
     }
 }

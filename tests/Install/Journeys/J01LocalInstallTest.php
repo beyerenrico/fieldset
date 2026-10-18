@@ -103,8 +103,9 @@ it('reports the running instance with fsa status, doctor --post, logs and login-
     $linkFile = $this->journey->work.'/admin-link.json';
     $link = $this->journey->fsa($this->dir, ['login-link', 'owner@example.test', '--secrets-file', $linkFile, '--json']);
     $version = $this->journey->fsa($this->dir, ['version', '--json']);
+    $commands = ['status' => 'fsa status --json', 'doctor' => 'fsa doctor --post --json', 'login-link' => 'fsa login-link owner@example.test --secrets-file <work>/admin-link.json --json', 'version' => 'fsa version --json'];
     foreach (['status' => $status, 'doctor' => $doctor, 'login-link' => $link, 'version' => $version] as $name => $process) {
-        $this->journey->evidence("J01-{$name}.json", ['command' => "fsa {$name} --json", 'exit_code' => $process->getExitCode(), 'stdout' => InstanceJourney::json($process)]);
+        $this->journey->evidence("J01-{$name}.json", ['command' => $commands[$name], 'exit_code' => $process->getExitCode(), 'stdout' => InstanceJourney::json($process)]);
     }
     $statusJson = InstanceJourney::json($status);
 

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Instance\Docker\DockerCommandFailed;
 use App\Domain\Instance\Docker\DockerInfo;
 use App\Domain\Instance\Docker\DockerRuntime;
 use App\Domain\Instance\Docker\DockerUnavailable;
@@ -233,6 +234,45 @@ it('reports the ports of an installed instance as its own while it runs, and tak
         ->and(doctorChecks($own)['services']['status'])->toBe('ok')
         ->and($takenCode)->toBe(3)
         ->and(doctorChecks($taken)['ports']['summary'])->toContain('in use by another program');
+});
+
+it('treats the ports of its own running containers as served and probes only the others', function (): void {
+    $this->fixture->run('fsa:install', InstanceCommandFixture::installFlags());
+    $this->fixture->withRunningStack();
+    $this->fixture->docker->stopContainer(str_repeat('1', 12)); // app stopped, mailpit (8025) still runs
+    $this->fixture->takenPorts = [8025];
+    $probes = count($this->fixture->runSpecs('true'));
+
+    [$code, $json] = $this->fixture->run('fsa:doctor');
+    $ports = doctorChecks($json)['ports'];
+    $probed = array_map(static fn ($spec): string => $spec->ports[0], array_slice($this->fixture->runSpecs('true'), $probes));
+
+    expect($code)->toBe(0, json_encode($json))
+        ->and($ports['status'])->toBe('ok')
+        ->and($ports['summary'])->toBe('Port(s) 8025 served by this instance, 8080 free.')
+        ->and($ports['details'])->toBe(['ports' => ['app' => 8080, 'mail_ui' => 8025], 'taken' => []])
+        ->and($probed)->toBe(['127.0.0.1:8080:8080']);
+});
+
+it('probes every port when the project\'s containers cannot be listed', function (): void {
+    $this->fixture->run('fsa:install', InstanceCommandFixture::installFlags());
+    $this->fixture->docker->failOn('composePs', new DockerCommandFailed('compose ps', new ProcessOutcome(1, '', 'no such file')));
+    $this->fixture->takenPorts = [8025];
+
+    [$code, $json] = $this->fixture->run('fsa:doctor');
+
+    expect($code)->toBe(3)
+        ->and(doctorChecks($json)['ports']['details'])->toBe(['ports' => ['app' => 8080, 'mail_ui' => 8025], 'taken' => [8025]]);
+});
+
+it('uses one details shape for the ports check when selecting and when verifying', function (): void {
+    $this->fixture->takenPorts = [9000];
+    [, $selecting] = $this->fixture->run('fsa:install', InstanceCommandFixture::installFlags(['--port' => '9000']));
+    doctorState($this->fixture);
+    [, $verifying] = $this->fixture->run('fsa:doctor');
+
+    expect(doctorChecks($selecting)['ports']['details'])->toBe(['ports' => [], 'taken' => [9000]])
+        ->and(array_keys(doctorChecks($verifying)['ports']['details']))->toBe(['ports', 'taken']);
 });
 
 it('skips the port check before an image is pinned, and fails --post for missing services', function (): void {

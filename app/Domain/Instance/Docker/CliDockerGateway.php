@@ -79,6 +79,13 @@ final readonly class CliDockerGateway implements DockerGateway
         return $this->attempt([...$this->composeBase($project), 'run', ...$flags, ...$this->names([$service]), ...$command], $env, $input, $timeout);
     }
 
+    public function composeRunToFile(ComposeProject $project, string $service, array $command, string $outputFile, array $env = [], ?string $entrypoint = null, ?float $timeout = null): ProcessOutcome
+    {
+        $flags = ['--rm', '--no-TTY', '--no-deps', ...($entrypoint === null ? [] : ['--entrypoint', ...$this->names([$entrypoint])]), ...$this->envFlags($env)];
+
+        return $this->attempt([...$this->composeBase($project), 'run', ...$flags, ...$this->names([$service]), ...$command], $env, null, $timeout, $outputFile);
+    }
+
     public function composeLogs(ComposeProject $project, array $services = [], ?string $since = null, ?int $tail = null): string
     {
         $flags = ['--no-color', '--timestamps', ...($since === null ? [] : ['--since', $since]), ...($tail === null ? [] : ['--tail', (string) $tail])];
@@ -195,9 +202,9 @@ final readonly class CliDockerGateway implements DockerGateway
      * @param  list<string>  $command
      * @param  array<string, string>  $env
      */
-    private function attempt(array $command, array $env, ?string $input, ?float $timeout): ProcessOutcome
+    private function attempt(array $command, array $env, ?string $input, ?float $timeout, ?string $stdoutFile = null): ProcessOutcome
     {
-        $outcome = $this->runner->run($command, [...array_fill_keys(self::CLEARED_ENV, false), 'COMPOSE_DISABLE_ENV_FILE' => '1', ...$env], $input, $timeout);
+        $outcome = $this->runner->run($command, [...array_fill_keys(self::CLEARED_ENV, false), 'COMPOSE_DISABLE_ENV_FILE' => '1', ...$env], $input, $timeout, $stdoutFile);
         if (! $outcome->started) {
             throw new DockerUnavailable('The docker CLI could not be started.', 'The fsa image ships the Docker CLI; check that the ops container runs the published image.');
         }

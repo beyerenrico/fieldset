@@ -47,6 +47,23 @@ interface DockerGateway
         bool $withDependencies = false,
     ): ProcessOutcome;
 
+    /**
+     * A one-off like composeRun whose stdout streams into `$outputFile` (created exclusively, mode 0600) instead
+     * of memory: database dumps and volume archives. `$entrypoint` replaces the image's entrypoint.
+     *
+     * @param  list<string>  $command
+     * @param  array<string, string>  $env  passed by name; values never appear in argv
+     */
+    public function composeRunToFile(
+        ComposeProject $project,
+        string $service,
+        array $command,
+        string $outputFile,
+        array $env = [],
+        ?string $entrypoint = null,
+        ?float $timeout = null,
+    ): ProcessOutcome;
+
     /** @param  list<string>  $services */
     public function composeLogs(ComposeProject $project, array $services = [], ?string $since = null, ?int $tail = null): string;
 

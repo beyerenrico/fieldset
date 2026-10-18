@@ -8,6 +8,7 @@ use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InvalidState;
 use App\Domain\Instance\State\NotAnInstanceDirectory;
 use App\Domain\Instance\State\SafeFiles;
+use App\Domain\Instance\State\SchemaVersion;
 use App\Domain\Instance\State\UnsafePath;
 use Tests\Support\Instance\TemporaryInstance;
 
@@ -141,6 +142,19 @@ it('renames, lists and deletes trees inside the root without following links', f
     expect($files->exists('z'))->toBeFalse()
         ->and(InstanceDirectory::isMarked($outside->root))->toBeTrue();
 });
+
+it('syncs the directory after a rename where the platform allows it', function (): void {
+    $directory = TemporaryInstance::directory();
+
+    expect(SafeFiles::syncDirectory($directory->root))->toBeTrue()
+        ->and(SafeFiles::syncDirectory($directory->root.'/missing'))->toBeFalse()
+        ->and($directory->files()->rename('.fsa-instance', 'moved/marker'))->toBeTrue()
+        ->and($directory->files()->rename('missing', 'moved/other'))->toBeFalse();
+});
+
+it('reads a schema version only as major.minor, without a trailing newline', function (string $raw): void {
+    expect(fn () => SchemaVersion::parse($raw, 'instance state'))->toThrow(InvalidState::class);
+})->with(["1.0\n", '1.0.0', 'v1', '']);
 
 it('refuses a root that is not a directory', function (): void {
     expect(fn () => SafeFiles::at('/nonexistent/'.bin2hex(random_bytes(4))))->toThrow(UnsafePath::class)

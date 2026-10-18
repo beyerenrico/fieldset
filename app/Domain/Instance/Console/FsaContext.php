@@ -23,6 +23,7 @@ final readonly class FsaContext
         public bool $json,
         public bool $yes,
         private ?InstanceDirectory $directory = null,
+        public bool $openRequested = false,
     ) {}
 
     public function directory(): InstanceDirectory
@@ -36,10 +37,21 @@ final readonly class FsaContext
     }
 
     /**
+     * Whether a URL may go to the browser hand-over instead of the envelope: when asked with --open, or for a
+     * person at a desktop terminal (no --json, a TTY and a desktop session). An agent driving fsa with --json
+     * gets the link "as JSON" (R12) in `secrets` or its --secrets-file unless it asks for the browser.
+     */
+    public function handOverAllowed(): bool
+    {
+        return $this->openRequested || (! $this->json && $this->facts->tty === true && $this->facts->desktop === true);
+    }
+
+    /**
      * Hands a URL to the shim, which opens it in the host's browser after the command exits (§6.2, ADR 0056,
-     * ADR 0070). It travels in a 0600 file in the instance directory, never on stdout, so an agent driving fsa
-     * never sees a sign-in link. False when the host has no desktop session or the launcher cannot open URLs:
-     * the command then reports the URL another way (`secrets`, --secrets-file).
+     * ADR 0070). It travels in a 0600 file in the instance directory, never on stdout. Whether the browser really
+     * opens is known only to the shim (which prints the link to the terminal if the opener fails), so true means
+     * "handed over". False when the host has no desktop session or the launcher cannot open URLs: the command
+     * then reports the URL another way (`secrets`, --secrets-file).
      */
     public function openInBrowser(#[SensitiveParameter] string $url): bool
     {

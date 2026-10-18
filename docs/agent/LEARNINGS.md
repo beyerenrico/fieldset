@@ -100,3 +100,6 @@
 93. Never name a console option `--version`: Symfony answers it before any command runs (prints the Laravel version, exit 0). The image's `fsa` wrapper maps install.sh's `--version` to `--release` for `install`.
 94. Docker Desktop: host files appear as UID 0 inside containers (in-container owner UID 0); a `docker run --rm` whose start fails on a taken port leaves no container ("Bind for 127.0.0.1:8080 failed: port is already allocated"). `docker events --since` has whole-second resolution.
 95. `docker image inspect 127.0.0.1:<port>/repo@sha256:D` can succeed when D is present locally under another registry name (observed, cause inferred), so a pull is skipped; pull by the exact reference when the registry matters.
+96. Two agents (or an agent and a coverage run) on the same test database drop each other's tables mid-run ("relation users does not exist"): give long runs their own database (`form_schema_cov`) and keep parallel workers apart.
+97. Pest datasets are evaluated when the file loads: a long single-process run reaches a time-based dataset minutes later. Pass offsets and compute times inside the test. Pest file-level `const` names must be unique across all test files.
+98. Symfony Process can stream a large stdout to a file with a run callback plus `clearOutput()` (pg_dump/tar through `composeRunToFile`), keeping it out of PHP memory.

@@ -91,6 +91,8 @@ it('parses only fully qualified image references', function (string $reference, 
     ['docker.io/Library/postgres:16@sha256:'.str_repeat('a', 64), 'Invalid image repository'],
     ['docker.io/library/postgres:-16@sha256:'.str_repeat('a', 64), 'Invalid image tag'],
     ['Docker.io/library/postgres:16@sha256:'.str_repeat('a', 64), 'Invalid image registry'],
+    'digest with a trailing newline' => ['docker.io/library/postgres:16@sha256:'.str_repeat('a', 64)."\n", 'must look like sha256:<64 hex>'],
+    'tag with a trailing newline' => ["docker.io/library/postgres:16\n@sha256:".str_repeat('a', 64), 'Invalid image tag'],
 ]);
 
 it('accepts registries with ports, the local harness included', function (): void {

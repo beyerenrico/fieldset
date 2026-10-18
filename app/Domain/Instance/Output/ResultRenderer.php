@@ -16,7 +16,10 @@ final readonly class ResultRenderer
 {
     public function __construct(private SecretRedactor $redactor) {}
 
-    /** @return int the exit code (2 when the secrets file could not be written; its secrets are then dropped) */
+    /**
+     * @return int the exit code (2 when the secrets file could not be written; its secrets are then dropped, and a
+     *             dropped sign-in link is named with the command that issues a new one)
+     */
     public function render(CommandResult $result, OutputInterface $output, bool $json, ?string $secretsFile = null): int
     {
         if ($secretsFile !== null && $result->secrets !== []) {
@@ -41,14 +44,29 @@ final readonly class ResultRenderer
         ];
 
         try {
-            SafeFiles::writeAtomically($path, json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)."\n", 0600);
+            SafeFiles::writeAtomically($path, json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR)."\n", 0600);
 
             return $result;
         } catch (UnsafePath $e) {
-            $failed = CommandResult::failed($result->command, ExitCode::InvalidInput, 'secrets_file_unwritable', $e->getMessage(), 'Pass a --secrets-file in an existing, writable directory.', false, $result->data, $result->changed);
+            $failed = CommandResult::failed($result->command, ExitCode::InvalidInput, 'secrets_file_unwritable', $e->getMessage(), $this->droppedHint($result), false, $result->data, $result->changed);
 
             return array_reduce($result->warnings, static fn (CommandResult $carry, Message $w): CommandResult => $carry->withWarning($w->code, $w->message, $w->hint), $failed);
         }
+    }
+
+    /**
+     * Re-running install on a finished instance issues no link, so a dropped sign-in link is replaced through
+     * `fsa login-link` (with a writable --secrets-file this time).
+     */
+    private function droppedHint(CommandResult $result): string
+    {
+        if (! array_any($result->secrets, static fn (Secret $s): bool => $s->name === 'sign_in_link')) {
+            return 'Pass a --secrets-file in an existing, writable directory.';
+        }
+        $email = $result->data['owner_email'] ?? $result->data['email'] ?? null;
+
+        return 'The sign-in link was not saved. Issue a new one with `fsa login-link '.(is_string($email) && $email !== '' ? $email : '<email>')
+            .' --secrets-file <file>`, naming a file in an existing, writable directory.';
     }
 
     private function human(CommandResult $result, OutputInterface $output, ?string $secretsFile): void
@@ -56,7 +74,7 @@ final readonly class ResultRenderer
         $envelope = $result->toArray($this->redactor, $secretsFile);
         $output->writeln(sprintf('fsa %s: %s%s', $result->command, $envelope['status'], $result->changed ? '' : ' (nothing changed)'));
         foreach ($envelope['data'] as $key => $value) {
-            $output->writeln(sprintf('  %s: %s', $key, is_scalar($value) || $value === null ? var_export($value, true) : json_encode($value, JSON_UNESCAPED_SLASHES)), OutputInterface::OUTPUT_RAW);
+            $output->writeln(sprintf('  %s: %s', $key, is_scalar($value) || $value === null ? var_export($value, true) : json_encode($value, JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE)), OutputInterface::OUTPUT_RAW);
         }
         foreach ($envelope['secrets'] as $secret) {
             $where = $secret['value'] ?? 'written to '.($secret['written_to'] ?? '?');

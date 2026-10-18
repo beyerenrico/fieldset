@@ -9,6 +9,7 @@ use App\Domain\Instance\Output\InvalidInput;
 use App\Domain\Instance\Release\ReleaseException;
 use App\Domain\Instance\Release\ReleaseVersion;
 use App\Domain\Instance\State\InputGrammar;
+use Closure;
 
 /**
  * The inputs of `fsa install` (§7, R26): the flags given on the command line, validated, plus their defaults.
@@ -103,13 +104,15 @@ final readonly class InstallRequest
      * applied yet and never conflicts; a null value was applied as "not set".
      *
      * @param  array<string, string|int|null>  $applied
+     * @param  (Closure(string, string|int|null, string|int): bool)|null  $equals  e.g. digests for personal inputs
      * @return list<string> command-line flags
      */
-    public function changedFlags(array $applied): array
+    public function changedFlags(array $applied, ?Closure $equals = null): array
     {
+        $equals ??= static fn (string $key, string|int|null $recorded, string|int $given): bool => (string) $recorded === (string) $given;
         $changed = array_filter(
             $this->explicit,
-            static fn (string|int $value, string $key): bool => array_key_exists($key, $applied) && (string) $applied[$key] !== (string) $value,
+            static fn (string|int $value, string $key): bool => array_key_exists($key, $applied) && ! $equals($key, $applied[$key], $value),
             ARRAY_FILTER_USE_BOTH,
         );
 
@@ -124,6 +127,12 @@ final readonly class InstallRequest
     public function ownerEmail(): string
     {
         return $this->string('owner_email');
+    }
+
+    /** The owner e-mail when it was given (or recorded on resume), else null. */
+    public function ownerEmailIfKnown(): ?string
+    {
+        return is_string($this->explicit['owner_email'] ?? null) ? $this->explicit['owner_email'] : null;
     }
 
     /** The owner's name; without --owner-name the part of the email before the @. */

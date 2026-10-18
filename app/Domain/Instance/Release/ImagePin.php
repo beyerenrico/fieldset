@@ -49,7 +49,7 @@ final readonly class ImagePin
 
     public static function assertDigest(string $digest, string $subject): void
     {
-        if (preg_match('/'.self::DIGEST_PATTERN.'/', $digest) !== 1) {
+        if (preg_match('/'.self::DIGEST_PATTERN.'/D', $digest) !== 1) {
             throw new ReleaseException(sprintf('The digest of %s must look like sha256:<64 hex>, got "%s".', $subject, $digest));
         }
     }
@@ -84,7 +84,7 @@ final readonly class ImagePin
 
     private static function assertMatches(string $field, string $value, string $pattern): void
     {
-        if (preg_match('/'.str_replace('/', '\/', $pattern).'/', $value) !== 1) {
+        if (preg_match('/'.str_replace('/', '\/', $pattern).'/D', $value) !== 1) {
             throw new ReleaseException(sprintf('Invalid image %s "%s".', $field, $value));
         }
     }

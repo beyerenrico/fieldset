@@ -20,14 +20,25 @@ use Illuminate\Console\Attributes\Signature;
 /**
  * `fsa login-link <email>` (§7, R28, KTD21, ADR 0056): a single-use sign-in link (15 minutes) for an existing
  * admin, issued by the app-side `identity:login-link` in a socket-less one-off (KTD25) and audited with the
- * caller's host UID. The link leaves only through `secrets`, --secrets-file or the browser hand-over.
+ * caller's host UID. The link leaves only through `secrets`, --secrets-file or the browser hand-over (--open, or a
+ * person at a desktop terminal). A one-off that prints no result is exit 4 (retryable), like install's one-offs.
  */
 #[Description('Issue a one-time sign-in link (15 minutes) for an existing admin')]
-#[Signature('fsa:login-link {email : E-mail of an existing admin}')]
+#[Signature('fsa:login-link
+        {email : E-mail of an existing admin}
+        {--open : Open the link in the browser of a desktop session instead of printing it}')]
 final class LoginLinkCommand extends FsaCommand
 {
     /** App error codes that are the caller's to fix (exit 2). */
     private const array INPUT_ERRORS = ['user_not_found', 'not_admin', 'inactive', 'sso_required', 'invalid_input'];
+
+    /** The one-off printed no result (it failed or timed out before the app answered): exit 4, retryable. */
+    private const array NO_RESULT = ['one_off_failed', 'one_off_timeout'];
+
+    protected function opensBrowser(): bool
+    {
+        return (bool) $this->option('open');
+    }
 
     protected function perform(FsaContext $context): CommandResult
     {
@@ -48,7 +59,7 @@ final class LoginLinkCommand extends FsaCommand
         }
         $data = ['email' => $email, 'kind' => is_string($result->data['kind'] ?? null) ? $result->data['kind'] : 'admin'];
 
-        return SignInDelivery::deliver(CommandResult::ok('login-link', $data, changed: true), $context, $link['value'], $link['expires_at'], is_string($this->option('secrets-file')) && $this->option('secrets-file') !== '');
+        return SignInDelivery::deliver(CommandResult::ok('login-link', $data, changed: true), $context, $link['value'], $link['expires_at'], is_string($this->option('secrets-file')) && $this->option('secrets-file') !== '', $email);
     }
 
     private function failure(OneOffResult $result): InstanceException
@@ -58,6 +69,7 @@ final class LoginLinkCommand extends FsaCommand
         return match (true) {
             in_array($code, self::INPUT_ERRORS, true) => new InstanceException($result->errorMessage(), ExitCode::InvalidInput, $code, $result->errorHint()),
             $code === 'rate_limited' => new InstanceException($result->errorMessage(), ExitCode::AbortedUnchanged, $code, 'Wait a few minutes, then run the command again.', true),
+            in_array($code, self::NO_RESULT, true) => new InstanceException('The sign-in link could not be issued: '.$result->errorMessage(), ExitCode::HealthCheckFailed, $code, 'Check that the instance runs (`fsa status`, `fsa logs app`), then run the command again.', true, ['output' => $result->output]),
             default => new InstanceException('The sign-in link could not be issued: '.$result->errorMessage(), ExitCode::InternalError, $code, 'Check that the instance runs (`fsa status`), then run the command again.', true, ['output' => $result->output]),
         };
     }

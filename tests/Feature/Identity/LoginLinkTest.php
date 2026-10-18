@@ -12,6 +12,7 @@ use App\Domain\Identity\LoginLinks\ConsumeLoginLink;
 use App\Domain\Identity\LoginLinks\IssuedLoginLink;
 use App\Domain\Identity\LoginLinks\LoginLinkHandoff;
 use App\Domain\Identity\LoginLinks\LoginLinkRefused;
+use App\Domain\Identity\LoginLinks\LoginLinks;
 use App\Domain\Identity\Models\IdentityProvider;
 use App\Domain\Identity\Models\LoginLink;
 use App\Domain\Identity\Models\Organization;
@@ -21,6 +22,8 @@ use App\Domain\Identity\Tenancy\TenantContext;
 use App\Domain\Platform\Auth\PlatformSession;
 use App\Filament\Admin\Pages\Auth\Login;
 use Filament\Facades\Filament;
+use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
@@ -238,6 +241,52 @@ it('refuses the owner link (reset broker) for a domain that enforces SSO', funct
     $this->assertGuest();
     expect(Activity::query()->where('event', 'auth.password_reset_blocked')->pluck('properties')->pluck('via')->all())->toBe(['login_link', 'login_link'])
         ->and(session()->has(LoginLinkHandoff::RESET_KEY))->toBeFalse();
+});
+
+it('retires the URL token of a used owner link, so Fortify\'s reset endpoint refuses it', function (): void {
+    $token = Str::after(app(IssueOwnerLink::class)->handle($this->admin)->url, '#');
+    $hash = User::query()->findOrFail($this->admin->id)->password;
+    $this->post('/login-link', ['token' => $token])->assertStatus(303);
+
+    $this->post(route('password.update'), [
+        'token' => $token, 'email' => $this->admin->email,
+        'password' => 'N3w-Owner-Passw0rd!', 'password_confirmation' => 'N3w-Owner-Passw0rd!',
+    ])->assertSessionHasErrors('email');
+
+    $this->assertGuest();
+    expect(User::query()->findOrFail($this->admin->id)->password)->toBe($hash)
+        ->and(Auth::guard('web')->validate(['email' => $this->admin->email, 'password' => 'N3w-Owner-Passw0rd!']))->toBeFalse();
+});
+
+it('hands only a fresh reset token to the session and leaves exactly one broker token', function (): void {
+    $token = Str::after(app(IssueOwnerLink::class)->handle($this->admin)->url, '#');
+
+    $this->post('/login-link', ['token' => $token])->assertStatus(303);
+
+    $pending = session(LoginLinkHandoff::RESET_KEY);
+    expect($pending['token'])->toBeString()->not->toBe($token)
+        ->and(LoginLinks::broker()->tokenExists($this->admin, $pending['token']))->toBeTrue()
+        ->and(LoginLinks::broker()->tokenExists($this->admin, $token))->toBeFalse()
+        ->and(DB::table('password_reset_tokens')->where('email', $this->admin->email)->count())->toBe(1)
+        ->and((string) json_encode(session()->all()))->not->toContain($token);
+});
+
+it('prunes links whose expiry is more than 30 days past, so the used IP is not kept forever', function (): void {
+    $old = loginLinkIssue($this->admin)->link;
+    $recent = loginLinkIssue(memberOf($this->org, SystemRole::Admin))->link;
+    $live = loginLinkIssue(memberOf($this->org, SystemRole::Admin))->link;
+    $old->forceFill(['expires_at' => now()->subDays(31), 'used_at' => now()->subDays(31), 'used_ip' => '203.0.113.7'])->save();
+    $recent->forceFill(['expires_at' => now()->subDays(29)])->save();
+
+    $this->artisan('model:prune', ['--model' => [LoginLink::class]])->assertSuccessful();
+
+    expect(LoginLink::query()->orderBy('id')->pluck('id')->all())->toBe([$recent->id, $live->id]);
+});
+
+it('schedules the pruning of sign-in links', function (): void {
+    $commands = collect(app(Schedule::class)->events())->map(fn ($event): string => (string) $event->command);
+
+    expect($commands->contains(fn (string $command): bool => str_contains($command, 'model:prune') && str_contains($command, LoginLink::class)))->toBeTrue();
 });
 
 /** Verifies acme.example for the organization and makes its provider enforce SSO (the owner is the break-glass user). */

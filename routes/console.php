@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Documents\Renditions\SweepMissingRenditions;
+use App\Domain\Identity\Models\LoginLink;
 use App\Domain\Mail\CustomerSend\FailVoidedSends;
 use App\Domain\Mail\Models\DocumentLink;
 use App\Domain\Reports\Exports\ExportSweep;
@@ -18,8 +19,9 @@ Artisan::command('inspire', function (): void {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-// Models outside app/Models are not discovered by model:prune, so they are listed explicitly.
-Schedule::command(PruneCommand::class, ['--model' => [IdempotencyKey::class, DocumentLink::class]])->hourly()->withoutOverlapping();
+// Models outside app/Models are not discovered by model:prune, so they are listed explicitly
+// (idempotency keys, expired document links, sign-in links 30 days after expiry).
+Schedule::command(PruneCommand::class, ['--model' => [IdempotencyKey::class, DocumentLink::class, LoginLink::class]])->hourly()->withoutOverlapping();
 
 // Safety net for documents (ADR 0031): renders that never ran are dispatched again; sends of voided submissions close.
 Artisan::command('documents:sweep', function (SweepMissingRenditions $renders, FailVoidedSends $sends): void {

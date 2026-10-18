@@ -46,7 +46,7 @@ final readonly class ProgressReporter
         $message = $this->redactor->redactString($message);
         if ($this->json) {
             $event = ['ts' => CarbonImmutable::now('UTC')->toIso8601ZuluString(), 'phase' => $phase, 'level' => $level, 'message' => $message];
-            $this->stream->writeln(json_encode($event, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR), OutputInterface::OUTPUT_RAW);
+            $this->stream->writeln(json_encode($event, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR), OutputInterface::OUTPUT_RAW);
 
             return;
         }

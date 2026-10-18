@@ -146,3 +146,10 @@ Format: question · chosen option · impact · how to reverse.
 31. `fsa uninstall --orphans <uuid>` does not check whether that instance is alive in another directory ·
    kept: operator names the UUID explicitly · a typo could remove a live instance's resources · add a liveness
    check (running containers with that label) and require `--yes` twice.
+32. The final backup of `fsa uninstall --keep-backups` (ADR 0073) runs while app, queue and scheduler keep
+   running · kept: uninstall stops everything right after the backup · files written during the archive may be
+   missing from it · stop the app roles before the final backup once U16's quiesce step exists.
+33. Owner email and name in the state history and archived journals are HMAC digests keyed from APP_KEY
+   (APP_PREVIOUS_KEYS still match) · chosen to keep personal data out of host files · a future APP_KEY rotation
+   must keep the previous keys, or old digests stop matching · `config set` key rotation (later) must append to
+   APP_PREVIOUS_KEYS.

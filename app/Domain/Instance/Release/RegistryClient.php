@@ -31,7 +31,7 @@ final class RegistryClient
             return 'https://registry-1.docker.io';
         }
 
-        $host = (string) preg_replace('/:\d+$/', '', $registry);
+        $host = (string) preg_replace('/:\d+$/D', '', $registry);
 
         return (in_array($host, ['localhost', '127.0.0.1'], true) ? 'http://' : 'https://').$registry;
     }

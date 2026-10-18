@@ -130,6 +130,20 @@ it('shows logs of chosen services with --since and --tail, and refuses unknown s
         ->and($tailCode)->toBe(2);
 });
 
+it('prints logs with invalid UTF-8 as one valid envelope, in JSON and as text', function (): void {
+    $this->fixture->run('fsa:install', InstanceCommandFixture::installFlags());
+    $this->fixture->docker->logs = "app-1 | binary \xff\xfe junk\n";
+
+    [$code, $json] = $this->fixture->run('fsa:logs', ['service' => ['app']]);
+    $textCode = Artisan::call('fsa:logs', ['--dir' => $this->fixture->directory->root, 'service' => ['app']]);
+
+    expect($code)->toBe(0)
+        ->and($json['status'])->toBe('ok')
+        ->and($json['data']['logs'])->toBe("app-1 | binary \u{FFFD}\u{FFFD} junk\n")
+        ->and($textCode)->toBe(0)
+        ->and(Artisan::output())->toContain('binary');
+});
+
 it('has no logs before the services exist', function (): void {
     $this->fixture->directory->saveState(InstanceState::create('3f1c2b9e-8a4d-4c1e-9b7a-2d5e6f708192', $this->fixture->directory->root, 1, 1, 1));
 

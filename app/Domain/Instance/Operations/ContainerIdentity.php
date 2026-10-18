@@ -44,7 +44,7 @@ final readonly class ContainerIdentity
 
     private function idFromHostname(): ?string
     {
-        return preg_match('/^[0-9a-f]{12,64}$/', $this->hostname()) === 1 ? $this->hostname() : null;
+        return preg_match('/^[0-9a-f]{12,64}$/D', $this->hostname()) === 1 ? $this->hostname() : null;
     }
 
     private function hostname(): string

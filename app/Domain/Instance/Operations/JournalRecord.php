@@ -7,6 +7,7 @@ namespace App\Domain\Instance\Operations;
 use App\Domain\Instance\Output\ResultStatus;
 use App\Domain\Instance\State\InvalidState;
 use App\Domain\Instance\State\SchemaVersion;
+use Closure;
 
 /**
  * One operation's journal document (R54): phases with their resume data, events (lock takeover, resume) and,
@@ -201,6 +202,29 @@ final readonly class JournalRecord
     public function withOutcome(ResultStatus $outcome, array $data, string $now): self
     {
         return $this->with('outcome', $outcome->value)->with('finished_at', $now)->with('result', $data);
+    }
+
+    /**
+     * The record with the string values of `$keys` in the context and in every event's data passed through
+     * `$replace` (null drops the value), e.g. personal inputs replaced by digests before archiving.
+     *
+     * @param  list<string>  $keys
+     * @param  Closure(string): ?string  $replace
+     */
+    public function withValuesReplaced(array $keys, Closure $replace): self
+    {
+        $map = static function (array $data) use ($keys, $replace): array {
+            foreach ($keys as $key) {
+                if (is_string($data[$key] ?? null)) {
+                    $data[$key] = $replace($data[$key]);
+                }
+            }
+
+            return $data;
+        };
+        $events = array_map(static fn (array $event): array => [...$event, 'data' => $map($event['data'])], $this->events());
+
+        return $this->with('context', $map($this->context()))->with('events', $events);
     }
 
     /** @param  callable(Phase): Phase  $change */

@@ -26,7 +26,7 @@ final readonly class ReleaseVersion implements Stringable
 
     public static function parse(string $version): self
     {
-        if (preg_match('/'.self::PATTERN.'/', $version, $match) !== 1) {
+        if (preg_match('/'.self::PATTERN.'/D', $version, $match) !== 1) {
             throw new ReleaseException(sprintf(
                 'Invalid release version "%s": expected X.Y.Z or X.Y.Z-alpha|beta|rc.N.',
                 $version,

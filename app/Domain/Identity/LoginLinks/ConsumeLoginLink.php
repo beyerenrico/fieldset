@@ -18,7 +18,9 @@ use SensitiveParameter;
  * Consumes a posted sign-in link token (ADR 0056): rate-limited per IP, then used / expired / invalid, then the
  * PasswordAuthGate (a domain that switched on SSO enforcement after issuing refuses the link), and for an owner
  * link the reset broker must still hold the token. A valid link is marked used with time and IP, under a row
- * lock, and audited as `login_link.used`.
+ * lock, and audited as `login_link.used`. An owner link's URL token is retired with it: the broker token is
+ * replaced by a fresh one that only the session hand-off carries, so the URL token cannot reach Fortify's reset
+ * endpoint afterwards (which would bypass the single use, the rate limit and the audit).
  */
 final readonly class ConsumeLoginLink
 {
@@ -53,8 +55,20 @@ final readonly class ConsumeLoginLink
             $link->forceFill(['used_at' => now(), 'used_ip' => $ip])->save();
             $this->audit->record('login_link.used', $link->user, ['kind' => $link->kind->value, 'email' => $link->user->email], $link->user);
 
-            return LoginLinkResult::consumed($link, $link->user);
+            return LoginLinkResult::consumed($link, $link->user, $this->freshResetToken($link));
         });
+    }
+
+    /** For an owner link: drops the broker token from the URL and returns a fresh one; admin links need none. */
+    private function freshResetToken(LoginLink $link): ?string
+    {
+        if ($link->kind !== LoginLinkKind::Owner) {
+            return null;
+        }
+        $broker = LoginLinks::broker();
+        $broker->deleteToken($link->user);
+
+        return $broker->createToken($link->user);
     }
 
     private function refusal(LoginLink $link, #[SensitiveParameter] string $token): ?LoginLinkState

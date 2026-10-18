@@ -63,7 +63,7 @@ final readonly class RegistryCheck implements DoctorCheck
 
     private function isLoopback(string $registry): bool
     {
-        $host = preg_replace('/:\d+$/', '', $registry);
+        $host = preg_replace('/:\d+$/D', '', $registry);
 
         return in_array($host, ['localhost', '127.0.0.1', '[::1]'], true) || str_starts_with((string) $host, '127.');
     }

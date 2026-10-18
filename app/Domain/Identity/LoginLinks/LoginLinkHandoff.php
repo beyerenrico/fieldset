@@ -10,13 +10,15 @@ use App\Domain\Identity\Sso\Login\LoginAuditContext;
 use Illuminate\Contracts\Session\Session;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\URL;
+use LogicException;
 use SensitiveParameter;
 
 /**
  * Where a consumed sign-in link continues (ADR 0056, ADR 0068). Only ever the web guard of /admin: a link never
  * writes the /platform session mark (PlatformSession) and never impersonates.
- * - Owner link: the reset token waits in the session and Filament's reset page (signed URL with the email only,
- *   never the token) picks it up; after the password is set the owner is signed in and offered MFA.
+ * - Owner link: the fresh reset token from consuming (never the URL token, which is retired) waits in the
+ *   session and Filament's reset page (signed URL with the email only, never the token) picks it up; after the
+ *   password is set the owner is signed in and offered MFA.
  * - Admin link, MFA enrolled: a short-lived mark in this session lets the admin login show its MFA challenge
  *   for that user instead of the password step; the session is signed in only after a correct code.
  * - Admin link without MFA: signed in right away (new session id).
@@ -32,12 +34,15 @@ final readonly class LoginLinkHandoff
 
     public function __construct(private Session $session) {}
 
-    /** The URL to continue at; signs the user in when nothing else is needed. */
-    public function continue(LoginLink $link, User $user, #[SensitiveParameter] string $token): string
+    /** The URL to continue at; signs the user in when nothing else is needed. An owner link needs its reset token. */
+    public function continue(LoginLink $link, User $user, #[SensitiveParameter] ?string $resetToken = null): string
     {
         $until = now()->addMinutes(self::MINUTES)->getTimestamp();
         if ($link->kind === LoginLinkKind::Owner) {
-            $this->session->put(self::RESET_KEY, ['email' => $user->email, 'token' => $token, 'until' => $until]);
+            if ($resetToken === null) {
+                throw new LogicException('An owner link continues only with the fresh reset token from consuming it.');
+            }
+            $this->session->put(self::RESET_KEY, ['email' => $user->email, 'token' => $resetToken, 'until' => $until]);
 
             return URL::temporarySignedRoute('filament.admin.auth.password-reset.reset', now()->addMinutes(self::MINUTES), ['email' => $user->email]);
         }

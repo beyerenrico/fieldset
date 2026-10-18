@@ -36,7 +36,7 @@ it('publishes only its own tag for a pre-release', function (string $input, Rele
 
 it('refuses versions outside the release grammar', function (string $input): void {
     expect(fn () => ReleaseVersion::parse($input))->toThrow(ReleaseException::class, 'Invalid release version');
-})->with(['2.0', '2.0.0.1', 'v2.0.0', '02.0.0', '2.0.0-dev', '2.0.0-alpha.01', '2.0.0+build.1', '2.0.0-ALPHA.1', '', ' 2.0.0']);
+})->with(['2.0', '2.0.0.1', 'v2.0.0', '02.0.0', '2.0.0-dev', '2.0.0-alpha.01', '2.0.0+build.1', '2.0.0-ALPHA.1', '', ' 2.0.0', "2.0.0\n", "2.0.0-rc.1\n"]);
 
 it('reads release tags, which must start with v', function (): void {
     expect((string) ReleaseVersion::fromTag('v2.0.0-rc.1'))->toBe('2.0.0-rc.1')

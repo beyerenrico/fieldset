@@ -200,6 +200,8 @@ it('keeps its invariants when built directly', function (): void {
         ->and(fn () => $make(['images' => array_slice($images, 0, 3)]))->toThrow(ReleaseException::class, 'lists no image for the service "gotenberg"')
         ->and(fn () => $make(['images' => [...$images, 'caddy' => $image(['linux/amd64', 'linux/arm64'])]]))->toThrow(ReleaseException::class, 'The "caddy" image must list exactly')
         ->and(fn () => $make(['assets' => [...$assets, 'install.sh' => ['sha256' => 'abc', 'size' => 1]]]))->toThrow(ReleaseException::class, 'Invalid asset entry')
+        ->and(fn () => $make(['assets' => [...$assets, 'install.sh' => ['sha256' => str_repeat('a', 64)."\n", 'size' => 1]]]))->toThrow(ReleaseException::class, 'Invalid asset entry')
+        ->and(fn () => $make(['assets' => [...$assets, "notes.txt\n" => ['sha256' => str_repeat('a', 64), 'size' => 1]]]))->toThrow(ReleaseException::class, 'Invalid asset entry')
         ->and(fn () => $make(['assets' => ['install.sh' => $assets['install.sh']]]))->toThrow(ReleaseException::class, 'A release ships the asset "shim.sh"')
         ->and(fn () => new PlatformImage('linux/s390x', $digest, 1))->toThrow(ReleaseException::class, 'Unsupported platform')
         ->and(fn () => new PlatformImage('linux/amd64', $digest, 0))->toThrow(ReleaseException::class, 'size must be positive');

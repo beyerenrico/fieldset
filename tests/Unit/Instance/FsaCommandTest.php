@@ -259,6 +259,20 @@ it('maps instance exceptions to their exit code and anything else to exit 1', fu
     'unexpected' => [new RuntimeException('boom'), 1, 'internal_error'],
 ]);
 
+it('prints a minimal envelope instead of a stack trace when the result cannot be rendered', function (): void {
+    ScriptedFsaCommand::register(fn (FsaContext $c): CommandResult => CommandResult::ok('scripted', ['ratio' => NAN], changed: true)->withSecret($c->secret('demo_password', 'pw-render-123')));
+
+    [$code, $json] = fsaJson(['--dir' => $this->directory->root]);
+
+    expect($code)->toBe(1)
+        ->and($json['status'])->toBe('failed')
+        ->and($json['changed'])->toBeTrue()
+        ->and($json['errors'][0]['code'])->toBe('render_failed')
+        ->and($json['data'])->toBe(['exit_code' => 0])
+        ->and($json['secrets'])->toBe([])
+        ->and(json_encode($json))->not->toContain('pw-render-123');
+});
+
 it('exits 7 instead of rewriting a state file from a newer major version', function (): void {
     $state = $this->directory->path('state.json');
     $newer = json_encode([...json_decode((string) file_get_contents($state), true), 'schema_version' => '2.0']);

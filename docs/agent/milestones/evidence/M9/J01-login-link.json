@@ -1,5 +1,5 @@
 {
-    "command": "fsa login-link --json",
+    "command": "fsa login-link owner@example.test --secrets-file <work>/admin-link.json --json",
     "exit_code": 0,
     "stdout": {
         "schema_version": 1,

@@ -24,7 +24,7 @@ final readonly class SchemaVersion implements Stringable
         if (is_int($raw) && $raw >= 0) {
             return new self($raw);
         }
-        if (is_string($raw) && preg_match('/^(\d{1,4})\.(\d{1,4})$/', $raw, $m) === 1) {
+        if (is_string($raw) && preg_match('/^(\d{1,4})\.(\d{1,4})$/D', $raw, $m) === 1) {
             return new self((int) $m[1], (int) $m[2]);
         }
 

@@ -28,7 +28,10 @@ final readonly class AppRoles implements ServiceDefinition
 
     public const string SCHEDULER = 'scheduler';
 
-    private const string STORAGE_VOLUME = 'app-storage';
+    /** Uploads and generated files; uninstall's final backup archives it. */
+    public const string STORAGE_VOLUME = 'app-storage';
+
+    public const string STORAGE_PATH = '/var/www/html/storage/app';
 
     public function specs(RenderContext $context): array
     {
@@ -63,7 +66,7 @@ final readonly class AppRoles implements ServiceDefinition
         return [
             'image' => $context->image(ImageRole::App),
             'volumes' => [
-                ['type' => 'volume', 'source' => self::STORAGE_VOLUME, 'target' => '/var/www/html/storage/app'],
+                ['type' => 'volume', 'source' => self::STORAGE_VOLUME, 'target' => self::STORAGE_PATH],
                 [
                     'type' => 'bind', 'source' => './'.InstanceDirectory::RUNTIME_DIR, 'target' => RuntimeWriter::CONTAINER_PATH,
                     'read_only' => true, 'bind' => ['create_host_path' => false],

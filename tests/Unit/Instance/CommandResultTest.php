@@ -45,7 +45,26 @@ it('knows the exit codes of BUILD_PROMPT_V2 §7 plus 8 and 9', function (): void
         ->and(ExitCode::PreflightFailed->isBeforeChange())->toBeTrue()
         ->and(ExitCode::HealthCheckFailed->isBeforeChange())->toBeFalse()
         ->and(ResultStatus::RolledBack->closesOperation())->toBeTrue()
+        ->and(ResultStatus::Ok->closesOperation())->toBeTrue()
+        ->and(ResultStatus::Aborted->closesOperation())->toBeFalse()
         ->and(ResultStatus::RollbackFailed->closesOperation())->toBeFalse();
+});
+
+it('carries `changed` from an exception that knows it changed something (partial uninstall)', function (): void {
+    $partial = CommandResult::fromException('uninstall', new InstanceException('half gone', ExitCode::HealthCheckFailed, 'uninstall_incomplete', null, true, [], null, true));
+    $plain = CommandResult::fromException('uninstall', new InstanceException('nothing gone', ExitCode::HealthCheckFailed));
+
+    expect($partial->changed)->toBeTrue()
+        ->and($partial->toArray()['changed'])->toBeTrue()
+        ->and($plain->changed)->toBeFalse()
+        ->and(CommandResult::fromException('x', new InstanceException('y'), changed: true)->changed)->toBeTrue();
+});
+
+it('renders invalid UTF-8 (container logs) as U+FFFD instead of failing the document', function (): void {
+    $json = CommandResult::ok('logs', ['logs' => "app-1 | bad \xff byte\n"])->withWarning('w', "odd \xfe")->toJson();
+
+    expect(json_decode($json, true)['data']['logs'])->toBe("app-1 | bad \u{FFFD} byte\n")
+        ->and(json_decode($json, true)['warnings'][0]['message'])->toBe("odd \u{FFFD}");
 });
 
 it('changes only through immutable withers', function (): void {

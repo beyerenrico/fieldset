@@ -15,14 +15,19 @@ use App\Domain\Instance\Output\Message;
 use App\Domain\Instance\Output\ProgressReporter;
 use App\Domain\Instance\State\InstanceState;
 use Closure;
+use Throwable;
 
 /**
  * Runs a state-changing operation under the instance lock with its journal (R54, R69, KTD4, KTD5).
  *
- * - Lock first; a stale lock taken over is journaled (`lock_takeover`).
+ * - Lock first; a stale lock taken over is journaled (`lock_takeover`). The holder's heartbeat is written around
+ *   every phase (`fsa status` shows it).
  * - An unfinished journal blocks a different operation (exit 9); the same operation continues with `resume`.
  * - A failure before any changing phase exits 9 (or its own pre-change code, e.g. 3) and archives the journal;
- *   after a change the journal stays open so a re-run can resume, unless the outcome closes it (rolled back).
+ *   after a change the journal stays open so a re-run can resume, unless the outcome closes it (ok, rolled back).
+ *   Any exception counts, not only InstanceException: an unexpected one is an internal error (exit 1 after a
+ *   change, 9 before) and still goes through the journal, so no `current.json` is left open by mistake.
+ * - `$archive` may rewrite the record just before it is archived (install replaces personal inputs by digests).
  *
  * Long operations (upgrade, restore, adopt, reset) run this inside a detached supervisor container of the
  * installed image (`launchDetached`), so they survive the SSH session.
@@ -40,23 +45,27 @@ final readonly class Supervisor
     /**
      * @param  Closure(OperationRun): CommandResult  $steps
      * @param  array<string, mixed>  $context  inputs recorded with a new journal
+     * @param  (Closure(JournalRecord): JournalRecord)|null  $archive  applied to the record before it is archived
      *
      * @throws LockHeld|OperationUnfinished
      */
-    public function run(string $operation, LockHolder $holder, Closure $steps, bool $resume = false, array $context = [], ?ProgressReporter $progress = null): CommandResult
+    public function run(string $operation, LockHolder $holder, Closure $steps, bool $resume = false, array $context = [], ?ProgressReporter $progress = null, ?Closure $archive = null): CommandResult
     {
         $handle = $this->lock->acquire($holder, $operation);
 
         try {
-            $run = new OperationRun($this->journal, $this->openJournal($operation, $holder, $handle, $resume, $context), $progress);
+            $heartbeat = fn () => $this->lock->heartbeat($handle);
+            $run = new OperationRun($this->journal, $this->openJournal($operation, $holder, $handle, $resume, $context), $progress, $heartbeat);
 
             try {
                 $result = $steps($run);
             } catch (InstanceException $e) {
                 $result = $this->failure($operation, $e, $run);
+            } catch (Throwable $e) {
+                $result = $this->failure($operation, new InstanceException($e->getMessage(), ExitCode::InternalError, 'internal_error', null, false, ['exception' => $e::class], $e), $run);
             }
 
-            return $this->conclude($result, $run);
+            return $this->conclude($result, $run, $archive);
         } finally {
             $this->lock->release($handle);
         }
@@ -109,10 +118,11 @@ final readonly class Supervisor
         return $result;
     }
 
-    private function conclude(CommandResult $result, OperationRun $run): CommandResult
+    /** @param  (Closure(JournalRecord): JournalRecord)|null  $archive */
+    private function conclude(CommandResult $result, OperationRun $run, ?Closure $archive): CommandResult
     {
         if (! $run->hasChanged() || $result->status()->closesOperation()) {
-            $this->journal->finish($result->status(), ['exit_code' => $result->exitCode->value]);
+            $this->journal->finish($result->status(), ['exit_code' => $result->exitCode->value], $archive);
         } else {
             $run->note('failed', ['exit_code' => $result->exitCode->value, 'errors' => array_map(static fn (Message $m): string => $m->code, $result->errors)]);
         }

@@ -34,7 +34,7 @@ final readonly class LoginLinkController
         $result = $consume->handle($token, (string) $request->ip());
 
         if ($result->state === LoginLinkState::Valid && $result->link instanceof LoginLink && $result->user instanceof User) {
-            return redirect()->to($handoff->continue($result->link, $result->user, $token), 303);
+            return redirect()->to($handoff->continue($result->link, $result->user, $result->resetToken), 303);
         }
 
         return $this->refused($result);

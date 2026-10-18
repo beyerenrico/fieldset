@@ -19,7 +19,8 @@ final readonly class PostgresService implements ServiceDefinition
 {
     public const string NAME = 'postgres';
 
-    private const string VOLUME = 'pg-data';
+    /** The data volume (uninstall's final backup dumps the database it holds). */
+    public const string VOLUME = 'pg-data';
 
     public function specs(RenderContext $context): array
     {

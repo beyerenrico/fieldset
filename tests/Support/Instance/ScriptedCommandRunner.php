@@ -10,7 +10,7 @@ use App\Domain\Instance\Docker\ProcessOutcome;
 /** CommandRunner double: records each argv with its environment, input and timeout, and replays queued outcomes. */
 final class ScriptedCommandRunner implements CommandRunner
 {
-    /** @var list<array{command: list<string>, env: array<string, string|false>, input: string|null, timeout: float|null}> */
+    /** @var list<array{command: list<string>, env: array<string, string|false>, input: string|null, timeout: float|null, stdout_file: string|null}> */
     public array $runs = [];
 
     /** @var list<ProcessOutcome> */
@@ -23,9 +23,9 @@ final class ScriptedCommandRunner implements CommandRunner
         return $this;
     }
 
-    public function run(array $command, array $env = [], ?string $input = null, ?float $timeout = null): ProcessOutcome
+    public function run(array $command, array $env = [], ?string $input = null, ?float $timeout = null, ?string $stdoutFile = null): ProcessOutcome
     {
-        $this->runs[] = ['command' => $command, 'env' => $env, 'input' => $input, 'timeout' => $timeout];
+        $this->runs[] = ['command' => $command, 'env' => $env, 'input' => $input, 'timeout' => $timeout, 'stdout_file' => $stdoutFile];
 
         return array_shift($this->queue) ?? new ProcessOutcome(0);
     }

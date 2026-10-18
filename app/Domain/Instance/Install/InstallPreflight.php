@@ -56,8 +56,9 @@ final readonly class InstallPreflight
             throw new DoctorFailed($report);
         }
         $this->conflicts->assertFree($project, $uuid);
-        $ports = $report->result('ports')->details ?? [];
-        if (! is_int($ports['port'] ?? null) || ! is_int($ports['mail_ui_port'] ?? null)) {
+        $details = $report->result('ports')->details ?? [];
+        $ports = is_array($details['ports'] ?? null) ? $details['ports'] : [];
+        if (! is_int($ports['app'] ?? null) || ! is_int($ports['mail_ui'] ?? null)) {
             throw new InstanceException('The preflight chose no ports.', ExitCode::PreflightFailed, 'ports_unknown', 'Run `fsa doctor` to see why the port check did not run.');
         }
 
@@ -66,8 +67,8 @@ final readonly class InstallPreflight
             'project' => $project,
             'version' => (string) $manifest->version,
             'digests' => $digests,
-            'port' => $ports['port'] ?? null,
-            'mail_ui_port' => $ports['mail_ui_port'] ?? null,
+            'port' => $ports['app'],
+            'mail_ui_port' => $ports['mail_ui'],
             'warnings' => array_map(static fn (CheckResult $warning): array => ['code' => 'doctor_'.$warning->key, 'message' => $warning->summary, 'hint' => $warning->hint], $report->warnings()),
             'orphans' => $this->conflicts->orphans($this->directory->root, $uuid),
         ];

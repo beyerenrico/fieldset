@@ -112,15 +112,23 @@ final readonly class SafeFiles
         return $time === false ? null : $time;
     }
 
-    /** Atomic rename inside the root (lock tombstones, journal archive). */
+    /** Atomic rename inside the root (lock tombstones, journal archive), synced like writeAtomically(). */
     public function rename(string $from, string $to): bool
     {
         $target = $this->resolve($to);
         if (str_contains($to, '/')) {
             $this->ensureDirectory(dirname($to));
         }
+        $source = $this->resolve($from);
+        if (! @rename($source, $target)) {
+            return false;
+        }
+        self::syncDirectory(dirname($target));
+        if (dirname($source) !== dirname($target)) {
+            self::syncDirectory(dirname($source));
+        }
 
-        return @rename($this->resolve($from), $target);
+        return true;
     }
 
     /** Removes a file or a directory tree without following symlinks. */
@@ -142,7 +150,10 @@ final readonly class SafeFiles
         return $entries;
     }
 
-    /** Temp file in the target's directory, mode set before any byte is written, fsync, then rename. */
+    /**
+     * Temp file in the target's directory, mode set before any byte is written, fsync, rename, then fsync of the
+     * directory, so the rename itself survives a crash (journal, state, lock records).
+     */
     public static function writeAtomically(string $absolute, string $contents, int $mode = 0600): void
     {
         if (is_link($absolute) || is_dir($absolute)) {
@@ -160,11 +171,28 @@ final readonly class SafeFiles
             if (! $written || ! @rename($temporary, $absolute)) {
                 throw new UnsafePath($absolute, 'it cannot be written');
             }
+            self::syncDirectory(dirname($absolute));
         } finally {
             if (file_exists($temporary)) {
                 @unlink($temporary);
             }
         }
+    }
+
+    /**
+     * fsync of a directory, which makes renames and new entries in it durable. Best effort: where a directory
+     * cannot be opened as a stream or synced (some platforms and file systems), false and nothing else.
+     */
+    public static function syncDirectory(string $directory): bool
+    {
+        $handle = is_dir($directory) ? @fopen($directory, 'r') : false;
+        if ($handle === false) {
+            return false;
+        }
+        $synced = @fsync($handle);
+        fclose($handle);
+
+        return $synced;
     }
 
     /** Like ensureDirectory(), without touching the mode of directories that exist (symlinks still refused). */

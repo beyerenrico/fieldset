@@ -21,7 +21,7 @@ use Tests\Support\Docker\TestImage;
  * ADR 0070). The shared harness release (harness builds of the image and install.sh, SharedHarness) serves the
  * whole file. To observe the hand-over contract (argv, user, environment, mounts) a `docker` wrapper on PATH can
  * swap the ops container's `fsa` entrypoint for tests/Install/Harness/ops-probe.php, which reports it from inside
- * the real container; FSA_PROBE_OFF=1 lets the real fsa commands run (U5: `fsa install` exits 6 for a missing
+ * the real container; FSA_PROBE_OFF=1 lets the real fsa commands run (U5: `fsa install` exits 2 for a missing
  * flag without a TTY, `fsa doctor` fails the nonce check). Full installs are J1 and J12.
  */
 
@@ -241,11 +241,11 @@ it('(d) verifies, pulls by digest and hands over to the ops container with mount
         ->and(glob($directory.'/.fsa-nonce-*'))->toBe([]);
 });
 
-it('(d) the real fsa install exits 6 without a terminal when a required flag is missing (R26)', function (): void {
+it('(d) the real fsa install exits 2 (input_required) without a terminal when a required flag is missing (R26)', function (): void {
     [$process, $directory] = bootstrapInstall($this, 'missing-flag', ['--owner-email', 'owner@example.test', '--json'], ['FSA_PROBE_OFF' => '1']);
     $json = json_decode($process->getOutput(), true);
 
-    expect($process->getExitCode())->toBe(6, $process->getErrorOutput().$process->getOutput())
+    expect($process->getExitCode())->toBe(2, $process->getErrorOutput().$process->getOutput())
         ->and($json['command'])->toBe('install')
         ->and($json['errors'][0]['code'])->toBe('input_required')
         ->and($json['data']['missing'])->toBe(['--org'])

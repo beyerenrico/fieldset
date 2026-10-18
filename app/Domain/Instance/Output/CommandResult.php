@@ -15,6 +15,8 @@ final readonly class CommandResult
 {
     public const int SCHEMA_VERSION = 1;
 
+    public const int JSON_FLAGS = JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR | JSON_PRESERVE_ZERO_FRACTION;
+
     /**
      * @param  array<string, mixed>  $data
      * @param  list<Secret>  $secrets
@@ -43,9 +45,10 @@ final readonly class CommandResult
         return new self($command, $exitCode, $changed, $data, [], [], [Message::error($code, $message, $hint, $retryable)]);
     }
 
+    /** `changed` is true when the caller knows something changed or the exception says so (partial uninstall). */
     public static function fromException(string $command, InstanceException $e, bool $changed = false): self
     {
-        return self::failed($command, $e->exitCode, $e->errorCode, $e->getMessage(), $e->hint, $e->retryable, $e->data, $changed);
+        return self::failed($command, $e->exitCode, $e->errorCode, $e->getMessage(), $e->hint, $e->retryable, $e->data, $changed || $e->changed);
     }
 
     public function status(): ResultStatus
@@ -112,8 +115,9 @@ final readonly class CommandResult
         ];
     }
 
+    /** Invalid UTF-8 (container logs, one-off output) becomes U+FFFD instead of failing the whole document. */
     public function toJson(?SecretRedactor $redactor = null, ?string $secretsFile = null): string
     {
-        return json_encode($this->toArray($redactor, $secretsFile), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR | JSON_PRESERVE_ZERO_FRACTION);
+        return json_encode($this->toArray($redactor, $secretsFile), self::JSON_FLAGS);
     }
 }

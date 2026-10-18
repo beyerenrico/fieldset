@@ -67,6 +67,19 @@ it('runs one-offs without the TTY and passes environment values by name only', f
         ->and($outcome->successful())->toBeFalse();
 });
 
+it('streams a one-off with its own entrypoint into a file, with env values only in the environment', function (): void {
+    $outcome = $this->docker->composeRunToFile($this->project, 'app', ['--format=custom'], '/srv/forms/backups/final/database.dump', ['PGPASSWORD' => 'hunter2-secret'], 'pg_dump', 3600.0);
+
+    $run = $this->runner->runs[0];
+    expect($run['command'])->toBe([...COMPOSE_BASE, 'run', '--rm', '--no-TTY', '--no-deps', '--entrypoint', 'pg_dump', '--env', 'PGPASSWORD', 'app', '--format=custom'])
+        ->and(implode(' ', $run['command']))->not->toContain('hunter2')
+        ->and($run['env']['PGPASSWORD'])->toBe('hunter2-secret')
+        ->and($run['stdout_file'])->toBe('/srv/forms/backups/final/database.dump')
+        ->and($run['timeout'])->toBe(3600.0)
+        ->and($outcome->successful())->toBeTrue()
+        ->and(fn () => $this->docker->composeRunToFile($this->project, 'app', [], '/x', [], 'sh -c'))->toThrow(InvalidInput::class);
+});
+
 it('lets a one-off start its dependencies when asked', function (): void {
     $this->docker->composeRun($this->project, 'app', ['true'], withDependencies: true);
 
@@ -268,6 +281,39 @@ it('derives the compose project of an instance from its state', function (): voi
     expect($project->name)->toBe($directory->state()->project())
         ->and($project->file)->toBe($directory->root.'/compose.yaml')
         ->and($project->directory)->toBe($directory->root);
+});
+
+it('streams a real process\'s stdout into a new 0600 file instead of memory, and never over an existing file', function (): void {
+    $directory = TemporaryInstance::path();
+    mkdir($directory);
+    $runner = new SymfonyCommandRunner;
+    $script = 'for ($i = 0; $i < 64; $i++) { echo str_repeat(chr(65 + $i % 26), 65536); } fwrite(STDERR, "done");';
+
+    $outcome = $runner->run([PHP_BINARY, '-r', $script], [], null, 30, $directory.'/out.bin');
+    file_put_contents($directory.'/taken', 'keep');
+    $refused = $runner->run([PHP_BINARY, '-r', 'echo "x";'], [], null, 30, $directory.'/taken');
+    $missing = $runner->run([PHP_BINARY, '-r', 'echo "x";'], [], null, 30, $directory.'/no-such-dir/out.bin');
+
+    expect($outcome->exitCode)->toBe(0)
+        ->and($outcome->stdout)->toBe('')
+        ->and($outcome->stderr)->toBe('done')
+        ->and(filesize($directory.'/out.bin'))->toBe(64 * 65536)
+        ->and(substr((string) file_get_contents($directory.'/out.bin'), 65536, 3))->toBe('BBB')
+        ->and(substr(sprintf('%o', fileperms($directory.'/out.bin')), -3))->toBe('600')
+        ->and($refused->exitCode)->toBe(1)
+        ->and($refused->started)->toBeTrue()
+        ->and($refused->stderr)->toContain('cannot be created')
+        ->and(file_get_contents($directory.'/taken'))->toBe('keep')
+        ->and($missing->successful())->toBeFalse();
+});
+
+it('reports a timeout while streaming to a file', function (): void {
+    $directory = TemporaryInstance::path();
+    mkdir($directory);
+
+    $slow = new SymfonyCommandRunner()->run([PHP_BINARY, '-r', 'echo "partial"; flush(); sleep(5);'], [], null, 0.5, $directory.'/out.bin');
+
+    expect($slow->timedOut)->toBeTrue()->and($slow->successful())->toBeFalse();
 });
 
 it('runs real processes without a shell, with timeouts and start failures', function (): void {

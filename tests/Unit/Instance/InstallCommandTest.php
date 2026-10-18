@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Domain\Instance\Docker\DockerCommandFailed;
 use App\Domain\Instance\Docker\Labels;
 use App\Domain\Instance\Docker\ProcessOutcome;
+use App\Domain\Instance\Install\RecordDigest;
 use App\Domain\Instance\Operations\OperationJournal;
 use App\Domain\Instance\State\EnvFiles;
 use App\Domain\Instance\State\InstanceState;
@@ -46,9 +47,13 @@ it('installs a local instance phase by phase and hands out the owner link only u
         ->and($state->digests()['app'])->toBe(InstanceCommandFixture::appImage())
         ->and($state->digests()['postgres'])->toStartWith('registry.test:5000/library/postgres@sha256:')
         ->and($state->setting('port'))->toBe(8080)
-        ->and($state->history()[0])->toMatchArray(['event' => 'installed', 'organization' => 'Acme Forms', 'owner_email' => 'owner@example.com', 'port' => 8080, 'version' => '2.0.0-alpha.1'])
+        ->and($state->history()[0])->toMatchArray(['event' => 'installed', 'organization' => 'Acme Forms', 'port' => 8080, 'version' => '2.0.0-alpha.1'])
+        ->and($state->history()[0]['owner_email'])->toStartWith(RecordDigest::PREFIX)
+        ->and($state->history()[0]['owner_name'])->toStartWith(RecordDigest::PREFIX)
+        ->and($state->toJson())->not->toContain('owner@example.com')->not->toContain('Olivia Owner')
         ->and(array_column($history->phases(), 'name'))->toBe(['doctor', 'secrets', 'state', 'pull', 'up', 'migrate', 'app_install', 'start', 'smoke', 'done'])
-        ->and(json_encode($history->toArray()))->not->toContain('owner-token')
+        ->and(json_encode($history->toArray()))->not->toContain('owner-token')->not->toContain('owner@example.com')->not->toContain('Olivia Owner')
+        ->and($history->context()['owner_email'])->toBe($state->history()[0]['owner_email'])
         ->and($this->fixture->directory->exists(OperationJournal::CURRENT))->toBeFalse()
         ->and($install['service'])->toBe('app')
         ->and($install['command'])->toBe(['php', 'artisan', 'app:install', '--organization=Acme Forms', '--name=Olivia Owner', '--email=owner@example.com', '--locale=en', '--owner-link', '--actor-uid='.posix_getuid(), '--json'])
@@ -74,7 +79,7 @@ it('runs the smoke test through the compose networks with the instance label, ne
         ->and($gotenberg->command)->toContain('http://gotenberg:3000/health');
 });
 
-it('changes nothing when run again with the same flags (AE3)', function (): void {
+it('changes nothing when run again with the same flags (AE3), and names fsa login-link for a sign-in link', function (): void {
     installOnce($this->fixture);
     $calls = count($this->fixture->docker->calls);
     $stateBefore = $this->fixture->state()->toJson();
@@ -86,10 +91,33 @@ it('changes nothing when run again with the same flags (AE3)', function (): void
         ->and($json['changed'])->toBeFalse()
         ->and($json['secrets'])->toBe([])
         ->and($json['data']['url'])->toBe('http://localhost:8080')
+        ->and($json['data']['owner_email'])->toBe('owner@example.com')
+        ->and($json['data'])->toHaveKey('sign_in_link')
+        ->and($json['data']['sign_in_link'])->toBeNull()
+        ->and($json['warnings'][0]['code'])->toBe('no_sign_in_link')
+        ->and($json['warnings'][0]['hint'])->toContain('fsa login-link owner@example.com --secrets-file')
         ->and($this->fixture->docker->methodsSince($calls))->toBe([])
         ->and($this->fixture->state()->toJson())->toBe($stateBefore)
         ->and($bareCode)->toBe(0)
-        ->and($bare['changed'])->toBeFalse();
+        ->and($bare['changed'])->toBeFalse()
+        ->and($bare['data']['owner_email'])->toBeNull()
+        ->and($bare['warnings'][0]['hint'])->toContain('fsa login-link <email> --secrets-file');
+});
+
+it('compares the owner flags of a repeated install through their digests, also after a key rotation', function (): void {
+    installOnce($this->fixture);
+    $env = new EnvFiles($this->fixture->directory);
+    $app = $env->read('app');
+    $env->write('app', [...$app, 'APP_KEY' => 'base64:'.base64_encode(str_repeat('n', 32)), 'APP_PREVIOUS_KEYS' => $app['APP_KEY']]);
+
+    [$sameCode, $same] = installOnce($this->fixture, ['--owner-email' => 'OWNER@example.com']);
+    [$otherCode, $other] = installOnce($this->fixture, ['--owner-name' => 'Someone Else']);
+
+    expect($sameCode)->toBe(0, json_encode($same))
+        ->and($same['changed'])->toBeFalse()
+        ->and($otherCode)->toBe(2)
+        ->and($other['errors'][0]['code'])->toBe('use_config_set')
+        ->and($other['errors'][0]['message'])->toContain('--owner-name');
 });
 
 it('refuses different flags on a finished instance with exit 2 and the config-set hint', function (array $flags, string $flag): void {
@@ -101,10 +129,11 @@ it('refuses different flags on a finished instance with exit 2 and the config-se
     expect($code)->toBe(2)
         ->and($json['errors'][0]['code'])->toBe('use_config_set')
         ->and($json['errors'][0]['message'])->toContain($flag)
-        ->and($json['errors'][0]['hint'])->toContain('fsa config set')
+        ->and($json['errors'][0]['hint'])->toContain('fsa config set')->toContain('later releases')->toContain('fsa uninstall')
         ->and($this->fixture->docker->methodsSince($calls))->toBe([]);
 })->with([
     'organization' => [['--org' => 'Other Org'], '--org'],
+    'owner e-mail' => [['--owner-email' => 'other@example.com'], '--owner-email'],
     'port' => [['--port' => '9090'], '--port'],
     'version' => [['--release' => '2.0.0'], '--version'],
     'domain' => [['--domain' => 'forms.example.com'], '--domain'],
@@ -285,18 +314,22 @@ it('warns about containers of another installation that ran from this directory'
     [$code, $json] = installOnce($this->fixture);
 
     expect($code)->toBe(0)
-        ->and(collect($json['warnings'])->firstWhere('code', 'orphans_found')['hint'])->toContain('fsa uninstall --orphans 11111111-1111-4111-8111-111111111111');
+        ->and(collect($json['warnings'])->firstWhere('code', 'orphans_found')['hint'])
+        ->toContain('Check first')
+        ->toContain('docker ps -a --filter label=app.form-schema.instance=11111111-1111-4111-8111-111111111111')
+        ->toContain('fsa uninstall --orphans 11111111-1111-4111-8111-111111111111');
 });
 
-it('exits 6 for missing required flags without a terminal, under --yes, and asks for them in a terminal', function (): void {
+it('exits 2 (not 6, which means confirmation) for missing required flags without a terminal or under --yes, and asks for them in a terminal', function (): void {
     [$code, $json] = $this->fixture->run('fsa:install', ['--owner-email' => 'owner@example.com']);
     $this->fixture->facts(['tty' => true]);
     [$yesCode] = $this->fixture->run('fsa:install', ['--yes' => true]);
 
-    expect($code)->toBe(6)
+    expect($code)->toBe(2)
+        ->and($json['status'])->toBe('failed')
         ->and($json['errors'][0]['code'])->toBe('input_required')
         ->and($json['data']['missing'])->toBe(['--org'])
-        ->and($yesCode)->toBe(6)
+        ->and($yesCode)->toBe(2)
         ->and($this->fixture->docker->calls)->toBe([]);
 
     $this->artisan('fsa:install', ['--dir' => $this->fixture->directory->root, '--owner-email' => 'owner@example.com'])
@@ -352,13 +385,13 @@ it('needs a release to install from', function (): void {
     expect($code)->toBe(2)->and($json['errors'][0]['code'])->toBe('manifest_required');
 });
 
-it('writes the link to --secrets-file or hands it to the browser, never to stdout', function (): void {
+it('writes the link to --secrets-file, or hands it to the browser with --open, never to stdout', function (): void {
     $file = $this->fixture->directory->root.'/link.json';
     [$code, $json] = installOnce($this->fixture, ['--secrets-file' => $file]);
 
     $desktop = new InstanceCommandFixture;
-    $desktop->facts(['desktop' => true, 'openUrlFile' => '.fsa-open-url-0123456789abcdef0123456789abcdef']);
-    [, $browser] = installOnce($desktop);
+    $desktop->facts(['desktop' => true, 'tty' => true, 'openUrlFile' => '.fsa-open-url-0123456789abcdef0123456789abcdef']);
+    [, $browser] = installOnce($desktop, ['--open' => true]);
 
     expect($code)->toBe(0)
         ->and($json['secrets'])->toBe([['name' => 'sign_in_link', 'written_to' => $file, 'expires_at' => '2026-10-18T11:00:00Z']])
@@ -366,17 +399,61 @@ it('writes the link to --secrets-file or hands it to the browser, never to stdou
         ->and(file_get_contents($file))->toContain(InstanceCommandFixture::LINK)
         ->and($browser['secrets'])->toBe([])
         ->and($browser['data']['sign_in_link']['delivered'])->toBe('browser')
+        ->and($browser['data']['sign_in_link']['hint'])->toContain('fsa login-link owner@example.com --secrets-file')
+        ->and(json_encode($browser))->not->toContain('owner-token')
         ->and(trim((string) $desktop->directory->read('.fsa-open-url-0123456789abcdef0123456789abcdef')))->toBe(InstanceCommandFixture::LINK);
 });
 
-it('issues a fresh link when app:install finds an existing installation', function (): void {
+it('returns the link as JSON (R12) under --json even on a desktop, and hands it to the browser only for a person at a terminal', function (): void {
+    $handOver = '.fsa-open-url-0123456789abcdef0123456789abcdef';
+    $this->fixture->facts(['desktop' => true, 'tty' => true, 'openUrlFile' => $handOver]);
+    [, $json] = installOnce($this->fixture);
+
+    $person = new InstanceCommandFixture;
+    $person->facts(['desktop' => true, 'tty' => true, 'openUrlFile' => $handOver]);
+    $exit = Artisan::call('fsa:install', ['--dir' => $person->directory->root, ...InstanceCommandFixture::installFlags()]);
+    $text = Artisan::output();
+
+    expect($json['secrets'][0]['value'])->toBe(InstanceCommandFixture::LINK)
+        ->and($json['data']['sign_in_link']['delivered'])->toBe('secrets')
+        ->and($this->fixture->directory->exists($handOver))->toBeFalse()
+        ->and($exit)->toBe(0)
+        ->and($text)->toContain('"delivered":"browser"')->not->toContain('owner-token')
+        ->and(trim((string) $person->directory->read($handOver)))->toBe(InstanceCommandFixture::LINK);
+});
+
+it('names fsa login-link when the secrets file cannot be written after the install', function (): void {
+    $file = $this->fixture->directory->root.'/out/link.json';
+    mkdir(dirname($file));
+    $this->fixture->docker->beforeRun = static function () use ($file): void {
+        if (is_dir(dirname($file))) {
+            rmdir(dirname($file));
+        }
+    };
+
+    [$code, $json] = installOnce($this->fixture, ['--secrets-file' => $file]);
+
+    expect($code)->toBe(2)
+        ->and($json['changed'])->toBeTrue()
+        ->and($json['errors'][0]['code'])->toBe('secrets_file_unwritable')
+        ->and($json['errors'][0]['hint'])->toContain('fsa login-link owner@example.com --secrets-file')
+        ->and(json_encode($json))->not->toContain('owner-token');
+});
+
+it('issues a fresh link when app:install finds an existing installation, and records none of the unapplied app flags', function (): void {
     $this->fixture->oneOffs['app:install'] = InstanceCommandFixture::oneOffJson(['command' => 'app:install', 'status' => 'ok', 'warnings' => [['code' => 'already_installed', 'message' => 'Already installed', 'hint' => null]]]);
 
     [$code, $json] = installOnce($this->fixture);
+    $record = $this->fixture->state()->history()[0];
+    [$againCode, $again] = installOnce($this->fixture, ['--org' => 'Another Name', '--owner-email' => 'someone@example.com']);
 
     expect($code)->toBe(0)
         ->and($json['secrets'][0]['value'])->toBe(InstanceCommandFixture::ADMIN_LINK)
-        ->and($json['warnings'][0]['code'])->toBe('app_already_installed');
+        ->and($json['warnings'][0]['code'])->toBe('app_already_installed')
+        ->and($record)->not->toHaveKeys(['organization', 'owner_email', 'owner_name', 'locale'])
+        ->and($record)->toMatchArray(['event' => 'installed', 'version' => '2.0.0-alpha.1', 'port' => 8080])
+        ->and($againCode)->toBe(0, json_encode($again))
+        ->and($again['changed'])->toBeFalse();
 });
 
 it('refuses half a secret set in env/app.env instead of generating a new APP_KEY (exit 3)', function (): void {

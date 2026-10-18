@@ -10,8 +10,9 @@ use Throwable;
 
 /**
  * Base failure of an `fsa` operation (ADR 0066). It carries the exit code and the machine-readable error of the
- * result envelope, so the console base can render any failure without knowing where it came from. Messages must
- * never contain secret values.
+ * result envelope, so the console base can render any failure without knowing where it came from, and whether the
+ * failed operation had already changed something (`changed` in the envelope, e.g. a partial uninstall). Messages
+ * must never contain secret values.
  */
 class InstanceException extends RuntimeException
 {
@@ -24,6 +25,7 @@ class InstanceException extends RuntimeException
         public readonly bool $retryable = false,
         public readonly array $data = [],
         ?Throwable $previous = null,
+        public readonly bool $changed = false,
     ) {
         parent::__construct($message, 0, $previous);
     }

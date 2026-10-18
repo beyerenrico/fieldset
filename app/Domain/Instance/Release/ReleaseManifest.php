@@ -133,7 +133,7 @@ final readonly class ReleaseManifest
         }
 
         foreach ($this->assets as $name => $asset) {
-            if (preg_match('/'.self::ASSET_PATTERN.'/', $name) !== 1 || preg_match('/^[a-f0-9]{64}$/', $asset['sha256']) !== 1 || $asset['size'] < 0) {
+            if (preg_match('/'.self::ASSET_PATTERN.'/D', $name) !== 1 || preg_match('/^[a-f0-9]{64}$/D', $asset['sha256']) !== 1 || $asset['size'] < 0) {
                 throw new ReleaseException(sprintf('Invalid asset entry "%s".', $name));
             }
         }

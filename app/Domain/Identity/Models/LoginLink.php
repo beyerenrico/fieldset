@@ -9,13 +9,16 @@ use App\Policies\InternalRecordPolicy;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Attributes\UsePolicy;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\MassPrunable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 
 /**
  * A one-time sign-in link (ADR 0056, ADR 0068). Not tenant-owned: users are global. Only the SHA-256 hash of
- * the token is stored; the token itself travels in the URL fragment and is shown once.
+ * the token is stored; the token itself travels in the URL fragment and is shown once. Rows (with the IP that
+ * used them) are pruned PRUNE_AFTER_DAYS after expiry by the scheduled `model:prune`.
  *
  * @property int $id
  * @property int $user_id
@@ -34,6 +37,11 @@ use Illuminate\Support\Carbon;
 #[UsePolicy(InternalRecordPolicy::class)] // console only (fsa): never exposed through a UI or API
 final class LoginLink extends Model
 {
+    use MassPrunable;
+
+    /** Days after expiry until a link and its used IP are deleted (privacy: nothing is kept forever). */
+    public const int PRUNE_AFTER_DAYS = 30;
+
     protected function casts(): array
     {
         return [
@@ -42,6 +50,12 @@ final class LoginLink extends Model
             'used_at' => 'datetime',
             'created_by_uid' => 'integer',
         ];
+    }
+
+    /** @return Builder<static> */
+    public function prunable(): Builder
+    {
+        return self::query()->where('expires_at', '<', now()->subDays(self::PRUNE_AFTER_DAYS));
     }
 
     public static function hashToken(#[\SensitiveParameter] string $token): string
