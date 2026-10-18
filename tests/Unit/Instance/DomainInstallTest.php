@@ -129,7 +129,8 @@ it('asks the edge for HTTPS until it holds a certificate, then checks the redire
 
     expect($https->network)->toBe($state->project().'_edge')
         ->and($https->labels)->toBe(Labels::forInstance($state->uuid(), 'smoke'))
-        ->and($https->command)->toContain('--resolve', "forms.example.com:443:{$address}", '--retry-all-errors', '--insecure', 'https://forms.example.com/up')
+        ->and($https->command)->toContain('--resolve', "forms.example.com:443:{$address}", '--insecure', 'https://forms.example.com/up')
+        ->and($https->command)->not->toContain('--retry') // one attempt per container; SmokeTest loops (ADR 0078)
         ->and($http->network)->toBe($state->project().'_edge')
         ->and($http->command)->toContain("forms.example.com:80:{$address}", 'http://forms.example.com/up')
         ->and($http->command)->not->toContain('--insecure');

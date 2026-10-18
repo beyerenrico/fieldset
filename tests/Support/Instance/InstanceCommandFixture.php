@@ -15,6 +15,7 @@ use App\Domain\Instance\Release\ManifestVerifier;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceState;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Sleep;
 use Tests\Support\Release\ReleaseFixtures;
 
 /**
@@ -61,6 +62,7 @@ final class InstanceCommandFixture
         $this->probes = new FakeDoctorProbes;
         app()->instance(DoctorProbes::class, $this->probes);
         $this->facts();
+        Sleep::fake(); // the edge's certificate wait pauses between attempts (SmokeTest); the test case resets it
     }
 
     public static function appImage(): string
