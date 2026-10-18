@@ -166,3 +166,9 @@ Format: question · chosen option · impact · how to reverse.
    `proxy_container` on `config set` and doctor should report drift · give the proxy a fixed IP or re-run
    `fsa config set trusted-proxy`. Also unverified: caddy-docker-proxy labels (no journey), Portainer/Coolify
    import of the stack file, Traefik per-router certresolver (configure it on the entry point).
+35. Domain mode always sets `acme_ca` (Let's Encrypt production by default, ADR 0075), so Caddy has no ZeroSSL
+   fallback · chosen for predictable rate limits and staging · an LE outage blocks new certificates · remove the
+   explicit `acme_ca` for production to restore Caddy's default issuers. Related: the shim passes `FSA_TEST_DNS`
+   through; production images ignore it (harness flavour only) · harmless but visible · drop it from the
+   production shim if it confuses. The app also sends `X-Content-Type-Options: nosniff, nosniff` (its Caddyfile
+   and SecurityHeaders, 1.0 behaviour) · cosmetic · remove one source.

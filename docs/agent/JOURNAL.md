@@ -190,3 +190,10 @@
   proxy IP (resolved via DockerGateway, never DNS; `--trusted-proxy`, `--proxy-network`), catcher on loopback.
   `release:manifest --stack-file` renders an env-only stack file from the same pins (signed asset). ADR 0076.
 - J3 5/5 native (221 s) and amd64 emulated; J1 regression green; Instance coverage 98.21 %.
+
+## 2026-10-18 M10-T02 edge service and domain mode (U8)
+- Caddy edge (UID 65532, NET_BIND_SERVICE only, read-only root, fixed address on a /28 outside Docker's pool =
+  the app's only trusted proxy), CaddyfileRenderer, fsa install --domain with ACME flags (LE prod default,
+  --acme-staging, --acme-ca/-root), `/_mail/` behind forward_auth to /_fsa/catcher-auth (operator /platform
+  session with MFA, `platform.catcher_opened`), edge-injected Basic auth to Mailpit. ADR 0075.
+- J2 8/8 native (194 s) and amd64 emulated (pre-merge); J1+J2+J3 26/26 after the U9 merge; unit 1042 green.
