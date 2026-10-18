@@ -15,6 +15,7 @@ use App\Domain\Instance\Lifecycle\ComposeFile;
 use App\Domain\Instance\Operations\JournalRecord;
 use App\Domain\Instance\Operations\OperationJournal;
 use App\Domain\Instance\State\EnvFiles;
+use App\Domain\Instance\State\InstanceSettings;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Tests\Support\Instance\ConfigFixture;
 use Tests\Support\Instance\InstanceCommandFixture;
@@ -134,6 +135,22 @@ it('reports mail mode smtp in config show and status after such an install', fun
         ->and($statusCode)->toBe(0, json_encode($status))
         ->and($status['data']['mail'])->toBe(['mode' => 'smtp', 'catcher_url' => null])
         ->and(array_keys($status['data']['services']))->not->toContain(MailpitService::NAME);
+});
+
+it('switches an instance installed in SMTP mode to capture mode: the catcher appears with a free UI port and its own login', function (): void {
+    smtpInstall($this->fixture);
+    $this->fixture->withRunningStack();
+
+    [$code, $json] = $this->fixture->run('fsa:config', ['action' => 'set', 'key' => 'mail', 'value' => 'capture']);
+
+    $env = new EnvFiles($this->fixture->directory);
+    expect($code)->toBe(0, json_encode($json))
+        ->and($json['data']['mail'])->toMatchArray(['mode' => 'capture', 'catcher' => 'active', 'catcher_url' => 'http://localhost:8025'])
+        ->and(InstanceSettings::of($this->fixture->state())->mailUiPort())->toBe(8025)
+        ->and(ComposeFile::services($this->fixture->directory))->toContain(MailpitService::NAME)
+        ->and($env->read('mailpit')['MP_UI_AUTH'] ?? '')->toMatch('/^fsa:[0-9a-f]{48}$/')
+        ->and($env->read('app'))->toMatchArray(['MAIL_HOST' => 'mailpit', 'FSA_MAIL_CAPTURE' => 'true'])
+        ->and($env->read('app'))->not->toHaveKey('MAIL_PASSWORD');
 });
 
 it('refuses SMTP flags that do not fit with exit 2 before reading a password or touching Docker', function (array $flags, string $code, string $message): void {
