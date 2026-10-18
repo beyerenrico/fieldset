@@ -34,7 +34,8 @@ require getcwd().'/vendor/autoload.php';
 $app = require getcwd().'/bootstrap/app.php';
 $app->make(Kernel::class)->bootstrap();
 
-if (app()->isProduction()) {
+// A throwaway `fsa-test-…` instance (J10, plan U15) runs this in a one-off of its app image with PERF_THROWAWAY_INSTANCE=1.
+if (app()->isProduction() && getenv('PERF_THROWAWAY_INSTANCE') !== '1') {
     fwrite(STDERR, "Refusing to run in production.\n");
     exit(1);
 }

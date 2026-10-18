@@ -19,6 +19,12 @@ declare(strict_types=1);
  *
  * DEVELOPMENT ONLY. Audit entries are append-only (trigger, ADR 0038): remove them with
  * `php artisan migrate:fresh --seed --force`, not with `app:seed-load --purge`.
+ *
+ * A throwaway `fsa-test-…` instance (J10, plan U15) runs it in a one-off of its app image, read from stdin:
+ *
+ *     docker compose run --rm -T -e PERF_THROWAWAY_INSTANCE=1 app php -- demo 150000 < scripts/perf/fixtures.php
+ *
+ * PERF_THROWAWAY_INSTANCE=1 lifts the production guard; the JSON then goes to stdout only.
  */
 
 use App\Domain\Dashboards\Performance\LoadGenerator;
@@ -39,11 +45,14 @@ use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
-require __DIR__.'/../../vendor/autoload.php';
-$app = require __DIR__.'/../../bootstrap/app.php';
+// From the repository (host) or from stdin inside the app image, whose working directory is the application root.
+$root = is_file(__DIR__.'/../../vendor/autoload.php') ? __DIR__.'/../..' : getcwd();
+require $root.'/vendor/autoload.php';
+$app = require $root.'/bootstrap/app.php';
 $app->make(Kernel::class)->bootstrap();
 
-if (app()->isProduction()) {
+$throwaway = getenv('PERF_THROWAWAY_INSTANCE') === '1';
+if (app()->isProduction() && ! $throwaway) {
     fwrite(STDERR, "Refusing to run in production.\n");
     exit(1);
 }
@@ -195,7 +204,21 @@ $result = $tenant->run($org, function () use ($org, $owner): array {
         ->whereExists(fn ($q) => $q->from('workflow_runs')->whereColumn('workflow_runs.submission_uuid', 's.uuid'))
         ->whereExists(fn ($q) => $q->from('mail_messages')->whereColumn('mail_messages.submission_uuid', 's.uuid'))
         ->orderByDesc('s.submitted_at')->first(['s.uuid', 's.number']);
-    $inReview = DB::table('submissions')->where('organization_id', $org->id)->where('status', 'in_review')->orderByDesc('submitted_at')->value('uuid');
+    // A submission in review that the demo reviewer may open: the newest whose open task their group holds. The
+    // generator gives every task to the organization's first group (Team Nord), the reviewer sits in Büro, so on a
+    // fresh demo (no other submissions, J10) the newest one's open task is handed to the reviewer's group first.
+    $reviewer = User::query()->where('email', 'reviewer@demo.test')->value('id');
+    $reviewerGroups = DB::table('group_user')->where('organization_id', $org->id)->where('user_id', $reviewer)->pluck('group_id')->all();
+    $visibleInReview = fn (): ?string => DB::table('submissions as s')->where('s.organization_id', $org->id)->where('s.status', 'in_review')
+        ->whereExists(fn ($q) => $q->from('tasks as t')->whereColumn('t.submission_uuid', 's.uuid')->where('t.status', 'open')
+            ->where(fn ($w) => $w->where('t.assignee_user_id', $reviewer)->orWhereIn('t.assignee_group_id', $reviewerGroups)))
+        ->orderByDesc('s.submitted_at')->value('s.uuid');
+    $inReview = $visibleInReview();
+    if ($inReview === null && $reviewerGroups !== []) {
+        $newest = DB::table('submissions')->where('organization_id', $org->id)->where('status', 'in_review')->orderByDesc('submitted_at')->value('uuid');
+        DB::table('tasks')->where('submission_uuid', $newest)->where('status', 'open')->update(['assignee_group_id' => $reviewerGroups[0], 'assignee_user_id' => null]);
+        $inReview = $visibleInReview();
+    }
 
     return [
         'organization' => ['id' => $org->id, 'slug' => $org->slug],
@@ -218,7 +241,9 @@ $result = $tenant->run($org, function () use ($org, $owner): array {
 });
 $result['auditInserted'] = $audit;
 
-$dir = __DIR__.'/../../storage/agent-logs/perf';
-@mkdir($dir, 0775, true);
-file_put_contents($dir.'/fixtures.json', json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+if (! $throwaway) {
+    $dir = $root.'/storage/agent-logs/perf';
+    @mkdir($dir, 0775, true);
+    file_put_contents($dir.'/fixtures.json', json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+}
 echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL;
