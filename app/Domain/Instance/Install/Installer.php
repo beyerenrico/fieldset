@@ -78,10 +78,7 @@ final readonly class Installer
         if ($this->situation() === InstallSituation::Finished) {
             return $this->unchanged($request);
         }
-        $current = $this->journal->current();
-        if ($current instanceof JournalRecord && $current->operation() === self::OPERATION) {
-            $request = $this->resumable($request, $current);
-        }
+        $request = $this->effective($request);
         $request->assertConsistent();
         $this->assertModeFlags($request);
         $holder = $this->identity->holder('fsa', $context->facts->callerUid());
@@ -95,6 +92,17 @@ final readonly class Installer
             progress: $context->progress,
             archive: $this->withoutPersonalInputs(...),
         );
+    }
+
+    /**
+     * The request an install works with: on a resume the earlier run's inputs under the flags given now (exit 2 for a
+     * flag whose phase already applied another value), so `--phone-https tunnel` or `--demo` given once still apply.
+     */
+    public function effective(InstallRequest $request): InstallRequest
+    {
+        $current = $this->journal->current();
+
+        return $current instanceof JournalRecord && $current->operation() === self::OPERATION ? $this->resumable($request, $current) : $request;
     }
 
     /**
@@ -258,9 +266,13 @@ final readonly class Installer
         }
         $email = $request->ownerEmailIfKnown();
         $data = [...$this->summary($state, $email), 'installed_at' => InstallRecord::recorded($state)['at'] ?? null, SignInDelivery::SECRET => null];
-
-        return CommandResult::ok(self::OPERATION, $data, changed: false)
+        $result = CommandResult::ok(self::OPERATION, $data, changed: false)
             ->withWarning('no_sign_in_link', 'The instance is already installed, so no sign-in link was issued.', 'Run '.SignInDelivery::loginLinkCommand($email).' for a one-time sign-in link.');
+
+        // The quick tunnel is transient (ADR 0082): an ended one is no different installation, and install never starts one.
+        return $request->phoneHttps() === 'tunnel' && ! InstanceSettings::of($state)->tunnel()
+            ? $result->withWarning('tunnel_not_running', 'No quick tunnel runs on this instance; fsa install changes nothing on an installed instance.', 'Start one with `fsa tunnel start`.')
+            : $result;
     }
 
     /** On resume: the earlier inputs still apply; a flag whose phase already ran must not change (exit 2). */

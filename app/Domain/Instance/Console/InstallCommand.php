@@ -93,9 +93,10 @@ final class InstallCommand extends FsaCommand
         $request = $account instanceof SmtpCredentials ? $request->withSmtpCredentials($account) : $request;
 
         $toFile = is_string($this->option('secrets-file')) && $this->option('secrets-file') !== '';
+        $tunnel = $installer->effective($request)->phoneHttps() === 'tunnel'; // also on a resume without the flag
         $result = $installer->install($request, $context, $toFile);
 
-        return $request->phoneHttps() === 'tunnel' && $result->exitCode === ExitCode::Success && $result->changed
+        return $tunnel && $result->exitCode === ExitCode::Success && $result->changed
             ? InstallTunnel::start($result, $this->laravel->make(TunnelOperation::class), $context, $toFile)
             : $result;
     }

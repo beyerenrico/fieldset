@@ -7,7 +7,9 @@ namespace App\Domain\Instance\Tunnel;
 use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Lifecycle\AppCommands;
+use App\Domain\Instance\Operations\OperationRun;
 use App\Domain\Instance\Output\ExitCode;
+use App\Domain\Instance\Output\ProgressReporter;
 
 /**
  * Who would be exposed by the quick tunnel or the local-CA edge (R29, R65, ADR 0081, ADR 0082), asked through the
@@ -17,6 +19,9 @@ use App\Domain\Instance\Output\ExitCode;
  */
 final readonly class ExposureCheck
 {
+    /** The progress phase (and `fsa tunnel start`'s journaled phase) of the check. */
+    public const string PHASE = 'accounts';
+
     /**
      * @param  list<string>  $demoDefaults  demo accounts on `password`
      * @param  list<string>  $otherDefaults  other accounts on `password`
@@ -27,10 +32,25 @@ final readonly class ExposureCheck
         public int $nonDemoOrganizations,
     ) {}
 
-    /** @throws InstanceException exit 4 when the one-off fails (retryable) */
-    public static function run(AppCommands $app, ComposeProject $project): self
+    /** The longest the check takes: the one-off's timeout. */
+    public static function maxSeconds(): int
     {
+        return (int) AppCommands::TIMEOUT;
+    }
+
+    /**
+     * With `$progress` (a check outside a journaled phase, before the lock) it reports its start with the maximum
+     * duration and its end, as a phase would (ADR 0078).
+     *
+     * @throws InstanceException exit 4 when the one-off fails (retryable)
+     */
+    public static function run(AppCommands $app, ComposeProject $project, ?ProgressReporter $progress = null): self
+    {
+        $progress?->event(self::PHASE, ProgressReporter::INFO, 'Starting '.self::PHASE.' (at most '.OperationRun::duration(self::maxSeconds()).')', ['max_seconds' => self::maxSeconds()]);
+        $started = hrtime(true);
         $result = $app->demoPasswordCheck($project);
+        $elapsed = (int) round((hrtime(true) - $started) / 1e9);
+        $progress?->event(self::PHASE, $result->ok ? ProgressReporter::INFO : ProgressReporter::ERROR, ($result->ok ? 'Completed '.self::PHASE.' in ' : self::PHASE.' failed after ').OperationRun::duration($elapsed), ['elapsed_seconds' => $elapsed]);
         if (! $result->ok) {
             throw new InstanceException('The accounts could not be checked: `app:demo-passwords --check` failed: '.$result->errorMessage(), ExitCode::HealthCheckFailed, 'account_check_failed', 'Check that the instance runs (`fsa status`, `fsa logs app`), then run the command again.', true, ['output' => $result->output]);
         }
@@ -42,6 +62,12 @@ final readonly class ExposureCheck
         $nonDemo = $organizations['non_demo'] ?? null;
 
         return new self($demo, $other, is_int($nonDemo) ? $nonDemo : 0);
+    }
+
+    /** @return array{demo_defaults: int, other_defaults: int, non_demo_organizations: int} what a journal may keep: counts, no e-mail */
+    public function counts(): array
+    {
+        return ['demo_defaults' => count($this->demoDefaults), 'other_defaults' => count($this->otherDefaults), 'non_demo_organizations' => $this->nonDemoOrganizations];
     }
 
     /**

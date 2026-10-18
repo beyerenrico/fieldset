@@ -2,17 +2,27 @@
 
 declare(strict_types=1);
 
+use App\Domain\Instance\Console\FsaContext;
+use App\Domain\Instance\Docker\ComposeProject;
+use App\Domain\Instance\Docker\ContainerSpec;
 use App\Domain\Instance\Docker\Labels;
+use App\Domain\Instance\Docker\ProcessOutcome;
 use App\Domain\Instance\HostFacts;
+use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\LocalCa\LanAddress;
 use App\Domain\Instance\Output\InvalidInput;
+use App\Domain\Instance\Output\ProgressReporter;
+use App\Domain\Instance\Output\SecretRedactor;
 use App\Domain\Instance\Runtime\RuntimeDocument;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\RuntimeWriter;
 use App\Domain\Instance\Tunnel\QuickTunnelHostname;
 use App\Domain\Instance\Tunnel\TunnelClock;
+use App\Domain\Instance\Tunnel\TunnelOperation;
 use App\Domain\Instance\Tunnel\TunnelStatus;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Sleep;
+use Symfony\Component\Console\Output\BufferedOutput;
 use Tests\Support\Instance\ComposeFixtures;
 use Tests\Support\Instance\InstanceCommandFixture;
 use Tests\Support\Instance\LocalCaFixture;
@@ -26,7 +36,10 @@ use Tests\Support\Instance\TunnelFixture;
  * lifetime, the read-only status, the runtime block and the LAN address rules.
  */
 
-afterEach(fn () => TemporaryInstance::cleanup());
+afterEach(function (): void {
+    CarbonImmutable::setTestNow();
+    TemporaryInstance::cleanup();
+});
 
 it('takes only a trycloudflare hostname from /quicktunnel', function (string $answer, ?string $hostname): void {
     expect(QuickTunnelHostname::hostname($answer))->toBe($hostname);
@@ -149,4 +162,45 @@ it('reports the tunnel in the install result and fails the install command when 
         ->and($json['data']['url'])->toBe('http://localhost:8080')
         ->and($json['errors'][0]['message'])->toStartWith('The instance is installed, but the quick tunnel did not start')
         ->and($fresh->state()->setting('phone_https'))->toBeNull();
+});
+
+it('waits for the hostname no longer than it announces, however slow each probe container is (A8)', function (): void {
+    CarbonImmutable::setTestNow('2026-10-18T12:00:00Z');
+    Sleep::fake(syncWithCarbon: true);
+    $docker = RecordingDockerGateway::bind();
+    $timeouts = [];
+    $docker->respondToRun(function (ContainerSpec $spec) use ($docker, &$timeouts): ProcessOutcome {
+        $timeout = $docker->calls[array_key_last($docker->calls)]['args']['timeout'];
+        $timeouts[] = $timeout;
+        CarbonImmutable::setTestNow(CarbonImmutable::now()->addSeconds((int) ceil($timeout))); // a container that hangs until killed
+
+        return new ProcessOutcome(-1, '', 'The process exceeded the timeout.');
+    });
+    $state = PhoneFixtures::tunnel();
+
+    try {
+        new QuickTunnelHostname($docker)->read($state, new ComposeProject($state->project(), TemporaryInstance::path().'/compose.json', TemporaryInstance::path()));
+        $this->fail('No hostname must fail.');
+    } catch (InstanceException $e) {
+        expect($e->errorCode)->toBe('tunnel_unavailable');
+    }
+
+    expect(CarbonImmutable::now()->diffInSeconds(CarbonImmutable::parse('2026-10-18T12:00:00Z'), true))->toBeLessThanOrEqual((float) QuickTunnelHostname::maxSeconds())
+        ->and(max($timeouts))->toBeLessThanOrEqual(60.0)
+        ->and(count($timeouts))->toBeGreaterThan(1);
+});
+
+it('announces the account check before it takes the lock, with its maximum duration (A8)', function (): void {
+    $fixture = new TunnelFixture;
+    $output = new BufferedOutput;
+    $redactor = new SecretRedactor;
+    $context = new FsaContext(app(HostFacts::class), new ProgressReporter($output, true, $redactor), $redactor, true, true, $fixture->config->instance->directory);
+
+    app(TunnelOperation::class)->start($context, false, true, null, false);
+
+    $events = array_map(static fn (string $line): array => json_decode($line, true), array_values(array_filter(explode("\n", $output->fetch()))));
+    expect($events[0])->toMatchArray(['phase' => 'accounts', 'max_seconds' => 300])
+        ->and($events[0]['message'])->toContain('at most 5 min')
+        ->and($events[1]['phase'])->toBe('accounts')
+        ->and($events[1])->toHaveKey('elapsed_seconds');
 });

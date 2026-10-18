@@ -89,8 +89,9 @@ final readonly class InstallPreflight
             },
             'proxy' => $proxy,
             'edge' => $edge,
-            // Local-CA mode (ADR 0082): the LAN address, the edge subnet; the URL is https://<address>.
-            'phone' => $localCa,
+            // Local-CA mode (ADR 0082): the LAN address, the edge subnet; the URL is https://<address>. The tunnel is
+            // only recorded (a resume with the same flags matches it); it starts once the install finished.
+            'phone' => $localCa ?? ($request->phoneHttps() === 'tunnel' ? ['phone_https' => 'tunnel'] : null),
             // SMTP mode (--smtp-host, ADR 0080 amendment): the mail settings for the state; null captures mail.
             'mail' => $mail,
         ];

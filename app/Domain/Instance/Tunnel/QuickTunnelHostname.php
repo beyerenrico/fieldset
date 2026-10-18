@@ -16,6 +16,7 @@ use App\Domain\Instance\Output\ProgressReporter;
 use App\Domain\Instance\Runtime\RuntimeDocument;
 use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Sleep;
 use Throwable;
 
@@ -23,8 +24,9 @@ use Throwable;
  * Reads the quick tunnel's hostname from cloudflared's metrics server (KTD12, ADR 0057, ADR 0082): `GET /quicktunnel`
  * answers `{"hostname":"<name>.trycloudflare.com"}` once Cloudflare assigned one, an empty name before
  * (cloudflared metrics/metrics.go). The ops container is on no instance network, so a throwaway `curl` from the app
- * image asks on the tunnel network, at cloudflared's fixed address; attempts repeat until a name arrives, cloudflared
- * stops answering, or the time is up. The name must match the app's strict grammar (RuntimeDocument::TUNNEL_HOST), so
+ * image asks on the tunnel network, at cloudflared's fixed address; attempts repeat until a name arrives or the time
+ * announced as `maxSeconds()` is up (each container run gets at most what is left of it, so a probe that hangs cannot
+ * stretch the wait beyond what the progress event said). The name must match the app's strict grammar (RuntimeDocument::TUNNEL_HOST), so
  * nothing else can become a trusted host.
  */
 final readonly class QuickTunnelHostname
@@ -41,7 +43,7 @@ final readonly class QuickTunnelHostname
 
     public function __construct(private DockerGateway $docker) {}
 
-    /** The longest read() takes. */
+    /** The longest read() takes: attempts stop when this time is up. */
     public static function maxSeconds(): int
     {
         return self::ATTEMPTS * (self::DELAY + 15);
@@ -51,22 +53,23 @@ final readonly class QuickTunnelHostname
     public function read(InstanceState $state, ComposeProject $project, ?ProgressReporter $progress = null, string $phase = 'hostname'): string
     {
         $peer = TunnelNetwork::peerAddress((string) InstanceSettings::of($state)->tunnelSubnet());
+        $deadline = CarbonImmutable::now()->addSeconds(self::maxSeconds());
         $answer = '';
-        for ($attempt = 1; $attempt <= self::ATTEMPTS; $attempt++) {
-            $progress?->event($phase, ProgressReporter::INFO, "Waiting for the quick tunnel's hostname (attempt {$attempt}/".self::ATTEMPTS.')', ['attempt' => $attempt, 'attempts' => self::ATTEMPTS]);
+        for ($attempt = 1; $attempt <= self::ATTEMPTS && $this->left($deadline) > 0; $attempt++) {
+            $progress?->event($phase, ProgressReporter::INFO, "Waiting for the quick tunnel's hostname (attempt {$attempt}/".self::ATTEMPTS.')', ['attempt' => $attempt, 'attempts' => self::ATTEMPTS, 'max_seconds' => self::maxSeconds()]);
             $outcome = $this->docker->runContainer(new ContainerSpec(
                 image: $state->digests()['app'],
                 command: ['--fail', '--silent', '--show-error', '--max-time', '5', 'http://'.$peer.':'.TunnelService::METRICS_PORT.self::PATH],
                 labels: Labels::forInstance($state->uuid(), self::ROLE),
                 network: $project->name.'_'.TunnelNetwork::NAME,
                 entrypoint: 'curl',
-            ), null, self::TIMEOUT);
+            ), null, min(self::TIMEOUT, $this->left($deadline)));
             $answer = trim($outcome->stdout."\n".$outcome->stderrTail(1));
             $hostname = $outcome->successful() ? self::hostname($outcome->stdout) : null;
             if ($hostname !== null) {
                 return $hostname;
             }
-            if ($attempt < self::ATTEMPTS) {
+            if ($attempt < self::ATTEMPTS && $this->left($deadline) > self::DELAY) {
                 Sleep::for(self::DELAY)->seconds();
             }
         }
@@ -87,6 +90,14 @@ final readonly class QuickTunnelHostname
         $hostname = is_array($decoded) && is_string($decoded['hostname'] ?? null) ? strtolower(trim($decoded['hostname'])) : '';
 
         return preg_match(RuntimeDocument::TUNNEL_HOST, $hostname) === 1 ? $hostname : null;
+    }
+
+    /** Seconds until the deadline (at least 1 while any remain, for a container's timeout). */
+    private function left(CarbonImmutable $deadline): float
+    {
+        $left = CarbonImmutable::now()->diffInSeconds($deadline, false);
+
+        return $left <= 0 ? 0.0 : max(1.0, $left);
     }
 
     private function logs(ComposeProject $project): string

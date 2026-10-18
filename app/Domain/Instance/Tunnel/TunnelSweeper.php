@@ -7,9 +7,9 @@ namespace App\Domain\Instance\Tunnel;
 use App\Domain\Instance\Console\FsaContext;
 use App\Domain\Instance\Install\InstallRecord;
 use App\Domain\Instance\InstanceException;
-use App\Domain\Instance\Operations\ContainerIdentity;
-use App\Domain\Instance\Operations\OperationRun;
-use App\Domain\Instance\Operations\Supervisor;
+use App\Domain\Instance\Operations\JournalRecord;
+use App\Domain\Instance\Operations\OperationJournal;
+use App\Domain\Instance\Operations\OperationUnfinished;
 use App\Domain\Instance\Output\CommandResult;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceSettings;
@@ -23,13 +23,17 @@ use Closure;
  * (operation `tunnel`, action `expire`): runtime block, cloudflared and the app's tunnel network go, and the URL is
  * local again. A tunnel whose cloudflared stopped (it never restarts, `restart: "no"`) is removed the same way: its
  * hostname is gone for good.
+ *
+ * An unfinished `tunnel` journal (a start whose revert failed, a cut-off stop, renew or cleanup) is finished the same
+ * way, whatever the state says, unless a live tunnel would go: then the command answers exit 9 naming `fsa tunnel
+ * stop`. Another operation's journal is left to the command, which resumes or names it, so no command is blocked by
+ * the cleanup itself.
  */
 final readonly class TunnelSweeper
 {
     public function __construct(
         private InstanceDirectory $directory,
-        private Supervisor $supervisor,
-        private ContainerIdentity $identity,
+        private OperationJournal $journal,
         private TunnelStatus $status,
         private TunnelOperation $tunnel,
     ) {}
@@ -38,27 +42,27 @@ final readonly class TunnelSweeper
     public function sweep(FsaContext $context): ?array
     {
         $state = $this->directory->hasState() ? $this->directory->state() : null;
-        // Only a tunnel fsa started (the state says so); a stray runtime block is `fsa tunnel stop`'s to clear.
-        if (! $state instanceof InstanceState || ! InstallRecord::isInstalled($state) || ! InstanceSettings::of($state)->tunnel()) {
+        $open = $this->journal->current();
+        if (! $state instanceof InstanceState || ! InstallRecord::isInstalled($state) || ($open instanceof JournalRecord && $open->operation() !== TunnelOperation::OPERATION)) {
             return null;
         }
         $current = $this->status->of($state);
-        if (! in_array($current['state'], ['expired', 'stopped'], true)) {
+        if (! $this->due($state, $current, $open)) {
             return null;
         }
-        $result = $this->supervisor->run(
-            TunnelOperation::OPERATION,
-            $this->identity->holder('fsa', $context->facts->callerUid()),
-            fn (OperationRun $run): CommandResult => $this->tunnel->stopSteps($run, $current),
-            context: ['action' => 'expire'],
-            progress: $context->progress,
-        );
+        $result = $this->tunnel->expire($context, $current, resume: $open instanceof JournalRecord);
         if ($result->exitCode->value !== 0) {
-            return ['tunnel_cleanup_failed', 'The '.$current['state'].' quick tunnel could not be removed: '.($result->errors[0]->message ?? 'unknown error'), 'Run `fsa tunnel stop`.'];
+            $what = $open instanceof JournalRecord ? 'The unfinished `'.OperationUnfinished::cutOff($open).'` could not be finished' : 'The '.$current['state'].' quick tunnel could not be removed';
+
+            return ['tunnel_cleanup_failed', $what.': '.($result->errors[0]->message ?? 'unknown error'), 'Fix the cause, then run `fsa tunnel stop`.'];
+        }
+        $url = is_string($result->data['url'] ?? null) ? $result->data['url'] : '';
+        if ($open instanceof JournalRecord) {
+            return ['tunnel_removed', 'An unfinished `'.OperationUnfinished::cutOff($open)."` was finished: the quick tunnel was removed and the instance URL is {$url} again.", 'Start a new one with `fsa tunnel start`.'];
         }
         $what = $current['state'] === 'expired' ? "expired at {$current['expires_at']}" : 'stopped running';
 
-        return ['tunnel_removed', 'The quick tunnel'.($current['hostname'] === null ? '' : " {$current['hostname']}")." {$what} and was removed; the instance URL is ".($result->data['url'] ?? '').' again.', 'Start a new one with `fsa tunnel start`.'];
+        return ['tunnel_removed', 'The quick tunnel'.($current['hostname'] === null ? '' : " {$current['hostname']}")." {$what} and was removed; the instance URL is {$url} again.", 'Start a new one with `fsa tunnel start`.'];
     }
 
     /**
@@ -77,5 +81,20 @@ final readonly class TunnelSweeper
         }
 
         return $warning === null ? $result : $result->withChanged(true)->withWarning(...$warning);
+    }
+
+    /**
+     * Only a tunnel fsa started (the state says so) that expired or stopped; a stray runtime block is `fsa tunnel stop`'s
+     * to clear. With an unfinished tunnel journal, anything but a live tunnel.
+     *
+     * @param  array<string, mixed>  $current  TunnelStatus::of()
+     */
+    private function due(InstanceState $state, array $current, ?JournalRecord $open): bool
+    {
+        if ($open instanceof JournalRecord) {
+            return $current['state'] !== 'active';
+        }
+
+        return InstanceSettings::of($state)->tunnel() && in_array($current['state'], ['expired', 'stopped'], true);
     }
 }
