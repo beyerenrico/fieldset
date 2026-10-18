@@ -92,7 +92,7 @@ MAIL_PASSWORD=<password>
 MAIL_FROM_ADDRESS="forms@example.com"
 MAIL_FROM_NAME="Example Forms"
 
-# Who may open the Horizon queue dashboard at /horizon and the API documentation.
+# Who may open the API documentation at /docs/api (Horizon is for platform operators, see section 4).
 PLATFORM_ADMIN_EMAILS=it@example.com
 ```
 
@@ -122,7 +122,7 @@ Notes on these settings:
 | `SESSION_SECURE_COOKIE=true` (template) | Session cookies only over HTTPS. Behind HTTPS the application marks them Secure in any case. |
 | `SANCTUM_STATEFUL_DOMAINS` | The host name of `APP_URL` (no scheme, add `:port` if not 443). The Field App's sign-in cookie only works for hosts in this list. |
 | `MAIL_*` | The instance-wide mail transport. `MAIL_FROM_ADDRESS` should be on your own domain with SPF/DKIM set up; organizations set their own sender name and reply-to in the dashboard. Port 465 uses implicit TLS; other ports use STARTTLS when the server offers it. |
-| `PLATFORM_ADMIN_EMAILS` | Comma-separated emails of operators. They can open `/horizon` (after signing in at `/admin/login`) and the API documentation. |
+| `PLATFORM_ADMIN_EMAILS` | Comma-separated emails that may open the API documentation. The Horizon dashboard at `/horizon` is for platform operators signed in at `/platform/login`. |
 
 Leave these as they are in the template: `SESSION_DRIVER=database`, `SESSION_LIFETIME=43200`
 (30 days, needed for offline field work), `SESSION_ENCRYPT=true`, `QUEUE_CONNECTION=redis` (Horizon
@@ -163,8 +163,26 @@ docker compose exec app php artisan app:install \
   --organization="Example GmbH" --name="Erika Muster" --email=erika@example.com --locale=de
 ```
 
-`--locale` is `de` (default) or `en`. Without `--password` the command prompts for it, which keeps the
-password out of your shell history. The owner's email address is marked as verified.
+`--locale` is `de` (default) or `en`. Without a password option the command prompts for it, which keeps the
+password out of your shell history. For scripts, `--password-file=<file>` reads it from a file;
+`--owner-link` sets no password at all and prints a one-time sign-in link instead (single use, 60 minutes),
+which leads to choosing a password. `--password=<value>` still works but is deprecated: the value shows in
+the process list. `--json` prints one JSON document (the link only under `secrets`, never a password).
+
+`--password-file` is read **inside the `app` container**, which sees only its own file system and the
+`app-storage` volume, not the server's. Put the file into the container first, for example through stdin, and
+remove it afterwards:
+
+```bash
+docker compose exec -T app sh -c 'umask 077 && cat > /tmp/owner-password' < owner-password.txt
+docker compose exec app php artisan app:install \
+  --organization="Example GmbH" --name="Erika Muster" --email=erika@example.com --password-file=/tmp/owner-password
+docker compose exec app rm /tmp/owner-password
+```
+
+The owner's email address is marked as verified, and the owner becomes a platform operator (`/platform`,
+Horizon). `docker compose exec app php artisan identity:login-link <email>` issues a new one-time sign-in link
+(15 minutes) for an existing admin.
 
 The command only works once: if an organization exists, it changes nothing. Further organizations are
 created by enabling self-registration (`APP_ALLOW_REGISTRATION=true`, only for a public instance); each

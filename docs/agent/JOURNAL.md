@@ -124,3 +124,56 @@
   PHPStan 0/0, Rector/Pint clean, JS 611/111/623/246, conformance 391/392, licenses/audits clean,
   E2E 75/75 ×2. Release date aligned to 2026-10-23 (ADRs 0038 amendment, 0046 precede it).
 - FINAL_REPORT.md written; STATE "Run complete"; tag v1.0.0.
+
+## 2026-10-17 v2 bootstrap, M9-T01, M9-T02
+- Bootstrap: BUILD_PROMPT_V2 + plan committed (cb4a292), AGENTS.md points at both, M9–M13 in PLAN.md.
+- ADRs 0047–0064 for E1–E18 (versions checked today); QUESTIONS 22–26. Binary sizes are ~2× the plan's estimate.
+- U1 image: allow-list .dockerignore, toolchain purge + flattened base, per-arch pinned binaries (Docker CLI
+  29.9.1, Compose 5.6.0, PGDG client 16.15, age 1.3.2 + batchpass, cosign 3.1.3), ops/backup roles skip optimize.
+  Size 2.12 GB → 648 MB (arm64 native, amd64 emulated), cosign kept (ADR 0065). Install suite added,
+  excluded by `defaultTestSuite`. Image contract journey 6/6 on both archs.
+
+## 2026-10-18 M9-T03 instance domain core (U2)
+- app/Domain/Instance: DockerGateway (CLI argv via CommandRunner), versioned InstanceState, InstanceDirectory
+  with marker and safe writes, per-service EnvFiles, InstanceLock (holder container ID + start time), journal,
+  Supervisor, CommandResult/ExitCode (+1 internal error, ADR 0066), FsaCommand base with secret-flag guard.
+- 224 tests, coverage 97.6 % for the namespace, PHPStan 0, Rector 0. tests/Arch added to the Unit suite.
+
+## 2026-10-18 M9-T04 compose renderer (U3)
+- ComposeRenderer (per-service definitions; edge/tunnel/backup/proxy extension points), ResourceBudget (small
+  1728/1728 MiB worst case, estimates until U15), RuntimeWriter (0755/0644, gate kept on re-render),
+  InputGrammar on every state value. Compose file is JSON (no symfony/yaml), all env in 0600 env files.
+- Valkey now password-protected with a labelled volume. 352 instance unit tests, real `compose config` journey.
+
+## 2026-10-18 M9-T05 sign-in links (U6), M9-T06 release pipeline (U7)
+- U6: app:install --owner-link/--password-file/--json, identity:login-link(s) for fsa one-offs, fragment+POST
+  landing, Horizon behind operator + /platform session (ADR 0068). Feature suite 1752/1752. Fixed the nightly
+  audit date-range test (display time zone).
+- U7: release.yml (buildx SBOM/provenance, cosign keyless, Trivy, anonymous pull), release:manifest and
+  release:version, distribution/manifest.schema.json + release.json, harness (registry:3, release server,
+  local cosign key), CI linters + install-journeys job, RELEASING.md, ADR 0067. Harness journey 7/7.
+- Trivy gate red on upstream findings (QUESTIONS 27), decided at the M9 gate.
+
+## 2026-10-18 M9-T07 install.sh, shim, manifest verification (U4)
+- distribution/install.sh + shim.sh (dash/shellcheck clean, truncation-safe), host-facts env contract, ops
+  container user/mount rules, nonce + mounted-path guard (LaunchGuard), file-flag parent mounts, open_url via a
+  0600 file. ManifestVerifier runs the pinned cosign image against the built-in identity; harness flavour
+  (`build=harness`, image `FSA_BUILD`) is the only way to use FSA_TRUST_KEY or http. ADR 0070, QUESTIONS 28.
+- Bootstrap journey 8/8 (fsa install replaced by a probe until U5), Unit suite 3546/3546, coverage 98.34 %.
+- Trivy research: all 34 app-image findings fixable by building Compose/age from source with Go 1.27.2 (+ x/net,
+  grpc bumps); third-party pins already newest. Decision for the gate below (M9 supply-chain task).
+
+## 2026-10-18 M9-T08 lifecycle commands (U5)
+- fsa install (journaled phases doctor→secrets→state→pull→up→migrate→app_install→start→smoke→done, resumable,
+  idempotent, port fallback), doctor (12 checks incl. permissions, DNS preflight), status, logs, version,
+  uninstall (--keep-backups, --orphans), login-link via socket-less one-offs. ADR 0072.
+- J1/J12/Bootstrap 17/17 (J1 install 45 s), Unit+Feature 5421/5421, coverage 98.12 %. `--version` clash fixed
+  in the fsa wrapper. QUESTIONS 29–31.
+
+## 2026-10-18 M9-T09 gate M9 → 2.0.0-alpha.1
+- Five reviewer subagents: 6 high findings fixed (wrapper entry path, `--orphans` on a live instance, host /tmp
+  over DOCKER_CONFIG in the socket container, three docs), most mediums/lows fixed, rest in QUESTIONS 27–33.
+- Supply chain: cosign dropped, Compose/age built from source (app image 0 Trivy findings, 507/497 MB), scoped
+  dated exceptions for third-party images (ADR 0071). DOCKER_DEFAULT_PLATFORM honoured: J1/J12 pass under amd64.
+- Gate: PHP 5560 (cov 95.41 %, Instance 98.15 %) / 5590 host, journeys 33/33 arm64 + J1/J12 amd64, E2E 79/79 ×2,
+  static/JS/conformance/licenses green. alpha.1 built, signed, installed and uninstalled locally (599 s).

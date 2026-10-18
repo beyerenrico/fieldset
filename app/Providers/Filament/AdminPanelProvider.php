@@ -6,6 +6,7 @@ namespace App\Providers\Filament;
 
 use App\Domain\Identity\Auth\SharedAppAuthentication;
 use App\Domain\Identity\Models\Organization;
+use App\Filament\AccessiblePlaceholders;
 use App\Filament\Admin\Livewire\DatabaseNotifications;
 use App\Filament\Admin\Pages\Auth\EditProfile;
 use App\Filament\Admin\Pages\Auth\EmailChangeVerificationController;
@@ -33,6 +34,7 @@ use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
 use Filament\Support\Icons\Heroicon;
+use Filament\View\PanelsRenderHook;
 use Filament\Widgets\AccountWidget;
 use Illuminate\Auth\Events\Login as LoginEvent;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
@@ -73,6 +75,7 @@ class AdminPanelProvider extends PanelProvider
             ->tenantProfile(EditOrganizationProfile::class)
             ->tenantMiddleware([SetTenantFromFilament::class, SetLocale::class], isPersistent: true)
             ->colors(['primary' => Color::Blue])
+            ->renderHook(PanelsRenderHook::STYLES_AFTER, AccessiblePlaceholders::styles(...)) // WCAG AA contrast
             ->discoverResources(in: app_path('Filament/Admin/Resources'), for: 'App\Filament\Admin\Resources')
             ->discoverPages(in: app_path('Filament/Admin/Pages'), for: 'App\Filament\Admin\Pages')
             ->pages([]) // App\Filament\Admin\Pages\Dashboard (role-aware, discovered) replaces Filament's dashboard

@@ -3,14 +3,21 @@
          xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
          bootstrap="vendor/autoload.php"
          colors="true"
+         defaultTestSuite="Unit,Feature"
 >
     <testsuites>
         <testsuite name="Unit">
             <directory>tests/Unit</directory>
+            <directory>tests/Arch</directory>
             <directory>packages/form-schema-php/tests</directory>
         </testsuite>
         <testsuite name="Feature">
             <directory>tests/Feature</directory>
+        </testsuite>
+        <!-- Install journeys (KTD23): real Docker, fsa-test-* resources, minutes per file. Not part of the
+             default run or coverage; select the suite by name (AGENTS.md, key commands). -->
+        <testsuite name="Install">
+            <directory>tests/Install</directory>
         </testsuite>
     </testsuites>
     <source>
@@ -20,7 +27,7 @@
         </include>
     </source>
     <php>
-        <ini name="memory_limit" value="1G"/>
+        <ini name="memory_limit" value="2G"/>
         <env name="APP_ENV" value="testing"/>
         <env name="APP_ALLOW_REGISTRATION" value="true"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>

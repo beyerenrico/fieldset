@@ -16,6 +16,7 @@ use App\Domain\Privacy\Exports\DataExportNotifications;
 use App\Domain\Privacy\Models\DataExport;
 use App\Filament\Admin\Resources\AuditLogs\AuditLogResource;
 use App\Filament\Admin\Resources\AuditLogs\Pages\ListAuditLogs;
+use App\Filament\Admin\Resources\Submissions\SubmissionResource;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
@@ -65,7 +66,9 @@ it('filters by actor, event, subject type and date range', function (): void {
         ->resetTableFilters()
         ->filterTable('subject_type', [$group->getMorphClass()])->assertCanSeeTableRecords([$groupEntry])->assertCanNotSeeTableRecords([$byOwner])
         ->resetTableFilters()
-        ->filterTable('created_at', ['from' => now()->subDays(2)->toDateString(), 'until' => now()->toDateString()])
+        // The filter reads dates in the display time zone (Europe/Berlin), so the dates must be taken there too:
+        // between 22:00 and 24:00 UTC the Berlin date is already the next day.
+        ->filterTable('created_at', ['from' => now(SubmissionResource::displayTimezone())->subDays(2)->toDateString(), 'until' => now(SubmissionResource::displayTimezone())->toDateString()])
         ->assertCanSeeTableRecords([$byOwner])->assertCanNotSeeTableRecords([$old]);
 });
 

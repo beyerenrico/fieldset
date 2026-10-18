@@ -27,7 +27,10 @@ return [
         'change' => 'Change',
     ],
     'filters' => ['from' => 'From', 'until' => 'Until', 'impersonated' => 'By a platform operator (impersonation)'],
-    'actor_types' => ['user' => 'User', 'system' => 'System', 'api_token' => 'API token', 'api_token_of' => ':name (API token)'],
+    'actor_types' => [
+        'user' => 'User', 'system' => 'System', 'api_token' => 'API token', 'api_token_of' => ':name (API token)',
+        'cli' => 'Command line', 'cli_uid' => 'Command line (host UID :uid)',
+    ],
     'empty' => 'No audit entries yet',
     'impersonation' => ['via' => 'on behalf of operator :operator'],
     'values' => ['yes' => 'Yes', 'no' => 'No', 'hidden' => 'hidden (secret)'],
@@ -101,6 +104,7 @@ return [
         'group_id' => 'Group',
         'guard' => 'Guard',
         'host' => 'Host',
+        'host_uid' => 'Host UID (command line)',
         'identity_provider_id' => 'SSO provider',
         'jit_enabled' => 'Just-in-time provisioning',
         'kind' => 'Kind',
@@ -303,6 +307,10 @@ return [
             'impersonation_ended' => 'Impersonation ended',
             'admin_granted' => 'Platform admin granted',
             'admin_revoked' => 'Platform admin revoked',
+        ],
+        'login_link' => [
+            'issued' => 'One-time sign-in link issued',
+            'used' => 'One-time sign-in link used',
         ],
     ],
 ];

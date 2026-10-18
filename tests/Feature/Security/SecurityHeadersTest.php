@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Domain\Identity\Models\User;
+use App\Domain\Platform\Actions\GrantPlatformAdmin;
+use App\Domain\Platform\Auth\PlatformSession;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Vite;
@@ -141,8 +143,10 @@ it('gives third-party UIs (API docs, /up) only the baseline policy', function ()
 });
 
 it('puts the nonce on Horizon\'s inlined bundle', function (): void {
-    config(['app.platform_admins' => ['ops@example.com']]);
+    // Horizon opens for an operator with a /platform sign-in (ADR 0068).
     $ops = User::factory()->create(['email' => 'ops@example.com']);
+    app(GrantPlatformAdmin::class)->handle($ops);
+    app(PlatformSession::class)->mark($ops);
 
     $response = $this->actingAs($ops)->get('/horizon')->assertOk();
     $nonce = (string) cspNonce($response);

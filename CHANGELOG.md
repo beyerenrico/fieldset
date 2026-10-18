@@ -5,6 +5,47 @@ All notable changes to this project are documented here. The format follows
 [Semantic Versioning](https://semver.org/) (0.x: the API and data model may still change).
 The Form Schema Spec has its own changelog in `spec/form-definition/1.0/CHANGELOG.md`.
 
+## 2.0.0-alpha.1 — 2026-10-18 (local pre-release, not published)
+
+The first 2.0 pre-release: the app is distributed as signed images with the self-managing `fsa`
+command, for a local install with one command. It was built and tested locally against a local registry and release server (E18);
+publishing it is a human step described in `RELEASING.md`.
+
+### Added
+- **Signed multi-arch image** — one image for linux/amd64 and linux/arm64 (about 500 MB uncompressed)
+  that runs the app, queue, scheduler and `fsa` ops roles; every base image pinned by digest (ADR 0065).
+- **Release pipeline** — a `v*` tag builds the image with SBOM and provenance, signs the image, the
+  release manifest and `install.sh` keylessly with cosign, scans every image with Trivy, and publishes a
+  signed release manifest that pins every service image by digest per platform (`release:manifest`,
+  `release:version`; ADR 0067).
+- **`install.sh` and the `fsa` shim** — the installer verifies the signed manifest before it pulls
+  anything, pulls the app image by digest and hands over to `fsa install`; `<dir>/fsa` runs every command
+  in the instance's ops container (ADR 0070).
+- **`fsa` commands in local mode** — `install`, `doctor`, `status`, `logs`, `version`, `uninstall` and
+  `login-link`, each with a JSON envelope (`--json`), NDJSON progress and fixed exit codes. `fsa install`
+  runs journaled phases, resumes after a failure and changes nothing on an identical re-run (ADR 0072).
+- **One-time sign-in links** — the owner gets a 60-minute link after the install; `fsa login-link`
+  issues a 15-minute single-use link for an existing admin, stored hashed and rate-limited. A link goes
+  to `--secrets-file`, to the browser (`--open`, or a person at a desktop terminal) or into the
+  envelope's `secrets` (ADR 0056, ADR 0068).
+- **Non-interactive `app:install`** — `--owner-link`, `--password-file` and `--json` create the first
+  organization and owner without prompts.
+- **Horizon behind the operator session** — `/horizon` opens for platform operators signed in at
+  `/platform` (ADR 0068).
+- **`DOCKER_DEFAULT_PLATFORM` support** — `install.sh`, the shim and `fsa` install and run a release of
+  the other architecture under emulation; `fsa doctor` reports it and memory limits are doubled.
+
+### Changed
+- Horizon access needs an operator `/platform` session: `PLATFORM_ADMIN_EMAILS` no longer opens
+  Horizon (it still grants `/docs/api`).
+- Valkey runs with a password in `fsa` instances (ADR 0069).
+- The image is slimmer (2.12 GB → about 500 MB): no Composer, tests, docs or dev dependencies inside.
+
+### Not yet in this pre-release
+- Domain and reverse-proxy modes (`fsa install --domain` runs the DNS preflight and stops), the
+  capture-mode banner, demo data, phone HTTPS, and backups, restore, upgrade and adopt arrive in later
+  milestones.
+
 ## 1.0.0 — 2026-10-23
 
 The first stable release: single sign-on and the canvas builder (M7), and hardening (M8) with the audit

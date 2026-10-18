@@ -29,6 +29,10 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 /storage/agent-logs
+/storage/fsa-test-harness
+/storage/fsa-test-cache
+/storage/fsa-test-dist
+/dist
 /storage/phpstan*
 /storage/coverage
 /storage/playwright
@@ -36,3 +40,4 @@ Thumbs.db
 /storage/playwright-auth
 /public/app
 /public/form-preview
+/.claude/worktrees

@@ -12,6 +12,11 @@ concurrency:
 env:
   PHP_VERSION: '8.4'
   NODE_VERSION: '24'
+  # Dev-only linters and scanner (BUILD_PROMPT_V2 §11, ADR 0064), pinned by digest; they never ship in the image.
+  SHELLCHECK_IMAGE: docker.io/koalaman/shellcheck:v0.11.0@sha256:61862eba1fcf09a484ebcc6feea46f1782532571a34ed51fedf90dd25f925a8d
+  HADOLINT_IMAGE: docker.io/hadolint/hadolint:v2.15.1@sha256:32dac94127fd60b7b7e3fbfc65e1383b9b5e25c9bfd7b8536de7a539fe68a12d
+  ACTIONLINT_IMAGE: docker.io/rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+  TRIVY_IMAGE: docker.io/aquasec/trivy:0.76.0@sha256:2416d1f74045b57274df1a340eee6b510cacd73c66a6ccb8da092b117eb7d222
 
 jobs:
   lint:
@@ -140,3 +145,97 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker build -f docker/app/Dockerfile -t form-schema-app:ci .
+
+  # --- 2.0 distribution (plan U7, ADR 0067): linters, image scan and install journeys ---
+
+  shellcheck:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: shellcheck install.sh, the shim and the image scripts
+        run: |
+          files=(docker/app/entrypoint.sh docker/app/fsa)
+          if compgen -G 'distribution/*.sh' > /dev/null; then
+            files+=(distribution/*.sh)
+          fi
+          docker run --rm -v "$PWD:/mnt:ro" -w /mnt "$SHELLCHECK_IMAGE" "${files[@]}"
+
+  hadolint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # The Dockerfile carries its own inline ignores (ADR 0065, LEARNINGS #77).
+      - run: docker run --rm -i "$HADOLINT_IMAGE" hadolint - < docker/app/Dockerfile
+
+  actionlint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: docker run --rm -v "$PWD:/repo:ro" -w /repo "$ACTIONLINT_IMAGE" -color
+
+  image-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: docker build -f docker/app/Dockerfile -t form-schema-app:scan .
+      # Fixable critical or high findings fail, as in the release workflow (ADR 0060). The app image is scanned
+      # strictly, with no ignore file (ADR 0071).
+      - name: Trivy scan of the app image
+        run: |
+          mkdir -p "$RUNNER_TEMP/trivy-cache"
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock:ro -v "$RUNNER_TEMP/trivy-cache:/root/.cache/trivy" \
+            "$TRIVY_IMAGE" image --severity CRITICAL,HIGH --ignore-unfixed --exit-code 1 --no-progress --ignorefile '' \
+            form-schema-app:scan
+
+  # Real Docker against the local harness (KTD23): minutes per journey, so only on main and milestone branches.
+  install-journeys:
+    if: >-
+      github.event_name == 'push' && (github.ref == 'refs/heads/main'
+      || startsWith(github.ref, 'refs/heads/m9-') || startsWith(github.ref, 'refs/heads/m10-')
+      || startsWith(github.ref, 'refs/heads/m11-') || startsWith(github.ref, 'refs/heads/m12-')
+      || startsWith(github.ref, 'refs/heads/m13-'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    env:
+      FSA_REQUIRE_DOCKER: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      # Mirrored third-party blobs and the harness build cache (ReleaseHarness); keyed on what they depend on.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: storage/fsa-test-cache
+          key: fsa-test-cache-${{ hashFiles('distribution/release.json', 'docker/app/Dockerfile', 'composer.lock', 'package-lock.json') }}
+          restore-keys: fsa-test-cache-
+      - run: vendor/bin/pest --testsuite=Install
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: install-journey-logs
+          path: storage/agent-logs
+          if-no-files-found: ignore

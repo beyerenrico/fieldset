@@ -1,0 +1,67 @@
+{
+    "command": "fsa status --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "status",
+        "status": "ok",
+        "changed": false,
+        "data": {
+            "dir": "<work>/fsa-test-j01",
+            "installed": true,
+            "operation": null,
+            "lock": null,
+            "disk": {
+                "free_gib": 165.4
+            },
+            "last_backup": null,
+            "version": "2.0.0-alpha.1-test",
+            "mode": "local",
+            "url": "http://localhost:8081",
+            "project": "fsa-fsa-test-j01-a98d",
+            "port": 8081,
+            "health": "ok",
+            "services": {
+                "app": {
+                    "state": "running",
+                    "health": "healthy"
+                },
+                "queue": {
+                    "state": "running",
+                    "health": "healthy"
+                },
+                "scheduler": {
+                    "state": "running",
+                    "health": null
+                },
+                "postgres": {
+                    "state": "running",
+                    "health": "healthy"
+                },
+                "redis": {
+                    "state": "running",
+                    "health": "healthy"
+                },
+                "gotenberg": {
+                    "state": "running",
+                    "health": null
+                },
+                "mailpit": {
+                    "state": "running",
+                    "health": "healthy"
+                }
+            },
+            "mail": {
+                "mode": "capture",
+                "catcher_url": "http://localhost:8025"
+            },
+            "sign_in_links": {
+                "count": 0,
+                "links": []
+            }
+        },
+        "secrets": [],
+        "warnings": [],
+        "errors": []
+    }
+}

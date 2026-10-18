@@ -1,0 +1,25 @@
+{
+    "purpose": "A real GitHub Actions keyless cosign bundle (Sigstore public good) for the production verify path of ManifestVerifier and install.sh, checked offline against a pinned trusted root (plan U4, ADR 0070).",
+    "blob": {
+        "file": "checksums.txt",
+        "url": "https://github.com/goreleaser/goreleaser/releases/download/v2.18.3/checksums.txt",
+        "sha256": "a40282e5419a5e7176c78afae243777ae0da7376e165d8cf59805910d2c84e1e"
+    },
+    "bundle": {
+        "file": "checksums.txt.sigstore.json",
+        "url": "https://github.com/goreleaser/goreleaser/releases/download/v2.18.3/checksums.txt.sigstore.json",
+        "sha256": "390efe4ed2d12857fc9c6aab35a493a361dad6adca9bded4bd27aff11004dd54",
+        "media_type": "application/vnd.dev.sigstore.bundle.v0.3+json",
+        "certificate_identity": "https://github.com/goreleaser/goreleaser/.github/workflows/release.yml@refs/tags/v2.18.3",
+        "certificate_oidc_issuer": "https://token.actions.githubusercontent.com",
+        "github_workflow_trigger": "push",
+        "rekor_log_index": 3156213102,
+        "integrated_time": "2026-10-09T03:18:38Z"
+    },
+    "trusted_root": {
+        "file": "trusted_root.json",
+        "source": "Sigstore public-good TUF repository (https://tuf-repo-cdn.sigstore.dev), target trusted_root.json, fetched with `cosign initialize` (cosign v3.1.3) on 2026-10-18; TUF root version 15",
+        "sha256": "6494e21ea73fa7ee769f85f57d5a3e6a08725eae1e38c755fc3517c9e6bc0b66"
+    },
+    "downloaded": "2026-10-18"
+}

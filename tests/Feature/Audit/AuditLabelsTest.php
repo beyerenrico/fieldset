@@ -18,7 +18,7 @@ use Livewire\Livewire;
  */
 
 /**
- * Every event name written in app/: the first argument of record()/system()/forUser() (also ternaries), the
+ * Every event name written in app/: the first argument of record()/system()/cli()/forUser() (also ternaries), the
  * trailing `$event` argument of an action's handle() and its `string $event = '…'` default, plus the model
  * events of LogsActivity.
  *
@@ -33,7 +33,7 @@ function auditEventsWrittenByTheCode(): array
             continue;
         }
         $source = (string) file_get_contents($file->getPathname());
-        preg_match_all('/(?:->record|->system|forUser)\(\s*((?:[^;()]|\([^;()]*\))*?)[,)]/s', $source, $calls);
+        preg_match_all('/(?:->record|->system|->cli|forUser)\(\s*((?:[^;()]|\([^;()]*\))*?)[,)]/s', $source, $calls);
         foreach ($calls[1] as $argument) {
             preg_match_all("/{$literal}/", $argument, $found);
             array_push($events, ...$found[1]);
@@ -64,7 +64,8 @@ it('has an English and a German label for every event the code writes', function
     $events = auditEventsWrittenByTheCode();
     // The scan sees every way events are written (direct, ternary, multi-line, handle() argument, default).
     expect($events)->toContain('auth.login', 'auth.mfa_enabled', 'form.duplicated', 'form.published', 'platform.impersonation_started',
-        'platform.impersonation_ended', 'auth.failed_suppressed', 'api_token.created', 'api_token.first_used', 'api_token.revoked');
+        'platform.impersonation_ended', 'auth.failed_suppressed', 'api_token.created', 'api_token.first_used', 'api_token.revoked',
+        'login_link.issued', 'login_link.used');
 
     $missing = [];
     foreach ($events as $event) {

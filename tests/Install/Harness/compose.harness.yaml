@@ -1,0 +1,53 @@
+# Local release harness (plan KTD23, U7; ADR 0064, ADR 0067). Started and stopped only by
+# tests/Support/Docker/ReleaseHarness.php, which names the project fsa-test-harness-<run id> and sets the
+# FSA_HARNESS_* variables. No real registry or account is involved: images are built and mirrored into this
+# registry, and dist/ is served like GitHub Releases' download paths.
+#
+# Later units add their substitutes here (Pebble with challtestsrv, Traefik, the fake tunnel), each behind a
+# profile so a plain release run stays small.
+name: fsa-test-harness
+
+services:
+  # CNCF Distribution. Partial indexes are accepted (validation platforms: none), so third-party images keep
+  # their upstream index digest while only the platforms under test are copied. Relative upload URLs keep
+  # pushes working through the forwarder below.
+  registry:
+    image: docker.io/library/registry:3.1.2@sha256:ddf754342cfc8acc51a56d5d0ab6af06826461864460636d8bd5c546dab2a7b8
+    environment:
+      REGISTRY_HTTP_RELATIVEURLS: "true"
+      REGISTRY_VALIDATION_MANIFESTS_INDEXES_PLATFORMS: none
+      REGISTRY_STORAGE_DELETE_ENABLED: "true"
+      REGISTRY_LOG_LEVEL: warn
+      OTEL_TRACES_EXPORTER: none
+    volumes:
+      - registry-data:/var/lib/registry
+    ports:
+      - "127.0.0.1::5000"
+
+  # Static release server for dist/ (download/v<version>/…, latest/download/… for stable releases only).
+  release-server:
+    image: docker.io/library/caddy:2.11.7-alpine@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f
+    command: ["caddy", "file-server", "--root", "/srv", "--listen", ":8080"]
+    volumes:
+      - ${FSA_HARNESS_DIST:?set by ReleaseHarness}:/srv:ro
+    ports:
+      - "127.0.0.1::8080"
+
+  # Docker Desktop publishes ports only on the Mac side: the daemon (docker pull) and network=host containers
+  # (the buildx builder, cosign) cannot reach 127.0.0.1:<port> inside the VM. This forwarder listens on the
+  # same port in the VM's host network and proxies to the registry. ReleaseHarness starts it only when a
+  # host-network probe fails; on Linux the published port already works there.
+  registry-forwarder:
+    profiles: [forwarder]
+    image: docker.io/library/caddy:2.11.7-alpine@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f
+    network_mode: host
+    command:
+      - caddy
+      - reverse-proxy
+      - --from
+      - ":${FSA_HARNESS_REGISTRY_PORT:-5000}"
+      - --to
+      - "${FSA_HARNESS_REGISTRY_TARGET:-127.0.0.1:5000}"
+
+volumes:
+  registry-data:

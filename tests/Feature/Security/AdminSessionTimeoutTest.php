@@ -102,10 +102,10 @@ it('counts Livewire updates of admin pages as activity', function (): void {
 
     foreach (range(1, 3) as $ignored) {
         $this->travel(20)->minutes();
-        Livewire::flushState(); // a new PHP request in production; the test app keeps Livewire's per-request state
-        $this->withHeaders(['X-Livewire' => '1'])->postJson(Livewire::getUpdateUri(), [
+        // Only the update carries X-Livewire: a sticky header would turn the page load below into a Livewire request.
+        $this->postJson(Livewire::getUpdateUri(), [
             'components' => [['snapshot' => $snapshot, 'updates' => new stdClass, 'calls' => []]],
-        ])->assertOk();
+        ], ['X-Livewire' => '1'])->assertOk();
         expect(session(AdminSessionTimeout::LAST_ACTIVITY))->toBe(now()->getTimestamp());
     }
     $this->travel(20)->minutes(); // 80 min after the page load, 20 min after the last Livewire update

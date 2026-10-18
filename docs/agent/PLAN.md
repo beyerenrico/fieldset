@@ -140,3 +140,49 @@ AC refs point at BUILD_PROMPT sections. Test approach in brackets.
 - [x] M8-T12 Production env template `.env.production.example` (COMPOSE_FILE=compose.yaml, APP_ENV=production, JSON logs, secure cookies, TRUSTED_PROXIES), README quick start split dev/prod, remove no-op AWS_* vars — §11 Operability [docs + config]
 - [x] M8-T09 Release 1.0: CHANGELOG, release notes, versions, final full gate on `main`, FINAL_REPORT.md, STATE "Run complete" — §16.10
 - [x] M8-T10 Gate M8
+
+## v2: form-schema-app 2.0 (BUILD_PROMPT_V2.md; plan `docs/plans/2026-10-17-001-feat-docker-distribution-v2-plan.md`)
+Task text names the plan unit (U-ID), R-IDs and journeys. "Plan:" refers to the plan's KTDs and unit test
+scenarios, which are the acceptance detail. The plan's phase order is binding where it differs from
+BUILD_PROMPT_V2 §12 (E16 measurement U15 in M11, reset U23 in M12).
+
+## M9 Release foundation → 2.0.0-alpha.1 (branch `m9-release`)
+- [x] M9-T01 Bootstrap: BUILD_PROMPT_V2 and the plan committed; AGENTS.md points at both; ADRs for E1–E18 with the §5/Appendix A versions; M9–M13 in PLAN.md; STATE.md — §15.9 [n/a]
+- [x] M9-T02 U1 Image: ops role (entrypoint skips optimize/migrations for `fsa` and the backup daemon), allow-list `.dockerignore`, writable XDG dirs (R6 log fix), `APP_VERSION`/`APP_REVISION` → OCI labels + `config('app.version')`, pinned per-arch binaries (Docker CLI + Compose, PGDG `postgresql-client-16`, age + batchpass, cosign; cosign later dropped and Compose and age built from source, ADR 0071), size ≤ 1.0 GB — R1, R5, R6, E17, KTD8, KTD9 [unit + image contract journey, both archs]
+- [x] M9-T03 U2 Instance domain core: `DockerGateway` + CLI implementation, versioned `InstanceState`, `InstanceDirectory`, per-service `EnvFiles`, `InstanceLock` (container ID + start time), `OperationJournal`, `Supervisor`, `CommandResult` envelope, `ExitCode` (0–10; 1 = internal error, ADR 0066), Runtime boundary arch test, coverage 90 % for `app/Domain/Instance/` — R49, R50, R54, R55, R63, R69, KTD1–KTD7, KTD24, KTD25 [unit with RecordingDockerGateway; lock + journal first]
+- [x] M9-T04 U3 Compose renderer, env files, resource budget: local mode, capture mail to Mailpit, UUID labels, networks, limits within E16, runtime dir mount, no socket, no `RUN_MIGRATIONS`, strict renderer-input grammar — R9, R22, R63, E16, KTD6, KTD7, KTD11, KTD13 [unit + `docker compose config` in J1]
+- [x] M9-T05 U6 Sign-in links, non-interactive `app:install` (`--password-file`, passwordless owner mode, JSON), `fsa login-link` (hashed, ≤15 min, fragment + POST), operator grant, Horizon behind operator + `/platform` session, audit actor "cli" — R12, R26–R28, R50, KTD21, KTD25 [feature + E2E sign-in]
+- [x] M9-T06 U7 Release pipeline, manifest, harness: `release.yml` (buildx SBOM/provenance, cosign keyless, Trivy, anonymous pull; actionlint), `release:manifest` / `release:version` (ADR 0067) + schema, harness compose (`registry:3`, static release server, local signing key), Install test suite, CI linters, first `RELEASING.md`. Verified by building, signing and serving the harness release (the install itself is U5's J1) — R1–R4, R8, R52, E14, E18, KTD22, KTD23 [unit + harness journey]
+- [x] M9-T07 U4 `install.sh`, shim, host facts: function-wrapped POSIX script, manifest verification with the pinned cosign image and built-in identity (anchored regexp), harness-only `FSA_TRUST_KEY`, file-flag parent mounts, nonce check, browser hand-over (`FSA_OPEN_URL_FILE` instead of `open_url`, ADR 0070) — R7, R8, R58, KTD2, KTD22 [shellcheck + bootstrap journey]
+- [x] M9-T08 U5 Lifecycle commands, local mode: install (journaled, resumable, idempotent), doctor (incl. permissions, port probe), status (read-only), logs, version, uninstall (`--keep-backups`, `--orphans`) — R9–R15, R44, R45, R54, R63, R69, AE3–AE5, AE9 [feature + J1, J12]
+- [x] M9-T09 Gate M9: §15.6 (all gates, J1 + J12 on arm64 and amd64 under emulation, 75 E2E, demo transcripts, reviewer subagents, M9.md), build `2.0.0-alpha.1` locally, merge, tag `m9-done`, break down M10
+
+## M10 Modes → 2.0.0-alpha.2 (branch `m10-modes`)
+Order: T01 first (the app must resolve its URL, hosts and scheme from runtime state before edge and proxy
+modes can be tested); T02 and T03 in parallel worktrees (both extend the renderer); T04 last.
+- [ ] M10-T01 U10 Runtime state in the app: `App\Domain\Instance\Runtime` (RuntimeState, RuntimeUrl, OperationGate, TunnelPathPolicy; no ops imports, arch test), `ResolveInstanceRuntime` global middleware (expired tunnel host → 503 + Retry-After; gate → 503 except the per-operation smoke token from the internal network; tunnel peer → path policy, host only from runtime), `TrustedHosts::patterns()` + runtime hosts, URL root from the request origin for allow-listed hosts else the instance URL, `SecureTransport`/cookies per resolved scheme, `__Host-` session cookie in HTTPS modes, `JobProcessing` listener for queued jobs and notifications, mtime+inode+size cache, last-good fallback, fail-closed gate — R21, R56, R62 (app side), R65 (app side), KTD11, KTD12, KTD24 [feature tests incl. forged X-Forwarded-Host from the tunnel peer; no-op without the runtime dir]
+- [ ] M10-T02 U8 Edge service and domain mode: CaddyfileRenderer (structured, quoted), edge on the official Caddy image (non-root, NET_BIND_SERVICE, fixed address on an edge network = the only trusted proxy), ACME via `acme_ca`/`acme_ca_root` (Pebble + challtestsrv in the harness, `--acme-staging`), HTTPS redirect, 1.0 headers pass through, certificate volume kept across config changes, `/_mail/` behind `forward_auth` to `CatcherAuthController` (operator `/platform` session with MFA, audit `catcher_opened`, XFO/nosniff/CSP; fallback loopback-only if Mailpit's UI does not work behind it — verify first), `fsa install --domain` enabled (DNS preflight already in doctor) — R16, R66, F1, J2, KTD10 [unit + feature + J2 on arm64 and amd64 emulated]
+- [ ] M10-T03 U9 Proxy mode and stack file: `--behind-proxy` with Traefik labels, caddy-docker-proxy labels or a loopback port; only the app joins the shared external network; trust exactly the proxy's address (forged XFF from a neighbour container rejected); trusted hosts from `--url`; `distribution/stack/compose.stack.yaml` generated from the same renderer (env-only, limits documented, drift test) — R17, R18, J3 [unit + J3 with Traefik]
+- [ ] M10-T04 U11 `fsa config show|set` with apply, verify and revert: appliers for domain, port, URL and trusted proxies (mail comes in M11); validate → render state/env/runtime → apply → verify (health, certificate) → revert with `reverted: true` on failure; `config set domain` needs `--yes` and lists SSO organizations and signed links that change; `config show` redacts secrets and names outbound contacts; idempotent `changed:false`; audit `instance.config_changed` through a one-off — R31, R32, R54, KTD6, KTD26 [feature + journey local→domain switch and failed-ACME revert]
+- [ ] M10-T05 Gate M10: §15.6 (all gates, J2 + J3 (+ J1/J12 regression) on arm64 and amd64 emulated, E2E, reviewer subagents, M10.md), build `2.0.0-alpha.2` locally, merge, tag `m10-done`, break down M11
+
+## M11 Mail, data and phones → 2.0.0-beta.1 (branch `m11-mail-phones`)
+- [ ] M11-T01 U12 Capture-mode experience (banner variants, catcher, switch to SMTP) — J4
+- [ ] M11-T02 U13 Demo data and password rotation — J5 (demo part)
+- [ ] M11-T03 U14 Phone HTTPS: local CA with trust page, tunnel with expiry — J6
+- [ ] M11-T04 U15 E16 resource budget measurement — J10
+- [ ] M11-T05 Gate M11, build `2.0.0-beta.1`, break down M12
+
+## M12 Lifecycle → 2.0.0-rc.1 (branch `m12-lifecycle`)
+- [ ] M12-T01 U16 Backups (snapshot, HMAC, encryption, retention, backup service, `backup_runs`)
+- [ ] M12-T02 U17 Restore, drill, `--from-backup` — J8
+- [ ] M12-T03 U18 Upgrade supervisor and rollback — J7
+- [ ] M12-T04 U19 Adopt a 1.0 install — J9
+- [ ] M12-T05 U23 Reset — J5 (reset part)
+- [ ] M12-T06 Gate M12, build `2.0.0-rc.1`, break down M13
+
+## M13 Operability and release → 2.0.0 (branch `m13-release`)
+- [ ] M13-T01 U20 `/platform` instance page and update check
+- [ ] M13-T02 U21 Agent guide, docs rewrite, `RELEASING.md` completed — J11
+- [ ] M13-T03 U22 Dogfooding: E2E suite against an `fsa` instance, all journeys in CI
+- [ ] M13-T04 Gate M13, release 2.0.0 per §15.10 (local tag `v2.0.0`, FINAL_REPORT_V2.md, STATE "Run complete")

@@ -1,7 +1,13 @@
 {
-	frankenphp
+	# PHP thread pool from the generated compose file (E16, plan U3): FRANKENPHP_CONFIG="num_threads N".
+	# Unset (checkout installs, dev), FrankenPHP keeps its default of two threads per CPU.
+	frankenphp {
+		{$FRANKENPHP_CONFIG}
+	}
 	auto_https off
 	admin off
+	# Nothing to persist: the config comes from this file on every start (R6, ADR 0065).
+	persist_config off
 }
 
 {$SERVER_NAME::8080} {

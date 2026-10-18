@@ -27,7 +27,10 @@ return [
         'change' => 'Änderung',
     ],
     'filters' => ['from' => 'Von', 'until' => 'Bis', 'impersonated' => 'Durch Plattformbetreiber (Anmeldung als Mitglied)'],
-    'actor_types' => ['user' => 'Benutzer', 'system' => 'System', 'api_token' => 'API-Token', 'api_token_of' => ':name (API-Token)'],
+    'actor_types' => [
+        'user' => 'Benutzer', 'system' => 'System', 'api_token' => 'API-Token', 'api_token_of' => ':name (API-Token)',
+        'cli' => 'Kommandozeile', 'cli_uid' => 'Kommandozeile (Host-UID :uid)',
+    ],
     'empty' => 'Noch keine Audit-Einträge',
     'impersonation' => ['via' => 'über Plattformbetreiber :operator'],
     'values' => ['yes' => 'Ja', 'no' => 'Nein', 'hidden' => 'verborgen (vertraulich)'],
@@ -101,6 +104,7 @@ return [
         'group_id' => 'Gruppe',
         'guard' => 'Guard',
         'host' => 'Host',
+        'host_uid' => 'Host-UID (Kommandozeile)',
         'identity_provider_id' => 'SSO-Anbieter',
         'jit_enabled' => 'Just-in-time-Bereitstellung',
         'kind' => 'Art',
@@ -303,6 +307,10 @@ return [
             'impersonation_ended' => 'Identitätswechsel beendet',
             'admin_granted' => 'Plattform-Admin ernannt',
             'admin_revoked' => 'Plattform-Admin entzogen',
+        ],
+        'login_link' => [
+            'issued' => 'Einmal-Anmeldelink ausgestellt',
+            'used' => 'Einmal-Anmeldelink verwendet',
         ],
     ],
 ];

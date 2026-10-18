@@ -18,6 +18,14 @@ return [
     'name' => env('APP_NAME', 'form-schema-app'),
 
     /*
+    | Release version and VCS revision, baked into the image by the APP_VERSION and APP_REVISION build
+    | arguments (KTD9, ADR 0065). A checkout outside the image reports 0.0.0-dev.
+    */
+    'version' => env('APP_VERSION', '0.0.0-dev'),
+
+    'revision' => env('APP_REVISION', ''),
+
+    /*
     | Self-service organization registration on /admin (ADR 0004).
     */
     'allow_registration' => (bool) env('APP_ALLOW_REGISTRATION', false),

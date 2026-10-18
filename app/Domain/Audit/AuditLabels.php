@@ -40,9 +40,17 @@ final class AuditLabels
         return is_string($label) && $label !== $key ? $label : Str::headline($base);
     }
 
-    /** The causer's name (an erased account shows "Deleted user", translated), "System" or "<name> (API token)". */
+    /**
+     * The causer's name (an erased account shows "Deleted user", translated), "System", "<name> (API token)" or
+     * "Command line (host UID n)" for entries written for `fsa` (AuditLogger::cli()).
+     */
     public static function actor(Activity $activity): string
     {
+        if ($activity->actor_type === EnrichActivity::CLI && $activity->causer_id === null) {
+            $uid = $activity->properties?->get('host_uid');
+
+            return is_int($uid) ? (string) __('audit.actor_types.cli_uid', ['uid' => $uid]) : (string) __('audit.actor_types.cli');
+        }
         $causer = $activity->causer_id === null ? null : $activity->getRelationValue('causer');
         if (! $causer instanceof User) {
             return $activity->causer_id === null ? (string) __('audit.actor_types.system') : '#'.$activity->causer_id;

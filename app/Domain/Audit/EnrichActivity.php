@@ -18,6 +18,9 @@ use Spatie\Activitylog\Actions\LogActivityAction;
  */
 final class EnrichActivity extends LogActivityAction
 {
+    /** Actor type of entries written for the instance owner's command line (AuditLogger::cli()). */
+    public const string CLI = 'cli';
+
     protected function beforeActivityLogged(Model $activity): void
     {
         parent::beforeActivityLogged($activity);
@@ -95,6 +98,9 @@ final class EnrichActivity extends LogActivityAction
 
     private function actorType(Model $activity): string
     {
+        if ($activity->getAttribute('actor_type') === self::CLI && $activity->getAttribute('causer_id') === null) {
+            return self::CLI;
+        }
         if ($activity->getAttribute('causer_id') === null) {
             return 'system';
         }

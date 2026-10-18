@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Audit\AuditServiceProvider;
+use App\Domain\Instance\InstanceServiceProvider;
 use App\Domain\Privacy\PrivacyServiceProvider;
 use App\Providers\AppServiceProvider;
 use App\Providers\Filament\AdminPanelProvider;
@@ -22,4 +23,5 @@ return [
     WorkflowServiceProvider::class,
     AuditServiceProvider::class,
     PrivacyServiceProvider::class,
+    InstanceServiceProvider::class,
 ];

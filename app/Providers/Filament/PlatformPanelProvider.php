@@ -9,6 +9,7 @@ use App\Domain\Platform\Health\SchedulerHeartbeat;
 use App\Domain\Platform\Http\EnforceImpersonationWindow;
 use App\Domain\Platform\Http\ExitImpersonationController;
 use App\Domain\Platform\Listeners\EndImpersonationOnAuthChange;
+use App\Filament\AccessiblePlaceholders;
 use App\Filament\Platform\Http\AuthenticatePlatformOperator;
 use App\Filament\Platform\ImpersonationBanner;
 use App\Filament\Platform\Pages\Auth\Login;
@@ -59,6 +60,7 @@ class PlatformPanelProvider extends PanelProvider
             ], isRequired: true)
             ->brandName(fn (): string => __('platform.brand'))
             ->colors(['primary' => Color::Amber])
+            ->renderHook(PanelsRenderHook::STYLES_AFTER, AccessiblePlaceholders::styles(...)) // WCAG AA contrast
             ->defaultAvatarProvider(InitialsAvatarProvider::class)
             ->discoverResources(in: app_path('Filament/Platform/Resources'), for: 'App\Filament\Platform\Resources')
             ->discoverPages(in: app_path('Filament/Platform/Pages'), for: 'App\Filament\Platform\Pages')

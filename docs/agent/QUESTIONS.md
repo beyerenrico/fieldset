@@ -82,3 +82,76 @@ Format: question · chosen option · impact · how to reverse.
    admins who open v1 wait about a second; field workers on very slow links wait longer for the first load ·
    decide whether to retire v1 in 1.1 and which Field App load profile is binding; proposals in
    `docs/agent/milestones/evidence/M8/performance.md`.
+22. Phone HTTPS is demo-grade (E11, ADR 0057): whether Android trusts a user-installed CA for PWA installs is
+   unverified; quick tunnels have no uptime guarantee, allow 200 in-flight requests, have no SSE and route traffic
+   through Cloudflare (verified, developers.cloudflare.com) · both options off by default and mutually exclusive,
+   tunnel recommended on Android, 4-hour expiry, path policy on the tunnel host · a phone demo can fail on Android
+   with the local CA or drop mid-demo on the tunnel; the instance is reachable from the internet while a tunnel
+   runs · test one iOS and one Android device per `RELEASING.md`; if Android refuses the CA, document the tunnel as
+   the only Android path.
+23. The image size budget is at risk (E17, ADR 0063): the added binaries measure about 210–220 MB uncompressed
+   (cosign alone 126–134 MiB), double the plan's "about 100+ MB", so slimming must remove about 1.3 GB from
+   today's 2.12 GB · keep KTD8 (cosign in the image), slim first, measure in M9-T02 · a miss means slower pulls on
+   a small VPS and strains the "minutes" promise · stop embedding cosign and run the pinned official cosign image
+   through the ops container's socket (saves ~130 MB, R58 identity unchanged) with an ADR, or accept a larger
+   budget.
+   · Resolved: the budget held at 648 MB with cosign (ADR 0065); cosign was then dropped from the image for the
+   scan gate, and the image is now ~500 MB (507 MB arm64, 497 MB amd64; ADR 0071).
+24. The hardware floor is a target until J10 measures it (E16, ADR 0062; U15 in M11): Gotenberg OOMs are reported
+   on small hosts, and an upgrade or restore needs room for a safety backup, a second database and a second
+   storage volume on 20 GB · keep 2 vCPU / 2 GB / 20 GB, tune the limits, record a miss with numbers · owners on
+   the smallest VPS may see OOM kills, or upgrades refused for lack of space (exit 3) · raise the published floor
+   (e.g. 4 GB RAM, 40 GB disk) if J10 shows no headroom.
+25. The first public publish is irreversible (E4, E14, E18; ADRs 0050, 0060, 0064): a public GHCR package cannot
+   be made private again (verified, docs.github.com), and the signer identity (`beyerenrico/form-schema-app`,
+   `release.yml`, `v*` tags) is built into every shipped `install.sh` and image · publishing stays a human step
+   per `RELEASING.md`; the first publish is a pre-release that does not move `latest`, followed by the post-publish
+   checklist · a mistake in the first public package stays public; moving the repository or renaming the workflow
+   breaks verification for installed versions · review `RELEASING.md` and `release.yml` before the first tag
+   push; an identity change needs a new `install.sh` and image release with an upgrade note.
+26. Backups stay on the instance's host, and the encrypted-backup key is handed over once (E13, ADR 0059) ·
+   default as E13: daily, keep 7, in the instance directory; `/platform` shows that backups are held only on this
+   host · losing the disk or host loses the backups with the data; losing the identity file or its passphrase
+   makes encrypted backups unreadable · document copying backups off-host; build offsite targets (Appendix B) if
+   owners do not.
+27. (Open: confirm the exception policy.) The Trivy gate (plan U7: no fixable critical/high in the app image or
+   any third-party digest) failed at M9 on findings that no released upstream image fixes. App image: 34 HIGH in
+   the vendored cosign, Compose and age Go binaries. postgres: 1 CRITICAL + 24 HIGH (gosu). gotenberg: 87 HIGH.
+   caddy: 4 HIGH (reachable). cloudflared: 1 HIGH. valkey and mailpit were clean.
+   · Chosen (ADR 0071): what we build is scanned strictly. cosign leaves the image, and Compose and age are rebuilt
+   from their verified release tags with Go 1.27.2, which brings the app image to 0, with no exception file.
+   Third-party images get per-service, per-finding exceptions in `distribution/trivy/<service>.trivyignore.yaml`,
+   scoped by path or purl, each with a statement, expiring after 90 days (gosu: unreachable, upstream policy) or 30
+   days (gotenberg, caddy, cloudflared: fixed upstream, no image release yet). `release.yml` applies only the
+   image's own file and lists what it suppresses.
+   · Impact: releases pass the scan while caddy's 4 reachable Go findings and gotenberg's Chromium findings run in
+   production until a fixed image ships, at most 30 days. Expired entries fail the release again.
+   · To reverse: delete `distribution/trivy/` and the `--ignorefile` branch of `release.yml`'s scan loop; the gate
+   is then strict for every image again. Or shorten the expiry, or drop single entries (for example caddy's).
+28. (Resolved by ADR 0071.) fsa verifies release manifests with the pinned official cosign image, like install.sh
+   (ADR 0070), so the cosign binary in the app image (~130 MB of E17, ADR 0063/0065) had no user left.
+   · Chosen: dropped from `docker/app/Dockerfile`. The harness journey and `tests/Support/Docker/Cosign.php`
+   verify with the pinned image, and the image contract tests assert that cosign is absent. Offline use was no
+   reason to keep it: keyless verification needs Sigstore's TUF root either way.
+   · Impact: the image is 141 MB (arm64) and 150 MB (amd64) smaller, with 21 fewer Trivy findings, and one cosign
+   build to keep current instead of two.
+   · To reverse: restore cosign's release download (both architectures' checksums), its LICENSE in the `tools`
+   stage and its entry in `docker/app/binaries.json`, and revert the image contract assertions.
+29. A resumed install after the app_install phase issues a 15-minute admin sign-in link, not the 60-minute
+   owner link (U5, ADR 0072) · kept: `app:install` does not re-issue owner links · an owner whose first link
+   expired gets a shorter link on resume · make `app:install --owner-link` re-issue an owner link for an owner
+   without a password.
+30. `fsa uninstall` leaves the empty instance directory, because it is the ops container's bind mount ·
+   kept · an empty directory remains · let the shim `rmdir` it after a successful uninstall.
+31. (Mostly resolved by ADR 0073.) `fsa uninstall --orphans <uuid>` now accepts only UUIDs install reported as
+   orphans of this directory, refuses (exit 7 `orphans_live`) while any of their containers runs, and keeps
+   volumes that containers elsewhere still use · still open: no second confirmation beyond `--yes` · a mistaken
+   UUID from the install report could still remove a stopped instance's data · require the UUID to be typed
+   again (or `--yes-orphans`) if this proves risky.
+32. The final backup of `fsa uninstall --keep-backups` (ADR 0073) runs while app, queue and scheduler keep
+   running · kept: uninstall stops everything right after the backup · files written during the archive may be
+   missing from it · stop the app roles before the final backup once U16's quiesce step exists.
+33. Owner email and name in the state history and archived journals are HMAC digests keyed from APP_KEY
+   (APP_PREVIOUS_KEYS still match) · chosen to keep personal data out of host files · a future APP_KEY rotation
+   must keep the previous keys, or old digests stop matching · `config set` key rotation (later) must append to
+   APP_PREVIOUS_KEYS.

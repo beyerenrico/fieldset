@@ -1,0 +1,109 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Domain\Instance\Docker;
+
+/**
+ * The only way `fsa` reaches Docker (KTD1). Bound only inside an `fsa:*` command running in a marked instance
+ * directory (InstanceServiceProvider); web, queue and scheduler code must never depend on it (arch test).
+ *
+ * Mutating calls throw DockerCommandFailed on a non-zero exit and DockerUnavailable when the daemon or CLI is
+ * missing. `composeRun` and `runContainer` return the outcome instead, because one-offs and probes report
+ * through their exit code.
+ */
+interface DockerGateway
+{
+    public function versions(): DockerVersions;
+
+    /** The engine's view of the host: architecture, memory, rootless, clock (doctor). */
+    public function info(): DockerInfo;
+
+    /** @param  list<string>  $services  empty = all services */
+    public function composeUp(ComposeProject $project, array $services = [], ?int $waitTimeout = null, bool $removeOrphans = false): void;
+
+    /** @param  list<string>  $services  empty = all services */
+    public function composeStop(ComposeProject $project, array $services = [], ?int $timeout = null): void;
+
+    /** @param  list<string>  $services  empty = all stopped service containers */
+    public function composeRm(ComposeProject $project, array $services = [], bool $volumes = false): void;
+
+    public function composeDown(ComposeProject $project, bool $volumes = false): void;
+
+    /**
+     * A one-off container of a service (`compose run --rm -T`), e.g. migrate or app:install without the socket.
+     *
+     * @param  list<string>  $command
+     * @param  array<string, string>  $env  passed by name; values never appear in argv
+     */
+    public function composeRun(
+        ComposeProject $project,
+        string $service,
+        array $command = [],
+        array $env = [],
+        ?string $user = null,
+        ?string $input = null,
+        ?float $timeout = null,
+        bool $withDependencies = false,
+    ): ProcessOutcome;
+
+    /**
+     * A one-off like composeRun whose stdout streams into `$outputFile` (created exclusively, mode 0600) instead
+     * of memory: database dumps and volume archives. `$entrypoint` replaces the image's entrypoint.
+     *
+     * @param  list<string>  $command
+     * @param  array<string, string>  $env  passed by name; values never appear in argv
+     */
+    public function composeRunToFile(
+        ComposeProject $project,
+        string $service,
+        array $command,
+        string $outputFile,
+        array $env = [],
+        ?string $entrypoint = null,
+        ?float $timeout = null,
+    ): ProcessOutcome;
+
+    /** @param  list<string>  $services */
+    public function composeLogs(ComposeProject $project, array $services = [], ?string $since = null, ?int $tail = null): string;
+
+    /** @return list<ContainerInfo> every container of the project, running or not */
+    public function composePs(ComposeProject $project): array;
+
+    /** @return array<string, mixed> the normalized model (`compose config --format json`); throws when invalid */
+    public function composeConfig(ComposeProject $project): array;
+
+    /** @param  bool  $enginePlatform  the engine's own platform, whatever DOCKER_DEFAULT_PLATFORM says (ContainerSpec) */
+    public function pullImage(string $reference, bool $enginePlatform = false): void;
+
+    public function inspectImage(string $reference): ?ImageInfo;
+
+    public function inspectContainer(string $id): ?ContainerInfo;
+
+    /**
+     * @param  array<string, string|null>  $labels  a null value matches any value of that label
+     * @return list<ContainerInfo>
+     */
+    public function containers(array $labels, bool $all = true): array;
+
+    /**
+     * @param  array<string, string|null>  $labels
+     * @return list<DockerResource>
+     */
+    public function volumes(array $labels): array;
+
+    /**
+     * @param  array<string, string|null>  $labels
+     * @return list<DockerResource>
+     */
+    public function networks(array $labels): array;
+
+    /** `docker run` (detached: stdout holds the container ID). */
+    public function runContainer(ContainerSpec $spec, ?string $input = null, ?float $timeout = null): ProcessOutcome;
+
+    public function removeContainer(string $id, bool $force = true): void;
+
+    public function removeVolume(string $name): void;
+
+    public function removeNetwork(string $name): void;
+}

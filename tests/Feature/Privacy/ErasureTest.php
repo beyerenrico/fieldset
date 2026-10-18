@@ -8,6 +8,7 @@ use App\Domain\Identity\Enums\MembershipStatus;
 use App\Domain\Identity\Enums\SystemRole;
 use App\Domain\Identity\Enums\UserStatus;
 use App\Domain\Identity\Models\Device;
+use App\Domain\Identity\Models\LoginLink;
 use App\Domain\Identity\Models\Membership;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Tenancy\TenantContext;
@@ -100,15 +101,19 @@ it('is idempotent: erasing twice writes one audit entry', function (): void {
     expect(Activity::query()->where('event', 'privacy.user_erased')->count())->toBe(1);
 });
 
-it('removes pending password resets and mail sent to the erased address', function (): void {
+it('removes pending password resets, sign-in links and mail sent to the erased address', function (): void {
     $email = $this->s->worker->email;
     DB::table('password_reset_tokens')->insert(['email' => $email, 'token' => 'x', 'created_at' => now()]);
+    LoginLink::query()->create([
+        'user_id' => $this->s->worker->id, 'kind' => 'admin', 'token_hash' => str_repeat('a', 64), 'expires_at' => now()->addMinutes(15), 'created_by' => 'cli',
+    ]);
     $this->tenant->run($this->s->org, fn () => MailMessage::factory()->create(['recipient_email' => $email]));
 
     $this->tenant->run($this->s->org, fn () => app(EraseUser::class)->byAdmin($this->s->owner, $this->s->worker));
 
     expect(DB::table('password_reset_tokens')->where('email', $email)->exists())->toBeFalse()
-        ->and(DB::table('mail_messages')->where('recipient_email', $email)->exists())->toBeFalse();
+        ->and(DB::table('mail_messages')->where('recipient_email', $email)->exists())->toBeFalse()
+        ->and(LoginLink::query()->where('user_id', $this->s->worker->id)->exists())->toBeFalse();
 });
 
 it('refuses an admin erasure while the account has any membership elsewhere, also a deactivated one', function (): void {

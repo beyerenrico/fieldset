@@ -30,6 +30,13 @@ final class LoginAuditContext
         ]);
     }
 
+    /** A sign-in through a one-time sign-in link (ADR 0056): `method` = `login_link`, `kind` owner|admin. */
+    public static function loginLink(string $kind): void
+    {
+        Context::addHidden(self::METHOD, 'login_link');
+        Context::addHidden(self::DETAILS, ['kind' => $kind]);
+    }
+
     public static function method(): ?string
     {
         $method = Context::getHidden(self::METHOD);
