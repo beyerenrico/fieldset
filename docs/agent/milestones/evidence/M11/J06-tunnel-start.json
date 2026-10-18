@@ -65,47 +65,47 @@
         "secrets": [
             {
                 "name": "demo_password:owner@demo.test",
-                "value": "PJLqe98gFp7GOBuRhhEap0mX",
+                "value": "<redacted>",
                 "expires_at": null
             },
             {
                 "name": "demo_password:admin@demo.test",
-                "value": "PPQs3B7Y6t9eCPr5UdDR02yu",
+                "value": "<redacted>",
                 "expires_at": null
             },
             {
                 "name": "demo_password:designer@demo.test",
-                "value": "0tuYTT62GqtJzIhwy0P2nNYL",
+                "value": "<redacted>",
                 "expires_at": null
             },
             {
                 "name": "demo_password:reviewer@demo.test",
-                "value": "hRFjSdhhg1oKxpsnyO9TdTqK",
+                "value": "<redacted>",
                 "expires_at": null
             },
             {
                 "name": "demo_password:coordinator@demo.test",
-                "value": "2Z5OMEZHoHH507kVxlbo7ZiJ",
+                "value": "<redacted>",
                 "expires_at": null
             },
             {
                 "name": "demo_password:worker@demo.test",
-                "value": "j3tCYIY1bnVSY7teTFaXynTH",
+                "value": "<redacted>",
                 "expires_at": null
             },
             {
                 "name": "demo_password:mobile@demo.test",
-                "value": "jVuw7dWrdNUsSFaBn1PamHA3",
+                "value": "<redacted>",
                 "expires_at": null
             },
             {
                 "name": "demo_password:tablet@demo.test",
-                "value": "00H5s9O70XrfU6N6QNd1aGPn",
+                "value": "<redacted>",
                 "expires_at": null
             },
             {
                 "name": "demo_password:viewer@demo.test",
-                "value": "AgVHd9cau08LHBsKUYnvuE1N",
+                "value": "<redacted>",
                 "expires_at": null
             }
         ],
