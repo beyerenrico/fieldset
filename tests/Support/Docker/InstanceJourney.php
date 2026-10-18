@@ -46,10 +46,13 @@ final readonly class InstanceJourney
         return $this->process(['/bin/sh', $this->release->directory.'/install.sh', '--dir', $dir, '--version', (string) $this->release->version, ...$flags], $env);
     }
 
-    /** @param  list<string>  $arguments */
-    public function fsa(string $dir, array $arguments, array $env = []): Process
+    /**
+     * @param  list<string>  $arguments
+     * @param  string|null  $input  stdin of the shim (J4 pipes the SMTP password for --password-stdin)
+     */
+    public function fsa(string $dir, array $arguments, array $env = [], ?string $input = null): Process
     {
-        return $this->run([$dir.'/fsa', ...$arguments], $env);
+        return $this->run([$dir.'/fsa', ...$arguments], $env, $input);
     }
 
     /** @return array<string, mixed> the envelope: the last stdout line */
@@ -156,9 +159,10 @@ final readonly class InstanceJourney
     }
 
     /** @param  list<string>  $command */
-    private function run(array $command, array $env): Process
+    private function run(array $command, array $env, ?string $input = null): Process
     {
         $process = $this->process($command, $env);
+        $process->setInput($input);
         $process->run();
 
         return $process;
