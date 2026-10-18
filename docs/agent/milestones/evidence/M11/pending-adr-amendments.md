@@ -10,3 +10,11 @@ From U12 (merged, new ADR 0080):
 - 0069: `FSA_MAIL_CAPTURE` in the app-role env; `MP_SMTP_BIND_ADDR` for the kept catcher.
 - 0075: `/_mail/` stays while the catcher is kept.
 - 0076: the stack file has an overridable `FSA_MAIL_CAPTURE` (stack users set it false when configuring SMTP).
+From U14 (merged, new ADR 0082):
+- 0057: the app serves the trust page; cloudflared is untrusted; `config set phone-https local-ca` refuses while demo accounts have `password` (tunnel start rotates).
+- 0074: reverse the "list cloudflared in TRUSTED_PROXIES" consequence; the runtime directory also holds `local-ca-root.crt`.
+- 0075: the edge also renders in local-CA mode; `EdgeNetwork::choose` takes a pool; the tunnel network uses 10.215/16.
+- 0077/0078: new keys `phone-https` and `lan-address`; the tunnel cleanup runs before `config set`.
+- 0081: `app:demo-passwords --check` also returns `organizations {total, non_demo}`.
+- 0070/0072: the `tunnel` command, `--phone-https`, `--lan-address`, the doctor's `lan_address` check, `FSA_TEST_TUNNEL`.
+- 0069: the tunnel service with `restart: "no"`.

@@ -225,3 +225,10 @@
   `fsa config set mail smtp|capture` (password via stdin/file, test mail verify, revert with exit 5, catcher kept
   until --remove-catcher), `config set operator-email [--revoke-previous]`, `config show --catcher-login`. ADR 0080.
 - J04 9/9 native (383 s) and amd64 emulated (865 s), axe 3/3; Instance coverage 97.43 %. Gap: install --smtp-*.
+
+## 2026-10-18 M11-T03 phone HTTPS (U14)
+- Local CA (`--phone-https local-ca`, `--lan-address`, `config set phone-https|lan-address`), trust page served by
+  the app (plain HTTP + HTTPS, no session), `fsa tunnel start|stop|renew` with expiry cleanup, fake tunnel harness. ADR 0082.
+- cloudflared is not a trusted proxy (its X-Forwarded-Host made Symfony answer 400 before the host pin).
+- J06 12/12 native (646 s), amd64 emulated 10/12 then 12/12 (port-80 reset, unexplained); J01+J02 13/13;
+  Instance coverage 96.99 %. Interrupted once by the usage limit; resumed from the saved WIP.

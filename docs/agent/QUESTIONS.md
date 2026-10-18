@@ -184,3 +184,12 @@ Format: question · chosen option · impact · how to reverse.
    (mail is captured) · restrict to admins in CaptureModeBanner if preferred. `config set operator-email
    --revoke-previous` revokes every other operator · simplest safe meaning for a single-owner instance · an
    instance with several operators loses all but the new one · add `--revoke <email>` if needed.
+39. `fsa config set phone-https local-ca` refuses (exit 3) while demo accounts still have `password`, whereas
+   `fsa tunnel start` rotates them first (ADR 0082) · chosen because the local CA is a mode switch the operator
+   plans, the tunnel an ad-hoc exposure · inconsistent for agents · rotate in both cases if preferred. A failed and
+   reverted local-CA turn-on leaves its CA on the volume until the next `off` or uninstall · harmless (key never
+   leaves the volume) · delete it in the revert if preferred.
+40. cloudflared is not a trusted proxy (ADR 0082): all tunnel clients share its address for throttles and audit,
+   and what real cloudflared forwards (Host, `X-Forwarded-*`) is unverified (only the fake tunnel was used) ·
+   check on the RELEASING.md checklist with a real quick tunnel before 2.0.0 · tighten throttles per token if
+   shared limits bite.
