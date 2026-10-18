@@ -129,6 +129,14 @@ final readonly class InstanceJourney
         return new Client(['base_uri' => "http://localhost:{$port}", 'http_errors' => false, 'allow_redirects' => false, 'cookies' => true, 'timeout' => 30]);
     }
 
+    /** The milestone whose evidence directory journeys write to: FSA_EVIDENCE_MILESTONE (e.g. M10), default M9. */
+    public static function evidenceMilestone(): string
+    {
+        $milestone = getenv('FSA_EVIDENCE_MILESTONE');
+
+        return is_string($milestone) && preg_match('/^M\d{1,2}$/D', $milestone) === 1 ? $milestone : 'M9';
+    }
+
     /**
      * Writes a JSON transcript for the milestone evidence, with the workspace path and the registry port replaced and
      * secrets redacted (EvidenceRedactor: cookie values, XSRF tokens, CSP nonces, sign-in links (R50), signatures,
@@ -136,9 +144,9 @@ final readonly class InstanceJourney
      *
      * @param  array<string, mixed>  $transcript
      */
-    public function evidence(string $name, array $transcript, string $milestone = 'M9'): void
+    public function evidence(string $name, array $transcript, ?string $milestone = null): void
     {
-        $directory = TestImage::repository().'/docs/agent/milestones/evidence/'.$milestone;
+        $directory = TestImage::repository().'/docs/agent/milestones/evidence/'.($milestone ?? self::evidenceMilestone());
         if (! is_dir($directory)) {
             mkdir($directory, 0755, true);
         }

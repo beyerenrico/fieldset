@@ -205,3 +205,11 @@
   list, `instance.config_changed` audit via one-off. ADR 0077.
 - ConfigDomainSwitch 9/9 ×2 (local→domain 40 s, failed ACME reverts), J1/J2/J3 regressions green, full suite
   6002/6002, Instance coverage 98.03 %.
+
+## 2026-10-18 M10-T05 gate M10 → 2.0.0-alpha.2
+- Five reviewers: 2 high (config cert wait without progress/interruption safety; exit 4 retryable for every
+  revert) fixed in ADR 0078 (PHP loop with NDJSON per attempt, signal handlers revert, exit 5 rolled_back), plus
+  ~30 mediums/lows (runtime URL scheme/port, edge headers, CA-root label, isolated migrations, launcher flags,
+  config safety, drift check) in ADR 0079 and amendments.
+- Gate: PHP 6089 (cov 95.55 %, Instance 97.77 %), journeys 62 native + J1/J2/J3/J12 amd64, E2E 79/79 ×2, static
+  green. alpha.2 built, signed, installed, uninstalled (LocalPreRelease 7/7). M11 broken down.
