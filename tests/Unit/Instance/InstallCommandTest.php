@@ -216,7 +216,8 @@ it('exits 4 on a failed smoke test and resumes there with a fresh sign-in link',
         ->and($resumed['changed'])->toBeTrue()
         ->and($resumed['secrets'][0]['value'])->toBe(InstanceCommandFixture::ADMIN_LINK)
         ->and(array_column($since, 'method'))->not->toContain('composeUp')->not->toContain('pullImage')
-        ->and(array_values(array_map(static fn (array $call): string => $call['args']['command'][2] ?? '', array_filter($since, static fn (array $call): bool => $call['method'] === 'composeRun'))))->toBe(['identity:login-link'])
+        // the smoke test's PDF and mail one-offs run again with it (R11); nothing before the smoke phase does
+        ->and(array_values(array_map(static fn (array $call): string => $call['args']['command'][2] ?? '', array_filter($since, static fn (array $call): bool => $call['method'] === 'composeRun'))))->toBe(['instance:pdf-test', 'instance:mail-test', 'identity:login-link'])
         ->and($this->fixture->oneOffCalls('identity:login-link')[0]['command'])->toBe(['php', 'artisan', 'identity:login-link', '--actor-uid='.posix_getuid(), '--json', '--', 'owner@example.com'])
         ->and($this->fixture->directory->exists(OperationJournal::CURRENT))->toBeFalse();
 });

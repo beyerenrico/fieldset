@@ -9,7 +9,6 @@ use App\Domain\Instance\Config\ConfigKeys;
 use App\Domain\Instance\Config\ConfigRequest;
 use App\Domain\Instance\Config\ConfigSetter;
 use App\Domain\Instance\Config\ConfigShow;
-use App\Domain\Instance\Config\MailOptions;
 use App\Domain\Instance\Config\SmtpCredentials;
 use App\Domain\Instance\Install\AcmeCaRoot;
 use App\Domain\Instance\Output\CommandResult;
@@ -27,8 +26,9 @@ use Illuminate\Console\Attributes\Signature;
  * verify, and revert on failure (exit 5 `rolled_back`, `reverted: true`, ADR 0078; exit 8 when the revert fails too
  * and the instance is stopped). The same value again is `changed: false` without touching Docker.
  *
- * `config set mail smtp|capture` takes the SMTP flags; the password comes only from stdin (`--password-stdin`, or a
- * hidden prompt in a terminal) or a file (`--password-file`), never from a flag value (exit 2, SecretFlagGuard).
+ * `config set mail smtp|capture` takes the SMTP flags (SmtpInput, shared with `fsa install --smtp-*`); the password
+ * comes only from stdin (`--password-stdin`, or a hidden prompt in a terminal) or a file (`--password-file`), never
+ * from a flag value (exit 2, SecretFlagGuard).
  * `config set operator-email <email>` grants the operator role app-side (OperatorEmailApplier, ADR 0080).
  */
 #[Description('Show the settings (secrets redacted) or change one: fsa config show | fsa config set <key> <value>')]
@@ -54,13 +54,8 @@ use Illuminate\Console\Attributes\Signature;
         {--catcher-login : config show: add the mail catcher UI\'s password to secrets (local and proxy mode)}')]
 final class ConfigCommand extends FsaCommand
 {
-    /** Container key of a closure that returns stdin (tests); the real stdin otherwise. */
-    public const string STDIN = 'fsa.stdin';
-
-    /** Longest SMTP password read from stdin or a file (one more byte means it is too long). */
-    private const int MAX_SECRET_BYTES = 4096;
-
-    private const array MAIL_FLAGS = ['smtp-host', 'smtp-port', 'smtp-encryption', 'smtp-username', 'from-address', 'from-name', 'test-to'];
+    /** Container key of a closure that returns stdin (tests); the real stdin otherwise (SmtpInput). */
+    public const string STDIN = SmtpInput::STDIN;
 
     protected function perform(FsaContext $context): CommandResult
     {
@@ -111,6 +106,7 @@ final class ConfigCommand extends FsaCommand
         $ca = $this->option('acme-ca');
         $root = $this->option('acme-ca-root-file');
         $ca = is_string($ca) && $ca !== '' ? $ca : null;
+        $smtp = SmtpInput::fromCommand($this, $context);
         if ($this->option('acme-staging') === true) {
             if ($ca !== null) {
                 throw new InvalidInput('--acme-staging and --acme-ca exclude each other.', 'invalid_flag', 'Pass one of them: --acme-staging selects Let\'s Encrypt staging.');
@@ -124,87 +120,19 @@ final class ConfigCommand extends FsaCommand
             is_string($email) && $email !== '' ? $email : null,
             $ca,
             is_string($root) && $root !== '' ? AcmeCaRoot::read($root) : null,
-            $this->mailOptions(),
-            $this->credentials($key, $context),
+            $smtp->mailOptions(),
+            $this->credentials($key, $smtp, $context),
             $this->option('revoke-previous') === true,
         );
     }
 
-    /** The SMTP flags as typed, or null when none was given. */
-    private function mailOptions(): ?MailOptions
+    /** The SMTP user name and the password from stdin or a file (SmtpInput); read only for `config set mail`. */
+    private function credentials(string $key, SmtpInput $smtp, FsaContext $context): ?SmtpCredentials
     {
-        $value = fn (string $flag): ?string => is_string($this->option($flag)) && trim($this->option($flag)) !== '' ? trim($this->option($flag)) : null;
-        $given = array_filter(self::MAIL_FLAGS, static fn (string $flag): bool => $value($flag) !== null);
-        if ($given === [] && $this->option('remove-catcher') !== true) {
-            return null;
-        }
-
-        return new MailOptions($value('smtp-host'), $value('smtp-port'), $value('smtp-encryption'), $value('from-address'), $value('from-name'), $value('test-to'),
-            $this->option('remove-catcher') === true, $value('smtp-username') !== null);
-    }
-
-    /** The SMTP user name and the password from stdin or a file; read only for `config set mail`. */
-    private function credentials(string $key, FsaContext $context): ?SmtpCredentials
-    {
-        $username = $this->option('smtp-username');
-        $username = is_string($username) && trim($username) !== '' ? trim($username) : null;
-        $file = $this->option('password-file');
-        $file = is_string($file) && $file !== '' ? $file : null;
-        $stdin = $this->option('password-stdin') === true;
-        if ($file !== null && $stdin) {
-            throw new InvalidInput('--password-stdin and --password-file exclude each other.', 'invalid_flag', 'Pass the SMTP password one way.');
-        }
-        if ($key !== 'mail' && ($file !== null || $stdin)) {
+        if ($key !== 'mail' && $smtp->passwordSource() !== null) {
             throw new InvalidInput("The SMTP options do not apply to `config set {$key}`.", 'invalid_flag', '--password-stdin and --password-file belong to `config set mail smtp`.');
         }
-        $password = match (true) {
-            $file !== null => $this->readFile($file),
-            $stdin => $this->readStdin($context),
-            default => null,
-        };
-        if ($password !== null) {
-            $context->redactor->register($password);
-        }
 
-        return $username === null && $password === null ? null : new SmtpCredentials($username, $password);
-    }
-
-    private function readFile(string $path): string
-    {
-        $path = str_starts_with($path, '/') ? $path : getcwd().'/'.$path;
-        $content = is_file($path) && is_readable($path) ? file_get_contents($path, length: self::MAX_SECRET_BYTES + 1) : false;
-        if ($content === false) {
-            throw new InvalidInput('The file of --password-file cannot be read.', 'invalid_flag', 'Pass a readable file that holds only the password.');
-        }
-
-        return $this->passwordFrom($content);
-    }
-
-    private function readStdin(FsaContext $context): string
-    {
-        $reader = $this->laravel->bound(self::STDIN) ? $this->laravel->make(self::STDIN) : null;
-        if (is_callable($reader)) {
-            $content = $reader();
-        } elseif (! $context->json && function_exists('posix_isatty') && posix_isatty(STDIN)) {
-            $content = $this->secret('SMTP password');
-        } else {
-            $content = stream_get_contents(STDIN, self::MAX_SECRET_BYTES + 1);
-        }
-
-        return $this->passwordFrom(is_string($content) ? $content : '');
-    }
-
-    /** One trailing line break is dropped (`echo` adds it); anything longer than the limit is refused. */
-    private function passwordFrom(string $content): string
-    {
-        if (strlen($content) > self::MAX_SECRET_BYTES) {
-            throw new InvalidInput('The SMTP password is longer than 4096 bytes.', 'invalid_value', 'Pass the password alone.');
-        }
-        $password = (string) preg_replace('/\r?\n\z/', '', $content);
-        if ($password === '') {
-            throw new InvalidInput('No SMTP password arrived.', 'password_required', 'Pipe it on stdin (`printf %s "$PASS" | fsa config set mail smtp … --password-stdin`) or pass --password-file=<path>.');
-        }
-
-        return $password;
+        return $smtp->credentials($context);
     }
 }

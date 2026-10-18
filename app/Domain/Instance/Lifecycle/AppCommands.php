@@ -25,6 +25,9 @@ final readonly class AppCommands
     /** The test mail's one-off: the app boots, the SMTP dialogue (mail timeout) and its TLS handshake. */
     public const float MAIL_TEST_TIMEOUT = 120.0;
 
+    /** The test PDF's one-off: the app boots and Chromium in Gotenberg renders one page. */
+    public const float PDF_TEST_TIMEOUT = 120.0;
+
     public function __construct(private DockerGateway $docker) {}
 
     public function migrate(ComposeProject $project): ProcessOutcome
@@ -100,12 +103,19 @@ final readonly class AppCommands
     }
 
     /**
-     * Sends the test mail of `config set mail smtp` through the mailer the app env file now configures (ADR 0080). The
-     * recipient goes after `--to=` in one argument, so it can never be read as an option.
+     * Sends the test mail of `config set mail smtp` through the mailer the app env file now configures (ADR 0080), or with
+     * `$install` the install smoke test's (R11; `data.message_id`). The recipient goes after `--to=` in one argument, so
+     * it can never be read as an option.
      */
-    public function mailTest(ComposeProject $project, ?string $to): OneOffResult
+    public function mailTest(ComposeProject $project, ?string $to, bool $install = false): OneOffResult
     {
-        return $this->json($project, ['php', 'artisan', 'instance:mail-test', ...($to === null ? [] : ['--to='.$to]), '--json'], self::MAIL_TEST_TIMEOUT);
+        return $this->json($project, ['php', 'artisan', 'instance:mail-test', ...($to === null ? [] : ['--to='.$to]), ...($install ? ['--install'] : []), '--json'], self::MAIL_TEST_TIMEOUT);
+    }
+
+    /** Renders a one-page test PDF through Gotenberg, the install smoke test's PDF check (R11). */
+    public function pdfTest(ComposeProject $project): OneOffResult
+    {
+        return $this->json($project, ['php', 'artisan', 'instance:pdf-test', '--json'], self::PDF_TEST_TIMEOUT);
     }
 
     /** Invitations and password resets capture mode kept in the catcher (ADR 0080). */

@@ -4,13 +4,10 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Install;
 
+use App\Domain\Instance\Config\SmtpCredentials;
 use App\Domain\Instance\InstanceException;
-use App\Domain\Instance\LocalCa\LanAddress;
 use App\Domain\Instance\Output\ExitCode;
 use App\Domain\Instance\Output\InvalidInput;
-use App\Domain\Instance\Release\ReleaseException;
-use App\Domain\Instance\Release\ReleaseVersion;
-use App\Domain\Instance\State\InputGrammar;
 use Closure;
 
 /**
@@ -25,12 +22,14 @@ use Closure;
  * - `--demo` (R29, ADR 0081) is consumed by the `demo` phase; it is recorded as 1 when given.
  * - `--phone-https local-ca [--lan-address]` (R19, ADR 0082) is consumed by the doctor phase; `--phone-https tunnel`
  *   starts the quick tunnel once the install finished (InstallCommand).
+ * - `--smtp-*` (ADR 0080 amendment, InstallMail): the server flags are consumed by the doctor phase, the account (user
+ *   name and password, never journaled: `smtp_credentials` is 1) by the state phase.
  */
 final readonly class InstallRequest
 {
     public const array APP_FLAGS = ['organization', 'owner_email', 'owner_name', 'locale'];
 
-    public const array PREFLIGHT_FLAGS = ['version', 'port', 'domain', ...self::ACME_FLAGS, ...self::PROXY_FLAGS, ...self::PHONE_FLAGS];
+    public const array PREFLIGHT_FLAGS = ['version', 'port', 'domain', ...self::ACME_FLAGS, ...self::PROXY_FLAGS, ...self::PHONE_FLAGS, ...InstallMail::SERVER_FLAGS];
 
     /** Domain-mode inputs (U8): meaningless, and refused, without --domain. */
     public const array ACME_FLAGS = ['acme_email', 'acme_ca', 'acme_ca_root'];
@@ -55,7 +54,7 @@ final readonly class InstallRequest
         'version' => '--version', 'port' => '--port', 'domain' => '--domain',
         'acme_email' => '--acme-email', 'acme_ca' => '--acme-ca', 'acme_ca_root' => '--acme-ca-root-file',
         'proxy' => '--behind-proxy', 'url' => '--url', 'proxy_network' => '--proxy-network', 'trusted_proxy' => '--trusted-proxy',
-        'demo' => '--demo', 'phone_https' => '--phone-https', 'lan_address' => '--lan-address',
+        'demo' => '--demo', 'phone_https' => '--phone-https', 'lan_address' => '--lan-address', ...InstallMail::FLAGS,
     ];
 
     /** Command option => request key (the fsa wrapper passes --version as --release, ADR 0072). */
@@ -63,16 +62,15 @@ final readonly class InstallRequest
         'org' => 'organization', 'owner-email' => 'owner_email', 'owner-name' => 'owner_name', 'locale' => 'locale',
         'release' => 'version', 'port' => 'port', 'domain' => 'domain', 'acme-email' => 'acme_email', 'acme-ca' => 'acme_ca',
         'behind-proxy' => 'proxy', 'url' => 'url', 'proxy-network' => 'proxy_network', 'trusted-proxy' => 'trusted_proxy',
-        'phone-https' => 'phone_https', 'lan-address' => 'lan_address',
+        'phone-https' => 'phone_https', 'lan-address' => 'lan_address', ...InstallMail::OPTIONS,
     ];
-
-    private const int MAX_NAME = 120;
 
     /**
      * @param  array<string, string|int>  $explicit  request key => validated value
      * @param  string|null  $caRoot  the PEM of `--acme-ca-root-file` (its SHA-256 is the `acme_ca_root` value)
+     * @param  SmtpCredentials|null  $smtp  the SMTP account given in this run (`smtp_credentials` is 1 then)
      */
-    private function __construct(private array $explicit, private ?string $caRoot = null) {}
+    private function __construct(private array $explicit, private ?string $caRoot = null, private ?SmtpCredentials $smtp = null) {}
 
     /**
      * @param  array<string, mixed>  $options  command options by name
@@ -95,13 +93,13 @@ final readonly class InstallRequest
     /** @throws InvalidInput */
     public function with(string $key, string $value): self
     {
-        return new self([...$this->explicit, $key => $this->validate($key, trim($value))], $this->caRoot);
+        return new self([...$this->explicit, $key => InstallInputs::validate($key, trim($value))], $this->caRoot, $this->smtp);
     }
 
     /** `--demo`: the demo organization, forms, workflow and users after the stack started (R29). */
     public function withDemo(): self
     {
-        return new self([...$this->explicit, 'demo' => 1], $this->caRoot);
+        return new self([...$this->explicit, 'demo' => 1], $this->caRoot, $this->smtp);
     }
 
     public function demo(): bool
@@ -112,7 +110,19 @@ final readonly class InstallRequest
     /** The custom ACME CA root (validated PEM, AcmeCaRoot): recorded as its SHA-256, written by the state phase. */
     public function withCaRoot(string $pem): self
     {
-        return new self([...$this->explicit, 'acme_ca_root' => hash('sha256', $pem)], $pem);
+        return new self([...$this->explicit, 'acme_ca_root' => hash('sha256', $pem)], $pem, $this->smtp);
+    }
+
+    /** `--smtp-username` with the password from stdin or a file (validated by MailValues). */
+    public function withSmtpCredentials(SmtpCredentials $credentials): self
+    {
+        return new self([...$this->explicit, 'smtp_credentials' => 1], $this->caRoot, $credentials);
+    }
+
+    /** The SMTP account given in this run; null without one, and on a resume without the flags. */
+    public function smtpCredentials(): ?SmtpCredentials
+    {
+        return $this->smtp;
     }
 
     /** The PEM given with --acme-ca-root-file in this run; null on a resume without the flag. */
@@ -151,7 +161,7 @@ final readonly class InstallRequest
             static fn (mixed $value): bool => is_string($value) || is_int($value),
         );
 
-        return new self([...$known, ...$this->explicit], $this->caRoot);
+        return new self([...$known, ...$this->explicit], $this->caRoot, $this->smtp);
     }
 
     /**
@@ -307,6 +317,8 @@ final readonly class InstallRequest
             'demo' => $this->demo() ? 1 : null,
             'phone_https' => $this->phoneHttps(),
             'lan_address' => $this->lanAddress(),
+            ...array_fill_keys(array_keys(InstallMail::FLAGS), null),
+            ...array_intersect_key($this->explicit, InstallMail::FLAGS),
         ];
     }
 
@@ -320,78 +332,5 @@ final readonly class InstallRequest
         $value = $this->explicit[$key] ?? null;
 
         return is_string($value) ? $value : throw new InstanceException("The install has no value for {$key}.");
-    }
-
-    /** @throws InvalidInput */
-    private function validate(string $key, string $value): string|int
-    {
-        $flag = self::FLAGS[$key] ?? throw new InstanceException("Unknown install input [{$key}].");
-        $value = $key === 'url' ? strtolower(rtrim($value, '/')) : $value;
-        $valid = match ($key) {
-            'organization', 'owner_name' => $value !== '' && mb_strlen($value) <= self::MAX_NAME && preg_match('/[\x00-\x1F\x7F]/u', $value) !== 1 && preg_match('//u', $value) === 1,
-            'owner_email' => InputGrammar::isEmail(strtolower($value)),
-            'locale' => in_array($value, self::LOCALES, true),
-            'port' => ctype_digit($value) && InputGrammar::isPort((int) $value),
-            'version' => $this->isVersion($value),
-            'acme_email' => InputGrammar::isEmail(strtolower($value)),
-            'acme_ca' => InputGrammar::isHttpsUrl($value),
-            'acme_ca_root' => preg_match('/^[0-9a-f]{64}$/D', $value) === 1,
-            'proxy' => in_array($value, InputGrammar::PROXIES, true),
-            'url' => $this->isProxyUrl($value),
-            'proxy_network' => InputGrammar::isDockerName($value),
-            'trusted_proxy' => InputGrammar::isIp($value) || InputGrammar::isDockerName($value),
-            'phone_https' => in_array($value, InputGrammar::PHONE_HTTPS, true),
-            'lan_address' => LanAddress::usable($value),
-            default => InputGrammar::isHost(strtolower($value)) && ! InputGrammar::isIp($value) && str_contains($value, '.'),
-        };
-        if (! $valid) {
-            throw new InvalidInput("Invalid value for {$flag}.", 'invalid_flag', $this->hint($key));
-        }
-
-        return match ($key) {
-            'port' => (int) $value,
-            'owner_email', 'domain', 'acme_email' => strtolower($value),
-            default => $value,
-        };
-    }
-
-    /** An http(s) origin: routing under a path prefix is not supported (ADR 0074), so no path but `/`. */
-    private function isProxyUrl(string $value): bool
-    {
-        $path = parse_url($value, PHP_URL_PATH);
-
-        return InputGrammar::isUrl($value) && in_array($path, [null, '', '/'], true);
-    }
-
-    private function isVersion(string $value): bool
-    {
-        try {
-            ReleaseVersion::parse($value);
-
-            return true;
-        } catch (ReleaseException) {
-            return false;
-        }
-    }
-
-    private function hint(string $key): string
-    {
-        return match ($key) {
-            'organization', 'owner_name' => 'Use at most 120 characters without line breaks.',
-            'owner_email' => 'Pass an e-mail address such as owner@example.com.',
-            'locale' => 'Use de or en.',
-            'port' => 'Use a port number between 1 and 65535.',
-            'version' => 'Use a release version such as 2.0.0 or 2.0.0-rc.1.',
-            'acme_email' => 'Pass an e-mail address such as ops@example.com.',
-            'acme_ca' => 'Pass the https URL of an ACME directory, such as https://acme-v02.api.letsencrypt.org/directory.',
-            'acme_ca_root' => 'Pass a PEM file with the CA certificate of the ACME directory.',
-            'proxy' => 'Use traefik, caddy (caddy-docker-proxy) or port.',
-            'url' => 'Use the public URL your proxy serves, such as https://forms.example.com (no path, query or credentials).',
-            'proxy_network' => 'Use the name of the Docker network your proxy is attached to (docker network ls).',
-            'trusted_proxy' => 'Use the proxy container\'s name or its IP address on that network.',
-            'phone_https' => 'Use local-ca (the instance\'s own CA on your LAN address) or tunnel (a quick tunnel through Cloudflare).',
-            'lan_address' => 'Use the IPv4 address of this machine in your LAN, such as 192.168.1.20 (not 127.0.0.1 and not an IPv6 address).',
-            default => 'Use a domain name such as forms.example.com.',
-        };
     }
 }

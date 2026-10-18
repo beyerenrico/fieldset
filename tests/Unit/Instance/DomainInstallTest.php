@@ -56,6 +56,8 @@ function domainRun(object $test, ContainerSpec $spec): ?ProcessOutcome
     $url = $spec->command[array_key_last($spec->command)] ?? '';
 
     return match (true) {
+        // the smoke test's lookup of its test mail in the catcher (R11), under the domain-mode webroot
+        str_starts_with($url, 'http://mailpit:8025/_mail/api/v1/messages') => InstanceCommandFixture::catcherLookup($spec),
         str_starts_with($url, 'https://forms.example.com') => $test->https ?? new ProcessOutcome(0, '200'),
         str_starts_with($url, 'http://forms.example.com') => new ProcessOutcome(0, '308 https://forms.example.com/up'),
         default => new ProcessOutcome(0, "200 http://app:8080/up\n"),

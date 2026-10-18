@@ -35,7 +35,8 @@ use Carbon\CarbonImmutable;
  * doctor (verify the release, preflight, choose ports, refuse foreign projects) → secrets → state (and the
  * rendered files) → pull → up (Postgres and Valkey) → migrate (one-off) → app_install (one-off: organization,
  * owner, operator role, owner link) → start (the whole stack, `up --wait`) → [demo (one-off: demo data, R29, ADR 0081)]
- * → smoke → done.
+ * → smoke (HTTP, a PDF render and a test mail: InstallSmoke) → done. With --smtp-host the instance starts in SMTP mode
+ * without the catcher; the SMTP account reaches only the env files of the state phase (InstallMail).
  *
  * A failure in the doctor phase changes nothing (exit 3/7/10, journal archived). A later failure leaves the
  * journal open (exit 4 for health, 3 for pulls): the same command resumes after the last completed phase with the
@@ -57,7 +58,7 @@ final readonly class Installer
         private InstallPreflight $preflight,
         private InstanceStack $stack,
         private AppCommands $app,
-        private SmokeTest $smoke,
+        private InstallSmoke $smoke,
         private ProxySetup $proxy,
         private DemoData $demo,
     ) {}
@@ -120,7 +121,7 @@ final readonly class Installer
         $run->phase('state', function () use ($preflight, $context, $request): array {
             $this->writeAcmeCaRoot($request);
 
-            return $this->stack->writeState($preflight, $context->facts);
+            return $this->stack->writeState($preflight, $context->facts, $request->smtpCredentials());
         });
         $state = $this->directory->state();
         $project = ComposeProject::forInstance($state, $this->directory);
@@ -136,7 +137,7 @@ final readonly class Installer
         $run->phase('start', fn (): array => $this->stack->up($project, []), maxSeconds: InstanceStack::WAIT_SECONDS);
         // The demo phases run again on a resume (idempotent); passwords an interrupted attempt never showed are reissued.
         [$demo, $demoWarnings] = $request->demo() ? $this->demo->provide($run, $project, $context->facts->callerUid(), reissue: true) : [null, []];
-        $run->phase('smoke', fn (): array => $this->smoke->run($state, $project, $context->progress), changes: false, maxSeconds: SmokeTest::maxSeconds($state));
+        $run->phase('smoke', fn (): array => $this->smoke->run($state, $project, $request->ownerEmail(), $context->progress), changes: false, maxSeconds: InstallSmoke::maxSeconds($state));
         $warnings = ($installed['already_installed'] ?? false) === true
             ? [['app_already_installed', 'The database already held an organization: --org, --owner-email, --owner-name and --locale were not applied.', 'Change them in the admin panel; the sign-in link goes to the owner given here.'], ...$demoWarnings]
             : $demoWarnings;
@@ -245,7 +246,8 @@ final readonly class Installer
         $state = $this->directory->state();
         $digest = RecordDigest::fromEnvFiles(new EnvFiles($this->directory));
         $trusted = fn (string $given): bool => $this->proxy->isTrusted($state, $given);
-        $changed = $request->changedFlags(InstallRecord::applied($state), InstallRecord::comparator($digest, $trusted));
+        $equals = InstallMail::comparator($request->smtpCredentials(), InstallMail::stored($this->directory), InstallRecord::comparator($digest, $trusted));
+        $changed = $request->changedFlags(InstallRecord::applied($state), $equals);
         if ($changed !== []) {
             throw new InvalidInput(
                 'This instance is installed; '.implode(', ', $changed).' differ from its installation. fsa install changes nothing on an installed instance.',
@@ -268,7 +270,7 @@ final readonly class Installer
         $applied = [];
         if ($record->hasCompleted('doctor')) {
             $doctor = $record->phaseData('doctor');
-            $applied = ['version' => $doctor['version'] ?? null, 'port' => $doctor['port'] ?? null, ...InstallMode::applied($doctor)];
+            $applied = ['version' => $doctor['version'] ?? null, 'port' => $doctor['port'] ?? null, ...InstallMode::applied($doctor), ...InstallMail::applied($doctor)];
             foreach (InstallRequest::PROXY_FLAGS as $key) {
                 $applied[$key] = is_string($recorded[$key] ?? null) ? $recorded[$key] : null;
             }
@@ -278,7 +280,8 @@ final readonly class Installer
                 $applied[$key] = is_string($recorded[$key] ?? null) ? $recorded[$key] : null;
             }
         }
-        $changed = $request->changedFlags($applied);
+        $stateWritten = $record->hasCompleted('state'); // the SMTP account is in the env files from here on
+        $changed = $request->changedFlags($applied + ($stateWritten ? ['smtp_credentials' => null] : []), InstallMail::comparator($request->smtpCredentials(), InstallMail::stored($this->directory)));
         if ($changed !== []) {
             throw new InvalidInput(
                 'The interrupted install already applied '.implode(', ', $changed).' with other values.',
@@ -286,8 +289,10 @@ final readonly class Installer
                 'Run `fsa install` again with the values of the first run (or without these flags) to resume, or `fsa uninstall --yes` to start over.',
             );
         }
+        $request = $request->over($recorded);
+        InstallMail::assertAccountKnown($request, $stateWritten);
 
-        return $request->over($recorded);
+        return $request;
     }
 
     /** Domain-mode flags need --domain; the loopback port belongs to local mode (exit 2). */

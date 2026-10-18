@@ -173,3 +173,31 @@ internal-error code of ADR 0066).
   `last_backup`.
 - Port probes leave no container behind (Docker removes a `--rm` container whose start failed; uninstall sweeps
   by label anyway).
+
+## Amendment 2026-10-18: PDF render and test mail in the install smoke test (R11)
+U12 did not add them (the smoke path above and the U12 consequence promised it); M11-T05 does. The `smoke` phase of
+`fsa install` now runs `Install\InstallSmoke`: SmokeTest's HTTP checks unchanged (`/up`, `/admin/login`, Gotenberg's
+`/health`, the edge or the local CA), then, each in a socket-less one-off of the app role (KTD25):
+- **PDF** — `instance:pdf-test` renders one page through the app's own `GotenbergClient` (the path every rendition takes,
+  over the internal renderer network) and checks that the answer starts with `%PDF-`. Failure: exit 4
+  `pdf_render_failed`, retryable, `data.output` with the one-off's message.
+- **Mail** — `instance:mail-test --to=<owner> --install` sends a test mail synchronously through the instance mailer:
+  into the bundled catcher in capture mode, through the server of `--smtp-host` in SMTP mode (ADR 0080 amendment). The
+  install variant has its own wording (`capture.test_mail.install_capture|install_smtp`, DE/EN; the subject is the
+  `config set mail` one) and its own Message-ID (`<32 hex>@<sender domain>`, `data.message_id`). Refused: exit 4
+  `test_mail_failed`, retryable. In capture mode a throwaway `curl` container of the app image on `<project>_default`
+  (label role `smoke`) then asks `http://mailpit:8025/api/v1/messages?limit=50` (`/_mail/api/…` in domain mode,
+  MP_WEBROOT) for that Message-ID: Mailpit's message summaries carry `MessageID` (verified against the Mailpit API
+  reference, Context7 /axllent/mailpit, 2026-10-18); the list was preferred over `/api/v1/search?query=message-id:…`,
+  which exists too, to depend on no search grammar. The catcher login reaches curl as `--config -` on stdin, never on a
+  command line. Up to 5 lookups, 1 s apart; then exit 4 `test_mail_not_captured`, retryable.
+- Every failure leaves the journal open at `smoke`, like `smoke_failed`; a resume runs the whole smoke test again (and
+  sends another test mail). The phase's maximum grows by 120 s (PDF), 120 s (mail) and, in capture mode, 5 × 31 s.
+- The owner's address stays out of exception messages (journaled by `failPhase`) and phase data (archived journals
+  replace only the `owner_email`/`owner_name` keys); a one-off's error output names it `<owner-email>`.
+- **Install only.** `fsa config set` verifies with SmokeTest alone (phase `verify`): a settings change neither renders
+  nor mails, so an operator does not get a test mail for every port or domain change, and `config set mail smtp` keeps
+  its own test mail (ADR 0080). Rejected: the same checks in `verify` (mail noise, and 2–4 more one-off containers in
+  every rollback window).
+- Verified by `tests/Unit/Instance/InstallSmokeTest.php`, `tests/Feature/Instance/InstallSmokeCommandsTest.php`, and
+  J4 (the capture install's test mail in the catcher; an SMTP install's at a stand-in server).

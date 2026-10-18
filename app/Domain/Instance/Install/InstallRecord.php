@@ -102,6 +102,8 @@ final class InstallRecord
             // phone HTTPS as it is now (`config set phone-https`, `fsa tunnel`; ADR 0082)
             'phone_https' => $settings->phoneHttps(),
             'lan_address' => $settings->localCa() ? $settings->lanAddress() : null,
+            // mail as it is now (`config set mail`, ADR 0080); the SMTP account is compared with the env files
+            ...InstallMail::installed($state),
         ];
     }
 

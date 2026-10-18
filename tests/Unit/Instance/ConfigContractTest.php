@@ -95,6 +95,7 @@ it('warns about Let\'s Encrypt staging after a domain install', function (): voi
     $fixture->docker->respondToRun(fn (ContainerSpec $spec): ?ProcessOutcome => match (true) {
         $spec->entrypoint === 'true' => new ProcessOutcome(0),
         $spec->entrypoint !== 'curl' => null,
+        InstanceCommandFixture::catcherLookup($spec) instanceof ProcessOutcome => InstanceCommandFixture::catcherLookup($spec),
         str_starts_with((string) $spec->command[array_key_last($spec->command)], 'http://forms') => new ProcessOutcome(0, '308 https://forms.example.com/up'),
         default => new ProcessOutcome(0, "200 http://app:8080/up\n"),
     });
