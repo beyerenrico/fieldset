@@ -14,7 +14,18 @@ use App\Domain\Instance\Output\ExitCode;
  * dockerd/containerd and one shim per container) must hold the worst case of every limit together: domain mode
  * with capture mail, the edge and the backup service (U8, U16) included. Edge and tunnel never run together
  * (R61), so they share one slot. Larger sizes scale Horizon processes, Gotenberg concurrency and FrankenPHP
- * threads. The numbers are initial estimates; U15 measures them under a 2 GB envelope and tunes this table.
+ * threads.
+ *
+ * `small` is measured (J10, ADR 0083: two pinned CPUs, the 1.0 test volume). Peak memory that reclaim cannot free
+ * (anonymous plus shared, cgroup memory.stat): app 353 MiB (one classic-builder request), queue 369 with one default
+ * Horizon worker (five PHP processes of about 57 MiB each at rest), scheduler 176 (schedule:work + schedule:run + one
+ * command, CLI without OPcache), Gotenberg 275 for a 10-page PDF, Postgres 96–123 while loading data (its shared
+ * buffers grow with the limit), Valkey 6, Mailpit 10, edge 17. Each slot holds its peak with about 30 MiB or more to
+ * spare; beyond that Postgres only gains page cache, which speeds up reports, whereas a killed worker loses its job and
+ * a killed Postgres backend sends the server into crash recovery (data safety before speed). The backup slot
+ * (U16) keeps its estimate, and Mailpit keeps 48: amd64 Mailpit under emulation needs about 60 MiB plus its health
+ * check (doubled limit, ADR 0070). `medium` and `large` are not measured; their scheduler slot carries the measured
+ * need, which does not grow with the size.
  */
 final readonly class ResourceBudget
 {
@@ -33,15 +44,15 @@ final readonly class ResourceBudget
         'small' => [
             'host' => 2048, 'headroom' => 320,
             'limits' => [
-                'app' => 384, 'queue' => 320, 'scheduler' => 128, 'postgres' => 256, 'redis' => 80,
-                'gotenberg' => 320, 'mailpit' => 48, 'edge' => 64, 'tunnel' => 64, 'backup' => 128,
+                'app' => 384, 'queue' => 400, 'scheduler' => 208, 'postgres' => 160, 'redis' => 48,
+                'gotenberg' => 304, 'mailpit' => 48, 'edge' => 48, 'tunnel' => 48, 'backup' => 128,
             ],
-            'horizon' => 2, 'threads' => 4, 'chromium' => 1, 'pg_connections' => 40, 'mail_messages' => 500,
+            'horizon' => 1, 'threads' => 4, 'chromium' => 1, 'pg_connections' => 40, 'mail_messages' => 500,
         ],
         'medium' => [
             'host' => 4096, 'headroom' => 512,
             'limits' => [
-                'app' => 704, 'queue' => 704, 'scheduler' => 192, 'postgres' => 640, 'redis' => 160,
+                'app' => 704, 'queue' => 704, 'scheduler' => 256, 'postgres' => 640, 'redis' => 160,
                 'gotenberg' => 640, 'mailpit' => 64, 'edge' => 96, 'tunnel' => 96, 'backup' => 192,
             ],
             'horizon' => 4, 'threads' => 8, 'chromium' => 2, 'pg_connections' => 60, 'mail_messages' => 1000,
@@ -151,7 +162,9 @@ final readonly class ResourceBudget
     }
 
     /**
-     * Small-host Postgres settings derived from its limit: a quarter for shared buffers, an eighth for maintenance.
+     * Small-host Postgres settings derived from its limit: a quarter for shared buffers, an eighth for maintenance,
+     * work_mem never below Postgres' own default of 4 MB (report aggregates spill to disk below it; a small host has
+     * few concurrent queries, ADR 0083).
      *
      * @return array<string, string>
      */
@@ -163,7 +176,7 @@ final readonly class ResourceBudget
             'shared_buffers' => intdiv($limit, 4).'MB',
             'effective_cache_size' => intdiv($limit * 3, 4).'MB',
             'maintenance_work_mem' => intdiv($limit, 8).'MB',
-            'work_mem' => max(2, intdiv($limit, 64)).'MB',
+            'work_mem' => max(4, intdiv($limit, 64)).'MB',
             'max_connections' => (string) $this->profile['pg_connections'],
         ];
     }

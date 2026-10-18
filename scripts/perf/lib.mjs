@@ -1,7 +1,14 @@
 // Shared helpers for the performance scripts (M8-T05). Run them with Node 24 against the Docker stack
 // (http://localhost:8080 by default, PERF_BASE_URL to override); Playwright drives a real Chromium.
 // Results land in storage/agent-logs/perf (git-ignored) unless PERF_OUT_DIR says otherwise.
-import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
+//
+// An `fsa` instance (J10, plan U15) needs four more settings, all optional and unset for the dev stack:
+// - PERF_PASSWORDS_FILE: an `fsa --secrets-file` document; `demo_password:<email>` entries override PERF_PASSWORD;
+// - PERF_CHROMIUM_ARGS: a JSON array of extra Chromium flags (host resolver rules, trusted SPKI hashes);
+// - PERF_RESOLVE: `host:port:address` (curl's --resolve) for requests made from Node;
+// - PERF_CA_FILE: a PEM file Node trusts for those requests (the test CA of the instance's certificate).
+import { mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
+import { request as httpsRequest, Agent } from 'node:https';
 import { loadavg } from 'node:os';
 import { resolve } from 'node:path';
 
@@ -13,6 +20,52 @@ export const OUT_DIR = resolve(process.env.PERF_OUT_DIR ?? 'storage/agent-logs/p
 export const STATE_DIR = resolve(OUT_DIR, 'auth');
 export const PASSWORD = process.env.PERF_PASSWORD ?? 'password';
 mkdirSync(STATE_DIR, { recursive: true });
+
+const PASSWORDS = (() => {
+    const file = process.env.PERF_PASSWORDS_FILE ?? '';
+    if (file === '') return {};
+    const secrets = JSON.parse(readFileSync(file, 'utf8')).secrets ?? [];
+    return Object.fromEntries(
+        secrets.filter((s) => String(s.name).startsWith('demo_password:')).map((s) => [s.name.slice('demo_password:'.length), s.value]),
+    );
+})();
+
+/** The password of a user: the instance's printed demo password when PERF_PASSWORDS_FILE has one, else PASSWORD. */
+export function passwordFor(email) {
+    return PASSWORDS[email] ?? PASSWORD;
+}
+
+const CHROMIUM_ARGS = JSON.parse(process.env.PERF_CHROMIUM_ARGS ?? '[]');
+const [RESOLVE_HOST, RESOLVE_PORT, RESOLVE_ADDRESS] = (process.env.PERF_RESOLVE ?? '').split(':');
+const NODE_AGENT = new Agent({
+    keepAlive: true,
+    ...(process.env.PERF_CA_FILE ? { ca: readFileSync(process.env.PERF_CA_FILE) } : {}),
+    ...(RESOLVE_ADDRESS
+        ? { lookup: (host, options, callback) => (options.all ? callback(null, [{ address: RESOLVE_ADDRESS, family: 4 }]) : callback(null, RESOLVE_ADDRESS, 4)) }
+        : {}),
+});
+
+/**
+ * GET from Node: global fetch for the dev stack, node:https with PERF_RESOLVE / PERF_CA_FILE (keep-alive, like fetch)
+ * when the base URL is a test domain that only the instance's edge answers. Resolves to { status, body, headers }.
+ */
+export async function nodeGet(url, headers) {
+    const target = new URL(url);
+    if (target.protocol !== 'https:' || target.hostname !== RESOLVE_HOST) {
+        const response = await fetch(url, { headers });
+        return { status: response.status, body: await response.text(), headers: Object.fromEntries(response.headers) };
+    }
+    return new Promise((done, fail) => {
+        const request = httpsRequest({ host: target.hostname, port: Number(target.port || RESOLVE_PORT || 443), path: target.pathname + target.search, headers, agent: NODE_AGENT }, (response) => {
+            const chunks = [];
+            response.on('data', (chunk) => chunks.push(chunk));
+            response.on('end', () => done({ status: response.statusCode ?? 0, body: Buffer.concat(chunks).toString('utf8'), headers: response.headers }));
+            response.on('error', fail);
+        });
+        request.on('error', fail);
+        request.end();
+    });
+}
 
 /** Nearest-rank percentile of an ascending list. */
 export function percentile(sorted, p) {
@@ -50,7 +103,7 @@ export function printTable(rows, columns) {
 }
 
 export async function launch(options = {}) {
-    return chromium.launch({ headless: true, ...options });
+    return chromium.launch({ headless: true, ...options, args: [...CHROMIUM_ARGS, ...(options.args ?? [])] });
 }
 
 /**
@@ -80,7 +133,7 @@ export async function adminContext(browser, email, contextOptions = {}) {
         await next.click();
         await password.waitFor();
     }
-    await password.fill(PASSWORD);
+    await password.fill(passwordFor(email));
     await page.getByRole('button', { name: /^\s*(sign in|anmelden)\s*$/i }).click();
     await page.waitForURL((url) => /^\/admin\/[a-z0-9-]+/.test(url.pathname) && !url.pathname.startsWith('/admin/login'), {
         timeout: 30_000,
@@ -110,7 +163,7 @@ export async function fieldAppContext(browser, email, contextOptions = {}) {
             await page.getByRole('button', { name: /^(continue|weiter)$/i }).click();
             await passwordField.waitFor({ timeout: 20_000 });
         }
-        await passwordField.fill(PASSWORD);
+        await passwordField.fill(passwordFor(email));
         await page.getByRole('button', { name: /^(sign in|anmelden)$/i }).click();
         await greeting.waitFor({ timeout: 30_000 });
         await context.storageState({ path: state, indexedDB: false });
