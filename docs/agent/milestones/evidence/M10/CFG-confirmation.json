@@ -10,13 +10,20 @@
             "key": "domain",
             "from": null,
             "to": "fsa-test-cfg.test",
-            "url": {
-                "from": "http://localhost:8081",
-                "to": "https://fsa-test-cfg.test"
-            },
-            "mode": {
-                "from": "local",
-                "to": "domain"
+            "url": "http://localhost:8081",
+            "mode": "local",
+            "change": {
+                "key": "domain",
+                "from": null,
+                "to": "fsa-test-cfg.test",
+                "url": {
+                    "from": "http://localhost:8081",
+                    "to": "https://fsa-test-cfg.test"
+                },
+                "mode": {
+                    "from": "local",
+                    "to": "domain"
+                }
             },
             "impact": {
                 "known": true,

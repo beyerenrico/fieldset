@@ -7,26 +7,26 @@
         "status": "ok",
         "changed": true,
         "data": {
-            "uuid": "56186e97-6728-4f70-a42c-cf022a58ceb0",
+            "uuid": "e3d0e8b1-d1be-43a7-8c6a-62fddf7b1985",
             "removed": {
                 "containers": [
-                    "fsa-fsa-test-j03-181c-mailpit-1",
-                    "fsa-fsa-test-j03-181c-app-1",
-                    "fsa-fsa-test-j03-181c-queue-1",
-                    "fsa-fsa-test-j03-181c-gotenberg-1",
-                    "fsa-fsa-test-j03-181c-scheduler-1",
-                    "fsa-fsa-test-j03-181c-postgres-1",
-                    "fsa-fsa-test-j03-181c-redis-1"
+                    "fsa-fsa-test-j03-2e77-app-1",
+                    "fsa-fsa-test-j03-2e77-scheduler-1",
+                    "fsa-fsa-test-j03-2e77-queue-1",
+                    "fsa-fsa-test-j03-2e77-mailpit-1",
+                    "fsa-fsa-test-j03-2e77-gotenberg-1",
+                    "fsa-fsa-test-j03-2e77-postgres-1",
+                    "fsa-fsa-test-j03-2e77-redis-1"
                 ],
                 "networks": [
-                    "fsa-fsa-test-j03-181c_default",
-                    "fsa-fsa-test-j03-181c_renderer"
+                    "fsa-fsa-test-j03-2e77_default",
+                    "fsa-fsa-test-j03-2e77_renderer"
                 ],
                 "volumes": [
-                    "fsa-fsa-test-j03-181c_app-storage",
-                    "fsa-fsa-test-j03-181c_mailpit-data",
-                    "fsa-fsa-test-j03-181c_pg-data",
-                    "fsa-fsa-test-j03-181c_valkey-data"
+                    "fsa-fsa-test-j03-2e77_app-storage",
+                    "fsa-fsa-test-j03-2e77_mailpit-data",
+                    "fsa-fsa-test-j03-2e77_pg-data",
+                    "fsa-fsa-test-j03-2e77_valkey-data"
                 ]
             },
             "dir": "<work>/fsa-test-j03",
@@ -55,6 +55,6 @@
         "networks": []
     },
     "attached_after": [
-        "fsa-test-harness-c4b4e4-traefik-1"
+        "fsa-test-harness-713b9b-traefik-1"
     ]
 }

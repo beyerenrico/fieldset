@@ -61,7 +61,11 @@
                     "data_exports": 0
                 }
             },
-            "audited": true
+            "audited": true,
+            "next_commands": [
+                "<work>/fsa-test-cfg/fsa login-link <owner-email>",
+                "<work>/fsa-test-cfg/fsa status"
+            ]
         },
         "secrets": [],
         "warnings": [

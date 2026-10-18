@@ -49,10 +49,10 @@
                 {
                     "key": "disk",
                     "status": "ok",
-                    "summary": "165.4 GiB free.",
+                    "summary": "155.2 GiB free.",
                     "hint": null,
                     "details": {
-                        "free_gib": 165.4,
+                        "free_gib": 155.2,
                         "path": "<work>/fsa-test-j01"
                     }
                 },
@@ -121,6 +121,13 @@
                         },
                         "taken": []
                     }
+                },
+                {
+                    "key": "proxy",
+                    "status": "skipped",
+                    "summary": "Not in proxy mode.",
+                    "hint": null,
+                    "details": []
                 },
                 {
                     "key": "services",
