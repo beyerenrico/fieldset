@@ -133,3 +133,27 @@ the state records is removed in its own journaled operation (`tunnel`, action `e
 `config` journal. The result then carries `tunnel_removed` and `changed: true`, also when the change itself fails; a
 failed cleanup is the warning `tunnel_cleanup_failed` and the change still runs. `fsa demo` and `fsa tunnel` sweep
 the same way.
+
+## Amendment 2026-10-19: the tunnel's agent contract and unfinished tunnel journals (M11 gate)
+- **Same result shape as `config set`.** A `fsa tunnel start` that fails after something changed reverts and answers
+  exit 5 `rolled_back` with `reverted: true`, `failure` (the cause's data), `retry_after` or `fix_first`
+  (`ConfigFailure::retry`: transient only `docker_*` and `interrupted`; `tunnel_unavailable` and `internal_error` are
+  `fix_first`, not retryable), `command` (`fsa tunnel start [--tunnel-admin]`), `options` and `next_commands`. A failed
+  revert is exit 8 `revert_failed` with `revert_steps`, `stopped_services` (app, queue, scheduler and the catcher when
+  present; Postgres and Valkey keep running), `recovery`, `failure`, `revert_failure` and `command: fsa tunnel stop`;
+  its journal stays open.
+  The hint is the cause's own (no hostname: outbound internet, `fsa logs tunnel`) except after a signal (`TunnelResults`).
+- **Unfinished tunnel journals.** Exit 9 `operation_unfinished`, `fsa status` and exit 8 name `fsa tunnel stop` for any
+  tunnel journal (`OperationUnfinished::commandLine`; the message names the cut-off `fsa tunnel <action>`), and `fsa demo
+  --rotate-passwords` for a cut-off rotation (`data.options` carries the flag). `fsa tunnel stop` resumes any tunnel
+  journal whatever the tunnel status says and converges to the state on disk: runtime block cleared, the state without
+  the tunnel rendered, `up --remove-orphans` of the whole project (workers included), the tunnel network removed.
+  The expiry cleanup before `config set`, `demo` and `tunnel` (`TunnelSweeper`) adopts an unfinished tunnel journal the
+  same way unless a live tunnel would go (then exit 9 names `fsa tunnel stop`); another operation's journal is left to
+  the command. So a failed cleanup is one exit 9 with `tunnel_cleanup_failed`, and the next command finishes it.
+- **Interruption** now also guards `fsa tunnel start|stop|renew`, the expiry cleanup and `fsa demo`. Start is armed
+  during its checks, preflight and stack change (a signal before the first change is exit 9; later the journaled
+  revert runs disarmed); the demo rotation runs disarmed so its passwords are not lost. Stop and the cleanup run
+  disarmed to their end like a revert. Renew is armed until right before its single runtime write. `fsa demo` runs
+  disarmed: its one-offs finish and hand out their passwords and link.
+- Verified by `tests/Unit/Instance/TunnelRecoveryTest.php` and `TunnelStartFailureTest.php`.

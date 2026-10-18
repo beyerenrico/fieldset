@@ -221,3 +221,13 @@ U12 did not add them (the smoke path above and the U12 consequence promised it);
   every rollback window).
 - Verified by `tests/Unit/Instance/InstallSmokeTest.php`, `tests/Feature/Instance/InstallSmokeCommandsTest.php`, and
   J4 (the capture install's test mail in the catcher; an SMTP install's at a stand-in server).
+
+## Amendment 2026-10-19: resuming an install with `--phone-https tunnel` (M11 gate)
+- The doctor phase journals `phone: {phone_https: tunnel}` for `--phone-https tunnel` (the state does not take it), so
+  a resume with the same flags no longer exits 2 `flag_already_applied`. `fsa install` decides whether to start the
+  tunnel from the effective request (`Installer::effective`: the journal's inputs under the flags given now), so a
+  resume without the flag starts it too, as `--demo` given once still applies.
+- On a finished instance `--phone-https tunnel` matches an instance with a running tunnel or without phone HTTPS (the
+  tunnel is transient, ADR 0082 amendment): same flags are `changed: false` with the warning `tunnel_not_running`
+  naming `fsa tunnel start`; it was exit 2 `use_config_set` with the key `phone-https`, which `config set` refuses.
+- Verified by `tests/Unit/Instance/TunnelInstallTest.php`.
