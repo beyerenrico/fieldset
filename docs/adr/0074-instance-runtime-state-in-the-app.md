@@ -1,5 +1,5 @@
 # 0074: Instance runtime state in the app (URL, gate, tunnel policy)
-- Status: accepted
+- Status: accepted; amended 2026-10-18 at the M10 gate (in-request URL root, ADR 0079; runtime writer, ADR 0078)
 - Date: 2026-10-18
 
 ## Context
@@ -54,6 +54,10 @@ it. Unset means no state at all, and every caller behaves exactly as before.
 app's grammar, stores it under `gate.smoke_token` and returns it. `lowerGate()` writes `smoke_token: null`, and a
 re-render keeps the token with the gate. The grammar mirrors `State\InputGrammar`, because Runtime may not import
 it. A contract test parses the writer's output with `RuntimeDocument`.
+(Amended 2026-10-18 by ADR 0078: a re-render keeps the gate raised, with operation `unknown`, when the current file
+exists but cannot be parsed (invalid JSON, or no boolean `gate.raised`), and refuses (UnsafePath) when it exists but
+cannot be read; only a missing file starts with the gate lowered. Re-renders and gate changes keep the current
+`tunnel` block (`hostname`, `expires_at`, `peer`, `admin`).)
 
 **Reader.** A singleton that never throws.
 - It stats the file on every call and caches the reading on path, inode, size and mtime. `fsa` replaces the file by
@@ -89,6 +93,11 @@ and the tunnel host, kept while expired. Unknown hosts still get 400.
      (local URL with every loopback spelling when it is a loopback URL, instance URL, extra hosts, active tunnel).
      Instance and extra hosts also get the instance URL's path. Any other trusted host gets the public URL: the
      active tunnel, else the instance URL.
+     (Amended 2026-10-18 by ADR 0079: on an allowed host the root is the request's own scheme and host plus the port
+     of the URL configured for that host (local URL, tunnel 443, else the instance URL, which extra hosts follow):
+     always when the schemes agree (a default port left out), otherwise only when the request addressed that very
+     port. A port from `Host` or `X-Forwarded-Port` never reaches a link. The HTTPS expectation below (HSTS, Secure
+     and `__Host-` cookies, `upgrade-insecure-requests`) is unchanged.)
    - HTTPS is expected when the request is secure, or when the URL configured for its host is https (extra and
      other hosts follow the instance URL, the active tunnel host is https). Loopback over plain http (localhost,
      `*.localhost`, 127/8, ::1) never counts.

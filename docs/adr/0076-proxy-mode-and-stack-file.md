@@ -1,5 +1,6 @@
 # 0076: Proxy mode and the stack file
-- Status: accepted
+- Status: accepted; amended 2026-10-18 at the M10 gate (migrations on start and stack file header, ADR 0079; doctor
+  drift check and `fsa status` proxy report, ADR 0078)
 - Date: 2026-10-18
 
 ## Context
@@ -77,13 +78,18 @@ digests through `ComposeRenderer` and makes it env-only:
   TRUSTED_PROXIES, config/instance.php), no instance labels, no project name;
 - without a supervisor the app migrates on start (`RUN_MIGRATIONS=true`, app only, healthcheck `start_period` 300 s)
   and queue and scheduler wait for it to be healthy. This is the one generated file that sets RUN_MIGRATIONS; the
-  instance compose file still never does (KTD6, ComposeGuard);
+  instance compose file still never does (KTD6, ComposeGuard) (amended 2026-10-18 by ADR 0079: the entrypoint runs
+  `migrate --force --isolated=75`, a Postgres advisory lock, and waits up to 5 minutes while another container
+  migrates, then exits 75, so the app never starts on a schema still being migrated);
 - a guard refuses any `$` that is not one of these interpolations, leftover placeholders, the socket and env files.
 - It is block YAML (people edit it in Portainer and Coolify) written by `YamlEmitter`: every scalar is a JSON string
   literal, which is a valid YAML double-quoted scalar, so no value can change the structure (ADR 0069's reason for
   JSON). The header documents every variable and what is missing without fsa (no fsa commands, no upgrade
   supervisor or rollback, no backups through fsa, no runtime state, gate, tunnel, local CA or edge, fixed 2 GB
-  limits).
+  limits). (Amended 2026-10-18 by ADR 0079: its `app:install` instruction is
+  `docker compose -f compose.stack.yaml exec app php artisan app:install …`, run in the file's directory with the
+  same variables set, or the `php artisan app:install …` part in the app container's console in Portainer or
+  Coolify.)
 
 **Generation path.** The app digest exists only after the image build, so the stack file cannot be a committed
 `distribution/stack/compose.stack.yaml` (deviation from the plan's file list). `release:manifest --stack-file=<path>`
@@ -120,7 +126,11 @@ then starts the release's stack file with plain `docker compose` and only enviro
   when it changes mode, network or proxy, and should add a doctor check that warns when the recorded address no
   longer belongs to that container. (Amended 2026-10-18: U11 re-resolves through `fsa config set trusted-proxy`
   (ADR 0077), but the doctor drift check was not built. It stays open (QUESTIONS 35); the remedy after a recreated
-  proxy is `fsa config set trusted-proxy auto`.)
+  proxy is `fsa config set trusted-proxy auto`.) (Amended again 2026-10-18 by ADR 0078: the drift check is built.
+  The doctor's `proxy` check re-resolves `proxy_container` on the shared network (the default network's gateway in
+  the `port` setup) and warns `proxy_address_changed` with `fsa config set trusted-proxy auto`; `fsa status` reports
+  `data.proxy {setup, network, container, trusted, current, moved}` and warns the same when the proxy has a known
+  new address. QUESTIONS 35 is resolved.)
 - Traefik deployments that set the certificate resolver per router need it on the entry point instead (or a later
   `--proxy-label`-style option); recorded in QUESTIONS.
 - On Docker Desktop, containers can reach host-loopback ports through `host.docker.internal`, so in the port setup

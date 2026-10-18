@@ -1,5 +1,6 @@
 # 0075: The edge and domain mode (Caddyfile, network, catcher auth, ACME, install)
-- Status: accepted
+- Status: accepted; amended 2026-10-18 at the M10 gate (edge headers and label, ADR 0079; certificate wait,
+  uninstall warning, IPv6 port probe, ADR 0078)
 - Date: 2026-10-18
 - Refines: ADR 0052 (Caddy edge), ADR 0053 (modes), ADR 0054 (catcher), ADR 0069 (renderer), ADR 0072 (install)
 
@@ -33,7 +34,9 @@ Facts this relies on (checked 2026-10-18 against `caddy:2.11.7-alpine`, `axllent
   80/tcp, 443/tcp and 443/udp on every host address and is the only service that publishes anything in domain mode
   (app and Mailpit publish nothing); `depends_on: app (healthy)`; healthcheck `wget` on a loopback-only site
   (`127.0.0.1:8081/healthz`). The instance's `edge/` folder is mounted read-only as a directory (an atomic rewrite
-  is seen); a label carries the Caddyfile's SHA-256, so a changed Caddyfile recreates the edge.
+  is seen); a label carries the Caddyfile's SHA-256, so a changed Caddyfile recreates the edge. (Amended 2026-10-18
+  by ADR 0079: with a custom ACME CA root the label hashes the Caddyfile plus the root's SHA-256 from the state
+  (`EdgeService::configHash()`), so a root-only change recreates the edge too; without one it stays the plain hash.)
 - Certificates: volume `edge-data` at `/data/caddy` with the explicit name `<project>_edge-data` and the instance
   label. Nothing but uninstall removes it: re-renders, `config set` (U11) and an install retry keep it.
 - Network: `edge`, a fixed private /28 from 10.213.0.0/16 (`EdgeNetwork`). Docker's default pools never hand out
@@ -68,19 +71,26 @@ edge env variable. Shape:
 	handle /_fsa/* { respond 404 }
 	redir /_mail /_mail/ 308                 # capture mode only, from here …
 	handle /_mail/* {
-		forward_auth app:8080 { uri "/_fsa/catcher-auth"; header_up -Authorization; header_up -Upgrade; header_up -Connection }
+		forward_auth app:8080 { uri "/_fsa/catcher-auth"; header_up -Authorization; header_up -Upgrade; header_up -Connection
+			header_up -X-Forwarded-Port }
 		header { defer; X-Frame-Options "SAMEORIGIN"; X-Content-Type-Options "nosniff"
 			+Content-Security-Policy "frame-ancestors 'self'"; Referrer-Policy "no-referrer"; Cache-Control "no-store" }
-		reverse_proxy mailpit:8025 { header_up Authorization "{env.FSA_CATCHER_AUTHORIZATION}"; stream_timeout 5m }
+		reverse_proxy mailpit:8025 { header_up -Cookie; header_up -X-XSRF-TOKEN
+			header_up Authorization "{env.FSA_CATCHER_AUTHORIZATION}"; stream_timeout 5m }
 	}                                        # … to here
-	handle { reverse_proxy app:8080 }
+	handle { reverse_proxy app:8080 { header_up -X-Forwarded-Port } }
 }
 http://:8081 { bind 127.0.0.1; respond /healthz "ok" 200 }
 ```
+(Amended 2026-10-18 by ADR 0079: the shape above includes the M10 gate fixes. The app's `reverse_proxy` and the
+`forward_auth` subrequest drop `X-Forwarded-Port`; the Mailpit `reverse_proxy` drops `Cookie` and `X-XSRF-TOKEN`, so
+the operator's `/platform` session stays between browser, edge and app.)
 - Automatic HTTPS with Caddy's own HTTP→HTTPS redirect (308) and HTTP-01/TLS-ALPN on 80/443. The global `acme_ca`
   is always set, which also means no ZeroSSL fallback: the issuer is exactly the configured directory.
 - The app is proxied unchanged (Host kept, X-Forwarded-* set fresh by Caddy, which trusts no incoming ones), so the
-  app's CSP, HSTS, cookies and the preview CORS header pass through.
+  app's CSP, HSTS, cookies and the preview CORS header pass through. (Amended 2026-10-18 by ADR 0079: Caddy sets
+  only X-Forwarded-For, -Proto and -Host fresh and passes every other request header on, so a client's
+  X-Forwarded-Port is stripped explicitly.)
 - No access log (Caddy's default). Sign-in link tokens are in the URL fragment anyway; the app keeps its own logs.
 - The catcher headers follow the spike, with two changes: `X-Frame-Options: SAMEORIGIN` instead of KTD10's `DENY`
   (Mailpit's Raw tab frames itself; with `frame-ancestors 'self'` browsers ignore XFO anyway), and the CSP is
@@ -115,7 +125,8 @@ http://:8081 { bind 127.0.0.1; respond /healthz "ok" 200 }
 - Doctor: the DNS check (A and AAAA separately, ADR 0072) stays and runs first. The ports check in domain mode
   probes 80 and 443 on `0.0.0.0` (443/udp is not probed); a rootless engine that may not publish them is reported as
   such with the sysctl (`privileged_ports` in the probe), never as "in use". On an installed instance whose edge
-  runs, 80/443 count as served.
+  runs, 80/443 count as served. (Amended 2026-10-18 by ADR 0078: when the host reports an IPv6 address the check also
+  probes `[::]:80` and `[::]:443` (`details.ipv6`); an engine that cannot bind IPv6 leaves them unprobed.)
 - The doctor phase decides the mode (`InstallMode`: domain, `https://<domain>`, ACME inputs, edge subnet) and
   journals it, so a resume keeps it and refuses another `--domain` or ACME value (`flag_already_applied`). The state
   phase applies it; runtime `instance_url` is `https://<domain>`, `local_url` null. A finished domain instance
@@ -125,9 +136,13 @@ http://:8081 { bind 127.0.0.1; respond /healthz "ok" 200 }
   redirect. The HTTPS check skips chain verification because the edge has exactly one issuer and no self-signed
   fallback for the domain. No certificate in time: exit 4 `certificate_failed`, retryable, with the edge's log; nothing is removed, so the
   certificate volume (ACME account, order state) stays and `fsa install` resumes at the smoke test.
+  (Amended 2026-10-18 by ADR 0078: the wait is a PHP loop, one `curl` container per attempt (`--max-time 15`), 5 s
+  apart, at most 40 attempts within 420 s, each attempt one progress event with `attempt`/`attempts`.)
 - Install and `fsa status` report `port: null` and `catcher_url: https://<domain>/_mail/` in domain mode.
 - Uninstall in domain mode prefixes its confirmation with, and adds the warning `certificates_removed` about, Let's
   Encrypt's duplicate-certificate limit (plan Risks); the certificate volume goes with the other labelled volumes.
+  (Amended 2026-10-18 by ADR 0078: the warning follows the edge's certificate volume (`EdgeService::volumeName`)
+  among the labelled volumes, not the current mode, so it also appears after `config set mode local`.)
 
 **Harness (J2).** The `acme` profile of `tests/Install/Harness/compose.harness.yaml` runs Pebble and challtestsrv
 2.10.1 (pinned by index digest, ADR 0064) on a /24 from 10.214.0.0/16 that overlaps no existing network.

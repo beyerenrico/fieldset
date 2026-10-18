@@ -1,5 +1,6 @@
 # 0077: fsa config: show, set with apply, verify and revert
-- Status: accepted
+- Status: accepted; amended 2026-10-18 at the M10 gate by ADR 0078 (a reverted change is exit 5 `rolled_back`,
+  `workers` phase, interruption, resume, failed revert, doctor drift check)
 - Date: 2026-10-18
 - Refines: ADR 0066 (supervisor, journal), ADR 0069 (renderer), ADR 0072 (install), ADR 0074 (runtime), ADR 0075
   (edge, domain mode), ADR 0076 (proxy mode)
@@ -70,6 +71,12 @@ naming the release: `mail` and `operator-email` (2.0.0-beta.1), `backup-schedule
    Values pass the command's redactor first. A failed audit, also one whose one-off cannot start, is a warning
    (`audit_failed`): the verified change stays and the state history records it.
 
+(Amended 2026-10-18 by ADR 0078: apply first stops queue and scheduler (`compose stop`, 100 s grace period) and
+brings up every other service; both stay stopped during apply and verify, and the new phase `workers` (after verify,
+before audit) brings the whole project up on the verified settings. Phases: snapshot, preflight, apply, verify,
+workers, audit. A SIGTERM, SIGINT or SIGHUP before any change aborts with exit 9 `interrupted`; during apply,
+verify or `workers` it starts the revert (`Operations\Interruption`), which then runs to its end.)
+
 **Revert.** Any failure in apply or verify starts the *revert* phase: the snapshot state is saved and rendered again
 (the ACME CA root file follows that state: removed when it trusts none, else restored from the snapshot when its
 SHA-256 differs), `compose up --wait --remove-orphans` brings the old services back (and
@@ -79,6 +86,12 @@ makes the run count as unchanged, so the journal is archived (outcome `failed`),
 `smoke_failed`, `url_check_failed`) with a config-specific hint, `data.url`/`data.mode` the effective (old) values and
 `data.attempted` the target. If the revert fails too, every service is stopped (nothing runs half-configured) and the
 result is **exit 8** `revert_failed`, `changed: true`, with both errors and `data.recovery`; the journal stays open.
+(Amended 2026-10-18 by ADR 0078: a reverted change is **exit 5**, status `rolled_back`, and the journal is archived
+with outcome `rolled_back`. `retryable` follows the cause: `docker_unavailable`, `docker_command_failed` and
+`interrupted` are retryable with `data.retry_after` (30, 15, 0 s); every other cause is not and carries
+`data.fix_first`. A failed revert stops only app, queue, scheduler, edge and mailpit (`data.stopped_services`;
+Postgres and Valkey keep running) and reports `data.revert_steps` (`files`, `services`); the recovery text calls
+state.json restored only once `files` completed.)
 
 **Resume.** An unfinished `config` journal accepts only the same key, value and options (`ConfigRequest::sameAs`;
 anything else is exit 9 naming the command to repeat). The run starts over from the journaled snapshot (apply,
@@ -86,11 +99,19 @@ verify, revert and audit run again: `OperationRun::phase(always: true)`), replay
 instead of checking again (the first attempt may already hold the new port or network), skips the no-op shortcut,
 and brings every service up. `fsa status` and exit 9 name `fsa config set <key> <value>` as the command to repeat. A different
 unfinished operation is exit 9 (`OperationUnfinished`), a live lock holder exit 9 (`instance_locked`).
+(Amended 2026-10-18 by ADR 0078: a live lock refuses `config set` up front, before the URL-impact one-off and the
+prompt. A run resumes only a journal it found itself and whose request is its own (`Supervisor::run(accepts:)`); it
+never adopts a journal another run opened meanwhile (exit 9). The change of a resume comes from the journal (the
+snapshot's previous state, the preflight's target), never from a new plan. When the journal shows a started revert,
+the resume only finishes that revert and verifies the old settings (no confirmation, the change is not repeated):
+exit 5 with `resumed_revert: true`. Exit 9, exit 8 and `fsa status` name the exact command with its options
+(`data.command`, `data.options`).)
 
 **Exit codes.** 0 (also `changed: false`), 2 invalid key/value/option or mode, 3 preflight, 4 apply/verify failed and
 reverted, 6 confirmation required, 8 revert failed and instance stopped, 9 lock held, unfinished operation, state
 changed meanwhile or declined, 10 Docker unavailable (CLI missing, daemon unreachable or too old; ADR 0066),
-1 internal.
+1 internal. (Amended 2026-10-18 by ADR 0078: `config set` no longer uses 4; a change that failed and was reverted
+is 5 `rolled_back`. 9 also covers a signal before any change.)
 
 **`config show`.** Read from the state only (no Docker call): mode, URL, version, ports, domain and ACME inputs (with
 `staging`), edge subnet, proxy setup, effective trusted proxies (the edge address in domain mode), extra hosts, mail
@@ -121,7 +142,10 @@ are named as contacted as configured.
 - The edge network stays after `mode local` (`up --remove-orphans` removes orphan containers, never networks);
   uninstall removes it by label, and a later `config set domain` reuses it with the same subnet.
 - A change interrupted by a killed process leaves the journal open; the same command resumes from the snapshot.
+  (Amended 2026-10-18 by ADR 0078: SIGTERM, SIGINT and SIGHUP now revert in the same run; only SIGKILL leaves the
+  journal open.)
 - Known gap: ADR 0076 asked for a doctor check that warns when the recorded proxy address no longer belongs to
   `proxy_container`; it was not built in U11 (QUESTIONS 35, open). After a recreated proxy, `fsa config set
-  trusted-proxy auto` re-resolves the address.
+  trusted-proxy auto` re-resolves the address. (Amended 2026-10-18 by ADR 0078: closed. The doctor's `proxy` check
+  warns `proxy_address_changed`, and `fsa status` reports `data.proxy`.)
 - Unverified until the human checklist: a real Let's Encrypt switch from staging to production with `acme-ca`.

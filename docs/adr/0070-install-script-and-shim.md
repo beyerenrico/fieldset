@@ -1,7 +1,8 @@
 # 0070: install.sh, the fsa shim, host facts and manifest verification (as built)
 - Status: accepted; amended 2026-10-18 at the M9 gate (sign-in link hand-over policy, exit 2 for missing input;
   private HOME, reserved paths, command position, terminal and `--json` rules, launcher error codes, `--yes`,
-  link fallback, the image's `fsa` wrapper, the `DOCKER_DEFAULT_PLATFORM` pass-through)
+  link fallback, the image's `fsa` wrapper, the `DOCKER_DEFAULT_PLATFORM` pass-through); amended 2026-10-18 at the
+  M10 gate by ADR 0079 (a value flag before the command keeps its value)
 - Date: 2026-10-18
 
 ## Context
@@ -137,7 +138,8 @@ app.form-schema.role=ops --user <user> [--group-add <socket gid>] -e HOME=/tmp -
 `--tmpfs /run/fsa-home:mode=0700,uid=<user uid>,gid=<user gid> -e HOME=/run/fsa-home
 -e DOCKER_CONFIG=/run/fsa-home/.docker`. A file flag pointing into `/tmp` used to mount the host's shared `/tmp`
 over the socket-holding container's Docker config, where another local user could plant a CLI plugin. The first
-argument that is no flag (or the value of `--dir` or a file-path flag) is the command; it moves to the front with
+argument that is no flag (or the value of a value-taking fsa option: `--dir`, a file-path flag or one listed in
+`fsa_value_flags`, kept in step by ShimScriptTest; amended by ADR 0079) is the command; it moves to the front with
 `--dir <dir>` right after it (`<command> --dir <dir> <args…>`), so leading flags work and a literal `--` keeps its
 positionals.)
 - User (KTD2): rootful → `<host uid>:<host gid>` plus the socket's group (`stat -L -c %g`); rootless and
@@ -185,9 +187,12 @@ usable state it exits 3 and points at install.sh. install.sh sources the shim fr
 `FSA_SHIM_LIBRARY=1` and calls `fsa_run <dir> <image> install …`; this function and its exit-code behaviour are
 the stable install.sh–shim contract.
 (Amended 2026-10-18: the image's `fsa` wrapper (`docker/app/fsa`) finds the command the same way: the first
-argument that is no flag (or the value of `--dir` or a file-path flag) is the command, and leading flags move after
-it, so `fsa --json status` runs `fsa:status --json`. An unknown command exits 2 `unknown_command` with the list of
-commands in the hint (the envelope on stdout with `--json`, else stderr) instead of reaching `artisan fsa:<x>`;
+argument that is no flag (or the value of a value-taking fsa option: `value_flags`, kept in step by
+ImageContractTest; amended by ADR 0079) is the command, and leading flags move after it, so `fsa --json status` runs
+`fsa:status --json` and `fsa --behind-proxy traefik install` runs `fsa:install --behind-proxy traefik`. An unknown
+command exits 2 `unknown_command` (the envelope on stdout with `--json`, else stderr) instead of reaching
+`artisan fsa:<x>`, with the list of commands in the hint, which since ADR 0079 also says to put flags after the
+command or write them as `--flag=value`;
 `tests/Unit/Docker/ImageContractTest.php` keeps the list in step with the registered `fsa:*` commands.)
 
 **Browser hand-over.** A command calls `FsaContext::openInBrowser($url)`: with a desktop session it writes the

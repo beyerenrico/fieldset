@@ -161,13 +161,14 @@ Format: question · chosen option · impact · how to reverse.
    wants new jobs on the tunnel · a customer document mail or an admin notification sent during a tunnel demo
    gets 404 there, and dies with the tunnel · add `documents/links/*` (random token, customer-facing) to
    `TunnelPathPolicy::ALLOWED`, and/or build admin links in jobs from the instance URL instead of the public URL.
-35. (Open: no doctor drift check yet.) Proxy mode trusts exactly one proxy IP resolved at install time (ADR 0076) ·
-   recreating the proxy container without a fixed IP silently drops trust (requests then look like they come from
-   the proxy) · `fsa config set trusted-proxy` re-resolves `proxy_container` (U11, ADR 0077), but the doctor check
-   that reports drift was not built in U11 and is still open · give the proxy a fixed IP, or run
-   `fsa config set trusted-proxy auto` after recreating it. Also unverified: caddy-docker-proxy labels (no
-   journey), Portainer/Coolify import of the stack file, Traefik per-router certresolver (configure it on the
-   entry point).
+35. (Drift check resolved by ADR 0078; the unverified items at the end stay open.) Proxy mode trusts exactly one
+   proxy IP resolved at install time (ADR 0076) · recreating the proxy container without a fixed IP silently drops
+   trust (requests then look like they come from the proxy) · `fsa config set trusted-proxy` re-resolves
+   `proxy_container` (U11, ADR 0077), and since ADR 0078 the doctor's `proxy` check and `fsa status` warn
+   `proxy_address_changed` when the trusted address no longer matches · give the proxy a fixed IP, or run
+   `fsa config set trusted-proxy auto` after recreating it.
+   Still open (unverified): caddy-docker-proxy labels (no journey), Portainer/Coolify import of the stack file,
+   Traefik per-router certresolver (configure it on the entry point).
 36. Domain mode always sets `acme_ca` (Let's Encrypt production by default, ADR 0075), so Caddy has no ZeroSSL
    fallback · chosen for predictable rate limits and staging · an LE outage blocks new certificates · remove the
    explicit `acme_ca` for production to restore Caddy's default issuers. Related: the shim passes `FSA_TEST_DNS`

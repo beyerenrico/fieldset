@@ -50,9 +50,9 @@ configured, of `"\nacme-ca-root sha256 <root's SHA-256 from the state>"` appende
 edge. Without a root the label is the Caddyfile's plain hash, so existing edges are not recreated by the upgrade.
 
 **Migrations on app start (amends ADR 0065 and ADR 0076).** The entrypoint runs
-`php artisan migrate --force --isolated=75 --no-interaction`; on exit 75 it waits 5 s and tries again, up to 60
-times (the stack file's 300 s start period), then exits 75 so the restart policy takes over. The app never starts
-while another container is migrating.
+`php artisan migrate --force --isolated=75 --no-interaction`; on exit 75 it waits 5 s and tries again, at most 60
+attempts in all (the stack file's 300 s start period), then exits 75 so the restart policy takes over. The app
+never starts while another container is migrating.
 - `MigrationMutex` (bound as `CommandMutex`) gives `migrate` a session-level Postgres advisory lock
   (`pg_try_advisory_lock(hashtext('form-schema-app:migrate'))`) on the default connection; other isolated commands
   and non-Postgres connections keep the framework's cache mutex. The lock dies with its session, so a container

@@ -45,10 +45,10 @@ the rest.
 
 **Progress (amends ADR 0066's NDJSON event).** Events may carry numeric fields after `message`: `max_seconds` on
 "Starting <phase> (at most …)" when the phase knows its limit, `elapsed_seconds` on "Completed <phase> in …" and
-"<phase> failed after …", and `attempt`/`attempts` on the certificate wait. Readers ignore unknown keys. The
-certificate wait (amends ADR 0075 "Smoke test") is a PHP loop: one `curl` container per attempt (`--max-time 15`),
-5 s apart, at most 40 attempts within 420 s, each attempt one event ("Waiting for the certificate for <domain>
-(attempt 7/40, 35 s of at most 420 s)").
+"<phase> failed after …", and `attempt`/`attempts` (with `elapsed_seconds` and `max_seconds`) on the certificate
+wait. Readers ignore unknown keys. The certificate wait (amends ADR 0075 "Smoke test") is a PHP loop: one `curl`
+container per attempt (`--max-time 15`), 5 s apart, at most 40 attempts within 420 s, each attempt one event
+("Waiting for the certificate for <domain> (attempt 7/40, 35 s of at most 420 s)").
 
 **Writers stopped while unverified (KTD19).** Apply stops queue and scheduler first (`compose stop`, their
 `stop_grace_period: 100s` lets running jobs finish), renders the target and starts every other service; verify runs;
@@ -75,8 +75,9 @@ stack back, workers included. Phases: snapshot, preflight, apply, verify, worker
   `data.command` and `data.options`. Results carry `data.next_commands` (the instance's launcher path, as install's):
   `fsa status`, after a URL change `fsa login-link <owner-email>`, on Let's Encrypt staging first
   `fsa config set acme-ca production --yes`. Install and `config set` on staging warn `acme_staging`.
-- `config show` keys carry `modes`, `settable_now` and `use_instead` (`url` in local mode: `port`; ACME keys outside
-  domain mode: `domain`; `port` in domain mode: `mode`; nothing settable on a shared proxy network: `null`).
+- `config show` keys carry `modes`, `settable_now` and `use_instead` (`url`: `port` in local mode, `domain` in domain
+  mode; ACME keys outside domain mode: `domain`; `port` in domain mode: `mode`; `mode` in local mode: `domain`; `port`
+  on a shared proxy network: `null`).
 - `config set <later key>` without a value answers `setting_not_available`; the key is checked before the value.
 - A repeated install with different flags (amends ADR 0072) lists `data.flags: [{flag, key|null}]` and says plainly
   that proxy mode cannot be entered or re-wired on an installed instance: `fsa uninstall` and a fresh install, with the
@@ -89,8 +90,9 @@ stack back, workers included. Phases: snapshot, preflight, apply, verify, worker
 **Doctor and status (amends ADR 0076).** The doctor's `proxy` check re-resolves `proxy_container` on the shared
 network (the default network's gateway in the `port` setup) and warns `proxy_address_changed` with `fsa config set
 trusted-proxy auto` when the trusted address no longer matches (closes QUESTIONS 35). `fsa status` reports
-`data.proxy {setup, network, container, trusted, current, moved}` and the same warning. Check results may carry their
-own warning code (`CheckResult::warningCode()`).
+`data.proxy {setup, network, container, trusted, current, moved}` and the same warning when the proxy has a known new
+address (a proxy no longer attached warns in the doctor only). Check results may carry their own warning code
+(`CheckResult::warningCode()`).
 
 **Runtime writer (amends ADR 0074).** A re-render keeps the gate raised (operation `unknown`) when the current file
 exists but cannot be parsed, and refuses (UnsafePath) when it exists but cannot be read; only a missing file starts

@@ -47,7 +47,7 @@ Caddy adds `nosniff` to static files.
 - `SecureCookies` sets `session.secure = true` for HTTPS requests before StartSession and the CSRF cookie run. SameSite stays `lax` and HttpOnly stays on, both from config.
 - HSTS: `max-age=31536000` by default. `security.hsts.enabled` takes null (automatic), true or false; `max_age`, `include_subdomains` and `preload` are also configurable.
 - Trusted proxies:
-  - bootstrap/app.php trusts `X-Forwarded-For`, `-Host`, `-Port` and `-Proto`.
+  - bootstrap/app.php trusts `X-Forwarded-For`, `-Host`, `-Port` and `-Proto`. (Amended 2026-10-18 by ADR 0079: `X-Forwarded-Port` stays trusted because Traefik and host proxies set it, but on `fsa` instances links take their port from the configured URL, never from this header, and the edge strips it.)
   - Which proxies to trust is read per request from `config('trustedproxy.proxies')`, which is Laravel's own fallback key, set by `TRUSTED_PROXIES` (IPs/CIDRs or `*`).
   - Empty trusts nothing.
   - Config is not loaded yet when `withMiddleware` runs, so `trustProxies(at: config(...))` is not an option.

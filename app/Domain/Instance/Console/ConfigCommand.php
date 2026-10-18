@@ -19,7 +19,7 @@ use Illuminate\Console\Attributes\Signature;
  * `fsa config show` and `fsa config set <key> <value>` (§7, R31, R32, R54, ADR 0077). `show` prints the effective
  * settings (secrets redacted) and what each opt-in feature contacts. `set` changes one setting under the instance
  * lock and journal: validate (exit 2), confirm a URL change (exit 6 without --yes or a terminal), preflight (exit 3),
- * apply, verify, and revert on failure (exit 4, `reverted: true`; exit 8 when the revert fails too and the instance is
+ * apply, verify, and revert on failure (exit 5 `rolled_back`, `reverted: true`, ADR 0078; exit 8 when the revert fails too and the instance is
  * stopped). The same value again is `changed: false` without touching Docker. Mail settings arrive with M11
  * (2.0.0-beta.1): `config set mail` exits 2 `setting_not_available`, with or without a value.
  */
