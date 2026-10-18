@@ -42,7 +42,8 @@ it('scales Horizon processes, Gotenberg concurrency and FrankenPHP threads with 
             expect($higher->limitMib($service))->toBeGreaterThanOrEqual($mib, $service);
         }
     }
-    expect($small->horizonProcesses())->toBe(2)
+    // One default worker on the E16 floor: two did not fit its queue slot (J10, ADR 0083).
+    expect($small->horizonProcesses())->toBe(1)
         ->and($small->gotenbergConcurrency())->toBe(1)
         ->and($small->horizonExportsProcesses())->toBe(1);
 });
@@ -65,6 +66,7 @@ it('derives Postgres and Valkey memory settings that fit their container limits'
         ->and($mib($settings['effective_cache_size']))->toBeLessThan($postgres)
         ->and($mib($settings['maintenance_work_mem']) + $mib($settings['shared_buffers']))->toBeLessThan($postgres)
         ->and((int) $settings['max_connections'])->toBeGreaterThanOrEqual(30)
+        ->and($mib($settings['work_mem']))->toBeGreaterThanOrEqual(4)
         ->and($budget->postgresShmSize())->toBe(intdiv($postgres, 2).'m')
         ->and((int) $budget->valkeyMaxMemory())->toBeLessThan($budget->limitMib('redis'))
         ->and($budget->valkeyMaxMemory())->toEndWith('mb');
