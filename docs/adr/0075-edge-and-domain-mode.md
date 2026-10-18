@@ -24,9 +24,10 @@ Facts this relies on (checked 2026-10-18 against `caddy:2.11.7-alpine`, `axllent
 
 ## Decision
 **Renderer (ops side, `App\Domain\Instance\Compose`).**
-- `ComposeRenderer::MODES` is local and domain. `EdgeService` joins `defaultDefinitions()` and renders only in
-  domain mode. Definitions may now contribute instance-directory files (`ServiceSpec::$files`, written 0644 in
-  0755 folders by `RenderedProject::writeTo()`): the edge's `edge/Caddyfile`.
+- `ComposeRenderer::MODES` is local and domain (amended 2026-10-18: proxy joined it with ADR 0076). `EdgeService`
+  joins `defaultDefinitions()` and renders only in domain mode. Definitions may now contribute instance-directory
+  files (`ServiceSpec::$files`, written 0644 in 0755 folders by `RenderedProject::writeTo()`): the edge's
+  `edge/Caddyfile`.
 - Edge service: the pinned `caddy` digest; `user: 65532:65532`; `cap_drop: [ALL]`, `cap_add: [NET_BIND_SERVICE]`,
   `no-new-privileges`, read-only root with tmpfs for `/tmp` and `/config/caddy` (config autosave is off); publishes
   80/tcp, 443/tcp and 443/udp on every host address and is the only service that publishes anything in domain mode
@@ -120,9 +121,9 @@ http://:8081 { bind 127.0.0.1; respond /healthz "ok" 200 }
   phase applies it; runtime `instance_url` is `https://<domain>`, `local_url` null. A finished domain instance
   compares domain and ACME flags like the others (`use_config_set` on a difference).
 - Smoke test: the edge, on its own network at its fixed address with the domain as SNI and Host: HTTPS until it
-  holds a certificate (40 attempts 5 s apart, `--retry-all-errors`), then the 308 redirect. The HTTPS check skips
-  chain verification because the edge has exactly one issuer and no self-signed fallback for the domain. No
-  certificate in time: exit 4 `certificate_failed`, retryable, with the edge's log; nothing is removed, so the
+  holds a certificate (up to 40 retries 5 s apart, `--retry-all-errors`, within the 420 s timeout), then the 308
+  redirect. The HTTPS check skips chain verification because the edge has exactly one issuer and no self-signed
+  fallback for the domain. No certificate in time: exit 4 `certificate_failed`, retryable, with the edge's log; nothing is removed, so the
   certificate volume (ACME account, order state) stays and `fsa install` resumes at the smoke test.
 - Install and `fsa status` report `port: null` and `catcher_url: https://<domain>/_mail/` in domain mode.
 - Uninstall in domain mode prefixes its confirmation with, and adds the warning `certificates_removed` about, Let's

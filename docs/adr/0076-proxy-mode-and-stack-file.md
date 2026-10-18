@@ -118,7 +118,9 @@ then starts the release's stack file with plain `docker compose` and only enviro
 ## Consequences
 - Proxy mode is installable; U11 must re-resolve the proxy address (`proxy_container`) and the port setup's gateway
   when it changes mode, network or proxy, and should add a doctor check that warns when the recorded address no
-  longer belongs to that container.
+  longer belongs to that container. (Amended 2026-10-18: U11 re-resolves through `fsa config set trusted-proxy`
+  (ADR 0077), but the doctor drift check was not built. It stays open (QUESTIONS 35); the remedy after a recreated
+  proxy is `fsa config set trusted-proxy auto`.)
 - Traefik deployments that set the certificate resolver per router need it on the entry point instead (or a later
   `--proxy-label`-style option); recorded in QUESTIONS.
 - On Docker Desktop, containers can reach host-loopback ports through `host.docker.internal`, so in the port setup

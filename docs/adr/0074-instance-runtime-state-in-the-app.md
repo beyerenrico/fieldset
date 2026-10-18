@@ -122,8 +122,9 @@ web as the error page with security headers. Two exemptions:
 This answers the R62/KTD19 question as far as the running app goes: the gate is app-level in every mode, the
 local healthcheck is exempt, and the smoke test passes with a per-operation token. The smoke test must send a
 trusted Host (`localhost` or the instance host); `Host: app:8080` gets the 400 before the token is looked at.
-What answers while the app is stopped (KTD19 steps 3–6), and whether queue, scheduler and backup refuse to start
-behind a raised gate, stays with U18.
+What answers while the app is stopped (KTD19 steps 3–6) stays with U18. So does the plan's rule that queue,
+scheduler and backup refuse to start behind a raised gate: it arrives with U18, and nothing implements it yet (the
+gate only makes the app answer 503).
 
 **Jobs.** `ApplyRuntimeToJob` listens to `JobProcessing`. Before every job, queued notifications and mails
 included, it re-reads the runtime and points the URL root at the public URL. A job started during a tunnel

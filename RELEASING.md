@@ -13,7 +13,10 @@ described below.
 - Release assets on the GitHub Release of the tag:
   - `install.sh` and its bundle `install.sh.sigstore.json`;
   - `release-manifest.json` and its bundle `release-manifest.json.sigstore.json`;
-  - `shim.sh`, the stack file and the agent guide, once they exist;
+  - `shim.sh`;
+  - `compose.stack.yaml`, the stack file for running without `fsa` (R18, ADR 0076). It is generated for every
+    release from the manifest's pins, so it is not a file in the repository;
+  - the agent guide, once it exists;
   - `manifest.schema.json` and `SHA256SUMS`.
 - The release manifest pins the app image and every third-party image (Postgres, Valkey, Gotenberg, Mailpit,
   Caddy, cloudflared) by digest, with sizes per platform. It also lists the asset checksums, the release-notes
@@ -90,8 +93,8 @@ image would then reject new releases.
    |---|---|
    | prepare | validates the tag (`release:version`) and computes the image tags |
    | image | buildx multi-arch build with `--sbom=true --provenance=mode=max`, pushed by digest only; `cosign sign --recursive` (keyless); verifies the identity |
-   | manifest | `php artisan release:manifest` (every image by digest) with production dependencies only (`composer install --no-dev --no-scripts --no-plugins`); refuses a harness build of `install.sh`; **no OIDC token** |
-   | sign | runs no PHP or Composer: checks that the manifest's `images.app` digest is the one the image job pushed and that every file equals the tagged commit's and its checksum in the manifest, then `cosign sign-blob --bundle` for the manifest and `install.sh` (keyless) and writes `SHA256SUMS` |
+   | manifest | `php artisan release:manifest --stack-file=dist/compose.stack.yaml` (every image by digest; also renders the stack file from the same pins and lists it as an asset) with production dependencies only (`composer install --no-dev --no-scripts --no-plugins`); refuses a harness build of `install.sh`; **no OIDC token** |
+   | sign | runs no PHP or Composer: checks that the manifest's `images.app` digest is the one the image job pushed, that every file except the manifest and `compose.stack.yaml` equals the tagged commit's, and that every asset the manifest lists matches its checksum there. The manifest must list `install.sh`, `shim.sh` and `compose.stack.yaml`; every `image:` line of the stack file must be a manifest pin in the form `${FSA_REGISTRY:-<registry>}/<repository>@<digest>`, and the stack file must not mount the Docker socket. Then `cosign sign-blob --bundle` for the manifest and `install.sh` (keyless) and writes `SHA256SUMS` |
    | scan | Trivy on the app image (no exceptions) and every third-party digest (only its own exception file, ADR 0071) on both platforms; a fixable critical or high finding fails the release |
    | tag | points the release's image tags at the scanned digest, and checks that the digest is unchanged |
    | publish | creates a **draft** GitHub Release with every asset |
@@ -131,10 +134,12 @@ steps of the workflow:
 1. build and push the app image with SBOM and provenance;
 2. sign it with the local key;
 3. mirror every third-party pin by digest;
-4. run `release:manifest` and `cosign sign-blob --bundle`;
+4. run `release:manifest --stack-file`, which also writes `compose.stack.yaml`, and `cosign sign-blob --bundle`;
 5. lay out `dist/download/v<version>/`, plus `dist/latest/download/` for stable versions only.
 
-`stop()` removes the containers, the network, the volume, the builder and the run directory.
+Proxy-mode journeys (J3) call `startProxy()`, which creates the external network `fsa-test-proxy-<id>` and starts
+Traefik from the `proxy` profile on it. `stop()` removes the containers, the networks (Traefik's too), the volume,
+the builder and the run directory.
 
 - Registry: `ReleaseHarness::registry()` (`127.0.0.1:<port>`) works for the host, the Docker daemon and
   host-network containers. Installs pull `<registry>/<repository>@<digest>` there (`FSA_REGISTRY`).
@@ -144,11 +149,14 @@ steps of the workflow:
 
 Leftovers from an interrupted run (from the repository root). The compose file requires `FSA_HARNESS_DIST`,
 which `ReleaseHarness` sets to the run's `dist/`; give it as an absolute path, because Compose reads a relative
-one as a volume name or resolves it against `tests/Install/Harness/`:
+one as a volume name or resolves it against `tests/Install/Harness/`. The profiles match `ReleaseHarness::stop()`.
+Traefik's network is external, so `down` leaves it; remove it after a proxy journey:
 
 ```sh
 FSA_HARNESS_DIST="$PWD/storage/fsa-test-harness/<id>/dist" docker compose -p fsa-test-harness-<id> \
-  -f tests/Install/Harness/compose.harness.yaml --profile forwarder down -v
+  -f tests/Install/Harness/compose.harness.yaml --profile forwarder --profile acme --profile proxy \
+  down --volumes --remove-orphans
+docker network rm fsa-test-proxy-<id>   # only after a proxy journey
 docker buildx rm fsa-test-harness-<id>
 rm -rf storage/fsa-test-harness/<id>
 ```

@@ -57,8 +57,8 @@ naming the release: `mail` and `operator-email` (2.0.0-beta.1), `backup-schedule
    state while this one waited (exit 9 `state_changed`), *preflight* (exit 3; DNS and ports 80/443 for a new domain
    via the install's checks, free loopback ports, the edge subnet, and a pull of images the target needs and the
    engine lacks, e.g. Caddy on a local install). The preflight journals the refined target (chosen ports, subnet).
-   The edge subnet is chosen once; an edge network a reverted attempt left behind (Compose removes containers, not
-   networks, on `up`) keeps its subnet, so the next attempt reuses it.
+   The edge subnet is chosen once; an edge network a reverted attempt left behind (`up --remove-orphans` removes
+   orphan containers, never networks) keeps its subnet, so the next attempt reuses it.
 4. *apply* (`ConfigRollout`): save the target state with a `config_changed` history entry, render runtime, env files,
    Caddyfile and compose file from it (KTD6, same emulation factor as the current file), then `compose up --wait
    --remove-orphans` for the whole project. `affected()` diffs the renders of both states for the report.
@@ -89,7 +89,8 @@ unfinished operation is exit 9 (`OperationUnfinished`), a live lock holder exit 
 
 **Exit codes.** 0 (also `changed: false`), 2 invalid key/value/option or mode, 3 preflight, 4 apply/verify failed and
 reverted, 6 confirmation required, 8 revert failed and instance stopped, 9 lock held, unfinished operation, state
-changed meanwhile or declined, 1 internal.
+changed meanwhile or declined, 10 Docker unavailable (CLI missing, daemon unreachable or too old; ADR 0066),
+1 internal.
 
 **`config show`.** Read from the state only (no Docker call): mode, URL, version, ports, domain and ACME inputs (with
 `staging`), edge subnet, proxy setup, effective trusted proxies (the edge address in domain mode), extra hosts, mail
@@ -117,7 +118,10 @@ are named as contacted as configured.
   them and they reuse the domain applier's verification). The "test mail" verification arrives with `config set mail`
   (U12).
 - `fsa install` on an installed instance now names `fsa config set` / `config show` in its `use_config_set` hint.
-- The edge network stays after `mode local` (Compose removes containers, not networks, on `up`); uninstall removes it
-  by label, and a later `config set domain` reuses it with the same subnet.
+- The edge network stays after `mode local` (`up --remove-orphans` removes orphan containers, never networks);
+  uninstall removes it by label, and a later `config set domain` reuses it with the same subnet.
 - A change interrupted by a killed process leaves the journal open; the same command resumes from the snapshot.
+- Known gap: ADR 0076 asked for a doctor check that warns when the recorded proxy address no longer belongs to
+  `proxy_container`; it was not built in U11 (QUESTIONS 35, open). After a recreated proxy, `fsa config set
+  trusted-proxy auto` re-resolves the address.
 - Unverified until the human checklist: a real Let's Encrypt switch from staging to production with `acme-ca`.

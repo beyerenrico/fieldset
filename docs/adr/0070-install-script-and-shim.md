@@ -105,6 +105,7 @@ U5 (`fsa install`, doctor, status …) and U18 (`fsa upgrade`) build on the cont
 | `FSA_TRUST_KEY`, `FSA_REGISTRY`, `FSA_RELEASE_URL` | passed through when set |
 | `FSA_RELEASE_MANIFEST` | install.sh only: `<dir>/releases/<version>/release-manifest.json` (verified) |
 | `DOCKER_DEFAULT_PLATFORM` | Docker's own variable, passed through when set (amended 2026-10-18, below) |
+| `FSA_TEST_DNS` | shim only: passed through when set. Fixed DNS answers for the doctor (`host=ip[,ip][;…]`), honoured only by release-harness images (`BuildFlavor`); production images ignore it (amended 2026-10-18, ADR 0075) |
 
 (Amended 2026-10-18: `DOCKER_DEFAULT_PLATFORM`. When the caller sets it, install.sh (`fsa_install_platform_ok`,
 with the other no-network input checks) and the shim (`fsa_platform_ok`, before `docker info`) accept only

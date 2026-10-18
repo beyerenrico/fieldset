@@ -38,7 +38,10 @@ Impact).
 - The catcher holds live account-recovery links for every tenant. That is why domain mode gates it behind MFA and
   the other modes keep it on loopback.
 - Unverified: whether Mailpit's UI, including its live-update connection, works behind `forward_auth` (plan Open
-  Questions). The fallback is loopback-only access in domain mode too.
+  Questions). The fallback is loopback-only access in domain mode too. (Amended 2026-10-18: verified. Mailpit
+  works fully under `/_mail/` behind Caddy's `forward_auth`, including the live-update websocket (spike, LEARNINGS
+  103), and domain mode serves it there (ADR 0075), so the fallback is not needed. Live updates over a real network
+  path stay on the human checklist, ADR 0075.)
 - Mailpit is no longer dev-only, which amends ADR 0020. The install smoke test sends one mail into the catcher
   (R11).
 - Sending invitations and resets through an organization's own SMTP, which would remove the narrower banner, is

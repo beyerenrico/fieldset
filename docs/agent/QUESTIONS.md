@@ -161,18 +161,20 @@ Format: question · chosen option · impact · how to reverse.
    wants new jobs on the tunnel · a customer document mail or an admin notification sent during a tunnel demo
    gets 404 there, and dies with the tunnel · add `documents/links/*` (random token, customer-facing) to
    `TunnelPathPolicy::ALLOWED`, and/or build admin links in jobs from the instance URL instead of the public URL.
-34b. Proxy mode trusts exactly one proxy IP resolved at install time (ADR 0076) · recreating the proxy container
-   without a fixed IP silently drops trust (requests then look like they come from the proxy) · U11 re-resolves
-   `proxy_container` on `config set` and doctor should report drift · give the proxy a fixed IP or re-run
-   `fsa config set trusted-proxy`. Also unverified: caddy-docker-proxy labels (no journey), Portainer/Coolify
-   import of the stack file, Traefik per-router certresolver (configure it on the entry point).
-35. Domain mode always sets `acme_ca` (Let's Encrypt production by default, ADR 0075), so Caddy has no ZeroSSL
+35. (Open: no doctor drift check yet.) Proxy mode trusts exactly one proxy IP resolved at install time (ADR 0076) ·
+   recreating the proxy container without a fixed IP silently drops trust (requests then look like they come from
+   the proxy) · `fsa config set trusted-proxy` re-resolves `proxy_container` (U11, ADR 0077), but the doctor check
+   that reports drift was not built in U11 and is still open · give the proxy a fixed IP, or run
+   `fsa config set trusted-proxy auto` after recreating it. Also unverified: caddy-docker-proxy labels (no
+   journey), Portainer/Coolify import of the stack file, Traefik per-router certresolver (configure it on the
+   entry point).
+36. Domain mode always sets `acme_ca` (Let's Encrypt production by default, ADR 0075), so Caddy has no ZeroSSL
    fallback · chosen for predictable rate limits and staging · an LE outage blocks new certificates · remove the
    explicit `acme_ca` for production to restore Caddy's default issuers. Related: the shim passes `FSA_TEST_DNS`
    through; production images ignore it (harness flavour only) · harmless but visible · drop it from the
    production shim if it confuses. The app also sends `X-Content-Type-Options: nosniff, nosniff` (its Caddyfile
    and SecurityHeaders, 1.0 behaviour) · cosmetic · remove one source.
-36. `fsa config set` asks for `--yes` on every URL change (`domain`, `url`, local `port`, `mode`), not only
+37. `fsa config set` asks for `--yes` on every URL change (`domain`, `url`, local `port`, `mode`), not only
    `domain` (ADR 0077) · chosen because every URL change invalidates signed links and moves SSO redirects ·
    one more flag for agents · relax to `domain` only if it proves noisy. `config set operator-email` (plan U11)
    is deferred to U12/beta.1 and refused with exit 2 until then.
