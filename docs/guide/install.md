@@ -168,9 +168,21 @@ password out of your shell history. For scripts, `--password-file=<file>` reads 
 `--owner-link` sets no password at all and prints a one-time sign-in link instead (single use, 60 minutes),
 which leads to choosing a password. `--password=<value>` still works but is deprecated: the value shows in
 the process list. `--json` prints one JSON document (the link only under `secrets`, never a password).
+
+`--password-file` is read **inside the `app` container**, which sees only its own file system and the
+`app-storage` volume, not the server's. Put the file into the container first, for example through stdin, and
+remove it afterwards:
+
+```bash
+docker compose exec -T app sh -c 'umask 077 && cat > /tmp/owner-password' < owner-password.txt
+docker compose exec app php artisan app:install \
+  --organization="Example GmbH" --name="Erika Muster" --email=erika@example.com --password-file=/tmp/owner-password
+docker compose exec app rm /tmp/owner-password
+```
+
 The owner's email address is marked as verified, and the owner becomes a platform operator (`/platform`,
-Horizon). `php artisan identity:login-link <email>` issues a new one-time sign-in link (15 minutes) for an
-existing admin.
+Horizon). `docker compose exec app php artisan identity:login-link <email>` issues a new one-time sign-in link
+(15 minutes) for an existing admin.
 
 The command only works once: if an organization exists, it changes nothing. Further organizations are
 created by enabling self-registration (`APP_ALLOW_REGISTRATION=true`, only for a public instance); each

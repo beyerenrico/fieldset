@@ -1,8 +1,8 @@
 # 0071: Image binaries built from source, no cosign in the image, and the image scan policy
 - Status: accepted; the exception policy for third-party images waits for a human to confirm it (QUESTIONS 27)
 - Date: 2026-10-18
-- Supersedes the binary table of ADR 0065. Amends ADR 0060 (cosign in the image, licenses), ADR 0063 (the cosign
-  lever) and ADR 0067 (the scan gate).
+- Supersedes the binary table of ADR 0065. Amends ADR 0048 (the image's binaries), ADR 0051 (Compose from
+  source), ADR 0060 (cosign in the image, licenses), ADR 0063 (the cosign lever) and ADR 0067 (the scan gate).
 
 ## Context
 The M9 gate needs the release scan to pass: Trivy 0.76.0 with `--severity CRITICAL,HIGH --ignore-unfixed

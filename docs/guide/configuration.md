@@ -64,6 +64,7 @@ Contents:
 | `APP_PORT` | `8080` | Port number only. `compose.yaml` publishes the `app` service as `127.0.0.1:${APP_PORT}:8080`, on the loopback interface, for a reverse proxy on the same host. |
 | `FORWARD_DB_PORT`, `FORWARD_REDIS_PORT`, `FORWARD_GOTENBERG_PORT`, `FORWARD_MAILPIT_UI_PORT`, `FORWARD_MAILPIT_SMTP_PORT` | `54329`, `63799`, `13000`, `18025`, `11025` | Development only (`compose.dev.yaml`). |
 | `RUN_MIGRATIONS` | `true` for `app` (set in `compose.yaml`) | Run `php artisan migrate --force` when the container starts. |
+| `FRANKENPHP_CONFIG` | unset: FrankenPHP's default of two PHP threads per CPU | Extra directives for the `frankenphp` block of `docker/app/Caddyfile`, for example `num_threads 4`. `fsa` sets `num_threads` from the instance's memory budget. |
 
 Set in the image (`docker/app/Dockerfile`) and overridden by `.env` when present: `APP_ENV=production`,
 `LOG_CHANNEL=stderr`, `LOG_STDERR_FORMATTER=App\Support\Logging\JsonLogFormatter`, `SERVER_NAME=:8080`.
@@ -106,7 +107,9 @@ Gotenberg flags in `compose.yaml`: `--chromium-deny-private-ips=true`, `--chromi
 | `SANCTUM_STATEFUL_DOMAINS` | localhost entries plus the `APP_URL` host | Hosts whose browser requests use the session cookie (the Field App). `.env.example` lists only `localhost`; set your host name. |
 | `HORIZON_PATH` | `horizon` | Path of the Horizon dashboard. |
 | `HORIZON_PREFIX`, `HORIZON_NAME`, `HORIZON_DOMAIN` | derived from `APP_NAME`, none, none | Horizon's Redis prefix and dashboard options. |
-| *fixed* Horizon supervisors | `supervisor-1`: queue `default`, up to 10 processes in production; `supervisor-exports`: queue `exports`, 1 process | Queues without a supervisor are never worked. |
+| `HORIZON_MAX_PROCESSES` | `10` in production, `3` in `local` | Maximum worker processes of `supervisor-1` (queue `default`). `fsa` sets it from the instance's memory budget. |
+| `HORIZON_EXPORTS_PROCESSES` | `1` | Worker processes of `supervisor-exports` (queue `REPORTS_EXPORT_QUEUE`, default `exports`). Keep `1` so large exports run one after another (`fsa` always sets `1`). |
+| *fixed* Horizon supervisors | `supervisor-1` and `supervisor-exports` (`config/horizon.php`) | Only their process counts are configurable. Queues without a supervisor are never worked. |
 
 ## Logging and error reporting
 

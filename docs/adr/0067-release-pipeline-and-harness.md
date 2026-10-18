@@ -111,10 +111,10 @@ HarnessRelease,Cosign,OciRegistry}.php`, journey `tests/Install/Journeys/Harness
   - both published on random loopback ports.
 - **Docker Desktop:** published ports exist only on the Mac side. Neither the daemon nor `network=host`
   containers reach `127.0.0.1:<port>` inside the VM. Measured with Docker Desktop 4.63, gvisor networking: the
-  pull timed out or was refused, also with a `0.0.0.0` or `[::1]` binding. A `registry-forwarder` profile (Caddy
-  `reverse-proxy` in the VM's host network, same port, to the registry container's address) starts only when a
-  host-network probe fails. On Linux the published port already works. The registry is then `127.0.0.1:<port>`
-  for the host, the daemon, the builder and cosign alike.
+  pull timed out or was refused, also with a `0.0.0.0` or `[::1]` binding. A `registry-forwarder` service in the
+  profile `forwarder` (Caddy `reverse-proxy` in the VM's host network, same port, to the registry container's
+  address) starts only when a host-network probe fails. On Linux the published port already works. The registry
+  is then `127.0.0.1:<port>` for the host, the daemon, the builder and cosign alike.
 - **Build:** `docker buildx create --driver docker-container --driver-opt network=host` (`buildkitd.toml` is not
   needed, because BuildKit uses plain HTTP for loopback registries). The build runs with `--sbom=true
   --provenance=mode=max`, tagged with `ReleaseVersion::imageTags()`, and uses a local build cache in
@@ -151,9 +151,9 @@ caches `storage/fsa-test-cache`.
 - U4 builds the identity above into `install.sh` and the image, verifies `release-manifest.json.sigstore.json`,
   and accepts `FSA_TRUST_KEY` only in harness builds. `ManifestSchema` and `ReleaseManifest::fromJson()` are
   ready for reading manifests. The image does not ship `distribution/manifest.schema.json` yet; `fsa` needs it
-  in the image to validate manifests (U4).
+  in the image to validate manifests (U4). (Done in U4, ADR 0070: the image ships the schema.)
 - The schema does not require `install.sh` among the assets yet, because U4 creates it; the workflow already
-  refuses to release without it.
+  refuses to release without it. (Done in U4, ADR 0070: the schema requires `install.sh` and `shim.sh`.)
 - On arm64 (Docker Desktop 4.63), a first harness run took 4 min 21 s: build, mirror (about 700 MB, mostly
   Gotenberg) and checks. Runs with a warm `storage/fsa-test-cache` (about 2 GB) took 2 min 32 s.
   BuildKit prints harmless `ref layer-… locked` retries while it exports the local cache.

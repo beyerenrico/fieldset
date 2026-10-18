@@ -1,5 +1,5 @@
 # 0048: The app image is the installer (ops container)
-- Status: accepted
+- Status: accepted; amended by ADR 0071 (Compose and age built from source, no cosign in the image)
 - Date: 2026-10-17
 
 ## Context
@@ -26,6 +26,9 @@ product. Today the image cannot run as a CLI container: it runs as `www-data`, a
   desktop session, UID:GID, TZ) arrive as environment variables (§6.2).
 - The image carries static, checksum-verified binaries per `TARGETARCH` (KTD8): Docker CLI and Compose
   (ADR 0051), PGDG `postgresql-client-16` and age (ADR 0059), and cosign (ADR 0060).
+  (Amended 2026-10-18 by ADR 0071: Compose and age are built from source at a pinned tag and commit, verified by
+  go.sum; only the Docker CLI stays a checksum-pinned release binary. cosign is not in the image: `install.sh`
+  and `fsa` verify with the pinned official cosign image, ADR 0070.)
 - The image now has three roles: app service, ops container and backup daemon. This amends ADR 0020.
 
 ## Alternatives considered

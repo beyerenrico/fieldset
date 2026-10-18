@@ -11,7 +11,9 @@ spec §0/§15, record ADRs in `docs/adr/`, log human-review items in `docs/agent
 2. Read the last 5 entries of `docs/agent/JOURNAL.md`, then `docs/agent/LEARNINGS.md`.
 3. `git status` and `git log --oneline -15`. Uncommitted changes: finish or discard per STATE.md;
    if STATE.md does not describe them, save them on a branch first.
-4. Remove leftover `fsa-test-*` Docker resources from an interrupted journey.
+4. Remove leftover Docker resources of an interrupted journey: names contain `fsa-test-` (see `fsa` below), so
+   find them with `docker ps -a --filter name=fsa-test-` (substring; same for `volume ls`, `network ls`) or by
+   the label `app.form-schema.instance`.
 5. Start services, run the fast suite, confirm STATE.md matches reality (fix STATE.md if not).
 6. Re-read the BUILD_PROMPT_V2 sections and plan units the current task depends on.
 7. Continue with the first "Next actions" item in STATE.md.
@@ -36,8 +38,10 @@ npm run test -w packages/form-schema-js                  # JS unit tests
 npm run conformance                                      # PHP + JS conformance runners
 npm run -w resources/field-app build                     # Field App build
 npm run e2e                                              # Playwright (browsers in storage/playwright)
-vendor/bin/pest --testsuite=Install                      # install journeys (real Docker, fsa-test-*)
-shellcheck distribution/*.sh                             # install.sh and shim
+vendor/bin/pest --testsuite=Install                      # install journeys (real Docker, names with fsa-test-)
+docker run --rm -v "$PWD:/mnt:ro" -w /mnt koalaman/shellcheck:v0.11.0 docker/app/entrypoint.sh docker/app/fsa distribution/*.sh
+docker run --rm -i hadolint/hadolint:v2.15.1 hadolint - < docker/app/Dockerfile
+docker run --rm -v "$PWD:/repo:ro" -w /repo rhysd/actionlint:1.7.12 -color
 ```
 Long output → `storage/agent-logs/` (git-ignored); read only the tail.
 
@@ -46,8 +50,10 @@ Long output → `storage/agent-logs/` (git-ignored); read only the tail.
   app image (Docker socket + instance dir at the same absolute path). `install.sh` and the shim live in
   `distribution/`. Docker is reached only through `DockerGateway`; tests use
   `tests/Support/Instance/RecordingDockerGateway.php`.
-- Test instances, networks and volumes are named `fsa-test-*` and removed after each journey. Never
-  touch Docker resources you did not create (except the dev stack). Never push a `v*` tag.
+- Test images, harness projects (`fsa-test-harness-<id>`) and instance directories are named `fsa-test-…`.
+  Instance Compose projects are `fsa-<slug>-<hex>`, so a test instance's containers, networks and volumes are
+  `fsa-fsa-test-<dir>-<hex>…`, labelled `app.form-schema.instance=<uuid>`. Journeys remove them after each
+  run. Never touch Docker resources you did not create (except the dev stack). Never push a `v*` tag.
 
 ## Conventions
 - Domain code in `app/Domain/<Module>`; Filament/API/jobs stay thin and call Actions.

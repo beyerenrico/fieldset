@@ -1,5 +1,5 @@
 # 0055: Empty first data, demo data on request, random demo passwords beyond loopback
-- Status: accepted
+- Status: accepted; the `open_url` hand-over is superseded by ADR 0070
 - Date: 2026-10-17
 
 ## Context
@@ -9,9 +9,10 @@ nothing once an organization exists (Appendix C). A public demo with a known pas
 
 ## Decision
 - A default install creates an empty instance with the first organization and owner from flags (`--org`,
-  `--owner-email`, `--owner-name`, `--locale`).
-  - On a TTY, missing values are prompted.
-  - Under `--yes` or without a TTY, a missing value is an error (R26).
+  `--owner-email`, `--owner-name`, `--locale`). Only `--org` and `--owner-email` are required: `--owner-name`
+  defaults to the part of the email before the @, and `--locale` to `de` (as built, ADR 0072).
+  - On a TTY, missing required values are prompted.
+  - Under `--yes` or without a TTY, a missing required value is an error (R26).
 - The owner also gets the platform operator role through `GrantPlatformAdmin` (ADR 0041), so `/platform` requires
   MFA.
 - `--demo` adds the demo organization, forms, workflow and users. `DemoSeeder` runs in a one-off container without
@@ -23,7 +24,8 @@ nothing once an organization exists (Appendix C). A public demo with a known pas
   sessions and tokens. `fsa tunnel start` refuses while any user still has `password`.
   `fsa demo --rotate-passwords` rotates them on demand.
 - `fsa demo` is a local install with demo data and capture mail. It returns `open_url` when a desktop session
-  exists (R30).
+  exists (R30). (Superseded 2026-10-18 by ADR 0070: the URL goes to the shim through `FSA_OPEN_URL_FILE`, which
+  opens it; it is not returned as `open_url`.)
 
 ## Alternatives considered
 - **Always install demo data:** a production instance would need cleaning up, and a reachable demo with

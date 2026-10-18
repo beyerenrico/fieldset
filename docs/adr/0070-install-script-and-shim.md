@@ -65,8 +65,11 @@ U5 (`fsa install`, doctor, status …) and U18 (`fsa upgrade`) build on the cont
   `distribution/.build-flavor` at build time and read by `BuildFlavor::current()`. A file, not `ENV`, so
   `docker run -e` cannot change it; anything but exactly `harness` is production.
 - A harness build accepts `FSA_TRUST_KEY` (cosign public key; `--key … --insecure-ignore-tlog=true`,
-  `--network none`) and plain-http `FSA_RELEASE_URL`. A production build exits 2 for either (`trust_key_not_allowed`,
-  `insecure_release_url`); `TrustPolicy::fromEnvironment()` does the same inside the image.
+  `--network none`) and plain-http `FSA_RELEASE_URL`. A production `install.sh` exits 2 for either
+  (`trust_key_not_allowed`, `insecure_release_url`). Inside the image, `TrustPolicy::fromEnvironment()` refuses
+  only `FSA_TRUST_KEY` (exit 2): `fsa` reads no release URL yet, because `install.sh` hands it the verified
+  manifest (`FSA_RELEASE_MANIFEST`). U18 (upgrade) and U20 (update check), which fetch manifests from inside the
+  image, must enforce https there as well. (Corrected 2026-10-18 at the M9 gate.)
 
 **Host facts** (passed by name with `-e`; `HostFacts::fromEnvironment()` drops invalid values):
 

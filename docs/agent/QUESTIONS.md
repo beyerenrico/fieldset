@@ -95,6 +95,8 @@ Format: question · chosen option · impact · how to reverse.
    a small VPS and strains the "minutes" promise · stop embedding cosign and run the pinned official cosign image
    through the ops container's socket (saves ~130 MB, R58 identity unchanged) with an ADR, or accept a larger
    budget.
+   · Resolved: the budget held at 648 MB with cosign (ADR 0065); cosign was then dropped from the image for the
+   scan gate, and the image is now ~500 MB (507 MB arm64, 497 MB amd64; ADR 0071).
 24. The hardware floor is a target until J10 measures it (E16, ADR 0062; U15 in M11): Gotenberg OOMs are reported
    on small hosts, and an upgrade or restore needs room for a safety backup, a second database and a second
    storage volume on 20 GB · keep 2 vCPU / 2 GB / 20 GB, tune the limits, record a miss with numbers · owners on

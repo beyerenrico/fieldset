@@ -1,5 +1,6 @@
 # 0065: App image: ops binaries, slimming and measured size
-- Status: accepted; the binary table and "cosign stays in the image" are superseded by ADR 0071
+- Status: accepted; the binary pins, their license sources and tests, and "cosign stays in the image" are
+  superseded by ADR 0071 (after ADR 0070 moved `fsa` to the pinned cosign image)
 - Date: 2026-10-17
 
 ## Context
@@ -14,6 +15,8 @@ The 1.0 image was 2.12 GB (arm64): `COPY . .` shipped 702 MB of build context (s
 ## Decision
 **Binaries.** Static release assets, pinned with BuildKit `ADD --checksum=sha256:…` in one stage per architecture
 (`downloads-amd64`, `downloads-arm64`), selected with `FROM downloads-${TARGETARCH}`. A mismatch fails the build.
+(Superseded 2026-10-18 by ADR 0071: only the Docker CLI is still downloaded this way. Compose and age are built
+from source at pinned commits, and cosign is gone.)
 
 | Tool | Version | Source | SHA-256 amd64 / arm64 | Checksum source |
 |---|---|---|---|---|
@@ -28,6 +31,8 @@ Full checksums are in `docker/app/Dockerfile`. age-plugin-batchpass ships in the
 compatibility plugins (pq, tag, tagpq) are left out. The Apache-2.0 LICENSE (and Docker CLI's NOTICE) of Docker
 CLI, Compose and cosign are fetched with pinned checksums from the tagged sources, age's LICENSE comes from its
 archive; all land in `/usr/share/doc/<tool>/`. `postgresql-client-common` depends on `perl` (about 50 MB).
+(Since ADR 0071, Compose's LICENSE and NOTICE and age's LICENSE come from the verified source trees; only the
+Docker CLI's are fetched.)
 
 **Slimming.**
 - `.dockerignore` is an allow-list of what the stages read; tests, docs, scripts, `.github`, agent files,
@@ -61,7 +66,8 @@ archive; all land in `/usr/share/doc/<tool>/`. `postgresql-client-common` depend
 
 **cosign stays in the image** (KTD8 and ADR 0060 unchanged): the budget holds with it on both architectures
 (below): 648 MB with cosign leaves about 350 MB of headroom, so ADR 0063's lever (about 130–140 MB) is not
-needed.
+needed. (Superseded 2026-10-18: ADR 0070 moved `fsa`'s verification to the pinned cosign image, and ADR 0071
+removed the binary for the scan gate. The image is now about 507 MB (arm64) and 497 MB (amd64).)
 
 ## Measurements (2026-10-17, Docker Desktop 29.2.1 on Apple silicon)
 | | arm64 (native) | amd64 (emulated) |
@@ -74,8 +80,8 @@ needed.
 
 Layers: flattened runtime 334 MB (arm64) / 319 MB (amd64), binaries 189 / 201 MB, Compose 30.5 / 32.7 MB,
 application tree 94 MB. Both images pass the image contract journey (amd64 with `FSA_TEST_PLATFORM=linux/amd64`).
-`tests/Install/Journeys/ImageContractJourneyTest.php` writes the measured size to
-`storage/agent-logs/fsa-test-u1-size-<arch>.txt` for the M9 evidence.
+`tests/Install/Journeys/ImageContractJourneyTest.php` writes the measured size to the git-ignored
+`storage/agent-logs/fsa-test-u1-size-<arch>.txt`; the numbers are recorded in this table and in ADR 0071.
 
 ## Alternatives considered
 - **Copy `/usr/local` onto `debian:bookworm-slim` and install the libraries `ldd` reports:** a clean layer
@@ -86,15 +92,20 @@ application tree 94 MB. Both images pass the image contract journey (amd64 with 
 - **`COPY --from=docker:29.9.1-cli@sha256:…`:** content-addressed as well, but KTD8 asks for release binaries
   pinned per architecture; the official image serves as the cross-check instead.
 - **Drop cosign (ADR 0063 lever), or a separate ops image:** not needed while the budget holds; see ADR 0063.
+  (cosign was dropped later by ADR 0071, for the scan gate.)
 - **Unpack the Postgres client from its `.deb` to avoid perl:** saves about 50 MB but bypasses apt's
   dependencies and security updates.
 
 ## Consequences
 - Updating a tool means changing its URLs and both checksums together; the image contract test checks that each
   tool stays on its KTD8 series (29.9.x, 5.6.x, 3.1.x, 1.3.x) and that every architecture has four distinct pins.
+  (Superseded by ADR 0071: the test checks one Docker CLI 29.9.x checksum pin per architecture, the Compose
+  `v5.6.0` and age `v1.3.2` source builds, and that cosign is absent; `docker/app/binaries.json` is the inventory.)
 - The flattened runtime is one layer of about 334 MB. It shares nothing with the upstream FrankenPHP image, and
   it changes only when the base, the extensions or the apt packages change.
 - `tests/Install` is its own PHPUnit suite (`Install`), outside the default run and coverage
   (`defaultTestSuite="Unit,Feature"`). It needs Docker and skips without it (`FSA_REQUIRE_DOCKER=1` makes that a
   failure); `FSA_TEST_PLATFORM=linux/amd64` runs it under emulation.
 - The license check (§10, ADR 0060) still has to cover the copied binaries and allow SPDX `PostgreSQL`.
+  (Done in ADR 0071: `scripts/check-licenses.php` checks `docker/app/binaries.json` and allows `PostgreSQL` and
+  `GPL-2.0-or-later`.)

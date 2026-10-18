@@ -1,5 +1,5 @@
 # 0056: One-time sign-in links instead of printed passwords
-- Status: accepted
+- Status: accepted; the `open_url` delivery is superseded by ADR 0070; `--owner-password-file` is planned
 - Date: 2026-10-17
 
 ## Context
@@ -23,8 +23,10 @@ enforcement. The plan (KTD21, U6) builds the links on top of them.
 - Audit records issuance with actor "cli" and the host UID, and use with time and IP. `fsa status` lists unused
   links.
 - Delivery (KTD3): in the JSON `secrets` array (marked secret), in a `--secrets-file` (0600), or through the shim's
-  `open_url`, so an agent never has to see the link.
-- Automation: `--owner-password-file` sets a password instead of issuing a link. `app:install` gains
+  `open_url`, so an agent never has to see the link. (Superseded 2026-10-18 by ADR 0070: the hand-over is the
+  `FSA_OPEN_URL_FILE` file, which the shim reads, opens and deletes; nothing is parsed from stdout.)
+- Automation: `--owner-password-file` sets a password instead of issuing a link (R27; **planned**, not built:
+  `fsa install` does not accept it yet and always runs `app:install --owner-link`, ADR 0072). `app:install` gains
   `--password-file`; `--password` stays but prints a deprecation warning. A secret passed as a flag value exits 2
   (R50, AE9).
 

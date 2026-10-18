@@ -23,6 +23,25 @@ described below.
   (`vX.Y.Z-alpha.N`, `-beta.N`, `-rc.N`) publishes only `X.Y.Z-…`. It is marked as a pre-release and never
   becomes the latest GitHub Release. `php artisan release:version <tag>` prints the tags for any version.
 
+### Installing a release
+
+`releases/latest/download/` resolves to the newest stable GitHub Release. Pre-releases are published with
+`--prerelease --latest=false` (`release.yml`), so a 2.x `latest` only exists from 2.0.0 on. This one-liner works
+only for stable releases:
+
+```sh
+curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/form-schema-app/releases/latest/download/install.sh | sh -s -- [flags]
+```
+
+For a pre-release (and for every release before 2.0.0), name the version twice: in the download path, and as
+`--version`, which makes `install.sh` fetch the manifest from `download/v<version>/` instead of `latest/download/`:
+
+```sh
+curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/form-schema-app/releases/download/v<ver>/install.sh | sh -s -- --version <ver> [flags]
+```
+
+For example `<ver>` = `2.0.0-alpha.1`.
+
 ### The signer identity
 
 `install.sh` and the image verify the manifest against an identity that is built into them, never read from
@@ -121,10 +140,19 @@ steps of the workflow:
   `https://github.com/beyerenrico/form-schema-app/releases` (`FSA_RELEASE_URL`).
 - Local public key: `$harness->cosign->publicKey()`. Only harness builds accept it (`FSA_TRUST_KEY`, U4).
 
-Leftovers from an interrupted run: `docker compose -p fsa-test-harness-<id> -f
-tests/Install/Harness/compose.harness.yaml --profile forwarder down -v`, `docker buildx rm fsa-test-harness-<id>`,
-`rm -rf storage/fsa-test-harness/<id>`. Mirrored blobs and the build cache stay in `storage/fsa-test-cache/`;
-delete that directory to reclaim the disk space.
+Leftovers from an interrupted run (from the repository root). The compose file requires `FSA_HARNESS_DIST`,
+which `ReleaseHarness` sets to the run's `dist/`; give it as an absolute path, because Compose reads a relative
+one as a volume name or resolves it against `tests/Install/Harness/`:
+
+```sh
+FSA_HARNESS_DIST="$PWD/storage/fsa-test-harness/<id>/dist" docker compose -p fsa-test-harness-<id> \
+  -f tests/Install/Harness/compose.harness.yaml --profile forwarder down -v
+docker buildx rm fsa-test-harness-<id>
+rm -rf storage/fsa-test-harness/<id>
+```
+
+Mirrored blobs and the build cache stay in `storage/fsa-test-cache/`; delete that directory to reclaim the disk
+space.
 
 Lint locally like CI:
 
@@ -150,11 +178,16 @@ None of these checks can run inside the autonomous build (§15.1). All of them a
     --certificate-oidc-issuer https://token.actions.githubusercontent.com \
     --certificate-github-workflow-trigger push
   cosign verify-blob release-manifest.json --bundle release-manifest.json.sigstore.json \
-    --certificate-identity-regexp '<same>' --certificate-oidc-issuer https://token.actions.githubusercontent.com
+    --certificate-identity-regexp '<same>' --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+    --certificate-github-workflow-trigger push
   ```
 
+  These are the flags `install.sh` (`fsa_install_trust()`) and `fsa` (`SignerIdentity`) verify the manifest with
+  (ADR 0070).
+
   Not yet verified.
-- [ ] One-liner install on a throwaway VPS in domain mode against Let's Encrypt staging. Not yet verified.
+- [ ] One-liner install on a throwaway VPS in domain mode against Let's Encrypt staging (a pre-release needs the
+      `download/v<ver>` form with `--version`, see [Installing a release](#installing-a-release)). Not yet verified.
 - [ ] A real cloudflared quick tunnel (`fsa tunnel start`) reached from a phone. Not yet verified.
 - [ ] The local CA trusted on one iOS device and one Android device, and the Field App installs and syncs.
       Not yet verified.

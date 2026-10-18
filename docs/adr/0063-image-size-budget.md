@@ -8,8 +8,10 @@ decides the "minutes" promise (§2.3). 2.0 adds the ops binaries to the image (A
 
 ## Decision
 - Budget: at most **1.0 GB uncompressed per architecture**. The image contract journey (plan U1) measures it for
-  both architectures and writes it to the M9 evidence. Compressed pull size, and pull time at 100 Mbit/s, are
-  reported separately (§2.3).
+  both architectures and fails above the budget. Compressed pull size, and pull time at 100 Mbit/s, are
+  reported separately (§2.3). (As built: the journey writes the size to the git-ignored
+  `storage/agent-logs/fsa-test-u1-size-<arch>.txt`, not to the M9 evidence; the recorded numbers are the
+  measurement tables of ADR 0065 and ADR 0071.)
 - Slimming (plan U1):
   - turn `.dockerignore` into an allow-list;
   - drop `tests/`, `docs/`, `scripts/`, `.github/`, package tests, dev dependencies and the runtime `composer`
