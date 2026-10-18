@@ -61,8 +61,9 @@ image would then reject new releases.
 1. **Protect `v*` tags.** Add a tag ruleset for `v*` that restricts creation, update and deletion to the
    maintainers. Anyone who can push a `v*` tag can publish a signed release.
 2. **Create the `release` environment.** Restrict deployments to tags matching `v*` (Settings → Environments →
-   release → Deployment branches and tags). Required reviewers are optional. Every job that writes (image,
-   manifest, tag, publish, finalize) uses the environment, so each of them would wait for an approval.
+   release → Deployment branches and tags). Required reviewers are optional. Every job that pushes, signs or
+   publishes, plus the manifest job (image, manifest, sign, tag, publish, finalize), uses the environment, so with
+   required reviewers each of them would wait for an approval.
 3. **Workflow permissions.** The workflow sets `permissions: {}` and grants each job only what it needs:
    `packages: write` and `id-token: write` to push and sign, `contents: write` to publish. Repository
    settings must allow these (Settings → Actions → General → Workflow permissions).

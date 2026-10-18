@@ -1,6 +1,7 @@
 # 0065: App image: ops binaries, slimming and measured size
 - Status: accepted; the binary pins, their license sources and tests, and "cosign stays in the image" are
-  superseded by ADR 0071 (after ADR 0070 moved `fsa` to the pinned cosign image)
+  superseded by ADR 0071 (after ADR 0070 moved `fsa` to the pinned cosign image); amended 2026-10-18 at the M9
+  gate (base images pinned by digest)
 - Date: 2026-10-17
 
 ## Context
@@ -46,6 +47,11 @@ Docker CLI's are fetched.)
   `apt-mark` pattern), and purges the rest: compilers, headers, binutils and cmake leftovers. It also deletes
   `php-cgi`, `phpdbg` and the PHP headers. `FROM scratch` + `COPY --from=runtime-build / /` makes the purge
   count; the build fails if an extension or a shared library is missing afterwards.
+  (Amended 2026-10-18: every external base image and `COPY --from` image is pinned as `tag@sha256:<index digest>`
+  (linux/amd64 and linux/arm64 present, checked with `docker buildx imagetools inspect`): `composer:2` (stage and
+  `COPY --from`), `node:24-bookworm-slim`, `debian:bookworm-slim` and `dunglas/frankenphp:1-php8.4-bookworm`, like
+  the golang toolchain of ADR 0071. `ImageContractTest` fails for any external `FROM` or `COPY --from` reference
+  without a digest. A base update, including Debian security fixes, now means refreshing tag and digest together.)
 - FrankenPHP loses its `cap_net_bind_service` file capability (the app listens on 8080), so the app also starts
   with `cap_drop: [ALL]` (checked). `/var/www/html` is root-owned 0755; only `storage/` and `bootstrap/cache`
   belong to `www-data`. The base's labels and its failing `HEALTHCHECK` (admin endpoint on 2019, which is off)

@@ -1,5 +1,7 @@
 # 0070: install.sh, the fsa shim, host facts and manifest verification (as built)
-- Status: accepted; amended 2026-10-18 at the M9 gate (sign-in link hand-over policy, exit 2 for missing input)
+- Status: accepted; amended 2026-10-18 at the M9 gate (sign-in link hand-over policy, exit 2 for missing input;
+  private HOME, reserved paths, command position, terminal and `--json` rules, launcher error codes, `--yes`,
+  link fallback, the image's `fsa` wrapper)
 - Date: 2026-10-18
 
 ## Context
@@ -22,17 +24,28 @@ U5 (`fsa install`, doctor, status …) and U18 (`fsa upgrade`) build on the cont
   `/latest/download/` with `curl --proto '=https' --tlsv1.2 -fsSL` → verify (exit 3) → read the app image from
   the verified manifest → `docker pull <FSA_REGISTRY or registry>/<repository>@<digest>` (exit 3) → instance
   directory → shim → hand-over. Nothing but the cosign image is pulled before verification.
+  (Amended 2026-10-18: error codes and `retryable` match fsa's (ADR 0066). `docker_unavailable` (exit 10),
+  `cosign_unavailable` and `image_unavailable` (exit 3) are retryable; a manifest for another version is exit 3
+  `release_mismatch`. HTTP 404 or 410 for the manifest is exit 2 `release_not_found`, for the signature bundle exit
+  3 `manifest_missing`; any other download failure is exit 3 `release_unavailable` (retryable).)
 - Flags: `--dir`, `--version` and `--json` are read and passed on (`--dir` made absolute, default
   `/opt/form-schema-app` for root on Linux, else `~/form-schema-app`); `--link`, `--no-link` and `--help` are
   handled and not passed. Everything else goes to `fsa install` unchanged. With `--json`, install.sh's own
   failures print the result envelope on stdout and its progress is NDJSON on stderr (KTD3).
+  (Amended 2026-10-18: `--yes` is read too and passed on; it implies no PATH link unless `--link` is given. With
+  `--json` stderr is NDJSON only: Docker's stderr goes to a file whose last line ends up in the error message, and
+  the shell's own messages of failed steps (`mktemp`, `mkdir`, `cp`, `ln`, nonce writes) are discarded.)
 - Instance directory: refused when it is `/`, a symlink, contains `:` `,` or a line break, or exists with
   content other than `backups/` and no marker. Created 0700 with the `.fsa-instance` marker; the verified
   manifest and bundle go to `releases/<version>/` (an install of another version never overwrites the release
   an instance runs); the shim is copied from the pulled image (`/var/www/html/distribution/shim.sh`) to
   `<dir>/fsa`, mode 0700, so it needs no checksum tooling on the host.
+  (Amended 2026-10-18: a reserved instance directory (see the ops container's file-path flags) is exit 2
+  `path_reserved`, checked on the normalized path.)
 - `--link` (or "y" at the prompt, only with a terminal) links `~/.local/bin/fsa` (`/usr/local/bin` for root) to
   the shim, never over an existing file (ADR 0049).
+  (Amended 2026-10-18: the prompt appears only with a terminal (`FSA_TTY`), without `--json` and without `--yes`;
+  a link that cannot be created is reported as a warning instead of passing silently.)
 
 **Verification (R58).** One source of truth in PHP: `SignerIdentity::production()` (anchored regexp for
 `https://github.com/beyerenrico/form-schema-app/.github/workflows/release.yml@refs/tags/v<semver>`, issuer
@@ -96,6 +109,13 @@ U5 (`fsa install`, doctor, status …) and U18 (`fsa upgrade`) build on the cont
 app.form-schema.role=ops --user <user> [--group-add <socket gid>] -e HOME=/tmp -e DOCKER_CONFIG=/tmp/.docker
 -e DOCKER_HOST=unix:///var/run/docker.sock -v <socket>:/var/run/docker.sock -v <dir>:<dir> -w <dir>
 [-v <parent>:<parent>[:ro] …] -e FSA_… --entrypoint fsa <image> <command> <args…> --dir <dir>`.
+(Amended 2026-10-18: HOME and DOCKER_CONFIG live on a container-private tmpfs instead of `/tmp`:
+`--tmpfs /run/fsa-home:mode=0700,uid=<user uid>,gid=<user gid> -e HOME=/run/fsa-home
+-e DOCKER_CONFIG=/run/fsa-home/.docker`. A file flag pointing into `/tmp` used to mount the host's shared `/tmp`
+over the socket-holding container's Docker config, where another local user could plant a CLI plugin. The first
+argument that is no flag (or the value of `--dir` or a file-path flag) is the command; it moves to the front with
+`--dir <dir>` right after it (`<command> --dir <dir> <args…>`), so leading flags work and a literal `--` keeps its
+positionals.)
 - User (KTD2): rootful → `<host uid>:<host gid>` plus the socket's group (`stat -L -c %g`); rootless and
   desktop → `0:0`. Socket: rootless → `DOCKER_HOST` (unix) or `$XDG_RUNTIME_DIR/docker.sock`; rootful →
   `DOCKER_HOST` (unix) or `/var/run/docker.sock`; desktop → `/var/run/docker.sock` (the VM side). A non-unix
@@ -103,6 +123,13 @@ app.form-schema.role=ops --user <user> [--group-add <socket gid>] -e HOME=/tmp -
 - Terminal: `-it` with stdin from `/dev/tty` only when `/dev/tty` opens, stdout is a terminal and `--json` is
   absent (`-t` merges stderr into stdout). Otherwise the shim passes stdin with `-i` (for `--…-stdin` flags) and
   install.sh passes none. A `docker run` failure (125–127) exits 10.
+  (Amended 2026-10-18: `-it` only when stdout is a terminal, `/dev/tty` opens and `--json` is absent, and for the
+  shim also only when stdin is a terminal, so piped stdin keeps `-i`. install.sh keeps `/dev/tty` as the
+  container's stdin, because its own stdin is the `curl` pipe. With `--json` stderr is NDJSON only: launcher
+  messages and Docker's own lines become events, the command's events pass through, and shell errors of failed
+  launcher steps are discarded. A 125–127 failure whose stderr says "Mounts denied" or "not shared" is exit 3
+  `path_not_shared` with the file-sharing hint; any other stays exit 10 `docker_run_failed`. An unreachable daemon
+  is exit 10 `docker_unavailable`, retryable, as in fsa.)
 - File-path flags (`FilePathFlags`, `fsa_file_flag_mode`): outputs `--secrets-file`, `--output`, `--…-out`;
   inputs any other `--…-file` and `--from-backup`. The value is made absolute against the caller's directory,
   passed as `--flag=<abs>`, and its parent mounted at the same path (read-only for inputs) unless it lies in the
@@ -110,12 +137,22 @@ app.form-schema.role=ops --user <user> [--group-add <socket gid>] -e HOME=/tmp -
   parent directory, or `/` as the parent exits 2. Positional path arguments are not mounted: commands that read
   host files take them as flags. `--dir` must name this instance (exit 2 otherwise). `FSA_TRUST_KEY`'s
   directory is mounted read-only.
+  (Amended 2026-10-18: reserved paths. A mount directory is exit 2 `path_reserved` when it equals, contains or
+  lies inside `/tmp /var /usr /etc /run /proc /sys /dev /bin /sbin /lib /lib64 /root`, or is exactly `/` or
+  `/home`: it would cover files of the ops image or hand the container a directory other users can write to.
+  File-flag parents are checked on the path as written (lexically normalized) and again on the physical directory
+  (`cd -P`) that gets mounted; the shim and install.sh check the instance directory as written.
+  `/opt/form-schema-app` and paths under home stay allowed. One list in three places: `fsa_reserved_path` (shim),
+  `fsa_install_reserved` (install.sh) and `LaunchGuard::RESERVED` plus `RESERVED_EXACT`; a parity test in
+  `tests/Unit/Distribution/InstallScriptTest.php` runs the same paths through all three and compares the lists.)
 - Nonce: written into the instance directory and every read-write mount before the run, removed afterwards (and
   by the EXIT/INT/TERM traps). Every `fsa:*` command started with `FSA_NONCE` checks it first
   (`LaunchGuard::assertVisible`, from `FsaCommand`): a missing file is exit 3 `path_not_shared` with a
   file-sharing hint, before anything could be written inside the VM instead of the host. Then
   `LaunchGuard::assertFilePaths`: a file-path option outside the instance directory and the mounts (read-write
   ones for outputs) is exit 2 `path_not_mounted`. Commands without `FSA_NONCE` (the detached supervisor) skip both.
+  (Amended 2026-10-18: `assertVisible` first refuses any reserved `FSA_MOUNTS` entry, exit 2 `path_reserved`,
+  before any Docker call, so an older launcher is stopped too. The instance directory is left to the launchers.)
 
 **Shim** (`distribution/shim.sh` → `<dir>/fsa`). It resolves its own directory through symlinks, reads the ops
 image from `state.json` `digests.app` (InstanceState's 4-space pretty print; validated as
@@ -123,6 +160,11 @@ image from `state.json` `digests.app` (InstanceState's 4-space pretty print; val
 usable state it exits 3 and points at install.sh. install.sh sources the shim from the verified image with
 `FSA_SHIM_LIBRARY=1` and calls `fsa_run <dir> <image> install …`; this function and its exit-code behaviour are
 the stable install.sh–shim contract.
+(Amended 2026-10-18: the image's `fsa` wrapper (`docker/app/fsa`) finds the command the same way: the first
+argument that is no flag (or the value of `--dir` or a file-path flag) is the command, and leading flags move after
+it, so `fsa --json status` runs `fsa:status --json`. An unknown command exits 2 `unknown_command` with the list of
+commands in the hint (the envelope on stdout with `--json`, else stderr) instead of reaching `artisan fsa:<x>`;
+`tests/Unit/Docker/ImageContractTest.php` keeps the list in step with the registered `fsa:*` commands.)
 
 **Browser hand-over.** A command calls `FsaContext::openInBrowser($url)`: with a desktop session it writes the
 URL (http/https, RFC 3986 characters without quotes or braces) to `FSA_OPEN_URL_FILE` (0600) and returns true.
@@ -137,6 +179,9 @@ only with `--open`, or for a person at a desktop terminal (TTY, desktop session,
 `FsaContext::handOverAllowed()`); otherwise into `secrets`. `data.sign_in_link.delivered` says which way
 (`browser`, `secrets_file`, `secrets`), and after a hand-over its `hint` names
 `fsa login-link <email> --secrets-file <file>` in case no browser opened.)
+(Amended 2026-10-18, shim side: the opener runs first. If it fails, the link goes to `/dev/tty` when a terminal
+opens, never to stdout or stderr. Otherwise the 0600 file stays, and a warning names it with the hint
+`fsa login-link <email> --secrets-file <file>`. The file is deleted only after the link was opened or shown.)
 
 ## Alternatives considered
 - **Bind-mounting install.sh's temporary directory into cosign:** silently empty on Colima and unshared paths.

@@ -1,5 +1,6 @@
 # 0067: Release pipeline, release manifest and local harness (as built)
-- Status: accepted; the scan gate outcome is superseded by ADR 0071
+- Status: accepted; the scan gate outcome is superseded by ADR 0071; amended 2026-10-18 at the M9 gate (signing
+  moved out of the manifest job into `sign`, base images pinned by digest)
 - Date: 2026-10-18
 
 ## Context
@@ -58,6 +59,17 @@ grants each job only what it needs. The jobs that write use `environment: releas
    pinned identity.
 3. manifest: `release:manifest`, then `cosign sign-blob --bundle` for `release-manifest.json` and `install.sh`
    (bundles named `<file>.sigstore.json`, verified right away), then `SHA256SUMS`.
+   (Amended 2026-10-18: split in two, so the job that can mint an OIDC token runs no PHP or Composer. `manifest`
+   has no OIDC token (`contents: read`, `packages: read`), installs production dependencies only (`composer
+   install --no-dev --no-scripts --no-plugins`), refuses a harness build of install.sh, runs `release:manifest`
+   and hands the unsigned files over as an artifact. A new `sign` job, the only one besides `image` with
+   `id-token: write`, fetches the tagged `distribution/` and `docs/guide/` with a sparse checkout and runs nothing
+   from them. It refuses to sign unless the manifest's `version` is the tag's, `images.app.digest` is the digest
+   the image job pushed, every file equals the tagged commit's, and every asset matches its manifest checksum; then
+   it signs the manifest and install.sh with the pinned cosign installer and writes `SHA256SUMS`. `scan` follows
+   `sign`. The jobs in the `release` environment are now image, manifest, sign, tag, publish and finalize.
+   `ReleaseWorkflowTest` asserts that only `image` and `sign` can mint a token and that `sign` runs no PHP or
+   Composer.)
 4. scan: Trivy 0.76.0 on every manifest image and platform, `--severity CRITICAL,HIGH --ignore-unfixed
    --exit-code 1`. GHCR credentials come from the Docker config, so the token never goes to Docker Hub.
 5. tag: `docker buildx imagetools create` points the tags at the scanned digest, and the workflow checks that
@@ -89,6 +101,9 @@ annotated, so the SHA is that of the commit it points to). The linter images are
 `rhysd/actionlint:1.7.12`, `hadolint/hadolint:v2.15.1`, `koalaman/shellcheck:v0.11.0` and
 `aquasec/trivy:0.76.0`. `tests/Unit/Release/ReleaseWorkflowTest.php` keeps the SHA pins, digest pins, the
 trigger and the identity in place.
+(Amended 2026-10-18: the base images the release builds from are pinned by digest as well. `docker/app/Dockerfile`
+names every external `FROM` and `COPY --from` image as `tag@sha256:<multi-arch index digest>`, so the `no-cache`
+release build cannot pick up a moved tag; see ADR 0065.)
 
 **Signer identity** (for U4's `install.sh` and the image): `--certificate-identity-regexp
 '^https://github\.com/beyerenrico/form-schema-app/\.github/workflows/release\.yml@refs/tags/v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(alpha|beta|rc)(\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?$'`
