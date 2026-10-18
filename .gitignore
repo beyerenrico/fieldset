@@ -31,6 +31,7 @@ Thumbs.db
 /storage/agent-logs
 /storage/fsa-test-harness
 /storage/fsa-test-cache
+/storage/fsa-test-dist
 /dist
 /storage/phpstan*
 /storage/coverage

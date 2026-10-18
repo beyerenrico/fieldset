@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Domain\Instance\Console\FilePathFlags;
 use App\Domain\Instance\Console\FsaContext;
+use App\Domain\Instance\Console\LaunchGuard;
 use App\Domain\Instance\Docker\DockerRuntime;
 use App\Domain\Instance\HostFacts;
 use App\Domain\Instance\Output\CommandResult;
@@ -24,12 +25,17 @@ const LAUNCH_NONCE = '.fsa-nonce-0123456789abcdef0123456789abcdef';
 
 beforeEach(function (): void {
     $this->directory = TemporaryInstance::withState();
-    $this->outside = TemporaryInstance::path();
-    mkdir($this->outside);
+    // A host directory the launcher would mount: not under the system temp directory, which is reserved (/tmp, /var).
+    $this->outside = base_path('storage/fsa-test-dist/launch-'.bin2hex(random_bytes(6)));
+    mkdir($this->outside, 0700, true);
     $this->command = ScriptedFsaCommand::register(fn (FsaContext $c): CommandResult => CommandResult::ok('scripted', ['nonce' => $c->facts->nonce]));
 });
 
-afterEach(fn () => TemporaryInstance::cleanup());
+afterEach(function (): void {
+    TemporaryInstance::cleanup();
+    exec('rm -rf '.escapeshellarg($this->outside).' '.escapeshellarg($this->outside.'-other'));
+    @rmdir(dirname($this->outside));
+});
 
 /** @param  array<string, bool>  $mounts */
 function launchedFacts(string $directory, array $mounts = [], ?string $nonce = LAUNCH_NONCE): HostFacts
@@ -153,6 +159,32 @@ it('rejects a file-path flag outside every mounted directory with exit 2', funct
     'relative path' => [[], '--smtp-password-file', 'pw', 2],
     'sibling with the same prefix' => [['{outside}' => false], '--smtp-password-file', '{outside}-other/pw', 2],
 ]);
+
+it('refuses a reserved mount before the nonce check and the command, with exit 2 (an older launcher)', function (string $mount): void {
+    touch($this->directory->root.'/'.LAUNCH_NONCE);
+    launchedFacts($this->directory->root, [$this->outside => true, $mount => false]);
+    touch($this->outside.'/'.LAUNCH_NONCE);
+
+    [$code, $json] = launchedRun(['--dir' => $this->directory->root]);
+
+    expect($code)->toBe(2)
+        ->and($json['errors'][0]['code'])->toBe('path_reserved')
+        ->and($json['errors'][0]['message'])->toContain($mount)
+        ->and($this->command->performed)->toBe(0);
+})->with([
+    'shared /tmp (HOME used to live there)' => ['/tmp'],
+    'below /tmp' => ['/tmp/x'],
+    'the app code' => ['/var/www'],
+    'image binaries' => ['/usr/local/bin'],
+    '/home itself' => ['/home'],
+    'dot segments into /tmp' => ['/home/u/../../tmp'],
+]);
+
+it('reserves system paths of the image and shared writable directories, never home or /opt', function (): void {
+    expect(array_filter(['/', '/home', '/tmp', '/tmp/a', '/var/tmp', '/var/www/html', '/usr/local/lib/docker/cli-plugins', '/etc', '/run/fsa-home', '/proc/self',
+        '/sys', '/dev/shm', '/bin', '/sbin', '/lib', '/lib64/x', '/root', '/home/u/../../etc', '/./tmp//x/'], LaunchGuard::reserved(...)))->toHaveCount(19)
+        ->and(array_filter(['/home/u', '/home/u/fsa', '/opt/form-schema-app', '/srv/fsa', '/Users/u/out', '/tmpx', '/var2', '/usrlocal', '/mnt/tmp'], LaunchGuard::reserved(...)))->toBe([]);
+});
 
 it('checks nothing for a command no launcher started', function (): void {
     app()->instance(HostFacts::class, new HostFacts(tty: false, uid: 501));

@@ -1,27 +1,80 @@
 #!/bin/sh
-# fsa <command> [args…] runs `php artisan fsa:<command>`; without a command it lists them (KTD1, ADR 0065).
-# Symfony's console answers a literal --version with the framework version before any command runs, so the
-# --version flag of `fsa install` (§7) is passed on as --release, up to a literal -- (ADR 0072).
+# fsa [flags] <command> [args…] runs `php artisan fsa:<command>`; without a command it lists them (KTD1, ADR 0065).
+# - The first argument that is not a flag (or the value of --dir or a file-path flag) is the command; flags before
+#   it move after it, so `fsa --json status` is `fsa:status --json`. Without a command, --json lists as JSON.
+# - An unknown command exits 2 with an `unknown_command` error (the fsa JSON envelope on stdout with --json),
+#   never Laravel's plain text. `commands` lists the fsa:* commands for users, `roles` the entry points of image
+#   roles (the backup service); tests/Unit/Docker/ImageContractTest.php keeps both in step with the registered
+#   commands.
+# - Symfony's console answers a literal --version with the framework version before any command runs, so the
+#   --version flag of `fsa install` (§7) is passed on as --release, up to a literal -- (ADR 0072).
 set -e
-case "${1:-}" in
-"" | -*) exec php /var/www/html/artisan list fsa "$@" ;;
-esac
-command="$1"
-shift
+commands='doctor install login-link logs status uninstall version'
+roles='backup-daemon'
+
+json_string() {
+	printf '"%s"' "$(printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr -d '\000-\037')"
+}
+
+unknown_command() { # <command> <json: 0|1>
+	hint="Available commands: $(printf '%s' "$commands" | sed 's/ /, /g'). Run fsa without arguments to list them."
+	if [ "$2" = 1 ]; then
+		printf '{"schema_version":1,"command":%s,"status":"failed","changed":false,"data":{},"secrets":[],"warnings":[],"errors":[{"code":"unknown_command","message":%s,"hint":%s,"retryable":false}]}\n' \
+			"$(json_string "$1")" "$(json_string "Unknown fsa command: $1")" "$(json_string "$hint")"
+	else
+		printf 'fsa: unknown command: %s\n  Fix: %s\n' "$1" "$hint" >&2
+	fi
+	exit 2
+}
+
+# Pass 1: take the command out of the arguments; everything else keeps its order.
+command='' found=0 json=0 ended=0 value=0
 n=$#
-rewrite=0
-[ "$command" != install ] || rewrite=1
 while [ "$n" -gt 0 ]; do
 	arg=$1
 	shift
 	n=$((n - 1))
-	if [ "$rewrite" = 1 ]; then
+	if [ "$value" = 1 ]; then
+		value=0
+	elif [ "$ended" = 0 ]; then
 		case $arg in
-		--) rewrite=0 ;;
-		--version) arg=--release ;;
-		--version=*) arg=--release=${arg#--version=} ;;
+		--) ended=1 ;;
+		--json) json=1 ;;
+		--dir | --secrets-file | --output | --from-backup | --*-file | --*-out) [ "$found" = 1 ] || value=1 ;;
+		-*) ;;
+		*) if [ "$found" = 0 ]; then command=$arg found=1 && continue; fi ;;
 		esac
 	fi
 	set -- "$@" "$arg"
 done
+
+if [ "$found" = 1 ]; then
+	case $command in
+	'' | *[!a-z0-9-]* | -*) unknown_command "$command" "$json" ;;
+	esac
+	case " $commands $roles " in
+	*" $command "*) ;;
+	*) unknown_command "$command" "$json" ;;
+	esac
+fi
+
+# Pass 2: --json lists as JSON; `install` takes --version as --release (both only up to a literal --).
+n=$#
+ended=0
+while [ "$n" -gt 0 ]; do
+	arg=$1
+	shift
+	n=$((n - 1))
+	if [ "$ended" = 0 ]; then
+		case "$found:$command:$arg" in
+		*:--) ended=1 ;;
+		0::--json) arg=--format=json ;;
+		1:install:--version) arg=--release ;;
+		1:install:--version=*) arg=--release=${arg#--version=} ;;
+		esac
+	fi
+	set -- "$@" "$arg"
+done
+
+[ "$found" = 1 ] || exec php /var/www/html/artisan list fsa "$@"
 exec php /var/www/html/artisan "fsa:$command" "$@"

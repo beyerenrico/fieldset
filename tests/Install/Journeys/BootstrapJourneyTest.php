@@ -221,18 +221,18 @@ it('(d) verifies, pulls by digest and hands over to the ops container with mount
         ->and(array_filter($calls, fn (array $call): bool => $call[0] === 'create'))->not->toBeEmpty()
         ->and($ops)->not->toContain('-i')
         ->and($ops)->not->toContain('-it')
-        ->and($probe['argv'])->toBe(['install', '--version', ReleaseHarness::TEST_VERSION, '--owner-email', 'owner@example.test', '--json', '--dir', $directory])
+        ->and($probe['argv'])->toBe(['install', '--dir', $directory, '--version', ReleaseHarness::TEST_VERSION, '--owner-email', 'owner@example.test', '--json'])
         ->and($probe['cwd'])->toBe($directory)
         ->and($probe['docker_server'])->not->toBe('')
         ->and($probe['home_writable'])->toBeTrue()
         ->and($probe['instance'])->toBe(['visible' => true, 'marker' => true, 'shim' => true, 'manifest' => true, 'writable' => true])
         ->and($probe['env'])->toMatchArray([
-            'HOME' => '/tmp', 'DOCKER_CONFIG' => '/tmp/.docker', 'DOCKER_HOST' => 'unix:///var/run/docker.sock',
+            'HOME' => '/run/fsa-home', 'DOCKER_CONFIG' => '/run/fsa-home/.docker', 'DOCKER_HOST' => 'unix:///var/run/docker.sock',
             'FSA_LAUNCHER' => 'install.sh', 'FSA_TTY' => '0', 'FSA_HOST_UID' => (string) posix_getuid(), 'FSA_HOST_GID' => (string) posix_getgid(),
             'FSA_INSTANCE_DIR' => $directory, 'FSA_DOCKER_RUNTIME' => $desktop ? 'desktop' : 'rootful',
             'FSA_CONTAINER_UID' => $desktop ? '0' : (string) posix_getuid(), 'FSA_REGISTRY' => $this->harness->registry(),
             'FSA_RELEASE_MANIFEST' => "{$directory}/releases/".ReleaseHarness::TEST_VERSION.'/release-manifest.json',
-            'FSA_TRUST_KEY' => $this->harness->cosign->publicKey(),
+            'FSA_TRUST_KEY' => realpath($this->harness->cosign->publicKey()),
         ])
         ->and($probe['uid'])->toBe($desktop ? 0 : posix_getuid())
         ->and(substr(sprintf('%o', fileperms($directory)), -3))->toBe('700')

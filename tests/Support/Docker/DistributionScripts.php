@@ -13,8 +13,10 @@ use Symfony\Component\Process\Process;
  *
  * Stub behaviour is steered by environment variables: STUB_DOCKER_INFO (`docker info` output),
  * STUB_DOCKER_DOWN=1 (daemon unreachable), STUB_IMAGE_PRESENT=1, STUB_VERIFY_EXIT, STUB_PULL_EXIT,
- * STUB_OPS_EXIT, STUB_OPS_HOOK (a script run as the ops container, with the run's argv), STUB_RELEASE_DIR
- * (files `curl` serves by base name; a missing file is HTTP 404, exit 22) and STUB_UNAME (`uname -s`).
+ * STUB_OPS_EXIT, STUB_OPS_STDERR (printed on stderr by the ops run), STUB_OPS_HOOK (a script run as the ops
+ * container, with the run's argv), STUB_PULL_STDERR, STUB_RELEASE_DIR (files `curl` serves by base name; a missing
+ * file is HTTP 404, exit 22), STUB_CURL_EXIT (a network failure: that curl exit code, HTTP code 000) and STUB_UNAME
+ * (`uname -s`).
  */
 final readonly class DistributionScripts
 {
@@ -26,7 +28,9 @@ final readonly class DistributionScripts
 
     public function __construct(public string $shell = '/bin/dash')
     {
-        $this->root = sys_get_temp_dir().'/fsa-dist-'.bin2hex(random_bytes(6));
+        // Not under the system temp directory: the launchers refuse /tmp and /var (macOS keeps TMPDIR there) as
+        // mount or instance paths (fsa_reserved_path).
+        $this->root = self::repository().'/storage/fsa-test-dist/'.bin2hex(random_bytes(6));
         $this->bin = $this->root.'/bin';
         $this->log = $this->root.'/calls.log';
         mkdir($this->bin, 0700, true);
@@ -116,6 +120,7 @@ final readonly class DistributionScripts
     public function cleanUp(): void
     {
         exec('chmod -R u+rwx '.escapeshellarg($this->root).' 2>/dev/null; rm -rf '.escapeshellarg($this->root));
+        @rmdir(dirname($this->root));
     }
 
     /**
@@ -166,7 +171,7 @@ final readonly class DistributionScripts
     version) echo 29.0.0 ;;
     info) printf '%s\n' "${STUB_DOCKER_INFO:-Ubuntu 24.04 LTS|host|[\"name=seccomp,profile=builtin\"]}" ;;
     image) [ "${STUB_IMAGE_PRESENT:-0}" = 1 ] || exit 1 ;;
-    pull) exit "${STUB_PULL_EXIT:-0}" ;;
+    pull) [ -z "${STUB_PULL_STDERR:-}" ] || printf '%s\n' "$STUB_PULL_STDERR" >&2; exit "${STUB_PULL_EXIT:-0}" ;;
     create) echo stub-container ;;
     cp) [ -d "$2" ] && cp -R "$2" "$STUB_ROOT/verified" ;;
     start) [ "${STUB_VERIFY_EXIT:-0}" = 0 ] && echo 'Verified OK' >&2 || echo 'Error: invalid signature when validating ASN.1 encoded signature' >&2; exit "${STUB_VERIFY_EXIT:-0}" ;;
@@ -181,19 +186,27 @@ final readonly class DistributionScripts
             printf '%s=%s\036' "$v" "$val" >> "$STUB_ROOT/ops-env"
         done
         [ -z "${STUB_OPS_HOOK:-}" ] || "$STUB_OPS_HOOK" "$@"
+        [ -z "${STUB_OPS_STDERR:-}" ] || printf '%s\n' "$STUB_OPS_STDERR" >&2
         exit "${STUB_OPS_EXIT:-0}" ;;
     esac
     SH_WRAP;
 
     private const string CURL_STUB = "#!/bin/sh\n".self::RECORD."\n".<<<'SH'
         record curl "$@"
-        out='' url=''
+        out='' url='' write=''
         while [ $# -gt 0 ]; do
-            case $1 in -o) out=$2; shift ;; http://* | https://*) url=$1 ;; esac
+            case $1 in -o) out=$2; shift ;; -w) write=$2; shift ;; http://* | https://*) url=$1 ;; esac
             shift
         done
+        code() { [ -z "$write" ] || printf '%s' "$1"; }
+        if [ -n "${STUB_CURL_EXIT:-}" ]; then
+            echo "curl: (${STUB_CURL_EXIT}) Could not connect to server" >&2
+            code 000
+            exit "$STUB_CURL_EXIT"
+        fi
         src=${STUB_RELEASE_DIR:-/nonexistent}/${url##*/}
-        [ -f "$src" ] || { echo "curl: (22) The requested URL returned error: 404" >&2; exit 22; }
+        [ -f "$src" ] || { echo "curl: (22) The requested URL returned error: 404" >&2; code 404; exit 22; }
         cp "$src" "$out"
+        code 200
         SH;
 }

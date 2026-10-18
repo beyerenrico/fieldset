@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Instance\Console\LaunchGuard;
 use App\Domain\Instance\Release\ManifestSchema;
 use App\Domain\Instance\Release\ManifestVerifier;
 use App\Domain\Instance\Release\SignerIdentity;
@@ -174,12 +175,13 @@ it('hands over to fsa install in an ops container with the host facts, mounts an
     $gid = trim((string) shell_exec('id -g'));
 
     expect($process->getExitCode())->toBe(6)
-        ->and(array_slice($run, 0, 18))->toBe([
-            'run', '--rm', '--init', '--label', 'app.form-schema.role=ops', '--user', "{$uid}:{$gid}", '-e', 'HOME=/tmp', '-e', 'DOCKER_CONFIG=/tmp/.docker',
+        ->and(array_slice($run, 0, 20))->toBe([
+            'run', '--rm', '--init', '--label', 'app.form-schema.role=ops', '--user', "{$uid}:{$gid}", '--tmpfs', "/run/fsa-home:mode=0700,uid={$uid},gid={$gid}",
+            '-e', 'HOME=/run/fsa-home', '-e', 'DOCKER_CONFIG=/run/fsa-home/.docker',
             '-e', 'DOCKER_HOST=unix:///var/run/docker.sock', '-v', '/var/run/docker.sock:/var/run/docker.sock', '-v', "{$this->dir}:{$this->dir}", '-w',
         ])
         ->and(array_slice($run, array_search('--entrypoint', $run, true)))->toBe([
-            '--entrypoint', 'fsa', $image, 'install', '--owner-email', 'owner@example.test', '--json', '--yes', '--dir', $this->dir,
+            '--entrypoint', 'fsa', $image, 'install', '--dir', $this->dir, '--owner-email', 'owner@example.test', '--json', '--yes',
         ])
         ->and($run)->not->toContain('-i')
         ->and($run)->not->toContain('-it')
@@ -209,6 +211,13 @@ it('resolves the release and the image from the manifest, honouring FSA_REGISTRY
     'other version' => [[], '2.0.0', 3, 'The manifest is for 2.0.0-alpha.1, not 2.0.0'],
 ]);
 
+it('names a manifest of another version release_mismatch, like fsa', function (): void {
+    $process = $this->scripts->source(base_path('distribution/install.sh'), 'json=1; version=2.0.0; fsa_install_read_manifest "'.$this->release.'/release-manifest.json"');
+
+    expect($process->getExitCode())->toBe(3)
+        ->and(json_decode($process->getOutput(), true)['errors'][0])->toMatchArray(['code' => 'release_mismatch', 'retryable' => false]);
+});
+
 it('refuses a manifest in a format it cannot read with exit 3', function (): void {
     file_put_contents($this->release.'/release-manifest.json', '{"schema_version": 2, "version": "3.0.0"}');
 
@@ -233,6 +242,11 @@ it('validates flags and the instance directory with exit 2 before touching Docke
     'version with a newline' => [['--version', "2.0.0\nx", '--dir', '{dir}'], [], '--version must look like'],
     'bad registry' => [['--dir', '{dir}'], ['FSA_REGISTRY' => 'https://evil'], 'FSA_REGISTRY must be a registry host'],
     'dir with a colon' => [['--dir', '/tmp/a:b'], [], 'Cannot use /tmp/a:b'],
+    'dir in the shared /tmp' => [['--dir', '/tmp/fsa'], [], 'Cannot use /tmp/fsa as the instance directory: fsa mounts it'],
+    'dir over the app code' => [['--dir', '/var/www/fsa'], [], 'Cannot use /var/www/fsa as the instance directory: fsa mounts it'],
+    'dir over image binaries' => [['--dir', '/usr/local/bin/fsa'], [], 'Cannot use /usr/local/bin/fsa as the instance directory'],
+    'dir that only looks elsewhere' => [['--dir', '/home/u/../../tmp/./fsa'], [], 'Cannot use /tmp/fsa as the instance directory'],
+    '/home itself' => [['--dir', '/home'], [], 'Cannot use /home as the instance directory'],
     'root dir' => [['--dir', '/'], [], 'Cannot use / as the instance directory'],
     'missing value' => [['--dir'], [], '--dir needs a value'],
     'symlink' => [['--dir', '{dir}'], [], 'is a symbolic link', function (string $dir): void {
@@ -264,11 +278,98 @@ it('exits 10 when the Docker daemon is down and 3 when the release cannot be dow
     $missing = $this->scripts->run($this->production, ['--dir', $this->dir, '--version', '2.0.0-alpha.1'], $this->env);
 
     expect($down->getExitCode())->toBe(10)
-        ->and(json_decode($down->getOutput(), true)['errors'][0]['code'])->toBe('docker_unreachable')
+        ->and(json_decode($down->getOutput(), true)['errors'][0])->toMatchArray(['code' => 'docker_unavailable', 'retryable' => true])
         ->and($missing->getExitCode())->toBe(3)
         ->and($missing->getErrorOutput())->toContain('Cannot download https://github.com/beyerenrico/form-schema-app/releases/download/v2.0.0-alpha.1/release-manifest.json.sigstore.json')
         ->and(file_exists($this->dir))->toBeFalse();
 });
+
+it('tells a release that does not exist (exit 2) from a network failure (exit 3, retryable) and a missing bundle', function (array $arguments, array $env, ?string $remove, int $exit, string $code, bool $retryable, string $hint): void {
+    if ($remove !== null) {
+        unlink($this->release.'/'.$remove);
+    }
+
+    $process = $this->scripts->run($this->production, ['--dir', $this->dir, '--json', ...$arguments], [...$this->env, ...$env]);
+    $error = json_decode($process->getOutput(), true)['errors'][0];
+
+    expect($process->getExitCode())->toBe($exit, $process->getErrorOutput())
+        ->and($error)->toMatchArray(['code' => $code, 'retryable' => $retryable])
+        ->and($error['hint'])->toContain($hint)
+        ->and($this->scripts->calls('curl')[0])->toContain('-w', '%{http_code}')
+        ->and(file_exists($this->dir))->toBeFalse();
+})->with([
+    'no such --version' => [['--version', '2.0.9'], [], 'release-manifest.json', 2, 'release_not_found', false, 'Check --version'],
+    'no latest release yet' => [[], [], 'release-manifest.json', 2, 'release_not_found', false, 'Before 2.0.0 there is no latest release'],
+    'network down' => [['--version', '2.0.0-alpha.1'], ['STUB_CURL_EXIT' => '7'], null, 3, 'release_unavailable', true, 'Check the network'],
+    'release without a signature bundle' => [['--version', '2.0.0-alpha.1'], [], 'release-manifest.json.sigstore.json', 3, 'manifest_missing', false, 'incomplete'],
+]);
+
+it('reports pull failures as retryable, with Docker\'s message inside NDJSON events only (--json)', function (array $env, string $code): void {
+    $process = $this->scripts->run($this->production, ['--dir', $this->dir, '--json'], [...$this->env, ...$env]);
+    $error = json_decode($process->getOutput(), true)['errors'][0];
+    $events = array_map(fn (string $line): mixed => json_decode($line, true, 512, JSON_THROW_ON_ERROR), explode("\n", trim($process->getErrorOutput())));
+
+    expect($process->getExitCode())->toBe(3)
+        ->and($error)->toMatchArray(['code' => $code, 'retryable' => true])
+        ->and($error['message'])->toContain('toomanyrequests: rate limit')
+        ->and($events)->each->toHaveKeys(['ts', 'phase', 'level', 'message'])
+        ->and(end($events))->toMatchArray(['level' => 'error'])
+        ->and(end($events)['message'])->toContain('toomanyrequests: rate limit');
+})->with([
+    'app image' => [['STUB_IMAGE_PRESENT' => '1', 'STUB_PULL_EXIT' => '1', 'STUB_PULL_STDERR' => 'Error response from daemon: toomanyrequests: rate limit'], 'image_unavailable'],
+    'cosign image' => [['STUB_PULL_EXIT' => '1', 'STUB_PULL_STDERR' => 'Error response from daemon: toomanyrequests: rate limit'], 'cosign_unavailable'],
+]);
+
+it('prints human lines without --json', function (): void {
+    $process = $this->scripts->run($this->production, ['--dir', $this->dir], [...$this->env, 'STUB_DOCKER_DOWN' => '1']);
+
+    expect($process->getExitCode())->toBe(10)
+        ->and($process->getOutput())->toBe('')
+        ->and($process->getErrorOutput())->toBe("install.sh: The Docker daemon is not reachable.\n  Fix: Start Docker (or check your docker group membership), then run install.sh again.\n");
+});
+
+it('uses the same reserved-path rule as the shim and LaunchGuard, and allows its own defaults', function (): void {
+    $paths = ['/', '/home', '/home/u/fsa', '/tmp', '/tmp/fsa', '/var', '/var/www/html', '/var/lib/fsa', '/usr/local/bin', '/etc/ssl', '/run/user/1000',
+        '/proc/1', '/sys/fs', '/dev/shm', '/bin', '/sbin/x', '/lib/x', '/lib64', '/root', '/root/fsa', '/opt/form-schema-app', '/srv/fsa', '/Users/u/fsa',
+        '/tmpfoo', '/variant', '/homes/u', '/mnt/data/fsa'];
+    $snippet = 'for p in '.implode(' ', $paths).'; do %s "$p" && printf 1 || printf 0; done';
+
+    $install = $this->scripts->source(base_path('distribution/install.sh'), sprintf($snippet, 'fsa_install_reserved'))->getOutput();
+    $shim = $this->scripts->source(base_path('distribution/shim.sh'), sprintf($snippet, 'fsa_reserved_path'))->getOutput();
+    $php = implode('', array_map(fn (string $path): string => LaunchGuard::reserved($path) ? '1' : '0', $paths));
+    preg_match('/^\tfor root in ([^;]+); do$/m', (string) file_get_contents(base_path('distribution/install.sh')), $installList);
+    preg_match('/^\tfor fsa_root in ([^;]+); do$/m', (string) file_get_contents(base_path('distribution/shim.sh')), $shimList);
+
+    expect($install)->toBe($php)
+        ->and($shim)->toBe($php)
+        ->and($php)->toBe('110111111111111111110000000')
+        ->and(explode(' ', $installList[1]))->toBe(LaunchGuard::RESERVED)
+        ->and(explode(' ', $shimList[1]))->toBe(LaunchGuard::RESERVED);
+});
+
+it('passes --yes on to fsa install and never asks about the PATH link with --yes, --json or without a terminal', function (string $link, string $yes, string $json, string $tty, bool $ask): void {
+    $process = $this->scripts->source(base_path('distribution/install.sh'), "fsa_install_wants_prompt '{$link}' {$yes} {$json} {$tty} && echo ask || echo quiet");
+
+    expect(trim($process->getOutput()))->toBe($ask ? 'ask' : 'quiet');
+})->with([
+    'person at a terminal' => ['', '0', '0', '1', true],
+    '--yes' => ['', '1', '0', '1', false],
+    '--json' => ['', '0', '1', '1', false],
+    'no terminal' => ['', '0', '0', '0', false],
+    '--link given' => ['1', '0', '0', '1', false],
+    '--no-link given' => ['0', '0', '0', '1', false],
+]);
+
+it('links with --yes only when --link is given', function (): void {
+    $quiet = $this->scripts->run($this->production, ['--dir', $this->dir, '--yes'], $this->env);
+    $linked = $this->scripts->run($this->production, ['--dir', $this->dir, '--yes', '--link'], $this->env);
+
+    expect($quiet->getExitCode())->toBe(0, $quiet->getErrorOutput())
+        ->and($this->scripts->opsRuns()[0])->toContain('--yes')
+        ->and($linked->getExitCode())->toBe(0)
+        ->and(readlink($this->scripts->root.'/home/.local/bin/fsa'))->toBe($this->dir.'/fsa')
+        ->and($quiet->getErrorOutput())->not->toContain('linked');
+})->skip(fn (): bool => posix_getuid() === 0, 'as root install.sh links into /usr/local/bin');
 
 it('exits 10 when Docker is not installed', function (): void {
     unlink($this->scripts->bin.'/docker');
@@ -302,7 +403,18 @@ it('prints usage for --help without side effects', function (): void {
 
     expect($process->getExitCode())->toBe(0)
         ->and($process->getOutput())->toContain('Usage:')
+        ->and($process->getOutput())->toContain('releases/download/v<version>')
+        ->and($process->getOutput())->toContain('docs/guide/install.md')
+        ->and($process->getOutput())->not->toContain('agent-guide')
         ->and($this->scripts->calls())->toBe([]);
+});
+
+it('documents the pre-release one-liner, because releases/latest exists only from 2.0.0 on', function (): void {
+    $header = implode("\n", array_slice(explode("\n", (string) file_get_contents($this->production)), 0, 16));
+
+    expect($header)->toContain('releases/download/v<version>/install.sh | sh -s -- --version <version>')
+        ->and($header)->toContain('From 2.0.0 on')
+        ->and(is_file(base_path('docs/guide/install.md')))->toBeTrue();
 });
 
 it('generates the harness build by flipping exactly the build line', function (): void {
