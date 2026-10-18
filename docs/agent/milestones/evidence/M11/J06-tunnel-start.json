@@ -8,15 +8,15 @@
         "changed": true,
         "data": {
             "action": "start",
-            "url": "https://fsa-test-3eb4bc5095.trycloudflare.com",
+            "url": "https://fsa-test-f8423cf524.trycloudflare.com",
             "mode": "local",
             "local_url": "http://localhost:8081",
             "tunnel": {
-                "hostname": "fsa-test-3eb4bc5095.trycloudflare.com",
-                "expires_at": "2026-10-18T16:49:29Z",
-                "peer": "10.215.110.98",
+                "hostname": "fsa-test-f8423cf524.trycloudflare.com",
+                "expires_at": "2026-10-18T22:24:14Z",
+                "peer": "10.215.94.82",
                 "admin": false,
-                "url": "https://fsa-test-3eb4bc5095.trycloudflare.com",
+                "url": "https://fsa-test-f8423cf524.trycloudflare.com",
                 "state": "active"
             },
             "next_commands": [
@@ -65,59 +65,59 @@
         "secrets": [
             {
                 "name": "demo_password:owner@demo.test",
-                "value": "OrfiEhPm0XNoJRXXVNFBnOhX",
+                "value": "PJLqe98gFp7GOBuRhhEap0mX",
                 "expires_at": null
             },
             {
                 "name": "demo_password:admin@demo.test",
-                "value": "SsOHKvmllJK1pA6Idtutvaf5",
+                "value": "PPQs3B7Y6t9eCPr5UdDR02yu",
                 "expires_at": null
             },
             {
                 "name": "demo_password:designer@demo.test",
-                "value": "QoRRF7DViPteom2Wb0hZi7rf",
+                "value": "0tuYTT62GqtJzIhwy0P2nNYL",
                 "expires_at": null
             },
             {
                 "name": "demo_password:reviewer@demo.test",
-                "value": "w7vkDGlCFpkKp3gl4jatMAEp",
+                "value": "hRFjSdhhg1oKxpsnyO9TdTqK",
                 "expires_at": null
             },
             {
                 "name": "demo_password:coordinator@demo.test",
-                "value": "o5ZPcRcpnKiFEXxQdQjfsAM4",
+                "value": "2Z5OMEZHoHH507kVxlbo7ZiJ",
                 "expires_at": null
             },
             {
                 "name": "demo_password:worker@demo.test",
-                "value": "UiLBdZdAVm4OY9bt66h1zxwB",
+                "value": "j3tCYIY1bnVSY7teTFaXynTH",
                 "expires_at": null
             },
             {
                 "name": "demo_password:mobile@demo.test",
-                "value": "Y06N7kVthoTFDVCbpkV7GM2N",
+                "value": "jVuw7dWrdNUsSFaBn1PamHA3",
                 "expires_at": null
             },
             {
                 "name": "demo_password:tablet@demo.test",
-                "value": "TzphlDJWwupK7pvdTaxyLXZd",
+                "value": "00H5s9O70XrfU6N6QNd1aGPn",
                 "expires_at": null
             },
             {
                 "name": "demo_password:viewer@demo.test",
-                "value": "wP4B5apTVeEYE7Mog8b308xS",
+                "value": "AgVHd9cau08LHBsKUYnvuE1N",
                 "expires_at": null
             }
         ],
         "warnings": [
             {
                 "code": "tunnel_third_party",
-                "message": "Traffic to https://fsa-test-3eb4bc5095.trycloudflare.com passes Cloudflare, a third party, and the instance's sign-in, Field App and API are reachable from the internet until the tunnel stops.",
+                "message": "Traffic to https://fsa-test-f8423cf524.trycloudflare.com passes Cloudflare, a third party, and the instance's sign-in, Field App and API are reachable from the internet until the tunnel stops.",
                 "hint": "Quick tunnels are for testing: no uptime guarantee, at most 200 concurrent requests."
             },
             {
                 "code": "tunnel_expires",
-                "message": "The tunnel expires at 2026-10-18T16:49:29Z; after that its address answers 503.",
+                "message": "The tunnel expires at 2026-10-18T22:24:14Z; after that its address answers 503.",
                 "hint": "Run `fsa tunnel renew` to keep it 4 more hours, `fsa tunnel stop` to end it now."
             },
             {

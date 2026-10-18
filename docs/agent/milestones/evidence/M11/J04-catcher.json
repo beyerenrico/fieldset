@@ -8,7 +8,7 @@
         "changed": false,
         "data": {
             "dir": "<work>/fsa-test-j04",
-            "project": "fsa-fsa-test-j04-ef81",
+            "project": "fsa-fsa-test-j04-107b",
             "version": "2.0.0-alpha.1-test",
             "mode": "local",
             "url": "http://localhost:8081",
@@ -20,6 +20,11 @@
                 "edge_subnet": null,
                 "proxy": null,
                 "trusted_proxies": [],
+                "phone_https": {
+                    "mode": null,
+                    "lan_address": null,
+                    "tunnel_subnet": null
+                },
                 "extra_hosts": [],
                 "mail": {
                     "mode": "capture",
@@ -134,6 +139,28 @@
                     "changes_url": false
                 },
                 {
+                    "key": "phone-https",
+                    "value": "off",
+                    "available": true,
+                    "modes": [
+                        "local"
+                    ],
+                    "settable_now": true,
+                    "use_instead": null,
+                    "changes_url": true
+                },
+                {
+                    "key": "lan-address",
+                    "value": null,
+                    "available": true,
+                    "modes": [
+                        "local"
+                    ],
+                    "settable_now": true,
+                    "use_instead": null,
+                    "changes_url": true
+                },
+                {
                     "key": "operator-email",
                     "value": null,
                     "available": true,
@@ -208,6 +235,12 @@
                         "purpose": "Only when you run an upgrade (fsa upgrade arrives with 2.0.0-rc.1): the release manifest and the pinned images."
                     },
                     {
+                        "feature": "tunnel",
+                        "active": false,
+                        "contacts": [],
+                        "purpose": "Only while `fsa tunnel start` runs one (4 hours unless renewed): cloudflared connects out to Cloudflare, which serves the instance under a random *.trycloudflare.com name."
+                    },
+                    {
                         "feature": "update_check",
                         "active": false,
                         "contacts": [],
@@ -240,5 +273,9 @@
                 "Address": "invitee@example.test"
             }
         ]
+    },
+    "install_test_mail": {
+        "subject": "form-schema-app: test mail",
+        "message_id": "d5954e8dacc26a236f193859adb5b406@localhost"
     }
 }

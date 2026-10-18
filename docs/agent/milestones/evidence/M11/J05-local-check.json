@@ -45,7 +45,11 @@
                     "email": "viewer@demo.test",
                     "demo": true
                 }
-            ]
+            ],
+            "organizations": {
+                "total": 2,
+                "non_demo": 1
+            }
         },
         "secrets": [],
         "warnings": [],

@@ -13,8 +13,8 @@
             "local_url": "http://localhost:8081",
             "tunnel": null,
             "previous": {
-                "hostname": "fsa-test-74e84613a0.trycloudflare.com",
-                "expires_at": "2026-10-18T17:51:36Z",
+                "hostname": "fsa-test-650d996bf9.trycloudflare.com",
+                "expires_at": "2026-10-18T23:26:17Z",
                 "state": "active"
             },
             "services": {
