@@ -238,10 +238,22 @@ it('trusts forwarded headers only from the edge, not from a container on another
         '--silent', '--output', '/dev/null', '--write-out', '%{http_code}', ...$forged, 'http://app:8080/admin/login'], $this->journey->release->platformEnvironment());
     $edge = trim(j02Docker(['ps', '-q', '--filter', "label=app.form-schema.instance={$uuid}", '--filter', 'label=app.form-schema.role=edge'])->getOutput());
     $fromEdge = j02Docker(['exec', $edge, 'wget', '-q', '-S', '-O', '/dev/null', '--header', 'Host: '.J02_DOMAIN, '--header', 'X-Forwarded-Host: evil.example', 'http://app:8080/admin/login']);
-    $this->journey->evidence('J02-forwarded.json', ['neighbour_on_default_network' => trim($neighbour->getOutput()), 'edge_positive_control' => trim($fromEdge->getErrorOutput())], 'M10');
+    // A client's X-Forwarded-Port or Host port must not reach the links the app renders (ADR 0079): the edge strips the
+    // header, and the app takes the port from the instance URL.
+    $forgedPort = j02Client()->get('https://'.J02_DOMAIN.'/admin/login', ['headers' => ['X-Forwarded-Port' => '8443']]);
+    $forgedHost = j02Client()->get('https://'.J02_DOMAIN.'/admin/login', ['headers' => ['Host' => J02_DOMAIN.':8443']]);
+    $this->journey->evidence('J02-forwarded.json', [
+        'neighbour_on_default_network' => trim($neighbour->getOutput()), 'edge_positive_control' => trim($fromEdge->getErrorOutput()),
+        'forged_x_forwarded_port' => ['status' => $forgedPort->getStatusCode(), 'links_with_port' => str_contains((string) $forgedPort->getBody(), J02_DOMAIN.':8443')],
+        'forged_host_port' => ['status' => $forgedHost->getStatusCode(), 'links_with_port' => str_contains((string) $forgedHost->getBody(), J02_DOMAIN.':8443')],
+    ], 'M10');
 
     expect(trim($neighbour->getOutput()))->toBe('200', $neighbour->getErrorOutput())
-        ->and($fromEdge->getErrorOutput())->toContain('400');
+        ->and($fromEdge->getErrorOutput())->toContain('400')
+        ->and($forgedPort->getStatusCode())->toBe(200)
+        ->and((string) $forgedPort->getBody())->toContain('https://'.J02_DOMAIN.'/')
+        ->and((string) $forgedPort->getBody())->not->toContain(J02_DOMAIN.':8443')
+        ->and((string) $forgedHost->getBody())->not->toContain(J02_DOMAIN.':8443');
 });
 
 it('reports the instance with fsa status and doctor --post', function (): void {

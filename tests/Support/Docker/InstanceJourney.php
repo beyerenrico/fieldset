@@ -130,7 +130,9 @@ final readonly class InstanceJourney
     }
 
     /**
-     * Writes a JSON transcript for the milestone evidence, with the workspace path and the registry port replaced.
+     * Writes a JSON transcript for the milestone evidence, with the workspace path and the registry port replaced and
+     * secrets redacted (EvidenceRedactor: cookie values, XSRF tokens, CSP nonces, sign-in links (R50), signatures,
+     * tokens), even those of a removed test instance: the evidence is committed.
      *
      * @param  array<string, mixed>  $transcript
      */
@@ -140,10 +142,8 @@ final readonly class InstanceJourney
         if (! is_dir($directory)) {
             mkdir($directory, 0755, true);
         }
-        $json = json_encode($transcript, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+        $json = json_encode(EvidenceRedactor::transcript($transcript), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
         $json = str_replace([$this->work, $this->harness->registry(), $this->harness->directory], ['<work>', '<registry>', '<harness>'], $json);
-        // One-time sign-in links never go into evidence, even expired ones of a removed test instance (R50).
-        $json = (string) preg_replace('/login-link#[A-Za-z0-9._~-]+/', 'login-link#<redacted>', $json);
         file_put_contents($directory.'/'.$name, $json."\n");
     }
 
