@@ -219,3 +219,9 @@
   [--rotate-passwords]`; random demo passwords (secrets) whenever reachable beyond loopback, `password` only for
   loopback-only local; rotation revokes sessions/remember/API tokens; `app:demo-passwords --check` for U14. ADR 0081.
 - J05 7/7 (400 s), J01 regression green, Instance coverage 97.81 %.
+
+## 2026-10-18 M11-T01 capture-mode experience (U12)
+- Capture banner (two variants, R59; operators see the fsa command), MailCheck warns in capture mode,
+  `fsa config set mail smtp|capture` (password via stdin/file, test mail verify, revert with exit 5, catcher kept
+  until --remove-catcher), `config set operator-email [--revoke-previous]`, `config show --catcher-login`. ADR 0080.
+- J04 9/9 native (383 s) and amd64 emulated (865 s), axe 3/3; Instance coverage 97.43 %. Gap: install --smtp-*.

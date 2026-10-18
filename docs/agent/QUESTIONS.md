@@ -179,3 +179,8 @@ Format: question · chosen option · impact · how to reverse.
    `domain` (ADR 0077) · chosen because every URL change invalidates signed links and moves SSO redirects ·
    one more flag for agents · relax to `domain` only if it proves noisy. `config set operator-email` (plan U11)
    is deferred to U12/beta.1 and refused with exit 2 until then.
+38. The capture banner shows to every admin-panel member, not only admins (ADR 0080; E8 says "admins see a
+   banner") · chosen because designers and reviewers also send invitations and resets · harmless information
+   (mail is captured) · restrict to admins in CaptureModeBanner if preferred. `config set operator-email
+   --revoke-previous` revokes every other operator · simplest safe meaning for a single-owner instance · an
+   instance with several operators loses all but the new one · add `--revoke <email>` if needed.
