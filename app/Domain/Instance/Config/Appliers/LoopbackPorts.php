@@ -14,7 +14,8 @@ use App\Domain\Instance\State\InstanceState;
 /**
  * Loopback ports for `config set port` and `config set mode local` (R15, AE4, ADR 0072, ADR 0077): a port this
  * instance already publishes is its own; any other is probed through the engine like the install's ports check,
- * and the search for a free one walks the same range (the default and the next PortsCheck::SEARCH ports).
+ * and the search for a free one walks the same range (PortsCheck::SEARCH ports from the default on, the default
+ * included).
  */
 final readonly class LoopbackPorts
 {

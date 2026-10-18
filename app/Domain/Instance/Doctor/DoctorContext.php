@@ -27,6 +27,7 @@ final class DoctorContext
     /**
      * @param  list<string>  $images  image references the instance runs (pinned by digest)
      * @param  list<string>  $platforms  platforms of the release, e.g. linux/arm64
+     * @param  bool  $publishesAppPort  false for an install on a shared proxy network: the app gets no loopback port
      */
     public function __construct(
         public readonly HostFacts $facts,
@@ -42,6 +43,7 @@ final class DoctorContext
         public readonly bool $selectPorts = false,
         public readonly ?string $uuid = null,
         public readonly bool $post = false,
+        public readonly bool $publishesAppPort = true,
     ) {}
 
     public function info(): DockerInfo

@@ -80,8 +80,9 @@ final readonly class InstanceStack
         /** @var array<string, string> $digests */
         $digests = $preflight['digests'];
         $state = $state->withRelease((string) $preflight['version'], $digests);
-        if (is_int($preflight['port'] ?? null) && is_int($preflight['mail_ui_port'] ?? null)) { // loopback ports (not domain mode)
-            $state = $state->withSettings(['port' => $preflight['port'], 'mail_ui_port' => $preflight['mail_ui_port']]);
+        $ports = array_filter(['port' => $preflight['port'] ?? null, 'mail_ui_port' => $preflight['mail_ui_port'] ?? null], is_int(...));
+        if ($ports !== []) { // loopback ports (not domain mode; on a shared proxy network only the catcher UI's)
+            $state = $state->withSettings($ports);
         }
         $state = InstallMode::apply(ProxySetup::apply($state, $preflight), $preflight);
         $this->directory->saveState($state);

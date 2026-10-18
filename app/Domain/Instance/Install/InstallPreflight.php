@@ -56,13 +56,14 @@ final readonly class InstallPreflight
             $facts, $this->directory, $this->docker, $this->probes, $state, $request->domain(), $digests['app'] ?? null,
             images: array_values(array_intersect_key($digests, array_flip($roles))), platforms: $manifest->platforms,
             requestedPort: $request->port(), selectPorts: true, uuid: $uuid,
+            publishesAppPort: ! in_array($request->proxy(), InstallRequest::NETWORK_PROXIES, true),
         ));
         if (! $report->passed()) {
             throw new DoctorFailed($report);
         }
         $this->conflicts->assertFree($project, $uuid);
         $proxy = $this->proxy->resolve($request);
-        $ports = $this->ports($report, $request->domain() !== null);
+        $ports = $this->ports($report, $request->domain() !== null, in_array($request->proxy(), InstallRequest::NETWORK_PROXIES, true));
         $edge = InstallMode::edge($request, $state, $uuid, $this->docker->networkSubnets(...));
 
         return [
@@ -86,21 +87,22 @@ final readonly class InstallPreflight
     }
 
     /**
-     * The loopback ports the doctor chose (local mode); domain mode publishes only the edge's 80 and 443.
+     * The loopback ports the doctor chose (local mode, the proxy `port` setup); a shared proxy network publishes only
+     * the catcher UI's, domain mode only the edge's 80 and 443.
      *
      * @return array{app?: int, mail_ui?: int}
      */
-    private function ports(DoctorReport $report, bool $domain): array
+    private function ports(DoctorReport $report, bool $domain, bool $sharedNetwork): array
     {
         if ($domain) {
             return [];
         }
         $details = $report->result('ports')->details ?? [];
         $ports = is_array($details['ports'] ?? null) ? $details['ports'] : [];
-        if (! is_int($ports['app'] ?? null) || ! is_int($ports['mail_ui'] ?? null)) {
+        if ((! $sharedNetwork && ! is_int($ports['app'] ?? null)) || ! is_int($ports['mail_ui'] ?? null)) {
             throw new InstanceException('The preflight chose no ports.', ExitCode::PreflightFailed, 'ports_unknown', 'Run `fsa doctor` to see why the port check did not run.');
         }
 
-        return ['app' => $ports['app'], 'mail_ui' => $ports['mail_ui']];
+        return $sharedNetwork ? ['mail_ui' => $ports['mail_ui']] : ['app' => $ports['app'], 'mail_ui' => $ports['mail_ui']];
     }
 }
