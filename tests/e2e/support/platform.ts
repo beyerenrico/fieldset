@@ -28,6 +28,21 @@ export function artisan(...args: string[]): string {
   );
 }
 
+/**
+ * Deletes users a spec created, by exact email; memberships, operator grants and sign-in links go with them
+ * (ON DELETE CASCADE). Specs call it in afterAll: the dev database is not reseeded between runs, and
+ * leftover demo members push seeded ones off the first page of member tables.
+ */
+export function deleteUsers(emails: readonly string[]): void {
+  if (emails.length === 0) return;
+  artisan(
+    'tinker',
+    '--execute',
+    `App\\Domain\\Identity\\Models\\User::query()->whereIn('email', json_decode('${JSON.stringify(emails)}', true))` +
+      `->get()->each(fn ($user) => $user->delete());`,
+  );
+}
+
 /** A fresh, verified user with the operator role (tinker: there is no "create user" command besides app:install). */
 export function createOperator(operator: Operator): void {
   const attributes = JSON.stringify({ name: operator.name, email: operator.email, password: operator.password });

@@ -1,5 +1,5 @@
 import { expectAccessible } from './support/axe';
-import { artisan } from './support/platform';
+import { artisan, deleteUsers } from './support/platform';
 import type { Request } from '@playwright/test';
 import { test, expect, type Page } from './support/test';
 import { freshTotp } from './support/totp';
@@ -7,10 +7,12 @@ import { freshTotp } from './support/totp';
 // One-time sign-in links (BUILD_PROMPT_V2 R27/R28, KTD21, ADR 0056/0068), driven through the app-side commands
 // that `fsa login-link` runs as socket-less one-offs. The token travels in the URL fragment: no request line
 // carries it, only the landing page's POST body does. Each test creates its own demo-organization admin in the
-// app container, so reruns need no reseed.
+// app container, so reruns need no reseed; afterAll deletes them again (with their membership, operator grant
+// and links), or they pile up as demo members.
 
 const MFA_SECRET = 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP';
 const PASSWORD = 'Link-Passwort-2026!';
+const created: string[] = [];
 
 interface Account {
     readonly email: string;
@@ -33,6 +35,7 @@ function createAdmin(account: Account, options: { mfa?: boolean; operator?: bool
         email: account.email,
         password: PASSWORD,
     });
+    created.push(account.email);
     const mfa = options.mfa
         ? `App\\Domain\\Identity\\Auth\\SharedAppAuthentication::make()->recoverable()->saveSecret($u, '${MFA_SECRET}');`
         : '';
@@ -90,6 +93,10 @@ function recordRequests(page: Page): { lines: string[]; posts: string[] } {
 
 test.describe.serial('one-time sign-in links', () => {
     test.use({ storageState: { cookies: [], origins: [] } });
+
+    test.afterAll(() => {
+        deleteUsers(created.splice(0));
+    });
 
     test('an admin link signs in through the fragment, never in a request line, and works only once', async ({
         page,

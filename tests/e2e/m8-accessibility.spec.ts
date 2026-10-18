@@ -4,7 +4,14 @@ import { expectNoTrap, tabTo } from './support/keyboard';
 import { adminState } from './support/auth';
 import { fieldAppLogin, signOnCanvas } from './support/field-app';
 import { waitForOfflineReady } from './support/offline';
-import { continueAfterSetUp, createOperator, newOperator, platformSignIn, setUpAuthenticator } from './support/platform';
+import {
+  continueAfterSetUp,
+  createOperator,
+  deleteUsers,
+  newOperator,
+  platformSignIn,
+  setUpAuthenticator,
+} from './support/platform';
 import { test, expect, devices, type BrowserContext, type Page } from './support/test';
 
 // M8-T04 accessibility audit (BUILD_PROMPT §11: WCAG 2.2 AA for the Field App): axe-core (wcag2a, wcag2aa,
@@ -178,8 +185,9 @@ test.describe.serial('Field App screens', () => {
     if (!(await description.isVisible())) {
       await tabTo(page, addLine);
       await page.keyboard.press('Enter');
-      await expect(description).toBeVisible();
-      await tabTo(page, /^Beschreibung/, { back: true }); // the new row sits above the button
+      // The renderer moves focus into the new row's first field once it rendered (reveal, a few ms later);
+      // a key pressed before that keeps focus where it is, so wait for it instead of tabbing at once.
+      await expect(description).toBeFocused();
     } else {
       await tabTo(page, /^Beschreibung/);
     }
@@ -341,6 +349,10 @@ test.describe('platform panel', () => {
   test.use({ storageState: { cookies: [], origins: [] } });
   const operator = newOperator('a11y');
 
+  test.afterAll(() => {
+    deleteUsers([operator.email]);
+  });
+
   test('login, MFA set-up, organizations, members and health', async ({ page }) => {
     test.setTimeout(120_000);
     createOperator(operator);
@@ -371,6 +383,9 @@ async function drawSignature(page: Page): Promise<void> {
   await page.mouse.move(box.x + box.width / 2, box.y + 15, { steps: 8 });
   await page.mouse.move(box.x + box.width - 20, box.y + box.height - 15, { steps: 8 });
   await page.mouse.up();
+  // The pad reports the finished stroke through its own event, which React renders one task later (default
+  // priority): "Confirm signature" is enabled only then, and a Tab pressed before that would skip it.
+  await expect(page.getByRole('button', { name: /^(confirm signature|unterschrift bestätigen)$/i })).toBeEnabled();
 }
 
 /** A form from the service report template; new forms open in the canvas builder (ADR 0044). */

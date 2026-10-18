@@ -143,9 +143,11 @@ Format: question · chosen option · impact · how to reverse.
    without a password.
 30. `fsa uninstall` leaves the empty instance directory, because it is the ops container's bind mount ·
    kept · an empty directory remains · let the shim `rmdir` it after a successful uninstall.
-31. `fsa uninstall --orphans <uuid>` does not check whether that instance is alive in another directory ·
-   kept: operator names the UUID explicitly · a typo could remove a live instance's resources · add a liveness
-   check (running containers with that label) and require `--yes` twice.
+31. (Mostly resolved by ADR 0073.) `fsa uninstall --orphans <uuid>` now accepts only UUIDs install reported as
+   orphans of this directory, refuses (exit 7 `orphans_live`) while any of their containers runs, and keeps
+   volumes that containers elsewhere still use · still open: no second confirmation beyond `--yes` · a mistaken
+   UUID from the install report could still remove a stopped instance's data · require the UUID to be typed
+   again (or `--yes-orphans`) if this proves risky.
 32. The final backup of `fsa uninstall --keep-backups` (ADR 0073) runs while app, queue and scheduler keep
    running · kept: uninstall stops everything right after the backup · files written during the archive may be
    missing from it · stop the app roles before the final backup once U16's quiesce step exists.

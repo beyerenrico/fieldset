@@ -1,11 +1,19 @@
-import { continueAfterSetUp, createOperator, newOperator, platformSignIn, setUpAuthenticator } from './support/platform';
+import {
+  continueAfterSetUp,
+  createOperator,
+  deleteUsers,
+  newOperator,
+  platformSignIn,
+  setUpAuthenticator,
+} from './support/platform';
 import { test, expect } from './support/test';
 
 // M8 /platform operator panel (BUILD_PROMPT §8.12, ADR 0041): a new operator signs in with the panel's own
 // login, is sent to the required MFA set-up, then sees organizations and health and impersonates an admin
 // member of the demo organization: the banner shows on /admin pages and "Exit" returns to /platform. The
 // shared `test` fails on any CSP violation on these pages (ADR 0040). No operator is seeded, so the test
-// creates a fresh user and grants the role with `php artisan app:platform-admin` in the app container.
+// creates a fresh user and grants the role with `php artisan app:platform-admin` in the app container, and
+// deletes it afterwards.
 const evidence = (name: string) => `docs/agent/milestones/evidence/M8/${name}.png`;
 const OPERATOR = newOperator('ops');
 const TARGET = 'owner@demo.test';
@@ -15,6 +23,10 @@ test.describe.serial('platform operator panel', () => {
 
   test.beforeAll(() => {
     createOperator(OPERATOR);
+  });
+
+  test.afterAll(() => {
+    deleteUsers([OPERATOR.email]);
   });
 
   test('operator signs in with MFA set-up, sees organizations and health, impersonates and exits', async ({
@@ -40,7 +52,15 @@ test.describe.serial('platform operator panel', () => {
 
     await page.goto('/platform/organizations');
     await demo.getByRole('link', { name: /^\s*(members|mitglieder)\s*$/i }).click();
-    const member = page.getByRole('row').filter({ hasText: TARGET });
+    await expect(page).toHaveURL(/\/members/);
+    await page.waitForLoadState('networkidle'); // typing before Livewire hydrated loses the input
+    // Through the table search: the list is paged and newest first, so the seeded owner is not always on page 1.
+    const searched = page.waitForResponse(
+      (response) => /\/livewire-[^/]+\/update/.test(response.url()) && (response.request().postData() ?? '').includes('tableSearch'),
+    );
+    await page.locator('.fi-ta-search-field input[type="search"]').fill(TARGET);
+    await searched;
+    const member = page.getByRole('row').filter({ has: page.getByRole('cell', { name: TARGET, exact: true }) });
     await member.getByRole('button', { name: /^\s*(impersonate|als mitglied anmelden)\s*$/i }).click();
     const dialog = page.getByRole('dialog');
     await dialog.getByRole('textbox').fill(`E2E ${Date.now()}: check the dashboard for a support ticket`);
