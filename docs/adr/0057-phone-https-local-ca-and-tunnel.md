@@ -1,5 +1,6 @@
 # 0057: Phone HTTPS on a local install: local CA or quick tunnel, both demo-grade
-- Status: accepted
+- Status: accepted; amended 2026-10-18 by ADR 0082 (trust page served by the app, cloudflared not a trusted proxy,
+  demo passwords before the local CA)
 - Date: 2026-10-17
 
 ## Context
@@ -43,3 +44,16 @@ exclusion, tunnel recommended on Android), R65 (path policy) and KTD10–KTD12 (
 - Unverified: whether Android trusts a user-installed CA for PWA installs (plan Risks), and whether a
   name-constrained root works on phones. `RELEASING.md` tests one iOS and one Android device. Journeys use a fake
   tunnel (ADR 0064). A URL change leaves unsynced phone data behind, and `fsa` warns about it.
+
+## Amendment 2026-10-18: phone HTTPS as built (ADR 0082)
+- The app serves the trust page and the root (`/phone-trust`, `/phone-trust/root.crt`); the edge's port-80 site only
+  passes those paths on. fsa copies the public root into `runtime/local-ca-root.crt`, so the edge never serves files
+  from Caddy's `pki/` directory, which holds the keys.
+- Reverses "the only trusted proxy for the tunnel host": cloudflared keeps its fixed address, the TCP peer the app pins
+  host and scheme for, but it is not in TRUSTED_PROXIES (a trusted `X-Forwarded-Host` got a 400 before the pinning,
+  found by J6). Tunnel clients share its address for throttles and audit IPs.
+- "Demo passwords rotate first" holds for `fsa tunnel start`; `fsa config set phone-https local-ca` refuses while an
+  account has `password` (exit 3 `default_password_in_use`) and names `fsa demo --rotate-passwords`.
+- The re-issue offer is the `lan_address_changed` warning (doctor, status) naming `fsa config set lan-address <ip>`;
+  the CA stays. An expired or stopped tunnel is removed by the next `fsa config set` (any key but `operator-email`),
+  `fsa demo` or `fsa tunnel`.

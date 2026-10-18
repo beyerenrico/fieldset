@@ -1,5 +1,6 @@
 # 0054: Capture mail by default with a bundled Mailpit
-- Status: accepted
+- Status: accepted; amended 2026-10-18 by ADR 0080 (banner audience, test mail after apply, `mail capture`, the
+  kept catcher)
 - Date: 2026-10-17
 
 ## Context
@@ -46,3 +47,14 @@ Impact).
   (R11).
 - Sending invitations and resets through an organization's own SMTP, which would remove the narrower banner, is
   follow-up work.
+
+## Amendment 2026-10-18: capture mode as built (ADR 0080)
+- Banner: every signed-in member of an organization sees it, not only org admins. Operators see `fsa config set mail
+  smtp --smtp-host <host> --smtp-username <user> --password-stdin`, everyone else "ask your instance owner"; members
+  who may manage the organization also get the Mail settings link, in the full variant only.
+- Reverses "sends a test mail before switching": the test mail goes out after the new settings are applied, with
+  queue and scheduler stopped; a refusal reverts them (exit 5 `rolled_back`, `test_mail_failed`). The way back is
+  `fsa config set mail capture`, not `--capture`.
+- The catcher goes only with `--remove-catcher`, never with the switch itself. Until then it keeps its volume and UI,
+  and "read-only" means it receives nothing: its SMTP listener is bound to its own container's loopback
+  (`MP_SMTP_BIND_ADDR=127.0.0.1:1025`). Mailpit has no read-only UI, so the UI can still delete messages.

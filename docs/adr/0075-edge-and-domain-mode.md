@@ -1,6 +1,7 @@
 # 0075: The edge and domain mode (Caddyfile, network, catcher auth, ACME, install)
 - Status: accepted; amended 2026-10-18 at the M10 gate (edge headers and label, ADR 0079; certificate wait,
-  uninstall warning, IPv6 port probe, ADR 0078)
+  uninstall warning, IPv6 port probe, ADR 0078); amended 2026-10-18 by ADR 0080 (the kept catcher's `/_mail/`) and
+  ADR 0082 (the local-CA edge, network pools)
 - Date: 2026-10-18
 - Refines: ADR 0052 (Caddy edge), ADR 0053 (modes), ADR 0054 (catcher), ADR 0069 (renderer), ADR 0072 (install)
 
@@ -185,3 +186,20 @@ chain against the issuing root read from Pebble's management API.
 - One domain-mode instance per host (ports 80/443).
 - Unverified until the human checklist (ADR 0064): real Let's Encrypt (production and staging), renewal over months,
   HTTP/3 from a browser, and Mailpit's live updates through a real network path with the 5-minute stream timeout.
+
+## Amendment 2026-10-18: the kept catcher stays under `/_mail/` (ADR 0080)
+What this ADR ties to capture mode (the `/_mail/` handlers, the edge's `FSA_CATCHER_AUTHORIZATION`, Mailpit on the
+edge network) follows whether the catcher runs: in capture mode, and while it is kept after `config set mail smtp`
+until `--remove-catcher`. Operators keep reading what was captured at `/_mail/` behind the same `forward_auth`;
+nothing new arrives there (ADR 0054 amendment).
+
+## Amendment 2026-10-18: the local-CA edge and a second fixed-address network (ADR 0082)
+- Reverses "`EdgeService` joins `defaultDefinitions()` and renders only in domain mode": it also renders in local
+  mode with the local CA (`InstanceSettings::rendersEdge()`), with its own Caddyfile shape
+  (`CaddyfileRenderer::render(LocalCaSite)`: `tls internal` for `https://<LAN address>`, port 80 only the trust page
+  and a 308 for the rest), 80 and 443/tcp published on the LAN address only (no 443/udp), no env, and
+  TRUSTED_PROXIES the edge address as in domain mode. Mailpit stays off the edge network there (the catcher stays on
+  loopback), and the app keeps its loopback port.
+- `EdgeNetwork::choose()` takes the /16 pool to choose from: the edge keeps 10.213.0.0/16, and the quick tunnel's own
+  network (`TunnelNetwork`) uses 10.215.0.0/16 (the ACME harness has 10.214/16), with the same /28 blocks, fixed
+  second address and `ip_range` in the upper half.

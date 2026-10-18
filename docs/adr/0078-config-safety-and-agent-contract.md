@@ -1,5 +1,6 @@
 # 0078: Config safety and the agent contract of fsa config
-- Status: accepted
+- Status: accepted; amended 2026-10-18 by ADR 0080 (completion step, SMTP credential stash) and ADR 0082 (tunnel
+  cleanup before `config set`)
 - Date: 2026-10-18
 - Amends: ADR 0077 (result of a reverted change, flow, resume), ADR 0066 (supervisor resume check, progress events),
   ADR 0072 (repeated install, ports check), ADR 0074 (runtime writer), ADR 0075 (certificate wait, uninstall warning,
@@ -115,3 +116,20 @@ chooses only the catcher UI's loopback port.
   unverified configuration behind.
 - Unverified until the human checklist: signal delivery through a real SSH session drop on a Linux host (the shim's
   `docker run -it` with a TTY), and IPv6-only listeners on 80/443 on a dual-stack host.
+
+## Amendment 2026-10-18: the completion step and the SMTP credential stash (ADR 0080)
+- An applier's `SettingHooks::completed()` runs after `workers` and before `audit`, outside the journal phases: the
+  change is verified and running by then, so it never reverts, and a failure becomes the warning `completion_failed`.
+  The phases stay snapshot, preflight, apply, verify, workers, audit; verify also runs the applier's `verify()` hook,
+  and its progress limit adds the hook's `verifySeconds()`.
+- A `config set mail` with new credentials: the first apply keeps the previous SMTP user name and password in
+  `env/smtp-previous` (0600; not `*.env`, so no service reads it and renders leave it alone), never in the journal.
+  Any revert, also one a resumed run finishes, renders the previous state with them; the file is deleted once the
+  change is settled (verified and running, or reverted).
+
+## Amendment 2026-10-18: tunnel cleanup before `config set` (ADR 0082)
+Before `config set` (any key but `operator-email`) plans and takes the lock, an expired or stopped quick tunnel that
+the state records is removed in its own journaled operation (`tunnel`, action `expire`, `TunnelSweeper`), outside the
+`config` journal. The result then carries `tunnel_removed` and `changed: true`, also when the change itself fails; a
+failed cleanup is the warning `tunnel_cleanup_failed` and the change still runs. `fsa demo` and `fsa tunnel` sweep
+the same way.
