@@ -255,7 +255,8 @@ fsa_install_usage() {
 	printf '  <release> is https://github.com/beyerenrico/form-schema-app/releases/download/v<version> (pre-releases: also pass\n'
 	printf '  --version <version>); from 2.0.0 on also .../releases/latest/download for the newest stable release.\n'
 	printf '  --yes answers every question and does not link fsa into PATH unless --link is given.\n'
-	printf 'Flags, prompts and exit codes: docs/guide/install.md. FSA_RELEASE_URL, FSA_REGISTRY: mirrors.\n'
+	printf 'Flags of each command: fsa install --help, fsa <command> --help (without the PATH link: <dir>/fsa <command> --help).\n'
+	printf 'FSA_RELEASE_URL, FSA_REGISTRY: mirrors.\n'
 	printf 'DOCKER_DEFAULT_PLATFORM=linux/amd64 or linux/arm64: pull and run that platform (another one runs emulated).\n'
 }
 

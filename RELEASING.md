@@ -198,6 +198,13 @@ None of these checks can run inside the autonomous build (§15.1). All of them a
   Not yet verified.
 - [ ] One-liner install on a throwaway VPS in domain mode against Let's Encrypt staging (a pre-release needs the
       `download/v<ver>` form with `--version`, see [Installing a release](#installing-a-release)). Not yet verified.
-- [ ] A real cloudflared quick tunnel (`fsa tunnel start`) reached from a phone. Not yet verified.
+- [ ] A real cloudflared quick tunnel (`fsa tunnel start`) reached from a phone: the hostname read from
+      `/quicktunnel`, what cloudflared forwards to the app (Host, `X-Forwarded-*`), and throttling, since every
+      tunnel client shares cloudflared's address for throttles and audit IPs (ADR 0082). Not yet verified.
 - [ ] The local CA trusted on one iOS device and one Android device, and the Field App installs and syncs.
       Not yet verified.
+- [ ] A real provider's SMTP server with `fsa config set mail smtp`, once with STARTTLS (port 587) and once with
+      implicit TLS (`--smtp-encryption tls`, port 465): the test mail arrives and so does an invitation. J4 covers
+      only Mailpit over plain SMTP with AUTH (ADR 0080). Not yet verified.
+- [ ] The German capture banner read by a real screen reader (VoiceOver or NVDA): the region's name, both
+      variants' text and the operator command (ADR 0080). Not yet verified.
