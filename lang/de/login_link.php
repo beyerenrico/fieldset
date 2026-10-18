@@ -44,4 +44,8 @@ return [
         'offer_body' => 'Schützen Sie Ihr Konto mit Zwei-Faktor-Authentifizierung (MFA): Richten Sie auf dieser Seite eine Authenticator-App ein.',
         'expired' => 'Der Anmeldelink ist abgelaufen. Fordern Sie mit fsa login-link <email> einen neuen an.',
     ],
+    'operator' => [
+        'ready_title' => 'Ihr Passwort ist gesetzt',
+        'ready_body' => 'Sie sind Plattformbetreiber ohne Organisation: Melden Sie sich im Betreiber-Panel an; dort richten Sie zuerst die Zwei-Faktor-Authentifizierung (MFA) ein.',
+    ],
 ];

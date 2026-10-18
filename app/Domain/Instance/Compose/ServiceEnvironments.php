@@ -31,6 +31,12 @@ final readonly class ServiceEnvironments
 
     public const string MAILPIT_DATABASE = '/data/mailpit.db';
 
+    /** The kept catcher's SMTP listener (ADR 0080): the container's own loopback, unreachable from the stack. */
+    public const string MAILPIT_KEPT_SMTP_BIND = '127.0.0.1:1025';
+
+    /** Tells the app it runs in capture mode (config `mail.capture`): the admin banner and the health check read it. */
+    public const string CAPTURE_ENV = 'FSA_MAIL_CAPTURE';
+
     public function __construct(private RenderContext $context) {}
 
     /** @return array<string, string> app, queue and scheduler share this; the role adds its sizing */
@@ -90,6 +96,8 @@ final readonly class ServiceEnvironments
             'MP_MAX_MESSAGES' => (string) $this->context->budget->mailpitMaxMessages(),
             'MP_DATABASE' => self::MAILPIT_DATABASE,
             'MP_DISABLE_VERSION_CHECK' => 'true',
+            // Kept read-only after the switch to SMTP (ADR 0080): the UI shows what was captured, nothing new arrives.
+            ...($this->context->settings->keepsCatcher() ? ['MP_SMTP_BIND_ADDR' => self::MAILPIT_KEPT_SMTP_BIND] : []),
             // Domain mode: the UI lives under /_mail/ behind the edge (LEARNINGS 103: no prefix stripping).
             ...($this->context->mode() === 'domain' ? ['MP_WEBROOT' => CatcherRoute::MAIL_PATH] : []),
         ];
@@ -104,7 +112,7 @@ final readonly class ServiceEnvironments
      */
     public function edge(): array
     {
-        if (! $this->context->settings->capturesMail()) {
+        if (! $this->context->settings->runsCatcher()) {
             return [];
         }
         $credentials = InstanceSecrets::CATCHER_USER.':'.$this->context->secrets->catcherPassword;
@@ -202,13 +210,18 @@ final readonly class ServiceEnvironments
         ];
     }
 
-    /** @return array<string, string> capture mode: SMTP to the bundled Mailpit (KTD13); else the configured server */
+    /**
+     * Capture mode: SMTP to the bundled Mailpit (KTD13), and FSA_MAIL_CAPTURE for the banner and the health check (ADR
+     * 0080); else the configured server.
+     *
+     * @return array<string, string>
+     */
     private function mail(): array
     {
         $settings = $this->context->settings;
         $sender = ['MAIL_FROM_ADDRESS' => $settings->mailFromAddress(), 'MAIL_FROM_NAME' => $settings->mailFromName()];
         if ($settings->capturesMail()) {
-            return ['MAIL_MAILER' => 'smtp', 'MAIL_HOST' => self::MAILPIT_HOST, 'MAIL_PORT' => (string) self::MAILPIT_SMTP_PORT, ...$sender];
+            return ['MAIL_MAILER' => 'smtp', 'MAIL_HOST' => self::MAILPIT_HOST, 'MAIL_PORT' => (string) self::MAILPIT_SMTP_PORT, ...$sender, self::CAPTURE_ENV => 'true'];
         }
         $secrets = $this->context->secrets;
         $host = $settings->smtpHost() ?? throw new InvalidState('SMTP mail is configured without a server (setting smtp_host).');

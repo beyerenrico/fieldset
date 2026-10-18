@@ -1,0 +1,59 @@
+{
+    "command": "fsa config set mail smtp --remove-catcher --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "config",
+        "status": "ok",
+        "changed": true,
+        "data": {
+            "key": "mail",
+            "from": "smtp://fsa-test-j04-smtp-19d9:1025 (catcher kept)",
+            "to": "smtp://fsa-test-j04-smtp-19d9:1025",
+            "url": "http://localhost:8081",
+            "mode": "local",
+            "reverted": false,
+            "previous": {
+                "url": "http://localhost:8081",
+                "mode": "local"
+            },
+            "services": {
+                "recreated": [],
+                "added": [],
+                "removed": [
+                    "mailpit"
+                ]
+            },
+            "checked": [
+                "/up",
+                "/admin/login",
+                "gotenberg /health"
+            ],
+            "impact": null,
+            "audited": true,
+            "mail": {
+                "mode": "smtp",
+                "catcher": "removed",
+                "catcher_url": null,
+                "catcher_volume_removed": "fsa-fsa-test-j04-ef81_mailpit-data"
+            },
+            "next_commands": [
+                "<work>/fsa-test-j04/fsa status"
+            ]
+        },
+        "secrets": [],
+        "warnings": [],
+        "errors": []
+    },
+    "volumes_before": [
+        "fsa-fsa-test-j04-ef81_app-storage",
+        "fsa-fsa-test-j04-ef81_mailpit-data",
+        "fsa-fsa-test-j04-ef81_pg-data",
+        "fsa-fsa-test-j04-ef81_valkey-data"
+    ],
+    "volumes_after": [
+        "fsa-fsa-test-j04-ef81_app-storage",
+        "fsa-fsa-test-j04-ef81_pg-data",
+        "fsa-fsa-test-j04-ef81_valkey-data"
+    ]
+}

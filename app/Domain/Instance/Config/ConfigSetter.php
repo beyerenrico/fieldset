@@ -38,6 +38,10 @@ use Throwable;
  * the old URL again: exit 5 `rolled_back`, the journal archived. If the revert fails too, the services that serve
  * requests stop and the result is exit 8 with recovery steps; the journal stays open, and the same command then only
  * finishes the revert. SIGTERM, SIGINT and SIGHUP during apply or verify start the same revert (Interruption).
+ *
+ * Appliers with SettingHooks add a check to verify (the test mail of `config set mail smtp`) and a completion step
+ * after the workers started (the catcher volume, the captured invitations; ADR 0080). The SMTP password is registered
+ * with the output redactor first, so no message, warning or log line can carry it.
  */
 final readonly class ConfigSetter
 {
@@ -61,10 +65,13 @@ final readonly class ConfigSetter
     {
         $applier = $this->keys->applier($request->key);
         $this->assertOptions($request);
+        foreach ($request->credentials?->secrets() ?? [] as $secret) {
+            $context->redactor->register($secret);
+        }
         $state = $this->installedState();
         $this->resume->refuseLiveLock();
         $open = $this->resume->unfinished($request);
-        $change = $open instanceof JournalRecord ? $this->resume->change($open, $request) : null;
+        $change = $open instanceof JournalRecord ? $this->resume->change($open, $request)?->withCredentials($request->credentials) : null;
         $change ??= $applier->plan(($open instanceof JournalRecord ? $this->resume->previous($open) : null) ?? $state, $request);
         if (! $open instanceof JournalRecord && $change->unchanged()) {
             return $this->results->unchanged($change);
@@ -127,7 +134,7 @@ final readonly class ConfigSetter
         try {
             $services = $run->phase('apply', fn (): array => $this->rollout->apply($change), always: true, maxSeconds: ConfigRollout::APPLY_SECONDS);
             $this->interruption->checkpoint();
-            $checked = $run->phase('verify', fn (): array => $this->rollout->verify($change->after, $context->progress), changes: false, always: true, maxSeconds: ConfigRollout::verifySeconds($change->after));
+            $checked = $run->phase('verify', fn (): array => $this->verify($applier, $change, $request, $context), changes: false, always: true, maxSeconds: ConfigRollout::verifySeconds($change->after) + ($applier instanceof SettingHooks ? $applier->verifySeconds() : 0));
             $this->interruption->checkpoint();
             $run->phase('workers', fn (): array => $this->rollout->startWorkers($change->after), always: true, maxSeconds: ConfigRollout::WAIT_SECONDS);
             $this->interruption->checkpoint();
@@ -137,9 +144,41 @@ final readonly class ConfigSetter
 
             return $this->revert($run, $change, $request, ConfigFailure::describe($failure, $change), $previousRoot, $context);
         }
+        $completed = $this->completed($applier, $change, $request);
         $audit = $run->phase('audit', fn (): array => $this->audit($change, $context), changes: false, always: true);
 
-        return $this->results->succeeded($change, $services, $checked, $audit, $impact);
+        return $this->results->succeeded($change, $services, $checked, $audit, $impact, $completed);
+    }
+
+    /** @return array{checked: list<string>} the smoke test of the new settings, then the applier's own check */
+    private function verify(SettingApplier $applier, ConfigChange $change, ConfigRequest $request, FsaContext $context): array
+    {
+        $checked = $this->rollout->verify($change->after, $context->progress);
+        if ($applier instanceof SettingHooks) {
+            $checked['checked'] = [...$checked['checked'], ...$applier->verify($change, $request, ComposeProject::forInstance($change->after, $this->directory))];
+        }
+
+        return $checked;
+    }
+
+    /**
+     * The change is verified and running: the previous SMTP credentials go, and the applier cleans up and reports.
+     * Nothing here reverts; a failure is a warning.
+     *
+     * @return array{data: array<string, mixed>, warnings: list<array{code: string, message: string, hint: string|null}>}
+     */
+    private function completed(SettingApplier $applier, ConfigChange $change, ConfigRequest $request): array
+    {
+        $this->rollout->discardStash();
+        if (! $applier instanceof SettingHooks) {
+            return ['data' => [], 'warnings' => []];
+        }
+
+        try {
+            return $applier->completed($change, $request, ComposeProject::forInstance($change->after, $this->directory));
+        } catch (Throwable $e) {
+            return ['data' => [], 'warnings' => [['code' => 'completion_failed', 'message' => "The change was applied, but finishing it failed: {$e->getMessage()}", 'hint' => 'Check `fsa status`; the change itself stays.']]];
+        }
     }
 
     /** @param  array<string, mixed>  $snapshot */
@@ -259,9 +298,15 @@ final readonly class ConfigSetter
         return $impact;
     }
 
-    /** The ACME options belong to `domain`; `acme-ca` takes only the CA root file (its value is the directory). */
+    /**
+     * The ACME options belong to `domain`; `acme-ca` takes only the CA root file (its value is the directory). The SMTP
+     * options belong to `mail`.
+     */
     private function assertOptions(ConfigRequest $request): void
     {
+        if ($request->key !== 'mail' && $request->hasKeyOptions()) {
+            throw new InvalidInput("These options do not apply to `config set {$request->key}`.", 'invalid_flag', '--smtp-*, --password-stdin, --password-file, --from-*, --test-to and --remove-catcher belong to `config set mail`, --revoke-previous to `config set operator-email`.');
+        }
         $allowed = match ($request->key) {
             'domain' => true,
             'acme-ca' => $request->acmeEmail === null && $request->acmeCa === null,

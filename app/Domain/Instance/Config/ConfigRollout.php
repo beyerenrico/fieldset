@@ -41,6 +41,10 @@ use Throwable;
  * running jobs finish) and starts everything else, so no mail, notification or signed link goes out with an URL
  * that is not verified yet; `startWorkers()` brings them back on the new settings once the verification passed. A
  * revert brings the whole previous stack back, workers included.
+ *
+ * SMTP credentials (`config set mail`, ADR 0080) live only in the env files: apply renders the new ones and first keeps
+ * the old ones in `env/smtp-previous` (0600, beside the env files, never journaled), so a revert, also one a resumed
+ * run finishes, renders the previous settings with their own credentials; the file goes once the change is settled.
  */
 final readonly class ConfigRollout
 {
@@ -55,6 +59,9 @@ final readonly class ConfigRollout
 
     /** Seconds apply may take: stopping the workers (their grace period) and `up --wait`. */
     public const int APPLY_SECONDS = AppRoles::STOP_GRACE_SECONDS + self::WAIT_SECONDS;
+
+    /** The previous SMTP credentials while a `config set mail` is applied (not `*.env`: no service reads it). */
+    public const string CREDENTIALS_STASH = InstanceDirectory::ENV_DIR.'/smtp-previous';
 
     public function __construct(
         private InstanceDirectory $directory,
@@ -93,10 +100,10 @@ final readonly class ConfigRollout
      *
      * @return array{recreated: list<string>, added: list<string>, removed: list<string>}
      */
-    public function affected(InstanceState $before, InstanceState $after): array
+    public function affected(InstanceState $before, InstanceState $after, ?SmtpCredentials $credentials = null): array
     {
         $old = $this->render($before);
-        $new = $this->render($after);
+        $new = $this->render($after, $credentials);
         $recreated = array_values(array_filter(
             array_intersect($old->services(), $new->services()),
             static fn (string $service): bool => $old->service($service) !== $new->service($service) || $old->environments[$service] !== $new->environments[$service],
@@ -117,12 +124,17 @@ final readonly class ConfigRollout
      */
     public function apply(ConfigChange $change): array
     {
-        $affected = $this->affected($change->before, $change->after);
+        $affected = $this->affected($change->before, $change->after, $change->credentials);
         $this->docker->composeStop($this->project($change->before), self::WORKERS);
         if ($change->caRoot !== null) {
             AcmeCaRoot::write($this->directory, $change->caRoot);
         }
-        $this->write($change->after->withHistoryEntry('config_changed', ['key' => $change->key, 'from' => $change->from, 'to' => $change->to]));
+        $secrets = $this->secrets();
+        if ($change->credentials instanceof SmtpCredentials) {
+            $this->stashCredentials($secrets);
+            $secrets = $secrets->withSmtpCredentials($change->credentials->username, $change->credentials->password);
+        }
+        $this->write($change->after->withHistoryEntry('config_changed', ['key' => $change->key, 'from' => $change->from, 'to' => $change->to]), $secrets);
         $this->up($change->after, array_values(array_diff(ComposeFile::services($this->directory), self::WORKERS)));
 
         return $affected;
@@ -152,12 +164,43 @@ final readonly class ConfigRollout
     public function revert(ConfigChange $change, ?string $previousCaRoot, ?Closure $completed = null): array
     {
         $this->restoreCaRoot($change->before, $previousCaRoot);
-        $this->write($change->before);
+        $this->write($change->before, $this->previousSecrets());
         $completed?->__invoke('files');
         $this->up($change->before);
+        $this->discardStash();
         $completed?->__invoke('services');
 
         return ['restored' => true];
+    }
+
+    /** The change is settled (verified and running, or reverted): the previous SMTP credentials are not needed any more. */
+    public function discardStash(): void
+    {
+        if ($this->directory->exists(self::CREDENTIALS_STASH)) {
+            $this->directory->files()->delete(self::CREDENTIALS_STASH);
+        }
+    }
+
+    /** Keeps the credentials in effect before the first apply; a resumed apply finds them already kept. */
+    private function stashCredentials(InstanceSecrets $current): void
+    {
+        if (! $this->directory->exists(self::CREDENTIALS_STASH)) {
+            $this->directory->write(self::CREDENTIALS_STASH, EnvFiles::encode(['MAIL_USERNAME' => (string) $current->smtpUsername, 'MAIL_PASSWORD' => (string) $current->smtpPassword]), 0600);
+        }
+    }
+
+    /** The secrets to render the previous state with: its SMTP credentials when a mail change replaced them. */
+    private function previousSecrets(): InstanceSecrets
+    {
+        $secrets = $this->secrets();
+        $stash = $this->directory->read(self::CREDENTIALS_STASH);
+        if ($stash === null) {
+            return $secrets;
+        }
+        $values = EnvFiles::decode($stash);
+        $value = static fn (string $key): ?string => ($values[$key] ?? '') === '' ? null : $values[$key];
+
+        return $secrets->withSmtpCredentials($value('MAIL_USERNAME'), $value('MAIL_PASSWORD'));
     }
 
     /** @return array{checked: list<string>} */
@@ -210,10 +253,10 @@ final readonly class ConfigRollout
         }
     }
 
-    private function write(InstanceState $state): void
+    private function write(InstanceState $state, ?InstanceSecrets $secrets = null): void
     {
         $this->directory->saveState($state);
-        $this->renderer->write($this->directory, $state, $this->secrets(), $this->emulated($state));
+        $this->renderer->write($this->directory, $state, $secrets ?? $this->secrets(), $this->emulated($state));
     }
 
     /** @param  list<string>  $services  the whole project when empty */
@@ -249,9 +292,14 @@ final readonly class ConfigRollout
         return is_string($current) && is_string($native) && (int) $current === 2 * (int) $native;
     }
 
-    private function render(InstanceState $state): RenderedProject
+    private function render(InstanceState $state, ?SmtpCredentials $credentials = null): RenderedProject
     {
-        return $this->renderer->render($state, $this->secrets(), $this->emulated($state));
+        $secrets = $this->secrets();
+        if ($credentials instanceof SmtpCredentials) {
+            $secrets = $secrets->withSmtpCredentials($credentials->username, $credentials->password);
+        }
+
+        return $this->renderer->render($state, $secrets, $this->emulated($state));
     }
 
     /** @return list<string> */

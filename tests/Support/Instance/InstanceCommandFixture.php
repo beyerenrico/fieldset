@@ -180,6 +180,13 @@ final class InstanceCommandFixture
                 'data' => ['event' => 'instance.config_changed', 'activity_id' => 7]]),
             'identity:login-links' => self::oneOffJson(['command' => 'identity:login-links', 'status' => 'ok',
                 'data' => ['links' => [['id' => 1, 'email' => 'owner@example.com', 'kind' => 'owner', 'state' => 'unused']], 'count' => 1]]),
+            'instance:mail-test' => self::oneOffJson(['command' => 'instance:mail-test', 'status' => 'ok', 'changed' => true,
+                'data' => ['to' => 'owner@example.com', 'mailer' => 'smtp']]),
+            'instance:mail-captured' => self::oneOffJson(['command' => 'instance:mail-captured', 'status' => 'ok',
+                'data' => ['invitations' => 2, 'password_resets' => 1]]),
+            'instance:operator-email' => self::oneOffJson(['command' => 'instance:operator-email', 'status' => 'ok', 'changed' => true,
+                'data' => ['email' => 'new-ops@example.com', 'user_id' => 2, 'created' => true, 'granted' => true, 'revoked' => [], 'password_set' => false, 'login_url' => 'http://localhost:8080/platform/login'],
+                'secrets' => [['name' => 'sign_in_link', 'value' => self::LINK, 'expires_at' => '2026-10-18T11:00:00Z']]]),
             default => new ProcessOutcome(0, "Migrated.\n"),
         };
     }

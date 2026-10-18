@@ -29,7 +29,7 @@ final readonly class EdgeSite
             acmeCa: $settings->acmeCa(),
             acmeEmail: $settings->acmeEmail(),
             acmeCaRoot: $settings->acmeCaRoot() !== null,
-            catcher: $settings->capturesMail(),
+            catcher: $settings->runsCatcher(),
         );
     }
 }

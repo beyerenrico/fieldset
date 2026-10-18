@@ -7,6 +7,7 @@ namespace App\Providers\Filament;
 use App\Domain\Identity\Auth\SharedAppAuthentication;
 use App\Domain\Identity\Models\Organization;
 use App\Filament\AccessiblePlaceholders;
+use App\Filament\Admin\CaptureModeBanner;
 use App\Filament\Admin\Livewire\DatabaseNotifications;
 use App\Filament\Admin\Pages\Auth\EditProfile;
 use App\Filament\Admin\Pages\Auth\EmailChangeVerificationController;
@@ -43,6 +44,7 @@ use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\HtmlString;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class AdminPanelProvider extends PanelProvider
@@ -76,6 +78,8 @@ class AdminPanelProvider extends PanelProvider
             ->tenantMiddleware([SetTenantFromFilament::class, SetLocale::class], isPersistent: true)
             ->colors(['primary' => Color::Blue])
             ->renderHook(PanelsRenderHook::STYLES_AFTER, AccessiblePlaceholders::styles(...)) // WCAG AA contrast
+            // Capture mode (R24, R59, ADR 0080): every page of an organization says that mail is not delivered.
+            ->renderHook(PanelsRenderHook::BODY_START, fn (): HtmlString => app(CaptureModeBanner::class)->render())
             ->discoverResources(in: app_path('Filament/Admin/Resources'), for: 'App\Filament\Admin\Resources')
             ->discoverPages(in: app_path('Filament/Admin/Pages'), for: 'App\Filament\Admin\Pages')
             ->pages([]) // App\Filament\Admin\Pages\Dashboard (role-aware, discovered) replaces Filament's dashboard

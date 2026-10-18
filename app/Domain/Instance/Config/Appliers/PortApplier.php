@@ -33,7 +33,7 @@ final readonly class PortApplier implements SettingApplier
                 ? 'Domain mode publishes 80 and 443 through the edge; `fsa config set mode local` returns to a loopback port.'
                 : 'On a shared proxy network the proxy reaches the app directly.');
         }
-        if ($settings->capturesMail() && $port === $settings->mailUiPort()) {
+        if ($settings->runsCatcher() && $port === $settings->mailUiPort()) {
             throw new InvalidInput("Port {$port} is the mail catcher UI's port.", 'port_conflict', 'Choose another port.');
         }
 

@@ -1,0 +1,244 @@
+{
+    "command": "fsa config show --catcher-login --secrets-file <work>/catcher-login.json --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "config",
+        "status": "ok",
+        "changed": false,
+        "data": {
+            "dir": "<work>/fsa-test-j04",
+            "project": "fsa-fsa-test-j04-ef81",
+            "version": "2.0.0-alpha.1-test",
+            "mode": "local",
+            "url": "http://localhost:8081",
+            "settings": {
+                "port": 8081,
+                "mail_ui_port": 8025,
+                "domain": null,
+                "acme": null,
+                "edge_subnet": null,
+                "proxy": null,
+                "trusted_proxies": [],
+                "extra_hosts": [],
+                "mail": {
+                    "mode": "capture",
+                    "catcher": "active",
+                    "catcher_url": "http://localhost:8025",
+                    "smtp": null,
+                    "from_address": "forms@localhost",
+                    "from_name": "form-schema-app"
+                },
+                "size": "small",
+                "database": "form_schema"
+            },
+            "secrets": {
+                "app_key": "[redacted]",
+                "database_password": "[redacted]",
+                "valkey_password": "[redacted]",
+                "catcher_password": "[redacted]"
+            },
+            "keys": [
+                {
+                    "key": "domain",
+                    "value": null,
+                    "available": true,
+                    "modes": [
+                        "local",
+                        "proxy",
+                        "domain"
+                    ],
+                    "settable_now": true,
+                    "use_instead": null,
+                    "changes_url": true
+                },
+                {
+                    "key": "url",
+                    "value": "http://localhost:8081",
+                    "available": true,
+                    "modes": [
+                        "proxy"
+                    ],
+                    "settable_now": false,
+                    "use_instead": "port",
+                    "changes_url": true
+                },
+                {
+                    "key": "port",
+                    "value": 8081,
+                    "available": true,
+                    "modes": [
+                        "local",
+                        "proxy"
+                    ],
+                    "settable_now": true,
+                    "use_instead": null,
+                    "changes_url": true
+                },
+                {
+                    "key": "trusted-proxy",
+                    "value": null,
+                    "available": true,
+                    "modes": [
+                        "proxy"
+                    ],
+                    "settable_now": false,
+                    "use_instead": null,
+                    "changes_url": false
+                },
+                {
+                    "key": "mode",
+                    "value": "local",
+                    "available": true,
+                    "modes": [
+                        "domain",
+                        "proxy"
+                    ],
+                    "settable_now": false,
+                    "use_instead": "domain",
+                    "changes_url": true
+                },
+                {
+                    "key": "acme-email",
+                    "value": null,
+                    "available": true,
+                    "modes": [
+                        "domain"
+                    ],
+                    "settable_now": false,
+                    "use_instead": "domain",
+                    "changes_url": false
+                },
+                {
+                    "key": "acme-ca",
+                    "value": null,
+                    "available": true,
+                    "modes": [
+                        "domain"
+                    ],
+                    "settable_now": false,
+                    "use_instead": "domain",
+                    "changes_url": false
+                },
+                {
+                    "key": "mail",
+                    "value": "capture",
+                    "available": true,
+                    "modes": [
+                        "local",
+                        "proxy",
+                        "domain"
+                    ],
+                    "settable_now": true,
+                    "use_instead": null,
+                    "changes_url": false
+                },
+                {
+                    "key": "operator-email",
+                    "value": null,
+                    "available": true,
+                    "modes": [
+                        "local",
+                        "proxy",
+                        "domain"
+                    ],
+                    "settable_now": true,
+                    "use_instead": null,
+                    "changes_url": false
+                },
+                {
+                    "key": "backup-schedule",
+                    "value": null,
+                    "available": false,
+                    "modes": [],
+                    "settable_now": false,
+                    "use_instead": null,
+                    "arrives_with": "2.0.0-rc.1"
+                },
+                {
+                    "key": "backup-retention",
+                    "value": null,
+                    "available": false,
+                    "modes": [],
+                    "settable_now": false,
+                    "use_instead": null,
+                    "arrives_with": "2.0.0-rc.1"
+                },
+                {
+                    "key": "backup-encryption",
+                    "value": null,
+                    "available": false,
+                    "modes": [],
+                    "settable_now": false,
+                    "use_instead": null,
+                    "arrives_with": "2.0.0-rc.1"
+                },
+                {
+                    "key": "update-check",
+                    "value": null,
+                    "available": false,
+                    "modes": [],
+                    "settable_now": false,
+                    "use_instead": null,
+                    "arrives_with": "2.0.0"
+                }
+            ],
+            "outbound_contacts": {
+                "default": "none: without these features neither fsa nor the instance calls out (identity providers and SMTP servers that organization admins configure for their own organization are contacted as configured)",
+                "features": [
+                    {
+                        "feature": "acme",
+                        "active": false,
+                        "contacts": [],
+                        "purpose": "Domain mode: the edge orders and renews certificates from this ACME directory (and its challenges reach port 80/443)."
+                    },
+                    {
+                        "feature": "smtp",
+                        "active": false,
+                        "contacts": [],
+                        "purpose": "Real mail delivery through this server (fsa config set mail smtp); capture mode keeps every mail in the bundled catcher."
+                    },
+                    {
+                        "feature": "upgrades",
+                        "active": false,
+                        "contacts": [
+                            "<registry>",
+                            "https://github.com/beyerenrico/form-schema-app/releases"
+                        ],
+                        "purpose": "Only when you run an upgrade (fsa upgrade arrives with 2.0.0-rc.1): the release manifest and the pinned images."
+                    },
+                    {
+                        "feature": "update_check",
+                        "active": false,
+                        "contacts": [],
+                        "purpose": "Off by default; arrives with 2.0.0 and then contacts the release list only when switched on."
+                    }
+                ]
+            },
+            "catcher_login": {
+                "url": "http://localhost:8025",
+                "user": "fsa",
+                "secret": "<redacted>"
+            }
+        },
+        "secrets": [
+            {
+                "name": "catcher_password",
+                "written_to": "<work>/catcher-login.json",
+                "expires_at": null
+            }
+        ],
+        "warnings": [],
+        "errors": []
+    },
+    "catcher_without_login": 401,
+    "invitation": {
+        "subject": "Invitation to Capture Org",
+        "to": [
+            {
+                "Name": "",
+                "Address": "invitee@example.test"
+            }
+        ]
+    }
+}

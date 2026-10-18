@@ -51,7 +51,7 @@ final readonly class ModeApplier implements SettingApplier
     {
         $wanted = InstanceSettings::of($change->after);
         $app = $this->ports->choose($change->before, $wanted->port(), InstanceSettings::DEFAULT_PORT, []);
-        $mail = $wanted->capturesMail()
+        $mail = $wanted->runsCatcher()
             ? $this->ports->choose($change->before, $wanted->mailUiPort(), InstanceSettings::DEFAULT_MAIL_UI_PORT, [$app])
             : $wanted->mailUiPort();
         if ($app === $wanted->port() && $mail === $wanted->mailUiPort()) {

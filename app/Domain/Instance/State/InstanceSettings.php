@@ -23,6 +23,14 @@ final readonly class InstanceSettings
 
     public const string DEFAULT_SENDER_NAME = 'form-schema-app';
 
+    /** Setting `mail_catcher`: the catcher is kept read-only after the switch to SMTP (ADR 0080). */
+    public const string CATCHER_KEPT = 'kept';
+
+    /** Implicit TLS (`--smtp-encryption tls`, usually port 465); unset means STARTTLS when the server offers it. */
+    public const string SMTP_IMPLICIT_TLS = 'smtps';
+
+    public const int DEFAULT_SMTPS_PORT = 465;
+
     /** Let's Encrypt production: domain mode's ACME directory unless `--acme-ca` or `--acme-staging` (R16). */
     public const string ACME_PRODUCTION = 'https://acme-v02.api.letsencrypt.org/directory';
 
@@ -52,6 +60,21 @@ final readonly class InstanceSettings
     public function capturesMail(): bool
     {
         return $this->state->setting('mail', 'capture') !== 'smtp';
+    }
+
+    /**
+     * SMTP delivers, and the catcher stays with the mail it captured until `fsa config set mail smtp --remove-catcher`
+     * (KTD13, ADR 0080): read-only, its SMTP port bound to the container's loopback so nothing reaches it any more.
+     */
+    public function keepsCatcher(): bool
+    {
+        return ! $this->capturesMail() && $this->state->setting('mail_catcher') === self::CATCHER_KEPT;
+    }
+
+    /** The bundled catcher runs: in capture mode, or kept read-only after the switch to SMTP. */
+    public function runsCatcher(): bool
+    {
+        return $this->capturesMail() || $this->keepsCatcher();
     }
 
     public function size(): string
@@ -136,7 +159,7 @@ final readonly class InstanceSettings
     /** Where the catcher UI is reached (KTD13): the loopback port, `/_mail/` behind the edge in domain mode, else null. */
     public function catcherUrl(): ?string
     {
-        if (! $this->capturesMail()) {
+        if (! $this->runsCatcher()) {
             return null;
         }
         $domain = $this->domain();
