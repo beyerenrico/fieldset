@@ -54,6 +54,6 @@ final readonly class EdgePreflight
             throw new DoctorFailed($report);
         }
 
-        return array_map(static fn (CheckResult $warning): array => ['code' => 'doctor_'.$warning->key, 'message' => $warning->summary, 'hint' => $warning->hint], $report->warnings());
+        return array_map(static fn (CheckResult $warning): array => ['code' => $warning->warningCode(), 'message' => $warning->summary, 'hint' => $warning->hint], $report->warnings());
     }
 }

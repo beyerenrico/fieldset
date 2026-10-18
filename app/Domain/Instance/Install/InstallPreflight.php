@@ -74,7 +74,7 @@ final readonly class InstallPreflight
             'mail_ui_port' => $ports['mail_ui'] ?? null,
             // DOCKER_DEFAULT_PLATFORM selects another architecture than the engine's: the renderer doubles memory limits.
             'emulated' => ($report->result('architecture')?->details['emulated'] ?? false) === true,
-            'warnings' => array_map(static fn (CheckResult $warning): array => ['code' => 'doctor_'.$warning->key, 'message' => $warning->summary, 'hint' => $warning->hint], $report->warnings()),
+            'warnings' => array_map(static fn (CheckResult $warning): array => ['code' => $warning->warningCode(), 'message' => $warning->summary, 'hint' => $warning->hint], $report->warnings()),
             'orphans' => $this->conflicts->orphans($this->directory->root, $uuid),
             // Proxy mode (ADR 0076): the URL from --url and the single address the app will trust. Domain mode (ADR 0075):
             // https://<domain>, the ACME inputs and the edge subnet.
