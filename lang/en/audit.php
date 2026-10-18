@@ -307,6 +307,7 @@ return [
             'impersonation_ended' => 'Impersonation ended',
             'admin_granted' => 'Platform admin granted',
             'admin_revoked' => 'Platform admin revoked',
+            'catcher_opened' => 'Mail catcher opened',
         ],
         'login_link' => [
             'issued' => 'One-time sign-in link issued',
