@@ -103,6 +103,10 @@ return [
             'not_probed' => 'Konfiguriert; dieser Transport wird nicht geprüft.',
             'reachable' => 'Der SMTP-Server nimmt Verbindungen an.',
             'unreachable' => 'Der SMTP-Server ist nicht erreichbar.',
+            'captured' => 'Abfangmodus: E-Mails gehen an den mitgelieferten Mail-Catcher und werden nicht zugestellt. SMTP richten Sie mit `fsa config set mail smtp` ein.',
+            'catcher' => 'Mail-Catcher',
+            'catcher_reachable' => 'nimmt Verbindungen an',
+            'catcher_unreachable' => 'nicht erreichbar',
         ],
         'scheduler' => [
             'never' => 'Noch kein Lauf des Zeitplaners erfasst (seit dem letzten Leeren des Caches).',

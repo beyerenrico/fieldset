@@ -117,4 +117,11 @@ return [
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
     ],
 
+    /*
+    | Capture mode (BUILD_PROMPT_V2 E8, R22, ADR 0054, ADR 0080): the instance mailer delivers into the bundled mail
+    | catcher, so nothing leaves the server. `fsa` sets FSA_MAIL_CAPTURE=true on app, queue and scheduler while it is
+    | on; admins then see the capture banner and the health check warns. Unset everywhere else (checkouts, dev, CI).
+    */
+    'capture' => filter_var(env('FSA_MAIL_CAPTURE', false), FILTER_VALIDATE_BOOL),
+
 ];

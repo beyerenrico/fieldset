@@ -103,6 +103,10 @@ return [
             'not_probed' => 'Configured; this transport is not probed.',
             'reachable' => 'The SMTP server accepts connections.',
             'unreachable' => 'The SMTP server is not reachable.',
+            'captured' => 'Capture mode: mail goes to the bundled mail catcher and is not delivered. Configure SMTP with `fsa config set mail smtp`.',
+            'catcher' => 'Mail catcher',
+            'catcher_reachable' => 'accepts connections',
+            'catcher_unreachable' => 'not reachable',
         ],
         'scheduler' => [
             'never' => 'No scheduler run recorded yet (since the last cache clear).',
