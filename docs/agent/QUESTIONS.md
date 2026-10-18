@@ -177,8 +177,8 @@ Format: question · chosen option · impact · how to reverse.
    and SecurityHeaders, 1.0 behaviour) · cosmetic · remove one source.
 37. `fsa config set` asks for `--yes` on every URL change (`domain`, `url`, local `port`, `mode`), not only
    `domain` (ADR 0077) · chosen because every URL change invalidates signed links and moves SSO redirects ·
-   one more flag for agents · relax to `domain` only if it proves noisy. `config set operator-email` (plan U11)
-   is deferred to U12/beta.1 and refused with exit 2 until then.
+   one more flag for agents · relax to `domain` only if it proves noisy. (`config set operator-email` landed in
+   U12, ADR 0080.)
 38. The capture banner shows to every admin-panel member, not only admins (ADR 0080; E8 says "admins see a
    banner") · chosen because designers and reviewers also send invitations and resets · harmless information
    (mail is captured) · restrict to admins in CaptureModeBanner if preferred. `config set operator-email
@@ -208,3 +208,8 @@ Format: question · chosen option · impact · how to reverse.
    install plus `config set mail smtp` · allow changes on resume if it bites. Every resumed smoke phase sends the
    owner another test mail. `config show` reports `mail.catcher: removed` for an instance that never had one
    (cosmetic; `none` would be clearer).
+44. The local CA's root and intermediate keys live on the edge's Docker volume (Caddy's pki directory), not in
+   `<instance>/certs/` with mode 0600 as BUILD_PROMPT_V2 §10/§6.3 say (ADR 0082 amendment) · confidentiality is the
+   same (root-only volume, 0600 for Caddy's user) · M12 backup/restore must include the edge volume or phones must
+   trust a new CA after a restore · bind-mount `<instance>/certs/` as Caddy's pki directory if the spec wording
+   matters.
