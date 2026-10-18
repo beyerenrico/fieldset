@@ -6,6 +6,7 @@ namespace App\Domain\Instance\Console;
 
 use App\Domain\Instance\Demo\DemoOperation;
 use App\Domain\Instance\Output\CommandResult;
+use App\Domain\Instance\Tunnel\TunnelSweeper;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 
@@ -28,10 +29,13 @@ final class DemoCommand extends FsaCommand
 
     protected function perform(FsaContext $context): CommandResult
     {
-        return $this->laravel->make(DemoOperation::class)->run(
+        // An expired or stopped quick tunnel goes first (AE6, ADR 0082): this is a mutating command.
+        $swept = $this->laravel->make(TunnelSweeper::class)->sweep($context);
+
+        return TunnelSweeper::then($this->resultName(), $swept, fn (): CommandResult => $this->laravel->make(DemoOperation::class)->run(
             $context,
             (bool) $this->option('rotate-passwords'),
             is_string($this->option('secrets-file')) && $this->option('secrets-file') !== '',
-        );
+        ));
     }
 }
