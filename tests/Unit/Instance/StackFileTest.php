@@ -156,7 +156,8 @@ it('names in its header what is missing without fsa', function (): void {
     expect($header)->toContain('no upgrade supervisor')
         ->toContain('no backups through fsa')
         ->toContain('no fsa commands')
-        ->toContain('app:install')
+        ->toContain('  docker compose -f compose.stack.yaml exec app php artisan app:install ')
+        ->toContain('with the same variables set')
         ->toContain('2.0.0-alpha.2')
         ->and(stackFile()->yaml())->toStartWith('# form-schema-app')
         ->and(stackFile()->yaml())->toContain("\nservices:\n  app:\n    image: \"\${FSA_REGISTRY:-registry.test:5000}/fsa/app@sha256:");
