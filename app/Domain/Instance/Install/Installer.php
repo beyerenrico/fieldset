@@ -54,6 +54,7 @@ final readonly class Installer
         private InstanceStack $stack,
         private AppCommands $app,
         private SmokeTest $smoke,
+        private ProxySetup $proxy,
     ) {}
 
     public function situation(): InstallSituation
@@ -233,12 +234,14 @@ final readonly class Installer
     {
         $state = $this->directory->state();
         $digest = RecordDigest::fromEnvFiles(new EnvFiles($this->directory));
-        $changed = $request->changedFlags(InstallRecord::applied($state), InstallRecord::comparator($digest));
+        $trusted = fn (string $given): bool => $this->proxy->isTrusted($state, $given);
+        $changed = $request->changedFlags(InstallRecord::applied($state), InstallRecord::comparator($digest, $trusted));
         if ($changed !== []) {
             throw new InvalidInput(
-                'This instance is installed; '.implode(', ', $changed).' differ from its installation.',
+                'This instance is installed; '.implode(', ', $changed).' differ from its installation. fsa install changes nothing on an installed instance.',
                 'use_config_set',
-                'fsa install changes nothing on an installed instance: change settings with `fsa config set <key> <value>` (`fsa config show` lists them; `fsa upgrade` arrives in a later release), or remove the instance with `fsa uninstall` and install again with the new flags.',
+                InstallFlags::hint($changed, $state),
+                ['flags' => InstallFlags::keys($changed, $state)],
             );
         }
         $email = $request->ownerEmailIfKnown();

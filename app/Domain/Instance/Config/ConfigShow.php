@@ -17,8 +17,8 @@ use App\Domain\Instance\State\InstanceState;
  * `fsa config show` (R31, §10 privacy, ADR 0077): every setting as it is in effect, read from the state alone (no
  * Docker call, so it also answers while the engine is down): mode, URL, ports, domain and ACME inputs, proxy setup,
  * trusted proxies, mail as it stands, size. Secrets appear only by name with `[redacted]`. `keys` lists what
- * `fsa config set` takes, with the current value, and `outbound_contacts` what each opt-in feature contacts: nothing
- * by default.
+ * `fsa config set` takes, with the current value, the modes it applies in, whether it is settable now and the key to
+ * use instead (ADR 0078), and `outbound_contacts` what each opt-in feature contacts: nothing by default.
  */
 final readonly class ConfigShow
 {
@@ -112,10 +112,10 @@ final readonly class ConfigShow
         ];
         $keys = [];
         foreach (array_keys(ConfigKeys::APPLIERS) as $key) {
-            $keys[] = ['key' => $key, 'value' => $values[$key] ?? null, 'available' => true, 'changes_url' => in_array($key, ConfigKeys::URL_KEYS, true)];
+            $keys[] = ['key' => $key, 'value' => $values[$key] ?? null, 'available' => true, ...ConfigKeys::availability($key, $state), 'changes_url' => in_array($key, ConfigKeys::URL_KEYS, true)];
         }
         foreach (ConfigKeys::LATER as $key => $release) {
-            $keys[] = ['key' => $key, 'value' => null, 'available' => false, 'arrives_with' => $release];
+            $keys[] = ['key' => $key, 'value' => null, 'available' => false, 'modes' => [], 'settable_now' => false, 'use_instead' => null, 'arrives_with' => $release];
         }
 
         return $keys;

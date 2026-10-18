@@ -60,7 +60,7 @@ final readonly class TrustedProxyApplier implements SettingApplier
             ?? throw new InstanceException("The Docker network {$network} does not exist.", ExitCode::PreflightFailed, 'proxy_network_missing', "Create it and attach the proxy (docker network create {$network}), then run the command again.");
         $recorded = $settings->proxyContainer();
         $given = $value !== 'auto' ? $value : ($recorded !== null && $info->endpoint($recorded) instanceof NetworkEndpoint ? $recorded : null);
-        $endpoint = $this->proxy->endpointOn($info, (string) $settings->proxy(), $given);
+        $endpoint = $this->proxy->endpointOn($info, (string) $settings->proxy(), $given, forConfig: true);
         $address = $endpoint->address()
             ?? throw new InstanceException("The container {$endpoint->name} has no address on {$network}.", ExitCode::PreflightFailed, 'proxy_not_found', 'Check that the proxy runs and is attached to the network.');
 
