@@ -158,7 +158,7 @@ it('serves only the trust page and the root certificate on port 80, everything e
     $trust = LocalCaClient::http($this->lan, '/phone-trust');
     $root = LocalCaClient::http($this->lan, '/phone-trust/root.crt');
     $this->journey->evidence('J06-port-80.json', [
-        'admin_login' => [$admin['status'], $admin['location']], 'app' => [$app['status'], $app['location']],
+        'admin_login' => [$admin['status'], $admin['location'], ...($admin['status'] === 0 ? [$admin['body']] : [])], 'app' => [$app['status'], $app['location']],
         'trust_page' => ['status' => $trust['status'], 'hsts' => $trust['headers']['strict-transport-security'] ?? null, 'csp' => $trust['headers']['content-security-policy'] ?? null, 'set_cookie' => $trust['headers']['set-cookie'] ?? null],
         'root' => ['status' => $root['status'], 'type' => $root['headers']['content-type'] ?? null],
     ]);

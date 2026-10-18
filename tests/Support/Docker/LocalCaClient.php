@@ -90,7 +90,8 @@ final class LocalCaClient
             $headers[strtolower(trim($name))] = trim($value);
         }
 
-        return ['status' => $status, 'location' => $headers['location'] ?? '', 'body' => is_string($body) ? $body : '', 'headers' => $headers];
+        // A connection that fails keeps PHP's own message as the body, for the evidence.
+        return ['status' => $status, 'location' => $headers['location'] ?? '', 'body' => is_string($body) ? $body : error_get_last()['message'] ?? '', 'headers' => $headers];
     }
 
     /**
