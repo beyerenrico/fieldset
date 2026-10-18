@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 use App\Console\Commands\DemoSeedCommand;
 use App\Domain\Audit\Models\Activity;
+use App\Domain\Identity\Actions\IssueLoginLink;
+use App\Domain\Identity\Actions\IssueOwnerLink;
 use App\Domain\Identity\Demo\DefaultDemoPassword;
 use App\Domain\Identity\Demo\DemoAccounts;
 use App\Domain\Identity\Demo\DemoPasswordSource;
 use App\Domain\Identity\Demo\RandomDemoPasswords;
 use App\Domain\Identity\Demo\RotateDemoPasswords;
+use App\Domain\Identity\LoginLinks\LoginLinks;
+use App\Domain\Identity\Models\LoginLink;
 use App\Domain\Identity\Models\Organization;
 use App\Domain\Identity\Models\User;
 use App\Domain\Workflows\Models\Workflow;
@@ -268,4 +272,26 @@ it('marks an existing demo on upgrade, but not a real organization that took the
 
     expect($marked)->toBeTrue()
         ->and($real->fresh()?->is_demo)->toBeFalse();
+});
+
+it('revokes the unused sign-in links and password-reset tokens of the demo accounts on rotation, nobody else\'s', function (): void {
+    $this->seed(DemoSeeder::class);
+    $owner = demoUser('owner@demo.test');
+    $worker = demoUser('worker@demo.test');
+    $other = ownerOf(makeOrganization());
+    app(IssueLoginLink::class)->handle($owner, 501);
+    app(IssueOwnerLink::class)->handle($worker, 501);
+    LoginLinks::broker()->createToken(demoUser('viewer@demo.test'));
+    app(IssueLoginLink::class)->handle($other, 501);
+    clearAuditLog();
+
+    demoCommand('app:demo-passwords', ['--rotate' => true]);
+    $resetTokens = DB::table('password_reset_tokens')->pluck('email')->all();
+    $audits = Activity::query()->where('event', RotateDemoPasswords::EVENT)->get()->keyBy(fn (Activity $a): string => (string) $a->properties['email']);
+
+    expect(LoginLink::query()->whereNull('used_at')->pluck('user_id')->all())->toBe([$other->id])
+        ->and($resetTokens)->toBe([])
+        ->and($audits['owner@demo.test']->properties['links_revoked'])->toBe(1)
+        ->and($audits['worker@demo.test']->properties['links_revoked'])->toBe(1)
+        ->and($audits['viewer@demo.test']->properties['links_revoked'])->toBe(0);
 });

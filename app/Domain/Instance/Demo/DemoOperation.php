@@ -27,7 +27,8 @@ use App\Domain\Instance\State\InstanceSettings;
  *   `config set domain`) has its passwords rotated at once (warning `demo_passwords_rotated`).
  * - Hands out a one-time sign-in link for the demo owner under the delivery policy (SignInDelivery): the browser only
  *   with `--open` or for a person at a desktop terminal, else `secrets` or `--secrets-file`.
- * - `--rotate-passwords` gives every demo account a new random password and revokes its sessions and API tokens.
+ * - `--rotate-passwords` gives every demo account a new random password and revokes its sessions, API tokens and unused
+ *   sign-in links.
  */
 final readonly class DemoOperation
 {

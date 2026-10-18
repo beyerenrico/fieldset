@@ -144,3 +144,11 @@ HTTPS is `fsa install --phone-https` and `fsa tunnel start` (U14).
   seeder's owner); a real organization that took the slug stays unmarked, and a later `fsa demo` seeds the demo
   beside it (as `demo-2`).
 
+## Amendment 2026-10-19: rotation also revokes sign-in links and reset tokens (M11 gate)
+- Reverses "unused sign-in links or reset tokens stay": `app:demo-passwords --rotate` (`RotateDemoPasswords`) also
+  deletes every unused `login_links` row of a demo account (admin and owner links) and its password-reset token (an
+  owner link's, or one a "forgot password" mail carried, possibly into the catcher), in the same transaction. A link
+  handed out before the instance became reachable must not outlive the rotation that makes it reachable. The audit
+  entry gains `links_revoked` (unused sign-in links deleted); the JSON `data` keeps its shape. `fsa demo` issues its
+  owner link after the rotation, so that link stays valid.
+

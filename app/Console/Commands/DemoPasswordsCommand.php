@@ -24,14 +24,15 @@ use InvalidArgumentException;
  *   deleted; `non_demo` leaves out the one marked `is_demo`, not "the slug demo"; `fsa tunnel start` needs `--yes`
  *   while `non_demo` is above 0, R65, ADR 0082).
  * - `--rotate`: `fsa demo --rotate-passwords`. Every demo account gets a new random password (printed once under
- *   `secrets` as `demo_password:<email>`), and its sessions, remember-me token and API tokens are revoked; audited
+ *   `secrets` as `demo_password:<email>`), and its sessions, remember-me token, API tokens, unused sign-in links and
+ *   password-reset token are revoked; audited
  *   per account. JSON `data`: `users` (emails), `sessions_ended`, `tokens_revoked`. No demo accounts: `changed: false`
  *   with the warning `no_demo_users`.
  */
 #[Description('Check for accounts with the demo password, or rotate the demo users\' passwords (fsa demo)')]
 #[Signature('app:demo-passwords
         {--check : Report the accounts that still sign in with the password "password"}
-        {--rotate : Give every demo account a new random password and revoke its sessions and API tokens}
+        {--rotate : Give every demo account a new random password and revoke its sessions, API tokens and sign-in links}
         {--actor-uid= : Host UID of the operator running fsa (audit)}
         {--json : Print one JSON document on stdout}')]
 final class DemoPasswordsCommand extends Command
@@ -84,7 +85,7 @@ final class DemoPasswordsCommand extends Command
         }
         $rotated = $rotate->handle($uid);
         if ($this->option('json') !== true) {
-            $this->components->info('New demo passwords (shown once); their sessions and API tokens were revoked:');
+            $this->components->info('New demo passwords (shown once); their sessions, API tokens and sign-in links were revoked:');
             foreach ($rotated['passwords'] as $email => $password) {
                 $this->line("  {$email}: {$password}");
             }

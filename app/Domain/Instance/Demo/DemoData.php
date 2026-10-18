@@ -54,7 +54,7 @@ final readonly class DemoData
         if ($exposure !== [] && $credentials->defaultPasswordUsers() > 0) {
             return [$credentials->withRotation($this->rotation($run, $project, $actorUid)), [[
                 'demo_passwords_rotated',
-                'The demo accounts still had the password "password" on an instance that is reachable beyond loopback ('.implode(', ', $exposure).'): they got new random passwords, and their sessions and API tokens were revoked.',
+                'The demo accounts still had the password "password" on an instance that is reachable beyond loopback ('.implode(', ', $exposure).'): they got new random passwords, and their sessions, API tokens and unused sign-in links were revoked.',
                 null,
             ]]];
         }

@@ -18,7 +18,7 @@ use Illuminate\Console\Attributes\Signature;
  */
 #[Description('Add the demo organization and users (random passwords unless loopback-only), or rotate their passwords')]
 #[Signature('fsa:demo
-        {--rotate-passwords : Give every demo user a new random password (listed once) and revoke their sessions and API tokens}
+        {--rotate-passwords : Give every demo user a new random password (listed once) and revoke their sessions, API tokens and sign-in links}
         {--open : Open the demo owner\'s sign-in link in the browser of a desktop session instead of printing it}')]
 final class DemoCommand extends FsaCommand
 {
