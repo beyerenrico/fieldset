@@ -77,3 +77,40 @@ it('renders Caddyfiles that the pinned Caddy validates as the edge mounts them',
     'staging, contact and a custom root' => [['acme_ca' => InstanceSettings::ACME_STAGING, 'acme_email' => 'ops@example.com', 'acme_ca_root' => true]],
     'smtp mail, no catcher' => [ComposeFixtures::smtpSettings()],
 ]);
+
+/**
+ * The request headers each reverse_proxy handler of an adapted Caddy config deletes, by upstream.
+ *
+ * @param  array<array-key, mixed>  $node
+ * @return array<string, list<list<string>>>
+ */
+function adaptedHeaderDeletes(array $node): array
+{
+    $found = [];
+    if (($node['handler'] ?? null) === 'reverse_proxy') {
+        foreach ($node['upstreams'] ?? [] as $upstream) {
+            $found[(string) ($upstream['dial'] ?? '')][] = array_values($node['headers']['request']['delete'] ?? []);
+        }
+    }
+    foreach ($node as $child) {
+        if (is_array($child)) {
+            $found = array_merge_recursive($found, adaptedHeaderDeletes($child));
+        }
+    }
+
+    return $found;
+}
+
+it('strips X-Forwarded-Port towards the app and the operator\'s cookies towards Mailpit, as Caddy adapts it (ADR 0079)', function (): void {
+    $root = renderedEdge([]);
+    $process = new Process(['docker', 'run', '--rm', '--user', '65532:65532', '--read-only', '--tmpfs', '/tmp', '--tmpfs', '/data/caddy', '--tmpfs', '/config/caddy',
+        '--volume', $root.'/edge:/etc/caddy:ro', caddyImage(), 'caddy', 'adapt', '--config', '/etc/caddy/Caddyfile', '--adapter', 'caddyfile']);
+    $process->setTimeout(300)->run();
+    $deletes = adaptedHeaderDeletes(json_decode($process->getOutput(), true) ?? []);
+
+    // app:8080 twice: the forward_auth subrequest and the site's catch-all proxy.
+    expect($process->getExitCode())->toBe(0, $process->getErrorOutput())
+        ->and($deletes['app:8080'] ?? [])->toHaveCount(2)
+        ->and($deletes['app:8080'] ?? [])->each->toContain('X-Forwarded-Port')
+        ->and($deletes['mailpit:8025'] ?? [])->toBe([['Cookie', 'X-XSRF-TOKEN']]);
+});
