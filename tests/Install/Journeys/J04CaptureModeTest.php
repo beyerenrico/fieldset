@@ -202,7 +202,7 @@ it('shows each organization its banner variant and only the operator the command
         ->and($operator['body'])->toContain('data-capture-banner-command')->toContain('fsa config set mail smtp')
         ->and($adminB['status'])->toBe(200)
         ->and($variant($adminB['body']))->toBe('narrow')
-        ->and($adminB['body'])->toContain('Invitations and password resets are captured')->not->toContain('data-capture-banner-settings');
+        ->and($adminB['body'])->toContain('Invitations, password resets and email address confirmations are captured')->not->toContain('data-capture-banner-settings');
 });
 
 it('passes the axe checks in a browser for both variants', function (): void {

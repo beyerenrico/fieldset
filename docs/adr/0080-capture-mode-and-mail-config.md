@@ -158,3 +158,22 @@ starttls|tls] [--smtp-username <user> --password-file <path>|--password-stdin] [
 - Verified by `tests/Unit/Instance/InstallSmtpTest.php`, `InstallSmokeTest.php` and J4's last case (a second instance
   installed with `--smtp-*` and a password file; the smoke test's mail arrives at a stand-in Mailpit attached to the
   instance's default network while install.sh runs; no catcher container).
+
+## Amendment 2026-10-19: the banner's sender flag, e-mail confirmations, the checklist (M11 gate)
+- **Operator command.** The banner now shows `fsa config set mail smtp --smtp-host <host> --smtp-username <user>
+  --from-address <address> --password-stdin` (`CaptureModeBanner::COMMAND`). Without `--from-address` a local or proxy
+  instance sends from `forms@localhost`, which providers refuse (`sender_localhost` above). A test checks every flag of
+  the command against the options of `fsa:config`.
+- **Narrow banner (R59).** It named only invitations and password resets, but the admin panel's e-mail verification and
+  e-mail-change confirmation (`emailVerification()`, `emailChangeVerification()` in `AdminPanelProvider`) use the
+  instance mailer as well. Filament sends `VerifyEmail` with `$user->notify()`, and `VerifyEmailChange` with
+  `Notification::route('mail', …)` plus `NoticeOfEmailChangeRequest` to the old address. Both go through Laravel's mail
+  channel and so the default mailer (verified in `vendor/filament/filament/src/Auth/Pages/EditProfile.php` and
+  `EmailVerification/EmailVerificationPrompt.php`). The app's `EditProfile` does not override the sending, and an
+  organization's own SMTP server serves only `DeliverMail` through `OrganizationMailer`. The narrow title now reads
+  "Invitations, password resets and email address confirmations are captured, not delivered." (DE "Einladungen,
+  Passwort-Zurücksetzungen und Bestätigungen von E-Mail-Adressen werden abgefangen, nicht zugestellt."). A Feature test
+  changes a member's address on the profile page of an own-SMTP organization and finds the confirmation in the default
+  mailer's transport.
+- **Checklist.** The two unverified items under Consequences (a real provider's SMTP with STARTTLS and with implicit
+  TLS; the DE banner on a real screen reader) are now on the post-publish checklist in `RELEASING.md`.

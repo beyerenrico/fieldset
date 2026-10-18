@@ -20,8 +20,9 @@ use Illuminate\Support\HtmlString;
  * mail (config `mail.capture`, set by fsa). It cannot be dismissed.
  *
  * - Organizations on the instance mailer get the full banner: all their mail is captured.
- * - Organizations with their own SMTP server (MailSetting::usesOwnSmtp) get the narrower one: invitations and password
- *   resets always use the instance mailer, so only those are captured.
+ * - Organizations with their own SMTP server (MailSetting::usesOwnSmtp) get the narrower one: invitations, password
+ *   resets and the panel's e-mail address confirmations (Filament's verification and e-mail-change notifications go
+ *   through the default mailer) always use the instance mailer, so only those are captured.
  * - Platform operators see the `fsa config set mail` command; everyone else "ask your instance owner". Members who may
  *   manage the organization also get the Mail settings link in the full variant, where an own SMTP server helps.
  */
@@ -31,8 +32,11 @@ final readonly class CaptureModeBanner
 
     public const string NARROW = 'narrow';
 
-    /** What an operator runs on the server; the password never goes on the command line (R50). */
-    public const string COMMAND = 'fsa config set mail smtp --smtp-host <host> --smtp-username <user> --password-stdin';
+    /**
+     * What an operator runs on the server; the password never goes on the command line (R50). The sender is part of
+     * it: a local or proxy instance would otherwise send from forms@localhost, which providers refuse.
+     */
+    public const string COMMAND = 'fsa config set mail smtp --smtp-host <host> --smtp-username <user> --from-address <address> --password-stdin';
 
     public function __construct(private AuthFactory $auth, private PlatformAdmins $operators, private TenantContext $tenants) {}
 
