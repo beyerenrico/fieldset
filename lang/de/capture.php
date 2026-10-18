@@ -10,7 +10,7 @@ return [
         'body' => 'Jede E-Mail dieser Organisation bleibt im Mail-Catcher der Instanz und erreicht niemanden.',
     ],
     'narrow' => [
-        'title' => 'Einladungen und Passwort-Zurücksetzungen werden abgefangen, nicht zugestellt.',
+        'title' => 'Einladungen, Passwort-Zurücksetzungen und Bestätigungen von E-Mail-Adressen werden abgefangen, nicht zugestellt.',
         'body' => 'Sie laufen immer über den Mailer der Instanz, der sie im Mail-Catcher behält; alle anderen E-Mails stellt Ihr eigener SMTP-Server zu.',
     ],
     'ask_owner' => 'Bitten Sie den Betreiber der Instanz, den E-Mail-Versand einzurichten.',

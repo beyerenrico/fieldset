@@ -10,7 +10,7 @@ return [
         'body' => 'Every mail this organization sends stays in the instance\'s mail catcher and reaches nobody.',
     ],
     'narrow' => [
-        'title' => 'Invitations and password resets are captured, not delivered.',
+        'title' => 'Invitations, password resets and email address confirmations are captured, not delivered.',
         'body' => 'They always use the instance mailer, which keeps them in the mail catcher; your own SMTP server delivers all other mail.',
     ],
     'ask_owner' => 'Ask your instance owner to set up mail delivery.',

@@ -58,3 +58,8 @@ Impact).
 - The catcher goes only with `--remove-catcher`, never with the switch itself. Until then it keeps its volume and UI,
   and "read-only" means it receives nothing: its SMTP listener is bound to its own container's loopback
   (`MP_SMTP_BIND_ADDR=127.0.0.1:1025`). Mailpit has no read-only UI, so the UI can still delete messages.
+
+## Amendment 2026-10-19: banner command and narrow banner (M11 gate, ADR 0080)
+The operator command now adds `--from-address <address>` before `--password-stdin` (a local or proxy instance would
+otherwise send from `forms@localhost`). The narrower banner also names email address confirmations: the admin panel's
+verification and email-change mails use the instance mailer too (ADR 0080 amendment).

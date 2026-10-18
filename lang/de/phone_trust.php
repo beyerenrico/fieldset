@@ -39,7 +39,7 @@ return [
             'Kehren Sie zu dieser Seite zurück: Die Prüfung unten zeigt, ob Ihr Telefon der Instanz vertraut.',
         ],
         'menus' => 'Die Menünamen unterscheiden sich je nach Hersteller. Finden Sie sie nicht, suchen Sie in den Einstellungen nach „CA-Zertifikat“.',
-        'tunnel' => 'Viele Android-Versionen und Browser vertrauen selbst installierten CAs bei installierten Web-Apps nicht. Unter Android ist deshalb der Quick Tunnel der empfohlene Weg: Führen Sie fsa tunnel start auf dem Rechner aus, auf dem diese Instanz läuft.',
+        'tunnel' => 'Viele Android-Versionen und Browser vertrauen selbst installierten CAs bei installierten Web-Apps nicht. Unter Android ist deshalb der Quick Tunnel der empfohlene Weg. Er läuft nicht neben dieser CA: Schalten Sie auf dem Rechner, auf dem diese Instanz läuft, zuerst die CA mit fsa config set phone-https off --yes ab und führen Sie dann fsa tunnel start aus.',
     ],
     'check' => [
         'heading' => 'Prüfung',

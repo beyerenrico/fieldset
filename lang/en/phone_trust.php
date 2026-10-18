@@ -39,7 +39,7 @@ return [
             'Come back to this page: the check below shows whether your phone trusts the instance.',
         ],
         'menus' => 'The menu names differ between manufacturers. If you cannot find them, search the settings for "CA certificate".',
-        'tunnel' => 'Many Android versions and browsers do not trust user-installed CAs for installed web apps. On Android, the quick tunnel is the recommended way: run fsa tunnel start on the computer that runs this instance.',
+        'tunnel' => 'Many Android versions and browsers do not trust user-installed CAs for installed web apps. On Android, the quick tunnel is the recommended way. It cannot run next to this CA, so on the computer that runs this instance first turn the CA off with fsa config set phone-https off --yes, then run fsa tunnel start.',
     ],
     'check' => [
         'heading' => 'Check',

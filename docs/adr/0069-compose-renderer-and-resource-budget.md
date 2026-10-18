@@ -108,7 +108,8 @@ tunnel counted once (R61). Larger sizes scale Horizon, Gotenberg and FrankenPHP.
 - Postgres max_connections is 40, 60 and 100.
 - MP_MAX_MESSAGES is 500, 1000 and 2000.
 
-The size is the `size` setting, default `small`. These numbers are estimates until U15 measures them.
+The size is the `size` setting, default `small`. These numbers are estimates until U15 measures them. (Superseded
+2026-10-19: U15 measured `small`; the table and counts in effect are in the amendment at the end, ADR 0083.)
 
 **Runtime directory (KTD11).** `RuntimeWriter` writes `runtime/runtime.json` atomically. The directory is 0755
 and the file 0644, both set explicitly. The file holds:
@@ -156,7 +157,7 @@ before a trailing newline, and `"host\n"` passed.
 
 ## Consequences
 - The budget is unmeasured until U15. A miss is recorded with numbers and fixed in `ResourceBudget::PROFILES`,
-  never by dropping a control.
+  never by dropping a control. (Amended 2026-10-19: `small` is measured, ADR 0083; see the amendment at the end.)
 - Volume names are Compose's `<project>_<volume>`. Restore and adopt (U17, U19) swap fresh volumes in, so they
   will need explicit `name:` overrides from the state, through the volume map of a `ServiceSpec`.
 - `docker compose config` prints `$` in env values as `$$`, so its output stays a valid compose file; containers
@@ -187,3 +188,26 @@ image with `restart: "no"` as foreseen above, no env, user 65532, read-only, eve
 published, at a fixed address on its own network `tunnel` (a /28 from 10.215.0.0/16, setting `tunnel_subnet`), which
 the app joins. Its memory limit is the `tunnel` slot of `ResourceBudget`, which the worst case counts once together
 with the edge (R61), as the budget table above assumes.
+
+## Amendment 2026-10-19: the measured budget (U15, ADR 0083)
+U15 measured `small` with J10 (2 GB envelope, two pinned CPUs, scheduler running, production Horizon, the 1.0 test
+volume): no OOM kill and no restart, each slot about 30 MiB or more above its measured peak. This replaces the budget
+table under "Resource budget (E16)" and its "estimates until U15" sentence (`ResourceBudget::PROFILES`):
+
+| MiB | app | queue | scheduler | postgres | redis | gotenberg | mailpit | edge/tunnel | backup | worst case / available |
+|---|---|---|---|---|---|---|---|---|---|---|
+| small (2 GB, 320 headroom) | 384 | 400 | 208 | 160 | 48 | 304 | 48 | 48 | 128 | 1728 / 1728 |
+| medium (4 GB, 512) | 704 | 704 | 256 | 640 | 160 | 640 | 64 | 96 | 192 | 3456 / 3584 |
+| large (8 GB, 768) | 1536 | 1536 | 256 | 1536 | 384 | 1280 | 96 | 128 | 256 | 7008 / 7424 |
+
+- Horizon processes are 1, 4 and 8: `small` runs one default worker (two would need about 430 MiB for the queue);
+  exports stay at 1. FrankenPHP threads, Chromium concurrency, Postgres max_connections and MP_MAX_MESSAGES are
+  unchanged.
+- Postgres `work_mem` is a sixty-fourth of the limit but never below Postgres' default of 4 MB (`small`: 4 MB, not 2;
+  `medium` 10, `large` 24). `small` gets shared_buffers 40 MB, effective_cache_size 120 MB, maintenance_work_mem 20 MB.
+- Measured is `small` only. `medium` and `large` stay estimates except their scheduler slot (`medium` 192 → 256), which
+  carries the measured need; that does not grow with the size. Also unmeasured: the tunnel slot (cloudflared; J10 ran in
+  domain mode) and the backup slot. U16 (M12) must fit the backup service into 128 MiB on `small`, or rebalance the
+  table with a new J10 run.
+- The Consequence "The budget is unmeasured until U15" now reads: `small` is measured (ADR 0083). The rule stays: a miss
+  is recorded with numbers and fixed in `ResourceBudget::PROFILES`, never by dropping a control.

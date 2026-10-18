@@ -39,3 +39,20 @@ E16. The "small VPS" promise needs a number. Today the app image is 2.12 GB and 
 - The 1.0 performance targets for admin pages and the API must still hold at the E16 limits (§10).
 - (Amended 2026-10-18: the limits are for native images. An instance that runs another architecture under
   emulation (`DOCKER_DEFAULT_PLATFORM`, ADR 0070) gets every limit doubled; emulation is for trials, not E16 hosts.)
+
+## Amendment 2026-10-19: measured, with verdicts (U15, ADR 0083)
+The "follow-up ADR" is ADR 0083: J10 ran in M11 (U15) inside a 2-CPU envelope with the generated `small` limits
+(1,728 of 1,728 MiB, ADR 0069 amendment), domain mode with capture mail, the scheduler running and production Horizon,
+at the 1.0 test volume (100k submissions). The floor stays 2 vCPU, 2 GB RAM, 20 GB disk. Verdicts:
+
+| Target | Result | Verdict |
+|---|---|---|
+| Sum of limits within 2 GB minus headroom | no OOM kill or restart through install, smoke E2E, load, PDF and perf scripts | met |
+| Install → sign-in link ≤ 5 min, pulls excluded | 47.1 s | met |
+| 10-page PDF < 10 s queued | p95 3,961 ms | met |
+| API p95 < 300 ms | 23 of 23 series, slowest 220 ms | met |
+| Admin pages p95 < 500 ms at 100k submissions | 23 of 31 series; reports, explorer text searches, reviewer inbox and two inbox filters miss (up to 1,879 ms) | missed |
+
+The Consequence "The 1.0 performance targets for admin pages and the API must still hold at the E16 limits" therefore
+holds for the API and not for the admin pages at 100k submissions on 2 GB. The miss is recorded with numbers (§13.4),
+not fixed by weakening a control; the options are in QUESTIONS 41.

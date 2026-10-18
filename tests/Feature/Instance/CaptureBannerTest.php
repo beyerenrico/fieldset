@@ -8,13 +8,18 @@ use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Tenancy\TenantContext;
 use App\Domain\Mail\Models\MailSetting;
 use App\Filament\Admin\CaptureModeBanner;
+use App\Filament\Admin\Pages\Auth\EditProfile;
+use Illuminate\Support\Facades\Artisan;
+use Livewire\Livewire;
+use Symfony\Component\Mailer\SentMessage;
+use Symfony\Component\Mime\Address;
 
 require_once __DIR__.'/../Platform/Support.php';
 
 /*
  * Plan U12, AE1 as amended by R59 (R24, KTD14; ADR 0080): while the instance mailer captures mail, every admin page of
  * an organization says so. Organizations on the instance mailer get the full banner, organizations with their own SMTP
- * server the narrower one (invitations and password resets); operators see the `fsa config set mail` command,
+ * server the narrower one (invitations, password resets, e-mail address confirmations); operators see the `fsa config set mail` command,
  * everyone else "ask your instance owner", members who manage the organization the Mail settings link. Once SMTP is
  * configured (fsa drops FSA_MAIL_CAPTURE) nobody sees a banner.
  */
@@ -76,6 +81,33 @@ it('shows a platform operator the fsa command instead of "ask your instance owne
     expect($page)->toContain('data-capture-banner="full"')
         ->toContain('data-capture-banner-command')->toContain(e(CaptureModeBanner::COMMAND))
         ->not->toContain(__('capture.ask_owner'));
+});
+
+it('gives operators a command that fsa config set mail accepts, with the sender that local and proxy instances need', function (): void {
+    preg_match_all('/--([a-z-]+)/', CaptureModeBanner::COMMAND, $flags);
+    $definition = Artisan::all()['fsa:config']->getDefinition();
+
+    // Without --from-address a local or proxy instance sends from forms@localhost, which providers refuse.
+    expect(CaptureModeBanner::COMMAND)->toStartWith('fsa config set mail smtp ')->toContain('--from-address <address>')
+        ->and(array_values(array_filter($flags[1], fn (string $flag): bool => ! $definition->hasOption($flag))))->toBe([]);
+});
+
+it('names e-mail address confirmations in the narrow banner: Filament sends them through the instance mailer (R59)', function (): void {
+    $organization = makeOrganization(name: 'Own SMTP Org');
+    bannerOwnSmtp($organization);
+    $owner = ownerOf($organization);
+    $owner->forceFill(['password' => 'password'])->save();
+    actingInAdmin($owner, $organization);
+
+    Livewire::test(EditProfile::class)->fillForm(['email' => 'new-address@acme.test', 'currentPassword' => 'password'])
+        ->call('save')->assertHasNoFormErrors();
+
+    // The default mailer (the instance mailer, array transport in tests) took the confirmation, not acme's SMTP server.
+    $recipients = collect(app('mailer')->getSymfonyTransport()->messages())
+        ->flatMap(fn (SentMessage $sent): array => array_map(fn (Address $address): string => $address->getAddress(), $sent->getEnvelope()->getRecipients()));
+    expect($recipients->all())->toContain('new-address@acme.test')
+        ->and(__('capture.narrow.title'))->toContain('email address confirmations')
+        ->and(trans('capture.narrow.title', [], 'de'))->toContain('Bestätigungen von E-Mail-Adressen');
 });
 
 it('shows members who cannot manage the organization the banner without the Mail settings link', function (): void {
