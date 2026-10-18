@@ -74,12 +74,13 @@ final readonly class ConfigResults
     public function rolledBack(ConfigChange $change, ConfigRequest $request, array $error, bool $resumed = false): CommandResult
     {
         $retry = ConfigFailure::retry($error['code'], $error['hint']);
+        $retryable = $retry['retryable'];
         unset($retry['retryable']);
         $message = $resumed
             ? "An earlier `{$request->commandLine()}` failed ({$error['code']}) and was cut off while restoring the previous settings; this run finished restoring them."
             : "Changing {$change->key} failed, so the previous settings were restored: {$error['message']}";
 
-        return CommandResult::failed(self::COMMAND, ExitCode::RolledBack, $error['code'], $message, $error['hint'], ConfigFailure::retry($error['code'], $error['hint'])['retryable'], [
+        return CommandResult::failed(self::COMMAND, ExitCode::RolledBack, $error['code'], $message, $error['hint'], $retryable, [
             ...self::data($change, $change->before), 'reverted' => true, 'resumed_revert' => $resumed,
             'attempted' => ['url' => $change->newUrl(), 'mode' => $change->after->mode()], 'failure' => $error['data'], ...$retry,
             'command' => $request->commandLine(), 'options' => $request->options(), 'next_commands' => [$this->fsa().' status'],
