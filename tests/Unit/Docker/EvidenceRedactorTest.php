@@ -54,3 +54,29 @@ it('redacts CSP nonces, sign-in links, signatures and token fields, and leaves t
         ->and($redacted['Location'])->toBe('https://fsa-test-j02.test/admin/login')
         ->and($redacted['audits'])->toBe('1');
 });
+
+it('masks the value of every entry in an envelope\'s secrets list, also inside JSON strings (M11 gate A9)', function (): void {
+    $envelope = ['status' => 'ok', 'secrets' => [
+        ['name' => 'demo_password:owner@demo.test', 'value' => 'Xk4v-pR9q-Lm2w', 'expires_at' => null],
+        ['name' => 'sign_in_link', 'value' => 'http://localhost:8080/login-link#abc', 'expires_at' => '2026-10-18T22:35:32Z'],
+        ['name' => 'sign_in_link', 'written_to' => '<work>/owner-link.json', 'expires_at' => null],
+    ]];
+
+    $redacted = EvidenceRedactor::transcript([
+        'stdout' => $envelope,
+        'raw' => json_encode($envelope, JSON_UNESCAPED_SLASHES),
+        'ndjson' => "{\"phase\":\"start\",\"message\":\"Starting\"}\n".json_encode(['data' => ['nested' => $envelope]], JSON_UNESCAPED_SLASHES),
+        'config_show' => ['secrets' => ['app_key' => 'base64:c2VjcmV0', 'database_password' => '[redacted]']],
+    ]);
+
+    $raw = json_decode($redacted['raw'], true);
+    $lines = explode("\n", $redacted['ndjson']);
+    expect(array_column($redacted['stdout']['secrets'], 'value'))->toBe(['<redacted>', '<redacted>'])
+        ->and($redacted['stdout']['secrets'][0]['name'])->toBe('demo_password:owner@demo.test')
+        ->and($redacted['stdout']['secrets'][2])->toBe(['name' => 'sign_in_link', 'written_to' => '<work>/owner-link.json', 'expires_at' => null])
+        ->and(array_column($raw['secrets'], 'value'))->toBe(['<redacted>', '<redacted>'])
+        ->and(json_decode($lines[0], true))->toBe(['phase' => 'start', 'message' => 'Starting'])
+        ->and(array_column(json_decode($lines[1], true)['data']['nested']['secrets'], 'value'))->toBe(['<redacted>', '<redacted>'])
+        ->and($redacted['config_show']['secrets'])->toBe(['app_key' => '<redacted>', 'database_password' => '[redacted]'])
+        ->and(json_encode($redacted))->not->toContain('Xk4v-pR9q-Lm2w')->not->toContain('c2VjcmV0');
+});
