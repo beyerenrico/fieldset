@@ -177,7 +177,10 @@ it('checks A and AAAA records of the domain separately (domain mode)', function 
     'private AAAA' => [['8.8.4.4'], ['fd00::1'], ['8.8.4.4'], 'fail', 'not public'],
 ]);
 
-it('reaches the registries of missing images, reads the clock from them and skips loopback mirrors', function (?string $date, string $clock): void {
+it('reaches the registries of missing images, reads the clock from them and skips loopback mirrors', function (?int $offset, string $clock): void {
+    // The Date header is built when the test runs: a dataset value is built when the file loads, and a long
+    // single-process run (coverage) can start this test minutes later.
+    $date = $offset === null ? null : gmdate('D, d M Y H:i:s \G\M\T', time() + $offset);
     doctorState($this->fixture);
     $this->fixture->docker->images = [];
     $this->fixture->probes->registry = ['status' => 401, 'date' => $date];
@@ -193,9 +196,9 @@ it('reaches the registries of missing images, reads the clock from them and skip
         ->and($this->fixture->probes->heads)->toBe(['https://ghcr.io/v2/'])
         ->and(doctorChecks($json)['clock']['status'])->toBe($clock);
 })->with([
-    'in sync' => [gmdate('D, d M Y H:i:s \G\M\T'), 'ok'],
-    'two minutes off' => [gmdate('D, d M Y H:i:s \G\M\T', time() - 120), 'warn'],
-    'an hour off' => [gmdate('D, d M Y H:i:s \G\M\T', time() + 3600), 'fail'],
+    'in sync' => [0, 'ok'],
+    'two minutes off' => [-120, 'warn'],
+    'an hour off' => [3600, 'fail'],
     'no Date header' => [null, 'skipped'],
 ]);
 
