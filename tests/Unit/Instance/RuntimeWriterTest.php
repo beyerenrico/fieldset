@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Runtime\RuntimeDocument;
 use App\Domain\Instance\State\RuntimeWriter;
+use App\Domain\Instance\State\UnsafePath;
 use Carbon\CarbonImmutable;
 use Tests\Support\Instance\ComposeFixtures;
 use Tests\Support\Instance\TemporaryInstance;
@@ -121,14 +122,60 @@ it('writes a document the app reads, with the raised gate and its token (U10 con
         ->and($parsed->gate->smokeToken)->toBe($token);
 });
 
-it('starts with a lowered gate when the existing file is unreadable JSON', function (): void {
+it('keeps the gate raised when the existing file cannot be parsed: it may be the record of a running upgrade', function (string $content): void {
+    CarbonImmutable::setTestNow('2026-10-18 03:30:00');
     $directory = TemporaryInstance::directory();
     $directory->ensureDirectory('runtime', 0755);
-    $directory->write('runtime/runtime.json', '{"gate":', 0644);
+    $directory->write('runtime/runtime.json', $content, 0644);
 
     new RuntimeWriter($directory)->write(ComposeFixtures::state(path: $directory->root));
 
-    expect(json_decode((string) $directory->read('runtime/runtime.json'), true)['gate']['raised'])->toBeFalse();
+    expect(json_decode((string) $directory->read('runtime/runtime.json'), true)['gate'])
+        ->toBe(['raised' => true, 'operation' => RuntimeWriter::UNKNOWN_OPERATION, 'since' => '2026-10-18T03:30:00Z', 'smoke_token' => null]);
+})->with(['truncated JSON' => '{"gate":', 'no gate' => '{"schema_version":"1.0"}', 'gate without raised' => '{"gate":{"operation":"upgrade"}}', 'not an object' => '"x"']);
+
+it('starts with a lowered gate and no tunnel when there is no runtime file yet', function (): void {
+    $directory = TemporaryInstance::directory();
+
+    new RuntimeWriter($directory)->write(ComposeFixtures::state(path: $directory->root));
+
+    $document = json_decode((string) $directory->read('runtime/runtime.json'), true);
+    expect($document['gate']['raised'])->toBeFalse()
+        ->and($document['tunnel'])->toBe(['hostname' => null, 'expires_at' => null, 'peer' => null, 'admin' => false]);
+});
+
+it('refuses to overwrite a runtime file it cannot read', function (): void {
+    if (posix_getuid() === 0) {
+        $this->markTestSkipped('root reads any file.');
+    }
+    $directory = TemporaryInstance::directory();
+    $directory->ensureDirectory('runtime', 0755);
+    $directory->write('runtime/runtime.json', '{"gate":{"raised":true}}', 0644);
+    chmod($directory->path('runtime/runtime.json'), 0000);
+
+    try {
+        expect(fn () => new RuntimeWriter($directory)->write(ComposeFixtures::state(path: $directory->root)))->toThrow(UnsafePath::class);
+    } finally {
+        chmod($directory->path('runtime/runtime.json'), 0644);
+    }
+});
+
+it('keeps the tunnel of the current file on a re-render, a raised and a lowered gate', function (): void {
+    $directory = TemporaryInstance::directory();
+    $writer = new RuntimeWriter($directory);
+    $state = ComposeFixtures::state(path: $directory->root);
+    $tunnel = ['hostname' => 'quiet-river-1234.trycloudflare.com', 'expires_at' => '2026-10-18T20:00:00Z', 'peer' => '10.213.0.20', 'admin' => true];
+    $directory->ensureDirectory('runtime', 0755);
+    $directory->write('runtime/runtime.json', json_encode([...$writer->document($state), 'tunnel' => $tunnel]), 0644);
+    $read = fn (): array => json_decode((string) $directory->read('runtime/runtime.json'), true)['tunnel'];
+
+    $writer->write($state->withSetting('port', 9090));
+    $rendered = $read();
+    $writer->raiseGate($state, 'upgrade');
+    $raised = $read();
+    $writer->lowerGate($state);
+
+    expect($rendered)->toBe($tunnel)->and($raised)->toBe($tunnel)->and($read())->toBe($tunnel);
 });
 
 it('refuses an operation name that is not a plain identifier', function (): void {
