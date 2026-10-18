@@ -102,10 +102,28 @@ final class TestImage
         return $directory.'/'.$name;
     }
 
+    /**
+     * `fsa-test-u1`, or FSA_TEST_IMAGE_REPOSITORY (an `fsa-test-…` name), so that journeys in two checkouts on one
+     * Docker engine do not retag each other's image.
+     */
+    public static function repositoryName(): string
+    {
+        $name = getenv('FSA_TEST_IMAGE_REPOSITORY');
+        if (! is_string($name) || $name === '') {
+            return self::REPOSITORY;
+        }
+
+        if (preg_match('/^fsa-test-[a-z0-9][a-z0-9-]*$/', $name) !== 1) {
+            throw new RuntimeException("FSA_TEST_IMAGE_REPOSITORY must be an fsa-test-… image name, got \"{$name}\".");
+        }
+
+        return $name;
+    }
+
     private static function build(?string $platform): string
     {
         $arch = $platform === null ? 'native' : str_replace('linux/', '', $platform);
-        $reference = self::REPOSITORY.':'.($platform === null ? 'latest' : $arch);
+        $reference = self::repositoryName().':'.($platform === null ? 'latest' : $arch);
         $log = self::logFile("fsa-test-u1-build-{$arch}.log");
         file_put_contents($log, '');
 

@@ -1,0 +1,283 @@
+# Trivy exceptions for the gotenberg image only (gotenberg/gotenberg:8.38.1-chromium in distribution/release.json).
+# Policy (ADR 0071): what we build (the app image) is scanned strictly and has no exception file. A third-party
+# image may carry dated, scoped exceptions for findings without a fix in a released upstream image: one entry per
+# finding id, scoped to the component by `paths` or `purls`, with a `statement` and an `expired_at` at most 90 days
+# out. An expired entry stops suppressing, so the release scan fails again until the entry is reviewed.
+# release.yml scans this image with only this file (--ignorefile, --show-suppressed).
+# 87 high findings: chromium and libexpat1 (Debian), Go in usr/bin/gotenberg and usr/bin/pdfcpu; 30 days (fixed upstream, waiting for a Gotenberg image release).
+
+vulnerabilities:
+  - id: CVE-2026-110136
+    purls:
+      - pkg:deb/debian/chromium
+      - pkg:deb/debian/chromium-common
+    expired_at: 2026-11-17
+    statement: "chromium 155.0.8059.39-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 155.0.8059.79-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed: Chromium renders only HTML the app generates, on the internal network."
+  - id: CVE-2026-110137
+    purls:
+      - pkg:deb/debian/chromium
+      - pkg:deb/debian/chromium-common
+    expired_at: 2026-11-17
+    statement: "chromium 155.0.8059.39-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 155.0.8059.79-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed: Chromium renders only HTML the app generates, on the internal network."
+  - id: CVE-2026-110138
+    purls:
+      - pkg:deb/debian/chromium
+      - pkg:deb/debian/chromium-common
+    expired_at: 2026-11-17
+    statement: "chromium 155.0.8059.39-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 155.0.8059.79-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed: Chromium renders only HTML the app generates, on the internal network."
+  - id: CVE-2026-110139
+    purls:
+      - pkg:deb/debian/chromium
+      - pkg:deb/debian/chromium-common
+    expired_at: 2026-11-17
+    statement: "chromium 155.0.8059.39-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 155.0.8059.79-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed: Chromium renders only HTML the app generates, on the internal network."
+  - id: CVE-2026-110140
+    purls:
+      - pkg:deb/debian/chromium
+      - pkg:deb/debian/chromium-common
+    expired_at: 2026-11-17
+    statement: "chromium 155.0.8059.39-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 155.0.8059.79-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed: Chromium renders only HTML the app generates, on the internal network."
+  - id: CVE-2026-110141
+    purls:
+      - pkg:deb/debian/chromium
+      - pkg:deb/debian/chromium-common
+    expired_at: 2026-11-17
+    statement: "chromium 155.0.8059.39-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 155.0.8059.79-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed: Chromium renders only HTML the app generates, on the internal network."
+  - id: CVE-2026-110143
+    purls:
+      - pkg:deb/debian/chromium
+      - pkg:deb/debian/chromium-common
+    expired_at: 2026-11-17
+    statement: "chromium 155.0.8059.39-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 155.0.8059.79-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed: Chromium renders only HTML the app generates, on the internal network."
+  - id: CVE-2026-110144
+    purls:
+      - pkg:deb/debian/chromium
+      - pkg:deb/debian/chromium-common
+    expired_at: 2026-11-17
+    statement: "chromium 155.0.8059.39-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 155.0.8059.79-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed: Chromium renders only HTML the app generates, on the internal network."
+  - id: CVE-2026-110145
+    purls:
+      - pkg:deb/debian/chromium
+      - pkg:deb/debian/chromium-common
+    expired_at: 2026-11-17
+    statement: "chromium 155.0.8059.39-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 155.0.8059.79-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed: Chromium renders only HTML the app generates, on the internal network."
+  - id: CVE-2026-110146
+    purls:
+      - pkg:deb/debian/chromium
+      - pkg:deb/debian/chromium-common
+    expired_at: 2026-11-17
+    statement: "chromium 155.0.8059.39-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 155.0.8059.79-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed: Chromium renders only HTML the app generates, on the internal network."
+  - id: CVE-2026-110147
+    purls:
+      - pkg:deb/debian/chromium
+      - pkg:deb/debian/chromium-common
+    expired_at: 2026-11-17
+    statement: "chromium 155.0.8059.39-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 155.0.8059.79-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed: Chromium renders only HTML the app generates, on the internal network."
+  - id: CVE-2026-110148
+    purls:
+      - pkg:deb/debian/chromium
+      - pkg:deb/debian/chromium-common
+    expired_at: 2026-11-17
+    statement: "chromium 155.0.8059.39-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 155.0.8059.79-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed: Chromium renders only HTML the app generates, on the internal network."
+  - id: CVE-2026-110149
+    purls:
+      - pkg:deb/debian/chromium
+      - pkg:deb/debian/chromium-common
+    expired_at: 2026-11-17
+    statement: "chromium 155.0.8059.39-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 155.0.8059.79-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed: Chromium renders only HTML the app generates, on the internal network."
+  - id: CVE-2026-110150
+    purls:
+      - pkg:deb/debian/chromium
+      - pkg:deb/debian/chromium-common
+    expired_at: 2026-11-17
+    statement: "chromium 155.0.8059.39-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 155.0.8059.79-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed: Chromium renders only HTML the app generates, on the internal network."
+  - id: CVE-2026-110151
+    purls:
+      - pkg:deb/debian/chromium
+      - pkg:deb/debian/chromium-common
+    expired_at: 2026-11-17
+    statement: "chromium 155.0.8059.39-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 155.0.8059.79-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed: Chromium renders only HTML the app generates, on the internal network."
+  - id: CVE-2026-110152
+    purls:
+      - pkg:deb/debian/chromium
+      - pkg:deb/debian/chromium-common
+    expired_at: 2026-11-17
+    statement: "chromium 155.0.8059.39-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 155.0.8059.79-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed: Chromium renders only HTML the app generates, on the internal network."
+  - id: CVE-2026-110153
+    purls:
+      - pkg:deb/debian/chromium
+      - pkg:deb/debian/chromium-common
+    expired_at: 2026-11-17
+    statement: "chromium 155.0.8059.39-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 155.0.8059.79-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed: Chromium renders only HTML the app generates, on the internal network."
+  - id: CVE-2026-110154
+    purls:
+      - pkg:deb/debian/chromium
+      - pkg:deb/debian/chromium-common
+    expired_at: 2026-11-17
+    statement: "chromium 155.0.8059.39-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 155.0.8059.79-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed: Chromium renders only HTML the app generates, on the internal network."
+  - id: CVE-2026-110155
+    purls:
+      - pkg:deb/debian/chromium
+      - pkg:deb/debian/chromium-common
+    expired_at: 2026-11-17
+    statement: "chromium 155.0.8059.39-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 155.0.8059.79-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed: Chromium renders only HTML the app generates, on the internal network."
+  - id: CVE-2026-110156
+    purls:
+      - pkg:deb/debian/chromium
+      - pkg:deb/debian/chromium-common
+    expired_at: 2026-11-17
+    statement: "chromium 155.0.8059.39-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 155.0.8059.79-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed: Chromium renders only HTML the app generates, on the internal network."
+  - id: CVE-2026-110157
+    purls:
+      - pkg:deb/debian/chromium
+      - pkg:deb/debian/chromium-common
+    expired_at: 2026-11-17
+    statement: "chromium 155.0.8059.39-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 155.0.8059.79-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed: Chromium renders only HTML the app generates, on the internal network."
+  - id: CVE-2026-110158
+    purls:
+      - pkg:deb/debian/chromium
+      - pkg:deb/debian/chromium-common
+    expired_at: 2026-11-17
+    statement: "chromium 155.0.8059.39-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 155.0.8059.79-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed: Chromium renders only HTML the app generates, on the internal network."
+  - id: CVE-2026-110159
+    purls:
+      - pkg:deb/debian/chromium
+      - pkg:deb/debian/chromium-common
+    expired_at: 2026-11-17
+    statement: "chromium 155.0.8059.39-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 155.0.8059.79-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed: Chromium renders only HTML the app generates, on the internal network."
+  - id: CVE-2026-110160
+    purls:
+      - pkg:deb/debian/chromium
+      - pkg:deb/debian/chromium-common
+    expired_at: 2026-11-17
+    statement: "chromium 155.0.8059.39-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 155.0.8059.79-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed: Chromium renders only HTML the app generates, on the internal network."
+  - id: CVE-2026-110161
+    purls:
+      - pkg:deb/debian/chromium
+      - pkg:deb/debian/chromium-common
+    expired_at: 2026-11-17
+    statement: "chromium 155.0.8059.39-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 155.0.8059.79-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed: Chromium renders only HTML the app generates, on the internal network."
+  - id: CVE-2026-110162
+    purls:
+      - pkg:deb/debian/chromium
+      - pkg:deb/debian/chromium-common
+    expired_at: 2026-11-17
+    statement: "chromium 155.0.8059.39-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 155.0.8059.79-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed: Chromium renders only HTML the app generates, on the internal network."
+  - id: CVE-2026-110163
+    purls:
+      - pkg:deb/debian/chromium
+      - pkg:deb/debian/chromium-common
+    expired_at: 2026-11-17
+    statement: "chromium 155.0.8059.39-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 155.0.8059.79-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed: Chromium renders only HTML the app generates, on the internal network."
+  - id: CVE-2026-110164
+    purls:
+      - pkg:deb/debian/chromium
+      - pkg:deb/debian/chromium-common
+    expired_at: 2026-11-17
+    statement: "chromium 155.0.8059.39-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 155.0.8059.79-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed: Chromium renders only HTML the app generates, on the internal network."
+  - id: CVE-2026-110165
+    purls:
+      - pkg:deb/debian/chromium
+      - pkg:deb/debian/chromium-common
+    expired_at: 2026-11-17
+    statement: "chromium 155.0.8059.39-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 155.0.8059.79-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed: Chromium renders only HTML the app generates, on the internal network."
+  - id: CVE-2026-110166
+    purls:
+      - pkg:deb/debian/chromium
+      - pkg:deb/debian/chromium-common
+    expired_at: 2026-11-17
+    statement: "chromium 155.0.8059.39-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 155.0.8059.79-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed: Chromium renders only HTML the app generates, on the internal network."
+  - id: CVE-2026-110167
+    purls:
+      - pkg:deb/debian/chromium
+      - pkg:deb/debian/chromium-common
+    expired_at: 2026-11-17
+    statement: "chromium 155.0.8059.39-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 155.0.8059.79-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed: Chromium renders only HTML the app generates, on the internal network."
+  - id: CVE-2026-110168
+    purls:
+      - pkg:deb/debian/chromium
+      - pkg:deb/debian/chromium-common
+    expired_at: 2026-11-17
+    statement: "chromium 155.0.8059.39-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 155.0.8059.79-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed: Chromium renders only HTML the app generates, on the internal network."
+  - id: CVE-2026-110169
+    purls:
+      - pkg:deb/debian/chromium
+      - pkg:deb/debian/chromium-common
+    expired_at: 2026-11-17
+    statement: "chromium 155.0.8059.39-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 155.0.8059.79-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed: Chromium renders only HTML the app generates, on the internal network."
+  - id: CVE-2026-110170
+    purls:
+      - pkg:deb/debian/chromium
+      - pkg:deb/debian/chromium-common
+    expired_at: 2026-11-17
+    statement: "chromium 155.0.8059.39-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 155.0.8059.79-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed: Chromium renders only HTML the app generates, on the internal network."
+  - id: CVE-2026-110171
+    purls:
+      - pkg:deb/debian/chromium
+      - pkg:deb/debian/chromium-common
+    expired_at: 2026-11-17
+    statement: "chromium 155.0.8059.39-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 155.0.8059.79-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed: Chromium renders only HTML the app generates, on the internal network."
+  - id: CVE-2026-110172
+    purls:
+      - pkg:deb/debian/chromium
+      - pkg:deb/debian/chromium-common
+    expired_at: 2026-11-17
+    statement: "chromium 155.0.8059.39-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 155.0.8059.79-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed: Chromium renders only HTML the app generates, on the internal network."
+  - id: CVE-2026-66046
+    purls:
+      - pkg:deb/debian/libexpat1
+    expired_at: 2026-11-17
+    statement: "libexpat1 2.8.3-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 2.9.0-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed."
+  - id: CVE-2026-76956
+    purls:
+      - pkg:deb/debian/libexpat1
+    expired_at: 2026-11-17
+    statement: "libexpat1 2.8.3-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 2.9.0-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed."
+  - id: CVE-2026-76957
+    purls:
+      - pkg:deb/debian/libexpat1
+    expired_at: 2026-11-17
+    statement: "libexpat1 2.8.3-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 2.9.0-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed."
+  - id: CVE-2026-77214
+    purls:
+      - pkg:deb/debian/libexpat1
+    expired_at: 2026-11-17
+    statement: "libexpat1 2.8.3-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 2.9.0-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed."
+  - id: CVE-2026-93990
+    purls:
+      - pkg:deb/debian/libexpat1
+    expired_at: 2026-11-17
+    statement: "libexpat1 2.8.3-1~deb13u1 in gotenberg 8.38.1, the latest release; fixed in Debian trixie-security 2.9.0-1~deb13u1, waiting for a Gotenberg image release. Reachability not analysed."
+  - id: CVE-2026-78667
+    paths:
+      - usr/bin/gotenberg
+      - usr/bin/pdfcpu
+    expired_at: 2026-11-17
+    statement: "Go 1.27.1 standard library (and golang.org/x/net 0.59.0 in gotenberg) in gotenberg 8.38.1, the latest release; fixed in Go 1.27.2 and x/net 0.60.0, waiting for a Gotenberg image release. Reachability not analysed."
+  - id: CVE-2026-78669
+    paths:
+      - usr/bin/gotenberg
+      - usr/bin/pdfcpu
+    expired_at: 2026-11-17
+    statement: "Go 1.27.1 standard library (and golang.org/x/net 0.59.0 in gotenberg) in gotenberg 8.38.1, the latest release; fixed in Go 1.27.2 and x/net 0.60.0, waiting for a Gotenberg image release. Reachability not analysed."
+  - id: CVE-2026-97031
+    paths:
+      - usr/bin/gotenberg
+      - usr/bin/pdfcpu
+    expired_at: 2026-11-17
+    statement: "Go 1.27.1 standard library (and golang.org/x/net 0.59.0 in gotenberg) in gotenberg 8.38.1, the latest release; fixed in Go 1.27.2 and x/net 0.60.0, waiting for a Gotenberg image release. Reachability not analysed."
+  - id: CVE-2026-46603
+    paths:
+      - usr/bin/pdfcpu
+    expired_at: 2026-11-17
+    statement: "golang.org/x/image 0.44.0 (fixed in 0.45.0) in pdfcpu of gotenberg 8.38.1, the latest release; waiting for a Gotenberg image release. Reachability not analysed."
+  - id: CVE-2026-56851
+    paths:
+      - usr/bin/pdfcpu
+    expired_at: 2026-11-17
+    statement: "golang.org/x/text 0.40.0 (fixed in 0.41.0) in pdfcpu of gotenberg 8.38.1, the latest release; waiting for a Gotenberg image release. Reachability not analysed."
+  - id: CVE-2026-56854
+    paths:
+      - usr/bin/pdfcpu
+    expired_at: 2026-11-17
+    statement: "golang.org/x/crypto 0.54.0 (fixed in 0.55.0) in pdfcpu of gotenberg 8.38.1, the latest release; waiting for a Gotenberg image release. Reachability not analysed."

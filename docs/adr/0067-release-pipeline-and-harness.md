@@ -1,5 +1,5 @@
 # 0067: Release pipeline, release manifest and local harness (as built)
-- Status: accepted
+- Status: accepted; the scan gate outcome is superseded by ADR 0071
 - Date: 2026-10-18
 
 ## Context

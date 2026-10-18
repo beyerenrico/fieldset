@@ -1,5 +1,5 @@
 # 0063: App image size budget: at most 1.0 GB uncompressed per architecture
-- Status: accepted
+- Status: accepted; the cosign lever was taken in ADR 0071 (for the scan gate)
 - Date: 2026-10-17
 
 ## Context

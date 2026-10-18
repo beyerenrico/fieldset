@@ -1,0 +1,24 @@
+# Trivy exceptions for the caddy image only (caddy:2.11.7-alpine in distribution/release.json).
+# Policy (ADR 0071): what we build (the app image) is scanned strictly and has no exception file. A third-party
+# image may carry dated, scoped exceptions for findings without a fix in a released upstream image: one entry per
+# finding id, scoped to the component by `paths` or `purls`, with a `statement` and an `expired_at` at most 90 days
+# out. An expired entry stops suppressing, so the release scan fails again until the entry is reviewed.
+# release.yml scans this image with only this file (--ignorefile, --show-suppressed).
+# 4 high findings in usr/bin/caddy (Go 1.26.8 standard library, golang.org/x/net 0.59.0); 30 days (fixed upstream, waiting for a Caddy release). These are reachable.
+
+vulnerabilities:
+  - id: CVE-2026-78667
+    paths:
+      - usr/bin/caddy
+    expired_at: 2026-11-17
+    statement: "Go 1.26.8 standard library and golang.org/x/net 0.59.0 in caddy 2.11.7, the latest release; fixed in Go 1.26.9 / 1.27.2 and x/net 0.60.0, waiting for a Caddy release. Reachable: govulncheck (2026-10-18) finds call paths in Caddy, which terminates TLS and HTTP for the instance. Accepted only until the next Caddy release; upgrade the pin as soon as it ships."
+  - id: CVE-2026-78669
+    paths:
+      - usr/bin/caddy
+    expired_at: 2026-11-17
+    statement: "Go 1.26.8 standard library and golang.org/x/net 0.59.0 in caddy 2.11.7, the latest release; fixed in Go 1.26.9 / 1.27.2 and x/net 0.60.0, waiting for a Caddy release. Reachable: govulncheck (2026-10-18) finds call paths in Caddy, which terminates TLS and HTTP for the instance. Accepted only until the next Caddy release; upgrade the pin as soon as it ships."
+  - id: CVE-2026-97031
+    paths:
+      - usr/bin/caddy
+    expired_at: 2026-11-17
+    statement: "Go 1.26.8 standard library and golang.org/x/net 0.59.0 in caddy 2.11.7, the latest release; fixed in Go 1.26.9 / 1.27.2 and x/net 0.60.0, waiting for a Caddy release. Reachable: govulncheck (2026-10-18) finds call paths in Caddy, which terminates TLS and HTTP for the instance. Accepted only until the next Caddy release; upgrade the pin as soon as it ships."
