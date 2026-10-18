@@ -1,0 +1,19 @@
+{
+    "org_admin_instance_mailer": {
+        "status": 200,
+        "variant": "full",
+        "ask_owner": true,
+        "mail_settings_link": true,
+        "command": false
+    },
+    "operator_instance_mailer": {
+        "status": 200,
+        "variant": "full",
+        "command": true
+    },
+    "org_admin_own_smtp": {
+        "status": 200,
+        "variant": "narrow",
+        "mail_settings_link": false
+    }
+}

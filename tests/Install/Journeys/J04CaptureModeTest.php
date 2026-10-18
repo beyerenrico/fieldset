@@ -38,11 +38,12 @@ beforeAll(function (): void {
 });
 
 afterAll(function (): void {
-    if (isset($GLOBALS['fsaJ04'])) {
-        InstanceJourney::cleanup($GLOBALS['fsaJ04']->work.'/fsa-test-j04', $GLOBALS['fsaJ04Uuid'] ?? null);
-    }
+    // The stand-in first: attached to the instance's default network, it would keep that network from being removed.
     if (isset($GLOBALS['fsaJ04Smtp'])) {
         j04Docker(['rm', '-f', '-v', $GLOBALS['fsaJ04Smtp']]);
+    }
+    if (isset($GLOBALS['fsaJ04'])) {
+        InstanceJourney::cleanup($GLOBALS['fsaJ04']->work.'/fsa-test-j04', $GLOBALS['fsaJ04Uuid'] ?? null);
     }
     unset($GLOBALS['fsaJ04'], $GLOBALS['fsaJ04Error'], $GLOBALS['fsaJ04Uuid'], $GLOBALS['fsaJ04Port'], $GLOBALS['fsaJ04MailPort'],
         $GLOBALS['fsaJ04Catcher'], $GLOBALS['fsaJ04Setup'], $GLOBALS['fsaJ04Smtp'], $GLOBALS['fsaJ04SmtpPort']);

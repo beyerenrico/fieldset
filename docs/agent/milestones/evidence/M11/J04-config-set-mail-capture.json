@@ -1,0 +1,51 @@
+{
+    "command": "fsa config set mail capture --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "config",
+        "status": "ok",
+        "changed": true,
+        "data": {
+            "key": "mail",
+            "from": "smtp://fsa-test-j04-smtp-19d9:1025",
+            "to": "capture",
+            "url": "http://localhost:8081",
+            "mode": "local",
+            "reverted": false,
+            "previous": {
+                "url": "http://localhost:8081",
+                "mode": "local"
+            },
+            "services": {
+                "recreated": [
+                    "app",
+                    "queue",
+                    "scheduler"
+                ],
+                "added": [
+                    "mailpit"
+                ],
+                "removed": []
+            },
+            "checked": [
+                "/up",
+                "/admin/login",
+                "gotenberg /health"
+            ],
+            "impact": null,
+            "audited": true,
+            "mail": {
+                "mode": "capture",
+                "catcher": "active",
+                "catcher_url": "http://localhost:8025"
+            },
+            "next_commands": [
+                "<work>/fsa-test-j04/fsa status"
+            ]
+        },
+        "secrets": [],
+        "warnings": [],
+        "errors": []
+    }
+}
