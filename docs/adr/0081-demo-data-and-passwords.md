@@ -1,5 +1,5 @@
 # 0081: Demo data and demo passwords: `--demo`, `fsa demo`, rotation and the check for U14
-- Status: accepted
+- Status: accepted; amended 2026-10-18 by ADR 0082 (`--check` reports organizations; how U14 uses the check)
 - Date: 2026-10-18
 - Amends: ADR 0055 (what `fsa demo` is, the default password is no secret), ADR 0072 (install phases, `--demo`),
   ADR 0070 (the wrapper's command list gains `demo`)
@@ -95,3 +95,13 @@ HTTPS is `fsa install --phone-https` and `fsa tunnel start` (U14).
   (non-demo accounts on `password`). Record phone HTTPS as the `phone_https` setting.
 - `config set domain|url` (U11) does not rotate yet; `fsa demo` does on its next run. Recorded as a review question.
 - The E2E suite and every existing test keep `password` (default binding).
+
+## Amendment 2026-10-18: how U14 uses the check (ADR 0082)
+- `app:demo-passwords --check --json` also returns `data.organizations {total, non_demo}` (organizations that are not
+  deleted; `non_demo` leaves out the demo organization). `fsa tunnel start` asks for `--yes` while `non_demo > 0`
+  (exit 6 without it and without a terminal).
+- U14 records phone HTTPS as the `phone_https` setting (`local-ca`, `tunnel`), so `exposure()` stayed unchanged.
+- The check runs read-only before the lock. `fsa tunnel start` refuses other accounts on `password` (exit 3) and
+  rotates the demo accounts inside its operation (`DemoData::rotation`, passwords listed once). `fsa config set
+  phone-https local-ca` rotates nothing: it refuses while any account has `password` (exit 3
+  `default_password_in_use`) and names `fsa demo --rotate-passwords`.

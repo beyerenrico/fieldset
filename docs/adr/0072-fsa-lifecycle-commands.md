@@ -1,7 +1,8 @@
 # 0072: fsa lifecycle commands for local mode: install phases, resume, ports, doctor, smoke
 - Status: accepted; amended 2026-10-18 at the M9 gate (exit codes, ports check, lock heartbeat, sign-in link
   delivery); the uninstall paragraph is superseded by ADR 0073; amended 2026-10-18 at the M10 gate by ADR 0078
-  (repeated install flags, `--trusted-proxy` match, ports on a shared proxy network, privileged-port rule)
+  (repeated install flags, `--trusted-proxy` match, ports on a shared proxy network, privileged-port rule); amended
+  2026-10-18 by ADR 0081 (`demo` phase) and ADR 0082 (phone HTTPS flags, `lan_address` check, `fsa tunnel`)
 - Date: 2026-10-18
 
 ## Context
@@ -173,3 +174,22 @@ internal-error code of ADR 0066).
   `last_backup`.
 - Port probes leave no container behind (Docker removes a `--rm` container whose start failed; uninstall sweeps
   by label anyway).
+
+## Amendment 2026-10-18: the `demo` phase (ADR 0081)
+`--demo` is no longer `unsupported_option`. With it the install runs the phase `demo` (and `demo_rotate` when an
+existing demo needs new passwords) after `start` and before `smoke`, against the running stack, as `fsa demo` does.
+Both run again on a resume, since their one-offs are idempotent; an existing demo whose random passwords were never
+shown gets new ones (`demo_passwords_reissued`). `--demo` may be added on a resume. On a finished instance the state
+history's `demo_seeded` decides: `--demo` with demo data is `changed: false`, without it exit 2 `use_config_set`
+with the hint `fsa demo`.
+
+## Amendment 2026-10-18: phone HTTPS at install, the `lan_address` check, `fsa tunnel` (ADR 0082)
+- `--phone-https local-ca|tunnel` and `--lan-address` are accepted in local mode (with `--domain`/`--behind-proxy`,
+  or `--lan-address` without `local-ca`: exit 2 `invalid_combination`); only `--encrypt` and `--from-backup` are
+  still `unsupported_option`.
+- `local-ca` is decided and journaled in the doctor phase (no known LAN address: exit 2 `lan_address_required`); the
+  ports check also probes 80/443 on the LAN address (`LocalCaPorts`) and the smoke test checks the edge
+  (`LocalCaEdge`). `tunnel` installs in local mode, then starts the tunnel (`InstallTunnel`); a failed tunnel keeps
+  the instance and the command exits with the tunnel's code.
+- Doctor checks gain `lan_address` after `ports` and `proxy` (local-CA mode: warns `lan_address_changed`). New command
+  `fsa tunnel start|stop|renew`; `FSA_TEST_TUNNEL` (harness images only) swaps in the journeys' fake tunnel.

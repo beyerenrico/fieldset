@@ -2,7 +2,8 @@
 - Status: accepted; amended 2026-10-18 at the M9 gate (sign-in link hand-over policy, exit 2 for missing input;
   private HOME, reserved paths, command position, terminal and `--json` rules, launcher error codes, `--yes`,
   link fallback, the image's `fsa` wrapper, the `DOCKER_DEFAULT_PLATFORM` pass-through); amended 2026-10-18 at the
-  M10 gate by ADR 0079 (a value flag before the command keeps its value)
+  M10 gate by ADR 0079 (a value flag before the command keeps its value); amended 2026-10-18 by ADR 0080, ADR 0081
+  and ADR 0082 (command and value-flag lists, `FSA_TEST_TUNNEL`)
 - Date: 2026-10-18
 
 ## Context
@@ -234,3 +235,15 @@ opens, never to stdout or stderr. Otherwise the 0600 file stays, and a warning n
 - U18 swaps `<dir>/fsa` from the new image only after commit; the shim keeps reading the state.
 - The bootstrap journey (`tests/Install/Journeys/BootstrapJourneyTest.php`) needs the harness build (minutes on
   the first run) and runs the ops container through a probe until U5's commands exist.
+
+## Amendment 2026-10-18: launcher lists and the tunnel harness variable (ADR 0080, ADR 0081, ADR 0082)
+- The image wrapper's command list (`commands` in `docker/app/fsa`) gains `demo` (ADR 0081) and `tunnel` (ADR 0082).
+- The value-flag lists of the wrapper (`value_flags`) and the shim (`fsa_value_flags`) gain `--from-address
+  --from-name --password-file --smtp-encryption --smtp-host --smtp-port --smtp-username --test-to` (ADR 0080) and
+  `--lan-address` (ADR 0082; `--phone-https` was listed since ADR 0079). `--password-file` is an input file flag, so
+  its directory is mounted read-only. ImageContractTest and ShimScriptTest keep the lists in step as before.
+- Host facts gain `FSA_TEST_TUNNEL` (`image=<fsa-test-…>[;ttl=<10–14400>]`): passed through by `fsa_run` when set,
+  like `FSA_TEST_DNS`, and honoured only by release-harness images (`HarnessTunnel`), which then run the journey's
+  fake tunnel instead of cloudflared and may shorten its 4-hour lifetime.
+- `FSA_LAN_ADDRESSES` also gives the local CA its default LAN address (`LanAddress::best`: the first private IPv4,
+  else the first usable one) and feeds the doctor's `lan_address` check.
