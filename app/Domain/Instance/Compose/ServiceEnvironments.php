@@ -106,13 +106,14 @@ final readonly class ServiceEnvironments
     /**
      * The edge (ADR 0075): in capture mode only the `Authorization` value it injects towards Mailpit, so the browser
      * meets one auth layer (the /platform session through forward_auth) while Mailpit keeps its own credentials
-     * (R66). Nothing else: the Caddyfile carries the rest and holds no secret.
+     * (R66). Nothing else: the Caddyfile carries the rest and holds no secret. The local-CA edge (ADR 0082) serves no
+     * catcher, so it gets nothing.
      *
      * @return array<string, string>
      */
     public function edge(): array
     {
-        if (! $this->context->settings->runsCatcher()) {
+        if (! $this->context->settings->runsCatcher() || $this->context->mode() !== 'domain') {
             return [];
         }
         $credentials = InstanceSecrets::CATCHER_USER.':'.$this->context->secrets->catcherPassword;
@@ -168,17 +169,20 @@ final readonly class ServiceEnvironments
 
     /**
      * TRUSTED_PROXIES: exactly one address the app accepts X-Forwarded-* from, never a range a neighbouring container
-     * could send from: the edge's fixed address in domain mode (KTD10, ADR 0075), the proxy's own address in proxy
-     * mode (R17, ADR 0076), none in local mode.
+     * could send from: the edge's fixed address in domain and local-CA mode (KTD10, ADR 0075, ADR 0082), the proxy's own
+     * address in proxy mode (R17, ADR 0076), else none. cloudflared is deliberately not trusted (ADR 0082): the runtime
+     * pins host and scheme of every request from its address, and a trusted X-Forwarded-Host (its own, or one a client
+     * sent through it) would make the host check answer 400 before that.
      *
      * @return array<string, string>
      */
     private function trustedProxies(): array
     {
-        $subnet = $this->context->settings->edgeSubnet();
-        $proxies = match ($this->context->mode()) {
-            'domain' => $subnet === null ? [] : [EdgeNetwork::edgeAddress($subnet)],
-            'proxy' => $this->context->settings->trustedProxies(),
+        $settings = $this->context->settings;
+        $subnet = $settings->edgeSubnet();
+        $proxies = match (true) {
+            $settings->rendersEdge() => $subnet === null ? [] : [EdgeNetwork::edgeAddress($subnet)],
+            $this->context->mode() === 'proxy' => $settings->trustedProxies(),
             default => [],
         };
 

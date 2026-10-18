@@ -11,6 +11,7 @@ use App\Domain\Instance\Console\InstallCommand;
 use App\Domain\Instance\Console\LoginLinkCommand;
 use App\Domain\Instance\Console\LogsCommand;
 use App\Domain\Instance\Console\StatusCommand;
+use App\Domain\Instance\Console\TunnelCommand;
 use App\Domain\Instance\Console\UninstallCommand;
 use App\Domain\Instance\Console\VersionCommand;
 use App\Domain\Instance\Docker\CliDockerGateway;
@@ -37,6 +38,7 @@ final class InstanceServiceProvider extends ServiceProvider
     public const array COMMANDS = [
         InstallCommand::class, DoctorCommand::class, StatusCommand::class, LogsCommand::class,
         VersionCommand::class, UninstallCommand::class, LoginLinkCommand::class, ConfigCommand::class, DemoCommand::class,
+        TunnelCommand::class,
     ];
 
     public function register(): void

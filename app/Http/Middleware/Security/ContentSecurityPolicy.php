@@ -14,18 +14,23 @@ namespace App\Http\Middleware\Security;
  * - Preview: sandboxed (opaque origin, QUESTIONS #10) and fed by postMessage only — no network access,
  *   no forms, framed by the builder only. Origins are named explicitly besides 'self', because older
  *   engines resolved 'self' against the opaque origin of a sandboxed document.
+ * - Html image origins: a page may name further origins for img-src. The phone trust page (ADR 0082) loads the
+ *   instance's HTTPS favicon from its plain-HTTP origin to check the phone's trust, and does not rely on every
+ *   engine matching 'self' across the scheme upgrade.
  */
 final readonly class ContentSecurityPolicy
 {
     /**
      * @param  string  $origin  scheme://host[:port] of the request
      * @param  string|null  $hot  origin of a running Vite dev server (public/hot), development only
+     * @param  list<string>  $imageOrigins  further origins the Html surface may load images from
      */
     public function __construct(
         private string $origin,
         private ?string $nonce = null,
         private bool $secure = false,
         private ?string $hot = null,
+        private array $imageOrigins = [],
     ) {}
 
     public function for(Surface $surface): string
@@ -56,7 +61,7 @@ final readonly class ContentSecurityPolicy
             'default-src' => ["'self'"],
             'script-src' => ["'self'", ...$this->nonceSource(), "'unsafe-eval'", ...$hot],
             'style-src' => ["'self'", "'unsafe-inline'", ...$hot],
-            'img-src' => ["'self'", 'data:', 'blob:', ...$hot],
+            'img-src' => ["'self'", 'data:', 'blob:', ...$hot, ...$this->imageOrigins],
             'font-src' => ["'self'", 'data:', ...$hot],
             'connect-src' => ["'self'", ...$hot, ...$socket],
             'media-src' => ["'self'", 'blob:'],

@@ -21,6 +21,7 @@ final class InstallFlags
     private const array KEYS = [
         '--domain' => 'domain', '--url' => 'url', '--port' => 'port', '--trusted-proxy' => 'trusted-proxy',
         '--acme-email' => 'acme-email', '--acme-ca' => 'acme-ca', '--acme-ca-root-file' => 'acme-ca',
+        '--phone-https' => 'phone-https', '--lan-address' => 'lan-address',
     ];
 
     private const array PROXY = ['--behind-proxy', '--proxy-network'];
@@ -60,6 +61,7 @@ final class InstallFlags
             $app === [] ? null : implode(', ', $app).' apply only to a new instance: change the organization and its users in the admin panel.',
             in_array('--version', $rest, true) ? 'Another version arrives with `fsa upgrade` (2.0.0-rc.1).' : null,
             in_array('--demo', $rest, true) ? 'Add the demo data to this instance with `fsa demo`.' : null,
+            in_array('--phone-https', $flags, true) ? 'Phone HTTPS: `fsa config set phone-https local-ca|off` for the local CA, `fsa tunnel start|stop` for the quick tunnel.' : null,
             '`fsa config show` lists what `fsa config set` can change; `fsa uninstall` and a fresh install apply anything else.',
         ]));
     }

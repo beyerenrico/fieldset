@@ -9,6 +9,7 @@ use App\Domain\Instance\Compose\Services\MailpitService;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Output\ExitCode;
 use App\Domain\Instance\Runtime\CatcherRoute;
+use App\Domain\Instance\Runtime\PhoneTrustRoute;
 
 /**
  * The edge's Caddyfile for domain mode (plan KTD10, R16, R66; ADR 0075), built as a tree and serialized, never
@@ -29,6 +30,12 @@ use App\Domain\Instance\Runtime\CatcherRoute;
  *   nosniff, no-store, and a stream timeout that ends an open live-update socket after the session is gone
  *   (LEARNINGS 103);
  * - a loopback-only health site for the container healthcheck.
+ *
+ * Local-CA mode (R19, ADR 0082) renders another shape from a LocalCaSite: no ACME; Caddy's internal CA (named, its
+ * root never installed into a trust store of the container) issues the certificate for the LAN address, `default_sni`
+ * picks it for clients that connect by IP without SNI, and port 80 forwards only the phone trust page and the root
+ * certificate to the app (PhoneTrustRoute) while everything else gets 308 to HTTPS; Caddy's own redirects are off, so
+ * that rule holds for every Host on port 80.
  *
  * No access log is configured (Caddy's default): sign-in link tokens travel in the URL fragment anyway, and the app
  * keeps its own logs.
@@ -67,13 +74,13 @@ final readonly class CaddyfileRenderer
 
     private const string ENV_NAME = '/^[A-Z][A-Z0-9_]*$/D';
 
-    public function render(EdgeSite $site): string
+    public function render(EdgeSite|LocalCaSite $site): string
     {
-        $tree = [
+        $tree = $site instanceof LocalCaSite ? $this->localCa($site) : [
             [[], $this->globalOptions($site)],
             [[['value' => $site->domain]], $this->domainSite($site)],
-            [['http://:'.self::HEALTH_PORT], [[['bind', '127.0.0.1']], [['respond', self::HEALTH_PATH, ['value' => 'ok'], '200']]]],
         ];
+        $tree[] = [['http://:'.self::HEALTH_PORT], [[['bind', '127.0.0.1']], [['respond', self::HEALTH_PATH, ['value' => 'ok'], '200']]]];
         $blocks = array_map(fn (array $node): string => $this->node($node, 0), $tree);
 
         return self::HEADER."\n".implode("\n\n", $blocks)."\n";
@@ -110,6 +117,37 @@ final readonly class CaddyfileRenderer
             [['handle', CatcherRoute::INTERNAL_PREFIX.'*'], [[['respond', '404']]]],
             ...($site->catcher ? $this->catcher($app) : []),
             [['handle'], [[['reverse_proxy', $app], [self::STRIP_FORWARDED_PORT]]]],
+        ];
+    }
+
+    /** @return list<array<int, mixed>> local-CA mode: global options, the HTTPS site for the LAN address, port 80 */
+    private function localCa(LocalCaSite $site): array
+    {
+        $address = $site->address;
+        if (filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) === false) {
+            throw new InstanceException("The local-CA address [{$address}] is not an IPv4 address.", ExitCode::InternalError, 'unsafe_caddyfile');
+        }
+        $app = AppRoles::APP.':'.AppRoles::PORT;
+
+        return [
+            [[], [
+                [['admin', 'off']],
+                [['persist_config', 'off']],
+                [['skip_install_trust']],
+                [['auto_https', 'disable_redirects']],
+                [['default_sni', ['value' => $address]]],
+                [['pki'], [[['ca', 'local'], [[['name', ['value' => LocalCaSite::CA_NAME]]]]]]],
+            ]],
+            [[['value' => $site->httpsUrl()]], [
+                [['tls', 'internal']],
+                [['handle', CatcherRoute::INTERNAL_PREFIX.'*'], [[['respond', '404']]]],
+                [['handle'], [[['reverse_proxy', $app], [self::STRIP_FORWARDED_PORT]]]],
+            ]],
+            [[['value' => 'http://']], [
+                [['@phone_trust', 'path', PhoneTrustRoute::PATH, PhoneTrustRoute::PATH.'/*']],
+                [['handle', '@phone_trust'], [[['reverse_proxy', $app], [self::STRIP_FORWARDED_PORT]]]],
+                [['handle'], [[['redir', ['https_to' => $address], '308']]]],
+            ]],
         ];
     }
 
@@ -153,7 +191,7 @@ final readonly class CaddyfileRenderer
     private function node(array $node, int $depth): string
     {
         $indent = str_repeat("\t", $depth);
-        /** @var list<string|array{value?: string, env?: string}> $tokens */
+        /** @var list<string|array{value?: string, env?: string, https_to?: string}> $tokens */
         $tokens = $node[0];
         $head = implode(' ', array_map($this->token(...), $tokens));
         if (! isset($node[1])) {
@@ -167,9 +205,17 @@ final readonly class CaddyfileRenderer
         return $line."\n".implode("\n", $inner)."\n".$indent.'}';
     }
 
-    /** @param  string|array{value?: string, env?: string}  $token */
+    /** @param  string|array{value?: string, env?: string, https_to?: string}  $token */
     private function token(string|array $token): string
     {
+        if (is_array($token) && isset($token['https_to'])) {
+            // The redirect target keeps the request URI: the only placeholder besides the env one, after an IPv4 address.
+            if (filter_var($token['https_to'], FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) === false) {
+                throw new InstanceException('The redirect target is not an IPv4 address.', ExitCode::InternalError, 'unsafe_caddyfile');
+            }
+
+            return '"https://'.$token['https_to'].'{uri}"';
+        }
         if (is_array($token) && isset($token['env'])) {
             if (preg_match(self::ENV_NAME, $token['env']) !== 1) {
                 throw new InstanceException("Invalid environment placeholder [{$token['env']}].", ExitCode::InternalError, 'unsafe_caddyfile');

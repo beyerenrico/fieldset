@@ -25,7 +25,7 @@ final class EdgeNetwork
     public const int PREFIX = 28;
 
     /** The /16 the /28 blocks come from: 4096 candidates. */
-    private const string POOL = '10.213.0.0';
+    public const string POOL = '10.213.0.0';
 
     private const int ATTEMPTS = 64;
 
@@ -63,18 +63,19 @@ final class EdgeNetwork
      * malformed entries are ignored).
      *
      * @param  list<string>  $taken  subnets of the existing Docker networks
+     * @param  string  $pool  the /16 the /28 blocks come from (the tunnel network uses its own, TunnelNetwork)
      */
-    public static function choose(string $uuid, array $taken): string
+    public static function choose(string $uuid, array $taken, string $pool = self::POOL): string
     {
         for ($attempt = 0; $attempt < self::ATTEMPTS; $attempt++) {
-            $candidate = self::candidate($uuid, $attempt);
+            $candidate = self::candidate($uuid, $attempt, $pool);
             if (! array_any($taken, static fn (string $subnet): bool => self::overlaps($candidate, $subnet))) {
                 return $candidate;
             }
         }
 
         throw new InstanceException(
-            'No free private subnet for the edge network in '.self::POOL.'/16.',
+            "No free private subnet for a fixed-address network in {$pool}/16.",
             ExitCode::PreflightFailed,
             'edge_subnet_unavailable',
             'Remove unused Docker networks (`docker network prune`), then run the command again.',
@@ -90,11 +91,11 @@ final class EdgeNetwork
         return $first !== null && $second !== null && $first[0] <= $second[1] && $second[0] <= $first[1];
     }
 
-    private static function candidate(string $uuid, int $attempt): string
+    private static function candidate(string $uuid, int $attempt, string $pool): string
     {
         $block = (int) hexdec(substr(hash('sha256', $uuid.':'.$attempt), 0, 3)); // 0..4095: a /28 in the /16
 
-        return long2ip((int) ip2long(self::POOL) + $block * 2 ** (32 - self::PREFIX)).'/'.self::PREFIX;
+        return long2ip((int) ip2long($pool) + $block * 2 ** (32 - self::PREFIX)).'/'.self::PREFIX;
     }
 
     /** @return array{0: int, 1: int}|null first and last address */

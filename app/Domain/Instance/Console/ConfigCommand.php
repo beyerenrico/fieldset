@@ -15,6 +15,7 @@ use App\Domain\Instance\Install\AcmeCaRoot;
 use App\Domain\Instance\Output\CommandResult;
 use App\Domain\Instance\Output\InvalidInput;
 use App\Domain\Instance\State\InstanceSettings;
+use App\Domain\Instance\Tunnel\TunnelSweeper;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 
@@ -98,8 +99,10 @@ final class ConfigCommand extends FsaCommand
         if ($request->key === OperatorEmailApplier::KEY) {
             return $this->laravel->make(OperatorEmailApplier::class)->set($request, $context, $confirm, is_string($this->option('secrets-file')) && $this->option('secrets-file') !== '');
         }
+        // An expired or stopped quick tunnel goes first (AE6, ADR 0082): this is a mutating command.
+        $swept = $this->laravel->make(TunnelSweeper::class)->sweep($context);
 
-        return $this->laravel->make(ConfigSetter::class)->set($request, $context, $confirm);
+        return TunnelSweeper::then($this->resultName(), $swept, fn (): CommandResult => $this->laravel->make(ConfigSetter::class)->set($request, $context, $confirm));
     }
 
     private function request(string $key, string $value, FsaContext $context): ConfigRequest

@@ -51,9 +51,9 @@ fsa_file_flag_mode() { # sets fsa_mode: rw for output paths, ro for input paths,
 # Every value-taking option of the fsa:* commands plus install's --version alias, so that a flag before the command
 # keeps its value (`fsa --behind-proxy traefik install`); ShimScriptTest keeps it in step with the commands.
 fsa_value_flags='--acme-ca --acme-ca-root-file --acme-email --behind-proxy --dir --domain --from-address --from-backup
---from-name --locale --org --orphans --owner-email --owner-name --password-file --phone-https --port --proxy-network
---release --secrets-file --since --smtp-encryption --smtp-host --smtp-port --smtp-username --tail --test-to
---trusted-proxy --url --version'
+--from-name --lan-address --locale --org --orphans --owner-email --owner-name --password-file --phone-https --port
+--proxy-network --release --secrets-file --since --smtp-encryption --smtp-host --smtp-port --smtp-username --tail
+--test-to --trusted-proxy --url --version'
 
 fsa_takes_value() { # <flag>: true for a value-taking flag written without =value (dir, file-path or listed flags)
 	fsa_file_flag_mode "$1"
@@ -356,10 +356,11 @@ fsa_run_container() { # <fsa args…>: the ops container (ADR 0070); returns its
 	set +f
 	IFS=$fsa_old_ifs
 	[ -z "$fsa_group" ] || set -- --group-add "$fsa_group" "$@"
-	# FSA_TEST_DNS: fixed DNS answers for the doctor, honoured only by release-harness images (ADR 0075).
+	# FSA_TEST_DNS: fixed DNS answers for the doctor; FSA_TEST_TUNNEL: the fake tunnel image and lifetime. Both are
+	# honoured only by release-harness images (ADR 0075, ADR 0082).
 	for fsa_var in FSA_LAUNCHER FSA_TTY FSA_HOST_UID FSA_HOST_GID FSA_HOST_OS FSA_INSTANCE_DIR FSA_LAN_ADDRESSES FSA_DESKTOP \
 		FSA_TZ FSA_DOCKER_RUNTIME FSA_CONTAINER_UID FSA_DOCKER_SOCKET FSA_NONCE FSA_MOUNTS FSA_OPEN_URL_FILE \
-		FSA_TRUST_KEY FSA_REGISTRY FSA_RELEASE_URL FSA_RELEASE_MANIFEST DOCKER_DEFAULT_PLATFORM FSA_TEST_DNS; do
+		FSA_TRUST_KEY FSA_REGISTRY FSA_RELEASE_URL FSA_RELEASE_MANIFEST DOCKER_DEFAULT_PLATFORM FSA_TEST_DNS FSA_TEST_TUNNEL; do
 		set -- -e "$fsa_var" "$@"
 	done
 	# HOME and DOCKER_CONFIG on a tmpfs only this container sees: nothing on the host can plant a Docker CLI plugin

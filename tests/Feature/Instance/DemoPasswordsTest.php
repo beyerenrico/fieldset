@@ -151,7 +151,18 @@ it('finds every account that still signs in with password, demo or not, and skip
         ->and($json['data']['count'])->toBe(10)
         ->and($json['data']['checked'])->toBe(11)
         ->and($json['data']['users'])->toContain(['email' => 'real@example.com', 'demo' => false], ['email' => 'owner@demo.test', 'demo' => true])
-        ->and(array_column($json['data']['users'], 'email'))->not->toContain('safe@example.com', 'link@example.com');
+        ->and(array_column($json['data']['users'], 'email'))->not->toContain('safe@example.com', 'link@example.com')
+        ->and($json['data']['organizations'])->toBe(['total' => 1, 'non_demo' => 0]);
+});
+
+it('counts the organizations besides the demo for the tunnel confirmation, deleted ones not', function (): void {
+    $this->seed(DemoSeeder::class);
+    makeOrganization(null, 'Real Customer GmbH');
+    makeOrganization(null, 'Gone GmbH')->delete();
+
+    [$json] = demoCommand('app:demo-passwords', ['--check' => true]);
+
+    expect($json['data']['organizations'])->toBe(['total' => 2, 'non_demo' => 1]);
 });
 
 it('rotates every demo password, revokes sessions, remember tokens and API tokens, and audits each account', function (): void {

@@ -12,6 +12,7 @@ use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Lifecycle\AppCommands;
 use App\Domain\Instance\Lifecycle\OneOffResult;
 use App\Domain\Instance\Lifecycle\SignInDelivery;
+use App\Domain\Instance\LocalCa\LocalCaInfo;
 use App\Domain\Instance\Operations\ContainerIdentity;
 use App\Domain\Instance\Operations\JournalRecord;
 use App\Domain\Instance\Operations\OperationJournal;
@@ -227,7 +228,8 @@ final readonly class Installer
         foreach (is_array($preflight['orphans'] ?? null) ? $preflight['orphans'] : [] as $uuid) {
             $result = $result->withWarning('orphans_found', "Containers of another installation ({$uuid}) ran from this directory.", "Check first that it does not run elsewhere (`docker ps -a --filter label=app.form-schema.instance={$uuid}` shows its containers and their directories). If it was deleted by hand, remove its leftovers with `fsa uninstall --orphans {$uuid} --yes`; fsa refuses while any of its containers runs.");
         }
-        foreach ([...$warnings, ...array_filter([AcmeStaging::warning($state, $this->directory->root.'/fsa')])] as [$code, $message, $hint]) {
+        $localCa = InstanceSettings::of($state)->localCa() ? LocalCaInfo::warnings((string) InstanceSettings::of($state)->lanAddress()) : [];
+        foreach ([...$warnings, ...$localCa, ...array_filter([AcmeStaging::warning($state, $this->directory->root.'/fsa')])] as [$code, $message, $hint]) {
             $result = $result->withWarning($code, $message, $hint);
         }
 
@@ -353,6 +355,8 @@ final readonly class Installer
                 'setup' => $settings->proxy(), 'network' => $settings->proxyNetwork(), 'container' => $settings->proxyContainer(), 'trusted' => $settings->trustedProxies(),
             ]]),
             'mail' => ['mode' => $settings->capturesMail() ? 'capture' : 'smtp', 'catcher_url' => $settings->catcherUrl()],
+            // Local-CA mode (ADR 0082): the trust page for the phone and the root's fingerprint to compare there.
+            ...($settings->localCa() ? ['phone_https' => LocalCaInfo::data($state, $this->directory)] : []),
             'owner_email' => $ownerEmail,
             'next_commands' => [...(AcmeStaging::active($state) ? [AcmeStaging::command($fsa)] : []), "{$fsa} status", "{$fsa} login-link {$linkFor}", "{$fsa} doctor --post"],
         ];

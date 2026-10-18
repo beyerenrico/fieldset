@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Instance\Runtime\CatcherRoute;
+use App\Domain\Instance\Runtime\PhoneTrustRoute;
 use App\Domain\Mail\Delivery\DocumentDelivery;
 use App\Domain\Mail\Http\DocumentLinkController;
 use App\Domain\Platform\Http\EnforceImpersonationWindow;
@@ -10,6 +11,7 @@ use App\Domain\Reports\Http\ExportDownloadController;
 use App\Http\Controllers\Admin\AttachmentDownloadController;
 use App\Http\Controllers\Admin\RenditionDownloadController;
 use App\Http\Controllers\Instance\CatcherAuthController;
+use App\Http\Controllers\Instance\PhoneTrustController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\LoginLinkController;
 use App\Http\Controllers\SpaController;
@@ -21,6 +23,7 @@ use App\Http\Controllers\Sso\SamlCompleteController;
 use App\Http\Controllers\Sso\SamlMetadataController;
 use App\Http\Middleware\EndRevokedDeviceSession;
 use App\Http\Middleware\Security\AdminSessionTimeout;
+use App\Http\Middleware\Security\AllowPlainHttpPage;
 use App\Http\Middleware\Security\ReadOnlySession;
 use App\Http\Middleware\SetLocale;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
@@ -49,6 +52,17 @@ Route::get(ltrim(CatcherRoute::AUTH_PATH, '/'), CatcherAuthController::class)
         SetLocale::class, EndRevokedDeviceSession::class, EnforceImpersonationWindow::class])
     ->middleware(ReadOnlySession::class)
     ->name('instance.catcher-auth');
+
+// Phone trust page in local-CA mode (R19, ADR 0082): the edge forwards these two paths from plain HTTP too. No sign-in,
+// session, cookie, CSRF, locale or device middleware (a remember-me cookie must not sign anyone in); no HSTS or
+// upgrade-insecure-requests over plain HTTP (AllowPlainHttpPage). Both answer 404 outside local-CA mode.
+Route::withoutMiddleware([AddQueuedCookiesToResponse::class, StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class,
+    SetLocale::class, EndRevokedDeviceSession::class, EnforceImpersonationWindow::class])
+    ->middleware(AllowPlainHttpPage::class)
+    ->group(function (): void {
+        Route::get(ltrim(PhoneTrustRoute::PATH, '/'), [PhoneTrustController::class, 'show'])->name('instance.phone-trust');
+        Route::get(ltrim(PhoneTrustRoute::ROOT_PATH, '/'), [PhoneTrustController::class, 'root'])->name('instance.phone-trust.root');
+    });
 
 // Field App (React PWA) and the builder preview entry (BUILD_PROMPT §6.1).
 Route::get('app/{path?}', [SpaController::class, 'app'])->where('path', '.*')->name('field-app');

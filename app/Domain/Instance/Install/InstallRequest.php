@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Instance\Install;
 
 use App\Domain\Instance\InstanceException;
+use App\Domain\Instance\LocalCa\LanAddress;
 use App\Domain\Instance\Output\ExitCode;
 use App\Domain\Instance\Output\InvalidInput;
 use App\Domain\Instance\Release\ReleaseException;
@@ -22,17 +23,22 @@ use Closure;
  * - Proxy mode (R17, ADR 0076): `--behind-proxy traefik|caddy|port` with `--url`; traefik and caddy also take
  *   `--proxy-network` (required) and `--trusted-proxy` (the proxy's container or address on that network).
  * - `--demo` (R29, ADR 0081) is consumed by the `demo` phase; it is recorded as 1 when given.
+ * - `--phone-https local-ca [--lan-address]` (R19, ADR 0082) is consumed by the doctor phase; `--phone-https tunnel`
+ *   starts the quick tunnel once the install finished (InstallCommand).
  */
 final readonly class InstallRequest
 {
     public const array APP_FLAGS = ['organization', 'owner_email', 'owner_name', 'locale'];
 
-    public const array PREFLIGHT_FLAGS = ['version', 'port', 'domain', ...self::ACME_FLAGS, ...self::PROXY_FLAGS];
+    public const array PREFLIGHT_FLAGS = ['version', 'port', 'domain', ...self::ACME_FLAGS, ...self::PROXY_FLAGS, ...self::PHONE_FLAGS];
 
     /** Domain-mode inputs (U8): meaningless, and refused, without --domain. */
     public const array ACME_FLAGS = ['acme_email', 'acme_ca', 'acme_ca_root'];
 
     public const array PROXY_FLAGS = ['proxy', 'url', 'proxy_network', 'trusted_proxy'];
+
+    /** Phone HTTPS (R19, R20, ADR 0082): `--phone-https local-ca|tunnel`, and the local CA's `--lan-address`. */
+    public const array PHONE_FLAGS = ['phone_https', 'lan_address'];
 
     /** Proxy setups that join the proxy's Docker network (the others publish a loopback port). */
     public const array NETWORK_PROXIES = ['traefik', 'caddy'];
@@ -49,7 +55,7 @@ final readonly class InstallRequest
         'version' => '--version', 'port' => '--port', 'domain' => '--domain',
         'acme_email' => '--acme-email', 'acme_ca' => '--acme-ca', 'acme_ca_root' => '--acme-ca-root-file',
         'proxy' => '--behind-proxy', 'url' => '--url', 'proxy_network' => '--proxy-network', 'trusted_proxy' => '--trusted-proxy',
-        'demo' => '--demo',
+        'demo' => '--demo', 'phone_https' => '--phone-https', 'lan_address' => '--lan-address',
     ];
 
     /** Command option => request key (the fsa wrapper passes --version as --release, ADR 0072). */
@@ -57,6 +63,7 @@ final readonly class InstallRequest
         'org' => 'organization', 'owner-email' => 'owner_email', 'owner-name' => 'owner_name', 'locale' => 'locale',
         'release' => 'version', 'port' => 'port', 'domain' => 'domain', 'acme-email' => 'acme_email', 'acme-ca' => 'acme_ca',
         'behind-proxy' => 'proxy', 'url' => 'url', 'proxy-network' => 'proxy_network', 'trusted-proxy' => 'trusted_proxy',
+        'phone-https' => 'phone_https', 'lan-address' => 'lan_address',
     ];
 
     private const int MAX_NAME = 120;
@@ -231,6 +238,18 @@ final readonly class InstallRequest
         return $this->optional('trusted_proxy');
     }
 
+    /** `--phone-https`: local-ca or tunnel; null without phone HTTPS. */
+    public function phoneHttps(): ?string
+    {
+        return $this->optional('phone_https');
+    }
+
+    /** `--lan-address` of the local CA; null = the launcher's best candidate. */
+    public function lanAddress(): ?string
+    {
+        return $this->optional('lan_address');
+    }
+
     /**
      * The flags fit together (exit 2 otherwise): proxy mode needs --url, traefik and caddy a network; proxy and
      * domain mode exclude each other (R61); network flags only exist on a shared network, --port only where the app
@@ -242,8 +261,11 @@ final readonly class InstallRequest
     {
         $proxy = $this->proxy();
         $onNetwork = in_array($proxy, self::NETWORK_PROXIES, true);
+        $phone = $this->phoneHttps();
         $conflict = match (true) {
             $proxy !== null && $this->domain() !== null => ['--behind-proxy and --domain exclude each other.', 'Choose one mode: the edge with automatic HTTPS (--domain) or your own proxy (--behind-proxy).'],
+            $phone !== null && ($proxy !== null || $this->domain() !== null) => ['--phone-https belongs to local mode: it excludes --domain and --behind-proxy (R61).', 'Domain and proxy mode already serve HTTPS; phones open that URL. Leave --phone-https out, or install in local mode.'],
+            $this->lanAddress() !== null && $phone !== 'local-ca' => ['--lan-address belongs to --phone-https local-ca.', 'Add --phone-https local-ca, or leave --lan-address out.'],
             $proxy === null && $this->url() !== null => ['--url belongs to proxy mode.', 'Add --behind-proxy traefik|caddy|port, or leave --url out (local mode uses http://localhost:<port>).'],
             ! $onNetwork && ($this->proxyNetwork() !== null || $this->trustedProxy() !== null) => ['--proxy-network and --trusted-proxy belong to --behind-proxy traefik or caddy.', 'Leave them out, or choose --behind-proxy traefik or caddy.'],
             $onNetwork && $this->port() !== null => ['On a shared proxy network the app publishes no port, so --port does not apply.', 'Leave --port out, or use --behind-proxy port to publish a loopback port.'],
@@ -283,6 +305,8 @@ final readonly class InstallRequest
             'proxy_network' => $this->proxyNetwork(),
             'trusted_proxy' => $this->trustedProxy(),
             'demo' => $this->demo() ? 1 : null,
+            'phone_https' => $this->phoneHttps(),
+            'lan_address' => $this->lanAddress(),
         ];
     }
 
@@ -316,6 +340,8 @@ final readonly class InstallRequest
             'url' => $this->isProxyUrl($value),
             'proxy_network' => InputGrammar::isDockerName($value),
             'trusted_proxy' => InputGrammar::isIp($value) || InputGrammar::isDockerName($value),
+            'phone_https' => in_array($value, InputGrammar::PHONE_HTTPS, true),
+            'lan_address' => LanAddress::usable($value),
             default => InputGrammar::isHost(strtolower($value)) && ! InputGrammar::isIp($value) && str_contains($value, '.'),
         };
         if (! $valid) {
@@ -363,6 +389,8 @@ final readonly class InstallRequest
             'url' => 'Use the public URL your proxy serves, such as https://forms.example.com (no path, query or credentials).',
             'proxy_network' => 'Use the name of the Docker network your proxy is attached to (docker network ls).',
             'trusted_proxy' => 'Use the proxy container\'s name or its IP address on that network.',
+            'phone_https' => 'Use local-ca (the instance\'s own CA on your LAN address) or tunnel (a quick tunnel through Cloudflare).',
+            'lan_address' => 'Use the IPv4 address of this machine in your LAN, such as 192.168.1.20 (not 127.0.0.1 and not an IPv6 address).',
             default => 'Use a domain name such as forms.example.com.',
         };
     }

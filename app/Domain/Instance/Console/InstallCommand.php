@@ -13,6 +13,8 @@ use App\Domain\Instance\Output\CommandResult;
 use App\Domain\Instance\Output\ExitCode;
 use App\Domain\Instance\Output\InvalidInput;
 use App\Domain\Instance\State\InstanceSettings;
+use App\Domain\Instance\Tunnel\InstallTunnel;
+use App\Domain\Instance\Tunnel\TunnelOperation;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 
@@ -22,7 +24,9 @@ use Illuminate\Console\Attributes\Signature;
  * preflight, AE5) or in proxy mode (--behind-proxy); resumes a half-finished install, and changes nothing on a
  * finished one. A new install needs --org and --owner-email: prompted in a terminal, exit 2 (`input_required`)
  * without one or under --yes/--json; exit 6 stays reserved for confirmations (§7). --demo adds the demo data after the
- * stack started (ADR 0081). Flags of later pre-releases are recognised and refused with exit 2.
+ * stack started (ADR 0081). --phone-https local-ca serves https://<LAN address> through the edge with the instance's
+ * own CA; --phone-https tunnel starts the quick tunnel once the install finished (ADR 0082). Flags of later
+ * pre-releases are recognised and refused with exit 2.
  */
 #[Description('Create and start an instance (local, domain or proxy mode), or resume an unfinished install')]
 #[Signature('fsa:install
@@ -41,7 +45,8 @@ use Illuminate\Console\Attributes\Signature;
         {--url= : Public URL your proxy serves in proxy mode, e.g. https://forms.example.com}
         {--proxy-network= : Docker network shared with the proxy (--behind-proxy traefik or caddy); only the app joins it}
         {--trusted-proxy= : The proxy container (name or ID) or its address on that network; default: found by its image}
-        {--phone-https= : Phone HTTPS via local-ca or tunnel (2.0.0-beta.1)}
+        {--phone-https= : Local mode: HTTPS for phones with local-ca (the instance\'s own CA on the LAN address) or tunnel (a quick tunnel through Cloudflare, 4 hours)}
+        {--lan-address= : --phone-https local-ca: the IPv4 LAN address to serve (default: the best address the host reports)}
         {--demo : Add the demo organization, forms, workflow and users (random passwords, listed once, unless loopback-only)}
         {--encrypt : Encrypted backups (2.0.0-rc.1)}
         {--from-backup= : Create the instance from a backup (2.0.0-rc.1)}
@@ -50,7 +55,6 @@ final class InstallCommand extends FsaCommand
 {
     /** Option => the pre-release that brings it. */
     private const array LATER = [
-        'phone-https' => '2.0.0-beta.1',
         'encrypt' => '2.0.0-rc.1', 'from-backup' => '2.0.0-rc.1',
     ];
 
@@ -71,7 +75,12 @@ final class InstallCommand extends FsaCommand
             $request = $this->askMissing($request, $context);
         }
 
-        return $installer->install($request, $context, is_string($this->option('secrets-file')) && $this->option('secrets-file') !== '');
+        $toFile = is_string($this->option('secrets-file')) && $this->option('secrets-file') !== '';
+        $result = $installer->install($request, $context, $toFile);
+
+        return $request->phoneHttps() === 'tunnel' && $result->exitCode === ExitCode::Success && $result->changed
+            ? InstallTunnel::start($result, $this->laravel->make(TunnelOperation::class), $context, $toFile)
+            : $result;
     }
 
     private function refuseLaterOptions(): void

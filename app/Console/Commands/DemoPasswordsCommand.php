@@ -9,6 +9,7 @@ use App\Console\Support\JsonResult;
 use App\Domain\Identity\Demo\DefaultPasswordUsers;
 use App\Domain\Identity\Demo\DemoAccounts;
 use App\Domain\Identity\Demo\RotateDemoPasswords;
+use App\Domain\Identity\Models\Organization;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -19,7 +20,8 @@ use InvalidArgumentException;
  *
  * - `--check`: which accounts (demo or not) still sign in with `password`. `fsa tunnel start` and the local-CA edge
  *   (U14) refuse while `data.count` is above 0. Read-only; JSON `data`: `checked` (accounts with a known password),
- *   `count`, `users` (list of `{email, demo}`).
+ *   `count`, `users` (list of `{email, demo}`), and `organizations` (`total`, `non_demo`: organizations that are not
+ *   deleted; `fsa tunnel start` needs `--yes` while `non_demo` is above 0, R65, ADR 0082).
  * - `--rotate`: `fsa demo --rotate-passwords`. Every demo account gets a new random password (printed once under
  *   `secrets` as `demo_password:<email>`), and its sessions, remember-me token and API tokens are revoked; audited
  *   per account. JSON `data`: `users` (emails), `sessions_ended`, `tokens_revoked`. No demo accounts: `changed: false`
@@ -52,7 +54,11 @@ final class DemoPasswordsCommand extends Command
     private function check(DefaultPasswordUsers $defaults): int
     {
         $found = $defaults->find();
-        $data = ['checked' => $found['checked'], 'count' => count($found['users']), 'users' => $found['users']];
+        $organizations = Organization::query()->count();
+        $data = [
+            'checked' => $found['checked'], 'count' => count($found['users']), 'users' => $found['users'],
+            'organizations' => ['total' => $organizations, 'non_demo' => Organization::query()->where('slug', '!=', DemoAccounts::ORGANIZATION_SLUG)->count()],
+        ];
         if ($this->option('json') === true) {
             return JsonResult::ok(self::NAME, $data)->emit($this);
         }

@@ -1,0 +1,40 @@
+{
+    "command": "fsa tunnel stop --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "tunnel",
+        "status": "ok",
+        "changed": true,
+        "data": {
+            "action": "stop",
+            "url": "http://localhost:8081",
+            "mode": "local",
+            "local_url": "http://localhost:8081",
+            "tunnel": null,
+            "previous": {
+                "hostname": "fsa-test-74e84613a0.trycloudflare.com",
+                "expires_at": "2026-10-18T17:51:36Z",
+                "state": "active"
+            },
+            "services": {
+                "recreated": [
+                    "app"
+                ],
+                "added": [],
+                "removed": [
+                    "tunnel"
+                ]
+            }
+        },
+        "secrets": [],
+        "warnings": [
+            {
+                "code": "url_changed_phone_data",
+                "message": "The instance URL changed: data a phone has not synced yet stays behind with the old address, and home-screen apps and links already sent keep the old address.",
+                "hint": "Let every phone sync before you start, stop or renew a tunnel."
+            }
+        ],
+        "errors": []
+    }
+}

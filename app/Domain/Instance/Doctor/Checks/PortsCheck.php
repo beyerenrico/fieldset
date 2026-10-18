@@ -24,6 +24,8 @@ use App\Domain\Instance\State\InstanceState;
  * For `fsa doctor` it checks the instance's ports: a port published by the instance's own running container
  * (app, mailpit) is served by it and not probed.
  *
+ * Local-CA mode (ADR 0082) adds 80 and 443 on the LAN address (LocalCaPorts).
+ *
  * `details` has one shape in both modes: `ports` (`app`, `mail_ui` => port; empty when none was found) and
  * `taken` (ports in use by something else).
  */
@@ -52,7 +54,9 @@ final readonly class PortsCheck implements DoctorCheck
             return new EdgePorts($this->probe)->check($context, $image, $this->key()); // domain mode: 80 and 443 (U8)
         }
 
-        return $context->selectPorts ? $this->select($context, $image) : $this->verify($context, $image);
+        $loopback = $context->selectPorts ? $this->select($context, $image) : $this->verify($context, $image);
+
+        return $context->lanAddress === null ? $loopback : new LocalCaPorts($this->probe)->check($context, $image, $loopback);
     }
 
     private function select(DoctorContext $context, string $image): CheckResult

@@ -11,6 +11,7 @@ use App\Domain\Instance\Compose\RenderContext;
 use App\Domain\Instance\Compose\ServiceDefinition;
 use App\Domain\Instance\Compose\ServiceEnvironments;
 use App\Domain\Instance\Compose\ServiceSpec;
+use App\Domain\Instance\Compose\TunnelNetwork;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\RuntimeWriter;
 
@@ -21,7 +22,8 @@ use App\Domain\Instance\State\RuntimeWriter;
  *
  * Mode extension points: `ports()` publishes the loopback port in local mode and in proxy mode's `port` setup;
  * on a shared proxy network (U9, ProxyLabels) only the app joins that external network, with the proxy's labels;
- * domain mode (U8) publishes nothing because the edge does.
+ * domain mode (U8) publishes nothing because the edge does. Local-CA mode keeps the loopback port and adds the edge;
+ * a quick tunnel (U14) adds the tunnel network.
  */
 final readonly class AppRoles implements ServiceDefinition
 {
@@ -94,10 +96,18 @@ final readonly class AppRoles implements ServiceDefinition
         ];
     }
 
-    /** @return list<string> domain mode: the app joins the edge network, where the edge's fixed address reaches it */
+    /**
+     * Domain and local-CA mode: the app joins the edge network, where the edge's fixed address reaches it; with a quick
+     * tunnel it joins the tunnel network, where cloudflared's fixed address reaches it (KTD12, ADR 0082).
+     *
+     * @return list<string>
+     */
     private function edgeNetwork(RenderContext $context): array
     {
-        return $context->mode() === 'domain' ? [EdgeNetwork::NAME] : [];
+        return [
+            ...($context->settings->rendersEdge() ? [EdgeNetwork::NAME] : []),
+            ...($context->settings->tunnel() && $context->settings->tunnelSubnet() !== null ? [TunnelNetwork::NAME] : []),
+        ];
     }
 
     /** @return array<string, mixed> */

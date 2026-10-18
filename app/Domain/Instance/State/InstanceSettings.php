@@ -199,6 +199,42 @@ final readonly class InstanceSettings
         return InputGrammar::ipList($this->string('trusted_proxies') ?? '') ?? [];
     }
 
+    /** Phone HTTPS of a local install (ADR 0082): `local-ca`, `tunnel`, or null; never set in domain or proxy mode (R61). */
+    public function phoneHttps(): ?string
+    {
+        return $this->state->mode() === 'local' ? $this->string('phone_https') : null;
+    }
+
+    /** Local-CA mode: the edge serves https://<LAN address> with the instance's own CA (R19). */
+    public function localCa(): bool
+    {
+        return $this->phoneHttps() === 'local-ca';
+    }
+
+    /** A quick tunnel is configured (R20): its service and network are rendered. */
+    public function tunnel(): bool
+    {
+        return $this->phoneHttps() === 'tunnel';
+    }
+
+    /** The LAN address the local-CA edge binds 80/443 on and issues its certificate for. */
+    public function lanAddress(): ?string
+    {
+        return $this->string('lan_address');
+    }
+
+    /** The tunnel network's subnet: cloudflared has a fixed address in it, the only peer of tunnel requests (KTD12). */
+    public function tunnelSubnet(): ?string
+    {
+        return $this->string('tunnel_subnet');
+    }
+
+    /** Whether the edge runs: domain mode, or local mode with the local CA. */
+    public function rendersEdge(): bool
+    {
+        return $this->state->mode() === 'domain' || $this->localCa();
+    }
+
     /** The app publishes its own loopback port: local mode, and proxy mode's `port` setup. */
     public function publishesAppPort(): bool
     {

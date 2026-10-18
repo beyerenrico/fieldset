@@ -1,0 +1,136 @@
+{
+    "command": "fsa tunnel start --yes --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "tunnel",
+        "status": "ok",
+        "changed": true,
+        "data": {
+            "action": "start",
+            "url": "https://fsa-test-3eb4bc5095.trycloudflare.com",
+            "mode": "local",
+            "local_url": "http://localhost:8081",
+            "tunnel": {
+                "hostname": "fsa-test-3eb4bc5095.trycloudflare.com",
+                "expires_at": "2026-10-18T16:49:29Z",
+                "peer": "10.215.110.98",
+                "admin": false,
+                "url": "https://fsa-test-3eb4bc5095.trycloudflare.com",
+                "state": "active"
+            },
+            "next_commands": [
+                "<work>/fsa-test-j06/fsa tunnel renew",
+                "<work>/fsa-test-j06/fsa tunnel stop",
+                "<work>/fsa-test-j06/fsa status"
+            ],
+            "demo": {
+                "rotated": true,
+                "passwords": "random",
+                "exposure": [],
+                "users": [
+                    {
+                        "email": "owner@demo.test"
+                    },
+                    {
+                        "email": "admin@demo.test"
+                    },
+                    {
+                        "email": "designer@demo.test"
+                    },
+                    {
+                        "email": "reviewer@demo.test"
+                    },
+                    {
+                        "email": "coordinator@demo.test"
+                    },
+                    {
+                        "email": "worker@demo.test"
+                    },
+                    {
+                        "email": "mobile@demo.test"
+                    },
+                    {
+                        "email": "tablet@demo.test"
+                    },
+                    {
+                        "email": "viewer@demo.test"
+                    }
+                ],
+                "sessions_ended": 0,
+                "tokens_revoked": 0,
+                "delivered": "secrets"
+            }
+        },
+        "secrets": [
+            {
+                "name": "demo_password:owner@demo.test",
+                "value": "OrfiEhPm0XNoJRXXVNFBnOhX",
+                "expires_at": null
+            },
+            {
+                "name": "demo_password:admin@demo.test",
+                "value": "SsOHKvmllJK1pA6Idtutvaf5",
+                "expires_at": null
+            },
+            {
+                "name": "demo_password:designer@demo.test",
+                "value": "QoRRF7DViPteom2Wb0hZi7rf",
+                "expires_at": null
+            },
+            {
+                "name": "demo_password:reviewer@demo.test",
+                "value": "w7vkDGlCFpkKp3gl4jatMAEp",
+                "expires_at": null
+            },
+            {
+                "name": "demo_password:coordinator@demo.test",
+                "value": "o5ZPcRcpnKiFEXxQdQjfsAM4",
+                "expires_at": null
+            },
+            {
+                "name": "demo_password:worker@demo.test",
+                "value": "UiLBdZdAVm4OY9bt66h1zxwB",
+                "expires_at": null
+            },
+            {
+                "name": "demo_password:mobile@demo.test",
+                "value": "Y06N7kVthoTFDVCbpkV7GM2N",
+                "expires_at": null
+            },
+            {
+                "name": "demo_password:tablet@demo.test",
+                "value": "TzphlDJWwupK7pvdTaxyLXZd",
+                "expires_at": null
+            },
+            {
+                "name": "demo_password:viewer@demo.test",
+                "value": "wP4B5apTVeEYE7Mog8b308xS",
+                "expires_at": null
+            }
+        ],
+        "warnings": [
+            {
+                "code": "tunnel_third_party",
+                "message": "Traffic to https://fsa-test-3eb4bc5095.trycloudflare.com passes Cloudflare, a third party, and the instance's sign-in, Field App and API are reachable from the internet until the tunnel stops.",
+                "hint": "Quick tunnels are for testing: no uptime guarantee, at most 200 concurrent requests."
+            },
+            {
+                "code": "tunnel_expires",
+                "message": "The tunnel expires at 2026-10-18T16:49:29Z; after that its address answers 503.",
+                "hint": "Run `fsa tunnel renew` to keep it 4 more hours, `fsa tunnel stop` to end it now."
+            },
+            {
+                "code": "url_changed_phone_data",
+                "message": "The instance URL changed: data a phone has not synced yet stays behind with the old address, and home-screen apps and links already sent keep the old address.",
+                "hint": "Let every phone sync before you start, stop or renew a tunnel."
+            },
+            {
+                "code": "demo_passwords_rotated",
+                "message": "The demo accounts still had the password \"password\": they got new random passwords (listed once under secrets), and their sessions and API tokens were revoked.",
+                "hint": null
+            }
+        ],
+        "errors": []
+    }
+}
