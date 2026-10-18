@@ -98,6 +98,14 @@ interface DockerGateway
      */
     public function networks(array $labels): array;
 
+    /**
+     * The IPAM subnets of every Docker network on the engine, whoever created it: a fixed subnet (the edge
+     * network, U8) must not overlap one of them.
+     *
+     * @return list<string> CIDR notation, IPv4 and IPv6
+     */
+    public function networkSubnets(): array;
+
     /** `docker run` (detached: stdout holds the container ID). */
     public function runContainer(ContainerSpec $spec, ?string $input = null, ?float $timeout = null): ProcessOutcome;
 

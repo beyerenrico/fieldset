@@ -145,6 +145,17 @@ final readonly class CliDockerGateway implements DockerGateway
         return array_map(static fn (array $line): DockerResource => DockerResource::fromListing(DockerResource::NETWORK, $line), $lines);
     }
 
+    public function networkSubnets(): array
+    {
+        $ids = array_values(array_filter(explode("\n", trim($this->call(['network', 'ls', '--quiet', '--no-trunc'], 'network ls')->stdout))));
+        if ($ids === []) {
+            return [];
+        }
+        $outcome = $this->call(['network', 'inspect', '--format', '{{range .IPAM.Config}}{{.Subnet}} {{end}}', ...$ids], 'network inspect');
+
+        return array_values(array_filter(preg_split('/\s+/', trim($outcome->stdout)) ?: [], static fn (string $subnet): bool => $subnet !== ''));
+    }
+
     public function runContainer(ContainerSpec $spec, ?string $input = null, ?float $timeout = null): ProcessOutcome
     {
         $env = [...$spec->env, ...$this->platformEnv($spec->enginePlatform)];

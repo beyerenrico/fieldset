@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Console;
 
+use App\Domain\Instance\Install\AcmeCaRoot;
 use App\Domain\Instance\Install\Installer;
 use App\Domain\Instance\Install\InstallRequest;
 use App\Domain\Instance\Install\InstallSituation;
@@ -11,17 +12,19 @@ use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Output\CommandResult;
 use App\Domain\Instance\Output\ExitCode;
 use App\Domain\Instance\Output\InvalidInput;
+use App\Domain\Instance\State\InstanceSettings;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 
 /**
- * `fsa install` (§7, F2, R9–R15, R26, ADR 0072): creates and starts a local-mode instance from the release
- * install.sh verified, resumes a half-finished install, and changes nothing on a finished one. A new install
+ * `fsa install` (§7, F1, F2, R9–R16, R26, ADR 0072, ADR 0075): creates and starts an instance from the release
+ * install.sh verified, in local mode or, with --domain, in domain mode (the edge with automatic HTTPS, after the
+ * DNS preflight, AE5); resumes a half-finished install, and changes nothing on a finished one. A new install
  * needs --org and --owner-email: prompted in a terminal, exit 2 (`input_required`) without one or under
  * --yes/--json; exit 6 stays reserved for confirmations (§7). Flags of later pre-releases are recognised and
- * refused with exit 2; --domain runs the DNS preflight first (AE5).
+ * refused with exit 2.
  */
-#[Description('Create and start an instance (local mode), or resume an unfinished install')]
+#[Description('Create and start an instance (local or domain mode), or resume an unfinished install')]
 #[Signature('fsa:install
         {--org= : Organization name (required for a new install)}
         {--owner-email= : Owner e-mail (required for a new install); the owner gets a one-time sign-in link}
@@ -29,7 +32,11 @@ use Illuminate\Console\Attributes\Signature;
         {--locale= : Organization and owner locale: de or en (default de)}
         {--port= : Loopback port of the app (default 8080, or the next free one)}
         {--release= : Release version; the fsa wrapper passes --version as this. Must match the verified manifest}
-        {--domain= : Domain mode (2.0.0-alpha.2): runs the DNS preflight, then stops}
+        {--domain= : Domain mode: the edge serves https://<domain> with a certificate from ACME (DNS must point here)}
+        {--acme-email= : Domain mode: contact address for the ACME account (shared with the CA; default none)}
+        {--acme-staging : Domain mode: Let\'s Encrypt staging (untrusted certificates; for trial installs)}
+        {--acme-ca= : Domain mode: another ACME directory URL (default Let\'s Encrypt production)}
+        {--acme-ca-root-file= : Domain mode: PEM root of a private ACME directory\'s HTTPS certificate}
         {--behind-proxy= : Proxy mode (2.0.0-alpha.2)}
         {--url= : Public URL behind a proxy (2.0.0-alpha.2)}
         {--phone-https= : Phone HTTPS via local-ca or tunnel (2.0.0-beta.1)}
@@ -55,7 +62,7 @@ final class InstallCommand extends FsaCommand
     protected function perform(FsaContext $context): CommandResult
     {
         $this->refuseLaterOptions();
-        $request = InstallRequest::fromOptions($this->options());
+        $request = $this->withAcmeOptions(InstallRequest::fromOptions($this->options()));
         $installer = $this->laravel->make(Installer::class);
         if ($installer->situation() === InstallSituation::Fresh) {
             $request = $this->askMissing($request, $context);
@@ -72,6 +79,20 @@ final class InstallCommand extends FsaCommand
                 throw new InvalidInput("--{$option} is not available in this version; it arrives with {$release}.", 'unsupported_option', 'Run fsa install without it.');
             }
         }
+    }
+
+    /** --acme-staging is --acme-ca with Let's Encrypt staging; --acme-ca-root-file is read and checked here. */
+    private function withAcmeOptions(InstallRequest $request): InstallRequest
+    {
+        if ($this->option('acme-staging') === true) {
+            if (is_string($this->option('acme-ca')) && $this->option('acme-ca') !== '') {
+                throw new InvalidInput('--acme-staging and --acme-ca exclude each other.', 'invalid_flag', 'Pass one of them: --acme-staging selects Let\'s Encrypt staging.');
+            }
+            $request = $request->with('acme_ca', InstanceSettings::ACME_STAGING);
+        }
+        $root = $this->option('acme-ca-root-file');
+
+        return is_string($root) && $root !== '' ? $request->withCaRoot(AcmeCaRoot::read($root)) : $request;
     }
 
     /** R26: missing values are prompted in a terminal and an input error (exit 2) without one, under --yes or --json. */

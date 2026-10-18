@@ -72,13 +72,14 @@ final class InstallRecord
                 $app[$key] = is_string($recorded[$key]) || is_int($recorded[$key]) ? $recorded[$key] : null;
             }
         }
-        $domain = $state->setting('domain');
+        $setting = static fn (string $key): ?string => is_string($state->setting($key)) ? $state->setting($key) : null;
 
         return [
             ...$app,
             'version' => $state->version(),
             'port' => InstanceSettings::of($state)->port(),
-            'domain' => is_string($domain) ? $domain : null,
+            'domain' => $setting('domain'),
+            ...array_combine(InstallRequest::ACME_FLAGS, array_map($setting, InstallRequest::ACME_FLAGS)),
         ];
     }
 

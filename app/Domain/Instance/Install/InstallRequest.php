@@ -23,7 +23,10 @@ final readonly class InstallRequest
 {
     public const array APP_FLAGS = ['organization', 'owner_email', 'owner_name', 'locale'];
 
-    public const array PREFLIGHT_FLAGS = ['version', 'port', 'domain'];
+    public const array PREFLIGHT_FLAGS = ['version', 'port', 'domain', 'acme_email', 'acme_ca', 'acme_ca_root'];
+
+    /** Domain-mode inputs (U8): meaningless, and refused, without --domain. */
+    public const array ACME_FLAGS = ['acme_email', 'acme_ca', 'acme_ca_root'];
 
     public const array REQUIRED = ['organization', 'owner_email'];
 
@@ -35,18 +38,22 @@ final readonly class InstallRequest
     public const array FLAGS = [
         'organization' => '--org', 'owner_email' => '--owner-email', 'owner_name' => '--owner-name', 'locale' => '--locale',
         'version' => '--version', 'port' => '--port', 'domain' => '--domain',
+        'acme_email' => '--acme-email', 'acme_ca' => '--acme-ca', 'acme_ca_root' => '--acme-ca-root-file',
     ];
 
     /** Command option => request key (the fsa wrapper passes --version as --release, ADR 0072). */
     private const array OPTIONS = [
         'org' => 'organization', 'owner-email' => 'owner_email', 'owner-name' => 'owner_name', 'locale' => 'locale',
-        'release' => 'version', 'port' => 'port', 'domain' => 'domain',
+        'release' => 'version', 'port' => 'port', 'domain' => 'domain', 'acme-email' => 'acme_email', 'acme-ca' => 'acme_ca',
     ];
 
     private const int MAX_NAME = 120;
 
-    /** @param  array<string, string|int>  $explicit  request key => validated value */
-    private function __construct(private array $explicit) {}
+    /**
+     * @param  array<string, string|int>  $explicit  request key => validated value
+     * @param  string|null  $caRoot  the PEM of `--acme-ca-root-file` (its SHA-256 is the `acme_ca_root` value)
+     */
+    private function __construct(private array $explicit, private ?string $caRoot = null) {}
 
     /**
      * @param  array<string, mixed>  $options  command options by name
@@ -69,7 +76,25 @@ final readonly class InstallRequest
     /** @throws InvalidInput */
     public function with(string $key, string $value): self
     {
-        return new self([...$this->explicit, $key => $this->validate($key, trim($value))]);
+        return new self([...$this->explicit, $key => $this->validate($key, trim($value))], $this->caRoot);
+    }
+
+    /** The custom ACME CA root (validated PEM, AcmeCaRoot): recorded as its SHA-256, written by the state phase. */
+    public function withCaRoot(string $pem): self
+    {
+        return new self([...$this->explicit, 'acme_ca_root' => hash('sha256', $pem)], $pem);
+    }
+
+    /** The PEM given with --acme-ca-root-file in this run; null on a resume without the flag. */
+    public function caRoot(): ?string
+    {
+        return $this->caRoot;
+    }
+
+    /** @return array<string, string> the domain-mode inputs given (or recorded), by request key */
+    public function acme(): array
+    {
+        return array_filter(array_intersect_key($this->explicit, array_flip(self::ACME_FLAGS)), is_string(...));
     }
 
     /** @return array<string, string|int> */
@@ -96,7 +121,7 @@ final readonly class InstallRequest
             static fn (mixed $value): bool => is_string($value) || is_int($value),
         );
 
-        return new self([...$known, ...$this->explicit]);
+        return new self([...$known, ...$this->explicit], $this->caRoot);
     }
 
     /**
@@ -176,6 +201,8 @@ final readonly class InstallRequest
             'version' => $this->version(),
             'port' => $this->port(),
             'domain' => $this->domain(),
+            ...array_fill_keys(self::ACME_FLAGS, null),
+            ...$this->acme(),
         ];
     }
 
@@ -196,6 +223,9 @@ final readonly class InstallRequest
             'locale' => in_array($value, self::LOCALES, true),
             'port' => ctype_digit($value) && InputGrammar::isPort((int) $value),
             'version' => $this->isVersion($value),
+            'acme_email' => InputGrammar::isEmail(strtolower($value)),
+            'acme_ca' => InputGrammar::isHttpsUrl($value),
+            'acme_ca_root' => preg_match('/^[0-9a-f]{64}$/D', $value) === 1,
             default => InputGrammar::isHost(strtolower($value)) && ! InputGrammar::isIp($value) && str_contains($value, '.'),
         };
         if (! $valid) {
@@ -204,7 +234,7 @@ final readonly class InstallRequest
 
         return match ($key) {
             'port' => (int) $value,
-            'owner_email', 'domain' => strtolower($value),
+            'owner_email', 'domain', 'acme_email' => strtolower($value),
             default => $value,
         };
     }
@@ -228,6 +258,9 @@ final readonly class InstallRequest
             'locale' => 'Use de or en.',
             'port' => 'Use a port number between 1 and 65535.',
             'version' => 'Use a release version such as 2.0.0 or 2.0.0-rc.1.',
+            'acme_email' => 'Pass an e-mail address such as ops@example.com.',
+            'acme_ca' => 'Pass the https URL of an ACME directory, such as https://acme-v02.api.letsencrypt.org/directory.',
+            'acme_ca_root' => 'Pass a PEM file with the CA certificate of the ACME directory.',
             default => 'Use a domain name such as forms.example.com.',
         };
     }

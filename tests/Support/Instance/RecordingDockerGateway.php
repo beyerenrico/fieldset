@@ -47,6 +47,9 @@ final class RecordingDockerGateway implements DockerGateway
 
     public string $logs = '';
 
+    /** @var list<string> what networkSubnets() answers (subnets of the engine's networks) */
+    public array $subnets = ['172.17.0.0/16'];
+
     /** Runs before each runContainer outcome, e.g. to change files the way a concurrent process would. */
     public ?Closure $beforeRun = null;
 
@@ -295,6 +298,13 @@ final class RecordingDockerGateway implements DockerGateway
         $this->record(__FUNCTION__, ['labels' => $labels]);
 
         return $this->resourcesOf(DockerResource::NETWORK, $labels);
+    }
+
+    public function networkSubnets(): array
+    {
+        $this->record(__FUNCTION__);
+
+        return $this->subnets;
     }
 
     public function runContainer(ContainerSpec $spec, ?string $input = null, ?float $timeout = null): ProcessOutcome
