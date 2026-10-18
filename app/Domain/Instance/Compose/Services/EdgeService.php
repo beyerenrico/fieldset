@@ -24,7 +24,8 @@ use App\Domain\Instance\State\InvalidState;
  *   creates 1777, so a new volume is writable for the non-root UID. Its name is fixed, so the certificates survive
  *   re-renders, `config set` and mode switches; only uninstall removes it.
  * - The generated Caddyfile sits in the instance's `edge/` directory (0755, file 0644, no secret), mounted read-only
- *   as a directory so an atomic rewrite is seen; its hash is a label, so a changed Caddyfile recreates the edge.
+ *   as a directory so an atomic rewrite is seen; its hash, with the custom ACME CA root's, is a label, so a changed
+ *   Caddyfile or root recreates the edge.
  * - A fixed address on the edge network, which the app trusts as its only proxy (ServiceEnvironments).
  * - Starts once the app is healthy; its healthcheck asks a loopback-only site inside the container.
  */
@@ -69,7 +70,7 @@ final readonly class EdgeService implements ServiceDefinition
             ],
             'networks' => [EdgeNetwork::NAME => ['ipv4_address' => EdgeNetwork::edgeAddress($subnet)]],
             'depends_on' => [AppRoles::APP => ['condition' => 'service_healthy']],
-            'labels' => [self::CONFIG_LABEL => hash('sha256', $caddyfile)],
+            'labels' => [self::CONFIG_LABEL => self::configHash($caddyfile, $context->settings->acmeCaRoot())],
             'healthcheck' => [
                 'test' => ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:'.CaddyfileRenderer::HEALTH_PORT.CaddyfileRenderer::HEALTH_PATH],
                 'interval' => '30s', 'timeout' => '5s', 'retries' => 3, 'start_period' => '10s',
@@ -79,6 +80,16 @@ final readonly class EdgeService implements ServiceDefinition
             networks: [EdgeNetwork::NAME => ['ipam' => ['config' => [EdgeNetwork::ipam($subnet)]]]],
             files: [self::DIRECTORY.'/'.CaddyfileRenderer::FILE => $caddyfile],
         )];
+    }
+
+    /**
+     * What the edge reads at start: the Caddyfile and, when configured, the custom ACME CA root next to it (its
+     * SHA-256 from the state). The Caddyfile only names the root's path, so without its hash a root-only change would
+     * never reach the running edge (ADR 0079). Without a root the label stays the Caddyfile's plain hash.
+     */
+    public static function configHash(string $caddyfile, ?string $acmeCaRoot): string
+    {
+        return hash('sha256', $acmeCaRoot === null ? $caddyfile : $caddyfile."\nacme-ca-root sha256 ".$acmeCaRoot);
     }
 
     /** The certificate volume's Docker name: fixed per instance, so nothing renames it. */
