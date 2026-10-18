@@ -26,6 +26,7 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Livewire\Features\SupportAutoInjectedAssets\SupportAutoInjectedAssets;
 use Livewire\Livewire;
 use PragmaRX\Google2FA\Google2FA;
 
@@ -127,6 +128,19 @@ it('serves a landing page that never sees the token and POSTs the fragment with 
         ->and($scripts[1])->toHaveCount(1)
         ->and($scripts[1][0])->toContain('nonce="'.($nonce[1] ?? '-').'"');
     $this->assertGuest();
+});
+
+it('keeps the landing page to its one script when an earlier Livewire page left its per-request flag set', function (): void {
+    // Regression (order-dependent failure): a Livewire page served by an earlier test (the owner link's reset page)
+    // left this static flag set, and the next test's fresh app injected Livewire's assets into this page. Production
+    // serves every request in a fresh PHP process; tests/TestCase.php resets Livewire's state before each request.
+    SupportAutoInjectedAssets::$hasRenderedAComponentThisRequest = true;
+
+    $response = $this->get('/login-link')->assertOk();
+    preg_match_all('/<script\b([^>]*)>/', (string) $response->getContent(), $scripts);
+
+    expect($scripts[1])->toHaveCount(1)
+        ->and((string) $response->getContent())->not->toContain('livewire');
 });
 
 it('consumes the token only on POST: an admin without MFA gets an ordinary /admin session, recorded with time and IP', function (): void {

@@ -1,5 +1,6 @@
 # 0066: fsa command architecture: gateway, state, lock, journal, envelope
-- Status: accepted
+- Status: accepted; amended 2026-10-18 at the M9 gate (journal closing, any-exception supervisor, `changed` on
+  failures, journal history cap, personal install inputs as digests)
 - Date: 2026-10-18
 
 ## Context
@@ -29,6 +30,11 @@ A newer minor's unknown keys are kept and its version written back; a higher maj
 rewritten. The state holds no secrets: secret-looking setting keys are refused, and secrets live only in
 `env/<service>.env` (0600 in a 0700 directory), written in Compose env-file syntax (single-quoted literals,
 double quotes with `\\ \" \$` escapes when the value holds a single quote).
+(Amended 2026-10-18: the owner's e-mail and name are personal, not secret, but the state history is never
+pruned and archived journals stay on the host, so both hold only keyed digests (`Install\RecordDigest`,
+`hmac-sha256:` with a key derived from the instance's APP_KEY; keys in APP_PREVIOUS_KEYS still match). Only the
+open journal keeps the values, because a resume needs them; before the secrets phase there is no key yet and
+the archive drops them.)
 
 **Lock (KTD4).** `Operations\InstanceLock` is a directory created with `mkdir` (no `flock` over virtiofs)
 holding the owner record: lock ID, owner, operation, holder container ID and its `StartedAt`, PID, host UID, and
@@ -45,11 +51,18 @@ caller's host UID. A finished operation moves to `operations/history/`. `Operati
 the lock, journals a takeover (`lock_takeover`), refuses a different operation while one is unfinished (exit 9)
 and resumes the same one when asked; completed phases are skipped. A failure before any changing phase exits 9
 (unless it already carries a pre-change code: 2, 3, 6, 7, 10) and archives the journal; after a change the
-journal stays open for resume unless the outcome is ok, aborted or rolled back. `launchDetached()` starts the
+journal stays open for resume unless the outcome is ok or rolled back. `launchDetached()` starts the
 one-per-instance supervisor container (`--rm`, `restart: no`, labelled `app.form-schema.role=supervisor`).
+(Amended 2026-10-18: an aborted run that changed something keeps its journal open as well; only ok and rolled
+back close it (`ResultStatus::closesOperation()`). The supervisor catches any `Throwable`, not only
+`InstanceException`: an unexpected exception before any change exits 9 and archives the journal (no stray
+`current.json`), after a change it exits 1 (`internal_error`) with the journal left open for a resume. The
+history keeps the newest 20 archived journals (`OperationJournal::HISTORY_LIMIT`); older ones are deleted.)
 
 **Result envelope and console base (KTD3, R49, R50).** `Output\CommandResult` renders
 `{schema_version: 1, command, status, changed, data, secrets, warnings, errors}`; `status` follows the exit code.
+(Amended 2026-10-18: `InstanceException` carries `changed`, and `CommandResult::fromException()` reports
+`changed: true` when either the exception or the supervisor says something changed, e.g. a partial uninstall.)
 With `--json` stdout carries exactly that document and stderr carries NDJSON `{ts, phase, level, message}`.
 Secret values appear only under `secrets`, or in `--secrets-file` (0600), where `secrets` then names the file.
 A per-command `SecretRedactor` scrubs one-time secrets and the secret values of the instance's env files from

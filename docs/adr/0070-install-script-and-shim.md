@@ -1,5 +1,5 @@
 # 0070: install.sh, the fsa shim, host facts and manifest verification (as built)
-- Status: accepted
+- Status: accepted; amended 2026-10-18 at the M9 gate (sign-in link hand-over policy, exit 2 for missing input)
 - Date: 2026-10-18
 
 ## Context
@@ -131,6 +131,12 @@ After the container exits, the shim reads and deletes the file, re-validates the
 link never reaches the transcript of an agent driving fsa (ADR 0056), and stdout stays streamed. The command's
 JSON says that it handed a URL over; without a desktop session it reports the link through `secrets` or
 `--secrets-file`.
+(Amended 2026-10-18: a desktop session alone no longer opens the browser, since an agent can run on a desktop
+too. A sign-in link (`Lifecycle\SignInDelivery`) goes into `--secrets-file` when one is given; to the browser
+only with `--open`, or for a person at a desktop terminal (TTY, desktop session, no `--json`;
+`FsaContext::handOverAllowed()`); otherwise into `secrets`. `data.sign_in_link.delivered` says which way
+(`browser`, `secrets_file`, `secrets`), and after a hand-over its `hint` names
+`fsa login-link <email> --secrets-file <file>` in case no browser opened.)
 
 ## Alternatives considered
 - **Bind-mounting install.sh's temporary directory into cosign:** silently empty on Colima and unshared paths.
@@ -149,7 +155,8 @@ JSON says that it handed a URL over; without a desktop session it reports the li
   registered), store `digests.app` as the exact reference install.sh pulled (mirror applied), create the state
   with `HostFacts::ownerUidInContainers()`, use `HostFacts` for LAN, TZ and TTY, `openInBrowser()` for the
   owner link, and treat stale `.fsa-nonce-*` / `.fsa-open-url-*` files (interrupted runs) in doctor. J1 replaces
-  the journey's probe with the real command and asserts exit 6 for a missing required flag without a TTY.
+  the journey's probe with the real command and asserts exit 2 (`input_required`) for a missing required flag
+  without a TTY. (Amended 2026-10-18: was exit 6, which stays reserved for confirmations, see ADR 0072.)
 - U18 swaps `<dir>/fsa` from the new image only after commit; the shim keeps reading the state.
 - The bootstrap journey (`tests/Install/Journeys/BootstrapJourneyTest.php`) needs the harness build (minutes on
   the first run) and runs the ops container through a probe until U5's commands exist.

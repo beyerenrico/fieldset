@@ -1,5 +1,6 @@
 # 0072: fsa lifecycle commands for local mode: install phases, resume, ports, doctor, smoke
-- Status: accepted
+- Status: accepted; amended 2026-10-18 at the M9 gate (exit codes, ports check, lock heartbeat, sign-in link
+  delivery); the uninstall paragraph is superseded by ADR 0073
 - Date: 2026-10-18
 
 ## Context
@@ -28,6 +29,9 @@ before it starts:
 Deviations from the plan's list: the operator grant is part of `app_install` (`app:install` grants it, ADR 0068),
 and the stack starts in two steps (`up`, then `start` after the migrations), because the app roles' healthchecks
 and sessions need the schema; starting them before `migrate` risks an unhealthy `up --wait`.
+(Amended 2026-10-18: the lock heartbeat is written before and after every phase (`OperationRun`, best effort),
+so `fsa status` (`data.lock.heartbeat_at`) shows a live holder also during long steps such as `up --wait` and
+`migrate`.)
 
 **Resume rules.** A failure in `doctor` changes nothing: exit 3 (10 for a too old engine, 7 for a foreign
 project, 2 for bad input) and the journal is archived. A later failure keeps the journal open (exit 4
@@ -51,7 +55,8 @@ Postgres keeps its first password.
   one-off that timed out after committing), the result warns `app_already_installed`: the org and owner flags of
   this run were not applied.
 - A new install needs `--org` and `--owner-email`: prompted only with a terminal and without `--yes`/`--json`;
-  otherwise exit 6 `input_required` (R26, U4's scenario). `--owner-name` defaults to the local part of the email,
+  otherwise exit 2 `input_required` (R26, U4's scenario; amended 2026-10-18: was exit 6, which stays reserved
+  for confirmations). `--owner-name` defaults to the local part of the email,
   `--locale` to `de` (as `app:install`).
 
 **`--version` reaches fsa as `--release`.** Symfony's console answers a literal `--version` with the framework
@@ -71,6 +76,10 @@ with "port is already allocated", "address already in use" or Docker Desktop's "
 taken, anything else fails the check. The app gets 8080 or the next free port up to 8099, the catcher UI 8025 or
 the next free one; an explicit `--port` must be free (exit 3). The choice lives in the journal and the state, so a
 resume or a repeated install never probes its own ports again.
+(Amended 2026-10-18: `details` has one shape for install and doctor, `{ports: {app, mail_ui}, taken}`, with
+`ports` empty when none was found. `fsa doctor` on an instance does not probe a port that the project's own
+running container publishes (`app`, `mailpit` per `compose ps`), so a running instance no longer reports its
+own ports as taken.)
 
 **Doctor checks** (`Doctor\Checks`, in this order; results in the shape of the platform's `HealthResult` plus a
 hint; probes behind `DoctorProbes` and `PortProbe`): `docker` (Engine ≥ 24.0, Compose ≥ 2.24; too old is exit 10),
@@ -105,6 +114,8 @@ PDF render and test mail (R11) join with the capture-mode unit (U12).
 given; else the shim's browser hand-over when the host has a desktop session (the agent never sees it); else the
 envelope's `secrets`. `data.sign_in_link` says which, with the expiry. The link never reaches data, warnings,
 errors, the journal or progress (the redactor knows it as soon as it exists).
+(Amended 2026-10-18: a desktop session alone no longer means the browser: only `--open`, or a person at a desktop
+terminal without `--json`; otherwise `secrets` or `--secrets-file`, see ADR 0070.)
 
 **Other commands.** `status` is read-only (it starts only the socket-less `identity:login-links --unused` one-off
 while Postgres runs, and passes on only known fields of its rows, never a token or URL). `logs` validates services against the compose file and redacts env secrets. `version` needs
@@ -116,8 +127,14 @@ removes the lock directory. The UUID comes from the state, else (missing or unre
 journal, the compose file's labels or the containers that ran from the directory; without one only the files go,
 with an `instance_id_unknown` warning. The directory itself stays empty: it is the ops container's bind mount. If a resource cannot be
 removed, the files stay and the command exits 1, so it can run again. `--orphans <uuid>` removes only that other
-installation's labelled resources. `login-link` maps the app's errors: `user_not_found`, `not_admin`, `inactive`,
-`sso_required`, `invalid_input` → 2; `rate_limited` → 9 (retryable); no result → 1.
+installation's labelled resources. (Superseded 2026-10-18 by ADR 0073: `--keep-backups` first writes a final
+backup (dump, storage archive, APP_KEY); `--orphans` accepts only an orphan install reported for this directory
+and refuses a live one with exit 7 `orphans_live`; an unknown UUID with labelled resources still tied to the
+directory is exit 7 `instance_id_unknown` and deletes nothing; a partial uninstall is exit 4
+`uninstall_incomplete`, retryable, with `changed: true` once something was removed or backed up.) `login-link` maps the app's
+errors: `user_not_found`, `not_admin`, `inactive`, `sso_required`, `invalid_input` → 2; `rate_limited` → 9
+(retryable); no result → 4 `one_off_failed` or `one_off_timeout` (retryable; amended 2026-10-18: was 1, the
+internal-error code of ADR 0066).
 
 ## Alternatives considered
 - **Starting the whole stack before `migrate`** (the plan's order): one phase fewer, but the app's health and
@@ -132,8 +149,8 @@ installation's labelled resources. `login-link` maps the app's errors: `user_not
 
 ## Consequences
 - J1 and J12 run real installs against the harness; the bootstrap journey uses the real `fsa install`/`doctor`
-  for exit 6 and the nonce check and keeps the probe for the hand-over contract. One harness serves all three
-  (`SharedHarness`).
+  for exit 2 `input_required` (amended 2026-10-18: was exit 6) and the nonce check and keeps the probe for the
+  hand-over contract. One harness serves all three (`SharedHarness`).
 - U8 lifts `unsupported_mode` for `--domain` (the DNS check is in place) and adds the edge to the smoke path; U11
   provides the `fsa config set` the exit-2 hint names; U12 adds PDF and mail to the smoke test; U16 fills
   `last_backup`.
