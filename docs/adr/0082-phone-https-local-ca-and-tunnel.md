@@ -126,3 +126,25 @@ The trust page exists only in local-CA mode, where `fsa tunnel start` exits 2 `i
 Its Android tunnel recommendation (`phone_trust.android.tunnel`, DE/EN) therefore names both steps: turn the CA off
 with `fsa config set phone-https off --yes`, then run `fsa tunnel start`. A Feature test takes the command from
 TunnelRules' refusal hint and finds it on the page before `fsa tunnel start`, in both languages.
+
+## Amendment 2026-10-19: where the local CA's keys live, a deviation from §10 and §6.3 (M11 gate)
+BUILD_PROMPT_V2 §10 says "The local CA key stays in the instance directory with mode 0600", and §6.3 lists `certs/`
+(local CA) in the instance directory. The implementation keeps the root and intermediate keys where Caddy creates them:
+`/data/caddy/pki/authorities/local/` on the edge's certificate volume `<project>_edge-data` (`LocalCaStore`,
+`EdgeService`), 0600 for Caddy's UID 65532. There is no `certs/` directory. This is a deviation (QUESTIONS 44).
+- **Why.** Caddy's `tls internal` creates the CA in its own pki directory, signs every leaf from there and renews the
+  intermediate there, and the edge already mounts the certificate volume at `/data/caddy`. Keys in `<instance>/certs/`
+  would need a host directory bind-mounted into the edge, writable for UID 65532 inside the owner's 0700 instance
+  directory, or a CA that fsa generates and hands to Caddy (`pki { ca local { root … intermediate … } }`). Both add a
+  path that writes or moves private keys, and neither keeps them more confidential.
+- **Confidentiality.** On a rootful Linux engine the volume lives in Docker's root-only data directory. Only root and
+  whoever can run containers can read it, and they can read a 0600 file in the instance directory just as well. Inside
+  the volume the key files are 0600 for Caddy's user. fsa never opens the volume itself: a throwaway Caddy container,
+  read-only and without network, copies out the public root alone, which must be exactly one CA certificate. The app
+  serves only that copy. `config set phone-https off` deletes `pki/` and the issued certificates, and `fsa uninstall`
+  removes the volume.
+- **Consequence for M12 (U16 backup, U17 restore).** The CA is not in the instance directory, so a backup of the
+  directory and the database does not hold it. A restore without the edge volume gives a local-CA instance a new CA
+  with a new fingerprint the next time the edge starts, and every phone must trust it again. U16/U17 decide: either
+  backups carry the volume's `pki/` (a private key in the backup, protected like APP_KEY), or the restore result and
+  the docs tell the operator to have phones trust the new root.
