@@ -93,7 +93,8 @@ HTTPS is `fsa install --phone-https` and `fsa tunnel start` (U14).
 - U14: call `AppCommands::demoPasswordCheck()` before `tunnel start` and the local-CA edge; rotate first on an existing
   demo (`DemoData::rotation()` inside its operation, or `fsa demo --rotate-passwords`), then refuse while `count > 0`
   (non-demo accounts on `password`). Record phone HTTPS as the `phone_https` setting.
-- `config set domain|url` (U11) does not rotate yet; `fsa demo` does on its next run. Recorded as a review question.
+- `config set domain|url` (U11) does not rotate yet; `fsa demo` does on its next run. (Superseded: no review question
+  was recorded; since the M11 gate `config set` refuses such a change instead, see the amendment of 2026-10-19.)
 - The E2E suite and every existing test keep `password` (default binding).
 
 ## Amendment 2026-10-18: how U14 uses the check (ADR 0082)
@@ -105,3 +106,23 @@ HTTPS is `fsa install --phone-https` and `fsa tunnel start` (U14).
   rotates the demo accounts inside its operation (`DemoData::rotation`, passwords listed once). `fsa config set
   phone-https local-ca` rotates nothing: it refuses while any account has `password` (exit 3
   `default_password_in_use`) and names `fsa demo --rotate-passwords`.
+
+## Amendment 2026-10-19: `config set` refuses to widen the reach while an account has `password` (M11 gate)
+- Gap: `config set domain` on a local `--demo` instance (accounts on `password`) made `owner@demo.test` / `password`
+  sign in on the public domain (R29, AE2, E9). The "review question" the Consequences named was never recorded.
+- Rule (`Config\DefaultPasswordGuard`, run by `ConfigSetter` first in the preflight phase, under the lock, before the
+  applier's own checks and before anything changes): a change widens the reach when
+  `DemoPasswords::exposure()` of the target has a reason the current state lacks. Then `app:demo-passwords --check`
+  (`ExposureCheck`) runs, and the change is refused with exit 3 `default_password_in_use` while any account signs in
+  with `password`: other accounts first (hint: change their passwords; fsa never changes a real user's password),
+  then demo accounts (hint: `fsa demo --rotate-passwords`, which lists the new ones once; `data.users`,
+  `data.exposure`). `config set` rotates nothing itself: it cannot hand out passwords, and it should not change data
+  as a side effect of a settings change.
+- Keys that widen the reach today: `domain` from local or proxy mode (`domain_mode`) and `phone-https local-ca`
+  (`local_ca`; the check moved here from `LocalCaPreflight`, so it runs once, now before the ports check). `domain`
+  on a domain-mode instance, `mode local`, `port`, `url` and `trusted-proxy` (proxy mode only), `lan-address`, `mail`
+  and the ACME keys add no reason and run no check; the app port is always bound to 127.0.0.1. Proxy mode is chosen
+  at install only. A key added later is covered as soon as its target state changes the mode or `phone_https`.
+- Consistent with QUESTIONS 39: `config set` (domain, local CA) refuses; `fsa tunnel start` rotates the demo
+  accounts itself inside its operation, as before.
+

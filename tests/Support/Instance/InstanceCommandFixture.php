@@ -211,6 +211,9 @@ final class InstanceCommandFixture
             'instance:operator-email' => self::oneOffJson(['command' => 'instance:operator-email', 'status' => 'ok', 'changed' => true,
                 'data' => ['email' => 'new-ops@example.com', 'user_id' => 2, 'created' => true, 'granted' => true, 'revoked' => [], 'password_set' => false, 'login_url' => 'http://localhost:8080/platform/login'],
                 'secrets' => [['name' => 'sign_in_link', 'value' => self::LINK, 'expires_at' => '2026-10-18T11:00:00Z']]]),
+            // The default-password check (DefaultPasswordGuard, ExposureCheck): no account signs in with `password`.
+            'app:demo-passwords' => in_array('--check', $command, true) ? self::oneOffJson(['command' => 'app:demo-passwords', 'status' => 'ok',
+                'data' => ['checked' => 1, 'count' => 0, 'users' => [], 'organizations' => ['total' => 1, 'non_demo' => 1]]]) : new ProcessOutcome(0, "Migrated.\n"),
             default => new ProcessOutcome(0, "Migrated.\n"),
         };
     }
