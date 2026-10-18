@@ -187,3 +187,9 @@ image with `restart: "no"` as foreseen above, no env, user 65532, read-only, eve
 published, at a fixed address on its own network `tunnel` (a /28 from 10.215.0.0/16, setting `tunnel_subnet`), which
 the app joins. Its memory limit is the `tunnel` slot of `ResourceBudget`, which the worst case counts once together
 with the edge (R61), as the budget table above assumes.
+
+## Amendment 2026-10-19: Postgres settings beyond memory (ADR 0083 amendment)
+Each `ResourceBudget` profile gains a `postgres` map of further server settings that `postgresSettings()` appends:
+`small` sets `jit=off` and `max_parallel_workers_per_gather=0`, `medium` and `large` none. `small`'s `max_connections`
+is 30 (was 40), sized from `postgresClients()` (17 on `small`). The postgres service still passes every setting as a
+`-c name=value` argument, so the compose file (and the stack file) shows them.

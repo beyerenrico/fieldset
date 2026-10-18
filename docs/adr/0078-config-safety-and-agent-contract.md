@@ -133,3 +133,18 @@ the state records is removed in its own journaled operation (`tunnel`, action `e
 `config` journal. The result then carries `tunnel_removed` and `changed: true`, also when the change itself fails; a
 failed cleanup is the warning `tunnel_cleanup_failed` and the change still runs. `fsa demo` and `fsa tunnel` sweep
 the same way.
+
+## Amendment 2026-10-19: a settled change is completed, never repeated (M11 gate)
+- Once `workers` completed, the change is settled. A resumed run whose journal records a completed `workers` phase (and
+  no revert) replays snapshot and preflight and then runs only the completion and the audit: no apply, verify or
+  workers again, so nothing re-applies a change whose completion may already have removed the catcher volume or deleted
+  the local CA, and nothing can revert it. The completion steps tolerate a repeat (the volume removal looks the volume
+  up first, the CA deletion is `rm -rf`, the captured counts are read again). The audit phase is no longer `always`: a
+  run that finds it completed reuses it. A signal that is pending as such a run resumes ends it with exit 9 and the
+  journal open, without a revert. `apply` and `verify` data come from the journal for the result.
+- The SMTP stash is discarded after the audit, the journal's last phase, instead of before the completion; until the
+  supervisor archives the journal, a resumed run only repeats that last step.
+- The consequence "a `config set` killed during apply or verify repeats the change" stays; one killed after its workers
+  started is completed instead. Tests: `ConfigSettledResumeTest`.
+- `rolled_back` results (exit 5) carry the change's warnings except those that describe the reverted target
+  (`port_changed`, `catcher_port_changed`); see the ADR 0080 amendment of this date.
