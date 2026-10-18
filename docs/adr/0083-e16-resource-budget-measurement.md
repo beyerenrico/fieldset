@@ -199,3 +199,8 @@ filters moved over the line as Postgres shrank from 224 to 160 MiB. The classic 
   (cloudflared; only the fake tunnel ran), `medium` and `large`, and amd64 emulation (the gate's J10).
 - ADR 0069 (budget table, "estimates until U15"), ADR 0062 ("a follow-up ADR") and ADR 0070 (emulation note) need
   amendments pointing here.
+
+## Amendment 2026-10-19: the referring ADRs are amended (M11 gate)
+The amendments the last Consequence asks for are in place: ADR 0069 (the shipped table, Horizon `small` 1, the
+`work_mem` floor, `medium` scheduler 256, what stays unmeasured), ADR 0062 (this ADR as its follow-up, the verdicts),
+ADR 0070 (emulation doubles the new limits; Mailpit kept at 48 MiB) and ADR 0046 (J10 as a second data point).

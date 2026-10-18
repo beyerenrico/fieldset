@@ -265,3 +265,10 @@ opens, never to stdout or stderr. Otherwise the 0600 file stays, and a warning n
   skipped the check still cannot read a script as a password. The shim is unchanged: it passes piped stdin with `-i`,
   so `printf %s "$PASS" | <dir>/fsa install … --password-stdin` works for a resume or repeat. Rejected: detecting
   whether install.sh's stdin is the script (a pipe from curl and a pipe from printf look alike).
+
+## Amendment 2026-10-19: emulation doubles the measured limits (U15, ADR 0083)
+The doubled memory limits under emulation (`RenderContext::EMULATION_MEMORY_FACTOR`, 2) apply to ADR 0083's measured
+`small` budget as they did to the estimates: every limit, e.g. app 768, queue 800, scheduler 416, Postgres 320 MiB.
+Mailpit keeps 48 MiB on `small` although it needs about 10 MiB natively, so its emulated limit stays 96 MiB: amd64
+Mailpit under emulation needs about 60 MiB plus its health check (the 57 MiB above). ADR 0083 did not measure under
+emulation; the M11 gate's emulated journeys run with these doubled limits.
