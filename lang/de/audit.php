@@ -107,6 +107,7 @@ return [
         'host_uid' => 'Host-UID (Kommandozeile)',
         'identity_provider_id' => 'SSO-Anbieter',
         'jit_enabled' => 'Just-in-time-Bereitstellung',
+        'key' => 'Einstellung',
         'kind' => 'Art',
         'limit' => 'Grenze',
         'locale' => 'Sprache',
@@ -308,6 +309,9 @@ return [
             'admin_granted' => 'Plattform-Admin ernannt',
             'admin_revoked' => 'Plattform-Admin entzogen',
             'catcher_opened' => 'Mail-Catcher geöffnet',
+        ],
+        'instance' => [
+            'config_changed' => 'Instanzeinstellung geändert',
         ],
         'login_link' => [
             'issued' => 'Einmal-Anmeldelink ausgestellt',

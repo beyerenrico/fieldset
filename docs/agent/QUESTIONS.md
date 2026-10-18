@@ -172,3 +172,7 @@ Format: question · chosen option · impact · how to reverse.
    through; production images ignore it (harness flavour only) · harmless but visible · drop it from the
    production shim if it confuses. The app also sends `X-Content-Type-Options: nosniff, nosniff` (its Caddyfile
    and SecurityHeaders, 1.0 behaviour) · cosmetic · remove one source.
+36. `fsa config set` asks for `--yes` on every URL change (`domain`, `url`, local `port`, `mode`), not only
+   `domain` (ADR 0077) · chosen because every URL change invalidates signed links and moves SSO redirects ·
+   one more flag for agents · relax to `domain` only if it proves noisy. `config set operator-email` (plan U11)
+   is deferred to U12/beta.1 and refused with exit 2 until then.

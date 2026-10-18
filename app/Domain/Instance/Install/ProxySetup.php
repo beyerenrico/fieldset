@@ -50,7 +50,7 @@ final readonly class ProxySetup
         }
         $info = $this->docker->inspectNetwork($network)
             ?? throw new InstanceException("The Docker network {$network} does not exist.", ExitCode::PreflightFailed, 'proxy_network_missing', "Pass the network your proxy is attached to (`docker network ls`), or create it and attach the proxy: docker network create {$network}.");
-        $proxy = $this->proxyOn($info, $kind, $request->trustedProxy());
+        $proxy = $this->endpointOn($info, $kind, $request->trustedProxy());
         $address = $proxy->address()
             ?? throw new InstanceException("The container {$proxy->name} has no address on {$network}.", ExitCode::PreflightFailed, 'proxy_not_found', 'Check that the proxy runs and is attached to the network.');
 
@@ -86,7 +86,12 @@ final readonly class ProxySetup
             ?? throw new InstanceException("The network {$network} reports no gateway.", ExitCode::HealthCheckFailed, 'gateway_unknown', 'Run `fsa install` again with the same flags: it resumes here.', true);
     }
 
-    private function proxyOn(NetworkInfo $network, string $kind, ?string $given): NetworkEndpoint
+    /**
+     * The proxy's endpoint on the shared network: the container named by `$given` (name, ID or its address there),
+     * else the only container running the setup's proxy image (exit 3 when none or several). `fsa config set
+     * trusted-proxy` re-resolves through the same rule.
+     */
+    public function endpointOn(NetworkInfo $network, string $kind, ?string $given): NetworkEndpoint
     {
         if ($given !== null) {
             $endpoint = InputGrammar::isIp($given) ? $network->endpointAt($given) : $network->endpoint($given);

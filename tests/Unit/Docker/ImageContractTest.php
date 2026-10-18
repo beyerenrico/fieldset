@@ -245,7 +245,7 @@ describe('fsa wrapper', function (): void {
         if (! $json) {
             expect($process->getOutput())->toBe('')
                 ->and($process->getErrorOutput())->toContain("fsa: unknown command: {$command}")
-                ->and($process->getErrorOutput())->toContain('Available commands: doctor, install, login-link');
+                ->and($process->getErrorOutput())->toContain('Available commands: config, doctor, install, login-link');
 
             return;
         }
@@ -254,12 +254,12 @@ describe('fsa wrapper', function (): void {
             'errors' => [[
                 'code' => 'unknown_command',
                 'message' => "Unknown fsa command: {$command}",
-                'hint' => 'Available commands: doctor, install, login-link, logs, status, uninstall, version. Run fsa without arguments to list them.',
+                'hint' => 'Available commands: config, doctor, install, login-link, logs, status, uninstall, version. Run fsa without arguments to list them.',
                 'retryable' => false,
             ]],
         ])->and($process->getErrorOutput())->toBe('');
     })->with([
-        'not yet shipped' => [['config', 'show', '--json'], true],
+        'not yet shipped' => [['upgrade', '--json'], true],
         'typo with a leading flag' => [['--json', 'stauts'], true],
         'quote in the name' => [['--json', 'x"y\\z'], true],
         'two words' => [['--json', 'logs status'], true],

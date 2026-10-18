@@ -1,0 +1,157 @@
+{
+    "command": "fsa config show --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "config",
+        "status": "ok",
+        "changed": false,
+        "data": {
+            "dir": "<work>/fsa-test-cfg",
+            "project": "fsa-fsa-test-cfg-71d7",
+            "version": "2.0.0-alpha.1-test",
+            "mode": "local",
+            "url": "http://localhost:8081",
+            "settings": {
+                "port": 8081,
+                "mail_ui_port": 8025,
+                "domain": null,
+                "acme": null,
+                "edge_subnet": null,
+                "proxy": null,
+                "trusted_proxies": [],
+                "extra_hosts": [],
+                "mail": {
+                    "mode": "capture",
+                    "catcher_url": "http://localhost:8025",
+                    "smtp": null,
+                    "from_address": "forms@localhost",
+                    "from_name": "form-schema-app"
+                },
+                "size": "small",
+                "database": "form_schema"
+            },
+            "secrets": {
+                "app_key": "[redacted]",
+                "database_password": "[redacted]",
+                "valkey_password": "[redacted]",
+                "catcher_password": "[redacted]"
+            },
+            "keys": [
+                {
+                    "key": "domain",
+                    "value": null,
+                    "available": true,
+                    "changes_url": true
+                },
+                {
+                    "key": "url",
+                    "value": "http://localhost:8081",
+                    "available": true,
+                    "changes_url": true
+                },
+                {
+                    "key": "port",
+                    "value": 8081,
+                    "available": true,
+                    "changes_url": true
+                },
+                {
+                    "key": "trusted-proxy",
+                    "value": null,
+                    "available": true,
+                    "changes_url": false
+                },
+                {
+                    "key": "mode",
+                    "value": "local",
+                    "available": true,
+                    "changes_url": true
+                },
+                {
+                    "key": "acme-email",
+                    "value": null,
+                    "available": true,
+                    "changes_url": false
+                },
+                {
+                    "key": "acme-ca",
+                    "value": null,
+                    "available": true,
+                    "changes_url": false
+                },
+                {
+                    "key": "mail",
+                    "value": null,
+                    "available": false,
+                    "arrives_with": "2.0.0-beta.1"
+                },
+                {
+                    "key": "operator-email",
+                    "value": null,
+                    "available": false,
+                    "arrives_with": "2.0.0-beta.1"
+                },
+                {
+                    "key": "backup-schedule",
+                    "value": null,
+                    "available": false,
+                    "arrives_with": "2.0.0-rc.1"
+                },
+                {
+                    "key": "backup-retention",
+                    "value": null,
+                    "available": false,
+                    "arrives_with": "2.0.0-rc.1"
+                },
+                {
+                    "key": "backup-encryption",
+                    "value": null,
+                    "available": false,
+                    "arrives_with": "2.0.0-rc.1"
+                },
+                {
+                    "key": "update-check",
+                    "value": null,
+                    "available": false,
+                    "arrives_with": "2.0.0"
+                }
+            ],
+            "outbound_contacts": {
+                "default": "none: without these features neither fsa nor the instance calls out (identity providers and SMTP servers that organization admins configure for their own organization are contacted as configured)",
+                "features": [
+                    {
+                        "feature": "acme",
+                        "active": false,
+                        "contacts": [],
+                        "purpose": "Domain mode: the edge orders and renews certificates from this ACME directory (and its challenges reach port 80/443)."
+                    },
+                    {
+                        "feature": "smtp",
+                        "active": false,
+                        "contacts": [],
+                        "purpose": "Real mail delivery through this server; capture mode keeps every mail in the bundled catcher (fsa config set mail arrives with 2.0.0-beta.1)."
+                    },
+                    {
+                        "feature": "upgrades",
+                        "active": false,
+                        "contacts": [
+                            "<registry>",
+                            "https://github.com/beyerenrico/form-schema-app/releases"
+                        ],
+                        "purpose": "Only when you run an upgrade (fsa upgrade arrives with 2.0.0-rc.1): the release manifest and the pinned images."
+                    },
+                    {
+                        "feature": "update_check",
+                        "active": false,
+                        "contacts": [],
+                        "purpose": "Off by default; arrives with 2.0.0 and then contacts the release list only when switched on."
+                    }
+                ]
+            }
+        },
+        "secrets": [],
+        "warnings": [],
+        "errors": []
+    }
+}

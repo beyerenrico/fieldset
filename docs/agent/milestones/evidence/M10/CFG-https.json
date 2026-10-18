@@ -1,0 +1,7 @@
+{
+    "https_up": 200,
+    "http": [
+        308,
+        "https://fsa-test-cfg.test/up"
+    ]
+}

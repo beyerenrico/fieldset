@@ -13,6 +13,7 @@ use App\Domain\Instance\Install\InstallRecord;
 use App\Domain\Instance\Operations\InstanceLock;
 use App\Domain\Instance\Operations\JournalRecord;
 use App\Domain\Instance\Operations\OperationJournal;
+use App\Domain\Instance\Operations\OperationUnfinished;
 use App\Domain\Instance\Output\CommandResult;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceSettings;
@@ -49,7 +50,9 @@ final readonly class StatusReport
         ];
         $result = $state instanceof InstanceState ? $this->instance($state, $data) : CommandResult::ok('status', [...$data, 'health' => 'not_installed']);
         if ($operation instanceof JournalRecord) {
-            return $result->withWarning('operation_unfinished', "`fsa {$operation->operation()}` stopped at phase ".($operation->lastStartedPhase() ?? 'none').'.', "Run `fsa {$operation->operation()}` again with the same flags to resume it.");
+            $command = OperationUnfinished::command($operation);
+
+            return $result->withWarning('operation_unfinished', "`fsa {$command}` stopped at phase ".($operation->lastStartedPhase() ?? 'none').'.', "Run `fsa {$command}` again with the same flags to resume it.");
         }
 
         return $result;

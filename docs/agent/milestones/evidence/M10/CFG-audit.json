@@ -1,0 +1,6 @@
+{
+    "instance.config_changed": [
+        "domain|fsa-test-cfg.test|501|cli",
+        "mode|local|501|cli"
+    ]
+}

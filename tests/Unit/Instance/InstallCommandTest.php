@@ -131,7 +131,7 @@ it('refuses different flags on a finished instance with exit 2 and the config-se
     expect($code)->toBe(2)
         ->and($json['errors'][0]['code'])->toBe('use_config_set')
         ->and($json['errors'][0]['message'])->toContain($flag)
-        ->and($json['errors'][0]['hint'])->toContain('fsa config set')->toContain('later releases')->toContain('fsa uninstall')
+        ->and($json['errors'][0]['hint'])->toContain('fsa config set')->toContain('fsa config show')->toContain('fsa uninstall')
         ->and($this->fixture->docker->methodsSince($calls))->toBe([]);
 })->with([
     'organization' => [['--org' => 'Other Org'], '--org'],

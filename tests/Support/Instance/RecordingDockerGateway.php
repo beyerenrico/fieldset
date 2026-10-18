@@ -49,6 +49,9 @@ final class RecordingDockerGateway implements DockerGateway
     /** @var array<string, Throwable> */
     public array $failures = [];
 
+    /** @var array<string, Closure(array<string, mixed>): void> runs on every call of the method; may throw (e.g. fail only the second compose up) */
+    public array $onCall = [];
+
     /** @var array<string, mixed> */
     public array $config = ['services' => []];
 
@@ -361,6 +364,9 @@ final class RecordingDockerGateway implements DockerGateway
     private function record(string $method, array $args = []): void
     {
         $this->calls[] = ['method' => $method, 'args' => $args];
+        if (isset($this->onCall[$method])) {
+            ($this->onCall[$method])($args);
+        }
         if (isset($this->failures[$method])) {
             throw $this->failures[$method];
         }

@@ -197,3 +197,11 @@
   --acme-staging, --acme-ca/-root), `/_mail/` behind forward_auth to /_fsa/catcher-auth (operator /platform
   session with MFA, `platform.catcher_opened`), edge-injected Basic auth to Mailpit. ADR 0075.
 - J2 8/8 native (194 s) and amd64 emulated (pre-merge); J1+J2+J3 26/26 after the U9 merge; unit 1042 green.
+
+## 2026-10-18 M10-T04 fsa config (U11)
+- `fsa config show|set`: appliers for domain (+ ACME options), url, port, trusted-proxy, mode local, acme-email,
+  acme-ca; journaled snapshot→preflight→apply→verify→audit, revert on failure (`reverted:true`, exit 4; exit 8 if
+  the revert fails), `changed:false` without Docker calls, `--yes` for URL changes with SSO/signed-link impact
+  list, `instance.config_changed` audit via one-off. ADR 0077.
+- ConfigDomainSwitch 9/9 ×2 (local→domain 40 s, failed ACME reverts), J1/J2/J3 regressions green, full suite
+  6002/6002, Instance coverage 98.03 %.

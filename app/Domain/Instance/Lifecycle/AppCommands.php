@@ -50,6 +50,28 @@ final readonly class AppCommands
         return $this->json($project, ['php', 'artisan', 'identity:login-links', ...($unusedOnly ? ['--unused'] : []), '--json'], 120.0);
     }
 
+    /** What follows the instance URL: organizations with SSO and links already sent (`fsa config set`, ADR 0077). */
+    public function urlImpact(ComposeProject $project): OneOffResult
+    {
+        return $this->json($project, ['php', 'artisan', 'instance:url-impact', '--json'], 120.0);
+    }
+
+    /**
+     * Audits a settings change as `instance.config_changed` by the instance owner at the command line (KTD26): key,
+     * old and new value (never secret: every settable key is a plain value) and, when it moved, the instance URL.
+     *
+     * @param  array{key: string, from: string|null, to: string|null, url: array{from: string, to: string}}  $change
+     */
+    public function auditConfigChange(ComposeProject $project, array $change, int $actorUid): OneOffResult
+    {
+        $url = $change['url']['from'] === $change['url']['to'] ? [] : ['--old-url='.$change['url']['from'], '--new-url='.$change['url']['to']];
+
+        return $this->json($project, [
+            'php', 'artisan', 'instance:config-changed', '--key='.$change['key'], '--old='.($change['from'] ?? ''), '--new='.($change['to'] ?? ''),
+            ...$url, '--actor-uid='.$actorUid, '--json',
+        ], 120.0);
+    }
+
     /** @param  list<string>  $command */
     private function json(ComposeProject $project, array $command, float $timeout = self::TIMEOUT): OneOffResult
     {

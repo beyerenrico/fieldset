@@ -238,7 +238,7 @@ final readonly class Installer
             throw new InvalidInput(
                 'This instance is installed; '.implode(', ', $changed).' differ from its installation.',
                 'use_config_set',
-                'fsa install changes nothing on an installed instance. `fsa config set` and `fsa upgrade` arrive in later releases; for now keep the instance as it is, or remove it with `fsa uninstall` and install again with the new flags.',
+                'fsa install changes nothing on an installed instance: change settings with `fsa config set <key> <value>` (`fsa config show` lists them; `fsa upgrade` arrives in a later release), or remove the instance with `fsa uninstall` and install again with the new flags.',
             );
         }
         $email = $request->ownerEmailIfKnown();

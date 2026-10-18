@@ -80,6 +80,9 @@ final class InstallRecord
         foreach (InstallRequest::PROXY_FLAGS as $key) {
             $proxy[$key] = is_string($recorded[$key] ?? null) ? $recorded[$key] : null;
         }
+        // `fsa config set` (ADR 0077) may have changed mode, URL or network since: compare with the state as it is now.
+        $settings = InstanceSettings::of($state);
+        $proxy = [...$proxy, 'proxy' => $settings->proxy(), 'url' => $settings->proxy() === null ? null : $state->url(), 'proxy_network' => $settings->proxy() === null ? null : $settings->proxyNetwork()];
 
         return [
             ...$app,

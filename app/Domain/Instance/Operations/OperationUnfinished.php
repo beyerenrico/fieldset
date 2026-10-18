@@ -17,13 +17,25 @@ final class OperationUnfinished extends InstanceException
     {
         $operation = $record->operation();
         $phase = $record->lastStartedPhase();
+        $command = self::command($record);
         parent::__construct(
-            "An earlier `fsa {$operation}` did not finish (last phase: ".($phase ?? 'none').').',
+            "An earlier `fsa {$command}` did not finish (last phase: ".($phase ?? 'none').').',
             ExitCode::AbortedUnchanged,
             'operation_unfinished',
-            "Run `fsa {$operation}` again with the same flags to resume it.".($operation === 'install' ? ' `fsa uninstall` removes a half-finished install.' : ''),
+            "Run `fsa {$command}` again with the same flags to resume it.".($operation === 'install' ? ' `fsa uninstall` removes a half-finished install.' : ''),
             false,
             ['operation' => $operation, 'last_phase' => $phase, 'started_at' => $record->startedAt(), 'journal' => $record->id()],
         );
+    }
+
+    /** The command that resumes the operation: its name, and for `config set` the key and value it recorded (ADR 0077). */
+    public static function command(JournalRecord $record): string
+    {
+        $context = $record->context();
+        if ($record->operation() === 'config' && is_string($context['key'] ?? null) && is_string($context['value'] ?? null)) {
+            return "config set {$context['key']} {$context['value']}";
+        }
+
+        return $record->operation();
     }
 }
