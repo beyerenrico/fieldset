@@ -193,3 +193,13 @@ Format: question · chosen option · impact · how to reverse.
    and what real cloudflared forwards (Host, `X-Forwarded-*`) is unverified (only the fake tunnel was used) ·
    check on the RELEASING.md checklist with a real quick tunnel before 2.0.0 · tighten throttles per token if
    shared limits bite.
+41. E16 admin-page targets are missed at the 1.0 test volume (100k submissions, 1.27 GB DB) on 2 GB / 2 CPUs:
+   23/31 series < 500 ms; saved reports 946–1,618 ms, explorer search 1,245–1,879 ms, reviewer inbox 550–613 ms
+   (ADR 0083; Postgres hit rate 54 %, ~100 MiB cache) · install, PDF and API targets are met · options: accept and
+   document the data size from which 4 GB is needed; ADR 0046 follow-ups (cached saved-report results,
+   covering/trigram indexes for the explorer); free memory for Postgres; or raise E16 to 3–4 GB. J10 records timing
+   misses but fails only on OOM/restarts/failed steps — should the M13 gate enforce timings?
+42. `small` runs one default Horizon worker (ADR 0083) · Gotenberg concurrency is 1 anyway · mails and workflows
+   queue behind renders, pickup latency up to 3 s · raise to 2 if memory allows on real hosts. Margins are ~30 MiB
+   per slot; the backup (128) and tunnel (48) slots and the `medium`/`large` profiles are unmeasured; the 320 MiB OS
+   headroom is an estimate (swap guidance, ADR 0062, matters).

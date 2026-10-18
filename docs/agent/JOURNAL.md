@@ -232,3 +232,10 @@
 - cloudflared is not a trusted proxy (its X-Forwarded-Host made Symfony answer 400 before the host pin).
 - J06 12/12 native (646 s), amd64 emulated 10/12 then 12/12 (port-80 reset, unexplained); J01+J02 13/13;
   Instance coverage 96.99 %. Interrupted once by the usage limit; resumed from the saved WIP.
+
+## 2026-10-18 M11-T04 E16 measurement (U15)
+- J10: domain mode + capture mail, whole stack pinned to 2 CPUs (cpuset on every container), compose memory limits
+  only; smoke E2E, 10-page PDF, 1.0 perf scripts at 100k. No OOM kill, no restart. ADR 0083.
+- Met: install 47 s (+6 s pulls) vs 300 s, PDF p95 4.0 s vs 10 s, API 23/23 < 300 ms. Missed: admin pages 23/31
+  < 500 ms (saved reports, explorer search, reviewer inbox; Postgres cache ~100 MiB vs 1.27 GB data) — QUESTIONS 41.
+- small budget retuned from measured peaks (+~30 MiB each; Horizon 1 worker; Postgres 160; sum 1728/1728). 6 runs.
