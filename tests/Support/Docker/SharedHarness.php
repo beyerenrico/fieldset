@@ -8,8 +8,9 @@ use Throwable;
 
 /**
  * One release harness and one published harness release per test process (KTD23): the bootstrap journey and
- * J1/J12 share them, so the image is built, pushed and mirrored once. Stopped at process shutdown (and its
- * resources are all `fsa-test-harness-*`); a failed start is remembered, so later files fail fast with the cause.
+ * J1/J12 share them, so the image is built, pushed and mirrored once, as ReleaseHarness::version()
+ * (FSA_RELEASE_VERSION, default TEST_VERSION). Stopped at process shutdown (and its resources are all
+ * `fsa-test-harness-*`); a failed start is remembered, so later files fail fast with the cause.
  */
 final class SharedHarness
 {
@@ -29,7 +30,7 @@ final class SharedHarness
             try {
                 self::$harness = ReleaseHarness::start();
                 register_shutdown_function(self::stop(...));
-                self::$release = self::$harness->publish(ReleaseHarness::TEST_VERSION);
+                self::$release = self::$harness->publish(ReleaseHarness::version());
             } catch (Throwable $exception) {
                 self::$error = $exception;
                 self::stop();

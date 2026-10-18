@@ -169,3 +169,11 @@
   uninstall (--keep-backups, --orphans), login-link via socket-less one-offs. ADR 0072.
 - J1/J12/Bootstrap 17/17 (J1 install 45 s), Unit+Feature 5421/5421, coverage 98.12 %. `--version` clash fixed
   in the fsa wrapper. QUESTIONS 29–31.
+
+## 2026-10-18 M9-T09 gate M9 → 2.0.0-alpha.1
+- Five reviewer subagents: 6 high findings fixed (wrapper entry path, `--orphans` on a live instance, host /tmp
+  over DOCKER_CONFIG in the socket container, three docs), most mediums/lows fixed, rest in QUESTIONS 27–33.
+- Supply chain: cosign dropped, Compose/age built from source (app image 0 Trivy findings, 507/497 MB), scoped
+  dated exceptions for third-party images (ADR 0071). DOCKER_DEFAULT_PLATFORM honoured: J1/J12 pass under amd64.
+- Gate: PHP 5560 (cov 95.41 %, Instance 98.15 %) / 5590 host, journeys 33/33 arm64 + J1/J12 amd64, E2E 79/79 ×2,
+  static/JS/conformance/licenses green. alpha.1 built, signed, installed and uninstalled locally (599 s).

@@ -57,12 +57,12 @@ it('installs a local instance with install.sh and fsa install', function (): voi
     $GLOBALS['fsaJ01Port'] = $json['data']['port'] ?? null;
     $state = json_decode((string) @file_get_contents($this->dir.'/state.json'), true);
     $link = json_decode((string) @file_get_contents($secrets), true)['secrets'][0] ?? [];
-    $this->journey->evidence('J01-install.json', ['command' => 'install.sh --dir <work>/fsa-test-j01 --version '.ReleaseHarness::TEST_VERSION.' --org "Journey Org" --owner-email owner@example.test --owner-name "Jo Owner" --locale en --secrets-file <work>/owner-link.json --json', 'exit_code' => $process->getExitCode(), 'seconds' => round(microtime(true) - $started, 1), 'stdout' => $json, 'stderr_ndjson' => array_values(array_filter(explode("\n", $process->getErrorOutput())))]);
+    $this->journey->evidence('J01-install.json', ['command' => 'install.sh --dir <work>/fsa-test-j01 --version '.ReleaseHarness::version().' --org "Journey Org" --owner-email owner@example.test --owner-name "Jo Owner" --locale en --secrets-file <work>/owner-link.json --json', 'exit_code' => $process->getExitCode(), 'seconds' => round(microtime(true) - $started, 1), 'stdout' => $json, 'stderr_ndjson' => array_values(array_filter(explode("\n", $process->getErrorOutput())))]);
 
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput()."\n".$process->getOutput())
         ->and($json['status'])->toBe('ok')
         ->and($json['changed'])->toBeTrue()
-        ->and($json['data']['version'])->toBe(ReleaseHarness::TEST_VERSION)
+        ->and($json['data']['version'])->toBe(ReleaseHarness::version())
         ->and($json['data']['url'])->toBe('http://localhost:'.$json['data']['port'])
         ->and($json['data']['sign_in_link']['delivered'])->toBe('secrets_file')
         ->and($json['secrets'])->toBe([['name' => 'sign_in_link', 'written_to' => $secrets, 'expires_at' => $json['data']['sign_in_link']['expires_at']]])
@@ -119,7 +119,7 @@ it('reports the running instance with fsa status, doctor --post, logs and login-
         ->and($link->getExitCode())->toBe(0, $link->getOutput())
         ->and($link->getOutput())->not->toContain('/login-link#')
         ->and((string) file_get_contents($linkFile))->toContain('/login-link#')
-        ->and(InstanceJourney::json($version)['data']['instance'])->toBe(ReleaseHarness::TEST_VERSION);
+        ->and(InstanceJourney::json($version)['data']['instance'])->toBe(ReleaseHarness::version());
 });
 
 it('answers /up and the admin login through the published loopback port', function (): void {

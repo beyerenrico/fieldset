@@ -88,6 +88,17 @@ final class ReleaseHarness
         return "{$this->directory}/dist";
     }
 
+    /**
+     * The version the shared harness publishes and the journeys install: FSA_RELEASE_VERSION when set (validated),
+     * else TEST_VERSION. LocalPreReleaseTest publishes its own version (FSA_PRERELEASE_VERSION).
+     */
+    public static function version(): string
+    {
+        $version = getenv('FSA_RELEASE_VERSION');
+
+        return is_string($version) && $version !== '' ? (string) ReleaseVersion::parse($version) : self::TEST_VERSION;
+    }
+
     /** Native platform, or FSA_TEST_PLATFORM (emulation), or the comma list FSA_HARNESS_PLATFORMS. @return list<string> */
     public static function platforms(): array
     {

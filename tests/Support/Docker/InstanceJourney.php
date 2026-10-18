@@ -32,7 +32,7 @@ final readonly class InstanceJourney
     /** @param  list<string>  $flags */
     public function install(string $dir, array $flags, array $env = []): Process
     {
-        return $this->run(['/bin/sh', $this->release->directory.'/install.sh', '--dir', $dir, '--version', ReleaseHarness::TEST_VERSION, ...$flags], $env);
+        return $this->run(['/bin/sh', $this->release->directory.'/install.sh', '--dir', $dir, '--version', (string) $this->release->version, ...$flags], $env);
     }
 
     /** @param  list<string>  $arguments */

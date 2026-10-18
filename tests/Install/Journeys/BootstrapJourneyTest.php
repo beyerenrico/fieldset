@@ -137,7 +137,7 @@ function bootstrapProbe(Process $process): array
 function bootstrapInstall(object $test, string $name, array $arguments = [], array $env = []): array
 {
     $directory = $test->work.'/'.$name;
-    $process = bootstrapRun($test, ['/bin/sh', $test->release->directory.'/install.sh', '--dir', $directory, '--version', ReleaseHarness::TEST_VERSION, ...$arguments], $env);
+    $process = bootstrapRun($test, ['/bin/sh', $test->release->directory.'/install.sh', '--dir', $directory, '--version', ReleaseHarness::version(), ...$arguments], $env);
 
     return [$process, $directory];
 }
@@ -148,7 +148,7 @@ function bootstrapWriteState(object $test, string $directory): void
     // The in-container owner UID (KTD2): 0 under Docker Desktop, where container root writes as the host user.
     $desktop = PHP_OS_FAMILY === 'Darwin' || str_contains((string) shell_exec('docker info --format "{{.OperatingSystem}}"'), 'Docker Desktop');
     $state = InstanceState::create('6a0f3c1e-2b4d-4e8f-9a1b-3c5d7e9f0a2b', $directory, $uid, posix_getgid(), $desktop ? 0 : $uid)
-        ->withRelease(ReleaseHarness::TEST_VERSION, ['app' => $test->appReference]);
+        ->withRelease(ReleaseHarness::version(), ['app' => $test->appReference]);
     file_put_contents($directory.'/state.json', $state->toJson());
 }
 
@@ -221,7 +221,7 @@ it('(d) verifies, pulls by digest and hands over to the ops container with mount
         ->and(array_filter($calls, fn (array $call): bool => $call[0] === 'create'))->not->toBeEmpty()
         ->and($ops)->not->toContain('-i')
         ->and($ops)->not->toContain('-it')
-        ->and($probe['argv'])->toBe(['install', '--dir', $directory, '--version', ReleaseHarness::TEST_VERSION, '--owner-email', 'owner@example.test', '--json'])
+        ->and($probe['argv'])->toBe(['install', '--dir', $directory, '--version', ReleaseHarness::version(), '--owner-email', 'owner@example.test', '--json'])
         ->and($probe['cwd'])->toBe($directory)
         ->and($probe['docker_server'])->not->toBe('')
         ->and($probe['home_writable'])->toBeTrue()
@@ -231,13 +231,13 @@ it('(d) verifies, pulls by digest and hands over to the ops container with mount
             'FSA_LAUNCHER' => 'install.sh', 'FSA_TTY' => '0', 'FSA_HOST_UID' => (string) posix_getuid(), 'FSA_HOST_GID' => (string) posix_getgid(),
             'FSA_INSTANCE_DIR' => $directory, 'FSA_DOCKER_RUNTIME' => $desktop ? 'desktop' : 'rootful',
             'FSA_CONTAINER_UID' => $desktop ? '0' : (string) posix_getuid(), 'FSA_REGISTRY' => $this->harness->registry(),
-            'FSA_RELEASE_MANIFEST' => "{$directory}/releases/".ReleaseHarness::TEST_VERSION.'/release-manifest.json',
+            'FSA_RELEASE_MANIFEST' => "{$directory}/releases/".ReleaseHarness::version().'/release-manifest.json',
             'FSA_TRUST_KEY' => realpath($this->harness->cosign->publicKey()),
         ])
         ->and($probe['uid'])->toBe($desktop ? 0 : posix_getuid())
         ->and(substr(sprintf('%o', fileperms($directory)), -3))->toBe('700')
         ->and(file_get_contents($directory.'/fsa'))->toBe(file_get_contents(TestImage::repository().'/distribution/shim.sh'))
-        ->and(file_get_contents($directory.'/releases/'.ReleaseHarness::TEST_VERSION.'/release-manifest.json'))->toBe(file_get_contents($this->release->manifestPath()))
+        ->and(file_get_contents($directory.'/releases/'.ReleaseHarness::version().'/release-manifest.json'))->toBe(file_get_contents($this->release->manifestPath()))
         ->and(glob($directory.'/.fsa-nonce-*'))->toBe([]);
 });
 
