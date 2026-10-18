@@ -203,3 +203,8 @@ Format: question · chosen option · impact · how to reverse.
    queue behind renders, pickup latency up to 3 s · raise to 2 if memory allows on real hosts. Margins are ~30 MiB
    per slot; the backup (128) and tunnel (48) slots and the `medium`/`large` profiles are unmeasured; the 320 MiB OS
    headroom is an estimate (swap guidance, ADR 0062, matters).
+43. After an SMTP install whose test mail was refused, a resume can retry but not change server settings or the
+   account (ADR 0080 amendment) · keeps resume semantics simple · the fix is uninstall + reinstall, or a capture
+   install plus `config set mail smtp` · allow changes on resume if it bites. Every resumed smoke phase sends the
+   owner another test mail. `config show` reports `mail.catcher: removed` for an instance that never had one
+   (cosmetic; `none` would be clearer).

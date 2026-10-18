@@ -7,9 +7,7 @@ only, never pushed). Reports: `docs/agent/milestones/M9.md`, `M10.md`. Next bran
 Branch `m11-mail-phones`: M11-T01..T04 (U12, U13, U14, U15) are merged and ticked. U15: E16 met except admin
 pages (QUESTIONS 41, ADR 0083); small budget retuned.
 1. U15 ADR amendments are listed in `docs/agent/milestones/evidence/M11/pending-adr-amendments.md` (gate pass).
-2. In progress (worktree agent): install `--smtp-*` flags (§7 gap from U12) plus the full R11 smoke test (PDF
-   render and test mail were never added; SmokeTest only checks /up, /admin/login, Gotenberg health). Phase 1 is
-   code + no-DB unit tests (done); phase 2 (DB tests, J04, J01, J02, J03, J05, J06) is running.
+2. Done and merged: install `--smtp-*` flags + full R11 smoke test (PDF, test mail); J01–J06 native green.
 3. Gate M11-T05: J4–J6 + J10 + regressions on arm64 and amd64 emulated (recheck J6's port-80 reset seen once
    under emulation), E2E (new Playwright project `fsa-instance`), reviewers, M11.md, build `2.0.0-beta.1`.
    Also decide: `config set operator-email` returns before the expired-tunnel sweep (ADR 0057 amendment says

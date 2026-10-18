@@ -239,3 +239,10 @@
 - Met: install 47 s (+6 s pulls) vs 300 s, PDF p95 4.0 s vs 10 s, API 23/23 < 300 ms. Missed: admin pages 23/31
   < 500 ms (saved reports, explorer search, reviewer inbox; Postgres cache ~100 MiB vs 1.27 GB data) — QUESTIONS 41.
 - small budget retuned from measured peaks (+~30 MiB each; Horizon 1 worker; Postgres 160; sum 1728/1728). 6 runs.
+
+## 2026-10-19 M11 gap: install --smtp-* and the full R11 smoke test
+- `fsa install --smtp-host … [--smtp-username + --password-file|--password-stdin]` installs straight into SMTP mode
+  (no catcher); shared `SmtpInput` with `config set mail`; install.sh refuses `--password-stdin` without a terminal.
+- Install smoke now renders a PDF (`instance:pdf-test`) and sends a test mail (`instance:mail-test --install`),
+  found in Mailpit by Message-ID in capture mode; `config set` verify keeps SmokeTest only. Amendments 0070/0072/0080.
+- J01–J06 green natively (J04 10/10 incl. SMTP install); J06 now names its spec (U15 widened fsa-instance).
