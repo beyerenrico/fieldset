@@ -39,6 +39,14 @@ final readonly class AppRoles implements ServiceDefinition
 
     public const string STORAGE_PATH = '/var/www/html/storage/app';
 
+    /**
+     * Seconds Compose waits after SIGTERM before it kills queue and scheduler: above the longest job timeout
+     * (config/horizon.php: 60 s on `default`, 90 s on `exports`, tries 1), so a stop for a settings change or an
+     * upgrade lets running jobs finish instead of killing them half-way. Horizon and `schedule:work` both stop taking
+     * new work on SIGTERM and exit once the running work is done.
+     */
+    public const int STOP_GRACE_SECONDS = 100;
+
     public function specs(RenderContext $context): array
     {
         $env = new ServiceEnvironments($context);
@@ -54,11 +62,13 @@ final readonly class AppRoles implements ServiceDefinition
             new ServiceSpec(self::QUEUE, [
                 ...$this->base($context, ['default', 'renderer']),
                 'command' => ['php', 'artisan', 'horizon'],
+                'stop_grace_period' => self::STOP_GRACE_SECONDS.'s',
                 'healthcheck' => ['test' => ['CMD', 'php', 'artisan', 'horizon:status'], 'interval' => '30s', 'timeout' => '10s', 'retries' => 3],
             ], $env->appRole(self::QUEUE), $volumes),
             new ServiceSpec(self::SCHEDULER, [
                 ...$this->base($context, ['default']),
                 'command' => ['php', 'artisan', 'schedule:work'],
+                'stop_grace_period' => self::STOP_GRACE_SECONDS.'s',
                 'healthcheck' => ['disable' => true],
             ], $env->appRole(self::SCHEDULER), $volumes),
         ];

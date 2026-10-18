@@ -49,8 +49,11 @@ it('switches local mode to domain mode, recreating only the services whose defin
         ->and(ComposeFile::services($this->config->instance->directory))->toContain('edge')
         ->and($app['APP_URL'])->toBe('https://'.ConfigFixture::DOMAIN)
         ->and($app['TRUSTED_PROXIES'])->toBe(EdgeNetwork::edgeAddress((string) $settings->edgeSubnet()))
-        ->and($up)->toHaveCount(1)
-        ->and($up[0])->toMatchArray(['services' => [], 'removeOrphans' => true])
+        ->and($up)->toHaveCount(2)
+        ->and($up[0]['services'])->toContain('app', 'edge')->not->toContain('queue', 'scheduler')
+        ->and($up[0]['removeOrphans'])->toBeTrue()
+        ->and($up[1])->toMatchArray(['services' => [], 'removeOrphans' => true])
+        ->and($this->config->callsSince($mark, 'composeStop')[0]['services'])->toBe(['queue', 'scheduler'])
         ->and(collect($json['warnings'])->pluck('code')->all())->toContain('url_changed')
         ->and(collect($state->history())->last()['event'])->toBe('config_changed');
 });
@@ -63,7 +66,7 @@ it('journals snapshot, preflight, apply, verify and audit, archives the journal 
     expect($code)->toBe(0)
         ->and($this->config->openJournal())->toBeNull()
         ->and($journal->outcome()?->value)->toBe('ok')
-        ->and(ConfigFixture::phases($journal))->toBe(['snapshot:completed', 'preflight:completed', 'apply:completed', 'verify:completed', 'audit:completed'])
+        ->and(ConfigFixture::phases($journal))->toBe(['snapshot:completed', 'preflight:completed', 'apply:completed', 'verify:completed', 'workers:completed', 'audit:completed'])
         ->and($journal->context())->toMatchArray(['key' => 'domain', 'value' => ConfigFixture::DOMAIN])
         ->and($journal->phaseData('snapshot')['previous']['mode'])->toBe('local')
         ->and($audit)->toHaveCount(1)
@@ -93,8 +96,8 @@ it('reverts to local mode with reverted: true when the edge gets no certificate'
     [$code, $json] = $this->config->set('domain', ConfigFixture::DOMAIN, ['--yes' => true]);
 
     $journal = $this->config->archivedJournal();
-    expect($code)->toBe(4, json_encode($json))
-        ->and($json['status'])->toBe('failed')
+    expect($code)->toBe(5, json_encode($json))
+        ->and($json['status'])->toBe('rolled_back')
         ->and($json['changed'])->toBeFalse()
         ->and($json['errors'][0]['code'])->toBe('certificate_failed')
         ->and($json['errors'][0]['message'])->toContain('the previous settings were restored')
@@ -110,7 +113,7 @@ it('reverts to local mode with reverted: true when the edge gets no certificate'
         ->and($this->config->instance->oneOffCalls('instance:config-changed'))->toBe([]);
 });
 
-it('stops the instance and exits 8 with recovery steps when the revert fails too, then resumes with the same command', function (): void {
+it('stops the request-serving services and exits 8 when the revert fails too; the same command then only finishes the revert', function (): void {
     $this->config->certificate = false;
     $ups = 0;
     $this->config->instance->docker->onCall['composeUp'] = function () use (&$ups): void {
@@ -127,8 +130,8 @@ it('stops the instance and exits 8 with recovery steps when the revert fails too
         ->and($json['errors'][0]['code'])->toBe('revert_failed')
         ->and($json['data'])->toMatchArray(['reverted' => false, 'stopped' => true])
         ->and($json['data']['recovery'])->toHaveCount(3)
-        ->and($json['data']['recovery'][2])->toContain('fsa config set domain '.ConfigFixture::DOMAIN)
-        ->and($this->config->instance->docker->called('composeStop'))->toHaveCount(1)
+        ->and($json['data']['recovery'][2])->toContain('fsa config set domain '.ConfigFixture::DOMAIN)->toContain('does not repeat the change')
+        ->and($json['data']['stopped_services'])->toEqualCanonicalizing(['app', 'queue', 'scheduler', 'mailpit'])
         ->and($this->config->state()->mode())->toBe('local')
         ->and($this->config->openJournal()?->operation())->toBe('config');
 
@@ -140,12 +143,22 @@ it('stops the instance and exits 8 with recovery steps when the revert fails too
         ->and($refused['errors'][0]['hint'])->toContain('fsa config set domain '.ConfigFixture::DOMAIN);
 
     $this->config->certificate = true;
-    [$resumed, $done] = $this->config->set('domain', ConfigFixture::DOMAIN, ['--yes' => true]);
+    $mark = $this->config->mark();
+    [$resumed, $reverted] = $this->config->set('domain', ConfigFixture::DOMAIN, ['--yes' => true]);
 
-    expect($resumed)->toBe(0, json_encode($done))
-        ->and($done['data'])->toMatchArray(['mode' => 'domain', 'previous' => ['url' => 'http://localhost:8080', 'mode' => 'local']])
+    $resumedJournal = collect($this->config->archivedJournals())->first(fn ($record): bool => collect($record->events())->pluck('type')->contains('resumed'));
+    expect($resumed)->toBe(5, json_encode($reverted))
+        ->and($reverted['status'])->toBe('rolled_back')
+        ->and($reverted['errors'][0]['code'])->toBe('certificate_failed')
+        ->and($reverted['data'])->toMatchArray(['reverted' => true, 'resumed_revert' => true, 'mode' => 'local', 'url' => 'http://localhost:8080'])
+        ->and($this->config->state()->mode())->toBe('local')
         ->and($this->config->openJournal())->toBeNull()
-        ->and(collect($this->config->archivedJournals())->contains(fn ($record): bool => collect($record->events())->pluck('type')->contains('resumed')))->toBeTrue();
+        ->and($resumedJournal?->outcome()?->value)->toBe('rolled_back')
+        ->and(array_slice(ConfigFixture::phases($resumedJournal), -1))->toBe(['revert:completed'])
+        ->and($this->config->instance->oneOffCalls('instance:url-impact'))->toHaveCount(1); // the first run's only
+
+    [$again, $done] = $this->config->set('domain', ConfigFixture::DOMAIN, ['--yes' => true]);
+    expect($again)->toBe(0, json_encode($done))->and($done['data']['mode'])->toBe('domain');
 });
 
 it('needs --yes for a URL change and lists the organizations with SSO and the links that keep the old address (exit 6)', function (): void {
@@ -162,7 +175,8 @@ it('needs --yes for a URL change and lists the organizations with SSO and the li
         ->and($json['errors'][0]['code'])->toBe('confirmation_required')
         ->and($json['errors'][0]['message'])->toContain('Acme SSO (SAML SSO)')->toContain('entity id and acs url')->toContain('2 invitations, 1 document links')
         ->and($json['data']['impact']['sso_organizations'][0]['organization'])->toBe(['id' => 4, 'name' => 'Acme SSO', 'slug' => 'acme-sso'])
-        ->and($json['data']['url'])->toBe(['from' => 'http://localhost:8080', 'to' => 'https://'.ConfigFixture::DOMAIN])
+        ->and($json['data']['url'])->toBe('http://localhost:8080')
+        ->and($json['data']['change']['url'])->toBe(['from' => 'http://localhost:8080', 'to' => 'https://'.ConfigFixture::DOMAIN])
         ->and($this->config->methodsSince($mark))->toBe(['composeRun'])
         ->and($this->config->state()->mode())->toBe('local')
         ->and($this->config->archivedJournals())->toBe([]);
@@ -250,10 +264,10 @@ it('writes a custom ACME CA root next to the Caddyfile and restores the previous
 
     $other = ConfigFixture::pem();
     file_put_contents($file, $other);
-    $this->config->certificateFailures = 1;
+    $this->config->refuseCa = 'ca2.example.com';
     [$failed, $json] = $this->config->set('acme-ca', 'https://ca2.example.com/dir', ['--yes' => true, '--acme-ca-root-file' => $file]);
 
-    expect($failed)->toBe(4, json_encode($json))
+    expect($failed)->toBe(5, json_encode($json))
         ->and($json['data']['reverted'])->toBeTrue()
         ->and($this->config->instance->directory->read('edge/acme-ca-root.pem'))->toBe($pem)
         ->and(InstanceSettings::of($this->config->state())->acmeCa())->toBe('https://ca.example.com/dir');

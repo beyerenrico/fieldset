@@ -9,11 +9,20 @@ use App\Domain\Instance\State\InstanceSettings;
 use Throwable;
 
 /**
- * Messages of `fsa config set` (ADR 0077): a failure of apply, verify or revert in config terms (the install's smoke
- * test and stack helpers speak of resuming `fsa install`), and the warnings a URL change carries.
+ * Messages of `fsa config set` (ADR 0077, ADR 0078): a failure of apply, verify or revert in config terms (the
+ * install's smoke test and stack helpers speak of resuming `fsa install`), whether repeating the same command can
+ * help, and the warnings a URL change carries.
  */
 final class ConfigFailure
 {
+    /**
+     * Causes worth repeating unchanged, with the seconds to wait first: the engine was unreachable or a docker call
+     * failed on its own, or the run was interrupted. Every other cause (a certificate the CA refused, services that do
+     * not come up with the new settings, a failed check, a bug) needs a fix first: repeating it only reverts again,
+     * and for ACME it counts against the CA's rate limits.
+     */
+    private const array TRANSIENT = ['docker_unavailable' => 30, 'docker_command_failed' => 15, 'interrupted' => 0];
+
     /** @return array{code: string, message: string, hint: string, data: array<string, mixed>} */
     public static function describe(Throwable $failure, ConfigChange $change): array
     {
@@ -25,6 +34,19 @@ final class ConfigFailure
             'hint' => self::hint($code, $change),
             'data' => $failure instanceof InstanceException ? $failure->data : ['exception' => $failure::class],
         ];
+    }
+
+    /**
+     * Whether the same command may simply run again: `retry_after` (seconds) for transient causes, else `fix_first`
+     * with what to fix (ADR 0078).
+     *
+     * @return array{retryable: bool, retry_after?: int, fix_first?: string}
+     */
+    public static function retry(string $code, string $hint): array
+    {
+        $after = self::TRANSIENT[$code] ?? null;
+
+        return $after === null ? ['retryable' => false, 'fix_first' => $hint] : ['retryable' => true, 'retry_after' => $after];
     }
 
     /**
@@ -49,13 +71,16 @@ final class ConfigFailure
         return $warnings;
     }
 
-    private static function hint(string $code, ConfigChange $change): string
+    /** The one-line fix for a failure code, in config terms. */
+    public static function hint(string $code, ConfigChange $change): string
     {
         $domain = InstanceSettings::of($change->after)->domain();
 
         return match ($code) {
             'certificate_failed' => "Check that {$domain} points at this host, that ports 80 and 443 reach it from the internet and that the ACME directory is reachable, then run the command again. Repeated attempts count against the CA's rate limits; --acme-staging is for trials.",
             'services_unhealthy', 'smoke_failed', 'url_check_failed' => 'Read `fsa logs <service>` for the cause, fix it, then run the command again.',
+            'interrupted' => 'The command was stopped (a signal: Ctrl-C, a closed session or a tool timeout) and restored the previous settings; run it again when it can finish.',
+            'docker_unavailable', 'docker_command_failed' => 'Check that the Docker engine runs (`docker info`), then run the command again.',
             default => 'Fix the cause, then run the command again; `fsa status` shows the instance.',
         };
     }

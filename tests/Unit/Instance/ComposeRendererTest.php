@@ -6,6 +6,7 @@ use App\Domain\Instance\Compose\ComposeRenderer;
 use App\Domain\Instance\Compose\RenderContext;
 use App\Domain\Instance\Compose\ResourceBudget;
 use App\Domain\Instance\Compose\ServiceEnvironments;
+use App\Domain\Instance\Compose\Services\AppRoles;
 use App\Domain\Instance\Compose\ServiceSpec;
 use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\Docker\Labels;
@@ -235,6 +236,18 @@ it('mounts the runtime directory read-only into app, queue and scheduler only', 
     foreach (['postgres', 'redis', 'gotenberg', 'mailpit'] as $service) {
         expect(json_encode($rendered->service($service)))->not->toContain('runtime');
     }
+});
+
+it('lets queue and scheduler finish running jobs on a stop: a grace period above the longest job timeout', function (): void {
+    $rendered = ComposeFixtures::render();
+    $longest = max(array_column(config('horizon.defaults'), 'timeout'));
+
+    foreach (['queue', 'scheduler'] as $role) {
+        expect($rendered->service($role)['stop_grace_period'])->toBe('100s');
+    }
+    expect(AppRoles::STOP_GRACE_SECONDS)->toBeGreaterThan($longest)
+        ->and(AppRoles::STOP_GRACE_SECONDS)->toBeGreaterThan((int) config('reports.exports.timeout'))
+        ->and($rendered->service('app'))->not->toHaveKey('stop_grace_period');
 });
 
 it('gives each service only its own env file and no inline environment', function (): void {

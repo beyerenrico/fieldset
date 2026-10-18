@@ -60,7 +60,7 @@ it('applies after a confirmed question and reports progress per phase', function
     $phases = array_map(fn (string $line): string => json_decode($line, true)['phase'], array_filter(explode("\n", $this->output->fetch())));
     expect($result->exitCode)->toBe(ExitCode::Success)
         ->and($result->changed)->toBeTrue()
-        ->and($phases)->toContain('snapshot', 'preflight', 'apply', 'verify', 'audit');
+        ->and($phases)->toContain('snapshot', 'preflight', 'apply', 'verify', 'workers', 'audit');
 });
 
 it('stops with exit 9 when another command changed the state while this one waited for the lock', function (): void {
@@ -91,7 +91,7 @@ it('reverts when the changed services do not become healthy', function (): void 
 
     [$code, $json] = $this->config->set('port', '8090', ['--yes' => true]);
 
-    expect($code)->toBe(4, json_encode($json))
+    expect($code)->toBe(5, json_encode($json))
         ->and($json['errors'][0]['code'])->toBe('services_unhealthy')
         ->and($json['data']['reverted'])->toBeTrue()
         ->and($json['data']['failure']['docker'])->toContain('unhealthy')

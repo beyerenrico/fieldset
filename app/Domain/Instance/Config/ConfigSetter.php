@@ -11,13 +11,9 @@ use App\Domain\Instance\Install\InstallRecord;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Lifecycle\AppCommands;
 use App\Domain\Instance\Operations\ContainerIdentity;
-use App\Domain\Instance\Operations\InstanceLock;
+use App\Domain\Instance\Operations\Interruption;
 use App\Domain\Instance\Operations\JournalRecord;
-use App\Domain\Instance\Operations\LockHeld;
-use App\Domain\Instance\Operations\LockRecord;
-use App\Domain\Instance\Operations\OperationJournal;
 use App\Domain\Instance\Operations\OperationRun;
-use App\Domain\Instance\Operations\OperationUnfinished;
 use App\Domain\Instance\Operations\Supervisor;
 use App\Domain\Instance\Output\CommandResult;
 use App\Domain\Instance\Output\ExitCode;
@@ -29,17 +25,18 @@ use Closure;
 use Throwable;
 
 /**
- * `fsa config set <key> <value>` (R31, R32, R54, KTD6, KTD26, ADR 0077). For every key:
+ * `fsa config set <key> <value>` (R31, R32, R54, KTD6, KTD19, KTD26, ADR 0077, ADR 0078). For every key:
  *
  * plan (validate, exit 2; the same value twice is `changed: false` without a Docker call) → confirm when the URL
  * changes (the organizations with SSO and the links that follow it; exit 6 without --yes) → under the lock and the
- * journal: snapshot (the previous state) → preflight (exit 3, nothing changed) → apply (render from the target state,
- * `compose up` recreates only what changed) → verify (health, smoke, certificate, the new URL) → audit
- * `instance.config_changed` in a socket-less one-off.
+ * journal: snapshot (the previous state) → preflight (exit 3, nothing changed) → apply (workers stopped, render from
+ * the target state, `compose up` recreates only what changed) → verify (health, smoke, certificate, the new URL) →
+ * workers (queue and scheduler start on the verified settings) → audit `instance.config_changed`.
  *
- * A failed apply or verify reverts to the snapshot (files and services) and verifies the old URL again: exit 4 with
- * `reverted: true`, the journal archived. If the revert fails too, the instance is stopped and the result is exit 8
- * with recovery steps; the journal stays open and the same command resumes from the snapshot.
+ * A failed apply, verify or worker start reverts to the snapshot (files and the whole previous stack) and verifies
+ * the old URL again: exit 5 `rolled_back`, the journal archived. If the revert fails too, the services that serve
+ * requests stop and the result is exit 8 with recovery steps; the journal stays open, and the same command then only
+ * finishes the revert. SIGTERM, SIGINT and SIGHUP during apply or verify start the same revert (Interruption).
  */
 final readonly class ConfigSetter
 {
@@ -47,14 +44,15 @@ final readonly class ConfigSetter
 
     public function __construct(
         private InstanceDirectory $directory,
-        private OperationJournal $journal,
-        private InstanceLock $lock,
         private Supervisor $supervisor,
         private ContainerIdentity $identity,
         private ConfigKeys $keys,
         private ConfigRollout $rollout,
+        private ConfigResume $resume,
+        private ConfigResults $results,
         private UrlImpact $impact,
         private AppCommands $app,
+        private Interruption $interruption,
     ) {}
 
     /** @param  (Closure(string): bool)|null  $confirm  asks in a terminal; null when the command may not prompt */
@@ -63,43 +61,53 @@ final readonly class ConfigSetter
         $applier = $this->keys->applier($request->key);
         $this->assertOptions($request);
         $state = $this->installedState();
-        $open = $this->unfinished($request);
-        $change = $applier->plan($open['previous'] ?? $state, $request);
-        if (! $open['resume'] && $change->unchanged()) {
-            return CommandResult::ok(self::OPERATION, [...$this->data($change, $change->before), 'reverted' => false], changed: false);
+        $this->resume->refuseLiveLock();
+        $open = $this->resume->unfinished($request);
+        $change = $open instanceof JournalRecord ? $this->resume->change($open, $request) : null;
+        $change ??= $applier->plan(($open instanceof JournalRecord ? $this->resume->previous($open) : null) ?? $state, $request);
+        if (! $open instanceof JournalRecord && $change->unchanged()) {
+            return $this->results->unchanged($change);
         }
-        $impact = $change->changesUrl() ? $this->confirm($change, $context, $confirm) : null;
+        $revertOnly = $open instanceof JournalRecord && $open->hasStarted('revert');
+        $impact = $change->changesUrl() && ! $revertOnly ? $this->confirm($change, $context, $confirm) : null;
         $holder = $this->identity->holder('fsa', $context->facts->callerUid());
 
-        return $this->supervisor->run(
+        return $this->interruption->guard(fn (): CommandResult => $this->supervisor->run(
             self::OPERATION,
             $holder,
             fn (OperationRun $run): CommandResult => $this->steps($run, $applier, $change, $request, $context, $impact),
-            resume: true,
+            resume: $open instanceof JournalRecord, // never adopt a journal another run opened meanwhile
             context: $request->toContext(),
             progress: $context->progress,
-        );
+            accepts: static fn (JournalRecord $record): bool => $request->sameAs($record->context()),
+        ));
     }
 
     /** @param  array<string, mixed>|null  $impact */
     private function steps(OperationRun $run, SettingApplier $applier, ConfigChange $change, ConfigRequest $request, FsaContext $context, ?array $impact): CommandResult
     {
+        $this->interruption->arm();
         $snapshot = $run->phase('snapshot', fn (): array => $this->snapshot($change), changes: false);
         if (! $run->isResumed() && $this->directory->state()->toArray() !== $change->before->toArray()) {
             throw new InstanceException('Another fsa command changed the instance while this one waited.', ExitCode::AbortedUnchanged, 'state_changed', 'Run the command again.', true);
         }
-        $change = $this->preflight($run, $applier, $change, $context);
         $previousRoot = is_string($snapshot['ca_root'] ?? null) ? $snapshot['ca_root'] : null;
+        if ($run->isResumed() && $run->record()->hasStarted('revert')) {
+            return $this->finishRevert($run, $change, $request, $previousRoot, $context);
+        }
+        $change = $this->preflight($run, $applier, $change, $context);
 
         try {
-            $services = $run->phase('apply', fn (): array => $this->rollout->apply($change), always: true);
-            $checked = $run->phase('verify', fn (): array => $this->rollout->verify($change->after), changes: false, always: true);
+            $services = $run->phase('apply', fn (): array => $this->rollout->apply($change), always: true, maxSeconds: ConfigRollout::APPLY_SECONDS);
+            $checked = $run->phase('verify', fn (): array => $this->rollout->verify($change->after, $context->progress), changes: false, always: true, maxSeconds: ConfigRollout::verifySeconds($change->after));
+            $run->phase('workers', fn (): array => $this->rollout->startWorkers($change->after), always: true, maxSeconds: ConfigRollout::WAIT_SECONDS);
+            $this->interruption->disarm(); // from here on the verified change stays; a signal no longer reverts it
         } catch (Throwable $failure) {
-            return $this->revert($run, $change, $request, $failure, $previousRoot);
+            return $this->revert($run, $change, $request, ConfigFailure::describe($failure, $change), $previousRoot, $context);
         }
         $audit = $run->phase('audit', fn (): array => $this->audit($change, $context), changes: false, always: true);
 
-        return $this->succeeded($change, $services, $checked, $audit, $impact);
+        return $this->results->succeeded($change, $services, $checked, $audit, $impact);
     }
 
     /** @return array<string, mixed> what a resumed run needs: the previous state and the CA root it trusts */
@@ -135,51 +143,46 @@ final readonly class ConfigSetter
         return $change;
     }
 
-    private function revert(OperationRun $run, ConfigChange $change, ConfigRequest $request, Throwable $failure, ?string $previousRoot): CommandResult
+    /**
+     * Back to the snapshot after a failed apply, verify or worker start. The revert runs to its end whatever signal
+     * arrives (it is what makes an interruption safe); the failure it undoes is journaled with it.
+     *
+     * @param  array{code: string, message: string, hint: string, data: array<string, mixed>}  $error
+     */
+    private function revert(OperationRun $run, ConfigChange $change, ConfigRequest $request, array $error, ?string $previousRoot, FsaContext $context, bool $resumed = false): CommandResult
     {
-        $error = ConfigFailure::describe($failure, $change);
+        $this->interruption->disarm();
+        $steps = [];
 
         try {
-            $run->phase('revert', fn (): array => [...$this->rollout->revert($change, $previousRoot), ...$this->rollout->verify($change->before)], always: true);
+            $run->phase('revert', function () use ($change, $previousRoot, $context, &$steps): array {
+                $restored = $this->rollout->revert($change, $previousRoot, static function (string $step) use (&$steps): void {
+                    $steps[] = $step;
+                });
+
+                return [...$restored, ...$this->rollout->verify($change->before, $context->progress, 'revert')];
+            }, data: ['failure' => $error['code']], always: true, maxSeconds: ConfigRollout::WAIT_SECONDS + ConfigRollout::verifySeconds($change->before));
         } catch (Throwable $revertFailure) {
-            return $this->revertFailed($change, $request, $error, ConfigFailure::describe($revertFailure, $change));
+            $run->note('revert_failed', ['completed' => $steps]);
+
+            return $this->results->revertFailed($change, $request, $error, ConfigFailure::describe($revertFailure, $change), $steps, $this->rollout->stopFrontends($change->before));
         }
         $run->markReverted(['error' => $error['code']]);
 
-        return CommandResult::failed(
-            self::OPERATION,
-            ExitCode::HealthCheckFailed,
-            $error['code'],
-            "Changing {$change->key} failed, so the previous settings were restored: {$error['message']}",
-            $error['hint'],
-            true,
-            [...$this->data($change, $change->before), 'reverted' => true, 'attempted' => ['url' => $change->newUrl(), 'mode' => $change->after->mode()], 'failure' => $error['data']],
-        );
+        return $this->results->rolledBack($change, $request, $error, $resumed);
     }
 
     /**
-     * @param  array{code: string, message: string, hint: string, data: array<string, mixed>}  $error
-     * @param  array{code: string, message: string, hint: string, data: array<string, mixed>}  $revertError
+     * An earlier run started the revert and was cut off, or the revert failed (exit 8): this run only finishes it, from
+     * the snapshot, and never repeats the change that failed (ADR 0078).
      */
-    private function revertFailed(ConfigChange $change, ConfigRequest $request, array $error, array $revertError): CommandResult
+    private function finishRevert(OperationRun $run, ConfigChange $change, ConfigRequest $request, ?string $previousRoot, FsaContext $context): CommandResult
     {
-        $stopped = $this->rollout->stop($change->before);
-        $recovery = [
-            'The previous settings are back in state.json and the files rendered from it'.($stopped ? '; the instance is stopped, so nothing runs half-configured.' : '; stopping the instance failed as well, check `fsa status`.'),
-            'Find the cause in the errors above and in `fsa logs <service>` (a port taken by another program, a full disk, the Docker engine) and fix it.',
-            'Then run `'.$request->commandLine().'` again: it starts over from the previous settings and reverts again if the change still fails.',
-        ];
+        $failure = $run->record()->lastAttemptData('revert')['failure'] ?? null;
+        $code = is_string($failure) ? $failure : 'revert_failed';
+        $error = ['code' => $code, 'message' => 'restoring the previous settings did not finish', 'hint' => ConfigFailure::hint($code, $change), 'data' => []];
 
-        return CommandResult::failed(
-            self::OPERATION,
-            ExitCode::RollbackFailed,
-            'revert_failed',
-            "Changing {$change->key} failed ({$error['message']}) and restoring the previous settings failed too: {$revertError['message']}",
-            'Follow the recovery steps in data.recovery.',
-            false,
-            [...$this->data($change, $change->before), 'reverted' => false, 'stopped' => $stopped, 'failure' => [...$error['data'], 'code' => $error['code']], 'revert_failure' => [...$revertError['data'], 'code' => $revertError['code']], 'recovery' => $recovery],
-            changed: true,
-        );
+        return $this->revert($run, $change, $request, $error, $previousRoot, $context, resumed: true);
     }
 
     /** @return array{audited: bool, error?: string} a failed audit is a warning: the verified change stays */
@@ -197,29 +200,6 @@ final readonly class ConfigSetter
     }
 
     /**
-     * @param  array<string, mixed>  $services
-     * @param  array<string, mixed>  $checked
-     * @param  array<string, mixed>  $audit
-     * @param  array<string, mixed>|null  $impact
-     */
-    private function succeeded(ConfigChange $change, array $services, array $checked, array $audit, ?array $impact): CommandResult
-    {
-        $result = CommandResult::ok(self::OPERATION, [
-            ...$this->data($change, $change->after), 'reverted' => false,
-            'previous' => ['url' => $change->oldUrl(), 'mode' => $change->before->mode()],
-            'services' => $services, 'checked' => $checked['checked'] ?? [], 'impact' => $impact, 'audited' => $audit['audited'] ?? false,
-        ], changed: true);
-        foreach ($change->warnings as $warning) {
-            $result = $result->withWarning($warning['code'], $warning['message'], $warning['hint']);
-        }
-        foreach (ConfigFailure::impactWarnings($change, $impact) as [$code, $message, $hint]) {
-            $result = $result->withWarning($code, $message, $hint);
-        }
-
-        return ($audit['audited'] ?? false) === true ? $result : $result->withWarning('audit_failed', 'The change was applied, but its audit entry could not be written: '.($audit['error'] ?? 'unknown error').'.', 'The state history (state.json) records the change; check `fsa logs app`.');
-    }
-
-    /**
      * @return array<string, mixed> the impact (confirmed with --yes, or in a terminal)
      *
      * @throws InstanceException exit 6 without --yes and without a terminal, exit 9 when declined
@@ -232,7 +212,7 @@ final readonly class ConfigSetter
         }
         $question = UrlImpact::question($change, $impact);
         if (! $confirm instanceof Closure) {
-            throw new InstanceException("Confirmation required: {$question}", ExitCode::ConfirmationRequired, 'confirmation_required', 'Re-run with --yes to confirm.', false, [...$change->summary(), 'impact' => $impact]);
+            throw ConfigResults::confirmationRequired($change, $impact, $question);
         }
         if (! $confirm($question)) {
             throw new InstanceException('Cancelled; nothing was changed.', ExitCode::AbortedUnchanged, 'cancelled');
@@ -262,50 +242,5 @@ final readonly class ConfigSetter
         }
 
         return $state;
-    }
-
-    /**
-     * An unfinished operation (R54): another one blocks (exit 9); an unfinished `config set` resumes only with the
-     * same key and value, from the state it recorded before changing anything.
-     *
-     * @return array{resume: bool, previous?: InstanceState}
-     */
-    private function unfinished(ConfigRequest $request): array
-    {
-        $current = $this->journal->current();
-        if (! $current instanceof JournalRecord) {
-            return ['resume' => false];
-        }
-        $holder = $this->lock->current();
-        if ($holder instanceof LockRecord && ! $this->lock->isStale($holder)) {
-            throw new LockHeld($holder);
-        }
-        if ($current->operation() !== self::OPERATION) {
-            throw new OperationUnfinished($current);
-        }
-        if (! $request->sameAs($current->context())) {
-            $recorded = $current->context();
-            $key = is_string($recorded['key'] ?? null) ? $recorded['key'] : '?';
-            $value = is_string($recorded['value'] ?? null) ? $recorded['value'] : '?';
-            throw new InstanceException(
-                "An earlier `fsa config set {$key}` did not finish (last phase: ".($current->lastStartedPhase() ?? 'none').').',
-                ExitCode::AbortedUnchanged,
-                'operation_unfinished',
-                "Run `fsa config set {$key} {$value}` (with the same options and --yes) again: it starts over from the settings before that change and reverts if it still fails.",
-                false,
-                ['operation' => self::OPERATION, 'key' => $key, 'value' => $value, 'last_phase' => $current->lastStartedPhase(), 'journal' => $current->id()],
-            );
-        }
-        $previous = $current->phaseData('snapshot')['previous'] ?? null;
-
-        return is_array($previous) ? ['resume' => true, 'previous' => InstanceState::fromArray($previous)] : ['resume' => true];
-    }
-
-    /** @return array<string, mixed> */
-    private function data(ConfigChange $change, InstanceState $effective): array
-    {
-        $effectiveUrl = $effective === $change->after ? $change->newUrl() : $change->oldUrl();
-
-        return ['key' => $change->key, 'from' => $change->from, 'to' => $change->to, 'url' => $effectiveUrl, 'mode' => $effective->mode()];
     }
 }

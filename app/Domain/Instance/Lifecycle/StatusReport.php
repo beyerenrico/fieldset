@@ -50,9 +50,9 @@ final readonly class StatusReport
         ];
         $result = $state instanceof InstanceState ? $this->instance($state, $data) : CommandResult::ok('status', [...$data, 'health' => 'not_installed']);
         if ($operation instanceof JournalRecord) {
-            $command = OperationUnfinished::command($operation);
+            $command = OperationUnfinished::commandLine($operation);
 
-            return $result->withWarning('operation_unfinished', "`fsa {$command}` stopped at phase ".($operation->lastStartedPhase() ?? 'none').'.', "Run `fsa {$command}` again with the same flags to resume it.");
+            return $result->withWarning('operation_unfinished', "`{$command}` stopped at phase ".($operation->lastStartedPhase() ?? 'none').'.', OperationUnfinished::hint($operation));
         }
 
         return $result;
@@ -144,6 +144,9 @@ final readonly class StatusReport
     /** @return array<string, mixed> */
     private function operation(JournalRecord $record): array
     {
-        return ['operation' => $record->operation(), 'last_phase' => $record->lastStartedPhase(), 'last_completed_phase' => $record->lastCompletedPhase(), 'started_at' => $record->startedAt()];
+        return [
+            'operation' => $record->operation(), 'last_phase' => $record->lastStartedPhase(), 'last_completed_phase' => $record->lastCompletedPhase(), 'started_at' => $record->startedAt(),
+            'command' => OperationUnfinished::commandLine($record), 'options' => OperationUnfinished::options($record),
+        ];
     }
 }

@@ -46,16 +46,19 @@ final readonly class Supervisor
      * @param  Closure(OperationRun): CommandResult  $steps
      * @param  array<string, mixed>  $context  inputs recorded with a new journal
      * @param  (Closure(JournalRecord): JournalRecord)|null  $archive  applied to the record before it is archived
+     * @param  (Closure(JournalRecord): bool)|null  $accepts  with `$resume`: whether the unfinished journal found under
+     *                                                        the lock is the one to resume (`config set` checks key,
+     *                                                        value and options); else exit 9, nothing written to it
      *
      * @throws LockHeld|OperationUnfinished
      */
-    public function run(string $operation, LockHolder $holder, Closure $steps, bool $resume = false, array $context = [], ?ProgressReporter $progress = null, ?Closure $archive = null): CommandResult
+    public function run(string $operation, LockHolder $holder, Closure $steps, bool $resume = false, array $context = [], ?ProgressReporter $progress = null, ?Closure $archive = null, ?Closure $accepts = null): CommandResult
     {
         $handle = $this->lock->acquire($holder, $operation);
 
         try {
             $heartbeat = fn () => $this->lock->heartbeat($handle);
-            $run = new OperationRun($this->journal, $this->openJournal($operation, $holder, $handle, $resume, $context), $progress, $heartbeat);
+            $run = new OperationRun($this->journal, $this->openJournal($operation, $holder, $handle, $resume, $context, $accepts), $progress, $heartbeat);
 
             try {
                 $result = $steps($run);
@@ -86,15 +89,18 @@ final readonly class Supervisor
         return trim($outcome->stdout);
     }
 
-    /** @param  array<string, mixed>  $context */
-    private function openJournal(string $operation, LockHolder $holder, LockHandle $handle, bool $resume, array $context): JournalRecord
+    /**
+     * @param  array<string, mixed>  $context
+     * @param  (Closure(JournalRecord): bool)|null  $accepts
+     */
+    private function openJournal(string $operation, LockHolder $holder, LockHandle $handle, bool $resume, array $context, ?Closure $accepts): JournalRecord
     {
         $current = $this->journal->current();
         if ($current instanceof JournalRecord && $handle->replaced instanceof LockRecord) {
             $current = $this->journal->note('lock_takeover', ['previous' => $handle->replaced->toArray()]);
         }
         if ($current instanceof JournalRecord) {
-            if (! $resume || $current->operation() !== $operation) {
+            if (! $resume || $current->operation() !== $operation || ($accepts instanceof Closure && ! $accepts($current))) {
                 throw new OperationUnfinished($current);
             }
 
