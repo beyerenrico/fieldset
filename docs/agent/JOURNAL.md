@@ -213,3 +213,9 @@
   config safety, drift check) in ADR 0079 and amendments.
 - Gate: PHP 6089 (cov 95.55 %, Instance 97.77 %), journeys 62 native + J1/J2/J3/J12 amd64, E2E 79/79 ×2, static
   green. alpha.2 built, signed, installed, uninstalled (LocalPreRelease 7/7). M11 broken down.
+
+## 2026-10-18 M11-T02 demo data and password rotation (U13)
+- DemoSeeder with an injectable password source; `fsa install --demo` (demo phase), `fsa demo [--open]
+  [--rotate-passwords]`; random demo passwords (secrets) whenever reachable beyond loopback, `password` only for
+  loopback-only local; rotation revokes sessions/remember/API tokens; `app:demo-passwords --check` for U14. ADR 0081.
+- J05 7/7 (400 s), J01 regression green, Instance coverage 97.81 %.
