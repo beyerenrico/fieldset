@@ -11,7 +11,7 @@
 # - Symfony's console answers a literal --version with the framework version before any command runs, so the
 #   --version flag of `fsa install` (§7) is passed on as --release, up to a literal -- (ADR 0072).
 set -e
-commands='config doctor install login-link logs status uninstall version'
+commands='config demo doctor install login-link logs status uninstall version'
 roles='backup-daemon'
 value_flags='--acme-ca --acme-ca-root-file --acme-email --behind-proxy --dir --domain --from-address --from-backup
 --from-name --locale --org --orphans --owner-email --owner-name --password-file --phone-https --port --proxy-network

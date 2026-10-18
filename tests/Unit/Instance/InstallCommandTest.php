@@ -342,7 +342,6 @@ it('rejects a secret flag (AE9), malformed values and flags of later releases wi
     'organization with a line break' => [['--org' => "Acme\nForms"], 'invalid_flag'],
     'version' => [['--release' => 'latest'], 'invalid_flag'],
     'domain that is an IP' => [['--domain' => '203.0.113.10'], 'invalid_flag'],
-    'demo' => [['--demo' => true], 'unsupported_option'],
     'proxy setup' => [['--behind-proxy' => 'nginx'], 'invalid_flag'],
     'phone https' => [['--phone-https' => 'tunnel'], 'unsupported_option'],
 ]);

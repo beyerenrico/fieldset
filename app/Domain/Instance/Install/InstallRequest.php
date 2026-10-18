@@ -21,6 +21,7 @@ use Closure;
  * - Preflight flags (version, port, domain, and proxy mode's flags) are consumed by the `doctor` phase.
  * - Proxy mode (R17, ADR 0076): `--behind-proxy traefik|caddy|port` with `--url`; traefik and caddy also take
  *   `--proxy-network` (required) and `--trusted-proxy` (the proxy's container or address on that network).
+ * - `--demo` (R29, ADR 0081) is consumed by the `demo` phase; it is recorded as 1 when given.
  */
 final readonly class InstallRequest
 {
@@ -48,6 +49,7 @@ final readonly class InstallRequest
         'version' => '--version', 'port' => '--port', 'domain' => '--domain',
         'acme_email' => '--acme-email', 'acme_ca' => '--acme-ca', 'acme_ca_root' => '--acme-ca-root-file',
         'proxy' => '--behind-proxy', 'url' => '--url', 'proxy_network' => '--proxy-network', 'trusted_proxy' => '--trusted-proxy',
+        'demo' => '--demo',
     ];
 
     /** Command option => request key (the fsa wrapper passes --version as --release, ADR 0072). */
@@ -87,6 +89,17 @@ final readonly class InstallRequest
     public function with(string $key, string $value): self
     {
         return new self([...$this->explicit, $key => $this->validate($key, trim($value))], $this->caRoot);
+    }
+
+    /** `--demo`: the demo organization, forms, workflow and users after the stack started (R29). */
+    public function withDemo(): self
+    {
+        return new self([...$this->explicit, 'demo' => 1], $this->caRoot);
+    }
+
+    public function demo(): bool
+    {
+        return ($this->explicit['demo'] ?? null) === 1;
     }
 
     /** The custom ACME CA root (validated PEM, AcmeCaRoot): recorded as its SHA-256, written by the state phase. */
@@ -269,6 +282,7 @@ final readonly class InstallRequest
             'url' => $this->url(),
             'proxy_network' => $this->proxyNetwork(),
             'trusted_proxy' => $this->trustedProxy(),
+            'demo' => $this->demo() ? 1 : null,
         ];
     }
 

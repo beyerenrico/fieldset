@@ -21,8 +21,8 @@ use Illuminate\Console\Attributes\Signature;
  * release install.sh verified, in local mode, in domain mode (--domain: the edge with automatic HTTPS, after the DNS
  * preflight, AE5) or in proxy mode (--behind-proxy); resumes a half-finished install, and changes nothing on a
  * finished one. A new install needs --org and --owner-email: prompted in a terminal, exit 2 (`input_required`)
- * without one or under --yes/--json; exit 6 stays reserved for confirmations (§7). Flags of later pre-releases are
- * recognised and refused with exit 2.
+ * without one or under --yes/--json; exit 6 stays reserved for confirmations (§7). --demo adds the demo data after the
+ * stack started (ADR 0081). Flags of later pre-releases are recognised and refused with exit 2.
  */
 #[Description('Create and start an instance (local, domain or proxy mode), or resume an unfinished install')]
 #[Signature('fsa:install
@@ -42,7 +42,7 @@ use Illuminate\Console\Attributes\Signature;
         {--proxy-network= : Docker network shared with the proxy (--behind-proxy traefik or caddy); only the app joins it}
         {--trusted-proxy= : The proxy container (name or ID) or its address on that network; default: found by its image}
         {--phone-https= : Phone HTTPS via local-ca or tunnel (2.0.0-beta.1)}
-        {--demo : Demo organization and users (2.0.0-beta.1)}
+        {--demo : Add the demo organization, forms, workflow and users (random passwords, listed once, unless loopback-only)}
         {--encrypt : Encrypted backups (2.0.0-rc.1)}
         {--from-backup= : Create the instance from a backup (2.0.0-rc.1)}
         {--open : Open the owner sign-in link in the browser of a desktop session instead of printing it}')]
@@ -51,7 +51,7 @@ final class InstallCommand extends FsaCommand
     /** Option => the pre-release that brings it. */
     private const array LATER = [
         'phone-https' => '2.0.0-beta.1',
-        'demo' => '2.0.0-beta.1', 'encrypt' => '2.0.0-rc.1', 'from-backup' => '2.0.0-rc.1',
+        'encrypt' => '2.0.0-rc.1', 'from-backup' => '2.0.0-rc.1',
     ];
 
     private const array PROMPTS = ['organization' => 'Organization name', 'owner_email' => 'Owner e-mail'];
@@ -65,6 +65,7 @@ final class InstallCommand extends FsaCommand
     {
         $this->refuseLaterOptions();
         $request = $this->withAcmeOptions(InstallRequest::fromOptions($this->options()));
+        $request = $this->option('demo') === true ? $request->withDemo() : $request;
         $installer = $this->laravel->make(Installer::class);
         if ($installer->situation() === InstallSituation::Fresh) {
             $request = $this->askMissing($request, $context);

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Domain\Instance\Install;
 
 use App\Domain\Instance\Console\FsaContext;
+use App\Domain\Instance\Demo\DemoCredentials;
+use App\Domain\Instance\Demo\DemoData;
 use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Lifecycle\AppCommands;
@@ -31,7 +33,8 @@ use Carbon\CarbonImmutable;
  *
  * doctor (verify the release, preflight, choose ports, refuse foreign projects) → secrets → state (and the
  * rendered files) → pull → up (Postgres and Valkey) → migrate (one-off) → app_install (one-off: organization,
- * owner, operator role, owner link) → start (the whole stack, `up --wait`) → smoke → done.
+ * owner, operator role, owner link) → start (the whole stack, `up --wait`) → [demo (one-off: demo data, R29, ADR 0081)]
+ * → smoke → done.
  *
  * A failure in the doctor phase changes nothing (exit 3/7/10, journal archived). A later failure leaves the
  * journal open (exit 4 for health, 3 for pulls): the same command resumes after the last completed phase with the
@@ -55,6 +58,7 @@ final readonly class Installer
         private AppCommands $app,
         private SmokeTest $smoke,
         private ProxySetup $proxy,
+        private DemoData $demo,
     ) {}
 
     public function situation(): InstallSituation
@@ -129,10 +133,12 @@ final readonly class Installer
             return $data;
         });
         $run->phase('start', fn (): array => $this->stack->up($project, []), maxSeconds: InstanceStack::WAIT_SECONDS);
+        // The demo phases run again on a resume (idempotent); passwords an interrupted attempt never showed are reissued.
+        [$demo, $demoWarnings] = $request->demo() ? $this->demo->provide($run, $project, $context->facts->callerUid(), reissue: true) : [null, []];
         $run->phase('smoke', fn (): array => $this->smoke->run($state, $project, $context->progress), changes: false, maxSeconds: SmokeTest::maxSeconds($state));
         $warnings = ($installed['already_installed'] ?? false) === true
-            ? [['app_already_installed', 'The database already held an organization: --org, --owner-email, --owner-name and --locale were not applied.', 'Change them in the admin panel; the sign-in link goes to the owner given here.']]
-            : [];
+            ? [['app_already_installed', 'The database already held an organization: --org, --owner-email, --owner-name and --locale were not applied.', 'Change them in the admin panel; the sign-in link goes to the owner given here.'], ...$demoWarnings]
+            : $demoWarnings;
         $applied = ($installed['already_installed'] ?? false) !== true;
         $run->phase('done', function () use ($project, $request, $context, $applied, &$link, &$warnings): array {
             [$link, $more] = $this->finish($project, $request, $context, $link, $applied);
@@ -141,7 +147,9 @@ final readonly class Installer
             return ['link_issued' => $link !== null];
         });
 
-        return $this->result($this->directory->state(), $request, $preflight, $warnings, $link, $context, $secretsToFile);
+        $result = $this->result($this->directory->state(), $request, $preflight, $warnings, $link, $context, $secretsToFile);
+
+        return $demo instanceof DemoCredentials ? $demo->apply($result, $context, $secretsToFile) : $result;
     }
 
     /** @return array{migrated: true} */
