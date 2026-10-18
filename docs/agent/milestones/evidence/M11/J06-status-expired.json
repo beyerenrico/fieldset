@@ -1,0 +1,115 @@
+{
+    "command": "fsa status --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "status",
+        "status": "ok",
+        "changed": false,
+        "data": {
+            "dir": "<work>/fsa-test-j06",
+            "installed": true,
+            "operation": null,
+            "lock": null,
+            "disk": {
+                "free_gib": 144.5
+            },
+            "last_backup": null,
+            "version": "2.0.0-alpha.1-test",
+            "mode": "local",
+            "url": "http://localhost:8081",
+            "project": "fsa-fsa-test-j06-ac4f",
+            "port": 8081,
+            "health": "ok",
+            "services": {
+                "app": {
+                    "state": "running",
+                    "health": "healthy"
+                },
+                "queue": {
+                    "state": "running",
+                    "health": "healthy"
+                },
+                "scheduler": {
+                    "state": "running",
+                    "health": null
+                },
+                "postgres": {
+                    "state": "running",
+                    "health": "healthy"
+                },
+                "redis": {
+                    "state": "running",
+                    "health": "healthy"
+                },
+                "gotenberg": {
+                    "state": "running",
+                    "health": null
+                },
+                "mailpit": {
+                    "state": "running",
+                    "health": "healthy"
+                },
+                "tunnel": {
+                    "state": "running",
+                    "health": null
+                }
+            },
+            "mail": {
+                "mode": "capture",
+                "catcher_url": "http://localhost:8025"
+            },
+            "proxy": null,
+            "phone_https": {
+                "mode": "tunnel"
+            },
+            "tunnel": {
+                "state": "expired",
+                "hostname": "fsa-test-3eb4bc5095.trycloudflare.com",
+                "url": null,
+                "expires_at": "2026-10-18T16:49:29Z",
+                "admin": false,
+                "peer": "10.215.110.98",
+                "container": "running"
+            },
+            "sign_in_links": {
+                "count": 2,
+                "links": [
+                    {
+                        "id": 1,
+                        "email": "owner@example.test",
+                        "kind": "owner",
+                        "state": "unused",
+                        "created_at": "2026-10-18T16:44:03Z",
+                        "expires_at": "2026-10-18T17:44:03Z",
+                        "used_at": null,
+                        "used_ip": null,
+                        "created_by": "cli",
+                        "created_by_uid": 501
+                    },
+                    {
+                        "id": 2,
+                        "email": "owner@demo.test",
+                        "kind": "admin",
+                        "state": "unused",
+                        "created_at": "2026-10-18T16:45:50Z",
+                        "expires_at": "2026-10-18T17:00:50Z",
+                        "used_at": null,
+                        "used_ip": null,
+                        "created_by": "cli",
+                        "created_by_uid": 501
+                    }
+                ]
+            }
+        },
+        "secrets": [],
+        "warnings": [
+            {
+                "code": "tunnel_expired",
+                "message": "The quick tunnel fsa-test-3eb4bc5095.trycloudflare.com expired at 2026-10-18T16:49:29Z; its address answers 503.",
+                "hint": "The next fsa command that changes something removes it; `fsa tunnel start` starts a new one, `fsa tunnel stop` removes it now."
+            }
+        ],
+        "errors": []
+    }
+}

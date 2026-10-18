@@ -1,0 +1,94 @@
+{
+    "command": "fsa status --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "status",
+        "status": "ok",
+        "changed": false,
+        "data": {
+            "dir": "<work>/fsa-test-j06",
+            "installed": true,
+            "operation": null,
+            "lock": null,
+            "disk": {
+                "free_gib": 144.5
+            },
+            "last_backup": null,
+            "version": "2.0.0-alpha.1-test",
+            "mode": "local",
+            "url": "https://192.168.178.24",
+            "project": "fsa-fsa-test-j06-ac4f",
+            "port": 8081,
+            "health": "ok",
+            "services": {
+                "app": {
+                    "state": "running",
+                    "health": "healthy"
+                },
+                "queue": {
+                    "state": "running",
+                    "health": "healthy"
+                },
+                "scheduler": {
+                    "state": "running",
+                    "health": null
+                },
+                "postgres": {
+                    "state": "running",
+                    "health": "healthy"
+                },
+                "redis": {
+                    "state": "running",
+                    "health": "healthy"
+                },
+                "gotenberg": {
+                    "state": "running",
+                    "health": null
+                },
+                "mailpit": {
+                    "state": "running",
+                    "health": "healthy"
+                },
+                "edge": {
+                    "state": "running",
+                    "health": "healthy"
+                }
+            },
+            "mail": {
+                "mode": "capture",
+                "catcher_url": "http://localhost:8025"
+            },
+            "proxy": null,
+            "phone_https": {
+                "mode": "local-ca",
+                "lan_address": "192.168.178.24",
+                "url": "https://192.168.178.24",
+                "trust_url": "http://192.168.178.24/phone-trust",
+                "root_sha256": "65:D6:F8:0B:65:03:1D:0A:60:76:F5:E9:3B:19:E6:75:37:D7:0D:86:C6:D7:79:1A:97:FA:05:9A:EA:DB:90:EE",
+                "lan_address_current": true
+            },
+            "tunnel": null,
+            "sign_in_links": {
+                "count": 1,
+                "links": [
+                    {
+                        "id": 1,
+                        "email": "owner@example.test",
+                        "kind": "owner",
+                        "state": "unused",
+                        "created_at": "2026-10-18T16:44:03Z",
+                        "expires_at": "2026-10-18T17:44:03Z",
+                        "used_at": null,
+                        "used_ip": null,
+                        "created_by": "cli",
+                        "created_by_uid": 501
+                    }
+                ]
+            }
+        },
+        "secrets": [],
+        "warnings": [],
+        "errors": []
+    }
+}

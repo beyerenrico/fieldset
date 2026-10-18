@@ -1,0 +1,122 @@
+{
+    "command": "fsa demo --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "demo",
+        "status": "ok",
+        "changed": true,
+        "data": {
+            "url": "http://localhost:8081",
+            "mode": "local",
+            "mail": {
+                "mode": "capture",
+                "catcher_url": "http://localhost:8025"
+            },
+            "next_commands": [
+                "<work>/fsa-test-j06/fsa status",
+                "<work>/fsa-test-j06/fsa login-link owner@demo.test",
+                "<work>/fsa-test-j06/fsa demo --rotate-passwords"
+            ],
+            "demo": {
+                "organization": "Demo Haustechnik GmbH",
+                "seeded": false,
+                "passwords": null,
+                "exposure": [],
+                "users": [
+                    {
+                        "email": "owner@demo.test",
+                        "name": "Olivia Owner",
+                        "roles": [
+                            "owner"
+                        ]
+                    },
+                    {
+                        "email": "admin@demo.test",
+                        "name": "Adam Admin",
+                        "roles": [
+                            "admin"
+                        ]
+                    },
+                    {
+                        "email": "designer@demo.test",
+                        "name": "Dana Designer",
+                        "roles": [
+                            "designer"
+                        ]
+                    },
+                    {
+                        "email": "reviewer@demo.test",
+                        "name": "Rita Reviewer",
+                        "roles": [
+                            "reviewer"
+                        ]
+                    },
+                    {
+                        "email": "coordinator@demo.test",
+                        "name": "Cora Coordinator",
+                        "roles": [
+                            "designer",
+                            "reviewer"
+                        ]
+                    },
+                    {
+                        "email": "worker@demo.test",
+                        "name": "Willi Worker",
+                        "roles": [
+                            "field_worker"
+                        ]
+                    },
+                    {
+                        "email": "mobile@demo.test",
+                        "name": "Mia Mobil",
+                        "roles": [
+                            "field_worker"
+                        ]
+                    },
+                    {
+                        "email": "tablet@demo.test",
+                        "name": "Tom Tablet",
+                        "roles": [
+                            "field_worker"
+                        ]
+                    },
+                    {
+                        "email": "viewer@demo.test",
+                        "name": "Vera Viewer",
+                        "roles": [
+                            "viewer"
+                        ]
+                    }
+                ],
+                "login_url": "http://localhost:8081/admin/login",
+                "default_password_users": 0,
+                "delivered": null
+            },
+            "sign_in_link": {
+                "expires_at": "2026-10-18T17:05:33Z",
+                "delivered": "secrets"
+            }
+        },
+        "secrets": [
+            {
+                "name": "sign_in_link",
+                "value": "http://localhost:8081/login-link#<redacted>",
+                "expires_at": "2026-10-18T17:05:33Z"
+            }
+        ],
+        "warnings": [
+            {
+                "code": "demo_passwords_not_shown",
+                "message": "The demo data exists already; its passwords were shown once when it was added.",
+                "hint": "Run `fsa demo --rotate-passwords` for new ones."
+            },
+            {
+                "code": "tunnel_removed",
+                "message": "The quick tunnel fsa-test-3eb4bc5095.trycloudflare.com expired at 2026-10-18T16:49:29Z and was removed; the instance URL is http://localhost:8081 again.",
+                "hint": "Start a new one with `fsa tunnel start`."
+            }
+        ],
+        "errors": []
+    }
+}
