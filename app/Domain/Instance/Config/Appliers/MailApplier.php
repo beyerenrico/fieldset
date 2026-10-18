@@ -25,9 +25,11 @@ use App\Domain\Instance\State\InstanceState;
  * - `smtp`: the server from `--smtp-host` (required from capture mode), `--smtp-port`, `--smtp-encryption starttls|tls`,
  *   an account from `--smtp-username` with the password from `--password-stdin` or `--password-file` (never a flag
  *   value: exit 2), the sender from `--from-address`/`--from-name`. Flags left out keep their values, the credentials
- *   included. App, queue and scheduler get the new mailer; verify sends a test mail through it (to `--test-to`, else the
- *   longest-standing operator) and a refused one reverts to the previous settings (exit 5). The catcher stays, read-only
- *   (nothing reaches its SMTP port), until `--remove-catcher`, which also removes its volume once the change runs.
+ *   included, except that another `--smtp-host` without an account drops the stored one (`smtp_credentials_dropped`):
+ *   an account is never sent to a server it was not given for. App, queue and scheduler get the new mailer; verify
+ *   sends a test mail through it (to `--test-to`, else the longest-standing operator) and a refused one reverts to the
+ *   previous settings (exit 5). The catcher stays, read-only (nothing reaches its SMTP port), until `--remove-catcher`,
+ *   which also removes its volume once the change runs.
  * - `capture`: back to the bundled catcher; it comes back with its volume (or a new one) and a free UI port.
  *
  * The result reports the invitations and password resets capture mode kept from people (MailCompletion).
@@ -131,7 +133,11 @@ final readonly class MailApplier implements SettingApplier, SettingHooks
         if ($options->testTo !== null) {
             ConfigValues::email($options->testTo, 'test-to'); // checked now: verify must not fail on a typo
         }
-        $change = new ConfigChange(self::KEY, $state, $after, self::describe($state), self::describe($after), credentials: $credentials instanceof SmtpCredentials && ! $this->current($configured)->equals($credentials) ? $credentials : null);
+        $current = $this->current($configured);
+        $change = new ConfigChange(self::KEY, $state, $after, self::describe($state), self::describe($after), credentials: $credentials instanceof SmtpCredentials && ! $current->equals($credentials) ? $credentials : null);
+        if (! $credentials instanceof SmtpCredentials && $current->username !== null && $host !== $settings->smtpHost()) {
+            $change = $change->withWarning('smtp_credentials_dropped', "The SMTP account of {$settings->smtpHost()} is not sent to {$host}: the change drops it.", "Pass --smtp-username <user> with --password-stdin or --password-file if {$host} needs an account.");
+        }
         $sender = InstanceSettings::of($after)->mailFromAddress();
 
         return str_ends_with($sender, '@localhost')
