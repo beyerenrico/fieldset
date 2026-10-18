@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Audit\Models\Activity;
+use App\Domain\Identity\Actions\IssueOwnerLink;
 use App\Domain\Identity\Enums\MembershipStatus;
 use App\Domain\Identity\Enums\SystemRole;
 use App\Domain\Identity\Enums\UserStatus;
@@ -108,6 +109,8 @@ it('counts the pending invitations and open password resets that capture mode ke
         ['email' => 'fresh@example.com', 'token' => 'x', 'created_at' => now()->subMinutes(5)],
         ['email' => 'old@example.com', 'token' => 'y', 'created_at' => now()->subHours(2)],
     ]);
+    // The owner link fsa handed over itself is a reset token too, but no mail went out for it.
+    app(IssueOwnerLink::class)->handle(User::factory()->create(['email' => 'linked-owner@example.com']), 501);
 
     [$json, $exit] = mailCommandJson('instance:mail-captured');
 

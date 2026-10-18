@@ -16,7 +16,6 @@ use App\Domain\Identity\Actions\AddMember;
 use App\Domain\Identity\Actions\CreateOrganization;
 use App\Domain\Identity\Actions\InviteMember;
 use App\Domain\Identity\Enums\SystemRole;
-use App\Domain\Identity\Models\Organization;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Tenancy\TenantContext;
 use App\Domain\Mail\Models\MailSetting;
@@ -60,7 +59,7 @@ function captureSession(User $user): array
 }
 
 if (($argv[1] ?? '') === 'invite') {
-    $email = strtolower((string) ($argv[3] ?? 'second-invitee@example.test'));
+    $email = strtolower($argv[3] ?? 'second-invitee@example.test');
     $tenants->run($organizationA, fn () => app(InviteMember::class)->handle($owner, $organizationA, $email, 'Second Invitee', [SystemRole::FieldWorker]));
     echo json_encode(['invited' => $email]), "\n";
 
@@ -71,7 +70,6 @@ $adminA = captureAccount('a-admin@example.test');
 $tenants->run($organizationA, fn () => $adminA->organizations()->whereKey($organizationA->id)->exists() ?: app(AddMember::class)->handle($organizationA, $adminA, [SystemRole::Admin]));
 $adminB = captureAccount('b-admin@example.test');
 $organizationB = $adminB->organizations()->first() ?? app(CreateOrganization::class)->handle(['name' => 'Own SMTP Org', 'locale' => 'en'], $adminB);
-assert($organizationB instanceof Organization);
 $tenants->run($organizationB, fn () => MailSetting::query()->updateOrCreate([], [
     'smtp_enabled' => true, 'smtp_host' => 'smtp.own-smtp.test', 'smtp_port' => 587, 'smtp_from_address' => 'forms@own-smtp.test',
 ]));

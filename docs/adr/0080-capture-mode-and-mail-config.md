@@ -64,7 +64,7 @@ capture mode whether or not the catcher answers, naming its reachability in the 
   free loopback UI port chosen like `mode local` when the remembered one is taken).
 - What capture kept from people (`SettingHooks::completed`, after the workers run, never reverting): the one-off
   `instance:mail-captured` counts pending invitations (7-day links) and unexpired password-reset tokens from the app's
-  own records; the result carries `data.mail.captured` and a `captured_mail` warning to resend them. Rejected: counting
+  own records (not the tokens behind unused owner sign-in links, which fsa handed over itself); the result carries `data.mail.captured` and a `captured_mail` warning to resend them. Rejected: counting
   the catcher's messages, which needs its credentials in the app and localized subjects, and counts what nobody needs to
   resend.
 - Audit: `instance.config_changed` with `from`/`to` such as `capture` → `smtp://smtp.example.com:587 (catcher kept)`,
