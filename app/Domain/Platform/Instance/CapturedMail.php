@@ -1,0 +1,34 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Domain\Platform\Instance;
+
+use App\Domain\Identity\Enums\MembershipStatus;
+use App\Domain\Identity\Models\Membership;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+
+/**
+ * What capture mode kept from people (ADR 0080), counted from the app's own records when `fsa config set mail smtp`
+ * switches to real delivery: invitations still waiting for acceptance and password resets still valid. Their mails
+ * went to the catcher, so the recipients never got them; the operator resends them. Counting the catcher's messages
+ * instead would need its credentials in the app and localized subjects. Read-only; counts only.
+ */
+final class CapturedMail
+{
+    /** @return array{invitations: int, password_resets: int} */
+    public function assess(): array
+    {
+        $now = Carbon::now();
+        $broker = (string) config('auth.defaults.passwords', 'users');
+        $table = (string) config("auth.passwords.{$broker}.table", 'password_reset_tokens');
+        $expire = (int) config("auth.passwords.{$broker}.expire", 60);
+
+        return [
+            'invitations' => Membership::query()->where('status', MembershipStatus::Invited)
+                ->where('invited_at', '>', $now->copy()->subDays(UrlChangeImpact::INVITATION_DAYS))->count(),
+            'password_resets' => DB::table($table)->where('created_at', '>', $now->copy()->subMinutes($expire))->count(),
+        ];
+    }
+}

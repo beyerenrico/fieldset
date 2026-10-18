@@ -22,6 +22,9 @@ final readonly class AppCommands
 
     public const float TIMEOUT = 300.0;
 
+    /** The test mail's one-off: the app boots, the SMTP dialogue (mail timeout) and its TLS handshake. */
+    public const float MAIL_TEST_TIMEOUT = 120.0;
+
     public function __construct(private DockerGateway $docker) {}
 
     public function migrate(ComposeProject $project): ProcessOutcome
@@ -69,6 +72,29 @@ final readonly class AppCommands
         return $this->json($project, [
             'php', 'artisan', 'instance:config-changed', '--key='.$change['key'], '--old='.($change['from'] ?? ''), '--new='.($change['to'] ?? ''),
             ...$url, '--actor-uid='.$actorUid, '--json',
+        ], 120.0);
+    }
+
+    /**
+     * Sends the test mail of `config set mail smtp` through the mailer the app env file now configures (ADR 0080). The
+     * recipient goes after `--to=` in one argument, so it can never be read as an option.
+     */
+    public function mailTest(ComposeProject $project, ?string $to): OneOffResult
+    {
+        return $this->json($project, ['php', 'artisan', 'instance:mail-test', ...($to === null ? [] : ['--to='.$to]), '--json'], self::MAIL_TEST_TIMEOUT);
+    }
+
+    /** Invitations and password resets capture mode kept in the catcher (ADR 0080). */
+    public function mailCaptured(ComposeProject $project): OneOffResult
+    {
+        return $this->json($project, ['php', 'artisan', 'instance:mail-captured', '--json'], 120.0);
+    }
+
+    /** Grants the operator role to an address, creating the account and its first link when needed (ADR 0080). */
+    public function operatorEmail(ComposeProject $project, string $email, bool $revokePrevious, int $actorUid): OneOffResult
+    {
+        return $this->json($project, [
+            'php', 'artisan', 'instance:operator-email', '--email='.$email, ...($revokePrevious ? ['--revoke-previous'] : []), '--actor-uid='.$actorUid, '--json',
         ], 120.0);
     }
 

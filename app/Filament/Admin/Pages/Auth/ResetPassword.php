@@ -26,7 +26,8 @@ use SensitiveParameter;
  * It is also the second step of the owner's first sign-in link (ADR 0056): the landing page leaves the reset
  * token in the session and sends a signed URL with the email only, so the token never appears in a URL. After
  * the password is set the owner is signed in (unless MFA is already enrolled: then the normal login with its
- * challenge) and lands on the profile page, which offers MFA.
+ * challenge) and lands on the profile page, which offers MFA. An account without an organization (an operator made by
+ * `fsa config set operator-email`) goes to the /platform sign-in instead.
  */
 class ResetPassword extends BaseResetPassword
 {
@@ -53,6 +54,14 @@ class ResetPassword extends BaseResetPassword
         $user = User::query()->where('email', (string) $this->email)->first();
         if (! $user instanceof User || LoginLinkHandoff::requiresMfa($user)) {
             return $response;
+        }
+        if (! $user->activeOrganizations()->exists()) {
+            // An operator made by `fsa config set operator-email` has no organization and no /admin page (ADR 0080):
+            // the operator panel's own sign-in, with its MFA set-up, comes next.
+            Notification::make()->success()->persistent()
+                ->title(__('login_link.operator.ready_title'))->body(__('login_link.operator.ready_body'))->send();
+
+            return new OwnerSignedInResponse(route('filament.platform.auth.login'));
         }
         app(LoginLinkHandoff::class)->signIn($user, LoginLinkKind::Owner);
         Notification::make()->success()->persistent()

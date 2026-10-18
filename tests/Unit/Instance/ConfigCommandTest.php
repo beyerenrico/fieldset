@@ -13,7 +13,7 @@ use Tests\Support\Instance\TemporaryInstance;
 
 /*
  * Plan U11 (§7, R31, R32, §10; ADR 0077): `fsa config show` (effective settings, secrets redacted, outbound contacts)
- * and the command's usage rules: unknown keys, keys of later pre-releases (mail: M11), an instance that is not
+ * and the command's usage rules: unknown keys, keys of later pre-releases (backups: M12), an instance that is not
  * installed, a running operation (exit 9) and an unfinished one of another kind.
  */
 
@@ -38,7 +38,8 @@ it('shows every setting of a local instance with secrets redacted and no outboun
         ->and($contacts->filter(fn (array $feature): bool => $feature['active'])->all())->toBe([])
         ->and($contacts['upgrades']['contacts'])->toContain(InstanceCommandFixture::MIRROR, 'https://github.com/beyerenrico/form-schema-app/releases')
         ->and($contacts['acme']['contacts'])->toBe([])
-        ->and(collect($json['data']['keys'])->firstWhere('key', 'mail'))->toMatchArray(['available' => false, 'arrives_with' => '2.0.0-beta.1'])
+        ->and(collect($json['data']['keys'])->firstWhere('key', 'mail'))->toMatchArray(['value' => 'capture', 'available' => true, 'settable_now' => true])
+        ->and(collect($json['data']['keys'])->firstWhere('key', 'backup-schedule'))->toMatchArray(['available' => false, 'arrives_with' => '2.0.0-rc.1'])
         ->and(collect($json['data']['keys'])->firstWhere('key', 'port'))->toMatchArray(['value' => 8080, 'available' => true, 'changes_url' => true])
         ->and($config->methodsSince($mark))->toBe([]);
 });
@@ -56,16 +57,17 @@ it('shows domain mode with its ACME directory as the one active outbound contact
         ->and($contacts['acme'])->toMatchArray(['active' => true, 'contacts' => [InstanceSettings::ACME_STAGING]]);
 });
 
-it('says when mail settings arrive (M11) and lists the keys for an unknown one, exit 2', function (string $key, string $error, string $text): void {
+it('says when later settings arrive and lists the keys for an unknown one, exit 2', function (string $key, string $error, string $text): void {
     [$code, $json] = new ConfigFixture()->set($key, 'x');
 
     expect($code)->toBe(2)
         ->and($json['errors'][0]['code'])->toBe($error)
         ->and($json['errors'][0]['message'].' '.$json['errors'][0]['hint'])->toContain($text);
 })->with([
-    'mail' => ['mail', 'setting_not_available', '2.0.0-beta.1'],
+    'update check' => ['update-check', 'setting_not_available', '2.0.0'],
     'backup schedule' => ['backup-schedule', 'setting_not_available', '2.0.0-rc.1'],
-    'unknown' => ['colour', 'unknown_setting', 'domain, url, port, trusted-proxy, mode, acme-email, acme-ca'],
+    'unknown' => ['colour', 'unknown_setting', 'domain, url, port, trusted-proxy, mode, acme-email, acme-ca, mail, operator-email'],
+    'invalid mail value' => ['mail', 'invalid_value', 'capture'],
 ]);
 
 it('refuses bad usage with exit 2', function (array $arguments): void {

@@ -26,7 +26,7 @@ final readonly class LoopbackPorts
     {
         $settings = InstanceSettings::of($state);
         $app = $settings->publishesAppPort() && $settings->port() === $port;
-        $catcher = $settings->capturesMail() && $state->mode() !== 'domain' && $settings->mailUiPort() === $port;
+        $catcher = $settings->runsCatcher() && $state->mode() !== 'domain' && $settings->mailUiPort() === $port;
 
         return $app || $catcher;
     }

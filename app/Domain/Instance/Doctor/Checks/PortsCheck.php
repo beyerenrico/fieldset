@@ -141,7 +141,7 @@ final readonly class PortsCheck implements DoctorCheck
         $settings = InstanceSettings::of($state);
 
         // On a shared proxy network the app publishes no port (ADR 0076), so there is nothing to probe for it.
-        return [...($settings->publishesAppPort() ? ['app' => $settings->port()] : []), ...($settings->capturesMail() ? ['mail_ui' => $settings->mailUiPort()] : [])];
+        return [...($settings->publishesAppPort() ? ['app' => $settings->port()] : []), ...($settings->runsCatcher() ? ['mail_ui' => $settings->mailUiPort()] : [])];
     }
 
     /** @return list<string> compose services of this instance whose container runs */

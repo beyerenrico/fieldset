@@ -46,16 +46,18 @@ final readonly class ConfigResults
      * @param  array<string, mixed>  $checked
      * @param  array<string, mixed>  $audit
      * @param  array<string, mixed>|null  $impact
+     * @param  array{data: array<string, mixed>, warnings: list<array{code: string, message: string, hint: string|null}>}  $completed  what the applier's completion step reports (ADR 0080)
      */
-    public function succeeded(ConfigChange $change, array $services, array $checked, array $audit, ?array $impact): CommandResult
+    public function succeeded(ConfigChange $change, array $services, array $checked, array $audit, ?array $impact, array $completed = ['data' => [], 'warnings' => []]): CommandResult
     {
         $result = CommandResult::ok(self::COMMAND, [
             ...self::data($change, $change->after), 'reverted' => false,
             'previous' => ['url' => $change->oldUrl(), 'mode' => $change->before->mode()],
             'services' => $services, 'checked' => $checked['checked'] ?? [], 'impact' => $impact, 'audited' => $audit['audited'] ?? false,
+            ...$completed['data'],
             'next_commands' => $this->nextCommands($change),
         ], changed: true);
-        foreach ($change->warnings as $warning) {
+        foreach ([...$change->warnings, ...$completed['warnings']] as $warning) {
             $result = $result->withWarning($warning['code'], $warning['message'], $warning['hint']);
         }
         foreach ([...ConfigFailure::impactWarnings($change, $impact), ...array_filter([AcmeStaging::warning($change->after, $this->fsa())])] as [$code, $message, $hint]) {

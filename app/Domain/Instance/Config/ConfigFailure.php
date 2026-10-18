@@ -79,6 +79,7 @@ final class ConfigFailure
         return match ($code) {
             'certificate_failed' => "Check that {$domain} points at this host, that ports 80 and 443 reach it from the internet and that the ACME directory is reachable, then run the command again. Repeated attempts count against the CA's rate limits; --acme-staging is for trials.",
             'services_unhealthy', 'smoke_failed', 'url_check_failed' => 'Read `fsa logs <service>` for the cause, fix it, then run the command again.',
+            'test_mail_failed' => 'Check the SMTP host, port, encryption, user name and password against what the server answered (data.failure), then run the command again; the previous mail settings stay until a test mail goes through.',
             'interrupted' => 'The command was stopped (a signal: Ctrl-C, a closed session or a tool timeout) and restored the previous settings; run it again when it can finish.',
             'docker_unavailable', 'docker_command_failed' => 'Check that the Docker engine runs (`docker info`), then run the command again.',
             default => 'Fix the cause, then run the command again; `fsa status` shows the instance.',

@@ -50,6 +50,7 @@ final readonly class StackFile
         'MAIL_HOST, MAIL_PORT' => 'the bundled catcher (mailpit:1025); set your SMTP server to deliver mail',
         'MAIL_SCHEME, MAIL_USERNAME, MAIL_PASSWORD' => 'empty (STARTTLS when offered; smtps for implicit TLS)',
         'MAIL_FROM_ADDRESS, MAIL_FROM_NAME' => 'forms@localhost, form-schema-app',
+        'FSA_MAIL_CAPTURE' => 'true: admins see the capture banner; set false together with your SMTP server',
     ];
 
     private const string URL = 'https://stack-url.fsa.invalid';
@@ -63,7 +64,7 @@ final readonly class StackFile
     ];
 
     /** App-role variables that keep the rendered value as their default. */
-    private const array OVERRIDABLE = ['MAIL_HOST', 'MAIL_PORT', 'MAIL_FROM_ADDRESS', 'MAIL_FROM_NAME'];
+    private const array OVERRIDABLE = ['MAIL_HOST', 'MAIL_PORT', 'MAIL_FROM_ADDRESS', 'MAIL_FROM_NAME', 'FSA_MAIL_CAPTURE'];
 
     /** App-role variables added with an empty default. */
     private const array ADDED = ['TRUSTED_PROXIES', 'TRUSTED_HOSTS', 'MAIL_SCHEME', 'MAIL_USERNAME', 'MAIL_PASSWORD'];

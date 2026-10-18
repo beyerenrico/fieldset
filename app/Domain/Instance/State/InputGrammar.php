@@ -47,7 +47,7 @@ final class InputGrammar
     private const array SETTINGS = [
         'port' => 'port', 'mail_ui_port' => 'port', 'smtp_port' => 'port',
         'domain' => 'host', 'smtp_host' => 'host', 'lan_address' => 'ip', 'extra_hosts' => 'host_list',
-        'mail' => ['capture', 'smtp'], 'smtp_scheme' => ['smtp', 'smtps'], 'size' => ResourceBudget::SIZES,
+        'mail' => ['capture', 'smtp'], 'smtp_scheme' => ['smtp', 'smtps'], 'mail_catcher' => ['kept'], 'size' => ResourceBudget::SIZES,
         'db_database' => 'identifier', 'db_username' => 'identifier',
         'mail_from_address' => 'email', 'mail_from_name' => 'text',
         // Domain mode (U8, ADR 0075): ACME contact and directory, the SHA-256 of the custom ACME CA root the edge
