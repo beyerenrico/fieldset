@@ -1,0 +1,21 @@
+{
+    "command": "fsa config set domain fsa-test-cfg.test (same options) --yes --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "config",
+        "status": "ok",
+        "changed": false,
+        "data": {
+            "key": "domain",
+            "from": "fsa-test-cfg.test",
+            "to": "fsa-test-cfg.test",
+            "url": "https://fsa-test-cfg.test",
+            "mode": "domain",
+            "reverted": false
+        },
+        "secrets": [],
+        "warnings": [],
+        "errors": []
+    }
+}

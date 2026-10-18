@@ -1,6 +1,7 @@
 # 0066: fsa command architecture: gateway, state, lock, journal, envelope
 - Status: accepted; amended 2026-10-18 at the M9 gate (journal closing, any-exception supervisor, `changed` on
-  failures, journal history cap, personal install inputs as digests)
+  failures, journal history cap, personal install inputs as digests); amended 2026-10-18 at the M10 gate by ADR 0078
+  (progress event fields, foreign-journal check on resume)
 - Date: 2026-10-18
 
 ## Context
@@ -58,12 +59,18 @@ back close it (`ResultStatus::closesOperation()`). The supervisor catches any `T
 `InstanceException`: an unexpected exception before any change exits 9 and archives the journal (no stray
 `current.json`), after a change it exits 1 (`internal_error`) with the journal left open for a resume. The
 history keeps the newest 20 archived journals (`OperationJournal::HISTORY_LIMIT`); older ones are deleted.)
+(Amended 2026-10-18 by ADR 0078: `Supervisor::run(accepts:)` lets the caller check the unfinished journal it finds
+under the lock (`config set`: `ConfigRequest::sameAs`); a journal that is not its own is exit 9
+`operation_unfinished`, nothing is written to it and no `resumed` event is recorded.)
 
 **Result envelope and console base (KTD3, R49, R50).** `Output\CommandResult` renders
 `{schema_version: 1, command, status, changed, data, secrets, warnings, errors}`; `status` follows the exit code.
 (Amended 2026-10-18: `InstanceException` carries `changed`, and `CommandResult::fromException()` reports
 `changed: true` when either the exception or the supervisor says something changed, e.g. a partial uninstall.)
 With `--json` stdout carries exactly that document and stderr carries NDJSON `{ts, phase, level, message}`.
+(Amended 2026-10-18 by ADR 0078: an event may carry numeric fields after `message`: `max_seconds` on a phase start
+whose limit is known, `elapsed_seconds` on "Completed <phase> in …" and "<phase> failed after …", and `attempt`,
+`attempts` (with `elapsed_seconds`, `max_seconds`) on each certificate-wait attempt. Readers ignore unknown keys.)
 Secret values appear only under `secrets`, or in `--secrets-file` (0600), where `secrets` then names the file.
 A per-command `SecretRedactor` scrubs one-time secrets and the secret values of the instance's env files from
 data, warnings, errors and progress. `Console\FsaCommand` adds `--json`, `--yes`, `--dir`, `--secrets-file`;

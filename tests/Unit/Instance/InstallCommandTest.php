@@ -131,7 +131,7 @@ it('refuses different flags on a finished instance with exit 2 and the config-se
     expect($code)->toBe(2)
         ->and($json['errors'][0]['code'])->toBe('use_config_set')
         ->and($json['errors'][0]['message'])->toContain($flag)
-        ->and($json['errors'][0]['hint'])->toContain('fsa config set')->toContain('later releases')->toContain('fsa uninstall')
+        ->and($json['errors'][0]['hint'])->toContain('fsa config set')->toContain('fsa config show')->toContain('fsa uninstall')
         ->and($this->fixture->docker->methodsSince($calls))->toBe([]);
 })->with([
     'organization' => [['--org' => 'Other Org'], '--org'],
@@ -193,19 +193,6 @@ it('exits 3 before pulling anything when the domain resolves elsewhere (AE5)', f
         ->and($this->fixture->docker->called('pullImage'))->toBe([])
         ->and($this->fixture->docker->called('composeUp'))->toBe([])
         ->and($this->fixture->directory->hasState())->toBeFalse();
-});
-
-it('stops with unsupported_mode after a passing DNS preflight, because domain mode arrives later', function (): void {
-    $this->fixture->probes->dns['forms.example.com'] = ['a' => ['8.8.4.4'], 'aaaa' => []];
-    $this->fixture->facts(['lanAddresses' => ['8.8.4.4']]);
-
-    [$code, $json] = installOnce($this->fixture, ['--domain' => 'forms.example.com']);
-
-    expect($code)->toBe(2)
-        ->and($json['errors'][0]['code'])->toBe('unsupported_mode')
-        ->and($this->fixture->docker->called('pullImage'))->toBe([])
-        ->and($this->fixture->directory->hasState())->toBeFalse()
-        ->and($this->fixture->directory->exists(OperationJournal::CURRENT))->toBeFalse();
 });
 
 it('exits 4 on a failed smoke test and resumes there with a fresh sign-in link', function (): void {
@@ -356,7 +343,8 @@ it('rejects a secret flag (AE9), malformed values and flags of later releases wi
     'version' => [['--release' => 'latest'], 'invalid_flag'],
     'domain that is an IP' => [['--domain' => '203.0.113.10'], 'invalid_flag'],
     'demo' => [['--demo' => true], 'unsupported_option'],
-    'proxy' => [['--behind-proxy' => 'traefik'], 'unsupported_option'],
+    'proxy setup' => [['--behind-proxy' => 'nginx'], 'invalid_flag'],
+    'phone https' => [['--phone-https' => 'tunnel'], 'unsupported_option'],
 ]);
 
 it('refuses a manifest of another version than --version with exit 3', function (): void {

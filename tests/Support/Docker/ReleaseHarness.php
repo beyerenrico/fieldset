@@ -29,10 +29,15 @@ final class ReleaseHarness
 
     public const string MANIFEST = 'release-manifest.json';
 
+    public const string STACK_FILE = 'compose.stack.yaml';
+
     /** Pulled images to untag on stop(). @var list<string> */
     private array $pulled = [];
 
     private bool $builder = false;
+
+    /** The external network of proxy mode's Traefik, once startProxy() created it. */
+    private ?string $proxyNetwork = null;
 
     private static ?string $native = null;
 
@@ -190,9 +195,43 @@ final class ReleaseHarness
         return $process;
     }
 
+    /**
+     * Proxy mode's Traefik on an external network of its own (J3): creates `fsa-test-proxy-<id>` and starts the
+     * `traefik` service of the proxy profile on it. Idempotent.
+     *
+     * @return array{network: string, container: string}
+     */
+    public function startProxy(): array
+    {
+        $network = $this->proxyNetwork ?? str_replace('fsa-test-harness-', 'fsa-test-proxy-', $this->project);
+        if ($this->proxyNetwork === null) {
+            self::mustRun(['docker', 'network', 'create', '--label', 'app.form-schema.test=harness', $network]);
+            $this->proxyNetwork = $network;
+        }
+        $compose = self::compose($this->project, $this->directory, ['FSA_HARNESS_PROXY_NETWORK' => $network]);
+        self::mustRun([...$compose, '--profile', 'proxy', 'up', '-d', '--wait', 'traefik'], 600);
+        $container = trim(self::mustRun([...$compose, '--profile', 'proxy', 'ps', '--format', '{{.Name}}', 'traefik'])->getOutput());
+
+        return ['network' => $network, 'container' => $container];
+    }
+
+    /** Stops Traefik and removes its network (after every container left it). */
+    public function stopProxy(): void
+    {
+        if ($this->proxyNetwork === null) {
+            return;
+        }
+        $compose = self::compose($this->project, $this->directory, ['FSA_HARNESS_PROXY_NETWORK' => $this->proxyNetwork]);
+        new Process([...$compose, '--profile', 'proxy', 'rm', '--force', '--stop', 'traefik'])->setTimeout(300)->run();
+        new Process(['docker', 'network', 'rm', $this->proxyNetwork])->setTimeout(120)->run();
+        $this->proxyNetwork = null;
+    }
+
     /** Removes the compose project (containers, network, volume), the builder, pulled references and run files. */
     public function stop(): void
     {
+        $this->stopProxy();
+
         foreach (array_unique($this->pulled) as $reference) {
             new Process(['docker', 'image', 'rm', $reference])->run();
         }
@@ -207,6 +246,17 @@ final class ReleaseHarness
     public static function logFile(string $name): string
     {
         return TestImage::logFile($name);
+    }
+
+    /**
+     * The harness compose command with extra variables, for the substitutes behind profiles (AcmeHarness).
+     *
+     * @param  array<string, string>  $environment
+     * @return list<string>
+     */
+    public function composeCommand(array $environment = []): array
+    {
+        return self::compose($this->project, $this->directory, $environment);
     }
 
     /**
@@ -246,7 +296,8 @@ final class ReleaseHarness
     }
 
     /**
-     * The manifest (via `release:manifest`, as CI runs it), its bundle, the assets that exist yet and SHA256SUMS.
+     * The manifest and the stack file (via `release:manifest`, as CI runs it), the manifest's bundle, the assets and
+     * SHA256SUMS.
      *
      * @param  list<string>  $platforms
      */
@@ -255,17 +306,14 @@ final class ReleaseHarness
         mkdir($directory, 0755, true);
         $assets = [];
         $assets[] = InstallScriptBuild::writeHarness("{$directory}/install.sh");
-        foreach (['distribution/shim.sh', 'distribution/stack/compose.stack.yaml'] as $asset) {
-            if (is_file(TestImage::repository()."/{$asset}")) {
-                copy(TestImage::repository()."/{$asset}", $assets[] = "{$directory}/".basename($asset));
-            }
-        }
+        copy(TestImage::repository().'/distribution/shim.sh', $assets[] = "{$directory}/shim.sh");
 
+        // The stack file is rendered from the manifest's pins, as the release workflow does (ADR 0076).
         self::mustRun([
             PHP_BINARY, 'artisan', 'release:manifest', (string) $release, "--app-digest={$appDigest}", "--mirror={$this->registry()}",
             ...array_map(static fn (string $platform): string => "--platform={$platform}", $platforms),
             ...array_map(static fn (string $asset): string => "--asset={$asset}", $assets),
-            "--output={$directory}/".self::MANIFEST,
+            "--stack-file={$directory}/".self::STACK_FILE, "--output={$directory}/".self::MANIFEST,
         ], 300);
 
         foreach (["{$directory}/".self::MANIFEST, ...array_filter($assets, static fn (string $asset): bool => str_ends_with($asset, 'install.sh'))] as $file) {
@@ -327,7 +375,7 @@ final class ReleaseHarness
     private static function tearDown(string $project, string $directory): void
     {
         $compose = self::compose($project, $directory, []);
-        new Process([...$compose, '--profile', 'forwarder', 'down', '--volumes', '--remove-orphans', '--timeout', '5'])->setTimeout(300)->run();
+        new Process([...$compose, '--profile', 'forwarder', '--profile', 'acme', '--profile', 'proxy', 'down', '--volumes', '--remove-orphans', '--timeout', '5'])->setTimeout(300)->run();
         new Process(['rm', '-rf', $directory])->run();
     }
 

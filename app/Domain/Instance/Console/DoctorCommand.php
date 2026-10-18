@@ -18,7 +18,8 @@ use Illuminate\Console\Attributes\Signature;
 /**
  * `fsa doctor` (§7, R10, ADR 0072): Docker and Compose versions, architecture, memory, disk, path sharing,
  * permissions of the instance files, stale hand-over files (removed), DNS in domain mode, registry reachability,
- * clock skew and ports; with --post also the running services. Any failed check is exit 3 (10 for a too old
+ * clock skew, ports and, in proxy mode, whether the trusted proxy address still matches (`proxy_address_changed`);
+ * with --post also the running services. Any failed check is exit 3 (10 for a too old
  * Docker) with the full report under `data.checks`; warnings pass with exit 0.
  */
 #[Description('Preflight and health checks of the host and the instance')]
@@ -43,7 +44,7 @@ final class DoctorCommand extends FsaCommand
         }
         $result = CommandResult::ok('doctor', ['checks' => $report->toArray(), 'post' => (bool) $this->option('post')]);
         foreach ($report->warnings() as $warning) {
-            $result = $result->withWarning('doctor_'.$warning->key, $warning->summary, $warning->hint);
+            $result = $result->withWarning($warning->warningCode(), $warning->summary, $warning->hint);
         }
 
         return $result;

@@ -1,0 +1,67 @@
+{
+    "command": "fsa config set domain fsa-test-cfg.test --acme-ca <pebble> --acme-ca-root-file <harness>/pebble-https-root.pem --json",
+    "exit_code": 6,
+    "stdout": {
+        "schema_version": 1,
+        "command": "config",
+        "status": "aborted",
+        "changed": false,
+        "data": {
+            "key": "domain",
+            "from": null,
+            "to": "fsa-test-cfg.test",
+            "url": "http://localhost:8081",
+            "mode": "local",
+            "change": {
+                "key": "domain",
+                "from": null,
+                "to": "fsa-test-cfg.test",
+                "url": {
+                    "from": "http://localhost:8081",
+                    "to": "https://fsa-test-cfg.test"
+                },
+                "mode": {
+                    "from": "local",
+                    "to": "domain"
+                }
+            },
+            "impact": {
+                "known": true,
+                "sso_organizations": [
+                    {
+                        "organization": {
+                            "id": 2,
+                            "name": "Fsa Test SSO Org",
+                            "slug": "fsa-test-sso-org"
+                        },
+                        "provider": {
+                            "type": "saml",
+                            "name": "Fsa Test IdP",
+                            "status": "draft"
+                        },
+                        "follows_url": [
+                            "entity_id",
+                            "acs_url"
+                        ]
+                    }
+                ],
+                "links": {
+                    "invitations": 0,
+                    "document_links": 0,
+                    "login_links": 1,
+                    "data_exports": 0
+                }
+            }
+        },
+        "secrets": [],
+        "warnings": [],
+        "errors": [
+            {
+                "code": "confirmation_required",
+                "message": "Confirmation required: Change the instance URL from http://localhost:8081 to https://fsa-test-cfg.test?\n- Fsa Test SSO Org (SAML SSO): register the new entity id and acs url at the identity provider.\n- Links already sent keep the old address and stop working: 1 login links.\n- Installed home-screen apps and bookmarks keep the old address.",
+                "hint": "Re-run with --yes to confirm.",
+                "retryable": false
+            }
+        ]
+    }
+}

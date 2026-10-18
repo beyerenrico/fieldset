@@ -47,10 +47,10 @@
                 {
                     "key": "disk",
                     "status": "ok",
-                    "summary": "165.5 GiB free.",
+                    "summary": "154.9 GiB free.",
                     "hint": null,
                     "details": {
-                        "free_gib": 165.5,
+                        "free_gib": 154.9,
                         "path": "<work>/fsa-test-j12-ae5"
                     }
                 },
@@ -118,19 +118,24 @@
                 {
                     "key": "ports",
                     "status": "ok",
-                    "summary": "App on 127.0.0.1:8082, mail catcher UI on 127.0.0.1:8026 (in use: 8080, 8081, 8025).",
+                    "summary": "Ports 80 and 443 are free for the edge.",
                     "hint": null,
                     "details": {
                         "ports": {
-                            "app": 8082,
-                            "mail_ui": 8026
+                            "http": 80,
+                            "https": 443
                         },
-                        "taken": [
-                            8080,
-                            8081,
-                            8025
-                        ]
+                        "taken": [],
+                        "rootless": false,
+                        "ipv6": false
                     }
+                },
+                {
+                    "key": "proxy",
+                    "status": "skipped",
+                    "summary": "Not in proxy mode.",
+                    "hint": null,
+                    "details": []
                 }
             ]
         },
@@ -146,7 +151,7 @@
         ]
     },
     "image_pulls": [
-        "<registry>/beyerenrico/form-schema-app@sha256:8af11717d1b276b329b5f7bb2738190b49bb97308d25f2b6a6c8d3bd20d179de"
+        "<registry>/beyerenrico/form-schema-app@sha256:229aeed8504ee50ec6a00c3a624f273f3bca2720a4026c46f05c891007b15254"
     ],
     "service_starts": []
 }

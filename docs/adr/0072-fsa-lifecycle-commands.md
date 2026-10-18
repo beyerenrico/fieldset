@@ -1,6 +1,7 @@
 # 0072: fsa lifecycle commands for local mode: install phases, resume, ports, doctor, smoke
 - Status: accepted; amended 2026-10-18 at the M9 gate (exit codes, ports check, lock heartbeat, sign-in link
-  delivery); the uninstall paragraph is superseded by ADR 0073
+  delivery); the uninstall paragraph is superseded by ADR 0073; amended 2026-10-18 at the M10 gate by ADR 0078
+  (repeated install flags, `--trusted-proxy` match, ports on a shared proxy network, privileged-port rule)
 - Date: 2026-10-18
 
 ## Context
@@ -51,6 +52,12 @@ Postgres keeps its first password.
   installation → `changed: false`, no Docker call at all (AE3); any different explicit flag → exit 2
   `use_config_set`. Omitted flags never conflict, and nothing is prompted. The check is repeated once the lock is
   held, so an install that waited for a concurrent one to finish also changes nothing.
+  (Amended 2026-10-18 by ADR 0078: `use_config_set` lists `data.flags: [{flag, key|null}]`, the `fsa config set` key
+  for each differing flag, and says plainly that proxy mode cannot be entered or re-wired on an installed instance:
+  `fsa uninstall` and a fresh install, with the data carried over only from 2.0.0-rc.1 (`--from-backup`);
+  `fsa uninstall --keep-backups` writes a final backup first. `--trusted-proxy` matches the trusted proxy by
+  container name, trusted address or ID prefix (12+ hex characters, one read-only network inspect), as
+  `config set trusted-proxy` resolves it.)
 - If `app:install` finds an organization already there (`already_installed`, e.g. a resumed install after a
   one-off that timed out after committing), the result warns `app_already_installed`: the org and owner flags of
   this run were not applied.
@@ -80,6 +87,13 @@ resume or a repeated install never probes its own ports again.
 `ports` empty when none was found. `fsa doctor` on an instance does not probe a port that the project's own
 running container publishes (`app`, `mailpit` per `compose ps`), so a running instance no longer reports its
 own ports as taken.)
+(Amended 2026-10-18 by ADR 0075 and ADR 0076: in domain mode the check probes 80 and 443 for the edge
+(`EdgePorts`), and `details` is `{ports: {http, https}, taken, rootless}`. In proxy mode on a shared network the app
+publishes no port, so `ports` has no `app` entry.)
+(Amended 2026-10-18 by ADR 0078: an install on a shared proxy network chooses only the catcher UI's loopback port,
+so a taken 8080–8099 no longer stops it. A refused probe counts as `privileged_ports` only in RootlessKit's wording
+(`privileged port`, `ip_unprivileged_port_start`, `rootlesskit`) or as "permission denied" on a host-wide probe
+below 1024; any other refusal is `port_probe_failed`.)
 
 **Doctor checks** (`Doctor\Checks`, in this order; results in the shape of the platform's `HealthResult` plus a
 hint; probes behind `DoctorProbes` and `PortProbe`): `docker` (Engine ≥ 24.0, Compose ≥ 2.24; too old is exit 10),
@@ -102,6 +116,9 @@ install with `--domain` runs the whole doctor phase (AE5: exit 3 before any serv
 the cosign image, which install.sh already pulled) and, when it passes, stops with exit 2 `unsupported_mode`.
 Other later flags (`--behind-proxy`, `--url`, `--phone-https`, `--demo`, `--encrypt`, `--from-backup`) are
 recognised and refused with exit 2 `unsupported_option`.
+(Superseded 2026-10-18: `--domain` installs domain mode (ADR 0075), and `--behind-proxy` with `--url` installs
+proxy mode (ADR 0076). Neither stops with `unsupported_mode` or `unsupported_option` any more; the other later
+flags are still refused with `unsupported_option`.)
 
 **Smoke path.** The ops container is not on the instance's networks, and on Docker Desktop a published port is
 reachable only on the Mac side, so the smoke test runs `curl` from the app image in a throwaway container joined

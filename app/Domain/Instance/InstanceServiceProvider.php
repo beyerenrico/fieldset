@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance;
 
+use App\Domain\Instance\Console\ConfigCommand;
 use App\Domain\Instance\Console\DoctorCommand;
 use App\Domain\Instance\Console\InstallCommand;
 use App\Domain\Instance\Console\LoginLinkCommand;
@@ -34,7 +35,7 @@ final class InstanceServiceProvider extends ServiceProvider
     /** @var list<class-string> */
     public const array COMMANDS = [
         InstallCommand::class, DoctorCommand::class, StatusCommand::class, LogsCommand::class,
-        VersionCommand::class, UninstallCommand::class, LoginLinkCommand::class,
+        VersionCommand::class, UninstallCommand::class, LoginLinkCommand::class, ConfigCommand::class,
     ];
 
     public function register(): void

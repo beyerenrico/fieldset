@@ -48,6 +48,21 @@ fsa_file_flag_mode() { # sets fsa_mode: rw for output paths, ro for input paths,
 	esac
 }
 
+# Every value-taking option of the fsa:* commands plus install's --version alias, so that a flag before the command
+# keeps its value (`fsa --behind-proxy traefik install`); ShimScriptTest keeps it in step with the commands.
+fsa_value_flags='--acme-ca --acme-ca-root-file --acme-email --behind-proxy --dir --domain --from-backup --locale --org
+--orphans --owner-email --owner-name --phone-https --port --proxy-network --release --secrets-file --since --tail
+--trusted-proxy --url --version'
+
+fsa_takes_value() { # <flag>: true for a value-taking flag written without =value (dir, file-path or listed flags)
+	fsa_file_flag_mode "$1"
+	[ -z "$fsa_mode" ] || return 0
+	for fsa_flag in $fsa_value_flags; do
+		[ "$fsa_flag" != "$1" ] || return 0
+	done
+	return 1
+}
+
 fsa_find_command() { # sets fsa_command/fsa_found (first argument before -- that is no flag or flag value) and fsa_json
 	fsa_command='' fsa_found=0 fsa_json=0 fsa_skip=0
 	for fsa_arg in "$@"; do
@@ -59,9 +74,7 @@ fsa_find_command() { # sets fsa_command/fsa_found (first argument before -- that
 		--) break ;;
 		--json) fsa_json=1 ;;
 		--*=*) ;;
-		-*)
-			fsa_file_flag_mode "$fsa_arg"
-			if [ "$fsa_found" = 0 ] && { [ "$fsa_arg" = --dir ] || [ -n "$fsa_mode" ]; }; then fsa_skip=1; fi ;;
+		-*) if [ "$fsa_found" = 0 ] && fsa_takes_value "$fsa_arg"; then fsa_skip=1; fi ;;
 		*) [ "$fsa_found" = 1 ] || { fsa_command=$fsa_arg && fsa_found=1; } ;;
 		esac
 	done
@@ -342,9 +355,10 @@ fsa_run_container() { # <fsa args…>: the ops container (ADR 0070); returns its
 	set +f
 	IFS=$fsa_old_ifs
 	[ -z "$fsa_group" ] || set -- --group-add "$fsa_group" "$@"
+	# FSA_TEST_DNS: fixed DNS answers for the doctor, honoured only by release-harness images (ADR 0075).
 	for fsa_var in FSA_LAUNCHER FSA_TTY FSA_HOST_UID FSA_HOST_GID FSA_HOST_OS FSA_INSTANCE_DIR FSA_LAN_ADDRESSES FSA_DESKTOP \
 		FSA_TZ FSA_DOCKER_RUNTIME FSA_CONTAINER_UID FSA_DOCKER_SOCKET FSA_NONCE FSA_MOUNTS FSA_OPEN_URL_FILE \
-		FSA_TRUST_KEY FSA_REGISTRY FSA_RELEASE_URL FSA_RELEASE_MANIFEST DOCKER_DEFAULT_PLATFORM; do
+		FSA_TRUST_KEY FSA_REGISTRY FSA_RELEASE_URL FSA_RELEASE_MANIFEST DOCKER_DEFAULT_PLATFORM FSA_TEST_DNS; do
 		set -- -e "$fsa_var" "$@"
 	done
 	# HOME and DOCKER_CONFIG on a tmpfs only this container sees: nothing on the host can plant a Docker CLI plugin
@@ -399,6 +413,13 @@ fsa_run() { # <instance dir> <image> <fsa command> [args...]: runs it in an ops 
 		fsa_file_flag_mode "$fsa_name"
 		if [ "$fsa_name" != --dir ] && [ -z "$fsa_mode" ]; then
 			set -- "$@" "$fsa_arg"
+			# Before the command, the value of a value-taking flag is no command candidate: keep it with its flag.
+			if [ "$fsa_found" = 0 ] && [ "$fsa_name" = "$fsa_arg" ] && [ "$fsa_n" -gt 0 ] && fsa_takes_value "$fsa_name"; then
+				fsa_arg=$1
+				shift
+				fsa_n=$((fsa_n - 1))
+				set -- "$@" "$fsa_arg"
+			fi
 			continue
 		fi
 		if [ "$fsa_name" = "$fsa_arg" ]; then

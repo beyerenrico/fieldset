@@ -66,6 +66,7 @@ return [
             'mail' => 'E-Mail-Versand',
             'scheduler' => 'Zeitplaner',
             'disk' => 'Speicherplatz',
+            'runtime' => 'Instanz-Laufzeit (fsa)',
         ],
         'statuses' => [
             'ok' => 'OK',
@@ -113,6 +114,20 @@ return [
             'free' => 'Frei',
             'total' => 'Gesamt',
             'percent_free' => ':percent % frei auf dem Speicher-Volume.',
+        ],
+        'runtime' => [
+            'not_configured' => 'Keine fsa-Instanz: die Adresse kommt aus APP_URL.',
+            'ok' => 'Die Laufzeitdatei ist aktuell.',
+            'last_good' => 'Die Laufzeitdatei ist unbrauchbar; der letzte gültige Stand bleibt in Kraft.',
+            'fallback' => 'Die Laufzeitdatei ist unbrauchbar und es wurde noch kein gültiger Stand gelesen: APP_URL gilt und die Betriebssperre gilt als aktiv.',
+            'url' => 'Öffentliche URL',
+            'tunnel' => 'Tunnel',
+            'tunnel_expires' => 'Tunnel läuft ab',
+            'tunnel_expired' => ':host (abgelaufen)',
+            'gate' => 'Betriebssperre',
+            'gate_raised' => 'aktiv (:operation)',
+            'gate_lowered' => 'aus',
+            'problem' => 'Problem',
         ],
     ],
 ];

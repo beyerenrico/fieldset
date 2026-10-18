@@ -13,6 +13,7 @@ use App\Domain\Instance\Docker\DockerResource;
 use App\Domain\Instance\Docker\DockerVersions;
 use App\Domain\Instance\Docker\ImageInfo;
 use App\Domain\Instance\Docker\Labels;
+use App\Domain\Instance\Docker\NetworkInfo;
 use App\Domain\Instance\Docker\ProcessOutcome;
 use Closure;
 use Throwable;
@@ -36,16 +37,28 @@ final class RecordingDockerGateway implements DockerGateway
     /** @var list<DockerResource> */
     public array $resources = [];
 
+    /** @var array<string, NetworkInfo> networks `inspectNetwork` reports, by name */
+    public array $networkDetails = [];
+
+    /** Answers inspectNetwork for names not in `networkDetails` (e.g. a project network named after a random UUID). */
+    public ?Closure $networkResponder = null;
+
     /** @var array<string, list<ProcessOutcome>> queued outcomes for composeRun / runContainer */
     public array $outcomes = [];
 
     /** @var array<string, Throwable> */
     public array $failures = [];
 
+    /** @var array<string, Closure(array<string, mixed>): void> runs on every call of the method; may throw (e.g. fail only the second compose up) */
+    public array $onCall = [];
+
     /** @var array<string, mixed> */
     public array $config = ['services' => []];
 
     public string $logs = '';
+
+    /** @var list<string> what networkSubnets() answers (subnets of the engine's networks) */
+    public array $subnets = ['172.17.0.0/16'];
 
     /** Runs before each runContainer outcome, e.g. to change files the way a concurrent process would. */
     public ?Closure $beforeRun = null;
@@ -114,6 +127,13 @@ final class RecordingDockerGateway implements DockerGateway
     public function withImage(string $reference, ImageInfo $info): self
     {
         $this->images[$reference] = $info;
+
+        return $this;
+    }
+
+    public function withNetwork(NetworkInfo $network): self
+    {
+        $this->networkDetails[$network->name] = $network;
 
         return $this;
     }
@@ -276,6 +296,13 @@ final class RecordingDockerGateway implements DockerGateway
         return $this->containers[$id] ?? null;
     }
 
+    public function inspectNetwork(string $name): ?NetworkInfo
+    {
+        $this->record(__FUNCTION__, ['name' => $name]);
+
+        return $this->networkDetails[$name] ?? ($this->networkResponder instanceof Closure ? ($this->networkResponder)($name) : null);
+    }
+
     public function containers(array $labels, bool $all = true): array
     {
         $this->record(__FUNCTION__, ['labels' => $labels, 'all' => $all]);
@@ -295,6 +322,13 @@ final class RecordingDockerGateway implements DockerGateway
         $this->record(__FUNCTION__, ['labels' => $labels]);
 
         return $this->resourcesOf(DockerResource::NETWORK, $labels);
+    }
+
+    public function networkSubnets(): array
+    {
+        $this->record(__FUNCTION__);
+
+        return $this->subnets;
     }
 
     public function runContainer(ContainerSpec $spec, ?string $input = null, ?float $timeout = null): ProcessOutcome
@@ -330,6 +364,9 @@ final class RecordingDockerGateway implements DockerGateway
     private function record(string $method, array $args = []): void
     {
         $this->calls[] = ['method' => $method, 'args' => $args];
+        if (isset($this->onCall[$method])) {
+            ($this->onCall[$method])($args);
+        }
         if (isset($this->failures[$method])) {
             throw $this->failures[$method];
         }

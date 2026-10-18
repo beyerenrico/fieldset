@@ -38,7 +38,8 @@ file is assembled from strings.
   - U8, U14 and U16 add a definition to `defaultDefinitions()`;
   - U9 branches on `RenderContext::mode()` inside `AppRoles::ports()` and `MailpitService`;
   - the unit that renders a mode lifts `ComposeRenderer::MODES`. Until then, domain and proxy exit 2 with
-    `unsupported_mode`.
+    `unsupported_mode`. (Superseded 2026-10-18: `MODES` is local, domain and proxy; domain mode by ADR 0075,
+    proxy mode by ADR 0076.)
 - `ONE_OFF_SERVICE = app`: one-offs run the app service, so they get its env file and its runtime mount.
 
 **Env split (KTD7).** Each env file holds the service's whole environment, and the compose file holds none.
@@ -48,7 +49,8 @@ file is assembled from strings.
 | postgres | its own POSTGRES_USER/POSTGRES_PASSWORD |
 | redis (Valkey) | its own password: `VALKEY_EXTRA_FLAGS=--requirepass …`, `REDISCLI_AUTH`, `VALKEYCLI_AUTH` |
 | mailpit | its own `MP_UI_AUTH=fsa:<password>` |
-| gotenberg, later edge and tunnel | none |
+| gotenberg, later the tunnel | none |
+| edge (amended 2026-10-18, ADR 0075) | capture mode only: `FSA_CATCHER_AUTHORIZATION=Basic …`, Mailpit's credential, which the edge injects towards Mailpit; none with SMTP |
 | backup (U16, defined by `ServiceEnvironments::backup()`, not rendered yet) | dump role `fsa_backup` and its password, `BACKUP_HMAC_KEY`, `BACKUP_AGE_RECIPIENTS` |
 
 - `BACKUP_HMAC_KEY` is `base64:` + HKDF-SHA256(raw APP_KEY, 32, info `form-schema-app backup hmac v1`). Changing
@@ -161,3 +163,11 @@ before a trailing newline, and `"host\n"` passed.
 - A Valkey image without `VALKEY_EXTRA_FLAGS` would start without a password. The app's AUTH would then fail
   loudly; it would not run open. The image is pinned by digest, and a manifest bump must keep this contract.
 - U7's manifest must use the image role keys above.
+
+## Amendment 2026-10-18: runtime fields for the app (U10, ADR 0074)
+`runtime.json` now carries `tunnel {hostname, expires_at, peer, admin}` (peer and admin null/false until U14) and
+`gate.smoke_token`. `raiseGate()` generates the token (64 hex) or validates a given one against the app's grammar
+and returns it; `lowerGate()` clears it; a re-render keeps it with the gate. The app reads the directory from
+`FSA_RUNTIME_PATH` through `config('instance.runtime_path')`. `SESSION_SECURE_COOKIE` stays in the app env only as
+a default; the runtime middleware sets Secure and `__Host-` per request host.
+

@@ -49,6 +49,23 @@ final class ComposeFixtures
         return $state->withSettings($settings);
     }
 
+    /** The proxy's address on the shared network in proxyState(). */
+    public const string PROXY_ADDRESS = '172.20.0.5';
+
+    /**
+     * A proxy-mode state (ADR 0076): traefik or caddy on the shared network `edge-net` with the proxy's address, or
+     * the `port` setup.
+     *
+     * @param  array<string, string|int|bool|null>  $settings
+     */
+    public static function proxyState(string $setup = 'traefik', string $url = 'https://forms.example.com', array $settings = []): InstanceState
+    {
+        $network = $setup === 'port' ? [] : ['proxy_network' => 'edge-net', 'proxy_container' => 'edge-proxy-1'];
+
+        return self::state()->withMode('proxy')->withUrl($url)
+            ->withSettings(['proxy' => $setup, 'trusted_proxies' => self::PROXY_ADDRESS, ...$network, ...$settings]);
+    }
+
     public static function secrets(): InstanceSecrets
     {
         return new InstanceSecrets(self::APP_KEY, self::DB_PASSWORD, self::VALKEY_PASSWORD, self::CATCHER_PASSWORD, self::BACKUP_DB_PASSWORD);

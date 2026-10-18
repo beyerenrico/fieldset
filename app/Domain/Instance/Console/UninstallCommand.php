@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Console;
 
+use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Lifecycle\Uninstaller;
 use App\Domain\Instance\Output\CommandResult;
+use App\Domain\Instance\State\InstanceSettings;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 
@@ -30,10 +32,32 @@ final class UninstallCommand extends FsaCommand
             return "Remove the stopped containers, volumes and networks labelled with installation {$orphans}?";
         }
         $root = $context->directory()->root;
-
-        return $this->option('keep-backups')
+        $prompt = $this->option('keep-backups')
             ? "Write a final backup into {$root}/backups/, then remove this instance with all its data (containers, volumes, networks) and every file in {$root} except backups/?"
             : "Remove this instance with all its data (containers, volumes, networks) and every file in {$root}, including backups/? No final backup is made (use --keep-backups for one).";
+        $notice = $this->certificateNotice($context);
+
+        return $notice === null ? $prompt : $notice.' '.$prompt;
+    }
+
+    /**
+     * When the instance holds certificates (its edge volume exists, ADR 0078), the prompt warns about the CA's
+     * duplicate-certificate limit first (plan Risks, ADR 0075). If Docker cannot be asked, domain mode decides.
+     */
+    private function certificateNotice(FsaContext $context): ?string
+    {
+        try {
+            return $this->laravel->make(Uninstaller::class)->certificateNotice();
+        } catch (InstanceException) {
+            try {
+                $directory = $context->directory();
+                $domain = $directory->hasState() ? InstanceSettings::of($directory->state())->domain() : null;
+
+                return $domain === null ? null : Uninstaller::certificateWarning($domain);
+            } catch (InstanceException) {
+                return null;
+            }
+        }
     }
 
     protected function perform(FsaContext $context): CommandResult

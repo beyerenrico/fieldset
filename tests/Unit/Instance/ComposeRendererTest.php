@@ -6,11 +6,11 @@ use App\Domain\Instance\Compose\ComposeRenderer;
 use App\Domain\Instance\Compose\RenderContext;
 use App\Domain\Instance\Compose\ResourceBudget;
 use App\Domain\Instance\Compose\ServiceEnvironments;
+use App\Domain\Instance\Compose\Services\AppRoles;
 use App\Domain\Instance\Compose\ServiceSpec;
 use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\Docker\Labels;
 use App\Domain\Instance\InstanceException;
-use App\Domain\Instance\Output\ExitCode;
 use App\Domain\Instance\Output\InvalidInput;
 use App\Domain\Instance\State\EnvFiles;
 use App\Domain\Instance\State\InstanceState;
@@ -238,6 +238,18 @@ it('mounts the runtime directory read-only into app, queue and scheduler only', 
     }
 });
 
+it('lets queue and scheduler finish running jobs on a stop: a grace period above the longest job timeout', function (): void {
+    $rendered = ComposeFixtures::render();
+    $longest = max(array_column(config('horizon.defaults'), 'timeout'));
+
+    foreach (['queue', 'scheduler'] as $role) {
+        expect($rendered->service($role)['stop_grace_period'])->toBe('100s');
+    }
+    expect(AppRoles::STOP_GRACE_SECONDS)->toBeGreaterThan($longest)
+        ->and(AppRoles::STOP_GRACE_SECONDS)->toBeGreaterThan((int) config('reports.exports.timeout'))
+        ->and($rendered->service('app'))->not->toHaveKey('stop_grace_period');
+});
+
 it('gives each service only its own env file and no inline environment', function (): void {
     $rendered = ComposeFixtures::render();
 
@@ -298,16 +310,9 @@ it('sizes Horizon, FrankenPHP, Gotenberg, Postgres and Valkey from the budget', 
         ->and($rendered->service('redis')['command'])->toBe(['valkey-server', '--maxmemory', $budget->valkeyMaxMemory(), '--maxmemory-policy', 'volatile-lru']);
 })->with(ResourceBudget::SIZES);
 
-it('renders local mode only until the edge and proxy units extend it', function (string $mode): void {
-    $state = ComposeFixtures::state()->withMode($mode)->withUrl('https://forms.example.com');
-
-    try {
-        (new ComposeRenderer)->render($state, ComposeFixtures::secrets());
-        $this->fail('rendering should fail');
-    } catch (InstanceException $e) {
-        expect($e->errorCode)->toBe('unsupported_mode')->and($e->exitCode)->toBe(ExitCode::InvalidInput);
-    }
-})->with(['domain', 'proxy']);
+it('renders every mode an instance state can have (local, domain with U8, proxy with U9)', function (): void {
+    expect(ComposeRenderer::MODES)->toEqualCanonicalizing(InstanceState::MODES);
+});
 
 it('writes the compose file, 0600 env files and the runtime directory, and drops the env files of removed services', function (): void {
     $directory = TemporaryInstance::directory();

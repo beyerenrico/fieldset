@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Compose;
 
+use App\Domain\Instance\Runtime\CatcherRoute;
 use App\Domain\Instance\State\InstanceSecrets;
 use App\Domain\Instance\State\InvalidState;
 use App\Domain\Instance\State\RuntimeWriter;
@@ -11,8 +12,9 @@ use App\Domain\Instance\State\RuntimeWriter;
 /**
  * The env split (KTD7): what each service's env file holds. Only the app roles (app, queue, scheduler, and the
  * one-offs, which run the app service) get APP_KEY and the full database credentials; Postgres gets its own
- * superuser credentials and Valkey and Mailpit only their own password. Gotenberg, and later the edge and the
- * tunnel, get no secret at all. The backup service (U16) gets the read-only dump role, a key derived from APP_KEY
+ * superuser credentials and Valkey and Mailpit only their own password. The edge gets only the catcher's Basic
+ * credential it injects towards Mailpit (domain mode, capture mail; ADR 0075). Gotenberg, and later the tunnel, get
+ * no secret at all. The backup service (U16) gets the read-only dump role, a key derived from APP_KEY
  * and the age recipients: `backup()` defines that env now, the service itself is rendered in U16.
  */
 final readonly class ServiceEnvironments
@@ -41,6 +43,7 @@ final readonly class ServiceEnvironments
             ...$this->database($this->context->secrets->dbPassword, $this->context->settings->dbUsername()),
             ...$this->cache(),
             ...$this->mail(),
+            ...$this->trustedProxies(),
             ...match ($role) {
                 'app' => ['FRANKENPHP_CONFIG' => 'num_threads '.$budget->frankenphpThreads()],
                 'queue' => ['HORIZON_MAX_PROCESSES' => (string) $budget->horizonProcesses(), 'HORIZON_EXPORTS_PROCESSES' => (string) $budget->horizonExportsProcesses()],
@@ -87,7 +90,26 @@ final readonly class ServiceEnvironments
             'MP_MAX_MESSAGES' => (string) $this->context->budget->mailpitMaxMessages(),
             'MP_DATABASE' => self::MAILPIT_DATABASE,
             'MP_DISABLE_VERSION_CHECK' => 'true',
+            // Domain mode: the UI lives under /_mail/ behind the edge (LEARNINGS 103: no prefix stripping).
+            ...($this->context->mode() === 'domain' ? ['MP_WEBROOT' => CatcherRoute::MAIL_PATH] : []),
         ];
+    }
+
+    /**
+     * The edge (ADR 0075): in capture mode only the `Authorization` value it injects towards Mailpit, so the browser
+     * meets one auth layer (the /platform session through forward_auth) while Mailpit keeps its own credentials
+     * (R66). Nothing else: the Caddyfile carries the rest and holds no secret.
+     *
+     * @return array<string, string>
+     */
+    public function edge(): array
+    {
+        if (! $this->context->settings->capturesMail()) {
+            return [];
+        }
+        $credentials = InstanceSecrets::CATCHER_USER.':'.$this->context->secrets->catcherPassword;
+
+        return [CaddyfileRenderer::AUTHORIZATION_ENV => 'Basic '.base64_encode($credentials)];
     }
 
     /** @return array<string, string> the backup service's env (KTD7, KTD15), rendered with the service in U16 */
@@ -122,7 +144,8 @@ final readonly class ServiceEnvironments
             'APP_URL' => $url,
             'APP_ALLOW_REGISTRATION' => 'false',
             'LOG_LEVEL' => 'info',
-            // Until U10 resolves the scheme per request: Secure cookies would break sign-in over plain http.
+            // Default only: the runtime middleware sets Secure (and `__Host-`) per request from the scheme it resolves
+            // for the request host, so a plain-http loopback request keeps working in an https mode (ADR 0074).
             'SESSION_SECURE_COOKIE' => str_starts_with($url, 'https://') ? 'true' : 'false',
             'SESSION_DRIVER' => 'database',
             'SESSION_LIFETIME' => '43200',
@@ -130,8 +153,28 @@ final readonly class ServiceEnvironments
             'GOTENBERG_URL' => 'http://gotenberg:3000',
             'SSO_ALLOW_INSECURE_IDP' => 'false',
             'SSO_DNS_DRIVER' => 'dns',
+            // The read-only runtime mount (KTD11): config('instance.runtime_path'), read by App\Domain\Instance\Runtime.
             'FSA_RUNTIME_PATH' => RuntimeWriter::CONTAINER_PATH,
         ];
+    }
+
+    /**
+     * TRUSTED_PROXIES: exactly one address the app accepts X-Forwarded-* from, never a range a neighbouring container
+     * could send from: the edge's fixed address in domain mode (KTD10, ADR 0075), the proxy's own address in proxy
+     * mode (R17, ADR 0076), none in local mode.
+     *
+     * @return array<string, string>
+     */
+    private function trustedProxies(): array
+    {
+        $subnet = $this->context->settings->edgeSubnet();
+        $proxies = match ($this->context->mode()) {
+            'domain' => $subnet === null ? [] : [EdgeNetwork::edgeAddress($subnet)],
+            'proxy' => $this->context->settings->trustedProxies(),
+            default => [],
+        };
+
+        return $proxies === [] ? [] : ['TRUSTED_PROXIES' => implode(',', $proxies)];
     }
 
     /** @return array<string, string> */

@@ -8,15 +8,19 @@ use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\Docker\ContainerInfo;
 use App\Domain\Instance\Docker\DockerCommandFailed;
 use App\Domain\Instance\Docker\DockerGateway;
+use App\Domain\Instance\Doctor\Checks\ProxyAddressCheck;
 use App\Domain\Instance\Doctor\DoctorProbes;
 use App\Domain\Instance\Install\InstallRecord;
+use App\Domain\Instance\Install\ProxySetup;
 use App\Domain\Instance\Operations\InstanceLock;
 use App\Domain\Instance\Operations\JournalRecord;
 use App\Domain\Instance\Operations\OperationJournal;
+use App\Domain\Instance\Operations\OperationUnfinished;
 use App\Domain\Instance\Output\CommandResult;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
+use Throwable;
 
 /**
  * What `fsa status` reports (§7, R45, ADR 0056). Read-only: no file is written and no service is touched; the
@@ -32,6 +36,7 @@ final readonly class StatusReport
         private InstanceLock $lock,
         private AppCommands $app,
         private DoctorProbes $probes,
+        private ProxySetup $proxySetup,
     ) {}
 
     public function build(): CommandResult
@@ -49,7 +54,9 @@ final readonly class StatusReport
         ];
         $result = $state instanceof InstanceState ? $this->instance($state, $data) : CommandResult::ok('status', [...$data, 'health' => 'not_installed']);
         if ($operation instanceof JournalRecord) {
-            return $result->withWarning('operation_unfinished', "`fsa {$operation->operation()}` stopped at phase ".($operation->lastStartedPhase() ?? 'none').'.', "Run `fsa {$operation->operation()}` again with the same flags to resume it.");
+            $command = OperationUnfinished::commandLine($operation);
+
+            return $result->withWarning('operation_unfinished', "`{$command}` stopped at phase ".($operation->lastStartedPhase() ?? 'none').'.', OperationUnfinished::hint($operation));
         }
 
         return $result;
@@ -61,13 +68,18 @@ final readonly class StatusReport
         $settings = InstanceSettings::of($state);
         $services = $this->services($state);
         $health = $this->health($services);
+        $proxy = $this->proxy($state);
         $data = [...$data,
             'version' => $state->version(), 'mode' => $state->mode(), 'url' => $settings->instanceUrl(), 'project' => $state->project(),
-            'port' => $settings->port(), 'health' => $health, 'services' => $services,
-            'mail' => ['mode' => $settings->capturesMail() ? 'capture' : 'smtp', 'catcher_url' => $settings->capturesMail() ? 'http://localhost:'.$settings->mailUiPort() : null],
+            'port' => $settings->publishesAppPort() ? $settings->port() : null, 'health' => $health, 'services' => $services,
+            'mail' => ['mode' => $settings->capturesMail() ? 'capture' : 'smtp', 'catcher_url' => $settings->catcherUrl()],
+            'proxy' => $proxy,
         ];
         $links = $this->links($state, $services);
         $result = CommandResult::ok('status', [...$data, 'sign_in_links' => $links]);
+        if ($proxy !== null && $proxy['moved'] && $proxy['current'] !== null) {
+            $result = $result->withWarning(ProxyAddressCheck::WARNING, 'The app trusts '.implode(', ', $proxy['trusted']).' as its proxy, but the proxy is at '.$proxy['current'].' now.', 'Run `fsa config set trusted-proxy auto`.');
+        }
         if (! in_array($health, ['ok', 'not_started'], true)) {
             $bad = array_keys(array_filter($services, static fn (array $service): bool => $service['state'] !== 'running' || ! in_array($service['health'], [null, 'healthy'], true)));
             $result = $result->withWarning('services_unhealthy', 'Not running or unhealthy: '.implode(', ', $bad).'.', 'Read `fsa logs <service>`; `fsa doctor --post` checks the whole stack.');
@@ -76,6 +88,23 @@ final readonly class StatusReport
         return $links === null && $data['installed'] === true && $health === 'ok'
             ? $result->withWarning('sign_in_links_unavailable', 'The list of unused sign-in links could not be read.')
             : $result;
+    }
+
+    /**
+     * Proxy mode: the setup, the trusted address and where the proxy is now (read-only, best effort; ADR 0078).
+     *
+     * @return array{setup: string, network: string|null, container: string|null, trusted: list<string>, current: string|null, moved: bool}|null
+     */
+    private function proxy(InstanceState $state): ?array
+    {
+        try {
+            return $this->proxySetup->drift($state, ComposeProject::forInstance($state, $this->directory));
+        } catch (Throwable) {
+            $settings = InstanceSettings::of($state);
+            $setup = $settings->proxy();
+
+            return $setup === null ? null : ['setup' => $setup, 'network' => $settings->proxyNetwork(), 'container' => $settings->proxyContainer(), 'trusted' => $settings->trustedProxies(), 'current' => null, 'moved' => false];
+        }
     }
 
     /** @return array<string, array{state: string, health: string|null}> */
@@ -141,6 +170,9 @@ final readonly class StatusReport
     /** @return array<string, mixed> */
     private function operation(JournalRecord $record): array
     {
-        return ['operation' => $record->operation(), 'last_phase' => $record->lastStartedPhase(), 'last_completed_phase' => $record->lastCompletedPhase(), 'started_at' => $record->startedAt()];
+        return [
+            'operation' => $record->operation(), 'last_phase' => $record->lastStartedPhase(), 'last_completed_phase' => $record->lastCompletedPhase(), 'started_at' => $record->startedAt(),
+            'command' => OperationUnfinished::commandLine($record), 'options' => OperationUnfinished::options($record),
+        ];
     }
 }

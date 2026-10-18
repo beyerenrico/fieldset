@@ -35,6 +35,17 @@ final readonly class InstanceJourney
         return $this->run(['/bin/sh', $this->release->directory.'/install.sh', '--dir', $dir, '--version', (string) $this->release->version, ...$flags], $env);
     }
 
+    /**
+     * The install as a process not yet started, for journeys that act while it runs (J2 attaches the edge to the
+     * harness ACME network as soon as Compose creates it).
+     *
+     * @param  list<string>  $flags
+     */
+    public function installProcess(string $dir, array $flags, array $env = []): Process
+    {
+        return $this->process(['/bin/sh', $this->release->directory.'/install.sh', '--dir', $dir, '--version', (string) $this->release->version, ...$flags], $env);
+    }
+
     /** @param  list<string>  $arguments */
     public function fsa(string $dir, array $arguments, array $env = []): Process
     {
@@ -118,26 +129,43 @@ final readonly class InstanceJourney
         return new Client(['base_uri' => "http://localhost:{$port}", 'http_errors' => false, 'allow_redirects' => false, 'cookies' => true, 'timeout' => 30]);
     }
 
+    /** The milestone whose evidence directory journeys write to: FSA_EVIDENCE_MILESTONE (e.g. M10), default M9. */
+    public static function evidenceMilestone(): string
+    {
+        $milestone = getenv('FSA_EVIDENCE_MILESTONE');
+
+        return is_string($milestone) && preg_match('/^M\d{1,2}$/D', $milestone) === 1 ? $milestone : 'M9';
+    }
+
     /**
-     * Writes a JSON transcript for the milestone evidence, with the workspace path and the registry port replaced.
+     * Writes a JSON transcript for the milestone evidence, with the workspace path and the registry port replaced and
+     * secrets redacted (EvidenceRedactor: cookie values, XSRF tokens, CSP nonces, sign-in links (R50), signatures,
+     * tokens), even those of a removed test instance: the evidence is committed.
      *
      * @param  array<string, mixed>  $transcript
      */
-    public function evidence(string $name, array $transcript): void
+    public function evidence(string $name, array $transcript, ?string $milestone = null): void
     {
-        $directory = TestImage::repository().'/docs/agent/milestones/evidence/M9';
+        $directory = TestImage::repository().'/docs/agent/milestones/evidence/'.($milestone ?? self::evidenceMilestone());
         if (! is_dir($directory)) {
             mkdir($directory, 0755, true);
         }
-        $json = json_encode($transcript, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+        $json = json_encode(EvidenceRedactor::transcript($transcript), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
         $json = str_replace([$this->work, $this->harness->registry(), $this->harness->directory], ['<work>', '<registry>', '<harness>'], $json);
-        // One-time sign-in links never go into evidence, even expired ones of a removed test instance (R50).
-        $json = (string) preg_replace('/login-link#[A-Za-z0-9._~-]+/', 'login-link#<redacted>', $json);
         file_put_contents($directory.'/'.$name, $json."\n");
     }
 
     /** @param  list<string>  $command */
     private function run(array $command, array $env): Process
+    {
+        $process = $this->process($command, $env);
+        $process->run();
+
+        return $process;
+    }
+
+    /** @param  list<string>  $command */
+    private function process(array $command, array $env): Process
     {
         $process = new Process($command, $this->work, [
             'FSA_RELEASE_URL' => $this->harness->releaseUrl(),
@@ -148,7 +176,6 @@ final readonly class InstanceJourney
             ...$env,
         ]);
         $process->setTimeout(1800);
-        $process->run();
 
         return $process;
     }

@@ -19,6 +19,8 @@ final readonly class ServiceSpec
      * @param  array<string, string>  $environment  the whole environment, written to env/<name>.env (0600)
      * @param  array<string, array<string, mixed>>  $volumes  top-level named volumes by name
      * @param  array<string, array<string, mixed>>  $networks  top-level networks by name (default is implicit)
+     * @param  array<string, string>  $files  instance-directory files the service reads (path => contents, no secret;
+     *                                        written 0644 in 0755 folders, e.g. the edge's Caddyfile)
      */
     public function __construct(
         public string $name,
@@ -26,5 +28,6 @@ final readonly class ServiceSpec
         #[SensitiveParameter] public array $environment = [],
         public array $volumes = [],
         public array $networks = [],
+        public array $files = [],
     ) {}
 }

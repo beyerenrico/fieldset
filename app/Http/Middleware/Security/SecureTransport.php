@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware\Security;
 
+use App\Domain\Instance\Runtime\ResolvedRequest;
 use Illuminate\Http\Request;
 
 /**
@@ -12,6 +13,10 @@ use Illuminate\Http\Request;
  * HTTPS is expected when the request is secure — behind a TLS-terminating proxy listed in
  * TRUSTED_PROXIES (config trustedproxy.proxies) that includes its X-Forwarded-Proto, since TrustProxies
  * runs before this middleware — or when APP_URL is https, a safety net for a proxy nobody configured.
+ *
+ * On an `fsa` instance the runtime middleware resolves it per request host instead (ADR 0074): the request is
+ * secure, or the URL configured for its host is https; loopback over plain http never counts, so a localhost
+ * request in the same browser session gets no HSTS while the domain or tunnel host does.
  *
  * Settings (defaults in code): security.hsts.enabled (null = automatic, true, false),
  * security.hsts.max_age (one year), security.hsts.include_subdomains, security.hsts.preload.
@@ -22,6 +27,11 @@ final class SecureTransport
 
     public static function expected(Request $request): bool
     {
+        $resolved = ResolvedRequest::of($request);
+        if ($resolved instanceof ResolvedRequest) {
+            return $resolved->https;
+        }
+
         return $request->isSecure() || str_starts_with(strtolower((string) config('app.url')), 'https://');
     }
 

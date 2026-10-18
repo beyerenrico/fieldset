@@ -152,6 +152,25 @@ final readonly class JournalRecord
         return array_any($this->phases(), static fn (array $entry): bool => $entry['name'] === $phase && $entry['status'] === 'completed');
     }
 
+    /** Whether any attempt of the phase started, whatever became of it (completed, failed, or cut off). */
+    public function hasStarted(string $phase): bool
+    {
+        return array_any($this->phases(), static fn (array $entry): bool => $entry['name'] === $phase);
+    }
+
+    /**
+     * The data of the last attempt of a phase, whatever its status: what was known when it started, plus its result
+     * if it completed (e.g. the failure a `config set` revert was undoing).
+     *
+     * @return array<string, mixed>
+     */
+    public function lastAttemptData(string $phase): array
+    {
+        $attempts = array_filter($this->phases(), static fn (array $entry): bool => $entry['name'] === $phase);
+
+        return $attempts === [] ? [] : $attempts[array_key_last($attempts)]['data'];
+    }
+
     /**
      * What a resumed run needs: the context, then each phase's data in order (later values win), then the
      * result data of a finished operation.

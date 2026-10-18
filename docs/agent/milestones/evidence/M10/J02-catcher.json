@@ -1,0 +1,20 @@
+{
+    "without_session": {
+        "navigate": [
+            302,
+            "https://fsa-test-j02.test/platform/login"
+        ],
+        "xhr": 401,
+        "auth_endpoint_from_outside": 404
+    },
+    "operator_with_mfa": {
+        "ui": 200,
+        "api": 200,
+        "csp": [
+            "default-src 'self'; script-src 'nonce-<redacted>'; style-src * 'unsafe-inline'; frame-src 'self'; img-src * data: blob:; font-src * data:; media-src 'self'; connect-src 'self' ws: wss:; object-src 'none'; base-uri 'self';",
+            "frame-ancestors 'self'"
+        ],
+        "x_frame_options": "SAMEORIGIN"
+    },
+    "catcher_opened_audits": "1"
+}

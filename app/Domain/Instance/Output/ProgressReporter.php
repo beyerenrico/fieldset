@@ -8,8 +8,8 @@ use Carbon\CarbonImmutable;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * Progress on stderr (KTD3): with --json one NDJSON event per line `{ts, phase, level, message}`, otherwise a
- * readable line. Every message passes through the command's secret redactor, so the stream never carries a
+ * Progress on stderr (KTD3): with --json one NDJSON event per line `{ts, phase, level, message}` (plus optional
+ * numeric fields for long steps, ADR 0078), otherwise a readable line. Every message passes through the command's secret redactor, so the stream never carries a
  * secret (R50).
  */
 final readonly class ProgressReporter
@@ -41,11 +41,18 @@ final readonly class ProgressReporter
         $this->event($phase, self::ERROR, $message);
     }
 
-    public function event(string $phase, string $level, string $message): void
+    /**
+     * @param  array<string, int|string|null>  $fields  extra keys of the NDJSON event for long steps (ADR 0078):
+     *                                                  `max_seconds` on a phase start, `elapsed_seconds` on its end,
+     *                                                  `attempt`/`attempts` while waiting for a certificate
+     */
+    public function event(string $phase, string $level, string $message, array $fields = []): void
     {
         $message = $this->redactor->redactString($message);
         if ($this->json) {
-            $event = ['ts' => CarbonImmutable::now('UTC')->toIso8601ZuluString(), 'phase' => $phase, 'level' => $level, 'message' => $message];
+            /** @var array<string, int|string|null> $fields */
+            $fields = $this->redactor->redact(array_diff_key($fields, array_flip(['ts', 'phase', 'level', 'message'])));
+            $event = ['ts' => CarbonImmutable::now('UTC')->toIso8601ZuluString(), 'phase' => $phase, 'level' => $level, 'message' => $message, ...$fields];
             $this->stream->writeln(json_encode($event, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR), OutputInterface::OUTPUT_RAW);
 
             return;

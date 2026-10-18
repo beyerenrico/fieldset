@@ -177,3 +177,39 @@
   dated exceptions for third-party images (ADR 0071). DOCKER_DEFAULT_PLATFORM honoured: J1/J12 pass under amd64.
 - Gate: PHP 5560 (cov 95.41 %, Instance 98.15 %) / 5590 host, journeys 33/33 arm64 + J1/J12 amd64, E2E 79/79 ×2,
   static/JS/conformance/licenses green. alpha.1 built, signed, installed and uninstalled locally (599 s).
+
+## 2026-10-18 M10-T01 runtime state in the app (U10)
+- App\Domain\Instance\Runtime: strict runtime.json grammar, reader with mtime/inode/size cache, request-origin
+  URL root for allowed hosts, fail-closed gate with per-operation smoke token (internal network only, /up from
+  loopback exempt), tunnel peer path policy (allow-list in ADR 0074), expired tunnel 503, __Host- cookie,
+  JobProcessing listener, RuntimeCheck on /platform health. Full suite 5726/5726, Instance coverage 98.08 %.
+- Mailpit forward_auth spike: works with edge-injected Basic auth (LEARNINGS 103).
+
+## 2026-10-18 M10-T03 proxy mode and stack file (U9)
+- fsa install --behind-proxy traefik|caddy|port: only the app joins the external network, exactly one trusted
+  proxy IP (resolved via DockerGateway, never DNS; `--trusted-proxy`, `--proxy-network`), catcher on loopback.
+  `release:manifest --stack-file` renders an env-only stack file from the same pins (signed asset). ADR 0076.
+- J3 5/5 native (221 s) and amd64 emulated; J1 regression green; Instance coverage 98.21 %.
+
+## 2026-10-18 M10-T02 edge service and domain mode (U8)
+- Caddy edge (UID 65532, NET_BIND_SERVICE only, read-only root, fixed address on a /28 outside Docker's pool =
+  the app's only trusted proxy), CaddyfileRenderer, fsa install --domain with ACME flags (LE prod default,
+  --acme-staging, --acme-ca/-root), `/_mail/` behind forward_auth to /_fsa/catcher-auth (operator /platform
+  session with MFA, `platform.catcher_opened`), edge-injected Basic auth to Mailpit. ADR 0075.
+- J2 8/8 native (194 s) and amd64 emulated (pre-merge); J1+J2+J3 26/26 after the U9 merge; unit 1042 green.
+
+## 2026-10-18 M10-T04 fsa config (U11)
+- `fsa config show|set`: appliers for domain (+ ACME options), url, port, trusted-proxy, mode local, acme-email,
+  acme-ca; journaled snapshot→preflight→apply→verify→audit, revert on failure (`reverted:true`, exit 4; exit 8 if
+  the revert fails), `changed:false` without Docker calls, `--yes` for URL changes with SSO/signed-link impact
+  list, `instance.config_changed` audit via one-off. ADR 0077.
+- ConfigDomainSwitch 9/9 ×2 (local→domain 40 s, failed ACME reverts), J1/J2/J3 regressions green, full suite
+  6002/6002, Instance coverage 98.03 %.
+
+## 2026-10-18 M10-T05 gate M10 → 2.0.0-alpha.2
+- Five reviewers: 2 high (config cert wait without progress/interruption safety; exit 4 retryable for every
+  revert) fixed in ADR 0078 (PHP loop with NDJSON per attempt, signal handlers revert, exit 5 rolled_back), plus
+  ~30 mediums/lows (runtime URL scheme/port, edge headers, CA-root label, isolated migrations, launcher flags,
+  config safety, drift check) in ADR 0079 and amendments.
+- Gate: PHP 6089 (cov 95.55 %, Instance 97.77 %), journeys 62 native + J1/J2/J3/J12 amd64, E2E 79/79 ×2, static
+  green. alpha.2 built, signed, installed, uninstalled (LocalPreRelease 7/7). M11 broken down.

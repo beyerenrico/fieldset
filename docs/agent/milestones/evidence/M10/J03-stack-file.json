@@ -1,0 +1,11 @@
+{
+    "command": "docker compose --project-name fsa-test-stack-<id> --file compose.stack.yaml up --detach --wait (environment variables only: FSA_REGISTRY, APP_URL, APP_KEY, DB_PASSWORD, REDIS_PASSWORD, MAILPIT_UI_PASSWORD, APP_PORT, MAILPIT_UI_PORT)",
+    "exit_code": 0,
+    "seconds": 42.3,
+    "smoke": "200 200",
+    "published_up": 200,
+    "app_install": {
+        "exit_code": 0,
+        "status": "ok"
+    }
+}

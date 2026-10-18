@@ -10,13 +10,17 @@ namespace App\Domain\Instance\Doctor;
  */
 final readonly class CheckResult
 {
-    /** @param  array<string, mixed>  $details */
+    /**
+     * @param  array<string, mixed>  $details
+     * @param  string|null  $code  the warning code when it is more specific than `doctor_<key>` (e.g. `proxy_address_changed`)
+     */
     public function __construct(
         public string $key,
         public CheckStatus $status,
         public string $summary,
         public ?string $hint = null,
         public array $details = [],
+        public ?string $code = null,
     ) {}
 
     /** @param  array<string, mixed>  $details */
@@ -26,9 +30,9 @@ final readonly class CheckResult
     }
 
     /** @param  array<string, mixed>  $details */
-    public static function warn(string $key, string $summary, string $hint, array $details = []): self
+    public static function warn(string $key, string $summary, string $hint, array $details = [], ?string $code = null): self
     {
-        return new self($key, CheckStatus::Warn, $summary, $hint, $details);
+        return new self($key, CheckStatus::Warn, $summary, $hint, $details, $code);
     }
 
     /** @param  array<string, mixed>  $details */
@@ -41,6 +45,12 @@ final readonly class CheckResult
     public static function skipped(string $key, string $summary, array $details = []): self
     {
         return new self($key, CheckStatus::Skipped, $summary, null, $details);
+    }
+
+    /** The code of this result as a warning of the command: its own, else `doctor_<key>`. */
+    public function warningCode(): string
+    {
+        return $this->code ?? 'doctor_'.$this->key;
     }
 
     /** @return array{key: string, status: string, summary: string, hint: string|null, details: array<string, mixed>} */

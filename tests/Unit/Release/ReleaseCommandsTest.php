@@ -65,6 +65,29 @@ it('writes a schema-valid manifest to a file', function (): void {
     }
 });
 
+it('renders the stack file with --stack-file and lists it in the manifest', function (): void {
+    $registry = new FakeRegistry;
+    [$inputs, $appDigest] = writeFakeReleaseInputs($registry);
+    $registry->fake();
+    $output = tempnam(sys_get_temp_dir(), 'manifest');
+    $stack = sys_get_temp_dir().'/compose.stack.yaml';
+    @unlink($stack);
+
+    try {
+        $this->artisan('release:manifest', [
+            'version' => '2.0.0-alpha.2', '--app-digest' => $appDigest, '--inputs' => $inputs, '--stack-file' => $stack,
+            '--asset' => [base_path('distribution/install.sh'), base_path('distribution/shim.sh')], '--output' => $output,
+        ])->assertSuccessful();
+
+        expect(json_decode((string) file_get_contents($output), true)['assets']['compose.stack.yaml']['sha256'])->toBe(hash_file('sha256', $stack))
+            ->and((string) file_get_contents($stack))->toContain('${FSA_REGISTRY:-ghcr.io}/beyerenrico/form-schema-app@'.$appDigest);
+    } finally {
+        unlink($inputs);
+        unlink($output);
+        @unlink($stack);
+    }
+});
+
 it('prints the manifest to stdout without --output', function (): void {
     $registry = new FakeRegistry;
     [$inputs, $appDigest] = writeFakeReleaseInputs($registry);

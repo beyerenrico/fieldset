@@ -25,8 +25,9 @@ use App\Domain\Instance\State\InstanceState;
 use Carbon\CarbonImmutable;
 
 /**
- * `fsa install` in local mode (F2, R9–R15, R54, R63, R69, ADR 0072). Under the instance lock, with every phase
- * journaled before it starts:
+ * `fsa install` (F1, F2, R9–R16, R54, R63, R69, ADR 0072, ADR 0075) in local mode or, with --domain, in domain
+ * mode (the edge with automatic HTTPS; the doctor checks DNS and ports 80/443 first, and the smoke test waits for the
+ * certificate). Under the instance lock, with every phase journaled before it starts:
  *
  * doctor (verify the release, preflight, choose ports, refuse foreign projects) → secrets → state (and the
  * rendered files) → pull → up (Postgres and Valkey) → migrate (one-off) → app_install (one-off: organization,
@@ -53,6 +54,7 @@ final readonly class Installer
         private InstanceStack $stack,
         private AppCommands $app,
         private SmokeTest $smoke,
+        private ProxySetup $proxy,
     ) {}
 
     public function situation(): InstallSituation
@@ -74,6 +76,8 @@ final readonly class Installer
         if ($current instanceof JournalRecord && $current->operation() === self::OPERATION) {
             $request = $this->resumable($request, $current);
         }
+        $request->assertConsistent();
+        $this->assertModeFlags($request);
         $holder = $this->identity->holder('fsa', $context->facts->callerUid());
 
         return $this->supervisor->run(
@@ -107,15 +111,16 @@ final readonly class Installer
             $run->note('flags', $request->toContext());
         }
         $preflight = $run->phase('doctor', fn (): array => $this->preflight->run($request, $context->facts), changes: false);
-        if ($request->domain() !== null) {
-            throw new InvalidInput('Domain mode arrives with 2.0.0-alpha.2; the DNS preflight for '.$request->domain().' passed.', 'unsupported_mode', 'Install in local mode now (without --domain) and switch later, or wait for the next pre-release.');
-        }
         $run->phase('secrets', fn (): array => $this->stack->ensureSecrets($context->redactor));
-        $run->phase('state', fn (): array => $this->stack->writeState($preflight, $context->facts));
+        $run->phase('state', function () use ($preflight, $context, $request): array {
+            $this->writeAcmeCaRoot($request);
+
+            return $this->stack->writeState($preflight, $context->facts);
+        });
         $state = $this->directory->state();
         $project = ComposeProject::forInstance($state, $this->directory);
         $run->phase('pull', fn (): array => $this->stack->pull(), changes: false);
-        $run->phase('up', fn (): array => $this->stack->up($project, self::INFRASTRUCTURE));
+        $run->phase('up', fn (): array => [...$this->stack->up($project, self::INFRASTRUCTURE), ...$this->stack->trustGateway($project, $preflight)]);
         $run->phase('migrate', fn (): array => $this->migrate($project));
         $link = null;
         $installed = $run->phase('app_install', function () use ($project, $request, $context, &$link): array {
@@ -123,8 +128,8 @@ final readonly class Installer
 
             return $data;
         });
-        $run->phase('start', fn (): array => $this->stack->up($project, []));
-        $run->phase('smoke', fn (): array => $this->smoke->run($state, $project), changes: false);
+        $run->phase('start', fn (): array => $this->stack->up($project, []), maxSeconds: InstanceStack::WAIT_SECONDS);
+        $run->phase('smoke', fn (): array => $this->smoke->run($state, $project, $context->progress), changes: false, maxSeconds: SmokeTest::maxSeconds($state));
         $warnings = ($installed['already_installed'] ?? false) === true
             ? [['app_already_installed', 'The database already held an organization: --org, --owner-email, --owner-name and --locale were not applied.', 'Change them in the admin panel; the sign-in link goes to the owner given here.']]
             : [];
@@ -214,7 +219,7 @@ final readonly class Installer
         foreach (is_array($preflight['orphans'] ?? null) ? $preflight['orphans'] : [] as $uuid) {
             $result = $result->withWarning('orphans_found', "Containers of another installation ({$uuid}) ran from this directory.", "Check first that it does not run elsewhere (`docker ps -a --filter label=app.form-schema.instance={$uuid}` shows its containers and their directories). If it was deleted by hand, remove its leftovers with `fsa uninstall --orphans {$uuid} --yes`; fsa refuses while any of its containers runs.");
         }
-        foreach ($warnings as [$code, $message, $hint]) {
+        foreach ([...$warnings, ...array_filter([AcmeStaging::warning($state, $this->directory->root.'/fsa')])] as [$code, $message, $hint]) {
             $result = $result->withWarning($code, $message, $hint);
         }
 
@@ -229,12 +234,14 @@ final readonly class Installer
     {
         $state = $this->directory->state();
         $digest = RecordDigest::fromEnvFiles(new EnvFiles($this->directory));
-        $changed = $request->changedFlags(InstallRecord::applied($state), InstallRecord::comparator($digest));
+        $trusted = fn (string $given): bool => $this->proxy->isTrusted($state, $given);
+        $changed = $request->changedFlags(InstallRecord::applied($state), InstallRecord::comparator($digest, $trusted));
         if ($changed !== []) {
             throw new InvalidInput(
-                'This instance is installed; '.implode(', ', $changed).' differ from its installation.',
+                'This instance is installed; '.implode(', ', $changed).' differ from its installation. fsa install changes nothing on an installed instance.',
                 'use_config_set',
-                'fsa install changes nothing on an installed instance. `fsa config set` and `fsa upgrade` arrive in later releases; for now keep the instance as it is, or remove it with `fsa uninstall` and install again with the new flags.',
+                InstallFlags::hint($changed, $state),
+                ['flags' => InstallFlags::keys($changed, $state)],
             );
         }
         $email = $request->ownerEmailIfKnown();
@@ -251,7 +258,10 @@ final readonly class Installer
         $applied = [];
         if ($record->hasCompleted('doctor')) {
             $doctor = $record->phaseData('doctor');
-            $applied = ['version' => $doctor['version'] ?? null, 'port' => $doctor['port'] ?? null, 'domain' => null];
+            $applied = ['version' => $doctor['version'] ?? null, 'port' => $doctor['port'] ?? null, ...InstallMode::applied($doctor)];
+            foreach (InstallRequest::PROXY_FLAGS as $key) {
+                $applied[$key] = is_string($recorded[$key] ?? null) ? $recorded[$key] : null;
+            }
         }
         if ($record->hasCompleted('app_install')) {
             foreach (InstallRequest::APP_FLAGS as $key) {
@@ -268,6 +278,33 @@ final readonly class Installer
         }
 
         return $request->over($recorded);
+    }
+
+    /** Domain-mode flags need --domain; the loopback port belongs to local mode (exit 2). */
+    private function assertModeFlags(InstallRequest $request): void
+    {
+        if ($request->domain() === null && $request->acme() !== []) {
+            $flags = array_map(static fn (string $key): string => InstallRequest::FLAGS[$key], array_keys($request->acme()));
+            throw new InvalidInput(implode(', ', $flags).' belong(s) to domain mode.', 'domain_required', 'Add --domain <name>, or leave the ACME flags out.');
+        }
+        if ($request->domain() !== null && $request->port() !== null) {
+            throw new InvalidInput('--port belongs to local mode; domain mode publishes 80 and 443 through the edge.', 'invalid_flag', 'Leave --port out with --domain.');
+        }
+    }
+
+    /** The custom ACME CA root next to the Caddyfile; a resume without the flag needs the file already written. */
+    private function writeAcmeCaRoot(InstallRequest $request): void
+    {
+        $digest = $request->acme()['acme_ca_root'] ?? null;
+        if ($digest === null) {
+            return;
+        }
+        $pem = $request->caRoot();
+        if ($pem !== null) {
+            AcmeCaRoot::write($this->directory, $pem);
+        } elseif (! AcmeCaRoot::present($this->directory, $digest)) {
+            throw new InvalidInput('The interrupted install needs the ACME CA root again.', 'acme_ca_root_missing', 'Run `fsa install` again with the same --acme-ca-root-file.');
+        }
     }
 
     /** @return array<string, mixed> the inputs recorded by the last resumed run (corrections included) */
@@ -303,10 +340,13 @@ final readonly class Installer
             'mode' => $state->mode(),
             'dir' => $this->directory->root,
             'project' => $state->project(),
-            'port' => $settings->port(),
-            'mail' => ['mode' => $settings->capturesMail() ? 'capture' : 'smtp', 'catcher_url' => $settings->capturesMail() ? 'http://localhost:'.$settings->mailUiPort() : null],
+            'port' => $settings->publishesAppPort() ? $settings->port() : null,
+            ...($settings->proxy() === null ? [] : ['proxy' => [
+                'setup' => $settings->proxy(), 'network' => $settings->proxyNetwork(), 'container' => $settings->proxyContainer(), 'trusted' => $settings->trustedProxies(),
+            ]]),
+            'mail' => ['mode' => $settings->capturesMail() ? 'capture' : 'smtp', 'catcher_url' => $settings->catcherUrl()],
             'owner_email' => $ownerEmail,
-            'next_commands' => ["{$fsa} status", "{$fsa} login-link {$linkFor}", "{$fsa} doctor --post"],
+            'next_commands' => [...(AcmeStaging::active($state) ? [AcmeStaging::command($fsa)] : []), "{$fsa} status", "{$fsa} login-link {$linkFor}", "{$fsa} doctor --post"],
         ];
     }
 }

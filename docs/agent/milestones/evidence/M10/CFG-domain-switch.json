@@ -1,0 +1,157 @@
+{
+    "command": "fsa config set domain fsa-test-cfg.test --acme-ca <pebble> --acme-ca-root-file <harness>/pebble-https-root.pem --yes --json",
+    "exit_code": 0,
+    "seconds": 62.4,
+    "stdout": {
+        "schema_version": 1,
+        "command": "config",
+        "status": "ok",
+        "changed": true,
+        "data": {
+            "key": "domain",
+            "from": null,
+            "to": "fsa-test-cfg.test",
+            "url": "https://fsa-test-cfg.test",
+            "mode": "domain",
+            "reverted": false,
+            "previous": {
+                "url": "http://localhost:8081",
+                "mode": "local"
+            },
+            "services": {
+                "recreated": [
+                    "app",
+                    "queue",
+                    "scheduler",
+                    "mailpit"
+                ],
+                "added": [
+                    "edge"
+                ],
+                "removed": []
+            },
+            "checked": [
+                "/up",
+                "/admin/login",
+                "gotenberg /health",
+                "https://fsa-test-cfg.test/up",
+                "http://fsa-test-cfg.test → https"
+            ],
+            "impact": {
+                "known": true,
+                "sso_organizations": [
+                    {
+                        "organization": {
+                            "id": 2,
+                            "name": "Fsa Test SSO Org",
+                            "slug": "fsa-test-sso-org"
+                        },
+                        "provider": {
+                            "type": "saml",
+                            "name": "Fsa Test IdP",
+                            "status": "draft"
+                        },
+                        "follows_url": [
+                            "entity_id",
+                            "acs_url"
+                        ]
+                    }
+                ],
+                "links": {
+                    "invitations": 0,
+                    "document_links": 0,
+                    "login_links": 1,
+                    "data_exports": 0
+                }
+            },
+            "audited": true,
+            "next_commands": [
+                "<work>/fsa-test-cfg/fsa login-link <owner-email>",
+                "<work>/fsa-test-cfg/fsa status"
+            ]
+        },
+        "secrets": [],
+        "warnings": [
+            {
+                "code": "url_changed",
+                "message": "The instance URL is now https://fsa-test-cfg.test (was http://localhost:8081): installed home-screen apps, bookmarks and links already sent keep the old address.",
+                "hint": "Send new invitations or document links where needed."
+            },
+            {
+                "code": "sso_urls_changed",
+                "message": "Organizations with SSO must register the new URLs at their identity provider: Fsa Test SSO Org.",
+                "hint": "Their admins find the new entity ID, ACS URL or redirect URI under SSO settings."
+            }
+        ],
+        "errors": []
+    },
+    "containers_before": {
+        "app": {
+            "id": "44c4c2729b05",
+            "started": "2026-10-18T12:08:03.269645637Z"
+        },
+        "gotenberg": {
+            "id": "c1df7e1c0f2b",
+            "started": "2026-10-18T12:08:02.75274172Z"
+        },
+        "mailpit": {
+            "id": "e9ac489284b1",
+            "started": "2026-10-18T12:08:02.854398803Z"
+        },
+        "postgres": {
+            "id": "0d8effcb9a80",
+            "started": "2026-10-18T12:07:52.328242007Z"
+        },
+        "queue": {
+            "id": "6f040a1969da",
+            "started": "2026-10-18T12:08:03.621097512Z"
+        },
+        "redis": {
+            "id": "48d4412dd738",
+            "started": "2026-10-18T12:07:52.451001507Z"
+        },
+        "scheduler": {
+            "id": "ac1226fe10e6",
+            "started": "2026-10-18T12:08:03.44801947Z"
+        }
+    },
+    "containers_after": {
+        "app": {
+            "id": "c28dee4bd0da",
+            "started": "2026-10-18T12:08:47.150702588Z"
+        },
+        "edge": {
+            "id": "4b84e06f76d9",
+            "started": "2026-10-18T12:09:02.811567345Z"
+        },
+        "gotenberg": {
+            "id": "c1df7e1c0f2b",
+            "started": "2026-10-18T12:08:02.75274172Z"
+        },
+        "mailpit": {
+            "id": "b362da878ba7",
+            "started": "2026-10-18T12:08:46.615976337Z"
+        },
+        "postgres": {
+            "id": "0d8effcb9a80",
+            "started": "2026-10-18T12:07:52.328242007Z"
+        },
+        "queue": {
+            "id": "d28324209d94",
+            "started": "2026-10-18T12:09:10.205722918Z"
+        },
+        "redis": {
+            "id": "48d4412dd738",
+            "started": "2026-10-18T12:07:52.451001507Z"
+        },
+        "scheduler": {
+            "id": "b98ce25e7b36",
+            "started": "2026-10-18T12:09:10.308625334Z"
+        }
+    },
+    "kept_running": [
+        "gotenberg",
+        "postgres",
+        "redis"
+    ]
+}

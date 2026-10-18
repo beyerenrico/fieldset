@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Instance\State;
 
 use App\Domain\Instance\Compose\ResourceBudget;
+use App\Domain\Instance\Runtime\CatcherRoute;
 
 /**
  * Typed reads of the state's settings with their defaults, for the renderers (plan U3). The values were checked
@@ -21,6 +22,12 @@ final readonly class InstanceSettings
     public const string DEFAULT_DATABASE = 'form_schema';
 
     public const string DEFAULT_SENDER_NAME = 'form-schema-app';
+
+    /** Let's Encrypt production: domain mode's ACME directory unless `--acme-ca` or `--acme-staging` (R16). */
+    public const string ACME_PRODUCTION = 'https://acme-v02.api.letsencrypt.org/directory';
+
+    /** Let's Encrypt staging (`--acme-staging`): for trial installs, against the duplicate-certificate limits. */
+    public const string ACME_STAGING = 'https://acme-staging-v02.api.letsencrypt.org/directory';
 
     private function __construct(private InstanceState $state) {}
 
@@ -94,6 +101,91 @@ final readonly class InstanceSettings
     public function extraHosts(): array
     {
         return InputGrammar::hostList($this->string('extra_hosts') ?? '') ?? [];
+    }
+
+    /** The domain of domain mode (U8); null in the other modes. */
+    public function domain(): ?string
+    {
+        return $this->state->mode() === 'domain' ? $this->string('domain') : null;
+    }
+
+    /** The ACME account contact; none unless `--acme-email` (it is shared with the CA). */
+    public function acmeEmail(): ?string
+    {
+        return $this->string('acme_email');
+    }
+
+    /** The ACME directory the edge orders certificates from. */
+    public function acmeCa(): string
+    {
+        return $this->string('acme_ca') ?? self::ACME_PRODUCTION;
+    }
+
+    /** Whether the edge trusts a custom root for the ACME directory's HTTPS (edge/acme-ca-root.pem, its SHA-256). */
+    public function acmeCaRoot(): ?string
+    {
+        return $this->string('acme_ca_root');
+    }
+
+    /** The edge network's subnet (domain mode): the edge has a fixed address in it, the app's only trusted proxy. */
+    public function edgeSubnet(): ?string
+    {
+        return $this->string('edge_subnet');
+    }
+
+    /** Where the catcher UI is reached (KTD13): the loopback port, `/_mail/` behind the edge in domain mode, else null. */
+    public function catcherUrl(): ?string
+    {
+        if (! $this->capturesMail()) {
+            return null;
+        }
+        $domain = $this->domain();
+
+        return $domain !== null ? 'https://'.$domain.CatcherRoute::MAIL_PATH : 'http://localhost:'.$this->mailUiPort();
+    }
+
+    /** Proxy mode's setup (R17, ADR 0076): `traefik` or `caddy` on a shared network, or `port`; null in other modes. */
+    public function proxy(): ?string
+    {
+        return $this->state->mode() === 'proxy' ? $this->string('proxy') : null;
+    }
+
+    /** The external Docker network the app shares with the proxy (traefik and caddy setups). */
+    public function proxyNetwork(): ?string
+    {
+        return $this->string('proxy_network');
+    }
+
+    /**
+     * The proxy's container on that network, as resolved at install or by `config set trusted-proxy`: `fsa doctor` and
+     * `fsa status` re-resolve it to warn when its address moved, `config set trusted-proxy auto` follows it.
+     */
+    public function proxyContainer(): ?string
+    {
+        return $this->string('proxy_container');
+    }
+
+    /**
+     * Exactly the addresses the app accepts X-Forwarded-* from (TRUSTED_PROXIES): the proxy's own address, never a
+     * range a neighbouring container on the shared network could use (R17, KTD10).
+     *
+     * @return list<string>
+     */
+    public function trustedProxies(): array
+    {
+        return InputGrammar::ipList($this->string('trusted_proxies') ?? '') ?? [];
+    }
+
+    /** The app publishes its own loopback port: local mode, and proxy mode's `port` setup. */
+    public function publishesAppPort(): bool
+    {
+        return $this->state->mode() === 'local' || $this->proxy() === 'port';
+    }
+
+    /** Proxy mode on a shared Docker network: the app joins it with the proxy's labels and publishes nothing. */
+    public function joinsProxyNetwork(): bool
+    {
+        return in_array($this->proxy(), ['traefik', 'caddy'], true) && $this->proxyNetwork() !== null;
     }
 
     /** The loopback URL in local mode; other modes publish no app port of their own. */

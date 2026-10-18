@@ -124,6 +124,13 @@ final readonly class CliDockerGateway implements DockerGateway
         return $outcome instanceof ProcessOutcome ? ContainerInfo::fromInspect(DockerJson::object($outcome->stdout, 'container inspect')) : null;
     }
 
+    public function inspectNetwork(string $name): ?NetworkInfo
+    {
+        $outcome = $this->inspect(['network', 'inspect', '--format', '{{json .}}', ...$this->names([$name])], 'network inspect');
+
+        return $outcome instanceof ProcessOutcome ? NetworkInfo::fromInspect(DockerJson::object($outcome->stdout, 'network inspect')) : null;
+    }
+
     public function containers(array $labels, bool $all = true): array
     {
         $args = ['container', 'ls', '--no-trunc', '--format', '{{json .}}', ...($all ? ['--all'] : []), ...$this->labelFilters($labels)];
@@ -143,6 +150,17 @@ final readonly class CliDockerGateway implements DockerGateway
         $lines = DockerJson::lines($this->call(['network', 'ls', '--no-trunc', '--format', '{{json .}}', ...$this->labelFilters($labels)], 'network ls')->stdout, 'network ls');
 
         return array_map(static fn (array $line): DockerResource => DockerResource::fromListing(DockerResource::NETWORK, $line), $lines);
+    }
+
+    public function networkSubnets(): array
+    {
+        $ids = array_values(array_filter(explode("\n", trim($this->call(['network', 'ls', '--quiet', '--no-trunc'], 'network ls')->stdout))));
+        if ($ids === []) {
+            return [];
+        }
+        $outcome = $this->call(['network', 'inspect', '--format', '{{range .IPAM.Config}}{{.Subnet}} {{end}}', ...$ids], 'network inspect');
+
+        return array_values(array_filter(preg_split('/\s+/', trim($outcome->stdout)) ?: [], static fn (string $subnet): bool => $subnet !== ''));
     }
 
     public function runContainer(ContainerSpec $spec, ?string $input = null, ?float $timeout = null): ProcessOutcome
@@ -193,7 +211,7 @@ final readonly class CliDockerGateway implements DockerGateway
     private function inspect(array $args, string $label): ?ProcessOutcome
     {
         $outcome = $this->attempt([$this->binary, ...$args], [], null, self::QUERY_TIMEOUT);
-        if (! $outcome->successful() && preg_match('/no such (object|image|container)/i', $outcome->stderr) === 1) {
+        if (! $outcome->successful() && preg_match('/no such (object|image|container|network)|network \S+ not found/i', $outcome->stderr) === 1) {
             return null;
         }
 

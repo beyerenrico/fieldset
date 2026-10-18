@@ -123,6 +123,8 @@ it('reports the running instance with fsa status, doctor --post, logs and login-
 });
 
 it('answers /up and the admin login through the published loopback port', function (): void {
+    // Also the U10 journey assertion (ADR 0074): the app runs as www-data (UID 33) and must read runtime.json,
+    // written by another owner; an unreadable file fails closed and both answers would be 503.
     $http = InstanceJourney::http($GLOBALS['fsaJ01Port']);
 
     expect($http->get('/up')->getStatusCode())->toBe(200)

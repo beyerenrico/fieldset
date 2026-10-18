@@ -107,6 +107,7 @@ return [
         'host_uid' => 'Host UID (command line)',
         'identity_provider_id' => 'SSO provider',
         'jit_enabled' => 'Just-in-time provisioning',
+        'key' => 'Setting',
         'kind' => 'Kind',
         'limit' => 'Limit',
         'locale' => 'Language',
@@ -307,6 +308,10 @@ return [
             'impersonation_ended' => 'Impersonation ended',
             'admin_granted' => 'Platform admin granted',
             'admin_revoked' => 'Platform admin revoked',
+            'catcher_opened' => 'Mail catcher opened',
+        ],
+        'instance' => [
+            'config_changed' => 'Instance setting changed',
         ],
         'login_link' => [
             'issued' => 'One-time sign-in link issued',

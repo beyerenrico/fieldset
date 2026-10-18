@@ -2,11 +2,14 @@
 
 declare(strict_types=1);
 
+use App\Domain\Instance\Runtime\CatcherRoute;
 use App\Domain\Mail\Delivery\DocumentDelivery;
 use App\Domain\Mail\Http\DocumentLinkController;
+use App\Domain\Platform\Http\EnforceImpersonationWindow;
 use App\Domain\Reports\Http\ExportDownloadController;
 use App\Http\Controllers\Admin\AttachmentDownloadController;
 use App\Http\Controllers\Admin\RenditionDownloadController;
+use App\Http\Controllers\Instance\CatcherAuthController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\LoginLinkController;
 use App\Http\Controllers\SpaController;
@@ -16,7 +19,11 @@ use App\Http\Controllers\Sso\RedirectController;
 use App\Http\Controllers\Sso\SamlAcsController;
 use App\Http\Controllers\Sso\SamlCompleteController;
 use App\Http\Controllers\Sso\SamlMetadataController;
+use App\Http\Middleware\EndRevokedDeviceSession;
 use App\Http\Middleware\Security\AdminSessionTimeout;
+use App\Http\Middleware\Security\ReadOnlySession;
+use App\Http\Middleware\SetLocale;
+use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Route;
@@ -34,6 +41,14 @@ Route::middleware('signed')->group(function (): void {
 // consumes it. The controller rate-limits the POST itself, to show its own DE/EN state.
 Route::get('login-link', [LoginLinkController::class, 'show'])->name('login-link.show');
 Route::post('login-link', [LoginLinkController::class, 'consume'])->name('login-link.consume');
+
+// Mail catcher in domain mode (plan R66, ADR 0075): the edge's forward_auth asks here before every /_mail/ request.
+// The session is only read (ReadOnlySession): no CSRF, no cookie, no session write, no locale or device middleware.
+Route::get(ltrim(CatcherRoute::AUTH_PATH, '/'), CatcherAuthController::class)
+    ->withoutMiddleware([AddQueuedCookiesToResponse::class, StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class,
+        SetLocale::class, EndRevokedDeviceSession::class, EnforceImpersonationWindow::class])
+    ->middleware(ReadOnlySession::class)
+    ->name('instance.catcher-auth');
 
 // Field App (React PWA) and the builder preview entry (BUILD_PROMPT §6.1).
 Route::get('app/{path?}', [SpaController::class, 'app'])->where('path', '.*')->name('field-app');

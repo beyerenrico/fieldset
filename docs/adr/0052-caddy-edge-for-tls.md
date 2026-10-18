@@ -26,7 +26,9 @@ and `/data/caddy` (Appendix A, Context7). The app's own Caddyfile runs with `aut
   closing the Appendix A item). Clients connecting by IP need `default_sni`, which "sets a default TLS ServerName
   for when clients do not use SNI" (caddyserver.com/docs/caddyfile/options, verified).
 - In domain mode, `/_mail/` goes through `forward_auth` to an app endpoint that requires a `/platform` session with
-  MFA (plan R66, ADR 0054). The edge adds `X-Frame-Options: DENY`, `nosniff` and a CSP there.
+  MFA (plan R66, ADR 0054). The edge adds `X-Frame-Options: DENY`, `nosniff` and a CSP there. (Amended
+  2026-10-18 by ADR 0075: `X-Frame-Options: SAMEORIGIN` with CSP `frame-ancestors 'self'`, added to Mailpit's own
+  policy, because Mailpit's Raw tab frames itself.)
 
 ## Alternatives considered
 - **FrankenPHP's built-in ACME:** the app container would need the capability and writable Caddy directories,

@@ -47,7 +47,7 @@ Caddy adds `nosniff` to static files.
 - `SecureCookies` sets `session.secure = true` for HTTPS requests before StartSession and the CSRF cookie run. SameSite stays `lax` and HttpOnly stays on, both from config.
 - HSTS: `max-age=31536000` by default. `security.hsts.enabled` takes null (automatic), true or false; `max_age`, `include_subdomains` and `preload` are also configurable.
 - Trusted proxies:
-  - bootstrap/app.php trusts `X-Forwarded-For`, `-Host`, `-Port` and `-Proto`.
+  - bootstrap/app.php trusts `X-Forwarded-For`, `-Host`, `-Port` and `-Proto`. (Amended 2026-10-18 by ADR 0079: `X-Forwarded-Port` stays trusted because Traefik and host proxies set it, but on `fsa` instances links take their port from the configured URL, never from this header, and the edge strips it.)
   - Which proxies to trust is read per request from `config('trustedproxy.proxies')`, which is Laravel's own fallback key, set by `TRUSTED_PROXIES` (IPs/CIDRs or `*`).
   - Empty trusts nothing.
   - Config is not loaded yet when `withMiddleware` runs, so `trustProxies(at: config(...))` is not an option.
@@ -142,3 +142,11 @@ Caddy adds `nosniff` to static files.
   is shared, so a timeout signs the whole browser out.
 - **Trusted proxies:** compose.yaml publishes the app on 127.0.0.1 only; the production template trusts
   `172.16.0.0/12` (the Docker bridge a host proxy arrives from) instead of `10.0.0.0/8`.
+
+## Amendment 2026-10-18: per-host HTTPS on fsa instances (ADR 0074)
+With an instance runtime directory (FSA_RUNTIME_PATH), `SecureTransport::expected()` follows the scheme the runtime
+middleware resolved for the request host instead of `isSecure() || APP_URL https`: plain-http loopback never counts
+as HTTPS (no HSTS, no Secure cookie), the URL configured for the host decides otherwise. `SecureCookies` then sets
+`session.secure` both ways and names the session cookie `__Host-<name>` over HTTPS, which closes V3.4.4 for `fsa`
+instances. `TrustedHosts::patterns()` adds the runtime hosts. Without the runtime directory nothing changes.
+

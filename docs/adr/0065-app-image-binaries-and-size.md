@@ -1,7 +1,8 @@
 # 0065: App image: ops binaries, slimming and measured size
 - Status: accepted; the binary pins, their license sources and tests, and "cosign stays in the image" are
   superseded by ADR 0071 (after ADR 0070 moved `fsa` to the pinned cosign image); amended 2026-10-18 at the M9
-  gate (base images pinned by digest)
+  gate (base images pinned by digest); amended 2026-10-18 at the M10 gate by ADR 0079 (isolated migrations on
+  start, wrapper value flags)
 - Date: 2026-10-17
 
 ## Context
@@ -62,6 +63,12 @@ Docker CLI's are fetched.)
   (`/usr/local/bin/fsa`, a wrapper for `php artisan fsa:<command>`), `php artisan fsa:…` and the backup daemon
   (`fsa backup-daemon`) skip both: they run as other users, often without a database, and must not write
   `bootstrap/cache`.
+  (Amended 2026-10-18 by ADR 0079: the migration is `php artisan migrate --force --isolated=75 --no-interaction`,
+  which takes a Postgres advisory lock (`MigrationMutex`); on exit 75 the entrypoint waits 5 s and tries again, at
+  most 60 attempts (5 minutes), then exits 75, so the app never starts while another container migrates. The
+  wrapper finds the command after the value of any value-taking fsa option (`value_flags`, kept in step with the
+  registered commands by ImageContractTest), so `fsa --behind-proxy traefik install` runs
+  `fsa:install --behind-proxy traefik`.)
 - R6: `XDG_CONFIG_HOME=/tmp/xdg-config` and `XDG_DATA_HOME=/tmp/xdg-data` (writable for any UID, and on a tmpfs
   under a read-only root), plus `persist_config off` in the Caddyfile. The app's start-up logs carry no
   `permission denied` and no error line (journey). psysh (`tinker`) no longer needs `-e XDG_CONFIG_HOME` either.

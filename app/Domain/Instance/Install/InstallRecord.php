@@ -50,10 +50,13 @@ final class InstallRecord
             'locale' => $request->locale(),
         ] : [];
 
+        $proxy = array_intersect_key($request->toContext(), array_flip(InstallRequest::PROXY_FLAGS));
+
         return [
             ...array_filter($app, static fn (?string $value): bool => $value !== null),
             'version' => $state->version(),
             'port' => InstanceSettings::of($state)->port(),
+            ...array_filter($proxy, static fn (string|int|null $value): bool => $value !== null),
         ];
     }
 
@@ -72,26 +75,46 @@ final class InstallRecord
                 $app[$key] = is_string($recorded[$key]) || is_int($recorded[$key]) ? $recorded[$key] : null;
             }
         }
-        $domain = $state->setting('domain');
+        $setting = static fn (string $key): ?string => is_string($state->setting($key)) ? $state->setting($key) : null;
+        $proxy = [];
+        foreach (InstallRequest::PROXY_FLAGS as $key) {
+            $proxy[$key] = is_string($recorded[$key] ?? null) ? $recorded[$key] : null;
+        }
+        // `fsa config set` (ADR 0077) may have changed mode, URL, network or trusted proxy since: compare with the state
+        // as it is now. --trusted-proxy is compared with the proxy the instance trusts (comparator(), ADR 0078).
+        $settings = InstanceSettings::of($state);
+        $proxy = [
+            ...$proxy, 'proxy' => $settings->proxy(), 'url' => $settings->proxy() === null ? null : $state->url(),
+            'proxy_network' => $settings->proxy() === null ? null : $settings->proxyNetwork(),
+            'trusted_proxy' => $settings->joinsProxyNetwork() ? $settings->proxyContainer() : null,
+        ];
 
         return [
             ...$app,
             'version' => $state->version(),
             'port' => InstanceSettings::of($state)->port(),
-            'domain' => is_string($domain) ? $domain : null,
+            'domain' => $setting('domain'),
+            ...array_combine(InstallRequest::ACME_FLAGS, array_map($setting, InstallRequest::ACME_FLAGS)),
+            ...$proxy,
         ];
     }
 
     /**
-     * Compares one recorded input with an explicit flag: personal inputs through their digest.
+     * Compares one recorded input with an explicit flag: personal inputs through their digest; --trusted-proxy through
+     * `$trusted`, which knows the trusted proxy by container name, ID prefix or address (install reports the name,
+     * `config set trusted-proxy` takes any of them, ADR 0078).
      *
+     * @param  (Closure(string): bool)|null  $trusted
      * @return Closure(string, string|int|null, string|int): bool true when equal
      */
-    public static function comparator(?RecordDigest $digest): Closure
+    public static function comparator(?RecordDigest $digest, ?Closure $trusted = null): Closure
     {
-        return static function (string $key, string|int|null $recorded, string|int $given) use ($digest): bool {
+        return static function (string $key, string|int|null $recorded, string|int $given) use ($digest, $trusted): bool {
             if (in_array($key, self::PERSONAL, true) && is_string($recorded) && str_starts_with($recorded, RecordDigest::PREFIX)) {
                 return $digest instanceof RecordDigest && $digest->matches($recorded, (string) $given);
+            }
+            if ($key === 'trusted_proxy' && $trusted instanceof Closure) {
+                return $trusted((string) $given);
             }
 
             return (string) $recorded === (string) $given;

@@ -15,6 +15,7 @@ use App\Domain\Instance\Release\ManifestVerifier;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceState;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Sleep;
 use Tests\Support\Release\ReleaseFixtures;
 
 /**
@@ -61,6 +62,7 @@ final class InstanceCommandFixture
         $this->probes = new FakeDoctorProbes;
         app()->instance(DoctorProbes::class, $this->probes);
         $this->facts();
+        Sleep::fake(); // the edge's certificate wait pauses between attempts (SmokeTest); the test case resets it
     }
 
     public static function appImage(): string
@@ -172,6 +174,10 @@ final class InstanceCommandFixture
             'identity:login-link' => self::oneOffJson(['command' => 'identity:login-link', 'status' => 'ok', 'changed' => true,
                 'data' => ['email' => 'owner@example.com', 'user_id' => 1, 'kind' => 'admin', 'link_id' => 2, 'expires_at' => '2026-10-18T10:15:00Z'],
                 'secrets' => [['name' => 'sign_in_link', 'value' => self::ADMIN_LINK, 'expires_at' => '2026-10-18T10:15:00Z']]]),
+            'instance:url-impact' => self::oneOffJson(['command' => 'instance:url-impact', 'status' => 'ok',
+                'data' => ['sso_organizations' => [], 'links' => ['invitations' => 0, 'document_links' => 0, 'login_links' => 0, 'data_exports' => 0]]]),
+            'instance:config-changed' => self::oneOffJson(['command' => 'instance:config-changed', 'status' => 'ok', 'changed' => true,
+                'data' => ['event' => 'instance.config_changed', 'activity_id' => 7]]),
             'identity:login-links' => self::oneOffJson(['command' => 'identity:login-links', 'status' => 'ok',
                 'data' => ['links' => [['id' => 1, 'email' => 'owner@example.com', 'kind' => 'owner', 'state' => 'unused']], 'count' => 1]]),
             default => new ProcessOutcome(0, "Migrated.\n"),

@@ -19,7 +19,7 @@ use Tests\Support\Docker\TestImage;
  * validated and its signature verified with the run's local key, then install.sh (harness build) installs it
  * natively, fsa reports it, and fsa uninstall removes it. The verified assets are kept in dist/v<version>/
  * (git-ignored; the images live only in the harness registry, which is removed afterwards), and a redacted
- * summary goes to docs/agent/milestones/evidence/M9/prerelease-<version>.json. Nothing is pushed or published.
+ * summary goes to docs/agent/milestones/evidence/<FSA_EVIDENCE_MILESTONE, default M9>/prerelease-<version>.json. Nothing is pushed or published.
  */
 
 beforeAll(function (): void {
@@ -147,6 +147,7 @@ it('keeps the verified release assets and the local public key in dist/', functi
 
     expect(array_values(array_diff(scandir($target) ?: [], ['.', '..'])))->toEqualCanonicalizing([
         'SHA256SUMS', 'cosign-harness.pub', 'install.sh', 'install.sh.sigstore.json', ReleaseHarness::MANIFEST, ReleaseHarness::MANIFEST.'.sigstore.json', 'shim.sh',
+        ReleaseHarness::STACK_FILE,
     ])
         ->and($verified)->not->toBeEmpty()
         ->and(array_unique($verified))->toBe([true]);
@@ -224,7 +225,7 @@ it('writes a redacted summary for the milestone evidence', function (): void {
     $this->journey->evidence($name, ['release' => $this->version, 'built' => date('Y-m-d'), 'revision' => TestImage::revision(), 'published' => false,
         'note' => 'Built and tested against the local registry and release server (E18); the harness registry is removed after the run.',
         ...$GLOBALS['fsaPre']['summary']]);
-    $json = (string) file_get_contents(TestImage::repository().'/docs/agent/milestones/evidence/M9/'.$name);
+    $json = (string) file_get_contents(TestImage::repository().'/docs/agent/milestones/evidence/'.InstanceJourney::evidenceMilestone().'/'.$name);
     $home = (string) getenv('HOME');
 
     expect(json_decode($json, true)['version'] ?? null)->toBe($this->version)

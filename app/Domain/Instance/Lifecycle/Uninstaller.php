@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Lifecycle;
 
+use App\Domain\Instance\Compose\Services\EdgeService;
 use App\Domain\Instance\Docker\ContainerInfo;
 use App\Domain\Instance\Docker\DockerCommandFailed;
 use App\Domain\Instance\Docker\DockerGateway;
+use App\Domain\Instance\Docker\DockerResource;
 use App\Domain\Instance\Docker\Labels;
 use App\Domain\Instance\HostFacts;
 use App\Domain\Instance\Install\ProjectConflicts;
@@ -17,6 +19,8 @@ use App\Domain\Instance\Output\CommandResult;
 use App\Domain\Instance\Output\ExitCode;
 use App\Domain\Instance\Output\InvalidInput;
 use App\Domain\Instance\State\InstanceDirectory;
+use App\Domain\Instance\State\InstanceSettings;
+use App\Domain\Instance\State\InstanceState;
 
 /**
  * `fsa uninstall` (R44, R63, §13.3, ADR 0072, ADR 0073). Only resources labelled with the instance UUID are removed,
@@ -49,6 +53,7 @@ final readonly class Uninstaller
         if ($uuid === null) {
             $this->ids->assertNothingTied();
         }
+        $state = $this->ids->state();
         $handle = $this->lock->acquire($this->identity->holder('fsa', $facts->callerUid()), 'uninstall');
 
         // The lock stays until everything but itself is gone, so no other operation writes into a half-deleted
@@ -63,7 +68,48 @@ final readonly class Uninstaller
         }
         $this->directory->files()->delete(InstanceDirectory::LOCKS_DIR);
 
-        return $this->result($uuid, $removed, $deleted, $keepBackups, $final);
+        $result = $this->result($uuid, $removed, $deleted, $keepBackups, $final);
+
+        return ! $this->holdsCertificates($volumes, $state) ? $result : $result->withWarning('certificates_removed', self::certificateWarning($this->domain($state)), 'Use --acme-staging for trial installs; reinstalling the same domain often counts against the CA\'s duplicate-certificate limit.');
+    }
+
+    /**
+     * The certificate warning for the confirmation prompt, when this instance's certificate volume exists (whatever
+     * the mode now: after `config set mode local` the volume, and its certificates, are still there; ADR 0078).
+     */
+    public function certificateNotice(): ?string
+    {
+        $uuid = $this->ids->resolve();
+        $state = $this->ids->state();
+        $volumes = $uuid === null ? [] : $this->docker->volumes([Labels::INSTANCE => $uuid]);
+
+        return $this->holdsCertificates($volumes, $state) ? self::certificateWarning($this->domain($state)) : null;
+    }
+
+    /** The certificate volume goes with the instance (plan Risks, ADR 0075). */
+    public static function certificateWarning(?string $domain): string
+    {
+        $what = $domain === null ? 'The certificates this instance obtained in domain mode were' : "The certificates for {$domain} were";
+
+        return "{$what} removed with the instance. Let's Encrypt allows only a few identical certificates per week, so a new install of the same domain may be refused for a while.";
+    }
+
+    /**
+     * Whether the edge's certificate volume is among the instance's labelled volumes: by its name when the project is
+     * known (EdgeService::volumeName), else by the `_edge-data` suffix Compose gives it.
+     *
+     * @param  list<DockerResource>  $volumes
+     */
+    private function holdsCertificates(array $volumes, ?InstanceState $state): bool
+    {
+        $name = $state instanceof InstanceState ? EdgeService::volumeName($state->project()) : null;
+
+        return array_any($volumes, static fn (DockerResource $volume): bool => $name === null ? str_ends_with($volume->name, '_'.EdgeService::CERTIFICATE_VOLUME) : $volume->name === $name);
+    }
+
+    private function domain(?InstanceState $state): ?string
+    {
+        return $state instanceof InstanceState ? InstanceSettings::of($state)->domain() : null;
     }
 
     public function orphans(string $uuid): CommandResult

@@ -18,6 +18,12 @@ final class InputGrammar
 {
     public const string SLUG = '/^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$/D';
 
+    /** Proxy mode's setups (R17, ADR 0076): Traefik or caddy-docker-proxy labels on a shared network, or a loopback port. */
+    public const array PROXIES = ['traefik', 'caddy', 'port'];
+
+    /** A Docker network or container name, as the daemon accepts it. */
+    public const string DOCKER_NAME = '/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/D';
+
     /** A Docker image reference pinned by digest (registry host with optional port, lowercase path, sha256). */
     public const string IMAGE_REFERENCE = '/^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)*(?::[0-9]{1,5})?\/)?[a-z0-9]+(?:(?:\.|_|__|-+)[a-z0-9]+)*(?:\/[a-z0-9]+(?:(?:\.|_|__|-+)[a-z0-9]+)*)*@sha256:[0-9a-f]{64}$/D';
 
@@ -44,6 +50,10 @@ final class InputGrammar
         'mail' => ['capture', 'smtp'], 'smtp_scheme' => ['smtp', 'smtps'], 'size' => ResourceBudget::SIZES,
         'db_database' => 'identifier', 'db_username' => 'identifier',
         'mail_from_address' => 'email', 'mail_from_name' => 'text',
+        // Domain mode (U8, ADR 0075): ACME contact and directory, the SHA-256 of the custom ACME CA root the edge
+        // trusts (edge/acme-ca-root.pem), and the edge network's private IPv4 subnet.
+        'acme_email' => 'email', 'acme_ca' => 'https_url', 'acme_ca_root' => 'sha256', 'edge_subnet' => 'subnet',
+        'proxy' => self::PROXIES, 'proxy_network' => 'docker_name', 'proxy_container' => 'docker_name', 'trusted_proxies' => 'ip_list',
     ];
 
     private const array PROBLEMS = [
@@ -54,6 +64,11 @@ final class InputGrammar
         'identifier' => 'must be a lowercase identifier',
         'email' => 'must be an e-mail address',
         'text' => 'must be plain text without quotes, $, backslashes or control characters',
+        'https_url' => 'must be an https URL without credentials, query or fragment',
+        'sha256' => 'must be a lowercase SHA-256 hex digest',
+        'subnet' => 'must be a private IPv4 subnet (CIDR, /16 to /29)',
+        'docker_name' => 'must be a Docker network or container name',
+        'ip_list' => 'must be a comma-separated list of IP addresses (single addresses, no ranges)',
     ];
 
     /** RFC 1123 host name (no wildcard, no trailing dot) or an IPv4/IPv6 address. */
@@ -96,6 +111,30 @@ final class InputGrammar
             && str_starts_with($value, $parts['scheme'].'://'.$host);
     }
 
+    public static function isHttpsUrl(mixed $value): bool
+    {
+        return is_string($value) && str_starts_with($value, 'https://') && self::isUrl($value);
+    }
+
+    /**
+     * A private IPv4 subnet in CIDR notation, /16 to /29, aligned to its prefix: `10.213.4.32/28`. The edge
+     * network (U8) and later the tunnel network get a fixed subnet so their peers have fixed addresses.
+     */
+    public static function isPrivateSubnet(mixed $value): bool
+    {
+        if (! is_string($value) || preg_match('/^([0-9.]+)\/([0-9]{2})$/D', $value, $parts) !== 1) {
+            return false;
+        }
+        $prefix = (int) $parts[2];
+        $long = filter_var($parts[1], FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) === false ? false : ip2long($parts[1]);
+        if ($long === false || $prefix < 16 || $prefix > 29 || ($long & ~(-1 << (32 - $prefix)) & 0xFFFFFFFF) !== 0) {
+            return false;
+        }
+
+        return filter_var($parts[1], FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE) === false
+            && filter_var($parts[1], FILTER_VALIDATE_IP, FILTER_FLAG_NO_RES_RANGE) !== false;
+    }
+
     public static function isPort(mixed $value): bool
     {
         return is_int($value) && $value >= 1 && $value <= 65535;
@@ -125,6 +164,26 @@ final class InputGrammar
     public static function isText(mixed $value): bool
     {
         return is_string($value) && mb_strlen($value) <= self::MAX_TEXT && preg_match('//u', $value) === 1 && preg_match(self::UNSAFE, $value) !== 1;
+    }
+
+    public static function isDockerName(mixed $value): bool
+    {
+        return is_string($value) && preg_match(self::DOCKER_NAME, $value) === 1;
+    }
+
+    /**
+     * "a, b" → ["a", "b"] for single IP addresses; null when an entry is empty, a range or not an IP address.
+     *
+     * @return list<string>|null
+     */
+    public static function ipList(string $value): ?array
+    {
+        if (trim($value) === '') {
+            return [];
+        }
+        $addresses = array_map(trim(...), explode(',', $value));
+
+        return count($addresses) <= self::MAX_HOSTS && array_all($addresses, self::isIp(...)) ? $addresses : null;
     }
 
     public static function isImageReference(mixed $value): bool
@@ -183,8 +242,13 @@ final class InputGrammar
             'host' => self::isHost($value),
             'ip' => self::isIp($value),
             'host_list' => is_string($value) && self::hostList($value) !== null,
+            'ip_list' => is_string($value) && self::ipList($value) !== null,
+            'docker_name' => self::isDockerName($value),
             'identifier' => self::isIdentifier($value),
             'email' => self::isEmail($value),
+            'https_url' => self::isHttpsUrl($value),
+            'sha256' => is_string($value) && preg_match('/^[0-9a-f]{64}$/D', $value) === 1,
+            'subnet' => self::isPrivateSubnet($value),
             default => self::isText($value),
         };
     }

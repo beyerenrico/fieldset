@@ -80,6 +80,9 @@ interface DockerGateway
 
     public function inspectContainer(string $id): ?ContainerInfo;
 
+    /** A network by name or ID with its subnets, gateways and attached containers; null when there is none. */
+    public function inspectNetwork(string $name): ?NetworkInfo;
+
     /**
      * @param  array<string, string|null>  $labels  a null value matches any value of that label
      * @return list<ContainerInfo>
@@ -97,6 +100,14 @@ interface DockerGateway
      * @return list<DockerResource>
      */
     public function networks(array $labels): array;
+
+    /**
+     * The IPAM subnets of every Docker network on the engine, whoever created it: a fixed subnet (the edge
+     * network, U8) must not overlap one of them.
+     *
+     * @return list<string> CIDR notation, IPv4 and IPv6
+     */
+    public function networkSubnets(): array;
 
     /** `docker run` (detached: stdout holds the container ID). */
     public function runContainer(ContainerSpec $spec, ?string $input = null, ?float $timeout = null): ProcessOutcome;
