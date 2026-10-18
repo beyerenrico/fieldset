@@ -7,13 +7,25 @@ namespace Tests\Support\Docker;
 use Symfony\Component\Process\Process;
 
 /**
- * Runs an image script (docker/app/entrypoint.sh, docker/app/fsa) on the host with `php` and the role
- * commands replaced by stubs that only record how they were called. The image's `fsa` wrapper is on the
- * stub PATH as well, so an entrypoint test sees the artisan call it makes.
+ * Runs an image script (docker/app/entrypoint.sh, docker/app/fsa) on the host with `php`, `sleep` and the role
+ * commands replaced by stubs that only record how they were called (and exit 0, or the codes set with
+ * exitCodes()). The image's `fsa` wrapper is on the stub PATH as well, so an entrypoint test sees the artisan call
+ * it makes.
  */
 final readonly class ScriptHarness
 {
-    private const array STUBS = ['php', 'frankenphp'];
+    private const array STUBS = ['php', 'frankenphp', 'sleep'];
+
+    /** Records the call, then exits with the next line of <stub>.exits next to the log (0 when there is none). */
+    private const string STUB = <<<'SH'
+        #!/bin/sh
+        printf '%s\n' "${0##*/} $*" >> "$STUB_LOG"
+        exits="${STUB_LOG%/*}/${0##*/}.exits"
+        [ -s "$exits" ] || exit 0
+        code=$(head -n 1 "$exits")
+        tail -n +2 "$exits" > "$exits.next" && mv "$exits.next" "$exits"
+        exit "$code"
+        SH;
 
     public string $bin;
 
@@ -28,7 +40,7 @@ final readonly class ScriptHarness
         touch($this->log);
 
         foreach (self::STUBS as $stub) {
-            $this->writeExecutable($stub, "#!/bin/sh\nprintf '%s\\n' \"\${0##*/} \$*\" >> \"\$STUB_LOG\"\n");
+            $this->writeExecutable($stub, self::STUB."\n");
         }
 
         $this->writeExecutable('fsa', (string) file_get_contents($repository.'/docker/app/fsa'));
@@ -62,6 +74,16 @@ final readonly class ScriptHarness
         return $process;
     }
 
+    /**
+     * The exit codes of a stub's next calls, in order; later calls exit 0.
+     *
+     * @param  list<int>  $codes
+     */
+    public function exitCodes(string $stub, array $codes): void
+    {
+        file_put_contents(dirname($this->log).'/'.$stub.'.exits', implode("\n", $codes)."\n");
+    }
+
     /** @return list<string> the calls recorded by the last run, one per line */
     public function calls(): array
     {
@@ -72,6 +94,7 @@ final readonly class ScriptHarness
     {
         foreach ([...self::STUBS, 'fsa'] as $file) {
             @unlink($this->bin.'/'.$file);
+            @unlink(dirname($this->log).'/'.$file.'.exits');
         }
 
         @unlink($this->log);

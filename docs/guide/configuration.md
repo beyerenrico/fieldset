@@ -63,7 +63,7 @@ Contents:
 | `COMPOSE_PROFILES` | empty | `sso` starts the development Keycloak (with `compose.dev.yaml` only). |
 | `APP_PORT` | `8080` | Port number only. `compose.yaml` publishes the `app` service as `127.0.0.1:${APP_PORT}:8080`, on the loopback interface, for a reverse proxy on the same host. |
 | `FORWARD_DB_PORT`, `FORWARD_REDIS_PORT`, `FORWARD_GOTENBERG_PORT`, `FORWARD_MAILPIT_UI_PORT`, `FORWARD_MAILPIT_SMTP_PORT` | `54329`, `63799`, `13000`, `18025`, `11025` | Development only (`compose.dev.yaml`). |
-| `RUN_MIGRATIONS` | `true` for `app` (set in `compose.yaml`) | Run `php artisan migrate --force` when the container starts. |
+| `RUN_MIGRATIONS` | `true` for `app` (set in `compose.yaml`) | Run `php artisan migrate --force --isolated` when the container starts (concurrent starts take turns on a database lock). |
 | `FRANKENPHP_CONFIG` | unset: FrankenPHP's default of two PHP threads per CPU | Extra directives for the `frankenphp` block of `docker/app/Caddyfile`, for example `num_threads 4`. `fsa` sets `num_threads` from the instance's memory budget. |
 
 Set in the image (`docker/app/Dockerfile`) and overridden by `.env` when present: `APP_ENV=production`,

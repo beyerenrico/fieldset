@@ -29,8 +29,10 @@ use App\Policies\InternalRecordPolicy;
 use App\Policies\MembershipPolicy;
 use App\Policies\OrganizationPolicy;
 use App\Policies\RolePolicy;
+use App\Support\Database\MigrationMutex;
 use Filament\Actions\Exports\Models\Export;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Console\CommandMutex;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Queue\Events\JobProcessing;
@@ -47,6 +49,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->scoped(TenantContext::class);
         $this->app->scoped(OrganizationPermissions::class);
         $this->app->register(NotificationServiceProvider::class); // Notifier binding + notification listeners (M4-T06)
+        // `migrate --isolated` on app start: a Postgres advisory lock that dies with its session (ADR 0079).
+        $this->app->bind(CommandMutex::class, MigrationMutex::class);
     }
 
     public function boot(): void

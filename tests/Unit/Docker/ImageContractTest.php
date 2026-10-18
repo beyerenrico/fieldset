@@ -192,13 +192,40 @@ describe('entrypoint roles', function (): void {
     it('caches config and migrates on request for the app roles', function (): void {
         expect($this->harness->run('docker/app/entrypoint.sh', ['frankenphp', 'run'], ['RUN_MIGRATIONS' => 'true']))->toBe([
             'php artisan optimize --quiet',
-            'php artisan migrate --force --no-interaction',
+            'php artisan migrate --force --isolated=75 --no-interaction',
             'frankenphp run',
         ])->and($this->harness->run('docker/app/entrypoint.sh', ['php', 'artisan', 'horizon']))->toBe([
             'php artisan optimize --quiet',
             'php artisan horizon',
         ]);
     });
+
+    it('waits while another container migrates (exit 75), then migrates itself (ADR 0079)', function (): void {
+        $this->harness->exitCodes('php', [0, 75, 75, 0]);
+
+        expect($this->harness->run('docker/app/entrypoint.sh', ['frankenphp', 'run'], ['RUN_MIGRATIONS' => 'true']))->toBe([
+            'php artisan optimize --quiet',
+            'php artisan migrate --force --isolated=75 --no-interaction',
+            'sleep 5',
+            'php artisan migrate --force --isolated=75 --no-interaction',
+            'sleep 5',
+            'php artisan migrate --force --isolated=75 --no-interaction',
+            'frankenphp run',
+        ]);
+    });
+
+    it('never starts the app when migrating fails or the other migrator does not finish', function (array $codes, int $exit, int $migrations): void {
+        $this->harness->exitCodes('php', [0, ...$codes]);
+        $process = $this->harness->attempt('docker/app/entrypoint.sh', ['frankenphp', 'run'], ['RUN_MIGRATIONS' => 'true']);
+        $calls = $this->harness->calls();
+
+        expect($process->getExitCode())->toBe($exit)
+            ->and($calls)->not->toContain('frankenphp run')
+            ->and(array_count_values($calls)['php artisan migrate --force --isolated=75 --no-interaction'] ?? 0)->toBe($migrations);
+    })->with([
+        'a failing migration' => [[1], 1, 1],
+        'still locked after 60 attempts' => [array_fill(0, 60, 75), 75, 60],
+    ]);
 
     it('skips optimize and migrations for fsa and the backup daemon', function (array $command, string $call): void {
         $command = array_map(fn (string $part): string => str_replace('{bin}', $this->harness->bin, $part), $command);

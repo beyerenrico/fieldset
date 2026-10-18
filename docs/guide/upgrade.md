@@ -64,8 +64,9 @@ docker compose up -d --wait
 ```
 
 Step 4 recreates all three application containers:
-- `app` runs `php artisan migrate --force` on start (`RUN_MIGRATIONS=true` in `compose.yaml`) and
-  caches the new configuration. You can also run the migrations yourself first:
+- `app` runs `php artisan migrate --force --isolated` on start (`RUN_MIGRATIONS=true` in
+  `compose.yaml`; app containers starting at the same time take turns) and caches the new
+  configuration. You can also run the migrations yourself first:
   `docker compose run --rm --no-deps app php artisan migrate --force`.
 - `queue` starts Horizon with the new configuration, including new supervisors such as
   `supervisor-exports` (added in 0.2). Recreating the container is the Horizon restart. If you run
@@ -278,8 +279,8 @@ drill on the first backup after the upgrade.
 **If the upgrade fails before or during the migrations:** read the error in `docker compose logs app`.
 Most migration problems can be fixed and the migrations run again
 (`docker compose run --rm --no-deps app php artisan migrate --force`). An interrupted
-`CREATE INDEX CONCURRENTLY` leaves an invalid index that a rerun skips; find and drop it, then migrate
-again:
+`CREATE INDEX CONCURRENTLY` leaves an invalid index; the index migrations of this release drop such an
+index and build it again when they rerun. To check that none is left after the migrations:
 
 ```bash
 docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT indexrelid::regclass FROM pg_index WHERE NOT indisvalid"'

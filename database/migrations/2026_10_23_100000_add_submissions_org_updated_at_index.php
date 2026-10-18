@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Support\Database\ConcurrentIndex;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
@@ -19,7 +20,7 @@ return new class extends Migration
 
     public function up(): void
     {
-        DB::statement('CREATE INDEX CONCURRENTLY IF NOT EXISTS submissions_org_updated_at_idx ON submissions (organization_id, updated_at)');
+        ConcurrentIndex::create('submissions_org_updated_at_idx', 'ON submissions (organization_id, updated_at)');
     }
 
     public function down(): void
