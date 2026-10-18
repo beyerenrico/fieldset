@@ -2,14 +2,16 @@
 # One image for every role (ADR 0065): app (FrankenPHP, classic mode), queue (Horizon), scheduler, the `fsa` ops
 # container and the backup daemon. The context is an allow-list (.dockerignore); the final stage carries no
 # tests, docs, dev dependencies or composer, and stays within 1.0 GB uncompressed per architecture (E17).
+# Every external image is pinned as tag@sha256 of its multi-arch index (linux/amd64 and linux/arm64, checked with
+# `docker buildx imagetools inspect` on 2026-10-18); refresh tag and digest together (ImageContractTest).
 
-FROM composer:2 AS vendor
+FROM composer:2@sha256:af98f42dfff7c68ba8d53c2164fd9fde1087b7d449514baa38c418b1f6bc4bac AS vendor
 WORKDIR /app
 COPY composer.json composer.lock ./
 COPY packages ./packages
 RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-interaction --ignore-platform-reqs
 
-FROM node:24-bookworm-slim AS assets
+FROM node:24-bookworm-slim@sha256:a5f4366e834695d5f363b920c104953a535d3a9864d1bdf74566a0ebe01daee5 AS assets
 WORKDIR /app
 COPY package.json package-lock.json* ./
 COPY packages ./packages
@@ -81,7 +83,7 @@ RUN GOOS=linux GOARCH="${TARGETARCH}" GOPROXY=off go build -ldflags "-s -w -buil
 # Assembles the binaries and their licenses. It only unpacks and copies, so it runs on the build platform too.
 # Apache-2.0 asks for the LICENSE and NOTICE next to redistributed binaries (Docker CLI, Compose); age is
 # BSD-3-Clause.
-FROM --platform=$BUILDPLATFORM debian:bookworm-slim AS tools
+FROM --platform=$BUILDPLATFORM debian:bookworm-slim@sha256:7c7b2c966bc9ee8cedfeef67e0e279108992c77681fa595db4a9d65c06ccc587 AS tools
 ADD --checksum=sha256:2d81ea060825006fc8f3fe28aa5dc0ffeb80faf325b612c955229157b8c10dc0 https://raw.githubusercontent.com/docker/cli/v29.9.1/LICENSE /out/doc/docker-cli/LICENSE
 ADD --checksum=sha256:a8c869fbda819afb8d80e0ac19bac52e766bc6c19cb38cf94f52d64c4be2aab6 https://raw.githubusercontent.com/docker/cli/v29.9.1/NOTICE /out/doc/docker-cli/NOTICE
 COPY --from=downloads / /downloads/
@@ -96,7 +98,7 @@ RUN tar -xzf /downloads/docker.tgz -C /out/bin --strip-components=1 docker/docke
 # (E13: pg_dump must match the server major; bookworm ships 15). The PHP base image keeps its build toolchain
 # (compilers, binutils, headers: ~170 MB); it is removed here, and the `runtime` stage flattens the result so
 # that the removal actually shrinks the image.
-FROM dunglas/frankenphp:1-php8.4-bookworm AS runtime-build
+FROM dunglas/frankenphp:1-php8.4-bookworm@sha256:14007e6207a57651cb402970a44e5f2df15bfeffcbdeb5bbb322271949878b07 AS runtime-build
 # PGDG signing key, fingerprint B97B 0AFC AA1A 47F0 44F2 44A0 7FCC 7D46 ACCC 4CF8 (postgresql.org/download/linux/debian).
 ADD --checksum=sha256:0144068502a1eddd2a0280ede10ef607d1ec592ce819940991203941564e8e76 https://www.postgresql.org/media/keys/ACCC4CF8.asc /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
 # DL4006: the library scan pipes on purpose without pipefail (dpkg-query fails for paths no package owns).
@@ -161,7 +163,7 @@ WORKDIR /var/www/html
 # Application tree: composer exists only in this stage. Classmap, package manifest and Filament assets are built
 # here and copied into the final stage as one tree.
 FROM runtime AS build
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+COPY --from=composer:2@sha256:af98f42dfff7c68ba8d53c2164fd9fde1087b7d449514baa38c418b1f6bc4bac /usr/bin/composer /usr/bin/composer
 COPY artisan composer.json composer.lock LICENSE ./
 COPY app ./app
 COPY bootstrap ./bootstrap

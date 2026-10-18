@@ -149,6 +149,20 @@ it('cross-compiles Compose and age from verified release tags with a pinned Go t
     }
 });
 
+it('pins every external image it builds from or copies from as tag@sha256 (multi-arch index digest)', function (): void {
+    $dockerfile = DockerfileStages::fromFile(base_path('docker/app/Dockerfile'));
+    preg_match_all('/^FROM\s+(?:--\S+\s+)*(\S+)(?:\s+AS\s+(\S+))?/mi', $dockerfile->text, $froms, PREG_SET_ORDER);
+    preg_match_all('/^COPY\s+(?:--\S+\s+)*--from=(\S+)/mi', $dockerfile->text, $copies);
+    $internal = ['scratch', 'downloads-${TARGETARCH}', ...array_filter(array_column($froms, 2))];
+    $external = array_values(array_diff([...array_column($froms, 1), ...$copies[1]], $internal));
+
+    expect($external)->toHaveCount(6);
+    foreach ($external as $reference) {
+        expect($reference)->toMatch('/^[a-z0-9][a-z0-9._\/-]*:[\w.-]+@sha256:[a-f0-9]{64}$/', $reference);
+    }
+    expect(array_unique(array_filter($external, fn (string $reference): bool => str_starts_with($reference, 'composer:'))))->toHaveCount(1);
+});
+
 it('ships no cosign binary: fsa and install.sh verify with the pinned cosign image (ADR 0070, ADR 0071)', function (): void {
     expect((string) file_get_contents(base_path('docker/app/Dockerfile')))->not->toMatch('/cosign/i');
 });
