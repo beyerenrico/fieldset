@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Domain\Instance\Config\ConfigKeys;
+use App\Domain\Instance\Console\ConfigCommand;
 use App\Domain\Instance\Operations\InstanceLock;
 use App\Domain\Instance\Operations\OperationJournal;
 use App\Domain\Instance\Output\SecretRedactor;
@@ -111,4 +113,12 @@ it('exits 9 while another operation holds the lock, and for an unfinished operat
 
     [$locked, $lockedJson] = $config->set('port', '8090', ['--yes' => true]);
     expect($locked)->toBe(9)->and($lockedJson['errors'][0]['code'])->toBe('instance_locked');
+});
+
+it('names every settable key in the help of its key argument (M11 gate: phone-https and lan-address were missing)', function (): void {
+    $help = app(ConfigCommand::class)->getDefinition()->getArgument('key')->getDescription();
+
+    foreach (ConfigKeys::keys() as $key) {
+        expect($help)->toMatch('/\b'.preg_quote($key, '/').'\b/');
+    }
 });

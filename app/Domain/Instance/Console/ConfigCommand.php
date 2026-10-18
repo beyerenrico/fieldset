@@ -26,15 +26,17 @@ use Illuminate\Console\Attributes\Signature;
  * verify, and revert on failure (exit 5 `rolled_back`, `reverted: true`, ADR 0078; exit 8 when the revert fails too
  * and the instance is stopped). The same value again is `changed: false` without touching Docker.
  *
- * `config set mail smtp|capture` takes the SMTP flags (SmtpInput, shared with `fsa install --smtp-*`); the password
- * comes only from stdin (`--password-stdin`, or a hidden prompt in a terminal) or a file (`--password-file`), never
- * from a flag value (exit 2, SecretFlagGuard).
+ * Keys (ConfigKeys): domain, url, port, trusted-proxy, mode, acme-email, acme-ca, mail, phone-https, lan-address and
+ * operator-email. `config set mail smtp|capture` takes the SMTP flags (SmtpInput, shared with `fsa install --smtp-*`);
+ * the password comes only from stdin (`--password-stdin`, or a hidden prompt in a terminal) or a file
+ * (`--password-file`), never from a flag value (exit 2, SecretFlagGuard). `config set phone-https local-ca|off` and
+ * `config set lan-address <IPv4>` run the local CA of local mode (ADR 0082; the quick tunnel is `fsa tunnel`).
  * `config set operator-email <email>` grants the operator role app-side (OperatorEmailApplier, ADR 0080).
  */
 #[Description('Show the settings (secrets redacted) or change one: fsa config show | fsa config set <key> <value>')]
 #[Signature('fsa:config
         {action : show, or set}
-        {key? : For set: domain, url, port, trusted-proxy, mode, acme-email, acme-ca, mail or operator-email}
+        {key? : For set: domain, url, port, trusted-proxy, mode, acme-email, acme-ca, mail, phone-https, lan-address or operator-email}
         {value? : For set: the new value}
         {--acme-email= : config set domain: contact address for the ACME account}
         {--acme-staging : config set domain: Let\'s Encrypt staging (untrusted certificates; for trials)}

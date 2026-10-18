@@ -162,3 +162,37 @@ it('talks plain SMTP to a relay only when asked with --smtp-encryption none, and
     [, $show] = $this->config->show();
     expect($show['data']['settings']['mail']['smtp']['encryption'])->toBe('none');
 })->with(['account' => true, 'no account' => false]);
+
+it('names the missing --smtp-host as `fsa install` does: input_required with data.missing', function (): void {
+    [$code, $json] = $this->config->set('mail', 'smtp', ['--smtp-port' => '587']);
+
+    expect($code)->toBe(2)
+        ->and($json['errors'][0]['code'])->toBe('input_required')
+        ->and($json['data']['missing'])->toBe(['--smtp-host']);
+});
+
+it('keeps the sender warning when the test mail fails and names --from-address in the hint', function (): void {
+    $this->config->instance->oneOffs['instance:mail-test'] = InstanceCommandFixture::oneOffJson(['command' => 'instance:mail-test', 'status' => 'failed',
+        'errors' => [['code' => 'test_mail_failed', 'message' => '553 sender address rejected', 'hint' => null, 'retryable' => false]]]);
+
+    [$code, $json] = $this->config->set('mail', 'smtp', ['--smtp-host' => 'smtp.example.com', '--smtp-username' => SAFETY_USER, '--password-stdin' => true]);
+
+    expect($code)->toBe(5, json_encode($json))
+        ->and(collect($json['warnings'])->pluck('code')->all())->toContain('sender_localhost')
+        ->and($json['errors'][0]['hint'])->toContain('forms@localhost')->toContain('--from-address')
+        ->and($json['data']['fix_first'])->toContain('--from-address');
+});
+
+it('does not carry a warning about the reverted target\'s ports into the rolled-back result', function (): void {
+    safetySmtp($this->config, ['--remove-catcher' => true]);
+    $this->config->takenLoopback = [8025];
+    $smokes = 0;
+    $this->config->smokeFails = function (array $urls) use (&$smokes): bool {
+        return in_array('http://app:8080/up', $urls, true) && ++$smokes === 1;
+    };
+
+    [$code, $json] = $this->config->set('mail', 'capture');
+
+    expect($code)->toBe(5, json_encode($json))
+        ->and(collect($json['warnings'])->pluck('code')->all())->not->toContain('catcher_port_changed');
+});

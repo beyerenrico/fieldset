@@ -184,7 +184,8 @@ it('refuses invalid mail input with exit 2 before anything changes', function (a
         ->and($json['errors'][0]['code'])->toBe($error)
         ->and($this->config->methodsSince($mark))->toBe([]);
 })->with([
-    'no host from capture' => [['--smtp-port' => '587'], 'smtp', 'missing_flag'],
+    // M11 gate: the same code as `fsa install` (was `missing_flag`); data.missing: MailConfigSafetyTest.
+    'no host from capture' => [['--smtp-port' => '587'], 'smtp', 'input_required'],
     'user without password' => [['--smtp-host' => 'smtp.example.com', '--smtp-username' => MAIL_USER], 'smtp', 'password_required'],
     'password without user' => [['--smtp-host' => 'smtp.example.com', '--password-stdin' => true], 'smtp', 'invalid_flag'],
     'both password sources' => [['--smtp-host' => 'smtp.example.com', '--password-stdin' => true, '--password-file' => '/tmp/x'], 'smtp', 'invalid_flag'],

@@ -117,7 +117,7 @@ final readonly class MailApplier implements SettingApplier, SettingHooks
         $configured = ! $settings->capturesMail();
         $host = $options->smtpHost !== null ? MailValues::host($options->smtpHost) : ($configured ? $settings->smtpHost() : null);
         if ($host === null) {
-            throw new InvalidInput('`config set mail smtp` needs the SMTP server.', 'missing_flag', 'Pass --smtp-host <host>, and for an account --smtp-username <user> with --password-stdin or --password-file.');
+            throw new InvalidInput('`config set mail smtp` needs the SMTP server.', 'input_required', 'Pass --smtp-host <host>, and for an account --smtp-username <user> with --password-stdin or --password-file.', ['missing' => ['--smtp-host']]);
         }
         $scheme = $options->encryption !== null ? MailValues::scheme($options->encryption) : ($configured ? $settings->smtpScheme() : null);
         $port = match (true) {
