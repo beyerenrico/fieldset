@@ -55,5 +55,5 @@ exclusion, tunnel recommended on Android), R65 (path policy) and KTD10–KTD12 (
 - "Demo passwords rotate first" holds for `fsa tunnel start`; `fsa config set phone-https local-ca` refuses while an
   account has `password` (exit 3 `default_password_in_use`) and names `fsa demo --rotate-passwords`.
 - The re-issue offer is the `lan_address_changed` warning (doctor, status) naming `fsa config set lan-address <ip>`;
-  the CA stays. An expired or stopped tunnel is removed by the next `fsa config set` (any key but `operator-email`),
+  the CA stays. An expired or stopped tunnel is removed by the next `fsa config set` (any key; `operator-email` too since the M11 gate),
   `fsa demo` or `fsa tunnel`.

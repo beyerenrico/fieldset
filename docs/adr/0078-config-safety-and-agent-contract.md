@@ -128,7 +128,7 @@ chooses only the catcher UI's loopback port.
   change is settled (verified and running, or reverted).
 
 ## Amendment 2026-10-18: tunnel cleanup before `config set` (ADR 0082)
-Before `config set` (any key but `operator-email`) plans and takes the lock, an expired or stopped quick tunnel that
+Before `config set` (any key, `operator-email` included since the M11 gate) plans and takes the lock, an expired or stopped quick tunnel that
 the state records is removed in its own journaled operation (`tunnel`, action `expire`, `TunnelSweeper`), outside the
 `config` journal. The result then carries `tunnel_removed` and `changed: true`, also when the change itself fails; a
 failed cleanup is the warning `tunnel_cleanup_failed` and the change still runs. `fsa demo` and `fsa tunnel` sweep

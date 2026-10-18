@@ -210,6 +210,7 @@ it('removes an expired tunnel before the next mutating command, which then runs 
     'tunnel renew' => ['fsa:tunnel', ['action' => 'renew']],
     'config set port' => ['fsa:config', ['action' => 'set', 'key' => 'port', 'value' => '8090', '--yes' => true]],
     'config set port, unconfirmed (the command fails, the removal stays)' => ['fsa:config', ['action' => 'set', 'key' => 'port', 'value' => '8090']],
+    'config set operator-email' => ['fsa:config', ['action' => 'set', 'key' => 'operator-email', 'value' => 'ops@example.com']],
 ]);
 
 it('removes a tunnel whose cloudflared stopped on the next mutating command', function (): void {

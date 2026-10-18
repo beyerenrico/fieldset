@@ -91,11 +91,13 @@ final class ConfigCommand extends FsaCommand
         }
         $confirm = $this->canPrompt($context, ignoreYes: true) ? fn (string $question): bool => $this->confirm($question) : null;
         $request = $this->request(strtolower(trim($key)), $value, $context);
-        if ($request->key === OperatorEmailApplier::KEY) {
-            return $this->laravel->make(OperatorEmailApplier::class)->set($request, $context, $confirm, is_string($this->option('secrets-file')) && $this->option('secrets-file') !== '');
-        }
-        // An expired or stopped quick tunnel goes first (AE6, ADR 0082): this is a mutating command.
+        // An expired or stopped quick tunnel goes first (AE6, ADR 0082): every key is a mutating command.
         $swept = $this->laravel->make(TunnelSweeper::class)->sweep($context);
+        if ($request->key === OperatorEmailApplier::KEY) {
+            $secretsFile = is_string($this->option('secrets-file')) && $this->option('secrets-file') !== '';
+
+            return TunnelSweeper::then($this->resultName(), $swept, fn (): CommandResult => $this->laravel->make(OperatorEmailApplier::class)->set($request, $context, $confirm, $secretsFile));
+        }
 
         return TunnelSweeper::then($this->resultName(), $swept, fn (): CommandResult => $this->laravel->make(ConfigSetter::class)->set($request, $context, $confirm));
     }
