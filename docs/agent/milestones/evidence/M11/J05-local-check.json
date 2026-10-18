@@ -1,0 +1,54 @@
+{
+    "command": "docker exec <app> php artisan app:demo-passwords --check --json",
+    "stdout": {
+        "schema_version": 1,
+        "command": "app:demo-passwords",
+        "status": "ok",
+        "changed": false,
+        "data": {
+            "checked": 9,
+            "count": 9,
+            "users": [
+                {
+                    "email": "owner@demo.test",
+                    "demo": true
+                },
+                {
+                    "email": "admin@demo.test",
+                    "demo": true
+                },
+                {
+                    "email": "designer@demo.test",
+                    "demo": true
+                },
+                {
+                    "email": "reviewer@demo.test",
+                    "demo": true
+                },
+                {
+                    "email": "coordinator@demo.test",
+                    "demo": true
+                },
+                {
+                    "email": "worker@demo.test",
+                    "demo": true
+                },
+                {
+                    "email": "mobile@demo.test",
+                    "demo": true
+                },
+                {
+                    "email": "tablet@demo.test",
+                    "demo": true
+                },
+                {
+                    "email": "viewer@demo.test",
+                    "demo": true
+                }
+            ]
+        },
+        "secrets": [],
+        "warnings": [],
+        "errors": []
+    }
+}

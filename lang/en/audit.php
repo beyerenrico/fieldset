@@ -312,6 +312,8 @@ return [
         ],
         'instance' => [
             'config_changed' => 'Instance setting changed',
+            'demo_seeded' => 'Demo data added',
+            'demo_password_rotated' => 'Demo user password rotated',
         ],
         'login_link' => [
             'issued' => 'One-time sign-in link issued',

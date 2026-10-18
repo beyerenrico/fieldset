@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Install;
 
+use App\Domain\Instance\Demo\DemoData;
 use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
 use Closure;
@@ -96,6 +97,8 @@ final class InstallRecord
             'domain' => $setting('domain'),
             ...array_combine(InstallRequest::ACME_FLAGS, array_map($setting, InstallRequest::ACME_FLAGS)),
             ...$proxy,
+            // installed with --demo, or the demo added later by `fsa demo` (ADR 0081)
+            'demo' => DemoData::recorded($state) ? 1 : null,
         ];
     }
 
