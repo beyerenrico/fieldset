@@ -14,7 +14,9 @@ use App\Domain\Forms\Models\Form;
 use App\Domain\Identity\Actions\AddMember;
 use App\Domain\Identity\Actions\CreateOrganization;
 use App\Domain\Identity\Actions\SyncMemberGroups;
-use App\Domain\Identity\Enums\SystemRole;
+use App\Domain\Identity\Demo\DefaultDemoPassword;
+use App\Domain\Identity\Demo\DemoAccounts;
+use App\Domain\Identity\Demo\DemoPasswordSource;
 use App\Domain\Identity\Models\Group;
 use App\Domain\Identity\Models\Organization;
 use App\Domain\Identity\Models\User;
@@ -25,45 +27,35 @@ use App\Domain\Workflows\Enums\TriggerType;
 use Illuminate\Database\Seeder;
 
 /**
- * Demo organization with one user per persona, branding (colors, company details, a generated logo),
+ * Demo organization with one user per persona (DemoAccounts), branding (colors, company details, a generated logo),
  * the default document design and a published service report with "send to customer" enabled.
- * Password for every demo user: "password". Never run in production (DatabaseSeeder guards this).
+ * Password for every demo user it creates: "password", unless a DemoPasswordSource is bound (2.0: `fsa install --demo`
+ * and `fsa demo` bind random passwords whenever the instance is reachable beyond loopback, R29, ADR 0081). An
+ * existing account keeps its password. Not run by DatabaseSeeder in production; `app:demo-seed` runs it there.
  */
 final class DemoSeeder extends Seeder
 {
-    public const string PASSWORD = 'password';
+    public const string PASSWORD = DefaultDemoPassword::PASSWORD;
 
-    public function run(CreateOrganization $create, AddMember $add, SyncMemberGroups $groups, TenantContext $tenant): void
+    public function run(CreateOrganization $create, AddMember $add, SyncMemberGroups $groups, TenantContext $tenant, DemoPasswordSource $passwords): void
     {
-        if (Organization::query()->where('slug', 'demo')->exists()) {
+        if (Organization::query()->where('slug', DemoAccounts::ORGANIZATION_SLUG)->exists()) {
             return;
         }
 
-        $owner = $this->user('owner@demo.test', 'Olivia Owner');
-        $org = $create->handle(['name' => 'Demo Haustechnik GmbH', 'slug' => 'demo', 'locale' => 'de'], $owner);
+        $owner = $this->user(DemoAccounts::OWNER, DemoAccounts::OWNER_NAME, $passwords);
+        $org = $create->handle(['name' => DemoAccounts::ORGANIZATION_NAME, 'slug' => DemoAccounts::ORGANIZATION_SLUG, 'locale' => 'de'], $owner);
 
         [$north, $office] = $tenant->run($org, fn (): array => [
             Group::query()->create(['name' => 'Team Nord', 'description' => 'Montage und Service Nord']),
             Group::query()->create(['name' => 'Büro', 'description' => 'Innendienst']),
         ]);
+        $groupIds = ['north' => $north->id, 'office' => $office->id];
 
-        $people = [
-            ['admin@demo.test', 'Adam Admin', [SystemRole::Admin], [$office->id]],
-            ['designer@demo.test', 'Dana Designer', [SystemRole::Designer], [$office->id]],
-            ['reviewer@demo.test', 'Rita Reviewer', [SystemRole::Reviewer], [$office->id]],
-            ['coordinator@demo.test', 'Cora Coordinator', [SystemRole::Designer, SystemRole::Reviewer], [$office->id]],
-            ['worker@demo.test', 'Willi Worker', [SystemRole::FieldWorker], [$north->id]],
-            // More field workers for the offline E2E (M6): one is deactivated and reactivated there, and the
-            // journeys spread their logins (the login limit is 5 per minute per email and IP).
-            ['mobile@demo.test', 'Mia Mobil', [SystemRole::FieldWorker], [$north->id]],
-            ['tablet@demo.test', 'Tom Tablet', [SystemRole::FieldWorker], [$north->id]],
-            ['viewer@demo.test', 'Vera Viewer', [SystemRole::Viewer], []],
-        ];
-
-        foreach ($people as [$email, $name, $roles, $groupIds]) {
-            $user = $this->user($email, $name);
+        foreach (DemoAccounts::PEOPLE as $email => [$name, $roles, $memberOf]) {
+            $user = $this->user($email, $name, $passwords);
             $add->handle($org, $user, $roles);
-            $groups->handle($org, $user, $groupIds);
+            $groups->handle($org, $user, array_map(static fn (string $key): int => $groupIds[$key], $memberOf));
         }
 
         // A published service report that the field crew may fill (demo for the Field App). The template
@@ -138,12 +130,14 @@ final class DemoSeeder extends Seeder
         return (string) ob_get_clean();
     }
 
-    private function user(string $email, string $name): User
+    /** A demo account; only one the seeder creates asks the password source, an existing one keeps its password. */
+    private function user(string $email, string $name, DemoPasswordSource $passwords): User
     {
-        return User::query()->firstOrCreate(['email' => $email], [
-            'name' => $name,
-            'password' => self::PASSWORD,
-            'email_verified_at' => now(),
-        ]);
+        $user = User::query()->firstOrNew(['email' => $email]);
+        if (! $user->exists) {
+            $user->forceFill(['name' => $name, 'password' => $passwords->passwordFor($email), 'email_verified_at' => now()])->save();
+        }
+
+        return $user;
     }
 }
