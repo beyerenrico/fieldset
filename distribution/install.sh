@@ -149,7 +149,7 @@ fsa_install_docker_error() { tail -n 1 "$tmp/docker.err" 2>/dev/null || true; }
 fsa_install_verify() { # <dir with the manifest and its bundle>: cosign verify-blob in the pinned image (R58)
 	work=$1
 	stage=$work/verify
-	if ! { mkdir "$stage" && cp "$work/release-manifest.json" "$stage/release-manifest.json" && cp "$work/release-manifest.json.sigstore.json" "$stage/bundle.json"; }; then
+	if ! { mkdir "$stage" && cp "$work/release-manifest.json" "$stage/release-manifest.json" && cp "$work/release-manifest.json.sigstore.json" "$stage/bundle.json"; } 2>/dev/null; then
 		fsa_install_fail 3 verify_failed 'Cannot stage the manifest for verification.'
 	fi
 	if [ -n "${FSA_TRUST_KEY:-}" ]; then
@@ -186,14 +186,14 @@ fsa_install_read_manifest() { # <manifest>: sets release (version) and ref (app 
 
 fsa_install_prepare_dir() { # instance directory 0700, marker, verified release, shim from the image
 	umask 077
-	if ! { mkdir -p "$dir" && chmod 0700 "$dir"; }; then
+	if ! { mkdir -p "$dir" && chmod 0700 "$dir"; } 2>/dev/null; then
 		fsa_install_fail 2 invalid_dir "Cannot create $dir." 'Pass --dir with a directory you can write to.'
 	fi
 	[ -f "$dir/.fsa-instance" ] || printf '{"schema_version":"1.0","kind":"form-schema-app instance"}\n' >"$dir/.fsa-instance"
 	releases=$dir/releases/$release
-	{ mkdir -p "$releases" && chmod 0700 "$dir/releases" "$releases"; } || fsa_install_fail 2 invalid_dir "Cannot write to $dir."
+	{ mkdir -p "$releases" && chmod 0700 "$dir/releases" "$releases"; } 2>/dev/null || fsa_install_fail 2 invalid_dir "Cannot write to $dir."
 	for file in release-manifest.json release-manifest.json.sigstore.json; do
-		{ cp "$tmp/$file" "$releases/.$file.tmp" && mv "$releases/.$file.tmp" "$releases/$file"; } || fsa_install_fail 2 invalid_dir "Cannot write to $dir."
+		{ cp "$tmp/$file" "$releases/.$file.tmp" && mv "$releases/.$file.tmp" "$releases/$file"; } 2>/dev/null || fsa_install_fail 2 invalid_dir "Cannot write to $dir."
 	done
 	fsa_install_docker run --rm --network none --entrypoint cat "$ref" /var/www/html/distribution/shim.sh >"$dir/.fsa.tmp" && [ -s "$dir/.fsa.tmp" ] ||
 		fsa_install_fail 3 shim_unavailable "Cannot read the fsa shim from $ref: $(fsa_install_docker_error)"
@@ -204,8 +204,10 @@ fsa_install_link() { # optional PATH link (ADR 0049): never replaces an existing
 	if [ "$(id -u)" = 0 ]; then bin=/usr/local/bin; else bin=$HOME/.local/bin; fi
 	if [ -e "$bin/fsa" ] || [ -L "$bin/fsa" ]; then
 		fsa_install_say warn "install.sh: $bin/fsa already exists and was left alone; run $dir/fsa."
-	elif mkdir -p "$bin" && ln -s "$dir/fsa" "$bin/fsa"; then
+	elif { mkdir -p "$bin" && ln -s "$dir/fsa" "$bin/fsa"; } 2>/dev/null; then
 		fsa_install_say info "install.sh: linked $bin/fsa to $dir/fsa."
+	else
+		fsa_install_say warn "install.sh: could not link $bin/fsa; run $dir/fsa."
 	fi
 }
 
@@ -257,7 +259,7 @@ fsa_install_main() {
 	trap fsa_install_cleanup EXIT
 	trap 'exit 130' INT
 	trap 'exit 143' TERM
-	tmp=$(mktemp -d "${TMPDIR:-/tmp}/fsa-install.XXXXXX") || fsa_install_fail 3 tmp_unavailable 'Cannot create a temporary directory.'
+	tmp=$(mktemp -d "${TMPDIR:-/tmp}/fsa-install.XXXXXX" 2>/dev/null) || fsa_install_fail 3 tmp_unavailable 'Cannot create a temporary directory.'
 	base=$url/latest/download
 	[ -z "$version" ] || base=$url/download/v$version
 	fsa_install_phase verify "Verifying release ${version:-latest} from $url"

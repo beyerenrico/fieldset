@@ -192,7 +192,7 @@ fsa_add_mount() { # <directory> <ro|rw>: mounts its physical path at the same pa
 	case "$fsa_nl$fsa_mounts" in *"$fsa_nl$2:$fsa_mount_dir$fsa_nl"*) return 0 ;; esac
 	fsa_mounts=$fsa_mounts$2:$fsa_mount_dir$fsa_nl
 	if [ "$2" = rw ]; then
-		: >"$fsa_mount_dir/$FSA_NONCE" || fsa_fail 2 path_unwritable "Cannot write to $fsa_mount_dir." 'Pass a path in a directory you can write to.'
+		{ : >"$fsa_mount_dir/$FSA_NONCE"; } 2>/dev/null || fsa_fail 2 path_unwritable "Cannot write to $fsa_mount_dir." 'Pass a path in a directory you can write to.'
 		fsa_cleanup_files=$fsa_cleanup_files$fsa_mount_dir/$FSA_NONCE$fsa_nl
 	fi
 }
@@ -275,8 +275,8 @@ fsa_run_setup() { # host facts, the terminal decision, the nonce and the hand-ov
 	[ -z "$fsa_opener" ] || FSA_OPEN_URL_FILE=.fsa-open-url-$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')
 	fsa_mounts=''
 	fsa_cleanup_files=$fsa_dir/$FSA_NONCE$fsa_nl${FSA_OPEN_URL_FILE:+$fsa_dir/$FSA_OPEN_URL_FILE$fsa_nl}
-	: >"$fsa_dir/$FSA_NONCE" || fsa_fail 3 instance_unwritable "Cannot write to $fsa_dir." 'Run fsa as the instance owner.'
-	fsa_tmp=$(mktemp -d "${TMPDIR:-/tmp}/fsa-run.XXXXXX") || fsa_fail 3 tmp_unavailable 'Cannot create a temporary directory.'
+	{ : >"$fsa_dir/$FSA_NONCE"; } 2>/dev/null || fsa_fail 3 instance_unwritable "Cannot write to $fsa_dir." 'Run fsa as the instance owner.'
+	fsa_tmp=$(mktemp -d "${TMPDIR:-/tmp}/fsa-run.XXXXXX" 2>/dev/null) || fsa_fail 3 tmp_unavailable 'Cannot create a temporary directory.'
 	if [ -n "${FSA_TRUST_KEY:-}" ]; then
 		fsa_add_mount "$(dirname "$FSA_TRUST_KEY")" ro
 		FSA_TRUST_KEY=$fsa_mount_dir/$(basename "$FSA_TRUST_KEY")
