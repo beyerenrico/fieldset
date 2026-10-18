@@ -1,0 +1,7 @@
+{
+    "subject": [],
+    "issuer": {
+        "CN": "Pebble Intermediate CA 562f7e"
+    },
+    "san": "DNS:fsa-test-j02.test"
+}

@@ -3,8 +3,8 @@
 # FSA_HARNESS_* variables. No real registry or account is involved: images are built and mirrored into this
 # registry, and dist/ is served like GitHub Releases' download paths.
 #
-# Later units add their substitutes here (Pebble with challtestsrv, Traefik, the fake tunnel), each behind a
-# profile so a plain release run stays small.
+# Later units add their substitutes here (Traefik, the fake tunnel), each behind a profile so a plain release run
+# stays small; Pebble with challtestsrv is the `acme` profile (U8).
 name: fsa-test-harness
 
 services:
@@ -48,6 +48,54 @@ services:
       - ":${FSA_HARNESS_REGISTRY_PORT:-5000}"
       - --to
       - "${FSA_HARNESS_REGISTRY_TARGET:-127.0.0.1:5000}"
+
+  # ACME for domain mode (plan U8, J2; ADR 0064, ADR 0075), started by tests/Support/Docker/AcmeHarness.php.
+  # challtestsrv is Pebble's DNS and answers every A query with the edge's address on the acme network (the journey
+  # connects the instance's edge there). Pebble validates HTTP-01 on port 80 of that address and serves ACME over
+  # HTTPS with the static minica certificate of its image (test/certs/pebble.minica.pem), which the edge trusts
+  # through acme_ca_root. Its issuing root is generated anew on every start: read it from the management API.
+  challtestsrv:
+    profiles: [acme]
+    image: ghcr.io/letsencrypt/pebble-challtestsrv:2.10.1@sha256:12ce21884def456bcf9786542113949e1f19dc7738d2c70e156c2d0c38a1405b
+    command:
+      - -defaultIPv4
+      - "${FSA_HARNESS_EDGE_IP:-10.214.0.50}"
+      - -defaultIPv6
+      - ""
+      - -dnsserver
+      - ":8053"
+      - -http01
+      - ""
+      - -https01
+      - ""
+      - -tlsalpn01
+      - ""
+      - -doh
+      - ""
+    networks:
+      acme:
+        ipv4_address: "${FSA_HARNESS_DNS_IP:-10.214.0.10}"
+
+  pebble:
+    profiles: [acme]
+    image: ghcr.io/letsencrypt/pebble:2.10.1@sha256:ddf230642b1a584f519f32e347de1b05a6e4c1f6c35c1863b33effeab5f78199
+    command: ["-config", "/harness/pebble-config.json", "-dnsserver", "${FSA_HARNESS_DNS_IP:-10.214.0.10}:8053"]
+    environment:
+      PEBBLE_VA_NOSLEEP: "1"
+      PEBBLE_WFE_NONCEREJECT: "0"
+    volumes:
+      - ./pebble-config.json:/harness/pebble-config.json:ro
+    ports:
+      - "127.0.0.1::15000"
+    networks:
+      acme:
+        ipv4_address: "${FSA_HARNESS_PEBBLE_IP:-10.214.0.11}"
+
+networks:
+  acme:
+    ipam:
+      config:
+        - subnet: "${FSA_HARNESS_ACME_SUBNET:-10.214.0.0/24}"
 
 volumes:
   registry-data:

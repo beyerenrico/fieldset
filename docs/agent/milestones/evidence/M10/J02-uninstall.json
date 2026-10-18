@@ -1,0 +1,91 @@
+{
+    "command": "fsa uninstall --yes --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "uninstall",
+        "status": "ok",
+        "changed": true,
+        "data": {
+            "uuid": "6719531e-3921-4068-9989-948cc8377437",
+            "removed": {
+                "containers": [
+                    "fsa-fsa-test-j02-07bb-edge-1",
+                    "fsa-fsa-test-j02-07bb-queue-1",
+                    "fsa-fsa-test-j02-07bb-scheduler-1",
+                    "fsa-fsa-test-j02-07bb-app-1",
+                    "fsa-fsa-test-j02-07bb-mailpit-1",
+                    "fsa-fsa-test-j02-07bb-gotenberg-1",
+                    "fsa-fsa-test-j02-07bb-redis-1",
+                    "fsa-fsa-test-j02-07bb-postgres-1"
+                ],
+                "networks": [
+                    "fsa-fsa-test-j02-07bb_default",
+                    "fsa-fsa-test-j02-07bb_edge",
+                    "fsa-fsa-test-j02-07bb_renderer"
+                ],
+                "volumes": [
+                    "fsa-fsa-test-j02-07bb_app-storage",
+                    "fsa-fsa-test-j02-07bb_edge-data",
+                    "fsa-fsa-test-j02-07bb_mailpit-data",
+                    "fsa-fsa-test-j02-07bb_pg-data",
+                    "fsa-fsa-test-j02-07bb_valkey-data"
+                ]
+            },
+            "dir": "<work>/fsa-test-j02",
+            "deleted_files": [
+                ".fsa-instance",
+                "compose.yaml",
+                "edge",
+                "env",
+                "fsa",
+                "operations",
+                "releases",
+                "runtime",
+                "state.json"
+            ],
+            "kept": [],
+            "data_deleted": true,
+            "backups_deleted": true,
+            "final_backup": null
+        },
+        "secrets": [],
+        "warnings": [
+            {
+                "code": "certificates_removed",
+                "message": "The certificates for fsa-test-j02.test were removed with the instance. Let's Encrypt allows only a few identical certificates per week, so a new install of the same domain may be refused for a while.",
+                "hint": "Use --acme-staging for trial installs; reinstalling the same domain often counts against the CA's duplicate-certificate limit."
+            }
+        ],
+        "errors": []
+    },
+    "labelled_before": {
+        "containers": [
+            "fsa-fsa-test-j02-07bb-edge-1",
+            "fsa-fsa-test-j02-07bb-queue-1",
+            "fsa-fsa-test-j02-07bb-scheduler-1",
+            "fsa-fsa-test-j02-07bb-app-1",
+            "fsa-fsa-test-j02-07bb-mailpit-1",
+            "fsa-fsa-test-j02-07bb-gotenberg-1",
+            "fsa-fsa-test-j02-07bb-redis-1",
+            "fsa-fsa-test-j02-07bb-postgres-1"
+        ],
+        "volumes": [
+            "fsa-fsa-test-j02-07bb_app-storage",
+            "fsa-fsa-test-j02-07bb_edge-data",
+            "fsa-fsa-test-j02-07bb_mailpit-data",
+            "fsa-fsa-test-j02-07bb_pg-data",
+            "fsa-fsa-test-j02-07bb_valkey-data"
+        ],
+        "networks": [
+            "fsa-fsa-test-j02-07bb_default",
+            "fsa-fsa-test-j02-07bb_edge",
+            "fsa-fsa-test-j02-07bb_renderer"
+        ]
+    },
+    "labelled_after": {
+        "containers": [],
+        "volumes": [],
+        "networks": []
+    }
+}

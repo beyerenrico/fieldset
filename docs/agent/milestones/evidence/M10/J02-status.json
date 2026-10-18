@@ -1,0 +1,84 @@
+{
+    "command": "fsa status --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "status",
+        "status": "ok",
+        "changed": false,
+        "data": {
+            "dir": "<work>/fsa-test-j02",
+            "installed": true,
+            "operation": null,
+            "lock": null,
+            "disk": {
+                "free_gib": 156.4
+            },
+            "last_backup": null,
+            "version": "2.0.0-alpha.1-test",
+            "mode": "domain",
+            "url": "https://fsa-test-j02.test",
+            "project": "fsa-fsa-test-j02-07bb",
+            "port": null,
+            "health": "ok",
+            "services": {
+                "app": {
+                    "state": "running",
+                    "health": "healthy"
+                },
+                "queue": {
+                    "state": "running",
+                    "health": "healthy"
+                },
+                "scheduler": {
+                    "state": "running",
+                    "health": null
+                },
+                "postgres": {
+                    "state": "running",
+                    "health": "healthy"
+                },
+                "redis": {
+                    "state": "running",
+                    "health": "healthy"
+                },
+                "gotenberg": {
+                    "state": "running",
+                    "health": null
+                },
+                "mailpit": {
+                    "state": "running",
+                    "health": "healthy"
+                },
+                "edge": {
+                    "state": "running",
+                    "health": "healthy"
+                }
+            },
+            "mail": {
+                "mode": "capture",
+                "catcher_url": "https://fsa-test-j02.test/_mail/"
+            },
+            "sign_in_links": {
+                "count": 1,
+                "links": [
+                    {
+                        "id": 1,
+                        "email": "owner@example.test",
+                        "kind": "owner",
+                        "state": "unused",
+                        "created_at": "2026-10-18T07:52:02Z",
+                        "expires_at": "2026-10-18T08:52:02Z",
+                        "used_at": null,
+                        "used_ip": null,
+                        "created_by": "cli",
+                        "created_by_uid": 501
+                    }
+                ]
+            }
+        },
+        "secrets": [],
+        "warnings": [],
+        "errors": []
+    }
+}

@@ -35,6 +35,17 @@ final readonly class InstanceJourney
         return $this->run(['/bin/sh', $this->release->directory.'/install.sh', '--dir', $dir, '--version', (string) $this->release->version, ...$flags], $env);
     }
 
+    /**
+     * The install as a process not yet started, for journeys that act while it runs (J2 attaches the edge to the
+     * harness ACME network as soon as Compose creates it).
+     *
+     * @param  list<string>  $flags
+     */
+    public function installProcess(string $dir, array $flags, array $env = []): Process
+    {
+        return $this->process(['/bin/sh', $this->release->directory.'/install.sh', '--dir', $dir, '--version', (string) $this->release->version, ...$flags], $env);
+    }
+
     /** @param  list<string>  $arguments */
     public function fsa(string $dir, array $arguments, array $env = []): Process
     {
@@ -123,9 +134,9 @@ final readonly class InstanceJourney
      *
      * @param  array<string, mixed>  $transcript
      */
-    public function evidence(string $name, array $transcript): void
+    public function evidence(string $name, array $transcript, string $milestone = 'M9'): void
     {
-        $directory = TestImage::repository().'/docs/agent/milestones/evidence/M9';
+        $directory = TestImage::repository().'/docs/agent/milestones/evidence/'.$milestone;
         if (! is_dir($directory)) {
             mkdir($directory, 0755, true);
         }
@@ -139,6 +150,15 @@ final readonly class InstanceJourney
     /** @param  list<string>  $command */
     private function run(array $command, array $env): Process
     {
+        $process = $this->process($command, $env);
+        $process->run();
+
+        return $process;
+    }
+
+    /** @param  list<string>  $command */
+    private function process(array $command, array $env): Process
+    {
         $process = new Process($command, $this->work, [
             'FSA_RELEASE_URL' => $this->harness->releaseUrl(),
             'FSA_REGISTRY' => $this->harness->registry(),
@@ -148,7 +168,6 @@ final readonly class InstanceJourney
             ...$env,
         ]);
         $process->setTimeout(1800);
-        $process->run();
 
         return $process;
     }
