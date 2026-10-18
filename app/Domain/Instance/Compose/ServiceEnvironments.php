@@ -122,7 +122,8 @@ final readonly class ServiceEnvironments
             'APP_URL' => $url,
             'APP_ALLOW_REGISTRATION' => 'false',
             'LOG_LEVEL' => 'info',
-            // Until U10 resolves the scheme per request: Secure cookies would break sign-in over plain http.
+            // Default only: the runtime middleware sets Secure (and `__Host-`) per request from the scheme it resolves
+            // for the request host, so a plain-http loopback request keeps working in an https mode (ADR 0074).
             'SESSION_SECURE_COOKIE' => str_starts_with($url, 'https://') ? 'true' : 'false',
             'SESSION_DRIVER' => 'database',
             'SESSION_LIFETIME' => '43200',
@@ -130,6 +131,7 @@ final readonly class ServiceEnvironments
             'GOTENBERG_URL' => 'http://gotenberg:3000',
             'SSO_ALLOW_INSECURE_IDP' => 'false',
             'SSO_DNS_DRIVER' => 'dns',
+            // The read-only runtime mount (KTD11): config('instance.runtime_path'), read by App\Domain\Instance\Runtime.
             'FSA_RUNTIME_PATH' => RuntimeWriter::CONTAINER_PATH,
         ];
     }

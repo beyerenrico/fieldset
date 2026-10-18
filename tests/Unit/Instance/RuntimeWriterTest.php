@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Instance\InstanceException;
+use App\Domain\Instance\Runtime\RuntimeDocument;
 use App\Domain\Instance\State\RuntimeWriter;
 use Carbon\CarbonImmutable;
 use Tests\Support\Instance\ComposeFixtures;
@@ -42,8 +43,8 @@ it('renders the instance URL, extra hosts, an empty tunnel and a lowered gate fr
         'instance_url' => 'http://localhost:8081',
         'local_url' => 'http://localhost:8081',
         'extra_hosts' => ['forms.lan', '192.168.1.20'],
-        'tunnel' => ['hostname' => null, 'expires_at' => null],
-        'gate' => ['raised' => false, 'operation' => null, 'since' => null],
+        'tunnel' => ['hostname' => null, 'expires_at' => null, 'peer' => null, 'admin' => false],
+        'gate' => ['raised' => false, 'operation' => null, 'since' => null, 'smoke_token' => null],
     ]);
 });
 
@@ -75,13 +76,49 @@ it('keeps a raised gate when the runtime is re-rendered, until the operation low
     $state = ComposeFixtures::state(path: $directory->root);
     $read = fn (): array => json_decode((string) $directory->read('runtime/runtime.json'), true)['gate'];
 
-    $writer->raiseGate($state, 'upgrade');
+    $token = $writer->raiseGate($state, 'upgrade');
     $writer->write($state->withSetting('port', 9090));
     $raised = $read();
     $writer->lowerGate($state);
 
-    expect($raised)->toBe(['raised' => true, 'operation' => 'upgrade', 'since' => '2026-10-18T03:30:00Z'])
-        ->and($read())->toBe(['raised' => false, 'operation' => null, 'since' => null]);
+    expect($token)->toMatch('/^[0-9a-f]{64}$/D')
+        ->and($raised)->toBe(['raised' => true, 'operation' => 'upgrade', 'since' => '2026-10-18T03:30:00Z', 'smoke_token' => $token])
+        ->and($read())->toBe(['raised' => false, 'operation' => null, 'since' => null, 'smoke_token' => null]);
+});
+
+it('generates a new smoke token per operation, or stores the one the operation passes', function (): void {
+    $directory = TemporaryInstance::directory();
+    $writer = new RuntimeWriter($directory);
+    $state = ComposeFixtures::state(path: $directory->root);
+
+    $first = $writer->raiseGate($state, 'upgrade');
+    $second = $writer->raiseGate($state, 'restore');
+    $given = $writer->raiseGate($state, 'reset', str_repeat('Ab3_', 10));
+
+    expect($second)->not->toBe($first)
+        ->and($given)->toBe(str_repeat('Ab3_', 10))
+        ->and(json_decode((string) $directory->read('runtime/runtime.json'), true)['gate']['smoke_token'])->toBe($given);
+});
+
+it('refuses a smoke token outside the app\'s grammar', function (string $token): void {
+    $directory = TemporaryInstance::directory();
+
+    expect(fn () => new RuntimeWriter($directory)->raiseGate(ComposeFixtures::state(path: $directory->root), 'upgrade', $token))
+        ->toThrow(InstanceException::class, 'smoke token');
+})->with(['short' => 'abc', 'newline' => str_repeat('a', 40)."\n", 'quote' => str_repeat('a', 40).'"']);
+
+it('writes a document the app reads, with the raised gate and its token (U10 contract)', function (): void {
+    $directory = TemporaryInstance::directory();
+    $state = ComposeFixtures::state(['extra_hosts' => 'forms.lan,192.168.1.20'], $directory->root);
+    $token = new RuntimeWriter($directory)->raiseGate($state, 'upgrade');
+
+    $parsed = RuntimeDocument::parse(json_decode((string) $directory->read('runtime/runtime.json'), true));
+
+    expect($parsed->instanceUrl)->toBe('http://localhost:8080')
+        ->and($parsed->extraHosts)->toBe(['forms.lan', '192.168.1.20'])
+        ->and($parsed->tunnel->hostname)->toBeNull()
+        ->and($parsed->gate->raised)->toBeTrue()
+        ->and($parsed->gate->smokeToken)->toBe($token);
 });
 
 it('starts with a lowered gate when the existing file is unreadable JSON', function (): void {

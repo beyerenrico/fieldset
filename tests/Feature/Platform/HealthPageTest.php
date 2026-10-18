@@ -64,7 +64,7 @@ it('shows every check on the health page', function (): void {
 
     expect(platformHealthStatuses())->toBe([
         'queue' => HealthStatus::Ok, 'gotenberg' => HealthStatus::Ok, 'mail' => HealthStatus::Ok,
-        'scheduler' => HealthStatus::Ok, 'disk' => HealthStatus::Ok,
+        'scheduler' => HealthStatus::Ok, 'disk' => HealthStatus::Ok, 'runtime' => HealthStatus::Ok,
     ]);
     Http::assertSent(fn ($request): bool => $request->url() === 'http://gotenberg.test:3000/health');
 });
@@ -81,7 +81,7 @@ it('reports failures without breaking the page', function (): void {
     $this->get('/platform/health')->assertOk()->assertSee(__('platform.health.queue.inactive'));
     expect(platformHealthStatuses())->toBe([
         'queue' => HealthStatus::Fail, 'gotenberg' => HealthStatus::Fail, 'mail' => HealthStatus::Fail,
-        'scheduler' => HealthStatus::Warn, 'disk' => HealthStatus::Fail,
+        'scheduler' => HealthStatus::Warn, 'disk' => HealthStatus::Fail, 'runtime' => HealthStatus::Ok,
     ]);
 });
 

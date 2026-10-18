@@ -66,6 +66,7 @@ return [
             'mail' => 'Mail transport',
             'scheduler' => 'Scheduler',
             'disk' => 'Disk',
+            'runtime' => 'Instance runtime (fsa)',
         ],
         'statuses' => [
             'ok' => 'OK',
@@ -113,6 +114,20 @@ return [
             'free' => 'Free',
             'total' => 'Total',
             'percent_free' => ':percent% free on the storage volume.',
+        ],
+        'runtime' => [
+            'not_configured' => 'Not an fsa instance: the address comes from APP_URL.',
+            'ok' => 'The runtime file is current.',
+            'last_good' => 'The runtime file is unusable; the last good value stays in force.',
+            'fallback' => 'The runtime file is unusable and no good value was read: APP_URL is used and the operation gate counts as raised.',
+            'url' => 'Public URL',
+            'tunnel' => 'Tunnel',
+            'tunnel_expires' => 'Tunnel expires',
+            'tunnel_expired' => ':host (expired)',
+            'gate' => 'Operation gate',
+            'gate_raised' => 'raised (:operation)',
+            'gate_lowered' => 'lowered',
+            'problem' => 'Problem',
         ],
     ],
 ];

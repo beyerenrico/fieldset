@@ -155,3 +155,9 @@ Format: question · chosen option · impact · how to reverse.
    (APP_PREVIOUS_KEYS still match) · chosen to keep personal data out of host files · a future APP_KEY rotation
    must keep the previous keys, or old digests stop matching · `config set` key rotation (later) must append to
    APP_PREVIOUS_KEYS.
+34. The tunnel path policy (R65, ADR 0074) keeps customer document links (`/documents/links/*`), `/admin` (without
+   `--tunnel-admin`) and the builder preview off the tunnel host, but jobs started during an active tunnel link to
+   it (the public URL is the tunnel) · kept: R65 lists only the Field App, the API, sign-in and assets, and the plan
+   wants new jobs on the tunnel · a customer document mail or an admin notification sent during a tunnel demo
+   gets 404 there, and dies with the tunnel · add `documents/links/*` (random token, customer-facing) to
+   `TunnelPathPolicy::ALLOWED`, and/or build admin links in jobs from the instance URL instead of the public URL.

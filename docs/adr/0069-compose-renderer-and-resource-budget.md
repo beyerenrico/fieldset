@@ -161,3 +161,11 @@ before a trailing newline, and `"host\n"` passed.
 - A Valkey image without `VALKEY_EXTRA_FLAGS` would start without a password. The app's AUTH would then fail
   loudly; it would not run open. The image is pinned by digest, and a manifest bump must keep this contract.
 - U7's manifest must use the image role keys above.
+
+## Amendment 2026-10-18: runtime fields for the app (U10, ADR 0074)
+`runtime.json` now carries `tunnel {hostname, expires_at, peer, admin}` (peer and admin null/false until U14) and
+`gate.smoke_token`. `raiseGate()` generates the token (64 hex) or validates a given one against the app's grammar
+and returns it; `lowerGate()` clears it; a re-render keeps it with the gate. The app reads the directory from
+`FSA_RUNTIME_PATH` through `config('instance.runtime_path')`. `SESSION_SECURE_COOKIE` stays in the app env only as
+a default; the runtime middleware sets Secure and `__Host-` per request host.
+

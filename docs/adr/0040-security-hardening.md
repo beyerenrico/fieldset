@@ -142,3 +142,11 @@ Caddy adds `nosniff` to static files.
   is shared, so a timeout signs the whole browser out.
 - **Trusted proxies:** compose.yaml publishes the app on 127.0.0.1 only; the production template trusts
   `172.16.0.0/12` (the Docker bridge a host proxy arrives from) instead of `10.0.0.0/8`.
+
+## Amendment 2026-10-18: per-host HTTPS on fsa instances (ADR 0074)
+With an instance runtime directory (FSA_RUNTIME_PATH), `SecureTransport::expected()` follows the scheme the runtime
+middleware resolved for the request host instead of `isSecure() || APP_URL https`: plain-http loopback never counts
+as HTTPS (no HSTS, no Secure cookie), the URL configured for the host decides otherwise. `SecureCookies` then sets
+`session.secure` both ways and names the session cookie `__Host-<name>` over HTTPS, which closes V3.4.4 for `fsa`
+instances. `TrustedHosts::patterns()` adds the runtime hosts. Without the runtime directory nothing changes.
+

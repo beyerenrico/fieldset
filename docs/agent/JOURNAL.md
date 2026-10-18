@@ -177,3 +177,10 @@
   dated exceptions for third-party images (ADR 0071). DOCKER_DEFAULT_PLATFORM honoured: J1/J12 pass under amd64.
 - Gate: PHP 5560 (cov 95.41 %, Instance 98.15 %) / 5590 host, journeys 33/33 arm64 + J1/J12 amd64, E2E 79/79 ×2,
   static/JS/conformance/licenses green. alpha.1 built, signed, installed and uninstalled locally (599 s).
+
+## 2026-10-18 M10-T01 runtime state in the app (U10)
+- App\Domain\Instance\Runtime: strict runtime.json grammar, reader with mtime/inode/size cache, request-origin
+  URL root for allowed hosts, fail-closed gate with per-operation smoke token (internal network only, /up from
+  loopback exempt), tunnel peer path policy (allow-list in ADR 0074), expired tunnel 503, __Host- cookie,
+  JobProcessing listener, RuntimeCheck on /platform health. Full suite 5726/5726, Instance coverage 98.08 %.
+- Mailpit forward_auth spike: works with edge-injected Basic auth (LEARNINGS 103).
