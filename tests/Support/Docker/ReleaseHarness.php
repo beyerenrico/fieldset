@@ -29,6 +29,8 @@ final class ReleaseHarness
 
     public const string MANIFEST = 'release-manifest.json';
 
+    public const string STACK_FILE = 'compose.stack.yaml';
+
     /** Pulled images to untag on stop(). @var list<string> */
     private array $pulled = [];
 
@@ -246,7 +248,8 @@ final class ReleaseHarness
     }
 
     /**
-     * The manifest (via `release:manifest`, as CI runs it), its bundle, the assets that exist yet and SHA256SUMS.
+     * The manifest and the stack file (via `release:manifest`, as CI runs it), the manifest's bundle, the assets and
+     * SHA256SUMS.
      *
      * @param  list<string>  $platforms
      */
@@ -255,17 +258,14 @@ final class ReleaseHarness
         mkdir($directory, 0755, true);
         $assets = [];
         $assets[] = InstallScriptBuild::writeHarness("{$directory}/install.sh");
-        foreach (['distribution/shim.sh', 'distribution/stack/compose.stack.yaml'] as $asset) {
-            if (is_file(TestImage::repository()."/{$asset}")) {
-                copy(TestImage::repository()."/{$asset}", $assets[] = "{$directory}/".basename($asset));
-            }
-        }
+        copy(TestImage::repository().'/distribution/shim.sh', $assets[] = "{$directory}/shim.sh");
 
+        // The stack file is rendered from the manifest's pins, as the release workflow does (ADR 0076).
         self::mustRun([
             PHP_BINARY, 'artisan', 'release:manifest', (string) $release, "--app-digest={$appDigest}", "--mirror={$this->registry()}",
             ...array_map(static fn (string $platform): string => "--platform={$platform}", $platforms),
             ...array_map(static fn (string $asset): string => "--asset={$asset}", $assets),
-            "--output={$directory}/".self::MANIFEST,
+            "--stack-file={$directory}/".self::STACK_FILE, "--output={$directory}/".self::MANIFEST,
         ], 300);
 
         foreach (["{$directory}/".self::MANIFEST, ...array_filter($assets, static fn (string $asset): bool => str_ends_with($asset, 'install.sh'))] as $file) {

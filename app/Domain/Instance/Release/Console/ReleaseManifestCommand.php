@@ -32,6 +32,7 @@ use Symfony\Component\Console\Output\OutputInterface;
         {--asset=* : Release asset to checksum, e.g. distribution/install.sh (repeatable)}
         {--mirror= : Read every image from this registry instead of its own, e.g. 127.0.0.1:5000 (local harness)}
         {--upgrades-from= : Override the oldest version this release upgrades from}
+        {--stack-file= : Render the stack file (compose.stack.yaml) from the same pins to this path and list it as an asset}
         {--output= : Write the manifest to this file instead of stdout}')]
 final class ReleaseManifestCommand extends Command
 {
@@ -84,6 +85,7 @@ final class ReleaseManifestCommand extends Command
             array_map($this->path(...), $assets),
             $this->stringOption('mirror'),
             $upgradesFrom === null ? null : ReleaseVersion::fromInput($upgradesFrom),
+            $this->stringOption('stack-file') === null ? null : $this->path($this->stringOption('stack-file')),
         );
     }
 
