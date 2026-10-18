@@ -49,3 +49,9 @@ nothing once an organization exists (Appendix C). A public demo with a known pas
   `fsa tunnel start` (also from `fsa install --phone-https tunnel`). `fsa config set phone-https local-ca` has no
   secrets channel, so it refuses instead (exit 3 `default_password_in_use`) until `fsa demo --rotate-passwords` ran.
   Both refuse while an account that is not a demo account has `password`.
+
+## Amendment 2026-10-19: which organization is the demo (M11 gate, ADR 0081)
+- `--demo` and `fsa demo` seed the demo organization marked `is_demo` (DemoSeeder through CreateOrganization), with
+  the reserved slug `demo`; no other organization can get that slug any more. An organization a real install named
+  "Demo" is never taken for the demo: the seeder adds the demo beside it.
+

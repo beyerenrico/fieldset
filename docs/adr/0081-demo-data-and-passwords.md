@@ -93,7 +93,8 @@ HTTPS is `fsa install --phone-https` and `fsa tunnel start` (U14).
 - U14: call `AppCommands::demoPasswordCheck()` before `tunnel start` and the local-CA edge; rotate first on an existing
   demo (`DemoData::rotation()` inside its operation, or `fsa demo --rotate-passwords`), then refuse while `count > 0`
   (non-demo accounts on `password`). Record phone HTTPS as the `phone_https` setting.
-- `config set domain|url` (U11) does not rotate yet; `fsa demo` does on its next run. Recorded as a review question.
+- `config set domain|url` (U11) does not rotate yet; `fsa demo` does on its next run. (Superseded: no review question
+  was recorded; since the M11 gate `config set` refuses such a change instead, see the amendment of 2026-10-19.)
 - The E2E suite and every existing test keep `password` (default binding).
 
 ## Amendment 2026-10-18: how U14 uses the check (ADR 0082)
@@ -105,3 +106,55 @@ HTTPS is `fsa install --phone-https` and `fsa tunnel start` (U14).
   rotates the demo accounts inside its operation (`DemoData::rotation`, passwords listed once). `fsa config set
   phone-https local-ca` rotates nothing: it refuses while any account has `password` (exit 3
   `default_password_in_use`) and names `fsa demo --rotate-passwords`.
+
+## Amendment 2026-10-19: `config set` refuses to widen the reach while an account has `password` (M11 gate)
+- Gap: `config set domain` on a local `--demo` instance (accounts on `password`) made `owner@demo.test` / `password`
+  sign in on the public domain (R29, AE2, E9). The "review question" the Consequences named was never recorded.
+- Rule (`Config\DefaultPasswordGuard`, run by `ConfigSetter` first in the preflight phase, under the lock, before the
+  applier's own checks and before anything changes): a change widens the reach when
+  `DemoPasswords::exposure()` of the target has a reason the current state lacks. Then `app:demo-passwords --check`
+  (`ExposureCheck`) runs, and the change is refused with exit 3 `default_password_in_use` while any account signs in
+  with `password`: other accounts first (hint: change their passwords; fsa never changes a real user's password),
+  then demo accounts (hint: `fsa demo --rotate-passwords`, which lists the new ones once; `data.users`,
+  `data.exposure`). `config set` rotates nothing itself: it cannot hand out passwords, and it should not change data
+  as a side effect of a settings change.
+- Keys that widen the reach today: `domain` from local or proxy mode (`domain_mode`) and `phone-https local-ca`
+  (`local_ca`; the check moved here from `LocalCaPreflight`, so it runs once, now before the ports check). `domain`
+  on a domain-mode instance, `mode local`, `port`, `url` and `trusted-proxy` (proxy mode only), `lan-address`, `mail`
+  and the ACME keys add no reason and run no check; the app port is always bound to 127.0.0.1. Proxy mode is chosen
+  at install only. A key added later is covered as soon as its target state changes the mode or `phone_https`.
+- Consistent with QUESTIONS 39: `config set` (domain, local CA) refuses; `fsa tunnel start` rotates the demo
+  accounts itself inside its operation, as before.
+
+## Amendment 2026-10-19: the demo organization is marked, the slug `demo` reserved (M11 gate)
+- Gap: demo-ness was "the organization with the slug `demo`", and slugs were not reserved. `fsa install --org Demo
+  --demo` gave the owner's real organization the slug `demo`: the seeder answered `already_seeded`, no demo users
+  existed, and the check counted `non_demo = 0`, so `fsa tunnel start` exposed the real organization without the R65
+  `--yes` confirmation.
+- Marker: `organizations.is_demo` (boolean, default false; migration `2026_10_25_100000_add_is_demo_to_organizations`
+  with a partial unique index, so at most one organization is the demo, a deleted one included). It is not fillable:
+  only `CreateOrganization::handle(..., demo: true)` sets it, and only `DemoSeeder` passes that. Every decision reads
+  it: `DemoAccounts::organization()` (the seeder's and `app:demo-seed`'s "already seeded"), and the check's
+  `organizations.non_demo` (`where is_demo = false`). Demo accounts stay the e-mail table of `DemoAccounts`.
+- Reservation: `CreateOrganization` skips the slug `demo` when it generates one (a real organization named "Demo",
+  "DEMO" or "Démo" gets `demo-2`, …) and refuses it as an explicit slug (InvalidArgumentException). `app:install`,
+  the registration page and the SSO demo seeder all go through it. The demo organization takes `demo`, or the next
+  free slug when a real organization holds `demo` from before the reservation.
+- Upgrade: the migration marks the organization with the slug `demo` only when `owner@demo.test` is its member (the
+  seeder's owner); a real organization that took the slug stays unmarked, and a later `fsa demo` seeds the demo
+  beside it (as `demo-2`).
+
+## Amendment 2026-10-19: rotation also revokes sign-in links and reset tokens (M11 gate)
+- Reverses "unused sign-in links or reset tokens stay": `app:demo-passwords --rotate` (`RotateDemoPasswords`) also
+  deletes every unused `login_links` row of a demo account (admin and owner links) and its password-reset token (an
+  owner link's, or one a "forgot password" mail carried, possibly into the catcher), in the same transaction. A link
+  handed out before the instance became reachable must not outlive the rotation that makes it reachable. The audit
+  entry gains `links_revoked` (unused sign-in links deleted); the JSON `data` keeps its shape. `fsa demo` issues its
+  owner link after the rotation, so that link stays valid.
+
+## Amendment 2026-10-19: `fsa demo` reports its new sign-in link as a change (M11 gate)
+- A repeated `fsa demo` on an existing demo issues a new demo owner link (it replaces an earlier unused one) and was
+  reported as `changed: false`. It is now `changed: true` with the warning `sign_in_link_issued`; when no link can be
+  issued (`sign_in_link_unavailable`) and nothing else changed, it stays `changed: false`. `fsa demo` keeps handing out
+  a link on every run (F2, R30: it is how the operator gets into the demo); `--rotate-passwords` still issues none.
+

@@ -28,7 +28,9 @@ use Illuminate\Database\Seeder;
 
 /**
  * Demo organization with one user per persona (DemoAccounts), branding (colors, company details, a generated logo),
- * the default document design and a published service report with "send to customer" enabled.
+ * the default document design and a published service report with "send to customer" enabled. The organization is
+ * marked `is_demo` and gets the reserved slug `demo` (CreateOrganization); an existing demo organization, also a
+ * deleted one, makes the seeder do nothing.
  * Password for every demo user it creates: "password", unless a DemoPasswordSource is bound (2.0: `fsa install --demo`
  * and `fsa demo` bind random passwords whenever the instance is reachable beyond loopback, R29, ADR 0081). An
  * existing account keeps its password. Not run by DatabaseSeeder in production; `app:demo-seed` runs it there.
@@ -39,12 +41,12 @@ final class DemoSeeder extends Seeder
 
     public function run(CreateOrganization $create, AddMember $add, SyncMemberGroups $groups, TenantContext $tenant, DemoPasswordSource $passwords): void
     {
-        if (Organization::query()->where('slug', DemoAccounts::ORGANIZATION_SLUG)->exists()) {
+        if (DemoAccounts::organization() instanceof Organization) {
             return;
         }
 
         $owner = $this->user(DemoAccounts::OWNER, DemoAccounts::OWNER_NAME, $passwords);
-        $org = $create->handle(['name' => DemoAccounts::ORGANIZATION_NAME, 'slug' => DemoAccounts::ORGANIZATION_SLUG, 'locale' => 'de'], $owner);
+        $org = $create->handle(['name' => DemoAccounts::ORGANIZATION_NAME, 'slug' => DemoAccounts::ORGANIZATION_SLUG, 'locale' => 'de'], $owner, demo: true);
 
         [$north, $office] = $tenant->run($org, fn (): array => [
             Group::query()->create(['name' => 'Team Nord', 'description' => 'Montage und Service Nord']),

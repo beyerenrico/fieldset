@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 use App\Console\Commands\DemoSeedCommand;
 use App\Domain\Audit\Models\Activity;
+use App\Domain\Identity\Actions\IssueLoginLink;
+use App\Domain\Identity\Actions\IssueOwnerLink;
 use App\Domain\Identity\Demo\DefaultDemoPassword;
 use App\Domain\Identity\Demo\DemoAccounts;
 use App\Domain\Identity\Demo\DemoPasswordSource;
 use App\Domain\Identity\Demo\RandomDemoPasswords;
 use App\Domain\Identity\Demo\RotateDemoPasswords;
+use App\Domain\Identity\LoginLinks\LoginLinks;
+use App\Domain\Identity\Models\LoginLink;
 use App\Domain\Identity\Models\Organization;
 use App\Domain\Identity\Models\User;
 use App\Domain\Workflows\Models\Workflow;
@@ -221,4 +225,73 @@ it('prints the passwords once in human mode', function (): void {
     expect($seeded)->toContain('owner@demo.test: ')->not->toContain('owner@demo.test: password')
         ->and($checked)->toContain('No account signs in with the demo password')
         ->and($rotated)->toContain('New demo passwords (shown once)');
+});
+
+it('seeds the real demo beside an organization a real install named Demo, which never counts as the demo', function (): void {
+    Artisan::call('app:install', ['--organization' => 'Demo', '--name' => 'Real Owner', '--email' => 'owner@example.com', '--password' => 'long-enough-pw']);
+    $real = Organization::query()->sole();
+
+    [$seed] = demoCommand('app:demo-seed');
+    [$check] = demoCommand('app:demo-passwords', ['--check' => true]);
+    [$again] = demoCommand('app:demo-seed');
+
+    expect($real->slug)->not->toBe('demo')
+        ->and($seed['changed'])->toBeTrue()
+        ->and($seed['data']['seeded'])->toBeTrue()
+        ->and($seed['data']['organization']['slug'])->toBe('demo')
+        ->and($seed['warnings'])->toBe([])
+        ->and(DemoAccounts::organization()?->is($real))->toBeFalse()
+        ->and(DemoAccounts::organization()?->is_demo)->toBeTrue()
+        ->and(DemoAccounts::users())->toHaveCount(count(DemoAccounts::emails()))
+        ->and($check['data']['organizations'])->toBe(['total' => 2, 'non_demo' => 1])
+        ->and($again['data']['seeded'])->toBeFalse()
+        ->and($again['warnings'][0]['code'])->toBe('already_seeded');
+});
+
+it('counts a real organization holding the slug demo from before the reservation as a real one', function (): void {
+    Organization::factory()->create(['name' => 'Demo', 'slug' => 'demo']);
+
+    [$seed] = demoCommand('app:demo-seed');
+    [$check] = demoCommand('app:demo-passwords', ['--check' => true]);
+
+    expect($seed['data']['seeded'])->toBeTrue()
+        ->and($seed['data']['organization']['slug'])->toBe('demo-2')
+        ->and($check['data']['organizations'])->toBe(['total' => 2, 'non_demo' => 1]);
+});
+
+it('marks an existing demo on upgrade, but not a real organization that took the slug demo', function (): void {
+    $migration = require database_path('migrations/2026_10_25_100000_add_is_demo_to_organizations.php');
+    $this->seed(DemoSeeder::class);
+    $seeded = DemoAccounts::organization();
+    $seeded?->forceFill(['is_demo' => false])->saveQuietly();
+    $migration->backfill();
+    $marked = $seeded?->fresh()?->is_demo;
+    $seeded?->forceFill(['is_demo' => false, 'slug' => 'demo-old'])->saveQuietly();
+    $real = Organization::factory()->create(['name' => 'Demo', 'slug' => 'demo']);
+    $migration->backfill();
+
+    expect($marked)->toBeTrue()
+        ->and($real->fresh()?->is_demo)->toBeFalse();
+});
+
+it('revokes the unused sign-in links and password-reset tokens of the demo accounts on rotation, nobody else\'s', function (): void {
+    $this->seed(DemoSeeder::class);
+    $owner = demoUser('owner@demo.test');
+    $worker = demoUser('worker@demo.test');
+    $other = ownerOf(makeOrganization());
+    app(IssueLoginLink::class)->handle($owner, 501);
+    app(IssueOwnerLink::class)->handle($worker, 501);
+    LoginLinks::broker()->createToken(demoUser('viewer@demo.test'));
+    app(IssueLoginLink::class)->handle($other, 501);
+    clearAuditLog();
+
+    demoCommand('app:demo-passwords', ['--rotate' => true]);
+    $resetTokens = DB::table('password_reset_tokens')->pluck('email')->all();
+    $audits = Activity::query()->where('event', RotateDemoPasswords::EVENT)->get()->keyBy(fn (Activity $a): string => (string) $a->properties['email']);
+
+    expect(LoginLink::query()->whereNull('used_at')->pluck('user_id')->all())->toBe([$other->id])
+        ->and($resetTokens)->toBe([])
+        ->and($audits['owner@demo.test']->properties['links_revoked'])->toBe(1)
+        ->and($audits['worker@demo.test']->properties['links_revoked'])->toBe(1)
+        ->and($audits['viewer@demo.test']->properties['links_revoked'])->toBe(0);
 });

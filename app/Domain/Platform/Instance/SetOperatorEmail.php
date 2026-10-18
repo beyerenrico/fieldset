@@ -6,7 +6,9 @@ namespace App\Domain\Platform\Instance;
 
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Identity\Actions\IssueOwnerLink;
+use App\Domain\Identity\LoginLinks\IssuedLoginLink;
 use App\Domain\Identity\LoginLinks\LoginLinkRefused;
+use App\Domain\Identity\Models\LoginLink;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Sso\Contracts\PasswordAuthGate;
 use App\Domain\Identity\Sso\Exceptions\SsoRequiredException;
@@ -22,7 +24,10 @@ use Illuminate\Support\Str;
  * - grants the platform operator role (ADR 0041) to the account with that address, creating it when there is none
  *   (no organization, a password nobody knows, the address counted as verified: fsa's caller vouches for it);
  * - issues the first sign-in link (the owner link, password-reset broker, 60 minutes) when the account has no password
- *   of its own yet, so the new operator can set one; an account with a password signs in at /platform as before;
+ *   of its own yet, so the new operator can set one; an account with a password signs in at /platform as before.
+ *   A repeat for an operator who is one already issues a new link only when no usable one is left (unused, not
+ *   expired): a new link would invalidate the one delivered before, so the same command twice changes nothing
+ *   (ADR 0080 amendment 2026-10-19);
  * - with `$revokePrevious` revokes every other operator, which is how the instance moves to a new operator;
  * - audits `instance.config_changed` (key `operator-email`, the new address and the revoked ones) as the instance owner
  *   at the command line; grant and revocations keep their own `platform.admin_*` entries.
@@ -56,12 +61,13 @@ final readonly class SetOperatorEmail
             [$user, $created] = $this->account($email);
             $granted = $this->grant->handle($user);
             $revoked = $revokePrevious ? $this->revokeOthers($user) : [];
-            $link = $created || ! $user->password_known ? $this->ownerLink->handle($user, $hostUid) : null;
+            $usable = $user->password_known ? null : $this->usableLink($user);
+            $link = ! $user->password_known && ($created || $granted || ! $usable instanceof LoginLink) ? $this->ownerLink->handle($user, $hostUid) : null;
             if ($granted || $revoked !== []) {
                 $this->audit->cli('instance.config_changed', $user, ['key' => self::KEY, 'from' => null, 'to' => $email, 'revoked' => $revoked], $hostUid);
             }
 
-            return new OperatorEmailResult($user, $created, $granted, $revoked, $link);
+            return new OperatorEmailResult($user, $created, $granted, $revoked, $link, $link instanceof IssuedLoginLink ? null : $usable?->expires_at);
         });
     }
 
@@ -86,6 +92,12 @@ final readonly class SetOperatorEmail
         $user->markEmailAsVerified();
 
         return [$user, true];
+    }
+
+    /** The account's sign-in link that can still be used (not used, not expired), if any. */
+    private function usableLink(User $user): ?LoginLink
+    {
+        return LoginLink::query()->where('user_id', $user->id)->whereNull('used_at')->where('expires_at', '>', now())->latest('id')->first();
     }
 
     /** @return list<string> the addresses whose operator role was revoked */

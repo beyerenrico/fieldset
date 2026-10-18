@@ -20,7 +20,9 @@ use InvalidArgumentException;
 /**
  * The app side of `fsa config set operator-email <email>` (R32, KTD25, ADR 0080): a socket-less one-off grants the
  * operator role (creating the account when needed), issues the first sign-in link when the account has no password
- * yet, and with --revoke-previous revokes every other operator. With --json the link appears only under `secrets`.
+ * yet (on a repeat only when no usable link is left), and with --revoke-previous revokes every other operator. With
+ * --json the link appears only under `secrets`; `data.link` is `issued`, `outstanding` (a usable link was kept) or
+ * `none`, with `data.link_expires_at`.
  */
 #[Description('Make an address a platform operator (fsa config set operator-email)')]
 #[Signature('instance:operator-email
@@ -66,6 +68,7 @@ final class OperatorEmailCommand extends Command
         $json = JsonResult::ok(self::NAME, [
             'email' => $result->user->email, 'user_id' => $result->user->id, 'created' => $result->created,
             'granted' => $result->granted, 'revoked' => $result->revoked, 'password_set' => $result->user->password_known,
+            'link' => $result->linkState(), 'link_expires_at' => $result->linkExpiresAt(),
             'login_url' => url('/platform/login'),
         ], changed: $result->changed());
 
@@ -80,6 +83,9 @@ final class OperatorEmailCommand extends Command
         }
         if ($result->link instanceof IssuedLoginLink) {
             $this->line($result->link->url);
+        }
+        if ($result->linkState() === OperatorEmailResult::LINK_OUTSTANDING) {
+            $this->line("  The sign-in link issued earlier stays valid until {$result->linkExpiresAt()}; no new one was issued.");
         }
 
         return self::SUCCESS;

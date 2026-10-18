@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Instance\Operations\InstanceLock;
+use App\Domain\Instance\Operations\OperationJournal;
 use Tests\Support\Instance\ConfigFixture;
 use Tests\Support\Instance\InstanceCommandFixture;
 use Tests\Support\Instance\TemporaryInstance;
@@ -73,6 +74,57 @@ it('reports an address that is already the operator as unchanged', function (): 
     [$code, $json] = $this->config->set('operator-email', 'owner@example.com');
 
     expect($code)->toBe(0)->and($json['changed'])->toBeFalse();
+});
+
+it('reports a link issued on a repeat as a change, with a warning', function (): void {
+    $this->config->instance->oneOffs['instance:operator-email'] = InstanceCommandFixture::oneOffJson(['command' => 'instance:operator-email', 'status' => 'ok', 'changed' => true,
+        'data' => ['email' => 'new-ops@example.com', 'user_id' => 2, 'created' => false, 'granted' => false, 'revoked' => [], 'password_set' => false, 'link' => 'issued', 'link_expires_at' => '2026-10-18T11:00:00Z'],
+        'secrets' => [['name' => 'sign_in_link', 'value' => InstanceCommandFixture::LINK, 'expires_at' => '2026-10-18T11:00:00Z']]]);
+
+    [$code, $json] = $this->config->set('operator-email', 'new-ops@example.com');
+
+    expect($code)->toBe(0, json_encode($json))
+        ->and($json['changed'])->toBeTrue()
+        ->and($json['data']['sign_in_link']['delivered'])->toBe('secrets')
+        ->and(collect($json['warnings'])->pluck('code')->all())->toBe(['sign_in_link_issued']);
+});
+
+it('keeps a delivered link that can still be used: changed: false, a warning with its expiry', function (): void {
+    $this->config->instance->oneOffs['instance:operator-email'] = InstanceCommandFixture::oneOffJson(['command' => 'instance:operator-email', 'status' => 'ok',
+        'data' => ['email' => 'new-ops@example.com', 'user_id' => 2, 'created' => false, 'granted' => false, 'revoked' => [], 'password_set' => false, 'link' => 'outstanding', 'link_expires_at' => '2026-10-18T11:00:00Z']]);
+
+    [$code, $json] = $this->config->set('operator-email', 'new-ops@example.com');
+
+    expect($code)->toBe(0, json_encode($json))
+        ->and($json['changed'])->toBeFalse()
+        ->and($json['secrets'])->toBe([])
+        ->and($json['data'])->not->toHaveKey('sign_in_link')
+        ->and($json['warnings'][0]['code'])->toBe('sign_in_link_outstanding')
+        ->and($json['warnings'][0]['message'])->toContain('2026-10-18T11:00:00Z')
+        ->and($json['warnings'][0]['hint'])->toContain('fsa config set operator-email new-ops@example.com');
+});
+
+it('says when to retry a rate-limited link', function (): void {
+    $this->config->instance->oneOffs['instance:operator-email'] = InstanceCommandFixture::oneOffJson(['command' => 'instance:operator-email', 'status' => 'failed',
+        'errors' => [['code' => 'rate_limited', 'message' => 'Too many sign-in links for this account. Try again in 60 seconds.', 'hint' => null, 'retryable' => true]]]);
+
+    [$code, $json] = $this->config->set('operator-email', 'new-ops@example.com');
+
+    expect($code)->toBe(9)->and($json['data']['retry_after'])->toBe(60);
+});
+
+it('refuses while another operation is unfinished (exit 9), before the one-off, and leaves the lock free', function (): void {
+    $journal = new OperationJournal($this->config->instance->directory);
+    $journal->begin('demo', posix_getuid(), ['rotate' => false]);
+    $journal->startPhase('demo');
+
+    [$code, $json] = $this->config->set('operator-email', 'new-ops@example.com');
+
+    expect($code)->toBe(9, json_encode($json))
+        ->and($json['errors'][0]['code'])->toBe('operation_unfinished')
+        ->and($json['errors'][0]['hint'])->toContain('fsa demo')
+        ->and($this->config->instance->oneOffCalls('instance:operator-email'))->toBe([])
+        ->and(app(InstanceLock::class)->current())->toBeNull();
 });
 
 it('maps app refusals to exit codes', function (string $error, int $exit, bool $retryable): void {

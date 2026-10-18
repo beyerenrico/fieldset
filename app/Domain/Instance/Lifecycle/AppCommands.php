@@ -59,7 +59,7 @@ final readonly class AppCommands
         return $this->json($project, ['php', 'artisan', 'app:demo-seed', '--passwords='.$passwords, '--actor-uid='.$actorUid, '--json']);
     }
 
-    /** New random passwords for every demo account, their sessions and API tokens revoked (`fsa demo --rotate-passwords`). */
+    /** New random passwords for every demo account, their sessions, API tokens and unused sign-in links revoked (`fsa demo --rotate-passwords`). */
     public function rotateDemoPasswords(ComposeProject $project, int $actorUid): OneOffResult
     {
         return $this->json($project, ['php', 'artisan', 'app:demo-passwords', '--rotate', '--actor-uid='.$actorUid, '--json']);

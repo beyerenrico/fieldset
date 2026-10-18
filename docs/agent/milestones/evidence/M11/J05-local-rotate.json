@@ -51,7 +51,7 @@
                         "email": "viewer@demo.test"
                     }
                 ],
-                "sessions_ended": 3,
+                "sessions_ended": 4,
                 "tokens_revoked": 0,
                 "delivered": "secrets_file"
             }

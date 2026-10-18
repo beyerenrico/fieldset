@@ -5,7 +5,7 @@
         "schema_version": 1,
         "command": "demo",
         "status": "ok",
-        "changed": false,
+        "changed": true,
         "data": {
             "url": "http://localhost:8081",
             "mode": "local",
@@ -95,7 +95,7 @@
                 "delivered": "data"
             },
             "sign_in_link": {
-                "expires_at": "2026-10-18T22:18:08Z",
+                "expires_at": "2026-10-18T23:58:51Z",
                 "delivered": "secrets_file"
             }
         },
@@ -103,10 +103,16 @@
             {
                 "name": "sign_in_link",
                 "written_to": "<work>/j05-demo-link.json",
-                "expires_at": "2026-10-18T22:18:08Z"
+                "expires_at": "2026-10-18T23:58:51Z"
             }
         ],
-        "warnings": [],
+        "warnings": [
+            {
+                "code": "sign_in_link_issued",
+                "message": "The demo data exists already; only a new sign-in link for owner@demo.test was issued, and an earlier unused one no longer works.",
+                "hint": null
+            }
+        ],
         "errors": []
     },
     "link_consumed": [

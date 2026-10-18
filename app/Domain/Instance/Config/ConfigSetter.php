@@ -58,6 +58,7 @@ final readonly class ConfigSetter
         private UrlImpact $impact,
         private AppCommands $app,
         private Interruption $interruption,
+        private DefaultPasswordGuard $passwords,
     ) {}
 
     /** @param  (Closure(string): bool)|null  $confirm  asks in a terminal; null when the command may not prompt */
@@ -199,12 +200,14 @@ final readonly class ConfigSetter
 
     /**
      * Checks before anything changes (exit 3) and the target they refine (a chosen port, the edge subnet), journaled
-     * with the target. A resumed run replays the recorded target instead of checking again: the first attempt may
-     * already have moved the instance onto the ports or the network the checks would now find taken.
+     * with the target. First the demo-password rule for a change that widens the instance's reach (DefaultPasswordGuard),
+     * then the applier's own checks. A resumed run replays the recorded target instead of checking again: the first
+     * attempt may already have moved the instance onto the ports or the network the checks would now find taken.
      */
     private function preflight(OperationRun $run, SettingApplier $applier, ConfigChange $change, FsaContext $context): ConfigChange
     {
         $data = $run->phase('preflight', function () use ($applier, $change, $context): array {
+            $this->passwords->check($change->before, $change->after);
             $checked = $applier->preflight($change, $context->facts);
 
             return [...$this->rollout->pullMissing($checked->after), 'to' => $checked->to, 'after' => $checked->after->toArray(), 'warnings' => array_slice($checked->warnings, count($change->warnings))];

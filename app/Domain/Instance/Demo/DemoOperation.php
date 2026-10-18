@@ -26,8 +26,11 @@ use App\Domain\Instance\State\InstanceSettings;
  * - An existing demo whose accounts still have `password` on an instance that is reachable beyond loopback (e.g. after
  *   `config set domain`) has its passwords rotated at once (warning `demo_passwords_rotated`).
  * - Hands out a one-time sign-in link for the demo owner under the delivery policy (SignInDelivery): the browser only
- *   with `--open` or for a person at a desktop terminal, else `secrets` or `--secrets-file`.
- * - `--rotate-passwords` gives every demo account a new random password and revokes its sessions and API tokens.
+ *   with `--open` or for a person at a desktop terminal, else `secrets` or `--secrets-file`. The link is a change of
+ *   its own (it replaces an earlier unused one): on an existing demo the result is `changed: true` with the warning
+ *   `sign_in_link_issued` (ADR 0081 amendment 2026-10-19).
+ * - `--rotate-passwords` gives every demo account a new random password and revokes its sessions, API tokens and unused
+ *   sign-in links.
  */
 final readonly class DemoOperation
 {
@@ -68,7 +71,7 @@ final readonly class DemoOperation
             $result = $result->withWarning($code, $message, $hint);
         }
 
-        return $this->signIn($credentials->apply($result, $context, $toFile), $project, $context, $uid, $toFile);
+        return $this->signIn($credentials->apply($result, $context, $toFile), $project, $context, $uid, $toFile, $credentials->changed());
     }
 
     private function rotation(OperationRun $run, ComposeProject $project, FsaContext $context, int $uid, bool $toFile): CommandResult
@@ -82,13 +85,19 @@ final readonly class DemoOperation
         return $credentials->apply($result, $context, $toFile);
     }
 
-    /** The demo owner's one-time sign-in link (15 minutes); without one the result still stands, with a warning. */
-    private function signIn(CommandResult $result, ComposeProject $project, FsaContext $context, int $uid, bool $toFile): CommandResult
+    /**
+     * The demo owner's one-time sign-in link (15 minutes); without one the result still stands, with a warning. A link
+     * on a run that changed no demo data is reported as the change it is.
+     */
+    private function signIn(CommandResult $result, ComposeProject $project, FsaContext $context, int $uid, bool $toFile, bool $changed): CommandResult
     {
         $issued = $this->app->loginLink($project, DemoCredentials::OWNER, $uid);
         $link = $issued->ok ? $issued->secret(SignInDelivery::SECRET) : null;
         if ($link === null) {
             return $result->withData([SignInDelivery::SECRET => null])->withWarning('sign_in_link_unavailable', 'No sign-in link for '.DemoCredentials::OWNER.' could be issued: '.$issued->errorMessage(), 'Sign in with the demo passwords, or run '.SignInDelivery::loginLinkCommand(DemoCredentials::OWNER).' once the cause is fixed.');
+        }
+        if (! $changed) {
+            $result = $result->withChanged(true)->withWarning('sign_in_link_issued', 'The demo data exists already; only a new sign-in link for '.DemoCredentials::OWNER.' was issued, and an earlier unused one no longer works.');
         }
 
         return SignInDelivery::deliver($result, $context, $link['value'], $link['expires_at'], $toFile, DemoCredentials::OWNER);
