@@ -27,7 +27,8 @@ final readonly class DockerfileStages
                 continue;
             }
 
-            if (preg_match('/^FROM\s+(\S+)(?:\s+AS\s+(\S+))?/i', $line, $match) === 1) {
+            // FROM [--platform=…] <image> [AS <name>]
+            if (preg_match('/^FROM\s+(?:--\S+\s+)*(\S+)(?:\s+AS\s+(\S+))?/i', $line, $match) === 1) {
                 $current = $match[2] ?? $match[1];
                 $stages[$current] = [];
             }

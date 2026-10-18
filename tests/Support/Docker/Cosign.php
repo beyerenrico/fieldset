@@ -55,14 +55,14 @@ final readonly class Cosign
     }
 
     /**
-     * Verifies a blob against the local public key; returns the finished process (exit code 0 = verified).
-     * `$image` runs another image's cosign binary instead (e.g. the app image, as `fsa` would).
+     * Verifies a blob against the local public key with the pinned cosign image, the one `install.sh` and `fsa`
+     * verify with (the app image ships no cosign, ADR 0071); returns the finished process (exit code 0 = verified).
      */
-    public function verifyBlob(string $file, string $bundle, ?string $image = null): Process
+    public function verifyBlob(string $file, string $bundle): Process
     {
         return $this->run([
             ...$this->keyMounts(false), '-v', realpath($file).':/work/blob:ro', '-v', realpath($bundle).':/work/bundle:ro',
-        ], ['verify-blob', '--key', '/keys/cosign.pub', '--bundle', '/work/bundle', '--insecure-ignore-tlog=true', '/work/blob'], $image);
+        ], ['verify-blob', '--key', '/keys/cosign.pub', '--bundle', '/work/bundle', '--insecure-ignore-tlog=true', '/work/blob']);
     }
 
     /** Signs an image and, recursively, every manifest of its index (KTD22), in a local registry. */
@@ -108,12 +108,12 @@ final readonly class Cosign
      * @param  list<string>  $options
      * @param  list<string>  $arguments
      */
-    private function run(array $options, array $arguments, ?string $image = null): Process
+    private function run(array $options, array $arguments): Process
     {
         $network = in_array('--network', $options, true) ? [] : ['--network', 'none'];
         $process = new Process([
             'docker', 'run', '--rm', ...$network, '--user', $this->user(), '-e', 'HOME=/tmp', '-e', 'COSIGN_PASSWORD='.self::PASSWORD,
-            ...$options, ...($image === null ? [self::IMAGE] : ['--entrypoint', 'cosign', $image]), ...$arguments,
+            ...$options, self::IMAGE, ...$arguments,
         ]);
         $process->setTimeout(300);
         $process->run();

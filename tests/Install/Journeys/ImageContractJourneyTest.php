@@ -37,7 +37,7 @@ it('runs as a non-root user and reports its version and labels', function (): vo
         ->and($version->getOutput())->toContain(TestImage::VERSION);
 });
 
-it('carries the ops binaries, executable by the image user (KTD8)', function (): void {
+it('carries the ops binaries, executable by the image user, and no cosign (KTD8, ADR 0071)', function (): void {
     $script = <<<'SH'
         set -e
         docker --version
@@ -46,23 +46,38 @@ it('carries the ops binaries, executable by the image user (KTD8)', function ():
         pg_restore --version
         age --version
         age-keygen --version
-        test -x "$(command -v age-plugin-batchpass)"
+        age-plugin-batchpass --version
         printf 'round trip' | AGE_PASSPHRASE=u1 AGE_PASSPHRASE_WORK_FACTOR=10 age -e -j batchpass \
           | AGE_PASSPHRASE=u1 age -d -j batchpass
         echo
-        cosign version
+        if command -v cosign; then echo "cosign present"; fi
         SH;
     $process = TestImage::run(['--entrypoint', 'sh', '-e', 'HOME=/tmp'], ['-c', $script]);
     $output = $process->getOutput();
 
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput().$output)
         ->and($output)->toMatch('/^Docker version 29\.9\.\d+/m')
-        ->and($output)->toMatch('/Docker Compose version v5\.6\.\d+/')
+        ->and($output)->toMatch('/^Docker Compose version v5\.6\.0$/m')
         ->and($output)->toMatch('/^pg_dump \(PostgreSQL\) 16\.\d+/m')
         ->and($output)->toMatch('/^pg_restore \(PostgreSQL\) 16\.\d+/m')
-        ->and($output)->toMatch('/^v1\.3\.\d+$/m')
+        ->and(preg_match_all('/^v1\.3\.2$/m', $output))->toBe(3)
         ->and($output)->toContain('round trip')
-        ->and($output)->toMatch('/GitVersion:\s+v3\.1\.\d+/');
+        ->and($output)->not->toContain('cosign');
+});
+
+it('holds every path and license file of docker/app/binaries.json (ADR 0071)', function (): void {
+    $binaries = json_decode((string) file_get_contents(TestImage::repository().'/docker/app/binaries.json'), true)['binaries'];
+    $paths = array_merge(...array_map(fn (array $binary): array => [...$binary['paths'], ...$binary['license_files']], $binaries));
+    $checks = array_map(function (string $path): string {
+        expect($path)->toMatch('#^/[\w./*+-]+$#');
+
+        // Unquoted on purpose: an entry may be a glob (libpq's multiarch directory, the PHP extension directory).
+        return "set -- {$path}; [ -e \"\$1\" ] || echo \"missing: {$path}\"";
+    }, $paths);
+    $process = TestImage::run(['--entrypoint', 'sh'], ['-c', implode("\n", [...$checks, 'true'])]);
+
+    expect($process->getExitCode())->toBe(0, $process->getErrorOutput())
+        ->and(trim($process->getOutput()))->toBe('');
 });
 
 it('ships no tests, agent docs or composer, but keeps the spec files the SDK reads (R5)', function (): void {

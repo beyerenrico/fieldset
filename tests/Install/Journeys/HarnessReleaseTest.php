@@ -79,15 +79,11 @@ it('serves every manifest digest from the local registry', function (): void {
     }
 });
 
-it('signs the manifest with the local key, verified by the pinned cosign image and by the app image', function (): void {
-    expect($this->harness->pull($this->release->appReference)->getExitCode())->toBe(0);
-    $official = $this->harness->cosign->verifyBlob($this->release->manifestPath(), $this->release->bundlePath());
-    $inImage = $this->harness->cosign->verifyBlob($this->release->manifestPath(), $this->release->bundlePath(), $this->release->appReference);
+it('signs the manifest with the local key, verified by the pinned cosign image that install.sh and fsa use', function (): void {
+    $verify = $this->harness->cosign->verifyBlob($this->release->manifestPath(), $this->release->bundlePath());
 
-    expect($official->getExitCode())->toBe(0, $official->getErrorOutput())
-        ->and($official->getErrorOutput())->toContain('Verified OK')
-        ->and($inImage->getExitCode())->toBe(0, $inImage->getErrorOutput())
-        ->and($inImage->getErrorOutput())->toContain('Verified OK');
+    expect($verify->getExitCode())->toBe(0, $verify->getErrorOutput())
+        ->and($verify->getErrorOutput())->toContain('Verified OK');
 });
 
 it('fails verification for a tampered manifest', function (): void {

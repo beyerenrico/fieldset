@@ -21,37 +21,76 @@ COPY vite.config.js ./
 COPY public ./public
 RUN npm run build
 
-# Ops binaries (KTD8): static release assets pinned by SHA-256 per architecture; BuildKit refuses a mismatch.
-# Refresh a tool by changing its URLs and both checksums together (sources: ADR 0065).
+# Docker CLI (KTD8): the static release binary, pinned by SHA-256 per architecture; BuildKit refuses a mismatch.
+# Refresh it by changing the URL and both checksums together. docker/app/binaries.json lists every binary the
+# image adds, with version, source and license (ADR 0071).
 FROM scratch AS downloads-amd64
 ADD --checksum=sha256:c158ecc55adb3afb01bbd3539ed3b997d20c26dbdc418080506cc1bf5243ff57 https://download.docker.com/linux/static/stable/x86_64/docker-29.9.1.tgz /docker.tgz
-ADD --checksum=sha256:40343e21ca777173e69cff5dbafeb37c6f81f3b0d57d9e597f036e95eb63e76a https://github.com/docker/compose/releases/download/v5.6.0/docker-compose-linux-x86_64 /docker-compose
-ADD --checksum=sha256:4629c757b7618056f8ddd7e2625ae9fdd94c0372a65049520bc7d9df9efc7f71 https://github.com/sigstore/cosign/releases/download/v3.1.3/cosign-linux-amd64 /cosign
-ADD --checksum=sha256:cbe24006683f8eb669266162894b9a522a1af52f2665fbc63a4bb032ed26ac10 https://github.com/FiloSottile/age/releases/download/v1.3.2/age-v1.3.2-linux-amd64.tar.gz /age.tgz
 
 FROM scratch AS downloads-arm64
 ADD --checksum=sha256:3e93cc6d1a686456a3b18eefdde26467a837a7a2b257af22e27cba1dbc1b2018 https://download.docker.com/linux/static/stable/aarch64/docker-29.9.1.tgz /docker.tgz
-ADD --checksum=sha256:733ec76717ceb59052a9609b9dadfb523b2df8eab57a54212872d10a58078ea2 https://github.com/docker/compose/releases/download/v5.6.0/docker-compose-linux-aarch64 /docker-compose
-ADD --checksum=sha256:c5d324e091826b0d7a78eb16fef316450b4eb9aaec045611c08ba06f5e73220a https://github.com/sigstore/cosign/releases/download/v3.1.3/cosign-linux-arm64 /cosign
-ADD --checksum=sha256:6b8dc4333c53a5a57c9e5834e3a48f92605d7154014cd07269ff3327db5d37f4 https://github.com/FiloSottile/age/releases/download/v1.3.2/age-v1.3.2-linux-arm64.tar.gz /age.tgz
 
 # hadolint ignore=DL3006
 FROM downloads-${TARGETARCH} AS downloads
 
-FROM debian:bookworm-slim AS tools
-# Apache-2.0 asks for the license (and NOTICE) next to redistributed binaries; age's ships in its archive.
+# Compose and age are built from their release tags with a current Go toolchain (ADR 0071): their release binaries
+# carry Go standard-library CVEs that no upstream release fixes yet, and the app image scan allows no exception.
+# Each source is cloned at its tag and refused unless the commit matches; modules are checked against go.sum. The
+# stages run on the build platform and cross-compile for TARGETARCH, so a multi-arch build never emulates the
+# toolchain; the build steps run offline (GOPROXY=off) from the module cache of their source stage.
+# CGO_ENABLED=0, -trimpath and -buildid= make the binaries reproducible; -s -w drops the symbol tables (the build
+# info that scanners read stays). The version strings are upstream's (`docker compose version`: v5.6.0,
+# `age --version`: v1.3.2).
+FROM --platform=$BUILDPLATFORM golang:1.27.2-bookworm@sha256:5cf287a799e6b94384bad13d16b14904c531f51ba65792237e122ce42b392f61 AS go-toolchain
+ENV CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-trimpath
+WORKDIR /src
+
+# Compose v5.6.0 requires golang.org/x/net 0.58.0, which has CVE-2026-78669 (fixed in 0.60.0). The bump is made
+# here and moves x/net 0.58.0 => 0.60.0, x/crypto 0.56.0 => 0.57.0 and x/text 0.41.0 => 0.42.0 (nothing else);
+# go.mod and go.sum after it are pinned by SHA-256. Drop it once a Compose release requires x/net 0.60.0.
+FROM go-toolchain AS compose-source
+RUN <<'SH'
+set -eu
+git -c advice.detachedHead=false clone --quiet --depth 1 --branch v5.6.0 https://github.com/docker/compose.git .
+test "$(git rev-parse HEAD)" = 42f48072bbf92ee9b0e43f9fdf2008d03546e7ca
+go get golang.org/x/net@v0.60.0
+go mod tidy
+sha256sum -c - <<'SUMS'
+4fc4a43a1c6d22f08ceae0ab0cebfb35af6d4c99d1b83a79c749b088b8a7748c  go.mod
+88c9f2d713a391c08baf06c9b329d873821fe2001d827b50e98b0e26571a470d  go.sum
+SUMS
+go mod download
+SH
+
+FROM compose-source AS compose
+ARG TARGETARCH
+RUN GOOS=linux GOARCH="${TARGETARCH}" GOPROXY=off go build -tags e2e \
+      -ldflags "-s -w -buildid= -X github.com/docker/compose/v5/internal.Version=v5.6.0" \
+      -o /out/docker-compose ./cmd
+
+FROM go-toolchain AS age-source
+RUN git -c advice.detachedHead=false clone --quiet --depth 1 --branch v1.3.2 https://github.com/FiloSottile/age.git . \
+ && test "$(git rev-parse HEAD)" = b74dce4cdbe35b5e5f66c06d9612b72f89028758 \
+ && go mod download
+
+FROM age-source AS age
+ARG TARGETARCH
+RUN GOOS=linux GOARCH="${TARGETARCH}" GOPROXY=off go build -ldflags "-s -w -buildid= -X main.Version=v1.3.2" \
+      -o /out/ ./cmd/age ./cmd/age-keygen ./cmd/age-plugin-batchpass
+
+# Assembles the binaries and their licenses. It only unpacks and copies, so it runs on the build platform too.
+# Apache-2.0 asks for the LICENSE and NOTICE next to redistributed binaries (Docker CLI, Compose); age is
+# BSD-3-Clause.
+FROM --platform=$BUILDPLATFORM debian:bookworm-slim AS tools
 ADD --checksum=sha256:2d81ea060825006fc8f3fe28aa5dc0ffeb80faf325b612c955229157b8c10dc0 https://raw.githubusercontent.com/docker/cli/v29.9.1/LICENSE /out/doc/docker-cli/LICENSE
 ADD --checksum=sha256:a8c869fbda819afb8d80e0ac19bac52e766bc6c19cb38cf94f52d64c4be2aab6 https://raw.githubusercontent.com/docker/cli/v29.9.1/NOTICE /out/doc/docker-cli/NOTICE
-ADD --checksum=sha256:58d1e17ffe5109a7ae296caafcadfdbe6a7d176f0bc4ab01e12a689b0499d8bd https://raw.githubusercontent.com/docker/compose/v5.6.0/LICENSE /out/doc/docker-compose/LICENSE
-ADD --checksum=sha256:c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4 https://raw.githubusercontent.com/sigstore/cosign/v3.1.3/LICENSE /out/doc/cosign/LICENSE
 COPY --from=downloads / /downloads/
-RUN mkdir -p /out/bin /out/cli-plugins /out/doc/age \
- && tar -xzf /downloads/docker.tgz -C /out/bin --strip-components=1 docker/docker \
- && tar -xzf /downloads/age.tgz -C /out/bin --strip-components=1 age/age age/age-keygen age/age-plugin-batchpass \
- && tar -xzf /downloads/age.tgz -C /out/doc/age --strip-components=1 age/LICENSE \
- && install -m 0755 /downloads/cosign /out/bin/cosign \
- && install -m 0755 /downloads/docker-compose /out/cli-plugins/docker-compose \
- && chown -R root:root /out && chmod 0755 /out/bin/* && chmod -R a+rX /out/doc
+COPY --from=compose /out/docker-compose /out/cli-plugins/docker-compose
+COPY --from=compose-source /src/LICENSE /src/NOTICE /out/doc/docker-compose/
+COPY --from=age /out/ /out/bin/
+COPY --from=age-source /src/LICENSE /out/doc/age/LICENSE
+RUN tar -xzf /downloads/docker.tgz -C /out/bin --strip-components=1 docker/docker \
+ && chown -R root:root /out && chmod 0755 /out/bin/* /out/cli-plugins/* && chmod -R a+rX /out/doc
 
 # PHP runtime: FrankenPHP with the app's extensions, qpdf, curl (healthchecks) and the PGDG Postgres 16 client
 # (E13: pg_dump must match the server major; bookworm ships 15). The PHP base image keeps its build toolchain

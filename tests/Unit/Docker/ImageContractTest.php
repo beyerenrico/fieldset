@@ -27,6 +27,7 @@ dataset('build context', [
     'fsa shim' => ['distribution/shim.sh', true],
     'install script' => ['distribution/install.sh', false],
     'release inputs' => ['distribution/release.json', false],
+    'trivy exceptions' => ['distribution/trivy/postgres.trivyignore.yaml', false],
     'build flavor file' => ['distribution/.build-flavor', false],
     'tests' => ['tests/Unit/EnvTemplatesTest.php', false],
     'agent docs' => ['docs/agent/STATE.md', false],
@@ -115,26 +116,41 @@ it('reports the image version as config app.version', function (): void {
     }
 });
 
-it('pins every ops binary per architecture by SHA-256 (KTD8)', function (string $arch, array $tokens): void {
+it('pins the Docker CLI release binary per architecture by SHA-256 (KTD8)', function (string $arch, string $token): void {
     $stage = DockerfileStages::fromFile(base_path('docker/app/Dockerfile'))->stage('downloads-'.$arch);
-    $series = [
-        'docker' => '#download\.docker\.com/linux/static/stable/'.$tokens[0].'/docker-29\.9\.\d+\.tgz#',
-        'compose' => '#docker/compose/releases/download/v5\.6\.\d+/docker-compose-linux-'.$tokens[0].'\s#',
-        'cosign' => '#sigstore/cosign/releases/download/v3\.1\.\d+/cosign-linux-'.$tokens[1].'\s#',
-        'age' => '#FiloSottile/age/releases/download/v1\.3\.\d+/age-v1\.3\.\d+-linux-'.$tokens[1].'\.tar\.gz#',
-    ];
 
     preg_match_all('/^ADD --checksum=sha256:([0-9a-f]{64}) (\S+)/m', $stage, $adds, PREG_SET_ORDER);
 
-    expect($adds)->toHaveCount(4)
-        ->and(array_unique(array_column($adds, 1)))->toHaveCount(4);
-    foreach ($series as $tool => $pattern) {
-        expect($stage)->toMatch($pattern, "{$tool} for {$arch}");
-    }
+    expect($adds)->toHaveCount(1)
+        ->and($adds[0][2])->toMatch('#^https://download\.docker\.com/linux/static/stable/'.$token.'/docker-29\.9\.\d+\.tgz$#');
 })->with([
-    'amd64' => ['amd64', ['x86_64', 'amd64']],
-    'arm64' => ['arm64', ['aarch64', 'arm64']],
+    'amd64' => ['amd64', 'x86_64'],
+    'arm64' => ['arm64', 'aarch64'],
 ]);
+
+it('cross-compiles Compose and age from verified release tags with a pinned Go toolchain (ADR 0071)', function (): void {
+    $dockerfile = DockerfileStages::fromFile(base_path('docker/app/Dockerfile'));
+
+    expect($dockerfile->text)->toMatch('#^FROM --platform=\$BUILDPLATFORM golang:1\.27\.\d+-bookworm@sha256:[0-9a-f]{64} AS go-toolchain$#m')
+        ->and($dockerfile->stage('go-toolchain'))->toContain('ENV CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-trimpath')
+        ->and($dockerfile->stage('compose-source'))->toContain('--branch v5.6.0 https://github.com/docker/compose.git .')
+        ->and($dockerfile->stage('compose-source'))->toContain('go get golang.org/x/net@v0.60.0')
+        ->and($dockerfile->stage('compose-source'))->toMatch('/^[0-9a-f]{64}  go\.mod$/m')
+        ->and($dockerfile->stage('compose-source'))->toMatch('/^[0-9a-f]{64}  go\.sum$/m')
+        ->and($dockerfile->stage('age-source'))->toContain('--branch v1.3.2 https://github.com/FiloSottile/age.git .')
+        ->and($dockerfile->stage('tools'))->toStartWith('FROM --platform=$BUILDPLATFORM ');
+
+    foreach (['compose' => 'v5.6.0', 'age' => 'v1.3.2'] as $stage => $version) {
+        expect($dockerfile->stage($stage))->toContain('ARG TARGETARCH')
+            ->and($dockerfile->stage($stage))->toContain('GOOS=linux GOARCH="${TARGETARCH}" GOPROXY=off go build')
+            ->and($dockerfile->stage($stage))->toContain('-s -w -buildid= -X ')
+            ->and($dockerfile->stage($stage))->toContain(".Version={$version}\"");
+    }
+});
+
+it('ships no cosign binary: fsa and install.sh verify with the pinned cosign image (ADR 0070, ADR 0071)', function (): void {
+    expect((string) file_get_contents(base_path('docker/app/Dockerfile')))->not->toMatch('/cosign/i');
+});
 
 it('installs the Postgres 16 client from PGDG through a deb822 source without a fixed architecture', function (): void {
     $dockerfile = DockerfileStages::fromFile(base_path('docker/app/Dockerfile'))->text;
