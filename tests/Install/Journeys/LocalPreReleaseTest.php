@@ -147,6 +147,7 @@ it('keeps the verified release assets and the local public key in dist/', functi
 
     expect(array_values(array_diff(scandir($target) ?: [], ['.', '..'])))->toEqualCanonicalizing([
         'SHA256SUMS', 'cosign-harness.pub', 'install.sh', 'install.sh.sigstore.json', ReleaseHarness::MANIFEST, ReleaseHarness::MANIFEST.'.sigstore.json', 'shim.sh',
+        ReleaseHarness::STACK_FILE,
     ])
         ->and($verified)->not->toBeEmpty()
         ->and(array_unique($verified))->toBe([true]);

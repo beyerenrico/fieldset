@@ -73,7 +73,7 @@
         },
         "assets": {
             "type": "object",
-            "description": "Release asset file name => checksum (install.sh, shim.sh, the stack file, ...).",
+            "description": "Release asset file name => checksum (install.sh, shim.sh, compose.stack.yaml, ...). compose.stack.yaml (R18, ADR 0076) is rendered from the images below and runs only them; manifests before 2.0.0-alpha.2 lack it, so readers do not require it.",
             "required": [
                 "install.sh",
                 "shim.sh"

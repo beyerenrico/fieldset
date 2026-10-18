@@ -8,6 +8,7 @@ use App\Domain\Instance\Docker\ContainerSpec;
 use App\Domain\Instance\Docker\DockerCommandFailed;
 use App\Domain\Instance\Docker\DockerResource;
 use App\Domain\Instance\Docker\DockerUnavailable;
+use App\Domain\Instance\Docker\NetworkInfo;
 use App\Domain\Instance\Docker\ProcessOutcome;
 use App\Domain\Instance\Docker\SymfonyCommandRunner;
 use App\Domain\Instance\InstanceException;
@@ -156,6 +157,42 @@ it('inspects a container for its ID and start time', function (): void {
         ->and($container?->labels)->toBe(['app.form-schema.role' => 'ops'])
         ->and($this->docker->inspectContainer('gone'))->toBeNull()
         ->and(fn () => $this->docker->inspectContainer('x'))->toThrow(DockerCommandFailed::class);
+});
+
+it('inspects a network for its gateway and the addresses of attached containers (proxy mode, ADR 0076)', function (): void {
+    $this->runner->push(
+        new ProcessOutcome(0, json_encode([
+            'Name' => 'edge-net', 'Id' => 'n1', 'Internal' => false, 'Labels' => ['owner' => 'proxy'],
+            'IPAM' => ['Config' => [['Subnet' => 'fd00::/64', 'Gateway' => 'fd00::1'], ['Subnet' => '172.20.0.0/16', 'Gateway' => '172.20.0.1']]],
+            'Containers' => [
+                str_repeat('c', 64) => ['Name' => 'traefik', 'IPv4Address' => '172.20.0.5/16', 'IPv6Address' => 'fd00::5/64'],
+                str_repeat('d', 64) => ['Name' => 'v6-only', 'IPv4Address' => '', 'IPv6Address' => 'fd00::6/64'],
+            ],
+        ])),
+        new ProcessOutcome(1, '', 'Error response from daemon: network gone not found'),
+        new ProcessOutcome(1, '', 'Error response from daemon: something else'),
+    );
+
+    $network = $this->docker->inspectNetwork('edge-net');
+
+    expect($this->runner->runs[0]['command'])->toBe(['docker', 'network', 'inspect', '--format', '{{json .}}', 'edge-net'])
+        ->and($network?->gateway())->toBe('172.20.0.1')
+        ->and($network?->subnets)->toBe(['fd00::/64', '172.20.0.0/16'])
+        ->and($network?->labels)->toBe(['owner' => 'proxy'])
+        ->and($network?->endpoint('traefik')?->address())->toBe('172.20.0.5')
+        ->and($network?->endpoint(str_repeat('c', 12))?->name)->toBe('traefik')
+        ->and($network?->endpoint('/traefik')?->ipv6)->toBe('fd00::5')
+        ->and($network?->endpoint('missing'))->toBeNull()
+        ->and($network?->endpoint('cccc'))->toBeNull()
+        ->and($network?->endpointAt('172.20.0.5')?->name)->toBe('traefik')
+        ->and($network?->endpointAt('fd00:0::6')?->name)->toBe('v6-only')
+        ->and($network?->endpointAt('fd00::6')?->address())->toBe('fd00::6')
+        ->and($network?->endpointAt('172.20.0.99'))->toBeNull()
+        ->and($this->docker->inspectNetwork('gone'))->toBeNull()
+        ->and(fn () => $this->docker->inspectNetwork('x'))->toThrow(DockerCommandFailed::class)
+        ->and(fn () => $this->docker->inspectNetwork('bad name'))->toThrow(InvalidInput::class)
+        ->and(NetworkInfo::fromInspect(['IPAM' => ['Config' => [['Subnet' => 'fd00::/64', 'Gateway' => 'fd00::1']]]])->gateway())->toBe('fd00::1')
+        ->and(NetworkInfo::fromInspect([])->gateway())->toBeNull();
 });
 
 it('lists containers, volumes and networks by label', function (): void {

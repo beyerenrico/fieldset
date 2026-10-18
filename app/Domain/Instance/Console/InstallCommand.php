@@ -15,23 +15,25 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 
 /**
- * `fsa install` (§7, F2, R9–R15, R26, ADR 0072): creates and starts a local-mode instance from the release
- * install.sh verified, resumes a half-finished install, and changes nothing on a finished one. A new install
- * needs --org and --owner-email: prompted in a terminal, exit 2 (`input_required`) without one or under
- * --yes/--json; exit 6 stays reserved for confirmations (§7). Flags of later pre-releases are recognised and
+ * `fsa install` (§7, F2, R9–R15, R17, R26, ADR 0072, ADR 0076): creates and starts a local- or proxy-mode instance
+ * from the release install.sh verified, resumes a half-finished install, and changes nothing on a finished one. A
+ * new install needs --org and --owner-email: prompted in a terminal, exit 2 (`input_required`) without one or
+ * under --yes/--json; exit 6 stays reserved for confirmations (§7). Flags of later pre-releases are recognised and
  * refused with exit 2; --domain runs the DNS preflight first (AE5).
  */
-#[Description('Create and start an instance (local mode), or resume an unfinished install')]
+#[Description('Create and start an instance (local or proxy mode), or resume an unfinished install')]
 #[Signature('fsa:install
         {--org= : Organization name (required for a new install)}
         {--owner-email= : Owner e-mail (required for a new install); the owner gets a one-time sign-in link}
         {--owner-name= : Owner name (default: the part of the e-mail before the @)}
         {--locale= : Organization and owner locale: de or en (default de)}
-        {--port= : Loopback port of the app (default 8080, or the next free one)}
+        {--port= : Loopback port of the app (default 8080, or the next free one; local mode and --behind-proxy port)}
         {--release= : Release version; the fsa wrapper passes --version as this. Must match the verified manifest}
         {--domain= : Domain mode (2.0.0-alpha.2): runs the DNS preflight, then stops}
-        {--behind-proxy= : Proxy mode (2.0.0-alpha.2)}
-        {--url= : Public URL behind a proxy (2.0.0-alpha.2)}
+        {--behind-proxy= : Proxy mode: traefik or caddy (labels on a shared Docker network) or port (a loopback port)}
+        {--url= : Public URL your proxy serves in proxy mode, e.g. https://forms.example.com}
+        {--proxy-network= : Docker network shared with the proxy (--behind-proxy traefik or caddy); only the app joins it}
+        {--trusted-proxy= : The proxy container (name or ID) or its address on that network; default: found by its image}
         {--phone-https= : Phone HTTPS via local-ca or tunnel (2.0.0-beta.1)}
         {--demo : Demo organization and users (2.0.0-beta.1)}
         {--encrypt : Encrypted backups (2.0.0-rc.1)}
@@ -41,7 +43,7 @@ final class InstallCommand extends FsaCommand
 {
     /** Option => the pre-release that brings it. */
     private const array LATER = [
-        'behind-proxy' => '2.0.0-alpha.2', 'url' => '2.0.0-alpha.2', 'phone-https' => '2.0.0-beta.1',
+        'phone-https' => '2.0.0-beta.1',
         'demo' => '2.0.0-beta.1', 'encrypt' => '2.0.0-rc.1', 'from-backup' => '2.0.0-rc.1',
     ];
 
