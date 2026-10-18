@@ -36,6 +36,9 @@ final class ReleaseHarness
 
     private bool $builder = false;
 
+    /** The external network of proxy mode's Traefik, once startProxy() created it. */
+    private ?string $proxyNetwork = null;
+
     private static ?string $native = null;
 
     private function __construct(
@@ -192,9 +195,43 @@ final class ReleaseHarness
         return $process;
     }
 
+    /**
+     * Proxy mode's Traefik on an external network of its own (J3): creates `fsa-test-proxy-<id>` and starts the
+     * `traefik` service of the proxy profile on it. Idempotent.
+     *
+     * @return array{network: string, container: string}
+     */
+    public function startProxy(): array
+    {
+        $network = $this->proxyNetwork ?? str_replace('fsa-test-harness-', 'fsa-test-proxy-', $this->project);
+        if ($this->proxyNetwork === null) {
+            self::mustRun(['docker', 'network', 'create', '--label', 'app.form-schema.test=harness', $network]);
+            $this->proxyNetwork = $network;
+        }
+        $compose = self::compose($this->project, $this->directory, ['FSA_HARNESS_PROXY_NETWORK' => $network]);
+        self::mustRun([...$compose, '--profile', 'proxy', 'up', '-d', '--wait', 'traefik'], 600);
+        $container = trim(self::mustRun([...$compose, '--profile', 'proxy', 'ps', '--format', '{{.Name}}', 'traefik'])->getOutput());
+
+        return ['network' => $network, 'container' => $container];
+    }
+
+    /** Stops Traefik and removes its network (after every container left it). */
+    public function stopProxy(): void
+    {
+        if ($this->proxyNetwork === null) {
+            return;
+        }
+        $compose = self::compose($this->project, $this->directory, ['FSA_HARNESS_PROXY_NETWORK' => $this->proxyNetwork]);
+        new Process([...$compose, '--profile', 'proxy', 'rm', '--force', '--stop', 'traefik'])->setTimeout(300)->run();
+        new Process(['docker', 'network', 'rm', $this->proxyNetwork])->setTimeout(120)->run();
+        $this->proxyNetwork = null;
+    }
+
     /** Removes the compose project (containers, network, volume), the builder, pulled references and run files. */
     public function stop(): void
     {
+        $this->stopProxy();
+
         foreach (array_unique($this->pulled) as $reference) {
             new Process(['docker', 'image', 'rm', $reference])->run();
         }
@@ -327,7 +364,7 @@ final class ReleaseHarness
     private static function tearDown(string $project, string $directory): void
     {
         $compose = self::compose($project, $directory, []);
-        new Process([...$compose, '--profile', 'forwarder', 'down', '--volumes', '--remove-orphans', '--timeout', '5'])->setTimeout(300)->run();
+        new Process([...$compose, '--profile', 'forwarder', '--profile', 'proxy', 'down', '--volumes', '--remove-orphans', '--timeout', '5'])->setTimeout(300)->run();
         new Process(['rm', '-rf', $directory])->run();
     }
 

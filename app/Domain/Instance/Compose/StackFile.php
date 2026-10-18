@@ -241,7 +241,7 @@ final readonly class StackFile
             'Put a TLS-terminating reverse proxy in front: publish 127.0.0.1:APP_PORT to a proxy on the host, or attach',
             'the app (only the app) to your proxy\'s network and route to app:8080 (Coolify does this for you).',
             'The app migrates the database on start. Create the first organization and owner once:',
-            '  docker compose exec app php artisan app:install --organization="My Org" --email=you@example.com --owner-link',
+            '  docker compose exec app php artisan app:install --organization="My Org" --name="Your Name" --email=you@example.com --owner-link',
             'It prints a one-time sign-in link (60 minutes) for the owner.',
             '',
             'Missing without fsa (install with fsa to get them):',

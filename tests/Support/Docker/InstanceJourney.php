@@ -123,9 +123,9 @@ final readonly class InstanceJourney
      *
      * @param  array<string, mixed>  $transcript
      */
-    public function evidence(string $name, array $transcript): void
+    public function evidence(string $name, array $transcript, string $milestone = 'M9'): void
     {
-        $directory = TestImage::repository().'/docs/agent/milestones/evidence/M9';
+        $directory = TestImage::repository().'/docs/agent/milestones/evidence/'.$milestone;
         if (! is_dir($directory)) {
             mkdir($directory, 0755, true);
         }
