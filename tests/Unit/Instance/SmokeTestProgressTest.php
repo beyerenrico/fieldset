@@ -146,8 +146,34 @@ it('throws into the running step while armed and only records a signal while dis
     } catch (OperationInterrupted $e) {
         expect($e->signal)->toBe(1)->and($e->errorCode)->toBe('interrupted')->and($e->data)->toBe(['signal' => 'SIGHUP']);
     }
+    expect($guard->pending())->toBe(1); // until the caller consumes it (it reverts)
+    $guard->consume();
     $guard->handle(2); // disarmed by the first interruption: recorded only
     expect($guard->pending())->toBe(2);
+});
+
+it('raises a signal whose exception a best-effort catch swallowed at the next checkpoint', function (): void {
+    $guard = new Interruption;
+    $guard->arm();
+
+    try {
+        $guard->handle(SIGTERM);
+    } catch (Throwable) {
+        // a best-effort catch elsewhere in the step ate it
+    }
+
+    expect(fn () => $guard->checkpoint())->toThrow(OperationInterrupted::class, 'SIGTERM')
+        ->and($guard->pending())->toBeNull();
+    $guard->checkpoint(); // raised once only
+});
+
+it('lets the interruption through a best-effort heartbeat instead of swallowing it', function (): void {
+    $guard = new Interruption;
+    $guard->arm();
+    $journal = new OperationJournal(TemporaryInstance::withState());
+    $run = new OperationRun($journal, $journal->begin('config', 501), null, fn () => $guard->handle(SIGHUP));
+
+    expect(fn () => $run->phase('apply', fn (): array => []))->toThrow(OperationInterrupted::class, 'SIGHUP');
 });
 
 it('installs real signal handlers around the body and restores the previous ones', function (): void {

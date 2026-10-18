@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Instance\Config\ConfigRequest;
 use App\Domain\Instance\Docker\ContainerSpec;
 use App\Domain\Instance\Operations\Interruption;
 use Tests\Support\Instance\ConfigFixture;
@@ -95,6 +96,36 @@ it('aborts with exit 9 and nothing changed when the signal arrives before any ch
         ->and($json['errors'][0]['code'])->toBe('interrupted')
         ->and($this->config->callsSince($mark, 'composeUp'))->toBe([])
         ->and($this->config->state()->setting('port'))->toBe(8080)
+        ->and($this->config->openJournal())->toBeNull();
+});
+
+it('reverts the change a killed run left applied when a resumed run is interrupted before its own apply', function (): void {
+    $this->config->interruptedDuringApply(new ConfigRequest('port', '8090')); // state.json holds the unverified 8090
+    $guard = new Interruption;
+    $guard->handle(SIGTERM); // arrived while the resumed run took the lock (disarmed: recorded)
+    app()->instance(Interruption::class, $guard);
+
+    [$code, $json] = $this->config->set('port', '8090', ['--yes' => true]);
+
+    expect($code)->toBe(5, json_encode($json))
+        ->and($json['errors'][0]['code'])->toBe('interrupted')
+        ->and($json['data']['reverted'])->toBeTrue()
+        ->and($this->config->state()->setting('port'))->toBe(8080)
+        ->and($this->config->openJournal())->toBeNull()
+        ->and(collect($this->config->archivedJournals())->first()?->outcome()?->value)->toBe('rolled_back');
+});
+
+it('aborts a fresh run with exit 9 when a signal arrived while it took the lock', function (): void {
+    $guard = new Interruption;
+    $guard->handle(SIGINT);
+    app()->instance(Interruption::class, $guard);
+    $mark = $this->config->mark();
+
+    [$code, $json] = $this->config->set('port', '8090', ['--yes' => true]);
+
+    expect($code)->toBe(9, json_encode($json))
+        ->and($json['changed'])->toBeFalse()
+        ->and($this->config->callsSince($mark, 'composeUp'))->toBe([])
         ->and($this->config->openJournal())->toBeNull();
 });
 

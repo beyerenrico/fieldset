@@ -15,7 +15,8 @@ use Closure;
  * restores the previous ones afterwards. While the guard is armed, a signal throws OperationInterrupted into the
  * running step, so the caller's normal failure path runs: before any change an abort, during apply or verify the
  * journaled revert. While disarmed (the revert itself, the audit) a signal is only recorded, so the step finishes.
- * A signal received while disarmed is raised on the next `arm()`.
+ * Every signal stays pending until raised: a signal received while disarmed is raised on the next `arm()`, and one
+ * whose exception a best-effort `catch (Throwable)` swallowed is raised again at the caller's next `checkpoint()`.
  *
  * SIGKILL cannot be handled: the journal then stays open and the next run of the same command resumes it (a revert
  * that had started is finished from the snapshot, see ConfigSetter).
@@ -65,13 +66,33 @@ final class Interruption
      */
     public function arm(): void
     {
-        if ($this->pending !== null) {
-            $signal = $this->pending;
-            $this->pending = null;
-
-            throw new OperationInterrupted($signal);
-        }
+        $this->checkpoint();
         $this->armed = true;
+    }
+
+    /**
+     * Raises a pending signal (one that arrived while disarmed, or whose exception was swallowed); the caller places
+     * it between armed steps. A signal is raised once.
+     *
+     * @throws OperationInterrupted
+     */
+    public function checkpoint(): void
+    {
+        if ($this->pending === null) {
+            return;
+        }
+        $signal = $this->pending;
+        $this->pending = null;
+        $this->armed = false;
+
+        throw new OperationInterrupted($signal);
+    }
+
+    /** The caller handled the interruption (it reverts): the signal must not be raised again. */
+    public function consume(): void
+    {
+        $this->armed = false;
+        $this->pending = null;
     }
 
     /** From now on a signal is only recorded: the running step (a revert, the audit) must finish. */
@@ -87,9 +108,8 @@ final class Interruption
      */
     public function handle(int $signal): void
     {
+        $this->pending ??= $signal;
         if (! $this->armed) {
-            $this->pending ??= $signal;
-
             return;
         }
         $this->armed = false;
@@ -97,7 +117,7 @@ final class Interruption
         throw new OperationInterrupted($signal);
     }
 
-    /** A signal received while disarmed and not raised yet. */
+    /** A signal received and not consumed yet (cleared by `checkpoint()`, `arm()` raising it, or `consume()`). */
     public function pending(): ?int
     {
         return $this->pending;

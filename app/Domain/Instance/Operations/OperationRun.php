@@ -87,6 +87,8 @@ final class OperationRun
 
         try {
             ($this->heartbeat)();
+        } catch (OperationInterrupted $interrupted) {
+            throw $interrupted; // a signal that landed here interrupts the operation, it is no heartbeat failure
         } catch (Throwable) {
             // best effort: a lost heartbeat only makes `fsa status` show an older time
         }

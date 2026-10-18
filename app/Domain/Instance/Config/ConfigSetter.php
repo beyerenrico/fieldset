@@ -13,6 +13,7 @@ use App\Domain\Instance\Lifecycle\AppCommands;
 use App\Domain\Instance\Operations\ContainerIdentity;
 use App\Domain\Instance\Operations\Interruption;
 use App\Domain\Instance\Operations\JournalRecord;
+use App\Domain\Instance\Operations\OperationInterrupted;
 use App\Domain\Instance\Operations\OperationRun;
 use App\Domain\Instance\Operations\Supervisor;
 use App\Domain\Instance\Output\CommandResult;
@@ -83,31 +84,68 @@ final readonly class ConfigSetter
         ));
     }
 
-    /** @param  array<string, mixed>|null  $impact */
+    /**
+     * The guard is armed from the start of the steps until the change is verified, and disarmed on every way out, so
+     * a late signal can never throw out of the supervisor's own failure handling or journal archiving.
+     *
+     * @param  array<string, mixed>|null  $impact
+     */
     private function steps(OperationRun $run, SettingApplier $applier, ConfigChange $change, ConfigRequest $request, FsaContext $context, ?array $impact): CommandResult
     {
-        $this->interruption->arm();
-        $snapshot = $run->phase('snapshot', fn (): array => $this->snapshot($change), changes: false);
-        if (! $run->isResumed() && $this->directory->state()->toArray() !== $change->before->toArray()) {
-            throw new InstanceException('Another fsa command changed the instance while this one waited.', ExitCode::AbortedUnchanged, 'state_changed', 'Run the command again.', true);
+        try {
+            return $this->guardedSteps($run, $applier, $change, $request, $context, $impact);
+        } finally {
+            $this->interruption->disarm();
         }
-        $previousRoot = is_string($snapshot['ca_root'] ?? null) ? $snapshot['ca_root'] : null;
-        if ($run->isResumed() && $run->record()->hasStarted('revert')) {
-            return $this->finishRevert($run, $change, $request, $previousRoot, $context);
+    }
+
+    /** @param  array<string, mixed>|null  $impact */
+    private function guardedSteps(OperationRun $run, SettingApplier $applier, ConfigChange $change, ConfigRequest $request, FsaContext $context, ?array $impact): CommandResult
+    {
+        $previousRoot = $this->previousRoot($run->record()->phaseData('snapshot'));
+
+        try {
+            $this->interruption->arm();
+            $previousRoot = $this->previousRoot($run->phase('snapshot', fn (): array => $this->snapshot($change), changes: false));
+            if (! $run->isResumed() && $this->directory->state()->toArray() !== $change->before->toArray()) {
+                throw new InstanceException('Another fsa command changed the instance while this one waited.', ExitCode::AbortedUnchanged, 'state_changed', 'Run the command again.', true);
+            }
+            if ($run->isResumed() && $run->record()->hasStarted('revert')) {
+                return $this->finishRevert($run, $change, $request, $previousRoot, $context);
+            }
+            $change = $this->preflight($run, $applier, $change, $context);
+            $this->interruption->checkpoint();
+        } catch (OperationInterrupted $interrupted) {
+            if (! $run->isResumed() || ! $run->record()->hasChanges()) {
+                throw $interrupted; // nothing changed yet: exit 9
+            }
+            $this->interruption->consume(); // an earlier, killed run left its change applied and unverified: revert it
+
+            return $this->revert($run, $change, $request, ConfigFailure::describe($interrupted, $change), $previousRoot, $context);
         }
-        $change = $this->preflight($run, $applier, $change, $context);
 
         try {
             $services = $run->phase('apply', fn (): array => $this->rollout->apply($change), always: true, maxSeconds: ConfigRollout::APPLY_SECONDS);
+            $this->interruption->checkpoint();
             $checked = $run->phase('verify', fn (): array => $this->rollout->verify($change->after, $context->progress), changes: false, always: true, maxSeconds: ConfigRollout::verifySeconds($change->after));
+            $this->interruption->checkpoint();
             $run->phase('workers', fn (): array => $this->rollout->startWorkers($change->after), always: true, maxSeconds: ConfigRollout::WAIT_SECONDS);
+            $this->interruption->checkpoint();
             $this->interruption->disarm(); // from here on the verified change stays; a signal no longer reverts it
         } catch (Throwable $failure) {
+            $this->interruption->consume(); // first: a signal now must not throw out of this handler
+
             return $this->revert($run, $change, $request, ConfigFailure::describe($failure, $change), $previousRoot, $context);
         }
         $audit = $run->phase('audit', fn (): array => $this->audit($change, $context), changes: false, always: true);
 
         return $this->results->succeeded($change, $services, $checked, $audit, $impact);
+    }
+
+    /** @param  array<string, mixed>  $snapshot */
+    private function previousRoot(array $snapshot): ?string
+    {
+        return is_string($snapshot['ca_root'] ?? null) ? $snapshot['ca_root'] : null;
     }
 
     /** @return array<string, mixed> what a resumed run needs: the previous state and the CA root it trusts */
