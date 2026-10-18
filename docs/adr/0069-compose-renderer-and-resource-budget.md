@@ -1,5 +1,6 @@
 # 0069: Compose renderer, env split, runtime directory and resource budget
-- Status: accepted
+- Status: accepted; amended 2026-10-18 by ADR 0080 (capture flag, the kept catcher) and ADR 0082 (the tunnel
+  service)
 - Date: 2026-10-18
 
 ## Context
@@ -171,3 +172,18 @@ and returns it; `lowerGate()` clears it; a re-render keeps it with the gate. The
 `FSA_RUNTIME_PATH` through `config('instance.runtime_path')`. `SESSION_SECURE_COOKIE` stays in the app env only as
 a default; the runtime middleware sets Secure and `__Host-` per request host.
 
+## Amendment 2026-10-18: capture flag and the kept catcher (ADR 0080)
+- In capture mode the app-role env (app, queue, scheduler and the one-offs) also carries `FSA_MAIL_CAPTURE=true`,
+  which the app reads as `config('mail.capture')` for the banner and the health check; with SMTP it is absent.
+- Reverses "**Mailpit** is rendered only in capture mode" and "With SMTP configured, no Mailpit is rendered": after
+  `config set mail smtp` Mailpit stays rendered (setting `mail_catcher: kept`) with its volume and UI, and its env
+  adds `MP_SMTP_BIND_ADDR=127.0.0.1:1025`, so nothing in the stack reaches its SMTP listener. It stops being rendered
+  only with `--remove-catcher`, and its volume is then removed once the change runs. The app roles get `MAIL_*` from
+  settings and secrets as before.
+
+## Amendment 2026-10-18: the tunnel service (ADR 0082)
+`TunnelService` joins `defaultDefinitions()` and renders while `phone_https` is `tunnel`: the pinned cloudflared
+image with `restart: "no"` as foreseen above, no env, user 65532, read-only, every capability dropped, nothing
+published, at a fixed address on its own network `tunnel` (a /28 from 10.215.0.0/16, setting `tunnel_subnet`), which
+the app joins. Its memory limit is the `tunnel` slot of `ResourceBudget`, which the worst case counts once together
+with the edge (R61), as the budget table above assumes.

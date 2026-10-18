@@ -1,5 +1,6 @@
 # 0055: Empty first data, demo data on request, random demo passwords beyond loopback
-- Status: accepted; the `open_url` hand-over is superseded by ADR 0070
+- Status: accepted; the `open_url` hand-over is superseded by ADR 0070; amended 2026-10-18 by ADR 0081 (what
+  `fsa demo` is, the public default password) and ADR 0082 (the local CA refuses instead of rotating)
 - Date: 2026-10-17
 
 ## Context
@@ -36,3 +37,15 @@ nothing once an organization exists (Appendix C). A public demo with a known pas
 - Proxy mode always counts as reachable, even behind an internal proxy, because `fsa` cannot tell the difference.
 - `fsa reset --demo` follows the same rule (plan U23).
 - Demo passwords are one-time secrets in the sense of R50: shown once, marked secret in JSON, never logged.
+
+## Amendment 2026-10-18: `fsa demo`, the default password and the local CA (ADR 0081, ADR 0082)
+- Reverses "`fsa demo` is a local install with demo data and capture mail": it works only on an installed instance
+  (exit 2 `not_installed`), since the shim exists only once an instance does. A new local demo is `install.sh --demo`
+  (`fsa install --demo`), which needs `--org` and `--owner-email` like any install.
+- The loopback default password `password` is public: reported as `data.demo.default_password`, never registered
+  with the redactor. Random passwords leave once, as the secrets `demo_password:<email>` (`secrets` or
+  `--secrets-file`).
+- "Starting a tunnel or the local-CA edge on an existing demo first rotates the demo passwords" holds for
+  `fsa tunnel start` (also from `fsa install --phone-https tunnel`). `fsa config set phone-https local-ca` has no
+  secrets channel, so it refuses instead (exit 3 `default_password_in_use`) until `fsa demo --rotate-passwords` ran.
+  Both refuse while an account that is not a demo account has `password`.

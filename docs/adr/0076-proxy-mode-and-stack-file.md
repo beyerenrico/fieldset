@@ -1,6 +1,7 @@
 # 0076: Proxy mode and the stack file
 - Status: accepted; amended 2026-10-18 at the M10 gate (migrations on start and stack file header, ADR 0079; doctor
-  drift check and `fsa status` proxy report, ADR 0078)
+  drift check and `fsa status` proxy report, ADR 0078); amended 2026-10-18 by ADR 0080 (`FSA_MAIL_CAPTURE` in the
+  stack file)
 - Date: 2026-10-18
 
 ## Context
@@ -138,3 +139,9 @@ then starts the release's stack file with plain `docker compose` and only enviro
   Desktop host are trusted with the socket-equivalent anyway.
 - The stack file's limits are documented in its header; it is regenerated for every release and its checksum is
   signed with the manifest.
+
+## Amendment 2026-10-18: `FSA_MAIL_CAPTURE` in the stack file (ADR 0080)
+The stack file's app roles carry `FSA_MAIL_CAPTURE` as an overridable variable with the rendered value as default
+(`${FSA_MAIL_CAPTURE:-true}`), documented in the header beside the mail variables. While it is true the admin panel
+shows the capture banner and the health check warns; stack users set it to `false` together with their SMTP server.
+The bundled Mailpit stays in the stack file either way.

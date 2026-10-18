@@ -1,6 +1,7 @@
 # 0077: fsa config: show, set with apply, verify and revert
 - Status: accepted; amended 2026-10-18 at the M10 gate by ADR 0078 (a reverted change is exit 5 `rolled_back`,
-  `workers` phase, interruption, resume, failed revert, doctor drift check)
+  `workers` phase, interruption, resume, failed revert, doctor drift check); amended 2026-10-18 by ADR 0080 (`mail`,
+  `operator-email`, SettingHooks) and ADR 0082 (`phone-https`, `lan-address`)
 - Date: 2026-10-18
 - Refines: ADR 0066 (supervisor, journal), ADR 0069 (renderer), ADR 0072 (install), ADR 0074 (runtime), ADR 0075
   (edge, domain mode), ADR 0076 (proxy mode)
@@ -149,3 +150,26 @@ are named as contacted as configured.
   trusted-proxy auto` re-resolves the address. (Amended 2026-10-18 by ADR 0078: closed. The doctor's `proxy` check
   warns `proxy_address_changed`, and `fsa status` reports `data.proxy`.)
 - Unverified until the human checklist: a real Let's Encrypt switch from staging to production with `acme-ca`.
+
+## Amendment 2026-10-18: `mail` and `operator-email` (ADR 0080)
+Closes the deferrals above: both keys are settable, no longer `setting_not_available`, and the test mail arrived.
+
+| key | modes | value | target | recreated |
+|---|---|---|---|---|
+| `mail` | local, proxy, domain | `smtp` (SMTP flags of ADR 0080) or `capture` | SMTP server and sender in the state, credentials only in the app-role env files; the catcher kept (`mail_catcher: kept`) or dropped with `--remove-catcher`; `capture` clears all of it | app, queue, scheduler, mailpit |
+| `operator-email` | local, proxy, domain | e-mail, `--revoke-previous` | operator role app-side (`ConfigKeys::DIRECT`): one transaction in the one-off `instance:operator-email` under the instance lock; no render, journal or revert | none |
+
+Appliers may implement `SettingHooks`: `verify()` adds a check to the verify phase (the test mail of `mail smtp`, sent
+when delivery changes; a refusal is `test_mail_failed`, which reverts the change: exit 5 `rolled_back`, not
+retryable), and `completed()` runs once the workers are up, before the audit, and never reverts (ADR 0078 amendment).
+
+## Amendment 2026-10-18: `phone-https` and `lan-address` (ADR 0082)
+
+| key | modes | value | target | recreated |
+|---|---|---|---|---|
+| `phone-https` | local | `local-ca` or `off` (`tunnel` is exit 2 `use_tunnel_command`: `fsa tunnel start`) | the local-CA edge on the LAN address, URL `https://<address>`; `off` brings the loopback URL back and, in the completion step, deletes the CA from the certificate volume | app, queue, scheduler; edge added or removed |
+| `lan-address` | local | IPv4 unicast address | with the local CA: certificate re-issued by the same CA, 80/443 and the URL move; without it: only recorded | edge and app roles with the local CA; none without |
+
+Both are URL keys (exit 6 without `--yes`). The preflight of a new local-CA edge checks 80/443 on the address, refuses
+while any account has `password` (exit 3 `default_password_in_use`) and chooses the edge subnet. The R61 refusal
+above now reads the `phone_https` setting U14 writes: `config set domain` is exit 2 while phone HTTPS is on.

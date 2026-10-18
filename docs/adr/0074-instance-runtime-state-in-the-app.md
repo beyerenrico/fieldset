@@ -1,5 +1,6 @@
 # 0074: Instance runtime state in the app (URL, gate, tunnel policy)
-- Status: accepted; amended 2026-10-18 at the M10 gate (in-request URL root, ADR 0079; runtime writer, ADR 0078)
+- Status: accepted; amended 2026-10-18 at the M10 gate (in-request URL root, ADR 0079; runtime writer, ADR 0078);
+  amended 2026-10-18 by ADR 0082 (cloudflared not a trusted proxy, tunnel block filled, the local CA root)
 - Date: 2026-10-18
 
 ## Context
@@ -182,3 +183,15 @@ out of mail headers.
 - Console commands outside jobs (scheduled commands, one-offs) keep APP_URL, which is the instance URL from the
   state, never the tunnel. Scheduled work that sends mail does so through queued jobs.
 - Sub-path instance URLs keep the path in links, but routing under a prefix is still unsupported.
+
+## Amendment 2026-10-18: cloudflared untrusted, the tunnel block filled, the local CA root (ADR 0082)
+- Reverses the consequence "U14 should also list cloudflared's address in TRUSTED_PROXIES": it is not listed. Peer
+  pinning already makes every request from `tunnel.peer` https for the tunnel host, and a trusted `X-Forwarded-Host`
+  from cloudflared would make Symfony's host check answer 400 in HandleCors before the runtime pins the host (found
+  by J6). Tunnel clients therefore share cloudflared's address for throttles and audit IPs.
+- `fsa tunnel start|renew` fills the tunnel block (`RuntimeWriter::writeTunnel()`: hostname from `/quicktunnel`,
+  expiry 4 hours on, `peer` cloudflared's fixed address, `admin` from `--tunnel-admin`); `stop` and the expiry cleanup
+  clear it.
+- In local-CA mode `runtime/` also holds `local-ca-root.crt` (0644, the public root, never a key); a render without
+  the local CA deletes it. Runtime gains `LocalCaRoot`, `PhoneTrust` and `PhoneTrustRoute` for the trust page
+  (`/phone-trust`), which answers 404 unless the runtime says local CA.
