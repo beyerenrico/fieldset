@@ -15,7 +15,7 @@ use Illuminate\Support\HtmlString;
  */
 final class AccessiblePlaceholders
 {
-    private const SELECTORS = ['.fi-ta-cell .fi-ta-placeholder', '.fi-in-entry .fi-in-placeholder'];
+    private const array SELECTORS = ['.fi-ta-cell .fi-ta-placeholder', '.fi-in-entry .fi-in-placeholder'];
 
     public static function styles(): HtmlString
     {
