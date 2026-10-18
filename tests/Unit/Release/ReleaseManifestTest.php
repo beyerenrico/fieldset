@@ -66,6 +66,34 @@ it('lists every service image by digest with per-platform sizes and validates ag
     }
 });
 
+it('renders the stack file from the same pins and lists it as an asset (R18, ADR 0076)', function (): void {
+    $registry = new FakeRegistry;
+    [$inputs, $appDigest] = $registry->inputs();
+    $registry->fake();
+    $stack = sys_get_temp_dir().'/release-stack-'.bin2hex(random_bytes(4)).'/compose.stack.yaml';
+    mkdir(dirname($stack));
+
+    try {
+        $manifest = manifestBuilder()->build(new ReleaseRequest(ReleaseVersion::parse('2.0.0-alpha.2'), $appDigest, $inputs, assets: requiredAssets(), stackFile: $stack));
+        $yaml = (string) file_get_contents($stack);
+        preg_match_all('/^\s+image: "\$\{FSA_REGISTRY:-([^}]+)\}\/(.+)"$/m', $yaml, $images, PREG_SET_ORDER);
+        $pinned = array_map(fn (ManifestImage $image): string => $image->pin->pullReference(), $manifest->images);
+
+        expect(array_keys($manifest->assets))->toBe(['compose.stack.yaml', 'install.sh', 'shim.sh'])
+            ->and($manifest->assets['compose.stack.yaml']['sha256'])->toBe(hash('sha256', $yaml))
+            ->and($yaml)->toContain('# form-schema-app 2.0.0-alpha.2 stack file')
+            ->and($images)->toHaveCount(7);
+        foreach ($images as [, $registryHost, $rest]) {
+            expect($pinned)->toContain($registryHost.'/'.$rest);
+        }
+        expect(fn () => manifestBuilder()->build(new ReleaseRequest(ReleaseVersion::parse('2.0.0'), $appDigest, $inputs, assets: requiredAssets(), stackFile: '/nonexistent-dir/compose.stack.yaml')))
+            ->toThrow(ReleaseException::class, 'Cannot write the stack file');
+    } finally {
+        @unlink($stack);
+        rmdir(dirname($stack));
+    }
+});
+
 it('checksums the release assets by file name', function (): void {
     $registry = new FakeRegistry;
     [$inputs, $appDigest] = $registry->inputs();

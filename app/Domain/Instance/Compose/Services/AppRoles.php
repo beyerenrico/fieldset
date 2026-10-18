@@ -6,6 +6,7 @@ namespace App\Domain\Instance\Compose\Services;
 
 use App\Domain\Instance\Compose\EdgeNetwork;
 use App\Domain\Instance\Compose\ImageRole;
+use App\Domain\Instance\Compose\ProxyLabels;
 use App\Domain\Instance\Compose\RenderContext;
 use App\Domain\Instance\Compose\ServiceDefinition;
 use App\Domain\Instance\Compose\ServiceEnvironments;
@@ -18,8 +19,9 @@ use App\Domain\Instance\State\RuntimeWriter;
  * read-only (KTD11); one-offs run the app service, so they get its mounts and env. None sets RUN_MIGRATIONS:
  * migrations run only in supervised one-offs (KTD6).
  *
- * Mode extension points: `ports()` publishes the loopback port in local mode; proxy mode (U9) adds its external
- * network and labels there, domain mode (U8) publishes nothing because the edge does.
+ * Mode extension points: `ports()` publishes the loopback port in local mode and in proxy mode's `port` setup;
+ * on a shared proxy network (U9, ProxyLabels) only the app joins that external network, with the proxy's labels;
+ * domain mode (U8) publishes nothing because the edge does.
  */
 final readonly class AppRoles implements ServiceDefinition
 {
@@ -44,10 +46,11 @@ final readonly class AppRoles implements ServiceDefinition
 
         return [
             new ServiceSpec(self::APP, [
-                ...$this->base($context, ['default', 'renderer', ...$this->edgeNetwork($context)]),
+                ...$this->base($context, ['default', 'renderer', ...$this->edgeNetwork($context), ...array_keys(ProxyLabels::network($context->settings))]),
                 ...$this->ports($context),
+                ...$this->proxyLabels($context),
                 'healthcheck' => ['test' => ['CMD', 'curl', '-fsS', 'http://localhost:8080/up'], 'interval' => '15s', 'timeout' => '5s', 'retries' => 5],
-            ], $env->appRole(self::APP), $volumes),
+            ], $env->appRole(self::APP), $volumes, ProxyLabels::network($context->settings)),
             new ServiceSpec(self::QUEUE, [
                 ...$this->base($context, ['default', 'renderer']),
                 'command' => ['php', 'artisan', 'horizon'],
@@ -90,8 +93,16 @@ final readonly class AppRoles implements ServiceDefinition
     /** @return array<string, mixed> */
     private function ports(RenderContext $context): array
     {
-        return $context->mode() === 'local'
+        return $context->settings->publishesAppPort()
             ? ['ports' => [RenderContext::loopbackPort($context->settings->port(), 8080)]]
             : [];
+    }
+
+    /** @return array<string, mixed> Traefik or caddy-docker-proxy labels on a shared proxy network (U9) */
+    private function proxyLabels(RenderContext $context): array
+    {
+        $labels = ProxyLabels::for($context);
+
+        return $labels === [] ? [] : ['labels' => $labels];
     }
 }

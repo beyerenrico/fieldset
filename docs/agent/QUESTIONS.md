@@ -161,3 +161,8 @@ Format: question · chosen option · impact · how to reverse.
    wants new jobs on the tunnel · a customer document mail or an admin notification sent during a tunnel demo
    gets 404 there, and dies with the tunnel · add `documents/links/*` (random token, customer-facing) to
    `TunnelPathPolicy::ALLOWED`, and/or build admin links in jobs from the instance URL instead of the public URL.
+34b. Proxy mode trusts exactly one proxy IP resolved at install time (ADR 0076) · recreating the proxy container
+   without a fixed IP silently drops trust (requests then look like they come from the proxy) · U11 re-resolves
+   `proxy_container` on `config set` and doctor should report drift · give the proxy a fixed IP or re-run
+   `fsa config set trusted-proxy`. Also unverified: caddy-docker-proxy labels (no journey), Portainer/Coolify
+   import of the stack file, Traefik per-router certresolver (configure it on the entry point).

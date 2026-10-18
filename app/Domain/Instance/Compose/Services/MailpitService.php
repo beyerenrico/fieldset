@@ -14,7 +14,7 @@ use App\Domain\Instance\Compose\ServiceSpec;
 /**
  * The mail catcher in capture mode (E8, KTD13, ADR 0054): generated UI credentials, a bounded message count and
  * its database on a volume. Its SMTP port is never published, only reachable from the stack; its UI is published
- * on loopback in local mode. With SMTP configured it is not rendered. Extension points: domain mode serves the UI
+ * on loopback in local and proxy modes. With SMTP configured it is not rendered. Extension points: domain mode serves the UI
  * under `/_mail/` behind the edge (U8, MP_WEBROOT), and U12 keeps the volume read-only after switching to SMTP.
  */
 final readonly class MailpitService implements ServiceDefinition
@@ -30,7 +30,7 @@ final readonly class MailpitService implements ServiceDefinition
         if (! $context->settings->capturesMail()) {
             return [];
         }
-        $ports = $context->mode() === 'local' ? ['ports' => [RenderContext::loopbackPort($context->settings->mailUiPort(), self::UI_PORT)]] : [];
+        $ports = in_array($context->mode(), ['local', 'proxy'], true) ? ['ports' => [RenderContext::loopbackPort($context->settings->mailUiPort(), self::UI_PORT)]] : [];
 
         return [new ServiceSpec(self::NAME, [
             'image' => $context->image(ImageRole::Mailpit),

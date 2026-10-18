@@ -18,6 +18,7 @@ use App\Domain\Instance\Output\SecretRedactor;
 use App\Domain\Instance\State\EnvFiles;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceSecrets;
+use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
 use App\Domain\Instance\State\InvalidState;
 use Throwable;
@@ -36,6 +37,7 @@ final readonly class InstanceStack
         private InstanceDirectory $directory,
         private DockerGateway $docker,
         private ComposeRenderer $renderer,
+        private ProxySetup $proxy,
     ) {}
 
     /** @return array{generated: bool} */
@@ -78,15 +80,37 @@ final readonly class InstanceStack
         /** @var array<string, string> $digests */
         $digests = $preflight['digests'];
         $state = $state->withRelease((string) $preflight['version'], $digests);
-        if (is_int($preflight['port'] ?? null) && is_int($preflight['mail_ui_port'] ?? null)) { // local mode's loopback ports
+        if (is_int($preflight['port'] ?? null) && is_int($preflight['mail_ui_port'] ?? null)) { // loopback ports (not domain mode)
             $state = $state->withSettings(['port' => $preflight['port'], 'mail_ui_port' => $preflight['mail_ui_port']]);
         }
-        $state = InstallMode::apply($state, is_array($preflight['mode'] ?? null) ? $preflight['mode'] : []);
+        $state = InstallMode::apply(ProxySetup::apply($state, $preflight), $preflight);
         $this->directory->saveState($state);
         $rendered = $this->renderer->write($this->directory, $state, $this->secrets(), ($preflight['emulated'] ?? false) === true);
         $this->docker->composeConfig(ComposeProject::forInstance($state, $this->directory));
 
         return ['project' => $state->project(), 'services' => $rendered->services()];
+    }
+
+    /**
+     * Proxy mode's `port` setup (ADR 0076): once Compose created the default network, its gateway is the address the
+     * loopback port's connections arrive from, so it becomes the one trusted proxy; the env files are rendered again
+     * before the app roles start.
+     *
+     * @param  array<string, mixed>  $preflight  the doctor phase's data
+     * @return array{trusted_proxy?: string}
+     */
+    public function trustGateway(ComposeProject $project, array $preflight): array
+    {
+        $state = $this->directory->state();
+        if (InstanceSettings::of($state)->proxy() !== 'port') {
+            return [];
+        }
+        $gateway = $this->proxy->gateway($project);
+        $state = $state->withSetting('trusted_proxies', $gateway);
+        $this->directory->saveState($state);
+        $this->renderer->write($this->directory, $state, $this->secrets(), ($preflight['emulated'] ?? false) === true);
+
+        return ['trusted_proxy' => $gateway];
     }
 
     /** @return array{pulled: list<string>, present: list<string>} */

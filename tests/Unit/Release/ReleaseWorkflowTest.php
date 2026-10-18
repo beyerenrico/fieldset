@@ -135,3 +135,14 @@ it('publishes the checked-in production install.sh unchanged, never a harness bu
         ->and(releaseWorkflow())->not->toMatch('/sed[^\n]*install\.sh/')
         ->and(releaseWorkflow())->not->toContain('FSA_BUILD');
 });
+
+it('renders the stack file from the manifest pins and signs only after checking its images (R18, ADR 0076)', function (): void {
+    $jobs = releaseJobs();
+
+    expect($jobs['manifest'])->toContain('--stack-file=dist/compose.stack.yaml')
+        ->and($jobs['manifest'])->not->toContain('distribution/stack/compose.stack.yaml')
+        ->and($jobs['sign'])->toContain('for required in install.sh shim.sh compose.stack.yaml; do')
+        ->and($jobs['sign'])->toContain('which the manifest does not pin')
+        ->and($jobs['sign'])->toContain('compose.stack.yaml mounts the Docker socket')
+        ->and((int) strpos($jobs['sign'], 'which the manifest does not pin'))->toBeLessThan((int) strpos($jobs['sign'], 'cosign sign-blob'));
+});

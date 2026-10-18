@@ -109,7 +109,8 @@ it('installs in domain mode: https URL, the edge in the stack, its subnet free o
         ->and(json_decode((string) $this->fixture->directory->read('runtime/runtime.json'), true)['instance_url'])->toBe('https://forms.example.com')
         ->and(array_column($this->fixture->docker->called('pullImage'), 'reference'))->toContain($state->digests()['caddy'])
         ->and(array_column($history->phases(), 'name'))->toBe(['doctor', 'secrets', 'state', 'pull', 'up', 'migrate', 'app_install', 'start', 'smoke', 'done'])
-        ->and($history->phaseData('doctor')['mode'])->toBe(['mode' => 'domain', 'url' => 'https://forms.example.com', 'settings' => ['domain' => 'forms.example.com', 'edge_subnet' => $settings->edgeSubnet()]])
+        ->and($history->phaseData('doctor'))->toMatchArray(['mode' => 'domain', 'url' => 'https://forms.example.com', 'proxy' => null, 'port' => null])
+        ->and($history->phaseData('doctor')['edge'])->toBe(['domain' => 'forms.example.com', 'edge_subnet' => $settings->edgeSubnet()])
         ->and($state->history()[0])->toMatchArray(['event' => 'installed']);
 });
 

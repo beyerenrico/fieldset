@@ -184,3 +184,9 @@
   loopback exempt), tunnel peer path policy (allow-list in ADR 0074), expired tunnel 503, __Host- cookie,
   JobProcessing listener, RuntimeCheck on /platform health. Full suite 5726/5726, Instance coverage 98.08 %.
 - Mailpit forward_auth spike: works with edge-injected Basic auth (LEARNINGS 103).
+
+## 2026-10-18 M10-T03 proxy mode and stack file (U9)
+- fsa install --behind-proxy traefik|caddy|port: only the app joins the external network, exactly one trusted
+  proxy IP (resolved via DockerGateway, never DNS; `--trusted-proxy`, `--proxy-network`), catcher on loopback.
+  `release:manifest --stack-file` renders an env-only stack file from the same pins (signed asset). ADR 0076.
+- J3 5/5 native (221 s) and amd64 emulated; J1 regression green; Instance coverage 98.21 %.

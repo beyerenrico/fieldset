@@ -80,6 +80,9 @@ interface DockerGateway
 
     public function inspectContainer(string $id): ?ContainerInfo;
 
+    /** A network by name or ID with its subnets, gateways and attached containers; null when there is none. */
+    public function inspectNetwork(string $name): ?NetworkInfo;
+
     /**
      * @param  array<string, string|null>  $labels  a null value matches any value of that label
      * @return list<ContainerInfo>

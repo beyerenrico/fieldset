@@ -50,10 +50,13 @@ final class InstallRecord
             'locale' => $request->locale(),
         ] : [];
 
+        $proxy = array_intersect_key($request->toContext(), array_flip(InstallRequest::PROXY_FLAGS));
+
         return [
             ...array_filter($app, static fn (?string $value): bool => $value !== null),
             'version' => $state->version(),
             'port' => InstanceSettings::of($state)->port(),
+            ...array_filter($proxy, static fn (string|int|null $value): bool => $value !== null),
         ];
     }
 
@@ -73,6 +76,10 @@ final class InstallRecord
             }
         }
         $setting = static fn (string $key): ?string => is_string($state->setting($key)) ? $state->setting($key) : null;
+        $proxy = [];
+        foreach (InstallRequest::PROXY_FLAGS as $key) {
+            $proxy[$key] = is_string($recorded[$key] ?? null) ? $recorded[$key] : null;
+        }
 
         return [
             ...$app,
@@ -80,6 +87,7 @@ final class InstallRecord
             'port' => InstanceSettings::of($state)->port(),
             'domain' => $setting('domain'),
             ...array_combine(InstallRequest::ACME_FLAGS, array_map($setting, InstallRequest::ACME_FLAGS)),
+            ...$proxy,
         ];
     }
 

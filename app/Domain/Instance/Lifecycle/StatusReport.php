@@ -63,7 +63,7 @@ final readonly class StatusReport
         $health = $this->health($services);
         $data = [...$data,
             'version' => $state->version(), 'mode' => $state->mode(), 'url' => $settings->instanceUrl(), 'project' => $state->project(),
-            'port' => $state->mode() === 'local' ? $settings->port() : null, 'health' => $health, 'services' => $services,
+            'port' => $settings->publishesAppPort() ? $settings->port() : null, 'health' => $health, 'services' => $services,
             'mail' => ['mode' => $settings->capturesMail() ? 'capture' : 'smtp', 'catcher_url' => $settings->catcherUrl()],
         ];
         $links = $this->links($state, $services);

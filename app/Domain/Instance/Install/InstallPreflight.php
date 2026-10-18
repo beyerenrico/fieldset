@@ -40,9 +40,10 @@ final readonly class InstallPreflight
         private DoctorProbes $probes,
         private ReleaseSource $release,
         private ProjectConflicts $conflicts,
+        private ProxySetup $proxy,
     ) {}
 
-    /** @return array<string, mixed> uuid, project, version, digests, port, mail_ui_port, mode, emulated, warnings, orphans */
+    /** @return array<string, mixed> uuid, project, version, digests, port, mail_ui_port, emulated, warnings, orphans, mode, url, proxy, edge */
     public function run(InstallRequest $request, HostFacts $facts): array
     {
         $state = $this->directory->hasState() ? $this->directory->state() : null;
@@ -60,8 +61,9 @@ final readonly class InstallPreflight
             throw new DoctorFailed($report);
         }
         $this->conflicts->assertFree($project, $uuid);
+        $proxy = $this->proxy->resolve($request);
         $ports = $this->ports($report, $request->domain() !== null);
-        $mode = InstallMode::forRequest($request, $state, $uuid, $this->docker->networkSubnets(...));
+        $edge = InstallMode::edge($request, $state, $uuid, $this->docker->networkSubnets(...));
 
         return [
             'uuid' => $uuid,
@@ -70,11 +72,16 @@ final readonly class InstallPreflight
             'digests' => $digests,
             'port' => $ports['app'] ?? null,
             'mail_ui_port' => $ports['mail_ui'] ?? null,
-            'mode' => $mode,
             // DOCKER_DEFAULT_PLATFORM selects another architecture than the engine's: the renderer doubles memory limits.
             'emulated' => ($report->result('architecture')?->details['emulated'] ?? false) === true,
             'warnings' => array_map(static fn (CheckResult $warning): array => ['code' => 'doctor_'.$warning->key, 'message' => $warning->summary, 'hint' => $warning->hint], $report->warnings()),
             'orphans' => $this->conflicts->orphans($this->directory->root, $uuid),
+            // Proxy mode (ADR 0076): the URL from --url and the single address the app will trust. Domain mode (ADR 0075):
+            // https://<domain>, the ACME inputs and the edge subnet.
+            'mode' => InstallMode::mode($request, $proxy),
+            'url' => $edge === null ? $request->url() : 'https://'.$edge['domain'],
+            'proxy' => $proxy,
+            'edge' => $edge,
         ];
     }
 
@@ -85,11 +92,11 @@ final readonly class InstallPreflight
      */
     private function ports(DoctorReport $report, bool $domain): array
     {
-        $details = $report->result('ports')->details ?? [];
-        $ports = is_array($details['ports'] ?? null) ? $details['ports'] : [];
         if ($domain) {
             return [];
         }
+        $details = $report->result('ports')->details ?? [];
+        $ports = is_array($details['ports'] ?? null) ? $details['ports'] : [];
         if (! is_int($ports['app'] ?? null) || ! is_int($ports['mail_ui'] ?? null)) {
             throw new InstanceException('The preflight chose no ports.', ExitCode::PreflightFailed, 'ports_unknown', 'Run `fsa doctor` to see why the port check did not run.');
         }

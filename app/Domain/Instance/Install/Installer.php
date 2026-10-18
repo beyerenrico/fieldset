@@ -75,6 +75,7 @@ final readonly class Installer
         if ($current instanceof JournalRecord && $current->operation() === self::OPERATION) {
             $request = $this->resumable($request, $current);
         }
+        $request->assertConsistent();
         $this->assertModeFlags($request);
         $holder = $this->identity->holder('fsa', $context->facts->callerUid());
 
@@ -118,7 +119,7 @@ final readonly class Installer
         $state = $this->directory->state();
         $project = ComposeProject::forInstance($state, $this->directory);
         $run->phase('pull', fn (): array => $this->stack->pull(), changes: false);
-        $run->phase('up', fn (): array => $this->stack->up($project, self::INFRASTRUCTURE));
+        $run->phase('up', fn (): array => [...$this->stack->up($project, self::INFRASTRUCTURE), ...$this->stack->trustGateway($project, $preflight)]);
         $run->phase('migrate', fn (): array => $this->migrate($project));
         $link = null;
         $installed = $run->phase('app_install', function () use ($project, $request, $context, &$link): array {
@@ -255,6 +256,9 @@ final readonly class Installer
         if ($record->hasCompleted('doctor')) {
             $doctor = $record->phaseData('doctor');
             $applied = ['version' => $doctor['version'] ?? null, 'port' => $doctor['port'] ?? null, ...InstallMode::applied($doctor)];
+            foreach (InstallRequest::PROXY_FLAGS as $key) {
+                $applied[$key] = is_string($recorded[$key] ?? null) ? $recorded[$key] : null;
+            }
         }
         if ($record->hasCompleted('app_install')) {
             foreach (InstallRequest::APP_FLAGS as $key) {
@@ -333,7 +337,10 @@ final readonly class Installer
             'mode' => $state->mode(),
             'dir' => $this->directory->root,
             'project' => $state->project(),
-            'port' => $state->mode() === 'local' ? $settings->port() : null,
+            'port' => $settings->publishesAppPort() ? $settings->port() : null,
+            ...($settings->proxy() === null ? [] : ['proxy' => [
+                'setup' => $settings->proxy(), 'network' => $settings->proxyNetwork(), 'container' => $settings->proxyContainer(), 'trusted' => $settings->trustedProxies(),
+            ]]),
             'mail' => ['mode' => $settings->capturesMail() ? 'capture' : 'smtp', 'catcher_url' => $settings->catcherUrl()],
             'owner_email' => $ownerEmail,
             'next_commands' => ["{$fsa} status", "{$fsa} login-link {$linkFor}", "{$fsa} doctor --post"],

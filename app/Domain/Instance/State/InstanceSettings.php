@@ -144,6 +144,47 @@ final readonly class InstanceSettings
         return $domain !== null ? 'https://'.$domain.CatcherRoute::MAIL_PATH : 'http://localhost:'.$this->mailUiPort();
     }
 
+    /** Proxy mode's setup (R17, ADR 0076): `traefik` or `caddy` on a shared network, or `port`; null in other modes. */
+    public function proxy(): ?string
+    {
+        return $this->state->mode() === 'proxy' ? $this->string('proxy') : null;
+    }
+
+    /** The external Docker network the app shares with the proxy (traefik and caddy setups). */
+    public function proxyNetwork(): ?string
+    {
+        return $this->string('proxy_network');
+    }
+
+    /** The proxy's container on that network, as resolved at install (for `fsa doctor` and `config set`). */
+    public function proxyContainer(): ?string
+    {
+        return $this->string('proxy_container');
+    }
+
+    /**
+     * Exactly the addresses the app accepts X-Forwarded-* from (TRUSTED_PROXIES): the proxy's own address, never a
+     * range a neighbouring container on the shared network could use (R17, KTD10).
+     *
+     * @return list<string>
+     */
+    public function trustedProxies(): array
+    {
+        return InputGrammar::ipList($this->string('trusted_proxies') ?? '') ?? [];
+    }
+
+    /** The app publishes its own loopback port: local mode, and proxy mode's `port` setup. */
+    public function publishesAppPort(): bool
+    {
+        return $this->state->mode() === 'local' || $this->proxy() === 'port';
+    }
+
+    /** Proxy mode on a shared Docker network: the app joins it with the proxy's labels and publishes nothing. */
+    public function joinsProxyNetwork(): bool
+    {
+        return in_array($this->proxy(), ['traefik', 'caddy'], true) && $this->proxyNetwork() !== null;
+    }
+
     /** The loopback URL in local mode; other modes publish no app port of their own. */
     public function localUrl(): ?string
     {

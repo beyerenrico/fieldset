@@ -43,6 +43,7 @@ final readonly class ServiceEnvironments
             ...$this->database($this->context->secrets->dbPassword, $this->context->settings->dbUsername()),
             ...$this->cache(),
             ...$this->mail(),
+            ...$this->trustedProxies(),
             ...match ($role) {
                 'app' => ['FRANKENPHP_CONFIG' => 'num_threads '.$budget->frankenphpThreads()],
                 'queue' => ['HORIZON_MAX_PROCESSES' => (string) $budget->horizonProcesses(), 'HORIZON_EXPORTS_PROCESSES' => (string) $budget->horizonExportsProcesses()],
@@ -154,16 +155,26 @@ final readonly class ServiceEnvironments
             'SSO_DNS_DRIVER' => 'dns',
             // The read-only runtime mount (KTD11): config('instance.runtime_path'), read by App\Domain\Instance\Runtime.
             'FSA_RUNTIME_PATH' => RuntimeWriter::CONTAINER_PATH,
-            ...$this->trustedProxies(),
         ];
     }
 
-    /** @return array<string, string> TRUSTED_PROXIES: exactly the edge's fixed address in domain mode (KTD10) */
+    /**
+     * TRUSTED_PROXIES: exactly one address the app accepts X-Forwarded-* from, never a range a neighbouring container
+     * could send from: the edge's fixed address in domain mode (KTD10, ADR 0075), the proxy's own address in proxy
+     * mode (R17, ADR 0076), none in local mode.
+     *
+     * @return array<string, string>
+     */
     private function trustedProxies(): array
     {
         $subnet = $this->context->settings->edgeSubnet();
+        $proxies = match ($this->context->mode()) {
+            'domain' => $subnet === null ? [] : [EdgeNetwork::edgeAddress($subnet)],
+            'proxy' => $this->context->settings->trustedProxies(),
+            default => [],
+        };
 
-        return $this->context->mode() === 'domain' && $subnet !== null ? ['TRUSTED_PROXIES' => EdgeNetwork::edgeAddress($subnet)] : [];
+        return $proxies === [] ? [] : ['TRUSTED_PROXIES' => implode(',', $proxies)];
     }
 
     /** @return array<string, string> */

@@ -9,47 +9,56 @@ use App\Domain\Instance\State\InstanceState;
 use Closure;
 
 /**
- * The mode an install creates (E7, ADR 0053, ADR 0075), decided in the doctor phase and journaled with it, so a
- * resumed install keeps it: local (default), or domain with `https://<domain>` as the instance URL, the ACME inputs
- * and the edge network's subnet (chosen once, never re-chosen while the state has one). The state phase applies it.
+ * Domain mode in an install (E7, ADR 0053, ADR 0075), decided in the doctor phase and journaled with it under `edge`,
+ * so a resumed install keeps it: the domain, the ACME inputs and the edge network's subnet (chosen once, never
+ * re-chosen while the state has one). The doctor phase's `mode` and `url` say domain and `https://<domain>`; proxy
+ * mode has its own `proxy` entry (ProxySetup). The state phase applies both.
  */
 final class InstallMode
 {
     /**
-     * @param  Closure(): list<string>  $takenSubnets  subnets of the engine's networks, asked only when one is needed
-     * @return array{mode: string, url: string|null, settings: array<string, string>}
+     * The doctor phase's mode: proxy (ProxySetup resolved one), domain (--domain) or local.
+     *
+     * @param  array<string, string|null>|null  $proxy  ProxySetup::resolve()
      */
-    public static function forRequest(InstallRequest $request, ?InstanceState $state, string $uuid, Closure $takenSubnets): array
+    public static function mode(InstallRequest $request, ?array $proxy): string
+    {
+        return match (true) {
+            $proxy !== null => 'proxy',
+            $request->domain() !== null => 'domain',
+            default => 'local',
+        };
+    }
+
+    /**
+     * @param  Closure(): list<string>  $takenSubnets  subnets of the engine's networks, asked only when one is needed
+     * @return array<string, string>|null the domain-mode settings, null outside domain mode
+     */
+    public static function edge(InstallRequest $request, ?InstanceState $state, string $uuid, Closure $takenSubnets): ?array
     {
         $domain = $request->domain();
         if ($domain === null) {
-            return ['mode' => 'local', 'url' => null, 'settings' => []];
+            return null;
         }
         $subnet = $state?->setting('edge_subnet');
 
         return [
-            'mode' => 'domain',
-            'url' => 'https://'.$domain,
-            'settings' => [
-                'domain' => $domain,
-                'edge_subnet' => is_string($subnet) ? $subnet : EdgeNetwork::choose($uuid, $takenSubnets()),
-                ...$request->acme(),
-            ],
+            'domain' => $domain,
+            'edge_subnet' => is_string($subnet) ? $subnet : EdgeNetwork::choose($uuid, $takenSubnets()),
+            ...$request->acme(),
         ];
     }
 
-    /** @param  array<string, mixed>  $mode  the doctor phase's `mode` */
-    public static function apply(InstanceState $state, array $mode): InstanceState
+    /** @param  array<string, mixed>  $preflight  the doctor phase's data */
+    public static function apply(InstanceState $state, array $preflight): InstanceState
     {
-        if (($mode['mode'] ?? 'local') === 'local') {
+        $edge = $preflight['edge'] ?? null;
+        if (! is_array($edge) || ! is_string($edge['domain'] ?? null)) {
             return $state;
         }
-        /** @var array<string, string> $settings */
-        $settings = is_array($mode['settings'] ?? null) ? $mode['settings'] : [];
+        /** @var array<string, string> $edge */
 
-        return $state->withMode((string) $mode['mode'])
-            ->withUrl(is_string($mode['url'] ?? null) ? $mode['url'] : null)
-            ->withSettings($settings);
+        return $state->withMode('domain')->withUrl('https://'.$edge['domain'])->withSettings($edge);
     }
 
     /**
@@ -61,9 +70,9 @@ final class InstallMode
      */
     public static function applied(array $doctor): array
     {
-        $settings = is_array($doctor['mode']['settings'] ?? null) ? $doctor['mode']['settings'] : [];
+        $edge = is_array($doctor['edge'] ?? null) ? $doctor['edge'] : [];
         $keys = ['domain', ...InstallRequest::ACME_FLAGS];
 
-        return array_map(static fn (string $key): ?string => is_string($settings[$key] ?? null) ? $settings[$key] : null, array_combine($keys, $keys));
+        return array_map(static fn (string $key): ?string => is_string($edge[$key] ?? null) ? $edge[$key] : null, array_combine($keys, $keys));
     }
 }

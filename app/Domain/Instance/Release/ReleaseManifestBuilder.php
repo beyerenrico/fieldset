@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Release;
 
+use App\Domain\Instance\Compose\StackFile;
+use App\Domain\Instance\InstanceException;
+
 /**
  * Builds the release manifest: the app image just pushed plus every committed third-party pin, each resolved
  * per platform in the registry (a pin the registry does not hold fails), asset checksums, and a schema check
- * of the result (R2, R4, KTD22).
+ * of the result (R2, R4, KTD22). With a stack-file path it first renders the stack file from the same pins
+ * (R18, ADR 0076), which then is one of the checksummed assets: its digests are the manifest's.
  */
 final readonly class ReleaseManifestBuilder
 {
@@ -34,11 +38,30 @@ final readonly class ReleaseManifestBuilder
             $request->inputs->notesUrl($request->version),
             $request->platforms,
             $images,
-            $this->assets($request->assets),
+            $this->assets([...$request->assets, ...$this->stackFile($request, $pins)]),
         );
         $this->schema->assertValid($manifest->toJson());
 
         return $manifest;
+    }
+
+    /**
+     * @param  array<string, ImagePin>  $pins
+     * @return list<string> the stack file's path, when the request asks for one
+     */
+    private function stackFile(ReleaseRequest $request, array $pins): array
+    {
+        if ($request->stackFile === null) {
+            return [];
+        }
+
+        try {
+            StackFile::render(array_map(static fn (ImagePin $pin): string => $pin->pullReference(), $pins), (string) $request->version)->writeTo($request->stackFile);
+        } catch (InstanceException $exception) {
+            throw new ReleaseException($exception->getMessage(), 0, $exception);
+        }
+
+        return [$request->stackFile];
     }
 
     /**

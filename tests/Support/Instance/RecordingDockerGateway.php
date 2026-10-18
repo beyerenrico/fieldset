@@ -13,6 +13,7 @@ use App\Domain\Instance\Docker\DockerResource;
 use App\Domain\Instance\Docker\DockerVersions;
 use App\Domain\Instance\Docker\ImageInfo;
 use App\Domain\Instance\Docker\Labels;
+use App\Domain\Instance\Docker\NetworkInfo;
 use App\Domain\Instance\Docker\ProcessOutcome;
 use Closure;
 use Throwable;
@@ -35,6 +36,12 @@ final class RecordingDockerGateway implements DockerGateway
 
     /** @var list<DockerResource> */
     public array $resources = [];
+
+    /** @var array<string, NetworkInfo> networks `inspectNetwork` reports, by name */
+    public array $networkDetails = [];
+
+    /** Answers inspectNetwork for names not in `networkDetails` (e.g. a project network named after a random UUID). */
+    public ?Closure $networkResponder = null;
 
     /** @var array<string, list<ProcessOutcome>> queued outcomes for composeRun / runContainer */
     public array $outcomes = [];
@@ -117,6 +124,13 @@ final class RecordingDockerGateway implements DockerGateway
     public function withImage(string $reference, ImageInfo $info): self
     {
         $this->images[$reference] = $info;
+
+        return $this;
+    }
+
+    public function withNetwork(NetworkInfo $network): self
+    {
+        $this->networkDetails[$network->name] = $network;
 
         return $this;
     }
@@ -277,6 +291,13 @@ final class RecordingDockerGateway implements DockerGateway
         $this->record(__FUNCTION__, ['id' => $id]);
 
         return $this->containers[$id] ?? null;
+    }
+
+    public function inspectNetwork(string $name): ?NetworkInfo
+    {
+        $this->record(__FUNCTION__, ['name' => $name]);
+
+        return $this->networkDetails[$name] ?? ($this->networkResponder instanceof Closure ? ($this->networkResponder)($name) : null);
     }
 
     public function containers(array $labels, bool $all = true): array

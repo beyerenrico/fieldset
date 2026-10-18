@@ -34,8 +34,8 @@ final readonly class ComposeRenderer
     /** The service whose definition `compose run` one-offs use (migrate, app:install, login links, grants). */
     public const string ONE_OFF_SERVICE = AppRoles::APP;
 
-    /** Modes this version renders; proxy (U9) joins with its unit. */
-    public const array MODES = ['local', 'domain'];
+    /** Modes this version renders. */
+    public const array MODES = ['local', 'domain', 'proxy'];
 
     private const array LOGGING = ['driver' => 'json-file', 'options' => ['max-size' => '10m', 'max-file' => '3']];
 
@@ -119,6 +119,9 @@ final readonly class ComposeRenderer
     private function labelled(array $resources, RenderContext $context): array
     {
         return array_map(static function (array $resource) use ($context): array {
+            if (($resource['external'] ?? false) === true) {
+                return $resource; // someone else's network (proxy mode): Compose neither creates nor labels it
+            }
             $labels = is_array($resource['labels'] ?? null) ? $resource['labels'] : [];
 
             return [...$resource, 'labels' => [...$labels, ...$context->labels()]];

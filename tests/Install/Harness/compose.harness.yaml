@@ -3,8 +3,8 @@
 # FSA_HARNESS_* variables. No real registry or account is involved: images are built and mirrored into this
 # registry, and dist/ is served like GitHub Releases' download paths.
 #
-# Later units add their substitutes here (Traefik, the fake tunnel), each behind a profile so a plain release run
-# stays small; Pebble with challtestsrv is the `acme` profile (U8).
+# Later units add their substitutes here (the fake tunnel), each behind a profile so a plain release run stays
+# small: Pebble with challtestsrv is the `acme` profile (U8, J2), Traefik the `proxy` profile (U9, J3).
 name: fsa-test-harness
 
 services:
@@ -91,11 +91,39 @@ services:
       acme:
         ipv4_address: "${FSA_HARNESS_PEBBLE_IP:-10.214.0.11}"
 
+  # Proxy mode's Traefik (J3, plan U9; version per ADR 0064): watches the engine for containers labelled
+  # traefik.enable=true and reaches them over the external network FSA_HARNESS_PROXY_NETWORK, which
+  # ReleaseHarness::startProxy() creates. Nothing is published: journey clients sit on the same network. The
+  # websecure entry point serves Traefik's default self-signed certificate.
+  traefik:
+    profiles: [proxy]
+    image: docker.io/library/traefik:v3.7.15@sha256:0f6150202bc1fed72a7bd2107460eaa510e5b8a905f3fdb5b84f2c8619c33368
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=${FSA_HARNESS_PROXY_NETWORK:-fsa-test-proxy}
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --ping=true
+      - --log.level=INFO
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - proxy
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
 networks:
   acme:
     ipam:
       config:
         - subnet: "${FSA_HARNESS_ACME_SUBNET:-10.214.0.0/24}"
+  proxy:
+    external: true
+    name: ${FSA_HARNESS_PROXY_NETWORK:-fsa-test-proxy}
 
 volumes:
   registry-data:

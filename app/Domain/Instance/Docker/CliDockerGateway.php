@@ -124,6 +124,13 @@ final readonly class CliDockerGateway implements DockerGateway
         return $outcome instanceof ProcessOutcome ? ContainerInfo::fromInspect(DockerJson::object($outcome->stdout, 'container inspect')) : null;
     }
 
+    public function inspectNetwork(string $name): ?NetworkInfo
+    {
+        $outcome = $this->inspect(['network', 'inspect', '--format', '{{json .}}', ...$this->names([$name])], 'network inspect');
+
+        return $outcome instanceof ProcessOutcome ? NetworkInfo::fromInspect(DockerJson::object($outcome->stdout, 'network inspect')) : null;
+    }
+
     public function containers(array $labels, bool $all = true): array
     {
         $args = ['container', 'ls', '--no-trunc', '--format', '{{json .}}', ...($all ? ['--all'] : []), ...$this->labelFilters($labels)];
@@ -204,7 +211,7 @@ final readonly class CliDockerGateway implements DockerGateway
     private function inspect(array $args, string $label): ?ProcessOutcome
     {
         $outcome = $this->attempt([$this->binary, ...$args], [], null, self::QUERY_TIMEOUT);
-        if (! $outcome->successful() && preg_match('/no such (object|image|container)/i', $outcome->stderr) === 1) {
+        if (! $outcome->successful() && preg_match('/no such (object|image|container|network)|network \S+ not found/i', $outcome->stderr) === 1) {
             return null;
         }
 
