@@ -175,6 +175,32 @@ it('refuses a CA root file that is not PEM certificates', function (string $cont
     'empty' => [''],
 ]);
 
+it('refuses a CA root path that is no readable file', function (): void {
+    [$code, $json] = installDomain($this->fixture, ['--acme-ca-root-file' => TemporaryInstance::path().'-missing.pem']);
+
+    expect($code)->toBe(2)->and($json['errors'][0]['message'])->toContain('readable PEM file');
+});
+
+it('asks for --acme-ca-root-file again when a resume reaches the state phase without the written root', function (): void {
+    $root = writePem(domainTestPem());
+    $env = new EnvFiles($this->fixture->directory);
+    $env->write('app', ['APP_KEY' => 'base64:'.base64_encode(str_repeat('k', 32))]); // the secrets phase fails
+
+    [$failed] = installDomain($this->fixture, ['--acme-ca-root-file' => $root]);
+    $env->remove('app');
+    [$missing, $missingJson] = installDomain($this->fixture);
+    [$resumed, $resumedJson] = installDomain($this->fixture, ['--acme-ca-root-file' => $root]);
+    [$again, $againJson] = installDomain($this->fixture);
+
+    expect($failed)->toBe(3)
+        ->and($missing)->toBe(2)
+        ->and($missingJson['errors'][0]['code'])->toBe('acme_ca_root_missing')
+        ->and($resumed)->toBe(0, json_encode($resumedJson))
+        ->and($this->fixture->state()->setting('acme_ca_root'))->toBe(hash('sha256', (string) $this->fixture->directory->read('edge/acme-ca-root.pem')))
+        ->and($again)->toBe(0)
+        ->and($againJson['changed'])->toBeFalse();
+});
+
 it('fails the preflight with exit 3 when port 80 or 443 is in use, after the DNS check', function (): void {
     $this->takenHostPorts = [443];
 

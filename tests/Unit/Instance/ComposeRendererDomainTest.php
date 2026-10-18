@@ -60,7 +60,8 @@ it('gives the edge a fixed address on its own network, joined only by the app an
         return array_key_exists('edge', $networks) || in_array('edge', $networks, true);
     }));
 
-    expect($rendered->document['networks']['edge']['ipam'])->toBe(['config' => [['subnet' => DomainFixtures::SUBNET]]])
+    // Dynamic addresses come only from the upper half, so a member started first never takes the edge's address.
+    expect($rendered->document['networks']['edge']['ipam'])->toBe(['config' => [['subnet' => DomainFixtures::SUBNET, 'ip_range' => '10.213.4.40/29', 'gateway' => '10.213.4.33']]])
         ->and($rendered->document['networks']['edge']['labels'][Labels::INSTANCE])->toBe(ComposeFixtures::UUID)
         ->and($rendered->service('edge')['networks'])->toBe(['edge' => ['ipv4_address' => DomainFixtures::EDGE_ADDRESS]])
         ->and($members)->toEqualCanonicalizing(['app', 'mailpit', 'edge'])

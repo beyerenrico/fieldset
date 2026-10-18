@@ -29,13 +29,33 @@ final class EdgeNetwork
 
     private const int ATTEMPTS = 64;
 
-    /** The edge's fixed address: the subnet's second host (the first is Docker's gateway). */
+    /** The edge's fixed address: the subnet's second host (the first is the gateway). */
     public static function edgeAddress(string $subnet): string
     {
         self::assertSubnet($subnet);
         [$network] = explode('/', $subnet);
 
         return long2ip((int) ip2long($network) + 2);
+    }
+
+    /**
+     * Compose IPAM for the network: the gateway and the edge sit in the lower half, Docker hands out dynamic addresses
+     * (app, catcher, smoke containers) only from the upper half (`ip_range`). Without the range, a member started
+     * before the edge takes the edge's address and the edge fails with "Address already in use".
+     *
+     * @return array{subnet: string, ip_range: string, gateway: string}
+     */
+    public static function ipam(string $subnet): array
+    {
+        self::assertSubnet($subnet);
+        [$network, $prefix] = explode('/', $subnet);
+        $half = 2 ** (32 - (int) $prefix - 1);
+
+        return [
+            'subnet' => $subnet,
+            'ip_range' => long2ip((int) ip2long($network) + $half).'/'.((int) $prefix + 1),
+            'gateway' => long2ip((int) ip2long($network) + 1),
+        ];
     }
 
     /**

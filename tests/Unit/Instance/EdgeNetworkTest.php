@@ -23,6 +23,18 @@ it('places the edge at the second host address of its subnet', function (string 
     ['192.168.200.0/24', '192.168.200.2'],
 ]);
 
+it('keeps the gateway and the edge out of the dynamic range Docker hands out', function (string $subnet, string $range, string $gateway): void {
+    $ipam = EdgeNetwork::ipam($subnet);
+
+    expect($ipam)->toBe(['subnet' => $subnet, 'ip_range' => $range, 'gateway' => $gateway])
+        ->and(EdgeNetwork::overlaps(EdgeNetwork::edgeAddress($subnet).'/32', $range))->toBeFalse()
+        ->and(EdgeNetwork::overlaps($gateway.'/32', $range))->toBeFalse()
+        ->and(EdgeNetwork::overlaps($range, $subnet))->toBeTrue();
+})->with([
+    ['10.213.4.32/28', '10.213.4.40/29', '10.213.4.33'],
+    ['192.168.200.0/24', '192.168.200.128/25', '192.168.200.1'],
+]);
+
 it('refuses a subnet that is not a private IPv4 CIDR as the edge subnet', function (string $subnet): void {
     expect(fn () => EdgeNetwork::edgeAddress($subnet))->toThrow(InstanceException::class);
 })->with(['8.8.8.0/28', '10.213.4.33/28', '10.213.4.32', 'fd00::/64', '10.213.4.32/30']);

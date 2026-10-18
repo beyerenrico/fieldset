@@ -76,7 +76,7 @@ final readonly class EdgeService implements ServiceDefinition
             ],
         ], new ServiceEnvironments($context)->edge(),
             volumes: [self::CERTIFICATE_VOLUME => ['name' => self::volumeName($context->state->project())]],
-            networks: [EdgeNetwork::NAME => ['ipam' => ['config' => [['subnet' => $subnet]]]]],
+            networks: [EdgeNetwork::NAME => ['ipam' => ['config' => [EdgeNetwork::ipam($subnet)]]]],
             files: [self::DIRECTORY.'/'.CaddyfileRenderer::FILE => $caddyfile],
         )];
     }
