@@ -307,6 +307,7 @@ return [
             'impersonation_ended' => 'Identitätswechsel beendet',
             'admin_granted' => 'Plattform-Admin ernannt',
             'admin_revoked' => 'Plattform-Admin entzogen',
+            'catcher_opened' => 'Mail-Catcher geöffnet',
         ],
         'login_link' => [
             'issued' => 'Einmal-Anmeldelink ausgestellt',

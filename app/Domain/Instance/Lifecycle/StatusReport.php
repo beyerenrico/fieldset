@@ -64,7 +64,7 @@ final readonly class StatusReport
         $data = [...$data,
             'version' => $state->version(), 'mode' => $state->mode(), 'url' => $settings->instanceUrl(), 'project' => $state->project(),
             'port' => $settings->publishesAppPort() ? $settings->port() : null, 'health' => $health, 'services' => $services,
-            'mail' => ['mode' => $settings->capturesMail() ? 'capture' : 'smtp', 'catcher_url' => $settings->capturesMail() ? 'http://localhost:'.$settings->mailUiPort() : null],
+            'mail' => ['mode' => $settings->capturesMail() ? 'capture' : 'smtp', 'catcher_url' => $settings->catcherUrl()],
         ];
         $links = $this->links($state, $services);
         $result = CommandResult::ok('status', [...$data, 'sign_in_links' => $links]);

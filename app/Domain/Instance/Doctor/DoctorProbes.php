@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Doctor;
 
+use App\Domain\Instance\Release\BuildFlavor;
+use App\Domain\Instance\State\InputGrammar;
 use Illuminate\Support\Facades\Http;
 use Throwable;
 
@@ -14,6 +16,9 @@ use Throwable;
  */
 class DoctorProbes
 {
+    /** Harness builds only: fixed DNS answers for the doctor (`host=ip,ip;host2=ip`). */
+    public const string TEST_DNS_ENV = 'FSA_TEST_DNS';
+
     /**
      * Addresses of one record type, as the resolver of the ops container (the Docker engine's DNS) answers.
      *
@@ -22,6 +27,12 @@ class DoctorProbes
      */
     public function resolve(string $host, int $type): array
     {
+        $fixed = $this->testDns()[strtolower($host)] ?? null;
+        if ($fixed !== null) {
+            $family = $type === DNS_AAAA ? FILTER_FLAG_IPV6 : FILTER_FLAG_IPV4;
+
+            return array_values(array_filter($fixed, static fn (string $ip): bool => filter_var($ip, FILTER_VALIDATE_IP, $family) !== false));
+        }
         $records = @dns_get_record($host, $type);
         $key = $type === DNS_AAAA ? 'ipv6' : 'ip';
 
@@ -69,5 +80,39 @@ class DoctorProbes
     public function now(): int
     {
         return time();
+    }
+
+    /**
+     * `host=ip[,ip…][;host=…]` → host => addresses; anything malformed is dropped entirely (never half a map).
+     *
+     * @return array<string, list<string>>
+     */
+    public static function parseTestDns(string $value): array
+    {
+        $map = [];
+        foreach (array_filter(explode(';', $value), static fn (string $entry): bool => trim($entry) !== '') as $entry) {
+            [$host, $ips] = array_pad(explode('=', $entry, 2), 2, '');
+            $addresses = array_map(trim(...), explode(',', $ips));
+            if (! InputGrammar::isHost(strtolower(trim($host))) || ! array_all($addresses, InputGrammar::isIp(...))) {
+                return [];
+            }
+            $map[strtolower(trim($host))] = $addresses;
+        }
+
+        return $map;
+    }
+
+    /**
+     * Fixed DNS answers for the release-harness journeys (ADR 0075): the ops container runs on the engine's default
+     * network with its resolver, which knows nothing of the harness DNS (challtestsrv), so J2 passes FSA_TEST_DNS.
+     * A production build ignores it (BuildFlavor is read from the image, not the environment).
+     *
+     * @return array<string, list<string>>
+     */
+    protected function testDns(): array
+    {
+        $value = getenv(self::TEST_DNS_ENV);
+
+        return is_string($value) && $value !== '' && BuildFlavor::current() === BuildFlavor::Harness ? self::parseTestDns($value) : [];
     }
 }

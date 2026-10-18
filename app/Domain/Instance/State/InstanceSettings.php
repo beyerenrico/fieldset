@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Instance\State;
 
 use App\Domain\Instance\Compose\ResourceBudget;
+use App\Domain\Instance\Runtime\CatcherRoute;
 
 /**
  * Typed reads of the state's settings with their defaults, for the renderers (plan U3). The values were checked
@@ -21,6 +22,12 @@ final readonly class InstanceSettings
     public const string DEFAULT_DATABASE = 'form_schema';
 
     public const string DEFAULT_SENDER_NAME = 'form-schema-app';
+
+    /** Let's Encrypt production: domain mode's ACME directory unless `--acme-ca` or `--acme-staging` (R16). */
+    public const string ACME_PRODUCTION = 'https://acme-v02.api.letsencrypt.org/directory';
+
+    /** Let's Encrypt staging (`--acme-staging`): for trial installs, against the duplicate-certificate limits. */
+    public const string ACME_STAGING = 'https://acme-staging-v02.api.letsencrypt.org/directory';
 
     private function __construct(private InstanceState $state) {}
 
@@ -94,6 +101,47 @@ final readonly class InstanceSettings
     public function extraHosts(): array
     {
         return InputGrammar::hostList($this->string('extra_hosts') ?? '') ?? [];
+    }
+
+    /** The domain of domain mode (U8); null in the other modes. */
+    public function domain(): ?string
+    {
+        return $this->state->mode() === 'domain' ? $this->string('domain') : null;
+    }
+
+    /** The ACME account contact; none unless `--acme-email` (it is shared with the CA). */
+    public function acmeEmail(): ?string
+    {
+        return $this->string('acme_email');
+    }
+
+    /** The ACME directory the edge orders certificates from. */
+    public function acmeCa(): string
+    {
+        return $this->string('acme_ca') ?? self::ACME_PRODUCTION;
+    }
+
+    /** Whether the edge trusts a custom root for the ACME directory's HTTPS (edge/acme-ca-root.pem, its SHA-256). */
+    public function acmeCaRoot(): ?string
+    {
+        return $this->string('acme_ca_root');
+    }
+
+    /** The edge network's subnet (domain mode): the edge has a fixed address in it, the app's only trusted proxy. */
+    public function edgeSubnet(): ?string
+    {
+        return $this->string('edge_subnet');
+    }
+
+    /** Where the catcher UI is reached (KTD13): the loopback port, `/_mail/` behind the edge in domain mode, else null. */
+    public function catcherUrl(): ?string
+    {
+        if (! $this->capturesMail()) {
+            return null;
+        }
+        $domain = $this->domain();
+
+        return $domain !== null ? 'https://'.$domain.CatcherRoute::MAIL_PATH : 'http://localhost:'.$this->mailUiPort();
     }
 
     /** Proxy mode's setup (R17, ADR 0076): `traefik` or `caddy` on a shared network, or `port`; null in other modes. */

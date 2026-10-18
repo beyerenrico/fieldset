@@ -10,7 +10,6 @@ use App\Domain\Instance\Compose\ServiceSpec;
 use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\Docker\Labels;
 use App\Domain\Instance\InstanceException;
-use App\Domain\Instance\Output\ExitCode;
 use App\Domain\Instance\Output\InvalidInput;
 use App\Domain\Instance\State\EnvFiles;
 use App\Domain\Instance\State\InstanceState;
@@ -298,16 +297,9 @@ it('sizes Horizon, FrankenPHP, Gotenberg, Postgres and Valkey from the budget', 
         ->and($rendered->service('redis')['command'])->toBe(['valkey-server', '--maxmemory', $budget->valkeyMaxMemory(), '--maxmemory-policy', 'volatile-lru']);
 })->with(ResourceBudget::SIZES);
 
-it('renders local and proxy mode only until the edge unit extends it', function (string $mode): void {
-    $state = ComposeFixtures::state()->withMode($mode)->withUrl('https://forms.example.com');
-
-    try {
-        (new ComposeRenderer)->render($state, ComposeFixtures::secrets());
-        $this->fail('rendering should fail');
-    } catch (InstanceException $e) {
-        expect($e->errorCode)->toBe('unsupported_mode')->and($e->exitCode)->toBe(ExitCode::InvalidInput);
-    }
-})->with(['domain']);
+it('renders every mode an instance state can have (local, domain with U8, proxy with U9)', function (): void {
+    expect(ComposeRenderer::MODES)->toEqualCanonicalizing(InstanceState::MODES);
+});
 
 it('writes the compose file, 0600 env files and the runtime directory, and drops the env files of removed services', function (): void {
     $directory = TemporaryInstance::directory();

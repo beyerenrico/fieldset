@@ -17,6 +17,8 @@ use App\Domain\Instance\Output\CommandResult;
 use App\Domain\Instance\Output\ExitCode;
 use App\Domain\Instance\Output\InvalidInput;
 use App\Domain\Instance\State\InstanceDirectory;
+use App\Domain\Instance\State\InstanceSettings;
+use App\Domain\Instance\State\InstanceState;
 
 /**
  * `fsa uninstall` (R44, R63, §13.3, ADR 0072, ADR 0073). Only resources labelled with the instance UUID are removed,
@@ -49,6 +51,8 @@ final readonly class Uninstaller
         if ($uuid === null) {
             $this->ids->assertNothingTied();
         }
+        $state = $this->ids->state();
+        $domain = $state instanceof InstanceState ? InstanceSettings::of($state)->domain() : null;
         $handle = $this->lock->acquire($this->identity->holder('fsa', $facts->callerUid()), 'uninstall');
 
         // The lock stays until everything but itself is gone, so no other operation writes into a half-deleted
@@ -63,7 +67,15 @@ final readonly class Uninstaller
         }
         $this->directory->files()->delete(InstanceDirectory::LOCKS_DIR);
 
-        return $this->result($uuid, $removed, $deleted, $keepBackups, $final);
+        $result = $this->result($uuid, $removed, $deleted, $keepBackups, $final);
+
+        return $domain === null ? $result : $result->withWarning('certificates_removed', self::certificateWarning($domain), 'Use --acme-staging for trial installs; reinstalling the same domain often counts against the CA\'s duplicate-certificate limit.');
+    }
+
+    /** Domain mode (plan Risks, ADR 0075): the certificate volume goes with the instance. */
+    public static function certificateWarning(string $domain): string
+    {
+        return "The certificates for {$domain} were removed with the instance. Let's Encrypt allows only a few identical certificates per week, so a new install of the same domain may be refused for a while.";
     }
 
     public function orphans(string $uuid): CommandResult

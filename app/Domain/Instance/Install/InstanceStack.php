@@ -79,9 +79,11 @@ final readonly class InstanceStack
         }
         /** @var array<string, string> $digests */
         $digests = $preflight['digests'];
-        $state = $state->withRelease((string) $preflight['version'], $digests)
-            ->withSettings(['port' => (int) $preflight['port'], 'mail_ui_port' => (int) $preflight['mail_ui_port']]);
-        $state = ProxySetup::apply($state, $preflight);
+        $state = $state->withRelease((string) $preflight['version'], $digests);
+        if (is_int($preflight['port'] ?? null) && is_int($preflight['mail_ui_port'] ?? null)) { // loopback ports (not domain mode)
+            $state = $state->withSettings(['port' => $preflight['port'], 'mail_ui_port' => $preflight['mail_ui_port']]);
+        }
+        $state = InstallMode::apply(ProxySetup::apply($state, $preflight), $preflight);
         $this->directory->saveState($state);
         $rendered = $this->renderer->write($this->directory, $state, $this->secrets(), ($preflight['emulated'] ?? false) === true);
         $this->docker->composeConfig(ComposeProject::forInstance($state, $this->directory));

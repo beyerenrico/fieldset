@@ -47,6 +47,9 @@ final readonly class PortsCheck implements DoctorCheck
         if ($image === null) {
             return CheckResult::skipped($this->key(), 'No app image on this host to probe ports with yet.');
         }
+        if ($context->domain !== null) {
+            return new EdgePorts($this->probe)->check($context, $image, $this->key()); // domain mode: 80 and 443 (U8)
+        }
 
         return $context->selectPorts ? $this->select($context, $image) : $this->verify($context, $image);
     }

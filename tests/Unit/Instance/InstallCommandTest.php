@@ -195,19 +195,6 @@ it('exits 3 before pulling anything when the domain resolves elsewhere (AE5)', f
         ->and($this->fixture->directory->hasState())->toBeFalse();
 });
 
-it('stops with unsupported_mode after a passing DNS preflight, because domain mode arrives later', function (): void {
-    $this->fixture->probes->dns['forms.example.com'] = ['a' => ['8.8.4.4'], 'aaaa' => []];
-    $this->fixture->facts(['lanAddresses' => ['8.8.4.4']]);
-
-    [$code, $json] = installOnce($this->fixture, ['--domain' => 'forms.example.com']);
-
-    expect($code)->toBe(2)
-        ->and($json['errors'][0]['code'])->toBe('unsupported_mode')
-        ->and($this->fixture->docker->called('pullImage'))->toBe([])
-        ->and($this->fixture->directory->hasState())->toBeFalse()
-        ->and($this->fixture->directory->exists(OperationJournal::CURRENT))->toBeFalse();
-});
-
 it('exits 4 on a failed smoke test and resumes there with a fresh sign-in link', function (): void {
     $this->fixture->smokeOutcome = new ProcessOutcome(22, "200 http://app:8080/up\n", 'curl: (22) The requested URL returned error: 500');
 

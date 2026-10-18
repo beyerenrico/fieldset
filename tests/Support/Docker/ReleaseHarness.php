@@ -249,6 +249,17 @@ final class ReleaseHarness
     }
 
     /**
+     * The harness compose command with extra variables, for the substitutes behind profiles (AcmeHarness).
+     *
+     * @param  array<string, string>  $environment
+     * @return list<string>
+     */
+    public function composeCommand(array $environment = []): array
+    {
+        return self::compose($this->project, $this->directory, $environment);
+    }
+
+    /**
      * @param  list<string>  $platforms
      */
     private function buildApp(ReleaseVersion $release, array $platforms, ReleaseInputs $inputs): string
@@ -364,7 +375,7 @@ final class ReleaseHarness
     private static function tearDown(string $project, string $directory): void
     {
         $compose = self::compose($project, $directory, []);
-        new Process([...$compose, '--profile', 'forwarder', '--profile', 'proxy', 'down', '--volumes', '--remove-orphans', '--timeout', '5'])->setTimeout(300)->run();
+        new Process([...$compose, '--profile', 'forwarder', '--profile', 'acme', '--profile', 'proxy', 'down', '--volumes', '--remove-orphans', '--timeout', '5'])->setTimeout(300)->run();
         new Process(['rm', '-rf', $directory])->run();
     }
 

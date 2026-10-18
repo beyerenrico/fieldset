@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Compose\Services;
 
+use App\Domain\Instance\Compose\EdgeNetwork;
 use App\Domain\Instance\Compose\ImageRole;
 use App\Domain\Instance\Compose\ProxyLabels;
 use App\Domain\Instance\Compose\RenderContext;
@@ -30,6 +31,9 @@ final readonly class AppRoles implements ServiceDefinition
 
     public const string SCHEDULER = 'scheduler';
 
+    /** FrankenPHP's plain-HTTP port inside the stack (ADR 0052); the edge proxies to it. */
+    public const int PORT = 8080;
+
     /** Uploads and generated files; uninstall's final backup archives it. */
     public const string STORAGE_VOLUME = 'app-storage';
 
@@ -42,7 +46,7 @@ final readonly class AppRoles implements ServiceDefinition
 
         return [
             new ServiceSpec(self::APP, [
-                ...$this->base($context, ['default', 'renderer', ...array_keys(ProxyLabels::network($context->settings))]),
+                ...$this->base($context, ['default', 'renderer', ...$this->edgeNetwork($context), ...array_keys(ProxyLabels::network($context->settings))]),
                 ...$this->ports($context),
                 ...$this->proxyLabels($context),
                 'healthcheck' => ['test' => ['CMD', 'curl', '-fsS', 'http://localhost:8080/up'], 'interval' => '15s', 'timeout' => '5s', 'retries' => 5],
@@ -78,6 +82,12 @@ final readonly class AppRoles implements ServiceDefinition
             'depends_on' => ['postgres' => ['condition' => 'service_healthy'], 'redis' => ['condition' => 'service_healthy']],
             'networks' => $networks,
         ];
+    }
+
+    /** @return list<string> domain mode: the app joins the edge network, where the edge's fixed address reaches it */
+    private function edgeNetwork(RenderContext $context): array
+    {
+        return $context->mode() === 'domain' ? [EdgeNetwork::NAME] : [];
     }
 
     /** @return array<string, mixed> */

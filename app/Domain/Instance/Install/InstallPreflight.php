@@ -11,6 +11,7 @@ use App\Domain\Instance\Doctor\Doctor;
 use App\Domain\Instance\Doctor\DoctorContext;
 use App\Domain\Instance\Doctor\DoctorFailed;
 use App\Domain\Instance\Doctor\DoctorProbes;
+use App\Domain\Instance\Doctor\DoctorReport;
 use App\Domain\Instance\HostFacts;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Output\ExitCode;
@@ -29,6 +30,9 @@ final readonly class InstallPreflight
     /** Images local mode with capture mail runs. */
     private const array LOCAL_ROLES = [ImageRole::App, ImageRole::Postgres, ImageRole::Valkey, ImageRole::Gotenberg, ImageRole::Mailpit];
 
+    /** Domain mode adds the edge (U8). */
+    private const array DOMAIN_ROLES = [ImageRole::Caddy];
+
     public function __construct(
         private InstanceDirectory $directory,
         private DockerGateway $docker,
@@ -39,7 +43,7 @@ final readonly class InstallPreflight
         private ProxySetup $proxy,
     ) {}
 
-    /** @return array<string, mixed> uuid, project, version, digests, port, mail_ui_port, emulated, warnings, orphans, mode, url, proxy */
+    /** @return array<string, mixed> uuid, project, version, digests, port, mail_ui_port, emulated, warnings, orphans, mode, url, proxy, edge */
     public function run(InstallRequest $request, HostFacts $facts): array
     {
         $state = $this->directory->hasState() ? $this->directory->state() : null;
@@ -47,7 +51,7 @@ final readonly class InstallPreflight
         $digests = ReleaseSource::digests($manifest, $facts->registry);
         $uuid = $state?->uuid() ?? Str::uuid()->toString();
         $project = $state?->project() ?? InstanceState::projectFor(InstanceState::slugFor($this->directory->root), $uuid);
-        $roles = array_map(static fn (ImageRole $role): string => $role->value, self::LOCAL_ROLES);
+        $roles = array_map(static fn (ImageRole $role): string => $role->value, [...self::LOCAL_ROLES, ...($request->domain() === null ? [] : self::DOMAIN_ROLES)]);
         $report = $this->doctor->run(new DoctorContext(
             $facts, $this->directory, $this->docker, $this->probes, $state, $request->domain(), $digests['app'] ?? null,
             images: array_values(array_intersect_key($digests, array_flip($roles))), platforms: $manifest->platforms,
@@ -58,27 +62,45 @@ final readonly class InstallPreflight
         }
         $this->conflicts->assertFree($project, $uuid);
         $proxy = $this->proxy->resolve($request);
-        $details = $report->result('ports')->details ?? [];
-        $ports = is_array($details['ports'] ?? null) ? $details['ports'] : [];
-        if (! is_int($ports['app'] ?? null) || ! is_int($ports['mail_ui'] ?? null)) {
-            throw new InstanceException('The preflight chose no ports.', ExitCode::PreflightFailed, 'ports_unknown', 'Run `fsa doctor` to see why the port check did not run.');
-        }
+        $ports = $this->ports($report, $request->domain() !== null);
+        $edge = InstallMode::edge($request, $state, $uuid, $this->docker->networkSubnets(...));
 
         return [
             'uuid' => $uuid,
             'project' => $project,
             'version' => (string) $manifest->version,
             'digests' => $digests,
-            'port' => $ports['app'],
-            'mail_ui_port' => $ports['mail_ui'],
+            'port' => $ports['app'] ?? null,
+            'mail_ui_port' => $ports['mail_ui'] ?? null,
             // DOCKER_DEFAULT_PLATFORM selects another architecture than the engine's: the renderer doubles memory limits.
             'emulated' => ($report->result('architecture')?->details['emulated'] ?? false) === true,
             'warnings' => array_map(static fn (CheckResult $warning): array => ['code' => 'doctor_'.$warning->key, 'message' => $warning->summary, 'hint' => $warning->hint], $report->warnings()),
             'orphans' => $this->conflicts->orphans($this->directory->root, $uuid),
-            // Proxy mode (ADR 0076): the URL from --url and the single address the app will trust.
-            'mode' => $proxy === null ? 'local' : 'proxy',
-            'url' => $request->url(),
+            // Proxy mode (ADR 0076): the URL from --url and the single address the app will trust. Domain mode (ADR 0075):
+            // https://<domain>, the ACME inputs and the edge subnet.
+            'mode' => InstallMode::mode($request, $proxy),
+            'url' => $edge === null ? $request->url() : 'https://'.$edge['domain'],
             'proxy' => $proxy,
+            'edge' => $edge,
         ];
+    }
+
+    /**
+     * The loopback ports the doctor chose (local mode); domain mode publishes only the edge's 80 and 443.
+     *
+     * @return array{app?: int, mail_ui?: int}
+     */
+    private function ports(DoctorReport $report, bool $domain): array
+    {
+        if ($domain) {
+            return [];
+        }
+        $details = $report->result('ports')->details ?? [];
+        $ports = is_array($details['ports'] ?? null) ? $details['ports'] : [];
+        if (! is_int($ports['app'] ?? null) || ! is_int($ports['mail_ui'] ?? null)) {
+            throw new InstanceException('The preflight chose no ports.', ExitCode::PreflightFailed, 'ports_unknown', 'Run `fsa doctor` to see why the port check did not run.');
+        }
+
+        return ['app' => $ports['app'], 'mail_ui' => $ports['mail_ui']];
     }
 }
