@@ -95,7 +95,8 @@ final class LocalCaClient
     }
 
     /**
-     * tests/e2e/fsa-phone-trust.spec.ts with Chromium trusting the CA (project `fsa-instance`).
+     * tests/e2e/fsa-phone-trust.spec.ts with Chromium trusting the CA (project `fsa-instance`). The spec is named: the
+     * project also matches the instance smoke spec (U15, J10), which skips without its own environment.
      *
      * @param  array<string, string>  $env
      */
@@ -107,7 +108,7 @@ final class LocalCaClient
             throw new RuntimeException("Playwright is not installed ({$binary}); run `npm ci` first.");
         }
         $browsers = is_dir($repository.'/storage/playwright') ? $repository.'/storage/playwright' : dirname((string) realpath($repository.'/node_modules')).'/storage/playwright';
-        $process = new Process([$binary, 'test', '--project=fsa-instance', '--reporter=line'], $repository, ['PLAYWRIGHT_BROWSERS_PATH' => $browsers, ...$env]);
+        $process = new Process([$binary, 'test', 'tests/e2e/fsa-phone-trust.spec.ts', '--project=fsa-instance', '--reporter=line'], $repository, ['PLAYWRIGHT_BROWSERS_PATH' => $browsers, ...$env]);
         $process->setTimeout(600);
         $process->run();
 
