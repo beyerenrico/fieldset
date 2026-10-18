@@ -30,7 +30,7 @@ final readonly class InstallPreflight
     /** Images local mode with capture mail runs. */
     private const array LOCAL_ROLES = [ImageRole::App, ImageRole::Postgres, ImageRole::Valkey, ImageRole::Gotenberg, ImageRole::Mailpit];
 
-    /** Domain mode adds the edge (U8). */
+    /** Domain and local-CA mode add the edge (U8, U14). */
     private const array DOMAIN_ROLES = [ImageRole::Caddy];
 
     public function __construct(
@@ -43,7 +43,7 @@ final readonly class InstallPreflight
         private ProxySetup $proxy,
     ) {}
 
-    /** @return array<string, mixed> uuid, project, version, digests, port, mail_ui_port, emulated, warnings, orphans, mode, url, proxy, edge */
+    /** @return array<string, mixed> uuid, project, version, digests, port, mail_ui_port, emulated, warnings, orphans, mode, url, proxy, edge, phone */
     public function run(InstallRequest $request, HostFacts $facts): array
     {
         $state = $this->directory->hasState() ? $this->directory->state() : null;
@@ -51,12 +51,15 @@ final readonly class InstallPreflight
         $digests = ReleaseSource::digests($manifest, $facts->registry);
         $uuid = $state?->uuid() ?? Str::uuid()->toString();
         $project = $state?->project() ?? InstanceState::projectFor(InstanceState::slugFor($this->directory->root), $uuid);
-        $roles = array_map(static fn (ImageRole $role): string => $role->value, [...self::LOCAL_ROLES, ...($request->domain() === null ? [] : self::DOMAIN_ROLES)]);
+        $localCa = InstallMode::localCa($request, $state, $uuid, $facts, $this->docker->networkSubnets(...));
+        $edgeRoles = $request->domain() === null && $localCa === null ? [] : self::DOMAIN_ROLES;
+        $roles = array_map(static fn (ImageRole $role): string => $role->value, [...self::LOCAL_ROLES, ...$edgeRoles]);
         $report = $this->doctor->run(new DoctorContext(
             $facts, $this->directory, $this->docker, $this->probes, $state, $request->domain(), $digests['app'] ?? null,
             images: array_values(array_intersect_key($digests, array_flip($roles))), platforms: $manifest->platforms,
             requestedPort: $request->port(), selectPorts: true, uuid: $uuid,
             publishesAppPort: ! in_array($request->proxy(), InstallRequest::NETWORK_PROXIES, true),
+            lanAddress: $localCa['lan_address'] ?? null,
         ));
         if (! $report->passed()) {
             throw new DoctorFailed($report);
@@ -80,9 +83,15 @@ final readonly class InstallPreflight
             // Proxy mode (ADR 0076): the URL from --url and the single address the app will trust. Domain mode (ADR 0075):
             // https://<domain>, the ACME inputs and the edge subnet.
             'mode' => InstallMode::mode($request, $proxy),
-            'url' => $edge === null ? $request->url() : 'https://'.$edge['domain'],
+            'url' => match (true) {
+                $edge !== null => 'https://'.$edge['domain'],
+                $localCa !== null => 'https://'.$localCa['lan_address'],
+                default => $request->url(),
+            },
             'proxy' => $proxy,
             'edge' => $edge,
+            // Local-CA mode (ADR 0082): the LAN address, the edge subnet; the URL is https://<address>.
+            'phone' => $localCa,
         ];
     }
 

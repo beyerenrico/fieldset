@@ -25,7 +25,8 @@ use Throwable;
 /**
  * What `fsa status` reports (§7, R45, ADR 0056). Read-only: no file is written and no service is touched; the
  * only container it starts is the socket-less one-off that lists unused sign-in links (without tokens), and only
- * while the database runs. The last backup arrives with U16 (null until then).
+ * while the database runs. The last backup arrives with U16 (null until then). Phone HTTPS (ADR 0082): the local CA's
+ * trust page and fingerprint, and the quick tunnel, an expired one reported but left for the next mutating command.
  */
 final readonly class StatusReport
 {
@@ -37,6 +38,7 @@ final readonly class StatusReport
         private AppCommands $app,
         private DoctorProbes $probes,
         private ProxySetup $proxySetup,
+        private PhoneStatus $phone,
     ) {}
 
     public function build(): CommandResult
@@ -69,14 +71,19 @@ final readonly class StatusReport
         $services = $this->services($state);
         $health = $this->health($services);
         $proxy = $this->proxy($state);
+        $phone = $this->phone->of($state);
         $data = [...$data,
             'version' => $state->version(), 'mode' => $state->mode(), 'url' => $settings->instanceUrl(), 'project' => $state->project(),
             'port' => $settings->publishesAppPort() ? $settings->port() : null, 'health' => $health, 'services' => $services,
             'mail' => ['mode' => $settings->capturesMail() ? 'capture' : 'smtp', 'catcher_url' => $settings->catcherUrl()],
             'proxy' => $proxy,
+            ...$phone['data'], // the local CA and the quick tunnel (ADR 0082)
         ];
         $links = $this->links($state, $services);
         $result = CommandResult::ok('status', [...$data, 'sign_in_links' => $links]);
+        foreach ($phone['warnings'] as [$code, $message, $hint]) {
+            $result = $result->withWarning($code, $message, $hint);
+        }
         if ($proxy !== null && $proxy['moved'] && $proxy['current'] !== null) {
             $result = $result->withWarning(ProxyAddressCheck::WARNING, 'The app trusts '.implode(', ', $proxy['trusted']).' as its proxy, but the proxy is at '.$proxy['current'].' now.', 'Run `fsa config set trusted-proxy auto`.');
         }

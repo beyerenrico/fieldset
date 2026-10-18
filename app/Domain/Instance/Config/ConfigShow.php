@@ -100,11 +100,12 @@ final readonly class ConfigShow
             'acme' => $domain ? ['email' => $settings->acmeEmail(), 'ca' => $settings->acmeCa(), 'ca_root_sha256' => $settings->acmeCaRoot(), 'staging' => $settings->acmeCa() === InstanceSettings::ACME_STAGING] : null,
             'edge_subnet' => $settings->edgeSubnet(),
             'proxy' => $settings->proxy() === null ? null : ['setup' => $settings->proxy(), 'network' => $settings->proxyNetwork(), 'container' => $settings->proxyContainer()],
-            'trusted_proxies' => match ($state->mode()) {
-                'domain' => $settings->edgeSubnet() === null ? [] : [EdgeNetwork::edgeAddress($settings->edgeSubnet())],
-                'proxy' => $settings->trustedProxies(),
+            'trusted_proxies' => match (true) {
+                $settings->rendersEdge() => $settings->edgeSubnet() === null ? [] : [EdgeNetwork::edgeAddress($settings->edgeSubnet())],
+                $state->mode() === 'proxy' => $settings->trustedProxies(),
                 default => [],
             },
+            'phone_https' => ['mode' => $settings->phoneHttps(), 'lan_address' => $settings->localCa() ? $settings->lanAddress() : null, 'tunnel_subnet' => $settings->tunnelSubnet()],
             'extra_hosts' => $settings->extraHosts(),
             'mail' => [
                 'mode' => $settings->capturesMail() ? 'capture' : 'smtp',
@@ -145,6 +146,7 @@ final readonly class ConfigShow
             'acme-email' => $settings->acmeEmail(), 'acme-ca' => $state->mode() === 'domain' ? $settings->acmeCa() : null,
             'mail' => $settings->capturesMail() ? 'capture' : 'smtp',
             'operator-email' => null, // operators live in the app's database (ADR 0080)
+            'phone-https' => $settings->phoneHttps() ?? ($state->mode() === 'local' ? 'off' : null), 'lan-address' => $settings->localCa() ? $settings->lanAddress() : null,
         ];
         $keys = [];
         foreach (ConfigKeys::keys() as $key) {
@@ -173,6 +175,8 @@ final readonly class ConfigShow
                 'purpose' => 'Real mail delivery through this server (fsa config set mail smtp); capture mode keeps every mail in the bundled catcher.'],
             ['feature' => 'upgrades', 'active' => false, 'contacts' => [...$registries, self::RELEASES_URL],
                 'purpose' => 'Only when you run an upgrade (fsa upgrade arrives with 2.0.0-rc.1): the release manifest and the pinned images.'],
+            ['feature' => 'tunnel', 'active' => $settings->tunnel(), 'contacts' => $settings->tunnel() ? ['Cloudflare (trycloudflare.com quick tunnel)'] : [],
+                'purpose' => 'Only while `fsa tunnel start` runs one (4 hours unless renewed): cloudflared connects out to Cloudflare, which serves the instance under a random *.trycloudflare.com name.'],
             ['feature' => 'update_check', 'active' => false, 'contacts' => [],
                 'purpose' => 'Off by default; arrives with 2.0.0 and then contacts the release list only when switched on.'],
         ];

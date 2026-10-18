@@ -28,6 +28,7 @@ final class DoctorContext
      * @param  list<string>  $images  image references the instance runs (pinned by digest)
      * @param  list<string>  $platforms  platforms of the release, e.g. linux/arm64
      * @param  bool  $publishesAppPort  false for an install on a shared proxy network: the app gets no loopback port
+     * @param  string|null  $lanAddress  local-CA mode (ADR 0082): the edge publishes 80 and 443 on this address
      */
     public function __construct(
         public readonly HostFacts $facts,
@@ -44,6 +45,7 @@ final class DoctorContext
         public readonly ?string $uuid = null,
         public readonly bool $post = false,
         public readonly bool $publishesAppPort = true,
+        public readonly ?string $lanAddress = null,
     ) {}
 
     public function info(): DockerInfo

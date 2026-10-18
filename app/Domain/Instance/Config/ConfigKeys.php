@@ -7,9 +7,11 @@ namespace App\Domain\Instance\Config;
 use App\Domain\Instance\Config\Appliers\AcmeCaApplier;
 use App\Domain\Instance\Config\Appliers\AcmeEmailApplier;
 use App\Domain\Instance\Config\Appliers\DomainApplier;
+use App\Domain\Instance\Config\Appliers\LanAddressApplier;
 use App\Domain\Instance\Config\Appliers\MailApplier;
 use App\Domain\Instance\Config\Appliers\ModeApplier;
 use App\Domain\Instance\Config\Appliers\OperatorEmailApplier;
+use App\Domain\Instance\Config\Appliers\PhoneHttpsApplier;
 use App\Domain\Instance\Config\Appliers\PortApplier;
 use App\Domain\Instance\Config\Appliers\TrustedProxyApplier;
 use App\Domain\Instance\Config\Appliers\UrlApplier;
@@ -37,6 +39,8 @@ final readonly class ConfigKeys
         'acme-email' => AcmeEmailApplier::class,
         'acme-ca' => AcmeCaApplier::class,
         'mail' => MailApplier::class,
+        'phone-https' => PhoneHttpsApplier::class,
+        'lan-address' => LanAddressApplier::class,
     ];
 
     /** Keys whose change runs app-side only (no render, no rollout): key => applier. */
@@ -55,6 +59,8 @@ final readonly class ConfigKeys
         'acme-ca' => ['domain'],
         'mail' => ['local', 'proxy', 'domain'],
         'operator-email' => ['local', 'proxy', 'domain'],
+        'phone-https' => ['local'],
+        'lan-address' => ['local'],
     ];
 
     /** Key => mode => the key that does the job there instead. */
@@ -75,7 +81,7 @@ final readonly class ConfigKeys
     ];
 
     /** Keys whose value changes the instance URL in some mode: they need --yes and list what follows the URL. */
-    public const array URL_KEYS = ['domain', 'url', 'port', 'mode'];
+    public const array URL_KEYS = ['domain', 'url', 'port', 'mode', 'phone-https', 'lan-address'];
 
     public function __construct(private Container $container) {}
 

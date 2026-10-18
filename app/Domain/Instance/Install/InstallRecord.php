@@ -99,6 +99,9 @@ final class InstallRecord
             ...$proxy,
             // installed with --demo, or the demo added later by `fsa demo` (ADR 0081)
             'demo' => DemoData::recorded($state) ? 1 : null,
+            // phone HTTPS as it is now (`config set phone-https`, `fsa tunnel`; ADR 0082)
+            'phone_https' => $settings->phoneHttps(),
+            'lan_address' => $settings->localCa() ? $settings->lanAddress() : null,
         ];
     }
 

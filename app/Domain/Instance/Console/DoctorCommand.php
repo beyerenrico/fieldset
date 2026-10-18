@@ -11,6 +11,7 @@ use App\Domain\Instance\Doctor\DoctorFailed;
 use App\Domain\Instance\Doctor\DoctorProbes;
 use App\Domain\Instance\Lifecycle\ComposeFile;
 use App\Domain\Instance\Output\CommandResult;
+use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
@@ -38,6 +39,7 @@ final class DoctorCommand extends FsaCommand
             images: $this->images($state, ComposeFile::document($directory)),
             uuid: $state?->uuid(),
             post: (bool) $this->option('post'),
+            lanAddress: $state instanceof InstanceState && InstanceSettings::of($state)->localCa() ? InstanceSettings::of($state)->lanAddress() : null,
         ));
         if (! $report->passed()) {
             throw new DoctorFailed($report);

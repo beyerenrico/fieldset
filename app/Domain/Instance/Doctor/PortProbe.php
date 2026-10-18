@@ -49,6 +49,12 @@ final readonly class PortProbe
         return $this->probe(($ipv6 ? '[::]' : '0.0.0.0').":{$port}:8080", $port, $image, $uuid, true);
     }
 
+    /** Whether a port is free on one host address (local-CA mode publishes 80 and 443 on the LAN address only). */
+    public function isFreeOnAddress(string $address, int $port, string $image, ?string $uuid = null): bool
+    {
+        return $this->probe("{$address}:{$port}:8080", $port, $image, $uuid, true);
+    }
+
     private function probe(string $binding, int $port, string $image, ?string $uuid, bool $hostWide): bool
     {
         $labels = $uuid === null ? [Labels::ROLE => self::ROLE] : Labels::forInstance($uuid, self::ROLE);

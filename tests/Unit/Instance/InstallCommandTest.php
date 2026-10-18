@@ -343,7 +343,11 @@ it('rejects a secret flag (AE9), malformed values and flags of later releases wi
     'version' => [['--release' => 'latest'], 'invalid_flag'],
     'domain that is an IP' => [['--domain' => '203.0.113.10'], 'invalid_flag'],
     'proxy setup' => [['--behind-proxy' => 'nginx'], 'invalid_flag'],
-    'phone https' => [['--phone-https' => 'tunnel'], 'unsupported_option'],
+    'phone https' => [['--phone-https' => 'carrier-pigeon'], 'invalid_flag'],
+    'lan address without the local CA' => [['--lan-address' => '192.168.1.20'], 'invalid_combination'],
+    'lan address that is loopback' => [['--phone-https' => 'local-ca', '--lan-address' => '127.0.0.1'], 'invalid_flag'],
+    'phone https in domain mode (R61)' => [['--phone-https' => 'local-ca', '--domain' => 'forms.example.com'], 'invalid_combination'],
+    'backup encryption' => [['--encrypt' => true], 'unsupported_option'],
 ]);
 
 it('refuses a manifest of another version than --version with exit 3', function (): void {
