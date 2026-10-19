@@ -165,3 +165,23 @@ it('lists invalid indexes and refuses an unknown action or session name', functi
         ->and($unknown)->toBe(1)->and($refused['errors'][0]['code'])->toBe('invalid_input')
         ->and($badName)->toBe(1);
 });
+
+it('lists the other client sessions of the database for the in-flight wait, without query texts (review U18 A1)', function (): void {
+    $session = upgradeSession($this->database, 'fsa-test-request');
+    $session->exec('SELECT 1');
+
+    [$code, $json] = upgradeArtisan('instance:upgrade-db', ['action' => 'foreign']);
+    $names = array_column($json['data']['sessions'] ?? [], 'application_name');
+
+    expect($code)->toBe(0, (string) json_encode($json))
+        ->and($names)->toContain('fsa-test-request')
+        ->and(array_keys($json['data']['sessions'][0]))->toBe(['pid', 'application_name', 'user', 'state']);
+});
+
+it('reports the live database and storage sizes for the upgrade\'s space check (review U18 A5)', function (): void {
+    [$code, $json] = upgradeArtisan('instance:upgrade-db', ['action' => 'size']);
+
+    expect($code)->toBe(0, (string) json_encode($json))
+        ->and($json['data']['database_bytes'])->toBeInt()->toBeGreaterThan(1_000_000)
+        ->and($json['data']['storage_bytes'])->toBeInt()->toBeGreaterThanOrEqual(0);
+});

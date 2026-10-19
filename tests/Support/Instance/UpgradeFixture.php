@@ -10,6 +10,7 @@ use App\Domain\Instance\Docker\ContainerSpec;
 use App\Domain\Instance\Docker\DockerCommandFailed;
 use App\Domain\Instance\Docker\Labels;
 use App\Domain\Instance\Docker\ProcessOutcome;
+use App\Domain\Instance\Operations\JournalRecord;
 use App\Domain\Instance\Operations\OperationJournal;
 use App\Domain\Instance\Release\ManifestVerifier;
 use App\Domain\Instance\Release\ReleaseManifest;
@@ -88,6 +89,15 @@ final class UpgradeFixture
 
     /** @var list<string> the queue one-offs in order: sizes, export, drop */
     public array $queueActions = [];
+
+    /** @var list<list<array<string, mixed>>> client sessions the in-flight check sees, poll by poll (the last one stays) */
+    public array $sessions = [];
+
+    /** @var array{database_bytes: int, storage_bytes: int} what the size one-off reports for the live data */
+    public array $liveSize = ['database_bytes' => 10_485_760, 'storage_bytes' => 1_048_576];
+
+    /** Whether the child's liveness probe one-off fails (Docker or the database hiccups). */
+    public bool $probeFails = false;
 
     /** The security state export's one-off (null: a small valid document). */
     public ?ProcessOutcome $exportOutcome = null;
@@ -278,8 +288,13 @@ final class UpgradeFixture
 
     private function database(string $action): ProcessOutcome
     {
+        if ($action === 'activity' && $this->probeFails) {
+            return new ProcessOutcome(1, '', 'Error response from daemon: probe failed');
+        }
         $data = match ($action) {
             'activity' => ['backends' => $this->childActive ? [['pid' => 4242, 'state' => 'active', 'wait_event_type' => null]] : []],
+            'foreign' => ['sessions' => $this->sessions === [] ? [] : (count($this->sessions) > 1 ? array_shift($this->sessions) : $this->sessions[0])],
+            'size' => $this->liveSize,
             'terminate' => ['terminated' => 1],
             'invalid-indexes' => ['indexes' => $this->invalidIndexes],
             default => [],
@@ -343,6 +358,70 @@ final class UpgradeFixture
             'commit' => $this->instance->directory->saveState($target->withPreviousRelease((string) $state->version(), $state->digests(), $this->compose())),
             default => null,
         };
+    }
+
+    /**
+     * Turns the newest archived journal of `$operation` back into the open one, as if its run had been killed in `$phase`
+     * (its last attempt started, or completed with `$completed`): later phases and the outcome are dropped; journal notes
+     * stay unless `$dropEvents`.
+     */
+    public function reopen(string $operation, string $phase, bool $completed = false, bool $dropEvents = false): void
+    {
+        $journal = new OperationJournal($this->instance->directory);
+        $record = array_values(array_filter($journal->history(), static fn (JournalRecord $record): bool => $record->operation() === $operation))[0];
+        $document = $record->toArray();
+        $phases = $document['phases'];
+        $index = max(array_keys(array_filter($phases, static fn (array $entry): bool => $entry['name'] === $phase)));
+        $last = $completed ? $phases[$index] : [...$phases[$index], 'status' => 'started', 'finished_at' => null];
+        $document = [...$document, 'phases' => [...array_slice($phases, 0, $index), $last], 'outcome' => null, 'finished_at' => null, 'result' => [],
+            'events' => $dropEvents ? [] : $document['events']];
+        foreach ($this->instance->directory->files()->list(OperationJournal::HISTORY_DIR) as $name) {
+            if (str_contains($name, $record->id())) {
+                $this->instance->directory->files()->delete(OperationJournal::HISTORY_DIR.'/'.$name);
+            }
+        }
+        $this->instance->directory->write(OperationJournal::CURRENT, (string) json_encode($document, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+    }
+
+    /** Lets the child edit its staged compose document after the real render (a target that adds or changes a service). */
+    public function editStagedCompose(Closure $edit, ?Closure $files = null): void
+    {
+        $this->stage = static function (string $root) use ($edit, $files): void {
+            $compose = (string) file_get_contents($root.'/compose.yaml');
+            $lines = explode("\n", $compose);
+            $header = implode("\n", array_filter($lines, static fn (string $line): bool => str_starts_with($line, '#')));
+            $document = json_decode(implode("\n", array_filter($lines, static fn (string $line): bool => ! str_starts_with($line, '#'))), true);
+            file_put_contents($root.'/compose.yaml', $header."\n".json_encode($edit($document), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)."\n");
+            if ($files instanceof Closure) {
+                $files($root);
+            }
+        };
+    }
+
+    /** @return array<string, string> env file name => contents, as the instance has them now */
+    public function envFiles(): array
+    {
+        $files = [];
+        foreach (glob($this->instance->directory->root.'/env/*.env') ?: [] as $path) {
+            $files[basename($path)] = (string) file_get_contents($path);
+        }
+        ksort($files);
+
+        return $files;
+    }
+
+    /** @return list<string> the backups the seal one-off was asked to encrypt */
+    public function sealed(): array
+    {
+        $calls = array_filter($this->instance->docker->called('composeRun'), static fn (array $call): bool => str_starts_with((string) ($call['command'][2] ?? ''), '--seal='));
+
+        return array_values(array_map(static fn (array $call): string => substr((string) $call['command'][2], 7), $calls));
+    }
+
+    /** Turns encryption of backups on (the seal one-off then runs for safety backups). */
+    public function encrypt(): void
+    {
+        $this->instance->directory->saveState($this->instance->state()->withRecipients(['age1'.str_repeat('c', 58)]));
     }
 
     /** `fsa rollback --yes` with --json. */

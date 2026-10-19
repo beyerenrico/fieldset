@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Instance\Compose\ComposeGuard;
 use App\Domain\Instance\Compose\ComposeRenderer;
 use App\Domain\Instance\Compose\RenderContext;
 use App\Domain\Instance\Compose\ResourceBudget;
@@ -13,9 +14,12 @@ use App\Domain\Instance\Docker\Labels;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Output\InvalidInput;
 use App\Domain\Instance\State\EnvFiles;
+use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
 use App\Domain\Instance\State\InvalidState;
 use Tests\Support\Instance\ComposeFixtures;
+use Tests\Support\Instance\DomainFixtures;
+use Tests\Support\Instance\PhoneFixtures;
 use Tests\Support\Instance\TemporaryInstance;
 
 /*
@@ -217,6 +221,42 @@ it('refuses a service definition that breaks a rendering rule', function (Servic
     'env value with line break' => [new ServiceSpec('tunnel', ['image' => 'x'], ['TOKEN' => "a\nb"]), 'line break'],
     'no budget' => [new ServiceSpec('extra', ['image' => 'x']), 'memory budget'],
     'duplicate service' => [new ServiceSpec('app', ['image' => 'x']), 'twice'],
+]);
+
+it('refuses what would reach past the containers: host binds outside the instance, capabilities, devices, host namespaces (review U18 S2)', function (ServiceSpec $spec, string $problem): void {
+    expect(fn () => ComposeFixtures::rendererWith($spec)->render(ComposeFixtures::state(), ComposeFixtures::secrets()))
+        ->toThrow(InstanceException::class, $problem);
+})->with([
+    'absolute bind' => [new ServiceSpec('edge', ['image' => 'x', 'volumes' => [['type' => 'bind', 'source' => '/etc', 'target' => '/host-etc']]]), 'outside the instance'],
+    'absolute short syntax' => [new ServiceSpec('edge', ['image' => 'x', 'volumes' => ['/:/host']]), 'outside the instance'],
+    'parent directory' => [new ServiceSpec('edge', ['image' => 'x', 'volumes' => [['type' => 'bind', 'source' => './../other', 'target' => '/x']]]), 'outside the instance'],
+    'home directory' => [new ServiceSpec('edge', ['image' => 'x', 'volumes' => ['~/.ssh:/x']]), 'outside the instance'],
+    'volume backed by a host path' => [new ServiceSpec('edge', ['image' => 'x'], [], ['hostdata' => ['driver_opts' => ['type' => 'none', 'o' => 'bind', 'device' => '/srv']]]), 'driver options'],
+    'capability' => [new ServiceSpec('edge', ['image' => 'x', 'cap_add' => ['SYS_ADMIN']]), 'capability'],
+    'every capability' => [new ServiceSpec('edge', ['image' => 'x', 'cap_add' => ['ALL']]), 'capability'],
+    'device' => [new ServiceSpec('edge', ['image' => 'x', 'devices' => ['/dev/sda:/dev/sda']]), 'devices'],
+    'unconfined seccomp' => [new ServiceSpec('edge', ['image' => 'x', 'security_opt' => ['seccomp=unconfined']]), 'security option'],
+    'host pid' => [new ServiceSpec('edge', ['image' => 'x', 'pid' => 'host']), 'pid'],
+    'host network' => [new ServiceSpec('edge', ['image' => 'x', 'network_mode' => 'host']), 'network_mode'],
+    'host ipc' => [new ServiceSpec('edge', ['image' => 'x', 'ipc' => 'host']), 'ipc'],
+    'host user namespace' => [new ServiceSpec('edge', ['image' => 'x', 'userns_mode' => 'host']), 'userns_mode'],
+    'privileged' => [new ServiceSpec('edge', ['image' => 'x', 'privileged' => true]), 'privileged'],
+    'build' => [new ServiceSpec('edge', ['image' => 'x', 'build' => ['context' => '/']]), 'build'],
+]);
+
+it('renders every mode within the guard: local, proxy, domain, phone tunnel and local CA, the kept catcher (review U18 S2)', function (InstanceState $state): void {
+    $rendered = (new ComposeRenderer)->render($state, ComposeFixtures::secrets());
+
+    expect(fn () => ComposeGuard::assertSafe($rendered->document, $rendered->environments))->not->toThrow(InstanceException::class);
+})->with([
+    'local' => fn (): InstanceState => ComposeFixtures::state(),
+    'smtp' => fn (): InstanceState => ComposeFixtures::state(ComposeFixtures::smtpSettings()),
+    'catcher kept' => fn (): InstanceState => ComposeFixtures::state([...ComposeFixtures::smtpSettings(), 'mail_catcher' => InstanceSettings::CATCHER_KEPT]),
+    'proxy traefik' => fn (): InstanceState => ComposeFixtures::proxyState(),
+    'proxy port' => fn (): InstanceState => ComposeFixtures::proxyState('port', 'http://forms.example.com'),
+    'domain' => fn (): InstanceState => DomainFixtures::state(),
+    'phone tunnel' => fn (): InstanceState => PhoneFixtures::tunnel(),
+    'phone local CA' => fn (): InstanceState => PhoneFixtures::localCa(),
 ]);
 
 it('keeps a restart policy a later service sets itself, as the tunnel will', function (): void {

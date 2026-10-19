@@ -61,6 +61,27 @@ final class UpgradeJournal
     }
 
     /** The short hex ID of a journal, for the stage directory and the child's names. */
+    /** The journal note naming a safety backup the moment the backup service wrote it, before its verification. */
+    public const string SAFETY_NOTED = 'safety_backup_taken';
+
+    /**
+     * The safety backups a run made: the phase's and every noted one.
+     *
+     * @return list<string>
+     */
+    public static function safetyBackups(JournalRecord $record, string $phase = 'safety_backup'): array
+    {
+        $noted = array_map(static fn (array $event): mixed => $event['data']['backup'] ?? null, array_filter($record->events(), static fn (array $event): bool => $event['type'] === self::SAFETY_NOTED));
+
+        return array_values(array_unique(array_filter([$record->phaseData($phase)['backup'] ?? null, ...$noted], is_string(...))));
+    }
+
+    /** The snapshot of the live release files step 7 replaces (ReleaseFiles). */
+    public static function filesBefore(string $id): string
+    {
+        return 'files-before-upgrade-'.$id;
+    }
+
     public static function shortId(JournalRecord $record): string
     {
         return RestoreNames::id($record->id());

@@ -18,6 +18,7 @@ use App\Domain\Instance\Restore\RestoreRequest;
 use App\Domain\Instance\Restore\RestoreStack;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceState;
+use Closure;
 
 /**
  * KTD19 step 5 (R57, plan U18, ADR 0084, ADR 0086): the pre-upgrade safety backup through the backup service
@@ -37,14 +38,19 @@ final readonly class UpgradeBackup
     ) {}
 
     /**
+     * @param  (Closure(string): void)|null  $noted  told the backup's name before it is verified (the journal notes it, so
+     *                                               a revert after a kill finds and seals it)
      * @return array{backup: string, path: string, created_at: string|null, prepared: array<string, mixed>}
      *
      * @throws InstanceException exit 9 `safety_backup_failed` or `safety_backup_unverified`
      */
-    public function take(InstanceState $state, string $id, int $actorUid): array
+    public function take(InstanceState $state, string $id, int $actorUid, ?Closure $noted = null): array
     {
         $lock = $this->lock->current() ?? throw new InstanceException('The instance lock was lost during the upgrade.', ExitCode::AbortedUnchanged, 'lock_lost');
         $taken = $this->safety->take($state, UpgradeJournal::OPERATION, new LockHandle($lock));
+        if ($noted instanceof Closure) {
+            $noted($taken['backup']);
+        }
 
         return [...$taken, 'prepared' => $this->prepare($state, $taken['backup'], $id, $actorUid)->toArray()];
     }

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Domain\Instance\Upgrade;
 
 use App\Domain\Instance\Backup\BackupEntry;
-use App\Domain\Instance\Backup\BackupName;
 use App\Domain\Instance\Backup\BackupStore;
 use App\Domain\Instance\Backup\SafetyBackup;
 use App\Domain\Instance\Docker\ComposeProject;
@@ -25,9 +24,11 @@ use Throwable;
 /**
  * KTD19 steps 9 and 10 (R57, plan U18, ADR 0086). `commit()` writes the state: the target's version and digests, the
  * previous release (version, digests and the compose file it ran with) for `fsa rollback`, and the history entry; from
- * here on nothing restores automatically. `open()` lowers the gate, starts queue, scheduler and backup, removes the
- * pre-upgrade safety backups this one supersedes (R57: they replace each other only after a commit), seals this one
- * when encryption is on and removes the stage and the scratch directory. It repeats safely: a crash while opening is
+ * here on nothing restores automatically. `open()` lowers the gate, starts queue, scheduler and backup (containers of
+ * services the target no longer has go), removes the pre-upgrade and pre-rollback safety backups this one supersedes
+ * (R57: they replace each other only after a commit), seals this one when encryption is on, keeps the release files of
+ * the previous release (`operations/previous-release`, for `fsa rollback`) and removes the stage and the scratch
+ * directory. It repeats safely: a crash while opening is
  * finished by the next `fsa upgrade`; a failure is reported (exit 4), never rolled back.
  */
 final readonly class UpgradeFinish
@@ -41,6 +42,8 @@ final readonly class UpgradeFinish
         private SafetyBackup $safety,
         private RestoreSource $source,
         private InstanceLock $lock,
+        private ReleaseFiles $files,
+        private SafetySeal $seals,
     ) {}
 
     /**
@@ -74,40 +77,23 @@ final readonly class UpgradeFinish
     {
         new RuntimeWriter($this->directory)->lowerGate($state);
         try {
-            $this->docker->composeUp($project, UpgradeQuiesce::WORKERS, self::WAIT_SECONDS);
+            $this->docker->composeUp($project, UpgradeQuiesce::WORKERS, self::WAIT_SECONDS, removeOrphans: true); // services the target dropped go
         } catch (DockerCommandFailed $e) {
             throw new InstanceException('The upgrade is committed and the app takes requests, but queue, scheduler or backup did not start.', ExitCode::HealthCheckFailed, 'open_failed',
                 'Read `fsa logs queue`, fix the cause, then run `fsa upgrade --resume` to finish opening (nothing is restored).', true, ['docker' => $e->outcome->stderrTail(5)], $e);
         }
         $current = is_string($backup['backup'] ?? null) ? $backup['backup'] : null;
         $warnings = [];
-        $removed = $this->removeSuperseded($current, $warnings);
+        $removed = [
+            ...$this->seals->removeSuperseded(UpgradeJournal::OPERATION, [$current], $warnings),
+            ...$this->seals->removeSuperseded(RollbackOperation::OPERATION, [], $warnings), // a rollback's are superseded too (review S1)
+        ];
         $sealed = $this->seal($current, $warnings);
         UpgradeFiles::remove($this->directory->path(InstanceDirectory::OPERATIONS_DIR.'/upgrade-'.$id));
+        $this->files->promote(UpgradeJournal::filesBefore($id), ReleaseFiles::PREVIOUS); // the previous release's files, for fsa rollback
         $this->discardScratch($id);
 
         return ['removed_safety_backups' => $removed, 'sealed' => $sealed, 'warnings' => $warnings];
-    }
-
-    /**
-     * @param  list<array{0: string, 1: string, 2: string|null}>  $warnings
-     * @return list<string>
-     */
-    private function removeSuperseded(?string $current, array &$warnings): array
-    {
-        $removed = [];
-        foreach ($this->store->entries() as $entry) {
-            if ($entry->name->kind !== BackupName::SAFETY.'-'.UpgradeJournal::OPERATION || $entry->name->name() === $current) {
-                continue;
-            }
-            if ($this->store->delete($entry)) {
-                $removed[] = $entry->name->name();
-            } else {
-                $warnings[] = ['safety_backup_not_removed', 'The superseded safety backup '.$entry->name->name().' could not be removed.', 'Delete it by hand.'];
-            }
-        }
-
-        return $removed;
     }
 
     /** @param  list<array{0: string, 1: string, 2: string|null}>  $warnings */

@@ -25,7 +25,7 @@ final readonly class RestoreStatus
     public function of(InstanceState $state, ?JournalRecord $open): array
     {
         $interrupted = $open?->operation() === RestoreOperation::OPERATION ? $this->interrupted($open) : null;
-        $scratch = $interrupted === null ? $this->scratch() : [];
+        $scratch = $open instanceof JournalRecord ? [] : $this->scratch(); // any open journal (upgrade, rollback, reset …) may own one (review U18 A7)
         $data = [
             'last' => self::last($state), 'storage_volume' => RestoreStorage::current($state),
             'webhooks_paused' => InstanceSettings::of($state)->webhooksPaused(), 'interrupted' => $interrupted, 'scratch_left' => $scratch,
@@ -41,17 +41,25 @@ final readonly class RestoreStatus
         return ['data' => $data, 'warnings' => $warnings];
     }
 
-    /** @return array{at: string|null, backup: string|null, epoch: int|null, safety_backup: string|null}|null the newest restore */
+    /**
+     * The newest restore, rollbacks included (they restore a safety backup, plan U18): an automatic rollback names the
+     * safety backup it restored as its backup.
+     *
+     * @return array{at: string|null, backup: string|null, epoch: int|null, safety_backup: string|null, event: string}|null
+     */
     public static function last(InstanceState $state): ?array
     {
-        $restores = array_values(array_filter($state->history(), static fn (array $entry): bool => in_array($entry['event'] ?? null, ['restored', 'installed_from_backup'], true)));
+        $events = ['restored', 'installed_from_backup', 'rolled_back', 'upgrade_rolled_back'];
+        $restores = array_values(array_filter($state->history(), static fn (array $entry): bool => in_array($entry['event'] ?? null, $events, true)));
         if ($restores === []) {
             return null;
         }
         $entry = $restores[array_key_last($restores)];
         $string = static fn (string $key): ?string => is_string($entry[$key] ?? null) ? $entry[$key] : null;
+        $automatic = $entry['event'] === 'upgrade_rolled_back';
 
-        return ['at' => $string('at'), 'backup' => $string('backup'), 'epoch' => is_int($entry['epoch'] ?? null) ? $entry['epoch'] : null, 'safety_backup' => $string('safety_backup')];
+        return ['at' => $string('at'), 'backup' => $automatic ? $string('safety_backup') : $string('backup'), 'epoch' => is_int($entry['epoch'] ?? null) ? $entry['epoch'] : null,
+            'safety_backup' => $automatic ? null : $string('safety_backup'), 'event' => (string) $entry['event']];
     }
 
     /** @return array<string, mixed> */

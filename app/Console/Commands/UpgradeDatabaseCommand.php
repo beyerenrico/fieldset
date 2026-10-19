@@ -17,11 +17,12 @@ use Throwable;
 /**
  * What the upgrade supervisor reads and does in the database without opening it itself (KTD25, plan U18, ADR 0086):
  * `activity` and `terminate` of the upgrade child's session (liveness, a hung child), `invalid-indexes` after the
- * migrations (UpgradeSessions). Runs as a socket-less one-off of the app service.
+ * migrations, `foreign` (the client sessions requests still hold after the gate rose) and `size` (the live database
+ * and the storage volume, for the space check) (UpgradeSessions). Runs as a socket-less one-off of the app service.
  */
-#[Description('The upgrade child\'s session and the index check, for fsa upgrade')]
+#[Description('The upgrade child\'s session, other sessions, sizes and the index check, for fsa upgrade')]
 #[Signature('instance:upgrade-db
-        {action : activity, terminate or invalid-indexes}
+        {action : activity, terminate, foreign, size or invalid-indexes}
         {--application-name= : The child\'s session name (fsa_upgrade_<hex>)}
         {--json : Print one JSON document on stdout}')]
 final class UpgradeDatabaseCommand extends Command
@@ -40,7 +41,9 @@ final class UpgradeDatabaseCommand extends Command
                 'activity' => ['backends' => $sessions->activity(UpgradeSessions::application($this->option('application-name')))],
                 'terminate' => ['terminated' => $sessions->terminate(UpgradeSessions::application($this->option('application-name')))],
                 'invalid-indexes' => ['indexes' => $sessions->invalidIndexes()],
-                default => throw new InvalidArgumentException('The action must be activity, terminate or invalid-indexes.'),
+                'foreign' => ['sessions' => $sessions->foreign()],
+                'size' => ['database_bytes' => $sessions->databaseBytes(), 'storage_bytes' => $this->bytes(storage_path())],
+                default => throw new InvalidArgumentException('The action must be activity, terminate, foreign, size or invalid-indexes.'),
             };
         } catch (InvalidArgumentException $e) {
             return $this->refuse('invalid_input', $e->getMessage());
@@ -53,6 +56,23 @@ final class UpgradeDatabaseCommand extends Command
         $this->line((string) json_encode($data, JSON_UNESCAPED_SLASHES));
 
         return self::SUCCESS;
+    }
+
+    /** Bytes of the regular files below a directory (symlinks not followed): the storage volume the app mounts there. */
+    private function bytes(string $directory): int
+    {
+        if (! is_dir($directory)) {
+            return 0;
+        }
+        $bytes = 0;
+        $files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS), \RecursiveIteratorIterator::LEAVES_ONLY, \RecursiveIteratorIterator::CATCH_GET_CHILD);
+        foreach ($files as $file) {
+            if ($file instanceof \SplFileInfo && $file->isFile() && ! $file->isLink()) {
+                $bytes += (int) $file->getSize();
+            }
+        }
+
+        return $bytes;
     }
 
     private function refuse(string $code, string $message): int

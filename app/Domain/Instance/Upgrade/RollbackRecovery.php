@@ -18,18 +18,24 @@ use App\Domain\Instance\Restore\RestoreStack;
 use App\Domain\Instance\Restore\RestoreStorage;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceState;
+use App\Domain\Instance\State\RuntimeWriter;
 use Throwable;
 
 /**
- * The ways back of `fsa rollback` (plan U18, ADR 0086), journaled like a restore's (ADR 0085):
+ * The ways back of `fsa rollback` (plan U18, ADR 0086, review U18 A3, A8, A10, S1), journaled like a restore's (ADR 0085):
  *
  * - `abort()` (phase `abort`): a failure before the swap. The scratch database, the fresh volume, the stage and the
  *   scratch directory go; the gate goes down and queue, scheduler and backup start again (the upgraded app never
- *   stopped): exit 5, the upgraded release runs as before.
- * - `returnTo()` (phase `return`): a failure from the swap until the gate went down. Every writer stops, the upgraded
- *   database is renamed back (once: two journal notes), the state and compose file before the rollback come back,
- *   Valkey is flushed, the app passes the smoke test behind the gate, then everything starts and the gate goes down:
- *   exit 5. When that fails, exit 8 with the way on (`fsa rollback` continues returning).
+ *   stopped). Exit 9 when the cause changed nothing (a drain timeout, requests in flight: R69), exit 5 otherwise; exit 4
+ *   when the workers do not start again (the upgraded app keeps serving, `fsa rollback` finishes going back).
+ * - `returnTo()`: a failure from the swap until the gate went down, in steps a kill cannot repeat on a live instance:
+ *   return_stop (writers stop) → return_database (the upgraded database renamed back, once: two journal notes) →
+ *   return_files (the state before, and exactly the release files the swap replaced, from the swap's snapshot: never
+ *   rendered again, whichever image runs this) → return_flush (Valkey) → return_verify (the app behind the gate passes
+ *   the smoke test) → return_open (everything starts, orphans go, the gate goes down): exit 5. Once return_open
+ *   completed, a resumed run only finishes. A failure is exit 8 with the way on, the safety backup and both digest sets.
+ *
+ * Safety backups left behind are sealed on every way back but an exit-8 halt (the recovery needs them plain).
  */
 final readonly class RollbackRecovery
 {
@@ -46,9 +52,11 @@ final readonly class RollbackRecovery
         private RestoreSource $source,
         private UpgradeQuiesce $quiesce,
         private UpgradeChild $child,
+        private ReleaseFiles $files,
+        private SafetySeal $seal,
     ) {}
 
-    /** The failure an interrupted way back was going back from (its phase's start data). */
+    /** The failure an interrupted way back was going back from (its first phase's start data). */
     public static function cause(OperationRun $run, string $phase): InstanceException
     {
         $data = $run->record()->lastAttemptData($phase);
@@ -57,49 +65,52 @@ final readonly class RollbackRecovery
             is_string($data['code'] ?? null) ? $data['code'] : 'rollback_interrupted');
     }
 
-    public function abort(OperationRun $run, InstanceState $state, ComposeProject $project, RestoreNames $names, Throwable $cause, bool $quiesced): CommandResult
+    /** The snapshot of the live release files a rollback's swap replaces (ReleaseFiles). */
+    public static function filesBefore(string $id): string
+    {
+        return 'files-before-rollback-'.$id;
+    }
+
+    /** @param  array<string, mixed>  $plan */
+    public function abort(OperationRun $run, InstanceState $state, ComposeProject $project, RestoreNames $names, Throwable $cause, bool $quiesced, array $plan): CommandResult
     {
         try {
             $data = $run->phase('abort', function () use ($state, $project, $names, $quiesced): array {
                 $left = $this->dropScratch($project, $names);
                 if ($quiesced) {
-                    $this->quiesce->revert($state, $project);
+                    $this->quiesce->revert($state, $project, RollbackOperation::OPERATION);
                 }
 
                 return ['left_behind' => $left];
             }, $this->described($cause));
         } catch (Throwable $e) {
-            return $this->halt($project, $names, $cause, $e, 'abort');
-        }
+            if ($e instanceof InstanceException && $e->exitCode === ExitCode::HealthCheckFailed) { // the upgraded app serves (review A8)
+                return $this->sealed(CommandResult::fromException('rollback', $e, true), $run);
+            }
 
-        return $this->failed($cause, 'The rollback failed before the swap; the instance runs '.$state->version().' as before.', ['left_behind' => RestoreNames::strings($data['left_behind'] ?? null)]);
+            return $this->halt($run, $plan, $project, $names, $cause, $e, 'abort');
+        }
+        $unchanged = $cause instanceof InstanceException && $cause->exitCode === ExitCode::AbortedUnchanged;
+        $result = $this->failed($cause, 'The rollback failed before the swap; the instance runs '.$state->version().' as before.', ['left_behind' => RestoreNames::strings($data['left_behind'] ?? null)]);
+
+        return $this->sealed($unchanged ? $result->withExitCode(ExitCode::AbortedUnchanged) : $result, $run);
     }
 
     /** @param  array<string, mixed>  $plan */
     public function returnTo(OperationRun $run, array $plan, ComposeProject $project, RestoreNames $names, Throwable $cause): CommandResult
     {
         $before = InstanceState::fromArray(is_array($plan['state_before'] ?? null) ? $plan['state_before'] : []);
-        try {
-            $run->phase('return', function () use ($run, $before, $plan, $project, $names): array {
-                $this->docker->composeStop($project, RestoreHalt::WRITERS);
-                $this->renameBack($run, $project, $names);
-                $this->directory->saveState($before);
-                $this->directory->write(InstanceDirectory::COMPOSE_FILE, (string) ($plan['compose_before'] ?? ''), 0600);
-                $this->stack->apply($before); // env files and runtime of the upgraded release again
-                $this->stack->flushValkey($project);
-                $this->stack->startAndVerify($before, $project, $this->stack->raise($before));
-                $services = array_values(array_diff(UpgradeCompose::services((string) $this->directory->read(InstanceDirectory::COMPOSE_FILE)), ['tunnel']));
-                $this->docker->composeUp($project, $services, RestoreStack::WAIT_SECONDS);
-                $this->stack->lowerGate($before);
-
-                return ['returned' => true];
-            }, $this->described($cause));
-        } catch (Throwable $e) {
-            return $this->halt($project, $names, $cause, $e, 'return');
+        if (! $run->record()->hasCompleted('return_open')) {
+            try {
+                $this->goBack($run, $before, $project, $names, $this->described($cause));
+            } catch (Throwable $e) {
+                return $this->halt($run, $plan, $project, $names, $cause, $e, 'return');
+            }
         }
         $left = $this->dropScratch($project, $names);
+        $this->files->discard(self::filesBefore($names->id));
 
-        return $this->failed($cause, 'The rolled-back instance did not pass its verification; '.$before->version().' runs again with its own database and storage.', ['left_behind' => $left, 'returned' => true]);
+        return $this->sealed($this->failed($cause, 'The rolled-back instance did not pass its verification; '.$before->version().' runs again with its own database and storage.', ['left_behind' => $left, 'returned' => true]), $run);
     }
 
     /** @return list<string> what could not be removed */
@@ -124,6 +135,37 @@ final readonly class RollbackRecovery
         }
 
         return $left;
+    }
+
+    /** @param  array{code: string, message: string}  $cause */
+    private function goBack(OperationRun $run, InstanceState $before, ComposeProject $project, RestoreNames $names, array $cause): void
+    {
+        $run->phase('return_stop', function () use ($project): array {
+            $this->docker->composeStop($project, RestoreHalt::WRITERS);
+
+            return ['stopped' => RestoreHalt::WRITERS];
+        }, $cause);
+        $run->phase('return_database', function () use ($run, $project, $names): array {
+            $this->renameBack($run, $project, $names);
+
+            return ['live' => $names->live];
+        });
+        $run->phase('return_files', function () use ($before, $names): array {
+            $this->directory->saveState($before);
+            $restored = $this->files->restore(self::filesBefore($names->id)); // none: the swap never reached its files
+            new RuntimeWriter($this->directory)->write($before);
+
+            return ['restored' => $restored];
+        });
+        $run->phase('return_flush', fn (): array => ['flushed' => $this->stack->flushValkey($project)]);
+        $run->phase('return_verify', fn (): array => ['checked' => $this->stack->startAndVerify($before, $project, $this->stack->raise($before))], changes: false, always: true);
+        $run->phase('return_open', function () use ($before, $project): array {
+            $services = array_values(array_diff(UpgradeCompose::services((string) $this->directory->read(InstanceDirectory::COMPOSE_FILE)), ['tunnel']));
+            $this->docker->composeUp($project, $services, RestoreStack::WAIT_SECONDS, removeOrphans: true);
+            $this->stack->lowerGate($before);
+
+            return ['started' => $services];
+        }, always: true);
     }
 
     /**
@@ -152,7 +194,13 @@ final readonly class RollbackRecovery
         $run->note(self::RETURNED, ['live' => $names->live]);
     }
 
-    private function halt(ComposeProject $project, RestoreNames $names, Throwable $cause, Throwable $failure, string $kind): CommandResult
+    /**
+     * Exit 8 (R55): the instance stopped behind its gate, where each database and volume is, the safety backup taken
+     * before the rollback (kept plain on purpose) and both digest sets.
+     *
+     * @param  array<string, mixed>  $plan
+     */
+    private function halt(OperationRun $run, array $plan, ComposeProject $project, RestoreNames $names, Throwable $cause, Throwable $failure, string $kind): CommandResult
     {
         try {
             $this->docker->composeStop($project, RestoreHalt::WRITERS);
@@ -162,10 +210,29 @@ final readonly class RollbackRecovery
         $where = $kind === 'abort'
             ? "Nothing was swapped: {$names->live} and {$names->currentVolume} are unchanged."
             : "The database before the rollback is {$names->aside} (or {$names->live}), the restored one {$names->live} (or {$names->scratch}); the storage volume before is {$names->currentVolume}, the restored one {$names->freshVolume}.";
+        $safety = UpgradeJournal::safetyBackups($run->record())[0] ?? null;
+        $path = $safety === null ? null : $this->directory->root.'/'.InstanceDirectory::BACKUPS_DIR.'/'.$safety;
+        $before = is_array($plan['state_before'] ?? null) ? $plan['state_before'] : [];
 
         return CommandResult::failed('rollback', ExitCode::RollbackFailed, 'rollback_return_failed',
             'The rollback failed ('.$cause->getMessage().') and going back failed too ('.$failure->getMessage().'); the instance is stopped behind its gate.',
-            $where.' Read `fsa logs app`, then run `fsa rollback` again to continue going back.', false, ['names' => $names->toArray(), 'next' => 'fsa rollback'], changed: true);
+            $where.' Read `fsa logs app`, then run `fsa rollback` again to continue going back.'.($path === null ? '' : " The data before the rollback is in the safety backup {$path}."), false,
+            ['names' => $names->toArray(), 'next' => 'fsa rollback', 'safety_backup' => $path,
+                'digests' => ['previous' => UpgradeJournal::strings($plan['digests'] ?? null), 'current' => UpgradeJournal::strings($before['digests'] ?? null)]],
+            changed: true);
+    }
+
+    /** Seals the safety backups this rollback took and the upgrade's it restored from (review S1). */
+    private function sealed(CommandResult $result, OperationRun $run): CommandResult
+    {
+        $record = $run->record();
+        $plan = $record->phaseData('plan');
+        $backups = [...UpgradeJournal::safetyBackups($record), ...$this->seal->since(RollbackOperation::OPERATION, $record->startedAt()), is_string($plan['backup'] ?? null) ? $plan['backup'] : null];
+        foreach ($this->seal->seal($backups) as [$code, $message, $hint]) {
+            $result = $result->withWarning($code, $message, $hint);
+        }
+
+        return $result;
     }
 
     /** @return array{code: string, message: string} */

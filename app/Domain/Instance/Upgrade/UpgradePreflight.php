@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Domain\Instance\Upgrade;
 
 use App\Domain\Instance\Backup\BackupStore;
+use App\Domain\Instance\Compose\ComposeRenderer;
+use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\Docker\DockerCommandFailed;
 use App\Domain\Instance\Docker\DockerGateway;
 use App\Domain\Instance\Docker\ImageInfo;
@@ -18,11 +20,13 @@ use App\Domain\Instance\HostFacts;
 use App\Domain\Instance\Install\ReleaseSource;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Lifecycle\ComposeFile;
+use App\Domain\Instance\Lifecycle\OneOffResult;
 use App\Domain\Instance\Output\ExitCode;
 use App\Domain\Instance\Restore\RestoreSpace;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceState;
 use Closure;
+use Throwable;
 
 /**
  * KTD19 steps 1 and 2 of an upgrade (plan U18, ADR 0086), all before anything changes: the target release (downloaded
@@ -35,6 +39,9 @@ final readonly class UpgradePreflight
 {
     /** A safety backup, a database three times its dump, a storage volume as large as its archive: five backups. */
     public const int SPACE_FACTOR = 5;
+
+    /** Measured live: a safety backup (at most as large), a second database and a second storage volume (review A5). */
+    public const int LIVE_FACTOR = 3;
 
     public function __construct(
         private InstanceDirectory $directory,
@@ -81,7 +88,7 @@ final readonly class UpgradePreflight
             }
         }
 
-        return ['checks' => array_map(static fn (CheckResult $result): array => $result->toArray(), $results), 'space' => $this->space()];
+        return ['checks' => array_map(static fn (CheckResult $result): array => $result->toArray(), $results), 'space' => $this->space($state)];
     }
 
     /**
@@ -119,17 +126,20 @@ final readonly class UpgradePreflight
     }
 
     /**
-     * Free space on the instance directory's file system for five times the newest backup (safety backup, a second
-     * database, a second storage volume) plus the restore's headroom; unknown free space passes with a warning.
+     * Free space on the instance directory's file system for a safety backup, a second database and a second storage
+     * volume plus the restore's headroom: the larger of five times the newest backup and three times the live database
+     * and storage volume (`instance:upgrade-db size`, a socket-less one-off; with no backup yet the only measure, review
+     * A5). Unknown free space passes.
      *
-     * @return array{required: int, free: int|null}
+     * @return array{required: int, free: int|null, live: int|null}
      *
      * @throws InstanceException exit 3 `low_disk_space`
      */
-    private function space(): array
+    private function space(InstanceState $state): array
     {
         $entries = $this->store->entries();
-        $required = self::SPACE_FACTOR * ($entries === [] ? 0 : $entries[0]->bytes) + RestoreSpace::HEADROOM;
+        $live = $this->liveBytes($state);
+        $required = max(self::SPACE_FACTOR * ($entries === [] ? 0 : $entries[0]->bytes), self::LIVE_FACTOR * ($live ?? 0)) + RestoreSpace::HEADROOM;
         $probe = app()->bound(RestoreSpace::FREE_BYTES) ? app(RestoreSpace::FREE_BYTES) : null;
         $free = $probe instanceof Closure ? $probe() : $this->store->freeBytes();
         if (is_int($free) && $free < $required) {
@@ -140,6 +150,21 @@ final readonly class UpgradePreflight
             );
         }
 
-        return ['required' => $required, 'free' => is_int($free) ? $free : null];
+        return ['required' => $required, 'free' => is_int($free) ? $free : null, 'live' => $live];
+    }
+
+    /** The live database and storage volume in bytes; null when the one-off cannot tell (the backup alone decides then). */
+    private function liveBytes(InstanceState $state): ?int
+    {
+        try {
+            $outcome = OneOffResult::fromOutcome($this->docker->composeRun(ComposeProject::forInstance($state, $this->directory), ComposeRenderer::ONE_OFF_SERVICE,
+                ['php', 'artisan', 'instance:upgrade-db', 'size', '--json'], timeout: 600.0));
+        } catch (Throwable) {
+            return null;
+        }
+        $database = $outcome->data['database_bytes'] ?? null;
+        $storage = $outcome->data['storage_bytes'] ?? null;
+
+        return $outcome->ok && is_int($database) && is_int($storage) ? $database + $storage : null;
     }
 }

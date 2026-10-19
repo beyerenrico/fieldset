@@ -13,7 +13,9 @@ use stdClass;
  * socket-less one-offs of the app service. Only client sessions of the current database count; names and states are
  * reported, never query texts (they may carry personal data).
  *
- * - `foreign()`: the sessions other than this one, which an upgrade's migrations must not run beside;
+ * - `foreign()`: the sessions other than this one, which an upgrade's migrations must not run beside and for which the
+ *   quiesce waits once the gate rose (requests that passed it before);
+ * - `databaseBytes()`: the database's size, for the space check;
  * - `activity()`/`terminate()`: the upgrade child's session by its `application_name`, whose activity decides whether
  *   the child is alive and which is terminated when the supervisor removes a hung child;
  * - `invalidIndexes()`: indexes a failed or interrupted build left invalid (`indisvalid = false`).
@@ -60,6 +62,14 @@ final readonly class UpgradeSessions
         $rows = $this->db->select('SELECT pg_terminate_backend(pid) AS terminated FROM pg_stat_activity WHERE application_name = ? AND pid <> pg_backend_pid()', [$application]);
 
         return count(array_filter($rows, static fn (stdClass $row): bool => (bool) $row->terminated));
+    }
+
+    /** The size of the current database on disk (`pg_database_size`), for the upgrade's space check. */
+    public function databaseBytes(): int
+    {
+        $row = $this->db->selectOne('SELECT pg_database_size(current_database()) AS bytes');
+
+        return $row instanceof stdClass ? (int) $row->bytes : 0;
     }
 
     /** @return list<string> invalid indexes of the public schema */

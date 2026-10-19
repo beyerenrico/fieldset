@@ -17,65 +17,52 @@ use App\Domain\Instance\Output\ExitCode;
 use App\Domain\Instance\State\EnvFiles;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceState;
+use Throwable;
 
 /**
- * The target's staged files (KTD19 steps 6 and 7, plan U18, ADR 0086). `validate()`: `docker compose config` must accept
- * the staged project and its app service must run the target's digest. `install()`: the staged compose file, env files
- * and service files (Caddyfile, the backup service's `.instance.json`) replace the live ones, never the runtime
- * directory (the gate stays as the supervisor set it); env files of services the target no longer renders go. Step 7
- * starts every staged service except queue, scheduler and backup (they start after the commit) and the catcher and the
- * quick tunnel, which are not recreated by an upgrade (a tunnel restart would change its host name).
+ * The staged files of a child (KTD19 steps 6 and 7, plan U18, ADR 0086, review U18 S2): the target's, or for `fsa rollback`
+ * the previous image's. `validate()`: only release files (ReleaseFiles: the compose file, env files of its services, the
+ * edge's files, the backup service's `.instance.json`; `runtime/` is ignored) may be staged, `docker compose config` must
+ * accept the project, its app service must run the expected app digest, every service an image the release pins, and
+ * the compose file must pass the installed release's ComposeGuard (defence in depth: the release is signed, but its
+ * files are started by the process that holds the socket). `install()`: those files replace the live ones with fsa's
+ * modes (env files 0600 whatever the child left), never the runtime directory (the gate stays as the supervisor set it);
+ * env files of services the stage no longer renders go. Step 7 starts every staged service except queue, scheduler and
+ * backup (they start after the commit) and the catcher and the quick tunnel, which are not recreated by an upgrade (a
+ * tunnel restart would change its host name).
  */
 final readonly class StagedRelease
 {
     /** Never started by step 7. */
     public const array LATER = [AppRoles::QUEUE, AppRoles::SCHEDULER, BackupService::NAME, MailpitService::NAME, TunnelService::NAME];
 
-    public function __construct(private InstanceDirectory $directory, private DockerGateway $docker) {}
+    public function __construct(private InstanceDirectory $directory, private DockerGateway $docker, private ReleaseFiles $files) {}
 
     /**
-     * @param  array<string, string>  $digests  the target's image references
+     * @param  array<string, string>  $digests  the image references the release pins (role => reference)
      *
-     * @throws InstanceException exit 5 `staged_invalid` (the caller rolls back)
+     * @throws InstanceException exit 5 `staged_invalid` (the caller rolls back or goes back)
      */
     public function validate(InstanceState $state, string $stage, array $digests): void
     {
-        $files = $stage.'/'.StageRenderer::FILES;
-        try {
-            $model = $this->docker->composeConfig(new ComposeProject($state->project(), $files.'/'.InstanceDirectory::COMPOSE_FILE, $files));
-        } catch (DockerCommandFailed $e) {
-            throw new InstanceException('The target\'s staged compose file is invalid: '.$e->outcome->stderrTail(3), ExitCode::RolledBack, 'staged_invalid', null, true, ['output' => $e->outcome->stderrTail(10)], $e);
-        }
-        $staged = InstanceDirectory::open($files);
+        $root = $stage.'/'.StageRenderer::FILES;
+        $staged = InstanceDirectory::open($root);
         $document = UpgradeCompose::document((string) $staged->read(InstanceDirectory::COMPOSE_FILE));
+        $services = array_map(strval(...), array_keys(is_array($document['services'] ?? null) ? $document['services'] : []));
+        $foreign = array_values(array_filter(StageRenderer::list($root), static fn (string $file): bool => ! ReleaseFiles::runtime($file) && ! ReleaseFiles::allowed($file, $services)));
+        if ($foreign !== []) {
+            $this->refuse('The stage holds files fsa never takes from a release: '.implode(', ', array_slice($foreign, 0, 10)).'.', ['files' => $foreign]);
+        }
+        try {
+            $model = $this->docker->composeConfig(new ComposeProject($state->project(), $root.'/'.InstanceDirectory::COMPOSE_FILE, $root));
+        } catch (DockerCommandFailed $e) {
+            $this->refuse('The staged compose file is invalid: '.$e->outcome->stderrTail(3), ['output' => $e->outcome->stderrTail(10)], $e);
+        }
         $image = $document['services'][AppRoles::APP]['image'] ?? null;
         if ($image !== ($digests['app'] ?? null) || $model === []) {
-            throw new InstanceException('The target\'s staged compose file does not run the target\'s app image.', ExitCode::RolledBack, 'staged_invalid', null, true, ['image' => is_string($image) ? $image : null]);
+            $this->refuse('The staged compose file does not run the expected app image.', ['image' => is_string($image) ? $image : null]);
         }
-        $this->assertContained($document);
-    }
-
-    /**
-     * The installed release's own guard on what the target rendered (defence in depth: the target is a signed release,
-     * but its files are started by the process that holds the socket): no service mounts the Docker socket, runs
-     * privileged or sets RUN_MIGRATIONS (ComposeGuard).
-     *
-     * @param  array<string, mixed>  $document
-     *
-     * @throws InstanceException exit 5 `staged_invalid`
-     */
-    private function assertContained(array $document): void
-    {
-        try {
-            ComposeGuard::assertSafe($document, []);
-            foreach (is_array($document['services'] ?? null) ? $document['services'] : [] as $name => $service) {
-                if (is_array($service) && ($service['privileged'] ?? false) === true) {
-                    throw new InstanceException("The service [{$name}] would run privileged.", ExitCode::InternalError, 'unsafe_compose');
-                }
-            }
-        } catch (InstanceException $e) {
-            throw new InstanceException('The target\'s staged compose file is not acceptable: '.$e->getMessage(), ExitCode::RolledBack, 'staged_invalid', null, true, [], $e);
-        }
+        $this->assertContained($document, array_values($digests));
     }
 
     /**
@@ -85,24 +72,48 @@ final readonly class StagedRelease
     {
         $root = $stage.'/'.StageRenderer::FILES;
         $staged = InstanceDirectory::open($root);
-        foreach (StageRenderer::list($root) as $file) {
-            if (str_starts_with($file, InstanceDirectory::RUNTIME_DIR.'/') || $file === InstanceDirectory::COMPOSE_FILE) {
-                continue;
-            }
-            $dir = dirname($file);
-            if ($dir !== '.') {
-                $this->directory->ensureDirectory($dir, $dir === InstanceDirectory::ENV_DIR || $dir === InstanceDirectory::BACKUPS_DIR ? 0700 : 0755);
-            }
-            $this->directory->write($file, (string) $staged->read($file), fileperms($root.'/'.$file) & 0777);
-        }
         $compose = (string) $staged->read(InstanceDirectory::COMPOSE_FILE);
-        $services = array_keys(UpgradeCompose::document($compose)['services'] ?? []);
+        $services = array_map(strval(...), array_keys(UpgradeCompose::document($compose)['services'] ?? []));
+        foreach (StageRenderer::list($root) as $file) {
+            if ($file !== InstanceDirectory::COMPOSE_FILE && ReleaseFiles::allowed($file, $services)) {
+                $this->files->put($file, (string) $staged->read($file));
+            }
+        }
         $env = new EnvFiles($this->directory);
         foreach (array_diff($env->services(), $services) as $stale) {
             $env->remove($stale);
         }
-        $this->directory->write(InstanceDirectory::COMPOSE_FILE, $compose, 0600);
+        $this->files->put(InstanceDirectory::COMPOSE_FILE, $compose);
 
-        return array_values(array_diff(array_map(strval(...), $services), self::LATER));
+        return array_values(array_diff($services, self::LATER));
+    }
+
+    /**
+     * ComposeGuard on what the child rendered, and every service's image one the release pins.
+     *
+     * @param  array<string, mixed>  $document
+     * @param  list<string>  $images
+     *
+     * @throws InstanceException exit 5 `staged_invalid`
+     */
+    private function assertContained(array $document, array $images): void
+    {
+        try {
+            ComposeGuard::assertSafe($document, []);
+        } catch (InstanceException $e) {
+            $this->refuse('The staged compose file is not acceptable: '.$e->getMessage(), [], $e);
+        }
+        foreach (is_array($document['services'] ?? null) ? $document['services'] : [] as $name => $service) {
+            $image = is_array($service) ? ($service['image'] ?? null) : null;
+            if (! is_string($image) || ! in_array($image, $images, true)) {
+                $this->refuse("The staged service [{$name}] runs an image the release does not pin: ".(is_string($image) ? $image : 'none').'.', ['service' => (string) $name]);
+            }
+        }
+    }
+
+    /** @param  array<string, mixed>  $data */
+    private function refuse(string $message, array $data = [], ?Throwable $previous = null): never
+    {
+        throw new InstanceException($message, ExitCode::RolledBack, 'staged_invalid', null, true, $data, $previous);
     }
 }

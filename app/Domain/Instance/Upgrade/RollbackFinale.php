@@ -4,14 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Upgrade;
 
-use App\Domain\Instance\Backup\BackupEntry;
-use App\Domain\Instance\Backup\BackupStore;
-use App\Domain\Instance\Backup\SafetyBackup;
 use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\Docker\DockerGateway;
-use App\Domain\Instance\Operations\InstanceLock;
-use App\Domain\Instance\Operations\LockHandle;
-use App\Domain\Instance\Operations\LockRecord;
 use App\Domain\Instance\Operations\OperationRun;
 use App\Domain\Instance\Output\CommandResult;
 use App\Domain\Instance\Restore\RestoreDatabases;
@@ -42,10 +36,9 @@ final readonly class RollbackFinale
         private RestoreSource $source,
         private StagedRelease $staged,
         private UpgradeChild $child,
-        private BackupStore $store,
-        private SafetyBackup $safety,
-        private InstanceLock $lock,
         private RollbackRecovery $recovery,
+        private ReleaseFiles $files,
+        private SafetySeal $seals,
     ) {}
 
     /** The compose project of the previous image's staged files (its one-offs run the previous image). */
@@ -85,6 +78,7 @@ final readonly class RollbackFinale
         try {
             $run->phase('swap', function () use ($project, $names, $after): array {
                 $this->databases->swap($project, $names->scratch, $names->live, $names->aside);
+                $this->files->snapshot(RollbackRecovery::filesBefore($names->id)); // what a return puts back (review A10)
                 $this->staged->install($this->child->stage($names->id));
                 $this->directory->saveState($after);
                 new RuntimeWriter($this->directory)->write($after);
@@ -111,7 +105,7 @@ final readonly class RollbackFinale
                 }
                 $run->phase('open', function () use ($project): array {
                     $services = array_values(array_diff(UpgradeCompose::services((string) $this->directory->read(InstanceDirectory::COMPOSE_FILE)), ['tunnel']));
-                    $this->docker->composeUp($project, $services, RestoreStack::WAIT_SECONDS);
+                    $this->docker->composeUp($project, $services, RestoreStack::WAIT_SECONDS, removeOrphans: true); // services only the upgrade had go
 
                     return ['started' => $services];
                 }, always: true);
@@ -152,30 +146,16 @@ final readonly class RollbackFinale
             $left[] = 'directory backups/'.RestoreSource::SCRATCH_PREFIX.$names->id;
         }
         $safety = $run->record()->phaseData('safety_backup')['backup'] ?? null;
-        foreach (array_filter([is_string($safety) ? $safety : null, is_string($plan['backup'] ?? null) ? $plan['backup'] : null]) as $backup) {
-            $this->seal($backup, $warnings);
-        }
+        $warnings = [...$warnings, ...$this->seals->seal([is_string($safety) ? $safety : null, is_string($plan['backup'] ?? null) ? $plan['backup'] : null])];
+        $this->seals->removeSuperseded(RollbackOperation::OPERATION, [is_string($safety) ? $safety : null], $warnings); // only the newest stays (review S1)
+        $this->files->discard(RollbackRecovery::filesBefore($names->id));
+        $this->files->discard(ReleaseFiles::PREVIOUS); // no release to roll back to any more
         $this->record($plan, $run, is_string($safety) ? $safety : null);
         if ($left !== []) {
             $warnings[] = ['rollback_cleanup_incomplete', 'The rollback succeeded, but these could not be removed: '.implode(', ', $left).'.', 'Remove them by hand (`docker volume rm`, `DROP DATABASE`).'];
         }
 
         return ['left_behind' => $left, 'warnings' => $warnings];
-    }
-
-    /** @param  list<array{0: string, 1: string, 2: string|null}>  $warnings */
-    private function seal(string $backup, array &$warnings): void
-    {
-        $lock = $this->lock->current();
-        $entry = $this->store->find($backup);
-        if (! $lock instanceof LockRecord || ! $entry instanceof BackupEntry || $entry->encrypted) {
-            return;
-        }
-        try {
-            $this->safety->seal($this->directory->state(), $backup, new LockHandle($lock));
-        } catch (Throwable $e) {
-            $warnings[] = ['safety_backup_not_sealed', "The safety backup {$backup} stays unencrypted (0600): ".$e->getMessage(), 'Encrypt or delete it by hand.'];
-        }
     }
 
     /** @param  array<string, mixed>  $plan */

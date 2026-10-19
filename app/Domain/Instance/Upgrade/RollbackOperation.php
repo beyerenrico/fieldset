@@ -33,6 +33,7 @@ use App\Domain\Instance\Restore\RestoreSource;
 use App\Domain\Instance\Restore\RestoreSpace;
 use App\Domain\Instance\Restore\RestoreStack;
 use App\Domain\Instance\Restore\RestoreStorage;
+use App\Domain\Instance\State\EnvFiles;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceState;
 use Throwable;
@@ -75,6 +76,8 @@ final readonly class RollbackOperation
         private UpgradeChild $child,
         private RollbackFinale $finale,
         private RollbackRecovery $recovery,
+        private StagedRelease $staged,
+        private ReleaseFiles $files,
     ) {}
 
     public function rollback(RestoreRequest $request, ProgressReporter $progress): CommandResult
@@ -93,10 +96,10 @@ final readonly class RollbackOperation
         $project = ComposeProject::forInstance($state, $this->directory);
         $record = $run->record();
         if ($record->hasStarted('abort')) {
-            return $this->recovery->abort($run, $state, $project, $names, RollbackRecovery::cause($run, 'abort'), true);
+            return $this->recovery->abort($run, $state, $project, $names, RollbackRecovery::cause($run, 'abort'), true, $plan);
         }
-        if ($record->hasStarted('return') || ($record->hasStarted('swap') && ! $record->hasCompleted('swap'))) {
-            return $this->recovery->returnTo($run, $plan, $project, $names, RollbackRecovery::cause($run, 'return'));
+        if ($record->hasStarted('return_stop') || ($record->hasStarted('swap') && ! $record->hasCompleted('swap'))) {
+            return $this->recovery->returnTo($run, $plan, $project, $names, RollbackRecovery::cause($run, 'return_stop'));
         }
         if ($record->hasCompleted('swap')) {
             return $this->finale->open($run, $plan, $project, $names);
@@ -128,7 +131,7 @@ final readonly class RollbackOperation
             $run->phase('space', fn (): array => $this->space->assert($prepared, $run->record()->hasCompleted('safety_backup')), changes: false, always: true);
         } catch (Throwable $e) {
             if ($quiesced) {
-                return $this->recovery->abort($run, $state, $project, $names, $e, true);
+                return $this->recovery->abort($run, $state, $project, $names, $e, true, $plan);
             }
             $this->recovery->dropScratch($project, $names, databases: false);
 
@@ -137,7 +140,7 @@ final readonly class RollbackOperation
         try {
             $this->restoreSide($run, $state, $project, $names, $plan, $prepared, $request);
         } catch (Throwable $e) {
-            return $this->recovery->abort($run, $state, $project, $names, $e, $run->record()->hasStarted('quiesce'));
+            return $this->recovery->abort($run, $state, $project, $names, $e, $run->record()->hasStarted('quiesce'), $plan);
         }
 
         return $this->finale->swap($run, $plan, $project, $names);
@@ -163,13 +166,56 @@ final readonly class RollbackOperation
 
             return ['volume' => $names->freshVolume];
         }, always: true);
-        $run->phase('render', fn (): array => $this->child->run($state, $project, [
-            'version' => $plan['version'], 'digests' => $plan['digests'], 'from' => $plan['from'], 'settings' => ['storage_volume' => $names->freshVolume], 'migrate' => false,
-        ], $names->id), always: true);
+        $run->phase('render', fn (): array => $this->render($state, $project, $plan, $names), always: true);
         $finish = $run->phase('finish', fn (): array => $this->databases->finish(RollbackFinale::stagedProject($state, $this->child->stage($names->id)), $names->scratch, null, $prepared,
             (int) ($ledger['seed'] ?? 0), $request->actorUid, [...(is_array($ledger['input'] ?? null) ? $ledger['input'] : []), 'carry' => $this->carry((string) $export['file'])],
             $run->record()->id(), '', 'rolled_back', true), always: true);
         $run->phase('erasures', fn (): array => $this->storage->removeErased($state, $names->freshVolume, RollbackFinale::exportDirectories($finish)), always: true);
+    }
+
+    /**
+     * The previous image renders its own files (render-only child) for the current settings and the fresh volume, with
+     * the env files in the layout it rendered them in before the upgrade (`operations/previous-release`) carrying the
+     * current values, mounted over `env/` (the target may have renamed keys, review A3); then its stage passes the same
+     * validation as an upgrade's before the finish step or the swap uses any of it (review S2).
+     *
+     * @param  array<string, mixed>  $plan
+     * @return array<string, mixed>
+     */
+    private function render(InstanceState $state, ComposeProject $project, array $plan, RestoreNames $names): array
+    {
+        $env = $this->previousEnv($names->id);
+        try {
+            $result = $this->child->run($state, $project, [
+                'version' => $plan['version'], 'digests' => $plan['digests'], 'from' => $plan['from'], 'settings' => ['storage_volume' => $names->freshVolume], 'migrate' => false, 'env' => $env,
+            ], $names->id);
+        } finally {
+            if ($env !== null) {
+                UpgradeFiles::remove(dirname($env));
+            }
+        }
+        $this->staged->validate($state, $this->child->stage($names->id), UpgradeJournal::strings($plan['digests'] ?? null));
+
+        return $result;
+    }
+
+    /** The merged env directory for the render child, or null without the previous release's files. */
+    private function previousEnv(string $id): ?string
+    {
+        $previous = $this->files->envOf(ReleaseFiles::PREVIOUS);
+        if ($previous === []) {
+            return null;
+        }
+        $current = new EnvFiles($this->directory);
+        $path = $this->directory->path(InstanceDirectory::OPERATIONS_DIR.'/rollback-env-'.$id);
+        UpgradeFiles::remove($path);
+        $merged = new EnvFiles(InstanceDirectory::initialize($path));
+        foreach ($previous as $service => $values) {
+            $now = $current->read($service);
+            $merged->write($service, array_combine(array_keys($values), array_map(static fn (string $key, string $value): string => $now[$key] ?? $value, array_keys($values), $values)));
+        }
+
+        return $path.'/'.InstanceDirectory::ENV_DIR;
     }
 
     /**

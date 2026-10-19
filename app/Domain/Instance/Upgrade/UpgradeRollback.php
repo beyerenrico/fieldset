@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Upgrade;
 
+use App\Domain\Instance\Compose\Services\AppRoles;
 use App\Domain\Instance\Compose\Services\PostgresService;
 use App\Domain\Instance\Compose\Services\ValkeyService;
 use App\Domain\Instance\Docker\ComposeProject;
@@ -27,8 +28,9 @@ use Throwable;
  * The automatic rollback of an upgrade (R35, KTD19, plan U18, ADR 0086), from the safety backup until the commit,
  * through U17's atomic restore path (ADR 0085), journaled phase by phase:
  *
- * rollback_stop (the child removed and its session terminated, every writer stopped, the previous release's compose
- * and env files rendered again from the state, which still names it) → rollback_ledger (the safety backup's heads:
+ * rollback_stop (the child removed and its session terminated, queue, scheduler and backup stopped, the release files
+ * step 7 replaced put back and the previous release rendered again from the state, which still names it; its app takes
+ * the target's place behind the gate and orphans go) → rollback_ledger (the safety backup's heads:
  * writers were stopped since it was taken) → rollback_prepare (the safety backup verified into the scratch directory)
  * → rollback_database (`<db>_restore_<id>` from its dump) → rollback_storage (a fresh volume) → rollback_finish (a new
  * audit epoch with `instance.rolled_back` first, without the R64 carry and the sequence floors) → rollback_swap
@@ -36,7 +38,8 @@ use Throwable;
  * gate passes the smoke test) → rollback_open (everything but the quick tunnel starts, the gate goes down) →
  * rollback_cleanup (UpgradeRollbackCleanup). Exit 5 with the cause and its logs; any failure until the gate went down
  * is exit 8 (UpgradeHalt), and `fsa upgrade --resume` repeats the rollback: phases before the swap from a clean
- * scratch state, the swap only when the databases say it did not happen.
+ * scratch state, the swap only when the databases say it did not happen; once `rollback_open` completed, only the
+ * cleanup (review A2).
  */
 final readonly class UpgradeRollback
 {
@@ -51,6 +54,7 @@ final readonly class UpgradeRollback
         private Ledger $ledger,
         private UpgradeHalt $halt,
         private UpgradeRollbackCleanup $cleanup,
+        private ReleaseFiles $files,
     ) {}
 
     public function rollback(OperationRun $run, InstanceState $state, ComposeProject $project, Throwable $cause, int $actorUid): CommandResult
@@ -60,24 +64,31 @@ final readonly class UpgradeRollback
         $safety = $record->phaseData('safety_backup');
         $backupName = is_string($safety['backup'] ?? null) ? $safety['backup'] : null;
         $names = UpgradeJournal::names($record, $state);
-        $id = UpgradeJournal::shortId($record);
         $swapped = $state->withSetting('storage_volume', $names->freshVolume);
-        try {
-            $resumed = $run->record()->hasStarted('rollback_swap');
-            if (! $resumed) { // once the swap began, the restored database may be live: never restore over it again
-                $this->beforeSwap($run, $state, $project, $names, $cause, $backupName, $release, $id, $actorUid);
+        if (! $run->record()->hasCompleted('rollback_open')) { // once reopened, a resumed run only cleans up (review A2)
+            try {
+                $this->toOpen($run, $state, $project, $names, $cause, $backupName, $release, $swapped, $actorUid);
+            } catch (Throwable $e) {
+                return $this->halt->stop($project, $names, $release, $backupName, $cause, $e);
             }
-            if (! $run->record()->hasCompleted('rollback_swap')) {
-                $run->phase('rollback_swap', fn (): array => $this->swap($project, $names, $swapped, $resumed));
-            }
-            $run->phase('rollback_verify', fn (): array => ['checked' => $this->stack->startAndVerify($swapped, $project, $this->stack->raise($swapped))], always: true);
-            $run->phase('rollback_open', fn (): array => ['started' => $this->open($swapped, $project)], always: true);
-        } catch (Throwable $e) {
-            return $this->halt->stop($project, $names, $release, $backupName, $cause, $e);
         }
         $cleanup = $run->phase('rollback_cleanup', fn (): array => $this->cleanup->run($project, $names, $backupName, $run->record(), $release), always: true);
 
         return $this->result($cause, $release, $backupName, $names, $cleanup);
+    }
+
+    /** @param  array<string, mixed>  $release */
+    private function toOpen(OperationRun $run, InstanceState $state, ComposeProject $project, RestoreNames $names, Throwable $cause, ?string $backupName, array $release, InstanceState $swapped, int $actorUid): void
+    {
+        $resumed = $run->record()->hasStarted('rollback_swap');
+        if (! $resumed) { // once the swap began, the restored database may be live: never restore over it again
+            $this->beforeSwap($run, $state, $project, $names, $cause, $backupName, $release, UpgradeJournal::shortId($run->record()), $actorUid);
+        }
+        if (! $run->record()->hasCompleted('rollback_swap')) {
+            $run->phase('rollback_swap', fn (): array => $this->swap($project, $names, $swapped, $resumed));
+        }
+        $run->phase('rollback_verify', fn (): array => ['checked' => $this->stack->startAndVerify($swapped, $project, $this->stack->raise($swapped))], always: true);
+        $run->phase('rollback_open', fn (): array => ['started' => $this->open($swapped, $project)], always: true);
     }
 
     /** The cause an interrupted rollback was rolling back from (its first phase's start data). */
@@ -118,7 +129,15 @@ final readonly class UpgradeRollback
             is_array($heads['input'] ?? null) ? $heads['input'] : [], $run->record()->id(), '', 'rolled_back', false), always: true);
     }
 
-    /** @return array{child: string} */
+    /**
+     * The child gone and the writers stopped; the release files step 7 replaced put back (the target may have changed
+     * the env layout: its env files would lose or regenerate secrets, review A3) and the previous release rendered again
+     * from the state, which still names it. Its app replaces the target's behind the raised gate, so external requests
+     * keep getting 503 while the data is restored (R62, review A9); containers of services only the target had go
+     * (orphans, review A4).
+     *
+     * @return array{child: string, app: bool}
+     */
     private function stop(InstanceState $state, ComposeProject $project, string $id): array
     {
         try {
@@ -126,12 +145,20 @@ final readonly class UpgradeRollback
         } catch (Throwable) {
             // no child, or the database is down: nothing holds the session then
         }
-        $this->docker->composeStop($project, RestoreHalt::WRITERS);
-        $this->stack->apply($state); // the previous release's compose and env files, from the state that still names it
-        $this->docker->composeUp($project, [PostgresService::NAME, ValkeyService::NAME], RestoreStack::WAIT_SECONDS);
+        $this->docker->composeStop($project, array_values(array_diff(RestoreHalt::WRITERS, [AppRoles::APP])));
+        $this->files->restore(UpgradeJournal::filesBefore($id));
+        $this->stack->apply($state);
         $this->stack->raise($state);
+        $this->docker->composeUp($project, [PostgresService::NAME, ValkeyService::NAME], RestoreStack::WAIT_SECONDS, removeOrphans: true);
+        try {
+            $this->docker->composeUp($project, [AppRoles::APP], RestoreStack::WAIT_SECONDS);
+            $app = true;
+        } catch (Throwable) {
+            $this->docker->composeStop($project, [AppRoles::APP]); // the restore does not need it; the verification starts it
+            $app = false;
+        }
 
-        return ['child' => 'stopped'];
+        return ['child' => 'stopped', 'app' => $app];
     }
 
     /**
@@ -174,7 +201,7 @@ final readonly class UpgradeRollback
     private function open(InstanceState $state, ComposeProject $project): array
     {
         $services = array_values(array_diff(UpgradeCompose::services((string) $this->directory->read(InstanceDirectory::COMPOSE_FILE)), ['tunnel']));
-        $this->docker->composeUp($project, $services, RestoreStack::WAIT_SECONDS);
+        $this->docker->composeUp($project, $services, RestoreStack::WAIT_SECONDS, removeOrphans: true);
         $this->stack->lowerGate($state);
 
         return $services;

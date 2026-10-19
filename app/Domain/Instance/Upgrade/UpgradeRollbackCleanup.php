@@ -35,6 +35,7 @@ final readonly class UpgradeRollbackCleanup
         private BackupStore $store,
         private SafetyBackup $safety,
         private InstanceLock $lock,
+        private ReleaseFiles $files,
     ) {}
 
     /**
@@ -54,6 +55,7 @@ final readonly class UpgradeRollbackCleanup
             $left[] = "volume {$names->currentVolume}";
         }
         UpgradeFiles::remove($this->directory->path(InstanceDirectory::OPERATIONS_DIR.'/upgrade-'.$names->id));
+        $this->files->discard(UpgradeJournal::filesBefore($names->id));
         try {
             $this->source->discard($names->id);
         } catch (Throwable) {

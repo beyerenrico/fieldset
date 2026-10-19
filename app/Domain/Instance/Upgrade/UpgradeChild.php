@@ -43,6 +43,8 @@ final readonly class UpgradeChild
 
     public const int MAX_SECONDS = 21600;
 
+    public const int INSPECT_ATTEMPTS = 5;
+
     public function __construct(private InstanceDirectory $directory, private DockerGateway $docker) {}
 
     /** The stage directory of a journal (`operations/upgrade-<id>`), created 0700. */
@@ -85,14 +87,19 @@ final readonly class UpgradeChild
         $this->database($project, 'terminate', $id);
     }
 
-    /** @param  array<string, mixed>  $release */
+    /**
+     * @param  array<string, mixed>  $release  `env`: a directory of env files mounted read-only over the instance's `env/`
+     *                                         (a rollback's render in the previous release's layout), inside `operations/`
+     */
     private function launch(InstanceState $state, ComposeProject $project, array $release, string $stage): string
     {
         $root = $this->directory->root;
+        $env = is_string($release['env'] ?? null) && str_starts_with($release['env'], $root.'/'.InstanceDirectory::OPERATIONS_DIR.'/') && is_dir($release['env']) ? $release['env'] : null;
         $outcome = $this->docker->runContainer(new ContainerSpec(
             image: (string) ($release['digests']['app'] ?? ''), command: ['upgrade-child', '--dir', $root, '--json'],
             name: $state->project().'-'.self::ROLE, labels: Labels::forInstance($state->uuid(), self::ROLE),
-            env: [StageRenderer::STAGE_ENV => $stage, 'HOME' => '/tmp'], volumes: [$root.':'.$root.':ro', $stage.':'.$stage],
+            env: [StageRenderer::STAGE_ENV => $stage, 'HOME' => '/tmp'],
+            volumes: [$root.':'.$root.':ro', ...($env === null ? [] : [$env.':'.$root.'/'.InstanceDirectory::ENV_DIR.':ro']), $stage.':'.$stage],
             network: $project->name.'_default', user: $state->containerUid().':'.($state->containerUid() === 0 ? 0 : $state->hostGid()),
             entrypoint: 'fsa', detach: true, remove: false, restart: 'no',
         ), null, 300.0);
@@ -103,17 +110,25 @@ final readonly class UpgradeChild
         return trim($outcome->stdout);
     }
 
-    /** Polls the child until it exits; removes it when it hangs or overruns. */
+    /**
+     * Polls the child until it exits; removes it when it hangs or overruns. A probe that fails says nothing: it neither
+     * keeps the child alive nor ages it (review A6).
+     */
     private function watch(ComposeProject $project, string $container, string $id): void
     {
         $started = CarbonImmutable::now();
         $active = $started;
         $probed = $started->subSeconds(self::PROBE_SECONDS);
-        while (($info = $this->docker->inspectContainer($container)) instanceof ContainerInfo && $info->running()) {
+        while (($info = $this->inspect($container)) instanceof ContainerInfo && $info->running()) {
             $now = CarbonImmutable::now();
             if ($now->diffInSeconds($probed, true) >= self::PROBE_SECONDS) {
+                $since = (int) $now->diffInSeconds(max($probed, $active), true);
                 $probed = $now;
-                $active = $this->sessionActive($project, $id) ? $now : $active;
+                $active = match ($this->sessionActive($project, $id)) {
+                    true => $now,
+                    null => $active->addSeconds($since), // unknown: the time since the last probe does not count
+                    false => $active,
+                };
             }
             $hung = $now->diffInSeconds($active, true) > self::IDLE_SECONDS;
             if ($hung || $now->diffInSeconds($started, true) > self::MAX_SECONDS) {
@@ -126,11 +141,35 @@ final readonly class UpgradeChild
         }
     }
 
-    private function sessionActive(ComposeProject $project, string $id): bool
+    /** Whether the child's session was active at the probe; null when the probe itself failed. */
+    private function sessionActive(ComposeProject $project, string $id): ?bool
     {
-        $backends = $this->database($project, 'activity', $id)->data['backends'] ?? [];
+        try {
+            $outcome = $this->database($project, 'activity', $id);
+        } catch (Throwable) {
+            return null;
+        }
+        $backends = $outcome->data['backends'] ?? null;
+        if (! $outcome->ok || ! is_array($backends)) {
+            return null;
+        }
 
-        return is_array($backends) && array_any($backends, static fn (mixed $backend): bool => is_array($backend) && ($backend['state'] ?? null) === 'active');
+        return array_any($backends, static fn (mixed $backend): bool => is_array($backend) && ($backend['state'] ?? null) === 'active');
+    }
+
+    /** `docker inspect` of the child, a failing call retried (INSPECT_ATTEMPTS) before it counts: a live child is never removed for one. */
+    private function inspect(string $container): ?ContainerInfo
+    {
+        for ($attempt = 1; ; $attempt++) {
+            try {
+                return $this->docker->inspectContainer($container);
+            } catch (Throwable $e) {
+                if ($attempt >= self::INSPECT_ATTEMPTS) {
+                    throw $e;
+                }
+                Sleep::for(self::POLL_SECONDS)->seconds();
+            }
+        }
     }
 
     /** `instance:upgrade-db <action>` for the child's session, in a socket-less one-off (KTD25). */

@@ -26,7 +26,9 @@ use App\Domain\Instance\State\RuntimeWriter;
  * gate, until the target replaces it in step 7: the app stays up because it is the gate's responder (the plan's open
  * question on R62). Scheduler and backup stop, Horizon drains within a bounded wait and the queue stops with its grace
  * period; on a drain timeout the upgrade stops (exit 9) unless `--drop-jobs`, which saves the jobs still pending or
- * reserved to a 0600 file once the workers stopped, then deletes them and counts them (delayed jobs stay). Pending audit entries are sealed, so the safety backup's heads are final.
+ * reserved to a 0600 file once the workers stopped, then deletes them and counts them (delayed jobs stay). Requests that
+ * passed before the gate rose finish first (InFlightRequests, exit 9 when they stay); then pending audit entries are
+ * sealed, so the safety backup's heads and a rollback's security export are final.
  *
  * `revert()`: a failure before the safety backup completed: the gate goes down and queue, scheduler and backup start
  * again; the app never stopped.
@@ -45,12 +47,13 @@ final readonly class UpgradeQuiesce
         private InstanceDirectory $directory,
         private DockerGateway $docker,
         private QueueDrain $drain,
+        private InFlightRequests $requests,
     ) {}
 
     /**
-     * @return array{gate: string, drain: array<string, mixed>, dropped_jobs: array{count: int, file: string}|null}
+     * @return array{gate: string, drain: array<string, mixed>, dropped_jobs: array{count: int, file: string}|null, in_flight: array{waited: int}}
      *
-     * @throws InstanceException exit 9 `drain_timeout` (the caller reverts)
+     * @throws InstanceException exit 9 `drain_timeout` or `requests_in_flight` (the caller reverts)
      */
     public function quiesce(InstanceState $state, ComposeProject $project, bool $dropJobs, string $id, string $operation = UpgradeJournal::OPERATION): array
     {
@@ -76,19 +79,26 @@ final readonly class UpgradeQuiesce
         if (! $drain['drained']) { // after the workers stopped: nothing runs a job that is exported and deleted
             $dropped = $this->dropJobs($project, $id);
         }
+        $inFlight = $this->requests->wait($project, $operation); // requests that passed before the gate rose (review A1)
         $this->seal($project);
 
-        return ['gate' => 'raised', 'drain' => $drain, 'dropped_jobs' => $dropped];
+        return ['gate' => 'raised', 'drain' => $drain, 'dropped_jobs' => $dropped, 'in_flight' => $inFlight];
     }
 
-    /** Lowers the gate and starts queue, scheduler and backup again (a failure before the safety backup, R69). */
-    public function revert(InstanceState $state, ComposeProject $project): void
+    /**
+     * Lowers the gate and starts queue, scheduler and backup again (an upgrade's failure before the safety backup, a
+     * rollback's before the swap, R69). Workers that do not start are exit 4: the app takes requests again, and the same
+     * command run again finishes going back.
+     */
+    public function revert(InstanceState $state, ComposeProject $project, string $operation = UpgradeJournal::OPERATION): void
     {
         new RuntimeWriter($this->directory)->lowerGate($state);
         try {
             $this->docker->composeUp($project, self::WORKERS, self::WAIT_SECONDS);
         } catch (DockerCommandFailed $e) {
-            throw new InstanceException('The upgrade stopped before its safety backup, but queue, scheduler or backup did not start again.', ExitCode::HealthCheckFailed, 'services_unhealthy', 'Read `fsa logs queue`; the app runs the previous version.', true, ['docker' => $e->outcome->stderrTail(5)], $e);
+            $again = $operation === UpgradeJournal::OPERATION ? 'fsa upgrade --resume' : "fsa {$operation}";
+            throw new InstanceException("The {$operation} stopped before it changed anything, and the app takes requests again, but queue, scheduler or backup did not start.", ExitCode::HealthCheckFailed, 'services_unhealthy',
+                "Read `fsa logs queue`, fix the cause, then run `{$again}` to finish going back; the app runs {$state->version()}.", true, ['docker' => $e->outcome->stderrTail(5)], $e);
         }
     }
 

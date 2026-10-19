@@ -53,6 +53,8 @@ final readonly class UpgradeOperation
         private SmokeTest $smoke,
         private UpgradeFinish $finish,
         private UpgradeRollback $rollback,
+        private ReleaseFiles $files,
+        private SafetySeal $seal,
     ) {}
 
     public function run(UpgradeRequest $request, HostFacts $facts, ProgressReporter $progress): CommandResult
@@ -104,7 +106,8 @@ final readonly class UpgradeOperation
         $id = UpgradeJournal::shortId($run->record());
         try {
             $run->phase('quiesce', fn (): array => $this->quiesce->quiesce($state, $project, $request->dropJobs, $id), maxSeconds: QueueDrain::DRAIN_SECONDS + 200);
-            $backup = $run->phase('safety_backup', fn (): array => $this->backup->take($state, $id, $request->actorUid));
+            $backup = $run->phase('safety_backup', fn (): array => $this->backup->take($state, $id, $request->actorUid,
+                static fn (string $name) => $run->note(UpgradeJournal::SAFETY_NOTED, ['backup' => $name])));
         } catch (Throwable $e) {
             return $this->revert($run, $state, $project, $e);
         }
@@ -120,7 +123,10 @@ final readonly class UpgradeOperation
         return $this->opening($run, $this->directory->state(), $project);
     }
 
-    /** A failure before the safety backup completed: the previous services again, the journal archived (exit 9, R69). */
+    /**
+     * A failure before the safety backup completed: the previous services again, a safety backup taken meanwhile sealed
+     * (also one a killed run made before it was journaled, review S1), the journal archived (exit 9, R69).
+     */
     private function revert(OperationRun $run, InstanceState $state, ComposeProject $project, Throwable $cause): CommandResult
     {
         $run->phase('revert', function () use ($state, $project): array {
@@ -128,9 +134,14 @@ final readonly class UpgradeOperation
 
             return ['reverted' => true];
         }, ['code' => $cause instanceof InstanceException ? $cause->errorCode : 'upgrade_failed', 'message' => $cause->getMessage()]);
+        $record = $run->record();
+        $warnings = $this->seal->seal([...UpgradeJournal::safetyBackups($record), ...$this->seal->since(UpgradeJournal::OPERATION, $record->startedAt())]);
         $run->markReverted();
         $e = $cause instanceof InstanceException ? $cause : new InstanceException($cause->getMessage(), ExitCode::AbortedUnchanged, 'upgrade_failed', null, true, [], $cause);
         $result = CommandResult::fromException('upgrade', $e)->withExitCode(ExitCode::AbortedUnchanged)->withData(['running' => $state->version()]);
+        foreach ($warnings as [$code, $message, $hint]) {
+            $result = $result->withWarning($code, $message, $hint);
+        }
         $file = UpgradeQuiesce::droppedFile(UpgradeJournal::shortId($run->record()));
         $saved = json_decode((string) $this->directory->read($file), true);
         if (! is_array($saved)) {
@@ -153,6 +164,7 @@ final readonly class UpgradeOperation
     {
         $stage = $this->child->stage($id);
         $this->staged->validate($state, $stage, UpgradeJournal::strings($release['digests'] ?? null));
+        $this->files->snapshot(UpgradeJournal::filesBefore($id)); // what a rollback puts back before rendering again (review A3)
         $services = $this->staged->install($stage);
         try {
             $this->docker->composeUp($project, $services, UpgradeFinish::WAIT_SECONDS);
