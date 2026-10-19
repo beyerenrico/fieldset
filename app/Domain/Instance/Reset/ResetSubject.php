@@ -109,7 +109,7 @@ final readonly class ResetSubject
             return $subject;
         } catch (InvalidInput $e) {
             if ($subject->ownerName === null) {
-                throw new InstanceException('The fresh instance cannot be seeded with the recorded organization or owner: '.$e->getMessage(), ExitCode::PreflightFailed, 'reset_subject_invalid', 'Install a new instance with `fsa install` instead; nothing was changed.');
+                throw new InstanceException('The fresh instance cannot be seeded with the recorded organization or owner: '.$e->getMessage(), ExitCode::PreflightFailed, 'reset_subject_invalid', 'Install a new instance with `fsa install` instead; nothing was changed.', previous: $e);
             }
 
             return self::valid(new self($subject->organization, $subject->locale, $subject->ownerEmail, null, $subject->organizations, $subject->nonDemo));

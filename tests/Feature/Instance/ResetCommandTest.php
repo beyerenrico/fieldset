@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Instance\Backup\BackupEntry;
 use App\Domain\Instance\Backup\BackupRetention;
 use App\Domain\Instance\Backup\BackupStore;
 use App\Domain\Instance\Docker\ContainerSpec;
@@ -123,8 +124,8 @@ it('takes a safety backup that retention never prunes', function (): void {
     $store = app(BackupStore::class);
     $entries = $store->entries();
 
-    expect(array_map(static fn ($entry): string => $entry->name->name(), $entries))->toContain(ResetFixture::SAFETY)
-        ->and(array_map(static fn ($entry): string => $entry->name->name(), BackupRetention::prune($entries, 1)))->not->toContain(ResetFixture::SAFETY);
+    expect(array_map(static fn (BackupEntry $entry): string => $entry->name->name(), $entries))->toContain(ResetFixture::SAFETY)
+        ->and(array_map(static fn (BackupEntry $entry): string => $entry->name->name(), BackupRetention::prune($entries, 1)))->not->toContain(ResetFixture::SAFETY);
 });
 
 it('writes an audit export instead of a safety backup with --no-backup while a real organization exists', function (): void {

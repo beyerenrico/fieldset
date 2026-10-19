@@ -70,7 +70,7 @@ final readonly class ResetApp
         $name = self::EXPORT_PREFIX.CarbonImmutable::now('UTC')->format('Ymd\THis\Z').self::EXPORT_SUFFIX;
         $partial = $this->directory->path(InstanceDirectory::BACKUPS_DIR.'/'.$name.'.partial');
         $outcome = $this->docker->composeRunToFile($project, ComposeRenderer::ONE_OFF_SERVICE, ['php', 'artisan', 'instance:audit-export'], $partial, timeout: self::EXPORT_TIMEOUT);
-        $header = $outcome->successful() ? self::header($partial) : null;
+        $header = $outcome->successful() ? $this->header($partial) : null;
         if ($header === null) {
             @unlink($partial);
             throw new InstanceException('The audit export failed: '.($outcome->successful() ? 'it is incomplete (no export header, or fewer entries than the header names)' : $outcome->stderrTail(5)), ExitCode::HealthCheckFailed, 'audit_export_failed', 'Read the output; nothing was deleted. Run `fsa reset` again, or without --no-backup to keep a full backup.', true);
@@ -85,7 +85,7 @@ final readonly class ResetApp
     }
 
     /** @return array<string, mixed>|null the export's header, when the file starts with one and holds the entries it names */
-    private static function header(string $path): ?array
+    private function header(string $path): ?array
     {
         $handle = @fopen($path, 'rb');
         if ($handle === false) {
