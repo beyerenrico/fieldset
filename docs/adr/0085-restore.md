@@ -97,10 +97,14 @@ and only when the key that verified is the one the manifest names first: then th
 anything else (a mismatch, no HMAC, the 1.0 format) needs `--accept-unauthenticated` and is then
 restored by `fsa_restore_<id>`, a LOGIN role without SUPERUSER, CREATEDB, CREATEROLE, REPLICATION or BYPASSRLS that owns
 only the scratch database (PUBLIC may not connect), with `--no-owner --no-privileges`. Before anything is handed over,
-the schema check (`instance:restore-db audit`, SchemaAudit) compares every object that carries code (functions outside
-extensions, triggers, column defaults and generated columns, indexes, check constraints, rules, policies, views, event
-triggers, schemas, extensions, domain and enum types) by name and printed definition with a database this image
-migrated: the live database for `fsa restore` and the drill, the empty live database migrated first for `--from-backup`.
+the schema check (`instance:restore-db audit`, SchemaAudit) compares every object that carries code with a database
+this image migrated: functions outside extensions, aggregates, triggers, rules, policies, views, event triggers, schemas,
+extensions, operators, casts, domain and enum types by name and printed definition; column defaults (generated columns
+included), check constraints and indexes by name and by every `name(` their printed expression calls (string literals
+left out), which must be one the reference's own expressions use: Postgres prints a re-parsed expression differently
+after a dump and restore (J08 found `IN (…)` coming back as `= ANY (ARRAY[…])`) and records no dependency on built-in
+functions, so `pg_read_file(…)` in a default is caught by name. The reference is the live database for `fsa restore`
+and the drill, the empty live database migrated first for `--from-backup`.
 The restored database may lack objects (an older backup) but never have other or changed ones, else exit 2
 `backup_unsafe` (exit 5 once the instance was quiesced). Only then do `REASSIGN OWNED` and `DROP OWNED` hand everything
 to the app's user, and the role goes. Every fingerprint the manifest lists must be known
