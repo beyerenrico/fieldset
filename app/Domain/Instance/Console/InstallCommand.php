@@ -7,6 +7,9 @@ namespace App\Domain\Instance\Console;
 use App\Domain\Instance\Config\Appliers\MailValues;
 use App\Domain\Instance\Config\SmtpCredentials;
 use App\Domain\Instance\Install\AcmeCaRoot;
+use App\Domain\Instance\Install\FromBackupInput;
+use App\Domain\Instance\Install\FromBackupInstall;
+use App\Domain\Instance\Install\FromBackupRequest;
 use App\Domain\Instance\Install\Installer;
 use App\Domain\Instance\Install\InstallMail;
 use App\Domain\Instance\Install\InstallRequest;
@@ -30,8 +33,8 @@ use Illuminate\Console\Attributes\Signature;
  * stack started (ADR 0081). --phone-https local-ca serves https://<LAN address> through the edge with the instance's
  * own CA; --phone-https tunnel starts the quick tunnel once the install finished (ADR 0082). --smtp-host and the other
  * SMTP flags install straight into SMTP mode, without the mail catcher (InstallMail, ADR 0080 amendment): the password
- * comes from --password-file or --password-stdin (SmtpInput), never from a flag value. Flags of later pre-releases are
- * recognised and refused with exit 2.
+ * comes from --password-file or --password-stdin (SmtpInput), never from a flag value. --from-backup creates the instance
+ * from a backup instead (FromBackupInstall, plan U17, ADR 0085).
  */
 #[Description('Create and start an instance (local, domain or proxy mode), or resume an unfinished install')]
 #[Signature('fsa:install
@@ -62,15 +65,15 @@ use Illuminate\Console\Attributes\Signature;
         {--from-address= : The sender address of instance mail (default forms@<domain>, else forms@localhost)}
         {--from-name= : The sender name of instance mail}
         {--encrypt : Encrypted backups: not at install yet; use fsa config set backup-encryption on afterwards}
-        {--from-backup= : Create the instance from a backup (2.0.0-rc.1)}
+        {--from-backup= : Create the instance from a backup (its data, URL and settings; a 1.0 backup too): mail starts captured, webhooks paused}
+        {--identity-file= : --from-backup: the passphrase-protected backup identity of an encrypted backup}
+        {--passphrase-file= : --from-backup: read the identity\'s passphrase from this file}
+        {--passphrase-stdin : --from-backup: read the identity\'s passphrase from stdin (a hidden prompt in a terminal)}
+        {--app-key-file= : --from-backup: the APP key(s) the backup was made with (one per line, or the old env/app.env); authenticates it}
+        {--accept-unauthenticated : --from-backup: install from an archive no key from outside it authenticates (a 1.0 backup)}
         {--open : Open the owner sign-in link in the browser of a desktop session instead of printing it}')]
 final class InstallCommand extends FsaCommand
 {
-    /** Option => the pre-release that brings it. */
-    private const array LATER = [
-        'from-backup' => '2.0.0-rc.1',
-    ];
-
     private const array PROMPTS = ['organization' => 'Organization name', 'owner_email' => 'Owner e-mail'];
 
     protected function opensBrowser(): bool
@@ -83,6 +86,13 @@ final class InstallCommand extends FsaCommand
         $this->refuseLaterOptions();
         $request = $this->withAcmeOptions(InstallRequest::fromOptions($this->options()));
         $request = $this->option('demo') === true ? $request->withDemo() : $request;
+        $fromBackup = FromBackupInput::fromCommand($this, $context);
+        if ($fromBackup instanceof FromBackupRequest) {
+            $toFile = is_string($this->option('secrets-file')) && $this->option('secrets-file') !== '';
+
+            return $this->laravel->make(FromBackupInstall::class)->install($request, $fromBackup, $context, $toFile);
+        }
+        FromBackupInput::refuseStray($this);
         $smtp = SmtpInput::fromCommand($this, $context);
         InstallMail::assertFlags($request->explicit(), $smtp->usernameGiven(), $smtp->passwordSource());
         $installer = $this->laravel->make(Installer::class);
@@ -106,12 +116,6 @@ final class InstallCommand extends FsaCommand
         if ($this->option('encrypt') === true) {
             // Backups and their encryption exist since U16 (ADR 0084), but not as an install step yet.
             throw new InvalidInput('--encrypt is not available at install yet.', 'unsupported_option', 'Install without it, then run `fsa config set backup-encryption on --identity-out <path> --passphrase-file <file>` (or `fsa backup --encrypt …`).');
-        }
-        foreach (self::LATER as $option => $release) {
-            $value = $this->option($option);
-            if (! in_array($value, [null, false, ''], true)) {
-                throw new InvalidInput("--{$option} is not available in this version; it arrives with {$release}.", 'unsupported_option', 'Run fsa install without it.');
-            }
         }
     }
 
