@@ -113,6 +113,7 @@ final readonly class RestoreOperation
             $run->phase('safety_backup', fn (): array => $this->safety->take($state, 'restore', new LockHandle($this->lockRecord())));
             $run->phase('restore_database', fn (): array => $this->restoreDatabase($state, $project, $backup, $names), always: true);
             $run->phase('restore_storage', function () use ($state, $backup, $names): array {
+                $this->storage->remove($names->freshVolume); // what an interrupted attempt left (never the volume in use)
                 $this->storage->fill($state, $names->freshVolume, $backup->storage['archive'] ?? null);
 
                 return ['volume' => $names->freshVolume];

@@ -58,7 +58,8 @@ it('restores in place: prepare without network, quiesce, ledger, safety backup, 
         ->and($this->restore->databases)->toContain('form_schema')->not->toContain('form_schema_pre_restore_'.$id)->not->toContain('form_schema_restore_'.$id)
         ->and(InstanceSettings::of($state)->storageVolume())->toBe($state->project().'_app-storage-r'.$id)
         ->and($this->restore->instance->docker->called('createVolume')[0]['name'])->toBe($state->project().'_app-storage-r'.$id)
-        ->and(array_column($this->restore->instance->docker->called('removeVolume'), 'name'))->toBe([$state->project().'_app-storage'])
+        // the fresh volume's name is cleared first (a leftover of an interrupted attempt), the replaced volume goes last
+        ->and(array_column($this->restore->instance->docker->called('removeVolume'), 'name'))->toBe([$state->project().'_app-storage-r'.$id, $state->project().'_app-storage'])
         ->and($smoke)->not->toBeEmpty()->and($smoke[0]['input'])->toStartWith(OperationGate::SMOKE_HEADER.': ')
         ->and(json_decode((string) file_get_contents($this->dir.'/runtime/runtime.json'), true)['gate']['raised'])->toBeFalse()
         ->and(is_dir($this->dir.'/backups/.restore-'.$id))->toBeFalse()
