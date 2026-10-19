@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Instance\Compose\RenderContext;
 use App\Domain\Instance\Compose\ResourceBudget;
 use Symfony\Component\Process\Process;
 use Tests\Support\Docker\AcmeHarness;
@@ -98,6 +99,18 @@ function j10Json(Process $process): array
     return is_array($decoded) ? $decoded : ['raw' => substr($output, -2000), 'stderr' => substr($process->getErrorOutput(), -2000)];
 }
 
+/** The release platform: native, or the emulated one of FSA_TEST_PLATFORM / FSA_HARNESS_PLATFORMS. */
+function j10Platform(): string
+{
+    return ReleaseHarness::platforms()[0];
+}
+
+/** fsa doubles every memory limit when the images run emulated (ADR 0070, RenderContext); 1 on a native run. */
+function j10MemoryFactor(): int
+{
+    return ReleaseHarness::platformEnvironment(ReleaseHarness::platforms()) === [] ? 1 : RenderContext::EMULATION_MEMORY_FACTOR;
+}
+
 /** @return array<string, string> the settings scripts/perf/*.mjs need for this instance (lib.mjs) */
 function j10PerfEnv(): array
 {
@@ -141,7 +154,7 @@ it('installs domain mode with capture mail inside the envelope and records the t
         'command' => 'install.sh --dir <work>/fsa-test-j10 --version '.ReleaseHarness::version().' '.implode(' ', array_slice($flags, 0, 14)).' --acme-ca-root-file <harness>/pebble-https-root.pem --secrets-file <work>/owner-link.json --json',
         'exit_code' => $process->getExitCode(), 'seconds' => $seconds, 'pull_seconds' => $timing['pull_seconds'], 'seconds_without_pull' => $withoutPull,
         'target_seconds' => J10_TARGETS['install_ms'] / 1000, 'verdict' => $withoutPull * 1000 <= J10_TARGETS['install_ms'] ? 'met' : 'missed',
-        'phases' => $timing['phases'], 'pull_size' => BudgetJourney::pullSize($this->journey->release, ReleaseHarness::nativePlatform()),
+        'phases' => $timing['phases'], 'pull_size' => BudgetJourney::pullSize($this->journey->release, j10Platform()),
         'stdout' => $json, 'stderr_ndjson' => $lines,
     ]);
 
@@ -160,6 +173,7 @@ it('runs every service pinned to the two CPUs with the small budget\'s memory li
     $this->journey->evidence('J10-envelope.json', [
         'engine' => ['cpus' => $info['NCPU'] ?? null, 'memory_mib' => intdiv((int) ($info['MemTotal'] ?? 0), 1048576), 'architecture' => $info['Architecture'] ?? null,
             'kernel' => $info['KernelVersion'] ?? null, 'operating_system' => $info['OperatingSystem'] ?? null, 'server_version' => $info['ServerVersion'] ?? null, 'cgroup' => ($info['CgroupDriver'] ?? '').' v'.($info['CgroupVersion'] ?? '')],
+        'platform' => j10Platform(), 'memory_factor' => j10MemoryFactor(),
         'cpuset' => $GLOBALS['fsaJ10Cpuset'], 'memory_limits_mib' => $limits, 'limits_sum_mib' => array_sum($limits),
         'budget' => ['host_mib' => $budget->hostMib(), 'headroom_mib' => $budget->headroomMib(), 'available_mib' => $budget->availableMib(), 'worst_case_mib' => $budget->worstCaseMib()],
         'containers' => $containers,
@@ -167,9 +181,9 @@ it('runs every service pinned to the two CPUs with the small budget\'s memory li
 
     expect(array_keys($containers))->toBe(J10_SERVICES)
         ->and(array_unique(array_column($containers, 'cpuset')))->toBe([$GLOBALS['fsaJ10Cpuset']])
-        ->and(array_sum($limits))->toBeLessThanOrEqual($budget->availableMib());
+        ->and(array_sum($limits))->toBeLessThanOrEqual($budget->availableMib() * j10MemoryFactor());
     foreach ($limits as $service => $mib) {
-        expect($mib)->toBe($budget->limitMib($service), $service);
+        expect($mib)->toBe($budget->limitMib($service) * j10MemoryFactor(), $service);
     }
 });
 
