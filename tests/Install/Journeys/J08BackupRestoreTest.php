@@ -11,6 +11,7 @@ use Symfony\Component\Process\Process;
 use Tests\Support\Docker\BudgetJourney;
 use Tests\Support\Docker\CgroupReader;
 use Tests\Support\Docker\InstanceJourney;
+use Tests\Support\Docker\RestoreJourney;
 use Tests\Support\Docker\SharedHarness;
 use Tests\Support\Docker\TestImage;
 use Tests\Support\Instance\RecordingDockerGateway;
@@ -30,6 +31,14 @@ use Tests\Support\Instance\RecordingDockerGateway;
  *   recorded once, `fsa status` shows it; the retry after the lock is released succeeds, retention (1) prunes an old
  *   scheduled backup and keeps the manual ones, `backup_runs` holds every run; the backup service's memory peak is
  *   measured (cgroup) against its 128 MiB slot (ADR 0083).
+ *
+ * The restore half (plan U17, ADR 0085): the manual backup restored in place (data written later is gone, the security
+ * state carried, numbering advanced, the audit grants re-applied, a fresh storage volume, the instance healthy), a drill
+ * that leaves the live database, storage and mail log alone, the encrypted backup restored with its identity and a
+ * passphrase file, hostile archives refused (a changed file with recomputed sums: HMAC; a `../` member: before anything
+ * is written), a backup with a newer migration set refused (exit 7, AE8), `fsa install --from-backup` into a second
+ * directory with a new `--domain` (certificate pending, capture mail, paused webhooks, the new URL, the old data), and a
+ * 1.0 `scripts/backup.sh` archive with `--accept-unauthenticated` into a third (the unsafe 1.0 values never applied).
  *
  * Everything is named `fsa-test-j08…` and removed afterwards. Evidence goes to the milestone of FSA_EVIDENCE_MILESTONE.
  */
@@ -52,9 +61,11 @@ beforeAll(function (): void {
 afterAll(function (): void {
     if (isset($GLOBALS['fsaJ08'])) {
         InstanceJourney::cleanup($GLOBALS['fsaJ08']->work.'/fsa-test-j08', $GLOBALS['fsaJ08Uuid'] ?? null);
+        InstanceJourney::cleanup($GLOBALS['fsaJ08']->work.'/fsa-test-j08b');
+        InstanceJourney::cleanup($GLOBALS['fsaJ08']->work.'/fsa-test-j08c');
     }
     $GLOBALS['fsaJ08Reader']?->stop();
-    unset($GLOBALS['fsaJ08'], $GLOBALS['fsaJ08Error'], $GLOBALS['fsaJ08Uuid'], $GLOBALS['fsaJ08Reader'], $GLOBALS['fsaJ08Manual']);
+    unset($GLOBALS['fsaJ08'], $GLOBALS['fsaJ08Error'], $GLOBALS['fsaJ08Uuid'], $GLOBALS['fsaJ08Reader'], $GLOBALS['fsaJ08Manual'], $GLOBALS['fsaJ08Encrypted']);
 });
 
 beforeEach(function (): void {
@@ -194,6 +205,7 @@ it('turns encryption on and writes an encrypted backup that decrypts with the id
     $enable = $this->journey->fsa($this->dir, ['config', 'set', 'backup-encryption', 'on', '--identity-out', $identity, '--passphrase-file', $passphrase, '--json']);
     $backup = $this->journey->fsa($this->dir, ['backup', '--json']);
     $json = InstanceJourney::json($backup);
+    $GLOBALS['fsaJ08Encrypted'] = $json['data']['backup'] ?? null; // the encrypted restore below uses it (U17)
     $file = ($json['data']['path'] ?? '').'/backup.tar.age';
     $decrypted = j08Decrypt($this->journey, $identity, $passphrase, $file);
     $refused = j08Decrypt($this->journey, $identity, $wrong, $file);
@@ -252,6 +264,162 @@ it('skips a scheduled run while an operation holds the lock, retries it, prunes 
         ->and($after['data']['last_backup']['backup'] ?? null)->toBe($success['backup'])
         ->and($after['data']['backup']['alerts'] ?? null)->toBe([])
         ->and($cgroup['memory_events']['oom_kill'] ?? null)->toBe(0);
+});
+
+it('restores the manual backup in place: later data gone, security state carried, numbering advanced, grants back, healthy', function (): void {
+    $uuid = (string) $GLOBALS['fsaJ08Uuid'];
+    $hash = '$2y$12$'.str_repeat('j', 53); // a password changed after the backup
+    RestoreJourney::sql($uuid, "INSERT INTO organizations (name, slug, created_at, updated_at) VALUES ('After Backup', 'fsa-test-after-backup', now(), now())");
+    RestoreJourney::sql($uuid, "UPDATE users SET password = '{$hash}' WHERE email = 'owner@example.test'");
+    RestoreJourney::sql($uuid, "INSERT INTO sessions (id, user_id, payload, last_activity) SELECT 'fsa-test-session', id, 'x', 0 FROM users WHERE email = 'owner@example.test'");
+    RestoreJourney::sql($uuid, "INSERT INTO number_sequences (organization_id, form_id, period, next_value, created_at, updated_at) SELECT organization_id, id, 'fsa-test', 77, now(), now() FROM forms ORDER BY id LIMIT 1");
+    $volume = RestoreJourney::storageVolume($uuid);
+    $started = time() - 1; // sessions the restored instance creates itself (the smoke test's GET /admin/login) are newer
+    $process = $this->journey->fsa($this->dir, ['restore', (string) $GLOBALS['fsaJ08Manual'], '--yes', '--json']);
+    $json = InstanceJourney::json($process);
+    $status = InstanceJourney::json($this->journey->fsa($this->dir, ['status', '--json']));
+    $checks = [
+        'after_backup_org' => RestoreJourney::sql($uuid, "SELECT count(*) FROM organizations WHERE slug = 'fsa-test-after-backup'"),
+        'password_carried' => RestoreJourney::sql($uuid, "SELECT password = '{$hash}' FROM users WHERE email = 'owner@example.test'"),
+        'sessions' => RestoreJourney::sql($uuid, "SELECT count(*) FROM sessions WHERE last_activity < {$started}"),
+        'login_links' => RestoreJourney::sql($uuid, 'SELECT count(*) FROM login_links'),
+        'numbering' => RestoreJourney::sql($uuid, "SELECT next_value FROM number_sequences WHERE period = 'fsa-test'"),
+        'epoch' => RestoreJourney::sql($uuid, 'SELECT max(epoch) FROM audit_chain_epochs'),
+        'restored_entries' => RestoreJourney::sql($uuid, "SELECT count(*) FROM activity_log WHERE event = 'instance.restored'"),
+        'backup_role_may_seal' => RestoreJourney::sql($uuid, "SELECT has_function_privilege('fsa_backup', 'audit_seal(bigint,bigint,character,character)', 'EXECUTE')"),
+        'public_acl' => RestoreJourney::sql($uuid, "SELECT coalesce(proacl::text, 'default') FROM pg_proc WHERE proname = 'audit_seal'"),
+        'file_from_backup' => trim(RestoreJourney::docker(['exec', RestoreJourney::container($uuid, 'app'), 'cat', 'storage/app/private/fsa-test-j08/file.txt'])->getOutput()),
+        'volume_after' => RestoreJourney::storageVolume($uuid),
+        'old_volume_exists' => RestoreJourney::docker(['volume', 'inspect', $volume])->isSuccessful(),
+    ];
+    $this->journey->evidence('J08-restore-in-place.json', ['command' => 'fsa restore <manual backup> --yes --json', 'exit_code' => $process->getExitCode(), 'stdout' => $json, 'checks' => $checks, 'status' => $status['data']['restore'] ?? null]);
+
+    expect($process->getExitCode())->toBe(0, $process->getErrorOutput()."\n".$process->getOutput())
+        ->and($json['data'])->toMatchArray(['backup' => $GLOBALS['fsaJ08Manual'], 'authenticated' => true, 'epoch' => 2])
+        ->and($checks)->toMatchArray(['after_backup_org' => '0', 'password_carried' => 't', 'sessions' => '0', 'login_links' => '0', 'numbering' => '77', 'epoch' => '2', 'restored_entries' => '1', 'backup_role_may_seal' => 'f', 'file_from_backup' => 'secret', 'old_volume_exists' => false])
+        ->and($checks['public_acl'])->not->toMatch('/(^\{|,)=X\//')->not->toBe('default') // no PUBLIC entry (`=X/owner`)
+        ->and($checks['volume_after'])->not->toBe($volume)->toContain('_app-storage-r')
+        ->and($status['data']['health'] ?? null)->toBe('ok')
+        ->and($status['data']['last_restore']['backup'] ?? null)->toBe($GLOBALS['fsaJ08Manual']);
+});
+
+it('drills a backup without touching the live database, storage or mail log', function (): void {
+    $uuid = (string) $GLOBALS['fsaJ08Uuid'];
+    $live = static fn (): array => [
+        'organizations' => RestoreJourney::sql($uuid, 'SELECT count(*) FROM organizations'), 'mail_messages' => RestoreJourney::sql($uuid, 'SELECT count(*) FROM mail_messages'),
+        'files' => trim(RestoreJourney::docker(['exec', RestoreJourney::container($uuid, 'app'), 'sh', '-c', 'find storage/app -type f | wc -l'])->getOutput()),
+    ];
+    // A submitted submission to render (the demo data has none), in a backup of its own.
+    RestoreJourney::sql($uuid, "INSERT INTO submissions (uuid, organization_id, form_id, form_version_id, status, data, revision, number, created_by, submitted_by, submitted_at, created_at, updated_at) SELECT gen_random_uuid(), f.organization_id, f.id, v.id, 'submitted', '{}'::jsonb, 2, 'FSA-TEST-1', u.id, u.id, now(), now(), now() FROM forms f JOIN form_versions v ON v.form_id = f.id JOIN users u ON u.email = 'owner@example.test' ORDER BY v.id DESC LIMIT 1");
+    $backup = InstanceJourney::json($this->journey->fsa($this->dir, ['backup', '--json']));
+    $before = $live();
+    $process = $this->journey->fsa($this->dir, ['restore', (string) ($backup['data']['backup'] ?? ''), '--drill', '--identity-file', $this->journey->work.'/j08-identity.age', '--passphrase-file', $this->journey->work.'/j08-passphrase.txt', '--json']);
+    $json = InstanceJourney::json($process);
+    $after = $live();
+    $left = RestoreJourney::sql($uuid, "SELECT count(*) FROM pg_database WHERE datname LIKE 'restore_drill_%'");
+    $this->journey->evidence('J08-restore-drill.json', ['command' => 'fsa restore <encrypted backup> --drill --identity-file <work>/j08-identity.age --passphrase-file <work>/j08-passphrase.txt --json', 'exit_code' => $process->getExitCode(), 'stdout' => $json, 'live_before' => $before, 'live_after' => $after, 'drill_databases_left' => $left]);
+
+    expect($process->getExitCode())->toBe(0, $process->getErrorOutput()."\n".$process->getOutput())
+        ->and($json['changed'])->toBeFalse()
+        ->and((int) ($json['data']['drill']['counts']['organizations'] ?? 0))->toBeGreaterThan(0)
+        ->and($json['data']['drill']['render']['status'] ?? null)->toBe('rendered', json_encode($json['data']['drill']['render'] ?? null))
+        ->and((int) ($json['data']['drill']['render']['bytes'] ?? 0))->toBeGreaterThan(0)
+        ->and($json['data']['drill']['audit']['heads'] ?? null)->not->toBeNull()
+        ->and($after)->toBe($before)->and($left)->toBe('0');
+});
+
+it('restores the encrypted backup with its identity file and a passphrase file', function (): void {
+    $process = $this->journey->fsa($this->dir, ['restore', (string) $GLOBALS['fsaJ08Encrypted'], '--identity-file', $this->journey->work.'/j08-identity.age', '--passphrase-file', $this->journey->work.'/j08-passphrase.txt', '--yes', '--json']);
+    $json = InstanceJourney::json($process);
+    $this->journey->evidence('J08-restore-encrypted.json', ['command' => 'fsa restore <encrypted backup> --identity-file <work>/j08-identity.age --passphrase-file <work>/j08-passphrase.txt --yes --json', 'exit_code' => $process->getExitCode(), 'stdout' => $json]);
+
+    expect($process->getExitCode())->toBe(0, $process->getErrorOutput()."\n".$process->getOutput())
+        ->and($json['data'])->toMatchArray(['encrypted' => true, 'authenticated' => true])
+        ->and($process->getOutput().$process->getErrorOutput())->not->toContain(J08_PASSPHRASE);
+});
+
+it('refuses hostile archives: a changed file with recomputed sums (HMAC), a ../ member (before anything is written)', function (): void {
+    $manual = $this->dir.'/backups/'.$GLOBALS['fsaJ08Manual'];
+    RestoreJourney::tampered($manual, $this->dir.'/backups/manual-20261019T000001Z');
+    RestoreJourney::escaping($manual, $this->dir.'/backups/manual-20261019T000002Z', j08HmacKey($this->dir));
+    $tampered = $this->journey->fsa($this->dir, ['restore', 'manual-20261019T000001Z', '--yes', '--json']);
+    $escaping = $this->journey->fsa($this->dir, ['restore', 'manual-20261019T000002Z', '--yes', '--json']);
+    $escaped = array_filter([dirname($this->dir).'/fsa-test-j08-escaped', $this->dir.'/fsa-test-j08-escaped', $this->dir.'/backups/fsa-test-j08-escaped'], file_exists(...));
+    $this->journey->evidence('J08-restore-hostile.json', ['tampered' => ['exit_code' => $tampered->getExitCode(), 'stdout' => InstanceJourney::json($tampered)], 'escaping' => ['exit_code' => $escaping->getExitCode(), 'stdout' => InstanceJourney::json($escaping)], 'escaped_files' => array_values($escaped)]);
+    exec('rm -rf '.escapeshellarg($this->dir.'/backups/manual-20261019T000001Z').' '.escapeshellarg($this->dir.'/backups/manual-20261019T000002Z'));
+
+    expect($tampered->getExitCode())->toBe(2)->and(InstanceJourney::json($tampered)['errors'][0]['code'] ?? null)->toBe('backup_unauthenticated')
+        ->and($escaping->getExitCode())->toBe(2)->and(InstanceJourney::json($escaping)['errors'][0]['code'] ?? null)->toBe('backup_unsafe')
+        ->and($escaped)->toBe([])->and(glob($this->dir.'/backups/.restore-*'))->toBe([]);
+});
+
+it('refuses a backup with a newer migration set: exit 7 and nothing changed (AE8)', function (): void {
+    $uuid = (string) $GLOBALS['fsaJ08Uuid'];
+    RestoreJourney::sql($uuid, "INSERT INTO migrations (migration, batch) VALUES ('2099_01_01_000000_fsa_test_from_the_future', 99)");
+    $backup = InstanceJourney::json($this->journey->fsa($this->dir, ['backup', '--json']));
+    RestoreJourney::sql($uuid, "DELETE FROM migrations WHERE migration = '2099_01_01_000000_fsa_test_from_the_future'");
+    $state = (string) file_get_contents($this->dir.'/state.json');
+    $starts = InstanceJourney::startTimes($uuid);
+    $process = $this->journey->fsa($this->dir, ['restore', (string) ($backup['data']['backup'] ?? ''), '--identity-file', $this->journey->work.'/j08-identity.age', '--passphrase-file', $this->journey->work.'/j08-passphrase.txt', '--yes', '--json']);
+    $json = InstanceJourney::json($process);
+    $this->journey->evidence('J08-restore-newer.json', ['command' => 'fsa restore <backup with a newer migration set> --yes --json', 'exit_code' => $process->getExitCode(), 'stdout' => $json]);
+
+    expect($process->getExitCode())->toBe(7, $process->getOutput())->and($json['errors'][0]['code'] ?? null)->toBe('backup_newer')
+        ->and($json['changed'])->toBeFalse()
+        ->and((string) file_get_contents($this->dir.'/state.json'))->toBe($state)
+        ->and(InstanceJourney::startTimes($uuid))->toBe($starts);
+});
+
+it('moves the instance with --from-backup into a second directory with a new --domain', function (): void {
+    $backup = InstanceJourney::json($this->journey->fsa($this->dir, ['backup', '--include-secrets', '--json']));
+    $target = $this->journey->work.'/fsa-test-j08b';
+    $process = $this->journey->install($target, [
+        '--from-backup', ($backup['data']['path'] ?? '').'/backup.tar.age', '--identity-file', $this->journey->work.'/j08-identity.age',
+        '--passphrase-file', $this->journey->work.'/j08-passphrase.txt', '--app-key-file', $this->dir.'/env/app.env', '--domain', 'fsa-test-j08b.test', '--json',
+    ], ['FSA_TEST_DNS' => 'fsa-test-j08b.test=203.0.113.7']);
+    $json = InstanceJourney::json($process);
+    $uuid = (string) InstanceJourney::uuid($target);
+    $state = json_decode((string) @file_get_contents($target.'/state.json'), true) ?: [];
+    $runtime = json_decode((string) @file_get_contents($target.'/runtime/runtime.json'), true) ?: [];
+    $orgs = RestoreJourney::sql($uuid, "SELECT count(*) FROM organizations WHERE name = 'Backup Org'");
+    $sameKey = j08HmacKey($target) === j08HmacKey($this->dir);
+    $this->journey->evidence('J08-from-backup-domain.json', ['command' => 'install.sh --dir <work>/fsa-test-j08b --from-backup <backup>/backup.tar.age --identity-file … --passphrase-file … --app-key-file <old>/env/app.env --domain fsa-test-j08b.test --json', 'exit_code' => $process->getExitCode(), 'stdout' => $json, 'url' => $state['url'] ?? null, 'runtime_webhooks' => $runtime['webhooks'] ?? null, 'organizations' => $orgs]);
+    $uninstall = $this->journey->fsa($target, ['uninstall', '--yes', '--json']);
+
+    expect($process->getExitCode())->toBe(0, $process->getErrorOutput()."\n".$process->getOutput())
+        ->and(collect($json['warnings'] ?? [])->pluck('code')->all())->toContain('certificate_pending', 'webhooks_paused')
+        ->and($state['url'] ?? null)->toBe('https://fsa-test-j08b.test')
+        ->and((string) @file_get_contents($target.'/env/app.env'))->toContain("FSA_MAIL_CAPTURE='true'")
+        ->and($runtime['webhooks'] ?? null)->toBe(['paused' => true])
+        ->and($orgs)->toBe('1')->and($sameKey)->toBeTrue()
+        ->and($uninstall->getExitCode())->toBe(0);
+});
+
+it('installs from a 1.0 scripts/backup.sh archive only with --accept-unauthenticated and never applies its unsafe values', function (): void {
+    $uuid = (string) $GLOBALS['fsaJ08Uuid'];
+    preg_match("/^APP_KEY='?(base64:[A-Za-z0-9+\\/=]+)'?$/m", (string) file_get_contents($this->dir.'/env/app.env'), $key);
+    $legacy = RestoreJourney::legacy($uuid, $this->journey->work.'/j08-legacy/20261019T020000Z', $key[1] ?? '');
+    $target = $this->journey->work.'/fsa-test-j08c';
+    $refused = $this->journey->install($target, ['--from-backup', $legacy, '--json']);
+    InstanceJourney::cleanup($target);
+    $process = $this->journey->install($target, ['--from-backup', $legacy, '--accept-unauthenticated', '--json']);
+    $json = InstanceJourney::json($process);
+    $env = (string) @file_get_contents($target.'/env/app.env');
+    $runtime = json_decode((string) @file_get_contents($target.'/runtime/runtime.json'), true) ?: [];
+    $orgs = RestoreJourney::sql((string) InstanceJourney::uuid($target), "SELECT count(*) FROM organizations WHERE name = 'Backup Org'");
+    $this->journey->evidence('J08-from-backup-legacy.json', ['commands' => ['install.sh --dir <work>/fsa-test-j08c --from-backup <1.0 archive> --json', 'install.sh --dir <work>/fsa-test-j08c --from-backup <1.0 archive> --accept-unauthenticated --json'],
+        'refused' => ['exit_code' => $refused->getExitCode(), 'stdout' => InstanceJourney::json($refused)], 'exit_code' => $process->getExitCode(), 'stdout' => $json,
+        'forced' => ['APP_DEBUG' => preg_match("/^APP_DEBUG='false'$/m", $env) === 1, 'SSO_ALLOW_INSECURE_IDP' => preg_match("/^SSO_ALLOW_INSECURE_IDP='false'$/m", $env) === 1, 'TRUSTED_PROXIES' => str_contains($env, 'TRUSTED_PROXIES')], 'runtime_webhooks' => $runtime['webhooks'] ?? null, 'organizations' => $orgs]);
+    $uninstall = $this->journey->fsa($target, ['uninstall', '--yes', '--json']);
+    exec('rm -rf '.escapeshellarg($this->journey->work.'/j08-legacy'));
+
+    expect($refused->getExitCode())->toBe(2)->and(InstanceJourney::json($refused)['errors'][0]['code'] ?? null)->toBe('backup_unauthenticated')
+        ->and($process->getExitCode())->toBe(0, $process->getErrorOutput()."\n".$process->getOutput())
+        ->and($env)->toMatch("/^APP_DEBUG='false'$/m")->toMatch("/^SSO_ALLOW_INSECURE_IDP='false'$/m")->not->toContain('TRUSTED_PROXIES')->not->toContain('never-read-by-fsa')
+        ->and($env)->toContain($key[1] ?? 'no key')
+        ->and($runtime['webhooks'] ?? null)->toBe(['paused' => true])
+        ->and($orgs)->toBe('1')
+        ->and($uninstall->getExitCode())->toBe(0);
 });
 
 it('uninstalls without leaving a labelled container, volume or network behind', function (): void {
