@@ -67,6 +67,41 @@ final readonly class RestoreStorage
         }
     }
 
+    /**
+     * Deletes the data-export directories of accounts erased after the backup from the fresh volume (R64: the erasure
+     * carry scrubs the rows; their files come back with the storage archive). Only `data-exports/<org>/<id>` below the
+     * `local` and `public` disks qualifies; anything else is returned as skipped.
+     *
+     * @param  list<array{disk: string, path: string}>  $directories
+     * @return array{removed: int, skipped: list<string>}
+     */
+    public function removeErased(InstanceState $state, string $volume, array $directories): array
+    {
+        $roots = ['local' => 'private', 'public' => 'public'];
+        $paths = [];
+        $skipped = [];
+        foreach ($directories as $directory) {
+            $root = $roots[$directory['disk']] ?? null;
+            if ($root === null || preg_match('#^data-exports/\d{1,19}/\d{1,19}$#D', $directory['path']) !== 1) {
+                $skipped[] = $directory['disk'].':'.$directory['path'];
+
+                continue;
+            }
+            $paths[] = AppRoles::STORAGE_PATH.'/'.$root.'/'.$directory['path'];
+        }
+        if ($paths !== []) {
+            $outcome = $this->docker->runContainer(new ContainerSpec(
+                image: $state->digests()['app'], command: ['-rf', '--', ...$paths], labels: Labels::forInstance($state->uuid(), self::ROLE),
+                volumes: [$volume.':'.AppRoles::STORAGE_PATH], network: 'none', user: self::APP_USER, entrypoint: 'rm',
+            ), null, 300.0);
+            if (! $outcome->successful()) {
+                throw new InstanceException('Removing the data exports of erased accounts from the restored storage failed: '.$outcome->stderrTail(3), ExitCode::HealthCheckFailed, 'erased_exports_failed', 'Read the output; the live storage volume was not touched.', true);
+            }
+        }
+
+        return ['removed' => count($paths), 'skipped' => $skipped];
+    }
+
     /** Removes a volume this restore created (or the one it replaced, once the restore is verified); best effort. */
     public function remove(string $volume): bool
     {

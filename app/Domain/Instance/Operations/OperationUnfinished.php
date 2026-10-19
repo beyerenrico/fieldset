@@ -42,6 +42,7 @@ final class OperationUnfinished extends InstanceException
         return match (true) {
             $request instanceof ConfigRequest => $request->commandLine(),
             $record->operation() === TunnelOperation::OPERATION => 'fsa tunnel stop',
+            $record->operation() === 'restore' && is_string($record->context()['backup'] ?? null) => 'fsa restore '.$record->context()['backup'],
             self::rotatesDemoPasswords($record) => 'fsa demo --rotate-passwords',
             default => 'fsa '.$record->operation(),
         };
@@ -71,6 +72,7 @@ final class OperationUnfinished extends InstanceException
                 ? "Run `{$command}` again: it finishes restoring the settings from before that change (it does not repeat the change)."
                 : "Run `{$command}` again: it starts over from the settings before that change and reverts if it still fails.",
             'install' => "Run `{$command}` again with the same flags to resume it. `fsa uninstall` removes a half-finished install.",
+            'restore' => "Run `{$command}` again with the same flags to resume it (a swap that did not pass its verification is undone first), or `fsa restore --abandon` to bring the instance back as it was before.",
             TunnelOperation::OPERATION => "Run `{$command}`: it finishes the interrupted `".self::cutOff($record).'`, removes the tunnel whatever state it was left in and brings the stack back to the local URL; `fsa tunnel start` starts a new one afterwards.'.(self::action($record) === 'renew' ? ' `fsa tunnel renew` finishes a cut-off renew too and keeps a running tunnel.' : ''),
             default => "Run `{$command}` again with the same flags to resume it.",
         };

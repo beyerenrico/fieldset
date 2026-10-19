@@ -118,6 +118,7 @@ final readonly class RestoreOperation
                 return ['volume' => $names->freshVolume];
             }, always: true);
             $finish = $run->phase('finish', fn (): array => $this->databases->finish($project, $names->scratch, $names->live, $backup->name, $this->seed($previous), $request->actorUid, $previous['input'], $this->previousKeys($request, $intake)), always: true);
+            $run->phase('erasures', fn (): array => $this->storage->removeErased($state, $names->freshVolume, self::exportDirectories($finish)), always: true);
         } catch (Throwable $e) {
             return $this->recovery->abort($state, $project, $names, $e, $run->record()->hasStarted('quiesce'));
         }
@@ -211,6 +212,22 @@ final readonly class RestoreOperation
         }
 
         return ['database' => $names->scratch, 'restricted' => $created['role'] !== null];
+    }
+
+    /**
+     * The data-export directories of accounts erased since the backup (finish data `carried.export_directories`).
+     *
+     * @param  array<string, mixed>  $finish
+     * @return list<array{disk: string, path: string}>
+     */
+    private static function exportDirectories(array $finish): array
+    {
+        $listed = is_array($finish['carried'] ?? null) && is_array($finish['carried']['export_directories'] ?? null) ? $finish['carried']['export_directories'] : [];
+
+        return array_values(array_filter(array_map(
+            static fn (mixed $entry): ?array => is_array($entry) && is_string($entry['disk'] ?? null) && is_string($entry['path'] ?? null) ? ['disk' => $entry['disk'], 'path' => $entry['path']] : null,
+            $listed,
+        )));
     }
 
     /** @param  array<string, mixed>  $previous */
