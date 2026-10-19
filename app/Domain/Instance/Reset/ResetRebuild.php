@@ -1,0 +1,232 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Domain\Instance\Reset;
+
+use App\Domain\Instance\Backup\BackupRunner;
+use App\Domain\Instance\Backup\SafetyBackup;
+use App\Domain\Instance\Compose\Services\AppRoles;
+use App\Domain\Instance\Console\FsaContext;
+use App\Domain\Instance\Demo\DemoCredentials;
+use App\Domain\Instance\Demo\DemoData;
+use App\Domain\Instance\Docker\ComposeProject;
+use App\Domain\Instance\InstanceException;
+use App\Domain\Instance\Lifecycle\AppCommands;
+use App\Domain\Instance\Lifecycle\SignInDelivery;
+use App\Domain\Instance\Operations\InstanceLock;
+use App\Domain\Instance\Operations\JournalRecord;
+use App\Domain\Instance\Operations\LockHandle;
+use App\Domain\Instance\Operations\LockRecord;
+use App\Domain\Instance\Operations\OperationRun;
+use App\Domain\Instance\Output\CommandResult;
+use App\Domain\Instance\Output\ExitCode;
+use App\Domain\Instance\Restore\RestoreStack;
+use App\Domain\Instance\Restore\RestoreStorage;
+use App\Domain\Instance\State\InstanceDirectory;
+use App\Domain\Instance\State\InstanceState;
+use App\Domain\Instance\State\RuntimeWriter;
+use Carbon\CarbonImmutable;
+use Throwable;
+
+/**
+ * The second half of `fsa reset` (plan U23, KTD26, ADR 0088), from the drop on; it only goes forward:
+ *
+ * recreate_database (dropped and created again: the append-only triggers forbid truncating) → migrate (and the backup
+ * service's role, as install does) → epoch (the new epoch seeded from the ledger, `instance.reset` with the old heads as
+ * its first entry, the state's `reset` history entry) → storage (a fresh, empty, labelled volume; the state names it) →
+ * flush (Valkey with its queues, the mail catcher) → seed (install's `app:install`: the first organization, its owner,
+ * the operator role, the owner's sign-in link) → verify (the app alone behind the gate, the internal smoke test) → open
+ * (every service, still behind the gate) → [demo, demo_rotate: `--demo` under the reachability rule of R29] → gate
+ * (down) → cleanup (the replaced volume removed, the safety backup sealed).
+ *
+ * Every phase is repeatable from the journal: a killed run is continued by the next `fsa reset` with the same flags.
+ * Settings and secrets stay; webhooks are not paused (no data, so no run whose deliveries could repeat).
+ */
+final readonly class ResetRebuild
+{
+    public function __construct(
+        private InstanceDirectory $directory,
+        private InstanceLock $lock,
+        private RestoreStack $stack,
+        private RestoreStorage $storage,
+        private SafetyBackup $safety,
+        private BackupRunner $backups,
+        private AppCommands $commands,
+        private ResetApp $app,
+        private CatcherFlush $catcher,
+        private DemoData $demo,
+    ) {}
+
+    public function run(OperationRun $run, InstanceState $state, ComposeProject $project, ResetRequest $request, ResetSubject $subject, FsaContext $context, bool $toFile): CommandResult
+    {
+        try {
+            return $this->forward($run, $state, $project, $request, $subject, $context, $toFile);
+        } catch (Throwable $e) {
+            return $this->stuck($e, $run->record());
+        }
+    }
+
+    /** Encrypts the safety backup to the recipients once the reset closed (R57); a failure is a warning. */
+    public function seal(CommandResult $result, ?string $safetyBackup): CommandResult
+    {
+        $lock = $this->lock->current();
+        if ($safetyBackup === null || ! $lock instanceof LockRecord) {
+            return $result;
+        }
+        try {
+            $this->safety->seal($this->directory->state(), $safetyBackup, new LockHandle($lock));
+        } catch (Throwable $e) {
+            return $result->withWarning('safety_backup_not_sealed', "The safety backup {$safetyBackup} stays unencrypted (0600): ".$e->getMessage(), 'Encrypt or delete it by hand.');
+        }
+
+        return $result;
+    }
+
+    private function forward(OperationRun $run, InstanceState $state, ComposeProject $project, ResetRequest $request, ResetSubject $subject, FsaContext $context, bool $toFile): CommandResult
+    {
+        $record = $run->record();
+        $run->phase(ResetOperation::DROP, fn (): array => $this->app->recreate($project));
+        $run->phase('migrate', fn (): array => $this->migrate($project));
+        $epoch = $run->phase('epoch', fn (): array => $this->epoch($project, $request, $record));
+        $volume = $run->phase('storage', fn (): array => $this->freshStorage($state, $record), changes: true);
+        $flushed = $run->phase('flush', fn (): array => ['valkey' => $this->stack->flushValkey($project), 'catcher' => $this->catcher->flush($this->directory->state(), $project)]);
+        $link = null;
+        $run->phase('seed', function () use ($project, $subject, $request, $context, &$link): array {
+            $result = $this->commands->install($project, $subject->installRequest(), $request->actorUid);
+            if (! $result->ok) {
+                throw new InstanceException('`app:install` failed: '.$result->errorMessage(), ExitCode::HealthCheckFailed, 'app_install_failed', null, true, ['code' => $result->errorCode(), 'output' => $result->output]);
+            }
+            $link = $result->secret(SignInDelivery::SECRET);
+            if ($link !== null) {
+                $context->redactor->register($link['value']);
+            }
+
+            return ['organization' => $subject->organization, 'already_installed' => $result->hasWarning('already_installed')];
+        });
+        $this->open($run, $project);
+        [$demo, $warnings] = $request->demo ? $this->demo->provide($run, $project, $request->actorUid, reissue: true) : [null, []];
+        $run->phase('gate', function (): array {
+            $this->stack->lowerGate($this->directory->state());
+
+            return ['lowered' => true];
+        }, always: true);
+        $cleanup = $run->phase('cleanup', fn (): array => $this->cleanup($volume), always: true);
+        $link ??= $this->freshLink($project, $subject, $request, $context, $warnings);
+        $result = ResetResult::ok($this->directory->state(), $subject, $run->record(), $epoch, $flushed, $cleanup, $warnings);
+        $result = $link === null ? $result : SignInDelivery::deliver($result, $context, $link['value'], $link['expires_at'], $toFile, $subject->ownerEmail);
+        $result = $demo instanceof DemoCredentials ? $demo->apply($result, $context, $toFile) : $result;
+
+        return $this->seal($result, ResetResult::safetyBackup($run->record()));
+    }
+
+    /**
+     * The migrations, then the backup service's role (its grant needs `backup_runs`), as install's migrate phase.
+     *
+     * @return array{migrated: true, backup_role: true}
+     */
+    private function migrate(ComposeProject $project): array
+    {
+        $outcome = $this->commands->migrate($project);
+        if (! $outcome->successful()) {
+            throw new InstanceException('The database migrations failed.', ExitCode::HealthCheckFailed, 'migrate_failed', null, true, ['output' => $outcome->stderrTail(10)]);
+        }
+        $this->backups->ensureRole($project);
+
+        return ['migrated' => true, 'backup_role' => true];
+    }
+
+    /** @return array<string, mixed> */
+    private function epoch(ComposeProject $project, ResetRequest $request, JournalRecord $record): array
+    {
+        $ledger = $record->phaseData('ledger');
+        $safety = ResetResult::safetyBackup($record);
+        $export = is_string($record->phaseData('audit_export')['file'] ?? null) ? $record->phaseData('audit_export')['file'] : null;
+        $previous = is_int($ledger['epoch'] ?? null) ? $ledger['epoch'] : null;
+        $data = $this->app->epoch($project, is_int($ledger['seed'] ?? null) ? $ledger['seed'] : 0, ['previous_heads' => (object) ($ledger['heads'] ?? []), 'previous_epoch' => $previous], $safety, $export, $request->demo, $request->actorUid);
+        $state = $this->directory->state();
+        if (! array_any($state->history(), static fn (array $entry): bool => ($entry['event'] ?? null) === ResetStatus::EVENT && ($entry['journal'] ?? null) === $record->id())) {
+            $this->directory->saveState($state->withHistoryEntry(ResetStatus::EVENT, [
+                'journal' => $record->id(), 'epoch' => $data['epoch'] ?? null, 'previous_epoch' => $previous, 'safety_backup' => $safety, 'audit_export' => $export, 'demo' => $request->demo,
+            ]));
+        }
+
+        return $data;
+    }
+
+    /** @return array{volume: string, previous: string} a fresh, empty volume the state names (the old one goes in cleanup) */
+    private function freshStorage(InstanceState $state, JournalRecord $record): array
+    {
+        $previous = is_string($record->phaseData('plan')['storage_volume'] ?? null) ? $record->phaseData('plan')['storage_volume'] : RestoreStorage::current($state);
+        $fresh = $state->project().'_'.AppRoles::STORAGE_VOLUME.'-reset-'.substr((string) preg_replace('/[^a-f0-9]/', '', strtolower($record->id())), 0, 12);
+        $this->storage->remove($fresh); // what an interrupted attempt left: empty, and nothing mounted it before the verification
+        $this->storage->create($state, $fresh);
+        $this->stack->apply($this->directory->state()->withSetting('storage_volume', $fresh));
+
+        return ['volume' => $fresh, 'previous' => $previous];
+    }
+
+    /** The app alone behind the gate passes the smoke test, then every service starts, still behind it. */
+    private function open(OperationRun $run, ComposeProject $project): void
+    {
+        if ($run->record()->hasStarted('gate')) {
+            return; // lowering began: the instance runs
+        }
+        $state = $this->directory->state();
+        $token = new RuntimeWriter($this->directory)->raiseGate($state, ResetOperation::OPERATION);
+        $run->phase('verify', fn (): array => ['checked' => $this->stack->startAndVerify($state, $project, $token)], always: true);
+        $run->phase('open', function () use ($project): array {
+            $this->stack->startAll($project);
+
+            return ['open' => true];
+        }, always: true);
+    }
+
+    /**
+     * @param  array<string, mixed>  $volume  the storage phase's data
+     * @return array{left_behind: list<string>}
+     */
+    private function cleanup(array $volume): array
+    {
+        $previous = is_string($volume['previous'] ?? null) ? $volume['previous'] : null;
+        $left = [];
+        if ($previous !== null && $previous !== ($volume['volume'] ?? null) && ! $this->storage->remove($previous)) {
+            $left[] = "volume {$previous}";
+        }
+
+        return ['left_behind' => $left];
+    }
+
+    /**
+     * A new 15-minute link for the owner when this run did not seed (resumed after `seed`): the first one went with the
+     * interrupted run.
+     *
+     * @param  list<array{0: string, 1: string, 2: string|null}>  $warnings
+     * @return array{value: string, expires_at: CarbonImmutable|null}|null
+     */
+    private function freshLink(ComposeProject $project, ResetSubject $subject, ResetRequest $request, FsaContext $context, array &$warnings): ?array
+    {
+        $issued = $this->commands->loginLink($project, $subject->ownerEmail, $request->actorUid);
+        $link = $issued->ok ? $issued->secret(SignInDelivery::SECRET) : null;
+        if ($link === null) {
+            $warnings[] = ['sign_in_link_unavailable', 'No sign-in link could be issued: '.$issued->errorMessage(), 'Run '.SignInDelivery::loginLinkCommand($subject->ownerEmail).' once the cause is fixed.'];
+
+            return null;
+        }
+        $context->redactor->register($link['value']);
+
+        return $link;
+    }
+
+    /** From the drop on there is no way back: the journal stays open, the gate up, and `fsa reset` continues. */
+    private function stuck(Throwable $cause, JournalRecord $record): CommandResult
+    {
+        $exit = $cause instanceof InstanceException && ! $cause->exitCode->isBeforeChange() ? $cause->exitCode : ExitCode::HealthCheckFailed;
+        $kept = ResetResult::safetyBackup($record) ?? (is_string($record->phaseData('audit_export')['file'] ?? null) ? $record->phaseData('audit_export')['file'] : null);
+
+        return CommandResult::failed(ResetOperation::OPERATION, $exit, $cause instanceof InstanceException ? $cause->errorCode : 'reset_failed',
+            'The reset stopped after the database was recreated: '.$cause->getMessage(),
+            'Fix the cause'.($cause instanceof InstanceException && $cause->hint !== null ? ' ('.$cause->hint.')' : '').', then run `'.ResetRequest::commandLine($record->context()).'` again: it continues from here. The old data '.($kept === null ? 'was not backed up.' : "is in backups/{$kept}."),
+            true, [...($cause instanceof InstanceException ? $cause->data : []), 'safety_backup' => ResetResult::safetyBackup($record)], changed: true);
+    }
+}
