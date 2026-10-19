@@ -287,16 +287,16 @@ describe('fsa wrapper', function (): void {
             'errors' => [[
                 'code' => 'unknown_command',
                 'message' => "Unknown fsa command: {$command}",
-                'hint' => 'Available commands: backup, config, demo, doctor, install, login-link, logs, restore, status, tunnel, uninstall, version. Run fsa without arguments to list them; put flags after the command or write them as --flag=value.',
+                'hint' => 'Available commands: backup, config, demo, doctor, install, login-link, logs, restore, rollback, status, tunnel, uninstall, upgrade, version. Run fsa without arguments to list them; put flags after the command or write them as --flag=value.',
                 'retryable' => false,
             ]],
         ])->and($process->getErrorOutput())->toBe('');
     })->with([
-        'not yet shipped' => [['upgrade', '--json'], true],
+        'not an fsa command' => [['migrate', '--json'], true], // `upgrade` and `rollback` shipped with U18 (ADR 0086)
         'typo with a leading flag' => [['--json', 'stauts'], true],
         'quote in the name' => [['--json', 'x"y\\z'], true],
         'two words' => [['--json', 'logs status'], true],
-        'human' => [['rollback'], false], // `restore` shipped with U17 (ADR 0085); rollback is still to come
+        'human' => [['migrate'], false],
         'value of a flag no command knows' => [['--json', '--colour', 'red', 'install'], true],
     ]);
 
@@ -309,8 +309,8 @@ describe('fsa wrapper', function (): void {
         $hidden = $registered->filter(fn ($command): bool => $command->isHidden())->keys()->map(fn (string $name): string => substr($name, 4))->all();
 
         expect(explode(' ', $commands[1] ?? ''))->toBe($visible)
-            ->and(explode(' ', $roles[1] ?? ''))->toBe(['backup-daemon', 'restore-prepare'])
-            ->and(array_diff($hidden, ['backup-daemon', 'restore-prepare']))->toBe([]);
+            ->and(explode(' ', $roles[1] ?? ''))->toBe(['backup-daemon', 'restore-prepare', 'upgrade-child'])
+            ->and(array_diff($hidden, ['backup-daemon', 'restore-prepare', 'upgrade-child']))->toBe([]);
     });
 
     it('knows every value-taking option of the fsa commands, so a flag before the command keeps its value', function (): void {
