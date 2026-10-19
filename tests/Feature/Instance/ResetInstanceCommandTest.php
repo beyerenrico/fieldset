@@ -135,9 +135,11 @@ it('plans the old database\'s sequence values (review S1)', function (): void {
 });
 
 it('raises every sequence above the old database before instance.reset, so an old signed invitation finds no row (review S1)', function (): void {
-    $old = URL::temporarySignedRoute('invitations.show', now()->addDays(7), ['membership' => 50]); // X, invited before the reset
-    $this->stdin = json_encode(['previous_heads' => ['0' => ['seq' => 9, 'hash' => RESET_HEAD]], 'previous_epoch' => 1,
-        'sequences' => ['organization_user_id_seq' => 50, 'users_id_seq' => 40, 'activity_log_id_seq' => 900, 'gone_id_seq' => 7]]);
+    // Sequences survive RefreshDatabase's rollback: the floors lie above wherever earlier tests left them.
+    $current = static fn (string $sequence): int => (int) (DB::selectOne("SELECT last_value FROM pg_sequences WHERE schemaname = 'public' AND sequencename = ?", [$sequence])->last_value ?? 0);
+    $floors = ['organization_user_id_seq' => $current('organization_user_id_seq') + 500, 'users_id_seq' => $current('users_id_seq') + 500, 'activity_log_id_seq' => $current('activity_log_id_seq') + 500];
+    $old = URL::temporarySignedRoute('invitations.show', now()->addDays(7), ['membership' => $floors['organization_user_id_seq']]); // X, invited before the reset
+    $this->stdin = json_encode(['previous_heads' => ['0' => ['seq' => 9, 'hash' => RESET_HEAD]], 'previous_epoch' => 1, 'sequences' => [...$floors, 'gone_id_seq' => 7]]);
 
     [$code, $json] = resetApp('epoch', ['--epoch-seed' => '1']);
     makeOrganization(name: 'Fresh GmbH'); // Y, after the reset
@@ -145,9 +147,9 @@ it('raises every sequence above the old database before instance.reset, so an ol
 
     expect($code)->toBe(0, (string) json_encode($json))
         ->and($json['data']['sequences'])->toBe(3)
-        ->and((int) $json['data']['activity_id'])->toBeGreaterThan(900)
-        ->and(min($memberships))->toBeGreaterThan(50)
-        ->and((int) DB::table('users')->min('id'))->toBeGreaterThan(40)
+        ->and((int) $json['data']['activity_id'])->toBeGreaterThan($floors['activity_log_id_seq'])
+        ->and(min($memberships))->toBeGreaterThan($floors['organization_user_id_seq'])
+        ->and((int) DB::table('users')->min('id'))->toBeGreaterThan($floors['users_id_seq'])
         ->and($this->get($old)->getStatusCode())->toBe(404);
 });
 
