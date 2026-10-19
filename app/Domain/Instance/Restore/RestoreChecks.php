@@ -60,7 +60,7 @@ final readonly class RestoreChecks
      * counts as this instance's when the APP_KEY in its `env` is one of the instance's own keys. The backup `fsa adopt`
      * wrote holds no key (U19, ADR 0087): its manifest's first key fingerprint counts only for exactly that set, by its
      * name and the digest of its SHA256SUMS as the adopt recorded them (review R1: the manifest is unauthenticated, a
-     * fingerprint alone is no proof). Everything else goes to a new directory with `fsa install --from-backup`.
+     * fingerprint alone is no proof). Everything else goes to a new directory with `install.sh --dir <new directory> --from-backup <backup>`.
      *
      * @param  AppKeys  $inside  the keys the archive carries (BackupIntake::insideKeys)
      * @param  array{name: string, sums: string}|null  $adoptBackup  the adopt backup this instance made (AdoptedInstance::backupIdentity)
@@ -87,7 +87,7 @@ final readonly class RestoreChecks
         throw new InvalidInput(
             "This backup does not belong to this instance: {$why}.",
             'backup_other_instance',
-            'Install it into a new directory with `fsa install --from-backup <backup> --dir <new directory>`; restoring it here would match its accounts to this instance\'s by number. Nothing was changed.',
+            'Install it into a new directory with `install.sh --dir <new directory> --from-backup <backup>`; restoring it here would match its accounts to this instance\'s by number. Nothing was changed.',
             ['backup_instance' => $made ?? null, 'instance' => $uuid],
         );
     }

@@ -10,8 +10,8 @@ use App\Domain\Instance\State\InstanceState;
 /**
  * What a repeated `fsa install` with different flags tells an agent (exit 2 `use_config_set`, ADR 0078): per flag the
  * `fsa config set` key that changes it on this instance, or none, and a hint that says plainly what is possible.
- * Proxy mode cannot be entered or re-wired on an installed instance, and until `--from-backup` (2.0.0-rc.1) a fresh
- * install starts without the old data; there is no backup command yet, only uninstall's final backup.
+ * Proxy mode cannot be entered or re-wired on an installed instance; a fresh install in another directory takes the data
+ * along with `install.sh --from-backup` from a `fsa backup`, and another release arrives with `fsa upgrade`.
  */
 final class InstallFlags
 {
@@ -61,7 +61,7 @@ final class InstallFlags
             $settable === [] ? null : 'Change '.implode(', ', $settable).' with `fsa config set <key> <value>` (data.flags names the key).',
             self::proxySwitch($flags, $state) ? self::PROXY_SWITCH : null,
             $app === [] ? null : implode(', ', $app).' apply only to a new instance: change the organization and its users in the admin panel.',
-            in_array('--version', $rest, true) ? 'Another version arrives with `fsa upgrade` (2.0.0-rc.1).' : null,
+            in_array('--version', $rest, true) ? 'Move this instance to another release with `fsa upgrade --to <version>`.' : null,
             in_array('--demo', $rest, true) ? 'Add the demo data to this instance with `fsa demo`.' : null,
             in_array('--phone-https', $flags, true) ? 'Phone HTTPS: `fsa config set phone-https local-ca|off` for the local CA, `fsa tunnel start|stop` for the quick tunnel.' : null,
             array_intersect($flags, ['--smtp-host', '--smtp-port', '--smtp-encryption', '--smtp-username', '--from-address', '--from-name']) !== []

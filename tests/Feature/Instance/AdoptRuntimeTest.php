@@ -96,7 +96,7 @@ it('refuses a 1.0 Postgres that is not major 16 on Alpine before 1.0 is touched 
     expect($code)->toBe(7, (string) json_encode($json))
         ->and($json['errors'][0]['code'])->toBe('postgres_image_mismatch')
         ->and($json['errors'][0]['message'])->toContain($found)
-        ->and($json['errors'][0]['hint'])->toContain('--from-backup')
+        ->and($json['errors'][0]['hint'])->toContain('`install.sh --dir <new directory> --from-backup <backup> --accept-unauthenticated`') // gate review DOC14
         ->and($this->adopt->instance->docker->called('stopContainers'))->toBe([]);
 })->with([
     'Debian' => [fn (AdoptFixture $a) => $a->osRelease = "PRETTY_NAME=\"Debian GNU/Linux 12 (bookworm)\"\nID=debian\n", 'major 16 on debian'],

@@ -6,8 +6,8 @@
 #   `fsa:install --behind-proxy traefik`. `--flag=value` always works. Without a command, --json lists as JSON.
 # - An unknown command exits 2 with an `unknown_command` error (the fsa JSON envelope on stdout with --json),
 #   never Laravel's plain text. `commands` lists the fsa:* commands for users, `roles` the entry points of image
-#   roles (the backup service); tests/Unit/Docker/ImageContractTest.php keeps both in step with the registered
-#   commands.
+#   roles (the backup service's daemon, the restore preparer, the upgrade child);
+#   tests/Unit/Docker/ImageContractTest.php keeps both in step with the registered commands.
 # - Symfony's console answers a literal --version with the framework version before any command runs, so the
 #   --version flag of `fsa install` (§7) and `fsa adopt` is passed on as --release, up to a literal -- (ADR 0072, 0087).
 set -e

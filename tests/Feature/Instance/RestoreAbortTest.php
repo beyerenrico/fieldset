@@ -140,7 +140,7 @@ it('continues with the restored data on --abandon when there is no way back, aft
     [$code, $json] = $this->restore->instance->run('fsa:restore', ['--abandon' => true, '--yes' => true]);
 
     expect($stuck)->toBe(8, (string) json_encode($stuckJson))
-        ->and($stuckJson['errors'][0]['hint'])->toContain('fsa restore --abandon')->toContain('fsa install --from-backup')->not->toContain('with `fsa restore`')
+        ->and($stuckJson['errors'][0]['hint'])->toContain('fsa restore --abandon --yes')->toContain('install.sh --dir <new directory> --from-backup')->not->toContain('fsa install --from-backup')->not->toContain('with `fsa restore`') // gate review DOC14, O9
         ->and($code)->toBe(0, (string) json_encode($json))->and($json['data'])->toMatchArray(['abandoned' => false, 'completed' => true, 'forward' => true])
         ->and(InterruptedRestore::gateRaised($this->dir))->toBeFalse()
         ->and(InstanceSettings::of($this->restore->config->state())->storageVolume())->toContain('_app-storage-r')
@@ -154,7 +154,7 @@ it('names --abandon and a new directory, never `fsa restore` of the safety backu
     [$code, $json] = $this->restore->restore();
 
     expect($code)->toBe(8, (string) json_encode($json))
-        ->and($json['errors'][0]['hint'])->toContain('fsa restore --abandon')->toContain('fsa install --from-backup')->toContain('safety-restore-20261019T120000Z');
+        ->and($json['errors'][0]['hint'])->toContain('fsa restore --abandon --yes')->toContain('`install.sh --dir <new directory> --from-backup '.$this->dir.'/backups/safety-restore-20261019T120000Z`')->not->toContain('fsa install --from-backup'); // gate review DOC14, O9
 });
 
 it('warns when the free space for the scratch set cannot be read, in a drill too (review A12)', function (): void {

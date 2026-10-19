@@ -118,6 +118,22 @@ it('refuses an older --to, a major without --major and a source below the oldest
     'too old a source' => ['2.0.0-beta.1', '2.0.0-alpha.3', 'upgrade_path', 'fsa upgrade --to 2.0.0-alpha.3'],
 ]);
 
+it('refuses an instance whose compose file lacks the backup service (exit 3) and names a command that renders it again (gate review DOC16)', function (): void {
+    $directory = $this->upgrade->instance->directory;
+    $compose = json_decode((string) preg_replace('/\A(#[^\n]*\n)+/', '', (string) $directory->read('compose.yaml')), true);
+    unset($compose['services']['backup']);
+    $directory->write('compose.yaml', json_encode($compose), 0600);
+    $mark = $this->config->mark();
+
+    [$code, $json] = $this->upgrade->upgrade(['--to' => UpgradeFixture::TARGET]);
+
+    expect($code)->toBe(3, (string) json_encode($json))
+        ->and($json['errors'][0]['code'])->toBe('backup_service_missing')
+        ->and($json['errors'][0]['hint'])->toContain('fsa config set')->not->toContain('fsa install')
+        ->and($this->config->callsSince($mark, 'composeStop'))->toBe([])
+        ->and(new OperationJournal($directory)->current())->toBeNull();
+});
+
 it('crosses a major with --major', function (): void {
     $this->upgrade->serve('3.0.0');
 
@@ -340,7 +356,7 @@ it('stops everything and exits 8 with the backup path and both digest sets when 
         ->and($json['data']['safety_backup'])->toBe($this->dir.'/backups/'.$this->upgrade->safetyBackups[0])
         ->and($json['data']['digests']['previous']['app'])->toBe(InstanceCommandFixture::appImage())
         ->and($json['data']['digests']['target']['app'])->toBe(UpgradeFixture::targetImage())
-        ->and($json['errors'][0]['hint'])->toContain('fsa upgrade --resume')->toContain('fsa install --from-backup')
+        ->and($json['errors'][0]['hint'])->toContain('fsa upgrade --resume')->toContain('install.sh --dir <new directory> --from-backup '.$this->dir.'/backups/'.$this->upgrade->safetyBackups[0])->not->toContain('fsa install --from-backup') // gate review DOC14
         ->and($stops[array_key_last($stops)])->toBe('app,queue,scheduler,backup')
         ->and($this->upgrade->gate()['raised'])->toBeTrue()
         ->and(new OperationJournal($this->upgrade->instance->directory)->current()?->operation())->toBe('upgrade');

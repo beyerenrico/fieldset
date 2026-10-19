@@ -94,6 +94,19 @@ it('warns at once about a run skipped for lack of disk space, in its own words',
         ->and($warnings['backup_disk_space']['hint'])->toContain('Free space');
 });
 
+it('warns about a backup service that cannot start and names a command that renders its configuration again (gate review DOC16)', function (): void {
+    $this->travelTo(CarbonImmutable::parse('2026-10-19T12:00:00Z'));
+    ledgerRun($this->log, ['started_at' => '2026-10-19T03:30:00Z']);
+    $this->log->append(['kind' => 'service', 'status' => 'failed', 'reason' => 'invalid_backup_config', 'message' => 'FSA_BACKUP_RETENTION must be a whole number.', 'started_at' => '2026-10-19T10:00:00Z', 'finished_at' => '2026-10-19T10:00:00Z', 'encrypted' => false]);
+
+    [, $json] = $this->instance->run('fsa:status');
+    $warnings = collect($json['warnings'])->keyBy('code');
+
+    expect($json['data']['backup']['alerts'])->toContain('backup_service_failed')
+        ->and($warnings['backup_service_failed']['message'])->toContain('invalid_backup_config')
+        ->and($warnings['backup_service_failed']['hint'])->toContain('fsa logs backup')->toContain('fsa config set')->not->toContain('fsa install');
+});
+
 it('warns about a .partial directory an interrupted backup left, but not while an operation holds the lock', function (): void {
     $this->instance->directory->ensureDirectory('backups/manual-20261019T120000Z.partial');
 

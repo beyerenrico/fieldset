@@ -120,7 +120,7 @@ final readonly class ResetRebuild
         }, always: true);
         $cleanup = $run->phase('cleanup', fn (): array => $this->leftovers->remove($this->directory->state(), $project, (string) ($volume['volume'] ?? ''), is_string($volume['previous'] ?? null) ? $volume['previous'] : null), always: true);
         $link ??= $this->freshLink($project, $subject, $request, $context, $warnings);
-        $result = ResetResult::ok($this->directory->state(), $subject, $run->record(), $epoch, $flushed, $cleanup, $warnings);
+        $result = ResetResult::ok($this->directory, $this->directory->state(), $subject, $run->record(), $epoch, $flushed, $cleanup, $warnings);
         $result = $link === null ? $result : SignInDelivery::deliver($result, $context, $link['value'], $link['expires_at'], $toFile, $subject->ownerEmail);
         $result = $demo instanceof DemoCredentials ? $demo->apply($result, $context, $toFile) : $result;
 

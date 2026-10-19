@@ -80,7 +80,7 @@ final readonly class UpgradeQuiesce
             $dropped = $this->dropJobs($project, $id);
         }
         $inFlight = $this->requests->wait($project, $operation); // requests that passed before the gate rose (review A1)
-        $this->seal($project);
+        $this->seal($project, $operation);
 
         return ['gate' => 'raised', 'drain' => $drain, 'dropped_jobs' => $dropped, 'in_flight' => $inFlight];
     }
@@ -125,11 +125,12 @@ final readonly class UpgradeQuiesce
         return ['count' => count($exported), 'file' => $file];
     }
 
-    private function seal(ComposeProject $project): void
+    /** The pending audit entries sealed before anything is backed up; a failure names the command that was running (gate review C6). */
+    private function seal(ComposeProject $project, string $operation): void
     {
         $outcome = $this->docker->composeRun($project, ComposeRenderer::ONE_OFF_SERVICE, ['php', 'artisan', 'audit:seal'], timeout: 600.0);
         if (! $outcome->successful()) {
-            throw new InstanceException('Sealing the pending audit entries failed.', ExitCode::AbortedUnchanged, 'audit_seal_failed', 'Read `fsa logs postgres`, then run `fsa upgrade` again; the previous version runs again.', true, ['output' => $outcome->stderrTail(5)]);
+            throw new InstanceException('Sealing the pending audit entries failed.', ExitCode::AbortedUnchanged, 'audit_seal_failed', "Read `fsa logs postgres`, then run `fsa {$operation}` again; nothing was changed and the instance runs as before.", true, ['output' => $outcome->stderrTail(5)]);
         }
     }
 

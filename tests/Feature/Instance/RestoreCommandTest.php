@@ -137,6 +137,7 @@ it('goes back when the upgrade child cannot migrate an older backup (exit 5), th
     [$code, $json] = $this->restore->restore();
 
     expect($code)->toBe(5, (string) json_encode($json))->and($json['errors'][0]['code'])->toBe('upgrade_child_failed')
+        ->and($json['errors'][0]['hint'])->toContain('`install.sh --dir <new directory> --from-backup <backup>`')->not->toContain('fsa install --from-backup') // gate review DOC14
         ->and($this->restore->actions())->not->toContain('swap')
         ->and(json_decode((string) file_get_contents($this->dir.'/runtime/runtime.json'), true)['gate']['raised'])->toBeFalse();
 });
@@ -287,7 +288,7 @@ it('refuses in place a backup another instance made and points to --from-backup:
     [$code, $json] = $this->restore->restore();
 
     expect($code)->toBe(2, (string) json_encode($json))->and($json['errors'][0]['code'])->toBe('backup_other_instance')
-        ->and($json['errors'][0]['hint'])->toContain('fsa install --from-backup')
+        ->and($json['errors'][0]['hint'])->toContain('`install.sh --dir <new directory> --from-backup <backup>`')->not->toContain('fsa install --from-backup') // gate review DOC14
         ->and($json['data']['backup_instance'])->toBe('00000000-0000-4000-8000-0000000000a3')
         ->and($this->restore->config->methodsSince($mark))->not->toContain('composeStop');
 });

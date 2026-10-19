@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Instance\Docker\ProcessOutcome;
 use App\Domain\Instance\Operations\OperationJournal;
 use Tests\Support\Instance\TemporaryInstance;
 use Tests\Support\Instance\UpgradeFixture;
@@ -63,6 +64,21 @@ it('reverts with exit 9 and seals nothing when a session stays past the bound, n
         ->and(quiesceOrder($this->upgrade))->not->toContain('seal')->not->toContain('backup')
         ->and($this->upgrade->gate()['raised'])->toBeFalse()
         ->and(new OperationJournal($this->upgrade->instance->directory)->current())->toBeNull();
+});
+
+it('reverts with exit 9 when sealing the audit entries fails, naming `fsa upgrade` to run again (gate review C6)', function (): void {
+    $docker = $this->upgrade->instance->docker;
+    $previous = $docker->composeRunResponder;
+    $docker->respondToComposeRun(static fn (array $command, ?string $input = null): ?ProcessOutcome => ($command[2] ?? null) === 'audit:seal'
+        ? new ProcessOutcome(1, '', 'could not connect') : $previous($command, $input));
+
+    [$code, $json] = $this->upgrade->upgrade();
+
+    expect($code)->toBe(9, (string) json_encode($json))
+        ->and($json['errors'][0]['code'])->toBe('audit_seal_failed')
+        ->and($json['errors'][0]['hint'])->toContain('`fsa upgrade`')
+        ->and(quiesceOrder($this->upgrade))->not->toContain('backup')
+        ->and($this->upgrade->gate()['raised'])->toBeFalse();
 });
 
 it('sizes the space check from the live database and storage volume when they outgrow the newest backup', function (): void {

@@ -164,6 +164,7 @@ it('refuses what it cannot adopt with exit 7 and the reason, before 1.0 is touch
     expect($code)->toBe(7, (string) json_encode($json))
         ->and($json['errors'][0]['code'])->toBe($error)
         ->and($json['errors'][0]['hint'])->not->toBeEmpty()
+        ->and($json['errors'][0]['hint'])->not->toContain('fsa install --from-backup') // the shim runs no install for another directory (gate review DOC14)
         ->and($this->adopt->instance->docker->called('stopContainers'))->toBe([])
         ->and($this->adopt->instance->directory->hasState())->toBeFalse();
 })->with([
