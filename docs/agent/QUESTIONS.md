@@ -262,3 +262,9 @@ Format: question · chosen option · impact · how to reverse.
    `render_storage: live`), so the drill does not prove the backup's files render · accept or extract storage too.
 56. The restore space check measures the instance directory's file system; when Docker's data root is on another
    file system the check can underestimate the space a fresh volume needs · accept or measure both.
+57. Restore carry (U17, ADR 0085): when the live database was itself restored, rolled back or reset after the backup,
+   changes are carried only if timestamped or named in the audit log after the backup; actions without an audit
+   event (hard-deleted users, direct permission removals, deleted membership rows, identities unlinked outside
+   `sso.connection_changed`, actor-less group changes, password changes with audit suppressed, wipe requests by
+   timestamp only) are then skipped and reported as `carry_partial`. Restoring the same backup twice can drop what the
+   first carry re-applied (the carry writes no audit entries) · optional: audit what the carry re-applies.
