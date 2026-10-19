@@ -173,3 +173,18 @@ BUILD_PROMPT_V2 §10 says "The local CA key stays in the instance directory with
 - **Install.** A finished install compared with `--phone-https tunnel` treats the tunnel as transient: an instance with a
   tunnel or none matches, and the result warns `tunnel_not_running` with `fsa tunnel start` (install never starts one on
   a finished instance); a local-CA instance still differs (exit 2).
+
+## Amendment 2026-10-19: CA deletion retry, the new address's ports, R61 hints (M11 gate)
+- **A failed CA deletion is not lost.** When `phone-https off` cannot delete the CA (`LocalCa\LocalCaDeletion`), the
+  result reports `data.phone_https.ca_deleted: false` and the warning `local_ca_delete_failed` with the retry command
+  (was the generic `completion_failed`), and the state records `local_ca_delete: pending` (InputGrammar). `fsa status`
+  warns `local_ca_delete_pending`. `config set phone-https off` while the CA is already off is then a change (it clears
+  the setting) and runs the full rollout under lock and journal, whose completion retries the deletion; without a
+  pending deletion it stays `changed: false` without Docker. `config set phone-https local-ca` deletes a pending CA in
+  its preflight, after the port and password checks and before an edge starts (exit 3 `local_ca_delete_failed` when it
+  cannot), so Caddy never revives the keys the operator turned off.
+- **`config set lan-address` probes the new address.** `LocalCaPorts` counts 80 and 443 as served by this instance's
+  edge only when the address is the state's own local-CA address; before, a running edge made any address pass, so
+  a port taken on the new address went unnoticed until the edge failed to bind it.
+- **R61 hints** name the command: `fsa config set phone-https off --yes` for the local CA, `fsa tunnel stop` for the
+  quick tunnel (`ConfigValues::assertNoPhoneHttps`). Tests: `LocalCaGateTest`.

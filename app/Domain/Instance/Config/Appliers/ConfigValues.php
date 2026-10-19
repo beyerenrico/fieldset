@@ -91,7 +91,7 @@ final class ConfigValues
 
     /**
      * R61: phone HTTPS (local CA or tunnel), domain and proxy exclude each other. Phone HTTPS arrives with U14, which
-     * records it in the `phone_https` setting.
+     * records it in the `phone_https` setting; the hint names the command that turns it off.
      *
      * @throws InstanceException exit 2
      */
@@ -99,7 +99,12 @@ final class ConfigValues
     {
         $phone = $state->setting('phone_https');
         if (is_string($phone) && $phone !== '') {
-            throw new InvalidInput("Phone HTTPS ({$phone}) and {$target} exclude each other.", 'invalid_combination', 'Stop phone HTTPS first, then change the mode.');
+            $off = match ($phone) {
+                'local-ca' => 'Turn the local CA off first with `fsa config set phone-https off --yes`',
+                'tunnel' => 'Stop the quick tunnel first with `fsa tunnel stop`',
+                default => 'Turn phone HTTPS off first (`fsa config set phone-https off --yes`, or `fsa tunnel stop` for the quick tunnel)',
+            };
+            throw new InvalidInput("Phone HTTPS ({$phone}) and {$target} exclude each other.", 'invalid_combination', $off.', then change the mode.');
         }
     }
 }

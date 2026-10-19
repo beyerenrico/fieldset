@@ -65,7 +65,7 @@ final class InstallFlags
             in_array('--demo', $rest, true) ? 'Add the demo data to this instance with `fsa demo`.' : null,
             in_array('--phone-https', $flags, true) ? 'Phone HTTPS: `fsa config set phone-https local-ca|off` for the local CA, `fsa tunnel start|stop` for the quick tunnel.' : null,
             array_intersect($flags, ['--smtp-host', '--smtp-port', '--smtp-encryption', '--smtp-username', '--from-address', '--from-name']) !== []
-                ? 'Mail: `fsa config set mail smtp --smtp-host <host> [--smtp-username <user> --password-stdin]` changes the server (with a test mail), `fsa config set mail capture` goes back to the catcher.' : null,
+                ? 'Mail: `fsa config set mail smtp --smtp-host <host> --smtp-username <user> --from-address <address> --password-stdin` changes the server (with a test mail; leave the account out for a server without one), `fsa config set mail capture` goes back to the catcher.' : null,
             '`fsa config show` lists what `fsa config set` can change; `fsa uninstall` and a fresh install apply anything else.',
         ]));
     }

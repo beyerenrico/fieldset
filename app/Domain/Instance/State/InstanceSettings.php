@@ -26,10 +26,15 @@ final readonly class InstanceSettings
     /** Setting `mail_catcher`: the catcher is kept read-only after the switch to SMTP (ADR 0080). */
     public const string CATCHER_KEPT = 'kept';
 
-    /** Implicit TLS (`--smtp-encryption tls`, usually port 465); unset means STARTTLS when the server offers it. */
+    /** Implicit TLS (`--smtp-encryption tls`, usually port 465); unset means STARTTLS, required (MAIL_REQUIRE_TLS). */
     public const string SMTP_IMPLICIT_TLS = 'smtps';
 
     public const int DEFAULT_SMTPS_PORT = 465;
+
+    /** Plain SMTP to a relay without TLS (`--smtp-encryption none`, usually port 25): STARTTLS is never started. */
+    public const string SMTP_PLAIN = 'smtp';
+
+    public const int DEFAULT_PLAIN_SMTP_PORT = 25;
 
     /** Let's Encrypt production: domain mode's ACME directory unless `--acme-ca` or `--acme-staging` (R16). */
     public const string ACME_PRODUCTION = 'https://acme-v02.api.letsencrypt.org/directory';

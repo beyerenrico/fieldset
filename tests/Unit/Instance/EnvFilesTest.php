@@ -50,7 +50,26 @@ it('decodes what it encodes, for every awkward value', function (string $value):
     'hash' => ['p#ss word'],
     'backslash end' => ["x'\\"],
     'unicode' => ["pässwört'"],
+    // M11 gate: UTF-8 Å (C3 85), х (D1 85) and ą (C4 85) carry the byte 0x85, which a byte-mode `\R` split took for a
+    // line break; vertical tab and form feed are no line breaks for Compose either.
+    'byte 0x85 in UTF-8' => ['Åsa-хорошо-ąę'],
+    'vertical tab and form feed' => ["a\x0Bb\x0Cc"],
+    'trailing backslash, no quote' => ['secret\\'],
+    'two trailing backslashes' => ['secret\\\\'],
 ]);
+
+it('double-quotes a value ending in a backslash: Compose reads a single-quoted `\\\'` as an escaped quote', function (): void {
+    // Verified 2026-10-19 with Compose 5.0.2: `A='abc\'` runs on into the next line and the env file fails to parse.
+    expect(EnvFiles::encode(['A' => 'abc\\']))->toContain("A=\"abc\\\\\"\n")
+        ->and(EnvFiles::encode(['B' => 'a\\b']))->toContain("B='a\\b'\n");
+});
+
+it('keeps every key of a file whose values contain the byte 0x85 or other non-newline control characters', function (): void {
+    $encoded = EnvFiles::encode(['MAIL_PASSWORD' => "Å\x85х", 'MAIL_FROM_NAME' => 'Forms', 'NEXT' => 'x']);
+
+    expect(EnvFiles::decode($encoded))->toBe(['MAIL_PASSWORD' => "Å\x85х", 'MAIL_FROM_NAME' => 'Forms', 'NEXT' => 'x'])
+        ->and(EnvFiles::decode("A='1'\r\nB='2'\r\n"))->toBe(['A' => '1', 'B' => '2']);
+});
 
 it('reads unquoted values written by hand', function (): void {
     expect(EnvFiles::decode("# comment\n\nA=plain\nnot a pair\n B = spaced \n"))->toBe(['A' => 'plain', 'B' => 'spaced']);

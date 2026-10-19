@@ -7,26 +7,26 @@
         "status": "ok",
         "changed": true,
         "data": {
-            "uuid": "e1704b91-8fef-4353-8d15-6e14761650e5",
+            "uuid": "f0b8c301-2111-48bc-8223-60cda7b8a805",
             "removed": {
                 "containers": [
-                    "fsa-fsa-test-j01-3efb-mailpit-1",
-                    "fsa-fsa-test-j01-3efb-app-1",
-                    "fsa-fsa-test-j01-3efb-queue-1",
-                    "fsa-fsa-test-j01-3efb-scheduler-1",
-                    "fsa-fsa-test-j01-3efb-gotenberg-1",
-                    "fsa-fsa-test-j01-3efb-postgres-1",
-                    "fsa-fsa-test-j01-3efb-redis-1"
+                    "fsa-fsa-test-j01-63be-mailpit-1",
+                    "fsa-fsa-test-j01-63be-scheduler-1",
+                    "fsa-fsa-test-j01-63be-app-1",
+                    "fsa-fsa-test-j01-63be-queue-1",
+                    "fsa-fsa-test-j01-63be-gotenberg-1",
+                    "fsa-fsa-test-j01-63be-postgres-1",
+                    "fsa-fsa-test-j01-63be-redis-1"
                 ],
                 "networks": [
-                    "fsa-fsa-test-j01-3efb_default",
-                    "fsa-fsa-test-j01-3efb_renderer"
+                    "fsa-fsa-test-j01-63be_default",
+                    "fsa-fsa-test-j01-63be_renderer"
                 ],
                 "volumes": [
-                    "fsa-fsa-test-j01-3efb_app-storage",
-                    "fsa-fsa-test-j01-3efb_mailpit-data",
-                    "fsa-fsa-test-j01-3efb_pg-data",
-                    "fsa-fsa-test-j01-3efb_valkey-data"
+                    "fsa-fsa-test-j01-63be_app-storage",
+                    "fsa-fsa-test-j01-63be_mailpit-data",
+                    "fsa-fsa-test-j01-63be_pg-data",
+                    "fsa-fsa-test-j01-63be_valkey-data"
                 ]
             },
             "dir": "<work>/fsa-test-j01",
@@ -51,23 +51,23 @@
     },
     "labelled_before": {
         "containers": [
-            "fsa-fsa-test-j01-3efb-mailpit-1",
-            "fsa-fsa-test-j01-3efb-app-1",
-            "fsa-fsa-test-j01-3efb-queue-1",
-            "fsa-fsa-test-j01-3efb-scheduler-1",
-            "fsa-fsa-test-j01-3efb-gotenberg-1",
-            "fsa-fsa-test-j01-3efb-postgres-1",
-            "fsa-fsa-test-j01-3efb-redis-1"
+            "fsa-fsa-test-j01-63be-mailpit-1",
+            "fsa-fsa-test-j01-63be-scheduler-1",
+            "fsa-fsa-test-j01-63be-app-1",
+            "fsa-fsa-test-j01-63be-queue-1",
+            "fsa-fsa-test-j01-63be-gotenberg-1",
+            "fsa-fsa-test-j01-63be-postgres-1",
+            "fsa-fsa-test-j01-63be-redis-1"
         ],
         "volumes": [
-            "fsa-fsa-test-j01-3efb_app-storage",
-            "fsa-fsa-test-j01-3efb_mailpit-data",
-            "fsa-fsa-test-j01-3efb_pg-data",
-            "fsa-fsa-test-j01-3efb_valkey-data"
+            "fsa-fsa-test-j01-63be_app-storage",
+            "fsa-fsa-test-j01-63be_mailpit-data",
+            "fsa-fsa-test-j01-63be_pg-data",
+            "fsa-fsa-test-j01-63be_valkey-data"
         ],
         "networks": [
-            "fsa-fsa-test-j01-3efb_default",
-            "fsa-fsa-test-j01-3efb_renderer"
+            "fsa-fsa-test-j01-63be_default",
+            "fsa-fsa-test-j01-63be_renderer"
         ]
     },
     "labelled_after": {

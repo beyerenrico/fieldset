@@ -193,3 +193,39 @@ starttls|tls] [--smtp-username <user> --password-file <path>|--password-stdin] [
   (exit 9) carries `data.retry_after: 60` (the broker's throttle).
 - Open journal: under the lock, `config set operator-email` refuses while any operation's journal is open (exit 9
   `operation_unfinished`, naming the command that resumes it), like every other key, after the expired-tunnel sweep.
+
+## Amendment 2026-10-19: the SMTP account through reverts and host changes, required STARTTLS (M11 gate)
+- **Stash rule.** Every `config set mail` keeps the credentials in effect in `env/smtp-previous` before it renders
+  anything (empty values in capture mode), not only one that carries new credentials (`ConfigRollout::apply`). A
+  switch to capture mode renders the app roles without MAIL_USERNAME/MAIL_PASSWORD; before, a failed or interrupted
+  switch (the catcher's `up --wait`, the smoke test, a signal, or the revert a later run finishes after exit 8) restored
+  SMTP without its account. The stash goes once the change is reverted, or after the audit of a verified change (ADR
+  0078 amendment). Tests: `MailConfigSafetyTest`.
+- **An account never follows a host change.** `--smtp-host <another host>` without `--smtp-username` drops the stored
+  account (warning `smtp_credentials_dropped`); another port or encryption of the same host keeps it.
+  `ConfigChange::targetCredentials()` derives this from the two states, so a resumed run (whose request carries no
+  account) renders the same. The test mail shows whether the new server needs an account; a refusal brings the old
+  server back with its account. Rejected: exit 2 until the account is given again, which would leave no way to choose
+  a server without an account.
+- **STARTTLS is required.** `--smtp-encryption starttls` (the default) renders `MAIL_REQUIRE_TLS=true`, with or without
+  an account (mail carries sign-in and password-reset links as well). `config/mail.php` passes `require_tls`
+  (`MAIL_REQUIRE_TLS`) and `auto_tls` (`MAIL_AUTO_TLS`) through: Laravel 13's `MailManager::createSmtpTransport` hands
+  the mailer config to Symfony's `EsmtpTransportFactory` as DSN options (verified in vendor/). A server, or an attacker,
+  that hides STARTTLS now gets "TLS required but neither TLS or STARTTLS are in use" before AUTH or MAIL FROM. `tls`
+  stays implicit TLS (`MAIL_SCHEME=smtps`). The new `--smtp-encryption none` (stored `smtp_scheme: smtp`, default port
+  25, `MAIL_SCHEME=smtp`, `MAIL_AUTO_TLS=false`) keeps a relay without TLS working, but only by explicit choice; with an
+  account, `config set mail smtp` and `install` warn `smtp_plaintext_auth`. The three values mean what the
+  per-organization `SmtpEncryption` means (StartTls sets `require_tls`, None turns `auto_tls` off). `from`/`to` show
+  `smtp://<host>:25 (no TLS)`. The stack file gains `MAIL_REQUIRE_TLS` with an empty default. Consequence: an instance
+  whose relay offers no STARTTLS must switch to `none`. J04's plain Mailpit stand-in is refused first (exit 5,
+  `test_mail_failed`), then configured with `none`, and the `--smtp-*` install uses `none` too. Supersedes "STARTTLS when
+  offered" above.
+- **Errors and results.** A missing `--smtp-host` is `input_required` with `data.missing: ["--smtp-host"]` in `config set
+  mail` as in `install` (was `missing_flag`). A rolled-back change keeps its warnings except `port_changed` and
+  `catcher_port_changed` (they describe the reverted target), so `sender_localhost` explains a refused test mail; the
+  `test_mail_failed` hint names `--from-address` for a `@localhost` sender and `--smtp-encryption none` for a relay
+  without TLS. The `data.mail` block of `install`, `status`, `demo` and `config set mail` adds `catcher_login_command:
+  "fsa config show --catcher-login"` while a catcher runs outside domain mode (`Lifecycle\MailSummary`). The install hint
+  for a repeated SMTP flag names the capture banner's command with `--from-address`.
+- **Env files** (ADR 0066 amendment): passwords containing UTF-8 Å, х or ą (the byte 0x85) or other control characters
+  except CR, LF and NUL, or ending in a backslash, survive every later render.

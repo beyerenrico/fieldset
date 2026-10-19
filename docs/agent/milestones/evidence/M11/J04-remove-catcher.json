@@ -8,13 +8,13 @@
         "changed": true,
         "data": {
             "key": "mail",
-            "from": "smtp://fsa-test-j04-smtp-e345:1025 (catcher kept)",
-            "to": "smtp://fsa-test-j04-smtp-e345:1025",
-            "url": "http://localhost:8081",
+            "from": "smtp://fsa-test-j04-smtp-7e0e:1025 (no TLS) (catcher kept)",
+            "to": "smtp://fsa-test-j04-smtp-7e0e:1025 (no TLS)",
+            "url": "http://localhost:8082",
             "mode": "local",
             "reverted": false,
             "previous": {
-                "url": "http://localhost:8081",
+                "url": "http://localhost:8082",
                 "mode": "local"
             },
             "services": {
@@ -33,27 +33,33 @@
             "audited": true,
             "mail": {
                 "mode": "smtp",
-                "catcher": "removed",
                 "catcher_url": null,
-                "catcher_volume_removed": "fsa-fsa-test-j04-107b_mailpit-data"
+                "catcher": "removed",
+                "catcher_volume_removed": "fsa-fsa-test-j04-95e9_mailpit-data"
             },
             "next_commands": [
                 "<work>/fsa-test-j04/fsa status"
             ]
         },
         "secrets": [],
-        "warnings": [],
+        "warnings": [
+            {
+                "code": "smtp_plaintext_auth",
+                "message": "The SMTP password goes to fsa-test-j04-smtp-7e0e unencrypted (--smtp-encryption none).",
+                "hint": "Use --smtp-encryption starttls or tls unless the relay runs on this host or your own trusted network."
+            }
+        ],
         "errors": []
     },
     "volumes_before": [
-        "fsa-fsa-test-j04-107b_app-storage",
-        "fsa-fsa-test-j04-107b_mailpit-data",
-        "fsa-fsa-test-j04-107b_pg-data",
-        "fsa-fsa-test-j04-107b_valkey-data"
+        "fsa-fsa-test-j04-95e9_app-storage",
+        "fsa-fsa-test-j04-95e9_mailpit-data",
+        "fsa-fsa-test-j04-95e9_pg-data",
+        "fsa-fsa-test-j04-95e9_valkey-data"
     ],
     "volumes_after": [
-        "fsa-fsa-test-j04-107b_app-storage",
-        "fsa-fsa-test-j04-107b_pg-data",
-        "fsa-fsa-test-j04-107b_valkey-data"
+        "fsa-fsa-test-j04-95e9_app-storage",
+        "fsa-fsa-test-j04-95e9_pg-data",
+        "fsa-fsa-test-j04-95e9_valkey-data"
     ]
 }

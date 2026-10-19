@@ -68,6 +68,22 @@ final readonly class ConfigChange
         return new self($this->key, $this->before, $this->after, $this->from, $this->to, $this->caRoot, $this->warnings, $credentials);
     }
 
+    /**
+     * The SMTP credentials the target renders with (ADR 0080 amendment): the new ones; none when SMTP moves to another
+     * server and no account was named, so an account never follows a host change; else null, those in effect. Derived
+     * from the two states, so a resumed run (whose request carries no account) renders the same.
+     */
+    public function targetCredentials(): ?SmtpCredentials
+    {
+        if ($this->credentials instanceof SmtpCredentials) {
+            return $this->credentials;
+        }
+        $before = InstanceSettings::of($this->before);
+        $after = InstanceSettings::of($this->after);
+
+        return ! $before->capturesMail() && ! $after->capturesMail() && $before->smtpHost() !== $after->smtpHost() ? new SmtpCredentials(null, null) : null;
+    }
+
     /** @return array{key: string, from: string|null, to: string|null, url: array{from: string, to: string}, mode: array{from: string, to: string}} */
     public function summary(): array
     {

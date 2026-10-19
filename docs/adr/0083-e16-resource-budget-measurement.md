@@ -204,3 +204,23 @@ filters moved over the line as Postgres shrank from 224 to 160 MiB. The classic 
 The amendments the last Consequence asks for are in place: ADR 0069 (the shipped table, Horizon `small` 1, the
 `work_mem` floor, `medium` scheduler 256, what stays unmeasured), ADR 0062 (this ADR as its follow-up, the verdicts),
 ADR 0070 (emulation doubles the new limits; Mailpit kept at 48 MiB) and ADR 0046 (J10 as a second data point).
+
+## Amendment 2026-10-19: small Postgres without JIT and parallel query, 30 connections (M11 gate)
+- **Change.** `small` renders `jit=off`, `max_parallel_workers_per_gather=0` and `max_connections=30` (was Postgres'
+  defaults `on` and `2`, and 40; `J10-postgres.json` recorded them). `medium` and `large` keep the defaults (unmeasured)
+  and their connection counts.
+- **Why.** At a 160 MiB limit with 40 MB shared buffers, the memory a query may take beyond them decides whether the
+  OOM killer takes a backend, and a killed backend sends the whole server into crash recovery (data safety before
+  speed, as above). The pinned `postgres:16-alpine` image ships LLVM JIT (`llvmjit.so`, verified 2026-10-19), and the
+  report queries over 100k submissions cost far above `jit_above_cost` (100,000), so each would compile in its backend;
+  each parallel worker is one more backend with its own `work_mem` per sort or hash and its own catalog caches. Inferred,
+  not measured: the risk of an OOM kill under concurrent report users or exports; J10's single client never hit it.
+- **Connections.** `ResourceBudget::postgresClients()` counts what the stack's processes can hold at once (each PHP
+  process keeps at most one connection): 4 FrankenPHP threads, 5 Horizon processes (master, two supervisors, the
+  default and the exports worker), 4 for the scheduler (schedule:work, an overlapping schedule:run and the commands they
+  start), 2 `fsa` one-offs, 2 for the backup service (U16): 17 on `small`. 30 leaves 13 spare; the app's user is the
+  image's superuser, so the 3 reserved slots count. A unit test keeps `max_connections` at least 10 above the client
+  count for every size, so raising threads or workers without connections fails.
+- **Speed.** Not re-measured here; the gate's J10 run records the effect. Inferred: on two CPUs a parallel worker
+  competes with the app and the queue for the same cores, and JIT compile time is often larger than its gain on these
+  queries, so the admin-page misses above are not expected to grow much; if they do, the verdict table gets the numbers.

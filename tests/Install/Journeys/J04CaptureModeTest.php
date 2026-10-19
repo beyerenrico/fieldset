@@ -13,7 +13,8 @@ use Tests\Support\Docker\TestImage;
  * install.sh → an invitation goes through the queue into the catcher (read with the login from
  * `fsa config show --catcher-login`) → admin pages show the full banner for the installed organization and the narrower
  * one for an organization with its own SMTP server, the command only to the operator (HTTP, then Playwright with axe)
- * → `fsa config set mail smtp` against a second Mailpit standing in as the real SMTP server, the password on stdin →
+ * → `fsa config set mail smtp` against a second Mailpit standing in as the real SMTP server, the password on stdin
+ * (refused while STARTTLS is required, the default; then with `--smtp-encryption none`, M11 gate) →
  * the test mail and the next invitation arrive there, the catcher keeps its mail and receives nothing → the catcher
  * container and volume go only with `--remove-catcher` → `fsa config set mail capture` brings it back. Finally a second
  * instance installs straight into SMTP mode (`--smtp-*`, the password from a file, ADR 0080 amendment): no catcher,
@@ -235,17 +236,29 @@ it('switches to SMTP with a stand-in Mailpit, the password on stdin, and the tes
     $started = j04Docker(['run', '-d', '--name', $smtp, '--label', 'app.form-schema.test=j04', '-e', 'MP_SMTP_AUTH_ACCEPT_ANY=1', '-e', 'MP_SMTP_AUTH_ALLOW_INSECURE=1', '-p', '127.0.0.1::8025', $state['digests']['mailpit']]);
     $connected = j04Docker(['network', 'connect', $state['project'].'_default', $smtp]);
     $GLOBALS['fsaJ04SmtpPort'] = (int) (explode(':', trim(explode("\n", trim(j04Docker(['port', $smtp, '8025/tcp'])->getOutput()))[0]))[1] ?? 0);
+    $flags = ['config', 'set', 'mail', 'smtp', '--smtp-host', $smtp, '--smtp-port', '1025', '--smtp-username', J04_SMTP_USER, '--password-stdin', '--from-address', 'forms@example.test', '--test-to', 'ops@example.test', '--json'];
+    // M11 gate (ADR 0080 amendment): STARTTLS, the default, is required. The stand-in offers none, so the account never
+    // goes out and the change reverts; a relay without TLS takes `--smtp-encryption none`.
+    $refused = $this->journey->fsa($this->dir, $flags, [], J04_SMTP_PASSWORD."\n");
+    $refusal = InstanceJourney::json($refused);
+    $this->journey->evidence('J04-config-set-mail-starttls-required.json', ['command' => 'printf … | fsa config set mail smtp --smtp-host fsa-test-j04-smtp-… --smtp-port 1025 --smtp-username '.J04_SMTP_USER.' --password-stdin --from-address forms@example.test --test-to ops@example.test --json',
+        'exit_code' => $refused->getExitCode(), 'stdout' => $refusal]);
     $began = microtime(true);
-    $process = $this->journey->fsa($this->dir, ['config', 'set', 'mail', 'smtp', '--smtp-host', $smtp, '--smtp-port', '1025', '--smtp-username', J04_SMTP_USER, '--password-stdin',
-        '--from-address', 'forms@example.test', '--test-to', 'ops@example.test', '--json'], [], J04_SMTP_PASSWORD."\n");
+    $process = $this->journey->fsa($this->dir, [...$flags, '--smtp-encryption', 'none'], [], J04_SMTP_PASSWORD."\n");
     $json = InstanceJourney::json($process);
     $test = j04AwaitMessage($GLOBALS['fsaJ04SmtpPort'], null, 'ops@example.test', 30, 'test mail');
-    $this->journey->evidence('J04-config-set-mail-smtp.json', ['command' => 'printf … | fsa config set mail smtp --smtp-host fsa-test-j04-smtp-… --smtp-port 1025 --smtp-username '.J04_SMTP_USER.' --password-stdin --from-address forms@example.test --test-to ops@example.test --json',
+    $this->journey->evidence('J04-config-set-mail-smtp.json', ['command' => 'printf … | fsa config set mail smtp --smtp-host fsa-test-j04-smtp-… --smtp-port 1025 --smtp-username '.J04_SMTP_USER.' --password-stdin --from-address forms@example.test --test-to ops@example.test --json --smtp-encryption none',
         'exit_code' => $process->getExitCode(), 'seconds' => round(microtime(true) - $began, 1), 'stdout' => $json, 'stderr_ndjson' => array_values(array_filter(explode("\n", $process->getErrorOutput())))]);
 
     expect($started->getExitCode())->toBe(0, $started->getErrorOutput())
         ->and($connected->getExitCode())->toBe(0, $connected->getErrorOutput())
+        ->and($refused->getExitCode())->toBe(5, $refused->getErrorOutput()."\n".$refused->getOutput())
+        ->and($refusal['errors'][0]['code'] ?? null)->toBe('test_mail_failed')
+        ->and($refusal['errors'][0]['message'] ?? '')->toContain('TLS required')
+        ->and($refusal['data']['mode'] ?? null)->toBe('local')
+        ->and($refused->getOutput().$refused->getErrorOutput())->not->toContain(J04_SMTP_PASSWORD)
         ->and($process->getExitCode())->toBe(0, $process->getErrorOutput()."\n".$process->getOutput())
+        ->and(array_column($json['warnings'], 'code'))->toContain('smtp_plaintext_auth')
         ->and($json['data']['mail'])->toMatchArray(['mode' => 'smtp', 'catcher' => 'kept'])
         ->and($json['data']['mail']['captured']['invitations'] ?? 0)->toBeGreaterThanOrEqual(1)
         ->and($process->getOutput().$process->getErrorOutput())->not->toContain(J04_SMTP_PASSWORD)->not->toContain(J04_SMTP_USER)
@@ -355,7 +368,7 @@ it('installs straight into SMTP mode with --smtp-* and a password file: no catch
     $passwordFile = $this->journey->work.'/smtp-password';
     file_put_contents($passwordFile, J04_SMTP_PASSWORD."\n");
     chmod($passwordFile, 0600);
-    $flags = ['--org', 'SMTP Org', '--owner-email', J04_OWNER, '--locale', 'en', '--smtp-host', $GLOBALS['fsaJ04Relay'], '--smtp-port', '1025',
+    $flags = ['--org', 'SMTP Org', '--owner-email', J04_OWNER, '--locale', 'en', '--smtp-host', $GLOBALS['fsaJ04Relay'], '--smtp-port', '1025', '--smtp-encryption', 'none',
         '--smtp-username', J04_SMTP_USER, '--password-file', $passwordFile, '--from-address', 'forms@example.test', '--secrets-file', $this->journey->work.'/smtp-owner-link.json', '--json'];
     $began = microtime(true);
     $process = $this->journey->installProcess($dir, $flags);
@@ -371,7 +384,7 @@ it('installs straight into SMTP mode with --smtp-* and a password file: no catch
     $catchers = trim(j04Docker(['ps', '-aq', '--filter', 'label=app.form-schema.instance='.$GLOBALS['fsaJ04SmtpUuid'], '--filter', 'label=app.form-schema.role=mailpit'])->getOutput());
     $show = InstanceJourney::json($this->journey->fsa($dir, ['config', 'show', '--json']));
     $status = InstanceJourney::json($this->journey->fsa($dir, ['status', '--json']));
-    $this->journey->evidence('J04-install-smtp.json', ['command' => 'install.sh --dir <work>/fsa-test-j04-smtp … --smtp-host fsa-test-j04-relay-… --smtp-port 1025 --smtp-username '.J04_SMTP_USER.' --password-file <work>/smtp-password --from-address forms@example.test --json',
+    $this->journey->evidence('J04-install-smtp.json', ['command' => 'install.sh --dir <work>/fsa-test-j04-smtp … --smtp-host fsa-test-j04-relay-… --smtp-port 1025 --smtp-encryption none --smtp-username '.J04_SMTP_USER.' --password-file <work>/smtp-password --from-address forms@example.test --json',
         'exit_code' => $process->getExitCode(), 'seconds' => round(microtime(true) - $began, 1), 'stdout' => $json, 'relay_connected' => $relay['connected'],
         'test_mail_at_stand_in' => $test === null ? null : ['subject' => $test['Subject'] ?? null, 'to' => $test['To'] ?? null], 'config_show_mail' => $show['data']['settings']['mail'] ?? null, 'status_mail' => $status['data']['mail'] ?? null]);
 

@@ -9,6 +9,7 @@ use App\Domain\Instance\Compose\RenderedProject;
 use App\Domain\Instance\Compose\Services\AppRoles;
 use App\Domain\Instance\Compose\Services\EdgeService;
 use App\Domain\Instance\Compose\Services\MailpitService;
+use App\Domain\Instance\Config\Appliers\MailApplier;
 use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\Docker\ContainerInfo;
 use App\Domain\Instance\Docker\DockerCommandFailed;
@@ -42,9 +43,11 @@ use Throwable;
  * that is not verified yet; `startWorkers()` brings them back on the new settings once the verification passed. A
  * revert brings the whole previous stack back, workers included.
  *
- * SMTP credentials (`config set mail`, ADR 0080) live only in the env files: apply renders the new ones and first keeps
- * the old ones in `env/smtp-previous` (0600, beside the env files, never journaled), so a revert, also one a resumed
- * run finishes, renders the previous settings with their own credentials; the file goes once the change is settled.
+ * SMTP credentials (`config set mail`, ADR 0080) live only in the env files: before every mail change renders anything,
+ * apply keeps the ones in effect in `env/smtp-previous` (0600, beside the env files, never journaled), whether the
+ * target replaces them, drops them (capture mode, another server without an account) or keeps them, so a revert, also
+ * one a resumed run finishes, renders the previous settings with their own credentials; the file goes once the change
+ * is settled.
  */
 final readonly class ConfigRollout
 {
@@ -124,15 +127,18 @@ final readonly class ConfigRollout
      */
     public function apply(ConfigChange $change): array
     {
-        $affected = $this->affected($change->before, $change->after, $change->credentials);
+        $credentials = $change->targetCredentials();
+        $affected = $this->affected($change->before, $change->after, $credentials);
         $this->docker->composeStop($this->project($change->before), self::WORKERS);
         if ($change->caRoot !== null) {
             AcmeCaRoot::write($this->directory, $change->caRoot);
         }
         $secrets = $this->secrets();
-        if ($change->credentials instanceof SmtpCredentials) {
+        if ($change->key === MailApplier::KEY || $credentials instanceof SmtpCredentials) {
             $this->stashCredentials($secrets);
-            $secrets = $secrets->withSmtpCredentials($change->credentials->username, $change->credentials->password);
+        }
+        if ($credentials instanceof SmtpCredentials) {
+            $secrets = $secrets->withSmtpCredentials($credentials->username, $credentials->password);
         }
         $this->write($change->after->withHistoryEntry('config_changed', ['key' => $change->key, 'from' => $change->from, 'to' => $change->to]), $secrets);
         $this->up($change->after, array_values(array_diff(ComposeFile::services($this->directory), self::WORKERS)));
@@ -181,7 +187,7 @@ final readonly class ConfigRollout
         }
     }
 
-    /** Keeps the credentials in effect before the first apply; a resumed apply finds them already kept. */
+    /** Keeps the credentials in effect before the first apply (none in capture mode); a resumed apply finds them kept. */
     private function stashCredentials(InstanceSecrets $current): void
     {
         if (! $this->directory->exists(self::CREDENTIALS_STASH)) {

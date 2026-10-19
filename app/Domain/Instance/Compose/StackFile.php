@@ -49,6 +49,7 @@ final readonly class StackFile
         'TRUSTED_HOSTS' => 'none; further host names besides the APP_URL host',
         'MAIL_HOST, MAIL_PORT' => 'the bundled catcher (mailpit:1025); set your SMTP server to deliver mail',
         'MAIL_SCHEME, MAIL_USERNAME, MAIL_PASSWORD' => 'empty (STARTTLS when offered; smtps for implicit TLS)',
+        'MAIL_REQUIRE_TLS' => 'empty; set true with STARTTLS so the account never crosses the network unencrypted',
         'MAIL_FROM_ADDRESS, MAIL_FROM_NAME' => 'forms@localhost, form-schema-app',
         'FSA_MAIL_CAPTURE' => 'true: admins see the capture banner; set false together with your SMTP server',
     ];
@@ -67,7 +68,7 @@ final readonly class StackFile
     private const array OVERRIDABLE = ['MAIL_HOST', 'MAIL_PORT', 'MAIL_FROM_ADDRESS', 'MAIL_FROM_NAME', 'FSA_MAIL_CAPTURE'];
 
     /** App-role variables added with an empty default. */
-    private const array ADDED = ['TRUSTED_PROXIES', 'TRUSTED_HOSTS', 'MAIL_SCHEME', 'MAIL_USERNAME', 'MAIL_PASSWORD'];
+    private const array ADDED = ['TRUSTED_PROXIES', 'TRUSTED_HOSTS', 'MAIL_SCHEME', 'MAIL_REQUIRE_TLS', 'MAIL_USERNAME', 'MAIL_PASSWORD'];
 
     /** Rendered values that mean nothing without `fsa` (runtime directory; SecureCookies decides Secure itself). */
     private const array DROPPED = ['FSA_RUNTIME_PATH', 'SESSION_SECURE_COOKIE'];

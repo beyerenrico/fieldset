@@ -82,7 +82,7 @@ it('installs straight into SMTP mode: no catcher, MAIL_* for app, queue and sche
     foreach (['app', 'queue', 'scheduler'] as $role) {
         expect($env->read($role))->toMatchArray([
             'MAIL_MAILER' => 'smtp', 'MAIL_HOST' => 'smtp.example.com', 'MAIL_PORT' => '587', 'MAIL_USERNAME' => SMTP_INSTALL_USER,
-            'MAIL_PASSWORD' => SMTP_INSTALL_PASSWORD, 'MAIL_FROM_ADDRESS' => 'forms@example.com',
+            'MAIL_PASSWORD' => SMTP_INSTALL_PASSWORD, 'MAIL_FROM_ADDRESS' => 'forms@example.com', 'MAIL_REQUIRE_TLS' => 'true',
         ])->and($env->read($role))->not->toHaveKey('FSA_MAIL_CAPTURE')->not->toHaveKey('MAIL_SCHEME');
     }
 });
@@ -107,7 +107,17 @@ it('reads the password from --password-file and takes implicit TLS on 465, or th
     'implicit TLS' => [['--smtp-encryption' => 'TLS'], 465, 'smtps'],
     'implicit TLS on another port' => [['--smtp-encryption' => 'tls', '--smtp-port' => '2465'], 2465, 'smtps'],
     'STARTTLS on 2525' => [['--smtp-encryption' => 'starttls', '--smtp-port' => '2525'], 2525, null],
+    'plain relay (M11 gate)' => [['--smtp-encryption' => 'none'], 25, 'smtp'],
 ]);
+
+it('talks plain SMTP only with --smtp-encryption none and warns when an account goes along (M11 gate, ADR 0080 amendment)', function (): void {
+    [$code, $json] = smtpInstall($this->fixture, ['--smtp-encryption' => 'none']);
+
+    $app = new EnvFiles($this->fixture->directory)->read('app');
+    expect($code)->toBe(0, json_encode($json))
+        ->and($app)->toMatchArray(['MAIL_SCHEME' => 'smtp', 'MAIL_PORT' => '25', 'MAIL_AUTO_TLS' => 'false'])->not->toHaveKey('MAIL_REQUIRE_TLS')
+        ->and(collect($json['warnings'])->pluck('code')->all())->toContain('smtp_plaintext_auth');
+});
 
 it('installs without an account, and warns when mail would be sent from forms@localhost', function (): void {
     [$code, $json] = $this->fixture->run('fsa:install', InstanceCommandFixture::installFlags(['--smtp-host' => 'relay.internal', '--smtp-port' => '25']));

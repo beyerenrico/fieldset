@@ -192,17 +192,25 @@ final class InstallMail
     }
 
     /**
-     * Mail sent from forms@localhost (no --from-address, no --domain) is refused by most SMTP servers.
+     * Mail sent from forms@localhost (no --from-address, no --domain) is refused by most SMTP servers; an account over
+     * `--smtp-encryption none` sends its password unencrypted (as `config set mail smtp` warns).
      *
      * @param  array<string, string|int>  $explicit
      * @return list<array{code: string, message: string, hint: string}>
      */
     public static function warnings(array $explicit): array
     {
-        if (! is_string($explicit['smtp_host'] ?? null) || isset($explicit['from_address']) || isset($explicit['domain'])) {
+        $host = $explicit['smtp_host'] ?? null;
+        if (! is_string($host)) {
             return [];
         }
+        $warnings = ($explicit['smtp_encryption'] ?? null) === 'none' && ($explicit['smtp_credentials'] ?? null) === 1
+            ? [['code' => 'smtp_plaintext_auth', 'message' => "The SMTP password goes to {$host} unencrypted (--smtp-encryption none).", 'hint' => 'Use --smtp-encryption starttls or tls unless the relay runs on this host or your own trusted network.']]
+            : [];
+        if (isset($explicit['from_address']) || isset($explicit['domain'])) {
+            return $warnings;
+        }
 
-        return [['code' => 'sender_localhost', 'message' => 'Mail is sent from forms@localhost, which most SMTP servers refuse.', 'hint' => 'Pass --from-address with an address of your mail domain.']];
+        return [...$warnings, ['code' => 'sender_localhost', 'message' => 'Mail is sent from forms@localhost, which most SMTP servers refuse.', 'hint' => 'Pass --from-address with an address of your mail domain.']];
     }
 }

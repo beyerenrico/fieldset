@@ -79,10 +79,20 @@ final class ConfigFailure
         return match ($code) {
             'certificate_failed' => "Check that {$domain} points at this host, that ports 80 and 443 reach it from the internet and that the ACME directory is reachable, then run the command again. Repeated attempts count against the CA's rate limits; --acme-staging is for trials.",
             'services_unhealthy', 'smoke_failed', 'url_check_failed' => 'Read `fsa logs <service>` for the cause, fix it, then run the command again.',
-            'test_mail_failed' => 'Check the SMTP host, port, encryption, user name and password against what the server answered (data.failure), then run the command again; the previous mail settings stay until a test mail goes through.',
+            'test_mail_failed' => self::testMailHint($change),
             'interrupted' => 'The command was stopped (a signal: Ctrl-C, a closed session or a tool timeout) and restored the previous settings; run it again when it can finish.',
             'docker_unavailable', 'docker_command_failed' => 'Check that the Docker engine runs (`docker info`), then run the command again.',
             default => 'Fix the cause, then run the command again; `fsa status` shows the instance.',
         };
+    }
+
+    /** A refused test mail: what to check, with the sender most servers refuse named (as InstallSmoke does for install). */
+    private static function testMailHint(ConfigChange $change): string
+    {
+        $sender = InstanceSettings::of($change->after)->mailFromAddress();
+        $localhost = str_ends_with($sender, '@localhost') ? " Mail is sent from {$sender}, which most servers refuse: pass --from-address with an address of your mail domain." : '';
+
+        return 'Check the SMTP host, port, encryption (starttls needs a server that offers STARTTLS; a relay without TLS takes --smtp-encryption none), user name and password against what the server answered (data.failure).'
+            .$localhost.' Then run the command again; the previous mail settings stay until a test mail goes through.';
     }
 }

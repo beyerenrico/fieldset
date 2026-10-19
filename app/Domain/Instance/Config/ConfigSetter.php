@@ -38,6 +38,8 @@ use Throwable;
  * the old URL again: exit 5 `rolled_back`, the journal archived. If the revert fails too, the services that serve
  * requests stop and the result is exit 8 with recovery steps; the journal stays open, and the same command then only
  * finishes the revert. SIGTERM, SIGINT and SIGHUP during apply or verify start the same revert (Interruption).
+ * Once the workers started, the change is settled: a run that died after that leaves the journal open, and the same
+ * command then only completes and audits it, never applying, verifying or reverting it again (M11 gate).
  *
  * Appliers with SettingHooks add a check to verify (the test mail of `config set mail smtp`) and a completion step
  * after the workers started (the catcher volume, the captured invitations; ADR 0080). The SMTP password is registered
@@ -111,6 +113,7 @@ final readonly class ConfigSetter
     private function guardedSteps(OperationRun $run, SettingApplier $applier, ConfigChange $change, ConfigRequest $request, FsaContext $context, ?array $impact): CommandResult
     {
         $previousRoot = $this->previousRoot($run->record()->phaseData('snapshot'));
+        $settled = $run->isResumed() && $run->record()->hasCompleted('workers') && ! $run->record()->hasStarted('revert');
 
         try {
             $this->interruption->arm();
@@ -122,14 +125,21 @@ final readonly class ConfigSetter
                 return $this->finishRevert($run, $change, $request, $previousRoot, $context);
             }
             $change = $this->preflight($run, $applier, $change, $context);
-            $this->interruption->checkpoint();
+            if ($settled) {
+                $this->interruption->disarm(); // as after the workers phase: a signal no longer reverts the change
+            } else {
+                $this->interruption->checkpoint();
+            }
         } catch (OperationInterrupted $interrupted) {
-            if (! $run->isResumed() || ! $run->record()->hasChanges()) {
-                throw $interrupted; // nothing changed yet: exit 9
+            if (! $run->isResumed() || ! $run->record()->hasChanges() || $settled) {
+                throw $interrupted; // nothing changed yet, or the change an earlier run verified stays: exit 9
             }
             $this->interruption->consume(); // an earlier, killed run left its change applied and unverified: revert it
 
             return $this->revert($run, $change, $request, ConfigFailure::describe($interrupted, $change), $previousRoot, $context);
+        }
+        if ($settled) { // an earlier run verified the change and started the workers, then died before the audit
+            return $this->finish($run, $applier, $change, $request, $context, $impact, $run->record()->phaseData('apply'), $run->record()->phaseData('verify'));
         }
 
         try {
@@ -145,8 +155,24 @@ final readonly class ConfigSetter
 
             return $this->revert($run, $change, $request, ConfigFailure::describe($failure, $change), $previousRoot, $context);
         }
+
+        return $this->finish($run, $applier, $change, $request, $context, $impact, $services, $checked);
+    }
+
+    /**
+     * The settled change: the applier's completion, the audit (once: a resumed run that finds it completed reuses it)
+     * and the result. The previous SMTP credentials go last, after the journal's last phase; the supervisor archives
+     * the journal right after, and until then a resumed run only repeats this step.
+     *
+     * @param  array<string, mixed>|null  $impact
+     * @param  array<string, mixed>  $services
+     * @param  array<string, mixed>  $checked
+     */
+    private function finish(OperationRun $run, SettingApplier $applier, ConfigChange $change, ConfigRequest $request, FsaContext $context, ?array $impact, array $services, array $checked): CommandResult
+    {
         $completed = $this->completed($applier, $change, $request);
-        $audit = $run->phase('audit', fn (): array => $this->audit($change, $context), changes: false, always: true);
+        $audit = $run->phase('audit', fn (): array => $this->audit($change, $context), changes: false);
+        $this->rollout->discardStash();
 
         return $this->results->succeeded($change, $services, $checked, $audit, $impact, $completed);
     }
@@ -163,14 +189,13 @@ final readonly class ConfigSetter
     }
 
     /**
-     * The change is verified and running: the previous SMTP credentials go, and the applier cleans up and reports.
-     * Nothing here reverts; a failure is a warning.
+     * The change is verified and running: the applier cleans up and reports (again on a resumed run: every step there
+     * tolerates being repeated). Nothing here reverts; a failure is a warning.
      *
      * @return array{data: array<string, mixed>, warnings: list<array{code: string, message: string, hint: string|null}>}
      */
     private function completed(SettingApplier $applier, ConfigChange $change, ConfigRequest $request): array
     {
-        $this->rollout->discardStash();
         if (! $applier instanceof SettingHooks) {
             return ['data' => [], 'warnings' => []];
         }

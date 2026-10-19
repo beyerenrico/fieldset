@@ -54,8 +54,8 @@ use Illuminate\Console\Attributes\Signature;
         {--lan-address= : --phone-https local-ca: the IPv4 LAN address to serve (default: the best address the host reports)}
         {--demo : Add the demo organization, forms, workflow and users (random passwords, listed once, unless loopback-only)}
         {--smtp-host= : Deliver mail through this SMTP server from the start instead of capturing it (no mail catcher)}
-        {--smtp-port= : The SMTP server\'s port (default 587, or 465 with --smtp-encryption tls)}
-        {--smtp-encryption= : starttls (when offered, the default) or tls (implicit TLS)}
+        {--smtp-port= : The SMTP server\'s port (default 587; 465 with --smtp-encryption tls, 25 with none)}
+        {--smtp-encryption= : starttls (required, the default), tls (implicit TLS) or none (a relay without TLS)}
         {--smtp-username= : The SMTP account; its password from --password-file or --password-stdin}
         {--password-file= : Read the SMTP password from this file (mode 0600)}
         {--password-stdin : Read the SMTP password from stdin (a hidden prompt in a terminal; install.sh: terminal only)}

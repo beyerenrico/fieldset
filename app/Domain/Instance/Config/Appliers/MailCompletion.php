@@ -15,6 +15,7 @@ use App\Domain\Instance\Docker\DockerResource;
 use App\Domain\Instance\Docker\Labels;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Lifecycle\AppCommands;
+use App\Domain\Instance\Lifecycle\MailSummary;
 use App\Domain\Instance\Lifecycle\OneOffResult;
 use App\Domain\Instance\Output\ExitCode;
 use App\Domain\Instance\State\InstanceSettings;
@@ -49,7 +50,10 @@ final readonly class MailCompletion
         $to = $request->mail?->testTo;
         $result = $this->app->mailTest($project, $to === null ? null : strtolower(trim($to)));
         if (! $result->ok) {
-            throw new InstanceException('The SMTP server did not accept the test mail: '.$result->errorMessage(), ExitCode::HealthCheckFailed, 'test_mail_failed', ConfigFailure::hint('test_mail_failed', $change), false, ['error' => $result->errorCode(), 'server' => MailApplier::describe($change->after)]);
+            $refused = 'The SMTP server did not accept the test mail: ';
+            $message = str_starts_with($result->errorMessage(), $refused) ? $result->errorMessage() : $refused.$result->errorMessage(); // the one-off says it already
+
+            throw new InstanceException($message, ExitCode::HealthCheckFailed, 'test_mail_failed', ConfigFailure::hint('test_mail_failed', $change), false, ['error' => $result->errorCode(), 'server' => MailApplier::describe($change->after)]);
         }
         $recipient = is_string($result->data['to'] ?? null) ? $result->data['to'] : 'the operator';
 
@@ -61,7 +65,7 @@ final readonly class MailCompletion
     {
         $before = InstanceSettings::of($change->before);
         $after = InstanceSettings::of($change->after);
-        $mail = ['mode' => $after->capturesMail() ? 'capture' : 'smtp', 'catcher' => $this->catcher($after), 'catcher_url' => $after->catcherUrl()];
+        $mail = [...MailSummary::of($change->after), 'catcher' => $this->catcher($after)];
         $warnings = [];
         if ($before->runsCatcher() && ! $after->runsCatcher()) {
             [$mail['catcher_volume_removed'], $warning] = $this->removeVolume($change, $project);

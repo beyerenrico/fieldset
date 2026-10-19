@@ -76,7 +76,7 @@ final readonly class StatusReport
             // The URL in effect: an active quick tunnel's, as `fsa tunnel` reports it, with the loopback URL beside it (ADR 0082).
             'version' => $state->version(), 'mode' => $state->mode(), 'url' => $phone['data']['tunnel']['url'] ?? $settings->instanceUrl(), 'local_url' => $settings->localUrl(), 'project' => $state->project(),
             'port' => $settings->publishesAppPort() ? $settings->port() : null, 'health' => $health, 'services' => $services,
-            'mail' => ['mode' => $settings->capturesMail() ? 'capture' : 'smtp', 'catcher_url' => $settings->catcherUrl()],
+            'mail' => MailSummary::of($state),
             'proxy' => $proxy,
             ...$phone['data'], // the local CA and the quick tunnel (ADR 0082)
         ];

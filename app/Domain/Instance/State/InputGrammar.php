@@ -61,6 +61,8 @@ final class InputGrammar
         // `phone_https` stays plain text, so a value of a newer version reads (ADR 0081: it still counts as exposure);
         // only `local-ca` and `tunnel` render anything (InstanceSettings), and the flags accept only those (PHONE_HTTPS).
         'phone_https' => 'text', 'tunnel_subnet' => 'subnet',
+        // A local-CA deletion that failed on `phone-https off` and is retried (LocalCaDeletion, M11 gate).
+        'local_ca_delete' => ['pending'],
     ];
 
     private const array PROBLEMS = [

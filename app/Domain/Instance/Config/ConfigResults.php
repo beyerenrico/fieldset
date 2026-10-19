@@ -22,6 +22,9 @@ final readonly class ConfigResults
 {
     public const string COMMAND = 'config';
 
+    /** Change warnings that report the target as running ("now listens on …"): untrue once it was reverted. */
+    private const array TARGET_WARNINGS = ['port_changed', 'catcher_port_changed'];
+
     public function __construct(private InstanceDirectory $directory) {}
 
     /** @return array<string, mixed> key, values, and the URL and mode in effect */
@@ -69,7 +72,8 @@ final readonly class ConfigResults
 
     /**
      * The change failed and the previous settings run again (exit 5, `rolled_back`): in this run, or, with
-     * `$resumed`, by a run that finished the revert an earlier, cut-off run had started.
+     * `$resumed`, by a run that finished the revert an earlier, cut-off run had started. The change's warnings come
+     * along (`sender_localhost` often explains a refused test mail), except those that describe the reverted target.
      *
      * @param  array{code: string, message: string, hint: string, data: array<string, mixed>}  $error
      */
@@ -82,11 +86,18 @@ final readonly class ConfigResults
             ? "An earlier `{$request->commandLine()}` failed ({$error['code']}) and was cut off while restoring the previous settings; this run finished restoring them."
             : "Changing {$change->key} failed, so the previous settings were restored: {$error['message']}";
 
-        return CommandResult::failed(self::COMMAND, ExitCode::RolledBack, $error['code'], $message, $error['hint'], $retryable, [
+        $result = CommandResult::failed(self::COMMAND, ExitCode::RolledBack, $error['code'], $message, $error['hint'], $retryable, [
             ...self::data($change, $change->before), 'reverted' => true, 'resumed_revert' => $resumed,
             'attempted' => ['url' => $change->newUrl(), 'mode' => $change->after->mode()], 'failure' => $error['data'], ...$retry,
             'command' => $request->commandLine(), 'options' => $request->options(), 'next_commands' => [$this->fsa().' status'],
         ]);
+        foreach ($change->warnings as $warning) {
+            if (! in_array($warning['code'], self::TARGET_WARNINGS, true)) {
+                $result = $result->withWarning($warning['code'], $warning['message'], $warning['hint']);
+            }
+        }
+
+        return $result;
     }
 
     /**
