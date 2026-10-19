@@ -84,6 +84,10 @@ function j09Get(int $port, string $path): array
 
 it('runs a 1.0.0 install built from the tag, with demo data and a stored file', function (): void {
     $up = $this->v1->compose(['up', '-d', '--wait']);
+    if (! $up->isSuccessful()) {
+        $logs = $this->v1->compose(['logs', '--no-color', '--tail', '40']);
+        expect($up->getExitCode())->toBe(0, $up->getErrorOutput()."\n".$logs->getOutput());
+    }
     $seed = $this->v1->artisan(['db:seed', '--class=Database\\Seeders\\DemoSeeder', '--force']);
     $load = $this->v1->artisan(['app:seed-load', 'demo', '25', '--force']);
     $operator = $this->v1->artisan(['app:platform-admin', 'owner@demo.test']); // as the 1.0 install guide grants operators

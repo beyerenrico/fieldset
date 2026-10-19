@@ -1,0 +1,144 @@
+{
+    "command": "fsa restore safety-adopt-20261019T153542Z --drill --accept-unauthenticated --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "restore",
+        "status": "ok",
+        "changed": false,
+        "data": {
+            "backup": "safety-adopt-20261019T153542Z",
+            "format": "legacy",
+            "authenticated": false,
+            "encrypted": false,
+            "created_at": "20261019T153542Z",
+            "backup_version": null,
+            "migrations": {
+                "relation": "older",
+                "count": 40,
+                "last": "2026_10_23_100000_add_submissions_org_updated_at_index",
+                "unknown": [],
+                "pending": 5
+            },
+            "storage": {
+                "files": 5,
+                "directories": 6,
+                "bytes": 917
+            },
+            "database": "restore_drill_2e8f53fd7ef4",
+            "dropped": true,
+            "drill": {
+                "database": "restore_drill_2e8f53fd7ef4",
+                "counts": {
+                    "organizations": 1,
+                    "users": 9,
+                    "forms": 1,
+                    "form_versions": 1,
+                    "submissions": 65,
+                    "attachments": 0,
+                    "renditions": 47,
+                    "mail_messages": 18
+                },
+                "audit": {
+                    "epoch": 1,
+                    "heads": [
+                        {
+                            "seq": 10,
+                            "hash": "a1afb00a03e11b49c2c3e5a1738cc238c018a1f9231dad23e985ef6afff1f9c8"
+                        },
+                        {
+                            "seq": 10,
+                            "hash": "ff763e3d4cb80c4643d9dd63003f1370d825adc846b0fdd38bd9729ec4500d85"
+                        }
+                    ],
+                    "intact": true,
+                    "problems": []
+                },
+                "files": {
+                    "archive": true,
+                    "referenced": 47,
+                    "missing": 47,
+                    "sample": [
+                        "private/load-test/019a2ab4-8889-7100-a952-6c53c9155125.pdf",
+                        "private/load-test/019a5caa-7b57-717a-948e-2dcf513ce9e1.pdf",
+                        "private/load-test/019a729e-cd2a-7055-87e5-636f5223a54e.pdf",
+                        "private/load-test/019a91e7-037d-71b8-9b85-108d1c06ebf1.pdf",
+                        "private/load-test/019a9262-83ea-70e4-ba34-3c25b82213eb.pdf",
+                        "private/load-test/019ac476-a50a-7054-8f44-1c460ff2380b.pdf",
+                        "private/load-test/019ac695-8d6a-73c2-9f72-08482be800d0.pdf",
+                        "private/load-test/019b089e-c3ca-7346-bfb0-337f85dc07cb.pdf",
+                        "private/load-test/019b1792-95aa-73a3-9ea0-7b8b5bf9b214.pdf",
+                        "private/load-test/019b78e3-39a8-7104-b699-afb43b8021d3.pdf",
+                        "private/load-test/019bb8ad-7c88-7075-b628-dd3639d074a3.pdf",
+                        "private/load-test/019bbcb5-f9aa-725e-b42b-f0574103428c.pdf",
+                        "private/load-test/019bd8e7-fe2a-73af-92d7-87c5ae0b44d2.pdf",
+                        "private/load-test/019c100e-6949-71ee-9682-100fd5fbeddb.pdf",
+                        "private/load-test/019c2248-c86a-700e-9f07-dbaee894c73b.pdf",
+                        "private/load-test/019c6116-5bca-70dd-a75f-40d44f38c448.pdf",
+                        "private/load-test/019c77e6-ab1c-7383-847c-9c8bb02a7dac.pdf",
+                        "private/load-test/019cb166-86c0-7002-9ef7-06eccb636ae1.pdf",
+                        "private/load-test/019cbb07-df0a-718f-bdf4-e6e88a2ce959.pdf",
+                        "private/load-test/019cdfe1-97a9-72aa-b2bb-b81f96dacb1a.pdf"
+                    ]
+                },
+                "render": {
+                    "status": "rendered",
+                    "submission": "01a14370-d577-7211-8d60-4df2a295fd78",
+                    "bytes": 46989,
+                    "pages": 1,
+                    "message": null
+                },
+                "decrypt": {
+                    "tested": 2,
+                    "failed": []
+                },
+                "migrations": {
+                    "pending": 5,
+                    "unknown": 0
+                },
+                "checks": [
+                    {
+                        "name": "counts",
+                        "status": "pass",
+                        "message": "1 organization(s) restored."
+                    },
+                    {
+                        "name": "audit",
+                        "status": "pass",
+                        "message": "The audit chains verify."
+                    },
+                    {
+                        "name": "files",
+                        "status": "warn",
+                        "message": "47 of 47 referenced file(s) missing from storage."
+                    },
+                    {
+                        "name": "render",
+                        "status": "pass",
+                        "message": "A 1-page PDF of 01a14370-d577-7211-8d60-4df2a295fd78 rendered."
+                    },
+                    {
+                        "name": "decrypt",
+                        "status": "pass",
+                        "message": "2 encrypted column(s) decrypt with the APP keys."
+                    },
+                    {
+                        "name": "migrations",
+                        "status": "warn",
+                        "message": "5 pending, 0 unknown to this image."
+                    }
+                ]
+            },
+            "render_storage": "live"
+        },
+        "secrets": [],
+        "warnings": [
+            {
+                "code": "backup_unauthenticated",
+                "message": "The backup is not authenticated (the 1.0 format carries no HMAC); it was accepted with --accept-unauthenticated.",
+                "hint": null
+            }
+        ],
+        "errors": []
+    }
+}
