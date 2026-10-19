@@ -21,7 +21,7 @@ use Throwable;
  * closes: after a commit, after a rollback, and on every way back (revert, abort, return), as a restore seals its own
  * (RestoreRecovery::sealed). Only an exit-8 halt keeps them plain, on purpose: the recovery needs them. A run killed
  * after the backup service wrote the set but before the journal named it is covered by `since()`, which finds the
- * plaintext sets of that kind made since the journal began. Removing superseded ones: `superseded()`.
+ * plaintext sets of that kind made since the journal began. Removing superseded pre-upgrade ones: `removeSuperseded()`.
  */
 final readonly class SafetySeal
 {
@@ -75,18 +75,20 @@ final readonly class SafetySeal
     }
 
     /**
-     * Removes the safety backups of `$operation` other than those kept (R57: they replace each other only once an
-     * operation completed).
+     * Removes the pre-upgrade safety backups other than `$keep` once an upgrade committed (R57: they replace each other
+     * only after a commit). Never another kind (restore, reset and pre-rollback safety backups stay until the operator
+     * deletes them; after a rollback that set can be the only copy of the upgraded days, M12 gate D1) and never a backup
+     * marked kept.
      *
      * @param  list<string|null>  $keep
      * @param  list<array{0: string, 1: string, 2: string|null}>  $warnings
      * @return list<string> the removed sets
      */
-    public function removeSuperseded(string $operation, array $keep, array &$warnings): array
+    public function removeSuperseded(array $keep, array &$warnings): array
     {
         $removed = [];
         foreach ($this->store->entries() as $entry) {
-            if ($entry->name->kind !== BackupName::SAFETY.'-'.$operation || in_array($entry->name->name(), $keep, true)) {
+            if ($entry->name->kind !== BackupName::SAFETY.'-'.UpgradeJournal::OPERATION || $entry->kept || in_array($entry->name->name(), $keep, true)) {
                 continue;
             }
             if ($this->store->delete($entry)) {

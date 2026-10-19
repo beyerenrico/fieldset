@@ -147,7 +147,6 @@ final readonly class RollbackFinale
         }
         $safety = $run->record()->phaseData('safety_backup')['backup'] ?? null;
         $warnings = [...$warnings, ...$this->seals->seal([is_string($safety) ? $safety : null, is_string($plan['backup'] ?? null) ? $plan['backup'] : null])];
-        $this->seals->removeSuperseded(RollbackOperation::OPERATION, [is_string($safety) ? $safety : null], $warnings); // only the newest stays (review S1)
         $this->files->discard(RollbackRecovery::filesBefore($names->id));
         UpgradeFiles::remove($this->directory->path(RollbackRecovery::envDirectory($names->id))); // a killed render's (review V4)
         $this->files->discard(ReleaseFiles::PREVIOUS); // no release to roll back to any more

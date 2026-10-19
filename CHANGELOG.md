@@ -71,9 +71,9 @@ The Form Schema Spec has its own changelog in `spec/form-definition/1.0/CHANGELO
   the previous app answers 503, the cache flushed and the previous release started again (exit 5, with the logs); a
   rollback that fails stops the instance and names the backup and both image sets (exit 8). The upgrade runs in a
   background container of the installed release, so a closed SSH session never stops it half-way; `fsa status` shows
-  its phase and `fsa upgrade --resume` continues an interrupted one. After a commit the previous pre-upgrade and
-  pre-rollback safety backups are removed; safety backups an upgrade leaves behind on its way back are encrypted when
-  encryption is on (ADR 0086).
+  its phase and `fsa upgrade --resume` continues an interrupted one. After a commit the previous pre-upgrade safety
+  backups are removed (never one marked kept); restore, reset and pre-rollback safety backups stay until you delete
+  them; safety backups an upgrade leaves behind on its way back are encrypted when encryption is on (ADR 0086).
 - **`fsa rollback`** — returns to the release before the last upgrade from that upgrade's safety backup, after telling
   you what was written since and will be lost; security changes made since the upgrade (revocations, erasures, changed
   passwords, deleted tokens) are carried over, numbering never goes backwards, and the audit log starts a new epoch with
