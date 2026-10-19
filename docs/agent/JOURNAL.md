@@ -284,3 +284,13 @@
   decided from live containers; superseded safety backup left plain), 7 low (login-link wrote during a reset, …).
 - All fixed with tests; `app:install` became one transaction. Merge a650d68: suite 6874/6874, static clean; J05 10/10.
 - Coverage recipe fixed: `scripts/coverage.sh` lacked REDIS_PORT/MAIL_* overrides; `--env-file` broke phpunit env (L140).
+
+## 2026-10-20 M12-T04 U19 adopt
+- One worktree agent: `fsa adopt <checkout>` (allow-listed `.env`, KTD20 order, 1.0-format backup, clean Postgres stop,
+  copy into labelled volumes, counts + heads + amcheck, start 2.0), go back to 1.0 on any failure before start;
+  uninstall of an adopted instance: final backup + writes since adopt; J09 from a v1.0.0 build; ADR 0087.
+- Review: 1 high (no check that 1.0 stays stopped: a resume could finish on a stale copy), 4 medium (APP key in the
+  plain adopt backup, late baseline, uninstall deleting the adopt backup, Postgres image unchecked), 7 low. Verifier:
+  A1/S1 partial, 2 medium (no fence once start began; final backup without the key), 4 low + restore trust widened
+  (fingerprint from an unauthenticated manifest; now only for the instance's own adopt backup). All fixed with tests;
+  first round not strictly red-first (mutation-checked instead). Merge ea98143: suite 6984/6984, static clean; J09 6/6.

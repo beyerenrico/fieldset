@@ -276,3 +276,8 @@ Format: question · chosen option · impact · how to reverse.
    · accept or normalise case in the digest.
 60. Reset keeps webhooks running (no pause: a reset keeps no runs to repeat) and keeps every safety backup it took,
    including one a retake superseded (sealed, never pruned) · accept or prune superseded ones after a good reset.
+61. Adopt "writes since adopt" (U19, ADR 0087): the baseline is taken before 2.0 starts, so the count at uninstall
+   includes what 2.0 itself did afterwards (renditions and audit entries from 1.0's backlog, chain seals): it
+   over-reports rather than hides · accept or subtract system work.
+62. Adopt refuses a 1.0 Postgres that is not major 16 on Alpine (no REINDEX path for a libc change), and amcheck covers
+   only the unique text indexes after the copy · accept or add a reindex path / check every text index.
