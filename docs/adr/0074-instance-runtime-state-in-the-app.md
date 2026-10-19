@@ -200,3 +200,10 @@ out of mail headers.
 runtime.json carries `webhooks: {paused: bool}` from the state setting `webhooks_paused` (a missing block means not
 paused). `fsa install --from-backup` sets it; while it is true the queue does not claim workflow `webhook` steps
 (RunWorkflowStep), which stay pending until the stalled-run sweep takes them up after `fsa config set webhooks on`.
+
+## Amendment 2026-10-20: the gate during an upgrade (U18, ADR 0086)
+What answers while the app would be stopped (KTD19 steps 3–6): the app is not stopped; it stays up behind the raised
+gate (operation `upgrade` or `rollback`) and answers 503 in every mode until the target replaces it in step 7. The
+plan's rule that queue, scheduler and backup refuse to start behind a raised gate is not implemented: the upgrade stops
+them with `compose stop`, which `restart: unless-stopped` honours after a daemon restart, and a restore's `open` phase
+deliberately starts them behind the gate before lowering it (ADR 0085).

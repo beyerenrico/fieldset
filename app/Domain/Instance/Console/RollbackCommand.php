@@ -10,6 +10,7 @@ use App\Domain\Instance\Restore\RestoreOperation;
 use App\Domain\Instance\Restore\RestoreRequest;
 use App\Domain\Instance\Upgrade\RollbackGuard;
 use App\Domain\Instance\Upgrade\RollbackOperation;
+use Carbon\CarbonImmutable;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 
@@ -37,14 +38,14 @@ final class RollbackCommand extends FsaCommand
     }
 
     /** The question names the version, the safety backup and what is lost (R37); a refused rollback exits 7 first. */
-    protected function confirmationPrompt(FsaContext $context): ?string
+    protected function confirmationPrompt(FsaContext $context): string
     {
         $state = RestoreOperation::installed($context->directory());
         $guard = $this->laravel->make(RollbackGuard::class);
         $plan = $guard->plan($state);
         $at = BackupName::parse($plan['backup'])?->at;
-        $loss = $at === null ? null : $guard->loss($state, $at->toIso8601ZuluString());
+        $loss = $at instanceof CarbonImmutable ? $guard->loss($state, $at->toIso8601ZuluString()) : null;
 
-        return "Return from {$state->version()} to {$plan['version']} with the safety backup {$plan['backup']}".($at === null ? '' : ' of '.$at->toIso8601ZuluString()).'? '.RollbackGuard::describe($loss);
+        return "Return from {$state->version()} to {$plan['version']} with the safety backup {$plan['backup']}".($at instanceof CarbonImmutable ? ' of '.$at->toIso8601ZuluString() : '').'? '.RollbackGuard::describe($loss);
     }
 }

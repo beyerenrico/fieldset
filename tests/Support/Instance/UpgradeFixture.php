@@ -301,7 +301,7 @@ final class UpgradeFixture
                 'previous_compose' => $this->compose(), 'platforms' => ['linux/amd64', 'linux/arm64'], 'notes_url' => 'https://example.com/notes', 'upgrades_from' => '2.0.0-alpha.1'],
             'doctor' => ['checks' => [], 'space' => ['required' => 0, 'free' => null]], 'pull' => ['pulled' => []],
             'quiesce' => ['gate' => 'raised', 'drain' => [], 'dropped_jobs' => null],
-            'safety_backup' => fn (): array => ['backup' => $name = (string) json_decode((string) $this->safetyBackup('safety-upgrade')->stdout, true)['data']['backup'], 'path' => $this->instance->directory->root.'/backups/'.$name, 'created_at' => null, 'prepared' => []],
+            'safety_backup' => fn (): array => ['backup' => $name = (string) json_decode($this->safetyBackup('safety-upgrade')->stdout, true)['data']['backup'], 'path' => $this->instance->directory->root.'/backups/'.$name, 'created_at' => null, 'prepared' => []],
             'migrate' => ['migrated' => [], 'steps' => [], 'staged' => []], 'start' => ['services' => ['app']], 'smoke' => ['checked' => []], 'commit' => ['version' => self::TARGET],
         ];
         $journal = new OperationJournal($this->instance->directory);

@@ -19,14 +19,14 @@ class VersionSteps
     public const array STEPS = [];
 
     /** @param  list<VersionStep>|null  $steps */
-    public function __construct(private ?array $steps = null) {}
+    public function __construct(private readonly ?array $steps = null) {}
 
     /** @return list<string> the names of the steps that ran */
     public function run(Connection $db, ?string $from): array
     {
         $ran = [];
         foreach ($this->steps() as $step) {
-            if ($from !== null && self::compare($step->since(), $from) <= 0) {
+            if ($from !== null && $this->compare($step->since(), $from) <= 0) {
                 continue;
             }
             $step->run($db);
@@ -43,7 +43,7 @@ class VersionSteps
     }
 
     /** Semver order of two release versions (pre-releases below their release), enough for `since` decisions. */
-    private static function compare(string $a, string $b): int
+    private function compare(string $a, string $b): int
     {
         $parse = static function (string $version): array {
             if (preg_match('/^(\d+)\.(\d+)\.(\d+)(?:-(.+))?$/D', $version, $match) !== 1) {

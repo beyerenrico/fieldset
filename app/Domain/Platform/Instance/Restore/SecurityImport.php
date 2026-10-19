@@ -91,7 +91,7 @@ final class SecurityImport
         }
     }
 
-    /** @param  list<mixed>  $sequences */
+    /** @param  array<mixed>  $sequences */
     private function sequences(array $sequences): void
     {
         $this->target->statement("CREATE TABLE {$this->schema}.pg_sequences (schemaname name, sequencename name, last_value bigint)");

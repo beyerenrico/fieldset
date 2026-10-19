@@ -43,3 +43,12 @@ The plan refines E12 and R34 with KTD5 and KTD19 and adds R54, R55, R57, R62 and
   a second database and storage volume (ADR 0062). Rollback starts a new audit chain epoch (KTD26, amends ADR 0038).
 - Still open (plan, deferred review item): R62 promises 503 during the whole gate, but the app is stopped in steps
   3–6. U18 resolves it, with a separate gate responder or by restating R62 with local `/up` exempt.
+
+## Amendment 2026-10-20: what U18 built (ADR 0086)
+- The open question of R62 is answered without a separate responder: the installed app stays up behind its gate through
+  steps 3–6 and answers 503 in every mode; step 7 replaces it, still gated (ADR 0086). Only the app runs during the gate.
+- The supervisor's journal, the child, the drain and both rollbacks are specified in ADR 0086. The safety backup is
+  verified by the restore's prepare step; the automatic rollback's ledger line takes the safety backup's heads.
+- The manual rollback's R64 carry goes through a versioned security-state export of the newer release, and the previous
+  image renders its own compose and env files for the current settings (not the preserved snapshot, which goes stale
+  after `config set`); `previous` in the state still keeps the snapshot for the record.

@@ -76,7 +76,11 @@ final readonly class RollbackGuard
         return $outcome->ok && is_array($counts) ? array_map(intval(...), $counts) : null;
     }
 
-    /** "12 submissions, 340 audit entries" (only what is there), or a plain statement when nothing could be counted. */
+    /**
+     * "12 submissions, 340 audit entries" (only what is there), or a plain statement when nothing could be counted.
+     *
+     * @param  array<string, int>|null  $loss
+     */
     public static function describe(?array $loss): string
     {
         if ($loss === null) {

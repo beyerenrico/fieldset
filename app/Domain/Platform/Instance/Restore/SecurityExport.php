@@ -6,6 +6,7 @@ namespace App\Domain\Platform\Instance\Restore;
 
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Connection;
+use stdClass;
 
 /**
  * The versioned export of the security state for a manual rollback (R64, plan U18, ADR 0086). `fsa rollback` returns to
@@ -49,8 +50,8 @@ final readonly class SecurityExport
             }
         }
         $tables['activity_log'] = $this->rows('activity_log', self::ACTIVITY, $since);
-        $sequences = array_map(static fn (object $row): array => ['sequencename' => (string) $row->sequencename, 'last_value' => $row->last_value === null ? null : (int) $row->last_value],
-            $this->db->select("SELECT sequencename, last_value FROM pg_sequences WHERE schemaname = 'public' ORDER BY sequencename"));
+        $sequences = array_values(array_map(static fn (stdClass $row): array => ['sequencename' => (string) $row->sequencename, 'last_value' => $row->last_value === null ? null : (int) $row->last_value],
+            $this->db->select("SELECT sequencename, last_value FROM pg_sequences WHERE schemaname = 'public' ORDER BY sequencename")));
 
         return ['format' => self::FORMAT, 'version' => self::VERSION, 'generated_at' => CarbonImmutable::now('UTC')->toIso8601ZuluString(), 'since' => $since?->utc()->toIso8601ZuluString(), 'tables' => $tables, 'sequences' => $sequences];
     }

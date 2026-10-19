@@ -54,7 +54,7 @@ final readonly class ReleaseFeed
 
             return $manifest;
         } finally {
-            self::remove($directory->path($staging));
+            $this->remove($directory->path($staging));
         }
     }
 
@@ -102,7 +102,7 @@ final readonly class ReleaseFeed
         }
     }
 
-    private static function remove(string $path): void
+    private function remove(string $path): void
     {
         foreach (glob($path.'/{,.}[!.]*', GLOB_BRACE) ?: [] as $file) {
             @unlink($file);

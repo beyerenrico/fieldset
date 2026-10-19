@@ -86,7 +86,7 @@ final readonly class StageRenderer
         return $files;
     }
 
-    /** @return array{version: string, from: string|null, digests: array<string, string>, emulated: bool, settings: array<string, string|int|bool|null>, migrate: bool} */
+    /** @return array{version: string, from: string|null, digests: array<string, string>, emulated: bool, settings: array<string, scalar|null>, migrate: bool} */
     private function request(string $stage): array
     {
         if (! self::valid($this->directory, $stage)) {
@@ -102,7 +102,12 @@ final readonly class StageRenderer
             throw new InstanceException('The upgrade stage holds no valid request.', ExitCode::InvalidInput, 'stage_invalid');
         }
 
-        $settings = is_array($request['settings'] ?? null) ? array_filter($request['settings'], static fn (mixed $value): bool => $value === null || is_scalar($value)) : [];
+        $settings = [];
+        foreach (is_array($request['settings'] ?? null) ? $request['settings'] : [] as $key => $value) {
+            if (is_string($key) && ($value === null || is_scalar($value))) {
+                $settings[$key] = $value;
+            }
+        }
 
         return ['version' => $request['version'], 'from' => is_string($request['from'] ?? null) ? $request['from'] : null, 'digests' => $digests, 'emulated' => ($request['emulated'] ?? false) === true,
             'settings' => $settings, 'migrate' => ($request['migrate'] ?? true) !== false];

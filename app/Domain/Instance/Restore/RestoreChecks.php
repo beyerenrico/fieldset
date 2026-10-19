@@ -35,7 +35,7 @@ final readonly class RestoreChecks
     public static function assert(PreparedBackup $backup, string $purpose, bool $acceptUnauthenticated, AppKeys $known, ?string $upgradesFrom): array
     {
         self::assertIntact($backup);
-        self::assertCompatible($backup, $purpose, $upgradesFrom);
+        self::assertCompatible($backup, $upgradesFrom);
         $warnings = self::assertAuthenticated($backup, $acceptUnauthenticated);
         $missing = array_values(array_diff($backup->fingerprints(), $known->fingerprints()));
         if ($missing !== []) {
@@ -103,7 +103,7 @@ final readonly class RestoreChecks
     }
 
     /** @throws InstanceException */
-    private static function assertCompatible(PreparedBackup $backup, string $purpose, ?string $upgradesFrom): void
+    private static function assertCompatible(PreparedBackup $backup, ?string $upgradesFrom): void
     {
         if ($backup->migrations['relation'] === MigrationSet::NEWER) {
             throw new InstanceException(

@@ -67,7 +67,11 @@ final readonly class RollbackFinale
         return array_values(array_filter(array_map(static fn (mixed $entry): ?array => is_array($entry) && is_string($entry['disk'] ?? null) && is_string($entry['path'] ?? null) ? ['disk' => $entry['disk'], 'path' => $entry['path']] : null, $listed)));
     }
 
-    /** The state after a rollback: the previous release, the fresh volume, no release to roll back to. */
+    /**
+     * The state after a rollback: the previous release, the fresh volume, no release to roll back to.
+     *
+     * @param  array<string, mixed>  $plan
+     */
     public static function rolledBackState(InstanceState $before, array $plan, RestoreNames $names): InstanceState
     {
         return $before->withRelease((string) $plan['version'], UpgradeJournal::strings($plan['digests'] ?? null))->withoutPreviousRelease()->withSetting('storage_volume', $names->freshVolume);
@@ -163,7 +167,8 @@ final readonly class RollbackFinale
     private function seal(string $backup, array &$warnings): void
     {
         $lock = $this->lock->current();
-        if (! $lock instanceof LockRecord || ! $this->store->find($backup) instanceof BackupEntry || $this->store->find($backup)?->encrypted === true) {
+        $entry = $this->store->find($backup);
+        if (! $lock instanceof LockRecord || ! $entry instanceof BackupEntry || $entry->encrypted) {
             return;
         }
         try {

@@ -328,3 +328,25 @@ from-backup recipients and scratch clean-up, the drill's cache and leftovers, pa
 fail-closed webhook holds and the unknown free space. The third review (findings H1, M2, M3, L4–L7) added the journaled
 `abort`, the writers stopped before a return, the degraded but open previous instance, the forward `--abandon` without a
 way back, the exit-8 hints, the epoch keyed on the journal and the carry window.
+
+## Amendment 2026-10-20: older backups, the rollback's carry and the upgrade's reuse (U18)
+- **Older backups in place.** An fsa or 1.0 backup with fewer migrations than this image is no longer exit 7
+  `upgrade_child_unavailable`: after `restore_database` the journaled phase `upgrade_child` runs the installed
+  release's `instance:upgrade-migrate` on the scratch database (OlderBackupMigration, ADR 0086: zero foreign sessions,
+  `lock_timeout`, the pending migrations, the version steps since the backup's version), then `restore_storage` and
+  `finish` follow. The migrations run before the finish step's new epoch, not after it as the plan's order says: the R64
+  carry compares the restored database with the live one and needs this release's schema, migrations write no audit
+  entries, and the epoch and `instance.restored` are still the restored database's first audit records. A failing child
+  goes back like any failure before the swap (exit 5 `upgrade_child_failed`).
+- **The oldest upgrade source.** The check of `upgrades_from` read `releases/<version>/manifest.json`, a file nobody
+  writes, so it never applied; it now reads `release-manifest.json`, where install.sh and `fsa upgrade` store the
+  verified manifest: a backup older than the installed release's `upgrades_from` is exit 7 `backup_too_old` as stated.
+- **`instance:restore-finish` for rollbacks.** RestoreDatabases::finish takes `$reason` (`rolled_back` writes
+  `instance.rolled_back`) and `$carry` (false: `--no-carry`, the automatic rollback). A manual `fsa rollback` passes no
+  `--source`; its stdin document carries `carry`, the newer release's security state export, which FinishRestore
+  materialises in a schema of the restored database for the unchanged carry and sequence floors (SecurityImport); the
+  command reads up to 256 MiB of stdin for it.
+- **What U18 reuses.** The automatic rollback uses RestoreDatabases (create, `pg_restore`, finish, swap, rename, drop),
+  RestoreStorage (fresh volume, fill), RestoreStack (apply, Valkey, verify behind the gate), RestoreNames, the Ledger and
+  the prepare step; the manual rollback uses the same plus RestoreSpace and its own ways back (RollbackRecovery), whose
+  exit-8 hint names `fsa rollback`, not `fsa restore --abandon`.

@@ -67,12 +67,12 @@ final readonly class RollbackRecovery
                 }
 
                 return ['left_behind' => $left];
-            }, self::described($cause));
+            }, $this->described($cause));
         } catch (Throwable $e) {
             return $this->halt($project, $names, $cause, $e, 'abort');
         }
 
-        return self::failed($cause, 'The rollback failed before the swap; the instance runs '.$state->version().' as before.', ['left_behind' => RestoreNames::strings($data['left_behind'] ?? null)]);
+        return $this->failed($cause, 'The rollback failed before the swap; the instance runs '.$state->version().' as before.', ['left_behind' => RestoreNames::strings($data['left_behind'] ?? null)]);
     }
 
     /** @param  array<string, mixed>  $plan */
@@ -93,13 +93,13 @@ final readonly class RollbackRecovery
                 $this->stack->lowerGate($before);
 
                 return ['returned' => true];
-            }, self::described($cause));
+            }, $this->described($cause));
         } catch (Throwable $e) {
             return $this->halt($project, $names, $cause, $e, 'return');
         }
         $left = $this->dropScratch($project, $names);
 
-        return self::failed($cause, 'The rolled-back instance did not pass its verification; '.$before->version().' runs again with its own database and storage.', ['left_behind' => $left, 'returned' => true]);
+        return $this->failed($cause, 'The rolled-back instance did not pass its verification; '.$before->version().' runs again with its own database and storage.', ['left_behind' => $left, 'returned' => true]);
     }
 
     /** @return list<string> what could not be removed */
@@ -169,13 +169,13 @@ final readonly class RollbackRecovery
     }
 
     /** @return array{code: string, message: string} */
-    private static function described(Throwable $cause): array
+    private function described(Throwable $cause): array
     {
         return ['code' => $cause instanceof InstanceException ? $cause->errorCode : 'rollback_failed', 'message' => $cause->getMessage()];
     }
 
     /** @param  array<string, mixed>  $data */
-    private static function failed(Throwable $cause, string $summary, array $data): CommandResult
+    private function failed(Throwable $cause, string $summary, array $data): CommandResult
     {
         $code = $cause instanceof InstanceException ? $cause->errorCode : 'rollback_failed';
         $hint = $cause instanceof InstanceException && $cause->hint !== null ? $cause->hint : 'Read `fsa logs app` and the output, fix the cause, then run `fsa rollback` again.';

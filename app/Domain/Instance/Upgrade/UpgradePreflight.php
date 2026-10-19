@@ -73,7 +73,7 @@ final readonly class UpgradePreflight
     {
         $images = array_values(UpgradeJournal::strings($release['digests'] ?? null));
         $context = new DoctorContext($facts, $this->directory, $this->docker, $this->probes, $state, images: $images, platforms: UpgradeJournal::list($release['platforms'] ?? null));
-        $results = array_map(static fn ($check): CheckResult => $check->run($context), [new DockerVersionCheck, new ArchitectureCheck, new RegistryCheck]);
+        $results = array_map(static fn (\App\Domain\Instance\Doctor\Checks\DockerVersionCheck|\App\Domain\Instance\Doctor\Checks\ArchitectureCheck|RegistryCheck $check): CheckResult => $check->run($context), [new DockerVersionCheck, new ArchitectureCheck, new RegistryCheck]);
         foreach ($results as $result) {
             if ($result->status->value === 'fail') {
                 $tooOld = ($result->details['too_old'] ?? false) === true;

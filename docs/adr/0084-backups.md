@@ -214,3 +214,9 @@ well inside the slot; the gate's J10 run can record it.
 - The dump keeps `--no-privileges`; a restore re-applies the `REVOKE ALL … FROM PUBLIC` on `audit_seal`, `audit_prune`
   and `audit_prunable` and sets up the backup role again in the restored database (`instance:restore-finish`).
 - `pg_restore --list` and the new `pg_restore --data-only --table=migrations` get `--` before the file.
+
+## Amendment 2026-10-20: pre-upgrade safety backups (U18, ADR 0086)
+After a committed upgrade, `fsa upgrade` removes every older `safety-upgrade-*` backup (R57: they replace each other only
+after a commit; those of failed upgrades stay until then) and seals its own when encryption is on. Restore, reset and
+rollback safety backups are never removed. Before any migration the upgrade verifies its safety backup with the
+restore's prepare step (checksums, HMAC, `pg_restore --list`, the migration set); a backup that fails is exit 9.

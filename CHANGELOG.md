@@ -58,6 +58,23 @@ The Form Schema Spec has its own changelog in `spec/form-definition/1.0/CHANGELO
   `--passphrase-file`/`--passphrase-stdin`, and archives without a valid HMAC (ADR 0085).
 - **`fsa config set webhooks on|paused`**; a webhook step also waits when the instance's runtime file cannot be read
   (ADR 0085).
+- **`fsa upgrade`** — moves the instance to the newest release (`--to <version>` picks one, `--major` crosses a major
+  version), health-gated: the target's signed manifest is downloaded and verified, every image pulled, the app answers
+  503 behind its gate while the queue drains (`--drop-jobs` saves and drops what a bounded drain leaves) and a verified
+  safety backup is taken, then the target's own `fsa` renders its compose and env files and runs its migrations in a
+  container without the Docker socket, its app must pass the smoke test behind the gate, and only then is the upgrade
+  committed and opened. Any failure from the safety backup until the commit rolls back automatically: the safety backup
+  is restored, the cache flushed and the previous release started again (exit 5, with the logs); a rollback that fails
+  stops the instance and names the backup and both image sets (exit 8). The upgrade runs in a background container of
+  the installed release, so a closed SSH session never stops it half-way; `fsa status` shows its phase and
+  `fsa upgrade --resume` continues an interrupted one. After a commit the previous pre-upgrade safety backup is removed
+  (ADR 0086).
+- **`fsa rollback`** — returns to the release before the last upgrade from that upgrade's safety backup, after telling
+  you what was written since and will be lost; security changes made since the upgrade (revocations, erasures, changed
+  passwords, deleted tokens) are carried over, numbering never goes backwards, and the audit log starts a new epoch with
+  an `instance.rolled_back` entry (ADR 0086).
+- **`fsa restore` of an older backup** — a backup made by an older release is now restored in place and migrated to the
+  installed release, instead of being refused (ADR 0085 amendment, ADR 0086).
 
 ### Changed
 - `fsa status` and `fsa logs` list the `backup` service; the stack file for Portainer and Coolify still has no
@@ -66,6 +83,8 @@ The Form Schema Spec has its own changelog in `spec/form-definition/1.0/CHANGELO
   interrupted restore with the commands that resume or abandon it (ADR 0085).
 - Backups list the fingerprint of every APP key, previous keys included; a backup verifies even with stray dotfiles
   such as `.DS_Store` beside it, and file names in `SHA256SUMS` must be plain names (ADR 0085).
+- `fsa restore` refuses a backup older than the installed release's oldest upgrade source (exit 7), as documented; the
+  check never applied before (ADR 0085 amendment).
 
 ## 2.0.0-beta.1 — 2026-10-19 (local pre-release, not published)
 
