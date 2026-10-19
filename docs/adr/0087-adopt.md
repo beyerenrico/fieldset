@@ -240,4 +240,6 @@ checkout inside the way back, one past `start` not at all. V5: REDIS_DB is compa
 a resume compares every APP key's fingerprint, the backup's fingerprints come from `env/app.env`. V6: Postgres's fence is
 recorded only after the writers' fence held. A7 rest: the backup manifest names the journal, and a resumed run removes a
 complete set of its own journal before writing a new one. The symlinked-checkout nit needed no change (realpaths were
-already compared).
+already compared). With U23 (ADR 0088), other commands refuse while an adopt journal is open (exit 9
+`operation_unfinished`): its hint names `fsa adopt <checkout>` and `fsa adopt --abandon` before 2.0 started or
+`fsa uninstall` after, and `fsa backup` reports the open journal instead of "not installed".
