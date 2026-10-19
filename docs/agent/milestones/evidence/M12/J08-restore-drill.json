@@ -7,11 +7,11 @@
         "status": "ok",
         "changed": false,
         "data": {
-            "backup": "manual-20261019T111223Z",
+            "backup": "manual-20261019T122518Z",
             "format": "fsa",
             "authenticated": true,
             "encrypted": true,
-            "created_at": "2026-10-19T11:12:23Z",
+            "created_at": "2026-10-19T12:25:18Z",
             "backup_version": "2.0.0-alpha.1-test",
             "migrations": {
                 "relation": "same",
@@ -25,10 +25,10 @@
                 "directories": 6,
                 "bytes": 916
             },
-            "database": "restore_drill_0e203d77327d",
+            "database": "restore_drill_d722455bbf0e",
             "dropped": true,
             "drill": {
-                "database": "restore_drill_0e203d77327d",
+                "database": "restore_drill_d722455bbf0e",
                 "counts": {
                     "organizations": 2,
                     "users": 10,
@@ -44,15 +44,15 @@
                     "heads": [
                         {
                             "seq": 13,
-                            "hash": "111f9f41a24b11b954f898bcbadf05adc72c086472ad392dd2552828fb3b140c"
+                            "hash": "97e757ea41ae0b0f524b3c5e2ed4bbc44464fb6351cfc778c8cd73ff0a9c9dbd"
                         },
                         {
                             "seq": 1,
-                            "hash": "0169c03e552c003ff18ff2b5c3089cad4df486bb53a63ceec4ec500496854a34"
+                            "hash": "f72f2bd1e5a0a15d041d4de4332e3402d47840dcfa9504c5752e420cc2fcb886"
                         },
                         {
                             "seq": 11,
-                            "hash": "041f320fc422052d9c17a324c3c56b1b030bacf27d56daacd039a7c5c9b79567"
+                            "hash": "f53fca394bac3e061f54bdf5ad16a554e7e0ff772254e15783c77a613bbaeac0"
                         }
                     ],
                     "intact": true,
@@ -66,7 +66,7 @@
                 },
                 "render": {
                     "status": "rendered",
-                    "submission": "d493849f-9cd1-4470-85c3-45de3f439354",
+                    "submission": "053ce580-bb5a-432b-ac8c-7a67feb92304",
                     "bytes": 21635,
                     "pages": 1,
                     "message": null
@@ -98,7 +98,7 @@
                     {
                         "name": "render",
                         "status": "pass",
-                        "message": "A 1-page PDF of d493849f-9cd1-4470-85c3-45de3f439354 rendered."
+                        "message": "A 1-page PDF of 053ce580-bb5a-432b-ac8c-7a67feb92304 rendered."
                     },
                     {
                         "name": "decrypt",
@@ -111,7 +111,8 @@
                         "message": "0 pending, 0 unknown to this image."
                     }
                 ]
-            }
+            },
+            "render_storage": "live"
         },
         "secrets": [],
         "warnings": [],

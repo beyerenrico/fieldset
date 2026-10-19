@@ -36,7 +36,7 @@
             "version": "2.0.0-alpha.1-test",
             "mode": "local",
             "dir": "<work>/fsa-test-j08c",
-            "project": "fsa-fsa-test-j08c-d69a",
+            "project": "fsa-fsa-test-j08c-b10d",
             "port": 8082,
             "mail": {
                 "mode": "capture",
