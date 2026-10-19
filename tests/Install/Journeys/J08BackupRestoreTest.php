@@ -301,6 +301,7 @@ it('restores the manual backup in place: later data gone, security state carried
         ->and($checks['public_acl'])->not->toMatch('/(^\{|,)=X\//')->not->toBe('default') // no PUBLIC entry (`=X/owner`)
         ->and($checks['volume_after'])->not->toBe($volume)->toContain('_app-storage-r')
         ->and($checks['runtime_webhooks'])->toBe(['paused' => true])->and($json['data']['webhooks'] ?? null)->toBe('paused')
+        ->and($json['data']['valkey_flushed'] ?? null)->toBeTrue() // VALKEY_EXTRA_FLAGS emptied for the one-off
         ->and($status['data']['health'] ?? null)->toBe('ok')
         ->and($status['data']['last_restore']['backup'] ?? null)->toBe($GLOBALS['fsaJ08Manual']);
 });

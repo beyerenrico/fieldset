@@ -276,6 +276,13 @@ the sequence advance because writers were stopped since the safety backup.
   runtime directory at all (development, tests, installs without fsa) nothing is held.
 - When the free disk space cannot be read (`df` fails), the space check passes and the restore warns
   `disk_space_unknown` (review A12): refusing would block every restore on such a host.
+- Valkey is flushed by a `valkey-cli FLUSHALL` one-off of the `redis` service with `VALKEY_EXTRA_FLAGS` emptied: the
+  image's entrypoint appends that variable (`--requirepass …`) to every command, which made FLUSHALL a syntax error
+  (J08 reported `valkey_not_flushed` until then) and put the password in the one-off's arguments.
+- A signal (Ctrl-C, SIGTERM) reaches a restore at a phase boundary and is handled like a failure: before the gate goes
+  down the restore goes back to the previous instance (exit 5) rather than leaving it quiesced; a signal during that way
+  back leaves the journal open for a resume. A run killed right after appending to `backups/ledger.log` appends the same
+  heads again on resume; the ledger is append-only and read by its highest epoch, so the duplicate is harmless.
 
 ## Amendment notes
 ADR 0084, 0074 and 0077 carry amendments of 2026-10-19 for the HMAC fingerprints and checksum rules, the runtime

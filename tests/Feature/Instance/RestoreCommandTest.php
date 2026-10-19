@@ -259,6 +259,17 @@ it('refuses in place a backup another instance made and points to --from-backup:
         ->and($this->restore->config->methodsSince($mark))->not->toContain('composeStop');
 });
 
+it('flushes Valkey without the server flags the image entrypoint appends to every command (found by J08)', function (): void {
+    $this->restore->backup();
+
+    [$code, $json] = $this->restore->restore();
+    $flush = array_values(array_filter($this->restore->instance->docker->called('composeRun'), static fn (array $call): bool => ($call['command'][0] ?? null) === 'valkey-cli'))[0];
+
+    expect($code)->toBe(0, (string) json_encode($json))->and($json['data']['valkey_flushed'])->toBeTrue()
+        ->and($flush['service'])->toBe('redis')
+        ->and($flush['env'])->toBe(['VALKEY_EXTRA_FLAGS']); // emptied: `--requirepass <password>` after FLUSHALL is a syntax error
+});
+
 it('takes a 1.0 backup in place only when the APP key in its env is one the instance holds (review A3)', function (): void {
     BackupSetFixture::legacy($this->dir.'/backups/20261001T020000Z', 'APP_KEY='.$this->restore->appKey()."\n");
     BackupSetFixture::legacy($this->dir.'/backups/20261002T020000Z', 'APP_KEY='.BackupSetFixture::OTHER_KEY."\n");

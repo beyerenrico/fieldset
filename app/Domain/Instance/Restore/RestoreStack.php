@@ -98,7 +98,9 @@ final readonly class RestoreStack
     /** Cache and queues of the replaced data go (R35); a failure is reported, not fatal. */
     public function flushValkey(ComposeProject $project): bool
     {
-        $outcome = $this->docker->composeRun($project, ValkeyService::NAME, ['valkey-cli', '-h', ValkeyService::NAME, 'FLUSHALL'], timeout: 120.0);
+        // The image's entrypoint appends VALKEY_EXTRA_FLAGS (`--requirepass …`) to every command: emptied here, or valkey-cli
+        // reads it as arguments of FLUSHALL (a syntax error, found by J08) and the password lands in its argv.
+        $outcome = $this->docker->composeRun($project, ValkeyService::NAME, ['valkey-cli', '-h', ValkeyService::NAME, 'FLUSHALL'], ['VALKEY_EXTRA_FLAGS' => ''], timeout: 120.0);
 
         return $outcome->successful() && str_contains($outcome->stdout, 'OK'); // valkey-cli exits 0 on NOAUTH (LEARNINGS 82)
     }
