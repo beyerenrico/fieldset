@@ -1,14 +1,17 @@
-# State: 2026-10-19T17:30Z
+# State: 2026-10-19T21:00Z
 v2 run (BUILD_PROMPT_V2.md, plan `docs/plans/2026-10-17-001-feat-docker-distribution-v2-plan.md`).
 M9, M10 and M11 done and merged to `main` (tags `m9-done`, `v2.0.0-alpha.1`, `m10-done`, `v2.0.0-alpha.2`,
 `m11-done`, `v2.0.0-beta.1`; local only, never pushed). Reports: `docs/agent/milestones/M9.md`, `M10.md`, `M11.md`.
 
 ## Next actions
-1. Branch `m12-lifecycle` (from main 30a2f10). M12-T01 U16 backups IN PROGRESS: one agent in a worktree, brief in
-   the session scratchpad (`m12-u16-brief.md`: scope = plan U16, J08 backup half, ADR 0084, test DB form_schema_u16).
-   After it: review its diff, run its tests, merge `--no-ff`, then T02 U17, then T03/T04/T05 in parallel worktrees.
-2. U16 must fit the backup service into its 128 MiB slot of the small budget and rerun J10 if the table changes
-   (ADR 0083). At the M13 breakdown: admin-guide.md capture banner section (U21).
+1. Branch `m12-lifecycle`. M12-T01 U16 backups merged (ac804bc; full suite 6566/6567, the one flake fixed in
+   f55b995 `ownerOf`). Two reviewers found 1 high (safety backups encrypted at write) + 4 medium + lows: the U16
+   agent (worktree `.claude/worktrees/agent-a4c390291d4fe0e68`) is fixing them on its branch. Then: merge, rerun
+   Unit/Feature + J08, tick T01, remove the worktree, dispatch T02 U17 (brief `m12-u17-brief.md` in the session
+   scratchpad: set its base commit), then T03/T04/T05 in parallel worktrees.
+2. Backup service peak 68 MiB (J08, demo data) fits the 128 MiB slot: no budget change. M13 breakdown: admin-guide
+   capture banner (U21); R39 operator notification for failed/stale backups (U20); R39 release check
+   `pg_dump` major ≥ manifest Postgres major (U22); backup memory at the 1.0 data volume (J10).
 3. Housekeeping blocked by the permission classifier: dropping stale test DBs in the dev Postgres
    (form_schema_m10b, u12, u12cov, u13, u14, u14b, u15, test_bb/d/e/m9/z and their `_test_N`); left for the human.
 4. E2E: run with `--workers=2` when the host is busy (M11.md); leave ≥ 60 s between runs (LEARNINGS 128).
@@ -23,7 +26,7 @@ M9, M10 and M11 done and merged to `main` (tags `m9-done`, `v2.0.0-alpha.1`, `m1
 - cloudflared is not a trusted proxy (ADR 0082); the app serves the local-CA trust page over plain HTTP too.
 - `fsa config set` reverts on failure with exit 5 `rolled_back`; queue/scheduler stay stopped until verified.
 - Journeys write evidence to `docs/agent/milestones/evidence/$FSA_EVIDENCE_MILESTONE` (default M9): set
-  `FSA_EVIDENCE_MILESTONE=M11` for M11 runs.
+  `FSA_EVIDENCE_MILESTONE=M12` for M12 runs.
 
 ## Known problems
 - Trivy exceptions for gotenberg/caddy/cloudflared expire 2026-11-17: refresh pins or entries before a release.
@@ -34,7 +37,7 @@ M9, M10 and M11 done and merged to `main` (tags `m9-done`, `v2.0.0-alpha.1`, `m1
 ## Resume commands
 COMPOSE_PROFILES=sso docker compose up -d --wait
 DB_DATABASE=form_schema_test php artisan test --compact --parallel
-FSA_EVIDENCE_MILESTONE=M11 vendor/bin/pest --testsuite=Install            # journeys (real Docker, fsa-test-*)
+FSA_EVIDENCE_MILESTONE=M12 vendor/bin/pest --testsuite=Install            # journeys (real Docker, fsa-test-*)
 FSA_TEST_PLATFORM=linux/amd64 FSA_HARNESS_PLATFORMS=linux/amd64 vendor/bin/pest --testsuite=Install --filter=J01
 npm run e2e -- --reporter=line
 vendor/bin/rector --dry-run --no-progress-bar   # CI gate, must be 0 files
