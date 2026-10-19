@@ -122,7 +122,7 @@ final class BackupSetFixture
 
             public function listDump(string $file, float $timeout = self::DEADLINE_SECONDS): BackupToolResult
             {
-                return new BackupToolResult(0, (string) file_get_contents(base_path('tests/Fixtures/restore/pg-restore-list.txt')).$this->extra);
+                return new BackupToolResult(0, file_get_contents(base_path('tests/Fixtures/restore/pg-restore-list.txt')).$this->extra);
             }
 
             public function migrationRows(string $file, float $timeout = 300.0): BackupToolResult

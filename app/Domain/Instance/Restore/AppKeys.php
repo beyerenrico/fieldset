@@ -25,7 +25,7 @@ final readonly class AppKeys
     /** @param  list<string>  $keys */
     public static function of(#[SensitiveParameter] array $keys): self
     {
-        return new self(array_values(array_unique(array_filter($keys, static fn (string $key): bool => self::valid($key)))));
+        return new self(array_values(array_unique(array_filter($keys, self::valid(...)))));
     }
 
     /**

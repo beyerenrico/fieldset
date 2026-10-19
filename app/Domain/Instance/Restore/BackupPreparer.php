@@ -57,9 +57,9 @@ final readonly class BackupPreparer
         $migrations = $problems === [] ? MigrationSet::compare($this->migrations($set), $imageMigrations) : MigrationSet::unknown();
 
         return new PreparedBackup(
-            format: $detected['format'], encrypted: $detected['encrypted'], source: $source, set: $set, name: self::name($source),
+            format: $detected['format'], encrypted: $detected['encrypted'], source: $source, set: $set, name: $this->name($source),
             hmac: $hmac, keyFingerprint: $fingerprint, problems: $problems, strays: BackupChecksums::strays($set),
-            manifest: $legacy ? self::legacyManifest($set) : self::manifestSummary($manifest),
+            manifest: $legacy ? $this->legacyManifest($set) : $this->manifestSummary($manifest),
             settings: $legacy ? [] : $this->json($set.'/'.BackupWriter::SETTINGS), storage: $storage, dump: $dump, migrations: $migrations,
             secrets: is_file($set.'/'.BackupWriter::SECRETS), legacyEnv: $legacy && is_file($set.'/'.BackupSet::LEGACY_ENV),
         );
@@ -156,7 +156,7 @@ final readonly class BackupPreparer
      * @param  array<string, mixed>  $manifest
      * @return array<string, mixed>
      */
-    private static function manifestSummary(array $manifest): array
+    private function manifestSummary(array $manifest): array
     {
         $versions = is_array($manifest['versions'] ?? null) ? $manifest['versions'] : [];
         $audit = is_array($manifest['audit'] ?? null) ? $manifest['audit'] : [];
@@ -171,7 +171,7 @@ final readonly class BackupPreparer
     }
 
     /** @return array<string, mixed> */
-    private static function legacyManifest(string $set): array
+    private function legacyManifest(string $set): array
     {
         $values = BackupSet::legacyManifest($set);
 
@@ -179,7 +179,7 @@ final readonly class BackupPreparer
             'app_key_fingerprints' => [], 'includes_secrets' => ($values['env'] ?? '') === 'included', 'storage' => $values['storage'] ?? null];
     }
 
-    private static function name(string $source): string
+    private function name(string $source): string
     {
         $base = basename(str_ends_with($source, '.age') ? dirname($source) : $source);
 

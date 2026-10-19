@@ -69,8 +69,8 @@ final readonly class TarMember
         return match ($this->type) {
             'L' => [...$pending, 'path' => rtrim($data, "\0")],
             'K' => [...$pending, 'linkpath' => rtrim($data, "\0")],
-            'g' => self::globalPax($pending, $data),
-            default => [...$pending, ...self::pax($data)],
+            'g' => $this->globalPax($pending, $data),
+            default => [...$pending, ...$this->pax($data)],
         };
     }
 
@@ -81,7 +81,7 @@ final readonly class TarMember
      *
      * @throws UnsafeArchive
      */
-    private static function pax(string $data): array
+    private function pax(string $data): array
     {
         $values = [];
         $offset = 0;
@@ -111,9 +111,9 @@ final readonly class TarMember
      * @param  array{path?: string, linkpath?: string, size?: int}  $pending
      * @return array{path?: string, linkpath?: string, size?: int}
      */
-    private static function globalPax(array $pending, string $data): array
+    private function globalPax(array $pending, string $data): array
     {
-        if (self::pax($data) !== []) {
+        if ($this->pax($data) !== []) {
             throw new UnsafeArchive('The archive has a global pax header that changes member names or sizes.');
         }
 

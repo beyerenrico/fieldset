@@ -292,10 +292,7 @@ final readonly class ConfigRollout
      */
     private function emulated(InstanceState $state): bool
     {
-        $current = ComposeFile::document($this->directory)['services']['app']['mem_limit'] ?? null;
-        $native = $this->renderer->render($state, $this->secrets())->service('app')['mem_limit'] ?? null;
-
-        return is_string($current) && is_string($native) && (int) $current === 2 * (int) $native;
+        return ComposeFile::emulated($this->directory, $this->renderer, $state, $this->secrets());
     }
 
     private function render(InstanceState $state, ?SmtpCredentials $credentials = null): RenderedProject

@@ -16,10 +16,12 @@ use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\LocalCa\LocalCaEdge;
 use App\Domain\Instance\Output\ExitCode;
 use App\Domain\Instance\Output\ProgressReporter;
+use App\Domain\Instance\Runtime\OperationGate;
 use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Sleep;
+use SensitiveParameter;
 use Throwable;
 
 /**
@@ -76,9 +78,7 @@ final readonly class SmokeTest
      */
     public function run(InstanceState $state, ComposeProject $project, ?ProgressReporter $progress = null, string $phase = 'smoke'): array
     {
-        $port = InstanceSettings::of($state)->port();
-        $this->curl($state, $project->name.'_default', "localhost:{$port}", array_map(static fn (string $path): string => "http://app:8080{$path}", self::APP_PATHS));
-        $this->curl($state, $project->name.'_'.GotenbergService::NETWORK, null, ['http://'.GotenbergService::NAME.':3000/health']);
+        $this->internal($state, $project);
         if (InstanceSettings::of($state)->localCa()) { // local-CA mode (ADR 0082): the root for the trust page, then the edge
             $localCa = ($this->localCa ?? app(LocalCaEdge::class))->check($state, $project);
 
@@ -87,6 +87,22 @@ final readonly class SmokeTest
         $edge = $state->mode() === 'domain' ? $this->edge($state, $project, $progress, $phase) : [];
 
         return ['checked' => [...self::APP_PATHS, 'gotenberg /health', ...$edge]];
+    }
+
+    /**
+     * The app's `/up` and `/admin/login` on the internal network and Gotenberg's health. With the operation's smoke token
+     * (a restore behind the raised gate, plan U17) the requests carry it in `X-Fsa-Smoke-Token`, read by curl from
+     * stdin, never an argument.
+     *
+     * @return list<string> what was checked
+     */
+    public function internal(InstanceState $state, ComposeProject $project, #[SensitiveParameter] ?string $smokeToken = null): array
+    {
+        $port = InstanceSettings::of($state)->port();
+        $this->curl($state, $project->name.'_default', "localhost:{$port}", array_map(static fn (string $path): string => "http://app:8080{$path}", self::APP_PATHS), $smokeToken);
+        $this->curl($state, $project->name.'_'.GotenbergService::NETWORK, null, ['http://'.GotenbergService::NAME.':3000/health']);
+
+        return [...self::APP_PATHS, 'gotenberg /health'];
     }
 
     /** The longest the smoke test can take for this state: both curl containers, and in domain mode the edge's wait. */
@@ -175,20 +191,20 @@ final readonly class SmokeTest
     }
 
     /** @param  list<string>  $urls */
-    private function curl(InstanceState $state, string $network, ?string $host, array $urls): void
+    private function curl(InstanceState $state, string $network, ?string $host, array $urls, #[SensitiveParameter] ?string $smokeToken = null): void
     {
         $outputs = array_merge(...array_map(static fn (): array => ['--output', '/dev/null'], $urls));
         $outcome = $this->docker->runContainer(new ContainerSpec(
             image: $state->digests()['app'],
             command: [
                 '--fail', '--fail-early', '--silent', '--show-error', '--max-time', '30', '--retry', '10', '--retry-delay', '3',
-                '--retry-connrefused', ...($host === null ? [] : ['--header', "Host: {$host}"]), ...$outputs,
+                '--retry-connrefused', ...($host === null ? [] : ['--header', "Host: {$host}"]), ...($smokeToken === null ? [] : ['--header', '@-']), ...$outputs,
                 '--write-out', '%{http_code} %{url_effective}\n', ...$urls,
             ],
             labels: Labels::forInstance($state->uuid(), self::ROLE),
             network: $network,
             entrypoint: 'curl',
-        ), null, self::TIMEOUT);
+        ), $smokeToken === null ? null : OperationGate::SMOKE_HEADER.': '.$smokeToken."\n", self::TIMEOUT);
         if (! $outcome->successful()) {
             throw new InstanceException(
                 'The smoke test failed for '.implode(', ', $urls).'.',

@@ -78,14 +78,7 @@ final readonly class DumpInspector
             return ['type' => '?', 'schema' => '', 'rest' => []];
         }
         $body = $match[1];
-        $type = null;
-        foreach ([...self::KNOWN_TYPES, ...self::OBJECT_TYPES] as $known) {
-            if (str_starts_with($body, $known.' ')) {
-                $type = $known;
-
-                break;
-            }
-        }
+        $type = array_find([...self::KNOWN_TYPES, ...self::OBJECT_TYPES], fn ($known): bool => str_starts_with($body, $known.' '));
         $type ??= strtok($body, ' ') ?: '?';
         $words = explode(' ', trim(substr($body, strlen($type))));
 

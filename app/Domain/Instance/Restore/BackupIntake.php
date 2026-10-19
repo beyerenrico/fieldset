@@ -1,0 +1,71 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Domain\Instance\Restore;
+
+use App\Domain\Instance\Release\ManifestSchema;
+use App\Domain\Instance\Release\ReleaseManifest;
+use App\Domain\Instance\State\InstanceDirectory;
+use Throwable;
+
+/**
+ * The common start of `fsa restore`, the drill and `fsa install --from-backup` (plan U17, ADR 0085): resolve the backup,
+ * prepare it in the socket-less one-off with every APP key from outside the archive, and judge it (RestoreChecks). The
+ * keys it may still need are the key file's keys that the backup lists and the instance does not have yet: they become
+ * APP_PREVIOUS_KEYS, so data encrypted under them still decrypts after the restore.
+ */
+final readonly class BackupIntake
+{
+    public function __construct(private InstanceDirectory $directory, private RestoreSource $source) {}
+
+    /**
+     * @param  array{image: string, uuid: string, user: string}  $runAs
+     * @param  AppKeys  $own  the instance's APP keys (none for a new instance)
+     * @return array{backup: PreparedBackup, warnings: list<array{0: string, 1: string, 2: string|null}>, add: list<string>}
+     */
+    public function take(array $runAs, RestoreRequest $request, string $purpose, string $id, AppKeys $own, ?string $version, bool $mountedElsewhere = false): array
+    {
+        $path = $this->source->resolve($request->backup, $mountedElsewhere);
+        $outside = $request->keyFile instanceof AppKeys ? $own->merge($request->keyFile) : $own;
+        $scratch = $this->source->scratch($id);
+        $backup = $this->source->prepare($runAs, $path, $scratch, $outside, $request->identityFile, $request->passphrase);
+        // A new host (`--from-backup`) may decrypt with the keys the backup carries; the HMAC never uses them.
+        $known = $purpose === RestoreChecks::FROM_BACKUP ? $outside->merge(self::insideKeys($backup)) : $outside;
+        $warnings = RestoreChecks::assert($backup, $purpose, $request->acceptUnauthenticated, $known, $this->upgradesFrom($version));
+        $add = array_values(array_filter($known->keys, static fn (string $key): bool => in_array(AppKeys::of([$key])->fingerprints()[0], $backup->fingerprints(), true) && ! in_array($key, $own->keys, true)));
+
+        return ['backup' => $backup, 'warnings' => $warnings, 'add' => $add];
+    }
+
+    /** The APP keys inside the set: `secrets.env` of an fsa backup with secrets, the `env` of a 1.0 backup. */
+    public static function insideKeys(PreparedBackup $backup): AppKeys
+    {
+        $file = match (true) {
+            $backup->secrets => $backup->set.'/secrets.env',
+            $backup->legacyEnv => $backup->set.'/'.BackupSet::LEGACY_ENV,
+            default => null,
+        };
+        $values = $file === null ? [] : LegacyEnv::read((string) @file_get_contents($file));
+
+        return AppKeys::of(array_values(array_filter([
+            $values['APP_KEY'] ?? '',
+            ...explode(',', $values['APP_PREVIOUS_KEYS'] ?? ''),
+        ], static fn (string $key): bool => trim($key) !== '')));
+    }
+
+    /** The oldest version the installed release upgrades from (its stored manifest), null when unknown. */
+    private function upgradesFrom(?string $version): ?string
+    {
+        $json = $version === null ? null : $this->directory->read('releases/'.$version.'/manifest.json');
+        if ($json === null) {
+            return null;
+        }
+
+        try {
+            return (string) ReleaseManifest::fromJson($json, ManifestSchema::bundled())->upgradesFrom;
+        } catch (Throwable) {
+            return null;
+        }
+    }
+}

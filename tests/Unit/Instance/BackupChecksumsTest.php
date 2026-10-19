@@ -28,7 +28,7 @@ afterEach(function (): void {
 /** Rewrites SHA256SUMS with one more line and a matching HMAC (an attacker who knows the key cannot escape either). */
 function sumsWithLine(string $set, string $line): void
 {
-    $sums = (string) file_get_contents($set.'/SHA256SUMS').$line."\n";
+    $sums = file_get_contents($set.'/SHA256SUMS').$line."\n";
     file_put_contents($set.'/SHA256SUMS', $sums);
     file_put_contents($set.'/SHA256SUMS.hmac', BackupChecksums::hmac($sums, CHECKSUM_KEY)."\n");
 }
