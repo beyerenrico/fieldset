@@ -7,6 +7,8 @@ The Form Schema Spec has its own changelog in `spec/form-definition/1.0/CHANGELO
 
 ## [Unreleased]
 
+## 2.0.0-beta.1 — 2026-10-19 (local pre-release, not published)
+
 Mail, demo data and phones (M11): capture mode is visible and can be switched to a real SMTP server, demo data
 comes with random passwords, phones get HTTPS through a local CA or a quick tunnel, and the E16 floor is measured.
 
@@ -23,9 +25,10 @@ comes with random passwords, phones get HTTPS through a local CA or a quick tunn
   creating the account and a sign-in link when needed (ADR 0080).
 - **`fsa config show --catcher-login`** — the mail catcher UI's password in local and proxy mode, as a one-time
   secret (ADR 0080).
-- **`fsa install --smtp-*`** — `--smtp-host`, `--smtp-port`, `--smtp-encryption starttls|tls`, `--smtp-username`
+- **`fsa install --smtp-*`** — `--smtp-host`, `--smtp-port`, `--smtp-encryption starttls|tls|none`, `--smtp-username`
   with `--password-file` or `--password-stdin`, `--from-address` and `--from-name` install straight into SMTP
-  mode, without a mail catcher (ADR 0080).
+  mode, without a mail catcher. `starttls` (the default) refuses a server that offers no STARTTLS before any
+  credentials are sent; `none` is for a relay without TLS (ADR 0080).
 - **Demo data** — `fsa install --demo` adds the demo organization, forms, workflow and users; `fsa demo` adds them
   to an installed instance and hands out the demo owner's sign-in link; `fsa demo --rotate-passwords` gives every
   demo user a new random password and revokes their sessions and API tokens. Demo passwords are random (listed
@@ -48,6 +51,35 @@ comes with random passwords, phones get HTTPS through a local CA or a quick tunn
 - Backups, restore, upgrade, adopt and reset (M12); the `/platform` instance page and the update check (M13).
 - The guides in `docs/guide/` still describe the 1.0 checkout install until M13 rewrites them; `fsa <command>
   --help` lists each command's flags.
+
+## 2.0.0-alpha.2 — 2026-10-18 (local pre-release, not published)
+
+Modes (M10): domain mode with automatic HTTPS, proxy mode behind an existing reverse proxy, a stack file for plain
+Docker Compose, and `fsa config` to show and change settings.
+
+### Added
+- **Domain mode** — `fsa install --domain <host>` runs a Caddy edge that gets its certificate over ACME (Let's
+  Encrypt by default; `--acme-staging`, `--acme-ca` and `--acme-ca-root-file` for another directory), redirects
+  HTTP to HTTPS and is the only service that publishes ports (80, 443, 443/udp). The mail catcher is at `/_mail/`
+  for operators signed in to `/platform` with MFA (ADR 0075).
+- **Proxy mode** — `fsa install --behind-proxy traefik|caddy|port --url <origin>` puts the app behind an existing
+  Traefik or caddy-docker-proxy (`--proxy-network`, `--trusted-proxy`), or on a loopback port for any other proxy.
+  The app trusts exactly one proxy address (ADR 0076).
+- **Stack file** — a Compose file configured only through environment variables, listed in the signed release
+  manifest, for plain `docker compose` (R18, ADR 0076; import into Portainer and Coolify is not yet verified).
+- **`fsa config show`** — the effective settings with secrets redacted, and what each opt-in feature contacts
+  (ADR 0077).
+- **`fsa config set <key> <value>`** — `domain`, `url`, `port`, `trusted-proxy`, `mode local`, `acme-email` and
+  `acme-ca`, under the instance lock: preflight, apply, verify, and a revert on failure (exit 5 `rolled_back`;
+  exit 8 when the revert fails too). A URL change asks for confirmation (`--yes`) and lists the organizations with
+  SSO that it affects (ADRs 0077, 0078).
+
+### Changed
+- **Runtime state in the app** — the app reads its public URL, trusted hosts and maintenance gate from the
+  instance's `runtime.json`, so a URL change reaches requests, queued mails and jobs without a worker restart
+  (ADR 0074).
+- **Migrations** — run under a lock (`migrate --isolated`); invalid indexes left by an interrupted concurrent
+  index build are rebuilt.
 
 ## 2.0.0-alpha.1 — 2026-10-18 (local pre-release, not published)
 
