@@ -29,11 +29,11 @@
             "key": "backup-encryption",
             "from": "off",
             "to": "on",
-            "url": "http://localhost:8081",
+            "url": "http://localhost:8082",
             "mode": "local",
             "reverted": false,
             "previous": {
-                "url": "http://localhost:8081",
+                "url": "http://localhost:8082",
                 "mode": "local"
             },
             "services": {
@@ -53,7 +53,7 @@
             "encryption": {
                 "enabled": true,
                 "recipients": [
-                    "age1zh0uneq2muwu4hv58he6thqjv2d5nfnzgks0h0lzdf2ea7knssqsdtkaa3"
+                    "age13sws3ejgf4xys8xwl9pmkftfapynuc2xqf436tdx85geexxyvpeqavzs5j"
                 ],
                 "identity": "<work>/j08-identity.age"
             },
@@ -77,20 +77,20 @@
         "status": "ok",
         "changed": true,
         "data": {
-            "backup": "manual-20261019T121843Z",
-            "path": "<work>/fsa-test-j08/backups/manual-20261019T121843Z",
+            "backup": "manual-20261019T141742Z",
+            "path": "<work>/fsa-test-j08/backups/manual-20261019T141742Z",
             "kind": "manual",
-            "created_at": "2026-10-19T12:18:43Z",
+            "created_at": "2026-10-19T14:17:42Z",
             "bytes": 276744,
             "encrypted": true,
             "includes_secrets": false,
-            "app_key_fingerprint": "262c-a4aa-6e27-eec4",
+            "app_key_fingerprint": "c6ee-ebec-b629-afdb",
             "files": {
                 "referenced": 0,
                 "missing": 0,
                 "missing_sample": []
             },
-            "free_bytes": 141890256896
+            "free_bytes": 134250008576
         },
         "secrets": [],
         "warnings": [

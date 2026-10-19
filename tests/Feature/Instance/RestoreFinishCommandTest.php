@@ -158,6 +158,23 @@ it('refuses without the backup role password, with malformed input or the restor
     'source name with a quote' => [['--source' => 'x"; DROP'], '', FINISH_PASSWORD, 'invalid_input'],
 ]);
 
+it('writes one epoch and one instance.restored per journal, however often the finish runs (review LOW 6)', function (): void {
+    makeOrganization();
+
+    [$first, $one] = finishRun($this, ['--backup' => 'manual-20261019T120000Z', '--journal' => 'abc123def456']);
+    [$second, $two] = finishRun($this, ['--backup' => 'manual-20261019T120000Z', '--journal' => 'abc123def456']);
+    [$other, $three] = finishRun($this, ['--backup' => 'manual-20261019T120000Z', '--journal' => 'fedcba654321']);
+    $entries = DB::table('activity_log')->where('event', 'instance.restored')->orderBy('id')->get();
+
+    expect([$first, $second, $other])->toBe([0, 0, 0], json_encode([$one, $two, $three]))
+        ->and($one['data']['epoch_repeated'])->toBeFalse()
+        ->and($two['data'])->toMatchArray(['epoch' => $one['data']['epoch'], 'activity_id' => $one['data']['activity_id'], 'epoch_repeated' => true])
+        ->and($three['data']['epoch'])->toBe($one['data']['epoch'] + 1)
+        ->and(DB::table('audit_chain_epochs')->count())->toBe(2)
+        ->and($entries)->toHaveCount(2)
+        ->and(json_decode((string) $entries[0]->properties, true)['journal'] ?? null)->toBe('abc123def456');
+});
+
 it('reports a source database that does not exist as a database failure', function (): void {
     [$exit, $json] = finishRun($this, ['--source' => RestoreDatabases::name('missing')]);
 

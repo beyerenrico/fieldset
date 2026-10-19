@@ -302,6 +302,7 @@ it('restores the manual backup in place: later data gone, security state carried
         ->and($checks['volume_after'])->not->toBe($volume)->toContain('_app-storage-r')
         ->and($checks['runtime_webhooks'])->toBe(['paused' => true])->and($json['data']['webhooks'] ?? null)->toBe('paused')
         ->and($json['data']['valkey_flushed'] ?? null)->toBeTrue() // VALKEY_EXTRA_FLAGS emptied for the one-off
+        ->and($json['data']['carry_mode'] ?? null)->toBe('state') // the live database descends from the backup (carry window)
         ->and($status['data']['health'] ?? null)->toBe('ok')
         ->and($status['data']['last_restore']['backup'] ?? null)->toBe($GLOBALS['fsaJ08Manual']);
 });
@@ -338,6 +339,7 @@ it('restores the encrypted backup with its identity file and a passphrase file',
 
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput()."\n".$process->getOutput())
         ->and($json['data'])->toMatchArray(['encrypted' => true, 'authenticated' => true])
+        ->and($json['data']['carry_mode'] ?? null)->toBe('audit') // the live database was restored after this backup was made (carry window)
         ->and($process->getOutput().$process->getErrorOutput())->not->toContain(J08_PASSPHRASE);
 });
 

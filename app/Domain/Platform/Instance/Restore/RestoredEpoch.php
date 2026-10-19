@@ -8,6 +8,7 @@ use App\Domain\Audit\AuditLogger;
 use App\Domain\Audit\Chain\ChainEpoch;
 use App\Domain\Audit\Chain\ChainHeads;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
 /**
@@ -24,25 +25,50 @@ final readonly class RestoredEpoch
     public function __construct(private AuditLogger $audit) {}
 
     /**
+     * With `$journal` (fsa's journal ID, recorded in the entry) a second run for the same journal writes nothing: a
+     * finish whose one-off committed before fsa recorded the phase (`--from-backup` resumes it on the live database)
+     * returns the epoch it began (`epoch_repeated`) instead of a second epoch and a second entry (review LOW 6).
+     *
      * @param  array<int, array{seq: int, hash: string}>  $previousHeads
-     * @return array{epoch: int, previous_epoch: int|null, activity_id: mixed, restored_heads: array<int, array{seq: int, hash: string}>}
+     * @return array{epoch: int, previous_epoch: int|null, activity_id: mixed, restored_heads: array<int|string, mixed>, epoch_repeated: bool}
      */
-    public function begin(string $reason, int $seed, array $previousHeads, ?int $previousEpoch, ?string $backup, bool $fromBackup, ?int $hostUid): array
+    public function begin(string $reason, int $seed, array $previousHeads, ?int $previousEpoch, ?string $backup, bool $fromBackup, ?int $hostUid, ?string $journal = null): array
     {
         if (! in_array($reason, self::REASONS, true)) {
             throw new InvalidArgumentException('--reason must be restored or rolled_back.');
+        }
+        $event = $reason === 'rolled_back' ? 'instance.rolled_back' : 'instance.restored';
+        $earlier = $journal === null ? null : $this->earlier($event, $journal);
+        if ($earlier !== null) {
+            return $earlier;
         }
         $restoredHeads = ChainHeads::read();
         $epoch = ChainEpoch::begin($reason, $seed, $previousHeads);
         $properties = [
             'backup' => $backup, 'epoch' => $epoch, 'previous_epoch' => $previousEpoch, 'from_backup' => $fromBackup,
-            'previous_heads' => (object) $previousHeads, 'restored_heads' => (object) $restoredHeads,
+            'previous_heads' => (object) $previousHeads, 'restored_heads' => (object) $restoredHeads, ...($journal === null ? [] : ['journal' => $journal]),
         ];
-        $activity = $this->audit->cli($reason === 'rolled_back' ? 'instance.rolled_back' : 'instance.restored', null, $properties, $hostUid);
+        $activity = $this->audit->cli($event, null, $properties, $hostUid);
 
         return [
             'epoch' => $epoch, 'previous_epoch' => $previousEpoch,
-            'activity_id' => $activity instanceof Model ? $activity->getKey() : null, 'restored_heads' => $restoredHeads,
+            'activity_id' => $activity instanceof Model ? $activity->getKey() : null, 'restored_heads' => $restoredHeads, 'epoch_repeated' => false,
+        ];
+    }
+
+    /** @return array{epoch: int, previous_epoch: int|null, activity_id: mixed, restored_heads: array<int|string, mixed>, epoch_repeated: true}|null */
+    private function earlier(string $event, string $journal): ?array
+    {
+        $entry = DB::table('activity_log')->where('event', $event)->whereRaw("properties::jsonb ->> 'journal' = ?", [$journal])->orderBy('id')->first(['id', 'properties']);
+        if ($entry === null) {
+            return null;
+        }
+        $properties = json_decode((string) $entry->properties, true);
+        $properties = is_array($properties) ? $properties : [];
+
+        return [
+            'epoch' => (int) ($properties['epoch'] ?? 0), 'previous_epoch' => is_int($properties['previous_epoch'] ?? null) ? $properties['previous_epoch'] : null,
+            'activity_id' => $entry->id, 'restored_heads' => is_array($properties['restored_heads'] ?? null) ? $properties['restored_heads'] : [], 'epoch_repeated' => true,
         ];
     }
 

@@ -31,6 +31,7 @@ final readonly class RestoreFinale
         private RestoreStack $stack,
         private RestoreRecovery $recovery,
         private RestoreCleanup $cleanup,
+        private RestoreHalt $halt,
     ) {}
 
     /**
@@ -55,12 +56,19 @@ final readonly class RestoreFinale
         return $this->open($run, $swapped, $state, $project, $names, $intake);
     }
 
-    /** @param  array<string, mixed>  $intake */
-    public function open(OperationRun $run, InstanceState $swapped, InstanceState $previous, ComposeProject $project, RestoreNames $names, array $intake): CommandResult
+    /**
+     * @param  array<string, mixed>  $intake
+     * @param  bool  $wayBack  false once the previous database or volume is gone (`--abandon` goes forward, L4): a failure
+     *                         then stops everything (exit 8) instead of returning
+     */
+    public function open(OperationRun $run, InstanceState $swapped, InstanceState $previous, ComposeProject $project, RestoreNames $names, array $intake, bool $wayBack = true): CommandResult
     {
         $record = $run->record();
         if (! $record->hasStarted('gate') && ! $record->hasStarted('cleanup')) {
             try {
+                if (! $wayBack) {
+                    $this->stack->apply($swapped); // the restored database's state: fresh volume, paused webhooks
+                }
                 if (! $record->hasCompleted('verify')) {
                     $token = $this->stack->raise($swapped);
                     $run->phase('verify', fn (): array => ['checked' => $this->stack->startAndVerify($swapped, $project, $token)], always: true);
@@ -71,6 +79,9 @@ final readonly class RestoreFinale
                     return ['open' => true];
                 }, always: true);
             } catch (Throwable $e) {
+                if (! $wayBack) {
+                    return $this->halt->stop($project, $names, $e, $e, self::safety($run->record()), 'forward');
+                }
                 $added = RestoreNames::strings($run->record()->phaseData('swap')['keys_added'] ?? null);
 
                 return $this->recovery->returnToPrevious($run, $previous, $project, $names, $e, $added, self::safety($run->record()), swapped: true);
