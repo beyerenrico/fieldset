@@ -68,6 +68,19 @@ The Form Schema Spec has its own changelog in `spec/form-definition/1.0/CHANGELO
   match what 1.0 runs with) and never applies its debug, SSO or trusted-proxy values. A Compose override, an external
   database or a Postgres other than 16 on Alpine is refused (exit 7). Any failure before 2.0 starts brings 1.0 back
   unchanged and leaves nothing of 2.0 behind (exit 5); `--abandon` undoes an adopt that stopped half-way (ADR 0087).
+- **`fsa reset`** — returns the instance to a fresh state after confirmation: the organization and owner it was
+  installed with (the owner gets a new one-time sign-in link), and with `--demo` the demo data (random passwords
+  whenever the instance is reachable beyond loopback). The instance is quiesced behind its gate, the final audit chain
+  heads go to `backups/ledger.log`, a safety backup is taken (never pruned), then the database is recreated, the audit
+  log starts a new epoch with an `instance.reset` entry naming the old heads, files go to a fresh storage volume, and the
+  cache, queues and captured mail are emptied. Settings and secrets stay. `--no-backup` skips the safety backup but still
+  writes the whole audit log to `backups/audit-export-reset-<time>.jsonl` while a real organization exists. A failure
+  before the database is recreated leaves the instance as it was (exit 5); a reset stopped after that is finished by
+  running `fsa reset` again, without a question. Row IDs of the old data are never handed out again, so signed links
+  sent before the reset (invitations, data exports) find nothing; leftover restore databases and storage volumes go too
+  (ADR 0088).
+- **`fsa reset --abandon`** — ends a reset that stopped before it recreated the database and starts the instance again
+  as it was (ADR 0088).
 
 ### Changed
 - `fsa uninstall` of an adopted instance (also one whose adopt stopped after 2.0 started) takes a final backup by
@@ -78,6 +91,9 @@ The Form Schema Spec has its own changelog in `spec/form-definition/1.0/CHANGELO
   backup service (ADR 0084).
 - `fsa status` and `fsa config show` show the last restore, the storage volume in use, paused webhooks and an
   interrupted restore with the commands that resume or abandon it (ADR 0085).
+- `fsa status` shows the last reset and an interrupted reset with the command that finishes it (ADR 0088).
+- `fsa backup` and `fsa login-link` refuse while another operation is unfinished (exit 9), and a restore of a safety
+  backup taken before a reset carries no security state from the reset instance (ADR 0084, 0085, 0088).
 - Backups list the fingerprint of every APP key, previous keys included; a backup verifies even with stray dotfiles
   such as `.DS_Store` beside it, and file names in `SHA256SUMS` must be plain names (ADR 0085).
 

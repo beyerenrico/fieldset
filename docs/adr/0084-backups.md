@@ -217,6 +217,18 @@ well inside the slot; the gate's J10 run can record it.
 
 ## Amendment 2026-10-20: the `safety-adopt` backup (U19)
 `fsa adopt` (ADR 0087) writes its `safety-adopt-<UTC>` backup in the 1.0 format of `scripts/backup.sh`, not in the set
-above: `database.dump`, `storage.tar.gz`, `env` (only the restore allow-list's values), `manifest.txt` and `SHA256SUMS`,
+above: `database.dump`, `storage.tar.gz`, `env` (the restore allow-list's values), `manifest.txt` and `SHA256SUMS`,
 no HMAC, taken from the stopped 1.0 install before fsa copies its volumes. It is a safety backup (never pruned, 0700/0600)
-and restores like any 1.0 archive (`--accept-unauthenticated`).
+and restores like any 1.0 archive (`--accept-unauthenticated`). Its `env` holds no APP key: the manifest names the keys
+by fingerprint, and an in-place restore takes exactly this set by its name and SHA256SUMS digest (U19 reviews, ADR 0087).
+
+## Amendment 2026-10-20: what reset changed (U23, ADR 0088)
+- `fsa reset` takes `SafetyBackup::take($state, 'reset', $lock)` after the quiesce and the ledger line, and seals it on
+  every way it closes. With `--no-backup` while a real organization exists it writes
+  `backups/audit-export-reset-<UTC>.jsonl` (0600) instead: no backup set, so BackupStore never lists it and retention
+  never deletes it.
+- `ChainEpoch::begin('reset', …)` now has its caller (`instance:reset epoch`); the reset's ledger line adds `journal`,
+  `demo` and `no_backup`.
+- `fsa backup` refuses while any operation journal is open (exit 9 `operation_unfinished`, checked under the lock; U23
+  second review A8): a half-reset or half-restored database is no state worth a backup. The backup daemon cannot read
+  the journal; operations stop the backup service and keep it stopped until their `open` phase (ADR 0088).

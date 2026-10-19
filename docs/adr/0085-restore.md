@@ -331,3 +331,11 @@ from-backup recipients and scratch clean-up, the drill's cache and leftovers, pa
 fail-closed webhook holds and the unknown free space. The third review (findings H1, M2, M3, L4–L7) added the journaled
 `abort`, the writers stopped before a return, the degraded but open previous instance, the forward `--abandon` without a
 way back, the exit-8 hints, the epoch keyed on the journal and the carry window.
+
+## Amendment 2026-10-20: a reset after the backup, and the sequence floors of a reset (U23, ADR 0088)
+- CarryScope has a third mode, `reset`: when the pre-restore database's chain shows a `reset` epoch that began after the
+  backup (restoring a reset's safety backup afterwards), its rows are other people's accounts under other IDs, so the
+  R64 carry takes nothing (`carried: []`) and the result warns `carry_skipped_after_reset`. The sequence advance still
+  runs. Before, mode `audit` let timestamped changes through, which matched rows by ID.
+- SequenceAdvancer gained `values()` and `raise()` (the floors from a map); `fsa reset` raises the new database's
+  sequences to the old database's values with them.

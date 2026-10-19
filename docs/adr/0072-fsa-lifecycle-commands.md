@@ -247,3 +247,12 @@ Without an owner e-mail (`fsa adopt`, `fsa install --from-backup` without `--own
 the active operator. Data from a 1.0 install may have none (1.0 granted operators by hand with `app:platform-admin`); the
 mail is then skipped (`InstallSmoke::MAIL_SKIPPED` in the phase data, warning `test_mail_skipped` from adopt with the hint
 `fsa config set operator-email <email>`), the PDF and HTTP checks still run (ADR 0087).
+
+## Amendment 2026-10-20: `fsa reset` in status (U23, ADR 0088)
+- `fsa status` adds `last_reset` and `reset` (`last`, `interrupted`: last phase, whether the database was recreated, the
+  safety backup or audit export, the command that resumes it). The `operation_unfinished` warning and exit 9 of other
+  commands name `fsa reset` with its flags (`data.command`, `data.options`).
+- The image's `fsa` wrapper lists `reset` among the commands.
+- `app:install` creates the permission catalog, the owner, the organization, the operator grant and the owner link in
+  one transaction (U23 second review A7): a failure leaves none of them, so a repeated install or `fsa reset` never takes
+  an owner without the operator role for a finished install.
