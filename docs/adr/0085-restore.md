@@ -38,18 +38,29 @@ under the instance lock as the journaled operation `restore`, each phase written
 | `cleanup` | aside database dropped, replaced volume removed, scratch removed, safety backup sealed, history `restored` | warnings only |
 
 The plan's order (epoch before the upgrade child) holds for same-version backups; an older backup is not restored in
-place yet (below). Before the swap a failure drops the scratch database, role, volume and directory and starts the
-previous stack behind the gate, which goes down last: exit 5 `rolled_back` (the plan's "failure before the swap exits 5
-with the old instance running"). From the swap until the gate went down, the journaled phase `return` renames the
-put-aside database back (the restored one gets the scratch name and is dropped), the state names the previous volume and
-webhook setting again, Valkey is flushed, the app must pass the smoke test behind the gate, everything starts, then the
-gate goes down: exit 5. If that fails, every frontend stops, the gate stays up, and the result names the databases, both
-volumes and the safety backup: exit 8 `rollback_failed`, the journal stays open and the next run continues the return.
-Every way a restore ends seals the safety backup when encryption is on, except exit 8 (a manual restore of it then needs
-no identity).
+place yet (below). Before the swap a failure goes back in the journaled phase `abort` (third review M2: started before
+anything is touched, so a run killed while going back is finished as an abort and never resumed as a restore over the
+writes the reopened instance took): the scratch database, role, volume and directory go, the unchanged app starts, the
+gate goes down once it is healthy and the other services start; one that does not is reported as `services_degraded`,
+not fatal (L7: requests reach the data they always reached). Exit 5 `rolled_back` (the plan's "failure before the swap
+exits 5 with the old instance running"). From the swap until the gate went down, the journaled phase `return` first stops
+app, queue, scheduler and backup (M3: workers `open` started must not write into either database while they are renamed,
+nor hold connections that make the rename fail), renames the put-aside database back (the restored one gets the scratch
+name and is dropped), the state names the previous volume and webhook setting again, Valkey is flushed, the app must
+pass the smoke test behind the gate, the gate goes down and everything else starts (degraded services reported): exit 5.
+If that fails, every writer stops, the gate stays up, and the result names the databases, both volumes and the safety
+backup: exit 8 `rollback_failed`, the journal stays open. Each exit 8 names its own way on (RestoreHalt, L4/L5): after a
+failed abort `fsa restore --abandon` starts the previous instance (nothing was swapped); after a failed return
+`--abandon` (or the same `fsa restore`) continues returning; when the put-aside database or the previous volume vanished
+before any rename back (journal note `no_way_back`) `--abandon` continues forward with the restored database and volume
+(verify, start, gate down, clean up). The last resort is always installing the safety backup into a new directory with
+`fsa install --from-backup`: `fsa restore` of another backup exits 9 while the journal is open. Every way a restore ends
+seals the safety backup when encryption is on, after the instance runs again, except exit 8 (a manual restore of it
+then needs no identity).
 
 A resumed run (`fsa restore <same backup>` with the same flags; the journal accepts only the same backup) repeats the
-phases before the swap from a clean scratch state (`always` phases; ledger and safety backup are kept; on an instance a
+phases before the swap from a clean scratch state unless an `abort` began, which it only finishes (`always` phases;
+ledger and safety backup are kept; on an instance a
 killed run quiesced, the leftovers go before the space check, which no longer counts the safety backup already taken,
 and a failure there goes through the abort path: exit 5, never "nothing changed"). It continues a `return` that began
 (after an exit 8 or a kill) and never verifies, opens or cleans up once one began; it returns to the previous instance
@@ -155,8 +166,30 @@ service (`DB_DATABASE` by name), the pre-restore database as a read-only second 
    secrets): a failure stops the restore before the swap (exit 5 `decrypt_failed`).
 
 Everything it writes is one transaction on the restored database (review A9): a failure leaves no epoch and no
-`instance.restored` behind, so a resumed `--from-backup` install (whose `restore_finish` runs on the swapped live
-database) cannot add a second epoch.
+`instance.restored` behind. That alone did not stop a second epoch (third review, correcting this ADR): a finish that
+committed while fsa died before recording its phase ran again on resume of a `--from-backup` install, whose
+`restore_finish` runs on the swapped live database. fsa now passes its journal ID (`--journal`), `instance.restored`
+records it, and a finish for a journal that already has its entry writes no second epoch and no second entry
+(`epoch_repeated: true`; the carry, credentials, grants and the decrypt sample run again, they are idempotent).
+
+**Carry window (third review H1).** The R64 carry compares the pre-restore database with the restored one only while
+the former descends from the backup (mode `state`). When its chain has a restore, rollback or reset epoch that began
+after the backup's time (fsa passes the manifest's `created_at` as `--backup-created-at`; without it, the restored
+database's newest audit entry), it was itself restored from another backup, so its state records no admin actions
+(mode `audit`: undoing a mistaken restore with its safety backup, or restoring the same backup twice). Then a
+revocation, wipe, erasure, deactivation or soft delete is carried only when its timestamp is after the backup, and every
+other change only when the source's audit log names the row after the backup (`auth.password_changed`, `auth.mfa_*`,
+the user's `updated` with `email`, `api_token.revoked`, `platform.admin_revoked`, `member.status_changed`/`roles_changed`/
+`groups_changed`, `form.access_changed`, the `sso.*` provider and domain events, the generic `deleted`/`updated` of
+providers, mappings, domains, webhook endpoints and organizations). The rest is counted in `carry_skipped`, not applied,
+and the restore warns `carry_partial` with the counts. In both modes a child row is never removed because its form,
+group, provider, role or organization is gone from the source (`cascade_skipped`, reported in the result): restoring a
+deleted object brings back its grants and members. The five core cases stay carried by state in mode `state` (revoked
+device, erased user, changed password, deleted API token, revoked operator). Limits: after a restore of S, a later
+restore of S again loses what the first restore's carry re-applied without audit entries (the carry writes none);
+actions without an audit event (hard-deleted users, direct permission removals, deleted membership rows, identities
+unlinked outside `sso.connection_changed`, group changes without an actor, password changes with the audit suppressed,
+wipe requests other than by timestamp) are carried only in mode `state`.
 
 The data-export files of accounts erased since the backup come back with the storage archive; the finish step names
 their directories and fsa removes them from the fresh volume (`data-exports/<org>/<id>` below the local and public
@@ -274,8 +307,9 @@ the sequence advance because writers were stopped since the safety backup.
   which deliveries happened after the backup, which it cannot.
 - A webhook step is held when the runtime file cannot be read in an instance (fail closed, review S5/A11); without a
   runtime directory at all (development, tests, installs without fsa) nothing is held.
-- When the free disk space cannot be read (`df` fails), the space check passes and the restore warns
-  `disk_space_unknown` (review A12): refusing would block every restore on such a host.
+- When the free disk space cannot be read (`df` fails), the space checks pass and the restore, the drill and
+  `--from-backup` warn `disk_space_unknown` (review A12, its drill and `--from-backup` half in the third review):
+  refusing would block every restore on such a host.
 - Valkey is flushed by a `valkey-cli FLUSHALL` one-off of the `redis` service with `VALKEY_EXTRA_FLAGS` emptied: the
   image's entrypoint appends that variable (`--requirepass …`) to every command, which made FLUSHALL a syntax error
   (J08 reported `valkey_not_flushed` until then) and put the password in the one-off's arguments.
@@ -291,4 +325,6 @@ place: the `gate` and `return` phases, the gate lowered last, the repeatable ret
 sealing on every closing path, the resumed run on a quiesced instance, the restricted restore's extension, the wider
 schema audit and adopt, the wider R64 carry, the finish transaction, whose backups an in-place restore takes, the
 from-backup recipients and scratch clean-up, the drill's cache and leftovers, paused webhooks after an in-place restore,
-fail-closed webhook holds and the unknown free space.
+fail-closed webhook holds and the unknown free space. The third review (findings H1, M2, M3, L4–L7) added the journaled
+`abort`, the writers stopped before a return, the degraded but open previous instance, the forward `--abandon` without a
+way back, the exit-8 hints, the epoch keyed on the journal and the carry window.
