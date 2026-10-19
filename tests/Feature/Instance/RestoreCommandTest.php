@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Domain\Instance\Backup\KeyFingerprint;
+use App\Domain\Instance\Docker\DockerResource;
+use App\Domain\Instance\Docker\Labels;
 use App\Domain\Instance\Operations\Ledger;
 use App\Domain\Instance\Operations\OperationJournal;
 use App\Domain\Instance\Restore\MigrationSet;
@@ -240,15 +242,17 @@ it('refuses a backup outside the instance directory and one that does not exist'
         ->and($missing)->toBe(2)->and($missingJson['errors'][0]['code'])->toBe('backup_not_found');
 });
 
-it('lets uninstall archive and remove a restored storage volume like Compose\'s own (final backup, ADR 0073)', function (): void {
+it('lets uninstall back up and remove a restored storage volume like Compose\'s own (final backup, ADR 0073)', function (): void {
     $this->restore->backup();
     $this->restore->restore();
-    $fresh = InstanceSettings::of($this->restore->config->state())->storageVolume();
+    $state = $this->restore->config->state();
+    $fresh = InstanceSettings::of($state)->storageVolume();
+    $this->restore->instance->docker->withResource(new DockerResource(DockerResource::VOLUME, $state->project().'_pg-data', [Labels::INSTANCE => $state->uuid(), 'com.docker.compose.volume' => 'pg-data'])); // Compose made it at the install
 
     [$code, $json] = $this->restore->instance->run('fsa:uninstall', ['--yes' => true, '--keep-backups' => true]);
 
     expect($code)->toBe(0, (string) json_encode($json))
-        ->and($json['data']['final_backup']['files'])->toContain('app-storage.tar')
+        ->and($json['data']['final_backup']['dir'])->toStartWith('backups/final-')
         ->and($json['data']['removed']['volumes'])->toContain($fresh);
 });
 

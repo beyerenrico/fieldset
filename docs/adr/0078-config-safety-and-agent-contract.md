@@ -177,3 +177,8 @@ the same way.
   started is completed instead. Tests: `ConfigSettledResumeTest`.
 - `rolled_back` results (exit 5) carry the change's warnings except those that describe the reverted target
   (`port_changed`, `catcher_port_changed`); see the ADR 0080 amendment of this date.
+
+## Amendment 2026-10-20: proxy-mode hint (M12 gate)
+The hint for proxy mode now names the whole way: `fsa uninstall --keep-backups`, then `fsa install --from-backup
+<dir>/backups/final-<time>` with `--app-key-file <dir>/backups/final-<time>.app-key.env` (plain backups) or the
+identity and passphrase (encrypted); the final backup is a 2.0 backup since the ADR 0073 amendment of this date.

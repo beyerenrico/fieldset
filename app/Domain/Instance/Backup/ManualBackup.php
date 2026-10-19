@@ -61,7 +61,7 @@ final readonly class ManualBackup
 
         try {
             $context->progress->phase('backup', 'Writing a manual backup');
-            $outcome = $this->runner->backup(ComposeProject::forInstance($state, $this->directory), BackupName::MANUAL, $handle->record->lockId, $includeSecrets ? $this->secrets() : null);
+            $outcome = $this->runner->backup(ComposeProject::forInstance($state, $this->directory), BackupName::MANUAL, $handle->record->lockId, $includeSecrets ? self::secrets($this->directory) : null);
         } finally {
             $this->lock->release($handle);
         }
@@ -103,10 +103,10 @@ final readonly class ManualBackup
         return $result->withWarning('backup_on_host', 'Backups stay in the instance directory on this host.', 'Copy backups/ to another machine or storage regularly.');
     }
 
-    /** @return string `secrets.env` from env/app.env (only the keys another host needs) */
-    private function secrets(): string
+    /** @return string `secrets.env` from env/app.env (only the keys another host needs; also uninstall's final backup) */
+    public static function secrets(InstanceDirectory $directory): string
     {
-        $app = new EnvFiles($this->directory)->read('app');
+        $app = new EnvFiles($directory)->read('app');
         $secrets = array_filter(array_intersect_key($app, array_flip(self::SECRET_KEYS)), static fn (string $value): bool => $value !== '');
         if (($secrets['APP_KEY'] ?? '') === '') {
             throw new InstanceException('env/app.env holds no APP_KEY.', ExitCode::PreflightFailed, 'app_key_missing');

@@ -10,12 +10,12 @@ use App\Domain\Instance\State\InstanceState;
 /**
  * What a repeated `fsa install` with different flags tells an agent (exit 2 `use_config_set`, ADR 0078): per flag the
  * `fsa config set` key that changes it on this instance, or none, and a hint that says plainly what is possible.
- * Proxy mode cannot be entered or re-wired on an installed instance, and until `--from-backup` (2.0.0-rc.1) a fresh
- * install starts without the old data; there is no backup command yet, only uninstall's final backup.
+ * Proxy mode cannot be entered or re-wired on an installed instance: the data moves through uninstall's final backup
+ * (a 2.0 backup, ADR 0073 as amended by the M12 gate) and `fsa install --from-backup`.
  */
 final class InstallFlags
 {
-    public const string PROXY_SWITCH = 'Switching to proxy mode, or changing its setup or network, is not possible on an installed instance: it needs `fsa uninstall` and a fresh `fsa install --behind-proxy traefik|caddy|port --url <origin>`. The data cannot be carried over until 2.0.0-rc.1 (`fsa install --from-backup`); `fsa uninstall --keep-backups` first writes a final backup (database dump, files, APP_KEY) into backups/ for that.';
+    public const string PROXY_SWITCH = 'Switching to proxy mode, or changing its setup or network, is not possible on an installed instance: it needs `fsa uninstall` and a fresh `fsa install --behind-proxy traefik|caddy|port --url <origin>`. To carry the data over, run `fsa uninstall --keep-backups` (it writes a final backup into backups/ and keeps that directory), then `fsa install --from-backup <dir>/backups/final-<time>` with the proxy flags, adding `--app-key-file <dir>/backups/final-<time>.app-key.env` when backups are not encrypted, or `--identity-file` and the passphrase when they are.';
 
     /** Install flag => the config key for it. */
     private const array KEYS = [

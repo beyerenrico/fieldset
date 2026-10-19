@@ -28,8 +28,9 @@ use App\Domain\Instance\State\InstanceState;
  * found by label rather than through the compose file, so nothing of another project is touched even when the
  * names collide: containers (forced), then networks, then volumes. Then the files of the instance directory go.
  *
- * - --keep-backups keeps `backups/` and first writes a final backup into it (FinalBackup: database dump, storage
- *   archive, APP_KEY); if that fails nothing is removed (exit 4). Without it, data and backups are deleted.
+ * - --keep-backups keeps `backups/` and first writes a final backup into it (FinalBackup: a 2.0 backup `final-<UTC>`
+ *   that `fsa install --from-backup` reads, the APP keys inside it when encrypted or beside it); if that fails nothing
+ *   is removed (exit 4). Without it, data and backups are deleted.
  * - An adopted instance (plan U19, ADR 0087) gets the final backup and keeps `backups/` without --keep-backups, unless
  *   --no-backup: its 1.0 checkout holds the data only up to the adopt. The result names the writes made since adopt
  *   (AdoptedInstance), whether 1.0 ran since the adopt (its fence) and the command that brings 1.0 back; the 1.0
@@ -70,7 +71,7 @@ final readonly class Uninstaller
         // directory (the marker goes first among the files, after it no fsa command accepts the directory).
         try {
             $volumes = $uuid === null ? [] : $this->docker->volumes([Labels::INSTANCE => $uuid]);
-            $final = $keepBackups && ! $noBackup ? $this->backup->write($this->ids->state(), $uuid, $volumes) : null;
+            $final = $keepBackups && ! $noBackup ? $this->backup->write($this->ids->state(), $volumes, $handle) : null; // quiesced first (gate D2)
             $writes = $adopted !== null && $state instanceof InstanceState ? $this->adopted->writesSince($state) : null;
             $removed = $uuid === null ? ['containers' => [], 'networks' => [], 'volumes' => []] : $this->removeResources($uuid, $final !== null);
             $deleted = $this->deleteFiles($keepBackups, [...array_filter([$facts->nonce, $facts->openUrlFile]), InstanceDirectory::LOCKS_DIR]);
@@ -79,16 +80,45 @@ final readonly class Uninstaller
         }
         $this->directory->files()->delete(InstanceDirectory::LOCKS_DIR);
 
-        $result = $this->result($uuid, $removed, $deleted, $keepBackups, $final);
+        $result = $this->finalWarnings($this->result($uuid, $removed, $deleted, $keepBackups, $final), $final);
         $result = $adopted === null ? $result : $this->adoptedResult($result, $adopted, $writes, $final, $legacyChanged);
 
         return ! $this->holdsCertificates($volumes, $state) ? $result : $result->withWarning('certificates_removed', self::certificateWarning($this->domain($state)), 'Use --acme-staging for trial installs; reinstalling the same domain often counts against the CA\'s duplicate-certificate limit.');
     }
 
     /**
+     * Where the final backup's APP keys are and how the backup comes back (ADR 0073 amendment, M12 gate).
+     *
+     * @param  array<string, mixed>|null  $final
+     */
+    private function finalWarnings(CommandResult $result, ?array $final): CommandResult
+    {
+        if ($final === null) {
+            return $result;
+        }
+        foreach (is_array($final['warnings'] ?? null) ? $final['warnings'] : [] as $warning) {
+            $result = is_array($warning) && is_string($warning['code'] ?? null) ? $result->withWarning($warning['code'], (string) ($warning['message'] ?? '')) : $result;
+        }
+        $root = $this->directory->root;
+        $set = is_string($final['dir'] ?? null) ? $final['dir'] : null;
+        $keys = is_string($final['key_file'] ?? null) ? $final['key_file'] : null;
+        $restore = match (true) {
+            $set === null => 'They authenticate the backups kept in backups/ (`--app-key-file`).',
+            $keys === null => "`fsa install --from-backup {$root}/{$set} --identity-file <identity> --passphrase-file <file>` brings it back.",
+            default => "`fsa install --from-backup {$root}/{$set} --app-key-file {$root}/{$keys}` brings it back.",
+        };
+        if ($keys === null) {
+            return $result->withWarning('final_backup_encrypted', "The final backup {$root}/{$set} is encrypted and carries the APP keys.", $restore);
+        }
+        $plain = ! str_ends_with($keys, '.age');
+
+        return $result->withWarning('app_key_beside_backup', ($plain ? 'The APP keys are in plaintext (0600) in ' : 'The APP keys are encrypted to the backup recipients in ')."{$root}/{$keys}".($set === null ? '' : ', beside the final backup').'.', ($plain ? 'Keep that file as safe as the backup. ' : '').$restore);
+    }
+
+    /**
      * @param  array<string, mixed>  $record  the `adopted` history entry
      * @param  array{audit_entries: int, rows: array<string, int>, any: bool}|null  $writes
-     * @param  array{dir: string, files: list<string>}|null  $final
+     * @param  array<string, mixed>|null  $final
      * @param  bool|null  $legacyChanged  whether 1.0 ran since the adopt (AdoptedInstance::legacyChanged)
      */
     private function adoptedResult(CommandResult $result, array $record, ?array $writes, ?array $final, ?bool $legacyChanged): CommandResult
@@ -96,17 +126,18 @@ final readonly class Uninstaller
         $data = AdoptedInstance::uninstallData($record, $writes, $legacyChanged);
         $result = $result->withData(['adopted' => $data])
             ->withWarning('restart_1_0', AdoptedInstance::restartNotice($legacyChanged).AdoptedInstance::jobsNotice($record), 'Bring it back with: '.$data['restart_1_0']);
+        $set = is_string($final['dir'] ?? null) ? $final['dir'] : null;
         if ($writes === null) {
-            return $result->withWarning('writes_since_adopt_unknown', 'The writes made since adopt could not be counted (no baseline in backups/ledger.log, or Postgres did not answer).', $final === null ? 'Without a final backup they are gone with the instance.' : "Whatever was written is in the final backup {$final['dir']}.");
+            return $result->withWarning('writes_since_adopt_unknown', 'The writes made since adopt could not be counted (no baseline in backups/ledger.log, or Postgres did not answer).', $set === null ? 'Without a final backup they are gone with the instance.' : "Whatever was written is in the final backup {$set}.");
         }
         if (! $writes['any']) {
             return $result;
         }
-        $where = $final === null ? 'They are in no backup (--no-backup).' : "They are in the final backup {$final['dir']}.";
+        $where = $set === null ? 'They are in no backup (--no-backup).' : "They are in the final backup {$set}.";
 
-        // A final-* set is no format fsa restore or --from-backup reads (review V3): its parts are restored by hand.
+        // The final set is a 2.0 backup (M12 gate; review V3 resolved): `fsa install --from-backup` reads it.
         return $result->withWarning('writes_since_adopt', "Data written since adopt ({$writes['audit_entries']} audit entries, row changes ".json_encode($writes['rows']).') is not in the 1.0 install. '.$where,
-            $final === null ? null : "To get it back, load {$final['dir']}/database.dump into a 2.0 instance's Postgres with pg_restore and unpack app-storage.tar into its app-storage volume, with the APP keys from app-key.env (backup.json lists the files).");
+            $set === null ? null : "To get it back, create a 2.0 instance from it with `fsa install --from-backup {$this->directory->root}/{$set}` (the final backup's own warning names its keys).");
     }
 
     /**
@@ -228,14 +259,14 @@ final readonly class Uninstaller
     /**
      * @param  array{containers: list<string>, networks: list<string>, volumes: list<string>}  $removed
      * @param  list<string>  $deleted
-     * @param  array{dir: string, files: list<string>}|null  $final
+     * @param  array<string, mixed>|null  $final
      */
     private function result(?string $uuid, array $removed, array $deleted, bool $keepBackups, ?array $final): CommandResult
     {
         $result = CommandResult::ok('uninstall', [
             'uuid' => $uuid, 'removed' => $removed, 'dir' => $this->directory->root, 'deleted_files' => $deleted,
             'kept' => $keepBackups ? [InstanceDirectory::BACKUPS_DIR] : [],
-            'data_deleted' => true, 'backups_deleted' => ! $keepBackups, 'final_backup' => $final,
+            'data_deleted' => true, 'backups_deleted' => ! $keepBackups, 'final_backup' => $final === null ? null : array_diff_key($final, ['warnings' => true]),
         ], $deleted !== [] || array_merge(...array_values($removed)) !== []);
 
         return $uuid !== null ? $result : $result->withWarning('instance_id_unknown', 'No installation ID was found (no state, journal, compose file or container of this directory) and no labelled resource is tied to it; only the files were removed.');

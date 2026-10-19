@@ -6,7 +6,9 @@ use App\Domain\Instance\Backup\AgeCli;
 use App\Domain\Instance\Backup\BackupChecksums;
 use App\Domain\Instance\Docker\ContainerInfo;
 use App\Domain\Instance\Docker\ContainerSpec;
+use App\Domain\Instance\Docker\DockerResource;
 use App\Domain\Instance\Docker\ImageInfo;
+use App\Domain\Instance\Docker\Labels;
 use App\Domain\Instance\Operations\Ledger;
 use App\Domain\Instance\Operations\OperationJournal;
 use App\Domain\Instance\Output\InvalidInput;
@@ -240,6 +242,8 @@ it('records the baseline in the ledger, and uninstall takes a final backup and r
     $this->adopt->adopt();
     $entry = app(Ledger::class)->last('adopted');
     $this->adopt->uninstalling = true;
+    $state = $this->adopt->instance->state();
+    $this->adopt->instance->docker->withResource(new DockerResource(DockerResource::VOLUME, $state->project().'_pg-data', [Labels::INSTANCE => $state->uuid(), 'com.docker.compose.volume' => 'pg-data'])); // Compose made it
     $this->adopt->laterSnapshot = [...$this->adopt->snapshot, 'counts' => [...$this->adopt->snapshot['counts'], 'submissions' => 44], 'heads' => [...$this->adopt->snapshot['heads'], '1' => ['seq' => 185, 'hash' => 'cccc']]];
 
     [$code, $json] = $this->adopt->instance->run('fsa:uninstall', ['--yes' => true]);
@@ -252,7 +256,7 @@ it('records the baseline in the ledger, and uninstall takes a final backup and r
         ->and($json['data']['adopted'])->toMatchArray(['checkout' => $this->adopt->checkout, 'restart_1_0' => 'cd '.$this->adopt->checkout.' && docker compose up -d'])
         ->and($json['data']['adopted']['writes_since_adopt'])->toBe(['audit_entries' => 5, 'rows' => ['submissions' => 3], 'any' => true])
         ->and(collect($json['warnings'])->pluck('code')->all())->toContain('writes_since_adopt', 'restart_1_0')
-        ->and(collect($json['warnings'])->firstWhere('code', 'writes_since_adopt')['hint'] ?? '')->not->toContain('--from-backup')->toContain('pg_restore') // review V3
+        ->and(collect($json['warnings'])->firstWhere('code', 'writes_since_adopt')['hint'] ?? '')->toContain('fsa install --from-backup')->not->toContain('pg_restore') // a 2.0 set since the M12 gate (review V3)
         ->and(adoptBackups($this->adopt))->toHaveCount(1);
 });
 

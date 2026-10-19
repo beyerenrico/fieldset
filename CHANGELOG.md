@@ -108,6 +108,11 @@ The Form Schema Spec has its own changelog in `spec/form-definition/1.0/CHANGELO
   as it was (ADR 0088).
 
 ### Changed
+- `fsa uninstall --keep-backups` writes its final backup in the 2.0 backup format (`backups/final-<time>`, encrypted
+  when backup encryption is on), so `fsa install --from-backup` and `fsa restore` read it; the instance is quiesced
+  first, so no write is lost after the snapshot, and a failed backup starts it again. The APP keys go inside an
+  encrypted backup, or beside a plain one (`final-<time>.app-key.env`, named in a warning). The proxy-mode hint now
+  says how to carry the data over (ADR 0073 amendment).
 - `fsa uninstall` of an adopted instance (also one whose adopt stopped after 2.0 started) takes a final backup by
   default and keeps `backups/`; it reports the writes made since the adopt, whether 1.0 ran since then, and how to start
   1.0 again (`docker compose up -d` in its checkout) with the jobs 1.0 will then run; `--no-backup` skips the final

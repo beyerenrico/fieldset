@@ -119,7 +119,7 @@ it('names per differing install flag the config key that changes it, and says pl
         ->and(collect($json['data']['flags'])->sortBy('flag')->values()->all())->toBe([
             ['flag' => '--behind-proxy', 'key' => null], ['flag' => '--port', 'key' => 'port'], ['flag' => '--url', 'key' => null],
         ], json_encode($json['data']['flags']))
-        ->and($json['errors'][0]['hint'])->toContain('fsa uninstall')->toContain('2.0.0-rc.1')->toContain('--from-backup')
+        ->and($json['errors'][0]['hint'])->toContain('fsa uninstall --keep-backups')->toContain('--from-backup')->toContain('--app-key-file')->not->toContain('2.0.0-rc.1')
         ->and($json['errors'][0]['hint'])->not->toContain('back up first');
 });
 
