@@ -36,8 +36,9 @@ use Throwable;
  *
  * plan (the live database read: owner, organization, whether an audit export is needed; exit 3 when no owner exists) →
  * quiesce (like a restore: gate up, writers stopped, the queue drained, pending audit entries sealed) → ledger (the final
- * chain heads, before the database goes) → safety_backup (unless `--no-backup`) or audit_export (`--no-backup` while
- * real organizations exist) → … ResetRebuild from `recreate_database` on.
+ * chain heads, before the database goes) → safety_backup (unless `--no-backup`) or audit_export (`--no-backup`: written
+ * while real organizations exist, counted after the quiesce) → recreate_database (repeated until the new epoch began)
+ * → … ResetRebuild from `migrate` on.
  *
  * A failure (or a signal, at a phase boundary) before the drop starts the previous stack again behind the gate, which
  * goes down last: exit 5 `rolled_back`, nothing deleted. From the drop on the reset only goes forward: a failure leaves
@@ -88,25 +89,48 @@ final readonly class ResetOperation
     private function steps(OperationRun $run, InstanceState $state, ResetRequest $request, FsaContext $context, bool $toFile, ?RecordDigest $digest): CommandResult
     {
         $project = ComposeProject::forInstance($state, $this->directory);
-        $plan = $run->phase('plan', function () use ($run, $state, $project, $request, $digest): array {
+        $plan = $run->phase('plan', function () use ($run, $state, $project, $digest): array {
             $this->docker->composeUp($project, Installer::INFRASTRUCTURE, RestoreStack::WAIT_SECONDS); // a stopped database is read too
             $subject = ResetSubject::plan($this->app->plan($project), $state, $digest);
             $run->note(ResetSubject::NOTE, $subject->toNote());
 
-            return [...$subject->toPhase(), 'export' => $subject->exportNeeded($request->noBackup), 'storage_volume' => RestoreStorage::current($state)];
+            return [...$subject->toPhase(), 'storage_volume' => RestoreStorage::current($state)];
         }, changes: false);
         $subject = ResetSubject::fromJournal($plan, $this->note($run->record()));
-        if (! $run->record()->hasStarted(self::DROP)) {
-            $failed = $this->beforeDrop($run, $state, $project, $request, ($plan['export'] ?? false) === true);
-            if ($failed instanceof CommandResult) {
-                return $failed;
-            }
-        }
+        $firstDrop = ! $run->record()->hasStarted(self::DROP);
+        $failed = $firstDrop ? $this->beforeDrop($run, $state, $project, $request) : null;
+        $failed ??= $this->drop($run, $state, $project, $firstDrop);
 
-        return $this->rebuild->run($run, $state, $project, $request, $subject, $context, $toFile);
+        return $failed ?? $this->rebuild->run($run, $state, $project, $request, $subject, $context, $toFile);
     }
 
-    private function beforeDrop(OperationRun $run, InstanceState $state, ComposeProject $project, ResetRequest $request, bool $export): ?CommandResult
+    /**
+     * The database is dropped and created again. Repeated while the new epoch has not begun (the database then holds
+     * nothing but the migrations, review M1). When the first attempt fails and the old database still answers, nothing
+     * was lost: the way back runs (exit 5) instead of leaving the instance stuck (review M3).
+     */
+    private function drop(OperationRun $run, InstanceState $state, ComposeProject $project, bool $first): ?CommandResult
+    {
+        try {
+            $run->phase(self::DROP, fn (): array => $this->app->recreate($project), always: ! $run->record()->hasCompleted('epoch'));
+        } catch (Throwable $e) {
+            return $first && $this->untouched($project) ? $this->abort($state, $project, $e, $run->record()) : $this->rebuild->stuck($e, $run->record());
+        }
+
+        return null;
+    }
+
+    /** Whether the old database still answers the plan query (a first, failed drop that never reached it). */
+    private function untouched(ComposeProject $project): bool
+    {
+        try {
+            return is_array($this->app->plan($project)->data['organizations'] ?? null);
+        } catch (Throwable) {
+            return false;
+        }
+    }
+
+    private function beforeDrop(OperationRun $run, InstanceState $state, ComposeProject $project, ResetRequest $request): ?CommandResult
     {
         try {
             $run->phase('quiesce', function () use ($state, $project): array {
@@ -120,8 +144,8 @@ final readonly class ResetOperation
             $this->interruption->checkpoint();
             if (! $request->noBackup) {
                 $run->phase('safety_backup', fn (): array => $this->safety->take($state, self::OPERATION, new LockHandle($this->lock->current() ?? throw new InstanceException('The instance lock was lost during the reset.', ExitCode::AbortedUnchanged, 'lock_lost'))));
-            } elseif ($export) {
-                $run->phase('audit_export', fn (): array => $this->app->export($project));
+            } else { // decided after the quiesce: no real organization can appear any more (review M2)
+                $run->phase('audit_export', fn (): array => $this->exportIfReal($project));
             }
             $this->interruption->checkpoint();
         } catch (Throwable $e) {
@@ -129,6 +153,16 @@ final readonly class ResetOperation
         }
 
         return null;
+    }
+
+    /** @return array<string, mixed> the audit export, or why there is none (only demo organizations) */
+    private function exportIfReal(ComposeProject $project): array
+    {
+        $counts = $this->app->plan($project)->data['organizations'] ?? null;
+
+        return is_array($counts) && ($counts['non_demo'] ?? 0) === 0
+            ? ['file' => null, 'skipped' => 'only_demo_organizations']
+            : $this->app->export($project);
     }
 
     /** @return array<string, mixed> the final heads appended to the ledger (R43, KTD26) and the seed of the new epoch */

@@ -73,7 +73,7 @@ final readonly class ResetApp
         $header = $outcome->successful() ? self::header($partial) : null;
         if ($header === null) {
             @unlink($partial);
-            throw new InstanceException('The audit export failed: '.($outcome->successful() ? 'it does not start with an export header' : $outcome->stderrTail(5)), ExitCode::HealthCheckFailed, 'audit_export_failed', 'Read the output; nothing was deleted. Run `fsa reset` again, or without --no-backup to keep a full backup.', true);
+            throw new InstanceException('The audit export failed: '.($outcome->successful() ? 'it is incomplete (no export header, or fewer entries than the header names)' : $outcome->stderrTail(5)), ExitCode::HealthCheckFailed, 'audit_export_failed', 'Read the output; nothing was deleted. Run `fsa reset` again, or without --no-backup to keep a full backup.', true);
         }
         $final = $this->directory->path(InstanceDirectory::BACKUPS_DIR.'/'.$name);
         if (! rename($partial, $final)) {
@@ -84,17 +84,23 @@ final readonly class ResetApp
         return ['file' => $name, 'entries' => is_int($header['entries'] ?? null) ? $header['entries'] : null, 'bytes' => (int) filesize($final)];
     }
 
-    /** @return array<string, mixed>|null the export's first line when it is the export header */
+    /** @return array<string, mixed>|null the export's header, when the file starts with one and holds the entries it names */
     private static function header(string $path): ?array
     {
         $handle = @fopen($path, 'rb');
-        $line = $handle === false ? false : fgets($handle, 1_048_576);
-        if ($handle !== false) {
-            fclose($handle);
+        if ($handle === false) {
+            return null;
         }
-        $header = is_string($line) ? json_decode($line, true) : null;
+        $header = json_decode((string) fgets($handle), true);
+        $lines = 0;
+        while (fgets($handle) !== false) {
+            $lines++;
+        }
+        fsync($handle);
+        fclose($handle);
+        $complete = is_array($header) && ($header['format'] ?? null) === 'fsa-audit-export' && is_int($header['entries'] ?? null) && $lines >= $header['entries'];
 
-        return is_array($header) && ($header['format'] ?? null) === 'fsa-audit-export' ? $header : null;
+        return $complete ? $header : null;
     }
 
     /** What an interrupted export left (never a complete one). */

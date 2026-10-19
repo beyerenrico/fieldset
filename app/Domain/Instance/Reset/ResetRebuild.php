@@ -30,9 +30,10 @@ use Carbon\CarbonImmutable;
 use Throwable;
 
 /**
- * The second half of `fsa reset` (plan U23, KTD26, ADR 0088), from the drop on; it only goes forward:
+ * The second half of `fsa reset` (plan U23, KTD26, ADR 0088), after the database was recreated (ResetOperation); it
+ * only goes forward:
  *
- * recreate_database (dropped and created again: the append-only triggers forbid truncating) → migrate (and the backup
+ * migrate (again after every recreate, until the epoch began; and the backup
  * service's role, as install does) → epoch (the new epoch seeded from the ledger, `instance.reset` with the old heads as
  * its first entry, the state's `reset` history entry) → storage (a fresh, empty, labelled volume; the state names it) →
  * flush (Valkey with its queues, the mail catcher) → seed (install's `app:install`: the first organization, its owner,
@@ -86,8 +87,7 @@ final readonly class ResetRebuild
     private function forward(OperationRun $run, InstanceState $state, ComposeProject $project, ResetRequest $request, ResetSubject $subject, FsaContext $context, bool $toFile): CommandResult
     {
         $record = $run->record();
-        $run->phase(ResetOperation::DROP, fn (): array => $this->app->recreate($project));
-        $run->phase('migrate', fn (): array => $this->migrate($project));
+        $run->phase('migrate', fn (): array => $this->migrate($project), always: ! $record->hasCompleted('epoch')); // after every recreate
         $epoch = $run->phase('epoch', fn (): array => $this->epoch($project, $request, $record));
         $volume = $run->phase('storage', fn (): array => $this->freshStorage($state, $record), changes: true);
         $flushed = $run->phase('flush', fn (): array => ['valkey' => $this->stack->flushValkey($project), 'catcher' => $this->catcher->flush($this->directory->state(), $project)]);
@@ -219,13 +219,13 @@ final readonly class ResetRebuild
     }
 
     /** From the drop on there is no way back: the journal stays open, the gate up, and `fsa reset` continues. */
-    private function stuck(Throwable $cause, JournalRecord $record): CommandResult
+    public function stuck(Throwable $cause, JournalRecord $record): CommandResult
     {
         $exit = $cause instanceof InstanceException && ! $cause->exitCode->isBeforeChange() ? $cause->exitCode : ExitCode::HealthCheckFailed;
         $kept = ResetResult::safetyBackup($record) ?? (is_string($record->phaseData('audit_export')['file'] ?? null) ? $record->phaseData('audit_export')['file'] : null);
 
         return CommandResult::failed(ResetOperation::OPERATION, $exit, $cause instanceof InstanceException ? $cause->errorCode : 'reset_failed',
-            'The reset stopped after the database was recreated: '.$cause->getMessage(),
+            'The reset stopped after it began replacing the database: '.$cause->getMessage(),
             'Fix the cause'.($cause instanceof InstanceException && $cause->hint !== null ? ' ('.$cause->hint.')' : '').', then run `'.ResetRequest::commandLine($record->context()).'` again: it continues from here. The old data '.($kept === null ? 'was not backed up.' : "is in backups/{$kept}."),
             true, [...($cause instanceof InstanceException ? $cause->data : []), 'safety_backup' => ResetResult::safetyBackup($record)], changed: true);
     }

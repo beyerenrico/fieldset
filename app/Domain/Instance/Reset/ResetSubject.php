@@ -21,8 +21,8 @@ use SensitiveParameter;
  * - the organization and locale the install record names (plain values), else the oldest real organization's;
  * - the owner: the active platform operator whose e-mail matches the install record's digest (the install owner), else
  *   the operator granted first; none is exit 3 `owner_unknown` (nothing changed);
- * - whether real organizations (not the demo, soft-deleted ones included) exist: then `--no-backup` still writes an
- *   audit export.
+ * - how many organizations exist and how many are not the demo (the audit export of `--no-backup` counts again once the
+ *   writers stopped).
  *
  * The owner's e-mail and name are personal: they stay in the open journal as a note (a reset resumed after the
  * database was dropped has nowhere else to read them) and are replaced by digests when the journal is archived.
@@ -80,12 +80,6 @@ final readonly class ResetSubject
             (string) self::text($phase['organization'] ?? null), (string) self::text($phase['locale'] ?? null), (string) self::text($note['owner_email'] ?? null),
             self::text($note['owner_name'] ?? null), $int('organizations'), $int('non_demo'),
         );
-    }
-
-    /** Whether the reset must write an audit export: no safety backup, and real organizations' audit trails would go. */
-    public function exportNeeded(bool $noBackup): bool
-    {
-        return $noBackup && $this->nonDemo > 0;
     }
 
     /** app:install's inputs, through install's own grammar. */

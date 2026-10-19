@@ -42,7 +42,7 @@ final readonly class ResetEpoch
                 return ['epoch' => ChainEpoch::current(), 'previous_epoch' => $previousEpoch, 'activity_id' => $began, 'began' => false];
             }
             if (DB::table('audit_chain_epochs')->exists() || DB::table('activity_log')->exists()) {
-                throw new RestoreRefused('database_not_fresh', 'The database already holds audit entries or epochs; the reset begins the epoch only in the database it created.', 'Run `fsa reset` again: it recreates the database first.');
+                throw new RestoreRefused('database_not_fresh', 'The database already holds audit entries or epochs; the reset begins the epoch only in the database it created.', 'Run `fsa reset` again: until the epoch began it recreates the database first.');
             }
             $epoch = ChainEpoch::begin('reset', $seed, $previousHeads);
             $activity = $this->audit->cli(self::EVENT, null, [

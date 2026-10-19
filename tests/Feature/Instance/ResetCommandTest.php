@@ -5,13 +5,12 @@ declare(strict_types=1);
 use App\Domain\Instance\Backup\BackupRetention;
 use App\Domain\Instance\Backup\BackupStore;
 use App\Domain\Instance\Docker\ContainerSpec;
-use App\Domain\Instance\Docker\DockerCommandFailed;
 use App\Domain\Instance\Docker\ProcessOutcome;
-use App\Domain\Instance\Operations\Interruption;
 use App\Domain\Instance\Operations\Ledger;
 use App\Domain\Instance\Operations\OperationJournal;
 use App\Domain\Instance\State\EnvFiles;
 use App\Domain\Instance\State\InstanceSettings;
+use App\Domain\Instance\State\InstanceState;
 use Tests\Support\Instance\DemoFixtures;
 use Tests\Support\Instance\InstanceCommandFixture;
 use Tests\Support\Instance\ResetFixture;
@@ -21,8 +20,8 @@ use Tests\Support\Instance\TemporaryInstance;
  * `fsa reset` on the ops side (R43, R57, R68, KTD26, plan U23, ADR 0088), against the recording Docker gateway: the plan
  * one-off, quiesce, the ledger with the final heads before the database goes, the safety backup or the audit export, the
  * recreated database, migrations, the epoch from the ledger with `instance.reset`, a fresh storage volume, the Valkey and
- * catcher flush, install's seed phase, the verification behind the gate, `--demo` under the reachability rule, every way
- * back before the drop and the resume after it.
+ * catcher flush, install's seed phase, the verification behind the gate and `--demo` under the reachability rule. Ways
+ * back and resumes are in ResetRecoveryTest.
  */
 
 beforeEach(function (): void {
@@ -152,10 +151,33 @@ it('keeps nothing with --no-backup when only demo organizations exist, and says 
     [$code, $json] = $this->reset->reset(['--yes' => true, '--no-backup' => true]);
 
     expect($code)->toBe(0)
-        ->and(ResetFixture::phases($this->reset->archived()))->not->toContain('audit_export')->not->toContain('safety_backup')
+        ->and(ResetFixture::phases($this->reset->archived()))->toContain('audit_export')->not->toContain('safety_backup')
+        ->and($this->reset->archived()->phaseData('audit_export'))->toBe(['file' => null, 'skipped' => 'only_demo_organizations'])
         ->and($this->reset->instance->docker->called('composeRunToFile'))->toBe([])
         ->and($json['data'])->toMatchArray(['safety_backup' => null, 'audit_export' => null])
         ->and(collect($json['warnings'])->firstWhere('code', 'no_backup')['message'])->toContain('nothing of the old data was kept');
+});
+
+it('counts the organizations for the export again after the writers stopped: one created meanwhile is exported', function (): void {
+    $demoOnly = [...$this->reset->plan, 'organizations' => ['total' => 1, 'non_demo' => 0]];
+    $this->reset->answers['plan'] = [ResetFixture::ok($demoOnly, false), ResetFixture::ok([...$demoOnly, 'organizations' => ['total' => 2, 'non_demo' => 1]], false)];
+
+    [$code, $json] = $this->reset->reset(['--yes' => true, '--no-backup' => true]);
+
+    expect($code)->toBe(0)
+        ->and($this->reset->actions())->toBe(['plan', 'plan', 'recreate', 'epoch'])
+        ->and($json['data']['audit_export'])->toStartWith('audit-export-reset-');
+});
+
+it('refuses when the organization of the fresh instance is unknown (no install record of it, no real organization): exit 3', function (): void {
+    $state = $this->reset->config->state()->toArray();
+    $state['history'] = array_map(static fn (array $entry): array => array_diff_key($entry, ['organization' => true]), $state['history']);
+    $this->reset->instance->directory->saveState(InstanceState::fromArray($state));
+    $this->reset->plan['organization'] = null;
+
+    [$code, $json] = $this->reset->reset();
+
+    expect($code)->toBe(3)->and($json['errors'][0]['code'])->toBe('organization_unknown');
 });
 
 it('gives the demo users random passwords with --demo on an instance reachable beyond loopback, as secrets only', function (): void {
@@ -196,32 +218,6 @@ it('forgets the demo of before the reset: install --demo then counts as a change
         ->and($json['errors'][0]['hint'])->toContain('fsa demo');
 });
 
-it('brings the instance back when the safety backup fails: exit 5, nothing deleted, gate down, journal closed', function (): void {
-    $this->reset->instance->backupOutcome = InstanceCommandFixture::oneOffJson(['command' => 'backup-daemon', 'status' => 'failed', 'errors' => [['code' => 'low_disk_space', 'message' => 'Not enough space.', 'hint' => null]]]);
-    $mark = $this->reset->config->mark();
-
-    [$code, $json] = $this->reset->reset();
-
-    expect($code)->toBe(5, (string) json_encode($json))
-        ->and($json['status'])->toBe('rolled_back')
-        ->and($json['errors'][0]['code'])->toBe('safety_backup_failed')
-        ->and($this->reset->actions())->toBe(['plan'])
-        ->and(collect($this->reset->config->callsSince($mark, 'composeUp'))->contains(fn (array $call): bool => $call['services'] === []))->toBeTrue()
-        ->and(resetRuntime($this->dir)['gate']['raised'])->toBeFalse()
-        ->and(new OperationJournal($this->reset->instance->directory)->current())->toBeNull();
-});
-
-it('handles a signal before the drop like a failure: the instance runs again (exit 5) and the ledger stays untouched', function (): void {
-    $this->reset->hooks['audit:seal'] = static fn () => app(Interruption::class)->handle(15);
-
-    [$code, $json] = $this->reset->reset();
-
-    expect($code)->toBe(5, (string) json_encode($json))
-        ->and($this->reset->actions())->toBe(['plan'])
-        ->and(new Ledger($this->reset->instance->directory)->entries())->toBe([])
-        ->and(resetRuntime($this->dir)['gate']['raised'])->toBeFalse();
-});
-
 it('refuses when no active operator can own the fresh instance: exit 3 before anything stops', function (): void {
     $this->reset->plan['operators'] = [];
     $mark = $this->reset->config->mark();
@@ -241,118 +237,6 @@ it('picks the install owner by its digest among several operators, the organizat
     $this->reset->reset();
 
     expect($this->reset->instance->oneOffCalls('app:install')[0]['command'])->toContain('--email=owner@example.com', '--organization=Acme Forms', '--locale=en');
-});
-
-it('resumes a reset that stopped after the database was recreated: no question, no second ledger line or backup, one epoch; status shows it', function (): void {
-    $this->reset->answers['epoch'] = [ResetFixture::failed('database_failed', 'The database step failed (SQLSTATE 57P01)')];
-    $mark = $this->reset->config->mark();
-
-    [$failed, $failedJson] = $this->reset->reset();
-    [, $status] = $this->reset->instance->run('fsa:status');
-    $gate = resetRuntime($this->dir)['gate']['raised'];
-    [$code, $json] = $this->reset->reset([]); // no --yes, no terminal: nothing more can be lost
-
-    expect($failed)->toBe(4)->and($failedJson['errors'][0]['code'])->toBe('reset_epoch_failed')
-        ->and($failedJson['errors'][0]['hint'])->toContain('fsa reset')->toContain('backups/'.ResetFixture::SAFETY)
-        ->and($gate)->toBeTrue()
-        ->and($status['data']['reset']['interrupted'])->toMatchArray(['last_phase' => 'epoch', 'database_recreated' => true, 'safety_backup' => ResetFixture::SAFETY, 'resume' => 'fsa reset'])
-        ->and(collect($status['warnings'])->firstWhere('code', 'operation_unfinished')['hint'])->toContain('continues from there without asking')
-        ->and($code)->toBe(0, (string) json_encode($json))
-        ->and($this->reset->actions())->toBe(['plan', 'recreate', 'epoch', 'epoch'])
-        ->and(new Ledger($this->reset->instance->directory)->entries())->toHaveCount(1)
-        ->and(array_filter($this->reset->instance->docker->called('composeRun'), static fn (array $call): bool => ($call['command'][3] ?? null) === '--kind=safety-reset'))->toHaveCount(1)
-        ->and(array_filter($this->reset->config->callsSince($mark, 'composeRun'), static fn (array $call): bool => ($call['command'][2] ?? null) === 'migrate'))->toHaveCount(1)
-        ->and(array_column($this->reset->config->state()->history(), 'event'))->toContain('reset')
-        ->and($json['data']['sign_in_link']['delivered'])->toBe('secrets');
-});
-
-it('recreates the database again when a reset stopped while recreating it', function (): void {
-    $this->reset->answers['recreate'] = [ResetFixture::failed('database_failed', 'The database step failed (SQLSTATE 55006)')];
-
-    [$failed] = $this->reset->reset();
-    [$code] = $this->reset->reset([]);
-
-    expect($failed)->toBe(4)->and($code)->toBe(0)
-        ->and($this->reset->actions())->toBe(['plan', 'recreate', 'recreate', 'epoch']);
-});
-
-it('issues a new owner link when the seeding happened in an interrupted attempt', function (): void {
-    $calls = 0;
-    $this->reset->hooks['app:install'] = function () use (&$calls): void {
-        $calls++;
-    };
-    $this->reset->config->smokeFails = static fn (): bool => true;
-
-    [$failed] = $this->reset->reset();
-    $this->reset->config->smokeFails = null;
-    [$code, $json] = $this->reset->reset([]);
-
-    expect($failed)->toBe(4)->and($code)->toBe(0, (string) json_encode($json))
-        ->and($calls)->toBe(1)
-        ->and($this->reset->instance->oneOffCalls('identity:login-link'))->toHaveCount(1)
-        ->and(array_column($json['secrets'], 'value', 'name')['sign_in_link'])->toBe(InstanceCommandFixture::ADMIN_LINK);
-});
-
-it('continues only with the flags it started with: another flag is exit 9 naming the command', function (): void {
-    $this->reset->answers['epoch'] = [ResetFixture::failed('database_failed', 'down')];
-    $this->reset->reset(['--yes' => true, '--demo' => true]);
-
-    [$code, $json] = $this->reset->reset();
-
-    expect($code)->toBe(9)->and($json['errors'][0]['code'])->toBe('operation_unfinished')
-        ->and($json['errors'][0]['data'] ?? $json['data'])->toMatchArray(['command' => 'fsa reset --demo', 'options' => ['--demo' => true]]);
-});
-
-it('continues a reset killed before the drop on the next fsa reset --yes, which asks again without it (nothing was deleted yet)', function (): void {
-    $journal = new OperationJournal($this->reset->instance->directory);
-    $journal->begin('reset', posix_getuid(), ['demo' => false, 'no_backup' => false]);
-    $journal->startPhase('plan', [], false);
-    $journal->note('subject', ['owner_email' => 'owner@example.com', 'owner_name' => 'Olivia Owner']);
-    $journal->completePhase('plan', ['organization' => 'Acme Forms', 'locale' => 'en', 'organizations' => 1, 'non_demo' => 1, 'export' => false, 'storage_volume' => $this->reset->config->state()->project().'_app-storage']);
-    $journal->startPhase('quiesce');
-
-    [, $status] = $this->reset->instance->run('fsa:status');
-    [$asked] = $this->reset->reset([]);
-    [$code, $json] = $this->reset->reset();
-
-    expect($status['data']['reset']['interrupted'])->toMatchArray(['last_phase' => 'quiesce', 'database_recreated' => false])
-        ->and(collect($status['warnings'])->firstWhere('code', 'operation_unfinished')['hint'])->toContain('fsa reset --yes')->toContain('nothing was deleted yet')
-        ->and($asked)->toBe(6)
-        ->and($code)->toBe(0, (string) json_encode($json))
-        ->and($this->reset->actions())->toBe(['recreate', 'epoch']) // the plan of the killed run stands
-        ->and(new Ledger($this->reset->instance->directory)->entries())->toHaveCount(1);
-});
-
-it('stays stopped behind the gate when starting the instance again fails before the drop: exit 8, the journal open', function (): void {
-    $this->reset->instance->backupOutcome = InstanceCommandFixture::oneOffJson(['command' => 'backup-daemon', 'status' => 'failed', 'errors' => [['code' => 'low_disk_space', 'message' => 'Not enough space.', 'hint' => null]]]);
-    $this->reset->instance->docker->onCall['composeUp'] = static function (array $args): void {
-        if ($args['services'] === []) {
-            throw new DockerCommandFailed('compose up', new ProcessOutcome(1, '', 'container app is unhealthy'));
-        }
-    };
-
-    [$code, $json] = $this->reset->reset();
-
-    expect($code)->toBe(8, (string) json_encode($json))
-        ->and($json['errors'][0]['code'])->toBe('reset_rollback_failed')
-        ->and($json['errors'][0]['hint'])->toContain('fsa reset --yes')
-        ->and($this->reset->actions())->toBe(['plan'])
-        ->and(resetRuntime($this->dir)['gate']['raised'])->toBeTrue()
-        ->and(new OperationJournal($this->reset->instance->directory)->current()?->operation())->toBe('reset');
-});
-
-it('removes a failed audit export and brings the instance back (exit 5)', function (): void {
-    $this->reset->instance->docker->fileRunResponder = static function (?string $entrypoint, array $command, string $file): ProcessOutcome {
-        file_put_contents($file, 'half');
-
-        return new ProcessOutcome(1, '', 'SQLSTATE[08006] connection lost');
-    };
-
-    [$code, $json] = $this->reset->reset(['--yes' => true, '--no-backup' => true]);
-
-    expect($code)->toBe(5)->and($json['errors'][0]['code'])->toBe('audit_export_failed')
-        ->and(glob($this->dir.'/backups/audit-export-*'))->toBe([])
-        ->and($this->reset->actions())->toBe(['plan']);
 });
 
 it('warns when the catcher or Valkey cannot be emptied and when the replaced volume cannot be removed', function (): void {
