@@ -381,3 +381,10 @@ passed, and "may lack objects (an older backup)" made that indistinguishable fro
   runs. Before, mode `audit` let timestamped changes through, which matched rows by ID.
 - SequenceAdvancer gained `values()` and `raise()` (the floors from a map); `fsa reset` raises the new database's
   sequences to the old database's values with them.
+
+## Amendment 2026-10-20: status beside upgrades, rollbacks and resets (U18, review A7)
+- `restore_scratch_left` (and `restore.scratch_left`) is reported only while no operation journal is open: an upgrade's
+  rollback, `fsa rollback` and `fsa reset` keep their own `backups/.restore-<id>` while they run, and the hint `rm -rf
+  backups/.restore-*` would remove what a running rollback is about to read (`export_missing`).
+- `last_restore` also counts rollbacks: `rolled_back` (its backup and safety backup) and `upgrade_rolled_back` (the
+  safety backup it restored as `backup`); a new key `event` names which.
