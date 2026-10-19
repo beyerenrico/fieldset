@@ -207,6 +207,14 @@ after `restore_database`) instead of exit 7 `upgrade_child_unavailable`.
   nothing swapped); not expected below hundreds of thousands of accounts.
 - `fsa status` reports no restore scratch directory while any journal is open (an upgrade's, a rollback's, a reset's may
   own one), and counts both rollbacks as the last restore (review A7).
+- The in-flight wait (review A1) relies on FrankenPHP's classic mode, in which the gated app holds no database session
+  between requests. Worker mode, or a new long-lived database client (a websocket server, an exporter), would keep a
+  session through the gate and make every upgrade and rollback exit 9 `requests_in_flight`; such a change must let the
+  wait tell its sessions apart (by application name).
+- The space check (review A5) sees only the file system that holds the instance directory. Docker's data root (the
+  volumes, the scratch database) may be another file system, whose free space it does not measure.
+- A version step changes data only, never the schema (VersionStep): the restore's schema audit builds its baseline from
+  migrations alone (ADR 0085), so an object a step created would count as unknown and one it dropped as missing.
 - J7 builds `2.0.0-rc.1-test` and targets `rc.2-test` (a migration), `rc.3-test` (unhealthy), `rc.4-test` (`fsa`
   crashes) derived from it (ReleaseHarness::publishDerived); `2.0.0-test` is no version ReleaseVersion accepts (its
   pre-release must start with alpha, beta or rc), so the happy target is a release candidate too.
@@ -235,3 +243,21 @@ finished unit followed (2026-10-20); the decision text above already states the 
 
 Also recorded, without code: the child's network is not internal; the dropped-jobs file is never deleted; the export
 size against the 256 MiB stdin cap (Consequences).
+
+## Verification review
+A verification review of the fixes (2026-10-20) confirmed A1–A7, A9, A10, A12, S1–S3 and found:
+- **V1** (from A8): a rollback that went back with exit 9 left its journal open (`fsa rollback` then resumed it as exit 5
+  and other operations were refused). An abort whose cause changed nothing now closes the journal like an upgrade's
+  revert.
+- **V2**: `rollback_open` and `return_open` lower the gate last; killed in between, a resumed run verified the live
+  instance again and a smoke failure halted it (exit 8). Once the open phase started, only the open phase runs again.
+- **V3**: staged env files reached ComposeGuard empty (RUN_MIGRATIONS passed) and an external volume could name any
+  volume. The guard now reads the staged env files, and an external volume must carry this instance's project prefix and
+  UUID label.
+- **V4**: the render's merged env directory (current secrets) went only in the render's `finally`; every way out removes
+  it now. Found on the way: `fsa rollback` checked the rollback guard before resuming, so a rollback killed after its
+  swap (the state names no previous release then) could not continue (exit 7); an interrupted rollback now continues
+  without the question.
+- **V5**: the lint matches `ConcurrentIndex` as a word (aliases, injection).
+- The adopt backup (U19, ADR 0087), a keyless 1.0 archive trusted only as the set the adopt recorded, restores in place
+  through the upgrade child with `--accept-unauthenticated` (ADR 0087 amendment).

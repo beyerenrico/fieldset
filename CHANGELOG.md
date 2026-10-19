@@ -78,9 +78,11 @@ The Form Schema Spec has its own changelog in `spec/form-definition/1.0/CHANGELO
   you what was written since and will be lost; security changes made since the upgrade (revocations, erasures, changed
   passwords, deleted tokens) are carried over, numbering never goes backwards, and the audit log starts a new epoch with
   an `instance.rolled_back` entry. A rollback that cannot finish goes back to the upgraded release exactly as it was
-  (exit 5; exit 9 when nothing was changed, such as a queue that does not drain) (ADR 0086).
+  (exit 5; exit 9 when nothing was changed, such as a queue that does not drain); an interrupted rollback continues
+  with `fsa rollback`, without the question (ADR 0086).
 - **`fsa restore` of an older backup** — a backup made by an older release is now restored in place and migrated to the
-  installed release, instead of being refused (ADR 0085 amendment, ADR 0086).
+  installed release, instead of being refused, the backup `fsa adopt` made included (with `--accept-unauthenticated`)
+  (ADR 0085 and 0087 amendments, ADR 0086).
 - **`fsa adopt <checkout>`** (install.sh `--adopt <checkout>`) — turns a clone-based 1.0 install into an instance by
   copying its data: it stops 1.0's app, scheduler and any other service it added, lets its queue drain, takes a backup
   in the 1.0 format (without the APP keys: its manifest names them by fingerprint), stops 1.0's Postgres cleanly,
