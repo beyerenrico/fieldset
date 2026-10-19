@@ -19,13 +19,17 @@ use SensitiveParameter;
  * `backups/` or a path inside the instance directory (the only paths the ops container is sure to see); `fsa install
  * --from-backup` takes any path the launcher mounted. The prepare step runs `fsa restore-prepare` from the app image with
  * `--network none` and no socket, the backup and the identity mounted read-only and only a fresh scratch directory
- * (`backups/.restore-<id>`, 0750) writable; the passphrase and the HMAC keys travel on its stdin.
+ * (`staging/restore-<id>`, 0750, inside the private staging directory, never in `backups/`, which people sync off the
+ * host: it holds the decrypted set, M12 gate S3) writable; the passphrase and the HMAC keys travel on its stdin.
  */
 final readonly class RestoreSource
 {
     public const string ROLE = 'restore-prepare';
 
-    public const string SCRATCH_PREFIX = '.restore-';
+    public const string SCRATCH_PREFIX = 'restore-';
+
+    /** Where 2.0 pre-releases put scratch directories (`backups/.restore-<id>`): still found and removed. */
+    public const string LEGACY_SCRATCH_PREFIX = '.restore-';
 
     private const float TIMEOUT = 21600.0;
 
@@ -51,20 +55,28 @@ final readonly class RestoreSource
         return $path;
     }
 
-    /** A fresh scratch directory for one restore. */
+    /** The scratch directory of one restore, relative to the instance directory. */
+    public static function scratchPath(string $id): string
+    {
+        return InstanceDirectory::STAGING_DIR.'/'.self::SCRATCH_PREFIX.$id;
+    }
+
+    /** A fresh scratch directory for one restore (`staging/` itself is 0700). */
     public function scratch(string $id): string
     {
-        $relative = InstanceDirectory::BACKUPS_DIR.'/'.self::SCRATCH_PREFIX.$id;
+        $relative = self::scratchPath($id);
         if ($this->directory->exists($relative)) {
             $this->directory->files()->delete($relative);
         }
+        $this->directory->ensureDirectory(InstanceDirectory::STAGING_DIR);
 
         return $this->directory->ensureDirectory($relative, 0750);
     }
 
     public function discard(string $id): void
     {
-        $this->directory->files()->delete(InstanceDirectory::BACKUPS_DIR.'/'.self::SCRATCH_PREFIX.$id);
+        $this->directory->files()->delete(self::scratchPath($id));
+        $this->directory->files()->delete(InstanceDirectory::BACKUPS_DIR.'/'.self::LEGACY_SCRATCH_PREFIX.$id);
     }
 
     /**

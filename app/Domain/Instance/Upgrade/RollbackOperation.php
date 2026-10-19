@@ -262,7 +262,7 @@ final readonly class RollbackOperation
         if (! $outcome->ok) {
             throw new InstanceException('Exporting the security state failed: '.$outcome->errorMessage(), ExitCode::RolledBack, 'export_failed', null, true, ['output' => $outcome->output]);
         }
-        $file = InstanceDirectory::BACKUPS_DIR.'/'.RestoreSource::SCRATCH_PREFIX.$names->id.'/security-state.json';
+        $file = RestoreSource::scratchPath($names->id).'/security-state.json'; // in staging/, never in backups/ (gate S3)
         $this->directory->write($file, json_encode($outcome->data, JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR), 0600);
 
         return ['file' => $file, 'tables' => count(is_array($outcome->data['tables'] ?? null) ? $outcome->data['tables'] : [])];

@@ -66,7 +66,7 @@ it('restores in place: prepare without network, quiesce, ledger, safety backup, 
         ->and(array_column($this->restore->instance->docker->called('removeVolume'), 'name'))->toBe([$state->project().'_app-storage-r'.$id, $state->project().'_app-storage'])
         ->and($smoke)->not->toBeEmpty()->and($smoke[0]['input'])->toStartWith(OperationGate::SMOKE_HEADER.': ')
         ->and(json_decode((string) file_get_contents($this->dir.'/runtime/runtime.json'), true)['gate']['raised'])->toBeFalse()
-        ->and(is_dir($this->dir.'/backups/.restore-'.$id))->toBeFalse()
+        ->and(is_dir($this->dir.'/staging/restore-'.$id))->toBeFalse()
         ->and($state->history()[array_key_last($state->history())]['event'] ?? null)->toBe('restored')
         ->and(new OperationJournal($this->restore->instance->directory)->current())->toBeNull();
 });
@@ -109,7 +109,7 @@ it('refuses a backup with a newer migration set: exit 7 and nothing changed (AE8
         ->and($this->restore->actions())->toBe([])
         ->and($this->restore->config->state()->toJson())->toBe($before)
         ->and(json_decode((string) file_get_contents($this->dir.'/runtime/runtime.json'), true)['gate']['raised'])->toBeFalse()
-        ->and(glob($this->dir.'/backups/.restore-*'))->toBe([]);
+        ->and(glob($this->dir.'/staging/restore-*'))->toBe([]);
 });
 
 // U18 (ADR 0085 amendment): an older backup is no longer refused in place (it was exit 7 `upgrade_child_unavailable`):
@@ -196,7 +196,7 @@ it('restores an unauthenticated archive only with --accept-unauthenticated, as a
         ->and(implode(' ', $create['options']))->toContain('--restricted-role=fsa_restore_')
         ->and($create['env'])->toBe(['FSA_RESTORE_DB_PASSWORD'])
         ->and($pgRestore->env['PGUSER'])->toStartWith('fsa_restore_')
-        ->and(implode(' ', $pgRestore->command))->toMatch('#--use-list=\S+/backups/\.restore-[0-9a-f]{12}/restore\.list -- #') // review S1
+        ->and(implode(' ', $pgRestore->command))->toMatch('#--use-list=\S+/staging/restore-[0-9a-f]{12}/restore\.list -- #') // review S1; never in backups/ (M12 gate S3)
         ->and($this->restore->actions())->toContain('adopt')
         ->and(array_search('audit', $this->restore->actions(), true))->toBeLessThan(array_search('adopt', $this->restore->actions(), true))
         ->and(implode(' ', $this->restore->databaseCalls[array_search('audit', $this->restore->actions(), true)]['options']))->toContain('--reference=form_schema')

@@ -46,7 +46,7 @@ final readonly class RestoreCleanup
         try {
             $this->source->discard($names->id);
         } catch (Throwable) {
-            $left[] = 'directory backups/'.RestoreSource::SCRATCH_PREFIX.$names->id;
+            $left[] = 'directory '.RestoreSource::scratchPath($names->id);
         }
         $sealed = $this->seal($safetyBackup, $warnings);
         $this->record($backup, $safetyBackup, $record);

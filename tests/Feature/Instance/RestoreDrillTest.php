@@ -45,7 +45,7 @@ it('drills a backup in a scratch database with a null mailer and a sync queue, d
         ->and($this->restore->config->methodsSince($mark))->not->toContain('composeStop')->not->toContain('createVolume')->not->toContain('composeUp')
         ->and(is_file($this->dir.'/backups/ledger.log'))->toBeFalse()
         ->and($this->restore->config->state()->toJson())->toBe($state)
-        ->and(glob($this->dir.'/backups/.restore-*'))->toBe([]);
+        ->and(glob($this->dir.'/staging/restore-*'))->toBe([]);
 });
 
 it('drops what a killed drill left together with its restricted role, and keeps the drill off the live cache (review A10, A14)', function (): void {

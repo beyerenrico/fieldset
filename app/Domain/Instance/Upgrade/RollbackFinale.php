@@ -143,7 +143,7 @@ final readonly class RollbackFinale
         try {
             $this->source->discard($names->id);
         } catch (Throwable) {
-            $left[] = 'directory backups/'.RestoreSource::SCRATCH_PREFIX.$names->id;
+            $left[] = 'directory '.RestoreSource::scratchPath($names->id);
         }
         $safety = $run->record()->phaseData('safety_backup')['backup'] ?? null;
         $warnings = [...$warnings, ...$this->seals->seal([is_string($safety) ? $safety : null, is_string($plan['backup'] ?? null) ? $plan['backup'] : null])];

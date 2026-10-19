@@ -57,7 +57,7 @@ it('moves a local backup to a new instance: its data, its portable settings, cap
         ->and($this->move->actions())->toBe(['list', 'drop', 'create', 'swap', 'drop'])
         ->and($this->move->databases)->toEqualCanonicalizing(['form_schema', 'postgres'])
         ->and($history)->toContain('installed', 'installed_from_backup')
-        ->and(glob($this->move->instance->directory->root.'/backups/.restore-*'))->toBe([])
+        ->and(glob($this->move->instance->directory->root.'/staging/restore-*'))->toBe([])
         ->and(json_encode($json))->not->toContain(BackupSetFixture::APP_KEY);
     // The compose file declares the fresh volume as an existing one, and every Compose call checks that it exists (J08).
     $methods = $this->move->instance->docker->methods();
@@ -236,13 +236,13 @@ it('removes the prepared set of a failed attempt, and prepares it again when the
     $this->move->pgRestore = new ProcessOutcome(1, '', 'pg_restore: error: connection lost');
 
     [$failed] = $this->move->install($backup, ['--app-key-file' => $this->move->keyFile()]);
-    $left = glob($this->move->instance->directory->root.'/backups/.restore-*');
+    $left = glob($this->move->instance->directory->root.'/staging/restore-*');
     $this->move->pgRestore = null;
     [$resumed, $json] = $this->move->install($backup, ['--app-key-file' => $this->move->keyFile()]);
 
     expect($failed)->toBe(4)->and($left)->toBe([])
         ->and($resumed)->toBe(0, (string) json_encode($json))
-        ->and(glob($this->move->instance->directory->root.'/backups/.restore-*'))->toBe([]);
+        ->and(glob($this->move->instance->directory->root.'/staging/restore-*'))->toBe([]);
 });
 
 it('names the scratch database, the restricted role and the scratch directory with the hex journal ID only (review S7)', function (): void {

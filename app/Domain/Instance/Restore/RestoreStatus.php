@@ -35,7 +35,7 @@ final readonly class RestoreStatus
             $warnings[] = ['webhooks_paused', 'Workflow webhooks are paused since this instance was installed from a backup.', 'Once the old server no longer runs, run `fsa config set webhooks on`.'];
         }
         if ($scratch !== []) {
-            $warnings[] = ['restore_scratch_left', 'An interrupted restore or drill left scratch directories in backups/: '.implode(', ', $scratch).'. They may hold decrypted backup data.', 'Remove them (`rm -rf backups/.restore-*`) when no restore runs.'];
+            $warnings[] = ['restore_scratch_left', 'An interrupted restore or drill left scratch directories: '.implode(', ', $scratch).'. They may hold decrypted backup data.', 'Remove them (`rm -rf` in the instance directory) when no restore runs.'];
         }
 
         return ['data' => $data, 'warnings' => $warnings];
@@ -79,11 +79,18 @@ final readonly class RestoreStatus
         ];
     }
 
-    /** @return list<string> */
+    /** @return list<string> scratch directories, relative to the instance directory (also a pre-release's in backups/) */
     private function scratch(): array
     {
-        $names = $this->directory->exists(InstanceDirectory::BACKUPS_DIR) ? $this->directory->files()->list(InstanceDirectory::BACKUPS_DIR) : [];
+        $found = [];
+        foreach ([InstanceDirectory::STAGING_DIR => RestoreSource::SCRATCH_PREFIX, InstanceDirectory::BACKUPS_DIR => RestoreSource::LEGACY_SCRATCH_PREFIX] as $parent => $prefix) {
+            foreach ($this->directory->exists($parent) ? $this->directory->files()->list($parent) : [] as $name) {
+                if (str_starts_with($name, $prefix)) {
+                    $found[] = $parent.'/'.$name;
+                }
+            }
+        }
 
-        return array_values(array_filter($names, static fn (string $name): bool => str_starts_with($name, RestoreSource::SCRATCH_PREFIX)));
+        return $found;
     }
 }

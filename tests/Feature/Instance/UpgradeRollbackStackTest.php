@@ -132,10 +132,21 @@ it('reports an automatic rollback as the last restore in fsa status', function (
 
 it('raises no scratch warning in fsa status while an upgrade journal is open', function (): void {
     $this->upgrade->interrupted('migrate');
-    mkdir($this->dir.'/backups/.restore-0123456789ab', 0700, true);
+    mkdir($this->dir.'/staging/restore-0123456789ab', 0700, true);
 
     [, $status] = $this->upgrade->instance->run('fsa:status');
 
     expect(array_column($status['warnings'], 'code'))->not->toContain('restore_scratch_left')
         ->and($status['data']['restore']['scratch_left'])->toBe([]);
+});
+
+it('names scratch directories left in staging/, and a pre-release\'s in backups/, when no journal is open (M12 gate S3)', function (): void {
+    mkdir($this->dir.'/staging/restore-0123456789ab', 0700, true);
+    mkdir($this->dir.'/backups/.restore-ba9876543210', 0700, true);
+
+    [, $status] = $this->upgrade->instance->run('fsa:status');
+    $warning = collect($status['warnings'])->firstWhere('code', 'restore_scratch_left');
+
+    expect($status['data']['restore']['scratch_left'])->toBe(['staging/restore-0123456789ab', 'backups/.restore-ba9876543210'])
+        ->and($warning['message'] ?? '')->toContain('staging/restore-0123456789ab')->toContain('decrypted');
 });

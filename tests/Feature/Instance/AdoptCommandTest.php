@@ -288,7 +288,7 @@ it('leaves a backup that a restore of this instance takes as its own, and no oth
     [, $json] = $this->adopt->adopt();
     app()->instance(AgeCli::class, new AgeCli(base_path('tests/Fixtures/bin/fake-age'), base_path('tests/Fixtures/bin/fake-age-keygen')));
     $prepare = fn (string $set): PreparedBackup => new BackupPreparer(app(AgeCli::class), BackupSetFixture::tools())
-        ->prepare($set, $this->adopt->instance->directory->ensureDirectory('backups/.restore-'.bin2hex(random_bytes(3)), 0750), [], MigrationSet::image(base_path('database/migrations')));
+        ->prepare($set, $this->adopt->instance->directory->ensureDirectory('staging/restore-'.bin2hex(random_bytes(3)), 0750), [], MigrationSet::image(base_path('database/migrations')));
     $runAs = RestoreOperation::runAs($this->adopt->instance->state());
     $own = AppKeys::of([new EnvFiles($this->adopt->instance->directory)->read('app')['APP_KEY']]);
     $check = static fn (PreparedBackup $backup, AppKeys $keys): Closure => static fn () => RestoreChecks::assertSameInstance($backup, $runAs['uuid'], $keys, BackupIntake::insideKeys($backup), $runAs['adopt_backup'] ?? null);

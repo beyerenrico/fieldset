@@ -355,7 +355,7 @@ it('refuses hostile archives: a changed file with recomputed sums (HMAC), a ../ 
 
     expect($tampered->getExitCode())->toBe(2)->and(InstanceJourney::json($tampered)['errors'][0]['code'] ?? null)->toBe('backup_unauthenticated')
         ->and($escaping->getExitCode())->toBe(2)->and(InstanceJourney::json($escaping)['errors'][0]['code'] ?? null)->toBe('backup_unsafe')
-        ->and($escaped)->toBe([])->and(glob($this->dir.'/backups/.restore-*'))->toBe([]);
+        ->and($escaped)->toBe([])->and(glob($this->dir.'/backups/.restore-*'))->toBe([])->and(glob($this->dir.'/staging/restore-*'))->toBe([]);
 });
 
 it('refuses a backup with a newer migration set: exit 7 and nothing changed (AE8)', function (): void {

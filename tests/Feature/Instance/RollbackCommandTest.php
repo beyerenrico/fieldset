@@ -76,7 +76,7 @@ it('returns to the previous release from the upgrade\'s safety backup, carrying 
         ->and($history[array_key_last($history)])->toMatchArray(['event' => 'rolled_back', 'from' => UpgradeFixture::TARGET, 'to' => InstanceCommandFixture::VERSION])
         ->and($this->upgrade->gate()['raised'])->toBeFalse()
         ->and(is_dir($this->dir.'/operations/upgrade-'.$id))->toBeFalse()
-        ->and(is_file($this->dir.'/backups/.restore-'.$id.'/security-state.json'))->toBeFalse()
+        ->and(is_file($this->dir.'/staging/restore-'.$id.'/security-state.json'))->toBeFalse()
         ->and(new OperationJournal($this->upgrade->instance->directory)->current())->toBeNull();
 });
 
