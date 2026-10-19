@@ -131,3 +131,19 @@ it('knows when a tunnel is active, expired or absent', function (): void {
         ->and($expired->url($now))->toBeNull()
         ->and(TunnelState::none()->isExpired($now))->toBeFalse();
 });
+
+it('reads whether webhooks are paused after a move, and treats a missing flag as not paused', function (): void {
+    expect(RuntimeDocument::parse(RuntimeFixture::document(['webhooks' => ['paused' => true]]))->webhooksPaused)->toBeTrue()
+        ->and(RuntimeDocument::parse(RuntimeFixture::document(['webhooks' => ['paused' => false]]))->webhooksPaused)->toBeFalse()
+        ->and(RuntimeDocument::parse(RuntimeFixture::document())->webhooksPaused)->toBeFalse()
+        ->and(RuntimeDocument::parse(RuntimeFixture::document(['webhooks' => null]))->webhooksPaused)->toBeFalse();
+});
+
+it('refuses a webhooks entry that breaks the grammar', function (mixed $webhooks): void {
+    expect(fn () => RuntimeDocument::parse(RuntimeFixture::document(['webhooks' => $webhooks])))->toThrow(InvalidRuntimeState::class, 'webhooks');
+})->with([
+    'not an object' => ['paused'],
+    'paused missing' => [['since' => '2026-10-19T10:00:00Z']],
+    'paused as string' => [['paused' => 'yes']],
+    'paused as number' => [['paused' => 1]],
+]);

@@ -16,6 +16,7 @@ use Throwable;
  * - extra_hosts: RFC 1123 host names or IP addresses, never a wildcard or a trailing dot.
  * - tunnel.hostname: `^[a-z0-9-]+\.trycloudflare\.com$` with an expiry and cloudflared's address (tunnel.peer).
  * - gate: `raised` is required, so a file without a gate fails closed.
+ * - webhooks.paused: optional (missing = not paused); true holds webhook steps after a move (ADR 0085).
  */
 final class RuntimeDocument
 {
@@ -52,6 +53,7 @@ final class RuntimeDocument
             self::hosts($document['extra_hosts'] ?? []),
             self::tunnel($document['tunnel'] ?? null),
             self::gate($document['gate'] ?? null),
+            self::webhooksPaused($document['webhooks'] ?? null),
         );
     }
 
@@ -153,6 +155,19 @@ final class RuntimeDocument
         }
 
         return new GateState($gate['raised'], $operation, self::timestamp($gate['since'] ?? null, 'gate.since'), $token);
+    }
+
+    /** `webhooks.paused` (U17, ADR 0085): written by `fsa install --from-backup` until the operator confirms the move. */
+    private static function webhooksPaused(mixed $webhooks): bool
+    {
+        if ($webhooks === null) {
+            return false;
+        }
+        if (! is_array($webhooks) || ! array_key_exists('paused', $webhooks)) {
+            throw new InvalidRuntimeState('webhooks.paused is missing');
+        }
+
+        return self::flag($webhooks['paused'], 'webhooks.paused');
     }
 
     private static function timestamp(mixed $value, string $field): ?CarbonImmutable

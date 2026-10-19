@@ -6,6 +6,7 @@ namespace App\Domain\Workflows\Engine;
 
 use App\Domain\Identity\Models\Organization;
 use App\Domain\Identity\Tenancy\TenantContext;
+use App\Domain\Instance\Runtime\RuntimeStateReader;
 use App\Domain\Submissions\Models\Submission;
 use App\Domain\Workflows\Enums\StepType;
 use App\Domain\Workflows\Models\WorkflowRun;
@@ -15,6 +16,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Attributes\Timeout;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Traits\Localizable;
 use Throwable;
 
@@ -22,7 +24,8 @@ use Throwable;
  * Executes one step of a run (§8.3 "steps run as queued jobs"). Carries ids only; the tenant is restored
  * from the organization id. A duplicate or stale job is a no-op (WorkflowRunner::claim). Retryable errors
  * retry with exponential backoff (workflows.steps.*); a StepFailedException or the last failed attempt
- * fails the run. The timeout stays below the queue's retry_after (90 s).
+ * fails the run. The timeout stays below the queue's retry_after (90 s). While the instance pauses webhooks after
+ * a move, a webhook step is held unclaimed (heldAfterMove()).
  */
 #[Timeout(75)]
 final class RunWorkflowStep implements ShouldQueue
@@ -58,9 +61,12 @@ final class RunWorkflowStep implements ShouldQueue
         return [new WithoutOverlapping("workflow-step:{$this->runId}:{$this->stepIndex}")->dontRelease()->expireAfter(120)];
     }
 
-    public function handle(TenantContext $tenant, WorkflowRunner $runner): void
+    public function handle(TenantContext $tenant, WorkflowRunner $runner, RuntimeStateReader $runtime): void
     {
-        $tenant->run($this->organizationId, function () use ($runner): void {
+        $tenant->run($this->organizationId, function () use ($runner, $runtime): void {
+            if ($this->heldAfterMove($runtime)) {
+                return;
+            }
             $claimed = $runner->claim($this->runId, $this->stepIndex);
             if ($claimed !== null) {
                 $organization = Organization::query()->findOrFail($claimed[0]->organization_id);
@@ -75,6 +81,25 @@ final class RunWorkflowStep implements ShouldQueue
         app(TenantContext::class)->run($this->organizationId, function () use ($exception): void {
             app(WorkflowRunner::class)->fail($this->runId, $this->stepIndex, $exception);
         });
+    }
+
+    /**
+     * A webhook step waits while the instance pauses webhooks after a move (`fsa install --from-backup`, runtime
+     * `webhooks.paused`, ADR 0085): it is not claimed, so no attempt is counted and the run stays as it is; the
+     * stalled-run sweep (`workflows:tick`) queues it again until `fsa config set webhooks on` lifts the pause.
+     */
+    private function heldAfterMove(RuntimeStateReader $runtime): bool
+    {
+        if ($runtime->current()?->webhooksPaused !== true) {
+            return false;
+        }
+        $type = WorkflowRun::query()->find($this->runId)?->step($this->stepIndex)['type'] ?? null;
+        if ($type !== StepType::Webhook->value) {
+            return false;
+        }
+        Log::info('Webhook step held: webhooks are paused on this instance until the move is confirmed.', ['run' => $this->runId, 'step' => $this->stepIndex]);
+
+        return true;
     }
 
     private function execute(WorkflowRunner $runner, WorkflowRun $run, WorkflowStepRun $step, Organization $organization): void

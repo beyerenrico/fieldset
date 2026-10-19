@@ -8,7 +8,7 @@ use Carbon\CarbonImmutable;
 
 /**
  * The validated content of runtime.json (KTD11): the instance URL, the local URL (local mode only), extra hosts,
- * the tunnel and the operation gate. Built by RuntimeDocument::parse(); a fallback state carries only APP_URL and
+ * the tunnel, the operation gate and whether webhooks are paused. Built by RuntimeDocument::parse(); a fallback state carries only APP_URL and
  * a raised gate.
  */
 final readonly class RuntimeState
@@ -16,13 +16,18 @@ final readonly class RuntimeState
     /** Spellings of the loopback URL that browsers use interchangeably (all are trusted hosts anyway). */
     private const array LOOPBACK_NAMES = ['localhost', '127.0.0.1', '::1'];
 
-    /** @param  list<string>  $extraHosts  normalized host names or IP addresses (HostName) */
+    /**
+     * @param  list<string>  $extraHosts  normalized host names or IP addresses (HostName)
+     * @param  bool  $webhooksPaused  after `fsa install --from-backup` until the operator confirms the move (ADR 0085):
+     *                                webhook steps wait (RunWorkflowStep)
+     */
     public function __construct(
         public string $instanceUrl,
         public ?string $localUrl,
         public array $extraHosts,
         public TunnelState $tunnel,
         public GateState $gate,
+        public bool $webhooksPaused = false,
     ) {}
 
     /** No usable file and no last good value in this process: APP_URL, and the gate counts as raised (fail closed). */
