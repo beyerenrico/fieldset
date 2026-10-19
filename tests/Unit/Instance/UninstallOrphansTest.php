@@ -38,7 +38,7 @@ it('removes the stopped leftovers of an orphan install named for this directory,
         ->and($json['changed'])->toBeTrue()
         ->and($json['data']['removed'])->toBe(['containers' => ['orphan-app-1'], 'networks' => ['orphan_default'], 'volumes' => ['orphan_pg-data']])
         ->and(array_map(static fn (DockerResource $r): string => $r->name, $this->fixture->docker->resources))->toBe(['own_pg-data'])
-        ->and(count($this->fixture->docker->containers))->toBe(7)
+        ->and(count($this->fixture->docker->containers))->toBe(8) // the running stack has the backup service since U16
         ->and($this->fixture->directory->hasState())->toBeTrue()
         ->and($againCode)->toBe(2)
         ->and($again['errors'][0]['code'])->toBe('not_an_orphan');

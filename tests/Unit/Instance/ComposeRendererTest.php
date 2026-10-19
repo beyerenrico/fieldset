@@ -161,7 +161,7 @@ it('gives APP_KEY and the database credentials only to app, queue and scheduler,
     }
 });
 
-it('defines the backup env as the read-only dump role, a key derived from APP_KEY and the age recipients only', function (): void {
+it('gives the backup service the read-only dump role, a key derived from APP_KEY, its fingerprint and the age recipients, never APP_KEY', function (): void {
     $recipient = 'age1'.str_repeat('q', 58);
     $state = ComposeFixtures::state()->withRecipients([$recipient]);
     $env = new ServiceEnvironments(new RenderContext($state, ComposeFixtures::secrets()))->backup();
@@ -175,7 +175,10 @@ it('defines the backup env as the read-only dump role, a key derived from APP_KE
         ->and(implode("\n", $env))->not->toContain(ComposeFixtures::APP_KEY)->not->toContain(ComposeFixtures::DB_PASSWORD)
         ->and($env['BACKUP_HMAC_KEY'])->toMatch('/^base64:[A-Za-z0-9+\/]{43}=$/')
         ->and($env['BACKUP_HMAC_KEY'])->not->toBe($other['BACKUP_HMAC_KEY'])
-        ->and(ComposeFixtures::render()->services())->not->toContain('backup');
+        ->and($env['BACKUP_APP_KEY_FINGERPRINTS'])->toMatch('/^[0-9a-f]{4}(-[0-9a-f]{4}){3}$/')
+        ->and($env['BACKUP_APP_KEY_FINGERPRINTS'])->not->toBe($other['BACKUP_APP_KEY_FINGERPRINTS'])
+        ->and($env)->toMatchArray(['BACKUP_SCHEDULE' => '03:30', 'BACKUP_TIME_ZONE' => 'UTC', 'BACKUP_RETENTION' => '7', 'FSA_INSTANCE_ROOT' => '/fsa/instance'])
+        ->and(ComposeFixtures::render()->services())->toContain('backup'); // rendered since U16 (ADR 0084)
 });
 
 it('mounts the Docker socket into no rendered service', function (): void {
@@ -204,8 +207,9 @@ it('refuses a service definition that breaks a rendering rule', function (Servic
 })->with([
     'socket bind' => [new ServiceSpec('edge', ['image' => 'caddy', 'volumes' => [['type' => 'bind', 'source' => '/var/run/docker.sock', 'target' => '/var/run/docker.sock']]]), 'Docker socket'],
     'socket short syntax' => [new ServiceSpec('edge', ['image' => 'caddy', 'volumes' => ['/run/docker.sock:/docker.sock']]), 'Docker socket'],
-    'migrations in env file' => [new ServiceSpec('backup', ['image' => 'x'], ['RUN_MIGRATIONS' => 'true']), 'RUN_MIGRATIONS'],
-    'migrations inline' => [new ServiceSpec('backup', ['image' => 'x', 'environment' => ['RUN_MIGRATIONS' => 'true']]), 'RUN_MIGRATIONS'],
+    // `tunnel`: a budgeted name local mode does not render (the backup service is rendered since U16, ADR 0084)
+    'migrations in env file' => [new ServiceSpec('tunnel', ['image' => 'x'], ['RUN_MIGRATIONS' => 'true']), 'RUN_MIGRATIONS'],
+    'migrations inline' => [new ServiceSpec('tunnel', ['image' => 'x', 'environment' => ['RUN_MIGRATIONS' => 'true']]), 'RUN_MIGRATIONS'],
     'reserved label' => [new ServiceSpec('edge', ['image' => 'x', 'labels' => ['com.docker.compose.project' => 'other']]), 'com.docker.compose'],
     'line break' => [new ServiceSpec('edge', ['image' => 'x', 'command' => ["caddy\nservices:"]]), 'unsafe value'],
     'interpolation' => [new ServiceSpec('edge', ['image' => 'x', 'command' => ['${APP_KEY}']]), 'unsafe value'],
@@ -323,7 +327,7 @@ it('writes the compose file, 0600 env files and the runtime directory, and drops
     $env = new EnvFiles($directory);
     $yaml = (string) $directory->read('compose.yaml');
 
-    expect($env->services())->toBe(['app', 'gotenberg', 'mailpit', 'postgres', 'queue', 'redis', 'scheduler'])
+    expect($env->services())->toBe(['app', 'backup', 'gotenberg', 'mailpit', 'postgres', 'queue', 'redis', 'scheduler'])
         ->and(fileperms($env->path('app')) & 0777)->toBe(0600)
         ->and(fileperms($directory->path('compose.yaml')) & 0777)->toBe(0600)
         ->and($env->read('app')['APP_KEY'])->toBe(ComposeFixtures::APP_KEY)

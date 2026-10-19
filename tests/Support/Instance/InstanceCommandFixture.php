@@ -53,6 +53,12 @@ final class InstanceCommandFixture
     /** @var array<string, ProcessOutcome> artisan command (app:install, migrate …) => outcome */
     public array $oneOffs = [];
 
+    /** The backup service's one-off (`fsa backup-daemon --once|--seal`); null: a successful run (backupRun()). */
+    public ?ProcessOutcome $backupOutcome = null;
+
+    /** stdin of the last backup one-off (`--include-secrets`). */
+    public ?string $backupInput = null;
+
     public string $manifestPath;
 
     public function __construct(?string $path = null)
@@ -64,7 +70,7 @@ final class InstanceCommandFixture
         $this->docker->withImage(ManifestVerifier::COSIGN_IMAGE, new ImageInfo('sha256:'.str_repeat('c', 64), [ManifestVerifier::COSIGN_IMAGE]));
         $this->docker->withImage(self::appImage(), new ImageInfo('sha256:'.str_repeat('a', 64), [self::appImage()]));
         $this->docker->respondToRun(fn (ContainerSpec $spec): ?ProcessOutcome => $this->answerRun($spec));
-        $this->docker->respondToComposeRun(fn (array $command): ProcessOutcome => $this->answerOneOff($command));
+        $this->docker->respondToComposeRun(fn (array $command, ?string $input = null): ProcessOutcome => $this->answerOneOff($command, $input));
         $this->probes = new FakeDoctorProbes;
         app()->instance(DoctorProbes::class, $this->probes);
         $this->facts();
@@ -120,7 +126,7 @@ final class InstanceCommandFixture
     public function withRunningStack(): self
     {
         $state = $this->state();
-        foreach (['app', 'queue', 'scheduler', 'postgres', 'redis', 'gotenberg', 'mailpit'] as $index => $service) {
+        foreach (['app', 'queue', 'scheduler', 'postgres', 'redis', 'gotenberg', 'mailpit', 'backup'] as $index => $service) {
             $this->docker->withRunningContainer(str_repeat((string) ($index + 1), 12), '2026-10-18T10:00:00Z', [
                 Labels::COMPOSE_PROJECT => $state->project(), Labels::COMPOSE_SERVICE => $service,
                 Labels::INSTANCE => $state->uuid(), Labels::ROLE => $service,
@@ -185,9 +191,32 @@ final class InstanceCommandFixture
         return null;
     }
 
-    /** @param  list<string>  $command */
-    private function answerOneOff(array $command): ProcessOutcome
+    /**
+     * The JSON document of a successful `fsa backup-daemon --once` (BackupRun's recorded run).
+     *
+     * @param  array<string, mixed>  $overrides
+     */
+    public static function backupRun(string $kind = 'manual', array $overrides = []): ProcessOutcome
     {
+        $name = $kind.'-20261019T120000Z';
+
+        return self::oneOffJson(['command' => 'backup-daemon', 'status' => 'ok', 'changed' => true, 'data' => [
+            'kind' => $kind, 'status' => 'succeeded', 'started_at' => '2026-10-19T12:00:00Z', 'finished_at' => '2026-10-19T12:00:09Z',
+            'backup' => $name, 'bytes' => 52_431, 'encrypted' => false, 'missing_files' => 0, 'free_bytes' => 20 * 1024 ** 3, 'pruned' => [],
+            'result' => ['backup' => $name, 'kind' => $kind, 'created_at' => '2026-10-19T12:00:00Z', 'bytes' => 52_431, 'encrypted' => false, 'includes_secrets' => false,
+                'files' => ['referenced' => 3, 'missing' => 0, 'missing_sample' => []], 'app_key_fingerprints' => ['0123-4567-89ab-cdef'], 'warnings' => []],
+            'recorded' => true, ...$overrides,
+        ]]);
+    }
+
+    /** @param  list<string>  $command */
+    private function answerOneOff(array $command, ?string $input = null): ProcessOutcome
+    {
+        if (($command[0] ?? null) === 'fsa' && ($command[1] ?? null) === 'backup-daemon') {
+            $this->backupInput = $input;
+
+            return $this->backupOutcome ?? self::backupRun(str_starts_with((string) ($command[3] ?? ''), '--kind=') ? substr((string) $command[3], 7) : 'manual');
+        }
         $name = $command[2] ?? '';
 
         return $this->oneOffs[$name] ?? match ($name) {
@@ -206,6 +235,8 @@ final class InstanceCommandFixture
             'instance:mail-test' => self::oneOffJson(['command' => 'instance:mail-test', 'status' => 'ok', 'changed' => true,
                 'data' => ['to' => 'owner@example.com', 'mailer' => 'smtp', ...(in_array('--install', $command, true) ? ['message_id' => self::MESSAGE_ID] : [])]]),
             'instance:pdf-test' => self::oneOffJson(['command' => 'instance:pdf-test', 'status' => 'ok', 'data' => ['bytes' => 1834]]),
+            'instance:backup-role' => self::oneOffJson(['command' => 'instance:backup-role', 'status' => 'ok', 'changed' => true,
+                'data' => ['role' => 'fsa_backup', 'created' => true, 'granted' => ['pg_read_all_data', 'connect', 'insert:backup_runs']]]),
             'instance:mail-captured' => self::oneOffJson(['command' => 'instance:mail-captured', 'status' => 'ok',
                 'data' => ['invitations' => 2, 'password_resets' => 1]]),
             'instance:operator-email' => self::oneOffJson(['command' => 'instance:operator-email', 'status' => 'ok', 'changed' => true,

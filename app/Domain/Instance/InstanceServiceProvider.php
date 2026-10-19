@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance;
 
+use App\Domain\Instance\Console\BackupCommand;
+use App\Domain\Instance\Console\BackupDaemonCommand;
 use App\Domain\Instance\Console\ConfigCommand;
 use App\Domain\Instance\Console\DemoCommand;
 use App\Domain\Instance\Console\DoctorCommand;
@@ -39,7 +41,7 @@ final class InstanceServiceProvider extends ServiceProvider
     public const array COMMANDS = [
         InstallCommand::class, DoctorCommand::class, StatusCommand::class, LogsCommand::class,
         VersionCommand::class, UninstallCommand::class, LoginLinkCommand::class, ConfigCommand::class, DemoCommand::class,
-        TunnelCommand::class,
+        TunnelCommand::class, BackupCommand::class, BackupDaemonCommand::class,
     ];
 
     public function register(): void

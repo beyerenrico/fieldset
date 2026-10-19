@@ -1,0 +1,85 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/*
+ * A stand-in for age 1.3 in the backup tests (AgeCli, KeySetup; ADR 0084): the same arguments and the same channels
+ * (stdin, --output, a positional input file, the passphrase on the file descriptor AGE_PASSPHRASE_FD names), but no
+ * cryptography. "Encrypted" output is a header line plus the plaintext:
+ *
+ * - passphrase (`-j batchpass`): `fake-age:pass:<sha256 of the passphrase>`; decrypting with another passphrase fails;
+ * - recipients (`--recipient`): `fake-age:to:<recipient,…>`; decrypting needs an identity (`--identity -`, on stdin) whose
+ *   recipient (fake-age-keygen's derivation) is listed.
+ *
+ * FAKE_AGE_FAIL=1 makes every call fail. The real binary is exercised by the J08 install journey.
+ */
+
+$args = array_slice($argv, 1);
+$option = static function (string $name) use (&$args): ?string {
+    $index = array_search($name, $args, true);
+    if ($index === false) {
+        return null;
+    }
+    $value = $args[$index + 1] ?? null;
+    array_splice($args, $index, 2);
+
+    return $value;
+};
+$fail = static function (string $message): never {
+    fwrite(STDERR, "age: error: {$message}\n");
+    exit(1);
+};
+if (getenv('FAKE_AGE_FAIL') === '1') {
+    $fail('failing on purpose');
+}
+if (getenv('AGE_PASSPHRASE') !== false) {
+    $fail('AGE_PASSPHRASE must not be set');
+}
+$decrypt = in_array('--decrypt', $args, true);
+$args = array_values(array_diff($args, ['--decrypt', '--encrypt']));
+$plugin = $option('-j');
+$output = $option('--output');
+$identity = $option('--identity');
+$recipients = [];
+while (($recipient = $option('--recipient')) !== null) {
+    $recipients[] = $recipient;
+}
+$input = $args[0] ?? null;
+$read = static fn (): string => $input === null ? (string) stream_get_contents(STDIN) : (string) file_get_contents($input);
+$passphrase = static function () use ($fail): string {
+    $fd = getenv('AGE_PASSPHRASE_FD');
+    if ($fd === false) {
+        $fail('no AGE_PASSPHRASE_FD');
+    }
+    $handle = fopen('php://fd/'.$fd, 'r');
+
+    return rtrim((string) stream_get_contents($handle), "\r\n");
+};
+$recipientOf = static fn (string $secret): string => 'age1'.substr(hash('sha256', trim($secret)), 0, 58);
+
+if ($plugin === 'batchpass') {
+    $hash = hash('sha256', $passphrase());
+    if (! $decrypt) {
+        $result = "fake-age:pass:{$hash}\n".$read();
+    } else {
+        [$header, $body] = explode("\n", $read(), 2) + [1 => ''];
+        $header === "fake-age:pass:{$hash}" || $fail('incorrect passphrase');
+        $result = $body;
+    }
+} elseif ($decrypt) {
+    $identity === '-' || $fail('expected --identity -');
+    $secret = (string) stream_get_contents(STDIN);
+    [$header, $body] = explode("\n", $read(), 2) + [1 => ''];
+    in_array($recipientOf($secret), explode(',', substr($header, strlen('fake-age:to:'))), true) || $fail('no identity matched any of the recipients');
+    $result = $body;
+} else {
+    $recipients !== [] || $fail('no recipients');
+    $result = 'fake-age:to:'.implode(',', $recipients)."\n".$read();
+}
+if ($output === null) {
+    fwrite(STDOUT, $result);
+} else {
+    file_put_contents($output, $result);
+}
+exit(0);

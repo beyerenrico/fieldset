@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Lifecycle;
 
+use App\Domain\Instance\Backup\BackupStatus;
 use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\Docker\ContainerInfo;
 use App\Domain\Instance\Docker\DockerCommandFailed;
@@ -25,8 +26,10 @@ use Throwable;
 /**
  * What `fsa status` reports (§7, R45, ADR 0056). Read-only: no file is written and no service is touched; the
  * only container it starts is the socket-less one-off that lists unused sign-in links (without tokens), and only
- * while the database runs. The last backup arrives with U16 (null until then). Phone HTTPS (ADR 0082): the local CA's
- * trust page and fingerprint, and the quick tunnel, an expired one reported but left for the next mutating command.
+ * while the database runs. Backups (ADR 0084): `last_backup` (the newest successful run) and `backup` (schedule, next
+ * run, encryption, sizes, safety backups, alerts as warnings), from the run ledger and `backups/`. Phone HTTPS (ADR
+ * 0082): the local CA's trust page and fingerprint, and the quick tunnel, an expired one reported but left for the next
+ * mutating command.
  */
 final readonly class StatusReport
 {
@@ -39,6 +42,7 @@ final readonly class StatusReport
         private DoctorProbes $probes,
         private ProxySetup $proxySetup,
         private PhoneStatus $phone,
+        private BackupStatus $backups,
     ) {}
 
     public function build(): CommandResult
@@ -72,6 +76,7 @@ final readonly class StatusReport
         $health = $this->health($services);
         $proxy = $this->proxy($state);
         $phone = $this->phone->of($state);
+        $backup = $this->backups->of($state);
         $data = [...$data,
             // The URL in effect: an active quick tunnel's, as `fsa tunnel` reports it, with the loopback URL beside it (ADR 0082).
             'version' => $state->version(), 'mode' => $state->mode(), 'url' => $phone['data']['tunnel']['url'] ?? $settings->instanceUrl(), 'local_url' => $settings->localUrl(), 'project' => $state->project(),
@@ -79,10 +84,11 @@ final readonly class StatusReport
             'mail' => MailSummary::of($state),
             'proxy' => $proxy,
             ...$phone['data'], // the local CA and the quick tunnel (ADR 0082)
+            'last_backup' => $backup['data']['last_success'], 'backup' => $backup['data'],
         ];
         $links = $this->links($state, $services);
         $result = CommandResult::ok('status', [...$data, 'sign_in_links' => $links]);
-        foreach ($phone['warnings'] as [$code, $message, $hint]) {
+        foreach ([...$phone['warnings'], ...$backup['warnings']] as [$code, $message, $hint]) {
             $result = $result->withWarning($code, $message, $hint);
         }
         if ($proxy !== null && $proxy['moved'] && $proxy['current'] !== null) {

@@ -33,11 +33,11 @@ it('lets only the app join the shared network, declared external and never label
     expect($rendered->document['networks'][ProxyLabels::NETWORK])->toBe(['external' => true, 'name' => 'edge-net'])
         ->and($services['app']['networks'])->toBe(['default', 'renderer', ProxyLabels::NETWORK])
         ->and($services['app'])->not->toHaveKey('ports');
-    foreach (['queue', 'scheduler', 'postgres', 'redis', 'gotenberg', 'mailpit'] as $service) {
+    foreach (['queue', 'scheduler', 'postgres', 'redis', 'gotenberg', 'mailpit', 'backup'] as $service) {
         expect($services[$service]['networks'])->not->toContain(ProxyLabels::NETWORK, $service);
     }
     expect($rendered->document['networks']['default']['labels'][Labels::INSTANCE])->toBe(ComposeFixtures::UUID)
-        ->and($rendered->services())->toBe(['app', 'queue', 'scheduler', 'postgres', 'redis', 'gotenberg', 'mailpit']);
+        ->and($rendered->services())->toBe(['app', 'queue', 'scheduler', 'postgres', 'redis', 'gotenberg', 'mailpit', 'backup']);
 })->with(['traefik', 'caddy']);
 
 it('routes Traefik to the app over the shared network by the --url host, with TLS for an https URL', function (): void {

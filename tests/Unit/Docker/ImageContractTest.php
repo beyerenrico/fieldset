@@ -278,7 +278,7 @@ describe('fsa wrapper', function (): void {
         if (! $json) {
             expect($process->getOutput())->toBe('')
                 ->and($process->getErrorOutput())->toContain("fsa: unknown command: {$command}")
-                ->and($process->getErrorOutput())->toContain('Available commands: config, demo, doctor, install, login-link');
+                ->and($process->getErrorOutput())->toContain('Available commands: backup, config, demo, doctor, install, login-link');
 
             return;
         }
@@ -287,7 +287,7 @@ describe('fsa wrapper', function (): void {
             'errors' => [[
                 'code' => 'unknown_command',
                 'message' => "Unknown fsa command: {$command}",
-                'hint' => 'Available commands: config, demo, doctor, install, login-link, logs, status, tunnel, uninstall, version. Run fsa without arguments to list them; put flags after the command or write them as --flag=value.',
+                'hint' => 'Available commands: backup, config, demo, doctor, install, login-link, logs, status, tunnel, uninstall, version. Run fsa without arguments to list them; put flags after the command or write them as --flag=value.',
                 'retryable' => false,
             ]],
         ])->and($process->getErrorOutput())->toBe('');
@@ -296,7 +296,7 @@ describe('fsa wrapper', function (): void {
         'typo with a leading flag' => [['--json', 'stauts'], true],
         'quote in the name' => [['--json', 'x"y\\z'], true],
         'two words' => [['--json', 'logs status'], true],
-        'human' => [['backup'], false],
+        'human' => [['restore'], false], // `backup` shipped with U16 (ADR 0084); restore is still to come
         'value of a flag no command knows' => [['--json', '--colour', 'red', 'install'], true],
     ]);
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Install;
 
+use App\Domain\Instance\Backup\BackupSchedule;
 use App\Domain\Instance\Compose\ComposeRenderer;
 use App\Domain\Instance\Config\SmtpCredentials;
 use App\Domain\Instance\Docker\ComposeProject;
@@ -88,6 +89,9 @@ final readonly class InstanceStack
             $state = $state->withSettings($ports);
         }
         $state = InstallMail::apply(InstallMode::apply(ProxySetup::apply($state, $preflight), $preflight), $preflight);
+        if ($state->setting('time_zone') === null && $facts->timezone !== null && BackupSchedule::isZone($facts->timezone)) {
+            $state = $state->withSetting('time_zone', $facts->timezone); // "instance time" of the backup schedule (E13)
+        }
         $this->directory->saveState($state);
         $secrets = $smtp instanceof SmtpCredentials ? $this->secrets()->withSmtpCredentials($smtp->username, $smtp->password) : $this->secrets();
         $rendered = $this->renderer->write($this->directory, $state, $secrets, ($preflight['emulated'] ?? false) === true);

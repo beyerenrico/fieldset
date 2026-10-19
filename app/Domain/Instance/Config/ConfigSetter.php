@@ -332,6 +332,9 @@ final readonly class ConfigSetter
      */
     private function assertOptions(ConfigRequest $request): void
     {
+        if ($request->key !== 'backup-encryption' && $request->hasKeyFileOptions()) {
+            throw new InvalidInput("These options do not apply to `config set {$request->key}`.", 'invalid_flag', '--identity-out, --passphrase-file and --passphrase-stdin belong to `config set backup-encryption on`.');
+        }
         if ($request->key !== 'mail' && $request->hasKeyOptions()) {
             throw new InvalidInput("These options do not apply to `config set {$request->key}`.", 'invalid_flag', '--smtp-*, --password-stdin, --password-file, --from-*, --test-to and --remove-catcher belong to `config set mail`, --revoke-previous to `config set operator-email`.');
         }

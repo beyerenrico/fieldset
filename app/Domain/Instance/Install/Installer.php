@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Install;
 
+use App\Domain\Instance\Backup\BackupRunner;
 use App\Domain\Instance\Console\FsaContext;
 use App\Domain\Instance\Demo\DemoCredentials;
 use App\Domain\Instance\Demo\DemoData;
@@ -34,7 +35,8 @@ use Carbon\CarbonImmutable;
  * certificate). Under the instance lock, with every phase journaled before it starts:
  *
  * doctor (verify the release, preflight, choose ports, refuse foreign projects) → secrets → state (and the
- * rendered files) → pull → up (Postgres and Valkey) → migrate (one-off) → app_install (one-off: organization,
+ * rendered files) → pull → up (Postgres and Valkey) → migrate (one-offs: the migrations, then the backup service's
+ * database role, ADR 0084) → app_install (one-off: organization,
  * owner, operator role, owner link) → start (the whole stack, `up --wait`) → [demo (one-off: demo data, R29, ADR 0081)]
  * → smoke (HTTP, a PDF render and a test mail: InstallSmoke) → done. With --smtp-host the instance starts in SMTP mode
  * without the catcher; the SMTP account reaches only the env files of the state phase (InstallMail).
@@ -62,6 +64,7 @@ final readonly class Installer
         private InstallSmoke $smoke,
         private ProxySetup $proxy,
         private DemoData $demo,
+        private BackupRunner $backups,
     ) {}
 
     public function situation(): InstallSituation
@@ -163,7 +166,12 @@ final readonly class Installer
         return $demo instanceof DemoCredentials ? $demo->apply($result, $context, $secretsToFile) : $result;
     }
 
-    /** @return array{migrated: true} */
+    /**
+     * The migrations, then the backup service's role (read all data, insert backup runs; ADR 0084), whose grant needs
+     * the `backup_runs` table. Both are idempotent, so a resume repeats them.
+     *
+     * @return array{migrated: true, backup_role: true}
+     */
     private function migrate(ComposeProject $project): array
     {
         $outcome = $this->app->migrate($project);
@@ -171,8 +179,9 @@ final readonly class Installer
             $output = implode("\n", array_slice(preg_split('/\R/', trim($outcome->stdout)) ?: [], -10));
             throw new InstanceException('The database migrations failed.', ExitCode::HealthCheckFailed, 'migrate_failed', 'Read the output, fix the cause, then run `fsa install` again with the same flags: it resumes here.', true, ['output' => trim($output."\n".$outcome->stderrTail(10))]);
         }
+        $this->backups->ensureRole($project);
 
-        return ['migrated' => true];
+        return ['migrated' => true, 'backup_role' => true];
     }
 
     /** @return array{0: array<string, mixed>, 1: array{value: string, expires_at: CarbonImmutable|null}|null} */

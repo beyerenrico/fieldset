@@ -67,6 +67,7 @@ return [
             'scheduler' => 'Zeitplaner',
             'disk' => 'Speicherplatz',
             'runtime' => 'Instanz-Laufzeit (fsa)',
+            'backup' => 'Sicherungen (fsa)',
         ],
         'statuses' => [
             'ok' => 'OK',
@@ -132,6 +133,20 @@ return [
             'gate_raised' => 'aktiv (:operation)',
             'gate_lowered' => 'aus',
             'problem' => 'Problem',
+        ],
+        'backup' => [
+            'none' => 'Keine Sicherung erfasst: auf einer fsa-Instanz trägt der Sicherungsdienst jeden Lauf hier ein.',
+            'ok' => 'Die letzte Sicherung war erfolgreich.',
+            'failed' => 'Die letzte Sicherung ist fehlgeschlagen (:reason). Führen Sie `fsa backup` aus und lesen Sie `fsa logs backup`.',
+            'skipped' => 'Geplante Sicherungen werden seit mehr als 24 Stunden übersprungen, weil ein Vorgang die Instanzsperre hält. Prüfen Sie `fsa status`.',
+            'last_success' => 'Letzte erfolgreiche Sicherung',
+            'last_run' => 'Letzter Lauf',
+            'size' => 'Größe',
+            'encrypted' => 'Verschlüsselt',
+            'yes' => 'ja',
+            'no' => 'nein',
+            'on_host' => 'Die Sicherungen liegen nur auf diesem Server: kopieren Sie sie an einen anderen Ort.',
+            'missing_files' => 'Referenzierte, aber fehlende Dateien',
         ],
     ],
 ];

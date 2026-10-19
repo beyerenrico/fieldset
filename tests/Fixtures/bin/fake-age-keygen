@@ -1,0 +1,14 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/*
+ * A stand-in for age-keygen in the backup tests (see fake-age): prints a random secret key in age's layout, with the
+ * recipient fake-age derives from it.
+ */
+
+$secret = 'AGE-SECRET-KEY-1'.strtoupper(bin2hex(random_bytes(29)));
+$recipient = 'age1'.substr(hash('sha256', $secret), 0, 58);
+fwrite(STDOUT, '# created: '.gmdate('Y-m-d\TH:i:s\Z')."\n# public key: {$recipient}\n{$secret}\n");
+exit(0);
