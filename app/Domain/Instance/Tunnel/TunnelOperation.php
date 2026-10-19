@@ -11,6 +11,7 @@ use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Lifecycle\AppCommands;
 use App\Domain\Instance\Operations\ContainerIdentity;
 use App\Domain\Instance\Operations\Interruption;
+use App\Domain\Instance\Operations\JournalRecord;
 use App\Domain\Instance\Operations\OperationJournal;
 use App\Domain\Instance\Operations\OperationRun;
 use App\Domain\Instance\Operations\Supervisor;
@@ -32,7 +33,8 @@ use Closure;
  * organizations besides the demo need `--yes` (exit 6) → the journaled steps of TunnelStart (the check again under the
  * lock, preflight, demo passwords, the stack with cloudflared, the hostname, 4 hours in runtime.json; exit 5 after a
  * revert). renew: a new expiry while cloudflared lives; read-only until its one write of runtime.json, so a failed or
- * interrupted renew changed nothing (exit 9) and leaves no journal open. stop: the tunnel goes and the URL is local
+ * interrupted renew changed nothing (exit 9) and leaves no journal open; a renew cut off by SIGKILL is finished by the
+ * next renew, which keeps the tunnel. stop: the tunnel goes and the URL is local
  * again; it finishes any unfinished tunnel journal (a start whose revert failed, a cut-off stop or renew) whatever the
  * tunnel status says, and runs to its end through a signal (like a revert, it heads for the safe state).
  */
@@ -92,8 +94,10 @@ final readonly class TunnelOperation
 
                 return TunnelResults::renewed($state, TunnelResults::tunnel($tunnel), $current);
             },
+            resume: true, // only its own cut-off renew: it keeps the live tunnel
             context: ['action' => 'renew'],
             progress: $context->progress,
+            accepts: static fn (JournalRecord $record): bool => ($record->context()['action'] ?? null) === 'renew',
         ));
     }
 
@@ -146,14 +150,18 @@ final readonly class TunnelOperation
      */
     private function removal(FsaContext $context, array $current, string $action, bool $resume): CommandResult
     {
-        return $this->interruption->guard(fn (): CommandResult => $this->supervisor->run(
-            self::OPERATION,
-            $this->identity->holder('fsa', $context->facts->callerUid()),
-            fn (OperationRun $run): CommandResult => $this->stopSteps($run, $current),
-            resume: $resume,
-            context: ['action' => $action],
-            progress: $context->progress,
-        ));
+        return $this->interruption->guard(function () use ($context, $current, $action, $resume): CommandResult {
+            $this->interruption->checkpoint(); // a signal from earlier in this command stops it before anything starts
+
+            return $this->supervisor->run(
+                self::OPERATION,
+                $this->identity->holder('fsa', $context->facts->callerUid()),
+                fn (OperationRun $run): CommandResult => $this->stopSteps($run, $current),
+                resume: $resume,
+                context: ['action' => $action],
+                progress: $context->progress,
+            );
+        });
     }
 
     /**

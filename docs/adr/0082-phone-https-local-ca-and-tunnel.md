@@ -127,9 +127,11 @@ Host from the peer address. J6 uses the host's LAN address (the shim's rule) and
   `password` exits 3, organizations nobody confirmed exit 6, the demo rotation is decided from this answer) →
   `preflight` (the target state with its subnet and cloudflared's image; `edge_subnet_unavailable` and
   `image_unavailable` are exit 3 with nothing changed) → `demo_rotate` → `start` → [`revert`]. Nothing changes before the
-  rotation, so a failed check, pull or subnet search loses no password. From the rotation on every failure (the rotation
-  one-off included) reverts the stack and keeps the rotated passwords in the result (`demo_passwords_rotated`, secrets,
-  `changed: true`); `fsa install --phone-https tunnel` then reports the tunnel's `data.demo` on every path.
+  rotation, so a failed check, pull or subnet search loses no password. From the rotation on every failure is exit 5
+  and keeps the rotated passwords in the result (`demo_passwords_rotated`, secrets, `changed: true`): once `start` began
+  the stack is reverted; a failure before it (the rotation one-off, a signal received during it) leaves the untouched
+  stack alone and closes the journal. The target state is taken after the rotation, so its `demo_passwords_rotated`
+  history entry stays. `fsa install --phone-https tunnel` reports the tunnel's `data.demo` on every path.
 - **Renew** is read-only until its one write of runtime.json: a failed or interrupted renew is exit 9 with nothing
   changed (it was exit 4 with the journal left open) and the tunnel keeps its expiry.
 - **Recovery.** `fsa tunnel stop` finishes any unfinished tunnel journal (a start whose revert failed, a cut-off stop,

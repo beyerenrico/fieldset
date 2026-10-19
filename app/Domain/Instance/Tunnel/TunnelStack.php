@@ -41,10 +41,10 @@ final readonly class TunnelStack
         private QuickTunnelHostname $hostnames,
     ) {}
 
-    /** The state with the tunnel: `phone_https` tunnel and the tunnel network's subnet (chosen once, then kept). */
-    public function target(InstanceState $state): InstanceState
+    /** The state with the tunnel: `phone_https` tunnel and the tunnel network's subnet (`$subnet`, else chosen once, then kept). */
+    public function target(InstanceState $state, ?string $subnet = null): InstanceState
     {
-        $subnet = InstanceSettings::of($state)->tunnelSubnet() ?? $this->subnet($state);
+        $subnet ??= InstanceSettings::of($state)->tunnelSubnet() ?? $this->subnet($state);
 
         return $state->withSettings(['phone_https' => 'tunnel', 'tunnel_subnet' => $subnet]);
     }

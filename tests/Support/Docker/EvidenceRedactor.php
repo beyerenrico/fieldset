@@ -103,10 +103,8 @@ final class EvidenceRedactor
         $found = false;
         foreach ($lines as $index => $line) {
             $redacted = self::document($line, 0);
-            if ($redacted !== null) {
-                $lines[$index] = $redacted;
-                $found = true;
-            }
+            $found = $found || $redacted !== null;
+            $lines[$index] = $redacted ?? self::text($line); // a plain line beside NDJSON is redacted as text
         }
 
         return $found ? implode("\n", $lines) : null;

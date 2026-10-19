@@ -56,14 +56,18 @@ final readonly class DemoOperation
         $project = ComposeProject::forInstance($state, $this->directory);
         $uid = $context->facts->callerUid();
 
-        return $this->interruption->guard(fn (): CommandResult => $this->supervisor->run(
-            self::OPERATION,
-            $this->identity->holder('fsa', $uid),
-            fn (OperationRun $run): CommandResult => $rotate ? $this->rotation($run, $project, $context, $uid, $secretsToFile) : $this->seeding($run, $project, $context, $uid, $secretsToFile),
-            resume: true,
-            context: ['rotate' => $rotate],
-            progress: $context->progress,
-        ));
+        return $this->interruption->guard(function () use ($project, $context, $uid, $rotate, $secretsToFile): CommandResult {
+            $this->interruption->checkpoint(); // a signal during the expiry cleanup stops the command here (exit 9)
+
+            return $this->supervisor->run(
+                self::OPERATION,
+                $this->identity->holder('fsa', $uid),
+                fn (OperationRun $run): CommandResult => $rotate ? $this->rotation($run, $project, $context, $uid, $secretsToFile) : $this->seeding($run, $project, $context, $uid, $secretsToFile),
+                resume: true,
+                context: ['rotate' => $rotate],
+                progress: $context->progress,
+            );
+        });
     }
 
     private function seeding(OperationRun $run, ComposeProject $project, FsaContext $context, int $uid, bool $toFile): CommandResult

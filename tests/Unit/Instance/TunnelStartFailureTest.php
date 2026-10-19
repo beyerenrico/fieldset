@@ -154,3 +154,30 @@ it('reports a failed revert as exit 8 with recovery steps that name `fsa tunnel 
         ->and($json['data']['recovery'][2])->toContain('`fsa tunnel stop`')
         ->and($this->fixture->config->openJournal()?->operation())->toBe('tunnel');
 });
+
+it('keeps the rotation in the state history whatever became of the tunnel (review)', function (bool $fails): void {
+    $this->fixture->demoDefaults = DemoFixtures::EMAILS;
+    $this->fixture->hostname = $fails ? null : $this->fixture->hostname;
+
+    [$code] = $this->fixture->tunnel('start');
+
+    expect($code)->toBe($fails ? 5 : 0)
+        ->and(collect($this->fixture->config->state()->history())->pluck('event')->all())->toContain('demo_passwords_rotated');
+})->with(['the tunnel starts' => false, 'the start is reverted' => true]);
+
+it('leaves the stack alone when the demo rotation fails before it changed (review)', function (): void {
+    $this->fixture->demoDefaults = DemoFixtures::EMAILS;
+    $previous = $this->fixture->instance->docker->composeRunResponder;
+    $this->fixture->instance->docker->respondToComposeRun(fn (array $command, ?string $input = null): ProcessOutcome => in_array('--rotate', $command, true)
+        ? new ProcessOutcome(1, '', 'SQLSTATE[08006] connection refused')
+        : $previous($command, $input));
+    $mark = $this->fixture->config->mark();
+
+    [$code, $json] = $this->fixture->tunnel('start');
+
+    expect($code)->toBe(5, json_encode($json))
+        ->and($json['errors'][0]['code'])->toBe('one_off_failed')
+        ->and($json['data']['reverted'])->toBeTrue()
+        ->and($this->fixture->config->methodsSince($mark))->not->toContain('composeUp', 'composeStop')
+        ->and($this->fixture->config->openJournal())->toBeNull();
+});

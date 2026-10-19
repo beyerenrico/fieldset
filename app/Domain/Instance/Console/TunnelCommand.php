@@ -16,8 +16,9 @@ use Illuminate\Console\Attributes\Signature;
  * tunnel for phones on a local install, for 4 hours unless renewed. `start` prints the HTTPS URL and warns about the
  * third party and the internet exposure; it needs `--yes` when organizations besides the demo exist (exit 6), refuses
  * while a non-demo account signs in with `password` (exit 3; demo accounts get random passwords first) and next to
- * domain mode, proxy mode or the local CA (exit 2). `--tunnel-admin` opens /admin through it too (R65). An expired or
- * stopped tunnel is removed first (the next mutating command does that, TunnelSweeper).
+ * domain mode, proxy mode or the local CA (exit 2). `--tunnel-admin` opens /admin through it too (R65). Before start and
+ * renew an expired or stopped tunnel is removed first (the next mutating command does that, TunnelSweeper); stop removes
+ * it itself and finishes any unfinished tunnel operation, so it runs a removal once.
  */
 #[Description('Start, stop or renew the quick tunnel (HTTPS for phones through Cloudflare, 4 hours)')]
 #[Signature('fsa:tunnel
@@ -35,7 +36,7 @@ final class TunnelCommand extends FsaCommand
             throw new InvalidInput('--tunnel-admin belongs to `fsa tunnel start`.', 'invalid_flag', 'Run `fsa tunnel stop`, then `fsa tunnel start --tunnel-admin`.');
         }
         $operation = $this->laravel->make(TunnelOperation::class);
-        $swept = $this->laravel->make(TunnelSweeper::class)->sweep($context);
+        $swept = $action === 'stop' ? null : $this->laravel->make(TunnelSweeper::class)->sweep($context);
 
         return TunnelSweeper::then($this->resultName(), $swept, fn (): CommandResult => match ($action) {
             'start' => $operation->start(

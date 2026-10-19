@@ -80,3 +80,9 @@ it('masks the value of every entry in an envelope\'s secrets list, also inside J
         ->and($redacted['config_show']['secrets'])->toBe(['app_key' => '<redacted>', 'database_password' => '[redacted]'])
         ->and(json_encode($redacted))->not->toContain('Xk4v-pR9q-Lm2w')->not->toContain('c2VjcmV0');
 });
+
+it('redacts the plain lines of a string that also holds NDJSON (review)', function (): void {
+    $redacted = EvidenceRedactor::transcript(['stderr' => "{\"phase\":\"done\",\"message\":\"ok\"}\nOpen http://localhost:8080/login-link#k3y-v4lue or https://x.test/a?signature=0f9a8b"]);
+
+    expect($redacted['stderr'])->toBe("{\"phase\":\"done\",\"message\":\"ok\"}\nOpen http://localhost:8080/login-link#<redacted> or https://x.test/a?signature=<redacted>");
+});

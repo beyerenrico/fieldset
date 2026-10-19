@@ -237,3 +237,51 @@ it('finishes a demo password rotation through a signal and lists the passwords (
         ->and($this->fixture->config->openJournal())->toBeNull()
         ->and(pcntl_signal_get_handler(SIGTERM))->toBe(SIG_DFL);
 });
+
+it('stops after a signal during the expiry cleanup instead of running the command (review)', function (): void {
+    $this->fixture->tunnel('start');
+    CarbonImmutable::setTestNow('2026-10-18T16:00:01Z');
+    $sent = false;
+    $previous = $this->fixture->instance->docker->onCall['composeUp'];
+    $this->fixture->instance->docker->onCall['composeUp'] = function (array $args) use ($previous, &$sent): void {
+        $sent = $sent || tunnelSignal(SIGTERM);
+        $previous($args);
+    };
+
+    [$code, $json] = $this->fixture->config->set('port', '8090', ['--yes' => true]);
+
+    expect($sent)->toBeTrue('no signal handler was installed during the cleanup')
+        ->and($code)->toBe(9, json_encode($json))
+        ->and($json['errors'][0]['code'])->toBe('interrupted')
+        ->and(collect($json['warnings'])->pluck('code')->all())->toContain('tunnel_removed')
+        ->and($this->fixture->tunnelContainer())->toBeNull()
+        ->and($this->fixture->config->state()->setting('port'))->toBe(8080);
+});
+
+it('runs a failing removal once when `fsa tunnel stop` finishes an unfinished journal (review)', function (): void {
+    $this->fixture->tunnel('start');
+    $state = $this->fixture->config->state();
+    tunnelJournalCutOff($this, 'stop', 'remove');
+    new RuntimeWriter($this->directory)->writeTunnel($state, null);
+    $this->fixture->failComposeUps(1, 2, 3);
+    $mark = $this->fixture->config->mark();
+
+    [$code] = $this->fixture->tunnel('stop');
+
+    expect($code)->not->toBe(0)
+        ->and(array_count_values($this->fixture->config->methodsSince($mark))['composeUp'] ?? 0)->toBe(1)
+        ->and($this->fixture->config->openJournal()?->operation())->toBe('tunnel');
+});
+
+it('lets `fsa tunnel renew` finish its own cut-off renew and keep the live tunnel (review)', function (): void {
+    $this->fixture->tunnel('start');
+    tunnelJournalCutOff($this, 'renew', 'renew', changes: false);
+    CarbonImmutable::setTestNow('2026-10-18T15:00:00Z');
+
+    [$code, $json] = $this->fixture->tunnel('renew');
+
+    expect($code)->toBe(0, json_encode($json))
+        ->and($this->fixture->runtimeTunnel()['expires_at'])->toBe('2026-10-18T19:00:00Z')
+        ->and($this->fixture->tunnelContainer())->toBe('running')
+        ->and($this->fixture->config->openJournal())->toBeNull();
+});

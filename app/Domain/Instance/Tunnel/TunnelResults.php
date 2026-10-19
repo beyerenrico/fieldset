@@ -124,7 +124,7 @@ final class TunnelResults
         $retryable = $retry['retryable'];
         unset($retry['retryable']);
 
-        return CommandResult::failed(self::COMMAND, ExitCode::RolledBack, $error['code'], "Starting the quick tunnel failed, so the previous stack was restored: {$error['message']} The instance runs as before, without a tunnel.", $error['hint'], $retryable, [
+        return CommandResult::failed(self::COMMAND, ExitCode::RolledBack, $error['code'], "Starting the quick tunnel failed: {$error['message']} The instance runs as before, without a tunnel.", $error['hint'], $retryable, [
             ...self::local($state, 'start'), 'reverted' => true, 'failure' => $error['data'], ...$retry,
             'command' => 'fsa tunnel start'.($admin ? ' --tunnel-admin' : ''), 'options' => $admin ? ['--tunnel-admin' => true] : [],
             'next_commands' => ["{$fsa} status"],

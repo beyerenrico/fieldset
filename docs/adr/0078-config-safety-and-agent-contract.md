@@ -148,12 +148,17 @@ the same way.
   --rotate-passwords` for a cut-off rotation (`data.options` carries the flag). `fsa tunnel stop` resumes any tunnel
   journal whatever the tunnel status says and converges to the state on disk: runtime block cleared, the state without
   the tunnel rendered, `up --remove-orphans` of the whole project (workers included), the tunnel network removed.
-  The expiry cleanup before `config set`, `demo` and `tunnel` (`TunnelSweeper`) adopts an unfinished tunnel journal the
-  same way unless a live tunnel would go (then exit 9 names `fsa tunnel stop`); another operation's journal is left to
-  the command. So a failed cleanup is one exit 9 with `tunnel_cleanup_failed`, and the next command finishes it.
+  The expiry cleanup before `config set`, `demo`, `tunnel start` and `tunnel renew` (`TunnelSweeper`; `tunnel stop`
+  removes the tunnel itself, so a failing removal runs once) adopts an unfinished tunnel journal the same way unless a
+  live tunnel would go (then exit 9 names `fsa tunnel stop`); another operation's journal is left to the command. So a
+  failed cleanup is one exit 9 with `tunnel_cleanup_failed`, and the next command finishes it. `fsa tunnel renew` also
+  resumes its own cut-off renew (and keeps the tunnel).
 - **Interruption** now also guards `fsa tunnel start|stop|renew`, the expiry cleanup and `fsa demo`. Start is armed
-  during its checks, preflight and stack change (a signal before the first change is exit 9; later the journaled
-  revert runs disarmed); the demo rotation runs disarmed so its passwords are not lost. Stop and the cleanup run
+  during its checks, preflight and stack change (a signal before the first change is exit 9; one received during the
+  disarmed demo rotation is raised right after it, exit 5; during the stack change the journaled revert runs disarmed),
+  so the rotation's passwords are never lost. Stop and the cleanup run
   disarmed to their end like a revert. Renew is armed until right before its single runtime write. `fsa demo` runs
-  disarmed: its one-offs finish and hand out their passwords and link.
+  disarmed: its one-offs finish and hand out their passwords and link. `Interruption` is one container singleton per
+  command, so a signal recorded during the expiry cleanup stays pending and the command's own guard raises it before
+  that command changes anything (exit 9 `interrupted`, the cleanup reported as `tunnel_removed`).
 - Verified by `tests/Unit/Instance/TunnelRecoveryTest.php` and `TunnelStartFailureTest.php`.
