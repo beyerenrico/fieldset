@@ -263,3 +263,13 @@
   service invisible on /platform, first-run space estimate 0), lows (boot-local lock id, prune tombstone, deadlines,
   symlinked-parent identity path, tar `--`, DST double run): all fixed by the same agent, merged; 3 left for U17.
 - Full-suite flake: `ownerOf` unordered `first()` (fixed). Q51–52 (key rotation, install --encrypt).
+
+## 2026-10-19 M12-T02 U17 restore
+- One worktree agent: `fsa restore` (journaled 11 steps, abandon, resume), safe tar reader, HMAC from outside keys,
+  restricted-role restore + schema audit for unauthenticated archives, R64 carry, drill, `install --from-backup`
+  (1.0 `.env` allow-list), webhook hold; ADR 0085. J08 12/12, J01 5/5, J12 3/3; Instance coverage 93.29 %.
+- Two reviewers: 5 high (gate left up after resumed clean-up, unjournaled swap-back, other instance's backup in
+  place, gate lowered before full start, extension-member audit bypass), 8 medium, 7 low: all fixed with tests.
+- Found by J08: Valkey flush never worked (image appends VALKEY_EXTRA_FLAGS). Merged be7b56b; suite 6781/6781.
+- Verification reviewer: 1 high (carry treats every row missing from the live DB as an admin removal: undoing a
+  restore, FK cascades), 2 medium (unjournaled abort, workers running during swap-back), 4 low: second fix round.

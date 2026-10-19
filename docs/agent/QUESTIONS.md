@@ -253,3 +253,12 @@ Format: question · chosen option · impact · how to reverse.
    only while the operator keeps every identity · optional: a `backup-encryption rotate` that re-seals kept backups.
 52. `fsa install --encrypt` exits 2 with a hint to `fsa config set backup-encryption on` after the install (the
    passphrase and identity path need a second, deliberate step) · confirm the two-step flow is acceptable.
+53. Restore (U17, ADR 0085): the app's database user is still a Postgres superuser · an unauthenticated archive is
+   restored by a restricted role and audited before adoption, but a superuser app user widens the impact of any
+   audit gap · optional: a non-superuser app role (owner of its database only) in a later release.
+54. An instance installed with `fsa install --from-backup` gets a new instance UUID, so backups of its predecessor
+   cannot be restored in place there (only with `--from-backup`) · confirm, or carry the UUID on a move.
+55. `fsa restore --drill` renders its sample document with images from the live volume (reported as
+   `render_storage: live`), so the drill does not prove the backup's files render · accept or extract storage too.
+56. The restore space check measures the instance directory's file system; when Docker's data root is on another
+   file system the check can underestimate the space a fresh volume needs · accept or measure both.
