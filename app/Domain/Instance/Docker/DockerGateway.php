@@ -123,6 +123,9 @@ interface DockerGateway
 
     public function removeContainer(string $id, bool $force = true): void;
 
+    /** The last lines of a container's output (stdout and stderr), e.g. of an upgrade child that crashed (ADR 0086). */
+    public function containerLogs(string $id, int $tail = 50): string;
+
     /**
      * A `docker run` like runContainer whose stdout streams into `$outputFile` (created exclusively, mode 0600) instead of
      * memory: the dump and the storage archive of a 1.0 install fsa adopts (plan U19), read through one-offs of its own.

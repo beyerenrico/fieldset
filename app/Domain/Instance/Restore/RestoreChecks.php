@@ -16,8 +16,8 @@ use Throwable;
  * order: damaged (checksums) and unsafe (the dump's table of contents) are always refused (exit 2); a newer migration
  * set, or a version below the release's oldest upgrade source, is incompatible (exit 7, AE8); an archive whose HMAC
  * no key from outside it verifies needs `--accept-unauthenticated` (exit 2); every APP key the backup lists must be
- * known (the instance's, a key file's or, for `--from-backup`, the backup's own secrets), else exit 2; an older backup
- * restored in place needs the upgrade child (U18) and exits 7 until then.
+ * known (the instance's, a key file's or, for `--from-backup`, the backup's own secrets), else exit 2. An older backup
+ * restored in place is migrated by the upgrade child (U18, ADR 0085 amendment) before its finish step.
  */
 final readonly class RestoreChecks
 {
@@ -36,7 +36,7 @@ final readonly class RestoreChecks
     public static function assert(PreparedBackup $backup, string $purpose, bool $acceptUnauthenticated, AppKeys $known, ?string $upgradesFrom): array
     {
         self::assertIntact($backup);
-        self::assertCompatible($backup, $purpose, $upgradesFrom);
+        self::assertCompatible($backup, $upgradesFrom);
         $warnings = self::assertAuthenticated($backup, $acceptUnauthenticated);
         $missing = array_values(array_diff($backup->fingerprints(), $known->fingerprints()));
         if ($missing !== []) {
@@ -115,7 +115,7 @@ final readonly class RestoreChecks
     }
 
     /** @throws InstanceException */
-    private static function assertCompatible(PreparedBackup $backup, string $purpose, ?string $upgradesFrom): void
+    private static function assertCompatible(PreparedBackup $backup, ?string $upgradesFrom): void
     {
         if ($backup->migrations['relation'] === MigrationSet::NEWER) {
             throw new InstanceException(
@@ -125,13 +125,6 @@ final readonly class RestoreChecks
         }
         if (! $backup->isLegacy() && $upgradesFrom !== null && self::below($backup->version(), $upgradesFrom)) {
             throw new InstanceException("The backup was made by {$backup->version()}, older than the oldest version this release upgrades from ({$upgradesFrom}).", ExitCode::Incompatible, 'backup_too_old', 'Restore it into an instance of an intermediate release first; nothing was changed.');
-        }
-        if ($purpose === self::IN_PLACE && $backup->migrations['relation'] === MigrationSet::OLDER) {
-            throw new InstanceException(
-                'The backup is older than this version ('.$backup->migrations['pending'].' migration(s) behind): restoring it in place needs the upgrade child, which arrives with the upgrade supervisor.',
-                ExitCode::Incompatible, 'upgrade_child_unavailable',
-                'Restore it into a new directory with `fsa install --from-backup <backup>` (which migrates it), or check it with `fsa restore --drill`; nothing was changed.',
-            );
         }
     }
 

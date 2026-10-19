@@ -90,6 +90,7 @@ final class RestoreFinishCommand extends Command
             $input['from_backup'],
             FinishRequest::backupTime($this->option('backup-created-at')),
             FinishRequest::journalId($this->option('journal')),
+            $input['carry'],
         );
     }
 
@@ -110,7 +111,7 @@ final class RestoreFinishCommand extends Command
     {
         $reader = $this->laravel->bound(self::STDIN)
             ? $this->laravel->make(self::STDIN)
-            : static fn (): string => function_exists('posix_isatty') && posix_isatty(STDIN) ? '' : (string) stream_get_contents(STDIN, 1_048_576);
+            : static fn (): string => function_exists('posix_isatty') && posix_isatty(STDIN) ? '' : (string) stream_get_contents(STDIN, 268_435_456); // a rollback's security state export (ADR 0086)
 
         return (string) $reader();
     }

@@ -11,11 +11,15 @@ use Throwable;
 
 /**
  * The inputs of `instance:restore-finish` (plan U17, ADR 0085): options plus fsa's stdin document
- * `{"previous_heads": {...}, "previous_epoch": int|null, "from_backup": bool}` (empty stdin: none of them).
+ * `{"previous_heads": {...}, "previous_epoch": int|null, "from_backup": bool}` (empty stdin: none of them). A manual
+ * `fsa rollback` adds `carry`: the current release's SecurityExport, the carry's source instead of `--source` (ADR 0086).
  */
 final readonly class FinishRequest
 {
-    /** @param  array<int, array{seq: int, hash: string}>  $previousHeads */
+    /**
+     * @param  array<int, array{seq: int, hash: string}>  $previousHeads
+     * @param  array<string, mixed>|null  $carryDocument
+     */
     public function __construct(
         public ?string $source,
         public ?string $backup,
@@ -29,6 +33,7 @@ final readonly class FinishRequest
         public bool $fromBackup = false,
         public ?CarbonImmutable $backupCreatedAt = null,
         public ?string $journal = null,
+        public ?array $carryDocument = null,
     ) {}
 
     /** `--backup-created-at`: an ISO 8601 time with its zone (the manifest's `created_at`), in UTC; null when absent. */
@@ -62,26 +67,27 @@ final readonly class FinishRequest
     }
 
     /**
-     * @return array{previous_heads: array<int, array{seq: int, hash: string}>, previous_epoch: int|null, from_backup: bool}
+     * @return array{previous_heads: array<int, array{seq: int, hash: string}>, previous_epoch: int|null, from_backup: bool, carry: array<string, mixed>|null}
      *
      * @throws InvalidArgumentException
      */
     public static function stdin(string $json): array
     {
         if (trim($json) === '') {
-            return ['previous_heads' => [], 'previous_epoch' => null, 'from_backup' => false];
+            return ['previous_heads' => [], 'previous_epoch' => null, 'from_backup' => false, 'carry' => null];
         }
 
         try {
-            $document = json_decode($json, true, 16, JSON_THROW_ON_ERROR);
+            $document = json_decode($json, true, 64, JSON_THROW_ON_ERROR);
         } catch (JsonException) {
             throw new InvalidArgumentException('stdin is not a JSON object.');
         }
         $epoch = is_array($document) ? ($document['previous_epoch'] ?? null) : null;
-        if (! is_array($document) || ($epoch !== null && (! is_int($epoch) || $epoch < 1)) || ! is_bool($document['from_backup'] ?? false)) {
+        $carry = is_array($document) ? ($document['carry'] ?? null) : null;
+        if (! is_array($document) || ($epoch !== null && (! is_int($epoch) || $epoch < 1)) || ! is_bool($document['from_backup'] ?? false) || ($carry !== null && ! is_array($carry))) {
             throw new InvalidArgumentException('stdin must be {"previous_heads": {...}, "previous_epoch": <int|null>, "from_backup": <bool>}.');
         }
 
-        return ['previous_heads' => RestoredEpoch::heads($document['previous_heads'] ?? null), 'previous_epoch' => $epoch, 'from_backup' => $document['from_backup'] ?? false];
+        return ['previous_heads' => RestoredEpoch::heads($document['previous_heads'] ?? null), 'previous_epoch' => $epoch, 'from_backup' => $document['from_backup'] ?? false, 'carry' => $carry];
     }
 }

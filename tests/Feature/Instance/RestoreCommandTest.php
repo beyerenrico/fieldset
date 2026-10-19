@@ -110,14 +110,45 @@ it('refuses a backup with a newer migration set: exit 7 and nothing changed (AE8
         ->and(glob($this->dir.'/backups/.restore-*'))->toBe([]);
 });
 
-it('refuses an older backup in place until the upgrade child exists (exit 7, a hint to --from-backup)', function (): void {
+// U18 (ADR 0085 amendment): an older backup is no longer refused in place (it was exit 7 `upgrade_child_unavailable`):
+// the upgrade child migrates the scratch database to this release before the finish step.
+it('restores an older backup in place: the upgrade child migrates the scratch database before the finish step', function (): void {
+    $this->restore->migrations = array_slice(MigrationSet::image(base_path('database/migrations')), 0, -2);
+    $this->restore->backup('manual-20261019T120000Z');
+
+    [$code, $json] = $this->restore->restore();
+    $id = substr((string) $this->restore->config->archivedJournal('restore')->id(), 0, 12);
+    $child = $this->restore->instance->oneOffCalls('instance:upgrade-migrate');
+    $phases = array_map(static fn (array $phase): string => $phase['name'], $this->restore->config->archivedJournal('restore')->phases());
+
+    expect($code)->toBe(0, (string) json_encode($json))
+        ->and($child)->toHaveCount(1)
+        ->and($child[0]['env'])->toContain('DB_DATABASE', 'PGAPPNAME', 'PGOPTIONS')
+        ->and($child[0]['command'])->toContain('--application-name=fsa_upgrade_'.$id, '--from='.InstanceCommandFixture::VERSION)
+        ->and(array_search('upgrade_child', $phases, true))->toBeGreaterThan(array_search('restore_database', $phases, true))
+        ->and(array_search('upgrade_child', $phases, true))->toBeLessThan(array_search('finish', $phases, true));
+});
+
+it('goes back when the upgrade child cannot migrate an older backup (exit 5), the live instance untouched', function (): void {
     $this->restore->migrations = array_slice(MigrationSet::image(base_path('database/migrations')), 0, -2);
     $this->restore->backup();
+    $this->restore->upgradeMigrate = InstanceCommandFixture::oneOffJson(['command' => 'instance:upgrade-migrate', 'status' => 'failed', 'errors' => [['code' => 'migration_failed', 'message' => 'lock timeout', 'hint' => null]]]);
 
     [$code, $json] = $this->restore->restore();
 
-    expect($code)->toBe(7)->and($json['errors'][0]['code'])->toBe('upgrade_child_unavailable')
-        ->and($json['errors'][0]['hint'])->toContain('fsa install --from-backup');
+    expect($code)->toBe(5, (string) json_encode($json))->and($json['errors'][0]['code'])->toBe('upgrade_child_failed')
+        ->and($this->restore->actions())->not->toContain('swap')
+        ->and(json_decode((string) file_get_contents($this->dir.'/runtime/runtime.json'), true)['gate']['raised'])->toBeFalse();
+});
+
+it('refuses a backup older than the release\'s oldest upgrade source (exit 7)', function (): void {
+    $this->restore->backup('manual-20261019T120000Z');
+    $manifest = $this->dir.'/backups/manual-20261019T120000Z/manifest.json';
+    BackupSetFixture::fsa(dirname($manifest), ['versions' => ['app' => '2.0.0-alpha.0', 'postgres' => '16.15'], ...$this->restore->manifest()], appKey: $this->restore->appKey());
+
+    [$code, $json] = $this->restore->restore();
+
+    expect($code)->toBe(7)->and($json['errors'][0]['code'])->toBe('backup_too_old');
 });
 
 it('refuses a modified backup (damaged, exit 2) and one whose HMAC no instance key verifies', function (): void {
@@ -284,6 +315,27 @@ it('takes a 1.0 backup in place only when the APP key in its env is one the inst
     expect($other)->toBe(2, (string) json_encode($otherJson))->and($otherJson['errors'][0]['code'])->toBe('backup_other_instance')
         ->and($bare)->toBe(2)->and($bareJson['errors'][0]['message'])->toContain('without its env file')
         ->and($own)->toBe(0, (string) json_encode($ownJson));
+});
+
+it('restores the adopt backup in place through the upgrade child, trusted only as the set the adopt recorded (U19 R1, U18)', function (): void {
+    $name = 'safety-adopt-20261019T120000Z';
+    $set = BackupSetFixture::legacy($this->dir.'/backups/'.$name, "APP_URL='http://localhost:8080'\n", "source=fsa adopt\napp_key_fingerprints=".KeyFingerprint::of($this->restore->appKey())."\n");
+    $this->restore->migrations = array_slice(MigrationSet::image(base_path('database/migrations')), 0, -2); // 1.0 is older than the instance
+    [$untrusted, $untrustedJson] = $this->restore->restore($name, ['--accept-unauthenticated' => true]);
+    $directory = $this->restore->instance->directory;
+    $directory->saveState($directory->state()->withHistoryEntry('adopted', ['backup' => $name, 'backup_sums' => hash_file('sha256', $set.'/SHA256SUMS')]));
+
+    [$refused, $refusedJson] = $this->restore->restore($name);
+    [$code, $json] = $this->restore->restore($name, ['--accept-unauthenticated' => true]);
+    $journal = array_find($this->restore->config->archivedJournals('restore'), static fn ($record): bool => $record->hasCompleted('swap')); // the refused runs archived theirs too
+    $phases = array_map(static fn (array $phase): string => $phase['name'], $journal?->phases() ?? []);
+
+    expect($untrusted)->toBe(2, (string) json_encode($untrustedJson))->and($untrustedJson['errors'][0]['code'])->toBe('backup_other_instance')
+        ->and($refused)->toBe(2)->and($refusedJson['errors'][0]['code'])->toBe('backup_unauthenticated')
+        ->and($code)->toBe(0, (string) json_encode($json))
+        ->and($this->restore->instance->oneOffCalls('instance:upgrade-migrate'))->toHaveCount(1)
+        ->and($phases)->toContain('upgrade_child', 'swap')
+        ->and($json['data']['authenticated'])->toBeFalse();
 });
 
 it('hands the finish step the journal ID and the backup time, and warns about changes the carry could not attribute (third review)', function (): void {

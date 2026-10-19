@@ -332,6 +332,51 @@ fail-closed webhook holds and the unknown free space. The third review (findings
 `abort`, the writers stopped before a return, the degraded but open previous instance, the forward `--abandon` without a
 way back, the exit-8 hints, the epoch keyed on the journal and the carry window.
 
+## Amendment 2026-10-20: older backups, the rollback's carry and the upgrade's reuse (U18)
+- **Older backups in place.** An fsa or 1.0 backup with fewer migrations than this image is no longer exit 7
+  `upgrade_child_unavailable`: after `restore_database` the journaled phase `upgrade_child` runs the installed
+  release's `instance:upgrade-migrate` on the scratch database (OlderBackupMigration, ADR 0086: zero foreign sessions,
+  `lock_timeout`, the pending migrations, the version steps since the backup's version), then `restore_storage` and
+  `finish` follow. The migrations run before the finish step's new epoch, not after it as the plan's order says: the R64
+  carry compares the restored database with the live one and needs this release's schema, migrations write no audit
+  entries, and the epoch and `instance.restored` are still the restored database's first audit records. A failing child
+  goes back like any failure before the swap (exit 5 `upgrade_child_failed`).
+- **The oldest upgrade source.** The check of `upgrades_from` read `releases/<version>/manifest.json`, a file nobody
+  writes, so it never applied; it now reads `release-manifest.json`, where install.sh and `fsa upgrade` store the
+  verified manifest: a backup older than the installed release's `upgrades_from` is exit 7 `backup_too_old` as stated.
+- **`instance:restore-finish` for rollbacks.** RestoreDatabases::finish takes `$reason` (`rolled_back` writes
+  `instance.rolled_back`) and `$carry` (false: `--no-carry`, the automatic rollback). A manual `fsa rollback` passes no
+  `--source`; its stdin document carries `carry`, the newer release's security state export, which FinishRestore
+  materialises in a schema of the restored database for the unchanged carry and sequence floors (SecurityImport); the
+  command reads up to 256 MiB of stdin for it.
+- **What U18 reuses.** The automatic rollback uses RestoreDatabases (create, `pg_restore`, finish, swap, rename, drop),
+  RestoreStorage (fresh volume, fill), RestoreStack (apply, Valkey, verify behind the gate), RestoreNames, the Ledger and
+  the prepare step; the manual rollback uses the same plus RestoreSpace and its own ways back (RollbackRecovery), whose
+  exit-8 hint names `fsa rollback`, not `fsa restore --abandon`.
+
+## Amendment 2026-10-20: missing objects fail the schema audit (U18)
+Review S3 of U18: the schema check walked only the restored database's objects, so an unauthenticated archive that
+left out code-bearing objects (the append-only triggers, `audit_seal`/`audit_prune`, a policy, a check or an index)
+passed, and "may lack objects (an older backup)" made that indistinguishable from an honest older archive.
+- **The baseline is the reference at the archive's own migration set** (AuditBaseline). The set is the restored
+  database's `migrations` table, the same rows BackupPreparer read from the dump to call the backup older, equal or
+  newer; it is read only when `public.migrations` is an ordinary table without row security and a varchar `migration`
+  column, sorted in PHP (no restored rule, policy, operator or type function runs; any other shape counts as no table).
+  Equal to the reference's own set: the reference is the baseline. Older: the one-off creates `fsa_restore_ref_<16 hex
+  of the audited name>` like a restricted scratch database (DatabaseAdmin::createReference: `pg_trgm` by the superuser),
+  runs exactly those migration files of this image on it (packages' paths and database/migrations, as `migrate` does),
+  audits against it and drops it; the name is the same on every attempt, so a resumed audit drops a leftover first. A
+  set naming migrations this image does not ship is refused (`unknown migration <name>`). An archive without a
+  migrations table (refused earlier as `not_an_app_backup`) is audited against an empty database.
+- **Both directions.** Besides `unknown`/`changed` objects and disallowed calls, every object of the baseline's exact
+  set and expression set that the restored database lacks is named `missing <kind>:<name>` and fails the check (exit 2
+  `backup_unsafe`). Grants are the exception: a missing grant only takes a privilege away, and restores never carry
+  privileges (`--no-privileges`). The sentence "the restored database may lack objects (an older backup)" above no
+  longer holds: an older archive may lack exactly what later migrations add, nothing else, and is compared with what
+  its own migrations create (also fixing `changed` false alarms for objects a later migration redefined).
+- Cost: an older unauthenticated archive's audit runs that version's migrations on an empty database (seconds); equal
+  sets cost nothing extra.
+
 ## Amendment 2026-10-20: a reset after the backup, and the sequence floors of a reset (U23, ADR 0088)
 - CarryScope has a third mode, `reset`: when the pre-restore database's chain shows a `reset` epoch that began after the
   backup (restoring a reset's safety backup afterwards), its rows are other people's accounts under other IDs, so the
@@ -339,3 +384,10 @@ way back, the exit-8 hints, the epoch keyed on the journal and the carry window.
   runs. Before, mode `audit` let timestamped changes through, which matched rows by ID.
 - SequenceAdvancer gained `values()` and `raise()` (the floors from a map); `fsa reset` raises the new database's
   sequences to the old database's values with them.
+
+## Amendment 2026-10-20: status beside upgrades, rollbacks and resets (U18, review A7)
+- `restore_scratch_left` (and `restore.scratch_left`) is reported only while no operation journal is open: an upgrade's
+  rollback, `fsa rollback` and `fsa reset` keep their own `backups/.restore-<id>` while they run, and the hint `rm -rf
+  backups/.restore-*` would remove what a running rollback is about to read (`export_missing`).
+- `last_restore` also counts rollbacks: `rolled_back` (its backup and safety backup) and `upgrade_rolled_back` (the
+  safety backup it restored as `backup`); a new key `event` names which.

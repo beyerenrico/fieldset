@@ -215,6 +215,15 @@ well inside the slot; the gate's J10 run can record it.
   and `audit_prunable` and sets up the backup role again in the restored database (`instance:restore-finish`).
 - `pg_restore --list` and the new `pg_restore --data-only --table=migrations` get `--` before the file.
 
+## Amendment 2026-10-20: pre-upgrade safety backups (U18, ADR 0086)
+After a committed upgrade, `fsa upgrade` removes every older `safety-upgrade-*` backup (R57: they replace each other only
+after a commit; those of failed upgrades stay until then) and every `safety-rollback-*` one, and seals its own when
+encryption is on. A completed `fsa rollback` keeps only its own `safety-rollback-*`. Restore and reset safety backups are
+never removed. Every way an upgrade or a rollback goes back (revert, abort, return) seals the safety backups it took,
+also one a killed run made before the journal named it (review S1); only an exit-8 halt keeps them plain. Before any
+migration the upgrade verifies its safety backup with the restore's prepare step (checksums, HMAC, `pg_restore --list`,
+the migration set); a backup that fails is exit 9.
+
 ## Amendment 2026-10-20: the `safety-adopt` backup (U19)
 `fsa adopt` (ADR 0087) writes its `safety-adopt-<UTC>` backup in the 1.0 format of `scripts/backup.sh`, not in the set
 above: `database.dump`, `storage.tar.gz`, `env` (the restore allow-list's values), `manifest.txt` and `SHA256SUMS`,

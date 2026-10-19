@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Restore;
 
+use App\Domain\Instance\Install\ReleaseSource;
 use App\Domain\Instance\Release\ManifestSchema;
+use App\Domain\Instance\Release\ManifestVerifier;
 use App\Domain\Instance\Release\ReleaseManifest;
 use App\Domain\Instance\State\InstanceDirectory;
 use Throwable;
@@ -66,7 +68,7 @@ final readonly class BackupIntake
     /** The oldest version the installed release upgrades from (its stored manifest), null when unknown. */
     private function upgradesFrom(?string $version): ?string
     {
-        $json = $version === null ? null : $this->directory->read('releases/'.$version.'/manifest.json');
+        $json = $version === null ? null : $this->directory->read(ReleaseSource::RELEASES_DIR.'/'.$version.'/'.ManifestVerifier::MANIFEST); // U18: the file install.sh stores
         if ($json === null) {
             return null;
         }

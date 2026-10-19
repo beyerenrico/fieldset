@@ -103,6 +103,20 @@ final readonly class DatabaseAdmin
     }
 
     /**
+     * The schema audit's baseline for an older archive (AuditBaseline, review S3): created like a restricted restore's
+     * scratch database, with EXTENSIONS installed by the superuser, so the two differ only by what the migrations made.
+     * Its name must be one drop() accepts (DROPPABLE).
+     */
+    public function createReference(string $database): void
+    {
+        if (preg_match(self::DROPPABLE, $database) !== 1) {
+            throw new RestoreRefused('refused_database', "{$database} is no name a restore may drop; the audit's reference needs one.");
+        }
+        $this->create($database);
+        $this->installExtensions($database);
+    }
+
+    /**
      * A restore-made database (DROPPABLE) takes a free name: the put-aside database goes back to the live name when a
      * swap stopped half-way.
      *

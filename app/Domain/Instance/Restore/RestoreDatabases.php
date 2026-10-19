@@ -145,14 +145,17 @@ final readonly class RestoreDatabases
      *
      * @param  array<string, mixed>  $input  previous_heads, previous_epoch, from_backup (stdin)
      * @param  string  $previousKeys  APP_PREVIOUS_KEYS for this one-off (comma-separated), empty for the env file's
+     * @param  string  $reason  `restored`, or `rolled_back` for U18's rollbacks (`instance.rolled_back`, ADR 0086)
+     * @param  bool  $carry  false: no security-state carry and no sequence floors (the automatic rollback of an upgrade)
      * @return array<string, mixed> its data
      */
-    public function finish(ComposeProject $project, string $database, ?string $source, PreparedBackup $backup, int $seed, int $actorUid, array $input, string $journal, #[SensitiveParameter] string $previousKeys = ''): array
+    public function finish(ComposeProject $project, string $database, ?string $source, PreparedBackup $backup, int $seed, int $actorUid, array $input, string $journal, #[SensitiveParameter] string $previousKeys = '', string $reason = 'restored', bool $carry = true): array
     {
         $password = new EnvFiles($this->directory)->read(BackupService::NAME)['DB_PASSWORD'] ?? '';
         $createdAt = self::createdAt($backup->manifest['created_at'] ?? null);
         $command = ['php', 'artisan', 'instance:restore-finish', '--backup='.$backup->name, '--epoch-seed='.$seed, '--actor-uid='.$actorUid, ...($source === null ? [] : ['--source='.$source]),
-            '--journal='.$journal, ...($createdAt === null ? [] : ['--backup-created-at='.$createdAt]), '--json']; // the carry's window and an idempotent epoch (third review)
+            '--journal='.$journal, ...($createdAt === null ? [] : ['--backup-created-at='.$createdAt]), // the carry's window and an idempotent epoch (third review)
+            ...($reason === 'restored' ? [] : ['--reason='.$reason]), ...($carry ? [] : ['--no-carry']), '--json'];
         // APP_PREVIOUS_KEYS by name: the decrypt sample reads data encrypted under the backup's keys (ADR 0085).
         $env = ['DB_DATABASE' => $database, BackupRole::PASSWORD_ENV => $password, ...($previousKeys === '' ? [] : ['APP_PREVIOUS_KEYS' => $previousKeys])];
         $outcome = OneOffResult::fromOutcome($this->docker->composeRun(

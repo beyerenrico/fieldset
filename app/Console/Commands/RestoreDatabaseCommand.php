@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Console\Support\JsonResult;
+use App\Domain\Platform\Instance\Restore\AuditBaseline;
 use App\Domain\Platform\Instance\Restore\DatabaseAdmin;
 use App\Domain\Platform\Instance\Restore\RestoreConnections;
 use App\Domain\Platform\Instance\Restore\RestoreRefused;
@@ -32,7 +33,7 @@ use InvalidArgumentException;
         {--aside= : swap: the name the live database moves to}
         {--to= : rename: the new name (must be free)}
         {--prefix= : list: the name prefix}
-        {--reference= : audit: the database whose schema the restored one must match (migrated by this image)}
+        {--reference= : audit: the live database, migrated by this image (an older archive is audited at its own migration set)}
         {--json : Print one JSON document on stdout}')]
 final class RestoreDatabaseCommand extends Command
 {
@@ -75,7 +76,7 @@ final class RestoreDatabaseCommand extends Command
             'rename' => $admin->rename($this->name('database'), $this->name('to')),
             'adopt' => $admin->adopt($this->name('database'), $this->name('role')),
             'list' => ['databases' => $admin->list($this->option('prefix') === '' ? '' : $this->name('prefix'))], // '' lists every database
-            'audit' => $this->audit($this->name('database'), $this->name('reference')),
+            'audit' => $this->audit($admin, $this->name('database'), $this->name('reference')),
             default => throw new InvalidArgumentException('The action must be create, drop, swap, rename, adopt, audit or list.'),
         };
     }
@@ -85,19 +86,19 @@ final class RestoreDatabaseCommand extends Command
      *
      * @throws RestoreRefused `schema_mismatch` naming the objects
      */
-    private function audit(string $database, string $reference): array
+    private function audit(DatabaseAdmin $admin, string $database, string $reference): array
     {
         try {
             $restored = RestoreConnections::to($database, 'fsa_restore_audit');
             $expected = RestoreConnections::to($reference, 'fsa_restore_reference');
-            $mismatches = SchemaAudit::mismatches($restored, $expected);
+            $mismatches = app(AuditBaseline::class)->mismatches($admin, $database, $restored, $expected);
             $objects = count(SchemaAudit::objects($restored)) + count(SchemaAudit::expressions($restored));
         } finally {
             RestoreConnections::close('fsa_restore_audit');
             RestoreConnections::close('fsa_restore_reference');
         }
         if ($mismatches !== []) {
-            throw new RestoreRefused('schema_mismatch', 'The restored database holds code this version does not define: '.implode('; ', array_slice($mismatches, 0, 10)).'.', 'Nothing was swapped in. Restore only archives this app wrote.');
+            throw new RestoreRefused('schema_mismatch', 'The restored database holds or lacks code this version defines differently: '.implode('; ', array_slice($mismatches, 0, 10)).'.', 'Nothing was swapped in. Restore only archives this app wrote.');
         }
 
         return ['database' => $database, 'reference' => $reference, 'objects' => $objects];

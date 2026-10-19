@@ -359,6 +359,13 @@ final class RecordingDockerGateway implements DockerGateway
         unset($this->containers[$id]);
     }
 
+    public function containerLogs(string $id, int $tail = 50): string
+    {
+        $this->record(__FUNCTION__, ['id' => $id, 'tail' => $tail]);
+
+        return $this->logs;
+    }
+
     /** Like composeRunToFile: the fileRunResponder (entrypoint, command, file) answers, else a fake stream is written. */
     public function runContainerToFile(ContainerSpec $spec, string $outputFile, ?float $timeout = null): ProcessOutcome
     {

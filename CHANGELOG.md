@@ -58,6 +58,31 @@ The Form Schema Spec has its own changelog in `spec/form-definition/1.0/CHANGELO
   `--passphrase-file`/`--passphrase-stdin`, and archives without a valid HMAC (ADR 0085).
 - **`fsa config set webhooks on|paused`**; a webhook step also waits when the instance's runtime file cannot be read
   (ADR 0085).
+- **`fsa upgrade`** — moves the instance to the newest release (`--to <version>` picks one, `--major` crosses a major
+  version), health-gated: the target's signed manifest is downloaded and verified, every image pulled, the app answers
+  503 behind its gate while the queue drains (`--drop-jobs` saves and drops what a bounded drain leaves) and a verified
+  safety backup is taken, then the target's own `fsa` renders its compose and env files and runs its migrations in a
+  container without the Docker socket, its app must pass the smoke test behind the gate, and only then is the upgrade
+  committed and opened. Requests that were already running when the gate rose finish before the safety backup (a stuck
+  one stops the upgrade with exit 9), and the free-space check counts the live database and files. Only the compose,
+  env and service files are taken from the target, and nothing in them may reach past the containers (host paths,
+  capabilities, devices, host networking, images the release does not pin). Any failure from the safety backup until
+  the commit rolls back automatically: the files the target replaced are put back, the safety backup is restored while
+  the previous app answers 503, the cache flushed and the previous release started again (exit 5, with the logs); a
+  rollback that fails stops the instance and names the backup and both image sets (exit 8). The upgrade runs in a
+  background container of the installed release, so a closed SSH session never stops it half-way; `fsa status` shows
+  its phase and `fsa upgrade --resume` continues an interrupted one. After a commit the previous pre-upgrade and
+  pre-rollback safety backups are removed; safety backups an upgrade leaves behind on its way back are encrypted when
+  encryption is on (ADR 0086).
+- **`fsa rollback`** — returns to the release before the last upgrade from that upgrade's safety backup, after telling
+  you what was written since and will be lost; security changes made since the upgrade (revocations, erasures, changed
+  passwords, deleted tokens) are carried over, numbering never goes backwards, and the audit log starts a new epoch with
+  an `instance.rolled_back` entry. A rollback that cannot finish goes back to the upgraded release exactly as it was
+  (exit 5; exit 9 when nothing was changed, such as a queue that does not drain); an interrupted rollback continues
+  with `fsa rollback`, without the question (ADR 0086).
+- **`fsa restore` of an older backup** — a backup made by an older release is now restored in place and migrated to the
+  installed release, instead of being refused, the backup `fsa adopt` made included (with `--accept-unauthenticated`)
+  (ADR 0085 and 0087 amendments, ADR 0086).
 - **`fsa adopt <checkout>`** (install.sh `--adopt <checkout>`) — turns a clone-based 1.0 install into an instance by
   copying its data: it stops 1.0's app, scheduler and any other service it added, lets its queue drain, takes a backup
   in the 1.0 format (without the APP keys: its manifest names them by fingerprint), stops 1.0's Postgres cleanly,
@@ -96,6 +121,12 @@ The Form Schema Spec has its own changelog in `spec/form-definition/1.0/CHANGELO
   backup taken before a reset carries no security state from the reset instance (ADR 0084, 0085, 0088).
 - Backups list the fingerprint of every APP key, previous keys included; a backup verifies even with stray dotfiles
   such as `.DS_Store` beside it, and file names in `SHA256SUMS` must be plain names (ADR 0085).
+- `fsa restore` refuses a backup older than the installed release's oldest upgrade source (exit 7), as documented; the
+  check never applied before (ADR 0085 amendment).
+- `fsa restore --accept-unauthenticated` also refuses an archive that lacks objects this release's migrations create at
+  the archive's own migration level, such as the audit log's append-only triggers (ADR 0085 amendment).
+- `fsa status` shows rollbacks as the last restore and no longer warns about a restore's scratch directory while an
+  upgrade, rollback or reset runs (ADR 0085 amendment).
 
 ## 2.0.0-beta.1 — 2026-10-19 (local pre-release, not published)
 

@@ -192,6 +192,13 @@ final readonly class CliDockerGateway implements DockerGateway
         $this->call(['container', 'rm', ...($force ? ['--force'] : []), $id], 'container rm');
     }
 
+    public function containerLogs(string $id, int $tail = 50): string
+    {
+        $outcome = $this->call(['container', 'logs', '--tail', (string) max(1, $tail), ...$this->names([$id])], 'container logs');
+
+        return $outcome->stdout.$outcome->stderr;
+    }
+
     public function runContainerToFile(ContainerSpec $spec, string $outputFile, ?float $timeout = null): ProcessOutcome
     {
         $env = [...$spec->env, ...$this->platformEnv($spec->enginePlatform)];

@@ -48,6 +48,7 @@ final class OperationUnfinished extends InstanceException
             $request instanceof ConfigRequest => $request->commandLine(),
             $record->operation() === TunnelOperation::OPERATION => 'fsa tunnel stop',
             $record->operation() === 'restore' && is_string($record->context()['backup'] ?? null) => 'fsa restore '.$record->context()['backup'],
+            $record->operation() === 'upgrade' => 'fsa upgrade --resume',
             self::rotatesDemoPasswords($record) => 'fsa demo --rotate-passwords',
             $record->operation() === ResetOperation::OPERATION => ResetRequest::commandLine($record->context()),
             $record->operation() === AdoptOperation::OPERATION && is_string($record->context()['checkout'] ?? null) => 'fsa adopt '.$record->context()['checkout'],
@@ -84,6 +85,8 @@ final class OperationUnfinished extends InstanceException
                 : "Run `{$command}` again: it starts over from the settings before that change and reverts if it still fails.",
             'install' => "Run `{$command}` again with the same flags to resume it. `fsa uninstall` removes a half-finished install.",
             'restore' => "Run `{$command}` again with the same flags to resume it (a swap that did not pass its verification is undone first), or `fsa restore --abandon` to bring the instance back as it was before.",
+            'upgrade' => "Run `{$command}` once `fsa status` shows no supervisor running (ADR 0086): before the safety backup it brings the previous services back (then run `fsa upgrade` again), from the safety backup until the commit it rolls back to the safety backup, after the commit it only finishes opening.",
+            'rollback' => "Run `{$command}` again to resume it (a swap that did not pass its verification is undone first).",
             ResetOperation::OPERATION => ResetStatus::hint($record),
             AdoptOperation::OPERATION => $record->hasStarted('start')
                 ? "Run `{$command}` again to finish it (2.0 already runs on its copy), or `fsa uninstall` (a final backup first) and `docker compose up -d` in the 1.0 checkout to go back to 1.0."

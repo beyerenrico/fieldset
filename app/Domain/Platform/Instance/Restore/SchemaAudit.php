@@ -22,8 +22,12 @@ use stdClass;
  *   built-in functions; what they call can be compared: every `name(` of the printed expression (string literals left
  *   out) must be one the reference's own expressions use, so `pg_read_file(…)` in a default is refused.
  *
- * The restored database may lack objects (an older backup), never have other or changed ones. The catalog functions used
- * only print definitions and read dependencies; no restored code runs.
+ * The baseline is the reference at the restored database's own migration set (AuditBaseline: the live database when the
+ * sets are equal, else a database this image migrates to exactly that set), so the restored database may neither have
+ * other or changed objects nor lack one the baseline has (review S3, U18: an archive could leave out an append-only
+ * trigger, `audit_seal` or a policy). Grants are the exception: a missing grant only takes a privilege away, and
+ * restores never carry privileges. The catalog functions used only print definitions and read dependencies; no restored
+ * code runs.
  */
 final readonly class SchemaAudit
 {
@@ -55,21 +59,28 @@ final readonly class SchemaAudit
         GROUP BY e.oid, e.extname, e.extversion, e.extowner
         SQL;
 
-    /** @return list<string> objects of `$restored` that `$reference` does not have with the same definition (at most 50) */
-    public static function mismatches(Connection $restored, Connection $reference): array
+    /**
+     * Objects of `$restored` that `$baseline` (the reference at the restored database's migration set) does not have
+     * with the same definition, and objects of `$baseline` that `$restored` lacks (at most 50).
+     *
+     * @return list<string>
+     */
+    public static function mismatches(Connection $restored, Connection $baseline): array
     {
         $problems = [];
-        $expected = self::objects($reference);
-        foreach (self::objects($restored) as $key => $definition) {
+        $expected = self::objects($baseline);
+        $actual = self::objects($restored);
+        foreach ($actual as $key => $definition) {
             if (! array_key_exists($key, $expected)) {
                 $problems[] = "unknown {$key}";
             } elseif ($expected[$key] !== $definition) {
                 $problems[] = "changed {$key}";
             }
         }
-        $known = self::expressions($reference);
+        $known = self::expressions($baseline);
+        $restoredExpressions = self::expressions($restored);
         $allowed = array_values(array_unique(array_merge([], ...array_values($known))));
-        foreach (self::expressions($restored) as $key => $calls) {
+        foreach ($restoredExpressions as $key => $calls) {
             if (! array_key_exists($key, $known)) {
                 $problems[] = "unknown {$key}";
 
@@ -79,11 +90,41 @@ final readonly class SchemaAudit
                 $problems[] = "{$key} calls {$call}()";
             }
         }
+        foreach ([...array_keys(array_diff_key($expected, $actual)), ...array_keys(array_diff_key($known, $restoredExpressions))] as $key) {
+            if (! str_starts_with($key, 'acl:')) { // a missing grant only takes a privilege away
+                $problems[] = "missing {$key}";
+            }
+        }
         foreach ($restored->select(self::SETTINGS) as $row) {
             $problems[] = 'database setting '.self::text($row, 'names').' for '.self::text($row, 'role');
         }
 
         return array_slice($problems, 0, 50);
+    }
+
+    /**
+     * The migrations a database ran (its `public.migrations` table), sorted; null without a plain table of that name.
+     * Read only when it is an ordinary table without row security whose `migration` column is varchar, sorted in PHP:
+     * no restored rule, policy, operator or type function runs (a view or another shape counts as no table, and every
+     * object of the restored database is then unknown to the empty baseline).
+     *
+     * @return list<string>|null
+     */
+    public static function migrations(Connection $db): ?array
+    {
+        $plain = $db->selectOne(<<<'SQL'
+            SELECT 1 AS plain FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+            JOIN pg_attribute a ON a.attrelid = c.oid AND a.attname = 'migration' AND NOT a.attisdropped
+            WHERE n.nspname = 'public' AND c.relname = 'migrations' AND c.relkind = 'r' AND NOT c.relrowsecurity
+                AND a.atttypid = 'pg_catalog.varchar'::pg_catalog.regtype
+            SQL);
+        if ($plain === null) {
+            return null;
+        }
+        $names = array_values(array_unique(array_map(static fn (stdClass $row): string => self::text($row, 'migration'), $db->select('SELECT migration FROM public.migrations'))));
+        sort($names, SORT_STRING);
+
+        return $names;
     }
 
     /** @return array<string, string> kind:name => definition of the exactly compared objects */

@@ -54,7 +54,7 @@ fsa_value_flags='--acme-ca --acme-ca-root-file --acme-email --app-key-file --beh
 --from-backup --from-name --identity-file --identity-out --kind --lan-address --locale --lock-id --org --orphans
 --owner-email --owner-name --passphrase-file --password-file --phone-https --port --proxy-network --release
 --scratch --seal --secrets-file --since --smtp-encryption --smtp-host --smtp-port --smtp-username --source
---tail --test-to --trusted-proxy --url --version'
+--tail --test-to --to --trusted-proxy --url --version'
 
 fsa_takes_value() { # <flag>: true for a value-taking flag written without =value (dir, file-path or listed flags)
 	fsa_file_flag_mode "$1"

@@ -16,9 +16,12 @@ use App\Domain\Instance\Console\LogsCommand;
 use App\Domain\Instance\Console\ResetCommand;
 use App\Domain\Instance\Console\RestoreCommand;
 use App\Domain\Instance\Console\RestorePrepareCommand;
+use App\Domain\Instance\Console\RollbackCommand;
 use App\Domain\Instance\Console\StatusCommand;
 use App\Domain\Instance\Console\TunnelCommand;
 use App\Domain\Instance\Console\UninstallCommand;
+use App\Domain\Instance\Console\UpgradeChildCommand;
+use App\Domain\Instance\Console\UpgradeCommand;
 use App\Domain\Instance\Console\VersionCommand;
 use App\Domain\Instance\Docker\CliDockerGateway;
 use App\Domain\Instance\Docker\DockerGateway;
@@ -47,7 +50,7 @@ final class InstanceServiceProvider extends ServiceProvider
         VersionCommand::class, UninstallCommand::class, LoginLinkCommand::class, ConfigCommand::class, DemoCommand::class,
         TunnelCommand::class, BackupCommand::class, BackupDaemonCommand::class, RestorePrepareCommand::class, RestoreCommand::class,
         AdoptCommand::class,
-        ResetCommand::class,
+        ResetCommand::class, UpgradeCommand::class, UpgradeChildCommand::class, RollbackCommand::class,
     ];
 
     public function register(): void

@@ -243,3 +243,12 @@ complete set of its own journal before writing a new one. The symlinked-checkout
 already compared). With U23 (ADR 0088), other commands refuse while an adopt journal is open (exit 9
 `operation_unfinished`): its hint names `fsa adopt <checkout>` and `fsa adopt --abandon` before 2.0 started or
 `fsa uninstall` after, and `fsa backup` reports the open journal instead of "not installed".
+
+## Amendment 2026-10-20: the adopt backup restores in place (U18, ADR 0086)
+With U18's upgrade child, the sentence "while it is older than the migrated instance an in-place restore is exit 7
+`upgrade_child_unavailable`" no longer holds: `fsa restore <safety-adopt-…> --accept-unauthenticated` takes the adopt
+backup in place. The identity check is unchanged (exactly the set the `adopted` record names, by name and SHA256SUMS
+digest; any other 1.0 archive naming the key by fingerprint stays `backup_other_instance`), then the restore runs the
+installed release's `instance:upgrade-migrate` on the scratch database (phase `upgrade_child`, ADR 0085 amendment) before
+its finish step, and the schema audit of the unauthenticated archive compares it with a baseline at its own migration
+set (ADR 0085 amendment of U18).

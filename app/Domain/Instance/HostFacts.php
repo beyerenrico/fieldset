@@ -29,6 +29,8 @@ use App\Domain\Instance\Release\ImagePin;
  * - FSA_OPEN_URL_FILE: name of the file in the instance directory where a command hands a URL to the shim
  * - FSA_RELEASE_MANIFEST: install.sh only, the verified `<dir>/releases/<version>/release-manifest.json`
  * - FSA_REGISTRY: a registry mirror every image is pulled from instead of its own (ADR 0050)
+ * - FSA_RELEASE_URL: where releases are downloaded from instead of GitHub Releases (install.sh's mirror; `fsa upgrade`
+ *   reads the target's manifest there, ADR 0086)
  * - DOCKER_DEFAULT_PLATFORM: Docker's own variable, passed through when the caller set it: `linux/amd64` or
  *   `linux/arm64`, optionally with a variant (`linux/arm64/v8`). The ops container ran as that platform, and every
  *   docker and compose process fsa starts inherits it, so the images are pulled and run as that platform (another
@@ -68,6 +70,7 @@ final readonly class HostFacts
         public ?string $releaseManifest = null,
         public ?string $registry = null,
         public ?string $platform = null,
+        public ?string $releaseUrl = null,
     ) {}
 
     /** @param  array<string, string>  $env  e.g. getenv() */
@@ -96,6 +99,7 @@ final readonly class HostFacts
             releaseManifest: self::absolutePath($env['FSA_RELEASE_MANIFEST'] ?? null),
             registry: $match('FSA_REGISTRY', '/'.ImagePin::REGISTRY_PATTERN.'/D'),
             platform: $match('DOCKER_DEFAULT_PLATFORM', self::PLATFORM_PATTERN),
+            releaseUrl: $match('FSA_RELEASE_URL', '#^https?://[A-Za-z0-9._~:/%-]+$#D'),
         );
     }
 

@@ -25,6 +25,7 @@ use App\Domain\Instance\Output\InvalidInput;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
+use App\Domain\Instance\Upgrade\OlderBackupMigration;
 use Throwable;
 
 /**
@@ -32,7 +33,8 @@ use Throwable;
  *
  * plan (the names, from the journal ID) → prepare (decrypt, check, judge: exit 2/7 before anything changes) → space
  * (exit 3) → quiesce (gate up, writers stopped, audit sealed) → ledger (final heads) → safety_backup → restore_database
- * (`<db>_restore_<id>`, the restricted role for unauthenticated archives) → restore_storage (a fresh volume) → finish
+ * (`<db>_restore_<id>`, the restricted role for unauthenticated archives) → upgrade_child (an older backup only: this
+ * release's migrations and version steps, OlderBackupMigration, U18) → restore_storage (a fresh volume) → finish
  * (new epoch + `instance.restored`, R64 carry, sequences, stale credentials, grants, decrypt sample) → swap (databases,
  * the state's storage volume, APP keys, Valkey) → verify → open → gate → cleanup (RestoreFinale).
  *
@@ -61,6 +63,7 @@ final readonly class RestoreOperation
         private SafetyBackup $safety,
         private Ledger $ledger,
         private RestoreSpace $space,
+        private OlderBackupMigration $olderBackup,
     ) {}
 
     public function restore(RestoreRequest $request, FsaContext $context): CommandResult
@@ -137,6 +140,9 @@ final readonly class RestoreOperation
             $previous = $run->phase('ledger', fn (): array => $this->recordLedger($state, $project, $backup, $request, $run->record()->id()));
             $run->phase('safety_backup', fn (): array => $this->safety->take($state, 'restore', new LockHandle($this->lockRecord())));
             $run->phase('restore_database', fn (): array => $this->restoreDatabase($state, $project, $backup, $names), always: true);
+            if ($backup->migrations['relation'] === MigrationSet::OLDER) { // the upgrade child (U18): this release's schema before the carry
+                $run->phase('upgrade_child', fn (): array => $this->olderBackup->run($project, $names->scratch, $backup->version(), $names->id), always: true);
+            }
             $run->phase('restore_storage', function () use ($state, $backup, $names): array {
                 $this->storage->remove($names->freshVolume); // what an interrupted attempt left (never the volume in use)
                 $this->storage->fill($state, $names->freshVolume, $backup->storage['archive'] ?? null);
