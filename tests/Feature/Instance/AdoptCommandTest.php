@@ -289,7 +289,7 @@ it('leaves a backup that a restore of this instance takes as its own, and no oth
     $own = AppKeys::of([new EnvFiles($this->adopt->instance->directory)->read('app')['APP_KEY']]);
     $check = static fn (PreparedBackup $backup, AppKeys $keys): Closure => static fn () => RestoreChecks::assertSameInstance($backup, $runAs['uuid'], $keys, BackupIntake::insideKeys($backup), $runAs['adopt_backup'] ?? null);
     $adopted = $json['data']['adopted']['backup_path'];
-    $outside = sys_get_temp_dir().'/fsa-test-forged-'.bin2hex(random_bytes(4));
+    $outside = $this->adopt->instance->directory->root.'/forged'; // goes with the instance directory
     $forged = BackupSetFixture::legacy($outside.'/a/'.basename($adopted), "APP_URL='http://localhost:8080'\n", "source=fsa adopt\napp_key_fingerprints={$own->fingerprints()[0]}\n");
     $altered = $outside.'/b/'.basename($adopted);
     mkdir(dirname($altered), 0700, true);
@@ -304,7 +304,6 @@ it('leaves a backup that a restore of this instance takes as its own, and no oth
         ->and($check($prepared, AppKeys::of([BackupSetFixture::OTHER_KEY])))->toThrow(InvalidInput::class)
         ->and($check($prepare($forged), $own))->toThrow(InvalidInput::class) // review R1: a fingerprint is no proof
         ->and($check($prepare($altered), $own))->toThrow(InvalidInput::class);
-    exec('rm -rf '.escapeshellarg($outside));
 });
 
 it('pulls images the instance lacks before it stops 1.0', function (): void {
