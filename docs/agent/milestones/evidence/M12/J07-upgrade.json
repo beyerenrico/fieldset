@@ -1,0 +1,148 @@
+{
+    "releases": [
+        "2.0.0-rc.1-test",
+        "2.0.0-rc.2-test",
+        "2.0.0-rc.3-test",
+        "2.0.0-rc.4-test"
+    ],
+    "built": "2026-10-19",
+    "revision": "733f8f6a6736798efcd43ed331d6e28890fa6489",
+    "install": {
+        "exit_code": 0,
+        "version": "2.0.0-rc.1-test"
+    },
+    "crashing_target": {
+        "exit_code": 5,
+        "error": {
+            "code": "child_crashed",
+            "message": "The upgrade to 2.0.0-rc.4-test failed and was rolled back; the instance runs 2.0.0-rc.1-test again with the data of the safety backup. Cause: The upgrade child stopped without a result (it crashed).",
+            "hint": "Read the logs in `data.logs` and `fsa logs app`; nothing written since the safety backup was lost (writers were stopped). Run `fsa upgrade` again once the cause is fixed.",
+            "retryable": true
+        },
+        "running": "2.0.0-rc.1-test",
+        "status_version": "2.0.0-rc.1-test"
+    },
+    "ae7_local": {
+        "exit_code": 5,
+        "error": {
+            "code": "target_unhealthy",
+            "message": "The upgrade to 2.0.0-rc.3-test failed and was rolled back; the instance runs 2.0.0-rc.1-test again with the data of the safety backup. Cause: The target release did not become healthy behind the gate:  Container fsa-fsa-test-j07-638d-gotenberg-1 Healthy \ncontainer fsa-fsa-test-j07-638d-app-1 is unhealthy",
+            "hint": "Read the logs in `data.logs` and `fsa logs app`; nothing written since the safety backup was lost (writers were stopped). Run `fsa upgrade` again once the cause is fixed.",
+            "retryable": true
+        },
+        "acknowledged_writes": 58,
+        "statuses_after_the_gate": {
+            "503": 52,
+            "0": 9,
+            "201": 1,
+            "200": 3
+        },
+        "retried_after_rollback": 200
+    },
+    "happy_upgrade": {
+        "quiescing_seen": true,
+        "supervisor_after_kill": 1,
+        "status_during": {
+            "operation": "upgrade",
+            "last_phase": "quiesce",
+            "last_completed_phase": "pull",
+            "started_at": "2026-10-19T17:45:16Z",
+            "command": "fsa upgrade --resume",
+            "options": []
+        },
+        "finished": true,
+        "status_after": {
+            "version": "2.0.0-rc.2-test",
+            "health": "ok"
+        },
+        "last_history": {
+            "at": "2026-10-19T17:46:16Z",
+            "event": "upgraded",
+            "from": "2.0.0-rc.1-test",
+            "to": "2.0.0-rc.2-test",
+            "journal": "b00399783764ba31",
+            "safety_backup": "safety-upgrade-20261019T174535Z"
+        }
+    },
+    "rollback": {
+        "exit_code": 0,
+        "data": {
+            "from": "2.0.0-rc.2-test",
+            "to": "2.0.0-rc.1-test",
+            "backup": "safety-upgrade-20261019T174535Z",
+            "safety_backup": "safety-rollback-20261019T174755Z",
+            "loss": {
+                "submissions": 1,
+                "activity_log": 1,
+                "users": 0,
+                "forms": 0,
+                "mail_messages": 0,
+                "attachments": 0
+            },
+            "epoch": 4,
+            "carried": {
+                "users_erased": 0,
+                "users_deactivated": 0,
+                "users_missing": 0,
+                "passwords": 0,
+                "mfa": 0,
+                "emails": 0,
+                "email_conflicts": 0,
+                "export_directories": [],
+                "devices_revoked": 0,
+                "devices_wiped": 0,
+                "memberships_deactivated": 0,
+                "roles_removed": 0,
+                "permissions_removed": 0,
+                "tokens_deleted": 0,
+                "operators_revoked": 0,
+                "external_identities_deleted": 0,
+                "identity_provider_mappings_deleted": 0,
+                "identity_providers_deleted": 0,
+                "identity_providers_updated": 0,
+                "sso_domains_deleted": 0,
+                "sso_domains_unverified": 0,
+                "group_memberships_removed": 0,
+                "form_access_removed": 0,
+                "organizations_deleted": 0,
+                "webhook_endpoints_deleted": 0,
+                "webhook_endpoints_deactivated": 0
+            },
+            "carry_mode": "state",
+            "storage_volume": "fsa-fsa-test-j07-638d_app-storage-rd1f3a0e384d9",
+            "left_behind": []
+        },
+        "error": null
+    },
+    "refusals": {
+        "rollback": {
+            "code": "no_previous_release",
+            "message": "There is no earlier release to return to: the instance was not upgraded since it was installed, or a rollback used the previous release already.",
+            "hint": "`fsa restore <backup>` restores a backup of this version; `fsa status` lists the backups.",
+            "retryable": false
+        },
+        "older": {
+            "code": "downgrade_refused",
+            "message": "2.0.0-alpha.1-test is older than the installed 2.0.0-rc.1-test: upgrades only move forward.",
+            "hint": "`fsa rollback` returns to the version before the last upgrade (from its safety backup); an older release needs a backup made by it (`fsa install --from-backup`). Nothing was changed.",
+            "retryable": false
+        }
+    },
+    "ae7_proxy": {
+        "exit_code": 5,
+        "error": {
+            "code": "target_unhealthy",
+            "message": "The upgrade to 2.0.0-rc.3-test failed and was rolled back; the instance runs 2.0.0-rc.1-test again with the data of the safety backup. Cause: The target release did not become healthy behind the gate:  Container fsa-fsa-test-j07p-80f8-gotenberg-1 Healthy \ncontainer fsa-fsa-test-j07p-80f8-app-1 is unhealthy",
+            "hint": "Read the logs in `data.logs` and `fsa logs app`; nothing written since the safety backup was lost (writers were stopped). Run `fsa upgrade` again once the cause is fixed.",
+            "retryable": true
+        },
+        "acknowledged_writes": 86,
+        "statuses_after_the_gate": {
+            "503": 68,
+            "0": 12,
+            "201": 1,
+            "200": 2
+        },
+        "retried_after_rollback": 200
+    }
+}

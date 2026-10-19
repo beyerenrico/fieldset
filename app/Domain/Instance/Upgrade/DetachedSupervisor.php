@@ -113,11 +113,6 @@ final readonly class DetachedSupervisor
     }
 
     /**
-     * One progress event per new phase state of the open upgrade journal.
-     *
-     * @param  array<string, true>  $seen
-     */
-    /**
      * The supervisor's result file. A read can fail for a moment where the instance directory reaches containers
      * through a file-sharing layer (Docker Desktop's virtiofs): retried a few times before the result counts as missing.
      */
@@ -135,6 +130,11 @@ final readonly class DetachedSupervisor
         }
     }
 
+    /**
+     * One progress event per new phase state of the open upgrade journal.
+     *
+     * @param  array<string, true>  $seen
+     */
     private function phases(ProgressReporter $progress, array &$seen): void
     {
         try {
