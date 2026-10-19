@@ -5,13 +5,15 @@ declare(strict_types=1);
 namespace App\Domain\Instance\Config;
 
 use App\Domain\Instance\State\InstanceSettings;
+use SensitiveParameter;
 
 /**
  * One `fsa config set <key> <value>` (§7, R32, ADR 0077): the key, the raw value and the ACME options that only
  * `domain` and `acme-ca` take. `--acme-staging` arrives here as `acmeCa` (Let's Encrypt staging); the CA root is the
  * validated PEM of `--acme-ca-root-file`. The journal records the request without the PEM (its SHA-256 instead), so a
  * resumed run can tell "the same change" from another one. `mail` brings its SMTP flags (MailOptions, journaled) and
- * credentials (SmtpCredentials, never journaled; ADR 0080); `operator-email` its `--revoke-previous`.
+ * credentials (SmtpCredentials, never journaled; ADR 0080); `operator-email` its `--revoke-previous`;
+ * `backup-encryption on` the identity path (journaled) and the passphrase (never journaled; ADR 0084).
  */
 final readonly class ConfigRequest
 {
@@ -20,6 +22,9 @@ final readonly class ConfigRequest
      * request rebuilt from a journal (`fromContext()`) carries it in place of the PEM.
      */
     public const string ROOT_PLACEHOLDER = '<the same file>';
+
+    /** What a repeated `backup-encryption on` names for its passphrase: never the passphrase, only that it is needed. */
+    public const string PASSPHRASE_PLACEHOLDER = '<passphrase file>';
 
     public function __construct(
         public string $key,
@@ -30,7 +35,15 @@ final readonly class ConfigRequest
         public ?MailOptions $mail = null,
         public ?SmtpCredentials $credentials = null,
         public bool $revokePrevious = false,
+        public ?string $identityOut = null,
+        #[SensitiveParameter] public ?string $passphrase = null,
     ) {}
+
+    /** Whether `--identity-out` or a passphrase source was given (they belong to `backup-encryption`). */
+    public function hasKeyFileOptions(): bool
+    {
+        return $this->identityOut !== null || $this->passphrase !== null;
+    }
 
     /** Whether any option of `config set mail` or `config set operator-email` was given. */
     public function hasKeyOptions(): bool
@@ -55,6 +68,7 @@ final readonly class ConfigRequest
         return [
             'key' => $this->key, 'value' => $this->value, 'acme_email' => $this->acmeEmail, 'acme_ca' => $this->acmeCa, 'acme_ca_root' => $this->caRootDigest(),
             ...($this->mail instanceof MailOptions ? ['mail' => $this->mail->toContext()] : []),
+            ...($this->identityOut !== null ? ['identity_out' => $this->identityOut] : []),
         ];
     }
 
@@ -86,7 +100,7 @@ final readonly class ConfigRequest
         }
         $mail = is_array($context['mail'] ?? null) ? MailOptions::fromContext($context['mail']) : null;
 
-        return new self($key, $value, $string('acme_email'), $string('acme_ca'), $string('acme_ca_root') === null ? null : self::ROOT_PLACEHOLDER, $mail);
+        return new self($key, $value, $string('acme_email'), $string('acme_ca'), $string('acme_ca_root') === null ? null : self::ROOT_PLACEHOLDER, $mail, identityOut: $string('identity_out'));
     }
 
     /**
@@ -102,6 +116,8 @@ final readonly class ConfigRequest
             ...($this->acmeCa === InstanceSettings::ACME_STAGING ? ['--acme-staging' => true] : ['--acme-ca' => $this->acmeCa]),
             '--acme-ca-root-file' => $this->acmeCaRoot === null ? null : self::ROOT_PLACEHOLDER,
             ...($this->mail instanceof MailOptions ? $this->mail->flags() : []),
+            '--identity-out' => $this->identityOut,
+            ...($this->identityOut !== null ? ['--passphrase-file' => self::PASSPHRASE_PLACEHOLDER] : []),
             '--yes' => true,
         ], static fn (string|bool|null $value): bool => $value !== null);
     }

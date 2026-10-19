@@ -46,7 +46,8 @@ it('says per key where it applies, whether it is settable now and what to use in
         ->and($keys['trusted-proxy'])->toMatchArray(['settable_now' => false, 'use_instead' => null])
         ->and($keys['mail'])->toMatchArray(['available' => true, 'settable_now' => true, 'modes' => ['local', 'proxy', 'domain'], 'value' => 'capture'])
         ->and($keys['operator-email'])->toMatchArray(['available' => true, 'settable_now' => true, 'value' => null])
-        ->and($keys['backup-schedule'])->toMatchArray(['available' => false, 'settable_now' => false, 'modes' => [], 'arrives_with' => '2.0.0-rc.1']);
+        ->and($keys['backup-schedule'])->toMatchArray(['available' => true, 'settable_now' => true, 'modes' => ['local', 'proxy', 'domain'], 'value' => '03:30']) // U16, ADR 0084
+        ->and($keys['update-check'])->toMatchArray(['available' => false, 'settable_now' => false, 'modes' => [], 'arrives_with' => '2.0.0']);
 });
 
 it('says the port is not settable on a shared proxy network, but url and trusted-proxy are', function (): void {
@@ -66,7 +67,7 @@ it('answers a deferred key without a value with setting_not_available, not a usa
 
     expect($code)->toBe(2)->and($json['errors'][0]['code'])->toBe($error);
 })->with([
-    'backup schedule' => ['backup-schedule', 'setting_not_available'],
+    'backup schedule, a known key since U16 (ADR 0084)' => ['backup-schedule', 'invalid_usage'],
     'update check' => ['update-check', 'setting_not_available'],
     'mail without value' => ['mail', 'invalid_usage'],
     'unknown' => ['colour', 'unknown_setting'],

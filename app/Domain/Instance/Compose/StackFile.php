@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Compose;
 
+use App\Domain\Instance\Compose\Services\BackupService;
 use App\Domain\Instance\Docker\Labels;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Output\ExitCode;
@@ -92,7 +93,9 @@ final readonly class StackFile
             ->withUrl(self::URL)
             ->withSettings(['proxy' => 'port']);
         $secrets = array_keys(self::SECRETS);
-        $rendered = new ComposeRenderer()->render($state, new InstanceSecrets($secrets[0], $secrets[1], $secrets[2], $secrets[3], 'unused'));
+        // Without fsa there is no instance directory and no backup role: the backup service stays out (R18, ADR 0084).
+        $definitions = array_values(array_filter(ComposeRenderer::defaultDefinitions(), static fn (ServiceDefinition $definition): bool => ! $definition instanceof BackupService));
+        $rendered = new ComposeRenderer($definitions)->render($state, new InstanceSecrets($secrets[0], $secrets[1], $secrets[2], $secrets[3], 'unused'));
         $services = [];
         foreach ($rendered->document['services'] as $name => $service) {
             $services[$name] = self::service((string) $name, $service, $rendered->environments[$name] ?? []);

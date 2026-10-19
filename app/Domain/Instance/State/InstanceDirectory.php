@@ -44,13 +44,17 @@ final readonly class InstanceDirectory
         return is_file($marker) && ! is_link($marker);
     }
 
-    /** @throws NotAnInstanceDirectory|IncompatibleSchema */
-    public static function open(string $path): self
+    /**
+     * @param  array{0: int, 1: int}|null  $owner  UID and GID for everything written (the backup service, ADR 0084)
+     *
+     * @throws NotAnInstanceDirectory|IncompatibleSchema
+     */
+    public static function open(string $path, ?array $owner = null): self
     {
         if (! str_starts_with($path, '/') || ! is_dir($path) || ! self::isMarked($path)) {
             throw new NotAnInstanceDirectory($path);
         }
-        $directory = new self($path, SafeFiles::at($path));
+        $directory = new self($path, SafeFiles::at($path, $owner));
         $directory->checkMarker();
 
         return $directory;

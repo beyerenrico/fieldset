@@ -47,7 +47,7 @@ it('exits 6 without --yes when there is no terminal (or with --json), saying tha
 });
 
 it('removes only the labelled containers, networks and volumes of this instance, then its files', function (): void {
-    mkdir($this->fixture->directory->root.'/backups');
+    @mkdir($this->fixture->directory->root.'/backups'); // the render creates it since U16 (the backup service mounts it)
 
     [$code, $json] = $this->fixture->run('fsa:uninstall', ['--yes' => true]);
     $left = array_map(static fn (DockerResource $r): string => $r->name, $this->fixture->docker->resources);
@@ -55,7 +55,7 @@ it('removes only the labelled containers, networks and volumes of this instance,
     expect($code)->toBe(0, json_encode($json))
         ->and($json['changed'])->toBeTrue()
         ->and($json['data']['uuid'])->toBe($this->uuid)
-        ->and($json['data']['removed']['containers'])->toHaveCount(7)
+        ->and($json['data']['removed']['containers'])->toHaveCount(8) // with the backup service (U16)
         ->and($json['data']['removed']['networks'])->toBe(['proj_default'])
         ->and($json['data']['removed']['volumes'])->toBe(['proj_pg-data'])
         ->and($json['data'])->toMatchArray(['data_deleted' => true, 'backups_deleted' => true, 'final_backup' => null, 'kept' => []])
@@ -79,7 +79,7 @@ it('leaves the running launcher its own nonce file', function (): void {
 });
 
 it('keeps backups/ with --keep-backups and leaves no marker, so a later install accepts the directory', function (): void {
-    mkdir($this->fixture->directory->root.'/backups');
+    @mkdir($this->fixture->directory->root.'/backups'); // the render creates it since U16 (the backup service mounts it)
     file_put_contents($this->fixture->directory->root.'/backups/2026-10-18.tar', 'x');
 
     [$code, $json] = $this->fixture->run('fsa:uninstall', ['--yes' => true, '--keep-backups' => true]);
@@ -105,7 +105,7 @@ it('keeps the files when a resource cannot be removed, reporting the partial cha
         ->and($json['errors'][0]['code'])->toBe('uninstall_incomplete')
         ->and($json['errors'][0]['retryable'])->toBeTrue()
         ->and($json['errors'][0]['hint'])->toContain('again to finish')
-        ->and($json['data']['removed']['containers'])->toHaveCount(7)
+        ->and($json['data']['removed']['containers'])->toHaveCount(8) // with the backup service (U16)
         ->and($againCode)->toBe(0)
         ->and($again['data']['removed']['volumes'])->toBe(['proj_pg-data']);
 });
@@ -137,7 +137,7 @@ it('takes the UUID from the compose file when the state is unreadable, and warns
 
     expect($code)->toBe(0, json_encode($json))
         ->and($json['data']['uuid'])->toBe($this->uuid)
-        ->and($json['data']['removed']['containers'])->toHaveCount(7)
+        ->and($json['data']['removed']['containers'])->toHaveCount(8) // with the backup service (U16)
         ->and($emptyCode)->toBe(0)
         ->and($nothing['data']['uuid'])->toBeNull()
         ->and($nothing['warnings'][0]['code'])->toBe('instance_id_unknown');

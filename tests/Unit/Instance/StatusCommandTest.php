@@ -122,7 +122,7 @@ it('shows logs of chosen services with --since and --tail, and refuses unknown s
         ->and($json['data'])->toMatchArray(['services' => ['queue'], 'since' => '10m', 'tail' => 50, 'logs' => "queue-1 | ready\n"])
         ->and($this->fixture->docker->called('composeLogs')[0])->toMatchArray(['services' => ['queue'], 'since' => '10m', 'tail' => 50])
         ->and($allCode)->toBe(0)
-        ->and($all['data']['services'])->toBe(['app', 'queue', 'scheduler', 'postgres', 'redis', 'gotenberg', 'mailpit'])
+        ->and($all['data']['services'])->toBe(['app', 'queue', 'scheduler', 'postgres', 'redis', 'gotenberg', 'mailpit', 'backup'])
         ->and($this->fixture->docker->called('composeLogs')[1]['tail'])->toBeNull()
         ->and($unknownCode)->toBe(2)
         ->and($unknown['errors'][0]['hint'])->toContain('app, queue')

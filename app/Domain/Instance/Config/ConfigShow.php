@@ -117,6 +117,11 @@ final readonly class ConfigShow
             ],
             'size' => $settings->size(),
             'database' => $settings->dbDatabase(),
+            'backup' => [
+                'schedule' => $settings->backupSchedule(), 'time_zone' => $settings->timeZone(), 'retention' => $settings->backupRetention(),
+                'encryption' => ['enabled' => $state->recipients() !== [], 'recipients' => $state->recipients()],
+                'directory' => $this->directory->root.'/'.InstanceDirectory::BACKUPS_DIR,
+            ],
         ];
     }
 
@@ -147,6 +152,8 @@ final readonly class ConfigShow
             'mail' => $settings->capturesMail() ? 'capture' : 'smtp',
             'operator-email' => null, // operators live in the app's database (ADR 0080)
             'phone-https' => $settings->phoneHttps() ?? ($state->mode() === 'local' ? 'off' : null), 'lan-address' => $settings->localCa() ? $settings->lanAddress() : null,
+            'backup-schedule' => $settings->backupSchedule(), 'backup-retention' => (string) $settings->backupRetention(),
+            'backup-encryption' => $state->recipients() === [] ? 'off' : 'on',
         ];
         $keys = [];
         foreach (ConfigKeys::keys() as $key) {

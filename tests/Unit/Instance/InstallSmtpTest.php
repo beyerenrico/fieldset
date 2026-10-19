@@ -66,7 +66,7 @@ it('installs straight into SMTP mode: no catcher, MAIL_* for app, queue and sche
     expect($code)->toBe(0, json_encode($json))
         ->and($json['data']['mail'])->toBe(['mode' => 'smtp', 'catcher_url' => null])
         ->and(collect($json['warnings'])->pluck('code')->all())->not->toContain('sender_localhost')
-        ->and(ComposeFile::services($this->fixture->directory))->toBe(['app', 'queue', 'scheduler', 'postgres', 'redis', 'gotenberg'])
+        ->and(ComposeFile::services($this->fixture->directory))->toBe(['app', 'queue', 'scheduler', 'postgres', 'redis', 'gotenberg', 'backup'])
         ->and($state->setting('mail'))->toBe('smtp')
         ->and($state->setting('smtp_host'))->toBe('smtp.example.com')
         ->and($state->setting('smtp_port'))->toBe(587)

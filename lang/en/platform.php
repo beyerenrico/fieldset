@@ -67,6 +67,7 @@ return [
             'scheduler' => 'Scheduler',
             'disk' => 'Disk',
             'runtime' => 'Instance runtime (fsa)',
+            'backup' => 'Backups (fsa)',
         ],
         'statuses' => [
             'ok' => 'OK',
@@ -132,6 +133,20 @@ return [
             'gate_raised' => 'raised (:operation)',
             'gate_lowered' => 'lowered',
             'problem' => 'Problem',
+        ],
+        'backup' => [
+            'none' => 'No backup recorded: on an fsa instance the backup service records every run here.',
+            'ok' => 'The last backup succeeded.',
+            'failed' => 'The last backup failed (:reason). Run `fsa backup` and read `fsa logs backup`.',
+            'skipped' => 'Scheduled backups have been skipped for more than 24 hours because an operation held the instance lock. Check `fsa status`.',
+            'last_success' => 'Last successful backup',
+            'last_run' => 'Last run',
+            'size' => 'Size',
+            'encrypted' => 'Encrypted',
+            'yes' => 'yes',
+            'no' => 'no',
+            'on_host' => 'Backups stay on this host: copy them elsewhere.',
+            'missing_files' => 'Files referenced but missing',
         ],
     ],
 ];

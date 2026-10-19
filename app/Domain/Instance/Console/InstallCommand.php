@@ -61,14 +61,14 @@ use Illuminate\Console\Attributes\Signature;
         {--password-stdin : Read the SMTP password from stdin (a hidden prompt in a terminal; install.sh: terminal only)}
         {--from-address= : The sender address of instance mail (default forms@<domain>, else forms@localhost)}
         {--from-name= : The sender name of instance mail}
-        {--encrypt : Encrypted backups (2.0.0-rc.1)}
+        {--encrypt : Encrypted backups: not at install yet; use fsa config set backup-encryption on afterwards}
         {--from-backup= : Create the instance from a backup (2.0.0-rc.1)}
         {--open : Open the owner sign-in link in the browser of a desktop session instead of printing it}')]
 final class InstallCommand extends FsaCommand
 {
     /** Option => the pre-release that brings it. */
     private const array LATER = [
-        'encrypt' => '2.0.0-rc.1', 'from-backup' => '2.0.0-rc.1',
+        'from-backup' => '2.0.0-rc.1',
     ];
 
     private const array PROMPTS = ['organization' => 'Organization name', 'owner_email' => 'Owner e-mail'];
@@ -103,6 +103,10 @@ final class InstallCommand extends FsaCommand
 
     private function refuseLaterOptions(): void
     {
+        if ($this->option('encrypt') === true) {
+            // Backups and their encryption exist since U16 (ADR 0084), but not as an install step yet.
+            throw new InvalidInput('--encrypt is not available at install yet.', 'unsupported_option', 'Install without it, then run `fsa config set backup-encryption on --identity-out <path> --passphrase-file <file>` (or `fsa backup --encrypt …`).');
+        }
         foreach (self::LATER as $option => $release) {
             $value = $this->option($option);
             if (! in_array($value, [null, false, ''], true)) {

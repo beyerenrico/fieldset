@@ -1,0 +1,151 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Domain\Platform\Health\Checks\BackupCheck;
+use App\Domain\Platform\Health\HealthStatus;
+use App\Domain\Platform\Instance\BackupRole;
+use App\Domain\Platform\Instance\BackupRuns;
+use Carbon\CarbonImmutable;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
+
+/*
+ * The app side of backups (R39, plan U16, ADR 0084): the backup service's database role may read everything and insert
+ * only into backup_runs; /platform reads the runs and raises the alerts. The role is created inside the test's
+ * transaction under a name of its own (roles are cluster-wide), so it never outlives the test.
+ */
+
+const BACKUP_HEALTH_PASSWORD = '00112233445566778899aabbccddeeff0011223344556677';
+
+/** @param  array<string, mixed>  $row */
+function backupRun(array $row): void
+{
+    DB::table('backup_runs')->insert([
+        'kind' => 'scheduled', 'status' => 'succeeded', 'started_at' => now(), 'finished_at' => now(), 'backup' => 'scheduled-20261019T033000Z',
+        'bytes' => 2048, 'encrypted' => false, ...$row,
+    ]);
+}
+
+/** Runs a statement as the role in a savepoint; true when Postgres allowed it. */
+function asBackupRole(string $role, string $sql): bool
+{
+    try {
+        DB::transaction(function () use ($role, $sql): void {
+            DB::statement("SET LOCAL ROLE {$role}");
+            DB::statement($sql);
+        });
+
+        return true;
+    } catch (QueryException) {
+        return false;
+    }
+}
+
+it('creates the backup role with a SCRAM verifier, read-all and insert-only rights', function (): void {
+    $role = 'fsa_backup_test_'.bin2hex(random_bytes(3));
+    makeOrganization();
+
+    $first = new BackupRole()->ensure(BACKUP_HEALTH_PASSWORD, $role);
+    $again = new BackupRole()->ensure(BACKUP_HEALTH_PASSWORD, $role);
+    $stored = (string) DB::scalar('SELECT rolpassword FROM pg_authid WHERE rolname = ?', [$role]);
+    $attributes = DB::selectOne('SELECT rolcanlogin, rolsuper, rolcreatedb, rolcreaterole FROM pg_roles WHERE rolname = ?', [$role]);
+
+    expect($first)->toBe(['role' => $role, 'created' => true, 'granted' => ['pg_read_all_data', 'connect', 'insert:backup_runs']])
+        ->and($again['created'])->toBeFalse()
+        ->and($stored)->toStartWith('SCRAM-SHA-256$4096:')->not->toContain(BACKUP_HEALTH_PASSWORD)
+        ->and([$attributes->rolcanlogin, $attributes->rolsuper, $attributes->rolcreatedb, $attributes->rolcreaterole])->toBe([true, false, false, false])
+        ->and(asBackupRole($role, 'SELECT count(*) FROM organizations'))->toBeTrue()
+        ->and(asBackupRole($role, 'SELECT count(*) FROM activity_log'))->toBeTrue()
+        ->and(asBackupRole($role, "INSERT INTO backup_runs (kind, status, started_at) VALUES ('scheduled', 'succeeded', now())"))->toBeTrue()
+        ->and(asBackupRole($role, "UPDATE backup_runs SET status = 'failed'"))->toBeFalse()
+        ->and(asBackupRole($role, 'DELETE FROM backup_runs'))->toBeFalse()
+        ->and(asBackupRole($role, "UPDATE organizations SET name = 'x'"))->toBeFalse()
+        ->and(asBackupRole($role, 'CREATE TABLE fsa_backup_probe (id int)'))->toBeFalse();
+});
+
+it('computes the SCRAM-SHA-256 verifier Postgres stores (RFC 7677 test vector)', function (): void {
+    // RFC 7677 section 3: user "user", password "pencil", salt W22ZaJ0SNY7soEsUEjb6gQ== and 4096 iterations give
+    // the server signature of the example exchange; StoredKey and ServerKey follow from the same SaltedPassword.
+    $verifier = BackupRole::scramVerifier('pencil', base64_decode('W22ZaJ0SNY7soEsUEjb6gQ=='));
+    [, $keys] = explode('$', substr($verifier, strlen('SCRAM-SHA-256$')), 2);
+    [$storedKey, $serverKey] = explode(':', $keys);
+    $salted = hash_pbkdf2('sha256', 'pencil', base64_decode('W22ZaJ0SNY7soEsUEjb6gQ=='), 4096, 32, true);
+    $authMessage = 'n=user,r=rOprNGfwEbeRWgbNEkqO,r=rOprNGfwEbeRWgbNEkqO%hvYDpWUa2RaTCAfuxFIlj)hNlF$k0,s=W22ZaJ0SNY7soEsUEjb6gQ==,i=4096,c=biws,r=rOprNGfwEbeRWgbNEkqO%hvYDpWUa2RaTCAfuxFIlj)hNlF$k0';
+
+    expect($verifier)->toStartWith('SCRAM-SHA-256$4096:W22ZaJ0SNY7soEsUEjb6gQ==$')
+        ->and(base64_encode(hash_hmac('sha256', $authMessage, base64_decode($serverKey), true)))->toBe('6rriTRBi23WpRR/wtup+mMhUZUn/dB5nLTJRsjl95G4=')
+        ->and(base64_decode($storedKey))->toBe(hash('sha256', hash_hmac('sha256', 'Client Key', $salted, true), true));
+});
+
+it('sets the role up from the one-off without printing the password', function (): void {
+    putenv(BackupRole::PASSWORD_ENV.'='.BACKUP_HEALTH_PASSWORD); // the role is created inside the test's transaction
+
+    try {
+        $code = Artisan::call('instance:backup-role', ['--json' => true]);
+        $output = Artisan::output();
+    } finally {
+        putenv(BackupRole::PASSWORD_ENV);
+    }
+    $document = json_decode(trim($output), true, 512, JSON_THROW_ON_ERROR);
+
+    expect($code)->toBe(0)->and($document['status'])->toBe('ok')->and($document['data']['role'])->toBe('fsa_backup')
+        ->and((string) DB::scalar('SELECT rolpassword FROM pg_authid WHERE rolname = ?', ['fsa_backup']))->toStartWith('SCRAM-SHA-256$')
+        ->and($output)->not->toContain(BACKUP_HEALTH_PASSWORD);
+});
+
+it('refuses to run the one-off without a password', function (): void {
+    putenv(BackupRole::PASSWORD_ENV);
+
+    $code = Artisan::call('instance:backup-role', ['--json' => true]);
+    $document = json_decode(trim(Artisan::output()), true, 512, JSON_THROW_ON_ERROR);
+
+    expect($code)->toBe(1)->and($document['errors'][0]['code'])->toBe('password_missing');
+});
+
+it('reports a failed role set-up without the statement', function (): void {
+    expect(fn () => new BackupRole()->ensure('', 'fsa_backup'))->toThrow(RuntimeException::class, 'needs a lowercase name and a password');
+    expect(fn () => DB::transaction(fn () => new BackupRole()->ensure(BACKUP_HEALTH_PASSWORD, 'pg_signal_backend')))->toThrow(RuntimeException::class, 'Could not set up the backup role pg_signal_backend (SQLSTATE');
+});
+
+it('is ok without runs and after a success, and names where backups stay', function (): void {
+    expect(app(BackupCheck::class)->run()->status)->toBe(HealthStatus::Ok)
+        ->and(app(BackupCheck::class)->run()->summary)->toBe(__('platform.health.backup.none'));
+
+    backupRun(['bytes' => 5 * 1024 * 1024, 'encrypted' => true, 'missing_files' => 2]);
+    $result = app(BackupCheck::class)->run();
+
+    expect($result->status)->toBe(HealthStatus::Ok)
+        ->and($result->summary)->toContain(__('platform.health.backup.on_host'))
+        ->and($result->details[__('platform.health.backup.encrypted')])->toBe(__('platform.health.backup.yes'))
+        ->and($result->details[__('platform.health.backup.missing_files')])->toBe(2)
+        ->and($result->details)->toHaveKey(__('platform.health.backup.size'));
+});
+
+it('fails after a failed run until a later run succeeds, and warns about skips older than a day', function (): void {
+    backupRun(['started_at' => now()->subHours(30)]);
+    backupRun(['status' => 'failed', 'reason' => 'pg_dump_failed', 'backup' => null, 'started_at' => now()->subHour()]);
+
+    $failed = app(BackupCheck::class)->run();
+    expect($failed->status)->toBe(HealthStatus::Fail)->and($failed->summary)->toContain('pg_dump_failed');
+
+    backupRun(['started_at' => now()]);
+    expect(app(BackupCheck::class)->run()->status)->toBe(HealthStatus::Ok);
+
+    DB::table('backup_runs')->delete();
+    backupRun(['started_at' => now()->subDays(3)]);
+    backupRun(['status' => 'skipped', 'reason' => 'lock_held', 'backup' => null, 'started_at' => now()->subHours(25)]);
+    expect(app(BackupCheck::class)->run()->status)->toBe(HealthStatus::Warn);
+});
+
+it('summarizes the newest runs for /platform', function (): void {
+    backupRun(['started_at' => CarbonImmutable::parse('2026-10-18T03:30:00Z')]);
+    backupRun(['kind' => 'manual', 'status' => 'failed', 'reason' => 'storage_failed', 'backup' => null, 'bytes' => null, 'started_at' => CarbonImmutable::parse('2026-10-19T09:00:00Z')]);
+
+    $summary = app(BackupRuns::class)->summary(CarbonImmutable::parse('2026-10-19T10:00:00Z'));
+
+    expect($summary['last'])->toMatchArray(['kind' => 'manual', 'status' => 'failed', 'reason' => 'storage_failed', 'started_at' => '2026-10-19T09:00:00Z'])
+        ->and($summary['last_success'])->toMatchArray(['kind' => 'scheduled', 'backup' => 'scheduled-20261019T033000Z', 'bytes' => 2048, 'encrypted' => false])
+        ->and(array_column($summary['alerts'], 'code'))->toBe(['backup_failed']);
+});

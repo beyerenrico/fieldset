@@ -276,7 +276,7 @@ it('uninstalls with the certificate volume and warns about the CA\'s duplicate-c
     $this->journey->evidence('J02-uninstall.json', ['command' => 'fsa uninstall --yes --json', 'exit_code' => $process->getExitCode(), 'stdout' => $json, 'labelled_before' => $before, 'labelled_after' => InstanceJourney::labelled($uuid)], 'M10');
 
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput().$process->getOutput())
-        ->and($before['containers'])->toHaveCount(8)
+        ->and($before['containers'])->toHaveCount(9) // with the backup service since U16 (ADR 0084)
         ->and(array_filter($before['volumes'], static fn (string $volume): bool => str_ends_with($volume, '_edge-data')))->toHaveCount(1)
         ->and(collect($json['warnings'])->pluck('code')->all())->toContain('certificates_removed')
         ->and(InstanceJourney::labelled($uuid))->toBe(['containers' => [], 'volumes' => [], 'networks' => []]);

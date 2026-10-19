@@ -173,3 +173,10 @@ retryable), and `completed()` runs once the workers are up, before the audit, an
 Both are URL keys (exit 6 without `--yes`). The preflight of a new local-CA edge checks 80/443 on the address, refuses
 while any account has `password` (exit 3 `default_password_in_use`) and chooses the edge subnet. The R61 refusal
 above now reads the `phone_https` setting U14 writes: `config set domain` is exit 2 while phone HTTPS is on.
+
+## Amendment 2026-10-19: the backup keys (U16, ADR 0084)
+`backup-schedule <HH:MM|off>`, `backup-retention <1–365>` and `backup-encryption on|off` (with `--identity-out` and
+`--passphrase-file` or `--passphrase-stdin`) are settable in every mode, no longer `setting_not_available`; only
+`update-check` (2.0.0) is still a later key. They recreate only the backup service. `ConfigChange::unchanged()` also
+compares the backup recipients and treats the backup defaults (03:30, 7) like the default ports; the passphrase travels
+with the change to the preflight (`KeyFileRequest`) and is never journaled.

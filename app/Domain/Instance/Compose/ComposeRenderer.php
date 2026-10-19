@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Compose;
 
+use App\Domain\Instance\Backup\BackupStore;
+use App\Domain\Instance\Backup\PortableSettings;
 use App\Domain\Instance\Compose\Services\AppRoles;
+use App\Domain\Instance\Compose\Services\BackupService;
 use App\Domain\Instance\Compose\Services\EdgeService;
 use App\Domain\Instance\Compose\Services\GotenbergService;
 use App\Domain\Instance\Compose\Services\MailpitService;
@@ -24,8 +27,8 @@ use App\Domain\Instance\State\RuntimeWriter;
  * contributes services; the renderer adds what every service gets (labels, memory limit, env file, log cap,
  * restart policy), declares and labels volumes and networks, and checks the result (ComposeGuard).
  *
- * Extension points for later units: add a definition to `defaultDefinitions()` (backup with
- * `ServiceEnvironments::backup()` U16; the quick tunnel with `restart: "no"` joined in U14), or branch on the mode inside a definition (proxy ports and
+ * Extension points for later units: add a definition to `defaultDefinitions()` (the backup service of U16, the quick
+ * tunnel with `restart: "no"` of U14), or branch on the mode inside a definition (proxy ports and
  * external network, U9). Lift the mode check in `render()` with the unit that renders that mode. Domain mode (U8)
  * adds EdgeService with its own network and fixed address; definitions may also contribute instance-directory
  * files (the edge's Caddyfile), which `write()` puts next to the compose file.
@@ -52,7 +55,7 @@ final readonly class ComposeRenderer
     /** @return list<ServiceDefinition> */
     public static function defaultDefinitions(): array
     {
-        return [new AppRoles, new PostgresService, new ValkeyService, new GotenbergService, new MailpitService, new EdgeService, new TunnelService];
+        return [new AppRoles, new PostgresService, new ValkeyService, new GotenbergService, new MailpitService, new EdgeService, new TunnelService, new BackupService];
     }
 
     /** @param  bool  $emulated  the images run emulated: memory limits doubled (RenderContext) */
@@ -87,12 +90,20 @@ final readonly class ComposeRenderer
 
     /**
      * Renders and writes everything the stack reads from the instance directory: the runtime directory first
-     * (the app fails closed without it, KTD11), then the env files, then the compose file.
+     * (the app fails closed without it, KTD11), then the env files, then the compose file. The backup service's
+     * bind mounts (`backups/`, `locks/`) must exist with the owner's mode before Compose starts it (Docker would
+     * otherwise create them as root), and `backups/.instance.json` gives it the instance's identity and portable
+     * settings for every backup's settings.json (0600, no secret).
      */
     public function write(InstanceDirectory $directory, InstanceState $state, InstanceSecrets $secrets, bool $emulated = false): RenderedProject
     {
         $rendered = $this->render($state, $secrets, $emulated);
         new RuntimeWriter($directory)->write($state);
+        if (in_array(BackupService::NAME, $rendered->services(), true)) {
+            $directory->ensureDirectory(InstanceDirectory::BACKUPS_DIR);
+            $directory->ensureDirectory(InstanceDirectory::LOCKS_DIR);
+            $directory->write(InstanceDirectory::BACKUPS_DIR.'/'.BackupStore::META_FILE, PortableSettings::document($state));
+        }
         $rendered->writeTo($directory);
 
         return $rendered;

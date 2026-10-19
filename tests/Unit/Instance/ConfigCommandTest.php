@@ -15,7 +15,7 @@ use Tests\Support\Instance\TemporaryInstance;
 
 /*
  * Plan U11 (§7, R31, R32, §10; ADR 0077): `fsa config show` (effective settings, secrets redacted, outbound contacts)
- * and the command's usage rules: unknown keys, keys of later pre-releases (backups: M12), an instance that is not
+ * and the command's usage rules: unknown keys, keys of later pre-releases (the update check: 2.0.0), an instance that is not
  * installed, a running operation (exit 9) and an unfinished one of another kind.
  */
 
@@ -41,7 +41,8 @@ it('shows every setting of a local instance with secrets redacted and no outboun
         ->and($contacts['upgrades']['contacts'])->toContain(InstanceCommandFixture::MIRROR, 'https://github.com/beyerenrico/form-schema-app/releases')
         ->and($contacts['acme']['contacts'])->toBe([])
         ->and(collect($json['data']['keys'])->firstWhere('key', 'mail'))->toMatchArray(['value' => 'capture', 'available' => true, 'settable_now' => true])
-        ->and(collect($json['data']['keys'])->firstWhere('key', 'backup-schedule'))->toMatchArray(['available' => false, 'arrives_with' => '2.0.0-rc.1'])
+        ->and(collect($json['data']['keys'])->firstWhere('key', 'backup-schedule'))->toMatchArray(['value' => '03:30', 'available' => true, 'settable_now' => true]) // arrived with U16 (ADR 0084)
+        ->and(collect($json['data']['keys'])->firstWhere('key', 'update-check'))->toMatchArray(['available' => false, 'arrives_with' => '2.0.0'])
         ->and(collect($json['data']['keys'])->firstWhere('key', 'port'))->toMatchArray(['value' => 8080, 'available' => true, 'changes_url' => true])
         ->and($config->methodsSince($mark))->toBe([]);
 });
@@ -67,8 +68,8 @@ it('says when later settings arrive and lists the keys for an unknown one, exit 
         ->and($json['errors'][0]['message'].' '.$json['errors'][0]['hint'])->toContain($text);
 })->with([
     'update check' => ['update-check', 'setting_not_available', '2.0.0'],
-    'backup schedule' => ['backup-schedule', 'setting_not_available', '2.0.0-rc.1'],
-    'unknown' => ['colour', 'unknown_setting', 'domain, url, port, trusted-proxy, mode, acme-email, acme-ca, mail, phone-https, lan-address, operator-email'],
+    'backup schedule (arrived with U16, ADR 0084)' => ['backup-schedule', 'invalid_value', 'HH:MM'],
+    'unknown' => ['colour', 'unknown_setting', 'domain, url, port, trusted-proxy, mode, acme-email, acme-ca, mail, phone-https, lan-address, backup-schedule, backup-retention, backup-encryption, operator-email'],
     'invalid mail value' => ['mail', 'invalid_value', 'capture'],
 ]);
 

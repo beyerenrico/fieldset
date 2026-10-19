@@ -23,6 +23,10 @@ final readonly class InstanceSettings
 
     public const string DEFAULT_SENDER_NAME = 'form-schema-app';
 
+    public const string DEFAULT_BACKUP_TIME = '03:30';
+
+    public const int DEFAULT_BACKUP_RETENTION = 7;
+
     /** Setting `mail_catcher`: the catcher is kept read-only after the switch to SMTP (ADR 0080). */
     public const string CATCHER_KEPT = 'kept';
 
@@ -263,6 +267,24 @@ final readonly class InstanceSettings
     {
         return $this->state->url() ?? $this->localUrl()
             ?? throw new InvalidState("The instance state has no URL for mode [{$this->state->mode()}].");
+    }
+
+    /** The daily backup time (`HH:MM`, E13: 03:30) or `off` (U16, ADR 0084). */
+    public function backupSchedule(): string
+    {
+        return $this->string('backup_schedule') ?? self::DEFAULT_BACKUP_TIME;
+    }
+
+    /** How many scheduled backups retention keeps (E13: 7). */
+    public function backupRetention(): int
+    {
+        return $this->int('backup_retention', self::DEFAULT_BACKUP_RETENTION);
+    }
+
+    /** The instance's time zone, recorded from the host at install (FSA_TZ); UTC when unknown. */
+    public function timeZone(): string
+    {
+        return $this->string('time_zone') ?? 'UTC';
     }
 
     private function int(string $key, int $default): int

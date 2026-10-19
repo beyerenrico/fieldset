@@ -231,3 +231,13 @@ U12 did not add them (the smoke path above and the U12 consequence promised it);
   tunnel is transient, ADR 0082 amendment): same flags are `changed: false` with the warning `tunnel_not_running`
   naming `fsa tunnel start`; it was exit 2 `use_config_set` with the key `phone-https`, which `config set` refuses.
 - Verified by `tests/Unit/Instance/TunnelInstallTest.php`.
+
+## Amendment 2026-10-19: backups in install and status (U16, ADR 0084)
+- The `migrate` phase also sets up the backup service's database role (`instance:backup-role`, a socket-less one-off,
+  the password by name), idempotent like the migrations; a failure is exit 4 `backup_role_failed`, retryable.
+- The `state` phase records the host's time zone (FSA_TZ) as the setting `time_zone`, the "instance time" of the backup
+  schedule.
+- `fsa status` fills `last_backup` (the newest successful backup run) and adds `backup` (schedule and next run,
+  encryption, backups on disk, safety backups with age and size, alerts), read from the run ledger without a database;
+  failed backups, scheduled runs skipped for more than 24 hours and a schedule without success for 26 hours are warnings.
+  The services list includes `backup`.
