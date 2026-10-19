@@ -17,6 +17,8 @@ use App\Domain\Instance\State\EnvFiles;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceState;
 use App\Domain\Platform\Instance\BackupRole;
+use DateTimeImmutable;
+use DateTimeZone;
 use SensitiveParameter;
 
 /**
@@ -145,10 +147,12 @@ final readonly class RestoreDatabases
      * @param  string  $previousKeys  APP_PREVIOUS_KEYS for this one-off (comma-separated), empty for the env file's
      * @return array<string, mixed> its data
      */
-    public function finish(ComposeProject $project, string $database, ?string $source, string $backup, int $seed, int $actorUid, array $input, #[SensitiveParameter] string $previousKeys = ''): array
+    public function finish(ComposeProject $project, string $database, ?string $source, PreparedBackup $backup, int $seed, int $actorUid, array $input, string $journal, #[SensitiveParameter] string $previousKeys = ''): array
     {
         $password = new EnvFiles($this->directory)->read(BackupService::NAME)['DB_PASSWORD'] ?? '';
-        $command = ['php', 'artisan', 'instance:restore-finish', '--backup='.$backup, '--epoch-seed='.$seed, '--actor-uid='.$actorUid, ...($source === null ? [] : ['--source='.$source]), '--json'];
+        $createdAt = self::createdAt($backup->manifest['created_at'] ?? null);
+        $command = ['php', 'artisan', 'instance:restore-finish', '--backup='.$backup->name, '--epoch-seed='.$seed, '--actor-uid='.$actorUid, ...($source === null ? [] : ['--source='.$source]),
+            '--journal='.$journal, ...($createdAt === null ? [] : ['--backup-created-at='.$createdAt]), '--json']; // the carry's window and an idempotent epoch (third review)
         // APP_PREVIOUS_KEYS by name: the decrypt sample reads data encrypted under the backup's keys (ADR 0085).
         $env = ['DB_DATABASE' => $database, BackupRole::PASSWORD_ENV => $password, ...($previousKeys === '' ? [] : ['APP_PREVIOUS_KEYS' => $previousKeys])];
         $outcome = OneOffResult::fromOutcome($this->docker->composeRun(
@@ -160,6 +164,22 @@ final readonly class RestoreDatabases
         }
 
         return $outcome->data;
+    }
+
+    /** The manifest's creation time as ISO 8601 UTC (fsa's `2026-10-19T12:00:00Z`, 1.0's `20261019T120000Z`), null otherwise. */
+    public static function createdAt(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+        foreach (['Y-m-d\\TH:i:s\\Z', 'Ymd\\THis\\Z', DATE_ATOM] as $format) {
+            $parsed = DateTimeImmutable::createFromFormat('!'.$format, $value, new DateTimeZone('UTC'));
+            if ($parsed !== false && $parsed->format($format) === $value) {
+                return $parsed->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d\\TH:i:s\\Z');
+            }
+        }
+
+        return null;
     }
 
     /**

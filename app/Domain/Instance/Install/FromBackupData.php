@@ -91,13 +91,14 @@ final readonly class FromBackupData
      * `instance:restore-finish` without a source: the new epoch with `instance.restored`, stale credentials, grants and
      * the decrypt sample (no carry: nothing came before on this host).
      *
+     * @param  string  $id  the journal's short ID: a resumed install never begins a second epoch (third review, A9)
      * @return array<string, mixed>
      */
-    public function finish(InstanceState $state, ComposeProject $project, PreparedBackup $backup, int $actorUid): array
+    public function finish(InstanceState $state, ComposeProject $project, PreparedBackup $backup, int $actorUid, string $id): array
     {
         $epoch = is_int($backup->manifest['epoch'] ?? null) ? $backup->manifest['epoch'] : 0;
 
-        return $this->databases->finish($project, InstanceSettings::of($state)->dbDatabase(), null, $backup->name, $epoch, $actorUid,
-            ['previous_heads' => (object) [], 'previous_epoch' => null, 'from_backup' => true]);
+        return $this->databases->finish($project, InstanceSettings::of($state)->dbDatabase(), null, $backup, $epoch, $actorUid,
+            ['previous_heads' => (object) [], 'previous_epoch' => null, 'from_backup' => true], $id);
     }
 }

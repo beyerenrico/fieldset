@@ -33,7 +33,6 @@ final readonly class RestoreAbandon
         private Supervisor $supervisor,
         private ContainerIdentity $identity,
         private RestoreRecovery $recovery,
-        private RestoreStack $stack,
         private RestoreFinale $finale,
     ) {}
 
@@ -58,17 +57,16 @@ final readonly class RestoreAbandon
         $project = ComposeProject::forInstance($state, $this->directory);
         $safety = RestoreFinale::safety($record);
         if ($names->id === '' || (! $record->hasStarted('swap') && ! $record->hasStarted('return'))) {
-            $left = $names->id === '' ? [] : $this->recovery->dropScratch($project, $names);
-            if ($record->hasStarted('quiesce')) {
-                $this->stack->reopen($state, $project);
-            }
+            $closed = $this->recovery->goBack($run, $state, $project, $names, $record->hasStarted('quiesce')); // journaled (M2)
+            $result = CommandResult::ok(RestoreOperation::OPERATION, ['abandoned' => true, 'swapped' => false, 'left_behind' => $closed['left_behind']], changed: true);
 
-            return $this->recovery->sealed(CommandResult::ok(RestoreOperation::OPERATION, ['abandoned' => true, 'swapped' => false, 'left_behind' => $left], changed: true), $safety);
+            return $this->recovery->sealed(RestoreRecovery::degraded($result, $closed['degraded']), $safety);
         }
-        if ($record->hasStarted('gate') || $record->hasStarted('cleanup')) { // the restored instance took requests: finish it
-            $result = $this->finale->open($run, RestoreFinale::swappedState($state, $names), RestoreFinale::previousState($state, $names, $record), $project, $names, $record->phaseData('prepare'));
+        $forward = $this->recovery->noted($run, RestoreRecovery::NO_WAY_BACK); // no way back: the restored data is all there is (L4)
+        if ($forward || $record->hasStarted('gate') || $record->hasStarted('cleanup')) { // or the restored instance took requests
+            $result = $this->finale->open($run, RestoreFinale::swappedState($state, $names), RestoreFinale::previousState($state, $names, $record), $project, $names, $record->phaseData('prepare'), wayBack: ! $forward);
 
-            return $result->exitCode === ExitCode::Success ? $result->withData(['abandoned' => false, 'completed' => true]) : $result;
+            return $result->exitCode === ExitCode::Success ? $result->withData(['abandoned' => false, 'completed' => true, 'forward' => $forward]) : $result;
         }
         $added = RestoreNames::strings($record->phaseData('swap')['keys_added'] ?? ($record->phaseData('prepare')['add'] ?? null));
         $result = $this->recovery->returnToPrevious($run, RestoreFinale::previousState($state, $names, $record), $project, $names, new InstanceException('Abandoned.', ExitCode::RolledBack, 'restore_abandoned'), $added, $safety, $record->hasCompleted('swap'));

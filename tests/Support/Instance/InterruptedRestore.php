@@ -7,6 +7,7 @@ namespace Tests\Support\Instance;
 use App\Domain\Instance\Operations\OperationJournal;
 use App\Domain\Instance\Restore\RestoreNames;
 use App\Domain\Instance\State\RuntimeWriter;
+use Closure;
 
 /**
  * An open restore journal as a killed run leaves it (plan U17, ADR 0085), for RestoreFixture: every phase up to `$until`
@@ -69,6 +70,42 @@ final class InterruptedRestore
     public static function halfSwapped(RestoreFixture $restore, RestoreNames $names): void
     {
         $restore->databases = [...array_values(array_diff($restore->databases, [$names->live])), $names->aside];
+    }
+
+    /**
+     * A restore that failed before the swap and was killed while going back (phase `abort` started, or completed when the
+     * kill came during the seal): the scratch database and the fresh volume may still be there.
+     */
+    public static function aborting(RestoreFixture $restore, bool $completed = false): RestoreNames
+    {
+        $names = self::journal($restore, 'restore_database');
+        $journal = new OperationJournal($restore->instance->directory);
+        $journal->startPhase('restore_storage');
+        $journal->failPhase('restore_storage', 'tar failed');
+        $journal->startPhase('abort', ['code' => 'storage_restore_failed', 'message' => 'tar failed']);
+        if ($completed) {
+            $journal->completePhase('abort', ['left_behind' => [], 'degraded' => []]);
+        }
+
+        return $names;
+    }
+
+    /** The position of the first recorded Docker call (from `$from` on) that `$match(method, args)` accepts; -1 for none. */
+    public static function position(RestoreFixture $restore, Closure $match, int $from = 0): int
+    {
+        foreach ($restore->instance->docker->calls as $index => $call) {
+            if ($index >= $from && $match($call['method'], $call['args']) === true) {
+                return $index;
+            }
+        }
+
+        return -1;
+    }
+
+    /** Matches the restore-db one-off of `$action` (swap, rename, drop …). */
+    public static function databaseCall(string $action): Closure
+    {
+        return static fn (string $method, array $args): bool => $method === 'composeRun' && ($args['command'][2] ?? null) === 'instance:restore-db' && ($args['command'][3] ?? null) === $action;
     }
 
     public static function raiseGate(RestoreFixture $restore): void
