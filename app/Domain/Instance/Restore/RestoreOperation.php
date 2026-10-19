@@ -92,6 +92,9 @@ final readonly class RestoreOperation
         $project = ComposeProject::forInstance($state, $this->directory);
         $record = $run->record();
         $previous = RestoreFinale::previousState($state, $names, $record);
+        if ($record->hasStarted('abort')) { // killed while going back before the swap: finish going back, never restore (M2)
+            return $this->recovery->abort($run, $state, $project, $names, RestoreRecovery::abortCause($run), $record->hasStarted('quiesce'), RestoreFinale::safety($record));
+        }
         if ($record->hasStarted('return') || ($record->hasStarted('swap') && ! $record->hasCompleted('swap'))) {
             // a return that began (exit 8, or killed) is only ever finished; so is a swap killed half-way (review A2)
             $added = RestoreNames::strings($record->phaseData('swap')['keys_added'] ?? ($record->phaseData('prepare')['add'] ?? null));
@@ -118,7 +121,7 @@ final readonly class RestoreOperation
             $run->phase('space', fn (): array => $this->space->assert($backup, $run->record()->hasCompleted('safety_backup')), changes: false, always: true);
         } catch (Throwable $e) {
             if ($quiesced) {
-                return $this->recovery->abort($state, $project, $names, $e, true, RestoreFinale::safety($run->record()));
+                return $this->recovery->abort($run, $state, $project, $names, $e, true, RestoreFinale::safety($run->record()));
             }
             $this->recovery->dropScratch($project, $names, databases: false);
 
@@ -139,10 +142,10 @@ final readonly class RestoreOperation
 
                 return ['volume' => $names->freshVolume];
             }, always: true);
-            $finish = $run->phase('finish', fn (): array => $this->databases->finish($project, $names->scratch, $names->live, $backup->name, $this->seed($previous), $request->actorUid, $previous['input'], $this->previousKeys($request, $intake)), always: true);
+            $finish = $run->phase('finish', fn (): array => $this->databases->finish($project, $names->scratch, $names->live, $backup, $this->seed($previous), $request->actorUid, $previous['input'], $names->id, $this->previousKeys($request, $intake)), always: true);
             $run->phase('erasures', fn (): array => $this->storage->removeErased($state, $names->freshVolume, $this->exportDirectories($finish)), always: true);
         } catch (Throwable $e) {
-            return $this->recovery->abort($state, $project, $names, $e, $run->record()->hasStarted('quiesce'), RestoreFinale::safety($run->record()));
+            return $this->recovery->abort($run, $state, $project, $names, $e, $run->record()->hasStarted('quiesce'), RestoreFinale::safety($run->record()));
         }
 
         return $this->finale->swap($run, $state, $project, $names, $intake, $this->keysToAdd($request, $intake));

@@ -23,6 +23,7 @@ use App\Domain\Instance\State\InstanceState;
 use App\Domain\Instance\State\InvalidState;
 use App\Domain\Instance\State\RuntimeWriter;
 use SensitiveParameter;
+use Throwable;
 
 /**
  * The stack around a restore (plan U17, KTD19, ADR 0085). Quiesce like an upgrade: the gate goes up (the app answers 503
@@ -118,6 +119,31 @@ final readonly class RestoreStack
     {
         $this->startAll($project);
         $this->lowerGate($state);
+    }
+
+    /**
+     * The previous instance again, its database unchanged (third review L7): the app must become healthy, then the gate
+     * goes down and the other services start. One that does not is reported, not fatal: requests reach the data they
+     * always reached.
+     *
+     * @return list<string> the services that did not start
+     *
+     * @throws InstanceException exit 4 when the app itself does not become healthy
+     */
+    public function reopenPrevious(InstanceState $state, ComposeProject $project): array
+    {
+        $this->up($project, [AppRoles::APP]);
+        $this->lowerGate($state);
+        try {
+            $this->up($project, []);
+        } catch (Throwable) {
+            $running = array_map(static fn (ContainerInfo $container): ?string => $container->service(), array_filter(ComposeFile::serviceContainers($this->docker->composePs($project)), static fn (ContainerInfo $c): bool => $c->running()));
+            $missing = array_values(array_diff([AppRoles::QUEUE, AppRoles::SCHEDULER, BackupService::NAME], $running));
+
+            return $missing === [] ? ['queue, scheduler or backup (running, not healthy)'] : $missing;
+        }
+
+        return [];
     }
 
     /** Every service (workers, scheduler, backup) up and healthy; the gate stays as it is. */

@@ -30,12 +30,15 @@ final readonly class BackupIntake
         $outside = $request->keyFile instanceof AppKeys ? $own->merge($request->keyFile) : $own;
         // Only the current APP_KEY and keys the operator passes authenticate: a previous key may be retired because it leaked.
         $authenticating = AppKeys::of(array_slice($own->keys, 0, 1))->merge($request->keyFile ?? AppKeys::of([]));
-        $this->space->assertScratch($path);
+        $free = $this->space->assertScratch($path);
         $scratch = $this->source->scratch($id);
         $backup = $this->source->prepare($runAs, $path, $scratch, $authenticating, $request->identityFile, $request->passphrase);
         // A new host (`--from-backup`) may decrypt with the keys the backup carries; the HMAC never uses them.
         $known = $purpose === RestoreChecks::FROM_BACKUP ? $outside->merge(self::insideKeys($backup)) : $outside;
         $warnings = RestoreChecks::assert($backup, $purpose, $request->acceptUnauthenticated, $known, $this->upgradesFrom($version));
+        if ($free === null) { // restore, drill and --from-backup alike (review A12)
+            $warnings[] = ['disk_space_unknown', 'The free disk space could not be read, so it was not checked.', 'Check `df` on the host before the next restore.'];
+        }
         if ($purpose === RestoreChecks::IN_PLACE) {
             RestoreChecks::assertSameInstance($backup, $runAs['uuid'], $own, self::insideKeys($backup));
         }

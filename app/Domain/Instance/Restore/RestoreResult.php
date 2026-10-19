@@ -29,7 +29,9 @@ final readonly class RestoreResult
             'created_at' => $backup?->manifest['created_at'] ?? null, 'backup_version' => $backup?->version(),
             'url' => InstanceSettings::of($state)->instanceUrl(), 'storage_volume' => RestoreStorage::current($state),
             'epoch' => $finish['epoch'] ?? null, 'previous_epoch' => $finish['previous_epoch'] ?? null,
-            'carried' => $finish['carried'] ?? null, 'sequences' => $finish['sequences'] ?? null, 'cleared' => $finish['cleared'] ?? null,
+            'carried' => $finish['carried'] ?? null, 'carry_mode' => $finish['carry_mode'] ?? null, 'carry_skipped' => $finish['carry_skipped'] ?? null,
+            'cascade_skipped' => $finish['cascade_skipped'] ?? null, // kept with a form, group, provider … the live database lost (restored with it)
+            'sequences' => $finish['sequences'] ?? null, 'cleared' => $finish['cleared'] ?? null,
             'decrypt' => $finish['decrypt'] ?? null,
             'safety_backup' => $record->phaseData('safety_backup')['backup'] ?? null, 'safety_backup_sealed' => ($cleanup['sealed'] ?? false) === true,
             'keys_added' => $record->phaseData('swap')['keys_added'] ?? [], 'valkey_flushed' => $record->phaseData('swap')['flushed'] ?? null,
@@ -41,9 +43,10 @@ final readonly class RestoreResult
                 $result = $result->withWarning($warning[0], (string) ($warning[1] ?? ''), is_string($warning[2] ?? null) ? $warning[2] : null);
             }
         }
-        $space = $record->phaseData('space');
-        if (array_key_exists('free', $space) && $space['free'] === null) {
-            $result = $result->withWarning('disk_space_unknown', 'The free disk space could not be read, so it was not checked.', 'Check `df` on the host before the next restore.');
+        $skipped = self::skipped($finish['carry_skipped'] ?? null);
+        if ($skipped !== []) {
+            $result = $result->withWarning('carry_partial', 'The security-state carry left changes it could not attribute to an administrator after the backup: '.implode(', ', array_map(static fn (string $item, int $count): string => "{$item}: {$count}", array_keys($skipped), $skipped)).'.',
+                'Check accounts, SSO, access and webhooks in the admin panel; ADR 0085 describes when the carry compares states and when it follows the audit log.');
         }
         $result = $result->withData(['webhooks' => 'paused'])->withWarning('webhooks_paused', 'Workflow webhooks are paused: restored runs could repeat deliveries made after the backup.', 'Check the webhook receivers, then run `fsa config set webhooks on`.');
         if (($record->phaseData('swap')['flushed'] ?? true) === false) {
@@ -51,5 +54,15 @@ final readonly class RestoreResult
         }
 
         return $result;
+    }
+
+    /**
+     * The non-zero counts of `carry_skipped`.
+     *
+     * @return array<string, int>
+     */
+    private static function skipped(mixed $counts): array
+    {
+        return array_filter(is_array($counts) ? $counts : [], static fn (mixed $count, mixed $item): bool => is_string($item) && is_int($count) && $count > 0, ARRAY_FILTER_USE_BOTH);
     }
 }

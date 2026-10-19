@@ -170,10 +170,15 @@ it('returns to the previous instance when the full start fails behind the gate, 
     };
 
     [$code, $json] = $this->restore->restore();
+    $runtime = json_decode((string) file_get_contents($this->dir.'/runtime/runtime.json'), true);
+    $firstSwap = InterruptedRestore::position($this->restore, InterruptedRestore::databaseCall('swap'));
+    $swapBack = InterruptedRestore::position($this->restore, InterruptedRestore::databaseCall('swap'), $firstSwap + 1);
+    $stop = InterruptedRestore::position($this->restore, static fn (string $method, array $args): bool => $method === 'composeStop' && $args['services'] === ['app', 'queue', 'scheduler', 'backup'], $firstSwap + 1);
 
     expect($code)->toBe(5, (string) json_encode($json))->and($json['data']['returned_to_previous'])->toBeTrue()
         ->and(InstanceSettings::of($this->restore->config->state())->webhooksPaused())->toBeFalse()
-        ->and(InterruptedRestore::gateRaised($this->dir))->toBeFalse();
+        ->and($runtime['gate']['raised'])->toBeFalse()->and($runtime['webhooks']['paused'] ?? null)->toBeFalse()
+        ->and($stop)->toBeGreaterThan($firstSwap)->toBeLessThan($swapBack); // the workers open started stop first (review M3)
 });
 
 it('pauses workflow webhooks after an in-place restore until the operator turns them on (review A15)', function (): void {
@@ -191,9 +196,30 @@ it('seals the safety backup when the restore exits 5, not only after a completed
     $this->restore->pgRestore = new ProcessOutcome(1, '', 'pg_restore: error: connection lost');
 
     [$code, $json] = $this->restore->restore();
-    $seals = array_filter($this->restore->instance->docker->called('composeRun'), static fn (array $call): bool => str_starts_with($call['command'][2] ?? '', '--seal=safety-restore-'));
+    $seal = InterruptedRestore::position($this->restore, static fn (string $method, array $args): bool => $method === 'composeRun' && str_starts_with($args['command'][2] ?? '', '--seal=safety-restore-'));
+    $calls = $this->restore->instance->docker->calls;
+    $reopen = max(array_keys(array_filter($calls, static fn (array $call): bool => $call['method'] === 'composeUp' && $call['args']['services'] === [])));
 
-    expect($code)->toBe(5, (string) json_encode($json))->and($seals)->toHaveCount(1);
+    expect($code)->toBe(5, (string) json_encode($json))
+        ->and($calls[$seal]['args']['command'][3] ?? '')->toStartWith('--lock-id=')
+        ->and($seal)->toBeGreaterThan($reopen) // after the instance runs again: no longer downtime (review M2)
+        ->and($this->restore->config->archivedJournal('restore')->hasCompleted('abort'))->toBeTrue()
+        ->and(array_column($json['warnings'], 'code'))->not->toContain('safety_backup_not_sealed');
+});
+
+it('still exits 5 and warns when sealing the safety backup fails after an abort (review A6)', function (): void {
+    $this->restore->instance->directory->saveState($this->restore->config->state()->withRecipients(['age1'.str_repeat('c', 58)]));
+    $this->restore->pgRestore = new ProcessOutcome(1, '', 'pg_restore: error: connection lost');
+    $this->restore->instance->docker->onCall['composeRun'] = function (array $args): void {
+        if (str_starts_with($args['command'][2] ?? '', '--seal=')) {
+            $this->restore->instance->backupOutcome = new ProcessOutcome(1, '', 'age: no recipients');
+        }
+    };
+
+    [$code, $json] = $this->restore->restore();
+
+    expect($code)->toBe(5, (string) json_encode($json))
+        ->and(collect($json['warnings'])->firstWhere('code', 'safety_backup_not_sealed')['message'] ?? '')->toContain('safety-restore-');
 });
 
 it('goes through the way back when a resumed run fails to prepare on the instance a killed run quiesced (review A7)', function (): void {
@@ -219,8 +245,12 @@ it('does not count the safety backup a killed run already took when a resumed ru
     $this->restore->freeBytes = RestoreSpace::HEADROOM + 1024 ** 2;
 
     [$code, $json] = $this->restore->restore();
+    $space = $this->restore->config->archivedJournal('restore')->phaseData('space');
 
-    expect($code)->toBe(0, (string) json_encode($json));
+    expect($code)->toBe(0, (string) json_encode($json))
+        ->and($space['required'])->toBeLessThan(RestoreSpace::HEADROOM + 64 * 1024) // the 3 MiB backup is not counted
+        ->and($space['free'])->toBe(RestoreSpace::HEADROOM + 1024 ** 2)
+        ->and($this->restore->actions()[0] ?? null)->toBe('drop'); // the killed run's scratch database went first
 });
 
 it('warns when the free disk space cannot be read instead of passing silently (review A12)', function (): void {
