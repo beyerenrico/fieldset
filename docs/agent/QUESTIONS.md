@@ -281,3 +281,21 @@ Format: question · chosen option · impact · how to reverse.
    over-reports rather than hides · accept or subtract system work.
 62. Adopt refuses a 1.0 Postgres that is not major 16 on Alpine (no REINDEX path for a libc change), and amcheck covers
    only the unique text indexes after the copy · accept or add a reindex path / check every text index.
+63. Upgrade child liveness (U18, ADR 0086): the child counts as hung after 300 s without an active backend statement,
+   so a migration doing more than 300 s of PHP-only work between statements is killed and rolled back · accept or
+   raise / make configurable.
+64. Upgrade scope (ADR 0086): Mailpit and the tunnel are never recreated by an upgrade (a Mailpit digest bump waits for
+   the next `config set`); delayed jobs are flushed with Valkey on a rollback; the dropped-jobs file is never deleted;
+   queue/scheduler/backup do not themselves refuse to start behind the gate · accept each or schedule.
+65. Upgrade target (ADR 0086): without `--to` the target is `latest`; when latest is a new major, exit 7 cannot name the
+   newest release within the installed major (the verified feed has no release list; a GitHub listing is unsigned).
+   A manual rollback needs a previous release that knows the upgrade-child role · accept or add a signed release list.
+66. Upgrade in-flight wait (ADR 0086, review A1): after the gate rises the upgrade waits up to 120 s until no other
+   client session holds the database, including an operator's psql (exit 9 names them); it relies on FrankenPHP's
+   classic mode · accept or ignore known clients.
+67. Staged release files (ADR 0086, review S2/A3): unknown staged files are refused, so a release that renders a new
+   kind of file needs the installed release to know it; on a rollback a renamed env key keeps its pre-upgrade value
+   (a rotation after the upgrade is lost) · accept or version the stage format.
+68. One full-suite run on the merged M12 tree failed SearchPlanTest once (planner chose sequential scans on
+   submission_values, submissions and users); it passed alone 3/3 and in the next full run · watch; if it recurs,
+   suspect autovacuum updating relation stats during the test.

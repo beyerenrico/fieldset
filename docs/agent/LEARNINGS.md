@@ -154,3 +154,11 @@
 145. `docker ps --format '{{json .}}'` joins all labels into one comma-separated string, so a label value containing a comma cannot be split back: read labels with `docker inspect`.
 146. Several services that mount a new, empty named volume at the same moment race on Docker's copy-up ("failed to mkdir …/_data/private: file exists"): start one service first, then the rest.
 147. PHP 8.4's `array_any`/`array_all` pass the key as the callback's second argument: a callback with an optional second parameter silently receives it.
+148. Parallel test clean-up must never remove a shared parent directory: a concurrent recursive `mkdir` of a sibling then fails with `mkdir(): Invalid argument` (macOS; reproduced with two creating processes and one removing the parent). Keep the git-ignored parent.
+149. `/up` is excepted from Laravel's maintenance mode, so a deliberately broken test release needs a broken `public/index.php`, not `artisan down`.
+150. A nested `Artisan::call` inside a command replaces `Artisan::output()` of the outer call: call the Migrator (or the action) directly.
+151. `Http::fake` with a callback answers every request; stubs registered after it never apply.
+152. A buildx single-platform build produces an image index only with `--sbom`/`--provenance` attestations; without them it is a plain manifest.
+153. Pest passes a dataset Closure unresolved when the test parameter is typed `Closure`; wrapping it as `fn (): Closure => …` hands over the outer closure and the test can pass vacuously. Check a new dataset test fails on the old code.
+154. With `--parallel`, pest's JSON output lists errored tests under `error_details`, separately from `failures`.
+155. Over Docker Desktop file sharing, reading a file another container is atomically replacing can fail once: retry the read.

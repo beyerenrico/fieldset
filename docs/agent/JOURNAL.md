@@ -294,3 +294,14 @@
   A1/S1 partial, 2 medium (no fence once start began; final backup without the key), 4 low + restore trust widened
   (fingerprint from an unauthenticated manifest; now only for the instance's own adopt backup). All fixed with tests;
   first round not strictly red-first (mutation-checked instead). Merge ea98143: suite 6984/6984, static clean; J09 6/6.
+
+## 2026-10-20 M12-T03 U18 upgrade and rollback
+- One worktree agent: `fsa upgrade` (detached supervisor, socket-less child, lock_timeout + liveness, staged target
+  files, automatic rollback through U17's atomic path), `fsa rollback` (versioned R64 export), older backups in place
+  through the child, J07 between harness releases (AE7 local + proxy); ADR 0086. Instance coverage 92.92 %.
+- Security review: 2 medium (safety backups plain on failure paths; staged files trusted) + S3 (U17 SchemaAudit
+  ignored missing objects). Adversarial: 5 medium (in-flight requests after the snapshot, rollback re-halting a live
+  instance, target env reused, target-only services left, space check without backups), 7 low. Verifier: 1 medium
+  (exit 9 left the journal open), 4 low. All fixed with tests; the adopt backup now restores in place via the child.
+- Merge 48630b6: suite 7165/7165 (one SearchPlanTest planner flake in a first run, Q68), static clean; J07 8/8.
+- Flake fixed: DistributionScripts removed the shared test parent dir under --parallel (e27a329, L148).
