@@ -6,6 +6,7 @@ namespace App\Domain\Instance\Backup;
 
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Output\ExitCode;
+use App\Domain\Instance\State\SafeFiles;
 use RuntimeException;
 use SensitiveParameter;
 
@@ -39,13 +40,24 @@ final readonly class BackupChecksums
     /** @param  list<string>  $files  names inside `$directory` */
     public static function sums(string $directory, array $files): string
     {
-        sort($files);
-        $lines = '';
+        $hashes = [];
         foreach ($files as $file) {
             $hash = hash_file('sha256', $directory.'/'.$file);
             if ($hash === false) {
                 throw new RuntimeException("Cannot read {$file} for its checksum.");
             }
+            $hashes[$file] = $hash;
+        }
+
+        return self::lines($hashes);
+    }
+
+    /** @param  array<string, string>  $hashes  name => SHA-256, in sha256sum's format sorted by name */
+    public static function lines(array $hashes): string
+    {
+        ksort($hashes, SORT_STRING);
+        $lines = '';
+        foreach ($hashes as $file => $hash) {
             $lines .= $hash.'  '.$file."\n";
         }
 
@@ -58,7 +70,7 @@ final readonly class BackupChecksums
     }
 
     /**
-     * Writes both files under temporary names and renames them last.
+     * Writes both files under temporary names, synced, and renames them last (then the directory is synced).
      *
      * @param  list<string>  $files
      * @return string the sums file's content
@@ -68,15 +80,30 @@ final readonly class BackupChecksums
         $sums = self::sums($directory, $files);
         $temporary = [self::SUMS => $directory.'/.'.self::SUMS.'.tmp', self::HMAC => $directory.'/.'.self::HMAC.'.tmp'];
         foreach ([self::SUMS => $sums, self::HMAC => self::hmac($sums, $key)."\n"] as $name => $content) {
-            if (file_put_contents($temporary[$name], $content) !== strlen($content) || ! chmod($temporary[$name], 0600)) {
-                throw new RuntimeException("Cannot write {$name}.");
-            }
+            @unlink($temporary[$name]);
+            ProducedFile::written($temporary[$name], $content);
         }
         foreach ($temporary as $name => $path) {
             if (! rename($path, $directory.'/'.$name)) {
                 throw new RuntimeException("Cannot rename {$name} into place.");
             }
         }
+        SafeFiles::syncDirectory($directory);
+
+        return $sums;
+    }
+
+    /**
+     * The sums of a set being written, from the hashes its writer recorded (never read back by path, M12 gate S1), and
+     * their HMAC: both become files of the set.
+     *
+     * @return string the sums file's content
+     */
+    public static function seal(PartialSet $set, #[SensitiveParameter] string $key): string
+    {
+        $sums = self::lines($set->hashes());
+        $set->write(self::SUMS, $sums);
+        $set->write(self::HMAC, self::hmac($sums, $key)."\n");
 
         return $sums;
     }

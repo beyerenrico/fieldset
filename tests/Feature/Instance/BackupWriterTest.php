@@ -55,7 +55,7 @@ beforeEach(function (): void {
     $state = InstanceState::create('3f1c2b9e-8a4d-4c1e-9b7a-2d5e6f708192', $this->directory->root, 501, 20, 501)->withRelease('2.0.0-test', [])->withUrl('https://forms.example.com')->withMode('domain')
         ->withSettings(['domain' => 'forms.example.com', 'smtp_host' => 'smtp.example.com', 'mail' => 'smtp', 'backup_retention' => 3, 'port' => 8081]);
     $this->directory->ensureDirectory('backups');
-    $this->directory->write('backups/'.BackupStore::META_FILE, PortableSettings::document($state));
+    $this->directory->write(BackupStore::META, PortableSettings::document($state));
     $this->project = $state->project();
 });
 
@@ -268,11 +268,11 @@ it('estimates a first backup from the database and the storage volume, and gives
         /** @var list<float> */
         public array $timeouts = [];
 
-        protected function run(array $command, array $env = [], float $timeout = self::DEADLINE_SECONDS, ?Closure $stream = null): BackupToolResult
+        protected function run(array $command, array $env = [], float $timeout = self::DEADLINE_SECONDS, ?Closure $stream = null, mixed $stdout = null): BackupToolResult
         {
             $this->timeouts[] = $timeout;
 
-            return parent::run($command, $env, $timeout, $stream);
+            return parent::run($command, $env, $timeout, $stream, $stdout);
         }
     };
     $writer = writer($this, tools: $tools);
@@ -322,7 +322,8 @@ it('removes the partial backup and names the step when a step fails', function (
         ->toThrow(function (BackupFailed $e) use ($reason): void {
             expect($e->reason)->toBe($reason);
         })
-        ->and(array_values(array_diff(scandir($this->directory->root.'/backups') ?: [], ['.', '..', BackupStore::META_FILE])))->toBe([]);
+        ->and(array_values(array_diff(scandir($this->directory->root.'/backups') ?: [], ['.', '..'])))->toBe([])
+        ->and(array_values(array_diff(scandir($this->directory->root.'/'.BackupStore::STAGING) ?: [], ['.', '..', BackupStore::META_FILE])))->toBe([]);
 })->with([
     'pg_dump' => ['dump', 'pg_dump_failed'],
     'storage' => ['archive', 'storage_failed'],

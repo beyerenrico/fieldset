@@ -43,9 +43,11 @@ final readonly class BackupStatus
         $success = array_find($jobs, static fn (array $run): bool => $run['status'] === 'succeeded');
         $alerts = BackupAlerts::evaluate($runs, $now, ['time' => $schedule?->time, 'zone' => $settings->timeZone()], BackupAlerts::scheduledSince($runs) ?? $this->installedAt($state));
         $warnings = array_map(static fn (array $alert): array => self::warning($alert['code'], $alert['run']), $alerts);
-        $partials = $lock instanceof LockRecord ? [] : $store->partials(); // under a lock, a backup may be being written
+        // under a lock, a backup may be being written; a staged one is the plain set of an encrypted backup (gate S3)
+        $partials = $lock instanceof LockRecord ? [] : [...$store->partials(), ...array_map(static fn (string $name): string => BackupStore::STAGING.'/'.$name, $store->stagedPartials())];
         if ($partials !== []) {
-            $warnings[] = ['backup_partial_left', 'An interrupted backup left '.implode(', ', $partials).' in backups/; it may hold unencrypted data.', 'The next backup run removes it; or delete it now. Do not copy it off the host.'];
+            $paths = array_map(static fn (string $partial): string => str_contains($partial, '/') ? $partial : InstanceDirectory::BACKUPS_DIR.'/'.$partial, $partials);
+            $warnings[] = ['backup_partial_left', 'An interrupted backup left '.implode(', ', $paths).'; it may hold unencrypted data.', 'The next backup run removes it; or delete it now. Do not copy it off the host.'];
         }
 
         return ['data' => [

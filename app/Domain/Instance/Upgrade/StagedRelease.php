@@ -24,7 +24,7 @@ use Throwable;
 /**
  * The staged files of a child (KTD19 steps 6 and 7, plan U18, ADR 0086, review U18 S2): the target's, or for `fsa rollback`
  * the previous image's. `validate()`: only release files (ReleaseFiles: the compose file, env files of its services, the
- * edge's files, the backup service's `.instance.json`; `runtime/` is ignored) may be staged, `docker compose config` must
+ * edge's files, the backup service's `instance.json`; `runtime/` is ignored) may be staged, `docker compose config` must
  * accept the project, its app service must run the expected app digest, every service an image the release pins, and
  * the compose file must pass the installed release's ComposeGuard (defence in depth: the release is signed, but its
  * files are started by the process that holds the socket). `install()`: those files replace the live ones with fsa's

@@ -109,6 +109,16 @@ it('warns about a .partial directory an interrupted backup left, but not while a
         ->and(collect($locked['warnings'])->pluck('code')->all())->not->toContain('backup_partial_left');
 });
 
+it('also warns about the plain set of an encrypted backup an interrupted run left in staging/backup/', function (): void {
+    $this->instance->directory->ensureDirectory('staging/backup/manual-20261019T120000Z.partial');
+
+    [, $json] = $this->instance->run('fsa:status');
+    $warnings = collect($json['warnings'])->keyBy('code');
+
+    expect($json['data']['backup']['partials'])->toBe(['staging/backup/manual-20261019T120000Z.partial'])
+        ->and($warnings['backup_partial_left']['message'])->toContain('staging/backup/manual-20261019T120000Z.partial')->toContain('unencrypted');
+});
+
 it('counts "overdue" without a success from the backup service\'s first start with the schedule, not from the install', function (): void {
     $installed = CarbonImmutable::parse((string) collect($this->instance->state()->history())->firstWhere('event', 'installed')['at']);
     $now = $installed->addDays(3);
@@ -177,5 +187,5 @@ it('records the host time zone at install and sets up the backup role after the 
         ->and($fixture->state()->setting('time_zone'))->toBe('America/New_York')
         ->and(array_search('instance:backup-role', $calls, true))->toBe(array_search('migrate', $calls, true) + 1)
         ->and(is_dir($fixture->directory->root.'/backups'))->toBeTrue()
-        ->and((string) $fixture->directory->read('backups/.instance.json'))->toContain('"mode": "local"');
+        ->and((string) $fixture->directory->read('staging/backup/instance.json'))->toContain('"mode": "local"');
 });
