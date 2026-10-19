@@ -13,6 +13,7 @@ use App\Domain\Instance\Docker\DockerCommandFailed;
 use App\Domain\Instance\Docker\DockerGateway;
 use App\Domain\Instance\Docker\DockerResource;
 use App\Domain\Instance\Docker\DockerUnavailable;
+use App\Domain\Instance\Docker\Labels;
 use App\Domain\Instance\Docker\ProcessOutcome;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Output\ExitCode;
@@ -194,6 +195,8 @@ final readonly class FinalBackup
     /** @param  list<DockerResource>  $volumes */
     private function find(array $volumes, string $volume): bool
     {
-        return array_any($volumes, static fn (DockerResource $v): bool => ($v->labels['com.docker.compose.volume'] ?? null) === $volume || str_ends_with($v->name, '_'.$volume));
+        // A restored storage volume (ADR 0085) is fsa's own, labelled with its role instead of Compose's volume label.
+        return array_any($volumes, static fn (DockerResource $v): bool => ($v->labels['com.docker.compose.volume'] ?? null) === $volume
+            || ($v->labels[Labels::ROLE] ?? null) === $volume || str_ends_with($v->name, '_'.$volume));
     }
 }

@@ -40,7 +40,16 @@ class BackupTools
     /** `pg_restore --list` reads the archive's table of contents: the check that the dump is a complete archive. */
     public function listDump(string $file, float $timeout = self::DEADLINE_SECONDS): BackupToolResult
     {
-        return $this->run(['pg_restore', '--list', $file], [], $timeout);
+        return $this->run(['pg_restore', '--list', '--', $file], [], $timeout);
+    }
+
+    /**
+     * The rows of the dump's `migrations` table as pg_restore prints them (COPY text format), without a database: the
+     * migration set a restore compares (plan U17, KTD18). The custom format seeks straight to that table's data.
+     */
+    public function migrationRows(string $file, float $timeout = 300.0): BackupToolResult
+    {
+        return $this->run(['pg_restore', '--data-only', '--table=migrations', '--file=-', '--', $file], [], $timeout);
     }
 
     public function dumpVersion(): string

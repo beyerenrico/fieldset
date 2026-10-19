@@ -55,7 +55,7 @@ final readonly class BackupService implements ServiceDefinition
             'depends_on' => [PostgresService::NAME => ['condition' => 'service_healthy']],
             'stop_grace_period' => self::STOP_GRACE_SECONDS.'s',
             'healthcheck' => ['disable' => true],
-        ], new ServiceEnvironments($context)->backup(), [AppRoles::STORAGE_VOLUME => []])];
+        ], new ServiceEnvironments($context)->backup(), AppRoles::storageVolume($context))];
     }
 
     /** @return array<string, mixed> a bind mount of an instance-directory path that must exist already */

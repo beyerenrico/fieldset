@@ -133,6 +133,8 @@ final readonly class RuntimeWriter
             // cloudflared's fixed address (the TCP peer of every tunnel request), `admin` opens /admin (--tunnel-admin).
             'tunnel' => $tunnel,
             'gate' => $gate,
+            // Outgoing webhooks wait after `fsa install --from-backup` until `fsa config set webhooks on` (ADR 0085).
+            'webhooks' => ['paused' => $settings->webhooksPaused()],
         ];
     }
 

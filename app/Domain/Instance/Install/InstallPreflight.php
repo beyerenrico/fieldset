@@ -7,6 +7,7 @@ namespace App\Domain\Instance\Install;
 use App\Domain\Instance\Compose\ImageRole;
 use App\Domain\Instance\Docker\DockerGateway;
 use App\Domain\Instance\Doctor\CheckResult;
+use App\Domain\Instance\Doctor\CheckStatus;
 use App\Domain\Instance\Doctor\Doctor;
 use App\Domain\Instance\Doctor\DoctorContext;
 use App\Domain\Instance\Doctor\DoctorFailed;
@@ -43,13 +44,18 @@ final readonly class InstallPreflight
         private ProxySetup $proxy,
     ) {}
 
-    /** @return array<string, mixed> uuid, project, version, digests, port, mail_ui_port, emulated, warnings, orphans, mode, url, proxy, edge, phone, mail */
-    public function run(InstallRequest $request, HostFacts $facts): array
+    /**
+     * @param  string|null  $uuid  the installation's UUID when an earlier phase chose it (`--from-backup`)
+     * @param  bool  $pendingCertificate  `--from-backup` (plan U17, ADR 0085): a domain that does not point here yet is
+     *                                    "certificate pending", a warning, not a failed preflight
+     * @return array<string, mixed> uuid, project, version, digests, port, mail_ui_port, emulated, warnings, orphans, mode, url, proxy, edge, phone, mail
+     */
+    public function run(InstallRequest $request, HostFacts $facts, ?string $uuid = null, bool $pendingCertificate = false): array
     {
         $state = $this->directory->hasState() ? $this->directory->state() : null;
         $manifest = $this->release->verified($this->directory, $facts, $request->version());
         $digests = ReleaseSource::digests($manifest, $facts->registry);
-        $uuid = $state?->uuid() ?? Str::uuid()->toString();
+        $uuid = $state?->uuid() ?? $uuid ?? Str::uuid()->toString();
         $project = $state?->project() ?? InstanceState::projectFor(InstanceState::slugFor($this->directory->root), $uuid);
         $localCa = InstallMode::localCa($request, $state, $uuid, $facts, $this->docker->networkSubnets(...));
         $mail = InstallMail::settings($request->explicit()); // --smtp-host: SMTP mode, no catcher (ADR 0080 amendment)
@@ -60,6 +66,7 @@ final readonly class InstallPreflight
             publishesAppPort: ! in_array($request->proxy(), InstallRequest::NETWORK_PROXIES, true),
             lanAddress: $localCa['lan_address'] ?? null, catcher: $mail === null,
         ));
+        $report = $pendingCertificate ? $this->certificatePending($report) : $report;
         if (! $report->passed()) {
             throw new DoctorFailed($report);
         }
@@ -95,6 +102,14 @@ final readonly class InstallPreflight
             // SMTP mode (--smtp-host, ADR 0080 amendment): the mail settings for the state; null captures mail.
             'mail' => $mail,
         ];
+    }
+
+    /** A failed DNS check becomes the warning `certificate_pending`: the edge gets its certificate once DNS points here. */
+    private function certificatePending(DoctorReport $report): DoctorReport
+    {
+        return new DoctorReport(array_map(static fn (CheckResult $result): CheckResult => $result->key === 'dns' && $result->status === CheckStatus::Fail
+            ? CheckResult::warn('dns', $result->summary.' The certificate is pending until it points at this host.', (string) $result->hint, $result->details, 'certificate_pending')
+            : $result, $report->results));
     }
 
     /**

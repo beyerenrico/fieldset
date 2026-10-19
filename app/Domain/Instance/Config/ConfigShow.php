@@ -10,6 +10,8 @@ use App\Domain\Instance\Console\FsaContext;
 use App\Domain\Instance\Output\CommandResult;
 use App\Domain\Instance\Output\InvalidInput;
 use App\Domain\Instance\Output\SecretRedactor;
+use App\Domain\Instance\Restore\RestoreStatus;
+use App\Domain\Instance\Restore\RestoreStorage;
 use App\Domain\Instance\State\EnvFiles;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceSecrets;
@@ -117,6 +119,10 @@ final readonly class ConfigShow
             ],
             'size' => $settings->size(),
             'database' => $settings->dbDatabase(),
+            // Restore (ADR 0085): the storage volume the stack mounts, webhooks held after a move, the last restore.
+            'storage_volume' => RestoreStorage::current($state),
+            'webhooks' => $settings->webhooksPaused() ? 'paused' : 'on',
+            'last_restore' => RestoreStatus::last($state),
             'backup' => [
                 'schedule' => $settings->backupSchedule(), 'time_zone' => $settings->timeZone(), 'retention' => $settings->backupRetention(),
                 'encryption' => ['enabled' => $state->recipients() !== [], 'recipients' => $state->recipients()],
@@ -154,6 +160,7 @@ final readonly class ConfigShow
             'phone-https' => $settings->phoneHttps() ?? ($state->mode() === 'local' ? 'off' : null), 'lan-address' => $settings->localCa() ? $settings->lanAddress() : null,
             'backup-schedule' => $settings->backupSchedule(), 'backup-retention' => (string) $settings->backupRetention(),
             'backup-encryption' => $state->recipients() === [] ? 'off' : 'on',
+            'webhooks' => $settings->webhooksPaused() ? 'paused' : 'on',
         ];
         $keys = [];
         foreach (ConfigKeys::keys() as $key) {

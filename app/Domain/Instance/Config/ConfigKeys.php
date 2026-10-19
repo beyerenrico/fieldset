@@ -18,6 +18,7 @@ use App\Domain\Instance\Config\Appliers\PhoneHttpsApplier;
 use App\Domain\Instance\Config\Appliers\PortApplier;
 use App\Domain\Instance\Config\Appliers\TrustedProxyApplier;
 use App\Domain\Instance\Config\Appliers\UrlApplier;
+use App\Domain\Instance\Config\Appliers\WebhooksApplier;
 use App\Domain\Instance\Output\InvalidInput;
 use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
@@ -47,6 +48,7 @@ final readonly class ConfigKeys
         'backup-schedule' => BackupScheduleApplier::class,
         'backup-retention' => BackupRetentionApplier::class,
         'backup-encryption' => BackupEncryptionApplier::class,
+        'webhooks' => WebhooksApplier::class,
     ];
 
     /** Keys whose change runs app-side only (no render, no rollout): key => applier. */
@@ -70,6 +72,7 @@ final readonly class ConfigKeys
         'backup-schedule' => ['local', 'proxy', 'domain'],
         'backup-retention' => ['local', 'proxy', 'domain'],
         'backup-encryption' => ['local', 'proxy', 'domain'],
+        'webhooks' => ['local', 'proxy', 'domain'],
     ];
 
     /** Key => mode => the key that does the job there instead. */

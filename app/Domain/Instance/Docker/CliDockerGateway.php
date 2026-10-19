@@ -175,6 +175,20 @@ final readonly class CliDockerGateway implements DockerGateway
         $this->call(['container', 'rm', ...($force ? ['--force'] : []), $id], 'container rm');
     }
 
+    public function createVolume(string $name, array $labels): void
+    {
+        $existing = $this->inspect(['volume', 'inspect', '--format', '{{.Name}}', ...$this->names([$name])], 'volume inspect');
+        if ($existing instanceof ProcessOutcome) {
+            throw new DockerCommandFailed('volume create', new ProcessOutcome(1, '', "volume {$name} already exists"));
+        }
+        $flags = [];
+        foreach ($labels as $key => $value) {
+            $flags[] = '--label';
+            $flags[] = $key.'='.$value;
+        }
+        $this->call(['volume', 'create', ...$flags, ...$this->names([$name])], 'volume create');
+    }
+
     public function removeVolume(string $name): void
     {
         $this->call(['volume', 'rm', $name], 'volume rm');
@@ -211,7 +225,7 @@ final readonly class CliDockerGateway implements DockerGateway
     private function inspect(array $args, string $label): ?ProcessOutcome
     {
         $outcome = $this->attempt([$this->binary, ...$args], [], null, self::QUERY_TIMEOUT);
-        if (! $outcome->successful() && preg_match('/no such (object|image|container|network)|network \S+ not found/i', $outcome->stderr) === 1) {
+        if (! $outcome->successful() && preg_match('/no such (object|image|container|network|volume)|network \S+ not found/i', $outcome->stderr) === 1) {
             return null;
         }
 

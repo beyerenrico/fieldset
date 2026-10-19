@@ -195,3 +195,8 @@ out of mail headers.
 - In local-CA mode `runtime/` also holds `local-ca-root.crt` (0644, the public root, never a key); a render without
   the local CA deletes it. Runtime gains `LocalCaRoot`, `PhoneTrust` and `PhoneTrustRoute` for the trust page
   (`/phone-trust`), which answers 404 unless the runtime says local CA.
+
+## Amendment 2026-10-19: paused webhooks (U17, ADR 0085)
+runtime.json carries `webhooks: {paused: bool}` from the state setting `webhooks_paused` (a missing block means not
+paused). `fsa install --from-backup` sets it; while it is true the queue does not claim workflow `webhook` steps
+(RunWorkflowStep), which stay pending until the stalled-run sweep takes them up after `fsa config set webhooks on`.

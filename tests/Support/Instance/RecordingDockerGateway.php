@@ -348,6 +348,12 @@ final class RecordingDockerGateway implements DockerGateway
         unset($this->containers[$id]);
     }
 
+    public function createVolume(string $name, array $labels): void
+    {
+        $this->record(__FUNCTION__, ['name' => $name, 'labels' => $labels]);
+        $this->resources[] = new DockerResource(DockerResource::VOLUME, $name, $labels);
+    }
+
     public function removeVolume(string $name): void
     {
         $this->record(__FUNCTION__, ['name' => $name]);

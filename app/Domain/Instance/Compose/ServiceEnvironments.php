@@ -142,7 +142,8 @@ final readonly class ServiceEnvironments
         return [
             ...$this->database($this->context->secrets->backupDbPassword, self::BACKUP_DB_ROLE),
             'BACKUP_HMAC_KEY' => $this->backupHmacKey(),
-            'BACKUP_APP_FINGERPRINTS' => KeyFingerprint::of($this->context->secrets->appKey),
+            // Every APP key's fingerprint, the current one first (the HMAC key derives from it); ADR 0085.
+            'BACKUP_APP_FINGERPRINTS' => implode(',', array_map(KeyFingerprint::of(...), $this->context->secrets->appKeys())),
             'BACKUP_AGE_RECIPIENTS' => implode(',', $state->recipients()),
             'BACKUP_SCHEDULE' => $settings->backupSchedule(),
             'BACKUP_TIME_ZONE' => $settings->timeZone(),
@@ -173,6 +174,8 @@ final readonly class ServiceEnvironments
             'APP_ENV' => 'production',
             'APP_DEBUG' => 'false',
             'APP_KEY' => $this->context->secrets->appKey,
+            // Keys data may still be encrypted under (a restored backup's, ADR 0085); absent while there are none.
+            ...($this->context->secrets->previousKeys === [] ? [] : ['APP_PREVIOUS_KEYS' => implode(',', $this->context->secrets->previousKeys)]),
             'APP_URL' => $url,
             'APP_ALLOW_REGISTRATION' => 'false',
             'LOG_LEVEL' => 'info',

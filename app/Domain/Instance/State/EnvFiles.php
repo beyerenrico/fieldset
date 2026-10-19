@@ -76,6 +76,8 @@ final readonly class EnvFiles
             foreach ($this->read($service) as $key => $value) {
                 if (preg_match(self::SECRET_KEY, $key) === 1 && $value !== '') {
                     $values[] = $value;
+                    // A list of keys (APP_PREVIOUS_KEYS): each one alone is a secret too.
+                    array_push($values, ...(str_ends_with($key, '_KEYS') ? array_filter(array_map(trim(...), explode(',', $value))) : []));
                 }
             }
         }

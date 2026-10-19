@@ -67,6 +67,8 @@ final class InputGrammar
         // Backups (U16, ADR 0084): the daily time (`HH:MM` or `off`), how many scheduled backups to keep, and the
         // instance's time zone the schedule is read in.
         'backup_schedule' => 'backup_time', 'backup_retention' => 'retention', 'time_zone' => 'time_zone',
+        // Restore (U17, ADR 0085): the fresh storage volume a restore swapped in, and webhooks held after a move.
+        'storage_volume' => 'docker_name', 'webhooks_paused' => [true, false],
     ];
 
     private const array PROBLEMS = [

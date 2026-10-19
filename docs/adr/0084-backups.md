@@ -202,3 +202,15 @@ well inside the slot; the gate's J10 run can record it.
 - `fsa install --encrypt` is still refused (`unsupported_option`); `fsa backup --encrypt` or `fsa config set
   backup-encryption on` after the install do the same.
 - Backups stay on the host; `fsa backup` says so (`backup_on_host`).
+
+## Amendment 2026-10-19: what restore changed (U17, ADR 0085)
+- `BACKUP_APP_FINGERPRINTS` lists the fingerprint of every APP key (APP_KEY first, then APP_PREVIOUS_KEYS, which
+  InstanceSecrets now reads and renders); the HMAC key still derives from APP_KEY alone, so a manifest's first
+  fingerprint names the key that verifies it.
+- `BackupChecksums::verify()` refuses a `SHA256SUMS` line that is not `<sha256> [ *]<name>` with a plain file name
+  (no `/`, no `..`, no leading dot, no control character) before anything is hashed, and ignores dotfiles beside the set
+  (`.DS_Store`, a killed seal's temporary file); `strays()` names them and restore reports them as a warning.
+  `verifySums()` checks the sums alone (the 1.0 format has no HMAC).
+- The dump keeps `--no-privileges`; a restore re-applies the `REVOKE ALL … FROM PUBLIC` on `audit_seal`, `audit_prune`
+  and `audit_prunable` and sets up the backup role again in the restored database (`instance:restore-finish`).
+- `pg_restore --list` and the new `pg_restore --data-only --table=migrations` get `--` before the file.

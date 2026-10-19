@@ -32,6 +32,7 @@ use Illuminate\Console\Attributes\Signature;
  * (`--password-file`), never from a flag value (exit 2, SecretFlagGuard). `config set phone-https local-ca|off` and
  * `config set lan-address <IPv4>` run the local CA of local mode (ADR 0082; the quick tunnel is `fsa tunnel`).
  * `config set operator-email <email>` grants the operator role app-side (OperatorEmailApplier, ADR 0080).
+ * `config set webhooks on` confirms a move (`fsa install --from-backup` pauses webhooks; ADR 0085).
  * `config set backup-schedule <HH:MM|off>`, `backup-retention <n>` and `backup-encryption on|off` set the backup policy
  * (ADR 0084); `backup-encryption on` writes a passphrase-protected identity to `--identity-out`, the passphrase from
  * `--passphrase-file` or `--passphrase-stdin` (PassphraseInput), never from a flag value.
@@ -39,7 +40,7 @@ use Illuminate\Console\Attributes\Signature;
 #[Description('Show the settings (secrets redacted) or change one: fsa config show | fsa config set <key> <value>')]
 #[Signature('fsa:config
         {action : show, or set}
-        {key? : For set: domain, url, port, trusted-proxy, mode, acme-email, acme-ca, mail, phone-https, lan-address, operator-email, backup-schedule, backup-retention or backup-encryption}
+        {key? : For set: domain, url, port, trusted-proxy, mode, acme-email, acme-ca, mail, phone-https, lan-address, operator-email, backup-schedule, backup-retention, backup-encryption or webhooks}
         {value? : For set: the new value}
         {--acme-email= : config set domain: contact address for the ACME account}
         {--acme-staging : config set domain: Let\'s Encrypt staging (untrusted certificates; for trials)}

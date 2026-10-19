@@ -77,6 +77,19 @@ class AgeCli
     }
 
     /**
+     * Decrypts a whole backup file (a restore's `backup.tar.age`, plan U17) to `$output`, the identity on stdin: the
+     * plaintext goes from age straight to the file, never through PHP.
+     */
+    public function decryptFileWithIdentity(#[SensitiveParameter] string $identity, string $file, string $output): void
+    {
+        [$code, , $stderr] = $this->exec([$this->age, '--decrypt', '--identity', '-', '--output', $output, $file], $identity);
+        if ($code !== 0) {
+            @unlink($output);
+            throw new RuntimeException('age could not decrypt '.basename($file).': '.$this->tail($stderr));
+        }
+    }
+
+    /**
      * The files of `$directory` as one tar stream piped into age, encrypted to every recipient, written to `$output`
      * (KTD16: "an encrypted backup is one age file of that set").
      *

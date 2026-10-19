@@ -50,9 +50,10 @@ final readonly class InstallSmoke
     public function __construct(private SmokeTest $smoke, private AppCommands $app, private DockerGateway $docker, private InstanceDirectory $directory) {}
 
     /** @return array<string, mixed> the smoke phase's data: what was checked (and the local CA's fingerprint) */
-    public function run(InstanceState $state, ComposeProject $project, string $owner, ?ProgressReporter $progress = null): array
+    public function run(InstanceState $state, ComposeProject $project, ?string $owner, ?ProgressReporter $progress = null, bool $internalOnly = false): array
     {
-        $result = $this->smoke->run($state, $project, $progress);
+        // `--from-backup` with a certificate pending (ADR 0085): the app and Gotenberg on the internal network only.
+        $result = $internalOnly ? ['checked' => $this->smoke->internal($state, $project)] : $this->smoke->run($state, $project, $progress);
         $checked = is_array($result['checked'] ?? null) ? $result['checked'] : [];
 
         return [...$result, 'checked' => [...$checked, $this->pdf($project, $progress), ...$this->mail($state, $project, $owner, $progress)]];
@@ -89,14 +90,14 @@ final readonly class InstallSmoke
     }
 
     /** @return list<string> */
-    private function mail(InstanceState $state, ComposeProject $project, string $owner, ?ProgressReporter $progress): array
+    private function mail(InstanceState $state, ComposeProject $project, ?string $owner, ?ProgressReporter $progress): array
     {
         $route = self::route($state);
         $progress?->event('smoke', ProgressReporter::INFO, "Sending a test mail to the owner through {$route}");
         $result = $this->app->mailTest($project, $owner, install: true);
         if (! $result->ok) {
             throw new InstanceException("The test mail through {$route} was not accepted.", ExitCode::HealthCheckFailed, 'test_mail_failed', $this->mailHint($state), true,
-                ['code' => $result->errorCode(), 'output' => str_ireplace($owner, '<owner-email>', $result->errorMessage())]);
+                ['code' => $result->errorCode(), 'output' => $owner === null ? $result->errorMessage() : str_ireplace($owner, '<owner-email>', $result->errorMessage())]);
         }
         if (! InstanceSettings::of($state)->capturesMail()) {
             return ["test mail through {$route}"];

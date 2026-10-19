@@ -52,7 +52,7 @@ final readonly class AppRoles implements ServiceDefinition
     public function specs(RenderContext $context): array
     {
         $env = new ServiceEnvironments($context);
-        $volumes = [self::STORAGE_VOLUME => []];
+        $volumes = self::storageVolume($context);
 
         return [
             new ServiceSpec(self::APP, [
@@ -74,6 +74,20 @@ final readonly class AppRoles implements ServiceDefinition
                 'healthcheck' => ['disable' => true],
             ], $env->appRole(self::SCHEDULER), $volumes),
         ];
+    }
+
+    /**
+     * The storage volume's declaration: Compose's own `<project>_app-storage`, or after a restore the fresh volume fsa
+     * created and filled (plan U17, ADR 0085), declared as an existing (external) volume of that name. fsa labelled it
+     * itself; uninstall removes it by the instance label like every other volume.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public static function storageVolume(RenderContext $context): array
+    {
+        $name = $context->settings->storageVolume();
+
+        return [self::STORAGE_VOLUME => $name === null ? [] : ['name' => $name, 'external' => true]];
     }
 
     /**

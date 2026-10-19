@@ -47,10 +47,10 @@
                 {
                     "key": "disk",
                     "status": "ok",
-                    "summary": "137.7 GiB free.",
+                    "summary": "131.2 GiB free.",
                     "hint": null,
                     "details": {
-                        "free_gib": 137.7,
+                        "free_gib": 131.2,
                         "path": "<work>/fsa-test-j12-ae5"
                     }
                 },
@@ -164,7 +164,7 @@
         ]
     },
     "image_pulls": [
-        "<registry>/beyerenrico/form-schema-app@sha256:7bec0ede79d2d1425ffdb5f44becf5e7b03185bd62e1cb92fa30c35093206d49"
+        "<registry>/beyerenrico/form-schema-app@sha256:6242a9aa6e35b5e5bc4555c6ef33b9eeb07496abde71570779316431a1f338fa"
     ],
     "service_starts": []
 }
