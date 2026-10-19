@@ -1,22 +1,16 @@
-# State: 2026-10-19T14:00Z
+# State: 2026-10-19T17:30Z
 v2 run (BUILD_PROMPT_V2.md, plan `docs/plans/2026-10-17-001-feat-docker-distribution-v2-plan.md`).
-M9 and M10 done and merged to `main` (tags `m9-done`, `v2.0.0-alpha.1`, `m10-done`, `v2.0.0-alpha.2`; local
-only, never pushed). Reports: `docs/agent/milestones/M9.md`, `M10.md`. Next branch: `m11-mail-phones`.
+M9, M10 and M11 done and merged to `main` (tags `m9-done`, `v2.0.0-alpha.1`, `m10-done`, `v2.0.0-alpha.2`,
+`m11-done`, `v2.0.0-beta.1`; local only, never pushed). Reports: `docs/agent/milestones/M9.md`, `M10.md`, `M11.md`.
 
 ## Next actions
-Branch `m11-mail-phones`: M11-T01..T04 merged and ticked; gate M11-T05 IN PROGRESS. Review (5 reviewers, 4 high,
-`evidence/M11/review-findings.md`) fixed by agents A–D and merged. Done and recorded in M11.md: static/JS/licence
-gates, coverage (95.51 %, Instance 97.36 %), native Install suite 103/103 (+7 pre-release skips), amd64 emulated
-J4/J5/J6/J1/J2/J3/J12 51/51, CHANGELOG 2.0.0-beta.1 (+ missing alpha.2 entry), M12 breakdown in PLAN.md.
-1. J10 under amd64 emulation (ADR 0083 commitment) running → `storage/agent-logs/m11-j10-amd64.log`. Afterwards
-   keep the native J10 evidence (`git checkout docs/agent/milestones/evidence/M11`), record the outcome in M11.md.
-2. Rebuild the dev image (`docker compose build app queue scheduler`), E2E twice, `git checkout
-   docs/agent/milestones/evidence` for PNG churn; record in M11.md.
-3. `FSA_PRERELEASE_VERSION=2.0.0-beta.1 FSA_EVIDENCE_MILESTONE=M11 vendor/bin/pest --testsuite=Install
-   --filter=LocalPreRelease`; record; commit evidence.
-4. Merge `--no-ff` to main, tag `m11-done` and `v2.0.0-beta.1` (local only), tick M11-T05, JOURNAL, then M12-T01.
-5. Housekeeping blocked by the permission classifier: dropping stale test DBs in the dev Postgres
+1. Create branch `m12-lifecycle` from `main`. M12 is broken down in PLAN.md (T01 U16 first, then T02 U17, then
+   T03/T04/T05 in parallel worktrees). Start M12-T01 U16 backups: re-read plan U16, KTD15–KTD17, §8 backups.
+2. U16 must fit the backup service into its 128 MiB slot of the small budget and rerun J10 if the table changes
+   (ADR 0083). At the M13 breakdown: admin-guide.md capture banner section (U21).
+3. Housekeeping blocked by the permission classifier: dropping stale test DBs in the dev Postgres
    (form_schema_m10b, u12, u12cov, u13, u14, u14b, u15, test_bb/d/e/m9/z and their `_test_N`); left for the human.
+4. E2E: run with `--workers=2` when the host is busy (M11.md); leave ≥ 60 s between runs (LEARNINGS 128).
 
 ## Decisions taken (M9/M10, see ADRs 0047–0079)
 - Release tooling `release:manifest`/`release:version`; manifest and sign jobs split; stack file is a signed asset.
