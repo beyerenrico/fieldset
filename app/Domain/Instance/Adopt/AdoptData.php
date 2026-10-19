@@ -42,17 +42,27 @@ final readonly class AdoptData
         return [...$quiesced, 'fence' => $this->fence->record($legacy, $state->digests()['postgres'], $state->uuid(), data: false)];
     }
 
-    /** @return array{name: string, path: string, bytes: int, snapshot: array<string, mixed>, warnings: list<string>} */
-    public function backup(InstanceState $state, LegacyInstall $legacy, LegacyCheckout $checkout): array
+    /**
+     * The 1.0-format backup; the keys' fingerprints come from env/app.env, which the `secrets` phase wrote (review V5).
+     *
+     * @return array{name: string, path: string, bytes: int, sums: string, snapshot: array<string, mixed>, warnings: list<string>}
+     */
+    public function backup(InstanceState $state, LegacyInstall $legacy, LegacyCheckout $checkout, string $journal): array
     {
-        $fingerprints = AppKeys::of([$checkout->appKey(), ...$checkout->previousKeys()])->fingerprints();
+        $fingerprints = AppKeys::of($this->stack->secrets()->appKeys())->fingerprints();
 
-        return $this->backups->write($legacy, ['app' => $state->digests()['app'], 'postgres' => $state->digests()['postgres']], $state->uuid(), $checkout->allowed(), $fingerprints);
+        return $this->backups->write($legacy, ['app' => $state->digests()['app'], 'postgres' => $state->digests()['postgres']], $state->uuid(), $checkout->allowed(), $fingerprints, $journal);
     }
 
-    /** @return array{stopped: list<string>, fence: array<string, mixed>} Postgres's fence, with the source checkpoint */
-    public function stopData(InstanceState $state, LegacyInstall $legacy): array
+    /**
+     * Stops 1.0's Postgres once the writers' fence still holds (review V6), then records Postgres's fence.
+     *
+     * @param  array<string, mixed>|null  $previous  the writers' fence (stop_1_0)
+     * @return array{stopped: list<string>, fence: array<string, mixed>} Postgres's fence, with the source checkpoint
+     */
+    public function stopData(InstanceState $state, LegacyInstall $legacy, ?array $previous): array
     {
+        $this->guard($state, $legacy, $previous);
         $stopped = $this->legacy->stopData($legacy);
 
         return [...$stopped, 'fence' => $this->fence->record($legacy, $state->digests()['postgres'], $state->uuid(), data: true)];

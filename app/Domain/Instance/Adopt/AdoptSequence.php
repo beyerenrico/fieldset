@@ -54,21 +54,21 @@ final readonly class AdoptSequence
         $state = $this->directory->state();
         $project = ComposeProject::forInstance($state, $this->directory);
         $run->phase('pull', fn (): array => $this->stack->pull(), changes: false);
-        $this->guard($run, $state, $legacy);
+        $this->assertStopped($run, $state, $legacy);
         $run->phase(self::QUIESCE, fn (): array => $this->data->quiesce($state, $legacy, $request->dropJobs, (int) ($preflight['redis_db'] ?? 0)), maxSeconds: QueueDrain::SECONDS + 300);
-        $this->guard($run, $state, $legacy); // before the backup: the writers stayed stopped
-        $run->phase('backup_1_0', fn (): array => $this->data->backup($state, $legacy, $checkout));
-        $this->guard($run, $state, $legacy);
-        $run->phase('stop_postgres_1_0', fn (): array => $this->data->stopData($state, $legacy));
-        $this->guard($run, $state, $legacy); // before the copy
+        $this->assertStopped($run, $state, $legacy); // before the backup: the writers stayed stopped
+        $run->phase('backup_1_0', fn (): array => $this->data->backup($state, $legacy, $checkout, $run->record()->id()));
+        // stop_postgres_1_0 checks the writers' fence itself before it records Postgres's (review V6).
+        $run->phase('stop_postgres_1_0', fn (): array => $this->data->stopData($state, $legacy, self::fence($run->record())));
+        $this->assertStopped($run, $state, $legacy); // before the copy
         $run->phase('copy', fn (): array => $this->data->copy($state, $project, $legacy));
-        $this->guard($run, $state, $legacy); // after the copy: nothing started 1.0's Postgres while it ran
+        $this->assertStopped($run, $state, $legacy); // after the copy: nothing started 1.0's Postgres while it ran
         $backup = $run->record()->phaseData('backup_1_0');
         $run->phase('verify', fn (): array => $this->data->verify($state, $project, $legacy, DataSnapshot::fromArray(is_array($backup['snapshot'] ?? null) ? $backup['snapshot'] : [])));
         $run->phase('up', fn (): array => [...$this->stack->up($project, Installer::INFRASTRUCTURE), ...$this->stack->trustGateway($project, $preflight)]);
         $run->phase('migrate', fn (): array => $this->migrate($project));
         $run->phase('baseline', fn (): array => ['snapshot' => $this->data->snapshot($state, $project, $legacy)->toArray()], changes: false);
-        $this->guard($run, $state, $legacy); // before 2.0 starts
+        $this->assertStopped($run, $state, $legacy); // before 2.0 starts
 
         return self::phaseData($run->record());
     }
@@ -77,15 +77,25 @@ final readonly class AdoptSequence
     public static function phaseData(JournalRecord $record): array
     {
         return ['quiesce' => $record->phaseData(self::QUIESCE), 'backup' => $record->phaseData('backup_1_0'), 'copy' => $record->phaseData('copy'),
-            'verify' => $record->phaseData('verify'), 'baseline' => $record->phaseData('baseline')];
+            'verify' => $record->phaseData('verify'), 'baseline' => $record->phaseData('baseline'), 'fence' => self::fence($record)];
     }
 
-    /** The newest journaled fence holds (none before the writers stopped). */
-    private function guard(OperationRun $run, InstanceState $state, LegacyInstall $legacy): void
+    /**
+     * The newest journaled fence holds (none before the writers stopped); also checked from `start` on (AdoptOperation).
+     *
+     * @throws InstanceException exit 4 `legacy_restarted`
+     */
+    public function assertStopped(OperationRun $run, InstanceState $state, LegacyInstall $legacy): void
     {
-        $record = $run->record();
+        $this->data->guard($state, $legacy, self::fence($run->record()));
+    }
+
+    /** @return array<string, mixed>|null the newest journaled fence: Postgres's, else the writers' */
+    private static function fence(JournalRecord $record): ?array
+    {
         $fence = $record->phaseData('stop_postgres_1_0')['fence'] ?? $record->phaseData(self::QUIESCE)['fence'] ?? null;
-        $this->data->guard($state, $legacy, is_array($fence) ? $fence : null);
+
+        return is_array($fence) ? $fence : null;
     }
 
     /**

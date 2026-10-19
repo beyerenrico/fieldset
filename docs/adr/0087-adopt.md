@@ -94,9 +94,11 @@ completed, with the fence checked between them.
   `env` with only the restore allow-list's values except the APP keys (no APP_KEY, APP_PREVIOUS_KEYS, DB_PASSWORD or
   SMTP credentials; review S1: a never-pruned backup must not keep a live key on disk), `manifest.txt` (created_at,
   postgres, migrations, last_migration, the snapshot's counts, storage, env, source `fsa adopt`, version, project and
-  `app_key_fingerprints`, the keys' fingerprints in order) and `SHA256SUMS`. A `safety-adopt-*.partial` a killed run left
-  is removed before a new one begins and on the way back (review A7). fsa writes the format itself rather than running the checkout's `scripts/backup.sh`: that would execute
-  checkout code in the container that holds the Docker socket, and it needs 1.0's `docker compose exec` and `.env`.
+  `app_key_fingerprints`, the keys' fingerprints in order, and `journal`, the adopt's journal ID) and `SHA256SUMS`. A
+  `safety-adopt-*.partial` a killed run left, and a complete set of the same journal, are removed before a new one begins
+  (also on the way back, review A7). fsa writes the format itself rather than running the checkout's
+  `scripts/backup.sh`: that would execute checkout code in the container that holds the Docker socket, and it needs 1.0's
+  `docker compose exec` and `.env`.
 - *Snapshot (DataSnapshot, DatabaseProbe).* Right after the dump (writers stopped, so both see one state): the counts of
   organizations, users, forms, form_versions, submissions, attachments, renditions, mail_messages and activity_log, the
   head (sealed entry with the highest sequence) of every audit chain as ChainHeads reads it, and the migration set's size
@@ -157,29 +159,39 @@ leaves StartedAt as it was and is harmless. A resumed run also checks the journa
 
 **From `start` on** the instance runs on its own copy and may take writes: a failure leaves the journal open (exit 4, with
 the hint to resume with the same command or to go back with `fsa uninstall` and `docker compose up -d` in the checkout,
-review A3) and the same command resumes forward (nothing is copied again); `--abandon` is refused (exit 2
-`adopt_started`). A finished adopt of the same checkout changes nothing, another checkout is exit 2 `already_installed`.
+review A3) and the same command resumes forward (nothing is copied again; the checkout is not read again, review V4);
+`--abandon` is refused (exit 2 `adopt_started`). The fence is checked before `start` on every run, a resumed one past
+`start` too (review V1), and again right after `start`, before the smoke test (review A1: 1.0's queue or scheduler could
+start between the last check and 2.0's start). When 1.0 ran, the run stops with exit 4 `legacy_restarted`, the journal
+stays open and nothing goes back (2.0 may hold writes of its own); the hint names both ways: keep 1.0 (`fsa uninstall`,
+then `docker compose up -d` in the checkout) or adopt its current data (`fsa uninstall`, stop 1.0, `fsa adopt` again).
+A finished adopt of the same checkout changes nothing, another checkout is exit 2 `already_installed`.
 
 **Uninstall of an adopted instance (ADR 0073 amended).** An instance counts as adopted when its state holds the `adopted`
 entry or an open adopt journal got past `stop_1_0` (review A3: an adopt that failed at or after `start`; `pending: true`,
 the writes since adopt then from the journal's `baseline`). `fsa uninstall` writes the final backup and keeps `backups/`
-without `--keep-backups`, unless the new `--no-backup`; the final backup of an adopted instance has no `app-key.env`
-(review S1: the key is the 1.0 checkout's, which keeps it in its `.env`), its `backup.json` names the keys by
-fingerprint; other instances keep ADR 0073's `app-key.env`, since their final backup is then the only copy of the key.
-The result's `adopted` block names the checkout, the writes since
+without `--keep-backups`, unless the new `--no-backup`; its final backup keeps ADR 0073's `app-key.env` like every
+instance's (verification review V2: uninstall deletes `env/app.env`, and the checkout's `.env` may be gone or changed by
+the time the post-adopt data is needed; only the adopt backup itself stays keyless, S1). The result's `adopted` block
+names the checkout, whether 1.0 ran since the adopt (`legacy_changed`: the fence from the ledger's `adopted` line, or the
+open journal, against 1.0 now; null when it cannot be told), the writes since
 adopt (`audit_entries`: how far every chain moved on since the baseline; `rows`: the change of every counted table; read
 from the running Postgres the final backup started) and `restart_1_0` (`cd <checkout> && docker compose up -d`), with the
 warnings `restart_1_0` (with the jobs 1.0 will run when it comes back: those `--drop-jobs` left, the delayed ones, or an
-uncounted number, review A6) and, when anything was written, `writes_since_adopt` (`writes_since_adopt_unknown` when they
-cannot be counted). With `--no-backup` and without `--keep-backups`, `backups/` goes too, the adopt backup included; with
+uncounted number, review A6; it says that 1.0's volumes were not changed since the adopt only when the fence holds,
+review V1) and, when anything was written, `writes_since_adopt` (`writes_since_adopt_unknown` when they cannot be counted;
+its hint names the manual restore of the final set, pg_restore of `database.dump` and `app-storage.tar` with the keys in
+`app-key.env`, since a `final-*` set is no format `fsa restore` or `--from-backup` reads, review V3). With `--no-backup` and without `--keep-backups`, `backups/` goes too, the adopt backup included; with
 both, `backups/` stays without a final backup; the prompt says which (review A8). 1.0's volumes were never the
 instance's, so
 they stay, and `docker compose up -d` in the checkout brings 1.0 back with its pre-adopt data.
 
 **Restoring the adopt backup (ADR 0085).** The backup's manifest lists the fingerprints of the instance's APP keys
-(`app_key_fingerprints`, read by BackupPreparer for the 1.0 format too), so an in-place restore counts it as this
-instance's (`RestoreChecks::assertSameInstance` takes the first fingerprint when the `env` holds no key) and every
-listed key must be known (`app_key_unknown` otherwise). Restoring it elsewhere (`fsa install --from-backup`) needs the
+(`app_key_fingerprints`, read by BackupPreparer for the 1.0 format too; `includes_secrets` is false, as its `env` holds
+no key, review S1). An in-place restore counts exactly this set as the instance's (`RestoreChecks::assertSameInstance`:
+its name and the digest of its SHA256SUMS must equal what the `adopted` record holds, `backup` and `backup_sums`; review
+R1: the manifest is unauthenticated, so a fingerprint alone would let any 1.0 archive pass); every listed key must be
+known (`app_key_unknown` otherwise). Restoring it elsewhere (`fsa install --from-backup`) needs the
 key: `--app-key-file` with the 1.0 checkout's `.env` or the instance's `env/app.env`. It needs `--accept-unauthenticated`
 (the 1.0 format has no HMAC), and while it is older than the migrated instance an in-place restore is exit 7
 `upgrade_child_unavailable` until U18's upgrade child exists; `fsa restore --drill` and `fsa install --from-backup` take
@@ -214,5 +226,18 @@ it today.
 - The checkout is mounted read-only as a whole into the ops container (the shim mounts directories; it skips the values
   of value-taking flags such as `--release 2.0.0` when it looks for adopt's checkout, review S4); fsa reads only
   compose.yaml, package.json and the allow-listed lines of `.env` (no symlinks followed).
-- The adopt backup and an adopted instance's final backup cannot be restored without the APP key from outside them; the
-  1.0 checkout keeps it, so deleting that checkout means keeping its `.env` (or the instance's `env/app.env`) elsewhere.
+- The adopt backup cannot be restored elsewhere without the APP key from outside it; the 1.0 checkout's `.env` and the
+  adopted instance's final backup (`app-key.env`) keep it.
+- A Compose label that names the checkout through a symlink matches by realpath (LegacyContainers); inside the ops
+  container that works only when the symlinked path is mounted too (the shim mounts the checkout's physical path).
+
+## Verification review (2026-10-20)
+V1 and A1: the fence is checked before and right after `start` on every run, exit 4 `legacy_restarted` without going
+back; uninstall's wording follows the fence. V2: an adopted instance's final backup has `app-key.env` again. R1: the
+manifest fingerprint counts for the adopt set only (name and SHA256SUMS digest; ADR 0085 amended). S1: `includes_secrets`
+follows the `env`'s content. V3: the final backup's manual restore is named. V4: a resumed run before `start` reads the
+checkout inside the way back, one past `start` not at all. V5: REDIS_DB is compared with the app container's environment,
+a resume compares every APP key's fingerprint, the backup's fingerprints come from `env/app.env`. V6: Postgres's fence is
+recorded only after the writers' fence held. A7 rest: the backup manifest names the journal, and a resumed run removes a
+complete set of its own journal before writing a new one. The symlinked-checkout nit needed no change (realpaths were
+already compared).

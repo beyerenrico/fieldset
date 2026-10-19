@@ -71,6 +71,9 @@ final class AdoptFixture
     /** pg_controldata's latest checkpoint of 1.0's volume (LegacyFence); change it to pretend 1.0's Postgres ran again. */
     public string $checkpoint = '0/1A2B3C4';
 
+    /** pg_controldata's latest checkpoint of the copy (the instance's volume): another cluster, another value. */
+    public string $copyCheckpoint = '0/5D00028';
+
     /** @var array<string, string>|null what 1.0's app roles run with (null: the checkout's .env) */
     public ?array $runningEnv = null;
 
@@ -264,7 +267,8 @@ final class AdoptFixture
             'psql' => $this->psql($spec),
             'valkey-cli' => new ProcessOutcome(0, count($this->queue) > 1 ? array_shift($this->queue) : $this->queue[0]),
             'pg_restore', 'cp' => new ProcessOutcome(0),
-            'pg_controldata' => new ProcessOutcome(0, "pg_control version number:            1300\nDatabase cluster state:               {$this->clusterState}\nLatest checkpoint location:           {$this->checkpoint}\n"),
+            'pg_controldata' => new ProcessOutcome(0, "pg_control version number:            1300\nDatabase cluster state:               {$this->clusterState}\nLatest checkpoint location:           "
+                .(str_starts_with($spec->volumes[0] ?? '', 'fsa-') ? $this->copyCheckpoint : $this->checkpoint)."\n"),
             'cat' => new ProcessOutcome(0, $this->osRelease),
             default => null,
         };

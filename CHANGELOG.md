@@ -71,9 +71,9 @@ The Form Schema Spec has its own changelog in `spec/form-definition/1.0/CHANGELO
 
 ### Changed
 - `fsa uninstall` of an adopted instance (also one whose adopt stopped after 2.0 started) takes a final backup by
-  default, without the APP key, which stays in the 1.0 checkout's `.env`; it keeps `backups/`, reports the writes made
-  since the adopt and how to start 1.0 again (`docker compose up -d` in its checkout, whose volumes were never changed)
-  with the jobs 1.0 will then run; `--no-backup` skips the final backup (ADR 0087).
+  default and keeps `backups/`; it reports the writes made since the adopt, whether 1.0 ran since then, and how to start
+  1.0 again (`docker compose up -d` in its checkout) with the jobs 1.0 will then run; `--no-backup` skips the final
+  backup (ADR 0087).
 - `fsa status` and `fsa logs` list the `backup` service; the stack file for Portainer and Coolify still has no
   backup service (ADR 0084).
 - `fsa status` and `fsa config show` show the last restore, the storage volume in use, paused webhooks and an

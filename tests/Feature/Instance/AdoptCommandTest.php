@@ -17,7 +17,9 @@ use App\Domain\Instance\Restore\BackupPreparer;
 use App\Domain\Instance\Restore\BackupSet;
 use App\Domain\Instance\Restore\LegacyEnv;
 use App\Domain\Instance\Restore\MigrationSet;
+use App\Domain\Instance\Restore\PreparedBackup;
 use App\Domain\Instance\Restore\RestoreChecks;
+use App\Domain\Instance\Restore\RestoreOperation;
 use App\Domain\Instance\Restore\RestoreSpace;
 use App\Domain\Instance\State\EnvFiles;
 use App\Domain\Instance\State\InstanceSettings;
@@ -97,7 +99,7 @@ it('follows the KTD20 order: stop and drain 1.0, back it up, stop its Postgres, 
         ->and($steps)->toBe([
             'stop:app,scheduler', 'run:valkey-cli', 'stop:queue', 'file:pg_dump', 'run:pg_restore', 'run:psql', 'file:tar',
             'stop:postgres', 'stop:redis,gotenberg', 'run:pg_controldata', 'run:cp', 'run:pg_controldata', 'up:postgres', 'run:psql',
-            'up:postgres,redis', 'migrate', 'run:psql', 'run:pg_controldata', 'up:',
+            'up:postgres,redis', 'migrate', 'run:psql', 'run:pg_controldata', 'up:', 'run:pg_controldata', // checked again after the start (review A1)
         ]);
 });
 
@@ -250,6 +252,7 @@ it('records the baseline in the ledger, and uninstall takes a final backup and r
         ->and($json['data']['adopted'])->toMatchArray(['checkout' => $this->adopt->checkout, 'restart_1_0' => 'cd '.$this->adopt->checkout.' && docker compose up -d'])
         ->and($json['data']['adopted']['writes_since_adopt'])->toBe(['audit_entries' => 5, 'rows' => ['submissions' => 3], 'any' => true])
         ->and(collect($json['warnings'])->pluck('code')->all())->toContain('writes_since_adopt', 'restart_1_0')
+        ->and(collect($json['warnings'])->firstWhere('code', 'writes_since_adopt')['hint'] ?? '')->not->toContain('--from-backup')->toContain('pg_restore') // review V3
         ->and(adoptBackups($this->adopt))->toHaveCount(1);
 });
 
@@ -277,17 +280,31 @@ it('says when the writes since adopt cannot be counted', function (): void {
         ->and(collect($json['warnings'])->firstWhere('code', 'writes_since_adopt_unknown')['hint'] ?? '')->toContain('final backup');
 });
 
-it('leaves a backup that a restore of this instance accepts as its own (its APP_KEY is the instance\'s)', function (): void {
+it('leaves a backup that a restore of this instance takes as its own, and no other 1.0 archive naming its key (review R1, S1)', function (): void {
     [, $json] = $this->adopt->adopt();
     app()->instance(AgeCli::class, new AgeCli(base_path('tests/Fixtures/bin/fake-age'), base_path('tests/Fixtures/bin/fake-age-keygen')));
-    $scratch = $this->adopt->instance->directory->ensureDirectory('backups/.restore-test', 0750);
-    $prepared = new BackupPreparer(app(AgeCli::class), BackupSetFixture::tools())->prepare($json['data']['adopted']['backup_path'], $scratch, [], MigrationSet::image(base_path('database/migrations')));
+    $prepare = fn (string $set): PreparedBackup => new BackupPreparer(app(AgeCli::class), BackupSetFixture::tools())
+        ->prepare($set, $this->adopt->instance->directory->ensureDirectory('backups/.restore-'.bin2hex(random_bytes(3)), 0750), [], MigrationSet::image(base_path('database/migrations')));
+    $runAs = RestoreOperation::runAs($this->adopt->instance->state());
     $own = AppKeys::of([new EnvFiles($this->adopt->instance->directory)->read('app')['APP_KEY']]);
-    $uuid = $this->adopt->instance->state()->uuid();
+    $check = static fn (PreparedBackup $backup, AppKeys $keys): Closure => static fn () => RestoreChecks::assertSameInstance($backup, $runAs['uuid'], $keys, BackupIntake::insideKeys($backup), $runAs['adopt_backup'] ?? null);
+    $adopted = $json['data']['adopted']['backup_path'];
+    $outside = sys_get_temp_dir().'/fsa-test-forged-'.bin2hex(random_bytes(4));
+    $forged = BackupSetFixture::legacy($outside.'/a/'.basename($adopted), "APP_URL='http://localhost:8080'\n", "source=fsa adopt\napp_key_fingerprints={$own->fingerprints()[0]}\n");
+    $altered = $outside.'/b/'.basename($adopted);
+    mkdir(dirname($altered), 0700, true);
+    exec('cp -Rp '.escapeshellarg($adopted).' '.escapeshellarg($altered));
+    file_put_contents($altered.'/manifest.txt', "users=8\n", FILE_APPEND);
+    file_put_contents($altered.'/SHA256SUMS', implode('', array_map(static fn (string $file): string => hash_file('sha256', $altered.'/'.$file).'  '.$file."\n", ['database.dump', 'env', 'manifest.txt', 'storage.tar.gz'])));
+    $prepared = $prepare($adopted);
 
     expect($prepared->isLegacy())->toBeTrue()->and($prepared->problems)->toBe([])
-        ->and(fn () => RestoreChecks::assertSameInstance($prepared, $uuid, $own, BackupIntake::insideKeys($prepared)))->not->toThrow(InvalidInput::class)
-        ->and(fn () => RestoreChecks::assertSameInstance($prepared, $uuid, AppKeys::of([BackupSetFixture::OTHER_KEY]), BackupIntake::insideKeys($prepared)))->toThrow(InvalidInput::class);
+        ->and($prepared->manifest['includes_secrets'])->toBeFalse() // review S1: its env holds no key
+        ->and($check($prepared, $own))->not->toThrow(InvalidInput::class)
+        ->and($check($prepared, AppKeys::of([BackupSetFixture::OTHER_KEY])))->toThrow(InvalidInput::class)
+        ->and($check($prepare($forged), $own))->toThrow(InvalidInput::class) // review R1: a fingerprint is no proof
+        ->and($check($prepare($altered), $own))->toThrow(InvalidInput::class);
+    exec('rm -rf '.escapeshellarg($outside));
 });
 
 it('pulls images the instance lacks before it stops 1.0', function (): void {

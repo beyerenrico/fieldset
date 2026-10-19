@@ -35,8 +35,9 @@ use Throwable;
  * Any failure before `start` goes back (AdoptRollback): 1.0 runs again unchanged and nothing of 2.0 is left (exit 5; exit
  * 9 when 1.0 had not been stopped yet; exit 8 when 1.0 does not start again). From `start` on the instance runs on its own
  * copy and a failure leaves the journal open for a resume (exit 4, with an adopt hint); `fsa uninstall` (which treats the
- * unfinished adopt as adopted) and `docker compose up -d` in the checkout lead back. A resumed run continues where the last
- * one stopped, checking first that 1.0 stayed stopped; one that began going back finishes that.
+ * unfinished adopt as adopted) and `docker compose up -d` in the checkout lead back. 1.0 must still be stopped before and
+ * right after `start` on every run (verification review V1, A1), else exit 4 `legacy_restarted` without going back. A
+ * resumed run continues where the last one stopped; one that began going back finishes that.
  */
 final readonly class AdoptOperation
 {
@@ -102,21 +103,28 @@ final readonly class AdoptOperation
         if (array_any($run->record()->events(), static fn (array $event): bool => $event['type'] === 'rollback')) {
             return $this->undo($run, new InstanceException('An earlier attempt began going back.', ExitCode::RolledBack, 'adopt_interrupted', 'Run `fsa adopt` again to start over.'));
         }
-        $checkout = LegacyCheckout::read($request->checkout);
-        $preflight = $run->phase('doctor', fn (): array => $this->preflight->run($checkout, $request->release, $context->facts), changes: false);
-        $legacy = LegacyInstall::fromArray(is_array($preflight['legacy'] ?? null) ? $preflight['legacy'] : []);
         if (! $run->record()->hasStarted('start')) {
             try {
-                $this->assertSameKey($preflight, $checkout);
+                // On a resume the checkout is read again: a changed one goes back too (review V4).
+                $checkout = LegacyCheckout::read($request->checkout);
+                $preflight = $run->phase('doctor', fn (): array => $this->preflight->run($checkout, $request->release, $context->facts), changes: false);
+                $legacy = $this->legacy($preflight);
+                $this->assertSameKeys($preflight, $checkout);
                 $data = $this->sequence->run($run, $checkout, $legacy, $preflight, $request, $context);
             } catch (Throwable $e) {
                 return $this->undo($run, $e);
             }
+        } else {
+            // Past `start` the checkout is not read again: 2.0 runs on its copy, and the fence is checked first (review V1).
+            $preflight = $run->record()->phaseData('doctor');
+            $legacy = $this->legacy($preflight);
+            $data = AdoptSequence::phaseData($run->record());
+            $this->stillStopped($run, $legacy, $request);
         }
-        $data ??= AdoptSequence::phaseData($run->record());
         $state = $this->directory->state();
         $project = ComposeProject::forInstance($state, $this->directory);
         $this->resumable($request, fn (): array => $run->phase('start', fn (): array => $this->stack->up($project, []), maxSeconds: InstanceStack::WAIT_SECONDS));
+        $this->stillStopped($run, $legacy, $request); // 1.0 may have started between the last check and 2.0's start (review A1)
         $smoke = $this->resumable($request, fn (): array => $run->phase('smoke', fn (): array => $this->smoke->run($state, $project, null, $context->progress), changes: false, maxSeconds: InstallSmoke::maxSeconds($state)));
         $run->phase('done', fn (): array => $this->record->done($legacy, $preflight, $data, $request->callerUid, $run->record()->id()));
         $result = AdoptResult::build($this->directory->state(), $this->directory, $legacy, $preflight, [...$data, 'smoke' => $smoke]);
@@ -125,19 +133,42 @@ final readonly class AdoptOperation
         return $running === [] ? $result : $result->withWarning('legacy_running', '1.0 runs again next to the instance ('.implode(', ', $running).'): what it writes is not in the instance.', "Stop it (cd {$legacy->checkout} && docker compose stop); the instance holds the data adopt copied.");
     }
 
+    /** @param  array<string, mixed>  $preflight */
+    private function legacy(array $preflight): LegacyInstall
+    {
+        return LegacyInstall::fromArray(is_array($preflight['legacy'] ?? null) ? $preflight['legacy'] : []);
+    }
+
     /**
-     * A resumed run continues with the APP key the first run adopted (review S2): a changed `.env` stops it.
+     * A resumed run continues with the APP keys the first run adopted (review S2, V5): a changed APP_KEY or
+     * APP_PREVIOUS_KEYS in `.env` stops it.
      *
      * @param  array<string, mixed>  $preflight
      *
      * @throws InstanceException exit 7 `env_changed`
      */
-    private function assertSameKey(array $preflight, LegacyCheckout $checkout): void
+    private function assertSameKeys(array $preflight, LegacyCheckout $checkout): void
     {
-        $adopted = $preflight['app_key_fingerprint'] ?? null;
-        $now = AppKeys::of([$checkout->appKey()])->fingerprints()[0] ?? null;
-        if (is_string($adopted) && $adopted !== $now) {
-            throw new InstanceException('The APP_KEY in the 1.0 .env changed since this adopt began.', ExitCode::Incompatible, 'env_changed', 'Restore the .env 1.0 runs with, or abandon this adopt (`fsa adopt --abandon`) and start over.');
+        $adopted = $preflight['app_key_fingerprints'] ?? null;
+        if (is_array($adopted) && $adopted !== AppKeys::of([$checkout->appKey(), ...$checkout->previousKeys()])->fingerprints()) {
+            throw new InstanceException('The APP keys in the 1.0 .env changed since this adopt began.', ExitCode::Incompatible, 'env_changed', 'Restore the .env 1.0 runs with, or abandon this adopt (`fsa adopt --abandon`) and start over.');
+        }
+    }
+
+    /**
+     * From `start` on, 1.0 must still be as adopt left it (R46, review V1, A1): else the instance's copy misses what 1.0
+     * wrote meanwhile. Nothing goes back (2.0 may hold writes of its own); the journal stays open.
+     *
+     * @throws InstanceException exit 4 `legacy_restarted`
+     */
+    private function stillStopped(OperationRun $run, LegacyInstall $legacy, AdoptRequest $request): void
+    {
+        try {
+            $this->sequence->assertStopped($run, $this->directory->state(), $legacy);
+        } catch (InstanceException $e) {
+            throw new InstanceException($e->getMessage(), $e->exitCode, $e->errorCode,
+                "To keep 1.0: `fsa uninstall` (a final backup first), then `docker compose up -d` in {$request->checkout}. To adopt its current data: `fsa uninstall`, stop 1.0 (`docker compose stop` there), then `fsa adopt {$request->checkout}` again.",
+                false, $e->data, $e, true);
         }
     }
 

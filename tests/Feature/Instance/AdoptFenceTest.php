@@ -2,9 +2,12 @@
 
 declare(strict_types=1);
 
+use App\Domain\Instance\Adopt\AdoptData;
+use App\Domain\Instance\Adopt\LegacyInstall;
 use App\Domain\Instance\Docker\ContainerInfo;
 use App\Domain\Instance\Docker\Labels;
 use App\Domain\Instance\Docker\ProcessOutcome;
+use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Operations\Ledger;
 use App\Domain\Instance\Operations\OperationJournal;
 use App\Domain\Instance\State\InstanceState;
@@ -186,4 +189,49 @@ it('removes the partial 1.0 backup a killed run left when it goes back (review A
 
     expect($code)->toBe(5)->and(file_exists($partial))->toBeFalse()
         ->and(glob($this->adopt->instance->directory->root.'/backups/*.partial') ?: [])->toBe([]);
+});
+
+it('reads the fence\'s checkpoint from 1.0\'s volume, never from the copy (review A1)', function (string $moves, int $exit): void {
+    $docker = $this->adopt->instance->docker;
+    $docker->onCall['runContainer'] = function (array $args) use ($moves): void {
+        if ($args['spec']->entrypoint === 'cp') {
+            $this->adopt->{$moves} = '0/9000000';
+        }
+    };
+
+    [$code, $json] = $this->adopt->adopt();
+
+    expect($code)->toBe($exit, (string) json_encode($json))
+        ->and($exit === 0 || $json['errors'][0]['code'] === 'legacy_restarted')->toBeTrue();
+})->with([
+    'the copy\'s checkpoint differs' => ['copyCheckpoint', 0],
+    '1.0\'s checkpoint moves' => ['checkpoint', 5],
+]);
+
+it('checks the writers\' fence before it records Postgres\'s (review V6)', function (): void {
+    $this->adopt->killAt('stop_postgres_1_0');
+    $this->adopt->adopt();
+    $this->adopt->restoreKill();
+    $record = app(OperationJournal::class)->current();
+    $legacy = LegacyInstall::fromArray($record->phaseData('doctor')['legacy']);
+    $this->adopt->restartLegacy();
+
+    expect(fn () => app(AdoptData::class)->stopData($this->adopt->instance->state(), $legacy, $record->phaseData('stop_1_0')['fence']))
+        ->toThrow(fn (InstanceException $e) => expect($e->errorCode)->toBe('legacy_restarted'))
+        ->and($this->adopt->instance->docker->containers[$this->adopt->legacyId('postgres')]->running())->toBeTrue();
+});
+
+it('leaves one 1.0-format backup when a run killed after the backup was complete is resumed (review A7)', function (): void {
+    $this->adopt->killAt('backup_1_0', latest: true);
+    $this->adopt->adopt();
+    $set = fenceBackups($this->adopt)[0];
+    $kept = sys_get_temp_dir().'/fsa-test-set-'.bin2hex(random_bytes(4));
+    exec('cp -Rp '.escapeshellarg($this->adopt->instance->directory->root.'/backups/'.$set).' '.escapeshellarg($kept));
+    $this->adopt->restoreKill();
+    exec('cp -Rp '.escapeshellarg($kept).' '.escapeshellarg($this->adopt->instance->directory->root.'/backups/'.$set).' && rm -rf '.escapeshellarg($kept)); // complete, but not journaled
+
+    [$code, $json] = $this->adopt->adopt();
+
+    expect($code)->toBe(0, (string) json_encode($json))
+        ->and(fenceBackups($this->adopt))->toHaveCount(1);
 });

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Instance\Adopt;
 
 use App\Domain\Instance\Backup\BackupChecksums;
+use App\Domain\Instance\Backup\BackupEntry;
 use App\Domain\Instance\Backup\BackupName;
 use App\Domain\Instance\Backup\BackupStore;
 use App\Domain\Instance\Compose\Services\AppRoles;
@@ -33,12 +34,13 @@ use Throwable;
  *   (GNU tar, numeric owners, `./` members as 1.0 writes them); tar's exit 1 (a file changed) is a warning, as in 1.0;
  * - `env`: the restore allow-list's values without the APP keys (URL, sender, SMTP server; review S1): the keys stay out of
  *   `backups/`, which is neither encrypted nor pruned here (ADR 0084: app keys reach backups only encrypted);
- * - `manifest.txt` (`key=value`: created_at, postgres, migrations, last_migration, row counts, storage, env, source and
- *   `app_key_fingerprints`, which name the keys the data needs and make it this instance's backup for `fsa restore`) and
- *   `SHA256SUMS`.
+ * - `manifest.txt` (`key=value`: created_at, postgres, migrations, last_migration, row counts, storage, env, source,
+ *   `app_key_fingerprints`, which name the keys the data needs, and `journal`, the adopt's journal ID) and
+ *   `SHA256SUMS`, whose digest the adopt records: it makes exactly this set the instance's own for `fsa restore`.
  *
  * The snapshot (counts and chain heads) is read right after the dump: 1.0's writers are stopped, so both see one state.
- * The `.partial` directory of a run killed earlier is removed first (review A7).
+ * The `.partial` directory of a run killed earlier, and a complete set of the same journal (killed after the set was
+ * complete but before the phase was journaled), are removed first (review A7).
  */
 final readonly class LegacyBackupWriter
 {
@@ -57,15 +59,16 @@ final readonly class LegacyBackupWriter
      * @param  array{app: string, postgres: string}  $images
      * @param  array<string, string>  $env  the allow-listed `.env` values (the APP keys among them are left out)
      * @param  list<string>  $fingerprints  the APP keys' fingerprints, current first
-     * @return array{name: string, path: string, bytes: int, snapshot: array<string, mixed>, warnings: list<string>}
+     * @param  string  $journal  the adopt's journal ID, in the manifest: a resumed run removes the set it made before
+     * @return array{name: string, path: string, bytes: int, sums: string, snapshot: array<string, mixed>, warnings: list<string>}
      *
      * @throws InstanceException exit 4 `legacy_backup_failed`; nothing of the partial backup is left
      */
-    public function write(LegacyInstall $legacy, array $images, string $uuid, #[SensitiveParameter] array $env, array $fingerprints): array
+    public function write(LegacyInstall $legacy, array $images, string $uuid, #[SensitiveParameter] array $env, array $fingerprints, string $journal): array
     {
         $store = new BackupStore($this->directory);
-        foreach ($this->partials($store) as $partial) {
-            $this->directory->files()->delete(InstanceDirectory::BACKUPS_DIR.'/'.$partial);
+        foreach ([...$this->partials($store), ...$this->madeBy($store, $journal)] as $leftover) {
+            $this->directory->files()->delete(InstanceDirectory::BACKUPS_DIR.'/'.$leftover);
         }
         [$name, $partial] = $store->begin(BackupName::safety('adopt', CarbonImmutable::now('UTC')));
 
@@ -74,7 +77,7 @@ final readonly class LegacyBackupWriter
             $snapshot = $this->probe->snapshot($images['postgres'], $legacy->postgres(), $legacy->database, $legacy->username, $uuid);
             $warnings = $this->storage($legacy, $images['app'], $uuid, $partial);
             $this->directory->write($this->relative($name->partial(), BackupSet::LEGACY_ENV), $this->env($env), 0600);
-            $this->directory->write($this->relative($name->partial(), BackupSet::LEGACY_MANIFEST), $this->manifest($name, $legacy, $snapshot, isset($legacy->volumes[LegacyInstall::STORAGE_VOLUME]), $fingerprints), 0600);
+            $this->directory->write($this->relative($name->partial(), BackupSet::LEGACY_MANIFEST), $this->manifest($name, $legacy, $snapshot, isset($legacy->volumes[LegacyInstall::STORAGE_VOLUME]), $fingerprints, $journal), 0600);
             $files = array_values(array_filter([self::DATABASE, self::STORAGE, BackupSet::LEGACY_ENV, BackupSet::LEGACY_MANIFEST], static fn (string $file): bool => is_file($partial.'/'.$file)));
             $this->directory->write($this->relative($name->partial(), BackupChecksums::SUMS), BackupChecksums::sums($partial, $files), 0600);
             $path = $store->complete($name);
@@ -83,7 +86,9 @@ final readonly class LegacyBackupWriter
             throw $e instanceof InstanceException ? $e : new InstanceException('The 1.0 backup failed: '.$e->getMessage(), ExitCode::HealthCheckFailed, 'legacy_backup_failed', 'Read the output; 1.0 was not changed.', true, [], $e);
         }
 
-        return ['name' => $name->name(), 'path' => $path, 'bytes' => BackupStore::bytes($path), 'snapshot' => $snapshot->toArray(), 'warnings' => $warnings];
+        // The digest of SHA256SUMS identifies exactly this set for a restore of this instance (review R1).
+        return ['name' => $name->name(), 'path' => $path, 'bytes' => BackupStore::bytes($path), 'sums' => (string) hash_file('sha256', $path.'/'.BackupChecksums::SUMS),
+            'snapshot' => $snapshot->toArray(), 'warnings' => $warnings];
     }
 
     /** @param  array{app: string, postgres: string}  $images */
@@ -135,7 +140,7 @@ final readonly class LegacyBackupWriter
     }
 
     /** @param  list<string>  $fingerprints */
-    private function manifest(BackupName $name, LegacyInstall $legacy, DataSnapshot $snapshot, bool $storage, array $fingerprints): string
+    private function manifest(BackupName $name, LegacyInstall $legacy, DataSnapshot $snapshot, bool $storage, array $fingerprints, string $journal): string
     {
         $lines = [
             'created_at' => $name->at->format('Ymd\THis\Z'),
@@ -149,6 +154,7 @@ final readonly class LegacyBackupWriter
             'version' => $legacy->version,
             'project' => $legacy->project,
             'app_key_fingerprints' => implode(',', $fingerprints),
+            'journal' => $journal,
         ];
 
         return implode('', array_map(static fn (string $key, string $value): string => $key.'='.preg_replace('/[\x00-\x1F\x7F]/', '', $value)."\n", array_keys($lines), $lines));
@@ -175,6 +181,19 @@ final readonly class LegacyBackupWriter
     private function partials(BackupStore $store): array
     {
         return array_values(array_filter($store->partials(), static fn (string $name): bool => str_starts_with($name, BackupName::SAFETY.'-adopt-')));
+    }
+
+    /**
+     * Complete sets of this journal: a run killed after the set was complete but before the phase was journaled (review A7).
+     *
+     * @return list<string>
+     */
+    private function madeBy(BackupStore $store, string $journal): array
+    {
+        $names = array_map(static fn (BackupEntry $entry): string => $entry->name->name(), $store->entries());
+
+        return array_values(array_filter($names, fn (string $name): bool => str_starts_with($name, BackupName::SAFETY.'-adopt-')
+            && (BackupSet::legacyManifest($store->path($name))['journal'] ?? null) === $journal));
     }
 
     private function relative(string $partial, string $file): string

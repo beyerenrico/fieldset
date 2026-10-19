@@ -213,7 +213,7 @@ it('uninstalls with a final backup and the writes since adopt, and docker compos
     expect($write->getExitCode())->toBe(0, $write->getErrorOutput())
         ->and($process->getExitCode())->toBe(0, $process->getErrorOutput()."\n".$process->getOutput())
         ->and($json['data']['final_backup']['dir'] ?? '')->toStartWith('backups/final-')
-        ->and(file_exists($this->dir.'/'.($json['data']['final_backup']['dir'] ?? '-').'/app-key.env'))->toBeFalse() // review S1
+        ->and(file_exists($this->dir.'/'.($json['data']['final_backup']['dir'] ?? '-').'/app-key.env'))->toBeTrue() // review V2: env/app.env goes with the instance
         ->and($json['data']['adopted']['writes_since_adopt']['rows']['submissions'] ?? null)->toBe(3)
         ->and($json['data']['adopted']['restart_1_0'])->toBe('cd '.$this->v1->checkout.' && docker compose up -d')
         ->and($left)->toBe(['containers' => [], 'volumes' => [], 'networks' => []])

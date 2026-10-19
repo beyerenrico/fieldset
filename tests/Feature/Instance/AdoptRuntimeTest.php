@@ -8,7 +8,6 @@ use App\Domain\Instance\Docker\DockerCommandFailed;
 use App\Domain\Instance\Docker\DockerResource;
 use App\Domain\Instance\Docker\ProcessOutcome;
 use App\Domain\Instance\Operations\OperationJournal;
-use App\Domain\Instance\Restore\AppKeys;
 use App\Domain\Instance\Restore\LegacyEnv;
 use Tests\Support\Instance\AdoptFixture;
 
@@ -45,18 +44,48 @@ it('refuses a .env that differs from what 1.0 runs with, naming the keys but no 
     'another APP_KEY' => [[], ['APP_KEY' => ADOPT_OTHER_KEY], 'APP_KEY'],
     'another database' => [[], ['DB_DATABASE' => 'forms_prod'], 'DB_DATABASE'],
     'another port' => [['APP_PORT' => '9090'], [], 'APP_PORT'],
+    'another Valkey database' => [['REDIS_DB' => '2'], [], 'REDIS_DB'], // review V5
 ]);
 
-it('goes back when the APP_KEY in .env changed before a resumed run (review S2)', function (): void {
+it('goes back when the APP keys in .env changed before a resumed run (review S2, V5)', function (array $env): void {
     $this->adopt->killAt('copy');
     $this->adopt->adopt();
     $this->adopt->restoreKill();
-    file_put_contents($this->adopt->checkout.'/.env', AdoptFixture::env(['APP_KEY' => ADOPT_OTHER_KEY]));
+    file_put_contents($this->adopt->checkout.'/.env', AdoptFixture::env($env));
 
     [$code, $json] = $this->adopt->adopt();
 
     expect($code)->toBe(5, (string) json_encode($json))->and($json['errors'][0]['code'])->toBe('env_changed')
         ->and(app(OperationJournal::class)->current())->toBeNull();
+})->with([
+    'another APP_KEY' => [['APP_KEY' => ADOPT_OTHER_KEY]],
+    'a planted previous key' => [['APP_PREVIOUS_KEYS' => ADOPT_OTHER_KEY]],
+]);
+
+it('goes back when the checkout changed before a resumed run, instead of leaving 1.0 stopped (review V4)', function (): void {
+    $this->adopt->killAt('copy');
+    $this->adopt->adopt();
+    $this->adopt->restoreKill();
+    file_put_contents($this->adopt->checkout.'/.env', AdoptFixture::env(['COMPOSE_FILE' => 'compose.yaml:compose.override.yaml']));
+
+    [$code, $json] = $this->adopt->adopt();
+    $docker = $this->adopt->instance->docker;
+
+    expect($code)->toBe(5, (string) json_encode($json))
+        ->and($json['errors'][0]['code'])->toBe('compose_file_override')
+        ->and(array_filter($docker->containers, static fn (ContainerInfo $c): bool => str_starts_with($c->id, 'legacy') && ! $c->running()))->toBe([])
+        ->and(app(OperationJournal::class)->current())->toBeNull();
+});
+
+it('finds 1.0 when Compose started it through a symlink to the checkout (review nit)', function (): void {
+    $link = sys_get_temp_dir().'/fsa-test-link-'.bin2hex(random_bytes(4));
+    symlink($this->adopt->checkout, $link);
+    $this->adopt->withLegacyStack(extraLabels: ['com.docker.compose.project.working_dir' => $link, 'com.docker.compose.project.config_files' => $link.'/compose.yaml']);
+
+    [$code, $json] = $this->adopt->adopt();
+    unlink($link);
+
+    expect($code)->toBe(0, (string) json_encode($json));
 });
 
 it('refuses a 1.0 Postgres that is not major 16 on Alpine before 1.0 is touched (review A4)', function (Closure $arrange, string $found): void {
@@ -125,8 +154,8 @@ it('treats an adopt that failed after 2.0 started as adopted: adopt hints, and u
         ->and($code)->toBe(0, (string) json_encode($json))
         ->and($json['data']['adopted'])->toMatchArray(['checkout' => $this->adopt->checkout, 'pending' => true, 'jobs_in_1_0' => ['left' => 4, 'delayed' => 2, 'unknown' => false]])
         ->and($restart['message'] ?? '')->toContain('4 job(s) left by --drop-jobs and 2 delayed job(s)')
-        ->and(file_exists($final.'/app-key.env'))->toBeFalse()
-        ->and($manifest['app_key_fingerprints'] ?? null)->toBe(AppKeys::of([AdoptFixture::APP_KEY])->fingerprints())
+        ->and(file_exists($final.'/app-key.env'))->toBeTrue() // review V2: env/app.env goes with the instance
+        ->and($manifest['files'] ?? [])->not->toBeEmpty()
         ->and(glob($this->adopt->instance->directory->root.'/backups/safety-adopt-*') ?: [])->toHaveCount(1);
 });
 

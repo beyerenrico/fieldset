@@ -15,9 +15,9 @@ use App\Domain\Instance\Output\ExitCode;
  * What the running 1.0 install really is, beyond its checkout's files (plan U19, ADR 0087), checked before adopt changes
  * anything (exit 7):
  *
- * - review S2: the APP keys, database names and port adopt takes from `.env` must be the ones 1.0's app container runs
- *   with (`Config.Env`, read for these keys only): a `.env` edited since 1.0 started (a planted APP_PREVIOUS_KEYS, another
- *   APP_KEY) is refused, `env_mismatch`;
+ * - review S2, V5: the APP keys, database names, port and Valkey database adopt takes from `.env` must be the ones 1.0's
+ *   app container runs with (`Config.Env`, read for these keys only): a `.env` edited since 1.0 started (a planted
+ *   APP_PREVIOUS_KEYS, another APP_KEY, another REDIS_DB the drain would count in) is refused, `env_mismatch`;
  * - review A4: 1.0's Postgres must be major 16 on Alpine (musl), like the instance's `postgres:16-alpine`: a binary copy
  *   into another libc would leave text indexes, unique or not, ordered differently from what the new server expects.
  *   PG_MAJOR comes from the container's environment, the distribution from `/etc/os-release` of its image (a one-off
@@ -26,7 +26,7 @@ use App\Domain\Instance\Output\ExitCode;
 final readonly class LegacyRuntime
 {
     /** The `.env` values that must match the app container's environment. */
-    public const array COMPARED = ['APP_KEY', 'APP_PREVIOUS_KEYS', 'DB_DATABASE', 'DB_USERNAME', 'APP_PORT'];
+    public const array COMPARED = ['APP_KEY', 'APP_PREVIOUS_KEYS', 'DB_DATABASE', 'DB_USERNAME', 'APP_PORT', 'REDIS_DB'];
 
     public const string PG_MAJOR = '16';
 

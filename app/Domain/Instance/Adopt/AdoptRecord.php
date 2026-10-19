@@ -33,7 +33,8 @@ final readonly class AdoptRecord
         $appended = ! array_any($this->ledger->entries(), static fn (array $entry): bool => ($entry['action'] ?? null) === AdoptOperation::EVENT && ($entry['journal'] ?? null) === $journal);
         if ($appended) {
             $this->ledger->append(['action' => AdoptOperation::EVENT, 'journal' => $journal, 'host_uid' => $callerUid, 'checkout' => $legacy->checkout, 'project' => $legacy->project,
-                'backup' => $backup['name'] ?? null, 'epoch' => 1, 'heads' => $backup['snapshot']['heads'] ?? [], 'baseline' => $data['baseline']['snapshot'] ?? null]);
+                'backup' => $backup['name'] ?? null, 'epoch' => 1, 'heads' => $backup['snapshot']['heads'] ?? [], 'baseline' => $data['baseline']['snapshot'] ?? null,
+                'legacy' => $legacy->toArray(), 'fence' => $data['fence'] ?? null]); // uninstall checks 1.0 against the fence (review V1)
         }
         $current = $this->directory->state();
         if (AdoptedInstance::record($current) !== null) {
@@ -46,7 +47,7 @@ final readonly class AdoptRecord
         $quiesce = is_array($data['quiesce'] ?? null) ? $data['quiesce'] : [];
         $this->directory->saveState($current
             ->withHistoryEntry(InstallRecord::EVENT, InstallRecord::entry($request, $current, $digest, false))
-            ->withHistoryEntry(AdoptOperation::EVENT, AdoptedInstance::entry($legacy, is_string($backup['name'] ?? null) ? $backup['name'] : null, $quiesce)));
+            ->withHistoryEntry(AdoptOperation::EVENT, AdoptedInstance::entry($legacy, $backup, $quiesce)));
 
         return ['ledger' => $appended, 'recorded' => true];
     }

@@ -16,7 +16,7 @@ use App\Domain\Instance\Restore\AppKeys;
  * ports, project conflicts: exit 3/7/10), checks what 1.0 runs with and its Postgres image (LegacyRuntime, exit 7) and for
  * twice the 1.0 data's space (exit 3), and returns install's phase data with the 1.0 port (held by 1.0's app until adopt
  * stops it, so the doctor probed another one), plus what later phases need: `legacy` (the containers and volumes),
- * `redis_db`, `app_key_fingerprint` (a resumed run checks the `.env` against it), `settings`, `pending_mail` and `space`.
+ * `redis_db`, `app_key_fingerprints` (a resumed run checks the `.env` against them), `settings`, `pending_mail` and `space`.
  */
 final readonly class AdoptPreflight
 {
@@ -40,7 +40,7 @@ final readonly class AdoptPreflight
         $space = $this->space->assert($legacy, $digests['app'], (string) $data['uuid']);
 
         return [...$data, 'port' => $checkout->port(), 'request' => $request->toContext(), 'legacy' => $legacy->toArray(), 'redis_db' => $redisDb,
-            'app_key_fingerprint' => AppKeys::of([$checkout->appKey()])->fingerprints()[0] ?? null, 'runtime' => $runtime,
+            'app_key_fingerprints' => AppKeys::of([$checkout->appKey(), ...$checkout->previousKeys()])->fingerprints(), 'runtime' => $runtime,
             'settings' => AdoptSettings::overlay($checkout), 'pending_mail' => AdoptSettings::pendingMail($checkout), 'space' => $space];
     }
 }
