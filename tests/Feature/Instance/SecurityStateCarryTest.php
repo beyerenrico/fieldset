@@ -3,9 +3,17 @@
 declare(strict_types=1);
 
 use App\Console\Commands\RestoreFinishCommand;
+use App\Domain\Forms\Models\FormAccess;
 use App\Domain\Identity\Enums\SystemRole;
+use App\Domain\Identity\Models\ExternalIdentity;
+use App\Domain\Identity\Models\Group;
+use App\Domain\Identity\Models\IdentityProvider;
+use App\Domain\Identity\Models\IdentityProviderMapping;
+use App\Domain\Identity\Models\SsoDomain;
 use App\Domain\Identity\Models\User;
+use App\Domain\Identity\Tenancy\TenantContext;
 use App\Domain\Platform\Instance\BackupRole;
+use App\Domain\Workflows\Models\WebhookEndpoint;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -160,3 +168,111 @@ it('skips the carry with --no-carry and without --source, but always clears stal
     'no-carry' => [['--source' => 'placeholder', '--no-carry' => true]],
     'no source (from-backup)' => [[]],
 ]);
+
+/** Review S3: SSO, groups, form access, a second organization and webhooks in the backup; the source starts as a copy. */
+function scopeSeed(object $test): void
+{
+    carrySeed($test);
+    $tenant = app(TenantContext::class);
+    $test->other = makeOrganization(name: 'Other GmbH');
+    $tenant->run($test->org, function () use ($test): void {
+        $test->provider = IdentityProvider::factory()->active()->create(['jit_enabled' => true]);
+        $test->identity = ExternalIdentity::factory()->create(['user_id' => $test->member->id]);
+        $test->mapping = IdentityProviderMapping::factory()->create();
+        $test->domain = SsoDomain::factory()->create(['domain' => 'gone.example']);
+        $test->verified = SsoDomain::factory()->verified()->create(['domain' => 'kept.example']);
+        $test->group = Group::factory()->create();
+        $test->access = FormAccess::factory()->create(['group_id' => $test->group->id, 'role_name' => null]);
+        $test->deletedHook = WebhookEndpoint::factory()->create(['name' => 'deleted hook']);
+        $test->pausedHook = WebhookEndpoint::factory()->create(['name' => 'paused hook']);
+    });
+    $test->otherProvider = $tenant->run($test->other, fn (): IdentityProvider => IdentityProvider::factory()->create());
+    foreach ([$test->member, $test->password] as $user) {
+        DB::table('group_user')->insert(['organization_id' => $test->org->id, 'group_id' => $test->group->id, 'user_id' => $user->id, 'created_at' => now(), 'updated_at' => now()]);
+    }
+    RestoreDatabases::sourceFromTarget();
+}
+
+it('deletes unlinked external identities, deleted providers, mappings and domains, and copies provider and domain state (review S3)', function (): void {
+    scopeSeed($this);
+    $source = DB::connection(RestoreDatabases::SOURCE);
+    $source->table('external_identities')->where('id', $this->identity->id)->delete();
+    $source->table('identity_provider_mappings')->where('id', $this->mapping->id)->delete();
+    $source->table('identity_providers')->where('id', $this->provider->id)->update(['status' => 'disabled', 'jit_enabled' => false]);
+    $source->table('identity_providers')->where('id', $this->otherProvider->id)->delete();
+    $source->table('sso_domains')->where('id', $this->domain->id)->delete();
+    $source->table('sso_domains')->where('id', $this->verified->id)->update(['verified_at' => null]);
+
+    [$code, $json] = carryRun($this);
+    $target = DB::connection(RestoreDatabases::TARGET);
+
+    expect($code)->toBe(0, json_encode($json))
+        ->and($json['data']['carried'])->toMatchArray([
+            'external_identities_deleted' => 1, 'identity_provider_mappings_deleted' => 1, 'identity_providers_deleted' => 1,
+            'identity_providers_updated' => 1, 'sso_domains_deleted' => 1, 'sso_domains_unverified' => 1,
+        ])
+        ->and($target->table('external_identities')->where('id', $this->identity->id)->exists())->toBeFalse()
+        ->and($target->table('identity_provider_mappings')->where('id', $this->mapping->id)->exists())->toBeFalse()
+        ->and((array) $target->table('identity_providers')->where('id', $this->provider->id)->first(['status', 'jit_enabled']))->toBe(['status' => 'disabled', 'jit_enabled' => false])
+        ->and($target->table('identity_providers')->where('id', $this->otherProvider->id)->exists())->toBeFalse()
+        ->and($target->table('sso_domains')->where('id', $this->domain->id)->exists())->toBeFalse()
+        ->and($target->table('sso_domains')->where('id', $this->verified->id)->value('verified_at'))->toBeNull();
+});
+
+it('removes group memberships and form access grants the source dropped (review S3)', function (): void {
+    scopeSeed($this);
+    $source = DB::connection(RestoreDatabases::SOURCE);
+    $source->table('group_user')->where('user_id', $this->member->id)->delete();
+    $source->table('form_access')->where('id', $this->access->id)->delete();
+
+    [$code, $json] = carryRun($this);
+    $target = DB::connection(RestoreDatabases::TARGET);
+
+    expect($code)->toBe(0, json_encode($json))
+        ->and($json['data']['carried'])->toMatchArray(['group_memberships_removed' => 1, 'form_access_removed' => 1])
+        ->and($target->table('group_user')->where('user_id', $this->member->id)->exists())->toBeFalse()
+        ->and($target->table('group_user')->where('user_id', $this->password->id)->exists())->toBeTrue()
+        ->and($target->table('form_access')->where('id', $this->access->id)->exists())->toBeFalse();
+});
+
+it('soft-deletes organizations deleted in the source (review S3)', function (): void {
+    scopeSeed($this);
+    DB::connection(RestoreDatabases::SOURCE)->table('organizations')->where('id', $this->other->id)->update(['deleted_at' => '2026-10-19 14:00:00']);
+
+    [$code, $json] = carryRun($this);
+    $target = DB::connection(RestoreDatabases::TARGET);
+
+    expect($code)->toBe(0, json_encode($json))
+        ->and($json['data']['carried'])->toMatchArray(['organizations_deleted' => 1])
+        ->and($target->table('organizations')->where('id', $this->other->id)->value('deleted_at'))->toBe('2026-10-19 14:00:00')
+        ->and($target->table('organizations')->where('id', $this->org->id)->value('deleted_at'))->toBeNull();
+});
+
+it('deletes webhook endpoints deleted in the source and deactivates the ones it deactivated (review S3)', function (): void {
+    scopeSeed($this);
+    $source = DB::connection(RestoreDatabases::SOURCE);
+    $source->table('webhook_endpoints')->where('id', $this->deletedHook->id)->delete();
+    $source->table('webhook_endpoints')->where('id', $this->pausedHook->id)->update(['active' => false]);
+
+    [$code, $json] = carryRun($this);
+
+    expect($code)->toBe(0, json_encode($json))
+        ->and($json['data']['carried'])->toMatchArray(['webhook_endpoints_deleted' => 1, 'webhook_endpoints_deactivated' => 1])
+        ->and(DB::connection(RestoreDatabases::TARGET)->table('webhook_endpoints')->pluck('active', 'name')->all())->toBe(['paused hook' => false]);
+});
+
+it('copies changed e-mail addresses and skips one another target account holds (review S3)', function (): void {
+    scopeSeed($this);
+    $memberEmail = $this->member->email;
+    $source = DB::connection(RestoreDatabases::SOURCE);
+    $source->table('users')->where('id', $this->member->id)->update(['email' => 'member-new@example.test']);
+    $source->table('users')->where('id', $this->revoked->id)->update(['email' => $memberEmail]); // the member still holds it in the target
+
+    [$code, $json] = carryRun($this);
+    $target = DB::connection(RestoreDatabases::TARGET);
+
+    expect($code)->toBe(0, json_encode($json))
+        ->and($json['data']['carried'])->toMatchArray(['emails' => 1, 'email_conflicts' => 1])
+        ->and($target->table('users')->where('id', $this->member->id)->value('email'))->toBe('member-new@example.test')
+        ->and($target->table('users')->where('id', $this->revoked->id)->value('email'))->toBe($this->revoked->email);
+});

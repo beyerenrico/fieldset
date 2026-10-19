@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Identity\Tenancy\TenantContext;
+use App\Domain\Instance\Runtime\RuntimeStateReader;
 use App\Domain\Workflows\Engine\RunWorkflowStep;
 use App\Domain\Workflows\Enums\RunStatus;
 use App\Domain\Workflows\Enums\StepStatus;
@@ -94,4 +95,32 @@ it('delivers at once without a runtime directory (checkout installs) or without 
 })->with([
     'no runtime directory' => [null],
     'flag missing' => [[]],
+]);
+
+it('holds when runtime.json is unusable and this process never read it (fail closed), else follows the last good value (review S5)', function (?bool $lastGoodPaused, bool $held): void {
+    $endpoint = heldEndpoint($this);
+    W::workflow($this->s->org, [W::step('webhook', ['endpoint_id' => $endpoint->id])]);
+    W::submitted($this->s);
+    $run = W::runs($this->s->org)->sole();
+    app()->forgetInstance(RuntimeStateReader::class); // a worker that starts now
+    if ($lastGoodPaused !== null) {
+        RuntimeFixture::write($this->runtime, RuntimeFixture::document(['webhooks' => ['paused' => $lastGoodPaused]]));
+        app(RuntimeStateReader::class)->reading();
+    }
+    RuntimeFixture::write($this->runtime, '{"schema_version": "1.0", "instance_url": '); // a torn or broken file
+
+    Bus::dispatch(new RunWorkflowStep($run->id, 0, $this->s->org->id));
+
+    expect(app(RuntimeStateReader::class)->reading()->problem)->not->toBeNull();
+    if ($held) {
+        Http::assertNothingSent();
+        expect(heldStep($this, $run->id, 0)->status)->toBe(StepStatus::Pending)->and(heldStep($this, $run->id, 0)->attempts)->toBe(0);
+    } else {
+        Http::assertSentCount(1);
+        expect(W::runs($this->s->org)->sole()->status)->toBe(RunStatus::Completed);
+    }
+})->with([
+    'never read: fallback' => [null, true],
+    'last good value paused' => [true, true],
+    'last good value not paused' => [false, false],
 ]);

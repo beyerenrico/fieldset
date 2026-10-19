@@ -101,7 +101,7 @@ final class RestoreDatabases
     public static function drop(array $suffixes = []): void
     {
         DB::setDefaultConnection('pgsql');
-        foreach ([self::TARGET, self::SOURCE, 'fsa_restore_source', 'fsa_restore_maintenance', 'fsa_restore_adopt'] as $connection) {
+        foreach ([self::TARGET, self::SOURCE, 'fsa_restore_source', 'fsa_restore_maintenance', 'fsa_restore_adopt', 'fsa_restore_create', 'fsa_restore_audit', 'fsa_restore_reference'] as $connection) {
             DB::purge($connection);
         }
         $admin = self::admin();

@@ -21,6 +21,9 @@ use SensitiveParameter;
  * 3. sessions, remember tokens, password-reset tokens and sign-in links cleared;
  * 4. the audit functions' grants and the backup role (RestoreGrants);
  * 5. a decrypt sample with the instance's APP keys.
+ *
+ * All of it is one transaction on the restored database (review A9): a step that fails, the decrypt sample included,
+ * leaves no epoch, no audit entry and no half carry behind, so the next run starts from the restored state again.
  */
 final readonly class FinishRestore
 {
@@ -28,7 +31,11 @@ final readonly class FinishRestore
 
     public function __construct(private RestoredEpoch $epoch, private Encrypter $encrypter) {}
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     *
+     * @throws RestoreRefused `decrypt_failed` when the APP keys open no sample of an encrypted column (nothing written)
+     */
     public function run(FinishRequest $request, #[SensitiveParameter] string $backupPassword): array
     {
         $target = DB::connection();
@@ -38,13 +45,19 @@ final readonly class FinishRestore
         if ($request->source !== null && $request->source === $target->getDatabaseName()) {
             throw new InvalidArgumentException('--source must name the pre-restore database, not the restored one (DB_DATABASE).');
         }
-        $data = $this->epoch->begin($request->reason, $request->epochSeed, $request->previousHeads, $request->previousEpoch, $request->backup, $request->fromBackup, $request->actorUid);
-        [$data['carried'], $data['sequences']] = $request->source !== null && $request->carry ? $this->carry($request->source, $target) : [null, null];
-        $data['cleared'] = new StaleCredentials($target)->clear();
-        $data['grants'] = new RestoreGrants($target, new BackupRole($target))->apply($backupPassword, $request->backupRole);
-        $data['decrypt'] = new DecryptSample($target, $this->encrypter)->run();
 
-        return $data;
+        return $target->transaction(function () use ($request, $target, $backupPassword): array {
+            $data = $this->epoch->begin($request->reason, $request->epochSeed, $request->previousHeads, $request->previousEpoch, $request->backup, $request->fromBackup, $request->actorUid);
+            [$data['carried'], $data['sequences']] = $request->source !== null && $request->carry ? $this->carry($request->source, $target) : [null, null];
+            $data['cleared'] = new StaleCredentials($target)->clear();
+            $data['grants'] = new RestoreGrants($target, new BackupRole($target))->apply($backupPassword, $request->backupRole);
+            $data['decrypt'] = new DecryptSample($target, $this->encrypter)->run();
+            if ($data['decrypt']['failed'] !== []) {
+                throw new RestoreRefused('decrypt_failed', 'The instance\'s APP keys cannot decrypt '.implode(', ', $data['decrypt']['failed']).'.', 'Pass the APP_KEY the backup was made with (`--app-key-file`): it becomes a previous key.');
+            }
+
+            return $data;
+        });
     }
 
     /** @return array{0: array<string, mixed>, 1: array{sequences: int, number_sequences: int}} */

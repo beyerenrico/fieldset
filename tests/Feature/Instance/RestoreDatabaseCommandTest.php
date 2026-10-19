@@ -91,6 +91,25 @@ it('creates a database for a restricted role that only it may connect to, and ne
         ->and(json_encode($json))->not->toContain(RESTORE_DB_PASSWORD);
 });
 
+it('installs pg_trgm as the superuser before a restricted restore, so the role cannot add members to it (review S1)', function (): void {
+    $name = RestoreDatabases::name('restore_rdr');
+    $role = RestoreDatabases::role('fsa_restore_test');
+    putenv(RestoreDatabaseCommand::PASSWORD_ENV.'='.RESTORE_DB_PASSWORD);
+
+    [$code, $json] = restoreDb('create', ['--database' => $name, '--restricted-role' => $role]);
+    $owner = (string) config('database.connections.pgsql.username');
+    $added = null;
+    try {
+        restoreDbQuery($name, "SET ROLE {$role}; CREATE FUNCTION evil() RETURNS text AS \$f\$ SELECT current_user::text \$f\$ LANGUAGE sql; ALTER EXTENSION pg_trgm ADD FUNCTION evil()");
+    } catch (PDOException $e) {
+        $added = $e->getMessage();
+    }
+
+    expect($code)->toBe(0, json_encode($json))
+        ->and(restoreDbQuery($name, "SELECT pg_get_userbyid(extowner) FROM pg_extension WHERE extname = 'pg_trgm'"))->toBe($owner)
+        ->and($added)->toContain('must be owner of extension pg_trgm');
+});
+
 it('adopts a restricted restore: objects and database go to the superuser, the role goes, PUBLIC may connect again', function (): void {
     $name = RestoreDatabases::name('restore_rdr');
     $role = RestoreDatabases::role('fsa_restore_test');
@@ -102,11 +121,36 @@ it('adopts a restricted restore: objects and database go to the superuser, the r
     [$code, $json] = restoreDb('adopt', ['--database' => $name, '--role' => $role]);
 
     expect($code)->toBe(0, json_encode($json))
-        ->and($json['data'])->toBe(['database' => $name, 'role' => $role])
+        ->and($json['data'])->toBe(['database' => $name, 'role' => $role, 'revoked' => 0, 'settings_reset' => 0])
         ->and(restoreDbQuery($name, "SELECT tableowner FROM pg_tables WHERE tablename = 'restored'"))->toBe($owner)
         ->and(restoreDbQuery('postgres', "SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = '{$name}'"))->toBe($owner)
         ->and(RestoreDatabases::roleExists($role))->toBeFalse()
         ->and(restoreDbQuery('postgres', "SELECT has_database_privilege('public', '{$name}', 'CONNECT')"))->toBeTrue();
+});
+
+it('adopts without the grants and database settings the restore left behind (review S2)', function (): void {
+    $name = RestoreDatabases::name('restore_rdr');
+    $role = RestoreDatabases::role('fsa_restore_test');
+    $grantee = RestoreDatabases::role('fsa_restore_grantee');
+    RestoreDatabases::admin()->exec("CREATE ROLE {$grantee} NOLOGIN");
+    putenv(RestoreDatabaseCommand::PASSWORD_ENV.'='.RESTORE_DB_PASSWORD);
+    restoreDb('create', ['--database' => $name, '--restricted-role' => $role]);
+    restoreDbQuery($name, implode('; ', [
+        "SET ROLE {$role}", 'CREATE TABLE restored (id int)', 'CREATE SEQUENCE restored_seq',
+        'CREATE FUNCTION peek() RETURNS int AS $f$ SELECT 1 $f$ LANGUAGE sql', 'GRANT SELECT ON restored TO PUBLIC',
+        "GRANT USAGE ON SEQUENCE restored_seq TO {$grantee}", "GRANT EXECUTE ON FUNCTION peek() TO {$grantee}",
+        "ALTER DATABASE \"{$name}\" SET work_mem = '64MB'", 'RESET ROLE', "ALTER ROLE {$grantee} IN DATABASE \"{$name}\" SET work_mem = '32MB'",
+    ]));
+
+    [$code, $json] = restoreDb('adopt', ['--database' => $name, '--role' => $role]);
+
+    expect($code)->toBe(0, json_encode($json))
+        ->and($json['data'])->toBe(['database' => $name, 'role' => $role, 'revoked' => 4, 'settings_reset' => 2])
+        ->and(restoreDbQuery('postgres', "SELECT count(*) FROM pg_db_role_setting s JOIN pg_database d ON d.oid = s.setdatabase WHERE d.datname = '{$name}'"))->toBe(0)
+        ->and(restoreDbQuery($name, "SELECT has_table_privilege('public', 'restored', 'SELECT')"))->toBeFalse()
+        ->and(restoreDbQuery($name, "SELECT has_sequence_privilege('{$grantee}', 'restored_seq', 'USAGE')"))->toBeFalse()
+        ->and(restoreDbQuery($name, "SELECT has_function_privilege('{$grantee}', 'peek()', 'EXECUTE')"))->toBeFalse()
+        ->and(restoreDbQuery('postgres', "SELECT has_database_privilege('public', '{$name}', 'CREATE')"))->toBeFalse();
 });
 
 it('swaps the restored database in, keeps the live one aside, and swaps back', function (): void {
@@ -184,13 +228,37 @@ it('drops only databases and roles a restore made, never the app user or another
         ->and(RestoreDatabases::roleExists($appUser))->toBeTrue();
 });
 
+it('renames a restore-made database to a free name, and refuses any other database or a taken or system name (review A8)', function (): void {
+    $from = restoreDbMarked('restore_rdr', 'aside');
+    $to = RestoreDatabases::name('rdn');
+    $live = restoreDbMarked('rdl', 'live');
+    restoreDbMarked('restore_rdx', 'other');
+
+    [$code, $json] = restoreDb('rename', ['--database' => $from, '--to' => $to]);
+    [$foreign, $foreignJson] = restoreDb('rename', ['--database' => $live, '--to' => RestoreDatabases::name('rdo')]);
+    [$taken, $takenJson] = restoreDb('rename', ['--database' => RestoreDatabases::name('restore_rdx'), '--to' => $live]);
+    [$system, $systemJson] = restoreDb('rename', ['--database' => RestoreDatabases::name('restore_rdx'), '--to' => 'template1']);
+    [$missing, $missingJson] = restoreDb('rename', ['--database' => RestoreDatabases::name('restore_rdy'), '--to' => RestoreDatabases::name('rdo')]);
+
+    expect($code)->toBe(0, json_encode($json))
+        ->and($json['data'])->toBe(['from' => $from, 'to' => $to])
+        ->and(restoreDbQuery($to, 'SELECT v FROM marker'))->toBe('aside')
+        ->and(RestoreDatabases::exists($from))->toBeFalse()
+        ->and([$foreign, $foreignJson['errors'][0]['code']])->toBe([1, 'refused_database'])
+        ->and([$taken, $takenJson['errors'][0]['code']])->toBe([1, 'database_exists'])
+        ->and([$system, $systemJson['errors'][0]['code']])->toBe([1, 'reserved_database'])
+        ->and([$missing, $missingJson['errors'][0]['code']])->toBe([1, 'database_missing'])
+        ->and(restoreDbQuery($live, 'SELECT v FROM marker'))->toBe('live')
+        ->and(RestoreDatabases::exists(RestoreDatabases::name('rdo')))->toBeFalse();
+});
+
 it('lists the databases with a prefix and refuses an unknown action', function (): void {
     restoreDbMarked('rdl', 'live');
     restoreDbMarked('rdi', 'restored');
 
     [$code, $json] = restoreDb('list', ['--prefix' => RestoreDatabases::name('rd')]);
     [$all, $allJson] = restoreDb('list', ['--prefix' => '']);
-    [$unknown, $unknownJson] = restoreDb('rename', ['--database' => RestoreDatabases::name('rdl')]);
+    [$unknown, $unknownJson] = restoreDb('truncate', ['--database' => RestoreDatabases::name('rdl')]);
 
     expect($code)->toBe(0)
         ->and($json['data']['databases'])->toBe([RestoreDatabases::name('rdi'), RestoreDatabases::name('rdl')])
@@ -236,4 +304,83 @@ it('passes the schema audit after a real dump and restore, whose checks and defa
     [$code, $json] = restoreDb('audit', ['--database' => $restored, '--reference' => $reference]);
 
     expect($code)->toBe(0, json_encode($json));
+});
+
+it('refuses an extension the restore owns or whose members differ, and passes the superuser\'s own (review S1)', function (string $case, ?string $problem): void {
+    $reference = RestoreDatabases::target();
+    $restored = $case === 'owned by the restricted role' ? RestoreDatabases::name('restore_rdr') : RestoreDatabases::empty('rdd');
+    $evil = 'CREATE FUNCTION evil() RETURNS text AS $f$ SELECT current_user::text $f$ LANGUAGE sql; ALTER EXTENSION pg_trgm ADD FUNCTION evil()';
+    if ($case === 'owned by the restricted role') {
+        $role = RestoreDatabases::role('fsa_restore_test');
+        putenv(RestoreDatabaseCommand::PASSWORD_ENV.'='.RESTORE_DB_PASSWORD);
+        restoreDb('create', ['--database' => $restored, '--restricted-role' => $role]);
+        restoreDbQuery($restored, "DROP EXTENSION pg_trgm; SET ROLE {$role}; CREATE EXTENSION pg_trgm; {$evil}; RESET ROLE");
+    } else {
+        restoreDbQuery($restored, $case === 'member added' ? "CREATE EXTENSION pg_trgm; {$evil}" : 'CREATE EXTENSION pg_trgm');
+    }
+
+    [$code, $json] = restoreDb('audit', ['--database' => $restored, '--reference' => $reference]);
+
+    expect($code)->toBe($problem === null ? 0 : 1, json_encode($json));
+    if ($problem !== null) {
+        expect($json['errors'][0]['code'])->toBe('schema_mismatch')->and($json['errors'][0]['message'])->toContain($problem);
+    }
+})->with([
+    ['owned by the restricted role', 'changed extension:pg_trgm'],
+    ['member added', 'changed extension:pg_trgm'],
+    ['installed by the superuser', null],
+]);
+
+it('refuses grants to others than the owner, a disabled trigger and database settings the reference lacks (review S2)', function (): void {
+    $restored = RestoreDatabases::target();
+    $reference = RestoreDatabases::sourceFromTarget();
+    $grantee = RestoreDatabases::role('fsa_restore_grantee');
+    RestoreDatabases::admin()->exec("CREATE ROLE {$grantee} NOLOGIN");
+    $db = DB::connection(RestoreDatabases::TARGET);
+    $db->unprepared(implode("\n", [
+        'GRANT SELECT ON users TO PUBLIC;',
+        "GRANT INSERT ON activity_log TO {$grantee};",
+        'ALTER TABLE activity_log DISABLE TRIGGER activity_log_append_only_trg;',
+    ]));
+    DB::purge(RestoreDatabases::TARGET);
+    restoreDbQuery('postgres', "ALTER DATABASE \"{$restored}\" SET work_mem = '64MB'");
+
+    [$code, $json] = restoreDb('audit', ['--database' => $restored, '--reference' => $reference]);
+    $message = (string) ($json['errors'][0]['message'] ?? '');
+
+    expect($code)->toBe(1, json_encode($json))->and($json['errors'][0]['code'])->toBe('schema_mismatch')
+        ->and($message)->toContain('unknown acl:table public.users PUBLIC SELECT')
+        ->and($message)->toContain("unknown acl:table public.activity_log {$grantee} INSERT")
+        ->and($message)->toContain('changed trigger:activity_log.activity_log_append_only_trg')
+        ->and($message)->toContain('database setting work_mem for every role')
+        ->and($message)->not->toContain('64MB');
+});
+
+/*
+ * The restricted role cannot comment on the superuser's pg_trgm, so the restore leaves out the dump's EXTENSION and
+ * COMMENT ON EXTENSION entries (pg_restore --use-list); `--role` gives the superuser's session the role's rights.
+ */
+it('restores a real dump as the restricted role into the prepared database, passes the audit and adopts (review S1)', function (): void {
+    $reference = RestoreDatabases::target();
+    $name = RestoreDatabases::name('restore_rdr');
+    $role = RestoreDatabases::role('fsa_restore_test');
+    putenv(RestoreDatabaseCommand::PASSWORD_ENV.'='.RESTORE_DB_PASSWORD);
+    restoreDb('create', ['--database' => $name, '--restricted-role' => $role]);
+    $file = sys_get_temp_dir().'/fsa-test-audit-'.bin2hex(random_bytes(3)).'.dump';
+    new Process(['pg_dump', '--format=custom', '--no-owner', '--no-privileges', '--file='.$file], null, BackupScratchDatabase::libpq($reference))->mustRun();
+    $toc = new Process(['pg_restore', '--list', '--', $file]);
+    $toc->mustRun();
+    $lines = array_filter(explode("\n", $toc->getOutput()), static fn (string $line): bool => preg_match('/ (?:EXTENSION|COMMENT) - (?:EXTENSION )?pg_trgm\b/', $line) !== 1);
+    file_put_contents($file.'.list', implode("\n", $lines));
+    $restore = new Process(['pg_restore', '--no-owner', '--no-privileges', '--single-transaction', '--exit-on-error', '--role='.$role, '--use-list='.$file.'.list', '--dbname='.$name, '--', $file], null, BackupScratchDatabase::libpq($name));
+    $restore->run();
+    @unlink($file);
+    @unlink($file.'.list');
+
+    [$audit, $auditJson] = restoreDb('audit', ['--database' => $name, '--reference' => $reference]);
+    [$adopt, $adoptJson] = restoreDb('adopt', ['--database' => $name, '--role' => $role]);
+
+    expect($restore->isSuccessful())->toBeTrue($restore->getErrorOutput())
+        ->and($audit)->toBe(0, json_encode($auditJson))
+        ->and($adopt)->toBe(0, json_encode($adoptJson));
 });

@@ -17,10 +17,13 @@ use stdClass;
  * - erased in the source → erased in the target: the source's scrubbed account columns, and the personal data the
  *   erasure removes (ErasureCarry);
  * - deactivated in the source, or no longer there → deactivated, its remember token, API tokens and sessions gone;
- * - a password hash or the MFA settings changed → the source's values.
+ * - a password hash or the MFA settings changed → the source's values;
+ * - an e-mail address changed → the source's, unless another account of the target holds it (counted, not copied).
  *
  * Everything is written with the query builder (no model events, no audit entries: `instance.restored` stays the first
  * entry of the new epoch). Re-activations and new accounts are not carried: a restore only ever tightens access.
+ *
+ * @phpstan-type Counts array{users_erased: int, users_deactivated: int, users_missing: int, passwords: int, mfa: int, emails: int, email_conflicts: int, export_directories: list<array{disk: string, path: string}>}
  */
 final readonly class AccountCarry
 {
@@ -38,10 +41,10 @@ final readonly class AccountCarry
 
     public function __construct(private ConnectionInterface $source, private ConnectionInterface $target) {}
 
-    /** @return array{users_erased: int, users_deactivated: int, users_missing: int, passwords: int, mfa: int, export_directories: list<array{disk: string, path: string}>} */
+    /** @return Counts */
     public function carry(): array
     {
-        $counts = ['users_erased' => 0, 'users_deactivated' => 0, 'users_missing' => 0, 'passwords' => 0, 'mfa' => 0, 'export_directories' => []];
+        $counts = ['users_erased' => 0, 'users_deactivated' => 0, 'users_missing' => 0, 'passwords' => 0, 'mfa' => 0, 'emails' => 0, 'email_conflicts' => 0, 'export_directories' => []];
         $source = $this->source->table('users')->get(self::COLUMNS)->keyBy('id');
         $erasure = new ErasureCarry($this->target);
         foreach ($this->target->table('users')->orderBy('id')->get(self::COLUMNS) as $user) {
@@ -61,8 +64,8 @@ final readonly class AccountCarry
     }
 
     /**
-     * @param  array{users_erased: int, users_deactivated: int, users_missing: int, passwords: int, mfa: int, export_directories: list<array{disk: string, path: string}>}  $counts
-     * @return array{users_erased: int, users_deactivated: int, users_missing: int, passwords: int, mfa: int, export_directories: list<array{disk: string, path: string}>}
+     * @param  Counts  $counts
+     * @return Counts
      */
     private function tighten(stdClass $user, stdClass $before, array $counts): array
     {
@@ -78,8 +81,22 @@ final readonly class AccountCarry
             $this->target->table('users')->where('id', $user->id)->update($mfa);
             $counts['mfa']++;
         }
+        if ($before->email !== $user->email) {
+            $counts[$this->email($user, (string) $before->email) ? 'emails' : 'email_conflicts']++;
+        }
 
         return $counts;
+    }
+
+    /** Copies the source's address; false (nothing written) when another account of the target holds it. */
+    private function email(stdClass $user, string $email): bool
+    {
+        if ($this->target->table('users')->where('email', $email)->where('id', '!=', $user->id)->exists()) {
+            return false;
+        }
+        $this->target->table('users')->where('id', $user->id)->update(['email' => $email]);
+
+        return true;
     }
 
     /** Deactivates an account that is active in the target; false when it was deactivated there already. */

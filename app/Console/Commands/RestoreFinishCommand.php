@@ -52,14 +52,11 @@ final class RestoreFinishCommand extends Command
         } catch (InvalidArgumentException $e) {
             return $this->refuse('invalid_input', $e->getMessage());
         } catch (RestoreRefused $e) {
-            return $this->refuse($e->errorCode, $e->getMessage());
+            return $this->refuse($e->errorCode, $e->getMessage(), $e->hint);
         } catch (QueryException $e) {
             return $this->refuse('database_failed', 'The restored database could not be prepared (SQLSTATE '.($e->errorInfo[0] ?? '?').'): '.($e->errorInfo[2] ?? 'no message'));
         } catch (RuntimeException $e) {
             return $this->refuse('restore_finish_failed', $e->getMessage());
-        }
-        if ($data['decrypt']['failed'] !== []) {
-            return $this->refuse('decrypt_failed', 'The instance\'s APP keys cannot decrypt '.implode(', ', $data['decrypt']['failed']).'.', 'Pass the APP_KEY the backup was made with (`--app-key-file`): it becomes a previous key.');
         }
         if ($this->option('json') === true) {
             return JsonResult::ok(self::NAME, $data, changed: true)->emit($this);

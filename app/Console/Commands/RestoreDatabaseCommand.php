@@ -18,18 +18,19 @@ use InvalidArgumentException;
 /**
  * Database-level steps of `fsa restore`, the drill and `fsa install --from-backup` (plan U17, ADR 0085), in a
  * socket-less one-off of the app service (KTD25) on the maintenance database: `create` (with --restricted-role for an
- * archive without a valid HMAC; its password comes from FSA_RESTORE_DB_PASSWORD by name), `drop`, `swap`, `adopt`,
+ * archive without a valid HMAC; its password comes from FSA_RESTORE_DB_PASSWORD by name), `drop`, `swap`, `rename`, `adopt`,
  * `audit` (SchemaAudit: an unauthenticated archive's code-bearing objects against a database this image migrated) and
  * `list` (DatabaseAdmin). One JSON document with --json; never a password.
  */
-#[Description('Create, swap, adopt, drop or list the databases of an fsa restore')]
+#[Description('Create, swap, rename, adopt, audit, drop or list the databases of an fsa restore')]
 #[Signature('instance:restore-db
-        {action : create, drop, swap, adopt, audit or list}
-        {--database= : The database to create, drop or adopt; with swap the incoming one}
+        {action : create, drop, swap, rename, adopt, audit or list}
+        {--database= : The database to create, drop, rename or adopt; with swap the incoming one}
         {--restricted-role= : create: the role that owns the new database (password in FSA_RESTORE_DB_PASSWORD)}
         {--role= : drop or adopt: the restricted role}
         {--live= : swap: the live database name}
         {--aside= : swap: the name the live database moves to}
+        {--to= : rename: the new name (must be free)}
         {--prefix= : list: the name prefix}
         {--reference= : audit: the database whose schema the restored one must match (migrated by this image)}
         {--json : Print one JSON document on stdout}')]
@@ -71,10 +72,11 @@ final class RestoreDatabaseCommand extends Command
             'create' => $admin->create($this->name('database'), $this->optionalName('restricted-role'), $this->password()),
             'drop' => $admin->drop($this->name('database'), $this->optionalName('role'), RestoreConnections::current()),
             'swap' => $admin->swap($this->name('database'), $this->name('live'), $this->name('aside')),
+            'rename' => $admin->rename($this->name('database'), $this->name('to')),
             'adopt' => $admin->adopt($this->name('database'), $this->name('role')),
             'list' => ['databases' => $admin->list($this->option('prefix') === '' ? '' : $this->name('prefix'))], // '' lists every database
             'audit' => $this->audit($this->name('database'), $this->name('reference')),
-            default => throw new InvalidArgumentException('The action must be create, drop, swap, adopt, audit or list.'),
+            default => throw new InvalidArgumentException('The action must be create, drop, swap, rename, adopt, audit or list.'),
         };
     }
 

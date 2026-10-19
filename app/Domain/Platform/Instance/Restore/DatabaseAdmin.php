@@ -16,9 +16,12 @@ use stdClass;
  *
  * - create: the scratch database a backup is restored into; for an archive without a valid HMAC it belongs to a
  *   restricted role (no superuser, no CREATEDB/CREATEROLE) that pg_restore then logs in as, and PUBLIC may not connect;
- * - adopt: after such a restore the objects and the database go to the superuser, the role is dropped;
+ *   the superuser installs the extensions the migrations use first, so the role owns neither them nor their members;
+ * - adopt: after such a restore the objects and the database go to the superuser, grants to anyone but the owner and
+ *   the database's settings go, the role is dropped;
  * - swap: the restored database takes the live name, the live one moves aside (kept until the restore is verified);
  *   the same call with the names exchanged swaps back;
+ * - rename: a restore-made database to a free name (the put-aside one back to the live name after a half swap);
  * - drop: a scratch or set-aside database, never the live one (DB_DATABASE) and never postgres/template0/template1;
  * - list: databases with a prefix (leftovers of an interrupted restore or drill).
  *
@@ -33,8 +36,31 @@ final readonly class DatabaseAdmin
     /** The only roles a restore creates, adopts from or drops (review: never the app's own user). */
     public const string ROLE = '/^fsa_(?:restore|drill)_[a-z0-9_]{1,40}$/D';
 
-    /** The only databases a restore drops: its scratch, put-aside and drill databases. */
+    /** The only databases a restore drops or renames: its scratch, put-aside and drill databases. */
     public const string DROPPABLE = '/(?:^|_)(?:pre_)?restore_/';
+
+    /** Extensions the migrations create, installed by the superuser before a restricted restore (review S1). */
+    private const array EXTENSIONS = ['pg_trgm'];
+
+    /**
+     * Explicit grants to anyone but the owner on schema-public tables, sequences, columns and routines, as targets and
+     * grantees Postgres quoted itself (review S2). The adopt connection's search_path is pg_catalog, so routines print
+     * schema-qualified.
+     */
+    private const string GRANTS = <<<'SQL'
+        SELECT DISTINCT o.target, CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE quote_ident(pg_get_userbyid(a.grantee)) END AS grantee
+        FROM (
+            SELECT CASE WHEN c.relkind = 'S' THEN 'SEQUENCE ' ELSE 'TABLE ' END || quote_ident(n.nspname) || '.' || quote_ident(c.relname) AS target, c.relowner AS owner, c.relacl AS acl
+            FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p', 'v', 'm', 'S', 'f')
+            UNION ALL
+            SELECT 'TABLE ' || quote_ident(n.nspname) || '.' || quote_ident(c.relname), c.relowner, at.attacl
+            FROM pg_attribute at JOIN pg_class c ON c.oid = at.attrelid JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND at.attacl IS NOT NULL
+            UNION ALL
+            SELECT 'ROUTINE ' || p.oid::regprocedure::text, p.proowner, p.proacl FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public'
+        ) o CROSS JOIN LATERAL aclexplode(o.acl) a
+        WHERE a.grantee <> o.owner
+        ORDER BY 1, 2
+        SQL;
 
     public function __construct(private Connection $admin) {}
 
@@ -71,8 +97,33 @@ final readonly class DatabaseAdmin
         $this->admin->statement('CREATE DATABASE '.$this->quote($database).' OWNER '.$role);
         $this->admin->statement('REVOKE ALL ON DATABASE '.$this->quote($database).' FROM PUBLIC');
         $this->admin->statement('GRANT CONNECT, TEMPORARY ON DATABASE '.$this->quote($database).' TO '.$role);
+        $this->installExtensions($database);
 
         return ['database' => $database, 'owner' => $role, 'restricted' => true];
+    }
+
+    /**
+     * A restore-made database (DROPPABLE) takes a free name: the put-aside database goes back to the live name when a
+     * swap stopped half-way.
+     *
+     * @return array{from: string, to: string}
+     */
+    public function rename(string $from, string $to): array
+    {
+        $this->assertNotReserved($from);
+        $this->assertNotReserved($to);
+        if (preg_match(self::DROPPABLE, $from) !== 1) {
+            throw new RestoreRefused('refused_database', "{$from} is no scratch, put-aside or drill database of a restore; it is never renamed here.");
+        }
+        if (! $this->exists($from)) {
+            throw new RestoreRefused('database_missing', "The database {$from} does not exist.");
+        }
+        if ($this->exists($to)) {
+            throw new RestoreRefused('database_exists', "The database {$to} exists already.");
+        }
+        $this->alterName($from, $to);
+
+        return ['from' => $from, 'to' => $to];
     }
 
     /** @return array{database: string, dropped: bool, role_dropped: bool} */
@@ -121,12 +172,12 @@ final readonly class DatabaseAdmin
         if ($this->exists($aside)) {
             throw new RestoreRefused('database_exists', "The database {$aside} exists already.");
         }
-        $this->rename($live, $aside);
+        $this->alterName($live, $aside);
 
         try {
-            $this->rename($incoming, $live);
+            $this->alterName($incoming, $live);
         } catch (QueryException $e) {
-            $this->rename($aside, $live);
+            $this->alterName($aside, $live);
 
             throw new RestoreRefused('swap_failed', "Renaming {$incoming} to {$live} failed; {$live} is unchanged: ".$e->getMessage(), null, $e);
         }
@@ -136,9 +187,11 @@ final readonly class DatabaseAdmin
 
     /**
      * After a restricted restore: everything the role owns in the database (and the database itself) goes to the
-     * superuser, the role's rights are revoked, PUBLIC gets its default CONNECT and TEMPORARY back, and the role goes.
+     * superuser, the role's rights are revoked, so are grants to anyone else on schema-public tables, sequences and
+     * routines (BackupRole grants again in instance:restore-finish), the database's settings are reset, PUBLIC gets
+     * only its default CONNECT and TEMPORARY back, and the role goes.
      *
-     * @return array{database: string, role: string}
+     * @return array{database: string, role: string, revoked: int, settings_reset: int}
      */
     public function adopt(string $database, string $role): array
     {
@@ -150,16 +203,59 @@ final readonly class DatabaseAdmin
         $db = RestoreConnections::to($database, 'fsa_restore_adopt');
 
         try {
+            $db->statement('SET search_path = pg_catalog');
             $db->statement('REASSIGN OWNED BY '.$role.' TO CURRENT_USER');
             $db->statement('DROP OWNED BY '.$role);
+            $revoked = $this->revokeGrants($db);
         } finally {
             RestoreConnections::close('fsa_restore_adopt');
         }
+        $settings = $this->resetSettings($database);
         $this->admin->statement('ALTER DATABASE '.$this->quote($database).' OWNER TO CURRENT_USER');
+        $this->admin->statement('REVOKE ALL ON DATABASE '.$this->quote($database).' FROM PUBLIC');
         $this->admin->statement('GRANT CONNECT, TEMPORARY ON DATABASE '.$this->quote($database).' TO PUBLIC');
         $this->admin->statement('DROP ROLE '.$role);
 
-        return ['database' => $database, 'role' => $role];
+        return ['database' => $database, 'role' => $role, 'revoked' => $revoked, 'settings_reset' => $settings];
+    }
+
+    /** The superuser installs EXTENSIONS in the new database, so a restricted restore finds them installed (review S1). */
+    private function installExtensions(string $database): void
+    {
+        $db = RestoreConnections::to($database, 'fsa_restore_create');
+
+        try {
+            foreach (self::EXTENSIONS as $extension) {
+                $db->statement('CREATE EXTENSION IF NOT EXISTS '.$extension);
+            }
+        } finally {
+            RestoreConnections::close('fsa_restore_create');
+        }
+    }
+
+    /** Revokes every explicit grant to anyone but the owner (GRANTS); the number of REVOKE statements. */
+    private function revokeGrants(Connection $db): int
+    {
+        $grants = $db->select(self::GRANTS);
+        foreach ($grants as $grant) {
+            $db->statement('REVOKE ALL ON '.$grant->target.' FROM '.$grant->grantee.' CASCADE');
+        }
+
+        return count($grants);
+    }
+
+    /** Resets the database's own and its per-role settings (pg_db_role_setting); the number of rows there were. */
+    private function resetSettings(string $database): int
+    {
+        $rows = $this->admin->select('SELECT s.setrole, quote_ident(r.rolname) AS role FROM pg_db_role_setting s JOIN pg_database d ON d.oid = s.setdatabase LEFT JOIN pg_roles r ON r.oid = s.setrole WHERE d.datname = ?', [$database]);
+        foreach ($rows as $row) {
+            if ((int) $row->setrole !== 0 && is_string($row->role)) {
+                $this->admin->statement('ALTER ROLE '.$row->role.' IN DATABASE '.$this->quote($database).' RESET ALL');
+            }
+        }
+        $this->admin->statement('ALTER DATABASE '.$this->quote($database).' RESET ALL');
+
+        return count($rows);
     }
 
     private function ensureRestrictedRole(string $role, #[SensitiveParameter] string $password): void
@@ -179,7 +275,7 @@ final readonly class DatabaseAdmin
         }
     }
 
-    private function rename(string $from, string $to): void
+    private function alterName(string $from, string $to): void
     {
         for ($attempt = 1; ; $attempt++) {
             $this->admin->select('SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = ? AND pid <> pg_backend_pid()', [$from]);

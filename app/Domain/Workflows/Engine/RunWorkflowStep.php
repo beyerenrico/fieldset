@@ -6,6 +6,7 @@ namespace App\Domain\Workflows\Engine;
 
 use App\Domain\Identity\Models\Organization;
 use App\Domain\Identity\Tenancy\TenantContext;
+use App\Domain\Instance\Runtime\RuntimeSource;
 use App\Domain\Instance\Runtime\RuntimeStateReader;
 use App\Domain\Submissions\Models\Submission;
 use App\Domain\Workflows\Enums\StepType;
@@ -87,17 +88,27 @@ final class RunWorkflowStep implements ShouldQueue
      * A webhook step waits while the instance pauses webhooks after a move (`fsa install --from-backup`, runtime
      * `webhooks.paused`, ADR 0085): it is not claimed, so no attempt is counted and the run stays as it is; the
      * stalled-run sweep (`workflows:tick`) queues it again until `fsa config set webhooks on` lifts the pause.
+     *
+     * Fail closed (review S5): only runtime.json itself, or this process's last good value of it, can say webhooks are
+     * not paused; an unusable file without one holds them. Without a runtime directory (checkout installs, tests) there
+     * is no pause at all.
      */
     private function heldAfterMove(RuntimeStateReader $runtime): bool
     {
-        if ($runtime->current()?->webhooksPaused !== true) {
+        $reading = $runtime->reading();
+        $paused = match ($reading->source) {
+            RuntimeSource::NotConfigured => false,
+            RuntimeSource::File, RuntimeSource::LastGood => $reading->state?->webhooksPaused === true,
+            RuntimeSource::Fallback => true,
+        };
+        if (! $paused) {
             return false;
         }
         $type = WorkflowRun::query()->find($this->runId)?->step($this->stepIndex)['type'] ?? null;
         if ($type !== StepType::Webhook->value) {
             return false;
         }
-        Log::info('Webhook step held: webhooks are paused on this instance until the move is confirmed.', ['run' => $this->runId, 'step' => $this->stepIndex]);
+        Log::info('Webhook step held: webhooks are paused on this instance until the move is confirmed, or runtime.json is unusable.', ['run' => $this->runId, 'step' => $this->stepIndex, 'runtime' => $reading->source->value]);
 
         return true;
     }

@@ -163,3 +163,30 @@ it('reports a source database that does not exist as a database failure', functi
 
     expect($exit)->toBe(1)->and($json['errors'][0]['code'])->toBe('database_failed');
 });
+
+it('writes nothing when a step fails: a decrypt failure leaves no epoch, no audit entry and the credentials, a rerun writes one (review A9)', function (): void {
+    $org = makeOrganization();
+    $old = 'base64:'.base64_encode(random_bytes(32));
+    DB::table('webhook_endpoints')->insert(['organization_id' => $org->id, 'name' => 'hook', 'url' => 'https://hooks.example.com', 'secret' => new Encrypter(base64_decode(substr($old, 7)), 'aes-256-cbc')->encrypt('s', false), 'created_at' => now(), 'updated_at' => now()]);
+    DB::table('sessions')->insert(['id' => 'backup-session', 'user_id' => null, 'payload' => 'x', 'last_activity' => time()]);
+    $useKeys = static function (string $key, array $previous): void {
+        config(['app.key' => $key, 'app.previous_keys' => $previous]);
+        app()->forgetInstance('encrypter');
+        Crypt::clearResolvedInstance('encrypter');
+    };
+    $written = static fn (): array => [
+        DB::table('audit_chain_epochs')->count(), DB::table('activity_log')->where('event', 'instance.restored')->count(), DB::table('sessions')->count(),
+    ];
+
+    $useKeys('base64:'.base64_encode(random_bytes(32)), []);
+    [$refused, $failedJson] = finishRun($this);
+    $afterFailure = [...$written(), RestoreDatabases::roleExists($this->role)];
+    $useKeys('base64:'.base64_encode(random_bytes(32)), [$old]);
+    [$opened, $okJson] = finishRun($this);
+
+    expect($refused)->toBe(1)->and($failedJson['errors'][0]['code'])->toBe('decrypt_failed')
+        ->and($failedJson['errors'][0]['hint'] ?? null)->toContain('--app-key-file')
+        ->and($afterFailure)->toBe([0, 0, 1, false])
+        ->and($opened)->toBe(0, json_encode($okJson))
+        ->and($written())->toBe([1, 1, 0]);
+});
