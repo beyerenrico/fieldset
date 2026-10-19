@@ -118,3 +118,26 @@ it('says at uninstall whether 1.0 ran since the adopt (review V1)', function (bo
     'untouched' => [false, 'its volumes were not changed since', 'was started again'],
     'used meanwhile' => [true, 'was started again since the adopt', 'were not changed'],
 ]);
+
+it('names the adopt and its ways out when another command finds it unfinished (U23 meets U19)', function (bool $started, string $way): void {
+    if ($started) {
+        failStart($this->adopt);
+    } else {
+        $this->adopt->killAt('copy');
+    }
+    $this->adopt->adopt();
+    if (! $started) {
+        $this->adopt->restoreKill();
+    }
+
+    [, $status] = $this->adopt->instance->run('fsa:status');
+    [$backup, $backupJson] = $this->adopt->instance->run('fsa:backup', []);
+    $warning = collect($status['warnings'])->firstWhere('code', 'operation_unfinished');
+
+    expect($warning['hint'] ?? '')->toContain('fsa adopt '.$this->adopt->checkout)->toContain($way)
+        ->and($backup)->toBe(9)->and($backupJson['errors'][0]['code'])->toBe('operation_unfinished')
+        ->and($backupJson['data']['command'])->toBe('fsa adopt '.$this->adopt->checkout);
+})->with([
+    'before start' => [false, 'fsa adopt --abandon'],
+    'after start' => [true, 'fsa uninstall'],
+]);

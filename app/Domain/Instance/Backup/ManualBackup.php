@@ -119,7 +119,8 @@ final readonly class ManualBackup
     {
         $state = $this->directory->hasState() ? $this->directory->state() : null;
         if (! $state instanceof InstanceState || ! InstallRecord::isInstalled($state)) {
-            throw new InvalidInput('The instance is not installed yet.', 'not_installed', 'Run `fsa install` first (it resumes an unfinished install).');
+            $open = $this->journal->current(); // an unfinished install or adopt names itself and its way out (exit 9)
+            throw $open instanceof JournalRecord ? new OperationUnfinished($open) : new InvalidInput('The instance is not installed yet.', 'not_installed', 'Run `fsa install` first (it resumes an unfinished install).');
         }
 
         return $state;
