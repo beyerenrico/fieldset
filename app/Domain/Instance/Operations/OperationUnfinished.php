@@ -8,6 +8,9 @@ use App\Domain\Instance\Config\ConfigRequest;
 use App\Domain\Instance\Demo\DemoOperation;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Output\ExitCode;
+use App\Domain\Instance\Reset\ResetOperation;
+use App\Domain\Instance\Reset\ResetRequest;
+use App\Domain\Instance\Reset\ResetStatus;
 use App\Domain\Instance\Tunnel\TunnelOperation;
 
 /**
@@ -45,6 +48,7 @@ final class OperationUnfinished extends InstanceException
             $record->operation() === 'restore' && is_string($record->context()['backup'] ?? null) => 'fsa restore '.$record->context()['backup'],
             $record->operation() === 'upgrade' => 'fsa upgrade --resume',
             self::rotatesDemoPasswords($record) => 'fsa demo --rotate-passwords',
+            $record->operation() === ResetOperation::OPERATION => ResetRequest::commandLine($record->context()),
             default => 'fsa '.$record->operation(),
         };
     }
@@ -60,7 +64,11 @@ final class OperationUnfinished extends InstanceException
     {
         $request = $record->operation() === 'config' ? ConfigRequest::fromContext($record->context()) : null;
 
-        return $request?->options() ?? (self::rotatesDemoPasswords($record) ? ['--rotate-passwords' => true] : []);
+        return $request?->options() ?? match (true) {
+            self::rotatesDemoPasswords($record) => ['--rotate-passwords' => true],
+            $record->operation() === ResetOperation::OPERATION => ResetRequest::options($record->context()),
+            default => [],
+        };
     }
 
     /** What to run, and what it will do. */
@@ -76,6 +84,7 @@ final class OperationUnfinished extends InstanceException
             'restore' => "Run `{$command}` again with the same flags to resume it (a swap that did not pass its verification is undone first), or `fsa restore --abandon` to bring the instance back as it was before.",
             'upgrade' => "Run `{$command}` once `fsa status` shows no supervisor running (ADR 0086): before the safety backup it brings the previous services back (then run `fsa upgrade` again), from the safety backup until the commit it rolls back to the safety backup, after the commit it only finishes opening.",
             'rollback' => "Run `{$command}` again to resume it (a swap that did not pass its verification is undone first).",
+            ResetOperation::OPERATION => ResetStatus::hint($record),
             TunnelOperation::OPERATION => "Run `{$command}`: it finishes the interrupted `".self::cutOff($record).'`, removes the tunnel whatever state it was left in and brings the stack back to the local URL; `fsa tunnel start` starts a new one afterwards.'.(self::action($record) === 'renew' ? ' `fsa tunnel renew` finishes a cut-off renew too and keeps a running tunnel.' : ''),
             default => "Run `{$command}` again with the same flags to resume it.",
         };

@@ -24,21 +24,43 @@ final readonly class SequenceAdvancer
         return ['sequences' => $this->sequences(), 'number_sequences' => $this->numbers()];
     }
 
-    private function sequences(): int
+    /**
+     * The last value of every used sequence in `public` (never-used ones have none).
+     *
+     * @return array<string, int>
+     */
+    public static function values(ConnectionInterface $db): array
     {
-        $query = "SELECT sequencename, last_value FROM pg_sequences WHERE schemaname = 'public'";
-        $source = collect($this->source->select($query))->mapWithKeys(static fn (stdClass $row): array => [(string) $row->sequencename => $row->last_value]);
+        $rows = $db->select("SELECT sequencename, last_value FROM pg_sequences WHERE schemaname = 'public' AND last_value IS NOT NULL");
+
+        return collect($rows)->mapWithKeys(static fn (stdClass $row): array => [(string) $row->sequencename => (int) $row->last_value])->all();
+    }
+
+    /**
+     * Moves every sequence of `$target` that stands below its floor up to it (a sequence the floors do not name, or one
+     * `$target` lacks, is left alone). `fsa reset` passes the old database's values (U23 review S1).
+     *
+     * @param  array<string, int>  $floors  sequence name => last value
+     * @return int how many were moved
+     */
+    public static function raise(ConnectionInterface $target, array $floors): int
+    {
         $count = 0;
-        foreach ($this->target->select($query) as $row) {
-            $floor = $source->get((string) $row->sequencename);
-            if ($floor === null || ($row->last_value !== null && (int) $row->last_value >= (int) $floor)) {
+        foreach ($target->select("SELECT sequencename, last_value FROM pg_sequences WHERE schemaname = 'public'") as $row) {
+            $floor = $floors[(string) $row->sequencename] ?? null;
+            if ($floor === null || ($row->last_value !== null && (int) $row->last_value >= $floor)) {
                 continue;
             }
-            $this->target->select('SELECT setval(?::regclass, ?, true)', ['public."'.str_replace('"', '""', (string) $row->sequencename).'"', (int) $floor]);
+            $target->select('SELECT setval(?::regclass, ?, true)', ['public."'.str_replace('"', '""', (string) $row->sequencename).'"', $floor]);
             $count++;
         }
 
         return $count;
+    }
+
+    private function sequences(): int
+    {
+        return self::raise($this->target, self::values($this->source));
     }
 
     private function numbers(): int

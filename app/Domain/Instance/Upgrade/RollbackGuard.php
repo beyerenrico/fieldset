@@ -12,6 +12,7 @@ use App\Domain\Instance\Docker\DockerGateway;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Lifecycle\OneOffResult;
 use App\Domain\Instance\Output\ExitCode;
+use App\Domain\Instance\Reset\ResetStatus;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceState;
 
@@ -25,7 +26,7 @@ use App\Domain\Instance\State\InstanceState;
 final readonly class RollbackGuard
 {
     /** History events after which the pre-upgrade backup no longer describes the instance's past. */
-    public const array BLOCKING = ['restored', 'reset', 'installed_from_backup', 'rolled_back'];
+    public const array BLOCKING = ['restored', ResetStatus::EVENT, 'installed_from_backup', 'rolled_back'];
 
     /** What `instance:rollback-loss` counts, as a person calls it. */
     private const array LABELS = ['submissions' => 'submissions', 'activity_log' => 'audit entries', 'users' => 'accounts', 'forms' => 'forms', 'mail_messages' => 'mails', 'attachments' => 'attachments'];

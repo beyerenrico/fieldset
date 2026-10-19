@@ -18,7 +18,8 @@ use Throwable;
  * backup (or any such epoch when the backup's time is unknown): it was restored from another backup, and its state says
  * nothing about what administrators did. Then only a timestamp after the backup (a revocation, an erasure, a
  * deactivation, a soft delete) or an audit entry after it that names the row lets a change through; everything else is
- * counted in `carry_skipped`.
+ * counted in `carry_skipped`. Mode `reset`: the source's chain shows a reset after the backup (U23 review A5): its rows
+ * are other people's accounts under other IDs (a reset recreates the database), so nothing is carried at all.
  *
  * In both modes the cascade guard keeps a child row whose parent the source no longer has (a deleted form's grants, a
  * deleted group's members): the restore brings the parent back, and the child with it (`cascade_skipped`).
@@ -30,6 +31,8 @@ final class CarryScope
     public const string STATE = 'state';
 
     public const string AUDIT = 'audit';
+
+    public const string RESET = 'reset';
 
     /** @var array<string, int> */
     private array $unaudited = [];
@@ -51,12 +54,24 @@ final class CarryScope
             $epochs->where('started_at', '>', $since->utc()->format('Y-m-d H:i:sP'));
         }
 
-        return new self($epochs->exists() ? self::AUDIT : self::STATE, $since, $source);
+        $mode = match (true) {
+            (clone $epochs)->where('reason', 'reset')->exists() => self::RESET,
+            $epochs->exists() => self::AUDIT,
+            default => self::STATE,
+        };
+
+        return new self($mode, $since, $source);
     }
 
     public function audited(): bool
     {
-        return $this->mode === self::AUDIT;
+        return $this->mode !== self::STATE;
+    }
+
+    /** A reset after the backup: the source holds other accounts, nothing may be carried (U23 review A5). */
+    public function afterReset(): bool
+    {
+        return $this->mode === self::RESET;
     }
 
     /**

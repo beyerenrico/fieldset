@@ -18,6 +18,7 @@ use App\Domain\Instance\Operations\JournalRecord;
 use App\Domain\Instance\Operations\OperationJournal;
 use App\Domain\Instance\Operations\OperationUnfinished;
 use App\Domain\Instance\Output\CommandResult;
+use App\Domain\Instance\Reset\ResetStatus;
 use App\Domain\Instance\Restore\RestoreStatus;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceSettings;
@@ -79,6 +80,7 @@ final readonly class StatusReport
         $phone = $this->phone->of($state);
         $backup = $this->backups->of($state, lock: $this->lock->current());
         $restore = new RestoreStatus($this->directory)->of($state, $this->journal->current()); // ADR 0085
+        $reset = ResetStatus::of($state, $this->journal->current()); // ADR 0088
         $data = [...$data,
             // The URL in effect: an active quick tunnel's, as `fsa tunnel` reports it, with the loopback URL beside it (ADR 0082).
             'version' => $state->version(), 'mode' => $state->mode(), 'url' => $phone['data']['tunnel']['url'] ?? $settings->instanceUrl(), 'local_url' => $settings->localUrl(), 'project' => $state->project(),
@@ -88,6 +90,7 @@ final readonly class StatusReport
             ...$phone['data'], // the local CA and the quick tunnel (ADR 0082)
             'last_backup' => $backup['data']['last_success'], 'backup' => $backup['data'],
             'last_restore' => $restore['data']['last'], 'restore' => $restore['data'],
+            'last_reset' => $reset['last'], 'reset' => $reset,
         ];
         $links = $this->links($state, $services);
         $result = CommandResult::ok('status', [...$data, 'sign_in_links' => $links]);

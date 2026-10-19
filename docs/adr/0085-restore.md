@@ -373,3 +373,11 @@ passed, and "may lack objects (an older backup)" made that indistinguishable fro
   its own migrations create (also fixing `changed` false alarms for objects a later migration redefined).
 - Cost: an older unauthenticated archive's audit runs that version's migrations on an empty database (seconds); equal
   sets cost nothing extra.
+
+## Amendment 2026-10-20: a reset after the backup, and the sequence floors of a reset (U23, ADR 0088)
+- CarryScope has a third mode, `reset`: when the pre-restore database's chain shows a `reset` epoch that began after the
+  backup (restoring a reset's safety backup afterwards), its rows are other people's accounts under other IDs, so the
+  R64 carry takes nothing (`carried: []`) and the result warns `carry_skipped_after_reset`. The sequence advance still
+  runs. Before, mode `audit` let timestamped changes through, which matched rows by ID.
+- SequenceAdvancer gained `values()` and `raise()` (the floors from a map); `fsa reset` raises the new database's
+  sequences to the old database's values with them.

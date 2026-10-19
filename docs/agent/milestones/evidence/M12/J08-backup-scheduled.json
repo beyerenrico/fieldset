@@ -45,7 +45,7 @@
         "data": {
             "key": "backup-schedule",
             "from": "03:30",
-            "to": "16:22",
+            "to": "18:37",
             "url": "http://localhost:8082",
             "mode": "local",
             "reverted": false,
@@ -77,53 +77,53 @@
     },
     "skipped_run": {
         "kind": "scheduled",
-        "started_at": "2026-10-19T14:22:00Z",
+        "started_at": "2026-10-19T16:37:00Z",
         "encrypted": true,
         "backup": null,
         "status": "skipped",
         "reason": "lock_held",
-        "message": "An operation holds the instance lock: fsa-test-hold by fsa (container 39d6226133c7, since 2026-10-19T14:19:29Z).",
-        "finished_at": "2026-10-19T14:22:00Z",
+        "message": "An operation holds the instance lock: fsa-test-hold by fsa (container ada597aa5353, since 2026-10-19T16:34:07Z).",
+        "finished_at": "2026-10-19T16:37:00Z",
         "recorded": true
     },
     "status_while_locked": {
         "last": {
             "kind": "scheduled",
-            "started_at": "2026-10-19T14:22:00Z",
+            "started_at": "2026-10-19T16:37:00Z",
             "encrypted": true,
             "backup": null,
             "status": "skipped",
             "reason": "lock_held",
-            "message": "An operation holds the instance lock: fsa-test-hold by fsa (container 39d6226133c7, since 2026-10-19T14:19:29Z).",
-            "finished_at": "2026-10-19T14:22:00Z",
+            "message": "An operation holds the instance lock: fsa-test-hold by fsa (container ada597aa5353, since 2026-10-19T16:34:07Z).",
+            "finished_at": "2026-10-19T16:37:00Z",
             "recorded": true
         },
         "last_success": {
             "kind": "manual",
-            "started_at": "2026-10-19T14:17:42Z",
+            "started_at": "2026-10-19T16:32:43Z",
             "encrypted": true,
-            "backup": "manual-20261019T141742Z",
+            "backup": "manual-20261019T163243Z",
             "status": "succeeded",
             "bytes": 276744,
             "missing_files": 0,
-            "finished_at": "2026-10-19T14:17:42Z",
+            "finished_at": "2026-10-19T16:32:44Z",
             "recorded": true
         },
         "schedule": {
-            "time": "16:22",
+            "time": "18:37",
             "time_zone": "Europe/Berlin",
             "retention": 1,
-            "next_run": "2026-10-20T14:22:00Z"
+            "next_run": "2026-10-20T16:37:00Z"
         },
         "encrypted": true,
         "directory": "<work>/fsa-test-j08/backups",
         "backups": {
             "count": 3,
-            "bytes": 538885,
+            "bytes": 538891,
             "newest": {
-                "name": "manual-20261019T141742Z",
+                "name": "manual-20261019T163243Z",
                 "kind": "manual",
-                "created_at": "2026-10-19T14:17:42Z",
+                "created_at": "2026-10-19T16:32:43Z",
                 "bytes": 276744,
                 "encrypted": true,
                 "kept": false
@@ -135,17 +135,17 @@
     },
     "scheduled_run": {
         "kind": "scheduled",
-        "started_at": "2026-10-19T14:23:00Z",
+        "started_at": "2026-10-19T16:38:00Z",
         "encrypted": true,
-        "backup": "scheduled-20261019T142300Z",
+        "backup": "scheduled-20261019T163800Z",
         "status": "succeeded",
         "bytes": 276744,
         "missing_files": 0,
-        "free_bytes": 133115871232,
+        "free_bytes": 133579051008,
         "pruned": [
             "scheduled-20261001T033000Z"
         ],
-        "finished_at": "2026-10-19T14:23:02Z",
+        "finished_at": "2026-10-19T16:38:01Z",
         "recorded": true
     },
     "backup_runs": [
@@ -157,41 +157,41 @@
     "status_after": {
         "last": {
             "kind": "scheduled",
-            "started_at": "2026-10-19T14:23:00Z",
+            "started_at": "2026-10-19T16:38:00Z",
             "encrypted": true,
-            "backup": "scheduled-20261019T142300Z",
+            "backup": "scheduled-20261019T163800Z",
             "status": "succeeded",
             "bytes": 276744,
             "missing_files": 0,
-            "finished_at": "2026-10-19T14:23:02Z",
+            "finished_at": "2026-10-19T16:38:01Z",
             "recorded": true
         },
         "last_success": {
             "kind": "scheduled",
-            "started_at": "2026-10-19T14:23:00Z",
+            "started_at": "2026-10-19T16:38:00Z",
             "encrypted": true,
-            "backup": "scheduled-20261019T142300Z",
+            "backup": "scheduled-20261019T163800Z",
             "status": "succeeded",
             "bytes": 276744,
             "missing_files": 0,
-            "finished_at": "2026-10-19T14:23:02Z",
+            "finished_at": "2026-10-19T16:38:01Z",
             "recorded": true
         },
         "schedule": {
-            "time": "16:22",
+            "time": "18:37",
             "time_zone": "Europe/Berlin",
             "retention": 1,
-            "next_run": "2026-10-20T14:22:00Z"
+            "next_run": "2026-10-20T16:37:00Z"
         },
         "encrypted": true,
         "directory": "<work>/fsa-test-j08/backups",
         "backups": {
             "count": 3,
-            "bytes": 815606,
+            "bytes": 815612,
             "newest": {
-                "name": "scheduled-20261019T142300Z",
+                "name": "scheduled-20261019T163800Z",
                 "kind": "scheduled",
-                "created_at": "2026-10-19T14:23:00Z",
+                "created_at": "2026-10-19T16:38:00Z",
                 "bytes": 276744,
                 "encrypted": true,
                 "kept": false
@@ -205,8 +205,8 @@
         {
             "kind": "service",
             "status": "started",
-            "started_at": "2026-10-19T14:16:09Z",
-            "finished_at": "2026-10-19T14:16:09Z",
+            "started_at": "2026-10-19T16:31:03Z",
+            "finished_at": "2026-10-19T16:31:03Z",
             "encrypted": false,
             "schedule": "03:30",
             "time_zone": "Europe/Berlin",
@@ -215,22 +215,22 @@
         },
         {
             "kind": "manual",
-            "started_at": "2026-10-19T14:16:53Z",
+            "started_at": "2026-10-19T16:31:53Z",
             "encrypted": false,
-            "backup": "manual-20261019T141653Z",
+            "backup": "manual-20261019T163153Z",
             "status": "succeeded",
-            "bytes": 262118,
+            "bytes": 262124,
             "missing_files": 0,
-            "free_bytes": 134286356480,
+            "free_bytes": 133694074880,
             "pruned": [],
-            "finished_at": "2026-10-19T14:16:53Z",
+            "finished_at": "2026-10-19T16:31:53Z",
             "recorded": true
         },
         {
             "kind": "service",
             "status": "started",
-            "started_at": "2026-10-19T14:17:03Z",
-            "finished_at": "2026-10-19T14:17:03Z",
+            "started_at": "2026-10-19T16:32:04Z",
+            "finished_at": "2026-10-19T16:32:04Z",
             "encrypted": true,
             "schedule": "03:30",
             "time_zone": "Europe/Berlin",
@@ -239,22 +239,22 @@
         },
         {
             "kind": "manual",
-            "started_at": "2026-10-19T14:17:42Z",
+            "started_at": "2026-10-19T16:32:43Z",
             "encrypted": true,
-            "backup": "manual-20261019T141742Z",
+            "backup": "manual-20261019T163243Z",
             "status": "succeeded",
             "bytes": 276744,
             "missing_files": 0,
-            "free_bytes": 134250008576,
+            "free_bytes": 133682139136,
             "pruned": [],
-            "finished_at": "2026-10-19T14:17:42Z",
+            "finished_at": "2026-10-19T16:32:44Z",
             "recorded": true
         },
         {
             "kind": "service",
             "status": "started",
-            "started_at": "2026-10-19T14:17:49Z",
-            "finished_at": "2026-10-19T14:17:49Z",
+            "started_at": "2026-10-19T16:32:52Z",
+            "finished_at": "2026-10-19T16:32:52Z",
             "encrypted": true,
             "schedule": "03:30",
             "time_zone": "Europe/Berlin",
@@ -264,38 +264,38 @@
         {
             "kind": "service",
             "status": "started",
-            "started_at": "2026-10-19T14:18:32Z",
-            "finished_at": "2026-10-19T14:18:32Z",
+            "started_at": "2026-10-19T16:33:32Z",
+            "finished_at": "2026-10-19T16:33:32Z",
             "encrypted": true,
-            "schedule": "16:22",
+            "schedule": "18:37",
             "time_zone": "Europe/Berlin",
             "removed": [],
             "recorded": true
         },
         {
             "kind": "scheduled",
-            "started_at": "2026-10-19T14:22:00Z",
+            "started_at": "2026-10-19T16:37:00Z",
             "encrypted": true,
             "backup": null,
             "status": "skipped",
             "reason": "lock_held",
-            "message": "An operation holds the instance lock: fsa-test-hold by fsa (container 39d6226133c7, since 2026-10-19T14:19:29Z).",
-            "finished_at": "2026-10-19T14:22:00Z",
+            "message": "An operation holds the instance lock: fsa-test-hold by fsa (container ada597aa5353, since 2026-10-19T16:34:07Z).",
+            "finished_at": "2026-10-19T16:37:00Z",
             "recorded": true
         },
         {
             "kind": "scheduled",
-            "started_at": "2026-10-19T14:23:00Z",
+            "started_at": "2026-10-19T16:38:00Z",
             "encrypted": true,
-            "backup": "scheduled-20261019T142300Z",
+            "backup": "scheduled-20261019T163800Z",
             "status": "succeeded",
             "bytes": 276744,
             "missing_files": 0,
-            "free_bytes": 133115871232,
+            "free_bytes": 133579051008,
             "pruned": [
                 "scheduled-20261001T033000Z"
             ],
-            "finished_at": "2026-10-19T14:23:02Z",
+            "finished_at": "2026-10-19T16:38:01Z",
             "recorded": true
         }
     ]

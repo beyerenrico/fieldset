@@ -287,7 +287,7 @@ describe('fsa wrapper', function (): void {
             'errors' => [[
                 'code' => 'unknown_command',
                 'message' => "Unknown fsa command: {$command}",
-                'hint' => 'Available commands: backup, config, demo, doctor, install, login-link, logs, restore, rollback, status, tunnel, uninstall, upgrade, version. Run fsa without arguments to list them; put flags after the command or write them as --flag=value.',
+                'hint' => 'Available commands: backup, config, demo, doctor, install, login-link, logs, reset, restore, rollback, status, tunnel, uninstall, upgrade, version. Run fsa without arguments to list them; put flags after the command or write them as --flag=value.',
                 'retryable' => false,
             ]],
         ])->and($process->getErrorOutput())->toBe('');
@@ -296,7 +296,7 @@ describe('fsa wrapper', function (): void {
         'typo with a leading flag' => [['--json', 'stauts'], true],
         'quote in the name' => [['--json', 'x"y\\z'], true],
         'two words' => [['--json', 'logs status'], true],
-        'human' => [['migrate'], false],
+        'human' => [['migrate'], false], // `restore` shipped with U17 (ADR 0085), `reset` with U23 (ADR 0088), `upgrade` and `rollback` with U18 (ADR 0086)
         'value of a flag no command knows' => [['--json', '--colour', 'red', 'install'], true],
     ]);
 

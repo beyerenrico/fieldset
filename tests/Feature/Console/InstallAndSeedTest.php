@@ -29,6 +29,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
+use Spatie\Permission\PermissionRegistrar;
 use Tests\Feature\Documents\DocumentFixtures;
 
 it('installs the first organization and owner', function (): void {
@@ -261,4 +262,36 @@ it('reports an existing installation in JSON as unchanged', function (): void {
         ->and($json['secrets'])->toBe([])
         ->and($json['warnings'][0]['code'])->toBe('already_installed')
         ->and(LoginLink::query()->count())->toBe(1);
+});
+
+it('creates organization, owner, operator role and owner link in one transaction: a failure leaves none of them (U23 review A7)', function (): void {
+    Organization::created(static fn () => throw new RuntimeException('organization listener failed'));
+
+    expect(fn () => Artisan::call('app:install', ['--organization' => 'Acme Forms', '--name' => 'Olivia Owner', '--email' => 'owner@example.test', '--owner-link' => true, '--json' => true]))
+        ->toThrow(RuntimeException::class, 'organization listener failed');
+    expect(Organization::query()->withTrashed()->count())->toBe(0)
+        ->and(User::query()->where('email', 'owner@example.test')->exists())->toBeFalse()
+        ->and(DB::table('platform_admins')->count())->toBe(0);
+});
+
+it('forgets the permission cache a failed install filled with rows that were rolled back: the next install succeeds (V7)', function (): void {
+    $switch = new ArrayObject(['fail' => true]);
+    Organization::created(static function () use ($switch): void {
+        app(PermissionRegistrar::class)->getPermissions(); // cached inside the transaction
+        if ($switch['fail'] === true) {
+            throw new RuntimeException('organization listener failed');
+        }
+    });
+    $options = ['--organization' => 'Acme Forms', '--name' => 'Olivia Owner', '--email' => 'owner@example.test', '--owner-link' => true, '--json' => true];
+
+    expect(fn () => Artisan::call('app:install', $options))->toThrow(RuntimeException::class);
+    $cached = app(PermissionRegistrar::class)->getPermissions()->count(); // no phantom rows of the rollback
+    $stored = DB::table('permissions')->count();
+    $switch['fail'] = false;
+    $code = Artisan::call('app:install', $options);
+
+    expect($cached)->toBe($stored)
+        ->and($code)->toBe(0, Artisan::output())
+        ->and(Organization::query()->count())->toBe(1)
+        ->and(DB::table('platform_admins')->count())->toBe(1);
 });

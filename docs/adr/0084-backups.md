@@ -217,6 +217,20 @@ well inside the slot; the gate's J10 run can record it.
 
 ## Amendment 2026-10-20: pre-upgrade safety backups (U18, ADR 0086)
 After a committed upgrade, `fsa upgrade` removes every older `safety-upgrade-*` backup (R57: they replace each other only
-after a commit; those of failed upgrades stay until then) and seals its own when encryption is on. Restore, reset and
-rollback safety backups are never removed. Before any migration the upgrade verifies its safety backup with the
-restore's prepare step (checksums, HMAC, `pg_restore --list`, the migration set); a backup that fails is exit 9.
+after a commit; those of failed upgrades stay until then) and every `safety-rollback-*` one, and seals its own when
+encryption is on. A completed `fsa rollback` keeps only its own `safety-rollback-*`. Restore and reset safety backups are
+never removed. Every way an upgrade or a rollback goes back (revert, abort, return) seals the safety backups it took,
+also one a killed run made before the journal named it (review S1); only an exit-8 halt keeps them plain. Before any
+migration the upgrade verifies its safety backup with the restore's prepare step (checksums, HMAC, `pg_restore --list`,
+the migration set); a backup that fails is exit 9.
+
+## Amendment 2026-10-20: what reset changed (U23, ADR 0088)
+- `fsa reset` takes `SafetyBackup::take($state, 'reset', $lock)` after the quiesce and the ledger line, and seals it on
+  every way it closes. With `--no-backup` while a real organization exists it writes
+  `backups/audit-export-reset-<UTC>.jsonl` (0600) instead: no backup set, so BackupStore never lists it and retention
+  never deletes it.
+- `ChainEpoch::begin('reset', …)` now has its caller (`instance:reset epoch`); the reset's ledger line adds `journal`,
+  `demo` and `no_backup`.
+- `fsa backup` refuses while any operation journal is open (exit 9 `operation_unfinished`, checked under the lock; U23
+  second review A8): a half-reset or half-restored database is no state worth a backup. The backup daemon cannot read
+  the journal; operations stop the backup service and keep it stopped until their `open` phase (ADR 0088).

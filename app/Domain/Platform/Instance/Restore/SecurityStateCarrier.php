@@ -29,6 +29,9 @@ final readonly class SecurityStateCarrier
     {
         return $this->target->transaction(function (): array {
             $scope = CarryScope::detect($this->source, $this->target, $this->backupCreatedAt);
+            if ($scope->afterReset()) {
+                return ['carried' => [], ...$scope->report()]; // matching rows by ID would give one person's state to another
+            }
             $carried = [
                 ...new AccountCarry($this->source, $this->target, $scope)->carry(),
                 ...new AccessCarry($this->source, $this->target, $scope)->carry(),
