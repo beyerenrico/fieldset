@@ -7,6 +7,7 @@ namespace App\Domain\Instance\Console;
 use App\Domain\Instance\Adopt\AdoptOperation;
 use App\Domain\Instance\Adopt\AdoptRequest;
 use App\Domain\Instance\Output\CommandResult;
+use App\Domain\Instance\Output\Confirmation;
 use App\Domain\Instance\Output\InvalidInput;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
@@ -26,14 +27,16 @@ use Illuminate\Console\Attributes\Signature;
         {--abandon : Undo an adopt that stopped half-way: start 1.0 again and remove what adopt created here}')]
 final class AdoptCommand extends FsaCommand
 {
-    protected function confirmationPrompt(FsaContext $context): string
+    /** `data` names the checkout and the new instance's directory (M12 gate O6). */
+    protected function confirmationPrompt(FsaContext $context): Confirmation
     {
         if ($this->option('abandon') === true) {
-            return 'Undo the interrupted adopt: start 1.0 again and remove the containers, volumes and files it created here?';
+            return new Confirmation('Undo the interrupted adopt: start 1.0 again and remove the containers, volumes and files it created here?', ['abandon' => true]);
         }
         $checkout = $this->checkout();
 
-        return "Stop the 1.0 install in {$checkout}, back it up and copy its data into a new instance in {$context->directory()->root}? Its checkout and volumes are not changed, so 1.0 can be started again.";
+        return new Confirmation("Stop the 1.0 install in {$checkout}, back it up and copy its data into a new instance in {$context->directory()->root}? Its checkout and volumes are not changed, so 1.0 can be started again.",
+            ['checkout' => $checkout, 'dir' => $context->directory()->root]);
     }
 
     protected function perform(FsaContext $context): CommandResult

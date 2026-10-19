@@ -6,6 +6,7 @@ use App\Domain\Instance\Backup\AgeCli;
 use App\Domain\Instance\Backup\BackupSealer;
 use App\Domain\Instance\Backup\BackupStore;
 use App\Domain\Instance\Backup\KeySetup;
+use App\Domain\Instance\Console\PassphraseInput;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Output\InvalidInput;
 use Tests\Support\Instance\ConfigFixture;
@@ -179,6 +180,20 @@ it('turns encryption on with config set: identity written, only the recipient in
     [$offCode, $off] = $fixture->set('backup-encryption', 'off');
     expect($offCode)->toBe(0)->and($off['data']['to'])->toBe('off')->and($fixture->state()->recipients())->toBe([])
         ->and(file_exists($this->identity))->toBeTrue();
+});
+
+it('calls an empty passphrase file or nothing on stdin passphrase_missing, not a weak passphrase (M12 gate O7)', function (): void {
+    app()->instance(AgeCli::class, fakeAge());
+    $fixture = new ConfigFixture;
+    file_put_contents($this->outside.'/empty.txt', "\n");
+    app()->instance(PassphraseInput::STDIN, static fn (): string => '');
+
+    [$fileCode, $file] = $fixture->set('backup-encryption', 'on', ['--identity-out' => $this->identity, '--passphrase-file' => $this->outside.'/empty.txt']);
+    [$stdinCode, $stdin] = $fixture->set('backup-encryption', 'on', ['--identity-out' => $this->identity, '--passphrase-stdin' => true]);
+
+    expect($fileCode)->toBe(2)->and($file['errors'][0]['code'])->toBe('passphrase_missing')->and($file['errors'][0]['message'])->toContain('is empty')
+        ->and($stdinCode)->toBe(2)->and($stdin['errors'][0]['code'])->toBe('passphrase_missing')->and($stdin['errors'][0]['hint'])->toContain('--passphrase-file')
+        ->and(file_exists($this->identity))->toBeFalse();
 });
 
 it('refuses backup-encryption on without an identity path or passphrase, inside the instance directory, or with a weak passphrase', function (): void {

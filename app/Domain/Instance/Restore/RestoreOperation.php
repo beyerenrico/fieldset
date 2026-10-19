@@ -13,11 +13,14 @@ use App\Domain\Instance\Install\InstallRecord;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Operations\ContainerIdentity;
 use App\Domain\Instance\Operations\InstanceLock;
+use App\Domain\Instance\Operations\Interruption;
 use App\Domain\Instance\Operations\JournalRecord;
 use App\Domain\Instance\Operations\Ledger;
 use App\Domain\Instance\Operations\LockHandle;
 use App\Domain\Instance\Operations\LockRecord;
+use App\Domain\Instance\Operations\OperationJournal;
 use App\Domain\Instance\Operations\OperationRun;
+use App\Domain\Instance\Operations\OperationUnfinished;
 use App\Domain\Instance\Operations\Supervisor;
 use App\Domain\Instance\Output\CommandResult;
 use App\Domain\Instance\Output\ExitCode;
@@ -42,8 +45,13 @@ use Throwable;
  * went down the previous database and volume come back (exit 5, the journaled phase `return`), and when that fails too
  * everything stops (exit 8). A resumed run repeats the phases before the swap from a clean scratch state (an instance it
  * finds quiesced goes through the abort path on a failure, never "nothing changed"), continues a return that began,
- * returns to the previous instance when it finds a swap that did not pass its verification, and finishes opening and
- * cleaning up after one that did.
+ * returns to the previous instance when it finds a swap killed half-way, verifies a completed swap again (and returns when
+ * that fails), and finishes opening and cleaning up after one that passed.
+ *
+ * M12 gate: the resume needs the inputs the first run had (ResumeInputs: exit 2 before the lock, never the way back, O2);
+ * a resumed run that finds writers running takes the heads and the safety backup again (D7, as a reset); SIGTERM, SIGINT
+ * and SIGHUP are recorded and handled at the next phase boundary like a failure (Interruption, O8, ADR 0085): before
+ * the gate goes down the restore goes back.
  */
 final readonly class RestoreOperation
 {
@@ -64,25 +72,45 @@ final readonly class RestoreOperation
         private Ledger $ledger,
         private RestoreSpace $space,
         private OlderBackupMigration $olderBackup,
+        private OperationJournal $journal,
+        private Interruption $interruption,
     ) {}
 
     public function restore(RestoreRequest $request, FsaContext $context): CommandResult
     {
         $state = self::installed($this->directory);
+        $open = $this->journal->current();
+        if ($open instanceof JournalRecord && $open->operation() === self::OPERATION && ($open->context()['backup'] ?? null) === $request->backup) {
+            ResumeInputs::assert($open, $request, self::preparesAgain($open));
+        }
 
-        return $this->supervisor->run(
+        return $this->interruption->guard(fn (): CommandResult => $this->supervisor->run(
             self::OPERATION, $this->identity->holder('fsa', $request->actorUid),
             fn (OperationRun $run): CommandResult => $this->steps($run, $state, $request),
             resume: true, context: $request->toContext(), progress: $context->progress,
             accepts: static fn (JournalRecord $record): bool => ($record->context()['backup'] ?? null) === $request->backup,
-        );
+        ));
     }
 
+    /** Whether a resumed run of this journal prepares the backup again: neither going back nor past the start of its swap. */
+    public static function preparesAgain(JournalRecord $record): bool
+    {
+        return ! $record->hasStarted('abort') && ! $record->hasStarted('return') && ! $record->hasStarted('swap');
+    }
+
+    /**
+     * The installed instance's state. Not installed yet: an unfinished install, install from a backup or adopt names itself
+     * and its way out (exit 9 `operation_unfinished`, M12 gate C4), else exit 2 `not_installed`.
+     *
+     * @throws InvalidInput|OperationUnfinished
+     */
     public static function installed(InstanceDirectory $directory): InstanceState
     {
         $state = $directory->hasState() ? $directory->state() : null;
         if (! $state instanceof InstanceState || ! InstallRecord::isInstalled($state)) {
-            throw new InvalidInput('The instance is not installed yet.', 'not_installed', 'Run `fsa install` first; `fsa install --from-backup <backup>` installs from a backup.');
+            $open = new OperationJournal($directory)->current();
+            throw $open instanceof JournalRecord ? new OperationUnfinished($open)
+                : new InvalidInput('The instance is not installed yet.', 'not_installed', 'Run `fsa install` first; `fsa install --from-backup <backup>` installs from a backup.');
         }
 
         return $state;
@@ -123,6 +151,7 @@ final readonly class RestoreOperation
             $intake = $run->phase('prepare', fn (): array => $this->prepare($state, $request, $names), changes: false, always: true);
             $backup = PreparedBackup::fromArray($intake['backup']);
             $run->phase('space', fn (): array => $this->space->assert($backup, $run->record()->hasCompleted('safety_backup')), changes: false, always: true);
+            $this->interruption->checkpoint();
         } catch (Throwable $e) {
             if ($quiesced) {
                 return $this->recovery->abort($run, $state, $project, $names, $e, true, RestoreFinale::safety($run->record()));
@@ -132,30 +161,50 @@ final readonly class RestoreOperation
             throw $e;
         }
         try {
-            $run->phase('quiesce', function () use ($state, $project): array {
-                $this->stack->quiesce($state, $project); // the gate's token is raised again before the verification
-
-                return ['gate' => 'raised'];
-            }, always: true);
-            $previous = $run->phase('ledger', fn (): array => $this->recordLedger($state, $project, $backup, $request, $run->record()->id()));
-            $run->phase('safety_backup', fn (): array => $this->safety->take($state, 'restore', new LockHandle($this->lockRecord())));
-            $run->phase('restore_database', fn (): array => $this->restoreDatabase($state, $project, $backup, $names), always: true);
-            if ($backup->migrations['relation'] === MigrationSet::OLDER) { // the upgrade child (U18): this release's schema before the carry
-                $run->phase('upgrade_child', fn (): array => $this->olderBackup->run($project, $names->scratch, $backup->version(), $names->id), always: true);
-            }
-            $run->phase('restore_storage', function () use ($state, $backup, $names): array {
-                $this->storage->remove($names->freshVolume); // what an interrupted attempt left (never the volume in use)
-                $this->storage->fill($state, $names->freshVolume, $backup->storage['archive'] ?? null);
-
-                return ['volume' => $names->freshVolume];
-            }, always: true);
-            $finish = $run->phase('finish', fn (): array => $this->databases->finish($project, $names->scratch, $names->live, $backup, $this->seed($previous), $request->actorUid, $previous['input'], $names->id, $this->previousKeys($request, $intake)), always: true);
-            $run->phase('erasures', fn (): array => $this->storage->removeErased($state, $names->freshVolume, $this->exportDirectories($finish)), always: true);
+            $this->restoreSide($run, $state, $project, $names, $request, $backup, $intake, $quiesced);
         } catch (Throwable $e) {
             return $this->recovery->abort($run, $state, $project, $names, $e, $run->record()->hasStarted('quiesce'), RestoreFinale::safety($run->record()));
         }
 
         return $this->finale->swap($run, $state, $project, $names, $intake, $this->keysToAdd($request, $intake));
+    }
+
+    /**
+     * Quiesce up to the erasures, with a checkpoint for a signal after each phase (O8). A resumed run that finds writers
+     * running (started after a kill) takes the ledger heads and the safety backup again (D7).
+     *
+     * @param  array<string, mixed>  $intake
+     */
+    private function restoreSide(OperationRun $run, InstanceState $state, ComposeProject $project, RestoreNames $names, RestoreRequest $request, PreparedBackup $backup, array $intake, bool $quiesced): void
+    {
+        $ran = $quiesced && $this->stack->writersRunning($project);
+        $run->phase('quiesce', function () use ($state, $project): array {
+            $this->stack->quiesce($state, $project); // the gate's token is raised again before the verification
+
+            return ['gate' => 'raised'];
+        }, ['writers_ran' => $ran], always: true); // start data: a killed quiesce still says writers ran
+        $this->interruption->checkpoint();
+        $previous = $run->phase('ledger', fn (): array => $this->recordLedger($state, $project, $backup, $request, $run->record()->id()), always: ! $run->record()->completedSince('ledger', 'quiesce', 'writers_ran'));
+        $this->interruption->checkpoint();
+        $run->phase('safety_backup', fn (): array => $this->safety->take($state, 'restore', new LockHandle($this->lockRecord())), always: ! $run->record()->completedSince('safety_backup', 'quiesce', 'writers_ran'));
+        $this->interruption->checkpoint();
+        $run->phase('restore_database', fn (): array => $this->restoreDatabase($state, $project, $backup, $names), always: true);
+        $this->interruption->checkpoint();
+        if ($backup->migrations['relation'] === MigrationSet::OLDER) { // the upgrade child (U18): this release's schema before the carry
+            $run->phase('upgrade_child', fn (): array => $this->olderBackup->run($project, $names->scratch, $backup->version(), $names->id), always: true);
+            $this->interruption->checkpoint();
+        }
+        $run->phase('restore_storage', function () use ($state, $backup, $names): array {
+            $this->storage->remove($names->freshVolume); // what an interrupted attempt left (never the volume in use)
+            $this->storage->fill($state, $names->freshVolume, $backup->storage['archive'] ?? null);
+
+            return ['volume' => $names->freshVolume];
+        }, always: true);
+        $this->interruption->checkpoint();
+        $finish = $run->phase('finish', fn (): array => $this->databases->finish($project, $names->scratch, $names->live, $backup, $this->seed($previous), $request->actorUid, $previous['input'], $names->id, $this->previousKeys($request, $intake)), always: true);
+        $this->interruption->checkpoint();
+        $run->phase('erasures', fn (): array => $this->storage->removeErased($state, $names->freshVolume, $this->exportDirectories($finish)), always: true);
+        $this->interruption->checkpoint();
     }
 
     /** @return array<string, mixed> */

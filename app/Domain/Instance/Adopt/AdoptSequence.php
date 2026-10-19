@@ -15,6 +15,7 @@ use App\Domain\Instance\Install\InstanceStack;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Lifecycle\AppCommands;
 use App\Domain\Instance\Lifecycle\ComposeFile;
+use App\Domain\Instance\Operations\Interruption;
 use App\Domain\Instance\Operations\JournalRecord;
 use App\Domain\Instance\Operations\OperationRun;
 use App\Domain\Instance\Output\ExitCode;
@@ -27,7 +28,8 @@ use App\Domain\Instance\State\InstanceState;
  * up → migrate → baseline. Between them, and on every run before `start`, the newest journaled fence must still hold
  * (LegacyFence, review A1): a 1.0 started again in between stops the adopt instead of 2.0 starting on stale data. The
  * baseline of "writes since adopt" is taken last, before 2.0 serves anything (review A2): the smoke test that follows
- * writes no counted row (its mail goes out without the mail log, its PDF without a rendition row).
+ * writes no counted row (its mail goes out without the mail log, its PDF without a rendition row). A signal is handled
+ * after each phase (Interruption, M12 gate O8): AdoptOperation goes back as on a failure.
  */
 final readonly class AdoptSequence
 {
@@ -41,6 +43,7 @@ final readonly class AdoptSequence
         private AdoptData $data,
         private AppCommands $app,
         private BackupRunner $backups,
+        private Interruption $interruption,
     ) {}
 
     /**
@@ -50,24 +53,32 @@ final readonly class AdoptSequence
     public function run(OperationRun $run, LegacyCheckout $checkout, LegacyInstall $legacy, array $preflight, AdoptRequest $request, FsaContext $context): array
     {
         $run->phase('secrets', fn (): array => $this->keys->ensureKeys(static fn (): array => [$checkout->appKey(), $checkout->previousKeys()], $context->redactor));
+        $this->interruption->checkpoint();
         $run->phase('state', fn (): array => $this->writeState($preflight, $context->facts));
         $state = $this->directory->state();
         $project = ComposeProject::forInstance($state, $this->directory);
         $run->phase('pull', fn (): array => $this->stack->pull(), changes: false);
+        $this->interruption->checkpoint();
         $this->assertStopped($run, $state, $legacy);
         $run->phase(self::QUIESCE, fn (): array => $this->data->quiesce($state, $legacy, $request->dropJobs, (int) ($preflight['redis_db'] ?? 0)), maxSeconds: QueueDrain::SECONDS + 300);
+        $this->interruption->checkpoint();
         $this->assertStopped($run, $state, $legacy); // before the backup: the writers stayed stopped
         $run->phase('backup_1_0', fn (): array => $this->data->backup($state, $legacy, $checkout, $run->record()->id()));
+        $this->interruption->checkpoint();
         // stop_postgres_1_0 checks the writers' fence itself before it records Postgres's (review V6).
         $run->phase('stop_postgres_1_0', fn (): array => $this->data->stopData($state, $legacy, self::fence($run->record())));
+        $this->interruption->checkpoint();
         $this->assertStopped($run, $state, $legacy); // before the copy
         $run->phase('copy', fn (): array => $this->data->copy($state, $project, $legacy));
+        $this->interruption->checkpoint();
         $this->assertStopped($run, $state, $legacy); // after the copy: nothing started 1.0's Postgres while it ran
         $backup = $run->record()->phaseData('backup_1_0');
         $run->phase('verify', fn (): array => $this->data->verify($state, $project, $legacy, DataSnapshot::fromArray(is_array($backup['snapshot'] ?? null) ? $backup['snapshot'] : [])));
+        $this->interruption->checkpoint();
         $run->phase('up', fn (): array => [...$this->stack->up($project, Installer::INFRASTRUCTURE), ...$this->stack->trustGateway($project, $preflight)]);
         $run->phase('migrate', fn (): array => $this->migrate($project));
         $run->phase('baseline', fn (): array => ['snapshot' => $this->data->snapshot($state, $project, $legacy)->toArray()], changes: false);
+        $this->interruption->checkpoint();
         $this->assertStopped($run, $state, $legacy); // before 2.0 starts
 
         return self::phaseData($run->record());

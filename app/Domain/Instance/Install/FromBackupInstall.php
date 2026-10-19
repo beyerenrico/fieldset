@@ -15,7 +15,9 @@ use App\Domain\Instance\Lifecycle\ComposeFile;
 use App\Domain\Instance\Lifecycle\SignInDelivery;
 use App\Domain\Instance\Operations\ContainerIdentity;
 use App\Domain\Instance\Operations\JournalRecord;
+use App\Domain\Instance\Operations\OperationJournal;
 use App\Domain\Instance\Operations\OperationRun;
+use App\Domain\Instance\Operations\ResumeCommand;
 use App\Domain\Instance\Operations\Supervisor;
 use App\Domain\Instance\Output\CommandResult;
 use App\Domain\Instance\Output\ExitCode;
@@ -26,6 +28,7 @@ use App\Domain\Instance\Restore\RestoreChecks;
 use App\Domain\Instance\Restore\RestoreNames;
 use App\Domain\Instance\Restore\RestoreSource;
 use App\Domain\Instance\Restore\RestoreStorage;
+use App\Domain\Instance\Restore\ResumeInputs;
 use App\Domain\Instance\State\EnvFiles;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceState;
@@ -44,6 +47,9 @@ use Throwable;
  * restore_storage → migrate (an older backup is migrated here) and the backup role → restore_finish (new epoch with
  * `instance.restored`, stale credentials, grants, decrypt sample) → start → smoke (internal only while the certificate
  * is pending) → done (a sign-in link for `--owner-email`, the installed records).
+ *
+ * Only this command resumes its journal (a plain `fsa install` refuses it, M12 gate O1), and it needs the inputs the first
+ * run had while it still prepares the backup again (ResumeInputs: exit 2 before the lock, O2).
  */
 final readonly class FromBackupInstall
 {
@@ -64,6 +70,7 @@ final readonly class FromBackupInstall
         private InstallSmoke $smoke,
         private BackupRunner $backups,
         private RestoreSource $source,
+        private OperationJournal $journal,
     ) {}
 
     public function install(InstallRequest $request, FromBackupRequest $backup, FsaContext $context, bool $secretsToFile): CommandResult
@@ -72,6 +79,10 @@ final readonly class FromBackupInstall
         $state = $this->directory->hasState() ? $this->directory->state() : null;
         if ($state instanceof InstanceState && InstallRecord::isInstalled($state)) {
             return FromBackupResult::unchanged($state, $backup, $this->directory);
+        }
+        $open = $this->journal->current();
+        if ($open instanceof JournalRecord && ResumeCommand::fromBackup($open) === $backup->backup) {
+            ResumeInputs::assert($open, $backup->toRestoreRequest($context->facts->callerUid()), ! $open->hasCompleted('restore_storage'));
         }
 
         return $this->supervisor->run(

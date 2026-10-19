@@ -6,6 +6,7 @@ namespace App\Domain\Instance\Upgrade;
 
 use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\Docker\DockerGateway;
+use App\Domain\Instance\Operations\Interruption;
 use App\Domain\Instance\Operations\OperationRun;
 use App\Domain\Instance\Output\CommandResult;
 use App\Domain\Instance\Restore\RestoreDatabases;
@@ -24,6 +25,10 @@ use Throwable;
  * keeps no previous release, Valkey flushed) → verify (the previous app alone behind the gate, smoke test) → open
  * (everything but the quick tunnel) → gate (down: from here on fail forward) → cleanup (the upgraded database and the
  * superseded volume go, the safety backups are sealed, the history records `rolled_back`).
+ *
+ * Webhooks stay paused after a rollback until `fsa config set webhooks on` (M12 gate C2, as after a restore, ADR 0085):
+ * workflow runs that were in flight at the safety backup come back and could repeat deliveries the receivers got since.
+ * A signal is handled at the boundaries before verify, before open and before the gate: the upgraded release returns (O8).
  */
 final readonly class RollbackFinale
 {
@@ -39,6 +44,7 @@ final readonly class RollbackFinale
         private RollbackRecovery $recovery,
         private ReleaseFiles $files,
         private SafetySeal $seals,
+        private Interruption $interruption,
     ) {}
 
     /** The compose project of the previous image's staged files (its one-offs run the previous image). */
@@ -61,13 +67,14 @@ final readonly class RollbackFinale
     }
 
     /**
-     * The state after a rollback: the previous release, the fresh volume, no release to roll back to.
+     * The state after a rollback: the previous release, the fresh volume, no release to roll back to, webhooks paused (C2).
      *
      * @param  array<string, mixed>  $plan
      */
     public static function rolledBackState(InstanceState $before, array $plan, RestoreNames $names): InstanceState
     {
-        return $before->withRelease((string) $plan['version'], UpgradeJournal::strings($plan['digests'] ?? null))->withoutPreviousRelease()->withSetting('storage_volume', $names->freshVolume);
+        return $before->withRelease((string) $plan['version'], UpgradeJournal::strings($plan['digests'] ?? null))->withoutPreviousRelease()
+            ->withSetting('storage_volume', $names->freshVolume)->withSetting('webhooks_paused', true);
     }
 
     /** @param  array<string, mixed>  $plan */
@@ -99,9 +106,11 @@ final readonly class RollbackFinale
         $record = $run->record();
         if (! $record->hasStarted('gate')) {
             try {
+                $this->interruption->checkpoint();
                 if (! $record->hasCompleted('verify')) {
                     $token = $this->stack->raise($after);
                     $run->phase('verify', fn (): array => ['checked' => $this->stack->startAndVerify($after, $project, $token)], always: true);
+                    $this->interruption->checkpoint();
                 }
                 $run->phase('open', function () use ($project): array {
                     $services = array_values(array_diff(UpgradeCompose::services((string) $this->directory->read(InstanceDirectory::COMPOSE_FILE)), ['tunnel']));
@@ -109,6 +118,7 @@ final readonly class RollbackFinale
 
                     return ['started' => $services];
                 }, always: true);
+                $this->interruption->checkpoint();
             } catch (Throwable $e) {
                 return $this->recovery->returnTo($run, $plan, $project, $names, $e);
             }
@@ -146,7 +156,8 @@ final readonly class RollbackFinale
             $left[] = 'directory backups/'.RestoreSource::SCRATCH_PREFIX.$names->id;
         }
         $safety = $run->record()->phaseData('safety_backup')['backup'] ?? null;
-        $warnings = [...$warnings, ...$this->seals->seal([is_string($safety) ? $safety : null, is_string($plan['backup'] ?? null) ? $plan['backup'] : null])];
+        $warnings = [...$warnings, ...$this->seals->seal([is_string($safety) ? $safety : null, is_string($plan['backup'] ?? null) ? $plan['backup'] : null,
+            ...$this->seals->since(RollbackOperation::OPERATION, $run->record()->startedAt())])]; // also a set a killed attempt wrote unnamed (C3)
         $this->seals->removeSuperseded(RollbackOperation::OPERATION, [is_string($safety) ? $safety : null], $warnings); // only the newest stays (review S1)
         $this->files->discard(RollbackRecovery::filesBefore($names->id));
         UpgradeFiles::remove($this->directory->path(RollbackRecovery::envDirectory($names->id))); // a killed render's (review V4)
@@ -185,8 +196,9 @@ final readonly class RollbackFinale
         $result = CommandResult::ok('rollback', [
             'from' => $plan['from'] ?? null, 'to' => $plan['version'], 'backup' => $plan['backup'], 'safety_backup' => $run->record()->phaseData('safety_backup')['backup'] ?? null,
             'loss' => $plan['loss'] ?? null, 'epoch' => $finish['epoch'] ?? null, 'carried' => $finish['carried'] ?? null, 'carry_mode' => $finish['carry_mode'] ?? null,
-            'storage_volume' => $names->freshVolume, 'left_behind' => $cleanup['left_behind'] ?? [],
+            'storage_volume' => $names->freshVolume, 'left_behind' => $cleanup['left_behind'] ?? [], 'webhooks' => 'paused',
         ], changed: true);
+        $result = $result->withWarning('webhooks_paused', 'Workflow webhooks are paused: runs restored from the safety backup could repeat deliveries made since.', 'Check the webhook receivers, then run `fsa config set webhooks on`.');
         foreach (is_array($cleanup['warnings'] ?? null) ? $cleanup['warnings'] : [] as $warning) {
             $result = is_array($warning) ? $result->withWarning((string) $warning[0], (string) $warning[1], isset($warning[2]) ? (string) $warning[2] : null) : $result;
         }

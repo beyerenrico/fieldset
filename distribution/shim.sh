@@ -34,8 +34,8 @@ fsa_fail() { # <exit code> <error code> <message> [hint] [retryable: true|false]
 	if [ "${fsa_json:-0}" = 1 ]; then
 		fsa_hint=null
 		[ -z "${4:-}" ] || fsa_hint=$(fsa_json_string "$4")
-		printf '{"schema_version":1,"command":%s,"status":"failed","changed":false,"data":{},"secrets":[],"warnings":[],"errors":[{"code":%s,"message":%s,"hint":%s,"retryable":%s}]}\n' \
-			"$(fsa_json_string "${fsa_command:-}")" "$(fsa_json_string "$2")" "$(fsa_json_string "$3")" "$fsa_hint" "${5:-false}"
+		printf '{"schema_version":1,"command":%s,"status":"failed","exit_code":%s,"changed":false,"data":{},"secrets":[],"warnings":[],"errors":[{"code":%s,"message":%s,"hint":%s,"retryable":%s}]}\n' \
+			"$(fsa_json_string "${fsa_command:-}")" "$1" "$(fsa_json_string "$2")" "$(fsa_json_string "$3")" "$fsa_hint" "${5:-false}"
 	fi
 	exit "$1"
 }

@@ -415,6 +415,22 @@ it('refuses --password-stdin without a terminal with exit 2 before any download 
     }
 })->with(['human output' => [[]], '--json' => [['--json']]]);
 
+it('refuses --passphrase-stdin of --from-backup the same way: exit 2 passphrase_stdin_unavailable before any download (M12 gate O7)', function (array $extra): void {
+    $process = $this->scripts->run($this->production, ['--dir', $this->dir, '--from-backup', $this->dir.'-backup', '--identity-file', $this->dir.'-id.age', '--passphrase-stdin', ...$extra], $this->env);
+    $envelope = json_decode($process->getOutput(), true) ?? [];
+    $error = $envelope['errors'][0] ?? [];
+
+    expect($process->getExitCode())->toBe(2, $process->getErrorOutput())
+        ->and($process->getErrorOutput())->toContain('--passphrase-stdin cannot read the passphrase here')
+        ->and($this->scripts->calls())->toBe([])
+        ->and(file_exists($this->dir))->toBeFalse();
+    if ($extra !== []) {
+        expect($error['code'] ?? null)->toBe('passphrase_stdin_unavailable')
+            ->and($error['hint'])->toContain('--passphrase-file=<path>')
+            ->and($envelope['exit_code'] ?? null)->toBe(2); // O10: the numeric exit code in every envelope
+    }
+})->with(['human output' => [[]], '--json' => [['--json']]]);
+
 it('lets fsa prompt for --password-stdin only on a terminal without --json, as the shim hands it over', function (string $json, string $stdout, string $tty, bool $ok): void {
     $process = $this->scripts->source(base_path('distribution/install.sh'), "fsa_install_stdin_ok {$json} {$stdout} {$tty} && echo prompt || echo refuse");
 

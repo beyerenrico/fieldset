@@ -26,6 +26,7 @@ use App\Domain\Instance\Restore\RestoreStorage;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceState;
 use App\Domain\Instance\State\RuntimeWriter;
+use App\Domain\Instance\Upgrade\SafetySeal;
 use Carbon\CarbonImmutable;
 use Throwable;
 
@@ -59,6 +60,7 @@ final readonly class ResetRebuild
         private CatcherFlush $catcher,
         private DemoData $demo,
         private ResetLeftovers $leftovers,
+        private SafetySeal $seals,
     ) {}
 
     public function run(OperationRun $run, InstanceState $state, ComposeProject $project, ResetRequest $request, ResetSubject $subject, FsaContext $context, bool $toFile): CommandResult
@@ -72,7 +74,8 @@ final readonly class ResetRebuild
 
     /**
      * Encrypts every safety backup of the journal to the recipients once the reset closed (R57, verification V2: also one
-     * a retake superseded); a failure is a warning per backup.
+     * a retake superseded, and one a killed run wrote before the journal named it, M12 gate C3); a failure is a warning per
+     * backup.
      */
     public function seal(CommandResult $result, JournalRecord $record): CommandResult
     {
@@ -80,7 +83,11 @@ final readonly class ResetRebuild
         if (! $lock instanceof LockRecord) {
             return $result;
         }
-        foreach (ResetResult::safetyBackups($record) as $backup) {
+        $backups = ResetResult::safetyBackups($record);
+        foreach ($this->seals->seal(array_values(array_diff($this->seals->since(ResetOperation::OPERATION, $record->startedAt()), $backups))) as [$code, $message, $hint]) {
+            $result = $result->withWarning($code, $message, $hint);
+        }
+        foreach ($backups as $backup) {
             try {
                 $this->safety->seal($this->directory->state(), $backup, new LockHandle($lock));
             } catch (Throwable $e) {

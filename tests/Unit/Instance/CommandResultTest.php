@@ -19,7 +19,7 @@ it('always carries schema_version and status, in a fixed key order', function ()
     $envelope = CommandResult::ok('status')->toArray();
 
     expect($envelope)->toBe([
-        'schema_version' => 1, 'command' => 'status', 'status' => 'ok', 'changed' => false,
+        'schema_version' => 1, 'command' => 'status', 'status' => 'ok', 'exit_code' => 0, 'changed' => false, // exit_code: M12 gate O10
         'data' => [], 'secrets' => [], 'warnings' => [], 'errors' => [],
     ]);
 });

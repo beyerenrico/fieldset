@@ -11,9 +11,11 @@ use App\Domain\Instance\Install\InstallSmoke;
 use App\Domain\Instance\Install\InstanceStack;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Operations\ContainerIdentity;
+use App\Domain\Instance\Operations\Interruption;
 use App\Domain\Instance\Operations\JournalRecord;
 use App\Domain\Instance\Operations\OperationJournal;
 use App\Domain\Instance\Operations\OperationRun;
+use App\Domain\Instance\Operations\OperationUnfinished;
 use App\Domain\Instance\Operations\Supervisor;
 use App\Domain\Instance\Output\CommandResult;
 use App\Domain\Instance\Output\ExitCode;
@@ -38,6 +40,10 @@ use Throwable;
  * unfinished adopt as adopted) and `docker compose up -d` in the checkout lead back. 1.0 must still be stopped before and
  * right after `start` on every run (verification review V1, A1), else exit 4 `legacy_restarted` without going back. A
  * resumed run continues where the last one stopped; one that began going back finishes that.
+ *
+ * SIGTERM, SIGINT and SIGHUP are recorded and handled at the next phase boundary (Interruption, M12 gate O8): before
+ * `start` like a failure (the way back), from `start` on by stopping with the journal open for a resume (exit 9
+ * `interrupted`, the adopt hint). Hints name the checkout and `--yes` (O9).
  */
 final readonly class AdoptOperation
 {
@@ -60,6 +66,7 @@ final readonly class AdoptOperation
         private InstallSmoke $smoke,
         private AdoptRollback $rollback,
         private AdoptRecord $record,
+        private Interruption $interruption,
     ) {}
 
     public function adopt(AdoptRequest $request, FsaContext $context): CommandResult
@@ -69,12 +76,12 @@ final readonly class AdoptOperation
             return AdoptResult::unchanged($state, $this->directory, $request);
         }
 
-        return $this->supervisor->run(
+        return $this->interruption->guard(fn (): CommandResult => $this->supervisor->run(
             self::OPERATION, $this->identity->holder('fsa', $request->callerUid),
             fn (OperationRun $run): CommandResult => $this->steps($run, $request, $context),
             resume: true, context: $request->toContext(), progress: $context->progress,
             accepts: static fn (JournalRecord $record): bool => ($record->context()['checkout'] ?? null) === $request->checkout,
-        );
+        ));
     }
 
     /**
@@ -91,7 +98,7 @@ final readonly class AdoptOperation
             throw new InvalidInput('No unfinished adopt to abandon here.', 'nothing_to_abandon', 'An adopt that finished is undone with `fsa uninstall` and `docker compose up -d` in the 1.0 checkout.');
         }
         if ($current->hasStarted('start')) {
-            throw new InvalidInput('This adopt already started 2.0 on its copy, which may hold new data: abandoning it would delete that without a backup.', 'adopt_started', 'Run `fsa adopt <checkout>` again to finish it, or `fsa uninstall` (a final backup first) and then `docker compose up -d` in the 1.0 checkout.');
+            throw new InvalidInput('This adopt already started 2.0 on its copy, which may hold new data: abandoning it would delete that without a backup.', 'adopt_started', 'Run `'.OperationUnfinished::commandLine($current).'` again to finish it, or `fsa uninstall` (a final backup first) and then `docker compose up -d` in the 1.0 checkout.');
         }
 
         return $this->supervisor->run(self::OPERATION, $this->identity->holder('fsa', $context->facts->callerUid()),
@@ -101,7 +108,7 @@ final readonly class AdoptOperation
     private function steps(OperationRun $run, AdoptRequest $request, FsaContext $context): CommandResult
     {
         if (array_any($run->record()->events(), static fn (array $event): bool => $event['type'] === 'rollback')) {
-            return $this->undo($run, new InstanceException('An earlier attempt began going back.', ExitCode::RolledBack, 'adopt_interrupted', 'Run `fsa adopt` again to start over.'));
+            return $this->undo($run, new InstanceException('An earlier attempt began going back.', ExitCode::RolledBack, 'adopt_interrupted', "Run `fsa adopt {$request->checkout} --yes` again to start over."));
         }
         if (! $run->record()->hasStarted('start')) {
             try {
@@ -126,6 +133,7 @@ final readonly class AdoptOperation
         $this->resumable($request, fn (): array => $run->phase('start', fn (): array => $this->stack->up($project, []), maxSeconds: InstanceStack::WAIT_SECONDS));
         $this->stillStopped($run, $legacy, $request); // 1.0 may have started between the last check and 2.0's start (review A1)
         $smoke = $this->resumable($request, fn (): array => $run->phase('smoke', fn (): array => $this->smoke->run($state, $project, null, $context->progress), changes: false, maxSeconds: InstallSmoke::maxSeconds($state)));
+        $this->resumable($request, static fn (): array => []); // the boundary before `done`: a signal stops here (O8)
         $run->phase('done', fn (): array => $this->record->done($legacy, $preflight, $data, $request->callerUid, $run->record()->id()));
         $result = AdoptResult::build($this->directory->state(), $this->directory, $legacy, $preflight, [...$data, 'smoke' => $smoke]);
         $running = $this->data->legacyRunning($legacy);
@@ -151,7 +159,7 @@ final readonly class AdoptOperation
     {
         $adopted = $preflight['app_key_fingerprints'] ?? null;
         if (is_array($adopted) && $adopted !== AppKeys::of([$checkout->appKey(), ...$checkout->previousKeys()])->fingerprints()) {
-            throw new InstanceException('The APP keys in the 1.0 .env changed since this adopt began.', ExitCode::Incompatible, 'env_changed', 'Restore the .env 1.0 runs with, or abandon this adopt (`fsa adopt --abandon`) and start over.');
+            throw new InstanceException('The APP keys in the 1.0 .env changed since this adopt began.', ExitCode::Incompatible, 'env_changed', 'Restore the .env 1.0 runs with, or abandon this adopt (`fsa adopt --abandon --yes`) and start over.');
         }
     }
 
@@ -167,7 +175,7 @@ final readonly class AdoptOperation
             $this->sequence->assertStopped($run, $this->directory->state(), $legacy);
         } catch (InstanceException $e) {
             throw new InstanceException($e->getMessage(), $e->exitCode, $e->errorCode,
-                "To keep 1.0: `fsa uninstall` (a final backup first), then `docker compose up -d` in {$request->checkout}. To adopt its current data: `fsa uninstall`, stop 1.0 (`docker compose stop` there), then `fsa adopt {$request->checkout}` again.",
+                "To keep 1.0: `fsa uninstall` (a final backup first), then `docker compose up -d` in {$request->checkout}. To adopt its current data: `fsa uninstall`, stop 1.0 (`docker compose stop` there), then `fsa adopt {$request->checkout} --yes` again.",
                 false, $e->data, $e, true);
         }
     }
@@ -181,10 +189,12 @@ final readonly class AdoptOperation
     private function resumable(AdoptRequest $request, Closure $phase): array
     {
         try {
+            $this->interruption->checkpoint(); // a signal stops at this boundary, the journal open (O8)
+
             return $phase();
         } catch (InstanceException $e) {
             throw new InstanceException($e->getMessage(), $e->exitCode, $e->errorCode,
-                "Find the cause (`fsa logs`), then run `fsa adopt {$request->checkout}` again: it resumes here. To go back to 1.0 instead: `fsa uninstall` (a final backup first), then `docker compose up -d` in {$request->checkout}.",
+                "Find the cause (`fsa logs`), then run `fsa adopt {$request->checkout} --yes` again: it resumes here. To go back to 1.0 instead: `fsa uninstall` (a final backup first), then `docker compose up -d` in {$request->checkout}.",
                 $e->retryable, $e->data, $e, true);
         }
     }

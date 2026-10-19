@@ -19,6 +19,8 @@ use App\Domain\Instance\Operations\ContainerIdentity;
 use App\Domain\Instance\Operations\JournalRecord;
 use App\Domain\Instance\Operations\OperationJournal;
 use App\Domain\Instance\Operations\OperationRun;
+use App\Domain\Instance\Operations\OperationUnfinished;
+use App\Domain\Instance\Operations\ResumeCommand;
 use App\Domain\Instance\Operations\Supervisor;
 use App\Domain\Instance\Output\CommandResult;
 use App\Domain\Instance\Output\ExitCode;
@@ -67,9 +69,10 @@ final readonly class Installer
         private BackupRunner $backups,
     ) {}
 
+    /** @throws OperationUnfinished exit 9 for an open install journal of `--from-backup` (only that command resumes it) */
     public function situation(): InstallSituation
     {
-        if ($this->journal->current()?->operation() === self::OPERATION) {
+        if ($this->openJournal()?->operation() === self::OPERATION) {
             return InstallSituation::Resume;
         }
         $state = $this->directory->hasState() ? $this->directory->state() : null;
@@ -95,6 +98,7 @@ final readonly class Installer
             context: $request->toContext(),
             progress: $context->progress,
             archive: $this->withoutPersonalInputs(...),
+            accepts: static fn (JournalRecord $record): bool => ResumeCommand::fromBackup($record) === null,
         );
     }
 
@@ -104,9 +108,26 @@ final readonly class Installer
      */
     public function effective(InstallRequest $request): InstallRequest
     {
-        $current = $this->journal->current();
+        $current = $this->openJournal();
 
         return $current instanceof JournalRecord && $current->operation() === self::OPERATION ? $this->resumable($request, $current) : $request;
+    }
+
+    /**
+     * The open journal. One that `fsa install --from-backup` began is resumed only by that command with its backup and
+     * inputs (M12 gate O1): taken over by a plain install it would skip the restore phases and mark an empty instance
+     * installed. Exit 9 `operation_unfinished`, whose command line names the backup and the flags.
+     *
+     * @throws OperationUnfinished
+     */
+    private function openJournal(): ?JournalRecord
+    {
+        $current = $this->journal->current();
+        if ($current instanceof JournalRecord && ResumeCommand::fromBackup($current) !== null) {
+            throw new OperationUnfinished($current);
+        }
+
+        return $current;
     }
 
     /**

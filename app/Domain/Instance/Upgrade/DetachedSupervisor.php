@@ -7,17 +7,20 @@ namespace App\Domain\Instance\Upgrade;
 use App\Domain\Instance\Docker\ContainerInfo;
 use App\Domain\Instance\Docker\ContainerSpec;
 use App\Domain\Instance\Docker\DockerGateway;
+use App\Domain\Instance\Docker\Labels;
 use App\Domain\Instance\HostFacts;
 use App\Domain\Instance\Operations\JournalRecord;
 use App\Domain\Instance\Operations\OperationJournal;
 use App\Domain\Instance\Operations\Supervisor;
 use App\Domain\Instance\Output\CommandResult;
 use App\Domain\Instance\Output\ExitCode;
+use App\Domain\Instance\Output\InvalidInput;
 use App\Domain\Instance\Output\ProgressReporter;
 use App\Domain\Instance\Output\SecretRedactor;
 use App\Domain\Instance\Restore\RestoreOperation;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceState;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Sleep;
 use Throwable;
 
@@ -28,6 +31,11 @@ use Throwable;
  * `fsa` never stops it half-way. The foreground follows the journal (one progress event per phase) until the
  * supervisor's container is gone, then renders the envelope the supervisor left in a 0600 result file. Without one the
  * supervisor stopped abnormally: `fsa status` shows the journal and `fsa upgrade --resume` continues.
+ *
+ * M12 gate O3: the result file stays until the next launch replaces it, named by `operations/supervisor.json` (container,
+ * result file, start), so the outcome survives a killed foreground: `fsa upgrade --follow` attaches to a supervisor that
+ * still runs (or returns the last result when none runs), and `fsa status` shows it as `last_upgrade`. `--resume` with no
+ * open journal is exit 2 `nothing_to_resume`, never a new upgrade.
  */
 final readonly class DetachedSupervisor
 {
@@ -37,6 +45,9 @@ final readonly class DetachedSupervisor
     public const string RESULT_PATTERN = '/^operations\/supervisor-[0-9a-f]{16}\.json$/D';
 
     public const int FOLLOW_SECONDS = 2;
+
+    /** Names the last launched supervisor's container and result file (O3). */
+    public const string POINTER = InstanceDirectory::OPERATIONS_DIR.'/supervisor.json';
 
     /** Variables passed on from the foreground's own environment: harness-only switches (ADR 0070, 0075, 0082). */
     private const array PASSED = ['FSA_TRUST_KEY', 'FSA_TEST_DNS', 'FSA_TEST_TUNNEL'];
@@ -51,12 +62,71 @@ final readonly class DetachedSupervisor
     public function launchAndFollow(UpgradeRequest $request, HostFacts $facts, ProgressReporter $progress): CommandResult
     {
         $state = RestoreOperation::installed($this->directory);
+        if ($request->resume && ! $this->journal->current() instanceof JournalRecord) {
+            throw new InvalidInput('There is no interrupted upgrade to resume.', 'nothing_to_resume', 'Run `fsa upgrade` (with --to <version> for a specific release) to start one; `fsa upgrade --follow` shows the last upgrade\'s result.');
+        }
         $result = 'operations/supervisor-'.bin2hex(random_bytes(8)).'.json';
         $this->directory->ensureDirectory(InstanceDirectory::OPERATIONS_DIR);
         $container = $this->supervisor->launchDetached($state, $this->spec($state, $request, $facts, $result));
-        $progress->phase('supervisor', 'The upgrade runs in the background container '.$state->project().'-'.Supervisor::ROLE.'; following it (stopping this command does not stop it).');
+        $this->point($container, $result);
+        $progress->phase('supervisor', 'The upgrade runs in the background container '.$state->project().'-'.Supervisor::ROLE.'; following it (stopping this command does not stop it; `fsa upgrade --follow` attaches again).');
 
         return $this->follow($container, $result, $progress);
+    }
+
+    /**
+     * `fsa upgrade --follow` (O3): attaches to the running supervisor and returns its envelope; with none running, the last
+     * upgrade's result (exit 2 `nothing_to_follow` when no upgrade ever ran here).
+     */
+    public function attach(ProgressReporter $progress): CommandResult
+    {
+        $state = RestoreOperation::installed($this->directory);
+        $pointer = $this->pointer();
+        $running = $this->running($state);
+        if ($running instanceof ContainerInfo) {
+            $progress->phase('supervisor', "Following the upgrade in the background container {$running->name} (stopping this command does not stop it).");
+
+            $same = $pointer['container'] !== null && (str_starts_with($pointer['container'], $running->id) || str_starts_with($running->id, $pointer['container'])); // listings carry the short ID
+
+            return $this->follow($running->id, $same ? $pointer['result'] : null, $progress);
+        }
+        if ($pointer['result'] === null) {
+            throw new InvalidInput('No upgrade runs, and none ran on this instance yet.', 'nothing_to_follow', 'Run `fsa upgrade` to start one.');
+        }
+
+        return $this->outcome($pointer['result']);
+    }
+
+    /**
+     * The last upgrade's outcome for `fsa status` (O3): exit code, status, error codes, when it finished and the result
+     * file that holds its whole envelope; null when none ran or its result is missing.
+     *
+     * @return array{exit_code: int, status: string, codes: list<string>, from: mixed, to: mixed, finished_at: string|null, result_file: string}|null
+     */
+    public function last(): ?array
+    {
+        $file = $this->pointer()['result'];
+        $document = $file === null ? null : $this->document($file);
+        if ($document === null) {
+            return null;
+        }
+        $envelope = $document['envelope'];
+        $errors = is_array($envelope['errors'] ?? null) ? $envelope['errors'] : [];
+
+        return [
+            'exit_code' => $document['exit_code'], 'status' => is_string($envelope['status'] ?? null) ? $envelope['status'] : 'unknown',
+            'codes' => array_values(array_map(static fn (mixed $error): string => is_array($error) ? (string) ($error['code'] ?? 'unknown') : 'unknown', $errors)),
+            'from' => $envelope['data']['from'] ?? null, 'to' => $envelope['data']['to'] ?? null,
+            'finished_at' => is_string($document['finished_at'] ?? null) ? $document['finished_at'] : null, 'result_file' => $file,
+        ];
+    }
+
+    /** The running supervisor container of this instance, if any (`fsa status` shows it, O4). */
+    public function running(InstanceState $state): ?ContainerInfo
+    {
+        $running = array_values(array_filter($this->docker->containers(Labels::forInstance($state->uuid(), Supervisor::ROLE), all: false), static fn (ContainerInfo $c): bool => $c->running()));
+
+        return $running[0] ?? null;
     }
 
     /**
@@ -88,10 +158,11 @@ final readonly class DetachedSupervisor
         if (! is_string($file) || preg_match(self::RESULT_PATTERN, $file) !== 1) {
             return;
         }
-        $this->directory->write($file, json_encode(['exit_code' => $result->exitCode->value, 'envelope' => $result->toArray($redactor)], CommandResult::JSON_FLAGS)."\n", 0600);
+        $this->directory->write($file, json_encode(['exit_code' => $result->exitCode->value, 'finished_at' => CarbonImmutable::now('UTC')->toIso8601ZuluString(),
+            'envelope' => $result->toArray($redactor)], CommandResult::JSON_FLAGS)."\n", 0600);
     }
 
-    private function follow(string $container, string $result, ProgressReporter $progress): CommandResult
+    private function follow(string $container, ?string $result, ProgressReporter $progress): CommandResult
     {
         $seen = [];
         while (($info = $this->docker->inspectContainer($container)) instanceof ContainerInfo && $info->running()) {
@@ -99,17 +170,54 @@ final readonly class DetachedSupervisor
             Sleep::for(self::FOLLOW_SECONDS)->seconds();
         }
         $this->phases($progress, $seen);
-        $raw = $this->resultFile($result);
-        if ($raw !== null) {
-            $this->directory->files()->delete($result);
-        }
-        $document = $raw === null ? null : json_decode($raw, true);
-        if (! is_array($document) || ! is_int($document['exit_code'] ?? null) || ! is_array($document['envelope'] ?? null)) {
+
+        return $this->outcome($result);
+    }
+
+    /** The envelope a supervisor left (the file stays for `fsa status` and `--follow`), or `supervisor_lost`. */
+    private function outcome(?string $result): CommandResult
+    {
+        $document = $result === null ? null : $this->document($result);
+        if ($document === null) {
             return CommandResult::failed('upgrade', ExitCode::InternalError, 'supervisor_lost', 'The upgrade supervisor stopped without a result.',
                 'Run `fsa status`: it shows the upgrade journal\'s last phase; `fsa upgrade --resume` continues an interrupted upgrade.', true, [], changed: true);
         }
 
         return CommandResult::fromArray($document['envelope'], ExitCode::tryFrom($document['exit_code']) ?? ExitCode::InternalError);
+    }
+
+    /** @return array{exit_code: int, envelope: array<string, mixed>, finished_at?: mixed}|null */
+    private function document(string $result): ?array
+    {
+        $raw = preg_match(self::RESULT_PATTERN, $result) === 1 ? $this->resultFile($result) : null;
+        $document = $raw === null ? null : json_decode($raw, true);
+
+        return is_array($document) && is_int($document['exit_code'] ?? null) && is_array($document['envelope'] ?? null) ? $document : null;
+    }
+
+    /**
+     * Records the new supervisor and removes the result its predecessor left (replaced, O3).
+     */
+    private function point(string $container, string $result): void
+    {
+        $previous = $this->pointer()['result'];
+        if ($previous !== null && $previous !== $result) {
+            $this->directory->files()->delete($previous);
+        }
+        $this->directory->write(self::POINTER, json_encode(['container' => $container, 'result' => $result, 'started_at' => CarbonImmutable::now('UTC')->toIso8601ZuluString()], CommandResult::JSON_FLAGS)."\n", 0600);
+    }
+
+    /** @return array{container: string|null, result: string|null} */
+    private function pointer(): array
+    {
+        try {
+            $document = json_decode((string) $this->directory->read(self::POINTER), true);
+        } catch (Throwable) {
+            $document = null;
+        }
+        $result = is_array($document) && is_string($document['result'] ?? null) && preg_match(self::RESULT_PATTERN, $document['result']) === 1 ? $document['result'] : null;
+
+        return ['container' => is_array($document) && is_string($document['container'] ?? null) ? $document['container'] : null, 'result' => $result];
     }
 
     /**

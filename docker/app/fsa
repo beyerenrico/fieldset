@@ -33,7 +33,7 @@ json_string() {
 unknown_command() { # <command> <json: 0|1>
 	hint="Available commands: $(printf '%s' "$commands" | sed 's/ /, /g'). Run fsa without arguments to list them; put flags after the command or write them as --flag=value."
 	if [ "$2" = 1 ]; then
-		printf '{"schema_version":1,"command":%s,"status":"failed","changed":false,"data":{},"secrets":[],"warnings":[],"errors":[{"code":"unknown_command","message":%s,"hint":%s,"retryable":false}]}\n' \
+		printf '{"schema_version":1,"command":%s,"status":"failed","exit_code":2,"changed":false,"data":{},"secrets":[],"warnings":[],"errors":[{"code":"unknown_command","message":%s,"hint":%s,"retryable":false}]}\n' \
 			"$(json_string "$1")" "$(json_string "Unknown fsa command: $1")" "$(json_string "$hint")"
 	else
 		printf 'fsa: unknown command: %s\n  Fix: %s\n' "$1" "$hint" >&2

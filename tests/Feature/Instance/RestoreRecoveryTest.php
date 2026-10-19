@@ -111,7 +111,7 @@ it('reports a restore killed between the restore and the swap, leaves the live i
 
     [$code, $json] = $this->restore->instance->run('fsa:restore', ['--abandon' => true, '--yes' => true]);
 
-    expect($status['data']['restore']['interrupted'])->toMatchArray(['backup' => 'manual-20261019T120000Z', 'swapped' => false, 'abandon' => 'fsa restore --abandon'])
+    expect($status['data']['restore']['interrupted'])->toMatchArray(['backup' => 'manual-20261019T120000Z', 'swapped' => false, 'abandon' => 'fsa restore --abandon --yes', 'resume' => 'fsa restore manual-20261019T120000Z --yes'])
         ->and(collect($status['warnings'])->firstWhere('code', 'operation_unfinished')['hint'] ?? '')->toContain('fsa restore --abandon')->toContain('fsa restore manual-20261019T120000Z')
         ->and($code)->toBe(0, (string) json_encode($json))->and($json['data'])->toMatchArray(['abandoned' => true, 'swapped' => false])
         ->and($this->restore->actions())->toBe(['drop'])

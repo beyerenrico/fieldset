@@ -60,7 +60,7 @@ final readonly class RestoreAbandon
             $closed = $this->recovery->goBack($run, $state, $project, $names, $record->hasStarted('quiesce')); // journaled (M2)
             $result = CommandResult::ok(RestoreOperation::OPERATION, ['abandoned' => true, 'swapped' => false, 'left_behind' => $closed['left_behind']], changed: true);
 
-            return $this->recovery->sealed(RestoreRecovery::degraded($result, $closed['degraded']), $safety);
+            return $this->recovery->sealed(RestoreRecovery::degraded($result, $closed['degraded']), $safety, $run->record());
         }
         $forward = $this->recovery->noted($run, RestoreRecovery::NO_WAY_BACK); // no way back: the restored data is all there is (L4)
         if ($forward || $record->hasStarted('gate') || $record->hasStarted('cleanup')) { // or the restored instance took requests

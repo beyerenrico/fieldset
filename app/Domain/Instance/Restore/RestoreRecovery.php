@@ -11,6 +11,7 @@ use App\Domain\Instance\Docker\DockerGateway;
 use App\Domain\Instance\Docker\DockerResource;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Operations\InstanceLock;
+use App\Domain\Instance\Operations\JournalRecord;
 use App\Domain\Instance\Operations\LockHandle;
 use App\Domain\Instance\Operations\LockRecord;
 use App\Domain\Instance\Operations\OperationRun;
@@ -19,6 +20,7 @@ use App\Domain\Instance\Output\ExitCode;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceState;
 use App\Domain\Instance\State\RuntimeWriter;
+use App\Domain\Instance\Upgrade\SafetySeal;
 use Throwable;
 
 /**
@@ -58,6 +60,7 @@ final readonly class RestoreRecovery
         private SafetyBackup $safety,
         private InstanceLock $lock,
         private RestoreHalt $halt,
+        private SafetySeal $seals,
     ) {}
 
     public function abort(OperationRun $run, InstanceState $state, ComposeProject $project, RestoreNames $names, Throwable $cause, bool $quiesced, ?string $safetyBackup = null): CommandResult
@@ -69,7 +72,7 @@ final readonly class RestoreRecovery
         }
         $result = $this->failed($cause, 'The restore failed before the swap; the instance runs as before.', ['left_behind' => $closed['left_behind']]);
 
-        return $this->sealed(self::degraded($result, $closed['degraded']), $safetyBackup);
+        return $this->sealed(self::degraded($result, $closed['degraded']), $safetyBackup, $run->record());
     }
 
     /**
@@ -125,7 +128,7 @@ final readonly class RestoreRecovery
         $left = $this->dropScratch($project, $names);
         $result = $this->failed($cause, 'The restored instance did not pass its verification; the previous database and storage volume are back.', ['left_behind' => $left, 'returned_to_previous' => true]);
 
-        return $this->sealed(self::degraded($result, RestoreNames::strings($returned['degraded'] ?? null)), $safetyBackup);
+        return $this->sealed(self::degraded($result, RestoreNames::strings($returned['degraded'] ?? null)), $safetyBackup, $run->record());
     }
 
     /** @param  list<string>  $degraded */
@@ -157,9 +160,16 @@ final readonly class RestoreRecovery
         return $left;
     }
 
-    /** Encrypts the safety backup to the recipients once the operation closed (R57); a failure is a warning. */
-    public function sealed(CommandResult $result, ?string $safetyBackup): CommandResult
+    /**
+     * Encrypts the safety backup to the recipients once the operation closed (R57); a failure is a warning. With the journal
+     * also every plaintext restore safety backup made since it began (M12 gate C3): one a killed run wrote before the journal
+     * named it.
+     */
+    public function sealed(CommandResult $result, ?string $safetyBackup, ?JournalRecord $record = null): CommandResult
     {
+        foreach ($record instanceof JournalRecord ? $this->seals->seal(array_values(array_diff($this->seals->since(RestoreOperation::OPERATION, $record->startedAt()), [$safetyBackup]))) : [] as [$code, $message, $hint]) {
+            $result = $result->withWarning($code, $message, $hint);
+        }
         $lock = $this->lock->current();
         if ($safetyBackup === null || ! $lock instanceof LockRecord) {
             return $result;

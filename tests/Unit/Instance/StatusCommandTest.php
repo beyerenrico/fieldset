@@ -37,7 +37,7 @@ it('reports version, mode, URL, mail, services, health and unused sign-in links 
         ->and($json['data']['services']['app'])->toBe(['state' => 'running', 'health' => null])
         ->and($json['data']['sign_in_links'])->toBe(['count' => 1, 'links' => [['id' => 1, 'email' => 'owner@example.com', 'kind' => 'owner', 'state' => 'unused']]])
         ->and($json['data']['disk']['free_gib'])->toEqual(50.0)
-        ->and($methods)->toBe(['composePs', 'composeRun'])
+        ->and($methods)->toBe(['containers', 'composePs', 'composeRun']) // M12 gate O4: the supervisor lookup lists containers (read-only)
         ->and($this->fixture->oneOffCalls('identity:login-links')[0]['command'])->toBe(['php', 'artisan', 'identity:login-links', '--unused', '--json'])
         ->and($this->fixture->state()->toJson())->toBe($before);
 });

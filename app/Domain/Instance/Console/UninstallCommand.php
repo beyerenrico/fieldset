@@ -8,6 +8,7 @@ use App\Domain\Instance\Adopt\AdoptedInstance;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Lifecycle\Uninstaller;
 use App\Domain\Instance\Output\CommandResult;
+use App\Domain\Instance\Output\Confirmation;
 use App\Domain\Instance\State\InstanceSettings;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
@@ -28,16 +29,22 @@ use Illuminate\Console\Attributes\Signature;
         {--orphans= : Remove only the leftovers of this other installation UUID, as fsa install names them}')]
 final class UninstallCommand extends FsaCommand
 {
-    protected function confirmationPrompt(FsaContext $context): string
+    /** `data` names what goes and what stays (M12 gate O6). */
+    protected function confirmationPrompt(FsaContext $context): Confirmation
     {
         $orphans = $this->option('orphans');
         if (is_string($orphans) && $orphans !== '') {
-            return "Remove the stopped containers, volumes and networks labelled with installation {$orphans}?";
+            return new Confirmation("Remove the stopped containers, volumes and networks labelled with installation {$orphans}?", ['orphans' => $orphans]);
         }
         $notice = $this->certificateNotice($context);
-        $prompt = $this->prompt($context->directory()->root, $this->adoptedFrom($context), $this->option('keep-backups') === true, $this->option('no-backup') === true);
+        $adopted = $this->adoptedFrom($context);
+        [$keep, $noBackup] = [$this->option('keep-backups') === true, $this->option('no-backup') === true];
+        $prompt = $this->prompt($context->directory()->root, $adopted, $keep, $noBackup);
 
-        return $notice === null ? $prompt : $notice.' '.$prompt;
+        return new Confirmation($notice === null ? $prompt : $notice.' '.$prompt, [
+            'dir' => $context->directory()->root, 'final_backup' => ! $noBackup && ($keep || $adopted !== null), 'keeps_backups' => $keep || ($adopted !== null && ! $noBackup),
+            'adopted_from' => $adopted, 'certificates' => $notice !== null,
+        ]);
     }
 
     /** The question for each combination of --keep-backups and --no-backup, adopted or not (review A8). */

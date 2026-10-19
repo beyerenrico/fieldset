@@ -79,7 +79,8 @@ final readonly class Supervisor
     {
         $labels = Labels::forInstance($state->uuid(), self::ROLE);
         if ($this->docker->containers($labels, all: false) !== []) {
-            throw new InstanceException('A supervisor for this instance is already running.', ExitCode::AbortedUnchanged, 'supervisor_running', 'Follow it with `fsa status`.', true);
+            throw new InstanceException('A supervisor for this instance is already running.', ExitCode::AbortedUnchanged, 'supervisor_running', 'Follow it with `fsa upgrade --follow` (it returns its result); `fsa status` shows its journal.', true,
+                ['container' => $state->project().'-'.self::ROLE]);
         }
         $outcome = $this->docker->runContainer($spec->detachedAs($state->project().'-'.self::ROLE, $labels));
         if (! $outcome->successful()) {

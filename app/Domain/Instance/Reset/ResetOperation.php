@@ -7,12 +7,10 @@ namespace App\Domain\Instance\Reset;
 use App\Domain\Instance\Backup\SafetyBackup;
 use App\Domain\Instance\Console\FsaContext;
 use App\Domain\Instance\Docker\ComposeProject;
-use App\Domain\Instance\Docker\ContainerInfo;
 use App\Domain\Instance\Docker\DockerGateway;
 use App\Domain\Instance\Install\Installer;
 use App\Domain\Instance\Install\RecordDigest;
 use App\Domain\Instance\InstanceException;
-use App\Domain\Instance\Lifecycle\ComposeFile;
 use App\Domain\Instance\Operations\ContainerIdentity;
 use App\Domain\Instance\Operations\InstanceLock;
 use App\Domain\Instance\Operations\Interruption;
@@ -148,11 +146,7 @@ final readonly class ResetOperation
      */
     public static function current(JournalRecord $record, string $phase): bool
     {
-        $phases = $record->phases();
-        $ran = array_keys(array_filter($phases, static fn (array $entry): bool => $entry['name'] === 'quiesce' && ($entry['data']['writers_ran'] ?? false) === true));
-        $since = $ran === [] ? -1 : $ran[array_key_last($ran)];
-
-        return array_any(array_keys($phases), static fn (int $index): bool => $index > $since && $phases[$index]['name'] === $phase && $phases[$index]['status'] === 'completed');
+        return $record->completedSince($phase, 'quiesce', 'writers_ran');
     }
 
     /** An open reset that deletes nothing more when continued: past the drop, or going back. */
@@ -194,7 +188,7 @@ final readonly class ResetOperation
     private function beforeDrop(OperationRun $run, InstanceState $state, ComposeProject $project, ResetRequest $request): ?CommandResult
     {
         try {
-            $ran = $run->record()->hasStarted('quiesce') && $this->writersRunning($project); // written after the ledger line (A1)
+            $ran = $run->record()->hasStarted('quiesce') && $this->stack->writersRunning($project); // written after the ledger line (A1)
             $run->phase('quiesce', function () use ($state, $project): array {
                 $this->stack->quiesce($state, $project);
                 new RuntimeWriter($this->directory)->raiseGate($state, self::OPERATION); // the gate names the reset
@@ -252,11 +246,6 @@ final readonly class ResetOperation
         } catch (Throwable) {
             return false;
         }
-    }
-
-    private function writersRunning(ComposeProject $project): bool
-    {
-        return array_any(ComposeFile::serviceContainers($this->docker->composePs($project)), static fn (ContainerInfo $container): bool => $container->running() && in_array($container->service(), RestoreHalt::WRITERS, true));
     }
 
     /** @return array<string, mixed> the audit export, or why there is none (only demo organizations, counted after the quiesce) */
