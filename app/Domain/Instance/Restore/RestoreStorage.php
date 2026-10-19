@@ -44,10 +44,16 @@ final readonly class RestoreStorage
         return $state->project().'_'.AppRoles::STORAGE_VOLUME.'-r'.$id;
     }
 
-    /** Creates the volume (or refuses an existing one) and extracts the archive into it; nothing else is mounted. */
-    public function fill(InstanceState $state, string $volume, ?string $archive): void
+    /**
+     * Creates the volume (or refuses an existing one) and extracts the archive into it; nothing else is mounted. With
+     * `$create` false the volume exists already (`--from-backup` creates it with the state, because every Compose call
+     * checks that an external volume exists).
+     */
+    public function fill(InstanceState $state, string $volume, ?string $archive, bool $create = true): void
     {
-        $this->docker->createVolume($volume, Labels::forInstance($state->uuid(), AppRoles::STORAGE_VOLUME));
+        if ($create) {
+            $this->create($state, $volume);
+        }
         if ($archive === null) {
             return; // a database-only backup (1.0 --no-storage): the volume starts with the image's empty layout
         }
@@ -65,6 +71,12 @@ final readonly class RestoreStorage
         if (! $outcome->successful()) {
             throw new InstanceException('Extracting the storage archive failed: '.$outcome->stderrTail(5), ExitCode::HealthCheckFailed, 'storage_restore_failed', 'Read the output; the live storage volume was not touched.', true, ['output' => $outcome->stderrTail(10)]);
         }
+    }
+
+    /** A fresh, empty volume labelled for the instance (refused when the name is taken). */
+    public function create(InstanceState $state, string $volume): void
+    {
+        $this->docker->createVolume($volume, Labels::forInstance($state->uuid(), AppRoles::STORAGE_VOLUME));
     }
 
     /**

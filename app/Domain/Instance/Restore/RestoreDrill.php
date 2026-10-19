@@ -62,6 +62,7 @@ final readonly class RestoreDrill
             $created = $this->databases->create($project, $database, $intake['backup']->authenticated() ? null : 'fsa_drill_'.$id);
             $this->databases->restore($state, $project, $intake['backup'], $database, $created['role'] === null ? null : ['username' => $created['role'], 'password' => (string) $created['password']]);
             if ($created['role'] !== null) {
+                $this->databases->audit($project, $database, RestoreNames::for($state, $id)->live);
                 $this->databases->adopt($project, $database, $created['role']);
             }
             $context->progress->phase('check', 'Checking the restored data');

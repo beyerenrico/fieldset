@@ -17,7 +17,7 @@ use Throwable;
  */
 final readonly class BackupIntake
 {
-    public function __construct(private InstanceDirectory $directory, private RestoreSource $source) {}
+    public function __construct(private InstanceDirectory $directory, private RestoreSource $source, private RestoreSpace $space) {}
 
     /**
      * @param  array{image: string, uuid: string, user: string}  $runAs
@@ -28,8 +28,11 @@ final readonly class BackupIntake
     {
         $path = $this->source->resolve($request->backup, $mountedElsewhere);
         $outside = $request->keyFile instanceof AppKeys ? $own->merge($request->keyFile) : $own;
+        // Only the current APP_KEY and keys the operator passes authenticate: a previous key may be retired because it leaked.
+        $authenticating = AppKeys::of(array_slice($own->keys, 0, 1))->merge($request->keyFile ?? AppKeys::of([]));
+        $this->space->assertScratch($path);
         $scratch = $this->source->scratch($id);
-        $backup = $this->source->prepare($runAs, $path, $scratch, $outside, $request->identityFile, $request->passphrase);
+        $backup = $this->source->prepare($runAs, $path, $scratch, $authenticating, $request->identityFile, $request->passphrase);
         // A new host (`--from-backup`) may decrypt with the keys the backup carries; the HMAC never uses them.
         $known = $purpose === RestoreChecks::FROM_BACKUP ? $outside->merge(self::insideKeys($backup)) : $outside;
         $warnings = RestoreChecks::assert($backup, $purpose, $request->acceptUnauthenticated, $known, $this->upgradesFrom($version));

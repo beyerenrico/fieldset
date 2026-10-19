@@ -90,8 +90,10 @@ final readonly class RestoreOperation
         if ($record->hasCompleted('swap')) {
             return $this->afterSwap($run, $state->withSetting('storage_volume', $names->freshVolume), $project, $names, $this->stack->raise($state), $record->phaseData('prepare'));
         }
-        if ($record->hasStarted('swap')) {
-            return $this->recovery->returnToPrevious($state, $project, $names, new InstanceException('An earlier run of this restore stopped during the swap.', ExitCode::RolledBack, 'restore_interrupted'), [], $this->safetyName($record));
+        if ($record->hasStarted('swap')) { // killed during the swap: the state may already name the fresh volume
+            $added = RestoreNames::strings($record->phaseData('prepare')['add'] ?? null);
+
+            return $this->recovery->returnToPrevious($this->previousState($state, $names), $project, $names, new InstanceException('An earlier run of this restore stopped during the swap.', ExitCode::RolledBack, 'restore_interrupted'), $added, $this->safetyName($record));
         }
         try {
             $intake = $run->phase('prepare', fn (): array => $this->prepare($state, $request, $names), changes: false, always: true);
@@ -159,16 +161,18 @@ final readonly class RestoreOperation
         $record = $run->record();
         $previous ??= $this->previousState($swapped, $names);
         try {
-            $run->phase('verify', fn (): array => ['checked' => $this->stack->startAndVerify($swapped, $project, $token)], always: true);
-            $run->phase('open', function () use ($swapped, $project): array {
-                $this->stack->reopen($swapped, $project);
+            if (! $record->hasStarted('cleanup')) { // once clean-up began, the previous database and volume may be gone
+                $run->phase('verify', fn (): array => ['checked' => $this->stack->startAndVerify($swapped, $project, $token)], always: true);
+                $run->phase('open', function () use ($swapped, $project): array {
+                    $this->stack->reopen($swapped, $project);
 
-                return ['open' => true];
-            }, always: true);
+                    return ['open' => true];
+                }, always: true);
+            }
         } catch (Throwable $e) {
-            $added = RestoreNames::strings($record->phaseData('swap')['keys_added'] ?? null);
+            $added = RestoreNames::strings($run->record()->phaseData('swap')['keys_added'] ?? null);
 
-            return $this->recovery->returnToPrevious($previous, $project, $names, $e, $added, $this->safetyName($run->record()));
+            return $this->recovery->returnToPrevious($previous, $project, $names, $e, $added, $this->safetyName($run->record()), swapped: true);
         }
         $backupName = is_string($intake['backup']['name'] ?? null) ? $intake['backup']['name'] : null;
         $cleanup = $run->phase('cleanup', fn (): array => $this->cleanup->run($project, $names, $this->safetyName($run->record()), $run->record(), $backupName), always: true);
@@ -209,6 +213,7 @@ final readonly class RestoreOperation
         $as = $created['role'] === null ? null : ['username' => $created['role'], 'password' => (string) $created['password']];
         $this->databases->restore($state, $project, $backup, $names->scratch, $as);
         if ($created['role'] !== null) {
+            $this->databases->audit($project, $names->scratch, $names->live); // the live database: migrated by this image
             $this->databases->adopt($project, $names->scratch, $created['role']);
         }
 

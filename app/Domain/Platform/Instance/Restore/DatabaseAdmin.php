@@ -30,6 +30,12 @@ final readonly class DatabaseAdmin
 {
     private const int RENAME_ATTEMPTS = 3;
 
+    /** The only roles a restore creates, adopts from or drops (review: never the app's own user). */
+    public const string ROLE = '/^fsa_(?:restore|drill)_[a-z0-9_]{1,40}$/D';
+
+    /** The only databases a restore drops: its scratch, put-aside and drill databases. */
+    public const string DROPPABLE = '/(?:^|_)(?:pre_)?restore_/';
+
     public function __construct(private Connection $admin) {}
 
     public function exists(string $database): bool
@@ -60,6 +66,7 @@ final readonly class DatabaseAdmin
         if ($password === null || $password === '') {
             throw new RestoreRefused('password_missing', 'The restricted restore role needs a password (FSA_RESTORE_DB_PASSWORD).');
         }
+        $this->assertRestoreRole($role);
         $this->ensureRestrictedRole($role, $password);
         $this->admin->statement('CREATE DATABASE '.$this->quote($database).' OWNER '.$role);
         $this->admin->statement('REVOKE ALL ON DATABASE '.$this->quote($database).' FROM PUBLIC');
@@ -74,6 +81,12 @@ final readonly class DatabaseAdmin
         $this->assertNotReserved($database);
         if ($database === $live) {
             throw new RestoreRefused('refused_live_database', "{$database} is the instance's live database; a restore never drops it.");
+        }
+        if (preg_match(self::DROPPABLE, $database) !== 1) {
+            throw new RestoreRefused('refused_database', "{$database} is no scratch, put-aside or drill database of a restore; it is never dropped here.");
+        }
+        if ($role !== null) {
+            $this->assertRestoreRole($role);
         }
         $existed = $this->exists($database);
         $this->admin->statement('DROP DATABASE IF EXISTS '.$this->quote($database).' WITH (FORCE)');
@@ -130,6 +143,7 @@ final readonly class DatabaseAdmin
     public function adopt(string $database, string $role): array
     {
         $this->assertNotReserved($database);
+        $this->assertRestoreRole($role);
         if (! $this->exists($database) || ! $this->roleExists($role)) {
             throw new RestoreRefused('database_missing', "The database {$database} or the role {$role} does not exist.");
         }
@@ -191,6 +205,13 @@ final readonly class DatabaseAdmin
     private function currentUser(): string
     {
         return (string) $this->admin->selectOne('SELECT current_user AS name')?->name;
+    }
+
+    private function assertRestoreRole(string $role): void
+    {
+        if (preg_match(self::ROLE, $role) !== 1) {
+            throw new RestoreRefused('invalid_role', "{$role} is no role a restore creates (fsa_restore_… or fsa_drill_…).");
+        }
     }
 
     private function assertNotReserved(string $database): void

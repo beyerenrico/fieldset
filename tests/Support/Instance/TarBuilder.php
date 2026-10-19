@@ -23,6 +23,12 @@ final class TarBuilder
         return $this->member($name, '5', '', 0755);
     }
 
+    /** A directory header that carries data, which GNU tar would read as further headers (it skips none after one). */
+    public function directoryWithData(string $name, string $data): self
+    {
+        return $this->member($name, '5', $data, 0755);
+    }
+
     public function symlink(string $name, string $target): self
     {
         return $this->member($name, '2', '', 0777, $target);

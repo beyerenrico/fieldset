@@ -51,6 +51,7 @@ final readonly class FinishRestore
     private function carry(string $source, Connection $target): array
     {
         $previous = RestoreConnections::to($source, self::SOURCE_CONNECTION);
+        $previous->statement('SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY'); // the carry only reads the pre-restore database
 
         try {
             return [new SecurityStateCarrier($previous, $target)->carry(), new SequenceAdvancer($previous, $target)->advance()];

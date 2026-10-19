@@ -139,6 +139,7 @@ final readonly class FromBackupInstall
         $state = $this->directory->state();
         $state = FromBackupSettings::overlay($state, $backup, RestoreStorage::fresh($state, $id));
         $this->directory->saveState($state);
+        $this->data->volume($state); // before the first Compose call: the compose file declares it as an existing volume
         $secrets = $this->stack->secrets();
         $rendered = $this->renderer->write($this->directory, $state, $secrets, ComposeFile::emulated($this->directory, $this->renderer, $state, $secrets));
 

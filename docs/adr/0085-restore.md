@@ -51,7 +51,11 @@ cleans up after a verified swap. `fsa restore --abandon` does the same without r
 removes the scratch artefacts and restarts the previous stack, after an unverified swap it returns to the previous
 instance, after a verified one it finishes; the journal closes with `ok`. A process killed between the two
 `ALTER DATABASE … RENAME` statements (milliseconds) leaves only the aside name: that case stops with exit 8 and the
-names rather than guessing.
+names rather than guessing. A run killed inside the swap returns to the previous volume even when the state already
+named the fresh one; a completed swap whose put-aside database or previous volume is gone is exit 8, never a silent mix;
+once the clean-up began, a resumed run only finishes it. `instance:restore-db` drops only databases whose names contain
+`restore_` (scratch, put-aside, drill) and touches only `fsa_restore_…`/`fsa_drill_…` roles; the carry reads the
+pre-restore database in a read-only session; names from an archive reach error messages without control characters.
 
 **Exit codes (§7, ADR 0066).** 2: damaged (a file does not match `SHA256SUMS`), unsafe (a hostile member, a refused dump
 object, no migrations table), unauthenticated without `--accept-unauthenticated`, an APP key fingerprint nobody can
@@ -62,10 +66,13 @@ the release manifest's `upgrades_from`, an older backup in place (`upgrade_child
 **Prepare one-off and extraction (R41, KTD16).** `fsa restore-prepare` (an image role like `backup-daemon`, hidden) runs
 from the instance's app image with `--network none`, no socket, as the owner (KTD2), with the backup (or its directory)
 and the identity file's directory mounted read-only and only `backups/.restore-<id>` (0750) writable; the passphrase and
-the HMAC keys arrive on stdin, never as arguments. It decrypts (identity via batchpass, then `backup.tar.age` with the
+the HMAC keys arrive on stdin, never as arguments. The identity file is mounted alone (not its directory), the scratch
+directory's room for the decrypted set is checked before it is written, and the paths the one-off reports back are
+accepted only when they are the backup itself or lie in the scratch directory (they become mounts of later containers). It decrypts (identity via batchpass, then `backup.tar.age` with the
 identity, straight to `backup.tar`), reads every tar header itself (TarStream: ustar, GNU long names, pax `path`/`size`,
 base-256 sizes, checksums) and refuses the whole archive for an absolute path, a `..` segment, a control character, a
-symlink, a hard link, a device, a FIFO or any other type; a set member must be a regular file named like a backup file
+symlink, a hard link, a device, a FIFO or any other type, a non-file member that carries data (GNU tar skips no data
+after a directory header and would read it as the next header) and anything but zero bytes after the end blocks; a set member must be a regular file named like a backup file
 (BackupSet::FILES), once. Only then is anything written (exclusive create, 0600), and `backup.tar` is deleted. A plain
 backup directory is read in place once every entry is a regular file (no symlink); its storage archive is copied into
 the scratch directory (0640) so tar can read it as www-data with the owner's group added. The storage archive is judged
@@ -84,11 +91,19 @@ TRIGGERS; a unit test keeps both in step with the migrations).
 **HMAC and APP keys (R67, KTD16, KTD18).** The HMAC is checked only with keys from outside the archive: the instance's
 APP_KEY and APP_PREVIOUS_KEYS (env/app.env) and, with `--app-key-file`, the keys of a file (one `base64:` key per line,
 or an env file such as the old host's env/app.env). fsa passes derived HMAC keys (HKDF as ADR 0084) with their
-fingerprints; the one-off reports which verified. A matching HMAC with the first manifest fingerprint is
-`authenticated`; anything else (a mismatch, no HMAC, the 1.0 format) needs `--accept-unauthenticated` and is then
+fingerprints; the one-off reports which verified. Only the instance's current APP_KEY and the key file's keys
+authenticate (a previous key may have been retired because it leaked; a backup made under one needs `--app-key-file`),
+and only when the key that verified is the one the manifest names first: then the backup is `authenticated`;
+anything else (a mismatch, no HMAC, the 1.0 format) needs `--accept-unauthenticated` and is then
 restored by `fsa_restore_<id>`, a LOGIN role without SUPERUSER, CREATEDB, CREATEROLE, REPLICATION or BYPASSRLS that owns
-only the scratch database (PUBLIC may not connect), with `--no-owner --no-privileges`; afterwards `REASSIGN OWNED` and
-`DROP OWNED` hand everything to the app's user and the role goes. Every fingerprint the manifest lists must be known
+only the scratch database (PUBLIC may not connect), with `--no-owner --no-privileges`. Before anything is handed over,
+the schema check (`instance:restore-db audit`, SchemaAudit) compares every object that carries code (functions outside
+extensions, triggers, column defaults and generated columns, indexes, check constraints, rules, policies, views, event
+triggers, schemas, extensions, domain and enum types) by name and printed definition with a database this image
+migrated: the live database for `fsa restore` and the drill, the empty live database migrated first for `--from-backup`.
+The restored database may lack objects (an older backup) but never have other or changed ones, else exit 2
+`backup_unsafe` (exit 5 once the instance was quiesced). Only then do `REASSIGN OWNED` and `DROP OWNED` hand everything
+to the app's user, and the role goes. Every fingerprint the manifest lists must be known
 (instance or key file; for `--from-backup` also the keys inside the archive), else exit 2 `app_key_unknown`. Key-file
 keys the backup lists and the instance lacks become APP_PREVIOUS_KEYS at the swap (InstanceSecrets::previousKeys, now
 rendered for app, queue, scheduler and one-offs), so data encrypted under them decrypts; `instance:restore-finish` gets
@@ -197,10 +212,10 @@ the sequence advance because writers were stopped since the safety backup.
   recipient, so the key inside proves nothing; the operator passes the old key (or accepts the archive).
 
 ## Consequences
-- Residual risk, recorded for human review: an archive accepted with `--accept-unauthenticated` keeps its table and
-  function definitions; the restricted role and the allow-lists stop it from acting during the restore, but the app's
-  database user is the superuser, so a crafted column default or index expression of such an archive would later run
-  with superuser rights. Only accept archives you made yourself (1.0 backups).
+- Residual risk, recorded for human review: a TOC entry of an unauthenticated archive can carry more SQL than its label
+  says; it runs as the restricted role during `pg_restore` only, and the schema check then refuses any code-bearing
+  object this image does not define. What it cannot judge is data (rows are restored as they are), and the app's
+  database user is still the Postgres superuser. Only accept archives you made yourself (1.0 backups).
 - Docker's data root may be another file system than the instance directory; the space check then underestimates.
 - An interrupted restore keeps the gate up until resumed or abandoned (the app answers 503).
 - Held webhook steps go out up to `workflows.sweep_after_minutes` (30) after `fsa config set webhooks on`.

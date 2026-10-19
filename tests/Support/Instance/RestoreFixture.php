@@ -8,6 +8,8 @@ use App\Domain\Instance\Backup\AgeCli;
 use App\Domain\Instance\Backup\BackupChecksums;
 use App\Domain\Instance\Backup\BackupTools;
 use App\Domain\Instance\Docker\ContainerSpec;
+use App\Domain\Instance\Docker\DockerResource;
+use App\Domain\Instance\Docker\Labels;
 use App\Domain\Instance\Docker\ProcessOutcome;
 use App\Domain\Instance\Restore\BackupPreparer;
 use App\Domain\Instance\Restore\MigrationSet;
@@ -38,6 +40,9 @@ final class RestoreFixture
     /** @var list<array{action: string, options: list<string>, env: list<string>}> */
     public array $databaseCalls = [];
 
+    /** A schema mismatch the audit of an unauthenticated restore reports (null: none). */
+    public ?string $auditMismatch = null;
+
     public ?ProcessOutcome $pgRestore = null;
 
     public ?ProcessOutcome $tar = null;
@@ -58,6 +63,8 @@ final class RestoreFixture
         $this->config = new ConfigFixture;
         $this->instance = $this->config->instance;
         $this->instance->withRunningStack();
+        $state = $this->instance->state(); // Compose's own storage volume, as `docker volume ls` lists it
+        $this->instance->docker->withResource(new DockerResource(DockerResource::VOLUME, $state->project().'_app-storage', [Labels::INSTANCE => $state->uuid(), 'com.docker.compose.volume' => 'app-storage']));
         app()->instance(AgeCli::class, new AgeCli(base_path('tests/Fixtures/bin/fake-age'), base_path('tests/Fixtures/bin/fake-age-keygen')));
         app()->instance(RestoreSpace::FREE_BYTES, fn (): ?int => $this->freeBytes);
         $run = $this->instance->docker->runResponder;
@@ -174,6 +181,9 @@ final class RestoreFixture
         }
         $calls = $this->instance->docker->called('composeRun');
         $this->databaseCalls[] = ['action' => $action, 'options' => array_slice($command, 4), 'env' => $calls[array_key_last($calls)]['env'] ?? []];
+        if ($action === 'audit' && $this->auditMismatch !== null) {
+            return InstanceCommandFixture::oneOffJson(['command' => 'instance:restore-db', 'status' => 'failed', 'errors' => [['code' => 'schema_mismatch', 'message' => 'The restored database holds code this version does not define: '.$this->auditMismatch.'.', 'hint' => null]]]);
+        }
         if (isset($this->failDatabase[$action])) {
             return InstanceCommandFixture::oneOffJson(['command' => 'instance:restore-db', 'status' => 'failed', 'errors' => [['code' => 'database_failed', 'message' => "{$action} failed", 'hint' => null]]]);
         }

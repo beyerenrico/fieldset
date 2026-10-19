@@ -70,6 +70,26 @@ final readonly class RestoreDatabases
         $this->run($project, 'adopt', ['--database='.$database, '--role='.$role]);
     }
 
+    /**
+     * The schema check of an unauthenticated archive before its objects go to the app's user: every object that carries
+     * code (functions, triggers, defaults, indexes, checks, views, rules, policies …) must equal the reference database's,
+     * which this image migrated (ADR 0085).
+     *
+     * @throws InstanceException exit 2 `backup_unsafe`
+     */
+    public function audit(ComposeProject $project, string $database, string $reference): void
+    {
+        $outcome = OneOffResult::fromOutcome($this->docker->composeRun($project, ComposeRenderer::ONE_OFF_SERVICE, ['php', 'artisan', 'instance:restore-db', 'audit', '--database='.$database, '--reference='.$reference, '--json'], timeout: self::TIMEOUT));
+        if ($outcome->ok) {
+            return;
+        }
+        if ($outcome->errorCode() === 'schema_mismatch') {
+            throw new InstanceException((string) preg_replace('/[\x00-\x1F\x7F]/', '?', $outcome->errorMessage()), ExitCode::InvalidInput, 'backup_unsafe', 'Nothing was swapped in. Restore only archives this app wrote.');
+        }
+
+        throw new InstanceException('The schema check failed: '.$outcome->errorMessage(), ExitCode::HealthCheckFailed, 'restore_database_failed', 'Read the output; the live database was not touched.', true, ['output' => $outcome->output]);
+    }
+
     /** @return list<string> databases whose names start with `$prefix` */
     public function list(ComposeProject $project, string $prefix): array
     {
@@ -104,7 +124,8 @@ final readonly class RestoreDatabases
             entrypoint: 'pg_restore',
         ), null, self::RESTORE_TIMEOUT);
         if (! $outcome->successful()) {
-            throw new InstanceException('pg_restore failed: '.$outcome->stderrTail(5), ExitCode::HealthCheckFailed, 'pg_restore_failed', 'Read the output; the live database was not touched.', true, ['output' => $outcome->stderrTail(10)]);
+            $tail = static fn (int $lines): string => (string) preg_replace('/[\x00-\x08\x0B-\x1F\x7F]/', '?', $outcome->stderrTail($lines)); // names from the archive
+            throw new InstanceException('pg_restore failed: '.$tail(5), ExitCode::HealthCheckFailed, 'pg_restore_failed', 'Read the output; the live database was not touched.', true, ['output' => $tail(10)]);
         }
     }
 

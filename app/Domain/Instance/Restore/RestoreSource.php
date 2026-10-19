@@ -79,7 +79,7 @@ final readonly class RestoreSource
         $mount = is_dir($source) ? $source : dirname($source);
         $volumes = [$mount.':'.$mount.':ro', $scratch.':'.$scratch];
         if ($identityFile !== null) {
-            $volumes[] = dirname($identityFile).':'.dirname($identityFile).':ro';
+            $volumes[] = $identityFile.':'.$identityFile.':ro'; // the file alone, never its directory (often $HOME)
         }
         $input = json_encode(['passphrase' => $passphrase, 'keys' => $keys->hmacKeys()], JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
         $outcome = OneOffResult::fromOutcome($this->docker->runContainer(new ContainerSpec(
@@ -94,7 +94,30 @@ final readonly class RestoreSource
             throw $this->failure($outcome);
         }
 
-        return PreparedBackup::fromArray($outcome->data);
+        return self::confined(PreparedBackup::fromArray($outcome->data), $source, $scratch);
+    }
+
+    /**
+     * The paths the prepare container reports are mounted into later containers by the process that holds the socket:
+     * they must be the backup itself or lie in the scratch directory, whatever a compromised prepare step claims.
+     *
+     * @throws InstanceException exit 4 `prepare_failed`
+     */
+    public static function confined(PreparedBackup $backup, string $source, string $scratch): PreparedBackup
+    {
+        $allowed = [
+            'set' => [$source, $scratch.'/'.BackupPreparer::SET_DIR],
+            'archive' => [$scratch.'/storage.tar.gz', $scratch.'/'.BackupPreparer::SET_DIR.'/storage.tar.gz'],
+            'listing' => [$scratch.'/'.BackupPreparer::MEMBERS],
+        ];
+        $paths = ['set' => $backup->set, 'archive' => $backup->storage['archive'] ?? null, 'listing' => $backup->storage['listing'] ?? null];
+        foreach ($paths as $key => $path) {
+            if ($path !== null && ! in_array($path, $allowed[$key], true)) {
+                throw new InstanceException("The prepare step reported a path outside the backup and its scratch directory ({$key}).", ExitCode::HealthCheckFailed, 'prepare_failed', 'Nothing was changed; run the command again, and report it if it repeats.');
+            }
+        }
+
+        return $backup;
     }
 
     private function failure(OneOffResult $outcome): InstanceException

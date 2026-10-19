@@ -56,17 +56,12 @@ final readonly class RestoreRecovery
     /**
      * @param  InstanceState  $previous  the state before the swap (its storage volume)
      * @param  list<string>  $addedKeys  fingerprints of APP keys the swap added
+     * @param  bool  $swapped  the journal says the swap completed: the put-aside database and the previous volume must exist
      */
-    public function returnToPrevious(InstanceState $previous, ComposeProject $project, RestoreNames $names, Throwable $cause, array $addedKeys, ?string $safetyBackup): CommandResult
+    public function returnToPrevious(InstanceState $previous, ComposeProject $project, RestoreNames $names, Throwable $cause, array $addedKeys, ?string $safetyBackup, bool $swapped = false): CommandResult
     {
         try {
-            $databases = $this->databases->list($project, $names->live);
-            if (in_array($names->aside, $databases, true)) {
-                if (! in_array($names->live, $databases, true)) {
-                    throw new InstanceException("Only {$names->aside} exists; the live database name is free.", ExitCode::RollbackFailed, 'swap_half_done');
-                }
-                $this->databases->swap($project, $names->aside, $names->live, $names->scratch);
-            }
+            $this->swapBack($project, $names, $swapped);
             $secrets = $this->stack->secrets();
             $kept = array_values(array_filter($secrets->previousKeys, static fn (string $key): bool => ! in_array(KeyFingerprint::of($key), $addedKeys, true)));
             $this->stack->apply($previous, $secrets->withPreviousKeys($kept));
@@ -80,6 +75,32 @@ final readonly class RestoreRecovery
         $left = $this->dropScratch($project, $names);
 
         return $this->failed($cause, ExitCode::RolledBack, 'The restored instance did not pass its verification; the previous database and storage volume are back.', ['left_behind' => $left, 'returned_to_previous' => true]);
+    }
+
+    /**
+     * Puts the previous database back under the live name, when the swap renamed it. A swap the journal says completed
+     * whose put-aside database or previous volume is gone cannot be undone: exit 8, never a silent mix of restored data
+     * and the previous volume.
+     *
+     * @throws InstanceException exit 8
+     */
+    private function swapBack(ComposeProject $project, RestoreNames $names, bool $swapped): void
+    {
+        $databases = $this->databases->list($project, ''); // every database: the names may be shortened copies of the live one
+        $aside = in_array($names->aside, $databases, true);
+        if ($aside && ! in_array($names->live, $databases, true)) {
+            throw new InstanceException("Only {$names->aside} exists; the live database name is free.", ExitCode::RollbackFailed, 'swap_half_done');
+        }
+        if ($swapped && ! $aside) {
+            throw new InstanceException("The previous database {$names->aside} is gone.", ExitCode::RollbackFailed, 'previous_database_missing');
+        }
+        $volumes = array_map(static fn (DockerResource $volume): string => $volume->name, $this->docker->volumes([]));
+        if (! in_array($names->currentVolume, $volumes, true)) {
+            throw new InstanceException("The previous storage volume {$names->currentVolume} is gone.", ExitCode::RollbackFailed, 'previous_volume_missing');
+        }
+        if ($aside) {
+            $this->databases->swap($project, $names->aside, $names->live, $names->scratch);
+        }
     }
 
     /** @return list<string> what could not be removed (reported, removed by `fsa restore --abandon` or by hand) */

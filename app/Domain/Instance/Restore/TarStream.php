@@ -35,9 +35,15 @@ final class TarStream
         $pending = [];
         while (($header = $this->block()) !== null) {
             if (trim($header, "\0") === '') {
-                return $count; // end-of-archive block
+                $this->assertOnlyZeros(); // GNU tar may read on after a lone zero block: nothing may hide there
+
+                return $count;
             }
             $member = TarMember::fromHeader($header, $pending);
+            if (! $member->isMeta() && $member->type !== TarMember::REGULAR && $member->size !== 0) {
+                // GNU tar skips no data after a directory (or link) header and would read those bytes as headers.
+                throw new UnsafeArchive('The archive has a member of type \''.$member->type.'\' that carries data.');
+            }
             if ($member->isMeta()) {
                 $pending = $member->applyMeta($pending, $this->exactly($member->size, self::MAX_META));
                 $this->skip($this->padding($member->size));
@@ -58,6 +64,16 @@ final class TarStream
         }
 
         throw new UnsafeArchive('The archive ends without its end-of-archive blocks.');
+    }
+
+    /** The rest of the stream after the end-of-archive block must be zero bytes (padding to the record size). */
+    private function assertOnlyZeros(): void
+    {
+        while (($chunk = $this->read(1 << 16)) !== '') {
+            if (trim($chunk, "\0") !== '') {
+                throw new UnsafeArchive('The archive has data after its end-of-archive block.');
+            }
+        }
     }
 
     private function padding(int $size): int

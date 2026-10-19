@@ -63,7 +63,7 @@ final readonly class DumpInspector
             $types[$entry['type']] = ($types[$entry['type']] ?? 0) + 1;
             $problem = $entry['type'] === '?' ? 'an entry that cannot be read' : self::problem($entry, $strict);
             if ($problem !== null) {
-                $rejected[] = $problem.': '.mb_strimwidth($line, 0, 200, '…');
+                $rejected[] = $problem.': '.mb_strimwidth((string) preg_replace('/[\x00-\x1F\x7F]/', '?', $line), 0, 200, '…'); // no escape sequences reach a terminal
             }
         }
         ksort($types);

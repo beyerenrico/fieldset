@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Instance\Docker\ProcessOutcome;
+use App\Domain\Instance\Lifecycle\ComposeFile;
 use App\Domain\Instance\Operations\OperationJournal;
 use App\Domain\Instance\Restore\RestoreNames;
 use App\Domain\Instance\Runtime\OperationGate;
@@ -49,6 +50,7 @@ function interruptedRestore(RestoreFixture $restore, string $until, ?string $sta
         'quiesce' => [['gate' => 'raised'], true], 'ledger' => [['seed' => 1, 'epoch' => 1, 'input' => ['previous_heads' => [], 'previous_epoch' => 1, 'from_backup' => false]], true],
         'safety_backup' => [['backup' => 'safety-restore-20261019T120000Z'], true], 'restore_database' => [['database' => $names->scratch], true],
         'restore_storage' => [['volume' => $names->freshVolume], true], 'finish' => [['epoch' => 2], true], 'erasures' => [['removed' => 0], true],
+        'swap' => [['flushed' => true, 'keys_added' => []], true], 'verify' => [['checked' => []], true], 'open' => [['open' => true], true],
     ];
     foreach ($phases as $phase => [$data, $changes]) {
         $journal->startPhase($phase, [], $changes);
@@ -183,7 +185,7 @@ it('restores an encrypted backup with the identity file and the passphrase from 
     exec('rm -rf '.escapeshellarg($outside));
 
     expect($code)->toBe(0, (string) json_encode($json))->and($json['data']['encrypted'])->toBeTrue()
-        ->and($prepare->volumes)->toContain($outside.':'.$outside.':ro')
+        ->and($prepare->volumes)->toContain($identity.':'.$identity.':ro')->not->toContain($outside.':'.$outside.':ro') // the file alone (review)
         ->and(implode(' ', $prepare->command))->not->toContain(BackupSetFixture::PASSPHRASE)->toContain('--identity-file='.$identity)
         ->and(json_encode($json))->not->toContain(BackupSetFixture::PASSPHRASE)
         ->and($file)->toEndWith('backup.tar.age');
@@ -207,4 +209,38 @@ it('raises the gate only with a token the smoke test sends from stdin', function
 
     expect($curl[0]['input'])->toMatch('/^'.preg_quote(OperationGate::SMOKE_HEADER, '/').': [A-Za-z0-9_-]{32,128}\n$/')
         ->and(InstanceCommandFixture::VERSION)->toBe('2.0.0-alpha.1');
+});
+
+it('returns to the previous volume when a run killed inside the swap had already saved the fresh one (review)', function (): void {
+    $names = interruptedRestore($this->restore, 'erasures', started: 'swap');
+    $this->restore->instance->directory->saveState($this->restore->config->state()->withSetting('storage_volume', $names->freshVolume));
+
+    [$code, $json] = $this->restore->restore();
+
+    expect($code)->toBe(5, (string) json_encode($json))
+        ->and(InstanceSettings::of($this->restore->config->state())->storageVolume())->toBeNull()
+        ->and(ComposeFile::document($this->restore->instance->directory)['volumes']['app-storage'] ?? null)->not->toHaveKey('name');
+});
+
+it('stops with exit 8 instead of mixing data when a completed swap cannot be undone (the put-aside database is gone)', function (): void {
+    interruptedRestore($this->restore, 'swap', started: 'verify');
+    $this->restore->config->smokeFails = static fn (array $urls, array $command): bool => in_array('@-', $command, true);
+
+    [$code, $json] = $this->restore->restore();
+
+    expect($code)->toBe(8, (string) json_encode($json))
+        ->and($json['errors'][0]['message'])->toContain('is gone')
+        ->and(new OperationJournal($this->restore->instance->directory)->current()?->operation())->toBe('restore');
+});
+
+it('only finishes the clean-up when a run was killed during it: no second verification, no way back', function (): void {
+    interruptedRestore($this->restore, 'open', started: 'cleanup');
+    $mark = $this->restore->config->mark();
+
+    [$code, $json] = $this->restore->restore();
+
+    expect($code)->toBe(0, (string) json_encode($json))
+        ->and(array_filter($this->restore->config->callsSince($mark, 'composeUp'), static fn (array $call): bool => $call['services'] === ['app']))->toBe([])
+        ->and($this->restore->actions())->not->toContain('swap')
+        ->and(new OperationJournal($this->restore->instance->directory)->current())->toBeNull();
 });

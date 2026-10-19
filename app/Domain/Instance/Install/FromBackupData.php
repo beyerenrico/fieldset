@@ -7,6 +7,9 @@ namespace App\Domain\Instance\Install;
 use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\Docker\DockerGateway;
 use App\Domain\Instance\Docker\DockerResource;
+use App\Domain\Instance\InstanceException;
+use App\Domain\Instance\Lifecycle\AppCommands;
+use App\Domain\Instance\Output\ExitCode;
 use App\Domain\Instance\Restore\PreparedBackup;
 use App\Domain\Instance\Restore\RestoreDatabases;
 use App\Domain\Instance\Restore\RestoreStorage;
@@ -22,7 +25,7 @@ use App\Domain\Instance\State\InstanceState;
  */
 final readonly class FromBackupData
 {
-    public function __construct(private RestoreDatabases $databases, private RestoreStorage $storage, private DockerGateway $docker) {}
+    public function __construct(private RestoreDatabases $databases, private RestoreStorage $storage, private DockerGateway $docker, private AppCommands $app) {}
 
     /** @return array{database: string, restricted: bool} */
     public function database(InstanceState $state, ComposeProject $project, PreparedBackup $backup, string $id): array
@@ -41,6 +44,8 @@ final readonly class FromBackupData
         $as = $created['role'] === null ? null : ['username' => $created['role'], 'password' => (string) $created['password']];
         $this->databases->restore($state, $project, $backup, $scratch, $as);
         if ($created['role'] !== null) {
+            $this->reference($project); // the empty live database, migrated by this image, is the schema to compare with
+            $this->databases->audit($project, $scratch, $live);
             $this->databases->adopt($project, $scratch, $created['role']);
         }
         $this->databases->swap($project, $scratch, $live, $aside);
@@ -49,14 +54,34 @@ final readonly class FromBackupData
         return ['database' => $live, 'restricted' => $created['role'] !== null];
     }
 
-    /** @return array{volume: string, files: int} */
-    public function storage(InstanceState $state, PreparedBackup $backup): array
+    /** Migrates the empty live database (it is put aside and dropped after the swap): the reference of the schema check. */
+    private function reference(ComposeProject $project): void
+    {
+        $outcome = $this->app->migrate($project);
+        if (! $outcome->successful()) {
+            throw new InstanceException('Migrating the reference database for the schema check failed.', ExitCode::HealthCheckFailed, 'migrate_failed', 'Read the output, then run `fsa install` again with the same flags: it resumes here.', true, ['output' => $outcome->stderrTail(10)]);
+        }
+    }
+
+    /**
+     * The fresh storage volume the state names, created empty with the state (every Compose call checks that an external
+     * volume exists, the one-offs of the database steps too); a resumed install finds it already there.
+     */
+    public function volume(InstanceState $state): string
     {
         $volume = RestoreStorage::current($state);
-        if (array_any($this->docker->volumes([]), static fn (DockerResource $resource): bool => $resource->name === $volume)) {
-            $this->storage->remove($volume); // an interrupted attempt's, never an instance's own: the name is this install's
+        if (! array_any($this->docker->volumes([]), static fn (DockerResource $resource): bool => $resource->name === $volume)) {
+            $this->storage->create($state, $volume);
         }
-        $this->storage->fill($state, $volume, $backup->storage['archive'] ?? null);
+
+        return $volume;
+    }
+
+    /** @return array{volume: string, files: int} the archive extracted into the fresh volume (again, on a resume) */
+    public function storage(InstanceState $state, PreparedBackup $backup): array
+    {
+        $volume = $this->volume($state);
+        $this->storage->fill($state, $volume, $backup->storage['archive'] ?? null, create: false);
 
         return ['volume' => $volume, 'files' => $backup->storage['files'] ?? 0];
     }

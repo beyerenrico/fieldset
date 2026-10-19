@@ -26,6 +26,18 @@ final readonly class RestoreSpace
     public function __construct(private BackupStore $store) {}
 
     /**
+     * Before the prepare step writes anything: room for the decrypted set (an encrypted backup) or the copy of the storage
+     * archive (a plain one) in the scratch directory, plus the headroom.
+     *
+     * @throws InstanceException exit 3 `low_disk_space`
+     */
+    public function assertScratch(string $source): void
+    {
+        $bytes = is_file($source) ? (int) filesize($source) : (is_file($source.'/backup.tar.age') ? (int) filesize($source.'/backup.tar.age') : (int) @filesize($source.'/storage.tar.gz'));
+        $this->check(2 * $bytes + self::HEADROOM, 'the decrypted backup in the scratch directory');
+    }
+
+    /**
      * @return array{required: int, free: int|null}
      *
      * @throws InstanceException exit 3 `low_disk_space`
@@ -35,11 +47,18 @@ final readonly class RestoreSpace
         $dump = (int) @filesize($backup->set.'/database.dump');
         $entries = $this->store->entries();
         $required = ($entries === [] ? BackupStore::bytes($backup->set) : $entries[0]->bytes) + 3 * $dump + ($backup->storage['bytes'] ?? 0) + self::HEADROOM;
+        $free = $this->check($required, 'the safety backup, a second database and storage volume');
+
+        return ['required' => $required, 'free' => $free];
+    }
+
+    private function check(int $required, string $what): ?int
+    {
         $probe = app()->bound(self::FREE_BYTES) ? app(self::FREE_BYTES) : null;
         $free = $probe instanceof Closure ? $probe() : $this->store->freeBytes();
         if ($free !== null && $free < $required) {
             throw new InstanceException(
-                sprintf('Not enough free disk space for the restore: %d MiB needed (safety backup, a second database and storage volume, headroom), %d MiB free.', intdiv($required, 1024 ** 2), intdiv($free, 1024 ** 2)),
+                sprintf('Not enough free disk space for the restore: %d MiB needed (%s, headroom), %d MiB free.', intdiv($required, 1024 ** 2), $what, intdiv($free, 1024 ** 2)),
                 ExitCode::PreflightFailed,
                 'low_disk_space',
                 'Free space on the disk that holds the instance and Docker (old backups in backups/), then run the command again; nothing was changed.',
@@ -48,6 +67,6 @@ final readonly class RestoreSpace
             );
         }
 
-        return ['required' => $required, 'free' => $free];
+        return $free;
     }
 }

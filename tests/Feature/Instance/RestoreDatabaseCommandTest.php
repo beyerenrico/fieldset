@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Console\Commands\RestoreDatabaseCommand;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Tests\Support\Instance\RestoreDatabases;
 
 /*
@@ -16,7 +17,7 @@ const RESTORE_DB_PASSWORD = '00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff';
 
 afterEach(function (): void {
     putenv(RestoreDatabaseCommand::PASSWORD_ENV);
-    RestoreDatabases::drop(['rdl', 'rdi', 'rda', 'rdn', 'rdr']);
+    RestoreDatabases::drop(['rdl', 'rdi', 'rda', 'rdn', 'restore_rdr', 'rdo', 'restore_rdx', 'restore_rdy']);
 });
 
 /** @return array{0: int, 1: array<string, mixed>} */
@@ -70,7 +71,7 @@ it('creates a scratch database, and refuses one that exists, a system database o
 });
 
 it('creates a database for a restricted role that only it may connect to, and needs the role password', function (): void {
-    $name = RestoreDatabases::name('rdr');
+    $name = RestoreDatabases::name('restore_rdr');
     $role = RestoreDatabases::role('fsa_restore_test');
 
     [$missing, $noPassword] = restoreDb('create', ['--database' => $name, '--restricted-role' => $role]);
@@ -89,7 +90,7 @@ it('creates a database for a restricted role that only it may connect to, and ne
 });
 
 it('adopts a restricted restore: objects and database go to the superuser, the role goes, PUBLIC may connect again', function (): void {
-    $name = RestoreDatabases::name('rdr');
+    $name = RestoreDatabases::name('restore_rdr');
     $role = RestoreDatabases::role('fsa_restore_test');
     putenv(RestoreDatabaseCommand::PASSWORD_ENV.'='.RESTORE_DB_PASSWORD);
     restoreDb('create', ['--database' => $name, '--restricted-role' => $role]);
@@ -146,7 +147,7 @@ it('refuses a swap with a missing database, a taken aside name or repeated names
 ]);
 
 it('drops a scratch database and its role, never the live or a system database', function (): void {
-    $name = RestoreDatabases::name('rdr');
+    $name = RestoreDatabases::name('restore_rdr');
     $role = RestoreDatabases::role('fsa_restore_test');
     putenv(RestoreDatabaseCommand::PASSWORD_ENV.'='.RESTORE_DB_PASSWORD);
     restoreDb('create', ['--database' => $name, '--restricted-role' => $role]);
@@ -165,15 +166,57 @@ it('drops a scratch database and its role, never the live or a system database',
         ->and(RestoreDatabases::exists((string) config('database.connections.pgsql.database')))->toBeTrue();
 });
 
+it('drops only databases and roles a restore made, never the app user or another database (review)', function (): void {
+    $other = RestoreDatabases::name('rdo');
+    restoreDb('create', ['--database' => $other]);
+    $appUser = (string) config('database.connections.pgsql.username');
+
+    [$database, $databaseJson] = restoreDb('drop', ['--database' => $other]);
+    [$role, $roleJson] = restoreDb('drop', ['--database' => RestoreDatabases::name('restore_rdx'), '--role' => $appUser]);
+    putenv(RestoreDatabaseCommand::PASSWORD_ENV.'='.RESTORE_DB_PASSWORD);
+    [$demote, $demoteJson] = restoreDb('create', ['--database' => RestoreDatabases::name('restore_rdy'), '--restricted-role' => $appUser]);
+
+    expect([$database, $databaseJson['errors'][0]['code']])->toBe([1, 'refused_database'])->and(RestoreDatabases::exists($other))->toBeTrue()
+        ->and([$role, $roleJson['errors'][0]['code']])->toBe([1, 'invalid_role'])
+        ->and([$demote, $demoteJson['errors'][0]['code']])->toBe([1, 'invalid_role'])
+        ->and(RestoreDatabases::roleExists($appUser))->toBeTrue();
+});
+
 it('lists the databases with a prefix and refuses an unknown action', function (): void {
     restoreDbMarked('rdl', 'live');
     restoreDbMarked('rdi', 'restored');
 
     [$code, $json] = restoreDb('list', ['--prefix' => RestoreDatabases::name('rd')]);
+    [$all, $allJson] = restoreDb('list', ['--prefix' => '']);
     [$unknown, $unknownJson] = restoreDb('rename', ['--database' => RestoreDatabases::name('rdl')]);
 
     expect($code)->toBe(0)
         ->and($json['data']['databases'])->toBe([RestoreDatabases::name('rdi'), RestoreDatabases::name('rdl')])
+        ->and($all)->toBe(0)->and($allJson['data']['databases'])->toContain(RestoreDatabases::name('rdl'), 'postgres')
         ->and($json['changed'])->toBeFalse()
         ->and([$unknown, $unknownJson['errors'][0]['code']])->toBe([1, 'invalid_input']);
+});
+
+it('audits an unauthenticated restore: identical code passes, changed or extra code is named (review)', function (): void {
+    $restored = RestoreDatabases::target();
+    $reference = RestoreDatabases::sourceFromTarget();
+
+    [$same, $sameJson] = restoreDb('audit', ['--database' => $restored, '--reference' => $reference]);
+    $db = DB::connection(RestoreDatabases::TARGET);
+    $db->unprepared(implode("\n", [
+        'CREATE OR REPLACE FUNCTION audit_seal(entry bigint, seq bigint, prev char(64), entry_hash char(64)) RETURNS boolean AS $f$ BEGIN RETURN true; END; $f$ LANGUAGE plpgsql SECURITY DEFINER;',
+        'CREATE FUNCTION steal() RETURNS text AS $f$ SELECT current_user::text $f$ LANGUAGE sql;',
+        'ALTER TABLE organizations ALTER COLUMN locale SET DEFAULT steal();',
+        'CREATE VIEW peek AS SELECT steal() AS who;',
+    ]));
+    DB::purge(RestoreDatabases::TARGET);
+    [$changed, $changedJson] = restoreDb('audit', ['--database' => $restored, '--reference' => $reference]);
+    $message = (string) ($changedJson['errors'][0]['message'] ?? '');
+
+    expect($same)->toBe(0, json_encode($sameJson))->and($sameJson['data']['objects'])->toBeGreaterThan(100)
+        ->and($changed)->toBe(1)->and($changedJson['errors'][0]['code'])->toBe('schema_mismatch')
+        ->and($message)->toContain('changed function:public.audit_seal(')
+        ->and($message)->toContain('unknown function:public.steal()')
+        ->and($message)->toContain('changed default:organizations.locale')
+        ->and($message)->toContain('unknown view:public.peek');
 });

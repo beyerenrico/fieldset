@@ -56,6 +56,11 @@ it('moves a local backup to a new instance: its data, its portable settings, cap
         ->and($history)->toContain('installed', 'installed_from_backup')
         ->and(glob($this->move->instance->directory->root.'/backups/.restore-*'))->toBe([])
         ->and(json_encode($json))->not->toContain(BackupSetFixture::APP_KEY);
+    // The compose file declares the fresh volume as an existing one, and every Compose call checks that it exists (J08).
+    $methods = $this->move->instance->docker->methods();
+    expect(array_search('createVolume', $methods, true))->toBeLessThan(array_search('composeUp', $methods, true))
+        ->and(array_search('createVolume', $methods, true))->toBeLessThan(array_search('composeRun', $methods, true))
+        ->and($this->move->instance->docker->called('createVolume'))->toHaveCount(1);
 });
 
 it('takes a new --domain whose DNS does not point here yet as "certificate pending" and verifies internally', function (): void {
@@ -101,6 +106,8 @@ it('installs from a 1.0 backup and its env only with --accept-unauthenticated, f
         ->and(InstanceSettings::of($this->move->instance->state())->mailFromAddress())->toBe('old@legacy.test')
         ->and($json['data']['pending_mail']['host'] ?? null)->toBe('smtp.legacy.test')
         ->and(implode(' ', $create['options']))->toContain('--restricted-role=')
+        ->and(array_search('audit', $this->move->actions(), true))->toBeLessThan(array_search('adopt', $this->move->actions(), true)) // review
+        ->and($this->move->instance->oneOffCalls('migrate'))->toHaveCount(2) // the reference schema, then the restored data
         ->and(collect($json['warnings'])->pluck('code')->all())->toContain('backup_unauthenticated')
         ->and(json_encode($json))->not->toContain('hunter2');
 });

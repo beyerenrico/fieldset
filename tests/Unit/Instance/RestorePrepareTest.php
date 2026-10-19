@@ -6,7 +6,10 @@ use App\Domain\Instance\Backup\AgeCli;
 use App\Domain\Instance\Backup\BackupTools;
 use App\Domain\Instance\Backup\KeyFingerprint;
 use App\Domain\Instance\Console\RestorePrepareCommand;
+use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Restore\MigrationSet;
+use App\Domain\Instance\Restore\PreparedBackup;
+use App\Domain\Instance\Restore\RestoreSource;
 use Illuminate\Support\Facades\Artisan;
 use Tests\Support\Instance\BackupSetFixture;
 use Tests\Support\Instance\TarBuilder;
@@ -152,4 +155,25 @@ it('says what is not a backup', function (): void {
     [$code, $json] = prepare($this->work.'/random', $this->work.'/scratch');
 
     expect($code)->toBe(1)->and($json['errors'][0]['code'])->toBe('not_a_backup');
+});
+
+it('refuses paths a compromised prepare step reports outside the backup and its scratch directory (review)', function (): void {
+    $source = BackupSetFixture::fsa($this->work.'/manual-20261019T210000Z');
+    [, $json] = prepare($source, $this->work.'/scratch', ['keys' => []]);
+    $prepared = PreparedBackup::fromArray($json['data']);
+    $forged = PreparedBackup::fromArray([...$json['data'], 'set' => '/']);
+    $archive = PreparedBackup::fromArray([...$json['data'], 'storage' => [...$json['data']['storage'], 'archive' => '/etc/shadow']]);
+
+    expect(RestoreSource::confined($prepared, $source, $this->work.'/scratch'))->toBe($prepared)
+        ->and(fn () => RestoreSource::confined($forged, $source, $this->work.'/scratch'))->toThrow(InstanceException::class, 'outside the backup')
+        ->and(fn () => RestoreSource::confined($archive, $source, $this->work.'/scratch'))->toThrow(InstanceException::class, 'outside the backup');
+});
+
+it('counts a backup as authenticated only when the key that verified is the one its manifest names first (review)', function (): void {
+    $source = BackupSetFixture::fsa($this->work.'/manual-20261019T220000Z', manifest: ['app_key_fingerprints' => [KeyFingerprint::of(BackupSetFixture::OTHER_KEY)]]);
+
+    [, $json] = prepare($source, $this->work.'/scratch', ['keys' => instanceKeys(BackupSetFixture::APP_KEY)]);
+    $prepared = PreparedBackup::fromArray($json['data']);
+
+    expect($json['data']['hmac'])->toBe('verified')->and($prepared->authenticated())->toBeFalse();
 });

@@ -66,9 +66,9 @@ final readonly class RestoreAbandon
         if (! $record->hasCompleted('verify')) {
             $default = $state->project().'_app-storage';
             $previous = $state->withSetting('storage_volume', $names->currentVolume === $default ? null : $names->currentVolume);
-            $added = RestoreNames::strings($record->phaseData('swap')['keys_added'] ?? null);
+            $added = RestoreNames::strings($record->hasCompleted('swap') ? ($record->phaseData('swap')['keys_added'] ?? null) : ($record->phaseData('prepare')['add'] ?? null));
             $safety = $record->phaseData('safety_backup')['backup'] ?? null;
-            $result = $this->recovery->returnToPrevious($previous, $project, $names, new InstanceException('Abandoned.', ExitCode::RolledBack, 'restore_abandoned'), $added, is_string($safety) ? $safety : null);
+            $result = $this->recovery->returnToPrevious($previous, $project, $names, new InstanceException('Abandoned.', ExitCode::RolledBack, 'restore_abandoned'), $added, is_string($safety) ? $safety : null, $record->hasCompleted('swap'));
 
             return $result->exitCode === ExitCode::RolledBack
                 ? CommandResult::ok(RestoreOperation::OPERATION, ['abandoned' => true, 'swapped' => true, 'returned_to_previous' => true, ...$result->data], changed: true)

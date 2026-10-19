@@ -40,9 +40,12 @@ final readonly class PreparedBackup
         public bool $legacyEnv,
     ) {}
 
+    /** The HMAC verified, with the key the manifest names first (the APP_KEY the backup was made with). */
     public function authenticated(): bool
     {
-        return $this->hmac === 'verified';
+        $listed = $this->fingerprints();
+
+        return $this->hmac === 'verified' && ($listed === [] || $this->keyFingerprint === $listed[0]);
     }
 
     public function isLegacy(): bool

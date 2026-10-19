@@ -162,6 +162,8 @@ it('restores an unauthenticated archive only with --accept-unauthenticated, as a
         ->and($create['env'])->toBe(['FSA_RESTORE_DB_PASSWORD'])
         ->and($pgRestore->env['PGUSER'])->toStartWith('fsa_restore_')
         ->and($this->restore->actions())->toContain('adopt')
+        ->and(array_search('audit', $this->restore->actions(), true))->toBeLessThan(array_search('adopt', $this->restore->actions(), true))
+        ->and(implode(' ', $this->restore->databaseCalls[array_search('audit', $this->restore->actions(), true)]['options']))->toContain('--reference=form_schema')
         ->and($json['data']['authenticated'])->toBeFalse()
         ->and(collect($json['warnings'])->pluck('code')->all())->toContain('backup_unauthenticated');
 });
@@ -214,4 +216,32 @@ it('lets uninstall archive and remove a restored storage volume like Compose\'s 
     expect($code)->toBe(0, (string) json_encode($json))
         ->and($json['data']['final_backup']['files'])->toContain('app-storage.tar')
         ->and($json['data']['removed']['volumes'])->toContain($fresh);
+});
+
+it('refuses an unauthenticated archive whose schema carries code this version does not define, before adopting it (review)', function (): void {
+    $set = $this->restore->backup();
+    unlink($set.'/SHA256SUMS.hmac'); // no HMAC at all
+    $this->restore->auditMismatch = 'unknown function:public.steal()';
+
+    [$code, $json] = $this->restore->restore(options: ['--accept-unauthenticated' => true]);
+
+    expect($code)->toBe(5, (string) json_encode($json))->and($json['errors'][0]['code'])->toBe('backup_unsafe')
+        ->and($json['errors'][0]['message'])->toContain('steal()')
+        ->and($this->restore->actions())->not->toContain('adopt')->not->toContain('swap')
+        ->and(InstanceSettings::of($this->restore->config->state())->storageVolume())->toBeNull();
+});
+
+it('authenticates only with the current APP key or a key file, never with a previous key that may have leaked (review)', function (): void {
+    $env = new EnvFiles($this->restore->instance->directory);
+    $env->write('app', [...$env->read('app'), 'APP_PREVIOUS_KEYS' => BackupSetFixture::OTHER_KEY]);
+    $this->restore->backup(appKey: BackupSetFixture::OTHER_KEY);
+    $keyFile = sys_get_temp_dir().'/fsa-test-key-'.bin2hex(random_bytes(3));
+    file_put_contents($keyFile, BackupSetFixture::OTHER_KEY."\n");
+
+    [$previous, $previousJson] = $this->restore->restore();
+    [$explicit, $explicitJson] = $this->restore->restore(options: ['--app-key-file' => $keyFile]);
+    @unlink($keyFile);
+
+    expect($previous)->toBe(2)->and($previousJson['errors'][0]['code'])->toBe('backup_unauthenticated')
+        ->and($explicit)->toBe(0, (string) json_encode($explicitJson))->and($explicitJson['data']['authenticated'])->toBeTrue();
 });

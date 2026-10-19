@@ -97,6 +97,17 @@ it('refuses a damaged archive: a wrong header checksum, a truncated member, a mi
         ->and(fn () => SafeExtractor::checkStorage($this->work.'/plain.tar.gz'))->toThrow(UnsafeArchive::class, 'not a gzip archive');
 });
 
+it('refuses members GNU tar would read differently: a directory with data, data after the end blocks', function (): void {
+    $smuggled = new TarBuilder()->file('./private/ok.txt', 'ok')->bytes();
+    $hidden = new TarBuilder()->symlink('./private/link', '/etc/shadow')->bytes(); // a header GNU tar would parse as the next member
+    $withData = new TarBuilder()->directoryWithData('./private/dir/', substr($hidden, 0, 512));
+    file_put_contents($this->work.'/dir-data.tar.gz', (string) gzencode($withData->bytes()));
+    file_put_contents($this->work.'/trailing.tar.gz', (string) gzencode($smuggled.$hidden));
+
+    expect(fn () => SafeExtractor::checkStorage($this->work.'/dir-data.tar.gz'))->toThrow(UnsafeArchive::class, 'carries data')
+        ->and(fn () => SafeExtractor::checkStorage($this->work.'/trailing.tar.gz'))->toThrow(UnsafeArchive::class, 'after its end-of-archive block');
+});
+
 it('refuses to extract into a scratch directory that is not empty', function (): void {
     touch($this->work.'/out/left-over');
     $archive = new TarBuilder()->file('manifest.json', '{}')->writeTo($this->work.'/set.tar');
