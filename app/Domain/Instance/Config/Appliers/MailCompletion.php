@@ -50,7 +50,10 @@ final readonly class MailCompletion
         $to = $request->mail?->testTo;
         $result = $this->app->mailTest($project, $to === null ? null : strtolower(trim($to)));
         if (! $result->ok) {
-            throw new InstanceException('The SMTP server did not accept the test mail: '.$result->errorMessage(), ExitCode::HealthCheckFailed, 'test_mail_failed', ConfigFailure::hint('test_mail_failed', $change), false, ['error' => $result->errorCode(), 'server' => MailApplier::describe($change->after)]);
+            $refused = 'The SMTP server did not accept the test mail: ';
+            $message = str_starts_with($result->errorMessage(), $refused) ? $result->errorMessage() : $refused.$result->errorMessage(); // the one-off says it already
+
+            throw new InstanceException($message, ExitCode::HealthCheckFailed, 'test_mail_failed', ConfigFailure::hint('test_mail_failed', $change), false, ['error' => $result->errorCode(), 'server' => MailApplier::describe($change->after)]);
         }
         $recipient = is_string($result->data['to'] ?? null) ? $result->data['to'] : 'the operator';
 

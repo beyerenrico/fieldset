@@ -94,6 +94,7 @@ it('reverts to capture mode when the server refuses the test mail (exit 5) and k
         ->and($json['status'])->toBe('rolled_back')
         ->and($json['errors'][0])->toMatchArray(['code' => 'test_mail_failed', 'retryable' => false])
         ->and($json['errors'][0]['message'])->toContain('535 authentication failed')
+        ->and(substr_count($json['errors'][0]['message'], 'did not accept the test mail'))->toBe(1) // M11 gate: J04 showed it twice
         ->and($json['data'])->toMatchArray(['reverted' => true])
         ->and($json['data']['command'])->toContain('--smtp-username <the same user name> --password-stdin')
         ->and($this->config->state()->setting('mail'))->toBeNull()
