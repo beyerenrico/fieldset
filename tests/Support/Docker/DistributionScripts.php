@@ -137,8 +137,9 @@ final readonly class DistributionScripts
 
     public function cleanUp(): void
     {
+        // The shared parent stays (git-ignored): removing it while it is momentarily empty races another parallel
+        // worker's recursive mkdir of its own root, which then fails with "mkdir(): Invalid argument".
         exec('chmod -R u+rwx '.escapeshellarg($this->root).' 2>/dev/null; rm -rf '.escapeshellarg($this->root));
-        @rmdir(dirname($this->root));
     }
 
     /**
