@@ -1,7 +1,7 @@
 {
     "command": "fsa reset --demo --no-backup --yes --secrets-file <work>/j05-domain-reset.json --json",
     "exit_code": 0,
-    "seconds": 84.3,
+    "seconds": 101.2,
     "stdout": {
         "schema_version": 1,
         "command": "reset",
@@ -18,22 +18,25 @@
             "organization": "J5 Domain Org",
             "owner_email": "owner@example.test",
             "safety_backup": null,
-            "audit_export": "audit-export-reset-20261019T143910Z.jsonl",
+            "audit_export": "audit-export-reset-20261019T162856Z.jsonl",
             "epoch": 2,
             "previous_epoch": 1,
-            "storage_volume": "fsa-fsa-test-j05-domain-2e7e_app-storage-reset-4a0bf50c2a24",
+            "storage_volume": "fsa-fsa-test-j05-domain-edd9_app-storage-reset-5861aa788fce",
             "flushed": {
                 "valkey": true,
                 "catcher": true
             },
             "left_behind": [],
+            "removed": [
+                "volume fsa-fsa-test-j05-domain-edd9_app-storage"
+            ],
             "next_commands": [
                 "fsa status",
                 "fsa login-link owner@example.test",
                 "fsa doctor --post"
             ],
             "sign_in_link": {
-                "expires_at": "2026-10-19T15:39:23Z",
+                "expires_at": "2026-10-19T17:29:17Z",
                 "delivered": "secrets_file"
             },
             "demo": {
@@ -117,7 +120,7 @@
             {
                 "name": "sign_in_link",
                 "written_to": "<work>/j05-domain-reset.json",
-                "expires_at": "2026-10-19T15:39:23Z"
+                "expires_at": "2026-10-19T17:29:17Z"
             },
             {
                 "name": "demo_password:owner@demo.test",
@@ -168,7 +171,7 @@
         "warnings": [
             {
                 "code": "no_backup",
-                "message": "No safety backup was taken (--no-backup): only the audit log was kept, in backups/audit-export-reset-20261019T143910Z.jsonl.",
+                "message": "No safety backup was taken (--no-backup): only the audit log was kept, in backups/audit-export-reset-20261019T162856Z.jsonl.",
                 "hint": null
             }
         ],
@@ -189,7 +192,7 @@
     "export_header": {
         "format": "fsa-audit-export",
         "version": "1.0",
-        "exported_at": "2026-10-19T14:39:11Z",
+        "exported_at": "2026-10-19T16:28:58Z",
         "epoch": 1,
         "entries": 34
     },
