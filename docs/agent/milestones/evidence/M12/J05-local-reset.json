@@ -1,0 +1,221 @@
+{
+    "command": "fsa reset --yes --secrets-file <work>/j05-reset-link.json --json",
+    "exit_code": 0,
+    "seconds": 84.7,
+    "stdout": {
+        "schema_version": 1,
+        "command": "reset",
+        "status": "ok",
+        "changed": true,
+        "data": {
+            "url": "http://localhost:8081",
+            "mode": "local",
+            "version": "2.0.0-alpha.1-test",
+            "mail": {
+                "mode": "capture",
+                "catcher_url": "http://localhost:8025",
+                "catcher_login_command": "fsa config show --catcher-login"
+            },
+            "organization": "Demo",
+            "owner_email": "owner@example.test",
+            "safety_backup": "safety-reset-20261019T143553Z",
+            "audit_export": null,
+            "epoch": 2,
+            "previous_epoch": 1,
+            "storage_volume": "fsa-fsa-test-j05-local-ad90_app-storage-reset-174f6dbaab71",
+            "flushed": {
+                "valkey": true,
+                "catcher": true
+            },
+            "left_behind": [],
+            "next_commands": [
+                "fsa status",
+                "fsa login-link owner@example.test",
+                "fsa doctor --post"
+            ],
+            "sign_in_link": {
+                "expires_at": "2026-10-19T15:36:07Z",
+                "delivered": "secrets_file"
+            }
+        },
+        "secrets": [
+            {
+                "name": "sign_in_link",
+                "written_to": "<work>/j05-reset-link.json",
+                "expires_at": "2026-10-19T15:36:07Z"
+            }
+        ],
+        "warnings": [],
+        "errors": []
+    },
+    "before": {
+        "catcher": 1,
+        "volume": "fsa-fsa-test-j05-local-ad90_app-storage",
+        "files": [
+            "/var/www/html/storage/app/fsa-test-j05-planted.txt",
+            "/var/www/html/storage/app/private/branding/2/logo-1b075f0630465151.png"
+        ],
+        "organizations": "2",
+        "users": "10"
+    },
+    "after": {
+        "catcher": 0,
+        "volume": "fsa-fsa-test-j05-local-ad90_app-storage-reset-174f6dbaab71",
+        "files": [],
+        "old_volume_left": false,
+        "organizations": "Demo",
+        "users": "owner@example.test",
+        "first_entry": {
+            "id": 1,
+            "event": "instance.reset",
+            "organization_id": null,
+            "properties": {
+                "epoch": 2,
+                "previous_epoch": 1,
+                "previous_heads": [
+                    {
+                        "seq": 29,
+                        "hash": "e9e76b4b8e10c4a388330d64bb2bca3e24bc936e6ffbd23bb3b21304ff74f0da"
+                    },
+                    {
+                        "seq": 1,
+                        "hash": "1000cd79df198fa2eb31727a69d9551d9094a8b51fb21e7280012143ba10cab2"
+                    },
+                    {
+                        "seq": 11,
+                        "hash": "4ef0953dffac221aae87dd16cbb6c90a89c0b8de740ae4ea1e9bb2672b324147"
+                    }
+                ],
+                "safety_backup": "safety-reset-20261019T143553Z",
+                "audit_export": null,
+                "demo": false,
+                "host_uid": 501
+            }
+        },
+        "epoch": {
+            "epoch": 2,
+            "reason": "reset",
+            "previous_heads": [
+                {
+                    "seq": 29,
+                    "hash": "e9e76b4b8e10c4a388330d64bb2bca3e24bc936e6ffbd23bb3b21304ff74f0da"
+                },
+                {
+                    "seq": 1,
+                    "hash": "1000cd79df198fa2eb31727a69d9551d9094a8b51fb21e7280012143ba10cab2"
+                },
+                {
+                    "seq": 11,
+                    "hash": "4ef0953dffac221aae87dd16cbb6c90a89c0b8de740ae4ea1e9bb2672b324147"
+                }
+            ]
+        },
+        "safety_mode": "700",
+        "pruned_with_retention_1": [
+            "scheduled-20261020T143705Z",
+            "scheduled-20261021T143705Z"
+        ]
+    },
+    "ledger": {
+        "at": "2026-10-19T14:35:51Z",
+        "action": "reset",
+        "host_uid": 501,
+        "journal": "174f6dbaab71e7a5",
+        "version": "2.0.0-alpha.1-test",
+        "demo": false,
+        "no_backup": false,
+        "epoch": 1,
+        "heads": [
+            {
+                "seq": 29,
+                "hash": "e9e76b4b8e10c4a388330d64bb2bca3e24bc936e6ffbd23bb3b21304ff74f0da"
+            },
+            {
+                "seq": 1,
+                "hash": "1000cd79df198fa2eb31727a69d9551d9094a8b51fb21e7280012143ba10cab2"
+            },
+            {
+                "seq": 11,
+                "hash": "4ef0953dffac221aae87dd16cbb6c90a89c0b8de740ae4ea1e9bb2672b324147"
+            }
+        ],
+        "intact": true
+    },
+    "phases": [
+        [
+            "plan",
+            "2026-10-19T14:35:40Z",
+            "2026-10-19T14:35:43Z"
+        ],
+        [
+            "quiesce",
+            "2026-10-19T14:35:43Z",
+            "2026-10-19T14:35:49Z"
+        ],
+        [
+            "ledger",
+            "2026-10-19T14:35:49Z",
+            "2026-10-19T14:35:51Z"
+        ],
+        [
+            "safety_backup",
+            "2026-10-19T14:35:51Z",
+            "2026-10-19T14:35:54Z"
+        ],
+        [
+            "recreate_database",
+            "2026-10-19T14:35:54Z",
+            "2026-10-19T14:35:56Z"
+        ],
+        [
+            "migrate",
+            "2026-10-19T14:35:56Z",
+            "2026-10-19T14:36:00Z"
+        ],
+        [
+            "epoch",
+            "2026-10-19T14:36:00Z",
+            "2026-10-19T14:36:02Z"
+        ],
+        [
+            "storage",
+            "2026-10-19T14:36:02Z",
+            "2026-10-19T14:36:02Z"
+        ],
+        [
+            "flush",
+            "2026-10-19T14:36:02Z",
+            "2026-10-19T14:36:03Z"
+        ],
+        [
+            "seed",
+            "2026-10-19T14:36:04Z",
+            "2026-10-19T14:36:08Z"
+        ],
+        [
+            "verify",
+            "2026-10-19T14:36:08Z",
+            "2026-10-19T14:36:30Z"
+        ],
+        [
+            "open",
+            "2026-10-19T14:36:30Z",
+            "2026-10-19T14:37:03Z"
+        ],
+        [
+            "gate",
+            "2026-10-19T14:37:03Z",
+            "2026-10-19T14:37:03Z"
+        ],
+        [
+            "cleanup",
+            "2026-10-19T14:37:03Z",
+            "2026-10-19T14:37:03Z"
+        ]
+    ],
+    "link_consumed": [
+        303,
+        "http://localhost:8081/admin/password-reset/reset?email=owner%40example.test&expires=1792421226&signature=<redacted>"
+    ],
+    "demo_login_after": 422
+}
