@@ -287,7 +287,7 @@ describe('fsa wrapper', function (): void {
             'errors' => [[
                 'code' => 'unknown_command',
                 'message' => "Unknown fsa command: {$command}",
-                'hint' => 'Available commands: backup, config, demo, doctor, install, login-link, logs, status, tunnel, uninstall, version. Run fsa without arguments to list them; put flags after the command or write them as --flag=value.',
+                'hint' => 'Available commands: backup, config, demo, doctor, install, login-link, logs, restore, status, tunnel, uninstall, version. Run fsa without arguments to list them; put flags after the command or write them as --flag=value.',
                 'retryable' => false,
             ]],
         ])->and($process->getErrorOutput())->toBe('');
@@ -296,7 +296,7 @@ describe('fsa wrapper', function (): void {
         'typo with a leading flag' => [['--json', 'stauts'], true],
         'quote in the name' => [['--json', 'x"y\\z'], true],
         'two words' => [['--json', 'logs status'], true],
-        'human' => [['restore'], false], // `backup` shipped with U16 (ADR 0084); restore is still to come
+        'human' => [['rollback'], false], // `restore` shipped with U17 (ADR 0085); rollback is still to come
         'value of a flag no command knows' => [['--json', '--colour', 'red', 'install'], true],
     ]);
 
@@ -309,8 +309,8 @@ describe('fsa wrapper', function (): void {
         $hidden = $registered->filter(fn ($command): bool => $command->isHidden())->keys()->map(fn (string $name): string => substr($name, 4))->all();
 
         expect(explode(' ', $commands[1] ?? ''))->toBe($visible)
-            ->and(explode(' ', $roles[1] ?? ''))->toBe(['backup-daemon'])
-            ->and(array_diff($hidden, ['backup-daemon']))->toBe([]);
+            ->and(explode(' ', $roles[1] ?? ''))->toBe(['backup-daemon', 'restore-prepare'])
+            ->and(array_diff($hidden, ['backup-daemon', 'restore-prepare']))->toBe([]);
     });
 
     it('knows every value-taking option of the fsa commands, so a flag before the command keeps its value', function (): void {
