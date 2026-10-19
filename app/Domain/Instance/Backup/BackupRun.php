@@ -52,17 +52,23 @@ final readonly class BackupRun
             $run = [...$base, 'status' => 'skipped', 'reason' => 'lock_held', 'message' => 'An operation holds the instance lock: '.$held->holder->describe().'.', 'finished_at' => $started->toIso8601ZuluString()];
 
             return $recordSkip ? $this->recorder->record($run) : [...$run, 'recorded' => false];
-        } catch (BackupFailed $refused) {
-            return $this->recorder->record([...$base, 'status' => 'failed', 'reason' => $refused->reason, 'message' => $refused->getMessage(), 'finished_at' => $started->toIso8601ZuluString()]);
+        } catch (Throwable $refused) {
+            $reason = $refused instanceof BackupFailed ? $refused->reason : 'lock_failed';
+
+            return $this->recorder->record([...$base, 'status' => 'failed', 'reason' => $reason, 'message' => $refused->getMessage(), 'finished_at' => $started->toIso8601ZuluString()]);
         }
 
         try {
-            return $this->recorder->record([...$base, ...$this->underLock($name, $secrets), 'finished_at' => CarbonImmutable::now('UTC')->toIso8601ZuluString()]);
+            $outcome = $this->underLock($name, $secrets);
+        } catch (Throwable $e) {
+            $outcome = ['status' => 'failed', 'reason' => 'internal_error', 'message' => $e->getMessage()];
         } finally {
             if ($handle instanceof LockHandle) {
                 $this->lock->release($handle);
             }
         }
+
+        return $this->recorder->record([...$base, ...$outcome, 'finished_at' => CarbonImmutable::now('UTC')->toIso8601ZuluString()]);
     }
 
     /** @return array<string, mixed> */
@@ -70,7 +76,7 @@ final readonly class BackupRun
     {
         $this->store->cleanPartials();
         $free = $this->store->freeBytes();
-        if ($free !== null && ! BackupRetention::fits($free, BackupRetention::projectedBytes($this->store->entries()), $this->config->minFreeMib)) {
+        if ($free !== null && ! BackupRetention::fits($free, BackupRetention::projectedBytes($this->store->entries(), $this->config->encrypts()), $this->config->minFreeMib)) {
             $message = 'Not enough free space: '.intdiv($free, 1048576).' MiB free, the backup would leave less than '.$this->config->minFreeMib.' MiB.';
 
             return ['status' => $name->isScheduled() ? 'skipped' : 'failed', 'reason' => 'low_disk_space', 'message' => $message, 'free_bytes' => $free];
@@ -104,12 +110,17 @@ final readonly class BackupRun
         return $pruned;
     }
 
-    /** @throws LockHeld|BackupFailed */
+    /** @throws LockHeld|BackupFailed|Throwable */
     private function takeLock(LockHolder $holder, ?string $parentLock): ?LockHandle
     {
         if ($parentLock === null) {
             $handle = $this->lock->acquire($holder, self::OPERATION, mayTakeOver: false);
-            $this->lock->heartbeat($handle);
+
+            try {
+                $this->lock->heartbeat($handle);
+            } catch (Throwable) {
+                // Best effort, as for every operation: the heartbeat only informs `fsa status`; the lock is held either way.
+            }
 
             return $handle;
         }

@@ -50,6 +50,7 @@ it('projects the next backup from the newest one and keeps the free-space thresh
     $entries = [backupEntry('scheduled-20261001T033000Z', 1000), backupEntry('manual-20261002T080000Z', 4000)];
 
     expect(BackupRetention::projectedBytes($entries))->toBe(5000)
+        ->and(BackupRetention::projectedBytes($entries, encrypted: true))->toBe(10000) // the plain set and its age file side by side
         ->and(BackupRetention::projectedBytes([]))->toBe(0)
         ->and(BackupRetention::fits(2 * 1024 ** 3, 5000))->toBeTrue()
         ->and(BackupRetention::fits(1024 ** 3, 5000))->toBeFalse()
@@ -94,6 +95,7 @@ it('retries a minute after a skip and an hour after a failure, not before', func
 
     expect($schedule->nextRun($now, $success, $now, ['status' => 'skipped', 'at' => CarbonImmutable::parse('2026-10-19T03:30:00Z')])?->toIso8601ZuluString())->toBe('2026-10-19T03:31:00Z')
         ->and($schedule->nextRun($now, $success, $now, ['status' => 'failed', 'at' => CarbonImmutable::parse('2026-10-19T03:30:00Z')])?->toIso8601ZuluString())->toBe('2026-10-19T04:30:00Z')
+        ->and($schedule->nextRun($now, $success, $now, ['status' => 'skipped', 'reason' => 'low_disk_space', 'at' => CarbonImmutable::parse('2026-10-19T03:30:00Z')])?->toIso8601ZuluString())->toBe('2026-10-19T04:30:00Z')
         ->and($schedule->nextRun($now->addHours(2), $success, $now, ['status' => 'failed', 'at' => CarbonImmutable::parse('2026-10-19T03:30:00Z')]))->toEqual($now->addHours(2))
         // an attempt older than the last success does not hold anything back
         ->and($schedule->nextRun($now, CarbonImmutable::parse('2026-10-19T03:30:10Z'), $now, ['status' => 'failed', 'at' => $success])?->toIso8601ZuluString())->toBe('2026-10-20T03:30:00Z');

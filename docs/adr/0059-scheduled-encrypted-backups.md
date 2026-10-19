@@ -43,3 +43,16 @@ amends E13 with KTD15–KTD17, R57, R67 and R68.
 - Backups stay on the host, and `/platform` says so; copying them off-host is the owner's job. Losing the identity
   file or its passphrase makes encrypted backups unreadable. The batchpass man page prefers native keys over
   scripted passphrases; here the passphrase only protects the identity file.
+
+## Amendment 2026-10-19: as built (U16)
+ADR 0084 records the implementation. Changes to the statements above:
+- The backup service mounts no instance state: of the instance directory only the marker (read-only), `locks/` and
+  `backups/`. Its schedule, retention, time zone, recipients and HMAC key are in its env file; the instance's identity and
+  portable settings in `backups/.instance.json`, which every render rewrites.
+- The dump role `fsa_backup` also may insert into `backup_runs` (and nothing else), and gets its password as a
+  SCRAM-SHA-256 verifier.
+- "The next run follows from the ledger's last success": the ledger is `backups/runs.log` (one JSON line per run),
+  besides the table.
+- "Instance time" is the host's time zone recorded at install (FSA_TZ), UTC without one.
+- Rotation ("adds a recipient") is not built yet; `--encrypt` exists on `fsa backup` and `fsa config set
+  backup-encryption on`, not yet on `fsa install`.

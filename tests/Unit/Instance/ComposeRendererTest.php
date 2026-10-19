@@ -175,8 +175,8 @@ it('gives the backup service the read-only dump role, a key derived from APP_KEY
         ->and(implode("\n", $env))->not->toContain(ComposeFixtures::APP_KEY)->not->toContain(ComposeFixtures::DB_PASSWORD)
         ->and($env['BACKUP_HMAC_KEY'])->toMatch('/^base64:[A-Za-z0-9+\/]{43}=$/')
         ->and($env['BACKUP_HMAC_KEY'])->not->toBe($other['BACKUP_HMAC_KEY'])
-        ->and($env['BACKUP_APP_KEY_FINGERPRINTS'])->toMatch('/^[0-9a-f]{4}(-[0-9a-f]{4}){3}$/')
-        ->and($env['BACKUP_APP_KEY_FINGERPRINTS'])->not->toBe($other['BACKUP_APP_KEY_FINGERPRINTS'])
+        ->and($env['BACKUP_APP_FINGERPRINTS'])->toMatch('/^[0-9a-f]{4}(-[0-9a-f]{4}){3}$/')
+        ->and($env['BACKUP_APP_FINGERPRINTS'])->not->toBe($other['BACKUP_APP_FINGERPRINTS'])
         ->and($env)->toMatchArray(['BACKUP_SCHEDULE' => '03:30', 'BACKUP_TIME_ZONE' => 'UTC', 'BACKUP_RETENTION' => '7', 'FSA_INSTANCE_ROOT' => '/fsa/instance'])
         ->and(ComposeFixtures::render()->services())->toContain('backup'); // rendered since U16 (ADR 0084)
 });

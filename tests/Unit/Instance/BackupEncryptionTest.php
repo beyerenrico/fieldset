@@ -29,7 +29,6 @@ beforeEach(function (): void {
     $this->outside = sys_get_temp_dir().'/fsa-test-identity-'.bin2hex(random_bytes(4));
     mkdir($this->outside, 0700);
     $this->identity = $this->outside.'/backup-identity.age';
-    putenv('FAKE_AGE_FAIL');
 });
 
 afterEach(function (): void {
@@ -72,14 +71,8 @@ it('round-trips a backup set encrypted to the recipient with the identity and it
 });
 
 it('leaves nothing behind when writing or testing the identity fails', function (): void {
-    putenv('FAKE_AGE_FAIL=1');
-
-    try {
-        expect(fn () => new KeySetup(new AgeCli(base_path('tests/Fixtures/bin/fake-age'), base_path('tests/Fixtures/bin/fake-age-keygen')))->create($this->identity, BACKUP_PASSPHRASE))
-            ->toThrow(InstanceException::class, 'Writing or testing the backup identity failed');
-    } finally {
-        putenv('FAKE_AGE_FAIL');
-    }
+    expect(fn () => new KeySetup(new AgeCli('/usr/bin/false', base_path('tests/Fixtures/bin/fake-age-keygen')))->create($this->identity, BACKUP_PASSPHRASE))
+        ->toThrow(InstanceException::class, 'Writing or testing the backup identity failed');
 
     expect(file_exists($this->identity))->toBeFalse()
         ->and(fn () => new AgeCli('/nonexistent/age')->encryptToRecipients('x', ['age1'.str_repeat('a', 58)], $this->outside.'/x'))->toThrow(RuntimeException::class)

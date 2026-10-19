@@ -15,7 +15,7 @@ use InvalidArgumentException;
  * - due now when the last success (or, without one, the daemon's start) lies before the most recent slot, i.e. a slot
  *   was missed while the service was down; otherwise at the next slot;
  * - after a run that did not succeed it waits: a minute after a skip because an operation held the instance lock (the
- *   operation usually finishes soon, and only the first skip of a slot is recorded), an hour after a failure.
+ *   operation usually finishes soon), an hour after a failure or a skip for lack of disk space.
  */
 final readonly class BackupSchedule
 {
@@ -79,7 +79,7 @@ final readonly class BackupSchedule
     /**
      * @param  CarbonImmutable|null  $lastSuccess  the newest successful scheduled run
      * @param  CarbonImmutable  $since  when the daemon started (the reference without a success)
-     * @param  array{status: string, at: CarbonImmutable}|null  $lastAttempt  the newest run after the last success that did not succeed
+     * @param  array{status: string, at: CarbonImmutable, reason?: string|null}|null  $lastAttempt  the newest run after the last success that did not succeed
      */
     public function nextRun(CarbonImmutable $now, ?CarbonImmutable $lastSuccess, CarbonImmutable $since, ?array $lastAttempt = null): ?CarbonImmutable
     {
@@ -91,7 +91,7 @@ final readonly class BackupSchedule
         if ($lastAttempt === null || ($lastSuccess instanceof CarbonImmutable && $lastAttempt['at']->lessThanOrEqualTo($lastSuccess))) {
             return $due;
         }
-        $wait = $lastAttempt['status'] === 'skipped' ? self::LOCK_RETRY_SECONDS : self::FAILURE_RETRY_SECONDS;
+        $wait = $lastAttempt['status'] === 'skipped' && ($lastAttempt['reason'] ?? 'lock_held') === 'lock_held' ? self::LOCK_RETRY_SECONDS : self::FAILURE_RETRY_SECONDS;
         $retry = $lastAttempt['at']->addSeconds($wait);
 
         return $retry->greaterThan($due) ? $retry : $due;

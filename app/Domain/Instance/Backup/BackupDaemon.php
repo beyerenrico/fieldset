@@ -11,17 +11,29 @@ use Closure;
 
 /**
  * The backup service's loop (E13, KTD15, ADR 0084). On start it releases a lock its own container took before a restart.
- * Then it computes the next run from the ledger (BackupSchedule: a missed slot runs at once, a skip retries after a
- * minute, a failure after an hour), sleeps in short steps so SIGTERM stops it promptly, and runs a scheduled backup
- * under the instance lock. Only the first skip of a series is recorded; the retries after it are not.
+ * Then it computes the next run from the ledger (BackupSchedule: a missed slot runs at once, a skip because of the lock
+ * retries after a minute, a failure or a skip for disk space after an hour), sleeps in short steps so SIGTERM stops it
+ * promptly, and runs a scheduled backup under the instance lock. Of a series of skips because of the lock, one an hour
+ * is recorded (a lock a crashed operation left behind keeps showing up); the retries in between are not. It also keeps
+ * its own last run in memory, so a ledger it cannot write never makes it run back to back.
  */
 final class BackupDaemon
 {
     /** Longest single sleep (seconds): the loop re-reads the clock and the stop flag at least this often. */
     public const int TICK_SECONDS = 15;
 
-    /** When a skip retry ran last without being recorded. */
-    private ?CarbonImmutable $unrecordedAttempt = null;
+    /** Seconds between two recorded skips of one series (the retries in between are not recorded). */
+    public const int SKIP_RECORD_SECONDS = 3600;
+
+    /** This process's newest successful scheduled run. */
+    private ?CarbonImmutable $success = null;
+
+    /**
+     * This process's newest scheduled run that did not succeed, recorded or not.
+     *
+     * @var array{status: string, at: CarbonImmutable, reason: string|null}|null
+     */
+    private ?array $attempt = null;
 
     /**
      * @param  Closure(int): void  $sleep
@@ -63,20 +75,30 @@ final class BackupDaemon
     public function tick(CarbonImmutable $since): ?array
     {
         $now = ($this->now)();
-        $attempt = $this->log->lastFailedAttempt();
-        if ($this->unrecordedAttempt instanceof CarbonImmutable && ($attempt === null || $this->unrecordedAttempt->greaterThan($attempt['at']))) {
-            $attempt = ['status' => 'skipped', 'at' => $this->unrecordedAttempt, 'reason' => 'lock_held'];
-        }
-        $next = $this->schedule->nextRun($now, $this->log->lastSuccess(), $since, $attempt);
+        $recorded = $this->log->lastFailedAttempt();
+        $success = $this->newest($this->log->lastSuccess(), $this->success);
+        $attempt = $this->attempt !== null && ($recorded === null || $this->attempt['at']->greaterThan($recorded['at'])) ? $this->attempt : $recorded;
+        $next = $this->schedule->nextRun($now, $success, $since, $attempt);
         if (! $next instanceof CarbonImmutable || $next->greaterThan($now)) {
             ($this->sleep)($next instanceof CarbonImmutable ? max(1, (int) min(self::TICK_SECONDS, ceil($now->diffInSeconds($next, true)))) : self::TICK_SECONDS);
 
             return null;
         }
-        $first = ($attempt['status'] ?? null) !== 'skipped';
-        $run = $this->run->run(BackupName::for(BackupName::SCHEDULED, $now), $this->holder, recordSkip: $first);
-        $this->unrecordedAttempt = $run['status'] === 'skipped' && ! $first ? $now : null;
+        $repeat = $recorded !== null && $recorded['status'] === 'skipped' && $recorded['reason'] === 'lock_held'
+            && $recorded['at']->greaterThan($now->subSeconds(self::SKIP_RECORD_SECONDS));
+        $run = $this->run->run(BackupName::for(BackupName::SCHEDULED, $now), $this->holder, recordSkip: ! $repeat);
+        if ($run['status'] === 'succeeded') {
+            $this->success = $now;
+            $this->attempt = null;
+        } else {
+            $this->attempt = ['status' => (string) $run['status'], 'at' => $now, 'reason' => is_string($run['reason'] ?? null) ? $run['reason'] : null];
+        }
 
         return $run;
+    }
+
+    private function newest(?CarbonImmutable $a, ?CarbonImmutable $b): ?CarbonImmutable
+    {
+        return $a instanceof CarbonImmutable && (! $b instanceof CarbonImmutable || $a->greaterThan($b)) ? $a : $b;
     }
 }

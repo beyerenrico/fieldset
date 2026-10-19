@@ -51,13 +51,18 @@ final readonly class BackupRole
         $created = $db->selectOne('SELECT 1 AS found FROM pg_roles WHERE rolname = ?', [$role]) === null;
         $database = (string) $db->getDatabaseName();
 
+        $failed = null;
+
         try {
             $db->statement(($created ? 'CREATE ROLE ' : 'ALTER ROLE ').$role.' WITH LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION PASSWORD '.$verifier);
             $db->statement("GRANT pg_read_all_data TO {$role}");
             $db->statement('GRANT CONNECT ON DATABASE '.$db->getQueryGrammar()->wrap($database).' TO '.$role);
             $db->statement("GRANT INSERT ON TABLE backup_runs TO {$role}");
         } catch (QueryException $e) {
-            throw new RuntimeException("Could not set up the backup role {$role} (SQLSTATE ".($e->errorInfo[0] ?? '?').').', 0, $e);
+            $failed = (string) ($e->errorInfo[0] ?? '?'); // the exception (and its SQL with the verifier) goes no further
+        }
+        if ($failed !== null) {
+            throw new RuntimeException("Could not set up the backup role {$role} (SQLSTATE {$failed}).");
         }
 
         return ['role' => $role, 'created' => $created, 'granted' => ['pg_read_all_data', 'connect', 'insert:backup_runs']];

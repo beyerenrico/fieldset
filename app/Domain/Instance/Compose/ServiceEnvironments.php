@@ -142,7 +142,7 @@ final readonly class ServiceEnvironments
         return [
             ...$this->database($this->context->secrets->backupDbPassword, self::BACKUP_DB_ROLE),
             'BACKUP_HMAC_KEY' => $this->backupHmacKey(),
-            'BACKUP_APP_KEY_FINGERPRINTS' => KeyFingerprint::of($this->context->secrets->appKey),
+            'BACKUP_APP_FINGERPRINTS' => KeyFingerprint::of($this->context->secrets->appKey),
             'BACKUP_AGE_RECIPIENTS' => implode(',', $state->recipients()),
             'BACKUP_SCHEDULE' => $settings->backupSchedule(),
             'BACKUP_TIME_ZONE' => $settings->timeZone(),

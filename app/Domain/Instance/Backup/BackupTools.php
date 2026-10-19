@@ -14,7 +14,8 @@ use Symfony\Component\Process\Process;
  */
 class BackupTools
 {
-    public const float DUMP_TIMEOUT = 3600.0;
+    /** pg_dump and tar write files, not output, so no idle timeout fits; six hours is the hard stop for a hung run. */
+    public const float DUMP_TIMEOUT = 21600.0;
 
     /** @param  array<string, string>  $libpq */
     public function dump(string $snapshot, string $file, array $libpq): BackupToolResult

@@ -1,0 +1,140 @@
+{
+    "command": "install.sh --dir <work>/fsa-test-j08 --org \"Backup Org\" --owner-email owner@example.test --locale en --demo --secrets-file <work>/j08-secrets.json --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "install",
+        "status": "ok",
+        "changed": true,
+        "data": {
+            "url": "http://localhost:8081",
+            "version": "2.0.0-alpha.1-test",
+            "mode": "local",
+            "dir": "<work>/fsa-test-j08",
+            "project": "fsa-fsa-test-j08-e7c4",
+            "port": 8081,
+            "mail": {
+                "mode": "capture",
+                "catcher_url": "http://localhost:8025",
+                "catcher_login_command": "fsa config show --catcher-login"
+            },
+            "owner_email": "owner@example.test",
+            "next_commands": [
+                "<work>/fsa-test-j08/fsa status",
+                "<work>/fsa-test-j08/fsa login-link owner@example.test",
+                "<work>/fsa-test-j08/fsa doctor --post"
+            ],
+            "sign_in_link": {
+                "expires_at": "2026-10-19T08:14:11Z",
+                "delivered": "secrets_file"
+            },
+            "demo": {
+                "organization": "Demo Haustechnik GmbH",
+                "seeded": true,
+                "passwords": "default",
+                "default_password": "<redacted>",
+                "exposure": [],
+                "users": [
+                    {
+                        "email": "owner@demo.test",
+                        "name": "Olivia Owner",
+                        "roles": [
+                            "owner"
+                        ]
+                    },
+                    {
+                        "email": "admin@demo.test",
+                        "name": "Adam Admin",
+                        "roles": [
+                            "admin"
+                        ]
+                    },
+                    {
+                        "email": "designer@demo.test",
+                        "name": "Dana Designer",
+                        "roles": [
+                            "designer"
+                        ]
+                    },
+                    {
+                        "email": "reviewer@demo.test",
+                        "name": "Rita Reviewer",
+                        "roles": [
+                            "reviewer"
+                        ]
+                    },
+                    {
+                        "email": "coordinator@demo.test",
+                        "name": "Cora Coordinator",
+                        "roles": [
+                            "designer",
+                            "reviewer"
+                        ]
+                    },
+                    {
+                        "email": "worker@demo.test",
+                        "name": "Willi Worker",
+                        "roles": [
+                            "field_worker"
+                        ]
+                    },
+                    {
+                        "email": "mobile@demo.test",
+                        "name": "Mia Mobil",
+                        "roles": [
+                            "field_worker"
+                        ]
+                    },
+                    {
+                        "email": "tablet@demo.test",
+                        "name": "Tom Tablet",
+                        "roles": [
+                            "field_worker"
+                        ]
+                    },
+                    {
+                        "email": "viewer@demo.test",
+                        "name": "Vera Viewer",
+                        "roles": [
+                            "viewer"
+                        ]
+                    }
+                ],
+                "login_url": "http://localhost:8081/admin/login",
+                "delivered": "data"
+            }
+        },
+        "secrets": [
+            {
+                "name": "sign_in_link",
+                "written_to": "<work>/j08-secrets.json",
+                "expires_at": "2026-10-19T08:14:11Z"
+            }
+        ],
+        "warnings": [],
+        "errors": []
+    },
+    "backup_service": {
+        "user": "0:0",
+        "cap_add": [
+            "CHOWN",
+            "DAC_OVERRIDE",
+            "DAC_READ_SEARCH",
+            "FOWNER"
+        ],
+        "cap_drop": [
+            "ALL"
+        ],
+        "read_only_root": true,
+        "security_opt": [
+            "no-new-privileges:true"
+        ],
+        "mounts": [
+            "/fsa/instance/.fsa-instance:ro",
+            "/fsa/instance/backups:rw",
+            "/fsa/instance/locks:rw",
+            "/var/www/html/storage/app:ro"
+        ],
+        "memory_limit_mib": 128
+    }
+}

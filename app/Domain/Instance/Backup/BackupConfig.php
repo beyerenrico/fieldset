@@ -63,7 +63,7 @@ final readonly class BackupConfig
             self::int($value('BACKUP_MIN_FREE_MIB', (string) BackupRetention::DEFAULT_MIN_FREE_MIB), 'BACKUP_MIN_FREE_MIB'),
             $list('BACKUP_AGE_RECIPIENTS'),
             BackupChecksums::key($value('BACKUP_HMAC_KEY')),
-            $list('BACKUP_APP_KEY_FINGERPRINTS'),
+            $list('BACKUP_APP_FINGERPRINTS'),
             [
                 'host' => $value('DB_HOST', 'postgres'), 'port' => $value('DB_PORT', '5432'), 'database' => $value('DB_DATABASE'),
                 'username' => $value('DB_USERNAME'), 'password' => $value('DB_PASSWORD'),

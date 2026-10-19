@@ -35,7 +35,9 @@ final readonly class BackupRunRecorder
             $recorded = false;
         }
         $run = [...$run, 'recorded' => $recorded];
-        $this->log->append($run);
+        $line = $run;
+        unset($line['result']); // the details go to the caller (fsa backup's envelope), not into every ledger line
+        $this->log->append($line);
 
         return $run;
     }

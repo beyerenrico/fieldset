@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Instance\Backup;
 
 use App\Domain\Instance\State\InstanceDirectory;
+use App\Domain\Platform\Instance\BackupAlerts;
 use Carbon\CarbonImmutable;
 
 /**
@@ -17,7 +18,8 @@ final readonly class BackupRunLog
 {
     public const string FILE = InstanceDirectory::BACKUPS_DIR.'/runs.log';
 
-    private const int TAIL_BYTES = 262144;
+    /** The newest part of the file that is read: about a year of runs (one line each, the result details left out). */
+    private const int TAIL_BYTES = 1_048_576;
 
     public function __construct(private InstanceDirectory $directory, private ?BackupStore $owner = null) {}
 
@@ -62,8 +64,8 @@ final readonly class BackupRunLog
         $runs = [];
         foreach (array_reverse(explode("\n", trim($tail))) as $line) {
             $run = json_decode($line, true);
-            if (is_array($run) && is_string($run['status'] ?? null) && is_string($run['started_at'] ?? null)) {
-                $runs[] = $run;
+            if (is_array($run) && is_string($run['status'] ?? null) && BackupAlerts::time($run) instanceof CarbonImmutable) {
+                $runs[] = $run; // a damaged line (cut off, a time that does not parse) is skipped, never fatal
             }
             if (count($runs) >= $limit) {
                 break;
@@ -76,9 +78,7 @@ final readonly class BackupRunLog
     /** The newest successful run of a kind. */
     public function lastSuccess(string $kind = BackupName::SCHEDULED): ?CarbonImmutable
     {
-        $run = array_find($this->recent(), static fn (array $run): bool => $run['status'] === 'succeeded' && ($run['kind'] ?? null) === $kind);
-
-        return $run === null ? null : CarbonImmutable::parse((string) $run['started_at'])->utc();
+        return BackupAlerts::time(array_find($this->recent(PHP_INT_MAX), static fn (array $run): bool => $run['status'] === 'succeeded' && ($run['kind'] ?? null) === $kind));
     }
 
     /**
@@ -88,11 +88,12 @@ final readonly class BackupRunLog
      */
     public function lastFailedAttempt(string $kind = BackupName::SCHEDULED): ?array
     {
-        $run = array_find($this->recent(), static fn (array $run): bool => ($run['kind'] ?? null) === $kind);
-        if ($run === null || $run['status'] === 'succeeded') {
+        $run = array_find($this->recent(PHP_INT_MAX), static fn (array $run): bool => ($run['kind'] ?? null) === $kind);
+        $at = BackupAlerts::time($run);
+        if ($run === null || $run['status'] === 'succeeded' || ! $at instanceof CarbonImmutable) {
             return null;
         }
 
-        return ['status' => (string) $run['status'], 'at' => CarbonImmutable::parse((string) $run['started_at'])->utc(), 'reason' => is_string($run['reason'] ?? null) ? $run['reason'] : null];
+        return ['status' => (string) $run['status'], 'at' => $at, 'reason' => is_string($run['reason'] ?? null) ? $run['reason'] : null];
     }
 }

@@ -57,7 +57,11 @@ final readonly class BackupWriter
         try {
             return $this->writeSet($name, $partial, $secrets);
         } catch (Throwable $e) {
-            $this->store->discard($name);
+            try {
+                $this->store->discard($name);
+            } catch (Throwable) {
+                // the next run removes a leftover `.partial` under the lock; the step that failed is the news
+            }
             throw $e instanceof BackupFailed ? $e : new BackupFailed('write_failed', $e->getMessage(), $e);
         }
     }

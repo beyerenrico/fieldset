@@ -1,0 +1,115 @@
+{
+    "commands": [
+        "fsa config set backup-encryption on --identity-out <work>/j08-identity.age --passphrase-file <work>/j08-passphrase.txt --json",
+        "fsa backup --json"
+    ],
+    "identity_inside_instance": {
+        "schema_version": 1,
+        "command": "config",
+        "status": "failed",
+        "changed": false,
+        "data": [],
+        "secrets": [],
+        "warnings": [],
+        "errors": [
+            {
+                "code": "identity_inside_instance",
+                "message": "The backup identity must not be stored in the instance directory: whoever has a backup there would have its key too.",
+                "hint": "Pass --identity-out with a path outside <work>/fsa-test-j08, e.g. in your home directory.",
+                "retryable": false
+            }
+        ]
+    },
+    "enable": {
+        "schema_version": 1,
+        "command": "config",
+        "status": "ok",
+        "changed": true,
+        "data": {
+            "key": "backup-encryption",
+            "from": "off",
+            "to": "on",
+            "url": "http://localhost:8081",
+            "mode": "local",
+            "reverted": false,
+            "previous": {
+                "url": "http://localhost:8081",
+                "mode": "local"
+            },
+            "services": {
+                "recreated": [
+                    "backup"
+                ],
+                "added": [],
+                "removed": []
+            },
+            "checked": [
+                "/up",
+                "/admin/login",
+                "gotenberg /health"
+            ],
+            "impact": null,
+            "audited": true,
+            "encryption": {
+                "enabled": true,
+                "recipients": [
+                    "age1fyqeaj6vq5q8arw4wllxlycjaqrt8p6jjztwlznxvnwht54n3utq4uq9gu"
+                ],
+                "identity": "<work>/j08-identity.age"
+            },
+            "next_commands": [
+                "<work>/fsa-test-j08/fsa status"
+            ]
+        },
+        "secrets": [],
+        "warnings": [
+            {
+                "code": "backup_identity_written",
+                "message": "The backup identity is in <work>/j08-identity.age, protected by your passphrase.",
+                "hint": "Keep the file and the passphrase apart and safe: without both, encrypted backups cannot be read."
+            }
+        ],
+        "errors": []
+    },
+    "backup": {
+        "schema_version": 1,
+        "command": "backup",
+        "status": "ok",
+        "changed": true,
+        "data": {
+            "backup": "manual-20261019T071624Z",
+            "path": "<work>/fsa-test-j08/backups/manual-20261019T071624Z",
+            "kind": "manual",
+            "created_at": "2026-10-19T07:16:24Z",
+            "bytes": 276744,
+            "encrypted": true,
+            "includes_secrets": false,
+            "app_key_fingerprint": "cca9-80d6-6b99-7495",
+            "files": {
+                "referenced": 0,
+                "missing": 0,
+                "missing_sample": []
+            },
+            "free_bytes": 147386368000
+        },
+        "secrets": [],
+        "warnings": [
+            {
+                "code": "backup_on_host",
+                "message": "Backups stay in the instance directory on this host.",
+                "hint": "Copy backups/ to another machine or storage regularly."
+            }
+        ],
+        "errors": []
+    },
+    "decrypted_members": [
+        "SHA256SUMS",
+        "SHA256SUMS.hmac",
+        "audit-heads.json",
+        "database.dump",
+        "manifest.json",
+        "settings.json",
+        "storage.tar.gz"
+    ],
+    "wrong_passphrase_exit": 2
+}

@@ -11,7 +11,8 @@ use SensitiveParameter;
  * age 1.3 (KTD17, ADR 0059, ADR 0084), run without a shell. Backups are encrypted to X25519 recipients (public keys
  * only). The owner's identity file is itself encrypted with a passphrase through `age-plugin-batchpass`, which reads it
  * from file descriptor 3 (`AGE_PASSPHRASE_FD=3`; verified against `age-plugin-batchpass --help` of the image): no
- * terminal, no environment variable and no argument ever carries the passphrase. Only small payloads pass through
+ * terminal, no environment variable and no argument ever carries the passphrase, and the programs get a minimal
+ * environment (never APP_KEY or a database password). Only small payloads pass through
  * PHP (identities, the decrypt test); a backup set goes from tar straight into age through a pipe.
  */
 class AgeCli
@@ -84,11 +85,15 @@ class AgeCli
      */
     public function encryptDirectory(string $directory, array $files, array $recipients, string $output): void
     {
-        $tar = @proc_open([$this->tar, '-C', $directory, '--numeric-owner', '-cf', '-', ...$files], [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $tarPipes);
+        $tarErrors = tmpfile(); // a file, not a pipe: a talkative tar can never block while age waits for its input
+        if ($tarErrors === false) {
+            throw new RuntimeException('No temporary file for tar\'s messages.');
+        }
+        $tar = @proc_open([$this->tar, '-C', $directory, '--numeric-owner', '-cf', '-', ...$files], [1 => ['pipe', 'w'], 2 => $tarErrors], $tarPipes, null, $this->environment(false));
         if (! is_resource($tar)) {
             throw new RuntimeException('tar could not start.');
         }
-        $age = @proc_open([$this->age, '--encrypt', ...$this->recipientFlags($recipients), '--output', $output], [0 => $tarPipes[1], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $agePipes);
+        $age = @proc_open([$this->age, '--encrypt', ...$this->recipientFlags($recipients), '--output', $output], [0 => $tarPipes[1], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $agePipes, null, $this->environment(false));
         fclose($tarPipes[1]);
         if (! is_resource($age)) {
             proc_close($tar);
@@ -98,9 +103,10 @@ class AgeCli
         fclose($agePipes[1]);
         fclose($agePipes[2]);
         $ageCode = proc_close($age);
-        $tarError = (string) stream_get_contents($tarPipes[2]);
-        fclose($tarPipes[2]);
         $tarCode = proc_close($tar);
+        rewind($tarErrors);
+        $tarError = (string) stream_get_contents($tarErrors);
+        fclose($tarErrors);
         if ($tarCode !== 0 || $ageCode !== 0) {
             throw new RuntimeException('Encrypting the backup failed: '.$this->tail($tarCode !== 0 ? $tarError : $ageError));
         }
@@ -115,12 +121,7 @@ class AgeCli
     protected function exec(array $command, #[SensitiveParameter] ?string $stdin = null, #[SensitiveParameter] ?string $passphrase = null): array
     {
         $descriptors = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w'], ...($passphrase === null ? [] : [3 => ['pipe', 'r']])];
-        $env = getenv();
-        if ($passphrase !== null) {
-            $env['AGE_PASSPHRASE_FD'] = '3';
-        }
-        unset($env['AGE_PASSPHRASE']); // only fd 3 may carry a passphrase
-        $process = @proc_open($command, $descriptors, $pipes, null, $env);
+        $process = @proc_open($command, $descriptors, $pipes, null, $this->environment($passphrase !== null));
         if (! is_resource($process)) {
             throw new RuntimeException("{$command[0]} could not start.");
         }
@@ -138,6 +139,20 @@ class AgeCli
         fclose($pipes[2]);
 
         return [proc_close($process), $stdout, $stderr];
+    }
+
+    /**
+     * Only what the programs need: no APP_KEY, database password or AGE_PASSPHRASE of the caller's environment reaches
+     * them; a passphrase travels only on fd 3.
+     *
+     * @return array<string, string>
+     */
+    private function environment(bool $passphrase): array
+    {
+        $env = ['PATH' => getenv('PATH') ?: '/usr/local/bin:/usr/bin:/bin', 'HOME' => getenv('HOME') ?: '/tmp'];
+        $tmp = getenv('TMPDIR');
+
+        return [...$env, ...(is_string($tmp) && $tmp !== '' ? ['TMPDIR' => $tmp] : []), ...($passphrase ? ['AGE_PASSPHRASE_FD' => '3'] : [])];
     }
 
     /**

@@ -111,7 +111,7 @@ it('reports the running instance with fsa status, doctor --post, logs and login-
 
     expect($status->getExitCode())->toBe(0, $status->getErrorOutput().$status->getOutput())
         ->and($statusJson['data'])->toMatchArray(['installed' => true, 'health' => 'ok', 'mode' => 'local', 'url' => 'http://localhost:'.$GLOBALS['fsaJ01Port']])
-        ->and(array_keys($statusJson['data']['services']))->toBe(['app', 'queue', 'scheduler', 'postgres', 'redis', 'gotenberg', 'mailpit'])
+        ->and(array_keys($statusJson['data']['services']))->toBe(['app', 'queue', 'scheduler', 'postgres', 'redis', 'gotenberg', 'mailpit', 'backup'])
         ->and($statusJson['data']['sign_in_links'])->not->toBeNull()
         ->and($doctor->getExitCode())->toBe(0, $doctor->getOutput())
         ->and($logs->getExitCode())->toBe(0, $logs->getOutput())
@@ -138,7 +138,7 @@ it('uninstalls without leaving a labelled container, volume or network behind', 
     $this->journey->evidence('J01-uninstall.json', ['command' => 'fsa uninstall --yes --json', 'exit_code' => $process->getExitCode(), 'stdout' => InstanceJourney::json($process), 'labelled_before' => $before, 'labelled_after' => InstanceJourney::labelled($uuid)]);
 
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput().$process->getOutput())
-        ->and($before['containers'])->toHaveCount(7)
+        ->and($before['containers'])->toHaveCount(8) // the backup service since U16 (ADR 0084)
         ->and($before['volumes'])->not->toBeEmpty()
         ->and(InstanceJourney::labelled($uuid))->toBe(['containers' => [], 'volumes' => [], 'networks' => []])
         ->and(array_values(array_diff(scandir($this->dir) ?: [], ['.', '..'])))->toBe([]);

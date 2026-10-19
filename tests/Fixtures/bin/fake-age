@@ -12,7 +12,8 @@ declare(strict_types=1);
  * - recipients (`--recipient`): `fake-age:to:<recipient,…>`; decrypting needs an identity (`--identity -`, on stdin) whose
  *   recipient (fake-age-keygen's derivation) is listed.
  *
- * FAKE_AGE_FAIL=1 makes every call fail. The real binary is exercised by the J08 install journey.
+ * It refuses to run when AGE_PASSPHRASE is set: a passphrase may arrive only on the descriptor. The real binary is
+ * exercised by the J08 install journey.
  */
 
 $args = array_slice($argv, 1);
@@ -30,9 +31,6 @@ $fail = static function (string $message): never {
     fwrite(STDERR, "age: error: {$message}\n");
     exit(1);
 };
-if (getenv('FAKE_AGE_FAIL') === '1') {
-    $fail('failing on purpose');
-}
 if (getenv('AGE_PASSPHRASE') !== false) {
     $fail('AGE_PASSPHRASE must not be set');
 }

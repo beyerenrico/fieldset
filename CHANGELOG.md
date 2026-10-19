@@ -7,6 +7,29 @@ The Form Schema Spec has its own changelog in `spec/form-definition/1.0/CHANGELO
 
 ## [Unreleased]
 
+### Added
+- **Backups** — every instance runs a `backup` service (the app image, container root with four capabilities, no
+  Docker socket, the storage volume read-only) that backs up daily at 03:30 in the instance's time zone and keeps the
+  newest 7 scheduled backups in `backups/`. A backup is the database dump, the storage volume, the portable settings,
+  the audit chain heads and a manifest, all read from one database snapshot, with `SHA256SUMS` and an HMAC keyed from
+  APP_KEY; it counts only once the dump reads back. Safety, manual and kept backups are never pruned, and a run that
+  would fill the disk is skipped (ADR 0084).
+- **`fsa backup`** — a manual backup now, while the instance keeps running; `--include-secrets` adds APP_KEY and the
+  SMTP account (encrypted backups only), `--encrypt` turns encryption on first (ADR 0084).
+- **Encrypted backups** — `fsa config set backup-encryption on --identity-out <path> --passphrase-file <file>` (or
+  `--passphrase-stdin`) creates an age key pair, writes the identity encrypted with your passphrase outside the
+  instance directory and checks that it decrypts; only the public key stays in the instance, and every later backup
+  is one age file. `off` switches back (ADR 0084).
+- **`fsa config set backup-schedule <HH:MM|off>` and `backup-retention <n>`** (ADR 0084).
+- **Backup status** — `fsa status` shows the last backup, the schedule and its next run, the backups on disk and the
+  safety backups with their age, and warns when the last backup failed, when scheduled runs were skipped for more
+  than a day, or when none succeeded for 26 hours; the `/platform` health page has a backup check (ADR 0084).
+- **Audit chain epoch** — `audit:verify --heads` reports the chain epoch with the heads (ADR 0084).
+
+### Changed
+- `fsa status` and `fsa logs` list the `backup` service; the stack file for Portainer and Coolify still has no
+  backup service (ADR 0084).
+
 ## 2.0.0-beta.1 — 2026-10-19 (local pre-release, not published)
 
 Mail, demo data and phones (M11): capture mode is visible and can be switched to a real SMTP server, demo data

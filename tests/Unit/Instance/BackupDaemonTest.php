@@ -13,6 +13,7 @@ use App\Domain\Instance\Backup\BackupStore;
 use App\Domain\Instance\Backup\BackupTools;
 use App\Domain\Instance\Backup\BackupWriter;
 use App\Domain\Instance\Backup\ServiceIdentity;
+use App\Domain\Instance\Console\BackupDaemonCommand;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Operations\InstanceLock;
 use App\Domain\Instance\Operations\LockHolder;
@@ -100,6 +101,46 @@ it('sleeps in short steps until the slot, then runs; a run skipped because the l
         ->and($lock->current()?->lockId)->toBe($handle->record->lockId);
 });
 
+it('records a skip because of the lock again after an hour, so a lock left behind keeps showing up', function (): void {
+    new InstanceLock($this->directory, new RecordingDockerGateway)->acquire(TemporaryInstance::holder('c', '2026-10-19T03:00:00Z'), 'upgrade');
+    $daemon = daemon($this, daemonConfig($this->directory));
+    $since = CarbonImmutable::parse('2026-10-17T12:00:00Z'); // the slot of 2026-10-18 03:30 was missed: due at once
+
+    $first = $daemon->tick($since);
+    $this->travel(30)->minutes();
+    $within = $daemon->tick($since);
+    $this->travel(31)->minutes();
+    $later = $daemon->tick($since);
+
+    expect([$first['recorded'] ?? null, $within['recorded'] ?? null, $later['recorded'] ?? null])->toBe([false, false, false]) // no database here: false means "not in the table"
+        ->and(array_column(new BackupRunLog($this->directory)->recent(), 'reason'))->toBe(['lock_held', 'lock_held']);
+});
+
+it('never runs back to back when its ledger cannot be written', function (): void {
+    mkdir($this->directory->root.'/backups/runs.log', 0700, true); // a directory where the ledger file belongs
+    $daemon = daemon($this, daemonConfig($this->directory, ['minFreeMib' => 999_999_999]));
+    $since = CarbonImmutable::parse('2026-10-17T12:00:00Z');
+
+    $run = $daemon->tick($since);
+    $again = $daemon->tick($since);
+
+    expect($run)->toMatchArray(['status' => 'skipped', 'reason' => 'low_disk_space'])
+        ->and($again)->toBeNull()->and($this->sleeps)->toBe([BackupDaemon::TICK_SECONDS]);
+});
+
+it('skips a damaged ledger line instead of failing', function (): void {
+    $this->directory->ensureDirectory('backups');
+    file_put_contents($this->directory->root.'/backups/runs.log', implode("\n", [
+        '{"kind":"scheduled","status":"succeeded","started_at":"2026-10-18T03:30:00Z"}',
+        '{"kind":"scheduled","status":"failed","started_at":"not a time"}',
+        '{"kind":"sched',
+    ])."\n");
+    $log = new BackupRunLog($this->directory);
+
+    expect($log->recent())->toHaveCount(1)->and($log->lastSuccess()?->toIso8601ZuluString())->toBe('2026-10-18T03:30:00Z')
+        ->and($log->lastFailedAttempt())->toBeNull();
+});
+
 it('skips a scheduled run when the disk is too full, and records it', function (): void {
     $daemon = daemon($this, daemonConfig($this->directory, ['minFreeMib' => 999_999_999]));
 
@@ -182,6 +223,34 @@ it('answers the one-off entry point with one JSON document: lock required, lock 
         ->and([$seal, $sealJson['errors'][0]['code']])->toBe([1, 'backup_not_found'])
         ->and([$config, $configJson['errors'][0]['code']])->toBe([1, 'invalid_backup_config'])
         ->and(array_column(new BackupRunLog($this->directory)->recent(), 'reason'))->toBe(['low_disk_space', 'lock_mismatch']);
+});
+
+it('seals a plain backup under the caller\'s lock and refuses --include-secrets without secrets on stdin', function (): void {
+    $recipient = 'age1'.str_repeat('r', 58);
+    $env = ['FSA_INSTANCE_ROOT' => $this->directory->root, 'BACKUP_HMAC_KEY' => DAEMON_KEY, 'FSA_OWNER_UID' => (string) posix_getuid(), 'FSA_OWNER_GID' => (string) posix_getgid(), 'BACKUP_AGE_RECIPIENTS' => $recipient];
+    foreach ($env as $key => $value) {
+        putenv("{$key}={$value}");
+    }
+    app()->instance(AgeCli::class, new AgeCli(base_path('tests/Fixtures/bin/fake-age'), base_path('tests/Fixtures/bin/fake-age-keygen')));
+    app()->instance(BackupDaemonCommand::STDIN, static fn (): string => '');
+    $plain = $this->directory->ensureDirectory('backups/safety-upgrade-20261019T120000Z');
+    file_put_contents($plain.'/database.dump', 'PGDMP');
+    $handle = new InstanceLock($this->directory, new RecordingDockerGateway)->acquire(TemporaryInstance::holder('a'), 'upgrade');
+
+    try {
+        $sealCode = Artisan::call('fsa:backup-daemon', ['--seal' => 'safety-upgrade-20261019T120000Z', '--lock-id' => $handle->record->lockId, '--json' => true]);
+        $seal = json_decode(trim(Artisan::output()), true, 512, JSON_THROW_ON_ERROR);
+        $secretsCode = Artisan::call('fsa:backup-daemon', ['--once' => true, '--include-secrets' => true, '--lock-id' => $handle->record->lockId, '--json' => true]);
+        $secrets = json_decode(trim(Artisan::output()), true, 512, JSON_THROW_ON_ERROR);
+    } finally {
+        foreach (array_keys($env) as $key) {
+            putenv($key);
+        }
+    }
+
+    expect($sealCode)->toBe(0)->and($seal['data'])->toMatchArray(['backup' => 'safety-upgrade-20261019T120000Z', 'encrypted' => true, 'changed' => true])
+        ->and(scandir($plain))->toContain('backup.tar.age')->not->toContain('database.dump')
+        ->and($secretsCode)->toBe(1)->and($secrets['errors'][0]['code'])->toBe('secrets_missing');
 });
 
 it('reads its configuration from the environment and refuses malformed numbers', function (): void {

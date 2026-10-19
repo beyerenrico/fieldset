@@ -68,6 +68,18 @@ it('runs the backup service once under the lock it holds, after the backup role,
         ->and(json_encode($json))->not->toContain((string) new EnvFiles($this->instance->directory)->read('backup')['DB_PASSWORD']);
 });
 
+it('prints the APP_KEY fingerprint unredacted: it names the key without being a secret (R67)', function (): void {
+    $fingerprint = new EnvFiles($this->instance->directory)->read('backup')['BACKUP_APP_FINGERPRINTS'];
+    $run = json_decode(trim(InstanceCommandFixture::backupRun()->stdout), true, 512, JSON_THROW_ON_ERROR);
+    $run['data']['result']['app_key_fingerprints'] = [$fingerprint];
+    $this->instance->backupOutcome = InstanceCommandFixture::oneOffJson($run);
+
+    [$code, $json] = $this->instance->run('fsa:backup');
+
+    expect($code)->toBe(0)->and($fingerprint)->toMatch('/^[0-9a-f]{4}(-[0-9a-f]{4}){3}$/')
+        ->and($json['data']['app_key_fingerprint'])->toBe($fingerprint);
+});
+
 it('starts Postgres first when the instance is stopped', function (): void {
     foreach ($this->instance->docker->containers as $id => $container) {
         $this->instance->docker->stopContainer((string) $id);

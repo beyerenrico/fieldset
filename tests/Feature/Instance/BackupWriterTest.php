@@ -40,6 +40,12 @@ use Tests\Support\Instance\TemporaryInstance;
 const WRITER_KEY = '0123456789abcdef0123456789abcdef';
 
 beforeEach(function (): void {
+    $version = new Process(['pg_dump', '--version']);
+    $version->run();
+    if (preg_match('/ (\d+)\./', $version->getOutput(), $major) !== 1 || (int) $major[1] < 16) {
+        // CI installs postgresql-client (16) and the CI image PGDG's client 16; without one these tests cannot run.
+        $this->markTestSkipped('pg_dump 16 or newer is not installed (found: '.(trim($version->getOutput()) ?: 'none').'); the backup writer needs it.');
+    }
     BackupScratchDatabase::create();
     $this->directory = TemporaryInstance::directory();
     $this->storage = $this->directory->root.'/storage';
