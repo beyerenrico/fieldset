@@ -109,6 +109,16 @@ it('warns about a .partial directory an interrupted backup left, but not while a
         ->and(collect($locked['warnings'])->pluck('code')->all())->not->toContain('backup_partial_left');
 });
 
+it('warns when the newest successful backup misses referenced files (M12 gate D5)', function (): void {
+    new BackupRunLog($this->instance->directory)->append(['kind' => 'scheduled', 'status' => 'succeeded', 'started_at' => '2026-10-19T03:30:00Z', 'backup' => 'scheduled-20261019T033000Z', 'missing_files' => 3]);
+
+    [, $json] = $this->instance->run('fsa:status');
+    $warning = collect($json['warnings'])->firstWhere('code', 'backup_files_missing');
+
+    expect($warning['message'] ?? '')->toContain('3 file(s)')->toContain('scheduled-20261019T033000Z')
+        ->and($json['data']['backup']['alerts'])->toContain('backup_files_missing');
+});
+
 it('also warns about the plain set of an encrypted backup an interrupted run left in staging/backup/', function (): void {
     $this->instance->directory->ensureDirectory('staging/backup/manual-20261019T120000Z.partial');
 

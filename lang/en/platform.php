@@ -140,6 +140,7 @@ return [
             'failed' => 'The last backup failed (:reason). Run `fsa backup` and read `fsa logs backup`.',
             'skipped' => 'Scheduled backups have been skipped for more than 24 hours because an operation held the instance lock. Check `fsa status`.',
             'disk_space' => 'The last scheduled backup was skipped: there is not enough free disk space for it. Free space (old backups in backups/), then run `fsa backup`.',
+            'files_missing' => 'The last backup succeeded, but :count file(s) the database references were not in storage: it cannot bring them back. Older backups are kept while new ones miss more files. Check `fsa status`.',
             'overdue' => 'No backup succeeded in time: the backup service may not be running. Check `fsa logs backup` and `fsa status`.',
             'service_failed' => 'The backup service cannot start (:reason). Read `fsa logs backup`.',
             'silent' => 'The backup service of this fsa instance has not reported yet. Check `fsa status` and `fsa logs backup`.',

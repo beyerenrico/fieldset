@@ -77,6 +77,7 @@ final readonly class BackupStatus
             'backup_disk_space' => [$code, 'The last scheduled backup was skipped: '.($run['message'] ?? 'not enough free disk space.'), 'Free space on the disk of the instance directory (old backups in backups/), then run `fsa backup`.'],
             'backup_skipped' => [$code, 'Scheduled backups have been skipped for more than 24 hours because an operation held the instance lock.', 'Finish the unfinished operation (`fsa status` names it), then run `fsa backup`.'],
             'backup_service_failed' => [$code, 'The backup service cannot start ('.($run['reason'] ?? 'unknown').'): '.($run['message'] ?? 'no message').'.', 'Read `fsa logs backup`; `fsa install` with the same flags renders its configuration again.'],
+            'backup_files_missing' => [$code, 'The newest backup ('.($run['backup'] ?? 'unknown').') misses '.(int) ($run['missing_files'] ?? 0).' file(s) the database references; its manifest.json lists them.', 'Check the storage volume (files deleted by hand, a disk problem). Retention keeps the older backups while new ones miss more files.'],
             default => [$code, 'No backup succeeded within '.BackupAlerts::OVERDUE_GRACE_HOURS.' hours of the scheduled slot: the backup service may not be running.', 'Check `fsa logs backup` and `fsa doctor --post`, then run `fsa backup`.'],
         };
     }

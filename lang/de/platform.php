@@ -140,6 +140,7 @@ return [
             'failed' => 'Die letzte Sicherung ist fehlgeschlagen (:reason). Führen Sie `fsa backup` aus und lesen Sie `fsa logs backup`.',
             'skipped' => 'Geplante Sicherungen werden seit mehr als 24 Stunden übersprungen, weil ein Vorgang die Instanzsperre hält. Prüfen Sie `fsa status`.',
             'disk_space' => 'Die letzte geplante Sicherung wurde übersprungen: Es ist nicht genug Speicherplatz frei. Geben Sie Platz frei (alte Sicherungen in backups/) und führen Sie `fsa backup` aus.',
+            'files_missing' => 'Die letzte Sicherung ist gelungen, aber :count Datei(en), auf die die Datenbank verweist, fehlten im Speicher: Sie kann sie nicht zurückbringen. Ältere Sicherungen bleiben erhalten, solange neue mehr Dateien vermissen. Prüfen Sie `fsa status`.',
             'overdue' => 'Keine Sicherung ist rechtzeitig gelungen: Der Sicherungsdienst läuft möglicherweise nicht. Prüfen Sie `fsa logs backup` und `fsa status`.',
             'service_failed' => 'Der Sicherungsdienst kann nicht starten (:reason). Lesen Sie `fsa logs backup`.',
             'silent' => 'Der Sicherungsdienst dieser fsa-Instanz hat sich noch nicht gemeldet. Prüfen Sie `fsa status` und `fsa logs backup`.',

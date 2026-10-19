@@ -2,21 +2,29 @@
 
 declare(strict_types=1);
 
+use App\Domain\Identity\Tenancy\TenantContext;
 use App\Domain\Instance\Backup\AgeCli;
 use App\Domain\Instance\Backup\BackupChecksums;
 use App\Domain\Instance\Backup\BackupConfig;
+use App\Domain\Instance\Backup\BackupEntry;
 use App\Domain\Instance\Backup\BackupFailed;
 use App\Domain\Instance\Backup\BackupName;
+use App\Domain\Instance\Backup\BackupRun;
+use App\Domain\Instance\Backup\BackupRunLog;
+use App\Domain\Instance\Backup\BackupRunRecorder;
 use App\Domain\Instance\Backup\BackupStore;
 use App\Domain\Instance\Backup\BackupToolResult;
 use App\Domain\Instance\Backup\BackupTools;
 use App\Domain\Instance\Backup\BackupWriter;
 use App\Domain\Instance\Backup\PortableSettings;
+use App\Domain\Instance\Operations\InstanceLock;
 use App\Domain\Instance\State\InstanceState;
+use App\Domain\Submissions\Models\Attachment;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\Process\Process;
 use Tests\Support\Instance\BackupScratchDatabase;
+use Tests\Support\Instance\RecordingDockerGateway;
 use Tests\Support\Instance\TemporaryInstance;
 
 /*
@@ -49,15 +57,21 @@ afterEach(function (): void {
     TemporaryInstance::cleanup();
 });
 
-function integrityWriter(object $test, ?BackupTools $tools = null, ?AgeCli $age = null, array $recipients = []): BackupWriter
+/** @param  list<string>  $recipients */
+function integrityConfig(object $test, array $recipients = [], int $retention = 3): BackupConfig
 {
     $db = BackupScratchDatabase::libpq(BackupScratchDatabase::name());
-    $config = new BackupConfig(
-        $test->directory->root, $test->storage, posix_getuid(), posix_getgid(), '03:30', 'UTC', 3, 0, $recipients, INTEGRITY_KEY, ['0123-4567-89ab-cdef'],
+
+    return new BackupConfig(
+        $test->directory->root, $test->storage, posix_getuid(), posix_getgid(), '03:30', 'UTC', $retention, 0, $recipients, INTEGRITY_KEY, ['0123-4567-89ab-cdef'],
         ['host' => $db['PGHOST'], 'port' => $db['PGPORT'], 'database' => $db['PGDATABASE'], 'username' => $db['PGUSER'], 'password' => $db['PGPASSWORD']], '2.0.0-test',
     );
+}
 
-    return new BackupWriter(new BackupStore($test->directory), DB::connection(BackupScratchDatabase::CONNECTION), $tools ?? new BackupTools, $age ?? new AgeCli, $config);
+/** @param  list<string>  $recipients */
+function integrityWriter(object $test, ?BackupTools $tools = null, ?AgeCli $age = null, array $recipients = [], ?BackupConfig $config = null): BackupWriter
+{
+    return new BackupWriter(new BackupStore($test->directory), DB::connection(BackupScratchDatabase::CONNECTION), $tools ?? new BackupTools, $age ?? new AgeCli, $config ?? integrityConfig($test, $recipients));
 }
 
 /** BackupTools that let `$tamper` change the partial set once the dump and the archive are written (pg_restore --list runs next). */
@@ -179,4 +193,30 @@ it('takes its settings from staging/backup/, never from a file planted in backup
 
     expect($settings['recipients'])->toBe([])
         ->and($settings['settings']['domain'])->toBe('forms.example.com');
+});
+
+it('keeps older scheduled backups while a new one misses more referenced files than the one before (M12 gate D5)', function (): void {
+    $store = new BackupStore($this->directory);
+    foreach (['scheduled-20261001T033000Z', 'scheduled-20261002T033000Z'] as $old) {
+        $this->directory->ensureDirectory('backups/'.$old);
+        file_put_contents($this->directory->root.'/backups/'.$old.'/database.dump', 'old');
+    }
+    $log = new BackupRunLog($this->directory, $store);
+    $log->append(['kind' => 'scheduled', 'status' => 'succeeded', 'started_at' => '2026-10-02T03:30:00Z', 'backup' => 'scheduled-20261002T033000Z', 'missing_files' => 0]);
+    $org = makeOrganization();
+    app(TenantContext::class)->run($org, static function (): void {
+        Attachment::factory()->create(['path' => 'attachments/gone.jpg']); // its file is not in storage
+    });
+    app(TenantContext::class)->clear();
+    $config = integrityConfig($this, retention: 1);
+    $run = new BackupRun(new InstanceLock($this->directory, new RecordingDockerGateway), $store, integrityWriter($this, config: $config), new BackupRunRecorder($log, DB::connection(BackupScratchDatabase::CONNECTION)), $config);
+
+    $held = $run->run(BackupName::for(BackupName::SCHEDULED, CarbonImmutable::now()), TemporaryInstance::holder('b'));
+    $kept = array_map(static fn (BackupEntry $entry): string => $entry->name->name(), $store->entries());
+    $next = $run->run(BackupName::for(BackupName::SCHEDULED, CarbonImmutable::now()->addMinute()), TemporaryInstance::holder('b'));
+
+    expect($held)->toMatchArray(['status' => 'succeeded', 'missing_files' => 1, 'pruned' => [], 'retention_held' => ['missing_files' => 1, 'previous' => 0]])
+        ->and($kept)->toContain('scheduled-20261001T033000Z', 'scheduled-20261002T033000Z')
+        ->and($next)->toMatchArray(['status' => 'succeeded', 'missing_files' => 1])->not->toHaveKey('retention_held')
+        ->and($next['pruned'])->toContain('scheduled-20261001T033000Z', 'scheduled-20261002T033000Z');
 });

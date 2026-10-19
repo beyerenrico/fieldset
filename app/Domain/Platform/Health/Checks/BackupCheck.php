@@ -18,7 +18,8 @@ use Illuminate\Support\Number;
  * - fail: the last backup failed, the backup service's start failed, or no backup succeeded within two hours of the
  *   slot that was due (BackupAlerts `backup_overdue`: a service that is not running);
  * - warn: a scheduled run was skipped for lack of disk space, scheduled runs were skipped for more than 24 hours because
- *   an operation held the instance lock, or the instance is run by fsa and its backup service never reported;
+ *   an operation held the instance lock, the last successful backup misses referenced files (M12 gate D5), or the
+ *   instance is run by fsa and its backup service never reported;
  * - ok otherwise, saying truthfully what the last run was (a success, a skip that is retried, none yet). An instance not
  *   run by fsa (no runtime file) without rows has its own backup procedure. The instance page of U20 builds on the data.
  */
@@ -27,7 +28,7 @@ final readonly class BackupCheck implements HealthCheck
     /** Alert => status, worst first. */
     private const array SEVERITY = [
         'backup_failed' => 'fail', 'backup_service_failed' => 'fail', 'backup_overdue' => 'fail',
-        'backup_disk_space' => 'warn', 'backup_skipped' => 'warn',
+        'backup_disk_space' => 'warn', 'backup_skipped' => 'warn', 'backup_files_missing' => 'warn',
     ];
 
     public function __construct(private BackupRuns $runs) {}
@@ -49,7 +50,7 @@ final readonly class BackupCheck implements HealthCheck
         foreach (self::SEVERITY as $code => $status) {
             $alert = array_find($summary['alerts'], static fn (array $alert): bool => $alert['code'] === $code);
             if ($alert !== null) {
-                $message = (string) __('platform.health.backup.'.substr($code, 7), ['reason' => (string) ($alert['run']['reason'] ?? 'unknown')]);
+                $message = (string) __('platform.health.backup.'.substr($code, 7), ['reason' => (string) ($alert['run']['reason'] ?? 'unknown'), 'count' => (int) ($alert['run']['missing_files'] ?? 0)]);
 
                 return $status === 'fail' ? HealthResult::fail($this->key(), $message, $details) : HealthResult::warn($this->key(), $message, $details);
             }

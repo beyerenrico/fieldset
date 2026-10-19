@@ -17,6 +17,8 @@ use Throwable;
  * - `backup_skipped`: a scheduled run was skipped because an operation held the instance lock more than 24 hours ago,
  *   and no run succeeded since: skips alert like failures once they last;
  * - `backup_service_failed`: the backup service's newest start failed (its configuration);
+ * - `backup_files_missing`: the newest successful backup misses files the database references (`missing_files` > 0,
+ *   M12 gate D5): it counts as a backup, but not as a complete one; BackupRun then keeps the older backups;
  * - `backup_overdue` (with a schedule that is on): two hours after the first slot following the newest success, or,
  *   without one, following `$since` (scheduledSince: when the service first started with the schedule on; restarts do
  *   not move it), no run has succeeded: the service is not running, or cannot complete a backup. A schedule switched
@@ -58,6 +60,9 @@ final readonly class BackupAlerts
         $staleSkip = array_find(array_reverse($after), static fn (array $run): bool => self::isLockSkip($run) && (self::time($run)?->lessThan($now->subHours(self::SKIP_ALERT_HOURS)) ?? false));
         if ($staleSkip !== null) {
             $alerts[] = ['code' => 'backup_skipped', 'run' => $staleSkip];
+        }
+        if (is_int($success['missing_files'] ?? null) && $success['missing_files'] > 0) {
+            $alerts[] = ['code' => 'backup_files_missing', 'run' => $success];
         }
         $service = self::service($runs);
         if (($service['status'] ?? null) === 'failed') {
