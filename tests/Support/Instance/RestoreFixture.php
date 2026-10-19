@@ -51,6 +51,9 @@ final class RestoreFixture
 
     public ?ProcessOutcome $drill = null;
 
+    /** The upgrade child's answer for an older backup (`instance:upgrade-migrate`; null: it migrates). */
+    public ?ProcessOutcome $upgradeMigrate = null;
+
     /** @var list<string>|null the dump's migrations (null: this image's set) */
     public ?array $migrations = null;
 
@@ -166,6 +169,9 @@ final class RestoreFixture
                 'carried' => ['devices_revoked' => 1, 'users_deactivated' => 0], 'sequences' => ['sequences' => 12, 'number_sequences' => 1],
                 'cleared' => ['sessions' => 3, 'password_reset_tokens' => 0, 'login_links' => 1], 'grants' => ['revoked_public' => 3, 'backup_role' => true],
                 'decrypt' => ['tested' => 2, 'failed' => []],
+            ]),
+            ($command[2] ?? null) === 'instance:upgrade-migrate' => $this->upgradeMigrate ?? $this->ok('instance:upgrade-migrate', [
+                'migrated' => ['2026_10_26_100200_add_schedule_to_backup_runs'], 'steps' => [], 'invalid_indexes' => [], 'lock_timeout' => '1min',
             ]),
             ($command[2] ?? null) === 'audit:seal' => new ProcessOutcome(0, "Sealed 0 audit entries.\n"),
             ($command[2] ?? null) === 'audit:verify' => new ProcessOutcome(0, '{"verified_at":"2026-10-19T12:00:00+00:00","epoch":1,"heads":{"0":{"seq":7,"hash":"'.str_repeat('a', 64).'"}}}'."\n"),
