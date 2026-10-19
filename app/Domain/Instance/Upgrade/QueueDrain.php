@@ -17,8 +17,8 @@ use Illuminate\Support\Sleep;
  * Drains Horizon before an upgrade's safety backup (KTD19 step 4, plan U18, ADR 0086). The socket holder never opens
  * Valkey itself (KTD25): a socket-less one-off of the app service (`instance:queue-drain`) reports the queue sizes, and
  * fsa polls it while the workers finish what is waiting. Drained means no job is pending or reserved on any Horizon
- * queue; delayed jobs (retries, scheduled notifications) stay in Valkey and run after the upgrade. `drop()` exports the
- * remaining payloads and deletes them (`--drop-jobs`).
+ * queue; delayed jobs (retries, scheduled notifications) stay in Valkey and run after the upgrade. For `--drop-jobs`,
+ * `export()` reads the payloads still pending or reserved and `drop()` deletes them once fsa saved them.
  */
 final readonly class QueueDrain
 {
@@ -49,16 +49,23 @@ final readonly class QueueDrain
     }
 
     /**
-     * Exports every job left in the queues (pending, reserved, delayed) and deletes them.
+     * The raw payloads of every job left pending or reserved (`--export`), nothing deleted yet.
      *
-     * @return array{count: int, payloads: list<mixed>}
+     * @return list<mixed>
      */
-    public function drop(ComposeProject $project): array
+    public function export(ComposeProject $project): array
     {
-        $result = $this->run($project, ['--drop']);
-        $payloads = is_array($result->data['payloads'] ?? null) ? array_values($result->data['payloads']) : [];
+        $payloads = $this->run($project, ['--export'])->data['payloads'] ?? null;
 
-        return ['count' => is_int($result->data['dropped'] ?? null) ? $result->data['dropped'] : count($payloads), 'payloads' => $payloads];
+        return is_array($payloads) ? array_values($payloads) : [];
+    }
+
+    /** Deletes every job left pending or reserved (`--drop`), after export() was saved; returns how many went. */
+    public function drop(ComposeProject $project): int
+    {
+        $dropped = $this->run($project, ['--drop'])->data['dropped'] ?? 0;
+
+        return is_int($dropped) ? $dropped : 0;
     }
 
     /** @return array{pending: int, reserved: int, delayed: int} */

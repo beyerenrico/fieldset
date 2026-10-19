@@ -177,17 +177,38 @@ it('exits 9 on a drain timeout without --drop-jobs, with the gate lowered and th
         ->and(new OperationJournal($this->upgrade->instance->directory)->current())->toBeNull();
 });
 
-it('saves and counts the dropped jobs with --drop-jobs and goes on', function (): void {
-    $this->upgrade->drain = [['pending' => 2, 'reserved' => 0, 'delayed' => 1]];
+it('saves the jobs left pending or reserved after the workers stopped, then drops them, with --drop-jobs, and goes on', function (): void {
+    $this->upgrade->drain = [['pending' => 2, 'reserved' => 1, 'delayed' => 4]];
+    $order = [];
+    $this->upgrade->instance->docker->onCall['composeStop'] = function (array $args) use (&$order): void {
+        $order[] = 'stop:'.implode(',', $args['services']);
+    };
+    $this->upgrade->instance->docker->onCall['composeRun'] = function (array $args) use (&$order): void {
+        if (($args['command'][2] ?? null) === 'instance:queue-drain' && count($args['command']) > 4) {
+            $order[] = $args['command'][3];
+        }
+    };
 
     [$code, $json] = $this->upgrade->upgrade(['--drop-jobs' => true]);
     $file = $this->dir.'/'.$json['data']['dropped_jobs']['file'];
 
     expect($code)->toBe(0, (string) json_encode($json))
+        ->and($order)->toBe(['stop:scheduler,backup', 'stop:queue', '--export', '--drop'])
         ->and($json['data']['dropped_jobs']['count'])->toBe(3)
         ->and(substr(sprintf('%o', fileperms($file)), -3))->toBe('600')
-        ->and(json_decode((string) file_get_contents($file), true)['payloads'])->toHaveCount(1)
+        ->and(json_decode((string) file_get_contents($file), true)['payloads'])->toHaveCount(3)
         ->and($json['warnings'][0]['code'] ?? null)->toBe('jobs_dropped');
+});
+
+it('names the saved jobs when the upgrade stops after dropping them', function (): void {
+    $this->upgrade->drain = [['pending' => 1, 'reserved' => 0, 'delayed' => 0]];
+    $this->upgrade->damagedSafety = true;
+
+    [$code, $json] = $this->upgrade->upgrade(['--drop-jobs' => true]);
+
+    expect($code)->toBe(9, (string) json_encode($json))
+        ->and($json['data']['dropped_jobs']['count'])->toBe(1)
+        ->and(array_column($json['warnings'], 'code'))->toContain('jobs_dropped');
 });
 
 it('exits 9 before any migration when the safety backup fails its verification', function (): void {

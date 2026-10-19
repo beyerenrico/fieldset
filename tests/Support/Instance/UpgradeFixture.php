@@ -86,6 +86,9 @@ final class UpgradeFixture
     /** Problems the safety backup's set has on disk (a damaged checksum: verification fails). */
     public bool $damagedSafety = false;
 
+    /** @var list<string> the queue one-offs in order: sizes, export, drop */
+    public array $queueActions = [];
+
     /** The security state export's one-off (null: a small valid document). */
     public ?ProcessOutcome $exportOutcome = null;
 
@@ -248,7 +251,7 @@ final class UpgradeFixture
 
         return match ($command[2] ?? null) {
             'instance:upgrade-db' => $this->database($command[3] ?? ''),
-            'instance:queue-drain' => $this->queue(in_array('--drop', $command, true)),
+            'instance:queue-drain' => $this->queue(in_array('--export', $command, true) ? 'export' : (in_array('--drop', $command, true) ? 'drop' : 'sizes')),
             'instance:security-export' => $this->exportOutcome ?? InstanceCommandFixture::oneOffJson(['command' => 'instance:security-export', 'status' => 'ok',
                 'data' => ['format' => 'fsa-security-state', 'version' => 1, 'generated_at' => '2026-10-20T10:00:00Z', 'since' => null, 'tables' => ['users' => ['columns' => ['id'], 'rows' => [[1]]]], 'sequences' => []]]),
             'instance:rollback-loss' => InstanceCommandFixture::oneOffJson(['command' => 'instance:rollback-loss', 'status' => 'ok',
@@ -285,10 +288,15 @@ final class UpgradeFixture
         return InstanceCommandFixture::oneOffJson(['command' => 'instance:upgrade-db', 'status' => 'ok', 'data' => $data]);
     }
 
-    private function queue(bool $drop): ProcessOutcome
+    private function queue(string $action): ProcessOutcome
     {
         $sizes = $this->drain === [] ? ['pending' => 0, 'reserved' => 0, 'delayed' => 0] : (count($this->drain) > 1 ? array_shift($this->drain) : $this->drain[0]);
-        $data = $drop ? ['dropped' => $sizes['pending'] + $sizes['reserved'] + $sizes['delayed'], 'payloads' => [['queue' => 'default', 'payload' => '{"job":"x"}']], ...$sizes] : $sizes;
+        $this->queueActions[] = $action;
+        $data = match ($action) {
+            'export' => [...$sizes, 'payloads' => array_fill(0, $sizes['pending'] + $sizes['reserved'], ['queue' => 'default', 'state' => 'pending', 'payload' => '{"job":"x"}'])],
+            'drop' => [...$sizes, 'dropped' => $sizes['pending'] + $sizes['reserved']],
+            default => $sizes,
+        };
 
         return InstanceCommandFixture::oneOffJson(['command' => 'instance:queue-drain', 'status' => 'ok', 'data' => $data]);
     }

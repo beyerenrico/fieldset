@@ -62,7 +62,7 @@ final readonly class ReleaseFeed
     public static function base(HostFacts $facts): string
     {
         $url = rtrim($facts->releaseUrl ?? ConfigShow::RELEASES_URL, '/');
-        if (str_starts_with($url, 'http://') && BuildFlavor::current() !== BuildFlavor::Harness) {
+        if (stripos($url, 'https://') !== 0 && BuildFlavor::current() !== BuildFlavor::Harness) {
             throw new InvalidInput('FSA_RELEASE_URL must be an https URL.', 'insecure_release_url', 'Unset FSA_RELEASE_URL to use GitHub Releases, or point it at an https mirror.');
         }
 
@@ -73,7 +73,7 @@ final readonly class ReleaseFeed
     {
         try {
             $response = Http::timeout(60)->connectTimeout(15)
-                ->withOptions(['allow_redirects' => ['max' => 5, 'protocols' => str_starts_with($url, 'http://') ? ['http', 'https'] : ['https']]])
+                ->withOptions(['allow_redirects' => ['max' => 5, 'protocols' => stripos($url, 'http://') === 0 ? ['http', 'https'] : ['https']]])
                 ->get($url);
         } catch (Throwable $e) {
             throw new InstanceException("Cannot download {$url}: ".$e->getMessage(), ExitCode::PreflightFailed, 'release_unavailable', 'Check the network and FSA_RELEASE_URL, then run `fsa upgrade` again; nothing was changed.', true, [], $e);

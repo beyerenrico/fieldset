@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Upgrade;
 
+use App\Domain\Instance\Compose\ComposeGuard;
 use App\Domain\Instance\Compose\Services\AppRoles;
 use App\Domain\Instance\Compose\Services\BackupService;
 use App\Domain\Instance\Compose\Services\MailpitService;
@@ -50,6 +51,30 @@ final readonly class StagedRelease
         $image = $document['services'][AppRoles::APP]['image'] ?? null;
         if ($image !== ($digests['app'] ?? null) || $model === []) {
             throw new InstanceException('The target\'s staged compose file does not run the target\'s app image.', ExitCode::RolledBack, 'staged_invalid', null, true, ['image' => is_string($image) ? $image : null]);
+        }
+        $this->assertContained($document);
+    }
+
+    /**
+     * The installed release's own guard on what the target rendered (defence in depth: the target is a signed release,
+     * but its files are started by the process that holds the socket): no service mounts the Docker socket, runs
+     * privileged or sets RUN_MIGRATIONS (ComposeGuard).
+     *
+     * @param  array<string, mixed>  $document
+     *
+     * @throws InstanceException exit 5 `staged_invalid`
+     */
+    private function assertContained(array $document): void
+    {
+        try {
+            ComposeGuard::assertSafe($document, []);
+            foreach (is_array($document['services'] ?? null) ? $document['services'] : [] as $name => $service) {
+                if (is_array($service) && ($service['privileged'] ?? false) === true) {
+                    throw new InstanceException("The service [{$name}] would run privileged.", ExitCode::InternalError, 'unsafe_compose');
+                }
+            }
+        } catch (InstanceException $e) {
+            throw new InstanceException('The target\'s staged compose file is not acceptable: '.$e->getMessage(), ExitCode::RolledBack, 'staged_invalid', null, true, [], $e);
         }
     }
 

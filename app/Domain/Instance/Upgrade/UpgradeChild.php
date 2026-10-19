@@ -164,7 +164,7 @@ final readonly class UpgradeChild
     private function logs(string $container): string
     {
         try {
-            return $this->docker->containerLogs($container, 40);
+            return UpgradeLogs::redact($this->directory, $this->docker->containerLogs($container, 40));
         } catch (Throwable) {
             return '';
         }

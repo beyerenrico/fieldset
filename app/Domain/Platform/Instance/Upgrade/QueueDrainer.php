@@ -50,27 +50,46 @@ final readonly class QueueDrainer
     }
 
     /**
-     * Exports and deletes every job of the queues.
+     * The raw payloads of every job still pending or reserved (a worker took it but never finished: the workers are
+     * stopped when fsa asks). Delayed jobs are not part of it: they wait in Valkey for their time.
      *
      * @param  list<string>  $names
-     * @return array{dropped: int, payloads: list<array{queue: string, state: string, payload: string}>}
+     * @return list<array{queue: string, state: string, payload: string}>
      */
-    public function drop(array $names): array
+    public function export(array $names): array
     {
         $queue = $this->queue();
         $redis = $queue->getConnection();
         $payloads = [];
         foreach ($names as $name) {
             $key = $queue->getQueue($name);
-            foreach (['pending' => (array) $redis->lrange($key, 0, -1), 'reserved' => (array) $redis->zrange($key.':reserved', 0, -1), 'delayed' => (array) $redis->zrange($key.':delayed', 0, -1)] as $state => $jobs) {
+            foreach (['pending' => (array) $redis->lrange($key, 0, -1), 'reserved' => (array) $redis->zrange($key.':reserved', 0, -1)] as $state => $jobs) {
                 foreach ($jobs as $payload) {
                     $payloads[] = ['queue' => $name, 'state' => $state, 'payload' => (string) $payload];
                 }
             }
-            $queue->clear($name);
         }
 
-        return ['dropped' => count($payloads), 'payloads' => $payloads];
+        return $payloads;
+    }
+
+    /**
+     * Deletes every job still pending or reserved (after fsa saved export()'s payloads); delayed jobs stay.
+     *
+     * @param  list<string>  $names
+     */
+    public function drop(array $names): int
+    {
+        $queue = $this->queue();
+        $redis = $queue->getConnection();
+        $dropped = 0;
+        foreach ($names as $name) {
+            $key = $queue->getQueue($name);
+            $dropped += (int) $redis->llen($key) + (int) $redis->zcard($key.':reserved');
+            $redis->del($key, $key.':reserved');
+        }
+
+        return $dropped;
     }
 
     private function queue(): RedisQueue

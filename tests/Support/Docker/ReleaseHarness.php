@@ -166,6 +166,54 @@ final class ReleaseHarness
         return new HarnessRelease($release, $appDigest, $appReference, $directory, "{$this->releaseUrl()}/download/{$release->tag()}", $platforms);
     }
 
+    /**
+     * A release whose app image is the base release's with a few changes (J07, plan U18): a target that adds a migration,
+     * one whose health check fails, one whose `fsa` crashes. The image is built `FROM` the base digest in the harness
+     * registry with `$instructions` (Dockerfile lines; `$files` are written next to the Dockerfile first) and the
+     * version in APP_VERSION and the OCI label, then signed and published with its own manifest like publish().
+     *
+     * @param  array<string, string>  $files  context path => contents
+     */
+    public function publishDerived(string $version, HarnessRelease $base, string $instructions, array $files = []): HarnessRelease
+    {
+        $release = ReleaseVersion::parse($version);
+        $inputs = ReleaseInputs::fromFile(TestImage::repository().'/distribution/release.json');
+        $context = "{$this->directory}/derived/{$release}";
+        mkdir($context, 0755, true);
+        foreach ($files as $path => $contents) {
+            @mkdir(dirname("{$context}/{$path}"), 0755, true);
+            file_put_contents("{$context}/{$path}", $contents);
+        }
+        file_put_contents("{$context}/Dockerfile", "FROM {$base->appReference}\n{$instructions}\nENV APP_VERSION={$release}\nLABEL org.opencontainers.image.version=\"{$release}\"\n");
+        $metadata = "{$context}/build-metadata.json";
+        $this->ensureBuilder();
+        self::mustRun(['docker', 'buildx', 'build', '--builder', $this->project, '--progress=plain', '--platform', implode(',', $base->platforms), '--sbom=true', '--provenance=mode=max', // an index, as release:manifest requires
+            '-t', "{$this->registry()}/{$inputs->appRepository}:{$release}", '--push', '--metadata-file', $metadata, $context], 1800);
+        $digest = json_decode((string) file_get_contents($metadata), true)['containerimage.digest'] ?? throw new RuntimeException("No image digest in {$metadata}.");
+        $this->cosign->signImage("{$this->registry()}/{$inputs->appRepository}@{$digest}");
+        $directory = "{$this->distDirectory()}/download/{$release->tag()}";
+        $this->writeAssets($release, $base->platforms, $digest, $directory);
+
+        return new HarnessRelease($release, $digest, "{$this->registry()}/{$inputs->appRepository}@{$digest}", $directory, "{$this->releaseUrl()}/download/{$release->tag()}", $base->platforms);
+    }
+
+    /**
+     * The release server as a container on Docker's default bridge reaches it (`fsa upgrade` downloads the target's
+     * manifest from inside its ops container, ADR 0086): the server joins the bridge once, and its address there serves.
+     */
+    public function containerReleaseUrl(): string
+    {
+        $compose = self::compose($this->project, $this->directory, []);
+        $container = trim(self::mustRun([...$compose, 'ps', '-q', 'release-server'])->getOutput());
+        $address = trim(self::mustRun(['docker', 'inspect', '-f', '{{with index .NetworkSettings.Networks "bridge"}}{{.IPAddress}}{{end}}', $container])->getOutput());
+        if ($address === '') {
+            self::mustRun(['docker', 'network', 'connect', 'bridge', $container]);
+            $address = trim(self::mustRun(['docker', 'inspect', '-f', '{{with index .NetworkSettings.Networks "bridge"}}{{.IPAddress}}{{end}}', $container])->getOutput());
+        }
+
+        return "http://{$address}:8080";
+    }
+
     /** Where a stable release is also served, like GitHub's latest/download (pre-releases never land here). */
     public function latestDirectory(): string
     {
@@ -264,11 +312,7 @@ final class ReleaseHarness
      */
     private function buildApp(ReleaseVersion $release, array $platforms, ReleaseInputs $inputs): string
     {
-        if (! $this->builder) {
-            self::mustRun(['docker', 'buildx', 'create', '--name', $this->project, '--driver', 'docker-container', '--driver-opt', 'network=host', '--bootstrap'], 600);
-            $this->builder = true;
-        }
-
+        $this->ensureBuilder();
         $cache = TestImage::repository().'/storage/fsa-test-cache/buildx';
         $metadata = "{$this->directory}/build-metadata.json";
         $tags = array_merge(...array_map(fn (string $tag): array => ['-t', "{$this->registry()}/{$inputs->appRepository}:{$tag}"], $release->imageTags()));
@@ -293,6 +337,14 @@ final class ReleaseHarness
         $digest = json_decode((string) file_get_contents($metadata), true)['containerimage.digest'] ?? null;
 
         return is_string($digest) ? $digest : throw new RuntimeException("No image digest in {$metadata}.");
+    }
+
+    private function ensureBuilder(): void
+    {
+        if (! $this->builder) {
+            self::mustRun(['docker', 'buildx', 'create', '--name', $this->project, '--driver', 'docker-container', '--driver-opt', 'network=host', '--bootstrap'], 600);
+            $this->builder = true;
+        }
     }
 
     /**

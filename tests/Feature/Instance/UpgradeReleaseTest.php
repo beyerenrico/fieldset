@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Instance\Docker\ContainerSpec;
+use App\Domain\Instance\Docker\DockerCommandFailed;
 use App\Domain\Instance\Docker\ProcessOutcome;
 use App\Domain\Instance\Release\ManifestVerifier;
 use Tests\Support\Instance\ConfigFixture;
@@ -83,7 +84,7 @@ it('rolls back when the target image\'s child does not even start', function ():
 
 it('reports a failed pull before anything changes (exit 9)', function (): void {
     $this->upgrade->instance->docker->onCall['pullImage'] = static function (array $args): void {
-        throw new App\Domain\Instance\Docker\DockerCommandFailed('pull', new ProcessOutcome(1, '', 'manifest unknown'));
+        throw new DockerCommandFailed('pull', new ProcessOutcome(1, '', 'manifest unknown'));
     };
     $mark = $this->config->mark();
 

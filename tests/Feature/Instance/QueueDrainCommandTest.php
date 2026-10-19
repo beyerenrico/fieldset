@@ -43,19 +43,24 @@ it('reports the sizes of the queues by state', function (): void {
         ->and($json['changed'])->toBeFalse();
 });
 
-it('exports every job left over with --drop and deletes them', function (): void {
+it('exports the jobs still pending or reserved with --export without deleting, and deletes them with --drop; delayed jobs stay', function (): void {
     $queue = Queue::connection('redis');
+    $queue->push('fsa-test-job', [], $this->queue);
     $queue->push('fsa-test-job', [], $this->queue);
     $queue->later(3600, 'fsa-test-delayed', [], $this->queue);
 
-    [$code, $json] = queueDrain(['--queue' => [$this->queue], '--drop' => true]);
+    [$code, $export] = queueDrain(['--queue' => [$this->queue], '--export' => true]);
+    [, $kept] = queueDrain(['--queue' => [$this->queue]]);
+    [$dropCode, $drop] = queueDrain(['--queue' => [$this->queue], '--drop' => true]);
     [, $after] = queueDrain(['--queue' => [$this->queue]]);
 
-    expect($code)->toBe(0, (string) json_encode($json))
-        ->and($json['data']['dropped'])->toBe(2)->and($json['changed'])->toBeTrue()
-        ->and(array_column($json['data']['payloads'], 'state'))->toEqualCanonicalizing(['pending', 'delayed'])
-        ->and($json['data']['payloads'][0]['payload'])->toContain('fsa-test')
-        ->and($after['data'])->toMatchArray(['pending' => 0, 'reserved' => 0, 'delayed' => 0]);
+    expect($code)->toBe(0, (string) json_encode($export))
+        ->and($export['data']['payloads'])->toHaveCount(2)->and($export['changed'])->toBeFalse()
+        ->and(array_unique(array_column($export['data']['payloads'], 'state')))->toBe(['pending'])
+        ->and($export['data']['payloads'][0]['payload'])->toContain('fsa-test-job')
+        ->and($kept['data'])->toMatchArray(['pending' => 2, 'delayed' => 1])
+        ->and($dropCode)->toBe(0)->and($drop['data']['dropped'])->toBe(2)->and($drop['changed'])->toBeTrue()
+        ->and($after['data'])->toMatchArray(['pending' => 0, 'reserved' => 0, 'delayed' => 1]);
 });
 
 it('works every Horizon queue by default', function (): void {

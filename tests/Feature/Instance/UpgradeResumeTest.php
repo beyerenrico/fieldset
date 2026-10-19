@@ -113,6 +113,28 @@ it('continues a rollback that stopped with exit 8 on --resume', function (): voi
         ->and(new OperationJournal($this->upgrade->instance->directory)->current())->toBeNull();
 });
 
+it('finishes a rollback swap that stopped half-way without restoring over the swapped database again', function (): void {
+    $this->upgrade->child = 'fail';
+    $failures = 1;
+    $this->upgrade->instance->docker->onCall['composeRun'] = function (array $args) use (&$failures): void {
+        if (($args['command'][0] ?? null) === 'valkey-cli' && $failures-- > 0) {
+            throw new RuntimeException('killed while flushing');
+        }
+    };
+    [$code] = $this->upgrade->upgrade();
+    expect($code)->toBe(8)->and(array_count_values($this->upgrade->restore->actions())['swap'] ?? 0)->toBe(1);
+    $before = count($this->upgrade->restore->actions());
+
+    [$code, $json] = $this->upgrade->upgrade(['--resume' => true, '--to' => null]);
+    $resumed = array_slice($this->upgrade->restore->actions(), $before);
+
+    expect($code)->toBe(5, (string) json_encode($json))
+        ->and($resumed)->not->toContain('create')->not->toContain('swap')
+        ->and($resumed)->toContain('list')
+        ->and($this->upgrade->instance->state()->version())->toBe('2.0.0-alpha.1')
+        ->and($this->upgrade->gate()['raised'])->toBeFalse();
+});
+
 it('refuses a new upgrade while an interrupted one is open, naming the resume command', function (): void {
     $this->upgrade->interrupted('migrate');
 
@@ -204,6 +226,26 @@ it('starts a target that adds a service and an env key from its own staged files
         ->and($this->upgrade->ups($mark)[0])->toContain('indexer')
         ->and($this->config->callsSince($mark, 'composeConfig'))->not->toBeEmpty();
 });
+
+it('refuses staged files that would mount the Docker socket or run privileged, and rolls back', function (string $change): void {
+    $this->upgrade->stage = static function (string $files) use ($change): void {
+        $compose = (string) file_get_contents($files.'/compose.yaml');
+        $lines = explode("\n", $compose);
+        $header = implode("\n", array_filter($lines, static fn (string $line): bool => str_starts_with($line, '#')));
+        $document = json_decode(implode("\n", array_filter($lines, static fn (string $line): bool => ! str_starts_with($line, '#'))), true);
+        if ($change === 'socket') {
+            $document['services']['gotenberg']['volumes'][] = ['type' => 'bind', 'source' => '/var/run/docker.sock', 'target' => '/var/run/docker.sock'];
+        } else {
+            $document['services']['gotenberg']['privileged'] = true;
+        }
+        file_put_contents($files.'/compose.yaml', $header."\n".json_encode($document, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)."\n");
+    };
+
+    [$code, $json] = $this->upgrade->upgrade();
+
+    expect($code)->toBe(5, (string) json_encode($json))->and($json['errors'][0]['code'])->toBe('staged_invalid')
+        ->and($this->upgrade->compose())->not->toContain('docker.sock')->not->toContain('privileged');
+})->with(['socket', 'privileged']);
 
 it('refuses staged files that do not pass docker compose config, and rolls back', function (): void {
     $this->upgrade->instance->docker->onCall['composeConfig'] = function (array $args): void {

@@ -63,9 +63,11 @@ final readonly class UpgradeRollback
         $id = UpgradeJournal::shortId($record);
         $swapped = $state->withSetting('storage_volume', $names->freshVolume);
         try {
-            if (! $run->record()->hasCompleted('rollback_swap')) {
+            $resumed = $run->record()->hasStarted('rollback_swap');
+            if (! $resumed) { // once the swap began, the restored database may be live: never restore over it again
                 $this->beforeSwap($run, $state, $project, $names, $cause, $backupName, $release, $id, $actorUid);
-                $resumed = $run->record()->hasStarted('rollback_swap');
+            }
+            if (! $run->record()->hasCompleted('rollback_swap')) {
                 $run->phase('rollback_swap', fn (): array => $this->swap($project, $names, $swapped, $resumed));
             }
             $run->phase('rollback_verify', fn (): array => ['checked' => $this->stack->startAndVerify($swapped, $project, $this->stack->raise($swapped))], always: true);

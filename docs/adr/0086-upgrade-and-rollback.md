@@ -65,9 +65,11 @@ the plan's "queue, scheduler and backup refuse to start behind the gate" is not 
 **Drain (KTD19 step 4).** `instance:queue-drain` (socket-less one-off) reports pending, reserved and delayed jobs of
 every Horizon queue; drained means none pending or reserved: delayed jobs stay in Valkey and run after the upgrade (an
 automatic rollback flushes them with Valkey, R35). On a timeout without `--drop-jobs`: exit 9 `drain_timeout`. With it,
-`--drop` exports every remaining job's raw payload and deletes them; fsa writes `operations/dropped-jobs-<id>.json`
-(0600) and reports the count (warning `jobs_dropped`). The file lies beside the safety backup, not inside it: the set's
-`SHA256SUMS` and HMAC are final, and any unlisted file fails its verification.
+once the queue stopped (so no worker still runs an exported job), `--export` reads the raw payloads of the jobs still
+pending or reserved, fsa writes them to `operations/dropped-jobs-<id>.json` (0600), and only then `--drop` deletes them
+(delayed jobs stay); the count is reported (warning `jobs_dropped`, also by a revert after the drop). The file lies
+beside the safety backup, not inside it: the set's `SHA256SUMS` and HMAC are final, and any unlisted file fails its
+verification.
 
 **The child (KTD19 step 6, KTD25, R36).** UpgradeChild writes `operations/upgrade-<id>/request.json` (version, digests,
 `from`, emulation) and starts the **target** image's `fsa upgrade-child` detached, as the owner, on the instance network,
@@ -79,6 +81,7 @@ lock_timeout=60s`. The app side (UpgradeMigrator) waits up to 30 s for zero fore
 sets `lock_timeout`, runs the pending migrations through Laravel's migrator, the version steps since `--from`
 (VersionSteps: idempotent, none in 2.0.0) and refuses invalid indexes. The outcome is `stage/result.json`; none means
 the child crashed (exit 5 `child_crashed` with its last log lines, read through the new `DockerGateway::containerLogs`).
+Log lines kept in the journal and the result have every secret of the env files masked (UpgradeLogs).
 The supervisor polls the container every 5 s and, every 30 s, `instance:upgrade-db activity` (a socket-less one-off on
 `pg_stat_activity`): the child is alive while its session was active within 300 s; past that (`child_hung`) or past 6 h
 (`child_timeout`) it removes the container, terminates the session (`instance:upgrade-db terminate`) and rolls back.
@@ -88,7 +91,9 @@ ConcurrentIndex in every migration after the 1.0.0 baseline (`2026_10_23_100000_
 build concurrently already ran on every database an instance can hold.
 
 **Staged files (step 7).** StagedRelease validates the staged project with `docker compose config` and requires its app
-service to run the target's digest (`staged_invalid`, rollback), then copies every staged file but the runtime
+service to run the target's digest and pass the installed release's ComposeGuard (no Docker socket, no RUN_MIGRATIONS,
+no reserved labels, no `$`) and refuse a privileged service (`staged_invalid`, rollback): the target is a signed release,
+but its files are started by the socket holder. Then it copies every staged file but the runtime
 directory and the marker into the instance directory, removes env files of services the target no longer renders, and
 writes the compose file last. A target that adds a service or an env key therefore starts from its own files.
 
@@ -99,7 +104,8 @@ installed renderer, Postgres and Valkey up with them, gate raised) → `rollback
 safety backup verified again into the scratch directory) → `rollback_database` → `rollback_storage` → `rollback_finish`
 (`instance:restore-finish --reason=rolled_back --no-carry`: new epoch, `instance.rolled_back` first, no R64 carry and no
 sequence floors) → `rollback_swap` (databases renamed once: a resumed swap reads the database list first; the state names
-the fresh volume; Valkey flushed) → `rollback_verify` → `rollback_open` (every service but the quick tunnel; gate down) →
+the fresh volume; Valkey flushed; once the swap began, a resumed rollback never restores again and only finishes it) →
+`rollback_verify` → `rollback_open` (every service but the quick tunnel; gate down) →
 `rollback_cleanup` (the migrated database and the superseded volume go, stage and scratch removed, the safety backup
 sealed, history `upgrade_rolled_back`). Exit 5 with the cause and its logs. A failure until the gate went down is exit 8
 (UpgradeHalt): writers stopped, gate up, journal open, data `safety_backup` (path), `digests.previous`/`digests.target`,
@@ -152,6 +158,8 @@ after `restore_database`) instead of exit 7 `upgrade_child_unavailable`.
   `--to <newest within the major>` is needed (exit 7 names it); a pre-release instance needs `--to`.
 - Downtime: from the gate through the safety backup, the migrations and the target's health check; writes get 503
   throughout and a few refused connections while Compose recreates the app.
+- The child's liveness is its session's `active` state at a probe every 30 s: a version step doing more than 300 s of
+  PHP work between statements counts as hung and rolls back; such a step must touch the database meanwhile.
 - Mailpit and the quick tunnel are never recreated by an upgrade; a target that changes Mailpit's image or settings
   applies them with the next `fsa config set`.
 - A rollback restores only data written until the safety backup (R37, stated before it starts); delayed jobs are lost

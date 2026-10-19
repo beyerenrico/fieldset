@@ -25,8 +25,8 @@ use App\Domain\Instance\State\RuntimeWriter;
  * only its loopback healthcheck and the operation's smoke token pass, OperationGate) and keeps answering, behind the
  * gate, until the target replaces it in step 7: the app stays up because it is the gate's responder (the plan's open
  * question on R62). Scheduler and backup stop, Horizon drains within a bounded wait and the queue stops with its grace
- * period; on a drain timeout the upgrade stops (exit 9) unless `--drop-jobs`, which saves the remaining payloads to a
- * 0600 file and counts them. Pending audit entries are sealed, so the safety backup's heads are final.
+ * period; on a drain timeout the upgrade stops (exit 9) unless `--drop-jobs`, which saves the jobs still pending or
+ * reserved to a 0600 file once the workers stopped, then deletes them and counts them (delayed jobs stay). Pending audit entries are sealed, so the safety backup's heads are final.
  *
  * `revert()`: a failure before the safety backup completed: the gate goes down and queue, scheduler and backup start
  * again; the app never stopped.
@@ -69,10 +69,12 @@ final readonly class UpgradeQuiesce
                     "Run `fsa {$operation}` again later".($operation === UpgradeJournal::OPERATION ? ', or with --drop-jobs to save the remaining jobs to a file and drop them' : '').'. Nothing was changed; the instance runs as before.', true, ['queue' => $drain],
                 );
             }
-            $dropped = $this->dropJobs($project, $id);
         }
         if (in_array(AppRoles::QUEUE, $running, true)) {
             $this->docker->composeStop($project, [AppRoles::QUEUE], AppRoles::STOP_GRACE_SECONDS);
+        }
+        if (! $drain['drained']) { // after the workers stopped: nothing runs a job that is exported and deleted
+            $dropped = $this->dropJobs($project, $id);
         }
         $this->seal($project);
 
@@ -90,15 +92,27 @@ final readonly class UpgradeQuiesce
         }
     }
 
-    /** @return array{count: int, file: string} */
+    /** The file a run's dropped jobs are saved to (also reported by a revert after the drop). */
+    public static function droppedFile(string $id): string
+    {
+        return InstanceDirectory::OPERATIONS_DIR.'/dropped-jobs-'.$id.'.json';
+    }
+
+    /**
+     * Saves the jobs left pending or reserved to a 0600 file first and deletes them only then, so a kill in between loses
+     * nothing (a repeated drop overwrites the file with what is left). Delayed jobs stay (KTD19 step 4, ADR 0086).
+     *
+     * @return array{count: int, file: string}
+     */
     private function dropJobs(ComposeProject $project, string $id): array
     {
-        $dropped = $this->drain->drop($project);
-        $file = InstanceDirectory::OPERATIONS_DIR.'/dropped-jobs-'.$id.'.json';
+        $exported = $this->drain->export($project);
+        $file = self::droppedFile($id);
         $this->directory->ensureDirectory(InstanceDirectory::OPERATIONS_DIR);
-        $this->directory->write($file, json_encode(['schema_version' => '1.0', 'count' => $dropped['count'], 'payloads' => $dropped['payloads']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR)."\n", 0600);
+        $this->directory->write($file, json_encode(['schema_version' => '1.0', 'count' => count($exported), 'payloads' => $exported], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR)."\n", 0600);
+        $this->drain->drop($project);
 
-        return ['count' => $dropped['count'], 'file' => $file];
+        return ['count' => count($exported), 'file' => $file];
     }
 
     private function seal(ComposeProject $project): void

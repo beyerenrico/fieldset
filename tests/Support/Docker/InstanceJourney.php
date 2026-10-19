@@ -55,6 +55,17 @@ final readonly class InstanceJourney
         return $this->run([$dir.'/fsa', ...$arguments], $env, $input);
     }
 
+    /**
+     * The shim as a process not yet started, for journeys that act while it runs (J7 writes and kills the foreground
+     * while an upgrade runs in its detached supervisor).
+     *
+     * @param  list<string>  $arguments
+     */
+    public function fsaProcess(string $dir, array $arguments, array $env = []): Process
+    {
+        return $this->process([$dir.'/fsa', ...$arguments], $env);
+    }
+
     /** @return array<string, mixed> the envelope: the last stdout line */
     public static function json(Process $process): array
     {

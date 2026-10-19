@@ -130,8 +130,16 @@ final readonly class UpgradeOperation
         }, ['code' => $cause instanceof InstanceException ? $cause->errorCode : 'upgrade_failed', 'message' => $cause->getMessage()]);
         $run->markReverted();
         $e = $cause instanceof InstanceException ? $cause : new InstanceException($cause->getMessage(), ExitCode::AbortedUnchanged, 'upgrade_failed', null, true, [], $cause);
+        $result = CommandResult::fromException('upgrade', $e)->withExitCode(ExitCode::AbortedUnchanged)->withData(['running' => $state->version()]);
+        $file = UpgradeQuiesce::droppedFile(UpgradeJournal::shortId($run->record()));
+        $saved = json_decode((string) $this->directory->read($file), true);
+        if (! is_array($saved)) {
+            return $result;
+        }
+        $count = is_int($saved['count'] ?? null) ? $saved['count'] : 0;
 
-        return CommandResult::fromException('upgrade', $e)->withExitCode(ExitCode::AbortedUnchanged)->withData(['running' => $state->version()]);
+        return $result->withData(['dropped_jobs' => ['count' => $count, 'file' => $file]])
+            ->withWarning('jobs_dropped', "{$count} queued job(s) were dropped before the upgrade stopped; they are saved in {$file}.", 'Re-dispatch them from that file if they are still needed.');
     }
 
     /**
@@ -208,7 +216,7 @@ final readonly class UpgradeOperation
     private function logs(ComposeProject $project, array $services): string
     {
         try {
-            return $this->docker->composeLogs($project, array_values(array_intersect($services, ['app', 'edge'])) ?: ['app'], null, 30);
+            return UpgradeLogs::redact($this->directory, $this->docker->composeLogs($project, array_values(array_intersect($services, ['app', 'edge'])) ?: ['app'], null, 30));
         } catch (Throwable) {
             return '';
         }
