@@ -154,6 +154,7 @@ final readonly class ConfigShow
             'phone-https' => $settings->phoneHttps() ?? ($state->mode() === 'local' ? 'off' : null), 'lan-address' => $settings->localCa() ? $settings->lanAddress() : null,
             'backup-schedule' => $settings->backupSchedule(), 'backup-retention' => (string) $settings->backupRetention(),
             'backup-encryption' => $state->recipients() === [] ? 'off' : 'on',
+            'webhooks' => $settings->webhooksPaused() ? 'paused' : 'on',
         ];
         $keys = [];
         foreach (ConfigKeys::keys() as $key) {

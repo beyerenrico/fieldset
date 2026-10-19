@@ -69,7 +69,7 @@ it('says when later settings arrive and lists the keys for an unknown one, exit 
 })->with([
     'update check' => ['update-check', 'setting_not_available', '2.0.0'],
     'backup schedule (arrived with U16, ADR 0084)' => ['backup-schedule', 'invalid_value', 'HH:MM'],
-    'unknown' => ['colour', 'unknown_setting', 'domain, url, port, trusted-proxy, mode, acme-email, acme-ca, mail, phone-https, lan-address, backup-schedule, backup-retention, backup-encryption, operator-email'],
+    'unknown' => ['colour', 'unknown_setting', 'domain, url, port, trusted-proxy, mode, acme-email, acme-ca, mail, phone-https, lan-address, backup-schedule, backup-retention, backup-encryption, webhooks, operator-email'],
     'invalid mail value' => ['mail', 'invalid_value', 'capture'],
 ]);
 
