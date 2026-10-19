@@ -73,6 +73,12 @@ beforeEach(function (): void {
     $this->dir = $this->journey->work.'/fsa-test-prerelease';
 });
 
+/** The channel a pre-release version names (2.0.0-beta.1 → beta), read from the string, not from ReleaseVersion. */
+function preReleaseChannel(string $version): string
+{
+    return preg_match('/^\d+\.\d+\.\d+-(alpha|beta|rc)\.\d+$/D', $version, $match) === 1 ? $match[1] : 'stable';
+}
+
 function preReleaseManifest(HarnessRelease $release): ReleaseManifest
 {
     return ReleaseManifest::fromJson((string) file_get_contents($release->manifestPath()), new ManifestSchema(TestImage::repository().'/distribution/manifest.schema.json'));
@@ -98,7 +104,7 @@ it('publishes a signed multi-arch pre-release whose manifest validates and lists
         'signatures' => ['key' => 'local harness key (cosign-harness.pub), not the keyless production identity', 'release-manifest.json' => $manifestCheck->isSuccessful(), 'install.sh' => $scriptCheck->isSuccessful()]]);
 
     expect((string) $manifest->version)->toBe($this->version)
-        ->and($manifest->channel()->value)->toBe('alpha')
+        ->and($manifest->channel()->value)->toBe(preReleaseChannel($this->version))
         ->and($manifest->platforms)->toBe(PlatformImage::SUPPORTED)
         ->and(array_keys($manifest->images))->toBe(ReleaseManifest::SERVICES)
         ->and($manifest->images['app']->pin->name())->toBe('ghcr.io/beyerenrico/form-schema-app')
@@ -123,7 +129,7 @@ it('tags only the pre-release version and never moves latest, 2 or 2.0', functio
     $tags = array_values(array_filter($this->harness->tags('beyerenrico/form-schema-app'), static fn (string $tag): bool => ! str_starts_with($tag, 'sha256-')));
     preReleaseRecord(['release_version' => $info, 'registry_tags' => $tags]);
 
-    expect($info)->toMatchArray(['version' => $this->version, 'channel' => 'alpha', 'prerelease' => true, 'image_tags' => [$this->version]])
+    expect($info)->toMatchArray(['version' => $this->version, 'channel' => preReleaseChannel($this->version), 'prerelease' => true, 'image_tags' => [$this->version]])
         ->and(array_intersect($info['image_tags'], ['latest', '2', '2.0']))->toBe([])
         ->and($tags)->toBe([$this->version])
         ->and(is_dir($this->harness->latestDirectory()))->toBeFalse();

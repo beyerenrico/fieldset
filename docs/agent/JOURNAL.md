@@ -246,3 +246,11 @@
 - Install smoke now renders a PDF (`instance:pdf-test`) and sends a test mail (`instance:mail-test --install`),
   found in Mailpit by Message-ID in capture mode; `config set` verify keeps SmokeTest only. Amendments 0070/0072/0080.
 - J01–J06 green natively (J04 10/10 incl. SMTP install); J06 now names its spec (U15 widened fsa-instance).
+
+## 2026-10-19 M11-T05 gate M11 → 2.0.0-beta.1
+- Review: 5 reviewers, 4 high (tunnel journal loop, rotation before preflight, capture revert losing SMTP, demo
+  `password` exposed by `config set domain`) + 13 medium; fixed by agents A–D in worktrees, merged `--no-ff`.
+- Gates: static/JS/licences green; coverage 95.51 % (Instance 97.36 %); Install suite native 103/103 (+7 pre-release
+  skips); amd64 emulated J1–J6/J12 51/51 and J10 9/9 (J10 now expects ADR 0070's doubled limits).
+- E2E 79/79 twice with --workers=2; 5 workers flaked under host load ~12 (Teams, Defender): spec sync fixes, Q49/50.
+- Pre-release 2.0.0-beta.1 7/7 (test no longer hard-codes channel alpha). CHANGELOG beta.1 + missing alpha.2.
