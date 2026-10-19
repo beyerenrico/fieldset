@@ -10,8 +10,10 @@
 # cosign image pinned below against the signer identity built into this file, and only then pulls the app image
 # by the manifest's digest. It creates the instance directory (0700), stores the verified manifest, installs the
 # `fsa` shim from the image and hands over to `fsa install` in an ops container. Flags go to `fsa install`;
-# install.sh reads --dir, --version, --json and --yes too, and handles --link/--no-link (PATH link) and --help
-# itself. With --json, stdout carries only the JSON result and stderr only NDJSON events. FSA_RELEASE_URL and
+# install.sh reads --dir, --version, --json, --yes and --password-stdin too, and handles --link/--no-link (PATH link)
+# and --help itself. Its own stdin is never passed on (with curl | sh it is the script), so --password-stdin (the SMTP
+# password of --smtp-username) works only as fsa's hidden prompt on a terminal; else use --password-file. With
+# --json, stdout carries only the JSON result and stderr only NDJSON events. FSA_RELEASE_URL and
 # FSA_REGISTRY point at a mirror. Docker's DOCKER_DEFAULT_PLATFORM (linux/amd64 or linux/arm64) picks the platform
 # of the images install.sh and fsa pull and run (cosign excepted), e.g. amd64 under emulation on Apple Silicon.
 # Everything is in functions and runs from the last line, so a truncated download executes nothing.
@@ -108,7 +110,23 @@ fsa_install_check_inputs() { # everything that needs no network: exit 2 before a
 	if [ -n "$version" ] && { case $version in *"$nl"*) true ;; *) false ;; esac || ! printf '%s\n' "$version" | grep -Eqx "$semver"; }; then
 		fsa_install_fail 2 invalid_version "--version must look like 2.0.0 or 2.0.0-rc.1, not $version."
 	fi
+	fsa_install_check_stdin
 	fsa_install_check_dir
+}
+
+fsa_install_stdin_ok() { # <json> <stdout tty> <terminal usable> (0|1): can fsa prompt for --password-stdin on the terminal?
+	# The same conditions as the shim's fsa_wants_tty for install.sh, which then hands the container /dev/tty as stdin.
+	[ "$1" = 0 ] && [ "$2" = 1 ] && [ "$3" = 1 ]
+}
+
+fsa_install_check_stdin() { # --password-stdin: install.sh never passes its own stdin on (curl | sh: it is the script)
+	[ "$password_stdin" = 1 ] || return 0
+	stdout_tty=0 tty_usable=0
+	[ ! -t 1 ] || stdout_tty=1
+	! (exec </dev/tty) 2>/dev/null || tty_usable=1
+	fsa_install_stdin_ok "$json" "$stdout_tty" "$tty_usable" || fsa_install_fail 2 password_stdin_unavailable \
+		'install.sh does not pass its stdin on (with curl | sh it is the script itself), so --password-stdin cannot read the SMTP password here.' \
+		'Pass --password-file=<path> (a file that holds only the password, mode 0600), or run install.sh in a terminal (without --json) to be asked for it.'
 }
 
 fsa_install_check_dir() { # --dir: absolute, normalized, mountable, not a system path, empty or an instance
@@ -237,7 +255,8 @@ fsa_install_usage() {
 	printf '  <release> is https://github.com/beyerenrico/form-schema-app/releases/download/v<version> (pre-releases: also pass\n'
 	printf '  --version <version>); from 2.0.0 on also .../releases/latest/download for the newest stable release.\n'
 	printf '  --yes answers every question and does not link fsa into PATH unless --link is given.\n'
-	printf 'Flags, prompts and exit codes: docs/guide/install.md. FSA_RELEASE_URL, FSA_REGISTRY: mirrors.\n'
+	printf 'Flags of each command: fsa install --help, fsa <command> --help (without the PATH link: <dir>/fsa <command> --help).\n'
+	printf 'FSA_RELEASE_URL, FSA_REGISTRY: mirrors.\n'
 	printf 'DOCKER_DEFAULT_PLATFORM=linux/amd64 or linux/arm64: pull and run that platform (another one runs emulated).\n'
 }
 
@@ -246,7 +265,7 @@ fsa_install_main() {
 	nl='
 '
 	fsa_install_trust
-	dir='' version='' json=0 yes=0 link='' tmp='' phase=inputs
+	dir='' version='' json=0 yes=0 link='' tmp='' phase=inputs password_stdin=0
 	n=$#
 	while [ "$n" -gt 0 ]; do
 		arg=$1
@@ -262,6 +281,7 @@ fsa_install_main() {
 			n=$((n - 1)) ;;
 		--json) json=1 && set -- "$@" "$arg" ;;
 		--yes) yes=1 && set -- "$@" "$arg" ;;
+		--password-stdin) password_stdin=1 && set -- "$@" "$arg" ;;
 		--link) link=1 ;;
 		--no-link) link=0 ;;
 		-h | --help) fsa_install_usage && exit 0 ;;

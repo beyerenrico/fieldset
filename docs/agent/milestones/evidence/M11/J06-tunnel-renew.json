@@ -1,0 +1,34 @@
+{
+    "command": "fsa tunnel renew --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "tunnel",
+        "status": "ok",
+        "changed": true,
+        "data": {
+            "action": "renew",
+            "url": "https://fsa-test-73dfd43ed5.trycloudflare.com",
+            "mode": "local",
+            "local_url": "http://localhost:8081",
+            "tunnel": {
+                "hostname": "fsa-test-73dfd43ed5.trycloudflare.com",
+                "expires_at": "2026-10-19T02:42:13Z",
+                "peer": "10.215.15.18",
+                "admin": false,
+                "url": "https://fsa-test-73dfd43ed5.trycloudflare.com",
+                "state": "active"
+            },
+            "previous_expires_at": "2026-10-19T02:41:38Z"
+        },
+        "secrets": [],
+        "warnings": [
+            {
+                "code": "tunnel_expires",
+                "message": "The tunnel now expires at 2026-10-19T02:42:13Z.",
+                "hint": null
+            }
+        ],
+        "errors": []
+    }
+}

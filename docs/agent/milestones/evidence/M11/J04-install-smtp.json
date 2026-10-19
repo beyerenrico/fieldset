@@ -1,0 +1,75 @@
+{
+    "command": "install.sh --dir <work>/fsa-test-j04-smtp … --smtp-host fsa-test-j04-relay-… --smtp-port 1025 --smtp-encryption none --smtp-username fsa-test-relay-user --password-file <work>/smtp-password --from-address forms@example.test --json",
+    "exit_code": 0,
+    "seconds": 53.5,
+    "stdout": {
+        "schema_version": 1,
+        "command": "install",
+        "status": "ok",
+        "changed": true,
+        "data": {
+            "url": "http://localhost:8081",
+            "version": "2.0.0-alpha.1-test",
+            "mode": "local",
+            "dir": "<work>/fsa-test-j04-smtp",
+            "project": "fsa-fsa-test-j04-smtp-73cc",
+            "port": 8081,
+            "mail": {
+                "mode": "smtp",
+                "catcher_url": null
+            },
+            "owner_email": "owner@example.test",
+            "next_commands": [
+                "<work>/fsa-test-j04-smtp/fsa status",
+                "<work>/fsa-test-j04-smtp/fsa login-link owner@example.test",
+                "<work>/fsa-test-j04-smtp/fsa doctor --post"
+            ],
+            "sign_in_link": {
+                "expires_at": "2026-10-19T02:31:03Z",
+                "delivered": "secrets_file"
+            }
+        },
+        "secrets": [
+            {
+                "name": "sign_in_link",
+                "written_to": "<work>/smtp-owner-link.json",
+                "expires_at": "2026-10-19T02:31:03Z"
+            }
+        ],
+        "warnings": [
+            {
+                "code": "smtp_plaintext_auth",
+                "message": "The SMTP password goes to fsa-test-j04-relay-d84d unencrypted (--smtp-encryption none).",
+                "hint": "Use --smtp-encryption starttls or tls unless the relay runs on this host or your own trusted network."
+            }
+        ],
+        "errors": []
+    },
+    "relay_connected": 0,
+    "test_mail_at_stand_in": {
+        "subject": "form-schema-app: test mail",
+        "to": [
+            {
+                "Name": "",
+                "Address": "owner@example.test"
+            }
+        ]
+    },
+    "config_show_mail": {
+        "mode": "smtp",
+        "catcher": "removed",
+        "catcher_url": null,
+        "smtp": {
+            "host": "fsa-test-j04-relay-d84d",
+            "port": 1025,
+            "scheme": "smtp",
+            "encryption": "none"
+        },
+        "from_address": "forms@example.test",
+        "from_name": "form-schema-app"
+    },
+    "status_mail": {
+        "mode": "smtp",
+        "catcher_url": null
+    }
+}

@@ -20,9 +20,12 @@ use App\Domain\Instance\State\InstanceState;
  * Loopback ports (R10, R15, AE4). For `fsa install` it selects them: the app gets 8080 or the next free port
  * (an explicit --port must be free), the mail catcher UI 8025 or the next free one; the choice lands in the
  * install journal and the state, so a resumed or repeated install keeps its own ports without probing again. An
- * install on a shared proxy network publishes no app port, so only the catcher UI's is chosen.
+ * install on a shared proxy network publishes no app port, so only the catcher UI's is chosen; an install with
+ * --smtp-host runs no catcher, so no catcher UI port is chosen (ADR 0080 amendment).
  * For `fsa doctor` it checks the instance's ports: a port published by the instance's own running container
  * (app, mailpit) is served by it and not probed.
+ *
+ * Local-CA mode (ADR 0082) adds 80 and 443 on the LAN address (LocalCaPorts).
  *
  * `details` has one shape in both modes: `ports` (`app`, `mail_ui` => port; empty when none was found) and
  * `taken` (ports in use by something else).
@@ -52,7 +55,9 @@ final readonly class PortsCheck implements DoctorCheck
             return new EdgePorts($this->probe)->check($context, $image, $this->key()); // domain mode: 80 and 443 (U8)
         }
 
-        return $context->selectPorts ? $this->select($context, $image) : $this->verify($context, $image);
+        $loopback = $context->selectPorts ? $this->select($context, $image) : $this->verify($context, $image);
+
+        return $context->lanAddress === null ? $loopback : new LocalCaPorts($this->probe)->check($context, $image, $loopback);
     }
 
     private function select(DoctorContext $context, string $image): CheckResult
@@ -66,13 +71,13 @@ final readonly class PortsCheck implements DoctorCheck
             return CheckResult::fail($this->key(), "Port {$requested} is in use on 127.0.0.1.", 'Free the port, or pass another --port (without --port fsa picks 8080 or the next free port).', ['ports' => [], 'taken' => [$requested]]);
         }
         $port = $requested ?? $this->firstFree(InstanceSettings::DEFAULT_PORT, [], $image, $context->uuid, $taken);
-        $mail = $port === null ? null : $this->firstFree(InstanceSettings::DEFAULT_MAIL_UI_PORT, [$port], $image, $context->uuid, $taken);
-        if ($port === null || $mail === null) {
+        $mail = $port === null || ! $context->catcher ? null : $this->firstFree(InstanceSettings::DEFAULT_MAIL_UI_PORT, [$port], $image, $context->uuid, $taken);
+        if ($port === null || ($context->catcher && $mail === null)) {
             return CheckResult::fail($this->key(), 'No free loopback port found (tried '.implode(', ', $taken).').', 'Free one of these ports, or pass --port with a free one.', ['ports' => [], 'taken' => $taken]);
         }
-        $summary = "App on 127.0.0.1:{$port}, mail catcher UI on 127.0.0.1:{$mail}".($taken === [] ? '.' : ' (in use: '.implode(', ', $taken).').');
+        $summary = "App on 127.0.0.1:{$port}".($mail === null ? '' : ", mail catcher UI on 127.0.0.1:{$mail}").($taken === [] ? '.' : ' (in use: '.implode(', ', $taken).').');
 
-        return CheckResult::ok($this->key(), $summary, ['ports' => ['app' => $port, 'mail_ui' => $mail], 'taken' => $taken]);
+        return CheckResult::ok($this->key(), $summary, ['ports' => ['app' => $port, ...($mail === null ? [] : ['mail_ui' => $mail])], 'taken' => $taken]);
     }
 
     /**
@@ -81,6 +86,9 @@ final readonly class PortsCheck implements DoctorCheck
      */
     private function selectCatcherOnly(DoctorContext $context, string $image): CheckResult
     {
+        if (! $context->catcher) {
+            return CheckResult::ok($this->key(), 'The app publishes no port on the proxy network and no mail catcher runs (SMTP).', ['ports' => [], 'taken' => []]);
+        }
         $taken = [];
         $mail = $this->firstFree(InstanceSettings::DEFAULT_MAIL_UI_PORT, [], $image, $context->uuid, $taken);
         if ($mail === null) {
@@ -141,7 +149,7 @@ final readonly class PortsCheck implements DoctorCheck
         $settings = InstanceSettings::of($state);
 
         // On a shared proxy network the app publishes no port (ADR 0076), so there is nothing to probe for it.
-        return [...($settings->publishesAppPort() ? ['app' => $settings->port()] : []), ...($settings->capturesMail() ? ['mail_ui' => $settings->mailUiPort()] : [])];
+        return [...($settings->publishesAppPort() ? ['app' => $settings->port()] : []), ...($settings->runsCatcher() ? ['mail_ui' => $settings->mailUiPort()] : [])];
     }
 
     /** @return list<string> compose services of this instance whose container runs */

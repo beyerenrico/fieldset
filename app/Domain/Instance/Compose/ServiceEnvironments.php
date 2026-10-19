@@ -6,6 +6,7 @@ namespace App\Domain\Instance\Compose;
 
 use App\Domain\Instance\Runtime\CatcherRoute;
 use App\Domain\Instance\State\InstanceSecrets;
+use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InvalidState;
 use App\Domain\Instance\State\RuntimeWriter;
 
@@ -30,6 +31,12 @@ final readonly class ServiceEnvironments
     public const int MAILPIT_SMTP_PORT = 1025;
 
     public const string MAILPIT_DATABASE = '/data/mailpit.db';
+
+    /** The kept catcher's SMTP listener (ADR 0080): the container's own loopback, unreachable from the stack. */
+    public const string MAILPIT_KEPT_SMTP_BIND = '127.0.0.1:1025';
+
+    /** Tells the app it runs in capture mode (config `mail.capture`): the admin banner and the health check read it. */
+    public const string CAPTURE_ENV = 'FSA_MAIL_CAPTURE';
 
     public function __construct(private RenderContext $context) {}
 
@@ -90,6 +97,8 @@ final readonly class ServiceEnvironments
             'MP_MAX_MESSAGES' => (string) $this->context->budget->mailpitMaxMessages(),
             'MP_DATABASE' => self::MAILPIT_DATABASE,
             'MP_DISABLE_VERSION_CHECK' => 'true',
+            // Kept read-only after the switch to SMTP (ADR 0080): the UI shows what was captured, nothing new arrives.
+            ...($this->context->settings->keepsCatcher() ? ['MP_SMTP_BIND_ADDR' => self::MAILPIT_KEPT_SMTP_BIND] : []),
             // Domain mode: the UI lives under /_mail/ behind the edge (LEARNINGS 103: no prefix stripping).
             ...($this->context->mode() === 'domain' ? ['MP_WEBROOT' => CatcherRoute::MAIL_PATH] : []),
         ];
@@ -98,13 +107,14 @@ final readonly class ServiceEnvironments
     /**
      * The edge (ADR 0075): in capture mode only the `Authorization` value it injects towards Mailpit, so the browser
      * meets one auth layer (the /platform session through forward_auth) while Mailpit keeps its own credentials
-     * (R66). Nothing else: the Caddyfile carries the rest and holds no secret.
+     * (R66). Nothing else: the Caddyfile carries the rest and holds no secret. The local-CA edge (ADR 0082) serves no
+     * catcher, so it gets nothing.
      *
      * @return array<string, string>
      */
     public function edge(): array
     {
-        if (! $this->context->settings->capturesMail()) {
+        if (! $this->context->settings->runsCatcher() || $this->context->mode() !== 'domain') {
             return [];
         }
         $credentials = InstanceSecrets::CATCHER_USER.':'.$this->context->secrets->catcherPassword;
@@ -160,17 +170,20 @@ final readonly class ServiceEnvironments
 
     /**
      * TRUSTED_PROXIES: exactly one address the app accepts X-Forwarded-* from, never a range a neighbouring container
-     * could send from: the edge's fixed address in domain mode (KTD10, ADR 0075), the proxy's own address in proxy
-     * mode (R17, ADR 0076), none in local mode.
+     * could send from: the edge's fixed address in domain and local-CA mode (KTD10, ADR 0075, ADR 0082), the proxy's own
+     * address in proxy mode (R17, ADR 0076), else none. cloudflared is deliberately not trusted (ADR 0082): the runtime
+     * pins host and scheme of every request from its address, and a trusted X-Forwarded-Host (its own, or one a client
+     * sent through it) would make the host check answer 400 before that.
      *
      * @return array<string, string>
      */
     private function trustedProxies(): array
     {
-        $subnet = $this->context->settings->edgeSubnet();
-        $proxies = match ($this->context->mode()) {
-            'domain' => $subnet === null ? [] : [EdgeNetwork::edgeAddress($subnet)],
-            'proxy' => $this->context->settings->trustedProxies(),
+        $settings = $this->context->settings;
+        $subnet = $settings->edgeSubnet();
+        $proxies = match (true) {
+            $settings->rendersEdge() => $subnet === null ? [] : [EdgeNetwork::edgeAddress($subnet)],
+            $this->context->mode() === 'proxy' => $settings->trustedProxies(),
             default => [],
         };
 
@@ -202,13 +215,20 @@ final readonly class ServiceEnvironments
         ];
     }
 
-    /** @return array<string, string> capture mode: SMTP to the bundled Mailpit (KTD13); else the configured server */
+    /**
+     * Capture mode: SMTP to the bundled Mailpit (KTD13), and FSA_MAIL_CAPTURE for the banner and the health check (ADR
+     * 0080); else the configured server: STARTTLS required (MAIL_REQUIRE_TLS, so a server, or an attacker, that hides
+     * STARTTLS gets neither the account nor the mail), implicit TLS (MAIL_SCHEME=smtps), or a plain relay
+     * (MAIL_SCHEME=smtp, MAIL_AUTO_TLS=false) only when `--smtp-encryption none` asked for it (ADR 0080 amendment).
+     *
+     * @return array<string, string>
+     */
     private function mail(): array
     {
         $settings = $this->context->settings;
         $sender = ['MAIL_FROM_ADDRESS' => $settings->mailFromAddress(), 'MAIL_FROM_NAME' => $settings->mailFromName()];
         if ($settings->capturesMail()) {
-            return ['MAIL_MAILER' => 'smtp', 'MAIL_HOST' => self::MAILPIT_HOST, 'MAIL_PORT' => (string) self::MAILPIT_SMTP_PORT, ...$sender];
+            return ['MAIL_MAILER' => 'smtp', 'MAIL_HOST' => self::MAILPIT_HOST, 'MAIL_PORT' => (string) self::MAILPIT_SMTP_PORT, ...$sender, self::CAPTURE_ENV => 'true'];
         }
         $secrets = $this->context->secrets;
         $host = $settings->smtpHost() ?? throw new InvalidState('SMTP mail is configured without a server (setting smtp_host).');
@@ -218,6 +238,8 @@ final readonly class ServiceEnvironments
             'MAIL_HOST' => $host,
             'MAIL_PORT' => (string) $settings->smtpPort(),
             'MAIL_SCHEME' => (string) $settings->smtpScheme(),
+            'MAIL_REQUIRE_TLS' => $settings->smtpScheme() === null ? 'true' : '',
+            'MAIL_AUTO_TLS' => $settings->smtpScheme() === InstanceSettings::SMTP_PLAIN ? 'false' : '',
             'MAIL_USERNAME' => (string) $secrets->smtpUsername,
             'MAIL_PASSWORD' => (string) $secrets->smtpPassword,
             ...$sender,

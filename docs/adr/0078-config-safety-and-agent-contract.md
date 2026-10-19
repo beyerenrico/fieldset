@@ -1,5 +1,6 @@
 # 0078: Config safety and the agent contract of fsa config
-- Status: accepted
+- Status: accepted; amended 2026-10-18 by ADR 0080 (completion step, SMTP credential stash) and ADR 0082 (tunnel
+  cleanup before `config set`)
 - Date: 2026-10-18
 - Amends: ADR 0077 (result of a reverted change, flow, resume), ADR 0066 (supervisor resume check, progress events),
   ADR 0072 (repeated install, ports check), ADR 0074 (runtime writer), ADR 0075 (certificate wait, uninstall warning,
@@ -115,3 +116,64 @@ chooses only the catcher UI's loopback port.
   unverified configuration behind.
 - Unverified until the human checklist: signal delivery through a real SSH session drop on a Linux host (the shim's
   `docker run -it` with a TTY), and IPv6-only listeners on 80/443 on a dual-stack host.
+
+## Amendment 2026-10-18: the completion step and the SMTP credential stash (ADR 0080)
+- An applier's `SettingHooks::completed()` runs after `workers` and before `audit`, outside the journal phases: the
+  change is verified and running by then, so it never reverts, and a failure becomes the warning `completion_failed`.
+  The phases stay snapshot, preflight, apply, verify, workers, audit; verify also runs the applier's `verify()` hook,
+  and its progress limit adds the hook's `verifySeconds()`.
+- A `config set mail` with new credentials: the first apply keeps the previous SMTP user name and password in
+  `env/smtp-previous` (0600; not `*.env`, so no service reads it and renders leave it alone), never in the journal.
+  Any revert, also one a resumed run finishes, renders the previous state with them; the file is deleted once the
+  change is settled (verified and running, or reverted).
+
+## Amendment 2026-10-18: tunnel cleanup before `config set` (ADR 0082)
+Before `config set` (any key, `operator-email` included since the M11 gate) plans and takes the lock, an expired or stopped quick tunnel that
+the state records is removed in its own journaled operation (`tunnel`, action `expire`, `TunnelSweeper`), outside the
+`config` journal. The result then carries `tunnel_removed` and `changed: true`, also when the change itself fails; a
+failed cleanup is the warning `tunnel_cleanup_failed` and the change still runs. `fsa demo` and `fsa tunnel` sweep
+the same way.
+
+## Amendment 2026-10-19: the tunnel's agent contract and unfinished tunnel journals (M11 gate)
+- **Same result shape as `config set`.** A `fsa tunnel start` that fails after something changed reverts and answers
+  exit 5 `rolled_back` with `reverted: true`, `failure` (the cause's data), `retry_after` or `fix_first`
+  (`ConfigFailure::retry`: transient only `docker_*` and `interrupted`; `tunnel_unavailable` and `internal_error` are
+  `fix_first`, not retryable), `command` (`fsa tunnel start [--tunnel-admin]`), `options` and `next_commands`. A failed
+  revert is exit 8 `revert_failed` with `revert_steps`, `stopped_services` (app, queue, scheduler and the catcher when
+  present; Postgres and Valkey keep running), `recovery`, `failure`, `revert_failure` and `command: fsa tunnel stop`;
+  its journal stays open.
+  The hint is the cause's own (no hostname: outbound internet, `fsa logs tunnel`) except after a signal (`TunnelResults`).
+- **Unfinished tunnel journals.** Exit 9 `operation_unfinished`, `fsa status` and exit 8 name `fsa tunnel stop` for any
+  tunnel journal (`OperationUnfinished::commandLine`; the message names the cut-off `fsa tunnel <action>`), and `fsa demo
+  --rotate-passwords` for a cut-off rotation (`data.options` carries the flag). `fsa tunnel stop` resumes any tunnel
+  journal whatever the tunnel status says and converges to the state on disk: runtime block cleared, the state without
+  the tunnel rendered, `up --remove-orphans` of the whole project (workers included), the tunnel network removed.
+  The expiry cleanup before `config set`, `demo`, `tunnel start` and `tunnel renew` (`TunnelSweeper`; `tunnel stop`
+  removes the tunnel itself, so a failing removal runs once) adopts an unfinished tunnel journal the same way unless a
+  live tunnel would go (then exit 9 names `fsa tunnel stop`); another operation's journal is left to the command. So a
+  failed cleanup is one exit 9 with `tunnel_cleanup_failed`, and the next command finishes it. `fsa tunnel renew` also
+  resumes its own cut-off renew (and keeps the tunnel).
+- **Interruption** now also guards `fsa tunnel start|stop|renew`, the expiry cleanup and `fsa demo`. Start is armed
+  during its checks, preflight and stack change (a signal before the first change is exit 9; one received during the
+  disarmed demo rotation is raised right after it, exit 5; during the stack change the journaled revert runs disarmed),
+  so the rotation's passwords are never lost. Stop and the cleanup run
+  disarmed to their end like a revert. Renew is armed until right before its single runtime write. `fsa demo` runs
+  disarmed: its one-offs finish and hand out their passwords and link. `Interruption` is one container singleton per
+  command, so a signal recorded during the expiry cleanup stays pending and the command's own guard raises it before
+  that command changes anything (exit 9 `interrupted`, the cleanup reported as `tunnel_removed`).
+- Verified by `tests/Unit/Instance/TunnelRecoveryTest.php` and `TunnelStartFailureTest.php`.
+
+## Amendment 2026-10-19: a settled change is completed, never repeated (M11 gate)
+- Once `workers` completed, the change is settled. A resumed run whose journal records a completed `workers` phase (and
+  no revert) replays snapshot and preflight and then runs only the completion and the audit: no apply, verify or
+  workers again, so nothing re-applies a change whose completion may already have removed the catcher volume or deleted
+  the local CA, and nothing can revert it. The completion steps tolerate a repeat (the volume removal looks the volume
+  up first, the CA deletion is `rm -rf`, the captured counts are read again). The audit phase is no longer `always`: a
+  run that finds it completed reuses it. A signal that is pending as such a run resumes ends it with exit 9 and the
+  journal open, without a revert. `apply` and `verify` data come from the journal for the result.
+- The SMTP stash is discarded after the audit, the journal's last phase, instead of before the completion; until the
+  supervisor archives the journal, a resumed run only repeats that last step.
+- The consequence "a `config set` killed during apply or verify repeats the change" stays; one killed after its workers
+  started is completed instead. Tests: `ConfigSettledResumeTest`.
+- `rolled_back` results (exit 5) carry the change's warnings except those that describe the reverted target
+  (`port_changed`, `catcher_port_changed`); see the ADR 0080 amendment of this date.

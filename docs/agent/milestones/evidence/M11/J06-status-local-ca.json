@@ -1,0 +1,96 @@
+{
+    "command": "fsa status --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "status",
+        "status": "ok",
+        "changed": false,
+        "data": {
+            "dir": "<work>/fsa-test-j06",
+            "installed": true,
+            "operation": null,
+            "lock": null,
+            "disk": {
+                "free_gib": 143.1
+            },
+            "last_backup": null,
+            "version": "2.0.0-alpha.1-test",
+            "mode": "local",
+            "url": "https://192.168.178.24",
+            "local_url": "http://localhost:8081",
+            "project": "fsa-fsa-test-j06-c702",
+            "port": 8081,
+            "health": "ok",
+            "services": {
+                "app": {
+                    "state": "running",
+                    "health": "healthy"
+                },
+                "queue": {
+                    "state": "running",
+                    "health": "healthy"
+                },
+                "scheduler": {
+                    "state": "running",
+                    "health": null
+                },
+                "postgres": {
+                    "state": "running",
+                    "health": "healthy"
+                },
+                "redis": {
+                    "state": "running",
+                    "health": "healthy"
+                },
+                "gotenberg": {
+                    "state": "running",
+                    "health": null
+                },
+                "mailpit": {
+                    "state": "running",
+                    "health": "healthy"
+                },
+                "edge": {
+                    "state": "running",
+                    "health": "healthy"
+                }
+            },
+            "mail": {
+                "mode": "capture",
+                "catcher_url": "http://localhost:8025",
+                "catcher_login_command": "fsa config show --catcher-login"
+            },
+            "proxy": null,
+            "phone_https": {
+                "mode": "local-ca",
+                "lan_address": "192.168.178.24",
+                "url": "https://192.168.178.24",
+                "trust_url": "http://192.168.178.24/phone-trust",
+                "root_sha256": "09:78:08:F8:29:22:E8:FA:43:A6:07:A0:9A:29:16:3C:6B:45:34:0E:63:2D:D7:85:C9:F3:50:51:82:92:E1:A0",
+                "lan_address_current": true
+            },
+            "tunnel": null,
+            "sign_in_links": {
+                "count": 1,
+                "links": [
+                    {
+                        "id": 1,
+                        "email": "owner@example.test",
+                        "kind": "owner",
+                        "state": "unused",
+                        "created_at": "2026-10-19T01:34:30Z",
+                        "expires_at": "2026-10-19T02:34:30Z",
+                        "used_at": null,
+                        "used_ip": null,
+                        "created_by": "cli",
+                        "created_by_uid": 501
+                    }
+                ]
+            }
+        },
+        "secrets": [],
+        "warnings": [],
+        "errors": []
+    }
+}

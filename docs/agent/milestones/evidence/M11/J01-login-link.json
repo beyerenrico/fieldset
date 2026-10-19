@@ -1,0 +1,27 @@
+{
+    "command": "fsa login-link owner@example.test --secrets-file <work>/admin-link.json --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "login-link",
+        "status": "ok",
+        "changed": true,
+        "data": {
+            "email": "owner@example.test",
+            "kind": "admin",
+            "sign_in_link": {
+                "expires_at": "2026-10-19T01:38:16Z",
+                "delivered": "secrets_file"
+            }
+        },
+        "secrets": [
+            {
+                "name": "sign_in_link",
+                "written_to": "<work>/admin-link.json",
+                "expires_at": "2026-10-19T01:38:16Z"
+            }
+        ],
+        "warnings": [],
+        "errors": []
+    }
+}

@@ -20,6 +20,9 @@ use Closure;
  *
  * SIGKILL cannot be handled: the journal then stays open and the next run of the same command resumes it (a revert
  * that had started is finished from the snapshot, see ConfigSetter).
+ *
+ * One instance per process (a container singleton): a signal recorded while the expiry cleanup of a tunnel ran
+ * (TunnelSweeper, disarmed) stays pending, and the command's own guard raises it before that command changes anything.
  */
 final class Interruption
 {

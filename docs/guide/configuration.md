@@ -178,6 +178,8 @@ dashboard.
 | `MAIL_HOST`, `MAIL_PORT` | `127.0.0.1`, `2525` | SMTP server. |
 | `MAIL_USERNAME`, `MAIL_PASSWORD` | none | SMTP credentials. |
 | `MAIL_SCHEME` | none | `smtps` or `smtp`; when empty, port 465 means `smtps`. |
+| `MAIL_REQUIRE_TLS` | `false` | `true`: refuse a server that offers no STARTTLS before sending the credentials or any mail. `fsa` sets it for `--smtp-encryption starttls`. |
+| `MAIL_AUTO_TLS` | `true` | `false`: never start STARTTLS (a relay without TLS). `fsa` sets it for `--smtp-encryption none`. |
 | `MAIL_URL` | none | Alternative DSN. |
 | `MAIL_EHLO_DOMAIN` | host of `APP_URL` | Name in the SMTP greeting. |
 | `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME` | `hello@example.com`, `APP_NAME` | Sender of instance mail. Organizations without their own SMTP server send from this address with their own sender name. |

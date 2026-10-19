@@ -213,3 +213,44 @@
   config safety, drift check) in ADR 0079 and amendments.
 - Gate: PHP 6089 (cov 95.55 %, Instance 97.77 %), journeys 62 native + J1/J2/J3/J12 amd64, E2E 79/79 ×2, static
   green. alpha.2 built, signed, installed, uninstalled (LocalPreRelease 7/7). M11 broken down.
+
+## 2026-10-18 M11-T02 demo data and password rotation (U13)
+- DemoSeeder with an injectable password source; `fsa install --demo` (demo phase), `fsa demo [--open]
+  [--rotate-passwords]`; random demo passwords (secrets) whenever reachable beyond loopback, `password` only for
+  loopback-only local; rotation revokes sessions/remember/API tokens; `app:demo-passwords --check` for U14. ADR 0081.
+- J05 7/7 (400 s), J01 regression green, Instance coverage 97.81 %.
+
+## 2026-10-18 M11-T01 capture-mode experience (U12)
+- Capture banner (two variants, R59; operators see the fsa command), MailCheck warns in capture mode,
+  `fsa config set mail smtp|capture` (password via stdin/file, test mail verify, revert with exit 5, catcher kept
+  until --remove-catcher), `config set operator-email [--revoke-previous]`, `config show --catcher-login`. ADR 0080.
+- J04 9/9 native (383 s) and amd64 emulated (865 s), axe 3/3; Instance coverage 97.43 %. Gap: install --smtp-*.
+
+## 2026-10-18 M11-T03 phone HTTPS (U14)
+- Local CA (`--phone-https local-ca`, `--lan-address`, `config set phone-https|lan-address`), trust page served by
+  the app (plain HTTP + HTTPS, no session), `fsa tunnel start|stop|renew` with expiry cleanup, fake tunnel harness. ADR 0082.
+- cloudflared is not a trusted proxy (its X-Forwarded-Host made Symfony answer 400 before the host pin).
+- J06 12/12 native (646 s), amd64 emulated 10/12 then 12/12 (port-80 reset, unexplained); J01+J02 13/13;
+  Instance coverage 96.99 %. Interrupted once by the usage limit; resumed from the saved WIP.
+
+## 2026-10-18 M11-T04 E16 measurement (U15)
+- J10: domain mode + capture mail, whole stack pinned to 2 CPUs (cpuset on every container), compose memory limits
+  only; smoke E2E, 10-page PDF, 1.0 perf scripts at 100k. No OOM kill, no restart. ADR 0083.
+- Met: install 47 s (+6 s pulls) vs 300 s, PDF p95 4.0 s vs 10 s, API 23/23 < 300 ms. Missed: admin pages 23/31
+  < 500 ms (saved reports, explorer search, reviewer inbox; Postgres cache ~100 MiB vs 1.27 GB data) — QUESTIONS 41.
+- small budget retuned from measured peaks (+~30 MiB each; Horizon 1 worker; Postgres 160; sum 1728/1728). 6 runs.
+
+## 2026-10-19 M11 gap: install --smtp-* and the full R11 smoke test
+- `fsa install --smtp-host … [--smtp-username + --password-file|--password-stdin]` installs straight into SMTP mode
+  (no catcher); shared `SmtpInput` with `config set mail`; install.sh refuses `--password-stdin` without a terminal.
+- Install smoke now renders a PDF (`instance:pdf-test`) and sends a test mail (`instance:mail-test --install`),
+  found in Mailpit by Message-ID in capture mode; `config set` verify keeps SmokeTest only. Amendments 0070/0072/0080.
+- J01–J06 green natively (J04 10/10 incl. SMTP install); J06 now names its spec (U15 widened fsa-instance).
+
+## 2026-10-19 M11-T05 gate M11 → 2.0.0-beta.1
+- Review: 5 reviewers, 4 high (tunnel journal loop, rotation before preflight, capture revert losing SMTP, demo
+  `password` exposed by `config set domain`) + 13 medium; fixed by agents A–D in worktrees, merged `--no-ff`.
+- Gates: static/JS/licences green; coverage 95.51 % (Instance 97.36 %); Install suite native 103/103 (+7 pre-release
+  skips); amd64 emulated J1–J6/J12 51/51 and J10 9/9 (J10 now expects ADR 0070's doubled limits).
+- E2E 79/79 twice with --workers=2; 5 workers flaked under host load ~12 (Teams, Defender): spec sync fixes, Q49/50.
+- Pre-release 2.0.0-beta.1 7/7 (test no longer hard-codes channel alpha). CHANGELOG beta.1 + missing alpha.2.

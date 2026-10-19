@@ -363,6 +363,8 @@ test.describe('platform panel', () => {
     await setUpAuthenticator(page, operator, () => expectAccessible(page, 'platform MFA set-up dialog'));
     await continueAfterSetUp(page);
     await expectAccessible(page, 'platform organizations');
+    // Searched: the list is paged and newest first, so "demo" is not always on page 1.
+    await page.goto('/platform/organizations?search=demo');
     await page.getByRole('row').filter({ has: page.getByRole('cell', { name: 'demo', exact: true }) })
       .getByRole('link', { name: /^\s*(members|mitglieder)\s*$/i }).click();
     await expect(page).toHaveURL(/\/members/);

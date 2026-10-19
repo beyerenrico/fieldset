@@ -5,11 +5,15 @@ declare(strict_types=1);
 namespace App\Domain\Instance\Install;
 
 use App\Domain\Instance\Console\FsaContext;
+use App\Domain\Instance\Demo\DemoCredentials;
+use App\Domain\Instance\Demo\DemoData;
 use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Lifecycle\AppCommands;
+use App\Domain\Instance\Lifecycle\MailSummary;
 use App\Domain\Instance\Lifecycle\OneOffResult;
 use App\Domain\Instance\Lifecycle\SignInDelivery;
+use App\Domain\Instance\LocalCa\LocalCaInfo;
 use App\Domain\Instance\Operations\ContainerIdentity;
 use App\Domain\Instance\Operations\JournalRecord;
 use App\Domain\Instance\Operations\OperationJournal;
@@ -31,7 +35,9 @@ use Carbon\CarbonImmutable;
  *
  * doctor (verify the release, preflight, choose ports, refuse foreign projects) → secrets → state (and the
  * rendered files) → pull → up (Postgres and Valkey) → migrate (one-off) → app_install (one-off: organization,
- * owner, operator role, owner link) → start (the whole stack, `up --wait`) → smoke → done.
+ * owner, operator role, owner link) → start (the whole stack, `up --wait`) → [demo (one-off: demo data, R29, ADR 0081)]
+ * → smoke (HTTP, a PDF render and a test mail: InstallSmoke) → done. With --smtp-host the instance starts in SMTP mode
+ * without the catcher; the SMTP account reaches only the env files of the state phase (InstallMail).
  *
  * A failure in the doctor phase changes nothing (exit 3/7/10, journal archived). A later failure leaves the
  * journal open (exit 4 for health, 3 for pulls): the same command resumes after the last completed phase with the
@@ -53,8 +59,9 @@ final readonly class Installer
         private InstallPreflight $preflight,
         private InstanceStack $stack,
         private AppCommands $app,
-        private SmokeTest $smoke,
+        private InstallSmoke $smoke,
         private ProxySetup $proxy,
+        private DemoData $demo,
     ) {}
 
     public function situation(): InstallSituation
@@ -72,10 +79,7 @@ final readonly class Installer
         if ($this->situation() === InstallSituation::Finished) {
             return $this->unchanged($request);
         }
-        $current = $this->journal->current();
-        if ($current instanceof JournalRecord && $current->operation() === self::OPERATION) {
-            $request = $this->resumable($request, $current);
-        }
+        $request = $this->effective($request);
         $request->assertConsistent();
         $this->assertModeFlags($request);
         $holder = $this->identity->holder('fsa', $context->facts->callerUid());
@@ -89,6 +93,17 @@ final readonly class Installer
             progress: $context->progress,
             archive: $this->withoutPersonalInputs(...),
         );
+    }
+
+    /**
+     * The request an install works with: on a resume the earlier run's inputs under the flags given now (exit 2 for a
+     * flag whose phase already applied another value), so `--phone-https tunnel` or `--demo` given once still apply.
+     */
+    public function effective(InstallRequest $request): InstallRequest
+    {
+        $current = $this->journal->current();
+
+        return $current instanceof JournalRecord && $current->operation() === self::OPERATION ? $this->resumable($request, $current) : $request;
     }
 
     /**
@@ -115,7 +130,7 @@ final readonly class Installer
         $run->phase('state', function () use ($preflight, $context, $request): array {
             $this->writeAcmeCaRoot($request);
 
-            return $this->stack->writeState($preflight, $context->facts);
+            return $this->stack->writeState($preflight, $context->facts, $request->smtpCredentials());
         });
         $state = $this->directory->state();
         $project = ComposeProject::forInstance($state, $this->directory);
@@ -129,10 +144,12 @@ final readonly class Installer
             return $data;
         });
         $run->phase('start', fn (): array => $this->stack->up($project, []), maxSeconds: InstanceStack::WAIT_SECONDS);
-        $run->phase('smoke', fn (): array => $this->smoke->run($state, $project, $context->progress), changes: false, maxSeconds: SmokeTest::maxSeconds($state));
+        // The demo phases run again on a resume (idempotent); passwords an interrupted attempt never showed are reissued.
+        [$demo, $demoWarnings] = $request->demo() ? $this->demo->provide($run, $project, $context->facts->callerUid(), reissue: true) : [null, []];
+        $run->phase('smoke', fn (): array => $this->smoke->run($state, $project, $request->ownerEmail(), $context->progress), changes: false, maxSeconds: InstallSmoke::maxSeconds($state));
         $warnings = ($installed['already_installed'] ?? false) === true
-            ? [['app_already_installed', 'The database already held an organization: --org, --owner-email, --owner-name and --locale were not applied.', 'Change them in the admin panel; the sign-in link goes to the owner given here.']]
-            : [];
+            ? [['app_already_installed', 'The database already held an organization: --org, --owner-email, --owner-name and --locale were not applied.', 'Change them in the admin panel; the sign-in link goes to the owner given here.'], ...$demoWarnings]
+            : $demoWarnings;
         $applied = ($installed['already_installed'] ?? false) !== true;
         $run->phase('done', function () use ($project, $request, $context, $applied, &$link, &$warnings): array {
             [$link, $more] = $this->finish($project, $request, $context, $link, $applied);
@@ -141,7 +158,9 @@ final readonly class Installer
             return ['link_issued' => $link !== null];
         });
 
-        return $this->result($this->directory->state(), $request, $preflight, $warnings, $link, $context, $secretsToFile);
+        $result = $this->result($this->directory->state(), $request, $preflight, $warnings, $link, $context, $secretsToFile);
+
+        return $demo instanceof DemoCredentials ? $demo->apply($result, $context, $secretsToFile) : $result;
     }
 
     /** @return array{migrated: true} */
@@ -219,7 +238,8 @@ final readonly class Installer
         foreach (is_array($preflight['orphans'] ?? null) ? $preflight['orphans'] : [] as $uuid) {
             $result = $result->withWarning('orphans_found', "Containers of another installation ({$uuid}) ran from this directory.", "Check first that it does not run elsewhere (`docker ps -a --filter label=app.form-schema.instance={$uuid}` shows its containers and their directories). If it was deleted by hand, remove its leftovers with `fsa uninstall --orphans {$uuid} --yes`; fsa refuses while any of its containers runs.");
         }
-        foreach ([...$warnings, ...array_filter([AcmeStaging::warning($state, $this->directory->root.'/fsa')])] as [$code, $message, $hint]) {
+        $localCa = InstanceSettings::of($state)->localCa() ? LocalCaInfo::warnings((string) InstanceSettings::of($state)->lanAddress()) : [];
+        foreach ([...$warnings, ...$localCa, ...array_filter([AcmeStaging::warning($state, $this->directory->root.'/fsa')])] as [$code, $message, $hint]) {
             $result = $result->withWarning($code, $message, $hint);
         }
 
@@ -235,7 +255,8 @@ final readonly class Installer
         $state = $this->directory->state();
         $digest = RecordDigest::fromEnvFiles(new EnvFiles($this->directory));
         $trusted = fn (string $given): bool => $this->proxy->isTrusted($state, $given);
-        $changed = $request->changedFlags(InstallRecord::applied($state), InstallRecord::comparator($digest, $trusted));
+        $equals = InstallMail::comparator($request->smtpCredentials(), InstallMail::stored($this->directory), InstallRecord::comparator($digest, $trusted));
+        $changed = $request->changedFlags(InstallRecord::applied($state), $equals);
         if ($changed !== []) {
             throw new InvalidInput(
                 'This instance is installed; '.implode(', ', $changed).' differ from its installation. fsa install changes nothing on an installed instance.',
@@ -246,9 +267,13 @@ final readonly class Installer
         }
         $email = $request->ownerEmailIfKnown();
         $data = [...$this->summary($state, $email), 'installed_at' => InstallRecord::recorded($state)['at'] ?? null, SignInDelivery::SECRET => null];
-
-        return CommandResult::ok(self::OPERATION, $data, changed: false)
+        $result = CommandResult::ok(self::OPERATION, $data, changed: false)
             ->withWarning('no_sign_in_link', 'The instance is already installed, so no sign-in link was issued.', 'Run '.SignInDelivery::loginLinkCommand($email).' for a one-time sign-in link.');
+
+        // The quick tunnel is transient (ADR 0082): an ended one is no different installation, and install never starts one.
+        return $request->phoneHttps() === 'tunnel' && ! InstanceSettings::of($state)->tunnel()
+            ? $result->withWarning('tunnel_not_running', 'No quick tunnel runs on this instance; fsa install changes nothing on an installed instance.', 'Start one with `fsa tunnel start`.')
+            : $result;
     }
 
     /** On resume: the earlier inputs still apply; a flag whose phase already ran must not change (exit 2). */
@@ -258,7 +283,7 @@ final readonly class Installer
         $applied = [];
         if ($record->hasCompleted('doctor')) {
             $doctor = $record->phaseData('doctor');
-            $applied = ['version' => $doctor['version'] ?? null, 'port' => $doctor['port'] ?? null, ...InstallMode::applied($doctor)];
+            $applied = ['version' => $doctor['version'] ?? null, 'port' => $doctor['port'] ?? null, ...InstallMode::applied($doctor), ...InstallMail::applied($doctor)];
             foreach (InstallRequest::PROXY_FLAGS as $key) {
                 $applied[$key] = is_string($recorded[$key] ?? null) ? $recorded[$key] : null;
             }
@@ -268,7 +293,8 @@ final readonly class Installer
                 $applied[$key] = is_string($recorded[$key] ?? null) ? $recorded[$key] : null;
             }
         }
-        $changed = $request->changedFlags($applied);
+        $stateWritten = $record->hasCompleted('state'); // the SMTP account is in the env files from here on
+        $changed = $request->changedFlags($applied + ($stateWritten ? ['smtp_credentials' => null] : []), InstallMail::comparator($request->smtpCredentials(), InstallMail::stored($this->directory)));
         if ($changed !== []) {
             throw new InvalidInput(
                 'The interrupted install already applied '.implode(', ', $changed).' with other values.',
@@ -276,8 +302,10 @@ final readonly class Installer
                 'Run `fsa install` again with the values of the first run (or without these flags) to resume, or `fsa uninstall --yes` to start over.',
             );
         }
+        $request = $request->over($recorded);
+        InstallMail::assertAccountKnown($request, $stateWritten);
 
-        return $request->over($recorded);
+        return $request;
     }
 
     /** Domain-mode flags need --domain; the loopback port belongs to local mode (exit 2). */
@@ -344,7 +372,9 @@ final readonly class Installer
             ...($settings->proxy() === null ? [] : ['proxy' => [
                 'setup' => $settings->proxy(), 'network' => $settings->proxyNetwork(), 'container' => $settings->proxyContainer(), 'trusted' => $settings->trustedProxies(),
             ]]),
-            'mail' => ['mode' => $settings->capturesMail() ? 'capture' : 'smtp', 'catcher_url' => $settings->catcherUrl()],
+            'mail' => MailSummary::of($state),
+            // Local-CA mode (ADR 0082): the trust page for the phone and the root's fingerprint to compare there.
+            ...($settings->localCa() ? ['phone_https' => LocalCaInfo::data($state, $this->directory)] : []),
             'owner_email' => $ownerEmail,
             'next_commands' => [...(AcmeStaging::active($state) ? [AcmeStaging::command($fsa)] : []), "{$fsa} status", "{$fsa} login-link {$linkFor}", "{$fsa} doctor --post"],
         ];

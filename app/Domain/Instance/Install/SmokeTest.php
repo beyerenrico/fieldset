@@ -13,6 +13,7 @@ use App\Domain\Instance\Docker\DockerGateway;
 use App\Domain\Instance\Docker\Labels;
 use App\Domain\Instance\Docker\ProcessOutcome;
 use App\Domain\Instance\InstanceException;
+use App\Domain\Instance\LocalCa\LocalCaEdge;
 use App\Domain\Instance\Output\ExitCode;
 use App\Domain\Instance\Output\ProgressReporter;
 use App\Domain\Instance\State\InstanceSettings;
@@ -27,7 +28,8 @@ use Throwable;
  * compose network and asks the app the way a browser on the published port would (Host: localhost:<port>,
  * which the app's trusted-host list accepts): `/up` and the admin login page (which needs the database and the
  * session table). A second one asks Gotenberg on the internal renderer network for its health. Both carry the
- * instance label. PDF render and test mail join with the capture-mode unit (U12).
+ * instance label. These are the HTTP checks `fsa install` and `fsa config set` (phase `verify`) share; the install adds
+ * a PDF render and a test mail (InstallSmoke, ADR 0072 amendment), which a settings change does not repeat.
  *
  * Domain mode (U8, ADR 0075) adds the edge, asked on its own network at its fixed address with the domain as SNI and
  * Host: first HTTPS until the edge holds a certificate (exit 4 `certificate_failed` with the edge's log when it gets
@@ -39,6 +41,9 @@ use Throwable;
  * The certificate wait is a loop in PHP, one short `curl` per attempt (ADR 0078): every attempt is a progress event
  * ("attempt 7/40, 35 s of at most 420 s"), and a signal that interrupts the command lands between attempts instead
  * of after one opaque seven-minute container.
+ *
+ * Local-CA mode (ADR 0082) adds LocalCaEdge: the CA's root into the runtime directory, HTTPS to the LAN address
+ * verified against it without SNI, and port 80 serving only the trust page.
  */
 final readonly class SmokeTest
 {
@@ -63,7 +68,7 @@ final readonly class SmokeTest
     /** Process timeout around one edge container (start plus one attempt). */
     private const float EDGE_TIMEOUT = 60.0;
 
-    public function __construct(private DockerGateway $docker) {}
+    public function __construct(private DockerGateway $docker, private ?LocalCaEdge $localCa = null) {}
 
     /**
      * @param  string  $phase  the journaled phase this runs in (`smoke` for install, `verify` for config set)
@@ -74,6 +79,11 @@ final readonly class SmokeTest
         $port = InstanceSettings::of($state)->port();
         $this->curl($state, $project->name.'_default', "localhost:{$port}", array_map(static fn (string $path): string => "http://app:8080{$path}", self::APP_PATHS));
         $this->curl($state, $project->name.'_'.GotenbergService::NETWORK, null, ['http://'.GotenbergService::NAME.':3000/health']);
+        if (InstanceSettings::of($state)->localCa()) { // local-CA mode (ADR 0082): the root for the trust page, then the edge
+            $localCa = ($this->localCa ?? app(LocalCaEdge::class))->check($state, $project);
+
+            return ['checked' => [...self::APP_PATHS, 'gotenberg /health', ...$localCa['checked']], 'root_sha256' => $localCa['root_sha256']];
+        }
         $edge = $state->mode() === 'domain' ? $this->edge($state, $project, $progress, $phase) : [];
 
         return ['checked' => [...self::APP_PATHS, 'gotenberg /health', ...$edge]];
@@ -82,7 +92,11 @@ final readonly class SmokeTest
     /** The longest the smoke test can take for this state: both curl containers, and in domain mode the edge's wait. */
     public static function maxSeconds(InstanceState $state): int
     {
-        $edge = $state->mode() === 'domain' ? self::CERTIFICATE_SECONDS + 2 * (int) self::EDGE_TIMEOUT : 0;
+        $edge = match (true) {
+            $state->mode() === 'domain' => self::CERTIFICATE_SECONDS + 2 * (int) self::EDGE_TIMEOUT,
+            InstanceSettings::of($state)->localCa() => LocalCaEdge::maxSeconds(),
+            default => 0,
+        };
 
         return 2 * (int) self::TIMEOUT + $edge;
     }

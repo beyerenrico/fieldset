@@ -38,6 +38,12 @@ use Throwable;
  * the old URL again: exit 5 `rolled_back`, the journal archived. If the revert fails too, the services that serve
  * requests stop and the result is exit 8 with recovery steps; the journal stays open, and the same command then only
  * finishes the revert. SIGTERM, SIGINT and SIGHUP during apply or verify start the same revert (Interruption).
+ * Once the workers started, the change is settled: a run that died after that leaves the journal open, and the same
+ * command then only completes and audits it, never applying, verifying or reverting it again (M11 gate).
+ *
+ * Appliers with SettingHooks add a check to verify (the test mail of `config set mail smtp`) and a completion step
+ * after the workers started (the catcher volume, the captured invitations; ADR 0080). The SMTP password is registered
+ * with the output redactor first, so no message, warning or log line can carry it.
  */
 final readonly class ConfigSetter
 {
@@ -54,6 +60,7 @@ final readonly class ConfigSetter
         private UrlImpact $impact,
         private AppCommands $app,
         private Interruption $interruption,
+        private DefaultPasswordGuard $passwords,
     ) {}
 
     /** @param  (Closure(string): bool)|null  $confirm  asks in a terminal; null when the command may not prompt */
@@ -61,10 +68,13 @@ final readonly class ConfigSetter
     {
         $applier = $this->keys->applier($request->key);
         $this->assertOptions($request);
+        foreach ($request->credentials?->secrets() ?? [] as $secret) {
+            $context->redactor->register($secret);
+        }
         $state = $this->installedState();
         $this->resume->refuseLiveLock();
         $open = $this->resume->unfinished($request);
-        $change = $open instanceof JournalRecord ? $this->resume->change($open, $request) : null;
+        $change = $open instanceof JournalRecord ? $this->resume->change($open, $request)?->withCredentials($request->credentials) : null;
         $change ??= $applier->plan(($open instanceof JournalRecord ? $this->resume->previous($open) : null) ?? $state, $request);
         if (! $open instanceof JournalRecord && $change->unchanged()) {
             return $this->results->unchanged($change);
@@ -103,6 +113,7 @@ final readonly class ConfigSetter
     private function guardedSteps(OperationRun $run, SettingApplier $applier, ConfigChange $change, ConfigRequest $request, FsaContext $context, ?array $impact): CommandResult
     {
         $previousRoot = $this->previousRoot($run->record()->phaseData('snapshot'));
+        $settled = $run->isResumed() && $run->record()->hasCompleted('workers') && ! $run->record()->hasStarted('revert');
 
         try {
             $this->interruption->arm();
@@ -114,20 +125,27 @@ final readonly class ConfigSetter
                 return $this->finishRevert($run, $change, $request, $previousRoot, $context);
             }
             $change = $this->preflight($run, $applier, $change, $context);
-            $this->interruption->checkpoint();
+            if ($settled) {
+                $this->interruption->disarm(); // as after the workers phase: a signal no longer reverts the change
+            } else {
+                $this->interruption->checkpoint();
+            }
         } catch (OperationInterrupted $interrupted) {
-            if (! $run->isResumed() || ! $run->record()->hasChanges()) {
-                throw $interrupted; // nothing changed yet: exit 9
+            if (! $run->isResumed() || ! $run->record()->hasChanges() || $settled) {
+                throw $interrupted; // nothing changed yet, or the change an earlier run verified stays: exit 9
             }
             $this->interruption->consume(); // an earlier, killed run left its change applied and unverified: revert it
 
             return $this->revert($run, $change, $request, ConfigFailure::describe($interrupted, $change), $previousRoot, $context);
         }
+        if ($settled) { // an earlier run verified the change and started the workers, then died before the audit
+            return $this->finish($run, $applier, $change, $request, $context, $impact, $run->record()->phaseData('apply'), $run->record()->phaseData('verify'));
+        }
 
         try {
             $services = $run->phase('apply', fn (): array => $this->rollout->apply($change), always: true, maxSeconds: ConfigRollout::APPLY_SECONDS);
             $this->interruption->checkpoint();
-            $checked = $run->phase('verify', fn (): array => $this->rollout->verify($change->after, $context->progress), changes: false, always: true, maxSeconds: ConfigRollout::verifySeconds($change->after));
+            $checked = $run->phase('verify', fn (): array => $this->verify($applier, $change, $request, $context), changes: false, always: true, maxSeconds: ConfigRollout::verifySeconds($change->after) + ($applier instanceof SettingHooks ? $applier->verifySeconds() : 0));
             $this->interruption->checkpoint();
             $run->phase('workers', fn (): array => $this->rollout->startWorkers($change->after), always: true, maxSeconds: ConfigRollout::WAIT_SECONDS);
             $this->interruption->checkpoint();
@@ -137,9 +155,56 @@ final readonly class ConfigSetter
 
             return $this->revert($run, $change, $request, ConfigFailure::describe($failure, $change), $previousRoot, $context);
         }
-        $audit = $run->phase('audit', fn (): array => $this->audit($change, $context), changes: false, always: true);
 
-        return $this->results->succeeded($change, $services, $checked, $audit, $impact);
+        return $this->finish($run, $applier, $change, $request, $context, $impact, $services, $checked);
+    }
+
+    /**
+     * The settled change: the applier's completion, the audit (once: a resumed run that finds it completed reuses it)
+     * and the result. The previous SMTP credentials go last, after the journal's last phase; the supervisor archives
+     * the journal right after, and until then a resumed run only repeats this step.
+     *
+     * @param  array<string, mixed>|null  $impact
+     * @param  array<string, mixed>  $services
+     * @param  array<string, mixed>  $checked
+     */
+    private function finish(OperationRun $run, SettingApplier $applier, ConfigChange $change, ConfigRequest $request, FsaContext $context, ?array $impact, array $services, array $checked): CommandResult
+    {
+        $completed = $this->completed($applier, $change, $request);
+        $audit = $run->phase('audit', fn (): array => $this->audit($change, $context), changes: false);
+        $this->rollout->discardStash();
+
+        return $this->results->succeeded($change, $services, $checked, $audit, $impact, $completed);
+    }
+
+    /** @return array{checked: list<string>} the smoke test of the new settings, then the applier's own check */
+    private function verify(SettingApplier $applier, ConfigChange $change, ConfigRequest $request, FsaContext $context): array
+    {
+        $checked = $this->rollout->verify($change->after, $context->progress);
+        if ($applier instanceof SettingHooks) {
+            $checked['checked'] = [...$checked['checked'], ...$applier->verify($change, $request, ComposeProject::forInstance($change->after, $this->directory))];
+        }
+
+        return $checked;
+    }
+
+    /**
+     * The change is verified and running: the applier cleans up and reports (again on a resumed run: every step there
+     * tolerates being repeated). Nothing here reverts; a failure is a warning.
+     *
+     * @return array{data: array<string, mixed>, warnings: list<array{code: string, message: string, hint: string|null}>}
+     */
+    private function completed(SettingApplier $applier, ConfigChange $change, ConfigRequest $request): array
+    {
+        if (! $applier instanceof SettingHooks) {
+            return ['data' => [], 'warnings' => []];
+        }
+
+        try {
+            return $applier->completed($change, $request, ComposeProject::forInstance($change->after, $this->directory));
+        } catch (Throwable $e) {
+            return ['data' => [], 'warnings' => [['code' => 'completion_failed', 'message' => "The change was applied, but finishing it failed: {$e->getMessage()}", 'hint' => 'Check `fsa status`; the change itself stays.']]];
+        }
     }
 
     /** @param  array<string, mixed>  $snapshot */
@@ -160,12 +225,14 @@ final readonly class ConfigSetter
 
     /**
      * Checks before anything changes (exit 3) and the target they refine (a chosen port, the edge subnet), journaled
-     * with the target. A resumed run replays the recorded target instead of checking again: the first attempt may
-     * already have moved the instance onto the ports or the network the checks would now find taken.
+     * with the target. First the demo-password rule for a change that widens the instance's reach (DefaultPasswordGuard),
+     * then the applier's own checks. A resumed run replays the recorded target instead of checking again: the first
+     * attempt may already have moved the instance onto the ports or the network the checks would now find taken.
      */
     private function preflight(OperationRun $run, SettingApplier $applier, ConfigChange $change, FsaContext $context): ConfigChange
     {
         $data = $run->phase('preflight', function () use ($applier, $change, $context): array {
+            $this->passwords->check($change->before, $change->after);
             $checked = $applier->preflight($change, $context->facts);
 
             return [...$this->rollout->pullMissing($checked->after), 'to' => $checked->to, 'after' => $checked->after->toArray(), 'warnings' => array_slice($checked->warnings, count($change->warnings))];
@@ -259,9 +326,15 @@ final readonly class ConfigSetter
         return $impact;
     }
 
-    /** The ACME options belong to `domain`; `acme-ca` takes only the CA root file (its value is the directory). */
+    /**
+     * The ACME options belong to `domain`; `acme-ca` takes only the CA root file (its value is the directory). The SMTP
+     * options belong to `mail`.
+     */
     private function assertOptions(ConfigRequest $request): void
     {
+        if ($request->key !== 'mail' && $request->hasKeyOptions()) {
+            throw new InvalidInput("These options do not apply to `config set {$request->key}`.", 'invalid_flag', '--smtp-*, --password-stdin, --password-file, --from-*, --test-to and --remove-catcher belong to `config set mail`, --revoke-previous to `config set operator-email`.');
+        }
         $allowed = match ($request->key) {
             'domain' => true,
             'acme-ca' => $request->acmeEmail === null && $request->acmeCa === null,

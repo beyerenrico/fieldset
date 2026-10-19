@@ -8,6 +8,7 @@ use App\Domain\Instance\Compose\CaddyfileRenderer;
 use App\Domain\Instance\Compose\EdgeNetwork;
 use App\Domain\Instance\Compose\EdgeSite;
 use App\Domain\Instance\Compose\ImageRole;
+use App\Domain\Instance\Compose\LocalCaSite;
 use App\Domain\Instance\Compose\RenderContext;
 use App\Domain\Instance\Compose\ServiceDefinition;
 use App\Domain\Instance\Compose\ServiceEnvironments;
@@ -28,6 +29,10 @@ use App\Domain\Instance\State\InvalidState;
  *   Caddyfile or root recreates the edge.
  * - A fixed address on the edge network, which the app trusts as its only proxy (ServiceEnvironments).
  * - Starts once the app is healthy; its healthcheck asks a loopback-only site inside the container.
+ *
+ * Local-CA mode (R19, ADR 0082) uses the same service in local mode: Caddy's internal CA instead of ACME, and 80 and
+ * 443/tcp published on the LAN address only (never 0.0.0.0). The CA's key lives on the same certificate volume
+ * (`pki/`), which `fsa config set phone-https off` deletes (LocalCaStore).
  */
 final readonly class EdgeService implements ServiceDefinition
 {
@@ -48,11 +53,12 @@ final readonly class EdgeService implements ServiceDefinition
 
     public function specs(RenderContext $context): array
     {
-        if ($context->mode() !== 'domain') {
+        if (! $context->settings->rendersEdge()) {
             return [];
         }
-        $subnet = $context->settings->edgeSubnet() ?? throw new InvalidState('Domain mode needs the setting [edge_subnet].');
-        $caddyfile = new CaddyfileRenderer()->render(EdgeSite::fromSettings($context->settings));
+        $localCa = $context->settings->localCa();
+        $subnet = $context->settings->edgeSubnet() ?? throw new InvalidState('The edge needs the setting [edge_subnet].');
+        $caddyfile = new CaddyfileRenderer()->render($localCa ? LocalCaSite::fromSettings($context->settings) : EdgeSite::fromSettings($context->settings));
 
         return [new ServiceSpec(self::NAME, [
             'image' => $context->image(ImageRole::Caddy),
@@ -63,7 +69,7 @@ final readonly class EdgeService implements ServiceDefinition
             'cap_drop' => ['ALL'],
             'cap_add' => ['NET_BIND_SERVICE'],
             'security_opt' => ['no-new-privileges:true'],
-            'ports' => [$this->port(80, 'tcp'), $this->port(443, 'tcp'), $this->port(443, 'udp')],
+            'ports' => $localCa ? $this->lanPorts((string) $context->settings->lanAddress()) : [$this->port(80, 'tcp'), $this->port(443, 'tcp'), $this->port(443, 'udp')],
             'volumes' => [
                 ['type' => 'volume', 'source' => self::CERTIFICATE_VOLUME, 'target' => self::DATA_PATH],
                 ['type' => 'bind', 'source' => './'.self::DIRECTORY, 'target' => CaddyfileRenderer::CONTAINER_DIR, 'read_only' => true, 'bind' => ['create_host_path' => false]],
@@ -96,6 +102,16 @@ final readonly class EdgeService implements ServiceDefinition
     public static function volumeName(string $project): string
     {
         return $project.'_'.self::CERTIFICATE_VOLUME;
+    }
+
+    /**
+     * Local-CA mode: 80 and 443/tcp on the LAN address only (R19); no HTTP/3.
+     *
+     * @return list<array{target: int, published: string, host_ip: string, protocol: string}>
+     */
+    private function lanPorts(string $address): array
+    {
+        return array_map(static fn (int $port): array => ['target' => $port, 'published' => (string) $port, 'host_ip' => $address, 'protocol' => 'tcp'], [80, 443]);
     }
 
     /** @return array{target: int, published: string, protocol: string} published on every host address */

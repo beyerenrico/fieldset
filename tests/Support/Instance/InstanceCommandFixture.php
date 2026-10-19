@@ -33,6 +33,9 @@ final class InstanceCommandFixture
 
     public const string ADMIN_LINK = 'http://localhost:8080/login-link#admin-token-fedcba9876543210fedcba9876543210';
 
+    /** The Message-ID of the install smoke test's mail (`instance:mail-test --install`), as the catcher lists it. */
+    public const string MESSAGE_ID = '0123456789abcdef0123456789abcdef@localhost';
+
     public InstanceDirectory $directory;
 
     public RecordingDockerGateway $docker;
@@ -43,6 +46,9 @@ final class InstanceCommandFixture
     public array $takenPorts = [];
 
     public ?ProcessOutcome $smokeOutcome = null;
+
+    /** The catcher API's answer to the smoke test's lookup (null: it lists the test mail). */
+    public ?ProcessOutcome $catcherOutcome = null;
 
     /** @var array<string, ProcessOutcome> artisan command (app:install, migrate …) => outcome */
     public array $oneOffs = [];
@@ -138,6 +144,19 @@ final class InstanceCommandFixture
         return array_values(array_filter($specs, static fn (ContainerSpec $spec): bool => $entrypoint === null || $spec->entrypoint === $entrypoint));
     }
 
+    /**
+     * The install smoke test's lookup of its test mail in the catcher's API (InstallSmoke): the list holds it. Null for
+     * any other container, so responders of other tests can answer it first and go on as before.
+     */
+    public static function catcherLookup(ContainerSpec $spec): ?ProcessOutcome
+    {
+        $url = $spec->command[array_key_last($spec->command)] ?? '';
+
+        return $spec->entrypoint === 'curl' && str_starts_with($url, 'http://mailpit:8025/') && str_contains($url, '/api/v1/messages')
+            ? new ProcessOutcome(0, json_encode(['messages' => [['ID' => 'a1', 'MessageID' => self::MESSAGE_ID, 'Subject' => 'form-schema-app: test mail']]], JSON_THROW_ON_ERROR))
+            : null;
+    }
+
     /** @param  array<string, mixed>  $document */
     public static function oneOffJson(array $document): ProcessOutcome
     {
@@ -154,6 +173,10 @@ final class InstanceCommandFixture
             return in_array($port, $this->takenPorts, true)
                 ? new ProcessOutcome(125, '', "docker: Error response from daemon: Bind for 127.0.0.1:{$port} failed: port is already allocated.")
                 : new ProcessOutcome(0);
+        }
+        $catcher = self::catcherLookup($spec);
+        if ($catcher instanceof ProcessOutcome) {
+            return $this->catcherOutcome ?? $catcher;
         }
         if ($spec->entrypoint === 'curl') {
             return $this->smokeOutcome ?? new ProcessOutcome(0, "200 http://app:8080/up\n200 http://app:8080/admin/login\n");
@@ -180,6 +203,17 @@ final class InstanceCommandFixture
                 'data' => ['event' => 'instance.config_changed', 'activity_id' => 7]]),
             'identity:login-links' => self::oneOffJson(['command' => 'identity:login-links', 'status' => 'ok',
                 'data' => ['links' => [['id' => 1, 'email' => 'owner@example.com', 'kind' => 'owner', 'state' => 'unused']], 'count' => 1]]),
+            'instance:mail-test' => self::oneOffJson(['command' => 'instance:mail-test', 'status' => 'ok', 'changed' => true,
+                'data' => ['to' => 'owner@example.com', 'mailer' => 'smtp', ...(in_array('--install', $command, true) ? ['message_id' => self::MESSAGE_ID] : [])]]),
+            'instance:pdf-test' => self::oneOffJson(['command' => 'instance:pdf-test', 'status' => 'ok', 'data' => ['bytes' => 1834]]),
+            'instance:mail-captured' => self::oneOffJson(['command' => 'instance:mail-captured', 'status' => 'ok',
+                'data' => ['invitations' => 2, 'password_resets' => 1]]),
+            'instance:operator-email' => self::oneOffJson(['command' => 'instance:operator-email', 'status' => 'ok', 'changed' => true,
+                'data' => ['email' => 'new-ops@example.com', 'user_id' => 2, 'created' => true, 'granted' => true, 'revoked' => [], 'password_set' => false, 'login_url' => 'http://localhost:8080/platform/login'],
+                'secrets' => [['name' => 'sign_in_link', 'value' => self::LINK, 'expires_at' => '2026-10-18T11:00:00Z']]]),
+            // The default-password check (DefaultPasswordGuard, ExposureCheck): no account signs in with `password`.
+            'app:demo-passwords' => in_array('--check', $command, true) ? self::oneOffJson(['command' => 'app:demo-passwords', 'status' => 'ok',
+                'data' => ['checked' => 1, 'count' => 0, 'users' => [], 'organizations' => ['total' => 1, 'non_demo' => 1]]]) : new ProcessOutcome(0, "Migrated.\n"),
             default => new ProcessOutcome(0, "Migrated.\n"),
         };
     }

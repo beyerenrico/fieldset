@@ -27,6 +27,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property string $timezone
  * @property array<string, mixed> $branding
  * @property array<string, mixed> $company_details
+ * @property bool $is_demo the demo organization (DemoSeeder only, never mass-assigned; ADR 0081)
  */
 #[UseFactory(OrganizationFactory::class)]
 #[Fillable(['name', 'slug', 'locale', 'timezone', 'branding', 'company_details'])]
@@ -48,6 +49,7 @@ class Organization extends Model implements HasName
         return [
             'branding' => 'array',
             'company_details' => 'array',
+            'is_demo' => 'boolean',
         ];
     }
 

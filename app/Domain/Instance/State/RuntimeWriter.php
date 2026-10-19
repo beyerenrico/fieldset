@@ -6,6 +6,7 @@ namespace App\Domain\Instance\State;
 
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Output\ExitCode;
+use App\Domain\Instance\Runtime\LocalCaRoot;
 use App\Domain\Instance\Runtime\RuntimeDocument;
 use Carbon\CarbonImmutable;
 use JsonException;
@@ -43,11 +44,49 @@ final readonly class RuntimeWriter
 
     public function __construct(private InstanceDirectory $directory) {}
 
-    /** Renders the runtime from the state, keeping the current gate and tunnel. */
+    /** The local CA's public root (local-CA mode, ADR 0082): the app's trust page serves it and shows its fingerprint. */
+    public const string LOCAL_CA_ROOT = InstanceDirectory::RUNTIME_DIR.'/'.LocalCaRoot::FILE;
+
+    /**
+     * Renders the runtime from the state, keeping the current gate and tunnel (only `fsa tunnel` changes the tunnel).
+     * Without the local CA in the state its root goes too: no trust page for a CA that is gone.
+     */
     public function write(InstanceState $state): void
     {
         [$gate, $tunnel] = $this->current();
         $this->store($this->document($state, $gate, $tunnel));
+        if (! InstanceSettings::of($state)->localCa() && $this->directory->exists(self::LOCAL_CA_ROOT)) {
+            $this->directory->files()->delete(self::LOCAL_CA_ROOT);
+        }
+    }
+
+    /**
+     * Records the quick tunnel `fsa tunnel start|renew` started (KTD12): hostname, expiry, cloudflared's fixed address
+     * and `--tunnel-admin`; null clears it (`fsa tunnel stop`, expiry cleanup). The gate stays as it is.
+     *
+     * @param  array{hostname: string, expires_at: string, peer: string, admin: bool}|null  $tunnel
+     */
+    public function writeTunnel(InstanceState $state, ?array $tunnel): void
+    {
+        $this->store($this->document($state, $this->current()[0], $tunnel ?? self::NO_TUNNEL));
+    }
+
+    /** @return array{hostname: string|null, expires_at: string|null, peer: string|null, admin: bool} the recorded tunnel */
+    public function tunnel(): array
+    {
+        return $this->current()[1];
+    }
+
+    /** The local CA's root certificate for the app (0644 like runtime.json; public, never a key). */
+    public function writeLocalCaRoot(string $pem): void
+    {
+        $this->directory->ensureDirectory(InstanceDirectory::RUNTIME_DIR, 0755);
+        $this->directory->write(self::LOCAL_CA_ROOT, $pem, 0644);
+    }
+
+    public function localCaRoot(): ?string
+    {
+        return $this->directory->read(self::LOCAL_CA_ROOT);
     }
 
     /**

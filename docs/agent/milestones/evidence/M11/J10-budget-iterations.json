@@ -1,0 +1,826 @@
+{
+  "about": "Every J10 run of plan U15 (ADR 0083); the last one is J10-*.json. Peaks in MiB: docker stats working set, anonymous+shared (cgroup memory.stat, what reclaim cannot free), memory.peak (page cache included).",
+  "runs": {
+    "run1": {
+      "note": "shakedown: budget of ADR 0069 (Horizon 2). The rendition-gap SQL failed (duplicate UUIDs), so documents:sweep rendered generated submissions throughout; the perf scripts were stopped by hand (host load gate), so no admin/API numbers.",
+      "install_seconds": 64.8,
+      "install_seconds_without_pull": 50.7,
+      "seed_load_seconds": 473.6,
+      "pdf_inline_p95_ms": 1472,
+      "pdf_queued_p95_ms": 3943,
+      "services": {
+        "app": {
+          "limit_mib": 384,
+          "peak_mib": 108.8,
+          "anon_shmem_peak_mib": null,
+          "memory_peak_mib": 169.3,
+          "limit_hits": 0,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "edge": {
+          "limit_mib": 64,
+          "peak_mib": 16.4,
+          "anon_shmem_peak_mib": null,
+          "memory_peak_mib": 17.5,
+          "limit_hits": 0,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "gotenberg": {
+          "limit_mib": 320,
+          "peak_mib": 307.8,
+          "anon_shmem_peak_mib": null,
+          "memory_peak_mib": 320,
+          "limit_hits": 1188,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "mailpit": {
+          "limit_mib": 48,
+          "peak_mib": 8.3,
+          "anon_shmem_peak_mib": null,
+          "memory_peak_mib": 14.1,
+          "limit_hits": 0,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "postgres": {
+          "limit_mib": 256,
+          "peak_mib": 245.5,
+          "anon_shmem_peak_mib": null,
+          "memory_peak_mib": 256.2,
+          "limit_hits": 112455,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "queue": {
+          "limit_mib": 320,
+          "peak_mib": 319.8,
+          "anon_shmem_peak_mib": null,
+          "memory_peak_mib": 320,
+          "limit_hits": 591,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "redis": {
+          "limit_mib": 80,
+          "peak_mib": 8.3,
+          "anon_shmem_peak_mib": null,
+          "memory_peak_mib": 10.1,
+          "limit_hits": 0,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "scheduler": {
+          "limit_mib": 128,
+          "peak_mib": 127.5,
+          "anon_shmem_peak_mib": null,
+          "memory_peak_mib": 128.2,
+          "limit_hits": 259,
+          "oom_kills": 0,
+          "restarts": 0
+        }
+      },
+      "incidents": [],
+      "admin_doc_p95_ms": {},
+      "admin_search_p95_ms": {},
+      "api_p95_ms": {}
+    },
+    "run2": {
+      "note": "calibration: generous limits (app/queue/gotenberg 768, scheduler 384), Postgres 256, Horizon 2. Not a shippable budget; it measures needs.",
+      "install_seconds": 53.6,
+      "install_seconds_without_pull": 46.7,
+      "seed_load_seconds": 452.6,
+      "pdf_inline_p95_ms": 1374,
+      "pdf_queued_p95_ms": 3698,
+      "services": {
+        "app": {
+          "limit_mib": 768,
+          "peak_mib": 366.5,
+          "anon_shmem_peak_mib": null,
+          "memory_peak_mib": 375.9,
+          "limit_hits": 0,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "edge": {
+          "limit_mib": 64,
+          "peak_mib": 17.1,
+          "anon_shmem_peak_mib": null,
+          "memory_peak_mib": 18.6,
+          "limit_hits": 0,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "gotenberg": {
+          "limit_mib": 768,
+          "peak_mib": 443,
+          "anon_shmem_peak_mib": null,
+          "memory_peak_mib": 454.5,
+          "limit_hits": 0,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "mailpit": {
+          "limit_mib": 48,
+          "peak_mib": 12.9,
+          "anon_shmem_peak_mib": null,
+          "memory_peak_mib": 16.6,
+          "limit_hits": 0,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "postgres": {
+          "limit_mib": 256,
+          "peak_mib": 253,
+          "anon_shmem_peak_mib": null,
+          "memory_peak_mib": 256.2,
+          "limit_hits": 327747,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "queue": {
+          "limit_mib": 768,
+          "peak_mib": 400.1,
+          "anon_shmem_peak_mib": null,
+          "memory_peak_mib": 461.9,
+          "limit_hits": 0,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "redis": {
+          "limit_mib": 80,
+          "peak_mib": 8.2,
+          "anon_shmem_peak_mib": null,
+          "memory_peak_mib": 12.4,
+          "limit_hits": 0,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "scheduler": {
+          "limit_mib": 384,
+          "peak_mib": 181.6,
+          "anon_shmem_peak_mib": null,
+          "memory_peak_mib": 184.1,
+          "limit_hits": 0,
+          "oom_kills": 0,
+          "restarts": 0
+        }
+      },
+      "incidents": [],
+      "admin_doc_p95_ms": {
+        "dashboard": 96,
+        "forms list": 94.8,
+        "inbox (default)": 374,
+        "inbox filter status": 348.1,
+        "inbox filter form+date": 183.4,
+        "inbox search number": 309.6,
+        "inbox search no hit": 143.5,
+        "inbox sort updated": 286.1,
+        "submission detail": 157.3,
+        "explorer": 146.3,
+        "saved reports list": 89,
+        "saved report (all, by type)": 1017.8,
+        "saved report (last year, by month)": 2143.1,
+        "audit log": 156.7,
+        "audit log filter event": 180.2,
+        "audit log filter actor": 146.9,
+        "audit log filter date": 170.8,
+        "workflows list": 100.7,
+        "members": 116.2,
+        "mail log": 115,
+        "canvas builder (service report)": 141.3,
+        "canvas builder (300 elements)": 342.9,
+        "classic builder (service report)": 1411.2,
+        "reviewer: dashboard": 78.6,
+        "reviewer: inbox": 550.5,
+        "reviewer: my tasks": 106.9,
+        "reviewer: submission detail": "error"
+      },
+      "admin_search_p95_ms": {
+        "explorer search: unique term": 2116,
+        "explorer search: 2 % of rows": 309.1,
+        "explorer search: 35 % of rows": 2864.8,
+        "inbox search: number": 221.5
+      },
+      "api_p95_ms": {
+        "me": 32.4,
+        "sync manifest": 69.9,
+        "forms": 38.4,
+        "form version (service report)": 37,
+        "form version (300 elements)": 44.6,
+        "submissions (own)": 63.8,
+        "submissions (own, page 20)": 64.5,
+        "notifications": 29.1,
+        "submissions (reviewer)": 122.9,
+        "submissions (reviewer, in_review)": 133.9,
+        "submission show (reviewer)": "error",
+        "tasks (reviewer)": 30.5,
+        "sync manifest (reviewer)": 40.1,
+        "submissions (all)": 67.9,
+        "submissions (all, status)": 107.9,
+        "submissions (all, form)": 109.2,
+        "submissions (all, page 100)": 102.5,
+        "submission show": 49.8,
+        "token: forms": 65.6,
+        "token: submissions": 108.6,
+        "token: submissions (form)": 98.5,
+        "token: submission show": 47.2,
+        "token: tasks": 60.9
+      },
+      "host_load_range": [
+        5.8,
+        10
+      ]
+    },
+    "run3": {
+      "note": "candidate 1: queue 368 with Horizon 1, Postgres 224, scheduler 208, backup 80 (worst case 1728).",
+      "install_seconds": 52.2,
+      "install_seconds_without_pull": 45.8,
+      "seed_load_seconds": 389.6,
+      "pdf_inline_p95_ms": 1020,
+      "pdf_queued_p95_ms": 3847,
+      "services": {
+        "app": {
+          "limit_mib": 384,
+          "peak_mib": 359.1,
+          "anon_shmem_peak_mib": 349.8,
+          "memory_peak_mib": 377.5,
+          "limit_hits": 0,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "edge": {
+          "limit_mib": 48,
+          "peak_mib": 18.8,
+          "anon_shmem_peak_mib": 16.9,
+          "memory_peak_mib": 19.9,
+          "limit_hits": 0,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "gotenberg": {
+          "limit_mib": 320,
+          "peak_mib": 303.7,
+          "anon_shmem_peak_mib": 266.8,
+          "memory_peak_mib": 320,
+          "limit_hits": 36,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "mailpit": {
+          "limit_mib": 48,
+          "peak_mib": 10.8,
+          "anon_shmem_peak_mib": 10.8,
+          "memory_peak_mib": 14.8,
+          "limit_hits": 0,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "postgres": {
+          "limit_mib": 224,
+          "peak_mib": 220.6,
+          "anon_shmem_peak_mib": 143.1,
+          "memory_peak_mib": 224.2,
+          "limit_hits": 472939,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "queue": {
+          "limit_mib": 368,
+          "peak_mib": 364.7,
+          "anon_shmem_peak_mib": 347.8,
+          "memory_peak_mib": 368,
+          "limit_hits": 103,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "redis": {
+          "limit_mib": 48,
+          "peak_mib": 7.5,
+          "anon_shmem_peak_mib": 5.5,
+          "memory_peak_mib": 10.2,
+          "limit_hits": 0,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "scheduler": {
+          "limit_mib": 208,
+          "peak_mib": 180.1,
+          "anon_shmem_peak_mib": 174.8,
+          "memory_peak_mib": 183.6,
+          "limit_hits": 0,
+          "oom_kills": 0,
+          "restarts": 0
+        }
+      },
+      "incidents": [],
+      "admin_doc_p95_ms": {
+        "dashboard": 93.4,
+        "forms list": 114.6,
+        "inbox (default)": 211.5,
+        "inbox filter status": 186.7,
+        "inbox filter form+date": 188.6,
+        "inbox search number": 245.7,
+        "inbox search no hit": 171.1,
+        "inbox sort updated": 210.4,
+        "submission detail": 117.1,
+        "explorer": 134.2,
+        "saved reports list": 107.1,
+        "saved report (all, by type)": 916.6,
+        "saved report (last year, by month)": 1469.7,
+        "audit log": 191.8,
+        "audit log filter event": 252.2,
+        "audit log filter actor": 149.2,
+        "audit log filter date": 365.5,
+        "workflows list": 102.1,
+        "members": 142.3,
+        "mail log": 117.9,
+        "canvas builder (service report)": 105.4,
+        "canvas builder (300 elements)": 179.6,
+        "classic builder (service report)": 1243.2,
+        "reviewer: dashboard": 102.9,
+        "reviewer: inbox": 568,
+        "reviewer: my tasks": 103.1,
+        "reviewer: submission detail": "error"
+      },
+      "admin_search_p95_ms": {
+        "explorer search: unique term": 2670.3,
+        "explorer search: 2 % of rows": 323.2,
+        "explorer search: 35 % of rows": 1911.9,
+        "inbox search: number": 309.3
+      },
+      "api_p95_ms": {
+        "me": 31.2,
+        "sync manifest": 42.3,
+        "forms": 36.8,
+        "form version (service report)": 39.1,
+        "form version (300 elements)": 39.3,
+        "submissions (own)": 62.7,
+        "submissions (own, page 20)": 62.5,
+        "notifications": 32.6,
+        "submissions (reviewer)": 193.8,
+        "submissions (reviewer, in_review)": 343.6,
+        "submission show (reviewer)": "error",
+        "tasks (reviewer)": 51.2,
+        "sync manifest (reviewer)": 44.1,
+        "submissions (all)": 80.5,
+        "submissions (all, status)": 62,
+        "submissions (all, form)": 68.2,
+        "submissions (all, page 100)": 68.4,
+        "submission show": 38.4,
+        "token: forms": 28.7,
+        "token: submissions": 62.1,
+        "token: submissions (form)": 67.8,
+        "token: submission show": 40.2,
+        "token: tasks": 51.8
+      },
+      "host_load_range": [
+        3.3,
+        9.3
+      ]
+    },
+    "run4": {
+      "note": "candidate 2: queue 384, Gotenberg 304, Postgres 176, backup 128 (worst case 1728).",
+      "install_seconds": 52.2,
+      "install_seconds_without_pull": 46,
+      "seed_load_seconds": 442.3,
+      "pdf_inline_p95_ms": 1029,
+      "pdf_queued_p95_ms": 3805,
+      "services": {
+        "app": {
+          "limit_mib": 384,
+          "peak_mib": 371.4,
+          "anon_shmem_peak_mib": 353,
+          "memory_peak_mib": 377.9,
+          "limit_hits": 0,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "edge": {
+          "limit_mib": 48,
+          "peak_mib": 16.6,
+          "anon_shmem_peak_mib": 15.3,
+          "memory_peak_mib": 18.2,
+          "limit_hits": 0,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "gotenberg": {
+          "limit_mib": 304,
+          "peak_mib": 286.2,
+          "anon_shmem_peak_mib": 274.9,
+          "memory_peak_mib": 304,
+          "limit_hits": 106,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "mailpit": {
+          "limit_mib": 48,
+          "peak_mib": 12.8,
+          "anon_shmem_peak_mib": 9.9,
+          "memory_peak_mib": 15.1,
+          "limit_hits": 0,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "postgres": {
+          "limit_mib": 176,
+          "peak_mib": 173.7,
+          "anon_shmem_peak_mib": 96.3,
+          "memory_peak_mib": 176.2,
+          "limit_hits": 490479,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "queue": {
+          "limit_mib": 384,
+          "peak_mib": 376.4,
+          "anon_shmem_peak_mib": 368.6,
+          "memory_peak_mib": 384,
+          "limit_hits": 77,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "redis": {
+          "limit_mib": 48,
+          "peak_mib": 7.9,
+          "anon_shmem_peak_mib": 6,
+          "memory_peak_mib": 10.5,
+          "limit_hits": 0,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "scheduler": {
+          "limit_mib": 208,
+          "peak_mib": 181.4,
+          "anon_shmem_peak_mib": 176.1,
+          "memory_peak_mib": 184.1,
+          "limit_hits": 0,
+          "oom_kills": 0,
+          "restarts": 0
+        }
+      },
+      "incidents": [],
+      "admin_doc_p95_ms": {
+        "dashboard": 95.7,
+        "forms list": 123.9,
+        "inbox (default)": 199.4,
+        "inbox filter status": 284,
+        "inbox filter form+date": 272.4,
+        "inbox search number": 391.2,
+        "inbox search no hit": 172.6,
+        "inbox sort updated": 217,
+        "submission detail": 119.6,
+        "explorer": 178.2,
+        "saved reports list": 97.8,
+        "saved report (all, by type)": 928.1,
+        "saved report (last year, by month)": 1539.1,
+        "audit log": 146,
+        "audit log filter event": 196.6,
+        "audit log filter actor": 149.4,
+        "audit log filter date": 146.1,
+        "workflows list": 116.3,
+        "members": 126.8,
+        "mail log": 106.2,
+        "canvas builder (service report)": 103,
+        "canvas builder (300 elements)": 473.9,
+        "classic builder (service report)": 1104.9,
+        "reviewer: dashboard": 91.7,
+        "reviewer: inbox": 661.9,
+        "reviewer: my tasks": 110.1,
+        "reviewer: submission detail": 160.1
+      },
+      "admin_search_p95_ms": {
+        "explorer search: unique term": 3667,
+        "explorer search: 2 % of rows": 322.4,
+        "explorer search: 35 % of rows": 1951.9,
+        "inbox search: number": 310.3
+      },
+      "api_p95_ms": {
+        "me": 46.6,
+        "sync manifest": 40.2,
+        "forms": 36.9,
+        "form version (service report)": 33.3,
+        "form version (300 elements)": 41.4,
+        "submissions (own)": 67.1,
+        "submissions (own, page 20)": 63.5,
+        "notifications": 33.2,
+        "submissions (reviewer)": 229.5,
+        "submissions (reviewer, in_review)": 343.9,
+        "submission show (reviewer)": 46.4,
+        "tasks (reviewer)": 51.6,
+        "sync manifest (reviewer)": 48.8,
+        "submissions (all)": 68.8,
+        "submissions (all, status)": 68.2,
+        "submissions (all, form)": 69.3,
+        "submissions (all, page 100)": 126.3,
+        "submission show": 38.8,
+        "token: forms": 32.3,
+        "token: submissions": 70.1,
+        "token: submissions (form)": 72.4,
+        "token: submission show": 39.9,
+        "token: tasks": 32.5
+      },
+      "host_load_range": [
+        4.3,
+        8.4
+      ]
+    },
+    "run5": {
+      "note": "candidate 3: queue 400, Gotenberg 320, Postgres 144, backup 128 (worst case 1728). Postgres kept only 22 MiB above its unreclaimable peak (123 MiB while loading data).",
+      "install_seconds": 52.5,
+      "install_seconds_without_pull": 46.1,
+      "seed_load_seconds": 472.2,
+      "pdf_inline_p95_ms": 1382,
+      "pdf_queued_p95_ms": 3906,
+      "services": {
+        "app": {
+          "limit_mib": 384,
+          "peak_mib": 371.2,
+          "anon_shmem_peak_mib": 353,
+          "memory_peak_mib": 375.8,
+          "limit_hits": 0,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "edge": {
+          "limit_mib": 48,
+          "peak_mib": 16.6,
+          "anon_shmem_peak_mib": 15.5,
+          "memory_peak_mib": 18,
+          "limit_hits": 0,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "gotenberg": {
+          "limit_mib": 320,
+          "peak_mib": 292.8,
+          "anon_shmem_peak_mib": 270.4,
+          "memory_peak_mib": 320,
+          "limit_hits": 91,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "mailpit": {
+          "limit_mib": 48,
+          "peak_mib": 9.4,
+          "anon_shmem_peak_mib": 9.9,
+          "memory_peak_mib": 13.6,
+          "limit_hits": 0,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "postgres": {
+          "limit_mib": 144,
+          "peak_mib": 142.6,
+          "anon_shmem_peak_mib": 122.5,
+          "memory_peak_mib": 144.6,
+          "limit_hits": 586620,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "queue": {
+          "limit_mib": 400,
+          "peak_mib": 378.5,
+          "anon_shmem_peak_mib": 358.9,
+          "memory_peak_mib": 400,
+          "limit_hits": 1,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "redis": {
+          "limit_mib": 48,
+          "peak_mib": 7.9,
+          "anon_shmem_peak_mib": 6.2,
+          "memory_peak_mib": 9.7,
+          "limit_hits": 0,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "scheduler": {
+          "limit_mib": 208,
+          "peak_mib": 180.3,
+          "anon_shmem_peak_mib": 174.8,
+          "memory_peak_mib": 183.1,
+          "limit_hits": 0,
+          "oom_kills": 0,
+          "restarts": 0
+        }
+      },
+      "incidents": [],
+      "admin_doc_p95_ms": {
+        "dashboard": 93.3,
+        "forms list": 112.7,
+        "inbox (default)": 258.4,
+        "inbox filter status": 419.5,
+        "inbox filter form+date": 770.6,
+        "inbox search number": 444.7,
+        "inbox search no hit": 240.5,
+        "inbox sort updated": 234.5,
+        "submission detail": 118.2,
+        "explorer": 173.1,
+        "saved reports list": 102.5,
+        "saved report (all, by type)": 1035.8,
+        "saved report (last year, by month)": 1550,
+        "audit log": 175.7,
+        "audit log filter event": 161.2,
+        "audit log filter actor": 153.8,
+        "audit log filter date": 150.3,
+        "workflows list": 105.3,
+        "members": 130.4,
+        "mail log": 113.4,
+        "canvas builder (service report)": 109.8,
+        "canvas builder (300 elements)": 217.2,
+        "classic builder (service report)": 1831.8,
+        "reviewer: dashboard": 101,
+        "reviewer: inbox": 635.9,
+        "reviewer: my tasks": 129.2,
+        "reviewer: submission detail": 179.6
+      },
+      "admin_search_p95_ms": {
+        "explorer search: unique term": 1935.4,
+        "explorer search: 2 % of rows": 427.7,
+        "explorer search: 35 % of rows": 2147.7,
+        "inbox search: number": 384.7
+      },
+      "api_p95_ms": {
+        "me": 34.9,
+        "sync manifest": 46,
+        "forms": 40.6,
+        "form version (service report)": 44.6,
+        "form version (300 elements)": 38.9,
+        "submissions (own)": 58.4,
+        "submissions (own, page 20)": 59,
+        "notifications": 36.1,
+        "submissions (reviewer)": 235.7,
+        "submissions (reviewer, in_review)": 317.9,
+        "submission show (reviewer)": 53.3,
+        "tasks (reviewer)": 50.5,
+        "sync manifest (reviewer)": 66.6,
+        "submissions (all)": 64.5,
+        "submissions (all, status)": 62.5,
+        "submissions (all, form)": 72.1,
+        "submissions (all, page 100)": 81,
+        "submission show": 39.4,
+        "token: forms": 35.1,
+        "token: submissions": 59.4,
+        "token: submissions (form)": 59.1,
+        "token: submission show": 41.4,
+        "token: tasks": 31.1
+      },
+      "host_load_range": [
+        4,
+        7.5
+      ]
+    },
+    "run6": {
+      "note": "shipped: queue 400, Gotenberg 304, Postgres 160, backup 128 (worst case 1728).",
+      "install_seconds": 53.4,
+      "install_seconds_without_pull": 47.1,
+      "seed_load_seconds": 481.8,
+      "pdf_inline_p95_ms": 1356,
+      "pdf_queued_p95_ms": 3961,
+      "services": {
+        "app": {
+          "limit_mib": 384,
+          "peak_mib": 356.6,
+          "anon_shmem_peak_mib": 354.1,
+          "memory_peak_mib": 377.9,
+          "limit_hits": 0,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "edge": {
+          "limit_mib": 48,
+          "peak_mib": 16.7,
+          "anon_shmem_peak_mib": 15.7,
+          "memory_peak_mib": 18.2,
+          "limit_hits": 0,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "gotenberg": {
+          "limit_mib": 304,
+          "peak_mib": 291.6,
+          "anon_shmem_peak_mib": 254.5,
+          "memory_peak_mib": 304,
+          "limit_hits": 105,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "mailpit": {
+          "limit_mib": 48,
+          "peak_mib": 11.7,
+          "anon_shmem_peak_mib": 8.6,
+          "memory_peak_mib": 15.6,
+          "limit_hits": 0,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "postgres": {
+          "limit_mib": 160,
+          "peak_mib": 158.2,
+          "anon_shmem_peak_mib": 121.5,
+          "memory_peak_mib": 160.5,
+          "limit_hits": 490929,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "queue": {
+          "limit_mib": 400,
+          "peak_mib": 370.4,
+          "anon_shmem_peak_mib": 363.3,
+          "memory_peak_mib": 400,
+          "limit_hits": 21,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "redis": {
+          "limit_mib": 48,
+          "peak_mib": 7,
+          "anon_shmem_peak_mib": 5.6,
+          "memory_peak_mib": 12,
+          "limit_hits": 0,
+          "oom_kills": 0,
+          "restarts": 0
+        },
+        "scheduler": {
+          "limit_mib": 208,
+          "peak_mib": 181.4,
+          "anon_shmem_peak_mib": 174.8,
+          "memory_peak_mib": 184.2,
+          "limit_hits": 0,
+          "oom_kills": 0,
+          "restarts": 0
+        }
+      },
+      "incidents": [],
+      "admin_doc_p95_ms": {
+        "dashboard": 134.2,
+        "forms list": 109.1,
+        "inbox (default)": 285.4,
+        "inbox filter status": 480.5,
+        "inbox filter form+date": 613.2,
+        "inbox search number": 585.7,
+        "inbox search no hit": 356.9,
+        "inbox sort updated": 260.4,
+        "submission detail": 119.4,
+        "explorer": 158.1,
+        "saved reports list": 98.9,
+        "saved report (all, by type)": 946,
+        "saved report (last year, by month)": 1618,
+        "audit log": 152.1,
+        "audit log filter event": 174.7,
+        "audit log filter actor": 134.9,
+        "audit log filter date": 157.2,
+        "workflows list": 110,
+        "members": 138.6,
+        "mail log": 106.9,
+        "canvas builder (service report)": 109.7,
+        "canvas builder (300 elements)": 179.4,
+        "classic builder (service report)": 1117,
+        "reviewer: dashboard": 98.2,
+        "reviewer: inbox": 550,
+        "reviewer: my tasks": 114,
+        "reviewer: submission detail": 171.2
+      },
+      "admin_search_p95_ms": {
+        "explorer search: unique term": 1245.4,
+        "explorer search: 2 % of rows": 484.3,
+        "explorer search: 35 % of rows": 1879.4,
+        "inbox search: number": 324.4
+      },
+      "api_p95_ms": {
+        "me": 32.4,
+        "sync manifest": 42.2,
+        "forms": 34.6,
+        "form version (service report)": 37.3,
+        "form version (300 elements)": 38.3,
+        "submissions (own)": 60.5,
+        "submissions (own, page 20)": 58.7,
+        "notifications": 34.5,
+        "submissions (reviewer)": 144.6,
+        "submissions (reviewer, in_review)": 220.1,
+        "submission show (reviewer)": 47.4,
+        "tasks (reviewer)": 51.4,
+        "sync manifest (reviewer)": 53.2,
+        "submissions (all)": 71.5,
+        "submissions (all, status)": 65.8,
+        "submissions (all, form)": 69.9,
+        "submissions (all, page 100)": 92.6,
+        "submission show": 36.6,
+        "token: forms": 31,
+        "token: submissions": 63.2,
+        "token: submissions (form)": 62,
+        "token: submission show": 34.1,
+        "token: tasks": 26.6
+      },
+      "host_load_range": [
+        2.7,
+        8.7
+      ]
+    }
+  }
+}

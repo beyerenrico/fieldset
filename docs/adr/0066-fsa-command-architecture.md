@@ -97,3 +97,12 @@ namespace, the Docker gateway included. Host facts come from the shim as `FSA_TT
 - The arch test must be part of a PHPUnit test suite to run in CI (`tests/Arch` in `phpunit.xml`).
 - Rejected: binding the gateway from a `CommandStarting` listener (Laravel does not dispatch it under unit
   tests), and a separate `bin/fsa` kernel (duplicated console and test helpers, see plan KTD1).
+
+## Amendment 2026-10-19: env-file values with 0x85 or a trailing backslash (M11 gate)
+- `EnvFiles::decode()` splits lines on LF (CRLF read too) instead of PCRE `\R`, which in byte mode also matched 0x0B,
+  0x0C and 0x85: the UTF-8 letters Å (C3 85), ą (C4 85) and х (D1 85) cut an SMTP password short when `InstanceSecrets`
+  read it back for the next render (`config set port`, `tunnel start|stop`).
+- `EnvFiles::encode()` double-quotes a value that ends in a backslash as well: Compose reads `\'` inside single quotes as
+  an escaped quote, so `A='x\'` ran on into the next line and the whole file failed to parse (verified 2026-10-19 with
+  Compose 5.0.2; every other byte except CR, LF and NUL, control characters included, passes through literally, so the
+  SMTP grammar needs no further refusals). Tests: `EnvFilesTest`, `MailConfigSafetyTest`.

@@ -1,7 +1,8 @@
 # 0072: fsa lifecycle commands for local mode: install phases, resume, ports, doctor, smoke
 - Status: accepted; amended 2026-10-18 at the M9 gate (exit codes, ports check, lock heartbeat, sign-in link
   delivery); the uninstall paragraph is superseded by ADR 0073; amended 2026-10-18 at the M10 gate by ADR 0078
-  (repeated install flags, `--trusted-proxy` match, ports on a shared proxy network, privileged-port rule)
+  (repeated install flags, `--trusted-proxy` match, ports on a shared proxy network, privileged-port rule); amended
+  2026-10-18 by ADR 0081 (`demo` phase) and ADR 0082 (phone HTTPS flags, `lan_address` check, `fsa tunnel`)
 - Date: 2026-10-18
 
 ## Context
@@ -173,3 +174,60 @@ internal-error code of ADR 0066).
   `last_backup`.
 - Port probes leave no container behind (Docker removes a `--rm` container whose start failed; uninstall sweeps
   by label anyway).
+
+## Amendment 2026-10-18: the `demo` phase (ADR 0081)
+`--demo` is no longer `unsupported_option`. With it the install runs the phase `demo` (and `demo_rotate` when an
+existing demo needs new passwords) after `start` and before `smoke`, against the running stack, as `fsa demo` does.
+Both run again on a resume, since their one-offs are idempotent; an existing demo whose random passwords were never
+shown gets new ones (`demo_passwords_reissued`). `--demo` may be added on a resume. On a finished instance the state
+history's `demo_seeded` decides: `--demo` with demo data is `changed: false`, without it exit 2 `use_config_set`
+with the hint `fsa demo`.
+
+## Amendment 2026-10-18: phone HTTPS at install, the `lan_address` check, `fsa tunnel` (ADR 0082)
+- `--phone-https local-ca|tunnel` and `--lan-address` are accepted in local mode (with `--domain`/`--behind-proxy`,
+  or `--lan-address` without `local-ca`: exit 2 `invalid_combination`); only `--encrypt` and `--from-backup` are
+  still `unsupported_option`.
+- `local-ca` is decided and journaled in the doctor phase (no known LAN address: exit 2 `lan_address_required`); the
+  ports check also probes 80/443 on the LAN address (`LocalCaPorts`) and the smoke test checks the edge
+  (`LocalCaEdge`). `tunnel` installs in local mode, then starts the tunnel (`InstallTunnel`); a failed tunnel keeps
+  the instance and the command exits with the tunnel's code.
+- Doctor checks gain `lan_address` after `ports` and `proxy` (local-CA mode: warns `lan_address_changed`). New command
+  `fsa tunnel start|stop|renew`; `FSA_TEST_TUNNEL` (harness images only) swaps in the journeys' fake tunnel.
+
+## Amendment 2026-10-18: PDF render and test mail in the install smoke test (R11)
+U12 did not add them (the smoke path above and the U12 consequence promised it); M11-T05 does. The `smoke` phase of
+`fsa install` now runs `Install\InstallSmoke`: SmokeTest's HTTP checks unchanged (`/up`, `/admin/login`, Gotenberg's
+`/health`, the edge or the local CA), then, each in a socket-less one-off of the app role (KTD25):
+- **PDF** — `instance:pdf-test` renders one page through the app's own `GotenbergClient` (the path every rendition takes,
+  over the internal renderer network) and checks that the answer starts with `%PDF-`. Failure: exit 4
+  `pdf_render_failed`, retryable, `data.output` with the one-off's message.
+- **Mail** — `instance:mail-test --to=<owner> --install` sends a test mail synchronously through the instance mailer:
+  into the bundled catcher in capture mode, through the server of `--smtp-host` in SMTP mode (ADR 0080 amendment). The
+  install variant has its own wording (`capture.test_mail.install_capture|install_smtp`, DE/EN; the subject is the
+  `config set mail` one) and its own Message-ID (`<32 hex>@<sender domain>`, `data.message_id`). Refused: exit 4
+  `test_mail_failed`, retryable. In capture mode a throwaway `curl` container of the app image on `<project>_default`
+  (label role `smoke`) then asks `http://mailpit:8025/api/v1/messages?limit=50` (`/_mail/api/…` in domain mode,
+  MP_WEBROOT) for that Message-ID: Mailpit's message summaries carry `MessageID` (verified against the Mailpit API
+  reference, Context7 /axllent/mailpit, 2026-10-18); the list was preferred over `/api/v1/search?query=message-id:…`,
+  which exists too, to depend on no search grammar. The catcher login reaches curl as `--config -` on stdin, never on a
+  command line. Up to 5 lookups, 1 s apart; then exit 4 `test_mail_not_captured`, retryable.
+- Every failure leaves the journal open at `smoke`, like `smoke_failed`; a resume runs the whole smoke test again (and
+  sends another test mail). The phase's maximum grows by 120 s (PDF), 120 s (mail) and, in capture mode, 5 × 31 s.
+- The owner's address stays out of exception messages (journaled by `failPhase`) and phase data (archived journals
+  replace only the `owner_email`/`owner_name` keys); a one-off's error output names it `<owner-email>`.
+- **Install only.** `fsa config set` verifies with SmokeTest alone (phase `verify`): a settings change neither renders
+  nor mails, so an operator does not get a test mail for every port or domain change, and `config set mail smtp` keeps
+  its own test mail (ADR 0080). Rejected: the same checks in `verify` (mail noise, and 2–4 more one-off containers in
+  every rollback window).
+- Verified by `tests/Unit/Instance/InstallSmokeTest.php`, `tests/Feature/Instance/InstallSmokeCommandsTest.php`, and
+  J4 (the capture install's test mail in the catcher; an SMTP install's at a stand-in server).
+
+## Amendment 2026-10-19: resuming an install with `--phone-https tunnel` (M11 gate)
+- The doctor phase journals `phone: {phone_https: tunnel}` for `--phone-https tunnel` (the state does not take it), so
+  a resume with the same flags no longer exits 2 `flag_already_applied`. `fsa install` decides whether to start the
+  tunnel from the effective request (`Installer::effective`: the journal's inputs under the flags given now), so a
+  resume without the flag starts it too, as `--demo` given once still applies.
+- On a finished instance `--phone-https tunnel` matches an instance with a running tunnel or without phone HTTPS (the
+  tunnel is transient, ADR 0082 amendment): same flags are `changed: false` with the warning `tunnel_not_running`
+  naming `fsa tunnel start`; it was exit 2 `use_config_set` with the key `phone-https`, which `config set` refuses.
+- Verified by `tests/Unit/Instance/TunnelInstallTest.php`.

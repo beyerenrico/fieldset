@@ -97,7 +97,7 @@ Format: question · chosen option · impact · how to reverse.
    budget.
    · Resolved: the budget held at 648 MB with cosign (ADR 0065); cosign was then dropped from the image for the
    scan gate, and the image is now ~500 MB (507 MB arm64, 497 MB amd64; ADR 0071).
-24. The hardware floor is a target until J10 measures it (E16, ADR 0062; U15 in M11): Gotenberg OOMs are reported
+24. (Superseded by ADR 0083 and question 41: E16 measured in J10.) The hardware floor is a target until J10 measures it (E16, ADR 0062; U15 in M11): Gotenberg OOMs are reported
    on small hosts, and an upgrade or restore needs room for a safety backup, a second database and a second
    storage volume on 20 GB · keep 2 vCPU / 2 GB / 20 GB, tune the limits, record a miss with numbers · owners on
    the smallest VPS may see OOM kills, or upgrades refused for lack of space (exit 3) · raise the published floor
@@ -177,5 +177,74 @@ Format: question · chosen option · impact · how to reverse.
    and SecurityHeaders, 1.0 behaviour) · cosmetic · remove one source.
 37. `fsa config set` asks for `--yes` on every URL change (`domain`, `url`, local `port`, `mode`), not only
    `domain` (ADR 0077) · chosen because every URL change invalidates signed links and moves SSO redirects ·
-   one more flag for agents · relax to `domain` only if it proves noisy. `config set operator-email` (plan U11)
-   is deferred to U12/beta.1 and refused with exit 2 until then.
+   one more flag for agents · relax to `domain` only if it proves noisy. (`config set operator-email` landed in
+   U12, ADR 0080.)
+38. The capture banner shows to every admin-panel member, not only admins (ADR 0080; E8 says "admins see a
+   banner") · chosen because designers and reviewers also send invitations and resets · harmless information
+   (mail is captured) · restrict to admins in CaptureModeBanner if preferred. `config set operator-email
+   --revoke-previous` revokes every other operator · simplest safe meaning for a single-owner instance · an
+   instance with several operators loses all but the new one · add `--revoke <email>` if needed.
+39. `fsa config set phone-https local-ca` refuses (exit 3) while demo accounts still have `password`, whereas
+   `fsa tunnel start` rotates them first (ADR 0082) · chosen because the local CA is a mode switch the operator
+   plans, the tunnel an ad-hoc exposure · inconsistent for agents · rotate in both cases if preferred. A failed and
+   reverted local-CA turn-on leaves its CA on the volume until the next `off` or uninstall · harmless (key never
+   leaves the volume) · delete it in the revert if preferred.
+40. cloudflared is not a trusted proxy (ADR 0082): all tunnel clients share its address for throttles and audit,
+   and what real cloudflared forwards (Host, `X-Forwarded-*`) is unverified (only the fake tunnel was used) ·
+   check on the RELEASING.md checklist with a real quick tunnel before 2.0.0 · tighten throttles per token if
+   shared limits bite.
+41. E16 admin-page targets are missed at the 1.0 test volume (100k submissions, 1.27 GB DB) on 2 GB / 2 CPUs:
+   23/31 series < 500 ms; saved reports 946–1,618 ms, explorer search 1,245–1,879 ms, reviewer inbox 550–613 ms
+   (ADR 0083; Postgres hit rate 54 %, ~100 MiB cache) · install, PDF and API targets are met · options: accept and
+   document the data size from which 4 GB is needed; ADR 0046 follow-ups (cached saved-report results,
+   covering/trigram indexes for the explorer); free memory for Postgres; or raise E16 to 3–4 GB. J10 records timing
+   misses but fails only on OOM/restarts/failed steps — should the M13 gate enforce timings?
+42. `small` runs one default Horizon worker (ADR 0083) · Gotenberg concurrency is 1 anyway · mails and workflows
+   queue behind renders, pickup latency up to 3 s · raise to 2 if memory allows on real hosts. Margins are ~30 MiB
+   per slot; the backup (128) and tunnel (48) slots and the `medium`/`large` profiles are unmeasured; the 320 MiB OS
+   headroom is an estimate (swap guidance, ADR 0062, matters).
+43. After an SMTP install whose test mail was refused, a resume can retry but not change server settings or the
+   account (ADR 0080 amendment) · keeps resume semantics simple · the fix is uninstall + reinstall, or a capture
+   install plus `config set mail smtp` · allow changes on resume if it bites. Every resumed smoke phase sends the
+   owner another test mail. `config show` reports `mail.catcher: removed` for an instance that never had one
+   (cosmetic; `none` would be clearer).
+44. The local CA's root and intermediate keys live on the edge's Docker volume (Caddy's pki directory), not in
+   `<instance>/certs/` with mode 0600 as BUILD_PROMPT_V2 §10/§6.3 say (ADR 0082 amendment) · confidentiality is the
+   same (root-only volume, 0600 for Caddy's user) · M12 backup/restore must include the edge volume or phones must
+   trust a new CA after a restore · bind-mount `<instance>/certs/` as Caddy's pki directory if the spec wording
+   matters.
+45. STARTTLS is now required for the instance mailer by default, with or without an account (M11 gate, ADR 0080
+   amendment); relays without TLS need `--smtp-encryption none` (warning `smtp_plaintext_auth` with an account) ·
+   closes a downgrade that leaked the SMTP password · existing plain relays must opt out explicitly · relax to
+   "required only with an account" if that is too strict. `config set mail smtp --smtp-host <new>` without
+   `--smtp-username` drops the stored account (`smtp_credentials_dropped`) rather than sending it to the new host.
+46. `config set domain` and `phone-https local-ca` refuse (exit 3) while ANY account still has `password`, not only
+   demo accounts (DefaultPasswordGuard, ADR 0081 amendment) · consistent with the local CA rule · agents must rotate
+   or change passwords first. An operator created by `config set operator-email` has no organization, so
+   `fsa login-link` refuses them although the owner-link page names it as recovery · a lost link is replaced by
+   repeating `config set operator-email` after expiry (≤ 60 min) · let `fsa login-link` serve operators without a
+   password. On a legacy DB where a real org holds slug `demo`, the demo gets `demo-2` (E2E/perf assume /admin/demo).
+47. Small Postgres now runs `jit=off`, `max_parallel_workers_per_gather=0`, `max_connections=30` (stack clients 17)
+   (ADR 0083 amendment) · less memory risk for backends · may move admin-page p95 (QUESTIONS 41); recheck with the
+   gate's J10. `config set operator-email` has no Interruption guard; a renew killed outright with a live tunnel is
+   resumable only by `fsa tunnel renew`; `config set phone-https off` as a CA-deletion retry runs the full rollout
+   (queue/scheduler briefly stopped).
+48. M11 review lows logged, not fixed: the fsa SecretRedactor ignores secrets shorter than 4 characters (a 1–3
+   character SMTP password would not be masked; such passwords are refused by no rule) · `config show
+   --catcher-login`'s hint "Run `fsa install` again" re-renders nothing on a finished instance (results now carry
+   `catcher_login_command`) · the test-mail hint names the SMTP settings when no operator exists · low impact ·
+   fix when touching those paths.
+49. Builder v2 key suggestion (ADR 0037): the client applies `builder-v2:key-suggested` while the key field still
+   shows `from`. If a designer has selected the key field's text in the instant before the suggestion lands, the
+   suggestion replaces the selection and the typed key is appended to it ("totalline_total"). Seen only in the E2E
+   helper's `fill` (M11 gate, E2E run 2), which now retries until the field holds the key · negligible for typing
+   people · optional fix: skip the suggestion while the key field has focus.
+50. Builder v2 (M7): a selection made while the canvas page's first Livewire requests are still in flight can be
+   undone. One of them answers after the selection request, its older snapshot replaces the client's, and the
+   next edit (the title) is sent without the selection: the inspector empties and the edit is dropped. Seen once
+   in the M11 gate E2E (keyboard spec, trace: select at +0 ms, older request answering 6 ms after the selection's).
+   A person must select within ~100 ms of the page loading · the E2E helper now waits for the initial requests ·
+   optional fix: queue the builder's initial requests before accepting selection (or carry the selection client-side).
+   The same lost update hit the drag spec twice (runs 8 and 10): after a drop the inspector stayed on the previous
+   node for 10 s. Both appeared only with the host at load ~12 on 10 cores (Teams, Defender, VS Code PHP server);
+   M11 changed no builder code.

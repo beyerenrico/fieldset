@@ -22,6 +22,12 @@ final readonly class AppCommands
 
     public const float TIMEOUT = 300.0;
 
+    /** The test mail's one-off: the app boots, the SMTP dialogue (mail timeout) and its TLS handshake. */
+    public const float MAIL_TEST_TIMEOUT = 120.0;
+
+    /** The test PDF's one-off: the app boots and Chromium in Gotenberg renders one page. */
+    public const float PDF_TEST_TIMEOUT = 120.0;
+
     public function __construct(private DockerGateway $docker) {}
 
     public function migrate(ComposeProject $project): ProcessOutcome
@@ -42,6 +48,30 @@ final readonly class AppCommands
     public function loginLink(ComposeProject $project, string $email, int $actorUid): OneOffResult
     {
         return $this->json($project, ['php', 'artisan', 'identity:login-link', '--actor-uid='.$actorUid, '--json', '--', $email]);
+    }
+
+    /**
+     * Seeds the demo organization, forms, workflow and users (`fsa install --demo`, `fsa demo`; ADR 0081): `default`
+     * keeps the documented password, `random` prints one password per new demo user under `secrets`.
+     */
+    public function demoSeed(ComposeProject $project, string $passwords, int $actorUid): OneOffResult
+    {
+        return $this->json($project, ['php', 'artisan', 'app:demo-seed', '--passwords='.$passwords, '--actor-uid='.$actorUid, '--json']);
+    }
+
+    /** New random passwords for every demo account, their sessions, API tokens and unused sign-in links revoked (`fsa demo --rotate-passwords`). */
+    public function rotateDemoPasswords(ComposeProject $project, int $actorUid): OneOffResult
+    {
+        return $this->json($project, ['php', 'artisan', 'app:demo-passwords', '--rotate', '--actor-uid='.$actorUid, '--json']);
+    }
+
+    /**
+     * Which accounts, demo or not, still sign in with `password` (read-only; ADR 0081). `data.count` above 0 means the
+     * tunnel and the local-CA edge must not start (R29, U14); `data.users` lists `{email, demo}`.
+     */
+    public function demoPasswordCheck(ComposeProject $project): OneOffResult
+    {
+        return $this->json($project, ['php', 'artisan', 'app:demo-passwords', '--check', '--json']);
     }
 
     /** Sign-in links without their tokens (`fsa status`). */
@@ -69,6 +99,36 @@ final readonly class AppCommands
         return $this->json($project, [
             'php', 'artisan', 'instance:config-changed', '--key='.$change['key'], '--old='.($change['from'] ?? ''), '--new='.($change['to'] ?? ''),
             ...$url, '--actor-uid='.$actorUid, '--json',
+        ], 120.0);
+    }
+
+    /**
+     * Sends the test mail of `config set mail smtp` through the mailer the app env file now configures (ADR 0080), or with
+     * `$install` the install smoke test's (R11; `data.message_id`). The recipient goes after `--to=` in one argument, so
+     * it can never be read as an option.
+     */
+    public function mailTest(ComposeProject $project, ?string $to, bool $install = false): OneOffResult
+    {
+        return $this->json($project, ['php', 'artisan', 'instance:mail-test', ...($to === null ? [] : ['--to='.$to]), ...($install ? ['--install'] : []), '--json'], self::MAIL_TEST_TIMEOUT);
+    }
+
+    /** Renders a one-page test PDF through Gotenberg, the install smoke test's PDF check (R11). */
+    public function pdfTest(ComposeProject $project): OneOffResult
+    {
+        return $this->json($project, ['php', 'artisan', 'instance:pdf-test', '--json'], self::PDF_TEST_TIMEOUT);
+    }
+
+    /** Invitations and password resets capture mode kept in the catcher (ADR 0080). */
+    public function mailCaptured(ComposeProject $project): OneOffResult
+    {
+        return $this->json($project, ['php', 'artisan', 'instance:mail-captured', '--json'], 120.0);
+    }
+
+    /** Grants the operator role to an address, creating the account and its first link when needed (ADR 0080). */
+    public function operatorEmail(ComposeProject $project, string $email, bool $revokePrevious, int $actorUid): OneOffResult
+    {
+        return $this->json($project, [
+            'php', 'artisan', 'instance:operator-email', '--email='.$email, ...($revokePrevious ? ['--revoke-previous'] : []), '--actor-uid='.$actorUid, '--json',
         ], 120.0);
     }
 

@@ -40,3 +40,19 @@ evaluation (2.8 s → ≤ 170 ms per keystroke at 4× CPU). Three results remain
   and retiring it (ADR 0044); caching saved report results or a covering index before forms reach ~150k
   submissions; audit log indexes if the table reaches millions of rows.
 - QUESTIONS lists the exceptions for human review.
+
+## Amendment 2026-10-19: a second data point under E16 (U15, ADR 0083)
+J10 ran the same perf scripts (3 warm-up, 30 runs, one client) at the same test volume on an `fsa` instance in domain
+mode inside the E16 envelope: 2 GB of memory limits (Postgres 160 MiB) and two pinned CPUs, against 1.0's unlimited dev
+stack on ten CPUs. Doc p95 in ms (1.0 → E16 `small`, run 6 of ADR 0083):
+
+| Target | 1.0 | E16 `small` |
+|---|---|---|
+| Admin pages < 500 ms | met, except the classic builder | 23 of 31 series met; missed: saved reports 365 → 946 and 265 → 1,618, explorer searches 246 → 1,245 and 291 → 1,879, reviewer inbox 316 → 550, inbox filter form + date 156 → 613, inbox search number 194 → 586, classic builder 1,052 → 1,117 |
+| API < 300 ms | met | met: 23 of 23, slowest the reviewer's in-review list 93 → 220 |
+| 10-page PDF < 10 s queued | 2,279 | 3,961 |
+
+The Field App first load and the repeater are client-side and not part of J10. The results above stand for a host with
+memory for Postgres' page cache; on 2 GB the report, search and inbox pages read most blocks from disk (54 % hit rate).
+The follow-ups under Consequences (cached saved-report results, covering or trigram indexes) are the levers for small
+hosts as well; QUESTIONS 41 lists the options.

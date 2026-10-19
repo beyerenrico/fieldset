@@ -37,7 +37,7 @@ it('shows SMTP mail with its server as an active outbound contact and the SMTP s
 
     $contacts = collect($json['data']['outbound_contacts']['features'])->keyBy('feature');
     expect($code)->toBe(0)
-        ->and($json['data']['settings']['mail'])->toMatchArray(['mode' => 'smtp', 'catcher_url' => null, 'smtp' => ['host' => 'smtp.example.com', 'port' => 465, 'scheme' => 'smtps']])
+        ->and($json['data']['settings']['mail'])->toMatchArray(['mode' => 'smtp', 'catcher_url' => null, 'smtp' => ['host' => 'smtp.example.com', 'port' => 465, 'scheme' => 'smtps', 'encryption' => 'tls']])
         ->and($json['data']['settings']['mail_ui_port'])->toBeNull()
         ->and($json['data']['secrets'])->toMatchArray(['smtp_username' => '[redacted]', 'smtp_password' => '[redacted]'])
         ->and(json_encode($json))->not->toContain('smtp-secret-value')

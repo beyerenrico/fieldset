@@ -9,6 +9,7 @@ use App\Domain\Instance\Compose\Services\EdgeService;
 use App\Domain\Instance\Compose\Services\GotenbergService;
 use App\Domain\Instance\Compose\Services\MailpitService;
 use App\Domain\Instance\Compose\Services\PostgresService;
+use App\Domain\Instance\Compose\Services\TunnelService;
 use App\Domain\Instance\Compose\Services\ValkeyService;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Output\ExitCode;
@@ -23,8 +24,8 @@ use App\Domain\Instance\State\RuntimeWriter;
  * contributes services; the renderer adds what every service gets (labels, memory limit, env file, log cap,
  * restart policy), declares and labels volumes and networks, and checks the result (ComposeGuard).
  *
- * Extension points for later units: add a definition to `defaultDefinitions()` (tunnel with `restart: "no"` U14,
- * backup with `ServiceEnvironments::backup()` U16), or branch on the mode inside a definition (proxy ports and
+ * Extension points for later units: add a definition to `defaultDefinitions()` (backup with
+ * `ServiceEnvironments::backup()` U16; the quick tunnel with `restart: "no"` joined in U14), or branch on the mode inside a definition (proxy ports and
  * external network, U9). Lift the mode check in `render()` with the unit that renders that mode. Domain mode (U8)
  * adds EdgeService with its own network and fixed address; definitions may also contribute instance-directory
  * files (the edge's Caddyfile), which `write()` puts next to the compose file.
@@ -51,7 +52,7 @@ final readonly class ComposeRenderer
     /** @return list<ServiceDefinition> */
     public static function defaultDefinitions(): array
     {
-        return [new AppRoles, new PostgresService, new ValkeyService, new GotenbergService, new MailpitService, new EdgeService];
+        return [new AppRoles, new PostgresService, new ValkeyService, new GotenbergService, new MailpitService, new EdgeService, new TunnelService];
     }
 
     /** @param  bool  $emulated  the images run emulated: memory limits doubled (RenderContext) */

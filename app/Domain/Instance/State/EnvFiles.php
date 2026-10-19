@@ -11,8 +11,10 @@ use SensitiveParameter;
 /**
  * Per-service env files (KTD7): `env/<service>.env`, mode 0600 in a 0700 directory, each holding only the keys
  * its service needs. They are the only place secrets live. The format is Compose's env_file syntax: values are
- * single-quoted (literal, no interpolation); a value containing a single quote is double-quoted with `\\`, `\"`
- * and `\$` escaped (verified against Compose 5.0, LEARNINGS).
+ * single-quoted (literal, no interpolation); a value containing a single quote, or ending in a backslash (Compose reads
+ * `\'` inside single quotes as an escaped quote, so `A='x\'` runs on into the next line), is double-quoted with `\\`,
+ * `\"` and `\$` escaped (verified against Compose 5.0.2, LEARNINGS 79). Lines end with LF (CRLF is read too): any
+ * other byte, the 0x85 of UTF-8 Å, х or ą and other control characters included, is part of the value (M11 gate).
  */
 final readonly class EnvFiles
 {
@@ -101,7 +103,7 @@ final readonly class EnvFiles
             if (preg_match('/[\r\n\0]/', $value) === 1) {
                 throw new InstanceException("The value of {$key} contains a line break or NUL byte.", ExitCode::InvalidInput, 'invalid_env_value');
             }
-            $lines[] = $key.'='.(str_contains($value, "'")
+            $lines[] = $key.'='.(str_contains($value, "'") || str_ends_with($value, '\\')
                 ? '"'.str_replace(['\\', '"', '$'], ['\\\\', '\\"', '\\$'], $value).'"'
                 : "'".$value."'");
         }
@@ -113,7 +115,7 @@ final readonly class EnvFiles
     public static function decode(#[SensitiveParameter] string $contents): array
     {
         $values = [];
-        foreach (preg_split('/\R/', $contents) ?: [] as $line) {
+        foreach (preg_split('/\r?\n/', $contents) ?: [] as $line) {
             if (trim($line) === '' || str_starts_with(ltrim($line), '#') || ! str_contains($line, '=')) {
                 continue;
             }

@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Console;
 
+use App\Domain\Instance\Config\Appliers\MailValues;
+use App\Domain\Instance\Config\SmtpCredentials;
 use App\Domain\Instance\Install\AcmeCaRoot;
 use App\Domain\Instance\Install\Installer;
+use App\Domain\Instance\Install\InstallMail;
 use App\Domain\Instance\Install\InstallRequest;
 use App\Domain\Instance\Install\InstallSituation;
 use App\Domain\Instance\InstanceException;
@@ -13,6 +16,8 @@ use App\Domain\Instance\Output\CommandResult;
 use App\Domain\Instance\Output\ExitCode;
 use App\Domain\Instance\Output\InvalidInput;
 use App\Domain\Instance\State\InstanceSettings;
+use App\Domain\Instance\Tunnel\InstallTunnel;
+use App\Domain\Instance\Tunnel\TunnelOperation;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 
@@ -21,7 +26,11 @@ use Illuminate\Console\Attributes\Signature;
  * release install.sh verified, in local mode, in domain mode (--domain: the edge with automatic HTTPS, after the DNS
  * preflight, AE5) or in proxy mode (--behind-proxy); resumes a half-finished install, and changes nothing on a
  * finished one. A new install needs --org and --owner-email: prompted in a terminal, exit 2 (`input_required`)
- * without one or under --yes/--json; exit 6 stays reserved for confirmations (§7). Flags of later pre-releases are
+ * without one or under --yes/--json; exit 6 stays reserved for confirmations (§7). --demo adds the demo data after the
+ * stack started (ADR 0081). --phone-https local-ca serves https://<LAN address> through the edge with the instance's
+ * own CA; --phone-https tunnel starts the quick tunnel once the install finished (ADR 0082). --smtp-host and the other
+ * SMTP flags install straight into SMTP mode, without the mail catcher (InstallMail, ADR 0080 amendment): the password
+ * comes from --password-file or --password-stdin (SmtpInput), never from a flag value. Flags of later pre-releases are
  * recognised and refused with exit 2.
  */
 #[Description('Create and start an instance (local, domain or proxy mode), or resume an unfinished install')]
@@ -41,8 +50,17 @@ use Illuminate\Console\Attributes\Signature;
         {--url= : Public URL your proxy serves in proxy mode, e.g. https://forms.example.com}
         {--proxy-network= : Docker network shared with the proxy (--behind-proxy traefik or caddy); only the app joins it}
         {--trusted-proxy= : The proxy container (name or ID) or its address on that network; default: found by its image}
-        {--phone-https= : Phone HTTPS via local-ca or tunnel (2.0.0-beta.1)}
-        {--demo : Demo organization and users (2.0.0-beta.1)}
+        {--phone-https= : Local mode: HTTPS for phones with local-ca (the instance\'s own CA on the LAN address) or tunnel (a quick tunnel through Cloudflare, 4 hours)}
+        {--lan-address= : --phone-https local-ca: the IPv4 LAN address to serve (default: the best address the host reports)}
+        {--demo : Add the demo organization, forms, workflow and users (random passwords, listed once, unless loopback-only)}
+        {--smtp-host= : Deliver mail through this SMTP server from the start instead of capturing it (no mail catcher)}
+        {--smtp-port= : The SMTP server\'s port (default 587; 465 with --smtp-encryption tls, 25 with none)}
+        {--smtp-encryption= : starttls (required, the default), tls (implicit TLS) or none (a relay without TLS)}
+        {--smtp-username= : The SMTP account; its password from --password-file or --password-stdin}
+        {--password-file= : Read the SMTP password from this file (mode 0600)}
+        {--password-stdin : Read the SMTP password from stdin (a hidden prompt in a terminal; install.sh: terminal only)}
+        {--from-address= : The sender address of instance mail (default forms@<domain>, else forms@localhost)}
+        {--from-name= : The sender name of instance mail}
         {--encrypt : Encrypted backups (2.0.0-rc.1)}
         {--from-backup= : Create the instance from a backup (2.0.0-rc.1)}
         {--open : Open the owner sign-in link in the browser of a desktop session instead of printing it}')]
@@ -50,8 +68,7 @@ final class InstallCommand extends FsaCommand
 {
     /** Option => the pre-release that brings it. */
     private const array LATER = [
-        'phone-https' => '2.0.0-beta.1',
-        'demo' => '2.0.0-beta.1', 'encrypt' => '2.0.0-rc.1', 'from-backup' => '2.0.0-rc.1',
+        'encrypt' => '2.0.0-rc.1', 'from-backup' => '2.0.0-rc.1',
     ];
 
     private const array PROMPTS = ['organization' => 'Organization name', 'owner_email' => 'Owner e-mail'];
@@ -65,12 +82,23 @@ final class InstallCommand extends FsaCommand
     {
         $this->refuseLaterOptions();
         $request = $this->withAcmeOptions(InstallRequest::fromOptions($this->options()));
+        $request = $this->option('demo') === true ? $request->withDemo() : $request;
+        $smtp = SmtpInput::fromCommand($this, $context);
+        InstallMail::assertFlags($request->explicit(), $smtp->usernameGiven(), $smtp->passwordSource());
         $installer = $this->laravel->make(Installer::class);
         if ($installer->situation() === InstallSituation::Fresh) {
             $request = $this->askMissing($request, $context);
         }
+        $account = MailValues::credentials($smtp->usernameGiven(), $smtp->credentials($context));
+        $request = $account instanceof SmtpCredentials ? $request->withSmtpCredentials($account) : $request;
 
-        return $installer->install($request, $context, is_string($this->option('secrets-file')) && $this->option('secrets-file') !== '');
+        $toFile = is_string($this->option('secrets-file')) && $this->option('secrets-file') !== '';
+        $tunnel = $installer->effective($request)->phoneHttps() === 'tunnel'; // also on a resume without the flag
+        $result = $installer->install($request, $context, $toFile);
+
+        return $tunnel && $result->exitCode === ExitCode::Success && $result->changed
+            ? InstallTunnel::start($result, $this->laravel->make(TunnelOperation::class), $context, $toFile)
+            : $result;
     }
 
     private function refuseLaterOptions(): void

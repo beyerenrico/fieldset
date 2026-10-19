@@ -44,4 +44,8 @@ return [
         'offer_body' => 'Protect your account with two-factor authentication (MFA): set up an authenticator app on this page.',
         'expired' => 'The sign-in link has expired. Ask for a new one with fsa login-link <email>.',
     ],
+    'operator' => [
+        'ready_title' => 'Your password is set',
+        'ready_body' => 'You are a platform operator without an organization: sign in to the operator panel, which asks you to set up two-factor authentication (MFA) first.',
+    ],
 ];

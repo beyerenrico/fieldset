@@ -10,7 +10,8 @@ use App\Domain\Instance\State\InstanceSettings;
  * One `fsa config set <key> <value>` (§7, R32, ADR 0077): the key, the raw value and the ACME options that only
  * `domain` and `acme-ca` take. `--acme-staging` arrives here as `acmeCa` (Let's Encrypt staging); the CA root is the
  * validated PEM of `--acme-ca-root-file`. The journal records the request without the PEM (its SHA-256 instead), so a
- * resumed run can tell "the same change" from another one.
+ * resumed run can tell "the same change" from another one. `mail` brings its SMTP flags (MailOptions, journaled) and
+ * credentials (SmtpCredentials, never journaled; ADR 0080); `operator-email` its `--revoke-previous`.
  */
 final readonly class ConfigRequest
 {
@@ -26,7 +27,16 @@ final readonly class ConfigRequest
         public ?string $acmeEmail = null,
         public ?string $acmeCa = null,
         public ?string $acmeCaRoot = null,
+        public ?MailOptions $mail = null,
+        public ?SmtpCredentials $credentials = null,
+        public bool $revokePrevious = false,
     ) {}
+
+    /** Whether any option of `config set mail` or `config set operator-email` was given. */
+    public function hasKeyOptions(): bool
+    {
+        return ($this->mail instanceof MailOptions && (! $this->mail->isEmpty() || $this->mail->testTo !== null)) || $this->credentials instanceof SmtpCredentials || $this->revokePrevious;
+    }
 
     /** Whether any ACME option was given (they belong to `domain` and `acme-ca` only). */
     public function hasAcmeOptions(): bool
@@ -39,10 +49,13 @@ final readonly class ConfigRequest
         return $this->acmeCaRoot === null ? null : hash('sha256', $this->acmeCaRoot);
     }
 
-    /** @return array{key: string, value: string, acme_email: string|null, acme_ca: string|null, acme_ca_root: string|null} */
+    /** @return array<string, mixed> key, value, ACME options and, for `mail`, its SMTP options */
     public function toContext(): array
     {
-        return ['key' => $this->key, 'value' => $this->value, 'acme_email' => $this->acmeEmail, 'acme_ca' => $this->acmeCa, 'acme_ca_root' => $this->caRootDigest()];
+        return [
+            'key' => $this->key, 'value' => $this->value, 'acme_email' => $this->acmeEmail, 'acme_ca' => $this->acmeCa, 'acme_ca_root' => $this->caRootDigest(),
+            ...($this->mail instanceof MailOptions ? ['mail' => $this->mail->toContext()] : []),
+        ];
     }
 
     /**
@@ -71,9 +84,9 @@ final readonly class ConfigRequest
         if ($key === null || $value === null) {
             return null;
         }
-        $request = new self($key, $value, $string('acme_email'), $string('acme_ca'));
+        $mail = is_array($context['mail'] ?? null) ? MailOptions::fromContext($context['mail']) : null;
 
-        return $string('acme_ca_root') === null ? $request : new self($key, $value, $request->acmeEmail, $request->acmeCa, self::ROOT_PLACEHOLDER);
+        return new self($key, $value, $string('acme_email'), $string('acme_ca'), $string('acme_ca_root') === null ? null : self::ROOT_PLACEHOLDER, $mail);
     }
 
     /**
@@ -88,15 +101,24 @@ final readonly class ConfigRequest
             '--acme-email' => $this->acmeEmail,
             ...($this->acmeCa === InstanceSettings::ACME_STAGING ? ['--acme-staging' => true] : ['--acme-ca' => $this->acmeCa]),
             '--acme-ca-root-file' => $this->acmeCaRoot === null ? null : self::ROOT_PLACEHOLDER,
+            ...($this->mail instanceof MailOptions ? $this->mail->flags() : []),
             '--yes' => true,
         ], static fn (string|bool|null $value): bool => $value !== null);
     }
 
-    /** `fsa config set <key> <value>` as a command line for hints (the CA root file is named, not inlined). */
+    /**
+     * `fsa config set <key> <value>` as a command line for hints (the CA root file is named, not inlined). Values a shell
+     * would split are single-quoted (a sender name); placeholders such as `<the same file>` stay as they are.
+     */
     public function commandLine(): string
     {
-        $flags = array_map(static fn (string $flag, string|bool $value): string => $value === true ? $flag : "{$flag} {$value}", array_keys($this->options()), $this->options());
+        $flags = array_map(static fn (string $flag, string|bool $value): string => $value === true ? $flag : $flag.' '.self::shellWord($value), array_keys($this->options()), $this->options());
 
         return "fsa config set {$this->key} {$this->value} ".implode(' ', $flags);
+    }
+
+    private static function shellWord(string $value): string
+    {
+        return preg_match('/^(?:<[a-z ]+>|[A-Za-z0-9@%+=:,.\/_-]+)$/D', $value) === 1 ? $value : "'".str_replace("'", "'\\''", $value)."'";
     }
 }

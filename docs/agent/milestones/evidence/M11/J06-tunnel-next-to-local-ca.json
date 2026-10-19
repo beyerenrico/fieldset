@@ -1,0 +1,21 @@
+{
+    "command": "fsa tunnel start --yes --json",
+    "exit_code": 2,
+    "stdout": {
+        "schema_version": 1,
+        "command": "tunnel",
+        "status": "failed",
+        "changed": false,
+        "data": [],
+        "secrets": [],
+        "warnings": [],
+        "errors": [
+            {
+                "code": "invalid_combination",
+                "message": "The quick tunnel and the local CA exclude each other (R61).",
+                "hint": "Turn the local CA off first: `fsa config set phone-https off --yes`.",
+                "retryable": false
+            }
+        ]
+    }
+}

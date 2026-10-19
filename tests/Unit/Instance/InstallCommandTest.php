@@ -42,7 +42,8 @@ it('installs a local instance phase by phase and hands out the owner link only u
         ->and($json['status'])->toBe('ok')
         ->and($json['changed'])->toBeTrue()
         ->and($json['data'])->toMatchArray(['url' => 'http://localhost:8080', 'port' => 8080, 'version' => '2.0.0-alpha.1', 'mode' => 'local', 'owner_email' => 'owner@example.com'])
-        ->and($json['data']['mail'])->toBe(['mode' => 'capture', 'catcher_url' => 'http://localhost:8025'])
+        // M11 gate: the catcher UI asks for its login, so the result says where to get it (local and proxy mode).
+        ->and($json['data']['mail'])->toBe(['mode' => 'capture', 'catcher_url' => 'http://localhost:8025', 'catcher_login_command' => 'fsa config show --catcher-login'])
         ->and($json['data']['sign_in_link'])->toBe(['expires_at' => '2026-10-18T11:00:00Z', 'delivered' => 'secrets'])
         ->and($json['secrets'])->toBe([['name' => 'sign_in_link', 'value' => InstanceCommandFixture::LINK, 'expires_at' => '2026-10-18T11:00:00Z']])
         ->and(json_encode([$json['data'], $json['warnings'], $json['errors']]))->not->toContain('owner-token')
@@ -216,7 +217,8 @@ it('exits 4 on a failed smoke test and resumes there with a fresh sign-in link',
         ->and($resumed['changed'])->toBeTrue()
         ->and($resumed['secrets'][0]['value'])->toBe(InstanceCommandFixture::ADMIN_LINK)
         ->and(array_column($since, 'method'))->not->toContain('composeUp')->not->toContain('pullImage')
-        ->and(array_values(array_map(static fn (array $call): string => $call['args']['command'][2] ?? '', array_filter($since, static fn (array $call): bool => $call['method'] === 'composeRun'))))->toBe(['identity:login-link'])
+        // the smoke test's PDF and mail one-offs run again with it (R11); nothing before the smoke phase does
+        ->and(array_values(array_map(static fn (array $call): string => $call['args']['command'][2] ?? '', array_filter($since, static fn (array $call): bool => $call['method'] === 'composeRun'))))->toBe(['instance:pdf-test', 'instance:mail-test', 'identity:login-link'])
         ->and($this->fixture->oneOffCalls('identity:login-link')[0]['command'])->toBe(['php', 'artisan', 'identity:login-link', '--actor-uid='.posix_getuid(), '--json', '--', 'owner@example.com'])
         ->and($this->fixture->directory->exists(OperationJournal::CURRENT))->toBeFalse();
 });
@@ -342,9 +344,12 @@ it('rejects a secret flag (AE9), malformed values and flags of later releases wi
     'organization with a line break' => [['--org' => "Acme\nForms"], 'invalid_flag'],
     'version' => [['--release' => 'latest'], 'invalid_flag'],
     'domain that is an IP' => [['--domain' => '203.0.113.10'], 'invalid_flag'],
-    'demo' => [['--demo' => true], 'unsupported_option'],
     'proxy setup' => [['--behind-proxy' => 'nginx'], 'invalid_flag'],
-    'phone https' => [['--phone-https' => 'tunnel'], 'unsupported_option'],
+    'phone https' => [['--phone-https' => 'carrier-pigeon'], 'invalid_flag'],
+    'lan address without the local CA' => [['--lan-address' => '192.168.1.20'], 'invalid_combination'],
+    'lan address that is loopback' => [['--phone-https' => 'local-ca', '--lan-address' => '127.0.0.1'], 'invalid_flag'],
+    'phone https in domain mode (R61)' => [['--phone-https' => 'local-ca', '--domain' => 'forms.example.com'], 'invalid_combination'],
+    'backup encryption' => [['--encrypt' => true], 'unsupported_option'],
 ]);
 
 it('refuses a manifest of another version than --version with exit 3', function (): void {

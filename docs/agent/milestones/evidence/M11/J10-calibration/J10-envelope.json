@@ -1,0 +1,111 @@
+{
+    "engine": {
+        "cpus": 10,
+        "memory_mib": 15972,
+        "architecture": "aarch64",
+        "kernel": "6.12.72-linuxkit",
+        "operating_system": "Docker Desktop",
+        "server_version": "29.2.1",
+        "cgroup": "cgroupfs v2"
+    },
+    "cpuset": "8,9",
+    "memory_limits_mib": {
+        "app": 768,
+        "edge": 64,
+        "gotenberg": 768,
+        "mailpit": 48,
+        "postgres": 256,
+        "queue": 768,
+        "redis": 80,
+        "scheduler": 384
+    },
+    "limits_sum_mib": 3136,
+    "budget": {
+        "host_mib": 2048,
+        "headroom_mib": 320,
+        "available_mib": 1728,
+        "worst_case_mib": 3264
+    },
+    "containers": {
+        "app": {
+            "id": "e512341e2e50c5bfff02680c5a02828525a695bf3b2811eb208cc9a97dbca90d",
+            "status": "running",
+            "oom_killed": false,
+            "restart_count": 0,
+            "memory_limit_mib": 768,
+            "cpuset": "8,9",
+            "nano_cpus": 0,
+            "started_at": "2026-10-18T18:21:04.498395884Z"
+        },
+        "edge": {
+            "id": "bf2f28de8f11b75f79fb855cfb33075915fee0c7b6a3e695ad1ca0b8361cd0f1",
+            "status": "running",
+            "oom_killed": false,
+            "restart_count": 0,
+            "memory_limit_mib": 64,
+            "cpuset": "8,9",
+            "nano_cpus": 0,
+            "started_at": "2026-10-18T18:21:20.14305046Z"
+        },
+        "gotenberg": {
+            "id": "29cdc2884a55b23ae2dc2eb2f2637555f8e90a10ddb52291fadc16eeb1593633",
+            "status": "running",
+            "oom_killed": false,
+            "restart_count": 0,
+            "memory_limit_mib": 768,
+            "cpuset": "8,9",
+            "nano_cpus": 0,
+            "started_at": "2026-10-18T18:21:04.1128748Z"
+        },
+        "mailpit": {
+            "id": "c2da84897d896848735d78b8ecdcd5175ab05ef8e6e6c0ce87fc24643a0535ec",
+            "status": "running",
+            "oom_killed": false,
+            "restart_count": 0,
+            "memory_limit_mib": 48,
+            "cpuset": "8,9",
+            "nano_cpus": 0,
+            "started_at": "2026-10-18T18:21:03.9848058Z"
+        },
+        "postgres": {
+            "id": "0e913519dd934a1f76ff4a37c9d8ad13ec5a4fffec33d105547ffafa5bd6524d",
+            "status": "running",
+            "oom_killed": false,
+            "restart_count": 0,
+            "memory_limit_mib": 256,
+            "cpuset": "8,9",
+            "nano_cpus": 0,
+            "started_at": "2026-10-18T18:20:53.848519837Z"
+        },
+        "queue": {
+            "id": "6c74dce0db0be22dc5465b81b9f97130f134e4006d8c400d5c0bbc250c64544d",
+            "status": "running",
+            "oom_killed": false,
+            "restart_count": 0,
+            "memory_limit_mib": 768,
+            "cpuset": "8,9",
+            "nano_cpus": 0,
+            "started_at": "2026-10-18T18:21:04.729299426Z"
+        },
+        "redis": {
+            "id": "256ae7da3b24e12b921159e24bf16b1b1b21af434bf29277291f88dde742b241",
+            "status": "running",
+            "oom_killed": false,
+            "restart_count": 0,
+            "memory_limit_mib": 80,
+            "cpuset": "8,9",
+            "nano_cpus": 0,
+            "started_at": "2026-10-18T18:20:53.716855712Z"
+        },
+        "scheduler": {
+            "id": "4e76c5879b48482cbc610d8a72abccb6804f630f30c5534a29ad6491a60e92ac",
+            "status": "running",
+            "oom_killed": false,
+            "restart_count": 0,
+            "memory_limit_mib": 384,
+            "cpuset": "8,9",
+            "nano_cpus": 0,
+            "started_at": "2026-10-18T18:21:04.620816801Z"
+        }
+    }
+}

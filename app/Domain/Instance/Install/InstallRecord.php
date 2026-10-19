@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Install;
 
+use App\Domain\Instance\Demo\DemoData;
 use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
 use Closure;
@@ -96,13 +97,21 @@ final class InstallRecord
             'domain' => $setting('domain'),
             ...array_combine(InstallRequest::ACME_FLAGS, array_map($setting, InstallRequest::ACME_FLAGS)),
             ...$proxy,
+            // installed with --demo, or the demo added later by `fsa demo` (ADR 0081)
+            'demo' => DemoData::recorded($state) ? 1 : null,
+            // phone HTTPS as it is now (`config set phone-https`, `fsa tunnel`; ADR 0082)
+            'phone_https' => $settings->phoneHttps(),
+            'lan_address' => $settings->localCa() ? $settings->lanAddress() : null,
+            // mail as it is now (`config set mail`, ADR 0080); the SMTP account is compared with the env files
+            ...InstallMail::installed($state),
         ];
     }
 
     /**
      * Compares one recorded input with an explicit flag: personal inputs through their digest; --trusted-proxy through
      * `$trusted`, which knows the trusted proxy by container name, ID prefix or address (install reports the name,
-     * `config set trusted-proxy` takes any of them, ADR 0078).
+     * `config set trusted-proxy` takes any of them, ADR 0078). `--phone-https tunnel` matches an instance with a tunnel or
+     * without phone HTTPS: the quick tunnel ends on its own after 4 hours or with `fsa tunnel stop` (ADR 0082).
      *
      * @param  (Closure(string): bool)|null  $trusted
      * @return Closure(string, string|int|null, string|int): bool true when equal
@@ -115,6 +124,9 @@ final class InstallRecord
             }
             if ($key === 'trusted_proxy' && $trusted instanceof Closure) {
                 return $trusted((string) $given);
+            }
+            if ($key === 'phone_https' && $given === 'tunnel') {
+                return in_array($recorded, [null, 'tunnel'], true);
             }
 
             return (string) $recorded === (string) $given;

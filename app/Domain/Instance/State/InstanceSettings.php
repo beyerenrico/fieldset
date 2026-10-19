@@ -23,6 +23,19 @@ final readonly class InstanceSettings
 
     public const string DEFAULT_SENDER_NAME = 'form-schema-app';
 
+    /** Setting `mail_catcher`: the catcher is kept read-only after the switch to SMTP (ADR 0080). */
+    public const string CATCHER_KEPT = 'kept';
+
+    /** Implicit TLS (`--smtp-encryption tls`, usually port 465); unset means STARTTLS, required (MAIL_REQUIRE_TLS). */
+    public const string SMTP_IMPLICIT_TLS = 'smtps';
+
+    public const int DEFAULT_SMTPS_PORT = 465;
+
+    /** Plain SMTP to a relay without TLS (`--smtp-encryption none`, usually port 25): STARTTLS is never started. */
+    public const string SMTP_PLAIN = 'smtp';
+
+    public const int DEFAULT_PLAIN_SMTP_PORT = 25;
+
     /** Let's Encrypt production: domain mode's ACME directory unless `--acme-ca` or `--acme-staging` (R16). */
     public const string ACME_PRODUCTION = 'https://acme-v02.api.letsencrypt.org/directory';
 
@@ -52,6 +65,21 @@ final readonly class InstanceSettings
     public function capturesMail(): bool
     {
         return $this->state->setting('mail', 'capture') !== 'smtp';
+    }
+
+    /**
+     * SMTP delivers, and the catcher stays with the mail it captured until `fsa config set mail smtp --remove-catcher`
+     * (KTD13, ADR 0080): read-only, its SMTP port bound to the container's loopback so nothing reaches it any more.
+     */
+    public function keepsCatcher(): bool
+    {
+        return ! $this->capturesMail() && $this->state->setting('mail_catcher') === self::CATCHER_KEPT;
+    }
+
+    /** The bundled catcher runs: in capture mode, or kept read-only after the switch to SMTP. */
+    public function runsCatcher(): bool
+    {
+        return $this->capturesMail() || $this->keepsCatcher();
     }
 
     public function size(): string
@@ -136,7 +164,7 @@ final readonly class InstanceSettings
     /** Where the catcher UI is reached (KTD13): the loopback port, `/_mail/` behind the edge in domain mode, else null. */
     public function catcherUrl(): ?string
     {
-        if (! $this->capturesMail()) {
+        if (! $this->runsCatcher()) {
             return null;
         }
         $domain = $this->domain();
@@ -174,6 +202,42 @@ final readonly class InstanceSettings
     public function trustedProxies(): array
     {
         return InputGrammar::ipList($this->string('trusted_proxies') ?? '') ?? [];
+    }
+
+    /** Phone HTTPS of a local install (ADR 0082): `local-ca`, `tunnel`, or null; never set in domain or proxy mode (R61). */
+    public function phoneHttps(): ?string
+    {
+        return $this->state->mode() === 'local' ? $this->string('phone_https') : null;
+    }
+
+    /** Local-CA mode: the edge serves https://<LAN address> with the instance's own CA (R19). */
+    public function localCa(): bool
+    {
+        return $this->phoneHttps() === 'local-ca';
+    }
+
+    /** A quick tunnel is configured (R20): its service and network are rendered. */
+    public function tunnel(): bool
+    {
+        return $this->phoneHttps() === 'tunnel';
+    }
+
+    /** The LAN address the local-CA edge binds 80/443 on and issues its certificate for. */
+    public function lanAddress(): ?string
+    {
+        return $this->string('lan_address');
+    }
+
+    /** The tunnel network's subnet: cloudflared has a fixed address in it, the only peer of tunnel requests (KTD12). */
+    public function tunnelSubnet(): ?string
+    {
+        return $this->string('tunnel_subnet');
+    }
+
+    /** Whether the edge runs: domain mode, or local mode with the local CA. */
+    public function rendersEdge(): bool
+    {
+        return $this->state->mode() === 'domain' || $this->localCa();
     }
 
     /** The app publishes its own loopback port: local mode, and proxy mode's `port` setup. */

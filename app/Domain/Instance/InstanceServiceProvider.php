@@ -5,16 +5,19 @@ declare(strict_types=1);
 namespace App\Domain\Instance;
 
 use App\Domain\Instance\Console\ConfigCommand;
+use App\Domain\Instance\Console\DemoCommand;
 use App\Domain\Instance\Console\DoctorCommand;
 use App\Domain\Instance\Console\InstallCommand;
 use App\Domain\Instance\Console\LoginLinkCommand;
 use App\Domain\Instance\Console\LogsCommand;
 use App\Domain\Instance\Console\StatusCommand;
+use App\Domain\Instance\Console\TunnelCommand;
 use App\Domain\Instance\Console\UninstallCommand;
 use App\Domain\Instance\Console\VersionCommand;
 use App\Domain\Instance\Docker\CliDockerGateway;
 use App\Domain\Instance\Docker\DockerGateway;
 use App\Domain\Instance\Docker\OpsContextRequired;
+use App\Domain\Instance\Operations\Interruption;
 use App\Domain\Instance\Release\BuildFlavor;
 use App\Domain\Instance\Release\ManifestSchema;
 use App\Domain\Instance\Release\TrustPolicy;
@@ -35,12 +38,14 @@ final class InstanceServiceProvider extends ServiceProvider
     /** @var list<class-string> */
     public const array COMMANDS = [
         InstallCommand::class, DoctorCommand::class, StatusCommand::class, LogsCommand::class,
-        VersionCommand::class, UninstallCommand::class, LoginLinkCommand::class, ConfigCommand::class,
+        VersionCommand::class, UninstallCommand::class, LoginLinkCommand::class, ConfigCommand::class, DemoCommand::class,
+        TunnelCommand::class,
     ];
 
     public function register(): void
     {
         $this->app->singleton(HostFacts::class, static fn (): HostFacts => HostFacts::fromEnvironment(getenv()));
+        $this->app->singleton(Interruption::class); // one per command: a signal of the tunnel cleanup reaches the command's guard
         $this->app->bind(DockerGateway::class, static function (Application $app): DockerGateway {
             if (! $app->bound(InstanceDirectory::class)) {
                 throw new OpsContextRequired;

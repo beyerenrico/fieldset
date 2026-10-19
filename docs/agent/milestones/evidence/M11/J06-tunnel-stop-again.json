@@ -1,0 +1,20 @@
+{
+    "command": "fsa tunnel stop --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "tunnel",
+        "status": "ok",
+        "changed": false,
+        "data": {
+            "action": "stop",
+            "url": "http://localhost:8081",
+            "mode": "local",
+            "local_url": "http://localhost:8081",
+            "tunnel": null
+        },
+        "secrets": [],
+        "warnings": [],
+        "errors": []
+    }
+}

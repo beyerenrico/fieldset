@@ -22,6 +22,9 @@ final readonly class ConfigResults
 {
     public const string COMMAND = 'config';
 
+    /** Change warnings that report the target as running ("now listens on …"): untrue once it was reverted. */
+    private const array TARGET_WARNINGS = ['port_changed', 'catcher_port_changed'];
+
     public function __construct(private InstanceDirectory $directory) {}
 
     /** @return array<string, mixed> key, values, and the URL and mode in effect */
@@ -46,16 +49,18 @@ final readonly class ConfigResults
      * @param  array<string, mixed>  $checked
      * @param  array<string, mixed>  $audit
      * @param  array<string, mixed>|null  $impact
+     * @param  array{data: array<string, mixed>, warnings: list<array{code: string, message: string, hint: string|null}>}  $completed  what the applier's completion step reports (ADR 0080)
      */
-    public function succeeded(ConfigChange $change, array $services, array $checked, array $audit, ?array $impact): CommandResult
+    public function succeeded(ConfigChange $change, array $services, array $checked, array $audit, ?array $impact, array $completed = ['data' => [], 'warnings' => []]): CommandResult
     {
         $result = CommandResult::ok(self::COMMAND, [
             ...self::data($change, $change->after), 'reverted' => false,
             'previous' => ['url' => $change->oldUrl(), 'mode' => $change->before->mode()],
             'services' => $services, 'checked' => $checked['checked'] ?? [], 'impact' => $impact, 'audited' => $audit['audited'] ?? false,
+            ...$completed['data'],
             'next_commands' => $this->nextCommands($change),
         ], changed: true);
-        foreach ($change->warnings as $warning) {
+        foreach ([...$change->warnings, ...$completed['warnings']] as $warning) {
             $result = $result->withWarning($warning['code'], $warning['message'], $warning['hint']);
         }
         foreach ([...ConfigFailure::impactWarnings($change, $impact), ...array_filter([AcmeStaging::warning($change->after, $this->fsa())])] as [$code, $message, $hint]) {
@@ -67,7 +72,8 @@ final readonly class ConfigResults
 
     /**
      * The change failed and the previous settings run again (exit 5, `rolled_back`): in this run, or, with
-     * `$resumed`, by a run that finished the revert an earlier, cut-off run had started.
+     * `$resumed`, by a run that finished the revert an earlier, cut-off run had started. The change's warnings come
+     * along (`sender_localhost` often explains a refused test mail), except those that describe the reverted target.
      *
      * @param  array{code: string, message: string, hint: string, data: array<string, mixed>}  $error
      */
@@ -80,11 +86,18 @@ final readonly class ConfigResults
             ? "An earlier `{$request->commandLine()}` failed ({$error['code']}) and was cut off while restoring the previous settings; this run finished restoring them."
             : "Changing {$change->key} failed, so the previous settings were restored: {$error['message']}";
 
-        return CommandResult::failed(self::COMMAND, ExitCode::RolledBack, $error['code'], $message, $error['hint'], $retryable, [
+        $result = CommandResult::failed(self::COMMAND, ExitCode::RolledBack, $error['code'], $message, $error['hint'], $retryable, [
             ...self::data($change, $change->before), 'reverted' => true, 'resumed_revert' => $resumed,
             'attempted' => ['url' => $change->newUrl(), 'mode' => $change->after->mode()], 'failure' => $error['data'], ...$retry,
             'command' => $request->commandLine(), 'options' => $request->options(), 'next_commands' => [$this->fsa().' status'],
         ]);
+        foreach ($change->warnings as $warning) {
+            if (! in_array($warning['code'], self::TARGET_WARNINGS, true)) {
+                $result = $result->withWarning($warning['code'], $warning['message'], $warning['hint']);
+            }
+        }
+
+        return $result;
     }
 
     /**

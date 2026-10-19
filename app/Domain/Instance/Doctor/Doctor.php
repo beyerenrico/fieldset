@@ -10,6 +10,7 @@ use App\Domain\Instance\Doctor\Checks\ClockCheck;
 use App\Domain\Instance\Doctor\Checks\DiskCheck;
 use App\Domain\Instance\Doctor\Checks\DnsCheck;
 use App\Domain\Instance\Doctor\Checks\DockerVersionCheck;
+use App\Domain\Instance\Doctor\Checks\LanAddressCheck;
 use App\Domain\Instance\Doctor\Checks\MemoryCheck;
 use App\Domain\Instance\Doctor\Checks\PathShareCheck;
 use App\Domain\Instance\Doctor\Checks\PermissionsCheck;
@@ -53,7 +54,7 @@ final readonly class Doctor
         return [
             new DockerVersionCheck, new ArchitectureCheck, new MemoryCheck, new DiskCheck, new PathShareCheck,
             new PermissionsCheck, new StaleFilesCheck, new DnsCheck, new RegistryCheck, new ClockCheck,
-            new PortsCheck($this->ports), new ProxyAddressCheck, ...($context->post ? [new ServicesCheck] : []),
+            new PortsCheck($this->ports), new ProxyAddressCheck, new LanAddressCheck, ...($context->post ? [new ServicesCheck] : []),
         ];
     }
 }

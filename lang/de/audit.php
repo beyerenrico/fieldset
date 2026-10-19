@@ -312,6 +312,8 @@ return [
         ],
         'instance' => [
             'config_changed' => 'Instanzeinstellung geändert',
+            'demo_seeded' => 'Demodaten angelegt',
+            'demo_password_rotated' => 'Passwort eines Demo-Benutzers erneuert',
         ],
         'login_link' => [
             'issued' => 'Einmal-Anmeldelink ausgestellt',

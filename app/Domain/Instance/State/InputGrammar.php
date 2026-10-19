@@ -21,6 +21,9 @@ final class InputGrammar
     /** Proxy mode's setups (R17, ADR 0076): Traefik or caddy-docker-proxy labels on a shared network, or a loopback port. */
     public const array PROXIES = ['traefik', 'caddy', 'port'];
 
+    /** Phone HTTPS on a local install (E11, R19, R20, ADR 0082): the instance's own CA, or the quick tunnel. */
+    public const array PHONE_HTTPS = ['local-ca', 'tunnel'];
+
     /** A Docker network or container name, as the daemon accepts it. */
     public const string DOCKER_NAME = '/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/D';
 
@@ -47,13 +50,19 @@ final class InputGrammar
     private const array SETTINGS = [
         'port' => 'port', 'mail_ui_port' => 'port', 'smtp_port' => 'port',
         'domain' => 'host', 'smtp_host' => 'host', 'lan_address' => 'ip', 'extra_hosts' => 'host_list',
-        'mail' => ['capture', 'smtp'], 'smtp_scheme' => ['smtp', 'smtps'], 'size' => ResourceBudget::SIZES,
+        'mail' => ['capture', 'smtp'], 'smtp_scheme' => ['smtp', 'smtps'], 'mail_catcher' => ['kept'], 'size' => ResourceBudget::SIZES,
         'db_database' => 'identifier', 'db_username' => 'identifier',
         'mail_from_address' => 'email', 'mail_from_name' => 'text',
         // Domain mode (U8, ADR 0075): ACME contact and directory, the SHA-256 of the custom ACME CA root the edge
         // trusts (edge/acme-ca-root.pem), and the edge network's private IPv4 subnet.
         'acme_email' => 'email', 'acme_ca' => 'https_url', 'acme_ca_root' => 'sha256', 'edge_subnet' => 'subnet',
         'proxy' => self::PROXIES, 'proxy_network' => 'docker_name', 'proxy_container' => 'docker_name', 'trusted_proxies' => 'ip_list',
+        // Phone HTTPS (U14, ADR 0082): local CA on `lan_address` (the edge network) or the quick tunnel on its own network.
+        // `phone_https` stays plain text, so a value of a newer version reads (ADR 0081: it still counts as exposure);
+        // only `local-ca` and `tunnel` render anything (InstanceSettings), and the flags accept only those (PHONE_HTTPS).
+        'phone_https' => 'text', 'tunnel_subnet' => 'subnet',
+        // A local-CA deletion that failed on `phone-https off` and is retried (LocalCaDeletion, M11 gate).
+        'local_ca_delete' => ['pending'],
     ];
 
     private const array PROBLEMS = [

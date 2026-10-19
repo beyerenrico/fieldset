@@ -38,8 +38,9 @@ test.describe.serial('platform operator panel', () => {
     await page.screenshot({ path: evidence('platform-00-mfa-set-up') });
     await continueAfterSetUp(page);
 
-    await page.goto('/platform/organizations');
-    // The slug cell, exactly: "sso-demo" and "saml-demo" contain "demo" too.
+    // Searched: the list is paged and newest first, and every onboarding run adds an organization, so "demo" leaves
+    // page 1. The slug cell, exactly: "sso-demo" and "saml-demo" contain "demo" too.
+    await page.goto('/platform/organizations?search=demo');
     const demo = page.getByRole('row').filter({ has: page.getByRole('cell', { name: 'demo', exact: true }) });
     await expect(demo).toBeVisible();
     await page.screenshot({ path: evidence('platform-01-organizations'), fullPage: true });
@@ -50,7 +51,7 @@ test.describe.serial('platform operator panel', () => {
     }
     await page.screenshot({ path: evidence('platform-02-health'), fullPage: true });
 
-    await page.goto('/platform/organizations');
+    await page.goto('/platform/organizations?search=demo');
     await demo.getByRole('link', { name: /^\s*(members|mitglieder)\s*$/i }).click();
     await expect(page).toHaveURL(/\/members/);
     await page.waitForLoadState('networkidle'); // typing before Livewire hydrated loses the input

@@ -20,6 +20,8 @@ test('designer previews an unsaved change in the phone frame, then publishes', a
     .click();
   // New forms open in the canvas builder (ADR 0044); this journey covers the classic builder, so it switches.
   await expect(page).toHaveURL(/\/forms\/\d+\/canvas/, { timeout: 30_000 });
+  // A click before the builder is ready is lost (the toolbar is wired up by its script).
+  await expect(page.locator('[data-builder-root]')).toHaveAttribute('data-builder-ready', '', { timeout: 15_000 });
   await page.locator('[data-builder-toolbar="classic"]').click();
   await expect(page).toHaveURL(/\/forms\/\d+\/edit/, { timeout: 30_000 }); // the builder page is heavy (QUESTIONS #8)
 
@@ -55,9 +57,13 @@ test('designer imports a fillable PDF as a draft form', async ({ page }) => {
   await page.goto('/admin/demo/forms');
   await page.getByRole('button', { name: /aus pdf importieren|import from pdf/i }).click();
   const dialog = page.getByRole('dialog');
-  await dialog.locator('input[type="file"]').setInputFiles('tests/Fixtures/pdf/service-sheet.pdf');
+  // A file set before FilePond has wrapped the input is lost: wait for its root and use the input inside it.
+  const pond = dialog.locator('.filepond--root');
+  await expect(pond).toBeVisible({ timeout: 20_000 });
+  await pond.locator('input[type="file"]').setInputFiles('tests/Fixtures/pdf/service-sheet.pdf');
   await dialog.getByRole('textbox').last().fill('PDF-Servicebogen E2E');
-  await expect(dialog.getByText(/upload complete|hochgeladen|abgeschlossen/i).first()).toBeVisible({
+  // FilePond's final label: "Datei wird hochgeladen…" (still uploading) must not match.
+  await expect(dialog.getByText(/^(upload complete|upload abgeschlossen)$/i).first()).toBeVisible({
     timeout: 20_000,
   });
   await page.screenshot({ path: evidence('20-pdf-import-dialog'), fullPage: true });
@@ -65,7 +71,7 @@ test('designer imports a fillable PDF as a draft form', async ({ page }) => {
     .getByRole('button', { name: /submit|absenden|importieren|import/i })
     .last()
     .click();
-  await expect(page.getByText(/PDF-Import gestartet|PDF import started/).first()).toBeVisible();
+  await expect(page.getByText(/PDF-Import gestartet|PDF import started/).first()).toBeVisible({ timeout: 20_000 });
 
   // The queue worker creates the draft; poll the list.
   await expect(async () => {

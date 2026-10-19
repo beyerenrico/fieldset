@@ -89,6 +89,23 @@ final readonly class OneOffResult
         return ['value' => $secret['value'], 'expires_at' => $expires];
     }
 
+    /**
+     * Every secret whose name starts with `$prefix` (demo passwords: `demo_password:<email>`), by the rest of its name.
+     *
+     * @return array<string, string>
+     */
+    public function secretsWithPrefix(string $prefix): array
+    {
+        $found = [];
+        foreach ($this->secrets as $secret) {
+            if (str_starts_with($secret['name'], $prefix) && strlen($secret['name']) > strlen($prefix)) {
+                $found[substr($secret['name'], strlen($prefix))] = $secret['value'];
+            }
+        }
+
+        return $found;
+    }
+
     /** @return array<string, string> */
     public function __debugInfo(): array
     {

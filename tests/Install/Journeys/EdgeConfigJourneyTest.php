@@ -10,6 +10,7 @@ use Symfony\Component\Process\Process;
 use Tests\Support\Docker\TestImage;
 use Tests\Support\Instance\ComposeFixtures;
 use Tests\Support\Instance\DomainFixtures;
+use Tests\Support\Instance\PhoneFixtures;
 use Tests\Support\Instance\TemporaryInstance;
 
 /*
@@ -114,3 +115,21 @@ it('strips X-Forwarded-Port towards the app and the operator\'s cookies towards 
         ->and($deletes['app:8080'] ?? [])->each->toContain('X-Forwarded-Port')
         ->and($deletes['mailpit:8025'] ?? [])->toBe([['Cookie', 'X-XSRF-TOKEN']]);
 });
+
+it('renders local-CA and tunnel projects that docker compose accepts and a local-CA Caddyfile Caddy validates (ADR 0082)', function (string $kind): void {
+    $directory = TemporaryInstance::directory();
+    $state = $kind === 'local-ca' ? PhoneFixtures::localCa() : PhoneFixtures::tunnel();
+    (new ComposeRenderer)->write($directory, $state, ComposeFixtures::secrets());
+    $root = $directory->root;
+    $config = new Process(['docker', 'compose', '--project-name', 'fsa-test-'.bin2hex(random_bytes(4)), '--file', $root.'/compose.yaml', '--project-directory', $root, 'config', '--format', 'json'],
+        $root, ['COMPOSE_DISABLE_ENV_FILE' => '1', 'COMPOSE_FILE' => false, 'COMPOSE_PROJECT_NAME' => false, 'COMPOSE_PROFILES' => false]);
+    $config->setTimeout(120)->run();
+    $services = json_decode($config->getOutput(), true)['services'] ?? [];
+    $validate = $kind !== 'local-ca' ? null : new Process(['docker', 'run', '--rm', '--user', '65532:65532', '--read-only', '--tmpfs', '/tmp', '--tmpfs', '/data/caddy', '--tmpfs', '/config/caddy',
+        '--volume', $root.'/edge:/etc/caddy:ro', caddyImage(), 'caddy', 'validate', '--config', '/etc/caddy/Caddyfile', '--adapter', 'caddyfile']);
+    $validate?->setTimeout(300)->run();
+
+    expect($config->getExitCode())->toBe(0, $config->getErrorOutput())
+        ->and($kind === 'local-ca' ? ($services['edge']['ports'][0]['host_ip'] ?? null) : ($services['tunnel']['restart'] ?? null))->toBe($kind === 'local-ca' ? PhoneFixtures::LAN : 'no')
+        ->and(! $validate instanceof Process || str_contains($validate->getOutput().$validate->getErrorOutput(), 'Valid configuration'))->toBeTrue((string) $validate?->getErrorOutput());
+})->with(['local-ca', 'tunnel']);

@@ -2,7 +2,8 @@
 - Status: accepted; amended 2026-10-18 at the M9 gate (sign-in link hand-over policy, exit 2 for missing input;
   private HOME, reserved paths, command position, terminal and `--json` rules, launcher error codes, `--yes`,
   link fallback, the image's `fsa` wrapper, the `DOCKER_DEFAULT_PLATFORM` pass-through); amended 2026-10-18 at the
-  M10 gate by ADR 0079 (a value flag before the command keeps its value)
+  M10 gate by ADR 0079 (a value flag before the command keeps its value); amended 2026-10-18 by ADR 0080, ADR 0081
+  and ADR 0082 (command and value-flag lists, `FSA_TEST_TUNNEL`)
 - Date: 2026-10-18
 
 ## Context
@@ -234,3 +235,40 @@ opens, never to stdout or stderr. Otherwise the 0600 file stays, and a warning n
 - U18 swaps `<dir>/fsa` from the new image only after commit; the shim keeps reading the state.
 - The bootstrap journey (`tests/Install/Journeys/BootstrapJourneyTest.php`) needs the harness build (minutes on
   the first run) and runs the ops container through a probe until U5's commands exist.
+
+## Amendment 2026-10-18: launcher lists and the tunnel harness variable (ADR 0080, ADR 0081, ADR 0082)
+- The image wrapper's command list (`commands` in `docker/app/fsa`) gains `demo` (ADR 0081) and `tunnel` (ADR 0082).
+- The value-flag lists of the wrapper (`value_flags`) and the shim (`fsa_value_flags`) gain `--from-address
+  --from-name --password-file --smtp-encryption --smtp-host --smtp-port --smtp-username --test-to` (ADR 0080) and
+  `--lan-address` (ADR 0082; `--phone-https` was listed since ADR 0079). `--password-file` is an input file flag, so
+  its directory is mounted read-only. ImageContractTest and ShimScriptTest keep the lists in step as before.
+- Host facts gain `FSA_TEST_TUNNEL` (`image=<fsa-test-…>[;ttl=<10–14400>]`): passed through by `fsa_run` when set,
+  like `FSA_TEST_DNS`, and honoured only by release-harness images (`HarnessTunnel`), which then run the journey's
+  fake tunnel instead of cloudflared and may shorten its 4-hour lifetime.
+- `FSA_LAN_ADDRESSES` also gives the local CA its default LAN address (`LanAddress::best`: the first private IPv4,
+  else the first usable one) and feeds the doctor's `lan_address` check.
+
+## Amendment 2026-10-18: install --smtp-* flags through the launchers
+`fsa install` takes the SMTP flags of `fsa config set mail smtp` (ADR 0080 amendment).
+- **Flag lists unchanged.** The value-flag lists of `docker/app/fsa` (`value_flags`) and `distribution/shim.sh`
+  (`fsa_value_flags`) already hold `--smtp-host --smtp-port --smtp-encryption --smtp-username --from-address
+  --from-name --password-file` since U12; ImageContractTest and ShimScriptTest derive the expected list from the
+  registered commands and still pass. install.sh passes these flags on unchanged; `--password-file` is an input
+  file-path flag (`--…-file`), so `fsa_run` makes it absolute and mounts its parent read-only for both launchers.
+- **`--password-stdin` under install.sh.** install.sh never passes its own stdin on: with `curl … | sh` it is the
+  script itself (ADR 0070: no stdin, or `/dev/tty` as the container's stdin when the container gets `-it`). So
+  install.sh now reads `--password-stdin` (and passes it on) and, among its no-network input checks, refuses it with
+  exit 2 `password_stdin_unavailable` unless the container will get the terminal: stdout a terminal, `/dev/tty`
+  opens, no `--json` (`fsa_install_stdin_ok`, the same conditions as the shim's `fsa_wants_tty` for install.sh). Then
+  fsa reads the password with its hidden prompt from `/dev/tty`. The hint names `--password-file=<path>`. The ops
+  container applies the same rule (`SmtpInput`: `FSA_LAUNCHER=install.sh` and `FSA_TTY` not 1), so a launcher that
+  skipped the check still cannot read a script as a password. The shim is unchanged: it passes piped stdin with `-i`,
+  so `printf %s "$PASS" | <dir>/fsa install … --password-stdin` works for a resume or repeat. Rejected: detecting
+  whether install.sh's stdin is the script (a pipe from curl and a pipe from printf look alike).
+
+## Amendment 2026-10-19: emulation doubles the measured limits (U15, ADR 0083)
+The doubled memory limits under emulation (`RenderContext::EMULATION_MEMORY_FACTOR`, 2) apply to ADR 0083's measured
+`small` budget as they did to the estimates: every limit, e.g. app 768, queue 800, scheduler 416, Postgres 320 MiB.
+Mailpit keeps 48 MiB on `small` although it needs about 10 MiB natively, so its emulated limit stays 96 MiB: amd64
+Mailpit under emulation needs about 60 MiB plus its health check (the 57 MiB above). ADR 0083 did not measure under
+emulation; the M11 gate's emulated journeys run with these doubled limits.

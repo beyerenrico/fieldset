@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Instance\Install;
 
 use App\Domain\Instance\Compose\ComposeRenderer;
+use App\Domain\Instance\Config\SmtpCredentials;
 use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\Docker\ContainerInfo;
 use App\Domain\Instance\Docker\DockerCommandFailed;
@@ -66,9 +67,11 @@ final readonly class InstanceStack
 
     /**
      * @param  array<string, mixed>  $preflight  the doctor phase's data
+     * @param  SmtpCredentials|null  $smtp  the account of `--smtp-username` (ADR 0080 amendment): rendered into the app
+     *                                      roles' env files only, as `fsa config set mail smtp` stores it
      * @return array{project: string, services: list<string>}
      */
-    public function writeState(array $preflight, HostFacts $facts): array
+    public function writeState(array $preflight, HostFacts $facts, ?SmtpCredentials $smtp = null): array
     {
         $uuid = (string) $preflight['uuid'];
         $state = $this->directory->hasState()
@@ -84,9 +87,10 @@ final readonly class InstanceStack
         if ($ports !== []) { // loopback ports (not domain mode; on a shared proxy network only the catcher UI's)
             $state = $state->withSettings($ports);
         }
-        $state = InstallMode::apply(ProxySetup::apply($state, $preflight), $preflight);
+        $state = InstallMail::apply(InstallMode::apply(ProxySetup::apply($state, $preflight), $preflight), $preflight);
         $this->directory->saveState($state);
-        $rendered = $this->renderer->write($this->directory, $state, $this->secrets(), ($preflight['emulated'] ?? false) === true);
+        $secrets = $smtp instanceof SmtpCredentials ? $this->secrets()->withSmtpCredentials($smtp->username, $smtp->password) : $this->secrets();
+        $rendered = $this->renderer->write($this->directory, $state, $secrets, ($preflight['emulated'] ?? false) === true);
         $this->docker->composeConfig(ComposeProject::forInstance($state, $this->directory));
 
         return ['project' => $state->project(), 'services' => $rendered->services()];

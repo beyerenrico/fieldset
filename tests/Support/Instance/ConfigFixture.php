@@ -191,6 +191,9 @@ final class ConfigFixture
         if ($spec->entrypoint !== 'curl') {
             return null;
         }
+        if (InstanceCommandFixture::catcherLookup($spec) instanceof ProcessOutcome) {
+            return InstanceCommandFixture::catcherLookup($spec); // the install smoke test's test mail (InstallSmoke)
+        }
         $urls = array_values(array_filter($spec->command, static fn (string $arg): bool => str_starts_with($arg, 'http://') || str_starts_with($arg, 'https://')));
         $this->curls = [...$this->curls, ...$urls];
         $last = $urls[array_key_last($urls)] ?? '';
