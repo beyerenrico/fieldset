@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Backup;
 
+use App\Domain\Platform\Instance\BackupSlot;
 use Carbon\CarbonImmutable;
 use DateTimeZone;
 use InvalidArgumentException;
@@ -63,17 +64,13 @@ final readonly class BackupSchedule
     /** The most recent slot at or before `$now` (UTC). */
     public function slotBefore(CarbonImmutable $now): CarbonImmutable
     {
-        $slot = $this->slotOn($now);
-
-        return $slot->greaterThan($now) ? $this->slotOn($now->setTimezone($this->zone)->subDay()) : $slot;
+        return BackupSlot::before((string) $this->time, $this->zone, $now);
     }
 
     /** The first slot after `$now` (UTC). */
     public function slotAfter(CarbonImmutable $now): CarbonImmutable
     {
-        $slot = $this->slotOn($now);
-
-        return $slot->greaterThan($now) ? $slot : $this->slotOn($now->setTimezone($this->zone)->addDay());
+        return BackupSlot::after((string) $this->time, $this->zone, $now);
     }
 
     /**
@@ -95,12 +92,5 @@ final readonly class BackupSchedule
         $retry = $lastAttempt['at']->addSeconds($wait);
 
         return $retry->greaterThan($due) ? $retry : $due;
-    }
-
-    private function slotOn(CarbonImmutable $day): CarbonImmutable
-    {
-        [$hour, $minute] = array_map(intval(...), explode(':', (string) $this->time));
-
-        return $day->setTimezone($this->zone)->setTime($hour, $minute)->utc();
     }
 }

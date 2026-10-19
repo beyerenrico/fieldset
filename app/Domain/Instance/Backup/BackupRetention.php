@@ -11,8 +11,9 @@ namespace App\Domain\Instance\Backup;
  * - Only scheduled backups are pruned, the oldest beyond the newest `keep`; never a safety, manual or `final-…`
  *   backup, never one marked kept, never the newest complete backup of any kind.
  * - A run is skipped (scheduled) or refused (manual, safety) when the free space after its projected size would drop
- *   below the threshold: the projection is the newest backup's size plus a quarter, as databases grow; an encrypted run
- *   needs the plain set and its age file side by side for a moment, so twice that.
+ *   below the threshold: the projection is the newest backup's size plus a quarter, as databases grow, or, without any
+ *   backup, the size of the database and the storage volume; an encrypted run needs the plain set and its age file side
+ *   by side for a moment, so twice that.
  */
 final readonly class BackupRetention
 {
@@ -41,15 +42,18 @@ final readonly class BackupRetention
         return array_reverse(array_values($prune));
     }
 
-    /** @param  list<BackupEntry>  $entries */
-    public static function projectedBytes(array $entries, bool $encrypted = false): int
+    /**
+     * @param  list<BackupEntry>  $entries
+     * @param  int  $estimate  without any backup: the size of the database and the storage volume (BackupWriter)
+     */
+    public static function projectedBytes(array $entries, bool $encrypted = false, int $estimate = 0): int
     {
         $newest = null;
         foreach ($entries as $entry) {
             $newest = $newest === null || $entry->name->at > $newest->name->at ? $entry : $newest;
         }
 
-        return $newest === null ? 0 : (int) ceil($newest->bytes * 1.25 * ($encrypted ? 2 : 1));
+        return (int) ceil(($newest === null ? $estimate : $newest->bytes) * 1.25 * ($encrypted ? 2 : 1));
     }
 
     /** Whether a run of the projected size leaves at least the threshold free. */

@@ -12,13 +12,24 @@ use Carbon\CarbonInterface;
 use Illuminate\Support\Number;
 
 /**
- * Backups of an fsa instance (R39, ADR 0084), from the `backup_runs` table the backup service writes: fail when the
- * last run failed, warn when scheduled runs were skipped for more than 24 hours (BackupAlerts), ok otherwise, also
- * without any run (an instance not run by fsa has its own backup procedure). A persistent warning on /platform, so a
- * failure is visible while mail is captured; the instance page of plan U20 builds on the same data.
+ * Backups of an fsa instance (R39, ADR 0084), from the `backup_runs` table the backup service writes, as a persistent
+ * warning on /platform, so a problem is visible while mail is captured:
+ *
+ * - fail: the last backup failed, the backup service's start failed, or no backup succeeded within two hours of the
+ *   slot that was due (BackupAlerts `backup_overdue`: a service that is not running);
+ * - warn: a scheduled run was skipped for lack of disk space, scheduled runs were skipped for more than 24 hours because
+ *   an operation held the instance lock, or the instance is run by fsa and its backup service never reported;
+ * - ok otherwise, saying truthfully what the last run was (a success, a skip that is retried, none yet). An instance not
+ *   run by fsa (no runtime file) without rows has its own backup procedure. The instance page of U20 builds on the data.
  */
 final readonly class BackupCheck implements HealthCheck
 {
+    /** Alert => status, worst first. */
+    private const array SEVERITY = [
+        'backup_failed' => 'fail', 'backup_service_failed' => 'fail', 'backup_overdue' => 'fail',
+        'backup_disk_space' => 'warn', 'backup_skipped' => 'warn',
+    ];
+
     public function __construct(private BackupRuns $runs) {}
 
     public function key(): string
@@ -29,32 +40,46 @@ final readonly class BackupCheck implements HealthCheck
     public function run(): HealthResult
     {
         $summary = $this->runs->summary();
-        $last = $summary['last'];
-        if ($last === null) {
-            return HealthResult::ok($this->key(), (string) __('platform.health.backup.none'));
+        if ($summary['last'] === null && $summary['service'] === null) {
+            return config('instance.runtime_path') === null
+                ? HealthResult::ok($this->key(), (string) __('platform.health.backup.none'))
+                : HealthResult::warn($this->key(), (string) __('platform.health.backup.silent'));
         }
-        $details = $this->details($last, $summary['last_success']);
-        $codes = array_column($summary['alerts'], 'code');
-        if (in_array('backup_failed', $codes, true)) {
-            $failed = $summary['alerts'][array_search('backup_failed', $codes, true)]['run'] ?? [];
+        $details = $this->details($summary);
+        foreach (self::SEVERITY as $code => $status) {
+            $alert = array_find($summary['alerts'], static fn (array $alert): bool => $alert['code'] === $code);
+            if ($alert !== null) {
+                $message = (string) __('platform.health.backup.'.substr($code, 7), ['reason' => (string) ($alert['run']['reason'] ?? 'unknown')]);
 
-            return HealthResult::fail($this->key(), (string) __('platform.health.backup.failed', ['reason' => (string) ($failed['reason'] ?? 'unknown')]), $details);
-        }
-        if (in_array('backup_skipped', $codes, true)) {
-            return HealthResult::warn($this->key(), (string) __('platform.health.backup.skipped'), $details);
+                return $status === 'fail' ? HealthResult::fail($this->key(), $message, $details) : HealthResult::warn($this->key(), $message, $details);
+            }
         }
 
-        return HealthResult::ok($this->key(), __('platform.health.backup.ok').' '.__('platform.health.backup.on_host'), $details);
+        return HealthResult::ok($this->key(), $this->quietSummary($summary['last']), $details);
+    }
+
+    /** @param  array<string, mixed>|null  $last */
+    private function quietSummary(?array $last): string
+    {
+        return match ($last['status'] ?? null) {
+            'succeeded' => __('platform.health.backup.ok').' '.__('platform.health.backup.on_host'),
+            'skipped' => (string) __('platform.health.backup.retrying'),
+            null => (string) __('platform.health.backup.waiting'),
+            default => (string) __('platform.health.backup.ok'),
+        };
     }
 
     /**
-     * @param  array<string, mixed>  $last
-     * @param  array<string, mixed>|null  $success
+     * @param  array{last: array<string, mixed>|null, last_success: array<string, mixed>|null, next_run: string|null}  $summary
      * @return array<string, string|int|CarbonInterface>
      */
-    private function details(array $last, ?array $success): array
+    private function details(array $summary): array
     {
-        $details = [(string) __('platform.health.backup.last_run') => CarbonImmutable::parse((string) $last['started_at'])];
+        $details = [];
+        if ($summary['last'] !== null) {
+            $details[(string) __('platform.health.backup.last_run')] = CarbonImmutable::parse((string) $summary['last']['started_at']);
+        }
+        $success = $summary['last_success'];
         if ($success !== null) {
             $details[(string) __('platform.health.backup.last_success')] = CarbonImmutable::parse((string) $success['started_at']);
             $details[(string) __('platform.health.backup.encrypted')] = (string) __($success['encrypted'] === true ? 'platform.health.backup.yes' : 'platform.health.backup.no');
@@ -64,6 +89,9 @@ final readonly class BackupCheck implements HealthCheck
             if (($success['missing_files'] ?? 0) > 0) {
                 $details[(string) __('platform.health.backup.missing_files')] = (int) $success['missing_files'];
             }
+        }
+        if ($summary['next_run'] !== null) {
+            $details[(string) __('platform.health.backup.next_run')] = CarbonImmutable::parse($summary['next_run']);
         }
 
         return $details;

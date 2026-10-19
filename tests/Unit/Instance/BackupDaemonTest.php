@@ -18,6 +18,7 @@ use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Operations\InstanceLock;
 use App\Domain\Instance\Operations\LockHolder;
 use App\Domain\Instance\State\InstanceDirectory;
+use App\Domain\Platform\Instance\BackupAlerts;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -165,18 +166,22 @@ it('releases the lock its own container took before a restart, and stops when to
     expect($lock->current())->toBeNull()->and($this->sleeps)->toBe([BackupDaemon::TICK_SECONDS, BackupDaemon::TICK_SECONDS]);
 });
 
-it('records the holder of a socket-less service by container ID and init start, which fsa never judges by Docker\'s start time', function (): void {
+it('records the holder of a socket-less service by container ID, boot and init start, which fsa never judges by Docker\'s start time', function (): void {
     $dir = $this->directory->root;
     file_put_contents($dir.'/mountinfo', '123 1 0:1 /var/lib/docker/containers/'.str_repeat('d', 64)."/hostname /etc/hostname rw - ext4 /dev/vda1 rw\n");
     file_put_contents($dir.'/stat', '1 (php (daemon)) S 0 1 1 0 -1 4194560 3000 0 0 0 20 5 0 0 20 0 1 0 987654 1000 200');
-    $holder = new ServiceIdentity($dir.'/mountinfo', $dir.'/stat', 'host')->holder();
-    $fallback = new ServiceIdentity($dir.'/none', $dir.'/none', 'abcdef012345')->holder();
-    $outside = new ServiceIdentity($dir.'/none', $dir.'/none', 'laptop')->holder();
+    file_put_contents($dir.'/boot_id', "6F1E3C1A-2B4D-4E5F-8A9B-0C1D2E3F4A5B\n");
+    $holder = new ServiceIdentity($dir.'/mountinfo', $dir.'/stat', 'host', $dir.'/boot_id')->holder();
+    $noBoot = new ServiceIdentity($dir.'/mountinfo', $dir.'/stat', 'host', $dir.'/none')->holder();
+    $fallback = new ServiceIdentity($dir.'/none', $dir.'/none', 'abcdef012345', $dir.'/boot_id')->holder();
+    $outside = new ServiceIdentity($dir.'/none', $dir.'/none', 'laptop', $dir.'/boot_id')->holder();
     $docker = new RecordingDockerGateway;
     $lock = new InstanceLock($this->directory, $docker);
     $record = $lock->acquire($holder, 'backup')->record;
 
-    expect([$holder->owner, $holder->containerId, $holder->containerStartedAt, $holder->hostUid])->toBe([ServiceIdentity::OWNER, str_repeat('d', 64), 'proc:987654', null])
+    // the boot ID makes the init start unique across host reboots too (the ticks alone can repeat after one)
+    expect([$holder->owner, $holder->containerId, $holder->containerStartedAt, $holder->hostUid])->toBe([ServiceIdentity::OWNER, str_repeat('d', 64), 'proc:6f1e3c1a-2b4d-4e5f-8a9b-0c1d2e3f4a5b:987654', null])
+        ->and($noBoot->containerStartedAt)->toBe('proc:987654')
         ->and([$fallback->containerId, $fallback->containerStartedAt])->toBe(['abcdef012345', null])
         ->and([$outside->containerId, $outside->containerStartedAt])->toBe([null, null])
         ->and($record->startUnknownToDocker())->toBeTrue()
@@ -185,6 +190,88 @@ it('records the holder of a socket-less service by container ID and init start, 
     expect($lock->isStale($record))->toBeFalse(); // running: its own start time is not Docker's, and that is fine
     $docker->stopContainer(str_repeat('d', 64));
     expect($lock->isStale($record))->toBeTrue();
+});
+
+it('records its start with the schedule and removes what an interrupted run left, unless an operation holds the lock', function (): void {
+    foreach (['backups/manual-20261018T120000Z.partial', 'backups/'.BackupStore::TOMBSTONE.'scheduled-20261001T033000Z-0a1b2c3d', 'backups/scheduled-20261017T033000Z'] as $left) {
+        $this->directory->ensureDirectory($left);
+        file_put_contents($this->directory->root.'/'.$left.'/secrets.env', 'APP_KEY=x');
+    }
+    $store = new BackupStore($this->directory);
+    $daemon = daemon($this, daemonConfig($this->directory, ['schedule' => 'off']));
+    $heard = [];
+
+    $daemon->loop(function () use (&$heard): bool {
+        return count($heard) > 0;
+    }, function (array $run) use (&$heard): void {
+        $heard[] = $run;
+    });
+    $ledger = new BackupRunLog($this->directory)->recent();
+
+    expect($store->partials())->toBe([])
+        ->and(array_values(array_diff(scandir($this->directory->root.'/backups') ?: [], ['.', '..', 'runs.log'])))->toBe(['scheduled-20261017T033000Z'])
+        ->and($heard[0])->toMatchArray(['kind' => BackupAlerts::SERVICE, 'status' => 'started', 'schedule' => 'off', 'time_zone' => 'UTC'])
+        ->and($heard[0]['removed'])->toBe(['manual-20261018T120000Z.partial', BackupStore::TOMBSTONE.'scheduled-20261001T033000Z-0a1b2c3d'])
+        ->and($ledger[0])->toMatchArray(['kind' => BackupAlerts::SERVICE, 'status' => 'started', 'schedule' => 'off']);
+
+    $this->directory->ensureDirectory('backups/manual-20261019T120000Z.partial');
+    $lock = new InstanceLock($this->directory, new RecordingDockerGateway);
+    $lock->acquire(TemporaryInstance::holder('c', '2026-10-19T03:00:00Z'), 'upgrade');
+    $run = daemonRun($this->directory, daemonConfig($this->directory));
+
+    expect($run->serviceStarted($this->holder))->toMatchArray(['status' => 'started', 'schedule' => '03:30', 'removed' => []])
+        ->and($store->partials())->toBe(['manual-20261019T120000Z.partial']) // the next run removes it under the lock
+        ->and($lock->current()?->operation)->toBe('upgrade');
+});
+
+it('runs a slot missed since the service first started with its schedule at once after a restart, even without a success', function (): void {
+    new BackupRunLog($this->directory)->append(['kind' => BackupAlerts::SERVICE, 'status' => 'started', 'started_at' => '2026-10-17T12:00:00Z', 'schedule' => '03:30']);
+    $daemon = daemon($this, daemonConfig($this->directory, ['minFreeMib' => 999_999_999]));
+    $runs = [];
+
+    $daemon->loop(function () use (&$runs): bool {
+        return count($runs) >= 2;
+    }, function (array $run) use (&$runs): void {
+        $runs[] = $run;
+    });
+
+    // the start record, then at once (no sleep) the run of the slot of 2026-10-18 03:30 that was missed
+    expect(array_column($runs, 'kind'))->toBe([BackupAlerts::SERVICE, 'scheduled'])
+        ->and($runs[1])->toMatchArray(['status' => 'skipped', 'reason' => 'low_disk_space'])
+        ->and($this->sleeps)->toBe([]);
+});
+
+it('records a failed start once, with its reason, so fsa status and /platform can name it', function (): void {
+    config(['database.connections.backup_none' => [...config('database.connections.pgsql'), 'database' => 'fsa_test_no_such_database'], 'database.default' => 'backup_none']);
+    $env = ['FSA_INSTANCE_ROOT' => $this->directory->root, 'BACKUP_HMAC_KEY' => DAEMON_KEY, 'FSA_OWNER_UID' => (string) posix_getuid(), 'FSA_OWNER_GID' => (string) posix_getgid(), 'BACKUP_TIME_ZONE' => 'Mars/Olympus'];
+    foreach ($env as $key => $value) {
+        putenv("{$key}={$value}");
+    }
+    $call = static function (): array {
+        $code = Artisan::call('fsa:backup-daemon', ['--json' => true]);
+
+        return [$code, json_decode(trim(Artisan::output()), true, 512, JSON_THROW_ON_ERROR)];
+    };
+
+    try {
+        [$zone, $zoneJson] = $call();
+        $call(); // Docker restarts it: the same failure again
+        putenv('BACKUP_RETENTION=seven');
+        [$retention, $retentionJson] = $call();
+    } finally {
+        foreach ([...array_keys($env), 'BACKUP_RETENTION'] as $key) {
+            putenv($key);
+        }
+    }
+    $ledger = new BackupRunLog($this->directory)->recent();
+
+    expect([$zone, $zoneJson['errors'][0]['code']])->toBe([1, 'invalid_schedule'])
+        ->and([$retention, $retentionJson['errors'][0]['code']])->toBe([1, 'invalid_backup_config'])
+        ->and(array_map(static fn (array $run): array => [$run['kind'], $run['status'], $run['reason'], $run['recorded']], $ledger))->toBe([
+            [BackupAlerts::SERVICE, 'failed', 'invalid_backup_config', false],
+            [BackupAlerts::SERVICE, 'failed', 'invalid_schedule', false],
+        ])
+        ->and(BackupAlerts::evaluate($ledger, CarbonImmutable::now())[0]['code'])->toBe('backup_service_failed');
 });
 
 it('answers the one-off entry point with one JSON document: lock required, lock lost, low disk space, a seal', function (): void {

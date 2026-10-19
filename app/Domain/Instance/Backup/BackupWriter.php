@@ -17,12 +17,14 @@ use Throwable;
  *    (`audit-heads.json`), the file references and the migration set;
  * 2. then the storage volume into `storage.tar.gz` (a referenced file missing from it is recorded, not a failure);
  * 3. `pg_restore --list` reads the dump back; `settings.json` (portable settings), `manifest.json`, with
- *    `--include-secrets` `secrets.env`;
+ *    `--include-secrets` `secrets.env`, which stays on the tmpfs (the set links to it);
  * 4. `SHA256SUMS` and its HMAC last, under temporary names, renamed at the end;
- * 5. with recipients the whole set becomes one age file (`backup.tar.age`) and the plain files go;
+ * 5. with recipients the whole set becomes one age file (`backup.tar.age`) and the plain files go; a safety backup stays
+ *    plain until its operation completed (BackupSealer);
  * 6. everything belongs to the owner, 0700/0600, and the directory is renamed.
  *
- * Any failure removes the partial directory and throws BackupFailed with a stable reason.
+ * All programs share one deadline (BackupTools::DEADLINE_SECONDS). Any failure removes the partial directory and throws
+ * BackupFailed with a stable reason.
  */
 final readonly class BackupWriter
 {
@@ -46,16 +48,44 @@ final readonly class BackupWriter
         private ?Closure $afterSnapshot = null,
     ) {}
 
+    /**
+     * Whether a backup of this kind is encrypted: with recipients, every kind but a safety backup, which stays plain until
+     * its operation completed (a rollback restores it without the owner's identity) and is sealed then (BackupSealer).
+     */
+    public function encrypts(BackupName $name): bool
+    {
+        return $this->config->encrypts() && ! $name->isSafety();
+    }
+
+    /**
+     * What a first backup needs at most, when there is no earlier one to go by: the database's size (`pg_database_size`)
+     * and the storage volume's; 0 when it cannot be told (the run then fails on its own, with a reason).
+     */
+    public function estimateBytes(): int
+    {
+        try {
+            $database = (int) $this->db->scalar('SELECT pg_database_size(current_database())');
+        } catch (Throwable) {
+            $database = 0;
+        }
+
+        return $database + (is_dir($this->config->storagePath) ? BackupStore::bytes($this->config->storagePath) : 0);
+    }
+
     /** @param  string|null  $secrets  `secrets.env` content (`--include-secrets`, encryption required) */
     public function write(BackupName $name, #[SensitiveParameter] ?string $secrets = null): BackupResult
     {
-        if ($secrets !== null && ! $this->config->encrypts()) {
+        if ($secrets !== null && ! $this->encrypts($name)) {
             throw new BackupFailed('encryption_required', 'Secrets go only into an encrypted backup.');
         }
         [$name, $partial] = $this->store->begin($name);
+        $deadline = microtime(true) + BackupTools::DEADLINE_SECONDS;
+        $secretFile = null;
 
         try {
-            return $this->writeSet($name, $partial, $secrets);
+            $secretFile = $secrets === null ? null : $this->secretsOnTmpfs($secrets);
+
+            return $this->writeSet($name, $partial, $secretFile, $deadline);
         } catch (Throwable $e) {
             try {
                 $this->store->discard($name);
@@ -63,25 +93,30 @@ final readonly class BackupWriter
                 // the next run removes a leftover `.partial` under the lock; the step that failed is the news
             }
             throw $e instanceof BackupFailed ? $e : new BackupFailed('write_failed', $e->getMessage(), $e);
+        } finally {
+            if ($secretFile !== null) {
+                @unlink($secretFile);
+                @rmdir(dirname($secretFile));
+            }
         }
     }
 
-    private function writeSet(BackupName $name, string $partial, ?string $secrets): BackupResult
+    private function writeSet(BackupName $name, string $partial, ?string $secretFile, float $deadline): BackupResult
     {
-        $database = $this->dumpDatabase($partial);
-        $storage = $this->archiveStorage($partial, $database['references']);
-        $this->verifyDump($partial);
+        $database = $this->dumpDatabase($partial, $deadline);
+        $storage = $this->archiveStorage($partial, $database['references'], $deadline);
+        $this->verifyDump($partial, $deadline);
         $meta = $this->store->meta();
         $this->json($partial.'/'.self::SETTINGS, [...$meta, 'schema_version' => '1.0']);
-        if ($secrets !== null) {
-            $this->file($partial.'/'.self::SECRETS, $secrets);
+        if ($secretFile !== null && ! @symlink($secretFile, $partial.'/'.self::SECRETS)) {
+            throw new RuntimeException('Cannot link secrets.env into the set.');
         }
         $files = $this->files($partial);
         $instance = is_array($meta['instance'] ?? null) ? $meta['instance'] : [];
-        $manifest = BackupManifest::build($name, $this->config, $instance, $database, $storage, $this->described($partial, $files), $this->config->encrypts(), $secrets !== null);
+        $manifest = BackupManifest::build($name, $this->config, $instance, $database, $storage, $this->described($partial, $files), $this->encrypts($name), $secretFile !== null);
         $this->json($partial.'/'.BackupManifest::FILE, $manifest);
         BackupChecksums::write($partial, [...$files, BackupManifest::FILE], $this->config->hmacKey);
-        if ($this->config->encrypts()) {
+        if ($this->encrypts($name)) {
             $this->encrypt($partial);
         }
         $path = $this->store->complete($name);
@@ -90,7 +125,28 @@ final readonly class BackupWriter
             $warnings[] = ['code' => 'files_missing', 'message' => "{$storage['missing']} file(s) the database references were not in storage; manifest.json lists them."];
         }
 
-        return new BackupResult($name, $path, BackupStore::bytes($path), $this->config->encrypts(), $secrets !== null, $storage['referenced'], $storage['missing'], $storage['sample'], $warnings, $this->config->fingerprints);
+        return new BackupResult($name, $path, BackupStore::bytes($path), $this->encrypts($name), $secretFile !== null, $storage['referenced'], $storage['missing'], $storage['sample'], $warnings, $this->config->fingerprints);
+    }
+
+    /**
+     * `secrets.env` on the container's tmpfs, never in `backups/`: the set only links to it, age reads it through the link,
+     * and a run killed at any point leaves no plaintext secret on the disk (`/tmp` is the backup service's tmpfs).
+     */
+    private function secretsOnTmpfs(#[SensitiveParameter] string $secrets): string
+    {
+        $directory = sys_get_temp_dir().'/fsa-secrets-'.bin2hex(random_bytes(8));
+        if (! @mkdir($directory, 0700)) {
+            throw new RuntimeException('Cannot create a private temporary directory for secrets.env.');
+        }
+        try {
+            $this->file($directory.'/'.self::SECRETS, $secrets);
+        } catch (Throwable $e) {
+            @unlink($directory.'/'.self::SECRETS);
+            @rmdir($directory);
+            throw $e;
+        }
+
+        return $directory.'/'.self::SECRETS;
     }
 
     /**
@@ -98,7 +154,7 @@ final readonly class BackupWriter
      *
      * @return array{migrations: list<string>, server: string, dump: string, epoch: int, chains: int, references: array<string, true>}
      */
-    private function dumpDatabase(string $partial): array
+    private function dumpDatabase(string $partial, float $deadline): array
     {
         $snapshot = new DatabaseSnapshot($this->db);
 
@@ -119,7 +175,7 @@ final readonly class BackupWriter
         try {
             $this->afterSnapshot?->__invoke($id);
             $this->json($partial.'/'.self::HEADS, ['epoch' => $heads['epoch'], 'heads' => (object) $heads['heads']]);
-            $dumped = $this->tools->dump($id, $partial.'/'.self::DATABASE, $this->config->libpqEnvironment());
+            $dumped = $this->tools->dump($id, $partial.'/'.self::DATABASE, $this->config->libpqEnvironment(), BackupTools::remaining($deadline));
         } finally {
             $snapshot->close();
         }
@@ -134,17 +190,17 @@ final readonly class BackupWriter
      * @param  array<string, true>  $references
      * @return array{referenced: int, missing: int, sample: list<string>, changed: bool}
      */
-    private function archiveStorage(string $partial, array $references): array
+    private function archiveStorage(string $partial, array $references, float $deadline): array
     {
         $file = $partial.'/'.self::STORAGE;
-        $archived = $this->tools->archive($this->config->storagePath, $file);
+        $archived = $this->tools->archive($this->config->storagePath, $file, BackupTools::remaining($deadline));
         if (! in_array($archived->exitCode, [0, 1], true) || ! is_file($file)) {
             throw new BackupFailed('storage_failed', 'Archiving the storage volume failed (exit '.$archived->exitCode.'): '.($archived->errorTail() ?: 'no output'));
         }
         $referenced = count($references);
         $listed = $this->tools->members($file, static function (string $member) use (&$references): void {
             unset($references[$member]);
-        });
+        }, BackupTools::remaining($deadline));
         if (! $listed->successful()) {
             throw new BackupFailed('storage_failed', 'The storage archive cannot be read back: '.($listed->errorTail() ?: 'no output'));
         }
@@ -154,9 +210,9 @@ final readonly class BackupWriter
         return ['referenced' => $referenced, 'missing' => count($missing), 'sample' => array_slice($missing, 0, BackupManifest::MISSING_SAMPLE), 'changed' => $archived->exitCode === 1];
     }
 
-    private function verifyDump(string $partial): void
+    private function verifyDump(string $partial, float $deadline): void
     {
-        $listed = $this->tools->listDump($partial.'/'.self::DATABASE);
+        $listed = $this->tools->listDump($partial.'/'.self::DATABASE, BackupTools::remaining($deadline));
         if (! $listed->successful() || ! str_contains($listed->stdout, 'TABLE DATA')) {
             throw new BackupFailed('verify_failed', 'pg_restore --list cannot read the dump: '.($listed->errorTail() ?: 'no table data listed'));
         }
@@ -173,11 +229,11 @@ final readonly class BackupWriter
             throw new BackupFailed('encrypt_failed', $e->getMessage(), $e);
         }
         foreach ($files as $file) {
-            @unlink($partial.'/'.$file);
+            @unlink($partial.'/'.$file); // the secrets.env link goes too; its target lives on the tmpfs
         }
     }
 
-    /** @return list<string> the regular files of the partial set, sorted */
+    /** @return list<string> the regular files of the partial set (and the secrets.env link), sorted */
     private function files(string $partial): array
     {
         $files = array_values(array_filter(scandir($partial) ?: [], static fn (string $entry): bool => ! str_starts_with($entry, '.') && is_file($partial.'/'.$entry)));

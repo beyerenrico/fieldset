@@ -35,6 +35,7 @@ function asBackupRole(string $role, string $sql): bool
         DB::transaction(function () use ($role, $sql): void {
             DB::statement("SET LOCAL ROLE {$role}");
             DB::statement($sql);
+            DB::statement('RESET ROLE'); // a released savepoint keeps SET LOCAL until the test's transaction ends
         });
 
         return true;
@@ -63,6 +64,27 @@ it('creates the backup role with a SCRAM verifier, read-all and insert-only righ
         ->and(asBackupRole($role, 'DELETE FROM backup_runs'))->toBeFalse()
         ->and(asBackupRole($role, "UPDATE organizations SET name = 'x'"))->toBeFalse()
         ->and(asBackupRole($role, 'CREATE TABLE fsa_backup_probe (id int)'))->toBeFalse();
+});
+
+it('takes back rights granted to an existing backup role by hand', function (): void {
+    $role = 'fsa_backup_test_'.bin2hex(random_bytes(3));
+    makeOrganization();
+    new BackupRole()->ensure(BACKUP_HEALTH_PASSWORD, $role);
+    DB::statement("GRANT UPDATE ON organizations TO {$role}");
+    DB::statement("GRANT DELETE ON backup_runs TO {$role}");
+    DB::statement("GRANT pg_write_all_data TO {$role}");
+    DB::statement("GRANT CREATE ON SCHEMA public TO {$role}");
+    $granted = asBackupRole($role, "UPDATE organizations SET name = 'x'");
+
+    new BackupRole()->ensure(BACKUP_HEALTH_PASSWORD, $role);
+
+    expect($granted)->toBeTrue()
+        ->and(asBackupRole($role, "UPDATE organizations SET name = 'x'"))->toBeFalse()
+        ->and(asBackupRole($role, 'DELETE FROM backup_runs'))->toBeFalse()
+        ->and(asBackupRole($role, 'CREATE TABLE fsa_backup_probe (id int)'))->toBeFalse()
+        ->and(asBackupRole($role, 'SELECT count(*) FROM organizations'))->toBeTrue()
+        ->and(asBackupRole($role, "INSERT INTO backup_runs (kind, status, started_at) VALUES ('scheduled', 'succeeded', now())"))->toBeTrue()
+        ->and(DB::scalar('SELECT count(*) FROM pg_auth_members m JOIN pg_roles r ON r.oid = m.roleid JOIN pg_roles u ON u.oid = m.member WHERE u.rolname = ?', [$role]))->toBe(1);
 });
 
 it('computes the SCRAM-SHA-256 verifier Postgres stores (RFC 7677 test vector)', function (): void {
@@ -139,6 +161,47 @@ it('fails after a failed run until a later run succeeds, and warns about skips o
     expect(app(BackupCheck::class)->run()->status)->toBe(HealthStatus::Warn);
 });
 
+it('says what the last run was when it was a skip, and warns at once about a skip for lack of disk space', function (): void {
+    backupRun(['status' => 'skipped', 'reason' => 'lock_held', 'backup' => null, 'bytes' => null, 'started_at' => now()->subMinutes(5)]);
+    $retrying = app(BackupCheck::class)->run();
+
+    backupRun(['started_at' => now()->subDay()]);
+    backupRun(['status' => 'skipped', 'reason' => 'low_disk_space', 'backup' => null, 'bytes' => null, 'started_at' => now()]);
+    $disk = app(BackupCheck::class)->run();
+
+    expect($retrying->status)->toBe(HealthStatus::Ok)
+        ->and($retrying->summary)->toBe(__('platform.health.backup.retrying'))->not->toContain(__('platform.health.backup.ok'))
+        ->and($disk->status)->toBe(HealthStatus::Warn)
+        ->and($disk->summary)->toBe(__('platform.health.backup.disk_space'))->not->toContain('lock');
+});
+
+it('notices a backup service that is not running, cannot start, or never reported', function (): void {
+    $this->travelTo(CarbonImmutable::parse('2026-10-19T12:00:00Z'));
+    $start = static fn (string $at, string $status = 'started', ?string $reason = null): array => [
+        'kind' => 'service', 'status' => $status, 'reason' => $reason, 'started_at' => CarbonImmutable::parse($at), 'finished_at' => CarbonImmutable::parse($at),
+        'backup' => null, 'bytes' => null, 'schedule' => $status === 'started' ? '03:30' : null, 'time_zone' => 'UTC',
+    ];
+
+    backupRun($start('2026-10-19T09:00:00Z'));
+    $waiting = app(BackupCheck::class)->run();
+    backupRun($start('2026-10-18T09:00:00Z'));
+    foreach (range(1, BackupRuns::RECENT + 10) as $minute) { // an hour of lock skips each minute never hides the starts
+        backupRun(['status' => 'skipped', 'reason' => 'lock_held', 'backup' => null, 'bytes' => null, 'started_at' => CarbonImmutable::parse('2026-10-19T10:00:00Z')->addMinutes($minute)]);
+    }
+    $overdue = app(BackupCheck::class)->run();
+    backupRun($start('2026-10-19T11:59:00Z', 'failed', 'invalid_schedule'));
+    $failed = app(BackupCheck::class)->run();
+    DB::table('backup_runs')->delete();
+    config(['instance.runtime_path' => '/run/fsa']);
+    $silent = app(BackupCheck::class)->run();
+
+    expect([$waiting->status, $waiting->summary])->toBe([HealthStatus::Ok, __('platform.health.backup.waiting')])
+        ->and($waiting->details[__('platform.health.backup.next_run')]->toIso8601ZuluString())->toBe('2026-10-20T03:30:00Z')
+        ->and([$overdue->status, $overdue->summary])->toBe([HealthStatus::Fail, __('platform.health.backup.overdue')])
+        ->and($failed->status)->toBe(HealthStatus::Fail)->and($failed->summary)->toContain('invalid_schedule')
+        ->and([$silent->status, $silent->summary])->toBe([HealthStatus::Warn, __('platform.health.backup.silent')]);
+});
+
 it('summarizes the newest runs for /platform', function (): void {
     backupRun(['started_at' => CarbonImmutable::parse('2026-10-18T03:30:00Z')]);
     backupRun(['kind' => 'manual', 'status' => 'failed', 'reason' => 'storage_failed', 'backup' => null, 'bytes' => null, 'started_at' => CarbonImmutable::parse('2026-10-19T09:00:00Z')]);
@@ -147,5 +210,6 @@ it('summarizes the newest runs for /platform', function (): void {
 
     expect($summary['last'])->toMatchArray(['kind' => 'manual', 'status' => 'failed', 'reason' => 'storage_failed', 'started_at' => '2026-10-19T09:00:00Z'])
         ->and($summary['last_success'])->toMatchArray(['kind' => 'scheduled', 'backup' => 'scheduled-20261019T033000Z', 'bytes' => 2048, 'encrypted' => false])
-        ->and(array_column($summary['alerts'], 'code'))->toBe(['backup_failed']);
+        ->and(array_column($summary['alerts'], 'code'))->toBe(['backup_failed'])
+        ->and($summary['service'])->toBeNull()->and($summary['next_run'])->toBeNull();
 });

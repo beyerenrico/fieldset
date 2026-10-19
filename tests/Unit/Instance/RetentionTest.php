@@ -52,6 +52,10 @@ it('projects the next backup from the newest one and keeps the free-space thresh
     expect(BackupRetention::projectedBytes($entries))->toBe(5000)
         ->and(BackupRetention::projectedBytes($entries, encrypted: true))->toBe(10000) // the plain set and its age file side by side
         ->and(BackupRetention::projectedBytes([]))->toBe(0)
+        // the first backup: projected from the database and the storage volume, not from nothing
+        ->and(BackupRetention::projectedBytes([], false, 8000))->toBe(10000)
+        ->and(BackupRetention::projectedBytes([], true, 8000))->toBe(20000)
+        ->and(BackupRetention::projectedBytes($entries, false, 10 ** 9))->toBe(5000)
         ->and(BackupRetention::fits(2 * 1024 ** 3, 5000))->toBeTrue()
         ->and(BackupRetention::fits(1024 ** 3, 5000))->toBeFalse()
         ->and(BackupRetention::fits(1024 ** 3 + 5000, 5000))->toBeTrue()
@@ -112,21 +116,75 @@ it('knows `off` and refuses a malformed time or time zone', function (): void {
         ->and(fn () => BackupSchedule::parse('03:30', 'Mars/Olympus'))->toThrow(InvalidArgumentException::class, 'time zone');
 });
 
-it('alerts on a failed run until a success, on skips older than a day, and on an overdue schedule', function (): void {
+it('alerts on a failed run until a success, on lock skips older than a day, on a disk-space skip at once, and on a missed slot', function (): void {
     $now = CarbonImmutable::parse('2026-10-19T12:00:00Z');
+    $daily = ['time' => '03:30', 'zone' => 'UTC'];
     $run = static fn (string $status, string $at, string $kind = 'scheduled', ?string $reason = null): array => ['kind' => $kind, 'status' => $status, 'started_at' => $at, 'reason' => $reason];
-    $codes = static fn (array $runs, bool $scheduled = false, ?CarbonImmutable $since = null): array => array_column(BackupAlerts::evaluate($runs, $now, $scheduled, $since), 'code');
+    $codes = static fn (array $runs, ?array $schedule = null, ?string $since = null, ?string $at = null): array => array_column(BackupAlerts::evaluate($runs, $at === null ? $now : CarbonImmutable::parse($at), $schedule, $since === null ? null : CarbonImmutable::parse($since)), 'code');
 
     expect($codes([$run('failed', '2026-10-19T03:30:00Z', reason: 'pg_dump_failed'), $run('succeeded', '2026-10-18T03:30:00Z')]))->toBe(['backup_failed'])
-        ->and($codes([$run('skipped', '2026-10-19T04:00:00Z'), $run('failed', '2026-10-19T03:30:00Z')]))->toBe(['backup_failed'])
+        ->and($codes([$run('skipped', '2026-10-19T04:00:00Z', reason: 'lock_held'), $run('failed', '2026-10-19T03:30:00Z')]))->toBe(['backup_failed'])
         ->and($codes([$run('succeeded', '2026-10-19T11:00:00Z', 'manual'), $run('failed', '2026-10-19T03:30:00Z')]))->toBe([])
+        // skips because an operation holds the lock: only once they last a day (older ledger lines carry no reason)
+        ->and($codes([$run('skipped', '2026-10-19T03:30:00Z', reason: 'lock_held'), $run('skipped', '2026-10-18T03:30:00Z', reason: 'lock_held'), $run('succeeded', '2026-10-17T03:30:00Z')]))->toBe(['backup_skipped'])
         ->and($codes([$run('skipped', '2026-10-19T03:30:00Z'), $run('skipped', '2026-10-18T03:30:00Z'), $run('succeeded', '2026-10-17T03:30:00Z')]))->toBe(['backup_skipped'])
-        ->and($codes([$run('skipped', '2026-10-19T03:30:00Z'), $run('succeeded', '2026-10-18T03:30:00Z')]))->toBe([])
-        ->and($codes([$run('skipped', '2026-10-18T03:30:00Z', 'manual')]))->toBe([])
-        ->and($codes([$run('succeeded', '2026-10-18T09:00:00Z')], scheduled: true))->toBe(['backup_overdue'])
-        ->and($codes([$run('succeeded', '2026-10-18T11:00:00Z')], scheduled: true))->toBe([])
-        ->and($codes([], scheduled: true, since: CarbonImmutable::parse('2026-10-17T12:00:00Z')))->toBe(['backup_overdue'])
-        ->and($codes([], scheduled: true, since: CarbonImmutable::parse('2026-10-19T08:00:00Z')))->toBe([])
-        ->and($codes([], scheduled: false, since: CarbonImmutable::parse('2026-10-01T00:00:00Z')))->toBe([])
+        ->and($codes([$run('skipped', '2026-10-19T03:30:00Z', reason: 'lock_held'), $run('succeeded', '2026-10-18T03:30:00Z')]))->toBe([])
+        ->and($codes([$run('skipped', '2026-10-18T03:30:00Z', 'manual', 'lock_held')]))->toBe([])
+        // a skip for lack of disk space: at once, with its own code, never as a lock skip, until a run succeeds
+        ->and($codes([$run('skipped', '2026-10-19T11:59:00Z', reason: 'low_disk_space'), $run('succeeded', '2026-10-18T03:30:00Z')]))->toBe(['backup_disk_space'])
+        ->and($codes([$run('skipped', '2026-10-17T03:30:00Z', reason: 'low_disk_space'), $run('succeeded', '2026-10-16T03:30:00Z')]))->toBe(['backup_disk_space'])
+        ->and($codes([$run('succeeded', '2026-10-19T11:00:00Z', 'manual'), $run('skipped', '2026-10-19T03:30:00Z', reason: 'low_disk_space')]))->toBe([])
+        // overdue: two hours after the first slot following the last success
+        ->and($codes([$run('succeeded', '2026-10-19T03:30:00Z')], $daily))->toBe([])
+        ->and($codes([$run('succeeded', '2026-10-18T03:30:00Z')], $daily, at: '2026-10-19T05:29:00Z'))->toBe([])
+        ->and($codes([$run('succeeded', '2026-10-18T03:30:00Z')], $daily, at: '2026-10-19T05:31:00Z'))->toBe(['backup_overdue'])
+        ->and($codes([$run('succeeded', '2026-10-18T03:30:00Z')], ['time' => 'off', 'zone' => 'UTC']))->toBe([])
+        ->and($codes([$run('succeeded', '2026-10-18T03:30:00Z')]))->toBe([])
+        // without a success: following the service's start with this schedule (not the install), so a fresh or upgraded
+        // instance gets its first slot first
+        ->and($codes([], $daily, since: '2026-10-18T10:00:00Z', at: '2026-10-19T05:00:00Z'))->toBe([])
+        ->and($codes([], $daily, since: '2026-10-18T10:00:00Z', at: '2026-10-19T05:31:00Z'))->toBe(['backup_overdue'])
+        ->and($codes([], $daily, since: '2026-10-19T08:00:00Z'))->toBe([])
+        ->and($codes([], $daily))->toBe([])
         ->and(BackupAlerts::time(['started_at' => 'not a time']))->toBeNull();
 });
+
+it('tells the service\'s start records from runs: a failed start alerts, and restarts do not move the overdue reference', function (): void {
+    $now = CarbonImmutable::parse('2026-10-19T12:00:00Z');
+    $start = static fn (string $at, ?string $schedule = '03:30', string $status = 'started', ?string $reason = null): array => ['kind' => BackupAlerts::SERVICE, 'status' => $status, 'started_at' => $at, 'schedule' => $schedule, 'reason' => $reason];
+    $starts = [$start('2026-10-19T09:00:00Z'), $start('2026-10-18T09:00:00Z'), $start('2026-10-17T09:00:00Z', 'off'), $start('2026-10-16T09:00:00Z')];
+    $codes = static fn (array $runs, ?array $schedule = null): array => array_column(BackupAlerts::evaluate($runs, $now, $schedule, BackupAlerts::scheduledSince($runs)), 'code');
+
+    expect(BackupAlerts::scheduledSince($starts)?->toIso8601ZuluString())->toBe('2026-10-18T09:00:00Z')
+        ->and(BackupAlerts::scheduledSince([$start('2026-10-19T09:00:00Z', 'off'), ...$starts]))->toBeNull()
+        ->and(BackupAlerts::scheduledSince([]))->toBeNull()
+        ->and(BackupAlerts::jobs($starts))->toBe([])
+        ->and(BackupAlerts::service([$start('2026-10-19T10:00:00Z', null, 'failed', 'invalid_schedule'), ...$starts])['reason'])->toBe('invalid_schedule')
+        ->and($codes([$start('2026-10-19T10:00:00Z', null, 'failed', 'invalid_schedule'), ...$starts]))->toBe(['backup_service_failed'])
+        ->and($codes([$start('2026-10-19T11:00:00Z'), $start('2026-10-19T10:00:00Z', null, 'failed', 'invalid_schedule')]))->toBe([])
+        // restarted this morning, but running since the 18th without a success: the slot of the 19th was missed
+        ->and($codes($starts, ['time' => '03:30', 'zone' => 'UTC']))->toBe(['backup_overdue'])
+        ->and($codes([$start('2026-10-19T09:00:00Z')], ['time' => '03:30', 'zone' => 'UTC']))->toBe([]);
+});
+
+it('runs once on the nights the clock changes', function (string $from, string $until, string $slot): void {
+    $schedule = BackupSchedule::parse('02:30', 'Europe/Berlin');
+    $since = CarbonImmutable::parse($from);
+    $success = $since;
+    $runs = [];
+    // the daemon's view, minute by minute: a run whenever one is due, recorded as the newest success
+    for ($now = $since; $now->lessThan(CarbonImmutable::parse($until)); $now = $now->addMinute()) {
+        $next = $schedule->nextRun($now, $success, $since);
+        if ($next instanceof CarbonImmutable && $next->lessThanOrEqualTo($now)) {
+            $runs[] = $now->toIso8601ZuluString();
+            $success = $now;
+        }
+    }
+
+    expect($runs)->toBe([$slot]);
+})->with([
+    // 02:30 happens twice when CEST ends; the slot is the second, 02:30 CET
+    'clocks fall back' => ['2026-10-24T12:00:00Z', '2026-10-25T12:00:00Z', '2026-10-25T01:30:00Z'],
+    // 02:30 does not exist when CEST begins; the slot is the moment after the gap, 03:30 CEST
+    'clocks spring forward' => ['2026-03-28T12:00:00Z', '2026-03-29T12:00:00Z', '2026-03-29T01:30:00Z'],
+]);
