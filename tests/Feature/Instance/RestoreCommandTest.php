@@ -6,10 +6,12 @@ use App\Domain\Instance\Backup\KeyFingerprint;
 use App\Domain\Instance\Operations\Ledger;
 use App\Domain\Instance\Operations\OperationJournal;
 use App\Domain\Instance\Restore\MigrationSet;
+use App\Domain\Instance\Restore\RestoreDatabases;
 use App\Domain\Instance\Runtime\OperationGate;
 use App\Domain\Instance\State\EnvFiles;
 use App\Domain\Instance\State\InstanceSettings;
 use Tests\Support\Instance\BackupSetFixture;
+use Tests\Support\Instance\InstanceCommandFixture;
 use Tests\Support\Instance\RestoreFixture;
 use Tests\Support\Instance\TarBuilder;
 use Tests\Support\Instance\TemporaryInstance;
@@ -282,4 +284,25 @@ it('takes a 1.0 backup in place only when the APP key in its env is one the inst
     expect($other)->toBe(2, (string) json_encode($otherJson))->and($otherJson['errors'][0]['code'])->toBe('backup_other_instance')
         ->and($bare)->toBe(2)->and($bareJson['errors'][0]['message'])->toContain('without its env file')
         ->and($own)->toBe(0, (string) json_encode($ownJson));
+});
+
+it('hands the finish step the journal ID and the backup time, and warns about changes the carry could not attribute (third review)', function (): void {
+    $this->restore->backup();
+    $this->restore->finish = InstanceCommandFixture::oneOffJson(['command' => 'instance:restore-finish', 'status' => 'ok', 'changed' => true, 'data' => [
+        'epoch' => 2, 'previous_epoch' => 1, 'carried' => ['devices_revoked' => 0], 'carry_mode' => 'audit',
+        'carry_skipped' => ['identity_providers_deleted' => 2, 'form_access_removed' => 0], 'cascade_skipped' => ['form_access_removed' => 3],
+    ]]);
+
+    [$code, $json] = $this->restore->restore();
+    $finish = $this->restore->instance->oneOffCalls('instance:restore-finish')[0];
+
+    expect($code)->toBe(0, (string) json_encode($json))
+        ->and($finish['command'])->toContain('--backup-created-at=2026-10-19T12:00:00Z')
+        ->and(implode(' ', $finish['command']))->toMatch('/--journal=[0-9a-f]{12}( |$)/')
+        ->and($json['data']['carry_mode'])->toBe('audit')
+        ->and(collect($json['warnings'])->firstWhere('code', 'carry_partial')['message'] ?? '')->toContain('identity_providers_deleted: 2')->not->toContain('form_access_removed')
+        ->and($json['data']['cascade_skipped'])->toBe(['form_access_removed' => 3])
+        ->and(RestoreDatabases::createdAt('20261001T020000Z'))->toBe('2026-10-01T02:00:00Z')
+        ->and(RestoreDatabases::createdAt('2026-10-19T14:00:00+02:00'))->toBe('2026-10-19T12:00:00Z')
+        ->and(RestoreDatabases::createdAt('yesterday'))->toBeNull();
 });

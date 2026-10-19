@@ -4,12 +4,11 @@ M9, M10 and M11 done and merged to `main` (tags `m9-done`, `v2.0.0-alpha.1`, `m1
 `m11-done`, `v2.0.0-beta.1`; local only, never pushed). Reports: `docs/agent/milestones/M9.md`, `M10.md`, `M11.md`.
 
 ## Next actions
-1. Branch `m12-lifecycle`. M12-T01 U16 done. M12-T02 U17 merged (be7b56b; suite 6781/6781, static clean, J08
-   12/12, J01 5/5, J12 3/3) but a verification review found 1 high + 2 medium + 4 low: second fix round by the U17
-   agent in its worktree (`.claude/worktrees/agent-aee571cc145616b6a`, keep until merged), then merge and tick T02.
-   T04 U19 / T05 U23 run in parallel worktrees now; T03 U18 starts after the U17 fixes merge (it reuses the restore
-   swap). Briefs `m12-u18/u19/u23-brief.md` in the session scratchpad; DBs form_schema_u18/u19/u23, images
-   fsa-test-u18/u19/u23, ADRs 0086/0087/0088. Merge sequentially, then the gate T06.
+1. Branch `m12-lifecycle`. M12-T01 U16 and M12-T02 U17 done (merges be7b56b + 45213cd; suite 6803/6803, J08
+   12/12, coverage 93.34 %; U17 worktree removed). Running in parallel worktrees: T04 U19, T05 U23 (base 6fd10ae)
+   and T03 U18 (base = the docs commit after 45213cd). Briefs `m12-u18/u19/u23-brief.md` in the session scratchpad;
+   DBs form_schema_u18/u19/u23, images fsa-test-u18/u19/u23, ADRs 0086/0087/0088. Per unit: reviewers, fixes,
+   merge sequentially (U18 last if it conflicts), then the gate T06.
    Gate note: coverage in the CI image needs `--env-file` with the dev `.env` (LEARNINGS 140).
 2. Backup service peak 68 MiB (J08, demo data) fits the 128 MiB slot: no budget change. M13 breakdown: admin-guide
    capture banner (U21); R39 operator notification for failed/stale backups (U20); R39 release check

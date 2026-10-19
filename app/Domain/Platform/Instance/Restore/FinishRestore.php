@@ -29,6 +29,9 @@ final readonly class FinishRestore
 {
     public const string SOURCE_CONNECTION = 'fsa_restore_source';
 
+    /** The carry's keys without a pre-restore database (`--from-backup`, U18's rollback). */
+    private const array NO_CARRY = ['carried' => null, 'carry_mode' => null, 'carry_skipped' => [], 'cascade_skipped' => [], 'sequences' => null];
+
     public function __construct(private RestoredEpoch $epoch, private Encrypter $encrypter) {}
 
     /**
@@ -47,8 +50,8 @@ final readonly class FinishRestore
         }
 
         return $target->transaction(function () use ($request, $target, $backupPassword): array {
-            $data = $this->epoch->begin($request->reason, $request->epochSeed, $request->previousHeads, $request->previousEpoch, $request->backup, $request->fromBackup, $request->actorUid);
-            [$data['carried'], $data['sequences']] = $request->source !== null && $request->carry ? $this->carry($request->source, $target) : [null, null];
+            $data = $this->epoch->begin($request->reason, $request->epochSeed, $request->previousHeads, $request->previousEpoch, $request->backup, $request->fromBackup, $request->actorUid, $request->journal);
+            $data = [...$data, ...($request->source !== null && $request->carry ? $this->carry($request->source, $target, $request) : self::NO_CARRY)];
             $data['cleared'] = new StaleCredentials($target)->clear();
             $data['grants'] = new RestoreGrants($target, new BackupRole($target))->apply($backupPassword, $request->backupRole);
             $data['decrypt'] = new DecryptSample($target, $this->encrypter)->run();
@@ -60,14 +63,14 @@ final readonly class FinishRestore
         });
     }
 
-    /** @return array{0: array<string, mixed>, 1: array{sequences: int, number_sequences: int}} */
-    private function carry(string $source, Connection $target): array
+    /** @return array<string, mixed> carried, carry_mode, carry_skipped, cascade_skipped, sequences */
+    private function carry(string $source, Connection $target, FinishRequest $request): array
     {
         $previous = RestoreConnections::to($source, self::SOURCE_CONNECTION);
         $previous->statement('SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY'); // the carry only reads the pre-restore database
 
         try {
-            return [new SecurityStateCarrier($previous, $target)->carry(), new SequenceAdvancer($previous, $target)->advance()];
+            return [...new SecurityStateCarrier($previous, $target, $request->backupCreatedAt)->carry(), 'sequences' => new SequenceAdvancer($previous, $target)->advance()];
         } finally {
             RestoreConnections::close(self::SOURCE_CONNECTION);
         }

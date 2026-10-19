@@ -7,6 +7,7 @@ use App\Domain\Instance\Docker\ProcessOutcome;
 use App\Domain\Instance\Operations\OperationJournal;
 use App\Domain\Instance\Restore\MigrationSet;
 use App\Domain\Instance\Restore\RestoreNames;
+use App\Domain\Instance\Restore\RestoreSpace;
 use App\Domain\Instance\State\EnvFiles;
 use App\Domain\Instance\State\InstanceSettings;
 use Tests\Support\Instance\BackupSetFixture;
@@ -52,6 +53,7 @@ it('moves a local backup to a new instance: its data, its portable settings, cap
         ->and($this->move->instance->oneOffCalls('app:install'))->toBe([])
         ->and($this->move->instance->oneOffCalls('migrate'))->toHaveCount(1)
         ->and($finish['command'])->not->toContain('--source=form_schema')->and($finish['command'])->toContain('--backup=manual-20261019T120000Z')
+        ->and(implode(' ', $finish['command']))->toMatch('/--journal=[0-9a-f]{12} /') // a resumed install never begins a second epoch (third review)
         ->and($this->move->actions())->toBe(['list', 'drop', 'create', 'swap', 'drop'])
         ->and($this->move->databases)->toEqualCanonicalizing(['form_schema', 'postgres'])
         ->and($history)->toContain('installed', 'installed_from_backup')
@@ -238,4 +240,12 @@ it('names the scratch database, the restricted role and the scratch directory wi
     expect($code)->toBe(0, (string) json_encode($json))
         ->and(implode(' ', $create['options']))->toMatch('/--database=form_schema_restore_[0-9a-f]{12} --restricted-role=fsa_restore_[0-9a-f]{12}/')
         ->and(RestoreNames::id('AB12-../c3;DROP'))->toBe('ab12c3d');
+});
+
+it('warns when the free space for the prepared set cannot be read (review A12)', function (): void {
+    app()->instance(RestoreSpace::FREE_BYTES, static fn (): ?int => null);
+
+    [$code, $json] = $this->move->install($this->move->backup(), ['--app-key-file' => $this->move->keyFile()]);
+
+    expect($code)->toBe(0, (string) json_encode($json))->and(array_column($json['warnings'], 'code'))->toContain('disk_space_unknown');
 });

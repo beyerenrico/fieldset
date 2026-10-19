@@ -265,11 +265,12 @@
 - Full-suite flake: `ownerOf` unordered `first()` (fixed). Q51–52 (key rotation, install --encrypt).
 
 ## 2026-10-19 M12-T02 U17 restore
-- One worktree agent: `fsa restore` (journaled 11 steps, abandon, resume), safe tar reader, HMAC from outside keys,
+- One worktree agent: `fsa restore` (journaled steps, abandon, resume), safe tar reader, HMAC from outside keys,
   restricted-role restore + schema audit for unauthenticated archives, R64 carry, drill, `install --from-backup`
-  (1.0 `.env` allow-list), webhook hold; ADR 0085. J08 12/12, J01 5/5, J12 3/3; Instance coverage 93.29 %.
-- Two reviewers: 5 high (gate left up after resumed clean-up, unjournaled swap-back, other instance's backup in
-  place, gate lowered before full start, extension-member audit bypass), 8 medium, 7 low: all fixed with tests.
-- Found by J08: Valkey flush never worked (image appends VALKEY_EXTRA_FLAGS). Merged be7b56b; suite 6781/6781.
-- Verification reviewer: 1 high (carry treats every row missing from the live DB as an admin removal: undoing a
-  restore, FK cascades), 2 medium (unjournaled abort, workers running during swap-back), 4 low: second fix round.
+  (1.0 `.env` allow-list), webhook hold; ADR 0085. Instance coverage 93.34 %.
+- Reviewers: 5 high (gate left up after resumed clean-up, unjournaled swap-back, other instance's backup in place,
+  gate lowered before full start, extension-member audit bypass), 8 medium, 7 low. Verifier: 1 high (carry took every
+  row missing from the live DB as an admin removal), 2 medium, 4 low. All fixed with tests; carry by state only while
+  the live DB descends from the backup, else an audit/timestamp window (Q57).
+- J08 found the Valkey flush never worked (image appends VALKEY_EXTRA_FLAGS). Merges be7b56b + 45213cd; code equals
+  the tested branch: suite 6803/6803, J08 12/12, J01 5/5, J12 3/3, static clean.

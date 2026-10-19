@@ -21,7 +21,9 @@ use stdClass;
  * - an e-mail address changed → the source's, unless another account of the target holds it (counted, not copied).
  *
  * Everything is written with the query builder (no model events, no audit entries: `instance.restored` stays the first
- * entry of the new epoch). Re-activations and new accounts are not carried: a restore only ever tightens access.
+ * entry of the new epoch). Re-activations and new accounts are not carried: a restore only ever tightens access. In
+ * mode audit (CarryScope) an erasure or deactivation needs its timestamp after the backup, a password, MFA or e-mail
+ * change the source's audit entry after it; an account the source lacks is kept.
  *
  * @phpstan-type Counts array{users_erased: int, users_deactivated: int, users_missing: int, passwords: int, mfa: int, emails: int, email_conflicts: int, export_directories: list<array{disk: string, path: string}>}
  */
@@ -39,7 +41,18 @@ final readonly class AccountCarry
         'two_factor_secret', 'two_factor_recovery_codes', 'two_factor_confirmed_at', 'erased_at',
     ];
 
-    public function __construct(private ConnectionInterface $source, private ConnectionInterface $target) {}
+    /** @var array<string, array<string, true>|null> audited subjects per change (null: mode state) */
+    private array $audited;
+
+    public function __construct(private ConnectionInterface $source, private ConnectionInterface $target, private CarryScope $scope)
+    {
+        $this->audited = [
+            'deactivated' => $scope->subjects(User::class, ['user.deactivated']),
+            'passwords' => $scope->subjects(User::class, ['auth.password_changed']),
+            'mfa' => $scope->subjects(User::class, ['auth.mfa_enabled', 'auth.mfa_disabled']),
+            'emails' => $scope->subjects(User::class, ['updated'], 'email'),
+        ];
+    }
 
     /** @return Counts */
     public function carry(): array
@@ -49,12 +62,10 @@ final readonly class AccountCarry
         $erasure = new ErasureCarry($this->target);
         foreach ($this->target->table('users')->orderBy('id')->get(self::COLUMNS) as $user) {
             $before = $source->get($user->id);
-            if ($before === null) {
-                $counts['users_missing'] += $this->deactivate($user, null) ? 1 : 0;
+            if ($before === null) { // hard-deleted after the backup (mode state), or created after the source's backup (mode audit)
+                $counts['users_missing'] += $user->status !== UserStatus::Deactivated->value && $this->scope->permits('users_missing', null, null) && $this->deactivate($user, null) ? 1 : 0;
             } elseif ($before->erased_at !== null && $user->erased_at === null) {
-                $this->target->table('users')->where('id', $user->id)->update([...$this->only($before, self::ERASED), 'remember_token' => null]);
-                array_push($counts['export_directories'], ...$erasure->scrub((int) $user->id, (string) $user->email));
-                $counts['users_erased']++;
+                $counts = $this->erase($user, $before, $erasure, $counts);
             } else {
                 $counts = $this->tighten($user, $before, $counts);
             }
@@ -67,21 +78,39 @@ final readonly class AccountCarry
      * @param  Counts  $counts
      * @return Counts
      */
+    private function erase(stdClass $user, stdClass $before, ErasureCarry $erasure, array $counts): array
+    {
+        if (! $this->scope->permits('users_erased', null, null, $before->erased_at)) {
+            return $counts;
+        }
+        $this->target->table('users')->where('id', $user->id)->update([...$this->only($before, self::ERASED), 'remember_token' => null]);
+        array_push($counts['export_directories'], ...$erasure->scrub((int) $user->id, (string) $user->email));
+        $counts['users_erased']++;
+
+        return $counts;
+    }
+
+    /**
+     * @param  Counts  $counts
+     * @return Counts
+     */
     private function tighten(stdClass $user, stdClass $before, array $counts): array
     {
-        if ($before->status === UserStatus::Deactivated->value && $this->deactivate($user, $before->deactivated_at)) {
+        $id = (int) $user->id;
+        if ($before->status === UserStatus::Deactivated->value && $user->status !== UserStatus::Deactivated->value
+            && $this->scope->permits('users_deactivated', $this->audited['deactivated'], $id, $before->deactivated_at) && $this->deactivate($user, $before->deactivated_at)) {
             $counts['users_deactivated']++;
         }
-        if ($before->password !== $user->password) {
+        if ($before->password !== $user->password && $this->scope->permits('passwords', $this->audited['passwords'], $id)) {
             $this->target->table('users')->where('id', $user->id)->update(['password' => $before->password, 'password_known' => $before->password_known]);
             $counts['passwords']++;
         }
         $mfa = $this->only($before, self::MFA);
-        if ($mfa !== $this->only($user, self::MFA)) {
+        if ($mfa !== $this->only($user, self::MFA) && $this->scope->permits('mfa', $this->audited['mfa'], $id)) {
             $this->target->table('users')->where('id', $user->id)->update($mfa);
             $counts['mfa']++;
         }
-        if ($before->email !== $user->email) {
+        if ($before->email !== $user->email && $this->scope->permits('emails', $this->audited['emails'], $id)) {
             $counts[$this->email($user, (string) $before->email) ? 'emails' : 'email_conflicts']++;
         }
 

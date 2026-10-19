@@ -31,12 +31,15 @@ final readonly class RestoreSpace
      * Before the prepare step writes anything: room for the decrypted set (an encrypted backup) or the copy of the storage
      * archive (a plain one) in the scratch directory, plus the headroom.
      *
+     * @return int|null the free bytes, null when they cannot be read (the caller warns `disk_space_unknown`)
+     *
      * @throws InstanceException exit 3 `low_disk_space`
      */
-    public function assertScratch(string $source): void
+    public function assertScratch(string $source): ?int
     {
         $bytes = is_file($source) ? (int) filesize($source) : (is_file($source.'/backup.tar.age') ? (int) filesize($source.'/backup.tar.age') : (int) @filesize($source.'/storage.tar.gz'));
-        $this->check(2 * $bytes + self::HEADROOM, 'the decrypted backup in the scratch directory');
+
+        return $this->check(2 * $bytes + self::HEADROOM, 'the decrypted backup in the scratch directory');
     }
 
     /**

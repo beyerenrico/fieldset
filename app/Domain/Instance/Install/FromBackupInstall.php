@@ -118,7 +118,7 @@ final readonly class FromBackupInstall
         $run->phase('restore_database', fn (): array => $this->data->database($state, $project, $prepared, $id));
         $run->phase('restore_storage', fn (): array => $this->data->storage($state, $prepared));
         $run->phase('migrate', fn (): array => $this->migrate($project));
-        $finish = $run->phase('restore_finish', fn (): array => $this->data->finish($state, $project, $prepared, $context->facts->callerUid()));
+        $finish = $run->phase('restore_finish', fn (): array => $this->data->finish($state, $project, $prepared, $context->facts->callerUid(), $id));
         $run->phase('start', fn (): array => $this->stack->up($project, []), maxSeconds: InstanceStack::WAIT_SECONDS);
         $pending = FromBackupResult::certificatePending($preflight);
         $run->phase('smoke', fn (): array => $this->smoke->run($state, $project, $effective->ownerEmailIfKnown(), $context->progress, internalOnly: $pending), changes: false, maxSeconds: InstallSmoke::maxSeconds($state));

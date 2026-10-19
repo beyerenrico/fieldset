@@ -39,12 +39,14 @@ The Form Schema Spec has its own changelog in `spec/form-definition/1.0/CHANGELO
   audit log starts a new epoch with an `instance.restored` entry, and only a restored instance that passes its checks
   behind the gate replaces the old database and volume; otherwise the old instance runs again (exit 5). Only backups of
   the same instance are restored in place (another instance's go to a new directory with `--from-backup`); webhooks stay
-  paused afterwards until you run `fsa config set webhooks on`. A backup from a newer version is refused with exit 7 and
-  changes nothing (ADR 0085).
+  paused afterwards until you run `fsa config set webhooks on`. When the instance was itself restored after the backup
+  was made (undoing a restore with its safety backup), only changes the audit log records are re-applied and the rest is
+  reported; restoring a deleted form or group brings back its access grants and members. A backup from a newer version
+  is refused with exit 7 and changes nothing (ADR 0085).
 - **`fsa restore --drill <backup>`** — restores into a scratch database and reports counts, audit chain heads, missing
   files, a test render and a decrypt sample without touching the instance (ADR 0085).
 - **`fsa restore --abandon`** — cleans up a restore that stopped half-way, also after exit 8, and brings the instance
-  back (ADR 0085).
+  back; when the previous database or storage volume is gone it continues with the restored data instead (ADR 0085).
 - **`fsa install --from-backup <backup>`** — moves an instance to another host: settings that belong to the instance
   come from the backup, host-bound ones from the flags; a domain that does not point here yet is "certificate pending".
   The moved instance starts with captured mail and paused webhooks until you confirm with `fsa config set webhooks on`

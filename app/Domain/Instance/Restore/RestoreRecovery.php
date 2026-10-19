@@ -6,8 +6,6 @@ namespace App\Domain\Instance\Restore;
 
 use App\Domain\Instance\Backup\KeyFingerprint;
 use App\Domain\Instance\Backup\SafetyBackup;
-use App\Domain\Instance\Compose\Services\AppRoles;
-use App\Domain\Instance\Compose\Services\BackupService;
 use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\Docker\DockerGateway;
 use App\Domain\Instance\Docker\DockerResource;
@@ -26,15 +24,16 @@ use Throwable;
 /**
  * The ways back of a restore (plan U17, KTD18, ADR 0085):
  *
- * - `abort()`: a failure before the swap. The scratch database, the restricted role, the fresh volume and the scratch
- *   directory go, the previous stack starts again behind the gate and the gate goes down last: exit 5, the old instance
- *   runs.
+ * - `abort()`: a failure before the swap, journaled as the phase `abort` before anything is touched (third review M2:
+ *   a run killed while going back is finished as an abort, never resumed as a restore over the writes the reopened
+ *   instance took). The scratch database, the restricted role, the fresh volume and the scratch directory go, the
+ *   unchanged app starts, the gate goes down once it is healthy and the other services start (one that does not is
+ *   reported, L7): exit 5, the old instance runs.
  * - `returnToPrevious()`: a failure from the swap on, before the gate went down (or an interrupted swap found by a
- *   resumed run). Journaled as the phase `return` (a resumed run or `--abandon` only ever finishes it): the put-aside
- *   database becomes the live one again (renamed back alone when the live name is free), the state names the previous
- *   storage volume, Valkey is flushed, the app must pass the smoke test behind the gate, everything starts, then the
- *   gate goes down: exit 5. When that fails, every frontend stops, the gate stays up and the result names what is where:
- *   exit 8, and the next run continues the return.
+ *   resumed run). Journaled as the phase `return` (a resumed run or `--abandon` only ever finishes it): every writer
+ *   stops (M3), the put-aside database becomes the live one again (renamed back alone when the live name is free), the
+ *   state names the previous storage volume, Valkey is flushed, the app must pass the smoke test behind the gate, the
+ *   gate goes down and everything else starts: exit 5. When that fails the result is exit 8 (RestoreHalt).
  *
  * Both seal the safety backup when encryption is on (exit 8 keeps it plain: a manual restore of it needs no identity).
  */
@@ -46,6 +45,9 @@ final readonly class RestoreRecovery
     /** Journal note: renaming the previous database back began. */
     public const string DATABASE_RETURNING = 'returning_database';
 
+    /** Journal note: the put-aside database or the previous volume is gone before any rename back (`--abandon` goes forward). */
+    public const string NO_WAY_BACK = 'no_way_back';
+
     public function __construct(
         private InstanceDirectory $directory,
         private DockerGateway $docker,
@@ -55,20 +57,46 @@ final readonly class RestoreRecovery
         private RestoreSource $source,
         private SafetyBackup $safety,
         private InstanceLock $lock,
+        private RestoreHalt $halt,
     ) {}
 
-    public function abort(InstanceState $state, ComposeProject $project, RestoreNames $names, Throwable $cause, bool $quiesced, ?string $safetyBackup = null): CommandResult
+    public function abort(OperationRun $run, InstanceState $state, ComposeProject $project, RestoreNames $names, Throwable $cause, bool $quiesced, ?string $safetyBackup = null): CommandResult
     {
-        $left = $this->dropScratch($project, $names);
-        if ($quiesced) {
-            try {
-                $this->stack->reopen($state, $project);
-            } catch (Throwable $e) {
-                return $this->stopped($project, $names, $cause, $e, $safetyBackup);
-            }
+        try {
+            $closed = $this->goBack($run, $state, $project, $names, $quiesced, $cause);
+        } catch (Throwable $e) {
+            return $this->halt->stop($project, $names, $cause, $e, $safetyBackup, 'abort');
         }
+        $result = $this->failed($cause, 'The restore failed before the swap; the instance runs as before.', ['left_behind' => $closed['left_behind']]);
 
-        return $this->sealed($this->failed($cause, 'The restore failed before the swap; the instance runs as before.', ['left_behind' => $left]), $safetyBackup);
+        return $this->sealed(self::degraded($result, $closed['degraded']), $safetyBackup);
+    }
+
+    /**
+     * The journaled way back before the swap (phase `abort`; RestoreAbandon uses it too). A completed phase is not run
+     * again: a run killed during the seal only seals.
+     *
+     * @return array{left_behind: list<string>, degraded: list<string>}
+     */
+    public function goBack(OperationRun $run, InstanceState $state, ComposeProject $project, RestoreNames $names, bool $quiesced, ?Throwable $cause = null): array
+    {
+        $data = $run->phase('abort', fn (): array => [
+            'left_behind' => $names->id === '' ? [] : $this->dropScratch($project, $names),
+            'degraded' => $quiesced ? $this->stack->reopenPrevious($state, $project) : [],
+        ], $cause instanceof InstanceException ? ['code' => $cause->errorCode, 'message' => $cause->getMessage()] : ['code' => 'restore_failed', 'message' => $cause?->getMessage()]);
+
+        return ['left_behind' => RestoreNames::strings($data['left_behind'] ?? null), 'degraded' => RestoreNames::strings($data['degraded'] ?? null)];
+    }
+
+    /** The failure an interrupted abort was going back from (its phase's start data). */
+    public static function abortCause(OperationRun $run): InstanceException
+    {
+        $data = $run->record()->lastAttemptData('abort');
+
+        return new InstanceException(
+            is_string($data['message'] ?? null) ? $data['message'] : 'An earlier run of this restore stopped while going back.',
+            ExitCode::RolledBack, is_string($data['code'] ?? null) ? $data['code'] : 'restore_interrupted',
+        );
     }
 
     /**
@@ -79,7 +107,8 @@ final readonly class RestoreRecovery
     public function returnToPrevious(OperationRun $run, InstanceState $previous, ComposeProject $project, RestoreNames $names, Throwable $cause, array $addedKeys, ?string $safetyBackup, bool $swapped = false): CommandResult
     {
         try {
-            $run->phase('return', function () use ($run, $previous, $project, $names, $addedKeys, $swapped): array {
+            $returned = $run->phase('return', function () use ($run, $previous, $project, $names, $addedKeys, $swapped): array {
+                $this->docker->composeStop($project, RestoreHalt::WRITERS); // nothing writes while the databases are renamed back (M3)
                 $this->swapBack($run, $project, $names, $swapped);
                 $secrets = $this->stack->secrets();
                 $kept = array_values(array_filter($secrets->previousKeys, static fn (string $key): bool => ! in_array(KeyFingerprint::of($key), $addedKeys, true)));
@@ -87,16 +116,22 @@ final readonly class RestoreRecovery
                 $this->stack->flushValkey($project);
                 $token = new RuntimeWriter($this->directory)->raiseGate($previous, 'restore');
                 $this->stack->startAndVerify($previous, $project, $token);
-                $this->stack->reopen($previous, $project);
 
-                return ['returned' => true];
+                return ['returned' => true, 'degraded' => $this->stack->reopenPrevious($previous, $project)];
             }); // a completed return is never repeated: the previous instance took requests again
         } catch (Throwable $e) {
-            return $this->stopped($project, $names, $cause, $e, $safetyBackup);
+            return $this->halt->stop($project, $names, $cause, $e, $safetyBackup, 'return');
         }
         $left = $this->dropScratch($project, $names);
+        $result = $this->failed($cause, 'The restored instance did not pass its verification; the previous database and storage volume are back.', ['left_behind' => $left, 'returned_to_previous' => true]);
 
-        return $this->sealed($this->failed($cause, 'The restored instance did not pass its verification; the previous database and storage volume are back.', ['left_behind' => $left, 'returned_to_previous' => true]), $safetyBackup);
+        return $this->sealed(self::degraded($result, RestoreNames::strings($returned['degraded'] ?? null)), $safetyBackup);
+    }
+
+    /** @param  list<string>  $degraded */
+    public static function degraded(CommandResult $result, array $degraded): CommandResult
+    {
+        return $degraded === [] ? $result : $result->withWarning('services_degraded', 'The previous instance takes requests, but these services did not start or are not healthy: '.implode(', ', $degraded).'.', 'Read `fsa logs <service>`; `fsa status` shows them.');
     }
 
     /** @return list<string> what could not be removed (reported, removed by `fsa restore --abandon` or by hand) */
@@ -150,8 +185,9 @@ final readonly class RestoreRecovery
      */
     private function swapBack(OperationRun $run, ComposeProject $project, RestoreNames $names, bool $swapped): void
     {
+        $renaming = $this->noted($run, self::DATABASE_RETURNING);
         if (! $this->volumeExists($names->currentVolume)) {
-            throw new InstanceException("The previous storage volume {$names->currentVolume} is gone.", ExitCode::RollbackFailed, 'previous_volume_missing');
+            $this->noWayBack($run, ! $renaming, new InstanceException("The previous storage volume {$names->currentVolume} is gone.", ExitCode::RollbackFailed, 'previous_volume_missing'));
         }
         if ($this->noted($run, self::DATABASE_BACK)) {
             return; // an earlier attempt of this return renamed it back already
@@ -159,8 +195,8 @@ final readonly class RestoreRecovery
         $databases = $this->databases->list($project, ''); // every database: the names may be shortened copies of the live one
         $aside = in_array($names->aside, $databases, true);
         $live = in_array($names->live, $databases, true);
-        if (! $aside && $swapped && (! $live || ! $this->noted($run, self::DATABASE_RETURNING))) {
-            throw new InstanceException("The previous database {$names->aside} is gone.", ExitCode::RollbackFailed, 'previous_database_missing');
+        if (! $aside && $swapped && (! $live || ! $renaming)) {
+            $this->noWayBack($run, ! $renaming, new InstanceException("The previous database {$names->aside} is gone.", ExitCode::RollbackFailed, 'previous_database_missing'));
         }
         if ($aside) {
             $run->note(self::DATABASE_RETURNING, ['live' => $names->live]);
@@ -173,7 +209,22 @@ final readonly class RestoreRecovery
         $run->note(self::DATABASE_BACK, ['live' => $names->live]);
     }
 
-    private function noted(OperationRun $run, string $type): bool
+    /**
+     * Records that the way back is gone, when the databases were not renamed back yet (then the restored data is all
+     * there is and `--abandon` continues with it), and throws.
+     *
+     * @throws InstanceException
+     */
+    private function noWayBack(OperationRun $run, bool $forwardPossible, InstanceException $e): never
+    {
+        if ($forwardPossible && ! $this->noted($run, self::NO_WAY_BACK)) {
+            $run->note(self::NO_WAY_BACK, ['reason' => $e->errorCode]);
+        }
+
+        throw $e;
+    }
+
+    public function noted(OperationRun $run, string $type): bool
     {
         return array_any($run->record()->events(), static fn (array $event): bool => $event['type'] === $type);
     }
@@ -181,20 +232,6 @@ final readonly class RestoreRecovery
     private function volumeExists(string $volume): bool
     {
         return array_any($this->docker->volumes([]), static fn (DockerResource $resource): bool => $resource->name === $volume);
-    }
-
-    private function stopped(ComposeProject $project, RestoreNames $names, Throwable $cause, Throwable $failure, ?string $safetyBackup): CommandResult
-    {
-        try {
-            $this->docker->composeStop($project, [AppRoles::APP, AppRoles::QUEUE, AppRoles::SCHEDULER, BackupService::NAME]);
-        } catch (Throwable) {
-            // already stopped or Docker unreachable: the result says what is where either way
-        }
-
-        return CommandResult::failed('restore', ExitCode::RollbackFailed, 'restore_rollback_failed',
-            'The restore failed ('.$cause->getMessage().') and returning to the previous instance failed too ('.$failure->getMessage().'); the instance is stopped behind its gate.',
-            "The previous database is {$names->aside} (or {$names->live}), the restored one {$names->live} (or {$names->scratch}); the previous storage volume is {$names->currentVolume}, the restored one {$names->freshVolume}. Run `fsa restore --abandon` (or the same `fsa restore` again) to continue returning to the previous instance, or restore the safety backup".($safetyBackup === null ? '' : " {$safetyBackup}").' with `fsa restore`.',
-            false, ['names' => $names->toArray(), 'safety_backup' => $safetyBackup], changed: true);
     }
 
     /** @param  array<string, mixed>  $data */
