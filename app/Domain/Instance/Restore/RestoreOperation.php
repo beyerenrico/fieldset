@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Restore;
 
+use App\Domain\Instance\Adopt\AdoptedInstance;
 use App\Domain\Instance\Backup\KeyFingerprint;
 use App\Domain\Instance\Backup\SafetyBackup;
 use App\Domain\Instance\Console\FsaContext;
@@ -165,10 +166,11 @@ final readonly class RestoreOperation
         return ['backup' => $intake['backup']->toArray(), 'warnings' => $intake['warnings'], 'add' => array_map(KeyFingerprint::of(...), $intake['add'])];
     }
 
-    /** @return array{image: string, uuid: string, user: string} */
+    /** @return array{image: string, uuid: string, user: string, adopt_backup: array{name: string, sums: string}|null} the one-offs' image and user, and the adopt backup this instance made (review R1) */
     public static function runAs(InstanceState $state): array
     {
-        return ['image' => $state->digests()['app'] ?? '', 'uuid' => $state->uuid(), 'user' => $state->containerUid().':'.($state->containerUid() === 0 ? 0 : $state->hostGid())];
+        return ['image' => $state->digests()['app'] ?? '', 'uuid' => $state->uuid(), 'user' => $state->containerUid().':'.($state->containerUid() === 0 ? 0 : $state->hostGid()),
+            'adopt_backup' => AdoptedInstance::backupIdentity($state)];
     }
 
     /** @return array<string, mixed> the live database's final heads, appended to the ledger (R43, KTD26) */

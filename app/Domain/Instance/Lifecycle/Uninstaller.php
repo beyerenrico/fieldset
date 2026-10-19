@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Lifecycle;
 
+use App\Domain\Instance\Adopt\AdoptedInstance;
 use App\Domain\Instance\Compose\Services\EdgeService;
 use App\Domain\Instance\Docker\ContainerInfo;
 use App\Domain\Instance\Docker\DockerCommandFailed;
@@ -29,6 +30,10 @@ use App\Domain\Instance\State\InstanceState;
  *
  * - --keep-backups keeps `backups/` and first writes a final backup into it (FinalBackup: database dump, storage
  *   archive, APP_KEY); if that fails nothing is removed (exit 4). Without it, data and backups are deleted.
+ * - An adopted instance (plan U19, ADR 0087) gets the final backup and keeps `backups/` without --keep-backups, unless
+ *   --no-backup: its 1.0 checkout holds the data only up to the adopt. The result names the writes made since adopt
+ *   (AdoptedInstance), whether 1.0 ran since the adopt (its fence) and the command that brings 1.0 back; the 1.0
+ *   volumes were never this instance's.
  * - Without a determinable UUID the files go only when no labelled resource of this directory is left (exit 7).
  * - If a resource cannot be removed, the files stay, so the command can be run again (exit 4, `changed` true).
  * - The directory itself stays (empty): it is the ops container's bind mount and cannot be removed from inside it.
@@ -45,22 +50,28 @@ final readonly class Uninstaller
         private InstanceIdResolver $ids,
         private FinalBackup $backup,
         private ProjectConflicts $conflicts,
+        private AdoptedInstance $adopted,
     ) {}
 
-    public function uninstall(bool $keepBackups, HostFacts $facts): CommandResult
+    /** @param  bool  $noBackup  never write the final backup (an adopted instance gets one by default) */
+    public function uninstall(bool $keepBackups, HostFacts $facts, bool $noBackup = false): CommandResult
     {
         $uuid = $this->ids->resolve();
         if ($uuid === null) {
             $this->ids->assertNothingTied();
         }
         $state = $this->ids->state();
+        $adopted = $this->adopted->current($state);
+        $legacyChanged = $adopted === null ? null : $this->adopted->legacyChanged($state);
+        $keepBackups = $keepBackups || ($adopted !== null && ! $noBackup);
         $handle = $this->lock->acquire($this->identity->holder('fsa', $facts->callerUid()), 'uninstall');
 
         // The lock stays until everything but itself is gone, so no other operation writes into a half-deleted
         // directory (the marker goes first among the files, after it no fsa command accepts the directory).
         try {
             $volumes = $uuid === null ? [] : $this->docker->volumes([Labels::INSTANCE => $uuid]);
-            $final = $keepBackups ? $this->backup->write($this->ids->state(), $uuid, $volumes) : null;
+            $final = $keepBackups && ! $noBackup ? $this->backup->write($this->ids->state(), $uuid, $volumes) : null;
+            $writes = $adopted !== null && $state instanceof InstanceState ? $this->adopted->writesSince($state) : null;
             $removed = $uuid === null ? ['containers' => [], 'networks' => [], 'volumes' => []] : $this->removeResources($uuid, $final !== null);
             $deleted = $this->deleteFiles($keepBackups, [...array_filter([$facts->nonce, $facts->openUrlFile]), InstanceDirectory::LOCKS_DIR]);
         } finally {
@@ -69,8 +80,33 @@ final readonly class Uninstaller
         $this->directory->files()->delete(InstanceDirectory::LOCKS_DIR);
 
         $result = $this->result($uuid, $removed, $deleted, $keepBackups, $final);
+        $result = $adopted === null ? $result : $this->adoptedResult($result, $adopted, $writes, $final, $legacyChanged);
 
         return ! $this->holdsCertificates($volumes, $state) ? $result : $result->withWarning('certificates_removed', self::certificateWarning($this->domain($state)), 'Use --acme-staging for trial installs; reinstalling the same domain often counts against the CA\'s duplicate-certificate limit.');
+    }
+
+    /**
+     * @param  array<string, mixed>  $record  the `adopted` history entry
+     * @param  array{audit_entries: int, rows: array<string, int>, any: bool}|null  $writes
+     * @param  array{dir: string, files: list<string>}|null  $final
+     * @param  bool|null  $legacyChanged  whether 1.0 ran since the adopt (AdoptedInstance::legacyChanged)
+     */
+    private function adoptedResult(CommandResult $result, array $record, ?array $writes, ?array $final, ?bool $legacyChanged): CommandResult
+    {
+        $data = AdoptedInstance::uninstallData($record, $writes, $legacyChanged);
+        $result = $result->withData(['adopted' => $data])
+            ->withWarning('restart_1_0', AdoptedInstance::restartNotice($legacyChanged).AdoptedInstance::jobsNotice($record), 'Bring it back with: '.$data['restart_1_0']);
+        if ($writes === null) {
+            return $result->withWarning('writes_since_adopt_unknown', 'The writes made since adopt could not be counted (no baseline in backups/ledger.log, or Postgres did not answer).', $final === null ? 'Without a final backup they are gone with the instance.' : "Whatever was written is in the final backup {$final['dir']}.");
+        }
+        if (! $writes['any']) {
+            return $result;
+        }
+        $where = $final === null ? 'They are in no backup (--no-backup).' : "They are in the final backup {$final['dir']}.";
+
+        // A final-* set is no format fsa restore or --from-backup reads (review V3): its parts are restored by hand.
+        return $result->withWarning('writes_since_adopt', "Data written since adopt ({$writes['audit_entries']} audit entries, row changes ".json_encode($writes['rows']).') is not in the 1.0 install. '.$where,
+            $final === null ? null : "To get it back, load {$final['dir']}/database.dump into a 2.0 instance's Postgres with pg_restore and unpack app-storage.tar into its app-storage volume, with the APP keys from app-key.env (backup.json lists the files).");
     }
 
     /**

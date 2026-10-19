@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Restore;
 
+use App\Domain\Instance\Backup\BackupChecksums;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Output\ExitCode;
 use App\Domain\Instance\Output\InvalidInput;
@@ -56,22 +57,25 @@ final readonly class RestoreChecks
     /**
      * An in-place restore takes only this instance's own backups (review A3): the R64 carry matches rows by their IDs,
      * so another instance's users would inherit this one's revocations and erasures. A 1.0 archive names no instance; it
-     * counts as this instance's when the APP_KEY in its `env` is one of the instance's own keys (an adopted 1.0 install,
-     * U19). Everything else goes to a new directory with `fsa install --from-backup`.
+     * counts as this instance's when the APP_KEY in its `env` is one of the instance's own keys. The backup `fsa adopt`
+     * wrote holds no key (U19, ADR 0087): its manifest's first key fingerprint counts only for exactly that set, by its
+     * name and the digest of its SHA256SUMS as the adopt recorded them (review R1: the manifest is unauthenticated, a
+     * fingerprint alone is no proof). Everything else goes to a new directory with `fsa install --from-backup`.
      *
      * @param  AppKeys  $inside  the keys the archive carries (BackupIntake::insideKeys)
+     * @param  array{name: string, sums: string}|null  $adoptBackup  the adopt backup this instance made (AdoptedInstance::backupIdentity)
      *
      * @throws InstanceException exit 2
      */
-    public static function assertSameInstance(PreparedBackup $backup, string $uuid, AppKeys $own, AppKeys $inside): void
+    public static function assertSameInstance(PreparedBackup $backup, string $uuid, AppKeys $own, AppKeys $inside, ?array $adoptBackup = null): void
     {
         if ($backup->isLegacy()) {
-            $key = $inside->fingerprints()[0] ?? null;
+            $key = $inside->fingerprints()[0] ?? (self::isAdoptBackup($backup, $adoptBackup) ? $backup->fingerprints()[0] ?? null : null);
             if ($key !== null && in_array($key, $own->fingerprints(), true)) {
                 return;
             }
             $made = null;
-            $why = $key === null ? 'it is a 1.0 backup without its env file, so nothing says which instance made it' : 'it is a 1.0 backup made under an APP key this instance does not hold';
+            $why = $key === null ? 'it is a 1.0 backup without its env file (or without an APP key in it), so nothing says which instance made it' : 'it is a 1.0 backup made under an APP key this instance does not hold';
         } else {
             $instance = $backup->manifest['instance'] ?? null;
             $made = is_array($instance) && is_string($instance['uuid'] ?? null) ? $instance['uuid'] : null;
@@ -86,6 +90,14 @@ final readonly class RestoreChecks
             'Install it into a new directory with `fsa install --from-backup <backup> --dir <new directory>`; restoring it here would match its accounts to this instance\'s by number. Nothing was changed.',
             ['backup_instance' => $made ?? null, 'instance' => $uuid],
         );
+    }
+
+    /** @param  array{name: string, sums: string}|null  $adoptBackup */
+    private static function isAdoptBackup(PreparedBackup $backup, ?array $adoptBackup): bool
+    {
+        $sums = $backup->set.'/'.BackupChecksums::SUMS;
+
+        return $adoptBackup !== null && $backup->name === $adoptBackup['name'] && is_file($sums) && hash_equals($adoptBackup['sums'], (string) hash_file('sha256', $sums));
     }
 
     /** @throws InstanceException */

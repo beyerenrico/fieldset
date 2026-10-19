@@ -7,6 +7,7 @@ namespace Tests\Support\Instance;
 use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\Docker\ContainerInfo;
 use App\Domain\Instance\Docker\ContainerSpec;
+use App\Domain\Instance\Docker\DockerCommandFailed;
 use App\Domain\Instance\Docker\DockerGateway;
 use App\Domain\Instance\Docker\DockerInfo;
 use App\Domain\Instance\Docker\DockerResource;
@@ -111,7 +112,7 @@ final class RecordingDockerGateway implements DockerGateway
     public function restartContainer(string $id, string $startedAt): self
     {
         $c = $this->containers[$id];
-        $this->containers[$id] = new ContainerInfo($c->id, $c->name, 'running', $startedAt, $c->health, $c->image, $c->labels);
+        $this->containers[$id] = new ContainerInfo($c->id, $c->name, 'running', $startedAt, $c->health, $c->image, $c->labels, $c->mounts);
 
         return $this;
     }
@@ -119,7 +120,7 @@ final class RecordingDockerGateway implements DockerGateway
     public function stopContainer(string $id): self
     {
         $c = $this->containers[$id];
-        $this->containers[$id] = new ContainerInfo($c->id, $c->name, 'exited', $c->startedAt, $c->health, $c->image, $c->labels);
+        $this->containers[$id] = new ContainerInfo($c->id, $c->name, 'exited', $c->startedAt, $c->health, $c->image, $c->labels, $c->mounts);
 
         return $this;
     }
@@ -296,6 +297,16 @@ final class RecordingDockerGateway implements DockerGateway
         return $this->containers[$id] ?? null;
     }
 
+    /** @var array<string, array<string, string>> container ID => its environment (containerEnv) */
+    public array $environments = [];
+
+    public function containerEnv(string $id, array $keys): ?array
+    {
+        $this->record(__FUNCTION__, ['id' => $id, 'keys' => $keys]);
+
+        return isset($this->containers[$id]) ? array_intersect_key($this->environments[$id] ?? [], array_flip($keys)) : null;
+    }
+
     public function inspectNetwork(string $name): ?NetworkInfo
     {
         $this->record(__FUNCTION__, ['name' => $name]);
@@ -353,6 +364,50 @@ final class RecordingDockerGateway implements DockerGateway
         $this->record(__FUNCTION__, ['id' => $id, 'tail' => $tail]);
 
         return $this->logs;
+    }
+
+    /** Like composeRunToFile: the fileRunResponder (entrypoint, command, file) answers, else a fake stream is written. */
+    public function runContainerToFile(ContainerSpec $spec, string $outputFile, ?float $timeout = null): ProcessOutcome
+    {
+        $this->record(__FUNCTION__, ['spec' => $spec, 'file' => $outputFile, 'timeout' => $timeout]);
+        $answer = $this->fileRunResponder instanceof Closure ? ($this->fileRunResponder)($spec->entrypoint, $spec->command, $outputFile) : null;
+        if ($answer instanceof ProcessOutcome) {
+            return $answer;
+        }
+        file_put_contents($outputFile, self::fakeStream($spec->entrypoint));
+        chmod($outputFile, 0600);
+
+        return new ProcessOutcome(0);
+    }
+
+    /** Marks the containers exited; an unknown ID fails like the CLI (nothing is stopped then). */
+    public function stopContainers(array $ids, ?int $timeout = null): void
+    {
+        $this->record(__FUNCTION__, ['ids' => $ids, 'timeout' => $timeout]);
+        $this->assertKnown($ids, 'container stop');
+        foreach ($ids as $id) {
+            $this->stopContainer($id);
+        }
+    }
+
+    /** Marks the containers running again with a new start time, as Docker does; an unknown ID fails like the CLI. */
+    public function startContainers(array $ids): void
+    {
+        $this->record(__FUNCTION__, ['ids' => $ids]);
+        $this->assertKnown($ids, 'container start');
+        foreach ($ids as $id) {
+            $this->restartContainer($id, '2026-10-20T08:00:00.'.str_pad((string) count($this->calls), 9, '0', STR_PAD_LEFT).'Z');
+        }
+    }
+
+    /** @param  list<string>  $ids */
+    private function assertKnown(array $ids, string $label): void
+    {
+        foreach ($ids as $id) {
+            if (! isset($this->containers[$id])) {
+                throw new DockerCommandFailed($label, new ProcessOutcome(1, '', "Error response from daemon: No such container: {$id}"));
+            }
+        }
     }
 
     public function createVolume(string $name, array $labels): void

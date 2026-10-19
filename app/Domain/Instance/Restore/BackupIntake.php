@@ -22,7 +22,7 @@ final readonly class BackupIntake
     public function __construct(private InstanceDirectory $directory, private RestoreSource $source, private RestoreSpace $space) {}
 
     /**
-     * @param  array{image: string, uuid: string, user: string}  $runAs
+     * @param  array{image: string, uuid: string, user: string, adopt_backup?: array{name: string, sums: string}|null}  $runAs
      * @param  AppKeys  $own  the instance's APP keys (none for a new instance)
      * @return array{backup: PreparedBackup, warnings: list<array{0: string, 1: string, 2: string|null}>, add: list<string>}
      */
@@ -42,7 +42,7 @@ final readonly class BackupIntake
             $warnings[] = ['disk_space_unknown', 'The free disk space could not be read, so it was not checked.', 'Check `df` on the host before the next restore.'];
         }
         if ($purpose === RestoreChecks::IN_PLACE) {
-            RestoreChecks::assertSameInstance($backup, $runAs['uuid'], $own, self::insideKeys($backup));
+            RestoreChecks::assertSameInstance($backup, $runAs['uuid'], $own, self::insideKeys($backup), $runAs['adopt_backup'] ?? null);
         }
         $add = array_values(array_filter($known->keys, static fn (string $key): bool => in_array(AppKeys::of([$key])->fingerprints()[0], $backup->fingerprints(), true) && ! in_array($key, $own->keys, true)));
 

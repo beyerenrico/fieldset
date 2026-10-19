@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Operations;
 
+use App\Domain\Instance\Adopt\AdoptOperation;
 use App\Domain\Instance\Config\ConfigRequest;
 use App\Domain\Instance\Demo\DemoOperation;
 use App\Domain\Instance\InstanceException;
@@ -18,7 +19,8 @@ use App\Domain\Instance\Tunnel\TunnelOperation;
  * running the same command again with the same flags (as `fsa status` says). For `config set` the exact command
  * line, options included, is rebuilt from the journal (`data.command`, `data.options`; ADR 0078); `fsa demo` keeps its
  * `--rotate-passwords`. Every unfinished `fsa tunnel …` (a start whose revert failed, a cut-off stop or renew) is
- * finished by `fsa tunnel stop`, which removes the tunnel whatever state it was left in (ADR 0082).
+ * finished by `fsa tunnel stop`, which removes the tunnel whatever state it was left in (ADR 0082). An unfinished `fsa adopt`
+ * names its checkout and the way back: `--abandon` before 2.0 started, `fsa uninstall` after (ADR 0087).
  */
 final class OperationUnfinished extends InstanceException
 {
@@ -49,6 +51,7 @@ final class OperationUnfinished extends InstanceException
             $record->operation() === 'upgrade' => 'fsa upgrade --resume',
             self::rotatesDemoPasswords($record) => 'fsa demo --rotate-passwords',
             $record->operation() === ResetOperation::OPERATION => ResetRequest::commandLine($record->context()),
+            $record->operation() === AdoptOperation::OPERATION && is_string($record->context()['checkout'] ?? null) => 'fsa adopt '.$record->context()['checkout'],
             default => 'fsa '.$record->operation(),
         };
     }
@@ -85,6 +88,9 @@ final class OperationUnfinished extends InstanceException
             'upgrade' => "Run `{$command}` once `fsa status` shows no supervisor running (ADR 0086): before the safety backup it brings the previous services back (then run `fsa upgrade` again), from the safety backup until the commit it rolls back to the safety backup, after the commit it only finishes opening.",
             'rollback' => "Run `{$command}` again to resume it (a swap that did not pass its verification is undone first).",
             ResetOperation::OPERATION => ResetStatus::hint($record),
+            AdoptOperation::OPERATION => $record->hasStarted('start')
+                ? "Run `{$command}` again to finish it (2.0 already runs on its copy), or `fsa uninstall` (a final backup first) and `docker compose up -d` in the 1.0 checkout to go back to 1.0."
+                : "Run `{$command}` again to resume it, or `fsa adopt --abandon` to start 1.0 again as it was (ADR 0087).",
             TunnelOperation::OPERATION => "Run `{$command}`: it finishes the interrupted `".self::cutOff($record).'`, removes the tunnel whatever state it was left in and brings the stack back to the local URL; `fsa tunnel start` starts a new one afterwards.'.(self::action($record) === 'renew' ? ' `fsa tunnel renew` finishes a cut-off renew too and keeps a running tunnel.' : ''),
             default => "Run `{$command}` again with the same flags to resume it.",
         };

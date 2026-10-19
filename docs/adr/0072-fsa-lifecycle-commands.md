@@ -242,6 +242,12 @@ U12 did not add them (the smoke path above and the U12 consequence promised it);
   failed backups, scheduled runs skipped for more than 24 hours and a schedule without success for 26 hours are warnings.
   The services list includes `backup`.
 
+## Amendment 2026-10-20: the smoke test's mail without a recipient (U19)
+Without an owner e-mail (`fsa adopt`, `fsa install --from-backup` without `--owner-email`) the smoke test's mail goes to
+the active operator. Data from a 1.0 install may have none (1.0 granted operators by hand with `app:platform-admin`); the
+mail is then skipped (`InstallSmoke::MAIL_SKIPPED` in the phase data, warning `test_mail_skipped` from adopt with the hint
+`fsa config set operator-email <email>`), the PDF and HTTP checks still run (ADR 0087).
+
 ## Amendment 2026-10-20: `fsa reset` in status (U23, ADR 0088)
 - `fsa status` adds `last_reset` and `reset` (`last`, `interrupted`: last phase, whether the database was recreated, the
   safety backup or audit export, the command that resumes it). The `operation_unfinished` warning and exit 9 of other

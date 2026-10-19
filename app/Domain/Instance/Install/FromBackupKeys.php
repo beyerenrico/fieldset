@@ -14,6 +14,7 @@ use App\Domain\Instance\State\EnvFiles;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceSecrets;
 use App\Domain\Instance\State\InvalidState;
+use Closure;
 
 /**
  * The secrets of an instance moved with `fsa install --from-backup` (R42, plan U17, ADR 0085). Its APP_KEY is the backup's
@@ -34,6 +35,17 @@ final readonly class FromBackupKeys
      */
     public function ensure(PreparedBackup $backup, ?AppKeys $keyFile, SecretRedactor $redactor): array
     {
+        return $this->ensureKeys(static fn (): array => self::keys($backup, $keyFile), $redactor);
+    }
+
+    /**
+     * The same for keys from elsewhere: `fsa adopt` keeps the 1.0 checkout's APP_KEY and APP_PREVIOUS_KEYS (plan U19).
+     *
+     * @param  Closure(): array{0: string, 1: list<string>}  $keys  the current key and the previous ones, asked only when none are written yet
+     * @return array{generated: bool, app_key_fingerprint: string, previous_keys: int}
+     */
+    public function ensureKeys(Closure $keys, SecretRedactor $redactor): array
+    {
         $env = new EnvFiles($this->directory);
         $existing = InstanceSecrets::fromEnvFiles($env);
         if ($existing instanceof InstanceSecrets) {
@@ -42,7 +54,7 @@ final readonly class FromBackupKeys
         if (($env->read('app')['APP_KEY'] ?? '') !== '') {
             throw new InvalidState('env/app.env holds an APP_KEY without the database password; fsa never generates it again.');
         }
-        [$current, $previous] = self::keys($backup, $keyFile);
+        [$current, $previous] = $keys();
         $secrets = InstanceSecrets::generate()->withAppKey($current)->withPreviousKeys($previous);
         foreach ([$secrets->appKey, ...$secrets->previousKeys, $secrets->dbPassword, $secrets->valkeyPassword, $secrets->catcherPassword] as $value) {
             $redactor->register($value);

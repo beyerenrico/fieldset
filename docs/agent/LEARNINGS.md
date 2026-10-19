@@ -150,3 +150,7 @@
 141. Postgres sequences survive RefreshDatabase's rollback: a test of sequence floors must compute them from the current values, not assume where earlier tests left them.
 142. Rector pitfalls: `ThrowWithPreviousExceptionRector` puts `$e` into the next positional parameter (e.g. `retryable`), so pass `previous: $e` by name; `RemoveAlwaysTrueIfConditionRector` misreads a flag captured with `use (&$flag)` and deletes the condition: avoid that pattern.
 143. Docker fills an empty named volume (also an external one) with the image's content at the mount path on first mount; mount at an empty image path, or expect the files.
+144. The postgres image trusts connections from inside its own container (pg_hba `trust` for local): a one-off joined with `--network container:<postgres>` reaches it on 127.0.0.1 without a password. Use it only for socket-less admin one-offs; never hand that network to code from a backup or a target release.
+145. `docker ps --format '{{json .}}'` joins all labels into one comma-separated string, so a label value containing a comma cannot be split back: read labels with `docker inspect`.
+146. Several services that mount a new, empty named volume at the same moment race on Docker's copy-up ("failed to mkdir …/_data/private: file exists"): start one service first, then the rest.
+147. PHP 8.4's `array_any`/`array_all` pass the key as the callback's second argument: a callback with an optional second parameter silently receives it.

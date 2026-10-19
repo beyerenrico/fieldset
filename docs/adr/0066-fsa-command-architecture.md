@@ -115,3 +115,9 @@ namespace, the Docker gateway included. Host facts come from the shim as `FSA_TT
 - `SafeFiles` (and `InstanceDirectory::open()`) take an optional owner UID:GID: a root process hands every file and
   directory it creates to that owner before it becomes visible (temp file chowned before the rename), so the lock
   records and backups the service writes as container root stay readable and removable for the owner and fsa.
+
+## Amendment 2026-10-20: gateway methods for adopt (U19)
+`DockerGateway` gains `runContainerToFile` (a `docker run` whose stdout streams into a new 0600 file, like
+`composeRunToFile`), `stopContainers` and `startContainers` (`docker container stop/start` by ID): `fsa adopt` (ADR 0087)
+stops and starts the 1.0 install it takes over container by container, because Compose would recreate containers fsa did
+not create from a file it cannot render the way 1.0 did.

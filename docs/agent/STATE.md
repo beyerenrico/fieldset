@@ -1,15 +1,17 @@
-# State: 2026-10-20T00:10Z
+# State: 2026-10-20T01:20Z
 v2 run (BUILD_PROMPT_V2.md, plan `docs/plans/2026-10-17-001-feat-docker-distribution-v2-plan.md`).
 M9, M10 and M11 done and merged to `main` (tags `m9-done`, `v2.0.0-alpha.1`, `m10-done`, `v2.0.0-alpha.2`,
 `m11-done`, `v2.0.0-beta.1`; local only, never pushed). Reports: `docs/agent/milestones/M9.md`, `M10.md`, `M11.md`.
 
 ## Next actions
-1. Branch `m12-lifecycle`. T01 U16, T02 U17, T05 U23 done (U23 merge a650d68: suite 6874/6874; worktree removed).
-   Still in worktrees: T04 U19 (third fix round after its verifier; merge next) and T03 U18 (fix round for 6
-   medium + 9 low review findings incl. S3, U17's SchemaAudit ignoring missing objects; merges last, after merging
-   m12-lifecycle itself). Briefs `m12-u18/u19-brief.md` in the session scratchpad; DBs form_schema_u18/u19, images
-   fsa-test-u18/u19. Per unit: verify the report, merge `--no-ff --no-commit`, static + full suite, commit, remove
-   the worktree; then the gate T06 (coverage via `scripts/coverage.sh` from the main checkout, LEARNINGS 140).
+1. Branch `m12-lifecycle`. T01 U16, T02 U17, T05 U23 (merge a650d68) and T04 U19 (merge ea98143: suite 6984/6984)
+   done; their worktrees removed. Still in a worktree: T03 U18 (all 15 review findings fixed, U23 merged in;
+   verification reviewer running). Next: U18 fixes the verifier's findings and merges m12-lifecycle (U19): U19's
+   RestoreCommandTest still expects `upgrade_child_unavailable` for an older backup in place, which U18 removes, so
+   that expectation changes in U18's merge (the adopt backup must then restore in place through the child). Then
+   merge U18 `--no-ff --no-commit`, static + full suite, commit, remove the worktree; then the gate T06 (coverage
+   via `scripts/coverage.sh` from the main checkout, LEARNINGS 140; ShimScriptTest `mkdir(): Invalid argument`
+   flake under `--parallel` seen by U18: investigate).
 2. Backup service peak 68 MiB (J08, demo data) fits the 128 MiB slot: no budget change. M13 breakdown: admin-guide
    capture banner (U21); R39 operator notification for failed/stale backups (U20); R39 release check
    `pg_dump` major ≥ manifest Postgres major (U22); backup memory at the 1.0 data volume (J10).

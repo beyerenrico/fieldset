@@ -218,6 +218,13 @@ fsa_add_mount() { # <directory> <ro|rw>: mounts its physical path at the same pa
 	fi
 }
 
+fsa_adopt_checkout() { # <path>: `fsa adopt <checkout>` reads a 1.0 checkout, mounted read-only at its physical path (ADR 0087)
+	fsa_checkout=$1
+	case $fsa_checkout in /*) ;; *) fsa_checkout=$PWD/$fsa_checkout ;; esac
+	fsa_add_mount "$fsa_checkout" ro
+	fsa_checkout=$fsa_mount_dir
+}
+
 fsa_run_cleanup() { # removes the nonce, hand-over and temporary files of this run (idempotent)
 	if [ -n "${fsa_cleanup_files:-}" ]; then
 		fsa_old_ifs=$IFS
@@ -394,8 +401,9 @@ fsa_run() { # <instance dir> <image> <fsa command> [args...]: runs it in an ops 
 	fsa_run_setup
 
 	# The command moves to the front with --dir <instance> after it. File-path flags become absolute, physical
-	# paths, and their parent directory is mounted at the same path (KTD2). --dir must name this instance.
-	fsa_found=0 fsa_ended=0
+	# paths, and their parent directory is mounted at the same path (KTD2). --dir must name this instance. The first
+	# argument of `adopt` is the 1.0 checkout: mounted read-only at its own physical path.
+	fsa_found=0 fsa_ended=0 fsa_checkout=''
 	fsa_n=$#
 	while [ "$fsa_n" -gt 0 ]; do
 		fsa_arg=$1
@@ -409,15 +417,22 @@ fsa_run() { # <instance dir> <image> <fsa command> [args...]: runs it in an ops 
 		case $fsa_arg in
 		-*) ;;
 		*)
-			if [ "$fsa_found" = 0 ]; then fsa_found=1; else set -- "$@" "$fsa_arg"; fi
+			if [ "$fsa_found" = 0 ]; then
+				fsa_found=1
+			elif [ "$fsa_command" = adopt ] && [ -z "$fsa_checkout" ]; then
+				fsa_adopt_checkout "$fsa_arg"
+				set -- "$@" "$fsa_checkout"
+			else
+				set -- "$@" "$fsa_arg"
+			fi
 			continue ;;
 		esac
 		fsa_name=${fsa_arg%%=*}
 		fsa_file_flag_mode "$fsa_name"
 		if [ "$fsa_name" != --dir ] && [ -z "$fsa_mode" ]; then
 			set -- "$@" "$fsa_arg"
-			# Before the command, the value of a value-taking flag is no command candidate: keep it with its flag.
-			if [ "$fsa_found" = 0 ] && [ "$fsa_name" = "$fsa_arg" ] && [ "$fsa_n" -gt 0 ] && fsa_takes_value "$fsa_name"; then
+			# The value of a value-taking flag is neither the command nor adopt's checkout: keep it with its flag.
+			if [ "$fsa_name" = "$fsa_arg" ] && [ "$fsa_n" -gt 0 ] && fsa_takes_value "$fsa_name"; then
 				fsa_arg=$1
 				shift
 				fsa_n=$((fsa_n - 1))
