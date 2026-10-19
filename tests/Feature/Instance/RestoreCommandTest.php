@@ -202,3 +202,15 @@ it('refuses a backup outside the instance directory and one that does not exist'
     expect($outside)->toBe(2)->and($outsideJson['errors'][0]['code'])->toBe('backup_not_visible')
         ->and($missing)->toBe(2)->and($missingJson['errors'][0]['code'])->toBe('backup_not_found');
 });
+
+it('lets uninstall archive and remove a restored storage volume like Compose\'s own (final backup, ADR 0073)', function (): void {
+    $this->restore->backup();
+    $this->restore->restore();
+    $fresh = InstanceSettings::of($this->restore->config->state())->storageVolume();
+
+    [$code, $json] = $this->restore->instance->run('fsa:uninstall', ['--yes' => true, '--keep-backups' => true]);
+
+    expect($code)->toBe(0, (string) json_encode($json))
+        ->and($json['data']['final_backup']['files'])->toContain('app-storage.tar')
+        ->and($json['data']['removed']['volumes'])->toContain($fresh);
+});

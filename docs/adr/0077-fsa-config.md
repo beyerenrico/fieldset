@@ -180,3 +180,8 @@ above now reads the `phone_https` setting U14 writes: `config set domain` is exi
 `update-check` (2.0.0) is still a later key. They recreate only the backup service. `ConfigChange::unchanged()` also
 compares the backup recipients and treats the backup defaults (03:30, 7) like the default ports; the passphrase travels
 with the change to the preflight (`KeyFileRequest`) and is never journaled.
+
+## Amendment 2026-10-19: the `webhooks` key (U17, ADR 0085)
+`webhooks on|paused`, every mode: the operator's confirmation that a moved instance (`fsa install --from-backup`) may
+deliver webhooks. It changes only the runtime file (no service is recreated) and runs through the usual plan → apply →
+verify → audit flow; `paused` is stored as the setting `webhooks_paused`, `on` removes it.
