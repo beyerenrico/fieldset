@@ -11,6 +11,9 @@ use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Lifecycle\OneOffResult;
 use App\Domain\Instance\Operations\ContainerIdentity;
 use App\Domain\Instance\Operations\InstanceLock;
+use App\Domain\Instance\Operations\JournalRecord;
+use App\Domain\Instance\Operations\OperationJournal;
+use App\Domain\Instance\Operations\OperationUnfinished;
 use App\Domain\Instance\Output\CommandResult;
 use App\Domain\Instance\Output\ExitCode;
 use App\Domain\Instance\Output\InvalidInput;
@@ -23,7 +26,9 @@ use App\Domain\Instance\State\InstanceState;
  * point runs once (BackupRunner) and writes `backups/manual-<time>/`, encrypted when the instance has recipients. With
  * `--include-secrets` the APP keys and the SMTP account from env/app.env go into the backup on the one-off's stdin
  * (never an argument); that needs encryption (exit 2 otherwise). The result names the backup, its size, whether it is
- * encrypted, the APP_KEY fingerprint its HMAC derives from, and the referenced files missing from storage.
+ * encrypted, the APP_KEY fingerprint its HMAC derives from, and the referenced files missing from storage. An unfinished
+ * operation (a reset that recreated the database, a restore half-way) is exit 9 like for every other command: its
+ * database is no state worth a backup (U23 review A8).
  */
 final readonly class ManualBackup
 {
@@ -37,6 +42,7 @@ final readonly class ManualBackup
         private InstanceLock $lock,
         private ContainerIdentity $identity,
         private BackupRunner $runner,
+        private OperationJournal $journal,
     ) {}
 
     public function run(FsaContext $context, bool $includeSecrets): CommandResult
@@ -46,6 +52,12 @@ final readonly class ManualBackup
             throw new InvalidInput('--include-secrets needs an encrypted backup.', 'encryption_required', 'Add --encrypt (with --identity-out and --passphrase-file) or run `fsa config set backup-encryption on` first.');
         }
         $handle = $this->lock->acquire($this->identity->holder('fsa', $context->facts->callerUid()), self::OPERATION);
+        $open = $this->journal->current(); // read under the lock: no operation can begin in between
+        if ($open instanceof JournalRecord) {
+            $this->lock->release($handle);
+
+            throw new OperationUnfinished($open);
+        }
 
         try {
             $context->progress->phase('backup', 'Writing a manual backup');

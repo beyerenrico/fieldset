@@ -47,10 +47,10 @@
                 {
                     "key": "disk",
                     "status": "ok",
-                    "summary": "131.2 GiB free.",
+                    "summary": "132.4 GiB free.",
                     "hint": null,
                     "details": {
-                        "free_gib": 131.2,
+                        "free_gib": 132.4,
                         "path": "<work>/fsa-test-j12-ae5"
                     }
                 },
@@ -102,16 +102,10 @@
                 {
                     "key": "registry",
                     "status": "ok",
-                    "summary": "Registries reachable: <registry>.",
+                    "summary": "Every image is already on this host.",
                     "hint": null,
                     "details": {
-                        "missing": [
-                            "<registry>/library/caddy@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f"
-                        ],
-                        "reachable": [
-                            "<registry>"
-                        ],
-                        "unreachable": []
+                        "missing": []
                     }
                 },
                 {
@@ -164,7 +158,7 @@
         ]
     },
     "image_pulls": [
-        "<registry>/beyerenrico/form-schema-app@sha256:6242a9aa6e35b5e5bc4555c6ef33b9eeb07496abde71570779316431a1f338fa"
+        "<registry>/beyerenrico/form-schema-app@sha256:6158b3812109895d74db0098be8e2a7cf3acc642ae5372897220c02077981e30"
     ],
     "service_starts": []
 }

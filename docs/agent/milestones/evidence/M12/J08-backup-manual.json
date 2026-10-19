@@ -7,20 +7,20 @@
         "status": "ok",
         "changed": true,
         "data": {
-            "backup": "manual-20261019T141653Z",
-            "path": "<work>/fsa-test-j08/backups/manual-20261019T141653Z",
+            "backup": "manual-20261019T163153Z",
+            "path": "<work>/fsa-test-j08/backups/manual-20261019T163153Z",
             "kind": "manual",
-            "created_at": "2026-10-19T14:16:53Z",
-            "bytes": 262118,
+            "created_at": "2026-10-19T16:31:53Z",
+            "bytes": 262124,
             "encrypted": false,
             "includes_secrets": false,
-            "app_key_fingerprint": "c6ee-ebec-b629-afdb",
+            "app_key_fingerprint": "8b50-9fd8-bf58-b70f",
             "files": {
                 "referenced": 0,
                 "missing": 0,
                 "missing_sample": []
             },
-            "free_bytes": 134286356480
+            "free_bytes": 133694074880
         },
         "secrets": [],
         "warnings": [
@@ -80,12 +80,12 @@
         "schema_version": "1.0",
         "format": "fsa-backup",
         "kind": "manual",
-        "name": "manual-20261019T141653Z",
-        "created_at": "2026-10-19T14:16:53Z",
-        "completed_at": "2026-10-19T14:16:53Z",
+        "name": "manual-20261019T163153Z",
+        "created_at": "2026-10-19T16:31:53Z",
+        "completed_at": "2026-10-19T16:31:53Z",
         "instance": {
-            "uuid": "0f38e7cb-6dbb-4e40-ab9b-28ee6cd179a3",
-            "project": "fsa-fsa-test-j08-24e0",
+            "uuid": "0b6b55df-66d9-4e68-84eb-6482d6cb2bc7",
+            "project": "fsa-fsa-test-j08-0a9d",
             "version": "2.0.0-alpha.1-test",
             "mode": "local"
         },
@@ -157,7 +157,7 @@
             "changed_while_archived": false
         },
         "app_key_fingerprints": [
-            "c6ee-ebec-b629-afdb"
+            "8b50-9fd8-bf58-b70f"
         ],
         "hmac": {
             "algorithm": "hmac-sha256",
@@ -170,19 +170,19 @@
         "files": {
             "audit-heads.json": {
                 "bytes": 447,
-                "sha256": "5d34303f567eb29f07e23e7a459013c56cecefbd0ea70a7d331e4ea397da7f0e"
+                "sha256": "0f1786a43b4abda0ab7f1c5a60914169e08f2c9116bb5463cb434e2742b5ace1"
             },
             "database.dump": {
-                "bytes": 255065,
-                "sha256": "ca5cd8ab16672e6dbf3fbc0960ee6fd9c629c24a515e1943cb2120141014bd6e"
+                "bytes": 255073,
+                "sha256": "32f137172278bbe9e069e478d1031693719d33c0f5aedc3e6313bb8e6a1bcea7"
             },
             "settings.json": {
                 "bytes": 363,
-                "sha256": "8ee0899fad142ccbf2a61f09e36bf63f8a37ea3139be2b189873062e0ed0fe6b"
+                "sha256": "828ebb705890be4aaaf285043fbb5320488144383ef098c8a42a6adc39f9e592"
             },
             "storage.tar.gz": {
-                "bytes": 1041,
-                "sha256": "f5da7f96ff6e55f9c2c415e90479a20c19bd31d8f53e996b6f5086b9ae623857"
+                "bytes": 1039,
+                "sha256": "e069a1167c0ec795c7dc7d950d53881bee1fd58c191e3444702eb24bc35c9e3e"
             }
         }
     },

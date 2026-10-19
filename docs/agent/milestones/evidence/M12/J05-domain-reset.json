@@ -1,0 +1,210 @@
+{
+    "command": "fsa reset --demo --no-backup --yes --secrets-file <work>/j05-domain-reset.json --json",
+    "exit_code": 0,
+    "seconds": 91,
+    "stdout": {
+        "schema_version": 1,
+        "command": "reset",
+        "status": "ok",
+        "changed": true,
+        "data": {
+            "url": "https://fsa-test-j05.test",
+            "mode": "domain",
+            "version": "2.0.0-alpha.1-test",
+            "mail": {
+                "mode": "capture",
+                "catcher_url": "https://fsa-test-j05.test/_mail/"
+            },
+            "organization": "J5 Domain Org",
+            "owner_email": "owner@example.test",
+            "safety_backup": null,
+            "audit_export": "audit-export-reset-20261019T191556Z.jsonl",
+            "epoch": 2,
+            "previous_epoch": 1,
+            "storage_volume": "fsa-fsa-test-j05-domain-60ca_app-storage-reset-9d06f77d9b08",
+            "flushed": {
+                "valkey": true,
+                "catcher": true
+            },
+            "left_behind": [],
+            "removed": [
+                "volume fsa-fsa-test-j05-domain-60ca_app-storage"
+            ],
+            "next_commands": [
+                "fsa status",
+                "fsa login-link owner@example.test",
+                "fsa doctor --post"
+            ],
+            "sign_in_link": {
+                "expires_at": "2026-10-19T20:16:16Z",
+                "delivered": "secrets_file"
+            },
+            "demo": {
+                "organization": "Demo Haustechnik GmbH",
+                "seeded": true,
+                "passwords": "random",
+                "exposure": [
+                    "domain_mode"
+                ],
+                "users": [
+                    {
+                        "email": "owner@demo.test",
+                        "name": "Olivia Owner",
+                        "roles": [
+                            "owner"
+                        ]
+                    },
+                    {
+                        "email": "admin@demo.test",
+                        "name": "Adam Admin",
+                        "roles": [
+                            "admin"
+                        ]
+                    },
+                    {
+                        "email": "designer@demo.test",
+                        "name": "Dana Designer",
+                        "roles": [
+                            "designer"
+                        ]
+                    },
+                    {
+                        "email": "reviewer@demo.test",
+                        "name": "Rita Reviewer",
+                        "roles": [
+                            "reviewer"
+                        ]
+                    },
+                    {
+                        "email": "coordinator@demo.test",
+                        "name": "Cora Coordinator",
+                        "roles": [
+                            "designer",
+                            "reviewer"
+                        ]
+                    },
+                    {
+                        "email": "worker@demo.test",
+                        "name": "Willi Worker",
+                        "roles": [
+                            "field_worker"
+                        ]
+                    },
+                    {
+                        "email": "mobile@demo.test",
+                        "name": "Mia Mobil",
+                        "roles": [
+                            "field_worker"
+                        ]
+                    },
+                    {
+                        "email": "tablet@demo.test",
+                        "name": "Tom Tablet",
+                        "roles": [
+                            "field_worker"
+                        ]
+                    },
+                    {
+                        "email": "viewer@demo.test",
+                        "name": "Vera Viewer",
+                        "roles": [
+                            "viewer"
+                        ]
+                    }
+                ],
+                "login_url": "https://fsa-test-j05.test/admin/login",
+                "delivered": "secrets_file"
+            }
+        },
+        "secrets": [
+            {
+                "name": "sign_in_link",
+                "written_to": "<work>/j05-domain-reset.json",
+                "expires_at": "2026-10-19T20:16:16Z"
+            },
+            {
+                "name": "demo_password:owner@demo.test",
+                "written_to": "<work>/j05-domain-reset.json",
+                "expires_at": null
+            },
+            {
+                "name": "demo_password:admin@demo.test",
+                "written_to": "<work>/j05-domain-reset.json",
+                "expires_at": null
+            },
+            {
+                "name": "demo_password:designer@demo.test",
+                "written_to": "<work>/j05-domain-reset.json",
+                "expires_at": null
+            },
+            {
+                "name": "demo_password:reviewer@demo.test",
+                "written_to": "<work>/j05-domain-reset.json",
+                "expires_at": null
+            },
+            {
+                "name": "demo_password:coordinator@demo.test",
+                "written_to": "<work>/j05-domain-reset.json",
+                "expires_at": null
+            },
+            {
+                "name": "demo_password:worker@demo.test",
+                "written_to": "<work>/j05-domain-reset.json",
+                "expires_at": null
+            },
+            {
+                "name": "demo_password:mobile@demo.test",
+                "written_to": "<work>/j05-domain-reset.json",
+                "expires_at": null
+            },
+            {
+                "name": "demo_password:tablet@demo.test",
+                "written_to": "<work>/j05-domain-reset.json",
+                "expires_at": null
+            },
+            {
+                "name": "demo_password:viewer@demo.test",
+                "written_to": "<work>/j05-domain-reset.json",
+                "expires_at": null
+            }
+        ],
+        "warnings": [
+            {
+                "code": "no_backup",
+                "message": "No safety backup was taken (--no-backup): only the audit log was kept, in backups/audit-export-reset-20261019T191556Z.jsonl.",
+                "hint": null
+            }
+        ],
+        "errors": []
+    },
+    "secret_names": [
+        "sign_in_link",
+        "demo_password:owner@demo.test",
+        "demo_password:admin@demo.test",
+        "demo_password:designer@demo.test",
+        "demo_password:reviewer@demo.test",
+        "demo_password:coordinator@demo.test",
+        "demo_password:worker@demo.test",
+        "demo_password:mobile@demo.test",
+        "demo_password:tablet@demo.test",
+        "demo_password:viewer@demo.test"
+    ],
+    "export_header": {
+        "format": "fsa-audit-export",
+        "version": "1.0",
+        "exported_at": "2026-10-19T19:15:58Z",
+        "epoch": 1,
+        "entries": 34
+    },
+    "export_mode": "600",
+    "safety_backups": [],
+    "organizations": "J5 Domain Org,Demo Haustechnik GmbH",
+    "login_with_password": 422,
+    "login_with_printed_password": [
+        200,
+        [
+            200,
+            "designer@demo.test"
+        ]
+    ]
+}

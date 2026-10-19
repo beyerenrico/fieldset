@@ -306,3 +306,16 @@ it('hands the finish step the journal ID and the backup time, and warns about ch
         ->and(RestoreDatabases::createdAt('2026-10-19T14:00:00+02:00'))->toBe('2026-10-19T12:00:00Z')
         ->and(RestoreDatabases::createdAt('yesterday'))->toBeNull();
 });
+
+it('warns that nothing was carried from an instance reset after the backup (U23 review A5)', function (): void {
+    $this->restore->backup();
+    $this->restore->finish = InstanceCommandFixture::oneOffJson(['command' => 'instance:restore-finish', 'status' => 'ok', 'changed' => true, 'data' => [
+        'epoch' => 3, 'previous_epoch' => 2, 'carried' => [], 'carry_mode' => 'reset', 'carry_skipped' => [], 'cascade_skipped' => [],
+    ]]);
+
+    [$code, $json] = $this->restore->restore();
+
+    expect($code)->toBe(0, (string) json_encode($json))
+        ->and($json['data']['carry_mode'])->toBe('reset')
+        ->and(collect($json['warnings'])->pluck('code')->all())->toContain('carry_skipped_after_reset')->not->toContain('carry_partial');
+});

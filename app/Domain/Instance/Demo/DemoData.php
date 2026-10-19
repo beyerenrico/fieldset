@@ -10,6 +10,7 @@ use App\Domain\Instance\Lifecycle\AppCommands;
 use App\Domain\Instance\Lifecycle\OneOffResult;
 use App\Domain\Instance\Operations\OperationRun;
 use App\Domain\Instance\Output\ExitCode;
+use App\Domain\Instance\Reset\ResetStatus;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceState;
 use Closure;
@@ -33,10 +34,18 @@ final readonly class DemoData
 
     public function __construct(private AppCommands $app, private InstanceDirectory $directory) {}
 
-    /** Whether the state history records demo data (installed with `--demo` or added by `fsa demo`). */
+    /**
+     * Whether the state history records demo data (installed with `--demo` or added by `fsa demo`) since the last reset,
+     * which recreated the database (ADR 0088).
+     */
     public static function recorded(InstanceState $state): bool
     {
-        return array_any($state->history(), static fn (array $entry): bool => ($entry['event'] ?? null) === self::SEEDED);
+        $since = [];
+        foreach ($state->history() as $entry) {
+            $since = ($entry['event'] ?? null) === ResetStatus::EVENT ? [] : [...$since, $entry];
+        }
+
+        return array_any($since, static fn (array $entry): bool => ($entry['event'] ?? null) === self::SEEDED);
     }
 
     /**
