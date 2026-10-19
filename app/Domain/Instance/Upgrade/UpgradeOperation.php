@@ -103,7 +103,7 @@ final readonly class UpgradeOperation
         $run->phase('pull', fn (): array => $this->preflight->pull($release), changes: false);
         $id = UpgradeJournal::shortId($run->record());
         try {
-            $run->phase('quiesce', fn (): array => $this->quiesce->quiesce($state, $project, $request, $id), maxSeconds: QueueDrain::DRAIN_SECONDS + 200);
+            $run->phase('quiesce', fn (): array => $this->quiesce->quiesce($state, $project, $request->dropJobs, $id), maxSeconds: QueueDrain::DRAIN_SECONDS + 200);
             $backup = $run->phase('safety_backup', fn (): array => $this->backup->take($state, $id, $request->actorUid));
         } catch (Throwable $e) {
             return $this->revert($run, $state, $project, $e);

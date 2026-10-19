@@ -83,6 +83,9 @@ final class UpgradeFixture
     /** Problems the safety backup's set has on disk (a damaged checksum: verification fails). */
     public bool $damagedSafety = false;
 
+    /** The security state export's one-off (null: a small valid document). */
+    public ?ProcessOutcome $exportOutcome = null;
+
     /** @var list<string> safety backups written, in order */
     public array $safetyBackups = [];
 
@@ -240,6 +243,10 @@ final class UpgradeFixture
         return match ($command[2] ?? null) {
             'instance:upgrade-db' => $this->database($command[3] ?? ''),
             'instance:queue-drain' => $this->queue(in_array('--drop', $command, true)),
+            'instance:security-export' => $this->exportOutcome ?? InstanceCommandFixture::oneOffJson(['command' => 'instance:security-export', 'status' => 'ok',
+                'data' => ['format' => 'fsa-security-state', 'version' => 1, 'generated_at' => '2026-10-20T10:00:00Z', 'since' => null, 'tables' => ['users' => ['columns' => ['id'], 'rows' => [[1]]]], 'sequences' => []]]),
+            'instance:rollback-loss' => InstanceCommandFixture::oneOffJson(['command' => 'instance:rollback-loss', 'status' => 'ok',
+                'data' => ['since' => '2026-10-20T10:00:00Z', 'counts' => ['submissions' => 12, 'activity_log' => 340, 'users' => 0]]]),
             default => null,
         };
     }
@@ -322,6 +329,12 @@ final class UpgradeFixture
             'commit' => $this->instance->directory->saveState($target->withPreviousRelease((string) $state->version(), $state->digests(), $this->compose())),
             default => null,
         };
+    }
+
+    /** `fsa rollback --yes` with --json. */
+    public function rollback(array $options = []): array
+    {
+        return $this->instance->run('fsa:rollback', ['--yes' => true, ...$options]);
     }
 
     /** The labels a detached supervisor container carries. */

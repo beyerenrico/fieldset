@@ -52,7 +52,8 @@ final readonly class UpgradeChild
     }
 
     /**
-     * @param  array<string, mixed>  $release  the journaled target (version, digests, from)
+     * @param  array<string, mixed>  $release  the journaled target (version, digests, from; for a rollback's render-only
+     *                                         run also `settings` to render with and `migrate: false`)
      * @return array<string, mixed> the child's result: migrated, steps, staged
      *
      * @throws InstanceException exit 5 (the caller rolls back)
@@ -64,7 +65,7 @@ final readonly class UpgradeChild
         $secrets = InstanceSecrets::fromEnvFiles(new EnvFiles($this->directory));
         $emulated = $secrets instanceof InstanceSecrets && ComposeFile::emulated($this->directory, new ComposeRenderer, $state, $secrets);
         file_put_contents($stage.'/'.StageRenderer::REQUEST, json_encode(['journal' => $id, 'version' => $release['version'], 'from' => $release['from'] ?? null,
-            'digests' => $release['digests'], 'emulated' => $emulated], JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
+            'digests' => $release['digests'], 'emulated' => $emulated, 'settings' => $release['settings'] ?? [], 'migrate' => ($release['migrate'] ?? true) !== false], JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
         $this->removeLeftover($state);
         $container = $this->launch($state, $project, $release, $stage);
         try {

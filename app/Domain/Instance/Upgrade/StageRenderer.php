@@ -21,8 +21,10 @@ use JsonException;
  * that adds a service or an env key therefore starts from what it rendered itself, not from what the installed version
  * would render. The instance directory is mounted read-only; only the stage directory is writable.
  *
- * Stage layout (`operations/upgrade-<id>/`): `request.json` (written by the supervisor: version, digests, emulation),
- * `files/` (the rendered tree, an instance directory of its own), `result.json` (the child's outcome).
+ * Stage layout (`operations/upgrade-<id>/`): `request.json` (written by the supervisor: version, digests, emulation,
+ * settings to render with, whether to migrate), `files/` (the rendered tree, an instance directory of its own),
+ * `result.json` (the child's outcome). A manual `fsa rollback` runs the **previous** image's child to render only: its
+ * own compose file for the current settings and the restored storage volume, without migrating.
  */
 final readonly class StageRenderer
 {
@@ -37,6 +39,12 @@ final readonly class StageRenderer
 
     public function __construct(private InstanceDirectory $directory, private ComposeRenderer $renderer) {}
 
+    /** Whether the request asks the child to migrate too (an upgrade) or only to render (a rollback). */
+    public function migrates(string $stage): bool
+    {
+        return $this->request($stage)['migrate'];
+    }
+
     /**
      * @return list<string> the staged files, relative to `files/`
      *
@@ -47,7 +55,7 @@ final readonly class StageRenderer
         $request = $this->request($stage);
         $secrets = InstanceSecrets::fromEnvFiles(new EnvFiles($this->directory))
             ?? throw new InvalidState('The app env file lacks APP_KEY or the database password; they are never generated again silently.');
-        $state = $this->directory->state()->withRelease($request['version'], $request['digests']);
+        $state = $this->directory->state()->withRelease($request['version'], $request['digests'])->withSettings($request['settings']);
         $files = InstanceDirectory::initialize($stage.'/'.self::FILES);
         $this->renderer->write($files, $state, $secrets, $request['emulated']);
 
@@ -78,7 +86,7 @@ final readonly class StageRenderer
         return $files;
     }
 
-    /** @return array{version: string, from: string|null, digests: array<string, string>, emulated: bool} */
+    /** @return array{version: string, from: string|null, digests: array<string, string>, emulated: bool, settings: array<string, string|int|bool|null>, migrate: bool} */
     private function request(string $stage): array
     {
         if (! self::valid($this->directory, $stage)) {
@@ -94,6 +102,9 @@ final readonly class StageRenderer
             throw new InstanceException('The upgrade stage holds no valid request.', ExitCode::InvalidInput, 'stage_invalid');
         }
 
-        return ['version' => $request['version'], 'from' => is_string($request['from'] ?? null) ? $request['from'] : null, 'digests' => $digests, 'emulated' => ($request['emulated'] ?? false) === true];
+        $settings = is_array($request['settings'] ?? null) ? array_filter($request['settings'], static fn (mixed $value): bool => $value === null || is_scalar($value)) : [];
+
+        return ['version' => $request['version'], 'from' => is_string($request['from'] ?? null) ? $request['from'] : null, 'digests' => $digests, 'emulated' => ($request['emulated'] ?? false) === true,
+            'settings' => $settings, 'migrate' => ($request['migrate'] ?? true) !== false];
     }
 }

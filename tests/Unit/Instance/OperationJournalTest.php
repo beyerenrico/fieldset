@@ -98,7 +98,8 @@ it('refuses to begin while an earlier operation is unfinished and names it', fun
     } catch (OperationUnfinished $e) {
         expect($e->exitCode)->toBe(ExitCode::AbortedUnchanged)
             ->and($e->getMessage())->toContain('upgrade')->toContain('migrate')
-            ->and($e->hint)->toBe('Run `fsa upgrade` again with the same flags to resume it.')
+            // U18 (ADR 0086): an interrupted upgrade names `fsa upgrade --resume` and what it does in each phase
+            ->and($e->hint)->toStartWith('Run `fsa upgrade --resume`')->toContain('rolls back to the safety backup')
             ->and($e->data['operation'])->toBe('upgrade')
             ->and($e->data['last_phase'])->toBe('migrate');
     }

@@ -52,9 +52,9 @@ final readonly class UpgradeQuiesce
      *
      * @throws InstanceException exit 9 `drain_timeout` (the caller reverts)
      */
-    public function quiesce(InstanceState $state, ComposeProject $project, UpgradeRequest $request, string $id): array
+    public function quiesce(InstanceState $state, ComposeProject $project, bool $dropJobs, string $id, string $operation = UpgradeJournal::OPERATION): array
     {
-        new RuntimeWriter($this->directory)->raiseGate($state, UpgradeJournal::OPERATION);
+        new RuntimeWriter($this->directory)->raiseGate($state, $operation);
         $running = $this->running($project);
         $first = array_values(array_intersect(self::FIRST, $running));
         if ($first !== []) {
@@ -63,10 +63,10 @@ final readonly class UpgradeQuiesce
         $drain = $this->drain->drain($project, in_array(AppRoles::QUEUE, $running, true));
         $dropped = null;
         if (! $drain['drained']) {
-            if (! $request->dropJobs) {
+            if (! $dropJobs) {
                 throw new InstanceException(
                     "The queue did not drain within {$drain['waited']} s ({$drain['pending']} pending, {$drain['reserved']} running).", ExitCode::AbortedUnchanged, 'drain_timeout',
-                    'Run `fsa upgrade` again later, or with --drop-jobs to save the remaining jobs to a file and drop them. The previous version runs again.', true, ['queue' => $drain],
+                    "Run `fsa {$operation}` again later".($operation === UpgradeJournal::OPERATION ? ', or with --drop-jobs to save the remaining jobs to a file and drop them' : '').'. Nothing was changed; the instance runs as before.', true, ['queue' => $drain],
                 );
             }
             $dropped = $this->dropJobs($project, $id);

@@ -20,7 +20,8 @@ use Throwable;
  * `fsa upgrade-child` (an image role, hidden from users; KTD19 step 6, R36, plan U18, ADR 0086): what the **target**
  * image does for an upgrade, in a container the installed supervisor starts without the Docker socket, on the instance
  * network, with the instance directory read-only and only its stage directory (FSA_UPGRADE_STAGE) writable: render the
- * target's compose and env files into the stage (StageRenderer), then migrate with them (ChildMigration). The outcome
+ * target's compose and env files into the stage (StageRenderer), then migrate with them (ChildMigration); for a manual
+ * rollback the previous image only renders (`migrate: false` in the request). The outcome
  * goes to `result.json` in the stage, where the supervisor reads it after the container exited (a crash leaves none),
  * and to stdout.
  */
@@ -42,7 +43,11 @@ final class UpgradeChildCommand extends Command
         try {
             $directory = InstanceDirectory::open(rtrim((string) $this->option('dir'), '/'));
             $this->laravel->instance(InstanceDirectory::class, $directory);
-            $data['staged'] = $this->laravel->make(StageRenderer::class)->render($stage);
+            $renderer = $this->laravel->make(StageRenderer::class);
+            $data['staged'] = $renderer->render($stage);
+            if (! $renderer->migrates($stage)) {
+                return $this->finish($stage, JsonResult::ok(self::COMMAND, [...$data, 'migrated' => [], 'steps' => [], 'invalid_indexes' => []]), []);
+            }
             $request = json_decode((string) file_get_contents($stage.'/'.StageRenderer::REQUEST), true);
             $from = is_array($request) && is_string($request['from'] ?? null) ? $request['from'] : null;
             $id = substr((string) preg_replace('/^.*upgrade-/', '', $stage), 0, 12);
