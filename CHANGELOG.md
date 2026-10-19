@@ -33,23 +33,29 @@ The Form Schema Spec has its own changelog in `spec/form-definition/1.0/CHANGELO
   the archive, every archive member and every object of the dump judged before anything is written), the instance is
   quiesced behind its gate, the final audit heads go to `backups/ledger.log`, a safety backup is taken, and the backup
   is restored into a scratch database and a fresh storage volume. Security changes made since the backup (revoked
-  devices, deactivated or erased users, changed passwords and MFA, deleted API tokens, revoked operators and roles) are
-  re-applied, sessions, reset tokens and sign-in links are cleared, numbering never goes backwards, the audit log starts
-  a new epoch with an `instance.restored` entry, and only a restored instance that passes its checks replaces the old
-  database and volume; otherwise the old instance runs again (exit 5). A backup from a newer version is refused with
-  exit 7 and changes nothing (ADR 0085).
+  devices, deactivated or erased users, changed passwords, e-mail addresses and MFA, deleted API tokens, SSO identities
+  and providers, revoked operators, roles, group memberships and form access, deleted organizations and webhook
+  endpoints) are re-applied, sessions, reset tokens and sign-in links are cleared, numbering never goes backwards, the
+  audit log starts a new epoch with an `instance.restored` entry, and only a restored instance that passes its checks
+  behind the gate replaces the old database and volume; otherwise the old instance runs again (exit 5). Only backups of
+  the same instance are restored in place (another instance's go to a new directory with `--from-backup`); webhooks stay
+  paused afterwards until you run `fsa config set webhooks on`. A backup from a newer version is refused with exit 7 and
+  changes nothing (ADR 0085).
 - **`fsa restore --drill <backup>`** — restores into a scratch database and reports counts, audit chain heads, missing
   files, a test render and a decrypt sample without touching the instance (ADR 0085).
-- **`fsa restore --abandon`** — cleans up a restore that stopped half-way and brings the instance back (ADR 0085).
+- **`fsa restore --abandon`** — cleans up a restore that stopped half-way, also after exit 8, and brings the instance
+  back (ADR 0085).
 - **`fsa install --from-backup <backup>`** — moves an instance to another host: settings that belong to the instance
   come from the backup, host-bound ones from the flags; a domain that does not point here yet is "certificate pending".
   The moved instance starts with captured mail and paused webhooks until you confirm with `fsa config set webhooks on`
   and `fsa config set mail smtp …`. 1.0 backups from `scripts/backup.sh` are accepted with `--accept-unauthenticated`;
-  their unsafe settings (debug mode, insecure SSO, trusted proxies) are never applied (ADR 0085).
+  their unsafe settings (debug mode, insecure SSO, trusted proxies) are never applied; backup recipients are kept only
+  from an authenticated backup (ADR 0085).
 - **`--app-key-file`, `--identity-file`, `--accept-unauthenticated`** for restore and `--from-backup`: APP keys of an
   older or another instance (they become previous keys, so old data still decrypts), the backup identity with
   `--passphrase-file`/`--passphrase-stdin`, and archives without a valid HMAC (ADR 0085).
-- **`fsa config set webhooks on|paused`** (ADR 0085).
+- **`fsa config set webhooks on|paused`**; a webhook step also waits when the instance's runtime file cannot be read
+  (ADR 0085).
 
 ### Changed
 - `fsa status` and `fsa logs` list the `backup` service; the stack file for Portainer and Coolify still has no
