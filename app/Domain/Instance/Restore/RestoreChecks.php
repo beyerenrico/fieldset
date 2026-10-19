@@ -92,6 +92,28 @@ final readonly class RestoreChecks
         );
     }
 
+    /**
+     * A backup without a storage archive (1.0 `--no-storage`, M12 gate D4): restored in place only with `--without-files`
+     * (exit 2 otherwise, nothing changed), and the previous storage volume is then kept, not deleted (RestoreCleanup,
+     * whose warning names it); `--from-backup` starts with an empty volume and says so here.
+     *
+     * @return array{0: string, 1: string, 2: string|null}|null
+     *
+     * @throws InstanceException exit 2 `backup_without_files`
+     */
+    public static function withoutFiles(string $purpose, bool $accepted): ?array
+    {
+        if ($purpose === self::IN_PLACE && ! $accepted) {
+            throw new InvalidInput(
+                'The backup carries no storage archive: restoring it would leave the instance without its files (uploads, renditions, documents).',
+                'backup_without_files',
+                'Use a backup with files, or pass --without-files to restore the database only; the current storage volume is then kept aside, not deleted. Nothing was changed.',
+            );
+        }
+
+        return $purpose === self::IN_PLACE ? null : ['restored_without_files', 'The backup carries no storage archive: the new instance starts without files (uploads, renditions, documents).', null];
+    }
+
     /** @param  array{name: string, sums: string}|null  $adoptBackup */
     private static function isAdoptBackup(PreparedBackup $backup, ?array $adoptBackup): bool
     {

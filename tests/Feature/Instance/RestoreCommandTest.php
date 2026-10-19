@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Instance\Backup\BackupChecksums;
 use App\Domain\Instance\Backup\KeyFingerprint;
 use App\Domain\Instance\Docker\DockerResource;
 use App\Domain\Instance\Docker\Labels;
@@ -374,4 +375,26 @@ it('warns that nothing was carried from an instance reset after the backup (U23 
     expect($code)->toBe(0, (string) json_encode($json))
         ->and($json['data']['carry_mode'])->toBe('reset')
         ->and(collect($json['warnings'])->pluck('code')->all())->toContain('carry_skipped_after_reset')->not->toContain('carry_partial');
+});
+
+it('refuses a backup without a storage archive unless --without-files, and then keeps the previous storage volume (M12 gate D4)', function (): void {
+    $set = $this->restore->backup();
+    unlink($set.'/storage.tar.gz'); // a 1.0 `--no-storage` archive has none either
+    BackupChecksums::write($set, ['audit-heads.json', 'database.dump', 'manifest.json', 'settings.json'], BackupSetFixture::hmacKey($this->restore->appKey()));
+    $state = $this->restore->config->state();
+    $mark = $this->restore->config->mark();
+
+    [$refused, $refusedJson] = $this->restore->restore();
+    $untouched = $this->restore->config->methodsSince($mark);
+    [$code, $json] = $this->restore->restore(options: ['--without-files' => true]);
+    $warning = collect($json['warnings'])->firstWhere('code', 'restored_without_files');
+
+    expect($refused)->toBe(2, (string) json_encode($refusedJson))
+        ->and($refusedJson['errors'][0]['code'])->toBe('backup_without_files')
+        ->and($refusedJson['errors'][0]['hint'])->toContain('--without-files')
+        ->and($untouched)->not->toContain('composeStop')->not->toContain('createVolume')
+        ->and($code)->toBe(0, (string) json_encode($json))
+        ->and($warning['message'] ?? '')->toContain('no storage archive')->toContain($state->project().'_app-storage')
+        ->and(array_column($this->restore->instance->docker->called('removeVolume'), 'name'))->not->toContain($state->project().'_app-storage')
+        ->and($this->restore->specs('tar'))->toBe([]);
 });

@@ -44,6 +44,10 @@ final readonly class BackupIntake
         if ($purpose === RestoreChecks::IN_PLACE) {
             RestoreChecks::assertSameInstance($backup, $runAs['uuid'], $own, self::insideKeys($backup), $runAs['adopt_backup'] ?? null);
         }
+        $files = $backup->storage === null && $purpose !== RestoreChecks::DRILL ? RestoreChecks::withoutFiles($purpose, $request->withoutFiles) : null;
+        if ($files !== null) {
+            $warnings[] = $files;
+        }
         $add = array_values(array_filter($known->keys, static fn (string $key): bool => in_array(AppKeys::of([$key])->fingerprints()[0], $backup->fingerprints(), true) && ! in_array($key, $own->keys, true)));
 
         return ['backup' => $backup, 'warnings' => $warnings, 'add' => $add];

@@ -190,11 +190,24 @@ it('left 1.0\'s volumes untouched and stopped, and its backup restores in a dril
     $drill = $this->journey->fsa($this->dir, ['restore', $backup, '--drill', '--accept-unauthenticated', '--json']);
     $drillJson = InstanceJourney::json($drill);
     $this->journey->evidence('J09-drill.json', ['command' => 'fsa restore '.$backup.' --drill --accept-unauthenticated --json', 'exit_code' => $drill->getExitCode(), 'stdout' => $drillJson]);
+    $members = new Process(['tar', '-tzf', $this->dir.'/backups/'.$backup.'/storage.tar.gz']);
+    $members->run();
+    $files = $drillJson['data']['drill']['files'] ?? [];
+    $loadOnly = array_filter((array) ($files['sample'] ?? []), static fn (mixed $file): bool => ! is_string($file) || ! str_starts_with($file, 'private/load-test/'));
 
     expect(array_map(trim(...), explode("\n", trim($volumes->getOutput()))))->toEqualCanonicalizing([$this->v1->project.'_pg-data', $this->v1->project.'_app-storage'])
         ->and(array_unique(explode("\n", trim($state->getOutput()))))->toBe(['exited'])
         ->and((string) file_get_contents($this->dir.'/backups/'.$backup.'/env'))->not->toContain($this->v1->appKey) // review S1
-        ->and($drill->getExitCode())->toBe(0, $drill->getErrorOutput()."\n".$drill->getOutput());
+        ->and($drill->getExitCode())->toBe(0, $drill->getErrorOutput()."\n".$drill->getOutput())
+        // The storage made the round trip (M12 gate EV3): the archive holds the 1.0 file, the drill read it, and the only
+        // references it misses are the load generator's renditions, which never had a file (LoadRows::renditions).
+        ->and(explode("\n", trim($members->getOutput())))->toContain('./private/fsa-test-j09/file.txt')
+        ->and($files['archive'] ?? null)->toBeTrue()
+        ->and($drillJson['data']['storage']['files'] ?? 0)->toBeGreaterThanOrEqual(1)
+        ->and($loadOnly)->toBe([])
+        ->and([$files['referenced'] ?? null, $files['missing'] ?? null])->toBe([$drillJson['data']['drill']['counts']['renditions'] ?? -1, $drillJson['data']['drill']['counts']['renditions'] ?? -1])
+        ->and($drillJson['data']['drill']['render']['status'] ?? null)->toBe('rendered')
+        ->and($drillJson['data']['drill']['audit']['intact'] ?? null)->toBeTrue();
 });
 
 it('uninstalls with a final backup and the writes since adopt, and docker compose up -d brings 1.0 back with its data', function (): void {

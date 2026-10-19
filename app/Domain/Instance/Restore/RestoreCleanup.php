@@ -40,7 +40,10 @@ final readonly class RestoreCleanup
         } catch (Throwable) {
             $left[] = "database {$names->aside}";
         }
-        if ($names->currentVolume !== $names->freshVolume && ! $this->storage->remove($names->currentVolume)) {
+        $withoutFiles = array_key_exists('storage', $record->phaseData('prepare')['backup'] ?? []) && ($record->phaseData('prepare')['backup']['storage'] ?? null) === null;
+        if ($withoutFiles) { // the backup had no files: the previous ones stay (M12 gate D4)
+            $warnings[] = ['restored_without_files', "The backup carries no storage archive: the restored instance starts with an empty storage volume. The previous files stay in the volume {$names->currentVolume}.", 'Copy what you need from it, then remove it with `docker volume rm '.$names->currentVolume.'`.'];
+        } elseif ($names->currentVolume !== $names->freshVolume && ! $this->storage->remove($names->currentVolume)) {
             $left[] = "volume {$names->currentVolume}";
         }
         try {

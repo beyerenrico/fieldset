@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Instance\Backup\BackupChecksums;
 use App\Domain\Instance\Backup\KeyFingerprint;
 use App\Domain\Instance\Docker\ProcessOutcome;
 use App\Domain\Instance\Operations\OperationJournal;
@@ -262,4 +263,15 @@ it('warns when the free space for the prepared set cannot be read (review A12)',
     [$code, $json] = $this->move->install($this->move->backup(), ['--app-key-file' => $this->move->keyFile()]);
 
     expect($code)->toBe(0, (string) json_encode($json))->and(array_column($json['warnings'], 'code'))->toContain('disk_space_unknown');
+});
+
+it('says when a moved backup carries no storage archive, so the new instance starts without files (M12 gate D4)', function (): void {
+    $backup = $this->move->backup('local');
+    unlink($backup.'/storage.tar.gz');
+    BackupChecksums::write($backup, ['audit-heads.json', 'database.dump', 'manifest.json', 'settings.json'], BackupSetFixture::hmacKey(BackupSetFixture::APP_KEY));
+
+    [$code, $json] = $this->move->install($backup, ['--app-key-file' => $this->move->keyFile()]);
+
+    expect($code)->toBe(0, (string) json_encode($json))
+        ->and(collect($json['warnings'])->pluck('code')->all())->toContain('restored_without_files');
 });
