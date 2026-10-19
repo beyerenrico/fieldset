@@ -291,6 +291,7 @@ it('restores the manual backup in place: later data gone, security state carried
         'file_from_backup' => trim(RestoreJourney::docker(['exec', RestoreJourney::container($uuid, 'app'), 'cat', 'storage/app/private/fsa-test-j08/file.txt'])->getOutput()),
         'volume_after' => RestoreJourney::storageVolume($uuid),
         'old_volume_exists' => RestoreJourney::docker(['volume', 'inspect', $volume])->isSuccessful(),
+        'runtime_webhooks' => json_decode((string) file_get_contents($this->dir.'/runtime/runtime.json'), true)['webhooks'] ?? null, // paused until confirmed (review A15)
     ];
     $this->journey->evidence('J08-restore-in-place.json', ['command' => 'fsa restore <manual backup> --yes --json', 'exit_code' => $process->getExitCode(), 'stdout' => $json, 'checks' => $checks, 'status' => $status['data']['restore'] ?? null]);
 
@@ -299,6 +300,7 @@ it('restores the manual backup in place: later data gone, security state carried
         ->and($checks)->toMatchArray(['after_backup_org' => '0', 'password_carried' => 't', 'sessions' => '0', 'login_links' => '0', 'numbering' => '77', 'epoch' => '2', 'restored_entries' => '1', 'backup_role_may_seal' => 'f', 'file_from_backup' => 'secret', 'old_volume_exists' => false])
         ->and($checks['public_acl'])->not->toMatch('/(^\{|,)=X\//')->not->toBe('default') // no PUBLIC entry (`=X/owner`)
         ->and($checks['volume_after'])->not->toBe($volume)->toContain('_app-storage-r')
+        ->and($checks['runtime_webhooks'])->toBe(['paused' => true])->and($json['data']['webhooks'] ?? null)->toBe('paused')
         ->and($status['data']['health'] ?? null)->toBe('ok')
         ->and($status['data']['last_restore']['backup'] ?? null)->toBe($GLOBALS['fsaJ08Manual']);
 });

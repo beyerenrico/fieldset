@@ -78,10 +78,18 @@ final class RestoreFixture
         return new EnvFiles($this->instance->directory)->read('app')['APP_KEY'];
     }
 
-    /** A plain fsa backup in backups/ made with this instance's APP key (or `$appKey`). */
-    public function backup(string $name = 'manual-20261019T120000Z', ?string $appKey = null, ?TarBuilder $storage = null): string
+    /** A plain fsa backup in backups/ made by this instance (or `$instance`) with its APP key (or `$appKey`). */
+    public function backup(string $name = 'manual-20261019T120000Z', ?string $appKey = null, ?TarBuilder $storage = null, ?string $instance = null): string
     {
-        return BackupSetFixture::fsa($this->instance->directory->root.'/backups/'.$name, storage: $storage, appKey: $appKey ?? $this->appKey());
+        return BackupSetFixture::fsa($this->instance->directory->root.'/backups/'.$name, manifest: $this->manifest($instance), storage: $storage, appKey: $appKey ?? $this->appKey());
+    }
+
+    /** @return array{instance: array{uuid: string, project: string}} the manifest part naming the instance that made a backup */
+    public function manifest(?string $instance = null): array
+    {
+        $state = $this->instance->state();
+
+        return ['instance' => ['uuid' => $instance ?? $state->uuid(), 'project' => $state->project()]];
     }
 
     /** @param  array<string, mixed>  $options */
@@ -191,6 +199,7 @@ final class RestoreFixture
             'create' => $this->create($options),
             'drop' => ['dropped' => $this->forget($options['database'] ?? '')],
             'swap' => $this->swap($options['database'] ?? '', $options['live'] ?? '', $options['aside'] ?? ''),
+            'rename' => $this->swap($options['database'] ?? '', $options['to'] ?? '', ''),
             'list' => ['databases' => array_values(array_filter($this->databases, static fn (string $name): bool => str_starts_with($name, $options['prefix'] ?? '')))],
             default => [],
         };

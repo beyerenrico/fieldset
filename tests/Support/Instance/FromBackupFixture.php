@@ -74,11 +74,13 @@ final class FromBackupFixture
      * @param  array<string, mixed>  $settings  settings.json `settings`
      * @param  array<string, string>  $extra
      */
-    public function backup(string $mode = 'local', array $settings = [], string $appKey = BackupSetFixture::APP_KEY, array $extra = [], string $name = 'manual-20261019T120000Z'): string
+    /** @param  list<string>  $recipients  the backup's age recipients (settings.json) */
+    public function backup(string $mode = 'local', array $settings = [], string $appKey = BackupSetFixture::APP_KEY, array $extra = [], string $name = 'manual-20261019T120000Z', array $recipients = []): string
     {
         $dir = BackupSetFixture::fsa($this->outside.'/'.$name, appKey: $appKey, extra: $extra, settings: $settings);
         $document = json_decode((string) file_get_contents($dir.'/settings.json'), true);
         $document['mode'] = $mode;
+        $document['recipients'] = $recipients;
         file_put_contents($dir.'/settings.json', json_encode($document, JSON_UNESCAPED_SLASHES));
         $files = array_values(array_diff(scandir($dir) ?: [], ['.', '..', 'SHA256SUMS', 'SHA256SUMS.hmac']));
         BackupChecksums::write($dir, $files, BackupSetFixture::hmacKey($appKey));

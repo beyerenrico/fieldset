@@ -64,6 +64,12 @@ final readonly class RestoreDatabases
         $this->run($project, 'swap', ['--database='.$incoming, '--live='.$live, '--aside='.$aside]);
     }
 
+    /** Renames a restore-made database back to the live name (the put-aside one when a swap stopped half-way). */
+    public function rename(ComposeProject $project, string $from, string $to): void
+    {
+        $this->run($project, 'rename', ['--database='.$from, '--to='.$to]);
+    }
+
     /** Hands everything the restricted role restored to the app's user, then drops the role. */
     public function adopt(ComposeProject $project, string $database, string $role): void
     {
@@ -112,13 +118,15 @@ final readonly class RestoreDatabases
             'PGUSER' => $as['username'] ?? ($app['DB_USERNAME'] ?? ''), 'PGPASSWORD' => $as['password'] ?? ($app['DB_PASSWORD'] ?? ''),
         ];
         $owner = $state->containerUid().':'.($state->containerUid() === 0 ? 0 : $state->hostGid());
+        // the restricted role skips the extension the superuser created beforehand (review S1)
+        $list = $as === null ? null : ($backup->dump['list'] ?? throw new InstanceException('The prepare step wrote no table of contents for the restricted restore.', ExitCode::HealthCheckFailed, 'prepare_failed', 'Run the command again; nothing was changed.'));
         $outcome = $this->docker->runContainer(new ContainerSpec(
             image: $state->digests()['app'],
             // pg_restore connects only with --dbname (PGDATABASE alone makes it print SQL); the name is no secret.
-            command: ['--dbname='.$database, '--no-owner', '--no-privileges', '--single-transaction', '--exit-on-error', '--', $backup->set.'/database.dump'],
+            command: ['--dbname='.$database, '--no-owner', '--no-privileges', '--single-transaction', '--exit-on-error', ...($list === null ? [] : ['--use-list='.$list]), '--', $backup->set.'/database.dump'],
             labels: Labels::forInstance($state->uuid(), self::ROLE),
             env: $env,
-            volumes: [$backup->set.':'.$backup->set.':ro'],
+            volumes: [$backup->set.':'.$backup->set.':ro', ...($list === null ? [] : [$list.':'.$list.':ro'])],
             network: $project->name.'_default',
             user: $owner,
             entrypoint: 'pg_restore',

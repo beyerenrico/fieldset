@@ -22,6 +22,7 @@ use App\Domain\Instance\Output\CommandResult;
 use App\Domain\Instance\Output\ExitCode;
 use App\Domain\Instance\Output\InvalidInput;
 use App\Domain\Instance\State\InstanceDirectory;
+use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
 use Throwable;
 
@@ -32,13 +33,14 @@ use Throwable;
  * (exit 3) → quiesce (gate up, writers stopped, audit sealed) → ledger (final heads) → safety_backup → restore_database
  * (`<db>_restore_<id>`, the restricted role for unauthenticated archives) → restore_storage (a fresh volume) → finish
  * (new epoch + `instance.restored`, R64 carry, sequences, stale credentials, grants, decrypt sample) → swap (databases,
- * the state's storage volume, APP keys, Valkey) → verify (the app behind the gate, smoke token) → open (gate down,
- * everything starts) → cleanup (the put-aside database and volume, the scratch directory; the safety backup sealed).
+ * the state's storage volume, APP keys, Valkey) → verify → open → gate → cleanup (RestoreFinale).
  *
- * A failure before the swap exits 5 with the old instance running (RestoreRecovery::abort); from the swap on the
- * previous database and volume come back (exit 5), and when that fails too everything stops (exit 8). A resumed run
- * repeats the phases before the swap from a clean scratch state, returns to the previous instance when it finds a swap
- * that did not pass its verification, and finishes opening and cleaning up after one that did.
+ * A failure before the swap exits 5 with the old instance running (RestoreRecovery::abort); from the swap until the gate
+ * went down the previous database and volume come back (exit 5, the journaled phase `return`), and when that fails too
+ * everything stops (exit 8). A resumed run repeats the phases before the swap from a clean scratch state (an instance it
+ * finds quiesced goes through the abort path on a failure, never "nothing changed"), continues a return that began,
+ * returns to the previous instance when it finds a swap that did not pass its verification, and finishes opening and
+ * cleaning up after one that did.
  */
 final readonly class RestoreOperation
 {
@@ -54,7 +56,7 @@ final readonly class RestoreOperation
         private RestoreStorage $storage,
         private RestoreStack $stack,
         private RestoreRecovery $recovery,
-        private RestoreCleanup $cleanup,
+        private RestoreFinale $finale,
         private SafetyBackup $safety,
         private Ledger $ledger,
         private RestoreSpace $space,
@@ -84,30 +86,47 @@ final readonly class RestoreOperation
 
     private function steps(OperationRun $run, InstanceState $state, RestoreRequest $request): CommandResult
     {
-        $names = RestoreNames::fromArray($run->phase('plan', fn (): array => RestoreNames::for($state, $run->record()->id())->toArray(), changes: false));
+        $names = RestoreNames::fromArray($run->phase('plan', fn (): array => [
+            ...RestoreNames::for($state, $run->record()->id())->toArray(), 'webhooks_paused_before' => InstanceSettings::of($state)->webhooksPaused(),
+        ], changes: false));
         $project = ComposeProject::forInstance($state, $this->directory);
         $record = $run->record();
-        if ($record->hasCompleted('swap')) {
-            return $this->afterSwap($run, $state->withSetting('storage_volume', $names->freshVolume), $project, $names, $this->stack->raise($state), $record->phaseData('prepare'));
-        }
-        if ($record->hasStarted('swap')) { // killed during the swap: the state may already name the fresh volume
-            $added = RestoreNames::strings($record->phaseData('prepare')['add'] ?? null);
+        $previous = RestoreFinale::previousState($state, $names, $record);
+        if ($record->hasStarted('return') || ($record->hasStarted('swap') && ! $record->hasCompleted('swap'))) {
+            // a return that began (exit 8, or killed) is only ever finished; so is a swap killed half-way (review A2)
+            $added = RestoreNames::strings($record->phaseData('swap')['keys_added'] ?? ($record->phaseData('prepare')['add'] ?? null));
+            $cause = new InstanceException('An earlier run of this restore stopped before the restored instance was open.', ExitCode::RolledBack, 'restore_interrupted');
 
-            return $this->recovery->returnToPrevious($this->previousState($state, $names), $project, $names, new InstanceException('An earlier run of this restore stopped during the swap.', ExitCode::RolledBack, 'restore_interrupted'), $added, $this->safetyName($record));
+            return $this->recovery->returnToPrevious($run, $previous, $project, $names, $cause, $added, RestoreFinale::safety($record), $record->hasCompleted('swap'));
         }
+        if ($record->hasCompleted('swap')) {
+            return $this->finale->open($run, RestoreFinale::swappedState($state, $names), $previous, $project, $names, $record->phaseData('prepare'));
+        }
+
+        return $this->beforeSwap($run, $state, $project, $names, $request);
+    }
+
+    private function beforeSwap(OperationRun $run, InstanceState $state, ComposeProject $project, RestoreNames $names, RestoreRequest $request): CommandResult
+    {
+        $quiesced = $run->record()->hasStarted('quiesce');
         try {
+            if ($quiesced) { // a resumed run: leftovers go before the space check counts them again (review A7)
+                $this->recovery->dropScratch($project, $names);
+            }
             $intake = $run->phase('prepare', fn (): array => $this->prepare($state, $request, $names), changes: false, always: true);
             $backup = PreparedBackup::fromArray($intake['backup']);
-            $run->phase('space', fn (): array => $this->space->assert($backup), changes: false, always: true);
+            $run->phase('space', fn (): array => $this->space->assert($backup, $run->record()->hasCompleted('safety_backup')), changes: false, always: true);
         } catch (Throwable $e) {
+            if ($quiesced) {
+                return $this->recovery->abort($state, $project, $names, $e, true, RestoreFinale::safety($run->record()));
+            }
             $this->recovery->dropScratch($project, $names, databases: false);
 
             throw $e;
         }
-        $token = '';
         try {
-            $run->phase('quiesce', function () use ($state, $project, &$token): array {
-                $token = $this->stack->quiesce($state, $project);
+            $run->phase('quiesce', function () use ($state, $project): array {
+                $this->stack->quiesce($state, $project); // the gate's token is raised again before the verification
 
                 return ['gate' => 'raised'];
             }, always: true);
@@ -123,61 +142,10 @@ final readonly class RestoreOperation
             $finish = $run->phase('finish', fn (): array => $this->databases->finish($project, $names->scratch, $names->live, $backup->name, $this->seed($previous), $request->actorUid, $previous['input'], $this->previousKeys($request, $intake)), always: true);
             $run->phase('erasures', fn (): array => $this->storage->removeErased($state, $names->freshVolume, $this->exportDirectories($finish)), always: true);
         } catch (Throwable $e) {
-            return $this->recovery->abort($state, $project, $names, $e, $run->record()->hasStarted('quiesce'));
+            return $this->recovery->abort($state, $project, $names, $e, $run->record()->hasStarted('quiesce'), RestoreFinale::safety($run->record()));
         }
 
-        return $this->swapAndOpen($run, $state, $project, $names, $token, $intake, $finish, $request);
-    }
-
-    /**
-     * @param  array<string, mixed>  $intake
-     * @param  array<string, mixed>  $finish
-     */
-    private function swapAndOpen(OperationRun $run, InstanceState $state, ComposeProject $project, RestoreNames $names, string $token, array $intake, array $finish, RestoreRequest $request): CommandResult
-    {
-        $add = $this->keysToAdd($request, $intake);
-        $swapped = $state->withSetting('storage_volume', $names->freshVolume);
-        try {
-            $run->phase('swap', function () use ($project, $names, $swapped, $add): array {
-                $this->databases->swap($project, $names->scratch, $names->live, $names->aside);
-                $secrets = $this->stack->secrets();
-                $this->stack->apply($swapped, $secrets->withPreviousKeys([...$secrets->previousKeys, ...$add]));
-
-                return ['flushed' => $this->stack->flushValkey($project), 'keys_added' => array_map(KeyFingerprint::of(...), $add)];
-            });
-        } catch (Throwable $e) {
-            return $this->recovery->returnToPrevious($state, $project, $names, $e, array_map(KeyFingerprint::of(...), $add), $this->safetyName($run->record()));
-        }
-
-        return $this->afterSwap($run, $swapped, $project, $names, $token, $intake, $finish, $state);
-    }
-
-    /**
-     * @param  array<string, mixed>  $intake
-     * @param  array<string, mixed>|null  $finish
-     */
-    private function afterSwap(OperationRun $run, InstanceState $swapped, ComposeProject $project, RestoreNames $names, string $token, array $intake, ?array $finish = null, ?InstanceState $previous = null): CommandResult
-    {
-        $record = $run->record();
-        $previous ??= $this->previousState($swapped, $names);
-        try {
-            if (! $record->hasStarted('cleanup')) { // once clean-up began, the previous database and volume may be gone
-                $run->phase('verify', fn (): array => ['checked' => $this->stack->startAndVerify($swapped, $project, $token)], always: true);
-                $run->phase('open', function () use ($swapped, $project): array {
-                    $this->stack->reopen($swapped, $project);
-
-                    return ['open' => true];
-                }, always: true);
-            }
-        } catch (Throwable $e) {
-            $added = RestoreNames::strings($run->record()->phaseData('swap')['keys_added'] ?? null);
-
-            return $this->recovery->returnToPrevious($previous, $project, $names, $e, $added, $this->safetyName($run->record()), swapped: true);
-        }
-        $backupName = is_string($intake['backup']['name'] ?? null) ? $intake['backup']['name'] : null;
-        $cleanup = $run->phase('cleanup', fn (): array => $this->cleanup->run($project, $names, $this->safetyName($run->record()), $run->record(), $backupName), always: true);
-
-        return RestoreResult::ok($swapped, $intake, $finish ?? $run->record()->phaseData('finish'), $cleanup, $run->record());
+        return $this->finale->swap($run, $state, $project, $names, $intake, $this->keysToAdd($request, $intake));
     }
 
     /** @return array<string, mixed> */
@@ -263,20 +231,6 @@ final readonly class RestoreOperation
     private function previousKeys(RestoreRequest $request, array $intake): string
     {
         return implode(',', array_values(array_unique([...$this->stack->secrets()->previousKeys, ...$this->keysToAdd($request, $intake)])));
-    }
-
-    private function previousState(InstanceState $swapped, RestoreNames $names): InstanceState
-    {
-        $default = $swapped->project().'_app-storage';
-
-        return $swapped->withSetting('storage_volume', $names->currentVolume === $default ? null : $names->currentVolume);
-    }
-
-    private function safetyName(JournalRecord $record): ?string
-    {
-        $name = $record->phaseData('safety_backup')['backup'] ?? null;
-
-        return is_string($name) && $name !== '' ? $name : null;
     }
 
     private function lockRecord(): LockRecord

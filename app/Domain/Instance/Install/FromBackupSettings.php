@@ -62,12 +62,27 @@ final readonly class FromBackupSettings
     {
         $portable = $backup->isLegacy() ? self::legacy($backup) : array_intersect_key(self::fsaSettings($backup), array_flip(self::KEPT));
         $state = $state->withSettings(array_filter($portable, static fn (mixed $value): bool => $value !== null && $value !== ''));
-        $recipients = array_values(array_filter((array) ($backup->settings['recipients'] ?? []), is_string(...)));
+        $recipients = self::recipients($backup)['kept'];
         if ($recipients !== []) {
             $state = $state->withRecipients($recipients);
         }
 
         return $state->withSettings(['mail' => null, 'mail_catcher' => null, 'smtp_host' => null, 'smtp_port' => null, 'smtp_scheme' => null, 'webhooks_paused' => true, 'storage_volume' => $freshVolume]);
+    }
+
+    /**
+     * The backup's age recipients (review S4): kept only from an authenticated archive and only in age's format; an
+     * unauthenticated archive could otherwise make every later backup readable by whoever wrote it.
+     *
+     * @return array{kept: list<string>, dropped: list<string>}
+     */
+    public static function recipients(PreparedBackup $backup): array
+    {
+        $listed = array_values(array_filter((array) ($backup->settings['recipients'] ?? []), is_string(...)));
+        $valid = array_values(array_filter($listed, static fn (string $recipient): bool => preg_match(InstanceState::RECIPIENT, $recipient) === 1));
+        $kept = $backup->authenticated() ? $valid : [];
+
+        return ['kept' => $kept, 'dropped' => array_values(array_diff($listed, $kept))];
     }
 
     /**

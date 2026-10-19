@@ -26,9 +26,15 @@ final readonly class RestoreNames
         public string $freshVolume,
     ) {}
 
+    /** The short ID of a journal, hex only: it becomes part of database, role, volume and directory names. */
+    public static function id(string $journalId): string
+    {
+        return substr(preg_replace('/[^a-f0-9]/', '', strtolower($journalId)) ?? '', 0, 12);
+    }
+
     public static function for(InstanceState $state, string $journalId): self
     {
-        $id = substr(preg_replace('/[^a-f0-9]/', '', strtolower($journalId)) ?? '', 0, 12);
+        $id = self::id($journalId);
         $live = InstanceSettings::of($state)->dbDatabase();
         $base = substr($live, 0, 63 - strlen('_pre_restore_') - strlen($id));
 

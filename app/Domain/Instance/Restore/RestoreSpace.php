@@ -14,7 +14,9 @@ use Closure;
  * the newest backup, or of this one), a second database (three times the dump: tables and indexes unpacked), a second
  * storage volume (the archive's unpacked bytes) and 1 GiB of headroom must fit on the file system of the instance
  * directory. Docker keeps volumes and the database in its own data root, which is the same disk on most single-disk
- * hosts; where it is not, this is the estimate fsa can make without reaching into Docker's directories.
+ * hosts; where it is not, this is the estimate fsa can make without reaching into Docker's directories. When the free
+ * space cannot be read at all the check passes with `free: null` and the restore warns `disk_space_unknown` (review A12):
+ * refusing would block every restore on a host whose file system does not report it.
  */
 final readonly class RestoreSpace
 {
@@ -42,11 +44,12 @@ final readonly class RestoreSpace
      *
      * @throws InstanceException exit 3 `low_disk_space`
      */
-    public function assert(PreparedBackup $backup): array
+    public function assert(PreparedBackup $backup, bool $safetyTaken = false): array
     {
         $dump = (int) @filesize($backup->set.'/database.dump');
         $entries = $this->store->entries();
-        $required = ($entries === [] ? BackupStore::bytes($backup->set) : $entries[0]->bytes) + 3 * $dump + ($backup->storage['bytes'] ?? 0) + self::HEADROOM;
+        $safety = $safetyTaken ? 0 : ($entries === [] ? BackupStore::bytes($backup->set) : $entries[0]->bytes); // a resumed run has it already
+        $required = $safety + 3 * $dump + ($backup->storage['bytes'] ?? 0) + self::HEADROOM;
         $free = $this->check($required, 'the safety backup, a second database and storage volume');
 
         return ['required' => $required, 'free' => $free];

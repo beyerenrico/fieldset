@@ -18,7 +18,7 @@ final readonly class PreparedBackup
      * @param  array<string, mixed>  $manifest  a summary: format, kind, name, created_at, version, epoch, app_key_fingerprints …
      * @param  array<string, mixed>  $settings  settings.json (portable settings, no secret)
      * @param  array{files: int, directories: int, bytes: int, archive: string, listing: string}|null  $storage
-     * @param  array{entries: int, types: array<string, int>, rejected: list<string>}  $dump
+     * @param  array{entries: int, types: array<string, int>, rejected: list<string>, list?: string}  $dump  `list`: the table of contents a restricted restore uses
      * @param  array{relation: string, count: int, last: string|null, unknown: list<string>, pending: int}  $migrations
      */
     public function __construct(
@@ -91,7 +91,7 @@ final readonly class PreparedBackup
             $storage === null ? null : ['files' => (int) ($storage['files'] ?? 0), 'directories' => (int) ($storage['directories'] ?? 0), 'bytes' => (int) ($storage['bytes'] ?? 0),
                 'archive' => (string) ($storage['archive'] ?? ''), 'listing' => (string) ($storage['listing'] ?? '')],
             ['entries' => (int) ($dump['entries'] ?? 0), 'types' => is_array($dump['types'] ?? null) ? array_map(intval(...), $dump['types']) : [],
-                'rejected' => array_values(array_filter((array) ($dump['rejected'] ?? []), is_string(...)))],
+                'rejected' => array_values(array_filter((array) ($dump['rejected'] ?? []), is_string(...))), ...(is_string($dump['list'] ?? null) ? ['list' => $dump['list']] : [])],
             ['relation' => (string) ($migrations['relation'] ?? MigrationSet::NONE), 'count' => (int) ($migrations['count'] ?? 0),
                 'last' => is_string($migrations['last'] ?? null) ? $migrations['last'] : null,
                 'unknown' => array_values(array_filter((array) ($migrations['unknown'] ?? []), is_string(...))), 'pending' => (int) ($migrations['pending'] ?? 0)],

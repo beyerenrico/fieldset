@@ -23,6 +23,7 @@ use App\Domain\Instance\Restore\AppKeys;
 use App\Domain\Instance\Restore\BackupIntake;
 use App\Domain\Instance\Restore\PreparedBackup;
 use App\Domain\Instance\Restore\RestoreChecks;
+use App\Domain\Instance\Restore\RestoreNames;
 use App\Domain\Instance\Restore\RestoreSource;
 use App\Domain\Instance\Restore\RestoreStorage;
 use App\Domain\Instance\State\EnvFiles;
@@ -30,6 +31,7 @@ use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceState;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Str;
+use Throwable;
 
 /**
  * `fsa install --from-backup <backup>` (R42, R60, F6, plan U17, ADR 0085): a new instance on this host from a backup,
@@ -81,11 +83,27 @@ final readonly class FromBackupInstall
         );
     }
 
+    /** A failed attempt never leaves the decrypted set (a plaintext dump, secrets.env) behind (review A5). */
     private function steps(OperationRun $run, InstallRequest $request, FromBackupRequest $backup, FsaContext $context, bool $secretsToFile): CommandResult
+    {
+        $id = RestoreNames::id($run->record()->id());
+        try {
+            return $this->phases($run, $request, $backup, $context, $secretsToFile, $id);
+        } catch (Throwable $e) {
+            try {
+                $this->source->discard($id);
+            } catch (Throwable) {
+                // the resumed attempt (same journal, same directory) replaces it; the failure that matters is $e
+            }
+
+            throw $e;
+        }
+    }
+
+    private function phases(OperationRun $run, InstallRequest $request, FromBackupRequest $backup, FsaContext $context, bool $secretsToFile, string $id): CommandResult
     {
         $record = $run->record();
         $request = $record->phases() === [] ? $request : $request->over($record->context());
-        $id = substr($record->id(), 0, 12);
         $intake = $run->phase('backup', fn (): array => $this->prepare($request, $backup, $context->facts, $id), changes: false, always: ! $record->hasCompleted('restore_storage'));
         $prepared = PreparedBackup::fromArray($intake['backup']);
         $effective = FromBackupSettings::effective($request, $prepared);

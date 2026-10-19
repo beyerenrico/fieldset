@@ -91,9 +91,13 @@ final readonly class TarMember
             }
             $record = substr($data, $offset + strlen($match[0]), (int) $match[1] - strlen($match[0]));
             $offset += (int) $match[1];
-            [$key, $value] = array_pad(explode('=', rtrim($record, "\n"), 2), 2, null);
-            if ($value === null) {
+            $parts = explode('=', rtrim($record, "\n"), 2);
+            if (count($parts) !== 2) {
                 throw new UnsafeArchive('The archive has a malformed pax record.');
+            }
+            [$key, $value] = $parts;
+            if (str_starts_with($key, 'GNU.sparse.')) { // GNU tar would expand it to another name and size (review S6)
+                throw new UnsafeArchive('The archive has a sparse member (pax GNU.sparse), which a backup never has.');
             }
             match ($key) {
                 'path', 'linkpath' => $values[$key] = $value,

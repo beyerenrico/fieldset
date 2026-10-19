@@ -111,11 +111,22 @@ final readonly class RestoreStack
         return $this->smoke->internal($state, $project, $token);
     }
 
-    /** Lowers the gate and starts every service (workers, scheduler, backup). */
+    /** Starts every service behind the gate, then lowers it (review A4: no request lands before everything is up). */
     public function reopen(InstanceState $state, ComposeProject $project): void
     {
-        new RuntimeWriter($this->directory)->lowerGate($state);
+        $this->startAll($project);
+        $this->lowerGate($state);
+    }
+
+    /** Every service (workers, scheduler, backup) up and healthy; the gate stays as it is. */
+    public function startAll(ComposeProject $project): void
+    {
         $this->up($project, []);
+    }
+
+    public function lowerGate(InstanceState $state): void
+    {
+        new RuntimeWriter($this->directory)->lowerGate($state);
     }
 
     public function secrets(): InstanceSecrets

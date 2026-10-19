@@ -71,6 +71,7 @@ it('refuses a hostile storage member before anything is listed', function (Closu
     'a FIFO' => [fn (TarBuilder $tar) => $tar->special('./private/fifo', '6'), 'FIFO'],
     'a pax path with ..' => [fn (TarBuilder $tar) => $tar->paxFile(['path' => '../escape'], 'innocent', 'x'), 'leaves its root'],
     'a newline in a name' => [fn (TarBuilder $tar) => $tar->file("./private/a\nb", 'x'), 'unprintable'],
+    'a pax sparse member (review S6)' => [fn (TarBuilder $tar) => $tar->paxFile(['GNU.sparse.major' => '1', 'GNU.sparse.minor' => '0', 'GNU.sparse.name' => './private/s.txt', 'GNU.sparse.realsize' => '4096'], './private/GNUSparseFile.0/s.txt', 'x'), 'sparse'],
 ]);
 
 it('refuses a set member a backup never has, a duplicate, or a non-file, and writes nothing', function (Closure $build): void {

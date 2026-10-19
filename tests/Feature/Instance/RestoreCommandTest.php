@@ -161,6 +161,7 @@ it('restores an unauthenticated archive only with --accept-unauthenticated, as a
         ->and(implode(' ', $create['options']))->toContain('--restricted-role=fsa_restore_')
         ->and($create['env'])->toBe(['FSA_RESTORE_DB_PASSWORD'])
         ->and($pgRestore->env['PGUSER'])->toStartWith('fsa_restore_')
+        ->and(implode(' ', $pgRestore->command))->toMatch('#--use-list=\S+/backups/\.restore-[0-9a-f]{12}/restore\.list -- #') // review S1
         ->and($this->restore->actions())->toContain('adopt')
         ->and(array_search('audit', $this->restore->actions(), true))->toBeLessThan(array_search('adopt', $this->restore->actions(), true))
         ->and(implode(' ', $this->restore->databaseCalls[array_search('audit', $this->restore->actions(), true)]['options']))->toContain('--reference=form_schema')
@@ -244,4 +245,30 @@ it('authenticates only with the current APP key or a key file, never with a prev
 
     expect($previous)->toBe(2)->and($previousJson['errors'][0]['code'])->toBe('backup_unauthenticated')
         ->and($explicit)->toBe(0, (string) json_encode($explicitJson))->and($explicitJson['data']['authenticated'])->toBeTrue();
+});
+
+it('refuses in place a backup another instance made and points to --from-backup: the carry matches accounts by number (review A3)', function (): void {
+    $this->restore->backup(instance: '00000000-0000-4000-8000-0000000000a3');
+    $mark = $this->restore->config->mark();
+
+    [$code, $json] = $this->restore->restore();
+
+    expect($code)->toBe(2, (string) json_encode($json))->and($json['errors'][0]['code'])->toBe('backup_other_instance')
+        ->and($json['errors'][0]['hint'])->toContain('fsa install --from-backup')
+        ->and($json['data']['backup_instance'])->toBe('00000000-0000-4000-8000-0000000000a3')
+        ->and($this->restore->config->methodsSince($mark))->not->toContain('composeStop');
+});
+
+it('takes a 1.0 backup in place only when the APP key in its env is one the instance holds (review A3)', function (): void {
+    BackupSetFixture::legacy($this->dir.'/backups/20261001T020000Z', 'APP_KEY='.$this->restore->appKey()."\n");
+    BackupSetFixture::legacy($this->dir.'/backups/20261002T020000Z', 'APP_KEY='.BackupSetFixture::OTHER_KEY."\n");
+    BackupSetFixture::legacy($this->dir.'/backups/20261003T020000Z');
+
+    [$other, $otherJson] = $this->restore->restore('20261002T020000Z', ['--accept-unauthenticated' => true]);
+    [$bare, $bareJson] = $this->restore->restore('20261003T020000Z', ['--accept-unauthenticated' => true]);
+    [$own, $ownJson] = $this->restore->restore('20261001T020000Z', ['--accept-unauthenticated' => true]);
+
+    expect($other)->toBe(2, (string) json_encode($otherJson))->and($otherJson['errors'][0]['code'])->toBe('backup_other_instance')
+        ->and($bare)->toBe(2)->and($bareJson['errors'][0]['message'])->toContain('without its env file')
+        ->and($own)->toBe(0, (string) json_encode($ownJson));
 });

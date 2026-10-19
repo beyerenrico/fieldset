@@ -48,6 +48,20 @@ it('drills a backup in a scratch database with a null mailer and a sync queue, d
         ->and(glob($this->dir.'/backups/.restore-*'))->toBe([]);
 });
 
+it('drops what a killed drill left together with its restricted role, and keeps the drill off the live cache (review A10, A14)', function (): void {
+    $this->restore->databases[] = 'restore_drill_0123456789ab';
+
+    [$code, $json] = $this->restore->instance->run('fsa:restore', ['backup' => 'manual-20261019T120000Z', '--drill' => true]);
+    $drill = $this->restore->instance->oneOffCalls('instance:restore-drill')[0];
+    $first = $this->restore->databaseCalls[array_search('drop', $this->restore->actions(), true)];
+
+    expect($code)->toBe(0, (string) json_encode($json))
+        ->and($first['options'])->toContain('--database=restore_drill_0123456789ab', '--role=fsa_drill_0123456789ab')
+        ->and($this->restore->databases)->not->toContain('restore_drill_0123456789ab')
+        ->and($drill['env'])->toContain('CACHE_STORE')
+        ->and($json['data']['render_storage'])->toBe('live');
+});
+
 it('hands the storage archive\'s file list to the drill on stdin', function (): void {
     $inputs = [];
     $previous = $this->restore->instance->docker->composeRunResponder;

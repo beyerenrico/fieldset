@@ -15,6 +15,15 @@ function realListing(): string
     return (string) file_get_contents(base_path('tests/Fixtures/restore/pg-restore-list.txt'));
 }
 
+it('leaves the extension and its comment out of the table of contents a restricted restore uses (review S1)', function (): void {
+    $list = DumpInspector::restoreList(realListing());
+
+    expect($list)->not->toContain('EXTENSION - pg_trgm')->not->toContain('COMMENT - EXTENSION pg_trgm')
+        ->and(DumpInspector::inspect($list, strict: true)['entries'])->toBe(605)
+        ->and(DumpInspector::inspect($list, strict: true)['types'])->not->toHaveKey('EXTENSION')
+        ->and($list)->toContain('FUNCTION public audit_seal');
+});
+
 it('passes the table of contents of a real dump of this app, strict or not', function (): void {
     $plain = DumpInspector::inspect(realListing(), strict: false);
     $strict = DumpInspector::inspect(realListing(), strict: true);

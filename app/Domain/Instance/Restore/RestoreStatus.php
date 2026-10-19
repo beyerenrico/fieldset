@@ -60,7 +60,13 @@ final readonly class RestoreStatus
         $backup = is_string($record->context()['backup'] ?? null) ? $record->context()['backup'] : null;
 
         return [
-            'backup' => $backup, 'last_phase' => $record->lastStartedPhase(), 'swapped' => $record->hasCompleted('swap'), 'verified' => $record->hasCompleted('verify'),
+            'backup' => $backup, 'last_phase' => $record->lastStartedPhase(),
+            // a swap killed half-way may have renamed the databases or not (review A13)
+            'swap' => match (true) {
+                $record->hasCompleted('swap') => 'done', $record->hasStarted('swap') => 'interrupted', default => 'not_started'
+            },
+            'swapped' => $record->hasCompleted('swap') ? true : ($record->hasStarted('swap') ? null : false),
+            'returning' => $record->hasStarted('return'), 'verified' => $record->hasCompleted('verify'),
             'resume' => 'fsa restore '.($backup ?? '<backup>'), 'abandon' => 'fsa restore --abandon',
         ];
     }

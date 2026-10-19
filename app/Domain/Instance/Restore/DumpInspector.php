@@ -71,6 +71,22 @@ final readonly class DumpInspector
         return ['entries' => $entries, 'types' => $types, 'rejected' => $rejected];
     }
 
+    /**
+     * The table of contents for a restore as the restricted role (`pg_restore --use-list`, review S1): every entry but
+     * the extension and its comment. The superuser created the extension in the scratch database beforehand, so the role
+     * neither owns it nor can add its own objects to it.
+     */
+    public static function restoreList(string $listing): string
+    {
+        $kept = array_filter(explode("\n", $listing), static function (string $line): bool {
+            $entry = self::parse(rtrim($line, "\r"));
+
+            return $entry['type'] !== 'EXTENSION' && ($entry['type'] !== 'COMMENT' || ($entry['rest'][0] ?? '') !== 'EXTENSION');
+        });
+
+        return implode("\n", $kept);
+    }
+
     /** @return array{type: string, schema: string, rest: list<string>} */
     private static function parse(string $line): array
     {

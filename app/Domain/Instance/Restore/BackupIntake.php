@@ -36,6 +36,9 @@ final readonly class BackupIntake
         // A new host (`--from-backup`) may decrypt with the keys the backup carries; the HMAC never uses them.
         $known = $purpose === RestoreChecks::FROM_BACKUP ? $outside->merge(self::insideKeys($backup)) : $outside;
         $warnings = RestoreChecks::assert($backup, $purpose, $request->acceptUnauthenticated, $known, $this->upgradesFrom($version));
+        if ($purpose === RestoreChecks::IN_PLACE) {
+            RestoreChecks::assertSameInstance($backup, $runAs['uuid'], $own, self::insideKeys($backup));
+        }
         $add = array_values(array_filter($known->keys, static fn (string $key): bool => in_array(AppKeys::of([$key])->fingerprints()[0], $backup->fingerprints(), true) && ! in_array($key, $own->keys, true)));
 
         return ['backup' => $backup, 'warnings' => $warnings, 'add' => $add];

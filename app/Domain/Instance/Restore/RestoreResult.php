@@ -41,6 +41,11 @@ final readonly class RestoreResult
                 $result = $result->withWarning($warning[0], (string) ($warning[1] ?? ''), is_string($warning[2] ?? null) ? $warning[2] : null);
             }
         }
+        $space = $record->phaseData('space');
+        if (array_key_exists('free', $space) && $space['free'] === null) {
+            $result = $result->withWarning('disk_space_unknown', 'The free disk space could not be read, so it was not checked.', 'Check `df` on the host before the next restore.');
+        }
+        $result = $result->withData(['webhooks' => 'paused'])->withWarning('webhooks_paused', 'Workflow webhooks are paused: restored runs could repeat deliveries made after the backup.', 'Check the webhook receivers, then run `fsa config set webhooks on`.');
         if (($record->phaseData('swap')['flushed'] ?? true) === false) {
             return $result->withWarning('valkey_not_flushed', 'Valkey could not be flushed: cached values and queued jobs of the replaced data may remain.', 'Run `fsa logs redis`; queued jobs that miss their data fail on their own.');
         }

@@ -54,6 +54,10 @@ final readonly class FromBackupResult
         foreach (self::warnings($preflight, $intake, $email, $done) as [$code, $message, $hint]) {
             $result = $result->withWarning($code, $message, $hint);
         }
+        $dropped = count(FromBackupSettings::recipients($backup)['dropped']);
+        if ($dropped > 0) {
+            return $result->withWarning('backup_recipients_dropped', "{$dropped} backup recipient(s) from the backup were not taken over".($backup->authenticated() ? ' (not an age public key)' : ' (the backup is not authenticated)').'; new backups are encrypted only to the recipients you set.', 'Turn encryption on for this instance with `fsa config set backup-encryption on --identity-out <path> --passphrase-file <file>`.');
+        }
 
         return $result;
     }
@@ -66,7 +70,7 @@ final readonly class FromBackupResult
             throw new InvalidInput(
                 'This instance is installed'.(is_string($recorded) ? ' from another backup' : '').'; fsa install changes nothing on an installed instance.',
                 'use_restore',
-                'Restore a backup into it with `fsa restore <backup>`, or install from the backup into a new directory (--dir).',
+                'Install from the backup into a new, empty directory (--dir <directory>); `fsa restore` here takes only backups this instance made.',
             );
         }
         $settings = InstanceSettings::of($state);

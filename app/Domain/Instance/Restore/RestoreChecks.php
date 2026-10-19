@@ -53,6 +53,41 @@ final readonly class RestoreChecks
         return $warnings;
     }
 
+    /**
+     * An in-place restore takes only this instance's own backups (review A3): the R64 carry matches rows by their IDs,
+     * so another instance's users would inherit this one's revocations and erasures. A 1.0 archive names no instance; it
+     * counts as this instance's when the APP_KEY in its `env` is one of the instance's own keys (an adopted 1.0 install,
+     * U19). Everything else goes to a new directory with `fsa install --from-backup`.
+     *
+     * @param  AppKeys  $inside  the keys the archive carries (BackupIntake::insideKeys)
+     *
+     * @throws InstanceException exit 2
+     */
+    public static function assertSameInstance(PreparedBackup $backup, string $uuid, AppKeys $own, AppKeys $inside): void
+    {
+        if ($backup->isLegacy()) {
+            $key = $inside->fingerprints()[0] ?? null;
+            if ($key !== null && in_array($key, $own->fingerprints(), true)) {
+                return;
+            }
+            $made = null;
+            $why = $key === null ? 'it is a 1.0 backup without its env file, so nothing says which instance made it' : 'it is a 1.0 backup made under an APP key this instance does not hold';
+        } else {
+            $instance = $backup->manifest['instance'] ?? null;
+            $made = is_array($instance) && is_string($instance['uuid'] ?? null) ? $instance['uuid'] : null;
+            if ($made === $uuid) {
+                return;
+            }
+            $why = $made === null ? 'its manifest names no instance' : "it was made by the instance {$made}";
+        }
+        throw new InvalidInput(
+            "This backup does not belong to this instance: {$why}.",
+            'backup_other_instance',
+            'Install it into a new directory with `fsa install --from-backup <backup> --dir <new directory>`; restoring it here would match its accounts to this instance\'s by number. Nothing was changed.',
+            ['backup_instance' => $made ?? null, 'instance' => $uuid],
+        );
+    }
+
     /** @throws InstanceException */
     private static function assertIntact(PreparedBackup $backup): void
     {

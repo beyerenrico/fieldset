@@ -20,9 +20,10 @@ use App\Domain\Instance\State\InstanceState;
 
 /**
  * `fsa restore --abandon` (R54, plan U17, ADR 0085): ends a restore that stopped half-way, by its journal. Before the swap
- * the scratch database, role, volume and directory go and the previous stack starts again; after a swap that never
- * passed its verification the previous database and volume come back (RestoreRecovery); after a verified swap only
- * opening and cleaning up are left, and they are finished. Either way the journal closes.
+ * the scratch database, role, volume and directory go and the previous stack starts again; from the swap (or a return
+ * that began) until the gate went down the previous database and volume come back (RestoreRecovery, also after an
+ * exit 8); once the gate went down the restored instance took requests, so lowering and cleaning up are finished
+ * instead. Either way the journal closes, and the safety backup is sealed.
  */
 final readonly class RestoreAbandon
 {
@@ -33,7 +34,7 @@ final readonly class RestoreAbandon
         private ContainerIdentity $identity,
         private RestoreRecovery $recovery,
         private RestoreStack $stack,
-        private RestoreCleanup $cleanup,
+        private RestoreFinale $finale,
     ) {}
 
     public function abandon(FsaContext $context): CommandResult
@@ -55,30 +56,25 @@ final readonly class RestoreAbandon
         $record = $run->record();
         $names = RestoreNames::fromArray($record->phaseData('plan'));
         $project = ComposeProject::forInstance($state, $this->directory);
-        if ($names->id === '' || ! $record->hasStarted('swap')) {
+        $safety = RestoreFinale::safety($record);
+        if ($names->id === '' || (! $record->hasStarted('swap') && ! $record->hasStarted('return'))) {
             $left = $names->id === '' ? [] : $this->recovery->dropScratch($project, $names);
             if ($record->hasStarted('quiesce')) {
                 $this->stack->reopen($state, $project);
             }
 
-            return CommandResult::ok(RestoreOperation::OPERATION, ['abandoned' => true, 'swapped' => false, 'left_behind' => $left], changed: true);
+            return $this->recovery->sealed(CommandResult::ok(RestoreOperation::OPERATION, ['abandoned' => true, 'swapped' => false, 'left_behind' => $left], changed: true), $safety);
         }
-        if (! $record->hasCompleted('verify')) {
-            $default = $state->project().'_app-storage';
-            $previous = $state->withSetting('storage_volume', $names->currentVolume === $default ? null : $names->currentVolume);
-            $added = RestoreNames::strings($record->hasCompleted('swap') ? ($record->phaseData('swap')['keys_added'] ?? null) : ($record->phaseData('prepare')['add'] ?? null));
-            $safety = $record->phaseData('safety_backup')['backup'] ?? null;
-            $result = $this->recovery->returnToPrevious($previous, $project, $names, new InstanceException('Abandoned.', ExitCode::RolledBack, 'restore_abandoned'), $added, is_string($safety) ? $safety : null, $record->hasCompleted('swap'));
+        if ($record->hasStarted('gate') || $record->hasStarted('cleanup')) { // the restored instance took requests: finish it
+            $result = $this->finale->open($run, RestoreFinale::swappedState($state, $names), RestoreFinale::previousState($state, $names, $record), $project, $names, $record->phaseData('prepare'));
 
-            return $result->exitCode === ExitCode::RolledBack
-                ? CommandResult::ok(RestoreOperation::OPERATION, ['abandoned' => true, 'swapped' => true, 'returned_to_previous' => true, ...$result->data], changed: true)
-                : $result;
+            return $result->exitCode === ExitCode::Success ? $result->withData(['abandoned' => false, 'completed' => true]) : $result;
         }
-        $this->stack->reopen($state, $project);
-        $safety = $record->phaseData('safety_backup')['backup'] ?? null;
-        $backup = $record->phaseData('prepare')['backup']['name'] ?? null;
-        $cleanup = $this->cleanup->run($project, $names, is_string($safety) ? $safety : null, $record, is_string($backup) ? $backup : null);
+        $added = RestoreNames::strings($record->phaseData('swap')['keys_added'] ?? ($record->phaseData('prepare')['add'] ?? null));
+        $result = $this->recovery->returnToPrevious($run, RestoreFinale::previousState($state, $names, $record), $project, $names, new InstanceException('Abandoned.', ExitCode::RolledBack, 'restore_abandoned'), $added, $safety, $record->hasCompleted('swap'));
 
-        return CommandResult::ok(RestoreOperation::OPERATION, ['abandoned' => false, 'completed' => true, 'left_behind' => $cleanup['left_behind']], changed: true);
+        return $result->exitCode === ExitCode::RolledBack
+            ? CommandResult::ok(RestoreOperation::OPERATION, ['abandoned' => true, 'swapped' => true, 'returned_to_previous' => true, ...$result->data], changed: true)
+            : $result;
     }
 }

@@ -10,6 +10,7 @@ use App\Domain\Instance\Runtime\OperationGate;
 use App\Domain\Instance\State\InstanceSettings;
 use Tests\Support\Instance\BackupSetFixture;
 use Tests\Support\Instance\InstanceCommandFixture;
+use Tests\Support\Instance\InterruptedRestore;
 use Tests\Support\Instance\RestoreFixture;
 use Tests\Support\Instance\TemporaryInstance;
 
@@ -32,41 +33,13 @@ afterEach(function (): void {
 
 function gateRaised(string $dir): bool
 {
-    return json_decode((string) file_get_contents($dir.'/runtime/runtime.json'), true)['gate']['raised'];
+    return InterruptedRestore::gateRaised($dir);
 }
 
-/**
- * An open restore journal as a killed run leaves it: every phase up to `$until` completed (`$started` started too).
- *
- * @return RestoreNames the names its plan recorded
- */
+/** @return RestoreNames the names the interrupted run's plan recorded */
 function interruptedRestore(RestoreFixture $restore, string $until, ?string $started = null): RestoreNames
 {
-    $journal = new OperationJournal($restore->instance->directory);
-    $record = $journal->begin('restore', posix_getuid(), ['backup' => 'manual-20261019T120000Z', 'accept_unauthenticated' => false, 'identity_file' => null, 'key_file' => false]);
-    $names = RestoreNames::for($restore->config->state(), $record->id());
-    $phases = [
-        'plan' => [$names->toArray(), false], 'prepare' => [['backup' => [], 'warnings' => [], 'add' => []], false], 'space' => [[], false],
-        'quiesce' => [['gate' => 'raised'], true], 'ledger' => [['seed' => 1, 'epoch' => 1, 'input' => ['previous_heads' => [], 'previous_epoch' => 1, 'from_backup' => false]], true],
-        'safety_backup' => [['backup' => 'safety-restore-20261019T120000Z'], true], 'restore_database' => [['database' => $names->scratch], true],
-        'restore_storage' => [['volume' => $names->freshVolume], true], 'finish' => [['epoch' => 2], true], 'erasures' => [['removed' => 0], true],
-        'swap' => [['flushed' => true, 'keys_added' => []], true], 'verify' => [['checked' => []], true], 'open' => [['open' => true], true],
-    ];
-    foreach ($phases as $phase => [$data, $changes]) {
-        $journal->startPhase($phase, [], $changes);
-        $journal->completePhase($phase, $data);
-        if ($phase === $until) {
-            break;
-        }
-    }
-    if ($started !== null) {
-        $journal->startPhase($started);
-    }
-    $restore->databases[] = $names->scratch;
-    $restore->instance->docker->createVolume($names->freshVolume, []);
-    mkdir($restore->instance->directory->root.'/backups/.restore-'.$names->id, 0750, true);
-
-    return $names;
+    return InterruptedRestore::journal($restore, $until, $started);
 }
 
 it('exits 5 with the old instance running when a step before the swap fails, and leaves nothing behind', function (): void {
@@ -156,7 +129,7 @@ it('resumes an interrupted restore with the same command: the steps before the s
 
     expect($code)->toBe(0, (string) json_encode($json))
         ->and($json['data']['safety_backup'])->toBe('safety-restore-20261019T120000Z')
-        ->and($this->restore->actions())->toBe(['drop', 'create', 'swap', 'drop']) // the leftover scratch database goes first
+        ->and($this->restore->actions())->toBe(['drop', 'drop', 'create', 'swap', 'drop']) // the leftovers go before the space check (review A7), then again before the restore
         ->and(array_filter($this->restore->instance->docker->called('composeRun'), static fn (array $call): bool => ($call['command'][1] ?? null) === 'backup-daemon'))->toBe([]) // the safety backup is not taken again
         ->and(InstanceSettings::of($this->restore->config->state())->storageVolume())->toBe($names->freshVolume)
         ->and(new OperationJournal($this->restore->instance->directory)->current())->toBeNull();
@@ -174,7 +147,7 @@ it('undoes a swap a killed run left unverified when the same command runs again 
 });
 
 it('restores an encrypted backup with the identity file and the passphrase from a file, never in an argument', function (): void {
-    $file = BackupSetFixture::encrypt(BackupSetFixture::fsa($this->dir.'/backups/manual-20261019T150000Z', appKey: $this->restore->appKey()));
+    $file = BackupSetFixture::encrypt(BackupSetFixture::fsa($this->dir.'/backups/manual-20261019T150000Z', manifest: $this->restore->manifest(), appKey: $this->restore->appKey()));
     $outside = sys_get_temp_dir().'/fsa-test-identity-'.bin2hex(random_bytes(3));
     mkdir($outside, 0700);
     $identity = BackupSetFixture::identityFile($outside.'/identity.age');

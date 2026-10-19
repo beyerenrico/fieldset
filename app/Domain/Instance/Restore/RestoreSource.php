@@ -109,8 +109,9 @@ final readonly class RestoreSource
             'set' => [$source, $scratch.'/'.BackupPreparer::SET_DIR],
             'archive' => [$scratch.'/storage.tar.gz', $scratch.'/'.BackupPreparer::SET_DIR.'/storage.tar.gz'],
             'listing' => [$scratch.'/'.BackupPreparer::MEMBERS],
+            'list' => [$scratch.'/'.BackupPreparer::RESTORE_LIST],
         ];
-        $paths = ['set' => $backup->set, 'archive' => $backup->storage['archive'] ?? null, 'listing' => $backup->storage['listing'] ?? null];
+        $paths = ['set' => $backup->set, 'archive' => $backup->storage['archive'] ?? null, 'listing' => $backup->storage['listing'] ?? null, 'list' => $backup->dump['list'] ?? null];
         foreach ($paths as $key => $path) {
             if ($path !== null && ! in_array($path, $allowed[$key], true)) {
                 throw new InstanceException("The prepare step reported a path outside the backup and its scratch directory ({$key}).", ExitCode::HealthCheckFailed, 'prepare_failed', 'Nothing was changed; run the command again, and report it if it repeats.');

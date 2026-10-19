@@ -12,6 +12,7 @@ use App\Domain\Instance\Lifecycle\AppCommands;
 use App\Domain\Instance\Output\ExitCode;
 use App\Domain\Instance\Restore\PreparedBackup;
 use App\Domain\Instance\Restore\RestoreDatabases;
+use App\Domain\Instance\Restore\RestoreNames;
 use App\Domain\Instance\Restore\RestoreStorage;
 use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
@@ -30,9 +31,9 @@ final readonly class FromBackupData
     /** @return array{database: string, restricted: bool} */
     public function database(InstanceState $state, ComposeProject $project, PreparedBackup $backup, string $id): array
     {
-        $live = InstanceSettings::of($state)->dbDatabase();
-        $base = substr($live, 0, 63 - strlen('_pre_restore_') - strlen($id));
-        [$scratch, $aside, $role] = [$base.'_restore_'.$id, $base.'_pre_restore_'.$id, 'fsa_restore_'.$id];
+        $names = RestoreNames::for($state, $id); // the names an in-place restore uses, the ID hex only (review S7)
+        [$live, $scratch, $aside, $role] = [$names->live, $names->scratch, $names->aside, $names->role];
+        $base = substr($live, 0, 63 - strlen('_pre_restore_') - strlen($names->id));
         $databases = $this->databases->list($project, $base);
         if (in_array($aside, $databases, true)) { // swapped in an earlier attempt: only the empty database is left to drop
             $this->databases->drop($project, $aside);

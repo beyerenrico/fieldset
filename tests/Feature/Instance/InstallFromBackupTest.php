@@ -6,6 +6,7 @@ use App\Domain\Instance\Backup\KeyFingerprint;
 use App\Domain\Instance\Docker\ProcessOutcome;
 use App\Domain\Instance\Operations\OperationJournal;
 use App\Domain\Instance\Restore\MigrationSet;
+use App\Domain\Instance\Restore\RestoreNames;
 use App\Domain\Instance\State\EnvFiles;
 use App\Domain\Instance\State\InstanceSettings;
 use Tests\Support\Instance\BackupSetFixture;
@@ -180,7 +181,8 @@ it('resumes after a failed pg_restore, then changes nothing on a second run with
         ->and($resumed)->toBe(0, (string) json_encode($resumedJson))
         ->and($this->move->databases)->toEqualCanonicalizing(['form_schema', 'postgres'])
         ->and($again)->toBe(0)->and($againJson['changed'])->toBeFalse()
-        ->and($other)->toBe(2)->and($otherJson['errors'][0]['code'])->toBe('use_restore');
+        ->and($other)->toBe(2)->and($otherJson['errors'][0]['code'])->toBe('use_restore')
+        ->and($otherJson['errors'][0]['hint'])->toContain('new, empty directory')->not->toContain('fsa restore <backup>'); // review A3
 });
 
 it('issues a sign-in link for an existing admin given with --owner-email', function (): void {
@@ -190,4 +192,50 @@ it('issues a sign-in link for an existing admin given with --owner-email', funct
         ->and($json['data']['sign_in_link']['delivered'] ?? null)->toBe('secrets')
         ->and($json['secrets'][0]['name'] ?? null)->toBe('sign_in_link')
         ->and($this->move->instance->oneOffCalls('identity:login-link'))->toHaveCount(1);
+});
+
+it('keeps the backup recipients of an authenticated backup that are age public keys, and drops the rest with a warning (review S4)', function (): void {
+    $recipient = 'age1'.str_repeat('q', 58);
+    $backup = $this->move->backup(recipients: [$recipient, 'ssh-ed25519 AAAAC3Nza attacker']);
+
+    [$code, $json] = $this->move->install($backup, ['--app-key-file' => $this->move->keyFile()]);
+
+    expect($code)->toBe(0, (string) json_encode($json))
+        ->and($this->move->instance->state()->recipients())->toBe([$recipient])
+        ->and(collect($json['warnings'])->firstWhere('code', 'backup_recipients_dropped')['message'] ?? '')->toContain('1 backup recipient');
+});
+
+it('never takes over the backup recipients of an unauthenticated backup (review S4)', function (): void {
+    $backup = $this->move->backup(extra: ['secrets.env' => "APP_KEY='".BackupSetFixture::APP_KEY."'\n"], recipients: ['age1'.str_repeat('r', 58)]);
+
+    [$code, $json] = $this->move->install($backup, ['--accept-unauthenticated' => true]);
+
+    expect($code)->toBe(0, (string) json_encode($json))->and($json['data']['from_backup']['authenticated'])->toBeFalse()
+        ->and($this->move->instance->state()->recipients())->toBe([])
+        ->and(collect($json['warnings'])->firstWhere('code', 'backup_recipients_dropped')['message'] ?? '')->toContain('not authenticated');
+});
+
+it('removes the prepared set of a failed attempt, and prepares it again when the install resumes (review A5)', function (): void {
+    $backup = $this->move->backup();
+    $this->move->pgRestore = new ProcessOutcome(1, '', 'pg_restore: error: connection lost');
+
+    [$failed] = $this->move->install($backup, ['--app-key-file' => $this->move->keyFile()]);
+    $left = glob($this->move->instance->directory->root.'/backups/.restore-*');
+    $this->move->pgRestore = null;
+    [$resumed, $json] = $this->move->install($backup, ['--app-key-file' => $this->move->keyFile()]);
+
+    expect($failed)->toBe(4)->and($left)->toBe([])
+        ->and($resumed)->toBe(0, (string) json_encode($json))
+        ->and(glob($this->move->instance->directory->root.'/backups/.restore-*'))->toBe([]);
+});
+
+it('names the scratch database, the restricted role and the scratch directory with the hex journal ID only (review S7)', function (): void {
+    $backup = $this->move->backup(extra: ['secrets.env' => "APP_KEY='".BackupSetFixture::APP_KEY."'\n"]);
+
+    [$code, $json] = $this->move->install($backup, ['--accept-unauthenticated' => true]);
+    $create = array_values(array_filter($this->move->databaseCalls, static fn (array $call): bool => $call['action'] === 'create'))[0];
+
+    expect($code)->toBe(0, (string) json_encode($json))
+        ->and(implode(' ', $create['options']))->toMatch('/--database=form_schema_restore_[0-9a-f]{12} --restricted-role=fsa_restore_[0-9a-f]{12}/')
+        ->and(RestoreNames::id('AB12-../c3;DROP'))->toBe('ab12c3d');
 });

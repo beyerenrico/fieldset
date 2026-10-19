@@ -23,7 +23,9 @@ use Throwable;
  * it in a one-off with a null mailer and a sync queue: counts, chain heads, the storage archive against the file
  * references, a document rendered to a temporary directory, a decrypt sample and the migration set. The scratch
  * database and directory are dropped afterwards, whatever happened; leftovers of a killed drill go with the next one.
- * Live storage, the live database and the mail log stay as they are. Exit 4 when a check fails.
+ * Live storage, the live database, the cache and the mail log stay as they are (CACHE_STORE=array, a null mailer, a sync
+ * queue). The document rendered reads the images it embeds from the live storage volume (`render_storage: live`): the
+ * backup's files are checked by name against the references, not mounted. Exit 4 when a check fails.
  */
 final readonly class RestoreDrill
 {
@@ -53,13 +55,13 @@ final readonly class RestoreDrill
         $handle = $this->lock->acquire($this->identity->holder('fsa', $request->actorUid), self::OPERATION);
 
         try {
-            foreach ($this->databases->list($project, self::PREFIX) as $leftover) {
-                $this->databases->drop($project, $leftover);
+            foreach ($this->databases->list($project, self::PREFIX) as $leftover) { // with the restricted role of its drill (review A10)
+                $this->databases->drop($project, $leftover, $this->role(substr($leftover, strlen(self::PREFIX))));
             }
             $context->progress->phase('prepare', 'Checking the backup');
             $intake = $this->intake->take(RestoreOperation::runAs($state), $request, RestoreChecks::DRILL, $id, AppKeys::of($this->stack->secrets()->appKeys()), $state->version());
             $context->progress->phase('restore', "Restoring into {$database}");
-            $created = $this->databases->create($project, $database, $intake['backup']->authenticated() ? null : 'fsa_drill_'.$id);
+            $created = $this->databases->create($project, $database, $intake['backup']->authenticated() ? null : $this->role($id));
             $this->databases->restore($state, $project, $intake['backup'], $database, $created['role'] === null ? null : ['username' => $created['role'], 'password' => (string) $created['password']]);
             if ($created['role'] !== null) {
                 $this->databases->audit($project, $database, RestoreNames::for($state, $id)->live);
@@ -81,7 +83,8 @@ final readonly class RestoreDrill
         $backup = $intake['backup'];
         $listing = $backup->storage === null ? null : (string) @file_get_contents($backup->storage['listing']);
         $keys = implode(',', array_values(array_unique([...$this->stack->secrets()->previousKeys, ...$intake['add']])));
-        $env = ['DB_DATABASE' => $database, 'MAIL_MAILER' => 'array', 'QUEUE_CONNECTION' => 'sync', ...($keys === '' ? [] : ['APP_PREVIOUS_KEYS' => $keys])];
+        // nothing reaches the live mail, queues or cache: the restored rows share IDs with the live ones (review A14)
+        $env = ['DB_DATABASE' => $database, 'MAIL_MAILER' => 'array', 'QUEUE_CONNECTION' => 'sync', 'CACHE_STORE' => 'array', ...($keys === '' ? [] : ['APP_PREVIOUS_KEYS' => $keys])];
 
         return OneOffResult::fromOutcome($this->docker->composeRun(
             $project, ComposeRenderer::ONE_OFF_SERVICE, ['php', 'artisan', 'instance:restore-drill', ...($listing === null ? ['--no-storage'] : []), '--json'], $env,
@@ -89,10 +92,16 @@ final readonly class RestoreDrill
         ));
     }
 
+    /** The restricted role of a drill (hex ID only; null for a name that is no drill's). */
+    private function role(string $id): ?string
+    {
+        return preg_match('/^[0-9a-f]{12}$/D', $id) === 1 ? 'fsa_drill_'.$id : null;
+    }
+
     private function cleanUp(ComposeProject $project, string $database, string $id): void
     {
         try {
-            $this->databases->drop($project, $database, 'fsa_drill_'.$id);
+            $this->databases->drop($project, $database, $this->role($id));
         } catch (Throwable) {
             // the next drill drops every restore_drill_* database first
         }
@@ -112,6 +121,7 @@ final readonly class RestoreDrill
             'created_at' => $backup->manifest['created_at'] ?? null, 'backup_version' => $backup->version(), 'migrations' => $backup->migrations,
             'storage' => $backup->storage === null ? null : ['files' => $backup->storage['files'], 'directories' => $backup->storage['directories'], 'bytes' => $backup->storage['bytes']],
             'database' => $database, 'dropped' => true, 'drill' => $report->data,
+            'render_storage' => 'live', // the rendered document reads images from the live volume, not from the backup (review A14)
         ];
         $result = $report->ok
             ? CommandResult::ok('restore', $data)

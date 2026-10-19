@@ -33,6 +33,9 @@ final readonly class BackupPreparer
 
     public const string MEMBERS = 'storage-members.txt';
 
+    /** The dump's table of contents without the extension, for a restore as the restricted role (review S1). */
+    public const string RESTORE_LIST = 'restore.list';
+
     public function __construct(private AgeCli $age, private BackupTools $tools) {}
 
     /**
@@ -53,7 +56,7 @@ final readonly class BackupPreparer
         [$hmac, $fingerprint] = $legacy || $problems !== [] ? [$legacy ? 'absent' : 'unchecked', null] : $this->hmac($set, $keys);
         $manifest = $legacy ? [] : $this->json($set.'/'.BackupManifest::FILE);
         $storage = $problems === [] ? $this->storage($set, $scratch) : null;
-        $dump = $problems === [] ? $this->dump($set, $hmac !== 'verified') : ['entries' => 0, 'types' => [], 'rejected' => []];
+        $dump = $problems === [] ? $this->dump($set, $scratch, $hmac !== 'verified') : ['entries' => 0, 'types' => [], 'rejected' => []];
         $migrations = $problems === [] ? MigrationSet::compare($this->migrations($set), $imageMigrations) : MigrationSet::unknown();
 
         return new PreparedBackup(
@@ -125,15 +128,21 @@ final readonly class BackupPreparer
         return [...$counts, 'archive' => $readable, 'listing' => $scratch.'/'.self::MEMBERS];
     }
 
-    /** @return array{entries: int, types: array<string, int>, rejected: list<string>} */
-    private function dump(string $set, bool $strict): array
+    /** @return array{entries: int, types: array<string, int>, rejected: list<string>, list?: string} */
+    private function dump(string $set, string $scratch, bool $strict): array
     {
         $listed = $this->tools->listDump($set.'/'.BackupWriter::DATABASE);
         if (! $listed->successful()) {
             throw new UnsafeArchive('pg_restore cannot read the dump: '.($listed->errorTail() ?: 'no output'));
         }
+        $inspected = DumpInspector::inspect($listed->stdout, $strict);
+        $list = $scratch.'/'.self::RESTORE_LIST;
+        if (file_put_contents($list, DumpInspector::restoreList($listed->stdout)) === false) { // used only when restricted
+            return $inspected;
+        }
+        @chmod($list, 0640);
 
-        return DumpInspector::inspect($listed->stdout, $strict);
+        return [...$inspected, 'list' => $list];
     }
 
     /** @return list<string>|null the dump's migration names, null when it has no migrations table */
