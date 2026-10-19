@@ -214,3 +214,11 @@ well inside the slot; the gate's J10 run can record it.
 - The dump keeps `--no-privileges`; a restore re-applies the `REVOKE ALL … FROM PUBLIC` on `audit_seal`, `audit_prune`
   and `audit_prunable` and sets up the backup role again in the restored database (`instance:restore-finish`).
 - `pg_restore --list` and the new `pg_restore --data-only --table=migrations` get `--` before the file.
+
+## Amendment 2026-10-20: what reset changed (U23, ADR 0088)
+- `fsa reset` takes `SafetyBackup::take($state, 'reset', $lock)` after the quiesce and the ledger line, and seals it on
+  every way it closes. With `--no-backup` while a real organization exists it writes
+  `backups/audit-export-reset-<UTC>.jsonl` (0600) instead: no backup set, so BackupStore never lists it and retention
+  never deletes it.
+- `ChainEpoch::begin('reset', …)` now has its caller (`instance:reset epoch`); the reset's ledger line adds `journal`,
+  `demo` and `no_backup`.

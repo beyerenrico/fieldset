@@ -241,3 +241,9 @@ U12 did not add them (the smoke path above and the U12 consequence promised it);
   encryption, backups on disk, safety backups with age and size, alerts), read from the run ledger without a database;
   failed backups, scheduled runs skipped for more than 24 hours and a schedule without success for 26 hours are warnings.
   The services list includes `backup`.
+
+## Amendment 2026-10-20: `fsa reset` in status (U23, ADR 0088)
+- `fsa status` adds `last_reset` and `reset` (`last`, `interrupted`: last phase, whether the database was recreated, the
+  safety backup or audit export, the command that resumes it). The `operation_unfinished` warning and exit 9 of other
+  commands name `fsa reset` with its flags (`data.command`, `data.options`).
+- The image's `fsa` wrapper lists `reset` among the commands.

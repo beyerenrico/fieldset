@@ -56,12 +56,22 @@ The Form Schema Spec has its own changelog in `spec/form-definition/1.0/CHANGELO
   `--passphrase-file`/`--passphrase-stdin`, and archives without a valid HMAC (ADR 0085).
 - **`fsa config set webhooks on|paused`**; a webhook step also waits when the instance's runtime file cannot be read
   (ADR 0085).
+- **`fsa reset`** — returns the instance to a fresh state after confirmation: the organization and owner it was
+  installed with (the owner gets a new one-time sign-in link), and with `--demo` the demo data (random passwords
+  whenever the instance is reachable beyond loopback). The instance is quiesced behind its gate, the final audit chain
+  heads go to `backups/ledger.log`, a safety backup is taken (never pruned), then the database is recreated, the audit
+  log starts a new epoch with an `instance.reset` entry naming the old heads, files go to a fresh storage volume, and the
+  cache, queues and captured mail are emptied. Settings and secrets stay. `--no-backup` skips the safety backup but still
+  writes the whole audit log to `backups/audit-export-reset-<time>.jsonl` while a real organization exists. A failure
+  before the database is recreated leaves the instance as it was (exit 5); a reset stopped after that is finished by
+  running `fsa reset` again, without a question (ADR 0088).
 
 ### Changed
 - `fsa status` and `fsa logs` list the `backup` service; the stack file for Portainer and Coolify still has no
   backup service (ADR 0084).
 - `fsa status` and `fsa config show` show the last restore, the storage volume in use, paused webhooks and an
   interrupted restore with the commands that resume or abandon it (ADR 0085).
+- `fsa status` shows the last reset and an interrupted reset with the command that finishes it (ADR 0088).
 - Backups list the fingerprint of every APP key, previous keys included; a backup verifies even with stray dotfiles
   such as `.DS_Store` beside it, and file names in `SHA256SUMS` must be plain names (ADR 0085).
 

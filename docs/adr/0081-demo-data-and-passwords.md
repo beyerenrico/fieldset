@@ -158,3 +158,10 @@ HTTPS is `fsa install --phone-https` and `fsa tunnel start` (U14).
   issued (`sign_in_link_unavailable`) and nothing else changed, it stays `changed: false`. `fsa demo` keeps handing out
   a link on every run (F2, R30: it is how the operator gets into the demo); `--rotate-passwords` still issues none.
 
+
+## Amendment 2026-10-20: demo data is counted since the last reset (U23)
+- `DemoData::recorded()` (a repeated `fsa install --demo`, R13) counts only `demo_seeded` entries after the state's last
+  `reset` entry: `fsa reset` recreates the database, so a demo seeded before it is gone. `fsa install --demo` on an
+  instance reset without `--demo` is exit 2 `use_config_set` (hint `fsa demo`), as on one that never had the demo.
+- `fsa reset --demo` seeds through `DemoData::provide()` with `reissue`, so its passwords follow the same reachability
+  rule (random beyond loopback, listed once) and a resumed reset hands out new ones (ADR 0088).
