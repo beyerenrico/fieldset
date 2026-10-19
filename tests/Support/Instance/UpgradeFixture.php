@@ -50,6 +50,9 @@ final class UpgradeFixture
     /** @var array<string, string> version => manifest JSON the release server serves */
     public array $releases = [];
 
+    /** An HTTP status every request to the release server gets (null: it serves the releases). */
+    public ?int $releaseStatus = null;
+
     /** The version `latest/download` serves (null: 404, as before the first stable release). */
     public ?string $latest = null;
 
@@ -165,6 +168,9 @@ final class UpgradeFixture
 
     private function answerHttp(Request $request): mixed
     {
+        if ($this->releaseStatus !== null) {
+            return Http::response('release server says no', $this->releaseStatus);
+        }
         $url = $request->url();
         $latest = self::RELEASE_URL.'/latest/download/';
         $version = str_starts_with($url, $latest) ? $this->latest : (preg_match('#/download/v([^/]+)/#', $url, $match) === 1 ? $match[1] : null);

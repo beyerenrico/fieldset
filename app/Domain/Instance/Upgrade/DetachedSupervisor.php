@@ -152,6 +152,7 @@ final readonly class DetachedSupervisor
             }
         }
 
-        return [...$env, 'HOME' => '/tmp/fsa-home', 'DOCKER_CONFIG' => '/tmp/fsa-home/.docker', 'DOCKER_HOST' => 'unix:///var/run/docker.sock', self::RESULT_ENV => $result];
+        // HOME and DOCKER_CONFIG under /tmp (KTD2): the image's /tmp exists and belongs to the container alone
+        return [...$env, 'HOME' => '/tmp', 'DOCKER_CONFIG' => '/tmp/.docker', 'DOCKER_HOST' => 'unix:///var/run/docker.sock', self::RESULT_ENV => $result];
     }
 }
