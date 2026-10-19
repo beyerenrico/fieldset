@@ -51,7 +51,7 @@ final readonly class ResetWayBack
         $result = CommandResult::failed(ResetOperation::OPERATION, ExitCode::RolledBack, $code, 'The reset failed before anything was deleted; the instance runs as before. Cause: '.$cause->getMessage(),
             $hint, true, [...($cause instanceof InstanceException ? $cause->data : []), 'safety_backup' => ResetResult::safetyBackup($run->record())], changed: true);
 
-        return $this->rebuild->seal(RestoreRecovery::degraded($result, $degraded), ResetResult::safetyBackup($run->record()));
+        return $this->rebuild->seal(RestoreRecovery::degraded($result, $degraded), $run->record());
     }
 
     /** `fsa reset --abandon` before the drop: the previous instance runs again and the journal closes. */
@@ -65,7 +65,7 @@ final readonly class ResetWayBack
         }
         $result = CommandResult::ok(ResetOperation::OPERATION, ['abandoned' => true, 'database_recreated' => false, 'safety_backup' => ResetResult::safetyBackup($run->record())], changed: true);
 
-        return $this->rebuild->seal(RestoreRecovery::degraded($result, $degraded), ResetResult::safetyBackup($run->record()));
+        return $this->rebuild->seal(RestoreRecovery::degraded($result, $degraded), $run->record());
     }
 
     /** The failure an interrupted way back was going back from (its phase's start data). */

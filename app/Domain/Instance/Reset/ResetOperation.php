@@ -34,6 +34,7 @@ use App\Domain\Instance\State\EnvFiles;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceState;
 use App\Domain\Instance\State\RuntimeWriter;
+use App\Domain\Platform\Instance\Restore\RestoreConnections;
 use Closure;
 use Throwable;
 
@@ -110,7 +111,16 @@ final readonly class ResetOperation
 
         return $this->supervisor->run(
             self::OPERATION, $this->identity->holder('fsa', $context->facts->callerUid()),
-            fn (OperationRun $run): CommandResult => $this->wayBack->abandon($run, $state, ComposeProject::forInstance($state, $this->directory)),
+            function (OperationRun $run) use ($state): CommandResult {
+                if (! $run->isResumed()) { // the journal went between the check and the lock (verification V4)
+                    throw new InvalidInput('There is no interrupted reset to abandon.', 'nothing_to_abandon', 'Run `fsa status` to see what, if anything, is unfinished.');
+                }
+                if (self::dropBegan($run->record())) {
+                    throw new InvalidInput('The interrupted reset recreated the database already; there is nothing to go back to.', 'reset_past_drop', ResetStatus::hint($run->record()));
+                }
+
+                return $this->wayBack->abandon($run, $state, ComposeProject::forInstance($state, $this->directory));
+            },
             resume: true, progress: $context->progress, archive: $this->archive($digest),
         );
     }
@@ -121,10 +131,28 @@ final readonly class ResetOperation
         return $open?->operation() === self::OPERATION && self::dropBegan($open);
     }
 
-    /** Whether the drop began and reached the database (a first drop that failed while it still answered did not, A3). */
+    /**
+     * Whether the drop began and reached the database. A first drop that failed while the old database still answered did
+     * not (A3); its note names its attempt, so a later attempt counts again (verification V3).
+     */
     public static function dropBegan(JournalRecord $record): bool
     {
-        return $record->hasStarted(self::DROP) && ! array_any($record->events(), static fn (array $event): bool => $event['type'] === self::DROP_NOT_REACHED);
+        $attempts = count(array_filter($record->phases(), static fn (array $phase): bool => $phase['name'] === self::DROP));
+
+        return $attempts > 0 && ! array_any($record->events(), static fn (array $event): bool => $event['type'] === self::DROP_NOT_REACHED && ($event['data']['attempt'] ?? null) === $attempts);
+    }
+
+    /**
+     * Whether a completed attempt of `$phase` exists after the last quiesce that found writers running (verification V1):
+     * what they wrote must be in the heads and the backup, also when the run that began taking them again was killed.
+     */
+    public static function current(JournalRecord $record, string $phase): bool
+    {
+        $phases = $record->phases();
+        $ran = array_keys(array_filter($phases, static fn (array $entry): bool => $entry['name'] === 'quiesce' && ($entry['data']['writers_ran'] ?? false) === true));
+        $since = $ran === [] ? -1 : $ran[array_key_last($ran)];
+
+        return array_any(array_keys($phases), static fn (int $index): bool => $index > $since && $phases[$index]['name'] === $phase && $phases[$index]['status'] === 'completed');
     }
 
     /** An open reset that deletes nothing more when continued: past the drop, or going back. */
@@ -166,20 +194,20 @@ final readonly class ResetOperation
     private function beforeDrop(OperationRun $run, InstanceState $state, ComposeProject $project, ResetRequest $request): ?CommandResult
     {
         try {
-            $again = $run->record()->hasStarted('quiesce') && $this->writersRunning($project); // written after the ledger line (A1)
-            $run->phase('quiesce', function () use ($state, $project, $again): array {
+            $ran = $run->record()->hasStarted('quiesce') && $this->writersRunning($project); // written after the ledger line (A1)
+            $run->phase('quiesce', function () use ($state, $project): array {
                 $this->stack->quiesce($state, $project);
                 new RuntimeWriter($this->directory)->raiseGate($state, self::OPERATION); // the gate names the reset
 
-                return ['gate' => 'raised', 'writers_ran' => $again];
-            }, always: true);
+                return ['gate' => 'raised'];
+            }, ['writers_ran' => $ran], always: true); // start data: a killed quiesce still says writers ran
             $this->interruption->checkpoint();
-            $run->phase('ledger', fn (): array => $this->recordLedger($state, $project, $request, $run->record()->id()), always: $again);
+            $run->phase('ledger', fn (): array => $this->recordLedger($state, $project, $request, $run->record()->id()), always: ! self::current($run->record(), 'ledger'));
             $this->interruption->checkpoint();
             if ($request->noBackup) {
-                $run->phase('audit_export', fn (): array => $this->exportIfReal($project, $run->record()), always: $again);
+                $run->phase('audit_export', fn (): array => $this->exportIfReal($project, $run->record()), always: ! self::current($run->record(), 'audit_export'));
             } else {
-                $run->phase('safety_backup', fn (): array => $this->safety->take($state, self::OPERATION, new LockHandle($this->lock->current() ?? throw new InstanceException('The instance lock was lost during the reset.', ExitCode::AbortedUnchanged, 'lock_lost'))), always: $again);
+                $run->phase('safety_backup', fn (): array => $this->safety->take($state, self::OPERATION, new LockHandle($this->lock->current() ?? throw new InstanceException('The instance lock was lost during the reset.', ExitCode::AbortedUnchanged, 'lock_lost'))), always: ! self::current($run->record(), 'safety_backup'));
             }
             $this->interruption->checkpoint();
         } catch (Throwable $e) {
@@ -204,7 +232,8 @@ final readonly class ResetOperation
             }, always: ! $run->record()->hasCompleted('epoch'));
         } catch (Throwable $e) {
             if ($first && $this->untouched($project)) {
-                $run->note(self::DROP_NOT_REACHED, ['message' => $e->getMessage()]);
+                $attempts = count(array_filter($run->record()->phases(), static fn (array $phase): bool => $phase['name'] === self::DROP));
+                $run->note(self::DROP_NOT_REACHED, ['message' => $e->getMessage(), 'attempt' => $attempts]);
 
                 return $this->wayBack->abort($run, $state, $project, $e);
             }
@@ -256,8 +285,19 @@ final readonly class ResetOperation
 
         return [
             'seed' => max($this->ledger->seed(), $heads['epoch']), 'epoch' => $heads['epoch'], 'heads' => (object) $heads['heads'], 'intact' => $heads['intact'],
-            'sequences' => (object) (is_array($old['sequences'] ?? null) ? $old['sequences'] : []), 'non_demo' => is_int($counts['non_demo'] ?? null) ? $counts['non_demo'] : null,
+            'sequences' => (object) $this->floors($old['sequences'] ?? null), 'non_demo' => is_int($counts['non_demo'] ?? null) ? $counts['non_demo'] : null,
         ];
+    }
+
+    /**
+     * The sequence values the epoch step accepts (verification V6): decided before the drop, so a resume past it is never
+     * stuck on a value the app refuses.
+     *
+     * @return array<string, int>
+     */
+    private function floors(mixed $sequences): array
+    {
+        return array_filter(is_array($sequences) ? $sequences : [], static fn (mixed $value, mixed $name): bool => is_string($name) && preg_match(RestoreConnections::NAME, $name) === 1 && is_int($value) && $value > 0, ARRAY_FILTER_USE_BOTH);
     }
 
     /** @return array<string, mixed> the newest owner note of the journal */

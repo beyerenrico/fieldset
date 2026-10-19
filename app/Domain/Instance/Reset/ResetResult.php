@@ -54,6 +54,18 @@ final class ResetResult
     }
 
     /**
+     * Every safety backup the journal took, also one a retake superseded (verification V2): all are sealed (R57).
+     *
+     * @return list<string>
+     */
+    public static function safetyBackups(JournalRecord $record): array
+    {
+        $names = array_map(static fn (array $phase): mixed => $phase['data']['backup'] ?? null, array_filter($record->phases(), static fn (array $phase): bool => $phase['name'] === 'safety_backup' && $phase['status'] === 'completed'));
+
+        return array_values(array_unique(array_filter($names, static fn (mixed $name): bool => is_string($name) && $name !== '')));
+    }
+
+    /**
      * @param  array<string, mixed>  $flushed
      * @param  list<mixed>  $left
      * @param  list<array{0: string, 1: string, 2: string|null}>  $warnings

@@ -78,8 +78,8 @@ The Form Schema Spec has its own changelog in `spec/form-definition/1.0/CHANGELO
 - `fsa status` and `fsa config show` show the last restore, the storage volume in use, paused webhooks and an
   interrupted restore with the commands that resume or abandon it (ADR 0085).
 - `fsa status` shows the last reset and an interrupted reset with the command that finishes it (ADR 0088).
-- `fsa backup` refuses while another operation is unfinished (exit 9), and a restore of a safety backup taken before a
-  reset carries no security state from the reset instance (ADR 0084, 0085, 0088).
+- `fsa backup` and `fsa login-link` refuse while another operation is unfinished (exit 9), and a restore of a safety
+  backup taken before a reset carries no security state from the reset instance (ADR 0084, 0085, 0088).
 - Backups list the fingerprint of every APP key, previous keys included; a backup verifies even with stray dotfiles
   such as `.DS_Store` beside it, and file names in `SHA256SUMS` must be plain names (ADR 0085).
 

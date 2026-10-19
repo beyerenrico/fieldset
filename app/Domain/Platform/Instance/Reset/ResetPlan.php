@@ -6,6 +6,7 @@ namespace App\Domain\Platform\Instance\Reset;
 
 use App\Domain\Identity\Enums\UserStatus;
 use App\Domain\Identity\Models\Organization;
+use App\Domain\Platform\Instance\Restore\RestoreConnections;
 use App\Domain\Platform\Instance\Restore\SequenceAdvancer;
 use App\Domain\Platform\Models\PlatformAdmin;
 use Illuminate\Support\Facades\DB;
@@ -36,7 +37,7 @@ final class ResetPlan
             ],
             'organization' => $first instanceof Organization ? ['name' => $first->name, 'locale' => $first->locale] : null,
             'operators' => self::operators(),
-            'sequences' => SequenceAdvancer::values(DB::connection()),
+            'sequences' => array_filter(SequenceAdvancer::values(DB::connection()), static fn (int $value, string $name): bool => preg_match(RestoreConnections::NAME, $name) === 1 && $value > 0, ARRAY_FILTER_USE_BOTH), // V6
         ];
     }
 

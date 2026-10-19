@@ -152,6 +152,24 @@ backup` exit 9, amending ADR 0084), A9 (hints by phase). A5 (restoring a reset's
 ADR 0085's carry: a source whose chain shows a reset after the backup is carry mode `reset`, nothing is carried and the
 result warns `carry_skipped_after_reset`; the sequence floors stop the ID collisions besides.
 
+## Verification review (2026-10-20)
+- V1: a retake is decided by the journal, not by the live containers alone: the quiesce records `writers_ran` in its start
+  data (a killed quiesce keeps it), and ledger, safety backup and audit export run again until an attempt of each
+  completed after the last quiesce that found writers running. A kill inside a retaken backup is retaken by the next run.
+- V2 (R57): every safety backup the journal took is sealed when the reset closes (ResetResult::safetyBackups), also one a
+  retake superseded; none is deleted (safety backups are never pruned, and the older one may be the only copy of data
+  written before the writers ran again).
+- V3: the `drop_not_reached` note names its drop attempt; a later attempt counts as the drop.
+- V4: `--abandon` checks the journal again under the lock (a journal that went meanwhile is exit 2 `nothing_to_abandon`,
+  one past its drop exit 2 `reset_past_drop`); `fsa reset` was covered by the S4 check already.
+- V5: a leftover `<db>_restore_<id>` goes with `fsa_restore_<id>`, `restore_drill_<id>` with `fsa_drill_<id>`.
+- V6: sequence floors are filtered to names and values the epoch step accepts before the drop (the plan and the ledger
+  phase), so no resume past the drop is refused on them.
+- V7: `app:install` forgets Spatie's permission cache before its transaction and after a failure of it.
+- V8: the volume the reset replaced is removed by name even without the instance label.
+- V9: `fsa login-link` takes the instance lock and refuses while any operation journal is open (exit 9
+  `operation_unfinished`): between the runs of a reset or restore it would write into the database being replaced.
+
 ## Consequences
 - A reset interrupted after the drop leaves the instance answering 503 until `fsa reset` runs again; one interrupted
   before it stays behind the gate until `fsa reset --yes` or `fsa reset --abandon`.

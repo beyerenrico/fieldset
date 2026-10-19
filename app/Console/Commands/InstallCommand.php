@@ -21,6 +21,8 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 use InvalidArgumentException;
+use Spatie\Permission\PermissionRegistrar;
+use Throwable;
 
 use function Laravel\Prompts\password;
 use function Laravel\Prompts\text;
@@ -51,7 +53,7 @@ final class InstallCommand extends Command
     /** @var list<array{0: string, 1: string, 2: string|null}> */
     private array $warnings = [];
 
-    public function handle(SyncPermissionCatalog $catalog, CreateOrganization $createOrganization, GrantPlatformAdmin $grant, IssueOwnerLink $ownerLink): int
+    public function handle(SyncPermissionCatalog $catalog, CreateOrganization $createOrganization, GrantPlatformAdmin $grant, IssueOwnerLink $ownerLink, PermissionRegistrar $registrar): int
     {
         try {
             $hostUid = ActorUid::from($this->option('actor-uid'));
@@ -65,14 +67,24 @@ final class InstallCommand extends Command
 
         // One transaction (U23 review A7): a failure never leaves an owner without the operator role or an organization
         // without its owner link, which a repeated install (or `fsa reset`) would then take for a finished one.
-        [$organization, $owner, $issued] = DB::transaction(function () use ($catalog, $createOrganization, $grant, $ownerLink, $data, $hostUid): array {
-            $catalog->handle();
-            $owner = $this->owner($data);
-            $organization = $createOrganization->handle(['name' => $data['organization'], 'locale' => $data['locale']], $owner);
-            $grant->handle($owner);
+        // Spatie caches permissions read inside the transaction (Valkey in an instance): forgotten before it and after a
+        // failure, or the next run would find rows the rollback removed (verification V7).
+        $registrar->forgetCachedPermissions();
 
-            return [$organization, $owner, $data['password'] === null ? $ownerLink->handle($owner, $hostUid) : null];
-        });
+        try {
+            [$organization, $owner, $issued] = DB::transaction(function () use ($catalog, $createOrganization, $grant, $ownerLink, $data, $hostUid): array {
+                $catalog->handle();
+                $owner = $this->owner($data);
+                $organization = $createOrganization->handle(['name' => $data['organization'], 'locale' => $data['locale']], $owner);
+                $grant->handle($owner);
+
+                return [$organization, $owner, $data['password'] === null ? $ownerLink->handle($owner, $hostUid) : null];
+            });
+        } catch (Throwable $e) {
+            $registrar->forgetCachedPermissions();
+
+            throw $e;
+        }
 
         return $this->json() ? $this->jsonResult($organization, $owner, $issued)->emit($this) : $this->human($organization, $owner, $issued);
     }

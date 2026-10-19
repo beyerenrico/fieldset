@@ -70,17 +70,22 @@ final readonly class ResetRebuild
         }
     }
 
-    /** Encrypts the safety backup to the recipients once the reset closed (R57); a failure is a warning. */
-    public function seal(CommandResult $result, ?string $safetyBackup): CommandResult
+    /**
+     * Encrypts every safety backup of the journal to the recipients once the reset closed (R57, verification V2: also one
+     * a retake superseded); a failure is a warning per backup.
+     */
+    public function seal(CommandResult $result, JournalRecord $record): CommandResult
     {
         $lock = $this->lock->current();
-        if ($safetyBackup === null || ! $lock instanceof LockRecord) {
+        if (! $lock instanceof LockRecord) {
             return $result;
         }
-        try {
-            $this->safety->seal($this->directory->state(), $safetyBackup, new LockHandle($lock));
-        } catch (Throwable $e) {
-            return $result->withWarning('safety_backup_not_sealed', "The safety backup {$safetyBackup} stays unencrypted (0600): ".$e->getMessage(), 'Encrypt or delete it by hand.');
+        foreach (ResetResult::safetyBackups($record) as $backup) {
+            try {
+                $this->safety->seal($this->directory->state(), $backup, new LockHandle($lock));
+            } catch (Throwable $e) {
+                $result = $result->withWarning('safety_backup_not_sealed', "The safety backup {$backup} stays unencrypted (0600): ".$e->getMessage(), 'Encrypt or delete it by hand.');
+            }
         }
 
         return $result;
@@ -113,13 +118,13 @@ final readonly class ResetRebuild
 
             return ['lowered' => true];
         }, always: true);
-        $cleanup = $run->phase('cleanup', fn (): array => $this->leftovers->remove($this->directory->state(), $project, (string) ($volume['volume'] ?? '')), always: true);
+        $cleanup = $run->phase('cleanup', fn (): array => $this->leftovers->remove($this->directory->state(), $project, (string) ($volume['volume'] ?? ''), is_string($volume['previous'] ?? null) ? $volume['previous'] : null), always: true);
         $link ??= $this->freshLink($project, $subject, $request, $context, $warnings);
         $result = ResetResult::ok($this->directory->state(), $subject, $run->record(), $epoch, $flushed, $cleanup, $warnings);
         $result = $link === null ? $result : SignInDelivery::deliver($result, $context, $link['value'], $link['expires_at'], $toFile, $subject->ownerEmail);
         $result = $demo instanceof DemoCredentials ? $demo->apply($result, $context, $toFile) : $result;
 
-        return $this->seal($result, ResetResult::safetyBackup($run->record()));
+        return $this->seal($result, $run->record());
     }
 
     /**

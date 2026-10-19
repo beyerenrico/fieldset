@@ -42,6 +42,9 @@ final class ResetFixture
     /** @var list<string> databases `instance:restore-db drop` dropped */
     public array $dropped = [];
 
+    /** @var array<string, string|null> database => the role dropped with it (`--role=`) */
+    public array $droppedRoles = [];
+
     /** @var array<string, ProcessOutcome|list<ProcessOutcome>> instance:reset action => answer (a list is used up one per call) */
     public array $answers = [];
 
@@ -145,11 +148,14 @@ final class ResetFixture
     private function restoreDb(array $command): ProcessOutcome
     {
         $database = '';
+        $role = null;
         foreach ($command as $argument) {
             $database = str_starts_with($argument, '--database=') ? substr($argument, 11) : $database;
+            $role = str_starts_with($argument, '--role=') ? substr($argument, 7) : $role;
         }
         if (($command[3] ?? null) === 'drop') {
             $this->dropped[] = $database;
+            $this->droppedRoles[$database] = $role;
             $this->databases = array_values(array_diff($this->databases, [$database]));
 
             return InstanceCommandFixture::oneOffJson(['command' => 'instance:restore-db', 'status' => 'ok', 'changed' => true, 'data' => ['database' => $database, 'dropped' => true]]);

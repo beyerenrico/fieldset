@@ -217,3 +217,14 @@ it('exports every audit entry with the epoch and the heads, one JSON document pe
         ->and(array_column($rows, 'id'))->toBe(DB::table('activity_log')->orderBy('id')->pluck('id')->all())
         ->and($rows[0])->toHaveKeys(['event', 'organization_id', 'properties', 'created_at']);
 });
+
+it('plans only well-formed sequence floors: a sequence name fsa cannot pass on is left out (V6)', function (): void {
+    DB::statement('CREATE SEQUENCE "Odd-Seq"');
+    DB::selectOne('SELECT nextval(\'"Odd-Seq"\') AS value');
+
+    [$code, $json] = resetApp('plan');
+
+    expect($code)->toBe(0)
+        ->and($json['data']['sequences'])->not->toHaveKey('Odd-Seq')
+        ->and($json['data']['sequences'])->toHaveKey('users_id_seq');
+});
