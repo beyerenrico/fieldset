@@ -247,3 +247,6 @@ U12 did not add them (the smoke path above and the U12 consequence promised it);
   safety backup or audit export, the command that resumes it). The `operation_unfinished` warning and exit 9 of other
   commands name `fsa reset` with its flags (`data.command`, `data.options`).
 - The image's `fsa` wrapper lists `reset` among the commands.
+- `app:install` creates the permission catalog, the owner, the organization, the operator grant and the owner link in
+  one transaction (U23 second review A7): a failure leaves none of them, so a repeated install or `fsa reset` never takes
+  an owner without the operator role for a finished install.

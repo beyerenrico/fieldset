@@ -16,6 +16,7 @@ use App\Domain\Platform\Actions\GrantPlatformAdmin;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
@@ -62,11 +63,16 @@ final class InstallCommand extends Command
             return $this->refuse('invalid_input', $e->getMessage());
         }
 
-        $catalog->handle();
-        $owner = $this->owner($data);
-        $organization = $createOrganization->handle(['name' => $data['organization'], 'locale' => $data['locale']], $owner);
-        $grant->handle($owner);
-        $issued = $data['password'] === null ? $ownerLink->handle($owner, $hostUid) : null;
+        // One transaction (U23 review A7): a failure never leaves an owner without the operator role or an organization
+        // without its owner link, which a repeated install (or `fsa reset`) would then take for a finished one.
+        [$organization, $owner, $issued] = DB::transaction(function () use ($catalog, $createOrganization, $grant, $ownerLink, $data, $hostUid): array {
+            $catalog->handle();
+            $owner = $this->owner($data);
+            $organization = $createOrganization->handle(['name' => $data['organization'], 'locale' => $data['locale']], $owner);
+            $grant->handle($owner);
+
+            return [$organization, $owner, $data['password'] === null ? $ownerLink->handle($owner, $hostUid) : null];
+        });
 
         return $this->json() ? $this->jsonResult($organization, $owner, $issued)->emit($this) : $this->human($organization, $owner, $issued);
     }

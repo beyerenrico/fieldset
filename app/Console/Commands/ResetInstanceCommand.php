@@ -82,17 +82,41 @@ final class ResetInstanceCommand extends Command
         }
     }
 
-    /** @return array{0: array{epoch: int, previous_epoch: int|null, activity_id: mixed, began: bool}, 1: bool} */
+    /** @return array{0: array{epoch: int, previous_epoch: int|null, activity_id: mixed, began: bool, sequences: int}, 1: bool} */
     private function epoch(ResetEpoch $epoch): array
     {
-        $input = FinishRequest::stdin($this->stdin());
+        $stdin = $this->stdin();
+        $floors = $this->floors($stdin);
+        $document = json_decode($stdin, true);
+        $input = FinishRequest::stdin(is_array($document) ? (string) json_encode(array_diff_key($document, ['sequences' => true])) : $stdin);
         $seed = $this->option('epoch-seed');
         if (! is_string($seed) || preg_match('/^\d{1,9}$/D', $seed) !== 1) {
             throw new InvalidArgumentException('--epoch-seed must be a whole number.');
         }
-        $data = $epoch->begin((int) $seed, $input['previous_heads'], $input['previous_epoch'], $this->backupName('safety-backup'), $this->backupName('audit-export'), $this->option('demo') === true, ActorUid::from($this->option('actor-uid')));
+        $data = $epoch->begin((int) $seed, $input['previous_heads'], $input['previous_epoch'], $this->backupName('safety-backup'), $this->backupName('audit-export'), $this->option('demo') === true, ActorUid::from($this->option('actor-uid')), $floors);
 
         return [$data, $data['began']];
+    }
+
+    /**
+     * stdin's `sequences`: the old database's sequence values, by name (review S1).
+     *
+     * @return array<string, int>
+     */
+    private function floors(string $stdin): array
+    {
+        $document = trim($stdin) === '' ? [] : json_decode($stdin, true);
+        $sequences = is_array($document) ? ($document['sequences'] ?? []) : [];
+        if (! is_array($sequences)) {
+            throw new InvalidArgumentException('stdin sequences must be an object of sequence names and values.');
+        }
+        foreach ($sequences as $name => $value) {
+            if (! is_string($name) || preg_match(RestoreConnections::NAME, $name) !== 1 || ! is_int($value) || $value < 1) {
+                throw new InvalidArgumentException('sequences must map sequence names to positive whole numbers.');
+            }
+        }
+
+        return $sequences;
     }
 
     private function backupName(string $option): ?string

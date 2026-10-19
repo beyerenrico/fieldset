@@ -308,6 +308,7 @@ it('resets the local demo: install org and owner only, empty storage and catcher
     $before = [
         'catcher' => j05CatcherCount($this->journey, $this->local), 'volume' => RestoreJourney::storageVolume($uuid), 'files' => j05StorageFiles($uuid),
         'organizations' => RestoreJourney::sql($uuid, 'SELECT count(*) FROM organizations'), 'users' => RestoreJourney::sql($uuid, 'SELECT count(*) FROM users'),
+        'max_ids' => ['users' => (int) RestoreJourney::sql($uuid, 'SELECT max(id) FROM users'), 'activity_log' => (int) RestoreJourney::sql($uuid, 'SELECT max(id) FROM activity_log')],
     ];
     $file = $this->journey->work.'/j05-reset-link.json';
     $started = microtime(true);
@@ -332,7 +333,7 @@ it('resets the local demo: install org and owner only, empty storage and catcher
         'catcher' => j05CatcherCount($this->journey, $this->local), 'volume' => RestoreJourney::storageVolume($uuid), 'files' => j05StorageFiles($uuid),
         'old_volume_left' => in_array($before['volume'], explode("\n", trim(j05Docker(['volume', 'ls', '-q', '--filter', 'name='.$before['volume']])->getOutput())), true),
         'organizations' => RestoreJourney::sql($uuid, "SELECT string_agg(name, ',') FROM organizations"), 'users' => RestoreJourney::sql($uuid, "SELECT string_agg(email, ',') FROM users"),
-        'first_entry' => $first, 'epoch' => $epoch, 'safety_mode' => $safety === '' ? null : decoct(fileperms($this->local.'/backups/'.$safety) & 0777), 'pruned_with_retention_1' => $pruned,
+        'first_entry' => $first, 'epoch' => $epoch, 'min_user_id' => (int) RestoreJourney::sql($uuid, 'SELECT min(id) FROM users'), 'safety_mode' => $safety === '' ? null : decoct(fileperms($this->local.'/backups/'.$safety) & 0777), 'pruned_with_retention_1' => $pruned,
     ];
     $this->journey->evidence('J05-local-reset.json', [
         'command' => 'fsa reset --yes --secrets-file <work>/j05-reset-link.json --json', 'exit_code' => $process->getExitCode(), 'seconds' => $seconds, 'stdout' => $json,
@@ -360,6 +361,8 @@ it('resets the local demo: install org and owner only, empty storage and catcher
         ->and($ledger['heads'])->not->toBe([])
         ->and($ledger['at'] <= j05Phase($journal, 'recreate_database')['started_at'])->toBeTrue()
         ->and(j05Phase($journal, 'quiesce')['finished_at'] <= $ledger['at'])->toBeTrue()
+        ->and($after['min_user_id'])->toBeGreaterThan($before['max_ids']['users']) // review S1: no ID handed out twice
+        ->and($first['id'])->toBeGreaterThan($before['max_ids']['activity_log'])
         ->and($first['event'])->toBe('instance.reset')
         ->and($first['organization_id'])->toBeNull()
         ->and($first['properties']['previous_heads'])->toBe($ledger['heads'])

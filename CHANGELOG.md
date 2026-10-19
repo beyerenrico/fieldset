@@ -66,7 +66,11 @@ The Form Schema Spec has its own changelog in `spec/form-definition/1.0/CHANGELO
   cache, queues and captured mail are emptied. Settings and secrets stay. `--no-backup` skips the safety backup but still
   writes the whole audit log to `backups/audit-export-reset-<time>.jsonl` while a real organization exists. A failure
   before the database is recreated leaves the instance as it was (exit 5); a reset stopped after that is finished by
-  running `fsa reset` again, without a question (ADR 0088).
+  running `fsa reset` again, without a question. Row IDs of the old data are never handed out again, so signed links
+  sent before the reset (invitations, data exports) find nothing; leftover restore databases and storage volumes go too
+  (ADR 0088).
+- **`fsa reset --abandon`** — ends a reset that stopped before it recreated the database and starts the instance again
+  as it was (ADR 0088).
 
 ### Changed
 - `fsa status` and `fsa logs` list the `backup` service; the stack file for Portainer and Coolify still has no
@@ -74,6 +78,8 @@ The Form Schema Spec has its own changelog in `spec/form-definition/1.0/CHANGELO
 - `fsa status` and `fsa config show` show the last restore, the storage volume in use, paused webhooks and an
   interrupted restore with the commands that resume or abandon it (ADR 0085).
 - `fsa status` shows the last reset and an interrupted reset with the command that finishes it (ADR 0088).
+- `fsa backup` refuses while another operation is unfinished (exit 9), and a restore of a safety backup taken before a
+  reset carries no security state from the reset instance (ADR 0084, 0085, 0088).
 - Backups list the fingerprint of every APP key, previous keys included; a backup verifies even with stray dotfiles
   such as `.DS_Store` beside it, and file names in `SHA256SUMS` must be plain names (ADR 0085).
 

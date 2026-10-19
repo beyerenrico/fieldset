@@ -11,6 +11,7 @@ use App\Domain\Identity\Models\User;
 use App\Domain\Platform\Models\PlatformAdmin;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\URL;
 use Tests\Support\Instance\RestoreDatabases;
 
 /*
@@ -119,6 +120,44 @@ it('refuses to begin the epoch in a database that already holds audit entries (i
     expect($code)->toBe(1)
         ->and($json['errors'][0]['code'])->toBe('database_not_fresh')
         ->and(ChainEpoch::current())->toBe(1);
+});
+
+it('plans the old database\'s sequence values (review S1)', function (): void {
+    makeOrganization(name: 'Acme Forms');
+    $users = (int) DB::selectOne("SELECT last_value FROM pg_sequences WHERE schemaname = 'public' AND sequencename = 'users_id_seq'")->last_value;
+
+    [$code, $json] = resetApp('plan');
+
+    expect($code)->toBe(0)
+        ->and($json['data']['sequences']['users_id_seq'])->toBe($users)
+        ->and($json['data']['sequences'])->toHaveKey('organization_user_id_seq')
+        ->and(array_filter($json['data']['sequences'], static fn (mixed $value): bool => ! is_int($value)))->toBe([]);
+});
+
+it('raises every sequence above the old database before instance.reset, so an old signed invitation finds no row (review S1)', function (): void {
+    $old = URL::temporarySignedRoute('invitations.show', now()->addDays(7), ['membership' => 50]); // X, invited before the reset
+    $this->stdin = json_encode(['previous_heads' => ['0' => ['seq' => 9, 'hash' => RESET_HEAD]], 'previous_epoch' => 1,
+        'sequences' => ['organization_user_id_seq' => 50, 'users_id_seq' => 40, 'activity_log_id_seq' => 900, 'gone_id_seq' => 7]]);
+
+    [$code, $json] = resetApp('epoch', ['--epoch-seed' => '1']);
+    makeOrganization(name: 'Fresh GmbH'); // Y, after the reset
+    $memberships = DB::table('organization_user')->pluck('id')->all();
+
+    expect($code)->toBe(0, (string) json_encode($json))
+        ->and($json['data']['sequences'])->toBe(3)
+        ->and((int) $json['data']['activity_id'])->toBeGreaterThan(900)
+        ->and(min($memberships))->toBeGreaterThan(50)
+        ->and((int) DB::table('users')->min('id'))->toBeGreaterThan(40)
+        ->and($this->get($old)->getStatusCode())->toBe(404);
+});
+
+it('refuses malformed sequence floors on stdin', function (): void {
+    $this->stdin = json_encode(['previous_heads' => [], 'previous_epoch' => 1, 'sequences' => ['users_id_seq; DROP TABLE users' => 5]]);
+
+    [$code, $json] = resetApp('epoch', ['--epoch-seed' => '1']);
+
+    expect($code)->toBe(1)->and($json['errors'][0]['code'])->toBe('invalid_input')
+        ->and(DB::table('audit_chain_epochs')->count())->toBe(0);
 });
 
 it('refuses malformed heads on stdin, an unknown action and a non-numeric seed', function (): void {

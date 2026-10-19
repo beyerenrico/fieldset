@@ -6,7 +6,9 @@ namespace App\Domain\Platform\Instance\Reset;
 
 use App\Domain\Identity\Enums\UserStatus;
 use App\Domain\Identity\Models\Organization;
+use App\Domain\Platform\Instance\Restore\SequenceAdvancer;
 use App\Domain\Platform\Models\PlatformAdmin;
+use Illuminate\Support\Facades\DB;
 
 /**
  * What `fsa reset` must know from the live database before it stops anything (plan U23, ADR 0088), read in a socket-less
@@ -14,12 +16,14 @@ use App\Domain\Platform\Models\PlatformAdmin;
  * many of them are not the demo, which decides whether a reset without a safety backup still writes an audit export;
  * the oldest real organization (name and locale, for an instance whose install record lacks them, e.g. one installed
  * from a backup); and the active platform operators, oldest grant first, from whom fsa picks the owner of the fresh
- * instance (the install record keeps the owner's e-mail only as a digest). Read-only.
+ * instance (the install record keeps the owner's e-mail only as a digest); and the last value of every sequence, the
+ * floors of the new database's sequences (review S1: signed links name row IDs, which must never be handed out again).
+ * Read-only.
  */
 final class ResetPlan
 {
     /**
-     * @return array{organizations: array{total: int, non_demo: int}, organization: array{name: string, locale: string}|null, operators: list<array{email: string, name: string, locale: string}>}
+     * @return array{organizations: array{total: int, non_demo: int}, organization: array{name: string, locale: string}|null, operators: list<array{email: string, name: string, locale: string}>, sequences: array<string, int>}
      */
     public static function read(): array
     {
@@ -32,6 +36,7 @@ final class ResetPlan
             ],
             'organization' => $first instanceof Organization ? ['name' => $first->name, 'locale' => $first->locale] : null,
             'operators' => self::operators(),
+            'sequences' => SequenceAdvancer::values(DB::connection()),
         ];
     }
 

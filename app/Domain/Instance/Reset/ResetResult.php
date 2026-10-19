@@ -36,7 +36,7 @@ final class ResetResult
             'safety_backup' => self::safetyBackup($record), 'audit_export' => is_string($export['file'] ?? null) ? $export['file'] : null,
             'epoch' => $epoch['epoch'] ?? null, 'previous_epoch' => $epoch['previous_epoch'] ?? null,
             'storage_volume' => RestoreStorage::current($state), 'flushed' => ['valkey' => ($flushed['valkey'] ?? false) === true, 'catcher' => $flushed['catcher'] ?? null],
-            'left_behind' => $left,
+            'left_behind' => $left, 'removed' => is_array($cleanup['removed'] ?? null) ? array_values($cleanup['removed']) : [],
             'next_commands' => ['fsa status', "fsa login-link {$subject->ownerEmail}", 'fsa doctor --post'],
         ], changed: true);
         foreach (self::warnings($record, $flushed, $left, $warnings) as [$code, $message, $hint]) {
@@ -68,9 +68,8 @@ final class ResetResult
             ...($noBackup ? [['no_backup', is_string($export)
                 ? "No safety backup was taken (--no-backup): only the audit log was kept, in backups/{$export}."
                 : 'No safety backup was taken (--no-backup) and only demo organizations existed: nothing of the old data was kept.', null]] : []),
-            ...(($flushed['valkey'] ?? false) !== true ? [['valkey_not_flushed', 'The cache and queues could not be emptied; jobs of the old data may still run.', 'Read `fsa logs redis` and `fsa logs queue`.']] : []),
             ...(($flushed['catcher'] ?? null) === false ? [['catcher_not_flushed', 'The mail catcher could not be emptied; it still shows mail of the old data.', 'Delete the messages in the catcher UI.']] : []),
-            ...($left !== [] ? [['reset_cleanup_incomplete', 'The reset succeeded, but these could not be removed: '.implode(', ', array_map(strval(...), array_filter($left, is_string(...)))).'.', 'Remove them by hand (`docker volume rm`).']] : []),
+            ...($left !== [] ? [['reset_cleanup_incomplete', 'The reset succeeded, but these could not be removed: '.implode(', ', array_map(strval(...), array_filter($left, is_string(...)))).'.', 'Remove them by hand (`docker volume rm`, `DROP DATABASE`).']] : []),
             ...$warnings,
         ];
     }

@@ -8,10 +8,19 @@ namespace App\Domain\Instance\Reset;
  * The flags of `fsa reset` (§7, R43, plan U23, ADR 0088): `--demo` adds the demo data to the fresh instance, `--no-backup`
  * skips the safety backup (an audit export is still written while real organizations exist). They are the journal's
  * context: a resumed reset continues only with the same flags, and `fsa status` names the command with them.
+ * `confirmed`: the operator said yes (`--yes` or the prompt); the operation checks it again under the lock (review S4).
  */
 final readonly class ResetRequest
 {
-    public function __construct(public bool $demo, public bool $noBackup, public int $actorUid) {}
+    public function __construct(public bool $demo, public bool $noBackup, public int $actorUid, public bool $confirmed = true) {}
+
+    /** The question a reset that may still delete something asks first. */
+    public static function question(bool $noBackup): string
+    {
+        return $noBackup
+            ? 'Delete every organization, form, submission, user, file and captured mail of this instance WITHOUT a backup? Settings and secrets stay.'
+            : 'Delete every organization, form, submission, user, file and captured mail of this instance and start fresh? A safety backup is taken first; settings and secrets stay.';
+    }
 
     /** @return array{demo: bool, no_backup: bool} */
     public function toContext(): array

@@ -262,3 +262,13 @@ it('reports an existing installation in JSON as unchanged', function (): void {
         ->and($json['warnings'][0]['code'])->toBe('already_installed')
         ->and(LoginLink::query()->count())->toBe(1);
 });
+
+it('creates organization, owner, operator role and owner link in one transaction: a failure leaves none of them (U23 review A7)', function (): void {
+    Organization::created(static fn () => throw new RuntimeException('organization listener failed'));
+
+    expect(fn () => Artisan::call('app:install', ['--organization' => 'Acme Forms', '--name' => 'Olivia Owner', '--email' => 'owner@example.test', '--owner-link' => true, '--json' => true]))
+        ->toThrow(RuntimeException::class, 'organization listener failed');
+    expect(Organization::query()->withTrashed()->count())->toBe(0)
+        ->and(User::query()->where('email', 'owner@example.test')->exists())->toBeFalse()
+        ->and(DB::table('platform_admins')->count())->toBe(0);
+});

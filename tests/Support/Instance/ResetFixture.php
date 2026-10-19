@@ -14,8 +14,9 @@ use Closure;
  * An installed, running instance (ConfigFixture) whose Docker answers the steps of `fsa reset` (plan U23, ADR 0088):
  * `instance:reset plan|recreate|epoch` like the app (the epoch begins once: a second call answers `began: false`),
  * `instance:audit-export` as a JSON Lines stream into the file fsa names, `audit:verify --heads`, `audit:seal`, the Valkey
- * flush, and a safety backup that leaves a real backup directory behind. `$hooks` run before an artisan one-off is
- * answered (a signal, a failure); `$answers` replace an action's answer.
+ * flush, a safety backup that leaves a real backup directory behind, and `instance:restore-db list|drop` over
+ * `$databases` (the leftovers of earlier restores). `$hooks` run before an artisan one-off is answered (a signal, a
+ * failure); `$answers` replace an action's answer.
  */
 final class ResetFixture
 {
@@ -32,7 +33,14 @@ final class ResetFixture
         'organizations' => ['total' => 1, 'non_demo' => 1],
         'organization' => ['name' => 'Acme Forms', 'locale' => 'en'],
         'operators' => [['email' => 'owner@example.com', 'name' => 'Olivia Owner', 'locale' => 'en']],
+        'sequences' => ['users_id_seq' => 40, 'organization_user_id_seq' => 11, 'activity_log_id_seq' => 900],
     ];
+
+    /** @var list<string> the databases `instance:restore-db list` reports */
+    public array $databases = ['form_schema', 'postgres'];
+
+    /** @var list<string> databases `instance:restore-db drop` dropped */
+    public array $dropped = [];
 
     /** @var array<string, ProcessOutcome|list<ProcessOutcome>> instance:reset action => answer (a list is used up one per call) */
     public array $answers = [];
@@ -105,6 +113,7 @@ final class ResetFixture
 
         return match (true) {
             $action !== null => $this->resetAction($action, $command, $input),
+            $name === 'instance:restore-db' => $this->restoreDb($command),
             ($command[0] ?? null) === 'valkey-cli' => new ProcessOutcome(0, "OK\n"),
             $name === 'audit:seal' => new ProcessOutcome(0, "Sealed 0 audit entries.\n"),
             $name === 'audit:verify' => new ProcessOutcome(0, '{"verified_at":"2026-10-19T12:00:00+00:00","epoch":1,"heads":{"0":{"seq":7,"hash":"'.self::HEAD.'"}}}'."\n"),
@@ -130,6 +139,23 @@ final class ResetFixture
             'epoch' => $this->epoch(),
             default => self::failed('invalid_input', 'The action must be plan, recreate or epoch.'),
         };
+    }
+
+    /** @param  list<string>  $command */
+    private function restoreDb(array $command): ProcessOutcome
+    {
+        $database = '';
+        foreach ($command as $argument) {
+            $database = str_starts_with($argument, '--database=') ? substr($argument, 11) : $database;
+        }
+        if (($command[3] ?? null) === 'drop') {
+            $this->dropped[] = $database;
+            $this->databases = array_values(array_diff($this->databases, [$database]));
+
+            return InstanceCommandFixture::oneOffJson(['command' => 'instance:restore-db', 'status' => 'ok', 'changed' => true, 'data' => ['database' => $database, 'dropped' => true]]);
+        }
+
+        return InstanceCommandFixture::oneOffJson(['command' => 'instance:restore-db', 'status' => 'ok', 'data' => ['databases' => $this->databases]]);
     }
 
     private function epoch(): ProcessOutcome

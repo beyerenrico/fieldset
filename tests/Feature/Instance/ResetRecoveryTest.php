@@ -42,7 +42,7 @@ it('brings the instance back when the safety backup fails: exit 5, nothing delet
     expect($code)->toBe(5, (string) json_encode($json))
         ->and($json['status'])->toBe('rolled_back')
         ->and($json['errors'][0]['code'])->toBe('safety_backup_failed')
-        ->and($this->reset->actions())->toBe(['plan'])
+        ->and($this->reset->actions())->toBe(['plan', 'plan'])
         ->and(collect($this->reset->config->callsSince($mark, 'composeUp'))->contains(fn (array $call): bool => $call['services'] === []))->toBeTrue()
         ->and(resetRecoveryRuntime($this->dir)['gate']['raised'])->toBeFalse()
         ->and(new OperationJournal($this->reset->instance->directory)->current())->toBeNull();
@@ -74,7 +74,7 @@ it('resumes a reset that stopped before its epoch began: no question, no second 
         ->and($status['data']['reset']['interrupted'])->toMatchArray(['last_phase' => 'epoch', 'database_recreated' => true, 'safety_backup' => ResetFixture::SAFETY, 'resume' => 'fsa reset'])
         ->and(collect($status['warnings'])->firstWhere('code', 'operation_unfinished')['hint'])->toContain('continues from there without asking')
         ->and($code)->toBe(0, (string) json_encode($json))
-        ->and($this->reset->actions())->toBe(['plan', 'recreate', 'epoch', 'recreate', 'epoch']) // review M1: no database_not_fresh dead end
+        ->and($this->reset->actions())->toBe(['plan', 'plan', 'recreate', 'epoch', 'recreate', 'epoch']) // review M1: no database_not_fresh dead end
         ->and(new Ledger($this->reset->instance->directory)->entries())->toHaveCount(1)
         ->and(array_filter($this->reset->instance->docker->called('composeRun'), static fn (array $call): bool => ($call['command'][3] ?? null) === '--kind=safety-reset'))->toHaveCount(1)
         ->and(array_filter($this->reset->config->callsSince($mark, 'composeRun'), static fn (array $call): bool => ($call['command'][2] ?? null) === 'migrate'))->toHaveCount(2)
@@ -89,21 +89,21 @@ it('goes back when the first drop failed and the old database still answers: exi
 
     expect($code)->toBe(5, (string) json_encode($json))
         ->and($json['errors'][0]['code'])->toBe('database_recreate_failed')
-        ->and($this->reset->actions())->toBe(['plan', 'recreate', 'plan'])
+        ->and($this->reset->actions())->toBe(['plan', 'plan', 'recreate', 'plan'])
         ->and(resetRecoveryRuntime($this->dir)['gate']['raised'])->toBeFalse()
         ->and(new OperationJournal($this->reset->instance->directory)->current())->toBeNull();
 });
 
 it('recreates the database again on the next run when a failed drop had reached it (the old database is gone)', function (): void {
     $this->reset->answers['recreate'] = [ResetFixture::failed('database_failed', 'The database step failed (SQLSTATE 3D000)')];
-    $this->reset->answers['plan'] = [ResetFixture::ok($this->reset->plan, false), ResetFixture::failed('database_failed', 'relation "organizations" does not exist')];
+    $this->reset->answers['plan'] = [ResetFixture::ok($this->reset->plan, false), ResetFixture::ok($this->reset->plan, false), ResetFixture::failed('database_failed', 'relation "organizations" does not exist')];
 
     [$failed, $failedJson] = $this->reset->reset();
     [$code] = $this->reset->reset([]);
 
     expect($failed)->toBe(4)->and($failedJson['errors'][0]['message'])->toContain('began replacing the database')
         ->and($code)->toBe(0)
-        ->and($this->reset->actions())->toBe(['plan', 'recreate', 'plan', 'recreate', 'epoch']);
+        ->and($this->reset->actions())->toBe(['plan', 'plan', 'recreate', 'plan', 'recreate', 'epoch']);
 });
 
 it('does not recreate the database again once the epoch began (a later failure resumes after it)', function (): void {
@@ -116,7 +116,7 @@ it('does not recreate the database again once the epoch began (a later failure r
 
     expect($failed)->toBe(4)->and($failedJson['errors'][0]['code'])->toBe('app_install_failed')
         ->and($code)->toBe(0)
-        ->and($this->reset->actions())->toBe(['plan', 'recreate', 'epoch'])
+        ->and($this->reset->actions())->toBe(['plan', 'plan', 'recreate', 'epoch'])
         ->and(array_filter($this->reset->config->callsSince($mark, 'composeRun'), static fn (array $call): bool => ($call['command'][2] ?? null) === 'migrate'))->toHaveCount(1)
         ->and(count(array_filter($this->reset->config->callsSince($mark, 'createVolume'))))->toBe(1);
 });
@@ -134,7 +134,7 @@ it('issues a new owner link when the seeding happened in an interrupted attempt'
 
     expect($failed)->toBe(4)->and($code)->toBe(0, (string) json_encode($json))
         ->and($calls)->toBe(1)
-        ->and($this->reset->actions())->toBe(['plan', 'recreate', 'epoch'])
+        ->and($this->reset->actions())->toBe(['plan', 'plan', 'recreate', 'epoch'])
         ->and($this->reset->instance->oneOffCalls('identity:login-link'))->toHaveCount(1)
         ->and(array_column($json['secrets'], 'value', 'name')['sign_in_link'])->toBe(InstanceCommandFixture::ADMIN_LINK);
 });
@@ -162,29 +162,56 @@ it('continues a reset killed before the drop on the next fsa reset --yes, which 
     [$code, $json] = $this->reset->reset();
 
     expect($status['data']['reset']['interrupted'])->toMatchArray(['last_phase' => 'quiesce', 'database_recreated' => false])
-        ->and(collect($status['warnings'])->firstWhere('code', 'operation_unfinished')['hint'])->toContain('fsa reset --yes')->toContain('nothing was deleted yet')
+        ->and(collect($status['warnings'])->firstWhere('code', 'operation_unfinished')['hint'])->toContain('fsa reset --yes')->toContain('Nothing was deleted yet')->toContain('fsa reset --abandon')
         ->and($asked)->toBe(6)
         ->and($code)->toBe(0, (string) json_encode($json))
-        ->and($this->reset->actions())->toBe(['recreate', 'epoch']) // the plan of the killed run stands
+        ->and($this->reset->actions())->toBe(['plan', 'recreate', 'epoch']) // the plan of the killed run stands; the ledger phase reads the final state
         ->and(new Ledger($this->reset->instance->directory)->entries())->toHaveCount(1);
 });
 
-it('stays stopped behind the gate when starting the instance again fails before the drop: exit 8, the journal open', function (): void {
+it('stops every writer behind the gate when the app does not start again before the drop: exit 8, the journal open (review A1, A2)', function (): void {
     $this->reset->instance->backupOutcome = InstanceCommandFixture::oneOffJson(['command' => 'backup-daemon', 'status' => 'failed', 'errors' => [['code' => 'low_disk_space', 'message' => 'Not enough space.', 'hint' => null]]]);
     $this->reset->instance->docker->onCall['composeUp'] = static function (array $args): void {
-        if ($args['services'] === []) {
+        if ($args['services'] === ['app']) {
             throw new DockerCommandFailed('compose up', new ProcessOutcome(1, '', 'container app is unhealthy'));
         }
     };
+    $mark = $this->reset->config->mark();
 
     [$code, $json] = $this->reset->reset();
+    $stops = $this->reset->config->callsSince($mark, 'composeStop');
 
+    // Changed deliberately (review A2): the hint names `fsa reset --abandon`, and every writer is stopped (A1).
     expect($code)->toBe(8, (string) json_encode($json))
         ->and($json['errors'][0]['code'])->toBe('reset_rollback_failed')
-        ->and($json['errors'][0]['hint'])->toContain('fsa reset --yes')
-        ->and($this->reset->actions())->toBe(['plan'])
+        ->and($json['errors'][0]['hint'])->toContain('fsa reset --abandon')
+        ->and($stops[array_key_last($stops)]['services'])->toBe(['app', 'queue', 'scheduler', 'backup'])
+        ->and($this->reset->actions())->toBe(['plan', 'plan'])
         ->and(resetRecoveryRuntime($this->dir)['gate']['raised'])->toBeTrue()
-        ->and(new OperationJournal($this->reset->instance->directory)->current()?->operation())->toBe('reset');
+        ->and(new OperationJournal($this->reset->instance->directory)->current()?->hasStarted('abort'))->toBeTrue();
+});
+
+it('finishes going back after an exit 8 on the next fsa reset, without a question, never forward (review A2)', function (): void {
+    $this->reset->instance->backupOutcome = InstanceCommandFixture::oneOffJson(['command' => 'backup-daemon', 'status' => 'failed', 'errors' => [['code' => 'low_disk_space', 'message' => 'Not enough space.', 'hint' => null]]]);
+    $this->reset->instance->docker->onCall['composeUp'] = static function (array $args): void {
+        if ($args['services'] === ['app']) {
+            throw new DockerCommandFailed('compose up', new ProcessOutcome(1, '', 'container app is unhealthy'));
+        }
+    };
+    [$halted] = $this->reset->reset();
+    [, $status] = $this->reset->instance->run('fsa:status');
+    $this->reset->instance->docker->onCall = []; // the app starts again
+
+    [$code, $json] = $this->reset->reset([]); // no --yes: going back deletes nothing
+
+    expect($halted)->toBe(8)
+        ->and($status['data']['reset']['interrupted'])->toMatchArray(['going_back' => true, 'database_recreated' => false, 'abandon' => 'fsa reset --abandon'])
+        ->and(collect($status['warnings'])->firstWhere('code', 'operation_unfinished')['hint'])->toContain('stopped while going back')
+        ->and($code)->toBe(5, (string) json_encode($json))
+        ->and($json['errors'][0]['code'])->toBe('safety_backup_failed')
+        ->and($this->reset->actions())->toBe(['plan', 'plan'])
+        ->and(resetRecoveryRuntime($this->dir)['gate']['raised'])->toBeFalse()
+        ->and(new OperationJournal($this->reset->instance->directory)->current())->toBeNull();
 });
 
 it('removes a failed audit export and brings the instance back (exit 5)', function (): void {
@@ -198,7 +225,7 @@ it('removes a failed audit export and brings the instance back (exit 5)', functi
 
     expect($code)->toBe(5)->and($json['errors'][0]['code'])->toBe('audit_export_failed')
         ->and(glob($this->dir.'/backups/audit-export-*'))->toBe([])
-        ->and($this->reset->actions())->toBe(['plan', 'plan']);
+        ->and($this->reset->actions())->toBe(['plan', 'plan']); // the second: the final counts and sequences of the ledger phase
 });
 
 it('refuses an export that holds fewer entries than its header names', function (): void {

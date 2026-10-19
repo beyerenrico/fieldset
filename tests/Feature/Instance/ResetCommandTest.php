@@ -67,14 +67,15 @@ it('resets with --yes: quiesce, the ledger before the drop, safety backup, recre
 
     expect($code)->toBe(0, (string) json_encode($json))
         ->and(ResetFixture::phases($journal))->toBe(['plan', 'quiesce', 'ledger', 'safety_backup', 'recreate_database', 'migrate', 'epoch', 'storage', 'flush', 'seed', 'verify', 'open', 'gate', 'cleanup'])
-        ->and($this->reset->actions())->toBe(['plan', 'recreate', 'epoch'])
+        ->and($this->reset->actions())->toBe(['plan', 'plan', 'recreate', 'epoch'])
         ->and($this->reset->config->callsSince($mark, 'composeStop')[0]['services'])->toBe(['app', 'scheduler', 'backup'])
+        ->and($this->reset->config->callsSince($mark, 'composeStop')[2]['services'])->toBe(['app', 'queue', 'scheduler', 'backup']) // before the drop (A1)
         ->and($this->reset->config->callsSince($mark, 'composeStop')[1])->toMatchArray(['services' => ['queue'], 'timeout' => 100])
         ->and($this->reset->instance->oneOffCalls('audit:seal'))->toHaveCount(1)
         ->and(array_filter($this->reset->instance->docker->called('composeRun'), static fn (array $call): bool => ($call['command'][3] ?? null) === '--kind=safety-reset'))->toHaveCount(1)
         ->and(array_filter($this->reset->config->callsSince($mark, 'composeRun'), static fn (array $call): bool => ($call['command'][2] ?? null) === 'migrate'))->toHaveCount(1)
         ->and($epoch['command'])->toContain('--epoch-seed=1', '--safety-backup='.ResetFixture::SAFETY, '--actor-uid='.posix_getuid())->not->toContain('--demo')
-        ->and(json_decode((string) $epoch['input'], true))->toBe(['previous_heads' => ['0' => ['seq' => 7, 'hash' => ResetFixture::HEAD]], 'previous_epoch' => 1])
+        ->and(json_decode((string) $epoch['input'], true))->toBe(['previous_heads' => ['0' => ['seq' => 7, 'hash' => ResetFixture::HEAD]], 'previous_epoch' => 1, 'sequences' => ['users_id_seq' => 40, 'organization_user_id_seq' => 11, 'activity_log_id_seq' => 900]])
         ->and($this->reset->instance->docker->called('createVolume')[0]['name'])->toBe($fresh)
         ->and(InstanceSettings::of($after)->storageVolume())->toBe($fresh)
         ->and(array_column($this->reset->instance->docker->called('removeVolume'), 'name'))->toBe([$fresh, $state->project().'_app-storage'])
@@ -86,7 +87,8 @@ it('resets with --yes: quiesce, the ledger before the drop, safety backup, recre
         ->and(resetRuntime($this->dir)['gate']['raised'])->toBeFalse()
         ->and(new OperationJournal($this->reset->instance->directory)->current())->toBeNull()
         ->and($json['data'])->toMatchArray(['organization' => 'Acme Forms', 'owner_email' => 'owner@example.com', 'safety_backup' => ResetFixture::SAFETY, 'audit_export' => null,
-            'epoch' => 2, 'previous_epoch' => 1, 'storage_volume' => $fresh, 'flushed' => ['valkey' => true, 'catcher' => true], 'left_behind' => []])
+            'epoch' => 2, 'previous_epoch' => 1, 'storage_volume' => $fresh, 'flushed' => ['valkey' => true, 'catcher' => true], 'left_behind' => [],
+            'removed' => ['volume '.$state->project().'_app-storage']])
         ->and($json['data']['sign_in_link']['delivered'])->toBe('secrets')
         ->and(array_column($json['secrets'], 'name'))->toBe(['sign_in_link'])
         ->and($json['warnings'])->toBe([])
@@ -240,21 +242,39 @@ it('picks the install owner by its digest among several operators, the organizat
     expect($this->reset->instance->oneOffCalls('app:install')[0]['command'])->toContain('--email=owner@example.com', '--organization=Acme Forms', '--locale=en');
 });
 
-it('warns when the catcher or Valkey cannot be emptied and when the replaced volume cannot be removed', function (): void {
-    $run = $this->reset->instance->docker->runResponder;
-    $this->reset->instance->docker->respondToRun(static fn (ContainerSpec $spec): ?App\Domain\Instance\Docker\ProcessOutcome => in_array('DELETE', $spec->command, true)
-        ? new ProcessOutcome(22, '', 'curl: (22) 401') : $run($spec));
+it('keeps the gate up while Valkey cannot be emptied and empties it on the next run before anything starts (review S3)', function (): void {
     $previous = $this->reset->instance->docker->composeRunResponder;
-    $this->reset->instance->docker->respondToComposeRun(static fn (array $command, ?string $input = null): ?App\Domain\Instance\Docker\ProcessOutcome => ($command[0] ?? null) === 'valkey-cli'
-        ? new ProcessOutcome(0, "NOAUTH Authentication required.\n") : $previous($command, $input));
+    $noauth = true;
+    $this->reset->instance->docker->respondToComposeRun(static function (array $command, ?string $input = null) use ($previous, &$noauth): ?ProcessOutcome {
+        return ($command[0] ?? null) === 'valkey-cli' && $noauth ? new ProcessOutcome(0, "NOAUTH Authentication required.\n") : $previous($command, $input);
+    });
+
+    $mark = $this->reset->config->mark();
+    [$failed, $failedJson] = $this->reset->reset();
+    $gate = resetRuntime($this->dir)['gate']['raised'];
+    $started = collect($this->reset->config->callsSince($mark, 'composeUp'))->contains(fn (array $call): bool => in_array($call['services'], [['app'], []], true));
+    $noauth = false;
+    [$code, $json] = $this->reset->reset([]);
+
+    expect($failed)->toBe(4)->and($failedJson['errors'][0]['code'])->toBe('valkey_not_flushed')
+        ->and($gate)->toBeTrue()
+        ->and($started)->toBeFalse()
+        ->and($code)->toBe(0, (string) json_encode($json))
+        ->and($json['data']['flushed']['valkey'])->toBeTrue();
+});
+
+it('warns when the catcher cannot be emptied and when the replaced volume cannot be removed', function (): void {
+    $run = $this->reset->instance->docker->runResponder;
+    $this->reset->instance->docker->respondToRun(static fn (ContainerSpec $spec): ?ProcessOutcome => in_array('DELETE', $spec->command, true)
+        ? new ProcessOutcome(22, '', 'curl: (22) 401') : $run($spec));
     $this->reset->instance->docker->failOn('removeVolume', new RuntimeException('volume is in use'));
     $project = $this->reset->config->state()->project();
 
     [$code, $json] = $this->reset->reset();
 
     expect($code)->toBe(0, (string) json_encode($json))
-        ->and($json['data']['flushed'])->toBe(['valkey' => false, 'catcher' => false])
-        ->and(array_column($json['warnings'], 'code'))->toBe(['valkey_not_flushed', 'catcher_not_flushed', 'reset_cleanup_incomplete'])
+        ->and($json['data']['flushed'])->toBe(['valkey' => true, 'catcher' => false])
+        ->and(array_column($json['warnings'], 'code'))->toBe(['catcher_not_flushed', 'reset_cleanup_incomplete'])
         ->and($json['data']['left_behind'])->toBe(['volume '.$project.'_app-storage']);
 });
 

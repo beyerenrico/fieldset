@@ -33,13 +33,14 @@ use Throwable;
  * The second half of `fsa reset` (plan U23, KTD26, ADR 0088), after the database was recreated (ResetOperation); it
  * only goes forward:
  *
- * migrate (again after every recreate, until the epoch began; and the backup
- * service's role, as install does) → epoch (the new epoch seeded from the ledger, `instance.reset` with the old heads as
+ * migrate (again after every recreate, until the epoch began; and the backup service's role, as install does) → epoch
+ * (every sequence above the old database's, the new epoch seeded from the ledger, `instance.reset` with the old heads as
  * its first entry, the state's `reset` history entry) → storage (a fresh, empty, labelled volume; the state names it) →
- * flush (Valkey with its queues, the mail catcher) → seed (install's `app:install`: the first organization, its owner,
- * the operator role, the owner's sign-in link) → verify (the app alone behind the gate, the internal smoke test) → open
- * (every service, still behind the gate) → [demo, demo_rotate: `--demo` under the reachability rule of R29] → gate
- * (down) → cleanup (the replaced volume removed, the safety backup sealed).
+ * flush (Valkey with its queues, until it succeeds; the mail catcher) → seed (install's `app:install`, one transaction:
+ * the first organization, its owner, the operator role, the owner's sign-in link) → verify (the app alone behind the
+ * gate, the internal smoke test) → open (every service, still behind the gate) → [demo, demo_rotate: `--demo` under the
+ * reachability rule of R29] → gate (down) → cleanup (the replaced storage volume and leftovers of earlier restores
+ * removed, ResetLeftovers; the safety backup sealed).
  *
  * Every phase is repeatable from the journal: a killed run is continued by the next `fsa reset` with the same flags.
  * Settings and secrets stay; webhooks are not paused (no data, so no run whose deliveries could repeat).
@@ -57,6 +58,7 @@ final readonly class ResetRebuild
         private ResetApp $app,
         private CatcherFlush $catcher,
         private DemoData $demo,
+        private ResetLeftovers $leftovers,
     ) {}
 
     public function run(OperationRun $run, InstanceState $state, ComposeProject $project, ResetRequest $request, ResetSubject $subject, FsaContext $context, bool $toFile): CommandResult
@@ -90,7 +92,7 @@ final readonly class ResetRebuild
         $run->phase('migrate', fn (): array => $this->migrate($project), always: ! $record->hasCompleted('epoch')); // after every recreate
         $epoch = $run->phase('epoch', fn (): array => $this->epoch($project, $request, $record));
         $volume = $run->phase('storage', fn (): array => $this->freshStorage($state, $record), changes: true);
-        $flushed = $run->phase('flush', fn (): array => ['valkey' => $this->stack->flushValkey($project), 'catcher' => $this->catcher->flush($this->directory->state(), $project)]);
+        $flushed = $run->phase('flush', fn (): array => $this->flush($project));
         $link = null;
         $run->phase('seed', function () use ($project, $subject, $request, $context, &$link): array {
             $result = $this->commands->install($project, $subject->installRequest(), $request->actorUid);
@@ -111,7 +113,7 @@ final readonly class ResetRebuild
 
             return ['lowered' => true];
         }, always: true);
-        $cleanup = $run->phase('cleanup', fn (): array => $this->cleanup($volume), always: true);
+        $cleanup = $run->phase('cleanup', fn (): array => $this->leftovers->remove($this->directory->state(), $project, (string) ($volume['volume'] ?? '')), always: true);
         $link ??= $this->freshLink($project, $subject, $request, $context, $warnings);
         $result = ResetResult::ok($this->directory->state(), $subject, $run->record(), $epoch, $flushed, $cleanup, $warnings);
         $result = $link === null ? $result : SignInDelivery::deliver($result, $context, $link['value'], $link['expires_at'], $toFile, $subject->ownerEmail);
@@ -143,7 +145,8 @@ final readonly class ResetRebuild
         $safety = ResetResult::safetyBackup($record);
         $export = is_string($record->phaseData('audit_export')['file'] ?? null) ? $record->phaseData('audit_export')['file'] : null;
         $previous = is_int($ledger['epoch'] ?? null) ? $ledger['epoch'] : null;
-        $data = $this->app->epoch($project, is_int($ledger['seed'] ?? null) ? $ledger['seed'] : 0, ['previous_heads' => (object) ($ledger['heads'] ?? []), 'previous_epoch' => $previous], $safety, $export, $request->demo, $request->actorUid);
+        $input = ['previous_heads' => (object) ($ledger['heads'] ?? []), 'previous_epoch' => $previous, 'sequences' => (object) ($ledger['sequences'] ?? [])]; // review S1
+        $data = $this->app->epoch($project, is_int($ledger['seed'] ?? null) ? $ledger['seed'] : 0, $input, $safety, $export, $request->demo, $request->actorUid);
         $state = $this->directory->state();
         if (! array_any($state->history(), static fn (array $entry): bool => ($entry['event'] ?? null) === ResetStatus::EVENT && ($entry['journal'] ?? null) === $record->id())) {
             $this->directory->saveState($state->withHistoryEntry(ResetStatus::EVENT, [
@@ -183,18 +186,19 @@ final readonly class ResetRebuild
     }
 
     /**
-     * @param  array<string, mixed>  $volume  the storage phase's data
-     * @return array{left_behind: list<string>}
+     * Valkey must be empty before anything starts (review S3): the drained queue leaves pending jobs of the old data there,
+     * which would run against new rows with the same IDs. A failure keeps the gate up; the next run repeats the flush.
+     * The catcher is a warning only (old mail stays visible, nothing runs on it).
+     *
+     * @return array{valkey: true, catcher: bool|null}
      */
-    private function cleanup(array $volume): array
+    private function flush(ComposeProject $project): array
     {
-        $previous = is_string($volume['previous'] ?? null) ? $volume['previous'] : null;
-        $left = [];
-        if ($previous !== null && $previous !== ($volume['volume'] ?? null) && ! $this->storage->remove($previous)) {
-            $left[] = "volume {$previous}";
+        if (! $this->stack->flushValkey($project)) {
+            throw new InstanceException('Valkey could not be emptied: queued jobs of the old data would run against new rows with the same IDs.', ExitCode::HealthCheckFailed, 'valkey_not_flushed', 'Read `fsa logs redis`; nothing starts before Valkey is empty', true);
         }
 
-        return ['left_behind' => $left];
+        return ['valkey' => true, 'catcher' => $this->catcher->flush($this->directory->state(), $project)];
     }
 
     /**

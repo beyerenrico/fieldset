@@ -177,3 +177,22 @@ it('keeps a device the source does not know and a backup-era revocation out of t
         ->and($target->table('devices')->where('name', 'gone')->value('revoked_at'))->toBeNull()
         ->and($target->table('organization_user')->where('user_id', $this->member->id)->value('status'))->not->toBe('deactivated');
 });
+
+it('carries nothing from a source that was reset after the backup: its rows are other people under other IDs (U23 review A5)', function (): void {
+    CarryFixture::seed($this);
+    RestoreDatabases::sourceFromTarget();
+    $source = DB::connection(RestoreDatabases::SOURCE);
+    $source->table('users')->where('id', $this->owner->id)->update(['password' => 'fresh-owner-hash', 'updated_at' => '2026-10-19 14:00:00']);
+    CarryFixture::audit($source, 'auth.password_changed', User::class, $this->owner->id, '2026-10-19 14:00:00');
+    $source->table('users')->where('id', $this->deactivated->id)->update(['status' => 'deactivated', 'deactivated_at' => '2026-10-19 14:05:00']);
+    CarryFixture::epoch($source, '2026-10-19 13:00:00', 'reset');
+
+    [$code, $json] = CarryFixture::run($this, ['--backup-created-at' => GUARD_BACKUP_AT]);
+    $target = DB::connection(RestoreDatabases::TARGET);
+
+    expect($code)->toBe(0, json_encode($json))
+        ->and($json['data']['carry_mode'])->toBe('reset')
+        ->and($json['data']['carried'])->toBe([])
+        ->and($target->table('users')->where('id', $this->owner->id)->value('password'))->not->toBe('fresh-owner-hash')
+        ->and($target->table('users')->where('id', $this->deactivated->id)->value('status'))->toBe('active');
+});

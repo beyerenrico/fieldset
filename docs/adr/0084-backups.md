@@ -222,3 +222,6 @@ well inside the slot; the gate's J10 run can record it.
   never deletes it.
 - `ChainEpoch::begin('reset', …)` now has its caller (`instance:reset epoch`); the reset's ledger line adds `journal`,
   `demo` and `no_backup`.
+- `fsa backup` refuses while any operation journal is open (exit 9 `operation_unfinished`, checked under the lock; U23
+  second review A8): a half-reset or half-restored database is no state worth a backup. The backup daemon cannot read
+  the journal; operations stop the backup service and keep it stopped until their `open` phase (ADR 0088).
