@@ -3,10 +3,13 @@
 declare(strict_types=1);
 
 use App\Domain\Instance\Backup\BackupRunLog;
+use App\Domain\Instance\Operations\InstanceLock;
 use App\Domain\Instance\State\EnvFiles;
 use Carbon\CarbonImmutable;
 use Tests\Support\Instance\ConfigFixture;
 use Tests\Support\Instance\InstanceCommandFixture;
+use Tests\Support\Instance\RecordingDockerGateway;
+use Tests\Support\Instance\TemporaryInstance;
 
 /*
  * Backups in `fsa status` and `fsa config` (§7, R32, R39, R57, plan U16, ADR 0084): the last backup, the schedule and its
@@ -60,7 +63,7 @@ it('reports the last backup, the backups on disk and the safety backups with age
         ->and($backup['alerts'])->toBe([]);
 });
 
-it('warns about a failed backup, skips older than a day, and a schedule without success for 26 hours', function (): void {
+it('warns about a failed backup, lock skips older than a day, and a slot missed by two hours', function (): void {
     $this->travelTo(CarbonImmutable::parse('2026-10-19T12:00:00Z'));
     ledgerRun($this->log, ['started_at' => '2026-10-17T03:30:00Z']);
     ledgerRun($this->log, ['status' => 'skipped', 'reason' => 'lock_held', 'backup' => null, 'started_at' => '2026-10-18T03:30:00Z']);
@@ -74,8 +77,53 @@ it('warns about a failed backup, skips older than a day, and a schedule without 
         ->and($warnings['backup_failed']['message'])->toContain('pg_dump_failed')->toContain('connection refused')
         ->and($warnings['backup_failed']['hint'])->toContain('fsa backup')
         ->and($warnings['backup_skipped']['message'])->toContain('24 hours')
-        ->and($warnings['backup_overdue']['message'])->toContain('26 hours')
+        ->and($warnings['backup_overdue']['message'])->toContain('2 hours of the scheduled slot')
         ->and($json['data']['last_backup']['started_at'])->toBe('2026-10-17T03:30:00Z');
+});
+
+it('warns at once about a run skipped for lack of disk space, in its own words', function (): void {
+    $this->travelTo(CarbonImmutable::parse('2026-10-19T04:00:00Z'));
+    ledgerRun($this->log, ['started_at' => '2026-10-18T03:30:00Z']);
+    ledgerRun($this->log, ['status' => 'skipped', 'reason' => 'low_disk_space', 'message' => 'Not enough free space: 10 MiB free, the backup would leave less than 1024 MiB.', 'backup' => null, 'started_at' => '2026-10-19T03:30:00Z']);
+
+    [, $json] = $this->instance->run('fsa:status');
+    $warnings = collect($json['warnings'])->keyBy('code');
+
+    expect($json['data']['backup']['alerts'])->toBe(['backup_disk_space'])
+        ->and($warnings['backup_disk_space']['message'])->toContain('Not enough free space')->not->toContain('lock')
+        ->and($warnings['backup_disk_space']['hint'])->toContain('Free space');
+});
+
+it('warns about a .partial directory an interrupted backup left, but not while an operation holds the lock', function (): void {
+    $this->instance->directory->ensureDirectory('backups/manual-20261019T120000Z.partial');
+
+    [, $json] = $this->instance->run('fsa:status');
+    $warnings = collect($json['warnings'])->keyBy('code');
+    $handle = new InstanceLock($this->instance->directory, new RecordingDockerGateway)->acquire(TemporaryInstance::holder('c'), 'backup');
+    [, $locked] = $this->instance->run('fsa:status');
+    new InstanceLock($this->instance->directory, new RecordingDockerGateway)->release($handle);
+
+    expect($json['data']['backup']['partials'])->toBe(['manual-20261019T120000Z.partial'])
+        ->and($warnings['backup_partial_left']['message'])->toContain('manual-20261019T120000Z.partial')->toContain('unencrypted')
+        ->and($locked['data']['backup']['partials'])->toBe([])
+        ->and(collect($locked['warnings'])->pluck('code')->all())->not->toContain('backup_partial_left');
+});
+
+it('counts "overdue" without a success from the backup service\'s first start with the schedule, not from the install', function (): void {
+    $installed = CarbonImmutable::parse((string) collect($this->instance->state()->history())->firstWhere('event', 'installed')['at']);
+    $now = $installed->addDays(3);
+    $this->travelTo($now);
+
+    [, $before] = $this->instance->run('fsa:status');
+    ledgerRun($this->log, ['kind' => 'service', 'status' => 'started', 'started_at' => $now->subHour()->toIso8601ZuluString(), 'schedule' => '03:30', 'backup' => null]);
+    [, $started] = $this->instance->run('fsa:status');
+    $this->travelTo($now->addDay()->addHours(3));
+    [, $missed] = $this->instance->run('fsa:status');
+
+    expect($before['data']['backup']['alerts'])->toBe(['backup_overdue']) // the service never reported: from the install
+        ->and($started['data']['backup']['alerts'])->toBe([]) // an upgraded instance gets its first slot first
+        ->and($started['data']['backup']['last'])->toBeNull() // the start record is not a backup run
+        ->and($missed['data']['backup']['alerts'])->toBe(['backup_overdue']);
 });
 
 it('shows the backup settings and keys in fsa config show', function (): void {

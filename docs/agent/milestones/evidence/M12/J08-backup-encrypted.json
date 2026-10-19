@@ -53,7 +53,7 @@
             "encryption": {
                 "enabled": true,
                 "recipients": [
-                    "age1fyqeaj6vq5q8arw4wllxlycjaqrt8p6jjztwlznxvnwht54n3utq4uq9gu"
+                    "age18uwy8uazq7kpy7n350xmcxm6hlrwfvclfs20tc3vj7f5u9egpdxseasv6c"
                 ],
                 "identity": "<work>/j08-identity.age"
             },
@@ -77,20 +77,20 @@
         "status": "ok",
         "changed": true,
         "data": {
-            "backup": "manual-20261019T071624Z",
-            "path": "<work>/fsa-test-j08/backups/manual-20261019T071624Z",
+            "backup": "manual-20261019T081831Z",
+            "path": "<work>/fsa-test-j08/backups/manual-20261019T081831Z",
             "kind": "manual",
-            "created_at": "2026-10-19T07:16:24Z",
+            "created_at": "2026-10-19T08:18:31Z",
             "bytes": 276744,
             "encrypted": true,
             "includes_secrets": false,
-            "app_key_fingerprint": "cca9-80d6-6b99-7495",
+            "app_key_fingerprint": "69b4-42fe-d8ed-9490",
             "files": {
                 "referenced": 0,
                 "missing": 0,
                 "missing_sample": []
             },
-            "free_bytes": 147386368000
+            "free_bytes": 147629584384
         },
         "secrets": [],
         "warnings": [

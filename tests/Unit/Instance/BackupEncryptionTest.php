@@ -70,6 +70,19 @@ it('round-trips a backup set encrypted to the recipient with the identity and it
         ->and(fn () => fakeAge()->decryptWithIdentity("AGE-SECRET-KEY-1OTHER\n", $this->outside.'/backup.tar.age'))->toThrow(RuntimeException::class, 'no identity matched');
 });
 
+it('passes file names to tar after `--`, so a name is never read as an option', function (): void {
+    $set = $this->outside.'/set';
+    mkdir($set, 0700);
+    file_put_contents($set.'/--totals', 'a file, not an option');
+
+    fakeAge()->encryptDirectory($set, ['--totals'], ['age1'.str_repeat('c', 58)], $this->outside.'/backup.tar.age');
+    [, $tar] = explode("\n", (string) file_get_contents($this->outside.'/backup.tar.age'), 2);
+    file_put_contents($this->outside.'/backup.tar', $tar);
+    exec('tar -tf '.escapeshellarg($this->outside.'/backup.tar'), $members);
+
+    expect($members)->toBe(['--totals']);
+});
+
 it('leaves nothing behind when writing or testing the identity fails', function (): void {
     expect(fn () => new KeySetup(new AgeCli('/usr/bin/false', base_path('tests/Fixtures/bin/fake-age-keygen')))->create($this->identity, BACKUP_PASSPHRASE))
         ->toThrow(InstanceException::class, 'Writing or testing the backup identity failed');
@@ -101,6 +114,26 @@ it('refuses an identity path inside the instance directory, a relative one, an e
         expect($e->errorCode)->toBe($codes[$case]);
     });
 })->with(['inside', 'inside backups', 'relative', 'existing', 'missing directory']);
+
+it('sees through a second path to the instance directory (a bind mount, a symlinked working directory) by device and inode', function (): void {
+    $directory = TemporaryInstance::directory();
+    $alias = $this->outside.'/alias'; // stands for the same directory mounted at another path in the ops container
+    mkdir($alias.'/keys', 0700, true);
+    $real = static function (string $path): ?array {
+        $info = @stat($path);
+
+        return $info === false ? null : [(int) $info['dev'], (int) $info['ino']];
+    };
+    $root = $real($directory->root);
+    $mounted = static fn (string $path): ?array => $path === realpath($alias) ? $root : $real($path);
+
+    expect(fn () => KeySetup::checkPath($alias.'/id.age', $directory, $mounted))->toThrow(function (InvalidInput $e): void {
+        expect($e->errorCode)->toBe('identity_inside_instance');
+    })
+        ->and(fn () => KeySetup::checkPath($alias.'/keys/id.age', $directory, $mounted))->toThrow(InvalidInput::class, 'must not be stored in the instance directory')
+        ->and(fn () => KeySetup::checkPath($alias.'/id.age', $directory))->not->toThrow(InvalidInput::class) // a different directory
+        ->and(fn () => KeySetup::checkPath($this->identity, $directory, $mounted))->not->toThrow(InvalidInput::class);
+});
 
 it('seals a plain backup in place to the recipients and leaves an encrypted one alone', function (): void {
     $directory = TemporaryInstance::directory();

@@ -6,12 +6,15 @@ namespace App\Domain\Instance\Backup;
 
 use App\Domain\Instance\Operations\InstanceLock;
 use App\Domain\Instance\Operations\LockHolder;
+use App\Domain\Platform\Instance\BackupAlerts;
 use Carbon\CarbonImmutable;
 use Closure;
 
 /**
- * The backup service's loop (E13, KTD15, ADR 0084). On start it releases a lock its own container took before a restart.
- * Then it computes the next run from the ledger (BackupSchedule: a missed slot runs at once, a skip because of the lock
+ * The backup service's loop (E13, KTD15, ADR 0084). On start it releases a lock its own container took before a restart,
+ * removes what an interrupted run left (BackupRun::serviceStarted) and records its start with the schedule; a slot
+ * missed since it first started with this schedule runs at once (BackupAlerts::scheduledSince). Then it computes the
+ * next run from the ledger (BackupSchedule: a missed slot runs at once, a skip because of the lock
  * retries after a minute, a failure or a skip for disk space after an hour), sleeps in short steps so SIGTERM stops it
  * promptly, and runs a scheduled backup under the instance lock. Of a series of skips because of the lock, one an hour
  * is recorded (a lock a crashed operation left behind keeps showing up); the retries in between are not. It also keeps
@@ -58,7 +61,11 @@ final class BackupDaemon
     public function loop(Closure $stop, ?Closure $ran = null): void
     {
         $this->lock->releaseOwnStale($this->holder);
-        $since = ($this->now)();
+        $started = $this->run->serviceStarted($this->holder);
+        if ($ran instanceof Closure) {
+            $ran($started);
+        }
+        $since = BackupAlerts::scheduledSince($this->log->recent(PHP_INT_MAX)) ?? ($this->now)();
         while (! $stop()) {
             $run = $this->tick($since);
             if ($run !== null && $ran instanceof Closure) {

@@ -19,11 +19,14 @@ The Form Schema Spec has its own changelog in `spec/form-definition/1.0/CHANGELO
 - **Encrypted backups** — `fsa config set backup-encryption on --identity-out <path> --passphrase-file <file>` (or
   `--passphrase-stdin`) creates an age key pair, writes the identity encrypted with your passphrase outside the
   instance directory and checks that it decrypts; only the public key stays in the instance, and every later backup
-  is one age file. `off` switches back (ADR 0084).
+  is one age file (a safety backup is sealed once its operation completed). `off` switches back (ADR 0084).
 - **`fsa config set backup-schedule <HH:MM|off>` and `backup-retention <n>`** (ADR 0084).
 - **Backup status** — `fsa status` shows the last backup, the schedule and its next run, the backups on disk and the
-  safety backups with their age, and warns when the last backup failed, when scheduled runs were skipped for more
-  than a day, or when none succeeded for 26 hours; the `/platform` health page has a backup check (ADR 0084).
+  safety backups with their age, and warns when the last backup failed, when a scheduled run was skipped for lack of
+  disk space, when scheduled runs were skipped for more than a day because an operation held the lock, when the backup
+  service cannot start, when no backup succeeded within two hours of a scheduled slot, or when an interrupted backup
+  left a `.partial` directory; the `/platform` health page has a backup check with the same alerts, so it also notices
+  a backup service that is not running (ADR 0084).
 - **Audit chain epoch** — `audit:verify --heads` reports the chain epoch with the heads (ADR 0084).
 
 ### Changed

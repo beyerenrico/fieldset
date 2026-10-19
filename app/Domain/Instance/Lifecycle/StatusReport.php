@@ -76,7 +76,7 @@ final readonly class StatusReport
         $health = $this->health($services);
         $proxy = $this->proxy($state);
         $phone = $this->phone->of($state);
-        $backup = $this->backups->of($state);
+        $backup = $this->backups->of($state, lock: $this->lock->current());
         $data = [...$data,
             // The URL in effect: an active quick tunnel's, as `fsa tunnel` reports it, with the loopback URL beside it (ADR 0082).
             'version' => $state->version(), 'mode' => $state->mode(), 'url' => $phone['data']['tunnel']['url'] ?? $settings->instanceUrl(), 'local_url' => $settings->localUrl(), 'project' => $state->project(),

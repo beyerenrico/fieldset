@@ -25,6 +25,9 @@ final readonly class BackupStore
     /** The one age file of an encrypted backup (KTD16). */
     public const string ENCRYPTED_FILE = 'backup.tar.age';
 
+    /** Prefix of a backup being removed (BackupStore::delete): hidden, never listed. */
+    public const string TOMBSTONE = '.removing-';
+
     /** The instance's identity and portable settings, rendered by fsa (PortableSettings::document). */
     public const string META_FILE = '.instance.json';
 
@@ -115,27 +118,50 @@ final readonly class BackupStore
     }
 
     /**
-     * Removes what an interrupted run left behind (`*.partial`). Called only under the instance lock, so no other run
-     * is writing one.
+     * Removes what an interrupted run left behind (`*.partial`, half-removed tombstones). Called only under the instance
+     * lock, so no other run is writing one.
      *
      * @return list<string> the removed names
      */
     public function cleanPartials(): array
     {
         $removed = [];
-        foreach ($this->names() as $entry) {
-            if (str_ends_with($entry, BackupName::PARTIAL) && BackupName::parse(substr($entry, 0, -strlen(BackupName::PARTIAL))) instanceof BackupName) {
-                $this->directory->files()->delete(InstanceDirectory::BACKUPS_DIR.'/'.$entry);
-                $removed[] = $entry;
-            }
+        foreach ([...$this->partials(), ...$this->tombstones()] as $entry) {
+            $this->directory->files()->delete(InstanceDirectory::BACKUPS_DIR.'/'.$entry);
+            $removed[] = $entry;
         }
 
         return $removed;
     }
 
-    public function delete(BackupEntry $entry): void
+    /** @return list<string> `<name>.partial` directories: a backup being written, or one an interrupted run left */
+    public function partials(): array
     {
-        $this->directory->files()->delete(InstanceDirectory::BACKUPS_DIR.'/'.$entry->name->name());
+        return array_values(array_filter($this->names(), static fn (string $entry): bool => str_ends_with($entry, BackupName::PARTIAL)
+            && BackupName::parse(substr($entry, 0, -strlen(BackupName::PARTIAL))) instanceof BackupName));
+    }
+
+    /**
+     * Removes a backup: first renamed to a hidden tombstone (never listed, removed by the next clean-up), then deleted, so an
+     * interrupted removal never leaves a half-deleted backup that still lists as complete.
+     *
+     * @return bool whether it is gone completely
+     */
+    public function delete(BackupEntry $entry): bool
+    {
+        $tombstone = self::TOMBSTONE.$entry->name->name().'-'.bin2hex(random_bytes(4));
+        if (! $this->directory->files()->rename(InstanceDirectory::BACKUPS_DIR.'/'.$entry->name->name(), InstanceDirectory::BACKUPS_DIR.'/'.$tombstone)) {
+            return false;
+        }
+        $this->directory->files()->delete(InstanceDirectory::BACKUPS_DIR.'/'.$tombstone);
+
+        return ! $this->directory->exists(InstanceDirectory::BACKUPS_DIR.'/'.$tombstone);
+    }
+
+    /** @return list<string> */
+    private function tombstones(): array
+    {
+        return array_values(array_filter($this->names(), static fn (string $entry): bool => str_starts_with($entry, self::TOMBSTONE)));
     }
 
     public function freeBytes(): ?int

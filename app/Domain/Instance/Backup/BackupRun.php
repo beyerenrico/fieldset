@@ -9,6 +9,7 @@ use App\Domain\Instance\Operations\LockHandle;
 use App\Domain\Instance\Operations\LockHeld;
 use App\Domain\Instance\Operations\LockHolder;
 use App\Domain\Instance\Operations\LockRecord;
+use App\Domain\Platform\Instance\BackupAlerts;
 use Carbon\CarbonImmutable;
 use SensitiveParameter;
 use Throwable;
@@ -23,7 +24,7 @@ use Throwable;
  * - Under the lock: leftovers of an interrupted run go, the run must fit on the disk (a scheduled run is skipped,
  *   another fails), the writer writes the set, and after a successful scheduled run retention prunes old scheduled
  *   backups.
- * - Every run is recorded (ledger and `backup_runs`); the daemon records only the first skip of a slot.
+ * - Every run is recorded (ledger and `backup_runs`); of a series of lock skips the daemon records one an hour.
  */
 final readonly class BackupRun
 {
@@ -44,7 +45,7 @@ final readonly class BackupRun
     public function run(BackupName $name, LockHolder $holder, ?string $parentLock = null, #[SensitiveParameter] ?string $secrets = null, bool $recordSkip = true): array
     {
         $started = CarbonImmutable::now('UTC');
-        $base = ['kind' => $name->kind, 'started_at' => $started->toIso8601ZuluString(), 'encrypted' => $this->config->encrypts(), 'backup' => null];
+        $base = ['kind' => $name->kind, 'started_at' => $started->toIso8601ZuluString(), 'encrypted' => $this->writer->encrypts($name), 'backup' => null];
 
         try {
             $handle = $this->takeLock($holder, $parentLock);
@@ -76,7 +77,9 @@ final readonly class BackupRun
     {
         $this->store->cleanPartials();
         $free = $this->store->freeBytes();
-        if ($free !== null && ! BackupRetention::fits($free, BackupRetention::projectedBytes($this->store->entries(), $this->config->encrypts()), $this->config->minFreeMib)) {
+        $entries = $this->store->entries();
+        $projected = BackupRetention::projectedBytes($entries, $this->writer->encrypts($name), $entries === [] ? $this->writer->estimateBytes() : 0);
+        if ($free !== null && ! BackupRetention::fits($free, $projected, $this->config->minFreeMib)) {
             $message = 'Not enough free space: '.intdiv($free, 1048576).' MiB free, the backup would leave less than '.$this->config->minFreeMib.' MiB.';
 
             return ['status' => $name->isScheduled() ? 'skipped' : 'failed', 'reason' => 'low_disk_space', 'message' => $message, 'free_bytes' => $free];
@@ -98,13 +101,44 @@ final readonly class BackupRun
         ];
     }
 
+    /**
+     * The backup service's start (ADR 0084): what an interrupted run left in `backups/` goes (under the lock, when it is
+     * free; else the next run removes it), and the start is recorded with the schedule (kind `service`), so `/platform`
+     * can tell a service that never completes a backup.
+     *
+     * @return array<string, mixed> the recorded start
+     */
+    public function serviceStarted(LockHolder $holder): array
+    {
+        $removed = [];
+
+        try {
+            $handle = $this->lock->acquire($holder, self::OPERATION, mayTakeOver: false);
+
+            try {
+                $removed = $this->store->cleanPartials();
+            } finally {
+                $this->lock->release($handle);
+            }
+        } catch (Throwable) {
+            // an operation holds the lock (or it cannot be read): the next run cleans up under it
+        }
+        $now = CarbonImmutable::now('UTC')->toIso8601ZuluString();
+
+        return $this->recorder->record([
+            'kind' => BackupAlerts::SERVICE, 'status' => 'started', 'started_at' => $now, 'finished_at' => $now, 'encrypted' => $this->config->encrypts(),
+            'schedule' => $this->config->schedule, 'time_zone' => $this->config->timeZone, 'removed' => $removed,
+        ]);
+    }
+
     /** @return list<string> the scheduled backups retention removed */
     private function prune(): array
     {
         $pruned = [];
         foreach (BackupRetention::prune($this->store->entries(), $this->config->retention) as $entry) {
-            $this->store->delete($entry);
-            $pruned[] = $entry->name->name();
+            if ($this->store->delete($entry)) {
+                $pruned[] = $entry->name->name(); // only what is really gone
+            }
         }
 
         return $pruned;

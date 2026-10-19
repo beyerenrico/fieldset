@@ -15,9 +15,10 @@ use Throwable;
  */
 final readonly class BackupRunRecorder
 {
-    private const array COLUMNS = ['kind', 'status', 'backup', 'started_at', 'finished_at', 'bytes', 'encrypted', 'reason', 'message', 'free_bytes', 'missing_files'];
+    private const array COLUMNS = ['kind', 'status', 'backup', 'started_at', 'finished_at', 'bytes', 'encrypted', 'reason', 'message', 'free_bytes', 'missing_files', 'schedule', 'time_zone'];
 
-    public function __construct(private BackupRunLog $log, private ConnectionInterface $db) {}
+    /** @param  BackupRunLog|null  $log  null when the instance directory cannot be opened (a failed service start) */
+    public function __construct(private ?BackupRunLog $log, private ConnectionInterface $db) {}
 
     /**
      * @param  array<string, mixed>  $run
@@ -37,7 +38,7 @@ final readonly class BackupRunRecorder
         $run = [...$run, 'recorded' => $recorded];
         $line = $run;
         unset($line['result']); // the details go to the caller (fsa backup's envelope), not into every ledger line
-        $this->log->append($line);
+        $this->log?->append($line);
 
         return $run;
     }

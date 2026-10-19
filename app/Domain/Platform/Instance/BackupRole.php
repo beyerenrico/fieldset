@@ -34,7 +34,8 @@ final readonly class BackupRole
     public function __construct(private ?Connection $db = null) {}
 
     /**
-     * Creates the role or resets its password and rights; idempotent.
+     * Creates the role or resets its password and rights (an existing role loses any right granted to it by hand);
+     * idempotent.
      *
      * @return array{role: string, created: bool, granted: list<string>}
      */
@@ -55,6 +56,9 @@ final readonly class BackupRole
 
         try {
             $db->statement(($created ? 'CREATE ROLE ' : 'ALTER ROLE ').$role.' WITH LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION PASSWORD '.$verifier);
+            if (! $created) {
+                $this->revokeExtras($db, $role);
+            }
             $db->statement("GRANT pg_read_all_data TO {$role}");
             $db->statement('GRANT CONNECT ON DATABASE '.$db->getQueryGrammar()->wrap($database).' TO '.$role);
             $db->statement("GRANT INSERT ON TABLE backup_runs TO {$role}");
@@ -66,6 +70,22 @@ final readonly class BackupRole
         }
 
         return ['role' => $role, 'created' => $created, 'granted' => ['pg_read_all_data', 'connect', 'insert:backup_runs']];
+    }
+
+    /**
+     * An existing role loses what it may have gained besides its own rights: other role memberships, rights on the
+     * tables, sequences and schema of `public`, and per-role settings. The grants that follow give back exactly its own.
+     */
+    private function revokeExtras(Connection $db, string $role): void
+    {
+        $memberships = $db->select('SELECT r.rolname FROM pg_auth_members m JOIN pg_roles r ON r.oid = m.roleid JOIN pg_roles u ON u.oid = m.member WHERE u.rolname = ? AND r.rolname <> ?', [$role, 'pg_read_all_data']);
+        foreach ($memberships as $membership) {
+            $db->statement('REVOKE '.$db->getQueryGrammar()->wrap((string) $membership->rolname).' FROM '.$role);
+        }
+        $db->statement("REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM {$role}");
+        $db->statement("REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM {$role}");
+        $db->statement("REVOKE ALL PRIVILEGES ON SCHEMA public FROM {$role}");
+        $db->statement("ALTER ROLE {$role} RESET ALL");
     }
 
     /**

@@ -18,6 +18,7 @@ use App\Domain\Instance\Backup\BackupStore;
 use App\Domain\Instance\Backup\BackupTools;
 use App\Domain\Instance\Backup\BackupWriter;
 use App\Domain\Instance\Backup\ServiceIdentity;
+use App\Domain\Instance\Backup\ServiceStartFailure;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Operations\InstanceLock;
 use App\Domain\Instance\Operations\LockRecord;
@@ -28,6 +29,7 @@ use Illuminate\Console\Attributes\Hidden;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 use Throwable;
 
 /**
@@ -35,7 +37,8 @@ use Throwable;
  * the `backup` service as container root with only DAC_READ_SEARCH, DAC_OVERRIDE, CHOWN and FOWNER, without the Docker
  * socket, with the storage volume read-only and the instance directory's marker, `locks/` and `backups/` mounted.
  *
- * - Without options: the daemon (BackupDaemon) until SIGTERM, SIGINT or SIGHUP.
+ * - Without options: the daemon (BackupDaemon) until SIGTERM, SIGINT or SIGHUP. A start that fails (its configuration)
+ *   is recorded (kind `service`, status `failed`) before it exits.
  * - `--once --kind=manual|safety-<operation> --lock-id=<id>`: one run as a one-off of `fsa backup` or a safety backup,
  *   under the lock its fsa parent holds; `--include-secrets` reads `secrets.env` from stdin (encryption required). One
  *   JSON document on stdout.
@@ -75,10 +78,20 @@ final class BackupDaemonCommand extends Command
                 default => $this->daemon($directory, $store, $config),
             };
         } catch (InstanceException|BackupFailed $e) {
-            return $this->emit(JsonResult::failed(self::COMMAND, $e instanceof BackupFailed ? $e->reason : $e->errorCode, $e->getMessage()));
+            return $this->refuse($e instanceof BackupFailed ? $e->reason : $e->errorCode, $e->getMessage());
         } catch (Throwable $e) {
-            return $this->emit(JsonResult::failed(self::COMMAND, 'internal_error', $e->getMessage()));
+            return $this->refuse('internal_error', $e->getMessage());
         }
+    }
+
+    /** One JSON document; the daemon also records why it could not start (ServiceStartFailure), so /platform sees it. */
+    private function refuse(string $reason, string $message): int
+    {
+        if (! is_string($this->option('seal')) && $this->option('once') !== true) {
+            new ServiceStartFailure(DB::connection())->record(getenv(), $reason, $message);
+        }
+
+        return $this->emit(JsonResult::failed(self::COMMAND, $reason, $message));
     }
 
     private function once(InstanceDirectory $directory, BackupStore $store, BackupConfig $config): int
@@ -111,9 +124,14 @@ final class BackupDaemonCommand extends Command
 
     private function daemon(InstanceDirectory $directory, BackupStore $store, BackupConfig $config): int
     {
+        try {
+            $schedule = $config->schedule();
+        } catch (InvalidArgumentException $e) {
+            throw new BackupFailed('invalid_schedule', $e->getMessage(), $e);
+        }
         $this->trapSignals();
         $daemon = new BackupDaemon(
-            $config->schedule(),
+            $schedule,
             new BackupRunLog($directory, $store),
             $this->backupRun($directory, $store, $config),
             $this->laravel->make(InstanceLock::class),
@@ -123,7 +141,6 @@ final class BackupDaemonCommand extends Command
             },
             static fn (): CarbonImmutable => CarbonImmutable::now('UTC'),
         );
-        $schedule = $config->schedule();
         $this->line((string) json_encode(['event' => 'backup_service_started', 'schedule' => $schedule->time ?? 'off', 'time_zone' => $config->timeZone, 'retention' => $config->retention, 'encrypted' => $config->encrypts()], JSON_UNESCAPED_SLASHES));
         $daemon->loop(fn (): bool => $this->stopping, function (array $run): void {
             unset($run['result']);

@@ -14,7 +14,9 @@ use App\Domain\Instance\Backup\BackupFailed;
 use App\Domain\Instance\Backup\BackupName;
 use App\Domain\Instance\Backup\BackupRun;
 use App\Domain\Instance\Backup\BackupRunLog;
+use App\Domain\Instance\Backup\BackupRunner;
 use App\Domain\Instance\Backup\BackupRunRecorder;
+use App\Domain\Instance\Backup\BackupSealer;
 use App\Domain\Instance\Backup\BackupStore;
 use App\Domain\Instance\Backup\BackupToolResult;
 use App\Domain\Instance\Backup\BackupTools;
@@ -122,7 +124,7 @@ it('writes every artifact, verifies the dump, and authenticates the set with SHA
         ->and($manifest['versions']['pg_dump'])->toStartWith('pg_dump (PostgreSQL) 16.')
         ->and($manifest['versions']['postgres'])->toStartWith('16.')
         ->and($manifest['database']['migrations'])->toBe(DB::connection(BackupScratchDatabase::CONNECTION)->table('migrations')->count())
-        ->and($manifest['database']['last_migration'])->toBe('2026_10_26_100100_create_audit_chain_epochs_table')
+        ->and($manifest['database']['last_migration'])->toBe('2026_10_26_100200_add_schedule_to_backup_runs')
         ->and($manifest['storage'])->toMatchArray(['referenced_files' => 2, 'missing_files' => 1, 'missing_sample' => ['private/attachments/missing.jpg']])
         ->and(array_keys($manifest['files']))->toBe(['audit-heads.json', 'database.dump', 'settings.json', 'storage.tar.gz'])
         ->and($settings)->toMatchArray(['mode' => 'domain', 'url' => 'https://forms.example.com'])
@@ -193,24 +195,124 @@ it('becomes one age file when the instance has recipients, and carries secrets o
         ->and($result->encrypted)->toBeTrue()->and($result->includesSecrets)->toBeTrue();
 });
 
+it('writes a safety backup plain even with recipients, so a rollback needs no identity, and seals it afterwards', function (): void {
+    $age = new AgeCli(base_path('tests/Fixtures/bin/fake-age'), base_path('tests/Fixtures/bin/fake-age-keygen'));
+    $config = writerConfig($this, ['recipients' => ['age1'.str_repeat('e', 58)]]);
+    $store = new BackupStore($this->directory);
+    $lock = new InstanceLock($this->directory, new RecordingDockerGateway);
+    $handle = $lock->acquire(TemporaryInstance::holder('a'), 'upgrade');
+    $run = new BackupRun($lock, $store, writer($this, $config, age: $age), new BackupRunRecorder(new BackupRunLog($this->directory, $store), DB::connection(BackupScratchDatabase::CONNECTION)), $config);
+
+    $recorded = $run->run(BackupName::safety('upgrade', CarbonImmutable::now()), TemporaryInstance::holder('b'), $handle->record->lockId);
+    $path = $store->path((string) $recorded['backup']);
+    $manifest = json_decode((string) file_get_contents($path.'/manifest.json'), true, 512, JSON_THROW_ON_ERROR);
+    $plain = array_values(array_diff(scandir($path) ?: [], ['.', '..']));
+    $verified = BackupChecksums::verify($path, WRITER_KEY);
+    $sealed = new BackupSealer($store, $age)->seal((string) $recorded['backup'], $config->recipients);
+
+    expect($recorded)->toMatchArray(['status' => 'succeeded', 'kind' => 'safety-upgrade', 'encrypted' => false])
+        ->and($plain)->toContain('database.dump')->not->toContain('backup.tar.age')
+        ->and([$manifest['encrypted'], $manifest['recipients']])->toBe([false, []])
+        ->and($verified)->toBe([])
+        ->and($sealed)->toMatchArray(['encrypted' => true, 'changed' => true])
+        ->and(array_values(array_diff(scandir($path) ?: [], ['.', '..'])))->toBe(['backup.tar.age']);
+});
+
+it('never puts secrets.env in plaintext into backups/: it stays on the tmpfs, the set only links to it', function (): void {
+    $age = new class(base_path('tests/Fixtures/bin/fake-age'), base_path('tests/Fixtures/bin/fake-age-keygen')) extends AgeCli
+    {
+        /** @var array<string, mixed> */
+        public array $seen = [];
+
+        public bool $fail = false;
+
+        public function encryptDirectory(string $directory, array $files, array $recipients, string $output): void
+        {
+            $plain = [];
+            foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator(dirname($directory), FilesystemIterator::SKIP_DOTS)) as $file) {
+                // fake-age does not encrypt: its output (*.age) is left out of the search
+                if ($file instanceof SplFileInfo && $file->isFile() && ! $file->isLink() && $file->getExtension() !== 'age' && str_contains((string) file_get_contents($file->getPathname()), 'APP_KEY=base64:secret')) {
+                    $plain[] = $file->getPathname();
+                }
+            }
+            $this->seen = ['link' => is_link($directory.'/secrets.env'), 'target' => (string) readlink($directory.'/secrets.env'), 'plain' => $plain, 'listed' => in_array('secrets.env', $files, true)];
+            if ($this->fail) {
+                throw new RuntimeException('age: killed');
+            }
+            parent::encryptDirectory($directory, $files, $recipients, $output);
+        }
+    };
+    $config = writerConfig($this, ['recipients' => ['age1'.str_repeat('e', 58)]]);
+
+    $result = writer($this, $config, age: $age)->write(BackupName::for(BackupName::MANUAL, CarbonImmutable::now()), "APP_KEY=base64:secret\n");
+    $seen = $age->seen;
+    [, $tar] = explode("\n", (string) file_get_contents($result->path.'/backup.tar.age'), 2);
+    file_put_contents($this->directory->root.'/set.tar', $tar);
+    $secrets = new Process(['tar', '-xOf', $this->directory->root.'/set.tar', 'secrets.env']);
+    $secrets->mustRun();
+    $age->fail = true;
+
+    expect($seen['link'])->toBeTrue()->and($seen['listed'])->toBeTrue()->and($seen['plain'])->toBe([])
+        ->and($seen['target'])->not->toStartWith($this->directory->root)
+        ->and(file_exists($seen['target']))->toBeFalse()->and(is_dir(dirname($seen['target'])))->toBeFalse()
+        ->and($secrets->getOutput())->toBe("APP_KEY=base64:secret\n") // in the archive as a file, not as the link
+        ->and(fn () => writer($this, $config, age: $age)->write(BackupName::for(BackupName::MANUAL, CarbonImmutable::now()), "APP_KEY=base64:secret\n"))->toThrow(BackupFailed::class);
+    expect(file_exists($age->seen['target']))->toBeFalse()->and($age->seen['plain'])->toBe([])
+        ->and(new BackupStore($this->directory)->partials())->toBe([]);
+});
+
+it('estimates a first backup from the database and the storage volume, and gives all programs one deadline', function (): void {
+    writerData($this);
+    $tools = new class extends BackupTools
+    {
+        /** @var list<float> */
+        public array $timeouts = [];
+
+        protected function run(array $command, array $env = [], float $timeout = self::DEADLINE_SECONDS, ?Closure $stream = null): BackupToolResult
+        {
+            $this->timeouts[] = $timeout;
+
+            return parent::run($command, $env, $timeout, $stream);
+        }
+    };
+    $writer = writer($this, tools: $tools);
+    $database = (int) DB::connection(BackupScratchDatabase::CONNECTION)->scalar('SELECT pg_database_size(current_database())');
+
+    $estimate = $writer->estimateBytes();
+    $writer->write(BackupName::for(BackupName::MANUAL, CarbonImmutable::now()));
+    $timeouts = array_values(array_filter($tools->timeouts, static fn (float $timeout): bool => $timeout > 60)); // `pg_dump --version` has its own 30 s
+    $sorted = $timeouts;
+    rsort($sorted);
+
+    expect($estimate)->toBe($database + BackupStore::bytes($this->storage))->and($estimate)->toBeGreaterThan(BackupStore::bytes($this->storage))
+        ->and(count($timeouts))->toBe(4) // pg_dump, tar, tar -t, pg_restore --list
+        ->and($timeouts)->toBe($sorted) // what the earlier programs used is gone for the later ones
+        ->and(max($timeouts))->toBeLessThanOrEqual(BackupTools::DEADLINE_SECONDS)
+        ->and(min($timeouts))->toBeGreaterThan(BackupTools::DEADLINE_SECONDS - 300)
+        ->and(BackupRunner::TIMEOUT)->toBeGreaterThan(BackupTools::DEADLINE_SECONDS)
+        ->and(fn () => BackupTools::remaining(microtime(true) - 1))->toThrow(function (BackupFailed $e): void {
+            expect($e->reason)->toBe('timeout');
+        });
+});
+
 it('removes the partial backup and names the step when a step fails', function (string $step, string $reason): void {
     $tools = new class($step) extends BackupTools
     {
         public function __construct(private readonly string $step) {}
 
-        public function dump(string $snapshot, string $file, array $libpq): BackupToolResult
+        public function dump(string $snapshot, string $file, array $libpq, float $timeout = self::DEADLINE_SECONDS): BackupToolResult
         {
-            return $this->step === 'dump' ? new BackupToolResult(1, '', 'pg_dump: error: connection refused') : parent::dump($snapshot, $file, $libpq);
+            return $this->step === 'dump' ? new BackupToolResult(1, '', 'pg_dump: error: connection refused') : parent::dump($snapshot, $file, $libpq, $timeout);
         }
 
-        public function archive(string $source, string $file): BackupToolResult
+        public function archive(string $source, string $file, float $timeout = self::DEADLINE_SECONDS): BackupToolResult
         {
-            return $this->step === 'archive' ? new BackupToolResult(2, '', 'tar: Cannot open: Permission denied') : parent::archive($source, $file);
+            return $this->step === 'archive' ? new BackupToolResult(2, '', 'tar: Cannot open: Permission denied') : parent::archive($source, $file, $timeout);
         }
 
-        public function listDump(string $file): BackupToolResult
+        public function listDump(string $file, float $timeout = self::DEADLINE_SECONDS): BackupToolResult
         {
-            return $this->step === 'list' ? new BackupToolResult(1, '', 'pg_restore: error: input file is too short') : parent::listDump($file);
+            return $this->step === 'list' ? new BackupToolResult(1, '', 'pg_restore: error: input file is too short') : parent::listDump($file, $timeout);
         }
     };
     $age = $step === 'encrypt' ? new AgeCli('/nonexistent/age') : new AgeCli;
@@ -249,4 +351,31 @@ it('records a successful scheduled run, prunes old scheduled backups and keeps t
         ->and([$row->kind, $row->status, $row->backup, (int) $row->bytes > 0])->toBe(['scheduled', 'succeeded', $recorded['backup'], true])
         ->and(new BackupRunLog($this->directory)->lastSuccess()?->toIso8601ZuluString())->toBe($recorded['started_at'])
         ->and(new InstanceLock($this->directory, new RecordingDockerGateway)->current())->toBeNull();
+});
+
+it('prunes through a hidden tombstone and records only backups that are really gone', function (): void {
+    $store = new BackupStore($this->directory);
+    foreach (['scheduled-20261001T033000Z', 'scheduled-20261002T033000Z'] as $old) {
+        $this->directory->ensureDirectory('backups/'.$old.'/locked');
+        file_put_contents($this->directory->root.'/backups/'.$old.'/locked/database.dump', 'old');
+    }
+    chmod($this->directory->root.'/backups/scheduled-20261001T033000Z/locked', 0500); // its file cannot be removed
+    $config = writerConfig($this, ['retention' => 1]);
+    $run = new BackupRun(new InstanceLock($this->directory, new RecordingDockerGateway), $store, writer($this, $config), new BackupRunRecorder(new BackupRunLog($this->directory, $store), DB::connection(BackupScratchDatabase::CONNECTION)), $config);
+
+    try {
+        $recorded = $run->run(BackupName::for(BackupName::SCHEDULED, CarbonImmutable::now()), TemporaryInstance::holder('b'));
+        $left = array_values(array_filter(scandir($this->directory->root.'/backups') ?: [], static fn (string $entry): bool => str_starts_with($entry, BackupStore::TOMBSTONE)));
+        $listed = array_map(static fn (BackupEntry $entry): string => $entry->name->name(), $store->entries());
+    } finally {
+        foreach (glob($this->directory->root.'/backups/*/locked') ?: [] as $locked) {
+            chmod($locked, 0700);
+        }
+    }
+    $cleaned = $store->cleanPartials();
+
+    expect($recorded['pruned'])->toBe(['scheduled-20261002T033000Z'])
+        ->and($listed)->toBe([$recorded['backup']]) // the half-removed one is not listed as a complete backup
+        ->and($left)->toHaveCount(1)->and($left[0])->toStartWith(BackupStore::TOMBSTONE.'scheduled-20261001T033000Z-')
+        ->and($cleaned)->toBe($left);
 });

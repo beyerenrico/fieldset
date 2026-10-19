@@ -89,7 +89,8 @@ class AgeCli
         if ($tarErrors === false) {
             throw new RuntimeException('No temporary file for tar\'s messages.');
         }
-        $tar = @proc_open([$this->tar, '-C', $directory, '--numeric-owner', '-cf', '-', ...$files], [1 => ['pipe', 'w'], 2 => $tarErrors], $tarPipes, null, $this->environment(false));
+        // -h: secrets.env is a link to the tmpfs (BackupWriter); `--`: no member name is ever read as an option.
+        $tar = @proc_open([$this->tar, '-C', $directory, '--numeric-owner', '-h', '-cf', '-', '--', ...$files], [1 => ['pipe', 'w'], 2 => $tarErrors], $tarPipes, null, $this->environment(false));
         if (! is_resource($tar)) {
             throw new RuntimeException('tar could not start.');
         }

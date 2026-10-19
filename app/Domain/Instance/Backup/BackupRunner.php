@@ -29,7 +29,7 @@ use SensitiveParameter;
 final readonly class BackupRunner
 {
     /** A one-off backup may dump a large database and archive a large volume (BackupTools' limit and some slack). */
-    public const float TIMEOUT = BackupTools::DUMP_TIMEOUT + 600.0;
+    public const float TIMEOUT = BackupTools::DEADLINE_SECONDS + 600.0;
 
     private const float START_TIMEOUT = 120.0;
 

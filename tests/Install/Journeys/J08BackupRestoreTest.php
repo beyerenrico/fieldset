@@ -231,7 +231,8 @@ it('skips a scheduled run while an operation holds the lock, retries it, prunes 
     $GLOBALS['fsaJ08Reader'] = CgroupReader::start($this->journey->release->appReference);
     [$success, $samples] = j08WaitAndSample($this->dir, j08Container($uuid, 'backup'), CarbonImmutable::now('UTC')->addMinutes(4));
     $cgroup = BudgetJourney::cgroup(j08Container($uuid, 'backup'));
-    $runs = trim(j08Docker(['exec', j08Container($uuid, 'postgres'), 'psql', '-U', 'form_schema', '-d', 'form_schema', '-tAc', "SELECT kind || ':' || status || ':' || coalesce(reason, '') FROM backup_runs ORDER BY started_at"])->getOutput());
+    $runs = trim(j08Docker(['exec', j08Container($uuid, 'postgres'), 'psql', '-U', 'form_schema', '-d', 'form_schema', '-tAc', "SELECT kind || ':' || status || ':' || coalesce(reason, '') FROM backup_runs WHERE kind <> 'service' ORDER BY started_at"])->getOutput());
+    $starts = trim(j08Docker(['exec', j08Container($uuid, 'postgres'), 'psql', '-U', 'form_schema', '-d', 'form_schema', '-tAc', "SELECT status || ':' || coalesce(schedule, '') FROM backup_runs WHERE kind = 'service' ORDER BY started_at DESC LIMIT 1"])->getOutput());
     $after = InstanceJourney::json($this->journey->fsa($this->dir, ['status', '--json']));
     j08RecordScheduled($this, ['retention' => $retention, 'schedule' => $schedule, 'skip' => $skip, 'status' => $status, 'success' => $success, 'runs' => $runs, 'after' => $after], $samples, $cgroup);
     $newest = $this->dir.'/backups/'.($success['backup'] ?? 'none');
@@ -247,6 +248,7 @@ it('skips a scheduled run while an operation holds the lock, retries it, prunes 
         ->and(j08Files($newest))->toBe(['backup.tar.age'])
         ->and(array_values(array_unique(array_column(j08Modes($newest), 1))))->toBe([posix_getuid()])
         ->and(explode("\n", $runs))->toBe(['manual:succeeded:', 'manual:succeeded:', 'scheduled:skipped:lock_held', 'scheduled:succeeded:'])
+        ->and($starts)->toBe('started:'.(json_decode((string) file_get_contents($this->dir.'/state.json'), true)['settings']['backup_schedule'] ?? '?')) // its start, with the schedule it runs
         ->and($after['data']['last_backup']['backup'] ?? null)->toBe($success['backup'])
         ->and($after['data']['backup']['alerts'] ?? null)->toBe([])
         ->and($cgroup['memory_events']['oom_kill'] ?? null)->toBe(0);

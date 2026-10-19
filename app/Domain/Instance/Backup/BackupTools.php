@@ -14,19 +14,33 @@ use Symfony\Component\Process\Process;
  */
 class BackupTools
 {
-    /** pg_dump and tar write files, not output, so no idle timeout fits; six hours is the hard stop for a hung run. */
-    public const float DUMP_TIMEOUT = 21600.0;
+    /**
+     * One deadline for all programs of a backup (seconds): pg_dump and tar write files, not output, so no idle timeout
+     * fits; six hours is the hard stop for a hung run. The one-off around a backup gets this plus slack (BackupRunner).
+     */
+    public const float DEADLINE_SECONDS = 21600.0;
+
+    /** Seconds left until the deadline; a backup past it fails before the next program starts. */
+    public static function remaining(float $deadline): float
+    {
+        $left = $deadline - microtime(true);
+        if ($left <= 0) {
+            throw new BackupFailed('timeout', 'The backup ran out of its '.(int) (self::DEADLINE_SECONDS / 3600).' hours.');
+        }
+
+        return $left;
+    }
 
     /** @param  array<string, string>  $libpq */
-    public function dump(string $snapshot, string $file, array $libpq): BackupToolResult
+    public function dump(string $snapshot, string $file, array $libpq, float $timeout = self::DEADLINE_SECONDS): BackupToolResult
     {
-        return $this->run(['pg_dump', '--format=custom', '--no-owner', '--no-privileges', '--snapshot='.$snapshot, '--file='.$file], $libpq);
+        return $this->run(['pg_dump', '--format=custom', '--no-owner', '--no-privileges', '--snapshot='.$snapshot, '--file='.$file], $libpq, $timeout);
     }
 
     /** `pg_restore --list` reads the archive's table of contents: the check that the dump is a complete archive. */
-    public function listDump(string $file): BackupToolResult
+    public function listDump(string $file, float $timeout = self::DEADLINE_SECONDS): BackupToolResult
     {
-        return $this->run(['pg_restore', '--list', $file]);
+        return $this->run(['pg_restore', '--list', $file], [], $timeout);
     }
 
     public function dumpVersion(): string
@@ -37,9 +51,9 @@ class BackupTools
     }
 
     /** The storage volume as a gzip'd tar with numeric owners (restore extracts as the app UID, KTD18). */
-    public function archive(string $source, string $file): BackupToolResult
+    public function archive(string $source, string $file, float $timeout = self::DEADLINE_SECONDS): BackupToolResult
     {
-        return $this->run(['tar', '-C', $source, '--numeric-owner', '-czf', $file, '.']);
+        return $this->run(['tar', '-C', $source, '--numeric-owner', '-czf', $file, '--', '.'], [], $timeout);
     }
 
     /**
@@ -47,11 +61,11 @@ class BackupTools
      *
      * @param  Closure(string): void  $each
      */
-    public function members(string $file, Closure $each): BackupToolResult
+    public function members(string $file, Closure $each, float $timeout = self::DEADLINE_SECONDS): BackupToolResult
     {
         $buffer = '';
 
-        return $this->run(['tar', '-tzf', $file], [], self::DUMP_TIMEOUT, static function (string $type, string $chunk) use (&$buffer, $each): void {
+        return $this->run(['tar', '-tzf', $file], [], $timeout, static function (string $type, string $chunk) use (&$buffer, $each): void {
             if ($type !== Process::OUT) {
                 return;
             }
@@ -69,7 +83,7 @@ class BackupTools
      * @param  array<string, string>  $env
      * @param  (Closure(string, string): void)|null  $stream  receives output instead of the buffer
      */
-    protected function run(array $command, array $env = [], float $timeout = self::DUMP_TIMEOUT, ?Closure $stream = null): BackupToolResult
+    protected function run(array $command, array $env = [], float $timeout = self::DEADLINE_SECONDS, ?Closure $stream = null): BackupToolResult
     {
         $process = new Process($command, null, $env === [] ? null : $env);
         $process->setTimeout($timeout);
