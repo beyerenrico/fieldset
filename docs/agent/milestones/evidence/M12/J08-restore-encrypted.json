@@ -1,0 +1,65 @@
+{
+    "command": "fsa restore <encrypted backup> --identity-file <work>/j08-identity.age --passphrase-file <work>/j08-passphrase.txt --yes --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "restore",
+        "status": "ok",
+        "changed": true,
+        "data": {
+            "backup": "manual-20261019T110520Z",
+            "format": "fsa",
+            "authenticated": true,
+            "encrypted": true,
+            "created_at": "2026-10-19T11:05:20Z",
+            "backup_version": "2.0.0-alpha.1-test",
+            "url": "http://localhost:8081",
+            "storage_volume": "fsa-fsa-test-j08-5ad6_app-storage-rc5195fc90724",
+            "epoch": 3,
+            "previous_epoch": 2,
+            "carried": {
+                "users_erased": 0,
+                "users_deactivated": 0,
+                "users_missing": 0,
+                "passwords": 1,
+                "mfa": 0,
+                "export_directories": [],
+                "devices_revoked": 0,
+                "devices_wiped": 0,
+                "memberships_deactivated": 0,
+                "roles_removed": 0,
+                "permissions_removed": 0,
+                "tokens_deleted": 0,
+                "operators_revoked": 0
+            },
+            "sequences": {
+                "sequences": 3,
+                "number_sequences": 1
+            },
+            "cleared": {
+                "sessions": 2,
+                "remember_tokens": 0,
+                "password_reset_tokens": 1,
+                "login_links": 1
+            },
+            "decrypt": {
+                "tested": 1,
+                "failed": []
+            },
+            "safety_backup": "safety-restore-20261019T111244Z",
+            "safety_backup_sealed": true,
+            "keys_added": [],
+            "valkey_flushed": false,
+            "left_behind": []
+        },
+        "secrets": [],
+        "warnings": [
+            {
+                "code": "valkey_not_flushed",
+                "message": "Valkey could not be flushed: cached values and queued jobs of the replaced data may remain.",
+                "hint": "Run `fsa logs redis`; queued jobs that miss their data fail on their own."
+            }
+        ],
+        "errors": []
+    }
+}

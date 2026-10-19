@@ -1,0 +1,25 @@
+{
+    "command": "fsa restore <backup with a newer migration set> --yes --json",
+    "exit_code": 7,
+    "stdout": {
+        "schema_version": 1,
+        "command": "restore",
+        "status": "failed",
+        "changed": false,
+        "data": {
+            "unknown_migrations": [
+                "2099_01_01_000000_fsa_test_from_the_future"
+            ]
+        },
+        "secrets": [],
+        "warnings": [],
+        "errors": [
+            {
+                "code": "backup_newer",
+                "message": "The backup was made by a newer version: it ran migrations this version does not know (2099_01_01_000000_fsa_test_from_the_future).",
+                "hint": "Restore it with the version that made it (or a newer one): `fsa upgrade` first; nothing was changed.",
+                "retryable": false
+            }
+        ]
+    }
+}

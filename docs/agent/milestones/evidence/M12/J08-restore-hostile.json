@@ -1,0 +1,47 @@
+{
+    "tampered": {
+        "exit_code": 2,
+        "stdout": {
+            "schema_version": 1,
+            "command": "restore",
+            "status": "failed",
+            "changed": false,
+            "data": {
+                "hmac": "mismatch"
+            },
+            "secrets": [],
+            "warnings": [],
+            "errors": [
+                {
+                    "code": "backup_unauthenticated",
+                    "message": "The backup is not authenticated: its HMAC does not match any APP key from outside the archive (another instance's backup, or it was changed).",
+                    "hint": "Pass the APP key it was made with (--app-key-file), or --accept-unauthenticated if you trust where it comes from; it is then restored by a role that owns only the scratch database.",
+                    "retryable": false
+                }
+            ]
+        }
+    },
+    "escaping": {
+        "exit_code": 2,
+        "stdout": {
+            "schema_version": 1,
+            "command": "restore",
+            "status": "failed",
+            "changed": false,
+            "data": {
+                "output": ""
+            },
+            "secrets": [],
+            "warnings": [],
+            "errors": [
+                {
+                    "code": "backup_unsafe",
+                    "message": "The storage archive holds a path that leaves its root or is not plain: file \"./../../../fsa-test-j08-escaped\".",
+                    "hint": "Nothing was written; use a backup written by fsa or by scripts/backup.sh of this app.",
+                    "retryable": false
+                }
+            ]
+        }
+    },
+    "escaped_files": []
+}
