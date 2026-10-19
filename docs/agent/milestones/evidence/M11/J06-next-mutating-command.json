@@ -1,5 +1,5 @@
 {
-    "command": "fsa demo --json",
+    "command": "fsa demo --secrets-file <work>/j06-next-mutating-command-secrets.json --json",
     "exit_code": 0,
     "stdout": {
         "schema_version": 1,
@@ -94,15 +94,15 @@
                 "delivered": null
             },
             "sign_in_link": {
-                "expires_at": "2026-10-18T22:40:16Z",
-                "delivered": "secrets"
+                "expires_at": "2026-10-19T00:47:43Z",
+                "delivered": "secrets_file"
             }
         },
         "secrets": [
             {
                 "name": "sign_in_link",
-                "value": "http://localhost:8081/login-link#<redacted>",
-                "expires_at": "2026-10-18T22:40:16Z"
+                "written_to": "<work>/j06-next-mutating-command-secrets.json",
+                "expires_at": "2026-10-19T00:47:43Z"
             }
         ],
         "warnings": [
@@ -113,7 +113,7 @@
             },
             {
                 "code": "tunnel_removed",
-                "message": "The quick tunnel fsa-test-f8423cf524.trycloudflare.com expired at 2026-10-18T22:24:14Z and was removed; the instance URL is http://localhost:8081 again.",
+                "message": "The quick tunnel fsa-test-4e2a63296d.trycloudflare.com expired at 2026-10-19T00:31:39Z and was removed; the instance URL is http://localhost:8081 again.",
                 "hint": "Start a new one with `fsa tunnel start`."
             }
         ],

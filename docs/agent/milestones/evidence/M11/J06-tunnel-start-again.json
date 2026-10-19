@@ -1,5 +1,5 @@
 {
-    "command": "fsa tunnel start --yes --json",
+    "command": "fsa tunnel start --yes --secrets-file <work>/j06-tunnel-start-again-secrets.json --json",
     "exit_code": 0,
     "stdout": {
         "schema_version": 1,
@@ -8,15 +8,15 @@
         "changed": true,
         "data": {
             "action": "start",
-            "url": "https://fsa-test-650d996bf9.trycloudflare.com",
+            "url": "https://fsa-test-163f77b705.trycloudflare.com",
             "mode": "local",
             "local_url": "http://localhost:8081",
             "tunnel": {
-                "hostname": "fsa-test-650d996bf9.trycloudflare.com",
-                "expires_at": "2026-10-18T23:25:42Z",
-                "peer": "10.215.94.82",
+                "hostname": "fsa-test-163f77b705.trycloudflare.com",
+                "expires_at": "2026-10-19T01:33:13Z",
+                "peer": "10.215.170.178",
                 "admin": false,
-                "url": "https://fsa-test-650d996bf9.trycloudflare.com",
+                "url": "https://fsa-test-163f77b705.trycloudflare.com",
                 "state": "active"
             },
             "next_commands": [
@@ -29,12 +29,12 @@
         "warnings": [
             {
                 "code": "tunnel_third_party",
-                "message": "Traffic to https://fsa-test-650d996bf9.trycloudflare.com passes Cloudflare, a third party, and the instance's sign-in, Field App and API are reachable from the internet until the tunnel stops.",
+                "message": "Traffic to https://fsa-test-163f77b705.trycloudflare.com passes Cloudflare, a third party, and the instance's sign-in, Field App and API are reachable from the internet until the tunnel stops.",
                 "hint": "Quick tunnels are for testing: no uptime guarantee, at most 200 concurrent requests."
             },
             {
                 "code": "tunnel_expires",
-                "message": "The tunnel expires at 2026-10-18T23:25:42Z; after that its address answers 503.",
+                "message": "The tunnel expires at 2026-10-19T01:33:13Z; after that its address answers 503.",
                 "hint": "Run `fsa tunnel renew` to keep it 4 more hours, `fsa tunnel stop` to end it now."
             },
             {

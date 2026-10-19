@@ -1,5 +1,5 @@
 {
-    "command": "fsa demo --json",
+    "command": "fsa demo --secrets-file <work>/j06-demo-secrets.json --json",
     "exit_code": 0,
     "stdout": {
         "schema_version": 1,
@@ -94,15 +94,15 @@
                 "delivered": "data"
             },
             "sign_in_link": {
-                "expires_at": "2026-10-18T22:35:32Z",
-                "delivered": "secrets"
+                "expires_at": "2026-10-19T00:42:55Z",
+                "delivered": "secrets_file"
             }
         },
         "secrets": [
             {
                 "name": "sign_in_link",
-                "value": "http://localhost:8081/login-link#<redacted>",
-                "expires_at": "2026-10-18T22:35:32Z"
+                "written_to": "<work>/j06-demo-secrets.json",
+                "expires_at": "2026-10-19T00:42:55Z"
             }
         ],
         "warnings": [],
