@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Instance\Docker\Labels;
 use Tests\Support\Instance\TemporaryInstance;
 use Tests\Support\Instance\UpgradeFixture;
 
@@ -65,6 +66,34 @@ it('refuses a staged compose file that reaches past the containers or runs an im
     'an env file elsewhere' => [static fn (array $d): array => [...$d, 'services' => [...$d['services'], 'gotenberg' => [...$d['services']['gotenberg'], 'env_file' => ['/etc/shadow']]]]],
     'an included compose file' => [static fn (array $d): array => [...$d, 'include' => ['/srv/other/compose.yaml']]],
 ]);
+
+it('refuses RUN_MIGRATIONS in a staged env file and an external volume that is not this instance\'s (review V3)', function (string $case): void {
+    $project = $this->upgrade->instance->state()->project();
+    match ($case) {
+        'migrations' => $this->upgrade->editStagedCompose(static fn (array $d): array => $d, static function (string $root): void {
+            file_put_contents($root.'/env/app.env', file_get_contents($root.'/env/app.env')."RUN_MIGRATIONS='true'\n");
+        }),
+        'other instance' => $this->upgrade->editStagedCompose(static fn (array $d): array => [...$d, 'volumes' => [...$d['volumes'], 'app-storage' => ['name' => 'fsa-other-1a2b_app-storage', 'external' => true]]]),
+        default => $this->upgrade->editStagedCompose(static fn (array $d): array => [...$d, 'volumes' => [...$d['volumes'], 'app-storage' => ['name' => $project.'_app-storage-rdeadbeef0000', 'external' => true]]]),
+    };
+
+    [$code, $json] = $this->upgrade->upgrade();
+
+    expect($code)->toBe(5, (string) json_encode($json))
+        ->and($json['errors'][0]['code'])->toBe('staged_invalid')
+        ->and((string) file_get_contents($this->dir.'/env/app.env'))->not->toContain('RUN_MIGRATIONS');
+})->with(['migrations', 'other instance', 'unlabelled']);
+
+it('takes an external storage volume this instance restored and labelled', function (): void {
+    $state = $this->upgrade->instance->state();
+    $volume = $state->project().'_app-storage-r0123456789ab';
+    $this->upgrade->instance->docker->createVolume($volume, Labels::forInstance($state->uuid(), 'app-storage'));
+    $this->upgrade->instance->directory->saveState($state->withSetting('storage_volume', $volume));
+
+    [$code, $json] = $this->upgrade->upgrade();
+
+    expect($code)->toBe(0, (string) json_encode($json))->and($this->upgrade->compose())->toContain($volume);
+});
 
 it('validates the previous image\'s stage of fsa rollback before using any of its files', function (): void {
     [$code] = $this->upgrade->upgrade();

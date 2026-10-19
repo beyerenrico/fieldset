@@ -42,6 +42,22 @@ it('only finishes the cleanup of a rollback killed after it reopened the instanc
         ->and(new OperationJournal($this->upgrade->instance->directory)->current())->toBeNull();
 });
 
+it('only opens again when killed while opening: no second verification on the live instance, no exit 8 (review V2)', function (): void {
+    $this->upgrade->child = 'fail';
+    [$code] = $this->upgrade->upgrade();
+    expect($code)->toBe(5);
+    $this->upgrade->reopen('upgrade', 'rollback_open'); // killed after the gate went down, before the phase was journaled complete
+    $this->config->smokeFails = static fn (array $urls): bool => true;
+    $mark = $this->config->mark();
+
+    [$code, $json] = $this->upgrade->upgrade(['--resume' => true, '--to' => null]);
+
+    expect($code)->toBe(5, (string) json_encode($json))
+        ->and($this->upgrade->ups($mark))->toHaveCount(1)
+        ->and($this->upgrade->gate()['raised'])->toBeFalse()
+        ->and(new OperationJournal($this->upgrade->instance->directory)->current())->toBeNull();
+});
+
 it('puts back the env files the target overwrote before the installed release renders again', function (string $from, string $to): void {
     $before = $this->upgrade->envFiles();
     $this->upgrade->editStagedCompose(static fn (array $document): array => $document, static function (string $root) use ($from, $to): void {

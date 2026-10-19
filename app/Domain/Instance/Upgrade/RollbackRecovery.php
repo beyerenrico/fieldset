@@ -65,6 +65,12 @@ final readonly class RollbackRecovery
             is_string($data['code'] ?? null) ? $data['code'] : 'rollback_interrupted');
     }
 
+    /** The env files the previous image's render reads (current secret values, 0600): removed on every way out (review V4). */
+    public static function envDirectory(string $id): string
+    {
+        return InstanceDirectory::OPERATIONS_DIR.'/rollback-env-'.$id;
+    }
+
     /** The snapshot of the live release files a rollback's swap replaces (ReleaseFiles). */
     public static function filesBefore(string $id): string
     {
@@ -91,9 +97,13 @@ final readonly class RollbackRecovery
             return $this->halt($run, $plan, $project, $names, $cause, $e, 'abort');
         }
         $unchanged = $cause instanceof InstanceException && $cause->exitCode === ExitCode::AbortedUnchanged;
-        $result = $this->failed($cause, 'The rollback failed before the swap; the instance runs '.$state->version().' as before.', ['left_behind' => RestoreNames::strings($data['left_behind'] ?? null)]);
+        $result = $this->sealed($this->failed($cause, 'The rollback failed before the swap; the instance runs '.$state->version().' as before.', ['left_behind' => RestoreNames::strings($data['left_behind'] ?? null)]), $run);
+        if (! $unchanged) {
+            return $result;
+        }
+        $run->markReverted(); // everything is back: the journal closes, as an upgrade's revert does (review V1)
 
-        return $this->sealed($unchanged ? $result->withExitCode(ExitCode::AbortedUnchanged) : $result, $run);
+        return $result->withExitCode(ExitCode::AbortedUnchanged);
     }
 
     /** @param  array<string, mixed>  $plan */
@@ -117,6 +127,7 @@ final readonly class RollbackRecovery
     public function dropScratch(ComposeProject $project, RestoreNames $names, bool $databases = true): array
     {
         $left = [];
+        UpgradeFiles::remove($this->directory->path(self::envDirectory($names->id)));
         if ($databases) {
             try {
                 $this->databases->drop($project, $names->scratch);
@@ -158,7 +169,9 @@ final readonly class RollbackRecovery
             return ['restored' => $restored];
         });
         $run->phase('return_flush', fn (): array => ['flushed' => $this->stack->flushValkey($project)]);
-        $run->phase('return_verify', fn (): array => ['checked' => $this->stack->startAndVerify($before, $project, $this->stack->raise($before))], changes: false, always: true);
+        if (! $run->record()->hasStarted('return_open')) { // verified already; the gate may be down: only open again (review V2)
+            $run->phase('return_verify', fn (): array => ['checked' => $this->stack->startAndVerify($before, $project, $this->stack->raise($before))], changes: false, always: true);
+        }
         $run->phase('return_open', function () use ($before, $project): array {
             $services = array_values(array_diff(UpgradeCompose::services((string) $this->directory->read(InstanceDirectory::COMPOSE_FILE)), ['tunnel']));
             $this->docker->composeUp($project, $services, RestoreStack::WAIT_SECONDS, removeOrphans: true);

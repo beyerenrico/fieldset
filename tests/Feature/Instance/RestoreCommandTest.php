@@ -317,6 +317,27 @@ it('takes a 1.0 backup in place only when the APP key in its env is one the inst
         ->and($own)->toBe(0, (string) json_encode($ownJson));
 });
 
+it('restores the adopt backup in place through the upgrade child, trusted only as the set the adopt recorded (U19 R1, U18)', function (): void {
+    $name = 'safety-adopt-20261019T120000Z';
+    $set = BackupSetFixture::legacy($this->dir.'/backups/'.$name, "APP_URL='http://localhost:8080'\n", "source=fsa adopt\napp_key_fingerprints=".KeyFingerprint::of($this->restore->appKey())."\n");
+    $this->restore->migrations = array_slice(MigrationSet::image(base_path('database/migrations')), 0, -2); // 1.0 is older than the instance
+    [$untrusted, $untrustedJson] = $this->restore->restore($name, ['--accept-unauthenticated' => true]);
+    $directory = $this->restore->instance->directory;
+    $directory->saveState($directory->state()->withHistoryEntry('adopted', ['backup' => $name, 'backup_sums' => hash_file('sha256', $set.'/SHA256SUMS')]));
+
+    [$refused, $refusedJson] = $this->restore->restore($name);
+    [$code, $json] = $this->restore->restore($name, ['--accept-unauthenticated' => true]);
+    $journal = array_find($this->restore->config->archivedJournals('restore'), static fn ($record): bool => $record->hasCompleted('swap')); // the refused runs archived theirs too
+    $phases = array_map(static fn (array $phase): string => $phase['name'], $journal?->phases() ?? []);
+
+    expect($untrusted)->toBe(2, (string) json_encode($untrustedJson))->and($untrustedJson['errors'][0]['code'])->toBe('backup_other_instance')
+        ->and($refused)->toBe(2)->and($refusedJson['errors'][0]['code'])->toBe('backup_unauthenticated')
+        ->and($code)->toBe(0, (string) json_encode($json))
+        ->and($this->restore->instance->oneOffCalls('instance:upgrade-migrate'))->toHaveCount(1)
+        ->and($phases)->toContain('upgrade_child', 'swap')
+        ->and($json['data']['authenticated'])->toBeFalse();
+});
+
 it('hands the finish step the journal ID and the backup time, and warns about changes the carry could not attribute (third review)', function (): void {
     $this->restore->backup();
     $this->restore->finish = InstanceCommandFixture::oneOffJson(['command' => 'instance:restore-finish', 'status' => 'ok', 'changed' => true, 'data' => [

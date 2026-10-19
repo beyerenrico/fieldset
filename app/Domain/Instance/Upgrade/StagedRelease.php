@@ -12,6 +12,8 @@ use App\Domain\Instance\Compose\Services\TunnelService;
 use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\Docker\DockerCommandFailed;
 use App\Domain\Instance\Docker\DockerGateway;
+use App\Domain\Instance\Docker\DockerResource;
+use App\Domain\Instance\Docker\Labels;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Output\ExitCode;
 use App\Domain\Instance\State\EnvFiles;
@@ -62,7 +64,8 @@ final readonly class StagedRelease
         if ($image !== ($digests['app'] ?? null) || $model === []) {
             $this->refuse('The staged compose file does not run the expected app image.', ['image' => is_string($image) ? $image : null]);
         }
-        $this->assertContained($document, array_values($digests));
+        $this->assertContained($document, array_values($digests), $staged, $services);
+        $this->assertOwnVolumes($state, $document);
     }
 
     /**
@@ -89,17 +92,24 @@ final readonly class StagedRelease
     }
 
     /**
-     * ComposeGuard on what the child rendered, and every service's image one the release pins.
+     * ComposeGuard on what the child rendered, its env files included (no RUN_MIGRATIONS, review V3), and every service's
+     * image one the release pins.
      *
      * @param  array<string, mixed>  $document
      * @param  list<string>  $images
+     * @param  list<string>  $services
      *
      * @throws InstanceException exit 5 `staged_invalid`
      */
-    private function assertContained(array $document, array $images): void
+    private function assertContained(array $document, array $images, InstanceDirectory $staged, array $services): void
     {
+        $env = new EnvFiles($staged);
+        $environments = [];
+        foreach ($services as $service) {
+            $environments[$service] = $env->read($service);
+        }
         try {
-            ComposeGuard::assertSafe($document, []);
+            ComposeGuard::assertSafe($document, $environments);
         } catch (InstanceException $e) {
             $this->refuse('The staged compose file is not acceptable: '.$e->getMessage(), [], $e);
         }
@@ -107,6 +117,29 @@ final readonly class StagedRelease
             $image = is_array($service) ? ($service['image'] ?? null) : null;
             if (! is_string($image) || ! in_array($image, $images, true)) {
                 $this->refuse("The staged service [{$name}] runs an image the release does not pin: ".(is_string($image) ? $image : 'none').'.', ['service' => (string) $name]);
+            }
+        }
+    }
+
+    /**
+     * An external volume (a restored storage volume) must be one of this instance's: named with its project and labelled
+     * with its UUID (review V3); another instance's volume would otherwise be mounted.
+     *
+     * @param  array<string, mixed>  $document
+     *
+     * @throws InstanceException exit 5 `staged_invalid`
+     */
+    private function assertOwnVolumes(InstanceState $state, array $document): void
+    {
+        $own = null;
+        foreach (is_array($document['volumes'] ?? null) ? $document['volumes'] : [] as $key => $volume) {
+            if (! is_array($volume) || ($volume['external'] ?? false) === false) {
+                continue;
+            }
+            $own ??= array_map(static fn (DockerResource $resource): string => $resource->name, $this->docker->volumes(Labels::forInstance($state->uuid())));
+            $name = is_string($volume['name'] ?? null) ? $volume['name'] : (string) $key;
+            if (! str_starts_with($name, $state->project().'_') || ! in_array($name, $own, true)) {
+                $this->refuse("The staged compose file mounts the external volume {$name}, which is not one of this instance's.", ['volume' => $name]);
             }
         }
     }

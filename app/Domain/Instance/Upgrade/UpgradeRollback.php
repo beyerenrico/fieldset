@@ -87,7 +87,9 @@ final readonly class UpgradeRollback
         if (! $run->record()->hasCompleted('rollback_swap')) {
             $run->phase('rollback_swap', fn (): array => $this->swap($project, $names, $swapped, $resumed));
         }
-        $run->phase('rollback_verify', fn (): array => ['checked' => $this->stack->startAndVerify($swapped, $project, $this->stack->raise($swapped))], always: true);
+        if (! $run->record()->hasStarted('rollback_open')) { // verified already; the gate may be down: only open again (review V2)
+            $run->phase('rollback_verify', fn (): array => ['checked' => $this->stack->startAndVerify($swapped, $project, $this->stack->raise($swapped))], always: true);
+        }
         $run->phase('rollback_open', fn (): array => ['started' => $this->open($swapped, $project)], always: true);
     }
 

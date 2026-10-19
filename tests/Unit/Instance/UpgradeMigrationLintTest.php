@@ -27,7 +27,7 @@ const UPGRADE_LINT_BASELINE = '2026_10_23_100000_add_submissions_org_updated_at_
 /** Whether a source builds or drops something concurrently. */
 function upgradeLintConcurrent(string $source): bool
 {
-    return preg_match('/\bCONCURRENTLY\b|ConcurrentIndex::/i', $source) === 1;
+    return preg_match('/\bCONCURRENTLY\b|\bConcurrentIndex\b/i', $source) === 1;
 }
 
 /** @return list<string> the migration directories the upgrade child runs, as UpgradeMigrator collects them */
@@ -124,5 +124,8 @@ it('recognises a concurrent build, a concurrent drop and the ConcurrentIndex hel
     ["DB::statement('CREATE INDEX CONCURRENTLY x ON t (c)');", true],
     ["DB::statement('drop index concurrently if exists x');", true],
     ["ConcurrentIndex::create('x', 'ON t (c)');", true],
+    'an alias of the helper (review V5)' => ["use App\\Database\\ConcurrentIndex as Ix;\nIx::create('x', 'ON t (c)');", true],
+    'the helper through a variable (review V5)' => ["\$helper = ConcurrentIndex::class; \$helper::create('x', 'ON t (c)');", true],
+    'the helper injected (review V5)' => ["public function up(ConcurrentIndex \$index): void { \$index->create('x'); }", true],
     ["Schema::table('t', fn (\$table) => \$table->index('c'));", false],
 ]);

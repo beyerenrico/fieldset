@@ -10,6 +10,11 @@ use Illuminate\Database\Connection;
  * A version-specific upgrade step (R36, plan U18, ADR 0086): data work a release needs beyond its migrations, run by the
  * target's upgrade child after the migrations when the instance comes from a version before `since()`. Every step must be
  * idempotent: a resumed or repeated upgrade, and a restore of an older backup, may run it again.
+ *
+ * A step changes data only, never the schema: no table, column, index, function, trigger, view or policy. Schema belongs
+ * in a migration, because the restore's schema audit compares an archive with a baseline built from migrations alone
+ * (AuditBaseline, ADR 0085): an object a step created would be "unknown" there, and one it dropped "missing". It must
+ * not use CONCURRENTLY either (UpgradeMigrationLintTest lints VersionSteps::STEPS).
  */
 interface VersionStep
 {

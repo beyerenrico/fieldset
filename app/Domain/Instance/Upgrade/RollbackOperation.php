@@ -207,7 +207,7 @@ final readonly class RollbackOperation
             return null;
         }
         $current = new EnvFiles($this->directory);
-        $path = $this->directory->path(InstanceDirectory::OPERATIONS_DIR.'/rollback-env-'.$id);
+        $path = $this->directory->path(RollbackRecovery::envDirectory($id));
         UpgradeFiles::remove($path);
         $merged = new EnvFiles(InstanceDirectory::initialize($path));
         foreach ($previous as $service => $values) {

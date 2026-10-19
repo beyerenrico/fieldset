@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Instance\Console;
 
 use App\Domain\Instance\Backup\BackupName;
+use App\Domain\Instance\Operations\OperationJournal;
 use App\Domain\Instance\Output\CommandResult;
 use App\Domain\Instance\Restore\RestoreOperation;
 use App\Domain\Instance\Restore\RestoreRequest;
@@ -37,9 +38,16 @@ final class RollbackCommand extends FsaCommand
         return $this->laravel->make(RollbackOperation::class)->rollback($request, $context->progress);
     }
 
-    /** The question names the version, the safety backup and what is lost (R37); a refused rollback exits 7 first. */
-    protected function confirmationPrompt(FsaContext $context): string
+    /**
+     * The question names the version, the safety backup and what is lost (R37); a refused rollback exits 7 first. An
+     * interrupted rollback continues without a question and without the guard: its journal holds the plan, and after its
+     * swap the state names no previous release any more.
+     */
+    protected function confirmationPrompt(FsaContext $context): ?string
     {
+        if ($this->laravel->make(OperationJournal::class)->current()?->operation() === RollbackOperation::OPERATION) {
+            return null;
+        }
         $state = RestoreOperation::installed($context->directory());
         $guard = $this->laravel->make(RollbackGuard::class);
         $plan = $guard->plan($state);

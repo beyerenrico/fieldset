@@ -64,23 +64,35 @@ it('exports the security state only after no request holds a database session', 
         ->and(array_slice($order, 0, 3))->toBe(['db:foreign', 'db:foreign', 'export']);
 });
 
-it('stops with exit 9 and exports nothing when a session stays, or the queue does not drain', function (string $case, string $error): void {
+it('stops with exit 9, exports nothing and closes its journal when a session stays, the queue does not drain or sealing fails', function (string $case, string $error): void {
     upgradedTarget($this->upgrade);
-    if ($case === 'session') {
-        $this->upgrade->sessions = [[['pid' => 9, 'application_name' => 'psql', 'user' => 'form_schema', 'state' => 'idle']]];
-    } else {
-        $this->upgrade->drain = [['pending' => 3, 'reserved' => 1, 'delayed' => 0]];
-    }
+    $docker = $this->upgrade->instance->docker;
+    $previous = $docker->composeRunResponder;
+    match ($case) {
+        'session' => $this->upgrade->sessions = [[['pid' => 9, 'application_name' => 'psql', 'user' => 'form_schema', 'state' => 'idle']]],
+        'drain' => $this->upgrade->drain = [['pending' => 3, 'reserved' => 1, 'delayed' => 0]],
+        default => $docker->respondToComposeRun(static fn (array $command, ?string $input = null): ?ProcessOutcome => ($command[2] ?? null) === 'audit:seal'
+            ? new ProcessOutcome(1, '', 'could not connect') : $previous($command, $input)),
+    };
     $mark = $this->config->mark();
 
     [$code, $json] = $this->upgrade->rollback();
+    $open = new OperationJournal($this->upgrade->instance->directory)->current();
+    $exported = array_filter($this->config->callsSince($mark, 'composeRun'), static fn (array $call): bool => ($call['command'][2] ?? null) === 'instance:security-export');
+    $gate = $this->upgrade->gate()['raised'];
+    $this->upgrade->sessions = [];
+    $this->upgrade->drain = [];
+    $docker->respondToComposeRun($previous);
+    [$again, $againJson] = $this->upgrade->rollback(); // nothing left open: it starts over and finishes
 
     expect($code)->toBe(9, (string) json_encode($json))
         ->and($json['errors'][0]['code'])->toBe($error)
-        ->and(array_filter($this->config->callsSince($mark, 'composeRun'), static fn (array $call): bool => ($call['command'][2] ?? null) === 'instance:security-export'))->toBe([])
-        ->and($this->upgrade->instance->state()->version())->toBe(UpgradeFixture::TARGET)
-        ->and($this->upgrade->gate()['raised'])->toBeFalse();
-})->with([['session', 'requests_in_flight'], ['drain', 'drain_timeout']]);
+        ->and($exported)->toBe([])
+        ->and($gate)->toBeFalse()
+        ->and($open)->toBeNull() // review V1
+        ->and($again)->toBe(0, (string) json_encode($againJson))
+        ->and($this->upgrade->instance->state()->version())->toBe('2.0.0-alpha.1');
+})->with([['session', 'requests_in_flight'], ['drain', 'drain_timeout'], ['seal', 'audit_seal_failed']]);
 
 it('returns to exactly the files the swap replaced, the target\'s own service and env layout included', function (): void {
     upgradedTarget($this->upgrade, ownLayout: true);
@@ -116,6 +128,23 @@ it('only finishes a return killed after it reopened the upgraded release: no Val
         ->and(new OperationJournal($this->upgrade->instance->directory)->current())->toBeNull();
 });
 
+it('only opens again when a return was killed while opening: no second verification, no exit 8 (review V2)', function (): void {
+    upgradedTarget($this->upgrade);
+    $this->config->smokeFails = fn (array $urls): bool => str_contains($this->upgrade->compose(), ReleaseFixtures::APP_DIGEST);
+    [$code] = $this->upgrade->rollback();
+    expect($code)->toBe(5);
+    $this->config->smokeFails = static fn (array $urls): bool => true;
+    $this->upgrade->reopen('rollback', 'return_open');
+    $mark = $this->config->mark();
+
+    [$code, $json] = $this->upgrade->rollback();
+
+    expect($code)->toBe(5, (string) json_encode($json))
+        ->and($this->upgrade->ups($mark))->toHaveCount(1)
+        ->and($this->upgrade->gate()['raised'])->toBeFalse()
+        ->and(new OperationJournal($this->upgrade->instance->directory)->current())->toBeNull();
+});
+
 it('lets the previous image render with the env files in its own layout and the current values', function (): void {
     $before = new EnvFiles($this->upgrade->instance->directory)->read('app');
     upgradedTarget($this->upgrade, ownLayout: true);
@@ -142,6 +171,26 @@ it('lets the previous image render with the env files in its own layout and the 
         ->and($mounted['app'] ?? [])->toBe($before)
         ->and($mounted['app'] ?? [])->not->toHaveKey('FSA_NEW_KEY');
 });
+
+it('removes the merged env directory a killed render left, on the way back and in the cleanup (review V4)', function (string $phase): void {
+    upgradedTarget($this->upgrade);
+    if ($phase === 'abort') {
+        $this->upgrade->restore->pgRestore = new ProcessOutcome(1, '', 'pg_restore: error: out of disk');
+    }
+    [$code] = $this->upgrade->rollback();
+    expect($code)->toBe($phase === 'abort' ? 5 : 0);
+    $id = substr($this->config->archivedJournal('rollback')->id(), 0, 12);
+    $this->upgrade->reopen('rollback', $phase);
+    $left = $this->dir.'/operations/rollback-env-'.$id;
+    mkdir($left.'/env', 0700, true);
+    file_put_contents($left.'/env/app.env', "APP_KEY='base64:left-behind'\n");
+
+    [$resumed, $resumedJson] = $this->upgrade->rollback();
+
+    expect($resumed)->toBe($phase === 'abort' ? 5 : 0, (string) json_encode($resumedJson))
+        ->and(is_dir($left))->toBeFalse()
+        ->and(new OperationJournal($this->upgrade->instance->directory)->current())->toBeNull();
+})->with(['abort', 'cleanup']);
 
 it('names the safety backup and both digest sets when going back fails too (exit 8)', function (): void {
     upgradedTarget($this->upgrade);
