@@ -1,7 +1,7 @@
 {
     "command": "install.sh --dir <work>/fsa-test-j06 --version 2.0.0-alpha.1-test --org J6 Org --owner-email owner@example.test --locale en --phone-https local-ca --secrets-file <work>/owner-link.json --json",
     "exit_code": 0,
-    "seconds": 51.5,
+    "seconds": 58.8,
     "stdout": {
         "schema_version": 1,
         "command": "install",
@@ -12,7 +12,7 @@
             "version": "2.0.0-alpha.1-test",
             "mode": "local",
             "dir": "<work>/fsa-test-j06",
-            "project": "fsa-fsa-test-j06-5226",
+            "project": "fsa-fsa-test-j06-92b4",
             "port": 8081,
             "mail": {
                 "mode": "capture",
@@ -23,7 +23,7 @@
                 "lan_address": "192.168.178.24",
                 "url": "https://192.168.178.24",
                 "trust_url": "http://192.168.178.24/phone-trust",
-                "root_sha256": "AE:30:5F:F1:6C:4A:D4:FD:49:DF:1F:0E:49:41:88:5B:B4:8B:CE:39:1A:13:F7:2E:DF:81:79:B1:B8:8D:BE:86",
+                "root_sha256": "3D:65:54:FF:5E:C1:6A:32:5A:A8:D1:62:8B:3C:6F:A4:AB:00:58:FA:63:86:C6:25:61:EB:1B:4B:AF:43:07:AD",
                 "lan_address_current": null
             },
             "owner_email": "owner@example.test",
@@ -33,7 +33,7 @@
                 "<work>/fsa-test-j06/fsa doctor --post"
             ],
             "sign_in_link": {
-                "expires_at": "2026-10-18T23:18:37Z",
+                "expires_at": "2026-10-19T01:25:42Z",
                 "delivered": "secrets_file"
             }
         },
@@ -41,7 +41,7 @@
             {
                 "name": "sign_in_link",
                 "written_to": "<work>/owner-link.json",
-                "expires_at": "2026-10-18T23:18:37Z"
+                "expires_at": "2026-10-19T01:25:42Z"
             }
         ],
         "warnings": [

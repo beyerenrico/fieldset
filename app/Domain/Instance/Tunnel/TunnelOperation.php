@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Tunnel;
 
-use App\Domain\Instance\Config\ConfigChange;
 use App\Domain\Instance\Console\FsaContext;
-use App\Domain\Instance\Demo\DemoCredentials;
-use App\Domain\Instance\Demo\DemoData;
 use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\Install\InstallRecord;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Lifecycle\AppCommands;
 use App\Domain\Instance\Operations\ContainerIdentity;
+use App\Domain\Instance\Operations\Interruption;
+use App\Domain\Instance\Operations\JournalRecord;
+use App\Domain\Instance\Operations\OperationJournal;
 use App\Domain\Instance\Operations\OperationRun;
 use App\Domain\Instance\Operations\Supervisor;
 use App\Domain\Instance\Output\CommandResult;
@@ -23,18 +23,20 @@ use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
 use Closure;
-use Throwable;
 
 /**
- * `fsa tunnel start|stop|renew` (§7, E11, R20, R29, R61, R65, AE6; KTD12; ADR 0057, ADR 0082), each under the instance
- * lock with a journal (operation `tunnel`, R54).
+ * `fsa tunnel start|stop|renew` (§7, E11, R20, R29, R61, R65, AE6; KTD12; ADR 0057, ADR 0078, ADR 0082), each under the
+ * instance lock with a journal (operation `tunnel`, R54) and guarded against SIGTERM, SIGINT and SIGHUP (Interruption).
  *
- * start: local mode only, neither local CA nor another tunnel (R61, exit 2) → the accounts (one read-only one-off):
- * another account on `password` exits 3, organizations besides the demo need `--yes` (exit 6) → journaled: demo
- * accounts still on `password` get random passwords first (R29) → cloudflared joins the stack → its hostname comes
- * from `/quicktunnel` → runtime.json records hostname, expiry (4 hours), cloudflared's address and `--tunnel-admin` →
- * the app is verified and the workers start. A failure after the stack changed restores the previous one (exit 5).
- * renew: a new expiry while cloudflared lives. stop: the tunnel goes and the URL is local again.
+ * start: local mode without the local CA (R61, exit 2); a running tunnel is answered as it is (`changed: false`) → the
+ * accounts (one read-only one-off, before the lock and the prompt): another account on `password` exits 3,
+ * organizations besides the demo need `--yes` (exit 6) → the journaled steps of TunnelStart (the check again under the
+ * lock, preflight, demo passwords, the stack with cloudflared, the hostname, 4 hours in runtime.json; exit 5 after a
+ * revert). renew: a new expiry while cloudflared lives; read-only until its one write of runtime.json, so a failed or
+ * interrupted renew changed nothing (exit 9) and leaves no journal open; a renew cut off by SIGKILL is finished by the
+ * next renew, which keeps the tunnel. stop: the tunnel goes and the URL is local
+ * again; it finishes any unfinished tunnel journal (a start whose revert failed, a cut-off stop or renew) whatever the
+ * tunnel status says, and runs to its end through a signal (like a revert, it heads for the safe state).
  */
 final readonly class TunnelOperation
 {
@@ -44,10 +46,12 @@ final readonly class TunnelOperation
         private InstanceDirectory $directory,
         private Supervisor $supervisor,
         private ContainerIdentity $identity,
+        private OperationJournal $journal,
         private TunnelStack $stack,
         private TunnelStatus $status,
+        private TunnelStart $starter,
         private AppCommands $app,
-        private DemoData $demo,
+        private Interruption $interruption,
     ) {}
 
     /**
@@ -63,18 +67,10 @@ final readonly class TunnelOperation
             return TunnelResults::running($state, $current, $admin);
         }
         $project = ComposeProject::forInstance($state, $this->directory);
-        $exposure = ExposureCheck::run($this->app, $project);
+        $exposure = ExposureCheck::run($this->app, $project, $context->progress);
         $exposure->refuseOtherDefaults('the quick tunnel');
-        $this->confirmOrganizations($exposure, $confirmed, $confirm);
-        $uid = $context->facts->callerUid();
 
-        return $this->supervisor->run(
-            self::OPERATION,
-            $this->identity->holder('fsa', $uid),
-            fn (OperationRun $run): CommandResult => $this->startSteps($run, $project, $exposure, $admin, $context, $secretsToFile),
-            context: ['action' => 'start', 'admin' => $admin],
-            progress: $context->progress,
-        );
+        return $this->starter->run($context, $project, $admin, $this->confirmOrganizations($exposure, $confirmed, $confirm), $secretsToFile);
     }
 
     public function renew(FsaContext $context): CommandResult
@@ -85,106 +81,108 @@ final readonly class TunnelOperation
             throw new InvalidInput('No quick tunnel runs on this instance.', 'no_tunnel', 'Start one with `fsa tunnel start`.', ['tunnel' => $current]);
         }
 
-        return $this->supervisor->run(
+        return $this->interruption->guard(fn (): CommandResult => $this->supervisor->run(
             self::OPERATION,
             $this->identity->holder('fsa', $context->facts->callerUid()),
             function (OperationRun $run) use ($state, $current, $context): CommandResult {
-                $tunnel = $run->phase('renew', fn (): array => $this->stack->renew($state, $context->progress), maxSeconds: QuickTunnelHostname::maxSeconds());
+                try {
+                    $this->interruption->arm();
+                    $tunnel = $run->phase('renew', fn (): array => $this->stack->renew($state, $context->progress, $this->interruption->disarm(...)), changes: false, maxSeconds: QuickTunnelHostname::maxSeconds());
+                } finally {
+                    $this->interruption->disarm();
+                }
 
                 return TunnelResults::renewed($state, TunnelResults::tunnel($tunnel), $current);
             },
+            resume: true, // only its own cut-off renew: it keeps the live tunnel
             context: ['action' => 'renew'],
             progress: $context->progress,
-        );
+            accepts: static fn (JournalRecord $record): bool => ($record->context()['action'] ?? null) === 'renew',
+        ));
     }
 
     public function stop(FsaContext $context): CommandResult
     {
         $state = $this->installed();
         $current = $this->status->of($state);
-        if ($current['state'] === 'none') {
+        $unfinished = $this->journal->current()?->operation() === self::OPERATION;
+        if ($current['state'] === 'none' && ! $unfinished) {
             return TunnelResults::notRunning($state);
         }
 
-        return $this->supervisor->run(
-            self::OPERATION,
-            $this->identity->holder('fsa', $context->facts->callerUid()),
-            fn (OperationRun $run): CommandResult => $this->stopSteps($run, $current),
-            resume: true, // finishes any unfinished tunnel journal: a start whose revert failed, an interrupted stop
-            context: ['action' => 'stop'],
-            progress: $context->progress,
-        );
+        return $this->removal($context, $current, 'stop', resume: true);
     }
 
     /**
-     * Removes the tunnel inside an operation: `stop`, and the expiry cleanup of the next mutating command (TunnelSweeper).
+     * The expiry cleanup of the next mutating command (TunnelSweeper): removes an expired or stopped tunnel, or, with
+     * `$resume`, finishes an unfinished tunnel journal the same way.
+     *
+     * @param  array<string, mixed>  $current  TunnelStatus::of()
+     */
+    public function expire(FsaContext $context, array $current, bool $resume): CommandResult
+    {
+        return $this->removal($context, $current, 'expire', $resume);
+    }
+
+    /**
+     * Removes the tunnel inside an operation. A resumed run (an unfinished tunnel journal) converges whatever the state
+     * says: runtime block cleared, the stack brought up from the state without the tunnel (`up --remove-orphans`),
+     * workers started, the tunnel network removed.
      *
      * @param  array<string, mixed>  $current  TunnelStatus::of()
      */
     public function stopSteps(OperationRun $run, array $current): CommandResult
     {
         $state = $this->directory->state();
-        $services = InstanceSettings::of($state)->tunnel() || $current['hostname'] !== null
-            ? $run->phase('remove', fn (): array => $this->stack->remove($state), maxSeconds: 2 * TunnelRules::STACK_SECONDS)
+        $remove = $run->isResumed() || InstanceSettings::of($state)->tunnel() || $current['hostname'] !== null;
+        $services = $remove
+            ? $run->phase('remove', fn (): array => $this->stack->remove($state), always: true, maxSeconds: 2 * TunnelRules::STACK_SECONDS)
             : [];
 
         return TunnelResults::stopped($this->directory->state(), $current, $services);
     }
 
-    private function startSteps(OperationRun $run, ComposeProject $project, ExposureCheck $exposure, bool $admin, FsaContext $context, bool $toFile): CommandResult
+    /**
+     * The guard stays disarmed: a signal is only recorded and the removal runs to its end, as a `config set` revert does
+     * (it heads for the safe state; a cut-off one would leave the journal open).
+     *
+     * @param  array<string, mixed>  $current
+     */
+    private function removal(FsaContext $context, array $current, string $action, bool $resume): CommandResult
     {
-        $rotation = $exposure->demoDefaults === [] ? null : $this->demo->rotation($run, $project, $context->facts->callerUid());
-        $before = $this->directory->state();
-        $after = $this->stack->target($before);
-        $change = TunnelStack::change($before, $after);
-        $run->phase('preflight', fn (): array => [...$this->stack->pull($after), 'tunnel_subnet' => InstanceSettings::of($after)->tunnelSubnet()], changes: false);
+        return $this->interruption->guard(function () use ($context, $current, $action, $resume): CommandResult {
+            $this->interruption->checkpoint(); // a signal from earlier in this command stops it before anything starts
 
-        try {
-            $tunnel = $run->phase('start', fn (): array => $this->stack->start($change, $admin, $context->progress), maxSeconds: TunnelRules::STACK_SECONDS + QuickTunnelHostname::maxSeconds());
-            $result = TunnelResults::started($this->directory->state(), TunnelResults::tunnel($tunnel), $this->directory->root.'/fsa');
-        } catch (Throwable $failure) {
-            $result = $this->revert($run, $change, $failure);
-        }
-        if (! $rotation instanceof DemoCredentials) {
-            return $result;
-        }
-        // The rotation stays even when the tunnel did not start: its passwords are shown in either case.
-        $result = $result->withWarning('demo_passwords_rotated', 'The demo accounts still had the password "password": they got new random passwords (listed once under secrets), and their sessions and API tokens were revoked.');
-
-        return $rotation->apply($result, $context, $toFile);
+            return $this->supervisor->run(
+                self::OPERATION,
+                $this->identity->holder('fsa', $context->facts->callerUid()),
+                fn (OperationRun $run): CommandResult => $this->stopSteps($run, $current),
+                resume: $resume,
+                context: ['action' => $action],
+                progress: $context->progress,
+            );
+        });
     }
 
-    private function revert(OperationRun $run, ConfigChange $change, Throwable $failure): CommandResult
-    {
-        $error = $failure instanceof InstanceException ? $failure : new InstanceException($failure->getMessage(), ExitCode::InternalError, 'internal_error', null, true);
-
-        try {
-            $run->phase('revert', function () use ($change): array {
-                $this->stack->revertStart($change);
-
-                return ['restored' => true];
-            }, data: ['failure' => $error->errorCode], always: true, maxSeconds: TunnelRules::STACK_SECONDS);
-        } catch (Throwable $revertFailure) {
-            return CommandResult::failed(self::OPERATION, ExitCode::HealthCheckFailed, $error->errorCode, $error->getMessage().' Restoring the previous stack failed too: '.$revertFailure->getMessage(), 'Run `fsa tunnel stop`, then `fsa status`.', true, $error->data, true);
-        }
-        $run->markReverted(['error' => $error->errorCode]);
-
-        return CommandResult::failed(self::OPERATION, ExitCode::RolledBack, $error->errorCode, $error->getMessage().' The instance runs as before, without a tunnel.', $error->hint, $error->retryable, [...$error->data, 'reverted' => true]);
-    }
-
-    /** Organizations besides the demo become reachable from the internet (R65): `--yes`, or a person confirms. */
-    private function confirmOrganizations(ExposureCheck $exposure, bool $confirmed, ?Closure $confirm): void
+    /**
+     * Organizations besides the demo become reachable from the internet (R65): `--yes`, or a person confirms.
+     *
+     * @return bool whether exposing organizations was confirmed (false when there was nothing to confirm)
+     */
+    private function confirmOrganizations(ExposureCheck $exposure, bool $confirmed, ?Closure $confirm): bool
     {
         if ($confirmed || $exposure->nonDemoOrganizations === 0) {
-            return;
+            return $confirmed;
         }
-        $question = "This instance holds {$exposure->nonDemoOrganizations} organization(s) besides the demo. The quick tunnel makes their sign-in, the Field App and the API reachable from the internet through Cloudflare for 4 hours. Start it?";
+        $question = TunnelRules::exposureQuestion($exposure->nonDemoOrganizations);
         if (! $confirm instanceof Closure) {
             throw new ConfirmationRequired($question);
         }
         if (! $confirm($question)) {
             throw new InstanceException('Cancelled; nothing was changed.', ExitCode::AbortedUnchanged, 'cancelled');
         }
+
+        return true;
     }
 
     private function installed(): InstanceState

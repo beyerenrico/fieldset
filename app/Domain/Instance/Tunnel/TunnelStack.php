@@ -17,13 +17,14 @@ use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
 use App\Domain\Instance\State\RuntimeWriter;
 use Carbon\CarbonImmutable;
+use Closure;
 use Throwable;
 
 /**
  * The quick tunnel in Docker and in the runtime directory (R20, KTD12, ADR 0082), on top of the `config set` rollout
  * (ConfigRollout, ADR 0077): the state is the single authority, so starting is "render the state with the tunnel and
- * bring the stack to it" (cloudflared on its network, the app joining it, TRUSTED_PROXIES naming cloudflared), and
- * stopping is the reverse; Compose recreates only what changed and removes the tunnel container as an orphan. Queue and
+ * bring the stack to it" (cloudflared on its network, the app joining it; cloudflared is no trusted proxy, the app
+ * pins host and scheme by its address, ADR 0082), and stopping is the reverse; Compose recreates only what changed and removes the tunnel container as an orphan. Queue and
  * scheduler stop while the stack changes and start once it is verified (KTD19), so no job mails a tunnel link before
  * the tunnel is recorded.
  *
@@ -40,10 +41,10 @@ final readonly class TunnelStack
         private QuickTunnelHostname $hostnames,
     ) {}
 
-    /** The state with the tunnel: `phone_https` tunnel and the tunnel network's subnet (chosen once, then kept). */
-    public function target(InstanceState $state): InstanceState
+    /** The state with the tunnel: `phone_https` tunnel and the tunnel network's subnet (`$subnet`, else chosen once, then kept). */
+    public function target(InstanceState $state, ?string $subnet = null): InstanceState
     {
-        $subnet = InstanceSettings::of($state)->tunnelSubnet() ?? $this->subnet($state);
+        $subnet ??= InstanceSettings::of($state)->tunnelSubnet() ?? $this->subnet($state);
 
         return $state->withSettings(['phone_https' => 'tunnel', 'tunnel_subnet' => $subnet]);
     }
@@ -75,23 +76,40 @@ final readonly class TunnelStack
         return $tunnel;
     }
 
-    /** Back to the state before `start()`: no tunnel in runtime.json, the previous stack, the network gone. */
-    public function revertStart(ConfigChange $change): void
+    /**
+     * Back to the state before `start()`: no tunnel in runtime.json, the previous stack, the network gone. `$completed`
+     * hears the revert steps that finished (ConfigRollout::revert(): `files`, `services`).
+     *
+     * @param  (Closure(string): void)|null  $completed
+     */
+    public function revertStart(ConfigChange $change, ?Closure $completed = null): void
     {
         new RuntimeWriter($this->directory)->writeTunnel($change->before, null);
-        $this->rollout->revert($change, null);
+        $this->rollout->revert($change, null, $completed);
         $this->removeNetwork($change->before);
     }
 
     /**
-     * A new expiry for a living tunnel: the hostname is read again (cloudflared must still answer with the recorded
-     * one; a restarted cloudflared would have a new one, which is recorded instead).
+     * After a failed revert: what serves requests or sends mail stops (ConfigRollout::stopFrontends()).
      *
+     * @return list<string>|null
+     */
+    public function stopFrontends(InstanceState $state): ?array
+    {
+        return $this->rollout->stopFrontends($state);
+    }
+
+    /**
+     * A new expiry for a living tunnel: the hostname is read again (cloudflared must still answer with the recorded
+     * one; a restarted cloudflared would have a new one, which is recorded instead). Nothing changes before the one
+     * write of runtime.json at the end; `$beforeWrite` runs right before it (the caller stops taking signals there).
+     *
+     * @param  (Closure(): void)|null  $beforeWrite
      * @return array{hostname: string, expires_at: string, peer: string, admin: bool}
      */
-    public function renew(InstanceState $state, ?ProgressReporter $progress = null): array
+    public function renew(InstanceState $state, ?ProgressReporter $progress = null, ?Closure $beforeWrite = null): array
     {
-        return $this->record($state, new RuntimeWriter($this->directory)->tunnel()['admin'], $progress);
+        return $this->record($state, new RuntimeWriter($this->directory)->tunnel()['admin'], $progress, $beforeWrite);
     }
 
     /**
@@ -112,8 +130,11 @@ final readonly class TunnelStack
         return $services;
     }
 
-    /** @return array{hostname: string, expires_at: string, peer: string, admin: bool} */
-    private function record(InstanceState $state, bool $admin, ?ProgressReporter $progress): array
+    /**
+     * @param  (Closure(): void)|null  $beforeWrite
+     * @return array{hostname: string, expires_at: string, peer: string, admin: bool}
+     */
+    private function record(InstanceState $state, bool $admin, ?ProgressReporter $progress, ?Closure $beforeWrite = null): array
     {
         $hostname = $this->hostnames->read($state, ComposeProject::forInstance($state, $this->directory), $progress);
         $tunnel = [
@@ -122,6 +143,7 @@ final readonly class TunnelStack
             'peer' => TunnelNetwork::peerAddress((string) InstanceSettings::of($state)->tunnelSubnet()),
             'admin' => $admin,
         ];
+        $beforeWrite?->__invoke();
         new RuntimeWriter($this->directory)->writeTunnel($state, $tunnel);
 
         return $tunnel;

@@ -10,6 +10,7 @@ use App\Domain\Instance\Install\InstallRecord;
 use App\Domain\Instance\Lifecycle\AppCommands;
 use App\Domain\Instance\Lifecycle\SignInDelivery;
 use App\Domain\Instance\Operations\ContainerIdentity;
+use App\Domain\Instance\Operations\Interruption;
 use App\Domain\Instance\Operations\OperationRun;
 use App\Domain\Instance\Operations\Supervisor;
 use App\Domain\Instance\Output\CommandResult;
@@ -31,6 +32,10 @@ use App\Domain\Instance\State\InstanceSettings;
  *   `sign_in_link_issued` (ADR 0081 amendment 2026-10-19).
  * - `--rotate-passwords` gives every demo account a new random password and revokes its sessions, API tokens and unused
  *   sign-in links.
+ *
+ * SIGTERM, SIGINT and SIGHUP (Interruption, ADR 0078) are only recorded while it runs: the one-offs finish and their
+ * one-time passwords and link are handed out, instead of a dead process leaving its journal open and the passwords
+ * unseen. SIGKILL leaves the journal open; `fsa demo` with the same flags resumes it.
  */
 final readonly class DemoOperation
 {
@@ -42,6 +47,7 @@ final readonly class DemoOperation
         private ContainerIdentity $identity,
         private DemoData $demo,
         private AppCommands $app,
+        private Interruption $interruption,
     ) {}
 
     public function run(FsaContext $context, bool $rotate, bool $secretsToFile): CommandResult
@@ -53,14 +59,18 @@ final readonly class DemoOperation
         $project = ComposeProject::forInstance($state, $this->directory);
         $uid = $context->facts->callerUid();
 
-        return $this->supervisor->run(
-            self::OPERATION,
-            $this->identity->holder('fsa', $uid),
-            fn (OperationRun $run): CommandResult => $rotate ? $this->rotation($run, $project, $context, $uid, $secretsToFile) : $this->seeding($run, $project, $context, $uid, $secretsToFile),
-            resume: true,
-            context: ['rotate' => $rotate],
-            progress: $context->progress,
-        );
+        return $this->interruption->guard(function () use ($project, $context, $uid, $rotate, $secretsToFile): CommandResult {
+            $this->interruption->checkpoint(); // a signal during the expiry cleanup stops the command here (exit 9)
+
+            return $this->supervisor->run(
+                self::OPERATION,
+                $this->identity->holder('fsa', $uid),
+                fn (OperationRun $run): CommandResult => $rotate ? $this->rotation($run, $project, $context, $uid, $secretsToFile) : $this->seeding($run, $project, $context, $uid, $secretsToFile),
+                resume: true,
+                context: ['rotate' => $rotate],
+                progress: $context->progress,
+            );
+        });
     }
 
     private function seeding(OperationRun $run, ComposeProject $project, FsaContext $context, int $uid, bool $toFile): CommandResult

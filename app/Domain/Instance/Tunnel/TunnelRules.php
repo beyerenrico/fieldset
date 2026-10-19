@@ -18,6 +18,12 @@ final class TunnelRules
     /** Seconds the stack may take to change (workers' grace period, `up --wait`, verification). */
     public const int STACK_SECONDS = ConfigRollout::APPLY_SECONDS + ConfigRollout::WAIT_SECONDS;
 
+    /** What a confirmation covers: organizations besides the demo become reachable from the internet (R65). */
+    public static function exposureQuestion(int $organizations): string
+    {
+        return "This instance holds {$organizations} organization(s) besides the demo. The quick tunnel makes their sign-in, the Field App and the API reachable from the internet through Cloudflare for 4 hours. Start it?";
+    }
+
     /** @throws InvalidInput exit 2 */
     public static function assertCanStart(InstanceState $state): void
     {

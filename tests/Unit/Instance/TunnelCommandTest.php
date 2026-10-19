@@ -40,7 +40,8 @@ it('starts the tunnel: cloudflared on its network, the hostname from /quicktunne
         ->and($runtime)->toBe(['hostname' => PhoneFixtures::HOSTNAME, 'expires_at' => '2026-10-18T16:00:00Z', 'peer' => TunnelNetwork::peerAddress($subnet), 'admin' => false])
         ->and(collect($json['warnings'])->pluck('code')->all())->toBe(['tunnel_third_party', 'tunnel_expires', 'url_changed_phone_data'])
         ->and($this->fixture->tunnelContainer())->toBe('running')
-        ->and($this->fixture->accountCalls)->toBe(['app:demo-passwords --check --json'])
+        // the accounts are checked before the lock (for the prompt) and again under it (M11 gate)
+        ->and($this->fixture->accountCalls)->toBe(['app:demo-passwords --check --json', 'app:demo-passwords --check --json'])
         ->and($this->fixture->config->methodsSince($mark))->toContain('composeStop', 'composeUp')
         ->and(new OperationJournal($this->fixture->config->instance->directory)->current())->toBeNull()
         ->and($this->fixture->config->archivedJournal('tunnel')->context())->toBe(['action' => 'start', 'admin' => false]);
@@ -90,7 +91,7 @@ it('rotates demo accounts still on the demo password first and lists their new p
     [$code, $json] = $this->fixture->tunnel('start');
 
     expect($code)->toBe(0, json_encode($json))
-        ->and($this->fixture->accountCalls)->toBe(['app:demo-passwords --check --json', 'app:demo-passwords --rotate --actor-uid='.posix_getuid().' --json'])
+        ->and($this->fixture->accountCalls)->toBe(['app:demo-passwords --check --json', 'app:demo-passwords --check --json', 'app:demo-passwords --rotate --actor-uid='.posix_getuid().' --json'])
         ->and(collect($json['warnings'])->pluck('code')->all())->toContain('demo_passwords_rotated')
         ->and(collect($json['secrets'])->pluck('name')->all())->toContain('demo_password:worker@demo.test')
         ->and($json['data']['demo']['rotated'])->toBeTrue();
@@ -175,6 +176,19 @@ it('stops the tunnel: runtime cleared, cloudflared gone, the URL local again; a 
         ->and($this->fixture->tunnelContainer())->toBeNull()
         ->and($again)->toBe(0)
         ->and($againJson['changed'])->toBeFalse();
+});
+
+it('reports the tunnel URL in effect as the status URL, with the local URL beside it (A7)', function (): void {
+    $this->fixture->tunnel('start');
+    [, $active] = $this->fixture->config->instance->run('fsa:status');
+    CarbonImmutable::setTestNow('2026-10-18T16:00:01Z');
+    [, $expired] = $this->fixture->config->instance->run('fsa:status');
+
+    expect($active['data']['url'])->toBe('https://'.PhoneFixtures::HOSTNAME)
+        ->and($active['data']['local_url'])->toBe('http://localhost:8080')
+        ->and($active['data']['tunnel']['url'])->toBe('https://'.PhoneFixtures::HOSTNAME)
+        ->and($expired['data']['url'])->toBe('http://localhost:8080')
+        ->and($expired['data']['local_url'])->toBe('http://localhost:8080');
 });
 
 it('reports an expired tunnel in status without changing anything (AE6)', function (): void {

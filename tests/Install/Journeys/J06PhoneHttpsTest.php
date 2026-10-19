@@ -110,6 +110,17 @@ function j06ThroughTunnel(string $dir, string $path, array $headers = []): array
     return FakeTunnel::request($state['project'], $state['digests']['app'], $state['settings']['tunnel_subnet'], $path, $GLOBALS['fsaJ06']->release->platformEnvironment(), $headers);
 }
 
+/**
+ * `--secrets-file` for a command that hands out one-time secrets (demo passwords, sign-in links): they go to a file in
+ * the workspace, never into stdout and the committed evidence.
+ *
+ * @return list<string>
+ */
+function j06SecretsFile(object $test, string $name): array
+{
+    return ['--secrets-file', $test->journey->work.'/j06-'.$name.'-secrets.json'];
+}
+
 /** @param  array<string, string>  $env */
 function j06Run(object $test, array $arguments, string $evidence, array $env = []): array
 {
@@ -219,7 +230,7 @@ it('turns the local CA off, back to the loopback URL, and deletes the CA key', f
 });
 
 it('starts the tunnel only with --yes beside other organizations and never beside another account on the demo password', function (): void {
-    [$demo] = j06Run($this, ['demo'], 'J06-demo.json');
+    [$demo] = j06Run($this, ['demo', ...j06SecretsFile($this, 'demo')], 'J06-demo.json');
     $env = $this->tunnel->environment(J06_TTL);
     [$unconfirmed, $unconfirmedJson] = j06Run($this, ['tunnel', 'start'], 'J06-tunnel-unconfirmed.json', $env);
     $app = j06Container('app');
@@ -239,7 +250,7 @@ it('starts the tunnel only with --yes beside other organizations and never besid
 });
 
 it('starts the fake tunnel, rotates the demo passwords, and lets only the Field App, API and sign-in through', function (): void {
-    [$process, $json] = j06Run($this, ['tunnel', 'start', '--yes'], 'J06-tunnel-start.json', $this->tunnel->environment(J06_TTL));
+    [$process, $json] = j06Run($this, ['tunnel', 'start', '--yes', ...j06SecretsFile($this, 'tunnel-start')], 'J06-tunnel-start.json', $this->tunnel->environment(J06_TTL));
     $runtime = j06Runtime($this->dir);
     $GLOBALS['fsaJ06Hostname'] = $runtime['tunnel']['hostname'] ?? null;
     $paths = ['/app', '/api/v1/me', '/sanctum/csrf-cookie', '/platform', '/admin', '/horizon', '/phone-trust', '/docs/api'];
@@ -283,7 +294,7 @@ it('answers 503 on the expired tunnel host, reports it read-only, and the next m
     [$status, $statusJson] = j06Run($this, ['status'], 'J06-status-expired.json', $this->tunnel->environment(J06_TTL));
     $changes = InstanceJourney::events($since, time() + 1, ['label=app.form-schema.instance='.$GLOBALS['fsaJ06Uuid'], 'type=container', 'event=create', 'event=destroy', 'event=stop']);
     $after = [md5_file($this->dir.'/state.json'), md5_file($this->dir.'/runtime/runtime.json'), j06Container('tunnel')];
-    [$demo, $demoJson] = j06Run($this, ['demo'], 'J06-next-mutating-command.json', $this->tunnel->environment(J06_TTL));
+    [$demo, $demoJson] = j06Run($this, ['demo', ...j06SecretsFile($this, 'next-mutating-command')], 'J06-next-mutating-command.json', $this->tunnel->environment(J06_TTL));
     $this->journey->evidence('J06-expiry.json', ['through_tunnel_after_expiry' => ['status' => $expired['status'], 'retry_after' => $expired['headers']['retry-after'] ?? null], 'status_changed_files' => $before !== $after, 'status_container_events' => $changes]);
 
     expect($expired['status'])->toBe(503)
@@ -302,7 +313,7 @@ it('answers 503 on the expired tunnel host, reports it read-only, and the next m
 
 it('renews a living tunnel and stops it', function (): void {
     $env = $this->tunnel->environment(3600);
-    [$start] = j06Run($this, ['tunnel', 'start', '--yes'], 'J06-tunnel-start-again.json', $env);
+    [$start] = j06Run($this, ['tunnel', 'start', '--yes', ...j06SecretsFile($this, 'tunnel-start-again')], 'J06-tunnel-start-again.json', $env);
     $first = j06Runtime($this->dir)['tunnel'];
     sleep(1);
     [$renew, $renewJson] = j06Run($this, ['tunnel', 'renew'], 'J06-tunnel-renew.json', $env);

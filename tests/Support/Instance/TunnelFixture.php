@@ -6,6 +6,7 @@ namespace Tests\Support\Instance;
 
 use App\Domain\Instance\Compose\Services\TunnelService;
 use App\Domain\Instance\Docker\ContainerSpec;
+use App\Domain\Instance\Docker\DockerCommandFailed;
 use App\Domain\Instance\Docker\Labels;
 use App\Domain\Instance\Docker\ProcessOutcome;
 use App\Domain\Instance\Lifecycle\ComposeFile;
@@ -45,15 +46,41 @@ final class TunnelFixture
     /** @param  array<string, mixed>  $installFlags  e.g. `--phone-https tunnel`: the answers are in place before the install */
     public function __construct(array $installFlags = [])
     {
-        $this->config = new ConfigFixture($installFlags, function (InstanceCommandFixture $instance): void {
-            $this->instance = $instance;
-            $docker = $instance->docker;
-            $previousRun = $docker->runResponder;
-            $docker->respondToRun(fn (ContainerSpec $spec): ?ProcessOutcome => $this->quickTunnel($spec) ?? ($previousRun instanceof \Closure ? $previousRun($spec) : null));
-            $previousOneOff = $docker->composeRunResponder;
-            $docker->respondToComposeRun(fn (array $command, ?string $input = null): ProcessOutcome => $this->accounts($command) ?? $previousOneOff($command, $input));
-            $docker->onCall['composeUp'] = fn (): null => $this->followCompose();
-        });
+        $this->config = new ConfigFixture($installFlags, $this->attach(...));
+    }
+
+    /**
+     * Answers for `$instance` from now on (cloudflared, the account one-offs, compose up), e.g. a fresh instance whose
+     * install a test runs itself; `config` keeps pointing at the instance this fixture installed.
+     */
+    public function attach(InstanceCommandFixture $instance): void
+    {
+        $this->instance = $instance;
+        $docker = $instance->docker;
+        $previousRun = $docker->runResponder;
+        $docker->respondToRun(fn (ContainerSpec $spec): ?ProcessOutcome => $this->quickTunnel($spec) ?? ($previousRun instanceof \Closure ? $previousRun($spec) : null));
+        $previousOneOff = $docker->composeRunResponder;
+        $docker->respondToComposeRun(fn (array $command, ?string $input = null): ProcessOutcome => $this->accounts($command) ?? $previousOneOff($command, $input));
+        $docker->onCall['composeUp'] = fn (): null => $this->followCompose();
+    }
+
+    /**
+     * Fails the given `compose up` calls (1-based, counted from now) as a port taken by another program would; the
+     * others behave as before.
+     */
+    public function failComposeUps(int ...$which): void
+    {
+        $docker = $this->instance->docker;
+        $previous = $docker->onCall['composeUp'] ?? null;
+        $count = 0;
+        $docker->onCall['composeUp'] = function (array $args) use ($previous, $which, &$count): void {
+            if (in_array(++$count, $which, true)) {
+                throw new DockerCommandFailed('up', new ProcessOutcome(1, '', 'Error response from daemon: Bind for 127.0.0.1:8080 failed: port is already allocated'));
+            }
+            if ($previous instanceof \Closure) {
+                $previous($args);
+            }
+        };
     }
 
     /**

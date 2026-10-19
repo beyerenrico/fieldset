@@ -1,5 +1,5 @@
 {
-    "command": "fsa tunnel start --yes --json",
+    "command": "fsa tunnel start --yes --secrets-file <work>/j06-tunnel-start-secrets.json --json",
     "exit_code": 0,
     "stdout": {
         "schema_version": 1,
@@ -8,15 +8,15 @@
         "changed": true,
         "data": {
             "action": "start",
-            "url": "https://fsa-test-f8423cf524.trycloudflare.com",
+            "url": "https://fsa-test-4e2a63296d.trycloudflare.com",
             "mode": "local",
             "local_url": "http://localhost:8081",
             "tunnel": {
-                "hostname": "fsa-test-f8423cf524.trycloudflare.com",
-                "expires_at": "2026-10-18T22:24:14Z",
-                "peer": "10.215.94.82",
+                "hostname": "fsa-test-4e2a63296d.trycloudflare.com",
+                "expires_at": "2026-10-19T00:31:39Z",
+                "peer": "10.215.170.178",
                 "admin": false,
-                "url": "https://fsa-test-f8423cf524.trycloudflare.com",
+                "url": "https://fsa-test-4e2a63296d.trycloudflare.com",
                 "state": "active"
             },
             "next_commands": [
@@ -59,65 +59,65 @@
                 ],
                 "sessions_ended": 0,
                 "tokens_revoked": 0,
-                "delivered": "secrets"
+                "delivered": "secrets_file"
             }
         },
         "secrets": [
             {
                 "name": "demo_password:owner@demo.test",
-                "value": "<redacted>",
+                "written_to": "<work>/j06-tunnel-start-secrets.json",
                 "expires_at": null
             },
             {
                 "name": "demo_password:admin@demo.test",
-                "value": "<redacted>",
+                "written_to": "<work>/j06-tunnel-start-secrets.json",
                 "expires_at": null
             },
             {
                 "name": "demo_password:designer@demo.test",
-                "value": "<redacted>",
+                "written_to": "<work>/j06-tunnel-start-secrets.json",
                 "expires_at": null
             },
             {
                 "name": "demo_password:reviewer@demo.test",
-                "value": "<redacted>",
+                "written_to": "<work>/j06-tunnel-start-secrets.json",
                 "expires_at": null
             },
             {
                 "name": "demo_password:coordinator@demo.test",
-                "value": "<redacted>",
+                "written_to": "<work>/j06-tunnel-start-secrets.json",
                 "expires_at": null
             },
             {
                 "name": "demo_password:worker@demo.test",
-                "value": "<redacted>",
+                "written_to": "<work>/j06-tunnel-start-secrets.json",
                 "expires_at": null
             },
             {
                 "name": "demo_password:mobile@demo.test",
-                "value": "<redacted>",
+                "written_to": "<work>/j06-tunnel-start-secrets.json",
                 "expires_at": null
             },
             {
                 "name": "demo_password:tablet@demo.test",
-                "value": "<redacted>",
+                "written_to": "<work>/j06-tunnel-start-secrets.json",
                 "expires_at": null
             },
             {
                 "name": "demo_password:viewer@demo.test",
-                "value": "<redacted>",
+                "written_to": "<work>/j06-tunnel-start-secrets.json",
                 "expires_at": null
             }
         ],
         "warnings": [
             {
                 "code": "tunnel_third_party",
-                "message": "Traffic to https://fsa-test-f8423cf524.trycloudflare.com passes Cloudflare, a third party, and the instance's sign-in, Field App and API are reachable from the internet until the tunnel stops.",
+                "message": "Traffic to https://fsa-test-4e2a63296d.trycloudflare.com passes Cloudflare, a third party, and the instance's sign-in, Field App and API are reachable from the internet until the tunnel stops.",
                 "hint": "Quick tunnels are for testing: no uptime guarantee, at most 200 concurrent requests."
             },
             {
                 "code": "tunnel_expires",
-                "message": "The tunnel expires at 2026-10-18T22:24:14Z; after that its address answers 503.",
+                "message": "The tunnel expires at 2026-10-19T00:31:39Z; after that its address answers 503.",
                 "hint": "Run `fsa tunnel renew` to keep it 4 more hours, `fsa tunnel stop` to end it now."
             },
             {
@@ -127,7 +127,7 @@
             },
             {
                 "code": "demo_passwords_rotated",
-                "message": "The demo accounts still had the password \"password\": they got new random passwords (listed once under secrets), and their sessions and API tokens were revoked.",
+                "message": "The demo accounts still had the password \"password\": they got new random passwords (listed once under secrets), and their sessions, API tokens, unused sign-in links and password-reset tokens were revoked.",
                 "hint": null
             }
         ],

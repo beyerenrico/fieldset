@@ -148,3 +148,28 @@ BUILD_PROMPT_V2 §10 says "The local CA key stays in the instance directory with
   with a new fingerprint the next time the edge starts, and every phone must trust it again. U16/U17 decide: either
   backups carry the volume's `pki/` (a private key in the backup, protected like APP_KEY), or the restore result and
   the docs tell the operator to have phones trust the new root.
+
+## Amendment 2026-10-19: start order, recovery, status URL (M11 gate)
+- **Start order (`TunnelStart`).** Before the lock: the account check (with a progress event, `accounts`, at most 5 min)
+  for exit 3 and the prompt (exit 6). Under the lock, journaled: `accounts` again (counts only; another account on
+  `password` exits 3, organizations nobody confirmed exit 6, the demo rotation is decided from this answer) →
+  `preflight` (the target state with its subnet and cloudflared's image; `edge_subnet_unavailable` and
+  `image_unavailable` are exit 3 with nothing changed) → `demo_rotate` → `start` → [`revert`]. Nothing changes before the
+  rotation, so a failed check, pull or subnet search loses no password. From the rotation on every failure is exit 5
+  and keeps the rotated passwords in the result (`demo_passwords_rotated`, secrets, `changed: true`): once `start` began
+  the stack is reverted; a failure before it (the rotation one-off, a signal received during it) leaves the untouched
+  stack alone and closes the journal. The target state is taken after the rotation, so its `demo_passwords_rotated`
+  history entry stays. `fsa install --phone-https tunnel` reports the tunnel's `data.demo` on every path.
+- **Renew** is read-only until its one write of runtime.json: a failed or interrupted renew is exit 9 with nothing
+  changed (it was exit 4 with the journal left open) and the tunnel keeps its expiry.
+- **Recovery.** `fsa tunnel stop` finishes any unfinished tunnel journal (a start whose revert failed, a cut-off stop,
+  renew or cleanup) and converges, also when the status is `none`; the next mutating command does the same unless a
+  live tunnel would go (ADR 0078 amendment). "Only a tunnel the state records is swept" holds for tunnels without an
+  unfinished journal.
+- **Status URL.** `fsa status` reports an active tunnel's URL as `data.url`, with `data.local_url` (the loopback URL,
+  null outside local mode) beside it, as `fsa tunnel` and install do; an expired or stopped tunnel leaves `data.url` local.
+- **Hostname wait.** `QuickTunnelHostname` stops at `maxSeconds()` (510 s): every probe container gets at most the time
+  that is left, so a hanging probe cannot stretch the wait to 30 × 60 s.
+- **Install.** A finished install compared with `--phone-https tunnel` treats the tunnel as transient: an instance with a
+  tunnel or none matches, and the result warns `tunnel_not_running` with `fsa tunnel start` (install never starts one on
+  a finished instance); a local-CA instance still differs (exit 2).

@@ -17,6 +17,7 @@ use App\Domain\Instance\Console\VersionCommand;
 use App\Domain\Instance\Docker\CliDockerGateway;
 use App\Domain\Instance\Docker\DockerGateway;
 use App\Domain\Instance\Docker\OpsContextRequired;
+use App\Domain\Instance\Operations\Interruption;
 use App\Domain\Instance\Release\BuildFlavor;
 use App\Domain\Instance\Release\ManifestSchema;
 use App\Domain\Instance\Release\TrustPolicy;
@@ -44,6 +45,7 @@ final class InstanceServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(HostFacts::class, static fn (): HostFacts => HostFacts::fromEnvironment(getenv()));
+        $this->app->singleton(Interruption::class); // one per command: a signal of the tunnel cleanup reaches the command's guard
         $this->app->bind(DockerGateway::class, static function (Application $app): DockerGateway {
             if (! $app->bound(InstanceDirectory::class)) {
                 throw new OpsContextRequired;

@@ -12,13 +12,14 @@
             "operation": null,
             "lock": null,
             "disk": {
-                "free_gib": 141.8
+                "free_gib": 131.5
             },
             "last_backup": null,
             "version": "2.0.0-alpha.1-test",
             "mode": "local",
             "url": "https://192.168.178.24",
-            "project": "fsa-fsa-test-j06-5226",
+            "local_url": "http://localhost:8081",
+            "project": "fsa-fsa-test-j06-92b4",
             "port": 8081,
             "health": "ok",
             "services": {
@@ -65,7 +66,7 @@
                 "lan_address": "192.168.178.24",
                 "url": "https://192.168.178.24",
                 "trust_url": "http://192.168.178.24/phone-trust",
-                "root_sha256": "AE:30:5F:F1:6C:4A:D4:FD:49:DF:1F:0E:49:41:88:5B:B4:8B:CE:39:1A:13:F7:2E:DF:81:79:B1:B8:8D:BE:86",
+                "root_sha256": "3D:65:54:FF:5E:C1:6A:32:5A:A8:D1:62:8B:3C:6F:A4:AB:00:58:FA:63:86:C6:25:61:EB:1B:4B:AF:43:07:AD",
                 "lan_address_current": true
             },
             "tunnel": null,
@@ -77,8 +78,8 @@
                         "email": "owner@example.test",
                         "kind": "owner",
                         "state": "unused",
-                        "created_at": "2026-10-18T22:18:37Z",
-                        "expires_at": "2026-10-18T23:18:37Z",
+                        "created_at": "2026-10-19T00:25:42Z",
+                        "expires_at": "2026-10-19T01:25:42Z",
                         "used_at": null,
                         "used_ip": null,
                         "created_by": "cli",

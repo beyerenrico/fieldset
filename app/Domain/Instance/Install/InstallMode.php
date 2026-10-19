@@ -19,6 +19,8 @@ use Closure;
  *
  * Local-CA mode (`--phone-https local-ca`, R19, ADR 0082) is local mode with the edge: journaled under `phone` with the
  * LAN address (the flag, else the launcher's best candidate) and the edge subnet; the URL becomes https://<address>.
+ * `--phone-https tunnel` is journaled there as `{phone_https: tunnel}` only, so a resume with the same flags matches;
+ * the state does not take it (the tunnel starts after the install, InstallCommand).
  */
 final class InstallMode
 {

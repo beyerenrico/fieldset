@@ -110,7 +110,8 @@ final class InstallRecord
     /**
      * Compares one recorded input with an explicit flag: personal inputs through their digest; --trusted-proxy through
      * `$trusted`, which knows the trusted proxy by container name, ID prefix or address (install reports the name,
-     * `config set trusted-proxy` takes any of them, ADR 0078).
+     * `config set trusted-proxy` takes any of them, ADR 0078). `--phone-https tunnel` matches an instance with a tunnel or
+     * without phone HTTPS: the quick tunnel ends on its own after 4 hours or with `fsa tunnel stop` (ADR 0082).
      *
      * @param  (Closure(string): bool)|null  $trusted
      * @return Closure(string, string|int|null, string|int): bool true when equal
@@ -123,6 +124,9 @@ final class InstallRecord
             }
             if ($key === 'trusted_proxy' && $trusted instanceof Closure) {
                 return $trusted((string) $given);
+            }
+            if ($key === 'phone_https' && $given === 'tunnel') {
+                return in_array($recorded, [null, 'tunnel'], true);
             }
 
             return (string) $recorded === (string) $given;
