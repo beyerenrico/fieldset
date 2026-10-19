@@ -94,7 +94,8 @@ final readonly class RestoreDatabases
         $owner = $state->containerUid().':'.($state->containerUid() === 0 ? 0 : $state->hostGid());
         $outcome = $this->docker->runContainer(new ContainerSpec(
             image: $state->digests()['app'],
-            command: ['--no-owner', '--no-privileges', '--single-transaction', '--exit-on-error', '--', $backup->set.'/database.dump'],
+            // pg_restore connects only with --dbname (PGDATABASE alone makes it print SQL); the name is no secret.
+            command: ['--dbname='.$database, '--no-owner', '--no-privileges', '--single-transaction', '--exit-on-error', '--', $backup->set.'/database.dump'],
             labels: Labels::forInstance($state->uuid(), self::ROLE),
             env: $env,
             volumes: [$backup->set.':'.$backup->set.':ro'],

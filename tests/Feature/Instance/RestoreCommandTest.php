@@ -49,7 +49,7 @@ it('restores in place: prepare without network, quiesce, ledger, safety backup, 
         ->and($prepare->network)->toBe('none')->and(json_encode($prepare))->not->toContain('docker.sock')
         ->and($prepare->volumes)->toContain($this->dir.'/backups/manual-20261019T120000Z:'.$this->dir.'/backups/manual-20261019T120000Z:ro')
         ->and($pgRestore->network)->toBe($state->project().'_default')
-        ->and($pgRestore->command)->toBe(['--no-owner', '--no-privileges', '--single-transaction', '--exit-on-error', '--', $this->dir.'/backups/manual-20261019T120000Z/database.dump'])
+        ->and($pgRestore->command)->toBe(['--dbname=form_schema_restore_'.$id, '--no-owner', '--no-privileges', '--single-transaction', '--exit-on-error', '--', $this->dir.'/backups/manual-20261019T120000Z/database.dump'])
         ->and(array_keys($pgRestore->env))->toContain('PGPASSWORD')->and($pgRestore->env['PGDATABASE'])->toBe('form_schema_restore_'.$id)
         ->and($tar->network)->toBe('none')->and($tar->user)->toBe('33:33')
         ->and($tar->volumes[0])->toBe($state->project().'_app-storage-r'.$id.':/var/www/html/storage/app')
