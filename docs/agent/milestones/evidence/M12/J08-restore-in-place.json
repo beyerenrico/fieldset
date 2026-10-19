@@ -7,14 +7,14 @@
         "status": "ok",
         "changed": true,
         "data": {
-            "backup": "manual-20261019T121756Z",
+            "backup": "manual-20261019T141653Z",
             "format": "fsa",
             "authenticated": true,
             "encrypted": false,
-            "created_at": "2026-10-19T12:17:56Z",
+            "created_at": "2026-10-19T14:16:53Z",
             "backup_version": "2.0.0-alpha.1-test",
-            "url": "http://localhost:8081",
-            "storage_volume": "fsa-fsa-test-j08-ee75_app-storage-ra118834387ad",
+            "url": "http://localhost:8082",
+            "storage_volume": "fsa-fsa-test-j08-24e0_app-storage-r2438a00707a1",
             "epoch": 2,
             "previous_epoch": 1,
             "carried": {
@@ -45,6 +45,9 @@
                 "webhook_endpoints_deleted": 0,
                 "webhook_endpoints_deactivated": 0
             },
+            "carry_mode": "state",
+            "carry_skipped": [],
+            "cascade_skipped": [],
             "sequences": {
                 "sequences": 3,
                 "number_sequences": 1
@@ -59,7 +62,7 @@
                 "tested": 1,
                 "failed": []
             },
-            "safety_backup": "safety-restore-20261019T122413Z",
+            "safety_backup": "safety-restore-20261019T142330Z",
             "safety_backup_sealed": true,
             "keys_added": [],
             "valkey_flushed": true,
@@ -87,7 +90,7 @@
         "backup_role_may_seal": "f",
         "public_acl": "{form_schema=X/form_schema}",
         "file_from_backup": "secret",
-        "volume_after": "fsa-fsa-test-j08-ee75_app-storage-ra118834387ad",
+        "volume_after": "fsa-fsa-test-j08-24e0_app-storage-r2438a00707a1",
         "old_volume_exists": false,
         "runtime_webhooks": {
             "paused": true
@@ -95,12 +98,12 @@
     },
     "status": {
         "last": {
-            "at": "2026-10-19T12:25:11Z",
-            "backup": "manual-20261019T121756Z",
+            "at": "2026-10-19T14:24:41Z",
+            "backup": "manual-20261019T141653Z",
             "epoch": 2,
-            "safety_backup": "safety-restore-20261019T122413Z"
+            "safety_backup": "safety-restore-20261019T142330Z"
         },
-        "storage_volume": "fsa-fsa-test-j08-ee75_app-storage-ra118834387ad",
+        "storage_volume": "fsa-fsa-test-j08-24e0_app-storage-r2438a00707a1",
         "webhooks_paused": true,
         "interrupted": null,
         "scratch_left": []
