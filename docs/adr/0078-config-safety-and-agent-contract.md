@@ -181,4 +181,5 @@ the same way.
 ## Amendment 2026-10-20: proxy-mode hint (M12 gate)
 The hint for proxy mode now names the whole way: `fsa uninstall --keep-backups`, then `fsa install --from-backup
 <dir>/backups/final-<time>` with `--app-key-file <dir>/backups/final-<time>.app-key.env` (plain backups) or the
-identity and passphrase (encrypted); the final backup is a 2.0 backup since the ADR 0073 amendment of this date.
+identity, passphrase and `--accept-unauthenticated` (encrypted); the final backup is a 2.0 backup since the ADR 0073
+amendment of this date.

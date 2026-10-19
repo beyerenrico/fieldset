@@ -78,7 +78,7 @@ it('puts the APP keys and the SMTP account into the encrypted final backup when 
         ->and($this->fixture->backupInput)->toContain('APP_KEY=')->toContain($appKey)
         ->and($json['data']['final_backup'])->toMatchArray(['encrypted' => true, 'includes_secrets' => true, 'key_file' => null])
         ->and(glob($this->backups.'/*.app-key.env*'))->toBe([])
-        ->and(collect($json['warnings'])->firstWhere('code', 'final_backup_encrypted')['hint'] ?? '')->toContain('--identity-file');
+        ->and(collect($json['warnings'])->firstWhere('code', 'final_backup_encrypted')['hint'] ?? '')->toContain('backup.tar.age --identity-file')->toContain('--accept-unauthenticated');
 });
 
 it('starts only Postgres for the backup when the instance is stopped, and stops nothing', function (): void {

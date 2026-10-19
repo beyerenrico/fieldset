@@ -37,8 +37,10 @@ use Tests\Support\Instance\RecordingDockerGateway;
  * that leaves the live database, storage and mail log alone, the encrypted backup restored with its identity and a
  * passphrase file, hostile archives refused (a changed file with recomputed sums: HMAC; a `../` member: before anything
  * is written), a backup with a newer migration set refused (exit 7, AE8), `fsa install --from-backup` into a second
- * directory with a new `--domain` (certificate pending, capture mail, paused webhooks, the new URL, the old data), and a
- * 1.0 `scripts/backup.sh` archive with `--accept-unauthenticated` into a third (the unsafe 1.0 values never applied).
+ * directory with a new `--domain` (certificate pending, capture mail, paused webhooks, the new URL, the old data, the
+ * recipients kept with `--keep-recipients`), whose `fsa uninstall --keep-backups` leaves an encrypted 2.0 final backup
+ * that a real `fsa install --from-backup` takes into a fourth directory (M12 gate), and a 1.0 `scripts/backup.sh` archive
+ * with `--accept-unauthenticated` into a third (the unsafe 1.0 values never applied).
  *
  * Everything is named `fsa-test-j08…` and removed afterwards. Evidence goes to the milestone of FSA_EVIDENCE_MILESTONE.
  */
@@ -63,9 +65,10 @@ afterAll(function (): void {
         InstanceJourney::cleanup($GLOBALS['fsaJ08']->work.'/fsa-test-j08', $GLOBALS['fsaJ08Uuid'] ?? null);
         InstanceJourney::cleanup($GLOBALS['fsaJ08']->work.'/fsa-test-j08b');
         InstanceJourney::cleanup($GLOBALS['fsaJ08']->work.'/fsa-test-j08c');
+        InstanceJourney::cleanup($GLOBALS['fsaJ08']->work.'/fsa-test-j08d');
     }
     $GLOBALS['fsaJ08Reader']?->stop();
-    unset($GLOBALS['fsaJ08'], $GLOBALS['fsaJ08Error'], $GLOBALS['fsaJ08Uuid'], $GLOBALS['fsaJ08Reader'], $GLOBALS['fsaJ08Manual'], $GLOBALS['fsaJ08Encrypted']);
+    unset($GLOBALS['fsaJ08'], $GLOBALS['fsaJ08Error'], $GLOBALS['fsaJ08Uuid'], $GLOBALS['fsaJ08Reader'], $GLOBALS['fsaJ08Manual'], $GLOBALS['fsaJ08Encrypted'], $GLOBALS['fsaJ08Final']);
 });
 
 beforeEach(function (): void {
@@ -380,7 +383,7 @@ it('moves the instance with --from-backup into a second directory with a new --d
     $target = $this->journey->work.'/fsa-test-j08b';
     $process = $this->journey->install($target, [
         '--from-backup', ($backup['data']['path'] ?? '').'/backup.tar.age', '--identity-file', $this->journey->work.'/j08-identity.age',
-        '--passphrase-file', $this->journey->work.'/j08-passphrase.txt', '--app-key-file', $this->dir.'/env/app.env', '--domain', 'fsa-test-j08b.test', '--json',
+        '--passphrase-file', $this->journey->work.'/j08-passphrase.txt', '--app-key-file', $this->dir.'/env/app.env', '--domain', 'fsa-test-j08b.test', '--keep-recipients', '--json',
     ], ['FSA_TEST_DNS' => 'fsa-test-j08b.test=203.0.113.7']);
     $json = InstanceJourney::json($process);
     $uuid = (string) InstanceJourney::uuid($target);
@@ -390,7 +393,10 @@ it('moves the instance with --from-backup into a second directory with a new --d
     $sameKey = j08HmacKey($target) === j08HmacKey($this->dir);
     $env = (string) @file_get_contents($target.'/env/app.env'); // read before the uninstall removes the directory
     $this->journey->evidence('J08-from-backup-domain.json', ['command' => 'install.sh --dir <work>/fsa-test-j08b --from-backup <backup>/backup.tar.age --identity-file … --passphrase-file … --app-key-file <old>/env/app.env --domain fsa-test-j08b.test --json', 'exit_code' => $process->getExitCode(), 'stdout' => $json, 'url' => $state['url'] ?? null, 'runtime_webhooks' => $runtime['webhooks'] ?? null, 'organizations' => $orgs]);
-    $uninstall = $this->journey->fsa($target, ['uninstall', '--yes', '--json']);
+    $uninstall = $this->journey->fsa($target, ['uninstall', '--yes', '--keep-backups', '--json']);
+    $final = InstanceJourney::json($uninstall)['data']['final_backup'] ?? [];
+    $this->journey->evidence('J08-uninstall-final.json', ['command' => 'fsa uninstall --yes --keep-backups --json', 'exit_code' => $uninstall->getExitCode(), 'stdout' => InstanceJourney::json($uninstall)]);
+    $GLOBALS['fsaJ08Final'] = is_string($final['dir'] ?? null) ? $target.'/'.$final['dir'] : null;
 
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput()."\n".$process->getOutput())
         ->and(collect($json['warnings'] ?? [])->pluck('code')->all())->toContain('certificate_pending', 'webhooks_paused')
@@ -398,6 +404,31 @@ it('moves the instance with --from-backup into a second directory with a new --d
         ->and($env)->toContain("FSA_MAIL_CAPTURE='true'")
         ->and($runtime['webhooks'] ?? null)->toBe(['paused' => true])
         ->and($orgs)->toBe('1')->and($sameKey)->toBeTrue()
+        ->and($json['data']['from_backup']['recipients']['kept'] ?? [])->not->toBeEmpty() // --keep-recipients (M12 gate S2)
+        ->and($uninstall->getExitCode())->toBe(0, $uninstall->getErrorOutput()."\n".$uninstall->getOutput())
+        ->and($final)->toMatchArray(['encrypted' => true, 'includes_secrets' => true, 'key_file' => null])
+        ->and(is_file($target.'/'.($final['dir'] ?? '-').'/backup.tar.age'))->toBeTrue()
+        ->and(glob($target.'/staging') ?: [])->toBe([]); // no plaintext left beside backups/
+});
+
+it('installs a fourth instance from uninstall\'s encrypted final backup with a real fsa install --from-backup (M12 gate)', function (): void {
+    $final = $GLOBALS['fsaJ08Final'] ?? null;
+    expect($final)->toBeString('the previous step left no final backup');
+    $target = $this->journey->work.'/fsa-test-j08d';
+    $process = $this->journey->install($target, [
+        '--from-backup', $final.'/backup.tar.age', '--identity-file', $this->journey->work.'/j08-identity.age', '--passphrase-file', $this->journey->work.'/j08-passphrase.txt',
+        '--accept-unauthenticated', '--domain', 'fsa-test-j08d.test', '--json',
+    ], ['FSA_TEST_DNS' => 'fsa-test-j08d.test=203.0.113.7']);
+    $json = InstanceJourney::json($process);
+    $uuid = (string) InstanceJourney::uuid($target);
+    $orgs = RestoreJourney::sql($uuid, "SELECT count(*) FROM organizations WHERE name = 'Backup Org'");
+    $this->journey->evidence('J08-from-final-backup.json', ['command' => 'install.sh --dir <work>/fsa-test-j08d --from-backup <j08b>/backups/final-…/backup.tar.age --identity-file … --passphrase-file … --accept-unauthenticated --domain fsa-test-j08d.test --json', 'exit_code' => $process->getExitCode(), 'stdout' => $json, 'organizations' => $orgs]);
+    $uninstall = $this->journey->fsa($target, ['uninstall', '--yes', '--json']);
+
+    expect($process->getExitCode())->toBe(0, $process->getErrorOutput()."\n".$process->getOutput())
+        ->and($json['data']['from_backup']['backup'] ?? null)->toStartWith('final-')
+        ->and($json['data']['from_backup']['format'] ?? null)->toBe('fsa')
+        ->and($orgs)->toBe('1')
         ->and($uninstall->getExitCode())->toBe(0);
 });
 

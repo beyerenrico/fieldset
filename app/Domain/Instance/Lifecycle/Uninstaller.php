@@ -104,7 +104,7 @@ final readonly class Uninstaller
         $keys = is_string($final['key_file'] ?? null) ? $final['key_file'] : null;
         $restore = match (true) {
             $set === null => 'They authenticate the backups kept in backups/ (`--app-key-file`).',
-            $keys === null => "`fsa install --from-backup {$root}/{$set} --identity-file <identity> --passphrase-file <file>` brings it back.",
+            $keys === null => "`fsa install --from-backup {$root}/{$set}/backup.tar.age --identity-file <identity> --passphrase-file <file> --accept-unauthenticated` brings it back (its HMAC needs the APP key from outside it: pass `--app-key-file` instead of --accept-unauthenticated if you kept it).",
             default => "`fsa install --from-backup {$root}/{$set} --app-key-file {$root}/{$keys}` brings it back.",
         };
         if ($keys === null) {

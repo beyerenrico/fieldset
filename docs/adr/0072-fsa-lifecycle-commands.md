@@ -261,4 +261,4 @@ mail is then skipped (`InstallSmoke::MAIL_SKIPPED` in the phase data, warning `t
 The `use_config_set` and `mode_not_settable` hint for proxy mode (InstallFlags::PROXY_SWITCH) no longer says the data
 moves only from 2.0.0-rc.1: it names `fsa uninstall --keep-backups` (a final backup of the 2.0 format, ADR 0073
 amendment) and `fsa install --from-backup <dir>/backups/final-<time>` with `--app-key-file` (plain) or the identity
-(encrypted).
+and `--accept-unauthenticated` (encrypted: the keys are inside it).

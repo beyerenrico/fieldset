@@ -211,15 +211,31 @@ it('issues a sign-in link for an existing admin given with --owner-email', funct
         ->and($this->move->instance->oneOffCalls('identity:login-link'))->toHaveCount(1);
 });
 
-it('keeps the backup recipients of an authenticated backup that are age public keys, and drops the rest with a warning (review S4)', function (): void {
+it('keeps the backup recipients of an authenticated backup that are age public keys with --keep-recipients, and drops the rest with a warning (review S4)', function (): void {
     $recipient = 'age1'.str_repeat('q', 58);
     $backup = $this->move->backup(recipients: [$recipient, 'ssh-ed25519 AAAAC3Nza attacker']);
 
-    [$code, $json] = $this->move->install($backup, ['--app-key-file' => $this->move->keyFile()]);
+    [$code, $json] = $this->move->install($backup, ['--app-key-file' => $this->move->keyFile(), '--keep-recipients' => true]);
 
     expect($code)->toBe(0, (string) json_encode($json))
         ->and($this->move->instance->state()->recipients())->toBe([$recipient])
+        ->and($json['data']['from_backup']['recipients'])->toBe(['listed' => [$recipient], 'kept' => [$recipient]])
+        ->and(collect($json['warnings'])->pluck('code')->all())->not->toContain('backup_recipients_not_kept')
         ->and(collect($json['warnings'])->firstWhere('code', 'backup_recipients_dropped')['message'] ?? '')->toContain('1 backup recipient');
+});
+
+it('reports the recipients an authenticated backup lists and keeps them only when --keep-recipients confirms them (M12 gate S2)', function (): void {
+    $recipient = 'age1'.str_repeat('q', 58);
+    $backup = $this->move->backup(recipients: [$recipient]);
+
+    [$code, $json] = $this->move->install($backup, ['--app-key-file' => $this->move->keyFile()]);
+    $warning = collect($json['warnings'])->firstWhere('code', 'backup_recipients_not_kept');
+
+    expect($code)->toBe(0, (string) json_encode($json))
+        ->and($this->move->instance->state()->recipients())->toBe([])
+        ->and($json['data']['from_backup']['recipients'])->toBe(['listed' => [$recipient], 'kept' => []])
+        ->and($warning['message'] ?? '')->toContain($recipient)
+        ->and($warning['hint'] ?? '')->toContain('--keep-recipients');
 });
 
 it('never takes over the backup recipients of an unauthenticated backup (review S4)', function (): void {
