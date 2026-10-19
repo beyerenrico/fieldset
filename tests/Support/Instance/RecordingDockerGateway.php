@@ -348,6 +348,42 @@ final class RecordingDockerGateway implements DockerGateway
         unset($this->containers[$id]);
     }
 
+    /** Like composeRunToFile: the fileRunResponder (entrypoint, command, file) answers, else a fake stream is written. */
+    public function runContainerToFile(ContainerSpec $spec, string $outputFile, ?float $timeout = null): ProcessOutcome
+    {
+        $this->record(__FUNCTION__, ['spec' => $spec, 'file' => $outputFile, 'timeout' => $timeout]);
+        $answer = $this->fileRunResponder instanceof Closure ? ($this->fileRunResponder)($spec->entrypoint, $spec->command, $outputFile) : null;
+        if ($answer instanceof ProcessOutcome) {
+            return $answer;
+        }
+        file_put_contents($outputFile, self::fakeStream($spec->entrypoint));
+        chmod($outputFile, 0600);
+
+        return new ProcessOutcome(0);
+    }
+
+    /** Marks the known containers exited (unknown IDs are recorded only). */
+    public function stopContainers(array $ids, ?int $timeout = null): void
+    {
+        $this->record(__FUNCTION__, ['ids' => $ids, 'timeout' => $timeout]);
+        foreach ($ids as $id) {
+            if (isset($this->containers[$id])) {
+                $this->stopContainer($id);
+            }
+        }
+    }
+
+    /** Marks the known containers running again. */
+    public function startContainers(array $ids): void
+    {
+        $this->record(__FUNCTION__, ['ids' => $ids]);
+        foreach ($ids as $id) {
+            if (isset($this->containers[$id])) {
+                $this->restartContainer($id, (string) $this->containers[$id]->startedAt);
+            }
+        }
+    }
+
     public function createVolume(string $name, array $labels): void
     {
         $this->record(__FUNCTION__, ['name' => $name, 'labels' => $labels]);

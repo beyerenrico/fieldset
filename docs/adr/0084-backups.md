@@ -214,3 +214,9 @@ well inside the slot; the gate's J10 run can record it.
 - The dump keeps `--no-privileges`; a restore re-applies the `REVOKE ALL … FROM PUBLIC` on `audit_seal`, `audit_prune`
   and `audit_prunable` and sets up the backup role again in the restored database (`instance:restore-finish`).
 - `pg_restore --list` and the new `pg_restore --data-only --table=migrations` get `--` before the file.
+
+## Amendment 2026-10-20: the `safety-adopt` backup (U19)
+`fsa adopt` (ADR 0087) writes its `safety-adopt-<UTC>` backup in the 1.0 format of `scripts/backup.sh`, not in the set
+above: `database.dump`, `storage.tar.gz`, `env` (only the restore allow-list's values), `manifest.txt` and `SHA256SUMS`,
+no HMAC, taken from the stopped 1.0 install before fsa copies its volumes. It is a safety backup (never pruned, 0700/0600)
+and restores like any 1.0 archive (`--accept-unauthenticated`).

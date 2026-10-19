@@ -250,6 +250,37 @@ it('builds docker run from a container spec with environment values out of argv'
         ->and($run['timeout'])->toBe(30.0);
 });
 
+it('streams a docker run into a file with environment values out of argv (adopt, plan U19)', function (): void {
+    $spec = new ContainerSpec(image: 'postgres@sha256:'.str_repeat('2', 64), command: ['-h', '127.0.0.1', '--format=custom'], env: ['PGUSER' => 'form_schema'],
+        network: 'container:abc123', user: '1000:1000', entrypoint: 'pg_dump');
+
+    $outcome = $this->docker->runContainerToFile($spec, '/srv/forms/backups/x.partial/database.dump', 3600.0);
+
+    $run = $this->runner->runs[0];
+    expect($run['command'])->toBe(['docker', 'run', '--rm', '--network', 'container:abc123', '--user', '1000:1000', '--entrypoint', 'pg_dump',
+        '--env', 'PGUSER', 'postgres@sha256:'.str_repeat('2', 64), '-h', '127.0.0.1', '--format=custom'])
+        ->and($run['env']['PGUSER'])->toBe('form_schema')
+        ->and($run['stdout_file'])->toBe('/srv/forms/backups/x.partial/database.dump')
+        ->and($run['timeout'])->toBe(3600.0)
+        ->and($outcome->successful())->toBeTrue();
+});
+
+it('stops and starts containers by ID without recreating them, and does nothing for none (adopt, plan U19)', function (): void {
+    $this->docker->stopContainers(['abc', 'def'], 100);
+    $stop = $this->runner->lastCommand();
+    $this->docker->startContainers(['abc']);
+    $start = $this->runner->lastCommand();
+    $this->docker->stopContainers([]);
+    $this->docker->startContainers([]);
+
+    expect($stop)->toBe(['docker', 'container', 'stop', '--time', '100', 'abc', 'def'])
+        ->and($start)->toBe(['docker', 'container', 'start', 'abc'])
+        ->and($this->runner->runs)->toHaveCount(2)
+        ->and(fn () => $this->docker->stopContainers(['--all']))->toThrow(InvalidInput::class);
+    $this->runner->push(new ProcessOutcome(1, '', 'Error response from daemon: No such container: gone'));
+    expect(fn () => $this->docker->startContainers(['gone']))->toThrow(DockerCommandFailed::class);
+});
+
 it('removes single resources', function (Closure $call, array $args): void {
     $call($this->docker);
 

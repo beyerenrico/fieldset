@@ -173,6 +173,21 @@ it('mounts the parent of every file-path flag at the same path, read-only for in
         ->and(glob($this->dir.'/.fsa-nonce-*'))->toBe([]);
 });
 
+it('mounts adopt\'s 1.0 checkout read-only at its own physical path and passes that path (ADR 0087)', function (): void {
+    mkdir($this->scripts->root.'/home/form-schema-app');
+    $checkout = realpath($this->scripts->root.'/home/form-schema-app');
+
+    $process = $this->scripts->run($this->dir.'/fsa', ['adopt', 'home/./form-schema-app', '--yes', '--json'], $this->env, $this->scripts->root);
+    $run = $this->scripts->opsRuns()[0];
+    $missing = $this->scripts->run($this->dir.'/fsa', ['adopt', $this->scripts->root.'/home/none', '--json'], $this->env);
+
+    expect($process->getExitCode())->toBe(0, $process->getErrorOutput())
+        ->and(shimVolumes($run))->toContain("{$checkout}:{$checkout}:ro")
+        ->and(array_slice($run, array_search(SHIM_IMAGE, $run, true) + 1))->toBe(['adopt', '--dir', $this->dir, $checkout, '--yes', '--json'])
+        ->and($this->scripts->opsEnvironment()['FSA_MOUNTS'])->toBe("ro:{$checkout}\n")
+        ->and($missing->getExitCode())->toBe(2)->and($missing->getOutput())->toContain('path_missing');
+});
+
 it('refuses file paths a bind mount cannot carry or whose directory does not exist (exit 2)', function (array $arguments, string $message): void {
     $process = $this->scripts->run($this->dir.'/fsa', ['install', ...$arguments], $this->env);
 

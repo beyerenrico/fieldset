@@ -175,6 +175,27 @@ final readonly class CliDockerGateway implements DockerGateway
         $this->call(['container', 'rm', ...($force ? ['--force'] : []), $id], 'container rm');
     }
 
+    public function runContainerToFile(ContainerSpec $spec, string $outputFile, ?float $timeout = null): ProcessOutcome
+    {
+        $env = [...$spec->env, ...$this->platformEnv($spec->enginePlatform)];
+
+        return $this->attempt([$this->binary, 'run', ...RunArguments::for($spec, false), ...$this->envFlags($spec->env), $spec->image, ...$spec->command], $env, null, $timeout, $outputFile);
+    }
+
+    public function stopContainers(array $ids, ?int $timeout = null): void
+    {
+        if ($ids !== []) {
+            $this->call(['container', 'stop', ...($timeout === null ? [] : ['--time', (string) $timeout]), ...$this->names($ids)], 'container stop', null);
+        }
+    }
+
+    public function startContainers(array $ids): void
+    {
+        if ($ids !== []) {
+            $this->call(['container', 'start', ...$this->names($ids)], 'container start');
+        }
+    }
+
     public function createVolume(string $name, array $labels): void
     {
         $existing = $this->inspect(['volume', 'inspect', '--format', '{{.Name}}', ...$this->names([$name])], 'volume inspect');

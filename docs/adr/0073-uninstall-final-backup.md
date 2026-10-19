@@ -79,3 +79,10 @@ first.
   Postgres (dump read back with `pg_restore --list`).
 - ADR 0072's uninstall paragraph (exit 1 for an incomplete uninstall, `--orphans` removing any other UUID) is
   superseded by this ADR.
+
+## Amendment 2026-10-20: adopted instances (U19)
+An instance made by `fsa adopt` (ADR 0087) gets the final backup without `--keep-backups` and keeps `backups/` (its 1.0
+checkout holds the data only up to the adopt); the new `--no-backup` skips the final backup for any instance. The result of
+an adopted instance's uninstall adds `adopted` (checkout, the writes since adopt read from the running Postgres against the
+ledger's baseline, and `restart_1_0`) and the warnings `restart_1_0` and `writes_since_adopt`. The 1.0 volumes carry no
+instance label and stay.

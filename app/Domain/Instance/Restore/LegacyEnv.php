@@ -18,15 +18,25 @@ final readonly class LegacyEnv
 {
     public const array ALLOWED = ['APP_KEY', 'APP_PREVIOUS_KEYS', 'APP_URL', 'MAIL_FROM_ADDRESS', 'MAIL_FROM_NAME', 'MAIL_HOST', 'MAIL_PORT'];
 
+    /**
+     * What `fsa adopt` reads from a 1.0 checkout's `.env` beyond ALLOWED (plan U19, ADR 0087), none of it secret: where it
+     * listens (APP_PORT), which Compose files and project it runs (COMPOSE_FILE, COMPOSE_PROJECT_NAME: an override is
+     * refused), and the database and user its bundled Postgres created (DB_DATABASE, DB_USERNAME; never DB_PASSWORD).
+     */
+    public const array ADOPT = [...self::ALLOWED, 'APP_PORT', 'COMPOSE_FILE', 'COMPOSE_PROJECT_NAME', 'DB_DATABASE', 'DB_USERNAME'];
+
     /** What fsa renders whatever the 1.0 file said (ServiceEnvironments). */
     public const array FORCED = ['APP_DEBUG' => 'false', 'SSO_ALLOW_INSECURE_IDP' => 'false', 'SSO_DNS_DRIVER' => 'dns'];
 
-    /** @return array<string, string> the allow-listed keys present in the file */
-    public static function read(#[SensitiveParameter] string $contents): array
+    /**
+     * @param  list<string>  $keys  the allow-list (ALLOWED, or ADOPT for a checkout)
+     * @return array<string, string> the allow-listed keys present in the file
+     */
+    public static function read(#[SensitiveParameter] string $contents, array $keys = self::ALLOWED): array
     {
         $values = [];
         foreach (preg_split('/\r?\n/', $contents) ?: [] as $line) {
-            if (preg_match('/^\s*(?:export\s+)?([A-Z_][A-Z0-9_]*)\s*=(.*)$/D', $line, $match) !== 1 || ! in_array($match[1], self::ALLOWED, true)) {
+            if (preg_match('/^\s*(?:export\s+)?([A-Z_][A-Z0-9_]*)\s*=(.*)$/D', $line, $match) !== 1 || ! in_array($match[1], $keys, true)) {
                 continue;
             }
             $value = self::value(trim($match[2]));

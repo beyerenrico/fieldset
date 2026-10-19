@@ -241,3 +241,9 @@ U12 did not add them (the smoke path above and the U12 consequence promised it);
   encryption, backups on disk, safety backups with age and size, alerts), read from the run ledger without a database;
   failed backups, scheduled runs skipped for more than 24 hours and a schedule without success for 26 hours are warnings.
   The services list includes `backup`.
+
+## Amendment 2026-10-20: the smoke test's mail without a recipient (U19)
+Without an owner e-mail (`fsa adopt`, `fsa install --from-backup` without `--owner-email`) the smoke test's mail goes to
+the active operator. Data from a 1.0 install may have none (1.0 granted operators by hand with `app:platform-admin`); the
+mail is then skipped (`InstallSmoke::MAIL_SKIPPED` in the phase data, warning `test_mail_skipped` from adopt with the hint
+`fsa config set operator-email <email>`), the PDF and HTTP checks still run (ADR 0087).

@@ -9,9 +9,9 @@
 #   roles (the backup service); tests/Unit/Docker/ImageContractTest.php keeps both in step with the registered
 #   commands.
 # - Symfony's console answers a literal --version with the framework version before any command runs, so the
-#   --version flag of `fsa install` (§7) is passed on as --release, up to a literal -- (ADR 0072).
+#   --version flag of `fsa install` (§7) and `fsa adopt` is passed on as --release, up to a literal -- (ADR 0072, 0087).
 set -e
-commands='backup config demo doctor install login-link logs restore status tunnel uninstall version'
+commands='adopt backup config demo doctor install login-link logs restore status tunnel uninstall version'
 roles='backup-daemon restore-prepare'
 value_flags='--acme-ca --acme-ca-root-file --acme-email --app-key-file --behind-proxy --dir --domain --from-address
 --from-backup --from-name --identity-file --identity-out --kind --lan-address --locale --lock-id --org --orphans
@@ -71,7 +71,7 @@ if [ "$found" = 1 ]; then
 	esac
 fi
 
-# Pass 2: --json lists as JSON; `install` takes --version as --release (both only up to a literal --).
+# Pass 2: --json lists as JSON; `install` and `adopt` take --version as --release (both only up to a literal --).
 n=$#
 ended=0
 while [ "$n" -gt 0 ]; do
@@ -82,8 +82,8 @@ while [ "$n" -gt 0 ]; do
 		case "$found:$command:$arg" in
 		*:--) ended=1 ;;
 		0::--json) arg=--format=json ;;
-		1:install:--version) arg=--release ;;
-		1:install:--version=*) arg=--release=${arg#--version=} ;;
+		1:install:--version | 1:adopt:--version) arg=--release ;;
+		1:install:--version=* | 1:adopt:--version=*) arg=--release=${arg#--version=} ;;
 		esac
 	fi
 	set -- "$@" "$arg"
