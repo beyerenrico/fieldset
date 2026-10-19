@@ -2,11 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Domain\Instance\Console\FsaCommand;
 use App\Domain\Instance\Docker\ContainerSpec;
 use App\Domain\Instance\Docker\DockerCommandFailed;
 use App\Domain\Instance\Docker\ProcessOutcome;
 use App\Domain\Instance\Operations\OperationJournal;
 use App\Domain\Instance\Upgrade\DetachedSupervisor;
+use Symfony\Component\Console\Output\BufferedOutput;
 use Tests\Support\Instance\TemporaryInstance;
 use Tests\Support\Instance\UpgradeFixture;
 use Tests\Support\Release\ReleaseFixtures;
@@ -182,6 +184,48 @@ it('starts the detached supervisor from the installed image with the socket and 
         ->and($launched->env)->toMatchArray(['FSA_HOST_UID' => (string) $facts->uid, 'FSA_RELEASE_URL' => UpgradeFixture::RELEASE_URL, 'FSA_INSTANCE_DIR' => $this->dir])
         ->and(array_keys($launched->env))->not->toContain('FSA_NONCE')
         ->and(glob($this->dir.'/operations/supervisor-*.json'))->toBe([]);
+});
+
+it('follows the running supervisor through its journal, and a journal it cannot read for a moment does not stop it', function (): void {
+    $docker = $this->upgrade->instance->docker;
+    $previous = $docker->runResponder;
+    $supervisor = str_repeat('e', 64);
+    $polls = 0;
+    $journal = new OperationJournal($this->upgrade->instance->directory);
+    $docker->respondToRun(function (ContainerSpec $spec) use ($previous, $supervisor, $journal): ?ProcessOutcome {
+        if (! in_array('--supervise', $spec->command, true)) {
+            return $previous($spec);
+        }
+        $this->upgrade->instance->docker->withRunningContainer($supervisor, '2026-10-20T10:00:00Z');
+        $journal->begin('upgrade', posix_getuid());
+        $journal->startPhase('release', [], false);
+        file_put_contents($this->dir.'/'.$spec->env[DetachedSupervisor::RESULT_ENV], json_encode(['exit_code' => 5, 'envelope' => ['command' => 'upgrade', 'status' => 'rolled_back',
+            'changed' => true, 'data' => ['running' => '2.0.0-alpha.1'], 'errors' => [['code' => 'target_unhealthy', 'message' => 'x', 'hint' => null, 'retryable' => true]]]]));
+
+        return new ProcessOutcome(0, $supervisor."\n");
+    });
+    $docker->onCall['inspectContainer'] = function (array $args) use (&$polls, $supervisor, $journal): void {
+        if ($args['id'] !== $supervisor) {
+            return;
+        }
+        $polls++;
+        match ($polls) {
+            2 => chmod($this->dir.'/operations/current.json', 0000), // unreadable for one poll
+            3 => chmod($this->dir.'/operations/current.json', 0600),
+            4 => $journal->completePhase('release'),
+            6 => $this->upgrade->instance->docker->forgetContainer($supervisor),
+            default => null,
+        };
+    };
+    $events = new BufferedOutput;
+    app()->instance(FsaCommand::PROGRESS_OUTPUT, $events);
+
+    [$code, $json] = $this->upgrade->instance->run('fsa:upgrade', ['--to' => UpgradeFixture::TARGET]);
+    $phases = array_map(static fn (string $line): string => (string) (json_decode($line, true)['message'] ?? ''), array_filter(explode("\n", $events->fetch())));
+
+    expect($code)->toBe(5, (string) json_encode($json))
+        ->and($json['errors'][0]['code'])->toBe('target_unhealthy')
+        ->and($phases)->toContain('Starting release', 'Completed release');
 });
 
 it('says where to look when the supervisor stops without a result', function (): void {

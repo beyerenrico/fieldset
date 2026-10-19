@@ -19,6 +19,7 @@ use App\Domain\Instance\Restore\RestoreOperation;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceState;
 use Illuminate\Support\Sleep;
+use Throwable;
 
 /**
  * The foreground side of `fsa upgrade` (KTD5, plan U18, ADR 0086). The upgrade runs in a detached ops container of the
@@ -98,7 +99,7 @@ final readonly class DetachedSupervisor
             Sleep::for(self::FOLLOW_SECONDS)->seconds();
         }
         $this->phases($progress, $seen);
-        $raw = $this->directory->read($result);
+        $raw = $this->resultFile($result);
         if ($raw !== null) {
             $this->directory->files()->delete($result);
         }
@@ -116,9 +117,31 @@ final readonly class DetachedSupervisor
      *
      * @param  array<string, true>  $seen
      */
+    /**
+     * The supervisor's result file. A read can fail for a moment where the instance directory reaches containers
+     * through a file-sharing layer (Docker Desktop's virtiofs): retried a few times before the result counts as missing.
+     */
+    private function resultFile(string $result): ?string
+    {
+        for ($attempt = 1; ; $attempt++) {
+            try {
+                return $this->directory->read($result);
+            } catch (Throwable) {
+                if ($attempt >= 5) {
+                    return null;
+                }
+                Sleep::for(1)->second();
+            }
+        }
+    }
+
     private function phases(ProgressReporter $progress, array &$seen): void
     {
-        $record = $this->journal->current();
+        try {
+            $record = $this->journal->current();
+        } catch (Throwable) {
+            return; // the supervisor replaces the journal file while we read it (a shared mount): the next poll reads it
+        }
         if (! $record instanceof JournalRecord || $record->operation() !== UpgradeJournal::OPERATION) {
             return;
         }
