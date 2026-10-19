@@ -6,7 +6,7 @@
         "2.0.0-rc.4-test"
     ],
     "built": "2026-10-19",
-    "revision": "93835ba9b2f1ba63593f698fbe09ee0e3341f89c",
+    "revision": "554d9efb15abf59dbec211b45e3db7a01d0a8bfa",
     "install": {
         "exit_code": 0,
         "version": "2.0.0-rc.1-test"
@@ -26,16 +26,15 @@
         "exit_code": 5,
         "error": {
             "code": "target_unhealthy",
-            "message": "The upgrade to 2.0.0-rc.3-test failed and was rolled back; the instance runs 2.0.0-rc.1-test again with the data of the safety backup. Cause: The target release did not become healthy behind the gate:  Container fsa-fsa-test-j07-fa4d-redis-1 Healthy \ncontainer fsa-fsa-test-j07-fa4d-app-1 is unhealthy",
+            "message": "The upgrade to 2.0.0-rc.3-test failed and was rolled back; the instance runs 2.0.0-rc.1-test again with the data of the safety backup. Cause: The target release did not become healthy behind the gate:  Container fsa-fsa-test-j07-a5f7-redis-1 Healthy \ncontainer fsa-fsa-test-j07-a5f7-app-1 is unhealthy",
             "hint": "Read the logs in `data.logs` and `fsa logs app`; nothing written since the safety backup was lost (writers were stopped). Run `fsa upgrade` again once the cause is fixed.",
             "retryable": true
         },
-        "acknowledged_writes": 118,
+        "acknowledged_writes": 115,
         "statuses_after_the_gate": {
-            "503": 63,
-            "0": 2,
-            "201": 1,
-            "200": 1
+            "503": 59,
+            "0": 3,
+            "201": 1
         },
         "retried_after_rollback": 200
     },
@@ -46,7 +45,7 @@
             "operation": "upgrade",
             "last_phase": "quiesce",
             "last_completed_phase": "pull",
-            "started_at": "2026-10-19T20:20:10Z",
+            "started_at": "2026-10-19T21:21:46Z",
             "command": "fsa upgrade --resume",
             "options": []
         },
@@ -56,12 +55,12 @@
             "health": "ok"
         },
         "last_history": {
-            "at": "2026-10-19T20:21:01Z",
+            "at": "2026-10-19T21:22:25Z",
             "event": "upgraded",
             "from": "2.0.0-rc.1-test",
             "to": "2.0.0-rc.2-test",
-            "journal": "da2fa43985a44b33",
-            "safety_backup": "safety-upgrade-20261019T202027Z"
+            "journal": "678528dd7ef2698d",
+            "safety_backup": "safety-upgrade-20261019T212158Z"
         }
     },
     "rollback": {
@@ -69,8 +68,8 @@
         "data": {
             "from": "2.0.0-rc.2-test",
             "to": "2.0.0-rc.1-test",
-            "backup": "safety-upgrade-20261019T202027Z",
-            "safety_backup": "safety-rollback-20261019T202203Z",
+            "backup": "safety-upgrade-20261019T212158Z",
+            "safety_backup": "safety-rollback-20261019T212318Z",
             "loss": {
                 "submissions": 1,
                 "activity_log": 1,
@@ -109,7 +108,7 @@
                 "webhook_endpoints_deactivated": 0
             },
             "carry_mode": "state",
-            "storage_volume": "fsa-fsa-test-j07-fa4d_app-storage-rad0448f52cf3",
+            "storage_volume": "fsa-fsa-test-j07-a5f7_app-storage-r2e7600569199",
             "left_behind": []
         },
         "error": null
@@ -132,13 +131,13 @@
         "exit_code": 5,
         "error": {
             "code": "target_unhealthy",
-            "message": "The upgrade to 2.0.0-rc.3-test failed and was rolled back; the instance runs 2.0.0-rc.1-test again with the data of the safety backup. Cause: The target release did not become healthy behind the gate:  Container fsa-fsa-test-j07p-a86c-gotenberg-1 Healthy \ncontainer fsa-fsa-test-j07p-a86c-app-1 is unhealthy",
+            "message": "The upgrade to 2.0.0-rc.3-test failed and was rolled back; the instance runs 2.0.0-rc.1-test again with the data of the safety backup. Cause: The target release did not become healthy behind the gate:  Container fsa-fsa-test-j07p-e203-postgres-1 Healthy \ncontainer fsa-fsa-test-j07p-e203-app-1 is unhealthy",
             "hint": "Read the logs in `data.logs` and `fsa logs app`; nothing written since the safety backup was lost (writers were stopped). Run `fsa upgrade` again once the cause is fixed.",
             "retryable": true
         },
-        "acknowledged_writes": 84,
+        "acknowledged_writes": 100,
         "statuses_after_the_gate": {
-            "503": 57,
+            "503": 55,
             "0": 2,
             "201": 1,
             "200": 1
