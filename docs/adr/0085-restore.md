@@ -135,8 +135,18 @@ pending": a warning, not exit 3, and the smoke test checks the app internally. T
 `workflows.sweep_after_minutes`). The operator confirms the move with `fsa config set webhooks on` (new key, every mode,
 runtime only, no service recreated) and `fsa config set mail smtp …` (ADR 0080). APP_KEY is the backup's current key
 (from the key file or, inside an encrypted archive, `secrets.env`; a 1.0 archive's `env`), the other listed keys become
-APP_PREVIOUS_KEYS. The restore uses the same database and storage primitives, then install's own migrate phase brings an
-older dump up to date.
+APP_PREVIOUS_KEYS; no key for the first listed fingerprint is exit 2 `app_key_required`. Without mode flags the backup's
+mode applies: its domain (domain mode), local mode, or for a proxy-mode backup exit 2 `proxy_flags_required`;
+`--port` without `--domain` means local mode; a 1.0 `APP_URL` with https and a public host name means domain mode,
+anything else local mode. With `--from-backup`, `--org`, `--owner-name`, `--locale`, `--demo` and the SMTP and sender
+flags are exit 2 `flag_not_applicable` (the data comes from the backup); `--owner-email` only asks for a sign-in link
+for that existing admin at the end. The phases are `backup` (release verified, the backup prepared and judged; repeated
+on a resume until `restore_storage` completed, so the scratch set is rebuilt) → doctor → secrets → state → pull → up →
+`restore_database` (scratch database swapped with the empty live one, which is dropped) → `restore_storage` → migrate
+(install's own phase brings an older dump up to date) and the backup role → `restore_finish` (no carry: there is no
+earlier database) → start → smoke → done; the state history gets `installed` (with `from_backup`) and
+`installed_from_backup` (backup, epoch). The same flags again on the finished instance change nothing; another backup is
+exit 2 `use_restore`.
 
 **1.0 reader and allow-list (R60, KTD20).** A directory with `manifest.txt` and `SHA256SUMS` (sha256sum format, the same
 name rules) is the 1.0 format: no HMAC, so always `--accept-unauthenticated`. Its migration set is read from the dump.
