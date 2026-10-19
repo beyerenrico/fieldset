@@ -21,9 +21,10 @@ final readonly class LegacyEnv
     /**
      * What `fsa adopt` reads from a 1.0 checkout's `.env` beyond ALLOWED (plan U19, ADR 0087), none of it secret: where it
      * listens (APP_PORT), which Compose files and project it runs (COMPOSE_FILE, COMPOSE_PROJECT_NAME: an override is
-     * refused), and the database and user its bundled Postgres created (DB_DATABASE, DB_USERNAME; never DB_PASSWORD).
+     * refused), the database and user its bundled Postgres created (DB_DATABASE, DB_USERNAME; never DB_PASSWORD), and the
+     * Valkey database its queue uses (REDIS_DB).
      */
-    public const array ADOPT = [...self::ALLOWED, 'APP_PORT', 'COMPOSE_FILE', 'COMPOSE_PROJECT_NAME', 'DB_DATABASE', 'DB_USERNAME'];
+    public const array ADOPT = [...self::ALLOWED, 'APP_PORT', 'COMPOSE_FILE', 'COMPOSE_PROJECT_NAME', 'DB_DATABASE', 'DB_USERNAME', 'REDIS_DB'];
 
     /** What fsa renders whatever the 1.0 file said (ServiceEnvironments). */
     public const array FORCED = ['APP_DEBUG' => 'false', 'SSO_ALLOW_INSECURE_IDP' => 'false', 'SSO_DNS_DRIVER' => 'dns'];

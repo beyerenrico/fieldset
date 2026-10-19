@@ -31,12 +31,14 @@ use Throwable;
  *   read it;
  * - `storage.tar.gz`: 1.0's app-storage volume, mounted read-only into a one-off of the app image without a network
  *   (GNU tar, numeric owners, `./` members as 1.0 writes them); tar's exit 1 (a file changed) is a warning, as in 1.0;
- * - `env`: only the allow-listed values (LegacyEnv::ALLOWED: the APP keys, URL, sender and SMTP server), so a restore can
- *   decrypt the data and knows it belongs to the adopted instance (its APP_KEY is the instance's, ADR 0085);
- * - `manifest.txt` (`key=value`: created_at, postgres, migrations, last_migration, row counts, storage, env, source) and
+ * - `env`: the restore allow-list's values without the APP keys (URL, sender, SMTP server; review S1): the keys stay out of
+ *   `backups/`, which is neither encrypted nor pruned here (ADR 0084: app keys reach backups only encrypted);
+ * - `manifest.txt` (`key=value`: created_at, postgres, migrations, last_migration, row counts, storage, env, source and
+ *   `app_key_fingerprints`, which name the keys the data needs and make it this instance's backup for `fsa restore`) and
  *   `SHA256SUMS`.
  *
  * The snapshot (counts and chain heads) is read right after the dump: 1.0's writers are stopped, so both see one state.
+ * The `.partial` directory of a run killed earlier is removed first (review A7).
  */
 final readonly class LegacyBackupWriter
 {
@@ -46,18 +48,25 @@ final readonly class LegacyBackupWriter
 
     public const float TIMEOUT = 21600.0;
 
+    /** Never written to the backup (review S1). */
+    public const array KEYS = ['APP_KEY', 'APP_PREVIOUS_KEYS'];
+
     public function __construct(private InstanceDirectory $directory, private DockerGateway $docker, private DatabaseProbe $probe) {}
 
     /**
      * @param  array{app: string, postgres: string}  $images
-     * @param  array<string, string>  $env  the allow-listed `.env` values to keep
+     * @param  array<string, string>  $env  the allow-listed `.env` values (the APP keys among them are left out)
+     * @param  list<string>  $fingerprints  the APP keys' fingerprints, current first
      * @return array{name: string, path: string, bytes: int, snapshot: array<string, mixed>, warnings: list<string>}
      *
      * @throws InstanceException exit 4 `legacy_backup_failed`; nothing of the partial backup is left
      */
-    public function write(LegacyInstall $legacy, array $images, string $uuid, #[SensitiveParameter] array $env): array
+    public function write(LegacyInstall $legacy, array $images, string $uuid, #[SensitiveParameter] array $env, array $fingerprints): array
     {
         $store = new BackupStore($this->directory);
+        foreach ($this->partials($store) as $partial) {
+            $this->directory->files()->delete(InstanceDirectory::BACKUPS_DIR.'/'.$partial);
+        }
         [$name, $partial] = $store->begin(BackupName::safety('adopt', CarbonImmutable::now('UTC')));
 
         try {
@@ -65,7 +74,7 @@ final readonly class LegacyBackupWriter
             $snapshot = $this->probe->snapshot($images['postgres'], $legacy->postgres(), $legacy->database, $legacy->username, $uuid);
             $warnings = $this->storage($legacy, $images['app'], $uuid, $partial);
             $this->directory->write($this->relative($name->partial(), BackupSet::LEGACY_ENV), $this->env($env), 0600);
-            $this->directory->write($this->relative($name->partial(), BackupSet::LEGACY_MANIFEST), $this->manifest($name, $legacy, $snapshot, isset($legacy->volumes[LegacyInstall::STORAGE_VOLUME])), 0600);
+            $this->directory->write($this->relative($name->partial(), BackupSet::LEGACY_MANIFEST), $this->manifest($name, $legacy, $snapshot, isset($legacy->volumes[LegacyInstall::STORAGE_VOLUME]), $fingerprints), 0600);
             $files = array_values(array_filter([self::DATABASE, self::STORAGE, BackupSet::LEGACY_ENV, BackupSet::LEGACY_MANIFEST], static fn (string $file): bool => is_file($partial.'/'.$file)));
             $this->directory->write($this->relative($name->partial(), BackupChecksums::SUMS), BackupChecksums::sums($partial, $files), 0600);
             $path = $store->complete($name);
@@ -125,7 +134,8 @@ final readonly class LegacyBackupWriter
         }
     }
 
-    private function manifest(BackupName $name, LegacyInstall $legacy, DataSnapshot $snapshot, bool $storage): string
+    /** @param  list<string>  $fingerprints */
+    private function manifest(BackupName $name, LegacyInstall $legacy, DataSnapshot $snapshot, bool $storage, array $fingerprints): string
     {
         $lines = [
             'created_at' => $name->at->format('Ymd\THis\Z'),
@@ -138,25 +148,33 @@ final readonly class LegacyBackupWriter
             'source' => 'fsa adopt',
             'version' => $legacy->version,
             'project' => $legacy->project,
+            'app_key_fingerprints' => implode(',', $fingerprints),
         ];
 
         return implode('', array_map(static fn (string $key, string $value): string => $key.'='.preg_replace('/[\x00-\x1F\x7F]/', '', $value)."\n", array_keys($lines), $lines));
     }
 
     /**
-     * The allow-listed values, single-quoted (literal for both LegacyEnv and 1.0's dotenv), double-quoted when a value
-     * holds a single quote.
+     * The allow-listed values without the APP keys, single-quoted (literal for both LegacyEnv and 1.0's dotenv),
+     * double-quoted when a value holds a single quote.
      *
      * @param  array<string, string>  $env
      */
     private function env(#[SensitiveParameter] array $env): string
     {
-        $lines = "# Written by fsa adopt: the allow-listed values of the 1.0 .env (APP keys, URL, sender, SMTP server).\n";
-        foreach (array_intersect_key($env, array_flip(LegacyEnv::ALLOWED)) as $key => $value) {
+        $lines = "# Written by fsa adopt: the URL, sender and SMTP server of the 1.0 .env. The APP keys are not here: their\n"
+            ."# fingerprints are in manifest.txt; restore elsewhere with --app-key-file (the 1.0 .env's APP_KEY).\n";
+        foreach (array_diff_key(array_intersect_key($env, array_flip(LegacyEnv::ALLOWED)), array_flip(self::KEYS)) as $key => $value) {
             $lines .= $key.'='.(str_contains($value, "'") ? '"'.str_replace(['\\', '"'], ['\\\\', '\\"'], $value).'"' : "'".$value."'")."\n";
         }
 
         return $lines;
+    }
+
+    /** @return list<string> the `safety-adopt-<UTC>.partial` directories a killed run left */
+    private function partials(BackupStore $store): array
+    {
+        return array_values(array_filter($store->partials(), static fn (string $name): bool => str_starts_with($name, BackupName::SAFETY.'-adopt-')));
     }
 
     private function relative(string $partial, string $file): string

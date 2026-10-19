@@ -431,8 +431,8 @@ fsa_run() { # <instance dir> <image> <fsa command> [args...]: runs it in an ops 
 		fsa_file_flag_mode "$fsa_name"
 		if [ "$fsa_name" != --dir ] && [ -z "$fsa_mode" ]; then
 			set -- "$@" "$fsa_arg"
-			# Before the command, the value of a value-taking flag is no command candidate: keep it with its flag.
-			if [ "$fsa_found" = 0 ] && [ "$fsa_name" = "$fsa_arg" ] && [ "$fsa_n" -gt 0 ] && fsa_takes_value "$fsa_name"; then
+			# The value of a value-taking flag is neither the command nor adopt's checkout: keep it with its flag.
+			if [ "$fsa_name" = "$fsa_arg" ] && [ "$fsa_n" -gt 0 ] && fsa_takes_value "$fsa_name"; then
 				fsa_arg=$1
 				shift
 				fsa_n=$((fsa_n - 1))

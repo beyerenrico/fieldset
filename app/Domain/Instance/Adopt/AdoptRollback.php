@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Adopt;
 
+use App\Domain\Instance\Backup\BackupName;
+use App\Domain\Instance\Backup\BackupStore;
 use App\Domain\Instance\Docker\DockerCommandFailed;
 use App\Domain\Instance\Docker\DockerGateway;
 use App\Domain\Instance\Docker\Labels;
@@ -17,9 +19,9 @@ use Throwable;
  * labelled with the new instance's UUID goes first (2.0 never served, so nothing of it is lost, and none of its
  * containers can hold a port 1.0 needs), then 1.0 starts again exactly as it ran (LegacyStack::restart; its volumes were
  * only read) and fsa checks that its containers run, then the files adopt generated go (state, compose file, env and
- * runtime files), so a later adopt starts fresh. The 1.0-format backup, the journal archive and the release stay. A
- * failure to start 1.0 again is exit 8 with the command that brings it back by hand; leftovers and 1.0 containers that
- * do not run are named.
+ * runtime files) and a `.partial` backup a killed run left, so a later adopt starts fresh. The 1.0-format backup, the
+ * journal archive and the release stay. A failure to start 1.0 again is exit 8 with the command that brings it back by
+ * hand; leftovers and 1.0 containers that do not run are named.
  */
 final readonly class AdoptRollback
 {
@@ -48,6 +50,11 @@ final readonly class AdoptRollback
         }
         foreach (self::GENERATED as $file) {
             $this->directory->files()->delete($file);
+        }
+        foreach (new BackupStore($this->directory)->partials() as $partial) {
+            if (str_starts_with($partial, BackupName::SAFETY.'-adopt-')) {
+                $this->directory->files()->delete(InstanceDirectory::BACKUPS_DIR.'/'.$partial); // a dump a killed backup left (review A7)
+            }
         }
 
         return ['restarted' => $restarted, 'not_running' => $this->stack->notRunning($legacy), 'removed' => $removed, 'left' => $left];

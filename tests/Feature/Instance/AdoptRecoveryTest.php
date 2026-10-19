@@ -121,8 +121,12 @@ it('removes the new instance\'s containers before it starts 1.0 again, and names
     $this->adopt->copySnapshot = [...$this->adopt->snapshot, 'migrations' => 119];
     $docker = $this->adopt->instance->docker;
     $app = $this->adopt->legacyId('app');
-    $docker->onCall['inspectContainer'] = static function (array $args) use ($docker, $app): void {
-        if ($args['id'] === $app) {
+    $started = false;
+    $docker->onCall['startContainers'] = static function (array $args) use ($app, &$started): void {
+        $started = $started || in_array($app, $args['ids'], true);
+    };
+    $docker->onCall['inspectContainer'] = static function (array $args) use ($docker, $app, &$started): void {
+        if ($started && $args['id'] === $app) {
             $docker->stopContainer($app); // exits right after its start
         }
     };

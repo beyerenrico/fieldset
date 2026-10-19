@@ -80,6 +80,15 @@ interface DockerGateway
 
     public function inspectContainer(string $id): ?ContainerInfo;
 
+    /**
+     * The values of these keys in a container's environment (`Config.Env`), nothing else kept; null when there is no such
+     * container. `fsa adopt` compares what a 1.0 container runs with against its checkout's `.env` (plan U19).
+     *
+     * @param  list<string>  $keys
+     * @return array<string, string>|null
+     */
+    public function containerEnv(string $id, array $keys): ?array;
+
     /** A network by name or ID with its subnets, gateways and attached containers; null when there is none. */
     public function inspectNetwork(string $name): ?NetworkInfo;
 

@@ -159,6 +159,23 @@ it('inspects a container for its ID and start time', function (): void {
         ->and(fn () => $this->docker->inspectContainer('x'))->toThrow(DockerCommandFailed::class);
 });
 
+it('reads a container\'s volume mounts from inspect, and only the asked-for environment values (adopt, plan U19)', function (): void {
+    $this->runner->push(
+        new ProcessOutcome(0, json_encode(['Id' => 'p1', 'Name' => '/pg', 'State' => ['Status' => 'exited'], 'Config' => ['Image' => 'postgres:16-alpine'],
+            'Mounts' => [['Type' => 'volume', 'Name' => 'v1_pg-data', 'Destination' => '/var/lib/postgresql/data'], ['Type' => 'bind', 'Source' => '/etc/x', 'Destination' => '/x']]])),
+        new ProcessOutcome(0, json_encode(['APP_KEY=base64:abc=', 'DB_PASSWORD=hunter2-secret', 'APP_PORT=8080', 'BROKEN'])),
+        new ProcessOutcome(1, '', 'Error: No such container: gone'),
+    );
+
+    $container = $this->docker->inspectContainer('p1');
+    $env = $this->docker->containerEnv('a1', ['APP_KEY', 'APP_PORT', 'DB_DATABASE']);
+
+    expect($container?->mounts)->toBe(['/var/lib/postgresql/data' => 'v1_pg-data'])
+        ->and($this->runner->runs[1]['command'])->toBe(['docker', 'container', 'inspect', '--format', '{{json .Config.Env}}', 'a1'])
+        ->and($env)->toBe(['APP_KEY' => 'base64:abc=', 'APP_PORT' => '8080'])
+        ->and($this->docker->containerEnv('gone', ['APP_KEY']))->toBeNull();
+});
+
 it('inspects a network for its gateway and the addresses of attached containers (proxy mode, ADR 0076)', function (): void {
     $this->runner->push(
         new ProcessOutcome(0, json_encode([

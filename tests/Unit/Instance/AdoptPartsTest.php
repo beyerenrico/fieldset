@@ -5,10 +5,13 @@ declare(strict_types=1);
 use App\Domain\Instance\Adopt\AdoptSettings;
 use App\Domain\Instance\Adopt\DataSnapshot;
 use App\Domain\Instance\Adopt\LegacyCheckout;
+use App\Domain\Instance\Adopt\LegacyContainers;
 use App\Domain\Instance\Adopt\LegacyInstall;
 use App\Domain\Instance\Adopt\LegacyStack;
 use App\Domain\Instance\Adopt\QueueDrain;
 use App\Domain\Instance\Docker\ContainerInfo;
+use App\Domain\Instance\Docker\DockerCommandFailed;
+use App\Domain\Instance\Docker\Labels;
 use App\Domain\Instance\Doctor\PortProbe;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Output\InvalidInput;
@@ -100,14 +103,28 @@ it('refuses a checkout it cannot read with exit 2', function (): void {
     chmod($this->checkout.'/.env', 0600);
 })->skip(fn (): bool => function_exists('posix_geteuid') && posix_geteuid() === 0, 'root reads every file');
 
+/** A stopped 1.0 container labelled the way Compose labels one started in `$checkout`. */
+function legacyContainer(string $id, string $service, string $checkout, string $state = 'exited', ?string $health = null): ContainerInfo
+{
+    return new ContainerInfo($id, 'form-schema-app-'.$service.'-1', $state, '2026-10-01T10:00:00Z', $health, 'image', [
+        Labels::COMPOSE_PROJECT => 'form-schema-app', Labels::COMPOSE_SERVICE => $service, LegacyInstall::ONE_OFF => 'False',
+        LegacyInstall::WORKING_DIR => $checkout, LegacyInstall::CONFIG_FILES => $checkout.'/compose.yaml',
+    ]);
+}
+
 it('starts 1.0 again Postgres first, waits until it is healthy, then the app roles', function (): void {
     Sleep::fake();
     $docker = new RecordingDockerGateway;
-    $legacy = new LegacyInstall('/srv/forms', 'form-schema-app', '1.0.0', ['app' => 'a1', 'queue' => 'q1', 'postgres' => 'p1', 'redis' => 'r1'], ['app', 'queue', 'postgres', 'redis'],
+    foreach (['a1' => 'app', 'q1' => 'queue', 'p1' => 'postgres', 'r1' => 'redis'] as $id => $service) {
+        $docker->containers[$id] = legacyContainer($id, $service, $this->checkout);
+    }
+    $legacy = new LegacyInstall($this->checkout, 'form-schema-app', '1.0.0', ['app' => 'a1', 'queue' => 'q1', 'postgres' => 'p1', 'redis' => 'r1'], ['app', 'queue', 'postgres', 'redis'],
         ['pg-data' => 'form-schema-app_pg-data'], 'form_schema', 'form_schema', 8080, null);
     $health = ['starting', 'starting', 'healthy'];
-    $docker->onCall['inspectContainer'] = function () use ($docker, &$health): void {
-        $docker->containers['p1'] = new ContainerInfo('p1', 'pg', 'running', null, array_shift($health) ?? 'healthy');
+    $docker->onCall['inspectContainer'] = function (array $args) use ($docker, &$health): void {
+        if ($args['id'] === 'p1' && $docker->called('startContainers') !== []) {
+            $docker->containers['p1'] = legacyContainer('p1', 'postgres', $this->checkout, 'running', array_shift($health) ?? 'healthy');
+        }
     };
     $stack = new LegacyStack($docker, new QueueDrain($docker), new PortProbe($docker));
 
@@ -115,7 +132,40 @@ it('starts 1.0 again Postgres first, waits until it is healthy, then the app rol
 
     expect($started)->toBe(['postgres', 'redis', 'app', 'queue'])
         ->and(array_column($docker->called('startContainers'), 'ids'))->toBe([['p1', 'r1'], ['a1', 'q1']])
-        ->and($docker->called('inspectContainer'))->toHaveCount(3)
+        ->and(array_filter(array_column($docker->called('inspectContainer'), 'id'), static fn (string $id): bool => $id === 'p1'))->not->toBeEmpty()
         ->and(LegacyInstall::fromArray($legacy->toArray()))->toEqual($legacy);
     Sleep::assertSleptTimes(2);
+});
+
+it('starts the container a service has now, not the one adopt found, and fails on one that is gone (review S3)', function (): void {
+    Sleep::fake();
+    $docker = new RecordingDockerGateway;
+    foreach (['a2' => 'app', 'p1' => 'postgres'] as $id => $service) {
+        $docker->containers[$id] = legacyContainer($id, $service, $this->checkout);
+    }
+    $legacy = new LegacyInstall($this->checkout, 'form-schema-app', '1.0.0', ['app' => 'a1', 'postgres' => 'p1', 'queue' => 'q1'], ['app', 'postgres', 'queue'],
+        ['pg-data' => 'form-schema-app_pg-data'], 'form_schema', 'form_schema', 8080, null);
+    $stack = new LegacyStack($docker, new QueueDrain($docker), new PortProbe($docker));
+
+    expect(fn () => $stack->restart($legacy))->toThrow(fn (DockerCommandFailed $e) => expect($e->outcome->stderr)->toContain('No such container: q1'))
+        ->and(array_column($docker->called('startContainers'), 'ids'))->toBe([['p1'], ['a2', 'q1']])
+        ->and(fn () => $docker->stopContainers(['gone'], 10))->toThrow(fn (DockerCommandFailed $e) => expect($e->outcome->stderr)->toContain('No such container: gone'));
+});
+
+it('refuses a 1.0 container without the checkout\'s labels, or a scaled service (review S3)', function (array $containers, string $error): void {
+    $docker = new RecordingDockerGateway;
+    foreach ($containers as $container) {
+        $docker->containers[$container->id] = $container;
+    }
+
+    expect(fn () => LegacyContainers::find($docker, 'form-schema-app', $this->checkout))->toThrow(fn (InstanceException $e) => expect($e->errorCode)->toBe($error)->and($e->exitCode->value)->toBe(7));
+})->with([
+    'no working_dir label' => [fn (): array => [new ContainerInfo('a1', 'x', 'running', null, null, 'image', [Labels::COMPOSE_PROJECT => 'form-schema-app', Labels::COMPOSE_SERVICE => 'app', LegacyInstall::ONE_OFF => 'False'])], 'legacy_unlabelled'],
+    'two app containers' => [fn (): array => [legacyContainer('a1', 'app', test()->checkout), legacyContainer('a2', 'app', test()->checkout)], 'legacy_scaled'],
+]);
+
+it('reads REDIS_DB from the checkout: 0 when unset, refused when it is no database number (review A5)', function (): void {
+    expect(adoptCheckout($this->checkout, AdoptFixture::env())->redisDb())->toBe(0)
+        ->and(adoptCheckout($this->checkout, AdoptFixture::env(['REDIS_DB' => '3']))->redisDb())->toBe(3)
+        ->and(fn () => adoptCheckout($this->checkout, AdoptFixture::env(['REDIS_DB' => '1; FLUSHALL']))->redisDb())->toThrow(fn (InstanceException $e) => expect($e->errorCode)->toBe('unsupported_redis_db'));
 });

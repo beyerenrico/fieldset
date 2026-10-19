@@ -56,8 +56,9 @@ final readonly class RestoreChecks
     /**
      * An in-place restore takes only this instance's own backups (review A3): the R64 carry matches rows by their IDs,
      * so another instance's users would inherit this one's revocations and erasures. A 1.0 archive names no instance; it
-     * counts as this instance's when the APP_KEY in its `env` is one of the instance's own keys (an adopted 1.0 install,
-     * U19). Everything else goes to a new directory with `fsa install --from-backup`.
+     * counts as this instance's when the APP_KEY in its `env`, or else the first key fingerprint its manifest lists (the
+     * backup `fsa adopt` takes, U19, ADR 0087), is one of the instance's own keys. Everything else goes to a new directory
+     * with `fsa install --from-backup`.
      *
      * @param  AppKeys  $inside  the keys the archive carries (BackupIntake::insideKeys)
      *
@@ -66,7 +67,8 @@ final readonly class RestoreChecks
     public static function assertSameInstance(PreparedBackup $backup, string $uuid, AppKeys $own, AppKeys $inside): void
     {
         if ($backup->isLegacy()) {
-            $key = $inside->fingerprints()[0] ?? null;
+            // The key in its `env`, or the fingerprint `fsa adopt` lists in place of the key (plan U19, ADR 0087).
+            $key = $inside->fingerprints()[0] ?? $backup->fingerprints()[0] ?? null;
             if ($key !== null && in_array($key, $own->fingerprints(), true)) {
                 return;
             }

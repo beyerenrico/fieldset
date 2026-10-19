@@ -60,7 +60,7 @@ final readonly class Uninstaller
             $this->ids->assertNothingTied();
         }
         $state = $this->ids->state();
-        $adopted = AdoptedInstance::record($state);
+        $adopted = $this->adopted->current($state);
         $keepBackups = $keepBackups || ($adopted !== null && ! $noBackup);
         $handle = $this->lock->acquire($this->identity->holder('fsa', $facts->callerUid()), 'uninstall');
 
@@ -68,7 +68,7 @@ final readonly class Uninstaller
         // directory (the marker goes first among the files, after it no fsa command accepts the directory).
         try {
             $volumes = $uuid === null ? [] : $this->docker->volumes([Labels::INSTANCE => $uuid]);
-            $final = $keepBackups && ! $noBackup ? $this->backup->write($this->ids->state(), $uuid, $volumes) : null;
+            $final = $keepBackups && ! $noBackup ? $this->backup->write($this->ids->state(), $uuid, $volumes, withKey: $adopted === null) : null;
             $writes = $adopted !== null && $state instanceof InstanceState ? $this->adopted->writesSince($state) : null;
             $removed = $uuid === null ? ['containers' => [], 'networks' => [], 'volumes' => []] : $this->removeResources($uuid, $final !== null);
             $deleted = $this->deleteFiles($keepBackups, [...array_filter([$facts->nonce, $facts->openUrlFile]), InstanceDirectory::LOCKS_DIR]);
@@ -92,7 +92,7 @@ final readonly class Uninstaller
     {
         $data = AdoptedInstance::uninstallData($record, $writes);
         $result = $result->withData(['adopted' => $data])
-            ->withWarning('restart_1_0', 'The 1.0 install this instance was adopted from is stopped; its volumes were never changed.', 'Bring it back with: '.$data['restart_1_0']);
+            ->withWarning('restart_1_0', 'The 1.0 install this instance was adopted from is stopped; its volumes were never changed.'.AdoptedInstance::jobsNotice($record), 'Bring it back with: '.$data['restart_1_0']);
         if ($writes === null) {
             return $result->withWarning('writes_since_adopt_unknown', 'The writes made since adopt could not be counted (no baseline in backups/ledger.log, or Postgres did not answer).', $final === null ? 'Without a final backup they are gone with the instance.' : "Whatever was written is in the final backup {$final['dir']}.");
         }

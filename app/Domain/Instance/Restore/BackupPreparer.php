@@ -184,8 +184,11 @@ final readonly class BackupPreparer
     {
         $values = BackupSet::legacyManifest($set);
 
+        // `fsa adopt` names the APP keys instead of copying them into `env` (plan U19, ADR 0087); 1.0's script names none.
+        $fingerprints = array_values(array_filter(explode(',', $values['app_key_fingerprints'] ?? ''), static fn (string $fingerprint): bool => preg_match('/^[0-9a-f]{4}(-[0-9a-f]{4}){3}$/D', $fingerprint) === 1));
+
         return ['format' => 'scripts/backup.sh', 'kind' => 'legacy', 'created_at' => $values['created_at'] ?? null, 'version' => null, 'postgres' => $values['postgres'] ?? null,
-            'app_key_fingerprints' => [], 'includes_secrets' => ($values['env'] ?? '') === 'included', 'storage' => $values['storage'] ?? null];
+            'app_key_fingerprints' => $fingerprints, 'includes_secrets' => ($values['env'] ?? '') === 'included', 'storage' => $values['storage'] ?? null];
     }
 
     private function name(string $source): string

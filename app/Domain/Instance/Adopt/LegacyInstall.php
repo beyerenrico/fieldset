@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Adopt;
 
+use App\Domain\Instance\Compose\Services\AppRoles;
 use App\Domain\Instance\Docker\ContainerInfo;
 use App\Domain\Instance\Docker\DockerGateway;
-use App\Domain\Instance\Docker\DockerResource;
 use App\Domain\Instance\Docker\Labels;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Output\ExitCode;
@@ -64,28 +64,17 @@ final readonly class LegacyInstall
     /** @throws InstanceException exit 7 */
     public static function discover(DockerGateway $docker, LegacyCheckout $checkout): self
     {
-        $all = array_values(array_filter($docker->containers([Labels::COMPOSE_PROJECT => $checkout->project]), static fn (ContainerInfo $c): bool => ($c->labels[self::ONE_OFF] ?? 'False') !== 'True'));
-        if ($all === []) {
+        $found = LegacyContainers::find($docker, $checkout->project, $checkout->path);
+        if ($found === []) {
             throw self::refused("No container of the Compose project {$checkout->project} exists: is 1.0 installed from {$checkout->path}?", 'legacy_not_found', 'Start 1.0 in its checkout (`docker compose up -d`) and run adopt again; it copies the data of an existing install.');
         }
-        self::assertOwnLabels($docker, $all, $checkout);
-        $containers = [];
-        $running = [];
-        foreach ($all as $container) {
-            $service = $container->service();
-            if ($service !== null) {
-                $containers[$service] = $container->id;
-                if ($container->running()) {
-                    $running[] = $service;
-                }
-            }
+        $volumes = self::volumes($docker, $found);
+        if (! isset($found[self::POSTGRES], $volumes[self::DATA_VOLUME])) {
+            throw self::refused("The Compose project {$checkout->project} has no bundled Postgres with a pg-data volume.", 'external_database', 'Adopt copies the bundled database volume only; move the data with a backup instead (`fsa install --from-backup`).');
         }
-        $volumes = self::volumes($docker, $checkout->project);
-        if (! isset($containers[self::POSTGRES], $volumes[self::DATA_VOLUME])) {
-            throw self::refused("The Compose project {$checkout->project} has no bundled Postgres with its pg-data volume.", 'external_database', 'Adopt copies the bundled database volume only; move the data with a backup instead (`fsa install --from-backup`).');
-        }
+        $running = array_map(strval(...), array_keys(array_filter($found, static fn (ContainerInfo $c): bool => $c->running())));
 
-        return new self($checkout->path, $checkout->project, $checkout->version, $containers, array_values(array_unique($running)), $volumes,
+        return new self($checkout->path, $checkout->project, $checkout->version, array_map(static fn (ContainerInfo $c): string => $c->id, $found), $running, $volumes,
             $checkout->database(), $checkout->username(), $checkout->port(), $checkout->url());
     }
 
@@ -138,47 +127,28 @@ final readonly class LegacyInstall
         return $this->project.'_default';
     }
 
-    /** @param  list<ContainerInfo>  $containers */
-    private static function assertOwnLabels(DockerGateway $docker, array $containers, LegacyCheckout $checkout): void
+    /**
+     * The volumes the containers really mount (review S3), not the ones that merely carry a label: Postgres's data
+     * directory and the storage directory of the app roles. A volume with an instance label is refused.
+     *
+     * @param  array<string, ContainerInfo>  $found
+     * @return array<string, string>
+     */
+    private static function volumes(DockerGateway $docker, array $found): array
     {
-        if (array_any($containers, static fn (ContainerInfo $c): bool => isset($c->labels[Labels::INSTANCE]))) {
-            throw self::refused("The Compose project {$checkout->project} belongs to an fsa instance, not to a 1.0 checkout.", 'already_instance', 'Manage it with that instance\'s fsa.');
+        $storage = null;
+        foreach (['app', 'queue', 'scheduler'] as $service) {
+            $storage ??= isset($found[$service]) ? ($found[$service]->mounts[AppRoles::STORAGE_PATH] ?? null) : null;
         }
-        // `docker ps` joins labels with commas, so a list of Compose files is read from the exact inspect output.
-        $labels = $docker->inspectContainer($containers[0]->id)->labels ?? $containers[0]->labels;
-        $dir = $labels[self::WORKING_DIR] ?? null;
-        if ($dir !== null && self::real($dir) !== self::real($checkout->path)) {
-            throw self::refused("The Compose project {$checkout->project} was started from {$dir}, not from {$checkout->path}.", 'checkout_mismatch', "Pass the checkout the 1.0 install runs from: fsa adopt {$dir}");
-        }
-        $files = array_values(array_filter(explode(',', $labels[self::CONFIG_FILES] ?? ''), static fn (string $file): bool => $file !== ''));
-        $own = array_map(self::real(...), $files) === [self::real($checkout->path.'/'.LegacyCheckout::COMPOSE_FILE)];
-        if ($files !== [] && ! $own) {
-            throw self::refused('The 1.0 install was started with these Compose files: '.implode(', ', $files).'. Adopt copies only what compose.yaml of 1.0 defines.', 'compose_file_override', 'Restart 1.0 with compose.yaml alone (COMPOSE_FILE=compose.yaml, `docker compose up -d`), then run adopt again.');
-        }
-    }
-
-    /** @return array<string, string> */
-    private static function volumes(DockerGateway $docker, string $project): array
-    {
-        $volumes = [];
-        foreach ($docker->volumes([Labels::COMPOSE_PROJECT => $project]) as $volume) {
-            $key = $volume->labels[self::VOLUME_LABEL] ?? null;
-            if (isset($volume->labels[Labels::INSTANCE])) {
+        $data = isset($found[self::POSTGRES]) ? ($found[self::POSTGRES]->mounts[VolumeCopy::DATA_PATH] ?? null) : null;
+        $volumes = array_filter([self::DATA_VOLUME => $data, self::STORAGE_VOLUME => $storage], is_string(...));
+        foreach ($docker->volumes([Labels::INSTANCE => null]) as $volume) {
+            if (in_array($volume->name, $volumes, true)) {
                 throw self::refused("The volume {$volume->name} belongs to an fsa instance.", 'already_instance', 'Manage it with that instance\'s fsa.');
-            }
-            if ($volume->kind === DockerResource::VOLUME && in_array($key, [self::DATA_VOLUME, self::STORAGE_VOLUME], true)) {
-                $volumes[$key] = $volume->name;
             }
         }
 
         return $volumes;
-    }
-
-    private static function real(string $path): string
-    {
-        $real = realpath($path);
-
-        return $real === false ? rtrim($path, '/') : $real;
     }
 
     private static function refused(string $message, string $code, string $hint): InstanceException

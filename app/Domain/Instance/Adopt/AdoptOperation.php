@@ -4,19 +4,12 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Adopt;
 
-use App\Domain\Instance\Backup\BackupRunner;
-use App\Domain\Instance\Compose\ComposeRenderer;
 use App\Domain\Instance\Console\FsaContext;
 use App\Domain\Instance\Docker\ComposeProject;
-use App\Domain\Instance\HostFacts;
-use App\Domain\Instance\Install\FromBackupKeys;
-use App\Domain\Instance\Install\Installer;
 use App\Domain\Instance\Install\InstallRecord;
 use App\Domain\Instance\Install\InstallSmoke;
 use App\Domain\Instance\Install\InstanceStack;
 use App\Domain\Instance\InstanceException;
-use App\Domain\Instance\Lifecycle\AppCommands;
-use App\Domain\Instance\Lifecycle\ComposeFile;
 use App\Domain\Instance\Operations\ContainerIdentity;
 use App\Domain\Instance\Operations\JournalRecord;
 use App\Domain\Instance\Operations\OperationJournal;
@@ -25,23 +18,25 @@ use App\Domain\Instance\Operations\Supervisor;
 use App\Domain\Instance\Output\CommandResult;
 use App\Domain\Instance\Output\ExitCode;
 use App\Domain\Instance\Output\InvalidInput;
+use App\Domain\Instance\Restore\AppKeys;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceState;
+use Closure;
 use Throwable;
 
 /**
  * `fsa adopt <checkout>` (R46 as changed by R60, F7, J9, KTD20, plan U19, ADR 0087): a 1.0 install becomes an instance by
  * copying its data, journaled and resumable under the instance lock:
  *
- * doctor (AdoptPreflight; 1.0 keeps running) → secrets (1.0's APP keys) → state (the inferred mode, 1.0's database names
- * and sender, capture mail) → pull → stop_1_0 (app and scheduler, drain, queue) → backup_1_0 (1.0 format) →
- * stop_postgres_1_0 → copy (new labelled volumes) → verify (counts, chain heads, amcheck) → up → migrate (and the backup
- * role) → start → smoke → done (baseline snapshot in the ledger, the `installed` and `adopted` records).
+ * doctor (AdoptPreflight; 1.0 keeps running) → the phases before 2.0 starts (AdoptSequence: secrets, state, pull,
+ * stop_1_0, backup_1_0, stop_postgres_1_0, copy, verify, up, migrate, baseline; 1.0 must stay stopped, LegacyFence) →
+ * start → smoke → done (the ledger's `adopted` line, the `installed` and `adopted` records).
  *
  * Any failure before `start` goes back (AdoptRollback): 1.0 runs again unchanged and nothing of 2.0 is left (exit 5; exit
  * 9 when 1.0 had not been stopped yet; exit 8 when 1.0 does not start again). From `start` on the instance runs on its own
- * copy and a failure leaves the journal open for a resume (exit 4); `fsa uninstall` and `docker compose up -d` in the
- * checkout lead back. A resumed run continues where the last one stopped; one that began going back finishes that.
+ * copy and a failure leaves the journal open for a resume (exit 4, with an adopt hint); `fsa uninstall` (which treats the
+ * unfinished adopt as adopted) and `docker compose up -d` in the checkout lead back. A resumed run continues where the last
+ * one stopped, checking first that 1.0 stayed stopped; one that began going back finishes that.
  */
 final readonly class AdoptOperation
 {
@@ -50,7 +45,7 @@ final readonly class AdoptOperation
     public const string EVENT = 'adopted';
 
     /** The first phase that touches 1.0. */
-    private const string QUIESCE = 'stop_1_0';
+    private const string QUIESCE = AdoptSequence::QUIESCE;
 
     public function __construct(
         private InstanceDirectory $directory,
@@ -58,12 +53,9 @@ final readonly class AdoptOperation
         private Supervisor $supervisor,
         private ContainerIdentity $identity,
         private AdoptPreflight $preflight,
-        private FromBackupKeys $keys,
+        private AdoptSequence $sequence,
         private InstanceStack $stack,
-        private ComposeRenderer $renderer,
         private AdoptData $data,
-        private AppCommands $app,
-        private BackupRunner $backups,
         private InstallSmoke $smoke,
         private AdoptRollback $rollback,
         private AdoptRecord $record,
@@ -98,7 +90,7 @@ final readonly class AdoptOperation
             throw new InvalidInput('No unfinished adopt to abandon here.', 'nothing_to_abandon', 'An adopt that finished is undone with `fsa uninstall` and `docker compose up -d` in the 1.0 checkout.');
         }
         if ($current->hasStarted('start')) {
-            throw new InvalidInput('This adopt already started 2.0 on its copy, which may hold new data: abandoning it would delete that without a backup.', 'adopt_started', 'Run `fsa adopt <checkout>` again to finish it, or `fsa uninstall --keep-backups` (a final backup first) and then `docker compose up -d` in the 1.0 checkout.');
+            throw new InvalidInput('This adopt already started 2.0 on its copy, which may hold new data: abandoning it would delete that without a backup.', 'adopt_started', 'Run `fsa adopt <checkout>` again to finish it, or `fsa uninstall` (a final backup first) and then `docker compose up -d` in the 1.0 checkout.');
         }
 
         return $this->supervisor->run(self::OPERATION, $this->identity->holder('fsa', $context->facts->callerUid()),
@@ -113,46 +105,57 @@ final readonly class AdoptOperation
         $checkout = LegacyCheckout::read($request->checkout);
         $preflight = $run->phase('doctor', fn (): array => $this->preflight->run($checkout, $request->release, $context->facts), changes: false);
         $legacy = LegacyInstall::fromArray(is_array($preflight['legacy'] ?? null) ? $preflight['legacy'] : []);
-        if (! $run->record()->hasCompleted('migrate')) {
+        if (! $run->record()->hasStarted('start')) {
             try {
-                $data = $this->prepare($run, $checkout, $legacy, $preflight, $request, $context);
+                $this->assertSameKey($preflight, $checkout);
+                $data = $this->sequence->run($run, $checkout, $legacy, $preflight, $request, $context);
             } catch (Throwable $e) {
                 return $this->undo($run, $e);
             }
         }
-        $data ??= $this->phaseData($run->record());
+        $data ??= AdoptSequence::phaseData($run->record());
         $state = $this->directory->state();
         $project = ComposeProject::forInstance($state, $this->directory);
-        $run->phase('start', fn (): array => $this->stack->up($project, []), maxSeconds: InstanceStack::WAIT_SECONDS);
-        $smoke = $run->phase('smoke', fn (): array => $this->smoke->run($state, $project, null, $context->progress), changes: false, maxSeconds: InstallSmoke::maxSeconds($state));
-        $run->phase('done', fn (): array => $this->record->done($state, $project, $legacy, $preflight, $data, $request->callerUid));
+        $this->resumable($request, fn (): array => $run->phase('start', fn (): array => $this->stack->up($project, []), maxSeconds: InstanceStack::WAIT_SECONDS));
+        $smoke = $this->resumable($request, fn (): array => $run->phase('smoke', fn (): array => $this->smoke->run($state, $project, null, $context->progress), changes: false, maxSeconds: InstallSmoke::maxSeconds($state)));
+        $run->phase('done', fn (): array => $this->record->done($legacy, $preflight, $data, $request->callerUid, $run->record()->id()));
+        $result = AdoptResult::build($this->directory->state(), $this->directory, $legacy, $preflight, [...$data, 'smoke' => $smoke]);
+        $running = $this->data->legacyRunning($legacy);
 
-        return AdoptResult::build($this->directory->state(), $this->directory, $legacy, $preflight, [...$data, 'smoke' => $smoke]);
+        return $running === [] ? $result : $result->withWarning('legacy_running', '1.0 runs again next to the instance ('.implode(', ', $running).'): what it writes is not in the instance.', "Stop it (cd {$legacy->checkout} && docker compose stop); the instance holds the data adopt copied.");
     }
 
     /**
-     * Everything before 2.0 starts: on failure the caller goes back.
+     * A resumed run continues with the APP key the first run adopted (review S2): a changed `.env` stops it.
      *
      * @param  array<string, mixed>  $preflight
+     *
+     * @throws InstanceException exit 7 `env_changed`
+     */
+    private function assertSameKey(array $preflight, LegacyCheckout $checkout): void
+    {
+        $adopted = $preflight['app_key_fingerprint'] ?? null;
+        $now = AppKeys::of([$checkout->appKey()])->fingerprints()[0] ?? null;
+        if (is_string($adopted) && $adopted !== $now) {
+            throw new InstanceException('The APP_KEY in the 1.0 .env changed since this adopt began.', ExitCode::Incompatible, 'env_changed', 'Restore the .env 1.0 runs with, or abandon this adopt (`fsa adopt --abandon`) and start over.');
+        }
+    }
+
+    /**
+     * From `start` on, a failure keeps the journal open: its hint names the resume and the way back (review A3).
+     *
+     * @param  Closure(): array<string, mixed>  $phase
      * @return array<string, mixed>
      */
-    private function prepare(OperationRun $run, LegacyCheckout $checkout, LegacyInstall $legacy, array $preflight, AdoptRequest $request, FsaContext $context): array
+    private function resumable(AdoptRequest $request, Closure $phase): array
     {
-        $run->phase('secrets', fn (): array => $this->keys->ensureKeys(static fn (): array => [$checkout->appKey(), $checkout->previousKeys()], $context->redactor));
-        $run->phase('state', fn (): array => $this->writeState($preflight, $context->facts));
-        $state = $this->directory->state();
-        $project = ComposeProject::forInstance($state, $this->directory);
-        $run->phase('pull', fn (): array => $this->stack->pull(), changes: false);
-        $run->phase(self::QUIESCE, fn (): array => $this->data->quiesce($state, $legacy, $request->dropJobs), maxSeconds: QueueDrain::SECONDS + 300);
-        $run->phase('backup_1_0', fn (): array => $this->data->backup($state, $legacy, $checkout));
-        $run->phase('stop_postgres_1_0', fn (): array => $this->data->stopData($legacy));
-        $run->phase('copy', fn (): array => $this->data->copy($state, $project, $legacy));
-        $backup = $run->record()->phaseData('backup_1_0');
-        $run->phase('verify', fn (): array => $this->data->verify($state, $project, $legacy, DataSnapshot::fromArray(is_array($backup['snapshot'] ?? null) ? $backup['snapshot'] : [])));
-        $run->phase('up', fn (): array => [...$this->stack->up($project, Installer::INFRASTRUCTURE), ...$this->stack->trustGateway($project, $preflight)]);
-        $run->phase('migrate', fn (): array => $this->migrate($project));
-
-        return $this->phaseData($run->record());
+        try {
+            return $phase();
+        } catch (InstanceException $e) {
+            throw new InstanceException($e->getMessage(), $e->exitCode, $e->errorCode,
+                "Find the cause (`fsa logs`), then run `fsa adopt {$request->checkout}` again: it resumes here. To go back to 1.0 instead: `fsa uninstall` (a final backup first), then `docker compose up -d` in {$request->checkout}.",
+                $e->retryable, $e->data, $e, true);
+        }
     }
 
     /**
@@ -178,41 +181,5 @@ final readonly class AdoptOperation
         }
 
         return AdoptResult::rolledBack($cause, $touched, $undo, $legacy);
-    }
-
-    /**
-     * @param  array<string, mixed>  $preflight
-     * @return array{project: string, services: list<string>}
-     */
-    private function writeState(array $preflight, HostFacts $facts): array
-    {
-        $this->stack->writeState($preflight, $facts);
-        /** @var array<string, string> $settings */
-        $settings = is_array($preflight['settings'] ?? null) ? $preflight['settings'] : [];
-        $state = $this->directory->state()->withSettings($settings);
-        $this->directory->saveState($state);
-        $secrets = $this->stack->secrets();
-        $rendered = $this->renderer->write($this->directory, $state, $secrets, ComposeFile::emulated($this->directory, $this->renderer, $state, $secrets));
-
-        return ['project' => $state->project(), 'services' => $rendered->services()];
-    }
-
-    /** @return array{migrated: true, backup_role: true} */
-    private function migrate(ComposeProject $project): array
-    {
-        $outcome = $this->app->migrate($project);
-        if (! $outcome->successful()) {
-            $output = implode("\n", array_slice(preg_split('/\R/', trim($outcome->stdout)) ?: [], -10));
-            throw new InstanceException('The migrations of the copied 1.0 database failed.', ExitCode::HealthCheckFailed, 'migrate_failed', 'Read the output; 1.0 runs again unchanged. Fix the cause and run adopt again.', true, ['output' => trim($output."\n".$outcome->stderrTail(10))]);
-        }
-        $this->backups->ensureRole($project);
-
-        return ['migrated' => true, 'backup_role' => true];
-    }
-
-    /** @return array<string, mixed> the data phases' results (also on a resume that skips them) */
-    private function phaseData(JournalRecord $record): array
-    {
-        return ['quiesce' => $record->phaseData(self::QUIESCE), 'backup' => $record->phaseData('backup_1_0'), 'copy' => $record->phaseData('copy'), 'verify' => $record->phaseData('verify')];
     }
 }

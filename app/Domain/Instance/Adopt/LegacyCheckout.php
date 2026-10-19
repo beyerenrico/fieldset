@@ -98,6 +98,21 @@ final readonly class LegacyCheckout
         return $port !== null && ctype_digit($port) && InputGrammar::isPort((int) $port) ? (int) $port : InstanceSettings::DEFAULT_PORT;
     }
 
+    /**
+     * REDIS_DB: the Valkey database 1.0's queue uses (0 by default), where QueueDrain counts its jobs (review A5).
+     *
+     * @throws InstanceException exit 7 for a value that is not 0–15
+     */
+    public function redisDb(): int
+    {
+        $db = $this->value('REDIS_DB') ?? '0';
+        if (preg_match('/^(\d|1[0-5])$/D', $db) !== 1) {
+            throw self::refused("The 1.0 REDIS_DB [{$db}] is not a Valkey database number (0–15).", 'unsupported_redis_db', 'Set REDIS_DB to the database 1.0\'s queue uses, or remove it (0), and restart 1.0.');
+        }
+
+        return (int) $db;
+    }
+
     public function url(): ?string
     {
         return $this->value('APP_URL');

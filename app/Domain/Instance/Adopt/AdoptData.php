@@ -12,6 +12,7 @@ use App\Domain\Instance\Install\InstanceStack;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Lifecycle\ComposeFile;
 use App\Domain\Instance\Output\ExitCode;
+use App\Domain\Instance\Restore\AppKeys;
 use App\Domain\Instance\State\InstanceState;
 
 /**
@@ -30,24 +31,43 @@ final readonly class AdoptData
         private VolumeCopy $copy,
         private DatabaseProbe $probe,
         private InstanceStack $stack,
+        private LegacyFence $fence,
     ) {}
 
-    /** @return array{stopped: list<string>, drain: array<string, mixed>} */
-    public function quiesce(InstanceState $state, LegacyInstall $legacy, bool $dropJobs): array
+    /** @return array{stopped: list<string>, drain: array<string, mixed>, fence: array<string, mixed>} the writers' fence (review A1) */
+    public function quiesce(InstanceState $state, LegacyInstall $legacy, bool $dropJobs, int $redisDb): array
     {
-        return $this->legacy->quiesce($legacy, $state->digests()['valkey'], $state->digests()['app'], $state->uuid(), $dropJobs);
+        $quiesced = $this->legacy->quiesce($legacy, $state->digests()['valkey'], $state->digests()['app'], $state->uuid(), $dropJobs, $redisDb);
+
+        return [...$quiesced, 'fence' => $this->fence->record($legacy, $state->digests()['postgres'], $state->uuid(), data: false)];
     }
 
     /** @return array{name: string, path: string, bytes: int, snapshot: array<string, mixed>, warnings: list<string>} */
     public function backup(InstanceState $state, LegacyInstall $legacy, LegacyCheckout $checkout): array
     {
-        return $this->backups->write($legacy, ['app' => $state->digests()['app'], 'postgres' => $state->digests()['postgres']], $state->uuid(), $checkout->allowed());
+        $fingerprints = AppKeys::of([$checkout->appKey(), ...$checkout->previousKeys()])->fingerprints();
+
+        return $this->backups->write($legacy, ['app' => $state->digests()['app'], 'postgres' => $state->digests()['postgres']], $state->uuid(), $checkout->allowed(), $fingerprints);
     }
 
-    /** @return array{stopped: list<string>} */
-    public function stopData(LegacyInstall $legacy): array
+    /** @return array{stopped: list<string>, fence: array<string, mixed>} Postgres's fence, with the source checkpoint */
+    public function stopData(InstanceState $state, LegacyInstall $legacy): array
     {
-        return $this->legacy->stopData($legacy);
+        $stopped = $this->legacy->stopData($legacy);
+
+        return [...$stopped, 'fence' => $this->fence->record($legacy, $state->digests()['postgres'], $state->uuid(), data: true)];
+    }
+
+    /**
+     * 1.0 is still as adopt left it (LegacyFence); nothing to check before the writers stopped.
+     *
+     * @param  array<string, mixed>|null  $fence  the newest journaled fence
+     */
+    public function guard(InstanceState $state, LegacyInstall $legacy, ?array $fence): void
+    {
+        if ($fence !== null) {
+            $this->fence->assert($legacy, $fence, $state->digests()['postgres'], $state->uuid());
+        }
     }
 
     /** @return array{volumes: array<string, string>, cluster_state: string} */
@@ -79,6 +99,22 @@ final readonly class AdoptData
         }
 
         return ['snapshot' => $copy->toArray(), 'amcheck' => $amcheck];
+    }
+
+    /**
+     * The 1.0 services that run now (started next to the finished instance); none when 1.0 cannot be read.
+     *
+     * @return list<string>
+     */
+    public function legacyRunning(LegacyInstall $legacy): array
+    {
+        try {
+            $found = LegacyContainers::find($this->docker, $legacy->project, $legacy->checkout);
+        } catch (InstanceException) {
+            return [];
+        }
+
+        return array_values(array_map(strval(...), array_keys(array_filter($found, static fn (ContainerInfo $c): bool => $c->running()))));
     }
 
     /** What the instance holds now: the baseline of uninstall's "writes since adopt". */

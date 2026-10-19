@@ -34,17 +34,26 @@ final class UninstallCommand extends FsaCommand
         if (is_string($orphans) && $orphans !== '') {
             return "Remove the stopped containers, volumes and networks labelled with installation {$orphans}?";
         }
-        $root = $context->directory()->root;
-        $adopted = $this->adoptedFrom($context);
-        if ($adopted !== null && $this->option('no-backup') !== true) {
-            return "Write a final backup into {$root}/backups/, then remove this instance (containers, volumes, networks and every file in {$root} except backups/)? The 1.0 install in {$adopted} is not touched; start it again with `docker compose up -d` there. Data written since the adopt is only in the final backup.";
-        }
-        $prompt = $this->option('keep-backups') && $this->option('no-backup') !== true
-            ? "Write a final backup into {$root}/backups/, then remove this instance with all its data (containers, volumes, networks) and every file in {$root} except backups/?"
-            : "Remove this instance with all its data (containers, volumes, networks) and every file in {$root}, including backups/? No final backup is made (use --keep-backups for one).";
         $notice = $this->certificateNotice($context);
+        $prompt = $this->prompt($context->directory()->root, $this->adoptedFrom($context), $this->option('keep-backups') === true, $this->option('no-backup') === true);
 
         return $notice === null ? $prompt : $notice.' '.$prompt;
+    }
+
+    /** The question for each combination of --keep-backups and --no-backup, adopted or not (review A8). */
+    private function prompt(string $root, ?string $adopted, bool $keep, bool $noBackup): string
+    {
+        $legacy = $adopted === null ? '' : " The 1.0 install in {$adopted} is not touched; start it again with `docker compose up -d` there.";
+        if ($noBackup) {
+            return $keep
+                ? "Remove this instance with all its data (containers, volumes, networks) and every file in {$root} except backups/? No final backup is made.{$legacy}"
+                : "Remove this instance with all its data (containers, volumes, networks) and every file in {$root}, including backups/".($adopted === null ? '' : ' (the adopt\'s 1.0 backup too)')."? No final backup is made.{$legacy}".($adopted === null ? '' : ' Data written since the adopt is lost.');
+        }
+        if ($keep || $adopted !== null) {
+            return "Write a final backup into {$root}/backups/, then remove this instance with all its data (containers, volumes, networks) and every file in {$root} except backups/?{$legacy}".($adopted === null ? '' : ' Data written since the adopt is only in the final backup.');
+        }
+
+        return "Remove this instance with all its data (containers, volumes, networks) and every file in {$root}, including backups/? No final backup is made (use --keep-backups for one).";
     }
 
     /**
@@ -77,12 +86,15 @@ final class UninstallCommand extends FsaCommand
             : $uninstaller->uninstall((bool) $this->option('keep-backups'), $context->facts, $this->option('no-backup') === true);
     }
 
-    /** The 1.0 checkout an adopted instance came from (plan U19, ADR 0087), null otherwise or when the state is unreadable. */
+    /**
+     * The 1.0 checkout an adopted instance (or an unfinished adopt that stopped 1.0) came from (plan U19, ADR 0087), null
+     * otherwise or when the state is unreadable.
+     */
     private function adoptedFrom(FsaContext $context): ?string
     {
         try {
             $directory = $context->directory();
-            $record = $directory->hasState() ? AdoptedInstance::record($directory->state()) : null;
+            $record = $this->laravel->make(AdoptedInstance::class)->current($directory->hasState() ? $directory->state() : null);
         } catch (InstanceException) {
             return null;
         }

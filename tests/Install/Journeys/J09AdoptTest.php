@@ -83,7 +83,10 @@ function j09Get(int $port, string $path): array
 }
 
 it('runs a 1.0.0 install built from the tag, with demo data and a stored file', function (): void {
-    $up = $this->v1->compose(['up', '-d', '--wait']);
+    // The app first: Docker races when app, queue and scheduler copy the image's storage/app into the new app-storage
+    // volume at once ("failed to mkdir …/_data/private: file exists"); the rest then starts as the install guide says.
+    $first = $this->v1->compose(['up', '-d', '--wait', 'app']);
+    $up = $first->isSuccessful() ? $this->v1->compose(['up', '-d', '--wait']) : $first;
     if (! $up->isSuccessful()) {
         $logs = $this->v1->compose(['logs', '--no-color', '--tail', '40']);
         expect($up->getExitCode())->toBe(0, $up->getErrorOutput()."\n".$logs->getOutput());
@@ -190,6 +193,7 @@ it('left 1.0\'s volumes untouched and stopped, and its backup restores in a dril
 
     expect(array_map(trim(...), explode("\n", trim($volumes->getOutput()))))->toEqualCanonicalizing([$this->v1->project.'_pg-data', $this->v1->project.'_app-storage'])
         ->and(array_unique(explode("\n", trim($state->getOutput()))))->toBe(['exited'])
+        ->and((string) file_get_contents($this->dir.'/backups/'.$backup.'/env'))->not->toContain($this->v1->appKey) // review S1
         ->and($drill->getExitCode())->toBe(0, $drill->getErrorOutput()."\n".$drill->getOutput());
 });
 
@@ -209,6 +213,7 @@ it('uninstalls with a final backup and the writes since adopt, and docker compos
     expect($write->getExitCode())->toBe(0, $write->getErrorOutput())
         ->and($process->getExitCode())->toBe(0, $process->getErrorOutput()."\n".$process->getOutput())
         ->and($json['data']['final_backup']['dir'] ?? '')->toStartWith('backups/final-')
+        ->and(file_exists($this->dir.'/'.($json['data']['final_backup']['dir'] ?? '-').'/app-key.env'))->toBeFalse() // review S1
         ->and($json['data']['adopted']['writes_since_adopt']['rows']['submissions'] ?? null)->toBe(3)
         ->and($json['data']['adopted']['restart_1_0'])->toBe('cd '.$this->v1->checkout.' && docker compose up -d')
         ->and($left)->toBe(['containers' => [], 'volumes' => [], 'networks' => []])

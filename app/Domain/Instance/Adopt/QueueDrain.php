@@ -39,11 +39,11 @@ final readonly class QueueDrain
     public function __construct(private DockerGateway $docker) {}
 
     /** @return array{drained: bool|null, waiting: int|null, reserved: int|null, delayed: int|null, waited_seconds: int} */
-    public function drain(LegacyInstall $legacy, string $image, string $uuid): array
+    public function drain(LegacyInstall $legacy, string $image, string $uuid, int $redisDb = 0): array
     {
         $waited = 0;
         while (true) {
-            $counts = $this->counts($legacy, $image, $uuid);
+            $counts = $this->counts($legacy, $image, $uuid, $redisDb);
             if ($counts === null) {
                 return ['drained' => null, 'waiting' => null, 'reserved' => null, 'delayed' => null, 'waited_seconds' => $waited];
             }
@@ -58,11 +58,11 @@ final readonly class QueueDrain
     }
 
     /** @return array{0: int, 1: int, 2: int}|null waiting, reserved, delayed; null when Valkey cannot be asked */
-    private function counts(LegacyInstall $legacy, string $image, string $uuid): ?array
+    private function counts(LegacyInstall $legacy, string $image, string $uuid, int $redisDb): ?array
     {
         $outcome = $this->docker->runContainer(new ContainerSpec(
             image: $image,
-            command: ['-h', 'redis', '--no-auth-warning', '--raw', 'EVAL', self::SCRIPT, '0'],
+            command: ['-h', 'redis', '-n', (string) $redisDb, '--no-auth-warning', '--raw', 'EVAL', self::SCRIPT, '0'],
             labels: Labels::forInstance($uuid, DatabaseProbe::ROLE),
             network: $legacy->network(),
             entrypoint: 'valkey-cli',

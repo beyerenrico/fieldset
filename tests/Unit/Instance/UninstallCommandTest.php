@@ -37,11 +37,13 @@ afterEach(fn () => TemporaryInstance::cleanup());
 it('exits 6 without --yes when there is no terminal (or with --json), saying that data and backups go', function (): void {
     [$code, $json] = $this->fixture->run('fsa:uninstall');
     [, $keeping] = $this->fixture->run('fsa:uninstall', ['--keep-backups' => true]);
+    [, $keepingOnly] = $this->fixture->run('fsa:uninstall', ['--keep-backups' => true, '--no-backup' => true]);
 
     expect($code)->toBe(6)
         ->and($json['errors'][0]['code'])->toBe('confirmation_required')
         ->and($json['errors'][0]['message'])->toContain('all its data')->toContain('including backups/')->toContain('No final backup is made')
         ->and($keeping['errors'][0]['message'])->toContain('Write a final backup')->toContain('except backups/')
+        ->and($keepingOnly['errors'][0]['message'])->toContain('except backups/')->toContain('No final backup is made')->not->toContain('including backups/')->not->toContain('use --keep-backups') // review A8
         ->and($this->fixture->docker->called('removeContainer'))->toBe([])
         ->and($this->fixture->directory->hasState())->toBeTrue();
 });

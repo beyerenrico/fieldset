@@ -6,14 +6,21 @@ namespace Tests\Support\Instance;
 
 use App\Domain\Instance\Adopt\DataSnapshot;
 use App\Domain\Instance\Adopt\LegacyInstall;
+use App\Domain\Instance\Adopt\LegacyRuntime;
+use App\Domain\Instance\Adopt\VolumeCopy;
+use App\Domain\Instance\Compose\Services\AppRoles;
 use App\Domain\Instance\Docker\ContainerInfo;
 use App\Domain\Instance\Docker\ContainerSpec;
 use App\Domain\Instance\Docker\DockerResource;
 use App\Domain\Instance\Docker\Labels;
 use App\Domain\Instance\Docker\NetworkInfo;
 use App\Domain\Instance\Docker\ProcessOutcome;
+use App\Domain\Instance\Operations\JournalRecord;
+use App\Domain\Instance\Operations\OperationJournal;
+use App\Domain\Instance\Restore\LegacyEnv;
 use App\Domain\Instance\Restore\RestoreSpace;
 use Closure;
+use RuntimeException;
 
 /**
  * A fresh instance directory (InstanceCommandFixture, nothing installed) next to a 1.0 checkout and its running Compose
@@ -61,6 +68,19 @@ final class AdoptFixture
 
     public string $clusterState = 'shut down';
 
+    /** pg_controldata's latest checkpoint of 1.0's volume (LegacyFence); change it to pretend 1.0's Postgres ran again. */
+    public string $checkpoint = '0/1A2B3C4';
+
+    /** @var array<string, string>|null what 1.0's app roles run with (null: the checkout's .env) */
+    public ?array $runningEnv = null;
+
+    public string $pgMajor = '16';
+
+    public string $osRelease = "NAME=\"Alpine Linux\"\nID=alpine\nVERSION_ID=3.22.2\n";
+
+    /** @var array{dir: string, containers: array<string, ContainerInfo>, resources: list<DockerResource>}|null */
+    private ?array $killed = null;
+
     /** @var list<string> the SQL statements psql got, in order */
     public array $sql = [];
 
@@ -84,7 +104,7 @@ final class AdoptFixture
 
     public function cleanup(): void
     {
-        exec('rm -rf '.escapeshellarg($this->checkout));
+        exec('rm -rf '.escapeshellarg($this->checkout).($this->killed === null ? '' : ' '.escapeshellarg($this->killed['dir'])));
         TemporaryInstance::cleanup();
     }
 
@@ -108,15 +128,21 @@ final class AdoptFixture
             ."    volumes:\n      - pg-data:/var/lib/postgresql/data\n  redis:\n    image: valkey/valkey:8-alpine\n  gotenberg:\n    image: gotenberg/gotenberg:8.38.1-chromium\n\nvolumes:\n  pg-data:\n  app-storage:\n";
     }
 
-    /** The 1.0 project's containers and volumes as Compose labels them (running unless stopped). */
+    /** The 1.0 project's containers and volumes as Compose labels them (running unless stopped), with their mounts. */
     public function withLegacyStack(string $project = self::PROJECT, array $stopped = [], array $extraLabels = []): self
     {
         foreach (self::SERVICES as $index => $service) {
             $id = 'legacy'.$service.str_repeat((string) $index, 4);
-            $this->instance->docker->containers[$id] = new ContainerInfo($id, $project.'-'.$service.'-1', in_array($service, $stopped, true) ? 'exited' : 'running', '2026-10-01T10:00:00Z', null, 'image', [
-                Labels::COMPOSE_PROJECT => $project, Labels::COMPOSE_SERVICE => $service, LegacyInstall::ONE_OFF => 'False',
-                LegacyInstall::WORKING_DIR => $this->checkout, LegacyInstall::CONFIG_FILES => $this->checkout.'/compose.yaml', ...$extraLabels,
-            ]);
+            $mounts = match ($service) {
+                'postgres' => [VolumeCopy::DATA_PATH => $project.'_'.LegacyInstall::DATA_VOLUME],
+                'app', 'queue', 'scheduler' => [AppRoles::STORAGE_PATH => $project.'_'.LegacyInstall::STORAGE_VOLUME],
+                default => [],
+            };
+            $this->instance->docker->containers[$id] = new ContainerInfo($id, $project.'-'.$service.'-1', in_array($service, $stopped, true) ? 'exited' : 'running', '2026-10-01T10:00:00Z', null,
+                $service === 'postgres' ? 'postgres:16-alpine' : 'image', array_filter([
+                    Labels::COMPOSE_PROJECT => $project, Labels::COMPOSE_SERVICE => $service, LegacyInstall::ONE_OFF => 'False',
+                    LegacyInstall::WORKING_DIR => $this->checkout, LegacyInstall::CONFIG_FILES => $this->checkout.'/compose.yaml', ...$extraLabels,
+                ], static fn (?string $value): bool => $value !== null), $mounts);
         }
         foreach ([LegacyInstall::DATA_VOLUME, LegacyInstall::STORAGE_VOLUME] as $volume) {
             $this->instance->docker->withResource(new DockerResource(DockerResource::VOLUME, $project.'_'.$volume, [Labels::COMPOSE_PROJECT => $project, LegacyInstall::VOLUME_LABEL => $volume]));
@@ -136,7 +162,73 @@ final class AdoptFixture
      */
     public function adopt(array $parameters = []): array
     {
+        $this->syncEnvironment();
+
         return $this->instance->run('fsa:adopt', ['checkout' => $this->checkout, '--yes' => true, ...$parameters]);
+    }
+
+    /** 1.0's containers run with the checkout's `.env` (unless `$runningEnv` says otherwise) and Postgres 16 on Alpine. */
+    public function syncEnvironment(): void
+    {
+        $env = $this->runningEnv ?? LegacyEnv::read((string) file_get_contents($this->checkout.'/.env'), LegacyRuntime::COMPARED);
+        foreach (['app', 'queue', 'scheduler'] as $service) {
+            $this->instance->docker->environments[$this->legacyId($service)] = $env;
+        }
+        $this->instance->docker->environments[$this->legacyId('postgres')] = ['PG_MAJOR' => $this->pgMajor];
+    }
+
+    /** Pretends 1.0 was started again in its checkout: every container runs, with a new start time. */
+    public function restartLegacy(): void
+    {
+        foreach (self::SERVICES as $service) {
+            $this->instance->docker->restartContainer($this->legacyId($service), '2026-10-20T11:11:11.000000001Z');
+        }
+    }
+
+    /**
+     * Snapshots the instance directory and Docker's state at the first Docker call made while `$phase` runs (`$latest`: at
+     * its last one), as a process killed there would leave them; restoreKill() puts them back after the run (the dead
+     * run's lock goes, as a stale one would).
+     */
+    public function killAt(string $phase, bool $latest = false): void
+    {
+        foreach (['runContainer', 'runContainerToFile', 'composeUp', 'composeRun', 'stopContainers', 'startContainers', 'containers'] as $method) {
+            $previous = $this->instance->docker->onCall[$method] ?? null;
+            $this->instance->docker->onCall[$method] = function (array $args) use ($phase, $latest, $previous): void {
+                $this->snapshotIfIn($phase, $latest);
+                if ($previous instanceof Closure) {
+                    $previous($args);
+                }
+            };
+        }
+    }
+
+    public function restoreKill(): void
+    {
+        $root = $this->instance->directory->root;
+        if ($this->killed === null) {
+            throw new RuntimeException('The run never reached the phase to kill.');
+        }
+        exec('rm -rf '.escapeshellarg($root).' && cp -Rp '.escapeshellarg($this->killed['dir']).' '.escapeshellarg($root).' && rm -rf '.escapeshellarg($root.'/locks').' '.escapeshellarg($this->killed['dir']));
+        $this->instance->docker->containers = $this->killed['containers'];
+        $this->instance->docker->resources = $this->killed['resources'];
+        $this->killed = null;
+        $this->instance->docker->onCall = array_intersect_key($this->instance->docker->onCall, ['composeUp' => true]);
+        $this->instance->docker->onCall['composeUp'] = $this->startInstance(...);
+    }
+
+    private function snapshotIfIn(string $phase, bool $latest): void
+    {
+        $record = $this->killed === null || $latest ? new OperationJournal($this->instance->directory)->current() : null;
+        if (! $record instanceof JournalRecord || $record->lastStartedPhase() !== $phase || $record->hasCompleted($phase)) {
+            return;
+        }
+        if ($this->killed !== null) {
+            exec('rm -rf '.escapeshellarg($this->killed['dir']));
+        }
+        $dir = sys_get_temp_dir().'/fsa-test-killed-'.bin2hex(random_bytes(4));
+        exec('cp -Rp '.escapeshellarg($this->instance->directory->root).' '.escapeshellarg($dir));
+        $this->killed = ['dir' => $dir, 'containers' => $this->instance->docker->containers, 'resources' => $this->instance->docker->resources];
     }
 
     /** @return list<ContainerSpec> */
@@ -172,7 +264,8 @@ final class AdoptFixture
             'psql' => $this->psql($spec),
             'valkey-cli' => new ProcessOutcome(0, count($this->queue) > 1 ? array_shift($this->queue) : $this->queue[0]),
             'pg_restore', 'cp' => new ProcessOutcome(0),
-            'pg_controldata' => new ProcessOutcome(0, "pg_control version number:            1300\nDatabase cluster state:               {$this->clusterState}\n"),
+            'pg_controldata' => new ProcessOutcome(0, "pg_control version number:            1300\nDatabase cluster state:               {$this->clusterState}\nLatest checkpoint location:           {$this->checkpoint}\n"),
+            'cat' => new ProcessOutcome(0, $this->osRelease),
             default => null,
         };
     }

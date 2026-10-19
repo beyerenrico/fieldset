@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Domain\Instance\Backup\AgeCli;
 use App\Domain\Instance\Backup\BackupChecksums;
+use App\Domain\Instance\Docker\ContainerInfo;
 use App\Domain\Instance\Docker\ContainerSpec;
 use App\Domain\Instance\Docker\ImageInfo;
 use App\Domain\Instance\Operations\Ledger;
@@ -73,7 +74,7 @@ it('adopts a local 1.0 install: its APP key, database names and sender, capture 
         ->and(app(OperationJournal::class)->current())->toBeNull();
 });
 
-it('follows the KTD20 order: stop and drain 1.0, back it up, stop its Postgres, copy, verify, then start 2.0', function (): void {
+it('follows the KTD20 order: stop and drain 1.0, back it up, stop its Postgres, copy, verify, then start 2.0, checking 1.0 stayed stopped', function (): void {
     [$code] = $this->adopt->adopt();
     $docker = $this->adopt->instance->docker;
     $steps = [];
@@ -95,12 +96,12 @@ it('follows the KTD20 order: stop and drain 1.0, back it up, stop its Postgres, 
     expect($code)->toBe(0)
         ->and($steps)->toBe([
             'stop:app,scheduler', 'run:valkey-cli', 'stop:queue', 'file:pg_dump', 'run:pg_restore', 'run:psql', 'file:tar',
-            'stop:postgres', 'stop:redis,gotenberg', 'run:cp', 'run:pg_controldata', 'up:postgres', 'run:psql',
-            'up:postgres,redis', 'migrate', 'up:', 'run:psql',
+            'stop:postgres', 'stop:redis,gotenberg', 'run:pg_controldata', 'run:cp', 'run:pg_controldata', 'up:postgres', 'run:psql',
+            'up:postgres,redis', 'migrate', 'run:psql', 'run:pg_controldata', 'up:',
         ]);
 });
 
-it('writes the backup in the 1.0 format with only the allow-listed env values, and never writes the 1.0 volumes', function (): void {
+it('writes the backup in the 1.0 format with only the allow-listed env values but no APP key, and never writes the 1.0 volumes', function (): void {
     [$code, $json] = $this->adopt->adopt();
     $dir = $json['data']['adopted']['backup_path'];
     $env = (string) file_get_contents($dir.'/env');
@@ -114,9 +115,10 @@ it('writes the backup in the 1.0 format with only the allow-listed env values, a
         ->and(array_values(array_diff(scandir($dir) ?: [], ['.', '..'])))->toBe(['SHA256SUMS', 'database.dump', 'env', 'manifest.txt', 'storage.tar.gz'])
         ->and(BackupChecksums::verifySums($dir))->toBe([])
         ->and(BackupSet::detect($dir)['format'])->toBe(BackupSet::LEGACY)
-        ->and(LegacyEnv::read($env))->toEqual(['APP_KEY' => AdoptFixture::APP_KEY, 'APP_URL' => 'http://localhost:8080', 'MAIL_FROM_ADDRESS' => 'forms@legacy.test', 'MAIL_FROM_NAME' => 'Legacy Forms', 'MAIL_HOST' => 'smtp.legacy.test', 'MAIL_PORT' => '587'])
-        ->and($env)->not->toContain('DB_PASSWORD')->not->toContain('legacy-mail-secret-1')->not->toContain('SSO_')
-        ->and($manifest)->toMatchArray(['migrations' => '120', 'last_migration' => '2026_10_25_100000_v1_last', 'submissions' => '41', 'users' => '7', 'storage' => 'included', 'env' => 'included', 'source' => 'fsa adopt'])
+        ->and(LegacyEnv::read($env))->toEqual(['APP_URL' => 'http://localhost:8080', 'MAIL_FROM_ADDRESS' => 'forms@legacy.test', 'MAIL_FROM_NAME' => 'Legacy Forms', 'MAIL_HOST' => 'smtp.legacy.test', 'MAIL_PORT' => '587'])
+        ->and($env)->not->toContain('DB_PASSWORD')->not->toContain('legacy-mail-secret-1')->not->toContain('SSO_')->not->toContain(AdoptFixture::APP_KEY)->toContain('--app-key-file') // review S1
+        ->and($manifest)->toMatchArray(['migrations' => '120', 'last_migration' => '2026_10_25_100000_v1_last', 'submissions' => '41', 'users' => '7', 'storage' => 'included', 'env' => 'included', 'source' => 'fsa adopt',
+            'app_key_fingerprints' => AppKeys::of([AdoptFixture::APP_KEY])->fingerprints()[0]])
         ->and(substr(sprintf('%o', fileperms($dir)), -3))->toBe('700')->and(substr(sprintf('%o', fileperms($dir.'/env')), -3))->toBe('600')
         ->and($legacyMounts)->not->toBeEmpty()
         ->and(array_filter($legacyMounts, static fn (string $mount): bool => ! str_ends_with($mount, ':ro')))->toBe([])
@@ -170,7 +172,7 @@ it('refuses what it cannot adopt with exit 7 and the reason, before 1.0 is touch
     }, 'compose_file_override'],
     'started with another Compose file' => [fn (AdoptFixture $a) => $a->withLegacyStack(extraLabels: ['com.docker.compose.project.config_files' => $a->checkout.'/compose.yaml,'.$a->checkout.'/compose.dev.yaml']), 'compose_file_override'],
     'an external database' => [fn (AdoptFixture $a) => file_put_contents($a->checkout.'/compose.yaml', AdoptFixture::compose('db.example.com')), 'external_database'],
-    'no pg-data volume' => [fn (AdoptFixture $a) => $a->instance->docker->resources = [], 'external_database'],
+    'no pg-data volume' => [fn (AdoptFixture $a) => $a->instance->docker->containers[$a->legacyId('postgres')] = new ContainerInfo($a->legacyId('postgres'), 'pg', 'running', null, null, 'postgres:16-alpine', $a->instance->docker->containers[$a->legacyId('postgres')]->labels), 'external_database'],
     'a 2.x checkout' => [fn (AdoptFixture $a) => file_put_contents($a->checkout.'/package.json', '{"version":"2.0.0"}'), 'unsupported_version'],
     'no containers of the project' => [fn (AdoptFixture $a) => $a->instance->docker->containers = [], 'legacy_not_found'],
     'started from another directory' => [fn (AdoptFixture $a) => $a->withLegacyStack(extraLabels: ['com.docker.compose.project.working_dir' => '/srv/elsewhere']), 'checkout_mismatch'],
@@ -251,12 +253,16 @@ it('records the baseline in the ledger, and uninstall takes a final backup and r
         ->and(adoptBackups($this->adopt))->toHaveCount(1);
 });
 
-it('uninstalls an adopted instance without a final backup with --no-backup', function (): void {
+it('uninstalls an adopted instance without a final backup with --no-backup, saying that the adopt backup goes too', function (): void {
     $this->adopt->adopt();
     [$prompt] = [$this->adopt->instance->run('fsa:uninstall', [])];
+    [, $noBackupPrompt] = $this->adopt->instance->run('fsa:uninstall', ['--no-backup' => true]);
+    [, $keepPrompt] = $this->adopt->instance->run('fsa:uninstall', ['--no-backup' => true, '--keep-backups' => true]);
     [$code, $json] = $this->adopt->instance->run('fsa:uninstall', ['--yes' => true, '--no-backup' => true]);
 
     expect($prompt[0])->toBe(6)->and($prompt[1]['errors'][0]['message'])->toContain('Write a final backup')->toContain($this->adopt->checkout)
+        ->and($noBackupPrompt['errors'][0]['message'])->toContain('including backups/')->toContain('1.0 backup too')->toContain('No final backup is made')->toContain('is lost')->toContain($this->adopt->checkout) // review A8
+        ->and($keepPrompt['errors'][0]['message'])->toContain('except backups/')->toContain('No final backup is made')->not->toContain('Write a final backup')
         ->and($code)->toBe(0)->and($json['data']['final_backup'])->toBeNull()->and($json['data']['backups_deleted'])->toBeTrue()
         ->and($json['data']['adopted']['restart_1_0'])->toContain('docker compose up -d');
 });

@@ -59,19 +59,21 @@ The Form Schema Spec has its own changelog in `spec/form-definition/1.0/CHANGELO
 - **`fsa config set webhooks on|paused`**; a webhook step also waits when the instance's runtime file cannot be read
   (ADR 0085).
 - **`fsa adopt <checkout>`** (install.sh `--adopt <checkout>`) — turns a clone-based 1.0 install into an instance by
-  copying its data: it stops 1.0's app and scheduler, lets its queue drain, takes a backup in the 1.0 format, stops 1.0's
-  Postgres cleanly, copies both volumes into the instance's own and checks the copy against the backup (row counts,
-  audit chain heads, migrations, amcheck on the unique text indexes) before 2.0 starts on `postgres:16-alpine`. It keeps
-  APP_KEY, the database names and the sender, starts with captured mail and names 1.0's SMTP server, infers local or
-  proxy mode from APP_URL and APP_PORT, reads only an allow-list of the 1.0 `.env` and never applies its debug, SSO or
-  trusted-proxy values. A Compose override or an external database is refused (exit 7). Any failure before 2.0 starts
-  brings 1.0 back unchanged and leaves nothing of 2.0 behind (exit 5); `--abandon` undoes an adopt that stopped half-way
-  (ADR 0087).
+  copying its data: it stops 1.0's app, scheduler and any other service it added, lets its queue drain, takes a backup
+  in the 1.0 format (without the APP keys: its manifest names them by fingerprint), stops 1.0's Postgres cleanly,
+  copies both volumes into the instance's own and checks the copy against the backup (row counts, audit chain heads,
+  migrations, amcheck on the unique text indexes) before 2.0 starts on `postgres:16-alpine`; a 1.0 started again in
+  between stops it. It keeps APP_KEY, the database names and the sender, starts with captured mail and names 1.0's SMTP
+  server, infers local or proxy mode from APP_URL and APP_PORT, reads only an allow-list of the 1.0 `.env` (which must
+  match what 1.0 runs with) and never applies its debug, SSO or trusted-proxy values. A Compose override, an external
+  database or a Postgres other than 16 on Alpine is refused (exit 7). Any failure before 2.0 starts brings 1.0 back
+  unchanged and leaves nothing of 2.0 behind (exit 5); `--abandon` undoes an adopt that stopped half-way (ADR 0087).
 
 ### Changed
-- `fsa uninstall` of an adopted instance takes a final backup by default, keeps `backups/`, reports the writes made
-  since the adopt and how to start 1.0 again (`docker compose up -d` in its checkout, whose volumes were never changed);
-  `--no-backup` skips the final backup (ADR 0087).
+- `fsa uninstall` of an adopted instance (also one whose adopt stopped after 2.0 started) takes a final backup by
+  default, without the APP key, which stays in the 1.0 checkout's `.env`; it keeps `backups/`, reports the writes made
+  since the adopt and how to start 1.0 again (`docker compose up -d` in its checkout, whose volumes were never changed)
+  with the jobs 1.0 will then run; `--no-backup` skips the final backup (ADR 0087).
 - `fsa status` and `fsa logs` list the `backup` service; the stack file for Portainer and Coolify still has no
   backup service (ADR 0084).
 - `fsa status` and `fsa config show` show the last restore, the storage volume in use, paused webhooks and an

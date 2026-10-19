@@ -188,6 +188,18 @@ it('mounts adopt\'s 1.0 checkout read-only at its own physical path and passes t
         ->and($missing->getExitCode())->toBe(2)->and($missing->getOutput())->toContain('path_missing');
 });
 
+it('never takes the value of a flag as adopt\'s checkout (review S4)', function (): void {
+    mkdir($this->scripts->root.'/home/form-schema-app');
+    $checkout = realpath($this->scripts->root.'/home/form-schema-app');
+
+    $process = $this->scripts->run($this->dir.'/fsa', ['adopt', '--release', '2.0.0', 'home/form-schema-app', '--json'], $this->env, $this->scripts->root);
+    $run = $this->scripts->opsRuns()[0];
+
+    expect($process->getExitCode())->toBe(0, $process->getErrorOutput())
+        ->and(array_slice($run, array_search(SHIM_IMAGE, $run, true) + 1))->toBe(['adopt', '--dir', $this->dir, '--release', '2.0.0', $checkout, '--json'])
+        ->and($this->scripts->opsEnvironment()['FSA_MOUNTS'])->toBe("ro:{$checkout}\n");
+});
+
 it('refuses file paths a bind mount cannot carry or whose directory does not exist (exit 2)', function (array $arguments, string $message): void {
     $process = $this->scripts->run($this->dir.'/fsa', ['install', ...$arguments], $this->env);
 

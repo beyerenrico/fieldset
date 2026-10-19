@@ -17,6 +17,7 @@ use App\Domain\Instance\Docker\Labels;
 use App\Domain\Instance\Docker\ProcessOutcome;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Output\ExitCode;
+use App\Domain\Instance\Restore\AppKeys;
 use App\Domain\Instance\State\EnvFiles;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceState;
@@ -58,11 +59,13 @@ final readonly class FinalBackup
 
     /**
      * @param  list<DockerResource>  $volumes  the instance's labelled volumes
+     * @param  bool  $withKey  false for an adopted instance (plan U19, ADR 0087 review S1): its APP_KEY is the 1.0 checkout's,
+     *                         which keeps it in its own `.env`; backup.json names it by fingerprint instead
      * @return array{dir: string, files: list<string>}|null null when there is nothing to save (no key, no volume)
      *
      * @throws InstanceException exit 4; no part of the backup is left behind
      */
-    public function write(?InstanceState $state, ?string $uuid, array $volumes): ?array
+    public function write(?InstanceState $state, ?string $uuid, array $volumes, bool $withKey = true): ?array
     {
         $env = new EnvFiles($this->directory);
         $hasKey = ($env->read('app')['APP_KEY'] ?? '') !== '';
@@ -78,8 +81,8 @@ final readonly class FinalBackup
             if (! $this->directory->files()->createExclusive($relative)) {
                 throw new InstanceException("{$relative} exists already.");
             }
-            $files = $this->save($relative, $env, $state, $database, $storage);
-            $this->manifest($relative, $files, $uuid, $state);
+            $files = $this->save($relative, $env, $state, $database, $storage, $withKey);
+            $this->manifest($relative, $files, $uuid, $state, $withKey ? null : $env);
         } catch (Throwable $e) {
             $this->directory->files()->delete($relative);
             if ($e instanceof DockerUnavailable) {
@@ -103,9 +106,9 @@ final readonly class FinalBackup
     }
 
     /** @return list<string> */
-    private function save(string $relative, EnvFiles $env, ?InstanceState $state, bool $database, bool $storage): array
+    private function save(string $relative, EnvFiles $env, ?InstanceState $state, bool $database, bool $storage, bool $withKey): array
     {
-        $files = $this->saveAppKey($relative, $env) ? [self::APP_KEY] : [];
+        $files = $withKey && $this->saveAppKey($relative, $env) ? [self::APP_KEY] : [];
         if ($database || $storage) {
             $project = $state instanceof InstanceState
                 ? ComposeProject::forInstance($state, $this->directory)
@@ -177,17 +180,23 @@ final readonly class FinalBackup
         }
     }
 
-    /** @param  list<string>  $files */
-    private function manifest(string $relative, array $files, ?string $uuid, ?InstanceState $state): void
+    /**
+     * @param  list<string>  $files
+     * @param  EnvFiles|null  $keptOut  the env files whose APP keys were left out: named by fingerprint
+     */
+    private function manifest(string $relative, array $files, ?string $uuid, ?InstanceState $state, ?EnvFiles $keptOut = null): void
     {
         $entries = [];
         foreach ($files as $name) {
             $path = $this->directory->path($relative.'/'.$name);
             $entries[$name] = ['bytes' => (int) filesize($path), 'sha256' => (string) hash_file('sha256', $path)];
         }
+        $app = $keptOut?->read('app') ?? [];
+        $keys = array_values(array_filter([$app['APP_KEY'] ?? '', ...explode(',', $app['APP_PREVIOUS_KEYS'] ?? '')], static fn (string $key): bool => trim($key) !== ''));
         $manifest = [
             'schema_version' => '1.0', 'kind' => 'final', 'created_at' => CarbonImmutable::now('UTC')->toIso8601ZuluString(),
             'uuid' => $uuid, 'version' => $state?->version(), 'files' => $entries,
+            ...($keptOut instanceof EnvFiles ? ['app_key' => 'not included: the adopted 1.0 checkout\'s .env holds it', 'app_key_fingerprints' => AppKeys::of($keys)->fingerprints()] : []),
         ];
         $this->directory->write($relative.'/backup.json', json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)."\n", 0600);
     }

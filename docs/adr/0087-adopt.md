@@ -1,6 +1,6 @@
 # 0087: `fsa adopt`: a 1.0 install becomes an instance by copying its data
 - Status: accepted
-- Date: 2026-10-20
+- Date: 2026-10-20 (amended the same day after the U19 review)
 - Refines: ADR 0084 (safety backups, the `safety-adopt` kind), ADR 0085 (the 1.0 reader and `.env` allow-list, whose
   backups an in-place restore takes), ADR 0066 (exit codes, journal, gateway), ADR 0070 (launchers), ADR 0072/0073
   (uninstall and its final backup), ADR 0080 (capture mail)
@@ -33,9 +33,18 @@ literal `--version` itself). Flags: `--release`, `--drop-jobs`, `--abandon`.
 **Reading 1.0 (LegacyCheckout, LegacyInstall).** Of the checkout only `compose.yaml` (`name:`, the `DB_HOST:` lines),
 `package.json` (`version`) and `.env` are read, and of `.env` only the allow-list `LegacyEnv::ADOPT`: U17's `ALLOWED`
 (APP_KEY, APP_PREVIOUS_KEYS, APP_URL, MAIL_FROM_ADDRESS, MAIL_FROM_NAME, MAIL_HOST, MAIL_PORT) plus APP_PORT, COMPOSE_FILE,
-COMPOSE_PROJECT_NAME, DB_DATABASE and DB_USERNAME; never DB_PASSWORD, SMTP credentials, APP_DEBUG, SSO_* or TRUSTED_PROXIES.
-Docker is the truth about the running install: the containers of the Compose project (one-offs left out) and the volumes
-labelled `pg-data`/`app-storage`. Exit 7 with the reason and a hint, before anything changes:
+COMPOSE_PROJECT_NAME, DB_DATABASE, DB_USERNAME and REDIS_DB; never DB_PASSWORD, SMTP credentials, APP_DEBUG, SSO_* or
+TRUSTED_PROXIES. Docker is the truth about the running install (LegacyContainers): the containers of the Compose project
+(one-offs left out), each of which must carry the checkout's `working_dir` and `config_files` labels (exit 7
+`legacy_unlabelled`), one per service (`legacy_scaled`), and the volumes their inspect `Mounts` name at Postgres's data
+directory and the app roles' storage directory, whatever they are called (review S3). The stop, the start and the fence
+below look the containers up the same way, so a container recreated since discovery is started by its new ID and an ID
+that is gone fails like the CLI. What 1.0 runs with is checked against the checkout (LegacyRuntime, review S2, A4):
+APP_KEY, APP_PREVIOUS_KEYS, DB_DATABASE, DB_USERNAME and APP_PORT in `.env` must equal the app container's `Config.Env`
+(read for these keys only; `env_mismatch` names the keys, never a value), so a `.env` edited after 1.0 started (a planted
+previous key) is not adopted; 1.0's Postgres must be major 16 (`PG_MAJOR`) on Alpine (`/etc/os-release` of its image, a
+network-less one-off), `postgres_image_mismatch` otherwise. REDIS_DB must be a database number (`unsupported_redis_db`).
+Exit 7 with the reason and a hint, before anything changes:
 `compose_file_override` (COMPOSE_FILE other than `compose.yaml`; an override file Compose would merge without
 COMPOSE_FILE; containers started with more Compose files than the checkout's compose.yaml), `external_database` (a
 `DB_HOST:` other than `postgres` in compose.yaml, no bundled Postgres container or no `pg-data` volume),
@@ -56,17 +65,21 @@ APP_DEBUG, SSO_ALLOW_INSECURE_IDP and SSO_DNS_DRIVER are what fsa always renders
 TRUSTED_PROXIES follows the mode.
 
 **Order (KTD20) and journal (R54).** Journaled operation `adopt` under the instance lock, each phase written before it
-starts: `doctor` (release verified, 1.0 found, install's preflight, the space check) → `secrets` → `state` → `pull`
-(every image before 1.0 is touched) → `stop_1_0` → `backup_1_0` → `stop_postgres_1_0` → `copy` → `verify` → `up`
-(Postgres, Valkey; proxy mode's gateway) → `migrate` (and the backup role) → `start` → `smoke` → `done`.
+starts: `doctor` (release verified, 1.0 found and checked, install's preflight, the space check) → `secrets` → `state` →
+`pull` (every image before 1.0 is touched) → `stop_1_0` → `backup_1_0` → `stop_postgres_1_0` → `copy` → `verify` → `up`
+(Postgres, Valkey; proxy mode's gateway) → `migrate` (and the backup role) → `baseline` → `start` → `smoke` → `done`.
+The phases up to `baseline` (AdoptSequence) run on every resumed run until `start` began, each skipping itself once
+completed, with the fence checked between them.
 
 - *Space.* `du -s -B1` of both 1.0 volumes (a socket-less, network-less one-off of the app image, volumes read-only),
   twice (backup and copy) plus 1 GiB, on the instance directory's file system (the restore check's estimate and test seam,
   ADR 0085); exit 3 `low_disk_space` with 1.0 running. Unknown sizes or free space pass.
 - *Stop and drain.* 1.0's containers are stopped and started by ID (`docker container stop/start`, two new gateway
   methods), never through Compose, which would recreate them from a file fsa cannot render as 1.0 did (a new
-  `runContainerToFile` streams one-off output into a file). App and scheduler stop first (100 s grace); Horizon then
-  works while a one-off of the manifest's Valkey image on 1.0's default network counts the queue keys with one Lua script
+  `runContainerToFile` streams one-off output into a file). App, scheduler and every other running service that is
+  neither infrastructure (Postgres, Valkey, Gotenberg) nor the queue stop first (100 s grace; review A1: a service added
+  to 1.0's compose.yaml may write too); Horizon then works while a one-off of the manifest's Valkey image on 1.0's
+  default network counts the queue keys of 1.0's Valkey database (`-n REDIS_DB`, review A5) with one Lua script
   (any Redis prefix: waiting lists without Laravel's `:notify` lists, `:reserved` and `:delayed` sorted sets), every 3 s for
   at most 120 s; drained means nothing waits and nothing runs. Jobs left mean exit 4 `drain_timeout` (which goes back)
   unless `--drop-jobs` (warning `jobs_left_in_1_0`: they run if 1.0 starts again); delayed jobs never drain and are
@@ -78,9 +91,11 @@ starts: `doctor` (release verified, 1.0 found, install's preflight, the space ch
   --no-owner --no-privileges` in a one-off of the manifest's Postgres image in 1.0's Postgres container's network
   namespace, streamed to the file; `pg_restore --list` must read it), `storage.tar.gz` (GNU tar of the app image over
   1.0's storage volume mounted read-only, numeric owners, `./` members as 1.0 writes them; tar's exit 1 is a warning),
-  `env` with only the restore allow-list's values (no DB_PASSWORD, no SMTP credentials), `manifest.txt` (created_at,
-  postgres, migrations, last_migration, the snapshot's counts, storage, env, source `fsa adopt`, version, project) and
-  `SHA256SUMS`. fsa writes the format itself rather than running the checkout's `scripts/backup.sh`: that would execute
+  `env` with only the restore allow-list's values except the APP keys (no APP_KEY, APP_PREVIOUS_KEYS, DB_PASSWORD or
+  SMTP credentials; review S1: a never-pruned backup must not keep a live key on disk), `manifest.txt` (created_at,
+  postgres, migrations, last_migration, the snapshot's counts, storage, env, source `fsa adopt`, version, project and
+  `app_key_fingerprints`, the keys' fingerprints in order) and `SHA256SUMS`. A `safety-adopt-*.partial` a killed run left
+  is removed before a new one begins and on the way back (review A7). fsa writes the format itself rather than running the checkout's `scripts/backup.sh`: that would execute
   checkout code in the container that holds the Docker socket, and it needs 1.0's `docker compose exec` and `.env`.
 - *Snapshot (DataSnapshot, DatabaseProbe).* Right after the dump (writers stopped, so both see one state): the counts of
   organizations, users, forms, form_versions, submissions, attachments, renditions, mail_messages and activity_log, the
@@ -90,7 +105,8 @@ starts: `doctor` (release verified, 1.0 found, install's preflight, the space ch
   and Gotenberg.
 - *Copy (VolumeCopy, R60).* Compose creates the instance's `<project>_pg-data` and `<project>_app-storage` volumes with
   its own and the instance's labels (a `true` one-off of `postgres` and of the app service), then a one-off of the
-  manifest's `postgres:16-alpine` (same musl family as 1.0's, so text indexes stay valid, KTD20) copies each 1.0 volume,
+  manifest's `postgres:16-alpine` (the same major and musl family as 1.0's, which the doctor checked, so text indexes
+  stay valid, KTD20) copies each 1.0 volume,
   mounted read-only, with `cp -a`, without a network. The copy must report `Database cluster state: shut down`
   (`pg_controldata`), else exit 4 `postgres_not_shut_down`. A resumed copy removes the half-filled volumes first.
   1.0's volumes are never mounted writable (a test checks every mount).
@@ -102,10 +118,14 @@ starts: `doctor` (release verified, 1.0 found, install's preflight, the space ch
 - *Smoke.* Install's smoke test (HTTP, a PDF, a test mail). Adopt has no owner e-mail, so the mail goes to the active
   operator; a 1.0 database without one (1.0 granted operators by hand with `app:platform-admin`) skips the mail with the
   warning `test_mail_skipped` and the hint `fsa config set operator-email <email>` (ADR 0072 amendment).
-- *Done.* After the smoke test the instance's snapshot is the baseline: `backups/ledger.log` gets the `adopted` line
-  (host UID, checkout, project, backup, epoch 1, the backup's heads, the baseline and `baseline_source`: `instance`, or
-  `copy` when the instance could not be read and the verified copy stands in); the state gets `installed` (so a
-  repeated install changes nothing) and `adopted` (checkout, project, version, backup). Adopt continues the 1.0 audit
+- *Baseline.* After the migrations and before 2.0 starts, the instance's snapshot is the baseline of uninstall's
+  "writes since adopt" (review A2: taken after the start, it would hide what 2.0 wrote before it; the smoke test writes
+  no counted row: its mail goes out without the mail log, its PDF without a rendition row).
+- *Done.* `backups/ledger.log` gets the `adopted` line (journal ID, host UID, checkout, project, backup, epoch 1, the
+  backup's heads and the baseline), once per journal (review A7: a run killed after the append does not append again);
+  the state gets `installed` (so a repeated install changes nothing) and `adopted` (checkout, project, version, backup,
+  the jobs left in 1.0's Valkey). A 1.0 that runs again by then is named (warning `legacy_running`). Adopt continues
+  the 1.0 audit
   chains: it starts no epoch and writes no audit entry, so heads recorded under 1.0 stay verifiable (KTD26 concerns
   operations that put a database back).
 
@@ -115,30 +135,55 @@ so nothing of it is lost, and none of its containers holds a port 1.0 needs); th
 services that ran when adopt began, their containers looked up again by the project's labels, so one recreated meanwhile
 is found; Postgres first and healthy before the app roles, which migrate on start) and fsa checks that they run
 (`not_running`, warning `legacy_not_running`); then the generated files (state, compose file, env and runtime
-directories) are deleted; the 1.0-format backup, the release and the journal archive stay. Exit 5 `rolled_back` with the
+directories) and a partial 1.0-format backup are deleted; the 1.0-format backup, the release and the journal archive
+stay. Exit 5 `rolled_back` with the
 failing step's code (exit 9 when 1.0 had not been stopped yet: `markReverted`, nothing changed); leftovers that could not
 be removed are named (`adopt_leftovers`). When 1.0 does not start again it is exit 8 `rollback_failed` with
 `cd <checkout> && docker compose up -d`; the journal stays open and the next `fsa adopt` (or `fsa adopt --abandon`)
 finishes the way back instead of moving forward.
 
-**From `start` on** the instance runs on its own copy and may take writes: a failure leaves the journal open (exit 4) and
-the same command resumes forward (nothing is copied again); `--abandon` is refused (exit 2 `adopt_started`), the way back
-is `fsa uninstall --keep-backups` and `docker compose up -d` in the checkout. A finished adopt of the same checkout changes
-nothing, another checkout is exit 2 `already_installed`.
+**1.0 stays stopped (LegacyFence, R46, review A1).** Once the writers stopped (`stop_1_0`) and again once Postgres stopped
+(`stop_postgres_1_0`), the phase journals a fence: every container of the project with its `State.StartedAt`, and, after
+Postgres stopped, the source cluster's `pg_controldata` state and latest checkpoint location (a one-off of the manifest's
+Postgres image, the volume read-only). Before the backup, before Postgres stops, before and after the copy and on every
+run before `start` (a resumed one too), the newest fence must hold: a container that runs (before Postgres stopped: one
+that is not infrastructure), one started again since (Docker sets StartedAt anew on every start, so a start followed by a
+stop is caught as well), one removed, recreated or added, or a moved checkpoint (any cluster started on that volume, also
+from outside the project, writes one) is exit 4 `legacy_restarted` naming each problem, and the run goes back (exit 5):
+the copy could miss what 1.0 wrote meanwhile. StartedAt rather than the review's FinishedAt: a start is what lets 1.0
+write, StartedAt moves on every start, and ContainerInfo already reads it; a container stopped since without a start
+leaves StartedAt as it was and is harmless. A resumed run also checks the journaled `app_key_fingerprint` against the
+`.env` (`env_changed`, review S2).
 
-**Uninstall of an adopted instance (ADR 0073 amended).** `fsa uninstall` writes the final backup and keeps `backups/`
-without `--keep-backups`, unless the new `--no-backup`; the result's `adopted` block names the checkout, the writes since
+**From `start` on** the instance runs on its own copy and may take writes: a failure leaves the journal open (exit 4, with
+the hint to resume with the same command or to go back with `fsa uninstall` and `docker compose up -d` in the checkout,
+review A3) and the same command resumes forward (nothing is copied again); `--abandon` is refused (exit 2
+`adopt_started`). A finished adopt of the same checkout changes nothing, another checkout is exit 2 `already_installed`.
+
+**Uninstall of an adopted instance (ADR 0073 amended).** An instance counts as adopted when its state holds the `adopted`
+entry or an open adopt journal got past `stop_1_0` (review A3: an adopt that failed at or after `start`; `pending: true`,
+the writes since adopt then from the journal's `baseline`). `fsa uninstall` writes the final backup and keeps `backups/`
+without `--keep-backups`, unless the new `--no-backup`; the final backup of an adopted instance has no `app-key.env`
+(review S1: the key is the 1.0 checkout's, which keeps it in its `.env`), its `backup.json` names the keys by
+fingerprint; other instances keep ADR 0073's `app-key.env`, since their final backup is then the only copy of the key.
+The result's `adopted` block names the checkout, the writes since
 adopt (`audit_entries`: how far every chain moved on since the baseline; `rows`: the change of every counted table; read
 from the running Postgres the final backup started) and `restart_1_0` (`cd <checkout> && docker compose up -d`), with the
-warnings `restart_1_0` and, when anything was written, `writes_since_adopt` (`writes_since_adopt_unknown` when they
+warnings `restart_1_0` (with the jobs 1.0 will run when it comes back: those `--drop-jobs` left, the delayed ones, or an
+uncounted number, review A6) and, when anything was written, `writes_since_adopt` (`writes_since_adopt_unknown` when they
 cannot be counted). With `--no-backup` and without `--keep-backups`, `backups/` goes too, the adopt backup included; with
-both, `backups/` stays without a final backup. 1.0's volumes were never the instance's, so
+both, `backups/` stays without a final backup; the prompt says which (review A8). 1.0's volumes were never the
+instance's, so
 they stay, and `docker compose up -d` in the checkout brings 1.0 back with its pre-adopt data.
 
-**Restoring the adopt backup (ADR 0085).** The backup's `env` carries the instance's own APP_KEY, so an in-place restore
-counts it as this instance's (`RestoreChecks::assertSameInstance`). It needs `--accept-unauthenticated` (the 1.0 format
-has no HMAC), and while it is older than the migrated instance an in-place restore is exit 7 `upgrade_child_unavailable`
-until U18's upgrade child exists; `fsa restore --drill` and `fsa install --from-backup` take it today.
+**Restoring the adopt backup (ADR 0085).** The backup's manifest lists the fingerprints of the instance's APP keys
+(`app_key_fingerprints`, read by BackupPreparer for the 1.0 format too), so an in-place restore counts it as this
+instance's (`RestoreChecks::assertSameInstance` takes the first fingerprint when the `env` holds no key) and every
+listed key must be known (`app_key_unknown` otherwise). Restoring it elsewhere (`fsa install --from-backup`) needs the
+key: `--app-key-file` with the 1.0 checkout's `.env` or the instance's `env/app.env`. It needs `--accept-unauthenticated`
+(the 1.0 format has no HMAC), and while it is older than the migrated instance an in-place restore is exit 7
+`upgrade_child_unavailable` until U18's upgrade child exists; `fsa restore --drill` and `fsa install --from-backup` take
+it today.
 
 ## Alternatives considered
 - **Taking over the 1.0 volumes in place (origin R46):** no way back to 1.0 once 2.0's migrations ran on them; R60 replaced
@@ -147,6 +192,9 @@ until U18's upgrade child exists; `fsa restore --drill` and `fsa install --from-
   dump/restore of a large database is slower than a file copy and loses nothing the copy keeps; the copy is verified
   against the backup, and `--from-backup` stays the route for a database that fails amcheck or an external one.
 - **Reading DB_PASSWORD to connect:** the loopback trust of the official image reaches the database without any 1.0 secret.
+- **REINDEX after copying a cluster from another libc or major (review A4):** a major mismatch cannot be copied at all,
+  and REINDEXing every text index of a large database costs about what the dump/restore of `--from-backup` costs, which
+  rebuilds every index on the instance's own image; refusing keeps one verified path per case.
 - **Compose against the checkout's file (`docker compose -p … stop/up`):** `up` recreates 1.0's containers when fsa's
   environment interpolates `compose.yaml` differently (COMPOSE_DISABLE_ENV_FILE, defaults), so containers are stopped and
   started by ID.
@@ -163,5 +211,8 @@ until U18's upgrade child exists; `fsa restore --drill` and `fsa install --from-
   both clusters being Alpine/musl (KTD20), which the copy keeps by using the same image family.
 - A one-off that times out (the 6-hour `cp`, `pg_dump` or `tar`) is not killed by the Docker CLI's exit; it carries the
   instance label, so the way back or `fsa uninstall` removes it.
-- The checkout is mounted read-only as a whole into the ops container (the shim mounts directories); fsa reads only
+- The checkout is mounted read-only as a whole into the ops container (the shim mounts directories; it skips the values
+  of value-taking flags such as `--release 2.0.0` when it looks for adopt's checkout, review S4); fsa reads only
   compose.yaml, package.json and the allow-listed lines of `.env` (no symlinks followed).
+- The adopt backup and an adopted instance's final backup cannot be restored without the APP key from outside them; the
+  1.0 checkout keeps it, so deleting that checkout means keeping its `.env` (or the instance's `env/app.env`) elsewhere.
