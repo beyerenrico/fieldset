@@ -268,3 +268,11 @@ Format: question · chosen option · impact · how to reverse.
    `sso.connection_changed`, actor-less group changes, password changes with audit suppressed, wipe requests by
    timestamp only) are then skipped and reported as `carry_partial`. Restoring the same backup twice can drop what the
    first carry re-applied (the carry writes no audit entries) · optional: audit what the carry re-applies.
+58. Reset resume (U23, ADR 0088): the plan says an interrupted reset resumes "on the next `fsa` command"; instead
+   every other changing command answers exit 9 naming `fsa reset`, `fsa status` shows it, and only `fsa reset`
+   continues (other commands would otherwise return the owner link or demo passwords) · accept or require auto-resume.
+59. Reset owner (ADR 0088): the fresh instance's owner is the old operator whose e-mail matches the install record's
+   keyed digest exactly (an e-mail typed with capitals at install does not match), else the operator granted first
+   · accept or normalise case in the digest.
+60. Reset keeps webhooks running (no pause: a reset keeps no runs to repeat) and keeps every safety backup it took,
+   including one a retake superseded (sealed, never pruned) · accept or prune superseded ones after a good reset.

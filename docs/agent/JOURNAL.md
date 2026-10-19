@@ -274,3 +274,13 @@
   the live DB descends from the backup, else an audit/timestamp window (Q57).
 - J08 found the Valkey flush never worked (image appends VALKEY_EXTRA_FLAGS). Merges be7b56b + 45213cd; code equals
   the tested branch: suite 6803/6803, J08 12/12, J01 5/5, J12 3/3, static clean.
+
+## 2026-10-19 M12-T05 U23 reset
+- One worktree agent: `fsa reset` (journaled quiesce, ledger, safety backup or audit export, recreate, fresh volume,
+  epoch + `instance.reset`, seed re-run, demo policy), resume after the drop; ADR 0088. Instance coverage 93.45 %.
+- Review (13): 3 high (old signed URLs resolved new rows after sequences restarted; way back not via reopenPrevious;
+  way back unjournaled), rest medium/low (failed drop counted as past it, flush optional, leftovers, carry after a
+  reset, confirmation outside the lock, backup during an open reset, hints). Verifier: A1 partial, 2 medium (retake
+  decided from live containers; superseded safety backup left plain), 7 low (login-link wrote during a reset, …).
+- All fixed with tests; `app:install` became one transaction. Merge a650d68: suite 6874/6874, static clean; J05 10/10.
+- Coverage recipe fixed: `scripts/coverage.sh` lacked REDIS_PORT/MAIL_* overrides; `--env-file` broke phpunit env (L140).
