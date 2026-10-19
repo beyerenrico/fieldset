@@ -12,8 +12,9 @@ The Form Schema Spec has its own changelog in `spec/form-definition/1.0/CHANGELO
   Docker socket, the storage volume read-only) that backs up daily at 03:30 in the instance's time zone and keeps the
   newest 7 scheduled backups in `backups/`. A backup is the database dump, the storage volume, the portable settings,
   the audit chain heads and a manifest, all read from one database snapshot, with `SHA256SUMS` and an HMAC keyed from
-  APP_KEY; it counts only once the dump reads back. Safety, manual and kept backups are never pruned, and a run that
-  would fill the disk is skipped (ADR 0084).
+  APP_KEY; it counts only once the dump reads back. Retention prunes only scheduled backups: manual, kept and safety
+  backups stay (an upgrade's safety backup is replaced by the next committed upgrade's; restore, reset and pre-rollback
+  safety backups stay until you delete them), and a run that would fill the disk is skipped (ADR 0084).
 - **`fsa backup`** — a manual backup now, while the instance keeps running; `--include-secrets` adds APP_KEY and the
   SMTP account (encrypted backups only), `--encrypt` turns encryption on first (ADR 0084).
 - **Encrypted backups** — `fsa config set backup-encryption on --identity-out <path> --passphrase-file <file>` (or
@@ -58,22 +59,22 @@ The Form Schema Spec has its own changelog in `spec/form-definition/1.0/CHANGELO
   `--passphrase-file`/`--passphrase-stdin`, and archives without a valid HMAC (ADR 0085).
 - **`fsa config set webhooks on|paused`**; a webhook step also waits when the instance's runtime file cannot be read
   (ADR 0085).
-- **`fsa upgrade`** — moves the instance to the newest release (`--to <version>` picks one, `--major` crosses a major
-  version), health-gated: the target's signed manifest is downloaded and verified, every image pulled, the app answers
-  503 behind its gate while the queue drains (`--drop-jobs` saves and drops what a bounded drain leaves) and a verified
-  safety backup is taken, then the target's own `fsa` renders its compose and env files and runs its migrations in a
-  container without the Docker socket, its app must pass the smoke test behind the gate, and only then is the upgrade
-  committed and opened. Requests that were already running when the gate rose finish before the safety backup (a stuck
-  one stops the upgrade with exit 9), and the free-space check counts the live database and files. Only the compose,
-  env and service files are taken from the target, and nothing in them may reach past the containers (host paths,
-  capabilities, devices, host networking, images the release does not pin). Any failure from the safety backup until
-  the commit rolls back automatically: the files the target replaced are put back, the safety backup is restored while
-  the previous app answers 503, the cache flushed and the previous release started again (exit 5, with the logs); a
-  rollback that fails stops the instance and names the backup and both image sets (exit 8). The upgrade runs in a
-  background container of the installed release, so a closed SSH session never stops it half-way; `fsa status` shows
-  its phase and `fsa upgrade --resume` continues an interrupted one. After a commit the previous pre-upgrade and
-  pre-rollback safety backups are removed; safety backups an upgrade leaves behind on its way back are encrypted when
-  encryption is on (ADR 0086).
+- **`fsa upgrade`** — moves the instance to the release marked latest (the most recently published stable release;
+  `--to <version>` picks one, pre-releases included, `--major` crosses a major version), health-gated: the target's
+  signed manifest is downloaded and verified, every image pulled, the app answers 503 behind its gate while the queue drains
+  (`--drop-jobs` saves and drops what a bounded drain leaves) and a verified safety backup is taken, then the target's
+  own `fsa` renders its compose and env files and runs its migrations in a container without the Docker socket, its app
+  must pass the smoke test behind the gate, and only then is the upgrade committed and opened. Requests that were
+  already running when the gate rose finish before the safety backup (a stuck one stops the upgrade with exit 9), and
+  the free-space check counts the live database and files. Only the compose, env and service files are taken from the
+  target, and nothing in them may reach past the containers (host paths, capabilities, devices, host networking, images
+  the release does not pin). Any failure from the safety backup until the commit rolls back automatically: the files the
+  target replaced are put back, the safety backup is restored while the previous app answers 503, the cache flushed and
+  the previous release started again (exit 5, with the logs); a rollback that fails stops the instance and names the
+  backup and both image sets (exit 8). The upgrade runs in a background container of the installed release, so a closed
+  SSH session never stops it half-way; `fsa status` shows its phase and `fsa upgrade --resume` continues an interrupted
+  one. After a commit the previous pre-upgrade and pre-rollback safety backups are removed; safety backups an upgrade
+  leaves behind on its way back are encrypted when encryption is on (ADR 0086).
 - **`fsa rollback`** — returns to the release before the last upgrade from that upgrade's safety backup, after telling
   you what was written since and will be lost; security changes made since the upgrade (revocations, erasures, changed
   passwords, deleted tokens) are carried over, numbering never goes backwards, and the audit log starts a new epoch with
@@ -114,8 +115,9 @@ The Form Schema Spec has its own changelog in `spec/form-definition/1.0/CHANGELO
   backup (ADR 0087).
 - `fsa status` and `fsa logs` list the `backup` service; the stack file for Portainer and Coolify still has no
   backup service (ADR 0084).
-- `fsa status` and `fsa config show` show the last restore, the storage volume in use, paused webhooks and an
-  interrupted restore with the commands that resume or abandon it (ADR 0085).
+- `fsa status` shows the last restore, the storage volume in use, paused webhooks and an interrupted restore with the
+  commands that resume or abandon it; `fsa config show` shows the storage volume, the webhook state and the last
+  restore (ADR 0085).
 - `fsa status` shows the last reset and an interrupted reset with the command that finishes it (ADR 0088).
 - `fsa backup` and `fsa login-link` refuse while another operation is unfinished (exit 9), and a restore of a safety
   backup taken before a reset carries no security state from the reset instance (ADR 0084, 0085, 0088).
@@ -127,6 +129,16 @@ The Form Schema Spec has its own changelog in `spec/form-definition/1.0/CHANGELO
   the archive's own migration level, such as the audit log's append-only triggers (ADR 0085 amendment).
 - `fsa status` shows rollbacks as the last restore and no longer warns about a restore's scratch directory while an
   upgrade, rollback or reset runs (ADR 0085 amendment).
+
+### Fixed
+- Hints that sent you to `fsa install --from-backup … --dir <new directory>` (which the instance's `fsa` refuses for
+  another directory) now name `install.sh --dir <new directory> --from-backup <backup>`; `fsa restore --abandon` hints
+  carry `--yes` (ADR 0085 amendment).
+- `fsa install --from-backup` lists `<dir>/fsa config set webhooks on` among its next commands (it printed `fsa` twice),
+  and `fsa reset` names the instance's own `<dir>/fsa` in its next commands.
+- A failed audit seal during `fsa rollback` names `fsa rollback` to run again, not `fsa upgrade`; a missing backup
+  service and a backup service that cannot start name `fsa config set` (which renders the files again) instead of
+  `fsa install`, which changes nothing on an installed instance.
 
 ## 2.0.0-beta.1 — 2026-10-19 (local pre-release, not published)
 
