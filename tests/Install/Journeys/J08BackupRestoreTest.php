@@ -383,13 +383,14 @@ it('moves the instance with --from-backup into a second directory with a new --d
     $runtime = json_decode((string) @file_get_contents($target.'/runtime/runtime.json'), true) ?: [];
     $orgs = RestoreJourney::sql($uuid, "SELECT count(*) FROM organizations WHERE name = 'Backup Org'");
     $sameKey = j08HmacKey($target) === j08HmacKey($this->dir);
+    $env = (string) @file_get_contents($target.'/env/app.env'); // read before the uninstall removes the directory
     $this->journey->evidence('J08-from-backup-domain.json', ['command' => 'install.sh --dir <work>/fsa-test-j08b --from-backup <backup>/backup.tar.age --identity-file … --passphrase-file … --app-key-file <old>/env/app.env --domain fsa-test-j08b.test --json', 'exit_code' => $process->getExitCode(), 'stdout' => $json, 'url' => $state['url'] ?? null, 'runtime_webhooks' => $runtime['webhooks'] ?? null, 'organizations' => $orgs]);
     $uninstall = $this->journey->fsa($target, ['uninstall', '--yes', '--json']);
 
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput()."\n".$process->getOutput())
         ->and(collect($json['warnings'] ?? [])->pluck('code')->all())->toContain('certificate_pending', 'webhooks_paused')
         ->and($state['url'] ?? null)->toBe('https://fsa-test-j08b.test')
-        ->and((string) @file_get_contents($target.'/env/app.env'))->toContain("FSA_MAIL_CAPTURE='true'")
+        ->and($env)->toContain("FSA_MAIL_CAPTURE='true'")
         ->and($runtime['webhooks'] ?? null)->toBe(['paused' => true])
         ->and($orgs)->toBe('1')->and($sameKey)->toBeTrue()
         ->and($uninstall->getExitCode())->toBe(0);

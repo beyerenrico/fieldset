@@ -89,7 +89,7 @@ final class RestoreDatabaseCommand extends Command
             $restored = RestoreConnections::to($database, 'fsa_restore_audit');
             $expected = RestoreConnections::to($reference, 'fsa_restore_reference');
             $mismatches = SchemaAudit::mismatches($restored, $expected);
-            $objects = count(SchemaAudit::objects($restored));
+            $objects = count(SchemaAudit::objects($restored)) + count(SchemaAudit::expressions($restored));
         } finally {
             RestoreConnections::close('fsa_restore_audit');
             RestoreConnections::close('fsa_restore_reference');

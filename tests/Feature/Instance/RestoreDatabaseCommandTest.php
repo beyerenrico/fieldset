@@ -5,6 +5,8 @@ declare(strict_types=1);
 use App\Console\Commands\RestoreDatabaseCommand;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\Process\Process;
+use Tests\Support\Instance\BackupScratchDatabase;
 use Tests\Support\Instance\RestoreDatabases;
 
 /*
@@ -17,7 +19,7 @@ const RESTORE_DB_PASSWORD = '00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff';
 
 afterEach(function (): void {
     putenv(RestoreDatabaseCommand::PASSWORD_ENV);
-    RestoreDatabases::drop(['rdl', 'rdi', 'rda', 'rdn', 'restore_rdr', 'rdo', 'restore_rdx', 'restore_rdy']);
+    RestoreDatabases::drop(['rdl', 'rdi', 'rda', 'rdn', 'restore_rdr', 'rdo', 'restore_rdx', 'restore_rdy', 'rdd']);
 });
 
 /** @return array{0: int, 1: array<string, mixed>} */
@@ -206,7 +208,8 @@ it('audits an unauthenticated restore: identical code passes, changed or extra c
     $db->unprepared(implode("\n", [
         'CREATE OR REPLACE FUNCTION audit_seal(entry bigint, seq bigint, prev char(64), entry_hash char(64)) RETURNS boolean AS $f$ BEGIN RETURN true; END; $f$ LANGUAGE plpgsql SECURITY DEFINER;',
         'CREATE FUNCTION steal() RETURNS text AS $f$ SELECT current_user::text $f$ LANGUAGE sql;',
-        'ALTER TABLE organizations ALTER COLUMN locale SET DEFAULT steal();',
+        "ALTER TABLE organizations ALTER COLUMN locale SET DEFAULT pg_read_file('/etc/hostname');",
+        "ALTER TABLE users ADD CONSTRAINT users_peek CHECK (length(pg_read_file('/etc/hostname')) > 0) NOT VALID;",
         'CREATE VIEW peek AS SELECT steal() AS who;',
     ]));
     DB::purge(RestoreDatabases::TARGET);
@@ -217,6 +220,20 @@ it('audits an unauthenticated restore: identical code passes, changed or extra c
         ->and($changed)->toBe(1)->and($changedJson['errors'][0]['code'])->toBe('schema_mismatch')
         ->and($message)->toContain('changed function:public.audit_seal(')
         ->and($message)->toContain('unknown function:public.steal()')
-        ->and($message)->toContain('changed default:organizations.locale')
+        ->and($message)->toContain('default:organizations.locale calls pg_read_file()')
+        ->and($message)->toContain('unknown check:users.users_peek')
         ->and($message)->toContain('unknown view:public.peek');
+});
+
+it('passes the schema audit after a real dump and restore, whose checks and defaults print differently (J08)', function (): void {
+    $reference = RestoreDatabases::target();
+    $restored = RestoreDatabases::empty('rdd');
+    $file = sys_get_temp_dir().'/fsa-test-audit-'.bin2hex(random_bytes(3)).'.dump';
+    new Process(['pg_dump', '--format=custom', '--no-owner', '--no-privileges', '--file='.$file], null, BackupScratchDatabase::libpq($reference))->mustRun();
+    new Process(['pg_restore', '--no-owner', '--no-privileges', '--exit-on-error', '--dbname='.$restored, '--', $file], null, BackupScratchDatabase::libpq($restored))->mustRun();
+    @unlink($file);
+
+    [$code, $json] = restoreDb('audit', ['--database' => $restored, '--reference' => $reference]);
+
+    expect($code)->toBe(0, json_encode($json));
 });
