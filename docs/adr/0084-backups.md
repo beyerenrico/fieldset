@@ -215,6 +215,13 @@ well inside the slot; the gate's J10 run can record it.
   and `audit_prunable` and sets up the backup role again in the restored database (`instance:restore-finish`).
 - `pg_restore --list` and the new `pg_restore --data-only --table=migrations` get `--` before the file.
 
+## Amendment 2026-10-20: the `safety-adopt` backup (U19)
+`fsa adopt` (ADR 0087) writes its `safety-adopt-<UTC>` backup in the 1.0 format of `scripts/backup.sh`, not in the set
+above: `database.dump`, `storage.tar.gz`, `env` (the restore allow-list's values), `manifest.txt` and `SHA256SUMS`,
+no HMAC, taken from the stopped 1.0 install before fsa copies its volumes. It is a safety backup (never pruned, 0700/0600)
+and restores like any 1.0 archive (`--accept-unauthenticated`). Its `env` holds no APP key: the manifest names the keys
+by fingerprint, and an in-place restore takes exactly this set by its name and SHA256SUMS digest (U19 reviews, ADR 0087).
+
 ## Amendment 2026-10-20: what reset changed (U23, ADR 0088)
 - `fsa reset` takes `SafetyBackup::take($state, 'reset', $lock)` after the quiesce and the ledger line, and seals it on
   every way it closes. With `--no-backup` while a real organization exists it writes

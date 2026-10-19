@@ -115,6 +115,20 @@ it('installs from a 1.0 backup and its env only with --accept-unauthenticated, f
         ->and(json_encode($json))->not->toContain('hunter2');
 });
 
+it('installs from an adopt backup, whose env holds no APP key, only with the key file its fingerprint names (review S1)', function (): void {
+    $legacy = BackupSetFixture::legacy($this->move->outside.'/safety-adopt-20261019T120000Z', "APP_URL=http://localhost:8080\nMAIL_FROM_ADDRESS=old@legacy.test\n",
+        'source=fsa adopt'."\napp_key_fingerprints=".KeyFingerprint::of(BackupSetFixture::APP_KEY)."\n");
+
+    [$refused, $refusedJson] = $this->move->install($legacy, ['--accept-unauthenticated' => true]);
+    [$wrong, $wrongJson] = $this->move->install($legacy, ['--accept-unauthenticated' => true, '--app-key-file' => $this->move->keyFile(BackupSetFixture::OTHER_KEY."\n")]);
+    [$code, $json] = $this->move->install($legacy, ['--accept-unauthenticated' => true, '--app-key-file' => $this->move->keyFile()]);
+
+    expect($refused)->toBe(2)->and($refusedJson['errors'][0]['code'])->toBe('app_key_unknown')->and($refusedJson['errors'][0]['hint'])->toContain('--app-key-file')
+        ->and($wrong)->toBe(2)->and($wrongJson['errors'][0]['code'])->toBe('app_key_unknown')
+        ->and($code)->toBe(0, (string) json_encode($json))
+        ->and(new EnvFiles($this->move->instance->directory)->read('app')['APP_KEY'])->toBe(BackupSetFixture::APP_KEY);
+});
+
 it('uses the APP key inside an encrypted backup with secrets, and keeps the other listed keys as previous keys', function (): void {
     $dir = BackupSetFixture::fsa($this->move->outside.'/manual-20261019T130000Z', manifest: ['app_key_fingerprints' => [KeyFingerprint::of(BackupSetFixture::APP_KEY), KeyFingerprint::of(BackupSetFixture::OTHER_KEY)]],
         extra: ['secrets.env' => "APP_KEY='".BackupSetFixture::APP_KEY."'\nAPP_PREVIOUS_KEYS='".BackupSetFixture::OTHER_KEY."'\n"]);

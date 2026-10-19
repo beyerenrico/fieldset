@@ -278,7 +278,7 @@ describe('fsa wrapper', function (): void {
         if (! $json) {
             expect($process->getOutput())->toBe('')
                 ->and($process->getErrorOutput())->toContain("fsa: unknown command: {$command}")
-                ->and($process->getErrorOutput())->toContain('Available commands: backup, config, demo, doctor, install, login-link');
+                ->and($process->getErrorOutput())->toContain('Available commands: adopt, backup, config, demo, doctor, install, login-link');
 
             return;
         }
@@ -287,7 +287,7 @@ describe('fsa wrapper', function (): void {
             'errors' => [[
                 'code' => 'unknown_command',
                 'message' => "Unknown fsa command: {$command}",
-                'hint' => 'Available commands: backup, config, demo, doctor, install, login-link, logs, reset, restore, status, tunnel, uninstall, version. Run fsa without arguments to list them; put flags after the command or write them as --flag=value.',
+                'hint' => 'Available commands: adopt, backup, config, demo, doctor, install, login-link, logs, reset, restore, status, tunnel, uninstall, version. Run fsa without arguments to list them; put flags after the command or write them as --flag=value.',
                 'retryable' => false,
             ]],
         ])->and($process->getErrorOutput())->toBe('');

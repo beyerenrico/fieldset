@@ -11,7 +11,7 @@
 # by the manifest's digest. It creates the instance directory (0700), stores the verified manifest, installs the
 # `fsa` shim from the image and hands over to `fsa install` in an ops container. Flags go to `fsa install`;
 # install.sh reads --dir, --version, --json, --yes and --password-stdin too, and handles --link/--no-link (PATH link)
-# and --help itself. Its own stdin is never passed on (with curl | sh it is the script), so --password-stdin (the SMTP
+# and --help itself; with --adopt <checkout> it hands over to `fsa adopt <checkout>` instead (a 1.0 install, ADR 0087). Its own stdin is never passed on (with curl | sh it is the script), so --password-stdin (the SMTP
 # password of --smtp-username) works only as fsa's hidden prompt on a terminal; else use --password-file. With
 # --json, stdout carries only the JSON result and stderr only NDJSON events. FSA_RELEASE_URL and
 # FSA_REGISTRY point at a mirror. Docker's DOCKER_DEFAULT_PLATFORM (linux/amd64 or linux/arm64) picks the platform
@@ -255,6 +255,7 @@ fsa_install_usage() {
 	printf '  <release> is https://github.com/beyerenrico/form-schema-app/releases/download/v<version> (pre-releases: also pass\n'
 	printf '  --version <version>); from 2.0.0 on also .../releases/latest/download for the newest stable release.\n'
 	printf '  --yes answers every question and does not link fsa into PATH unless --link is given.\n'
+	printf '  --adopt <checkout> converts the 1.0 install in <checkout> into this new instance (fsa adopt --help).\n'
 	printf 'Flags of each command: fsa install --help, fsa <command> --help (without the PATH link: <dir>/fsa <command> --help).\n'
 	printf 'FSA_RELEASE_URL, FSA_REGISTRY: mirrors.\n'
 	printf 'DOCKER_DEFAULT_PLATFORM=linux/amd64 or linux/arm64: pull and run that platform (another one runs emulated).\n'
@@ -265,7 +266,7 @@ fsa_install_main() {
 	nl='
 '
 	fsa_install_trust
-	dir='' version='' json=0 yes=0 link='' tmp='' phase=inputs password_stdin=0
+	dir='' version='' json=0 yes=0 link='' tmp='' phase=inputs password_stdin=0 adopt=''
 	n=$#
 	while [ "$n" -gt 0 ]; do
 		arg=$1
@@ -273,10 +274,11 @@ fsa_install_main() {
 		n=$((n - 1))
 		case $arg in
 		--dir=*) dir=${arg#*=} ;;
+		--adopt=*) adopt=${arg#*=} ;;
 		--version=*) version=${arg#*=} && set -- "$@" "$arg" ;;
-		--dir | --version)
+		--dir | --version | --adopt)
 			[ "$n" -gt 0 ] || fsa_install_fail 2 invalid_usage "$arg needs a value."
-			if [ "$arg" = --dir ]; then dir=$1; else version=$1 && set -- "$@" "$arg" "$1"; fi
+			case $arg in --dir) dir=$1 ;; --adopt) adopt=$1 ;; *) version=$1 && set -- "$@" "$arg" "$1" ;; esac
 			shift
 			n=$((n - 1)) ;;
 		--json) json=1 && set -- "$@" "$arg" ;;
@@ -310,7 +312,9 @@ fsa_install_main() {
 		fsa_install_fail 3 image_unavailable "Cannot pull $ref: $(fsa_install_docker_error)" 'Check the network and FSA_REGISTRY, then run install.sh again.' true
 	fsa_install_prepare_dir
 
-	fsa_install_phase handover "Starting fsa install $release in $dir"
+	command=install
+	[ -z "$adopt" ] || command=adopt
+	fsa_install_phase handover "Starting fsa $command $release in $dir"
 	# The shim from the verified image runs the handover; FSA_SHIM_LIBRARY=1 makes it define its functions only.
 	# shellcheck disable=SC2034 # read by the sourced shim
 	FSA_SHIM_LIBRARY=1 FSA_LAUNCHER=install.sh
@@ -319,7 +323,11 @@ fsa_install_main() {
 	FSA_RELEASE_MANIFEST=$releases/release-manifest.json
 	export FSA_RELEASE_MANIFEST
 	status=0
-	fsa_run "$dir" "$ref" install --dir "$dir" "$@" || status=$?
+	if [ -n "$adopt" ]; then # --adopt <checkout>: `fsa adopt` converts a 1.0 install (the shim mounts it read-only, ADR 0087)
+		fsa_run "$dir" "$ref" adopt --dir "$dir" "$adopt" "$@" || status=$?
+	else
+		fsa_run "$dir" "$ref" install --dir "$dir" "$@" || status=$?
+	fi
 	if [ "$status" = 0 ] && fsa_install_wants_prompt "$link" "$yes" "$json" "${FSA_TTY:-0}"; then
 		printf 'Link fsa into your PATH? [y/N] ' >/dev/tty
 		read -r answer </dev/tty || answer=''

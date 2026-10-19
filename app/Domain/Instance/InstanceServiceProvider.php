@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance;
 
+use App\Domain\Instance\Console\AdoptCommand;
 use App\Domain\Instance\Console\BackupCommand;
 use App\Domain\Instance\Console\BackupDaemonCommand;
 use App\Domain\Instance\Console\ConfigCommand;
@@ -45,6 +46,7 @@ final class InstanceServiceProvider extends ServiceProvider
         InstallCommand::class, DoctorCommand::class, StatusCommand::class, LogsCommand::class,
         VersionCommand::class, UninstallCommand::class, LoginLinkCommand::class, ConfigCommand::class, DemoCommand::class,
         TunnelCommand::class, BackupCommand::class, BackupDaemonCommand::class, RestorePrepareCommand::class, RestoreCommand::class,
+        AdoptCommand::class,
         ResetCommand::class,
     ];
 

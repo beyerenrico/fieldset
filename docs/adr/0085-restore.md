@@ -319,6 +319,9 @@ the sequence advance because writers were stopped since the safety backup.
   heads again on resume; the ledger is append-only and read by its highest epoch, so the duplicate is harmless.
 
 ## Amendment notes
+U19 verification review (R1, ADR 0087): a 1.0 archive whose `env` holds no APP key counts as this instance's only when it
+is the adopt backup this instance wrote, by its name and the digest of its SHA256SUMS as the `adopted` record holds them;
+the first key fingerprint of its unauthenticated manifest is no proof on its own.
 ADR 0084, 0074 and 0077 carry amendments of 2026-10-19 for the HMAC fingerprints and checksum rules, the runtime
 `webhooks` block and the `webhooks` key. The second review of U17 (2026-10-19, findings A1–A15, S1–S7) changed this ADR in
 place: the `gate` and `return` phases, the gate lowered last, the repeatable return, the rename of a half-done swap,

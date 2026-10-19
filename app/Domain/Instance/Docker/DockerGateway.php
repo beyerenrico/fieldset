@@ -80,6 +80,15 @@ interface DockerGateway
 
     public function inspectContainer(string $id): ?ContainerInfo;
 
+    /**
+     * The values of these keys in a container's environment (`Config.Env`), nothing else kept; null when there is no such
+     * container. `fsa adopt` compares what a 1.0 container runs with against its checkout's `.env` (plan U19).
+     *
+     * @param  list<string>  $keys
+     * @return array<string, string>|null
+     */
+    public function containerEnv(string $id, array $keys): ?array;
+
     /** A network by name or ID with its subnets, gateways and attached containers; null when there is none. */
     public function inspectNetwork(string $name): ?NetworkInfo;
 
@@ -113,6 +122,28 @@ interface DockerGateway
     public function runContainer(ContainerSpec $spec, ?string $input = null, ?float $timeout = null): ProcessOutcome;
 
     public function removeContainer(string $id, bool $force = true): void;
+
+    /**
+     * A `docker run` like runContainer whose stdout streams into `$outputFile` (created exclusively, mode 0600) instead of
+     * memory: the dump and the storage archive of a 1.0 install fsa adopts (plan U19), read through one-offs of its own.
+     */
+    public function runContainerToFile(ContainerSpec $spec, string $outputFile, ?float $timeout = null): ProcessOutcome;
+
+    /**
+     * Stops containers by ID (`docker container stop`), for a project fsa did not create and must not recreate: the 1.0
+     * install `fsa adopt` takes over (plan U19). `$timeout` is the grace before SIGKILL.
+     *
+     * @param  list<string>  $ids
+     */
+    public function stopContainers(array $ids, ?int $timeout = null): void;
+
+    /**
+     * Starts existing containers by ID (`docker container start`), unchanged: brings a 1.0 install back after a failed
+     * adopt (plan U19), where `compose up` would recreate its containers from a file fsa cannot render.
+     *
+     * @param  list<string>  $ids
+     */
+    public function startContainers(array $ids): void;
 
     /**
      * Creates a named volume with these labels (a restore's fresh storage volume, plan U17); an existing volume of that

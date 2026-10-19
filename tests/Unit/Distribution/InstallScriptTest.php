@@ -426,6 +426,23 @@ it('lets fsa prompt for --password-stdin only on a terminal without --json, as t
     'no terminal' => ['0', '1', '0', false],
 ]);
 
+it('hands over to fsa adopt with the 1.0 checkout mounted read-only for --adopt (ADR 0087)', function (array $arguments): void {
+    mkdir($this->scripts->root.'/home/form-schema-app');
+    $checkout = (string) realpath($this->scripts->root.'/home/form-schema-app');
+    $arguments = array_map(fn (string $arg): string => str_replace('<checkout>', $this->scripts->root.'/home/form-schema-app', $arg), $arguments);
+
+    $process = $this->scripts->run($this->production, ['--dir', $this->dir, ...$arguments, '--yes', '--json'], $this->env);
+    $ops = $this->scripts->opsRuns()[0] ?? [];
+
+    expect($process->getExitCode())->toBe(0, $process->getErrorOutput())
+        ->and($ops)->toContain('-v', "{$checkout}:{$checkout}:ro")
+        ->and(array_slice($ops, array_search('--entrypoint', $ops, true) + 3))->toBe(['adopt', '--dir', $this->dir, $checkout, '--yes', '--json'])
+        ->and($this->scripts->opsEnvironment()['FSA_MOUNTS'])->toBe("ro:{$checkout}\n");
+})->with([
+    'separate value' => [['--adopt', '<checkout>']],
+    'with =' => [['--adopt=<checkout>']],
+]);
+
 it('passes --password-file on as an input file flag, mounted read-only', function (): void {
     mkdir($this->scripts->root.'/keys');
     file_put_contents($this->scripts->root.'/keys/smtp-password', 'relay-secret');

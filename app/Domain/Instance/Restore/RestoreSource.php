@@ -70,7 +70,7 @@ final readonly class RestoreSource
     /**
      * Runs the socket-less prepare step and reads its verdict.
      *
-     * @param  array{image: string, uuid: string, user: string}  $runAs
+     * @param  array{image: string, uuid: string, user: string, adopt_backup?: array{name: string, sums: string}|null}  $runAs
      *
      * @throws InstanceException exit 2 for an unusable backup (unsafe, encrypted without identity, wrong passphrase)
      */

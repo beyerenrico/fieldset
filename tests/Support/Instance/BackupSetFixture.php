@@ -85,12 +85,12 @@ final class BackupSetFixture
     }
 
     /** A 1.0 `scripts/backup.sh` directory, with `env` when given. */
-    public static function legacy(string $dir, ?string $env = null): string
+    public static function legacy(string $dir, ?string $env = null, string $manifestExtra = ''): string
     {
         @mkdir($dir, 0700, true);
         file_put_contents($dir.'/database.dump', "PGDMP\x01legacy dump");
         new TarBuilder()->directory('./')->file('./private/legacy.txt', 'l')->writeTo($dir.'/storage.tar.gz', gzip: true);
-        file_put_contents($dir.'/manifest.txt', "created_at=20261001T020000Z\npostgres=postgres (PostgreSQL) 16.4\nmigrations=40\nlast_migration=2026_10_25_100000_add_is_demo_to_organizations\nstorage=included\nenv=".($env === null ? 'skipped' : 'included')."\n");
+        file_put_contents($dir.'/manifest.txt', "created_at=20261001T020000Z\npostgres=postgres (PostgreSQL) 16.4\nmigrations=40\nlast_migration=2026_10_25_100000_add_is_demo_to_organizations\nstorage=included\nenv=".($env === null ? 'skipped' : 'included')."\n".$manifestExtra);
         $files = ['database.dump', 'manifest.txt', 'storage.tar.gz'];
         if ($env !== null) {
             file_put_contents($dir.'/env', $env);
