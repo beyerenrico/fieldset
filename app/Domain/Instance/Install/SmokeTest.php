@@ -105,6 +105,21 @@ final readonly class SmokeTest
         return [...self::APP_PATHS, 'gotenberg /health'];
     }
 
+    /**
+     * The smoke test behind a raised gate (the upgrade's step 8, plan U18, ADR 0086): the internal checks and, in domain
+     * mode, HTTPS through the edge, every request to the app carrying the operation's smoke token. Local-CA mode checks
+     * only internally here: its trust page and the edge's HTTPS are answered by the gated app, and compose's healthcheck
+     * of the edge already caught an edge that does not start.
+     *
+     * @return list<string> what was checked
+     */
+    public function gated(InstanceState $state, ComposeProject $project, #[SensitiveParameter] string $smokeToken, ?ProgressReporter $progress = null, string $phase = 'smoke'): array
+    {
+        $checked = $this->internal($state, $project, $smokeToken);
+
+        return $state->mode() === 'domain' ? [...$checked, ...$this->edge($state, $project, $progress, $phase, $smokeToken)] : $checked;
+    }
+
     /** The longest the smoke test can take for this state: both curl containers, and in domain mode the edge's wait. */
     public static function maxSeconds(InstanceState $state): int
     {
@@ -118,13 +133,13 @@ final readonly class SmokeTest
     }
 
     /** @return list<string> what was checked through the edge */
-    private function edge(InstanceState $state, ComposeProject $project, ?ProgressReporter $progress, string $phase): array
+    private function edge(InstanceState $state, ComposeProject $project, ?ProgressReporter $progress, string $phase, #[SensitiveParameter] ?string $smokeToken = null): array
     {
         $settings = InstanceSettings::of($state);
         $domain = (string) $settings->domain();
         $address = EdgeNetwork::edgeAddress((string) $settings->edgeSubnet());
         $network = $project->name.'_'.EdgeNetwork::NAME;
-        $https = $this->certificate($state, $network, $domain, $address, $progress, $phase);
+        $https = $this->certificate($state, $network, $domain, $address, $progress, $phase, $smokeToken);
         if (! $https->successful()) {
             throw new InstanceException(
                 "The edge got no certificate for {$domain} from {$settings->acmeCa()}.",
@@ -149,7 +164,7 @@ final readonly class SmokeTest
      * HTTPS against the edge until it serves a certificate: one attempt per container, CERTIFICATE_DELAY seconds
      * apart, at most CERTIFICATE_ATTEMPTS attempts within CERTIFICATE_SECONDS; each attempt is a progress event.
      */
-    private function certificate(InstanceState $state, string $network, string $domain, string $address, ?ProgressReporter $progress, string $phase): ProcessOutcome
+    private function certificate(InstanceState $state, string $network, string $domain, string $address, ?ProgressReporter $progress, string $phase, #[SensitiveParameter] ?string $smokeToken = null): ProcessOutcome
     {
         $started = CarbonImmutable::now();
         for ($attempt = 1; ; $attempt++) {
@@ -160,7 +175,7 @@ final readonly class SmokeTest
             $outcome = $this->edgeCurl($state, $network, [
                 '--fail', '--insecure', '--connect-timeout', '5', '--max-time', (string) self::ATTEMPT_SECONDS,
                 '--resolve', "{$domain}:443:{$address}", '--output', '/dev/null', '--write-out', '%{http_code}', "https://{$domain}/up",
-            ]);
+            ], $smokeToken);
             $elapsed = (int) $started->diffInSeconds(CarbonImmutable::now(), true);
             if ($outcome->successful() || $attempt >= self::CERTIFICATE_ATTEMPTS || $elapsed + self::CERTIFICATE_DELAY >= self::CERTIFICATE_SECONDS) {
                 return $outcome;
@@ -169,16 +184,19 @@ final readonly class SmokeTest
         }
     }
 
-    /** @param  list<string>  $arguments */
-    private function edgeCurl(InstanceState $state, string $network, array $arguments): ProcessOutcome
+    /**
+     * @param  list<string>  $arguments
+     * @param  string|null  $smokeToken  sent as `X-Fsa-Smoke-Token` (curl reads the header from stdin, never an argument)
+     */
+    private function edgeCurl(InstanceState $state, string $network, array $arguments, #[SensitiveParameter] ?string $smokeToken = null): ProcessOutcome
     {
         return $this->docker->runContainer(new ContainerSpec(
             image: $state->digests()['app'],
-            command: ['--silent', '--show-error', ...$arguments],
+            command: ['--silent', '--show-error', ...($smokeToken === null ? [] : ['--header', '@-']), ...$arguments],
             labels: Labels::forInstance($state->uuid(), self::ROLE),
             network: $network,
             entrypoint: 'curl',
-        ), null, self::EDGE_TIMEOUT);
+        ), $smokeToken === null ? null : OperationGate::SMOKE_HEADER.': '.$smokeToken."\n", self::EDGE_TIMEOUT);
     }
 
     private function edgeLogs(ComposeProject $project): string

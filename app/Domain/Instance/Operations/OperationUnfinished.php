@@ -43,6 +43,7 @@ final class OperationUnfinished extends InstanceException
             $request instanceof ConfigRequest => $request->commandLine(),
             $record->operation() === TunnelOperation::OPERATION => 'fsa tunnel stop',
             $record->operation() === 'restore' && is_string($record->context()['backup'] ?? null) => 'fsa restore '.$record->context()['backup'],
+            $record->operation() === 'upgrade' => 'fsa upgrade --resume',
             self::rotatesDemoPasswords($record) => 'fsa demo --rotate-passwords',
             default => 'fsa '.$record->operation(),
         };
@@ -73,6 +74,8 @@ final class OperationUnfinished extends InstanceException
                 : "Run `{$command}` again: it starts over from the settings before that change and reverts if it still fails.",
             'install' => "Run `{$command}` again with the same flags to resume it. `fsa uninstall` removes a half-finished install.",
             'restore' => "Run `{$command}` again with the same flags to resume it (a swap that did not pass its verification is undone first), or `fsa restore --abandon` to bring the instance back as it was before.",
+            'upgrade' => "Run `{$command}` once `fsa status` shows no supervisor running (ADR 0086): before the safety backup it brings the previous services back (then run `fsa upgrade` again), from the safety backup until the commit it rolls back to the safety backup, after the commit it only finishes opening.",
+            'rollback' => "Run `{$command}` again to resume it (a swap that did not pass its verification is undone first).",
             TunnelOperation::OPERATION => "Run `{$command}`: it finishes the interrupted `".self::cutOff($record).'`, removes the tunnel whatever state it was left in and brings the stack back to the local URL; `fsa tunnel start` starts a new one afterwards.'.(self::action($record) === 'renew' ? ' `fsa tunnel renew` finishes a cut-off renew too and keeps a running tunnel.' : ''),
             default => "Run `{$command}` again with the same flags to resume it.",
         };

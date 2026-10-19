@@ -58,9 +58,10 @@ final class RestoreFixture
 
     public ?int $freeBytes = null;
 
-    public function __construct()
+    /** @param  array<string, mixed>  $installFlags  ConfigFixture's install flags (a domain-mode instance) */
+    public function __construct(array $installFlags = [])
     {
-        $this->config = new ConfigFixture;
+        $this->config = new ConfigFixture($installFlags);
         $this->instance = $this->config->instance;
         $this->instance->withRunningStack();
         $state = $this->instance->state(); // Compose's own storage volume, as `docker volume ls` lists it

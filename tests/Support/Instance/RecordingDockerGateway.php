@@ -348,6 +348,13 @@ final class RecordingDockerGateway implements DockerGateway
         unset($this->containers[$id]);
     }
 
+    public function containerLogs(string $id, int $tail = 50): string
+    {
+        $this->record(__FUNCTION__, ['id' => $id, 'tail' => $tail]);
+
+        return $this->logs;
+    }
+
     public function createVolume(string $name, array $labels): void
     {
         $this->record(__FUNCTION__, ['name' => $name, 'labels' => $labels]);

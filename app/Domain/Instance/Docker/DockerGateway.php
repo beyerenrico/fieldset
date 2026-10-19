@@ -114,6 +114,9 @@ interface DockerGateway
 
     public function removeContainer(string $id, bool $force = true): void;
 
+    /** The last lines of a container's output (stdout and stderr), e.g. of an upgrade child that crashed (ADR 0086). */
+    public function containerLogs(string $id, int $tail = 50): string;
+
     /**
      * Creates a named volume with these labels (a restore's fresh storage volume, plan U17); an existing volume of that
      * name fails, so a restore never writes into a volume it did not just create.

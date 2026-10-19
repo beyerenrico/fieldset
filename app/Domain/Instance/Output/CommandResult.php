@@ -51,6 +51,27 @@ final readonly class CommandResult
         return self::failed($command, $e->exitCode, $e->errorCode, $e->getMessage(), $e->hint, $e->retryable, $e->data, $changed || $e->changed);
     }
 
+    /**
+     * An envelope another fsa process rendered (the detached upgrade supervisor's result file, ADR 0086): its exit code
+     * follows from `status` and the first error's code, secrets are never carried over. Unknown shapes become exit 1.
+     *
+     * @param  array<string, mixed>  $envelope
+     */
+    public static function fromArray(array $envelope, ExitCode $exitCode): self
+    {
+        $messages = static fn (mixed $list, string $level): array => array_values(array_map(
+            static fn (array $m): Message => $level === 'error'
+                ? Message::error((string) ($m['code'] ?? 'unknown'), (string) ($m['message'] ?? ''), is_string($m['hint'] ?? null) ? $m['hint'] : null, ($m['retryable'] ?? false) === true)
+                : Message::warning((string) ($m['code'] ?? 'unknown'), (string) ($m['message'] ?? ''), is_string($m['hint'] ?? null) ? $m['hint'] : null),
+            array_filter(is_array($list) ? $list : [], is_array(...)),
+        ));
+
+        return new self(
+            is_string($envelope['command'] ?? null) ? $envelope['command'] : 'unknown', $exitCode, ($envelope['changed'] ?? false) === true,
+            is_array($envelope['data'] ?? null) ? $envelope['data'] : [], [], $messages($envelope['warnings'] ?? null, 'warning'), $messages($envelope['errors'] ?? null, 'error'),
+        );
+    }
+
     public function status(): ResultStatus
     {
         return $this->exitCode->status();
