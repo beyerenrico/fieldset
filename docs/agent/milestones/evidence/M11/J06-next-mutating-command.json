@@ -11,7 +11,8 @@
             "mode": "local",
             "mail": {
                 "mode": "capture",
-                "catcher_url": "http://localhost:8025"
+                "catcher_url": "http://localhost:8025",
+                "catcher_login_command": "fsa config show --catcher-login"
             },
             "next_commands": [
                 "<work>/fsa-test-j06/fsa status",
@@ -94,7 +95,7 @@
                 "delivered": null
             },
             "sign_in_link": {
-                "expires_at": "2026-10-19T00:47:43Z",
+                "expires_at": "2026-10-19T01:56:09Z",
                 "delivered": "secrets_file"
             }
         },
@@ -102,7 +103,7 @@
             {
                 "name": "sign_in_link",
                 "written_to": "<work>/j06-next-mutating-command-secrets.json",
-                "expires_at": "2026-10-19T00:47:43Z"
+                "expires_at": "2026-10-19T01:56:09Z"
             }
         ],
         "warnings": [
@@ -112,8 +113,13 @@
                 "hint": "Run `fsa demo --rotate-passwords` for new ones."
             },
             {
+                "code": "sign_in_link_issued",
+                "message": "The demo data exists already; only a new sign-in link for owner@demo.test was issued, and an earlier unused one no longer works.",
+                "hint": null
+            },
+            {
                 "code": "tunnel_removed",
-                "message": "The quick tunnel fsa-test-4e2a63296d.trycloudflare.com expired at 2026-10-19T00:31:39Z and was removed; the instance URL is http://localhost:8081 again.",
+                "message": "The quick tunnel fsa-test-379ba6343e.trycloudflare.com expired at 2026-10-19T01:40:06Z and was removed; the instance URL is http://localhost:8081 again.",
                 "hint": "Start a new one with `fsa tunnel start`."
             }
         ],

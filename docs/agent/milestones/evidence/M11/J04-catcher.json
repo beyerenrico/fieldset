@@ -8,13 +8,13 @@
         "changed": false,
         "data": {
             "dir": "<work>/fsa-test-j04",
-            "project": "fsa-fsa-test-j04-95e9",
+            "project": "fsa-fsa-test-j04-b339",
             "version": "2.0.0-alpha.1-test",
             "mode": "local",
-            "url": "http://localhost:8082",
+            "url": "http://localhost:8081",
             "settings": {
-                "port": 8082,
-                "mail_ui_port": 8026,
+                "port": 8081,
+                "mail_ui_port": 8025,
                 "domain": null,
                 "acme": null,
                 "edge_subnet": null,
@@ -29,7 +29,7 @@
                 "mail": {
                     "mode": "capture",
                     "catcher": "active",
-                    "catcher_url": "http://localhost:8026",
+                    "catcher_url": "http://localhost:8025",
                     "smtp": null,
                     "from_address": "forms@localhost",
                     "from_name": "form-schema-app"
@@ -59,7 +59,7 @@
                 },
                 {
                     "key": "url",
-                    "value": "http://localhost:8082",
+                    "value": "http://localhost:8081",
                     "available": true,
                     "modes": [
                         "proxy"
@@ -70,7 +70,7 @@
                 },
                 {
                     "key": "port",
-                    "value": 8082,
+                    "value": 8081,
                     "available": true,
                     "modes": [
                         "local",
@@ -249,7 +249,7 @@
                 ]
             },
             "catcher_login": {
-                "url": "http://localhost:8026",
+                "url": "http://localhost:8025",
                 "user": "fsa",
                 "secret": "<redacted>"
             }
@@ -276,6 +276,6 @@
     },
     "install_test_mail": {
         "subject": "form-schema-app: test mail",
-        "message_id": "6220ba41a1e36cbdac19d3e2bc79dfa0@localhost"
+        "message_id": "70d64604f673e11d09230ac7d9968922@localhost"
     }
 }

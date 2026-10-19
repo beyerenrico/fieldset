@@ -5,7 +5,7 @@
     },
     "status_changed_files": false,
     "status_container_events": [
-        "container create fsa-fsa-test-j06-92b4-app-run-cfe560e14e5e",
-        "container destroy fsa-fsa-test-j06-92b4-app-run-cfe560e14e5e"
+        "container create fsa-fsa-test-j06-c702-app-run-c6ebb56daa55",
+        "container destroy fsa-fsa-test-j06-c702-app-run-c6ebb56daa55"
     ]
 }

@@ -11,7 +11,8 @@
             "mode": "local",
             "mail": {
                 "mode": "capture",
-                "catcher_url": "http://localhost:8025"
+                "catcher_url": "http://localhost:8025",
+                "catcher_login_command": "fsa config show --catcher-login"
             },
             "next_commands": [
                 "<work>/fsa-test-j05-local/fsa status",

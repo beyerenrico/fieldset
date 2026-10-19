@@ -1,7 +1,7 @@
 {
     "command": "install.sh --dir <work>/fsa-test-j01 --version 2.0.0-alpha.1-test --org \"Journey Org\" --owner-email owner@example.test --owner-name \"Jo Owner\" --locale en --secrets-file <work>/owner-link.json --json",
     "exit_code": 0,
-    "seconds": 73.5,
+    "seconds": 50.1,
     "stdout": {
         "schema_version": 1,
         "command": "install",
@@ -12,7 +12,7 @@
             "version": "2.0.0-alpha.1-test",
             "mode": "local",
             "dir": "<work>/fsa-test-j01",
-            "project": "fsa-fsa-test-j01-63be",
+            "project": "fsa-fsa-test-j01-93bd",
             "port": 8081,
             "mail": {
                 "mode": "capture",
@@ -26,7 +26,7 @@
                 "<work>/fsa-test-j01/fsa doctor --post"
             ],
             "sign_in_link": {
-                "expires_at": "2026-10-19T01:23:34Z",
+                "expires_at": "2026-10-19T02:22:31Z",
                 "delivered": "secrets_file"
             }
         },
@@ -34,38 +34,38 @@
             {
                 "name": "sign_in_link",
                 "written_to": "<work>/owner-link.json",
-                "expires_at": "2026-10-19T01:23:34Z"
+                "expires_at": "2026-10-19T02:22:31Z"
             }
         ],
         "warnings": [],
         "errors": []
     },
     "stderr_ndjson": [
-        "{\"ts\":\"2026-10-19T00:23:05Z\",\"phase\":\"verify\",\"level\":\"info\",\"message\":\"Verifying release 2.0.0-alpha.1-test from http://127.0.0.1:49524\"}",
-        "{\"ts\":\"2026-10-19T00:23:05Z\",\"phase\":\"pull\",\"level\":\"info\",\"message\":\"Pulling <registry>/beyerenrico/form-schema-app@sha256:67b3d77b817ecc111f990686ffc8e48d3a2ac5d6332c759f72295bfcb0854453\"}",
-        "{\"ts\":\"2026-10-19T00:23:14Z\",\"phase\":\"handover\",\"level\":\"info\",\"message\":\"Starting fsa install 2.0.0-alpha.1-test in <work>/fsa-test-j01\"}",
-        "{\"ts\":\"2026-10-19T00:23:16Z\",\"phase\":\"doctor\",\"level\":\"info\",\"message\":\"Starting doctor\"}",
-        "{\"ts\":\"2026-10-19T00:23:18Z\",\"phase\":\"doctor\",\"level\":\"info\",\"message\":\"Completed doctor in 2 s\",\"elapsed_seconds\":2}",
-        "{\"ts\":\"2026-10-19T00:23:18Z\",\"phase\":\"secrets\",\"level\":\"info\",\"message\":\"Starting secrets\"}",
-        "{\"ts\":\"2026-10-19T00:23:18Z\",\"phase\":\"secrets\",\"level\":\"info\",\"message\":\"Completed secrets in 0 s\",\"elapsed_seconds\":0}",
-        "{\"ts\":\"2026-10-19T00:23:18Z\",\"phase\":\"state\",\"level\":\"info\",\"message\":\"Starting state\"}",
-        "{\"ts\":\"2026-10-19T00:23:18Z\",\"phase\":\"state\",\"level\":\"info\",\"message\":\"Completed state in 0 s\",\"elapsed_seconds\":0}",
-        "{\"ts\":\"2026-10-19T00:23:18Z\",\"phase\":\"pull\",\"level\":\"info\",\"message\":\"Starting pull\"}",
-        "{\"ts\":\"2026-10-19T00:23:18Z\",\"phase\":\"pull\",\"level\":\"info\",\"message\":\"Completed pull in 0 s\",\"elapsed_seconds\":0}",
-        "{\"ts\":\"2026-10-19T00:23:18Z\",\"phase\":\"up\",\"level\":\"info\",\"message\":\"Starting up\"}",
-        "{\"ts\":\"2026-10-19T00:23:24Z\",\"phase\":\"up\",\"level\":\"info\",\"message\":\"Completed up in 6 s\",\"elapsed_seconds\":6}",
-        "{\"ts\":\"2026-10-19T00:23:24Z\",\"phase\":\"migrate\",\"level\":\"info\",\"message\":\"Starting migrate\"}",
-        "{\"ts\":\"2026-10-19T00:23:29Z\",\"phase\":\"migrate\",\"level\":\"info\",\"message\":\"Completed migrate in 5 s\",\"elapsed_seconds\":5}",
-        "{\"ts\":\"2026-10-19T00:23:29Z\",\"phase\":\"app_install\",\"level\":\"info\",\"message\":\"Starting app_install\"}",
-        "{\"ts\":\"2026-10-19T00:23:34Z\",\"phase\":\"app_install\",\"level\":\"info\",\"message\":\"Completed app_install in 5 s\",\"elapsed_seconds\":5}",
-        "{\"ts\":\"2026-10-19T00:23:35Z\",\"phase\":\"start\",\"level\":\"info\",\"message\":\"Starting start (at most 5 min)\",\"max_seconds\":300}",
-        "{\"ts\":\"2026-10-19T00:24:08Z\",\"phase\":\"start\",\"level\":\"info\",\"message\":\"Completed start in 34 s\",\"elapsed_seconds\":34}",
-        "{\"ts\":\"2026-10-19T00:24:08Z\",\"phase\":\"smoke\",\"level\":\"info\",\"message\":\"Starting smoke (at most 14 min)\",\"max_seconds\":875}",
-        "{\"ts\":\"2026-10-19T00:24:11Z\",\"phase\":\"smoke\",\"level\":\"info\",\"message\":\"Rendering a test PDF through Gotenberg\"}",
-        "{\"ts\":\"2026-10-19T00:24:14Z\",\"phase\":\"smoke\",\"level\":\"info\",\"message\":\"Sending a test mail to the owner through the mail catcher\"}",
-        "{\"ts\":\"2026-10-19T00:24:17Z\",\"phase\":\"smoke\",\"level\":\"info\",\"message\":\"Looking for the test mail in the mail catcher\"}",
-        "{\"ts\":\"2026-10-19T00:24:17Z\",\"phase\":\"smoke\",\"level\":\"info\",\"message\":\"Completed smoke in 9 s\",\"elapsed_seconds\":9}",
-        "{\"ts\":\"2026-10-19T00:24:17Z\",\"phase\":\"done\",\"level\":\"info\",\"message\":\"Starting done\"}",
-        "{\"ts\":\"2026-10-19T00:24:17Z\",\"phase\":\"done\",\"level\":\"info\",\"message\":\"Completed done in 0 s\",\"elapsed_seconds\":0}"
+        "{\"ts\":\"2026-10-19T01:22:18Z\",\"phase\":\"verify\",\"level\":\"info\",\"message\":\"Verifying release 2.0.0-alpha.1-test from http://127.0.0.1:62861\"}",
+        "{\"ts\":\"2026-10-19T01:22:18Z\",\"phase\":\"pull\",\"level\":\"info\",\"message\":\"Pulling <registry>/beyerenrico/form-schema-app@sha256:1ceb724e44da320ad4cde218bdf3e81c81139237e31f245bffb580c5e2cea1bb\"}",
+        "{\"ts\":\"2026-10-19T01:22:19Z\",\"phase\":\"handover\",\"level\":\"info\",\"message\":\"Starting fsa install 2.0.0-alpha.1-test in <work>/fsa-test-j01\"}",
+        "{\"ts\":\"2026-10-19T01:22:19Z\",\"phase\":\"doctor\",\"level\":\"info\",\"message\":\"Starting doctor\"}",
+        "{\"ts\":\"2026-10-19T01:22:21Z\",\"phase\":\"doctor\",\"level\":\"info\",\"message\":\"Completed doctor in 1 s\",\"elapsed_seconds\":1}",
+        "{\"ts\":\"2026-10-19T01:22:21Z\",\"phase\":\"secrets\",\"level\":\"info\",\"message\":\"Starting secrets\"}",
+        "{\"ts\":\"2026-10-19T01:22:21Z\",\"phase\":\"secrets\",\"level\":\"info\",\"message\":\"Completed secrets in 0 s\",\"elapsed_seconds\":0}",
+        "{\"ts\":\"2026-10-19T01:22:21Z\",\"phase\":\"state\",\"level\":\"info\",\"message\":\"Starting state\"}",
+        "{\"ts\":\"2026-10-19T01:22:21Z\",\"phase\":\"state\",\"level\":\"info\",\"message\":\"Completed state in 0 s\",\"elapsed_seconds\":0}",
+        "{\"ts\":\"2026-10-19T01:22:21Z\",\"phase\":\"pull\",\"level\":\"info\",\"message\":\"Starting pull\"}",
+        "{\"ts\":\"2026-10-19T01:22:21Z\",\"phase\":\"pull\",\"level\":\"info\",\"message\":\"Completed pull in 0 s\",\"elapsed_seconds\":0}",
+        "{\"ts\":\"2026-10-19T01:22:21Z\",\"phase\":\"up\",\"level\":\"info\",\"message\":\"Starting up\"}",
+        "{\"ts\":\"2026-10-19T01:22:27Z\",\"phase\":\"up\",\"level\":\"info\",\"message\":\"Completed up in 6 s\",\"elapsed_seconds\":6}",
+        "{\"ts\":\"2026-10-19T01:22:27Z\",\"phase\":\"migrate\",\"level\":\"info\",\"message\":\"Starting migrate\"}",
+        "{\"ts\":\"2026-10-19T01:22:29Z\",\"phase\":\"migrate\",\"level\":\"info\",\"message\":\"Completed migrate in 2 s\",\"elapsed_seconds\":2}",
+        "{\"ts\":\"2026-10-19T01:22:29Z\",\"phase\":\"app_install\",\"level\":\"info\",\"message\":\"Starting app_install\"}",
+        "{\"ts\":\"2026-10-19T01:22:31Z\",\"phase\":\"app_install\",\"level\":\"info\",\"message\":\"Completed app_install in 2 s\",\"elapsed_seconds\":2}",
+        "{\"ts\":\"2026-10-19T01:22:31Z\",\"phase\":\"start\",\"level\":\"info\",\"message\":\"Starting start (at most 5 min)\",\"max_seconds\":300}",
+        "{\"ts\":\"2026-10-19T01:23:03Z\",\"phase\":\"start\",\"level\":\"info\",\"message\":\"Completed start in 32 s\",\"elapsed_seconds\":32}",
+        "{\"ts\":\"2026-10-19T01:23:03Z\",\"phase\":\"smoke\",\"level\":\"info\",\"message\":\"Starting smoke (at most 14 min)\",\"max_seconds\":875}",
+        "{\"ts\":\"2026-10-19T01:23:04Z\",\"phase\":\"smoke\",\"level\":\"info\",\"message\":\"Rendering a test PDF through Gotenberg\"}",
+        "{\"ts\":\"2026-10-19T01:23:06Z\",\"phase\":\"smoke\",\"level\":\"info\",\"message\":\"Sending a test mail to the owner through the mail catcher\"}",
+        "{\"ts\":\"2026-10-19T01:23:07Z\",\"phase\":\"smoke\",\"level\":\"info\",\"message\":\"Looking for the test mail in the mail catcher\"}",
+        "{\"ts\":\"2026-10-19T01:23:08Z\",\"phase\":\"smoke\",\"level\":\"info\",\"message\":\"Completed smoke in 5 s\",\"elapsed_seconds\":5}",
+        "{\"ts\":\"2026-10-19T01:23:08Z\",\"phase\":\"done\",\"level\":\"info\",\"message\":\"Starting done\"}",
+        "{\"ts\":\"2026-10-19T01:23:08Z\",\"phase\":\"done\",\"level\":\"info\",\"message\":\"Completed done in 0 s\",\"elapsed_seconds\":0}"
     ]
 }

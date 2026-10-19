@@ -8,13 +8,13 @@
         "changed": true,
         "data": {
             "key": "mail",
-            "from": "smtp://fsa-test-j04-smtp-7e0e:1025 (no TLS)",
+            "from": "smtp://fsa-test-j04-smtp-6cf5:1025 (no TLS)",
             "to": "capture",
-            "url": "http://localhost:8082",
+            "url": "http://localhost:8081",
             "mode": "local",
             "reverted": false,
             "previous": {
-                "url": "http://localhost:8082",
+                "url": "http://localhost:8081",
                 "mode": "local"
             },
             "services": {
@@ -37,7 +37,7 @@
             "audited": true,
             "mail": {
                 "mode": "capture",
-                "catcher_url": "http://localhost:8026",
+                "catcher_url": "http://localhost:8025",
                 "catcher_login_command": "fsa config show --catcher-login",
                 "catcher": "active"
             },

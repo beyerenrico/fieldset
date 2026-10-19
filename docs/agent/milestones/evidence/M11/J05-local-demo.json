@@ -11,7 +11,8 @@
             "mode": "local",
             "mail": {
                 "mode": "capture",
-                "catcher_url": "http://localhost:8025"
+                "catcher_url": "http://localhost:8025",
+                "catcher_login_command": "fsa config show --catcher-login"
             },
             "next_commands": [
                 "<work>/fsa-test-j05-local/fsa status",
@@ -95,7 +96,7 @@
                 "delivered": "data"
             },
             "sign_in_link": {
-                "expires_at": "2026-10-18T23:58:51Z",
+                "expires_at": "2026-10-19T01:47:51Z",
                 "delivered": "secrets_file"
             }
         },
@@ -103,7 +104,7 @@
             {
                 "name": "sign_in_link",
                 "written_to": "<work>/j05-demo-link.json",
-                "expires_at": "2026-10-18T23:58:51Z"
+                "expires_at": "2026-10-19T01:47:51Z"
             }
         ],
         "warnings": [

@@ -1,7 +1,7 @@
 {
     "command": "install.sh --dir <work>/fsa-test-j05-domain --version 2.0.0-alpha.1-test --org \"J5 Domain Org\" --owner-email owner@example.test --locale en --domain fsa-test-j05.test --acme-ca https://pebble:14000/dir --acme-ca-root-file <harness>/pebble-https-root.pem --demo --secrets-file <work>/j05-domain-secrets.json --json",
     "exit_code": 0,
-    "seconds": 62.7,
+    "seconds": 53.6,
     "stdout": {
         "schema_version": 1,
         "command": "install",
@@ -12,7 +12,7 @@
             "version": "2.0.0-alpha.1-test",
             "mode": "domain",
             "dir": "<work>/fsa-test-j05-domain",
-            "project": "fsa-fsa-test-j05-domain-d7e6",
+            "project": "fsa-fsa-test-j05-domain-2622",
             "port": null,
             "mail": {
                 "mode": "capture",
@@ -25,7 +25,7 @@
                 "<work>/fsa-test-j05-domain/fsa doctor --post"
             ],
             "sign_in_link": {
-                "expires_at": "2026-10-19T00:44:47Z",
+                "expires_at": "2026-10-19T02:33:22Z",
                 "delivered": "secrets_file"
             },
             "demo": {
@@ -109,7 +109,7 @@
             {
                 "name": "sign_in_link",
                 "written_to": "<work>/j05-domain-secrets.json",
-                "expires_at": "2026-10-19T00:44:47Z"
+                "expires_at": "2026-10-19T02:33:22Z"
             },
             {
                 "name": "demo_password:owner@demo.test",

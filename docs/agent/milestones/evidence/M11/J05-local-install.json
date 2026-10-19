@@ -1,7 +1,7 @@
 {
     "command": "install.sh --dir <work>/fsa-test-j05-local --version 2.0.0-alpha.1-test --org Demo --owner-email owner@example.test --locale en --demo --secrets-file <work>/j05-owner-link.json --json",
     "exit_code": 0,
-    "seconds": 74,
+    "seconds": 53.4,
     "stdout": {
         "schema_version": 1,
         "command": "install",
@@ -12,11 +12,12 @@
             "version": "2.0.0-alpha.1-test",
             "mode": "local",
             "dir": "<work>/fsa-test-j05-local",
-            "project": "fsa-fsa-test-j05-local-29e5",
+            "project": "fsa-fsa-test-j05-local-5a28",
             "port": 8081,
             "mail": {
                 "mode": "capture",
-                "catcher_url": "http://localhost:8025"
+                "catcher_url": "http://localhost:8025",
+                "catcher_login_command": "fsa config show --catcher-login"
             },
             "owner_email": "owner@example.test",
             "next_commands": [
@@ -25,7 +26,7 @@
                 "<work>/fsa-test-j05-local/fsa doctor --post"
             ],
             "sign_in_link": {
-                "expires_at": "2026-10-19T00:42:54Z",
+                "expires_at": "2026-10-19T02:32:01Z",
                 "delivered": "secrets_file"
             },
             "demo": {
@@ -108,7 +109,7 @@
             {
                 "name": "sign_in_link",
                 "written_to": "<work>/j05-owner-link.json",
-                "expires_at": "2026-10-19T00:42:54Z"
+                "expires_at": "2026-10-19T02:32:01Z"
             }
         ],
         "warnings": [],

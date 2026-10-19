@@ -1,67 +1,67 @@
 {
     "covers": "admin-pages.mjs and api.mjs (pg_stat_reset() before them)",
-    "database_mib": 1265,
-    "blks_read": 15666377,
-    "blks_hit": 18554453,
-    "hit_pct": 54.2,
-    "temp_files": 0,
-    "temp_mib": 0,
+    "database_mib": 1269,
+    "blks_read": 16934233,
+    "blks_hit": 11321778,
+    "hit_pct": 40.1,
+    "temp_files": 33,
+    "temp_mib": 128,
     "tables": [
         {
             "relname": "submission_values",
-            "mib": 911,
-            "heap_blks_read": 4695936,
-            "heap_blks_hit": 199457,
-            "idx_blks_read": 154287,
-            "idx_blks_hit": 1781018
+            "mib": 914,
+            "heap_blks_read": 5991147,
+            "heap_blks_hit": 4488,
+            "idx_blks_read": 229138,
+            "idx_blks_hit": 27075
         },
         {
             "relname": "submissions",
-            "mib": 150,
-            "heap_blks_read": 9516955,
-            "heap_blks_hit": 7086059,
-            "idx_blks_read": 64574,
-            "idx_blks_hit": 153486
+            "mib": 151,
+            "heap_blks_read": 9292702,
+            "heap_blks_hit": 3249925,
+            "idx_blks_read": 53839,
+            "idx_blks_hit": 164777
         },
         {
             "relname": "activity_log",
             "mib": 105,
-            "heap_blks_read": 1005371,
-            "heap_blks_hit": 559166,
-            "idx_blks_read": 14634,
-            "idx_blks_hit": 49505
+            "heap_blks_read": 1163307,
+            "heap_blks_hit": 384477,
+            "idx_blks_read": 14606,
+            "idx_blks_hit": 48988
         },
         {
             "relname": "renditions",
-            "mib": 44,
-            "heap_blks_read": 14611,
-            "heap_blks_hit": 264400,
-            "idx_blks_read": 1797,
-            "idx_blks_hit": 835635
+            "mib": 45,
+            "heap_blks_read": 19393,
+            "heap_blks_hit": 83,
+            "idx_blks_read": 66,
+            "idx_blks_hit": 610
         },
         {
             "relname": "workflow_runs",
             "mib": 19,
-            "heap_blks_read": 33530,
+            "heap_blks_read": 33167,
             "heap_blks_hit": 17026,
-            "idx_blks_read": 544,
-            "idx_blks_hit": 812
+            "idx_blks_read": 720,
+            "idx_blks_hit": 908
         },
         {
             "relname": "tasks",
             "mib": 13,
-            "heap_blks_read": 58102,
-            "heap_blks_hit": 584413,
-            "idx_blks_read": 6208,
-            "idx_blks_hit": 101562
+            "heap_blks_read": 38369,
+            "heap_blks_hit": 523111,
+            "idx_blks_read": 6199,
+            "idx_blks_hit": 106889
         }
     ],
     "settings": {
         "effective_cache_size": "120MB",
-        "jit": "on",
+        "jit": "off",
         "maintenance_work_mem": "20MB",
-        "max_connections": "40",
-        "max_parallel_workers_per_gather": "2",
+        "max_connections": "30",
+        "max_parallel_workers_per_gather": "0",
         "shared_buffers": "40MB",
         "work_mem": "4MB"
     }

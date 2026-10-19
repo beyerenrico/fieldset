@@ -12,14 +12,14 @@
             "operation": null,
             "lock": null,
             "disk": {
-                "free_gib": 131.5
+                "free_gib": 143.1
             },
             "last_backup": null,
             "version": "2.0.0-alpha.1-test",
             "mode": "local",
             "url": "https://192.168.178.24",
             "local_url": "http://localhost:8081",
-            "project": "fsa-fsa-test-j06-92b4",
+            "project": "fsa-fsa-test-j06-c702",
             "port": 8081,
             "health": "ok",
             "services": {
@@ -58,7 +58,8 @@
             },
             "mail": {
                 "mode": "capture",
-                "catcher_url": "http://localhost:8025"
+                "catcher_url": "http://localhost:8025",
+                "catcher_login_command": "fsa config show --catcher-login"
             },
             "proxy": null,
             "phone_https": {
@@ -66,7 +67,7 @@
                 "lan_address": "192.168.178.24",
                 "url": "https://192.168.178.24",
                 "trust_url": "http://192.168.178.24/phone-trust",
-                "root_sha256": "3D:65:54:FF:5E:C1:6A:32:5A:A8:D1:62:8B:3C:6F:A4:AB:00:58:FA:63:86:C6:25:61:EB:1B:4B:AF:43:07:AD",
+                "root_sha256": "09:78:08:F8:29:22:E8:FA:43:A6:07:A0:9A:29:16:3C:6B:45:34:0E:63:2D:D7:85:C9:F3:50:51:82:92:E1:A0",
                 "lan_address_current": true
             },
             "tunnel": null,
@@ -78,8 +79,8 @@
                         "email": "owner@example.test",
                         "kind": "owner",
                         "state": "unused",
-                        "created_at": "2026-10-19T00:25:42Z",
-                        "expires_at": "2026-10-19T01:25:42Z",
+                        "created_at": "2026-10-19T01:34:30Z",
+                        "expires_at": "2026-10-19T02:34:30Z",
                         "used_at": null,
                         "used_ip": null,
                         "created_by": "cli",
