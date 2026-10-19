@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Domain\Instance\Restore;
 
 use App\Domain\Instance\Backup\BackupChecksums;
+use App\Domain\Instance\Backup\BackupName;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Output\ExitCode;
 use App\Domain\Instance\Output\InvalidInput;
 use App\Domain\Instance\Release\ReleaseVersion;
+use Carbon\CarbonImmutable;
 use Throwable;
 
 /**
@@ -36,6 +38,7 @@ final readonly class RestoreChecks
     public static function assert(PreparedBackup $backup, string $purpose, bool $acceptUnauthenticated, AppKeys $known, ?string $upgradesFrom): array
     {
         self::assertIntact($backup);
+        self::assertNamed($backup);
         self::assertCompatible($backup, $upgradesFrom);
         $warnings = self::assertAuthenticated($backup, $acceptUnauthenticated);
         $missing = array_values(array_diff($backup->fingerprints(), $known->fingerprints()));
@@ -133,6 +136,40 @@ final readonly class RestoreChecks
         }
         if ($backup->migrations['relation'] === MigrationSet::NONE) {
             throw new InvalidInput('The dump has no migrations table: it is not a backup of this app.', 'not_an_app_backup', 'Use a backup written by fsa or by scripts/backup.sh.');
+        }
+    }
+
+    /**
+     * The HMAC binds the set's content, not its directory's name (M12 gate S4): a set under a backup name must be the backup
+     * its manifest names, made at that name's time, so an older set renamed to a newer name (or to an operation's safety
+     * backup) is refused. A copy under a name of the operator's own (no backup name) is taken as it is.
+     *
+     * @throws InstanceException exit 2 `backup_renamed`
+     */
+    private static function assertNamed(PreparedBackup $backup): void
+    {
+        $directory = BackupName::parse($backup->name);
+        if ($backup->isLegacy() || ! $directory instanceof BackupName) {
+            return;
+        }
+        $named = $backup->manifest['name'] ?? null;
+        $created = is_string($backup->manifest['created_at'] ?? null) ? self::instant($backup->manifest['created_at']) : null;
+        if ($named !== $backup->name || $created !== $directory->at->toIso8601ZuluString()) {
+            throw new InvalidInput(
+                'The backup in '.$backup->name.' is '.(is_string($named) ? $named : 'unnamed').' (made '.(is_string($backup->manifest['created_at'] ?? null) ? $backup->manifest['created_at'] : 'at an unknown time').'): its directory was renamed.',
+                'backup_renamed',
+                'Restore it under its own name, or copy it to a name that is not a backup name; nothing was changed.',
+                ['directory' => $backup->name, 'manifest_name' => $named],
+            );
+        }
+    }
+
+    private static function instant(string $value): ?string
+    {
+        try {
+            return CarbonImmutable::parse($value)->utc()->toIso8601ZuluString();
+        } catch (Throwable) {
+            return null;
         }
     }
 

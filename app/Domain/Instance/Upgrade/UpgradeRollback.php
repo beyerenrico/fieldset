@@ -93,6 +93,14 @@ final readonly class UpgradeRollback
         $run->phase('rollback_open', fn (): array => ['started' => $this->open($swapped, $project)], always: true);
     }
 
+    /** The digest of the safety backup's SHA256SUMS the upgrade verified (gate S4); null in a journal from before it. */
+    private function sums(OperationRun $run): ?string
+    {
+        $sums = $run->record()->phaseData('safety_backup')['sums'] ?? null;
+
+        return is_string($sums) ? $sums : null;
+    }
+
     /** The cause an interrupted rollback was rolling back from (its first phase's start data). */
     public static function cause(OperationRun $run): InstanceException
     {
@@ -113,7 +121,7 @@ final readonly class UpgradeRollback
             'code' => $cause instanceof InstanceException ? $cause->errorCode : 'upgrade_failed', 'message' => $cause->getMessage(), 'logs' => $logs,
         ]);
         $heads = $run->phase('rollback_ledger', fn (): array => $this->recordLedger($backupName, $release, $run->record()->id(), $actorUid));
-        $prepared = PreparedBackup::fromArray($run->phase('rollback_prepare', fn (): array => $this->backup->prepare($state, $backupName, $id, $actorUid)->toArray(), always: true));
+        $prepared = PreparedBackup::fromArray($run->phase('rollback_prepare', fn (): array => $this->backup->prepare($state, $backupName, $id, $actorUid, $this->sums($run))->toArray(), always: true));
         $run->phase('rollback_database', function () use ($state, $project, $names, $prepared): array {
             $this->databases->drop($project, $names->scratch); // what an interrupted attempt left
             $this->databases->create($project, $names->scratch, null);

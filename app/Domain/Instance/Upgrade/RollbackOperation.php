@@ -232,6 +232,7 @@ final readonly class RollbackOperation
         if (($backup->manifest['instance']['uuid'] ?? null) !== $state->uuid()) {
             throw new InvalidInput("The safety backup {$backup->name} was not made by this instance.", 'backup_other_instance', 'Nothing was changed.');
         }
+        UpgradeBackup::assertSame($backup, is_string($plan['backup_sums'] ?? null) ? $plan['backup_sums'] : null); // the set the upgrade verified (gate S4)
 
         return $backup;
     }

@@ -398,3 +398,16 @@ it('refuses a backup without a storage archive unless --without-files, and then 
         ->and(array_column($this->restore->instance->docker->called('removeVolume'), 'name'))->not->toContain($state->project().'_app-storage')
         ->and($this->restore->specs('tar'))->toBe([]);
 });
+
+it('refuses a backup renamed to another backup\'s name: its authenticated manifest names it (M12 gate S4)', function (): void {
+    $this->restore->backup('manual-20261018T120000Z');
+    rename($this->dir.'/backups/manual-20261018T120000Z', $this->dir.'/backups/manual-20261019T120000Z'); // an older set under a newer name
+    $mark = $this->restore->config->mark();
+
+    [$code, $json] = $this->restore->restore('manual-20261019T120000Z');
+
+    expect($code)->toBe(2, (string) json_encode($json))
+        ->and($json['errors'][0]['code'])->toBe('backup_renamed')
+        ->and($json['errors'][0]['message'])->toContain('manual-20261018T120000Z')
+        ->and($this->restore->config->methodsSince($mark))->not->toContain('composeStop');
+});

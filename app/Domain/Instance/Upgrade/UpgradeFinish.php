@@ -61,7 +61,7 @@ final readonly class UpgradeFinish
         $committed = $state->withRelease($version, UpgradeJournal::strings($release['digests'] ?? null))
             ->withPreviousRelease((string) ($release['from'] ?? ''), $previous, (string) ($release['previous_compose'] ?? ''))
             ->withHistoryEntry('upgraded', ['from' => is_string($release['from'] ?? null) ? $release['from'] : null, 'to' => $version, 'journal' => $journal,
-                'safety_backup' => is_string($backup['backup'] ?? null) ? $backup['backup'] : null]);
+                'safety_backup' => is_string($backup['backup'] ?? null) ? $backup['backup'] : null, 'safety_backup_sums' => is_string($backup['sums'] ?? null) ? $backup['sums'] : null]);
         $this->directory->saveState($committed);
 
         return ['version' => $version];
