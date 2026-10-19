@@ -213,3 +213,19 @@ Format: question · chosen option · impact · how to reverse.
    same (root-only volume, 0600 for Caddy's user) · M12 backup/restore must include the edge volume or phones must
    trust a new CA after a restore · bind-mount `<instance>/certs/` as Caddy's pki directory if the spec wording
    matters.
+45. STARTTLS is now required for the instance mailer by default, with or without an account (M11 gate, ADR 0080
+   amendment); relays without TLS need `--smtp-encryption none` (warning `smtp_plaintext_auth` with an account) ·
+   closes a downgrade that leaked the SMTP password · existing plain relays must opt out explicitly · relax to
+   "required only with an account" if that is too strict. `config set mail smtp --smtp-host <new>` without
+   `--smtp-username` drops the stored account (`smtp_credentials_dropped`) rather than sending it to the new host.
+46. `config set domain` and `phone-https local-ca` refuse (exit 3) while ANY account still has `password`, not only
+   demo accounts (DefaultPasswordGuard, ADR 0081 amendment) · consistent with the local CA rule · agents must rotate
+   or change passwords first. An operator created by `config set operator-email` has no organization, so
+   `fsa login-link` refuses them although the owner-link page names it as recovery · a lost link is replaced by
+   repeating `config set operator-email` after expiry (≤ 60 min) · let `fsa login-link` serve operators without a
+   password. On a legacy DB where a real org holds slug `demo`, the demo gets `demo-2` (E2E/perf assume /admin/demo).
+47. Small Postgres now runs `jit=off`, `max_parallel_workers_per_gather=0`, `max_connections=30` (stack clients 17)
+   (ADR 0083 amendment) · less memory risk for backends · may move admin-page p95 (QUESTIONS 41); recheck with the
+   gate's J10. `config set operator-email` has no Interruption guard; a renew killed outright with a live tunnel is
+   resumable only by `fsa tunnel renew`; `config set phone-https off` as a CA-deletion retry runs the full rollout
+   (queue/scheduler briefly stopped).
