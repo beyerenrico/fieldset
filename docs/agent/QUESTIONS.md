@@ -97,7 +97,7 @@ Format: question · chosen option · impact · how to reverse.
    budget.
    · Resolved: the budget held at 648 MB with cosign (ADR 0065); cosign was then dropped from the image for the
    scan gate, and the image is now ~500 MB (507 MB arm64, 497 MB amd64; ADR 0071).
-24. The hardware floor is a target until J10 measures it (E16, ADR 0062; U15 in M11): Gotenberg OOMs are reported
+24. (Superseded by ADR 0083 and question 41: E16 measured in J10.) The hardware floor is a target until J10 measures it (E16, ADR 0062; U15 in M11): Gotenberg OOMs are reported
    on small hosts, and an upgrade or restore needs room for a safety backup, a second database and a second
    storage volume on 20 GB · keep 2 vCPU / 2 GB / 20 GB, tune the limits, record a miss with numbers · owners on
    the smallest VPS may see OOM kills, or upgrades refused for lack of space (exit 3) · raise the published floor
@@ -229,3 +229,8 @@ Format: question · chosen option · impact · how to reverse.
    gate's J10. `config set operator-email` has no Interruption guard; a renew killed outright with a live tunnel is
    resumable only by `fsa tunnel renew`; `config set phone-https off` as a CA-deletion retry runs the full rollout
    (queue/scheduler briefly stopped).
+48. M11 review lows logged, not fixed: the fsa SecretRedactor ignores secrets shorter than 4 characters (a 1–3
+   character SMTP password would not be masked; such passwords are refused by no rule) · `config show
+   --catcher-login`'s hint "Run `fsa install` again" re-renders nothing on a finished instance (results now carry
+   `catcher_login_command`) · the test-mail hint names the SMTP settings when no operator exists · low impact ·
+   fix when touching those paths.
