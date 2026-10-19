@@ -254,3 +254,12 @@
   skips); amd64 emulated J1–J6/J12 51/51 and J10 9/9 (J10 now expects ADR 0070's doubled limits).
 - E2E 79/79 twice with --workers=2; 5 workers flaked under host load ~12 (Teams, Defender): spec sync fixes, Q49/50.
 - Pre-release 2.0.0-beta.1 7/7 (test no longer hard-codes channel alpha). CHANGELOG beta.1 + missing alpha.2.
+
+## 2026-10-19 M12-T01 U16 backups
+- One worktree agent: backup service (dropped caps, no socket), `fsa backup`, snapshot-shared dump/heads/refs, HMAC
+  + SHA256SUMS last, retention, `backup_runs` via insert-only `fsa_backup`, age encryption, `audit:verify --heads`
+  epoch, `config set backup-*`; ADR 0084. J08 backup half 5/5; service peak 68 MiB (< 128 MiB slot, no J10 rerun).
+- Two reviewers: 1 high (safety backups encrypted at write), 4 medium (plaintext `.partial`, skip reasons, dead
+  service invisible on /platform, first-run space estimate 0), lows (boot-local lock id, prune tombstone, deadlines,
+  symlinked-parent identity path, tar `--`, DST double run): all fixed by the same agent, merged; 3 left for U17.
+- Full-suite flake: `ownerOf` unordered `first()` (fixed). Q51–52 (key rotation, install --encrypt).
