@@ -384,3 +384,59 @@ it('restores a real dump as the restricted role into the prepared database, pass
         ->and($audit)->toBe(0, json_encode($auditJson))
         ->and($adopt)->toBe(0, json_encode($adoptJson));
 });
+
+/*
+ * Review S3 (U18): an archive may leave code-bearing objects out. Every object the reference has at the archive's migration
+ * set (its `migrations` table) must be in the restored database too; an older archive is compared with a database this
+ * image migrates to exactly that set, built and dropped by the audit.
+ */
+it('names the code-bearing objects a restored database lacks: an append-only trigger, a check, an index (review S3)', function (): void {
+    $restored = RestoreDatabases::target();
+    $reference = RestoreDatabases::sourceFromTarget();
+    DB::connection(RestoreDatabases::TARGET)->unprepared(implode("\n", [
+        'DROP TRIGGER activity_log_append_only_trg ON activity_log;',
+        'ALTER TABLE submissions DROP CONSTRAINT submissions_status_check;',
+        'DROP INDEX submission_values_value_text_trgm_idx;',
+    ]));
+    DB::purge(RestoreDatabases::TARGET);
+
+    [$code, $json] = restoreDb('audit', ['--database' => $restored, '--reference' => $reference]);
+    $message = (string) ($json['errors'][0]['message'] ?? '');
+
+    expect($code)->toBe(1, json_encode($json))->and($json['errors'][0]['code'])->toBe('schema_mismatch')
+        ->and($message)->toContain('missing trigger:activity_log.activity_log_append_only_trg')
+        ->and($message)->toContain('missing check:submissions.submissions_status_check')
+        ->and($message)->toContain('missing index:public.submission_values_value_text_trgm_idx');
+});
+
+it('audits an older archive at its own migration set: what later migrations add may be missing, an omitted trigger may not (review S3)', function (): void {
+    $restored = RestoreDatabases::target();
+    $reference = RestoreDatabases::sourceFromTarget();
+    RestoreDatabases::connect(RestoreDatabases::TARGET, $restored);
+    Artisan::call('migrate:rollback', ['--database' => RestoreDatabases::TARGET, '--step' => 3, '--force' => true]);
+    DB::purge(RestoreDatabases::TARGET);
+
+    [$older, $olderJson] = restoreDb('audit', ['--database' => $restored, '--reference' => $reference]);
+    restoreDbQuery($restored, 'DROP TRIGGER activity_log_append_only_trg ON activity_log');
+    [$omitted, $omittedJson] = restoreDb('audit', ['--database' => $restored, '--reference' => $reference]);
+    $message = (string) ($omittedJson['errors'][0]['message'] ?? '');
+
+    expect(restoreDbQuery($restored, "SELECT count(*) FROM migrations WHERE migration LIKE '2026_10_26_%'"))->toBe(0)
+        ->and($older)->toBe(0, json_encode($olderJson))
+        ->and($omitted)->toBe(1, json_encode($omittedJson))->and($omittedJson['errors'][0]['code'])->toBe('schema_mismatch')
+        ->and($message)->toContain('missing trigger:activity_log.activity_log_append_only_trg')
+        ->and($message)->not->toContain('audit_chain_epochs')
+        ->and(RestoreDatabases::admin()->query("SELECT count(*) FROM pg_database WHERE datname LIKE 'fsa\\_restore\\_ref\\_%'")->fetchColumn())->toBe(0);
+});
+
+it('refuses an archive that ran migrations this image does not know (review S3)', function (): void {
+    $restored = RestoreDatabases::target();
+    $reference = RestoreDatabases::sourceFromTarget();
+    DB::connection(RestoreDatabases::TARGET)->unprepared("INSERT INTO migrations (migration, batch) VALUES ('2099_01_01_000000_from_a_newer_release', 9);");
+    DB::purge(RestoreDatabases::TARGET);
+
+    [$code, $json] = restoreDb('audit', ['--database' => $restored, '--reference' => $reference]);
+
+    expect($code)->toBe(1, json_encode($json))->and($json['errors'][0]['code'])->toBe('schema_mismatch')
+        ->and($json['errors'][0]['message'])->toContain('unknown migration 2099_01_01_000000_from_a_newer_release');
+});

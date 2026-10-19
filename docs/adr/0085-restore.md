@@ -350,3 +350,26 @@ way back, the exit-8 hints, the epoch keyed on the journal and the carry window.
   RestoreStorage (fresh volume, fill), RestoreStack (apply, Valkey, verify behind the gate), RestoreNames, the Ledger and
   the prepare step; the manual rollback uses the same plus RestoreSpace and its own ways back (RollbackRecovery), whose
   exit-8 hint names `fsa rollback`, not `fsa restore --abandon`.
+
+## Amendment 2026-10-20: missing objects fail the schema audit (U18)
+Review S3 of U18: the schema check walked only the restored database's objects, so an unauthenticated archive that
+left out code-bearing objects (the append-only triggers, `audit_seal`/`audit_prune`, a policy, a check or an index)
+passed, and "may lack objects (an older backup)" made that indistinguishable from an honest older archive.
+- **The baseline is the reference at the archive's own migration set** (AuditBaseline). The set is the restored
+  database's `migrations` table, the same rows BackupPreparer read from the dump to call the backup older, equal or
+  newer; it is read only when `public.migrations` is an ordinary table without row security and a varchar `migration`
+  column, sorted in PHP (no restored rule, policy, operator or type function runs; any other shape counts as no table).
+  Equal to the reference's own set: the reference is the baseline. Older: the one-off creates `fsa_restore_ref_<16 hex
+  of the audited name>` like a restricted scratch database (DatabaseAdmin::createReference: `pg_trgm` by the superuser),
+  runs exactly those migration files of this image on it (packages' paths and database/migrations, as `migrate` does),
+  audits against it and drops it; the name is the same on every attempt, so a resumed audit drops a leftover first. A
+  set naming migrations this image does not ship is refused (`unknown migration <name>`). An archive without a
+  migrations table (refused earlier as `not_an_app_backup`) is audited against an empty database.
+- **Both directions.** Besides `unknown`/`changed` objects and disallowed calls, every object of the baseline's exact
+  set and expression set that the restored database lacks is named `missing <kind>:<name>` and fails the check (exit 2
+  `backup_unsafe`). Grants are the exception: a missing grant only takes a privilege away, and restores never carry
+  privileges (`--no-privileges`). The sentence "the restored database may lack objects (an older backup)" above no
+  longer holds: an older archive may lack exactly what later migrations add, nothing else, and is compared with what
+  its own migrations create (also fixing `changed` false alarms for objects a later migration redefined).
+- Cost: an older unauthenticated archive's audit runs that version's migrations on an empty database (seconds); equal
+  sets cost nothing extra.
