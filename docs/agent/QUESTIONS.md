@@ -234,3 +234,17 @@ Format: question · chosen option · impact · how to reverse.
    --catcher-login`'s hint "Run `fsa install` again" re-renders nothing on a finished instance (results now carry
    `catcher_login_command`) · the test-mail hint names the SMTP settings when no operator exists · low impact ·
    fix when touching those paths.
+49. Builder v2 key suggestion (ADR 0037): the client applies `builder-v2:key-suggested` while the key field still
+   shows `from`. If a designer has selected the key field's text in the instant before the suggestion lands, the
+   suggestion replaces the selection and the typed key is appended to it ("totalline_total"). Seen only in the E2E
+   helper's `fill` (M11 gate, E2E run 2), which now retries until the field holds the key · negligible for typing
+   people · optional fix: skip the suggestion while the key field has focus.
+50. Builder v2 (M7): a selection made while the canvas page's first Livewire requests are still in flight can be
+   undone. One of them answers after the selection request, its older snapshot replaces the client's, and the
+   next edit (the title) is sent without the selection: the inspector empties and the edit is dropped. Seen once
+   in the M11 gate E2E (keyboard spec, trace: select at +0 ms, older request answering 6 ms after the selection's).
+   A person must select within ~100 ms of the page loading · the E2E helper now waits for the initial requests ·
+   optional fix: queue the builder's initial requests before accepting selection (or carry the selection client-side).
+   The same lost update hit the drag spec twice (runs 8 and 10): after a drop the inspector stayed on the previous
+   node for 10 s. Both appeared only with the host at load ~12 on 10 cores (Teams, Defender, VS Code PHP server);
+   M11 changed no builder code.

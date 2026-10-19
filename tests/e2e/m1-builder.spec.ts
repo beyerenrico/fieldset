@@ -22,6 +22,8 @@ test('designer builds a form from the service report template and publishes v1',
 
   // New forms open in the canvas builder (ADR 0044); this journey covers the classic builder, so it switches.
   await expect(page).toHaveURL(/\/forms\/\d+\/canvas/, { timeout: 30_000 });
+  // A click before the builder is ready is lost (the toolbar is wired up by its script).
+  await expect(page.locator('[data-builder-root]')).toHaveAttribute('data-builder-ready', '', { timeout: 15_000 });
   await page.locator('[data-builder-toolbar="classic"]').click();
   await expect(page).toHaveURL(/\/forms\/\d+\/edit/, { timeout: 30_000 }); // the builder page is heavy (QUESTIONS #8)
   await page.screenshot({ path: evidence('02-builder'), fullPage: true });

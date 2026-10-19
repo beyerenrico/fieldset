@@ -50,6 +50,10 @@ export async function createBlankCanvas(page: Page, name: string): Promise<void>
   await expect(root(page)).toHaveAttribute('data-builder-ready', '', {
     timeout: 15_000,
   });
+  // The page's first Livewire requests are still in flight when the builder reports ready. One answering after a
+  // selection replaces the client snapshot with its older one, and the next edit is sent without the selection
+  // (QUESTIONS 50): let them finish first.
+  await page.waitForLoadState('networkidle');
 }
 
 export async function expectSaved(page: Page): Promise<void> {
@@ -99,7 +103,13 @@ export async function editSelected(
   }
   const key = inspector.getByRole('textbox', { name: /^(schlüssel|seitenschlüssel|key)/i }).first();
   await expect(key).toBeEditable();
-  await key.fill(values.key);
+  // Livewire dispatches builder-v2:key-suggested a tick after the response above. Landing between fill's select-all
+  // and its insert, the suggestion drops the selection and the key is appended to it ("totalline_total"). Once the
+  // field no longer shows the suggestion's `from`, later suggestions are ignored, so a second fill settles it.
+  await expect(async () => {
+    await key.fill(values.key);
+    await expect(key).toHaveValue(values.key, { timeout: 500 });
+  }).toPass({ timeout: 10_000 });
   await key.blur();
   await expect(
     page.locator(`[data-builder-key="${values.key}"], [data-builder-page-key="${values.key}"]`).first(),
