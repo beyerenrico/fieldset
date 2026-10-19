@@ -248,3 +248,8 @@ Format: question · chosen option · impact · how to reverse.
    The same lost update hit the drag spec twice (runs 8 and 10): after a drop the inspector stayed on the previous
    node for 10 s. Both appeared only with the host at load ~12 on 10 cores (Teams, Defender, VS Code PHP server);
    M11 changed no builder code.
+51. Backups (U16, ADR 0084): backup key rotation is not built: a new key pair means `config set backup-encryption
+   off` then `on`, and older backups still need the old identity · rotating keeps working encrypted archives readable
+   only while the operator keeps every identity · optional: a `backup-encryption rotate` that re-seals kept backups.
+52. `fsa install --encrypt` exits 2 with a hint to `fsa config set backup-encryption on` after the install (the
+   passphrase and identity path need a second, deliberate step) · confirm the two-step flow is acceptable.
