@@ -4,8 +4,9 @@ M9, M10 and M11 done and merged to `main` (tags `m9-done`, `v2.0.0-alpha.1`, `m1
 `m11-done`, `v2.0.0-beta.1`; local only, never pushed). Reports: `docs/agent/milestones/M9.md`, `M10.md`, `M11.md`.
 
 ## Next actions
-1. Create branch `m12-lifecycle` from `main`. M12 is broken down in PLAN.md (T01 U16 first, then T02 U17, then
-   T03/T04/T05 in parallel worktrees). Start M12-T01 U16 backups: re-read plan U16, KTD15–KTD17, §8 backups.
+1. Branch `m12-lifecycle` (from main 30a2f10). M12-T01 U16 backups IN PROGRESS: one agent in a worktree, brief in
+   the session scratchpad (`m12-u16-brief.md`: scope = plan U16, J08 backup half, ADR 0084, test DB form_schema_u16).
+   After it: review its diff, run its tests, merge `--no-ff`, then T02 U17, then T03/T04/T05 in parallel worktrees.
 2. U16 must fit the backup service into its 128 MiB slot of the small budget and rerun J10 if the table changes
    (ADR 0083). At the M13 breakdown: admin-guide.md capture banner section (U21).
 3. Housekeeping blocked by the permission classifier: dropping stale test DBs in the dev Postgres
