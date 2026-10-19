@@ -287,6 +287,21 @@ final readonly class InstanceSettings
         return $this->string('time_zone') ?? 'UTC';
     }
 
+    /**
+     * The storage volume's Docker name when a restore put a fresh one in place (U17, ADR 0085): the compose file then
+     * declares `app-storage` as that existing volume; null keeps Compose's own `<project>_app-storage`.
+     */
+    public function storageVolume(): ?string
+    {
+        return $this->string('storage_volume');
+    }
+
+    /** Whether outgoing webhooks wait (`fsa install --from-backup` until `fsa config set webhooks on`, ADR 0085). */
+    public function webhooksPaused(): bool
+    {
+        return $this->state->setting('webhooks_paused') === true;
+    }
+
     private function int(string $key, int $default): int
     {
         $value = $this->state->setting($key);

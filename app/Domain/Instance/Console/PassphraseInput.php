@@ -30,7 +30,8 @@ final readonly class PassphraseInput
      */
     private function __construct(private ?string $file, private bool $stdin, private Closure $read, private ?Closure $confirm) {}
 
-    public static function fromCommand(Command $command, FsaContext $context): self
+    /** @param  bool  $twice  a new passphrase is entered twice in a terminal; an existing one (restore, R40) once */
+    public static function fromCommand(Command $command, FsaContext $context, bool $twice = true): self
     {
         $laravel = $command->getLaravel();
         $reader = $laravel->bound(self::STDIN) ? $laravel->make(self::STDIN) : null;
@@ -44,7 +45,7 @@ final readonly class PassphraseInput
 
             return is_string($content) ? $content : '';
         };
-        $confirm = $terminal ? static fn (): string => (string) $command->secret('The same passphrase again') : null;
+        $confirm = $terminal && $twice ? static fn (): string => (string) $command->secret('The same passphrase again') : null;
         $file = $command->option('passphrase-file');
 
         return new self(is_string($file) && trim($file) !== '' ? trim($file) : null, $command->option('passphrase-stdin') === true, $read, $confirm);

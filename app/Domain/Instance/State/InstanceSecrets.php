@@ -17,6 +17,7 @@ final readonly class InstanceSecrets
     /** Mailpit UI user; the password is the catcher secret. */
     public const string CATCHER_USER = 'fsa';
 
+    /** @param  list<string>  $previousKeys  APP_PREVIOUS_KEYS, without the current key */
     public function __construct(
         #[SensitiveParameter] public string $appKey,
         #[SensitiveParameter] public string $dbPassword,
@@ -25,6 +26,7 @@ final readonly class InstanceSecrets
         #[SensitiveParameter] public string $backupDbPassword,
         #[SensitiveParameter] public ?string $smtpUsername = null,
         #[SensitiveParameter] public ?string $smtpPassword = null,
+        #[SensitiveParameter] public array $previousKeys = [],
     ) {}
 
     public static function generate(): self
@@ -53,17 +55,37 @@ final readonly class InstanceSecrets
             self::nonEmpty($env->read('backup')['DB_PASSWORD'] ?? null) ?? self::password(),
             self::nonEmpty($app['MAIL_USERNAME'] ?? null),
             self::nonEmpty($app['MAIL_PASSWORD'] ?? null),
+            self::keyList($app['APP_PREVIOUS_KEYS'] ?? ''),
         );
     }
 
     public function withSmtpCredentials(#[SensitiveParameter] ?string $username, #[SensitiveParameter] ?string $password): self
     {
-        return new self($this->appKey, $this->dbPassword, $this->valkeyPassword, $this->catcherPassword, $this->backupDbPassword, $username, $password);
+        return new self($this->appKey, $this->dbPassword, $this->valkeyPassword, $this->catcherPassword, $this->backupDbPassword, $username, $password, $this->previousKeys);
     }
 
     public function withAppKey(#[SensitiveParameter] string $appKey): self
     {
-        return new self($appKey, $this->dbPassword, $this->valkeyPassword, $this->catcherPassword, $this->backupDbPassword, $this->smtpUsername, $this->smtpPassword);
+        return new self($appKey, $this->dbPassword, $this->valkeyPassword, $this->catcherPassword, $this->backupDbPassword, $this->smtpUsername, $this->smtpPassword, $this->previousKeys);
+    }
+
+    /**
+     * APP_PREVIOUS_KEYS (plan U17, ADR 0085): keys data may still be encrypted under, e.g. a restored backup's own key.
+     * Laravel decrypts with every one of them and encrypts only with APP_KEY; the current key never appears twice.
+     *
+     * @param  list<string>  $keys
+     */
+    public function withPreviousKeys(#[SensitiveParameter] array $keys): self
+    {
+        $keys = array_values(array_unique(array_filter($keys, fn (string $key): bool => $key !== '' && $key !== $this->appKey)));
+
+        return new self($this->appKey, $this->dbPassword, $this->valkeyPassword, $this->catcherPassword, $this->backupDbPassword, $this->smtpUsername, $this->smtpPassword, $keys);
+    }
+
+    /** @return list<string> APP_KEY first, then the previous keys */
+    public function appKeys(): array
+    {
+        return array_values([$this->appKey, ...$this->previousKeys]);
     }
 
     /** @return array<string, string> */
@@ -76,6 +98,12 @@ final readonly class InstanceSecrets
     private static function password(): string
     {
         return bin2hex(random_bytes(24));
+    }
+
+    /** @return list<string> */
+    private static function keyList(#[SensitiveParameter] string $value): array
+    {
+        return array_values(array_filter(array_map(trim(...), explode(',', $value)), static fn (string $key): bool => $key !== ''));
     }
 
     private static function nonEmpty(?string $value): ?string

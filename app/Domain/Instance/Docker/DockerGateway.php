@@ -114,6 +114,14 @@ interface DockerGateway
 
     public function removeContainer(string $id, bool $force = true): void;
 
+    /**
+     * Creates a named volume with these labels (a restore's fresh storage volume, plan U17); an existing volume of that
+     * name fails, so a restore never writes into a volume it did not just create.
+     *
+     * @param  array<string, string>  $labels
+     */
+    public function createVolume(string $name, array $labels): void;
+
     public function removeVolume(string $name): void;
 
     public function removeNetwork(string $name): void;

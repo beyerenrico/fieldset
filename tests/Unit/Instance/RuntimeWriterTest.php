@@ -46,7 +46,15 @@ it('renders the instance URL, extra hosts, an empty tunnel and a lowered gate fr
         'extra_hosts' => ['forms.lan', '192.168.1.20'],
         'tunnel' => ['hostname' => null, 'expires_at' => null, 'peer' => null, 'admin' => false],
         'gate' => ['raised' => false, 'operation' => null, 'since' => null, 'smoke_token' => null],
+        'webhooks' => ['paused' => false], // U17: outgoing webhooks run unless a move paused them (ADR 0085)
     ]);
+});
+
+it('tells the app that webhooks wait after a move (U17)', function (): void {
+    $directory = TemporaryInstance::directory();
+    $state = ComposeFixtures::state(['webhooks_paused' => true], $directory->root);
+
+    expect(new RuntimeWriter($directory)->document($state)['webhooks'])->toBe(['paused' => true]);
 });
 
 it('uses the URL from the state when one is set', function (): void {
