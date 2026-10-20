@@ -8,30 +8,30 @@
         "exit_code": 0,
         "changed": true,
         "data": {
-            "uuid": "cca16c23-9406-44e5-903f-d8bfeeec141e",
+            "uuid": "a8ef7370-56d4-4200-9a6b-d1e4f97e7139",
             "removed": {
                 "containers": [
-                    "fsa-fsa-test-j08b-b906-edge-1",
-                    "fsa-fsa-test-j08b-b906-mailpit-1",
-                    "fsa-fsa-test-j08b-b906-backup-1",
-                    "fsa-fsa-test-j08b-b906-queue-1",
-                    "fsa-fsa-test-j08b-b906-gotenberg-1",
-                    "fsa-fsa-test-j08b-b906-app-1",
-                    "fsa-fsa-test-j08b-b906-scheduler-1",
-                    "fsa-fsa-test-j08b-b906-redis-1",
-                    "fsa-fsa-test-j08b-b906-postgres-1"
+                    "fsa-fsa-test-j08b-7091-edge-1",
+                    "fsa-fsa-test-j08b-7091-mailpit-1",
+                    "fsa-fsa-test-j08b-7091-backup-1",
+                    "fsa-fsa-test-j08b-7091-app-1",
+                    "fsa-fsa-test-j08b-7091-queue-1",
+                    "fsa-fsa-test-j08b-7091-scheduler-1",
+                    "fsa-fsa-test-j08b-7091-gotenberg-1",
+                    "fsa-fsa-test-j08b-7091-postgres-1",
+                    "fsa-fsa-test-j08b-7091-redis-1"
                 ],
                 "networks": [
-                    "fsa-fsa-test-j08b-b906_default",
-                    "fsa-fsa-test-j08b-b906_edge",
-                    "fsa-fsa-test-j08b-b906_renderer"
+                    "fsa-fsa-test-j08b-7091_default",
+                    "fsa-fsa-test-j08b-7091_edge",
+                    "fsa-fsa-test-j08b-7091_renderer"
                 ],
                 "volumes": [
-                    "fsa-fsa-test-j08b-b906_app-storage-r47fbe91eca40",
-                    "fsa-fsa-test-j08b-b906_edge-data",
-                    "fsa-fsa-test-j08b-b906_mailpit-data",
-                    "fsa-fsa-test-j08b-b906_pg-data",
-                    "fsa-fsa-test-j08b-b906_valkey-data"
+                    "fsa-fsa-test-j08b-7091_app-storage-ra24678ef28c0",
+                    "fsa-fsa-test-j08b-7091_edge-data",
+                    "fsa-fsa-test-j08b-7091_mailpit-data",
+                    "fsa-fsa-test-j08b-7091_pg-data",
+                    "fsa-fsa-test-j08b-7091_valkey-data"
                 ]
             },
             "dir": "<work>/fsa-test-j08b",
@@ -54,8 +54,8 @@
             "data_deleted": true,
             "backups_deleted": false,
             "final_backup": {
-                "dir": "backups/final-20261020T190031Z",
-                "backup": "final-20261020T190031Z",
+                "dir": "backups/final-20261020T212131Z",
+                "backup": "final-20261020T212131Z",
                 "encrypted": true,
                 "includes_secrets": true,
                 "key_file": null,
@@ -66,8 +66,8 @@
         "warnings": [
             {
                 "code": "final_backup_encrypted",
-                "message": "The final backup <work>/fsa-test-j08b/backups/final-20261020T190031Z is encrypted and carries the APP keys.",
-                "hint": "`install.sh --dir <work>/fsa-test-j08b --from-backup <work>/fsa-test-j08b/backups/final-20261020T190031Z/backup.tar.age --identity-file <identity> --passphrase-file <file> --accept-unauthenticated` brings it back (its HMAC needs the APP key from outside it: pass `--app-key-file` instead of --accept-unauthenticated if you kept it)."
+                "message": "The final backup <work>/fsa-test-j08b/backups/final-20261020T212131Z is encrypted and carries the APP keys.",
+                "hint": "`install.sh --dir <work>/fsa-test-j08b --from-backup <work>/fsa-test-j08b/backups/final-20261020T212131Z/backup.tar.age --identity-file <identity> --passphrase-file <file> --accept-unauthenticated` brings it back (its HMAC needs the APP key from outside it: pass `--app-key-file` instead of --accept-unauthenticated if you kept it)."
             },
             {
                 "code": "certificates_removed",

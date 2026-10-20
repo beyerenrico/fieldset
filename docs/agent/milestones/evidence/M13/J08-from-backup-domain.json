@@ -12,7 +12,7 @@
             "version": "2.0.0-alpha.1-test",
             "mode": "domain",
             "dir": "<work>/fsa-test-j08b",
-            "project": "fsa-fsa-test-j08b-b906",
+            "project": "fsa-fsa-test-j08b-7091",
             "port": null,
             "mail": {
                 "mode": "capture",
@@ -20,19 +20,19 @@
             },
             "owner_email": null,
             "from_backup": {
-                "backup": "manual-20261020T185931Z",
+                "backup": "manual-20261020T212032Z",
                 "format": "fsa",
                 "authenticated": true,
                 "encrypted": true,
-                "created_at": "2026-10-20T18:59:31Z",
+                "created_at": "2026-10-20T21:20:32Z",
                 "version": "2.0.0-alpha.1-test",
                 "epoch": 4,
                 "recipients": {
                     "listed": [
-                        "age1zk7a9vcu80c4lyz9h3vw72rvjh80xgqcj07q9x898v9aklxsqgpswuxvmf"
+                        "age197fzxtkcmh55yde3pye4vugfsgn3gluewgzknta0zdj45nm9se6sjpcd2s"
                     ],
                     "kept": [
-                        "age1zk7a9vcu80c4lyz9h3vw72rvjh80xgqcj07q9x898v9aklxsqgpswuxvmf"
+                        "age197fzxtkcmh55yde3pye4vugfsgn3gluewgzknta0zdj45nm9se6sjpcd2s"
                     ]
                 }
             },
