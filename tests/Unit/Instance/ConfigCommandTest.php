@@ -15,7 +15,7 @@ use Tests\Support\Instance\TemporaryInstance;
 
 /*
  * Plan U11 (§7, R31, R32, §10; ADR 0077): `fsa config show` (effective settings, secrets redacted, outbound contacts)
- * and the command's usage rules: unknown keys, keys of later pre-releases (the update check: 2.0.0), an instance that is not
+ * and the command's usage rules: unknown keys, invalid values (the update check arrived with 2.0.0, U20), an instance that is not
  * installed, a running operation (exit 9) and an unfinished one of another kind.
  */
 
@@ -43,7 +43,7 @@ it('shows every setting of a local instance with secrets redacted and no outboun
         ->and($contacts['acme']['contacts'])->toBe([])
         ->and(collect($json['data']['keys'])->firstWhere('key', 'mail'))->toMatchArray(['value' => 'capture', 'available' => true, 'settable_now' => true])
         ->and(collect($json['data']['keys'])->firstWhere('key', 'backup-schedule'))->toMatchArray(['value' => '03:30', 'available' => true, 'settable_now' => true]) // arrived with U16 (ADR 0084)
-        ->and(collect($json['data']['keys'])->firstWhere('key', 'update-check'))->toMatchArray(['available' => false, 'arrives_with' => '2.0.0'])
+        ->and(collect($json['data']['keys'])->firstWhere('key', 'update-check'))->toMatchArray(['value' => 'off', 'available' => true, 'settable_now' => true]) // arrived with U20 (ADR 0089)
         ->and(collect($json['data']['keys'])->firstWhere('key', 'port'))->toMatchArray(['value' => 8080, 'available' => true, 'changes_url' => true])
         ->and($config->methodsSince($mark))->toBe([]);
 });
@@ -61,16 +61,16 @@ it('shows domain mode with its ACME directory as the one active outbound contact
         ->and($contacts['acme'])->toMatchArray(['active' => true, 'contacts' => [InstanceSettings::ACME_STAGING]]);
 });
 
-it('says when later settings arrive and lists the keys for an unknown one, exit 2', function (string $key, string $error, string $text): void {
+it('refuses invalid values and lists the keys for an unknown one, exit 2', function (string $key, string $error, string $text): void {
     [$code, $json] = new ConfigFixture()->set($key, 'x');
 
     expect($code)->toBe(2)
         ->and($json['errors'][0]['code'])->toBe($error)
         ->and($json['errors'][0]['message'].' '.$json['errors'][0]['hint'])->toContain($text);
 })->with([
-    'update check' => ['update-check', 'setting_not_available', '2.0.0'],
+    'update check (arrived with U20, ADR 0089)' => ['update-check', 'invalid_value', '`on` or `off`'],
     'backup schedule (arrived with U16, ADR 0084)' => ['backup-schedule', 'invalid_value', 'HH:MM'],
-    'unknown' => ['colour', 'unknown_setting', 'domain, url, port, trusted-proxy, mode, acme-email, acme-ca, mail, phone-https, lan-address, backup-schedule, backup-retention, backup-encryption, webhooks, operator-email'],
+    'unknown' => ['colour', 'unknown_setting', 'domain, url, port, trusted-proxy, mode, acme-email, acme-ca, mail, phone-https, lan-address, backup-schedule, backup-retention, backup-encryption, webhooks, update-check, operator-email'],
     'invalid mail value' => ['mail', 'invalid_value', 'capture'],
 ]);
 

@@ -69,6 +69,8 @@ final class InputGrammar
         'backup_schedule' => 'backup_time', 'backup_retention' => 'retention', 'time_zone' => 'time_zone',
         // Restore (U17, ADR 0085): the fresh storage volume a restore swapped in, and webhooks held after a move.
         'storage_volume' => 'docker_name', 'webhooks_paused' => [true, false],
+        // Update check (E15, U20, ADR 0089): on or not, and the release manifest it reads (http only for harness mirrors).
+        'update_check' => [true, false], 'update_url' => 'url',
     ];
 
     private const array PROBLEMS = [
@@ -80,6 +82,7 @@ final class InputGrammar
         'email' => 'must be an e-mail address',
         'text' => 'must be plain text without quotes, $, backslashes or control characters',
         'https_url' => 'must be an https URL without credentials, query or fragment',
+        'url' => 'must be an http(s) URL without credentials, query or fragment',
         'sha256' => 'must be a lowercase SHA-256 hex digest',
         'subnet' => 'must be a private IPv4 subnet (CIDR, /16 to /29)',
         'docker_name' => 'must be a Docker network or container name',
@@ -265,6 +268,7 @@ final class InputGrammar
             'identifier' => self::isIdentifier($value),
             'email' => self::isEmail($value),
             'https_url' => self::isHttpsUrl($value),
+            'url' => self::isUrl($value),
             'sha256' => is_string($value) && preg_match('/^[0-9a-f]{64}$/D', $value) === 1,
             'subnet' => self::isPrivateSubnet($value),
             'backup_time' => is_string($value) && preg_match('/^(?:off|(?:[01]\d|2[0-3]):[0-5]\d)$/D', $value) === 1,

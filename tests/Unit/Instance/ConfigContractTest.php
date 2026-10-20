@@ -47,7 +47,7 @@ it('says per key where it applies, whether it is settable now and what to use in
         ->and($keys['mail'])->toMatchArray(['available' => true, 'settable_now' => true, 'modes' => ['local', 'proxy', 'domain'], 'value' => 'capture'])
         ->and($keys['operator-email'])->toMatchArray(['available' => true, 'settable_now' => true, 'value' => null])
         ->and($keys['backup-schedule'])->toMatchArray(['available' => true, 'settable_now' => true, 'modes' => ['local', 'proxy', 'domain'], 'value' => '03:30']) // U16, ADR 0084
-        ->and($keys['update-check'])->toMatchArray(['available' => false, 'settable_now' => false, 'modes' => [], 'arrives_with' => '2.0.0']);
+        ->and($keys['update-check'])->toMatchArray(['available' => true, 'settable_now' => true, 'modes' => ['local', 'proxy', 'domain'], 'value' => 'off']); // U20, ADR 0089
 });
 
 it('says the port is not settable on a shared proxy network, but url and trusted-proxy are', function (): void {
@@ -60,7 +60,7 @@ it('says the port is not settable on a shared proxy network, but url and trusted
         ->and($keys['mode'])->toMatchArray(['settable_now' => true]);
 });
 
-it('answers a deferred key without a value with setting_not_available, not a usage error', function (string $key, string $error): void {
+it('answers a known key without a value with a usage error and an unknown key with unknown_setting', function (string $key, string $error): void {
     $fixture = new ConfigFixture;
 
     [$code, $json] = $fixture->instance->run('fsa:config', ['action' => 'set', 'key' => $key]);
@@ -68,7 +68,7 @@ it('answers a deferred key without a value with setting_not_available, not a usa
     expect($code)->toBe(2)->and($json['errors'][0]['code'])->toBe($error);
 })->with([
     'backup schedule, a known key since U16 (ADR 0084)' => ['backup-schedule', 'invalid_usage'],
-    'update check' => ['update-check', 'setting_not_available'],
+    'update check, a known key since U20 (ADR 0089)' => ['update-check', 'invalid_usage'],
     'mail without value' => ['mail', 'invalid_usage'],
     'unknown' => ['colour', 'unknown_setting'],
     'known key without value' => ['port', 'invalid_usage'],

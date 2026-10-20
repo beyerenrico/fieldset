@@ -47,7 +47,20 @@ it('renders the instance URL, extra hosts, an empty tunnel and a lowered gate fr
         'tunnel' => ['hostname' => null, 'expires_at' => null, 'peer' => null, 'admin' => false],
         'gate' => ['raised' => false, 'operation' => null, 'since' => null, 'smoke_token' => null],
         'webhooks' => ['paused' => false], // U17: outgoing webhooks run unless a move paused them (ADR 0085)
+        // U20 (ADR 0089): what the /platform instance page shows, and the update check (off by default)
+        'instance' => ['version' => $state->version(), 'mode' => 'local', 'digests' => $state->digests(), 'catcher_url' => 'http://localhost:8025'],
+        'updates' => ['check' => false, 'manifest_url' => null],
     ]);
+});
+
+it('tells the app the update check\'s manifest URL only while the check is on (U20)', function (): void {
+    $directory = TemporaryInstance::directory();
+    $url = 'https://github.com/beyerenrico/form-schema-app/releases/latest/download/release-manifest.json';
+    $writer = new RuntimeWriter($directory);
+
+    expect($writer->document(ComposeFixtures::state(['update_check' => true, 'update_url' => $url], $directory->root))['updates'])->toBe(['check' => true, 'manifest_url' => $url])
+        ->and($writer->document(ComposeFixtures::state(['update_url' => $url], $directory->root))['updates'])->toBe(['check' => false, 'manifest_url' => null])
+        ->and($writer->document(ComposeFixtures::state(['mail' => 'smtp', 'smtp_host' => 'smtp.example.com'], $directory->root))['instance']['catcher_url'])->toBeNull();
 });
 
 it('tells the app that webhooks wait after a move (U17)', function (): void {
