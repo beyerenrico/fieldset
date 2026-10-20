@@ -365,7 +365,7 @@ it('halts instead of restoring another set put under the safety backup\'s name b
     $this->upgrade->stage = function (): void {
         $name = $this->upgrade->safetyBackups[0];
         exec('rm -rf '.escapeshellarg($this->dir.'/backups/'.$name));
-        BackupSetFixture::fsa($this->dir.'/backups/'.$name, ['kind' => 'safety-upgrade', ...$this->upgrade->restore->manifest()], appKey: $this->upgrade->restore->appKey(), extra: ['note.txt' => 'another set']);
+        BackupSetFixture::fsa($this->dir.'/backups/'.$name, ['kind' => 'safety-upgrade', ...$this->upgrade->restore->manifest()], appKey: $this->upgrade->restore->appKey(), settings: ['note' => 'another set']); // authenticated, but another set's content
     };
 
     [$code, $json] = $this->upgrade->upgrade();

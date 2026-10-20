@@ -18,14 +18,17 @@ use SensitiveParameter;
  *
  * 1. an encrypted backup is decrypted (the identity file opened with the passphrase through batchpass, then
  *    `backup.tar.age` with the identity) into `<scratch>/backup.tar`, judged member by member and extracted into
- *    `<scratch>/set` (SafeExtractor); a plain backup directory is read in place once every entry is a regular file;
+ *    `<scratch>/set` (SafeExtractor); a plain backup directory's set files are copied there first, once every entry is
+ *    a regular file (anything else in it is a problem of the set, dotfiles aside), so a backups/ writer cannot change
+ *    what was checked before it is restored (M12 gate);
  * 2. `SHA256SUMS` must match the files; the HMAC is checked with the keys fsa passed from outside the archive (the
  *    instance's APP keys or a key file, as derived HMAC keys), never with a secret inside it;
- * 3. the storage archive is copied into the scratch directory (0640, so GNU tar can read it as the app UID later) and
- *    judged member by member; its regular files are listed in `<scratch>/storage-members.txt`;
+ * 3. the storage archive (0640, so GNU tar can read it as the app UID later) is judged member by member; its regular
+ *    files are listed in `<scratch>/storage-members.txt`;
  * 4. the dump's table of contents is judged (DumpInspector) and its migration set read from the dump itself.
  *
- * It reports; fsa decides (PreparedBackup). Nothing here connects anywhere or writes outside the scratch directory.
+ * It reports; fsa decides (PreparedBackup). Nothing here connects anywhere or writes outside the scratch directory, and
+ * every path it reports lies in the scratch directory (RestoreSource::confined).
  */
 final readonly class BackupPreparer
 {
@@ -47,12 +50,9 @@ final readonly class BackupPreparer
     public function prepare(string $source, string $scratch, array $keys, array $imageMigrations, ?string $identityFile = null, #[SensitiveParameter] ?string $passphrase = null): PreparedBackup
     {
         $detected = BackupSet::detect($source);
-        $set = $detected['encrypted'] ? $this->decrypt((string) $detected['file'], $scratch, $identityFile, $passphrase) : $source;
-        if (! $detected['encrypted']) {
-            BackupSet::assertRegularFiles($set);
-        }
+        [$set, $others] = $detected['encrypted'] ? [$this->decrypt((string) $detected['file'], $scratch, $identityFile, $passphrase), []] : $this->copy($source, $scratch, $detected['format']);
         $legacy = $detected['format'] === BackupSet::LEGACY;
-        $problems = BackupChecksums::verifySums($set);
+        $problems = [...BackupChecksums::verifySums($set), ...array_map(static fn (string $name): string => "{$name} is not part of a backup set", $others)];
         [$hmac, $fingerprint] = $legacy || $problems !== [] ? [$legacy ? 'absent' : 'unchecked', null] : $this->hmac($set, $keys);
         $manifest = $legacy ? [] : $this->json($set.'/'.BackupManifest::FILE);
         $storage = $problems === [] ? $this->storage($set, $scratch) : null;
@@ -61,7 +61,7 @@ final readonly class BackupPreparer
 
         return new PreparedBackup(
             format: $detected['format'], encrypted: $detected['encrypted'], source: $source, set: $set, name: $this->name($source),
-            hmac: $hmac, keyFingerprint: $fingerprint, problems: $problems, strays: BackupChecksums::strays($set),
+            hmac: $hmac, keyFingerprint: $fingerprint, problems: $problems, strays: BackupChecksums::strays($detected['encrypted'] ? $set : $source),
             manifest: $legacy ? $this->legacyManifest($set) : $this->manifestSummary($manifest),
             settings: $legacy ? [] : $this->json($set.'/'.BackupWriter::SETTINGS), storage: $storage, dump: $dump, migrations: $migrations,
             secrets: is_file($set.'/'.BackupWriter::SECRETS), legacyEnv: $legacy && is_file($set.'/'.BackupSet::LEGACY_ENV),
@@ -76,16 +76,38 @@ final readonly class BackupPreparer
         $identity = $this->age->decryptWithPassphrase($identityFile, $passphrase);
         $tar = $scratch.'/backup.tar';
         $this->age->decryptFileWithIdentity($identity, $file, $tar);
-        $set = $scratch.'/'.self::SET_DIR;
-        if (! @mkdir($set, 0750)) {
-            throw new RuntimeException('Cannot create the scratch directory for the backup set.');
-        }
+        $set = $this->setDirectory($scratch);
 
         try {
             SafeExtractor::extractSet($tar, $set, BackupSet::FILES);
         } finally {
             @unlink($tar);
         }
+
+        return $set;
+    }
+
+    /**
+     * A plain backup's set files, copied into the scratch directory before anything checks them: the backup directory
+     * may be written by others (a sync tool) between the check and the restore, the copy may not (M12 gate).
+     *
+     * @return array{0: string, 1: list<string>} the copy, and the names in the directory that are no file of a set
+     */
+    private function copy(string $source, string $scratch, string $format): array
+    {
+        BackupSet::assertRegularFiles($source);
+        $set = $this->setDirectory($scratch);
+
+        return [$set, SafeExtractor::copySet($source, $set, BackupSet::files($format))];
+    }
+
+    private function setDirectory(string $scratch): string
+    {
+        $set = $scratch.'/'.self::SET_DIR;
+        if (! @mkdir($set, 0750)) {
+            throw new RuntimeException('Cannot create the scratch directory for the backup set.');
+        }
+        @chmod($set, 0750); // the storage archive in it is read later as www-data with the owner's group added
 
         return $set;
     }
@@ -115,17 +137,10 @@ final readonly class BackupPreparer
         if (! is_file($archive)) {
             return null;
         }
-        $readable = $archive;
-        if (! str_starts_with($archive, $scratch.'/')) { // a plain backup is read in place; its archive is 0600
-            $readable = $scratch.'/'.BackupWriter::STORAGE;
-            if (! @copy($archive, $readable)) {
-                throw new RuntimeException('Cannot copy the storage archive into the scratch directory.');
-            }
-        }
-        @chmod($readable, 0640);
-        $counts = SafeExtractor::checkStorage($readable, $scratch.'/'.self::MEMBERS);
+        @chmod($archive, 0640); // the copy in the scratch set; the backup's own stays 0600
+        $counts = SafeExtractor::checkStorage($archive, $scratch.'/'.self::MEMBERS);
 
-        return [...$counts, 'archive' => $readable, 'listing' => $scratch.'/'.self::MEMBERS];
+        return [...$counts, 'archive' => $archive, 'listing' => $scratch.'/'.self::MEMBERS];
     }
 
     /** @return array{entries: int, types: array<string, int>, rejected: list<string>, list?: string} */

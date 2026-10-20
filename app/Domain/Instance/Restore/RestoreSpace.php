@@ -28,8 +28,9 @@ final readonly class RestoreSpace
     public function __construct(private BackupStore $store) {}
 
     /**
-     * Before the prepare step writes anything: room for the decrypted set (an encrypted backup) or the copy of the storage
-     * archive (a plain one) in the scratch directory, plus the headroom.
+     * Before the prepare step writes anything: room in the scratch directory for the decrypted tar and the set extracted
+     * from it (an encrypted backup: twice its age file), or for the copy of a plain backup's set, which every later step
+     * reads instead of the backup directory (its dump, storage archive and small files, M12 gate), plus the headroom.
      *
      * @return int|null the free bytes, null when they cannot be read (the caller warns `disk_space_unknown`)
      *
@@ -37,9 +38,10 @@ final readonly class RestoreSpace
      */
     public function assertScratch(string $source): ?int
     {
-        $bytes = is_file($source) ? (int) filesize($source) : (is_file($source.'/backup.tar.age') ? (int) filesize($source.'/backup.tar.age') : (int) @filesize($source.'/storage.tar.gz'));
+        $age = is_file($source) ? $source : $source.'/'.BackupStore::ENCRYPTED_FILE;
+        $bytes = is_file($age) ? 2 * (int) filesize($age) : BackupSet::bytes($source);
 
-        return $this->check(2 * $bytes + self::HEADROOM, 'the decrypted backup in the scratch directory');
+        return $this->check($bytes + self::HEADROOM, 'the decrypted or copied backup in the scratch directory');
     }
 
     /**

@@ -104,7 +104,8 @@ final readonly class FromBackupInstall
     {
         $record = $run->record();
         $request = $record->phases() === [] ? $request : $request->over($record->context());
-        $intake = $run->phase('backup', fn (): array => $this->prepare($request, $backup, $context->facts, $id), changes: false, always: ! $record->hasCompleted('restore_storage'));
+        // On every resume: a failed attempt removed the verified copy (review A5), and a 1.0 backup's `env` is read from it.
+        $intake = $run->phase('backup', fn (): array => $this->prepare($request, $backup, $context->facts, $id), changes: false, always: true);
         $prepared = PreparedBackup::fromArray($intake['backup']);
         $effective = FromBackupSettings::effective($request, $prepared);
         $effective->assertConsistent();
@@ -133,7 +134,12 @@ final readonly class FromBackupInstall
         return $link === null ? $result : SignInDelivery::deliver($result, $context, $link['value'], $link['expires_at'], $secretsToFile, (string) $effective->ownerEmailIfKnown());
     }
 
-    /** @return array{backup: array<string, mixed>, warnings: list<array{0: string, 1: string, 2: string|null}>, uuid: string, version: string, image: string} */
+    /**
+     * The release verified, the backup prepared and judged; what the result needs from a 1.0 backup's `env` (its SMTP
+     * server) is read now, while the verified copy is there (the done phase removes it).
+     *
+     * @return array{backup: array<string, mixed>, warnings: list<array{0: string, 1: string, 2: string|null}>, uuid: string, version: string, image: string, pending_mail: array<string, mixed>|null}
+     */
     private function prepare(InstallRequest $request, FromBackupRequest $backup, HostFacts $facts, string $id): array
     {
         $manifest = $this->release->verified($this->directory, $facts, $request->version());
@@ -144,7 +150,8 @@ final readonly class FromBackupInstall
             RestoreChecks::FROM_BACKUP, $id, AppKeys::of([]), (string) $manifest->version, mountedElsewhere: true);
         FromBackupKeys::keys($intake['backup'], $backup->keyFile); // exit 2 `app_key_required` before anything is written
 
-        return ['backup' => $intake['backup']->toArray(), 'warnings' => $intake['warnings'], 'uuid' => $uuid, 'version' => (string) $manifest->version, 'image' => $image];
+        return ['backup' => $intake['backup']->toArray(), 'warnings' => $intake['warnings'], 'uuid' => $uuid, 'version' => (string) $manifest->version, 'image' => $image,
+            'pending_mail' => FromBackupSettings::pendingMail($intake['backup'])];
     }
 
     /**

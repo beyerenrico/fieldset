@@ -13,6 +13,7 @@ use App\Domain\Instance\State\EnvFiles;
 use App\Domain\Instance\State\InstanceSettings;
 use Tests\Support\Instance\BackupSetFixture;
 use Tests\Support\Instance\FromBackupFixture;
+use Tests\Support\Instance\InstanceCommandFixture;
 
 /*
  * `fsa install --from-backup` (R42, R60, F6, plan U17, ADR 0085) against the recording Docker gateway: the backup's
@@ -259,6 +260,23 @@ it('removes the prepared set of a failed attempt, and prepares it again when the
 
     expect($failed)->toBe(4)->and($left)->toBe([])
         ->and($resumed)->toBe(0, (string) json_encode($json))
+        ->and(glob($this->move->instance->directory->root.'/staging/restore-*'))->toBe([]);
+});
+
+it('prepares a 1.0 backup again when the install resumes after its files were restored: the copy it read went with the failed attempt (M12 gate)', function (): void {
+    $legacy = BackupSetFixture::legacy($this->move->outside.'/20261001T020000Z', 'APP_KEY='.BackupSetFixture::OTHER_KEY."\nAPP_URL=http://old.test\nMAIL_FROM_ADDRESS=old@legacy.test\n");
+    $this->move->finish = InstanceCommandFixture::oneOffJson(['command' => 'instance:restore-finish', 'status' => 'failed', 'errors' => [['code' => 'restore_finish_failed', 'message' => 'connection lost', 'hint' => null]]]);
+
+    [$failed, $failedJson] = $this->move->install($legacy, ['--accept-unauthenticated' => true]);
+    $left = glob($this->move->instance->directory->root.'/staging/restore-*');
+    $this->move->finish = null;
+    [$resumed, $json] = $this->move->install($legacy, ['--accept-unauthenticated' => true]);
+
+    expect($failed)->toBe(4, (string) json_encode($failedJson))->and($failedJson['errors'][0]['code'])->toBe('restore_finish_failed')
+        ->and($left)->toBe([])
+        ->and($resumed)->toBe(0, (string) json_encode($json))
+        ->and($this->move->specs('restore-prepare'))->toHaveCount(2)
+        ->and(InstanceSettings::of($this->move->instance->state())->mailFromAddress())->toBe('old@legacy.test')
         ->and(glob($this->move->instance->directory->root.'/staging/restore-*'))->toBe([]);
 });
 

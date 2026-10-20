@@ -118,6 +118,10 @@ The Form Schema Spec has its own changelog in `spec/form-definition/1.0/CHANGELO
   run instead of being authenticated. The service's settings and every plaintext working copy (the plain set of an
   encrypted backup, a restore's decrypted set, the rollback's security export, reset's audit export) live in the new
   private `staging/` directory of the instance, never in `backups/` (ADR 0084, 0085 amendments).
+- `fsa restore`, its drill, `fsa rollback`, an upgrade's way back and `fsa install --from-backup` copy a plain backup
+  into the instance's private `staging/` and check and restore only that copy, so a change in `backups/` after the
+  check (a sync tool, say) never reaches the restore; such a restore needs free space for one more copy of the dump and
+  the storage archive (ADR 0085 amendment).
 - `fsa status` and `/platform` warn when the newest backup misses files the database references, and retention keeps
   older backups while new ones miss more files (ADR 0084 amendment).
 - `fsa restore` refuses a backup without files unless `--without-files` (the replaced storage volume is then kept), and

@@ -417,3 +417,28 @@ passed, and "may lack objects (an older backup)" made that indistinguishable fro
 - **EV3.** J09's drill of the adopt backup reported every referenced file missing because J09 seeds load-generator
   renditions that never have a file (`LoadRows::renditions`), not because the adopt backup or the drill lost storage;
   J09 now asserts the archive holds the 1.0 file and that only those renditions are missing.
+
+## Amendment 2026-10-20: a restore reads only the copy it verified (M12 gate)
+- **Restore-time TOCTOU (threat of S1: whoever can write `backups/`).** The prepare step no longer reads a plain backup
+  in place. It copies the set's files (BackupSet::FILES for an fsa set, the 1.0 names for a 1.0 set; each a regular
+  file, checked with lstat and opened as that same inode, so a symlink swapped in is refused) into
+  `staging/restore-<id>/set` (0750, files 0600, the storage archive 0640) and checks SHA256SUMS, the HMAC, the dump,
+  the storage archive and S4's name and safety-digest checks on that copy only. Dotfiles stay strays and the keep
+  marker is skipped; any other file in the directory is a problem of the set (`backup_damaged`, as an unlisted file
+  was before). pg_restore (as the superuser for an authenticated set), tar, the APP keys inside the set, the drill,
+  an upgrade's way back, `fsa rollback` and `--from-backup` read only the copy, which nobody else can write;
+  RestoreSource::confined refuses any reported path outside the scratch set, the backup itself included. This
+  replaces "A plain backup directory is read in place …; its storage archive is copied into the scratch directory" in
+  the prepare paragraph above.
+- **Disk space.** A restore of a plain backup now needs free space for one more copy of its dump and storage archive:
+  the scratch check before the prepare step counts the set's files plus the 1 GiB headroom (before: twice the storage
+  archive); an encrypted backup still needs twice its age file. The later check (safety backup, second database and
+  storage volume) is unchanged and runs once the copy exists, so free space already reflects it.
+- **`--from-backup` resumes.** The backup phase is prepared again on every resume (before: only until
+  `restore_storage` completed), since a failed attempt removes the copy (review A5) and a 1.0 backup's `env` is read
+  from it; the SMTP server for `pending_mail` is read in the backup phase, before the done phase removes the copy.
+- **The scratch set's mode.** `staging/restore-<id>/set` is set to 0750 explicitly: the prepare step runs with umask
+  0077, so `mkdir(…, 0750)` made it 0700, which tar as www-data with the owner's group added cannot enter on a Linux
+  host (inferred from the code; Docker Desktop's bind mounts on macOS, where the journeys run, do not enforce it).
+- **Tests.** Two S4 tests planted an authenticated set with an extra listed file (`note.txt`); such a set is now
+  refused as damaged before the S4 digest check, so they plant one with other settings instead.

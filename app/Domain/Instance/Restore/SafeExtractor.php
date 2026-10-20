@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Restore;
 
+use App\Domain\Instance\Backup\BackupStore;
 use Closure;
 use RuntimeException;
 
@@ -13,6 +14,8 @@ use RuntimeException;
  * - the set of an encrypted backup (`backup.tar` once age decrypted it) holds only regular files with the names of a
  *   backup set (BackupSet::FILES), each once, and is extracted into a fresh scratch directory, files created
  *   exclusively (0600), never following a link;
+ * - the files of a plain set (a backup directory) are copied into a fresh scratch directory the same way (copySet), so
+ *   what is checked is what is restored;
  * - the storage archive (`storage.tar.gz`) may hold regular files and directories below its root; an absolute path,
  *   a `..` segment, a control character, a symlink, a hard link, a device, a FIFO or any other member type refuses the
  *   whole archive. It is not extracted here: GNU tar extracts it later as the app UID into a fresh volume, after this
@@ -49,6 +52,38 @@ final readonly class SafeExtractor
         sort($names);
 
         return $names;
+    }
+
+    /**
+     * Copies the files of a plain set (a backup directory) into `$target` (an empty directory) before anything checks
+     * them, so every later step reads this copy and never the directory whoever else writes into `backups/` can change
+     * meanwhile (M12 gate). Only names in `$allowed` are copied, each a regular file: checked with lstat, opened, and
+     * the open file must be the same inode (a symlink swapped in between is refused). Dotfiles (strays) and the keep
+     * marker are skipped; every other name is returned, and the caller counts it as a problem of the set.
+     *
+     * @param  list<string>  $allowed  the names a set of this format may hold
+     * @return list<string> the other names in the directory, sorted
+     *
+     * @throws UnsafeArchive
+     */
+    public static function copySet(string $source, string $target, array $allowed): array
+    {
+        if ((scandir($target) ?: ['x']) !== ['.', '..']) {
+            throw new RuntimeException('The scratch directory for the backup set is not empty.');
+        }
+        $others = [];
+        foreach (scandir($source) ?: [] as $name) {
+            if (str_starts_with($name, '.') || $name === BackupStore::KEEP_MARKER) {
+                continue;
+            }
+            if (in_array($name, $allowed, true)) {
+                self::copyFile($source.'/'.$name, $target.'/'.$name);
+            } else {
+                $others[] = $name;
+            }
+        }
+
+        return $others;
     }
 
     /**
@@ -140,6 +175,31 @@ final readonly class SafeExtractor
             new TarStream($stream)->each($each);
         } finally {
             fclose($stream);
+        }
+    }
+
+    /** @throws UnsafeArchive */
+    private static function copyFile(string $from, string $to): void
+    {
+        $name = json_encode(basename($from), JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
+        $before = @lstat($from);
+        if ($before === false || ($before['mode'] & 0170000) !== 0100000) {
+            throw new UnsafeArchive('The backup directory holds '.(is_link($from) ? 'a symlink' : 'something other than a file').': '.$name.'.');
+        }
+        $handle = @fopen($from, 'rb');
+        $opened = $handle === false ? false : fstat($handle);
+        if ($handle === false || $opened === false || $opened['dev'] !== $before['dev'] || $opened['ino'] !== $before['ino']) {
+            if ($handle !== false) {
+                fclose($handle);
+            }
+
+            throw new UnsafeArchive('A file of the backup directory changed while it was copied: '.$name.'.');
+        }
+
+        try {
+            self::write($to, $opened['size'], static fn (int $length): string => $length < 1 ? '' : (string) fread($handle, $length));
+        } finally {
+            fclose($handle);
         }
     }
 

@@ -37,6 +37,9 @@ final class FromBackupFixture
 
     public ?ProcessOutcome $pgRestore = null;
 
+    /** `instance:restore-finish`'s answer (null: it succeeds) */
+    public ?ProcessOutcome $finish = null;
+
     /** @var list<string>|null the dump's migrations (null: this image's set) */
     public ?array $migrations = null;
 
@@ -180,7 +183,7 @@ final class FromBackupFixture
     {
         return match (true) {
             ($command[2] ?? null) === 'instance:restore-db' => $this->database($command),
-            ($command[2] ?? null) === 'instance:restore-finish' => InstanceCommandFixture::oneOffJson(['command' => 'instance:restore-finish', 'status' => 'ok', 'changed' => true, 'data' => [
+            ($command[2] ?? null) === 'instance:restore-finish' => $this->finish ?? InstanceCommandFixture::oneOffJson(['command' => 'instance:restore-finish', 'status' => 'ok', 'changed' => true, 'data' => [
                 'epoch' => 2, 'previous_epoch' => 1, 'activity_id' => 5, 'restored_heads' => [], 'carried' => null, 'sequences' => null,
                 'cleared' => ['sessions' => 2, 'remember_tokens' => 1, 'password_reset_tokens' => 0, 'login_links' => 1], 'grants' => ['revoked_public' => 3], 'decrypt' => ['tested' => 1, 'failed' => []],
             ]]),
