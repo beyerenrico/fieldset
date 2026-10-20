@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Upgrade;
 
-use App\Domain\Instance\Backup\BackupChecksums;
 use App\Domain\Instance\Backup\SafetyBackup;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Operations\InstanceLock;
@@ -58,12 +57,11 @@ final readonly class UpgradeBackup
             $noted($taken['backup']);
         }
 
-        $prepared = $this->prepare($state, $taken['backup'], $id, $actorUid);
-        $sums = self::sums($prepared);
         try {
-            $this->source->discard($id); // a copy of the dump and the archive less on disk while the upgrade runs
-        } catch (Throwable) {
-            // the upgrade's own clean-up removes it at the end; `fsa status` names one left behind
+            $prepared = $this->prepare($state, $taken['backup'], $id, $actorUid);
+            $sums = self::sums($prepared);
+        } finally {
+            $this->discard($id); // a copy of the dump and the archive less on disk while the upgrade runs, or reverts
         }
 
         return [...$taken, 'prepared' => $prepared->toArray(), 'sums' => $sums];
@@ -76,10 +74,16 @@ final readonly class UpgradeBackup
      */
     public static function sums(PreparedBackup $backup): ?string
     {
-        $file = $backup->set.'/'.BackupChecksums::SUMS;
-        $hash = is_file($file) ? hash_file('sha256', $file) : false;
+        return $backup->sumsDigest();
+    }
 
-        return $hash === false ? null : $hash;
+    private function discard(string $id): void
+    {
+        try {
+            $this->source->discard($id);
+        } catch (Throwable) {
+            // the upgrade's own clean-up tries again at the end; `fsa status` names one left behind
+        }
     }
 
     /**

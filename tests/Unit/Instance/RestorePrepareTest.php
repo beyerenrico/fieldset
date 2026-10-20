@@ -13,7 +13,9 @@ use App\Domain\Instance\Restore\PreparedBackup;
 use App\Domain\Instance\Restore\RestoreSource;
 use Illuminate\Support\Facades\Artisan;
 use Tests\Support\Instance\BackupSetFixture;
+use Tests\Support\Instance\RecordingDockerGateway;
 use Tests\Support\Instance\TarBuilder;
+use Tests\Support\Instance\TemporaryInstance;
 
 /*
  * `fsa restore-prepare` (plan U17, R41, R67, KTD16, KTD18, ADR 0085), the step that runs without socket and network:
@@ -209,6 +211,42 @@ it('refuses paths a compromised prepare step reports outside the backup and its 
         ->and(fn () => RestoreSource::confined($inPlace, $source, $this->work.'/scratch'))->toThrow(InstanceException::class, 'outside the backup')
         ->and(fn () => RestoreSource::confined($sourceArchive, $source, $this->work.'/scratch'))->toThrow(InstanceException::class, 'outside the backup');
 });
+
+it('refuses links a compromised prepare step leaves in the scratch directory: the set itself or a file in it (M12 gate)', function (): void {
+    $source = BackupSetFixture::fsa($this->work.'/manual-20261019T213000Z');
+    [, $json] = prepare($source, $this->work.'/scratch', ['keys' => []]);
+    $prepared = PreparedBackup::fromArray($json['data']);
+    $set = $this->work.'/scratch/set';
+    $confined = fn (): PreparedBackup => RestoreSource::confined($prepared, $source, $this->work.'/scratch');
+
+    rename($set.'/database.dump', $this->work.'/elsewhere.dump');
+    symlink($this->work.'/elsewhere.dump', $set.'/database.dump');
+    expect($confined)->toThrow(InstanceException::class, 'link');
+
+    unlink($set.'/database.dump');
+    rename($this->work.'/elsewhere.dump', $set.'/database.dump');
+    expect($confined())->toBe($prepared);
+
+    rename($set, $this->work.'/scratch/real');
+    symlink($this->work.'/scratch/real', $set);
+    expect($confined)->toThrow(InstanceException::class, 'link');
+});
+
+it('says when it cannot remove a scratch directory instead of leaving a plaintext copy unnamed (M12 gate)', function (): void {
+    $directory = TemporaryInstance::directory();
+    $source = new RestoreSource($directory, new RecordingDockerGateway);
+    $scratch = $source->scratch('0123456789ab');
+    mkdir($scratch.'/set', 0750);
+    file_put_contents($scratch.'/set/database.dump', 'plaintext');
+    chmod($scratch.'/set', 0);
+
+    try {
+        expect(fn () => $source->discard('0123456789ab'))->toThrow(RuntimeException::class, 'staging/restore-0123456789ab/set');
+    } finally {
+        chmod($scratch.'/set', 0700);
+        TemporaryInstance::cleanup();
+    }
+})->skip(fn (): bool => posix_geteuid() === 0, 'root removes any file');
 
 it('counts a backup as authenticated only when the key that verified is the one its manifest names first (review)', function (): void {
     $source = BackupSetFixture::fsa($this->work.'/manual-20261019T220000Z', manifest: ['app_key_fingerprints' => [KeyFingerprint::of(BackupSetFixture::OTHER_KEY)]]);

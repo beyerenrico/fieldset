@@ -253,6 +253,24 @@ it('does not count the safety backup a killed run already took when a resumed ru
         ->and($this->restore->actions()[0] ?? null)->toBe('drop'); // the killed run's scratch database went first
 });
 
+it('removes what a killed run left in its scratch directory before it checks the room for the new copy (M12 gate)', function (): void {
+    $names = InterruptedRestore::journal($this->restore, 'plan', started: 'prepare');
+    $stale = $this->dir.'/staging/restore-'.$names->id.'/set/database.dump';
+    mkdir(dirname($stale), 0750, true);
+    file_put_contents($stale, 'a copy the killed run made');
+    $seen = [];
+    app()->instance(RestoreSpace::FREE_BYTES, static function () use ($stale, &$seen): int {
+        $old = is_file($stale) && file_get_contents($stale) === 'a copy the killed run made';
+        $seen[] = $old;
+
+        return $old ? 0 : PHP_INT_MAX; // the old copy still takes the room
+    });
+
+    [$code, $json] = $this->restore->restore();
+
+    expect($code)->toBe(0, (string) json_encode($json))->and($seen[0] ?? null)->toBeFalse();
+});
+
 it('warns when the free disk space cannot be read instead of passing silently (review A12)', function (): void {
     [$code, $json] = $this->restore->restore();
     $this->restore->freeBytes = PHP_INT_MAX;

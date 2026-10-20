@@ -47,18 +47,21 @@ it('never prunes the newest backup, whatever its kind, and keeps at least one sc
         ->and(prunedNames([backupEntry('scheduled-20261001T033000Z')], 1))->toBe([]);
 });
 
-it('holds every scheduled backup that missed fewer referenced files than the newest one, or an unknown number, for as long as that lasts (M12 gate D5)', function (): void {
-    $entries = [backupEntry('scheduled-20261005T033000Z'), backupEntry('scheduled-20261004T033000Z'), backupEntry('scheduled-20261003T033000Z'),
-        backupEntry('scheduled-20261002T033000Z'), backupEntry('scheduled-20261001T033000Z'), backupEntry('manual-20261001T120000Z')];
-    $missing = ['scheduled-20261004T033000Z' => 2, 'scheduled-20261003T033000Z' => 1, 'scheduled-20261002T033000Z' => 0, 'manual-20261001T120000Z' => 0];
+it('holds, while the newest backup misses referenced files, the newest one that missed the fewest and the newest of unknown count, never more (M12 gate D5)', function (): void {
+    $entries = [backupEntry('scheduled-20261006T033000Z'), backupEntry('scheduled-20261005T033000Z'), backupEntry('scheduled-20261004T033000Z'), backupEntry('scheduled-20261003T033000Z'),
+        backupEntry('scheduled-20261002T033000Z'), backupEntry('scheduled-20261001T033000Z'), backupEntry('scheduled-20260930T033000Z'), backupEntry('manual-20261001T120000Z')];
+    $missing = ['scheduled-20261005T033000Z' => 2, 'scheduled-20261004T033000Z' => 1, 'scheduled-20261003T033000Z' => 0, 'scheduled-20261001T033000Z' => 0, 'manual-20261001T120000Z' => 0];
 
-    $held = BackupRetention::held($entries, 'scheduled-20261005T033000Z', 2, $missing);
+    $held = BackupRetention::held($entries, 'scheduled-20261006T033000Z', 2, $missing);
     $pruned = array_map(static fn (BackupEntry $entry): string => $entry->name->name(), BackupRetention::prune($entries, 1, $held));
+    // missing files grow by one a day: the hold stays at the one that missed the fewest, never every older backup
+    $growing = ['scheduled-20261005T033000Z' => 5, 'scheduled-20261004T033000Z' => 4, 'scheduled-20261003T033000Z' => 3, 'scheduled-20261002T033000Z' => 2, 'scheduled-20261001T033000Z' => 1, 'scheduled-20260930T033000Z' => 0];
 
-    expect($held)->toBe(['scheduled-20261003T033000Z', 'scheduled-20261002T033000Z', 'scheduled-20261001T033000Z']) // 1, 0, unknown
-        ->and($pruned)->toBe(['scheduled-20261004T033000Z']) // as many missing as the newest: retention goes on there
-        ->and(BackupRetention::held($entries, 'scheduled-20261005T033000Z', 0, $missing))->toBe([]) // the files are back: nothing held
-        ->and(prunedNames($entries, 1))->toHaveCount(4);
+    expect($held)->toBe(['scheduled-20261003T033000Z', 'scheduled-20261002T033000Z']) // the newest with 0, the newest unknown
+        ->and($pruned)->toBe(['scheduled-20260930T033000Z', 'scheduled-20261001T033000Z', 'scheduled-20261004T033000Z', 'scheduled-20261005T033000Z'])
+        ->and(BackupRetention::held($entries, 'scheduled-20261006T033000Z', 6, $growing))->toBe(['scheduled-20260930T033000Z'])
+        ->and(BackupRetention::held($entries, 'scheduled-20261006T033000Z', 0, $missing))->toBe([]) // the files are back: nothing held
+        ->and(BackupRetention::held($entries, 'scheduled-20261006T033000Z', 1, ['scheduled-20261005T033000Z' => 1]))->toBe(['scheduled-20261004T033000Z']); // only unknowns: the newest
 });
 
 it('projects the next backup from the newest one and keeps the free-space threshold', function (): void {

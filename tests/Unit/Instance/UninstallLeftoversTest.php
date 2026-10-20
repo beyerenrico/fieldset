@@ -93,8 +93,38 @@ it('keeps backups/ with --keep-backups and reports only the data left outside it
     [$code, $json] = $this->fixture->run('fsa:uninstall', ['--yes' => true, '--keep-backups' => true, '--no-backup' => true]);
 
     expect($code)->toBe(0, (string) json_encode($json))
-        ->and($json['data'])->toMatchArray(['data_deleted' => false, 'backups_deleted' => false, 'kept' => ['backups'], 'left_files' => [STAGED]])
+        ->and($json['data'])->toMatchArray(['data_deleted' => false, 'backups_deleted' => false, 'kept' => ['backups'], 'left_files' => [STAGED, PARTIAL]])
         ->and(is_dir($this->root.'/backups'))->toBeTrue();
+})->skip(fn (): bool => posix_geteuid() === 0, 'root removes any file');
+
+it('goes on when it cannot even list what interrupted runs left (staging/ replaced by a link)', function (): void {
+    $outside = TemporaryInstance::path();
+    mkdir($outside.'/backup/manual-20261019T120000Z.partial', 0700, true);
+    exec('rm -rf '.escapeshellarg($this->root.'/staging'));
+    symlink($outside, $this->root.'/staging');
+
+    [$code, $json] = $this->fixture->run('fsa:uninstall', ['--yes' => true]);
+
+    expect($code)->toBe(0, (string) json_encode($json))
+        ->and(cleanRuns($this->fixture))->toBe([])
+        ->and(is_dir($outside.'/backup/manual-20261019T120000Z.partial'))->toBeTrue() // the link went, never its target
+        ->and(scandir($this->root))->toBe(['.', '..']);
+});
+
+it('quotes every path in the command it suggests, and leaves names it cannot print out of it', function (): void {
+    foreach (['backups/x; touch pwned', "backups/y\nz"] as $name) {
+        mkdir($this->root.'/'.$name, 0700, true);
+        file_put_contents($this->root.'/'.$name.'/f', 'x');
+        chmod($this->root.'/'.$name, 0);
+    }
+
+    [$code, $json] = $this->fixture->run('fsa:uninstall', ['--yes' => true]);
+    $warning = collect($json['warnings'])->firstWhere('code', 'files_left');
+
+    expect($code)->toBe(0, (string) json_encode($json))
+        ->and($warning['hint'] ?? '')->toContain("sudo rm -rf -- '".$this->root."/backups/x; touch pwned'")->not->toContain("y\nz")
+        ->and($warning['hint'] ?? '')->toContain('1 more with an unprintable name')
+        ->and($warning['message'] ?? '')->not->toMatch('/[\x00-\x1F]/');
 })->skip(fn (): bool => posix_geteuid() === 0, 'root removes any file');
 
 it('runs no clean-up one-off when no interrupted run left anything', function (): void {

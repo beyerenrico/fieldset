@@ -12,6 +12,7 @@ use App\Domain\Instance\Lifecycle\OneOffResult;
 use App\Domain\Instance\Output\ExitCode;
 use App\Domain\Instance\Output\InvalidInput;
 use App\Domain\Instance\State\InstanceDirectory;
+use RuntimeException;
 use SensitiveParameter;
 
 /**
@@ -73,10 +74,16 @@ final readonly class RestoreSource
         return $this->directory->ensureDirectory($relative, 0750);
     }
 
+    /** @throws RuntimeException naming what stays (it may hold the decrypted or copied set) */
     public function discard(string $id): void
     {
-        $this->directory->files()->delete(self::scratchPath($id));
-        $this->directory->files()->delete(InstanceDirectory::BACKUPS_DIR.'/'.self::LEGACY_SCRATCH_PREFIX.$id);
+        $left = [
+            ...$this->directory->files()->delete(self::scratchPath($id)),
+            ...$this->directory->files()->delete(InstanceDirectory::BACKUPS_DIR.'/'.self::LEGACY_SCRATCH_PREFIX.$id),
+        ];
+        if ($left !== []) {
+            throw new RuntimeException('Cannot remove '.implode(', ', $left).'.');
+        }
     }
 
     /**
@@ -111,8 +118,9 @@ final readonly class RestoreSource
 
     /**
      * The paths the prepare container reports are mounted into later containers by the process that holds the socket:
-     * they must lie in the scratch directory, whatever a compromised prepare step claims. The backup itself is never
-     * one of them: later steps read only the set the prepare step verified there, which nobody else can write (M12 gate).
+     * they must lie in the scratch directory, whatever a compromised prepare step claims, and be no link (Docker resolves
+     * a bind source on the host). The backup itself is never one of them: later steps read only the set the prepare step
+     * verified there, which nobody else can write (M12 gate).
      *
      * @throws InstanceException exit 4 `prepare_failed`
      */
@@ -131,8 +139,23 @@ final readonly class RestoreSource
                 throw new InstanceException("The prepare step reported {$what} outside the backup's scratch directory ({$key}).", ExitCode::HealthCheckFailed, 'prepare_failed', 'Nothing was changed; run the command again, and report it if it repeats.');
             }
         }
+        self::assertNoLinks($backup->set, array_values(array_filter([$paths['archive'], $paths['listing'], $paths['list']], is_string(...))));
 
         return $backup;
+    }
+
+    /**
+     * @param  list<string>  $files
+     *
+     * @throws InstanceException exit 4 `prepare_failed`
+     */
+    private static function assertNoLinks(string $set, array $files): void
+    {
+        $names = array_unique([...BackupSet::FILES, ...BackupSet::LEGACY_FILES]);
+        $linked = array_filter([$set, ...$files, ...array_map(static fn (string $name): string => $set.'/'.$name, $names)], is_link(...));
+        if ($linked !== [] || ! is_dir($set)) {
+            throw new InstanceException('The prepare step left a link (or no directory) where the verified set must be: '.implode(', ', $linked ?: [$set]).'.', ExitCode::HealthCheckFailed, 'prepare_failed', 'Nothing was changed; run the command again, and report it if it repeats.');
+        }
     }
 
     private function failure(OneOffResult $outcome): InstanceException

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Restore;
 
+use App\Domain\Instance\Backup\BackupChecksums;
+
 /**
  * What `fsa restore-prepare` found out about a backup (plan U17, ADR 0085): the format, where its plain set now lies,
  * whether the checksums and the HMAC hold, the storage archive's members, the dump's table of contents and its migration
@@ -46,6 +48,15 @@ final readonly class PreparedBackup
         $listed = $this->fingerprints();
 
         return $this->hmac === 'verified' && ($listed === [] || $this->keyFingerprint === $listed[0]);
+    }
+
+    /** The SHA-256 of the verified set's SHA256SUMS (it names every file's hash): which set this is, null without one. */
+    public function sumsDigest(): ?string
+    {
+        $file = $this->set.'/'.BackupChecksums::SUMS;
+        $hash = is_file($file) ? hash_file('sha256', $file) : false;
+
+        return $hash === false ? null : $hash;
     }
 
     public function isLegacy(): bool

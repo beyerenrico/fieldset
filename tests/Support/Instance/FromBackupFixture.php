@@ -37,6 +37,9 @@ final class FromBackupFixture
 
     public ?ProcessOutcome $pgRestore = null;
 
+    /** The storage extraction's answer (null: it succeeds) */
+    public ?ProcessOutcome $tar = null;
+
     /** `instance:restore-finish`'s answer (null: it succeeds) */
     public ?ProcessOutcome $finish = null;
 
@@ -130,7 +133,7 @@ final class FromBackupFixture
             return $this->pgRestore ?? new ProcessOutcome(0);
         }
         if ($spec->entrypoint === 'tar') {
-            return new ProcessOutcome(0);
+            return $this->tar ?? new ProcessOutcome(0);
         }
 
         return $spec->entrypoint === 'curl' ? $this->curl($spec) : null;

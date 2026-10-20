@@ -126,7 +126,7 @@ The Form Schema Spec has its own changelog in `spec/form-definition/1.0/CHANGELO
   possibly a plaintext dump), and names any file it still cannot remove instead of reporting data and backups deleted;
   a failure while it quiesces for the final backup starts the instance again and lowers the gate (ADR 0073 amendment).
 - `fsa status` and `/platform` warn when the newest backup misses files the database references, and retention keeps
-  every older backup that missed fewer files for as long as new ones miss them (ADR 0084 amendments).
+  the older backup that missed the fewest files for as long as new ones miss them (ADR 0084 amendments).
 - `fsa restore` refuses a backup without files unless `--without-files` (the replaced storage volume is then kept), and
   refuses a backup renamed to another backup's name; `fsa rollback` refuses a safety backup that is no longer the set
   the upgrade verified (ADR 0085, 0086 amendments).

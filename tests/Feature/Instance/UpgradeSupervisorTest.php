@@ -235,7 +235,8 @@ it('exits 9 before any migration when the safety backup fails its verification',
         ->and($json['errors'][0]['code'])->toBe('safety_backup_unverified')
         ->and($this->upgrade->childRequests)->toBe([])
         ->and($this->upgrade->gate()['raised'])->toBeFalse()
-        ->and($this->upgrade->ups($mark)[array_key_last($this->upgrade->ups($mark))])->toBe('queue,scheduler,backup');
+        ->and($this->upgrade->ups($mark)[array_key_last($this->upgrade->ups($mark))])->toBe('queue,scheduler,backup')
+        ->and(glob($this->dir.'/staging/restore-*/*'))->toBe([]); // no copy of the refused set stays behind (M12 gate)
 });
 
 it('rolls back when the child fails: the safety backup restored atomically without the carry, Valkey flushed, the previous release running', function (): void {

@@ -263,7 +263,7 @@ it('removes the prepared set of a failed attempt, and prepares it again when the
         ->and(glob($this->move->instance->directory->root.'/staging/restore-*'))->toBe([]);
 });
 
-it('prepares a 1.0 backup again when the install resumes after its files were restored: the copy it read went with the failed attempt (M12 gate)', function (): void {
+it('resumes a 1.0 backup\'s install after its files were restored, without the copy the failed attempt removed (M12 gate)', function (): void {
     $legacy = BackupSetFixture::legacy($this->move->outside.'/20261001T020000Z', 'APP_KEY='.BackupSetFixture::OTHER_KEY."\nAPP_URL=http://old.test\nMAIL_FROM_ADDRESS=old@legacy.test\n");
     $this->move->finish = InstanceCommandFixture::oneOffJson(['command' => 'instance:restore-finish', 'status' => 'failed', 'errors' => [['code' => 'restore_finish_failed', 'message' => 'connection lost', 'hint' => null]]]);
 
@@ -275,9 +275,26 @@ it('prepares a 1.0 backup again when the install resumes after its files were re
     expect($failed)->toBe(4, (string) json_encode($failedJson))->and($failedJson['errors'][0]['code'])->toBe('restore_finish_failed')
         ->and($left)->toBe([])
         ->and($resumed)->toBe(0, (string) json_encode($json))
-        ->and($this->move->specs('restore-prepare'))->toHaveCount(2)
+        ->and($this->move->specs('restore-prepare'))->toHaveCount(1) // what it needs from the env was journaled
+        ->and($json['data']['mode'])->toBe('local')
         ->and(InstanceSettings::of($this->move->instance->state())->mailFromAddress())->toBe('old@legacy.test')
         ->and(glob($this->move->instance->directory->root.'/staging/restore-*'))->toBe([]);
+});
+
+it('refuses to go on with another set at the backup\'s path once the database came from the first one (M12 gate)', function (): void {
+    $backup = $this->move->backup();
+    $this->move->tar = new ProcessOutcome(1, '', 'tar: Cannot write: No space left on device');
+
+    [$failed, $failedJson] = $this->move->install($backup, ['--app-key-file' => $this->move->keyFile()]);
+    $this->move->tar = null;
+    $this->move->backup(settings: ['note' => 'another set under the same name']);
+    [$changed, $changedJson] = $this->move->install($backup, ['--app-key-file' => $this->move->keyFile()]);
+    $this->move->backup();
+    [$resumed, $json] = $this->move->install($backup, ['--app-key-file' => $this->move->keyFile()]);
+
+    expect($failed)->toBe(4, (string) json_encode($failedJson))->and($failedJson['errors'][0]['code'])->toBe('storage_restore_failed')
+        ->and($changed)->toBe(2, (string) json_encode($changedJson))->and($changedJson['errors'][0]['code'])->toBe('backup_changed')
+        ->and($resumed)->toBe(0, (string) json_encode($json));
 });
 
 it('names the scratch database, the restricted role and the scratch directory with the hex journal ID only (review S7)', function (): void {

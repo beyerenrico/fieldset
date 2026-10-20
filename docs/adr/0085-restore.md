@@ -436,9 +436,18 @@ passed, and "may lack objects (an older backup)" made that indistinguishable fro
   storage volume) is unchanged and runs once the copy exists, so free space already reflects it. An upgrade removes
   the verified copy of its safety backup right after the verification (the way back prepares the backup again), so
   the copy does not stay on disk while the upgrade migrates.
-- **`--from-backup` resumes.** The backup phase is prepared again on every resume (before: only until
-  `restore_storage` completed), since a failed attempt removes the copy (review A5) and a 1.0 backup's `env` is read
-  from it; the SMTP server for `pending_mail` is read in the backup phase, before the done phase removes the copy.
+- **`--from-backup` resumes.** A failed attempt removes the copy (review A5), and after `restore_storage` a resume
+  does not prepare again, so what later phases need from a 1.0 backup's `env` (the mode for the effective request,
+  the SMTP server for `pending_mail`) is journaled in the backup phase. Once `restore_database` completed, a resume
+  that prepares again must find the same set (the SHA-256 of its SHA256SUMS, journaled), else exit 2 `backup_changed`:
+  a backup replaced at the same path would mix its files with the first one's database.
+- **Smaller hardening from the review of this round.** The scratch directory is emptied before the room for the new
+  copy is counted (a killed run's copy no longer counts as used); RestoreSource::discard() throws when the scratch
+  directory cannot be removed, so the warnings that name it (`left_behind`, `restore_scratch_left`) fire again now
+  that SafeFiles::delete() returns what stays instead of throwing; `confined()` also refuses a set directory, a reported
+  file or a set file that is a link (Docker resolves a bind source on the host). Not fixed: a FIFO swapped in between
+  the copy's lstat and its open makes the open block until the prepare one-off's time limit; the writer it takes could
+  delete the backup as well.
 - **The scratch set's mode.** `staging/restore-<id>/set` is set to 0750 explicitly: the prepare step runs with umask
   0077, so `mkdir(…, 0750)` made it 0700, which tar as www-data with the owner's group added cannot enter on a Linux
   host (inferred from the code; Docker Desktop's bind mounts on macOS, where the journeys run, do not enforce it).

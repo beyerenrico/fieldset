@@ -129,6 +129,7 @@ the proxy-mode hint and this ADR promised `fsa install --from-backup` would carr
   the stack's resources go, uninstall now has the backup service remove them as its root under the uninstall lock
   (`fsa backup-daemon --clean --lock-id=<id>`, a new mode of the service's entry point that refuses without the
   caller's lock), when any are left; best effort. SafeFiles::delete returns what it could not remove; the result lists
-  it in `data.left_files`, names it in the warning `files_left` with `sudo rm -rf …`, and `data_deleted` /
-  `backups_deleted` are false while anything of theirs is left (exit 0: the marker is gone, so running fsa again cannot
-  help).
+  it in `data.left_files`, names it in the warning `files_left` with `sudo rm -rf -- …` (every path shell-quoted, a
+  name with a control character left out of the command and never printed: names in `backups/` are anyone's who can
+  write there), and `data_deleted` / `backups_deleted` are false while anything of theirs is left (exit 0: the marker
+  is gone, so running fsa again cannot help). With `--keep-backups`, partial sets still in `backups/` are listed too.

@@ -283,11 +283,30 @@ final readonly class Uninstaller
             'final_backup' => $final === null ? null : array_diff_key($final, ['warnings' => true]),
         ], $files['deleted'] !== [] || array_merge(...array_values($removed)) !== []);
         if ($files['left'] !== []) {
-            $paths = implode(' ', array_map(fn (string $path): string => $this->directory->root.'/'.$path, $files['left']));
-            $result = $result->withWarning('files_left', "fsa could not remove {$paths}: they belong to another user, usually root (what a backup run that was cut off leaves behind) and may hold plaintext data.", "Remove them yourself: sudo rm -rf {$paths}");
+            $result = $this->filesLeft($result, $files['left']);
         }
 
         return $uuid !== null ? $result : $result->withWarning('instance_id_unknown', 'No installation ID was found (no state, journal, compose file or container of this directory) and no labelled resource is tied to it; only the files were removed.');
+    }
+
+    /**
+     * The warning that names what stays, with a command that removes it: every path quoted for the shell (a name in
+     * backups/ is anyone's who can write there), a name with a control character left out of it and never printed.
+     *
+     * @param  list<string>  $left  relative paths
+     */
+    private function filesLeft(CommandResult $result, array $left): CommandResult
+    {
+        $printable = array_values(array_filter($left, static fn (string $path): bool => preg_match('/[\x00-\x1F\x7F]/', $path) !== 1));
+        $absolute = array_map(fn (string $path): string => $this->directory->root.'/'.$path, $printable);
+        $others = count($left) - count($printable);
+        $more = $others === 0 ? '' : " and {$others} more with an unprintable name in {$this->directory->root}";
+
+        return $result->withWarning(
+            'files_left',
+            'fsa could not remove '.($absolute === [] ? 'some files' : implode(', ', $absolute)).$more.': they belong to another user, usually root (what a backup run that was cut off leaves behind), and may hold plaintext data.',
+            ($absolute === [] ? '' : 'Remove them yourself: sudo rm -rf -- '.implode(' ', array_map(escapeshellarg(...), $absolute))).($others === 0 ? '' : ($absolute === [] ? '' : '; ').'remove the '.$others.' more with an unprintable name in '.$this->directory->root.' by hand.'),
+        );
     }
 
     /**
@@ -297,12 +316,14 @@ final readonly class Uninstaller
      */
     private function cleanPartials(?InstanceState $state, LockHandle $handle): void
     {
-        if (! $state instanceof InstanceState || new BackupStore($this->directory)->leftovers() === []) {
+        if (! $state instanceof InstanceState) {
             return;
         }
 
         try {
-            $this->runner->clean(ComposeProject::forInstance($state, $this->directory), $handle->record->lockId);
+            if (new BackupStore($this->directory)->leftovers() !== []) {
+                $this->runner->clean(ComposeProject::forInstance($state, $this->directory), $handle->record->lockId);
+            }
         } catch (Throwable) {
             // no backup service, no image, Docker gone: the leftovers are reported, and Docker's own errors follow
         }
@@ -329,6 +350,18 @@ final readonly class Uninstaller
             $left = [...$left, ...array_map(static fn (string $path): string => substr($path, strlen($files->root) + 1), $stays)];
         }
 
-        return ['deleted' => $deleted, 'left' => $left];
+        return ['deleted' => $deleted, 'left' => $keepBackups ? [...$left, ...$this->keptLeftovers()] : $left];
+    }
+
+    /** @return list<string> partial sets and tombstones left in a kept backups/ (relative paths) */
+    private function keptLeftovers(): array
+    {
+        try {
+            $names = array_filter(new BackupStore($this->directory)->leftovers(), static fn (string $name): bool => ! str_starts_with($name, BackupStore::STAGING.'/'));
+
+            return array_values(array_map(static fn (string $name): string => InstanceDirectory::BACKUPS_DIR.'/'.$name, $names));
+        } catch (Throwable) {
+            return [];
+        }
     }
 }

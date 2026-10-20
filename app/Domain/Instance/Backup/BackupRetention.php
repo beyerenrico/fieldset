@@ -9,8 +9,8 @@ namespace App\Domain\Instance\Backup;
  * ADR 0084). Pure decisions; BackupRun applies them.
  *
  * - Only scheduled backups are pruned, the oldest beyond the newest `keep`; never a safety, manual or `final-…`
- *   backup, never one marked kept, never the newest complete backup of any kind, never one held (held()) while the
- *   newest run misses referenced files it may still hold (M12 gate D5).
+ *   backup, never one marked kept, never the newest complete backup of any kind, never one held (held(): at most two)
+ *   while the newest run misses referenced files it may still hold (M12 gate D5).
  * - A run is skipped (scheduled) or refused (manual, safety) when the free space after its projected size would drop
  *   below the threshold: the projection is the newest backup's size plus a quarter, as databases grow, or, without any
  *   backup, the size of the database and the storage volume; an encrypted run needs the plain set and its age file side
@@ -45,14 +45,15 @@ final readonly class BackupRetention
     }
 
     /**
-     * The scheduled backups that may hold referenced files the newest one misses (M12 gate D5): every other one that
-     * missed fewer (its count from the run ledger) or an unknown number (no ledger line says), newest first. Nothing
-     * while the newest misses none; the hold lasts as long as the files stay missing, so retention never costs the
-     * backups that still hold them. Counts stand in for the files themselves: one that missed as many is not held.
+     * The scheduled backups that may hold referenced files the newest one misses (M12 gate D5), at most two: the newest
+     * of those that missed the fewest (fewer than the newest one; its count from the run ledger), and the newest whose
+     * count no ledger line gives. Nothing while the newest misses none; the hold lasts as long as files stay missing, so
+     * retention never costs the backup that holds the most of them, and it stays bounded when the count keeps growing
+     * (a hold of every older backup would fill the disk, and a skipped run never prunes). Counts stand in for the files.
      *
      * @param  list<BackupEntry>  $entries  complete backups
      * @param  array<string, int|null>  $missing  backup name => the missing_files its run recorded
-     * @return list<string>
+     * @return list<string> newest first
      */
     public static function held(array $entries, string $newest, int $newestMissing, array $missing): array
     {
@@ -60,10 +61,18 @@ final readonly class BackupRetention
             return [];
         }
         usort($entries, static fn (BackupEntry $a, BackupEntry $b): int => $b->name->at <=> $a->name->at);
-        $held = array_filter($entries, static fn (BackupEntry $entry): bool => $entry->name->isScheduled() && $entry->name->name() !== $newest
-            && (($missing[$entry->name->name()] ?? null) === null || $missing[$entry->name->name()] < $newestMissing));
+        $candidates = array_values(array_filter($entries, static fn (BackupEntry $entry): bool => $entry->name->isScheduled() && $entry->name->name() !== $newest));
+        $count = static fn (BackupEntry $entry): ?int => $missing[$entry->name->name()] ?? null;
+        $fewer = array_filter($candidates, static fn (BackupEntry $entry): bool => $count($entry) !== null && $count($entry) < $newestMissing);
+        $fewest = $fewer === [] ? null : min(array_map($count, $fewer));
+        $held = [
+            array_find($fewer, static fn (BackupEntry $entry): bool => $count($entry) === $fewest),
+            array_find($candidates, static fn (BackupEntry $entry): bool => $count($entry) === null),
+        ];
+        $names = array_map(static fn (BackupEntry $entry): string => $entry->name->name(), array_filter($held));
+        usort($names, static fn (string $a, string $b): int => strcmp($b, $a));
 
-        return array_values(array_map(static fn (BackupEntry $entry): string => $entry->name->name(), $held));
+        return $names;
     }
 
     /**
