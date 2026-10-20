@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Instance\Release\Console\ReleaseCheckPgDumpCommand;
 use App\Domain\Instance\Release\Console\ReleaseManifestCommand;
 use App\Domain\Instance\Release\Console\ReleaseVersionCommand;
 use App\Domain\Platform\Http\EnforceImpersonationWindow;
@@ -31,7 +32,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     // Release tooling for CI and the local harness (ADR 0067). It lives in the instance domain, which code under
     // app/Console may not use (tests/Arch/InstanceBoundaryTest.php), so it is registered here.
-    ->withCommands([ReleaseManifestCommand::class, ReleaseVersionCommand::class])
+    ->withCommands([ReleaseManifestCommand::class, ReleaseVersionCommand::class, ReleaseCheckPgDumpCommand::class])
     ->withMiddleware(function (Middleware $middleware): void {
         // ADR 0040: SecurityHeaders is outermost, so early answers (413, 503, CORS preflight) get headers too;
         // SecureCookies needs the proxy-aware scheme and runs after TrustProxies.

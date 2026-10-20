@@ -367,6 +367,11 @@ final class ReleaseHarness
             ...array_map(static fn (string $asset): string => "--asset={$asset}", $assets),
             "--stack-file={$directory}/".self::STACK_FILE, "--output={$directory}/".self::MANIFEST,
         ], 300);
+        // R39 (ADR 0091), as the release workflow runs it: the app image's pg_dump is not older than the manifest's Postgres.
+        self::mustRun([
+            PHP_BINARY, 'artisan', 'release:check-pg-dump', "{$directory}/".self::MANIFEST, "--mirror={$this->registry()}",
+            ...array_map(static fn (string $platform): string => "--platform={$platform}", $platforms),
+        ], 600);
 
         foreach (["{$directory}/".self::MANIFEST, ...array_filter($assets, static fn (string $asset): bool => str_ends_with($asset, 'install.sh'))] as $file) {
             $this->cosign->signBlob($file);
