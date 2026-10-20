@@ -48,7 +48,7 @@ final readonly class RestoreSource
         };
         // The ops container sees only the instance directory: a path outside it is reported as such before its
         // existence is checked, since from in here it never exists (R51 F1).
-        if (! $mountedElsewhere && ! str_starts_with(self::normalized($path).'/', $this->directory->root.'/')) {
+        if (! $mountedElsewhere && ! str_starts_with($this->normalized($path).'/', $this->directory->root.'/')) {
             throw new InvalidInput("{$path} lies outside the instance directory, which is all fsa restore can see.", 'backup_not_visible', 'Copy the backup into backups/ and run `fsa restore <name>`.');
         }
         if (str_contains($path, '/../') || str_ends_with($path, '/..') || ! file_exists($path)) {
@@ -59,7 +59,7 @@ final readonly class RestoreSource
     }
 
     /** The absolute path with `.` and `..` segments resolved lexically (links are not followed). */
-    private static function normalized(string $path): string
+    private function normalized(string $path): string
     {
         $segments = [];
         foreach (explode('/', $path) as $segment) {

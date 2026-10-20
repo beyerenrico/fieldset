@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Domain\Instance\Config;
 
 use App\Domain\Instance\Install\AcmeStaging;
-use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Output\CommandResult;
 use App\Domain\Instance\Output\ConfirmationRequired;
 use App\Domain\Instance\Output\ExitCode;
@@ -40,7 +39,7 @@ final readonly class ConfigResults
     }
 
     /** @param  array<string, mixed>  $impact */
-    public static function confirmationRequired(ConfigChange $change, array $impact, string $question): InstanceException
+    public static function confirmationRequired(ConfigChange $change, array $impact, string $question): ConfirmationRequired
     {
         return new ConfirmationRequired($question, [...self::data($change, $change->before), 'change' => $change->summary(), 'impact' => $impact]);
     }
