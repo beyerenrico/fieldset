@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Domain\Instance\Restore;
 
 use App\Domain\Instance\Backup\BackupChecksums;
+use App\Domain\Instance\Backup\BackupName;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Output\ExitCode;
 use App\Domain\Instance\Output\InvalidInput;
 use App\Domain\Instance\Release\ReleaseVersion;
+use Carbon\CarbonImmutable;
 use Throwable;
 
 /**
@@ -38,6 +40,7 @@ final readonly class RestoreChecks
         self::assertIntact($backup);
         self::assertCompatible($backup, $upgradesFrom);
         $warnings = self::assertAuthenticated($backup, $acceptUnauthenticated);
+        self::assertNamed($backup); // a changed manifest is first of all unauthenticated
         $missing = array_values(array_diff($backup->fingerprints(), $known->fingerprints()));
         if ($missing !== []) {
             throw new InvalidInput(
@@ -92,6 +95,28 @@ final readonly class RestoreChecks
         );
     }
 
+    /**
+     * A backup without a storage archive (1.0 `--no-storage`, M12 gate D4): restored in place only with `--without-files`
+     * (exit 2 otherwise, nothing changed), and the previous storage volume is then kept, not deleted (RestoreCleanup,
+     * whose warning names it); `--from-backup` starts with an empty volume and says so here.
+     *
+     * @return array{0: string, 1: string, 2: string|null}|null
+     *
+     * @throws InstanceException exit 2 `backup_without_files`
+     */
+    public static function withoutFiles(string $purpose, bool $accepted): ?array
+    {
+        if ($purpose === self::IN_PLACE && ! $accepted) {
+            throw new InvalidInput(
+                'The backup carries no storage archive: restoring it would leave the instance without its files (uploads, renditions, documents).',
+                'backup_without_files',
+                'Use a backup with files, or pass --without-files to restore the database only; the current storage volume is then kept aside, not deleted. Nothing was changed.',
+            );
+        }
+
+        return $purpose === self::IN_PLACE ? null : ['restored_without_files', 'The backup carries no storage archive: the new instance starts without files (uploads, renditions, documents).', null];
+    }
+
     /** @param  array{name: string, sums: string}|null  $adoptBackup */
     private static function isAdoptBackup(PreparedBackup $backup, ?array $adoptBackup): bool
     {
@@ -111,6 +136,40 @@ final readonly class RestoreChecks
         }
         if ($backup->migrations['relation'] === MigrationSet::NONE) {
             throw new InvalidInput('The dump has no migrations table: it is not a backup of this app.', 'not_an_app_backup', 'Use a backup written by fsa or by scripts/backup.sh.');
+        }
+    }
+
+    /**
+     * The HMAC binds the set's content, not its directory's name (M12 gate S4): a set under a backup name must be the backup
+     * its manifest names, made at that name's time, so an older set renamed to a newer name (or to an operation's safety
+     * backup) is refused. A copy under a name of the operator's own (no backup name) is taken as it is.
+     *
+     * @throws InstanceException exit 2 `backup_renamed`
+     */
+    private static function assertNamed(PreparedBackup $backup): void
+    {
+        $directory = BackupName::parse($backup->name);
+        if ($backup->isLegacy() || ! $directory instanceof BackupName) {
+            return;
+        }
+        $named = $backup->manifest['name'] ?? null;
+        $created = is_string($backup->manifest['created_at'] ?? null) ? self::instant($backup->manifest['created_at']) : null;
+        if ($named !== $backup->name || $created !== $directory->at->toIso8601ZuluString()) {
+            throw new InvalidInput(
+                'The backup in '.$backup->name.' is '.(is_string($named) ? $named : 'unnamed').' (made '.(is_string($backup->manifest['created_at'] ?? null) ? $backup->manifest['created_at'] : 'at an unknown time').'): its directory was renamed.',
+                'backup_renamed',
+                'Restore it under its own name, or copy it to a name that is not a backup name; nothing was changed.',
+                ['directory' => $backup->name, 'manifest_name' => $named],
+            );
+        }
+    }
+
+    private static function instant(string $value): ?string
+    {
+        try {
+            return CarbonImmutable::parse($value)->utc()->toIso8601ZuluString();
+        } catch (Throwable) {
+            return null;
         }
     }
 

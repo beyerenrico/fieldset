@@ -4,14 +4,23 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Backup;
 
-/** The outcome of a program BackupTools ran: exit code, stdout (unless streamed) and the tail of stderr. */
+/**
+ * The outcome of a program BackupTools ran: exit code, stdout (unless streamed or written to a file) and the tail of
+ * stderr; for a program that wrote a file of the set, that file as the writer read it back through its own descriptor.
+ */
 final readonly class BackupToolResult
 {
     public function __construct(
         public int $exitCode,
         public string $stdout = '',
         public string $stderr = '',
+        public ?ProducedFile $produced = null,
     ) {}
+
+    public function withProduced(ProducedFile $produced): self
+    {
+        return new self($this->exitCode, $this->stdout, $this->stderr, $produced);
+    }
 
     public function successful(): bool
     {

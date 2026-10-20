@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Instance\Backup\AgeCli;
 use App\Domain\Instance\Backup\BackupEntry;
 use App\Domain\Instance\Backup\BackupRetention;
 use App\Domain\Instance\Backup\BackupStore;
@@ -147,6 +148,32 @@ it('writes an audit export instead of a safety backup with --no-backup while a r
         ->and($json['data']['safety_backup'])->toBeNull()
         ->and(collect($json['warnings'])->firstWhere('code', 'no_backup')['message'])->toContain($export)
         ->and(new Ledger($this->reset->instance->directory)->last('reset'))->toMatchArray(['no_backup' => true]);
+});
+
+it('encrypts the audit export to the backup recipients when encryption is on, and never leaves it plain in backups/ (M12 gate S5)', function (): void {
+    app()->instance(AgeCli::class, new AgeCli(base_path('tests/Fixtures/bin/fake-age'), base_path('tests/Fixtures/bin/fake-age-keygen')));
+    $recipient = 'age1'.str_repeat('z', 58);
+    $this->reset->instance->directory->saveState($this->reset->config->state()->withRecipients([$recipient]));
+    $seen = [];
+    $responder = $this->reset->instance->docker->fileRunResponder;
+    $this->reset->instance->docker->fileRunResponder = function (?string $entrypoint, array $command, string $file) use ($responder, &$seen): ?ProcessOutcome {
+        $seen[] = $file;
+
+        return $responder($entrypoint, $command, $file);
+    };
+
+    [$code, $json] = $this->reset->reset(['--yes' => true, '--no-backup' => true]);
+    $export = (string) $json['data']['audit_export'];
+    $epoch = $this->reset->calls[array_search('epoch', $this->reset->actions(), true)];
+
+    expect($code)->toBe(0, (string) json_encode($json))
+        ->and($export)->toMatch('/^audit-export-reset-\d{8}T\d{6}Z\.jsonl\.age$/')
+        ->and((string) file_get_contents($this->dir.'/backups/'.$export))->toStartWith('fake-age:to:'.$recipient)
+        ->and(fileperms($this->dir.'/backups/'.$export) & 0777)->toBe(0600)
+        ->and(glob($this->dir.'/backups/audit-export-reset-*.jsonl'))->toBe([])
+        ->and($seen[0] ?? '')->toStartWith($this->dir.'/staging/') // the plain stream never lands in backups/
+        ->and(glob($this->dir.'/staging/audit-export-reset-*'))->toBe([])
+        ->and($epoch['command'])->toContain('--audit-export='.$export);
 });
 
 it('keeps nothing with --no-backup when only demo organizations exist, and says so', function (): void {

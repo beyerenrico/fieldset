@@ -35,19 +35,20 @@ use Throwable;
 /**
  * The backup service's entry point (`fsa backup-daemon`, an image role, hidden from users; KTD15, ADR 0084). It runs in
  * the `backup` service as container root with only DAC_READ_SEARCH, DAC_OVERRIDE, CHOWN and FOWNER, without the Docker
- * socket, with the storage volume read-only and the instance directory's marker, `locks/` and `backups/` mounted.
+ * socket, with the storage volume read-only and the instance directory's marker, `locks/`, `backups/` and
+ * `staging/backup/` mounted.
  *
  * - Without options: the daemon (BackupDaemon) until SIGTERM, SIGINT or SIGHUP. A start that fails (its configuration)
  *   is recorded (kind `service`, status `failed`) before it exits.
- * - `--once --kind=manual|safety-<operation> --lock-id=<id>`: one run as a one-off of `fsa backup` or a safety backup,
- *   under the lock its fsa parent holds; `--include-secrets` reads `secrets.env` from stdin (encryption required). One
- *   JSON document on stdout.
+ * - `--once --kind=manual|final|safety-<operation> --lock-id=<id>`: one run as a one-off of `fsa backup`, uninstall's
+ *   final backup or a safety backup, under the lock its fsa parent holds; `--include-secrets` reads `secrets.env` from
+ *   stdin (encryption required). One JSON document on stdout.
  * - `--seal=<backup> --lock-id=<id>`: encrypts a plain backup in place to the recipients (safety backups, R57).
  */
 #[Description('Run the fsa backup service (the backup service role; use fsa backup for a manual backup)')]
 #[Signature('fsa:backup-daemon
         {--once : Run one backup and exit}
-        {--kind=manual : With --once: manual, or safety-upgrade|restore|reset|rollback|adopt}
+        {--kind=manual : With --once: manual, final, or safety-upgrade|restore|reset|rollback|adopt}
         {--lock-id= : With --once or --seal: the ID of the instance lock the calling fsa command holds}
         {--include-secrets : With --once: read secrets.env from stdin into the (encrypted) backup}
         {--seal= : Encrypt this plain backup in place to the backup recipients}
@@ -100,7 +101,7 @@ final class BackupDaemonCommand extends Command
         $secrets = $this->option('include-secrets') === true ? $this->stdin() : null;
         $name = BackupName::for((string) $this->option('kind'), CarbonImmutable::now('UTC'));
         if ($name->isScheduled()) {
-            throw new BackupFailed('invalid_kind', 'Scheduled backups are the daemon\'s; pass --kind=manual or a safety kind.');
+            throw new BackupFailed('invalid_kind', 'Scheduled backups are the daemon\'s; pass --kind=manual, final or a safety kind.');
         }
         $run = $this->backupRun($directory, $store, $config)->run($name, new ServiceIdentity()->holder(), $lockId, $secrets);
         $document = $run['status'] === 'succeeded'

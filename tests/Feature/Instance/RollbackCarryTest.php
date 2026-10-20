@@ -8,6 +8,7 @@ use App\Domain\Platform\Instance\BackupRole;
 use App\Domain\Platform\Instance\Restore\SecurityExport;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Laravel\Sanctum\PersonalAccessToken;
 use Tests\Support\Instance\CarryFixture;
 use Tests\Support\Instance\RestoreDatabases;
 
@@ -129,4 +130,17 @@ it('counts what a rollback would lose since its safety backup', function (): voi
     expect($json['status'])->toBe('ok')->and($json['data']['counts']['users'])->toBeGreaterThanOrEqual(7)
         ->and($json['data']['counts'])->toHaveKeys(['submissions', 'activity_log', 'users', 'forms'])
         ->and($missing['errors'][0]['code'])->toBe('invalid_input');
+});
+
+it('exports the audit entries of the backup\'s own second: the window starts at that second, not after it (M12 gate D8)', function (): void {
+    CarryFixture::seed($this);
+    RestoreDatabases::sourceFromTarget();
+    $source = DB::connection(RestoreDatabases::SOURCE);
+    CarryFixture::audit($source, 'api_token.revoked', PersonalAccessToken::class, 4242, '2026-10-19 12:00:00');
+
+    $export = rollbackExport('2026-10-19T12:00:00Z')['data'];
+    $columns = $export['tables']['activity_log']['columns'];
+    $subjects = array_map(static fn (array $row): mixed => array_combine($columns, $row)['subject_id'] ?? null, $export['tables']['activity_log']['rows']);
+
+    expect(array_map(strval(...), $subjects))->toContain('4242');
 });

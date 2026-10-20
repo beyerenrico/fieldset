@@ -11,9 +11,10 @@ use App\Domain\Instance\Config\ConfigRequest;
  * context (R54, M12 gate O1, O2): the same subcommand with every flag the resumed run needs, because a resumed restore
  * decrypts and checks the backup again before it changes more. Only what the journal recorded goes in, never a secret:
  * the backup, the identity file, where the passphrase came from (`--passphrase-file <path>` or `--passphrase-stdin`), the
- * APP key file, `--accept-unauthenticated`, and `--yes` for the commands that ask first (restore, adopt; a resumed
- * rollback asks nothing). A journal of an earlier build that recorded no path names a placeholder (`<file>`). An install
- * journal that came from `--from-backup` resumes only as `fsa install --from-backup <backup>`, never as a plain install.
+ * APP key file, `--accept-unauthenticated`, `--without-files` and `--keep-recipients` where they were given, and `--yes`
+ * for the commands that ask first (restore, adopt; a resumed rollback asks nothing). A journal of an earlier build that
+ * recorded no path names a placeholder (`<file>`). An install journal that came from `--from-backup` resumes only as
+ * `fsa install --from-backup <backup>`, never as a plain install.
  */
 final class ResumeCommand
 {
@@ -49,13 +50,13 @@ final class ResumeCommand
         $context = $record->context();
 
         return match ($record->operation()) {
-            'restore' => [...self::inputs($context), '--yes' => true],
+            'restore' => [...self::inputs($context), ...(($context['without_files'] ?? false) === true ? ['--without-files' => true] : []), '--yes' => true],
             'rollback' => self::inputs($context),
             'adopt' => array_filter([
                 '--release' => is_string($context['release'] ?? null) && $context['release'] !== '' ? $context['release'] : false,
                 '--drop-jobs' => in_array($context['drop_jobs'] ?? 0, [1, true], true), '--yes' => true,
             ], static fn (string|bool $value): bool => $value !== false),
-            'install' => self::fromBackup($record) === null ? [] : self::inputs($context),
+            'install' => self::fromBackup($record) === null ? [] : [...self::inputs($context), ...(($context['keep_recipients'] ?? false) === true ? ['--keep-recipients' => true] : [])],
             default => [],
         };
     }

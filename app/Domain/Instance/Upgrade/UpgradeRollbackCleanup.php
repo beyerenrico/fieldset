@@ -59,7 +59,7 @@ final readonly class UpgradeRollbackCleanup
         try {
             $this->source->discard($names->id);
         } catch (Throwable) {
-            $left[] = 'directory backups/'.RestoreSource::SCRATCH_PREFIX.$names->id;
+            $left[] = 'directory '.RestoreSource::scratchPath($names->id);
         }
         $sealed = $this->seal($backup, $warnings);
         $this->record($backup, $record, $release);

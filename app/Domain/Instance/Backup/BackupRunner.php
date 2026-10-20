@@ -93,5 +93,6 @@ final readonly class BackupRunner
         if (! in_array(BackupService::NAME, ComposeFile::services($this->directory), true)) {
             throw new InstanceException('This instance has no backup service yet.', ExitCode::PreflightFailed, 'backup_service_missing', 'Upgrade the instance (`fsa upgrade`): the release that brings backups renders the service.');
         }
+        $this->directory->ensureDirectory(BackupStore::STAGING); // its bind mount (create_host_path: false)
     }
 }

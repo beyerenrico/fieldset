@@ -57,12 +57,15 @@ final readonly class FromBackupSettings
         return $request;
     }
 
-    /** The backup's settings over the state the install wrote, then capture mail, paused webhooks and the fresh volume. */
-    public static function overlay(InstanceState $state, PreparedBackup $backup, string $freshVolume): InstanceState
+    /**
+     * The backup's settings over the state the install wrote, then capture mail, paused webhooks and the fresh volume; the
+     * backup's recipients only with `--keep-recipients`.
+     */
+    public static function overlay(InstanceState $state, PreparedBackup $backup, string $freshVolume, bool $keepRecipients = false): InstanceState
     {
         $portable = $backup->isLegacy() ? self::legacy($backup) : array_intersect_key(self::fsaSettings($backup), array_flip(self::KEPT));
         $state = $state->withSettings(array_filter($portable, static fn (mixed $value): bool => $value !== null && $value !== ''));
-        $recipients = self::recipients($backup)['kept'];
+        $recipients = $keepRecipients ? self::recipients($backup)['kept'] : [];
         if ($recipients !== []) {
             $state = $state->withRecipients($recipients);
         }
@@ -71,10 +74,11 @@ final readonly class FromBackupSettings
     }
 
     /**
-     * The backup's age recipients (review S4): kept only from an authenticated archive and only in age's format; an
-     * unauthenticated archive could otherwise make every later backup readable by whoever wrote it.
+     * The backup's age recipients (review S4): eligible only from an authenticated archive and only in age's format; an
+     * unauthenticated archive could otherwise make every later backup readable by whoever wrote it. Even then they are
+     * kept only when the operator confirms them (`--keep-recipients`, M12 gate S2).
      *
-     * @return array{kept: list<string>, dropped: list<string>}
+     * @return array{kept: list<string>, dropped: list<string>} kept: the eligible ones
      */
     public static function recipients(PreparedBackup $backup): array
     {

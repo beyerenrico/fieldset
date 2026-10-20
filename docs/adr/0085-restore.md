@@ -424,3 +424,56 @@ correction" or "[superseded: …]"):
   another directory (`other_instance`), so `fsa install --from-backup … --dir <new>` never ran. RestoreHalt, UpgradeHalt,
   RestoreChecks, RollbackGuard, OlderBackupMigration, UpgradePath and adopt's refusals now name install.sh, and the
   `--abandon` hints carry `--yes` (it asks first; exit 6 without a terminal).
+
+## Amendment 2026-10-20: the M12 gate's restore findings
+- **Scratch outside backups/ (S3).** A restore's, drill's, `--from-backup`'s and rollback's scratch directory is
+  `staging/restore-<id>` (0750 under the 0700 `staging/`), no longer `backups/.restore-<id>`: it holds the decrypted set,
+  `secrets.env` and the rollback's `security-state.json`, and `backups/` is the directory people copy off the host.
+  `fsa status` still names a pre-release's `backups/.restore-*` leftovers; the hint no longer names a path glob.
+- **A set's name (S4).** The HMAC binds a set's content, not its directory: a set under a backup name must be the backup
+  its manifest names (`name`, and `created_at` at that name's time), else exit 2 `backup_renamed` before anything
+  changes. A copy under a name that is no backup name is taken as it is (a user's own copy).
+- **No files, no silent loss (D4).** A backup without a storage archive (1.0 `--no-storage`) is refused in place with
+  exit 2 `backup_without_files` unless `--without-files`; with it, the fresh, empty volume goes live and the replaced
+  volume is kept and named in the warning `restored_without_files`, never deleted. `--from-backup` warns the same way.
+  The drill reports as before.
+- **Recipients (S2).** `--from-backup` reports the authenticated archive's age recipients in
+  `data.from_backup.recipients` (`listed`, `kept`) and keeps them only with `--keep-recipients`; otherwise the warning
+  `backup_recipients_not_kept` names them. Recipients from an unauthenticated archive are never kept, as before.
+- **Hardened one-offs (S6).** Every `docker run` gets `no-new-privileges`. restore-prepare, pg_restore, the storage
+  extraction and the erased-exports clean-up run with `--cap-drop ALL`, a read-only root file system and a tmpfs `/tmp`
+  (`ContainerSpec::hardened()`; J08 on real Docker). The probes and tools that read no backup (smoke curls, port probes,
+  the local CA's Caddy, cosign, the quick tunnel, the catcher flush, the supervisor and the upgrade child) keep Docker's
+  default capabilities: they get only `no-new-privileges` (no journey of this round runs them all).
+- **Carry window (D8).** Backup times are whole seconds; the carry's audit subjects, timestamps and epoch check, and the
+  rollback's security export, start at the backup's second (`>=`), not after it. Carrying a change twice is idempotent.
+- **EV3.** J09's drill of the adopt backup reported every referenced file missing because J09 seeds load-generator
+  renditions that never have a file (`LoadRows::renditions`), not because the adopt backup or the drill lost storage;
+  J09 now asserts the archive holds the 1.0 file and that only those renditions are missing.
+
+## Amendment 2026-10-20: recovery and operability (M12 gate, fix round B)
+- **Resume lines (O1, O2/C7).** RestoreRequest and FromBackupRequest record where their inputs came from, never the
+  values: `passphrase_file` (path) or `passphrase_stdin`, `app_key_file` (path) beside `key_file`, `identity_file`,
+  `accept_unauthenticated`, `without_files`, `keep_recipients`. ResumeCommand rebuilds the command from them for `fsa
+  status`, exit 9 `operation_unfinished` and `restore.interrupted.resume` (`fsa restore <b> … --yes`, `fsa install
+  --from-backup <b> …`); journals of earlier builds get `<file>` placeholders. An install journal begun by
+  `--from-backup` resumes only by that command: a plain `fsa install` exits 9 (Installer, also under the lock).
+- **Missing inputs on resume (O2).** A resumed restore or install from a backup that will prepare the backup again (no
+  `abort`, `return` or `swap` started; for `--from-backup` before `restore_storage` completed) and lacks an input the
+  journal recorded exits 2 (`identity_required`, `backup_unauthenticated`, `app_key_required`, `backup_without_files`)
+  before the lock (ResumeInputs): nothing written, never the way back.
+- **Signals (O8).** The paragraph on signals above now holds: restore runs under the Interruption guard (never armed);
+  a signal is recorded and raised at the next phase boundary (after prepare/space, after each phase up to the erasures,
+  before verify, before open, before the gate), where the existing failure paths take over: exit 5 by the abort before
+  the swap, the return after it. Never once the gate began to go down, never in `--abandon`'s forward run.
+- **Sealing (C3).** Every closing path seals, besides the named safety backup, every plaintext `safety-restore-*` set
+  made since the journal began (SafetySeal::since): one a killed run wrote before the journal named it.
+- **Refusals (C4).** The drill takes the lock and refuses while any journal is open (exit 9). `fsa restore` and `fsa reset`
+  report an open journal they would not resume before the question (also with `--yes`). `RestoreOperation::installed()`
+  reports an unfinished install, install from a backup or adopt (exit 9) instead of `not_installed`; login-link too.
+- **The tunnel (C5).** Reopening the previous instance and opening the restored one start every service but the quick
+  tunnel when the compose file has one (an empty service list, i.e. all, otherwise).
+- **Writers after a kill (D7).** A resumed run records `writers_ran` in the quiesce's start data when app, queue,
+  scheduler or the backup service run; the ledger and the safety backup then run again (JournalRecord::completedSince,
+  as a reset's).
+- **Confirmation data (O6).** Exit 6 carries `data.question` and the facts: `backup`, `safety_backup: true`; `abandon`.

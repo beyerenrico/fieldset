@@ -34,7 +34,7 @@ final readonly class RollbackGuard
     public function __construct(private InstanceDirectory $directory, private DockerGateway $docker, private BackupStore $store) {}
 
     /**
-     * @return array{from: string|null, version: string, digests: array<string, string>, compose: string, backup: string, upgraded_at: string|null}
+     * @return array{from: string|null, version: string, digests: array<string, string>, compose: string, backup: string, backup_sums: string|null, upgraded_at: string|null}
      *
      * @throws InstanceException exit 7
      */
@@ -60,6 +60,7 @@ final readonly class RollbackGuard
         }
 
         return ['from' => $state->version(), 'version' => $previous['version'], 'digests' => $previous['digests'], 'compose' => $previous['compose'], 'backup' => $backup,
+            'backup_sums' => is_string($history[$index]['safety_backup_sums'] ?? null) ? $history[$index]['safety_backup_sums'] : null,
             'upgraded_at' => is_string($history[$index]['at'] ?? null) ? $history[$index]['at'] : null];
     }
 

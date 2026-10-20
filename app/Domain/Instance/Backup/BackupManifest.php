@@ -25,7 +25,7 @@ final readonly class BackupManifest
     public const int MISSING_SAMPLE = 100;
 
     /**
-     * @param  array<string, mixed>  $instance  uuid, project, version, mode (backups/.instance.json)
+     * @param  array<string, mixed>  $instance  uuid, project, version, mode (staging/backup/instance.json)
      * @param  array{migrations: list<string>, server: string, dump: string, epoch: int, chains: int}  $database
      * @param  array{referenced: int, missing: int, sample: list<string>, changed: bool}  $storage
      * @param  array<string, array{bytes: int, sha256: string}>  $files

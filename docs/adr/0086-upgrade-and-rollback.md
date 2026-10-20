@@ -261,3 +261,35 @@ A verification review of the fixes (2026-10-20) confirmed A1–A7, A9, A10, A12,
 - **V5**: the lint matches `ConcurrentIndex` as a word (aliases, injection).
 - The adopt backup (U19, ADR 0087), a keyless 1.0 archive trusted only as the set the adopt recorded, restores in place
   through the upgrade child with `--accept-unauthenticated` (ADR 0087 amendment).
+
+## Amendment 2026-10-20: safety backups after the M12 gate
+- **D1.** The `open` phase removes only older `safety-upgrade-*` sets that are not marked kept; `safety-rollback-*` sets
+  are never removed by fsa, and a completed rollback no longer removes older ones (R57, plan line 34: "restore, reset and
+  pre-rollback safety backups stay until the operator deletes them"; after a rollback that set can be the only copy of
+  the upgraded days). The `open` row of the phase table and the rollback's "older `safety-rollback-*` sets … removed"
+  no longer hold, nor review S1's "older rollback sets removed".
+- **S4.** Step 5 records the SHA-256 of the verified safety backup's SHA256SUMS (`sums` in the journal's
+  `safety_backup` phase, `safety_backup_sums` in the `upgraded` history entry). `fsa rollback` and the upgrade's
+  automatic way back refuse another set under that name (exit 2 `safety_backup_changed` for `fsa rollback`; the
+  automatic way back halts with exit 8), as adopt does for its backup; a history entry from before carries no digest
+  and is checked as before.
+
+## Amendment 2026-10-20: following an upgrade, rollback recovery (M12 gate, fix round B)
+- **The result stays (O3).** `operations/supervisor.json` names the last supervisor's container and result file; the
+  foreground no longer deletes the result, the next launch does (replaced). `fsa upgrade --follow` (alone; other flags are
+  exit 2) attaches to a running supervisor (journal progress, then its envelope) or returns the last result; exit 2
+  `nothing_to_follow` when none ran. `fsa status` shows `last_upgrade` (exit code, status, error codes, from, to,
+  finished_at, result file). `supervisor_running` (exit 9) names `fsa upgrade --follow` and the container.
+- **Resume (O3).** `--resume` with no open journal is exit 2 `nothing_to_resume` in the foreground and in the supervisor,
+  never a new upgrade; a resumed run takes `to`, `major` and `drop_jobs` from its journal (UpgradeRequest::resuming).
+- **Status (O4).** `operation.state` is `running` while a live holder of that operation holds the lock (or, for an
+  upgrade, the supervisor runs), else `interrupted`; `supervisor: {running, container}`; `lock.stale` (null when Docker
+  cannot tell). The upgrade hint's "supervisor" refers to that field.
+- **Rollback (C2, O2, O8, D7, C3).** A rollback leaves webhooks paused (`webhooks_paused` in its state and runtime, data
+  `webhooks: paused`, warning `webhooks_paused`), as a restore (ADR 0085 A15): in-flight runs of the safety backup could
+  repeat deliveries. Its journal records the passphrase source; a resume lacking the identity or passphrase exits 2 before
+  the lock. It runs under the interruption guard with checkpoints at phase boundaries until the gate; an interrupted run
+  goes back like a failed one (exit 9 before the swap, as any rollback abort whose cause changed nothing; exit 5 after it).
+  A resumed run that finds writers running takes the ledger and the pre-rollback safety backup again. The cleanup seals
+  plaintext `safety-rollback-*` sets made since the journal began, too. An upgrade killed after a resumed kill reverts or
+  rolls back as before; writers do not matter there (no forward resume past the quiesce), so D7 does not apply to it.

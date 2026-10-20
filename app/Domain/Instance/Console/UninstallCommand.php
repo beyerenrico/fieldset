@@ -15,9 +15,10 @@ use Illuminate\Console\Attributes\Signature;
 
 /**
  * `fsa uninstall` (§7, R44, R63, §13.3, ADR 0072, ADR 0073): removes every container, volume and network labelled
- * with this instance's UUID, and the files of the instance directory. With --keep-backups it first writes a final
- * backup (database dump, storage archive, APP_KEY) into `backups/`, which stays and which a later install
- * accepts; without it the data and the backups are deleted. An adopted instance (plan U19, ADR 0087) gets that final
+ * with this instance's UUID, and the files of the instance directory. With --keep-backups it first quiesces the
+ * instance and writes a final backup (`backups/final-<UTC>`, a 2.0 backup with the APP keys inside when encrypted or
+ * beside it) into `backups/`, which stays and which `fsa install --from-backup` reads; without it the data and the
+ * backups are deleted. An adopted instance (plan U19, ADR 0087) gets that final
  * backup and keeps backups/ by default (`--no-backup` skips it), and the result reports the writes made since adopt and
  * how 1.0 comes back. `--orphans <uuid>` removes only the leftovers of another installation that install named for this
  * directory. Destructive: exit 6 without a terminal (or with --json) unless --yes.

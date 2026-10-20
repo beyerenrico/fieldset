@@ -23,7 +23,8 @@ use Throwable;
  *   otherwise.
  * - Under the lock: leftovers of an interrupted run go, the run must fit on the disk (a scheduled run is skipped,
  *   another fails), the writer writes the set, and after a successful scheduled run retention prunes old scheduled
- *   backups.
+ *   backups, unless the new one misses more referenced files than the newest earlier one (M12 gate D5: a storage volume
+ *   that lost files must not cost the backups that still hold them; `retention_held` says so).
  * - Every run is recorded (ledger and `backup_runs`); of a series of lock skips the daemon records one an hour.
  */
 final readonly class BackupRun
@@ -92,13 +93,32 @@ final readonly class BackupRun
         } catch (Throwable $e) {
             return ['status' => 'failed', 'reason' => 'internal_error', 'message' => $e->getMessage(), 'free_bytes' => $free];
         }
-        $pruned = $name->isScheduled() ? $this->prune() : [];
+        $held = $name->isScheduled() ? $this->retentionHeld($result) : null;
+        $pruned = $name->isScheduled() && $held === null ? $this->prune() : [];
 
         return [
             'status' => 'succeeded', 'backup' => $result->name->name(), 'bytes' => $result->bytes, 'encrypted' => $result->encrypted,
             'missing_files' => $result->missingCount, 'free_bytes' => $this->store->freeBytes(), 'pruned' => $pruned,
-            'result' => $result->toArray(),
+            ...($held === null ? [] : ['retention_held' => $held]), 'result' => $result->toArray(),
         ];
+    }
+
+    /**
+     * Whether retention waits: the new backup misses more referenced files than the newest earlier successful one that
+     * is still there (its count from the ledger). Without such a run to compare, retention goes on.
+     *
+     * @return array{missing_files: int, previous: int}|null
+     */
+    private function retentionHeld(BackupResult $result): ?array
+    {
+        if ($result->missingCount === 0) {
+            return null;
+        }
+        $present = array_map(static fn (BackupEntry $entry): string => $entry->name->name(), $this->store->entries());
+        $previous = array_find($this->recorder->recent(PHP_INT_MAX), static fn (array $run): bool => ($run['status'] ?? null) === 'succeeded'
+            && is_int($run['missing_files'] ?? null) && is_string($run['backup'] ?? null) && $run['backup'] !== $result->name->name() && in_array($run['backup'], $present, true));
+
+        return $previous !== null && $result->missingCount > $previous['missing_files'] ? ['missing_files' => $result->missingCount, 'previous' => $previous['missing_files']] : null;
     }
 
     /**

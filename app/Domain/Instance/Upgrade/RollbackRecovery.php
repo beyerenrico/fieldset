@@ -142,7 +142,7 @@ final readonly class RollbackRecovery
         try {
             $this->source->discard($names->id);
         } catch (Throwable) {
-            $left[] = 'directory backups/'.RestoreSource::SCRATCH_PREFIX.$names->id;
+            $left[] = 'directory '.RestoreSource::scratchPath($names->id);
         }
 
         return $left;

@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 use App\Domain\Instance\Adopt\LegacyRuntime;
 use App\Domain\Instance\Docker\ContainerInfo;
+use App\Domain\Instance\Docker\ContainerSpec;
 use App\Domain\Instance\Docker\DockerCommandFailed;
 use App\Domain\Instance\Docker\DockerResource;
+use App\Domain\Instance\Docker\Labels;
 use App\Domain\Instance\Docker\ProcessOutcome;
 use App\Domain\Instance\Operations\OperationJournal;
 use App\Domain\Instance\Restore\LegacyEnv;
+use App\Domain\Instance\State\EnvFiles;
 use Tests\Support\Instance\AdoptFixture;
 
 const ADOPT_OTHER_KEY = 'base64:'.'T1RIRVJPVEhFUk9USEVST1RIRVJPVEhFUk9USEVSMTI=';
@@ -123,9 +126,13 @@ it('copies the volumes 1.0\'s containers mount, whatever they are named (review 
 
     [$code, $json] = $this->adopt->adopt();
     $mounts = array_merge(...array_map(static fn ($spec): array => $spec->volumes, $this->adopt->specs('cp')));
+    $hardening = array_map(static fn ($spec): array => [$spec->capabilities, $spec->readOnlyRoot], [...$this->adopt->specs('cp'), ...$this->adopt->specs('pg_controldata'), ...$this->adopt->specs('du')]);
 
     expect($code)->toBe(0, (string) json_encode($json))
         ->and($mounts)->toContain('forms-database:/from:ro')
+        ->and(array_values(array_unique(array_map(static fn (array $h): string => (string) json_encode($h), $hardening))))->toEqualCanonicalizing([ // M12 gate S6
+            json_encode([ContainerSpec::OWNER_COPY, true]), json_encode([ContainerSpec::READ_ANY, true]),
+        ])
         ->and(implode(' ', $mounts))->not->toContain(AdoptFixture::PROJECT.'_pg-data');
 });
 
@@ -143,9 +150,11 @@ it('treats an adopt that failed after 2.0 started as adopted: adopt hints, and u
     [$failed, $failedJson] = $this->adopt->adopt(['--drop-jobs' => true]);
     [$prompt, $promptJson] = $this->adopt->instance->run('fsa:uninstall', []);
     $docker->onCall['composeUp'] = $start;
+    $state = $this->adopt->instance->state();
+    $docker->withResource(new DockerResource(DockerResource::VOLUME, $state->project().'_pg-data', [Labels::INSTANCE => $state->uuid(), 'com.docker.compose.volume' => 'pg-data'])); // Compose made it
+    $appKey = new EnvFiles($this->adopt->instance->directory)->read('app')['APP_KEY'];
     [$code, $json] = $this->adopt->instance->run('fsa:uninstall', ['--yes' => true]);
-    $final = $this->adopt->instance->directory->root.'/'.$json['data']['final_backup']['dir'];
-    $manifest = json_decode((string) file_get_contents($final.'/backup.json'), true);
+    $keyFile = $this->adopt->instance->directory->root.'/'.$json['data']['final_backup']['key_file'];
     $restart = collect($json['warnings'])->firstWhere('code', 'restart_1_0');
 
     expect($failed)->toBe(4, (string) json_encode($failedJson))
@@ -154,8 +163,8 @@ it('treats an adopt that failed after 2.0 started as adopted: adopt hints, and u
         ->and($code)->toBe(0, (string) json_encode($json))
         ->and($json['data']['adopted'])->toMatchArray(['checkout' => $this->adopt->checkout, 'pending' => true, 'jobs_in_1_0' => ['left' => 4, 'delayed' => 2, 'unknown' => false]])
         ->and($restart['message'] ?? '')->toContain('4 job(s) left by --drop-jobs and 2 delayed job(s)')
-        ->and(file_exists($final.'/app-key.env'))->toBeTrue() // review V2: env/app.env goes with the instance
-        ->and($manifest['files'] ?? [])->not->toBeEmpty()
+        ->and($json['data']['final_backup']['dir'])->toStartWith('backups/final-') // a 2.0 backup since the M12 gate
+        ->and((string) file_get_contents($keyFile))->toContain($appKey) // review V2: env/app.env goes with the instance; its keys stay beside the backup
         ->and(glob($this->adopt->instance->directory->root.'/backups/safety-adopt-*') ?: [])->toHaveCount(1);
 });
 

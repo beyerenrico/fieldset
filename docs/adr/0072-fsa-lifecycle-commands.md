@@ -265,3 +265,14 @@ mail is then skipped (`InstallSmoke::MAIL_SKIPPED` in the phase data, warning `t
   first start with the schedule), not after 26 hours without a success.
 - A repeated install with another `--version` names `fsa upgrade --to <version>`; the hints no longer say that upgrades
   or `--from-backup` "arrive with 2.0.0-rc.1".
+
+## Amendment 2026-10-20: proxy-mode hint (M12 gate)
+The `use_config_set` and `mode_not_settable` hint for proxy mode (InstallFlags::PROXY_SWITCH) no longer says the data
+moves only from 2.0.0-rc.1: it names `fsa uninstall --keep-backups` (a final backup of the 2.0 format, ADR 0073
+amendment) and `fsa install --from-backup <dir>/backups/final-<time>` with `--app-key-file` (plain) or the identity
+and `--accept-unauthenticated` (encrypted: the keys are inside it).
+
+## Amendment 2026-10-20: install.sh in final-backup hints (M12 gate, fix round B)
+After `fsa uninstall --keep-backups` the directory holds only `backups/` and no `fsa`: the proxy-mode hint
+(InstallFlags::PROXY_SWITCH) and uninstall's final-backup hint name `install.sh --dir <dir> --from-backup …`, which takes
+such a directory, instead of `fsa install --from-backup`.

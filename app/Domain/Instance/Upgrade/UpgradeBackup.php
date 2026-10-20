@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Upgrade;
 
+use App\Domain\Instance\Backup\BackupChecksums;
 use App\Domain\Instance\Backup\SafetyBackup;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Operations\InstanceLock;
 use App\Domain\Instance\Operations\LockHandle;
 use App\Domain\Instance\Output\ExitCode;
+use App\Domain\Instance\Output\InvalidInput;
 use App\Domain\Instance\Restore\AppKeys;
 use App\Domain\Instance\Restore\BackupIntake;
 use App\Domain\Instance\Restore\PreparedBackup;
@@ -40,7 +42,7 @@ final readonly class UpgradeBackup
     /**
      * @param  (Closure(string): void)|null  $noted  told the backup's name before it is verified (the journal notes it, so
      *                                               a revert after a kill finds and seals it)
-     * @return array{backup: string, path: string, created_at: string|null, prepared: array<string, mixed>}
+     * @return array{backup: string, path: string, created_at: string|null, prepared: array<string, mixed>, sums: string|null}
      *
      * @throws InstanceException exit 9 `safety_backup_failed` or `safety_backup_unverified`
      */
@@ -52,7 +54,33 @@ final readonly class UpgradeBackup
             $noted($taken['backup']);
         }
 
-        return [...$taken, 'prepared' => $this->prepare($state, $taken['backup'], $id, $actorUid)->toArray()];
+        $prepared = $this->prepare($state, $taken['backup'], $id, $actorUid);
+
+        return [...$taken, 'prepared' => $prepared->toArray(), 'sums' => self::sums($prepared)];
+    }
+
+    /**
+     * The SHA-256 of the verified set's SHA256SUMS (the same bytes plain or inside the sealed age file): recorded with the
+     * upgrade, so a rollback restores exactly that set, never another authenticated one under its name (M12 gate S4,
+     * as `fsa adopt` records its backup).
+     */
+    public static function sums(PreparedBackup $backup): ?string
+    {
+        $file = $backup->set.'/'.BackupChecksums::SUMS;
+        $hash = is_file($file) ? hash_file('sha256', $file) : false;
+
+        return $hash === false ? null : $hash;
+    }
+
+    /**
+     * @throws InstanceException exit 2 `safety_backup_changed` when the set is not the one recorded
+     */
+    public static function assertSame(PreparedBackup $backup, ?string $sums): void
+    {
+        if ($sums !== null && ! hash_equals($sums, (string) self::sums($backup))) {
+            throw new InvalidInput("The safety backup {$backup->name} is not the set the upgrade verified: its SHA256SUMS changed.", 'safety_backup_changed',
+                'Something replaced it in backups/. Restore a backup you trust with `fsa restore <backup>`; nothing was changed.', ['backup' => $backup->name]);
+        }
     }
 
     /**
@@ -61,10 +89,11 @@ final readonly class UpgradeBackup
      *
      * @throws InstanceException exit 9 `safety_backup_unverified`
      */
-    public function prepare(InstanceState $state, string $backup, string $id, int $actorUid): PreparedBackup
+    public function prepare(InstanceState $state, string $backup, string $id, int $actorUid, ?string $sums = null): PreparedBackup
     {
         try {
             $intake = $this->intake->take(RestoreOperation::runAs($state), new RestoreRequest($backup, actorUid: $actorUid), RestoreChecks::IN_PLACE, $id, AppKeys::of($this->stack->secrets()->appKeys()), $state->version());
+            self::assertSame($intake['backup'], $sums);
         } catch (InstanceException $e) {
             throw new InstanceException("The safety backup {$backup} failed its verification: ".$e->getMessage(), ExitCode::AbortedUnchanged, 'safety_backup_unverified',
                 'Nothing was migrated; the previous version runs again. Check free space and `fsa logs backup`, then run `fsa upgrade` again.', true, ['reason' => $e->errorCode], $e);

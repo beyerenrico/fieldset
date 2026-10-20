@@ -48,7 +48,8 @@ final readonly class FromBackupResult
             'url' => $settings->instanceUrl(), 'version' => $state->version(), 'mode' => $state->mode(), 'dir' => $directory->root, 'project' => $state->project(),
             'port' => $settings->publishesAppPort() ? $settings->port() : null, 'mail' => MailSummary::of($state), 'owner_email' => $email,
             'from_backup' => ['backup' => $backup->name, 'format' => $backup->format, 'authenticated' => $backup->authenticated(), 'encrypted' => $backup->encrypted,
-                'created_at' => $backup->manifest['created_at'] ?? null, 'version' => $backup->version(), 'epoch' => $finish['epoch'] ?? null],
+                'created_at' => $backup->manifest['created_at'] ?? null, 'version' => $backup->version(), 'epoch' => $finish['epoch'] ?? null,
+                'recipients' => ['listed' => FromBackupSettings::recipients($backup)['kept'], 'kept' => $state->recipients()]],
             'pending_mail' => $pendingMail, 'webhooks' => 'paused',
             'confirm_commands' => array_values(array_filter([self::CONFIRM_WEBHOOKS, $pendingMail['command'] ?? null])),
             SignInDelivery::SECRET => null,
@@ -56,6 +57,10 @@ final readonly class FromBackupResult
         ], changed: true);
         foreach (self::warnings($preflight, $intake, $email, $done) as [$code, $message, $hint]) {
             $result = $result->withWarning($code, $message, $hint);
+        }
+        $unconfirmed = array_values(array_diff(FromBackupSettings::recipients($backup)['kept'], $state->recipients()));
+        if ($unconfirmed !== []) {
+            $result = $result->withWarning('backup_recipients_not_kept', 'The backup lists the age recipient(s) '.implode(', ', $unconfirmed).'; they were not taken over, so new backups are not encrypted.', 'If these are your keys, run the move again with --keep-recipients (a new directory); or turn encryption on with `fsa config set backup-encryption on --identity-out <path> --passphrase-file <file>`.');
         }
         $dropped = count(FromBackupSettings::recipients($backup)['dropped']);
         if ($dropped > 0) {

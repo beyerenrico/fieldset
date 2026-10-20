@@ -33,7 +33,7 @@ final class RollbackCommand extends FsaCommand
         $identity = $this->option('identity-file');
         $identity = is_string($identity) && trim($identity) !== '' ? (str_starts_with(trim($identity), '/') ? trim($identity) : getcwd().'/'.trim($identity)) : null;
         $passphrase = PassphraseInput::fromCommand($this, $context, twice: false);
-        $request = new RestoreRequest('', false, $identity, $identity === null && ! $passphrase->given() ? null : $passphrase->read($context), null, $context->facts->callerUid(), $passphrase->file(), $passphrase->stdin());
+        $request = new RestoreRequest('', false, $identity, $identity === null && ! $passphrase->given() ? null : $passphrase->read($context), null, $context->facts->callerUid(), passphraseFile: $passphrase->file(), passphraseStdin: $passphrase->stdin());
 
         return $this->laravel->make(RollbackOperation::class)->rollback($request, $context->progress);
     }

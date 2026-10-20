@@ -241,7 +241,7 @@ it('seals the safety backups it leaves behind when it goes back', function (stri
         ->and(array_filter($this->upgrade->sealed(), static fn (string $name): bool => str_starts_with($name, 'safety-rollback-')))->toHaveCount(1);
 })->with(['abort', 'return']);
 
-it('keeps only the newest pre-rollback safety backup, and an upgrade that opens removes them', function (): void {
+it('keeps every pre-rollback safety backup until the operator deletes it, also through a later upgrade (R57)', function (): void {
     upgradedTarget($this->upgrade);
     $older = 'safety-rollback-20261001T100000Z';
     BackupSetFixture::fsa($this->dir.'/backups/'.$older, ['kind' => 'safety-rollback', ...$this->upgrade->restore->manifest()], appKey: $this->upgrade->restore->appKey());
@@ -250,12 +250,13 @@ it('keeps only the newest pre-rollback safety backup, and an upgrade that opens 
     $own = (string) $json['data']['safety_backup'];
 
     expect($code)->toBe(0, (string) json_encode($json))
-        ->and(is_dir($this->dir.'/backups/'.$older))->toBeFalse()
+        ->and(is_dir($this->dir.'/backups/'.$older))->toBeTrue()
         ->and(is_dir($this->dir.'/backups/'.$own))->toBeTrue();
 
     [$code, $json] = $this->upgrade->upgrade();
 
     expect($code)->toBe(0, (string) json_encode($json))
-        ->and($json['data']['removed_safety_backups'])->toContain($own)
-        ->and(is_dir($this->dir.'/backups/'.$own))->toBeFalse();
+        ->and($json['data']['removed_safety_backups'])->not->toContain($own)->not->toContain($older)
+        ->and(is_dir($this->dir.'/backups/'.$own))->toBeTrue()
+        ->and(is_dir($this->dir.'/backups/'.$older))->toBeTrue();
 });

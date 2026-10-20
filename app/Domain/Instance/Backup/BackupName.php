@@ -10,15 +10,17 @@ use Carbon\CarbonImmutable;
 
 /**
  * The name of a backup directory in `backups/` (ADR 0084): `<kind>-<UTC yyyymmddThhmmssZ>`. Kinds: `scheduled` (the
- * backup service), `manual` (`fsa backup`) and `safety-<operation>` (before an upgrade, restore, reset, rollback or
- * adopt, R57). Only scheduled backups are ever pruned (BackupRetention); uninstall's `final-…` backups (ADR 0073) have
- * their own format and never match. A backup is written as `<name>.partial` and renamed once it is complete.
+ * backup service), `manual` (`fsa backup`), `final` (uninstall's last backup, ADR 0073 as amended by the M12 gate) and
+ * `safety-<operation>` (before an upgrade, restore, reset, rollback or adopt, R57). Only scheduled backups are ever
+ * pruned (BackupRetention). A backup is written as `<name>.partial` and renamed once it is complete.
  */
 final readonly class BackupName
 {
     public const string SCHEDULED = 'scheduled';
 
     public const string MANUAL = 'manual';
+
+    public const string FINAL = 'final';
 
     public const string SAFETY = 'safety';
 
@@ -27,7 +29,7 @@ final readonly class BackupName
 
     public const string PARTIAL = '.partial';
 
-    public const string PATTERN = '/^(scheduled|manual|safety-(?:upgrade|restore|reset|rollback|adopt))-(\d{8}T\d{6}Z)$/D';
+    public const string PATTERN = '/^(scheduled|manual|final|safety-(?:upgrade|restore|reset|rollback|adopt))-(\d{8}T\d{6}Z)$/D';
 
     private const string STAMP = 'Ymd\THis\Z';
 

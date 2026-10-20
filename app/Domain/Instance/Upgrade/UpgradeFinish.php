@@ -61,7 +61,7 @@ final readonly class UpgradeFinish
         $committed = $state->withRelease($version, UpgradeJournal::strings($release['digests'] ?? null))
             ->withPreviousRelease((string) ($release['from'] ?? ''), $previous, (string) ($release['previous_compose'] ?? ''))
             ->withHistoryEntry('upgraded', ['from' => is_string($release['from'] ?? null) ? $release['from'] : null, 'to' => $version, 'journal' => $journal,
-                'safety_backup' => is_string($backup['backup'] ?? null) ? $backup['backup'] : null]);
+                'safety_backup' => is_string($backup['backup'] ?? null) ? $backup['backup'] : null, 'safety_backup_sums' => is_string($backup['sums'] ?? null) ? $backup['sums'] : null]);
         $this->directory->saveState($committed);
 
         return ['version' => $version];
@@ -84,10 +84,7 @@ final readonly class UpgradeFinish
         }
         $current = is_string($backup['backup'] ?? null) ? $backup['backup'] : null;
         $warnings = [];
-        $removed = [
-            ...$this->seals->removeSuperseded(UpgradeJournal::OPERATION, [$current], $warnings),
-            ...$this->seals->removeSuperseded(RollbackOperation::OPERATION, [], $warnings), // a rollback's are superseded too (review S1)
-        ];
+        $removed = $this->seals->removeSuperseded([$current], $warnings); // pre-upgrade ones only (R57, M12 gate D1)
         $sealed = $this->seal($current, $warnings);
         UpgradeFiles::remove($this->directory->path(InstanceDirectory::OPERATIONS_DIR.'/upgrade-'.$id));
         $this->files->promote(UpgradeJournal::filesBefore($id), ReleaseFiles::PREVIOUS); // the previous release's files, for fsa rollback

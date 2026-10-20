@@ -7,15 +7,15 @@
         "status": "ok",
         "changed": true,
         "data": {
-            "url": "http://localhost:8082",
+            "url": "http://localhost:8081",
             "version": "2.0.0-alpha.1-test",
             "mode": "local",
             "dir": "<work>/fsa-test-j08",
-            "project": "fsa-fsa-test-j08-0a9d",
-            "port": 8082,
+            "project": "fsa-fsa-test-j08-78ac",
+            "port": 8081,
             "mail": {
                 "mode": "capture",
-                "catcher_url": "http://localhost:8026",
+                "catcher_url": "http://localhost:8025",
                 "catcher_login_command": "fsa config show --catcher-login"
             },
             "owner_email": "owner@example.test",
@@ -25,7 +25,7 @@
                 "<work>/fsa-test-j08/fsa doctor --post"
             ],
             "sign_in_link": {
-                "expires_at": "2026-10-19T17:31:00Z",
+                "expires_at": "2026-10-20T01:55:28Z",
                 "delivered": "secrets_file"
             },
             "demo": {
@@ -100,7 +100,7 @@
                         ]
                     }
                 ],
-                "login_url": "http://localhost:8082/admin/login",
+                "login_url": "http://localhost:8081/admin/login",
                 "delivered": "data"
             }
         },
@@ -108,7 +108,7 @@
             {
                 "name": "sign_in_link",
                 "written_to": "<work>/j08-secrets.json",
-                "expires_at": "2026-10-19T17:31:00Z"
+                "expires_at": "2026-10-20T01:55:28Z"
             }
         ],
         "warnings": [],
@@ -133,6 +133,7 @@
             "/fsa/instance/.fsa-instance:ro",
             "/fsa/instance/backups:rw",
             "/fsa/instance/locks:rw",
+            "/fsa/instance/staging/backup:rw",
             "/var/www/html/storage/app:ro"
         ],
         "memory_limit_mib": 128

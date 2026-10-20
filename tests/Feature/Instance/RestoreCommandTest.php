@@ -2,7 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Domain\Instance\Backup\BackupChecksums;
 use App\Domain\Instance\Backup\KeyFingerprint;
+use App\Domain\Instance\Docker\DockerResource;
+use App\Domain\Instance\Docker\Labels;
 use App\Domain\Instance\Operations\Ledger;
 use App\Domain\Instance\Operations\OperationJournal;
 use App\Domain\Instance\Restore\MigrationSet;
@@ -54,6 +57,8 @@ it('restores in place: prepare without network, quiesce, ledger, safety backup, 
         ->and($pgRestore->command)->toBe(['--dbname=form_schema_restore_'.$id, '--no-owner', '--no-privileges', '--single-transaction', '--exit-on-error', '--', $this->dir.'/backups/manual-20261019T120000Z/database.dump'])
         ->and(array_keys($pgRestore->env))->toContain('PGPASSWORD')->and($pgRestore->env['PGDATABASE'])->toBe('form_schema_restore_'.$id)
         ->and($tar->network)->toBe('none')->and($tar->user)->toBe('33:33')
+        ->and([$prepare->capabilities, $pgRestore->capabilities, $tar->capabilities])->toBe([[], [], []]) // M12 gate S6: no capability
+        ->and([$prepare->readOnlyRoot, $pgRestore->readOnlyRoot, $tar->readOnlyRoot])->toBe([true, true, true])
         ->and($tar->volumes[0])->toBe($state->project().'_app-storage-r'.$id.':/var/www/html/storage/app')
         ->and($finish['env'])->toContain('DB_DATABASE', 'FSA_BACKUP_DB_PASSWORD')->and($finish['command'])->toContain('--source=form_schema', '--backup=manual-20261019T120000Z')
         ->and($this->restore->actions())->toBe(['drop', 'create', 'swap', 'drop'])
@@ -64,7 +69,7 @@ it('restores in place: prepare without network, quiesce, ledger, safety backup, 
         ->and(array_column($this->restore->instance->docker->called('removeVolume'), 'name'))->toBe([$state->project().'_app-storage-r'.$id, $state->project().'_app-storage'])
         ->and($smoke)->not->toBeEmpty()->and($smoke[0]['input'])->toStartWith(OperationGate::SMOKE_HEADER.': ')
         ->and(json_decode((string) file_get_contents($this->dir.'/runtime/runtime.json'), true)['gate']['raised'])->toBeFalse()
-        ->and(is_dir($this->dir.'/backups/.restore-'.$id))->toBeFalse()
+        ->and(is_dir($this->dir.'/staging/restore-'.$id))->toBeFalse()
         ->and($state->history()[array_key_last($state->history())]['event'] ?? null)->toBe('restored')
         ->and(new OperationJournal($this->restore->instance->directory)->current())->toBeNull();
 });
@@ -107,7 +112,7 @@ it('refuses a backup with a newer migration set: exit 7 and nothing changed (AE8
         ->and($this->restore->actions())->toBe([])
         ->and($this->restore->config->state()->toJson())->toBe($before)
         ->and(json_decode((string) file_get_contents($this->dir.'/runtime/runtime.json'), true)['gate']['raised'])->toBeFalse()
-        ->and(glob($this->dir.'/backups/.restore-*'))->toBe([]);
+        ->and(glob($this->dir.'/staging/restore-*'))->toBe([]);
 });
 
 // U18 (ADR 0085 amendment): an older backup is no longer refused in place (it was exit 7 `upgrade_child_unavailable`):
@@ -195,7 +200,7 @@ it('restores an unauthenticated archive only with --accept-unauthenticated, as a
         ->and(implode(' ', $create['options']))->toContain('--restricted-role=fsa_restore_')
         ->and($create['env'])->toBe(['FSA_RESTORE_DB_PASSWORD'])
         ->and($pgRestore->env['PGUSER'])->toStartWith('fsa_restore_')
-        ->and(implode(' ', $pgRestore->command))->toMatch('#--use-list=\S+/backups/\.restore-[0-9a-f]{12}/restore\.list -- #') // review S1
+        ->and(implode(' ', $pgRestore->command))->toMatch('#--use-list=\S+/staging/restore-[0-9a-f]{12}/restore\.list -- #') // review S1; never in backups/ (M12 gate S3)
         ->and($this->restore->actions())->toContain('adopt')
         ->and(array_search('audit', $this->restore->actions(), true))->toBeLessThan(array_search('adopt', $this->restore->actions(), true))
         ->and(implode(' ', $this->restore->databaseCalls[array_search('audit', $this->restore->actions(), true)]['options']))->toContain('--reference=form_schema')
@@ -241,15 +246,17 @@ it('refuses a backup outside the instance directory and one that does not exist'
         ->and($missing)->toBe(2)->and($missingJson['errors'][0]['code'])->toBe('backup_not_found');
 });
 
-it('lets uninstall archive and remove a restored storage volume like Compose\'s own (final backup, ADR 0073)', function (): void {
+it('lets uninstall back up and remove a restored storage volume like Compose\'s own (final backup, ADR 0073)', function (): void {
     $this->restore->backup();
     $this->restore->restore();
-    $fresh = InstanceSettings::of($this->restore->config->state())->storageVolume();
+    $state = $this->restore->config->state();
+    $fresh = InstanceSettings::of($state)->storageVolume();
+    $this->restore->instance->docker->withResource(new DockerResource(DockerResource::VOLUME, $state->project().'_pg-data', [Labels::INSTANCE => $state->uuid(), 'com.docker.compose.volume' => 'pg-data'])); // Compose made it at the install
 
     [$code, $json] = $this->restore->instance->run('fsa:uninstall', ['--yes' => true, '--keep-backups' => true]);
 
     expect($code)->toBe(0, (string) json_encode($json))
-        ->and($json['data']['final_backup']['files'])->toContain('app-storage.tar')
+        ->and($json['data']['final_backup']['dir'])->toStartWith('backups/final-')
         ->and($json['data']['removed']['volumes'])->toContain($fresh);
 });
 
@@ -371,4 +378,39 @@ it('warns that nothing was carried from an instance reset after the backup (U23 
     expect($code)->toBe(0, (string) json_encode($json))
         ->and($json['data']['carry_mode'])->toBe('reset')
         ->and(collect($json['warnings'])->pluck('code')->all())->toContain('carry_skipped_after_reset')->not->toContain('carry_partial');
+});
+
+it('refuses a backup without a storage archive unless --without-files, and then keeps the previous storage volume (M12 gate D4)', function (): void {
+    $set = $this->restore->backup();
+    unlink($set.'/storage.tar.gz'); // a 1.0 `--no-storage` archive has none either
+    BackupChecksums::write($set, ['audit-heads.json', 'database.dump', 'manifest.json', 'settings.json'], BackupSetFixture::hmacKey($this->restore->appKey()));
+    $state = $this->restore->config->state();
+    $mark = $this->restore->config->mark();
+
+    [$refused, $refusedJson] = $this->restore->restore();
+    $untouched = $this->restore->config->methodsSince($mark);
+    [$code, $json] = $this->restore->restore(options: ['--without-files' => true]);
+    $warning = collect($json['warnings'])->firstWhere('code', 'restored_without_files');
+
+    expect($refused)->toBe(2, (string) json_encode($refusedJson))
+        ->and($refusedJson['errors'][0]['code'])->toBe('backup_without_files')
+        ->and($refusedJson['errors'][0]['hint'])->toContain('--without-files')
+        ->and($untouched)->not->toContain('composeStop')->not->toContain('createVolume')
+        ->and($code)->toBe(0, (string) json_encode($json))
+        ->and($warning['message'] ?? '')->toContain('no storage archive')->toContain($state->project().'_app-storage')
+        ->and(array_column($this->restore->instance->docker->called('removeVolume'), 'name'))->not->toContain($state->project().'_app-storage')
+        ->and($this->restore->specs('tar'))->toBe([]);
+});
+
+it('refuses a backup renamed to another backup\'s name: its authenticated manifest names it (M12 gate S4)', function (): void {
+    $this->restore->backup('manual-20261018T120000Z');
+    rename($this->dir.'/backups/manual-20261018T120000Z', $this->dir.'/backups/manual-20261019T120000Z'); // an older set under a newer name
+    $mark = $this->restore->config->mark();
+
+    [$code, $json] = $this->restore->restore('manual-20261019T120000Z');
+
+    expect($code)->toBe(2, (string) json_encode($json))
+        ->and($json['errors'][0]['code'])->toBe('backup_renamed')
+        ->and($json['errors'][0]['message'])->toContain('manual-20261018T120000Z')
+        ->and($this->restore->config->methodsSince($mark))->not->toContain('composeStop');
 });

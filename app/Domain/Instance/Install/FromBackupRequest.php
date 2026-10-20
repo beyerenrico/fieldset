@@ -11,10 +11,12 @@ use SensitiveParameter;
 
 /**
  * The backup side of `fsa install --from-backup <backup>` (R42, R60, F6, plan U17, ADR 0085): the backup (any path the
- * launcher mounted), the identity file and its passphrase of an encrypted backup, the APP keys of `--app-key-file` and
- * `--accept-unauthenticated`. The passphrase and the keys never reach the journal; its context holds the path, the
- * identity file's path, whether a key file was given and the paths or switches the passphrase and the keys came from
- * (RestoreRequest::inputs), so the resume command is `fsa install --from-backup <backup>` with the same flags (M12 gate O1).
+ * launcher mounted), the identity file and its passphrase of an encrypted backup, the APP keys of `--app-key-file`,
+ * `--accept-unauthenticated` and `--keep-recipients` (the backup's age recipients are kept only when confirmed, M12 gate
+ * S2: whoever can write into a synced backups/ directory could have planted them). The passphrase and the keys never reach
+ * the journal; its context holds the path, the identity file's path, whether a key file was given and the paths or
+ * switches the passphrase and the keys came from (RestoreRequest::inputs), so the resume command is
+ * `fsa install --from-backup <backup>` with the same flags (M12 gate O1).
  */
 final readonly class FromBackupRequest
 {
@@ -27,6 +29,7 @@ final readonly class FromBackupRequest
         public ?string $identityFile = null,
         #[SensitiveParameter] public ?string $passphrase = null,
         #[SensitiveParameter] public ?AppKeys $keyFile = null,
+        public bool $keepRecipients = false,
         public ?string $passphraseFile = null,
         public bool $passphraseStdin = false,
         public ?string $keyFilePath = null,
@@ -55,13 +58,13 @@ final readonly class FromBackupRequest
 
     public function toRestoreRequest(int $actorUid): RestoreRequest
     {
-        return new RestoreRequest($this->backup, $this->acceptUnauthenticated, $this->identityFile, $this->passphrase, $this->keyFile, $actorUid, $this->passphraseFile, $this->passphraseStdin, $this->keyFilePath);
+        return new RestoreRequest($this->backup, $this->acceptUnauthenticated, $this->identityFile, $this->passphrase, $this->keyFile, $actorUid, passphraseFile: $this->passphraseFile, passphraseStdin: $this->passphraseStdin, keyFilePath: $this->keyFilePath);
     }
 
     /** @return array<string, string|bool|null> */
     public function toContext(): array
     {
-        return ['from_backup' => $this->backup, ...$this->toRestoreRequest(0)->inputs()];
+        return ['from_backup' => $this->backup, ...$this->toRestoreRequest(0)->inputs(), 'keep_recipients' => $this->keepRecipients];
     }
 
     /** @return array<string, string> */

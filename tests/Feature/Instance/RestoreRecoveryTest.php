@@ -56,7 +56,7 @@ it('exits 5 with the old instance running when a step before the swap fails, and
         ->and($ups[array_key_last($ups)]['services'])->toBe([])
         ->and(gateRaised($this->dir))->toBeFalse()
         ->and(InstanceSettings::of($this->restore->config->state())->storageVolume())->toBeNull()
-        ->and(glob($this->dir.'/backups/.restore-*'))->toBe([])
+        ->and(glob($this->dir.'/staging/restore-*'))->toBe([])
         ->and(new OperationJournal($this->restore->instance->directory)->current())->toBeNull();
 });
 
@@ -117,7 +117,7 @@ it('reports a restore killed between the restore and the swap, leaves the live i
         ->and($this->restore->actions())->toBe(['drop'])
         ->and($this->restore->databases)->not->toContain($names->scratch)
         ->and(array_column($this->restore->config->callsSince($mark, 'removeVolume'), 'name'))->toBe([$names->freshVolume])
-        ->and(is_dir($this->dir.'/backups/.restore-'.$names->id))->toBeFalse()
+        ->and(is_dir($this->dir.'/staging/restore-'.$names->id))->toBeFalse()
         ->and(gateRaised($this->dir))->toBeFalse()
         ->and(new OperationJournal($this->restore->instance->directory)->current())->toBeNull();
 });

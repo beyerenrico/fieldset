@@ -27,14 +27,16 @@ use SensitiveParameter;
 use Throwable;
 
 /**
- * The stack around a restore (plan U17, KTD19, ADR 0085). Quiesce like an upgrade: the gate goes up (the app answers 503
- * to everything but its own healthcheck and the operation's smoke token), app, scheduler and the backup service stop,
- * then the queue with its grace period (Horizon finishes running jobs), and a one-off seals pending audit entries so
- * the heads the ledger records are final. After the swap the state is rendered again (the fresh storage volume, the
- * APP keys), Valkey is flushed (cache and queued jobs of the replaced data), the app starts behind the gate and the
- * internal smoke test passes with the token; only then does the gate go down and everything else start. "Everything" never
- * includes the quick tunnel (M12 gate C5, as an upgrade's rollback): a running one keeps running, an ended one is left
- * to the next mutating command's sweep instead of coming back with a new URL the state does not know.
+ * The stack around a restore (plan U17, KTD19, ADR 0085). Quiesce like an upgrade: the gate goes up (an app behind it
+ * answers 503 to everything but its own healthcheck and the operation's smoke token), app, scheduler and the backup
+ * service stop (until the verification starts the app again nothing answers: a loopback port refuses connections, the
+ * edge or a proxy answers 502; ADR 0085 M12 amendment), then the queue with its grace period (Horizon finishes running
+ * jobs), and a one-off seals pending audit entries so the heads the ledger records are final. After the swap the state is
+ * rendered again (the fresh storage volume, the APP keys), Valkey is flushed (cache and queued jobs of the replaced data),
+ * the app starts behind the gate and the internal smoke test passes with the token; only then does the gate go down and
+ * everything else start. "Everything" never includes the quick tunnel (M12 gate C5, as an upgrade's rollback): a running
+ * one keeps running, an ended one is left to the next mutating command's sweep instead of coming back with a new URL the
+ * state does not know.
  */
 final readonly class RestoreStack
 {

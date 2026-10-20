@@ -20,6 +20,12 @@ final readonly class BackupRunRecorder
     /** @param  BackupRunLog|null  $log  null when the instance directory cannot be opened (a failed service start) */
     public function __construct(private ?BackupRunLog $log, private ConnectionInterface $db) {}
 
+    /** @return list<array<string, mixed>> the ledger's newest runs (none without a ledger) */
+    public function recent(int $limit = 50): array
+    {
+        return $this->log?->recent($limit) ?? [];
+    }
+
     /**
      * @param  array<string, mixed>  $run
      * @return array<string, mixed> the run as the ledger holds it

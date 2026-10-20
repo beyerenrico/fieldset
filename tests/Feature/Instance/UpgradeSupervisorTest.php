@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Instance\Backup\BackupStore;
 use App\Domain\Instance\Docker\ProcessOutcome;
 use App\Domain\Instance\Operations\Ledger;
 use App\Domain\Instance\Operations\OperationJournal;
@@ -373,6 +374,33 @@ it('removes the superseded pre-upgrade safety backup after the commit and keeps 
         ->and(is_dir($restoreSafety))->toBeTrue()
         ->and(is_dir($this->dir.'/backups/'.$this->upgrade->safetyBackups[0]))->toBeTrue()
         ->and($json['data']['removed_safety_backups'])->toBe(['safety-upgrade-20261001T000000Z']);
+});
+
+it('halts instead of restoring another set put under the safety backup\'s name before the way back (M12 gate S4)', function (): void {
+    $this->upgrade->child = 'fail';
+    $this->upgrade->stage = function (): void {
+        $name = $this->upgrade->safetyBackups[0];
+        exec('rm -rf '.escapeshellarg($this->dir.'/backups/'.$name));
+        BackupSetFixture::fsa($this->dir.'/backups/'.$name, ['kind' => 'safety-upgrade', ...$this->upgrade->restore->manifest()], appKey: $this->upgrade->restore->appKey(), extra: ['note.txt' => 'another set']);
+    };
+
+    [$code, $json] = $this->upgrade->upgrade();
+
+    expect($code)->toBe(8, (string) json_encode($json))
+        ->and($json['errors'][0]['code'])->toBe('upgrade_rollback_failed')
+        ->and((string) json_encode($json))->toContain('not the set the upgrade verified')
+        ->and($this->upgrade->restore->actions())->not->toContain('swap');
+});
+
+it('never removes a superseded pre-upgrade safety backup the operator marked kept', function (): void {
+    $kept = BackupSetFixture::fsa($this->dir.'/backups/safety-upgrade-20261001T000000Z', ['kind' => 'safety-upgrade', ...$this->upgrade->restore->manifest()], appKey: $this->upgrade->restore->appKey());
+    touch($kept.'/'.BackupStore::KEEP_MARKER);
+
+    [$code, $json] = $this->upgrade->upgrade();
+
+    expect($code)->toBe(0, (string) json_encode($json))
+        ->and(is_dir($kept))->toBeTrue()
+        ->and($json['data']['removed_safety_backups'])->toBe([]);
 });
 
 it('keeps the superseded safety backup when the upgrade rolls back', function (): void {

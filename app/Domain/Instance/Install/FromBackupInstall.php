@@ -121,7 +121,7 @@ final readonly class FromBackupInstall
         $effective->assertConsistent();
         $preflight = $run->phase('doctor', fn (): array => $this->preflight->run($effective, $context->facts, (string) $intake['uuid'], pendingCertificate: true), changes: false);
         $run->phase('secrets', fn (): array => $this->keys->ensure($prepared, $backup->keyFile, $context->redactor));
-        $run->phase('state', fn (): array => $this->writeState($preflight, $context->facts, $prepared, $id));
+        $run->phase('state', fn (): array => $this->writeState($preflight, $context->facts, $prepared, $id, $backup->keepRecipients));
         $state = $this->directory->state();
         $project = ComposeProject::forInstance($state, $this->directory);
         $run->phase('pull', fn (): array => $this->stack->pull(), changes: false);
@@ -162,11 +162,11 @@ final readonly class FromBackupInstall
      * @param  array<string, mixed>  $preflight
      * @return array{project: string, services: list<string>}
      */
-    private function writeState(array $preflight, HostFacts $facts, PreparedBackup $backup, string $id): array
+    private function writeState(array $preflight, HostFacts $facts, PreparedBackup $backup, string $id, bool $keepRecipients): array
     {
         $this->stack->writeState($preflight, $facts);
         $state = $this->directory->state();
-        $state = FromBackupSettings::overlay($state, $backup, RestoreStorage::fresh($state, $id));
+        $state = FromBackupSettings::overlay($state, $backup, RestoreStorage::fresh($state, $id), $keepRecipients);
         $this->directory->saveState($state);
         $this->data->volume($state); // before the first Compose call: the compose file declares it as an existing volume
         $secrets = $this->stack->secrets();

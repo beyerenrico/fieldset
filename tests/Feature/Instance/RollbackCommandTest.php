@@ -7,6 +7,7 @@ use App\Domain\Instance\Operations\Ledger;
 use App\Domain\Instance\Operations\OperationJournal;
 use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\Upgrade\StageRenderer;
+use Tests\Support\Instance\BackupSetFixture;
 use Tests\Support\Instance\InstanceCommandFixture;
 use Tests\Support\Instance\TemporaryInstance;
 use Tests\Support\Instance\UpgradeFixture;
@@ -76,7 +77,7 @@ it('returns to the previous release from the upgrade\'s safety backup, carrying 
         ->and($history[array_key_last($history)])->toMatchArray(['event' => 'rolled_back', 'from' => UpgradeFixture::TARGET, 'to' => InstanceCommandFixture::VERSION])
         ->and($this->upgrade->gate()['raised'])->toBeFalse()
         ->and(is_dir($this->dir.'/operations/upgrade-'.$id))->toBeFalse()
-        ->and(is_file($this->dir.'/backups/.restore-'.$id.'/security-state.json'))->toBeFalse()
+        ->and(is_file($this->dir.'/staging/restore-'.$id.'/security-state.json'))->toBeFalse()
         ->and(new OperationJournal($this->upgrade->instance->directory)->current())->toBeNull();
 });
 
@@ -168,4 +169,18 @@ it('lets the previous image only render, without a migration', function (): void
     expect($code)->toBe(0)
         ->and($render[array_key_last($render)]->image)->toBe(InstanceCommandFixture::appImage())
         ->and($render[array_key_last($render)]->env)->toHaveKey(StageRenderer::STAGE_ENV);
+});
+
+it('refuses a safety backup that is no longer the set the upgrade verified, even an authenticated one (M12 gate S4)', function (): void {
+    $name = $this->upgrade->safetyBackups[0];
+    exec('rm -rf '.escapeshellarg($this->dir.'/backups/'.$name));
+    BackupSetFixture::fsa($this->dir.'/backups/'.$name, ['kind' => 'safety-upgrade', ...$this->upgrade->restore->manifest()], appKey: $this->upgrade->restore->appKey(), extra: ['note.txt' => 'another set']);
+    $mark = $this->config->mark();
+
+    [$code, $json] = $this->upgrade->rollback();
+
+    expect($code)->toBe(2, (string) json_encode($json))
+        ->and($json['errors'][0]['code'])->toBe('safety_backup_changed')
+        ->and($this->config->methodsSince($mark))->not->toContain('composeStop')
+        ->and($this->upgrade->instance->state()->version())->toBe(UpgradeFixture::TARGET);
 });

@@ -252,3 +252,45 @@ by fingerprint, and an in-place restore takes exactly this set by its name and S
 - "a rollback restores it without the owner's identity" holds for the upgrade's automatic rollback before the commit
   only: the upgrade seals its safety backup while it opens, right after the commit, so with encryption on a later `fsa
   rollback` needs `--identity-file` and the passphrase.
+
+## Amendment 2026-10-20: backups and whoever else writes into backups/ (M12 gate)
+The gate review assumed `backups/` is synced off the host (a two-way sync, an rsync target that pushes back): someone
+who can write there but holds no APP key. Against that writer:
+
+- **The set being written (S1).** `<name>.partial` stays root's (0700) until `complete()`; only then does it go to the
+  owner and get its final name. `pg_dump` and `tar` write to their stdout, a file the writer created itself
+  (exclusively, 0600 from the umask) and keeps open (`ToolProcess`); the hash is read back through that descriptor
+  (`ProducedFile`), and a regular file as stdout keeps the custom dump seekable (checked: byte-identical to `--file`
+  apart from its time stamp, unlike a pipe). `PartialSet` records every file with its hash, size, device and inode;
+  before `SHA256SUMS` is written the set must hold exactly those files, unchanged (hashed again through a fresh
+  descriptor), in the directory the run created (same device and inode, still the process's, 0700). Anything else
+  fails the run with the new reason `set_changed`. `SHA256SUMS` lists the recorded hashes, never what a path holds at
+  the end. Such a writer can make a run fail; it cannot get a file of its own authenticated. On rootless Docker and
+  Docker Desktop the owner is container root, so the root-owned partial protects nothing there; the owner is the trust
+  boundary on those hosts anyway (it holds `env/` with APP_KEY).
+- **Settings (S2).** The service reads its settings from `staging/backup/instance.json`, no longer from
+  `backups/.instance.json` (which a backups/ writer could plant: recipients, domain, ACME CA, extra hosts, all signed
+  into every backup). `staging/` is a new top-level directory of the instance (0700, never to be synced): the service
+  mounts only `staging/backup/` (read-write: also the plain sets below), the render and the upgrade's release files
+  write the file there, and a pre-release copy in `backups/` is deleted by the next render. `--from-backup` keeps
+  recipients only with `--keep-recipients` (ADR 0085 amendment).
+- **No plaintext in backups/ (S3).** An encrypted run writes its plain set in `staging/backup/<name>.partial` and only
+  `backup.tar.age` into `backups/<name>.partial`; leftovers in either place are cleaned under the lock and reported by
+  `fsa status` (`backup_partial_left` names them with their path). Restore scratch directories moved to `staging/` too
+  (ADR 0085 amendment). Safety backups stay plain in `backups/` until sealed, as before: a rollback must read them
+  without an identity, and moving them would need a second copy of every safety backup.
+- **Durability (D6).** Every produced file is fsynced before it is hashed; the directory is synced before and after
+  the rename to complete; the sealer and the age output are synced before plaintext is unlinked; SHA256SUMS' temporary
+  files are synced before their rename.
+- **Missing files (D5).** A success whose `missing_files` > 0 raises `backup_files_missing` (BackupAlerts: a warning in
+  `fsa status`, `warn` on `/platform`), and a scheduled run that misses more referenced files than the newest earlier
+  success still on disk prunes nothing (`retention_held` in its ledger line): a storage volume that lost files never
+  costs the backups that still hold them. References now include the organizations' branding logos (D8).
+- **Superseded safety backups (D1, amends the U18 amendment above).** After a committed upgrade only older
+  `safety-upgrade-*` sets go, never one marked kept; `safety-rollback-*` sets are never removed by fsa (R57, plan line
+  34: after a rollback that set can be the only copy of the upgraded days), and a completed rollback no longer removes
+  older ones.
+- **Final backups.** Uninstall's final backup is a backup of this format (kind `final`, ADR 0073 amendment); the format
+  table's note that it is "its own format" no longer holds.
+- **Reset's audit export (S5).** Written in `staging/`, encrypted to the recipients (`….jsonl.age`) when encryption is
+  on, then moved into `backups/` (ADR 0088 amendment).

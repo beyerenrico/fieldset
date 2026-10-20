@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Instance\Backup\BackupChecksums;
 use App\Domain\Instance\Backup\KeyFingerprint;
 use App\Domain\Instance\Docker\ProcessOutcome;
 use App\Domain\Instance\Operations\OperationJournal;
@@ -58,7 +59,7 @@ it('moves a local backup to a new instance: its data, its portable settings, cap
         ->and($this->move->actions())->toBe(['list', 'drop', 'create', 'swap', 'drop'])
         ->and($this->move->databases)->toEqualCanonicalizing(['form_schema', 'postgres'])
         ->and($history)->toContain('installed', 'installed_from_backup')
-        ->and(glob($this->move->instance->directory->root.'/backups/.restore-*'))->toBe([])
+        ->and(glob($this->move->instance->directory->root.'/staging/restore-*'))->toBe([])
         ->and(json_encode($json))->not->toContain(BackupSetFixture::APP_KEY);
     // The compose file declares the fresh volume as an existing one, and every Compose call checks that it exists (J08).
     $methods = $this->move->instance->docker->methods();
@@ -211,15 +212,31 @@ it('issues a sign-in link for an existing admin given with --owner-email', funct
         ->and($this->move->instance->oneOffCalls('identity:login-link'))->toHaveCount(1);
 });
 
-it('keeps the backup recipients of an authenticated backup that are age public keys, and drops the rest with a warning (review S4)', function (): void {
+it('keeps the backup recipients of an authenticated backup that are age public keys with --keep-recipients, and drops the rest with a warning (review S4)', function (): void {
     $recipient = 'age1'.str_repeat('q', 58);
     $backup = $this->move->backup(recipients: [$recipient, 'ssh-ed25519 AAAAC3Nza attacker']);
 
-    [$code, $json] = $this->move->install($backup, ['--app-key-file' => $this->move->keyFile()]);
+    [$code, $json] = $this->move->install($backup, ['--app-key-file' => $this->move->keyFile(), '--keep-recipients' => true]);
 
     expect($code)->toBe(0, (string) json_encode($json))
         ->and($this->move->instance->state()->recipients())->toBe([$recipient])
+        ->and($json['data']['from_backup']['recipients'])->toBe(['listed' => [$recipient], 'kept' => [$recipient]])
+        ->and(collect($json['warnings'])->pluck('code')->all())->not->toContain('backup_recipients_not_kept')
         ->and(collect($json['warnings'])->firstWhere('code', 'backup_recipients_dropped')['message'] ?? '')->toContain('1 backup recipient');
+});
+
+it('reports the recipients an authenticated backup lists and keeps them only when --keep-recipients confirms them (M12 gate S2)', function (): void {
+    $recipient = 'age1'.str_repeat('q', 58);
+    $backup = $this->move->backup(recipients: [$recipient]);
+
+    [$code, $json] = $this->move->install($backup, ['--app-key-file' => $this->move->keyFile()]);
+    $warning = collect($json['warnings'])->firstWhere('code', 'backup_recipients_not_kept');
+
+    expect($code)->toBe(0, (string) json_encode($json))
+        ->and($this->move->instance->state()->recipients())->toBe([])
+        ->and($json['data']['from_backup']['recipients'])->toBe(['listed' => [$recipient], 'kept' => []])
+        ->and($warning['message'] ?? '')->toContain($recipient)
+        ->and($warning['hint'] ?? '')->toContain('--keep-recipients');
 });
 
 it('never takes over the backup recipients of an unauthenticated backup (review S4)', function (): void {
@@ -237,13 +254,13 @@ it('removes the prepared set of a failed attempt, and prepares it again when the
     $this->move->pgRestore = new ProcessOutcome(1, '', 'pg_restore: error: connection lost');
 
     [$failed] = $this->move->install($backup, ['--app-key-file' => $this->move->keyFile()]);
-    $left = glob($this->move->instance->directory->root.'/backups/.restore-*');
+    $left = glob($this->move->instance->directory->root.'/staging/restore-*');
     $this->move->pgRestore = null;
     [$resumed, $json] = $this->move->install($backup, ['--app-key-file' => $this->move->keyFile()]);
 
     expect($failed)->toBe(4)->and($left)->toBe([])
         ->and($resumed)->toBe(0, (string) json_encode($json))
-        ->and(glob($this->move->instance->directory->root.'/backups/.restore-*'))->toBe([]);
+        ->and(glob($this->move->instance->directory->root.'/staging/restore-*'))->toBe([]);
 });
 
 it('names the scratch database, the restricted role and the scratch directory with the hex journal ID only (review S7)', function (): void {
@@ -263,4 +280,15 @@ it('warns when the free space for the prepared set cannot be read (review A12)',
     [$code, $json] = $this->move->install($this->move->backup(), ['--app-key-file' => $this->move->keyFile()]);
 
     expect($code)->toBe(0, (string) json_encode($json))->and(array_column($json['warnings'], 'code'))->toContain('disk_space_unknown');
+});
+
+it('says when a moved backup carries no storage archive, so the new instance starts without files (M12 gate D4)', function (): void {
+    $backup = $this->move->backup('local');
+    unlink($backup.'/storage.tar.gz');
+    BackupChecksums::write($backup, ['audit-heads.json', 'database.dump', 'manifest.json', 'settings.json'], BackupSetFixture::hmacKey(BackupSetFixture::APP_KEY));
+
+    [$code, $json] = $this->move->install($backup, ['--app-key-file' => $this->move->keyFile()]);
+
+    expect($code)->toBe(0, (string) json_encode($json))
+        ->and(collect($json['warnings'])->pluck('code')->all())->toContain('restored_without_files');
 });

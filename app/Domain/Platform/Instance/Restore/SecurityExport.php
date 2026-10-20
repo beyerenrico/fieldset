@@ -64,7 +64,7 @@ final readonly class SecurityExport
     {
         $query = $this->db->table($table)->orderBy($columns[0])->select($columns);
         if ($since instanceof CarbonImmutable) {
-            $query->where('created_at', '>', $since->utc()->format('Y-m-d H:i:s'));
+            $query->where('created_at', '>=', $since->utc()->format('Y-m-d H:i:s')); // the backup's own second too: times are whole seconds (M12 gate D8)
         }
         $rows = [];
         foreach ($query->cursor() as $row) {

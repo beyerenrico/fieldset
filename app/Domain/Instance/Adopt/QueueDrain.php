@@ -66,7 +66,7 @@ final readonly class QueueDrain
             labels: Labels::forInstance($uuid, DatabaseProbe::ROLE),
             network: $legacy->network(),
             entrypoint: 'valkey-cli',
-        ), null, 60.0);
+        )->hardened(), null, 60.0);
         $lines = array_values(array_filter(array_map(trim(...), explode("\n", trim($outcome->stdout))), static fn (string $line): bool => $line !== ''));
 
         if (! $outcome->successful() || count($lines) !== 3 || ! array_all($lines, static fn (string $line): bool => ctype_digit($line))) {

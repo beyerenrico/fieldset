@@ -21,7 +21,7 @@ final class FromBackupInput
     /** Flags that only make sense with --from-backup. */
     private const array OWN = ['identity-file', 'passphrase-file', 'app-key-file'];
 
-    private const array OWN_SWITCHES = ['passphrase-stdin', 'accept-unauthenticated'];
+    private const array OWN_SWITCHES = ['passphrase-stdin', 'accept-unauthenticated', 'keep-recipients'];
 
     private const array ACCOUNT = ['smtp-username', 'password-file'];
 
@@ -46,6 +46,7 @@ final class FromBackupInput
             $identity === null ? null : self::absolute($identity),
             $passphrase->given() ? $passphrase->read($context) : null,
             $keyFile,
+            $command->option('keep-recipients') === true,
             $passphrase->file(),
             $passphrase->stdin(),
             $keyFile instanceof AppKeys ? self::absolute((string) self::string($command, 'app-key-file')) : null,

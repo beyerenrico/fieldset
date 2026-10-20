@@ -35,7 +35,8 @@ use Illuminate\Console\Attributes\Signature;
         {--identity-file= : The passphrase-protected backup identity (encrypted backups)}
         {--passphrase-file= : Read the identity\'s passphrase from this file}
         {--passphrase-stdin : Read the identity\'s passphrase from stdin (a hidden prompt in a terminal)}
-        {--app-key-file= : APP keys the backup was made with (one per line, or APP_KEY=/APP_PREVIOUS_KEYS= lines)}')]
+        {--app-key-file= : APP keys the backup was made with (one per line, or APP_KEY=/APP_PREVIOUS_KEYS= lines)}
+        {--without-files : Restore a backup that carries no storage archive: the database only, the current files kept aside}')]
 final class RestoreCommand extends FsaCommand
 {
     protected function perform(FsaContext $context): CommandResult
@@ -88,6 +89,7 @@ final class RestoreCommand extends FsaCommand
             $identity === null && ! $passphrase->given() ? null : $passphrase->read($context),
             $keyFile,
             $context->facts->callerUid(),
+            $this->option('without-files') === true,
             $passphrase->file(),
             $passphrase->stdin(),
             $keyFile instanceof AppKeys ? $this->absolute(trim((string) $this->option('app-key-file'))) : null,

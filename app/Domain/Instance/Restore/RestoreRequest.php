@@ -11,6 +11,7 @@ use SensitiveParameter;
  * secrets: they never reach the journal, whose context holds only the backup, the flags, the identity file's path and
  * where the passphrase and the keys came from (`--passphrase-file` path or `--passphrase-stdin`, the `--app-key-file`
  * path), so the resume command names every input again (ResumeCommand, M12 gate O2).
+ * `withoutFiles`: restore a backup that carries no storage archive (M12 gate D4); the previous volume is kept.
  */
 final readonly class RestoreRequest
 {
@@ -21,6 +22,7 @@ final readonly class RestoreRequest
         #[SensitiveParameter] public ?string $passphrase = null,
         #[SensitiveParameter] public ?AppKeys $keyFile = null,
         public int $actorUid = 0,
+        public bool $withoutFiles = false,
         public ?string $passphraseFile = null,
         public bool $passphraseStdin = false,
         public ?string $keyFilePath = null,
@@ -29,7 +31,7 @@ final readonly class RestoreRequest
     /** @return array<string, string|bool|null> the journal context */
     public function toContext(): array
     {
-        return ['backup' => $this->backup, ...$this->inputs()];
+        return ['backup' => $this->backup, ...$this->inputs(), 'without_files' => $this->withoutFiles];
     }
 
     /**

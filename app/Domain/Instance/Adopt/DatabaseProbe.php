@@ -129,6 +129,6 @@ final readonly class DatabaseProbe
             labels: Labels::forInstance($uuid, self::ROLE),
             network: 'container:'.$container,
             entrypoint: 'psql',
-        ), $sql, self::TIMEOUT);
+        )->hardened(), $sql, self::TIMEOUT);
     }
 }
