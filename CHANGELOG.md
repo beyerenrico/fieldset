@@ -9,7 +9,8 @@ The Form Schema Spec has its own changelog in `spec/form-definition/1.0/CHANGELO
 
 form-schema-app 2.0 is installed and operated without a clone of the repository: one command installs a signed
 release, and the `fsa` tool configures, backs up, restores, upgrades, rolls back, resets and removes the instance,
-with JSON output and documented exit codes for agents and scripts. This entry lists what changed since 2.0.0-beta.1;
+with JSON output and documented exit codes for agents and scripts. This entry lists what changed since 2.0.0-beta.1,
+including the 2.0.0-rc.1 local pre-release (built 2026-10-20, not published);
 the pre-release entries below list the rest of 2.0 (signed images and the release pipeline, `install.sh` and `fsa`,
 local, domain and proxy modes, mail capture and SMTP, demo data, phone HTTPS, the resource budget).
 
@@ -27,6 +28,9 @@ instance with its data; see [the install guide](docs/guide/install.md#adopt-a-10
   `fsa upgrade` on the instance page (ADR 0089).
 - **Backup alerts** — every active platform operator gets one e-mail per failed or stale backup, in their locale,
   with the `fsa` command and a link to the instance page (checked hourly; R39).
+- **pg_dump release check** — the release workflow (and the local harness) runs `php artisan release:check-pg-dump`
+  and stops a release whose app image's `pg_dump` major is below the manifest's Postgres major on either platform, so
+  backups cannot fail on a newer server (R39, ADR 0091).
 - **Agent guide** — `docs/guide/agent-guide.md`, also a release asset: recipes for a local demo, sign-in links,
   SMTP, backup and restore, upgrade, moving servers, a VPS install, phone HTTPS, a domain change and removal, each
   with the exact commands, the JSON fields to read, the exit codes and the recovery fields of a failed command. Its
@@ -191,6 +195,10 @@ instance with its data; see [the install guide](docs/guide/install.md#adopt-a-10
   loss counts; restore, reset, adopt, uninstall).
 
 ### Fixed
+- A missing `--identity-file` of `fsa restore` or `install.sh --from-backup` was turned into a root-owned directory at
+  that path by Docker; it is now refused before anything is mounted (exit 2 `identity_unreadable`, nothing changed).
+- A backup alert is retried at the next hourly check when no operator e-mail could be queued (queue or Valkey down),
+  instead of staying silent for 30 days.
 - Hints that sent you to `fsa install --from-backup … --dir <new directory>` (which the instance's `fsa` refuses for
   another directory) now name `install.sh --dir <new directory> --from-backup <backup>`; `fsa restore --abandon` hints
   carry `--yes` (ADR 0085 amendment).

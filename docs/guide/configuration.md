@@ -39,7 +39,7 @@ instance to another URL ask for confirmation first (`--yes` confirms).
 | `backup-encryption` | `on` or `off` | all | `on` needs `--identity-out <file>` and `--passphrase-file <file>` (or `--passphrase-stdin`); see [backup and restore](backup-restore.md#encryption). |
 | `webhooks` | `on` or `paused` | all | Restores and moves pause webhook deliveries; `on` resumes them. |
 | `update-check` | `on` or `off` | all | Off by default. `on` lets the app read the release manifest once a day and show "update available" with the notes link and `fsa upgrade` on the `/platform` instance page. Nothing else is sent; `fsa config show` lists the manifest URL under `outbound_contacts` while it is on. |
-| `operator-email` | an e-mail address | all | Adds a platform operator (an admin of `/platform`) and issues a sign-in link for them. `--revoke-previous` revokes every other operator (asks for confirmation). |
+| `operator-email` | an e-mail address | all | Adds a platform operator (an admin of `/platform`) and, when the account has no password yet, issues a sign-in link for them. `--revoke-previous` revokes every other operator (asks for confirmation). |
 
 `fsa config show` lists under `data.keys` which keys this instance's mode accepts. A key from another mode is refused
 with exit 2 and names the key to use instead.
@@ -74,8 +74,9 @@ address for the mode (the edge in domain and local-CA mode, the proxy container 
 database, Valkey and catcher passwords and the APP_KEY are generated at install and never printed.
 
 Settings of the 1.0 `.env` that `fsa config set` does not offer (for example error reporting, upload scanning or log
-channels) are not configurable on a 2.0 instance. `fsa adopt` takes over only the APP keys, the URL, the sender and the
-SMTP server's host and port from a 1.0 `.env`; everything else comes from `fsa`'s rendering.
+channels) are not configurable on a 2.0 instance. `fsa adopt` takes over only the APP keys, the URL (and with it the
+mode and port), the sender and the database names from a 1.0 `.env`; everything else comes from `fsa`'s rendering.
+Mail starts captured: the 1.0 SMTP server is only suggested for `fsa config set mail smtp`.
 
 ## Environment variables of install.sh and fsa
 

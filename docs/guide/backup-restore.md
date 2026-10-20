@@ -50,6 +50,17 @@ A backup on the same disk does not survive the loss of that disk. Copy `backups/
 example with `rsync -a /opt/form-schema-app/backups/ backup-host:form-schema-app/` from a cron job. Never copy
 `staging/`: it holds plaintext working files.
 
+Turn on [encryption](#encryption) before you copy backups off the host: a plain backup holds the submissions and
+other personal data readable to anyone who gets the files.
+
+Scheduled backups do not contain the APP key. Without it, a restore on another host or into a new instance cannot
+verify the backup's HMAC, and everything the app encrypted with the key stays unreadable: SMTP credentials of
+organizations, identity provider secrets, webhook signing secrets, users' two-factor secrets and recovery codes, and
+queued mails. Keep the `APP_KEY` and `APP_PREVIOUS_KEYS` lines of `env/app.env` somewhere safe outside the host (a
+password manager, for example), not next to the backups and not the whole file (it also holds the database and SMTP
+passwords). With encryption on, keep the identity and its passphrase there too. A restore takes the key lines with
+`--app-key-file <file>`.
+
 ## Encryption
 
 ```sh
@@ -110,8 +121,9 @@ hint and `data.next` say whether it returns to the previous data or continues wi
 
 1. On the old host: `fsa backup --encrypt --include-secrets --identity-out <file> --passphrase-file <file>` (the first
    `--encrypt` turns encryption on).
-2. Copy the backup's `backup.tar.age`, the identity and the APP key file `env/app.env` of the instance directory to the
-   new host. Keep them private.
+2. Copy the backup's `backup.tar.age`, the identity and the APP key lines of `env/app.env` to the new host, for
+   example `grep -e '^APP_KEY=' -e '^APP_PREVIOUS_KEYS=' env/app.env > app-key.env` (not the whole file: it also
+   holds the database and SMTP passwords). Keep them private.
 3. On the new host: the install one-liner with `--from-backup <backup.tar.age> --identity-file <file>
    --passphrase-file <file> --app-key-file <file>` (plus `--domain <name>` for a domain; until DNS points to the new
    host the instance reports "certificate pending").

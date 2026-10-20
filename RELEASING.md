@@ -79,7 +79,7 @@ image would then reject new releases.
 
 1. Make sure `main` holds the release: milestone gate passed, `CHANGELOG.md` updated (the version's entry with its
    date), and `distribution/install.sh` and `distribution/shim.sh` present. The workflow refuses to publish without
-   them. Before tagging, also run locally:
+   `install.sh` and `shim.sh` (it does not check the changelog). Before tagging, also run locally:
    - the install journeys, J11 (the agent guide's doc-test) among them:
      `vendor/bin/pest --testsuite=Install` (see [the harness](#building-and-testing-a-release-locally-harness));
    - the guide checks in the fast suite (`tests/Unit/Docs`): every `fsa` command, flag, environment variable and
@@ -100,7 +100,7 @@ image would then reject new releases.
    |---|---|
    | prepare | validates the tag (`release:version`) and computes the image tags |
    | image | buildx multi-arch build with `--sbom=true --provenance=mode=max`, pushed by digest only; `cosign sign --recursive` (keyless); verifies the identity |
-   | manifest | `php artisan release:manifest --stack-file=dist/compose.stack.yaml` (every image by digest; also renders the stack file from the same pins and lists it as an asset) with production dependencies only (`composer install --no-dev --no-scripts --no-plugins`); refuses a harness build of `install.sh`; **no OIDC token** |
+   | manifest | `php artisan release:manifest --stack-file=dist/compose.stack.yaml` (every image by digest; also renders the stack file from the same pins and lists it as an asset) with production dependencies only (`composer install --no-dev --no-scripts --no-plugins`); refuses a harness build of `install.sh`; then the R39 check `php artisan release:check-pg-dump` (the app image's `pg_dump` major must not be below the manifest's Postgres major, run on both platforms, arm64 under QEMU, after a read-only GHCR login; ADR 0091); **no OIDC token** |
    | sign | runs no PHP or Composer: checks that the manifest's `images.app` digest is the one the image job pushed, that every file except the manifest and `compose.stack.yaml` equals the tagged commit's, and that every asset the manifest lists matches its checksum there. The manifest must list `install.sh`, `shim.sh` and `compose.stack.yaml`; every `image:` line of the stack file must be a manifest pin in the form `${FSA_REGISTRY:-<registry>}/<repository>@<digest>`, and the stack file must not mount the Docker socket. Then `cosign sign-blob --bundle` for the manifest and `install.sh` (keyless) and writes `SHA256SUMS` |
    | scan | Trivy on the app image (no exceptions) and every third-party digest (only its own exception file, ADR 0071) on both platforms; a fixable critical or high finding fails the release |
    | tag | points the release's image tags at the scanned digest, and checks that the digest is unchanged |
@@ -192,8 +192,9 @@ names.
       only Mailpit over plain SMTP with AUTH (ADR 0080). Not yet verified.
 - [ ] The German capture banner read by a real screen reader (VoiceOver or NVDA): the region's name, both
       variants' text and the operator command (ADR 0080). Not yet verified.
-- [ ] The `/platform` instance page's update check (when turned on) finds the published release and shows its notes
-      link. Not yet verified.
+- [ ] **Stable releases only:** the `/platform` instance page's update check (when turned on) finds the published
+      release and shows its notes link. The check reads `latest/download/`, which never points to a pre-release, so a
+      pre-release cannot pass this check. Not yet verified.
 - [ ] **GHCR package public.** The package `form-schema-app` is public (irreversible), made public only after the
       first pre-release passed review. Not yet verified.
 - [ ] **Anonymous pull of every digest.** Logged out of GHCR (`docker logout ghcr.io`), every image digest in the

@@ -78,9 +78,10 @@ Every command lists its flags with `<dir>/fsa <command> --help`.
 |---|---|---|
 | 0 | Success | Read `data`. Look at `warnings` too. |
 | 1 | Internal error | Report `errors[0]` to the person. Run `<dir>/fsa status --json` to see what changed. |
-| 2 | Invalid input (a flag, a value, a missing file) | Fix the input named in `errors[0]`. Nothing changed. |
-| 3 | Preflight failed (Docker, disk, ports, DNS, release download) | `data.checks` (from the doctor) names each failed check with a `hint`. Fix it and run the command again. Nothing changed. |
-| 4 | Health check failed | The command changed things and could not finish them. Read `errors[0].hint` and `<dir>/fsa logs app --json`. |
+| 2 | Invalid input (a flag, a value, a missing file) | Fix the input named in `errors[0]`. Nothing changed, except with `secrets_file_unwritable`: the command may have done its work (`changed: true`) and only its secrets were not saved; the hint says how to get them again. |
+| 3 | Preflight failed (the doctor: Docker, disk, ports, DNS) | `data.checks` names each failed check with a `hint`. Fix it and run the command again. Nothing changed. |
+| 3 | install.sh could not download or verify the release (`release_unavailable`, `image_unavailable`, `verify_failed`, `manifest_signature_invalid`, …) | `data` is empty: read `errors[0]`. `release_unavailable` and `image_unavailable` are network problems (`retryable: true`). On `verify_failed` or `manifest_signature_invalid`, stop and report `errors[0]` to the person: never retry with another install.sh or release URL, never bypass the check. Nothing changed. |
+| 4 | A step after the preflight failed (a service unhealthy, a migration, a restore step) | Read `errors[0].hint`: it says what was touched (the restore steps leave the live database and storage alone). Then `<dir>/fsa logs app --json`. An install resumes when run again. |
 | 5 | Rolled back | The instance is back where it was. `errors[0].code` is the cause. See below. |
 | 6 | Confirmation required | Show `data.question` and the other `data` facts to the person; run again with `--yes` if they agree. |
 | 7 | Incompatible (version, schema, another instance's data) | Nothing changed. `errors[0].hint` names the way forward (for example `--to <version>` or `--major`). |
@@ -90,7 +91,10 @@ Every command lists its flags with `<dir>/fsa <command> --help`.
 
 ### The recovery object
 
-When a command cannot finish, the envelope tells you how to continue. Read these fields in this order:
+When a command cannot finish, the envelope tells you how to continue. Commands in `data.command`, `data.next` and the
+hints start with a bare `fsa`; you may have no `fsa` on your PATH, so replace that leading `fsa` with `<dir>/fsa`, the
+instance's shim (for example `fsa upgrade --resume` becomes `~/forms/fsa upgrade --resume --json`). Read these fields in
+this order:
 
 1. **Exit 9 `operation_unfinished`:** an earlier command stopped half-way. `data.command` is the exact command line that
    resumes it and `data.options` its flags (`data.operation` and `data.last_phase` say what stopped where). Run
@@ -151,7 +155,9 @@ Read:
   (`password`); when the instance is reachable from other machines, each account gets a random password instead, under
   `secrets` as `demo_password:<email>`.
 - `data.mail.catcher_url`: the mail catcher, where every mail of the instance lands. `data.mail.catcher_login_command`
-  prints its login into a secrets file.
+  (local and proxy mode) is `fsa config show --catcher-login`, which returns the catcher's password as a secret. Run it
+  as `~/forms/fsa config show --catcher-login --secrets-file ~/forms-catcher.json --json`: without `--secrets-file` the
+  password is printed on stdout.
 
 On a computer with a desktop, `--open` hands the sign-in link to the browser instead of a file
 (`data.sign_in_link.delivered` is then `browser`). A demo on an instance that is already installed:
@@ -160,6 +166,7 @@ On a computer with a desktop, `--open` hands the sign-in link to the browser ins
 Failures:
 
 - Exit 3 `doctor_failed`: `data.checks` names the failed check, often a port in use. `--port <n>` picks another one.
+- Exit 10 `docker_too_old`: the Docker Engine is older than 24 (`data.checks` says which version runs). Update Docker.
 - Exit 7 `project_conflict`: another instance uses the same directory name. Pick another `--dir`.
 - Exit 10 `docker_missing` or `docker_unavailable`: install or start Docker.
 - Exit 4 (`services_unhealthy`, `migrate_failed`, …): read `~/forms/fsa logs app --json`, then run the same install
@@ -190,7 +197,7 @@ Check that the instance is healthy, then issue a new sign-in link for an admin, 
 
 The link is in `~/forms-link.json` (`secrets[0].value` of that file). Failures: exit 2 `user_not_found`, `not_admin`,
 `inactive` or `sso_required` (the person signs in through single sign-on instead); exit 9 `rate_limited` with a
-retryable error: wait a minute.
+retryable error: wait a few minutes, then run it again.
 
 ## Recipe: configure SMTP
 
@@ -233,7 +240,22 @@ Take a backup now:
 ```
 
 `data.backup` is the backup's name (`manual-<UTC time>`), `data.path` its directory. The warning `backup_on_host`
-reminds you that a backup on the same disk is no backup: copy `data.path` to another machine.
+reminds you that a backup on the same disk is no backup: copy `data.path` to another machine. Scheduled backups carry
+no APP key: keep the `APP_KEY` and `APP_PREVIOUS_KEYS` lines of `~/forms/env/app.env` outside the host too (ask the
+person where), or a restore elsewhere cannot verify the backup and encrypted values stay unreadable (see
+[backup and restore](backup-restore.md#copy-backups-off-the-host)).
+
+To check the scheduled backups, read `warnings[].code` of `~/forms/fsa status --json` (each `hint` names the command):
+
+| Code | Meaning | Do |
+|---|---|---|
+| `backup_failed` | The last backup failed. | Read `fsa logs backup`, fix the cause, run `fsa backup`. |
+| `backup_disk_space` | The last scheduled backup was skipped for lack of disk space. | Free space (old backups in `backups/`), run `fsa backup`. |
+| `backup_skipped` | Scheduled backups were skipped for more than 24 hours: an operation held the lock. | Finish the unfinished operation (`fsa status` names it), run `fsa backup`. |
+| `backup_service_failed` | The backup service cannot start. | Read `fsa logs backup`; any `fsa config set` that changes a setting renders its configuration again. |
+| `backup_files_missing` | The newest backup misses files the database references (its `manifest.json` lists them). | Check the storage volume; report to the person. |
+| `backup_overdue` | No backup succeeded within 2 hours of the scheduled slot. | `fsa logs backup` and `fsa doctor --post`, then `fsa backup`. |
+| `backup_partial_left` | An interrupted backup left a partial directory that may hold unencrypted data. | The next run removes it; never copy it off the host. |
 
 Check that the backup restores, without touching the instance (a drill). `<backup>` is `data.backup` from above:
 
@@ -275,13 +297,21 @@ Notes:
 
 Failures:
 
-- Exit 7 `backup_newer`: the backup comes from a newer version. Upgrade first.
-- Exit 2 `backup_not_found`, `backup_unauthenticated` (the backup's signature does not match this instance's APP key:
-  pass the key of the instance that made it with `--app-key-file`, or `--accept-unauthenticated` if the person accepts
-  an unverified backup), `identity_required` (an encrypted backup), `identity_unreadable` (the `--identity-file`
-  path is missing or not a regular file).
+- Exit 7 `backup_newer`: the backup comes from a newer version. Upgrade first. Exit 7 `backup_too_old`: the backup is
+  older than the oldest version this release upgrades from; restore it into an instance of an intermediate release
+  first. Nothing changed.
+- Exit 2 `backup_not_found`, `backup_not_visible` (the path lies outside the instance directory: copy the backup into
+  `~/forms/backups/` and restore it by name), `not_an_app_backup` (the dump is not a backup of this app),
+  `backup_unauthenticated` (the backup's signature does not match this instance's APP key: pass the key of the instance
+  that made it with `--app-key-file`, or `--accept-unauthenticated` if the person accepts an unverified backup),
+  `identity_required` (an encrypted backup), `path_missing` (the directory of the `--identity-file` does not exist),
+  `identity_unreadable` (the `--identity-file` is missing or not a regular file), `decrypt_failed` (wrong identity or
+  passphrase). Nothing changed.
 - Exit 3 `low_disk_space`: free space; a restore needs room for one more copy.
-- Exit 5: the restore failed and the instance runs on its previous data again. Exit 8: see the recovery object.
+- Exit 5: the restore failed and the instance runs on its previous data again. `errors[0].code` is the cause, for
+  example `pg_restore_failed`, `restore_database_failed` or `storage_restore_failed`; their hint says whether the live
+  database or storage volume was touched. A drill reports the same codes with exit 4 (the instance is never touched).
+  Exit 8: see the recovery object.
 
 ## Recipe: upgrade
 
@@ -304,7 +334,18 @@ Upgrade to a named version (`<version>`, for example `2.0.1`):
 
 - `data.current: true`: the instance already runs that version; nothing changed.
 - After a real upgrade: `data.safety_backup`, `data.migrated` and `data.notes_url` (the release notes).
-- `~/forms/fsa version --json` shows the running version in `data.instance`.
+- `~/forms/fsa version --json` shows the running version in `data.instance`. Its `data.newest_known` is always
+  `null`: the update check runs in the app.
+- Update check: `~/forms/fsa config set update-check on --json` (or `off`) lets the app read the newest release's
+  manifest once a day; the result appears only on the `/platform` instance page. `~/forms/fsa config show --json` lists
+  what it contacts under `data.outbound_contacts`.
+
+The upgrade runs in a background container (the supervisor), so it goes on when your shell loses it (a closed SSH
+session, a timeout). Do not start it again: that answers exit 9 `supervisor_running`, and other commands answer
+`instance_locked` while it runs. Instead, `~/forms/fsa upgrade --follow --json` attaches to it and returns its result
+(or the last upgrade's result once it finished). `~/forms/fsa status --json` shows `data.supervisor.running` and
+`data.last_upgrade`. When `fsa status` reports an unfinished upgrade, run `~/forms/fsa upgrade --resume --json` only
+once `data.supervisor.running` is `false`.
 
 Failures:
 
@@ -337,10 +378,11 @@ over, an install from that backup on the new host.
    ```
 
 2. Collect what the new host needs: the backup file (`<backup-path>` is `data.path` from step 1), the identity, and
-   the instance's APP key file (it proves the backup is authentic):
+   the instance's APP key lines (they prove the backup is authentic). Copy only the `APP_KEY` and `APP_PREVIOUS_KEYS`
+   lines of `env/app.env`, never the whole file: it also holds the database and SMTP passwords.
 
    ```sh runnable
-   mkdir -m 700 ~/forms-move && cp <backup-path>/backup.tar.age ~/forms-move/backup.tar.age && cp ~/forms-identity.age ~/forms-move/identity.age && cp ~/forms/env/app.env ~/forms-move/app-key.env
+   mkdir -m 700 ~/forms-move && cp <backup-path>/backup.tar.age ~/forms-move/backup.tar.age && cp ~/forms-identity.age ~/forms-move/identity.age && grep -e '^APP_KEY=' -e '^APP_PREVIOUS_KEYS=' ~/forms/env/app.env > ~/forms-move/app-key.env
    ```
 
    ```json expect
@@ -376,8 +418,18 @@ over, an install from that backup on the new host.
    {"exit_code": 0, "status": "ok", "data": {"removed": {"containers": "<list>", "networks": "<list>", "volumes": "<list>"}, "kept": ["backups"], "final_backup": "<object>"}}
    ```
 
-Failures of step 3: exit 2 `decrypt_failed` (wrong identity or passphrase), `identity_unreadable` (no identity
-file at that path), `backup_unauthenticated` (wrong or
+5. Once the move works, ask the person whether to delete the move's files on both hosts: `~/forms-move`, the
+   identity `~/forms-identity.age` and the passphrase file `~/forms-passphrase`. Every encrypted backup of the old
+   instance (its final backup, copies off the host) opens only with that identity and passphrase, and with
+   `--keep-recipients` (below) so do the new instance's backups. The person may want to keep both in a safe place
+   outside the hosts instead:
+
+   ```sh
+   rm -r ~/forms-move && rm ~/forms-identity.age ~/forms-passphrase
+   ```
+
+Failures of step 3: exit 2 `decrypt_failed` (wrong identity or passphrase), `path_missing` (the identity's directory
+does not exist), `identity_unreadable` (no identity file at that path), `backup_unauthenticated` (wrong or
 missing `--app-key-file`), exit 7 `backup_newer` (install the same or a newer version on the new host: `--version`).
 `--keep-recipients` keeps the old instance's backup encryption key on the new one. Without it, the warning
 `backup_recipients_not_kept` says that new backups are not encrypted until you run `fsa config set backup-encryption on`
@@ -450,13 +502,20 @@ to fix). Back to local mode: `fsa config set mode local --yes`.
 
 ## Recipe: remove an instance
 
+Ask the person first. Keep the backups unless they say otherwise:
+
+```sh
+~/forms/fsa uninstall --keep-backups --yes --json
+```
+
+It removes the instance's containers, volumes, networks and directory, but writes a final backup into `backups/` first
+(`data.final_backup`) and keeps `backups/`. Only if the person explicitly wants the backups deleted too:
+
 ```sh
 ~/forms/fsa uninstall --yes --json
 ```
 
-It removes the instance's containers, volumes, networks and directory, backups included, so ask the person first.
-`--keep-backups` keeps `backups/` and writes a final backup into it first (`data.final_backup`). Without `--yes` the
-command exits 6 and `data` names what would be deleted (`final_backup`, `keeps_backups`).
+Without `--yes` the command exits 6 and `data` names what would be deleted (`final_backup`, `keeps_backups`).
 
 ## How this guide is tested
 

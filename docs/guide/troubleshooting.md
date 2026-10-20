@@ -8,7 +8,7 @@ symptom below. The 1.0 guide for checkout installs is in the [archive](archive/1
 ```sh
 fsa status            # health of every service, URL, mail, backups, an unfinished operation
 fsa doctor --post     # Docker, memory, disk, ports, DNS, clock, and every service healthy
-fsa logs app          # also queue, scheduler, postgres, redis, gotenberg, mailpit, backup, edge
+fsa logs app          # also queue, scheduler, postgres, redis, gotenberg, mailpit, backup, edge, tunnel
 fsa logs app --since 30m --tail 0
 ```
 
