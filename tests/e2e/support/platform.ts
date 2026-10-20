@@ -19,13 +19,44 @@ export function newOperator(prefix: string): Operator {
   };
 }
 
+/**
+ * The Compose project whose app container runs artisan (plan U22, BUILD_PROMPT_V2 §11 dogfooding): an `fsa` instance's
+ * (e.g. `fsa-fsa-test-dogfood-1a2b`), or the dev stack's when Playwright runs outside the checkout. Unset or empty:
+ * `docker compose exec` in the working directory, the checkout's own project.
+ */
+export const E2E_COMPOSE_PROJECT = process.env.E2E_COMPOSE_PROJECT ?? '';
+
+let instanceApp: string | undefined;
+
+/** The running app container of the instance's project (by Compose labels; never a one-off). */
+function instanceAppContainer(): string {
+  instanceApp ??= execFileSync(
+    'docker',
+    [
+      'ps',
+      '-q',
+      '--filter',
+      `label=com.docker.compose.project=${E2E_COMPOSE_PROJECT}`,
+      '--filter',
+      'label=com.docker.compose.service=app',
+      '--filter',
+      'label=com.docker.compose.oneoff=False',
+    ],
+    { encoding: 'utf8' },
+  ).trim();
+  if (!/^[0-9a-f]+$/.test(instanceApp)) {
+    throw new Error(`E2E_COMPOSE_PROJECT=${E2E_COMPOSE_PROJECT}: expected one running app container, found "${instanceApp}"`);
+  }
+  return instanceApp;
+}
+
 export function artisan(...args: string[]): string {
   // psysh (tinker) needs a writable config directory; the image's HOME is read-only.
-  return execFileSync(
-    'docker',
-    ['compose', 'exec', '-T', '-e', 'XDG_CONFIG_HOME=/tmp', 'app', 'php', 'artisan', ...args],
-    { encoding: 'utf8' },
-  );
+  const target =
+    E2E_COMPOSE_PROJECT === ''
+      ? ['compose', 'exec', '-T', '-e', 'XDG_CONFIG_HOME=/tmp', 'app']
+      : ['exec', '-e', 'XDG_CONFIG_HOME=/tmp', instanceAppContainer()];
+  return execFileSync('docker', [...target, 'php', 'artisan', ...args], { encoding: 'utf8' });
 }
 
 /**

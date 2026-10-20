@@ -4,6 +4,7 @@ import { expectNoTrap, tabTo } from './support/keyboard';
 import { adminState } from './support/auth';
 import { fieldAppLogin, signOnCanvas } from './support/field-app';
 import { waitForOfflineReady } from './support/offline';
+import { devStackOnly } from './support/target';
 import {
   continueAfterSetUp,
   createOperator,
@@ -42,6 +43,7 @@ test.describe('Field App sign-in', () => {
   });
 
   test('login: SSO choice (organization without enforcement)', async ({ page }) => {
+    devStackOnly('the SAML demo organization comes from SsoDemoSeeder, which only the dev stack runs');
     await page.goto('/app/login');
     await page.getByLabel(/^(email|e-mail)$/i).fill('jemand@saml-demo.test');
     await page.getByRole('button', { name: /^(continue|weiter)$/i }).click();

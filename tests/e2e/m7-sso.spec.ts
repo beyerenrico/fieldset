@@ -9,11 +9,13 @@ import {
   rolesIn,
 } from './support/keycloak';
 import { BREAK_GLASS, freshTotp } from './support/totp';
+import { devStackOnly } from './support/target';
 
 // M7 SSO (BUILD_PROMPT §8.7 AC, ADR 0036): login through Keycloak creates the user with the mapped role;
 // with enforcement on, password login is refused for the SSO domain. Needs the Docker stack with
 // COMPOSE_PROFILES=sso (Keycloak) and the SsoDemoSeeder data. Every test uses a fresh context, so no
 // Keycloak session carries over.
+devStackOnly('needs the dev Keycloak (COMPOSE_PROFILES=sso), SSO_ALLOW_INSECURE_IDP and the SsoDemoSeeder data');
 const evidence = (name: string) => `docs/agent/milestones/evidence/M7/${name}.png`;
 const HELLO = /^(hello|hallo), /i;
 

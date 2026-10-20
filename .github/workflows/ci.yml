@@ -205,28 +205,52 @@ jobs:
             form-schema-app:scan
 
   # Real Docker against the local harness (KTD23): minutes per journey, so only on main and milestone branches.
+  # Every journey on amd64 (§11; arm64 runs locally), the dogfooding E2E run included (plan U22, ADR 0091): Playwright,
+  # its Chromium and poppler for J4, J6, J10 and the E2E suite, the v1.0.0 tag for J9's 1.0 install, a 2-CPU-pinnable
+  # runner for J10. FSA_REQUIRE_DOCKER and FSA_REQUIRE_PLAYWRIGHT turn a missing tool into a failure instead of a skip;
+  # only LocalPreReleaseTest skips (it builds a named pre-release, FSA_PRERELEASE_VERSION, at a milestone gate).
   install-journeys:
     if: >-
       github.event_name == 'push' && (github.ref == 'refs/heads/main'
       || startsWith(github.ref, 'refs/heads/m9-') || startsWith(github.ref, 'refs/heads/m10-')
       || startsWith(github.ref, 'refs/heads/m11-') || startsWith(github.ref, 'refs/heads/m12-')
       || startsWith(github.ref, 'refs/heads/m13-'))
-    runs-on: ubuntu-latest
-    timeout-minutes: 120
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
     permissions:
       contents: read
     env:
       FSA_REQUIRE_DOCKER: '1'
+      FSA_REQUIRE_PLAYWRIGHT: '1'
+      FSA_HARNESS_PLATFORMS: linux/amd64
+      FSA_EVIDENCE_MILESTONE: M13
+      PLAYWRIGHT_BROWSERS_PATH: storage/playwright
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
+      # J9 builds 1.0.0 from the tag v1.0.0 (V1Install). Release tags are pushed by a human (RELEASING.md); until then
+      # the tag is created locally on the 1.0.0 release commit, which is in main's history.
+      - name: Provide the v1.0.0 tag for J9
+        run: |
+          if ! git rev-parse -q --verify refs/tags/v1.0.0 > /dev/null; then
+            git tag v1.0.0 70b97e5cc2fe8d6d668a9c9b2ade29a54dd288e0
+          fi
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
           php-version: ${{ env.PHP_VERSION }}
           coverage: none
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
       - run: composer install --no-interaction --prefer-dist --no-progress
       - run: cp .env.example .env && php artisan key:generate
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      # m4-review and m4-versions compare PDFs with pdftotext/pdfinfo.
+      - run: sudo apt-get update && sudo apt-get install -y poppler-utils
       # Mirrored third-party blobs and the harness build cache (ReleaseHarness); keyed on what they depend on.
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -238,5 +262,7 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: install-journey-logs
-          path: storage/agent-logs
+          path: |
+            storage/agent-logs
+            docs/agent/milestones/evidence/M13
           if-no-files-found: ignore

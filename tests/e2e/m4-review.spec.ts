@@ -4,12 +4,12 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fieldAppLogin, fillAndSubmitServiceReport } from './support/field-app';
+import { mailpitOptions } from './support/target';
 
 // Journey 4 (§12) on the demo workflow "Prüfen und an Kunden senden": a reviewer rejects the
 // submission with a comment, the worker fixes it and resubmits (number kept), the reviewer approves,
 // and the PDF with the corrected totals arrives in Mailpit. Needs pdftotext (poppler-utils).
 const evidence = (name: string) => `docs/agent/milestones/evidence/M4/${name}.png`;
-const MAILPIT = process.env.MAILPIT_URL ?? 'http://127.0.0.1:18025';
 const CUSTOMER_EMAIL = `j4-${Date.now()}@example.test`;
 const COMMENT = 'Bitte die Arbeitszeit auf 2 Stunden korrigieren.';
 
@@ -89,7 +89,7 @@ test('journey 4: reject, resubmit, approve, PDF to the customer', async ({ brows
   await reviewer.screenshot({ path: evidence('22-approved'), fullPage: true });
 
   // The workflow mails the PDF with the corrected totals to the customer's address.
-  const mailpit = await apiRequest.newContext({ baseURL: MAILPIT });
+  const mailpit = await apiRequest.newContext(mailpitOptions());
   let id = '';
   await expect(async () => {
     const found = (await (
