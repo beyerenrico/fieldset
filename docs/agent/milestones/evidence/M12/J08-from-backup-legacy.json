@@ -9,6 +9,7 @@
             "schema_version": 1,
             "command": "install",
             "status": "failed",
+            "exit_code": 2,
             "changed": false,
             "data": {
                 "hmac": "absent"
@@ -30,13 +31,14 @@
         "schema_version": 1,
         "command": "install",
         "status": "ok",
+        "exit_code": 0,
         "changed": true,
         "data": {
             "url": "http://localhost:8082",
             "version": "2.0.0-alpha.1-test",
             "mode": "local",
             "dir": "<work>/fsa-test-j08c",
-            "project": "fsa-fsa-test-j08c-a499",
+            "project": "fsa-fsa-test-j08c-918d",
             "port": 8082,
             "mail": {
                 "mode": "capture",
@@ -66,7 +68,7 @@
             "next_commands": [
                 "<work>/fsa-test-j08c/fsa status",
                 "<work>/fsa-test-j08c/fsa login-link <admin-email>",
-                "<work>/fsa-test-j08c/fsa fsa config set webhooks on"
+                "<work>/fsa-test-j08c/fsa config set webhooks on"
             ]
         },
         "secrets": [],

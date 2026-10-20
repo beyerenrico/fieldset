@@ -168,3 +168,6 @@
    only show on named volumes or rootful Linux. Don't take a green journey on macOS as proof that caps suffice.
 158. A plain backup verified in place and read later by path is a TOCTOU for anyone who can write `backups/`: copy the
    fixed file list into the 0700 scratch first and verify and read only the copy (M12 gate R1).
+159. `git checkout docs/agent/milestones/evidence` after E2E also reverts uncommitted journey JSON (M12 gate lost a whole
+   Install run's evidence that way). Revert only the E2E churn: `git checkout -- ':(glob)docs/agent/milestones/evidence/**/*.png'`,
+   or commit journey evidence before running E2E. Emulated runs without `FSA_EVIDENCE_MILESTONE` write into M9.

@@ -1,0 +1,124 @@
+{
+    "engine": {
+        "cpus": 10,
+        "memory_mib": 15972,
+        "architecture": "aarch64",
+        "kernel": "6.12.72-linuxkit",
+        "operating_system": "Docker Desktop",
+        "server_version": "29.2.1",
+        "cgroup": "cgroupfs v2"
+    },
+    "platform": "linux/arm64",
+    "memory_factor": 1,
+    "cpuset": "8,9",
+    "memory_limits_mib": {
+        "app": 384,
+        "backup": 128,
+        "edge": 48,
+        "gotenberg": 304,
+        "mailpit": 48,
+        "postgres": 160,
+        "queue": 400,
+        "redis": 48,
+        "scheduler": 208
+    },
+    "limits_sum_mib": 1728,
+    "budget": {
+        "host_mib": 2048,
+        "headroom_mib": 320,
+        "available_mib": 1728,
+        "worst_case_mib": 1728
+    },
+    "containers": {
+        "app": {
+            "id": "c9df20cb4e37188e2402123bf4033c9dff4542892ccfdcd3712ca306b31ddbf3",
+            "status": "running",
+            "oom_killed": false,
+            "restart_count": 0,
+            "memory_limit_mib": 384,
+            "cpuset": "8,9",
+            "nano_cpus": 0,
+            "started_at": "2026-10-20T11:49:01.565076425Z"
+        },
+        "backup": {
+            "id": "6af676f530b171ab7b91fec2bd28859aebc0812d88453c190cf9c80bed78811c",
+            "status": "running",
+            "oom_killed": false,
+            "restart_count": 0,
+            "memory_limit_mib": 128,
+            "cpuset": "8,9",
+            "nano_cpus": 0,
+            "started_at": "2026-10-20T11:49:01.260082216Z"
+        },
+        "edge": {
+            "id": "43781247ce2bd5ba73eb8be28809b084056d6056e4fa496705a2ba1573fee8f9",
+            "status": "running",
+            "oom_killed": false,
+            "restart_count": 0,
+            "memory_limit_mib": 48,
+            "cpuset": "8,9",
+            "nano_cpus": 0,
+            "started_at": "2026-10-20T11:49:17.201502543Z"
+        },
+        "gotenberg": {
+            "id": "37bd18643b82159d3e6f564b0579b25e0fae331ee12a1a5bf60c3740c06c3674",
+            "status": "running",
+            "oom_killed": false,
+            "restart_count": 0,
+            "memory_limit_mib": 304,
+            "cpuset": "8,9",
+            "nano_cpus": 0,
+            "started_at": "2026-10-20T11:49:00.848378008Z"
+        },
+        "mailpit": {
+            "id": "2196d2b2166c4fbbd3933ccdfc148453ceb568485a1d7881b8a230816616df00",
+            "status": "running",
+            "oom_killed": false,
+            "restart_count": 0,
+            "memory_limit_mib": 48,
+            "cpuset": "8,9",
+            "nano_cpus": 0,
+            "started_at": "2026-10-20T11:49:00.748716341Z"
+        },
+        "postgres": {
+            "id": "0bbc6460d250c61a705f9708d1ea128438c64914834bf9fedc02d2d81dccebe1",
+            "status": "running",
+            "oom_killed": false,
+            "restart_count": 0,
+            "memory_limit_mib": 160,
+            "cpuset": "8,9",
+            "nano_cpus": 0,
+            "started_at": "2026-10-20T11:48:50.637838878Z"
+        },
+        "queue": {
+            "id": "cb9bca9f1ec739007de49262da738344e7a8ca06a93ff114c82484152d34b365",
+            "status": "running",
+            "oom_killed": false,
+            "restart_count": 0,
+            "memory_limit_mib": 400,
+            "cpuset": "8,9",
+            "nano_cpus": 0,
+            "started_at": "2026-10-20T11:49:01.361610133Z"
+        },
+        "redis": {
+            "id": "917f323612fd5555e4925201073bdff24d3ff7e9e9c087f33db9a64dadf74d54",
+            "status": "running",
+            "oom_killed": false,
+            "restart_count": 0,
+            "memory_limit_mib": 48,
+            "cpuset": "8,9",
+            "nano_cpus": 0,
+            "started_at": "2026-10-20T11:48:50.744083128Z"
+        },
+        "scheduler": {
+            "id": "7628eefc33d95c21a720ce8cee2e4ca662e869f922aaa0948967a30610564bfd",
+            "status": "running",
+            "oom_killed": false,
+            "restart_count": 0,
+            "memory_limit_mib": 208,
+            "cpuset": "8,9",
+            "nano_cpus": 0,
+            "started_at": "2026-10-20T11:49:01.464606883Z"
+        }
+    }
+}

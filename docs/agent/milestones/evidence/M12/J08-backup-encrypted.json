@@ -7,6 +7,7 @@
         "schema_version": 1,
         "command": "config",
         "status": "failed",
+        "exit_code": 2,
         "changed": false,
         "data": [],
         "secrets": [],
@@ -24,6 +25,7 @@
         "schema_version": 1,
         "command": "config",
         "status": "ok",
+        "exit_code": 0,
         "changed": true,
         "data": {
             "key": "backup-encryption",
@@ -53,7 +55,7 @@
             "encryption": {
                 "enabled": true,
                 "recipients": [
-                    "age1n8y0lqr9dj4jhlq4xpy5ksdltgzrafnn8hqqcg98dqwegrqx9e9qg4ftrm"
+                    "age1598yrk9qeqdny5v5w2n8q6c6xlncwztkqmdcu9ff7ltp5tkr4gcqvvpyqx"
                 ],
                 "identity": "<work>/j08-identity.age"
             },
@@ -75,22 +77,23 @@
         "schema_version": 1,
         "command": "backup",
         "status": "ok",
+        "exit_code": 0,
         "changed": true,
         "data": {
-            "backup": "manual-20261020T005715Z",
-            "path": "<work>/fsa-test-j08/backups/manual-20261020T005715Z",
+            "backup": "manual-20261020T110328Z",
+            "path": "<work>/fsa-test-j08/backups/manual-20261020T110328Z",
             "kind": "manual",
-            "created_at": "2026-10-20T00:57:15Z",
+            "created_at": "2026-10-20T11:03:28Z",
             "bytes": 512312,
             "encrypted": true,
             "includes_secrets": false,
-            "app_key_fingerprint": "4692-e265-a97a-7a94",
+            "app_key_fingerprint": "71d6-bd84-cd61-3c80",
             "files": {
                 "referenced": 1,
                 "missing": 0,
                 "missing_sample": []
             },
-            "free_bytes": 133776977920
+            "free_bytes": 171538919424
         },
         "secrets": [],
         "warnings": [

@@ -5,6 +5,7 @@
             "schema_version": 1,
             "command": "restore",
             "status": "failed",
+            "exit_code": 2,
             "changed": false,
             "data": {
                 "hmac": "mismatch"
@@ -27,6 +28,7 @@
             "schema_version": 1,
             "command": "restore",
             "status": "failed",
+            "exit_code": 2,
             "changed": false,
             "data": {
                 "output": ""

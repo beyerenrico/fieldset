@@ -1,20 +1,21 @@
 {
-    "command": "fsa restore safety-adopt-20261019T224756Z --accept-unauthenticated --yes --json",
+    "command": "fsa restore safety-adopt-20261020T111550Z --accept-unauthenticated --yes --json",
     "exit_code": 0,
     "stdout": {
         "schema_version": 1,
         "command": "restore",
         "status": "ok",
+        "exit_code": 0,
         "changed": true,
         "data": {
-            "backup": "safety-adopt-20261019T224756Z",
+            "backup": "safety-adopt-20261020T111550Z",
             "format": "legacy",
             "authenticated": false,
             "encrypted": false,
-            "created_at": "20261019T224756Z",
+            "created_at": "20261020T111550Z",
             "backup_version": null,
-            "url": "http://localhost:50885",
-            "storage_volume": "fsa-fsa-test-j09-70a7_app-storage-re1b70e9a1cd5",
+            "url": "http://localhost:57826",
+            "storage_volume": "fsa-fsa-test-j09-7f59_app-storage-rcb3413c3080a",
             "epoch": 2,
             "previous_epoch": 1,
             "carried": {
@@ -62,7 +63,7 @@
                 "tested": 2,
                 "failed": []
             },
-            "safety_backup": "safety-restore-20261019T225003Z",
+            "safety_backup": "safety-restore-20261020T111704Z",
             "safety_backup_sealed": false,
             "keys_added": [],
             "valkey_flushed": true,
@@ -89,7 +90,7 @@
         "epoch": "2",
         "restored_entries": "1",
         "data": {
-            "submissions": 71,
+            "submissions": 45,
             "users": 9
         },
         "file": "adopted",

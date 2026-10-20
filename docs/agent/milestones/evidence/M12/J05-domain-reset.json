@@ -1,11 +1,12 @@
 {
     "command": "fsa reset --demo --no-backup --yes --secrets-file <work>/j05-domain-reset.json --json",
     "exit_code": 0,
-    "seconds": 91,
+    "seconds": 69.6,
     "stdout": {
         "schema_version": 1,
         "command": "reset",
         "status": "ok",
+        "exit_code": 0,
         "changed": true,
         "data": {
             "url": "https://fsa-test-j05.test",
@@ -18,25 +19,25 @@
             "organization": "J5 Domain Org",
             "owner_email": "owner@example.test",
             "safety_backup": null,
-            "audit_export": "audit-export-reset-20261019T191556Z.jsonl",
+            "audit_export": "audit-export-reset-20261020T104012Z.jsonl",
             "epoch": 2,
             "previous_epoch": 1,
-            "storage_volume": "fsa-fsa-test-j05-domain-60ca_app-storage-reset-9d06f77d9b08",
+            "storage_volume": "fsa-fsa-test-j05-domain-1a70_app-storage-reset-4a7686b3c2c8",
             "flushed": {
                 "valkey": true,
                 "catcher": true
             },
             "left_behind": [],
             "removed": [
-                "volume fsa-fsa-test-j05-domain-60ca_app-storage"
+                "volume fsa-fsa-test-j05-domain-1a70_app-storage"
             ],
             "next_commands": [
-                "fsa status",
-                "fsa login-link owner@example.test",
-                "fsa doctor --post"
+                "<work>/fsa-test-j05-domain/fsa status",
+                "<work>/fsa-test-j05-domain/fsa login-link owner@example.test",
+                "<work>/fsa-test-j05-domain/fsa doctor --post"
             ],
             "sign_in_link": {
-                "expires_at": "2026-10-19T20:16:16Z",
+                "expires_at": "2026-10-20T11:40:20Z",
                 "delivered": "secrets_file"
             },
             "demo": {
@@ -120,7 +121,7 @@
             {
                 "name": "sign_in_link",
                 "written_to": "<work>/j05-domain-reset.json",
-                "expires_at": "2026-10-19T20:16:16Z"
+                "expires_at": "2026-10-20T11:40:20Z"
             },
             {
                 "name": "demo_password:owner@demo.test",
@@ -171,7 +172,7 @@
         "warnings": [
             {
                 "code": "no_backup",
-                "message": "No safety backup was taken (--no-backup): only the audit log was kept, in backups/audit-export-reset-20261019T191556Z.jsonl.",
+                "message": "No safety backup was taken (--no-backup): only the audit log was kept, in backups/audit-export-reset-20261020T104012Z.jsonl.",
                 "hint": null
             }
         ],
@@ -192,7 +193,7 @@
     "export_header": {
         "format": "fsa-audit-export",
         "version": "1.0",
-        "exported_at": "2026-10-19T19:15:58Z",
+        "exported_at": "2026-10-20T10:40:13Z",
         "epoch": 1,
         "entries": 34
     },

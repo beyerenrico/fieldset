@@ -31,7 +31,7 @@ M9, M10 and M11 done and merged to `main` (tags `m9-done`, `v2.0.0-alpha.1`, `m1
 
 ## Known problems
 - Trivy exceptions for gotenberg/caddy/cloudflared expire 2026-11-17: refresh pins or entries before a release.
-- E2E runs rewrite evidence PNGs: `git checkout docs/agent/milestones/evidence` before committing.
+- E2E runs rewrite evidence PNGs: revert only PNGs (LEARNINGS 159); commit journey evidence before E2E.
 - Long PHP runs need their own database (`form_schema_cov`); parallel agents use their own DBs.
 - Outbound Docker Hub pulls were flaky at times (retry).
 

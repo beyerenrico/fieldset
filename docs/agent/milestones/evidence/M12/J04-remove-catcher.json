@@ -1,0 +1,66 @@
+{
+    "command": "fsa config set mail smtp --remove-catcher --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "config",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": true,
+        "data": {
+            "key": "mail",
+            "from": "smtp://fsa-test-j04-smtp-2a91:1025 (no TLS) (catcher kept)",
+            "to": "smtp://fsa-test-j04-smtp-2a91:1025 (no TLS)",
+            "url": "http://localhost:8081",
+            "mode": "local",
+            "reverted": false,
+            "previous": {
+                "url": "http://localhost:8081",
+                "mode": "local"
+            },
+            "services": {
+                "recreated": [],
+                "added": [],
+                "removed": [
+                    "mailpit"
+                ]
+            },
+            "checked": [
+                "/up",
+                "/admin/login",
+                "gotenberg /health"
+            ],
+            "impact": null,
+            "audited": true,
+            "mail": {
+                "mode": "smtp",
+                "catcher_url": null,
+                "catcher": "removed",
+                "catcher_volume_removed": "fsa-fsa-test-j04-f36e_mailpit-data"
+            },
+            "next_commands": [
+                "<work>/fsa-test-j04/fsa status"
+            ]
+        },
+        "secrets": [],
+        "warnings": [
+            {
+                "code": "smtp_plaintext_auth",
+                "message": "The SMTP password goes to fsa-test-j04-smtp-2a91 unencrypted (--smtp-encryption none).",
+                "hint": "Use --smtp-encryption starttls or tls unless the relay runs on this host or your own trusted network."
+            }
+        ],
+        "errors": []
+    },
+    "volumes_before": [
+        "fsa-fsa-test-j04-f36e_app-storage",
+        "fsa-fsa-test-j04-f36e_mailpit-data",
+        "fsa-fsa-test-j04-f36e_pg-data",
+        "fsa-fsa-test-j04-f36e_valkey-data"
+    ],
+    "volumes_after": [
+        "fsa-fsa-test-j04-f36e_app-storage",
+        "fsa-fsa-test-j04-f36e_pg-data",
+        "fsa-fsa-test-j04-f36e_valkey-data"
+    ]
+}

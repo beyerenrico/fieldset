@@ -8,29 +8,30 @@
         "schema_version": 1,
         "command": "uninstall",
         "status": "ok",
+        "exit_code": 0,
         "changed": true,
         "data": {
-            "uuid": "2739da63-c95c-4d62-ac39-599f2948801f",
+            "uuid": "5ecdb914-4f43-4194-bad6-3626d54092fb",
             "removed": {
                 "containers": [
-                    "fsa-fsa-test-j09-5d57-backup-1",
-                    "fsa-fsa-test-j09-5d57-mailpit-1",
-                    "fsa-fsa-test-j09-5d57-app-1",
-                    "fsa-fsa-test-j09-5d57-queue-1",
-                    "fsa-fsa-test-j09-5d57-scheduler-1",
-                    "fsa-fsa-test-j09-5d57-gotenberg-1",
-                    "fsa-fsa-test-j09-5d57-redis-1",
-                    "fsa-fsa-test-j09-5d57-postgres-1"
+                    "fsa-fsa-test-j09-7f59-backup-1",
+                    "fsa-fsa-test-j09-7f59-queue-1",
+                    "fsa-fsa-test-j09-7f59-scheduler-1",
+                    "fsa-fsa-test-j09-7f59-app-1",
+                    "fsa-fsa-test-j09-7f59-mailpit-1",
+                    "fsa-fsa-test-j09-7f59-gotenberg-1",
+                    "fsa-fsa-test-j09-7f59-redis-1",
+                    "fsa-fsa-test-j09-7f59-postgres-1"
                 ],
                 "networks": [
-                    "fsa-fsa-test-j09-5d57_default",
-                    "fsa-fsa-test-j09-5d57_renderer"
+                    "fsa-fsa-test-j09-7f59_default",
+                    "fsa-fsa-test-j09-7f59_renderer"
                 ],
                 "volumes": [
-                    "fsa-fsa-test-j09-5d57_app-storage",
-                    "fsa-fsa-test-j09-5d57_mailpit-data",
-                    "fsa-fsa-test-j09-5d57_pg-data",
-                    "fsa-fsa-test-j09-5d57_valkey-data"
+                    "fsa-fsa-test-j09-7f59_app-storage-rcb3413c3080a",
+                    "fsa-fsa-test-j09-7f59_mailpit-data",
+                    "fsa-fsa-test-j09-7f59_pg-data",
+                    "fsa-fsa-test-j09-7f59_valkey-data"
                 ]
             },
             "dir": "<work>/fsa-test-j09",
@@ -48,33 +49,34 @@
             "kept": [
                 "backups"
             ],
+            "left_files": [],
             "data_deleted": true,
             "backups_deleted": false,
             "final_backup": {
-                "dir": "backups/final-20261020T005102Z",
-                "backup": "final-20261020T005102Z",
+                "dir": "backups/final-20261020T111809Z",
+                "backup": "final-20261020T111809Z",
                 "encrypted": false,
                 "includes_secrets": false,
-                "key_file": "backups/final-20261020T005102Z.app-key.env",
-                "missing_files": 57
+                "key_file": "backups/final-20261020T111809Z.app-key.env",
+                "missing_files": 34
             },
             "adopted": {
-                "checkout": "<work>/fsa-test-j09-v1-5dc247",
-                "project": "fsa-test-j09-v1-5dc247",
-                "backup": "safety-adopt-20261020T004922Z",
+                "checkout": "<work>/fsa-test-j09-v1-cce243",
+                "project": "fsa-test-j09-v1-cce243",
+                "backup": "safety-adopt-20261020T111550Z",
                 "pending": false,
                 "legacy_changed": false,
                 "writes_since_adopt": {
-                    "audit_entries": 14,
+                    "audit_entries": 1,
                     "rows": {
-                        "activity_log": 14,
+                        "activity_log": 1,
                         "mail_messages": 1,
-                        "renditions": 15,
+                        "renditions": 2,
                         "submissions": 3
                     },
                     "any": true
                 },
-                "restart_1_0": "cd <work>/fsa-test-j09-v1-5dc247 && docker compose up -d",
+                "restart_1_0": "cd <work>/fsa-test-j09-v1-cce243 && docker compose up -d",
                 "jobs_in_1_0": {
                     "left": 0,
                     "delayed": 0,
@@ -86,23 +88,23 @@
         "warnings": [
             {
                 "code": "files_missing",
-                "message": "57 file(s) the database references were not in storage; manifest.json lists them.",
+                "message": "34 file(s) the database references were not in storage; manifest.json lists them.",
                 "hint": null
             },
             {
                 "code": "app_key_beside_backup",
-                "message": "The APP keys are in plaintext (0600) in <work>/fsa-test-j09/backups/final-20261020T005102Z.app-key.env, beside the final backup.",
-                "hint": "Keep that file as safe as the backup. `fsa install --from-backup <work>/fsa-test-j09/backups/final-20261020T005102Z --app-key-file <work>/fsa-test-j09/backups/final-20261020T005102Z.app-key.env` brings it back."
+                "message": "The APP keys are in plaintext (0600) in <work>/fsa-test-j09/backups/final-20261020T111809Z.app-key.env, beside the final backup.",
+                "hint": "Keep that file as safe as the backup. `install.sh --dir <work>/fsa-test-j09 --from-backup <work>/fsa-test-j09/backups/final-20261020T111809Z --app-key-file <work>/fsa-test-j09/backups/final-20261020T111809Z.app-key.env` brings it back (install.sh takes a directory that holds only backups/; the instance's own fsa is gone)."
             },
             {
                 "code": "restart_1_0",
                 "message": "The 1.0 install this instance was adopted from is stopped; its volumes were not changed since the adopt.",
-                "hint": "Bring it back with: cd <work>/fsa-test-j09-v1-5dc247 && docker compose up -d"
+                "hint": "Bring it back with: cd <work>/fsa-test-j09-v1-cce243 && docker compose up -d"
             },
             {
                 "code": "writes_since_adopt",
-                "message": "Data written since adopt (14 audit entries, row changes {\"activity_log\":14,\"mail_messages\":1,\"renditions\":15,\"submissions\":3}) is not in the 1.0 install. They are in the final backup backups/final-20261020T005102Z.",
-                "hint": "To get it back, create a 2.0 instance from it with `fsa install --from-backup <work>/fsa-test-j09/backups/final-20261020T005102Z` (the final backup's own warning names its keys)."
+                "message": "Data written since adopt (1 audit entries, row changes {\"activity_log\":1,\"mail_messages\":1,\"renditions\":2,\"submissions\":3}) is not in the 1.0 install. They are in the final backup backups/final-20261020T111809Z.",
+                "hint": "To get it back, create a 2.0 instance from it with `fsa install --from-backup <work>/fsa-test-j09/backups/final-20261020T111809Z` (the final backup's own warning names its keys)."
             }
         ],
         "errors": []
@@ -113,16 +115,16 @@
         "networks": []
     },
     "v1_after": {
-        "submissions": 69,
+        "submissions": 45,
         "users": 9,
         "heads": [
             {
                 "seq": 10,
-                "hash": "a7727dee9d616dc70203094bf9985cdb4d5e4177fb771c5a62ceb822850ddc05"
+                "hash": "e71ad49528736483aaebceb7207959b6e2a0bcdf122f91a861d65f87a89419c4"
             },
             {
                 "seq": 10,
-                "hash": "9decdeeee64c5c2915a90fed8713fbe3b61fd5bef8055c1c8646de134196fba4"
+                "hash": "138a1df022fd27be1e9e4b553c15fc8bfbdc0eaa8f7881b469c015ba87229472"
             }
         ]
     }

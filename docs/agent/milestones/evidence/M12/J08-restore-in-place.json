@@ -5,16 +5,17 @@
         "schema_version": 1,
         "command": "restore",
         "status": "ok",
+        "exit_code": 0,
         "changed": true,
         "data": {
-            "backup": "manual-20261020T005619Z",
+            "backup": "manual-20261020T110246Z",
             "format": "fsa",
             "authenticated": true,
             "encrypted": false,
-            "created_at": "2026-10-20T00:56:19Z",
+            "created_at": "2026-10-20T11:02:46Z",
             "backup_version": "2.0.0-alpha.1-test",
             "url": "http://localhost:8081",
-            "storage_volume": "fsa-fsa-test-j08-78ac_app-storage-r5d2332f88b32",
+            "storage_volume": "fsa-fsa-test-j08-a973_app-storage-ra86e42fb3292",
             "epoch": 2,
             "previous_epoch": 1,
             "carried": {
@@ -62,7 +63,7 @@
                 "tested": 1,
                 "failed": []
             },
-            "safety_backup": "safety-restore-20261020T010326Z",
+            "safety_backup": "safety-restore-20261020T110911Z",
             "safety_backup_sealed": true,
             "keys_added": [],
             "valkey_flushed": true,
@@ -90,7 +91,7 @@
         "backup_role_may_seal": "f",
         "public_acl": "{form_schema=X/form_schema}",
         "file_from_backup": "secret",
-        "volume_after": "fsa-fsa-test-j08-78ac_app-storage-r5d2332f88b32",
+        "volume_after": "fsa-fsa-test-j08-a973_app-storage-ra86e42fb3292",
         "old_volume_exists": false,
         "runtime_webhooks": {
             "paused": true
@@ -98,13 +99,13 @@
     },
     "status": {
         "last": {
-            "at": "2026-10-20T01:04:31Z",
-            "backup": "manual-20261020T005619Z",
+            "at": "2026-10-20T11:10:07Z",
+            "backup": "manual-20261020T110246Z",
             "epoch": 2,
-            "safety_backup": "safety-restore-20261020T010326Z",
+            "safety_backup": "safety-restore-20261020T110911Z",
             "event": "restored"
         },
-        "storage_volume": "fsa-fsa-test-j08-78ac_app-storage-r5d2332f88b32",
+        "storage_volume": "fsa-fsa-test-j08-a973_app-storage-ra86e42fb3292",
         "webhooks_paused": true,
         "interrupted": null,
         "scratch_left": []

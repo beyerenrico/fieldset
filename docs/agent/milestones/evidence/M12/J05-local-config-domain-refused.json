@@ -1,11 +1,12 @@
 {
     "command": "fsa config set domain fsa-test-j05.test --yes --json",
     "exit_code": 3,
-    "seconds": 8.6,
+    "seconds": 4.7,
     "stdout": {
         "schema_version": 1,
         "command": "config",
         "status": "failed",
+        "exit_code": 3,
         "changed": false,
         "data": {
             "users": [

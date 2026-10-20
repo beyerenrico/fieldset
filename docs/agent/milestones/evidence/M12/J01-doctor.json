@@ -5,6 +5,7 @@
         "schema_version": 1,
         "command": "doctor",
         "status": "ok",
+        "exit_code": 0,
         "changed": false,
         "data": {
             "checks": [
@@ -49,10 +50,10 @@
                 {
                     "key": "disk",
                     "status": "ok",
-                    "summary": "124.3 GiB free.",
+                    "summary": "159.8 GiB free.",
                     "hint": null,
                     "details": {
-                        "free_gib": 124.3,
+                        "free_gib": 159.8,
                         "path": "<work>/fsa-test-j01"
                     }
                 },

@@ -5,13 +5,14 @@
         "schema_version": 1,
         "command": "install",
         "status": "ok",
+        "exit_code": 0,
         "changed": true,
         "data": {
             "url": "http://localhost:8081",
             "version": "2.0.0-alpha.1-test",
             "mode": "local",
             "dir": "<work>/fsa-test-j08",
-            "project": "fsa-fsa-test-j08-78ac",
+            "project": "fsa-fsa-test-j08-a973",
             "port": 8081,
             "mail": {
                 "mode": "capture",
@@ -25,7 +26,7 @@
                 "<work>/fsa-test-j08/fsa doctor --post"
             ],
             "sign_in_link": {
-                "expires_at": "2026-10-20T01:55:28Z",
+                "expires_at": "2026-10-20T12:02:05Z",
                 "delivered": "secrets_file"
             },
             "demo": {
@@ -108,7 +109,7 @@
             {
                 "name": "sign_in_link",
                 "written_to": "<work>/j08-secrets.json",
-                "expires_at": "2026-10-20T01:55:28Z"
+                "expires_at": "2026-10-20T12:02:05Z"
             }
         ],
         "warnings": [],

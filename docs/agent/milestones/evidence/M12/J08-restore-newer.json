@@ -5,6 +5,7 @@
         "schema_version": 1,
         "command": "restore",
         "status": "failed",
+        "exit_code": 7,
         "changed": false,
         "data": {
             "unknown_migrations": [

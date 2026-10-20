@@ -4,6 +4,7 @@
         "schema_version": 1,
         "command": "install",
         "status": "failed",
+        "exit_code": 3,
         "changed": false,
         "data": {
             "checks": [
@@ -47,10 +48,10 @@
                 {
                     "key": "disk",
                     "status": "ok",
-                    "summary": "124.3 GiB free.",
+                    "summary": "159.7 GiB free.",
                     "hint": null,
                     "details": {
-                        "free_gib": 124.3,
+                        "free_gib": 159.7,
                         "path": "<work>/fsa-test-j12-ae5"
                     }
                 },
@@ -94,24 +95,18 @@
                         "a": [],
                         "aaaa": [],
                         "host_addresses": [
-                            "192.168.178.24",
-                            "192.168.178.28"
+                            "192.168.178.28",
+                            "192.168.178.24"
                         ]
                     }
                 },
                 {
                     "key": "registry",
                     "status": "ok",
-                    "summary": "Registries reachable: <registry>.",
+                    "summary": "Every image is already on this host.",
                     "hint": null,
                     "details": {
-                        "missing": [
-                            "<registry>/library/caddy@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f"
-                        ],
-                        "reachable": [
-                            "<registry>"
-                        ],
-                        "unreachable": []
+                        "missing": []
                     }
                 },
                 {
@@ -164,7 +159,7 @@
         ]
     },
     "image_pulls": [
-        "<registry>/beyerenrico/form-schema-app@sha256:01cdbd692983f1458764a9f41505b38d0ba9e12fab8dd2dddcb2d876443e2eab"
+        "<registry>/beyerenrico/form-schema-app@sha256:175ebb20bb0bdd61cd1202e08357778ca972d7eb4d7405421238306ffc4fef8c"
     ],
     "service_starts": []
 }

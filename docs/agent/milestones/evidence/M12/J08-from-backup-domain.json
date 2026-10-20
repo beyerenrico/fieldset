@@ -5,13 +5,14 @@
         "schema_version": 1,
         "command": "install",
         "status": "ok",
+        "exit_code": 0,
         "changed": true,
         "data": {
             "url": "https://fsa-test-j08b.test",
             "version": "2.0.0-alpha.1-test",
             "mode": "domain",
             "dir": "<work>/fsa-test-j08b",
-            "project": "fsa-fsa-test-j08b-ba6d",
+            "project": "fsa-fsa-test-j08b-bc9a",
             "port": null,
             "mail": {
                 "mode": "capture",
@@ -19,19 +20,19 @@
             },
             "owner_email": null,
             "from_backup": {
-                "backup": "manual-20261020T010657Z",
+                "backup": "manual-20261020T111133Z",
                 "format": "fsa",
                 "authenticated": true,
                 "encrypted": true,
-                "created_at": "2026-10-20T01:06:57Z",
+                "created_at": "2026-10-20T11:11:33Z",
                 "version": "2.0.0-alpha.1-test",
                 "epoch": 4,
                 "recipients": {
                     "listed": [
-                        "age1n8y0lqr9dj4jhlq4xpy5ksdltgzrafnn8hqqcg98dqwegrqx9e9qg4ftrm"
+                        "age1598yrk9qeqdny5v5w2n8q6c6xlncwztkqmdcu9ff7ltp5tkr4gcqvvpyqx"
                     ],
                     "kept": [
-                        "age1n8y0lqr9dj4jhlq4xpy5ksdltgzrafnn8hqqcg98dqwegrqx9e9qg4ftrm"
+                        "age1598yrk9qeqdny5v5w2n8q6c6xlncwztkqmdcu9ff7ltp5tkr4gcqvvpyqx"
                     ]
                 }
             },
@@ -44,7 +45,7 @@
             "next_commands": [
                 "<work>/fsa-test-j08b/fsa status",
                 "<work>/fsa-test-j08b/fsa login-link <admin-email>",
-                "<work>/fsa-test-j08b/fsa fsa config set webhooks on"
+                "<work>/fsa-test-j08b/fsa config set webhooks on"
             ]
         },
         "secrets": [],

@@ -5,13 +5,14 @@
             "schema_version": 1,
             "command": "install",
             "status": "ok",
+            "exit_code": 0,
             "changed": true,
             "data": {
                 "url": "http://localhost:8081",
                 "version": "2.0.0-alpha.1-test",
                 "mode": "local",
                 "dir": "<work>/fsa-test-j12-ports",
-                "project": "fsa-fsa-test-j12-ports-182e",
+                "project": "fsa-fsa-test-j12-ports-0a6e",
                 "port": 8081,
                 "mail": {
                     "mode": "capture",
@@ -25,7 +26,7 @@
                     "<work>/fsa-test-j12-ports/fsa doctor --post"
                 ],
                 "sign_in_link": {
-                    "expires_at": "2026-10-20T02:17:59Z",
+                    "expires_at": "2026-10-20T12:46:16Z",
                     "delivered": "secrets"
                 }
             },
@@ -33,7 +34,7 @@
                 {
                     "name": "sign_in_link",
                     "value": "<redacted>",
-                    "expires_at": "2026-10-20T02:17:59Z"
+                    "expires_at": "2026-10-20T12:46:16Z"
                 }
             ],
             "warnings": [],
@@ -46,13 +47,14 @@
             "schema_version": 1,
             "command": "install",
             "status": "ok",
+            "exit_code": 0,
             "changed": false,
             "data": {
                 "url": "http://localhost:8081",
                 "version": "2.0.0-alpha.1-test",
                 "mode": "local",
                 "dir": "<work>/fsa-test-j12-ports",
-                "project": "fsa-fsa-test-j12-ports-182e",
+                "project": "fsa-fsa-test-j12-ports-0a6e",
                 "port": 8081,
                 "mail": {
                     "mode": "capture",
@@ -65,7 +67,7 @@
                     "<work>/fsa-test-j12-ports/fsa login-link owner@example.test",
                     "<work>/fsa-test-j12-ports/fsa doctor --post"
                 ],
-                "installed_at": "2026-10-20T01:18:37Z",
+                "installed_at": "2026-10-20T11:46:51Z",
                 "sign_in_link": null
             },
             "secrets": [],
@@ -80,5 +82,5 @@
         },
         "instance_events": []
     },
-    "third_text": "fsa install: ok (nothing changed)\n  url: 'http://localhost:8081'\n  version: '2.0.0-alpha.1-test'\n  mode: 'local'\n  dir: '<work>/fsa-test-j12-ports'\n  project: 'fsa-fsa-test-j12-ports-182e'\n  port: 8081\n  mail: {\"mode\":\"capture\",\"catcher_url\":\"http://localhost:8025\",\"catcher_login_command\":\"fsa config show --catcher-login\"}\n  owner_email: 'owner@example.test'\n  next_commands: [\"<work>/fsa-test-j12-ports/fsa status\",\"<work>/fsa-test-j12-ports/fsa login-link owner@example.test\",\"<work>/fsa-test-j12-ports/fsa doctor --post\"]\n  installed_at: '2026-10-20T01:18:37Z'\n  sign_in_link: NULL\nWarning [no_sign_in_link]: The instance is already installed, so no sign-in link was issued.\n  Fix: Run `fsa login-link owner@example.test --secrets-file <file>` for a one-time sign-in link.\n"
+    "third_text": "fsa install: ok (nothing changed)\n  url: 'http://localhost:8081'\n  version: '2.0.0-alpha.1-test'\n  mode: 'local'\n  dir: '<work>/fsa-test-j12-ports'\n  project: 'fsa-fsa-test-j12-ports-0a6e'\n  port: 8081\n  mail: {\"mode\":\"capture\",\"catcher_url\":\"http://localhost:8025\",\"catcher_login_command\":\"fsa config show --catcher-login\"}\n  owner_email: 'owner@example.test'\n  next_commands: [\"<work>/fsa-test-j12-ports/fsa status\",\"<work>/fsa-test-j12-ports/fsa login-link owner@example.test\",\"<work>/fsa-test-j12-ports/fsa doctor --post\"]\n  installed_at: '2026-10-20T11:46:51Z'\n  sign_in_link: NULL\nWarning [no_sign_in_link]: The instance is already installed, so no sign-in link was issued.\n  Fix: Run `fsa login-link owner@example.test --secrets-file <file>` for a one-time sign-in link.\n"
 }

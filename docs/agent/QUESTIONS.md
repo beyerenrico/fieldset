@@ -150,7 +150,8 @@ Format: question · chosen option · impact · how to reverse.
    again (or `--yes-orphans`) if this proves risky.
 32. The final backup of `fsa uninstall --keep-backups` (ADR 0073) runs while app, queue and scheduler keep
    running · kept: uninstall stops everything right after the backup · files written during the archive may be
-   missing from it · stop the app roles before the final backup once U16's quiesce step exists.
+   missing from it · stop the app roles before the final backup once U16's quiesce step exists. Resolved in the M12 gate (D2): the final backup
+   now quiesces first (gate up; app, scheduler, backup, then queue stopped).
 33. Owner email and name in the state history and archived journals are HMAC digests keyed from APP_KEY
    (APP_PREVIOUS_KEYS still match) · chosen to keep personal data out of host files · a future APP_KEY rotation
    must keep the previous keys, or old digests stop matching · `config set` key rotation (later) must append to

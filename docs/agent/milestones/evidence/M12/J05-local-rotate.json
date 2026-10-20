@@ -5,6 +5,7 @@
         "schema_version": 1,
         "command": "demo",
         "status": "ok",
+        "exit_code": 0,
         "changed": true,
         "data": {
             "url": "http://localhost:8081",

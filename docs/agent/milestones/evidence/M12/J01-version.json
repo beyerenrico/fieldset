@@ -5,10 +5,11 @@
         "schema_version": 1,
         "command": "version",
         "status": "ok",
+        "exit_code": 0,
         "changed": false,
         "data": {
             "fsa": "2.0.0-alpha.1-test",
-            "revision": "7d07130bd7d25c36c5fc8d01d0b08217d0936ae7",
+            "revision": "76bad608674ae85de9fd2b0acde5e80dede5ce55",
             "instance": "2.0.0-alpha.1-test",
             "newest_known": null
         },
