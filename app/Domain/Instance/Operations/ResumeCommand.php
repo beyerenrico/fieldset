@@ -37,6 +37,17 @@ final class ResumeCommand
         return is_string($backup) && $backup !== '' ? $backup : null;
     }
 
+    /**
+     * The open journal a plain `fsa install` may continue. One that `--from-backup` began resumes only by that command
+     * (O1): taken over, the restore phases would be skipped and an empty instance marked installed.
+     *
+     * @throws OperationUnfinished exit 9, naming `fsa install --from-backup <backup>` with its flags
+     */
+    public static function forPlainInstall(?JournalRecord $open): ?JournalRecord
+    {
+        return $open instanceof JournalRecord && self::fromBackup($open) !== null ? throw new OperationUnfinished($open) : $open;
+    }
+
     public static function line(JournalRecord $record): string
     {
         $flags = array_map(static fn (string $flag, string|bool $value): string => $value === true ? $flag : $flag.' '.ConfigRequest::shellWord((string) $value), array_keys(self::options($record)), self::options($record));

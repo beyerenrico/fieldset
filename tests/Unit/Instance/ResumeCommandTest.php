@@ -56,6 +56,11 @@ it('rebuilds an adopt with its checkout, release, --drop-jobs and --yes (O9)', f
         ->and(ResumeCommand::line(resumeRecord('adopt', ['checkout' => '/srv/fsa', 'release' => null, 'drop_jobs' => 0])))->toBe('fsa adopt /srv/fsa --yes');
 });
 
+it('repeats --without-files of a restore and --keep-recipients of an install from a backup (fix round A meets B)', function (): void {
+    expect(ResumeCommand::line(resumeRecord('restore', ['backup' => 'b', 'without_files' => true])))->toBe('fsa restore b --without-files --yes')
+        ->and(ResumeCommand::line(resumeRecord('install', ['from_backup' => '/b', 'keep_recipients' => true])))->toBe('fsa install --from-backup /b --keep-recipients');
+});
+
 it('leaves the other operations to the existing rules', function (): void {
     expect(ResumeCommand::applies(resumeRecord('config', [])))->toBeFalse()
         ->and(ResumeCommand::applies(resumeRecord('install', ['domain' => null])))->toBeFalse()

@@ -105,6 +105,7 @@ it('refuses a resumed restore without the identity file, the passphrase or the u
     'identity file' => ['--identity-file', ['identity_file' => '/srv/keys/id.age', 'passphrase_file' => '/srv/keys/pass'], 'identity_required'],
     'unauthenticated switch' => ['--accept-unauthenticated', ['accept_unauthenticated' => true], 'backup_unauthenticated'],
     'APP key file' => ['--app-key-file', ['key_file' => true, 'app_key_file' => '/srv/keys/app.env'], 'app_key_required'],
+    'without files' => ['--without-files', ['without_files' => true], 'backup_without_files'],
 ]);
 
 it('lets a resumed restore past its swap continue without the inputs: it prepares nothing again', function (): void {
