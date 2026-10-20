@@ -40,6 +40,17 @@ final readonly class UpgradeRequest
         return new self($version, $major, $dropJobs, $resume, $actorUid);
     }
 
+    /**
+     * The request a resumed run works with (M12 gate O3): the target, `--major` and `--drop-jobs` the journal began with, so
+     * a resume never moves to another release than the interrupted run aimed at.
+     *
+     * @param  array<string, mixed>  $context
+     */
+    public function resuming(array $context): self
+    {
+        return new self(is_string($context['to'] ?? null) ? $context['to'] : null, ($context['major'] ?? false) === true, ($context['drop_jobs'] ?? false) === true, true, $this->actorUid);
+    }
+
     /** @return array<string, string|bool|null> the journal context */
     public function toContext(): array
     {

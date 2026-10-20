@@ -6,7 +6,11 @@ namespace App\Domain\Instance\Console;
 
 use App\Domain\Instance\HostFacts;
 use App\Domain\Instance\InstanceException;
+use App\Domain\Instance\Operations\JournalRecord;
+use App\Domain\Instance\Operations\OperationJournal;
+use App\Domain\Instance\Operations\OperationUnfinished;
 use App\Domain\Instance\Output\CommandResult;
+use App\Domain\Instance\Output\Confirmation;
 use App\Domain\Instance\Output\ConfirmationRequired;
 use App\Domain\Instance\Output\ExitCode;
 use App\Domain\Instance\Output\InvalidInput;
@@ -15,6 +19,7 @@ use App\Domain\Instance\Output\ResultRenderer;
 use App\Domain\Instance\Output\SecretRedactor;
 use App\Domain\Instance\State\EnvFiles;
 use App\Domain\Instance\State\InstanceDirectory;
+use Closure;
 use Illuminate\Console\Command;
 use Override;
 use Symfony\Component\Console\Exception\ExceptionInterface as ConsoleException;
@@ -36,7 +41,8 @@ use Throwable;
  * - requires the instance-directory marker (unless `requiresInstance()` is false, i.e. `fsa version`) and binds
  *   the InstanceDirectory, which makes the DockerGateway resolvable (InstanceServiceProvider);
  * - registers the secret values of the instance's env files with the redactor, so they never reach any output;
- * - asks for confirmation of destructive commands, or exits 6 without a TTY (or with --json) and without --yes;
+ * - asks for confirmation of destructive commands, or exits 6 without a TTY (or with --json) and without --yes, with the
+ *   facts the question names under `data` (Confirmation, M12 gate O6);
  * - maps exceptions to exit codes and renders the envelope, with progress on stderr; if rendering itself fails,
  *   a minimal envelope still goes out (exit 1, `render_failed`), never a stack trace.
  */
@@ -109,10 +115,28 @@ abstract class FsaCommand extends Command
         return true;
     }
 
-    /** The question for a destructive command, or null when nothing needs confirming. */
-    protected function confirmationPrompt(FsaContext $context): ?string
+    /** The question for a destructive command (with the facts it names), or null when nothing needs confirming. */
+    protected function confirmationPrompt(FsaContext $context): Confirmation|string|null
     {
         return null;
+    }
+
+    /**
+     * Before any question or plan (M12 gate C4): an unfinished operation this command would not resume is reported at once
+     * (exit 9 `operation_unfinished`), not after a prompt, a refusal of its own or a one-off that counts what is lost.
+     *
+     * @param  Closure(JournalRecord): bool  $resumes  whether this command continues the open journal
+     *
+     * @throws OperationUnfinished
+     */
+    protected function refuseUnfinished(Closure $resumes): ?JournalRecord
+    {
+        $open = $this->laravel->make(OperationJournal::class)->current();
+        if ($open instanceof JournalRecord && ! $resumes($open)) {
+            throw new OperationUnfinished($open);
+        }
+
+        return $open;
     }
 
     /**
@@ -172,11 +196,12 @@ abstract class FsaCommand extends Command
         if ($question === null || $context->yes) {
             return;
         }
+        $confirmation = is_string($question) ? new Confirmation($question) : $question;
         // With --json stdout carries exactly one document, so a prompt would corrupt it: treat it like no TTY.
         if (! $this->canPrompt($context, ignoreYes: true)) {
-            throw new ConfirmationRequired($question);
+            throw ConfirmationRequired::of($confirmation);
         }
-        if (! $this->confirm($question)) {
+        if (! $this->confirm($confirmation->question)) {
             throw new InstanceException('Cancelled; nothing was changed.', ExitCode::AbortedUnchanged, 'cancelled');
         }
     }

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Console;
 
+use App\Domain\Instance\Operations\JournalRecord;
 use App\Domain\Instance\Output\CommandResult;
+use App\Domain\Instance\Output\Confirmation;
 use App\Domain\Instance\Output\InvalidInput;
 use App\Domain\Instance\Restore\AppKeys;
 use App\Domain\Instance\Restore\RestoreAbandon;
@@ -49,15 +51,23 @@ final class RestoreCommand extends FsaCommand
             : $this->laravel->make(RestoreOperation::class)->restore($request, $context);
     }
 
-    protected function confirmationPrompt(FsaContext $context): ?string
+    /**
+     * Another unfinished operation (or a restore of another backup) exits 9 before the question (M12 gate C4); `data` names
+     * the backup and the safety backup (O6).
+     */
+    protected function confirmationPrompt(FsaContext $context): ?Confirmation
     {
         if ($this->option('drill') === true) {
             return null;
         }
+        if ($this->option('abandon') === true) {
+            return new Confirmation('Clean up the interrupted restore and bring the instance back as it was before it?', ['abandon' => true]);
+        }
+        $backup = is_string($this->argument('backup')) ? trim($this->argument('backup')) : '';
+        $this->refuseUnfinished(static fn (JournalRecord $open): bool => $open->operation() === RestoreOperation::OPERATION && ($open->context()['backup'] ?? null) === $backup);
 
-        return $this->option('abandon') === true
-            ? 'Clean up the interrupted restore and bring the instance back as it was before it?'
-            : 'Replace this instance\'s database and files with the backup? Everything written since the backup is lost (a safety backup is taken first).';
+        return new Confirmation('Replace this instance\'s database and files with the backup'.($backup === '' ? '' : " {$backup}").'? Everything written since the backup is lost (a safety backup is taken first).',
+            ['backup' => $backup === '' ? null : $backup, 'safety_backup' => true]);
     }
 
     private function request(FsaContext $context): RestoreRequest
@@ -70,14 +80,19 @@ final class RestoreCommand extends FsaCommand
         $identity = is_string($identity) && trim($identity) !== '' ? $this->absolute(trim($identity)) : null;
         $passphrase = PassphraseInput::fromCommand($this, $context, twice: false);
 
+        $keyFile = $this->keyFile($context);
+
         return new RestoreRequest(
             trim($backup),
             $this->option('accept-unauthenticated') === true,
             $identity,
             $identity === null && ! $passphrase->given() ? null : $passphrase->read($context),
-            $this->keyFile($context),
+            $keyFile,
             $context->facts->callerUid(),
             $this->option('without-files') === true,
+            $passphrase->file(),
+            $passphrase->stdin(),
+            $keyFile instanceof AppKeys ? $this->absolute(trim((string) $this->option('app-key-file'))) : null,
         );
     }
 

@@ -136,7 +136,7 @@ it('names the adopt and its ways out when another command finds it unfinished (U
 
     expect($warning['hint'] ?? '')->toContain('fsa adopt '.$this->adopt->checkout)->toContain($way)
         ->and($backup)->toBe(9)->and($backupJson['errors'][0]['code'])->toBe('operation_unfinished')
-        ->and($backupJson['data']['command'])->toBe('fsa adopt '.$this->adopt->checkout);
+        ->and($backupJson['data']['command'])->toBe('fsa adopt '.$this->adopt->checkout.' --yes'); // M12 gate O9: the resume line names --yes
 })->with([
     'before start' => [false, 'fsa adopt --abandon'],
     'after start' => [true, 'fsa uninstall'],

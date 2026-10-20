@@ -11,6 +11,9 @@ use App\Domain\Instance\Docker\DockerGateway;
 use App\Domain\Instance\Lifecycle\OneOffResult;
 use App\Domain\Instance\Operations\ContainerIdentity;
 use App\Domain\Instance\Operations\InstanceLock;
+use App\Domain\Instance\Operations\JournalRecord;
+use App\Domain\Instance\Operations\OperationJournal;
+use App\Domain\Instance\Operations\OperationUnfinished;
 use App\Domain\Instance\Output\CommandResult;
 use App\Domain\Instance\Output\ExitCode;
 use App\Domain\Instance\State\InstanceDirectory;
@@ -25,7 +28,8 @@ use Throwable;
  * database and directory are dropped afterwards, whatever happened; leftovers of a killed drill go with the next one.
  * Live storage, the live database, the cache and the mail log stay as they are (CACHE_STORE=array, a null mailer, a sync
  * queue). The document rendered reads the images it embeds from the live storage volume (`render_storage: live`): the
- * backup's files are checked by name against the references, not mounted. Exit 4 when a check fails.
+ * backup's files are checked by name against the references, not mounted. Exit 4 when a check fails; exit 9
+ * `operation_unfinished` while any operation is unfinished (a scratch database next to a half-done restore, M12 gate C4).
  */
 final readonly class RestoreDrill
 {
@@ -39,6 +43,7 @@ final readonly class RestoreDrill
         private InstanceDirectory $directory,
         private DockerGateway $docker,
         private InstanceLock $lock,
+        private OperationJournal $journal,
         private ContainerIdentity $identity,
         private BackupIntake $intake,
         private RestoreDatabases $databases,
@@ -53,6 +58,12 @@ final readonly class RestoreDrill
         $id = bin2hex(random_bytes(6));
         $database = self::PREFIX.$id;
         $handle = $this->lock->acquire($this->identity->holder('fsa', $request->actorUid), self::OPERATION);
+        $open = $this->journal->current(); // under the lock: no drill next to an unfinished operation (M12 gate C4)
+        if ($open instanceof JournalRecord) {
+            $this->lock->release($handle);
+
+            throw new OperationUnfinished($open);
+        }
 
         try {
             foreach ($this->databases->list($project, self::PREFIX) as $leftover) { // with the restricted role of its drill (review A10)

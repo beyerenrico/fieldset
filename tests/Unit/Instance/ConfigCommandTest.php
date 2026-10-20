@@ -39,6 +39,7 @@ it('shows every setting of a local instance with secrets redacted and no outboun
         ->and(collect($secrets)->contains(fn (string $secret): bool => str_contains($raw, $secret)))->toBeFalse()
         ->and($contacts->filter(fn (array $feature): bool => $feature['active'])->all())->toBe([])
         ->and($contacts['upgrades']['contacts'])->toContain(InstanceCommandFixture::MIRROR, 'https://github.com/beyerenrico/form-schema-app/releases')
+        ->and($contacts['upgrades']['purpose'])->toContain('fsa upgrade')->not->toContain('arrives with') // gate review stale texts
         ->and($contacts['acme']['contacts'])->toBe([])
         ->and(collect($json['data']['keys'])->firstWhere('key', 'mail'))->toMatchArray(['value' => 'capture', 'available' => true, 'settable_now' => true])
         ->and(collect($json['data']['keys'])->firstWhere('key', 'backup-schedule'))->toMatchArray(['value' => '03:30', 'available' => true, 'settable_now' => true]) // arrived with U16 (ADR 0084)

@@ -104,8 +104,8 @@ final readonly class Uninstaller
         $keys = is_string($final['key_file'] ?? null) ? $final['key_file'] : null;
         $restore = match (true) {
             $set === null => 'They authenticate the backups kept in backups/ (`--app-key-file`).',
-            $keys === null => "`fsa install --from-backup {$root}/{$set}/backup.tar.age --identity-file <identity> --passphrase-file <file> --accept-unauthenticated` brings it back (its HMAC needs the APP key from outside it: pass `--app-key-file` instead of --accept-unauthenticated if you kept it).",
-            default => "`fsa install --from-backup {$root}/{$set} --app-key-file {$root}/{$keys}` brings it back.",
+            $keys === null => "`install.sh --dir {$root} --from-backup {$root}/{$set}/backup.tar.age --identity-file <identity> --passphrase-file <file> --accept-unauthenticated` brings it back (its HMAC needs the APP key from outside it: pass `--app-key-file` instead of --accept-unauthenticated if you kept it).",
+            default => "`install.sh --dir {$root} --from-backup {$root}/{$set} --app-key-file {$root}/{$keys}` brings it back (install.sh takes a directory that holds only backups/; the instance's own fsa is gone).",
         };
         if ($keys === null) {
             return $result->withWarning('final_backup_encrypted', "The final backup {$root}/{$set} is encrypted and carries the APP keys.", $restore);

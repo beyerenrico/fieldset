@@ -10,9 +10,10 @@
 # cosign image pinned below against the signer identity built into this file, and only then pulls the app image
 # by the manifest's digest. It creates the instance directory (0700), stores the verified manifest, installs the
 # `fsa` shim from the image and hands over to `fsa install` in an ops container. Flags go to `fsa install`;
-# install.sh reads --dir, --version, --json, --yes and --password-stdin too, and handles --link/--no-link (PATH link)
+# install.sh reads --dir, --version, --json, --yes, --password-stdin and --passphrase-stdin too, and handles --link/--no-link (PATH link)
 # and --help itself; with --adopt <checkout> it hands over to `fsa adopt <checkout>` instead (a 1.0 install, ADR 0087). Its own stdin is never passed on (with curl | sh it is the script), so --password-stdin (the SMTP
-# password of --smtp-username) works only as fsa's hidden prompt on a terminal; else use --password-file. With
+# password of --smtp-username) and --passphrase-stdin (the identity's passphrase of --from-backup) work only as fsa's
+# hidden prompt on a terminal; else use --password-file or --passphrase-file. With
 # --json, stdout carries only the JSON result and stderr only NDJSON events. FSA_RELEASE_URL and
 # FSA_REGISTRY point at a mirror. Docker's DOCKER_DEFAULT_PLATFORM (linux/amd64 or linux/arm64) picks the platform
 # of the images install.sh and fsa pull and run (cosign excepted), e.g. amd64 under emulation on Apple Silicon.
@@ -31,8 +32,8 @@ fsa_install_fail() { # <exit code> <error code> <message> [hint] [retryable: tru
 		fsa_install_say error "$3${4:+ Fix: $4}"
 		hint=null
 		[ -z "${4:-}" ] || hint="\"$(fsa_install_escape "$4")\""
-		printf '{"schema_version":1,"command":"install","status":"failed","changed":false,"data":{},"secrets":[],"warnings":[],"errors":[{"code":"%s","message":"%s","hint":%s,"retryable":%s}]}\n' \
-			"$2" "$(fsa_install_escape "$3")" "$hint" "${5:-false}"
+		printf '{"schema_version":1,"command":"install","status":"failed","exit_code":%s,"changed":false,"data":{},"secrets":[],"warnings":[],"errors":[{"code":"%s","message":"%s","hint":%s,"retryable":%s}]}\n' \
+			"$1" "$2" "$(fsa_install_escape "$3")" "$hint" "${5:-false}"
 	else
 		printf 'install.sh: %s\n' "$3" >&2
 		[ -z "${4:-}" ] || printf '  Fix: %s\n' "$4" >&2
@@ -119,14 +120,18 @@ fsa_install_stdin_ok() { # <json> <stdout tty> <terminal usable> (0|1): can fsa 
 	[ "$1" = 0 ] && [ "$2" = 1 ] && [ "$3" = 1 ]
 }
 
-fsa_install_check_stdin() { # --password-stdin: install.sh never passes its own stdin on (curl | sh: it is the script)
-	[ "$password_stdin" = 1 ] || return 0
+fsa_install_check_stdin() { # --password-stdin, --passphrase-stdin: install.sh never passes its own stdin on (curl | sh: it is the script)
+	[ "$password_stdin" = 1 ] || [ "$passphrase_stdin" = 1 ] || return 0
 	stdout_tty=0 tty_usable=0
 	[ ! -t 1 ] || stdout_tty=1
 	! (exec </dev/tty) 2>/dev/null || tty_usable=1
-	fsa_install_stdin_ok "$json" "$stdout_tty" "$tty_usable" || fsa_install_fail 2 password_stdin_unavailable \
+	fsa_install_stdin_ok "$json" "$stdout_tty" "$tty_usable" && return 0
+	[ "$password_stdin" = 0 ] || fsa_install_fail 2 password_stdin_unavailable \
 		'install.sh does not pass its stdin on (with curl | sh it is the script itself), so --password-stdin cannot read the SMTP password here.' \
 		'Pass --password-file=<path> (a file that holds only the password, mode 0600), or run install.sh in a terminal (without --json) to be asked for it.'
+	fsa_install_fail 2 passphrase_stdin_unavailable \
+		'install.sh does not pass its stdin on (with curl | sh it is the script itself), so --passphrase-stdin cannot read the passphrase here.' \
+		'Pass --passphrase-file=<path> (a file that holds only the passphrase, mode 0600), or run install.sh in a terminal (without --json) to be asked for it.'
 }
 
 fsa_install_check_dir() { # --dir: absolute, normalized, mountable, not a system path, empty or an instance
@@ -266,7 +271,7 @@ fsa_install_main() {
 	nl='
 '
 	fsa_install_trust
-	dir='' version='' json=0 yes=0 link='' tmp='' phase=inputs password_stdin=0 adopt=''
+	dir='' version='' json=0 yes=0 link='' tmp='' phase=inputs password_stdin=0 passphrase_stdin=0 adopt=''
 	n=$#
 	while [ "$n" -gt 0 ]; do
 		arg=$1
@@ -284,6 +289,7 @@ fsa_install_main() {
 		--json) json=1 && set -- "$@" "$arg" ;;
 		--yes) yes=1 && set -- "$@" "$arg" ;;
 		--password-stdin) password_stdin=1 && set -- "$@" "$arg" ;;
+		--passphrase-stdin) passphrase_stdin=1 && set -- "$@" "$arg" ;;
 		--link) link=1 ;;
 		--no-link) link=0 ;;
 		-h | --help) fsa_install_usage && exit 0 ;;

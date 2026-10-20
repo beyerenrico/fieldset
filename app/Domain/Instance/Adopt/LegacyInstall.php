@@ -70,7 +70,7 @@ final readonly class LegacyInstall
         }
         $volumes = self::volumes($docker, $found);
         if (! isset($found[self::POSTGRES], $volumes[self::DATA_VOLUME])) {
-            throw self::refused("The Compose project {$checkout->project} has no bundled Postgres with a pg-data volume.", 'external_database', 'Adopt copies the bundled database volume only; move the data with a backup instead (`fsa install --from-backup`).');
+            throw self::refused("The Compose project {$checkout->project} has no bundled Postgres with a pg-data volume.", 'external_database', 'Adopt copies the bundled database volume only; move the data with a 1.0 backup instead (`install.sh --dir <new directory> --from-backup <backup> --accept-unauthenticated`).');
         }
         $running = array_map(strval(...), array_keys(array_filter($found, static fn (ContainerInfo $c): bool => $c->running())));
 

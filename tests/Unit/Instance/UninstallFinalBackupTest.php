@@ -62,7 +62,8 @@ it('quiesces, then writes a 2.0 final backup through the backup service before r
         ->and(substr(sprintf('%o', fileperms($keyFile)), -3))->toBe('600')
         ->and((string) file_get_contents($keyFile))->toContain("APP_KEY='{$appKey}'")->toStartWith('# The APP keys')
         ->and($warning['message'] ?? '')->toContain($keyFile)->toContain('plaintext')
-        ->and($warning['hint'] ?? '')->toContain('fsa install --from-backup '.$this->backups.'/final-20261019T120000Z --app-key-file '.$keyFile)
+        ->and($warning['hint'] ?? '')->toContain('install.sh --dir ') // M12 gate: the uninstalled directory has no fsa any more (DOC14)
+        ->and($warning['hint'] ?? '')->toContain('--from-backup '.$this->backups.'/final-20261019T120000Z --app-key-file '.$keyFile)
         ->and($json['data']['removed']['volumes'])->toBe([$this->project.'_pg-data', $this->project.'_app-storage'])
         ->and(json_encode($json))->not->toContain($appKey);
 });

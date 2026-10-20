@@ -44,6 +44,7 @@ it('moves a local backup to a new instance: its data, its portable settings, cap
         ->and($json['data']['from_backup'])->toMatchArray(['backup' => 'manual-20261019T120000Z', 'format' => 'fsa', 'authenticated' => true, 'epoch' => 2])
         ->and($json['data']['pending_mail'])->toMatchArray(['host' => 'mail.example.com', 'port' => 587])
         ->and($json['data']['confirm_commands'][0])->toBe('fsa config set webhooks on')
+        ->and($json['data']['next_commands'])->toBe(array_map(fn (string $command): string => $this->move->instance->directory->root.'/fsa '.$command, ['status', 'login-link <admin-email>', 'config set webhooks on'])) // gate review DOC13
         ->and(collect($json['warnings'])->pluck('code')->all())->toContain('mail_captured_after_move', 'webhooks_paused', 'no_sign_in_link')
         ->and($settings->capturesMail())->toBeTrue()->and($settings->webhooksPaused())->toBeTrue()
         ->and($runtime['webhooks'])->toBe(['paused' => true])

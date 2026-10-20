@@ -142,6 +142,15 @@ it('refuses different flags on a finished instance with exit 2 and the config-se
     'domain' => [['--domain' => 'forms.example.com'], '--domain'],
 ]);
 
+it('points a different --version to `fsa upgrade --to`, without the stale pre-release note (gate review stale texts)', function (): void {
+    installOnce($this->fixture);
+
+    [$code, $json] = $this->fixture->run('fsa:install', ['--release' => '2.0.1']);
+
+    expect($code)->toBe(2)
+        ->and($json['errors'][0]['hint'])->toContain('`fsa upgrade --to <version>`')->not->toContain('rc.1');
+});
+
 it('takes the next free port when 8080 is taken and keeps it on a re-run (AE4)', function (): void {
     $this->fixture->takenPorts = [8080, 8025];
 

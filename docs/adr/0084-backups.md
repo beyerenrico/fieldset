@@ -86,8 +86,10 @@ identity file (it decrypts nothing). Rotation (a new recipient, older public key
 **Safety backups (R57).** `Backup\SafetyBackup::take($state, $operation, $lock)` runs the service's entry point as a
 one-off under the caller's lock: unencrypted even when the instance has recipients (a rollback restores it without the
 owner's identity; `BackupWriter::encrypts()`), verified, 0600, never pruned; a failure is exit 9 `safety_backup_failed`
-(nothing changed yet). `seal()` encrypts it in place once the operation completed, when there are recipients
-(`fsa backup-daemon --seal`). Its manifest says `encrypted: false`: it describes the set inside the age file.
+(nothing changed yet) [M12 gate correction: exit 9 for upgrade and rollback; restore and reset go back, exit 5; a manual
+rollback after the commit needs the identity, see the amendment of 2026-10-20 below]. `seal()` encrypts it in place
+once the operation completed, when there are recipients (`fsa backup-daemon --seal`). Its manifest says
+`encrypted: false`: it describes the set inside the age file.
 
 **Manual backups and the one-off.** `fsa backup` takes the instance lock (as any operation, stale locks taken over),
 starts Postgres if it is stopped, sets up the backup role (`instance:backup-role` in a socket-less one-off of the app
@@ -241,6 +243,15 @@ by fingerprint, and an in-place restore takes exactly this set by its name and S
 - `fsa backup` refuses while any operation journal is open (exit 9 `operation_unfinished`, checked under the lock; U23
   second review A8): a half-reset or half-restored database is no state worth a backup. The backup daemon cannot read
   the journal; operations stop the backup service and keep it stopped until their `open` phase (ADR 0088).
+
+## Amendment 2026-10-20: safety-backup failures and sealing, corrected (M12 gate)
+- A failing safety backup is exit 9 `safety_backup_failed` only for `fsa upgrade` (its revert, nothing changed) and `fsa
+  rollback` (its abort closes the journal). `fsa restore` and `fsa reset` take theirs after the quiesce and go back
+  through their abort: exit 5 `rolled_back` with the code `safety_backup_failed` (RestoreRecovery::abort,
+  ResetWayBack::abort).
+- "a rollback restores it without the owner's identity" holds for the upgrade's automatic rollback before the commit
+  only: the upgrade seals its safety backup while it opens, right after the commit, so with encryption on a later `fsa
+  rollback` needs `--identity-file` and the passphrase.
 
 ## Amendment 2026-10-20: backups and whoever else writes into backups/ (M12 gate)
 The gate review assumed `backups/` is synced off the host (a two-way sync, an rsync target that pushes back): someone

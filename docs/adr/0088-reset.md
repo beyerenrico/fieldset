@@ -186,3 +186,10 @@ result warns `carry_skipped_after_reset`; the sequence floors stop the ID collis
 in `backups/`); once its header checks out it is encrypted to the backup recipients
 (`backups/audit-export-reset-<UTC>.jsonl.age`, 0600, synced, then renamed) when the instance has any, else moved into
 `backups/` as before. `--audit-export=` and `data.audit_export` name the file as written (with `.age` when encrypted).
+
+## Amendment 2026-10-20: sealing and refusals (M12 gate, fix round B)
+Closing a reset also seals the plaintext `safety-reset-*` sets made since its journal began (C3: one a killed run wrote
+before the journal named it). `fsa reset` reports another unfinished operation, or a reset journal with other flags,
+before its question (exit 9, also with `--yes`, C4), and exit 6 carries `demo`, `no_backup` and `safety_backup` (O6).
+The writers check of a resumed reset moved to RestoreStack::writersRunning and JournalRecord::completedSince, which restore
+and rollback share (D7).

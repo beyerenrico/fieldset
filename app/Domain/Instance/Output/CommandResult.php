@@ -8,8 +8,9 @@ use App\Domain\Instance\InstanceException;
 
 /**
  * The result envelope of every `fsa` command (KTD3, plan "Result envelope"): one JSON document on stdout with
- * `schema_version`, `command`, `status`, `changed`, `data`, `secrets`, `warnings` and `errors`. Secret values
- * appear only under `secrets` (or in the --secrets-file); anything else is passed through the redactor (R50).
+ * `schema_version`, `command`, `status`, `exit_code` (the process's exit code as a number, M12 gate O10; additive, the
+ * schema version stays 1), `changed`, `data`, `secrets`, `warnings` and `errors`. Secret values appear only under
+ * `secrets` (or in the --secrets-file); anything else is passed through the redactor (R50).
  */
 final readonly class CommandResult
 {
@@ -112,7 +113,7 @@ final readonly class CommandResult
      * The envelope. Secret values are scrubbed from everything outside `secrets`; with a secrets file they are
      * left out of `secrets` too, which then names the file.
      *
-     * @return array{schema_version: int, command: string, status: string, changed: bool, data: array<string, mixed>, secrets: list<array<string, string|null>>, warnings: list<array<string, mixed>>, errors: list<array<string, mixed>>}
+     * @return array{schema_version: int, command: string, status: string, exit_code: int, changed: bool, data: array<string, mixed>, secrets: list<array<string, string|null>>, warnings: list<array<string, mixed>>, errors: list<array<string, mixed>>}
      */
     public function toArray(?SecretRedactor $redactor = null, ?string $secretsFile = null): array
     {
@@ -128,6 +129,7 @@ final readonly class CommandResult
             'schema_version' => self::SCHEMA_VERSION,
             'command' => $this->command,
             'status' => $this->status()->value,
+            'exit_code' => $this->exitCode->value,
             'changed' => $this->changed,
             'data' => $data,
             'secrets' => array_map(static fn (Secret $s): array => $s->toArray($secretsFile), $this->secrets),

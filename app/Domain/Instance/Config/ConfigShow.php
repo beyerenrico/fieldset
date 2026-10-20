@@ -188,7 +188,7 @@ final readonly class ConfigShow
             ['feature' => 'smtp', 'active' => ! $settings->capturesMail(), 'contacts' => $settings->capturesMail() ? [] : [(string) $settings->smtpHost()],
                 'purpose' => 'Real mail delivery through this server (fsa config set mail smtp); capture mode keeps every mail in the bundled catcher.'],
             ['feature' => 'upgrades', 'active' => false, 'contacts' => [...$registries, self::RELEASES_URL],
-                'purpose' => 'Only when you run an upgrade (fsa upgrade arrives with 2.0.0-rc.1): the release manifest and the pinned images.'],
+                'purpose' => 'Only when you run `fsa upgrade`: the release manifest and the pinned images.'],
             ['feature' => 'tunnel', 'active' => $settings->tunnel(), 'contacts' => $settings->tunnel() ? ['Cloudflare (trycloudflare.com quick tunnel)'] : [],
                 'purpose' => 'Only while `fsa tunnel start` runs one (4 hours unless renewed): cloudflared connects out to Cloudflare, which serves the instance under a random *.trycloudflare.com name.'],
             ['feature' => 'update_check', 'active' => false, 'contacts' => [],

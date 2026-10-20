@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Instance\Restore;
 
 use App\Domain\Instance\Operations\JournalRecord;
+use App\Domain\Instance\Operations\OperationUnfinished;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
@@ -12,8 +13,8 @@ use App\Domain\Instance\State\InstanceState;
 /**
  * What `fsa status` and `fsa config show` say about restores (plan U17, ADR 0085), from the state, the journal and the
  * backups directory, without a database: the last restore (from the state's history), the storage volume the stack
- * mounts, whether webhooks wait after a move, an interrupted restore with the commands that resume or abandon it, and
- * scratch directories a killed restore or drill left.
+ * mounts, whether webhooks wait (after a restore, a rollback or a move), an interrupted restore with the commands that
+ * resume (every flag it needs, ResumeCommand) or abandon it, and scratch directories a killed restore or drill left.
  */
 final readonly class RestoreStatus
 {
@@ -32,7 +33,7 @@ final readonly class RestoreStatus
         ];
         $warnings = [];
         if ($data['webhooks_paused']) {
-            $warnings[] = ['webhooks_paused', 'Workflow webhooks are paused since this instance was installed from a backup.', 'Once the old server no longer runs, run `fsa config set webhooks on`.'];
+            $warnings[] = ['webhooks_paused', 'Workflow webhooks are paused since the last restore, rollback or install from a backup: restored runs could repeat deliveries.', 'Check the webhook receivers (after a move: once the old server no longer runs), then run `fsa config set webhooks on`.'];
         }
         if ($scratch !== []) {
             $warnings[] = ['restore_scratch_left', 'An interrupted restore or drill left scratch directories: '.implode(', ', $scratch).'. They may hold decrypted backup data.', 'Remove them (`rm -rf` in the instance directory) when no restore runs.'];
@@ -75,7 +76,7 @@ final readonly class RestoreStatus
             },
             'swapped' => $record->hasCompleted('swap') ? true : ($record->hasStarted('swap') ? null : false),
             'returning' => $record->hasStarted('return'), 'verified' => $record->hasCompleted('verify'),
-            'resume' => 'fsa restore '.($backup ?? '<backup>'), 'abandon' => 'fsa restore --abandon',
+            'resume' => OperationUnfinished::commandLine($record), 'abandon' => 'fsa restore --abandon --yes',
         ];
     }
 

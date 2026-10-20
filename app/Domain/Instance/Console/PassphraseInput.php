@@ -13,7 +13,9 @@ use SensitiveParameter;
  * The passphrase that protects the backup identity (R40, R50, KTD17, ADR 0084): from `--passphrase-file` (a file that
  * holds only the passphrase, mounted read-only by the shim) or `--passphrase-stdin` (stdin; in a terminal a hidden
  * prompt, entered twice). Never a flag value (SecretFlagGuard), never journaled; registered with the redactor as soon
- * as it is read. Trailing line breaks are dropped, as age-plugin-batchpass does with its file descriptor.
+ * as it is read. Trailing line breaks are dropped, as age-plugin-batchpass does with its file descriptor. Empty input
+ * (an empty file, nothing on stdin: install.sh never passes its stdin on) is `passphrase_missing`, not a weak passphrase
+ * (M12 gate O7). `file()` and `stdin()` name the source for the journal, so a resume command repeats it (ResumeCommand).
  */
 final readonly class PassphraseInput
 {
@@ -56,6 +58,17 @@ final readonly class PassphraseInput
         return $this->file !== null || $this->stdin;
     }
 
+    /** The absolute path of `--passphrase-file` (the journal records it; never the passphrase). */
+    public function file(): ?string
+    {
+        return $this->file === null ? null : (str_starts_with($this->file, '/') ? $this->file : getcwd().'/'.$this->file);
+    }
+
+    public function stdin(): bool
+    {
+        return $this->file === null && $this->stdin;
+    }
+
     /** @throws InvalidInput exit 2: both sources, an unreadable file, a passphrase that is too short or does not repeat */
     public function read(FsaContext $context): ?string
     {
@@ -65,7 +78,7 @@ final readonly class PassphraseInput
         if (! $this->given()) {
             return null;
         }
-        $passphrase = $this->clean($this->file !== null ? $this->readFile($this->file) : ($this->read)());
+        $passphrase = $this->clean($this->file !== null ? $this->readFile() : ($this->read)());
         if ($this->confirm instanceof Closure && ! hash_equals($passphrase, $this->clean(($this->confirm)()))) {
             throw new InvalidInput('The two passphrases differ.', 'passphrase_mismatch', 'Run the command again and enter the same passphrase twice.');
         }
@@ -74,9 +87,9 @@ final readonly class PassphraseInput
         return $passphrase;
     }
 
-    private function readFile(string $path): string
+    private function readFile(): string
     {
-        $path = str_starts_with($path, '/') ? $path : getcwd().'/'.$path;
+        $path = (string) $this->file();
         $content = is_file($path) && is_readable($path) ? file_get_contents($path, length: self::MAX_BYTES + 1) : false;
         if ($content === false) {
             throw new InvalidInput('The file of --passphrase-file cannot be read.', 'invalid_flag', 'Pass a readable file that holds only the passphrase.');
@@ -91,6 +104,10 @@ final readonly class PassphraseInput
             throw new InvalidInput('The passphrase is longer than 4096 bytes.', 'invalid_value', 'Pass the passphrase alone.');
         }
         $passphrase = (string) preg_replace('/[\r\n]+\z/', '', $content);
+        if ($passphrase === '') {
+            throw new InvalidInput($this->file !== null ? 'The file of --passphrase-file is empty.' : 'No passphrase arrived on stdin.', 'passphrase_missing',
+                'Pipe the passphrase into the command (`… --passphrase-stdin < file`; install.sh does not pass its stdin on) or pass --passphrase-file <file>.');
+        }
         if (mb_strlen($passphrase) < self::MIN_LENGTH) {
             throw new InvalidInput('The passphrase must have at least '.self::MIN_LENGTH.' characters.', 'weak_passphrase', 'It protects the only key that decrypts the backups: choose a long one and keep it apart from the identity file.');
         }

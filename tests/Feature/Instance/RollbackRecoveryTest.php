@@ -87,6 +87,7 @@ it('stops with exit 9, exports nothing and closes its journal when a session sta
 
     expect($code)->toBe(9, (string) json_encode($json))
         ->and($json['errors'][0]['code'])->toBe($error)
+        ->and($json['errors'][0]['hint'])->toContain('`fsa rollback`')->not->toContain('fsa upgrade') // gate review C6
         ->and($exported)->toBe([])
         ->and($gate)->toBeFalse()
         ->and($open)->toBeNull() // review V1

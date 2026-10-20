@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Console;
 
-use App\Domain\Instance\Operations\OperationJournal;
+use App\Domain\Instance\Operations\JournalRecord;
 use App\Domain\Instance\Output\CommandResult;
+use App\Domain\Instance\Output\Confirmation;
 use App\Domain\Instance\Reset\ResetOperation;
 use App\Domain\Instance\Reset\ResetRequest;
 use App\Domain\Instance\Tunnel\TunnelSweeper;
@@ -45,13 +46,19 @@ final class ResetCommand extends FsaCommand
         ));
     }
 
-    protected function confirmationPrompt(FsaContext $context): ?string
+    /** Another unfinished operation (or a reset with other flags) exits 9 before the question (M12 gate C4); `data`: the flags (O6). */
+    protected function confirmationPrompt(FsaContext $context): ?Confirmation
     {
-        if ($this->option('abandon') === true || ResetOperation::continuesWithoutQuestion($this->laravel->make(OperationJournal::class)->current())) {
-            return null; // abandoning deletes nothing; neither does finishing a reset past its drop or one going back
+        if ($this->option('abandon') === true) {
+            return null; // abandoning deletes nothing
+        }
+        $request = new ResetRequest((bool) $this->option('demo'), (bool) $this->option('no-backup'), $context->facts->callerUid());
+        $open = $this->refuseUnfinished(static fn (JournalRecord $journal): bool => $journal->operation() === ResetOperation::OPERATION && $request->sameAs($journal->context()));
+        if (ResetOperation::continuesWithoutQuestion($open)) {
+            return null; // finishing a reset past its drop, or one going back, deletes nothing more
         }
         $this->asked = true;
 
-        return ResetRequest::question($this->option('no-backup') === true);
+        return new Confirmation(ResetRequest::question($request->noBackup), ['demo' => $request->demo, 'no_backup' => $request->noBackup, 'safety_backup' => ! $request->noBackup]);
     }
 }

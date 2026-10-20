@@ -68,7 +68,7 @@ final readonly class LegacyRuntime
         )->hardened(), null, 60.0) : null;
         $os = $outcome?->successful() === true && preg_match('/^ID="?([a-z0-9._-]+)"?$/m', $outcome->stdout, $match) === 1 ? $match[1] : 'unknown';
         if ($major !== self::PG_MAJOR || $os !== 'alpine') {
-            throw $this->refused("1.0's Postgres is major ".($major === '' ? 'unknown' : $major)." on {$os}, not ".self::PG_MAJOR.' on Alpine: a file copy into the instance\'s postgres:16-alpine would leave its text indexes ordered for another C library.', 'postgres_image_mismatch', 'Move the data with a 1.0 backup instead (`scripts/backup.sh --include-env`, then `fsa install --from-backup <backup> --accept-unauthenticated`), which restores it with pg_restore.');
+            throw $this->refused("1.0's Postgres is major ".($major === '' ? 'unknown' : $major)." on {$os}, not ".self::PG_MAJOR.' on Alpine: a file copy into the instance\'s postgres:16-alpine would leave its text indexes ordered for another C library.', 'postgres_image_mismatch', 'Move the data with a 1.0 backup instead (`scripts/backup.sh --include-env`, then `install.sh --dir <new directory> --from-backup <backup> --accept-unauthenticated`), which restores it with pg_restore.');
         }
 
         return ['major' => $major, 'os' => $os];

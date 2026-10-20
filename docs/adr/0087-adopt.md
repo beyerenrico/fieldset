@@ -253,6 +253,13 @@ installed release's `instance:upgrade-migrate` on the scratch database (phase `u
 its finish step, and the schema audit of the unauthenticated archive compares it with a baseline at its own migration
 set (ADR 0085 amendment of U18).
 
+## Amendment 2026-10-20: exit codes after 1.0 stopped (M12 gate)
+`port_taken`, `drain_timeout`, `drain_unknown` and `postgres_not_shut_down` are raised as exit 4, but each happens after
+`stop_1_0`, so adopt goes back (1.0 starts again) and the command exits 5 `rolled_back` with that code
+(AdoptResult::rolledBack; exit 8 when going back fails). Only a failure before `stop_1_0` is exit 9. The sections above
+say "exit 4 … (which goes back)"; read them as the code of the exit-5 result. The refusals that point to a 1.0 backup name
+`install.sh --dir <new directory> --from-backup <backup> --accept-unauthenticated`.
+
 ## Amendment 2026-10-20: hardened adopt one-offs, the final backup (M12 gate)
 - Adopt's one-offs run with `no-new-privileges`, `--cap-drop ALL`, a read-only root file system and a tmpfs `/tmp`
   (`ContainerSpec::hardened()`, gate S6): the probes of 1.0 (psql, os-release, valkey-cli) and its `pg_dump` with no
@@ -262,3 +269,9 @@ set (ADR 0085 amendment of U18).
 - An adopted instance's uninstall writes the final backup of ADR 0073's amendment: a 2.0 backup that `fsa install
   --from-backup` reads, with the APP keys beside it (plain) or inside it (encrypted); the hint of `writes_since_adopt`
   names `--from-backup` instead of a manual pg_restore (review V3 resolved).
+
+## Amendment 2026-10-20: signals and hints (M12 gate, fix round B)
+Adopt runs under the interruption guard (O8): a signal is raised after each phase before `start` (adopt goes back as on
+a failure: 1.0 starts again, exit 5) and at the boundaries after `start` (the run stops with exit 9 `interrupted`, the
+journal open and the adopt hint; the next `fsa adopt <checkout> --yes` resumes). Resume lines and hints name the checkout,
+`--release`/`--drop-jobs` as recorded and `--yes` (O9); `fsa adopt --abandon` hints carry `--yes`.

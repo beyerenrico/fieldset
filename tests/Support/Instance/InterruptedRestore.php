@@ -34,6 +34,9 @@ final class InterruptedRestore
         if ($started !== null) {
             $journal->startPhase($started);
         }
+        if (array_search($until, self::PHASES, true) >= array_search('quiesce', self::PHASES, true)) {
+            self::stopWriters($restore); // what the killed run's quiesce left (M12 gate D7: writers running on a resume are noticed)
+        }
         $restore->databases[] = $names->scratch;
         $restore->instance->docker->createVolume($names->freshVolume, []);
         mkdir($restore->instance->directory->root.'/staging/restore-'.$names->id, 0750, true);
@@ -88,6 +91,16 @@ final class InterruptedRestore
         }
 
         return $names;
+    }
+
+    /** App, queue, scheduler and the backup service stopped, as a quiesce leaves them. */
+    public static function stopWriters(RestoreFixture $restore): void
+    {
+        foreach ($restore->instance->docker->containers as $id => $container) {
+            if (in_array($container->service(), ['app', 'queue', 'scheduler', 'backup'], true)) {
+                $restore->instance->docker->stopContainer((string) $id);
+            }
+        }
     }
 
     /** The position of the first recorded Docker call (from `$from` on) that `$match(method, args)` accepts; -1 for none. */

@@ -28,7 +28,8 @@ under the instance lock as the journaled operation `restore`, each phase written
 | `ledger` | `audit:verify --heads` of the live database appended to `backups/ledger.log` with action, host UID, backup, journal | exit 5 |
 | `safety_backup` | `SafetyBackup::take($state, 'restore', $lock)` (unencrypted until sealed) | exit 5 |
 | `restore_database` | leftover scratch dropped, scratch created (restricted role for an unauthenticated archive), `pg_restore --no-owner --no-privileges --single-transaction --exit-on-error`, ownership adopted | exit 5 |
-| `restore_storage` | fresh labelled volume, GNU tar as 33:33, `--network none`, only the volume and the archive mounted | exit 5 |
+| `upgrade_child` | only for an older backup: this release's migrations on the scratch database (amendment of 2026-10-20, U18) | exit 5 |
+| `restore_storage` | fresh labelled volume, GNU tar as 33:33, `--network none`, only the volume and the archive's directory (read-only) mounted; a backup without a storage archive leaves the fresh volume empty | exit 5 |
 | `finish` | `instance:restore-finish` in the scratch database (below) | exit 5 |
 | `erasures` | data-export directories of accounts erased since the backup removed from the fresh volume | exit 5 |
 | `swap` | databases renamed (live → aside, scratch → live), state names the fresh volume and pauses webhooks, APP keys rendered, Valkey flushed | phase `return`: previous database and volume back, exit 5, else 8 |
@@ -38,25 +39,27 @@ under the instance lock as the journaled operation `restore`, each phase written
 | `cleanup` | aside database dropped, replaced volume removed, scratch removed, safety backup sealed, history `restored` | warnings only |
 
 The plan's order (epoch before the upgrade child) holds for same-version backups; an older backup is not restored in
-place yet (below). Before the swap a failure goes back in the journaled phase `abort` (third review M2: started before
-anything is touched, so a run killed while going back is finished as an abort and never resumed as a restore over the
-writes the reopened instance took): the scratch database, role, volume and directory go, the unchanged app starts, the
-gate goes down once it is healthy and the other services start; one that does not is reported as `services_degraded`,
-not fatal (L7: requests reach the data they always reached). Exit 5 `rolled_back` (the plan's "failure before the swap
-exits 5 with the old instance running"). From the swap until the gate went down, the journaled phase `return` first stops
-app, queue, scheduler and backup (M3: workers `open` started must not write into either database while they are renamed,
-nor hold connections that make the rename fail), renames the put-aside database back (the restored one gets the scratch
-name and is dropped), the state names the previous volume and webhook setting again, Valkey is flushed, the app must
-pass the smoke test behind the gate, the gate goes down and everything else starts (degraded services reported): exit 5.
-If that fails, every writer stops, the gate stays up, and the result names the databases, both volumes and the safety
-backup: exit 8 `rollback_failed`, the journal stays open. Each exit 8 names its own way on (RestoreHalt, L4/L5): after a
-failed abort `fsa restore --abandon` starts the previous instance (nothing was swapped); after a failed return
-`--abandon` (or the same `fsa restore`) continues returning; when the put-aside database or the previous volume vanished
-before any rename back (journal note `no_way_back`) `--abandon` continues forward with the restored database and volume
-(verify, start, gate down, clean up). The last resort is always installing the safety backup into a new directory with
-`fsa install --from-backup`: `fsa restore` of another backup exits 9 while the journal is open. Every way a restore ends
-seals the safety backup when encryption is on, after the instance runs again, except exit 8 (a manual restore of it
-then needs no identity).
+place yet (below) [superseded: older backups are restored in place through the `upgrade_child` phase, before the epoch;
+amendment of 2026-10-20, U18]. Before the swap a failure goes back in the journaled phase `abort` (third review M2:
+started before anything is touched, so a run killed while going back is finished as an abort and never resumed as a
+restore over the writes the reopened instance took): the scratch database, role, volume and directory go, the unchanged
+app starts, the gate goes down once it is healthy and the other services start; one that does not is reported as
+`services_degraded`, not fatal (L7: requests reach the data they always reached). Exit 5 `rolled_back` (the plan's
+"failure before the swap exits 5 with the old instance running"). From the swap until the gate went down, the journaled
+phase `return` first stops app, queue, scheduler and backup (M3: workers `open` started must not write into either
+database while they are renamed, nor hold connections that make the rename fail), renames the put-aside database back
+(the restored one gets the scratch name and is dropped), the state names the previous volume and webhook setting again,
+Valkey is flushed, the app must pass the smoke test behind the gate, the gate goes down and everything else starts
+(degraded services reported): exit 5. If that fails, every writer stops, the gate stays up, and the result names the
+databases, both volumes and the safety backup: exit 8 `rollback_failed`, the journal stays open. Each exit 8 names its
+own way on (RestoreHalt, L4/L5): after a failed abort `fsa restore --abandon` starts the previous instance (nothing was
+swapped); after a failed return `--abandon` (or the same `fsa restore`) continues returning; when the put-aside database
+or the previous volume vanished before any rename back (journal note `no_way_back`) `--abandon` continues forward with
+the restored database and volume (verify, start, gate down, clean up). The last resort is always installing the safety
+backup into a new directory with `install.sh --dir <new directory> --from-backup <path>` (the instance's own `fsa`
+manages only its directory; M12 gate DOC14): `fsa restore` of another backup exits 9 while the journal is open. Every
+way a restore ends seals the safety backup when encryption is on, after the instance runs again, except exit 8 (a manual
+restore of it then needs no identity).
 
 A resumed run (`fsa restore <same backup>` with the same flags; the journal accepts only the same backup) repeats the
 phases before the swap from a clean scratch state unless an `abort` began, which it only finishes (`always` phases;
@@ -64,43 +67,50 @@ ledger and safety backup are kept; on an instance a
 killed run quiesced, the leftovers go before the space check, which no longer counts the safety backup already taken,
 and a failure there goes through the abort path: exit 5, never "nothing changed"). It continues a `return` that began
 (after an exit 8 or a kill) and never verifies, opens or cleans up once one began; it returns to the previous instance
-when it finds a swap started but not completed, or completed but not verified (exit 5 `restore_interrupted`); after a
-verified swap it starts everything behind the gate, lowers it and cleans up, and once lowering began it only lowers and
-cleans up (no gate raised again). `fsa restore --abandon` does the same without repeating anything: before the swap it
-removes the scratch artefacts and restarts the previous stack, from the swap until the gate went down it returns to the
-previous instance (also after an exit 8), afterwards it finishes; the journal closes with `ok`. The return is
-repeatable: the journal notes `returning_database` before its first rename and `returned_database` after the last, so a
-resumed return never renames twice and accepts a missing put-aside database only when its own rename began; a completed
-return is never repeated (the previous instance took requests again), a resumed run only drops what is left and seals. A process
-killed between the two `ALTER DATABASE … RENAME` statements of the swap leaves only the aside name: the put-aside
-database is renamed back to the live name (`instance:restore-db rename`, restore-made names only, to a free name). A run
-killed inside the swap returns to the previous volume even when the state already named the fresh one; a completed swap
-whose put-aside database or previous volume is gone, with no return that renamed it, is exit 8, never a silent mix. `instance:restore-db` drops only databases whose names contain
-`restore_` (scratch, put-aside, drill) and touches only `fsa_restore_…`/`fsa_drill_…` roles; the carry reads the
-pre-restore database in a read-only session; names from an archive reach error messages without control characters.
+when it finds a swap started but not completed (exit 5 `restore_interrupted`); a swap that completed but was not
+verified is verified again, forward: the gate is raised with a new token and the app must pass the smoke test, then it
+opens, lowers the gate and cleans up, and only a failing verification returns to the previous instance (exit 5; M12 gate
+correction, RestoreOperation/RestoreFinale::open); after a verified swap it starts everything behind the gate, lowers it
+and cleans up, and once lowering began it only lowers and cleans up (no gate raised again). `fsa restore --abandon` does
+the same without repeating anything: before the swap it removes the scratch artefacts and restarts the previous stack,
+from the swap until the gate went down it returns to the previous instance (also after an exit 8), afterwards it
+finishes; the journal closes with `ok`. The return is repeatable: the journal notes `returning_database` before its
+first rename and `returned_database` after the last, so a resumed return never renames twice and accepts a missing
+put-aside database only when its own rename began; a completed return is never repeated (the previous instance took
+requests again), a resumed run only drops what is left and seals. A process killed between the two `ALTER DATABASE …
+RENAME` statements of the swap leaves only the aside name: the put-aside database is renamed back to the live name
+(`instance:restore-db rename`, restore-made names only, to a free name). A run killed inside the swap returns to the
+previous volume even when the state already named the fresh one; a completed swap whose put-aside database or previous
+volume is gone, with no return that renamed it, is exit 8, never a silent mix. `instance:restore-db` drops only
+databases whose names contain `restore_` (scratch, put-aside, drill) and touches only `fsa_restore_…`/`fsa_drill_…`
+roles; the carry reads the pre-restore database in a read-only session; names from an archive reach error messages
+without control characters.
 
 **Exit codes (§7, ADR 0066).** 2: damaged (a file does not match `SHA256SUMS`), unsafe (a hostile member, a refused dump
 object, no migrations table), unauthenticated without `--accept-unauthenticated`, an APP key fingerprint nobody can
 supply, encrypted without identity or with a wrong passphrase, a backup the ops container cannot see. 3: disk space.
 5: failed and rolled back (before or after the swap). 6: confirmation. 7: a newer migration set (AE8), a version below
-the release manifest's `upgrades_from`, an older backup in place (`upgrade_child_unavailable`). 8: the way back failed.
+the release manifest's `upgrades_from` (`backup_too_old`), [superseded by the U18 amendment: an older backup in place
+(`upgrade_child_unavailable`)]. 8: the way back failed. 9: another operation is unfinished (`operation_unfinished`), or
+the run stopped before anything changed. 10: Docker unreachable.
 
 **Prepare one-off and extraction (R41, KTD16).** `fsa restore-prepare` (an image role like `backup-daemon`, hidden) runs
 from the instance's app image with `--network none`, no socket, as the owner (KTD2), with the backup (or its directory)
-and the identity file's directory mounted read-only and only `backups/.restore-<id>` (0750) writable; the passphrase and
-the HMAC keys arrive on stdin, never as arguments. The identity file is mounted alone (not its directory), the scratch
-directory's room for the decrypted set is checked before it is written, and the paths the one-off reports back are
-accepted only when they are the backup itself or lie in the scratch directory (they become mounts of later containers). It decrypts (identity via batchpass, then `backup.tar.age` with the
-identity, straight to `backup.tar`), reads every tar header itself (TarStream: ustar, GNU long names, pax `path`/`size`,
-base-256 sizes, checksums) and refuses the whole archive for an absolute path, a `..` segment, a control character, a
-symlink, a hard link, a device, a FIFO or any other type, a non-file member that carries data (GNU tar skips no data
-after a directory header and would read it as the next header) and anything but zero bytes after the end blocks; a set member must be a regular file named like a backup file
-(BackupSet::FILES), once. Only then is anything written (exclusive create, 0600), and `backup.tar` is deleted. A plain
-backup directory is read in place once every entry is a regular file (no symlink); its storage archive is copied into
-the scratch directory (0640) so tar can read it as www-data with the owner's group added. The storage archive is judged
-the same way and listed for the drill. GNU tar extracts it later, as 33:33 with `--no-same-owner
---no-same-permissions`, so a member can never get another owner or a set-UID bit for anyone but www-data. Every `tar`,
-`pg_restore` and `rm` argument list puts `--` before file operands (the brief's U16 finding).
+and the identity file (the file alone) mounted read-only and only `backups/.restore-<id>` (0750) writable; the
+passphrase and the HMAC keys arrive on stdin, never as arguments. The identity file is mounted alone (not its
+directory), the scratch directory's room for the decrypted set is checked before it is written, and the paths the
+one-off reports back are accepted only when they are the backup itself or lie in the scratch directory (they become
+mounts of later containers). It decrypts (identity via batchpass, then `backup.tar.age` with the identity, straight to
+`backup.tar`), reads every tar header itself (TarStream: ustar, GNU long names, pax `path`/`size`, base-256 sizes,
+checksums) and refuses the whole archive for an absolute path, a `..` segment, a control character, a symlink, a hard
+link, a device, a FIFO or any other type, a non-file member that carries data (GNU tar skips no data after a directory
+header and would read it as the next header) and anything but zero bytes after the end blocks; a set member must be a
+regular file named like a backup file (BackupSet::FILES), once. Only then is anything written (exclusive create, 0600),
+and `backup.tar` is deleted. A plain backup directory is read in place once every entry is a regular file (no symlink);
+its storage archive is copied into the scratch directory (0640) so tar can read it as www-data with the owner's group
+added. The storage archive is judged the same way and listed for the drill. GNU tar extracts it later, as 33:33 with
+`--no-same-owner --no-same-permissions`, so a member can never get another owner or a set-UID bit for anyone but
+www-data. Every `tar`, `pg_restore` and `rm` argument list puts `--` before file operands (the brief's U16 finding).
 
 **Dump inspection (KTD18).** `pg_restore --list` before anything is restored: allowed are TABLE, TABLE DATA, SEQUENCE,
 SEQUENCE SET, SEQUENCE OWNED BY, DEFAULT, CONSTRAINT, FK CONSTRAINT, INDEX, TRIGGER, FUNCTION, COMMENT and EXTENSION,
@@ -134,15 +144,17 @@ after a dump and restore (J08 found `IN (…)` coming back as `= ANY (ARRAY[…]
 functions, so `pg_read_file(…)` in a default is caught by name. The reference is the live database for `fsa restore`
 and the drill, the empty live database migrated first for `--from-backup`.
 The restored database may lack objects (an older backup) but never have other or changed ones, else exit 2
-`backup_unsafe` (exit 5 once the instance was quiesced). Only then do `REASSIGN OWNED` and `DROP OWNED` hand everything
-to the app's user; adopt then revokes every explicit grant to a non-owner (PUBLIC included) on public tables, sequences,
-columns and routines, resets per-role and database settings, revokes everything on the database from PUBLIC and grants
-CONNECT and TEMPORARY back to PUBLIC (Postgres's default); the finish step grants the backup role's rights again, and the role goes. Every fingerprint the manifest lists must be known
-(instance or key file; for `--from-backup` also the keys inside the archive), else exit 2 `app_key_unknown`. Key-file
-keys the backup lists and the instance lacks become APP_PREVIOUS_KEYS at the swap (InstanceSecrets::previousKeys, now
-rendered for app, queue, scheduler and one-offs), so data encrypted under them decrypts; `instance:restore-finish` gets
-them by name before the swap for its decrypt sample. The backup service's BACKUP_APP_FINGERPRINTS lists every key's
-fingerprint, the current one first (the HMAC still derives from the current key).
+`backup_unsafe` (exit 5 once the instance was quiesced) [superseded: missing objects fail the audit too; see the
+amendment "missing objects fail the schema audit" of 2026-10-20]. Only then do `REASSIGN OWNED` and `DROP OWNED` hand
+everything to the app's user; adopt then revokes every explicit grant to a non-owner (PUBLIC included) on public tables,
+sequences, columns and routines, resets per-role and database settings, revokes everything on the database from PUBLIC
+and grants CONNECT and TEMPORARY back to PUBLIC (Postgres's default); the finish step grants the backup role's rights
+again, and the role goes. Every fingerprint the manifest lists must be known (instance or key file; for `--from-backup`
+also the keys inside the archive), else exit 2 `app_key_unknown`. Key-file keys the backup lists and the instance lacks
+become APP_PREVIOUS_KEYS at the swap (InstanceSecrets::previousKeys, now rendered for app, queue, scheduler and
+one-offs), so data encrypted under them decrypts; `instance:restore-finish` gets them by name before the swap for its
+decrypt sample. The backup service's BACKUP_APP_FINGERPRINTS lists every key's fingerprint, the current one first (the
+HMAC still derives from the current key).
 
 **What `instance:restore-finish` does (R64, R68, KTD26),** in the scratch database, in a socket-less one-off of the app
 service (`DB_DATABASE` by name), the pre-restore database as a read-only second connection:
@@ -254,8 +266,10 @@ and fsa's rendering forces `APP_DEBUG=false`, `SSO_ALLOW_INSECURE_IDP=false`, `S
 itself (never a manifest an unauthenticated archive could forge). A backup that lacks migrations of this image is older.
 Restoring it in place needs the upgrade child of U18 (supervised migrations with lock_timeout and liveness, version
 steps); until it exists `fsa restore` exits 7 `upgrade_child_unavailable` with the hint to use `fsa install
---from-backup` (a new directory, whose migrate phase upgrades the dump) or `--drill`. An fsa backup below the release
-manifest's `upgrades_from` is exit 7 `backup_too_old`; the 1.0 format is judged by its migration set alone.
+--from-backup` (a new directory, whose migrate phase upgrades the dump) or `--drill` [superseded: the upgrade child
+exists since U18 and runs as the `upgrade_child` phase; `upgrade_child_unavailable` is gone (amendment of 2026-10-20)].
+An fsa backup below the release manifest's `upgrades_from` is exit 7 `backup_too_old`; the 1.0 format is judged by its
+migration set alone.
 
 **Swap and storage (KTD18).** Databases are swapped by renaming in the maintenance database after terminating their
 backends (`instance:restore-db`, never the live name dropped, never a system database). The storage volume is not
@@ -299,7 +313,10 @@ the sequence advance because writers were stopped since the safety backup.
   object this image does not define. What it cannot judge is data (rows are restored as they are), and the app's
   database user is still the Postgres superuser. Only accept archives you made yourself (1.0 backups).
 - Docker's data root may be another file system than the instance directory; the space check then underestimates.
-- An interrupted restore keeps the gate up until resumed or abandoned (the app answers 503).
+- An interrupted restore keeps the gate up until resumed or abandoned. The app answers 503 only while it runs behind the
+  gate (`verify`, `open`); from `quiesce` until `verify` starts it again the app is stopped, so a loopback port refuses
+  connections and the edge (domain mode) or the operator's proxy answers 502 (M12 gate correction,
+  RestoreStack::quiesce).
 - Held webhook steps go out up to `workflows.sweep_after_minutes` (30) after `fsa config set webhooks on`.
 - An in-place restore also leaves webhooks paused (review A15): runs restored in flight would repeat deliveries the
   receivers got after the backup. The result says so (`webhooks: paused`, warning `webhooks_paused`); the operator checks
@@ -392,6 +409,22 @@ passed, and "may lack objects (an older backup)" made that indistinguishable fro
 - `last_restore` also counts rollbacks: `rolled_back` (its backup and safety backup) and `upgrade_rolled_back` (the
   safety backup it restored as `backup`); a new key `event` names which.
 
+## Amendment 2026-10-20: corrections against the code (M12 gate)
+The gate review found statements above that the code does not do; they are corrected in place (marked "M12 gate
+correction" or "[superseded: …]"):
+- **A resumed swap that completed but was not verified goes forward.** The resume verifies it again (new gate token,
+  smoke test) and opens on success; only a swap that started but did not complete, or a failing verification, returns to
+  the previous instance (exit 5).
+- **What answers during a restore.** The `quiesce` phase stops the app, so until `verify` starts it again nothing serves
+  the gate's 503: a loopback port refuses connections and the edge or the operator's proxy answers 502.
+- **Superseded U17 statements** about older backups (`upgrade_child_unavailable`, "not restored in place yet", "may lack
+  objects") are marked; the U18 amendments above hold. The phase table gains `upgrade_child`; the exit-code list names
+  `backup_too_old`, 9 and 10; the prepare one-off mounts the identity file alone, as the next sentence already said.
+- **The last resort of an exit 8** is `install.sh --dir <new directory> --from-backup <path>`: the shim refuses `--dir` of
+  another directory (`other_instance`), so `fsa install --from-backup … --dir <new>` never ran. RestoreHalt, UpgradeHalt,
+  RestoreChecks, RollbackGuard, OlderBackupMigration, UpgradePath and adopt's refusals now name install.sh, and the
+  `--abandon` hints carry `--yes` (it asks first; exit 6 without a terminal).
+
 ## Amendment 2026-10-20: the M12 gate's restore findings
 - **Scratch outside backups/ (S3).** A restore's, drill's, `--from-backup`'s and rollback's scratch directory is
   `staging/restore-<id>` (0750 under the 0700 `staging/`), no longer `backups/.restore-<id>`: it holds the decrypted set,
@@ -417,3 +450,30 @@ passed, and "may lack objects (an older backup)" made that indistinguishable fro
 - **EV3.** J09's drill of the adopt backup reported every referenced file missing because J09 seeds load-generator
   renditions that never have a file (`LoadRows::renditions`), not because the adopt backup or the drill lost storage;
   J09 now asserts the archive holds the 1.0 file and that only those renditions are missing.
+
+## Amendment 2026-10-20: recovery and operability (M12 gate, fix round B)
+- **Resume lines (O1, O2/C7).** RestoreRequest and FromBackupRequest record where their inputs came from, never the
+  values: `passphrase_file` (path) or `passphrase_stdin`, `app_key_file` (path) beside `key_file`, `identity_file`,
+  `accept_unauthenticated`, `without_files`, `keep_recipients`. ResumeCommand rebuilds the command from them for `fsa
+  status`, exit 9 `operation_unfinished` and `restore.interrupted.resume` (`fsa restore <b> … --yes`, `fsa install
+  --from-backup <b> …`); journals of earlier builds get `<file>` placeholders. An install journal begun by
+  `--from-backup` resumes only by that command: a plain `fsa install` exits 9 (Installer, also under the lock).
+- **Missing inputs on resume (O2).** A resumed restore or install from a backup that will prepare the backup again (no
+  `abort`, `return` or `swap` started; for `--from-backup` before `restore_storage` completed) and lacks an input the
+  journal recorded exits 2 (`identity_required`, `backup_unauthenticated`, `app_key_required`, `backup_without_files`)
+  before the lock (ResumeInputs): nothing written, never the way back.
+- **Signals (O8).** The paragraph on signals above now holds: restore runs under the Interruption guard (never armed);
+  a signal is recorded and raised at the next phase boundary (after prepare/space, after each phase up to the erasures,
+  before verify, before open, before the gate), where the existing failure paths take over: exit 5 by the abort before
+  the swap, the return after it. Never once the gate began to go down, never in `--abandon`'s forward run.
+- **Sealing (C3).** Every closing path seals, besides the named safety backup, every plaintext `safety-restore-*` set
+  made since the journal began (SafetySeal::since): one a killed run wrote before the journal named it.
+- **Refusals (C4).** The drill takes the lock and refuses while any journal is open (exit 9). `fsa restore` and `fsa reset`
+  report an open journal they would not resume before the question (also with `--yes`). `RestoreOperation::installed()`
+  reports an unfinished install, install from a backup or adopt (exit 9) instead of `not_installed`; login-link too.
+- **The tunnel (C5).** Reopening the previous instance and opening the restored one start every service but the quick
+  tunnel when the compose file has one (an empty service list, i.e. all, otherwise).
+- **Writers after a kill (D7).** A resumed run records `writers_ran` in the quiesce's start data when app, queue,
+  scheduler or the backup service run; the ledger and the safety backup then run again (JournalRecord::completedSince,
+  as a reset's).
+- **Confirmation data (O6).** Exit 6 carries `data.question` and the facts: `backup`, `safety_backup: true`; `abandon`.

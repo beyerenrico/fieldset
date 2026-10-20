@@ -183,7 +183,7 @@ it('starts the detached supervisor from the installed image with the socket and 
         ->and($launched->labels)->toMatchArray($this->upgrade->supervisorLabels())
         ->and($launched->env)->toMatchArray(['FSA_HOST_UID' => (string) $facts->uid, 'FSA_RELEASE_URL' => UpgradeFixture::RELEASE_URL, 'FSA_INSTANCE_DIR' => $this->dir])
         ->and(array_keys($launched->env))->not->toContain('FSA_NONCE')
-        ->and(glob($this->dir.'/operations/supervisor-*.json'))->toBe([]);
+        ->and(glob($this->dir.'/operations/supervisor-*.json'))->toHaveCount(1); // M12 gate O3: the result stays for `fsa status` and `--follow`
 });
 
 it('follows the running supervisor through its journal, and a journal it cannot read for a moment does not stop it', function (): void {

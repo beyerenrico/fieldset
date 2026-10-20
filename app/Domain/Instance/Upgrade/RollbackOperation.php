@@ -13,8 +13,11 @@ use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Lifecycle\OneOffResult;
 use App\Domain\Instance\Operations\ContainerIdentity;
 use App\Domain\Instance\Operations\InstanceLock;
+use App\Domain\Instance\Operations\Interruption;
+use App\Domain\Instance\Operations\JournalRecord;
 use App\Domain\Instance\Operations\Ledger;
 use App\Domain\Instance\Operations\LockHandle;
+use App\Domain\Instance\Operations\OperationJournal;
 use App\Domain\Instance\Operations\OperationRun;
 use App\Domain\Instance\Operations\Supervisor;
 use App\Domain\Instance\Output\CommandResult;
@@ -33,6 +36,7 @@ use App\Domain\Instance\Restore\RestoreSource;
 use App\Domain\Instance\Restore\RestoreSpace;
 use App\Domain\Instance\Restore\RestoreStack;
 use App\Domain\Instance\Restore\RestoreStorage;
+use App\Domain\Instance\Restore\ResumeInputs;
 use App\Domain\Instance\State\EnvFiles;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceState;
@@ -51,7 +55,10 @@ use Throwable;
  * sequences, stale credentials, in the previous image) → erasures → RollbackFinale (swap … cleanup).
  *
  * A failure before the swap goes back (RollbackRecovery::abort, exit 5); from the swap until the gate went down the
- * instance returns to the upgraded release (exit 5), exit 8 when that fails too. A resumed run decides like a restore's.
+ * instance returns to the upgraded release (exit 5), exit 8 when that fails too. A resumed run decides like a restore's,
+ * and like a restore's (M12 gate) it needs the identity and passphrase flags of the first run (exit 2 before the lock,
+ * O2), takes the heads and the pre-rollback safety backup again when it finds writers running (D7), and handles a signal
+ * at the next phase boundary like a failure (O8).
  */
 final readonly class RollbackOperation
 {
@@ -78,15 +85,22 @@ final readonly class RollbackOperation
         private RollbackRecovery $recovery,
         private StagedRelease $staged,
         private ReleaseFiles $files,
+        private OperationJournal $journal,
+        private Interruption $interruption,
     ) {}
 
     public function rollback(RestoreRequest $request, ProgressReporter $progress): CommandResult
     {
         $state = RestoreOperation::installed($this->directory);
+        $open = $this->journal->current();
+        if ($open instanceof JournalRecord && $open->operation() === self::OPERATION) {
+            ResumeInputs::assert($open, $request, ! $open->hasStarted('abort') && ! $open->hasStarted('return_stop') && ! $open->hasStarted('swap'));
+        }
+        $inputs = $request->inputs();
 
-        return $this->supervisor->run(self::OPERATION, $this->identity->holder('fsa', $request->actorUid),
+        return $this->interruption->guard(fn (): CommandResult => $this->supervisor->run(self::OPERATION, $this->identity->holder('fsa', $request->actorUid),
             fn (OperationRun $run): CommandResult => $this->steps($run, $state, $request),
-            resume: true, context: ['identity_file' => $request->identityFile], progress: $progress);
+            resume: true, context: ['identity_file' => $inputs['identity_file'], 'passphrase_file' => $inputs['passphrase_file'], 'passphrase_stdin' => $inputs['passphrase_stdin']], progress: $progress));
     }
 
     private function steps(OperationRun $run, InstanceState $state, RestoreRequest $request): CommandResult
@@ -129,6 +143,7 @@ final readonly class RollbackOperation
             $prepared = PreparedBackup::fromArray($run->phase('prepare', fn (): array => $this->prepare($state, $plan, $request, $names)->toArray(), changes: false, always: true));
             $run->phase('pull', fn (): array => $this->preflight->pull(['digests' => $plan['digests'] ?? []]), changes: false);
             $run->phase('space', fn (): array => $this->space->assert($prepared, $run->record()->hasCompleted('safety_backup')), changes: false, always: true);
+            $this->interruption->checkpoint();
         } catch (Throwable $e) {
             if ($quiesced) {
                 return $this->recovery->abort($run, $state, $project, $names, $e, true, $plan);
@@ -138,7 +153,7 @@ final readonly class RollbackOperation
             throw $e;
         }
         try {
-            $this->restoreSide($run, $state, $project, $names, $plan, $prepared, $request);
+            $this->restoreSide($run, $state, $project, $names, $plan, $prepared, $request, $quiesced);
         } catch (Throwable $e) {
             return $this->recovery->abort($run, $state, $project, $names, $e, $run->record()->hasStarted('quiesce'), $plan);
         }
@@ -146,13 +161,24 @@ final readonly class RollbackOperation
         return $this->finale->swap($run, $plan, $project, $names);
     }
 
-    /** @param  array<string, mixed>  $plan */
-    private function restoreSide(OperationRun $run, InstanceState $state, ComposeProject $project, RestoreNames $names, array $plan, PreparedBackup $prepared, RestoreRequest $request): void
+    /**
+     * Quiesce up to the erasures, a checkpoint for a signal after each phase (O8); writers found running on a resume make
+     * the ledger and the safety backup run again (D7).
+     *
+     * @param  array<string, mixed>  $plan
+     */
+    private function restoreSide(OperationRun $run, InstanceState $state, ComposeProject $project, RestoreNames $names, array $plan, PreparedBackup $prepared, RestoreRequest $request, bool $quiesced): void
     {
-        $run->phase('quiesce', fn (): array => $this->quiesce->quiesce($state, $project, false, $names->id, self::OPERATION), always: true);
-        $ledger = $run->phase('ledger', fn (): array => $this->recordLedger($state, $project, $plan, $request->actorUid, $run->record()->id()));
+        $ran = $quiesced && $this->stack->writersRunning($project);
+        $run->phase('quiesce', fn (): array => $this->quiesce->quiesce($state, $project, false, $names->id, self::OPERATION), ['writers_ran' => $ran], always: true);
+        $this->interruption->checkpoint();
+        $ledger = $run->phase('ledger', fn (): array => $this->recordLedger($state, $project, $plan, $request->actorUid, $run->record()->id()), always: ! $run->record()->completedSince('ledger', 'quiesce', 'writers_ran'));
+        $this->interruption->checkpoint();
         $export = $run->phase('export', fn (): array => $this->export($project, $prepared, $names), always: true);
-        $run->phase('safety_backup', fn (): array => $this->safety->take($state, self::OPERATION, new LockHandle($this->lock->current() ?? throw new InstanceException('The instance lock was lost.', ExitCode::AbortedUnchanged, 'lock_lost'))));
+        $this->interruption->checkpoint();
+        $run->phase('safety_backup', fn (): array => $this->safety->take($state, self::OPERATION, new LockHandle($this->lock->current() ?? throw new InstanceException('The instance lock was lost.', ExitCode::AbortedUnchanged, 'lock_lost'))),
+            always: ! $run->record()->completedSince('safety_backup', 'quiesce', 'writers_ran'));
+        $this->interruption->checkpoint();
         $run->phase('restore_database', function () use ($state, $project, $names, $prepared): array {
             $this->databases->drop($project, $names->scratch);
             $this->databases->create($project, $names->scratch, null);
@@ -160,17 +186,22 @@ final readonly class RollbackOperation
 
             return ['database' => $names->scratch];
         }, always: true);
+        $this->interruption->checkpoint();
         $run->phase('restore_storage', function () use ($state, $names, $prepared): array {
             $this->storage->remove($names->freshVolume);
             $this->storage->fill($state, $names->freshVolume, $prepared->storage['archive'] ?? null);
 
             return ['volume' => $names->freshVolume];
         }, always: true);
+        $this->interruption->checkpoint();
         $run->phase('render', fn (): array => $this->render($state, $project, $plan, $names), always: true);
+        $this->interruption->checkpoint();
         $finish = $run->phase('finish', fn (): array => $this->databases->finish(RollbackFinale::stagedProject($state, $this->child->stage($names->id)), $names->scratch, null, $prepared,
             (int) ($ledger['seed'] ?? 0), $request->actorUid, [...(is_array($ledger['input'] ?? null) ? $ledger['input'] : []), 'carry' => $this->carry((string) $export['file'])],
             $run->record()->id(), '', 'rolled_back', true), always: true);
+        $this->interruption->checkpoint();
         $run->phase('erasures', fn (): array => $this->storage->removeErased($state, $names->freshVolume, RollbackFinale::exportDirectories($finish)), always: true);
+        $this->interruption->checkpoint();
     }
 
     /**

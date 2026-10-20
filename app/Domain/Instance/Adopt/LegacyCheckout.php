@@ -163,7 +163,7 @@ final readonly class LegacyCheckout
         preg_match_all('/^\s*DB_HOST:\s*["\']?([^"\'\s#]+)/m', $compose, $hosts);
         $external = array_values(array_filter($hosts[1], static fn (string $host): bool => $host !== 'postgres'));
         if ($hosts[1] === [] || $external !== [] || preg_match('/^\s{2}postgres:\s*$/m', $compose) !== 1) {
-            throw self::refused('The 1.0 install does not use its bundled Postgres service'.($external === [] ? '' : ' (DB_HOST: '.implode(', ', array_unique($external)).')').': adopt copies the bundled database volume only.', 'external_database', 'Install 2.0 with `fsa install`, then move the data with a backup of your database (`fsa install --from-backup` takes a 1.0 backup).');
+            throw self::refused('The 1.0 install does not use its bundled Postgres service'.($external === [] ? '' : ' (DB_HOST: '.implode(', ', array_unique($external)).')').': adopt copies the bundled database volume only.', 'external_database', 'Move the data with a 1.0 backup of your database instead: `install.sh --dir <new directory> --from-backup <backup> --accept-unauthenticated` takes a 1.0 backup.');
         }
     }
 

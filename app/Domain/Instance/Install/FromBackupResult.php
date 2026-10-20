@@ -21,7 +21,10 @@ use App\Domain\Instance\State\InstanceState;
  */
 final readonly class FromBackupResult
 {
-    public const string CONFIRM_WEBHOOKS = 'fsa config set webhooks on';
+    /** The command that confirms the move (with `fsa`; the instance's own path is prefixed in next_commands). */
+    public const string CONFIRM_WEBHOOKS = 'fsa '.self::CONFIRM_WEBHOOKS_ARGS;
+
+    public const string CONFIRM_WEBHOOKS_ARGS = 'config set webhooks on';
 
     /** @param  array<string, mixed>  $preflight  the doctor phase's data */
     public static function certificatePending(array $preflight): bool
@@ -50,7 +53,7 @@ final readonly class FromBackupResult
             'pending_mail' => $pendingMail, 'webhooks' => 'paused',
             'confirm_commands' => array_values(array_filter([self::CONFIRM_WEBHOOKS, $pendingMail['command'] ?? null])),
             SignInDelivery::SECRET => null,
-            'next_commands' => ["{$fsa} status", "{$fsa} login-link ".($email ?? '<admin-email>'), "{$fsa} ".self::CONFIRM_WEBHOOKS],
+            'next_commands' => ["{$fsa} status", "{$fsa} login-link ".($email ?? '<admin-email>'), "{$fsa} ".self::CONFIRM_WEBHOOKS_ARGS],
         ], changed: true);
         foreach (self::warnings($preflight, $intake, $email, $done) as [$code, $message, $hint]) {
             $result = $result->withWarning($code, $message, $hint);

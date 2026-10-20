@@ -133,7 +133,8 @@ final readonly class ConfigRequest
         return "fsa config set {$this->key} {$this->value} ".implode(' ', $flags);
     }
 
-    private static function shellWord(string $value): string
+    /** A value as one shell word: quoted unless it is a placeholder or safe as it stands. */
+    public static function shellWord(string $value): string
     {
         return preg_match('/^(?:<[a-z ]+>|[A-Za-z0-9@%+=:,.\/_-]+)$/D', $value) === 1 ? $value : "'".str_replace("'", "'\\''", $value)."'";
     }

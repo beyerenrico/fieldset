@@ -7,6 +7,7 @@ namespace App\Domain\Instance\Restore;
 use App\Domain\Instance\Compose\ComposeRenderer;
 use App\Domain\Instance\Compose\Services\AppRoles;
 use App\Domain\Instance\Compose\Services\BackupService;
+use App\Domain\Instance\Compose\Services\TunnelService;
 use App\Domain\Instance\Compose\Services\ValkeyService;
 use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\Docker\ContainerInfo;
@@ -26,12 +27,16 @@ use SensitiveParameter;
 use Throwable;
 
 /**
- * The stack around a restore (plan U17, KTD19, ADR 0085). Quiesce like an upgrade: the gate goes up (the app answers 503
- * to everything but its own healthcheck and the operation's smoke token), app, scheduler and the backup service stop,
- * then the queue with its grace period (Horizon finishes running jobs), and a one-off seals pending audit entries so
- * the heads the ledger records are final. After the swap the state is rendered again (the fresh storage volume, the
- * APP keys), Valkey is flushed (cache and queued jobs of the replaced data), the app starts behind the gate and the
- * internal smoke test passes with the token; only then does the gate go down and everything else start.
+ * The stack around a restore (plan U17, KTD19, ADR 0085). Quiesce like an upgrade: the gate goes up (an app behind it
+ * answers 503 to everything but its own healthcheck and the operation's smoke token), app, scheduler and the backup
+ * service stop (until the verification starts the app again nothing answers: a loopback port refuses connections, the
+ * edge or a proxy answers 502; ADR 0085 M12 amendment), then the queue with its grace period (Horizon finishes running
+ * jobs), and a one-off seals pending audit entries so the heads the ledger records are final. After the swap the state is
+ * rendered again (the fresh storage volume, the APP keys), Valkey is flushed (cache and queued jobs of the replaced data),
+ * the app starts behind the gate and the internal smoke test passes with the token; only then does the gate go down and
+ * everything else start. "Everything" never includes the quick tunnel (M12 gate C5, as an upgrade's rollback): a running
+ * one keeps running, an ended one is left to the next mutating command's sweep instead of coming back with a new URL the
+ * state does not know.
  */
 final readonly class RestoreStack
 {
@@ -135,7 +140,7 @@ final readonly class RestoreStack
         $this->up($project, [AppRoles::APP]);
         $this->lowerGate($state);
         try {
-            $this->up($project, []);
+            $this->up($project, $this->services());
         } catch (Throwable) {
             $running = array_map(static fn (ContainerInfo $container): ?string => $container->service(), array_filter(ComposeFile::serviceContainers($this->docker->composePs($project)), static fn (ContainerInfo $c): bool => $c->running()));
             $missing = array_values(array_diff([AppRoles::QUEUE, AppRoles::SCHEDULER, BackupService::NAME], $running));
@@ -146,10 +151,24 @@ final readonly class RestoreStack
         return [];
     }
 
-    /** Every service (workers, scheduler, backup) up and healthy; the gate stays as it is. */
+    /** Every service (workers, scheduler, backup) up and healthy, the quick tunnel excepted (C5); the gate stays as it is. */
     public function startAll(ComposeProject $project): void
     {
-        $this->up($project, []);
+        $this->up($project, $this->services());
+    }
+
+    /** Whether app, queue, scheduler or the backup service runs: a resumed operation then takes its heads and backup again (D7). */
+    public function writersRunning(ComposeProject $project): bool
+    {
+        return array_any(ComposeFile::serviceContainers($this->docker->composePs($project)), static fn (ContainerInfo $container): bool => $container->running() && in_array($container->service(), RestoreHalt::WRITERS, true));
+    }
+
+    /** @return list<string> every service (an empty list) or, when the compose file has the quick tunnel, every other one */
+    private function services(): array
+    {
+        $services = ComposeFile::services($this->directory);
+
+        return in_array(TunnelService::NAME, $services, true) ? array_values(array_diff($services, [TunnelService::NAME])) : [];
     }
 
     public function lowerGate(InstanceState $state): void

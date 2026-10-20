@@ -1,0 +1,109 @@
+{
+    "command": "fsa restore safety-adopt-20261019T224756Z --accept-unauthenticated --yes --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "restore",
+        "status": "ok",
+        "changed": true,
+        "data": {
+            "backup": "safety-adopt-20261019T224756Z",
+            "format": "legacy",
+            "authenticated": false,
+            "encrypted": false,
+            "created_at": "20261019T224756Z",
+            "backup_version": null,
+            "url": "http://localhost:50885",
+            "storage_volume": "fsa-fsa-test-j09-70a7_app-storage-re1b70e9a1cd5",
+            "epoch": 2,
+            "previous_epoch": 1,
+            "carried": {
+                "users_erased": 0,
+                "users_deactivated": 0,
+                "users_missing": 0,
+                "passwords": 0,
+                "mfa": 0,
+                "emails": 0,
+                "email_conflicts": 0,
+                "export_directories": [],
+                "devices_revoked": 0,
+                "devices_wiped": 0,
+                "memberships_deactivated": 0,
+                "roles_removed": 0,
+                "permissions_removed": 0,
+                "tokens_deleted": 0,
+                "operators_revoked": 0,
+                "external_identities_deleted": 0,
+                "identity_provider_mappings_deleted": 0,
+                "identity_providers_deleted": 0,
+                "identity_providers_updated": 0,
+                "sso_domains_deleted": 0,
+                "sso_domains_unverified": 0,
+                "group_memberships_removed": 0,
+                "form_access_removed": 0,
+                "organizations_deleted": 0,
+                "webhook_endpoints_deleted": 0,
+                "webhook_endpoints_deactivated": 0
+            },
+            "carry_mode": "state",
+            "carry_skipped": [],
+            "cascade_skipped": [],
+            "sequences": {
+                "sequences": 1,
+                "number_sequences": 0
+            },
+            "cleared": {
+                "sessions": 0,
+                "remember_tokens": 0,
+                "password_reset_tokens": 0,
+                "login_links": 0
+            },
+            "decrypt": {
+                "tested": 2,
+                "failed": []
+            },
+            "safety_backup": "safety-restore-20261019T225003Z",
+            "safety_backup_sealed": false,
+            "keys_added": [],
+            "valkey_flushed": true,
+            "left_behind": [],
+            "webhooks": "paused"
+        },
+        "secrets": [],
+        "warnings": [
+            {
+                "code": "backup_unauthenticated",
+                "message": "The backup is not authenticated (the 1.0 format carries no HMAC); it was accepted with --accept-unauthenticated.",
+                "hint": null
+            },
+            {
+                "code": "webhooks_paused",
+                "message": "Workflow webhooks are paused: restored runs could repeat deliveries made after the backup.",
+                "hint": "Check the webhook receivers, then run `fsa config set webhooks on`."
+            }
+        ],
+        "errors": []
+    },
+    "checks": {
+        "epoch_before": "1",
+        "epoch": "2",
+        "restored_entries": "1",
+        "data": {
+            "submissions": 71,
+            "users": 9
+        },
+        "file": "adopted",
+        "audit_verify": 0,
+        "upgrade_child": {
+            "migrated": [
+                "2026_10_24_100000_create_login_links_table",
+                "2026_10_25_100000_add_is_demo_to_organizations",
+                "2026_10_26_100000_create_backup_runs_table",
+                "2026_10_26_100100_create_audit_chain_epochs_table",
+                "2026_10_26_100200_add_schedule_to_backup_runs"
+            ],
+            "steps": []
+        },
+        "up": 200
+    }
+}

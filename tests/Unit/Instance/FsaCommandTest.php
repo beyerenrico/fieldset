@@ -42,7 +42,7 @@ it('renders one JSON envelope with schema_version and status', function (): void
     [$code, $json] = fsaJson(['--dir' => $this->directory->root]);
 
     expect($code)->toBe(0)
-        ->and(array_keys($json))->toBe(['schema_version', 'command', 'status', 'changed', 'data', 'secrets', 'warnings', 'errors'])
+        ->and(array_keys($json))->toBe(['schema_version', 'command', 'status', 'exit_code', 'changed', 'data', 'secrets', 'warnings', 'errors']) // exit_code: M12 gate O10
         ->and($json)->toMatchArray(['schema_version' => 1, 'command' => 'scripted', 'status' => 'ok', 'changed' => true, 'data' => ['dir' => $this->directory->root], 'secrets' => [], 'warnings' => [], 'errors' => []]);
 });
 

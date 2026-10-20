@@ -11,6 +11,7 @@ use App\Domain\Instance\Operations\JournalRecord;
 use App\Domain\Instance\Operations\LockHandle;
 use App\Domain\Instance\Operations\LockRecord;
 use App\Domain\Instance\State\InstanceDirectory;
+use App\Domain\Instance\Upgrade\SafetySeal;
 use Throwable;
 
 /**
@@ -28,6 +29,7 @@ final readonly class RestoreCleanup
         private RestoreStorage $storage,
         private RestoreSource $source,
         private SafetyBackup $safety,
+        private SafetySeal $seals,
     ) {}
 
     /** @return array{left_behind: list<string>, sealed: bool, warnings: list<array{0: string, 1: string, 2: string|null}>} */
@@ -52,6 +54,8 @@ final readonly class RestoreCleanup
             $left[] = 'directory '.RestoreSource::scratchPath($names->id);
         }
         $sealed = $this->seal($safetyBackup, $warnings);
+        // a set a killed attempt wrote before the journal named it is sealed too (M12 gate C3)
+        $warnings = [...$warnings, ...$this->seals->seal(array_values(array_diff($this->seals->since(RestoreOperation::OPERATION, $record->startedAt()), [$safetyBackup])))];
         $this->record($backup, $safetyBackup, $record);
         if ($left !== []) {
             $warnings[] = ['restore_cleanup_incomplete', 'The restore succeeded, but these could not be removed: '.implode(', ', $left).'.', 'Remove them by hand once you checked the restored instance (`docker volume rm`, `DROP DATABASE`).'];

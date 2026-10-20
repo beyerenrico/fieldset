@@ -6,6 +6,7 @@ namespace App\Domain\Instance\Restore;
 
 use App\Domain\Instance\Backup\KeyFingerprint;
 use App\Domain\Instance\Docker\ComposeProject;
+use App\Domain\Instance\Operations\Interruption;
 use App\Domain\Instance\Operations\JournalRecord;
 use App\Domain\Instance\Operations\OperationRun;
 use App\Domain\Instance\Output\CommandResult;
@@ -23,6 +24,8 @@ use Throwable;
  * restored instance takes requests, so nothing ever swaps back (review A4): the gate and clean-up phases fail forward.
  * A resumed run never raises the gate again once lowering began (review A1). Webhooks stay paused after an in-place
  * restore until `fsa config set webhooks on` (review A15): restored runs may repeat deliveries made after the backup.
+ * A signal (Interruption, M12 gate O8) is handled at the boundaries before verify, before open and before the gate: the
+ * instance returns to the previous database and volume, as on a failed verification. Never with `$wayBack` false.
  */
 final readonly class RestoreFinale
 {
@@ -32,6 +35,7 @@ final readonly class RestoreFinale
         private RestoreRecovery $recovery,
         private RestoreCleanup $cleanup,
         private RestoreHalt $halt,
+        private Interruption $interruption,
     ) {}
 
     /**
@@ -69,15 +73,18 @@ final readonly class RestoreFinale
                 if (! $wayBack) {
                     $this->stack->apply($swapped); // the restored database's state: fresh volume, paused webhooks
                 }
+                $this->checkpoint($wayBack);
                 if (! $record->hasCompleted('verify')) {
                     $token = $this->stack->raise($swapped);
                     $run->phase('verify', fn (): array => ['checked' => $this->stack->startAndVerify($swapped, $project, $token)], always: true);
+                    $this->checkpoint($wayBack);
                 }
                 $run->phase('open', function () use ($project): array {
                     $this->stack->startAll($project); // behind the gate: nothing is accepted until everything runs
 
                     return ['open' => true];
                 }, always: true);
+                $this->checkpoint($wayBack);
             } catch (Throwable $e) {
                 if (! $wayBack) {
                     return $this->halt->stop($project, $names, $e, $e, self::safety($run->record()), 'forward');
@@ -96,6 +103,14 @@ final readonly class RestoreFinale
         $cleanup = $run->phase('cleanup', fn (): array => $this->cleanup->run($project, $names, self::safety($run->record()), $run->record(), $backup), always: true);
 
         return RestoreResult::ok($swapped, $intake, $run->record()->phaseData('finish'), $cleanup, $run->record());
+    }
+
+    /** A signal received since the last boundary stops here, while there is a way back (O8). */
+    private function checkpoint(bool $wayBack): void
+    {
+        if ($wayBack) {
+            $this->interruption->checkpoint();
+        }
     }
 
     /** The state after the swap: the fresh storage volume, webhooks paused until the operator confirms (review A15). */

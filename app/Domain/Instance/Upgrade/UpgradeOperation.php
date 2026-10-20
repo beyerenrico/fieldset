@@ -14,10 +14,12 @@ use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Lifecycle\OneOffResult;
 use App\Domain\Instance\Operations\ContainerIdentity;
 use App\Domain\Instance\Operations\JournalRecord;
+use App\Domain\Instance\Operations\OperationJournal;
 use App\Domain\Instance\Operations\OperationRun;
 use App\Domain\Instance\Operations\Supervisor;
 use App\Domain\Instance\Output\CommandResult;
 use App\Domain\Instance\Output\ExitCode;
+use App\Domain\Instance\Output\InvalidInput;
 use App\Domain\Instance\Output\ProgressReporter;
 use App\Domain\Instance\Restore\RestoreOperation;
 use App\Domain\Instance\State\InstanceDirectory;
@@ -36,7 +38,8 @@ use Throwable;
  * A resumed run decides from the journal: a rollback that began is finished; a committed upgrade only opens; an upgrade
  * killed after its safety backup rolls back (exit 5 `upgrade_interrupted`); one killed while quiescing brings the
  * previous services back (exit 9). `fsa upgrade` without `--resume` takes over a committed journal too: the next call
- * finishes opening.
+ * finishes opening. `--resume` without an open journal is exit 2 `nothing_to_resume` (never a new upgrade), and a resumed
+ * run works with the target and flags its journal began with (M12 gate O3).
  */
 final readonly class UpgradeOperation
 {
@@ -55,11 +58,17 @@ final readonly class UpgradeOperation
         private UpgradeRollback $rollback,
         private ReleaseFiles $files,
         private SafetySeal $seal,
+        private OperationJournal $journal,
     ) {}
 
     public function run(UpgradeRequest $request, HostFacts $facts, ProgressReporter $progress): CommandResult
     {
         RestoreOperation::installed($this->directory);
+        $open = $this->journal->current();
+        if ($request->resume && ! $open instanceof JournalRecord) {
+            throw new InvalidInput('There is no interrupted upgrade to resume.', 'nothing_to_resume', 'Run `fsa upgrade` (with --to <version> for a specific release) to start one.');
+        }
+        $request = $request->resume && $open?->operation() === UpgradeJournal::OPERATION ? $request->resuming($open->context()) : $request;
 
         return $this->supervisor->run(
             UpgradeJournal::OPERATION, $this->identity->holder('fsa', $request->actorUid),

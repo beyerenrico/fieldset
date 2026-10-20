@@ -185,8 +185,8 @@ with the hint `fsa demo`.
 
 ## Amendment 2026-10-18: phone HTTPS at install, the `lan_address` check, `fsa tunnel` (ADR 0082)
 - `--phone-https local-ca|tunnel` and `--lan-address` are accepted in local mode (with `--domain`/`--behind-proxy`,
-  or `--lan-address` without `local-ca`: exit 2 `invalid_combination`); only `--encrypt` and `--from-backup` are
-  still `unsupported_option`.
+  or `--lan-address` without `local-ca`: exit 2 `invalid_combination`); only `--encrypt` is still
+  `unsupported_option` (`--from-backup` arrived with U17; M12 gate correction).
 - `local-ca` is decided and journaled in the doctor phase (no known LAN address: exit 2 `lan_address_required`); the
   ports check also probes 80/443 on the LAN address (`LocalCaPorts`) and the smoke test checks the edge
   (`LocalCaEdge`). `tunnel` installs in local mode, then starts the tunnel (`InstallTunnel`); a failed tunnel keeps
@@ -239,7 +239,8 @@ U12 did not add them (the smoke path above and the U12 consequence promised it);
   schedule.
 - `fsa status` fills `last_backup` (the newest successful backup run) and adds `backup` (schedule and next run,
   encryption, backups on disk, safety backups with age and size, alerts), read from the run ledger without a database;
-  failed backups, scheduled runs skipped for more than 24 hours and a schedule without success for 26 hours are warnings.
+  failed backups, scheduled runs skipped for more than 24 hours and a scheduled slot passed by two hours without a
+  success are warnings (M12 gate correction: not 26 hours without a success).
   The services list includes `backup`.
 
 ## Amendment 2026-10-20: the smoke test's mail without a recipient (U19)
@@ -257,8 +258,21 @@ mail is then skipped (`InstallSmoke::MAIL_SKIPPED` in the phase data, warning `t
   one transaction (U23 second review A7): a failure leaves none of them, so a repeated install or `fsa reset` never takes
   an owner without the operator role for a finished install.
 
+## Amendment 2026-10-20: corrections (M12 gate)
+- Corrected in place: of the install flags only `--encrypt` is still `unsupported_option` (`--from-backup` exists since
+  U17, ADR 0085); the U16 amendment's overdue warning comes two hours after the first scheduled slot that passed without
+  a success (BackupAlerts::OVERDUE_GRACE_HOURS, counted from the last success or, without one, from the backup service's
+  first start with the schedule), not after 26 hours without a success.
+- A repeated install with another `--version` names `fsa upgrade --to <version>`; the hints no longer say that upgrades
+  or `--from-backup` "arrive with 2.0.0-rc.1".
+
 ## Amendment 2026-10-20: proxy-mode hint (M12 gate)
 The `use_config_set` and `mode_not_settable` hint for proxy mode (InstallFlags::PROXY_SWITCH) no longer says the data
 moves only from 2.0.0-rc.1: it names `fsa uninstall --keep-backups` (a final backup of the 2.0 format, ADR 0073
 amendment) and `fsa install --from-backup <dir>/backups/final-<time>` with `--app-key-file` (plain) or the identity
 and `--accept-unauthenticated` (encrypted: the keys are inside it).
+
+## Amendment 2026-10-20: install.sh in final-backup hints (M12 gate, fix round B)
+After `fsa uninstall --keep-backups` the directory holds only `backups/` and no `fsa`: the proxy-mode hint
+(InstallFlags::PROXY_SWITCH) and uninstall's final-backup hint name `install.sh --dir <dir> --from-backup …`, which takes
+such a directory, instead of `fsa install --from-backup`.

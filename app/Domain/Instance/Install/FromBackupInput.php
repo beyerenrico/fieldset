@@ -38,13 +38,18 @@ final class FromBackupInput
         $identity = self::string($command, 'identity-file');
         $passphrase = PassphraseInput::fromCommand($command, $context, twice: false);
 
+        $keyFile = self::keyFile($command, $context);
+
         return new FromBackupRequest(
             self::absolute($backup),
             $command->option('accept-unauthenticated') === true,
             $identity === null ? null : self::absolute($identity),
             $passphrase->given() ? $passphrase->read($context) : null,
-            self::keyFile($command, $context),
+            $keyFile,
             $command->option('keep-recipients') === true,
+            $passphrase->file(),
+            $passphrase->stdin(),
+            $keyFile instanceof AppKeys ? self::absolute((string) self::string($command, 'app-key-file')) : null,
         );
     }
 

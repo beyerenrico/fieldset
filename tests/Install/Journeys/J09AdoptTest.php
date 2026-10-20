@@ -20,6 +20,9 @@ use Tests\Support\Docker\V1Install;
  *   (submissions, users); each 1.0 audit chain head is in 2.0 with its hash and `audit:verify` passes;
  * - the unique text indexes (emails, slugs) pass amcheck (`bt_index_check` with heapallindexed) on the copy;
  * - 1.0's volumes still exist unlabelled and its containers are stopped; the backup restores in a drill;
+ * - the adopt's 1.0 backup restores in place (`--accept-unauthenticated`): the upgrade child migrates it to this release
+ *   (journal phase `upgrade_child`), the data and the stored file are the backup's, the audit epoch goes up with one
+ *   `instance.restored` entry, `audit:verify` passes and the instance is healthy (review EV2);
  * - `fsa uninstall` takes a final backup and reports the writes made since adopt; `docker compose up -d` in the checkout
  *   brings 1.0 back with its pre-adopt data.
  *
@@ -209,6 +212,44 @@ it('left 1.0\'s volumes untouched and stopped, and its backup restores in a dril
         ->and($files['referenced'] ?? 0)->toBeGreaterThanOrEqual($files['missing'] ?? PHP_INT_MAX) // the demo logo too, present (gate D8)
         ->and($drillJson['data']['drill']['render']['status'] ?? null)->toBe('rendered')
         ->and($drillJson['data']['drill']['audit']['intact'] ?? null)->toBeTrue();
+});
+
+it('restores the adopt\'s 1.0 backup in place through the upgrade child: its data, a new epoch, a healthy instance', function (): void {
+    $uuid = (string) $GLOBALS['fsaJ09Uuid'];
+    $adopted = $GLOBALS['fsaJ09Adopt']['data']['adopted'] ?? [];
+    $backup = (string) ($adopted['backup'] ?? '');
+    $postgres = j09Container($uuid, 'postgres');
+    $epochBefore = V1Install::sql($postgres, 'SELECT coalesce(max(epoch), 1) FROM audit_chain_epochs;'); // no row yet: epoch 1 (adopt starts none)
+    $process = $this->journey->fsa($this->dir, ['restore', $backup, '--accept-unauthenticated', '--yes', '--json']);
+    $json = InstanceJourney::json($process);
+    $postgres = j09Container($uuid, 'postgres');
+    $after = V1Install::data($postgres);
+    $verify = new Process(['docker', 'exec', j09Container($uuid, 'app'), 'php', 'artisan', 'audit:verify']);
+    $verify->setTimeout(600);
+    $verify->run();
+    $file = new Process(['docker', 'exec', j09Container($uuid, 'app'), 'cat', 'storage/app/private/fsa-test-j09/file.txt']);
+    $file->run();
+    $journals = glob($this->dir.'/operations/history/*-restore-*.json') ?: [];
+    $journal = json_decode((string) file_get_contents((string) end($journals)), true);
+    $child = array_values(array_filter($journal['phases'] ?? [], static fn (array $phase): bool => $phase['name'] === 'upgrade_child' && $phase['status'] === 'completed'));
+    $checks = ['epoch_before' => $epochBefore, 'epoch' => V1Install::sql($postgres, 'SELECT max(epoch) FROM audit_chain_epochs;'),
+        'restored_entries' => V1Install::sql($postgres, "SELECT count(*) FROM activity_log WHERE event = 'instance.restored';"),
+        'data' => ['submissions' => $after['submissions'], 'users' => $after['users']], 'file' => $file->getOutput(), 'audit_verify' => $verify->getExitCode(),
+        'upgrade_child' => $child[0]['data'] ?? null, 'up' => j09Get($this->v1->port, '/up')['status']];
+    $this->journey->evidence('J09-restore-in-place.json', ['command' => 'fsa restore '.$backup.' --accept-unauthenticated --yes --json', 'exit_code' => $process->getExitCode(), 'stdout' => $json, 'checks' => $checks]);
+
+    expect($process->getExitCode())->toBe(0, $process->getErrorOutput()."\n".$process->getOutput())
+        ->and($json['data'])->toMatchArray(['backup' => $backup, 'format' => 'legacy', 'authenticated' => false]) // a 1.0 manifest names no version: the child goes by migrations
+        ->and($json['data']['epoch'] ?? null)->toBe((int) $checks['epoch'])
+        ->and($json['data']['previous_epoch'] ?? null)->toBe((int) $epochBefore)
+        ->and((int) $checks['epoch'])->toBe((int) $epochBefore + 1)
+        ->and($checks['restored_entries'])->toBe('1')
+        ->and($checks['data'])->toBe(['submissions' => $adopted['verified']['counts']['submissions'] ?? -1, 'users' => $adopted['verified']['counts']['users'] ?? -1])
+        ->and($checks['file'])->toBe('adopted')
+        ->and($verify->getExitCode())->toBe(0, $verify->getOutput().$verify->getErrorOutput())
+        ->and($child)->toHaveCount(1)
+        ->and($child[0]['data']['migrated'] ?? [])->not->toBeEmpty()
+        ->and($checks['up'])->toBe(200);
 });
 
 it('uninstalls with a final backup and the writes since adopt, and docker compose up -d brings 1.0 back with its data', function (): void {

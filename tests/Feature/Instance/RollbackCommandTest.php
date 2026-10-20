@@ -89,7 +89,7 @@ it('asks first and names what is lost (exit 6 without --yes)', function (): void
         ->and($this->upgrade->instance->state()->version())->toBe(UpgradeFixture::TARGET);
 });
 
-it('refuses without a previous release, after a restore since the upgrade, and without its safety backup (exit 7)', function (string $case, string $error): void {
+it('refuses without a previous release, after a restore since the upgrade, and without its safety backup (exit 7)', function (string $case, string $error, string $hint): void {
     $directory = $this->upgrade->instance->directory;
     match ($case) {
         'no previous' => $directory->saveState($directory->state()->withoutPreviousRelease()),
@@ -101,8 +101,13 @@ it('refuses without a previous release, after a restore since the upgrade, and w
     [$code, $json] = $this->upgrade->rollback();
 
     expect($code)->toBe(7, (string) json_encode($json))->and($json['errors'][0]['code'])->toBe($error)
+        ->and($json['errors'][0]['hint'])->toContain($hint)->not->toContain('fsa install --from-backup') // gate review DOC14
         ->and($this->config->callsSince($mark, 'composeStop'))->toBe([]);
-})->with([['no previous', 'no_previous_release'], ['restored', 'restored_since_upgrade'], ['missing backup', 'safety_backup_missing']]);
+})->with([
+    ['no previous', 'no_previous_release', '`fsa restore <backup>`'],
+    ['restored', 'restored_since_upgrade', '`fsa restore <backup>`'],
+    ['missing backup', 'safety_backup_missing', '`install.sh --dir <new directory> --from-backup <backup>`'],
+]);
 
 it('goes back before the swap when restoring fails, with the upgraded release running as before (exit 5)', function (): void {
     $this->upgrade->restore->pgRestore = new ProcessOutcome(1, '', 'pg_restore: error: out of disk');
