@@ -98,6 +98,7 @@ return [
             'http' => 'Der Release-Server antwortete mit HTTP :status.',
         ],
         'available' => 'Version :version ist verfügbar. Aktualisieren mit:',
+        'unknown' => 'Ob es eine neuere Version gibt, ist noch nicht bekannt: Keine Prüfung hat das neueste Release gefunden.',
         'current' => 'Version :version ist aktuell.',
     ],
     'backup_alert' => [

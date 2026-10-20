@@ -180,6 +180,17 @@ it('names the command that turns the update check on, and says when it has not r
     Http::assertNothingSent();
 });
 
+it('claims no up-to-date version before a check found the newest release', function (?string $error): void {
+    instancePageRuntime(updates: true);
+    if ($error !== null) {
+        Cache::forever(UpdateCheck::CACHE_KEY, ['checked_at' => now()->toIso8601ZuluString(), 'latest' => null, 'notes_url' => null, 'error' => $error]);
+    }
+
+    instancePageOpen()->assertSee('data-instance-updates="on"', false)
+        ->assertSee(__('instance.updates.unknown'))
+        ->assertDontSee(__('instance.updates.current', ['version' => config('app.version')]));
+})->with(['never checked' => null, 'first check failed' => 'unreachable']);
+
 it('renders a notes URL that is not https as text, never as a link', function (string $notes): void {
     instancePageRuntime(updates: true);
     Cache::forever(UpdateCheck::CACHE_KEY, ['checked_at' => now()->toIso8601ZuluString(), 'latest' => '2.1.0', 'notes_url' => $notes, 'error' => null]);

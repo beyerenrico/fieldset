@@ -98,6 +98,7 @@ return [
             'http' => 'The release server answered with HTTP :status.',
         ],
         'available' => 'Version :version is available. Upgrade with:',
+        'unknown' => 'Whether a newer version exists is not known yet: no check has found the newest release.',
         'current' => 'Version :version is up to date.',
     ],
     'backup_alert' => [

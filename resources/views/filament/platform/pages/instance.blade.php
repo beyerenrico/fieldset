@@ -150,7 +150,7 @@
                         <dt style="opacity:.75">{{ __('instance.updates.error') }}</dt><dd style="{{ $dd }}" data-instance-update-error>{{ __('instance.updates.errors.'.(str_starts_with($updates['error'], 'http_') ? 'http' : $updates['error']), ['status' => substr($updates['error'], 5)]) }}</dd>
                     @endif
                 </dl>
-                <p style="margin:.5rem 0 0;font-size:.875rem">{{ $updates['available'] ? __('instance.updates.available', ['version' => $updates['latest']]) : __('instance.updates.current', ['version' => $updates['current']]) }}
+                <p style="margin:.5rem 0 0;font-size:.875rem">{{ match (true) { $updates['available'] => __('instance.updates.available', ['version' => $updates['latest']]), $updates['latest'] === null => __('instance.updates.unknown'), default => __('instance.updates.current', ['version' => $updates['current']]) } }}
                     @if ($updates['available'])
                         <code style="{{ $code }}">fsa upgrade</code>
                     @endif
