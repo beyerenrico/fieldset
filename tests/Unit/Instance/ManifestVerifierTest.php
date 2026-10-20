@@ -85,6 +85,20 @@ it('fails with exit 3 when the signature does not verify, before returning any d
     }
 });
 
+it('says in its hint what the agent guide says: stop, the same command again only when Sigstore could not be reached (R51)', function (): void {
+    $this->docker->queueOutcome('runContainer', new ProcessOutcome(1, '', 'Error: no matching CertificateIdentity found'));
+
+    try {
+        manifestVerifier($this->docker, TrustPolicy::keyless(SignerIdentity::production()))->verify($this->manifest, $this->bundle);
+        $this->fail('verification passed');
+    } catch (InstanceException $e) {
+        expect($e->hint)->toBe(ManifestVerifier::SIGNATURE_HINT)
+            ->and($e->hint)->toContain('never retry with another install.sh or release URL')->toContain('never bypass')
+            ->and($e->hint)->toContain('Only if the message shows that Sigstore (TUF, Rekor) could not be reached')
+            ->and($e->hint)->not->toContain('retry later');
+    }
+});
+
 it('reports a timeout as a retryable exit 3', function (): void {
     $this->docker->queueOutcome('runContainer', new ProcessOutcome(124, '', '', true));
 
