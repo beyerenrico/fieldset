@@ -5,7 +5,8 @@ recipe gives the exact commands, the JSON fields to read and what to do when a s
 host, Docker (Engine 24+ or Docker Desktop) and `curl`. You do not need the repository.
 
 The same guide ships with every release as the asset `agent-guide.md` and lives in the repository at
-`docs/guide/agent-guide.md`. People who prefer prose read the [install guide](install.md).
+`docs/guide/agent-guide.md`. People who prefer prose read the [install guide](https://github.com/beyerenrico/form-schema-app/blob/main/docs/guide/install.md). Links to other
+guides point to the repository on GitHub, so they also work in the release asset.
 
 ## Contents
 
@@ -44,7 +45,9 @@ The same guide ships with every release as the asset `agent-guide.md` and lives 
 6. **Run commands of an instance through its own shim:** `<dir>/fsa <command> …`, for example `~/forms/fsa status
    --json`. `install.sh` creates the shim. With `--link` (or by answering its question) `install.sh` also links
    `fsa` into your PATH; this guide always writes the full path.
-7. **A command that stopped half-way is resumed, not repeated by hand.** See exit 9 below.
+7. **A command that stopped half-way is resumed, not repeated by hand.** Resuming means running the command the
+   envelope names (`data.command`, see exit 9 below) or, for an install, the same install command again: it continues
+   where it stopped (see [a failed install](#a-failed-install)). Never clean up or redo its steps yourself.
 
 Every command lists its flags with `<dir>/fsa <command> --help`.
 
@@ -78,15 +81,15 @@ Every command lists its flags with `<dir>/fsa <command> --help`.
 |---|---|---|
 | 0 | Success | Read `data`. Look at `warnings` too. |
 | 1 | Internal error | Report `errors[0]` to the person. Run `<dir>/fsa status --json` to see what changed. |
-| 2 | Invalid input (a flag, a value, a missing file) | Fix the input named in `errors[0]`. Nothing changed, except with `secrets_file_unwritable`: the command may have done its work (`changed: true`) and only its secrets were not saved; the hint says how to get them again. |
-| 3 | Preflight failed (the doctor: Docker, disk, ports, DNS) | `data.checks` names each failed check with a `hint`. Fix it and run the command again. Nothing changed. |
-| 3 | install.sh could not download or verify the release (`release_unavailable`, `image_unavailable`, `verify_failed`, `manifest_signature_invalid`, …) | `data` is empty: read `errors[0]`. `release_unavailable` and `image_unavailable` are network problems (`retryable: true`). On `verify_failed` or `manifest_signature_invalid`, stop and report `errors[0]` to the person: never retry with another install.sh or release URL, never bypass the check. Nothing changed. |
+| 2 | Invalid input (a flag, a value, a missing file) | Fix the input named in `errors[0]`. Nothing changed, except with `secrets_file_unwritable`: the command may have done its work (`changed: true`) and only its secrets were not saved; the hint says how to get them again. A failed install leaves its directory: see [a failed install](#a-failed-install). |
+| 3 | Preflight failed: the doctor (Docker, disk, ports, DNS) or a precondition of the command, such as `default_password_in_use` (accounts still sign in with the demo password `password`) | `data.checks` lists the doctor's checks, each `{key, status, summary, hint, details}` with `status` `ok`, `warn`, `fail` or `skipped`; fix every `fail` as its `hint` says. A precondition names its fix in `errors[0].hint`. Then run the command again. Nothing changed; a failed install leaves its directory (see [a failed install](#a-failed-install)). |
+| 3 | install.sh could not download or verify the release (`release_unavailable`, `image_unavailable`, `verify_failed`, `manifest_signature_invalid`, …) | `data` is empty: read `errors[0]`. `release_unavailable` and `image_unavailable` are network problems (`retryable: true`). On `verify_failed` or `manifest_signature_invalid`, stop and report `errors[0]` to the person: never retry with another install.sh or release URL, never bypass the check. Only if `errors[0].message` shows that Sigstore (TUF, Rekor) could not be reached may the same command be run again later. Nothing changed: no directory was created. |
 | 4 | A step after the preflight failed (a service unhealthy, a migration, a restore step) | Read `errors[0].hint`: it says what was touched (the restore steps leave the live database and storage alone). Then `<dir>/fsa logs app --json`. An install resumes when run again. |
 | 5 | Rolled back | The instance is back where it was. `errors[0].code` is the cause. See below. |
 | 6 | Confirmation required | Show `data.question` and the other `data` facts to the person; run again with `--yes` if they agree. |
-| 7 | Incompatible (version, schema, another instance's data) | Nothing changed. `errors[0].hint` names the way forward (for example `--to <version>` or `--major`). |
+| 7 | Incompatible (version, schema, another instance's data) | Nothing changed (a failed install leaves its directory, see [a failed install](#a-failed-install)). `errors[0].hint` names the way forward (for example `--to <version>` or `--major`). |
 | 8 | Rollback failed: the instance is stopped behind its maintenance gate | Follow the recovery object below exactly; do not improvise. |
-| 9 | Aborted, nothing changed (lock held, unfinished operation, cancelled) | See below. |
+| 9 | Aborted, nothing changed (lock held, unfinished operation, cancelled, `rate_limited`) | See below. `rate_limited` (too many sign-in links, `retryable: true`): wait a few minutes, then run the same command again. |
 | 10 | Docker unavailable | Start Docker (or fix access to its socket) and run the command again. |
 
 ### The recovery object
@@ -119,6 +122,21 @@ this order:
    too, the last resort in the hint is to install that backup into a new directory with `install.sh --dir <new dir>
    --from-backup <backup>`.
 
+### A failed install
+
+Once install.sh has verified the release it creates the instance directory, so an install that fails later (exit 2,
+3, 4 or 7, for example `doctor_failed`, `path_missing` or `backup_newer`) leaves that directory behind. Before the
+first container starts it holds only install.sh's scaffold (such as `.fsa-instance`, `fsa`, `locks`, `operations`,
+`releases`), and `<dir>/fsa status` and `<dir>/fsa uninstall` answer exit 3 `no_state` ("the installation
+did not finish"). Then either:
+
+- fix the cause and run the install command again with the same `--dir` (a corrected flag, such as another
+  `--version`, is fine): it continues in that directory; or
+- if the person gives up on this install, remove the directory: `rm -r <dir>`. Only do that while `<dir>/fsa status
+  --json` answers `no_state`: then no container, volume or network exists yet.
+
+After exit 4 the instance's containers may exist already: run the same install command again, it resumes.
+
 ## Recipe: local demo
 
 Goal: a demo instance on this computer, filled with sample data, mail caught by the instance's mail catcher.
@@ -148,7 +166,8 @@ curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/form-schema
 Read:
 
 - `data.url` (for example `http://localhost:8080`): the admin dashboard is at `<url>/admin`, the Field App at
-  `<url>/app`.
+  `<url>/app`. When port 8080 is taken the installer picks the next free port itself (`data.port`); pass `--port <n>`
+  only to choose one.
 - `secrets[0].written_to`: the file with the owner's one-time sign-in link (valid 15 minutes, one use). Give the link
   to the person; it leads to "set a password".
 - `data.demo.users`: the demo accounts. On a loopback-only instance their password is `data.demo.default_password`
@@ -157,7 +176,8 @@ Read:
 - `data.mail.catcher_url`: the mail catcher, where every mail of the instance lands. `data.mail.catcher_login_command`
   (local and proxy mode) is `fsa config show --catcher-login`, which returns the catcher's password as a secret. Run it
   as `~/forms/fsa config show --catcher-login --secrets-file ~/forms-catcher.json --json`: without `--secrets-file` the
-  password is printed on stdout.
+  password is printed on stdout. The catcher asks for a user name and that password: the user name is
+  `data.catcher_login.user` (`fsa`), the password the secret `catcher_password`.
 
 On a computer with a desktop, `--open` hands the sign-in link to the browser instead of a file
 (`data.sign_in_link.delivered` is then `browser`). A demo on an instance that is already installed:
@@ -165,12 +185,14 @@ On a computer with a desktop, `--open` hands the sign-in link to the browser ins
 
 Failures:
 
-- Exit 3 `doctor_failed`: `data.checks` names the failed check, often a port in use. `--port <n>` picks another one.
+- Exit 3 `doctor_failed`: `data.checks` names the failed check, often the port given with `--port` is in use: pass
+  another one, or leave `--port` out and the installer picks a free one.
 - Exit 10 `docker_too_old`: the Docker Engine is older than 24 (`data.checks` says which version runs). Update Docker.
 - Exit 7 `project_conflict`: another instance uses the same directory name. Pick another `--dir`.
 - Exit 10 `docker_missing` or `docker_unavailable`: install or start Docker.
 - Exit 4 (`services_unhealthy`, `migrate_failed`, …): read `~/forms/fsa logs app --json`, then run the same install
   command again; it resumes.
+- Any failed install leaves `~/forms` behind: see [a failed install](#a-failed-install).
 
 ## Recipe: sign-in links
 
@@ -223,7 +245,9 @@ back.
 Failures:
 
 - Exit 5 `test_mail_failed`: the server refused the mail or the login; the instance still captures mail. The message
-  says what the server answered. Fix host, port, user, password or encryption and run again.
+  says what the server answered. Fix host, port, user, password or encryption and run again. `data.command` is the
+  command to repeat: it names the password the way you passed it (`--password-file <file>` or `--password-stdin`) and
+  the user name as `<the same user name>`, which you replace (a user name is never printed).
 - Exit 2 `password_required`: `--smtp-username` without `--password-file` or `--password-stdin`.
 
 ## Recipe: backup and restore
@@ -243,18 +267,18 @@ Take a backup now:
 reminds you that a backup on the same disk is no backup: copy `data.path` to another machine. Scheduled backups carry
 no APP key: keep the `APP_KEY` and `APP_PREVIOUS_KEYS` lines of `~/forms/env/app.env` outside the host too (ask the
 person where), or a restore elsewhere cannot verify the backup and encrypted values stay unreadable (see
-[backup and restore](backup-restore.md#copy-backups-off-the-host)).
+[backup and restore](https://github.com/beyerenrico/form-schema-app/blob/main/docs/guide/backup-restore.md#copy-backups-off-the-host)).
 
 To check the scheduled backups, read `warnings[].code` of `~/forms/fsa status --json` (each `hint` names the command):
 
 | Code | Meaning | Do |
 |---|---|---|
-| `backup_failed` | The last backup failed. | Read `fsa logs backup`, fix the cause, run `fsa backup`. |
-| `backup_disk_space` | The last scheduled backup was skipped for lack of disk space. | Free space (old backups in `backups/`), run `fsa backup`. |
-| `backup_skipped` | Scheduled backups were skipped for more than 24 hours: an operation held the lock. | Finish the unfinished operation (`fsa status` names it), run `fsa backup`. |
-| `backup_service_failed` | The backup service cannot start. | Read `fsa logs backup`; any `fsa config set` that changes a setting renders its configuration again. |
+| `backup_failed` | The last backup failed. | Read `~/forms/fsa logs backup --json`, fix the cause, run `~/forms/fsa backup --json`. |
+| `backup_disk_space` | The last scheduled backup was skipped for lack of disk space. | Free space (old backups in `backups/`), run `~/forms/fsa backup --json`. |
+| `backup_skipped` | Scheduled backups were skipped for more than 24 hours: an operation held the lock. | Finish the unfinished operation (`~/forms/fsa status --json` names it), run `~/forms/fsa backup --json`. |
+| `backup_service_failed` | The backup service cannot start. | Read `~/forms/fsa logs backup --json`; any `~/forms/fsa config set` that changes a setting renders its configuration again. |
 | `backup_files_missing` | The newest backup misses files the database references (its `manifest.json` lists them). | Check the storage volume; report to the person. |
-| `backup_overdue` | No backup succeeded within 2 hours of the scheduled slot. | `fsa logs backup` and `fsa doctor --post`, then `fsa backup`. |
+| `backup_overdue` | No backup succeeded within 2 hours of the scheduled slot. | `~/forms/fsa logs backup --json` and `~/forms/fsa doctor --post --json`, then `~/forms/fsa backup --json`. |
 | `backup_partial_left` | An interrupted backup left a partial directory that may hold unencrypted data. | The next run removes it; never copy it off the host. |
 
 Check that the backup restores, without touching the instance (a drill). `<backup>` is `data.backup` from above:
@@ -291,7 +315,7 @@ them on again:
 
 Notes:
 
-- `data.epoch`: a restore starts a new epoch of the audit log's hash chain (see [backup and restore](backup-restore.md)).
+- `data.epoch`: a restore starts a new epoch of the audit log's hash chain (see [backup and restore](https://github.com/beyerenrico/form-schema-app/blob/main/docs/guide/backup-restore.md)).
 - Encrypted backups (`fsa config set backup-encryption on`) restore with `--identity-file <file>` and
   `--passphrase-file <file>`.
 
@@ -300,8 +324,8 @@ Failures:
 - Exit 7 `backup_newer`: the backup comes from a newer version. Upgrade first. Exit 7 `backup_too_old`: the backup is
   older than the oldest version this release upgrades from; restore it into an instance of an intermediate release
   first. Nothing changed.
-- Exit 2 `backup_not_found`, `backup_not_visible` (the path lies outside the instance directory: copy the backup into
-  `~/forms/backups/` and restore it by name), `not_an_app_backup` (the dump is not a backup of this app),
+- Exit 2 `backup_not_found`, `backup_not_visible` (the path lies outside the instance directory, whether it exists or
+  not: `fsa restore` sees only that directory; copy the backup into `~/forms/backups/` and restore it by name), `not_an_app_backup` (the dump is not a backup of this app),
   `backup_unauthenticated` (the backup's signature does not match this instance's APP key: pass the key of the instance
   that made it with `--app-key-file`, or `--accept-unauthenticated` if the person accepts an unverified backup),
   `identity_required` (an encrypted backup), `path_missing` (the directory of the `--identity-file` does not exist),
@@ -347,6 +371,11 @@ session, a timeout). Do not start it again: that answers exit 9 `supervisor_runn
 `data.last_upgrade`. When `fsa status` reports an unfinished upgrade, run `~/forms/fsa upgrade --resume --json` only
 once `data.supervisor.running` is `false`.
 
+"The last upgrade" is the last `fsa upgrade` run, even one that changed nothing: once an upgrade finished, running
+`fsa upgrade` again (it answers `current: true`) replaces it, and from then on `--follow` and `data.last_upgrade` show
+that run, not the real upgrade. Keep the real upgrade's own result, and use `~/forms/fsa version --json`
+(`data.instance`) to see which version runs.
+
 Failures:
 
 - Exit 7 `major_upgrade`: a new major version. Read its release notes with the person, then add `--major`.
@@ -365,7 +394,18 @@ Failures:
 Move an instance with all its data to a new host: an encrypted backup with the instance's secrets, the files copied
 over, an install from that backup on the new host.
 
-1. On the old host, create a file with a passphrase of at least 12 characters, readable only by you (for example
+1. On the old host, note the version the instance runs: `data.instance` (`<old-version>` in step 3). The new host must
+   install the same version (or a newer one).
+
+   ```sh runnable
+   ~/forms/fsa version --json
+   ```
+
+   ```json expect
+   {"exit_code": 0, "status": "ok", "data": {"instance": "<string>"}}
+   ```
+
+   Create a file with a passphrase of at least 12 characters, readable only by you (for example
    `~/forms-passphrase`). Then take an encrypted backup that includes the secrets. The first `--encrypt` turns
    encryption on and writes the decryption identity to `--identity-out`, outside the instance directory:
 
@@ -379,10 +419,12 @@ over, an install from that backup on the new host.
 
 2. Collect what the new host needs: the backup file (`<backup-path>` is `data.path` from step 1), the identity, and
    the instance's APP key lines (they prove the backup is authentic). Copy only the `APP_KEY` and `APP_PREVIOUS_KEYS`
-   lines of `env/app.env`, never the whole file: it also holds the database and SMTP passwords.
+   lines of `env/app.env`, never the whole file: it also holds the database and SMTP passwords. An instance whose key
+   was never rotated has no `APP_PREVIOUS_KEYS` line; `APP_KEY` alone is enough then. `umask 077` makes the copies
+   readable only by you, and the command can run again:
 
    ```sh runnable
-   mkdir -m 700 ~/forms-move && cp <backup-path>/backup.tar.age ~/forms-move/backup.tar.age && cp ~/forms-identity.age ~/forms-move/identity.age && grep -e '^APP_KEY=' -e '^APP_PREVIOUS_KEYS=' ~/forms/env/app.env > ~/forms-move/app-key.env
+   mkdir -p -m 700 ~/forms-move && umask 077 && cp <backup-path>/backup.tar.age ~/forms-move/backup.tar.age && cp ~/forms-identity.age ~/forms-move/identity.age && grep -e '^APP_KEY=' -e '^APP_PREVIOUS_KEYS=' ~/forms/env/app.env > ~/forms-move/app-key.env
    ```
 
    ```json expect
@@ -392,10 +434,11 @@ over, an install from that backup on the new host.
    Copy the directory to the new host, for example `scp -r ~/forms-move new-host:`, and create the passphrase file
    there too. Keep these files private: together they open the backup.
 
-3. On the new host, install from the backup:
+3. On the new host, install from the backup, with `--version <old-version>` from step 1 (a backup restores only into
+   the version that made it or a newer one):
 
    ```sh runnable
-   curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/form-schema-app/releases/latest/download/install.sh | sh -s -- --dir ~/forms-new --from-backup ~/forms-move/backup.tar.age --identity-file ~/forms-move/identity.age --passphrase-file ~/forms-passphrase --app-key-file ~/forms-move/app-key.env --secrets-file ~/forms-new-secrets.json --json --yes
+   curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/form-schema-app/releases/latest/download/install.sh | sh -s -- --version <old-version> --dir ~/forms-new --from-backup ~/forms-move/backup.tar.age --identity-file ~/forms-move/identity.age --passphrase-file ~/forms-passphrase --app-key-file ~/forms-move/app-key.env --secrets-file ~/forms-new-secrets.json --json --yes
    ```
 
    ```json expect
@@ -405,7 +448,16 @@ over, an install from that backup on the new host.
    For a domain, add `--domain <name>` (and `--acme-email <address>`); until the DNS name points to the new host, the
    instance reports "certificate pending". The moved instance starts with captured mail and paused webhooks so that
    nothing goes out twice while the old host still runs. `data.confirm_commands` lists the commands that turn both
-   back on (`fsa config set webhooks on`, `fsa config set mail smtp …`); run them once the person has switched over.
+   back on (`fsa config set webhooks on`, `fsa config set mail smtp …`); run them once the person has switched over,
+   with `~/forms-new/fsa` and `--json`. The mail command carries the old server's host, port, encryption and sender
+   address; only two placeholders are left: replace `<account>` with the SMTP user name and `<file>` with a file that
+   holds the SMTP password (see [configure SMTP](#recipe-configure-smtp)). A server without a login needs neither:
+   leave out `--smtp-username <account> --password-file <file>`.
+
+   If the old instance encrypted its backups before the move, add `--keep-recipients` to the install command: the new
+   instance then goes on encrypting its backups to the same identity (keep the identity and passphrase, step 5).
+   Without it, the warning `backup_recipients_not_kept` says that new backups are not encrypted until you run
+   `~/forms-new/fsa config set backup-encryption on` there.
 
 4. When the new host works and DNS points to it, remove the old instance. `--keep-backups` keeps its `backups/`
    directory and writes a final backup there first (`data.final_backup`):
@@ -421,7 +473,7 @@ over, an install from that backup on the new host.
 5. Once the move works, ask the person whether to delete the move's files on both hosts: `~/forms-move`, the
    identity `~/forms-identity.age` and the passphrase file `~/forms-passphrase`. Every encrypted backup of the old
    instance (its final backup, copies off the host) opens only with that identity and passphrase, and with
-   `--keep-recipients` (below) so do the new instance's backups. The person may want to keep both in a safe place
+   `--keep-recipients` (step 3) so do the new instance's backups. The person may want to keep both in a safe place
    outside the hosts instead:
 
    ```sh
@@ -430,18 +482,18 @@ over, an install from that backup on the new host.
 
 Failures of step 3: exit 2 `decrypt_failed` (wrong identity or passphrase), `path_missing` (the identity's directory
 does not exist), `identity_unreadable` (no identity file at that path), `backup_unauthenticated` (wrong or
-missing `--app-key-file`), exit 7 `backup_newer` (install the same or a newer version on the new host: `--version`).
-`--keep-recipients` keeps the old instance's backup encryption key on the new one. Without it, the warning
-`backup_recipients_not_kept` says that new backups are not encrypted until you run `fsa config set backup-encryption on`
-there.
+missing `--app-key-file`), exit 7 `backup_newer` (the new host installs an older version than the old host runs: pass
+`--version <old-version>`; ignore the hint's `fsa upgrade`, which is for the old host). Each leaves `~/forms-new`
+behind: fix the cause and run the install command again (see [a failed install](#a-failed-install)).
 
 ## Recipe: VPS install
 
 Goal: a public instance with HTTPS on a server with a domain. Prerequisites: the domain's A (and AAAA, if any) record
-points to the server, and ports 80 and 443 are free and reachable. Run as root (or with sudo):
+points to the server, and ports 80 and 443 are free and reachable. Run as root; as another user, pipe into `sudo sh`
+instead of `sh`:
 
 ```sh
-curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/form-schema-app/releases/latest/download/install.sh | sh -s -- --dir /opt/form-schema-app --domain forms.example.com --acme-email ops@example.com --org "Example Ltd" --owner-email owner@example.com --secrets-file /root/forms-secrets.json --json --yes
+curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/form-schema-app/releases/latest/download/install.sh | sudo sh -s -- --dir /opt/form-schema-app --domain forms.example.com --acme-email ops@example.com --org "Example Ltd" --owner-email owner@example.com --secrets-file /root/forms-secrets.json --json --yes
 ```
 
 Expect exit 0 and `data.mode` `domain`, `data.url` `https://forms.example.com`, `data.sign_in_link.delivered`
@@ -450,12 +502,14 @@ Expect exit 0 and `data.mode` `domain`, `data.url` `https://forms.example.com`, 
 - `--acme-staging` uses Let's Encrypt's staging CA for a first try (the browser will not trust the certificate);
   `/opt/form-schema-app/fsa config set acme-ca production --json` switches to real certificates afterwards.
 - Behind an existing reverse proxy, use `--behind-proxy traefik|caddy|port` (with `--url` and, for `port`, `--port`)
-  instead of `--domain`; see the [install guide](install.md).
+  instead of `--domain`; see the [install guide](https://github.com/beyerenrico/form-schema-app/blob/main/docs/guide/install.md).
 - SMTP can be set during the install with the same `--smtp-*`, `--password-file` and `--from-address` flags.
 
 Failures: exit 3 `doctor_failed` with the check `dns` (the name does not point here yet: wait for DNS) or a port check
 (80 or 443 in use); exit 4: a service did not become healthy (read `/opt/form-schema-app/fsa logs edge --json` for
-the certificate, `… logs app --json` for the application, then run the same command again; it resumes).
+the certificate, `… logs app --json` for the application, then run the same command again; it resumes). A failed
+install leaves `/opt/form-schema-app` behind: run the same command again once the cause is fixed, or see
+[a failed install](#a-failed-install).
 
 ## Recipe: phone demo
 
@@ -468,9 +522,18 @@ Goal: try the Field App on a phone in the same network. Phones need HTTPS for th
 ```
 
 Or at install: add `--phone-https local-ca` (with `--lan-address <IPv4>` when the computer has several addresses).
-Read `data.phone_https.url` (the HTTPS address for the phone), `data.phone_https.trust_url` (a page the phone opens
-first, with the CA certificate and instructions) and `data.phone_https.root_sha256` (to compare on the phone). The
-person installs and trusts the certificate on the phone, then opens `url`. `fsa config set phone-https off` ends it.
+It changes the instance's URL to `https://<LAN address>` (hence `--yes`), adds an edge container that serves ports 80
+and 443 on that address, and restarts the services whose configuration changes (`data.services`). Read
+`data.phone_https.url` (the HTTPS address for the phone), `data.phone_https.trust_url` (a page the phone opens first,
+with the CA certificate and instructions) and `data.phone_https.root_sha256` (to compare on the phone). The person
+installs and trusts the certificate on the phone, then opens `url`. `~/forms/fsa config set phone-https off --yes
+--json` ends it.
+
+Failures: exit 3 `doctor_failed` (port 80 or 443 is in use on the LAN address; `data.checks`); exit 3
+`default_password_in_use` (demo accounts still use the documented password: run `~/forms/fsa demo --rotate-passwords
+--json --secrets-file ~/forms-secrets.json` first; other accounts on that password: change it); exit 2
+`lan_address_required` (`~/forms/fsa config set lan-address <IPv4> --json` first); exit 5: the edge did not pass its
+check and the instance is back on its previous URL (`data.fix_first` or `data.retry_after`, see the recovery object).
 
 **Quick tunnel** (a public `trycloudflare.com` address, no certificate to install; it expires):
 
@@ -479,10 +542,12 @@ person installs and trusts the certificate on the phone, then opens `url`. `fsa 
 ```
 
 Read `data.url` and `data.tunnel.expires_at`. `--yes` is needed when the instance holds organizations other than the
-demo, because their data becomes reachable from the internet. `fsa tunnel renew` extends it, `fsa tunnel stop` ends
-it. The tunnel only works in local mode and not together with the local CA (exit 2 `invalid_combination`). Exit 3
-`default_password_in_use`: demo accounts still use the documented password; run `~/forms/fsa demo
---rotate-passwords --json --secrets-file ~/forms-secrets.json` first.
+demo, because their data becomes reachable from the internet. Through the tunnel only the Field App, the API and
+sign-in are reachable; `--tunnel-admin` opens the admin dashboard (`/admin`) there too, so pass it only when the person
+asks for it. Demo accounts still on the documented password get random ones first (under `secrets`, warning
+`demo_passwords_rotated`; pass `--secrets-file`). `fsa tunnel renew` extends it, `fsa tunnel stop` ends it. The tunnel
+only works in local mode and not together with the local CA (exit 2 `invalid_combination`). Exit 3
+`default_password_in_use`: an account that is not a demo account still uses the documented password; change it first.
 
 ## Recipe: change the domain
 
@@ -493,10 +558,15 @@ server first.
 /opt/form-schema-app/fsa config set domain new.example.com --yes --json
 ```
 
-Without `--yes` the command exits 6 and `data` describes the change (`from`, `to`, `impact`). On success, `data.url`
-is the new URL and `data.previous.url` the old one. Old links (sign-in links, links in sent mail) stop working.
+Without `--yes` the command exits 6: `data.question` is the question to show the person, and `data` describes the
+change (`from`, `to`, `change`, `impact`). On success, `data.url` is the new URL and `data.previous.url` the old one.
+Old links (sign-in links, links in sent mail) stop working.
 
-Failures: exit 3 `doctor_failed` (DNS does not point here, or ports 80/443 are busy; `data.checks`); exit 5
+Failures: exit 3 `default_password_in_use` (a local instance whose demo accounts still use the documented password
+`password` would become reachable from the internet: run `/opt/form-schema-app/fsa demo --rotate-passwords --json
+--secrets-file <file>` first, which writes the new passwords to that file, then the command again; for an account that
+is not a demo account, change its password); exit 3 `doctor_failed` (DNS does not point here, or ports 80/443 are
+busy; `data.checks`); exit 5
 `certificate_failed` (no certificate could be obtained: the instance keeps its old domain; `data.fix_first` says what
 to fix). Back to local mode: `fsa config set mode local --yes`.
 
@@ -509,7 +579,17 @@ Ask the person first. Keep the backups unless they say otherwise:
 ```
 
 It removes the instance's containers, volumes, networks and directory, but writes a final backup into `backups/` first
-(`data.final_backup`) and keeps `backups/`. Only if the person explicitly wants the backups deleted too:
+(`data.final_backup`) and keeps `backups/`: afterwards `~/forms` holds only `backups/`. On an instance without backup
+encryption the final backup is not encrypted, and the APP keys that authenticate it are written beside it in plain
+text (mode 0600) as `backups/final-<UTC time>.app-key.env` (warning `app_key_beside_backup`); keep that file as safe as
+the backup. An encrypted final backup carries the keys inside (warning `final_backup_encrypted`). The warning's hint
+is the exact command that brings the instance back, for example:
+
+```sh
+curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/form-schema-app/releases/latest/download/install.sh | sh -s -- --dir ~/forms --from-backup ~/forms/backups/final-<UTC time> --app-key-file ~/forms/backups/final-<UTC time>.app-key.env --json --yes
+```
+
+Only if the person explicitly wants the backups deleted too:
 
 ```sh
 ~/forms/fsa uninstall --yes --json
@@ -523,5 +603,6 @@ Fenced blocks marked `sh runnable` are executed by the journey `tests/Install/Jo
 locally built release, in the order they appear; each is followed by a `json expect` block. The test checks the exit
 code, and that every field of the expect block exists in the envelope: a placeholder such as `"<string>"`, `"<int>"`,
 `"<list>"` or `"<object>"` stands for any value of that type, every other value must match exactly. Blocks marked only
-`sh` need a domain, DNS, a phone or the internet, and are not executed. Placeholders in angle brackets (`<backup>`,
-`<backup-path>`, `<version>`) are values from earlier results, as the text says.
+`sh` need a domain, DNS, a phone or the internet, or would remove what later blocks use, and are not executed.
+Placeholders in angle brackets (`<backup>`, `<backup-path>`, `<version>`, `<old-version>`) are values from earlier
+results, as the text says.

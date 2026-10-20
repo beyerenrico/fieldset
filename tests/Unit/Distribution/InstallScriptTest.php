@@ -136,6 +136,12 @@ it('fails with exit 3 when the signature does not verify, before any other pull 
         ->and(glob($this->scripts->root.'/fsa-install.*'))->toBe([]);
 });
 
+it('gives the same stop-and-report hint for a bad signature as fsa and the agent guide (R51)', function (): void {
+    $process = $this->scripts->run($this->harness, ['--dir', $this->dir, '--json'], [...$this->env, 'FSA_TRUST_KEY' => $this->key, 'STUB_VERIFY_EXIT' => '1']);
+
+    expect(json_decode($process->getOutput(), true)['errors'][0])->toMatchArray(['hint' => ManifestVerifier::SIGNATURE_HINT, 'retryable' => false]);
+});
+
 it('verifies with the local key and no network in the harness build', function (): void {
     $process = $this->scripts->run($this->harness, ['--dir', $this->dir], [...$this->env, 'FSA_TRUST_KEY' => $this->key, 'STUB_IMAGE_PRESENT' => '1']);
     $create = array_values(array_filter($this->scripts->calls('docker'), fn (array $call): bool => $call[1] === 'create'))[0];

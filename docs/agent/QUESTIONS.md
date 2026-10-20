@@ -315,3 +315,7 @@ Format: question · chosen option · impact · how to reverse.
 72. On rootless Docker and Docker Desktop container root is the owner, so the root-owned partial set (S1) adds no
    protection there; a FIFO swapped in between the restore copy's lstat and open blocks the prepare one-off until its
    time limit (whoever can do that can also delete the backup) · accept or harden.
+73. `fsa upgrade --follow` and `fsa status` `data.last_upgrade` show the last `fsa upgrade` run, so a no-op run after a
+   real upgrade (`current: true`) replaces its result (R51 F12; every launch replaces `operations/supervisor.json`) ·
+   kept, documented in the agent guide's upgrade recipe · an agent that attaches late sees "nothing changed" ·
+   keep the last result that changed something (or skip the supervisor for a no-op) if preferred.

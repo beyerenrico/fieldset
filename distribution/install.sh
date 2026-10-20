@@ -209,7 +209,7 @@ fsa_install_verify() { # <dir with the manifest and its bundle>: cosign verify-b
 	{ docker cp "$stage" "$cid:/verify" && docker start -a "$cid"; } >"$work/verify.log" 2>&1 || status=$?
 	docker rm -f "$cid" >/dev/null 2>&1 || true
 	[ "$status" = 0 ] || fsa_install_fail 3 manifest_signature_invalid "The release manifest signature does not match the signer built into install.sh: $(tail -n 1 "$work/verify.log")" \
-		'Install only releases published by the form-schema-app release workflow. If Sigstore was unreachable, retry later.'
+		'Install only releases published by the form-schema-app release workflow: never retry with another install.sh or release URL and never bypass this check. Only if the message shows that Sigstore (TUF, Rekor) could not be reached may the same command be run again later.'
 }
 
 fsa_install_read_manifest() { # <manifest>: sets release (version) and ref (app image by digest, FSA_REGISTRY applied)
