@@ -99,9 +99,10 @@ the proxy-mode hint and this ADR promised `fsa install --from-backup` would carr
   `fsa restore` read it (`UninstallFinalBackupMoveTest`).
 - **APP keys.** Encrypted: they go into the set as `secrets.env` (APP_KEY, APP_PREVIOUS_KEYS and the SMTP account, as
   `--include-secrets`); its HMAC can only be verified with a key from outside the archive, so a move without the old
-  key takes `--accept-unauthenticated` (the restricted restore role), as the warning `final_backup_encrypted` says. Plain: this ADR's decision stays, the keys go beside the set as `backups/<name>.app-key.env`
-  (0600), and the result names the file in the warning `app_key_beside_backup` with the `--from-backup … --app-key-file`
-  command; an adopted instance's uninstall does the same (U19 V2). Without the database volume nothing is dumped: only
+  key takes `--accept-unauthenticated` (the restricted restore role), as the warning `final_backup_encrypted` says.
+  Plain: this ADR's decision stays, the keys go beside the set as `backups/<name>.app-key.env` (0600), and the result
+  names the file in the warning `app_key_beside_backup` with the `--from-backup … --app-key-file` command; an adopted
+  instance's uninstall does the same (U19 V2). Without the database volume nothing is dumped: only
   the keys are saved beside (`final-<UTC>.app-key.env`, or `.age` to the recipients when encryption is on), for the
   backups `backups/` keeps.
 - **Quiesced first (D2).** The gate goes up, app, scheduler and the backup service stop, then the queue with its grace

@@ -180,3 +180,9 @@ result warns `carry_skipped_after_reset`; the sequence floors stop the ID collis
 - The owner of the fresh instance is an operator of the old one; a reset of an instance whose install owner lost the
   operator role goes to the oldest remaining operator.
 - Mail queued for the old data is gone with Valkey; mail the demo seeding sends lands in the emptied catcher.
+
+## Amendment 2026-10-20: the audit export under encryption (M12 gate S5)
+`fsa reset --no-backup` streams the audit export into `staging/audit-export-reset-<UTC>.jsonl.partial` (never plaintext
+in `backups/`); once its header checks out it is encrypted to the backup recipients
+(`backups/audit-export-reset-<UTC>.jsonl.age`, 0600, synced, then renamed) when the instance has any, else moved into
+`backups/` as before. `--audit-export=` and `data.audit_export` name the file as written (with `.age` when encrypted).

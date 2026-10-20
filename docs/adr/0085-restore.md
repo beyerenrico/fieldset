@@ -391,3 +391,29 @@ passed, and "may lack objects (an older backup)" made that indistinguishable fro
   backups/.restore-*` would remove what a running rollback is about to read (`export_missing`).
 - `last_restore` also counts rollbacks: `rolled_back` (its backup and safety backup) and `upgrade_rolled_back` (the
   safety backup it restored as `backup`); a new key `event` names which.
+
+## Amendment 2026-10-20: the M12 gate's restore findings
+- **Scratch outside backups/ (S3).** A restore's, drill's, `--from-backup`'s and rollback's scratch directory is
+  `staging/restore-<id>` (0750 under the 0700 `staging/`), no longer `backups/.restore-<id>`: it holds the decrypted set,
+  `secrets.env` and the rollback's `security-state.json`, and `backups/` is the directory people copy off the host.
+  `fsa status` still names a pre-release's `backups/.restore-*` leftovers; the hint no longer names a path glob.
+- **A set's name (S4).** The HMAC binds a set's content, not its directory: a set under a backup name must be the backup
+  its manifest names (`name`, and `created_at` at that name's time), else exit 2 `backup_renamed` before anything
+  changes. A copy under a name that is no backup name is taken as it is (a user's own copy).
+- **No files, no silent loss (D4).** A backup without a storage archive (1.0 `--no-storage`) is refused in place with
+  exit 2 `backup_without_files` unless `--without-files`; with it, the fresh, empty volume goes live and the replaced
+  volume is kept and named in the warning `restored_without_files`, never deleted. `--from-backup` warns the same way.
+  The drill reports as before.
+- **Recipients (S2).** `--from-backup` reports the authenticated archive's age recipients in
+  `data.from_backup.recipients` (`listed`, `kept`) and keeps them only with `--keep-recipients`; otherwise the warning
+  `backup_recipients_not_kept` names them. Recipients from an unauthenticated archive are never kept, as before.
+- **Hardened one-offs (S6).** Every `docker run` gets `no-new-privileges`. restore-prepare, pg_restore, the storage
+  extraction and the erased-exports clean-up run with `--cap-drop ALL`, a read-only root file system and a tmpfs `/tmp`
+  (`ContainerSpec::hardened()`; J08 on real Docker). The probes and tools that read no backup (smoke curls, port probes,
+  the local CA's Caddy, cosign, the quick tunnel, the catcher flush, the supervisor and the upgrade child) keep Docker's
+  default capabilities: they get only `no-new-privileges` (no journey of this round runs them all).
+- **Carry window (D8).** Backup times are whole seconds; the carry's audit subjects, timestamps and epoch check, and the
+  rollback's security export, start at the backup's second (`>=`), not after it. Carrying a change twice is idempotent.
+- **EV3.** J09's drill of the adopt backup reported every referenced file missing because J09 seeds load-generator
+  renditions that never have a file (`LoadRows::renditions`), not because the adopt backup or the drill lost storage;
+  J09 now asserts the archive holds the 1.0 file and that only those renditions are missing.

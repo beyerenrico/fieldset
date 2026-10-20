@@ -261,3 +261,15 @@ A verification review of the fixes (2026-10-20) confirmed A1–A7, A9, A10, A12,
 - **V5**: the lint matches `ConcurrentIndex` as a word (aliases, injection).
 - The adopt backup (U19, ADR 0087), a keyless 1.0 archive trusted only as the set the adopt recorded, restores in place
   through the upgrade child with `--accept-unauthenticated` (ADR 0087 amendment).
+
+## Amendment 2026-10-20: safety backups after the M12 gate
+- **D1.** The `open` phase removes only older `safety-upgrade-*` sets that are not marked kept; `safety-rollback-*` sets
+  are never removed by fsa, and a completed rollback no longer removes older ones (R57, plan line 34: "restore, reset and
+  pre-rollback safety backups stay until the operator deletes them"; after a rollback that set can be the only copy of
+  the upgraded days). The `open` row of the phase table and the rollback's "older `safety-rollback-*` sets … removed"
+  no longer hold, nor review S1's "older rollback sets removed".
+- **S4.** Step 5 records the SHA-256 of the verified safety backup's SHA256SUMS (`sums` in the journal's
+  `safety_backup` phase, `safety_backup_sums` in the `upgraded` history entry). `fsa rollback` and the upgrade's
+  automatic way back refuse another set under that name (exit 2 `safety_backup_changed` for `fsa rollback`; the
+  automatic way back halts with exit 8), as adopt does for its backup; a history entry from before carries no digest
+  and is checked as before.
