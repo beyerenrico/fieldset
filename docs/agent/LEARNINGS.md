@@ -171,3 +171,11 @@
 159. `git checkout docs/agent/milestones/evidence` after E2E also reverts uncommitted journey JSON (M12 gate lost a whole
    Install run's evidence that way). Revert only the E2E churn: `git checkout -- ':(glob)docs/agent/milestones/evidence/**/*.png'`,
    or commit journey evidence before running E2E. Emulated runs without `FSA_EVIDENCE_MILESTONE` write into M9.
+160. Playwright resolves `page.screenshot({ path })` and other relative paths against the process's working directory,
+   not the config: run the suite from a scratch directory (`--config=<repo>/playwright.config.ts`, `tests` linked back)
+   and the specs' evidence PNGs land there (DogfoodE2ETest). `docker compose exec` also depends on the working
+   directory's project, so outside the checkout artisan needs E2E_COMPOSE_PROJECT (label lookup; a worktree's directory
+   name is not the dev stack's project either).
+161. `docker compose -p <project> exec` works without a compose file, but from a directory that has one (the checkout)
+   Compose loads it too; `docker exec` on the container found by `com.docker.compose.project`/`service` labels is
+   independent of both.

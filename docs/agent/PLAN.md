@@ -192,7 +192,7 @@ T03, T04 and T05 in parallel worktrees (predicted overlaps: journal phases, `fsa
 - [x] M13-T02 U21 Agent guide, docs rewrite, `RELEASING.md` completed — J11
   - Carry the docs review list (M12.md "Docs for U21"), O5's single recovery object (QUESTIONS 69) and the
     admin-guide capture-banner section.
-- [ ] M13-T03 U22 Dogfooding: E2E suite against an `fsa` instance, all journeys in CI
+- [x] M13-T03 U22 Dogfooding: E2E suite against an `fsa` instance, all journeys in CI
   - R39 release check: the image's `pg_dump` major ≥ the manifest's Postgres major.
   - J10: backup service memory at the 1.0 data volume (M12 peak 68 MiB with demo data, slot 128 MiB).
 - [ ] M13-T04 Gate M13, release 2.0.0 per §15.10 (local tag `v2.0.0`, FINAL_REPORT_V2.md, STATE "Run complete")

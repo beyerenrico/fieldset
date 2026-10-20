@@ -230,3 +230,8 @@ J08 measured the backup service on `small`: `memory.peak` 68 MiB over the contai
 encrypted backup run, unreclaimable peak 59.6 MiB (mostly the idle PHP daemon), no limit hit, no OOM kill. 68 + 30 MiB
 fits the 128 MiB slot, so the table above stands and the Consequence "U16 measures it and changes this table with a new
 J10 run if needed" is settled without a change. The measurement used the demo data, not the 1.0 test volume (ADR 0084).
+
+## Amendment 2026-10-20: the backup slot at the 1.0 data volume (U22, ADR 0091)
+J10 now runs a scheduled backup after its perf scripts, on the 1.0 test volume (database 1269 MiB): it succeeded in
+12 s (112 MiB, unencrypted), unreclaimable peak 77.7 MiB, `memory.peak` 128.3 MiB (page cache reclaimed at the limit,
+894 `max` events, no OOM kill). 77.7 + 30 MiB fits the 128 MiB slot, so the table above stands.
