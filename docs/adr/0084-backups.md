@@ -283,3 +283,13 @@ who can write there but holds no APP key. Against that writer:
   table's note that it is "its own format" no longer holds.
 - **Reset's audit export (S5).** Written in `staging/`, encrypted to the recipients (`….jsonl.age`) when encryption is
   on, then moved into `backups/` (ADR 0088 amendment).
+
+## Amendment 2026-10-20: the retention hold lasts while files are missing (M12 gate)
+- **D5, corrected.** The hold above compared a new run only with the newest earlier success, so the next day (the same
+  file still missing, as many missing as the day before) pruning resumed, and after `retention` days no backup held the
+  file. Now every successful scheduled run that misses referenced files holds back, from retention only, every other
+  scheduled backup whose run missed fewer, or whose count no ledger line gives (BackupRetention::held); pruning goes on
+  among the rest. The hold ends with the first run that misses none. `retention_held` in the ledger line is now
+  `{missing_files, backups}`: the backups retention would have pruned without the hold. Counts stand in for the files:
+  a backup that missed as many as the newest one (other files, maybe) is not held. Held backups stay on disk as long
+  as files are missing, so disk use can grow; `backup_files_missing` warns meanwhile.

@@ -47,6 +47,20 @@ it('never prunes the newest backup, whatever its kind, and keeps at least one sc
         ->and(prunedNames([backupEntry('scheduled-20261001T033000Z')], 1))->toBe([]);
 });
 
+it('holds every scheduled backup that missed fewer referenced files than the newest one, or an unknown number, for as long as that lasts (M12 gate D5)', function (): void {
+    $entries = [backupEntry('scheduled-20261005T033000Z'), backupEntry('scheduled-20261004T033000Z'), backupEntry('scheduled-20261003T033000Z'),
+        backupEntry('scheduled-20261002T033000Z'), backupEntry('scheduled-20261001T033000Z'), backupEntry('manual-20261001T120000Z')];
+    $missing = ['scheduled-20261004T033000Z' => 2, 'scheduled-20261003T033000Z' => 1, 'scheduled-20261002T033000Z' => 0, 'manual-20261001T120000Z' => 0];
+
+    $held = BackupRetention::held($entries, 'scheduled-20261005T033000Z', 2, $missing);
+    $pruned = array_map(static fn (BackupEntry $entry): string => $entry->name->name(), BackupRetention::prune($entries, 1, $held));
+
+    expect($held)->toBe(['scheduled-20261003T033000Z', 'scheduled-20261002T033000Z', 'scheduled-20261001T033000Z']) // 1, 0, unknown
+        ->and($pruned)->toBe(['scheduled-20261004T033000Z']) // as many missing as the newest: retention goes on there
+        ->and(BackupRetention::held($entries, 'scheduled-20261005T033000Z', 0, $missing))->toBe([]) // the files are back: nothing held
+        ->and(prunedNames($entries, 1))->toHaveCount(4);
+});
+
 it('projects the next backup from the newest one and keeps the free-space threshold', function (): void {
     $entries = [backupEntry('scheduled-20261001T033000Z', 1000), backupEntry('manual-20261002T080000Z', 4000)];
 

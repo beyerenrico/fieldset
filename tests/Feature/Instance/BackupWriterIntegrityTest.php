@@ -195,7 +195,7 @@ it('takes its settings from staging/backup/, never from a file planted in backup
         ->and($settings['settings']['domain'])->toBe('forms.example.com');
 });
 
-it('keeps older scheduled backups while a new one misses more referenced files than the one before (M12 gate D5)', function (): void {
+it('keeps the older scheduled backups that hold files the new ones miss, run after run, until the files are back (M12 gate D5)', function (): void {
     $store = new BackupStore($this->directory);
     foreach (['scheduled-20261001T033000Z', 'scheduled-20261002T033000Z'] as $old) {
         $this->directory->ensureDirectory('backups/'.$old);
@@ -214,11 +214,20 @@ it('keeps older scheduled backups while a new one misses more referenced files t
     $held = $run->run(BackupName::for(BackupName::SCHEDULED, CarbonImmutable::now()), TemporaryInstance::holder('b'));
     $kept = array_map(static fn (BackupEntry $entry): string => $entry->name->name(), $store->entries());
     $next = $run->run(BackupName::for(BackupName::SCHEDULED, CarbonImmutable::now()->addMinute()), TemporaryInstance::holder('b'));
+    $keptNext = array_map(static fn (BackupEntry $entry): string => $entry->name->name(), $store->entries());
+    @mkdir($this->storage.'/private/attachments', 0700, true);
+    file_put_contents($this->storage.'/private/attachments/gone.jpg', 'jpg'); // the file is back
+    $back = $run->run(BackupName::for(BackupName::SCHEDULED, CarbonImmutable::now()->addMinutes(2)), TemporaryInstance::holder('b'));
 
-    expect($held)->toMatchArray(['status' => 'succeeded', 'missing_files' => 1, 'pruned' => [], 'retention_held' => ['missing_files' => 1, 'previous' => 0]])
-        ->and($kept)->toContain('scheduled-20261001T033000Z', 'scheduled-20261002T033000Z')
-        ->and($next)->toMatchArray(['status' => 'succeeded', 'missing_files' => 1])->not->toHaveKey('retention_held')
-        ->and($next['pruned'])->toContain('scheduled-20261001T033000Z', 'scheduled-20261002T033000Z');
+    // 20261001 has no count in the ledger (unknown), 20261002 missed none: both may hold the file the new ones miss
+    $old = ['scheduled-20261001T033000Z', 'scheduled-20261002T033000Z'];
+    expect($held)->toMatchArray(['status' => 'succeeded', 'missing_files' => 1, 'pruned' => [], 'retention_held' => ['missing_files' => 1, 'backups' => $old]])
+        ->and($kept)->toContain(...$old)
+        // the next day misses the same file: the old ones stay held (before this fix the hold lasted one run)
+        ->and($next)->toMatchArray(['status' => 'succeeded', 'missing_files' => 1, 'pruned' => [$held['backup']], 'retention_held' => ['missing_files' => 1, 'backups' => $old]])
+        ->and($keptNext)->toContain(...$old)
+        ->and($back)->toMatchArray(['status' => 'succeeded', 'missing_files' => 0])->not->toHaveKey('retention_held')
+        ->and($back['pruned'])->toBe([...$old, $next['backup']]);
 });
 
 it('counts the organizations\' branding logos among the files the database references (M12 gate D8)', function (): void {
