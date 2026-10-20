@@ -299,3 +299,18 @@ Format: question · chosen option · impact · how to reverse.
 68. One full-suite run on the merged M12 tree failed SearchPlanTest once (planner chose sequential scans on
    submission_values, submissions and users); it passed alone 3/3 and in the next full run · watch; if it recurs,
    suspect autovacuum updating relation stats during the test.
+69. M12 gate deferrals (agent operability, correctness, security reviews): one recovery object across envelopes
+   (O5; `data.next` string vs kind, for the U21 agent guide); a retried finished foreground operation is not
+   idempotent and the shim's 143/130 exits carry no envelope (O11); restores/rollbacks/resets replace the
+   `backup_runs` table, so `/platform` may show a false `backup_overdue` (C8); `--from-backup` and adopt migrate
+   without VersionSteps (C9; latent, STEPS is empty); `fsa status` backup alerts read the forgeable `runs.log` (S7)
+   · accept each or schedule for M13.
+70. An encrypted final backup (uninstall `--keep-backups`) moves only with `--accept-unauthenticated`: its APP key is
+   inside the archive, so whoever can write `backups/` and knows the public recipients can forge one (restricted
+   restore role limits SQL damage) · accept, or print the APP key fingerprint and let `--from-backup` require it.
+71. `--from-backup` keeps a backup's encryption recipients only with `--keep-recipients` (M12 gate S2), and
+   `uninstall --keep-backups` fails with exit 4 on an instance without a backup service (pre-rc builds only)
+   · accept or relax.
+72. On rootless Docker and Docker Desktop container root is the owner, so the root-owned partial set (S1) adds no
+   protection there; a FIFO swapped in between the restore copy's lstat and open blocks the prepare one-off until its
+   time limit (whoever can do that can also delete the backup) · accept or harden.

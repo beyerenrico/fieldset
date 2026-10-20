@@ -305,3 +305,12 @@
   (exit 9 left the journal open), 4 low. All fixed with tests; the adopt backup now restores in place via the child.
 - Merge 48630b6: suite 7165/7165 (one SearchPlanTest planner flake in a first run, Q68), static clean; J07 8/8.
 - Flake fixed: DistributionScripts removed the shared test parent dir under --parallel (e27a329, L148).
+
+## 2026-10-20 M12-T06 gate: review fix rounds A, B, C
+- 5 gate reviewers: 5 high (S1 partial-set tampering, D1 safety backups deleted, O1 from-backup journal taken over,
+  O3 upgrade outcome lost, DOC12 final-backup advice) + mediums/lows. Fix agents A (backups/security) and B
+  (recovery/operability/docs) in worktrees; A merged 27b9a64 (suite 7196/7196, J01/J08/J09/J12 green).
+- Verifier of A: R1 high restore-time TOCTOU (pre-existing), R2-R4 medium/low → agent C. A host restart killed B and
+  C before their final runs; finished by hand: B's last change committed, merges 60d7f2d (B), b2f719f (C; ADR 0085
+  conflict kept both; ImageContractTest expects O10 exit_code). Suite 7269 (5 stale expectations fixed), static clean.
+- Deferred: QUESTIONS 69-72; U21 guide list → M13-T02.
