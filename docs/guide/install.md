@@ -47,7 +47,8 @@ it to a file (mode 0600) instead of the terminal; on a desktop, `--open` opens i
 Other flags of `fsa install`: `--owner-name`, `--locale de|en` (default `de`), `--port` (local mode), `--demo`
 (sample data, see below), `--json` and `--yes` (no questions). `install.sh` itself takes `--dir`, `--version`,
 `--link` / `--no-link` (link `fsa` into your PATH, `/usr/local/bin` for root or `~/.local/bin` otherwise; without
-either flag it asks) and `--help`. `<dir>/fsa install --help` lists everything.
+either flag it asks, but only on a terminal and without `--yes` or `--json`; otherwise it does not link) and
+`--help`. `<dir>/fsa install --help` lists everything.
 
 If an install stops (a failed check, a lost connection), fix the cause and run the same command again: it resumes
 where it stopped. Running it again after it finished changes nothing.
@@ -83,7 +84,8 @@ admin dashboard shows a "mail is captured" banner on every page. This keeps a te
 people. Set up delivery during the install with `--smtp-host`, `--smtp-port`, `--smtp-encryption`,
 `--smtp-username`, `--password-file` and `--from-address`, or later with `fsa config set mail smtp` (see
 [configuration](configuration.md#mail)). The catcher's address is in the install result and in `fsa status`;
-`fsa config show --catcher-login` prints its login.
+in local and proxy mode, `fsa config show --catcher-login` prints its login (in domain mode the edge signs you in
+through `/platform`).
 
 ## Demo
 
@@ -97,7 +99,7 @@ instead, printed once. `fsa demo --rotate-passwords` issues new ones. `fsa reset
 ```sh
 fsa status          # services, URL, mail, backups (run in the instance directory, or <dir>/fsa)
 fsa doctor --post   # the checks again, plus every service healthy
-fsa logs app        # logs of one service (app, queue, scheduler, postgres, redis, gotenberg, mailpit, backup, edge)
+fsa logs app        # logs of one service (app, queue, scheduler, postgres, redis, gotenberg, mailpit, backup, edge, tunnel)
 ```
 
 The shim runs each command in a short-lived container of the instance's app image. Use it from the instance directory
@@ -146,5 +148,6 @@ is started again. Only allow-listed settings of the 1.0 `.env` are taken over; a
 
 ## Remove an instance
 
-`fsa uninstall` removes the instance's containers, volumes, networks and its directory, backups included, after a
-confirmation. `--keep-backups` writes a final backup and keeps `backups/`.
+`fsa uninstall --keep-backups` removes the instance's containers, volumes, networks and its directory after a
+confirmation, but first writes a final backup and keeps `backups/`. Use it unless you are sure: a plain
+`fsa uninstall` deletes the backups too.

@@ -18,9 +18,9 @@ fsa version                 # the running version
 ```
 
 Read the release notes of every version you skip; the result names them (`notes_url`). A new major version is
-refused (exit 7 `major_upgrade`) until you add `--major` or name it with `--to`. A version that cannot be reached in one
-step is refused with the versions to go through (exit 7 `upgrade_path`); a downgrade is refused too (use
-`fsa rollback`).
+refused (exit 7 `major_upgrade`) until you add `--major`, also when you name it with `--to`. A version that cannot be
+reached in one step is refused with the versions to go through (exit 7 `upgrade_path`); a downgrade is refused too
+(use `fsa rollback`).
 
 What `fsa upgrade` does, in order (each step is journaled, so an interrupted upgrade resumes or rolls back cleanly):
 
