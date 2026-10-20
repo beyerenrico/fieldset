@@ -10,27 +10,27 @@
         "status": "ok",
         "changed": true,
         "data": {
-            "uuid": "79d11f71-0245-4a37-85b1-b3c1c512ae42",
+            "uuid": "83023bc0-3bc3-4d5d-ad91-519c99ee492c",
             "removed": {
                 "containers": [
-                    "fsa-fsa-test-j09-e2b9-backup-1",
-                    "fsa-fsa-test-j09-e2b9-mailpit-1",
-                    "fsa-fsa-test-j09-e2b9-app-1",
-                    "fsa-fsa-test-j09-e2b9-scheduler-1",
-                    "fsa-fsa-test-j09-e2b9-queue-1",
-                    "fsa-fsa-test-j09-e2b9-gotenberg-1",
-                    "fsa-fsa-test-j09-e2b9-redis-1",
-                    "fsa-fsa-test-j09-e2b9-postgres-1"
+                    "fsa-fsa-test-j09-70a7-backup-1",
+                    "fsa-fsa-test-j09-70a7-queue-1",
+                    "fsa-fsa-test-j09-70a7-scheduler-1",
+                    "fsa-fsa-test-j09-70a7-app-1",
+                    "fsa-fsa-test-j09-70a7-mailpit-1",
+                    "fsa-fsa-test-j09-70a7-gotenberg-1",
+                    "fsa-fsa-test-j09-70a7-redis-1",
+                    "fsa-fsa-test-j09-70a7-postgres-1"
                 ],
                 "networks": [
-                    "fsa-fsa-test-j09-e2b9_default",
-                    "fsa-fsa-test-j09-e2b9_renderer"
+                    "fsa-fsa-test-j09-70a7_default",
+                    "fsa-fsa-test-j09-70a7_renderer"
                 ],
                 "volumes": [
-                    "fsa-fsa-test-j09-e2b9_app-storage",
-                    "fsa-fsa-test-j09-e2b9_mailpit-data",
-                    "fsa-fsa-test-j09-e2b9_pg-data",
-                    "fsa-fsa-test-j09-e2b9_valkey-data"
+                    "fsa-fsa-test-j09-70a7_app-storage-re1b70e9a1cd5",
+                    "fsa-fsa-test-j09-70a7_mailpit-data",
+                    "fsa-fsa-test-j09-70a7_pg-data",
+                    "fsa-fsa-test-j09-70a7_valkey-data"
                 ]
             },
             "dir": "<work>/fsa-test-j09",
@@ -50,7 +50,7 @@
             "data_deleted": true,
             "backups_deleted": false,
             "final_backup": {
-                "dir": "backups/final-20261019T202109Z",
+                "dir": "backups/final-20261019T225125Z",
                 "files": [
                     "app-key.env",
                     "database.dump",
@@ -59,22 +59,21 @@
                 ]
             },
             "adopted": {
-                "checkout": "<work>/fsa-test-j09-v1-e49098",
-                "project": "fsa-test-j09-v1-e49098",
-                "backup": "safety-adopt-20261019T201928Z",
+                "checkout": "<work>/fsa-test-j09-v1-71d506",
+                "project": "fsa-test-j09-v1-71d506",
+                "backup": "safety-adopt-20261019T224756Z",
                 "pending": false,
                 "legacy_changed": false,
                 "writes_since_adopt": {
-                    "audit_entries": 18,
+                    "audit_entries": 1,
                     "rows": {
-                        "activity_log": 18,
-                        "mail_messages": 1,
-                        "renditions": 19,
+                        "activity_log": 1,
+                        "renditions": 1,
                         "submissions": 3
                     },
                     "any": true
                 },
-                "restart_1_0": "cd <work>/fsa-test-j09-v1-e49098 && docker compose up -d",
+                "restart_1_0": "cd <work>/fsa-test-j09-v1-71d506 && docker compose up -d",
                 "jobs_in_1_0": {
                     "left": 0,
                     "delayed": 0,
@@ -87,12 +86,12 @@
             {
                 "code": "restart_1_0",
                 "message": "The 1.0 install this instance was adopted from is stopped; its volumes were not changed since the adopt.",
-                "hint": "Bring it back with: cd <work>/fsa-test-j09-v1-e49098 && docker compose up -d"
+                "hint": "Bring it back with: cd <work>/fsa-test-j09-v1-71d506 && docker compose up -d"
             },
             {
                 "code": "writes_since_adopt",
-                "message": "Data written since adopt (18 audit entries, row changes {\"activity_log\":18,\"mail_messages\":1,\"renditions\":19,\"submissions\":3}) is not in the 1.0 install. They are in the final backup backups/final-20261019T202109Z.",
-                "hint": "To get it back, load backups/final-20261019T202109Z/database.dump into a 2.0 instance's Postgres with pg_restore and unpack app-storage.tar into its app-storage volume, with the APP keys from app-key.env (backup.json lists the files)."
+                "message": "Data written since adopt (1 audit entries, row changes {\"activity_log\":1,\"renditions\":1,\"submissions\":3}) is not in the 1.0 install. They are in the final backup backups/final-20261019T225125Z.",
+                "hint": "To get it back, load backups/final-20261019T225125Z/database.dump into a 2.0 instance's Postgres with pg_restore and unpack app-storage.tar into its app-storage volume, with the APP keys from app-key.env (backup.json lists the files)."
             }
         ],
         "errors": []
@@ -103,16 +102,16 @@
         "networks": []
     },
     "v1_after": {
-        "submissions": 83,
+        "submissions": 71,
         "users": 9,
         "heads": [
             {
                 "seq": 10,
-                "hash": "238a6d5a30442f6fde7208937847fb2f21d31735c4d8a7ef0cd02a7f1d4f3c16"
+                "hash": "10d16299d7efc3ae0949e318efbf5aa6a01478dbab28f0e5cedf526ca1efbbce"
             },
             {
                 "seq": 10,
-                "hash": "269d0a4291ba6c2a60774f06db011c8ad02dc49ecf0873b91c1197255efd0fc8"
+                "hash": "f2fbfae08476567451540cda084bdf3e4b4ba7782746bacc25bbf835e7147525"
             }
         ]
     }
