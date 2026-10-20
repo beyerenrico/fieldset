@@ -12,7 +12,8 @@ use Throwable;
 
 /**
  * `fsa version` (§7, KTD1): the version of this fsa (the image), of the instance in the current or given
- * directory if there is one, and the newest known release (the update check, U20, is off by default, so null).
+ * directory if there is one, and the newest known release (null: the opt-in update check runs in the app and keeps its
+ * result in the app's cache, which fsa does not read; `/platform` shows it, ADR 0089).
  * The only fsa command that runs without an instance directory, a database or Docker.
  */
 #[Description('Show the versions of fsa, the instance and the newest known release')]

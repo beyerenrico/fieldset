@@ -85,7 +85,11 @@ it('names the problem with a setting, or none for a valid one', function (string
     'text' => ['mail_from_name', 'a$b', 'mail_from_name must be plain text without quotes, $, backslashes or control characters'],
     'host list' => ['extra_hosts', '*.lan', 'extra_hosts must be a comma-separated list of host names or IP addresses'],
     'unknown text' => ['locale', 'de', null],
-    'unknown bool' => ['update_check', true, null],
+    'unknown bool' => ['telemetry_opt_in', true, null],
+    'update check (U20)' => ['update_check', true, null],
+    'update check is a boolean' => ['update_check', 'yes', 'update_check must be one of 1, '],
+    'update url, http for harness mirrors' => ['update_url', 'http://releases.test:8080/latest/download/release-manifest.json', null],
+    'update url not http(s)' => ['update_url', 'ftp://releases.test/m.json', 'update_url must be an http(s) URL without credentials, query or fragment'],
     'unknown array' => ['nested', ['a'], 'nested must be a string, number, boolean or null'],
     'bad key' => ['Bad Key', 'x', 'setting names must be lowercase identifiers'],
 ]);

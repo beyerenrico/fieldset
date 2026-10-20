@@ -302,6 +302,15 @@ final readonly class InstanceSettings
         return $this->state->setting('webhooks_paused') === true;
     }
 
+    /**
+     * The release manifest the app's daily update check reads (E15, plan U20, ADR 0089), recorded by
+     * `fsa config set update-check on` from the release URL of that moment; null while the check is off (the default).
+     */
+    public function updateManifestUrl(): ?string
+    {
+        return $this->state->setting('update_check') === true ? $this->string('update_url') : null;
+    }
+
     private function int(string $key, int $default): int
     {
         $value = $this->state->setting($key);
