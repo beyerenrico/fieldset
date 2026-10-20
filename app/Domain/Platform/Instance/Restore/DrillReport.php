@@ -95,6 +95,12 @@ final readonly class DrillReport
                 }
             }
         }
+        foreach ($this->hasColumn($db, 'organizations', 'branding') ? $db->table('organizations')->selectRaw("branding ->> 'logo_path' AS path")->whereRaw("COALESCE(branding ->> 'logo_path', '') <> ''")->cursor() : [] as $row) {
+            $referenced++; // the branding logos too, as the backup counts them (M12 gate D8)
+            if (! isset($present['private/'.$row->path])) {
+                $missing[] = 'private/'.$row->path;
+            }
+        }
 
         return ['archive' => $members !== null, 'referenced' => $referenced, 'missing' => count($missing), 'sample' => array_slice($missing, 0, self::MISSING_SAMPLE)];
     }

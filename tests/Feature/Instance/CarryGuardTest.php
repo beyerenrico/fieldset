@@ -196,3 +196,19 @@ it('carries nothing from a source that was reset after the backup: its rows are 
         ->and($target->table('users')->where('id', $this->owner->id)->value('password'))->not->toBe('fresh-owner-hash')
         ->and($target->table('users')->where('id', $this->deactivated->id)->value('status'))->toBe('active');
 });
+
+it('carries a change audited or stamped in the very second the backup was made: its time is whole seconds (M12 gate D8)', function (): void {
+    CarryFixture::scope($this);
+    $source = DB::connection(RestoreDatabases::SOURCE);
+    CarryFixture::epoch($source, '2026-10-19 13:00:00'); // the source was restored after the backup: audit mode
+    $token = (int) $source->table('personal_access_tokens')->where('name', 'deleted-token')->value('id');
+    $source->table('personal_access_tokens')->where('id', $token)->delete();
+    CarryFixture::audit($source, 'api_token.revoked', PersonalAccessToken::class, $token, '2026-10-19 12:00:00');
+    $device = (int) $source->table('devices')->where('name', 'revoked')->value('id');
+    $source->table('devices')->where('id', $device)->update(['revoked_at' => '2026-10-19 12:00:00']);
+
+    [$code, $json] = CarryFixture::run($this, ['--backup-created-at' => GUARD_BACKUP_AT]);
+
+    expect($code)->toBe(0, json_encode($json))->and($json['data']['carry_mode'])->toBe('audit')
+        ->and($json['data']['carried'])->toMatchArray(['tokens_deleted' => 1, 'devices_revoked' => 1]);
+});

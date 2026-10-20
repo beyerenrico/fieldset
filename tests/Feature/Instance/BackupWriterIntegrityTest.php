@@ -220,3 +220,17 @@ it('keeps older scheduled backups while a new one misses more referenced files t
         ->and($next)->toMatchArray(['status' => 'succeeded', 'missing_files' => 1])->not->toHaveKey('retention_held')
         ->and($next['pruned'])->toContain('scheduled-20261001T033000Z', 'scheduled-20261002T033000Z');
 });
+
+it('counts the organizations\' branding logos among the files the database references (M12 gate D8)', function (): void {
+    $present = makeOrganization();
+    $missing = makeOrganization();
+    $present->forceFill(['branding' => ['logo_path' => 'branding/'.$present->id.'/logo-0123456789abcdef.png']])->save();
+    $missing->forceFill(['branding' => ['logo_path' => 'branding/'.$missing->id.'/logo-fedcba9876543210.png']])->save();
+    mkdir($this->storage.'/private/branding/'.$present->id, 0700, true);
+    file_put_contents($this->storage.'/private/branding/'.$present->id.'/logo-0123456789abcdef.png', 'png');
+
+    $result = integrityWriter($this)->write(BackupName::for(BackupName::MANUAL, CarbonImmutable::now()));
+    $manifest = json_decode((string) file_get_contents($result->path.'/manifest.json'), true, 512, JSON_THROW_ON_ERROR);
+
+    expect($manifest['storage'])->toMatchArray(['referenced_files' => 2, 'missing_files' => 1, 'missing_sample' => ['private/branding/'.$missing->id.'/logo-fedcba9876543210.png']]);
+});
