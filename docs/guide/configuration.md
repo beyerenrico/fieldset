@@ -1,374 +1,93 @@
-# Configuration reference
+# Configuration
 
-All settings are environment variables in `.env`, read through the files in `config/`. Every service
-in `compose.yaml` loads `.env`; values in `.env` override the defaults built into the image. After a
-change, recreate the containers: `docker compose up -d --force-recreate app queue scheduler` (the
-configuration is cached when a container starts).
+An instance's settings live in its `state.json` and change only through `fsa config set`. `fsa` renders the Compose
+project and the environment files (`compose.yaml`, `env/*.env`) from that state and checks every change before it
+keeps it. **Do not edit `env/` or `compose.yaml` by hand:** the next `fsa` command rewrites them, and a hand-made
+change bypasses the checks and the automatic revert.
 
-"Default" is the value the application uses when the variable is not set. Where `.env.example`
-(development) or `.env.production.example` (the production template) sets a different value, the table
-says so. Settings marked *fixed* are configuration keys without an
-environment variable; changing them means editing `config/` and rebuilding the image.
+The 1.0 reference of `.env` variables for checkout installs is in the [archive](archive/1.0-configuration.md).
 
-Contents:
-- [Application](#application)
-- [Docker Compose and the image](#docker-compose-and-the-image)
-- [Database](#database)
-- [Redis, queue, cache and sessions](#redis-queue-cache-and-sessions)
-- [Logging and error reporting](#logging-and-error-reporting)
-- [Security headers and proxies](#security-headers-and-proxies)
-- [Mail](#mail)
-- [Mail delivery rules](#mail-delivery-rules)
-- [Documents and PDF rendering](#documents-and-pdf-rendering)
-- [Fillable PDF import](#fillable-pdf-import)
-- [Submissions and uploads](#submissions-and-uploads)
-- [Workflows and webhooks](#workflows-and-webhooks)
-- [Reports and exports](#reports-and-exports)
-- [Dashboards](#dashboards)
-- [Single sign-on](#single-sign-on)
-- [Audit log](#audit-log)
-- [Privacy and retention](#privacy-and-retention)
-- [Integration tokens](#integration-tokens)
-- [Platform operator panel](#platform-operator-panel)
-- [Files and storage](#files-and-storage)
-- [Other](#other)
+## Show and change settings
 
-## Application
+```sh
+fsa config show                       # every setting, the keys you can set in this mode, outbound contacts
+fsa config set <key> <value>          # change one setting
+```
 
-`config/app.php`
+`fsa config set` validates the value, runs the checks the change needs (DNS, ports, the SMTP server), applies it,
+restarts only the services whose configuration changed and verifies the instance. If the verification fails, the
+change is reverted and the command exits 5 `rolled_back`; `errors[0]` names the cause and `data.fix_first` or
+`data.retry_after` says what to do. Setting a value that is already set changes nothing. Changes that move the
+instance to another URL ask for confirmation first (`--yes` confirms).
 
-| Variable | Default | Meaning |
-|---|---|---|
-| `APP_NAME` | `form-schema-app` | Name in mails, the browser title and the webhook `User-Agent`. |
-| `APP_ENV` | `production` (image and production template); `.env.example`: `local` | `production` for real installations. Production refuses the SSO development settings. Outside `local` and `testing`, only known host names are answered ([why](install.md#5-reverse-proxy-and-tls)). |
-| `APP_DEBUG` | `false`; `.env.example`: `true` | Shows stack traces. Never `true` in production. |
-| `APP_KEY` | none | Encryption key, `base64:` + 32 random bytes. Required; back it up ([why](backup-restore.md#the-app_key)). |
-| `APP_PREVIOUS_KEYS` | empty | Comma-separated old keys, so data encrypted with them stays readable after a key change. |
-| `APP_URL` | `http://localhost` | Public base URL (`https://…`). Used for links generated in the background. |
-| `APP_LOCALE` | `en` | Default language where no user or organization language applies (`de` or `en`). |
-| `APP_FALLBACK_LOCALE` | `en` | Language for missing translations. |
-| `APP_ALLOW_REGISTRATION` | `false` | Lets anyone register a user and an organization at `/admin`. Only for a public instance. |
-| `PLATFORM_ADMIN_EMAILS` | empty | Comma-separated emails with access to `/docs/api`. `/horizon` and the `/platform` panel use the operator list (`php artisan app:platform-admin`) and need a `/platform` sign-in. |
-| `APP_INVITATIONS_PER_DAY` | `1000` | Member invitations per organization in 24 hours. |
-| `APP_MAINTENANCE_DRIVER` | `file` | Laravel maintenance mode driver. |
-| `BCRYPT_ROUNDS` | `12` | Password hashing cost. |
-| *fixed* `app.timezone` | `UTC` | Server time zone. Organizations and users have their own time zones for display and schedules. |
-| `API_RATE_LIMIT` | `240` | Requests per minute on `/api/v1`: per integration token, otherwise per signed-in user, otherwise per IP address. Each token has its own limit, separate from its user's Field App session. |
+## Keys
 
-## Docker Compose and the image
+| Key | Values | Modes | Notes |
+|---|---|---|---|
+| `domain` | a DNS name | all | Switches to domain mode with `https://<name>`. Checks DNS and ports 80/443 first, keeps the change only once a certificate was issued. `--acme-email`, `--acme-staging`, `--acme-ca`, `--acme-ca-root-file`. Changes the URL. |
+| `mode` | `local` | domain, proxy | Back to local mode. Changes the URL. |
+| `url` | an http(s) origin | proxy | The URL your proxy serves. Changes the URL. |
+| `port` | a port number | local, proxy (`port`) | Changes the URL. |
+| `trusted-proxy` | a container name, an address or `auto` | proxy | The one proxy address the app trusts for forwarded headers. `auto` finds the proxy container again after it was recreated. |
+| `acme-email` | an address or `none` | domain | The ACME account's contact. |
+| `acme-ca` | `production`, `staging` or a URL | domain | Which ACME CA issues certificates. |
+| `mail` | `smtp` or `capture` | all | See [mail](#mail). |
+| `phone-https` | `local-ca` or `off` | local | HTTPS for phones in the LAN through a local CA (the tunnel is `fsa tunnel`). Changes the URL. |
+| `lan-address` | an IPv4 address | local | The LAN address the local CA's certificate is for. |
+| `backup-schedule` | `HH:MM` or `off` | all | Daily backup time in the instance's time zone (default 03:30). |
+| `backup-retention` | 1 to 365 | all | Scheduled backups kept (default 7). |
+| `backup-encryption` | `on` or `off` | all | `on` needs `--identity-out <file>` and `--passphrase-file <file>` (or `--passphrase-stdin`); see [backup and restore](backup-restore.md#encryption). |
+| `webhooks` | `on` or `paused` | all | Restores and moves pause webhook deliveries; `on` resumes them. |
+| `operator-email` | an e-mail address | all | Adds a platform operator (an admin of `/platform`) and issues a sign-in link for them. `--revoke-previous` revokes every other operator (asks for confirmation). |
 
-| Variable | Default | Meaning |
-|---|---|---|
-| `COMPOSE_FILE` | `compose.yaml`; `.env.example`: `compose.yaml:compose.dev.yaml` | Read by Docker Compose. Use `compose.yaml` alone in production. |
-| `COMPOSE_PROFILES` | empty | `sso` starts the development Keycloak (with `compose.dev.yaml` only). |
-| `APP_PORT` | `8080` | Port number only. `compose.yaml` publishes the `app` service as `127.0.0.1:${APP_PORT}:8080`, on the loopback interface, for a reverse proxy on the same host. |
-| `FORWARD_DB_PORT`, `FORWARD_REDIS_PORT`, `FORWARD_GOTENBERG_PORT`, `FORWARD_MAILPIT_UI_PORT`, `FORWARD_MAILPIT_SMTP_PORT` | `54329`, `63799`, `13000`, `18025`, `11025` | Development only (`compose.dev.yaml`). |
-| `RUN_MIGRATIONS` | `true` for `app` (set in `compose.yaml`) | Run `php artisan migrate --force --isolated` when the container starts (concurrent starts take turns on a database lock). |
-| `FRANKENPHP_CONFIG` | unset: FrankenPHP's default of two PHP threads per CPU | Extra directives for the `frankenphp` block of `docker/app/Caddyfile`, for example `num_threads 4`. `fsa` sets `num_threads` from the instance's memory budget. |
+`fsa config show` lists under `data.keys` which keys this instance's mode accepts. A key from another mode is refused
+with exit 2 and names the key to use instead.
 
-Set in the image (`docker/app/Dockerfile`) and overridden by `.env` when present: `APP_ENV=production`,
-`LOG_CHANNEL=stderr`, `LOG_STDERR_FORMATTER=App\Support\Logging\JsonLogFormatter`, `SERVER_NAME=:8080`.
-PHP limits (`docker/app/php.ini`): `memory_limit=512M`, `upload_max_filesize=25M`, `post_max_size=30M`.
-
-Gotenberg flags in `compose.yaml`: `--chromium-deny-private-ips=true`, `--chromium-deny-public-ips=true`,
-`--chromium-disable-javascript=true`, `--api-body-limit=30MB`, `--api-timeout=60s`.
-
-## Database
-
-`config/database.php`. PostgreSQL 15 or newer is required (16 in `compose.yaml`).
-
-| Variable | Default | Meaning |
-|---|---|---|
-| `DB_CONNECTION` | `pgsql` (set in `compose.yaml`) | Only PostgreSQL is supported. |
-| `DB_HOST`, `DB_PORT` | `postgres`, `5432` (set in `compose.yaml`) | The values in `.env` are used only outside Docker. |
-| `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` | `form_schema`, `form_schema`, `secret` | Also create the database and its user on the first start of the `postgres` service. Set a strong password. |
-| `DB_SSLMODE` | `prefer` | For an external PostgreSQL server. |
-| `DB_URL` | empty | Alternative connection URL. |
-
-## Redis, queue, cache and sessions
-
-`config/database.php`, `config/queue.php`, `config/cache.php`, `config/session.php`,
-`config/sanctum.php`, `config/horizon.php`
-
-| Variable | Default | Meaning |
-|---|---|---|
-| `REDIS_HOST`, `REDIS_PORT` | `redis`, `6379` (set in `compose.yaml`) | Valkey service. |
-| `REDIS_PASSWORD` | none | The bundled Valkey has no password and no published port. |
-| `REDIS_CLIENT` | `phpredis`; `.env.example`: `predis` | Both work in the image. |
-| `REDIS_DB`, `REDIS_CACHE_DB` | `0`, `1` | Databases for queues and cache. |
-| `QUEUE_CONNECTION` | `database`; `.env.example`: `redis` | Must be `redis`: Horizon only works Redis queues. |
-| `CACHE_STORE` | `database`; `.env.example`: `redis` | Cache and locks. |
-| `SESSION_DRIVER` | `database` | Sessions in PostgreSQL. |
-| `SESSION_LIFETIME` | `120`; `.env.example`: `43200` | Minutes. Keep 43200 (30 days, rolling) so field workers stay signed in while offline. |
-| `SESSION_ENCRYPT` | `false`; `.env.example`: `true` | Encrypt session data. |
-| `SESSION_SECURE_COOKIE` | unset; `.env.example`: `false`; production template: `true` | Secure cookies for plain HTTP requests too. Requests over HTTPS (directly, through a trusted proxy, or when `APP_URL` is `https://`) always get Secure session and XSRF cookies. |
-| `SESSION_SAME_SITE` | `lax` | Keep `lax`. |
-| `SESSION_DOMAIN`, `SESSION_PATH` | none, `/` | Cookie scope. |
-| `SANCTUM_STATEFUL_DOMAINS` | localhost entries plus the `APP_URL` host | Hosts whose browser requests use the session cookie (the Field App). `.env.example` lists only `localhost`; set your host name. |
-| `HORIZON_PATH` | `horizon` | Path of the Horizon dashboard. |
-| `HORIZON_PREFIX`, `HORIZON_NAME`, `HORIZON_DOMAIN` | derived from `APP_NAME`, none, none | Horizon's Redis prefix and dashboard options. |
-| `HORIZON_MAX_PROCESSES` | `10` in production, `3` in `local` | Maximum worker processes of `supervisor-1` (queue `default`). `fsa` sets it from the instance's memory budget. |
-| `HORIZON_EXPORTS_PROCESSES` | `1` | Worker processes of `supervisor-exports` (queue `REPORTS_EXPORT_QUEUE`, default `exports`). Keep `1` so large exports run one after another (`fsa` always sets `1`). |
-| *fixed* Horizon supervisors | `supervisor-1` and `supervisor-exports` (`config/horizon.php`) | Only their process counts are configurable. Queues without a supervisor are never worked. |
-
-## Logging and error reporting
-
-`config/logging.php`
-
-| Variable | Default | Meaning |
-|---|---|---|
-| `LOG_CHANNEL` | `stderr` (image); both templates: `stack` | `stack` sends logs to the channels in `LOG_STACK`. `stderr` writes to stderr with `LOG_STDERR_FORMATTER`. |
-| `LOG_STACK` | `single`; production template: `json` | Channels of `stack`, comma-separated. `json`: one JSON object per line on stderr. `single`: a file inside the container, lost when it is recreated. Add `sentry` for error reporting, for example `json,sentry`. |
-| `LOG_LEVEL` | `debug`; production template: `info` | `info` or `warning` in production. |
-| `LOG_STDERR_FORMATTER` | `App\Support\Logging\JsonLogFormatter` (image) | Formatter of the `stderr` channel. |
-| `LOG_JSON_STREAM` | `php://stderr` | Where the `json` channel writes. |
-| `LOG_DEPRECATIONS_CHANNEL` | `null` | PHP deprecation warnings. |
-| `SENTRY_DSN` | empty | DSN of a Sentry-compatible service (Sentry, GlitchTip and others), used by the `sentry` log channel: add `sentry` to `LOG_STACK` (with `LOG_CHANNEL=stack`). Without a valid DSN the channel discards everything. |
-| `SENTRY_LEVEL` | `error` | Lowest log level that is reported. |
-| `SENTRY_ENVIRONMENT` | `APP_ENV` | Environment name on each event. |
-| `SENTRY_RELEASE` | empty | Release name on each event. |
-| `SENTRY_TIMEOUT` | `2` | Seconds per report. |
-
-Every request gets an `X-Request-Id` (taken from the request or generated), which appears in the logs.
-
-The JSON lines contain `@timestamp`, `level`, `message`, `channel`, `service`, `environment`,
-`request_id`, the context and exception traces. Passwords, tokens, secrets and credential headers are
-redacted, and database errors never contain the query's values. Error reports to `SENTRY_DSN` carry the
-exception, the request id and the user id, but no request data. They are sent from the `app`, `queue` and
-`scheduler` containers, so allow outbound HTTPS to the DSN host if outbound traffic is restricted.
-
-## Security headers and proxies
-
-`config/security.php`, `config/trustedproxy.php`. Background:
-[install guide, step 5](install.md#5-reverse-proxy-and-tls).
-
-| Variable | Default | Meaning |
-|---|---|---|
-| `TRUSTED_PROXIES` | empty (no proxy is trusted); production template: `172.16.0.0/12` | IP addresses or CIDR ranges, comma-separated. Only these may set `X-Forwarded-For`, `-Proto`, `-Host` and `-Port`. The template's range is the Docker bridge range, from which a reverse proxy on the host arrives at `127.0.0.1:8080`. Widen it only to the range your proxy actually connects from; never trust a range that untrusted clients can reach. |
-| `TRUSTED_HOSTS` | empty | Extra host names, comma-separated, besides the host of `APP_URL` and loopback names. Other hosts get 400 unless `APP_ENV` is `local` or `testing`. |
-| `SECURITY_HSTS_ENABLED` | empty (automatic) | Empty: send `Strict-Transport-Security` when the request is HTTPS or `APP_URL` is `https://`. `true`: always. `false`: never. |
-| `SECURITY_HSTS_MAX_AGE` | `31536000` (one year) | Seconds. |
-| `SECURITY_HSTS_INCLUDE_SUBDOMAINS`, `SECURITY_HSTS_PRELOAD` | `false`, `false` | Add `includeSubDomains` / `preload`. Only if every subdomain serves HTTPS. |
-
-**Admin panel sessions** end after 30 minutes without activity (idle timeout) and 12 hours after the
-sign-in at the latest (absolute timeout). Both are set in `config/security.php`:
-
-| Variable | Default | Meaning |
-|---|---|---|
-| `SECURITY_ADMIN_IDLE_MINUTES` | `30` | Minutes without an admin request (page or Livewire update) before the admin session ends. |
-| `SECURITY_ADMIN_ABSOLUTE_HOURS` | `12` | Hours after which the admin session ends, active or not. |
-
-The Field App session is not affected: it keeps `SESSION_LIFETIME` (30 days, rolling). The browser has one
-session, so someone who returns to `/admin` after a timeout is signed out of that browser completely and
-signs in again.
-
-Fixed: the Content Security Policy per area (admin and `/platform`, Field App, builder preview, API,
-Horizon, API documentation), `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin`,
-`X-Frame-Options`, a `Permissions-Policy` that allows only camera and location, and only for the Field
-App. The admin pages load no scripts, styles, fonts or images from other sites.
+The opt-in update check of the `/platform` instance page is configured there or with its own key once your release
+has it; `fsa config show` lists it under `data.keys` when it is available.
 
 ## Mail
 
-`config/mail.php`. The instance-wide transport; organizations can add their own SMTP server in the
-dashboard.
+New instances capture mail in the instance's mail catcher (Mailpit); the admin dashboard shows a banner while they do
+(see the [admin guide](admin-guide.md#mail-capture-banner)). Switch to an SMTP server:
 
-| Variable | Default | Meaning |
-|---|---|---|
-| `MAIL_MAILER` | `log`; `.env.example`: `smtp` | `smtp` in production. The image includes the `smtp`, `sendmail` and `log` transports only. |
-| `MAIL_HOST`, `MAIL_PORT` | `127.0.0.1`, `2525` | SMTP server. |
-| `MAIL_USERNAME`, `MAIL_PASSWORD` | none | SMTP credentials. |
-| `MAIL_SCHEME` | none | `smtps` or `smtp`; when empty, port 465 means `smtps`. |
-| `MAIL_REQUIRE_TLS` | `false` | `true`: refuse a server that offers no STARTTLS before sending the credentials or any mail. `fsa` sets it for `--smtp-encryption starttls`. |
-| `MAIL_AUTO_TLS` | `true` | `false`: never start STARTTLS (a relay without TLS). `fsa` sets it for `--smtp-encryption none`. |
-| `MAIL_URL` | none | Alternative DSN. |
-| `MAIL_EHLO_DOMAIN` | host of `APP_URL` | Name in the SMTP greeting. |
-| `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME` | `hello@example.com`, `APP_NAME` | Sender of instance mail. Organizations without their own SMTP server send from this address with their own sender name. |
+```sh
+fsa config set mail smtp --smtp-host smtp.example.com --smtp-username forms@example.com --password-file ~/smtp-password --from-address forms@example.com --test-to you@example.com
+```
 
-## Mail delivery rules
+- The password comes from `--password-file <file>` or `--password-stdin` (piped, or a hidden prompt on a terminal),
+  never from the command line.
+- `--smtp-port` (default 587), `--smtp-encryption starttls|tls|none` (default `starttls`; `tls` is implicit TLS on
+  465, `none` only for a relay in a trusted network), `--from-name`.
+- `fsa` sends a test mail through the new server (to `--test-to`, or the operator) and keeps the change only if the
+  server accepts it; otherwise it reverts with exit 5 `test_mail_failed`.
+- The catcher keeps running so you can still read captured mail; `--remove-catcher` removes it and its data.
+- `fsa config set mail capture` goes back to capturing.
+- `fsa config show --catcher-login --secrets-file <file>` writes the catcher's login to a file.
 
-`config/messaging.php`
+Organizations can also use their own SMTP server for their mail ("E-Mail-Einstellungen" in the admin dashboard).
+Invitations, password resets and e-mail confirmations always go through the instance's mailer.
 
-| Variable | Default | Meaning |
-|---|---|---|
-| `MESSAGING_QUEUE` | `default` queue | Queue of the delivery job. A different name needs a Horizon supervisor. |
-| `MESSAGING_TRIES` | `3` | Attempts per mail (30 s and 120 s apart). |
-| `MESSAGING_CUSTOMER_SENDS_PER_SUBMISSION_PER_DAY` | `10` | "Send to customer" limit per submission. |
-| `MESSAGING_CUSTOMER_SENDS_PER_ORGANIZATION_PER_HOUR` | `200` | "Send to customer" limit per organization. |
-| `MESSAGING_ATTACHMENT_MAX_BYTES` | `10485760` (10 MB) | Larger PDFs are sent as an expiring link. |
-| `MESSAGING_LINK_TTL_DAYS` | `14` | Lifetime of document links; expired links answer 410 Gone. |
-| `MESSAGING_LINK_RATE_LIMIT` | `30` | Requests per minute and IP on document links. |
-| `MESSAGING_LINK_PRUNE_AFTER_DAYS` | `90` | Expired links are deleted this many days after expiry. |
-| `MESSAGING_SMTP_ALLOW_PRIVATE_HOSTS` | `false` | Allow organization SMTP servers on private addresses and any port. Development only. |
-| `MESSAGING_SMTP_TIMEOUT` | `15` | Seconds, organization SMTP servers. |
-| *fixed* allowed organization SMTP ports | 25, 465, 587, 2525 | |
+## What fsa sets for you
 
-## Documents and PDF rendering
+The rendered environment always runs the app in production mode with debug off, registration off, encrypted
+database sessions, PDF rendering through the instance's Gotenberg, secure SSO settings and exactly one trusted proxy
+address for the mode (the edge in domain and local-CA mode, the proxy container in proxy mode, none otherwise). The
+database, Valkey and catcher passwords and the APP_KEY are generated at install and never printed.
 
-`config/documents.php`, `config/laravel-pdf.php`
+Settings of the 1.0 `.env` that `fsa config set` does not offer (for example error reporting, upload scanning or log
+channels) are not configurable on a 2.0 instance. `fsa adopt` takes over only the APP keys, the URL, the sender and the
+SMTP server's host and port from a 1.0 `.env`; everything else comes from `fsa`'s rendering.
 
-| Variable | Default | Meaning |
-|---|---|---|
-| `GOTENBERG_URL` | `http://gotenberg:3000` (set in `compose.yaml`) | Gotenberg API. |
-| `GOTENBERG_USERNAME`, `GOTENBERG_PASSWORD` | none | Basic auth, if your Gotenberg requires it. |
-| `LARAVEL_PDF_DRIVER` | `gotenberg` | Keep `gotenberg`. |
-| `DOCUMENTS_DISK` | `local` | Disk for PDFs and logos. |
-| `DOCUMENTS_RENDER_ON_SUBMIT` | `true` (except in tests) | Create the PDF after every submit. |
-| `DOCUMENTS_QUEUE` | `default` | Queue of the render job. A different name needs a Horizon supervisor. |
-| `DOCUMENTS_MAX_REQUEST_BYTES` | `26214400` (25 MB) | Size budget of one render request (photos, logo and fonts are embedded). Keep it below Gotenberg's `--api-body-limit` (30 MB). |
-| `DOCUMENTS_PHOTO_MAX_EDGE` | `1600` | Photos are scaled down to this many pixels on the long edge for print. |
-| `DOCUMENTS_LINK_TTL_MINUTES` | `5` | Lifetime of the signed PDF link in the Field App. |
-| `DOCUMENTS_SWEEP_AFTER_MINUTES`, `DOCUMENTS_SWEEP_BATCH` | `10`, `100` | `documents:sweep` re-dispatches PDFs missing for this long, this many per run. |
-| `DOCUMENTS_RERENDER_PER_SUBMISSION_PER_MINUTE`, `DOCUMENTS_RERENDER_PER_USER_PER_MINUTE` | `1`, `10` | Limits of "PDF neu erzeugen". |
-| `DOCUMENTS_LOGO_MAX_KB`, `DOCUMENTS_LOGO_MAX_SIDE`, `DOCUMENTS_LOGO_MAX_PIXELS` | `2048`, `4000`, `16000000` | Logo upload limits. |
+## Environment variables of install.sh and fsa
 
-## Fillable PDF import
+| Variable | Meaning |
+|---|---|
+| `FSA_RELEASE_URL` | A mirror of the GitHub Releases page (https), for install.sh and `fsa upgrade` |
+| `FSA_REGISTRY` | A registry mirror (`host[:port]`) the images are pulled from |
+| `DOCKER_DEFAULT_PLATFORM` | `linux/amd64` or `linux/arm64`: pull and run that platform (another one runs emulated) |
 
-`config/forms.php`
+## Organization settings
 
-| Variable | Default | Meaning |
-|---|---|---|
-| `QPDF_BINARY` | `qpdf` | qpdf executable (included in the image). |
-| `PDF_IMPORT_MAX_BYTES` | `20971520` (20 MB) | Largest PDF. |
-| `PDF_IMPORT_MAX_PAGES` | `50` | Most pages. |
-| `PDF_IMPORT_TIMEOUT` | `60` | Seconds per qpdf call. |
-
-## Submissions and uploads
-
-`config/submissions.php`
-
-| Variable | Default | Meaning |
-|---|---|---|
-| `SUBMISSIONS_MAX_PAYLOAD_BYTES` | `2097152` (2 MB) | Largest JSON request body on `/api`. |
-| `SUBMISSIONS_IDEMPOTENCY_TTL_HOURS` | `24` | How long a submit response is replayed for the same `Idempotency-Key`. |
-| `SUBMISSIONS_IMAGE_MAX_PIXELS`, `SUBMISSIONS_IMAGE_MAX_SIDE` | `40000000`, `12000` | Larger images are refused. |
-| `SUBMISSIONS_IMAGE_STORE_MAX_PIXELS` | `25000000` | Larger accepted images are scaled down when stored. |
-| *fixed* attachment size | 25 MB | Per file. |
-
-Optional malware scanning of the photos, signatures and files uploaded with submissions, through a ClamAV
-daemon (clamd) that you run yourself. `config/uploads.php`:
-
-| Variable | Default | Meaning |
-|---|---|---|
-| `UPLOADS_CLAMAV_ENABLED` | `false` | Scan these uploads before they are stored. |
-| `UPLOADS_CLAMAV_HOST`, `UPLOADS_CLAMAV_PORT` | `clamav`, `3310` | clamd's TCP address, reachable from the `app` container. |
-| `UPLOADS_CLAMAV_TIMEOUT` | `10` | Seconds. |
-| `UPLOADS_CLAMAV_FAIL_OPEN` | `false` | `false`: an upload is refused with 503 `scanner_unavailable` when clamd gives no answer; the Field App tries again later. `true`: accept it unscanned. |
-
-An infected file is refused with 422 `file_infected` and logged as `upload.infected` with the signature
-name. A file larger than clamd's `StreamMaxLength` is refused with 422 `file_too_large`, also with
-`UPLOADS_CLAMAV_FAIL_OPEN=true`.
-
-## Workflows and webhooks
-
-`config/workflows.php`
-
-| Variable | Default | Meaning |
-|---|---|---|
-| `WORKFLOWS_COMPLETE_WITHOUT_REVIEW` | `true` (except in tests) | Complete a submission right after submit when no workflow manages its status. |
-| `WORKFLOWS_QUEUE` | `default` queue | Queue of workflow steps. A different name needs a Horizon supervisor. |
-| `WORKFLOWS_STEP_TRIES`, `WORKFLOWS_STEP_BACKOFF_BASE` | `5`, `10` | Attempts per step; waits of base, base×3, base×9 … seconds. |
-| `WORKFLOWS_SWEEP_AFTER_MINUTES` | `30` | Runs without progress this long get their step queued again. |
-| `WORKFLOWS_START_SWEEP_AFTER_MINUTES`, `WORKFLOWS_START_SWEEP_DAYS` | `10`, `7` | Restart of workflows whose start was lost. |
-| `WORKFLOWS_EMAILS_PER_SUBMISSION_PER_DAY`, `WORKFLOWS_EMAILS_PER_ORGANIZATION_PER_HOUR` | `25`, `500` | Caps on workflow emails; over a cap the step fails and admins are notified. |
-| `WORKFLOWS_WEBHOOK_TIMEOUT`, `WORKFLOWS_WEBHOOK_CONNECT_TIMEOUT` | `10`, `5` | Seconds. |
-| `WORKFLOWS_WEBHOOK_ALLOW_PRIVATE_HOSTS` | `false` | Allow webhooks to private addresses and any port. Development only. |
-| `WORKFLOWS_MAX_STEPS`, `WORKFLOWS_MAX_DEFINITION_KB`, `WORKFLOWS_MAX_RECIPIENTS`, `WORKFLOWS_MAX_ADDRESS_FIELDS` | `25`, `64`, `50`, `10` | Limits of one workflow definition. |
-| *fixed* webhook ports | 80, 443, 8080, 8443 | |
-| *fixed* longest review SLA | 2160 hours (90 days) | |
-
-## Reports and exports
-
-`config/reports.php`
-
-| Variable | Default | Meaning |
-|---|---|---|
-| `REPORTS_EXPORT_DISK` | `local` | Disk for export files. |
-| `REPORTS_EXPORT_QUEUE` | `exports` | Queue worked by `supervisor-exports`. |
-| `REPORTS_EXPORT_TIMEOUT` | `85` | Seconds per export job; keep below the queue's `retry_after` (90). |
-| `REPORTS_EXPORT_KEEP_DAYS` | `7` | Export files are deleted after this many days. |
-| `REPORTS_EXPORT_MAX_ROWS` | `50000` | Most rows of one export. |
-| `REPORTS_PDF_ZIP_MAX_BYTES`, `REPORTS_PDF_ZIP_MAX_FILES` | `209715200` (200 MB), `2000` | Limits of a PDF ZIP. |
-| *fixed* | 6 visible field columns, 10,000 selected rows, 2 pending exports and 10 export requests per minute per user, 500 groups per saved report, scheduled reports at 07:00 organization time | |
-
-## Dashboards
-
-`config/dashboards.php`
-
-| Variable | Default | Meaning |
-|---|---|---|
-| `DASHBOARD_CACHE_TTL` | `60` | Seconds a widget result is cached. |
-| `DASHBOARD_STALE_DRAFT_DAYS` | `14` | A draft counts as stale after this many days without changes. |
-
-## Single sign-on
-
-`config/sso.php`
-
-| Variable | Default | Meaning |
-|---|---|---|
-| `SSO_ALLOW_INSECURE_IDP` | `false` | Allow `http://` and private-network identity providers (no SSRF guard). Development and CI only; refused in production. |
-| `SSO_DNS_DRIVER` | `dns` | `dns` looks up TXT records; `config` reads them from `SSO_DNS_RECORDS` (development and CI only; refused in production). |
-| `SSO_DNS_RECORDS` | empty | JSON object `{"<name>": ["<value>"]}` for the `config` driver. |
-| `SSO_SAML_SP_CERTIFICATE`, `SSO_SAML_SP_PRIVATE_KEY` | empty | Optional PEM key pair of the SAML service provider: signs authentication requests and is published in the metadata. |
-| *fixed* | TXT name `_form-schema-app-verification.<domain>`; unverify after 3 failed daily checks; IdP timeouts 10 s (connect 5 s); metadata cache 1 h; clock skew 60 s; misconfiguration notices at most every 6 h; login flows valid 10 minutes | |
-
-## Audit log
-
-`config/audit.php`. See [Protect the audit log](install.md#7-protect-the-audit-log).
-
-| Variable | Default | Meaning |
-|---|---|---|
-| `AUDIT_RETENTION_DAYS` | `365` | `audit:prune` (daily at 03:15) deletes older entries. At least 30; the database refuses to delete younger entries. |
-| `AUDIT_EXPORT_SYNC_MAX_ROWS` | `2000` | Larger CSV exports of the audit log run in the background and arrive as a download link. |
-| `ACTIVITYLOG_ENABLED` | `true` | The audit trail. Keep it enabled. |
-
-## Privacy and retention
-
-`config/privacy.php`
-
-| Variable | Default | Meaning |
-|---|---|---|
-| `PRIVACY_LEGAL_HOLD_MIN_MONTHS` | `120` (ten years) | Shortest retention period a form under legal hold may have. Check the periods that apply to you; this is not legal advice. |
-| `PRIVACY_RETENTION_BATCH` | `500` | Submissions per form and run of the nightly retention job (02:30); the job continues until all due submissions are done. |
-| `PRIVACY_EXPORT_KEEP_DAYS` | `7` | Personal data exports and queued audit log exports are deleted after this many days. |
-| `PRIVACY_EXPORTS_PER_HOUR` | `10` | Export requests per user and hour. |
-| `PRIVACY_EXPORT_DISK` | `local` | Disk for these exports. |
-
-## Integration tokens
-
-`config/api_tokens.php`
-
-| Variable | Default | Meaning |
-|---|---|---|
-| `API_TOKEN_DEFAULT_EXPIRY_DAYS` | `90` | Expiry preselected for a new token. Users can still choose 7, 30, 90, 180 or 365 days, or never. |
-
-Tokens that expired more than 24 hours ago are deleted daily (`sanctum:prune-expired`).
-
-## Platform operator panel
-
-`config/platform.php`
-
-| Variable | Default | Meaning |
-|---|---|---|
-| `PLATFORM_IMPERSONATION_MINUTES` | `30` | Longest impersonation of a member (1 to 240). |
-| `PLATFORM_SESSION_HOURS` | `12` | An operator must sign in at `/platform/login` again after this many hours. |
-
-## Files and storage
-
-`config/filesystems.php`
-
-| Variable | Default | Meaning |
-|---|---|---|
-| `FILESYSTEM_DISK` | `local` | Default disk (`storage/app/private`). |
-
-Only local disks are supported by the image: there is no S3 adapter installed. Attachments always use the
-`local` disk. Nothing is stored on the public
-disk; `php artisan storage:link` is not needed.
-
-## Other
-
-| Variable | Default | Meaning |
-|---|---|---|
-| `API_VERSION` | `1.0.0` | Version shown in the OpenAPI document. |
-| `SCRAMBLE_DEV_TOOLS` | `APP_DEBUG` | Developer tools on the API documentation pages. |
-| `AUTH_PASSWORD_TIMEOUT` | `10800` | Seconds before a password confirmation is asked again. |
-| `VITE_APP_NAME` | `APP_NAME` | Build time only. |
+Everything that belongs to one organization (branding, members, SSO, mail settings, retention, webhooks, API tokens)
+is set in the admin dashboard; see the [admin guide](admin-guide.md).

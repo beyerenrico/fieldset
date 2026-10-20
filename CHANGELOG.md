@@ -5,9 +5,28 @@ All notable changes to this project are documented here. The format follows
 [Semantic Versioning](https://semver.org/) (0.x: the API and data model may still change).
 The Form Schema Spec has its own changelog in `spec/form-definition/1.0/CHANGELOG.md`.
 
-## [Unreleased]
+## 2.0.0 — unreleased
+
+form-schema-app 2.0 is installed and operated without a clone of the repository: one command installs a signed
+release, and the `fsa` tool configures, backs up, restores, upgrades, rolls back, resets and removes the instance,
+with JSON output and documented exit codes for agents and scripts. This entry lists what changed since 2.0.0-beta.1;
+the pre-release entries below list the rest of 2.0 (signed images and the release pipeline, `install.sh` and `fsa`,
+local, domain and proxy modes, mail capture and SMTP, demo data, phone HTTPS, the resource budget).
+
+Upgrading from 1.0: `fsa adopt <checkout>` (or `install.sh --adopt <checkout>`) moves a checkout install into a 2.0
+instance with its data; see [the install guide](docs/guide/install.md#adopt-a-10-install). The 1.0 guides stay in
+`docs/guide/archive/`.
 
 ### Added
+- **Agent guide** — `docs/guide/agent-guide.md`, also a release asset: recipes for a local demo, sign-in links,
+  SMTP, backup and restore, upgrade, moving servers, a VPS install, phone HTTPS, a domain change and removal, each
+  with the exact commands, the JSON fields to read, the exit codes and the recovery fields of a failed command. Its
+  runnable blocks are executed against a locally built release by the install journey J11.
+- **Guides for 2.0** — the install, upgrade, backup and restore, configuration and troubleshooting guides are
+  rewritten for `install.sh` and `fsa`; the backup guide explains chain epochs and the ledger, the admin guide the
+  mail capture banner. The 1.0 checkout guides moved to `docs/guide/archive/`, marked as not for `fsa` instances.
+  The README quick start is the one-liner. A test checks that every `fsa` command, flag, environment variable and
+  relative link the guides name exists (ADR 0042).
 - **Backups** — every instance runs a `backup` service (the app image, container root with four capabilities, no
   Docker socket, the storage volume read-only) that backs up daily at 03:30 in the instance's time zone and keeps the
   newest 7 scheduled backups in `backups/`. A backup is the database dump, the storage volume, the portable settings,

@@ -66,6 +66,15 @@ final readonly class InstanceJourney
         return $this->process([$dir.'/fsa', ...$arguments], $env);
     }
 
+    /**
+     * A shell script run like install.sh and the shim (same environment, the work directory as cwd): J11 runs the agent
+     * guide's blocks this way.
+     */
+    public function shell(string $script, array $env = []): Process
+    {
+        return $this->run(['/bin/sh', '-c', $script], $env);
+    }
+
     /** @return array<string, mixed> the envelope: the last stdout line */
     public static function json(Process $process): array
     {

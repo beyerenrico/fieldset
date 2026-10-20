@@ -1,186 +1,144 @@
 # Backup and restore
 
-This guide covers what to back up, the backup script, the restore drill and a full restore. It assumes
-the Docker Compose installation from the [install guide](install.md).
+Every instance backs itself up. This guide covers the schedule, encryption, copying backups off the host, restore
+drills, restoring, moving to another server and the audit log's chain epochs. Agents: see the
+[agent guide](agent-guide.md#recipe-backup-and-restore).
 
-Contents:
-- [What to back up](#what-to-back-up)
-- [The APP_KEY](#the-app_key)
-- [Back up with scripts/backup.sh](#back-up-with-scriptsbackupsh)
-- [Test your backups: scripts/restore-drill.sh](#test-your-backups-scriptsrestore-drillsh)
-- [Full restore](#full-restore)
+Never restore an instance by hand (`pg_restore`, `psql`, copying volumes): `fsa restore` quiesces the instance,
+takes a safety backup, keeps the audit log verifiable and re-applies security changes. The 1.0 scripts
+(`scripts/backup.sh`, the manual restore) are for checkout installs only and are in the
+[archive](archive/1.0-backup-restore.md).
 
-## What to back up
+## What a backup is
 
-| What | Where | Why |
-|---|---|---|
-| PostgreSQL database | volume `pg-data`, service `postgres` | Everything except files: organizations, users, forms and versions, submissions and their values, workflows and runs, the mail log, settings, the audit trail. |
-| Storage volume | volume `app-storage`, mounted at `/var/www/html/storage/app` | `private/renditions/` (the PDFs), `private/attachments/` (photos, signatures, files), `private/branding/` (logos), `private/exports/` (report exports, deleted after 7 days), `private/data-exports/` (personal data and audit log exports, deleted after 7 days). |
-| `.env`, especially `APP_KEY` | the project directory | Without the same `APP_KEY`, encrypted data in the database cannot be read ([details](#the-app_key)). Keep it separate from the data backups. |
-| The release you run | `git describe --tags` in the project directory | Restore with the same release, then upgrade if needed. |
+A backup is a directory `backups/<kind>-<UTC time>/` in the instance directory with:
 
-Not needed: Redis/Valkey holds only queues, caches and locks, and Gotenberg keeps no data.
+- `database.dump` (the whole database), `storage.tar.gz` (uploaded files and generated PDFs);
+- `settings.json` (the instance's portable settings), `audit-heads.json` (the audit chain heads and epoch),
+  `manifest.json` (the version and what the backup contains);
+- `SHA256SUMS` and an HMAC keyed from the instance's APP_KEY, so a changed file is detected;
+- with `--include-secrets`, also `secrets.env` (APP_KEY and the SMTP account; encrypted backups only).
 
-Back up the database **before** the storage volume. Files are written before the database rows that
-point to them, so every row in the dump then has its file in the archive. Files that appear between the
-two steps are harmless extras. `scripts/backup.sh` does it in this order.
+Everything is read from one database snapshot while the instance keeps running, and a backup counts only once its
+dump reads back. With encryption on, the whole set is one file, `backup.tar.age`.
 
-## The APP_KEY
+Kinds: `scheduled`, `manual` (`fsa backup`), `final` (before `fsa uninstall --keep-backups`) and `safety-…` (taken
+by `fsa upgrade`, `restore`, `reset`, `rollback` and `adopt` before they change data).
 
-`APP_KEY` encrypts, among other things:
-- the SMTP username and password of organizations with their own mail server;
-- the SSO configuration and client secret of every identity provider;
-- webhook signing secrets;
-- users' two-factor secrets and recovery codes;
-- queued and failed emails in the mail log (so they can be retried);
-- sessions, cookies and signed links (invitations, download links).
+## Schedule and retention
 
-If the key is lost, the database restores fine but these values cannot be decrypted: organizations
-must re-enter SMTP and SSO settings, webhook secrets must be replaced (and receivers updated), users
-with two-factor authentication cannot sign in, failed mails cannot be retried, and everyone is signed
-out. There is no way to recover the values without the key.
+The `backup` service backs up daily at 03:30 in the instance's time zone and keeps the newest 7 scheduled backups.
+Only scheduled backups are pruned: manual, final and safety backups stay until you delete them (an upgrade's safety
+backup is replaced by the next successful upgrade's). A file named `keep` inside a backup directory protects it from
+pruning. A run that would leave less than 1 GiB free is skipped.
 
-Store `APP_KEY` in a password manager or secret store, separately from the backups. If you ever change
-the key, put the old one in `APP_PREVIOUS_KEYS` (comma-separated) so existing data stays readable; the
-application has no command that re-encrypts old values.
-
-## Back up with scripts/backup.sh
-
-The script runs on the server, from the project directory or anywhere else, and only reads production
-data. It writes one directory per run:
-
-```
-<dest>/20261018T020000Z/
-  database.dump     pg_dump custom format (from inside the postgres container)
-  storage.tar.gz    the storage volume
-  env               a copy of .env, only with --include-env
-  manifest.txt      time, PostgreSQL version, migration count, row counts
-  SHA256SUMS        checksums of the files above
+```sh
+fsa config set backup-schedule 02:15     # or off
+fsa config set backup-retention 14       # 1 to 365
+fsa backup                               # a backup now
+fsa status                               # last backup, next run, backups on disk, alerts
 ```
 
-```bash
-scripts/backup.sh --dest /srv/backups/form-schema-app
+`fsa status` and the `/platform` health page warn when the last backup failed, a run was skipped, no backup succeeded
+within two hours of its slot, or the backup service does not run.
+
+## Copy backups off the host
+
+A backup on the same disk does not survive the loss of that disk. Copy `backups/` to another machine regularly, for
+example with `rsync -a /opt/form-schema-app/backups/ backup-host:form-schema-app/` from a cron job. Never copy
+`staging/`: it holds plaintext working files.
+
+## Encryption
+
+```sh
+fsa config set backup-encryption on --identity-out ~/forms-backup-identity.age --passphrase-file ~/forms-passphrase
 ```
 
-| Option | Meaning |
-|---|---|
-| `--dest DIR` | Required (or set `BACKUP_DEST`). Must be outside the repository: the backup contains personal data and must never be committed. |
-| `--keep-days N` | Delete complete backups older than N days after a successful run (default 14; `0` keeps everything). |
-| `--min-keep N` | Always keep the newest N backups, however old (default 3). |
-| `--no-storage` | Database only. |
-| `--include-env` | Also copy `.env` (with `APP_KEY` and all secrets). Only if the backup destination is as protected as the server. |
+This creates an age key pair. The private key (the identity) is written, encrypted with your passphrase (at least 12
+characters), to `--identity-out`, which must be outside the instance directory; only the public key stays in the
+instance. Every later backup is one encrypted file. Keep the identity and the passphrase somewhere else: without them,
+no encrypted backup can be read. `--passphrase-stdin` asks for the passphrase on a terminal instead of reading a file.
+`fsa config set backup-encryption off` switches back to plain backups.
 
-Details:
-- A run writes into `<timestamp>.partial` and renames it when everything succeeded, so an interrupted
-  run never looks like a complete backup. Pruning only touches directories named like a complete or
-  partial backup, nothing else in `<dest>`.
-- The dump is checked with `pg_restore --list` before the run counts as complete.
-- On a running system `tar` may report files that changed while being read; the script prints a warning
-  and continues.
-- The storage archive is read through the app image (`docker compose exec app`, or a one-off container
-  when `app` is stopped). The `postgres` service must be running.
-- Files and directories are created with mode `600`/`700`.
+## Restore drill
 
-**Schedule it**, for example nightly with cron (as a user that may run `docker compose`):
-
-```cron
-15 2 * * * /srv/form-schema-app/scripts/backup.sh --dest /srv/backups/form-schema-app >> /var/log/form-schema-app-backup.log 2>&1
+```sh
+fsa restore manual-20261020T101500Z --drill
 ```
 
-**Copy backups off the server.** A backup on the same disk does not survive a lost server. Copy the
-backup directory to another location with your usual tool (restic, borg, rsync to another host, object
-storage) and encrypt it there if the destination is not under your control.
+A drill restores the backup into a scratch database, reports counts, the audit chain heads, missing files, a test PDF
+render and a decrypt sample, and drops the scratch database. The instance is not touched and nothing needs
+confirming. Run one after every upgrade and regularly on the backups you copy off the host.
 
-## Test your backups: scripts/restore-drill.sh
+## Restore
 
-A backup only counts once a restore has worked. The drill restores a backup into a **new scratch
-database** and checks it, without touching production data:
-
-```bash
-scripts/restore-drill.sh --backup /srv/backups/form-schema-app/20261018T020000Z \
-  --scratch-db restore_drill_20261018
+```sh
+fsa restore manual-20261020T101500Z
+fsa config set webhooks on      # after checking the restored instance
 ```
 
-It checks:
-1. the checksums in `SHA256SUMS`;
-2. that `pg_restore` loads the dump into the scratch database without errors;
-3. row counts of the main tables, and at least one organization;
-4. that every attachment and PDF in the database has its file in `storage.tar.gz`, and that the newest
-   files (50 per table, `--sample N`) match their recorded SHA-256 hash;
-5. in a one-off container of the app image against the scratch database: whether migrations are pending
-   (the backup is older than the code) or unknown (the backup is newer than the code), and whether the
-   `APP_KEY` in `.env` decrypts the encrypted columns.
+The argument is a backup name in `backups/` or a path inside the instance directory. After your confirmation `fsa`:
 
-The output is a list of `PASS`, `FAIL` and `NOTE` lines, and the exit code is non-zero if a check
-failed.
+1. decrypts and checks the backup in a container without network: checksums, the HMAC (verified only with APP keys
+   from outside the archive), every archive member and every object of the dump;
+2. raises the maintenance gate and stops the workers, appends the current audit chain heads to `backups/ledger.log`,
+   and takes a safety backup (`safety-restore-…`);
+3. restores into a scratch database and a fresh storage volume, migrates an older backup to the running version;
+4. re-applies security changes made since the backup (revoked devices, deactivated or erased users, changed
+   passwords, e-mail addresses and MFA, deleted API tokens, SSO identities and providers, revoked operators and
+   roles, and more), clears sessions, reset tokens and sign-in links, and keeps numbering from going backwards;
+5. starts a new audit chain epoch with an `instance.restored` entry;
+6. swaps the restored database and volume in only when the restored instance passes its checks behind the gate.
 
-Safety rules built into the script:
-- `--backup` and `--scratch-db` are required. The name must start with `restore_drill_`, must not
-  exist yet, and can never be the production database.
-- It never drops a database it did not create in the same run. At the end it drops the scratch database
-  and deletes the extracted files, unless you pass `--keep`.
-- Files are read from the archive into a temporary directory; nothing is written to the storage volume.
-- The app check refuses to run unless it is connected to a `restore_drill_` database.
+If anything fails before the swap, the previous instance runs again (exit 5). Webhooks stay paused afterwards, so other
+systems are not notified twice.
 
-The drill needs the `postgres` service running and, for the app check, the app image and `.env`
-(`--skip-app-check` skips that part). It uses resources of the server it runs on; for large databases
-run it on a second machine with a checkout of the same release, the `.env` from your secret store and
-`docker compose up -d postgres`. Run a drill at least monthly and after every upgrade.
+Options: `--identity-file` and `--passphrase-file` (or `--passphrase-stdin`) for an encrypted backup;
+`--app-key-file` for a backup made with another APP key (one key per line, or `APP_KEY=` lines; the keys become
+previous keys so old data still decrypts); `--accept-unauthenticated` for a backup whose HMAC cannot be verified;
+`--without-files` to restore a backup that lacks the storage archive.
 
-## Full restore
+Only backups of the same instance restore in place. A backup from a newer version is refused (exit 7 `backup_newer`):
+upgrade first. A restore needs free space for one more copy of the backup's dump and files.
 
-Use these steps on a new server, or on the old one after data loss. They overwrite data, so read them
-first and make sure you are restoring the right backup.
+If a restore stopped half-way, `fsa restore --abandon` cleans up and brings the instance back (also after exit 8; the
+hint and `data.next` say whether it returns to the previous data or continues with the restored data).
 
-1. **Prepare the server** as in the [install guide](install.md), with the release the backup was made
-   with (`last_migration` in `manifest.txt` helps to find it) and the saved `.env`, including the
-   original `APP_KEY`. Build the image (`docker compose build`) but do not start the stack yet.
+## Move to another server
 
-2. **Check the backup:**
+1. On the old host: `fsa backup --encrypt --include-secrets --identity-out <file> --passphrase-file <file>` (the first
+   `--encrypt` turns encryption on).
+2. Copy the backup's `backup.tar.age`, the identity and the APP key file `env/app.env` of the instance directory to the
+   new host. Keep them private.
+3. On the new host: the install one-liner with `--from-backup <backup.tar.age> --identity-file <file>
+   --passphrase-file <file> --app-key-file <file>` (plus `--domain <name>` for a domain; until DNS points to the new
+   host the instance reports "certificate pending").
+4. The moved instance starts with captured mail and paused webhooks so nothing goes out twice; the result lists the
+   commands that turn them on (`fsa config set webhooks on`, `fsa config set mail smtp …`). Switch DNS, then remove
+   the old instance.
 
-   ```bash
-   cd /srv/backups/form-schema-app/20261018T020000Z && sha256sum -c SHA256SUMS && cd -
-   ```
+Settings that belong to the instance come from the backup, host-bound ones (directory, ports, domain) from the flags.
+`--keep-recipients` keeps the backup's encryption recipients. The new instance gets a new instance ID, so backups of the
+old instance do not restore into it in place; use `--from-backup` again for those. A 1.0 backup from
+`scripts/backup.sh` installs with `--from-backup <file> --accept-unauthenticated`; its unsafe 1.0 settings are not
+applied.
 
-3. **Start only the database** and make sure it is empty. A new volume is empty; on an existing server,
-   stop the application first and recreate the database (this deletes its current content):
+## Chain epochs and the ledger
 
-   ```bash
-   docker compose up -d --wait postgres
-   # Existing server only:
-   docker compose stop app queue scheduler
-   docker compose exec postgres sh -c 'dropdb -U "$POSTGRES_USER" "$POSTGRES_DB" && createdb -U "$POSTGRES_USER" "$POSTGRES_DB"'
-   ```
+The audit log is a hash chain per organization: each entry includes the hash of the one before, and `audit:verify`
+compares the chain heads with heads kept outside the database. A restore, a rollback and a reset replace the
+database, so the chain heads go back in time or start over, which would look like tampering.
 
-4. **Restore the database:**
+To keep that verifiable, each of these operations:
 
-   ```bash
-   docker compose exec -T postgres sh -c 'pg_restore --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" --no-owner --no-privileges --exit-on-error' \
-     < /srv/backups/form-schema-app/20261018T020000Z/database.dump
-   ```
+1. appends a line to `backups/ledger.log` before the database changes: who, when, what, which backup, and the
+   current chain heads with their epoch (append-only, mode 0600; if the line cannot be written, the operation stops
+   with exit 9 `ledger_failed`);
+2. starts a new **epoch**: a generation number of the chains, recorded with the replaced heads in the database before
+   anything else writes, plus an `instance.restored`, `instance.rolled_back` or `instance.reset` audit entry that
+   references the old heads.
 
-5. **Restore the storage volume** through a one-off container of the app image (it creates the volume
-   if needed; files belong to the web server user):
-
-   ```bash
-   docker compose run --rm --no-deps -T --entrypoint tar app -C /var/www/html/storage/app -xzf - \
-     < /srv/backups/form-schema-app/20261018T020000Z/storage.tar.gz
-   ```
-
-6. **Start everything.** The `app` container runs any pending migrations, which upgrades an older
-   backup to the release you installed:
-
-   ```bash
-   docker compose up -d --wait
-   ```
-
-7. **Check:** sign in at `/admin`, open a submission and download its PDF, send a test email, and look at
-   "E-Mail-Protokoll" ("Mail log") for mails left "In Warteschlange" ("Queued"). Jobs that were waiting
-   in Redis when the backup was taken are not part of it: missing PDFs and stalled workflow steps are
-   picked up again by the scheduler within minutes, but such mails may have to be sent again. Run
-   `docker compose exec app php artisan audit:verify`: the audit chains now end at the time of the
-   backup, so record the new chain heads ([Protect the audit log](install.md#7-protect-the-audit-log)).
-
-Anything created after the backup was taken is not in it. Field App devices keep the work that is still
-in their outbox and send it at their next sync; ask field workers to check "Einreichungen" →
-"Auf diesem Gerät" ("On this device") for items marked "Entscheidung nötig" ("Needs your decision").
+Heads are only compared within their own epoch. `audit:verify --heads` reports the epoch with the heads, and so does
+each backup's `audit-heads.json`. The epoch never repeats, even after a reset recreated the database: the next one is
+always above the highest the ledger has seen. The restore, rollback and reset results report `epoch` (restore and reset
+also `previous_epoch`). Keep `ledger.log` with your backups: after a reset it is the record of what was there.

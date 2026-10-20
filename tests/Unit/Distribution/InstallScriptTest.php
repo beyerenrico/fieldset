@@ -516,10 +516,10 @@ it('prints usage for --help without side effects', function (): void {
     expect($process->getExitCode())->toBe(0)
         ->and($process->getOutput())->toContain('Usage:')
         ->and($process->getOutput())->toContain('releases/download/v<version>')
-        // The flags live in each command's --help until the 2.0 guides (U21) replace the 1.0 checkout guide.
+        // The flags live in each command's --help; the 2.0 guides (U21), the agent guide among them, are named too.
         ->and($process->getOutput())->toContain('fsa install --help')->toContain('<dir>/fsa <command> --help')
-        ->and($process->getOutput())->not->toContain('docs/guide/install.md')
-        ->and($process->getOutput())->not->toContain('agent-guide')
+        ->and($process->getOutput())->toContain('docs/guide/install.md')
+        ->and($process->getOutput())->toContain('docs/guide/agent-guide.md')
         ->and($this->scripts->calls())->toBe([]);
 });
 

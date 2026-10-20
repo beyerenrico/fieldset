@@ -262,6 +262,8 @@ fsa_install_usage() {
 	printf '  --yes answers every question and does not link fsa into PATH unless --link is given.\n'
 	printf '  --adopt <checkout> converts the 1.0 install in <checkout> into this new instance (fsa adopt --help).\n'
 	printf 'Flags of each command: fsa install --help, fsa <command> --help (without the PATH link: <dir>/fsa <command> --help).\n'
+	printf 'Guides: docs/guide/install.md and, for agents and scripts, docs/guide/agent-guide.md (also a release asset),\n'
+	printf '  in the repository https://github.com/beyerenrico/form-schema-app.\n'
 	printf 'FSA_RELEASE_URL, FSA_REGISTRY: mirrors.\n'
 	printf 'DOCKER_DEFAULT_PLATFORM=linux/amd64 or linux/arm64: pull and run that platform (another one runs emulated).\n'
 }
