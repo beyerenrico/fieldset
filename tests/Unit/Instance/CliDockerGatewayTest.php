@@ -257,6 +257,7 @@ it('builds docker run from a container spec with environment values out of argv'
     expect($run['command'])->toBe([
         'docker', 'run', '--detach', '--interactive', '--rm', '--name', 'fsa-forms-ab12-supervisor', '--restart', 'no',
         '--network', 'fsa_default', '--user', '1000:1000', '--entrypoint', '/usr/local/bin/fsa', '--workdir', '/srv/forms',
+        '--security-opt', 'no-new-privileges', // every container (M12 gate S6)
         '--label', 'app.form-schema.instance=u1', '--label', 'app.form-schema.role=supervisor',
         '--volume', '/var/run/docker.sock:/var/run/docker.sock', '--volume', '/srv/forms:/srv/forms',
         '--publish', '127.0.0.1:8080:80', '--group-add', '998',
@@ -275,11 +276,30 @@ it('streams a docker run into a file with environment values out of argv (adopt,
 
     $run = $this->runner->runs[0];
     expect($run['command'])->toBe(['docker', 'run', '--rm', '--network', 'container:abc123', '--user', '1000:1000', '--entrypoint', 'pg_dump',
-        '--env', 'PGUSER', 'postgres@sha256:'.str_repeat('2', 64), '-h', '127.0.0.1', '--format=custom'])
+        '--security-opt', 'no-new-privileges', '--env', 'PGUSER', 'postgres@sha256:'.str_repeat('2', 64), '-h', '127.0.0.1', '--format=custom'])
         ->and($run['env']['PGUSER'])->toBe('form_schema')
         ->and($run['stdout_file'])->toBe('/srv/forms/backups/x.partial/database.dump')
         ->and($run['timeout'])->toBe(3600.0)
         ->and($outcome->successful())->toBeTrue();
+});
+
+it('drops every capability but the named ones and makes the root file system read-only for a hardened one-off (M12 gate S6)', function (): void {
+    $spec = new ContainerSpec(image: 'app@sha256:'.str_repeat('3', 64), command: ['-a', '/from/.', '/to/'], volumes: ['v1:/from:ro', 'v2:/to'], network: 'none', user: '0:0', entrypoint: 'cp');
+
+    $this->docker->runContainer($spec->hardened(ContainerSpec::OWNER_COPY));
+    $copy = $this->runner->runs[0]['command'];
+    $this->docker->runContainer($spec->hardened());
+    $bare = $this->runner->runs[1]['command'];
+    $this->docker->runContainer($spec);
+    $plain = $this->runner->runs[2]['command'];
+
+    expect($copy)->toBe(['docker', 'run', '--rm', '--network', 'none', '--user', '0:0', '--entrypoint', 'cp',
+        '--security-opt', 'no-new-privileges', '--cap-drop', 'ALL', '--cap-add', 'CHOWN', '--cap-add', 'DAC_OVERRIDE', '--cap-add', 'FOWNER', '--cap-add', 'FSETID', '--read-only',
+        '--volume', 'v1:/from:ro', '--volume', 'v2:/to', '--tmpfs', '/tmp', 'app@sha256:'.str_repeat('3', 64), '-a', '/from/.', '/to/'])
+        ->and(implode(' ', $bare))->toContain('--cap-drop ALL --read-only')->not->toContain('--cap-add')
+        ->and($plain)->toContain('--security-opt')->not->toContain('--cap-drop')->not->toContain('--read-only')
+        ->and($spec->hardened(ContainerSpec::READ_ANY, readOnlyRoot: false)->detachedAs('x', [])->capabilities)->toBe(['DAC_READ_SEARCH'])
+        ->and($spec->hardened(ContainerSpec::READ_ANY, readOnlyRoot: false)->tmpfs)->toBe([]);
 });
 
 it('stops and starts containers by ID without recreating them, and does nothing for none (adopt, plan U19)', function (): void {

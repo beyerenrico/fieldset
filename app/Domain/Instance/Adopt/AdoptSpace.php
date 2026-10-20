@@ -56,7 +56,7 @@ final readonly class AdoptSpace
         $outcome = $this->docker->runContainer(new ContainerSpec(
             image: $appImage, command: ['-s', '-B1', '--', ...array_map(static fn (string $key): string => '/legacy/'.$key, array_keys($legacy->volumes))],
             labels: Labels::forInstance($uuid, DatabaseProbe::ROLE), volumes: $volumes, network: 'none', user: '0:0', entrypoint: 'du',
-        ), null, 600.0);
+        )->hardened(ContainerSpec::READ_ANY), null, 600.0);
         if (! $outcome->successful() || preg_match_all('/^(\d+)\s/m', $outcome->stdout, $sizes) !== count($legacy->volumes)) {
             return null;
         }

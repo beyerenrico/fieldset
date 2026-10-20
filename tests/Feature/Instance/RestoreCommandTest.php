@@ -57,6 +57,8 @@ it('restores in place: prepare without network, quiesce, ledger, safety backup, 
         ->and($pgRestore->command)->toBe(['--dbname=form_schema_restore_'.$id, '--no-owner', '--no-privileges', '--single-transaction', '--exit-on-error', '--', $this->dir.'/backups/manual-20261019T120000Z/database.dump'])
         ->and(array_keys($pgRestore->env))->toContain('PGPASSWORD')->and($pgRestore->env['PGDATABASE'])->toBe('form_schema_restore_'.$id)
         ->and($tar->network)->toBe('none')->and($tar->user)->toBe('33:33')
+        ->and([$prepare->capabilities, $pgRestore->capabilities, $tar->capabilities])->toBe([[], [], []]) // M12 gate S6: no capability
+        ->and([$prepare->readOnlyRoot, $pgRestore->readOnlyRoot, $tar->readOnlyRoot])->toBe([true, true, true])
         ->and($tar->volumes[0])->toBe($state->project().'_app-storage-r'.$id.':/var/www/html/storage/app')
         ->and($finish['env'])->toContain('DB_DATABASE', 'FSA_BACKUP_DB_PASSWORD')->and($finish['command'])->toContain('--source=form_schema', '--backup=manual-20261019T120000Z')
         ->and($this->restore->actions())->toBe(['drop', 'create', 'swap', 'drop'])

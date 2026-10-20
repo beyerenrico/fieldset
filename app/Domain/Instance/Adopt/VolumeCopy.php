@@ -58,7 +58,7 @@ final readonly class VolumeCopy
             $this->assertRan($this->docker->runContainer(new ContainerSpec(
                 image: $state->digests()['postgres'], command: ['-a', '/from/.', '/to/'], labels: Labels::forInstance($state->uuid(), DatabaseProbe::ROLE),
                 volumes: [$legacy->volumes[$key].':/from:ro', $target.':/to'], network: 'none', user: '0:0', entrypoint: 'cp',
-            ), null, self::TIMEOUT), "copying {$legacy->volumes[$key]}");
+            )->hardened(ContainerSpec::OWNER_COPY), null, self::TIMEOUT), "copying {$legacy->volumes[$key]}");
         }
 
         return ['volumes' => $targets, 'cluster_state' => $this->clusterState($state, $targets[LegacyInstall::DATA_VOLUME])];
@@ -79,7 +79,7 @@ final readonly class VolumeCopy
         $outcome = $this->docker->runContainer(new ContainerSpec(
             image: $state->digests()['postgres'], command: [self::DATA_PATH], labels: Labels::forInstance($state->uuid(), DatabaseProbe::ROLE),
             volumes: [$volume.':'.self::DATA_PATH.':ro'], network: 'none', user: '0:0', entrypoint: 'pg_controldata',
-        ), null, 120.0);
+        )->hardened(ContainerSpec::READ_ANY), null, 120.0);
         $cluster = preg_match('/^Database cluster state:\s*(.+)$/m', $outcome->stdout, $match) === 1 ? trim($match[1]) : null;
         if (! $outcome->successful() || $cluster !== 'shut down') {
             throw new InstanceException('The copied 1.0 database was not shut down cleanly ('.($cluster ?? $outcome->stderrTail(2)).').', ExitCode::HealthCheckFailed, 'postgres_not_shut_down', 'Run adopt again: 1.0 is started again and stopped once more.', true);

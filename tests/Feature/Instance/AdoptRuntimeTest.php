@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Domain\Instance\Adopt\LegacyRuntime;
 use App\Domain\Instance\Docker\ContainerInfo;
+use App\Domain\Instance\Docker\ContainerSpec;
 use App\Domain\Instance\Docker\DockerCommandFailed;
 use App\Domain\Instance\Docker\DockerResource;
 use App\Domain\Instance\Docker\Labels;
@@ -125,9 +126,13 @@ it('copies the volumes 1.0\'s containers mount, whatever they are named (review 
 
     [$code, $json] = $this->adopt->adopt();
     $mounts = array_merge(...array_map(static fn ($spec): array => $spec->volumes, $this->adopt->specs('cp')));
+    $hardening = array_map(static fn ($spec): array => [$spec->capabilities, $spec->readOnlyRoot], [...$this->adopt->specs('cp'), ...$this->adopt->specs('pg_controldata'), ...$this->adopt->specs('du')]);
 
     expect($code)->toBe(0, (string) json_encode($json))
         ->and($mounts)->toContain('forms-database:/from:ro')
+        ->and(array_values(array_unique(array_map(static fn (array $h): string => (string) json_encode($h), $hardening))))->toEqualCanonicalizing([ // M12 gate S6
+            json_encode([ContainerSpec::OWNER_COPY, true]), json_encode([ContainerSpec::READ_ANY, true]),
+        ])
         ->and(implode(' ', $mounts))->not->toContain(AdoptFixture::PROJECT.'_pg-data');
 });
 

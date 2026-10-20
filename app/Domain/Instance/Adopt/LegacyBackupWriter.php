@@ -101,12 +101,12 @@ final readonly class LegacyBackupWriter
             labels: Labels::forInstance($uuid, DatabaseProbe::ROLE),
             network: 'container:'.$legacy->postgres(),
             entrypoint: 'pg_dump',
-        ), $file, self::TIMEOUT);
+        )->hardened(), $file, self::TIMEOUT);
         $this->assertFile($outcome, $file, 'pg_dump', 'PGDMP');
         $listed = $this->docker->runContainer(new ContainerSpec(
             image: $images['app'], command: ['--list', '--', '/backup/'.self::DATABASE], labels: Labels::forInstance($uuid, DatabaseProbe::ROLE),
             volumes: [$partial.':/backup:ro'], network: 'none', user: '0:0', entrypoint: 'pg_restore',
-        ), null, 600.0);
+        )->hardened(ContainerSpec::READ_ANY), null, 600.0);
         if (! $listed->successful()) {
             throw new InstanceException('The dump of the 1.0 database is not a readable pg_dump archive: '.$listed->stderrTail(3), ExitCode::HealthCheckFailed, 'legacy_backup_failed', 'Read the output; 1.0 was not changed.', true);
         }
@@ -123,7 +123,7 @@ final readonly class LegacyBackupWriter
         $outcome = $this->docker->runContainerToFile(new ContainerSpec(
             image: $appImage, command: ['-C', AppRoles::STORAGE_PATH, '--numeric-owner', '-czf', '-', '.'], labels: Labels::forInstance($uuid, DatabaseProbe::ROLE),
             volumes: [$volume.':'.AppRoles::STORAGE_PATH.':ro'], network: 'none', user: '0:0', entrypoint: 'tar',
-        ), $file, self::TIMEOUT);
+        )->hardened(ContainerSpec::READ_ANY), $file, self::TIMEOUT);
         $changed = $outcome->exitCode === 1 && ! $outcome->timedOut;
         $this->assertFile($changed ? new ProcessOutcome(0) : $outcome, $file, 'tar', "\x1f\x8b");
 

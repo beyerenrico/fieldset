@@ -67,7 +67,7 @@ final readonly class RestoreStorage
             user: self::APP_USER,
             entrypoint: 'tar',
             groupAdd: [$group],
-        ), null, self::TIMEOUT);
+        )->hardened(), null, self::TIMEOUT);
         if (! $outcome->successful()) {
             throw new InstanceException('Extracting the storage archive failed: '.$outcome->stderrTail(5), ExitCode::HealthCheckFailed, 'storage_restore_failed', 'Read the output; the live storage volume was not touched.', true, ['output' => $outcome->stderrTail(10)]);
         }
@@ -105,7 +105,7 @@ final readonly class RestoreStorage
             $outcome = $this->docker->runContainer(new ContainerSpec(
                 image: $state->digests()['app'], command: ['-rf', '--', ...$paths], labels: Labels::forInstance($state->uuid(), self::ROLE),
                 volumes: [$volume.':'.AppRoles::STORAGE_PATH], network: 'none', user: self::APP_USER, entrypoint: 'rm',
-            ), null, 300.0);
+            )->hardened(), null, 300.0);
             if (! $outcome->successful()) {
                 throw new InstanceException('Removing the data exports of erased accounts from the restored storage failed: '.$outcome->stderrTail(3), ExitCode::HealthCheckFailed, 'erased_exports_failed', 'Read the output; the live storage volume was not touched.', true);
             }

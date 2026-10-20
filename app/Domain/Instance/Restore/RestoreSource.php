@@ -101,7 +101,7 @@ final readonly class RestoreSource
             volumes: array_values(array_unique($volumes)),
             network: 'none',
             user: $runAs['user'],
-        ), $input, self::TIMEOUT));
+        )->hardened(), $input, self::TIMEOUT));
         if (! $outcome->ok) {
             throw $this->failure($outcome);
         }
