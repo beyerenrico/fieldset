@@ -64,6 +64,19 @@ it('upgrades in the KTD19 order and commits the target release with the previous
         ->and(is_dir($this->dir.'/operations/upgrade-'.substr($this->config->archivedJournal('upgrade')->id(), 0, 12)))->toBeFalse();
 });
 
+it('removes the verified copy of the safety backup before migrating: the way back prepares its own (M12 gate)', function (): void {
+    $scratch = null;
+    $this->upgrade->stage = function () use (&$scratch): void { // runs while the child migrates
+        $scratch = glob($this->dir.'/staging/restore-*');
+    };
+
+    [$code, $json] = $this->upgrade->upgrade();
+
+    expect($code)->toBe(0, (string) json_encode($json))
+        ->and($scratch)->toBe([]) // no second copy of the dump and the storage archive on disk during the upgrade
+        ->and($this->config->archivedJournal('upgrade')->phaseData('safety_backup')['sums'] ?? null)->toMatch('/^[0-9a-f]{64}$/');
+});
+
 it('keeps the app answering 503 behind the gate while writers stop, and starts only the app and changed services before the commit', function (): void {
     $mark = $this->config->mark();
     $gates = [];

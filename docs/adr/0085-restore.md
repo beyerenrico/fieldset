@@ -433,7 +433,9 @@ passed, and "may lack objects (an older backup)" made that indistinguishable fro
 - **Disk space.** A restore of a plain backup now needs free space for one more copy of its dump and storage archive:
   the scratch check before the prepare step counts the set's files plus the 1 GiB headroom (before: twice the storage
   archive); an encrypted backup still needs twice its age file. The later check (safety backup, second database and
-  storage volume) is unchanged and runs once the copy exists, so free space already reflects it.
+  storage volume) is unchanged and runs once the copy exists, so free space already reflects it. An upgrade removes
+  the verified copy of its safety backup right after the verification (the way back prepares the backup again), so
+  the copy does not stay on disk while the upgrade migrates.
 - **`--from-backup` resumes.** The backup phase is prepared again on every resume (before: only until
   `restore_storage` completed), since a failed attempt removes the copy (review A5) and a 1.0 backup's `env` is read
   from it; the SMTP server for `pending_mail` is read in the backup phase, before the done phase removes the copy.
