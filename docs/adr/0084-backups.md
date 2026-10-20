@@ -294,3 +294,19 @@ who can write there but holds no APP key. Against that writer:
   table's note that it is "its own format" no longer holds.
 - **Reset's audit export (S5).** Written in `staging/`, encrypted to the recipients (`….jsonl.age`) when encryption is
   on, then moved into `backups/` (ADR 0088 amendment).
+
+## Amendment 2026-10-20: the retention hold lasts while files are missing (M12 gate)
+- **D5, corrected.** The hold above compared a new run only with the newest earlier success, so the next day (the same
+  file still missing, as many missing as the day before) pruning resumed, and after `retention` days no backup held the
+  file. Now every successful scheduled run that misses referenced files holds back from retention, for as many runs
+  as it takes, at most two scheduled backups (BackupRetention::held): the newest of those whose run missed the fewest
+  files (fewer than the new one), and the newest whose count no ledger line gives (the line fell out of the read tail,
+  or its append failed); pruning goes on among the rest. The hold ends with the first run that misses none.
+  `retention_held` in the ledger line is now `{missing_files, backups}`: the backups retention would have pruned
+  without the hold. Counts stand in for the files: a backup that missed as many as the newest one (other files, maybe)
+  is not held. Holding every backup that missed fewer was rejected in review: with a count that grows each day it
+  holds them all, the disk fills, scheduled runs are skipped, and a skipped run never prunes. The two held backups
+  stay on disk while files are missing; `backup_files_missing` warns meanwhile.
+- **`fsa backup-daemon --clean --lock-id=<id>`.** A new mode of the service's entry point: cleanPartials() as the
+  service's root under the lock of the fsa command that asks, `{removed, left}` on stdout. `fsa uninstall` uses it for
+  the root-owned partial sets the ops container cannot remove on rootful Docker (ADR 0073 amendment).

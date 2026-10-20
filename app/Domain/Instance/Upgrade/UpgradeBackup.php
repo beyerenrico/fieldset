@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Upgrade;
 
-use App\Domain\Instance\Backup\BackupChecksums;
 use App\Domain\Instance\Backup\SafetyBackup;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Operations\InstanceLock;
@@ -17,17 +16,20 @@ use App\Domain\Instance\Restore\PreparedBackup;
 use App\Domain\Instance\Restore\RestoreChecks;
 use App\Domain\Instance\Restore\RestoreOperation;
 use App\Domain\Instance\Restore\RestoreRequest;
+use App\Domain\Instance\Restore\RestoreSource;
 use App\Domain\Instance\Restore\RestoreStack;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceState;
 use Closure;
+use Throwable;
 
 /**
  * KTD19 step 5 (R57, plan U18, ADR 0084, ADR 0086): the pre-upgrade safety backup through the backup service
  * (SafetyBackup: unencrypted until the upgrade ends, 0600, never pruned), then its verification with the restore's
  * socket-less prepare step (BackupIntake): every checksum, the HMAC under the instance's APP key, the dump's table of
  * contents (`pg_restore --list`) and its migration set. The prepared set is what a rollback restores. A backup that
- * fails its verification stops the upgrade before any migration (exit 9, the previous services running again).
+ * fails its verification stops the upgrade before any migration (exit 9, the previous services running again). The
+ * verified copy in the scratch directory goes right after: the way back prepares the backup again (M12 gate).
  */
 final readonly class UpgradeBackup
 {
@@ -37,6 +39,7 @@ final readonly class UpgradeBackup
         private BackupIntake $intake,
         private RestoreStack $stack,
         private InstanceLock $lock,
+        private RestoreSource $source,
     ) {}
 
     /**
@@ -54,9 +57,14 @@ final readonly class UpgradeBackup
             $noted($taken['backup']);
         }
 
-        $prepared = $this->prepare($state, $taken['backup'], $id, $actorUid);
+        try {
+            $prepared = $this->prepare($state, $taken['backup'], $id, $actorUid);
+            $sums = self::sums($prepared);
+        } finally {
+            $this->discard($id); // a copy of the dump and the archive less on disk while the upgrade runs, or reverts
+        }
 
-        return [...$taken, 'prepared' => $prepared->toArray(), 'sums' => self::sums($prepared)];
+        return [...$taken, 'prepared' => $prepared->toArray(), 'sums' => $sums];
     }
 
     /**
@@ -66,10 +74,16 @@ final readonly class UpgradeBackup
      */
     public static function sums(PreparedBackup $backup): ?string
     {
-        $file = $backup->set.'/'.BackupChecksums::SUMS;
-        $hash = is_file($file) ? hash_file('sha256', $file) : false;
+        return $backup->sumsDigest();
+    }
 
-        return $hash === false ? null : $hash;
+    private function discard(string $id): void
+    {
+        try {
+            $this->source->discard($id);
+        } catch (Throwable) {
+            // the upgrade's own clean-up tries again at the end; `fsa status` names one left behind
+        }
     }
 
     /**

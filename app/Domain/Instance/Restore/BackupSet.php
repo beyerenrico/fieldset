@@ -33,6 +33,15 @@ final readonly class BackupSet
         BackupWriter::DATABASE, BackupWriter::STORAGE, BackupWriter::SECRETS,
     ];
 
+    /** Every name a 1.0 set (scripts/backup.sh, and `fsa adopt`'s backup) can hold. */
+    public const array LEGACY_FILES = [BackupChecksums::SUMS, self::LEGACY_MANIFEST, BackupWriter::DATABASE, BackupWriter::STORAGE, self::LEGACY_ENV];
+
+    /** @return list<string> the names a set of the format can hold: the files a restore copies out of a plain backup */
+    public static function files(string $format): array
+    {
+        return $format === self::LEGACY ? self::LEGACY_FILES : self::FILES;
+    }
+
     /**
      * @return array{format: string, encrypted: bool, file: string|null} the format, and the age file of an encrypted one
      *
@@ -71,6 +80,18 @@ final readonly class BackupSet
         }
 
         return $values;
+    }
+
+    /** Bytes of the files a restore copies out of a plain backup directory (a set's names only, of either format). */
+    public static function bytes(string $directory): int
+    {
+        $bytes = 0;
+        foreach (array_unique([...self::FILES, ...self::LEGACY_FILES]) as $name) {
+            $path = $directory.'/'.$name;
+            $bytes += is_file($path) && ! is_link($path) ? (int) @filesize($path) : 0;
+        }
+
+        return $bytes;
     }
 
     /**

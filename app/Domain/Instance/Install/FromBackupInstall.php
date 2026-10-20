@@ -21,6 +21,7 @@ use App\Domain\Instance\Operations\ResumeCommand;
 use App\Domain\Instance\Operations\Supervisor;
 use App\Domain\Instance\Output\CommandResult;
 use App\Domain\Instance\Output\ExitCode;
+use App\Domain\Instance\Output\InvalidInput;
 use App\Domain\Instance\Restore\AppKeys;
 use App\Domain\Instance\Restore\BackupIntake;
 use App\Domain\Instance\Restore\PreparedBackup;
@@ -115,9 +116,11 @@ final readonly class FromBackupInstall
     {
         $record = $run->record();
         $request = $record->phases() === [] ? $request : $request->over($record->context());
-        $intake = $run->phase('backup', fn (): array => $this->prepare($request, $backup, $context->facts, $id), changes: false, always: ! $record->hasCompleted('restore_storage'));
+        // the set the database came from: a resume may not take another one from the same path (M12 gate)
+        $pinned = $record->hasCompleted('restore_database') ? ($record->phaseData('backup')['sums'] ?? null) : null;
+        $intake = $run->phase('backup', fn (): array => $this->prepare($request, $backup, $context->facts, $id, is_string($pinned) ? $pinned : null), changes: false, always: ! $record->hasCompleted('restore_storage'));
         $prepared = PreparedBackup::fromArray($intake['backup']);
-        $effective = FromBackupSettings::effective($request, $prepared);
+        $effective = FromBackupSettings::effective($request, $prepared, $this->origin($intake));
         $effective->assertConsistent();
         $preflight = $run->phase('doctor', fn (): array => $this->preflight->run($effective, $context->facts, (string) $intake['uuid'], pendingCertificate: true), changes: false);
         $run->phase('secrets', fn (): array => $this->keys->ensure($prepared, $backup->keyFile, $context->redactor));
@@ -144,8 +147,16 @@ final readonly class FromBackupInstall
         return $link === null ? $result : SignInDelivery::deliver($result, $context, $link['value'], $link['expires_at'], $secretsToFile, (string) $effective->ownerEmailIfKnown());
     }
 
-    /** @return array{backup: array<string, mixed>, warnings: list<array{0: string, 1: string, 2: string|null}>, uuid: string, version: string, image: string} */
-    private function prepare(InstallRequest $request, FromBackupRequest $backup, HostFacts $facts, string $id): array
+    /**
+     * The release verified, the backup prepared and judged. What later phases need from a 1.0 backup's `env` (its mode
+     * and SMTP server) is journaled now, while the verified copy is there: a failed attempt removes it, and after
+     * `restore_storage` a resume does not prepare again. With `$pinned` the set must be the one the database came from.
+     *
+     * @return array{backup: array<string, mixed>, warnings: list<array{0: string, 1: string, 2: string|null}>, uuid: string, version: string, image: string, pending_mail: array<string, mixed>|null, origin: array{0: string|null, 1: string|null}, sums: string|null}
+     *
+     * @throws InvalidInput exit 2 `backup_changed`
+     */
+    private function prepare(InstallRequest $request, FromBackupRequest $backup, HostFacts $facts, string $id, ?string $pinned): array
     {
         $manifest = $this->release->verified($this->directory, $facts, $request->version());
         $image = ReleaseSource::digests($manifest, $facts->registry)['app'] ?? '';
@@ -154,8 +165,25 @@ final readonly class FromBackupInstall
         $intake = $this->intake->take(['image' => $image, 'uuid' => $uuid, 'user' => $user], $backup->toRestoreRequest($facts->callerUid()),
             RestoreChecks::FROM_BACKUP, $id, AppKeys::of([]), (string) $manifest->version, mountedElsewhere: true);
         FromBackupKeys::keys($intake['backup'], $backup->keyFile); // exit 2 `app_key_required` before anything is written
+        $sums = $intake['backup']->sumsDigest();
+        if ($pinned !== null && ! hash_equals($pinned, (string) $sums)) {
+            throw new InvalidInput("The backup at {$backup->backup} is not the set an earlier attempt of this install restored the database from: its SHA256SUMS changed.", 'backup_changed',
+                'Put that backup back and run the same command again, or start over in a new, empty directory.');
+        }
 
-        return ['backup' => $intake['backup']->toArray(), 'warnings' => $intake['warnings'], 'uuid' => $uuid, 'version' => (string) $manifest->version, 'image' => $image];
+        return ['backup' => $intake['backup']->toArray(), 'warnings' => $intake['warnings'], 'uuid' => $uuid, 'version' => (string) $manifest->version, 'image' => $image,
+            'pending_mail' => FromBackupSettings::pendingMail($intake['backup']), 'origin' => FromBackupSettings::origin($intake['backup']), 'sums' => $sums];
+    }
+
+    /**
+     * @param  array<string, mixed>  $intake
+     * @return array{0: string|null, 1: string|null}|null
+     */
+    private function origin(array $intake): ?array
+    {
+        $origin = $intake['origin'] ?? null;
+
+        return is_array($origin) ? [is_string($origin[0] ?? null) ? $origin[0] : null, is_string($origin[1] ?? null) ? $origin[1] : null] : null;
     }
 
     /**

@@ -283,7 +283,7 @@ describe('fsa wrapper', function (): void {
             return;
         }
         expect(json_decode($process->getOutput(), true, 512, JSON_THROW_ON_ERROR))->toBe([
-            'schema_version' => 1, 'command' => $command, 'status' => 'failed', 'changed' => false, 'data' => [], 'secrets' => [], 'warnings' => [],
+            'schema_version' => 1, 'command' => $command, 'status' => 'failed', 'exit_code' => 2, 'changed' => false, 'data' => [], 'secrets' => [], 'warnings' => [],
             'errors' => [[
                 'code' => 'unknown_command',
                 'message' => "Unknown fsa command: {$command}",

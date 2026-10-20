@@ -32,14 +32,17 @@ final readonly class FromBackupSettings
     /**
      * The request with the backup's mode when no mode flag was given.
      *
+     * @param  array{0: string|null, 1: string|null}|null  $origin  origin() as the backup phase journaled it (a 1.0
+     *                                                              backup's comes from its `env`, gone with the copy)
+     *
      * @throws InvalidInput exit 2 for a proxy-mode backup without proxy flags
      */
-    public static function effective(InstallRequest $request, PreparedBackup $backup): InstallRequest
+    public static function effective(InstallRequest $request, PreparedBackup $backup, ?array $origin = null): InstallRequest
     {
         if ($request->domain() !== null || $request->proxy() !== null || $request->phoneHttps() !== null) {
             return $request;
         }
-        [$mode, $domain] = self::origin($backup);
+        [$mode, $domain] = $origin ?? self::origin($backup);
         if ($mode === 'proxy') {
             throw new InvalidInput('The backup comes from an instance behind a proxy; its proxy wiring belongs to the old host.', 'proxy_flags_required', 'Pass --behind-proxy traefik|caddy|port with --url (and --proxy-network), or --domain <name>, or nothing else for local mode by passing --port.');
         }
@@ -109,7 +112,7 @@ final readonly class FromBackupSettings
     }
 
     /** @return array{0: string|null, 1: string|null} the backed-up instance's mode and domain */
-    private static function origin(PreparedBackup $backup): array
+    public static function origin(PreparedBackup $backup): array
     {
         if (! $backup->isLegacy()) {
             $domain = self::fsaSettings($backup)['domain'] ?? null;

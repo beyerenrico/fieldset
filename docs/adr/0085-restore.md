@@ -477,3 +477,39 @@ correction" or "[superseded: …]"):
   scheduler or the backup service run; the ledger and the safety backup then run again (JournalRecord::completedSince,
   as a reset's).
 - **Confirmation data (O6).** Exit 6 carries `data.question` and the facts: `backup`, `safety_backup: true`; `abandon`.
+
+## Amendment 2026-10-20: a restore reads only the copy it verified (M12 gate)
+- **Restore-time TOCTOU (threat of S1: whoever can write `backups/`).** The prepare step no longer reads a plain backup
+  in place. It copies the set's files (BackupSet::FILES for an fsa set, the 1.0 names for a 1.0 set; each a regular
+  file, checked with lstat and opened as that same inode, so a symlink swapped in is refused) into
+  `staging/restore-<id>/set` (0750, files 0600, the storage archive 0640) and checks SHA256SUMS, the HMAC, the dump,
+  the storage archive and S4's name and safety-digest checks on that copy only. Dotfiles stay strays and the keep
+  marker is skipped; any other file in the directory is a problem of the set (`backup_damaged`, as an unlisted file
+  was before). pg_restore (as the superuser for an authenticated set), tar, the APP keys inside the set, the drill,
+  an upgrade's way back, `fsa rollback` and `--from-backup` read only the copy, which nobody else can write;
+  RestoreSource::confined refuses any reported path outside the scratch set, the backup itself included. This
+  replaces "A plain backup directory is read in place …; its storage archive is copied into the scratch directory" in
+  the prepare paragraph above.
+- **Disk space.** A restore of a plain backup now needs free space for one more copy of its dump and storage archive:
+  the scratch check before the prepare step counts the set's files plus the 1 GiB headroom (before: twice the storage
+  archive); an encrypted backup still needs twice its age file. The later check (safety backup, second database and
+  storage volume) is unchanged and runs once the copy exists, so free space already reflects it. An upgrade removes
+  the verified copy of its safety backup right after the verification (the way back prepares the backup again), so
+  the copy does not stay on disk while the upgrade migrates.
+- **`--from-backup` resumes.** A failed attempt removes the copy (review A5), and after `restore_storage` a resume
+  does not prepare again, so what later phases need from a 1.0 backup's `env` (the mode for the effective request,
+  the SMTP server for `pending_mail`) is journaled in the backup phase. Once `restore_database` completed, a resume
+  that prepares again must find the same set (the SHA-256 of its SHA256SUMS, journaled), else exit 2 `backup_changed`:
+  a backup replaced at the same path would mix its files with the first one's database.
+- **Smaller hardening from the review of this round.** The scratch directory is emptied before the room for the new
+  copy is counted (a killed run's copy no longer counts as used); RestoreSource::discard() throws when the scratch
+  directory cannot be removed, so the warnings that name it (`left_behind`, `restore_scratch_left`) fire again now
+  that SafeFiles::delete() returns what stays instead of throwing; `confined()` also refuses a set directory, a reported
+  file or a set file that is a link (Docker resolves a bind source on the host). Not fixed: a FIFO swapped in between
+  the copy's lstat and its open makes the open block until the prepare one-off's time limit; the writer it takes could
+  delete the backup as well.
+- **The scratch set's mode.** `staging/restore-<id>/set` is set to 0750 explicitly: the prepare step runs with umask
+  0077, so `mkdir(…, 0750)` made it 0700, which tar as www-data with the owner's group added cannot enter on a Linux
+  host (inferred from the code; Docker Desktop's bind mounts on macOS, where the journeys run, do not enforce it).
+- **Tests.** Two S4 tests planted an authenticated set with an extra listed file (`note.txt`); such a set is now
+  refused as damaged before the S4 digest check, so they plant one with other settings instead.

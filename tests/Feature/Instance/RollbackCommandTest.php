@@ -174,7 +174,7 @@ it('lets the previous image only render, without a migration', function (): void
 it('refuses a safety backup that is no longer the set the upgrade verified, even an authenticated one (M12 gate S4)', function (): void {
     $name = $this->upgrade->safetyBackups[0];
     exec('rm -rf '.escapeshellarg($this->dir.'/backups/'.$name));
-    BackupSetFixture::fsa($this->dir.'/backups/'.$name, ['kind' => 'safety-upgrade', ...$this->upgrade->restore->manifest()], appKey: $this->upgrade->restore->appKey(), extra: ['note.txt' => 'another set']);
+    BackupSetFixture::fsa($this->dir.'/backups/'.$name, ['kind' => 'safety-upgrade', ...$this->upgrade->restore->manifest()], appKey: $this->upgrade->restore->appKey(), settings: ['note' => 'another set']); // authenticated, but another set's content
     $mark = $this->config->mark();
 
     [$code, $json] = $this->upgrade->rollback();

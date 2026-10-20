@@ -64,6 +64,19 @@ it('upgrades in the KTD19 order and commits the target release with the previous
         ->and(is_dir($this->dir.'/operations/upgrade-'.substr($this->config->archivedJournal('upgrade')->id(), 0, 12)))->toBeFalse();
 });
 
+it('removes the verified copy of the safety backup before migrating: the way back prepares its own (M12 gate)', function (): void {
+    $scratch = null;
+    $this->upgrade->stage = function () use (&$scratch): void { // runs while the child migrates
+        $scratch = glob($this->dir.'/staging/restore-*');
+    };
+
+    [$code, $json] = $this->upgrade->upgrade();
+
+    expect($code)->toBe(0, (string) json_encode($json))
+        ->and($scratch)->toBe([]) // no second copy of the dump and the storage archive on disk during the upgrade
+        ->and($this->config->archivedJournal('upgrade')->phaseData('safety_backup')['sums'] ?? null)->toMatch('/^[0-9a-f]{64}$/');
+});
+
 it('keeps the app answering 503 behind the gate while writers stop, and starts only the app and changed services before the commit', function (): void {
     $mark = $this->config->mark();
     $gates = [];
@@ -238,7 +251,8 @@ it('exits 9 before any migration when the safety backup fails its verification',
         ->and($json['errors'][0]['code'])->toBe('safety_backup_unverified')
         ->and($this->upgrade->childRequests)->toBe([])
         ->and($this->upgrade->gate()['raised'])->toBeFalse()
-        ->and($this->upgrade->ups($mark)[array_key_last($this->upgrade->ups($mark))])->toBe('queue,scheduler,backup');
+        ->and($this->upgrade->ups($mark)[array_key_last($this->upgrade->ups($mark))])->toBe('queue,scheduler,backup')
+        ->and(glob($this->dir.'/staging/restore-*/*'))->toBe([]); // no copy of the refused set stays behind (M12 gate)
 });
 
 it('rolls back when the child fails: the safety backup restored atomically without the carry, Valkey flushed, the previous release running', function (): void {
@@ -381,7 +395,7 @@ it('halts instead of restoring another set put under the safety backup\'s name b
     $this->upgrade->stage = function (): void {
         $name = $this->upgrade->safetyBackups[0];
         exec('rm -rf '.escapeshellarg($this->dir.'/backups/'.$name));
-        BackupSetFixture::fsa($this->dir.'/backups/'.$name, ['kind' => 'safety-upgrade', ...$this->upgrade->restore->manifest()], appKey: $this->upgrade->restore->appKey(), extra: ['note.txt' => 'another set']);
+        BackupSetFixture::fsa($this->dir.'/backups/'.$name, ['kind' => 'safety-upgrade', ...$this->upgrade->restore->manifest()], appKey: $this->upgrade->restore->appKey(), settings: ['note' => 'another set']); // authenticated, but another set's content
     };
 
     [$code, $json] = $this->upgrade->upgrade();

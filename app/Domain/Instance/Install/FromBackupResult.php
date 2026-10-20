@@ -43,7 +43,7 @@ final readonly class FromBackupResult
         $settings = InstanceSettings::of($state);
         $fsa = $directory->root.'/fsa';
         $email = $request->ownerEmailIfKnown();
-        $pendingMail = FromBackupSettings::pendingMail($backup);
+        $pendingMail = is_array($intake['pending_mail'] ?? null) ? $intake['pending_mail'] : null; // read before the copy went
         $result = CommandResult::ok(Installer::OPERATION, [
             'url' => $settings->instanceUrl(), 'version' => $state->version(), 'mode' => $state->mode(), 'dir' => $directory->root, 'project' => $state->project(),
             'port' => $settings->publishesAppPort() ? $settings->port() : null, 'mail' => MailSummary::of($state), 'owner_email' => $email,

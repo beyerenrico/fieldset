@@ -23,8 +23,9 @@ use Throwable;
  *   otherwise.
  * - Under the lock: leftovers of an interrupted run go, the run must fit on the disk (a scheduled run is skipped,
  *   another fails), the writer writes the set, and after a successful scheduled run retention prunes old scheduled
- *   backups, unless the new one misses more referenced files than the newest earlier one (M12 gate D5: a storage volume
- *   that lost files must not cost the backups that still hold them; `retention_held` says so).
+ *   backups, except those that may hold referenced files the new one misses (M12 gate D5, BackupRetention::held: a
+ *   storage volume that lost files must not cost the backups that still hold them, however many runs follow;
+ *   `retention_held` names the ones retention would have pruned).
  * - Every run is recorded (ledger and `backup_runs`); of a series of lock skips the daemon records one an hour.
  */
 final readonly class BackupRun
@@ -93,8 +94,7 @@ final readonly class BackupRun
         } catch (Throwable $e) {
             return ['status' => 'failed', 'reason' => 'internal_error', 'message' => $e->getMessage(), 'free_bytes' => $free];
         }
-        $held = $name->isScheduled() ? $this->retentionHeld($result) : null;
-        $pruned = $name->isScheduled() && $held === null ? $this->prune() : [];
+        [$pruned, $held] = $name->isScheduled() ? $this->prune($result) : [[], null];
 
         return [
             'status' => 'succeeded', 'backup' => $result->name->name(), 'bytes' => $result->bytes, 'encrypted' => $result->encrypted,
@@ -104,21 +104,20 @@ final readonly class BackupRun
     }
 
     /**
-     * Whether retention waits: the new backup misses more referenced files than the newest earlier successful one that
-     * is still there (its count from the ledger). Without such a run to compare, retention goes on.
+     * The missing_files each backup's run recorded (the ledger's newest success per backup; null without a count).
      *
-     * @return array{missing_files: int, previous: int}|null
+     * @return array<string, int|null>
      */
-    private function retentionHeld(BackupResult $result): ?array
+    private function missingCounts(): array
     {
-        if ($result->missingCount === 0) {
-            return null;
+        $counts = [];
+        foreach ($this->recorder->recent(PHP_INT_MAX) as $run) {
+            if (($run['status'] ?? null) === 'succeeded' && is_string($run['backup'] ?? null) && ! array_key_exists($run['backup'], $counts)) {
+                $counts[$run['backup']] = is_int($run['missing_files'] ?? null) ? $run['missing_files'] : null;
+            }
         }
-        $present = array_map(static fn (BackupEntry $entry): string => $entry->name->name(), $this->store->entries());
-        $previous = array_find($this->recorder->recent(PHP_INT_MAX), static fn (array $run): bool => ($run['status'] ?? null) === 'succeeded'
-            && is_int($run['missing_files'] ?? null) && is_string($run['backup'] ?? null) && $run['backup'] !== $result->name->name() && in_array($run['backup'], $present, true));
 
-        return $previous !== null && $result->missingCount > $previous['missing_files'] ? ['missing_files' => $result->missingCount, 'previous' => $previous['missing_files']] : null;
+        return $counts;
     }
 
     /**
@@ -151,17 +150,25 @@ final readonly class BackupRun
         ]);
     }
 
-    /** @return list<string> the scheduled backups retention removed */
-    private function prune(): array
+    /**
+     * Retention after a successful scheduled run, without the backups that may hold files the new one misses: the
+     * scheduled backups removed, and those it held back (null when none).
+     *
+     * @return array{0: list<string>, 1: array{missing_files: int, backups: list<string>}|null}
+     */
+    private function prune(BackupResult $result): array
     {
+        $entries = $this->store->entries();
+        $hold = $result->missingCount === 0 ? [] : BackupRetention::held($entries, $result->name->name(), $result->missingCount, $this->missingCounts());
         $pruned = [];
-        foreach (BackupRetention::prune($this->store->entries(), $this->config->retention) as $entry) {
+        foreach (BackupRetention::prune($entries, $this->config->retention, $hold) as $entry) {
             if ($this->store->delete($entry)) {
                 $pruned[] = $entry->name->name(); // only what is really gone
             }
         }
+        $heldBack = array_values(array_filter(array_map(static fn (BackupEntry $entry): string => $entry->name->name(), BackupRetention::prune($entries, $this->config->retention)), static fn (string $name): bool => in_array($name, $hold, true)));
 
-        return $pruned;
+        return [$pruned, $heldBack === [] ? null : ['missing_files' => $result->missingCount, 'backups' => $heldBack]];
     }
 
     /** @throws LockHeld|BackupFailed|Throwable */

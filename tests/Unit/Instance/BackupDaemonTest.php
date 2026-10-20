@@ -353,3 +353,40 @@ it('reads its configuration from the environment and refuses malformed numbers',
         ->and(print_r($config, true))->not->toContain('secret-pw')
         ->and(fn () => BackupConfig::fromEnvironment(['BACKUP_HMAC_KEY' => DAEMON_KEY, 'BACKUP_RETENTION' => 'seven']))->toThrow(InstanceException::class, 'BACKUP_RETENTION');
 });
+
+it('removes what interrupted runs left as the service, only under the lock of the fsa command that asks (--clean, uninstall, M12 gate)', function (): void {
+    $env = ['FSA_INSTANCE_ROOT' => $this->directory->root, 'BACKUP_HMAC_KEY' => DAEMON_KEY, 'FSA_OWNER_UID' => (string) posix_getuid(), 'FSA_OWNER_GID' => (string) posix_getgid()];
+    foreach ($env as $key => $value) {
+        putenv("{$key}={$value}");
+    }
+    $call = static function (array $options): array {
+        $code = Artisan::call('fsa:backup-daemon', [...$options, '--json' => true]);
+
+        return [$code, json_decode(trim(Artisan::output()), true, 512, JSON_THROW_ON_ERROR)];
+    };
+    $partial = $this->directory->ensureDirectory('backups/scheduled-20261019T033000Z.partial');
+    file_put_contents($partial.'/database.dump', 'PGDMP');
+    $staged = $this->directory->ensureDirectory('staging/backup/manual-20261019T120000Z.partial');
+    file_put_contents($staged.'/database.dump', 'PGDMP plaintext');
+    $complete = $this->directory->ensureDirectory('backups/manual-20261019T110000Z');
+
+    try {
+        [$noLock, $noLockJson] = $call(['--clean' => true]);
+        [$lost, $lostJson] = $call(['--clean' => true, '--lock-id' => str_repeat('a', 32)]);
+        $kept = [is_dir($partial), is_dir($staged)];
+        $handle = new InstanceLock($this->directory, new RecordingDockerGateway)->acquire(TemporaryInstance::holder('a'), 'uninstall');
+        [$code, $json] = $call(['--clean' => true, '--lock-id' => $handle->record->lockId]);
+    } finally {
+        foreach (array_keys($env) as $key) {
+            putenv($key);
+        }
+    }
+
+    expect([$noLock, $noLockJson['errors'][0]['code']])->toBe([1, 'lock_required'])
+        ->and([$lost, $lostJson['errors'][0]['code']])->toBe([1, 'lock_mismatch'])
+        ->and($kept)->toBe([true, true])
+        ->and($code)->toBe(0, json_encode($json))
+        ->and($json['data'])->toBe(['removed' => ['scheduled-20261019T033000Z.partial', 'staging/backup/manual-20261019T120000Z.partial'], 'left' => []])
+        ->and([is_dir($partial), is_dir($staged), is_dir($complete)])->toBe([false, false, true])
+        ->and(new BackupRunLog($this->directory)->recent())->toBe([]); // a refused clean-up is no service start that failed
+});

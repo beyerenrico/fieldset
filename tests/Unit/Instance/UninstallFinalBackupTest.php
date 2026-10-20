@@ -134,6 +134,36 @@ it('keeps exit 10 when Docker disappears during the final backup', function (): 
     expect($code)->toBe(10)->and(glob($this->backups.'/final-*'))->toBe([]);
 });
 
+it('starts what it stopped again and lowers the gate when quiescing itself fails, and removes nothing (M12 gate D2)', function (): void {
+    $this->fixture->docker->failOn('composeStop', new DockerCommandFailed('compose stop', new ProcessOutcome(1, '', 'Error response from daemon: cannot stop container')));
+    $mark = count($this->fixture->docker->called('composeUp'));
+
+    [$code, $json] = $this->fixture->run('fsa:uninstall', ['--yes' => true, '--keep-backups' => true]);
+    $runtime = json_decode((string) $this->fixture->directory->read('runtime/runtime.json'), true);
+    $restarted = array_slice($this->fixture->docker->called('composeUp'), $mark);
+
+    expect($code)->toBe(4, (string) json_encode($json))
+        ->and($json['errors'][0]['code'])->toBe('final_backup_failed')
+        ->and($json['errors'][0]['message'])->toContain('compose stop')
+        ->and($runtime['gate']['raised'])->toBeFalse()
+        ->and(array_column($restarted, 'services'))->toHaveCount(1)
+        ->and($restarted[0]['services'] ?? null)->toEqualCanonicalizing(['app', 'scheduler', 'backup', 'queue'])
+        ->and(finalBackupRuns($this->fixture))->toBe([])
+        ->and($this->fixture->docker->called('removeContainer'))->toBe([])
+        ->and($this->fixture->docker->called('removeVolume'))->toBe([]);
+});
+
+it('lowers the gate and keeps exit 10 when Docker disappears while it quiesces (M12 gate D2)', function (): void {
+    $this->fixture->docker->failOn('composeStop', new DockerUnavailable('The Docker daemon is not reachable.'));
+
+    [$code] = $this->fixture->run('fsa:uninstall', ['--yes' => true, '--keep-backups' => true]);
+    $runtime = json_decode((string) $this->fixture->directory->read('runtime/runtime.json'), true);
+
+    expect($code)->toBe(10)
+        ->and($runtime['gate']['raised'])->toBeFalse()
+        ->and(glob($this->backups.'/final-*'))->toBe([]);
+});
+
 it('cannot back up without a readable state and says how to go on', function (): void {
     $this->fixture->directory->write('state.json', '{"broken": true}');
 

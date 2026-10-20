@@ -32,8 +32,8 @@ final readonly class BackupIntake
         $outside = $request->keyFile instanceof AppKeys ? $own->merge($request->keyFile) : $own;
         // Only the current APP_KEY and keys the operator passes authenticate: a previous key may be retired because it leaked.
         $authenticating = AppKeys::of(array_slice($own->keys, 0, 1))->merge($request->keyFile ?? AppKeys::of([]));
+        $scratch = $this->source->scratch($id); // a killed run's copy goes before the room for the new one is counted
         $free = $this->space->assertScratch($path);
-        $scratch = $this->source->scratch($id);
         $backup = $this->source->prepare($runAs, $path, $scratch, $authenticating, $request->identityFile, $request->passphrase);
         // A new host (`--from-backup`) may decrypt with the keys the backup carries; the HMAC never uses them.
         $known = $purpose === RestoreChecks::FROM_BACKUP ? $outside->merge(self::insideKeys($backup)) : $outside;

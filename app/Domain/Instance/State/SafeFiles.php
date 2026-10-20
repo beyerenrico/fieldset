@@ -137,10 +137,15 @@ final readonly class SafeFiles
         return true;
     }
 
-    /** Removes a file or a directory tree without following symlinks. */
-    public function delete(string $relative): void
+    /**
+     * Removes a file or a directory tree without following symlinks.
+     *
+     * @return list<string> the absolute paths that stay (a directory that cannot be read, a file that cannot be
+     *                      removed), the deepest only: a parent kept just for them is not named; empty when it is gone
+     */
+    public function delete(string $relative): array
     {
-        self::deletePath($this->resolve($relative));
+        return self::deletePath($this->resolve($relative));
     }
 
     /** @return list<string> entry names, sorted */
@@ -254,19 +259,23 @@ final readonly class SafeFiles
         }
     }
 
-    private static function deletePath(string $path): void
+    /** @return list<string> what stays (delete()) */
+    private static function deletePath(string $path): array
     {
-        if (is_link($path) || is_file($path)) {
-            @unlink($path);
-
-            return;
+        if (is_link($path) || (file_exists($path) && ! is_dir($path))) {
+            return @unlink($path) ? [] : [$path];
         }
         if (! is_dir($path)) {
-            return;
+            return [];
         }
-        foreach (array_diff(scandir($path) ?: [], ['.', '..']) as $entry) {
-            self::deletePath($path.'/'.$entry);
+        $left = [];
+        foreach (array_diff(@scandir($path) ?: [], ['.', '..']) as $entry) { // unreadable (another user's): rmdir names it
+            $left = [...$left, ...self::deletePath($path.'/'.$entry)];
         }
-        @rmdir($path);
+        if (@rmdir($path)) {
+            return [];
+        }
+
+        return $left === [] ? [$path] : $left;
     }
 }
