@@ -205,7 +205,8 @@ it('left 1.0\'s volumes untouched and stopped, and its backup restores in a dril
         ->and($files['archive'] ?? null)->toBeTrue()
         ->and($drillJson['data']['storage']['files'] ?? 0)->toBeGreaterThanOrEqual(1)
         ->and($loadOnly)->toBe([])
-        ->and([$files['referenced'] ?? null, $files['missing'] ?? null])->toBe([$drillJson['data']['drill']['counts']['renditions'] ?? -1, $drillJson['data']['drill']['counts']['renditions'] ?? -1])
+        ->and($files['missing'] ?? null)->toBe($drillJson['data']['drill']['counts']['renditions'] ?? -1)
+        ->and($files['referenced'] ?? 0)->toBeGreaterThanOrEqual($files['missing'] ?? PHP_INT_MAX) // the demo logo too, present (gate D8)
         ->and($drillJson['data']['drill']['render']['status'] ?? null)->toBe('rendered')
         ->and($drillJson['data']['drill']['audit']['intact'] ?? null)->toBeTrue();
 });
@@ -226,7 +227,9 @@ it('uninstalls with a final backup and the writes since adopt, and docker compos
     expect($write->getExitCode())->toBe(0, $write->getErrorOutput())
         ->and($process->getExitCode())->toBe(0, $process->getErrorOutput()."\n".$process->getOutput())
         ->and($json['data']['final_backup']['dir'] ?? '')->toStartWith('backups/final-')
-        ->and(file_exists($this->dir.'/'.($json['data']['final_backup']['dir'] ?? '-').'/app-key.env'))->toBeTrue() // review V2: env/app.env goes with the instance
+        // a 2.0 backup since the M12 gate, its APP keys beside it (review V2: env/app.env goes with the instance)
+        ->and(file_exists($this->dir.'/'.($json['data']['final_backup']['dir'] ?? '-').'/manifest.json'))->toBeTrue()
+        ->and((string) @file_get_contents($this->dir.'/'.($json['data']['final_backup']['key_file'] ?? '-')))->toContain($this->v1->appKey)
         ->and($json['data']['adopted']['writes_since_adopt']['rows']['submissions'] ?? null)->toBe(3)
         ->and($json['data']['adopted']['restart_1_0'])->toBe('cd '.$this->v1->checkout.' && docker compose up -d')
         ->and($left)->toBe(['containers' => [], 'volumes' => [], 'networks' => []])
