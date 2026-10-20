@@ -320,3 +320,9 @@
 - Install run 1: J10 service list predated the backup service (fixed 76bad60). Run 1's evidence lost to a broad
   `git checkout` of evidence/ (L159); run 2 regenerated it (132/140, one J10 ERR_NETWORK_CHANGED, rerun 9/9).
 - J1+J12 amd64 8/8; E2E 79 passed twice; LocalPreReleaseTest 2.0.0-rc.1 7/7. Merge to main, tags local only.
+
+## 2026-10-20 M13-T01/T02: U20 and U21 merged
+- U20 (agent, worktree): /platform Instance page, `fsa config set update-check`, backup alert mails (R39), ADR 0089.
+  Merge 31a617d, suite 7341. U21 (agent): agent guide, 2.0 guides + 1.0 archive, J11 13/13, guide scan, ADR 0090.
+  Merge 511b3bb (docs aligned with U20), suite 7355.
+- J11 found a missing --identity-file bind-mounted as a root-owned host directory: fixed 0bcd910 (identity_unreadable).

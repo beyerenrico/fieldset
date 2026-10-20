@@ -187,9 +187,9 @@ T03, T04 and T05 in parallel worktrees (predicted overlaps: journal phases, `fsa
 - [x] M12-T06 Gate M12 (rebuild the `form-schema-app-ci` image first: U16 added the PGDG 16 client to `docker/ci/Dockerfile`): §15.6 (all gates, J7, J8, J9, J5 (reset) + J1/J4/J12 regression on arm64 and amd64 emulated, E2E, reviewer subagents, M12.md), build `2.0.0-rc.1`, merge, tag `m12-done`, break down M13 (include the admin-guide capture-banner section for U21)
 
 ## M13 Operability and release → 2.0.0 (branch `m13-release`)
-- [ ] M13-T01 U20 `/platform` instance page and update check
+- [x] M13-T01 U20 `/platform` instance page and update check
   - R39: operator notification for failed or stale backups; the catcher link (R23).
-- [ ] M13-T02 U21 Agent guide, docs rewrite, `RELEASING.md` completed — J11
+- [x] M13-T02 U21 Agent guide, docs rewrite, `RELEASING.md` completed — J11
   - Carry the docs review list (M12.md "Docs for U21"), O5's single recovery object (QUESTIONS 69) and the
     admin-guide capture-banner section.
 - [ ] M13-T03 U22 Dogfooding: E2E suite against an `fsa` instance, all journeys in CI
