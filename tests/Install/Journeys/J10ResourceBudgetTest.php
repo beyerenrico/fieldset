@@ -29,7 +29,7 @@ use Tests\Support\Docker\TestImage;
 
 const J10_DOMAIN = 'fsa-test-j10.test';
 const J10_OWNER = 'owner@example.test';
-const J10_SERVICES = ['app', 'edge', 'gotenberg', 'mailpit', 'postgres', 'queue', 'redis', 'scheduler'];
+const J10_SERVICES = ['app', 'backup', 'edge', 'gotenberg', 'mailpit', 'postgres', 'queue', 'redis', 'scheduler'];
 /** The 1.0 targets (BUILD_PROMPT §11, ADR 0046) and E16's install target (§2.3), in ms. */
 const J10_TARGETS = ['install_ms' => 300_000, 'admin_p95_ms' => 500, 'api_p95_ms' => 300, 'pdf_queued_ms' => 10_000];
 
