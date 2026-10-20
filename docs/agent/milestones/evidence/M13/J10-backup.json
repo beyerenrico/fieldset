@@ -1,0 +1,728 @@
+{
+    "command": "fsa config set backup-schedule <now + 3 min> --json, then the daemon's scheduled run (unencrypted)",
+    "schedule_exit_code": 0,
+    "data_volume": {
+        "database_bytes": 1331010583,
+        "database_mib": 1269.4,
+        "note": "after app:seed-load demo 100000 and the perf fixtures (150k audit entries)"
+    },
+    "run": {
+        "kind": "scheduled",
+        "started_at": "2026-10-20T17:19:00Z",
+        "encrypted": false,
+        "backup": "scheduled-20261020T171900Z",
+        "status": "succeeded",
+        "bytes": 117380812,
+        "missing_files": 92701,
+        "free_bytes": 163321249792,
+        "pruned": [],
+        "finished_at": "2026-10-20T17:19:12Z",
+        "recorded": true
+    },
+    "limit_mib": 128,
+    "memory_peak_mib": 128.3,
+    "unreclaimable_peak_mib": 77.7,
+    "margin_rule": "unreclaimable peak + 30 MiB <= 128 MiB (ADR 0083; memory.peak includes page cache the kernel reclaims at the limit)",
+    "verdict": "met",
+    "m12_demo_peak_mib": 68,
+    "cgroup": {
+        "memory_peak_mib": 128.3,
+        "memory_now_mib": {
+            "anon": 69.9,
+            "file": 0,
+            "shmem": 0,
+            "kernel": 3.6
+        },
+        "memory_events": {
+            "low": 0,
+            "high": 0,
+            "max": 894,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+        },
+        "cpu_seconds": 10.9,
+        "nr_throttled": 0,
+        "cpus_effective": "8-9"
+    },
+    "samples": [
+        {
+            "at": "17:17:11",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:12",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:13",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:14",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:15",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:17",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:18",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:19",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:20",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:21",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:22",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:23",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:24",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:25",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:26",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:27",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:28",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:30",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:31",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:32",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:33",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:34",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:35",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:36",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:37",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:38",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:39",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:40",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:42",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:43",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:44",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:45",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:46",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:47",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:48",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:49",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:50",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:51",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:52",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:53",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:55",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:56",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:57",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:58",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:17:59",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:00",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:01",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:02",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:03",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:04",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:05",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:06",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:08",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:09",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:10",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:11",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:12",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:13",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:14",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:15",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:16",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:17",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:18",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:20",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:21",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:22",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:23",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:24",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:25",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:26",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:27",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:28",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:29",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:30",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:31",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:32",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:33",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:35",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:36",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:37",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:38",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:39",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:40",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:41",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:42",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:43",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:44",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:45",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:46",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:48",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:49",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:50",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:51",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:52",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:53",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:54",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:55",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:56",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:57",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:18:58",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:19:00",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "17:19:01",
+            "anon": 77.6,
+            "shmem": 0,
+            "file": 6.6
+        },
+        {
+            "at": "17:19:02",
+            "anon": 77.7,
+            "shmem": 0,
+            "file": 21.2
+        },
+        {
+            "at": "17:19:03",
+            "anon": 77.7,
+            "shmem": 0,
+            "file": 33
+        },
+        {
+            "at": "17:19:04",
+            "anon": 77.7,
+            "shmem": 0,
+            "file": 42.2
+        },
+        {
+            "at": "17:19:05",
+            "anon": 77.7,
+            "shmem": 0,
+            "file": 43.9
+        },
+        {
+            "at": "17:19:06",
+            "anon": 77.7,
+            "shmem": 0,
+            "file": 44
+        },
+        {
+            "at": "17:19:07",
+            "anon": 77.7,
+            "shmem": 0,
+            "file": 44.1
+        },
+        {
+            "at": "17:19:08",
+            "anon": 77.7,
+            "shmem": 0,
+            "file": 44
+        },
+        {
+            "at": "17:19:09",
+            "anon": 74.3,
+            "shmem": 0,
+            "file": 8.2
+        },
+        {
+            "at": "17:19:10",
+            "anon": 73.4,
+            "shmem": 0,
+            "file": 43.8
+        },
+        {
+            "at": "17:19:11",
+            "anon": 73.5,
+            "shmem": 0,
+            "file": 50.9
+        },
+        {
+            "at": "17:19:12",
+            "anon": 69.7,
+            "shmem": 0,
+            "file": 0
+        }
+    ]
+}

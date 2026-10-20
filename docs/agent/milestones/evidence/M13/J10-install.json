@@ -1,0 +1,183 @@
+{
+    "command": "install.sh --dir <work>/fsa-test-j10 --version 2.0.0-alpha.1-test --org J10 Org --owner-email owner@example.test --locale en --domain fsa-test-j10.test --acme-email ops@example.test --acme-ca https://pebble:14000/dir --acme-ca-root-file <harness>/pebble-https-root.pem --acme-ca-root-file <harness>/pebble-https-root.pem --secrets-file <work>/owner-link.json --json",
+    "exit_code": 0,
+    "seconds": 48.4,
+    "pull_seconds": 0.2,
+    "seconds_without_pull": 48.2,
+    "target_seconds": 300,
+    "verdict": "met",
+    "phases": {
+        "install.sh pull": 0.2,
+        "doctor": 1,
+        "secrets": 0,
+        "state": 0,
+        "pull": 0,
+        "up": 6,
+        "migrate": 3,
+        "app_install": 2,
+        "start": 31,
+        "smoke": 4,
+        "done": 0
+    },
+    "pull_size": {
+        "platform": "linux/arm64",
+        "images": {
+            "app": 160608490,
+            "postgres": 113892033,
+            "valkey": 17937250,
+            "gotenberg": 505802531,
+            "mailpit": 16830700,
+            "caddy": 23637011
+        },
+        "total_bytes": 838708015,
+        "seconds_at_100_mbit": 67.1
+    },
+    "stdout": {
+        "schema_version": 1,
+        "command": "install",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": true,
+        "data": {
+            "url": "https://fsa-test-j10.test",
+            "version": "2.0.0-alpha.1-test",
+            "mode": "domain",
+            "dir": "<work>/fsa-test-j10",
+            "project": "fsa-fsa-test-j10-b78b",
+            "port": null,
+            "mail": {
+                "mode": "capture",
+                "catcher_url": "https://fsa-test-j10.test/_mail/"
+            },
+            "owner_email": "owner@example.test",
+            "next_commands": [
+                "<work>/fsa-test-j10/fsa status",
+                "<work>/fsa-test-j10/fsa login-link owner@example.test",
+                "<work>/fsa-test-j10/fsa doctor --post"
+            ],
+            "sign_in_link": {
+                "expires_at": "2026-10-20T17:48:31Z",
+                "delivered": "secrets_file"
+            }
+        },
+        "secrets": [
+            {
+                "name": "sign_in_link",
+                "written_to": "<work>/owner-link.json",
+                "expires_at": "2026-10-20T17:48:31Z"
+            }
+        ],
+        "warnings": [],
+        "errors": []
+    },
+    "stderr_ndjson": [
+        {
+            "at": 0.21,
+            "line": "{\"ts\":\"2026-10-20T16:48:18Z\",\"phase\":\"verify\",\"level\":\"info\",\"message\":\"Verifying release 2.0.0-alpha.1-test from http://127.0.0.1:61204\"}"
+        },
+        {
+            "at": 0.62,
+            "line": "{\"ts\":\"2026-10-20T16:48:18Z\",\"phase\":\"pull\",\"level\":\"info\",\"message\":\"Pulling <registry>/beyerenrico/form-schema-app@sha256:19bfaf72227286cb5137b7c32dd5aa550f393317906b2b399e93f0f6849e346c\"}"
+        },
+        {
+            "at": 0.82,
+            "line": "{\"ts\":\"2026-10-20T16:48:19Z\",\"phase\":\"handover\",\"level\":\"info\",\"message\":\"Starting fsa install 2.0.0-alpha.1-test in <work>/fsa-test-j10\"}"
+        },
+        {
+            "at": 1.43,
+            "line": "{\"ts\":\"2026-10-20T16:48:19Z\",\"phase\":\"doctor\",\"level\":\"info\",\"message\":\"Starting doctor\"}"
+        },
+        {
+            "at": 2.45,
+            "line": "{\"ts\":\"2026-10-20T16:48:20Z\",\"phase\":\"doctor\",\"level\":\"info\",\"message\":\"Completed doctor in 1 s\",\"elapsed_seconds\":1}"
+        },
+        {
+            "at": 2.45,
+            "line": "{\"ts\":\"2026-10-20T16:48:20Z\",\"phase\":\"secrets\",\"level\":\"info\",\"message\":\"Starting secrets\"}"
+        },
+        {
+            "at": 2.45,
+            "line": "{\"ts\":\"2026-10-20T16:48:20Z\",\"phase\":\"secrets\",\"level\":\"info\",\"message\":\"Completed secrets in 0 s\",\"elapsed_seconds\":0}"
+        },
+        {
+            "at": 2.45,
+            "line": "{\"ts\":\"2026-10-20T16:48:20Z\",\"phase\":\"state\",\"level\":\"info\",\"message\":\"Starting state\"}"
+        },
+        {
+            "at": 2.68,
+            "line": "{\"ts\":\"2026-10-20T16:48:20Z\",\"phase\":\"state\",\"level\":\"info\",\"message\":\"Completed state in 0 s\",\"elapsed_seconds\":0}"
+        },
+        {
+            "at": 2.68,
+            "line": "{\"ts\":\"2026-10-20T16:48:20Z\",\"phase\":\"pull\",\"level\":\"info\",\"message\":\"Starting pull\"}"
+        },
+        {
+            "at": 2.92,
+            "line": "{\"ts\":\"2026-10-20T16:48:21Z\",\"phase\":\"pull\",\"level\":\"info\",\"message\":\"Completed pull in 0 s\",\"elapsed_seconds\":0}"
+        },
+        {
+            "at": 2.92,
+            "line": "{\"ts\":\"2026-10-20T16:48:21Z\",\"phase\":\"up\",\"level\":\"info\",\"message\":\"Starting up\"}"
+        },
+        {
+            "at": 8.6,
+            "line": "{\"ts\":\"2026-10-20T16:48:26Z\",\"phase\":\"up\",\"level\":\"info\",\"message\":\"Completed up in 6 s\",\"elapsed_seconds\":6}"
+        },
+        {
+            "at": 8.6,
+            "line": "{\"ts\":\"2026-10-20T16:48:26Z\",\"phase\":\"migrate\",\"level\":\"info\",\"message\":\"Starting migrate\"}"
+        },
+        {
+            "at": 11.35,
+            "line": "{\"ts\":\"2026-10-20T16:48:29Z\",\"phase\":\"migrate\",\"level\":\"info\",\"message\":\"Completed migrate in 3 s\",\"elapsed_seconds\":3}"
+        },
+        {
+            "at": 11.35,
+            "line": "{\"ts\":\"2026-10-20T16:48:29Z\",\"phase\":\"app_install\",\"level\":\"info\",\"message\":\"Starting app_install\"}"
+        },
+        {
+            "at": 12.94,
+            "line": "{\"ts\":\"2026-10-20T16:48:31Z\",\"phase\":\"app_install\",\"level\":\"info\",\"message\":\"Completed app_install in 2 s\",\"elapsed_seconds\":2}"
+        },
+        {
+            "at": 12.94,
+            "line": "{\"ts\":\"2026-10-20T16:48:31Z\",\"phase\":\"start\",\"level\":\"info\",\"message\":\"Starting start (at most 5 min)\",\"max_seconds\":300}"
+        },
+        {
+            "at": 44.48,
+            "line": "{\"ts\":\"2026-10-20T16:49:02Z\",\"phase\":\"start\",\"level\":\"info\",\"message\":\"Completed start in 31 s\",\"elapsed_seconds\":31}"
+        },
+        {
+            "at": 44.48,
+            "line": "{\"ts\":\"2026-10-20T16:49:02Z\",\"phase\":\"smoke\",\"level\":\"info\",\"message\":\"Starting smoke (at most 23 min)\",\"max_seconds\":1415}"
+        },
+        {
+            "at": 44.88,
+            "line": "{\"ts\":\"2026-10-20T16:49:03Z\",\"phase\":\"smoke\",\"level\":\"info\",\"message\":\"Waiting for the certificate for fsa-test-j10.test (attempt 1/40, 0 s of at most 420 s)\",\"attempt\":1,\"attempts\":40,\"elapsed_seconds\":0,\"max_seconds\":420}"
+        },
+        {
+            "at": 45.49,
+            "line": "{\"ts\":\"2026-10-20T16:49:03Z\",\"phase\":\"smoke\",\"level\":\"info\",\"message\":\"Rendering a test PDF through Gotenberg\"}"
+        },
+        {
+            "at": 46.72,
+            "line": "{\"ts\":\"2026-10-20T16:49:05Z\",\"phase\":\"smoke\",\"level\":\"info\",\"message\":\"Sending a test mail to the owner through the mail catcher\"}"
+        },
+        {
+            "at": 47.96,
+            "line": "{\"ts\":\"2026-10-20T16:49:06Z\",\"phase\":\"smoke\",\"level\":\"info\",\"message\":\"Looking for the test mail in the mail catcher\"}"
+        },
+        {
+            "at": 48.16,
+            "line": "{\"ts\":\"2026-10-20T16:49:06Z\",\"phase\":\"smoke\",\"level\":\"info\",\"message\":\"Completed smoke in 4 s\",\"elapsed_seconds\":4}"
+        },
+        {
+            "at": 48.16,
+            "line": "{\"ts\":\"2026-10-20T16:49:06Z\",\"phase\":\"done\",\"level\":\"info\",\"message\":\"Starting done\"}"
+        },
+        {
+            "at": 48.16,
+            "line": "{\"ts\":\"2026-10-20T16:49:06Z\",\"phase\":\"done\",\"level\":\"info\",\"message\":\"Completed done in 0 s\",\"elapsed_seconds\":0}"
+        }
+    ]
+}
