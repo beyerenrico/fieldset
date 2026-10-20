@@ -1,5 +1,5 @@
 {
-    "command": "fsa restore safety-adopt-20261019T201928Z --drill --accept-unauthenticated --json",
+    "command": "fsa restore safety-adopt-20261020T004922Z --drill --accept-unauthenticated --json",
     "exit_code": 0,
     "stdout": {
         "schema_version": 1,
@@ -7,11 +7,11 @@
         "status": "ok",
         "changed": false,
         "data": {
-            "backup": "safety-adopt-20261019T201928Z",
+            "backup": "safety-adopt-20261020T004922Z",
             "format": "legacy",
             "authenticated": false,
             "encrypted": false,
-            "created_at": "20261019T201928Z",
+            "created_at": "20261020T004922Z",
             "backup_version": null,
             "migrations": {
                 "relation": "older",
@@ -25,30 +25,30 @@
                 "directories": 6,
                 "bytes": 917
             },
-            "database": "restore_drill_67a204edc908",
+            "database": "restore_drill_2e78a252f432",
             "dropped": true,
             "drill": {
-                "database": "restore_drill_67a204edc908",
+                "database": "restore_drill_2e78a252f432",
                 "counts": {
                     "organizations": 1,
                     "users": 9,
                     "forms": 1,
                     "form_versions": 1,
-                    "submissions": 83,
+                    "submissions": 69,
                     "attachments": 0,
-                    "renditions": 59,
-                    "mail_messages": 17
+                    "renditions": 55,
+                    "mail_messages": 10
                 },
                 "audit": {
                     "epoch": 1,
                     "heads": [
                         {
                             "seq": 10,
-                            "hash": "238a6d5a30442f6fde7208937847fb2f21d31735c4d8a7ef0cd02a7f1d4f3c16"
+                            "hash": "a7727dee9d616dc70203094bf9985cdb4d5e4177fb771c5a62ceb822850ddc05"
                         },
                         {
                             "seq": 10,
-                            "hash": "269d0a4291ba6c2a60774f06db011c8ad02dc49ecf0873b91c1197255efd0fc8"
+                            "hash": "9decdeeee64c5c2915a90fed8713fbe3b61fd5bef8055c1c8646de134196fba4"
                         }
                     ],
                     "intact": true,
@@ -56,35 +56,35 @@
                 },
                 "files": {
                     "archive": true,
-                    "referenced": 59,
-                    "missing": 59,
+                    "referenced": 56,
+                    "missing": 55,
                     "sample": [
-                        "private/load-test/019a4de7-14b7-732a-b65f-201245cf7f0c.pdf",
-                        "private/load-test/019a71ec-4071-739c-a519-5d01a04fc42f.pdf",
-                        "private/load-test/019a7776-7445-7163-bb56-2caea0dd9427.pdf",
-                        "private/load-test/019a8895-e004-73e3-a9b7-cb3b3e2b6a07.pdf",
-                        "private/load-test/019ad4de-04a1-7264-9892-0b07841e20aa.pdf",
-                        "private/load-test/019aec3c-e866-71e0-b175-b4ad8bec6adb.pdf",
-                        "private/load-test/019af02b-3b29-7191-b4ca-7329394fb668.pdf",
-                        "private/load-test/019af136-8ce1-7154-96bf-a90e018b1ddf.pdf",
-                        "private/load-test/019b2bb2-f0c6-7336-85e7-7e64abf56593.pdf",
-                        "private/load-test/019b4845-16a6-72d7-ae3f-947ea8da4894.pdf",
-                        "private/load-test/019b4b27-25c1-71db-ae70-1cdf7e65981c.pdf",
-                        "private/load-test/019b7595-bc46-70b0-8a74-fe44afc9a991.pdf",
-                        "private/load-test/019b9611-a5d9-7389-942e-675eec5e808e.pdf",
-                        "private/load-test/019ba4f9-7eac-72ca-b452-f7f160a6c4c3.pdf",
-                        "private/load-test/019ba9d4-d7b3-719e-a462-8317a476a400.pdf",
-                        "private/load-test/019be6c0-ce2b-72da-8e85-05ce9d768705.pdf",
-                        "private/load-test/019c0c62-d4e1-7072-b9f1-9ece39f394bf.pdf",
-                        "private/load-test/019c2e7e-67d7-72e2-bde7-28fb7149df44.pdf",
-                        "private/load-test/019c4782-4666-7152-b1ac-7a0dc6346e03.pdf",
-                        "private/load-test/019c5c8c-9375-7154-a850-39df3a7199b1.pdf"
+                        "private/load-test/019a3066-cb12-73bd-9601-2005ff063486.pdf",
+                        "private/load-test/019a7032-bb91-7127-9a46-869ddddb2da3.pdf",
+                        "private/load-test/019aabd0-92d1-73f9-9375-f768fe42b483.pdf",
+                        "private/load-test/019aec3b-0d51-70a5-a515-42015e8b5187.pdf",
+                        "private/load-test/019af152-e8bc-71ad-9b15-136fdc1ab244.pdf",
+                        "private/load-test/019b1019-08d2-706c-aab6-bc10b7e6786f.pdf",
+                        "private/load-test/019b14e4-bab2-7244-a94f-487936c7d23c.pdf",
+                        "private/load-test/019b41a0-1540-7201-bd10-ef48163cb40c.pdf",
+                        "private/load-test/019b5f07-7ad1-7109-9744-651c3a760d49.pdf",
+                        "private/load-test/019bb73f-ceb9-70fc-9035-2e39f887d25f.pdf",
+                        "private/load-test/019bd556-f491-712e-8d90-873a7270bd46.pdf",
+                        "private/load-test/019bf0e1-85f4-70db-80c7-da6537abfcc3.pdf",
+                        "private/load-test/019c1743-eaf2-723f-9d87-4b35c85257d8.pdf",
+                        "private/load-test/019c311d-6929-721a-812f-2243b25846bf.pdf",
+                        "private/load-test/019c8baa-8772-7381-bca7-3e7565fb3201.pdf",
+                        "private/load-test/019c9020-1466-733a-a91f-83acddda0f8d.pdf",
+                        "private/load-test/019cd36a-9871-737f-95d9-d7b129a31582.pdf",
+                        "private/load-test/019ceaa9-a521-72c7-a24e-a4b0f558365d.pdf",
+                        "private/load-test/019d0a23-4916-712e-81ed-c99e29acca49.pdf",
+                        "private/load-test/019d181c-0b71-708c-9bf2-d8d679d2de3a.pdf"
                     ]
                 },
                 "render": {
                     "status": "rendered",
-                    "submission": "01a14c16-5b0d-72de-9db2-6f1719b543ba",
-                    "bytes": 44330,
+                    "submission": "01a14b4b-d8f1-72f1-9690-29354371588d",
+                    "bytes": 40337,
                     "pages": 1,
                     "message": null
                 },
@@ -110,12 +110,12 @@
                     {
                         "name": "files",
                         "status": "warn",
-                        "message": "59 of 59 referenced file(s) missing from storage."
+                        "message": "55 of 56 referenced file(s) missing from storage."
                     },
                     {
                         "name": "render",
                         "status": "pass",
-                        "message": "A 1-page PDF of 01a14c16-5b0d-72de-9db2-6f1719b543ba rendered."
+                        "message": "A 1-page PDF of 01a14b4b-d8f1-72f1-9690-29354371588d rendered."
                     },
                     {
                         "name": "decrypt",
