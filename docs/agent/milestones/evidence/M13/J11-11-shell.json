@@ -1,0 +1,8 @@
+{
+    "guide_line": 341,
+    "guide_command": "mkdir -m 700 ~/forms-move && cp <backup-path>/backup.tar.age ~/forms-move/backup.tar.age && cp ~/forms-identity.age ~/forms-move/identity.age && cp ~/forms/env/app.env ~/forms-move/app-key.env",
+    "command": "mkdir -m 700 <work>/fsa-test-j11-forms-move && cp <work>/fsa-test-j11-forms/backups/manual-20261020T154552Z/backup.tar.age <work>/fsa-test-j11-forms-move/backup.tar.age && cp <work>/fsa-test-j11-forms-identity.age <work>/fsa-test-j11-forms-move/identity.age && cp <work>/fsa-test-j11-forms/env/app.env <work>/fsa-test-j11-forms-move/app-key.env",
+    "exit_code": 0,
+    "seconds": 0,
+    "stdout": ""
+}

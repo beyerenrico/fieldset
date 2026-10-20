@@ -1,0 +1,84 @@
+{
+    "guide_line": 354,
+    "guide_command": "curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/form-schema-app/releases/latest/download/install.sh | sh -s -- --dir ~/forms-new --from-backup ~/forms-move/backup.tar.age --identity-file ~/forms-move/identity.age --passphrase-file ~/forms-passphrase --app-key-file ~/forms-move/app-key.env --secrets-file ~/forms-new-secrets.json --json --yes",
+    "command": "sh '<harness>/dist/download/v2.0.0-alpha.1-test/install.sh' --version '2.0.0-alpha.1-test' --dir <work>/fsa-test-j11-forms-new --from-backup <work>/fsa-test-j11-forms-move/backup.tar.age --identity-file <work>/fsa-test-j11-forms-move/identity.age --passphrase-file <work>/fsa-test-j11-forms-passphrase --app-key-file <work>/fsa-test-j11-forms-move/app-key.env --secrets-file <work>/fsa-test-j11-forms-new-secrets.json --json --yes",
+    "exit_code": 0,
+    "seconds": 57.4,
+    "stdout": {
+        "schema_version": 1,
+        "command": "install",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": true,
+        "data": {
+            "url": "http://localhost:8082",
+            "version": "2.0.0-alpha.1-test",
+            "mode": "local",
+            "dir": "<work>/fsa-test-j11-forms-new",
+            "project": "fsa-fsa-test-j11-forms-new-f332",
+            "port": 8082,
+            "mail": {
+                "mode": "capture",
+                "catcher_url": "http://localhost:8026",
+                "catcher_login_command": "fsa config show --catcher-login"
+            },
+            "owner_email": null,
+            "from_backup": {
+                "backup": "fsa-test-j11-forms-move",
+                "format": "fsa",
+                "authenticated": true,
+                "encrypted": true,
+                "created_at": "2026-10-20T15:45:52Z",
+                "version": "2.0.0-alpha.1-test",
+                "epoch": 3,
+                "recipients": {
+                    "listed": [
+                        "age1f743r0wl3u6fc47gfw4wqqvqhjntpsltp9059mqw226gutcp8u9sd3pclc"
+                    ],
+                    "kept": []
+                }
+            },
+            "pending_mail": {
+                "host": "fsa-test-j11-smtp-8422",
+                "port": 1025,
+                "scheme": "smtp",
+                "command": "fsa config set mail smtp --smtp-host fsa-test-j11-smtp-8422 --smtp-port 1025 --smtp-username <account> --password-file <file>"
+            },
+            "webhooks": "paused",
+            "confirm_commands": [
+                "fsa config set webhooks on",
+                "fsa config set mail smtp --smtp-host fsa-test-j11-smtp-8422 --smtp-port 1025 --smtp-username <account> --password-file <file>"
+            ],
+            "sign_in_link": null,
+            "next_commands": [
+                "<work>/fsa-test-j11-forms-new/fsa status",
+                "<work>/fsa-test-j11-forms-new/fsa login-link <admin-email>",
+                "<work>/fsa-test-j11-forms-new/fsa config set webhooks on"
+            ]
+        },
+        "secrets": [],
+        "warnings": [
+            {
+                "code": "mail_captured_after_move",
+                "message": "Mail is captured in the bundled catcher until you switch it on: the old server may still be sending.",
+                "hint": "Once the move is complete: `fsa config set mail smtp …` (the backup's server is under data.pending_mail)."
+            },
+            {
+                "code": "webhooks_paused",
+                "message": "Workflow webhooks wait until you confirm the move, so the old and the new server never both deliver.",
+                "hint": "Once DNS points here and the old server is stopped: `fsa config set webhooks on`."
+            },
+            {
+                "code": "no_sign_in_link",
+                "message": "No --owner-email was given, so no sign-in link was issued; the restored users sign in as before.",
+                "hint": "Run `fsa login-link <email> --secrets-file <file>` for an admin of the restored data."
+            },
+            {
+                "code": "backup_recipients_not_kept",
+                "message": "The backup lists the age recipient(s) age1f743r0wl3u6fc47gfw4wqqvqhjntpsltp9059mqw226gutcp8u9sd3pclc; they were not taken over, so new backups are not encrypted.",
+                "hint": "If these are your keys, run the move again with --keep-recipients (a new directory); or turn encryption on with `fsa config set backup-encryption on --identity-out <path> --passphrase-file <file>`."
+            }
+        ],
+        "errors": []
+    }
+}

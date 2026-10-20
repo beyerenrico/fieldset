@@ -1,7 +1,8 @@
 # 0077: fsa config: show, set with apply, verify and revert
 - Status: accepted; amended 2026-10-18 at the M10 gate by ADR 0078 (a reverted change is exit 5 `rolled_back`,
   `workers` phase, interruption, resume, failed revert, doctor drift check); amended 2026-10-18 by ADR 0080 (`mail`,
-  `operator-email`, SettingHooks) and ADR 0082 (`phone-https`, `lan-address`)
+  `operator-email`, SettingHooks) and ADR 0082 (`phone-https`, `lan-address`); amended 2026-10-20 by ADR 0089
+  (`update-check` arrived, so `setting_not_available` and `arrives_with` are gone)
 - Date: 2026-10-18
 - Refines: ADR 0066 (supervisor, journal), ADR 0069 (renderer), ADR 0072 (install), ADR 0074 (runtime), ADR 0075
   (edge, domain mode), ADR 0076 (proxy mode)

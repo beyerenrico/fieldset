@@ -19,6 +19,7 @@ Contents:
 - [Notifications](#notifications)
 - [Reports, exports and dashboards](#reports-exports-and-dashboards)
 - [Email settings and the mail log](#email-settings-and-the-mail-log)
+- [Mail capture banner](#mail-capture-banner)
 - [Single sign-on (SSO)](#single-sign-on-sso)
 - [API tokens](#api-tokens)
 - [Audit log](#audit-log)
@@ -90,10 +91,11 @@ settings"): name, language and time zone. Scheduled workflows and report emails 
   VAT ID, bank, IBAN, BIC and a legal footer.
 
 **Several organizations.** A person can belong to several organizations. The organization switcher at
-the top of the dashboard lists those where they have dashboard access. The operator creates the first
-organization with `php artisan app:install`; further organizations can only be created through
-self-registration ("Organisation registrieren", "Register organization"), if the operator enabled it
-(see the [configuration reference](configuration.md#application)).
+the top of the dashboard lists those where they have dashboard access. The first organization is
+created at the install (`fsa install --org …`); further organizations can only be created through
+self-registration ("Organisation registrieren", "Register organization"). Self-registration is off on an
+instance installed with `fsa`; on a 1.0 checkout install the operator can enable it (see the
+[1.0 configuration reference](archive/1.0-configuration.md#application)).
 
 ## Members, groups and roles
 
@@ -384,6 +386,28 @@ times. Failed mails show the error; "Erneut senden" ("Send again") retries them.
 PDFs up to 10 MB are attached; larger ones are sent as a link that expires after 14 days (the operator
 can change both).
 
+## Mail capture banner
+
+While the instance captures mail (a new instance does until its operator sets up delivery), a banner
+"E-Mail-Abfangmodus" ("Mail capture") sits at the top of every page of the admin dashboard. It cannot be
+dismissed. It comes in two variants:
+
+- **"E-Mails werden abgefangen, nicht zugestellt."** ("Mail is captured, not delivered."): the
+  organization uses the instance's mailer, so every mail it sends stays in the instance's mail catcher and
+  reaches nobody. Members who may manage the organization also see the link "Eigenen SMTP-Server in den
+  E-Mail-Einstellungen eintragen" ("Use your own SMTP server in Mail settings").
+- **"Einladungen, Passwort-Zurücksetzungen und Bestätigungen von E-Mail-Adressen werden abgefangen, nicht
+  zugestellt."** ("Invitations, password resets and email address confirmations are captured, not
+  delivered."): the organization has its own SMTP server, which delivers all other mail; these three
+  always use the instance's mailer.
+
+Platform operators see the command that sets up delivery on the server ("E-Mail-Versand auf dem Server
+einrichten:", "Set up mail delivery on the server:"), `fsa config set mail smtp --smtp-host <host>
+--smtp-username <user> --from-address <address> --password-stdin` (see
+[configuration](configuration.md#mail)); everyone else reads "Bitten Sie den Betreiber der Instanz, den
+E-Mail-Versand einzurichten." ("Ask your instance owner to set up mail delivery."). The banner disappears
+once the instance delivers mail.
+
 ## Single sign-on (SSO)
 
 With SSO, members sign in through your company's identity provider, for example Microsoft Entra ID,
@@ -526,8 +550,9 @@ parts, for example a form's versions or a submission's emails.
 fingerprint includes the one before. The operator's check (`audit:verify`) finds entries that were
 changed or removed by anyone who cannot rewrite the whole table. Someone with full access to the
 database could recompute the chain; the operator detects that by comparing it with copies of the chain's
-latest fingerprints kept outside the database. See
-[Protect the audit log](install.md#7-protect-the-audit-log).
+latest fingerprints kept outside the database. Restores, rollbacks and resets start a new epoch of the
+chain instead of breaking it; see [chain epochs](backup-restore.md#chain-epochs-and-the-ledger) (1.0 checkout
+installs: [protect the audit log](archive/1.0-install.md#7-protect-the-audit-log)).
 
 ## Privacy and data retention
 
@@ -613,9 +638,10 @@ deleted, an Owner or Admin uses this page.
 
 ## Platform operators (/platform)
 
-This section is for the people who run the server. Operators get the role with
-`php artisan app:platform-admin <email>`
-([install guide](install.md#4-create-the-first-organization-and-owner)).
+This section is for the people who run the server. The owner named at the install is an operator;
+`fsa config set operator-email <email>` adds one ([configuration](configuration.md#keys)). On a 1.0 checkout
+install operators get the role with `php artisan app:platform-admin <email>`
+([1.0 install guide](archive/1.0-install.md#4-create-the-first-organization-and-owner)).
 They sign in at `/platform/login`, separately from `/admin`; a sign-in through an organization's single
 sign-on never opens `/platform`. Two-factor authentication is required, and the sign-in lasts at most 12
 hours (`PLATFORM_SESSION_HOURS`).
@@ -624,6 +650,11 @@ hours (`PLATFORM_SESSION_HOURS`).
   status. "Mitglieder" ("Members") lists its members.
 - **"Zustand" ("Health")**: Horizon and its queues, failed jobs, Gotenberg, the mail transport, the
   scheduler and the free disk space, each "OK", "Warnung" ("Warning") or "Fehler" ("Failing").
+- **"Instanz" ("Instance")** (instances installed with `fsa`): problems first (a failed or stale backup,
+  low disk space, an available update, backups held only on this host), each with the `fsa` command to run on the
+  server; then version and image digests, mode and URL, mail delivery with the catcher link, the backup schedule and
+  last result, disk usage and, when the update check is on (`fsa config set update-check on`), whether a newer
+  release exists. Operators also get one e-mail per failed or stale backup.
 - **"Als Mitglied anmelden" ("Impersonate")** on a member: the operator sees the admin dashboard as that
   member, for support. A reason of 10 to 500 characters is required. It works only for active members
   with dashboard access in an organization that is not archived, never for other operators and never in
