@@ -1,0 +1,11 @@
+{
+    "/app": 200,
+    "/api/v1/me": 401,
+    "/sanctum/csrf-cookie": 204,
+    "/platform": 404,
+    "/admin": 404,
+    "/horizon": 404,
+    "/phone-trust": 404,
+    "/docs/api": 404,
+    "/platform with X-Forwarded-Host: localhost": 404
+}

@@ -161,13 +161,11 @@ final readonly class ConfigShow
             'backup-schedule' => $settings->backupSchedule(), 'backup-retention' => (string) $settings->backupRetention(),
             'backup-encryption' => $state->recipients() === [] ? 'off' : 'on',
             'webhooks' => $settings->webhooksPaused() ? 'paused' : 'on',
+            'update-check' => $settings->updateManifestUrl() === null ? 'off' : 'on',
         ];
         $keys = [];
         foreach (ConfigKeys::keys() as $key) {
             $keys[] = ['key' => $key, 'value' => $values[$key] ?? null, 'available' => true, ...ConfigKeys::availability($key, $state), 'changes_url' => in_array($key, ConfigKeys::URL_KEYS, true)];
-        }
-        foreach (ConfigKeys::LATER as $key => $release) {
-            $keys[] = ['key' => $key, 'value' => null, 'available' => false, 'modes' => [], 'settable_now' => false, 'use_instead' => null, 'arrives_with' => $release];
         }
 
         return $keys;
@@ -182,6 +180,7 @@ final readonly class ConfigShow
     private function contacts(InstanceState $state, InstanceSettings $settings): array
     {
         $registries = array_values(array_unique(array_map(static fn (string $image): string => explode('/', $image, 2)[0], array_values($state->digests()))));
+        $updates = $settings->updateManifestUrl();
         $features = [
             ['feature' => 'acme', 'active' => $state->mode() === 'domain', 'contacts' => $state->mode() === 'domain' ? [$settings->acmeCa()] : [],
                 'purpose' => 'Domain mode: the edge orders and renews certificates from this ACME directory (and its challenges reach port 80/443).'],
@@ -191,8 +190,8 @@ final readonly class ConfigShow
                 'purpose' => 'Only when you run `fsa upgrade`: the release manifest and the pinned images.'],
             ['feature' => 'tunnel', 'active' => $settings->tunnel(), 'contacts' => $settings->tunnel() ? ['Cloudflare (trycloudflare.com quick tunnel)'] : [],
                 'purpose' => 'Only while `fsa tunnel start` runs one (4 hours unless renewed): cloudflared connects out to Cloudflare, which serves the instance under a random *.trycloudflare.com name.'],
-            ['feature' => 'update_check', 'active' => false, 'contacts' => [],
-                'purpose' => 'Off by default; arrives with 2.0.0 and then contacts the release list only when switched on.'],
+            ['feature' => 'update_check', 'active' => $updates !== null, 'contacts' => $updates === null ? [] : [$updates],
+                'purpose' => 'Off by default (`fsa config set update-check on`): once a day the app reads the newest release manifest, with no instance identifier, and /platform shows whether an update is available.'],
         ];
 
         return [

@@ -320,3 +320,24 @@
 - Install run 1: J10 service list predated the backup service (fixed 76bad60). Run 1's evidence lost to a broad
   `git checkout` of evidence/ (L159); run 2 regenerated it (132/140, one J10 ERR_NETWORK_CHANGED, rerun 9/9).
 - J1+J12 amd64 8/8; E2E 79 passed twice; LocalPreReleaseTest 2.0.0-rc.1 7/7. Merge to main, tags local only.
+
+## 2026-10-20 M13-T01/T02: U20 and U21 merged
+- U20 (agent, worktree): /platform Instance page, `fsa config set update-check`, backup alert mails (R39), ADR 0089.
+  Merge 31a617d, suite 7341. U21 (agent): agent guide, 2.0 guides + 1.0 archive, J11 13/13, guide scan, ADR 0090.
+  Merge 511b3bb (docs aligned with U20), suite 7355.
+- J11 found a missing --identity-file bind-mounted as a root-owned host directory: fixed 0bcd910 (identity_unreadable).
+
+## 2026-10-20 M13-T03: U22 dogfooding, CI journeys, R39 check, J10 backup (branch m13-u22)
+- E2E against a local --demo instance (DogfoodE2ETest, E2E_TARGET/E2E_COMPOSE_PROJECT/MAILPIT_AUTH): 71 passed,
+  8 dev-stack-only skips (m7-sso 5, m7-saml 1, m4-onboarding 1, a11y SSO choice 1), Instance page axe passed.
+- Dev stack (as found, image predates U20): the 8 pass; only the U20 Instance step fails there (stale image).
+- release:check-pg-dump in release.yml and the harness (ADR 0091). CI install-journeys: Playwright, poppler, v1.0.0.
+- J10 13/13: backup at 1.0 volume unreclaimable 77.7 MiB of 128 (met), memory.peak 128.3 is page cache, no OOM.
+
+## 2026-10-20 M13-T04 gate
+- 5 gate reviewers: 2 high (D1 off-host APP key, A1 bare `fsa`), mediums/lows; fixed 9151b36, bee8620, 1843f97;
+  lows logged (QUESTIONS 75). Suite 7377; install journeys 150 passed / 7 skipped (1 h 44 m); J1 amd64 5/5;
+  dogfood E2E 71 passed; dev-stack E2E 79 (one builder-v2 flake in run 2, repeat 14/14).
+- R51: a fresh agent with only the guide ran every recipe (attempt 1: lab sheet lacked FSA_REGISTRY/FSA_TRUST_KEY).
+  15 + 11 findings, none high; one worktree agent fixed F1, F2, F4, F14 and the signature hint red-first plus the
+  guide (8bd1287). Suite 7387; J11 + J08 27/27. J10 API reviewer in_review 431 ms (QUESTIONS 74).

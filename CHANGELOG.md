@@ -5,9 +5,41 @@ All notable changes to this project are documented here. The format follows
 [Semantic Versioning](https://semver.org/) (0.x: the API and data model may still change).
 The Form Schema Spec has its own changelog in `spec/form-definition/1.0/CHANGELOG.md`.
 
-## [Unreleased]
+## 2.0.0 — unreleased
+
+form-schema-app 2.0 is installed and operated without a clone of the repository: one command installs a signed
+release, and the `fsa` tool configures, backs up, restores, upgrades, rolls back, resets and removes the instance,
+with JSON output and documented exit codes for agents and scripts. This entry lists what changed since 2.0.0-beta.1,
+including the 2.0.0-rc.1 local pre-release (built 2026-10-20, not published);
+the pre-release entries below list the rest of 2.0 (signed images and the release pipeline, `install.sh` and `fsa`,
+local, domain and proxy modes, mail capture and SMTP, demo data, phone HTTPS, the resource budget).
+
+Upgrading from 1.0: `fsa adopt <checkout>` (or `install.sh --adopt <checkout>`) moves a checkout install into a 2.0
+instance with its data; see [the install guide](docs/guide/install.md#adopt-a-10-install). The 1.0 guides stay in
+`docs/guide/archive/`.
 
 ### Added
+- **Instance page** — "Instanz" ("Instance") in `/platform`, operators only and read-only: problems first (a failed
+  or stale backup, low disk space, an available update, backups held only on this host), each with its `fsa`
+  command; then version and image digests, mode and URL, mail with the catcher link, the backup schedule and last
+  result, and disk usage (ADR 0089).
+- **Update check** — `fsa config set update-check on|off` (off by default). When on, the app reads the release
+  manifest once a day, sends nothing else, and shows "update available" with the notes link (https only) and
+  `fsa upgrade` on the instance page (ADR 0089).
+- **Backup alerts** — every active platform operator gets one e-mail per failed or stale backup, in their locale,
+  with the `fsa` command and a link to the instance page (checked hourly; R39).
+- **pg_dump release check** — the release workflow (and the local harness) runs `php artisan release:check-pg-dump`
+  and stops a release whose app image's `pg_dump` major is below the manifest's Postgres major on either platform, so
+  backups cannot fail on a newer server (R39, ADR 0091).
+- **Agent guide** — `docs/guide/agent-guide.md`, also a release asset: recipes for a local demo, sign-in links,
+  SMTP, backup and restore, upgrade, moving servers, a VPS install, phone HTTPS, a domain change and removal, each
+  with the exact commands, the JSON fields to read, the exit codes and the recovery fields of a failed command. Its
+  runnable blocks are executed against a locally built release by the install journey J11.
+- **Guides for 2.0** — the install, upgrade, backup and restore, configuration and troubleshooting guides are
+  rewritten for `install.sh` and `fsa`; the backup guide explains chain epochs and the ledger, the admin guide the
+  mail capture banner. The 1.0 checkout guides moved to `docs/guide/archive/`, marked as not for `fsa` instances.
+  The README quick start is the one-liner. A test checks that every `fsa` command, flag, environment variable and
+  relative link the guides name exists (ADR 0042).
 - **Backups** — every instance runs a `backup` service (the app image, container root with four capabilities, no
   Docker socket, the storage volume read-only) that backs up daily at 03:30 in the instance's time zone and keeps the
   newest 7 scheduled backups in `backups/`. A backup is the database dump, the storage volume, the portable settings,
@@ -163,6 +195,23 @@ The Form Schema Spec has its own changelog in `spec/form-definition/1.0/CHANGELO
   loss counts; restore, reset, adopt, uninstall).
 
 ### Fixed
+- `fsa restore <path>` with a path outside the instance directory answers exit 2 `backup_not_visible` (copy the backup
+  into `backups/`), as documented, instead of `backup_not_found`: from the ops container such a path never exists.
+- After `install.sh --from-backup`, the `fsa config set mail smtp …` command in `data.confirm_commands` carries the
+  old server's encryption and sender address too (host and port already), so a relay set up with
+  `--smtp-encryption none` no longer fails with exit 5 `test_mail_failed`; only `<account>` and `<file>` (the
+  password file) are left to fill in. `data.pending_mail` adds `encryption` and `from_address`.
+- `fsa config set` of a key that changes the URL (exit 6 without `--yes`) carries `data.question`, like `restore`,
+  `rollback`, `uninstall` and the other confirmations.
+- The command to repeat after a failed `fsa config set mail smtp` (exit 5 `data.command`) names `--password-file
+  <file>` when the password came from a file, instead of always `--password-stdin`.
+- The hint of exit 3 `manifest_signature_invalid` (install.sh and `fsa`) no longer says "retry later": stop, never use
+  another install.sh or release URL, never bypass the check; the same command again only when the message shows that
+  Sigstore could not be reached (as the agent guide says).
+- A missing `--identity-file` of `fsa restore` or `install.sh --from-backup` was turned into a root-owned directory at
+  that path by Docker; it is now refused before anything is mounted (exit 2 `identity_unreadable`, nothing changed).
+- A backup alert is retried at the next hourly check when no operator e-mail could be queued (queue or Valkey down),
+  instead of staying silent for 30 days.
 - Hints that sent you to `fsa install --from-backup … --dir <new directory>` (which the instance's `fsa` refuses for
   another directory) now name `install.sh --dir <new directory> --from-backup <backup>`; `fsa restore --abandon` hints
   carry `--yes` (ADR 0085 amendment).

@@ -46,14 +46,31 @@ final readonly class RestoreSource
             ! str_contains($argument, '/') => $this->directory->root.'/'.InstanceDirectory::BACKUPS_DIR.'/'.$argument,
             default => $this->directory->root.'/'.$argument,
         };
+        // The ops container sees only the instance directory: a path outside it is reported as such before its
+        // existence is checked, since from in here it never exists (R51 F1).
+        if (! $mountedElsewhere && ! str_starts_with($this->normalized($path).'/', $this->directory->root.'/')) {
+            throw new InvalidInput("{$path} lies outside the instance directory, which is all fsa restore can see.", 'backup_not_visible', 'Copy the backup into backups/ and run `fsa restore <name>`.');
+        }
         if (str_contains($path, '/../') || str_ends_with($path, '/..') || ! file_exists($path)) {
             throw new InvalidInput("There is no backup at {$path}.", 'backup_not_found', 'Run `fsa status` for the newest backups; a backup from elsewhere goes into backups/ first.');
         }
-        if (! $mountedElsewhere && ! str_starts_with($path.'/', $this->directory->root.'/')) {
-            throw new InvalidInput("{$path} lies outside the instance directory, which is all fsa restore can see.", 'backup_not_visible', 'Copy the backup into backups/ and run `fsa restore <name>`.');
-        }
 
         return $path;
+    }
+
+    /** The absolute path with `.` and `..` segments resolved lexically (links are not followed). */
+    private function normalized(string $path): string
+    {
+        $segments = [];
+        foreach (explode('/', $path) as $segment) {
+            match ($segment) {
+                '', '.' => null,
+                '..' => array_pop($segments),
+                default => $segments[] = $segment,
+            };
+        }
+
+        return '/'.implode('/', $segments);
     }
 
     /** The scratch directory of one restore, relative to the instance directory. */
@@ -98,6 +115,10 @@ final readonly class RestoreSource
         $mount = is_dir($source) ? $source : dirname($source);
         $volumes = [$mount.':'.$mount.':ro', $scratch.':'.$scratch];
         if ($identityFile !== null) {
+            // Docker creates a missing bind source as a root-owned directory on the host: check before mounting.
+            if (! is_file($identityFile) || ! is_readable($identityFile)) {
+                throw new InvalidInput("The identity file {$identityFile} is missing, unreadable or not a regular file.", 'identity_unreadable', 'Pass the path of the identity file that --identity-out of `fsa backup --encrypt` or `fsa config set backup-encryption on` wrote; nothing was changed.');
+            }
             $volumes[] = $identityFile.':'.$identityFile.':ro'; // the file alone, never its directory (often $HOME)
         }
         $input = json_encode(['passphrase' => $passphrase, 'keys' => $keys->hmacKeys()], JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);

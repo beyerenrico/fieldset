@@ -17,6 +17,7 @@ use App\Domain\Instance\Config\Appliers\OperatorEmailApplier;
 use App\Domain\Instance\Config\Appliers\PhoneHttpsApplier;
 use App\Domain\Instance\Config\Appliers\PortApplier;
 use App\Domain\Instance\Config\Appliers\TrustedProxyApplier;
+use App\Domain\Instance\Config\Appliers\UpdateCheckApplier;
 use App\Domain\Instance\Config\Appliers\UrlApplier;
 use App\Domain\Instance\Config\Appliers\WebhooksApplier;
 use App\Domain\Instance\Output\InvalidInput;
@@ -25,9 +26,8 @@ use App\Domain\Instance\State\InstanceState;
 use Illuminate\Contracts\Container\Container;
 
 /**
- * The keys of `fsa config set` (§7, R32, ADR 0077) and their appliers, one per key. Keys of later pre-releases are
- * known and refused with exit 2 and the release that brings them, so an agent following a newer guide gets a clear
- * answer instead of "unknown setting". `availability()` says per key where it applies and what to use instead
+ * The keys of `fsa config set` (§7, R32, ADR 0077) and their appliers, one per key; since 2.0.0 every key of R32
+ * (ADR 0089). `availability()` says per key where it applies and what to use instead
  * (`config show`, ADR 0078). `operator-email` changes the app's database, not the rendered stack, so it has its own
  * applier outside the render/verify/revert flow (ADR 0080).
  */
@@ -49,6 +49,7 @@ final readonly class ConfigKeys
         'backup-retention' => BackupRetentionApplier::class,
         'backup-encryption' => BackupEncryptionApplier::class,
         'webhooks' => WebhooksApplier::class,
+        'update-check' => UpdateCheckApplier::class,
     ];
 
     /** Keys whose change runs app-side only (no render, no rollout): key => applier. */
@@ -73,6 +74,7 @@ final readonly class ConfigKeys
         'backup-retention' => ['local', 'proxy', 'domain'],
         'backup-encryption' => ['local', 'proxy', 'domain'],
         'webhooks' => ['local', 'proxy', 'domain'],
+        'update-check' => ['local', 'proxy', 'domain'],
     ];
 
     /** Key => mode => the key that does the job there instead. */
@@ -84,17 +86,12 @@ final readonly class ConfigKeys
         'acme-ca' => ['local' => 'domain', 'proxy' => 'domain'],
     ];
 
-    /** Keys of R32 that later pre-releases bring => that release. */
-    public const array LATER = [
-        'update-check' => '2.0.0',
-    ];
-
     /** Keys whose value changes the instance URL in some mode: they need --yes and list what follows the URL. */
     public const array URL_KEYS = ['domain', 'url', 'port', 'mode', 'phone-https', 'lan-address'];
 
     public function __construct(private Container $container) {}
 
-    /** @throws InvalidInput exit 2 for an unknown key or one that arrives later */
+    /** @throws InvalidInput exit 2 for an unknown key */
     public function applier(string $key): SettingApplier
     {
         self::check($key);
@@ -104,8 +101,8 @@ final readonly class ConfigKeys
     }
 
     /**
-     * A key this version sets; else exit 2, `setting_not_available` (with the release) or `unknown_setting`. Checked
-     * before the value, so `fsa config set mail` says when mail arrives instead of asking for a value.
+     * A key this version sets; else exit 2, `unknown_setting` with the key list. Checked before the value. (The
+     * pre-releases refused keys of later ones with `setting_not_available`; 2.0.0 sets every key of R32, ADR 0089.)
      *
      * @throws InvalidInput
      */
@@ -114,11 +111,6 @@ final readonly class ConfigKeys
         if (array_key_exists($key, self::APPLIERS) || array_key_exists($key, self::DIRECT)) {
             return;
         }
-        $release = self::LATER[$key] ?? null;
-        if ($release !== null) {
-            throw new InvalidInput("`fsa config set {$key}` is not available in this version; it arrives with {$release}.", 'setting_not_available', 'Run `fsa config show` for the settings this version can change.');
-        }
-
         throw new InvalidInput(
             'Unknown setting'.(preg_match('/^[a-z0-9-]{1,40}$/D', $key) === 1 ? " [{$key}]" : '').'.',
             'unknown_setting',

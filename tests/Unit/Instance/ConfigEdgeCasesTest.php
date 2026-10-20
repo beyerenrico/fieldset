@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Domain\Instance\Config\Appliers\AcmeSettings;
 use App\Domain\Instance\Config\ConfigChange;
 use App\Domain\Instance\Config\ConfigRequest;
+use App\Domain\Instance\Config\MailOptions;
 use App\Domain\Instance\Docker\ContainerInfo;
 use App\Domain\Instance\Docker\ContainerSpec;
 use App\Domain\Instance\Docker\DockerCommandFailed;
@@ -58,6 +59,17 @@ it('names the command to repeat with every option, the CA root by reference', fu
     expect($request->commandLine())->toBe('fsa config set domain forms.example.com --acme-email ops@example.com --acme-ca https://ca.example.com/dir --acme-ca-root-file <the same file> --yes')
         ->and($request->toContext()['acme_ca_root'])->toHaveLength(64)
         ->and($request->sameAs([...$request->toContext(), 'value' => 'other.example.com']))->toBeFalse();
+});
+
+it('resumes a mail change whichever way the password arrives: file or stdin, and from a journal written before R51 F14', function (): void {
+    $fromFile = new ConfigRequest('mail', 'smtp', mail: new MailOptions(smtpHost: 'smtp.example.com', credentials: true, passwordFile: '/home/me/smtp-password'));
+    $fromStdin = new ConfigRequest('mail', 'smtp', mail: new MailOptions(smtpHost: 'smtp.example.com', credentials: true));
+    $otherHost = new ConfigRequest('mail', 'smtp', mail: new MailOptions(smtpHost: 'relay.example.com', credentials: true, passwordFile: '/home/me/smtp-password'));
+
+    expect($fromFile->sameAs($fromStdin->toContext()))->toBeTrue()
+        ->and($fromStdin->sameAs($fromFile->toContext()))->toBeTrue()
+        ->and($otherHost->sameAs($fromFile->toContext()))->toBeFalse()
+        ->and(ConfigRequest::fromContext($fromFile->toContext())?->commandLine())->toContain('--password-file /home/me/smtp-password');
 });
 
 it('drops a custom CA root when the directory becomes Let\'s Encrypt', function (string $ca): void {

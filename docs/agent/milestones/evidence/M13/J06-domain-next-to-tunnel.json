@@ -1,0 +1,22 @@
+{
+    "command": "fsa config set domain fsa-test-j06.test --yes --json",
+    "exit_code": 2,
+    "stdout": {
+        "schema_version": 1,
+        "command": "config",
+        "status": "failed",
+        "exit_code": 2,
+        "changed": false,
+        "data": [],
+        "secrets": [],
+        "warnings": [],
+        "errors": [
+            {
+                "code": "invalid_combination",
+                "message": "Phone HTTPS (tunnel) and domain mode exclude each other.",
+                "hint": "Stop the quick tunnel first with `fsa tunnel stop`, then change the mode.",
+                "retryable": false
+            }
+        ]
+    }
+}

@@ -1,0 +1,90 @@
+{
+    "command": "fsa restore <encrypted backup> --identity-file <work>/j08-identity.age --passphrase-file <work>/j08-passphrase.txt --yes --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "restore",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": true,
+        "data": {
+            "backup": "manual-20261020T211310Z",
+            "format": "fsa",
+            "authenticated": true,
+            "encrypted": true,
+            "created_at": "2026-10-20T21:13:10Z",
+            "backup_version": "2.0.0-alpha.1-test",
+            "url": "http://localhost:8081",
+            "storage_volume": "fsa-fsa-test-j08-f495_app-storage-rd14bc372d452",
+            "epoch": 3,
+            "previous_epoch": 2,
+            "carried": {
+                "users_erased": 0,
+                "users_deactivated": 0,
+                "users_missing": 0,
+                "passwords": 0,
+                "mfa": 0,
+                "emails": 0,
+                "email_conflicts": 0,
+                "export_directories": [],
+                "devices_revoked": 0,
+                "devices_wiped": 0,
+                "memberships_deactivated": 0,
+                "roles_removed": 0,
+                "permissions_removed": 0,
+                "tokens_deleted": 0,
+                "operators_revoked": 0,
+                "external_identities_deleted": 0,
+                "identity_provider_mappings_deleted": 0,
+                "identity_providers_deleted": 0,
+                "identity_providers_updated": 0,
+                "sso_domains_deleted": 0,
+                "sso_domains_unverified": 0,
+                "group_memberships_removed": 0,
+                "form_access_removed": 0,
+                "organizations_deleted": 0,
+                "webhook_endpoints_deleted": 0,
+                "webhook_endpoints_deactivated": 0
+            },
+            "carry_mode": "audit",
+            "carry_skipped": {
+                "passwords": 1
+            },
+            "cascade_skipped": [],
+            "sequences": {
+                "sequences": 3,
+                "number_sequences": 1
+            },
+            "cleared": {
+                "sessions": 2,
+                "remember_tokens": 0,
+                "password_reset_tokens": 1,
+                "login_links": 1
+            },
+            "decrypt": {
+                "tested": 1,
+                "failed": []
+            },
+            "safety_backup": "safety-restore-20261020T211927Z",
+            "safety_backup_sealed": true,
+            "keys_added": [],
+            "valkey_flushed": true,
+            "left_behind": [],
+            "webhooks": "paused"
+        },
+        "secrets": [],
+        "warnings": [
+            {
+                "code": "carry_partial",
+                "message": "The security-state carry left changes it could not attribute to an administrator after the backup: passwords: 1.",
+                "hint": "Check accounts, SSO, access and webhooks in the admin panel; ADR 0085 describes when the carry compares states and when it follows the audit log."
+            },
+            {
+                "code": "webhooks_paused",
+                "message": "Workflow webhooks are paused: restored runs could repeat deliveries made after the backup.",
+                "hint": "Check the webhook receivers, then run `fsa config set webhooks on`."
+            }
+        ],
+        "errors": []
+    }
+}

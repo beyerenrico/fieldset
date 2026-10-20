@@ -40,7 +40,7 @@ use Illuminate\Console\Attributes\Signature;
 #[Description('Show the settings (secrets redacted) or change one: fsa config show | fsa config set <key> <value>')]
 #[Signature('fsa:config
         {action : show, or set}
-        {key? : For set: domain, url, port, trusted-proxy, mode, acme-email, acme-ca, mail, phone-https, lan-address, operator-email, backup-schedule, backup-retention, backup-encryption or webhooks}
+        {key? : For set: domain, url, port, trusted-proxy, mode, acme-email, acme-ca, mail, phone-https, lan-address, operator-email, backup-schedule, backup-retention, backup-encryption, webhooks or update-check}
         {value? : For set: the new value}
         {--acme-email= : config set domain: contact address for the ACME account}
         {--acme-staging : config set domain: Let\'s Encrypt staging (untrusted certificates; for trials)}

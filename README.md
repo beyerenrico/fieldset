@@ -10,9 +10,9 @@ tablet (also offline) to produce reports, invoices, checklists and other documen
 - **Form Schema Spec** — open, versioned JSON format for form definitions (`spec/`, MIT) with PHP and
   JavaScript SDKs (`packages/`, MIT)
 
-> Status: **1.0.0** — the first stable release: everything from 0.2 plus single sign-on, the canvas
-> builder, the audit log, GDPR tools and security hardening. See [CHANGELOG.md](CHANGELOG.md), the
-> [1.0.0 release notes](docs/releases/1.0.0.md) and the [guides](docs/guide/index.md).
+> Status: **2.0** — distributed as signed Docker images and installed, configured, backed up and upgraded with
+> one command-line tool, `fsa`. See [CHANGELOG.md](CHANGELOG.md) and the [guides](docs/guide/index.md). 1.0 installs
+> from a clone of the repository move to 2.0 with `fsa adopt`.
 
 ## What you can do
 
@@ -46,15 +46,33 @@ tablet (also offline) to produce reports, invoices, checklists and other documen
   own rate limit.
 - **Security and operations** — a Content Security Policy per area, HSTS, admin session timeouts,
   trusted proxies and a host allow-list, optional ClamAV upload scanning, JSON logs, Sentry-compatible error reporting, the
-  `/platform` operator panel with health checks and audited impersonation, backup and restore-drill
-  scripts.
+  `/platform` operator panel with health checks and audited impersonation, scheduled and encrypted backups,
+  restore drills, upgrades with automatic rollback.
 
 ## Quick start
 
-**Production:** follow the [install guide](docs/guide/install.md). It starts from
-`.env.production.example` and covers the reverse proxy, `TRUSTED_PROXIES`, mail and backups.
+On a server or your own computer with Docker:
 
-**Try it locally with Docker** (development settings, Mailpit catches all mail):
+```bash
+curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/form-schema-app/releases/latest/download/install.sh | sh -s -- --org "Example Ltd" --owner-email owner@example.com
+```
+
+This verifies the release signature, installs a local instance and prints its URL and a one-time sign-in link for the
+owner. Add `--domain forms.example.com --acme-email ops@example.com` for a public instance with HTTPS, or `--demo`
+for sample data. The [install guide](docs/guide/install.md) covers every mode; AI agents and scripts follow the
+[agent guide](docs/guide/agent-guide.md). Afterwards:
+
+```bash
+./fsa status                       # in the instance directory (or <dir>/fsa, or fsa once linked into PATH)
+./fsa login-link owner@example.com # a new sign-in link
+./fsa config set mail smtp …       # deliver mail instead of capturing it
+./fsa backup                       # a backup now (daily backups run by themselves)
+./fsa upgrade                      # to the newest release, with automatic rollback
+```
+
+## Development
+
+Try the source locally with Docker (development settings, Mailpit catches all mail):
 
 ```bash
 cp .env.example .env
@@ -88,15 +106,16 @@ Demo users (seeded with `php artisan db:seed`, password `password`): `owner@demo
 
 Checks: `vendor/bin/pint --test`, `vendor/bin/phpstan analyse --memory-limit=1G`,
 `vendor/bin/rector --dry-run`, `./scripts/coverage.sh`, `npm run typecheck lint test`,
-`npm run conformance`, `npm run e2e` (against the Docker stack).
+`npm run conformance`, `npm run e2e` (against the Docker stack). Releases: [RELEASING.md](RELEASING.md).
 
 ## Documentation
 
 Guides in [`docs/guide/`](docs/guide/index.md):
 
-- [Install (production, Docker Compose)](docs/guide/install.md) ·
-  [Upgrade from 0.x](docs/guide/upgrade.md) · [Backup and restore](docs/guide/backup-restore.md) · [Configuration](docs/guide/configuration.md) ·
-  [Troubleshooting](docs/guide/troubleshooting.md)
+- [Install](docs/guide/install.md) · [Agent guide](docs/guide/agent-guide.md) ·
+  [Upgrade](docs/guide/upgrade.md) · [Backup and restore](docs/guide/backup-restore.md) ·
+  [Configuration](docs/guide/configuration.md) · [Troubleshooting](docs/guide/troubleshooting.md) ·
+  [1.0 archive](docs/guide/archive/1.0-install.md)
 - [Admin guide](docs/guide/admin-guide.md) · [Field App guide](docs/guide/field-app-guide.md) ·
   [API and integrations](docs/guide/api.md)
 - [Changelog](CHANGELOG.md) · [Release notes](docs/releases/1.0.0.md) ·

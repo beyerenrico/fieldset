@@ -209,7 +209,7 @@ fsa_install_verify() { # <dir with the manifest and its bundle>: cosign verify-b
 	{ docker cp "$stage" "$cid:/verify" && docker start -a "$cid"; } >"$work/verify.log" 2>&1 || status=$?
 	docker rm -f "$cid" >/dev/null 2>&1 || true
 	[ "$status" = 0 ] || fsa_install_fail 3 manifest_signature_invalid "The release manifest signature does not match the signer built into install.sh: $(tail -n 1 "$work/verify.log")" \
-		'Install only releases published by the form-schema-app release workflow. If Sigstore was unreachable, retry later.'
+		'Install only releases published by the form-schema-app release workflow: never retry with another install.sh or release URL and never bypass this check. Only if the message shows that Sigstore (TUF, Rekor) could not be reached may the same command be run again later.'
 }
 
 fsa_install_read_manifest() { # <manifest>: sets release (version) and ref (app image by digest, FSA_REGISTRY applied)
@@ -262,6 +262,8 @@ fsa_install_usage() {
 	printf '  --yes answers every question and does not link fsa into PATH unless --link is given.\n'
 	printf '  --adopt <checkout> converts the 1.0 install in <checkout> into this new instance (fsa adopt --help).\n'
 	printf 'Flags of each command: fsa install --help, fsa <command> --help (without the PATH link: <dir>/fsa <command> --help).\n'
+	printf 'Guides: docs/guide/install.md and, for agents and scripts, docs/guide/agent-guide.md (also a release asset),\n'
+	printf '  in the repository https://github.com/beyerenrico/form-schema-app.\n'
 	printf 'FSA_RELEASE_URL, FSA_REGISTRY: mirrors.\n'
 	printf 'DOCKER_DEFAULT_PLATFORM=linux/amd64 or linux/arm64: pull and run that platform (another one runs emulated).\n'
 }

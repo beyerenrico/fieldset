@@ -1,6 +1,6 @@
 # Releasing form-schema-app
 
-First version (plan U7, M9). The release checklist and the agent guide are completed in M13 (U21).
+Written in M9 (plan U7), completed in M13 (U21) with the agent guide and the post-publish checklist.
 
 Publishing is a human step (BUILD_PROMPT_V2 E18, ADR 0064). The autonomous build never pushes a `v*` tag and
 never publishes to GHCR or GitHub Releases. It builds and tests every release locally with the harness
@@ -16,7 +16,8 @@ described below.
   - `shim.sh`;
   - `compose.stack.yaml`, the stack file for running without `fsa` (R18, ADR 0076). It is generated for every
     release from the manifest's pins, so it is not a file in the repository;
-  - the agent guide, once it exists;
+  - `agent-guide.md`, the agent guide (`docs/guide/agent-guide.md`; the manifest job adds it whenever the file
+    exists, and the sign job checks it against the tagged commit);
   - `manifest.schema.json` and `SHA256SUMS`.
 - The release manifest pins the app image and every third-party image (Postgres, Valkey, Gotenberg, Mailpit,
   Caddy, cloudflared) by digest, with sizes per platform. It also lists the asset checksums, the release-notes
@@ -76,8 +77,14 @@ image would then reject new releases.
 
 ## Publishing a release
 
-1. Make sure `main` holds the release: milestone gate passed, `CHANGELOG.md` updated, and
-   `distribution/install.sh` and `distribution/shim.sh` present. The workflow refuses to publish without them.
+1. Make sure `main` holds the release: milestone gate passed, `CHANGELOG.md` updated (the version's entry with its
+   date), and `distribution/install.sh` and `distribution/shim.sh` present. The workflow refuses to publish without
+   `install.sh` and `shim.sh` (it does not check the changelog). Before tagging, also run locally:
+   - the install journeys, J11 (the agent guide's doc-test) among them:
+     `vendor/bin/pest --testsuite=Install` (see [the harness](#building-and-testing-a-release-locally-harness));
+   - the guide checks in the fast suite (`tests/Unit/Docs`): every `fsa` command, flag, environment variable and
+     link the guides name exists (ADR 0042);
+   - the Trivy exception dates (see below).
 2. Tag and push:
 
    ```sh
@@ -93,7 +100,7 @@ image would then reject new releases.
    |---|---|
    | prepare | validates the tag (`release:version`) and computes the image tags |
    | image | buildx multi-arch build with `--sbom=true --provenance=mode=max`, pushed by digest only; `cosign sign --recursive` (keyless); verifies the identity |
-   | manifest | `php artisan release:manifest --stack-file=dist/compose.stack.yaml` (every image by digest; also renders the stack file from the same pins and lists it as an asset) with production dependencies only (`composer install --no-dev --no-scripts --no-plugins`); refuses a harness build of `install.sh`; **no OIDC token** |
+   | manifest | `php artisan release:manifest --stack-file=dist/compose.stack.yaml` (every image by digest; also renders the stack file from the same pins and lists it as an asset) with production dependencies only (`composer install --no-dev --no-scripts --no-plugins`); refuses a harness build of `install.sh`; then the R39 check `php artisan release:check-pg-dump` (the app image's `pg_dump` major must not be below the manifest's Postgres major, run on both platforms, arm64 under QEMU, after a read-only GHCR login; ADR 0091); **no OIDC token** |
    | sign | runs no PHP or Composer: checks that the manifest's `images.app` digest is the one the image job pushed, that every file except the manifest and `compose.stack.yaml` equals the tagged commit's, and that every asset the manifest lists matches its checksum there. The manifest must list `install.sh`, `shim.sh` and `compose.stack.yaml`; every `image:` line of the stack file must be a manifest pin in the form `${FSA_REGISTRY:-<registry>}/<repository>@<digest>`, and the stack file must not mount the Docker socket. Then `cosign sign-blob --bundle` for the manifest and `install.sh` (keyless) and writes `SHA256SUMS` |
    | scan | Trivy on the app image (no exceptions) and every third-party digest (only its own exception file, ADR 0071) on both platforms; a fixable critical or high finding fails the release |
    | tag | points the release's image tags at the scanned digest, and checks that the digest is unchanged |
@@ -174,13 +181,34 @@ docker run --rm -v "$PWD:/mnt:ro" -w /mnt koalaman/shellcheck:v0.11.0 docker/app
 
 ## Post-publish checklist
 
-None of these checks can run inside the autonomous build (§15.1). All of them are **not yet verified**.
+Run these checks after the release is out of draft and before announcing it. The release workflow
+already pulls every digest without credentials (`verify-public`) and compares the anonymously downloaded manifest
+(`finalize`); the checks below repeat that from outside GitHub's runners and cover what CI cannot. None of them can
+run inside the autonomous build (§15.1). All of them are **not yet verified**. The list ends with the six checks R52
+names.
 
-- [ ] GHCR package `form-schema-app` made public (irreversible), after the first pre-release passed review.
-      Not yet verified.
-- [ ] Every digest in `release-manifest.json` pulls anonymously on amd64 and arm64 (`verify-public` is green).
-      Not yet verified.
-- [ ] `cosign verify` with the pinned identity passes, run from a machine outside CI:
+- [ ] A real provider's SMTP server with `fsa config set mail smtp`, once with STARTTLS (port 587) and once with
+      implicit TLS (`--smtp-encryption tls`, port 465): the test mail arrives and so does an invitation. J4 covers
+      only Mailpit over plain SMTP with AUTH (ADR 0080). Not yet verified.
+- [ ] The German capture banner read by a real screen reader (VoiceOver or NVDA): the region's name, both
+      variants' text and the operator command (ADR 0080). Not yet verified.
+- [ ] **Stable releases only:** the `/platform` instance page's update check (when turned on) finds the published
+      release and shows its notes link. The check reads `latest/download/`, which never points to a pre-release, so a
+      pre-release cannot pass this check. Not yet verified.
+- [ ] **GHCR package public.** The package `form-schema-app` is public (irreversible), made public only after the
+      first pre-release passed review. Not yet verified.
+- [ ] **Anonymous pull of every digest.** Logged out of GHCR (`docker logout ghcr.io`), every image digest in the
+      release's `release-manifest.json` pulls on amd64 and on arm64:
+
+  ```sh
+  curl -fsSLO https://github.com/beyerenrico/form-schema-app/releases/download/v<ver>/release-manifest.json
+  jq -r '.images[] | "\(.registry)/\(.repository)@\(.digest)"' release-manifest.json | while read -r ref; do
+    docker pull --platform linux/amd64 "$ref" && docker pull --platform linux/arm64 "$ref"
+  done
+  ```
+
+  Not yet verified.
+- [ ] **`cosign verify` with the pinned identity**, run from a machine outside CI:
 
   ```sh
   cosign verify ghcr.io/beyerenrico/form-schema-app@<digest> \
@@ -193,18 +221,15 @@ None of these checks can run inside the autonomous build (§15.1). All of them a
   ```
 
   These are the flags `install.sh` (`fsa_install_trust()`) and `fsa` (`SignerIdentity`) verify the manifest with
-  (ADR 0070).
-
-  Not yet verified.
-- [ ] One-liner install on a throwaway VPS in domain mode against Let's Encrypt staging (a pre-release needs the
-      `download/v<ver>` form with `--version`, see [Installing a release](#installing-a-release)). Not yet verified.
-- [ ] A real cloudflared quick tunnel (`fsa tunnel start`) reached from a phone: the hostname read from
+  (ADR 0070). Not yet verified.
+- [ ] **One-liner install on a throwaway VPS against Let's Encrypt staging:** domain mode with `--acme-staging`
+      (a pre-release needs the `download/v<ver>` form with `--version`, see [Installing a release](#installing-a-release)),
+      then the owner's sign-in link, `fsa status`, `fsa backup`, and `fsa config set acme-ca production` once the
+      staging certificate was issued. Follow the shipped `agent-guide.md`'s "VPS install" recipe. Not yet verified.
+- [ ] **A real tunnel.** A cloudflared quick tunnel (`fsa tunnel start`) reached from a phone: the hostname read from
       `/quicktunnel`, what cloudflared forwards to the app (Host, `X-Forwarded-*`), and throttling, since every
       tunnel client shares cloudflared's address for throttles and audit IPs (ADR 0082). Not yet verified.
-- [ ] The local CA trusted on one iOS device and one Android device, and the Field App installs and syncs.
+- [ ] **The local CA on one iOS and one Android device** (`fsa config set phone-https local-ca`): the trust page,
+      the CA installed and trusted, then the Field App installs to the home screen, works offline and syncs.
       Not yet verified.
-- [ ] A real provider's SMTP server with `fsa config set mail smtp`, once with STARTTLS (port 587) and once with
-      implicit TLS (`--smtp-encryption tls`, port 465): the test mail arrives and so does an invitation. J4 covers
-      only Mailpit over plain SMTP with AUTH (ADR 0080). Not yet verified.
-- [ ] The German capture banner read by a real screen reader (VoiceOver or NVDA): the region's name, both
-      variants' text and the operator command (ADR 0080). Not yet verified.
+

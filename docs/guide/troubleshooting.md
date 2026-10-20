@@ -1,175 +1,82 @@
 # Troubleshooting
 
-Start with the general checks, then find your symptom below. Commands assume the Docker Compose
-installation from the [install guide](install.md), run in the project directory.
-
-Contents:
-- [General checks](#general-checks)
-- [The stack does not start](#the-stack-does-not-start)
-- [The dashboard looks broken behind HTTPS](#the-dashboard-looks-broken-behind-https)
-- [Every page answers 400 Bad Request](#every-page-answers-400-bad-request)
-- [PDFs are not created (Gotenberg)](#pdfs-are-not-created-gotenberg)
-- [Mail is not sent](#mail-is-not-sent)
-- [The queue does not run](#the-queue-does-not-run)
-- [The scheduler does not run](#the-scheduler-does-not-run)
-- [Field App](#field-app)
-- [Single sign-on](#single-sign-on)
-- [Login throttling and lockouts](#login-throttling-and-lockouts)
-- [Uploads are refused by the malware scan](#uploads-are-refused-by-the-malware-scan)
-- [Audit log](#audit-log)
+For an instance installed with `install.sh` and managed with `fsa`. Start with the general checks, then find your
+symptom below. The 1.0 guide for checkout installs is in the [archive](archive/1.0-troubleshooting.md).
 
 ## General checks
 
-```bash
-docker compose ps                                     # app and queue "healthy", scheduler and gotenberg running
-docker compose logs --since 30m app queue scheduler   # JSON logs, one object per line
-curl -fsS http://127.0.0.1:8080/up                    # the application boots (not a database check)
-docker compose exec queue php artisan horizon:status  # "Horizon is running."
-docker compose exec app php artisan queue:failed      # failed jobs
-docker compose exec app php artisan schedule:list     # scheduled tasks and their next run
-docker compose exec app php artisan migrate:status    # every migration "Ran"
+```sh
+fsa status            # health of every service, URL, mail, backups, an unfinished operation
+fsa doctor --post     # Docker, memory, disk, ports, DNS, clock, and every service healthy
+fsa logs app          # also queue, scheduler, postgres, redis, gotenberg, mailpit, backup, edge, tunnel
+fsa logs app --since 30m --tail 0
 ```
 
-Platform operators (the owner created by `app:install`, others granted with `php artisan app:platform-admin`)
-can open the Horizon dashboard at `/horizon` after signing in at `/platform/login` (password and MFA) to see
-queues, failed jobs and their errors; an `/admin` session alone is not enough. Platform operators see the same
-checks on one page at `/platform` → "Zustand" ("Health"): Horizon, failed jobs, Gotenberg, mail,
-scheduler and disk space.
+Every `fsa` command exits with a documented code and, with `--json`, prints one JSON document; the
+[agent guide](agent-guide.md#exit-codes-and-recovery) explains them. The most important rule: when a command stopped
+half-way, `fsa status` and every other command name the command that continues it (exit 9
+`operation_unfinished`). Run exactly that command; do not repair by hand with `docker` commands.
 
-If logs are missing from `docker compose logs`, `.env` probably has `LOG_CHANNEL=stack` with
-`LOG_STACK=single` from `.env.example`; the logs are then in `storage/logs/laravel.log` inside each
-container. Set `LOG_STACK=json` (as in `.env.production.example`) and recreate the containers.
+## The install or a command fails before it starts
 
-After any change to `.env`: `docker compose up -d --force-recreate app queue scheduler`.
-
-## The stack does not start
-
-| Symptom (logs) | Cause and fix |
+| Answer | Cause and fix |
 |---|---|
-| `SSO_ALLOW_INSECURE_IDP and SSO_DNS_DRIVER=config are not allowed in production.` | `compose.dev.yaml` is loaded (through `COMPOSE_FILE` in `.env`) or `.env` sets these values. Set `COMPOSE_FILE=compose.yaml`, `SSO_ALLOW_INSECURE_IDP=false`, `SSO_DNS_DRIVER=dns`. |
-| `No application encryption key has been specified.` | `APP_KEY` is empty. Restore it from your secret store; generate a new one only for a new, empty installation. |
-| `postgres` exits on the first start with `role "form_schema" does not exist` | `compose.dev.yaml` is loaded, whose test-database script expects the user `form_schema`, and `DB_USERNAME` is different. Set `COMPOSE_FILE=compose.yaml`, remove the half-initialized volume (`docker compose down`, then `docker volume rm form-schema-app_pg-data`, only on a new installation without data) and start again. |
-| `queue` or `scheduler` restart a few times right after the first start | They started before `app` finished the migrations. They recover on their own. |
-| `app` is unhealthy and the logs show a database error | Check `DB_PASSWORD` against the password the database volume was created with; changing it in `.env` does not change the database. |
+| exit 10 `docker_missing`, `docker_unavailable` | Docker is not installed, not running, or you may not use its socket. Start Docker (or add your user to the `docker` group) and run the command again. |
+| exit 10 `docker_too_old` | Docker Engine older than 24. Upgrade Docker. |
+| exit 3 `doctor_failed` | `data.checks` (or the human output) names the failed check and its fix: `ports` (a port is in use: pick another `--port`, or stop what uses 80/443), `dns` (the domain does not point to this host yet), `disk`, `memory`, `clock`, `registry` (images cannot be pulled), `path_sharing`. |
+| exit 3 `path_not_shared` | On Docker Desktop the instance directory is not shared with Docker. Use a directory under your home directory, or add its parent in Docker Desktop's file-sharing settings. |
+| exit 3 `verify_failed`, `manifest_signature_invalid` | The release manifest did not verify. Do not work around it: download again; if it persists, report it. |
+| exit 7 `project_conflict` | Another instance or a leftover uses the same Compose project. `fsa uninstall --orphans <uuid>` removes the leftovers of an instance whose directory is gone. |
+| exit 9 `instance_locked` | Another `fsa` command or a backup runs. Wait. |
 
-## The dashboard looks broken behind HTTPS
+## The site answers 503
 
-Symptoms: the admin dashboard loads without styles or does not react, the browser console reports
-"mixed content", SSO redirect URIs start with `http://`, or all users share one login rate limit.
+The maintenance gate is up: an upgrade, restore, rollback, reset or adopt is running or stopped half-way.
+`fsa status` shows `operation`. Let it finish, or run the command it names. After exit 8 (rollback failed) the
+instance stays behind the gate on purpose: follow `errors[0].hint` of that result.
 
-Cause: the application does not trust the reverse proxy, so it sees plain HTTP and the proxy's IP
-address. `TRUSTED_PROXIES` must contain the address the proxy connects from. For a reverse proxy on the
-host that connects to `127.0.0.1:8080`, that is the Docker bridge range `172.16.0.0/12` from
-`.env.production.example`. An empty value trusts no proxy. Recreate the containers after the change.
-Details: [install guide, step 5](install.md#5-reverse-proxy-and-tls).
+## No certificate in domain mode
 
-Also check that `APP_URL` starts with `https://`, and that the proxy forwards the `Host` header and sets
-`X-Forwarded-Proto`.
+`fsa status` shows the URL, and `fsa logs edge` shows Caddy's attempts to get a certificate. Common causes: the DNS
+record does not point to this host (yet), port 80 or 443 is blocked by a firewall, or Let's Encrypt's rate limits
+after many attempts (use `fsa config set acme-ca staging` while testing). An instance moved with `--from-backup`
+reports "certificate pending" until DNS points to it.
 
-**The reverse proxy cannot reach the app.** `compose.yaml` publishes the app port on `127.0.0.1` only,
-so the proxy must run on the same host and connect to `127.0.0.1:<APP_PORT>`. `APP_PORT` is a port
-number only; a value such as `127.0.0.1:8080` from older guides breaks the port mapping.
+## Links point to the wrong host, or the dashboard looks broken behind a proxy
 
-## Every page answers 400 Bad Request
+In proxy mode the app trusts forwarded headers only from exactly one address: the proxy container (`traefik`,
+`caddy`) or the instance network's gateway (`port`). If the proxy was recreated with a new address, `fsa status` and
+`fsa doctor` warn `proxy_address_changed`; `fsa config set trusted-proxy auto` follows it. Give the proxy a fixed
+address on the shared network to avoid it. The instance's URL is `fsa config set url <origin>`.
 
-Unless `APP_ENV` is `local` or `testing`, the application answers only to the host name of `APP_URL`,
-loopback names and the names in `TRUSTED_HOSTS`. Any other `Host` header, or `X-Forwarded-Host` from a
-trusted proxy, gets 400. Fix `APP_URL`, or add the extra name to `TRUSTED_HOSTS` (comma-separated), then
-recreate the containers.
+## Mail is not delivered
 
-## PDFs are not created (Gotenberg)
+A new instance captures mail: everything lands in the mail catcher and the admin dashboard shows a "mail is captured"
+banner. That is intended until you configure SMTP: `fsa config set mail smtp …` (see
+[configuration](configuration.md#mail)). The catcher's address is in `fsa status` (`mail.catcher_url`); its login
+comes from `fsa config show --catcher-login --secrets-file <file>`.
 
-**"Das PDF wird erstellt …" ("The PDF is being created…") does not go away.** PDFs are created by the
-queue. Check [the queue](#the-queue-does-not-run) first. The scheduler's `documents:sweep` re-dispatches
-PDFs that are missing after 10 minutes, so a short queue outage heals by itself.
+With SMTP configured, a mail that does not arrive shows its error in the organization's mail log ("E-Mail-Protokoll").
+`fsa config set mail smtp` with the same settings sends a new test mail. Exit 5 `test_mail_failed` quotes the
+server's answer: wrong login, a sender the server does not allow (`--from-address`), or STARTTLS required where the
+server offers none.
 
-**The submission shows "PDF-Erzeugung fehlgeschlagen" ("PDF generation failed")** in the admin inbox
-under "Dokumente". There is no separate notification for this; the Field App shows that the office was
-informed. The panel names the reason:
-- "Das Dokument ist zu groß für die PDF-Erzeugung (zu viele oder zu große Fotos)." The document with all
-  its photos exceeds the render budget (`DOCUMENTS_MAX_REQUEST_BYTES`, 25 MB). Use fewer or smaller
-  photos, or raise the budget together with Gotenberg's `--api-body-limit` (30 MB in `compose.yaml`).
-- "Der PDF-Dienst konnte das Dokument auch nach mehreren Versuchen nicht erzeugen." Gotenberg was
-  unreachable or failed on three attempts in a row. Check Gotenberg:
+## PDFs are not created
 
-  ```bash
-  docker compose ps gotenberg
-  docker compose logs --since 1h gotenberg
-  docker compose exec app curl -fsS http://gotenberg:3000/health     # {"status":"up",…}
-  ```
+PDFs are rendered by the `gotenberg` service after a submission, in the queue. Check `fsa status` (gotenberg and queue
+healthy) and `fsa logs gotenberg` and `fsa logs queue`. The `/platform` health page shows Gotenberg and the queue too.
 
-  `app` and `queue` reach Gotenberg over the internal `renderer` network; `GOTENBERG_URL` must stay
-  `http://gotenberg:3000`. Gotenberg has no internet access on purpose.
+## The queue or the scheduler does not run
 
-After fixing the cause, click "PDF neu erzeugen" ("Re-render PDF") on the submission. Customer emails
-that were waiting for the failed PDF were not sent; send them again after the new PDF exists.
-
-**"PDF-Vorschau" ("Preview PDF") fails** with "Die Vorschau konnte nicht erzeugt werden." The preview is
-rendered while you wait, so the same Gotenberg checks apply.
-
-## Mail is not sent
-
-Look at "E-Mail" → "E-Mail-Protokoll" ("Mail log") in the dashboard:
-
-| Status | Meaning and fix |
-|---|---|
-| "In Warteschlange" ("Queued") for minutes | The queue is not running ([below](#the-queue-does-not-run)). A mail whose earlier attempt failed temporarily also waits here for the next attempt. |
-| "Fehlgeschlagen" ("Failed") | Open the mail to see the error, fix the cause, then "Erneut senden" ("Send again"). Mail is tried 3 times before it fails. |
-| "Fehlgeschlagen" with "Delivery was interrupted; the mail may or may not have been sent." | A worker stopped while sending. Check with the recipient before sending again. |
-| "Gesendet" ("Sent") but nothing arrived | The SMTP server accepted it. Check the spam folder and the SPF/DKIM/DMARC records of `MAIL_FROM_ADDRESS`'s domain. |
-
-Common causes:
-- `MAIL_MAILER` is not set: the default `log` writes mails to the log instead of sending them.
-- Wrong `MAIL_HOST`, `MAIL_PORT` or credentials: the error is in the mail log or the container logs.
-- An organization's own SMTP server: "Dieser Mailserver ist nicht erlaubt. Er muss über eine öffentliche
-  Adresse erreichbar sein." means it resolves to a private address; only public servers on ports 25,
-  465, 587 and 2525 are allowed.
-- "Test-E-Mail senden" only queues the mail; the result appears in the mail log, and only if the queue
-  runs.
-
-Invitations and password-reset mails do not appear in the mail log. Look for errors in
-`docker compose logs app queue`.
-
-## The queue does not run
-
-Symptoms: PDFs stay "being created", mails stay "In Warteschlange", workflows do not start,
-notifications and exports do not arrive, PDF imports never finish.
-
-```bash
-docker compose ps queue
-docker compose exec queue php artisan horizon:status   # running, paused or inactive
-docker compose logs --since 1h queue
-docker compose up -d --force-recreate queue
-```
-
-- `QUEUE_CONNECTION` must be `redis`; with the framework default `database`, jobs go to a table that
-  Horizon does not work.
-- Exports pending but everything else works: the `supervisor-exports` supervisor is missing. Recreate
-  the `queue` container with the current image. It runs one export at a time, so a large export delays
-  the next.
-- Failed jobs: `docker compose exec app php artisan queue:failed`, then retry with
-  `php artisan queue:retry <id>` or in the Horizon dashboard.
-- `DOCUMENTS_QUEUE`, `MESSAGING_QUEUE` or `WORKFLOWS_QUEUE` set to a custom name: no supervisor works that
-  queue unless you add one to `config/horizon.php`.
-
-## The scheduler does not run
-
-Symptoms: scheduled workflows and review reminders stop, scheduled report emails do not arrive, export
-files are not deleted, missing PDFs are not re-dispatched, SSO health checks stop.
-
-```bash
-docker compose ps scheduler
-docker compose logs --since 1h scheduler
-docker compose exec app php artisan schedule:list
-```
-
-The `scheduler` service has no health check, so check its logs: `workflows:tick` runs every minute.
+`fsa status` shows `queue` and `scheduler`. Both stop on purpose while an operation holds the maintenance gate. If
+they stopped otherwise, `fsa logs queue` or `fsa logs scheduler` says why; `fsa doctor --post` fails while a service
+is unhealthy. Backups need the `backup` service; `fsa status` warns when it does not run.
 
 ## Field App
 
-**Work stays "Wartet auf Synchronisierung" ("Waiting to sync").** The device tries every minute while
-the app is open, on reconnect and on "Jetzt synchronisieren" ("Sync now"), with longer pauses (up to 15
-minutes) after errors. Ask the worker what the header shows:
+**Work stays "Wartet auf Synchronisierung" ("Waiting to sync").** The device tries every minute while the app is
+open, on reconnect and on "Jetzt synchronisieren" ("Sync now"), with longer pauses (up to 15 minutes) after errors.
+Ask the worker what the header shows:
 
 | Header or message | Cause | What to do |
 |---|---|---|
@@ -178,109 +85,73 @@ minutes) after errors. Ask the worker what the header shows:
 | "Nicht gespeichert – der Speicher dieses Geräts ist voll." | The device is out of storage. | Free space; sync; install the app. |
 | Nothing, the app is just offline | No connection. On iPhone and iPad the app only syncs while it is open. | Open the app once online. |
 
-What an administrator can check:
-- whether the submission already arrived in "Einreichungen";
-- server errors (5xx) or rate limiting (429) in `docker compose logs app`;
-- the queue, because the PDF and the customer email follow the sync;
-- `SESSION_LIFETIME` (43200 minutes keeps devices signed in for 30 days).
+What an administrator can check: whether the submission already arrived in "Einreichungen"; server errors or rate
+limiting in `fsa logs app`; the queue, because the PDF and the customer email follow the sync. Do not use "Geräte
+sperren" ("Revoke devices") to fix a stuck device: the device then deletes all local data, including unsent work.
 
-Do not use "Geräte sperren" ("Revoke devices") to fix a stuck device: the device then deletes all local
-data, including unsent work.
+**The app does not offer to install, or offline mode does not work.** The app must be opened over HTTPS: a domain
+instance, `fsa config set phone-https local-ca` (the phone must trust the instance's CA first, see its trust page),
+or `fsa tunnel start`. On iPhone and iPad, install from Safari's share menu.
 
-**Sign-in does not stick, or every request fails right after sign-in.** Check that the host name of
-`APP_URL` is in `SANCTUM_STATEFUL_DOMAINS`, that `SESSION_SECURE_COOKIE=true` is only used over HTTPS,
-and that the Field App is opened on the same host as `APP_URL`.
+**The phone does not reach the local instance.** The phone must be in the same network as the computer, and the
+computer's firewall must allow the HTTPS port. `fsa status` shows `phone_https.lan_address`; if the computer's
+address changed, `fsa config set lan-address <IPv4>`.
 
-**"Die Formulare sind offline noch nicht verfügbar."** The device has not downloaded the forms yet;
-connect once.
-
-**The app does not offer to install, or offline mode does not work.** The site must be served over
-HTTPS. On iPhone and iPad, install from Safari's share menu.
+**"Die Formulare sind offline noch nicht verfügbar."** The device has not downloaded the forms yet; connect once.
 
 ## Single sign-on
 
-**Administrators get "Single Sign-on erfordert Ihre Aufmerksamkeit: <provider>"** ("Single sign-on needs
-your attention"). The hourly provider check or the daily domain check failed; the SSO page shows the
-status "Fehler" ("Error") and the last error. The notification names the reason, for example:
-- the discovery document, the signing keys (JWKS) or the SAML metadata could not be loaded: check the
-  issuer or metadata URL and that the server can reach the provider over HTTPS;
-- issuer, tenant, audience or signature mismatches: compare the issuer, tenant ID and client ID with the
-  provider's settings; for SAML, the provider's signing certificate in its metadata;
-- `invalid_client`: the client secret is wrong or expired; enter a new one;
-- a domain lost its verification: the TXT record is gone or changed;
-- the break-glass Owner is no longer valid (deactivated, no longer Owner, or no two-factor
-  authentication), so enforcement has no emergency access.
+**Administrators get "Single Sign-on erfordert Ihre Aufmerksamkeit: <provider>"** ("Single sign-on needs your
+attention"). The hourly provider check or the daily domain check failed; the SSO page shows the status "Fehler"
+("Error") and the last error, for example: the discovery document, the signing keys or the SAML metadata could not be
+loaded (check the URL and that the server reaches the provider over HTTPS); issuer, tenant, audience or signature
+mismatches; `invalid_client` (the client secret is wrong or expired); a domain lost its verification; the break-glass
+Owner is no longer valid. The same problem is reported at most every 6 hours; the next successful check sets the status
+back to "Aktiv".
 
-The same problem is reported at most every 6 hours. Run the check by hand:
-`docker compose exec app php artisan sso:check-providers`. A successful check sets the status back to
-"Aktiv".
+**Users see the password step instead of the identity provider.** The email domain is not verified, or the provider is
+not active yet (run "Anmeldung testen", "Test sign-in").
 
-**Users see the password step instead of the identity provider.** The email domain is not verified, or
-the provider is not active yet (run "Anmeldung testen", "Test sign-in").
-
-**Domain verification fails.** "Kein TXT-Eintrag gefunden" ("No TXT record found"): the record is
-missing, not yet visible (DNS caching), or was created as
-`_form-schema-app-verification.example.com.example.com` because the DNS provider appended the domain;
-then enter only `_form-schema-app-verification` as the name.
+**Domain verification fails.** "Kein TXT-Eintrag gefunden" ("No TXT record found"): the record is missing, not yet
+visible (DNS caching), or was created as `_form-schema-app-verification.example.com.example.com` because the DNS
+provider appended the domain; then enter only `_form-schema-app-verification` as the name.
 
 **The provider reports an invalid redirect URI.** Register exactly the redirect URI shown on the SSO page
-(`https://<your server>/auth/sso/<id>/callback`). If it starts with `http://`, see
-[the HTTPS note](#the-dashboard-looks-broken-behind-https).
+(`https://<your server>/auth/sso/<id>/callback`). It follows the instance's URL: after
+`fsa config set domain` or `url`, register the new one.
 
-**Users come back with an error.** The login screen explains it; the codes are `sso_failed`,
-`sso_denied`, `account_inactive`, `not_member` (no membership and just-in-time provisioning is off),
-`domain_not_verified`, `email_unverified` (the provider does not mark the email as verified) and
-`provider_unavailable`.
+**Users come back with an error.** The login screen explains it; the codes are `sso_failed`, `sso_denied`,
+`account_inactive`, `not_member`, `domain_not_verified`, `email_unverified` and `provider_unavailable`.
 
-**"Ihre Organisation schreibt die zentrale Anmeldung vor."** ("Your organization requires single
-sign-on.") Password login is turned off for this domain. Only the break-glass Owner can still use a
-password. If the identity provider is down, the break-glass Owner signs in with password and two-factor
-code and can turn enforcement off.
+**"Ihre Organisation schreibt die zentrale Anmeldung vor."** ("Your organization requires single sign-on.") Only the
+break-glass Owner can still use a password; if the identity provider is down, they sign in with password and
+two-factor code and can turn enforcement off.
 
 ## Login throttling and lockouts
 
-| Where | Limit | Message |
-|---|---|---|
-| Field App password login | 5 attempts per minute per email address and IP | "Zu viele Versuche. Bitte warten Sie kurz und versuchen Sie es erneut." |
-| Field App two-factor code | 5 per minute | same |
-| Admin login, password step | 5 per minute per IP | "Zu viele Loginversuche. Bitte in … Sekunden nochmal versuchen." |
-| Admin login, email step | 10 per minute per IP | same |
-| SSO discovery (email step) | 10 per minute per email address and IP, 300 per minute per IP | |
-| Password reset | one email per user per minute | "Bitte warten Sie, bevor Sie es erneut versuchen." |
-| API | 240 requests per minute per integration token, otherwise per user (`API_RATE_LIMIT`) | 429 `too_many_requests` |
-| `/platform` login | 5 attempts per minute per IP | |
-
-The limits reset after a minute; waiting is the fix. Limits per IP assume the application sees the real
-client IP (see [the HTTPS note](#the-dashboard-looks-broken-behind-https)).
-
-**Lost two-factor device.** Sign in with one of the recovery codes, then set up two-factor
-authentication again in the profile.
-
-**Forgotten password.** "Passwort vergessen?" ("Forgot password?") on the admin login page
-(`/admin/login`) sends a reset link to any account, including field workers, who then sign in to the
-Field App with the new password; the Field App itself has no reset screen. Not available for addresses
-whose organization enforces SSO.
-
-**Signed out of the dashboard.** Admin sessions end after 30 minutes without activity and 12 hours after
-sign-in at the latest ([configuration](configuration.md#security-headers-and-proxies)). Sign in again.
-Field App sessions are not affected.
-
-## Uploads are refused by the malware scan
-
-Only when `UPLOADS_CLAMAV_ENABLED=true` ([configuration](configuration.md#submissions-and-uploads)).
-
-| Answer to the upload | Cause and fix |
+| Where | Limit |
 |---|---|
-| 503 `scanner_unavailable` | clamd did not answer. Check that it runs and that `UPLOADS_CLAMAV_HOST` and `UPLOADS_CLAMAV_PORT` are reachable from the `app` container. The Field App tries the upload again later. |
-| 422 `file_infected` | clamd found malware. The log has an `upload.infected` warning with the signature name, not the file. |
-| 422 `file_too_large` | The file is larger than clamd's `StreamMaxLength`. Raise that limit in clamd (attachments may be up to 25 MB). |
+| Field App password login | 5 attempts per minute per email address and IP |
+| Field App two-factor code | 5 per minute |
+| Admin login, password step | 5 per minute per IP |
+| Admin login, email step | 10 per minute per IP |
+| Password reset | one email per user per minute |
+| API | 240 requests per minute per integration token, otherwise per user |
+| `/platform` login | 5 attempts per minute per IP |
+| `fsa login-link` | exit 9 `rate_limited`: wait a minute |
+
+The limits reset after a minute; waiting is the fix. Limits per IP need the real client IP: in proxy mode, see the
+proxy section above. Quick-tunnel visitors all share the tunnel's address.
+
+**Lost two-factor device.** Sign in with a recovery code, then set up two-factor authentication again.
+
+**Forgotten password, or the owner cannot sign in.** "Passwort vergessen?" on `/admin/login` (only once mail is
+delivered), or on the server: `fsa login-link <email>` issues a one-time sign-in link for an admin.
 
 ## Audit log
 
-**`audit:verify` reports a problem.** See
-[When audit:verify fails](install.md#when-auditverify-fails). Right after an upgrade from 0.x it reports
-unsealed entries until `audit:seal` has sealed the older ones.
+**`activity_log is append-only` in the logs.** Something tried to change or delete audit entries, and the database
+refused it. That is the protection working.
 
-**`activity_log is append-only` in the logs.** Something tried to change or delete audit entries, and
-the database refused it. Retention pruning uses `audit:prune`. Do not use `activitylog:clean`: the
-database refuses it too.
+**The chain heads changed after a restore, rollback or reset.** Expected: these start a new chain epoch and record
+the old heads in `backups/ledger.log` and in an audit entry; see [chain epochs](backup-restore.md#chain-epochs-and-the-ledger).

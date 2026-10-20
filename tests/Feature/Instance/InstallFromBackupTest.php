@@ -69,6 +69,20 @@ it('moves a local backup to a new instance: its data, its portable settings, cap
         ->and($this->move->instance->docker->called('createVolume'))->toHaveCount(1);
 });
 
+it('confirms the backup\'s mail server with its encryption and sender, only the account and password left to fill in (R51 F2)', function (?string $scheme, string $encryption): void {
+    $backup = $this->move->backup('local', ['mail' => 'smtp', 'smtp_host' => 'relay.example.com', 'smtp_port' => 2525, 'smtp_scheme' => $scheme, 'mail_from_address' => 'forms@example.com', 'mail_from_name' => 'Example Forms']);
+
+    [$code, $json] = $this->move->install($backup, ['--app-key-file' => $this->move->keyFile()]);
+
+    expect($code)->toBe(0, (string) json_encode($json))
+        ->and($json['data']['pending_mail'])->toMatchArray(['host' => 'relay.example.com', 'port' => 2525, 'encryption' => $encryption, 'from_address' => 'forms@example.com'])
+        ->and($json['data']['confirm_commands'][1])->toBe("fsa config set mail smtp --smtp-host relay.example.com --smtp-port 2525 --smtp-encryption {$encryption} --from-address forms@example.com --smtp-username <account> --password-file <file>");
+})->with([
+    'none' => [InstanceSettings::SMTP_PLAIN, 'none'],
+    'tls' => [InstanceSettings::SMTP_IMPLICIT_TLS, 'tls'],
+    'starttls' => [null, 'starttls'],
+]);
+
 it('takes a new --domain whose DNS does not point here yet as "certificate pending" and verifies internally', function (): void {
     $backup = $this->move->backup('domain', ['domain' => 'old.example.com']);
 

@@ -1,0 +1,44 @@
+{
+    "guide_line": 308,
+    "guide_command": "~/forms/fsa config set webhooks on --json",
+    "command": "<work>/fsa-test-j11-forms/fsa config set webhooks on --json",
+    "exit_code": 0,
+    "seconds": 37.1,
+    "stdout": {
+        "schema_version": 1,
+        "command": "config",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": true,
+        "data": {
+            "key": "webhooks",
+            "from": "paused",
+            "to": "on",
+            "url": "http://localhost:8081",
+            "mode": "local",
+            "reverted": false,
+            "previous": {
+                "url": "http://localhost:8081",
+                "mode": "local"
+            },
+            "services": {
+                "recreated": [],
+                "added": [],
+                "removed": []
+            },
+            "checked": [
+                "/up",
+                "/admin/login",
+                "gotenberg /health"
+            ],
+            "impact": null,
+            "audited": true,
+            "next_commands": [
+                "<work>/fsa-test-j11-forms/fsa status"
+            ]
+        },
+        "secrets": [],
+        "warnings": [],
+        "errors": []
+    }
+}

@@ -172,6 +172,18 @@ jobs:
             "${assets[@]/#/--asset=}" --stack-file=dist/compose.stack.yaml --output=dist/release-manifest.json
           cp "${assets[@]}" distribution/manifest.schema.json dist/
           cat dist/release-manifest.json
+      # R39 (ADR 0091): backups fail when the image's pg_dump is older than the server, so the release stops here when
+      # the app image's pg_dump major (run once per platform, arm64 under QEMU) is below the manifest's Postgres major.
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+        with:
+          platforms: arm64
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check the app image's pg_dump against the manifest's Postgres major (R39)
+        run: php artisan release:check-pg-dump dist/release-manifest.json
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-unsigned

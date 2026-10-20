@@ -187,6 +187,15 @@ it('needs --yes for a URL change and lists the organizations with SSO and the li
         ->and(collect($done['warnings'])->pluck('code')->all())->toContain('sso_urls_changed');
 });
 
+it('carries the question in data next to its facts on exit 6, like every other confirmation (R51 F4, M12 gate O6)', function (): void {
+    [$code, $json] = $this->config->set('domain', ConfigFixture::DOMAIN);
+
+    expect($code)->toBe(6)
+        ->and($json['data']['question'] ?? null)->toBeString()
+        ->and('Confirmation required: '.$json['data']['question'])->toBe($json['errors'][0]['message'])
+        ->and($json['data'])->toHaveKeys(['from', 'to', 'change', 'impact']);
+});
+
 it('still asks when the impact cannot be read, and says so', function (): void {
     $this->config->instance->oneOffs['instance:url-impact'] = new ProcessOutcome(1, '', 'SQLSTATE[08006] could not connect');
 

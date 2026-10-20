@@ -17,6 +17,8 @@ use Throwable;
  * - tunnel.hostname: `^[a-z0-9-]+\.trycloudflare\.com$` with an expiry and cloudflared's address (tunnel.peer).
  * - gate: `raised` is required, so a file without a gate fails closed.
  * - webhooks.paused: optional (missing = not paused); true holds webhook steps after a move (ADR 0085).
+ * - instance, updates: optional display and update-check blocks (plan U20, ADR 0089). A malformed one counts as
+ *   absent instead of failing the file: the page says "unknown" and the update check stays off.
  */
 final class RuntimeDocument
 {
@@ -54,7 +56,21 @@ final class RuntimeDocument
             self::tunnel($document['tunnel'] ?? null),
             self::gate($document['gate'] ?? null),
             self::webhooksPaused($document['webhooks'] ?? null),
+            InstanceFacts::fromDocument($document['instance'] ?? null),
+            self::updateManifestUrl($document['updates'] ?? null),
         );
+    }
+
+    /** Whether a value is an http(s) URL of the runtime grammar (no userinfo, query, fragment or unsafe character). */
+    public static function isUrl(mixed $value): bool
+    {
+        try {
+            self::url($value, 'url');
+
+            return true;
+        } catch (InvalidRuntimeState) {
+            return false;
+        }
     }
 
     /** RFC 1123 host name (no wildcard, no trailing dot) or an IPv4/IPv6 address. */
@@ -168,6 +184,20 @@ final class RuntimeDocument
         }
 
         return self::flag($webhooks['paused'], 'webhooks.paused');
+    }
+
+    /**
+     * `updates` (plan U20, E15, ADR 0089): the release manifest URL the daily update check reads, only when the check is
+     * on (`fsa config set update-check on`); anything else, a malformed block included, keeps the check off.
+     */
+    private static function updateManifestUrl(mixed $updates): ?string
+    {
+        if (! is_array($updates) || ($updates['check'] ?? null) !== true) {
+            return null;
+        }
+        $url = $updates['manifest_url'] ?? null;
+
+        return self::isUrl($url) && is_string($url) ? $url : null;
     }
 
     private static function timestamp(mixed $value, string $field): ?CarbonImmutable

@@ -1,0 +1,22 @@
+{
+    "command": "fsa config set phone-https local-ca --yes --json",
+    "exit_code": 2,
+    "stdout": {
+        "schema_version": 1,
+        "command": "config",
+        "status": "failed",
+        "exit_code": 2,
+        "changed": false,
+        "data": [],
+        "secrets": [],
+        "warnings": [],
+        "errors": [
+            {
+                "code": "invalid_combination",
+                "message": "The local CA and the quick tunnel exclude each other (R61).",
+                "hint": "Stop the tunnel first: `fsa tunnel stop`.",
+                "retryable": false
+            }
+        ]
+    }
+}

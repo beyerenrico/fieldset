@@ -23,6 +23,7 @@ final readonly class MailOptions
         public ?string $testTo = null,
         public bool $removeCatcher = false,
         public bool $credentials = false,
+        public ?string $passwordFile = null,
     ) {}
 
     /** No SMTP flag at all (a test recipient alone changes nothing). */
@@ -39,6 +40,7 @@ final readonly class MailOptions
             'smtp_host' => $this->smtpHost, 'smtp_port' => $this->smtpPort, 'smtp_encryption' => $this->encryption,
             'from_address' => $this->fromAddress, 'from_name' => $this->fromName, 'remove_catcher' => $this->removeCatcher,
             'credentials' => $this->credentials,
+            ...($this->passwordFile !== null ? ['password_file' => $this->passwordFile] : []), // names the command to repeat, not the change
         ];
     }
 
@@ -48,11 +50,11 @@ final readonly class MailOptions
         $string = static fn (string $key): ?string => is_string($context[$key] ?? null) && $context[$key] !== '' ? $context[$key] : null;
 
         return new self($string('smtp_host'), $string('smtp_port'), $string('smtp_encryption'), $string('from_address'), $string('from_name'), null,
-            ($context['remove_catcher'] ?? false) === true, ($context['credentials'] ?? false) === true);
+            ($context['remove_catcher'] ?? false) === true, ($context['credentials'] ?? false) === true, $string('password_file'));
     }
 
     /**
-     * The flags of a command line to repeat (the credentials as placeholders: a user name and `--password-stdin`).
+     * The flags of a command line to repeat (the credentials as placeholders: a user name, and `--password-file <path>` when the password came from that file, else `--password-stdin`; R51 F14).
      *
      * @return array<string, string|true>
      */
@@ -60,7 +62,8 @@ final readonly class MailOptions
     {
         return array_filter([
             '--smtp-host' => $this->smtpHost, '--smtp-port' => $this->smtpPort, '--smtp-encryption' => $this->encryption,
-            '--smtp-username' => $this->credentials ? self::USERNAME_PLACEHOLDER : null, '--password-stdin' => $this->credentials ? true : null,
+            '--smtp-username' => $this->credentials ? self::USERNAME_PLACEHOLDER : null, '--password-file' => $this->credentials ? $this->passwordFile : null,
+            '--password-stdin' => $this->credentials && $this->passwordFile === null ? true : null,
             '--from-address' => $this->fromAddress, '--from-name' => $this->fromName, '--remove-catcher' => $this->removeCatcher ? true : null,
         ], static fn (string|bool|null $value): bool => $value !== null);
     }

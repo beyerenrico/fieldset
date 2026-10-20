@@ -105,6 +105,25 @@ it('reverts to capture mode when the server refuses the test mail (exit 5) and k
         ->and(mailTraces($this->config, $json))->not->toContain(MAIL_PASSWORD)->not->toContain(MAIL_USER);
 });
 
+it('names --password-file in the command to repeat when the password came from a file (R51 F14)', function (): void {
+    $file = $this->config->instance->directory->root.'/../smtp-password-r51';
+    file_put_contents($file, MAIL_PASSWORD."\n");
+    $this->config->instance->oneOffs['instance:mail-test'] = InstanceCommandFixture::oneOffJson(['command' => 'instance:mail-test', 'status' => 'failed',
+        'errors' => [['code' => 'test_mail_failed', 'message' => 'TLS required', 'hint' => null, 'retryable' => false]]]);
+
+    try {
+        [$code, $json] = mailSmtp($this->config, ['--password-stdin' => false, '--password-file' => $file]);
+    } finally {
+        @unlink($file);
+    }
+
+    expect($code)->toBe(5, json_encode($json))
+        ->and($json['data']['command'])->toContain('--smtp-username <the same user name> --password-file '.$file)
+        ->and($json['data']['command'])->not->toContain('--password-stdin')
+        ->and($json['data']['options'])->toMatchArray(['--password-file' => $file])->not->toHaveKey('--password-stdin')
+        ->and(mailTraces($this->config, $json))->not->toContain(MAIL_PASSWORD);
+});
+
 it('restores the previous server\'s own credentials when a change to another server is reverted', function (): void {
     mailSmtp($this->config);
     app()->instance(ConfigCommand::STDIN, fn (): string => 'other-secret-2');

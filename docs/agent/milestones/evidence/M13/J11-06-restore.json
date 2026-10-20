@@ -1,0 +1,125 @@
+{
+    "guide_line": 286,
+    "guide_command": "~/forms/fsa restore <backup> --drill --json",
+    "command": "<work>/fsa-test-j11-forms/fsa restore manual-20261020T212533Z --drill --json",
+    "exit_code": 0,
+    "seconds": 5.8,
+    "stdout": {
+        "schema_version": 1,
+        "command": "restore",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": false,
+        "data": {
+            "backup": "manual-20261020T212533Z",
+            "format": "fsa",
+            "authenticated": true,
+            "encrypted": false,
+            "created_at": "2026-10-20T21:25:33Z",
+            "backup_version": "2.0.0-alpha.1-test",
+            "migrations": {
+                "relation": "same",
+                "count": 45,
+                "last": "2026_10_26_100200_add_schedule_to_backup_runs",
+                "unknown": [],
+                "pending": 0
+            },
+            "storage": {
+                "files": 4,
+                "directories": 5,
+                "bytes": 910
+            },
+            "database": "restore_drill_d1067c2b955e",
+            "dropped": true,
+            "drill": {
+                "database": "restore_drill_d1067c2b955e",
+                "counts": {
+                    "organizations": 2,
+                    "users": 10,
+                    "forms": 1,
+                    "form_versions": 1,
+                    "submissions": 0,
+                    "attachments": 0,
+                    "renditions": 0,
+                    "mail_messages": 0
+                },
+                "audit": {
+                    "epoch": 1,
+                    "heads": [
+                        {
+                            "seq": 14,
+                            "hash": "4818e27f5d3290fbf15a8f99dbefde6128dcb090f56041ba52bdad12ca768fe7"
+                        },
+                        {
+                            "seq": 1,
+                            "hash": "e417edca68371969041036b5ae5aa9bc2bfb0819789356cf988e81fd3dd1dd4b"
+                        },
+                        {
+                            "seq": 11,
+                            "hash": "5bd0f6eb425c14c53306f28ea33cc7b8ac2a0796f6e0a5bd1fd3bb6d8ca4bd88"
+                        }
+                    ],
+                    "intact": true,
+                    "problems": []
+                },
+                "files": {
+                    "archive": true,
+                    "referenced": 1,
+                    "missing": 0,
+                    "sample": []
+                },
+                "render": {
+                    "status": "skipped",
+                    "submission": null,
+                    "bytes": null,
+                    "pages": null,
+                    "message": "The backup holds no submitted submission to render."
+                },
+                "decrypt": {
+                    "tested": 1,
+                    "failed": []
+                },
+                "migrations": {
+                    "pending": 0,
+                    "unknown": 0
+                },
+                "checks": [
+                    {
+                        "name": "counts",
+                        "status": "pass",
+                        "message": "2 organization(s) restored."
+                    },
+                    {
+                        "name": "audit",
+                        "status": "pass",
+                        "message": "The audit chains verify."
+                    },
+                    {
+                        "name": "files",
+                        "status": "pass",
+                        "message": "0 of 1 referenced file(s) missing from storage."
+                    },
+                    {
+                        "name": "render",
+                        "status": "warn",
+                        "message": "The backup holds no submitted submission to render."
+                    },
+                    {
+                        "name": "decrypt",
+                        "status": "pass",
+                        "message": "1 encrypted column(s) decrypt with the APP keys."
+                    },
+                    {
+                        "name": "migrations",
+                        "status": "pass",
+                        "message": "0 pending, 0 unknown to this image."
+                    }
+                ]
+            },
+            "render_storage": "live"
+        },
+        "secrets": [],
+        "warnings": [],
+        "errors": []
+    }
+}

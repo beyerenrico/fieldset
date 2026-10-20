@@ -6,6 +6,9 @@ use App\Domain\Documents\Renditions\SweepMissingRenditions;
 use App\Domain\Identity\Models\LoginLink;
 use App\Domain\Mail\CustomerSend\FailVoidedSends;
 use App\Domain\Mail\Models\DocumentLink;
+use App\Domain\Platform\Instance\BackupAlertNotifier;
+use App\Domain\Platform\Instance\Updates\UpdateCheck;
+use App\Domain\Platform\Instance\Updates\UpdateStatus;
 use App\Domain\Reports\Exports\ExportSweep;
 use App\Domain\Reports\Models\ReportExport;
 use App\Domain\Reports\Scheduling\ScheduledReports;
@@ -50,3 +53,18 @@ Schedule::command('sso:recheck-domains')->daily()->withoutOverlapping()->onOneSe
 
 // Integration tokens (ADR 0043): drop tokens that expired more than a day ago.
 Schedule::command('sanctum:prune-expired', ['--hours' => 24])->daily()->withoutOverlapping()->onOneServer();
+
+// --- 2.0 instance page (plan U20, ADR 0089) ---
+// Opt-in update check (E15, ADR 0061): daily, and only while runtime.json has it on; off, nothing is sent.
+Artisan::command('instance:check-updates', function (UpdateCheck $check): void {
+    $status = $check->run();
+    $this->info($status instanceof UpdateStatus ? 'Newest release: '.($status->latest ?? 'unknown').($status->error === null ? '' : ' (last check: '.$status->error.')') : 'The update check is off: nothing was sent.');
+})->purpose('Read the release manifest once when the update check is on');
+Schedule::command('instance:check-updates')->dailyAt('04:17')->when(static fn (): bool => app(UpdateCheck::class)->enabled())->withoutOverlapping()->onOneServer();
+// Failed or stale backups (R39): every active operator gets one mail per incident.
+Artisan::command('instance:backup-alerts', function (BackupAlertNotifier $notifier): void {
+    $codes = $notifier->notify();
+    $this->info($codes === [] ? 'No new backup alert.' : 'Notified operators: '.implode(', ', $codes));
+})->purpose('Mail the platform operators about failed or stale backups');
+Schedule::command('instance:backup-alerts')->hourly()->withoutOverlapping()->onOneServer();
+// --- end 2.0 instance page ---

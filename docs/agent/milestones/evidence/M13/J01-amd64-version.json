@@ -1,0 +1,20 @@
+{
+    "command": "fsa version --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "version",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": false,
+        "data": {
+            "fsa": "2.0.0-alpha.1-test",
+            "revision": "5af5c9b5b2081c7f4398c200edda2ea2c1ab4324",
+            "instance": "2.0.0-alpha.1-test",
+            "newest_known": null
+        },
+        "secrets": [],
+        "warnings": [],
+        "errors": []
+    }
+}

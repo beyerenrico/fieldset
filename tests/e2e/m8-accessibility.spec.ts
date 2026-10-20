@@ -4,6 +4,7 @@ import { expectNoTrap, tabTo } from './support/keyboard';
 import { adminState } from './support/auth';
 import { fieldAppLogin, signOnCanvas } from './support/field-app';
 import { waitForOfflineReady } from './support/offline';
+import { devStackOnly } from './support/target';
 import {
   continueAfterSetUp,
   createOperator,
@@ -42,6 +43,7 @@ test.describe('Field App sign-in', () => {
   });
 
   test('login: SSO choice (organization without enforcement)', async ({ page }) => {
+    devStackOnly('the SAML demo organization comes from SsoDemoSeeder, which only the dev stack runs');
     await page.goto('/app/login');
     await page.getByLabel(/^(email|e-mail)$/i).fill('jemand@saml-demo.test');
     await page.getByRole('button', { name: /^(continue|weiter)$/i }).click();
@@ -371,6 +373,9 @@ test.describe('platform panel', () => {
     await expectAccessible(page, 'platform members');
     await page.goto('/platform/health');
     await expectAccessible(page, 'platform health');
+    await page.goto('/platform/instance'); // plan U20: the instance page passes axe in the E2E run
+    await expect(page.locator('[data-instance-section="problems"]')).toBeVisible();
+    await expectAccessible(page, 'platform instance');
   });
 });
 

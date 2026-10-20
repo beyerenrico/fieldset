@@ -1,0 +1,10 @@
+{
+    "san": "IP Address:192.168.178.28",
+    "verified_without_sni": true,
+    "error": "",
+    "chain_length": 2,
+    "edge_ports": [
+        "80/tcp -> 192.168.178.28:80",
+        "443/tcp -> 192.168.178.28:443"
+    ]
+}

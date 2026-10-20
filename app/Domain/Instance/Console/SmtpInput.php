@@ -73,7 +73,7 @@ final readonly class SmtpInput
         }
 
         return new MailOptions($this->value('smtp-host'), $this->value('smtp-port'), $this->value('smtp-encryption'), $this->value('from-address'),
-            $this->value('from-name'), $this->value('test-to'), $removeCatcher, $this->value('smtp-username') !== null);
+            $this->value('from-name'), $this->value('test-to'), $removeCatcher, $this->value('smtp-username') !== null, $this->value('password-file'));
     }
 
     public function usernameGiven(): bool

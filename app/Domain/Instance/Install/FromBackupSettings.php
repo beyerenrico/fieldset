@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Install;
 
+use App\Domain\Instance\Config\Appliers\MailValues;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Output\ExitCode;
 use App\Domain\Instance\Output\InvalidInput;
@@ -93,9 +94,12 @@ final readonly class FromBackupSettings
     }
 
     /**
-     * The SMTP server the backed-up instance delivered through, for the operator to switch to after the move.
+     * The SMTP server the backed-up instance delivered through, for the operator to switch to after the move. The
+     * command carries every portable mail setting of an fsa backup (host, port, encryption, sender address), so only the
+     * account (a credential: never in a backup's settings or any output, SmtpCredentials) and the password file are
+     * placeholders (R51 F2). A 1.0 backup names its host and port only.
      *
-     * @return array{host: string, port: int|null, scheme: string|null, command: string}|null
+     * @return array{host: string, port: int|null, scheme: string|null, encryption: string|null, from_address: string|null, command: string}|null
      */
     public static function pendingMail(PreparedBackup $backup): ?array
     {
@@ -106,9 +110,17 @@ final readonly class FromBackupSettings
         }
         $port = is_numeric($settings['smtp_port'] ?? null) ? (int) $settings['smtp_port'] : null;
         $scheme = is_string($settings['smtp_scheme'] ?? null) ? $settings['smtp_scheme'] : null;
+        $encryption = $backup->isLegacy() ? null : MailValues::encryption($scheme);
+        $from = $settings['mail_from_address'] ?? null;
+        $from = is_string($from) && InputGrammar::settingProblem('mail_from_address', $from) === null ? $from : null;
+        $flags = array_filter(['--smtp-host' => $host, '--smtp-port' => $port, '--smtp-encryption' => $encryption, '--from-address' => $from], static fn (string|int|null $value): bool => $value !== null);
+        $command = 'fsa config set mail smtp';
+        foreach ($flags as $flag => $value) {
+            $command .= " {$flag} {$value}";
+        }
 
-        return ['host' => $host, 'port' => $port, 'scheme' => $scheme,
-            'command' => 'fsa config set mail smtp --smtp-host '.$host.($port === null ? '' : ' --smtp-port '.$port).' --smtp-username <account> --password-file <file>'];
+        return ['host' => $host, 'port' => $port, 'scheme' => $scheme, 'encryption' => $encryption, 'from_address' => $from,
+            'command' => $command.' --smtp-username <account> --password-file <file>'];
     }
 
     /** @return array{0: string|null, 1: string|null} the backed-up instance's mode and domain */

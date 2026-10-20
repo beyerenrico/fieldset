@@ -146,3 +146,14 @@ it('renders the stack file from the manifest pins and signs only after checking 
         ->and($jobs['sign'])->toContain('compose.stack.yaml mounts the Docker socket')
         ->and((int) strpos($jobs['sign'], 'which the manifest does not pin'))->toBeLessThan((int) strpos($jobs['sign'], 'cosign sign-blob'));
 });
+
+it('stops before the unsigned artifact when the app image\'s pg_dump is older than the manifest\'s Postgres (R39, ADR 0091)', function (): void {
+    $manifest = releaseJobs()['manifest'];
+    $check = (int) strpos($manifest, 'php artisan release:check-pg-dump dist/release-manifest.json');
+
+    expect($check)->toBeGreaterThan((int) strpos($manifest, 'php artisan release:manifest'))
+        ->and($check)->toBeLessThan((int) strpos($manifest, 'name: release-unsigned'))
+        ->and($manifest)->toContain('docker/setup-qemu-action@')
+        ->and($manifest)->toContain('packages: read')
+        ->and($manifest)->not->toContain('packages: write');
+});

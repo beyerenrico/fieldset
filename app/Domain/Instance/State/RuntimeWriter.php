@@ -13,7 +13,8 @@ use JsonException;
 
 /**
  * Writes `runtime/runtime.json` (KTD11), the only channel from ops to app: the instance URL, the local URL,
- * extra hosts, the tunnel hostname and expiry, and the operation gate. The directory is mounted read-only into
+ * extra hosts, the tunnel hostname and expiry, the operation gate, the paused webhooks, and for `/platform` the
+ * release, mode, digests and catcher URL plus the update check (U20). The directory is mounted read-only into
  * app, queue, scheduler and every one-off; a directory rather than a file, because a single-file bind mount pins
  * the inode and would hide the atomic rename. The app runs as www-data, so the directory is 0755 and the file
  * 0644, set explicitly whatever the umask. Readers ignore unknown keys (`schema_version`).
@@ -135,6 +136,9 @@ final readonly class RuntimeWriter
             'gate' => $gate,
             // Outgoing webhooks wait after `fsa install --from-backup` until `fsa config set webhooks on` (ADR 0085).
             'webhooks' => ['paused' => $settings->webhooksPaused()],
+            // For the /platform instance page and the opt-in update check (U20, ADR 0089): display data, no secret.
+            'instance' => ['version' => $state->version(), 'mode' => $state->mode(), 'digests' => $state->digests(), 'catcher_url' => $settings->catcherUrl()],
+            'updates' => ['check' => $settings->updateManifestUrl() !== null, 'manifest_url' => $settings->updateManifestUrl()],
         ];
     }
 

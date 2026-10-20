@@ -315,3 +315,20 @@ Format: question · chosen option · impact · how to reverse.
 72. On rootless Docker and Docker Desktop container root is the owner, so the root-owned partial set (S1) adds no
    protection there; a FIFO swapped in between the restore copy's lstat and open blocks the prepare one-off until its
    time limit (whoever can do that can also delete the backup) · accept or harden.
+73. `fsa upgrade --follow` and `fsa status` `data.last_upgrade` show the last `fsa upgrade` run, so a no-op run after a
+   real upgrade (`current: true`) replaces its result (R51 F12; every launch replaces `operations/supervisor.json`) ·
+   kept, documented in the agent guide's upgrade recipe · an agent that attaches late sees "nothing changed" ·
+   keep the last result that changed something (or skip the supervisor for a no-op) if preferred.
+74. J10 at the M13 gate: one API series missed its 300 ms p95 for the first time: a reviewer's
+   `/api/v1/submissions?status=in_review` at 431 ms (M11 244 ms, M12 278 ms; p50 415 ms). The M13 diff does not touch
+   the API, submissions or migrations, and the backup step runs after the API step. Admin pages 25 of 31 under 500 ms
+   (QUESTIONS 41) · cause not found (seed distribution or planner choice suspected, unverified) · profile the query
+   at the 1.0 volume before tuning; J10 records timings and does not fail on them (ADR 0083).
+75. M13 gate deferrals (low, from the review): the update check reads the whole body before its 1 MiB check (S2); an
+   http `FSA_RELEASE_URL` allows a plain-http update check (S3; display only, `fsa upgrade` verifies); the GHCR read
+   token stays in the Docker config during the `php artisan` step of `release.yml` (S4); J10's backup evidence is
+   unencrypted only, sampled at 1 Hz (D4); the R39 check takes the server major from the pin's tag, not the digest
+   (D5); `update-check off` writes nulls instead of removing the keys (D7); the cached update status is not keyed by
+   the manifest URL (C-L2); the pg_dump check's multi-platform run needs `--pull=always` on engines without the
+   containerd store; J10's backup slot (now + 3 min) can be missed on a slow runner (fails, never passes falsely)
+   · accept each or schedule.

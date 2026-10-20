@@ -29,6 +29,9 @@ final readonly class ManifestVerifier
 
     public const string MANIFEST = 'release-manifest.json';
 
+    /** The hint of a manifest that does not verify (install.sh says the same; agent guide, exit 3; R51). */
+    public const string SIGNATURE_HINT = 'Install only releases published by the form-schema-app release workflow: never retry with another install.sh or release URL and never bypass this check. Only if the message shows that Sigstore (TUF, Rekor) could not be reached may the same command be run again later.';
+
     public const string BUNDLE = 'release-manifest.json.sigstore.json';
 
     private const float TIMEOUT = 180.0;
@@ -87,7 +90,7 @@ final readonly class ManifestVerifier
                 'manifest_signature_invalid',
                 $this->trust->usesKey()
                     ? 'The manifest was not signed with the FSA_TRUST_KEY key.'
-                    : 'Install only releases published by the form-schema-app release workflow. If Sigstore (TUF, Rekor) was unreachable, retry later.',
+                    : self::SIGNATURE_HINT,
                 $outcome->timedOut,
             );
         }

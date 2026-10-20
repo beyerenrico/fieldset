@@ -39,6 +39,7 @@ npm run conformance                                      # PHP + JS conformance 
 npm run -w resources/field-app build                     # Field App build
 npm run e2e                                              # Playwright (browsers in storage/playwright)
 vendor/bin/pest --testsuite=Install                      # install journeys (real Docker, names with fsa-test-)
+vendor/bin/pest --testsuite=Install tests/Install/Journeys/DogfoodE2ETest.php   # E2E suite against an fsa instance (ADR 0091)
 docker run --rm -v "$PWD:/mnt:ro" -w /mnt koalaman/shellcheck:v0.11.0 docker/app/entrypoint.sh docker/app/fsa distribution/*.sh
 docker run --rm -i hadolint/hadolint:v2.15.1 hadolint - < docker/app/Dockerfile
 docker run --rm -v "$PWD:/repo:ro" -w /repo rhysd/actionlint:1.7.12 -color
