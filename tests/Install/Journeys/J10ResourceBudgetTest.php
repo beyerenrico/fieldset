@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 use App\Domain\Instance\Compose\RenderContext;
 use App\Domain\Instance\Compose\ResourceBudget;
+use Carbon\CarbonImmutable;
 use Symfony\Component\Process\Process;
 use Tests\Support\Docker\AcmeHarness;
 use Tests\Support\Docker\BudgetJourney;
+use Tests\Support\Docker\CgroupReader;
 use Tests\Support\Docker\EnvelopeMonitor;
 use Tests\Support\Docker\InstanceJourney;
 use Tests\Support\Docker\LocalCaClient;
@@ -21,8 +23,9 @@ use Tests\Support\Docker\TestImage;
  * instance, its one-offs and the fsa ops containers to the same two CPUs as soon as Docker creates them, the way a
  * 2-vCPU host shares its CPUs. Under that envelope: install (time to the sign-in link, pulls reported separately) → the
  * smoke E2E in Chromium → `fsa demo`, the 1.0 load (`app:seed-load demo 100000`, perf fixtures with 150k audit entries)
- * → a 10-page PDF (scripts/perf/pdf.php) → scripts/perf/admin-pages.mjs and api.mjs at their 1.0 settings → no container
- * was OOM-killed or restarted → uninstall. Timings and p95s are recorded against the 1.0 targets with a verdict each; a
+ * → a 10-page PDF (scripts/perf/pdf.php) → scripts/perf/admin-pages.mjs and api.mjs at their 1.0 settings → a scheduled
+ * backup at that data volume with the backup service's memory peak against its slot (plan U22) → no container was
+ * OOM-killed or restarted → uninstall. Timings and p95s are recorded against the 1.0 targets with a verdict each; a
  * miss is reported in the evidence and ADR 0083, never asserted away (rule 4 of §13), while OOM kills, restarts and
  * failed steps fail the journey. Evidence goes to the milestone of FSA_EVIDENCE_MILESTONE (J10-*.json).
  */
@@ -326,6 +329,66 @@ it('measures the API at the 1.0 volume and settings', function (): void {
         ->and(array_column($endpoints, 'error'))->toBe([]);
 });
 
+it('runs a scheduled backup at the 1.0 data volume inside the backup service\'s memory slot', function (): void {
+    EnvelopeMonitor::phase($this->monitor, 'backup');
+    $state = json_decode((string) file_get_contents($this->dir.'/state.json'), true);
+    $zone = is_string($state['settings']['time_zone'] ?? null) ? $state['settings']['time_zone'] : 'UTC';
+    $slot = CarbonImmutable::now($zone)->addMinutes(3)->startOfMinute();
+    // Recreates the backup service (a fresh cgroup, so memory.peak covers only the idle daemon and this run).
+    $schedule = $this->journey->fsa($this->dir, ['config', 'set', 'backup-schedule', $slot->format('H:i'), '--json'], $this->env);
+    $containers = BudgetJourney::containers($GLOBALS['fsaJ10Uuid']);
+    $database = trim(BudgetJourney::psql($containers['postgres']['id'], "SELECT pg_database_size('form_schema')")->getOutput());
+    [$run, $samples] = j10SampleBackup($this->dir, $containers['backup']['id'], $slot->utc()->addMinutes(45));
+    $cgroup = BudgetJourney::cgroup($containers['backup']['id']);
+    $limit = (int) $containers['backup']['memory_limit_mib'];
+    $peak = (float) ($cgroup['memory_peak_mib'] ?? 0);
+    $unreclaimable = $samples === [] ? null : max(array_map(static fn (array $s): float => round($s['anon'] + $s['shmem'], 1), $samples));
+    $this->journey->evidence('J10-backup.json', [
+        'command' => 'fsa config set backup-schedule <now + 3 min> --json, then the daemon\'s scheduled run (unencrypted)', 'schedule_exit_code' => $schedule->getExitCode(),
+        'data_volume' => ['database_bytes' => (int) $database, 'database_mib' => round((int) $database / 1048576, 1), 'note' => 'after app:seed-load demo 100000 and the perf fixtures (150k audit entries)'],
+        'run' => $run, 'limit_mib' => $limit, 'memory_peak_mib' => $peak, 'unreclaimable_peak_mib' => $unreclaimable,
+        'margin_rule' => "unreclaimable peak + 30 MiB <= {$limit} MiB (ADR 0083; memory.peak includes page cache the kernel reclaims at the limit)",
+        'verdict' => $unreclaimable !== null && $unreclaimable + 30 <= $limit ? 'met' : 'missed', 'm12_demo_peak_mib' => 68,
+        'cgroup' => $cgroup, 'samples' => $samples,
+    ]);
+
+    expect($schedule->getExitCode())->toBe(0, $schedule->getErrorOutput().$schedule->getOutput())
+        ->and($run)->toMatchArray(['kind' => 'scheduled', 'status' => 'succeeded'])
+        ->and($samples)->not->toBe([])
+        ->and($cgroup['memory_events']['oom_kill'] ?? null)->toBe(0);
+});
+
+/**
+ * Waits for the scheduled run's ledger line (succeeded or failed) while sampling the backup container's anonymous and
+ * shared memory every second (CgroupReader, as J08 does).
+ *
+ * @return array{0: array<string, mixed>, 1: list<array{at: string, anon: float, shmem: float, file: float}>}
+ */
+function j10SampleBackup(string $dir, string $container, CarbonImmutable $until): array
+{
+    $reader = CgroupReader::start($GLOBALS['fsaJ10']->release->appReference);
+    $samples = [];
+    try {
+        while (CarbonImmutable::now('UTC')->lessThan($until)) {
+            $read = $reader?->read([$container])[$container] ?? null;
+            if ($read !== null) {
+                $samples[] = ['at' => CarbonImmutable::now('UTC')->format('H:i:s'), ...$read];
+            }
+            $lines = is_file($dir.'/backups/runs.log') ? file($dir.'/backups/runs.log', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) : [];
+            $runs = array_values(array_filter(array_map(static fn (string $line): mixed => json_decode($line, true), $lines ?: []), is_array(...)));
+            $run = array_find(array_reverse($runs), static fn (array $r): bool => ($r['kind'] ?? null) === 'scheduled' && in_array($r['status'] ?? null, ['succeeded', 'failed'], true));
+            if ($run !== null) {
+                return [$run, $samples];
+            }
+            usleep(1_000_000);
+        }
+    } finally {
+        $reader?->stop();
+    }
+
+    return [[], $samples];
+}
+
 it('kept every container alive through all of it: no OOM kill, no restart', function (): void {
     EnvelopeMonitor::phase($this->monitor, 'end');
     sleep(3);
@@ -335,7 +398,7 @@ it('kept every container alive through all of it: no OOM kill, no restart', func
     $tracked = collect($summary['containers']);
     $peaks = [];
     foreach ($containers as $service => $state) {
-        $monitored = $tracked->first(static fn (array $c): bool => $c['service'] === $service && ! $c['oneoff']) ?? [];
+        $monitored = $tracked->last(static fn (array $c): bool => $c['service'] === $service && ! $c['oneoff']) ?? [];
         $peaks[$service] = ['limit_mib' => $state['memory_limit_mib'], 'peak_mib' => $monitored['mem_peak_mib'] ?? null, 'anon_shmem_peak_mib' => $monitored['anon_shmem_peak_mib'] ?? null, 'cpu_peak_pct' => $monitored['cpu_peak_pct'] ?? null,
             'memory_peak_mib' => $cgroups[$service]['memory_peak_mib'] ?? null, 'memory_now_mib' => $cgroups[$service]['memory_now_mib'] ?? null, 'memory_events' => $cgroups[$service]['memory_events'] ?? null, 'cpu_seconds' => $cgroups[$service]['cpu_seconds'] ?? null,
             'oom_killed' => $state['oom_killed'], 'restart_count' => $state['restart_count'], 'status' => $state['status']];

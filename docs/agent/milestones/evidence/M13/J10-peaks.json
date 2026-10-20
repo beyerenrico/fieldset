@@ -1,0 +1,1140 @@
+{
+    "cpuset": "8,9",
+    "services": {
+        "app": {
+            "limit_mib": 384,
+            "peak_mib": 323.7,
+            "anon_shmem_peak_mib": 317.09999999999997,
+            "cpu_peak_pct": 89.93,
+            "memory_peak_mib": 384,
+            "memory_now_mib": {
+                "anon": 40.4,
+                "file": 52.7,
+                "shmem": 52.7,
+                "kernel": 3
+            },
+            "memory_events": {
+                "low": 0,
+                "high": 0,
+                "max": 12,
+                "oom": 0,
+                "oom_kill": 0,
+                "oom_group_kill": 0
+            },
+            "cpu_seconds": 161.4,
+            "oom_killed": false,
+            "restart_count": 0,
+            "status": "running"
+        },
+        "backup": {
+            "limit_mib": 128,
+            "peak_mib": 84.1,
+            "anon_shmem_peak_mib": 77.7,
+            "cpu_peak_pct": 100.11,
+            "memory_peak_mib": 128.3,
+            "memory_now_mib": {
+                "anon": 69.9,
+                "file": 0,
+                "shmem": 0,
+                "kernel": 3.6
+            },
+            "memory_events": {
+                "low": 0,
+                "high": 0,
+                "max": 894,
+                "oom": 0,
+                "oom_kill": 0,
+                "oom_group_kill": 0
+            },
+            "cpu_seconds": 10.9,
+            "oom_killed": false,
+            "restart_count": 0,
+            "status": "running"
+        },
+        "edge": {
+            "limit_mib": 48,
+            "peak_mib": 20.4,
+            "anon_shmem_peak_mib": 18.1,
+            "cpu_peak_pct": 2.86,
+            "memory_peak_mib": 23.5,
+            "memory_now_mib": {
+                "anon": 17.3,
+                "file": 0.3,
+                "shmem": 0,
+                "kernel": 1.3
+            },
+            "memory_events": {
+                "low": 0,
+                "high": 0,
+                "max": 0,
+                "oom": 0,
+                "oom_kill": 0,
+                "oom_group_kill": 0
+            },
+            "cpu_seconds": 4.3,
+            "oom_killed": false,
+            "restart_count": 0,
+            "status": "running"
+        },
+        "gotenberg": {
+            "limit_mib": 304,
+            "peak_mib": 299,
+            "anon_shmem_peak_mib": 245.3,
+            "cpu_peak_pct": 114.65,
+            "memory_peak_mib": 304,
+            "memory_now_mib": {
+                "anon": 125.3,
+                "file": 3.8,
+                "shmem": 3.4,
+                "kernel": 10.8
+            },
+            "memory_events": {
+                "low": 0,
+                "high": 0,
+                "max": 54,
+                "oom": 0,
+                "oom_kill": 0,
+                "oom_group_kill": 0
+            },
+            "cpu_seconds": 83.3,
+            "oom_killed": false,
+            "restart_count": 0,
+            "status": "running"
+        },
+        "mailpit": {
+            "limit_mib": 48,
+            "peak_mib": 19.7,
+            "anon_shmem_peak_mib": 17.7,
+            "cpu_peak_pct": 2.03,
+            "memory_peak_mib": 28.6,
+            "memory_now_mib": {
+                "anon": 17.8,
+                "file": 0.5,
+                "shmem": 0,
+                "kernel": 1.3
+            },
+            "memory_events": {
+                "low": 0,
+                "high": 0,
+                "max": 0,
+                "oom": 0,
+                "oom_kill": 0,
+                "oom_group_kill": 0
+            },
+            "cpu_seconds": 1.4,
+            "oom_killed": false,
+            "restart_count": 0,
+            "status": "running"
+        },
+        "postgres": {
+            "limit_mib": 160,
+            "peak_mib": 159.7,
+            "anon_shmem_peak_mib": 101.9,
+            "cpu_peak_pct": 116.65,
+            "memory_peak_mib": 160.2,
+            "memory_now_mib": {
+                "anon": 3.4,
+                "file": 141,
+                "shmem": 43,
+                "kernel": 7.3
+            },
+            "memory_events": {
+                "low": 0,
+                "high": 0,
+                "max": 632387,
+                "oom": 0,
+                "oom_kill": 0,
+                "oom_group_kill": 0
+            },
+            "cpu_seconds": 466.4,
+            "oom_killed": false,
+            "restart_count": 0,
+            "status": "running"
+        },
+        "queue": {
+            "limit_mib": 400,
+            "peak_mib": 374.9,
+            "anon_shmem_peak_mib": 362,
+            "cpu_peak_pct": 38.25,
+            "memory_peak_mib": 368.7,
+            "memory_now_mib": {
+                "anon": 301.1,
+                "file": 2.3,
+                "shmem": 0,
+                "kernel": 6.1
+            },
+            "memory_events": {
+                "low": 0,
+                "high": 0,
+                "max": 0,
+                "oom": 0,
+                "oom_kill": 0,
+                "oom_group_kill": 0
+            },
+            "cpu_seconds": 3.1,
+            "oom_killed": false,
+            "restart_count": 0,
+            "status": "running"
+        },
+        "redis": {
+            "limit_mib": 48,
+            "peak_mib": 10.9,
+            "anon_shmem_peak_mib": 7,
+            "cpu_peak_pct": 3.27,
+            "memory_peak_mib": 11.3,
+            "memory_now_mib": {
+                "anon": 4.9,
+                "file": 0,
+                "shmem": 0,
+                "kernel": 1.3
+            },
+            "memory_events": {
+                "low": 0,
+                "high": 0,
+                "max": 0,
+                "oom": 0,
+                "oom_kill": 0,
+                "oom_group_kill": 0
+            },
+            "cpu_seconds": 9.4,
+            "oom_killed": false,
+            "restart_count": 0,
+            "status": "running"
+        },
+        "scheduler": {
+            "limit_mib": 208,
+            "peak_mib": 186.7,
+            "anon_shmem_peak_mib": 135.2,
+            "cpu_peak_pct": 73.36,
+            "memory_peak_mib": 189.2,
+            "memory_now_mib": {
+                "anon": 60.4,
+                "file": 2.3,
+                "shmem": 0,
+                "kernel": 4.4
+            },
+            "memory_events": {
+                "low": 0,
+                "high": 0,
+                "max": 0,
+                "oom": 0,
+                "oom_kill": 0,
+                "oom_group_kill": 0
+            },
+            "cpu_seconds": 2.9,
+            "oom_killed": false,
+            "restart_count": 0,
+            "status": "running"
+        }
+    },
+    "transient": [
+        {
+            "service": "ops",
+            "created_in": "install",
+            "mem_peak_mib": 89.5,
+            "cpu_peak_pct": 27.72,
+            "pinned": true,
+            "pin_error": null,
+            "exit_codes": [
+                0
+            ]
+        },
+        {
+            "service": "app",
+            "created_in": "install",
+            "mem_peak_mib": 64.1,
+            "cpu_peak_pct": 0,
+            "pinned": true,
+            "pin_error": null,
+            "exit_codes": [
+                0
+            ]
+        },
+        {
+            "service": "app",
+            "created_in": "install",
+            "mem_peak_mib": 36.6,
+            "cpu_peak_pct": 0,
+            "pinned": true,
+            "pin_error": null,
+            "exit_codes": [
+                0
+            ]
+        },
+        {
+            "service": "app",
+            "created_in": "install",
+            "mem_peak_mib": 68.8,
+            "cpu_peak_pct": 96.03,
+            "pinned": true,
+            "pin_error": null,
+            "exit_codes": [
+                0
+            ]
+        },
+        {
+            "service": "other",
+            "created_in": "install",
+            "mem_peak_mib": 0,
+            "cpu_peak_pct": 0,
+            "pinned": true,
+            "pin_error": null,
+            "exit_codes": [
+                0
+            ]
+        },
+        {
+            "service": "other",
+            "created_in": "install",
+            "mem_peak_mib": 0,
+            "cpu_peak_pct": 0,
+            "pinned": false,
+            "pin_error": "Error response from daemon: No such container: d540fc0f55935a74f66ab76d6d89c063e21917fdf78702d208804449fd042ef9",
+            "exit_codes": [
+                0
+            ]
+        },
+        {
+            "service": "other",
+            "created_in": "install",
+            "mem_peak_mib": 0,
+            "cpu_peak_pct": 0,
+            "pinned": false,
+            "pin_error": "Error response from daemon: No such container: b1d918a8c7bd94368b5aa42dcf1668a585644b8eea447d1ad62f41910c25563a",
+            "exit_codes": [
+                0
+            ]
+        },
+        {
+            "service": "other",
+            "created_in": "install",
+            "mem_peak_mib": 0,
+            "cpu_peak_pct": 0,
+            "pinned": false,
+            "pin_error": "Error response from daemon: No such container: 73ae4a1864779a179db045f4a7a7ed5d8a13968874f84e15003dcc400eb15176",
+            "exit_codes": [
+                0
+            ]
+        },
+        {
+            "service": "app",
+            "created_in": "install",
+            "mem_peak_mib": 70.6,
+            "cpu_peak_pct": 0,
+            "pinned": true,
+            "pin_error": null,
+            "exit_codes": [
+                0
+            ]
+        },
+        {
+            "service": "app",
+            "created_in": "install",
+            "mem_peak_mib": 0,
+            "cpu_peak_pct": 0,
+            "pinned": true,
+            "pin_error": null,
+            "exit_codes": [
+                0
+            ]
+        },
+        {
+            "service": "other",
+            "created_in": "install",
+            "mem_peak_mib": 0,
+            "cpu_peak_pct": 0,
+            "pinned": false,
+            "pin_error": "Error response from daemon: No such container: 7617cdb7f5cf22a94f0c6d3e6bd62e173773ab3132828f12cab89eb14920ba69",
+            "exit_codes": [
+                0
+            ]
+        },
+        {
+            "service": "ops",
+            "created_in": "demo",
+            "mem_peak_mib": 83.3,
+            "cpu_peak_pct": 8.62,
+            "pinned": true,
+            "pin_error": null,
+            "exit_codes": [
+                0
+            ]
+        },
+        {
+            "service": "app",
+            "created_in": "demo",
+            "mem_peak_mib": 72.9,
+            "cpu_peak_pct": 98.44,
+            "pinned": true,
+            "pin_error": null,
+            "exit_codes": [
+                0
+            ]
+        },
+        {
+            "service": "app",
+            "created_in": "demo",
+            "mem_peak_mib": 30.3,
+            "cpu_peak_pct": 0,
+            "pinned": true,
+            "pin_error": null,
+            "exit_codes": [
+                0
+            ]
+        },
+        {
+            "service": "app",
+            "created_in": "seed",
+            "mem_peak_mib": 119.8,
+            "cpu_peak_pct": 21.62,
+            "pinned": true,
+            "pin_error": null,
+            "exit_codes": [
+                0
+            ]
+        },
+        {
+            "service": "app",
+            "created_in": "fixtures",
+            "mem_peak_mib": 70.8,
+            "cpu_peak_pct": 36.99,
+            "pinned": true,
+            "pin_error": null,
+            "exit_codes": [
+                0
+            ]
+        },
+        {
+            "service": "app",
+            "created_in": "pdf",
+            "mem_peak_mib": 81.6,
+            "cpu_peak_pct": 46.91,
+            "pinned": true,
+            "pin_error": null,
+            "exit_codes": [
+                0
+            ]
+        },
+        {
+            "service": "ops",
+            "created_in": "backup",
+            "mem_peak_mib": 91.9,
+            "cpu_peak_pct": 16.79,
+            "pinned": true,
+            "pin_error": null,
+            "exit_codes": [
+                0
+            ]
+        },
+        {
+            "service": "other",
+            "created_in": "backup",
+            "mem_peak_mib": 0,
+            "cpu_peak_pct": 0,
+            "pinned": true,
+            "pin_error": null,
+            "exit_codes": [
+                0
+            ]
+        },
+        {
+            "service": "other",
+            "created_in": "backup",
+            "mem_peak_mib": 0,
+            "cpu_peak_pct": 0,
+            "pinned": true,
+            "pin_error": null,
+            "exit_codes": [
+                0
+            ]
+        },
+        {
+            "service": "other",
+            "created_in": "backup",
+            "mem_peak_mib": 0,
+            "cpu_peak_pct": 0,
+            "pinned": false,
+            "pin_error": "Error response from daemon: No such container: 3f952635253d77ed0a1dc113874401e5c5b80b32eb4ffafcce808a14ffc072cb",
+            "exit_codes": [
+                0
+            ]
+        },
+        {
+            "service": "other",
+            "created_in": "backup",
+            "mem_peak_mib": 0,
+            "cpu_peak_pct": 0,
+            "pinned": false,
+            "pin_error": "Error response from daemon: No such container: 51b014722cca708a620256abbeb16e92c28e3efd5632059030d9a8df702f9277",
+            "exit_codes": [
+                0
+            ]
+        },
+        {
+            "service": "app",
+            "created_in": "backup",
+            "mem_peak_mib": 0,
+            "cpu_peak_pct": 0,
+            "pinned": true,
+            "pin_error": null,
+            "exit_codes": [
+                0
+            ]
+        }
+    ],
+    "phases": {
+        "install": {
+            "containers": {
+                "ops:epic_shannon": {
+                    "mem_peak_mib": 89.5,
+                    "cpu_peak_pct": 27.72
+                },
+                "fsa-fsa-test-j10-b78b-redis-1": {
+                    "mem_peak_mib": 4.4,
+                    "cpu_peak_pct": 1.89,
+                    "anon_shmem_peak_mib": 3.4
+                },
+                "fsa-fsa-test-j10-b78b-postgres-1": {
+                    "mem_peak_mib": 29,
+                    "cpu_peak_pct": 21.98,
+                    "anon_shmem_peak_mib": 28.8
+                },
+                "fsa-fsa-test-j10-b78b-app-run-1c3337ab9d3e": {
+                    "mem_peak_mib": 64.1,
+                    "cpu_peak_pct": 0
+                },
+                "fsa-fsa-test-j10-b78b-app-run-7df4ef81097d": {
+                    "mem_peak_mib": 36.6,
+                    "cpu_peak_pct": 0
+                },
+                "fsa-fsa-test-j10-b78b-app-run-a9fb9a495830": {
+                    "mem_peak_mib": 68.8,
+                    "cpu_peak_pct": 96.03
+                },
+                "fsa-fsa-test-j10-b78b-mailpit-1": {
+                    "mem_peak_mib": 8.8,
+                    "cpu_peak_pct": 2.03,
+                    "anon_shmem_peak_mib": 7.9
+                },
+                "fsa-fsa-test-j10-b78b-gotenberg-1": {
+                    "mem_peak_mib": 132.3,
+                    "cpu_peak_pct": 57.72,
+                    "anon_shmem_peak_mib": 123.4
+                },
+                "fsa-fsa-test-j10-b78b-app-1": {
+                    "mem_peak_mib": 66.5,
+                    "cpu_peak_pct": 22.43,
+                    "anon_shmem_peak_mib": 61.5
+                },
+                "fsa-fsa-test-j10-b78b-queue-1": {
+                    "mem_peak_mib": 296.4,
+                    "cpu_peak_pct": 38.25,
+                    "anon_shmem_peak_mib": 290.6
+                },
+                "fsa-fsa-test-j10-b78b-backup-1": {
+                    "mem_peak_mib": 62.8,
+                    "cpu_peak_pct": 0.04,
+                    "anon_shmem_peak_mib": 59.7
+                },
+                "fsa-fsa-test-j10-b78b-scheduler-1": {
+                    "mem_peak_mib": 71.1,
+                    "cpu_peak_pct": 35.61,
+                    "anon_shmem_peak_mib": 71.4
+                },
+                "fsa-fsa-test-j10-b78b-edge-1": {
+                    "mem_peak_mib": 12.6,
+                    "cpu_peak_pct": 0.82,
+                    "anon_shmem_peak_mib": 11.6
+                },
+                "hungry_montalcini": {
+                    "mem_peak_mib": 0,
+                    "cpu_peak_pct": 0
+                },
+                "fsa-fsa-test-j10-b78b-app-run-362f96724950": {
+                    "mem_peak_mib": 70.6,
+                    "cpu_peak_pct": 0
+                },
+                "fsa-fsa-test-j10-b78b-app-run-f76bf41ee103": {
+                    "mem_peak_mib": 0,
+                    "cpu_peak_pct": 0
+                }
+            },
+            "stack_mem_peak_mib": 760.3,
+            "stack_cpu_peak_pct": 99,
+            "refreshes": 189,
+            "stack_cpu_mean_pct": 11.9
+        },
+        "smoke": {
+            "stack_mem_peak_mib": 693.8,
+            "stack_cpu_peak_pct": 68,
+            "refreshes": 16,
+            "containers": {
+                "fsa-fsa-test-j10-b78b-redis-1": {
+                    "mem_peak_mib": 4.4,
+                    "cpu_peak_pct": 1.14,
+                    "anon_shmem_peak_mib": 3.4
+                },
+                "fsa-fsa-test-j10-b78b-postgres-1": {
+                    "mem_peak_mib": 27.1,
+                    "cpu_peak_pct": 4.27,
+                    "anon_shmem_peak_mib": 20
+                },
+                "fsa-fsa-test-j10-b78b-mailpit-1": {
+                    "mem_peak_mib": 8.8,
+                    "cpu_peak_pct": 0.11,
+                    "anon_shmem_peak_mib": 7.9
+                },
+                "fsa-fsa-test-j10-b78b-gotenberg-1": {
+                    "mem_peak_mib": 132.6,
+                    "cpu_peak_pct": 2.07,
+                    "anon_shmem_peak_mib": 123.5
+                },
+                "fsa-fsa-test-j10-b78b-app-1": {
+                    "mem_peak_mib": 86,
+                    "cpu_peak_pct": 62.66,
+                    "anon_shmem_peak_mib": 80.4
+                },
+                "fsa-fsa-test-j10-b78b-queue-1": {
+                    "mem_peak_mib": 296.4,
+                    "cpu_peak_pct": 0.27,
+                    "anon_shmem_peak_mib": 290.6
+                },
+                "fsa-fsa-test-j10-b78b-backup-1": {
+                    "mem_peak_mib": 62.8,
+                    "cpu_peak_pct": 0,
+                    "anon_shmem_peak_mib": 59.7
+                },
+                "fsa-fsa-test-j10-b78b-scheduler-1": {
+                    "mem_peak_mib": 62,
+                    "cpu_peak_pct": 0.37,
+                    "anon_shmem_peak_mib": 57.9
+                },
+                "fsa-fsa-test-j10-b78b-edge-1": {
+                    "mem_peak_mib": 15.6,
+                    "cpu_peak_pct": 1.3,
+                    "anon_shmem_peak_mib": 14.4
+                }
+            },
+            "stack_cpu_mean_pct": 29.6
+        },
+        "demo": {
+            "stack_mem_peak_mib": 862.8,
+            "stack_cpu_peak_pct": 100.4,
+            "refreshes": 24,
+            "containers": {
+                "fsa-fsa-test-j10-b78b-redis-1": {
+                    "mem_peak_mib": 4.3,
+                    "cpu_peak_pct": 1.2,
+                    "anon_shmem_peak_mib": 3.4
+                },
+                "fsa-fsa-test-j10-b78b-postgres-1": {
+                    "mem_peak_mib": 28.2,
+                    "cpu_peak_pct": 9.58,
+                    "anon_shmem_peak_mib": 21
+                },
+                "fsa-fsa-test-j10-b78b-mailpit-1": {
+                    "mem_peak_mib": 8.8,
+                    "cpu_peak_pct": 0,
+                    "anon_shmem_peak_mib": 7.9
+                },
+                "fsa-fsa-test-j10-b78b-gotenberg-1": {
+                    "mem_peak_mib": 131.5,
+                    "cpu_peak_pct": 0.46,
+                    "anon_shmem_peak_mib": 122.5
+                },
+                "fsa-fsa-test-j10-b78b-app-1": {
+                    "mem_peak_mib": 101.7,
+                    "cpu_peak_pct": 33.2,
+                    "anon_shmem_peak_mib": 95.9
+                },
+                "fsa-fsa-test-j10-b78b-queue-1": {
+                    "mem_peak_mib": 296.4,
+                    "cpu_peak_pct": 0.72,
+                    "anon_shmem_peak_mib": 290.6
+                },
+                "fsa-fsa-test-j10-b78b-backup-1": {
+                    "mem_peak_mib": 62.8,
+                    "cpu_peak_pct": 0,
+                    "anon_shmem_peak_mib": 59.7
+                },
+                "fsa-fsa-test-j10-b78b-scheduler-1": {
+                    "mem_peak_mib": 62,
+                    "cpu_peak_pct": 0.12,
+                    "anon_shmem_peak_mib": 57.9
+                },
+                "fsa-fsa-test-j10-b78b-edge-1": {
+                    "mem_peak_mib": 16,
+                    "cpu_peak_pct": 2.86,
+                    "anon_shmem_peak_mib": 14.9
+                },
+                "ops:lucid_mclean": {
+                    "mem_peak_mib": 83.3,
+                    "cpu_peak_pct": 8.62
+                },
+                "fsa-fsa-test-j10-b78b-app-run-9a51d00e60bc": {
+                    "mem_peak_mib": 72.9,
+                    "cpu_peak_pct": 98.44
+                },
+                "fsa-fsa-test-j10-b78b-app-run-5d274c72c1cc": {
+                    "mem_peak_mib": 30.3,
+                    "cpu_peak_pct": 0
+                }
+            },
+            "stack_cpu_mean_pct": 37.8
+        },
+        "seed": {
+            "stack_mem_peak_mib": 1078.8,
+            "stack_cpu_peak_pct": 194.1,
+            "refreshes": 1726,
+            "containers": {
+                "fsa-fsa-test-j10-b78b-redis-1": {
+                    "mem_peak_mib": 10.9,
+                    "cpu_peak_pct": 3.27,
+                    "anon_shmem_peak_mib": 4.9
+                },
+                "fsa-fsa-test-j10-b78b-postgres-1": {
+                    "mem_peak_mib": 159.7,
+                    "cpu_peak_pct": 116.65,
+                    "anon_shmem_peak_mib": 101.9
+                },
+                "fsa-fsa-test-j10-b78b-mailpit-1": {
+                    "mem_peak_mib": 9.1,
+                    "cpu_peak_pct": 1.31,
+                    "anon_shmem_peak_mib": 11.9
+                },
+                "fsa-fsa-test-j10-b78b-gotenberg-1": {
+                    "mem_peak_mib": 250,
+                    "cpu_peak_pct": 114.65,
+                    "anon_shmem_peak_mib": 216.1
+                },
+                "fsa-fsa-test-j10-b78b-app-1": {
+                    "mem_peak_mib": 101.8,
+                    "cpu_peak_pct": 2.11,
+                    "anon_shmem_peak_mib": 95.9
+                },
+                "fsa-fsa-test-j10-b78b-queue-1": {
+                    "mem_peak_mib": 365.9,
+                    "cpu_peak_pct": 27.33,
+                    "anon_shmem_peak_mib": 342.8
+                },
+                "fsa-fsa-test-j10-b78b-backup-1": {
+                    "mem_peak_mib": 62.8,
+                    "cpu_peak_pct": 0.2,
+                    "anon_shmem_peak_mib": 59.7
+                },
+                "fsa-fsa-test-j10-b78b-scheduler-1": {
+                    "mem_peak_mib": 182.9,
+                    "cpu_peak_pct": 64.65,
+                    "anon_shmem_peak_mib": 106.9
+                },
+                "fsa-fsa-test-j10-b78b-edge-1": {
+                    "mem_peak_mib": 16.1,
+                    "cpu_peak_pct": 0.9,
+                    "anon_shmem_peak_mib": 15
+                },
+                "fsa-fsa-test-j10-b78b-app-run-9f331bc0954d": {
+                    "mem_peak_mib": 119.8,
+                    "cpu_peak_pct": 21.62
+                }
+            },
+            "stack_cpu_mean_pct": 78.2
+        },
+        "fixtures": {
+            "stack_mem_peak_mib": 852,
+            "stack_cpu_peak_pct": 95.7,
+            "refreshes": 26,
+            "containers": {
+                "fsa-fsa-test-j10-b78b-redis-1": {
+                    "mem_peak_mib": 5.6,
+                    "cpu_peak_pct": 1.04,
+                    "anon_shmem_peak_mib": 4.8
+                },
+                "fsa-fsa-test-j10-b78b-postgres-1": {
+                    "mem_peak_mib": 85.4,
+                    "cpu_peak_pct": 95.4,
+                    "anon_shmem_peak_mib": 70.4
+                },
+                "fsa-fsa-test-j10-b78b-mailpit-1": {
+                    "mem_peak_mib": 8.8,
+                    "cpu_peak_pct": 0.9,
+                    "anon_shmem_peak_mib": 7.9
+                },
+                "fsa-fsa-test-j10-b78b-gotenberg-1": {
+                    "mem_peak_mib": 143.1,
+                    "cpu_peak_pct": 0.04,
+                    "anon_shmem_peak_mib": 133.5
+                },
+                "fsa-fsa-test-j10-b78b-app-1": {
+                    "mem_peak_mib": 93.2,
+                    "cpu_peak_pct": 1.55,
+                    "anon_shmem_peak_mib": 87.4
+                },
+                "fsa-fsa-test-j10-b78b-queue-1": {
+                    "mem_peak_mib": 321.1,
+                    "cpu_peak_pct": 0.66,
+                    "anon_shmem_peak_mib": 313.7
+                },
+                "fsa-fsa-test-j10-b78b-backup-1": {
+                    "mem_peak_mib": 62.8,
+                    "cpu_peak_pct": 0.04,
+                    "anon_shmem_peak_mib": 59.7
+                },
+                "fsa-fsa-test-j10-b78b-scheduler-1": {
+                    "mem_peak_mib": 62.1,
+                    "cpu_peak_pct": 0.1,
+                    "anon_shmem_peak_mib": 57.9
+                },
+                "fsa-fsa-test-j10-b78b-edge-1": {
+                    "mem_peak_mib": 15.1,
+                    "cpu_peak_pct": 0.01,
+                    "anon_shmem_peak_mib": 13.1
+                },
+                "fsa-fsa-test-j10-b78b-app-run-d7c581ddba8c": {
+                    "mem_peak_mib": 70.8,
+                    "cpu_peak_pct": 36.99
+                }
+            },
+            "stack_cpu_mean_pct": 67.7
+        },
+        "settle": {
+            "stack_mem_peak_mib": 840.1,
+            "stack_cpu_peak_pct": 71.4,
+            "refreshes": 46,
+            "containers": {
+                "fsa-fsa-test-j10-b78b-redis-1": {
+                    "mem_peak_mib": 5.9,
+                    "cpu_peak_pct": 1.93,
+                    "anon_shmem_peak_mib": 4.8
+                },
+                "fsa-fsa-test-j10-b78b-postgres-1": {
+                    "mem_peak_mib": 82.6,
+                    "cpu_peak_pct": 45.86,
+                    "anon_shmem_peak_mib": 45.5
+                },
+                "fsa-fsa-test-j10-b78b-mailpit-1": {
+                    "mem_peak_mib": 8.8,
+                    "cpu_peak_pct": 0,
+                    "anon_shmem_peak_mib": 7.9
+                },
+                "fsa-fsa-test-j10-b78b-gotenberg-1": {
+                    "mem_peak_mib": 143.1,
+                    "cpu_peak_pct": 2.17,
+                    "anon_shmem_peak_mib": 133.5
+                },
+                "fsa-fsa-test-j10-b78b-app-1": {
+                    "mem_peak_mib": 93.2,
+                    "cpu_peak_pct": 18.17,
+                    "anon_shmem_peak_mib": 87.4
+                },
+                "fsa-fsa-test-j10-b78b-queue-1": {
+                    "mem_peak_mib": 321.1,
+                    "cpu_peak_pct": 20.32,
+                    "anon_shmem_peak_mib": 313.7
+                },
+                "fsa-fsa-test-j10-b78b-backup-1": {
+                    "mem_peak_mib": 62.8,
+                    "cpu_peak_pct": 0,
+                    "anon_shmem_peak_mib": 59.7
+                },
+                "fsa-fsa-test-j10-b78b-scheduler-1": {
+                    "mem_peak_mib": 62.1,
+                    "cpu_peak_pct": 0.2,
+                    "anon_shmem_peak_mib": 57.9
+                },
+                "fsa-fsa-test-j10-b78b-edge-1": {
+                    "mem_peak_mib": 15.1,
+                    "cpu_peak_pct": 0.01,
+                    "anon_shmem_peak_mib": 13.1
+                }
+            },
+            "stack_cpu_mean_pct": 13
+        },
+        "pdf": {
+            "stack_mem_peak_mib": 1034.8,
+            "stack_cpu_peak_pct": 126.9,
+            "refreshes": 184,
+            "containers": {
+                "fsa-fsa-test-j10-b78b-redis-1": {
+                    "mem_peak_mib": 6,
+                    "cpu_peak_pct": 1.96,
+                    "anon_shmem_peak_mib": 5
+                },
+                "fsa-fsa-test-j10-b78b-postgres-1": {
+                    "mem_peak_mib": 88.5,
+                    "cpu_peak_pct": 24.92,
+                    "anon_shmem_peak_mib": 49.3
+                },
+                "fsa-fsa-test-j10-b78b-mailpit-1": {
+                    "mem_peak_mib": 8.8,
+                    "cpu_peak_pct": 1.72,
+                    "anon_shmem_peak_mib": 7.9
+                },
+                "fsa-fsa-test-j10-b78b-gotenberg-1": {
+                    "mem_peak_mib": 299,
+                    "cpu_peak_pct": 100.92,
+                    "anon_shmem_peak_mib": 245.3
+                },
+                "fsa-fsa-test-j10-b78b-app-1": {
+                    "mem_peak_mib": 93.3,
+                    "cpu_peak_pct": 17.7,
+                    "anon_shmem_peak_mib": 87.4
+                },
+                "fsa-fsa-test-j10-b78b-queue-1": {
+                    "mem_peak_mib": 331.5,
+                    "cpu_peak_pct": 26.35,
+                    "anon_shmem_peak_mib": 362
+                },
+                "fsa-fsa-test-j10-b78b-backup-1": {
+                    "mem_peak_mib": 62.8,
+                    "cpu_peak_pct": 0.17,
+                    "anon_shmem_peak_mib": 59.7
+                },
+                "fsa-fsa-test-j10-b78b-scheduler-1": {
+                    "mem_peak_mib": 182.9,
+                    "cpu_peak_pct": 35.63,
+                    "anon_shmem_peak_mib": 87.7
+                },
+                "fsa-fsa-test-j10-b78b-edge-1": {
+                    "mem_peak_mib": 15.1,
+                    "cpu_peak_pct": 1.23,
+                    "anon_shmem_peak_mib": 13.1
+                },
+                "fsa-fsa-test-j10-b78b-app-run-8e8a22be9f27": {
+                    "mem_peak_mib": 81.6,
+                    "cpu_peak_pct": 46.91
+                }
+            },
+            "stack_cpu_mean_pct": 46.7
+        },
+        "admin-pages": {
+            "stack_mem_peak_mib": 1113.2,
+            "stack_cpu_peak_pct": 175,
+            "refreshes": 4138,
+            "containers": {
+                "fsa-fsa-test-j10-b78b-redis-1": {
+                    "mem_peak_mib": 7.1,
+                    "cpu_peak_pct": 2.17,
+                    "anon_shmem_peak_mib": 7
+                },
+                "fsa-fsa-test-j10-b78b-postgres-1": {
+                    "mem_peak_mib": 153.7,
+                    "cpu_peak_pct": 109.27,
+                    "anon_shmem_peak_mib": 76.1
+                },
+                "fsa-fsa-test-j10-b78b-mailpit-1": {
+                    "mem_peak_mib": 19.7,
+                    "cpu_peak_pct": 1.61,
+                    "anon_shmem_peak_mib": 17.7
+                },
+                "fsa-fsa-test-j10-b78b-gotenberg-1": {
+                    "mem_peak_mib": 150.4,
+                    "cpu_peak_pct": 61.61,
+                    "anon_shmem_peak_mib": 132.5
+                },
+                "fsa-fsa-test-j10-b78b-app-1": {
+                    "mem_peak_mib": 323.7,
+                    "cpu_peak_pct": 89.93,
+                    "anon_shmem_peak_mib": 317.09999999999997
+                },
+                "fsa-fsa-test-j10-b78b-queue-1": {
+                    "mem_peak_mib": 374.9,
+                    "cpu_peak_pct": 24.21,
+                    "anon_shmem_peak_mib": 353.3
+                },
+                "fsa-fsa-test-j10-b78b-backup-1": {
+                    "mem_peak_mib": 65.9,
+                    "cpu_peak_pct": 0.83,
+                    "anon_shmem_peak_mib": 62.8
+                },
+                "fsa-fsa-test-j10-b78b-scheduler-1": {
+                    "mem_peak_mib": 185.2,
+                    "cpu_peak_pct": 73.36,
+                    "anon_shmem_peak_mib": 135.2
+                },
+                "fsa-fsa-test-j10-b78b-edge-1": {
+                    "mem_peak_mib": 19.5,
+                    "cpu_peak_pct": 2.03,
+                    "anon_shmem_peak_mib": 18.1
+                }
+            },
+            "stack_cpu_mean_pct": 37.9
+        },
+        "api": {
+            "stack_mem_peak_mib": 1030.9,
+            "stack_cpu_peak_pct": 137.2,
+            "refreshes": 422,
+            "containers": {
+                "fsa-fsa-test-j10-b78b-redis-1": {
+                    "mem_peak_mib": 7,
+                    "cpu_peak_pct": 2.04,
+                    "anon_shmem_peak_mib": 4.8
+                },
+                "fsa-fsa-test-j10-b78b-postgres-1": {
+                    "mem_peak_mib": 154.9,
+                    "cpu_peak_pct": 64.15,
+                    "anon_shmem_peak_mib": 49.1
+                },
+                "fsa-fsa-test-j10-b78b-mailpit-1": {
+                    "mem_peak_mib": 18.6,
+                    "cpu_peak_pct": 1.92,
+                    "anon_shmem_peak_mib": 17.7
+                },
+                "fsa-fsa-test-j10-b78b-gotenberg-1": {
+                    "mem_peak_mib": 146.6,
+                    "cpu_peak_pct": 1.62,
+                    "anon_shmem_peak_mib": 128.8
+                },
+                "fsa-fsa-test-j10-b78b-app-1": {
+                    "mem_peak_mib": 110.5,
+                    "cpu_peak_pct": 75.01,
+                    "anon_shmem_peak_mib": 102.9
+                },
+                "fsa-fsa-test-j10-b78b-queue-1": {
+                    "mem_peak_mib": 333.1,
+                    "cpu_peak_pct": 19.07,
+                    "anon_shmem_peak_mib": 325.3
+                },
+                "fsa-fsa-test-j10-b78b-backup-1": {
+                    "mem_peak_mib": 65.9,
+                    "cpu_peak_pct": 0.13,
+                    "anon_shmem_peak_mib": 62.8
+                },
+                "fsa-fsa-test-j10-b78b-scheduler-1": {
+                    "mem_peak_mib": 185,
+                    "cpu_peak_pct": 68.08,
+                    "anon_shmem_peak_mib": 100.8
+                },
+                "fsa-fsa-test-j10-b78b-edge-1": {
+                    "mem_peak_mib": 20.4,
+                    "cpu_peak_pct": 2.82,
+                    "anon_shmem_peak_mib": 18
+                }
+            },
+            "stack_cpu_mean_pct": 43.7
+        },
+        "backup": {
+            "stack_mem_peak_mib": 1106.1,
+            "stack_cpu_peak_pct": 150,
+            "refreshes": 642,
+            "containers": {
+                "fsa-fsa-test-j10-b78b-redis-1": {
+                    "mem_peak_mib": 6,
+                    "cpu_peak_pct": 2.07,
+                    "anon_shmem_peak_mib": 5.6
+                },
+                "fsa-fsa-test-j10-b78b-postgres-1": {
+                    "mem_peak_mib": 155.6,
+                    "cpu_peak_pct": 50.23,
+                    "anon_shmem_peak_mib": 50.6
+                },
+                "fsa-fsa-test-j10-b78b-mailpit-1": {
+                    "mem_peak_mib": 18.6,
+                    "cpu_peak_pct": 1.92,
+                    "anon_shmem_peak_mib": 17.7
+                },
+                "fsa-fsa-test-j10-b78b-gotenberg-1": {
+                    "mem_peak_mib": 146.6,
+                    "cpu_peak_pct": 0.81,
+                    "anon_shmem_peak_mib": 128.8
+                },
+                "fsa-fsa-test-j10-b78b-app-1": {
+                    "mem_peak_mib": 110.6,
+                    "cpu_peak_pct": 44.54,
+                    "anon_shmem_peak_mib": 102.9
+                },
+                "fsa-fsa-test-j10-b78b-queue-1": {
+                    "mem_peak_mib": 354.9,
+                    "cpu_peak_pct": 36.16,
+                    "anon_shmem_peak_mib": 357.8
+                },
+                "fsa-fsa-test-j10-b78b-backup-1": {
+                    "mem_peak_mib": 65.9,
+                    "cpu_peak_pct": 0.06,
+                    "anon_shmem_peak_mib": 62.8
+                },
+                "fsa-fsa-test-j10-b78b-scheduler-1": {
+                    "mem_peak_mib": 186.7,
+                    "cpu_peak_pct": 44.08,
+                    "anon_shmem_peak_mib": 102.4
+                },
+                "fsa-fsa-test-j10-b78b-edge-1": {
+                    "mem_peak_mib": 19.5,
+                    "cpu_peak_pct": 1.27,
+                    "anon_shmem_peak_mib": 17.8
+                },
+                "ops:quirky_hofstadter": {
+                    "mem_peak_mib": 91.9,
+                    "cpu_peak_pct": 16.79
+                },
+                "3b966e3b37a2_fsa-fsa-test-j10-b78b-backup-1": {
+                    "mem_peak_mib": 84.1,
+                    "cpu_peak_pct": 100.11,
+                    "anon_shmem_peak_mib": 77.7
+                },
+                "gifted_wilson": {
+                    "mem_peak_mib": 0,
+                    "cpu_peak_pct": 0
+                },
+                "fsa-fsa-test-j10-b78b-app-run-b81563d4b792": {
+                    "mem_peak_mib": 0,
+                    "cpu_peak_pct": 0
+                }
+            },
+            "stack_cpu_mean_pct": 14.1
+        },
+        "end": {
+            "stack_mem_peak_mib": 867,
+            "stack_cpu_peak_pct": 61.2,
+            "refreshes": 12,
+            "containers": {
+                "fsa-fsa-test-j10-b78b-redis-1": {
+                    "mem_peak_mib": 5.6,
+                    "cpu_peak_pct": 0.66,
+                    "anon_shmem_peak_mib": 4.8
+                },
+                "fsa-fsa-test-j10-b78b-postgres-1": {
+                    "mem_peak_mib": 132.9,
+                    "cpu_peak_pct": 2.51,
+                    "anon_shmem_peak_mib": 46.3
+                },
+                "fsa-fsa-test-j10-b78b-mailpit-1": {
+                    "mem_peak_mib": 18.6,
+                    "cpu_peak_pct": 0,
+                    "anon_shmem_peak_mib": 17.7
+                },
+                "fsa-fsa-test-j10-b78b-gotenberg-1": {
+                    "mem_peak_mib": 146.2,
+                    "cpu_peak_pct": 0.16,
+                    "anon_shmem_peak_mib": 128.4
+                },
+                "fsa-fsa-test-j10-b78b-app-1": {
+                    "mem_peak_mib": 100.2,
+                    "cpu_peak_pct": 0,
+                    "anon_shmem_peak_mib": 92.9
+                },
+                "fsa-fsa-test-j10-b78b-edge-1": {
+                    "mem_peak_mib": 19.3,
+                    "cpu_peak_pct": 0,
+                    "anon_shmem_peak_mib": 17.2
+                },
+                "3b966e3b37a2_fsa-fsa-test-j10-b78b-backup-1": {
+                    "mem_peak_mib": 72.9,
+                    "cpu_peak_pct": 0.8,
+                    "anon_shmem_peak_mib": 69.7
+                },
+                "fsa-fsa-test-j10-b78b-queue-1": {
+                    "mem_peak_mib": 306.7,
+                    "cpu_peak_pct": 0.62,
+                    "anon_shmem_peak_mib": 300.9
+                },
+                "fsa-fsa-test-j10-b78b-scheduler-1": {
+                    "mem_peak_mib": 64.2,
+                    "cpu_peak_pct": 0.25,
+                    "anon_shmem_peak_mib": 60.2
+                }
+            },
+            "stack_cpu_mean_pct": 7.7
+        }
+    },
+    "incidents": []
+}

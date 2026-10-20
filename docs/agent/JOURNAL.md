@@ -326,3 +326,10 @@
   Merge 31a617d, suite 7341. U21 (agent): agent guide, 2.0 guides + 1.0 archive, J11 13/13, guide scan, ADR 0090.
   Merge 511b3bb (docs aligned with U20), suite 7355.
 - J11 found a missing --identity-file bind-mounted as a root-owned host directory: fixed 0bcd910 (identity_unreadable).
+
+## 2026-10-20 M13-T03: U22 dogfooding, CI journeys, R39 check, J10 backup (branch m13-u22)
+- E2E against a local --demo instance (DogfoodE2ETest, E2E_TARGET/E2E_COMPOSE_PROJECT/MAILPIT_AUTH): 71 passed,
+  8 dev-stack-only skips (m7-sso 5, m7-saml 1, m4-onboarding 1, a11y SSO choice 1), Instance page axe passed.
+- Dev stack (as found, image predates U20): the 8 pass; only the U20 Instance step fails there (stale image).
+- release:check-pg-dump in release.yml and the harness (ADR 0091). CI install-journeys: Playwright, poppler, v1.0.0.
+- J10 13/13: backup at 1.0 volume unreclaimable 77.7 MiB of 128 (met), memory.peak 128.3 is page cache, no OOM.

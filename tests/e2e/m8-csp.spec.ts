@@ -1,10 +1,23 @@
 import { adminState } from './support/auth';
+import {
+  continueAfterSetUp,
+  createOperator,
+  deleteUsers,
+  newOperator,
+  platformSignIn,
+  setUpAuthenticator,
+} from './support/platform';
+import { ON_DEV_STACK } from './support/target';
 import { test, expect, type Locator, type Page } from './support/test';
 
 // M8-T03 verification (ADR 0040): every journey imports the guarded `test` (support/test.ts), which fails on
 // any CSP violation or uncaught page error. This spec proves the guard itself and covers the surfaces no
 // other journey opens: Horizon, and the canvas builder (now the default, ADR 0044) with its sandboxed
 // preview rendering a form. /platform and the impersonation banner are in m8-platform.spec.ts.
+
+/** Operators the Horizon test created on an fsa instance (none on the dev stack). */
+const operators: string[] = [];
+test.afterAll(() => deleteUsers(operators));
 
 test('the guard reports an injected inline script and an uncaught error', async ({ page, browserProblems }) => {
   await page.goto('/admin/login');
@@ -26,7 +39,17 @@ test('the guard reports an injected inline script and an uncaught error', async 
 });
 
 test('Horizon renders under its CSP', async ({ page }) => {
-  // Open to everyone in APP_ENV=local (Horizon's gate); PLATFORM_ADMIN_EMAILS elsewhere.
+  // Open to everyone in APP_ENV=local (Horizon's gate). An fsa instance runs in production, where Horizon sits behind
+  // the operator's /platform session (ADR 0041 amendment, plan U6): sign in as a fresh operator with MFA first.
+  if (!ON_DEV_STACK) {
+    test.setTimeout(120_000);
+    const operator = newOperator('e2e-horizon');
+    operators.push(operator.email);
+    createOperator(operator);
+    await platformSignIn(page, operator);
+    await setUpAuthenticator(page, operator);
+    await continueAfterSetUp(page);
+  }
   await page.goto('/horizon/dashboard');
   await expect(page.getByText(/^\s*overview\s*$/i).first()).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText(/jobs per minute/i).first()).toBeVisible();

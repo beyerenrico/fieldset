@@ -1,12 +1,12 @@
 import { test, expect, devices, request as apiRequest, type APIRequestContext } from './support/test';
 import { adminState } from './support/auth';
 import { fieldAppLogin, fillAndSubmitServiceReport } from './support/field-app';
+import { mailpitOptions } from './support/target';
 
 // M3 gate journey: a field worker submits the service report on a phone, the queue renders the PDF
 // with Gotenberg, the worker sends it to the customer, the mail arrives in Mailpit with the PDF, and
 // the office sees the rendition in the admin inbox. Requires the Docker stack and the demo seed.
 const evidence = (name: string) => `docs/agent/milestones/evidence/M3/${name}.png`;
-const MAILPIT = process.env.MAILPIT_URL ?? 'http://127.0.0.1:18025';
 const CUSTOMER_EMAIL = `kunde-${Date.now()}@example.test`;
 
 interface MailpitSummary {
@@ -64,7 +64,7 @@ test.describe.serial('documents and email', () => {
 
   test('the customer mail arrives in Mailpit with the PDF', async () => {
     test.setTimeout(120_000);
-    const mailpit = await apiRequest.newContext({ baseURL: MAILPIT });
+    const mailpit = await apiRequest.newContext(mailpitOptions());
     const summary = await waitForMail(mailpit, CUSTOMER_EMAIL);
     expect(summary.Subject).toContain(number);
 

@@ -1,0 +1,225 @@
+{
+    "demo": {
+        "exit_code": 0,
+        "stdout": {
+            "schema_version": 1,
+            "command": "demo",
+            "status": "ok",
+            "exit_code": 0,
+            "changed": true,
+            "data": {
+                "url": "https://fsa-test-j10.test",
+                "mode": "domain",
+                "mail": {
+                    "mode": "capture",
+                    "catcher_url": "https://fsa-test-j10.test/_mail/"
+                },
+                "next_commands": [
+                    "<work>/fsa-test-j10/fsa status",
+                    "<work>/fsa-test-j10/fsa login-link owner@demo.test",
+                    "<work>/fsa-test-j10/fsa demo --rotate-passwords"
+                ],
+                "demo": {
+                    "organization": "Demo Haustechnik GmbH",
+                    "seeded": true,
+                    "passwords": "random",
+                    "exposure": [
+                        "domain_mode"
+                    ],
+                    "users": [
+                        {
+                            "email": "owner@demo.test",
+                            "name": "Olivia Owner",
+                            "roles": [
+                                "owner"
+                            ]
+                        },
+                        {
+                            "email": "admin@demo.test",
+                            "name": "Adam Admin",
+                            "roles": [
+                                "admin"
+                            ]
+                        },
+                        {
+                            "email": "designer@demo.test",
+                            "name": "Dana Designer",
+                            "roles": [
+                                "designer"
+                            ]
+                        },
+                        {
+                            "email": "reviewer@demo.test",
+                            "name": "Rita Reviewer",
+                            "roles": [
+                                "reviewer"
+                            ]
+                        },
+                        {
+                            "email": "coordinator@demo.test",
+                            "name": "Cora Coordinator",
+                            "roles": [
+                                "designer",
+                                "reviewer"
+                            ]
+                        },
+                        {
+                            "email": "worker@demo.test",
+                            "name": "Willi Worker",
+                            "roles": [
+                                "field_worker"
+                            ]
+                        },
+                        {
+                            "email": "mobile@demo.test",
+                            "name": "Mia Mobil",
+                            "roles": [
+                                "field_worker"
+                            ]
+                        },
+                        {
+                            "email": "tablet@demo.test",
+                            "name": "Tom Tablet",
+                            "roles": [
+                                "field_worker"
+                            ]
+                        },
+                        {
+                            "email": "viewer@demo.test",
+                            "name": "Vera Viewer",
+                            "roles": [
+                                "viewer"
+                            ]
+                        }
+                    ],
+                    "login_url": "https://fsa-test-j10.test/admin/login",
+                    "delivered": "secrets_file"
+                },
+                "sign_in_link": {
+                    "expires_at": "2026-10-20T17:04:17Z",
+                    "delivered": "secrets_file"
+                }
+            },
+            "secrets": [
+                {
+                    "name": "demo_password:owner@demo.test",
+                    "written_to": "<work>/demo-secrets.json",
+                    "expires_at": null
+                },
+                {
+                    "name": "demo_password:admin@demo.test",
+                    "written_to": "<work>/demo-secrets.json",
+                    "expires_at": null
+                },
+                {
+                    "name": "demo_password:designer@demo.test",
+                    "written_to": "<work>/demo-secrets.json",
+                    "expires_at": null
+                },
+                {
+                    "name": "demo_password:reviewer@demo.test",
+                    "written_to": "<work>/demo-secrets.json",
+                    "expires_at": null
+                },
+                {
+                    "name": "demo_password:coordinator@demo.test",
+                    "written_to": "<work>/demo-secrets.json",
+                    "expires_at": null
+                },
+                {
+                    "name": "demo_password:worker@demo.test",
+                    "written_to": "<work>/demo-secrets.json",
+                    "expires_at": null
+                },
+                {
+                    "name": "demo_password:mobile@demo.test",
+                    "written_to": "<work>/demo-secrets.json",
+                    "expires_at": null
+                },
+                {
+                    "name": "demo_password:tablet@demo.test",
+                    "written_to": "<work>/demo-secrets.json",
+                    "expires_at": null
+                },
+                {
+                    "name": "demo_password:viewer@demo.test",
+                    "written_to": "<work>/demo-secrets.json",
+                    "expires_at": null
+                },
+                {
+                    "name": "sign_in_link",
+                    "written_to": "<work>/demo-secrets.json",
+                    "expires_at": "2026-10-20T17:04:17Z"
+                }
+            ],
+            "warnings": [],
+            "errors": []
+        }
+    },
+    "seed_load": {
+        "command": "php artisan app:seed-load demo 100000 --force (one-off)",
+        "exit_code": 0,
+        "seconds": 429.5,
+        "output": [
+            "+-------------------+-----------------------+",
+            "|                   | demo / service_report |",
+            "+-------------------+-----------------------+",
+            "| submissions       | 100000                |",
+            "| submission_values | 2331435               |",
+            "| tasks             | 40325                 |",
+            "| renditions        | 70883                 |",
+            "| workflow_runs     | 38013                 |",
+            "| mail_messages     | 16884                 |",
+            "| seconds           | 427.06                |",
+            "+-------------------+-----------------------+"
+        ]
+    },
+    "rendition_gap": {
+        "exit_code": 0,
+        "output": "21818"
+    },
+    "fixtures": {
+        "command": "php -- demo 150000 < scripts/perf/fixtures.php (one-off)",
+        "exit_code": 0,
+        "seconds": 6.8,
+        "result": {
+            "organization": {
+                "id": 2,
+                "slug": "demo"
+            },
+            "serviceReport": {
+                "id": 1,
+                "versionId": 1
+            },
+            "perf300": {
+                "id": 2,
+                "versionId": 2
+            },
+            "savedReports": [
+                1,
+                2
+            ],
+            "sample": {
+                "completed": "01a158e1-3bef-7324-86b4-d1f707cd4e5d",
+                "number": "LT-yh2vmu-056525",
+                "inReview": "01a15958-40af-7358-9d54-0a81896ddd40"
+            },
+            "counts": {
+                "submissions": 100000,
+                "submission_values": 2331435,
+                "tasks": 40325,
+                "renditions": 92901,
+                "workflow_runs": 38013,
+                "mail_messages": 16884,
+                "activity_log": 150004,
+                "activity_log_all": 150021
+            },
+            "auditInserted": 149789
+        }
+    },
+    "queue_settled": {
+        "seconds": 10.8,
+        "settled": true,
+        "largest_backlog": 1
+    }
+}

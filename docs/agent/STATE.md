@@ -1,11 +1,12 @@
-# State: 2026-10-20T12:45Z
+# State: 2026-10-20T17:40Z
 v2 run (BUILD_PROMPT_V2.md, plan `docs/plans/2026-10-17-001-feat-docker-distribution-v2-plan.md`).
 M9–M12 done and merged to `main` (tags `m9-done`, `v2.0.0-alpha.1`, `m10-done`, `v2.0.0-alpha.2`, `m11-done`,
 `v2.0.0-beta.1`, `m12-done`, `v2.0.0-rc.1`; local only, never pushed). Reports: `docs/agent/milestones/M9.md`–`M12.md`.
 
 ## Next actions
-1. M13 on branch `m13-release` from `main`: M13-T01 U20, T02 U21, T03 U22 (PLAN.md has the breakdown), then the
-   M13 gate (T04) and 2.0.0 per §15.10. After 2.0.0 the human wants a GitHub Pages docs site (plan it then).
+1. M13 on branch `m13-release` from `main`: T01 U20, T02 U21, T03 U22 merged (suite 7374). Next: the M13 gate
+   (T04): rebuild the dev stack from the branch, run DogfoodE2ETest and the dev-stack E2E, all journeys, reviews,
+   the R51 agent-guide run; then 2.0.0 per §15.10. After 2.0.0 the human wants a GitHub Pages docs site (plan it then).
 2. Test DBs form_schema_ga/gb/gc (+_test_N) and the older ones (form_schema_m10b, u12, u12cov, u13, u14, u14b, u15,
    test_bb/d/e/m9/z and their `_test_N`) may remain in the dev Postgres: left for the human.
 3. E2E: run with `--workers=2` when the host is busy; leave ≥ 60 s between runs (LEARNINGS 128). Commit journey
