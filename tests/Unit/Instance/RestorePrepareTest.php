@@ -8,6 +8,8 @@ use App\Domain\Instance\Backup\BackupTools;
 use App\Domain\Instance\Backup\KeyFingerprint;
 use App\Domain\Instance\Console\RestorePrepareCommand;
 use App\Domain\Instance\InstanceException;
+use App\Domain\Instance\Output\InvalidInput;
+use App\Domain\Instance\Restore\AppKeys;
 use App\Domain\Instance\Restore\MigrationSet;
 use App\Domain\Instance\Restore\PreparedBackup;
 use App\Domain\Instance\Restore\RestoreSource;
@@ -231,6 +233,25 @@ it('refuses links a compromised prepare step leaves in the scratch directory: th
     symlink($this->work.'/scratch/real', $set);
     expect($confined)->toThrow(InstanceException::class, 'link');
 });
+
+it('refuses an identity file that is missing or no regular file before Docker runs: a bind mount would create a root-owned directory there (M13)', function (string $kind): void {
+    $directory = TemporaryInstance::directory();
+    $docker = new RecordingDockerGateway;
+    $source = new RestoreSource($directory, $docker);
+    $identity = $this->work.'/identity.age';
+    if ($kind === 'directory') {
+        mkdir($identity);
+    }
+
+    try {
+        expect(fn () => $source->prepare(['image' => 'app:test', 'uuid' => 'u', 'user' => '1000:1000'], $this->work, $source->scratch('0123456789ab'), AppKeys::of([BackupSetFixture::APP_KEY]), $identity, 'pass'))
+            ->toThrow(fn (InvalidInput $e) => expect($e->errorCode)->toBe('identity_unreadable')->and($e->getMessage())->toContain($identity))
+            ->and($docker->calls)->toBe([])
+            ->and($kind === 'missing' ? file_exists($identity) : is_dir($identity))->toBe($kind === 'directory');
+    } finally {
+        TemporaryInstance::cleanup();
+    }
+})->with(['missing' => ['missing'], 'directory' => ['directory']]);
 
 it('says when it cannot remove a scratch directory instead of leaving a plaintext copy unnamed (M12 gate)', function (): void {
     $directory = TemporaryInstance::directory();

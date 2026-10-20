@@ -278,7 +278,8 @@ Failures:
 - Exit 7 `backup_newer`: the backup comes from a newer version. Upgrade first.
 - Exit 2 `backup_not_found`, `backup_unauthenticated` (the backup's signature does not match this instance's APP key:
   pass the key of the instance that made it with `--app-key-file`, or `--accept-unauthenticated` if the person accepts
-  an unverified backup), `identity_required` (an encrypted backup).
+  an unverified backup), `identity_required` (an encrypted backup), `identity_unreadable` (the `--identity-file`
+  path is missing or not a regular file).
 - Exit 3 `low_disk_space`: free space; a restore needs room for one more copy.
 - Exit 5: the restore failed and the instance runs on its previous data again. Exit 8: see the recovery object.
 
@@ -375,7 +376,8 @@ over, an install from that backup on the new host.
    {"exit_code": 0, "status": "ok", "data": {"removed": {"containers": "<list>", "networks": "<list>", "volumes": "<list>"}, "kept": ["backups"], "final_backup": "<object>"}}
    ```
 
-Failures of step 3: exit 2 `decrypt_failed` (wrong identity or passphrase), `backup_unauthenticated` (wrong or
+Failures of step 3: exit 2 `decrypt_failed` (wrong identity or passphrase), `identity_unreadable` (no identity
+file at that path), `backup_unauthenticated` (wrong or
 missing `--app-key-file`), exit 7 `backup_newer` (install the same or a newer version on the new host: `--version`).
 `--keep-recipients` keeps the old instance's backup encryption key on the new one. Without it, the warning
 `backup_recipients_not_kept` says that new backups are not encrypted until you run `fsa config set backup-encryption on`

@@ -98,6 +98,10 @@ final readonly class RestoreSource
         $mount = is_dir($source) ? $source : dirname($source);
         $volumes = [$mount.':'.$mount.':ro', $scratch.':'.$scratch];
         if ($identityFile !== null) {
+            // Docker creates a missing bind source as a root-owned directory on the host: check before mounting.
+            if (! is_file($identityFile) || ! is_readable($identityFile)) {
+                throw new InvalidInput("The identity file {$identityFile} is missing, unreadable or not a regular file.", 'identity_unreadable', 'Pass the path of the identity file `fsa config set backup-encryption on` wrote; nothing was changed.');
+            }
             $volumes[] = $identityFile.':'.$identityFile.':ro'; // the file alone, never its directory (often $HOME)
         }
         $input = json_encode(['passphrase' => $passphrase, 'keys' => $keys->hmacKeys()], JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
