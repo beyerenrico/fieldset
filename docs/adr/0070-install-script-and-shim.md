@@ -272,3 +272,9 @@ The doubled memory limits under emulation (`RenderContext::EMULATION_MEMORY_FACT
 Mailpit keeps 48 MiB on `small` although it needs about 10 MiB natively, so its emulated limit stays 96 MiB: amd64
 Mailpit under emulation needs about 60 MiB plus its health check (the 57 MiB above). ADR 0083 did not measure under
 emulation; the M11 gate's emulated journeys run with these doubled limits.
+
+## Amendment 2026-10-20: `--adopt` (U19)
+install.sh takes `--adopt <checkout>` and hands over `fsa adopt <checkout>` instead of `fsa install` (ADR 0087); everything
+else (directory, marker, verified release, shim, PATH link) is as for an install. The shim mounts the first argument of
+`adopt` read-only at its own physical path and passes that path; the image wrapper passes `--version` on as `--release`
+for `adopt` as for `install`.

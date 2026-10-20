@@ -204,7 +204,7 @@ it('switches to domain mode against Pebble, recreating only the affected service
         ->and(collect($events)->contains(fn (array $event): bool => $event['phase'] === 'workers' && str_starts_with($event['message'], 'Completed workers')))->toBeTrue()
         ->and($json['data']['services']['added'])->toBe(['edge'])
         ->and($json['data']['services']['recreated'])->toEqualCanonicalizing(['app', 'queue', 'scheduler', 'mailpit'])
-        ->and($kept)->toEqualCanonicalizing(['postgres', 'redis', 'gotenberg'])
+        ->and($kept)->toEqualCanonicalizing(['postgres', 'redis', 'gotenberg', 'backup'])
         ->and(array_keys($after))->toContain('edge')
         ->and(collect($json['warnings'])->pluck('code')->all())->toContain('url_changed', 'sso_urls_changed');
 });

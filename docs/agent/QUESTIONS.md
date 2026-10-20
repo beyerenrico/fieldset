@@ -150,7 +150,8 @@ Format: question · chosen option · impact · how to reverse.
    again (or `--yes-orphans`) if this proves risky.
 32. The final backup of `fsa uninstall --keep-backups` (ADR 0073) runs while app, queue and scheduler keep
    running · kept: uninstall stops everything right after the backup · files written during the archive may be
-   missing from it · stop the app roles before the final backup once U16's quiesce step exists.
+   missing from it · stop the app roles before the final backup once U16's quiesce step exists. Resolved in the M12 gate (D2): the final backup
+   now quiesces first (gate up; app, scheduler, backup, then queue stopped).
 33. Owner email and name in the state history and archived journals are HMAC digests keyed from APP_KEY
    (APP_PREVIOUS_KEYS still match) · chosen to keep personal data out of host files · a future APP_KEY rotation
    must keep the previous keys, or old digests stop matching · `config set` key rotation (later) must append to
@@ -248,3 +249,69 @@ Format: question · chosen option · impact · how to reverse.
    The same lost update hit the drag spec twice (runs 8 and 10): after a drop the inspector stayed on the previous
    node for 10 s. Both appeared only with the host at load ~12 on 10 cores (Teams, Defender, VS Code PHP server);
    M11 changed no builder code.
+51. Backups (U16, ADR 0084): backup key rotation is not built: a new key pair means `config set backup-encryption
+   off` then `on`, and older backups still need the old identity · rotating keeps working encrypted archives readable
+   only while the operator keeps every identity · optional: a `backup-encryption rotate` that re-seals kept backups.
+52. `fsa install --encrypt` exits 2 with a hint to `fsa config set backup-encryption on` after the install (the
+   passphrase and identity path need a second, deliberate step) · confirm the two-step flow is acceptable.
+53. Restore (U17, ADR 0085): the app's database user is still a Postgres superuser · an unauthenticated archive is
+   restored by a restricted role and audited before adoption, but a superuser app user widens the impact of any
+   audit gap · optional: a non-superuser app role (owner of its database only) in a later release.
+54. An instance installed with `fsa install --from-backup` gets a new instance UUID, so backups of its predecessor
+   cannot be restored in place there (only with `--from-backup`) · confirm, or carry the UUID on a move.
+55. `fsa restore --drill` renders its sample document with images from the live volume (reported as
+   `render_storage: live`), so the drill does not prove the backup's files render · accept or extract storage too.
+56. The restore space check measures the instance directory's file system; when Docker's data root is on another
+   file system the check can underestimate the space a fresh volume needs · accept or measure both.
+57. Restore carry (U17, ADR 0085): when the live database was itself restored, rolled back or reset after the backup,
+   changes are carried only if timestamped or named in the audit log after the backup; actions without an audit
+   event (hard-deleted users, direct permission removals, deleted membership rows, identities unlinked outside
+   `sso.connection_changed`, actor-less group changes, password changes with audit suppressed, wipe requests by
+   timestamp only) are then skipped and reported as `carry_partial`. Restoring the same backup twice can drop what the
+   first carry re-applied (the carry writes no audit entries) · optional: audit what the carry re-applies.
+58. Reset resume (U23, ADR 0088): the plan says an interrupted reset resumes "on the next `fsa` command"; instead
+   every other changing command answers exit 9 naming `fsa reset`, `fsa status` shows it, and only `fsa reset`
+   continues (other commands would otherwise return the owner link or demo passwords) · accept or require auto-resume.
+59. Reset owner (ADR 0088): the fresh instance's owner is the old operator whose e-mail matches the install record's
+   keyed digest exactly (an e-mail typed with capitals at install does not match), else the operator granted first
+   · accept or normalise case in the digest.
+60. Reset keeps webhooks running (no pause: a reset keeps no runs to repeat) and keeps every safety backup it took,
+   including one a retake superseded (sealed, never pruned) · accept or prune superseded ones after a good reset.
+61. Adopt "writes since adopt" (U19, ADR 0087): the baseline is taken before 2.0 starts, so the count at uninstall
+   includes what 2.0 itself did afterwards (renditions and audit entries from 1.0's backlog, chain seals): it
+   over-reports rather than hides · accept or subtract system work.
+62. Adopt refuses a 1.0 Postgres that is not major 16 on Alpine (no REINDEX path for a libc change), and amcheck covers
+   only the unique text indexes after the copy · accept or add a reindex path / check every text index.
+63. Upgrade child liveness (U18, ADR 0086): the child counts as hung after 300 s without an active backend statement,
+   so a migration doing more than 300 s of PHP-only work between statements is killed and rolled back · accept or
+   raise / make configurable.
+64. Upgrade scope (ADR 0086): Mailpit and the tunnel are never recreated by an upgrade (a Mailpit digest bump waits for
+   the next `config set`); delayed jobs are flushed with Valkey on a rollback; the dropped-jobs file is never deleted;
+   queue/scheduler/backup do not themselves refuse to start behind the gate · accept each or schedule.
+65. Upgrade target (ADR 0086): without `--to` the target is `latest`; when latest is a new major, exit 7 cannot name the
+   newest release within the installed major (the verified feed has no release list; a GitHub listing is unsigned).
+   A manual rollback needs a previous release that knows the upgrade-child role · accept or add a signed release list.
+66. Upgrade in-flight wait (ADR 0086, review A1): after the gate rises the upgrade waits up to 120 s until no other
+   client session holds the database, including an operator's psql (exit 9 names them); it relies on FrankenPHP's
+   classic mode · accept or ignore known clients.
+67. Staged release files (ADR 0086, review S2/A3): unknown staged files are refused, so a release that renders a new
+   kind of file needs the installed release to know it; on a rollback a renamed env key keeps its pre-upgrade value
+   (a rotation after the upgrade is lost) · accept or version the stage format.
+68. One full-suite run on the merged M12 tree failed SearchPlanTest once (planner chose sequential scans on
+   submission_values, submissions and users); it passed alone 3/3 and in the next full run · watch; if it recurs,
+   suspect autovacuum updating relation stats during the test.
+69. M12 gate deferrals (agent operability, correctness, security reviews): one recovery object across envelopes
+   (O5; `data.next` string vs kind, for the U21 agent guide); a retried finished foreground operation is not
+   idempotent and the shim's 143/130 exits carry no envelope (O11); restores/rollbacks/resets replace the
+   `backup_runs` table, so `/platform` may show a false `backup_overdue` (C8); `--from-backup` and adopt migrate
+   without VersionSteps (C9; latent, STEPS is empty); `fsa status` backup alerts read the forgeable `runs.log` (S7)
+   · accept each or schedule for M13.
+70. An encrypted final backup (uninstall `--keep-backups`) moves only with `--accept-unauthenticated`: its APP key is
+   inside the archive, so whoever can write `backups/` and knows the public recipients can forge one (restricted
+   restore role limits SQL damage) · accept, or print the APP key fingerprint and let `--from-backup` require it.
+71. `--from-backup` keeps a backup's encryption recipients only with `--keep-recipients` (M12 gate S2), and
+   `uninstall --keep-backups` fails with exit 4 on an instance without a backup service (pre-rc builds only)
+   · accept or relax.
+72. On rootless Docker and Docker Desktop container root is the owner, so the root-owned partial set (S1) adds no
+   protection there; a FIFO swapped in between the restore copy's lstat and open blocks the prepare one-off until its
+   time limit (whoever can do that can also delete the backup) · accept or harden.

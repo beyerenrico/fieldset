@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Lifecycle;
 
+use App\Domain\Instance\Compose\ComposeRenderer;
 use App\Domain\Instance\Docker\ContainerInfo;
 use App\Domain\Instance\State\InstanceDirectory;
+use App\Domain\Instance\State\InstanceSecrets;
+use App\Domain\Instance\State\InstanceState;
 
 /**
  * Reads the generated compose file (JSON behind a comment header, ADR 0069) for the services an instance runs,
@@ -34,6 +37,18 @@ final class ComposeFile
         $document = json_decode($json, true);
 
         return is_array($document) ? $document : [];
+    }
+
+    /**
+     * Whether the current compose file was rendered for emulated images (DOCKER_DEFAULT_PLATFORM, ADR 0070): every memory
+     * limit doubled. A render without that would recreate every service, so re-renders keep it.
+     */
+    public static function emulated(InstanceDirectory $directory, ComposeRenderer $renderer, InstanceState $state, InstanceSecrets $secrets): bool
+    {
+        $current = self::document($directory)['services']['app']['mem_limit'] ?? null;
+        $native = $renderer->render($state, $secrets)->service('app')['mem_limit'] ?? null;
+
+        return is_string($current) && is_string($native) && (int) $current === 2 * (int) $native;
     }
 
     /**

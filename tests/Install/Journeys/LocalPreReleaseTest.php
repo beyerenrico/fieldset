@@ -185,7 +185,7 @@ it('installs it natively with the harness install.sh and reports it with fsa sta
         ->and(substr(sprintf('%o', fileperms($secrets)), -3))->toBe('600')
         ->and($status->getExitCode())->toBe(0, $status->getErrorOutput().$status->getOutput())
         ->and($statusJson['data'])->toMatchArray(['installed' => true, 'version' => $this->version, 'health' => 'ok', 'mode' => 'local'])
-        ->and(array_keys($statusJson['data']['services']))->toBe(['app', 'queue', 'scheduler', 'postgres', 'redis', 'gotenberg', 'mailpit'])
+        ->and(array_keys($statusJson['data']['services']))->toBe(['app', 'queue', 'scheduler', 'postgres', 'redis', 'gotenberg', 'mailpit', 'backup'])
         ->and($version->getExitCode())->toBe(0, $version->getOutput())
         ->and(InstanceJourney::json($version)['data'])->toMatchArray(['fsa' => $this->version, 'instance' => $this->version]);
     foreach ($statusJson['data']['services'] as $service => $state) {
@@ -221,7 +221,7 @@ it('uninstalls with fsa uninstall --yes without leaving a labelled container, vo
         'removed' => $json['data']['removed'] ?? null, 'labelled_before' => array_map(count(...), $before), 'labelled_after' => $after]]);
 
     expect($uninstall->getExitCode())->toBe(0, $uninstall->getErrorOutput().$uninstall->getOutput())
-        ->and($before['containers'])->toHaveCount(7)
+        ->and($before['containers'])->toHaveCount(8) // the backup service since U16 (ADR 0084)
         ->and($after)->toBe(['containers' => [], 'volumes' => [], 'networks' => []])
         ->and(array_values(array_diff(scandir($this->dir) ?: [], ['.', '..'])))->toBe([]);
 });

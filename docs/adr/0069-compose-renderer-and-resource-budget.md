@@ -217,3 +217,12 @@ Each `ResourceBudget` profile gains a `postgres` map of further server settings 
 `small` sets `jit=off` and `max_parallel_workers_per_gather=0`, `medium` and `large` none. `small`'s `max_connections`
 is 30 (was 40), sized from `postgresClients()` (17 on `small`). The postgres service still passes every setting as a
 `-c name=value` argument, so the compose file (and the stack file) shows them.
+
+## Amendment 2026-10-19: the backup service is rendered (U16, ADR 0084)
+- `BackupService` joins `defaultDefinitions()` and renders in every mode. Its env (`ServiceEnvironments::backup()`) now
+  holds, besides the dump role, `BACKUP_HMAC_KEY` and `BACKUP_AGE_RECIPIENTS`: `BACKUP_APP_FINGERPRINTS`,
+  `BACKUP_SCHEDULE`, `BACKUP_TIME_ZONE`, `BACKUP_RETENTION`, `FSA_INSTANCE_ROOT` and the in-container owner
+  `FSA_OWNER_UID`/`FSA_OWNER_GID`. The env-split row "backup (U16, …, not rendered yet)" is superseded by this list.
+- `write()` also creates `backups/` and `locks/` (0700) before Compose could create the backup service's bind mounts as
+  root, and writes `backups/.instance.json` (0600, the instance's identity and portable settings, no secret).
+- The stack file (ADR 0076) renders without the backup service.

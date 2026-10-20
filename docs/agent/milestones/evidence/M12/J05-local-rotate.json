@@ -1,0 +1,139 @@
+{
+    "command": "fsa demo --rotate-passwords --secrets-file <work>/j05-rotated.json --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "demo",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": true,
+        "data": {
+            "url": "http://localhost:8081",
+            "mode": "local",
+            "mail": {
+                "mode": "capture",
+                "catcher_url": "http://localhost:8025",
+                "catcher_login_command": "fsa config show --catcher-login"
+            },
+            "next_commands": [
+                "<work>/fsa-test-j05-local/fsa status",
+                "<work>/fsa-test-j05-local/fsa login-link owner@demo.test",
+                "<work>/fsa-test-j05-local/fsa demo --rotate-passwords"
+            ],
+            "demo": {
+                "rotated": true,
+                "passwords": "random",
+                "exposure": [],
+                "users": [
+                    {
+                        "email": "owner@demo.test"
+                    },
+                    {
+                        "email": "admin@demo.test"
+                    },
+                    {
+                        "email": "designer@demo.test"
+                    },
+                    {
+                        "email": "reviewer@demo.test"
+                    },
+                    {
+                        "email": "coordinator@demo.test"
+                    },
+                    {
+                        "email": "worker@demo.test"
+                    },
+                    {
+                        "email": "mobile@demo.test"
+                    },
+                    {
+                        "email": "tablet@demo.test"
+                    },
+                    {
+                        "email": "viewer@demo.test"
+                    }
+                ],
+                "sessions_ended": 4,
+                "tokens_revoked": 0,
+                "delivered": "secrets_file"
+            }
+        },
+        "secrets": [
+            {
+                "name": "demo_password:owner@demo.test",
+                "written_to": "<work>/j05-rotated.json",
+                "expires_at": null
+            },
+            {
+                "name": "demo_password:admin@demo.test",
+                "written_to": "<work>/j05-rotated.json",
+                "expires_at": null
+            },
+            {
+                "name": "demo_password:designer@demo.test",
+                "written_to": "<work>/j05-rotated.json",
+                "expires_at": null
+            },
+            {
+                "name": "demo_password:reviewer@demo.test",
+                "written_to": "<work>/j05-rotated.json",
+                "expires_at": null
+            },
+            {
+                "name": "demo_password:coordinator@demo.test",
+                "written_to": "<work>/j05-rotated.json",
+                "expires_at": null
+            },
+            {
+                "name": "demo_password:worker@demo.test",
+                "written_to": "<work>/j05-rotated.json",
+                "expires_at": null
+            },
+            {
+                "name": "demo_password:mobile@demo.test",
+                "written_to": "<work>/j05-rotated.json",
+                "expires_at": null
+            },
+            {
+                "name": "demo_password:tablet@demo.test",
+                "written_to": "<work>/j05-rotated.json",
+                "expires_at": null
+            },
+            {
+                "name": "demo_password:viewer@demo.test",
+                "written_to": "<work>/j05-rotated.json",
+                "expires_at": null
+            }
+        ],
+        "warnings": [],
+        "errors": []
+    },
+    "session_before": [
+        200,
+        [
+            200,
+            "mobile@demo.test"
+        ]
+    ],
+    "session_after": [
+        401,
+        null
+    ],
+    "old_password": 422,
+    "new_password": [
+        200,
+        [
+            200,
+            "mobile@demo.test"
+        ]
+    ],
+    "check_after": {
+        "checked": 9,
+        "count": 0,
+        "users": [],
+        "organizations": {
+            "total": 2,
+            "non_demo": 1
+        }
+    }
+}

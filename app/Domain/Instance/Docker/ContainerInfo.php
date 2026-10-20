@@ -10,7 +10,10 @@ namespace App\Domain\Instance\Docker;
  */
 final readonly class ContainerInfo
 {
-    /** @param  array<string, string>  $labels */
+    /**
+     * @param  array<string, string>  $labels
+     * @param  array<string, string>  $mounts  destination => volume name, named volumes only (inspect only)
+     */
     public function __construct(
         public string $id,
         public string $name,
@@ -19,6 +22,7 @@ final readonly class ContainerInfo
         public ?string $health = null,
         public ?string $image = null,
         public array $labels = [],
+        public array $mounts = [],
     ) {}
 
     public function running(): bool
@@ -46,7 +50,21 @@ final readonly class ContainerInfo
             health: $health,
             image: self::string($config['Image'] ?? null),
             labels: Labels::parse($config['Labels'] ?? null),
+            mounts: self::volumes($json['Mounts'] ?? null),
         );
+    }
+
+    /** @return array<string, string> the named volumes among inspect's `Mounts`, by destination */
+    private static function volumes(mixed $mounts): array
+    {
+        $volumes = [];
+        foreach (is_array($mounts) ? $mounts : [] as $mount) {
+            if (is_array($mount) && ($mount['Type'] ?? null) === 'volume' && is_string($mount['Name'] ?? null) && is_string($mount['Destination'] ?? null)) {
+                $volumes[$mount['Destination']] = $mount['Name'];
+            }
+        }
+
+        return $volumes;
     }
 
     /** @param  array<string, mixed>  $json  one line of `docker container ls --format '{{json .}}'` or `docker compose ps --format json` */

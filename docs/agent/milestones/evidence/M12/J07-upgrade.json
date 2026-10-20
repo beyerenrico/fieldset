@@ -1,0 +1,149 @@
+{
+    "releases": [
+        "2.0.0-rc.1-test",
+        "2.0.0-rc.2-test",
+        "2.0.0-rc.3-test",
+        "2.0.0-rc.4-test"
+    ],
+    "built": "2026-10-20",
+    "revision": "76bad608674ae85de9fd2b0acde5e80dede5ce55",
+    "install": {
+        "exit_code": 0,
+        "version": "2.0.0-rc.1-test"
+    },
+    "crashing_target": {
+        "exit_code": 5,
+        "error": {
+            "code": "child_crashed",
+            "message": "The upgrade to 2.0.0-rc.4-test failed and was rolled back; the instance runs 2.0.0-rc.1-test again with the data of the safety backup. Cause: The upgrade child stopped without a result (it crashed).",
+            "hint": "Read the logs in `data.logs` and `fsa logs app`; nothing written since the safety backup was lost (writers were stopped). Run `fsa upgrade` again once the cause is fixed.",
+            "retryable": true
+        },
+        "running": "2.0.0-rc.1-test",
+        "status_version": "2.0.0-rc.1-test"
+    },
+    "ae7_local": {
+        "exit_code": 5,
+        "error": {
+            "code": "target_unhealthy",
+            "message": "The upgrade to 2.0.0-rc.3-test failed and was rolled back; the instance runs 2.0.0-rc.1-test again with the data of the safety backup. Cause: The target release did not become healthy behind the gate:  Container fsa-fsa-test-j07-eced-gotenberg-1 Healthy \ncontainer fsa-fsa-test-j07-eced-app-1 is unhealthy",
+            "hint": "Read the logs in `data.logs` and `fsa logs app`; nothing written since the safety backup was lost (writers were stopped). Run `fsa upgrade` again once the cause is fixed.",
+            "retryable": true
+        },
+        "acknowledged_writes": 67,
+        "statuses_after_the_gate": {
+            "503": 52,
+            "0": 2,
+            "201": 1,
+            "200": 1
+        },
+        "retried_after_rollback": 200
+    },
+    "happy_upgrade": {
+        "quiescing_seen": true,
+        "supervisor_after_kill": 1,
+        "status_during": {
+            "operation": "upgrade",
+            "state": "running",
+            "last_phase": "quiesce",
+            "last_completed_phase": "pull",
+            "started_at": "2026-10-20T10:55:30Z",
+            "command": "fsa upgrade --resume",
+            "options": []
+        },
+        "finished": true,
+        "status_after": {
+            "version": "2.0.0-rc.2-test",
+            "health": "ok"
+        },
+        "last_history": {
+            "at": "2026-10-20T10:56:04Z",
+            "event": "upgraded",
+            "from": "2.0.0-rc.1-test",
+            "to": "2.0.0-rc.2-test",
+            "journal": "8e9bf2967e450813",
+            "safety_backup": "safety-upgrade-20261020T105539Z",
+            "safety_backup_sums": "25641fe53e061d6c099b329cefbf07cff85e7dcf7767da895df5f9e47c010bd2"
+        }
+    },
+    "rollback": {
+        "exit_code": 0,
+        "data": {
+            "from": "2.0.0-rc.2-test",
+            "to": "2.0.0-rc.1-test",
+            "backup": "safety-upgrade-20261020T105539Z",
+            "safety_backup": "safety-rollback-20261020T105656Z",
+            "loss": {
+                "submissions": 1,
+                "activity_log": 1,
+                "users": 0,
+                "forms": 0,
+                "mail_messages": 0,
+                "attachments": 0
+            },
+            "epoch": 4,
+            "carried": {
+                "users_erased": 0,
+                "users_deactivated": 0,
+                "users_missing": 0,
+                "passwords": 0,
+                "mfa": 0,
+                "emails": 0,
+                "email_conflicts": 0,
+                "export_directories": [],
+                "devices_revoked": 0,
+                "devices_wiped": 0,
+                "memberships_deactivated": 0,
+                "roles_removed": 0,
+                "permissions_removed": 0,
+                "tokens_deleted": 0,
+                "operators_revoked": 0,
+                "external_identities_deleted": 0,
+                "identity_provider_mappings_deleted": 0,
+                "identity_providers_deleted": 0,
+                "identity_providers_updated": 0,
+                "sso_domains_deleted": 0,
+                "sso_domains_unverified": 0,
+                "group_memberships_removed": 0,
+                "form_access_removed": 0,
+                "organizations_deleted": 0,
+                "webhook_endpoints_deleted": 0,
+                "webhook_endpoints_deactivated": 0
+            },
+            "carry_mode": "state",
+            "storage_volume": "fsa-fsa-test-j07-eced_app-storage-r47b1199c95e8",
+            "left_behind": [],
+            "webhooks": "paused"
+        },
+        "error": null
+    },
+    "refusals": {
+        "rollback": {
+            "code": "no_previous_release",
+            "message": "There is no earlier release to return to: the instance was not upgraded since it was installed, or a rollback used the previous release already.",
+            "hint": "`fsa restore <backup>` restores a backup of this version; `fsa status` lists the backups.",
+            "retryable": false
+        },
+        "older": {
+            "code": "downgrade_refused",
+            "message": "2.0.0-alpha.1-test is older than the installed 2.0.0-rc.1-test: upgrades only move forward.",
+            "hint": "`fsa rollback` returns to the version before the last upgrade (from its safety backup); an older release needs a backup made by it, installed into a new directory (`install.sh --dir <new directory> --from-backup <backup>`). Nothing was changed.",
+            "retryable": false
+        }
+    },
+    "ae7_proxy": {
+        "exit_code": 5,
+        "error": {
+            "code": "target_unhealthy",
+            "message": "The upgrade to 2.0.0-rc.3-test failed and was rolled back; the instance runs 2.0.0-rc.1-test again with the data of the safety backup. Cause: The target release did not become healthy behind the gate:  Container fsa-fsa-test-j07p-456b-postgres-1 Healthy \ncontainer fsa-fsa-test-j07p-456b-app-1 is unhealthy",
+            "hint": "Read the logs in `data.logs` and `fsa logs app`; nothing written since the safety backup was lost (writers were stopped). Run `fsa upgrade` again once the cause is fixed.",
+            "retryable": true
+        },
+        "acknowledged_writes": 81,
+        "statuses_after_the_gate": {
+            "503": 54,
+            "0": 2
+        },
+        "retried_after_rollback": 201
+    }
+}

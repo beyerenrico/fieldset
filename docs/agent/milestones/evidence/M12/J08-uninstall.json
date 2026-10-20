@@ -1,0 +1,62 @@
+{
+    "command": "fsa uninstall --yes --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "uninstall",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": true,
+        "data": {
+            "uuid": "378ca936-8137-419c-9d3c-66a3ed6079ff",
+            "removed": {
+                "containers": [
+                    "fsa-fsa-test-j08-a973-backup-1",
+                    "fsa-fsa-test-j08-a973-scheduler-1",
+                    "fsa-fsa-test-j08-a973-queue-1",
+                    "fsa-fsa-test-j08-a973-app-1",
+                    "fsa-fsa-test-j08-a973-mailpit-1",
+                    "fsa-fsa-test-j08-a973-gotenberg-1",
+                    "fsa-fsa-test-j08-a973-postgres-1",
+                    "fsa-fsa-test-j08-a973-redis-1"
+                ],
+                "networks": [
+                    "fsa-fsa-test-j08-a973_default",
+                    "fsa-fsa-test-j08-a973_renderer"
+                ],
+                "volumes": [
+                    "fsa-fsa-test-j08-a973_app-storage-r75b8366db0ac",
+                    "fsa-fsa-test-j08-a973_mailpit-data",
+                    "fsa-fsa-test-j08-a973_pg-data",
+                    "fsa-fsa-test-j08-a973_valkey-data"
+                ]
+            },
+            "dir": "<work>/fsa-test-j08",
+            "deleted_files": [
+                ".fsa-instance",
+                "backups",
+                "compose.yaml",
+                "env",
+                "fsa",
+                "operations",
+                "releases",
+                "runtime",
+                "staging",
+                "state.json"
+            ],
+            "kept": [],
+            "left_files": [],
+            "data_deleted": true,
+            "backups_deleted": true,
+            "final_backup": null
+        },
+        "secrets": [],
+        "warnings": [],
+        "errors": []
+    },
+    "labelled_after": {
+        "containers": [],
+        "volumes": [],
+        "networks": []
+    }
+}

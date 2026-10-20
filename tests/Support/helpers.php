@@ -22,9 +22,10 @@ function memberOf(Organization $organization, SystemRole ...$roles): User
     return User::factory()->memberOf($organization, ...$roles)->create();
 }
 
+/** The organization's first member, its owner: ordered, since heap order changes once rolled-back test rows are vacuumed. */
 function ownerOf(Organization $organization): User
 {
-    return $organization->members()->firstOrFail();
+    return $organization->members()->orderByPivot('id')->firstOrFail();
 }
 
 /**

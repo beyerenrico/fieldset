@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Platform\Health;
 
+use App\Domain\Platform\Health\Checks\BackupCheck;
 use App\Domain\Platform\Health\Checks\DiskCheck;
 use App\Domain\Platform\Health\Checks\GotenbergCheck;
 use App\Domain\Platform\Health\Checks\MailCheck;
@@ -21,7 +22,7 @@ use Throwable;
 final readonly class PlatformHealth
 {
     /** @var list<class-string<HealthCheck>> */
-    public const array CHECKS = [QueueCheck::class, GotenbergCheck::class, MailCheck::class, SchedulerCheck::class, DiskCheck::class, RuntimeCheck::class];
+    public const array CHECKS = [QueueCheck::class, GotenbergCheck::class, MailCheck::class, SchedulerCheck::class, DiskCheck::class, RuntimeCheck::class, BackupCheck::class];
 
     public function __construct(private Container $container) {}
 

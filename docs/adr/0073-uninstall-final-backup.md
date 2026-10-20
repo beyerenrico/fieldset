@@ -79,3 +79,57 @@ first.
   Postgres (dump read back with `pg_restore --list`).
 - ADR 0072's uninstall paragraph (exit 1 for an incomplete uninstall, `--orphans` removing any other UUID) is
   superseded by this ADR.
+
+## Amendment 2026-10-20: adopted instances (U19)
+An instance made by `fsa adopt` (ADR 0087) gets the final backup without `--keep-backups` and keeps `backups/` (its 1.0
+checkout holds the data only up to the adopt); the new `--no-backup` skips the final backup for any instance. The result of
+an adopted instance's uninstall adds `adopted` (checkout, the writes since adopt read from the running Postgres against the
+ledger's baseline, and `restart_1_0`) and the warnings `restart_1_0` and `writes_since_adopt`. The 1.0 volumes carry no
+instance label and stay.
+
+## Amendment 2026-10-20: the final backup is a 2.0 backup (M12 gate)
+The gate review found that the `final-*` set above (`backup.json`, `app-storage.tar`) was read by no fsa command, kept
+`app-key.env` in plaintext even with backup encryption on, and was written while the app still took writes, although
+the proxy-mode hint and this ADR promised `fsa install --from-backup` would carry the data over. It is replaced:
+
+- **Format.** `Lifecycle\FinalBackup` runs the backup service's own entry point under the uninstall lock
+  (`fsa backup-daemon --once --kind=final`, BackupRunner, as `fsa backup` does): `backups/final-<UTC>/` is a backup of
+  ADR 0084's format (dump and storage from one snapshot, manifest, SHA256SUMS and its HMAC), encrypted when the instance
+  has recipients. `BackupName` knows the kind `final`; retention never prunes it. `fsa install --from-backup` and
+  `fsa restore` read it (`UninstallFinalBackupMoveTest`).
+- **APP keys.** Encrypted: they go into the set as `secrets.env` (APP_KEY, APP_PREVIOUS_KEYS and the SMTP account, as
+  `--include-secrets`); its HMAC can only be verified with a key from outside the archive, so a move without the old
+  key takes `--accept-unauthenticated` (the restricted restore role), as the warning `final_backup_encrypted` says.
+  Plain: this ADR's decision stays, the keys go beside the set as `backups/<name>.app-key.env` (0600), and the result
+  names the file in the warning `app_key_beside_backup` with the `--from-backup … --app-key-file` command; an adopted
+  instance's uninstall does the same (U19 V2). Without the database volume nothing is dumped: only
+  the keys are saved beside (`final-<UTC>.app-key.env`, or `.age` to the recipients when encryption is on), for the
+  backups `backups/` keeps.
+- **Quiesced first (D2).** The gate goes up, app, scheduler and the backup service stop, then the queue with its grace
+  period; then the dump; then the writes since adopt are counted. A failed backup starts again what ran and lowers the
+  gate. The alternative this ADR rejected ("a failed backup would leave the instance stopped") no longer holds.
+- **Failure** stays exit 4 `final_backup_failed`; its hint names `fsa uninstall --no-backup` for deleting everything
+  without a final backup (DOC15), and `data.reason` carries the backup's own reason.
+- `data.final_backup` is `{dir, backup, encrypted, includes_secrets, key_file, missing_files}` (was `{dir, files}`).
+- `composeRunToFile` stays for the adopt backup (ADR 0087); the final backup no longer uses it.
+- Superseded statements: the file table and the `--keep-backups` paragraph of "Decision", "The app roles keep running
+  during the backup", the consequence "`fsa restore` reads `backup.json`", and U19's review note that a final set is
+  restored by hand.
+
+## Amendment 2026-10-20: uninstall after a failure half-way (M12 gate)
+- **A quiesce that fails (D2).** The services that run are read before the gate goes up; raising the gate and stopping
+  the writers and the queue are inside the same failure path as the backup, so a failed stop (or Docker gone after the
+  gate rose) starts again what ran and lowers the gate before exit 4 `final_backup_failed` (exit 10 when Docker is
+  gone, the gate lowered all the same). Before, such a failure left the gate up and app, scheduler and backup stopped
+  while the command said nothing was removed.
+- **What a cut-off backup run left.** Its `*.partial` sets in `backups/` and `staging/backup/` stay root's (0700, ADR
+  0084 amendment S1); on rootful Docker the ops container runs as the host user and can neither list nor remove them:
+  the file clean-up stopped half-way (`scandir`'s warning becomes an exception under Laravel's error handler, seen in
+  the test), and without that it would have reported `data_deleted`/`backups_deleted` true. Before
+  the stack's resources go, uninstall now has the backup service remove them as its root under the uninstall lock
+  (`fsa backup-daemon --clean --lock-id=<id>`, a new mode of the service's entry point that refuses without the
+  caller's lock), when any are left; best effort. SafeFiles::delete returns what it could not remove; the result lists
+  it in `data.left_files`, names it in the warning `files_left` with `sudo rm -rf -- …` (every path shell-quoted, a
+  name with a control character left out of the command and never printed: names in `backups/` are anyone's who can
+  write there), and `data_deleted` / `backups_deleted` are false while anything of theirs is left (exit 0: the marker
+  is gone, so running fsa again cannot help). With `--keep-backups`, partial sets still in `backups/` are listed too.

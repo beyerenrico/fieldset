@@ -159,6 +159,23 @@ it('inspects a container for its ID and start time', function (): void {
         ->and(fn () => $this->docker->inspectContainer('x'))->toThrow(DockerCommandFailed::class);
 });
 
+it('reads a container\'s volume mounts from inspect, and only the asked-for environment values (adopt, plan U19)', function (): void {
+    $this->runner->push(
+        new ProcessOutcome(0, json_encode(['Id' => 'p1', 'Name' => '/pg', 'State' => ['Status' => 'exited'], 'Config' => ['Image' => 'postgres:16-alpine'],
+            'Mounts' => [['Type' => 'volume', 'Name' => 'v1_pg-data', 'Destination' => '/var/lib/postgresql/data'], ['Type' => 'bind', 'Source' => '/etc/x', 'Destination' => '/x']]])),
+        new ProcessOutcome(0, json_encode(['APP_KEY=base64:abc=', 'DB_PASSWORD=hunter2-secret', 'APP_PORT=8080', 'BROKEN'])),
+        new ProcessOutcome(1, '', 'Error: No such container: gone'),
+    );
+
+    $container = $this->docker->inspectContainer('p1');
+    $env = $this->docker->containerEnv('a1', ['APP_KEY', 'APP_PORT', 'DB_DATABASE']);
+
+    expect($container?->mounts)->toBe(['/var/lib/postgresql/data' => 'v1_pg-data'])
+        ->and($this->runner->runs[1]['command'])->toBe(['docker', 'container', 'inspect', '--format', '{{json .Config.Env}}', 'a1'])
+        ->and($env)->toBe(['APP_KEY' => 'base64:abc=', 'APP_PORT' => '8080'])
+        ->and($this->docker->containerEnv('gone', ['APP_KEY']))->toBeNull();
+});
+
 it('inspects a network for its gateway and the addresses of attached containers (proxy mode, ADR 0076)', function (): void {
     $this->runner->push(
         new ProcessOutcome(0, json_encode([
@@ -240,6 +257,7 @@ it('builds docker run from a container spec with environment values out of argv'
     expect($run['command'])->toBe([
         'docker', 'run', '--detach', '--interactive', '--rm', '--name', 'fsa-forms-ab12-supervisor', '--restart', 'no',
         '--network', 'fsa_default', '--user', '1000:1000', '--entrypoint', '/usr/local/bin/fsa', '--workdir', '/srv/forms',
+        '--security-opt', 'no-new-privileges', // every container (M12 gate S6)
         '--label', 'app.form-schema.instance=u1', '--label', 'app.form-schema.role=supervisor',
         '--volume', '/var/run/docker.sock:/var/run/docker.sock', '--volume', '/srv/forms:/srv/forms',
         '--publish', '127.0.0.1:8080:80', '--group-add', '998',
@@ -248,6 +266,56 @@ it('builds docker run from a container spec with environment values out of argv'
     ])->and(implode(' ', $run['command']))->not->toContain('tok-secret')
         ->and($run['env']['SMOKE_TOKEN'])->toBe('tok-secret')
         ->and($run['timeout'])->toBe(30.0);
+});
+
+it('streams a docker run into a file with environment values out of argv (adopt, plan U19)', function (): void {
+    $spec = new ContainerSpec(image: 'postgres@sha256:'.str_repeat('2', 64), command: ['-h', '127.0.0.1', '--format=custom'], env: ['PGUSER' => 'form_schema'],
+        network: 'container:abc123', user: '1000:1000', entrypoint: 'pg_dump');
+
+    $outcome = $this->docker->runContainerToFile($spec, '/srv/forms/backups/x.partial/database.dump', 3600.0);
+
+    $run = $this->runner->runs[0];
+    expect($run['command'])->toBe(['docker', 'run', '--rm', '--network', 'container:abc123', '--user', '1000:1000', '--entrypoint', 'pg_dump',
+        '--security-opt', 'no-new-privileges', '--env', 'PGUSER', 'postgres@sha256:'.str_repeat('2', 64), '-h', '127.0.0.1', '--format=custom'])
+        ->and($run['env']['PGUSER'])->toBe('form_schema')
+        ->and($run['stdout_file'])->toBe('/srv/forms/backups/x.partial/database.dump')
+        ->and($run['timeout'])->toBe(3600.0)
+        ->and($outcome->successful())->toBeTrue();
+});
+
+it('drops every capability but the named ones and makes the root file system read-only for a hardened one-off (M12 gate S6)', function (): void {
+    $spec = new ContainerSpec(image: 'app@sha256:'.str_repeat('3', 64), command: ['-a', '/from/.', '/to/'], volumes: ['v1:/from:ro', 'v2:/to'], network: 'none', user: '0:0', entrypoint: 'cp');
+
+    $this->docker->runContainer($spec->hardened(ContainerSpec::OWNER_COPY));
+    $copy = $this->runner->runs[0]['command'];
+    $this->docker->runContainer($spec->hardened());
+    $bare = $this->runner->runs[1]['command'];
+    $this->docker->runContainer($spec);
+    $plain = $this->runner->runs[2]['command'];
+
+    expect($copy)->toBe(['docker', 'run', '--rm', '--network', 'none', '--user', '0:0', '--entrypoint', 'cp',
+        '--security-opt', 'no-new-privileges', '--cap-drop', 'ALL', '--cap-add', 'CHOWN', '--cap-add', 'DAC_OVERRIDE', '--cap-add', 'FOWNER', '--cap-add', 'FSETID', '--read-only',
+        '--volume', 'v1:/from:ro', '--volume', 'v2:/to', '--tmpfs', '/tmp', 'app@sha256:'.str_repeat('3', 64), '-a', '/from/.', '/to/'])
+        ->and(implode(' ', $bare))->toContain('--cap-drop ALL --read-only')->not->toContain('--cap-add')
+        ->and($plain)->toContain('--security-opt')->not->toContain('--cap-drop')->not->toContain('--read-only')
+        ->and($spec->hardened(ContainerSpec::READ_ANY, readOnlyRoot: false)->detachedAs('x', [])->capabilities)->toBe(['DAC_READ_SEARCH'])
+        ->and($spec->hardened(ContainerSpec::READ_ANY, readOnlyRoot: false)->tmpfs)->toBe([]);
+});
+
+it('stops and starts containers by ID without recreating them, and does nothing for none (adopt, plan U19)', function (): void {
+    $this->docker->stopContainers(['abc', 'def'], 100);
+    $stop = $this->runner->lastCommand();
+    $this->docker->startContainers(['abc']);
+    $start = $this->runner->lastCommand();
+    $this->docker->stopContainers([]);
+    $this->docker->startContainers([]);
+
+    expect($stop)->toBe(['docker', 'container', 'stop', '--time', '100', 'abc', 'def'])
+        ->and($start)->toBe(['docker', 'container', 'start', 'abc'])
+        ->and($this->runner->runs)->toHaveCount(2)
+        ->and(fn () => $this->docker->stopContainers(['--all']))->toThrow(InvalidInput::class);
+    $this->runner->push(new ProcessOutcome(1, '', 'Error response from daemon: No such container: gone'));
+    expect(fn () => $this->docker->startContainers(['gone']))->toThrow(DockerCommandFailed::class);
 });
 
 it('removes single resources', function (Closure $call, array $args): void {

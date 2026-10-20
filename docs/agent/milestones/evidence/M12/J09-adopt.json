@@ -1,0 +1,167 @@
+{
+    "command": "install.sh --dir <work>/fsa-test-j09 --adopt <work>/fsa-test-j09-v1-<id> --yes --json",
+    "exit_code": 0,
+    "seconds": 60,
+    "stdout": {
+        "schema_version": 1,
+        "command": "adopt",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": true,
+        "data": {
+            "url": "http://localhost:57826",
+            "version": "2.0.0-alpha.1-test",
+            "mode": "local",
+            "dir": "<work>/fsa-test-j09",
+            "project": "fsa-fsa-test-j09-7f59",
+            "port": 57826,
+            "mail": {
+                "mode": "capture",
+                "catcher_url": "http://localhost:8025",
+                "catcher_login_command": "fsa config show --catcher-login"
+            },
+            "adopted": {
+                "checkout": "<work>/fsa-test-j09-v1-cce243",
+                "project": "fsa-test-j09-v1-cce243",
+                "version": "1.0.0",
+                "backup": "safety-adopt-20261020T111550Z",
+                "backup_path": "<work>/fsa-test-j09/backups/safety-adopt-20261020T111550Z",
+                "verified": {
+                    "counts": {
+                        "activity_log": 20,
+                        "attachments": 0,
+                        "form_versions": 1,
+                        "forms": 1,
+                        "mail_messages": 6,
+                        "organizations": 1,
+                        "renditions": 32,
+                        "submissions": 45,
+                        "users": 9
+                    },
+                    "chains": 2,
+                    "amcheck": [
+                        "activity_log_chain_idx",
+                        "cache_locks_pkey",
+                        "cache_pkey",
+                        "designs_organization_id_key_unique",
+                        "document_links_token_hash_unique",
+                        "document_sends_idempotency_key_unique",
+                        "external_identities_identity_provider_id_subject_unique",
+                        "failed_jobs_uuid_unique",
+                        "form_access_form_id_group_id_role_name_unique",
+                        "forms_organization_id_key_unique",
+                        "groups_organization_id_name_unique",
+                        "idempotency_keys_organization_id_user_id_key_unique",
+                        "identity_provider_mappings_identity_provider_id_claim_value_rol",
+                        "job_batches_pkey",
+                        "model_has_permissions_pkey",
+                        "model_has_roles_pkey",
+                        "notification_preferences_user_id_event_channel_unique",
+                        "number_sequences_organization_id_form_id_period_unique",
+                        "organizations_slug_unique",
+                        "password_reset_tokens_pkey",
+                        "permissions_name_guard_name_unique",
+                        "personal_access_tokens_token_unique",
+                        "roles_organization_id_name_guard_name_unique",
+                        "sessions_pkey",
+                        "sso_domains_organization_id_domain_unique",
+                        "sso_domains_verified_domain_unique",
+                        "submissions_organization_id_form_id_number_unique",
+                        "users_email_unique",
+                        "webhook_endpoints_organization_id_name_unique",
+                        "workflow_runs_workflow_id_submission_uuid_event_id_unique"
+                    ]
+                },
+                "drain": {
+                    "drained": true,
+                    "waiting": 0,
+                    "reserved": 0,
+                    "delayed": 0,
+                    "waited_seconds": 0
+                },
+                "volumes": {
+                    "pg-data": "fsa-fsa-test-j09-7f59_pg-data",
+                    "app-storage": "fsa-fsa-test-j09-7f59_app-storage"
+                },
+                "legacy_volumes": {
+                    "pg-data": "fsa-test-j09-v1-cce243_pg-data",
+                    "app-storage": "fsa-test-j09-v1-cce243_app-storage"
+                }
+            },
+            "pending_mail": {
+                "host": "smtp.example.com",
+                "port": 587,
+                "command": "fsa config set mail smtp --smtp-host smtp.example.com --smtp-port 587 --smtp-username <account> --password-file <file>"
+            },
+            "way_back": [
+                "<work>/fsa-test-j09/fsa uninstall (a final backup first; the 1.0 volumes were never changed)",
+                "cd <work>/fsa-test-j09-v1-cce243 && docker compose up -d"
+            ],
+            "next_commands": [
+                "<work>/fsa-test-j09/fsa status",
+                "<work>/fsa-test-j09/fsa login-link <admin-email>",
+                "<work>/fsa-test-j09/fsa doctor --post"
+            ]
+        },
+        "secrets": [],
+        "warnings": [
+            {
+                "code": "mail_captured_after_adopt",
+                "message": "Mail is captured by the instance's catcher until you confirm the SMTP server 1.0 used (smtp.example.com).",
+                "hint": "fsa config set mail smtp --smtp-host smtp.example.com --smtp-port 587 --smtp-username <account> --password-file <file>"
+            }
+        ],
+        "errors": []
+    },
+    "acknowledged_writes": 20,
+    "before_adopt": {
+        "submissions": 25,
+        "users": 9,
+        "heads": [
+            {
+                "seq": 10,
+                "hash": "e71ad49528736483aaebceb7207959b6e2a0bcdf122f91a861d65f87a89419c4"
+            },
+            {
+                "seq": 10,
+                "hash": "138a1df022fd27be1e9e4b553c15fc8bfbdc0eaa8f7881b469c015ba87229472"
+            }
+        ]
+    },
+    "backup_manifest": {
+        "created_at": "20261020T111550Z",
+        "postgres": "postgres (PostgreSQL) 16.15",
+        "migrations": "40",
+        "last_migration": "2026_10_23_100000_add_submissions_org_updated_at_index",
+        "activity_log": "20",
+        "attachments": "0",
+        "form_versions": "1",
+        "forms": "1",
+        "mail_messages": "6",
+        "organizations": "1",
+        "renditions": "32",
+        "submissions": "45",
+        "users": "9",
+        "storage": "included",
+        "env": "included",
+        "source": "fsa adopt",
+        "version": "1.0.0",
+        "project": "fsa-test-j09-v1-cce243",
+        "app_key_fingerprints": "aed9-bac0-816f-90b3",
+        "journal": "06f05f2d027ead38"
+    },
+    "instance": {
+        "submissions": 45,
+        "users": 9,
+        "heads": [
+            {
+                "seq": 10,
+                "hash": "e71ad49528736483aaebceb7207959b6e2a0bcdf122f91a861d65f87a89419c4"
+            },
+            {
+                "seq": 10,
+                "hash": "138a1df022fd27be1e9e4b553c15fc8bfbdc0eaa8f7881b469c015ba87229472"
+            }
+        ]
+    }
+}

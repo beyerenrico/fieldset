@@ -124,6 +124,23 @@ final readonly class CliDockerGateway implements DockerGateway
         return $outcome instanceof ProcessOutcome ? ContainerInfo::fromInspect(DockerJson::object($outcome->stdout, 'container inspect')) : null;
     }
 
+    public function containerEnv(string $id, array $keys): ?array
+    {
+        $outcome = $this->inspect(['container', 'inspect', '--format', '{{json .Config.Env}}', $id], 'container inspect');
+        if (! $outcome instanceof ProcessOutcome) {
+            return null;
+        }
+        $values = [];
+        foreach ((array) json_decode($outcome->stdout, true) as $entry) {
+            [$key, $value] = is_string($entry) && str_contains($entry, '=') ? explode('=', $entry, 2) : ['', ''];
+            if (in_array($key, $keys, true)) {
+                $values[$key] = $value;
+            }
+        }
+
+        return $values;
+    }
+
     public function inspectNetwork(string $name): ?NetworkInfo
     {
         $outcome = $this->inspect(['network', 'inspect', '--format', '{{json .}}', ...$this->names([$name])], 'network inspect');
@@ -175,6 +192,48 @@ final readonly class CliDockerGateway implements DockerGateway
         $this->call(['container', 'rm', ...($force ? ['--force'] : []), $id], 'container rm');
     }
 
+    public function containerLogs(string $id, int $tail = 50): string
+    {
+        $outcome = $this->call(['container', 'logs', '--tail', (string) max(1, $tail), ...$this->names([$id])], 'container logs');
+
+        return $outcome->stdout.$outcome->stderr;
+    }
+
+    public function runContainerToFile(ContainerSpec $spec, string $outputFile, ?float $timeout = null): ProcessOutcome
+    {
+        $env = [...$spec->env, ...$this->platformEnv($spec->enginePlatform)];
+
+        return $this->attempt([$this->binary, 'run', ...RunArguments::for($spec, false), ...$this->envFlags($spec->env), $spec->image, ...$spec->command], $env, null, $timeout, $outputFile);
+    }
+
+    public function stopContainers(array $ids, ?int $timeout = null): void
+    {
+        if ($ids !== []) {
+            $this->call(['container', 'stop', ...($timeout === null ? [] : ['--time', (string) $timeout]), ...$this->names($ids)], 'container stop', null);
+        }
+    }
+
+    public function startContainers(array $ids): void
+    {
+        if ($ids !== []) {
+            $this->call(['container', 'start', ...$this->names($ids)], 'container start');
+        }
+    }
+
+    public function createVolume(string $name, array $labels): void
+    {
+        $existing = $this->inspect(['volume', 'inspect', '--format', '{{.Name}}', ...$this->names([$name])], 'volume inspect');
+        if ($existing instanceof ProcessOutcome) {
+            throw new DockerCommandFailed('volume create', new ProcessOutcome(1, '', "volume {$name} already exists"));
+        }
+        $flags = [];
+        foreach ($labels as $key => $value) {
+            $flags[] = '--label';
+            $flags[] = $key.'='.$value;
+        }
+        $this->call(['volume', 'create', ...$flags, ...$this->names([$name])], 'volume create');
+    }
+
     public function removeVolume(string $name): void
     {
         $this->call(['volume', 'rm', $name], 'volume rm');
@@ -211,7 +270,7 @@ final readonly class CliDockerGateway implements DockerGateway
     private function inspect(array $args, string $label): ?ProcessOutcome
     {
         $outcome = $this->attempt([$this->binary, ...$args], [], null, self::QUERY_TIMEOUT);
-        if (! $outcome->successful() && preg_match('/no such (object|image|container|network)|network \S+ not found/i', $outcome->stderr) === 1) {
+        if (! $outcome->successful() && preg_match('/no such (object|image|container|network|volume)|network \S+ not found/i', $outcome->stderr) === 1) {
             return null;
         }
 

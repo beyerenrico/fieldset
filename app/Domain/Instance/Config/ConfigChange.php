@@ -25,15 +25,17 @@ final readonly class ConfigChange
         public ?string $caRoot = null,
         public array $warnings = [],
         public ?SmtpCredentials $credentials = null,
+        public ?KeyFileRequest $keyFile = null,
     ) {}
 
     /**
-     * No difference in mode, URL or any setting (a setting set to null equals an absent one, a default port its default),
-     * no new CA root and no new SMTP credentials.
+     * No difference in mode, URL, backup recipients or any setting (a setting set to null equals an absent one, a default
+     * its default), no new CA root, no new SMTP credentials and no backup identity to write.
      */
     public function unchanged(): bool
     {
-        return $this->essence($this->before) === $this->essence($this->after) && $this->caRoot === null && ! $this->credentials instanceof SmtpCredentials;
+        return $this->essence($this->before) === $this->essence($this->after) && $this->caRoot === null
+            && ! $this->credentials instanceof SmtpCredentials && ! $this->keyFile instanceof KeyFileRequest;
     }
 
     public function changesUrl(): bool
@@ -54,18 +56,18 @@ final readonly class ConfigChange
     /** The same change with a refined target (a port chosen by the preflight, a proxy resolved on the network). */
     public function withAfter(InstanceState $after, ?string $to = null): self
     {
-        return new self($this->key, $this->before, $after, $this->from, $to ?? $this->to, $this->caRoot, $this->warnings, $this->credentials);
+        return new self($this->key, $this->before, $after, $this->from, $to ?? $this->to, $this->caRoot, $this->warnings, $this->credentials, $this->keyFile);
     }
 
     public function withWarning(string $code, string $message, ?string $hint = null): self
     {
-        return new self($this->key, $this->before, $this->after, $this->from, $this->to, $this->caRoot, [...$this->warnings, ['code' => $code, 'message' => $message, 'hint' => $hint]], $this->credentials);
+        return new self($this->key, $this->before, $this->after, $this->from, $this->to, $this->caRoot, [...$this->warnings, ['code' => $code, 'message' => $message, 'hint' => $hint]], $this->credentials, $this->keyFile);
     }
 
     /** The same change rendered with these SMTP credentials (a resumed `config set mail` gets them from its request). */
     public function withCredentials(?SmtpCredentials $credentials): self
     {
-        return new self($this->key, $this->before, $this->after, $this->from, $this->to, $this->caRoot, $this->warnings, $credentials);
+        return new self($this->key, $this->before, $this->after, $this->from, $this->to, $this->caRoot, $this->warnings, $credentials, $this->keyFile);
     }
 
     /**
@@ -94,15 +96,18 @@ final readonly class ConfigChange
         ];
     }
 
-    /** @return array{mode: string, url: string|null, settings: array<string, mixed>} */
+    /** @return array{mode: string, url: string|null, settings: array<string, mixed>, recipients: list<string>} */
     private function essence(InstanceState $state): array
     {
         $settings = $state->toArray()['settings'] ?? [];
         $settings = array_filter(is_array($settings) ? $settings : [], static fn (mixed $value): bool => $value !== null);
-        // Absent ports mean their defaults (InstanceSettings), so setting a port to its default changes nothing.
-        $settings += ['port' => InstanceSettings::DEFAULT_PORT, 'mail_ui_port' => InstanceSettings::DEFAULT_MAIL_UI_PORT];
+        // Absent settings mean their defaults (InstanceSettings), so setting one to its default changes nothing.
+        $settings += [
+            'port' => InstanceSettings::DEFAULT_PORT, 'mail_ui_port' => InstanceSettings::DEFAULT_MAIL_UI_PORT,
+            'backup_schedule' => InstanceSettings::DEFAULT_BACKUP_TIME, 'backup_retention' => InstanceSettings::DEFAULT_BACKUP_RETENTION,
+        ];
         ksort($settings);
 
-        return ['mode' => $state->mode(), 'url' => $state->url(), 'settings' => $settings];
+        return ['mode' => $state->mode(), 'url' => $state->url(), 'settings' => $settings, 'recipients' => $state->recipients()];
     }
 }

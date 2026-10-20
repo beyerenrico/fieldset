@@ -137,3 +137,37 @@
 128. The admin password step allows 5 attempts per minute per IP for the whole E2E suite (Filament `rateLimit(5)`; the suite already makes ~5). Leave ≥ 60 s between back-to-back suite or spec runs, and get extra sessions from sign-in links, not password logins.
 129. `--repeat-each` runs the copies in parallel on one stored session (storage/playwright-auth): Filament toasts travel through the session (database driver, no locking), so a parallel copy can take or overwrite them. Repeat session-sensitive specs with `--workers=1`.
 130. FilePond: wait for `.filepond--root` before `setInputFiles`, and match its final label exactly ("Upload complete"/"Upload abgeschlossen"); "Datei wird hochgeladen…" is the in-progress label.
+131. `EnvFiles::SECRET_KEY` (`PASSWORD|PASSPHRASE|SECRET|TOKEN|KEY|AUTH`) registers every matching env value with the output redactor: a non-secret value under such a key (a key fingerprint) prints as `[redacted]`. Name non-secret keys accordingly.
+132. `docker inspect` reports `HostConfig.CapAdd` as `CAP_CHOWN`, not `CHOWN`: strip the prefix before comparing.
+133. An exported Postgres snapshot (and `pg_dump --snapshot`) cannot see rows inside RefreshDatabase's open transaction: tests of snapshot readers need committed scratch databases created from a migrated TEMPLATE (tests/Support/Instance/BackupScratchDatabase.php).
+134. Under Laravel a `proc_open` of a missing binary raises an ErrorException (warning → exception) before you can inspect the result: use `@proc_open` and check for `false`.
+135. A worktree's `.env` symlink points outside the bind mount and does not resolve inside a container: also mount the main checkout's file at its own path. The agent tool guard refuses `docker … sh -c` and heredocs that contain "git": use Write/Edit and plain commands.
+136. `SET LOCAL ROLE` inside a savepoint outlives the savepoint's release: it lasts until the enclosing (RefreshDatabase) transaction ends, so a test that switches role must `RESET ROLE` itself. A DST fall-back night runs a local-time schedule twice when the slot is built with `setTime` on today's instant (it keeps the current offset): parse local date plus time instead (U16 `BackupSlot`).
+137. The valkey image's entrypoint appends `VALKEY_EXTRA_FLAGS` (`--requirepass <pw>`) to every command, so a one-off `valkey-cli FLUSHALL` becomes `FLUSHALL --requirepass <pw>`: a syntax error with the password in argv. Empty the variable for one-offs and pass the password another way (U17 `a0fe499`).
+138. `OperationRun` phases with `always: true` re-run even when completed: never use it for a non-idempotent step (a way back, an epoch bump). Journal a separate phase for each irreversible step and decide from the journal on resume.
+139. A `pg_restore` by a non-superuser role needs the dump's `EXTENSION` and `COMMENT ON EXTENSION` entries left out (`--use-list`): the superuser creates the extension first, otherwise the restoring role owns it and can add members to it.
+140. Coverage runs in the `form-schema-app-ci` image: use `scripts/coverage.sh` from the main checkout (the container reads the mounted `.env`; a worktree's `.env` symlink does not resolve, LEARNINGS 135). Every host-mapped address of the dev `.env` needs its in-network override (`REDIS_PORT=6379`, `MAIL_HOST=mailpit`, `MAIL_PORT=1025`, besides DB/Redis host): without them ~16 cache and mail tests fail. Never `--env-file`: real environment variables beat phpunit.xml's `<env>` (not forced), so `APP_ENV=local` gives CSRF 419s and hundreds of failures (supersedes the earlier `--env-file` advice). It runs as the caller (`--user $(id -u):$(id -g)`), like CI: as root, chmod-based permission tests fail.
+141. Postgres sequences survive RefreshDatabase's rollback: a test of sequence floors must compute them from the current values, not assume where earlier tests left them.
+142. Rector pitfalls: `ThrowWithPreviousExceptionRector` puts `$e` into the next positional parameter (e.g. `retryable`), so pass `previous: $e` by name; `RemoveAlwaysTrueIfConditionRector` misreads a flag captured with `use (&$flag)` and deletes the condition: avoid that pattern.
+143. Docker fills an empty named volume (also an external one) with the image's content at the mount path on first mount; mount at an empty image path, or expect the files.
+144. The postgres image trusts connections from inside its own container (pg_hba `trust` for local): a one-off joined with `--network container:<postgres>` reaches it on 127.0.0.1 without a password. Use it only for socket-less admin one-offs; never hand that network to code from a backup or a target release.
+145. `docker ps --format '{{json .}}'` joins all labels into one comma-separated string, so a label value containing a comma cannot be split back: read labels with `docker inspect`.
+146. Several services that mount a new, empty named volume at the same moment race on Docker's copy-up ("failed to mkdir …/_data/private: file exists"): start one service first, then the rest.
+147. PHP 8.4's `array_any`/`array_all` pass the key as the callback's second argument: a callback with an optional second parameter silently receives it.
+148. Parallel test clean-up must never remove a shared parent directory: a concurrent recursive `mkdir` of a sibling then fails with `mkdir(): Invalid argument` (macOS; reproduced with two creating processes and one removing the parent). Keep the git-ignored parent.
+149. `/up` is excepted from Laravel's maintenance mode, so a deliberately broken test release needs a broken `public/index.php`, not `artisan down`.
+150. A nested `Artisan::call` inside a command replaces `Artisan::output()` of the outer call: call the Migrator (or the action) directly.
+151. `Http::fake` with a callback answers every request; stubs registered after it never apply.
+152. A buildx single-platform build produces an image index only with `--sbom`/`--provenance` attestations; without them it is a plain manifest.
+153. Pest passes a dataset Closure unresolved when the test parameter is typed `Closure`; wrapping it as `fn (): Closure => …` hands over the outer closure and the test can pass vacuously. Check a new dataset test fails on the old code.
+154. With `--parallel`, pest's JSON output lists errored tests under `error_details`, separately from `failures`.
+155. Over Docker Desktop file sharing, reading a file another container is atomically replacing can fail once: retry the read.
+156. pg_dump's custom format written to a pipe has no data offsets (the archive differs); with a regular file as stdout
+   pg_dump seeks and the result is identical to `--file`. Hash a dump through the descriptor the writer holds.
+157. On Docker Desktop, container root with `--cap-drop ALL` can still write and chown on bind mounts: capability tests
+   only show on named volumes or rootful Linux. Don't take a green journey on macOS as proof that caps suffice.
+158. A plain backup verified in place and read later by path is a TOCTOU for anyone who can write `backups/`: copy the
+   fixed file list into the 0700 scratch first and verify and read only the copy (M12 gate R1).
+159. `git checkout docs/agent/milestones/evidence` after E2E also reverts uncommitted journey JSON (M12 gate lost a whole
+   Install run's evidence that way). Revert only the E2E churn: `git checkout -- ':(glob)docs/agent/milestones/evidence/**/*.png'`,
+   or commit journey evidence before running E2E. Emulated runs without `FSA_EVIDENCE_MILESTONE` write into M9.

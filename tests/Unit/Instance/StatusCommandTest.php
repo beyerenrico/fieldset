@@ -37,7 +37,7 @@ it('reports version, mode, URL, mail, services, health and unused sign-in links 
         ->and($json['data']['services']['app'])->toBe(['state' => 'running', 'health' => null])
         ->and($json['data']['sign_in_links'])->toBe(['count' => 1, 'links' => [['id' => 1, 'email' => 'owner@example.com', 'kind' => 'owner', 'state' => 'unused']]])
         ->and($json['data']['disk']['free_gib'])->toEqual(50.0)
-        ->and($methods)->toBe(['composePs', 'composeRun'])
+        ->and($methods)->toBe(['containers', 'composePs', 'composeRun']) // M12 gate O4: the supervisor lookup lists containers (read-only)
         ->and($this->fixture->oneOffCalls('identity:login-links')[0]['command'])->toBe(['php', 'artisan', 'identity:login-links', '--unused', '--json'])
         ->and($this->fixture->state()->toJson())->toBe($before);
 });
@@ -122,7 +122,7 @@ it('shows logs of chosen services with --since and --tail, and refuses unknown s
         ->and($json['data'])->toMatchArray(['services' => ['queue'], 'since' => '10m', 'tail' => 50, 'logs' => "queue-1 | ready\n"])
         ->and($this->fixture->docker->called('composeLogs')[0])->toMatchArray(['services' => ['queue'], 'since' => '10m', 'tail' => 50])
         ->and($allCode)->toBe(0)
-        ->and($all['data']['services'])->toBe(['app', 'queue', 'scheduler', 'postgres', 'redis', 'gotenberg', 'mailpit'])
+        ->and($all['data']['services'])->toBe(['app', 'queue', 'scheduler', 'postgres', 'redis', 'gotenberg', 'mailpit', 'backup'])
         ->and($this->fixture->docker->called('composeLogs')[1]['tail'])->toBeNull()
         ->and($unknownCode)->toBe(2)
         ->and($unknown['errors'][0]['hint'])->toContain('app, queue')

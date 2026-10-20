@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Lifecycle;
 
-use App\Domain\Instance\Compose\ComposeRenderer;
+use App\Domain\Instance\Backup\AgeCli;
+use App\Domain\Instance\Backup\BackupRunner;
+use App\Domain\Instance\Backup\ManualBackup;
 use App\Domain\Instance\Compose\Services\AppRoles;
+use App\Domain\Instance\Compose\Services\BackupService;
 use App\Domain\Instance\Compose\Services\PostgresService;
 use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\Docker\ContainerInfo;
@@ -13,187 +16,201 @@ use App\Domain\Instance\Docker\DockerCommandFailed;
 use App\Domain\Instance\Docker\DockerGateway;
 use App\Domain\Instance\Docker\DockerResource;
 use App\Domain\Instance\Docker\DockerUnavailable;
-use App\Domain\Instance\Docker\ProcessOutcome;
+use App\Domain\Instance\Docker\Labels;
 use App\Domain\Instance\InstanceException;
+use App\Domain\Instance\Operations\LockHandle;
 use App\Domain\Instance\Output\ExitCode;
 use App\Domain\Instance\State\EnvFiles;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceState;
+use App\Domain\Instance\State\RuntimeWriter;
 use Carbon\CarbonImmutable;
-use Closure;
 use Throwable;
 
 /**
- * The last backup `fsa uninstall --keep-backups` writes before it removes anything (§13.3 "back up before
- * destroying", ADR 0073): `backups/final-<UTC timestamp>/` (0700) with
+ * The last backup `fsa uninstall --keep-backups` (and an adopted instance's uninstall) writes before it removes anything
+ * (§13.3 "back up before destroying", ADR 0073 as amended by the M12 gate): a backup of the 2.0 format, `final-<UTC>`,
+ * written by the backup service's own entry point like `fsa backup` (HMAC, SHA256SUMS, encrypted when the instance has
+ * recipients), so `fsa install --from-backup` and `fsa restore` read it.
  *
- * - `database.dump`: `pg_dump --format=custom` from a socket-less one-off of the app service (KTD25; the image
- *   carries the PostgreSQL 16 client), streamed to the file, never through memory;
- * - `app-storage.tar`: the app-storage volume, archived by a one-off that mounts it;
- * - `app-key.env`: APP_KEY (and APP_PREVIOUS_KEYS), without which the dump's encrypted columns cannot be read;
- * - `backup.json`: what was saved, with sizes and SHA-256 sums.
+ * - The stack is quiesced first (the gate goes up; app, scheduler and the backup service stop, then the queue with its
+ *   grace period), so no write is acknowledged after the snapshot; a failed backup, or a quiesce that fails half-way,
+ *   brings back what ran (gate down).
+ * - The APP keys: encrypted, they go into the set as `secrets.env` (with the SMTP account, like `--include-secrets`);
+ *   plain, they go beside it as `backups/<name>.app-key.env` (0600, ADR 0073), which the result names in a warning.
+ * - Without the database volume there is nothing to dump: only the keys are saved beside (to the recipients when
+ *   encryption is on), for the backups `backups/` keeps; without an APP key either, nothing (null).
  *
- * Every file is 0600. Any failure removes the partial backup and is exit 4 (`final_backup_failed`): the caller
- * then removes nothing.
+ * Any failure is exit 4 (`final_backup_failed`): the caller then removes nothing.
  */
 final readonly class FinalBackup
 {
-    public const string PREFIX = 'final-';
+    public const string KIND = 'final';
 
-    public const float DUMP_TIMEOUT = 3600.0;
+    public const string KEY_SUFFIX = '.app-key.env';
 
-    private const float START_TIMEOUT = 120.0;
+    public const string GATE_OPERATION = 'uninstall';
 
-    private const string DATABASE = 'database.dump';
-
-    private const string STORAGE = 'app-storage.tar';
-
-    private const string APP_KEY = 'app-key.env';
+    private const array WRITERS = [AppRoles::APP, AppRoles::SCHEDULER, BackupService::NAME];
 
     public function __construct(
         private InstanceDirectory $directory,
         private DockerGateway $docker,
+        private BackupRunner $runner,
+        private AgeCli $age,
     ) {}
 
     /**
      * @param  list<DockerResource>  $volumes  the instance's labelled volumes
-     * @return array{dir: string, files: list<string>}|null null when there is nothing to save (no key, no volume)
+     * @return array{dir: string|null, backup: string|null, encrypted: bool, includes_secrets: bool, key_file: string|null, missing_files: int}|null
      *
-     * @throws InstanceException exit 4; no part of the backup is left behind
+     * @throws InstanceException exit 4; nothing was removed, a quiesced stack runs again
      */
-    public function write(?InstanceState $state, ?string $uuid, array $volumes): ?array
+    public function write(?InstanceState $state, array $volumes, LockHandle $lock): ?array
     {
-        $env = new EnvFiles($this->directory);
-        $hasKey = ($env->read('app')['APP_KEY'] ?? '') !== '';
+        $hasKey = (new EnvFiles($this->directory)->read('app')['APP_KEY'] ?? '') !== '';
         $database = $this->find($volumes, PostgresService::VOLUME);
-        $storage = $this->find($volumes, AppRoles::STORAGE_VOLUME);
-        if (! $hasKey && ! $database && ! $storage) {
+        if (! $hasKey && ! $database) {
             return null;
         }
-        $relative = InstanceDirectory::BACKUPS_DIR.'/'.self::PREFIX.CarbonImmutable::now('UTC')->format('Ymd\THis\Z');
 
         try {
-            $this->directory->ensureDirectory(InstanceDirectory::BACKUPS_DIR);
-            if (! $this->directory->files()->createExclusive($relative)) {
-                throw new InstanceException("{$relative} exists already.");
-            }
-            $files = $this->save($relative, $env, $state, $database, $storage);
-            $this->manifest($relative, $files, $uuid, $state);
-        } catch (Throwable $e) {
-            $this->directory->files()->delete($relative);
-            if ($e instanceof DockerUnavailable) {
-                throw $e;
+            if (! $state instanceof InstanceState) {
+                throw new InstanceException('The instance state is unreadable, so its services cannot be run.');
             }
 
+            return $database ? $this->backup($state, $lock) : $this->keysOnly($state);
+        } catch (DockerUnavailable $e) {
+            throw $e;
+        } catch (Throwable $e) {
             $detail = $e instanceof DockerCommandFailed ? trim($e->getMessage().' '.$e->outcome->stderrTail(3)) : $e->getMessage();
 
             throw new InstanceException(
                 'The final backup failed, so nothing was removed: '.$detail,
                 ExitCode::HealthCheckFailed,
                 'final_backup_failed',
-                'Fix the cause (`fsa status`, `fsa logs postgres`), then run `fsa uninstall --keep-backups` again; or run `fsa uninstall` without --keep-backups to delete everything without a backup.',
+                'Fix the cause (`fsa status`, `fsa logs backup`, free disk space), then run the same `fsa uninstall` again; or run `fsa uninstall --no-backup` to delete everything, backups/ included, without a final backup.',
                 true,
-                ['backup_dir' => $relative],
+                $e instanceof InstanceException ? $e->data : [],
                 $e,
             );
         }
-
-        return ['dir' => $relative, 'files' => [...$files, 'backup.json']];
     }
 
-    /** @return list<string> */
-    private function save(string $relative, EnvFiles $env, ?InstanceState $state, bool $database, bool $storage): array
+    /** @return array{dir: string, backup: string, encrypted: bool, includes_secrets: bool, key_file: string|null, missing_files: int} */
+    private function backup(InstanceState $state, LockHandle $lock): array
     {
-        $files = $this->saveAppKey($relative, $env) ? [self::APP_KEY] : [];
-        if ($database || $storage) {
-            $project = $state instanceof InstanceState
-                ? ComposeProject::forInstance($state, $this->directory)
-                : throw new InstanceException('The instance state is unreadable, so its services cannot be run.');
-            if ($database) {
-                $this->dumpDatabase($project, $relative, $env);
-                $files[] = self::DATABASE;
+        $project = ComposeProject::forInstance($state, $this->directory);
+        $encrypted = $state->recipients() !== [];
+        $running = $this->running($project); // nothing changed yet when even this fails
+
+        try {
+            $this->quiesce($state, $project, $running); // a failure half-way also goes back (gate D2)
+            $outcome = $this->runner->backup($project, self::KIND, $lock->record->lockId, $encrypted ? ManualBackup::secrets($this->directory) : null);
+            if (! $outcome->ok) {
+                throw new InstanceException($outcome->errorMessage(), ExitCode::HealthCheckFailed, 'final_backup_failed', null, true, ['reason' => $outcome->errorCode()]);
             }
-            if ($storage) {
-                $this->archiveStorage($project, $relative);
-                $files[] = self::STORAGE;
-            }
+            $name = (string) ($outcome->data['backup'] ?? '');
+            $keyFile = $encrypted ? null : $this->saveKeys(InstanceDirectory::BACKUPS_DIR.'/'.$name.self::KEY_SUFFIX);
+        } catch (Throwable $e) {
+            $this->reopen($state, $project, $running);
+
+            throw $e;
         }
+        $result = is_array($outcome->data['result'] ?? null) ? $outcome->data['result'] : [];
 
-        return $files;
-    }
-
-    private function saveAppKey(string $relative, EnvFiles $env): bool
-    {
-        $app = $env->read('app');
-        $keys = array_filter(['APP_KEY' => $app['APP_KEY'] ?? '', 'APP_PREVIOUS_KEYS' => $app['APP_PREVIOUS_KEYS'] ?? ''], static fn (string $value): bool => $value !== '');
-        if (! isset($keys['APP_KEY'])) {
-            return false;
-        }
-        $header = '# The key that decrypts the encrypted columns of '.self::DATABASE.". Keep it as safe as the dump.\n";
-        $this->directory->write($relative.'/'.self::APP_KEY, (string) preg_replace('/\A#[^\n]*\n/', $header, EnvFiles::encode($keys)), 0600);
-
-        return true;
-    }
-
-    private function dumpDatabase(ComposeProject $project, string $relative, EnvFiles $env): void
-    {
-        $app = $env->read('app');
-        if (($app['DB_PASSWORD'] ?? '') === '') {
-            throw new InstanceException('env/app.env holds no database password.');
-        }
-        $this->startPostgres($project);
-        $file = $this->directory->path($relative.'/'.self::DATABASE);
-        $outcome = $this->docker->composeRunToFile($project, ComposeRenderer::ONE_OFF_SERVICE, ['--format=custom', '--no-password'], $file, [
-            'PGHOST' => $app['DB_HOST'] ?? 'postgres', 'PGPORT' => $app['DB_PORT'] ?? '5432', 'PGDATABASE' => $app['DB_DATABASE'] ?? '',
-            'PGUSER' => $app['DB_USERNAME'] ?? '', 'PGPASSWORD' => $app['DB_PASSWORD'],
-        ], 'pg_dump', self::DUMP_TIMEOUT);
-        $this->assertWritten($outcome, $file, 'pg_dump', static fn (string $head): bool => str_starts_with($head, 'PGDMP'));
-    }
-
-    private function archiveStorage(ComposeProject $project, string $relative): void
-    {
-        $file = $this->directory->path($relative.'/'.self::STORAGE);
-        $outcome = $this->docker->composeRunToFile($project, ComposeRenderer::ONE_OFF_SERVICE, ['-C', AppRoles::STORAGE_PATH, '-cf', '-', '.'], $file, [], 'tar', self::DUMP_TIMEOUT);
-        $this->assertWritten($outcome, $file, 'tar', static fn (string $head): bool => substr($head, 257, 5) === 'ustar');
-    }
-
-    /** pg_dump needs the database server; a stopped instance gets only Postgres started. */
-    private function startPostgres(ComposeProject $project): void
-    {
-        $running = array_any($this->docker->composePs($project), static fn (ContainerInfo $c): bool => $c->service() === PostgresService::NAME && $c->running());
-        if (! $running) {
-            $this->docker->composeUp($project, [PostgresService::NAME], (int) self::START_TIMEOUT);
-        }
-    }
-
-    /** @param  Closure(string): bool  $looksRight  checks the first 512 bytes (format magic) */
-    private function assertWritten(ProcessOutcome $outcome, string $file, string $tool, Closure $looksRight): void
-    {
-        $head = is_file($file) ? (string) file_get_contents($file, false, null, 0, 512) : '';
-        if (! $outcome->successful() || ! $looksRight($head)) {
-            $why = $outcome->timedOut ? 'timed out' : 'exit '.$outcome->exitCode;
-            throw new InstanceException("{$tool} failed ({$why}): ".($outcome->stderrTail(3) ?: 'unexpected output'));
-        }
-    }
-
-    /** @param  list<string>  $files */
-    private function manifest(string $relative, array $files, ?string $uuid, ?InstanceState $state): void
-    {
-        $entries = [];
-        foreach ($files as $name) {
-            $path = $this->directory->path($relative.'/'.$name);
-            $entries[$name] = ['bytes' => (int) filesize($path), 'sha256' => (string) hash_file('sha256', $path)];
-        }
-        $manifest = [
-            'schema_version' => '1.0', 'kind' => 'final', 'created_at' => CarbonImmutable::now('UTC')->toIso8601ZuluString(),
-            'uuid' => $uuid, 'version' => $state?->version(), 'files' => $entries,
+        return [
+            'dir' => InstanceDirectory::BACKUPS_DIR.'/'.$name, 'backup' => $name, 'encrypted' => $encrypted, 'includes_secrets' => $encrypted,
+            'key_file' => $keyFile, 'missing_files' => is_int($outcome->data['missing_files'] ?? null) ? $outcome->data['missing_files'] : 0,
+            ...(is_array($result['warnings'] ?? null) && $result['warnings'] !== [] ? ['warnings' => $result['warnings']] : []),
         ];
-        $this->directory->write($relative.'/backup.json', json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)."\n", 0600);
+    }
+
+    /** @return array{dir: null, backup: null, encrypted: bool, includes_secrets: false, key_file: string, missing_files: int} */
+    private function keysOnly(InstanceState $state): array
+    {
+        $relative = InstanceDirectory::BACKUPS_DIR.'/'.self::KIND.'-'.CarbonImmutable::now('UTC')->format('Ymd\THis\Z').self::KEY_SUFFIX;
+        $encrypted = $state->recipients() !== [];
+
+        return ['dir' => null, 'backup' => null, 'encrypted' => $encrypted, 'includes_secrets' => false, 'key_file' => $this->saveKeys($relative, $encrypted ? $state->recipients() : []), 'missing_files' => 0];
+    }
+
+    /**
+     * APP_KEY and APP_PREVIOUS_KEYS from env/app.env, 0600; encrypted to `$recipients` (`<file>.age`) when given.
+     *
+     * @param  list<string>  $recipients
+     * @return string the written file, relative to the instance directory
+     */
+    private function saveKeys(string $relative, array $recipients = []): string
+    {
+        $app = new EnvFiles($this->directory)->read('app');
+        $keys = array_filter(['APP_KEY' => $app['APP_KEY'] ?? '', 'APP_PREVIOUS_KEYS' => $app['APP_PREVIOUS_KEYS'] ?? ''], static fn (string $value): bool => $value !== '');
+        $header = '# The APP keys of the backups beside this file: they authenticate them (`--app-key-file`) and decrypt their encrypted columns. Keep it as safe as the backups.'."\n";
+        $contents = (string) preg_replace('/\A#[^\n]*\n/', $header, EnvFiles::encode($keys));
+        $this->directory->ensureDirectory(InstanceDirectory::BACKUPS_DIR);
+        if ($recipients === []) {
+            $this->directory->write($relative, $contents, 0600);
+
+            return $relative;
+        }
+        $this->age->encryptToRecipients($contents, $recipients, $this->directory->path($relative.'.age'));
+        @chmod($this->directory->path($relative.'.age'), 0600);
+
+        return $relative.'.age';
+    }
+
+    /** @return list<string> the services that run before the quiesce: the ones reopen() starts again */
+    private function running(ComposeProject $project): array
+    {
+        return array_values(array_filter(array_map(
+            static fn (ContainerInfo $container): ?string => $container->running() ? $container->service() : null,
+            ComposeFile::serviceContainers($this->docker->composePs($project)),
+        ), is_string(...)));
+    }
+
+    /**
+     * Gate up, then app, scheduler and the backup service, then the queue with its grace period (RestoreStack::quiesce);
+     * Postgres keeps running for the dump. The caller goes back (reopen) on any failure, also one in here.
+     *
+     * @param  list<string>  $running
+     */
+    private function quiesce(InstanceState $state, ComposeProject $project, array $running): void
+    {
+        new RuntimeWriter($this->directory)->raiseGate($state, self::GATE_OPERATION);
+        $writers = array_values(array_intersect(self::WRITERS, $running));
+        if ($writers !== []) {
+            $this->docker->composeStop($project, $writers);
+        }
+        if (in_array(AppRoles::QUEUE, $running, true)) {
+            $this->docker->composeStop($project, [AppRoles::QUEUE], AppRoles::STOP_GRACE_SECONDS);
+        }
+    }
+
+    /**
+     * Starts what ran before the quiesce again (whether or not its stop was reached: a running service stays up) and
+     * lowers the gate, also when Docker is gone.
+     *
+     * @param  list<string>  $running
+     */
+    private function reopen(InstanceState $state, ComposeProject $project, array $running): void
+    {
+        try {
+            $back = array_values(array_intersect([...self::WRITERS, AppRoles::QUEUE], $running));
+            if ($back !== []) {
+                $this->docker->composeUp($project, $back, 300);
+            }
+        } catch (Throwable) {
+            // the backup's failure is what the caller reports; `fsa status` shows a service that did not start
+        } finally {
+            new RuntimeWriter($this->directory)->lowerGate($state);
+        }
     }
 
     /** @param  list<DockerResource>  $volumes */
     private function find(array $volumes, string $volume): bool
     {
-        return array_any($volumes, static fn (DockerResource $v): bool => ($v->labels['com.docker.compose.volume'] ?? null) === $volume || str_ends_with($v->name, '_'.$volume));
+        // A restored storage volume (ADR 0085) is fsa's own, labelled with its role instead of Compose's volume label.
+        return array_any($volumes, static fn (DockerResource $v): bool => ($v->labels['com.docker.compose.volume'] ?? null) === $volume
+            || ($v->labels[Labels::ROLE] ?? null) === $volume || str_ends_with($v->name, '_'.$volume));
     }
 }

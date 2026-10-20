@@ -8,19 +8,24 @@ namespace App\Domain\Instance\State;
  * File access confined to one directory (KTD6, KTD25). Writes go to a temporary file that is renamed into place,
  * so a reader sees the old or the new content, never a partial file. Paths are plain relative paths; a symlink
  * as the target, or a parent that resolves outside the root, is refused.
+ *
+ * With an owner (the backup service, which runs as container root, ADR 0084), every file and directory it creates is
+ * given to that UID:GID before it becomes visible, so the instance owner and fsa can read and remove it.
  */
 final readonly class SafeFiles
 {
-    private function __construct(public string $root) {}
+    /** @param  array{0: int, 1: int}|null  $owner  UID and GID for everything created (only applied by root) */
+    private function __construct(public string $root, private ?array $owner = null) {}
 
-    public static function at(string $directory): self
+    /** @param  array{0: int, 1: int}|null  $owner */
+    public static function at(string $directory, ?array $owner = null): self
     {
         $real = realpath($directory);
         if ($real === false || ! is_dir($real)) {
             throw new UnsafePath($directory, 'it is not a directory');
         }
 
-        return new self($real);
+        return new self($real, $owner);
     }
 
     /** Absolute path of a plain relative path whose existing ancestors all resolve inside the root. */
@@ -47,7 +52,7 @@ final readonly class SafeFiles
         if (str_contains($relative, '/')) {
             $this->ensureParents(dirname($relative));
         }
-        self::writeAtomically($absolute, $contents, $mode);
+        self::writeAtomically($absolute, $contents, $mode, $this->owner);
     }
 
     /** Contents of a regular file, or null when it does not exist. */
@@ -93,6 +98,7 @@ final readonly class SafeFiles
             return false;
         }
         @chmod($absolute, $mode);
+        self::giveTo($absolute, $this->owner);
 
         return true;
     }
@@ -131,10 +137,15 @@ final readonly class SafeFiles
         return true;
     }
 
-    /** Removes a file or a directory tree without following symlinks. */
-    public function delete(string $relative): void
+    /**
+     * Removes a file or a directory tree without following symlinks.
+     *
+     * @return list<string> the absolute paths that stay (a directory that cannot be read, a file that cannot be
+     *                      removed), the deepest only: a parent kept just for them is not named; empty when it is gone
+     */
+    public function delete(string $relative): array
     {
-        self::deletePath($this->resolve($relative));
+        return self::deletePath($this->resolve($relative));
     }
 
     /** @return list<string> entry names, sorted */
@@ -151,10 +162,12 @@ final readonly class SafeFiles
     }
 
     /**
-     * Temp file in the target's directory, mode set before any byte is written, fsync, rename, then fsync of the
-     * directory, so the rename itself survives a crash (journal, state, lock records).
+     * Temp file in the target's directory, mode (and owner) set before any byte is written, fsync, rename, then fsync of
+     * the directory, so the rename itself survives a crash (journal, state, lock records).
+     *
+     * @param  array{0: int, 1: int}|null  $owner
      */
-    public static function writeAtomically(string $absolute, string $contents, int $mode = 0600): void
+    public static function writeAtomically(string $absolute, string $contents, int $mode = 0600, ?array $owner = null): void
     {
         if (is_link($absolute) || is_dir($absolute)) {
             throw new UnsafePath($absolute, is_link($absolute) ? 'it is a symlink' : 'it is a directory');
@@ -166,6 +179,7 @@ final readonly class SafeFiles
         }
 
         try {
+            self::giveTo($temporary, $owner);
             $written = @chmod($temporary, $mode) && fwrite($handle, $contents) === strlen($contents) && fflush($handle) && fsync($handle);
             fclose($handle);
             if (! $written || ! @rename($temporary, $absolute)) {
@@ -215,7 +229,22 @@ final readonly class SafeFiles
                 throw new UnsafePath($path, 'it cannot be created');
             }
             @chmod($path, $mode);
+            self::giveTo($path, $this->owner);
         }
+    }
+
+    /**
+     * Hands a path the process just created to the owner: only a root process (the backup service) changes owners.
+     *
+     * @param  array{0: int, 1: int}|null  $owner
+     */
+    private static function giveTo(string $path, ?array $owner): void
+    {
+        if ($owner === null || ! function_exists('posix_geteuid') || posix_geteuid() !== 0) {
+            return;
+        }
+        @lchown($path, $owner[0]);
+        @lchgrp($path, $owner[1]);
     }
 
     private function assertConfined(string $parent, string $display): void
@@ -230,19 +259,23 @@ final readonly class SafeFiles
         }
     }
 
-    private static function deletePath(string $path): void
+    /** @return list<string> what stays (delete()) */
+    private static function deletePath(string $path): array
     {
-        if (is_link($path) || is_file($path)) {
-            @unlink($path);
-
-            return;
+        if (is_link($path) || (file_exists($path) && ! is_dir($path))) {
+            return @unlink($path) ? [] : [$path];
         }
         if (! is_dir($path)) {
-            return;
+            return [];
         }
-        foreach (array_diff(scandir($path) ?: [], ['.', '..']) as $entry) {
-            self::deletePath($path.'/'.$entry);
+        $left = [];
+        foreach (array_diff(@scandir($path) ?: [], ['.', '..']) as $entry) { // unreadable (another user's): rmdir names it
+            $left = [...$left, ...self::deletePath($path.'/'.$entry)];
         }
-        @rmdir($path);
+        if (@rmdir($path)) {
+            return [];
+        }
+
+        return $left === [] ? [$path] : $left;
     }
 }

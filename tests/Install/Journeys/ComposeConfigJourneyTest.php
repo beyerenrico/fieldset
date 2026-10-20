@@ -64,7 +64,7 @@ it('is accepted by docker compose config in capture mode, with labels, limits an
     [$config, $project] = composeConfigOf(['port' => 18080, 'mail_ui_port' => 18025]);
 
     expect($config['name'])->toBe($project)
-        ->and(array_keys($config['services']))->toEqualCanonicalizing(['app', 'queue', 'scheduler', 'postgres', 'redis', 'gotenberg', 'mailpit'])
+        ->and(array_keys($config['services']))->toEqualCanonicalizing(['app', 'queue', 'scheduler', 'postgres', 'redis', 'gotenberg', 'mailpit', 'backup'])
         ->and($config['services']['app']['environment']['APP_KEY'])->toBe(ComposeFixtures::APP_KEY)
         ->and($config['services']['gotenberg']['environment'])->not->toHaveKey('APP_KEY')
         ->and($config['services']['app']['ports'][0])->toMatchArray(['target' => 8080, 'published' => '18080', 'host_ip' => '127.0.0.1'])
@@ -102,7 +102,7 @@ it('is accepted by docker compose config in proxy mode, with only the app on the
         ->and($config['services']['app']['labels']['traefik.enable'])->toBe('true')
         ->and($config['services']['app']['environment']['TRUSTED_PROXIES'])->toBe(ComposeFixtures::PROXY_ADDRESS)
         ->and($config['services']['mailpit']['ports'][0]['host_ip'])->toBe('127.0.0.1');
-    foreach (['queue', 'scheduler', 'postgres', 'redis', 'gotenberg', 'mailpit'] as $service) {
+    foreach (['queue', 'scheduler', 'postgres', 'redis', 'gotenberg', 'mailpit', 'backup'] as $service) {
         expect(array_keys($config['services'][$service]['networks']))->not->toContain('proxy');
     }
     assertNoDockerResources();

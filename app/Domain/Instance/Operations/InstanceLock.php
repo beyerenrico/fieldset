@@ -15,7 +15,9 @@ use Carbon\CarbonImmutable;
  * owner record (owner, operation, holder container ID and start time) and a heartbeat.
  *
  * A lock is stale only when Docker reports its holder container gone, stopped, or restarted since the lock was
- * taken; heartbeat age alone never is. Breaking a stale lock happens under a short-lived takeover marker and
+ * taken; heartbeat age alone never is. The backup service cannot ask Docker for its start time (it has no socket) and
+ * records its init process's start instead (LockRecord::PROCESS_START_PREFIX): its lock is stale only once the
+ * container is gone or stopped, and the daemon itself releases a lock it took before a restart (ADR 0084). Breaking a stale lock happens under a short-lived takeover marker and
  * re-checks the lock ID, so two processes can never both take it over, nor remove a fresh lock by mistake.
  */
 final readonly class InstanceLock
@@ -143,8 +145,11 @@ final readonly class InstanceLock
             return false;
         }
         $container = $this->docker->inspectContainer($record->containerId);
+        if (! $container instanceof ContainerInfo || ! $container->running()) {
+            return true;
+        }
 
-        return ! $container instanceof ContainerInfo || ! $container->running() || $container->startedAt !== $record->containerStartedAt;
+        return ! $record->startUnknownToDocker() && $container->startedAt !== $record->containerStartedAt;
     }
 
     private function tryCreate(LockHolder $holder, string $operation): ?LockRecord

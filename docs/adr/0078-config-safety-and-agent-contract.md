@@ -177,3 +177,24 @@ the same way.
   started is completed instead. Tests: `ConfigSettledResumeTest`.
 - `rolled_back` results (exit 5) carry the change's warnings except those that describe the reverted target
   (`port_changed`, `catcher_port_changed`); see the ADR 0080 amendment of this date.
+
+## Amendment 2026-10-20: proxy-mode hint (M12 gate)
+The hint for proxy mode now names the whole way: `fsa uninstall --keep-backups`, then `fsa install --from-backup
+<dir>/backups/final-<time>` with `--app-key-file <dir>/backups/final-<time>.app-key.env` (plain backups) or the
+identity, passphrase and `--accept-unauthenticated` (encrypted); the final backup is a 2.0 backup since the ADR 0073
+amendment of this date.
+
+## Amendment 2026-10-20: agent contract additions (M12 gate, fix round B)
+- **`exit_code` (O10).** Every envelope carries the process's exit code as a number after `status` (CommandResult; the
+  envelopes install.sh, the shim and the image's `fsa` print themselves too). Additive: `schema_version` stays 1.
+- **Exit 6 data (O6).** `confirmation_required` carries `data.question` and the facts the question names (Confirmation):
+  rollback `from`, `to`, `safety_backup`, `safety_backup_at`, `loss`; restore `backup`, `safety_backup`; reset `demo`,
+  `no_backup`, `safety_backup`; adopt `checkout`, `dir`; uninstall `dir`, `final_backup`, `keeps_backups`,
+  `adopted_from`, `certificates`; `abandon`/`orphans` for those forms.
+- **Unfinished operations first (C4).** Commands that resume one kind of journal check the open journal before their
+  question, guard or count (FsaCommand::refuseUnfinished): exit 9 with the resume command, also under `--yes`.
+- **Passphrases (O7).** Empty input (an empty file, nothing on stdin) is exit 2 `passphrase_missing`; install.sh refuses
+  `--passphrase-stdin` without a terminal (or with `--json`) as it refuses `--password-stdin`: exit 2
+  `passphrase_stdin_unavailable` before any download.
+- **Foreground operations under the guard (O8).** Restore, rollback and adopt join config set and reset: a signal ends
+  them at a phase boundary with an envelope (ADR 0085, 0086, 0087 amendments).

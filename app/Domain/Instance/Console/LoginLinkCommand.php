@@ -4,15 +4,23 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Console;
 
+use App\Domain\Instance\Backup\BackupRun;
 use App\Domain\Instance\Docker\ComposeProject;
-use App\Domain\Instance\Install\InstallRecord;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Lifecycle\AppCommands;
 use App\Domain\Instance\Lifecycle\OneOffResult;
 use App\Domain\Instance\Lifecycle\SignInDelivery;
+use App\Domain\Instance\Operations\ContainerIdentity;
+use App\Domain\Instance\Operations\InstanceLock;
+use App\Domain\Instance\Operations\JournalRecord;
+use App\Domain\Instance\Operations\LockHandle;
+use App\Domain\Instance\Operations\LockHeld;
+use App\Domain\Instance\Operations\OperationJournal;
+use App\Domain\Instance\Operations\OperationUnfinished;
 use App\Domain\Instance\Output\CommandResult;
 use App\Domain\Instance\Output\ExitCode;
 use App\Domain\Instance\Output\InvalidInput;
+use App\Domain\Instance\Restore\RestoreOperation;
 use App\Domain\Instance\State\InputGrammar;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
@@ -22,6 +30,12 @@ use Illuminate\Console\Attributes\Signature;
  * admin, issued by the app-side `identity:login-link` in a socket-less one-off (KTD25) and audited with the
  * caller's host UID. The link leaves only through `secrets`, --secrets-file or the browser hand-over (--open, or a
  * person at a desktop terminal). A one-off that prints no result is exit 4 (retryable), like install's one-offs.
+ *
+ * It takes the instance lock and refuses while any operation is unfinished (exit 9 `operation_unfinished`, U23
+ * verification V9): between the runs of a reset or restore it would write a link and an audit entry into a database
+ * whose final heads were already taken, or that is about to be replaced. A backup holding the lock (scheduled or `fsa
+ * backup`) changes no data: the journal is then read without the lock and the link issued (M12 gate C11); a backup runs
+ * next to the app's own writes anyway.
  */
 #[Description('Issue a one-time sign-in link (15 minutes) for an existing admin')]
 #[Signature('fsa:login-link
@@ -48,11 +62,21 @@ final class LoginLinkCommand extends FsaCommand
             throw new InvalidInput('Pass the e-mail address of an existing admin.', 'invalid_flag');
         }
         $directory = $context->directory();
-        $state = $directory->state();
-        if (! InstallRecord::isInstalled($state)) {
-            throw new InvalidInput('The instance is not installed yet.', 'not_installed', 'Run `fsa install` (it resumes an unfinished install and issues the owner link).');
+        $state = RestoreOperation::installed($directory); // an unfinished install or adopt names itself (exit 9, M12 gate C4)
+        $lock = $this->laravel->make(InstanceLock::class);
+        $handle = $this->lock($lock, $context);
+
+        try {
+            $open = $this->laravel->make(OperationJournal::class)->current(); // read under the lock (or next to a backup's)
+            if ($open instanceof JournalRecord) {
+                throw new OperationUnfinished($open);
+            }
+            $result = $this->laravel->make(AppCommands::class)->loginLink(ComposeProject::forInstance($state, $directory), $email, $context->facts->callerUid());
+        } finally {
+            if ($handle instanceof LockHandle) {
+                $lock->release($handle);
+            }
         }
-        $result = $this->laravel->make(AppCommands::class)->loginLink(ComposeProject::forInstance($state, $directory), $email, $context->facts->callerUid());
         $link = $result->ok ? $result->secret(SignInDelivery::SECRET) : null;
         if ($link === null) {
             throw $this->failure($result);
@@ -60,6 +84,20 @@ final class LoginLinkCommand extends FsaCommand
         $data = ['email' => $email, 'kind' => is_string($result->data['kind'] ?? null) ? $result->data['kind'] : 'admin'];
 
         return SignInDelivery::deliver(CommandResult::ok('login-link', $data, changed: true), $context, $link['value'], $link['expires_at'], is_string($this->option('secrets-file')) && $this->option('secrets-file') !== '', $email);
+    }
+
+    /** The instance lock, or null while a backup holds it: a backup changes no data (C11). Any other holder: exit 9. */
+    private function lock(InstanceLock $lock, FsaContext $context): ?LockHandle
+    {
+        try {
+            return $lock->acquire($this->laravel->make(ContainerIdentity::class)->holder('fsa', $context->facts->callerUid()), 'login-link');
+        } catch (LockHeld $held) {
+            if ($held->holder->operation !== BackupRun::OPERATION) {
+                throw $held;
+            }
+
+            return null;
+        }
     }
 
     private function failure(OneOffResult $result): InstanceException

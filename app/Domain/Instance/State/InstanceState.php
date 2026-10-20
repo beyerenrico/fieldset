@@ -22,7 +22,7 @@ final readonly class InstanceState
 
     private const string UUID = '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/D';
 
-    private const string RECIPIENT = '/^age1[0-9a-z]{20,}$/D';
+    public const string RECIPIENT = '/^age1[0-9a-z]{20,}$/D';
 
     private const string SECRET_KEY = '/(password|passphrase|secret|token|app_key|private_key)/i';
 

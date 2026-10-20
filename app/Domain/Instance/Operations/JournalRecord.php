@@ -159,6 +159,20 @@ final readonly class JournalRecord
     }
 
     /**
+     * Whether a completed attempt of `$phase` exists after the last attempt of `$marker` whose start data set `$flag`
+     * (e.g. a quiesce that found writers running, `writers_ran`): what they wrote must be in the heads and the backup again,
+     * also when the run that began taking them again was killed (reset verification V1, M12 gate D7 for restore and rollback).
+     */
+    public function completedSince(string $phase, string $marker, string $flag): bool
+    {
+        $phases = $this->phases();
+        $flagged = array_keys(array_filter($phases, static fn (array $entry): bool => $entry['name'] === $marker && ($entry['data'][$flag] ?? false) === true));
+        $since = $flagged === [] ? -1 : $flagged[array_key_last($flagged)];
+
+        return array_any(array_keys($phases), static fn (int $index): bool => $index > $since && $phases[$index]['name'] === $phase && $phases[$index]['status'] === 'completed');
+    }
+
+    /**
      * The data of the last attempt of a phase, whatever its status: what was known when it started, plus its result
      * if it completed (e.g. the failure a `config set` revert was undoing).
      *

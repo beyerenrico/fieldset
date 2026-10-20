@@ -4,24 +4,29 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Compose;
 
+use App\Domain\Instance\Backup\BackupConfig;
+use App\Domain\Instance\Backup\KeyFingerprint;
 use App\Domain\Instance\Runtime\CatcherRoute;
 use App\Domain\Instance\State\InstanceSecrets;
 use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InvalidState;
 use App\Domain\Instance\State\RuntimeWriter;
+use App\Domain\Platform\Instance\BackupRole;
 
 /**
  * The env split (KTD7): what each service's env file holds. Only the app roles (app, queue, scheduler, and the
  * one-offs, which run the app service) get APP_KEY and the full database credentials; Postgres gets its own
  * superuser credentials and Valkey and Mailpit only their own password. The edge gets only the catcher's Basic
  * credential it injects towards Mailpit (domain mode, capture mail; ADR 0075). Gotenberg, and later the tunnel, get
- * no secret at all. The backup service (U16) gets the read-only dump role, a key derived from APP_KEY
- * and the age recipients: `backup()` defines that env now, the service itself is rendered in U16.
+ * no secret at all. The backup service (U16, ADR 0084) gets the read-only dump role, a key derived from APP_KEY (never
+ * APP_KEY), the fingerprint of APP_KEY, the age recipients (public keys) and its schedule; the instance's identity and
+ * portable settings reach it through `staging/backup/instance.json` (ComposeRenderer::write), so a URL or mail change
+ * does not recreate it.
  */
 final readonly class ServiceEnvironments
 {
-    /** Read-only dump role (`pg_read_all_data`) the backup service connects as; U16 creates it in a one-off. */
-    public const string BACKUP_DB_ROLE = 'fsa_backup';
+    /** Read-only dump role (`pg_read_all_data`, insert into backup_runs) the backup service connects as (ADR 0084). */
+    public const string BACKUP_DB_ROLE = BackupRole::NAME;
 
     /** HKDF info of the backup HMAC key (R67): changing it breaks verification of every existing backup. */
     public const string BACKUP_HMAC_INFO = 'form-schema-app backup hmac v1';
@@ -122,13 +127,31 @@ final readonly class ServiceEnvironments
         return [CaddyfileRenderer::AUTHORIZATION_ENV => 'Basic '.base64_encode($credentials)];
     }
 
-    /** @return array<string, string> the backup service's env (KTD7, KTD15), rendered with the service in U16 */
+    /**
+     * The backup service's env (KTD7, KTD15, ADR 0084), rendered from the state: a change of the schedule, the retention,
+     * the time zone or the recipients recreates the service with fresh values. It never mounts state.json (a single-file
+     * mount would keep showing the file an atomic rename replaced).
+     *
+     * @return array<string, string>
+     */
     public function backup(): array
     {
+        $state = $this->context->state;
+        $settings = $this->context->settings;
+
         return [
             ...$this->database($this->context->secrets->backupDbPassword, self::BACKUP_DB_ROLE),
             'BACKUP_HMAC_KEY' => $this->backupHmacKey(),
-            'BACKUP_AGE_RECIPIENTS' => implode(',', $this->context->state->recipients()),
+            // Every APP key's fingerprint, the current one first (the HMAC key derives from it); ADR 0085.
+            'BACKUP_APP_FINGERPRINTS' => implode(',', array_map(KeyFingerprint::of(...), $this->context->secrets->appKeys())),
+            'BACKUP_AGE_RECIPIENTS' => implode(',', $state->recipients()),
+            'BACKUP_SCHEDULE' => $settings->backupSchedule(),
+            'BACKUP_TIME_ZONE' => $settings->timeZone(),
+            'BACKUP_RETENTION' => (string) $settings->backupRetention(),
+            'FSA_INSTANCE_ROOT' => BackupConfig::INSTANCE_ROOT,
+            // The in-container owner (KTD2): the host user on rootful Docker, root on rootless Docker and Docker Desktop.
+            'FSA_OWNER_UID' => (string) $state->containerUid(),
+            'FSA_OWNER_GID' => (string) ($state->containerUid() === 0 ? 0 : $state->hostGid()),
         ];
     }
 
@@ -151,6 +174,8 @@ final readonly class ServiceEnvironments
             'APP_ENV' => 'production',
             'APP_DEBUG' => 'false',
             'APP_KEY' => $this->context->secrets->appKey,
+            // Keys data may still be encrypted under (a restored backup's, ADR 0085); absent while there are none.
+            ...($this->context->secrets->previousKeys === [] ? [] : ['APP_PREVIOUS_KEYS' => implode(',', $this->context->secrets->previousKeys)]),
             'APP_URL' => $url,
             'APP_ALLOW_REGISTRATION' => 'false',
             'LOG_LEVEL' => 'info',

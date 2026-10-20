@@ -1,0 +1,191 @@
+{
+    "command": "fsa backup --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "backup",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": true,
+        "data": {
+            "backup": "manual-20261020T110246Z",
+            "path": "<work>/fsa-test-j08/backups/manual-20261020T110246Z",
+            "kind": "manual",
+            "created_at": "2026-10-20T11:02:46Z",
+            "bytes": 502229,
+            "encrypted": false,
+            "includes_secrets": false,
+            "app_key_fingerprint": "71d6-bd84-cd61-3c80",
+            "files": {
+                "referenced": 1,
+                "missing": 0,
+                "missing_sample": []
+            },
+            "free_bytes": 171538612224
+        },
+        "secrets": [],
+        "warnings": [
+            {
+                "code": "backup_on_host",
+                "message": "Backups stay in the instance directory on this host.",
+                "hint": "Copy backups/ to another machine or storage regularly."
+            }
+        ],
+        "errors": []
+    },
+    "files": [
+        "SHA256SUMS",
+        "SHA256SUMS.hmac",
+        "audit-heads.json",
+        "database.dump",
+        "manifest.json",
+        "settings.json",
+        "storage.tar.gz"
+    ],
+    "modes": {
+        ".": [
+            "700",
+            501
+        ],
+        "SHA256SUMS": [
+            "600",
+            501
+        ],
+        "SHA256SUMS.hmac": [
+            "600",
+            501
+        ],
+        "audit-heads.json": [
+            "600",
+            501
+        ],
+        "database.dump": [
+            "600",
+            501
+        ],
+        "manifest.json": [
+            "600",
+            501
+        ],
+        "settings.json": [
+            "600",
+            501
+        ],
+        "storage.tar.gz": [
+            "600",
+            501
+        ]
+    },
+    "checksums": [],
+    "manifest": {
+        "schema_version": "1.0",
+        "format": "fsa-backup",
+        "kind": "manual",
+        "name": "manual-20261020T110246Z",
+        "created_at": "2026-10-20T11:02:46Z",
+        "completed_at": "2026-10-20T11:02:46Z",
+        "instance": {
+            "uuid": "378ca936-8137-419c-9d3c-66a3ed6079ff",
+            "project": "fsa-fsa-test-j08-a973",
+            "version": "2.0.0-alpha.1-test",
+            "mode": "local"
+        },
+        "versions": {
+            "app": "2.0.0-alpha.1-test",
+            "postgres": "16.15",
+            "pg_dump": "pg_dump (PostgreSQL) 16.15 (Debian 16.15-1.pgdg12+2)"
+        },
+        "database": {
+            "migrations": 45,
+            "last_migration": "2026_10_26_100200_add_schedule_to_backup_runs",
+            "migration_set_sha256": "f2aaf0a93288941f08b511248f8bdfe9918488ff2b59ce8118ec0198c5f583bd",
+            "migration_names": [
+                "0001_01_01_000000_create_users_table",
+                "0001_01_01_000001_create_cache_table",
+                "0001_01_01_000002_create_jobs_table",
+                "2026_10_16_092330_add_two_factor_columns_to_users_table",
+                "2026_10_16_092344_create_personal_access_tokens_table",
+                "2026_10_16_092439_create_activity_log_table",
+                "2026_10_16_092439_create_permission_tables",
+                "2026_10_16_093750_create_notifications_table",
+                "2026_10_16_100000_create_organizations_tables",
+                "2026_10_16_100100_add_organization_to_personal_access_tokens",
+                "2026_10_16_110000_create_forms_tables",
+                "2026_10_16_110100_drop_published_by_fk",
+                "2026_10_16_120000_create_submissions_tables",
+                "2026_10_16_120100_create_submission_values_table",
+                "2026_10_16_120200_scope_idempotency_keys_to_organization",
+                "2026_10_17_100000_create_designs_tables",
+                "2026_10_17_100100_create_renditions_table",
+                "2026_10_17_200001_create_mail_tables",
+                "2026_10_17_300000_create_document_sends_table",
+                "2026_10_17_400000_add_delivery_reliability",
+                "2026_10_18_100000_create_workflows_tables",
+                "2026_10_18_100100_create_tasks_table",
+                "2026_10_18_200001_create_notification_preferences_table",
+                "2026_10_19_100000_harden_workflow_reviews",
+                "2026_10_19_100050_add_dashboard_and_report_indexes",
+                "2026_10_19_200001_create_exports_table",
+                "2026_10_19_200002_create_saved_reports_table",
+                "2026_10_19_200003_create_dashboard_pins_table",
+                "2026_10_19_200004_add_submission_values_trigram_index",
+                "2026_10_19_200005_add_explorer_sort_index",
+                "2026_10_20_100000_add_idempotency_key_to_document_sends",
+                "2026_10_20_100100_add_client_submitted_at_to_submissions",
+                "2026_10_21_100000_create_sso_tables",
+                "2026_10_22_100000_harden_activity_log",
+                "2026_10_22_100100_create_privacy_tables",
+                "2026_10_22_200000_create_platform_admins_table",
+                "2026_10_22_300000_add_first_used_at_to_personal_access_tokens",
+                "2026_10_23_000000_add_password_known_to_users",
+                "2026_10_23_000100_index_notifications_by_submission",
+                "2026_10_23_100000_add_submissions_org_updated_at_index",
+                "2026_10_24_100000_create_login_links_table",
+                "2026_10_25_100000_add_is_demo_to_organizations",
+                "2026_10_26_100000_create_backup_runs_table",
+                "2026_10_26_100100_create_audit_chain_epochs_table",
+                "2026_10_26_100200_add_schedule_to_backup_runs"
+            ]
+        },
+        "audit": {
+            "epoch": 1,
+            "chains": 3
+        },
+        "storage": {
+            "referenced_files": 1,
+            "missing_files": 0,
+            "missing_sample": [],
+            "changed_while_archived": false
+        },
+        "app_key_fingerprints": [
+            "71d6-bd84-cd61-3c80"
+        ],
+        "hmac": {
+            "algorithm": "hmac-sha256",
+            "file": "SHA256SUMS.hmac",
+            "key": "hkdf-sha256(APP_KEY, \"form-schema-app backup hmac v1\")"
+        },
+        "encrypted": false,
+        "recipients": [],
+        "includes_secrets": false,
+        "files": {
+            "audit-heads.json": {
+                "bytes": 447,
+                "sha256": "dcc126b93dbd986abf8f28b4bbc048748d835f0e4a5d12e05977f9f7b77cbff1"
+            },
+            "database.dump": {
+                "bytes": 495178,
+                "sha256": "c18d3b36bb082091d1e6833f9131b50f4d8650e8e6b5369bb3c8a0c9f0addf5e"
+            },
+            "settings.json": {
+                "bytes": 363,
+                "sha256": "e578659e9318c91a5cbf3633d99411ec777c530b3a99e5cee98b1db64d438ee2"
+            },
+            "storage.tar.gz": {
+                "bytes": 1039,
+                "sha256": "86a8ed112189780018bd17a0caefd44787bb616ae678583f12ac2072afb2dabe"
+            }
+        }
+    },
+    "pg_restore_list_exit": 0
+}

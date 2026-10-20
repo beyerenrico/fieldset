@@ -29,15 +29,19 @@ use Illuminate\Support\Sleep;
  *
  * - a one-page PDF through the app's own Gotenberg client (`instance:pdf-test`; exit 4 `pdf_render_failed`);
  * - a test mail to the owner through the instance mailer (`instance:mail-test --install`; exit 4 `test_mail_failed`):
- *   into the bundled catcher in capture mode, through the server of `--smtp-host` in SMTP mode. In capture mode a
- *   throwaway `curl` container on the default network then finds it by its Message-ID in the catcher's API
- *   (exit 4 `test_mail_not_captured`); the catcher's login reaches curl on stdin, never on a command line.
+ *   into the bundled catcher in capture mode, through the server of `--smtp-host` in SMTP mode. Without an owner it goes
+ *   to the active operator; data from a 1.0 install may have none, and the mail is then skipped (MAIL_SKIPPED, ADR 0087).
+ *   In capture mode a throwaway `curl` container on the default network then finds it by its Message-ID in the catcher's
+ *   API (exit 4 `test_mail_not_captured`); the catcher's login reaches curl on stdin, never on a command line.
  *
  * `fsa config set` verifies with SmokeTest alone: a settings change renders no PDF and mails nobody (`config set mail
  * smtp` sends its own test mail, ADR 0080). The owner's address stays out of messages and phase data (journaled).
  */
 final readonly class InstallSmoke
 {
+    /** What `checked` lists when no owner was given and the data has no active operator to mail (ADR 0087). */
+    public const string MAIL_SKIPPED = 'test mail skipped: no owner given and no active operator';
+
     /** Lookups of the test mail in the catcher, one second apart (it is stored before the catcher answers 250). */
     public const int CATCHER_ATTEMPTS = 5;
 
@@ -50,9 +54,10 @@ final readonly class InstallSmoke
     public function __construct(private SmokeTest $smoke, private AppCommands $app, private DockerGateway $docker, private InstanceDirectory $directory) {}
 
     /** @return array<string, mixed> the smoke phase's data: what was checked (and the local CA's fingerprint) */
-    public function run(InstanceState $state, ComposeProject $project, string $owner, ?ProgressReporter $progress = null): array
+    public function run(InstanceState $state, ComposeProject $project, ?string $owner, ?ProgressReporter $progress = null, bool $internalOnly = false): array
     {
-        $result = $this->smoke->run($state, $project, $progress);
+        // `--from-backup` with a certificate pending (ADR 0085): the app and Gotenberg on the internal network only.
+        $result = $internalOnly ? ['checked' => $this->smoke->internal($state, $project)] : $this->smoke->run($state, $project, $progress);
         $checked = is_array($result['checked'] ?? null) ? $result['checked'] : [];
 
         return [...$result, 'checked' => [...$checked, $this->pdf($project, $progress), ...$this->mail($state, $project, $owner, $progress)]];
@@ -89,14 +94,17 @@ final readonly class InstallSmoke
     }
 
     /** @return list<string> */
-    private function mail(InstanceState $state, ComposeProject $project, string $owner, ?ProgressReporter $progress): array
+    private function mail(InstanceState $state, ComposeProject $project, ?string $owner, ?ProgressReporter $progress): array
     {
         $route = self::route($state);
         $progress?->event('smoke', ProgressReporter::INFO, "Sending a test mail to the owner through {$route}");
         $result = $this->app->mailTest($project, $owner, install: true);
+        if (! $result->ok && $owner === null && $result->errorCode() === 'invalid_input') {
+            return [self::MAIL_SKIPPED]; // data from a 1.0 install (adopt, `--from-backup`) may have no operator yet (plan U19)
+        }
         if (! $result->ok) {
             throw new InstanceException("The test mail through {$route} was not accepted.", ExitCode::HealthCheckFailed, 'test_mail_failed', $this->mailHint($state), true,
-                ['code' => $result->errorCode(), 'output' => str_ireplace($owner, '<owner-email>', $result->errorMessage())]);
+                ['code' => $result->errorCode(), 'output' => $owner === null ? $result->errorMessage() : str_ireplace($owner, '<owner-email>', $result->errorMessage())]);
         }
         if (! InstanceSettings::of($state)->capturesMail()) {
             return ["test mail through {$route}"];

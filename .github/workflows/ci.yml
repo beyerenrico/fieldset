@@ -65,7 +65,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with: { php-version: '${{ env.PHP_VERSION }}', coverage: pcov, ini-values: 'pcov.directory=., memory_limit=2G' }
-      - run: sudo apt-get update && sudo apt-get install -y qpdf poppler-utils
+      # postgresql-client: pg_dump and pg_restore 16 (Ubuntu 24.04) for the backup tests (ADR 0084).
+      - run: sudo apt-get update && sudo apt-get install -y qpdf poppler-utils postgresql-client
       - run: composer install --no-interaction --prefer-dist --no-progress
       - run: cp .env.example .env && php artisan key:generate
       - run: vendor/bin/pest --compact --coverage-clover=storage/coverage/clover.xml --min=80

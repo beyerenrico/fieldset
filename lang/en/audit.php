@@ -314,6 +314,9 @@ return [
             'config_changed' => 'Instance setting changed',
             'demo_seeded' => 'Demo data added',
             'demo_password_rotated' => 'Demo user password rotated',
+            'restored' => 'Instance restored from a backup',
+            'rolled_back' => 'Instance rolled back to the previous version',
+            'reset' => 'Instance reset to a fresh state',
         ],
         'login_link' => [
             'issued' => 'One-time sign-in link issued',

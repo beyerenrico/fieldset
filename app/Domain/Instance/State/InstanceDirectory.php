@@ -31,6 +31,13 @@ final readonly class InstanceDirectory
 
     public const string BACKUPS_DIR = 'backups';
 
+    /**
+     * fsa's private working files that may hold plaintext (0700, never to be synced off the host, M12 gate S2/S3): the
+     * backup service's settings and the plain sets of encrypted backups being written (`staging/backup/`), restore
+     * scratch directories (`staging/restore-<id>/`). Only finished files move into `backups/`.
+     */
+    public const string STAGING_DIR = 'staging';
+
     private function __construct(
         public string $root,
         private SafeFiles $files,
@@ -44,13 +51,17 @@ final readonly class InstanceDirectory
         return is_file($marker) && ! is_link($marker);
     }
 
-    /** @throws NotAnInstanceDirectory|IncompatibleSchema */
-    public static function open(string $path): self
+    /**
+     * @param  array{0: int, 1: int}|null  $owner  UID and GID for everything written (the backup service, ADR 0084)
+     *
+     * @throws NotAnInstanceDirectory|IncompatibleSchema
+     */
+    public static function open(string $path, ?array $owner = null): self
     {
         if (! str_starts_with($path, '/') || ! is_dir($path) || ! self::isMarked($path)) {
             throw new NotAnInstanceDirectory($path);
         }
-        $directory = new self($path, SafeFiles::at($path));
+        $directory = new self($path, SafeFiles::at($path, $owner));
         $directory->checkMarker();
 
         return $directory;

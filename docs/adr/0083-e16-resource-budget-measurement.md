@@ -224,3 +224,9 @@ ADR 0070 (emulation doubles the new limits; Mailpit kept at 48 MiB) and ADR 0046
 - **Speed.** Not re-measured here; the gate's J10 run records the effect. Inferred: on two CPUs a parallel worker
   competes with the app and the queue for the same cores, and JIT compile time is often larger than its gain on these
   queries, so the admin-page misses above are not expected to grow much; if they do, the verdict table gets the numbers.
+
+## Amendment 2026-10-19: the backup slot measured (U16, ADR 0084)
+J08 measured the backup service on `small`: `memory.peak` 68 MiB over the container's life including a scheduled,
+encrypted backup run, unreclaimable peak 59.6 MiB (mostly the idle PHP daemon), no limit hit, no OOM kill. 68 + 30 MiB
+fits the 128 MiB slot, so the table above stands and the Consequence "U16 measures it and changes this table with a new
+J10 run if needed" is settled without a change. The measurement used the demo data, not the 1.0 test volume (ADR 0084).

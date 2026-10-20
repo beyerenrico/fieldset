@@ -34,8 +34,8 @@ fsa_fail() { # <exit code> <error code> <message> [hint] [retryable: true|false]
 	if [ "${fsa_json:-0}" = 1 ]; then
 		fsa_hint=null
 		[ -z "${4:-}" ] || fsa_hint=$(fsa_json_string "$4")
-		printf '{"schema_version":1,"command":%s,"status":"failed","changed":false,"data":{},"secrets":[],"warnings":[],"errors":[{"code":%s,"message":%s,"hint":%s,"retryable":%s}]}\n' \
-			"$(fsa_json_string "${fsa_command:-}")" "$(fsa_json_string "$2")" "$(fsa_json_string "$3")" "$fsa_hint" "${5:-false}"
+		printf '{"schema_version":1,"command":%s,"status":"failed","exit_code":%s,"changed":false,"data":{},"secrets":[],"warnings":[],"errors":[{"code":%s,"message":%s,"hint":%s,"retryable":%s}]}\n' \
+			"$(fsa_json_string "${fsa_command:-}")" "$1" "$(fsa_json_string "$2")" "$(fsa_json_string "$3")" "$fsa_hint" "${5:-false}"
 	fi
 	exit "$1"
 }
@@ -48,12 +48,14 @@ fsa_file_flag_mode() { # sets fsa_mode: rw for output paths, ro for input paths,
 	esac
 }
 
-# Every value-taking option of the fsa:* commands plus install's --version alias, so that a flag before the command
-# keeps its value (`fsa --behind-proxy traefik install`); ShimScriptTest keeps it in step with the commands.
-fsa_value_flags='--acme-ca --acme-ca-root-file --acme-email --behind-proxy --dir --domain --from-address --from-backup
---from-name --lan-address --locale --org --orphans --owner-email --owner-name --password-file --phone-https --port
---proxy-network --release --secrets-file --since --smtp-encryption --smtp-host --smtp-port --smtp-username --tail
---test-to --trusted-proxy --url --version'
+# Every value-taking option of the fsa:* commands plus the --version alias of install and adopt, so that a flag
+# before the command keeps its value (`fsa --behind-proxy traefik install`); ShimScriptTest keeps it in step with the
+# commands.
+fsa_value_flags='--acme-ca --acme-ca-root-file --acme-email --app-key-file --behind-proxy --dir --domain --from-address
+--from-backup --from-name --identity-file --identity-out --kind --lan-address --locale --lock-id --org --orphans
+--owner-email --owner-name --passphrase-file --password-file --phone-https --port --proxy-network --release
+--scratch --seal --secrets-file --since --smtp-encryption --smtp-host --smtp-port --smtp-username --source
+--tail --test-to --to --trusted-proxy --url --version'
 
 fsa_takes_value() { # <flag>: true for a value-taking flag written without =value (dir, file-path or listed flags)
 	fsa_file_flag_mode "$1"
@@ -215,6 +217,13 @@ fsa_add_mount() { # <directory> <ro|rw>: mounts its physical path at the same pa
 		{ : >"$fsa_mount_dir/$FSA_NONCE"; } 2>/dev/null || fsa_fail 2 path_unwritable "Cannot write to $fsa_mount_dir." 'Pass a path in a directory you can write to.'
 		fsa_cleanup_files=$fsa_cleanup_files$fsa_mount_dir/$FSA_NONCE$fsa_nl
 	fi
+}
+
+fsa_adopt_checkout() { # <path>: `fsa adopt <checkout>` reads a 1.0 checkout, mounted read-only at its physical path (ADR 0087)
+	fsa_checkout=$1
+	case $fsa_checkout in /*) ;; *) fsa_checkout=$PWD/$fsa_checkout ;; esac
+	fsa_add_mount "$fsa_checkout" ro
+	fsa_checkout=$fsa_mount_dir
 }
 
 fsa_run_cleanup() { # removes the nonce, hand-over and temporary files of this run (idempotent)
@@ -393,8 +402,9 @@ fsa_run() { # <instance dir> <image> <fsa command> [args...]: runs it in an ops 
 	fsa_run_setup
 
 	# The command moves to the front with --dir <instance> after it. File-path flags become absolute, physical
-	# paths, and their parent directory is mounted at the same path (KTD2). --dir must name this instance.
-	fsa_found=0 fsa_ended=0
+	# paths, and their parent directory is mounted at the same path (KTD2). --dir must name this instance. The first
+	# argument of `adopt` is the 1.0 checkout: mounted read-only at its own physical path.
+	fsa_found=0 fsa_ended=0 fsa_checkout=''
 	fsa_n=$#
 	while [ "$fsa_n" -gt 0 ]; do
 		fsa_arg=$1
@@ -408,15 +418,22 @@ fsa_run() { # <instance dir> <image> <fsa command> [args...]: runs it in an ops 
 		case $fsa_arg in
 		-*) ;;
 		*)
-			if [ "$fsa_found" = 0 ]; then fsa_found=1; else set -- "$@" "$fsa_arg"; fi
+			if [ "$fsa_found" = 0 ]; then
+				fsa_found=1
+			elif [ "$fsa_command" = adopt ] && [ -z "$fsa_checkout" ]; then
+				fsa_adopt_checkout "$fsa_arg"
+				set -- "$@" "$fsa_checkout"
+			else
+				set -- "$@" "$fsa_arg"
+			fi
 			continue ;;
 		esac
 		fsa_name=${fsa_arg%%=*}
 		fsa_file_flag_mode "$fsa_name"
 		if [ "$fsa_name" != --dir ] && [ -z "$fsa_mode" ]; then
 			set -- "$@" "$fsa_arg"
-			# Before the command, the value of a value-taking flag is no command candidate: keep it with its flag.
-			if [ "$fsa_found" = 0 ] && [ "$fsa_name" = "$fsa_arg" ] && [ "$fsa_n" -gt 0 ] && fsa_takes_value "$fsa_name"; then
+			# The value of a value-taking flag is neither the command nor adopt's checkout: keep it with its flag.
+			if [ "$fsa_name" = "$fsa_arg" ] && [ "$fsa_n" -gt 0 ] && fsa_takes_value "$fsa_name"; then
 				fsa_arg=$1
 				shift
 				fsa_n=$((fsa_n - 1))

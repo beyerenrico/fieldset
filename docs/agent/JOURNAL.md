@@ -254,3 +254,69 @@
   skips); amd64 emulated J1–J6/J12 51/51 and J10 9/9 (J10 now expects ADR 0070's doubled limits).
 - E2E 79/79 twice with --workers=2; 5 workers flaked under host load ~12 (Teams, Defender): spec sync fixes, Q49/50.
 - Pre-release 2.0.0-beta.1 7/7 (test no longer hard-codes channel alpha). CHANGELOG beta.1 + missing alpha.2.
+
+## 2026-10-19 M12-T01 U16 backups
+- One worktree agent: backup service (dropped caps, no socket), `fsa backup`, snapshot-shared dump/heads/refs, HMAC
+  + SHA256SUMS last, retention, `backup_runs` via insert-only `fsa_backup`, age encryption, `audit:verify --heads`
+  epoch, `config set backup-*`; ADR 0084. J08 backup half 5/5; service peak 68 MiB (< 128 MiB slot, no J10 rerun).
+- Two reviewers: 1 high (safety backups encrypted at write), 4 medium (plaintext `.partial`, skip reasons, dead
+  service invisible on /platform, first-run space estimate 0), lows (boot-local lock id, prune tombstone, deadlines,
+  symlinked-parent identity path, tar `--`, DST double run): all fixed by the same agent, merged; 3 left for U17.
+- Full-suite flake: `ownerOf` unordered `first()` (fixed). Q51–52 (key rotation, install --encrypt).
+
+## 2026-10-19 M12-T02 U17 restore
+- One worktree agent: `fsa restore` (journaled steps, abandon, resume), safe tar reader, HMAC from outside keys,
+  restricted-role restore + schema audit for unauthenticated archives, R64 carry, drill, `install --from-backup`
+  (1.0 `.env` allow-list), webhook hold; ADR 0085. Instance coverage 93.34 %.
+- Reviewers: 5 high (gate left up after resumed clean-up, unjournaled swap-back, other instance's backup in place,
+  gate lowered before full start, extension-member audit bypass), 8 medium, 7 low. Verifier: 1 high (carry took every
+  row missing from the live DB as an admin removal), 2 medium, 4 low. All fixed with tests; carry by state only while
+  the live DB descends from the backup, else an audit/timestamp window (Q57).
+- J08 found the Valkey flush never worked (image appends VALKEY_EXTRA_FLAGS). Merges be7b56b + 45213cd; code equals
+  the tested branch: suite 6803/6803, J08 12/12, J01 5/5, J12 3/3, static clean.
+
+## 2026-10-19 M12-T05 U23 reset
+- One worktree agent: `fsa reset` (journaled quiesce, ledger, safety backup or audit export, recreate, fresh volume,
+  epoch + `instance.reset`, seed re-run, demo policy), resume after the drop; ADR 0088. Instance coverage 93.45 %.
+- Review (13): 3 high (old signed URLs resolved new rows after sequences restarted; way back not via reopenPrevious;
+  way back unjournaled), rest medium/low (failed drop counted as past it, flush optional, leftovers, carry after a
+  reset, confirmation outside the lock, backup during an open reset, hints). Verifier: A1 partial, 2 medium (retake
+  decided from live containers; superseded safety backup left plain), 7 low (login-link wrote during a reset, …).
+- All fixed with tests; `app:install` became one transaction. Merge a650d68: suite 6874/6874, static clean; J05 10/10.
+- Coverage recipe fixed: `scripts/coverage.sh` lacked REDIS_PORT/MAIL_* overrides; `--env-file` broke phpunit env (L140).
+
+## 2026-10-20 M12-T04 U19 adopt
+- One worktree agent: `fsa adopt <checkout>` (allow-listed `.env`, KTD20 order, 1.0-format backup, clean Postgres stop,
+  copy into labelled volumes, counts + heads + amcheck, start 2.0), go back to 1.0 on any failure before start;
+  uninstall of an adopted instance: final backup + writes since adopt; J09 from a v1.0.0 build; ADR 0087.
+- Review: 1 high (no check that 1.0 stays stopped: a resume could finish on a stale copy), 4 medium (APP key in the
+  plain adopt backup, late baseline, uninstall deleting the adopt backup, Postgres image unchecked), 7 low. Verifier:
+  A1/S1 partial, 2 medium (no fence once start began; final backup without the key), 4 low + restore trust widened
+  (fingerprint from an unauthenticated manifest; now only for the instance's own adopt backup). All fixed with tests;
+  first round not strictly red-first (mutation-checked instead). Merge ea98143: suite 6984/6984, static clean; J09 6/6.
+
+## 2026-10-20 M12-T03 U18 upgrade and rollback
+- One worktree agent: `fsa upgrade` (detached supervisor, socket-less child, lock_timeout + liveness, staged target
+  files, automatic rollback through U17's atomic path), `fsa rollback` (versioned R64 export), older backups in place
+  through the child, J07 between harness releases (AE7 local + proxy); ADR 0086. Instance coverage 92.92 %.
+- Security review: 2 medium (safety backups plain on failure paths; staged files trusted) + S3 (U17 SchemaAudit
+  ignored missing objects). Adversarial: 5 medium (in-flight requests after the snapshot, rollback re-halting a live
+  instance, target env reused, target-only services left, space check without backups), 7 low. Verifier: 1 medium
+  (exit 9 left the journal open), 4 low. All fixed with tests; the adopt backup now restores in place via the child.
+- Merge 48630b6: suite 7165/7165 (one SearchPlanTest planner flake in a first run, Q68), static clean; J07 8/8.
+- Flake fixed: DistributionScripts removed the shared test parent dir under --parallel (e27a329, L148).
+
+## 2026-10-20 M12-T06 gate: review fix rounds A, B, C
+- 5 gate reviewers: 5 high (S1 partial-set tampering, D1 safety backups deleted, O1 from-backup journal taken over,
+  O3 upgrade outcome lost, DOC12 final-backup advice) + mediums/lows. Fix agents A (backups/security) and B
+  (recovery/operability/docs) in worktrees; A merged 27b9a64 (suite 7196/7196, J01/J08/J09/J12 green).
+- Verifier of A: R1 high restore-time TOCTOU (pre-existing), R2-R4 medium/low → agent C. A host restart killed B and
+  C before their final runs; finished by hand: B's last change committed, merges 60d7f2d (B), b2f719f (C; ADR 0085
+  conflict kept both; ImageContractTest expects O10 exit_code). Suite 7269 (5 stale expectations fixed), static clean.
+- Deferred: QUESTIONS 69-72; U21 guide list → M13-T02.
+
+## 2026-10-20 M12-T06 gate closed, 2.0.0-rc.1 built locally
+- Host load (Spotlight + Defender scanning Docker.raw) stalled Docker; the human added Defender exclusions.
+- Install run 1: J10 service list predated the backup service (fixed 76bad60). Run 1's evidence lost to a broad
+  `git checkout` of evidence/ (L159); run 2 regenerated it (132/140, one J10 ERR_NETWORK_CHANGED, rerun 9/9).
+- J1+J12 amd64 8/8; E2E 79 passed twice; LocalPreReleaseTest 2.0.0-rc.1 7/7. Merge to main, tags local only.

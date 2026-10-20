@@ -415,6 +415,22 @@ it('refuses --password-stdin without a terminal with exit 2 before any download 
     }
 })->with(['human output' => [[]], '--json' => [['--json']]]);
 
+it('refuses --passphrase-stdin of --from-backup the same way: exit 2 passphrase_stdin_unavailable before any download (M12 gate O7)', function (array $extra): void {
+    $process = $this->scripts->run($this->production, ['--dir', $this->dir, '--from-backup', $this->dir.'-backup', '--identity-file', $this->dir.'-id.age', '--passphrase-stdin', ...$extra], $this->env);
+    $envelope = json_decode($process->getOutput(), true) ?? [];
+    $error = $envelope['errors'][0] ?? [];
+
+    expect($process->getExitCode())->toBe(2, $process->getErrorOutput())
+        ->and($process->getErrorOutput())->toContain('--passphrase-stdin cannot read the passphrase here')
+        ->and($this->scripts->calls())->toBe([])
+        ->and(file_exists($this->dir))->toBeFalse();
+    if ($extra !== []) {
+        expect($error['code'] ?? null)->toBe('passphrase_stdin_unavailable')
+            ->and($error['hint'])->toContain('--passphrase-file=<path>')
+            ->and($envelope['exit_code'] ?? null)->toBe(2); // O10: the numeric exit code in every envelope
+    }
+})->with(['human output' => [[]], '--json' => [['--json']]]);
+
 it('lets fsa prompt for --password-stdin only on a terminal without --json, as the shim hands it over', function (string $json, string $stdout, string $tty, bool $ok): void {
     $process = $this->scripts->source(base_path('distribution/install.sh'), "fsa_install_stdin_ok {$json} {$stdout} {$tty} && echo prompt || echo refuse");
 
@@ -424,6 +440,23 @@ it('lets fsa prompt for --password-stdin only on a terminal without --json, as t
     '--json' => ['1', '1', '1', false],
     'stdout redirected' => ['0', '0', '1', false],
     'no terminal' => ['0', '1', '0', false],
+]);
+
+it('hands over to fsa adopt with the 1.0 checkout mounted read-only for --adopt (ADR 0087)', function (array $arguments): void {
+    mkdir($this->scripts->root.'/home/form-schema-app');
+    $checkout = (string) realpath($this->scripts->root.'/home/form-schema-app');
+    $arguments = array_map(fn (string $arg): string => str_replace('<checkout>', $this->scripts->root.'/home/form-schema-app', $arg), $arguments);
+
+    $process = $this->scripts->run($this->production, ['--dir', $this->dir, ...$arguments, '--yes', '--json'], $this->env);
+    $ops = $this->scripts->opsRuns()[0] ?? [];
+
+    expect($process->getExitCode())->toBe(0, $process->getErrorOutput())
+        ->and($ops)->toContain('-v', "{$checkout}:{$checkout}:ro")
+        ->and(array_slice($ops, array_search('--entrypoint', $ops, true) + 3))->toBe(['adopt', '--dir', $this->dir, $checkout, '--yes', '--json'])
+        ->and($this->scripts->opsEnvironment()['FSA_MOUNTS'])->toBe("ro:{$checkout}\n");
+})->with([
+    'separate value' => [['--adopt', '<checkout>']],
+    'with =' => [['--adopt=<checkout>']],
 ]);
 
 it('passes --password-file on as an input file flag, mounted read-only', function (): void {

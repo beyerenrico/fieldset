@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Instance\State;
 
 use App\Domain\Instance\Compose\ResourceBudget;
+use DateTimeZone;
 
 /**
  * The strict grammar of every value a renderer takes from the instance state (plan U3): RFC 1123 host names or
@@ -63,6 +64,11 @@ final class InputGrammar
         'phone_https' => 'text', 'tunnel_subnet' => 'subnet',
         // A local-CA deletion that failed on `phone-https off` and is retried (LocalCaDeletion, M11 gate).
         'local_ca_delete' => ['pending'],
+        // Backups (U16, ADR 0084): the daily time (`HH:MM` or `off`), how many scheduled backups to keep, and the
+        // instance's time zone the schedule is read in.
+        'backup_schedule' => 'backup_time', 'backup_retention' => 'retention', 'time_zone' => 'time_zone',
+        // Restore (U17, ADR 0085): the fresh storage volume a restore swapped in, and webhooks held after a move.
+        'storage_volume' => 'docker_name', 'webhooks_paused' => [true, false],
     ];
 
     private const array PROBLEMS = [
@@ -78,6 +84,9 @@ final class InputGrammar
         'subnet' => 'must be a private IPv4 subnet (CIDR, /16 to /29)',
         'docker_name' => 'must be a Docker network or container name',
         'ip_list' => 'must be a comma-separated list of IP addresses (single addresses, no ranges)',
+        'backup_time' => 'must be a time of day as HH:MM (24 hours) or off',
+        'retention' => 'must be a whole number from 1 to 365',
+        'time_zone' => 'must be an IANA time zone such as Europe/Berlin or UTC',
     ];
 
     /** RFC 1123 host name (no wildcard, no trailing dot) or an IPv4/IPv6 address. */
@@ -258,6 +267,9 @@ final class InputGrammar
             'https_url' => self::isHttpsUrl($value),
             'sha256' => is_string($value) && preg_match('/^[0-9a-f]{64}$/D', $value) === 1,
             'subnet' => self::isPrivateSubnet($value),
+            'backup_time' => is_string($value) && preg_match('/^(?:off|(?:[01]\d|2[0-3]):[0-5]\d)$/D', $value) === 1,
+            'retention' => is_int($value) && $value >= 1 && $value <= 365,
+            'time_zone' => is_string($value) && in_array($value, DateTimeZone::listIdentifiers(), true),
             default => self::isText($value),
         };
     }

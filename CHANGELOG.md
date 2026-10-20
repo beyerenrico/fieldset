@@ -7,6 +7,195 @@ The Form Schema Spec has its own changelog in `spec/form-definition/1.0/CHANGELO
 
 ## [Unreleased]
 
+### Added
+- **Backups** — every instance runs a `backup` service (the app image, container root with four capabilities, no
+  Docker socket, the storage volume read-only) that backs up daily at 03:30 in the instance's time zone and keeps the
+  newest 7 scheduled backups in `backups/`. A backup is the database dump, the storage volume, the portable settings,
+  the audit chain heads and a manifest, all read from one database snapshot, with `SHA256SUMS` and an HMAC keyed from
+  APP_KEY; it counts only once the dump reads back. Retention prunes only scheduled backups: manual, kept and safety
+  backups stay (an upgrade's safety backup is replaced by the next committed upgrade's; restore, reset and pre-rollback
+  safety backups stay until you delete them), and a run that would fill the disk is skipped (ADR 0084).
+- **`fsa backup`** — a manual backup now, while the instance keeps running; `--include-secrets` adds APP_KEY and the
+  SMTP account (encrypted backups only), `--encrypt` turns encryption on first (ADR 0084).
+- **Encrypted backups** — `fsa config set backup-encryption on --identity-out <path> --passphrase-file <file>` (or
+  `--passphrase-stdin`) creates an age key pair, writes the identity encrypted with your passphrase outside the
+  instance directory and checks that it decrypts; only the public key stays in the instance, and every later backup
+  is one age file (a safety backup is sealed once its operation completed). `off` switches back (ADR 0084).
+- **`fsa config set backup-schedule <HH:MM|off>` and `backup-retention <n>`** (ADR 0084).
+- **Backup status** — `fsa status` shows the last backup, the schedule and its next run, the backups on disk and the
+  safety backups with their age, and warns when the last backup failed, when a scheduled run was skipped for lack of
+  disk space, when scheduled runs were skipped for more than a day because an operation held the lock, when the backup
+  service cannot start, when no backup succeeded within two hours of a scheduled slot, or when an interrupted backup
+  left a `.partial` directory; the `/platform` health page has a backup check with the same alerts, so it also notices
+  a backup service that is not running (ADR 0084).
+- **Audit chain epoch** — `audit:verify --heads` reports the chain epoch with the heads (ADR 0084).
+- **`fsa restore <backup>`** — restores a backup into the instance after confirmation: the backup is decrypted and
+  checked in a container without network and Docker socket (checksums, an HMAC verified only with APP keys from outside
+  the archive, every archive member and every object of the dump judged before anything is written), the instance is
+  quiesced behind its gate, the final audit heads go to `backups/ledger.log`, a safety backup is taken, and the backup
+  is restored into a scratch database and a fresh storage volume. Security changes made since the backup (revoked
+  devices, deactivated or erased users, changed passwords, e-mail addresses and MFA, deleted API tokens, SSO identities
+  and providers, revoked operators, roles, group memberships and form access, deleted organizations and webhook
+  endpoints) are re-applied, sessions, reset tokens and sign-in links are cleared, numbering never goes backwards, the
+  audit log starts a new epoch with an `instance.restored` entry, and only a restored instance that passes its checks
+  behind the gate replaces the old database and volume; otherwise the old instance runs again (exit 5). Only backups of
+  the same instance are restored in place (another instance's go to a new directory with `--from-backup`); webhooks stay
+  paused afterwards until you run `fsa config set webhooks on`. When the instance was itself restored after the backup
+  was made (undoing a restore with its safety backup), only changes the audit log records are re-applied and the rest is
+  reported; restoring a deleted form or group brings back its access grants and members. A backup from a newer version
+  is refused with exit 7 and changes nothing (ADR 0085).
+- **`fsa restore --drill <backup>`** — restores into a scratch database and reports counts, audit chain heads, missing
+  files, a test render and a decrypt sample without touching the instance (ADR 0085).
+- **`fsa restore --abandon`** — cleans up a restore that stopped half-way, also after exit 8, and brings the instance
+  back; when the previous database or storage volume is gone it continues with the restored data instead (ADR 0085).
+- **`fsa install --from-backup <backup>`** — moves an instance to another host: settings that belong to the instance
+  come from the backup, host-bound ones from the flags; a domain that does not point here yet is "certificate pending".
+  The moved instance starts with captured mail and paused webhooks until you confirm with `fsa config set webhooks on`
+  and `fsa config set mail smtp …`. 1.0 backups from `scripts/backup.sh` are accepted with `--accept-unauthenticated`;
+  their unsafe settings (debug mode, insecure SSO, trusted proxies) are never applied; backup recipients are kept only
+  from an authenticated backup (ADR 0085).
+- **`--app-key-file`, `--identity-file`, `--accept-unauthenticated`** for restore and `--from-backup`: APP keys of an
+  older or another instance (they become previous keys, so old data still decrypts), the backup identity with
+  `--passphrase-file`/`--passphrase-stdin`, and archives without a valid HMAC (ADR 0085).
+- **`fsa config set webhooks on|paused`**; a webhook step also waits when the instance's runtime file cannot be read
+  (ADR 0085).
+- **`fsa upgrade`** — moves the instance to the release marked latest (the most recently published stable release;
+  `--to <version>` picks one, pre-releases included, `--major` crosses a major version), health-gated: the target's
+  signed manifest is downloaded and verified, every image pulled, the app answers 503 behind its gate while the queue drains
+  (`--drop-jobs` saves and drops what a bounded drain leaves) and a verified safety backup is taken, then the target's
+  own `fsa` renders its compose and env files and runs its migrations in a container without the Docker socket, its app
+  must pass the smoke test behind the gate, and only then is the upgrade committed and opened. Requests that were
+  already running when the gate rose finish before the safety backup (a stuck one stops the upgrade with exit 9), and
+  the free-space check counts the live database and files. Only the compose, env and service files are taken from the
+  target, and nothing in them may reach past the containers (host paths, capabilities, devices, host networking, images
+  the release does not pin). Any failure from the safety backup until the commit rolls back automatically: the files the
+  target replaced are put back, the safety backup is restored while the previous app answers 503, the cache flushed and
+  the previous release started again (exit 5, with the logs); a rollback that fails stops the instance and names the
+  backup and both image sets (exit 8). The upgrade runs in a background container of the installed release, so a closed
+  SSH session never stops it half-way; `fsa status` shows its phase and `fsa upgrade --resume` continues an interrupted
+  one. After a commit the previous pre-upgrade safety backups are removed (never one marked kept); restore, reset and
+  pre-rollback safety backups stay until you delete them; safety backups an upgrade leaves behind on its way back are
+  encrypted when encryption is on (ADR 0086).
+- **`fsa rollback`** — returns to the release before the last upgrade from that upgrade's safety backup, after telling
+  you what was written since and will be lost; security changes made since the upgrade (revocations, erasures, changed
+  passwords, deleted tokens) are carried over, numbering never goes backwards, and the audit log starts a new epoch with
+  an `instance.rolled_back` entry. A rollback that cannot finish goes back to the upgraded release exactly as it was
+  (exit 5; exit 9 when nothing was changed, such as a queue that does not drain); an interrupted rollback continues
+  with `fsa rollback`, without the question (ADR 0086).
+- **`fsa restore` of an older backup** — a backup made by an older release is now restored in place and migrated to the
+  installed release, instead of being refused, the backup `fsa adopt` made included (with `--accept-unauthenticated`)
+  (ADR 0085 and 0087 amendments, ADR 0086).
+- **`fsa adopt <checkout>`** (install.sh `--adopt <checkout>`) — turns a clone-based 1.0 install into an instance by
+  copying its data: it stops 1.0's app, scheduler and any other service it added, lets its queue drain, takes a backup
+  in the 1.0 format (without the APP keys: its manifest names them by fingerprint), stops 1.0's Postgres cleanly,
+  copies both volumes into the instance's own and checks the copy against the backup (row counts, audit chain heads,
+  migrations, amcheck on the unique text indexes) before 2.0 starts on `postgres:16-alpine`; a 1.0 started again in
+  between stops it. It keeps APP_KEY, the database names and the sender, starts with captured mail and names 1.0's SMTP
+  server, infers local or proxy mode from APP_URL and APP_PORT, reads only an allow-list of the 1.0 `.env` (which must
+  match what 1.0 runs with) and never applies its debug, SSO or trusted-proxy values. A Compose override, an external
+  database or a Postgres other than 16 on Alpine is refused (exit 7). Any failure before 2.0 starts brings 1.0 back
+  unchanged and leaves nothing of 2.0 behind (exit 5); `--abandon` undoes an adopt that stopped half-way (ADR 0087).
+- **`fsa reset`** — returns the instance to a fresh state after confirmation: the organization and owner it was
+  installed with (the owner gets a new one-time sign-in link), and with `--demo` the demo data (random passwords
+  whenever the instance is reachable beyond loopback). The instance is quiesced behind its gate, the final audit chain
+  heads go to `backups/ledger.log`, a safety backup is taken (never pruned), then the database is recreated, the audit
+  log starts a new epoch with an `instance.reset` entry naming the old heads, files go to a fresh storage volume, and the
+  cache, queues and captured mail are emptied. Settings and secrets stay. `--no-backup` skips the safety backup but still
+  writes the whole audit log to `backups/audit-export-reset-<time>.jsonl` while a real organization exists. A failure
+  before the database is recreated leaves the instance as it was (exit 5); a reset stopped after that is finished by
+  running `fsa reset` again, without a question. Row IDs of the old data are never handed out again, so signed links
+  sent before the reset (invitations, data exports) find nothing; leftover restore databases and storage volumes go too
+  (ADR 0088).
+- **`fsa reset --abandon`** — ends a reset that stopped before it recreated the database and starts the instance again
+  as it was (ADR 0088).
+
+### Changed
+- `fsa uninstall --keep-backups` writes its final backup in the 2.0 backup format (`backups/final-<time>`, encrypted
+  when backup encryption is on), so `fsa install --from-backup` and `fsa restore` read it; the instance is quiesced
+  first, so no write is lost after the snapshot, and a failed backup starts it again. The APP keys go inside an
+  encrypted backup, or beside a plain one (`final-<time>.app-key.env`, named in a warning). The proxy-mode hint now
+  says how to carry the data over (ADR 0073 amendment).
+- Backups resist whoever else can write into `backups/` (a sync tool, say): a backup being written stays root's until
+  it is complete, `SHA256SUMS` lists what the backup service produced, and a file added or changed meanwhile fails the
+  run instead of being authenticated. The service's settings and every plaintext working copy (the plain set of an
+  encrypted backup, a restore's decrypted set, the rollback's security export, reset's audit export) live in the new
+  private `staging/` directory of the instance, never in `backups/` (ADR 0084, 0085 amendments).
+- `fsa restore`, its drill, `fsa rollback`, an upgrade's way back and `fsa install --from-backup` copy a plain backup
+  into the instance's private `staging/` and check and restore only that copy, so a change in `backups/` after the
+  check (a sync tool, say) never reaches the restore; such a restore needs free space for one more copy of the dump and
+  the storage archive (ADR 0085 amendment).
+- `fsa uninstall` has the backup service remove what a backup run that was cut off left behind (root's partial sets,
+  possibly a plaintext dump), and names any file it still cannot remove instead of reporting data and backups deleted;
+  a failure while it quiesces for the final backup starts the instance again and lowers the gate (ADR 0073 amendment).
+- `fsa status` and `/platform` warn when the newest backup misses files the database references, and retention keeps
+  the older backup that missed the fewest files for as long as new ones miss them (ADR 0084 amendments).
+- `fsa restore` refuses a backup without files unless `--without-files` (the replaced storage volume is then kept), and
+  refuses a backup renamed to another backup's name; `fsa rollback` refuses a safety backup that is no longer the set
+  the upgrade verified (ADR 0085, 0086 amendments).
+- `fsa install --from-backup` lists the backup's encryption recipients and keeps them only with `--keep-recipients`
+  (ADR 0085 amendment).
+- `fsa reset --no-backup` encrypts its audit export to the backup recipients when encryption is on (ADR 0088
+  amendment).
+- Containers fsa starts outside the stack run with `no-new-privileges`; those that read a backup or a 1.0 install drop
+  all or nearly all capabilities and run on a read-only root file system (ADR 0085, 0087 amendments).
+- `fsa uninstall` of an adopted instance (also one whose adopt stopped after 2.0 started) takes a final backup by
+  default and keeps `backups/`; it reports the writes made since the adopt, whether 1.0 ran since then, and how to start
+  1.0 again (`docker compose up -d` in its checkout) with the jobs 1.0 will then run; `--no-backup` skips the final
+  backup (ADR 0087).
+- `fsa status` and `fsa logs` list the `backup` service; the stack file for Portainer and Coolify still has no
+  backup service (ADR 0084).
+- `fsa status` shows the last restore, the storage volume in use, paused webhooks and an interrupted restore with the
+  commands that resume or abandon it; `fsa config show` shows the storage volume, the webhook state and the last
+  restore (ADR 0085).
+- `fsa status` shows the last reset and an interrupted reset with the command that finishes it (ADR 0088).
+- `fsa backup` and `fsa login-link` refuse while another operation is unfinished (exit 9), and a restore of a safety
+  backup taken before a reset carries no security state from the reset instance (ADR 0084, 0085, 0088).
+- Backups list the fingerprint of every APP key, previous keys included; a backup verifies even with stray dotfiles
+  such as `.DS_Store` beside it, and file names in `SHA256SUMS` must be plain names (ADR 0085).
+- `fsa restore` refuses a backup older than the installed release's oldest upgrade source (exit 7), as documented; the
+  check never applied before (ADR 0085 amendment).
+- `fsa restore --accept-unauthenticated` also refuses an archive that lacks objects this release's migrations create at
+  the archive's own migration level, such as the audit log's append-only triggers (ADR 0085 amendment).
+- `fsa status` shows rollbacks as the last restore and no longer warns about a restore's scratch directory while an
+  upgrade, rollback or reset runs (ADR 0085 amendment).
+- Every JSON envelope carries the numeric `exit_code` (also those of install.sh, the shim and the image's `fsa`), and exit 6
+  `confirmation_required` carries the facts its question names under `data` (a rollback's versions, safety backup and
+  loss counts; restore, reset, adopt, uninstall).
+
+### Fixed
+- Hints that sent you to `fsa install --from-backup … --dir <new directory>` (which the instance's `fsa` refuses for
+  another directory) now name `install.sh --dir <new directory> --from-backup <backup>`; `fsa restore --abandon` hints
+  carry `--yes` (ADR 0085 amendment).
+- `fsa install --from-backup` lists `<dir>/fsa config set webhooks on` among its next commands (it printed `fsa` twice),
+  and `fsa reset` names the instance's own `<dir>/fsa` in its next commands.
+- A failed audit seal during `fsa rollback` names `fsa rollback` to run again, not `fsa upgrade`; a missing backup
+  service and a backup service that cannot start name `fsa config set` (which renders the files again) instead of
+  `fsa install`, which changes nothing on an installed instance.
+- A plain `fsa install` no longer takes over an unfinished `fsa install --from-backup` (it skipped the restore steps and
+  marked an empty instance installed): it stops with exit 9 and names the `--from-backup` command to run.
+- Every resume command (`fsa status`, exit 9 `operation_unfinished`) names all the flags the resumed run needs: the
+  backup, `--identity-file`, `--passphrase-file <path>` or `--passphrase-stdin`, `--app-key-file`,
+  `--accept-unauthenticated`, `--without-files`, `--keep-recipients`, and `--yes` where the command asks first. A resumed
+  restore, rollback or install from a backup without one of them stops with exit 2 before it changes anything, instead of
+  going back.
+- `fsa upgrade --resume` with nothing to resume stops with exit 2 `nothing_to_resume` instead of starting a new upgrade,
+  and a resumed upgrade keeps the `--to` it began with. The upgrade's result survives a closed terminal: `fsa upgrade
+  --follow` follows a running upgrade or shows the last result, and `fsa status` shows it as `last_upgrade`.
+- `fsa status` tells a running operation from an interrupted one (`operation.state`), shows the upgrade supervisor
+  (`supervisor`) and whether the lock's holder is gone (`lock.stale`).
+- Ctrl-C or a closed SSH session during `fsa restore`, `fsa rollback` or `fsa adopt` stops at the next step boundary and
+  goes back (after adopt started 2.0: stops with the journal open), instead of killing the command half-way.
+- `fsa rollback` leaves webhooks paused like a restore (runs restored from the safety backup could repeat deliveries);
+  confirm with `fsa config set webhooks on`.
+- A safety backup that an interrupted restore or reset wrote before it recorded its name is encrypted too.
+- `fsa restore --drill` refuses while an operation is unfinished; `fsa restore`, `fsa reset` and `fsa rollback` report an
+  unfinished operation before they ask or count anything; `fsa login-link`, `fsa upgrade` and the drill report an
+  unfinished install or adopt instead of "not installed"; `fsa login-link` works while a backup runs.
+- A restore never starts the quick tunnel again; a resumed restore or rollback that finds the app or workers running takes
+  its heads and safety backup again.
+- install.sh refuses `--passphrase-stdin` like `--password-stdin` (its stdin is the script); an empty passphrase is
+  `passphrase_missing`, not `weak_passphrase`.
+
 ## 2.0.0-beta.1 — 2026-10-19 (local pre-release, not published)
 
 Mail, demo data and phones (M11): capture mode is visible and can be switched to a real SMTP server, demo data

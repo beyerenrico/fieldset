@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Lifecycle;
 
+use App\Domain\Instance\Backup\BackupStatus;
 use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\Docker\ContainerInfo;
 use App\Domain\Instance\Docker\DockerCommandFailed;
@@ -14,19 +15,30 @@ use App\Domain\Instance\Install\InstallRecord;
 use App\Domain\Instance\Install\ProxySetup;
 use App\Domain\Instance\Operations\InstanceLock;
 use App\Domain\Instance\Operations\JournalRecord;
+use App\Domain\Instance\Operations\LockRecord;
 use App\Domain\Instance\Operations\OperationJournal;
 use App\Domain\Instance\Operations\OperationUnfinished;
 use App\Domain\Instance\Output\CommandResult;
+use App\Domain\Instance\Reset\ResetStatus;
+use App\Domain\Instance\Restore\RestoreStatus;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
+use App\Domain\Instance\Upgrade\DetachedSupervisor;
+use App\Domain\Instance\Upgrade\UpgradeJournal;
 use Throwable;
 
 /**
  * What `fsa status` reports (§7, R45, ADR 0056). Read-only: no file is written and no service is touched; the
  * only container it starts is the socket-less one-off that lists unused sign-in links (without tokens), and only
- * while the database runs. The last backup arrives with U16 (null until then). Phone HTTPS (ADR 0082): the local CA's
- * trust page and fingerprint, and the quick tunnel, an expired one reported but left for the next mutating command.
+ * while the database runs. Backups (ADR 0084): `last_backup` (the newest successful run) and `backup` (schedule, next
+ * run, encryption, sizes, safety backups, alerts as warnings), from the run ledger and `backups/`. Phone HTTPS (ADR
+ * 0082): the local CA's trust page and fingerprint, and the quick tunnel, an expired one reported but left for the next
+ * mutating command.
+ *
+ * Operations (M12 gate O3, O4): `operation.state` tells a running operation (its lock held by a live holder, or the upgrade
+ * supervisor running) from an interrupted one; `lock.stale` says whether the lock's holder is gone; `supervisor` whether
+ * the detached upgrade supervisor runs; `last_upgrade` the outcome the last supervisor left (kept until the next upgrade).
  */
 final readonly class StatusReport
 {
@@ -39,6 +51,8 @@ final readonly class StatusReport
         private DoctorProbes $probes,
         private ProxySetup $proxySetup,
         private PhoneStatus $phone,
+        private BackupStatus $backups,
+        private DetachedSupervisor $supervisor,
     ) {}
 
     public function build(): CommandResult
@@ -46,13 +60,17 @@ final readonly class StatusReport
         $state = $this->directory->hasState() ? $this->directory->state() : null;
         $operation = $this->journal->current();
         $free = $this->probes->diskFree($this->directory->root);
+        $lock = $this->lock();
+        $supervisor = $this->supervisor($state);
         $data = [
             'dir' => $this->directory->root,
             'installed' => $state instanceof InstanceState && InstallRecord::isInstalled($state),
-            'operation' => $operation instanceof JournalRecord ? $this->operation($operation) : null,
-            'lock' => $this->lock->current()?->toArray(),
+            'operation' => $operation instanceof JournalRecord ? $this->operation($operation, $lock, $supervisor) : null,
+            'lock' => $lock,
+            'supervisor' => $supervisor,
             'disk' => ['free_gib' => $free === null ? null : round($free / 1024 ** 3, 1)],
             'last_backup' => null,
+            'last_upgrade' => $this->lastUpgrade(),
         ];
         $result = $state instanceof InstanceState ? $this->instance($state, $data) : CommandResult::ok('status', [...$data, 'health' => 'not_installed']);
         if ($operation instanceof JournalRecord) {
@@ -72,6 +90,9 @@ final readonly class StatusReport
         $health = $this->health($services);
         $proxy = $this->proxy($state);
         $phone = $this->phone->of($state);
+        $backup = $this->backups->of($state, lock: $this->lock->current());
+        $restore = new RestoreStatus($this->directory)->of($state, $this->journal->current()); // ADR 0085
+        $reset = ResetStatus::of($state, $this->journal->current()); // ADR 0088
         $data = [...$data,
             // The URL in effect: an active quick tunnel's, as `fsa tunnel` reports it, with the loopback URL beside it (ADR 0082).
             'version' => $state->version(), 'mode' => $state->mode(), 'url' => $phone['data']['tunnel']['url'] ?? $settings->instanceUrl(), 'local_url' => $settings->localUrl(), 'project' => $state->project(),
@@ -79,10 +100,13 @@ final readonly class StatusReport
             'mail' => MailSummary::of($state),
             'proxy' => $proxy,
             ...$phone['data'], // the local CA and the quick tunnel (ADR 0082)
+            'last_backup' => $backup['data']['last_success'], 'backup' => $backup['data'],
+            'last_restore' => $restore['data']['last'], 'restore' => $restore['data'],
+            'last_reset' => $reset['last'], 'reset' => $reset,
         ];
         $links = $this->links($state, $services);
         $result = CommandResult::ok('status', [...$data, 'sign_in_links' => $links]);
-        foreach ($phone['warnings'] as [$code, $message, $hint]) {
+        foreach ([...$phone['warnings'], ...$backup['warnings'], ...$restore['warnings']] as [$code, $message, $hint]) {
             $result = $result->withWarning($code, $message, $hint);
         }
         if ($proxy !== null && $proxy['moved'] && $proxy['current'] !== null) {
@@ -175,12 +199,61 @@ final readonly class StatusReport
         };
     }
 
-    /** @return array<string, mixed> */
-    private function operation(JournalRecord $record): array
+    /**
+     * @param  array<string, mixed>|null  $lock
+     * @param  array{running: bool|null, container: string|null}  $supervisor
+     * @return array<string, mixed>
+     */
+    private function operation(JournalRecord $record, ?array $lock, array $supervisor): array
     {
+        $held = $lock !== null && ($lock['stale'] ?? false) !== true && ($lock['operation'] ?? null) === $record->operation();
+        $running = $held || ($record->operation() === UpgradeJournal::OPERATION && $supervisor['running'] === true);
+
         return [
-            'operation' => $record->operation(), 'last_phase' => $record->lastStartedPhase(), 'last_completed_phase' => $record->lastCompletedPhase(), 'started_at' => $record->startedAt(),
+            'operation' => $record->operation(), 'state' => $running ? 'running' : 'interrupted', 'last_phase' => $record->lastStartedPhase(),
+            'last_completed_phase' => $record->lastCompletedPhase(), 'started_at' => $record->startedAt(),
             'command' => OperationUnfinished::commandLine($record), 'options' => OperationUnfinished::options($record),
         ];
+    }
+
+    /** @return array<string, mixed>|null the lock's owner record and whether its holder is gone (`stale`, null when Docker cannot tell) */
+    private function lock(): ?array
+    {
+        $record = $this->lock->current();
+        if (! $record instanceof LockRecord) {
+            return null;
+        }
+        try {
+            $stale = $this->lock->isStale($record);
+        } catch (Throwable) {
+            $stale = null;
+        }
+
+        return [...$record->toArray(), 'stale' => $stale];
+    }
+
+    /** @return array{running: bool|null, container: string|null} the detached upgrade supervisor (null: Docker cannot tell) */
+    private function supervisor(?InstanceState $state): array
+    {
+        if (! $state instanceof InstanceState) {
+            return ['running' => false, 'container' => null];
+        }
+        try {
+            $container = $this->supervisor->running($state);
+        } catch (Throwable) {
+            return ['running' => null, 'container' => null];
+        }
+
+        return ['running' => $container instanceof ContainerInfo, 'container' => $container?->name];
+    }
+
+    /** @return array<string, mixed>|null */
+    private function lastUpgrade(): ?array
+    {
+        try {
+            return $this->supervisor->last();
+        } catch (Throwable) {
+            return null;
+        }
     }
 }

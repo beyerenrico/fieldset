@@ -1,0 +1,124 @@
+{
+    "command": "fsa demo --secrets-file <work>/j05-demo-link.json --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "demo",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": true,
+        "data": {
+            "url": "http://localhost:8081",
+            "mode": "local",
+            "mail": {
+                "mode": "capture",
+                "catcher_url": "http://localhost:8025",
+                "catcher_login_command": "fsa config show --catcher-login"
+            },
+            "next_commands": [
+                "<work>/fsa-test-j05-local/fsa status",
+                "<work>/fsa-test-j05-local/fsa login-link owner@demo.test",
+                "<work>/fsa-test-j05-local/fsa demo --rotate-passwords"
+            ],
+            "demo": {
+                "organization": "Demo Haustechnik GmbH",
+                "seeded": false,
+                "passwords": "default",
+                "default_password": "<redacted>",
+                "exposure": [],
+                "users": [
+                    {
+                        "email": "owner@demo.test",
+                        "name": "Olivia Owner",
+                        "roles": [
+                            "owner"
+                        ]
+                    },
+                    {
+                        "email": "admin@demo.test",
+                        "name": "Adam Admin",
+                        "roles": [
+                            "admin"
+                        ]
+                    },
+                    {
+                        "email": "designer@demo.test",
+                        "name": "Dana Designer",
+                        "roles": [
+                            "designer"
+                        ]
+                    },
+                    {
+                        "email": "reviewer@demo.test",
+                        "name": "Rita Reviewer",
+                        "roles": [
+                            "reviewer"
+                        ]
+                    },
+                    {
+                        "email": "coordinator@demo.test",
+                        "name": "Cora Coordinator",
+                        "roles": [
+                            "designer",
+                            "reviewer"
+                        ]
+                    },
+                    {
+                        "email": "worker@demo.test",
+                        "name": "Willi Worker",
+                        "roles": [
+                            "field_worker"
+                        ]
+                    },
+                    {
+                        "email": "mobile@demo.test",
+                        "name": "Mia Mobil",
+                        "roles": [
+                            "field_worker"
+                        ]
+                    },
+                    {
+                        "email": "tablet@demo.test",
+                        "name": "Tom Tablet",
+                        "roles": [
+                            "field_worker"
+                        ]
+                    },
+                    {
+                        "email": "viewer@demo.test",
+                        "name": "Vera Viewer",
+                        "roles": [
+                            "viewer"
+                        ]
+                    }
+                ],
+                "login_url": "http://localhost:8081/admin/login",
+                "default_password_users": 9,
+                "delivered": "data"
+            },
+            "sign_in_link": {
+                "expires_at": "2026-10-20T10:52:38Z",
+                "delivered": "secrets_file"
+            }
+        },
+        "secrets": [
+            {
+                "name": "sign_in_link",
+                "written_to": "<work>/j05-demo-link.json",
+                "expires_at": "2026-10-20T10:52:38Z"
+            }
+        ],
+        "warnings": [
+            {
+                "code": "sign_in_link_issued",
+                "message": "The demo data exists already; only a new sign-in link for owner@demo.test was issued, and an earlier unused one no longer works.",
+                "hint": null
+            }
+        ],
+        "errors": []
+    },
+    "link_consumed": [
+        303,
+        "http://localhost:8081/admin"
+    ]
+}

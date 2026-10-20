@@ -136,3 +136,10 @@ ownership to a maintenance role; the default Docker setup does not. Attachment d
   German label. The detail view labels keys (`audit.attributes.*`), shows `before`/`after` as old → new rows,
   Yes/No, times as `L LT` in the viewer's time zone and masked values as "hidden (secret)". The History section
   is also on the canvas builder, the default form page (ADR 0044).
+
+## Amendment 2026-10-19: chain epochs (U16)
+`audit:verify --heads` prints `{verified_at, epoch, heads}`: restore, rollback and reset put a database back to an earlier
+point and start a new epoch first (`audit_chain_epochs`, append-only, no row = epoch 1; `ChainEpoch::begin()` records the
+replaced heads, seeded from the host-side ledger), so heads shipped outside the database are compared within their epoch
+only (plan KTD26, R68). `ChainHeads` reads the heads without walking the chains, for backups' `audit-heads.json`; for
+intact chains they equal the verifier's. Details: ADR 0084.

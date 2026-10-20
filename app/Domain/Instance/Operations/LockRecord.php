@@ -12,6 +12,12 @@ final readonly class LockRecord
 {
     public const string SCHEMA_VERSION = '1.0';
 
+    /**
+     * Prefix of a start time Docker does not know: the backup service has no socket and records its init process's
+     * start instead (`proc:<clock ticks>`, ServiceIdentity, ADR 0084).
+     */
+    public const string PROCESS_START_PREFIX = 'proc:';
+
     public function __construct(
         public string $lockId,
         public string $owner,
@@ -69,6 +75,12 @@ final readonly class LockRecord
             'heartbeat_at' => $this->heartbeatAt,
             'complete' => $this->complete,
         ];
+    }
+
+    /** Whether the start time is the holder's own process start, not Docker's (the backup service). */
+    public function startUnknownToDocker(): bool
+    {
+        return $this->containerStartedAt !== null && str_starts_with($this->containerStartedAt, self::PROCESS_START_PREFIX);
     }
 
     /** "upgrade by fsa (container 0123456789ab, since 2026-10-17T10:00:00Z)" */

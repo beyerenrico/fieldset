@@ -49,13 +49,16 @@ function stackVariables(StackFile $stack): array
 it('lists the same services and images as the proxy-mode render (drift test)', function (): void {
     $stack = stackFile();
     $render = new ComposeRenderer()->render(ComposeFixtures::proxyState('port'), ComposeFixtures::secrets());
-    $renderImages = array_map(fn (array $service): string => $service['image'], $render->document['services']);
+    // The backup service needs fsa's instance directory and backup role: the stack file leaves it out (R18, ADR 0084).
+    $renderServices = array_diff_key($render->document['services'], ['backup' => true]);
+    $renderImages = array_map(fn (array $service): string => $service['image'], $renderServices);
 
-    expect(array_keys($stack->document['services']))->toBe($render->services())
+    expect(array_keys($stack->document['services']))->toBe(array_keys($renderServices))
+        ->and($render->services())->toContain('backup')
         ->and(stackImages($stack))->toBe($renderImages)
         ->and(array_keys($stack->document['volumes']))->toBe(array_keys($render->document['volumes']))
         ->and(array_keys($stack->document['networks']))->toBe(array_keys($render->document['networks']));
-    foreach ($render->document['services'] as $name => $service) {
+    foreach ($renderServices as $name => $service) {
         expect($stack->document['services'][$name]['mem_limit'])->toBe($service['mem_limit'], $name)
             ->and($stack->document['services'][$name]['networks'])->toBe($service['networks'], $name)
             ->and($stack->document['services'][$name]['command'] ?? null)->toBe($service['command'] ?? null, $name);

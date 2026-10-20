@@ -1,0 +1,68 @@
+{
+    "command": "install.sh --dir <work>/fsa-test-j06 --version 2.0.0-alpha.1-test --org J6 Org --owner-email owner@example.test --locale en --phone-https local-ca --secrets-file <work>/owner-link.json --json",
+    "exit_code": 0,
+    "seconds": 48.7,
+    "stdout": {
+        "schema_version": 1,
+        "command": "install",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": true,
+        "data": {
+            "url": "https://192.168.178.28",
+            "version": "2.0.0-alpha.1-test",
+            "mode": "local",
+            "dir": "<work>/fsa-test-j06",
+            "project": "fsa-fsa-test-j06-6577",
+            "port": 8081,
+            "mail": {
+                "mode": "capture",
+                "catcher_url": "http://localhost:8025",
+                "catcher_login_command": "fsa config show --catcher-login"
+            },
+            "phone_https": {
+                "mode": "local-ca",
+                "lan_address": "192.168.178.28",
+                "url": "https://192.168.178.28",
+                "trust_url": "http://192.168.178.28/phone-trust",
+                "root_sha256": "2E:CD:73:5B:9A:69:67:B6:7C:1F:73:99:15:31:CE:31:67:CB:6F:FC:54:BE:3A:C5:7F:A7:E1:96:87:B2:8F:C5",
+                "lan_address_current": null
+            },
+            "owner_email": "owner@example.test",
+            "next_commands": [
+                "<work>/fsa-test-j06/fsa status",
+                "<work>/fsa-test-j06/fsa login-link owner@example.test",
+                "<work>/fsa-test-j06/fsa doctor --post"
+            ],
+            "sign_in_link": {
+                "expires_at": "2026-10-20T11:41:32Z",
+                "delivered": "secrets_file"
+            }
+        },
+        "secrets": [
+            {
+                "name": "sign_in_link",
+                "written_to": "<work>/owner-link.json",
+                "expires_at": "2026-10-20T11:41:32Z"
+            }
+        ],
+        "warnings": [
+            {
+                "code": "local_ca_trust",
+                "message": "Phones that trust this instance's CA accept any certificate it signs: compare the fingerprint on http://192.168.178.28/phone-trust with the one printed here before trusting it, and remove the CA from the phone after the demo.",
+                "hint": null
+            },
+            {
+                "code": "lan_exposed",
+                "message": "The instance answers on 192.168.178.28 (ports 80 and 443) for every device in this network.",
+                "hint": "Turn it off with `fsa config set phone-https off --yes`."
+            },
+            {
+                "code": "url_changed_phone_data",
+                "message": "Data a phone has not synced yet stays behind when the instance URL changes later (another LAN address, a tunnel or a domain), and home-screen apps keep the old address.",
+                "hint": "Let every phone sync before you change the URL."
+            }
+        ],
+        "errors": []
+    }
+}

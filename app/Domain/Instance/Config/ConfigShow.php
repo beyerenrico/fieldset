@@ -10,6 +10,8 @@ use App\Domain\Instance\Console\FsaContext;
 use App\Domain\Instance\Output\CommandResult;
 use App\Domain\Instance\Output\InvalidInput;
 use App\Domain\Instance\Output\SecretRedactor;
+use App\Domain\Instance\Restore\RestoreStatus;
+use App\Domain\Instance\Restore\RestoreStorage;
 use App\Domain\Instance\State\EnvFiles;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceSecrets;
@@ -117,6 +119,15 @@ final readonly class ConfigShow
             ],
             'size' => $settings->size(),
             'database' => $settings->dbDatabase(),
+            // Restore (ADR 0085): the storage volume the stack mounts, webhooks held after a move, the last restore.
+            'storage_volume' => RestoreStorage::current($state),
+            'webhooks' => $settings->webhooksPaused() ? 'paused' : 'on',
+            'last_restore' => RestoreStatus::last($state),
+            'backup' => [
+                'schedule' => $settings->backupSchedule(), 'time_zone' => $settings->timeZone(), 'retention' => $settings->backupRetention(),
+                'encryption' => ['enabled' => $state->recipients() !== [], 'recipients' => $state->recipients()],
+                'directory' => $this->directory->root.'/'.InstanceDirectory::BACKUPS_DIR,
+            ],
         ];
     }
 
@@ -147,6 +158,9 @@ final readonly class ConfigShow
             'mail' => $settings->capturesMail() ? 'capture' : 'smtp',
             'operator-email' => null, // operators live in the app's database (ADR 0080)
             'phone-https' => $settings->phoneHttps() ?? ($state->mode() === 'local' ? 'off' : null), 'lan-address' => $settings->localCa() ? $settings->lanAddress() : null,
+            'backup-schedule' => $settings->backupSchedule(), 'backup-retention' => (string) $settings->backupRetention(),
+            'backup-encryption' => $state->recipients() === [] ? 'off' : 'on',
+            'webhooks' => $settings->webhooksPaused() ? 'paused' : 'on',
         ];
         $keys = [];
         foreach (ConfigKeys::keys() as $key) {
@@ -174,7 +188,7 @@ final readonly class ConfigShow
             ['feature' => 'smtp', 'active' => ! $settings->capturesMail(), 'contacts' => $settings->capturesMail() ? [] : [(string) $settings->smtpHost()],
                 'purpose' => 'Real mail delivery through this server (fsa config set mail smtp); capture mode keeps every mail in the bundled catcher.'],
             ['feature' => 'upgrades', 'active' => false, 'contacts' => [...$registries, self::RELEASES_URL],
-                'purpose' => 'Only when you run an upgrade (fsa upgrade arrives with 2.0.0-rc.1): the release manifest and the pinned images.'],
+                'purpose' => 'Only when you run `fsa upgrade`: the release manifest and the pinned images.'],
             ['feature' => 'tunnel', 'active' => $settings->tunnel(), 'contacts' => $settings->tunnel() ? ['Cloudflare (trycloudflare.com quick tunnel)'] : [],
                 'purpose' => 'Only while `fsa tunnel start` runs one (4 hours unless renewed): cloudflared connects out to Cloudflare, which serves the instance under a random *.trycloudflare.com name.'],
             ['feature' => 'update_check', 'active' => false, 'contacts' => [],

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Audit\Chain;
 
+use Illuminate\Database\ConnectionInterface;
 use Illuminate\Support\Facades\DB;
 use stdClass;
 
@@ -16,13 +17,13 @@ final class PruneAnchors
 {
     /**
      * The anchors `audit:verify` checks against. Only sealed prune entries count: a row inserted outside the
-     * application is not part of the chain yet.
+     * application is not part of the chain yet. `$db`: another connection, e.g. the backup's exported snapshot.
      *
      * @return array<int, array{seq: int, hash: string}>
      */
-    public static function latest(): array
+    public static function latest(?ConnectionInterface $db = null): array
     {
-        return self::read(sealedOnly: true);
+        return self::read(sealedOnly: true, db: $db);
     }
 
     /**
@@ -58,9 +59,9 @@ final class PruneAnchors
     }
 
     /** @return array<int, array{seq: int, hash: string}> */
-    private static function read(bool $sealedOnly): array
+    private static function read(bool $sealedOnly, ?ConnectionInterface $db = null): array
     {
-        $properties = DB::table('activity_log')->where('event', 'audit.pruned')->whereNull('organization_id')
+        $properties = ($db ?? DB::connection())->table('activity_log')->where('event', 'audit.pruned')->whereNull('organization_id')
             ->when($sealedOnly, fn ($query) => $query->whereNotNull('hash'))->orderByDesc('id')->value('properties');
         $decoded = is_string($properties) ? json_decode($properties, true) : null;
 
