@@ -333,3 +333,11 @@
 - Dev stack (as found, image predates U20): the 8 pass; only the U20 Instance step fails there (stale image).
 - release:check-pg-dump in release.yml and the harness (ADR 0091). CI install-journeys: Playwright, poppler, v1.0.0.
 - J10 13/13: backup at 1.0 volume unreclaimable 77.7 MiB of 128 (met), memory.peak 128.3 is page cache, no OOM.
+
+## 2026-10-20 M13-T04 gate
+- 5 gate reviewers: 2 high (D1 off-host APP key, A1 bare `fsa`), mediums/lows; fixed 9151b36, bee8620, 1843f97;
+  lows logged (QUESTIONS 75). Suite 7377; install journeys 150 passed / 7 skipped (1 h 44 m); J1 amd64 5/5;
+  dogfood E2E 71 passed; dev-stack E2E 79 (one builder-v2 flake in run 2, repeat 14/14).
+- R51: a fresh agent with only the guide ran every recipe (attempt 1: lab sheet lacked FSA_REGISTRY/FSA_TRUST_KEY).
+  15 + 11 findings, none high; one worktree agent fixed F1, F2, F4, F14 and the signature hint red-first plus the
+  guide (8bd1287). Suite 7387; J11 + J08 27/27. J10 API reviewer in_review 431 ms (QUESTIONS 74).
