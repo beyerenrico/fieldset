@@ -293,3 +293,6 @@ who can write there but holds no APP key. Against that writer:
   `{missing_files, backups}`: the backups retention would have pruned without the hold. Counts stand in for the files:
   a backup that missed as many as the newest one (other files, maybe) is not held. Held backups stay on disk as long
   as files are missing, so disk use can grow; `backup_files_missing` warns meanwhile.
+- **`fsa backup-daemon --clean --lock-id=<id>`.** A new mode of the service's entry point: cleanPartials() as the
+  service's root under the lock of the fsa command that asks, `{removed, left}` on stdout. `fsa uninstall` uses it for
+  the root-owned partial sets the ops container cannot remove on rootful Docker (ADR 0073 amendment).

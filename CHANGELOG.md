@@ -122,6 +122,9 @@ The Form Schema Spec has its own changelog in `spec/form-definition/1.0/CHANGELO
   into the instance's private `staging/` and check and restore only that copy, so a change in `backups/` after the
   check (a sync tool, say) never reaches the restore; such a restore needs free space for one more copy of the dump and
   the storage archive (ADR 0085 amendment).
+- `fsa uninstall` has the backup service remove what a backup run that was cut off left behind (root's partial sets,
+  possibly a plaintext dump), and names any file it still cannot remove instead of reporting data and backups deleted;
+  a failure while it quiesces for the final backup starts the instance again and lowers the gate (ADR 0073 amendment).
 - `fsa status` and `/platform` warn when the newest backup misses files the database references, and retention keeps
   every older backup that missed fewer files for as long as new ones miss them (ADR 0084 amendments).
 - `fsa restore` refuses a backup without files unless `--without-files` (the replaced storage volume is then kept), and

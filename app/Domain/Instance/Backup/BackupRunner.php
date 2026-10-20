@@ -60,6 +60,17 @@ final readonly class BackupRunner
         return OneOffResult::fromOutcome($this->docker->composeRun($project, BackupService::NAME, $command, timeout: self::TIMEOUT));
     }
 
+    /**
+     * Removes what interrupted runs left (partial sets, tombstones), which stay root's (M12 gate S1), as the service's
+     * root under the caller's lock: `fsa uninstall`, whose ops container runs as the host user on rootful Docker.
+     */
+    public function clean(ComposeProject $project, string $lockId): OneOffResult
+    {
+        $this->assertService();
+
+        return OneOffResult::fromOutcome($this->docker->composeRun($project, BackupService::NAME, ['fsa', 'backup-daemon', '--clean', '--lock-id='.$lockId, '--json'], timeout: self::START_TIMEOUT));
+    }
+
     private function prepare(ComposeProject $project): void
     {
         $this->assertService();

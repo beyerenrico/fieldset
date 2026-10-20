@@ -122,3 +122,13 @@ the proxy-mode hint and this ADR promised `fsa install --from-backup` would carr
   gate rose) starts again what ran and lowers the gate before exit 4 `final_backup_failed` (exit 10 when Docker is
   gone, the gate lowered all the same). Before, such a failure left the gate up and app, scheduler and backup stopped
   while the command said nothing was removed.
+- **What a cut-off backup run left.** Its `*.partial` sets in `backups/` and `staging/backup/` stay root's (0700, ADR
+  0084 amendment S1); on rootful Docker the ops container runs as the host user and can neither list nor remove them:
+  the file clean-up stopped half-way (`scandir`'s warning becomes an exception under Laravel's error handler, seen in
+  the test), and without that it would have reported `data_deleted`/`backups_deleted` true. Before
+  the stack's resources go, uninstall now has the backup service remove them as its root under the uninstall lock
+  (`fsa backup-daemon --clean --lock-id=<id>`, a new mode of the service's entry point that refuses without the
+  caller's lock), when any are left; best effort. SafeFiles::delete returns what it could not remove; the result lists
+  it in `data.left_files`, names it in the warning `files_left` with `sudo rm -rf …`, and `data_deleted` /
+  `backups_deleted` are false while anything of theirs is left (exit 0: the marker is gone, so running fsa again cannot
+  help).

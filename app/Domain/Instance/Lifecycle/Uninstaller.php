@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Domain\Instance\Lifecycle;
 
 use App\Domain\Instance\Adopt\AdoptedInstance;
+use App\Domain\Instance\Backup\BackupRunner;
+use App\Domain\Instance\Backup\BackupStore;
 use App\Domain\Instance\Compose\Services\EdgeService;
+use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\Docker\ContainerInfo;
 use App\Domain\Instance\Docker\DockerCommandFailed;
 use App\Domain\Instance\Docker\DockerGateway;
@@ -16,12 +19,14 @@ use App\Domain\Instance\Install\ProjectConflicts;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Operations\ContainerIdentity;
 use App\Domain\Instance\Operations\InstanceLock;
+use App\Domain\Instance\Operations\LockHandle;
 use App\Domain\Instance\Output\CommandResult;
 use App\Domain\Instance\Output\ExitCode;
 use App\Domain\Instance\Output\InvalidInput;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
+use Throwable;
 
 /**
  * `fsa uninstall` (R44, R63, §13.3, ADR 0072, ADR 0073). Only resources labelled with the instance UUID are removed,
@@ -37,6 +42,9 @@ use App\Domain\Instance\State\InstanceState;
  *   volumes were never this instance's.
  * - Without a determinable UUID the files go only when no labelled resource of this directory is left (exit 7).
  * - If a resource cannot be removed, the files stay, so the command can be run again (exit 4, `changed` true).
+ * - What an interrupted backup run left stays root's (M12 gate S1): the backup service removes it as root under the
+ *   lock before the stack goes; a file that still cannot be removed is named (`files_left`, `left_files`), and
+ *   `data_deleted`/`backups_deleted` say false, never a deletion that did not happen.
  * - The directory itself stays (empty): it is the ops container's bind mount and cannot be removed from inside it.
  * - --orphans <uuid> removes the leftovers of another installation that install named for this directory, never
  *   while one of its containers runs (exit 7), and never its volumes while it has containers elsewhere.
@@ -52,6 +60,7 @@ final readonly class Uninstaller
         private FinalBackup $backup,
         private ProjectConflicts $conflicts,
         private AdoptedInstance $adopted,
+        private BackupRunner $runner,
     ) {}
 
     /** @param  bool  $noBackup  never write the final backup (an adopted instance gets one by default) */
@@ -73,6 +82,9 @@ final readonly class Uninstaller
             $volumes = $uuid === null ? [] : $this->docker->volumes([Labels::INSTANCE => $uuid]);
             $final = $keepBackups && ! $noBackup ? $this->backup->write($this->ids->state(), $volumes, $handle) : null; // quiesced first (gate D2)
             $writes = $adopted !== null && $state instanceof InstanceState ? $this->adopted->writesSince($state) : null;
+            if ($uuid !== null) {
+                $this->cleanPartials($this->ids->state(), $handle); // while the backup service can still run
+            }
             $removed = $uuid === null ? ['containers' => [], 'networks' => [], 'volumes' => []] : $this->removeResources($uuid, $final !== null);
             $deleted = $this->deleteFiles($keepBackups, [...array_filter([$facts->nonce, $facts->openUrlFile]), InstanceDirectory::LOCKS_DIR]);
         } finally {
@@ -258,36 +270,65 @@ final readonly class Uninstaller
 
     /**
      * @param  array{containers: list<string>, networks: list<string>, volumes: list<string>}  $removed
-     * @param  list<string>  $deleted
+     * @param  array{deleted: list<string>, left: list<string>}  $files
      * @param  array<string, mixed>|null  $final
      */
-    private function result(?string $uuid, array $removed, array $deleted, bool $keepBackups, ?array $final): CommandResult
+    private function result(?string $uuid, array $removed, array $files, bool $keepBackups, ?array $final): CommandResult
     {
+        $inBackups = array_values(array_filter($files['left'], static fn (string $path): bool => str_starts_with($path, InstanceDirectory::BACKUPS_DIR.'/')));
         $result = CommandResult::ok('uninstall', [
-            'uuid' => $uuid, 'removed' => $removed, 'dir' => $this->directory->root, 'deleted_files' => $deleted,
-            'kept' => $keepBackups ? [InstanceDirectory::BACKUPS_DIR] : [],
-            'data_deleted' => true, 'backups_deleted' => ! $keepBackups, 'final_backup' => $final === null ? null : array_diff_key($final, ['warnings' => true]),
-        ], $deleted !== [] || array_merge(...array_values($removed)) !== []);
+            'uuid' => $uuid, 'removed' => $removed, 'dir' => $this->directory->root, 'deleted_files' => $files['deleted'],
+            'kept' => $keepBackups ? [InstanceDirectory::BACKUPS_DIR] : [], 'left_files' => $files['left'],
+            'data_deleted' => count($inBackups) === count($files['left']), 'backups_deleted' => ! $keepBackups && $inBackups === [],
+            'final_backup' => $final === null ? null : array_diff_key($final, ['warnings' => true]),
+        ], $files['deleted'] !== [] || array_merge(...array_values($removed)) !== []);
+        if ($files['left'] !== []) {
+            $paths = implode(' ', array_map(fn (string $path): string => $this->directory->root.'/'.$path, $files['left']));
+            $result = $result->withWarning('files_left', "fsa could not remove {$paths}: they belong to another user, usually root (what a backup run that was cut off leaves behind) and may hold plaintext data.", "Remove them yourself: sudo rm -rf {$paths}");
+        }
 
         return $uuid !== null ? $result : $result->withWarning('instance_id_unknown', 'No installation ID was found (no state, journal, compose file or container of this directory) and no labelled resource is tied to it; only the files were removed.');
     }
 
     /**
+     * Partial sets and tombstones of interrupted backup runs, removed by the backup service as root under this lock
+     * (`fsa backup-daemon --clean`): the ops container runs as the host user on rootful Docker and cannot. Best effort:
+     * deleteFiles() names whatever stays.
+     */
+    private function cleanPartials(?InstanceState $state, LockHandle $handle): void
+    {
+        if (! $state instanceof InstanceState || new BackupStore($this->directory)->leftovers() === []) {
+            return;
+        }
+
+        try {
+            $this->runner->clean(ComposeProject::forInstance($state, $this->directory), $handle->record->lockId);
+        } catch (Throwable) {
+            // no backup service, no image, Docker gone: the leftovers are reported, and Docker's own errors follow
+        }
+    }
+
+    /**
      * @param  list<string>  $launcherFiles  the running launcher's nonce and hand-over files: it removes them itself
-     * @return list<string>
+     * @return array{deleted: list<string>, left: list<string>} the top-level entries removed, and the paths (relative)
+     *                                                          that could not be
      */
     private function deleteFiles(bool $keepBackups, array $launcherFiles): array
     {
         $files = $this->directory->files();
         $deleted = [];
+        $left = [];
         foreach ($files->list('') as $entry) {
             if (($keepBackups && $entry === InstanceDirectory::BACKUPS_DIR) || in_array($entry, $launcherFiles, true)) {
                 continue;
             }
-            $files->delete($entry);
-            $deleted[] = $entry;
+            $stays = $files->delete($entry);
+            if ($stays === []) {
+                $deleted[] = $entry;
+            }
+            $left = [...$left, ...array_map(static fn (string $path): string => substr($path, strlen($files->root) + 1), $stays)];
         }
 
-        return $deleted;
+        return ['deleted' => $deleted, 'left' => $left];
     }
 }

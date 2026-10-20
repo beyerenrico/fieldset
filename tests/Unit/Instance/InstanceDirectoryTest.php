@@ -143,6 +143,32 @@ it('renames, lists and deletes trees inside the root without following links', f
         ->and(InstanceDirectory::isMarked($outside->root))->toBeTrue();
 });
 
+it('names what it could not delete: a directory it cannot read, a file it cannot unlink (M12 gate)', function (): void {
+    $directory = TemporaryInstance::directory();
+    $directory->write('gone/a.txt', 'x');
+    $directory->write('staging/backup/manual-20261019T120000Z.partial/database.dump', 'plaintext');
+    $directory->write('backups/locked/kept.txt', 'x');
+    $unreadable = $directory->root.'/staging/backup/manual-20261019T120000Z.partial';
+    chmod($unreadable, 0);
+    chmod($directory->root.'/backups/locked', 0500);
+    $files = $directory->files();
+
+    try {
+        $gone = $files->delete('gone');
+        $staging = $files->delete('staging');
+        $backups = $files->delete('backups');
+        $missing = $files->delete('missing');
+    } finally {
+        chmod($unreadable, 0700);
+        chmod($directory->root.'/backups/locked', 0700);
+    }
+
+    expect($gone)->toBe([])->and($files->exists('gone'))->toBeFalse()
+        ->and($staging)->toBe([$files->root.'/staging/backup/manual-20261019T120000Z.partial']) // the deepest path that stays, not every parent it keeps
+        ->and($backups)->toBe([$files->root.'/backups/locked/kept.txt'])
+        ->and($missing)->toBe([]);
+})->skip(fn (): bool => posix_geteuid() === 0, 'root removes any file');
+
 it('syncs the directory after a rename where the platform allows it', function (): void {
     $directory = TemporaryInstance::directory();
 

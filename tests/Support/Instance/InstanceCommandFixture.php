@@ -14,6 +14,7 @@ use App\Domain\Instance\HostFacts;
 use App\Domain\Instance\Release\ManifestVerifier;
 use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceState;
+use Closure;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Sleep;
 use Tests\Support\Release\ReleaseFixtures;
@@ -58,6 +59,12 @@ final class InstanceCommandFixture
 
     /** stdin of the last backup one-off (`--include-secrets`). */
     public ?string $backupInput = null;
+
+    /** The backup service's `--clean` one-off (uninstall); null: it succeeds after running $onClean. */
+    public ?ProcessOutcome $cleanOutcome = null;
+
+    /** What the service's root removes for `--clean` (tests emulate it; null: nothing). */
+    public ?Closure $onClean = null;
 
     public string $manifestPath;
 
@@ -212,6 +219,13 @@ final class InstanceCommandFixture
     /** @param  list<string>  $command */
     private function answerOneOff(array $command, ?string $input = null): ProcessOutcome
     {
+        if (($command[0] ?? null) === 'fsa' && ($command[1] ?? null) === 'backup-daemon' && in_array('--clean', $command, true)) {
+            if (! $this->cleanOutcome instanceof ProcessOutcome && $this->onClean instanceof Closure) {
+                ($this->onClean)();
+            }
+
+            return $this->cleanOutcome ?? self::oneOffJson(['command' => 'backup-daemon', 'status' => 'ok', 'changed' => true, 'data' => ['removed' => [], 'left' => []]]);
+        }
         if (($command[0] ?? null) === 'fsa' && ($command[1] ?? null) === 'backup-daemon') {
             $this->backupInput = $input;
 

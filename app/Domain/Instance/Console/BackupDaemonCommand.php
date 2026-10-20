@@ -44,6 +44,8 @@ use Throwable;
  *   final backup or a safety backup, under the lock its fsa parent holds; `--include-secrets` reads `secrets.env` from
  *   stdin (encryption required). One JSON document on stdout.
  * - `--seal=<backup> --lock-id=<id>`: encrypts a plain backup in place to the recipients (safety backups, R57).
+ * - `--clean --lock-id=<id>`: removes what interrupted runs left (`*.partial` sets in `backups/` and `staging/backup/`,
+ *   tombstones), which stay root's (M12 gate S1), for `fsa uninstall`, whose ops container may not be root.
  */
 #[Description('Run the fsa backup service (the backup service role; use fsa backup for a manual backup)')]
 #[Signature('fsa:backup-daemon
@@ -52,6 +54,7 @@ use Throwable;
         {--lock-id= : With --once or --seal: the ID of the instance lock the calling fsa command holds}
         {--include-secrets : With --once: read secrets.env from stdin into the (encrypted) backup}
         {--seal= : Encrypt this plain backup in place to the backup recipients}
+        {--clean : Remove what interrupted runs left (partial sets, tombstones) under the lock of --lock-id}
         {--json : Print one JSON document on stdout}')]
 #[Hidden]
 final class BackupDaemonCommand extends Command
@@ -75,6 +78,7 @@ final class BackupDaemonCommand extends Command
 
             return match (true) {
                 is_string($this->option('seal')) => $this->seal($store, $config),
+                $this->option('clean') === true => $this->clean($store),
                 $this->option('once') === true => $this->once($directory, $store, $config),
                 default => $this->daemon($directory, $store, $config),
             };
@@ -88,7 +92,7 @@ final class BackupDaemonCommand extends Command
     /** One JSON document; the daemon also records why it could not start (ServiceStartFailure), so /platform sees it. */
     private function refuse(string $reason, string $message): int
     {
-        if (! is_string($this->option('seal')) && $this->option('once') !== true) {
+        if (! is_string($this->option('seal')) && $this->option('once') !== true && $this->option('clean') !== true) {
             new ServiceStartFailure(DB::connection())->record(getenv(), $reason, $message);
         }
 
@@ -113,14 +117,28 @@ final class BackupDaemonCommand extends Command
 
     private function seal(BackupStore $store, BackupConfig $config): int
     {
-        $lockId = $this->lockId();
-        $current = $this->laravel->make(InstanceLock::class)->current();
-        if (! $current instanceof LockRecord || ! hash_equals($current->lockId, $lockId)) {
-            throw new BackupFailed('lock_mismatch', 'The fsa command that asked for the seal no longer holds the instance lock.');
-        }
+        $this->assertParentLock('the seal');
         $sealed = new BackupSealer($store, $this->laravel->make(AgeCli::class))->seal((string) $this->option('seal'), $config->recipients);
 
         return $this->emit(JsonResult::ok(self::COMMAND, $sealed, changed: $sealed['changed']));
+    }
+
+    private function clean(BackupStore $store): int
+    {
+        $this->assertParentLock('the clean-up');
+        $removed = $store->cleanPartials();
+
+        return $this->emit(JsonResult::ok(self::COMMAND, ['removed' => $removed, 'left' => $store->leftovers()], changed: $removed !== []));
+    }
+
+    /** @throws BackupFailed `lock_required`, `lock_mismatch` */
+    private function assertParentLock(string $what): void
+    {
+        $lockId = $this->lockId();
+        $current = $this->laravel->make(InstanceLock::class)->current();
+        if (! $current instanceof LockRecord || ! hash_equals($current->lockId, $lockId)) {
+            throw new BackupFailed('lock_mismatch', "The fsa command that asked for {$what} no longer holds the instance lock.");
+        }
     }
 
     private function daemon(InstanceDirectory $directory, BackupStore $store, BackupConfig $config): int

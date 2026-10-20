@@ -171,6 +171,12 @@ final readonly class BackupStore
         return $removed;
     }
 
+    /** @return list<string> what cleanPartials() removes, by the same names */
+    public function leftovers(): array
+    {
+        return [...$this->partials(), ...$this->tombstones(), ...array_map(static fn (string $entry): string => self::STAGING.'/'.$entry, $this->stagedPartials())];
+    }
+
     /** @return list<string> `<name>.partial` directories: a backup being written, or one an interrupted run left */
     public function partials(): array
     {
