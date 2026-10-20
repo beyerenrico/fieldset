@@ -248,6 +248,18 @@ it('refuses a backup outside the instance directory and one that does not exist'
         ->and($missing)->toBe(2)->and($missingJson['errors'][0]['code'])->toBe('backup_not_found');
 });
 
+it('names a path outside the instance directory backup_not_visible even when the ops container cannot see it (R51 F1)', function (): void {
+    $root = $this->restore->instance->directory->root;
+    [$parent, $parentJson] = $this->restore->restore($root.'/../offhost/manual-20261019T120000Z', ['--drill' => true, '--yes' => false]);
+    [$elsewhere, $elsewhereJson] = $this->restore->restore('/nonexistent-r51/offhost/manual-20261019T120000Z', ['--drill' => true, '--yes' => false]);
+    [$inside, $insideJson] = $this->restore->restore('backups/../backups/manual-20990101T000000Z');
+
+    expect([$parent, $parentJson['errors'][0]['code']])->toBe([2, 'backup_not_visible'])
+        ->and($parentJson['errors'][0]['hint'])->toContain('backups/')
+        ->and([$elsewhere, $elsewhereJson['errors'][0]['code']])->toBe([2, 'backup_not_visible'])
+        ->and([$inside, $insideJson['errors'][0]['code']])->toBe([2, 'backup_not_found']);
+});
+
 it('lets uninstall back up and remove a restored storage volume like Compose\'s own (final backup, ADR 0073)', function (): void {
     $this->restore->backup();
     $this->restore->restore();
