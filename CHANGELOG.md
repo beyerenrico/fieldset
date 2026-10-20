@@ -195,6 +195,9 @@ instance with its data; see [the install guide](docs/guide/install.md#adopt-a-10
   loss counts; restore, reset, adopt, uninstall).
 
 ### Fixed
+- The release workflow's pg_dump check (`release:check-pg-dump`) now runs the app image on every platform: it removes
+  the image it pulled after each platform, since Docker's classic image store cannot pull the second platform of the
+  same digest over the first ("cannot overwrite digest").
 - `fsa restore <path>` with a path outside the instance directory answers exit 2 `backup_not_visible` (copy the backup
   into `backups/`), as documented, instead of `backup_not_found`: from the ops container such a path never exists.
 - After `install.sh --from-backup`, the `fsa config set mail smtp …` command in `data.confirm_commands` carries the

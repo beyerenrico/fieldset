@@ -11,6 +11,8 @@ use App\Domain\Instance\Docker\CommandRunner;
  * major, or every backup of an instance on that release fails ("server version mismatch"; pg_dump refuses to dump a newer
  * server). The client version comes from the image itself, run once per platform with `pg_dump --version` as its entry
  * point (no app code, no network, no mounts); the server major from the postgres pin's tag (`16.15-alpine` → 16).
+ * Docker's classic image store keeps one platform per by-digest reference, so an image this check pulled is removed
+ * after each platform; one that was local before is kept.
  * Release tooling like `release:manifest`, not an `fsa` path: it runs in CI and the local harness, never on an instance.
  */
 final readonly class PgDumpCompatibility
@@ -29,9 +31,16 @@ final readonly class PgDumpCompatibility
     {
         $server = self::serverMajor($manifest->images['postgres']->pin);
         $image = $manifest->images['app']->pin->pullReference($mirror);
+        $pulled = ! $this->runner->run(['docker', 'image', 'inspect', '--format', '{{.Id}}', $image])->successful();
         $results = [];
         foreach ($platforms === [] ? $manifest->platforms : $platforms as $platform) {
-            $version = $this->clientVersion($image, $platform);
+            try {
+                $version = $this->clientVersion($image, $platform);
+            } finally {
+                if ($pulled) {
+                    $this->runner->run(['docker', 'image', 'rm', $image]);
+                }
+            }
             $client = self::clientMajor($version);
             if ($client < $server) {
                 throw new ReleaseException(sprintf(

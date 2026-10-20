@@ -179,3 +179,6 @@
 161. `docker compose -p <project> exec` works without a compose file, but from a directory that has one (the checkout)
    Compose loads it too; `docker exec` on the container found by `com.docker.compose.project`/`service` labels is
    independent of both.
+162. 99b also bites a check that runs one by-digest image per platform (`release:check-pg-dump`): amd64 then arm64 of
+   the same index digest fails with "cannot overwrite digest". Remove the pulled image between platforms. A journey that
+   needs an older release must publish it itself: FSA_RELEASE_VERSION can make the shared harness's version the newest.

@@ -30,6 +30,9 @@ const J07_UNHEALTHY = '2.0.0-rc.3-test';
 
 const J07_CRASHING = '2.0.0-rc.4-test';
 
+/** Older than J07_FROM: J07 publishes it itself, since the shared harness's version (FSA_RELEASE_VERSION) may be newer. */
+const J07_OLDER = '2.0.0-beta.1-test';
+
 const J07_PROXY_HOST = 'j07.fsa-test.example';
 
 beforeAll(function (): void {
@@ -43,6 +46,7 @@ beforeAll(function (): void {
         foreach ([J07_HAPPY => UpgradeJourney::migratingTarget(), J07_UNHEALTHY => UpgradeJourney::unhealthyTarget(), J07_CRASHING => UpgradeJourney::crashingTarget()] as $version => [$lines, $files]) {
             $GLOBALS['fsaJ07Targets'][$version] = $harness->publishDerived($version, $from, $lines, $files);
         }
+        $harness->publishDerived(J07_OLDER, $from, '');
         $GLOBALS['fsaJ07'] = new InstanceJourney($harness, $from, $harness->directory.'/j07');
         $GLOBALS['fsaJ07Url'] = $harness->containerReleaseUrl();
         $GLOBALS['fsaJ07Evidence'] = [];
@@ -227,7 +231,7 @@ it('fsa rollback returns to rc.1 from the safety backup and says what it loses; 
 
 it('refuses a second rollback and an older --to (exit 7)', function (): void {
     $again = $this->journey->fsa($this->dir, ['rollback', '--yes', '--json']);
-    $older = $this->journey->fsa($this->dir, ['upgrade', '--to', '2.0.0-alpha.1-test', '--json'], $this->upgradeEnv);
+    $older = $this->journey->fsa($this->dir, ['upgrade', '--to', J07_OLDER, '--json'], $this->upgradeEnv);
     j07Record('refusals', ['rollback' => InstanceJourney::json($again)['errors'][0] ?? null, 'older' => InstanceJourney::json($older)['errors'][0] ?? null]);
 
     expect($again->getExitCode())->toBe(7)->and(InstanceJourney::json($again)['errors'][0]['code'])->toBe('no_previous_release')
