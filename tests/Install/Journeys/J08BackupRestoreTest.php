@@ -160,7 +160,7 @@ it('installs a local demo instance with the hardened backup service', function (
         ->and($caps)->toBe(['CHOWN', 'DAC_OVERRIDE', 'DAC_READ_SEARCH', 'FOWNER'])
         ->and($backup['HostConfig']['CapDrop'] ?? null)->toBe(['ALL'])
         ->and($backup['HostConfig']['ReadonlyRootfs'] ?? null)->toBeTrue()
-        ->and($mounts)->toBe(['/fsa/instance/.fsa-instance:ro', '/fsa/instance/backups:rw', '/fsa/instance/locks:rw', '/var/www/html/storage/app:ro'])
+        ->and($mounts)->toBe(['/fsa/instance/.fsa-instance:ro', '/fsa/instance/backups:rw', '/fsa/instance/locks:rw', '/fsa/instance/staging/backup:rw', '/var/www/html/storage/app:ro']) // staging/backup: its settings and plain sets, outside backups/ (M12 gate S2/S3)
         ->and(json_encode($backup))->not->toContain('docker.sock')
         ->and(intdiv((int) ($backup['HostConfig']['Memory'] ?? 0), 1048576))->toBe(128)
         ->and($backup['HostConfig']['Tmpfs'] ?? null)->toHaveKey('/tmp');
