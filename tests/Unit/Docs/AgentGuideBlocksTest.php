@@ -50,8 +50,17 @@ it('matches placeholders by type and other values exactly', function (): void {
         ->and(GuideBlocks::mismatches(['data' => ['url' => ['x' => 1]]], $envelope))->toBe(['data.url: expected an object, got "http://localhost:8080"']);
 });
 
+it('keeps a block\'s own --version instead of adding the harness one (the move installs the old host\'s version)', function (): void {
+    $command = new GuideCommand('/h/install.sh', '2.0.0-alpha.1-test', '/w', null, ['<old-version>' => '2.0.0-alpha.1-test']);
+
+    expect($command->prepare('curl -fsSL https://x/releases/latest/download/install.sh | sh -s -- --version <old-version> --dir ~/forms-new --json'))
+        ->toBe("sh '/h/install.sh' --version 2.0.0-alpha.1-test --dir /w/fsa-test-j11-forms-new --json")
+        ->and($command->prepare('curl -fsSL https://x/releases/latest/download/install.sh | sh -s -- --dir ~/forms --json'))
+        ->toBe("sh '/h/install.sh' --version '2.0.0-alpha.1-test' --dir /w/fsa-test-j11-forms --json");
+});
+
 it('maps every block to a harness command with fsa-test- instances and no placeholder left', function (): void {
-    $command = new GuideCommand('/h/install.sh', '2.0.0-alpha.1-test', '/w', 'fsa-test-j11-smtp-ab', ['<backup>' => 'manual-1', '<backup-path>' => '/w/b', '<version>' => '2.0.0-alpha.1-test']);
+    $command = new GuideCommand('/h/install.sh', '2.0.0-alpha.1-test', '/w', 'fsa-test-j11-smtp-ab', ['<backup>' => 'manual-1', '<backup-path>' => '/w/b', '<version>' => '2.0.0-alpha.1-test', '<old-version>' => '2.0.0-alpha.1-test']);
     $prepared = array_map(static fn (array $block): string => $command->prepare($block['command']), GuideBlocks::runnable(agentGuide()));
     $all = implode("\n", $prepared);
 

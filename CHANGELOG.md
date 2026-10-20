@@ -195,6 +195,19 @@ instance with its data; see [the install guide](docs/guide/install.md#adopt-a-10
   loss counts; restore, reset, adopt, uninstall).
 
 ### Fixed
+- `fsa restore <path>` with a path outside the instance directory answers exit 2 `backup_not_visible` (copy the backup
+  into `backups/`), as documented, instead of `backup_not_found`: from the ops container such a path never exists.
+- After `install.sh --from-backup`, the `fsa config set mail smtp …` command in `data.confirm_commands` carries the
+  old server's encryption and sender address too (host and port already), so a relay set up with
+  `--smtp-encryption none` no longer fails with exit 5 `test_mail_failed`; only `<account>` and `<file>` (the
+  password file) are left to fill in. `data.pending_mail` adds `encryption` and `from_address`.
+- `fsa config set` of a key that changes the URL (exit 6 without `--yes`) carries `data.question`, like `restore`,
+  `rollback`, `uninstall` and the other confirmations.
+- The command to repeat after a failed `fsa config set mail smtp` (exit 5 `data.command`) names `--password-file
+  <file>` when the password came from a file, instead of always `--password-stdin`.
+- The hint of exit 3 `manifest_signature_invalid` (install.sh and `fsa`) no longer says "retry later": stop, never use
+  another install.sh or release URL, never bypass the check; the same command again only when the message shows that
+  Sigstore could not be reached (as the agent guide says).
 - A missing `--identity-file` of `fsa restore` or `install.sh --from-backup` was turned into a root-owned directory at
   that path by Docker; it is now refused before anything is mounted (exit 2 `identity_unreadable`, nothing changed).
 - A backup alert is retried at the next hourly check when no operator e-mail could be queued (queue or Valkey down),

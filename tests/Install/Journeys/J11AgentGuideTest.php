@@ -73,6 +73,8 @@ function j11Placeholders(): array
         '<backup>' => is_string($backup['backup'] ?? null) ? $backup['backup'] : null,
         '<backup-path>' => is_string($backup['path'] ?? null) ? $backup['path'] : null,
         '<version>' => $GLOBALS['fsaJ11Version'] ?? null,
+        // The old host's `fsa version` (data.instance): the guide's upgrade runs `--to <version>`, the harness release.
+        '<old-version>' => $GLOBALS['fsaJ11Version'] ?? null,
     ], is_string(...));
 }
 
