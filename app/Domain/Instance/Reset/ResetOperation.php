@@ -264,7 +264,7 @@ final readonly class ResetOperation
     {
         return ($record->phaseData('ledger')['non_demo'] ?? null) === 0
             ? ['file' => null, 'skipped' => 'only_demo_organizations']
-            : $this->app->export($project);
+            : $this->app->export($project, $this->directory->state()->recipients()); // encrypted when encryption is on (gate S5)
     }
 
     /**

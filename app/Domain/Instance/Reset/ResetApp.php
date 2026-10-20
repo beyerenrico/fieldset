@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Reset;
 
+use App\Domain\Instance\Backup\AgeCli;
+use App\Domain\Instance\Backup\ProducedFile;
 use App\Domain\Instance\Compose\ComposeRenderer;
 use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\Docker\DockerGateway;
@@ -11,13 +13,17 @@ use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Lifecycle\OneOffResult;
 use App\Domain\Instance\Output\ExitCode;
 use App\Domain\Instance\State\InstanceDirectory;
+use App\Domain\Instance\State\SafeFiles;
 use Carbon\CarbonImmutable;
+use RuntimeException;
 
 /**
  * The app-side steps of `fsa reset` as socket-less one-offs of the app service (KTD25, plan U23, ADR 0088): the fsa process
  * holding the socket never connects to a database. `instance:reset plan|recreate|epoch` answer with a JSON document;
- * `instance:audit-export` streams JSON Lines into `backups/audit-export-reset-<UTC time>.jsonl` (written as `.partial`,
- * 0600, renamed once its header checked out), the record of the audit log when no safety backup keeps it.
+ * `instance:audit-export` streams JSON Lines into `backups/audit-export-reset-<UTC time>.jsonl`, the record of the audit
+ * log when no safety backup keeps it: written in `staging/` as `.partial` (0600, never plaintext in `backups/`), moved
+ * there once its header checked out, or, when backup encryption is on, encrypted to the recipients first
+ * (`….jsonl.age`, M12 gate S5).
  */
 final readonly class ResetApp
 {
@@ -30,7 +36,7 @@ final readonly class ResetApp
     /** Every audit entry of a large instance, streamed. */
     private const float EXPORT_TIMEOUT = 7200.0;
 
-    public function __construct(private InstanceDirectory $directory, private DockerGateway $docker) {}
+    public function __construct(private InstanceDirectory $directory, private DockerGateway $docker, private AgeCli $age) {}
 
     /** @throws InstanceException exit 4 when the live database cannot be read (nothing changed yet) */
     public function plan(ComposeProject $project): OneOffResult
@@ -57,31 +63,63 @@ final readonly class ResetApp
     }
 
     /**
-     * Writes the audit export into backups/.
+     * Writes the audit export into backups/, encrypted to `$recipients` when there are any.
      *
-     * @return array{file: string, entries: int|null, bytes: int}
+     * @param  list<string>  $recipients  the instance's backup recipients
+     * @return array{file: string, entries: int|null, bytes: int, encrypted: bool}
      *
      * @throws InstanceException exit 4 `audit_export_failed` (nothing changed: the database is still there)
      */
-    public function export(ComposeProject $project): array
+    public function export(ComposeProject $project, array $recipients = []): array
     {
         $this->directory->ensureDirectory(InstanceDirectory::BACKUPS_DIR);
+        $this->directory->ensureDirectory(InstanceDirectory::STAGING_DIR);
         $this->discardPartials();
         $name = self::EXPORT_PREFIX.CarbonImmutable::now('UTC')->format('Ymd\THis\Z').self::EXPORT_SUFFIX;
-        $partial = $this->directory->path(InstanceDirectory::BACKUPS_DIR.'/'.$name.'.partial');
+        $partial = $this->directory->path(InstanceDirectory::STAGING_DIR.'/'.$name.'.partial');
         $outcome = $this->docker->composeRunToFile($project, ComposeRenderer::ONE_OFF_SERVICE, ['php', 'artisan', 'instance:audit-export'], $partial, timeout: self::EXPORT_TIMEOUT);
         $header = $outcome->successful() ? $this->header($partial) : null;
         if ($header === null) {
             @unlink($partial);
             throw new InstanceException('The audit export failed: '.($outcome->successful() ? 'it is incomplete (no export header, or fewer entries than the header names)' : $outcome->stderrTail(5)), ExitCode::HealthCheckFailed, 'audit_export_failed', 'Read the output; nothing was deleted. Run `fsa reset` again, or without --no-backup to keep a full backup.', true);
         }
-        $final = $this->directory->path(InstanceDirectory::BACKUPS_DIR.'/'.$name);
-        if (! rename($partial, $final)) {
-            throw new InstanceException("The audit export could not be renamed to {$name}.", ExitCode::HealthCheckFailed, 'audit_export_failed', 'Check backups/; nothing was deleted.', true);
+        $file = $recipients === [] ? $name : $name.'.age';
+        $final = $this->directory->path(InstanceDirectory::BACKUPS_DIR.'/'.$file);
+
+        try {
+            $this->place($partial, $final, $recipients);
+        } catch (RuntimeException $e) {
+            throw new InstanceException("The audit export could not be written to backups/{$file}: ".$e->getMessage(), ExitCode::HealthCheckFailed, 'audit_export_failed', 'Check backups/ and staging/; nothing was deleted.', true, previous: $e);
+        } finally {
+            @unlink($partial);
+        }
+
+        return ['file' => $file, 'entries' => is_int($header['entries'] ?? null) ? $header['entries'] : null, 'bytes' => (int) filesize($final), 'encrypted' => $recipients !== []];
+    }
+
+    /**
+     * The checked export into backups/: encrypted (written beside under a temporary name, synced, renamed), or moved.
+     *
+     * @param  list<string>  $recipients
+     */
+    private function place(string $partial, string $final, array $recipients): void
+    {
+        $temporary = $final.'.partial';
+        if ($recipients === []) {
+            ProducedFile::read($partial); // synced before it becomes the record
+            if (! @rename($partial, $final)) {
+                throw new RuntimeException('it cannot be moved into backups/');
+            }
+        } else {
+            $this->age->encryptFile($partial, $recipients, $temporary);
+            ProducedFile::read($temporary);
+            if (! @rename($temporary, $final)) {
+                @unlink($temporary);
+                throw new RuntimeException('the encrypted file cannot be renamed into place');
+            }
         }
         @chmod($final, 0600);
-
-        return ['file' => $name, 'entries' => is_int($header['entries'] ?? null) ? $header['entries'] : null, 'bytes' => (int) filesize($final)];
+        SafeFiles::syncDirectory(dirname($final));
     }
 
     /** @return array<string, mixed>|null the export's header, when the file starts with one and holds the entries it names */
@@ -103,12 +141,14 @@ final readonly class ResetApp
         return $complete ? $header : null;
     }
 
-    /** What an interrupted export left (never a complete one). */
+    /** What an interrupted export left (never a complete one), in staging/ and, from a pre-release, in backups/. */
     private function discardPartials(): void
     {
-        foreach ($this->directory->files()->list(InstanceDirectory::BACKUPS_DIR) as $name) {
-            if (str_starts_with($name, self::EXPORT_PREFIX) && str_ends_with($name, '.partial')) {
-                @unlink($this->directory->path(InstanceDirectory::BACKUPS_DIR.'/'.$name));
+        foreach ([InstanceDirectory::STAGING_DIR, InstanceDirectory::BACKUPS_DIR] as $parent) {
+            foreach ($this->directory->files()->list($parent) as $name) {
+                if (str_starts_with($name, self::EXPORT_PREFIX) && str_ends_with($name, '.partial')) {
+                    @unlink($this->directory->path($parent.'/'.$name));
+                }
             }
         }
     }
