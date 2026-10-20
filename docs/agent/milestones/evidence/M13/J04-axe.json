@@ -1,0 +1,12 @@
+{
+    "command": "playwright test tests/e2e/fsa-capture-banner.spec.ts --project=desktop --no-deps",
+    "exit_code": 0,
+    "output": [
+        "Running 3 tests using 1 worker",
+        "",
+        "[1/3] [desktop] › tests/e2e/fsa-capture-banner.spec.ts:23:5 › capture banner on an fsa instance › org admin (instance mailer) sees the full banner, axe-clean",
+        "[2/3] [desktop] › tests/e2e/fsa-capture-banner.spec.ts:23:5 › capture banner on an fsa instance › operator (instance mailer) sees the full banner, axe-clean",
+        "[3/3] [desktop] › tests/e2e/fsa-capture-banner.spec.ts:23:5 › capture banner on an fsa instance › org admin (own SMTP) sees the narrow banner, axe-clean",
+        "  3 passed (4.4s)"
+    ]
+}

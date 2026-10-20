@@ -1,0 +1,326 @@
+{
+    "command": "fsa config show --catcher-login --secrets-file <work>/catcher-login.json --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "config",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": false,
+        "data": {
+            "dir": "<work>/fsa-test-j04",
+            "project": "fsa-fsa-test-j04-a434",
+            "version": "2.0.0-alpha.1-test",
+            "mode": "local",
+            "url": "http://localhost:8081",
+            "settings": {
+                "port": 8081,
+                "mail_ui_port": 8025,
+                "domain": null,
+                "acme": null,
+                "edge_subnet": null,
+                "proxy": null,
+                "trusted_proxies": [],
+                "phone_https": {
+                    "mode": null,
+                    "lan_address": null,
+                    "tunnel_subnet": null
+                },
+                "extra_hosts": [],
+                "mail": {
+                    "mode": "capture",
+                    "catcher": "active",
+                    "catcher_url": "http://localhost:8025",
+                    "smtp": null,
+                    "from_address": "forms@localhost",
+                    "from_name": "form-schema-app"
+                },
+                "size": "small",
+                "database": "form_schema",
+                "storage_volume": "fsa-fsa-test-j04-a434_app-storage",
+                "webhooks": "on",
+                "last_restore": null,
+                "backup": {
+                    "schedule": "03:30",
+                    "time_zone": "Europe/Berlin",
+                    "retention": 7,
+                    "encryption": {
+                        "enabled": false,
+                        "recipients": []
+                    },
+                    "directory": "<work>/fsa-test-j04/backups"
+                }
+            },
+            "secrets": {
+                "app_key": "[redacted]",
+                "database_password": "[redacted]",
+                "valkey_password": "[redacted]",
+                "catcher_password": "[redacted]",
+                "backup_database_password": "[redacted]",
+                "backup_hmac_key": "[redacted]"
+            },
+            "keys": [
+                {
+                    "key": "domain",
+                    "value": null,
+                    "available": true,
+                    "modes": [
+                        "local",
+                        "proxy",
+                        "domain"
+                    ],
+                    "settable_now": true,
+                    "use_instead": null,
+                    "changes_url": true
+                },
+                {
+                    "key": "url",
+                    "value": "http://localhost:8081",
+                    "available": true,
+                    "modes": [
+                        "proxy"
+                    ],
+                    "settable_now": false,
+                    "use_instead": "port",
+                    "changes_url": true
+                },
+                {
+                    "key": "port",
+                    "value": 8081,
+                    "available": true,
+                    "modes": [
+                        "local",
+                        "proxy"
+                    ],
+                    "settable_now": true,
+                    "use_instead": null,
+                    "changes_url": true
+                },
+                {
+                    "key": "trusted-proxy",
+                    "value": null,
+                    "available": true,
+                    "modes": [
+                        "proxy"
+                    ],
+                    "settable_now": false,
+                    "use_instead": null,
+                    "changes_url": false
+                },
+                {
+                    "key": "mode",
+                    "value": "local",
+                    "available": true,
+                    "modes": [
+                        "domain",
+                        "proxy"
+                    ],
+                    "settable_now": false,
+                    "use_instead": "domain",
+                    "changes_url": true
+                },
+                {
+                    "key": "acme-email",
+                    "value": null,
+                    "available": true,
+                    "modes": [
+                        "domain"
+                    ],
+                    "settable_now": false,
+                    "use_instead": "domain",
+                    "changes_url": false
+                },
+                {
+                    "key": "acme-ca",
+                    "value": null,
+                    "available": true,
+                    "modes": [
+                        "domain"
+                    ],
+                    "settable_now": false,
+                    "use_instead": "domain",
+                    "changes_url": false
+                },
+                {
+                    "key": "mail",
+                    "value": "capture",
+                    "available": true,
+                    "modes": [
+                        "local",
+                        "proxy",
+                        "domain"
+                    ],
+                    "settable_now": true,
+                    "use_instead": null,
+                    "changes_url": false
+                },
+                {
+                    "key": "phone-https",
+                    "value": "off",
+                    "available": true,
+                    "modes": [
+                        "local"
+                    ],
+                    "settable_now": true,
+                    "use_instead": null,
+                    "changes_url": true
+                },
+                {
+                    "key": "lan-address",
+                    "value": null,
+                    "available": true,
+                    "modes": [
+                        "local"
+                    ],
+                    "settable_now": true,
+                    "use_instead": null,
+                    "changes_url": true
+                },
+                {
+                    "key": "backup-schedule",
+                    "value": "03:30",
+                    "available": true,
+                    "modes": [
+                        "local",
+                        "proxy",
+                        "domain"
+                    ],
+                    "settable_now": true,
+                    "use_instead": null,
+                    "changes_url": false
+                },
+                {
+                    "key": "backup-retention",
+                    "value": "7",
+                    "available": true,
+                    "modes": [
+                        "local",
+                        "proxy",
+                        "domain"
+                    ],
+                    "settable_now": true,
+                    "use_instead": null,
+                    "changes_url": false
+                },
+                {
+                    "key": "backup-encryption",
+                    "value": "off",
+                    "available": true,
+                    "modes": [
+                        "local",
+                        "proxy",
+                        "domain"
+                    ],
+                    "settable_now": true,
+                    "use_instead": null,
+                    "changes_url": false
+                },
+                {
+                    "key": "webhooks",
+                    "value": "on",
+                    "available": true,
+                    "modes": [
+                        "local",
+                        "proxy",
+                        "domain"
+                    ],
+                    "settable_now": true,
+                    "use_instead": null,
+                    "changes_url": false
+                },
+                {
+                    "key": "update-check",
+                    "value": "off",
+                    "available": true,
+                    "modes": [
+                        "local",
+                        "proxy",
+                        "domain"
+                    ],
+                    "settable_now": true,
+                    "use_instead": null,
+                    "changes_url": false
+                },
+                {
+                    "key": "operator-email",
+                    "value": null,
+                    "available": true,
+                    "modes": [
+                        "local",
+                        "proxy",
+                        "domain"
+                    ],
+                    "settable_now": true,
+                    "use_instead": null,
+                    "changes_url": false
+                }
+            ],
+            "outbound_contacts": {
+                "default": "none: without these features neither fsa nor the instance calls out (identity providers and SMTP servers that organization admins configure for their own organization are contacted as configured)",
+                "features": [
+                    {
+                        "feature": "acme",
+                        "active": false,
+                        "contacts": [],
+                        "purpose": "Domain mode: the edge orders and renews certificates from this ACME directory (and its challenges reach port 80/443)."
+                    },
+                    {
+                        "feature": "smtp",
+                        "active": false,
+                        "contacts": [],
+                        "purpose": "Real mail delivery through this server (fsa config set mail smtp); capture mode keeps every mail in the bundled catcher."
+                    },
+                    {
+                        "feature": "upgrades",
+                        "active": false,
+                        "contacts": [
+                            "<registry>",
+                            "https://github.com/beyerenrico/form-schema-app/releases"
+                        ],
+                        "purpose": "Only when you run `fsa upgrade`: the release manifest and the pinned images."
+                    },
+                    {
+                        "feature": "tunnel",
+                        "active": false,
+                        "contacts": [],
+                        "purpose": "Only while `fsa tunnel start` runs one (4 hours unless renewed): cloudflared connects out to Cloudflare, which serves the instance under a random *.trycloudflare.com name."
+                    },
+                    {
+                        "feature": "update_check",
+                        "active": false,
+                        "contacts": [],
+                        "purpose": "Off by default (`fsa config set update-check on`): once a day the app reads the newest release manifest, with no instance identifier, and /platform shows whether an update is available."
+                    }
+                ]
+            },
+            "catcher_login": {
+                "url": "http://localhost:8025",
+                "user": "fsa",
+                "secret": "<redacted>"
+            }
+        },
+        "secrets": [
+            {
+                "name": "catcher_password",
+                "written_to": "<work>/catcher-login.json",
+                "expires_at": null
+            }
+        ],
+        "warnings": [],
+        "errors": []
+    },
+    "catcher_without_login": 401,
+    "invitation": {
+        "subject": "Invitation to Capture Org",
+        "to": [
+            {
+                "Name": "",
+                "Address": "invitee@example.test"
+            }
+        ]
+    },
+    "install_test_mail": {
+        "subject": "form-schema-app: test mail",
+        "message_id": "f9c87a7d6acc5860340b634f60aa54d1@localhost"
+    }
+}

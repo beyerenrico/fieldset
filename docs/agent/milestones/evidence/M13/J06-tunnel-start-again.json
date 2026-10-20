@@ -1,0 +1,49 @@
+{
+    "command": "fsa tunnel start --yes --secrets-file <work>/j06-tunnel-start-again-secrets.json --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "tunnel",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": true,
+        "data": {
+            "action": "start",
+            "url": "https://fsa-test-46ab0b0ca4.trycloudflare.com",
+            "mode": "local",
+            "local_url": "http://localhost:8081",
+            "tunnel": {
+                "hostname": "fsa-test-46ab0b0ca4.trycloudflare.com",
+                "expires_at": "2026-10-20T19:36:44Z",
+                "peer": "10.215.75.66",
+                "admin": false,
+                "url": "https://fsa-test-46ab0b0ca4.trycloudflare.com",
+                "state": "active"
+            },
+            "next_commands": [
+                "<work>/fsa-test-j06/fsa tunnel renew",
+                "<work>/fsa-test-j06/fsa tunnel stop",
+                "<work>/fsa-test-j06/fsa status"
+            ]
+        },
+        "secrets": [],
+        "warnings": [
+            {
+                "code": "tunnel_third_party",
+                "message": "Traffic to https://fsa-test-46ab0b0ca4.trycloudflare.com passes Cloudflare, a third party, and the instance's sign-in, Field App and API are reachable from the internet until the tunnel stops.",
+                "hint": "Quick tunnels are for testing: no uptime guarantee, at most 200 concurrent requests."
+            },
+            {
+                "code": "tunnel_expires",
+                "message": "The tunnel expires at 2026-10-20T19:36:44Z; after that its address answers 503.",
+                "hint": "Run `fsa tunnel renew` to keep it 4 more hours, `fsa tunnel stop` to end it now."
+            },
+            {
+                "code": "url_changed_phone_data",
+                "message": "The instance URL changed: data a phone has not synced yet stays behind with the old address, and home-screen apps and links already sent keep the old address.",
+                "hint": "Let every phone sync before you start, stop or renew a tunnel."
+            }
+        ],
+        "errors": []
+    }
+}

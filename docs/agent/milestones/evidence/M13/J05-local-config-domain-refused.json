@@ -1,0 +1,40 @@
+{
+    "command": "fsa config set domain fsa-test-j05.test --yes --json",
+    "exit_code": 3,
+    "seconds": 4.7,
+    "stdout": {
+        "schema_version": 1,
+        "command": "config",
+        "status": "failed",
+        "exit_code": 3,
+        "changed": false,
+        "data": {
+            "users": [
+                "owner@demo.test",
+                "admin@demo.test",
+                "designer@demo.test",
+                "reviewer@demo.test",
+                "coordinator@demo.test",
+                "worker@demo.test",
+                "mobile@demo.test",
+                "tablet@demo.test",
+                "viewer@demo.test"
+            ],
+            "exposure": [
+                "domain_mode"
+            ]
+        },
+        "secrets": [],
+        "warnings": [],
+        "errors": [
+            {
+                "code": "default_password_in_use",
+                "message": "9 demo account(s) still sign in with the password \"password\": domain mode would make them reachable from the internet.",
+                "hint": "Rotate them first with `fsa demo --rotate-passwords` (it lists the new passwords once), then run the command again; nothing was changed.",
+                "retryable": false
+            }
+        ]
+    },
+    "state_unchanged": true,
+    "login_with_password_on_loopback": 200
+}

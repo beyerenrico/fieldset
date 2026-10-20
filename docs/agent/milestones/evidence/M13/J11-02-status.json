@@ -1,9 +1,9 @@
 {
-    "guide_line": 172,
+    "guide_line": 179,
     "guide_command": "~/forms/fsa status --json",
     "command": "<work>/fsa-test-j11-forms/fsa status --json",
     "exit_code": 0,
-    "seconds": 2.7,
+    "seconds": 2.1,
     "stdout": {
         "schema_version": 1,
         "command": "status",
@@ -20,7 +20,7 @@
                 "container": null
             },
             "disk": {
-                "free_gib": 154.2
+                "free_gib": 153.1
             },
             "last_backup": null,
             "last_upgrade": null,
@@ -28,7 +28,7 @@
             "mode": "local",
             "url": "http://localhost:8081",
             "local_url": "http://localhost:8081",
-            "project": "fsa-fsa-test-j11-forms-0b97",
+            "project": "fsa-fsa-test-j11-forms-5070",
             "port": 8081,
             "health": "ok",
             "services": {
@@ -96,7 +96,7 @@
             "last_restore": null,
             "restore": {
                 "last": null,
-                "storage_volume": "fsa-fsa-test-j11-forms-0b97_app-storage",
+                "storage_volume": "fsa-fsa-test-j11-forms-5070_app-storage",
                 "webhooks_paused": false,
                 "interrupted": null,
                 "scratch_left": []
@@ -114,8 +114,8 @@
                         "email": "owner@example.com",
                         "kind": "owner",
                         "state": "unused",
-                        "created_at": "2026-10-20T15:41:33Z",
-                        "expires_at": "2026-10-20T16:41:33Z",
+                        "created_at": "2026-10-20T19:39:34Z",
+                        "expires_at": "2026-10-20T20:39:34Z",
                         "used_at": null,
                         "used_ip": null,
                         "created_by": "cli",

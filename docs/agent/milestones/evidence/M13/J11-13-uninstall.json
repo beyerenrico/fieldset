@@ -1,9 +1,9 @@
 {
-    "guide_line": 370,
+    "guide_line": 413,
     "guide_command": "~/forms/fsa uninstall --keep-backups --yes --json",
     "command": "<work>/fsa-test-j11-forms/fsa uninstall --keep-backups --yes --json",
     "exit_code": 0,
-    "seconds": 8.2,
+    "seconds": 6.5,
     "stdout": {
         "schema_version": 1,
         "command": "uninstall",
@@ -11,27 +11,27 @@
         "exit_code": 0,
         "changed": true,
         "data": {
-            "uuid": "d3058564-6131-412f-a705-f9f5a1198fe0",
+            "uuid": "3f34cd50-d94f-4e69-807d-66a39ca59c5f",
             "removed": {
                 "containers": [
-                    "fsa-fsa-test-j11-forms-0b97-backup-1",
-                    "fsa-fsa-test-j11-forms-0b97-scheduler-1",
-                    "fsa-fsa-test-j11-forms-0b97-queue-1",
-                    "fsa-fsa-test-j11-forms-0b97-app-1",
-                    "fsa-fsa-test-j11-forms-0b97-mailpit-1",
-                    "fsa-fsa-test-j11-forms-0b97-gotenberg-1",
-                    "fsa-fsa-test-j11-forms-0b97-postgres-1",
-                    "fsa-fsa-test-j11-forms-0b97-redis-1"
+                    "fsa-fsa-test-j11-forms-5070-backup-1",
+                    "fsa-fsa-test-j11-forms-5070-scheduler-1",
+                    "fsa-fsa-test-j11-forms-5070-queue-1",
+                    "fsa-fsa-test-j11-forms-5070-app-1",
+                    "fsa-fsa-test-j11-forms-5070-mailpit-1",
+                    "fsa-fsa-test-j11-forms-5070-gotenberg-1",
+                    "fsa-fsa-test-j11-forms-5070-postgres-1",
+                    "fsa-fsa-test-j11-forms-5070-redis-1"
                 ],
                 "networks": [
-                    "fsa-fsa-test-j11-forms-0b97_default",
-                    "fsa-fsa-test-j11-forms-0b97_renderer"
+                    "fsa-fsa-test-j11-forms-5070_default",
+                    "fsa-fsa-test-j11-forms-5070_renderer"
                 ],
                 "volumes": [
-                    "fsa-fsa-test-j11-forms-0b97_app-storage-rd47733043b85",
-                    "fsa-fsa-test-j11-forms-0b97_mailpit-data",
-                    "fsa-fsa-test-j11-forms-0b97_pg-data",
-                    "fsa-fsa-test-j11-forms-0b97_valkey-data"
+                    "fsa-fsa-test-j11-forms-5070_app-storage-rc108118b4e01",
+                    "fsa-fsa-test-j11-forms-5070_mailpit-data",
+                    "fsa-fsa-test-j11-forms-5070_pg-data",
+                    "fsa-fsa-test-j11-forms-5070_valkey-data"
                 ]
             },
             "dir": "<work>/fsa-test-j11-forms",
@@ -53,8 +53,8 @@
             "data_deleted": true,
             "backups_deleted": false,
             "final_backup": {
-                "dir": "backups/final-20261020T154657Z",
-                "backup": "final-20261020T154657Z",
+                "dir": "backups/final-20261020T194440Z",
+                "backup": "final-20261020T194440Z",
                 "encrypted": true,
                 "includes_secrets": true,
                 "key_file": null,
@@ -65,8 +65,8 @@
         "warnings": [
             {
                 "code": "final_backup_encrypted",
-                "message": "The final backup <work>/fsa-test-j11-forms/backups/final-20261020T154657Z is encrypted and carries the APP keys.",
-                "hint": "`install.sh --dir <work>/fsa-test-j11-forms --from-backup <work>/fsa-test-j11-forms/backups/final-20261020T154657Z/backup.tar.age --identity-file <identity> --passphrase-file <file> --accept-unauthenticated` brings it back (its HMAC needs the APP key from outside it: pass `--app-key-file` instead of --accept-unauthenticated if you kept it)."
+                "message": "The final backup <work>/fsa-test-j11-forms/backups/final-20261020T194440Z is encrypted and carries the APP keys.",
+                "hint": "`install.sh --dir <work>/fsa-test-j11-forms --from-backup <work>/fsa-test-j11-forms/backups/final-20261020T194440Z/backup.tar.age --identity-file <identity> --passphrase-file <file> --accept-unauthenticated` brings it back (its HMAC needs the APP key from outside it: pass `--app-key-file` instead of --accept-unauthenticated if you kept it)."
             }
         ],
         "errors": []

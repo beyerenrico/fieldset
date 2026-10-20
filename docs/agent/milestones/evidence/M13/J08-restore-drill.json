@@ -1,0 +1,133 @@
+{
+    "command": "fsa restore <encrypted backup> --drill --identity-file <work>/j08-identity.age --passphrase-file <work>/j08-passphrase.txt --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "restore",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": false,
+        "data": {
+            "backup": "manual-20261020T185812Z",
+            "format": "fsa",
+            "authenticated": true,
+            "encrypted": true,
+            "created_at": "2026-10-20T18:58:12Z",
+            "backup_version": "2.0.0-alpha.1-test",
+            "migrations": {
+                "relation": "same",
+                "count": 45,
+                "last": "2026_10_26_100200_add_schedule_to_backup_runs",
+                "unknown": [],
+                "pending": 0
+            },
+            "storage": {
+                "files": 5,
+                "directories": 6,
+                "bytes": 916
+            },
+            "database": "restore_drill_41cbe7b76dec",
+            "dropped": true,
+            "drill": {
+                "database": "restore_drill_41cbe7b76dec",
+                "counts": {
+                    "organizations": 2,
+                    "users": 10,
+                    "forms": 1,
+                    "form_versions": 1,
+                    "submissions": 1,
+                    "attachments": 0,
+                    "renditions": 0,
+                    "mail_messages": 0
+                },
+                "audit": {
+                    "epoch": 2,
+                    "heads": [
+                        {
+                            "seq": 13,
+                            "hash": "1b62cb4968a3b7a7ad3c31424620289a707709f6d56905fe1337dd8683e522b6"
+                        },
+                        {
+                            "seq": 1,
+                            "hash": "eb80479ce5a78032a2932feb7455779e40dbb8270d7b47d84e797d389de1e92b"
+                        },
+                        {
+                            "seq": 11,
+                            "hash": "c77a23a151b2b23991dd6118e3dd0651f856d385d09c1d785c9d528dae0ad52b"
+                        }
+                    ],
+                    "intact": true,
+                    "problems": []
+                },
+                "files": {
+                    "archive": true,
+                    "referenced": 1,
+                    "missing": 0,
+                    "sample": []
+                },
+                "render": {
+                    "status": "rendered",
+                    "submission": "05231536-7e28-498c-a422-cbf36ad704ab",
+                    "bytes": 21061,
+                    "pages": 1,
+                    "message": null
+                },
+                "decrypt": {
+                    "tested": 1,
+                    "failed": []
+                },
+                "migrations": {
+                    "pending": 0,
+                    "unknown": 0
+                },
+                "checks": [
+                    {
+                        "name": "counts",
+                        "status": "pass",
+                        "message": "2 organization(s) restored."
+                    },
+                    {
+                        "name": "audit",
+                        "status": "pass",
+                        "message": "The audit chains verify."
+                    },
+                    {
+                        "name": "files",
+                        "status": "pass",
+                        "message": "0 of 1 referenced file(s) missing from storage."
+                    },
+                    {
+                        "name": "render",
+                        "status": "pass",
+                        "message": "A 1-page PDF of 05231536-7e28-498c-a422-cbf36ad704ab rendered."
+                    },
+                    {
+                        "name": "decrypt",
+                        "status": "pass",
+                        "message": "1 encrypted column(s) decrypt with the APP keys."
+                    },
+                    {
+                        "name": "migrations",
+                        "status": "pass",
+                        "message": "0 pending, 0 unknown to this image."
+                    }
+                ]
+            },
+            "render_storage": "live"
+        },
+        "secrets": [],
+        "warnings": [],
+        "errors": []
+    },
+    "live_before": {
+        "organizations": "2",
+        "mail_messages": "0",
+        "files": "5"
+    },
+    "live_after": {
+        "organizations": "2",
+        "mail_messages": "0",
+        "files": "5"
+    },
+    "drill_databases_left": "0"
+}

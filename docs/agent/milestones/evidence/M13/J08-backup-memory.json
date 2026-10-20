@@ -1,0 +1,362 @@
+{
+    "service": "backup",
+    "limit_mib": 128,
+    "memory_peak_mib": 72.3,
+    "unreclaimable_peak_mib": 62.9,
+    "margin_rule": "peak + 30 MiB <= 128 MiB (ADR 0083)",
+    "fits": true,
+    "fits_unreclaimable": true,
+    "cgroup": {
+        "memory_peak_mib": 72.3,
+        "memory_now_mib": {
+            "anon": 62.8,
+            "file": 0,
+            "shmem": 0,
+            "kernel": 3.6
+        },
+        "memory_events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+        },
+        "cpu_seconds": 0.3,
+        "nr_throttled": 0,
+        "cpus_effective": "0-9"
+    },
+    "samples": [
+        {
+            "at": "18:56:03",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:04",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:05",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:06",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:07",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:08",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:09",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:10",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:11",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:12",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:14",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:15",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:16",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:17",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:18",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:19",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:20",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:21",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:22",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:23",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:24",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:26",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:27",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:28",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:29",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:30",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:31",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:32",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:33",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:34",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:35",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:36",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:38",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:39",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:40",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:41",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:42",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:43",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:44",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:45",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:46",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:47",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:48",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:50",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:51",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:52",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:53",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:54",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:55",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:56",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:57",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:58",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:56:59",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:57:00",
+            "anon": 62.9,
+            "shmem": 0,
+            "file": 0
+        },
+        {
+            "at": "18:57:01",
+            "anon": 62.6,
+            "shmem": 0,
+            "file": 0
+        }
+    ],
+    "note": "memory.peak covers the container since its start (the daemon idle and the scheduled, encrypted run: PHP, pg_dump, tar/gzip, age); unreclaimable = anon + shmem, sampled every second during the run"
+}

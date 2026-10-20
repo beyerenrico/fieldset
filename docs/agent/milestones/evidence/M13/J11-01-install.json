@@ -1,9 +1,9 @@
 {
-    "guide_line": 122,
+    "guide_line": 126,
     "guide_command": "curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/form-schema-app/releases/latest/download/install.sh | sh -s -- --dir ~/forms --org \"Example Ltd\" --owner-email owner@example.com --demo --secrets-file ~/forms-secrets.json --json --yes",
     "command": "sh '<harness>/dist/download/v2.0.0-alpha.1-test/install.sh' --version '2.0.0-alpha.1-test' --dir <work>/fsa-test-j11-forms --org \"Example Ltd\" --owner-email owner@example.com --demo --secrets-file <work>/fsa-test-j11-forms-secrets.json --json --yes",
     "exit_code": 0,
-    "seconds": 52.8,
+    "seconds": 50.2,
     "stdout": {
         "schema_version": 1,
         "command": "install",
@@ -15,7 +15,7 @@
             "version": "2.0.0-alpha.1-test",
             "mode": "local",
             "dir": "<work>/fsa-test-j11-forms",
-            "project": "fsa-fsa-test-j11-forms-0b97",
+            "project": "fsa-fsa-test-j11-forms-5070",
             "port": 8081,
             "mail": {
                 "mode": "capture",
@@ -29,7 +29,7 @@
                 "<work>/fsa-test-j11-forms/fsa doctor --post"
             ],
             "sign_in_link": {
-                "expires_at": "2026-10-20T16:41:33Z",
+                "expires_at": "2026-10-20T20:39:34Z",
                 "delivered": "secrets_file"
             },
             "demo": {
@@ -112,7 +112,7 @@
             {
                 "name": "sign_in_link",
                 "written_to": "<work>/fsa-test-j11-forms-secrets.json",
-                "expires_at": "2026-10-20T16:41:33Z"
+                "expires_at": "2026-10-20T20:39:34Z"
             }
         ],
         "warnings": [],

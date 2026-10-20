@@ -1,0 +1,81 @@
+{
+    "command": "install.sh --dir <work>/fsa-test-j08b --from-backup <backup>/backup.tar.age --identity-file … --passphrase-file … --app-key-file <old>/env/app.env --domain fsa-test-j08b.test --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "install",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": true,
+        "data": {
+            "url": "https://fsa-test-j08b.test",
+            "version": "2.0.0-alpha.1-test",
+            "mode": "domain",
+            "dir": "<work>/fsa-test-j08b",
+            "project": "fsa-fsa-test-j08b-b906",
+            "port": null,
+            "mail": {
+                "mode": "capture",
+                "catcher_url": "https://fsa-test-j08b.test/_mail/"
+            },
+            "owner_email": null,
+            "from_backup": {
+                "backup": "manual-20261020T185931Z",
+                "format": "fsa",
+                "authenticated": true,
+                "encrypted": true,
+                "created_at": "2026-10-20T18:59:31Z",
+                "version": "2.0.0-alpha.1-test",
+                "epoch": 4,
+                "recipients": {
+                    "listed": [
+                        "age1zk7a9vcu80c4lyz9h3vw72rvjh80xgqcj07q9x898v9aklxsqgpswuxvmf"
+                    ],
+                    "kept": [
+                        "age1zk7a9vcu80c4lyz9h3vw72rvjh80xgqcj07q9x898v9aklxsqgpswuxvmf"
+                    ]
+                }
+            },
+            "pending_mail": null,
+            "webhooks": "paused",
+            "confirm_commands": [
+                "fsa config set webhooks on"
+            ],
+            "sign_in_link": null,
+            "next_commands": [
+                "<work>/fsa-test-j08b/fsa status",
+                "<work>/fsa-test-j08b/fsa login-link <admin-email>",
+                "<work>/fsa-test-j08b/fsa config set webhooks on"
+            ]
+        },
+        "secrets": [],
+        "warnings": [
+            {
+                "code": "certificate_pending",
+                "message": "fsa-test-j08b.test resolves to 203.0.113.7, which is not an address of this host. The certificate is pending until it points at this host.",
+                "hint": "Point the A record of fsa-test-j08b.test at this server's public address."
+            },
+            {
+                "code": "mail_captured_after_move",
+                "message": "Mail is captured in the bundled catcher until you switch it on: the old server may still be sending.",
+                "hint": "Once the move is complete: `fsa config set mail smtp …` (the backup's server is under data.pending_mail)."
+            },
+            {
+                "code": "webhooks_paused",
+                "message": "Workflow webhooks wait until you confirm the move, so the old and the new server never both deliver.",
+                "hint": "Once DNS points here and the old server is stopped: `fsa config set webhooks on`."
+            },
+            {
+                "code": "no_sign_in_link",
+                "message": "No --owner-email was given, so no sign-in link was issued; the restored users sign in as before.",
+                "hint": "Run `fsa login-link <email> --secrets-file <file>` for an admin of the restored data."
+            }
+        ],
+        "errors": []
+    },
+    "url": "https://fsa-test-j08b.test",
+    "runtime_webhooks": {
+        "paused": true
+    },
+    "organizations": "1"
+}

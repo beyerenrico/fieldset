@@ -1,9 +1,9 @@
 {
-    "guide_line": 354,
+    "guide_line": 397,
     "guide_command": "curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/form-schema-app/releases/latest/download/install.sh | sh -s -- --dir ~/forms-new --from-backup ~/forms-move/backup.tar.age --identity-file ~/forms-move/identity.age --passphrase-file ~/forms-passphrase --app-key-file ~/forms-move/app-key.env --secrets-file ~/forms-new-secrets.json --json --yes",
     "command": "sh '<harness>/dist/download/v2.0.0-alpha.1-test/install.sh' --version '2.0.0-alpha.1-test' --dir <work>/fsa-test-j11-forms-new --from-backup <work>/fsa-test-j11-forms-move/backup.tar.age --identity-file <work>/fsa-test-j11-forms-move/identity.age --passphrase-file <work>/fsa-test-j11-forms-passphrase --app-key-file <work>/fsa-test-j11-forms-move/app-key.env --secrets-file <work>/fsa-test-j11-forms-new-secrets.json --json --yes",
     "exit_code": 0,
-    "seconds": 57.4,
+    "seconds": 52.9,
     "stdout": {
         "schema_version": 1,
         "command": "install",
@@ -15,7 +15,7 @@
             "version": "2.0.0-alpha.1-test",
             "mode": "local",
             "dir": "<work>/fsa-test-j11-forms-new",
-            "project": "fsa-fsa-test-j11-forms-new-f332",
+            "project": "fsa-fsa-test-j11-forms-new-eda0",
             "port": 8082,
             "mail": {
                 "mode": "capture",
@@ -28,26 +28,26 @@
                 "format": "fsa",
                 "authenticated": true,
                 "encrypted": true,
-                "created_at": "2026-10-20T15:45:52Z",
+                "created_at": "2026-10-20T19:43:41Z",
                 "version": "2.0.0-alpha.1-test",
                 "epoch": 3,
                 "recipients": {
                     "listed": [
-                        "age1f743r0wl3u6fc47gfw4wqqvqhjntpsltp9059mqw226gutcp8u9sd3pclc"
+                        "age1thp2eglhrufzfgjl4u5pyl9zmuzmcrfqzpz0kk8ytp2g8h5xmywq9czs92"
                     ],
                     "kept": []
                 }
             },
             "pending_mail": {
-                "host": "fsa-test-j11-smtp-8422",
+                "host": "fsa-test-j11-smtp-abe3",
                 "port": 1025,
                 "scheme": "smtp",
-                "command": "fsa config set mail smtp --smtp-host fsa-test-j11-smtp-8422 --smtp-port 1025 --smtp-username <account> --password-file <file>"
+                "command": "fsa config set mail smtp --smtp-host fsa-test-j11-smtp-abe3 --smtp-port 1025 --smtp-username <account> --password-file <file>"
             },
             "webhooks": "paused",
             "confirm_commands": [
                 "fsa config set webhooks on",
-                "fsa config set mail smtp --smtp-host fsa-test-j11-smtp-8422 --smtp-port 1025 --smtp-username <account> --password-file <file>"
+                "fsa config set mail smtp --smtp-host fsa-test-j11-smtp-abe3 --smtp-port 1025 --smtp-username <account> --password-file <file>"
             ],
             "sign_in_link": null,
             "next_commands": [
@@ -75,7 +75,7 @@
             },
             {
                 "code": "backup_recipients_not_kept",
-                "message": "The backup lists the age recipient(s) age1f743r0wl3u6fc47gfw4wqqvqhjntpsltp9059mqw226gutcp8u9sd3pclc; they were not taken over, so new backups are not encrypted.",
+                "message": "The backup lists the age recipient(s) age1thp2eglhrufzfgjl4u5pyl9zmuzmcrfqzpz0kk8ytp2g8h5xmywq9czs92; they were not taken over, so new backups are not encrypted.",
                 "hint": "If these are your keys, run the move again with --keep-recipients (a new directory); or turn encryption on with `fsa config set backup-encryption on --identity-out <path> --passphrase-file <file>`."
             }
         ],

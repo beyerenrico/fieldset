@@ -1,0 +1,215 @@
+{
+    "command": "install.sh --dir <work>/fsa-test-j05-domain --version 2.0.0-alpha.1-test --org \"J5 Domain Org\" --owner-email owner@example.test --locale en --domain fsa-test-j05.test --acme-ca https://pebble:14000/dir --acme-ca-root-file <harness>/pebble-https-root.pem --demo --secrets-file <work>/j05-domain-secrets.json --json",
+    "exit_code": 0,
+    "seconds": 50.8,
+    "stdout": {
+        "schema_version": 1,
+        "command": "install",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": true,
+        "data": {
+            "url": "https://fsa-test-j05.test",
+            "version": "2.0.0-alpha.1-test",
+            "mode": "domain",
+            "dir": "<work>/fsa-test-j05-domain",
+            "project": "fsa-fsa-test-j05-domain-76e3",
+            "port": null,
+            "mail": {
+                "mode": "capture",
+                "catcher_url": "https://fsa-test-j05.test/_mail/"
+            },
+            "owner_email": "owner@example.test",
+            "next_commands": [
+                "<work>/fsa-test-j05-domain/fsa status",
+                "<work>/fsa-test-j05-domain/fsa login-link owner@example.test",
+                "<work>/fsa-test-j05-domain/fsa doctor --post"
+            ],
+            "sign_in_link": {
+                "expires_at": "2026-10-20T19:27:43Z",
+                "delivered": "secrets_file"
+            },
+            "demo": {
+                "organization": "Demo Haustechnik GmbH",
+                "seeded": true,
+                "passwords": "random",
+                "exposure": [
+                    "domain_mode"
+                ],
+                "users": [
+                    {
+                        "email": "owner@demo.test",
+                        "name": "Olivia Owner",
+                        "roles": [
+                            "owner"
+                        ]
+                    },
+                    {
+                        "email": "admin@demo.test",
+                        "name": "Adam Admin",
+                        "roles": [
+                            "admin"
+                        ]
+                    },
+                    {
+                        "email": "designer@demo.test",
+                        "name": "Dana Designer",
+                        "roles": [
+                            "designer"
+                        ]
+                    },
+                    {
+                        "email": "reviewer@demo.test",
+                        "name": "Rita Reviewer",
+                        "roles": [
+                            "reviewer"
+                        ]
+                    },
+                    {
+                        "email": "coordinator@demo.test",
+                        "name": "Cora Coordinator",
+                        "roles": [
+                            "designer",
+                            "reviewer"
+                        ]
+                    },
+                    {
+                        "email": "worker@demo.test",
+                        "name": "Willi Worker",
+                        "roles": [
+                            "field_worker"
+                        ]
+                    },
+                    {
+                        "email": "mobile@demo.test",
+                        "name": "Mia Mobil",
+                        "roles": [
+                            "field_worker"
+                        ]
+                    },
+                    {
+                        "email": "tablet@demo.test",
+                        "name": "Tom Tablet",
+                        "roles": [
+                            "field_worker"
+                        ]
+                    },
+                    {
+                        "email": "viewer@demo.test",
+                        "name": "Vera Viewer",
+                        "roles": [
+                            "viewer"
+                        ]
+                    }
+                ],
+                "login_url": "https://fsa-test-j05.test/admin/login",
+                "delivered": "secrets_file"
+            }
+        },
+        "secrets": [
+            {
+                "name": "sign_in_link",
+                "written_to": "<work>/j05-domain-secrets.json",
+                "expires_at": "2026-10-20T19:27:43Z"
+            },
+            {
+                "name": "demo_password:owner@demo.test",
+                "written_to": "<work>/j05-domain-secrets.json",
+                "expires_at": null
+            },
+            {
+                "name": "demo_password:admin@demo.test",
+                "written_to": "<work>/j05-domain-secrets.json",
+                "expires_at": null
+            },
+            {
+                "name": "demo_password:designer@demo.test",
+                "written_to": "<work>/j05-domain-secrets.json",
+                "expires_at": null
+            },
+            {
+                "name": "demo_password:reviewer@demo.test",
+                "written_to": "<work>/j05-domain-secrets.json",
+                "expires_at": null
+            },
+            {
+                "name": "demo_password:coordinator@demo.test",
+                "written_to": "<work>/j05-domain-secrets.json",
+                "expires_at": null
+            },
+            {
+                "name": "demo_password:worker@demo.test",
+                "written_to": "<work>/j05-domain-secrets.json",
+                "expires_at": null
+            },
+            {
+                "name": "demo_password:mobile@demo.test",
+                "written_to": "<work>/j05-domain-secrets.json",
+                "expires_at": null
+            },
+            {
+                "name": "demo_password:tablet@demo.test",
+                "written_to": "<work>/j05-domain-secrets.json",
+                "expires_at": null
+            },
+            {
+                "name": "demo_password:viewer@demo.test",
+                "written_to": "<work>/j05-domain-secrets.json",
+                "expires_at": null
+            }
+        ],
+        "warnings": [],
+        "errors": []
+    },
+    "secret_names": [
+        "sign_in_link",
+        "demo_password:owner@demo.test",
+        "demo_password:admin@demo.test",
+        "demo_password:designer@demo.test",
+        "demo_password:reviewer@demo.test",
+        "demo_password:coordinator@demo.test",
+        "demo_password:worker@demo.test",
+        "demo_password:mobile@demo.test",
+        "demo_password:tablet@demo.test",
+        "demo_password:viewer@demo.test"
+    ],
+    "login_with_password": 422,
+    "logins_with_printed_passwords": {
+        "owner@demo.test": [
+            200,
+            "owner@demo.test"
+        ],
+        "admin@demo.test": [
+            200,
+            "admin@demo.test"
+        ],
+        "designer@demo.test": [
+            200,
+            "designer@demo.test"
+        ],
+        "reviewer@demo.test": [
+            200,
+            "reviewer@demo.test"
+        ],
+        "coordinator@demo.test": [
+            200,
+            "coordinator@demo.test"
+        ],
+        "worker@demo.test": [
+            200,
+            "worker@demo.test"
+        ],
+        "mobile@demo.test": [
+            200,
+            "mobile@demo.test"
+        ],
+        "tablet@demo.test": [
+            200,
+            "tablet@demo.test"
+        ],
+        "viewer@demo.test": [
+            200,
+            "viewer@demo.test"
+        ]
+    }
+}

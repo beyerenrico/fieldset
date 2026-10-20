@@ -2,16 +2,16 @@
     "target": {
         "install": "install.sh --dir <work>/fsa-test-dogfood --version 2.0.0-alpha.1-test --org \"Dogfood Org\" --owner-email owner@example.test --locale en --demo --secrets-file <work>/owner-link.json --json",
         "url": "http://localhost:8081",
-        "project": "fsa-fsa-test-dogfood-5a8d",
+        "project": "fsa-fsa-test-dogfood-059e",
         "catcher": "http://localhost:8025",
         "platform": "linux/arm64"
     },
     "command": "playwright test --project=desktop --workers=2 (E2E_TARGET=fsa, E2E_BASE_URL, E2E_COMPOSE_PROJECT, MAILPIT_URL, MAILPIT_AUTH set)",
     "exit_code": 0,
-    "seconds": 148.1,
+    "seconds": 144.8,
     "stats": {
-        "startTime": "2026-10-20T16:45:45.368Z",
-        "duration": 147600.39,
+        "startTime": "2026-10-20T18:12:04.182Z",
+        "duration": 144345.607,
         "expected": 71,
         "skipped": 8,
         "unexpected": 0,

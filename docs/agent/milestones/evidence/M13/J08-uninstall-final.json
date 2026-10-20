@@ -1,0 +1,80 @@
+{
+    "command": "fsa uninstall --yes --keep-backups --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "uninstall",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": true,
+        "data": {
+            "uuid": "cca16c23-9406-44e5-903f-d8bfeeec141e",
+            "removed": {
+                "containers": [
+                    "fsa-fsa-test-j08b-b906-edge-1",
+                    "fsa-fsa-test-j08b-b906-mailpit-1",
+                    "fsa-fsa-test-j08b-b906-backup-1",
+                    "fsa-fsa-test-j08b-b906-queue-1",
+                    "fsa-fsa-test-j08b-b906-gotenberg-1",
+                    "fsa-fsa-test-j08b-b906-app-1",
+                    "fsa-fsa-test-j08b-b906-scheduler-1",
+                    "fsa-fsa-test-j08b-b906-redis-1",
+                    "fsa-fsa-test-j08b-b906-postgres-1"
+                ],
+                "networks": [
+                    "fsa-fsa-test-j08b-b906_default",
+                    "fsa-fsa-test-j08b-b906_edge",
+                    "fsa-fsa-test-j08b-b906_renderer"
+                ],
+                "volumes": [
+                    "fsa-fsa-test-j08b-b906_app-storage-r47fbe91eca40",
+                    "fsa-fsa-test-j08b-b906_edge-data",
+                    "fsa-fsa-test-j08b-b906_mailpit-data",
+                    "fsa-fsa-test-j08b-b906_pg-data",
+                    "fsa-fsa-test-j08b-b906_valkey-data"
+                ]
+            },
+            "dir": "<work>/fsa-test-j08b",
+            "deleted_files": [
+                ".fsa-instance",
+                "compose.yaml",
+                "edge",
+                "env",
+                "fsa",
+                "operations",
+                "releases",
+                "runtime",
+                "staging",
+                "state.json"
+            ],
+            "kept": [
+                "backups"
+            ],
+            "left_files": [],
+            "data_deleted": true,
+            "backups_deleted": false,
+            "final_backup": {
+                "dir": "backups/final-20261020T190031Z",
+                "backup": "final-20261020T190031Z",
+                "encrypted": true,
+                "includes_secrets": true,
+                "key_file": null,
+                "missing_files": 0
+            }
+        },
+        "secrets": [],
+        "warnings": [
+            {
+                "code": "final_backup_encrypted",
+                "message": "The final backup <work>/fsa-test-j08b/backups/final-20261020T190031Z is encrypted and carries the APP keys.",
+                "hint": "`install.sh --dir <work>/fsa-test-j08b --from-backup <work>/fsa-test-j08b/backups/final-20261020T190031Z/backup.tar.age --identity-file <identity> --passphrase-file <file> --accept-unauthenticated` brings it back (its HMAC needs the APP key from outside it: pass `--app-key-file` instead of --accept-unauthenticated if you kept it)."
+            },
+            {
+                "code": "certificates_removed",
+                "message": "The certificates for fsa-test-j08b.test were removed with the instance. Let's Encrypt allows only a few identical certificates per week, so a new install of the same domain may be refused for a while.",
+                "hint": "Use --acme-staging for trial installs; reinstalling the same domain often counts against the CA's duplicate-certificate limit."
+            }
+        ],
+        "errors": []
+    }
+}
