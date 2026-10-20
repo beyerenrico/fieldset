@@ -33,7 +33,7 @@ final readonly class OlderBackupMigration
         $outcome = OneOffResult::fromOutcome($this->docker->composeRun($project, ComposeRenderer::ONE_OFF_SERVICE, $command, ['DB_DATABASE' => $database, ...ChildMigration::libpq($id)], timeout: ChildMigration::TIMEOUT));
         if (! $outcome->ok) {
             throw new InstanceException('Migrating the restored database to this release failed: '.$outcome->errorMessage(), ExitCode::RolledBack, 'upgrade_child_failed',
-                'Read the output; the live database was not touched. `fsa install --from-backup` into a new directory migrates it too.', true, ['code' => $outcome->errorCode(), 'output' => $outcome->output]);
+                'Read the output; the live database was not touched. `install.sh --dir <new directory> --from-backup <backup>` migrates it in a new instance too.', true, ['code' => $outcome->errorCode(), 'output' => $outcome->output]);
         }
 
         return ['migrated' => UpgradeJournal::list($outcome->data['migrated'] ?? null), 'steps' => UpgradeJournal::list($outcome->data['steps'] ?? null)];

@@ -90,6 +90,7 @@ it('resets with --yes: quiesce, the ledger before the drop, safety backup, recre
             'epoch' => 2, 'previous_epoch' => 1, 'storage_volume' => $fresh, 'flushed' => ['valkey' => true, 'catcher' => true], 'left_behind' => [],
             'removed' => ['volume '.$state->project().'_app-storage']])
         ->and($json['data']['sign_in_link']['delivered'])->toBe('secrets')
+        ->and($json['data']['next_commands'])->toBe(["{$this->dir}/fsa status", "{$this->dir}/fsa login-link owner@example.com", "{$this->dir}/fsa doctor --post"]) // the instance's own fsa (gate review)
         ->and(array_column($json['secrets'], 'name'))->toBe(['sign_in_link'])
         ->and($json['warnings'])->toBe([])
         ->and($after->history()[array_key_last($after->history())])->toMatchArray(['event' => 'reset', 'journal' => $journal->id(), 'epoch' => 2, 'previous_epoch' => 1, 'safety_backup' => ResetFixture::SAFETY, 'demo' => false]);

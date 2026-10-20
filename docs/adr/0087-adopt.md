@@ -252,3 +252,10 @@ digest; any other 1.0 archive naming the key by fingerprint stays `backup_other_
 installed release's `instance:upgrade-migrate` on the scratch database (phase `upgrade_child`, ADR 0085 amendment) before
 its finish step, and the schema audit of the unauthenticated archive compares it with a baseline at its own migration
 set (ADR 0085 amendment of U18).
+
+## Amendment 2026-10-20: exit codes after 1.0 stopped (M12 gate)
+`port_taken`, `drain_timeout`, `drain_unknown` and `postgres_not_shut_down` are raised as exit 4, but each happens after
+`stop_1_0`, so adopt goes back (1.0 starts again) and the command exits 5 `rolled_back` with that code
+(AdoptResult::rolledBack; exit 8 when going back fails). Only a failure before `stop_1_0` is exit 9. The sections above
+say "exit 4 … (which goes back)"; read them as the code of the exit-5 result. The refusals that point to a 1.0 backup name
+`install.sh --dir <new directory> --from-backup <backup> --accept-unauthenticated`.

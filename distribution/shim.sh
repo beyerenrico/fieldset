@@ -48,8 +48,9 @@ fsa_file_flag_mode() { # sets fsa_mode: rw for output paths, ro for input paths,
 	esac
 }
 
-# Every value-taking option of the fsa:* commands plus install's --version alias, so that a flag before the command
-# keeps its value (`fsa --behind-proxy traefik install`); ShimScriptTest keeps it in step with the commands.
+# Every value-taking option of the fsa:* commands plus the --version alias of install and adopt, so that a flag
+# before the command keeps its value (`fsa --behind-proxy traefik install`); ShimScriptTest keeps it in step with the
+# commands.
 fsa_value_flags='--acme-ca --acme-ca-root-file --acme-email --app-key-file --behind-proxy --dir --domain --from-address
 --from-backup --from-name --identity-file --identity-out --kind --lan-address --locale --lock-id --org --orphans
 --owner-email --owner-name --passphrase-file --password-file --phone-https --port --proxy-network --release

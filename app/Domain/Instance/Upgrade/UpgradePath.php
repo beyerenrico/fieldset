@@ -33,7 +33,7 @@ final class UpgradePath
         }
         if ($order > 0) {
             throw new InstanceException("{$to} is older than the installed {$from}: upgrades only move forward.", ExitCode::Incompatible, 'downgrade_refused',
-                '`fsa rollback` returns to the version before the last upgrade (from its safety backup); an older release needs a backup made by it (`fsa install --from-backup`). Nothing was changed.');
+                '`fsa rollback` returns to the version before the last upgrade (from its safety backup); an older release needs a backup made by it, installed into a new directory (`install.sh --dir <new directory> --from-backup <backup>`). Nothing was changed.');
         }
         if ($to->major !== $from->major && ! $major) {
             throw new InstanceException("{$to} is a new major version ({$from->major} → {$to->major}).", ExitCode::Incompatible, 'major_upgrade',
@@ -53,7 +53,7 @@ final class UpgradePath
         try {
             return ReleaseVersion::parse((string) $installed);
         } catch (ReleaseException) {
-            throw new InstanceException('The installed version ('.($installed ?? 'unknown').') is no release this fsa can upgrade.', ExitCode::Incompatible, 'unsupported_source', 'Reinstall from a release (`fsa backup`, then `fsa install --from-backup` into a new directory). Nothing was changed.');
+            throw new InstanceException('The installed version ('.($installed ?? 'unknown').') is no release this fsa can upgrade.', ExitCode::Incompatible, 'unsupported_source', 'Reinstall from a release (`fsa backup`, then `install.sh --dir <new directory> --from-backup <backup>`). Nothing was changed.');
         }
     }
 }

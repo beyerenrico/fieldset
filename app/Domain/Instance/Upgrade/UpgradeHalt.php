@@ -18,7 +18,7 @@ use Throwable;
  * Exit 8 of an upgrade (R55, plan U18, ADR 0086): the rollback itself failed. Every writer stops, the gate stays up, the
  * journal stays open, and the result carries what an operator needs: the safety backup's path, both digest sets, where
  * each database and volume is, and the way on: `fsa upgrade --resume` repeats the rollback; the last resort is installing
- * the safety backup into a new directory with `fsa install --from-backup`.
+ * the safety backup into a new directory with `install.sh --dir <new directory> --from-backup <path>`.
  */
 final readonly class UpgradeHalt
 {
@@ -39,7 +39,7 @@ final readonly class UpgradeHalt
 
         return CommandResult::failed('upgrade', ExitCode::RollbackFailed, 'upgrade_rollback_failed',
             'The upgrade failed ('.$cause->getMessage().') and rolling it back failed too ('.$failure->getMessage().'); the instance is stopped behind its gate.',
-            $where.' Run `fsa upgrade --resume` to repeat the rollback. If that fails too, install the safety backup'.($path === null ? '' : " {$path}").' into a new directory with `fsa install --from-backup`.',
+            $where.' Run `fsa upgrade --resume` to repeat the rollback. If that fails too, install the safety backup into a new directory with `install.sh --dir <new directory> --from-backup '.($path ?? '<backup>').'`.',
             false,
             [
                 'safety_backup' => $path, 'names' => $names->toArray(), 'next' => 'fsa upgrade --resume',

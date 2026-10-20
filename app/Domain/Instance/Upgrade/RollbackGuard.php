@@ -56,7 +56,7 @@ final readonly class RollbackGuard
         $backup = $history[$index]['safety_backup'] ?? null;
         if (! is_string($backup) || ! $this->store->find($backup) instanceof BackupEntry) {
             throw new InstanceException('The upgrade\'s safety backup '.(is_string($backup) ? $backup : '').' is gone from backups/.', ExitCode::Incompatible, 'safety_backup_missing',
-                'Restore another backup of '.$previous['version'].' with `fsa install --from-backup` into a new directory. Nothing was changed.');
+                'Restore another backup of '.$previous['version'].' into a new directory with `install.sh --dir <new directory> --from-backup <backup>`. Nothing was changed.');
         }
 
         return ['from' => $state->version(), 'version' => $previous['version'], 'digests' => $previous['digests'], 'compose' => $previous['compose'], 'backup' => $backup,

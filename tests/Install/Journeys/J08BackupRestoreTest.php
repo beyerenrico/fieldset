@@ -394,6 +394,8 @@ it('moves the instance with --from-backup into a second directory with a new --d
 
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput()."\n".$process->getOutput())
         ->and(collect($json['warnings'] ?? [])->pluck('code')->all())->toContain('certificate_pending', 'webhooks_paused')
+        ->and((string) ($json['data']['dir'] ?? ''))->toEndWith('/fsa-test-j08b')
+        ->and($json['data']['next_commands'] ?? null)->toBe(array_map(static fn (string $command): string => ($json['data']['dir'] ?? '').'/fsa '.$command, ['status', 'login-link <admin-email>', 'config set webhooks on'])) // gate review DOC13
         ->and($state['url'] ?? null)->toBe('https://fsa-test-j08b.test')
         ->and($env)->toContain("FSA_MAIL_CAPTURE='true'")
         ->and($runtime['webhooks'] ?? null)->toBe(['paused' => true])

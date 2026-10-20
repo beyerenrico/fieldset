@@ -11,6 +11,7 @@ use App\Domain\Instance\Docker\DockerGateway;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Output\CommandResult;
 use App\Domain\Instance\Output\ExitCode;
+use App\Domain\Instance\State\InstanceDirectory;
 use Throwable;
 
 /**
@@ -23,14 +24,15 @@ use Throwable;
  * - `forward`: continuing with the restored data failed too.
  *
  * The safety backup cannot be restored in place while the journal is open (`fsa restore` of another backup exits 9), so
- * the last resort is always installing it into a new directory with `fsa install --from-backup`.
+ * the last resort is always installing it into a new directory with `install.sh --dir <new directory> --from-backup <path>`
+ * (the instance's own `fsa` manages only its directory). `--abandon` asks first, so the hints name `--yes` (gate review O9).
  */
 final readonly class RestoreHalt
 {
     /** Everything that writes to the database or the storage volume. */
     public const array WRITERS = [AppRoles::APP, AppRoles::QUEUE, AppRoles::SCHEDULER, BackupService::NAME];
 
-    public function __construct(private DockerGateway $docker) {}
+    public function __construct(private DockerGateway $docker, private InstanceDirectory $directory) {}
 
     public function stop(ComposeProject $project, RestoreNames $names, Throwable $cause, Throwable $failure, ?string $safetyBackup, string $kind): CommandResult
     {
@@ -53,13 +55,14 @@ final readonly class RestoreHalt
     private function hint(RestoreNames $names, string $kind, ?string $safetyBackup): string
     {
         $where = "The previous database is {$names->aside} (or {$names->live}), the restored one {$names->live} (or {$names->scratch}); the previous storage volume is {$names->currentVolume}, the restored one {$names->freshVolume}.";
-        $last = ' If that fails too, install the safety backup'.($safetyBackup === null ? '' : " {$safetyBackup}").' into a new directory with `fsa install --from-backup`.';
+        $path = $safetyBackup === null ? '<backup>' : $this->directory->root.'/'.InstanceDirectory::BACKUPS_DIR.'/'.$safetyBackup;
+        $last = ' If that fails too, install the safety backup'.($safetyBackup === null ? '' : " {$safetyBackup}")." into a new directory with `install.sh --dir <new directory> --from-backup {$path}`.";
 
         return match ($kind) {
-            'abort' => "Nothing was swapped: {$names->live} and {$names->currentVolume} are unchanged. Read `fsa logs app`, then run `fsa restore --abandon` to start the previous instance again.",
-            'no_way_back' => "{$where} There is no way back: run `fsa restore --abandon` to continue with the restored database and volume.".$last,
-            'forward' => "{$where} Read `fsa logs app`, then run `fsa restore --abandon` again.".$last,
-            default => "{$where} Run `fsa restore --abandon` (or the same `fsa restore` again) to continue returning to the previous instance.".$last,
+            'abort' => "Nothing was swapped: {$names->live} and {$names->currentVolume} are unchanged. Read `fsa logs app`, then run `fsa restore --abandon --yes` to start the previous instance again.",
+            'no_way_back' => "{$where} There is no way back: run `fsa restore --abandon --yes` to continue with the restored database and volume.".$last,
+            'forward' => "{$where} Read `fsa logs app`, then run `fsa restore --abandon --yes` again.".$last,
+            default => "{$where} Run `fsa restore --abandon --yes` (or the same `fsa restore` command again, with --yes) to continue returning to the previous instance.".$last,
         };
     }
 }

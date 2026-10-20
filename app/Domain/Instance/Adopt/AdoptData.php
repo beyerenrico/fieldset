@@ -105,7 +105,7 @@ final readonly class AdoptData
         }
         $amcheck = $this->probe->amcheck($image, $postgres, $legacy->database, $legacy->username, $state->uuid());
         if ($amcheck['failed'] !== []) {
-            throw new InstanceException('Unique text indexes of the copied database fail amcheck: '.implode('; ', array_slice($amcheck['failed'], 0, 3)).'.', ExitCode::HealthCheckFailed, 'amcheck_failed', 'The copy is not used and 1.0 runs again. Move the data with a 1.0 backup instead (`fsa install --from-backup`).', false, ['amcheck' => $amcheck]);
+            throw new InstanceException('Unique text indexes of the copied database fail amcheck: '.implode('; ', array_slice($amcheck['failed'], 0, 3)).'.', ExitCode::HealthCheckFailed, 'amcheck_failed', 'The copy is not used and 1.0 runs again. Move the data with a 1.0 backup instead (`install.sh --dir <new directory> --from-backup <backup> --accept-unauthenticated`).', false, ['amcheck' => $amcheck]);
         }
 
         return ['snapshot' => $copy->toArray(), 'amcheck' => $amcheck];

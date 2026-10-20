@@ -121,7 +121,7 @@ final readonly class UpgradePreflight
     public function assertBackupService(): void
     {
         if (! in_array('backup', ComposeFile::services($this->directory), true)) {
-            throw new InstanceException('This instance has no backup service, so no safety backup can be taken.', ExitCode::PreflightFailed, 'backup_service_missing', 'Run `fsa install` again with the same flags to render it, then upgrade.');
+            throw new InstanceException('This instance has no backup service, so no safety backup can be taken.', ExitCode::PreflightFailed, 'backup_service_missing', 'Any `fsa config set` that changes a setting (e.g. `fsa config set backup-retention <days>`) renders the compose file again with the backup service; then run `fsa upgrade` again. Nothing was changed.');
         }
     }
 
