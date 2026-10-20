@@ -338,7 +338,7 @@ it('runs a scheduled backup at the 1.0 data volume inside the backup service\'s 
     $schedule = $this->journey->fsa($this->dir, ['config', 'set', 'backup-schedule', $slot->format('H:i'), '--json'], $this->env);
     $containers = BudgetJourney::containers($GLOBALS['fsaJ10Uuid']);
     $database = trim(BudgetJourney::psql($containers['postgres']['id'], "SELECT pg_database_size('form_schema')")->getOutput());
-    [$run, $samples] = j10SampleBackup($this->dir, $containers['backup']['id'], $slot->utc()->addMinutes(45));
+    [$run, $samples] = j10SampleBackup($this->dir, $containers['backup']['id'], $slot->utc(), $slot->utc()->addMinutes(45));
     $cgroup = BudgetJourney::cgroup($containers['backup']['id']);
     $limit = (int) $containers['backup']['memory_limit_mib'];
     $peak = (float) ($cgroup['memory_peak_mib'] ?? 0);
@@ -359,12 +359,13 @@ it('runs a scheduled backup at the 1.0 data volume inside the backup service\'s 
 });
 
 /**
- * Waits for the scheduled run's ledger line (succeeded or failed) while sampling the backup container's anonymous and
+ * Waits for the ledger line (succeeded or failed) of the scheduled run at `$slot` or later, never an earlier one (the
+ * default 03:30 slot may have run during the journey's earlier phases), while sampling the backup container's anonymous and
  * shared memory every second (CgroupReader, as J08 does).
  *
  * @return array{0: array<string, mixed>, 1: list<array{at: string, anon: float, shmem: float, file: float}>}
  */
-function j10SampleBackup(string $dir, string $container, CarbonImmutable $until): array
+function j10SampleBackup(string $dir, string $container, CarbonImmutable $slot, CarbonImmutable $until): array
 {
     $reader = CgroupReader::start($GLOBALS['fsaJ10']->release->appReference);
     $samples = [];
@@ -376,7 +377,8 @@ function j10SampleBackup(string $dir, string $container, CarbonImmutable $until)
             }
             $lines = is_file($dir.'/backups/runs.log') ? file($dir.'/backups/runs.log', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) : [];
             $runs = array_values(array_filter(array_map(static fn (string $line): mixed => json_decode($line, true), $lines ?: []), is_array(...)));
-            $run = array_find(array_reverse($runs), static fn (array $r): bool => ($r['kind'] ?? null) === 'scheduled' && in_array($r['status'] ?? null, ['succeeded', 'failed'], true));
+            $run = array_find(array_reverse($runs), static fn (array $r): bool => ($r['kind'] ?? null) === 'scheduled' && in_array($r['status'] ?? null, ['succeeded', 'failed'], true)
+                && is_string($r['started_at'] ?? null) && CarbonImmutable::parse($r['started_at'])->greaterThanOrEqualTo($slot));
             if ($run !== null) {
                 return [$run, $samples];
             }

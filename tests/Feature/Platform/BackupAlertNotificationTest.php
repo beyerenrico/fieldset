@@ -9,6 +9,7 @@ use App\Domain\Platform\Instance\BackupAlertNotifier;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Contracts\Notifications\Dispatcher;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 
@@ -86,6 +87,31 @@ it('sends nothing without an alert, and remembers nothing without an operator', 
 
     expect($nobody)->toBe([])->and($afterGrant)->toBe(['backup_failed']);
     Notification::assertSentToTimes($user, BackupAlertNotification::class, 1);
+});
+
+it('remembers no incident when no operator mail could be queued, so the next run tries again', function (): void {
+    $olga = platformOperator();
+    alertFailure('2026-10-19T09:00:00Z');
+    $fake = Notification::getFacadeRoot();
+    Notification::swap(new class implements Dispatcher
+    {
+        public function send($notifiables, $notification): void
+        {
+            throw new RuntimeException('queue unavailable');
+        }
+
+        public function sendNow($notifiables, $notification, ?array $channels = null): void
+        {
+            throw new RuntimeException('queue unavailable');
+        }
+    });
+
+    $failed = app(BackupAlertNotifier::class)->notify();
+    Notification::swap($fake);
+    $retried = app(BackupAlertNotifier::class)->notify();
+
+    expect([$failed, $retried])->toBe([[], ['backup_failed']]);
+    Notification::assertSentToTimes($olga, BackupAlertNotification::class, 1);
 });
 
 it('sends nothing on an instance without backup runs', function (): void {

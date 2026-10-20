@@ -19,6 +19,7 @@ use Throwable;
  * `backup_overdue` the last success), remembered for 30 days in the cache. A new failure, or the same alert again after a
  * success, is a new incident. Without an active operator nothing is remembered, so the first operator still hears of it.
  * Every active operator gets a mail in their locale; one that cannot be queued is logged and does not stop the others.
+ * When no mail could be queued at all (queue or Valkey down), the incident is forgotten again, so the next run retries it.
  */
 final readonly class BackupAlertNotifier
 {
@@ -42,7 +43,11 @@ final readonly class BackupAlertNotifier
             if (! $this->cache->add($key, true, now()->addDays(self::REMEMBER_DAYS))) {
                 continue; // this incident was notified already
             }
-            $this->send($operators, $alert);
+            if ($this->send($operators, $alert) === 0) {
+                $this->cache->forget($key);
+
+                continue;
+            }
             $notified[] = $alert['code'];
         }
 
@@ -52,10 +57,12 @@ final readonly class BackupAlertNotifier
     /**
      * @param  list<User>  $operators
      * @param  array{code: string, run: array<string, mixed>|null}  $alert
+     * @return int the operators whose mail was queued
      */
-    private function send(array $operators, array $alert): void
+    private function send(array $operators, array $alert): int
     {
         $run = $alert['run'];
+        $queued = 0;
         foreach ($operators as $operator) {
             try {
                 $operator->notify(new BackupAlertNotification(
@@ -64,10 +71,13 @@ final readonly class BackupAlertNotifier
                     is_int($run['missing_files'] ?? null) ? $run['missing_files'] : 0,
                     InstanceProblems::BACKUP[$alert['code']][1] ?? null,
                 )->locale($operator->locale ?? (string) config('app.locale')));
+                $queued++;
             } catch (Throwable $e) {
                 Log::warning('Backup alert could not be sent to an operator.', ['alert' => $alert['code'], 'user_id' => $operator->id, 'exception' => $e::class]);
             }
         }
+
+        return $queued;
     }
 
     /** @return list<User> the active platform operators, longest-standing first */
