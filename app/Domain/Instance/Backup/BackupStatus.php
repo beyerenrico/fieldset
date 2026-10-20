@@ -43,9 +43,11 @@ final readonly class BackupStatus
         $success = array_find($jobs, static fn (array $run): bool => $run['status'] === 'succeeded');
         $alerts = BackupAlerts::evaluate($runs, $now, ['time' => $schedule?->time, 'zone' => $settings->timeZone()], BackupAlerts::scheduledSince($runs) ?? $this->installedAt($state));
         $warnings = array_map(static fn (array $alert): array => self::warning($alert['code'], $alert['run']), $alerts);
-        $partials = $lock instanceof LockRecord ? [] : $store->partials(); // under a lock, a backup may be being written
+        // under a lock, a backup may be being written; a staged one is the plain set of an encrypted backup (gate S3)
+        $partials = $lock instanceof LockRecord ? [] : [...$store->partials(), ...array_map(static fn (string $name): string => BackupStore::STAGING.'/'.$name, $store->stagedPartials())];
         if ($partials !== []) {
-            $warnings[] = ['backup_partial_left', 'An interrupted backup left '.implode(', ', $partials).' in backups/; it may hold unencrypted data.', 'The next backup run removes it; or delete it now. Do not copy it off the host.'];
+            $paths = array_map(static fn (string $partial): string => str_contains($partial, '/') ? $partial : InstanceDirectory::BACKUPS_DIR.'/'.$partial, $partials);
+            $warnings[] = ['backup_partial_left', 'An interrupted backup left '.implode(', ', $paths).'; it may hold unencrypted data.', 'The next backup run removes it; or delete it now. Do not copy it off the host.'];
         }
 
         return ['data' => [
@@ -75,6 +77,7 @@ final readonly class BackupStatus
             'backup_disk_space' => [$code, 'The last scheduled backup was skipped: '.($run['message'] ?? 'not enough free disk space.'), 'Free space on the disk of the instance directory (old backups in backups/), then run `fsa backup`.'],
             'backup_skipped' => [$code, 'Scheduled backups have been skipped for more than 24 hours because an operation held the instance lock.', 'Finish the unfinished operation (`fsa status` names it), then run `fsa backup`.'],
             'backup_service_failed' => [$code, 'The backup service cannot start ('.($run['reason'] ?? 'unknown').'): '.($run['message'] ?? 'no message').'.', 'Read `fsa logs backup`; `fsa install` with the same flags renders its configuration again.'],
+            'backup_files_missing' => [$code, 'The newest backup ('.($run['backup'] ?? 'unknown').') misses '.(int) ($run['missing_files'] ?? 0).' file(s) the database references; its manifest.json lists them.', 'Check the storage volume (files deleted by hand, a disk problem). Retention keeps the older backups while new ones miss more files.'],
             default => [$code, 'No backup succeeded within '.BackupAlerts::OVERDUE_GRACE_HOURS.' hours of the scheduled slot: the backup service may not be running.', 'Check `fsa logs backup` and `fsa doctor --post`, then run `fsa backup`.'],
         };
     }

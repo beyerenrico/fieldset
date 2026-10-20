@@ -20,8 +20,8 @@ use App\Domain\Platform\Instance\BackupRole;
  * credential it injects towards Mailpit (domain mode, capture mail; ADR 0075). Gotenberg, and later the tunnel, get
  * no secret at all. The backup service (U16, ADR 0084) gets the read-only dump role, a key derived from APP_KEY (never
  * APP_KEY), the fingerprint of APP_KEY, the age recipients (public keys) and its schedule; the instance's identity and
- * portable settings reach it through `backups/.instance.json` (ComposeRenderer::write), so a URL or mail change does
- * not recreate it.
+ * portable settings reach it through `staging/backup/instance.json` (ComposeRenderer::write), so a URL or mail change
+ * does not recreate it.
  */
 final readonly class ServiceEnvironments
 {

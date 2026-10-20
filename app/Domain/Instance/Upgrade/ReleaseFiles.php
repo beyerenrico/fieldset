@@ -13,7 +13,7 @@ use App\Domain\Instance\State\UnsafePath;
 /**
  * The files a release renders into the instance directory and an upgrade or a rollback replaces (plan U18, ADR 0086,
  * review U18 A3, A10, S2): the compose file, the env files of its services, the edge's directory (the Caddyfile) and the
- * backup service's `backups/.instance.json`. Nothing else of a stage is ever taken (state, journals, locks, backups,
+ * backup service's `staging/backup/instance.json`. Nothing else of a stage is ever taken (state, journals, locks, backups,
  * releases), and modes are fsa's own: 0600 for the compose and env files and the backup service's file, 0644 for the
  * edge's (Caddy reads it as another user).
  *
@@ -31,7 +31,7 @@ final readonly class ReleaseFiles
 
     private const string EDGE = '#^'.EdgeService::DIRECTORY.'/[A-Za-z0-9][A-Za-z0-9._-]{0,127}$#D';
 
-    private const string META = InstanceDirectory::BACKUPS_DIR.'/'.BackupStore::META_FILE;
+    private const string META = BackupStore::META;
 
     public function __construct(private InstanceDirectory $directory) {}
 
@@ -136,7 +136,7 @@ final readonly class ReleaseFiles
         return true;
     }
 
-    /** Writes one release file with fsa's mode (the env and backups directories 0700, the edge's 0755). */
+    /** Writes one release file with fsa's mode (the env and staging directories 0700, the edge's 0755). */
     public function put(string $file, string $contents): void
     {
         $dir = dirname($file);

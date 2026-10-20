@@ -132,7 +132,7 @@ final readonly class RestoreDatabases
             network: $project->name.'_default',
             user: $owner,
             entrypoint: 'pg_restore',
-        ), null, self::RESTORE_TIMEOUT);
+        )->hardened(), null, self::RESTORE_TIMEOUT);
         if (! $outcome->successful()) {
             $tail = static fn (int $lines): string => (string) preg_replace('/[\x00-\x08\x0B-\x1F\x7F]/', '?', $outcome->stderrTail($lines)); // names from the archive
             throw new InstanceException('pg_restore failed: '.$tail(5), ExitCode::HealthCheckFailed, 'pg_restore_failed', 'Read the output; the live database was not touched.', true, ['output' => $tail(10)]);

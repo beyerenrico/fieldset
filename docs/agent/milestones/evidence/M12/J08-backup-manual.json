@@ -7,20 +7,20 @@
         "status": "ok",
         "changed": true,
         "data": {
-            "backup": "manual-20261019T163153Z",
-            "path": "<work>/fsa-test-j08/backups/manual-20261019T163153Z",
+            "backup": "manual-20261020T005619Z",
+            "path": "<work>/fsa-test-j08/backups/manual-20261020T005619Z",
             "kind": "manual",
-            "created_at": "2026-10-19T16:31:53Z",
-            "bytes": 262124,
+            "created_at": "2026-10-20T00:56:19Z",
+            "bytes": 502238,
             "encrypted": false,
             "includes_secrets": false,
-            "app_key_fingerprint": "8b50-9fd8-bf58-b70f",
+            "app_key_fingerprint": "4692-e265-a97a-7a94",
             "files": {
-                "referenced": 0,
+                "referenced": 1,
                 "missing": 0,
                 "missing_sample": []
             },
-            "free_bytes": 133694074880
+            "free_bytes": 133850472448
         },
         "secrets": [],
         "warnings": [
@@ -80,12 +80,12 @@
         "schema_version": "1.0",
         "format": "fsa-backup",
         "kind": "manual",
-        "name": "manual-20261019T163153Z",
-        "created_at": "2026-10-19T16:31:53Z",
-        "completed_at": "2026-10-19T16:31:53Z",
+        "name": "manual-20261020T005619Z",
+        "created_at": "2026-10-20T00:56:19Z",
+        "completed_at": "2026-10-20T00:56:19Z",
         "instance": {
-            "uuid": "0b6b55df-66d9-4e68-84eb-6482d6cb2bc7",
-            "project": "fsa-fsa-test-j08-0a9d",
+            "uuid": "4a1aaff9-c570-422e-a2a3-a9c8c81a2f69",
+            "project": "fsa-fsa-test-j08-78ac",
             "version": "2.0.0-alpha.1-test",
             "mode": "local"
         },
@@ -151,13 +151,13 @@
             "chains": 3
         },
         "storage": {
-            "referenced_files": 0,
+            "referenced_files": 1,
             "missing_files": 0,
             "missing_sample": [],
             "changed_while_archived": false
         },
         "app_key_fingerprints": [
-            "8b50-9fd8-bf58-b70f"
+            "4692-e265-a97a-7a94"
         ],
         "hmac": {
             "algorithm": "hmac-sha256",
@@ -170,19 +170,19 @@
         "files": {
             "audit-heads.json": {
                 "bytes": 447,
-                "sha256": "0f1786a43b4abda0ab7f1c5a60914169e08f2c9116bb5463cb434e2742b5ace1"
+                "sha256": "45b8bb6bb167104b8e90f8c55c0248af7a796fd6880fefcf8a1d557b9d665ec1"
             },
             "database.dump": {
-                "bytes": 255073,
-                "sha256": "32f137172278bbe9e069e478d1031693719d33c0f5aedc3e6313bb8e6a1bcea7"
+                "bytes": 495183,
+                "sha256": "1fbbeb22e66373ac69eab60e9d4b164fee7d92b48a02c97294ff9d279e0dc77e"
             },
             "settings.json": {
                 "bytes": 363,
-                "sha256": "828ebb705890be4aaaf285043fbb5320488144383ef098c8a42a6adc39f9e592"
+                "sha256": "9eac6a2750d21a5e0a0d2ce283f3e87337186a82f256c5086d0463f6eea3d138"
             },
             "storage.tar.gz": {
-                "bytes": 1039,
-                "sha256": "e069a1167c0ec795c7dc7d950d53881bee1fd58c191e3444702eb24bc35c9e3e"
+                "bytes": 1043,
+                "sha256": "11231e35aa639f116dde54ddff7500fffb66eae40be4a3b410dfdff3121ef5cf"
             }
         }
     },

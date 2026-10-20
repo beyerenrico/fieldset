@@ -135,14 +135,24 @@ it('is ok without runs and after a success, and names where backups stay', funct
     expect(app(BackupCheck::class)->run()->status)->toBe(HealthStatus::Ok)
         ->and(app(BackupCheck::class)->run()->summary)->toBe(__('platform.health.backup.none'));
 
-    backupRun(['bytes' => 5 * 1024 * 1024, 'encrypted' => true, 'missing_files' => 2]);
+    backupRun(['bytes' => 5 * 1024 * 1024, 'encrypted' => true]);
     $result = app(BackupCheck::class)->run();
 
     expect($result->status)->toBe(HealthStatus::Ok)
         ->and($result->summary)->toContain(__('platform.health.backup.on_host'))
         ->and($result->details[__('platform.health.backup.encrypted')])->toBe(__('platform.health.backup.yes'))
-        ->and($result->details[__('platform.health.backup.missing_files')])->toBe(2)
+        ->and($result->details)->not->toHaveKey(__('platform.health.backup.missing_files'))
         ->and($result->details)->toHaveKey(__('platform.health.backup.size'));
+});
+
+it('warns when the last successful backup misses files the database references (M12 gate D5)', function (): void {
+    backupRun(['started_at' => now()->subDay()]);
+    backupRun(['missing_files' => 2, 'started_at' => now()]);
+    $result = app(BackupCheck::class)->run();
+
+    expect($result->status)->toBe(HealthStatus::Warn)
+        ->and($result->summary)->toBe(__('platform.health.backup.files_missing', ['count' => 2]))->toContain('2')
+        ->and($result->details[__('platform.health.backup.missing_files')])->toBe(2);
 });
 
 it('fails after a failed run until a later run succeeds, and warns about skips older than a day', function (): void {

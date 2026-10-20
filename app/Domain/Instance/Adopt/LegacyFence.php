@@ -96,7 +96,7 @@ final readonly class LegacyFence
         $outcome = $this->docker->runContainer(new ContainerSpec(
             image: $postgresImage, command: [VolumeCopy::DATA_PATH], labels: Labels::forInstance($uuid, DatabaseProbe::ROLE),
             volumes: [$legacy->volumes[LegacyInstall::DATA_VOLUME].':'.VolumeCopy::DATA_PATH.':ro'], network: 'none', user: '0:0', entrypoint: 'pg_controldata',
-        ), null, 120.0);
+        )->hardened(ContainerSpec::READ_ANY), null, 120.0);
         $state = preg_match('/^Database cluster state:\s*(.+)$/m', $outcome->stdout, $match) === 1 ? trim($match[1]) : null;
         $location = preg_match('/^Latest checkpoint location:\s*(\S+)/m', $outcome->stdout, $match) === 1 ? $match[1] : null;
         if (! $outcome->successful() || $state === null || $location === null) {

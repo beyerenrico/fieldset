@@ -36,7 +36,7 @@ final class InterruptedRestore
         }
         $restore->databases[] = $names->scratch;
         $restore->instance->docker->createVolume($names->freshVolume, []);
-        mkdir($restore->instance->directory->root.'/backups/.restore-'.$names->id, 0750, true);
+        mkdir($restore->instance->directory->root.'/staging/restore-'.$names->id, 0750, true);
 
         return $names;
     }

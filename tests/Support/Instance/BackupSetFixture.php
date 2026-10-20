@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Support\Instance;
 
 use App\Domain\Instance\Backup\BackupChecksums;
+use App\Domain\Instance\Backup\BackupName;
 use App\Domain\Instance\Backup\BackupToolResult;
 use App\Domain\Instance\Backup\BackupTools;
 use App\Domain\Instance\Backup\KeyFingerprint;
@@ -50,7 +51,8 @@ final class BackupSetFixture
         file_put_contents($dir.'/audit-heads.json', '{"epoch":1,"heads":{}}');
         file_put_contents($dir.'/settings.json', json_encode(['schema_version' => '1.0', 'mode' => 'local', 'url' => 'http://localhost:8080', 'recipients' => [], 'settings' => $settings], JSON_UNESCAPED_SLASHES));
         file_put_contents($dir.'/manifest.json', json_encode([
-            'schema_version' => '1.0', 'format' => 'fsa-backup', 'kind' => 'manual', 'name' => basename($dir), 'created_at' => '2026-10-19T12:00:00Z',
+            'schema_version' => '1.0', 'format' => 'fsa-backup', 'kind' => 'manual', 'name' => basename($dir),
+            'created_at' => BackupName::parse(basename($dir))?->at->toIso8601ZuluString() ?? '2026-10-19T12:00:00Z', // a set names its own time
             'versions' => ['app' => InstanceCommandFixture::VERSION, 'postgres' => '16.15'], 'audit' => ['epoch' => 1, 'chains' => 1],
             'app_key_fingerprints' => [KeyFingerprint::of($appKey)], 'includes_secrets' => isset($extra['secrets.env']), ...$manifest,
         ], JSON_UNESCAPED_SLASHES));

@@ -11,8 +11,9 @@ use SensitiveParameter;
 
 /**
  * The backup side of `fsa install --from-backup <backup>` (R42, R60, F6, plan U17, ADR 0085): the backup (any path the
- * launcher mounted), the identity file and its passphrase of an encrypted backup, the APP keys of `--app-key-file` and
- * `--accept-unauthenticated`. The passphrase and the keys never reach the journal; its context holds the path, the
+ * launcher mounted), the identity file and its passphrase of an encrypted backup, the APP keys of `--app-key-file`,
+ * `--accept-unauthenticated` and `--keep-recipients` (the backup's age recipients are kept only when confirmed, M12 gate
+ * S2: whoever can write into a synced backups/ directory could have planted them). The passphrase and the keys never reach the journal; its context holds the path, the
  * identity file's path and whether a key file was given.
  */
 final readonly class FromBackupRequest
@@ -26,6 +27,7 @@ final readonly class FromBackupRequest
         public ?string $identityFile = null,
         #[SensitiveParameter] public ?string $passphrase = null,
         #[SensitiveParameter] public ?AppKeys $keyFile = null,
+        public bool $keepRecipients = false,
     ) {}
 
     /**
@@ -57,7 +59,7 @@ final readonly class FromBackupRequest
     /** @return array<string, string|bool|null> */
     public function toContext(): array
     {
-        return ['from_backup' => $this->backup, 'accept_unauthenticated' => $this->acceptUnauthenticated, 'identity_file' => $this->identityFile, 'key_file' => $this->keyFile instanceof AppKeys];
+        return ['from_backup' => $this->backup, 'accept_unauthenticated' => $this->acceptUnauthenticated, 'identity_file' => $this->identityFile, 'key_file' => $this->keyFile instanceof AppKeys, 'keep_recipients' => $this->keepRecipients];
     }
 
     /** @return array<string, string> */

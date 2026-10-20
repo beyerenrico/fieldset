@@ -16,9 +16,9 @@ use Throwable;
  * Mode `state`: the source descends from the backup, so every difference is something that changed after it (today's
  * state comparison). Mode `audit`: the source's chain shows a restore, rollback or reset epoch that began after the
  * backup (or any such epoch when the backup's time is unknown): it was restored from another backup, and its state says
- * nothing about what administrators did. Then only a timestamp after the backup (a revocation, an erasure, a
- * deactivation, a soft delete) or an audit entry after it that names the row lets a change through; everything else is
- * counted in `carry_skipped`. Mode `reset`: the source's chain shows a reset after the backup (U23 review A5): its rows
+ * nothing about what administrators did. Then only a timestamp at or after the backup's second (a revocation, an
+ * erasure, a deactivation, a soft delete) or an audit entry from that second on that names the row lets a change through
+ * (times are whole seconds, M12 gate D8); everything else is counted in `carry_skipped`. Mode `reset`: the source's chain shows a reset after the backup (U23 review A5): its rows
  * are other people's accounts under other IDs (a reset recreates the database), so nothing is carried at all.
  *
  * In both modes the cascade guard keeps a child row whose parent the source no longer has (a deleted form's grants, a
@@ -51,7 +51,7 @@ final class CarryScope
         $since = $backupCreatedAt ?? self::newestEntry($target);
         $epochs = $source->table('audit_chain_epochs')->whereIn('reason', ChainEpoch::REASONS);
         if ($since instanceof CarbonImmutable) {
-            $epochs->where('started_at', '>', $since->utc()->format('Y-m-d H:i:sP'));
+            $epochs->where('started_at', '>=', $since->utc()->format('Y-m-d H:i:sP')); // whole seconds: the backup's own second counts (M12 gate D8)
         }
 
         $mode = match (true) {
@@ -91,7 +91,7 @@ final class CarryScope
             return [];
         }
         $query = $this->source->table('activity_log')->where('log_name', 'audit')->where('subject_type', new $model()->getMorphClass())
-            ->whereIn('event', $events)->where('created_at', '>', $this->since->utc()->format('Y-m-d H:i:s'));
+            ->whereIn('event', $events)->where('created_at', '>=', $this->since->utc()->format('Y-m-d H:i:s'));
         if ($attribute !== null) {
             $query->whereRaw("(properties::jsonb -> 'attributes' -> ?) IS NOT NULL", [$attribute]);
         }
@@ -150,7 +150,7 @@ final class CarryScope
         }
 
         try {
-            return CarbonImmutable::parse((string) $timestamp, 'UTC')->greaterThan($this->since);
+            return CarbonImmutable::parse((string) $timestamp, 'UTC')->greaterThanOrEqualTo($this->since);
         } catch (Throwable) {
             return false;
         }

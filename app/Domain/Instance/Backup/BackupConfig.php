@@ -13,7 +13,7 @@ use SensitiveParameter;
  * role, the HMAC key derived from APP_KEY (never APP_KEY itself), the age recipients (public keys only), the
  * schedule and retention, the owner UID:GID its output belongs to, and where the container mounts the instance
  * directory's parts and the storage volume. The env file is rendered from the state, so a change of these recreates the
- * service with fresh values. The instance's identity and portable settings come from `backups/.instance.json`.
+ * service with fresh values. The instance's identity and portable settings come from `staging/backup/instance.json`.
  */
 final readonly class BackupConfig
 {

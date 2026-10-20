@@ -256,3 +256,9 @@ mail is then skipped (`InstallSmoke::MAIL_SKIPPED` in the phase data, warning `t
 - `app:install` creates the permission catalog, the owner, the organization, the operator grant and the owner link in
   one transaction (U23 second review A7): a failure leaves none of them, so a repeated install or `fsa reset` never takes
   an owner without the operator role for a finished install.
+
+## Amendment 2026-10-20: proxy-mode hint (M12 gate)
+The `use_config_set` and `mode_not_settable` hint for proxy mode (InstallFlags::PROXY_SWITCH) no longer says the data
+moves only from 2.0.0-rc.1: it names `fsa uninstall --keep-backups` (a final backup of the 2.0 format, ADR 0073
+amendment) and `fsa install --from-backup <dir>/backups/final-<time>` with `--app-key-file` (plain) or the identity
+and `--accept-unauthenticated` (encrypted: the keys are inside it).

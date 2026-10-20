@@ -20,11 +20,16 @@ use stdClass;
  */
 final class DatabaseSnapshot
 {
-    /** Files the database references on the local disk (`private/` of the storage volume), as the 1.0 restore drill. */
+    /**
+     * Files the database references on the local disk (`private/` of the storage volume), as the restore drill: local
+     * attachments, renditions and document links, and the organizations' branding logos (`branding/<org>/…`, on the
+     * documents disk, M12 gate D8).
+     */
     private const string FILE_REFERENCES = <<<'SQL'
         SELECT 'private/' || path AS file FROM attachments WHERE disk = 'local'
         UNION SELECT 'private/' || path FROM renditions WHERE disk = 'local'
         UNION SELECT 'private/' || path FROM document_links WHERE disk = 'local'
+        UNION SELECT 'private/' || (branding ->> 'logo_path') FROM organizations WHERE COALESCE(branding ->> 'logo_path', '') <> ''
         SQL;
 
     private ?string $id = null;

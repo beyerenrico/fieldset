@@ -71,9 +71,9 @@ The Form Schema Spec has its own changelog in `spec/form-definition/1.0/CHANGELO
   the previous app answers 503, the cache flushed and the previous release started again (exit 5, with the logs); a
   rollback that fails stops the instance and names the backup and both image sets (exit 8). The upgrade runs in a
   background container of the installed release, so a closed SSH session never stops it half-way; `fsa status` shows
-  its phase and `fsa upgrade --resume` continues an interrupted one. After a commit the previous pre-upgrade and
-  pre-rollback safety backups are removed; safety backups an upgrade leaves behind on its way back are encrypted when
-  encryption is on (ADR 0086).
+  its phase and `fsa upgrade --resume` continues an interrupted one. After a commit the previous pre-upgrade safety
+  backups are removed (never one marked kept); restore, reset and pre-rollback safety backups stay until you delete
+  them; safety backups an upgrade leaves behind on its way back are encrypted when encryption is on (ADR 0086).
 - **`fsa rollback`** — returns to the release before the last upgrade from that upgrade's safety backup, after telling
   you what was written since and will be lost; security changes made since the upgrade (revocations, erasures, changed
   passwords, deleted tokens) are carried over, numbering never goes backwards, and the audit log starts a new epoch with
@@ -108,6 +108,27 @@ The Form Schema Spec has its own changelog in `spec/form-definition/1.0/CHANGELO
   as it was (ADR 0088).
 
 ### Changed
+- `fsa uninstall --keep-backups` writes its final backup in the 2.0 backup format (`backups/final-<time>`, encrypted
+  when backup encryption is on), so `fsa install --from-backup` and `fsa restore` read it; the instance is quiesced
+  first, so no write is lost after the snapshot, and a failed backup starts it again. The APP keys go inside an
+  encrypted backup, or beside a plain one (`final-<time>.app-key.env`, named in a warning). The proxy-mode hint now
+  says how to carry the data over (ADR 0073 amendment).
+- Backups resist whoever else can write into `backups/` (a sync tool, say): a backup being written stays root's until
+  it is complete, `SHA256SUMS` lists what the backup service produced, and a file added or changed meanwhile fails the
+  run instead of being authenticated. The service's settings and every plaintext working copy (the plain set of an
+  encrypted backup, a restore's decrypted set, the rollback's security export, reset's audit export) live in the new
+  private `staging/` directory of the instance, never in `backups/` (ADR 0084, 0085 amendments).
+- `fsa status` and `/platform` warn when the newest backup misses files the database references, and retention keeps
+  older backups while new ones miss more files (ADR 0084 amendment).
+- `fsa restore` refuses a backup without files unless `--without-files` (the replaced storage volume is then kept), and
+  refuses a backup renamed to another backup's name; `fsa rollback` refuses a safety backup that is no longer the set
+  the upgrade verified (ADR 0085, 0086 amendments).
+- `fsa install --from-backup` lists the backup's encryption recipients and keeps them only with `--keep-recipients`
+  (ADR 0085 amendment).
+- `fsa reset --no-backup` encrypts its audit export to the backup recipients when encryption is on (ADR 0088
+  amendment).
+- Containers fsa starts outside the stack run with `no-new-privileges`; those that read a backup or a 1.0 install drop
+  all or nearly all capabilities and run on a read-only root file system (ADR 0085, 0087 amendments).
 - `fsa uninstall` of an adopted instance (also one whose adopt stopped after 2.0 started) takes a final backup by
   default and keeps `backups/`; it reports the writes made since the adopt, whether 1.0 ran since then, and how to start
   1.0 again (`docker compose up -d` in its checkout) with the jobs 1.0 will then run; `--no-backup` skips the final

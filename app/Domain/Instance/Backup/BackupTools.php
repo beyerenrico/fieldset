@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace App\Domain\Instance\Backup;
 
 use Closure;
-use Symfony\Component\Process\Process;
+use Throwable;
 
 /**
  * The programs a backup runs inside the backup service (ADR 0084), without a shell, connection values only in the
  * environment: PGDG's `pg_dump`/`pg_restore` 16 (E13, ADR 0059) over the stack network, and GNU tar. Each returns its
- * outcome; BackupWriter decides what counts as a failure.
+ * outcome; BackupWriter decides what counts as a failure. `pg_dump` and `tar` write to their stdout, which is a file this
+ * process created (exclusively, 0600) and keeps open: the result carries that file's hash read back through the same
+ * descriptor (ProducedFile, M12 gate S1). A regular file as stdout is seekable, so the custom-format dump still records
+ * its data offsets.
  */
 class BackupTools
 {
@@ -34,7 +37,7 @@ class BackupTools
     /** @param  array<string, string>  $libpq */
     public function dump(string $snapshot, string $file, array $libpq, float $timeout = self::DEADLINE_SECONDS): BackupToolResult
     {
-        return $this->run(['pg_dump', '--format=custom', '--no-owner', '--no-privileges', '--snapshot='.$snapshot, '--file='.$file], $libpq, $timeout);
+        return $this->into($file, ['pg_dump', '--format=custom', '--no-owner', '--no-privileges', '--snapshot='.$snapshot], $libpq, $timeout);
     }
 
     /** `pg_restore --list` reads the archive's table of contents: the check that the dump is a complete archive. */
@@ -62,7 +65,7 @@ class BackupTools
     /** The storage volume as a gzip'd tar with numeric owners (restore extracts as the app UID, KTD18). */
     public function archive(string $source, string $file, float $timeout = self::DEADLINE_SECONDS): BackupToolResult
     {
-        return $this->run(['tar', '-C', $source, '--numeric-owner', '-czf', $file, '--', '.'], [], $timeout);
+        return $this->into($file, ['tar', '-C', $source, '--numeric-owner', '-czf', '-', '--', '.'], [], $timeout);
     }
 
     /**
@@ -75,9 +78,6 @@ class BackupTools
         $buffer = '';
 
         return $this->run(['tar', '-tzf', $file], [], $timeout, static function (string $type, string $chunk) use (&$buffer, $each): void {
-            if ($type !== Process::OUT) {
-                return;
-            }
             $buffer .= $chunk;
             while (($newline = strpos($buffer, "\n")) !== false) {
                 $line = substr($buffer, 0, $newline);
@@ -88,25 +88,37 @@ class BackupTools
     }
 
     /**
+     * Runs a program whose stdout is `$file`, created here; the produced file is read back when the program exited 0 or
+     * 1 (tar's "file changed").
+     *
      * @param  list<string>  $command
      * @param  array<string, string>  $env
-     * @param  (Closure(string, string): void)|null  $stream  receives output instead of the buffer
      */
-    protected function run(array $command, array $env = [], float $timeout = self::DEADLINE_SECONDS, ?Closure $stream = null): BackupToolResult
+    private function into(string $file, array $command, array $env, float $timeout): BackupToolResult
     {
-        $process = new Process($command, null, $env === [] ? null : $env);
-        $process->setTimeout($timeout);
-        $stderr = '';
-        $process->run(static function (string $type, string $chunk) use ($stream, &$stderr, $process): void {
-            if ($type === Process::ERR) {
-                $stderr = substr($stderr.$chunk, -4096);
-            }
-            if ($stream instanceof Closure) {
-                $stream($type, $chunk);
-                $process->clearOutput(); // a streamed listing never piles up in memory (LEARNINGS 98)
-            }
-        });
+        try {
+            $handle = ProducedFile::create($file);
+        } catch (Throwable $e) {
+            return new BackupToolResult(126, '', $e->getMessage());
+        }
 
-        return new BackupToolResult((int) $process->getExitCode(), $stream instanceof Closure ? '' : $process->getOutput(), $stderr);
+        try {
+            $result = $this->run($command, $env, $timeout, null, $handle);
+
+            return in_array($result->exitCode, [0, 1], true) ? $result->withProduced(ProducedFile::of($handle)) : $result;
+        } finally {
+            fclose($handle);
+        }
+    }
+
+    /**
+     * @param  list<string>  $command
+     * @param  array<string, string>  $env
+     * @param  (Closure(string, string): void)|null  $stream  receives stdout chunks instead of the buffer
+     * @param  resource|null  $stdout  a file the program writes to (ToolProcess)
+     */
+    protected function run(array $command, array $env = [], float $timeout = self::DEADLINE_SECONDS, ?Closure $stream = null, mixed $stdout = null): BackupToolResult
+    {
+        return ToolProcess::run($command, $env, $timeout, $stream, $stdout);
     }
 }

@@ -9,6 +9,7 @@ use SensitiveParameter;
 /**
  * What `fsa restore` (and the drill) was asked for (plan U17, ADR 0085). The passphrase and the key file's keys are
  * secrets: they never reach the journal, whose context holds only the backup, the flags and the identity file's path.
+ * `withoutFiles`: restore a backup that carries no storage archive (M12 gate D4); the previous volume is kept.
  */
 final readonly class RestoreRequest
 {
@@ -19,12 +20,13 @@ final readonly class RestoreRequest
         #[SensitiveParameter] public ?string $passphrase = null,
         #[SensitiveParameter] public ?AppKeys $keyFile = null,
         public int $actorUid = 0,
+        public bool $withoutFiles = false,
     ) {}
 
     /** @return array<string, string|bool|null> the journal context */
     public function toContext(): array
     {
-        return ['backup' => $this->backup, 'accept_unauthenticated' => $this->acceptUnauthenticated, 'identity_file' => $this->identityFile, 'key_file' => $this->keyFile instanceof AppKeys];
+        return ['backup' => $this->backup, 'accept_unauthenticated' => $this->acceptUnauthenticated, 'identity_file' => $this->identityFile, 'key_file' => $this->keyFile instanceof AppKeys, 'without_files' => $this->withoutFiles];
     }
 
     /** @return array<string, string> */

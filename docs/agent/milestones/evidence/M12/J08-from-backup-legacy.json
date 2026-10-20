@@ -32,15 +32,15 @@
         "status": "ok",
         "changed": true,
         "data": {
-            "url": "http://localhost:8081",
+            "url": "http://localhost:8082",
             "version": "2.0.0-alpha.1-test",
             "mode": "local",
             "dir": "<work>/fsa-test-j08c",
-            "project": "fsa-fsa-test-j08c-30b7",
-            "port": 8081,
+            "project": "fsa-fsa-test-j08c-a499",
+            "port": 8082,
             "mail": {
                 "mode": "capture",
-                "catcher_url": "http://localhost:8025",
+                "catcher_url": "http://localhost:8026",
                 "catcher_login_command": "fsa config show --catcher-login"
             },
             "owner_email": null,
@@ -51,7 +51,11 @@
                 "encrypted": false,
                 "created_at": "20261019T020000Z",
                 "version": null,
-                "epoch": 4
+                "epoch": 4,
+                "recipients": {
+                    "listed": [],
+                    "kept": []
+                }
             },
             "pending_mail": null,
             "webhooks": "paused",

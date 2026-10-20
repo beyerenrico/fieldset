@@ -65,6 +65,21 @@ class AgeCli
         }
     }
 
+    /**
+     * Encrypts a file of any size to every recipient (uninstall's keys, reset's audit export): age reads `$input` itself,
+     * nothing passes through PHP.
+     *
+     * @param  list<string>  $recipients
+     */
+    public function encryptFile(string $input, array $recipients, string $output): void
+    {
+        [$code, , $stderr] = $this->exec([$this->age, '--encrypt', ...$this->recipientFlags($recipients), '--output', $output, '--', $input]);
+        if ($code !== 0) {
+            @unlink($output);
+            throw new RuntimeException('age could not encrypt '.basename($input).': '.$this->tail($stderr));
+        }
+    }
+
     /** Decrypts a small file with an identity given on stdin (`-i -`). */
     public function decryptWithIdentity(#[SensitiveParameter] string $identity, string $file): string
     {

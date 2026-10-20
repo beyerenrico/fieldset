@@ -71,6 +71,7 @@ use Illuminate\Console\Attributes\Signature;
         {--passphrase-stdin : --from-backup: read the identity\'s passphrase from stdin (a hidden prompt in a terminal)}
         {--app-key-file= : --from-backup: the APP key(s) the backup was made with (one per line, or the old env/app.env); authenticates it}
         {--accept-unauthenticated : --from-backup: install from an archive no key from outside it authenticates (a 1.0 backup)}
+        {--keep-recipients : --from-backup: keep the authenticated backup\'s age recipients, so new backups are encrypted to them}
         {--open : Open the owner sign-in link in the browser of a desktop session instead of printing it}')]
 final class InstallCommand extends FsaCommand
 {

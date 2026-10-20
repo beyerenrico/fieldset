@@ -22,8 +22,8 @@ final readonly class PortableSettings
     ];
 
     /**
-     * `backups/.instance.json`: the instance's identity and its portable settings, rendered by fsa for the backup service
-     * (ComposeRenderer::write), which copies them into every backup.
+     * `staging/backup/instance.json`: the instance's identity and its portable settings, rendered by fsa for the backup
+     * service (ComposeRenderer::write), which copies them into every backup.
      */
     public static function document(InstanceState $state): string
     {

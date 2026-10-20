@@ -91,9 +91,10 @@ final readonly class ComposeRenderer
     /**
      * Renders and writes everything the stack reads from the instance directory: the runtime directory first
      * (the app fails closed without it, KTD11), then the env files, then the compose file. The backup service's
-     * bind mounts (`backups/`, `locks/`) must exist with the owner's mode before Compose starts it (Docker would
-     * otherwise create them as root), and `backups/.instance.json` gives it the instance's identity and portable
-     * settings for every backup's settings.json (0600, no secret).
+     * bind mounts (`backups/`, `locks/`, `staging/backup/`) must exist with the owner's mode before Compose starts it
+     * (Docker would otherwise create them as root), and `staging/backup/instance.json` gives it the instance's identity
+     * and portable settings for every backup's settings.json (0600, no secret; outside `backups/`, where whoever syncs
+     * that directory could plant it, M12 gate S2). The pre-release copy in `backups/` goes.
      */
     public function write(InstanceDirectory $directory, InstanceState $state, InstanceSecrets $secrets, bool $emulated = false): RenderedProject
     {
@@ -102,7 +103,9 @@ final readonly class ComposeRenderer
         if (in_array(BackupService::NAME, $rendered->services(), true)) {
             $directory->ensureDirectory(InstanceDirectory::BACKUPS_DIR);
             $directory->ensureDirectory(InstanceDirectory::LOCKS_DIR);
-            $directory->write(InstanceDirectory::BACKUPS_DIR.'/'.BackupStore::META_FILE, PortableSettings::document($state));
+            $directory->ensureDirectory(BackupStore::STAGING);
+            $directory->write(BackupStore::META, PortableSettings::document($state));
+            $directory->files()->delete(BackupStore::LEGACY_META);
         }
         $rendered->writeTo($directory);
 

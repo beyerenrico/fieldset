@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Backup;
 
+use App\Domain\Instance\State\SafeFiles;
 use RuntimeException;
 
 /**
@@ -35,9 +36,11 @@ final readonly class BackupSealer
 
         try {
             $this->age->encryptDirectory($path, $files, $recipients, $temporary);
+            ProducedFile::read($temporary); // on the disk before the plaintext goes (M12 gate D6)
             if (! rename($temporary, $path.'/'.BackupStore::ENCRYPTED_FILE)) {
                 throw new RuntimeException('Cannot rename the encrypted set into place.');
             }
+            SafeFiles::syncDirectory($path);
         } catch (RuntimeException $e) {
             @unlink($temporary);
             throw new BackupFailed('encrypt_failed', $e->getMessage(), $e);
@@ -45,6 +48,7 @@ final readonly class BackupSealer
         foreach ($files as $file) {
             @unlink($path.'/'.$file);
         }
+        SafeFiles::syncDirectory($path);
         $this->store->own($path);
 
         return ['backup' => $name, 'encrypted' => true, 'changed' => true, 'bytes' => BackupStore::bytes($path)];

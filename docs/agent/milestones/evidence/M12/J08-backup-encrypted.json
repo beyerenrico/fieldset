@@ -29,11 +29,11 @@
             "key": "backup-encryption",
             "from": "off",
             "to": "on",
-            "url": "http://localhost:8082",
+            "url": "http://localhost:8081",
             "mode": "local",
             "reverted": false,
             "previous": {
-                "url": "http://localhost:8082",
+                "url": "http://localhost:8081",
                 "mode": "local"
             },
             "services": {
@@ -53,7 +53,7 @@
             "encryption": {
                 "enabled": true,
                 "recipients": [
-                    "age19qkp3348ky8ug8ge4uyumeurkls4v3kk6at03279ejnmet4u0e0qs9s430"
+                    "age1n8y0lqr9dj4jhlq4xpy5ksdltgzrafnn8hqqcg98dqwegrqx9e9qg4ftrm"
                 ],
                 "identity": "<work>/j08-identity.age"
             },
@@ -77,20 +77,20 @@
         "status": "ok",
         "changed": true,
         "data": {
-            "backup": "manual-20261019T163243Z",
-            "path": "<work>/fsa-test-j08/backups/manual-20261019T163243Z",
+            "backup": "manual-20261020T005715Z",
+            "path": "<work>/fsa-test-j08/backups/manual-20261020T005715Z",
             "kind": "manual",
-            "created_at": "2026-10-19T16:32:43Z",
-            "bytes": 276744,
+            "created_at": "2026-10-20T00:57:15Z",
+            "bytes": 512312,
             "encrypted": true,
             "includes_secrets": false,
-            "app_key_fingerprint": "8b50-9fd8-bf58-b70f",
+            "app_key_fingerprint": "4692-e265-a97a-7a94",
             "files": {
-                "referenced": 0,
+                "referenced": 1,
                 "missing": 0,
                 "missing_sample": []
             },
-            "free_bytes": 133682139136
+            "free_bytes": 133776977920
         },
         "secrets": [],
         "warnings": [

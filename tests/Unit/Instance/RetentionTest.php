@@ -32,6 +32,7 @@ it('keeps the newest scheduled backups and never prunes safety, manual or kept b
     }
     $entries[] = backupEntry('manual-20261001T120000Z');
     $entries[] = backupEntry('safety-upgrade-20261002T120000Z');
+    $entries[] = backupEntry('final-20261001T130000Z');
     $entries[] = backupEntry('scheduled-20260930T033000Z', kept: true);
 
     expect(prunedNames($entries, 7))->toBe(['scheduled-20261001T033000Z', 'scheduled-20261002T033000Z'])
@@ -71,7 +72,7 @@ it('names backups by kind and UTC time and parses only valid names', function ()
         ->and($name->next()->name())->toBe('scheduled-20261019T033013Z')
         ->and($name->isScheduled())->toBeTrue()->and($name->isSafety())->toBeFalse()
         ->and($safety->name())->toBe('safety-upgrade-20261019T033000Z')->and($safety->isSafety())->toBeTrue()
-        ->and(BackupName::parse('final-20261019T033000Z'))->toBeNull()
+        ->and(BackupName::parse('final-20261019T033000Z')?->kind)->toBe('final') // uninstall's final backup is a 2.0 backup (M12 gate)
         ->and(BackupName::parse('scheduled-20261332T033000Z'))->toBeNull()
         ->and(BackupName::parse('scheduled-20261019T033000Z.partial'))->toBeNull()
         ->and(BackupName::parse('safety-install-20261019T033000Z'))->toBeNull()
@@ -147,6 +148,18 @@ it('alerts on a failed run until a success, on lock skips older than a day, on a
         ->and($codes([], $daily, since: '2026-10-19T08:00:00Z'))->toBe([])
         ->and($codes([], $daily))->toBe([])
         ->and(BackupAlerts::time(['started_at' => 'not a time']))->toBeNull();
+});
+
+it('warns while the newest successful backup misses files the database references, until one has them all (M12 gate D5)', function (): void {
+    $now = CarbonImmutable::parse('2026-10-19T12:00:00Z');
+    $run = static fn (string $at, ?int $missing, string $status = 'succeeded'): array => ['kind' => 'scheduled', 'status' => $status, 'started_at' => $at, 'missing_files' => $missing];
+    $alerts = static fn (array $runs): array => BackupAlerts::evaluate($runs, $now);
+
+    expect(array_column($alerts([$run('2026-10-19T03:30:00Z', 4), $run('2026-10-18T03:30:00Z', 0)]), 'code'))->toBe(['backup_files_missing'])
+        ->and($alerts([$run('2026-10-19T03:30:00Z', 4)])[0]['run']['missing_files'])->toBe(4)
+        ->and(array_column($alerts([$run('2026-10-19T03:30:00Z', 0), $run('2026-10-18T03:30:00Z', 4)]), 'code'))->toBe([])
+        ->and(array_column($alerts([$run('2026-10-19T04:00:00Z', null, 'failed'), $run('2026-10-19T03:30:00Z', 2)]), 'code'))->toBe(['backup_failed', 'backup_files_missing'])
+        ->and(array_column($alerts([$run('2026-10-19T03:30:00Z', null)]), 'code'))->toBe([]);
 });
 
 it('tells the service\'s start records from runs: a failed start alerts, and restarts do not move the overdue reference', function (): void {

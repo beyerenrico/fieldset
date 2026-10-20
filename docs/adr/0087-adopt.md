@@ -252,3 +252,13 @@ digest; any other 1.0 archive naming the key by fingerprint stays `backup_other_
 installed release's `instance:upgrade-migrate` on the scratch database (phase `upgrade_child`, ADR 0085 amendment) before
 its finish step, and the schema audit of the unauthenticated archive compares it with a baseline at its own migration
 set (ADR 0085 amendment of U18).
+
+## Amendment 2026-10-20: hardened adopt one-offs, the final backup (M12 gate)
+- Adopt's one-offs run with `no-new-privileges`, `--cap-drop ALL`, a read-only root file system and a tmpfs `/tmp`
+  (`ContainerSpec::hardened()`, gate S6): the probes of 1.0 (psql, os-release, valkey-cli) and its `pg_dump` with no
+  capability; `du`, `pg_controldata`, the backup's `pg_restore --list` and the storage archive (container root reading
+  other owners' files) with DAC_READ_SEARCH; the numeric-owner volume copy (`cp -a` as 0:0) with CHOWN, DAC_OVERRIDE,
+  FOWNER and FSETID. J09 runs them on real Docker.
+- An adopted instance's uninstall writes the final backup of ADR 0073's amendment: a 2.0 backup that `fsa install
+  --from-backup` reads, with the APP keys beside it (plain) or inside it (encrypted); the hint of `writes_since_adopt`
+  names `--from-backup` instead of a manual pg_restore (review V3 resolved).

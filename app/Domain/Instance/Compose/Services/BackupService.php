@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Instance\Compose\Services;
 
 use App\Domain\Instance\Backup\BackupConfig;
+use App\Domain\Instance\Backup\BackupStore;
 use App\Domain\Instance\Compose\ImageRole;
 use App\Domain\Instance\Compose\RenderContext;
 use App\Domain\Instance\Compose\ServiceDefinition;
@@ -19,7 +20,9 @@ use App\Domain\Instance\State\InstanceDirectory;
  *   directories belong to www-data), CHOWN and FOWNER (its output belongs to the in-container owner), no new
  *   privileges, a read-only root file system, and never the Docker socket.
  * - Mounts: the storage volume read-only; of the instance directory only the marker (read-only), `locks/` (it takes
- *   the instance lock per run) and `backups/`. Everything else it needs is in its env file (ServiceEnvironments::backup).
+ *   the instance lock per run), `backups/` and `staging/backup/` (its settings, rendered by fsa, and the plain set of an
+ *   encrypted backup being written: outside `backups/`, which people sync off the host, M12 gate S2/S3). Everything else
+ *   it needs is in its env file (ServiceEnvironments::backup).
  * - The default network only, to reach Postgres as the backup role; it depends on a healthy Postgres.
  * - SIGTERM stops it between runs; a run cut off by the grace period leaves a `.partial` directory, removed by the
  *   next run, and a lock fsa takes over once the container is stopped (InstanceLock::isStale).
@@ -50,6 +53,7 @@ final readonly class BackupService implements ServiceDefinition
                 $this->bind(InstanceDirectory::MARKER, $root.'/'.InstanceDirectory::MARKER, true),
                 $this->bind(InstanceDirectory::LOCKS_DIR, $root.'/'.InstanceDirectory::LOCKS_DIR, false),
                 $this->bind(InstanceDirectory::BACKUPS_DIR, $root.'/'.InstanceDirectory::BACKUPS_DIR, false),
+                $this->bind(BackupStore::STAGING, $root.'/'.BackupStore::STAGING, false),
             ],
             'networks' => ['default'],
             'depends_on' => [PostgresService::NAME => ['condition' => 'service_healthy']],
