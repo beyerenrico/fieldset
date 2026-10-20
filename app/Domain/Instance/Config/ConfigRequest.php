@@ -79,7 +79,10 @@ final readonly class ConfigRequest
      */
     public function sameAs(array $context): bool
     {
-        $mine = $this->toContext();
+        // Where the password came from (a file or stdin) is no part of the change: a resume may pass it the other way.
+        $withoutSource = static fn (array $values): array => is_array($values['mail'] ?? null) ? ['mail' => array_diff_key($values['mail'], ['password_file' => true])] + $values : $values;
+        $mine = $withoutSource($this->toContext());
+        $context = $withoutSource($context);
 
         return array_all(array_keys($mine), static fn (string $key): bool => ($context[$key] ?? null) === $mine[$key]);
     }
