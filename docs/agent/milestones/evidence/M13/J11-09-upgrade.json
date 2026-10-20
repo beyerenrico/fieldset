@@ -1,0 +1,22 @@
+{
+    "guide_line": 296,
+    "guide_command": "~/forms/fsa upgrade --to <version> --json",
+    "command": "<work>/fsa-test-j11-forms/fsa upgrade --to 2.0.0-alpha.1-test --json",
+    "exit_code": 0,
+    "seconds": 3.2,
+    "stdout": {
+        "schema_version": 1,
+        "command": "upgrade",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": false,
+        "data": {
+            "from": "2.0.0-alpha.1-test",
+            "to": "2.0.0-alpha.1-test",
+            "current": true
+        },
+        "secrets": [],
+        "warnings": [],
+        "errors": []
+    }
+}

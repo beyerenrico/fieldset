@@ -57,6 +57,7 @@ function j11SmtpHost(InstanceJourney $journey): string
     $state = json_decode((string) @file_get_contents($journey->work.'/fsa-test-j11-forms/state.json'), true);
     $name = 'fsa-test-j11-smtp-'.bin2hex(random_bytes(2));
     $GLOBALS['fsaJ11Smtp'] = $name;
+    $GLOBALS['fsaJ11Project'] = $state['project'] ?? null;
     j11Docker(['run', '-d', '--name', $name, '--label', 'app.form-schema.test=j11', '-e', 'MP_SMTP_AUTH_ACCEPT_ANY=1', '-e', 'MP_SMTP_AUTH_ALLOW_INSECURE=1', (string) ($state['digests']['mailpit'] ?? 'missing-mailpit-digest')]);
     j11Docker(['network', 'connect', ($state['project'] ?? 'missing-project').'_default', $name]);
 
@@ -99,15 +100,15 @@ beforeAll(function (): void {
 afterAll(function (): void {
     if (isset($GLOBALS['fsaJ11'])) {
         $work = $GLOBALS['fsaJ11']->work;
-        foreach (['fsa-test-j11-forms', 'fsa-test-j11-forms-new'] as $dir) {
-            InstanceJourney::cleanup($work.'/'.$dir, $GLOBALS['fsaJ11Uuids'][$dir] ?? null);
-        }
         if (isset($GLOBALS['fsaJ11Smtp'])) {
             j11Docker(['rm', '-f', '-v', $GLOBALS['fsaJ11Smtp']]);
         }
+        foreach (['fsa-test-j11-forms', 'fsa-test-j11-forms-new'] as $dir) {
+            InstanceJourney::cleanup($work.'/'.$dir, $GLOBALS['fsaJ11Uuids'][$dir] ?? null);
+        }
         new Process(['rm', '-rf', $work])->run();
     }
-    unset($GLOBALS['fsaJ11'], $GLOBALS['fsaJ11Error'], $GLOBALS['fsaJ11Version'], $GLOBALS['fsaJ11Last'], $GLOBALS['fsaJ11Uuids'], $GLOBALS['fsaJ11Smtp']);
+    unset($GLOBALS['fsaJ11'], $GLOBALS['fsaJ11Error'], $GLOBALS['fsaJ11Project'], $GLOBALS['fsaJ11Version'], $GLOBALS['fsaJ11Last'], $GLOBALS['fsaJ11Uuids'], $GLOBALS['fsaJ11Smtp']);
 });
 
 beforeEach(function (): void {
@@ -129,8 +130,15 @@ it('runs the agent guide block', function (int $index): void {
     $command = new GuideCommand($journey->release->directory.'/install.sh', $GLOBALS['fsaJ11Version'], $journey->work, $smtp, j11Placeholders())->prepare($block['command']);
     expect(GuideCommand::unresolved($command))->toBe([], "line {$block['line']}: a placeholder has no value yet");
 
+    // The stand-in is no part of the instance: it leaves the instance network before an uninstall removes the network.
+    if (str_contains($command, ' uninstall') && isset($GLOBALS['fsaJ11Smtp'])) {
+        j11Docker(['network', 'disconnect', '-f', ($GLOBALS['fsaJ11Project'] ?? '').'_default', $GLOBALS['fsaJ11Smtp']]);
+    }
+    // `fsa upgrade` downloads the target's manifest inside its container: the release server's bridge address (as J7).
+    $env = str_contains($command, ' upgrade') ? ['FSA_RELEASE_URL' => $journey->harness->containerReleaseUrl()] : [];
+
     $started = microtime(true);
-    $process = $journey->shell($command);
+    $process = $journey->shell($command, $env);
     $envelope = InstanceJourney::json($process);
     foreach (['fsa-test-j11-forms', 'fsa-test-j11-forms-new'] as $dir) {
         $GLOBALS['fsaJ11Uuids'][$dir] ??= InstanceJourney::uuid($journey->work.'/'.$dir);

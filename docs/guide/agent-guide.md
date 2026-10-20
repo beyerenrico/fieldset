@@ -203,10 +203,11 @@ the person can read (for example `~/smtp-password`), never on the command line.
 ```
 
 ```json expect
-{"exit_code": 0, "status": "ok", "data": {"key": "mail", "to": "smtp", "mail": {"mode": "smtp"}}}
+{"exit_code": 0, "status": "ok", "data": {"key": "mail", "from": "capture", "to": "<string>", "mail": {"mode": "smtp"}, "checked": "<list>"}}
 ```
 
-`fsa` sends a test mail to `--test-to` through the new server before it keeps the change. The default encryption is
+`fsa` sends a test mail to `--test-to` through the new server before it keeps the change; `data.checked` lists what
+it verified and `data.to` describes the new mail setup. The default encryption is
 STARTTLS on port 587 (`--smtp-encryption tls` for port 465, `none` only for a relay inside a trusted network). The
 password can also come from stdin: `printf '%s\n' "$smtp_password" | ~/forms/fsa config set mail smtp … --password-stdin --json`.
 The mail catcher keeps running for old mail; `--remove-catcher` removes it. `fsa config set mail capture` switches
@@ -338,7 +339,7 @@ over, an install from that backup on the new host.
    the instance's APP key file (it proves the backup is authentic):
 
    ```sh runnable
-   mkdir -m 700 ~/forms-move && cp <backup-path>/backup.tar.age ~/forms-identity.age ~/forms-move/ && cp ~/forms/env/app.env ~/forms-move/app-key.env
+   mkdir -m 700 ~/forms-move && cp <backup-path>/backup.tar.age ~/forms-move/backup.tar.age && cp ~/forms-identity.age ~/forms-move/identity.age && cp ~/forms/env/app.env ~/forms-move/app-key.env
    ```
 
    ```json expect
@@ -351,7 +352,7 @@ over, an install from that backup on the new host.
 3. On the new host, install from the backup:
 
    ```sh runnable
-   curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/form-schema-app/releases/latest/download/install.sh | sh -s -- --dir ~/forms-new --from-backup ~/forms-move/backup.tar.age --identity-file ~/forms-move/forms-identity.age --passphrase-file ~/forms-passphrase --app-key-file ~/forms-move/app-key.env --secrets-file ~/forms-new-secrets.json --json --yes
+   curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/form-schema-app/releases/latest/download/install.sh | sh -s -- --dir ~/forms-new --from-backup ~/forms-move/backup.tar.age --identity-file ~/forms-move/identity.age --passphrase-file ~/forms-passphrase --app-key-file ~/forms-move/app-key.env --secrets-file ~/forms-new-secrets.json --json --yes
    ```
 
    ```json expect
