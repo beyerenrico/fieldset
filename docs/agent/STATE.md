@@ -1,21 +1,15 @@
-# State: 2026-10-20T06:10Z
+# State: 2026-10-20T12:45Z
 v2 run (BUILD_PROMPT_V2.md, plan `docs/plans/2026-10-17-001-feat-docker-distribution-v2-plan.md`).
-M9, M10 and M11 done and merged to `main` (tags `m9-done`, `v2.0.0-alpha.1`, `m10-done`, `v2.0.0-alpha.2`,
-`m11-done`, `v2.0.0-beta.1`; local only, never pushed). Reports: `docs/agent/milestones/M9.md`, `M10.md`, `M11.md`.
+M9–M12 done and merged to `main` (tags `m9-done`, `v2.0.0-alpha.1`, `m10-done`, `v2.0.0-alpha.2`, `m11-done`,
+`v2.0.0-beta.1`, `m12-done`, `v2.0.0-rc.1`; local only, never pushed). Reports: `docs/agent/milestones/M9.md`–`M12.md`.
 
 ## Next actions
-1. Branch `m12-lifecycle`, gate T06 (§15.6). Gate notes, findings, deferred list: `storage/agent-logs/m12-gate-notes.md`
-   (git-ignored). Done: JS/conformance/audits/licenses/hadolint/actionlint; 5 reviews; fix rounds A (27b9a64),
-   B (60d7f2d), C (b2f719f) merged, suite 7269 green, static clean; no worktrees left. Next on b2f719f+: coverage
-   (`scripts/coverage.sh`), the whole Install suite natively (`FSA_EVIDENCE_MILESTONE=M12`), J1 (+J12) amd64
-   emulated, E2E `--workers=2` twice, M12.md, pre-release 2.0.0-rc.1, merge to main, tags, M13 breakdown (add the
-   docs review U21 guide list to M13-T02). Test DBs form_schema_ga/gb/gc (+_test_N) may remain: drop or leave.
-2. Backup service peak 68 MiB (J08, demo data) fits the 128 MiB slot: no budget change. M13 breakdown: admin-guide
-   capture banner (U21); R39 operator notification for failed/stale backups (U20); R39 release check
-   `pg_dump` major ≥ manifest Postgres major (U22); backup memory at the 1.0 data volume (J10).
-3. Housekeeping blocked by the permission classifier: dropping stale test DBs in the dev Postgres
-   (form_schema_m10b, u12, u12cov, u13, u14, u14b, u15, test_bb/d/e/m9/z and their `_test_N`); left for the human.
-4. E2E: run with `--workers=2` when the host is busy (M11.md); leave ≥ 60 s between runs (LEARNINGS 128).
+1. M13 on branch `m13-release` from `main`: M13-T01 U20, T02 U21, T03 U22 (PLAN.md has the breakdown), then the
+   M13 gate (T04) and 2.0.0 per §15.10. After 2.0.0 the human wants a GitHub Pages docs site (plan it then).
+2. Test DBs form_schema_ga/gb/gc (+_test_N) and the older ones (form_schema_m10b, u12, u12cov, u13, u14, u14b, u15,
+   test_bb/d/e/m9/z and their `_test_N`) may remain in the dev Postgres: left for the human.
+3. E2E: run with `--workers=2` when the host is busy; leave ≥ 60 s between runs (LEARNINGS 128). Commit journey
+   evidence before E2E and revert only PNGs afterwards (LEARNINGS 159).
 
 ## Decisions taken (M9/M10, see ADRs 0047–0079)
 - Release tooling `release:manifest`/`release:version`; manifest and sign jobs split; stack file is a signed asset.

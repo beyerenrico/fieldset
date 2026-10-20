@@ -314,3 +314,9 @@
   C before their final runs; finished by hand: B's last change committed, merges 60d7f2d (B), b2f719f (C; ADR 0085
   conflict kept both; ImageContractTest expects O10 exit_code). Suite 7269 (5 stale expectations fixed), static clean.
 - Deferred: QUESTIONS 69-72; U21 guide list → M13-T02.
+
+## 2026-10-20 M12-T06 gate closed, 2.0.0-rc.1 built locally
+- Host load (Spotlight + Defender scanning Docker.raw) stalled Docker; the human added Defender exclusions.
+- Install run 1: J10 service list predated the backup service (fixed 76bad60). Run 1's evidence lost to a broad
+  `git checkout` of evidence/ (L159); run 2 regenerated it (132/140, one J10 ERR_NETWORK_CHANGED, rerun 9/9).
+- J1+J12 amd64 8/8; E2E 79 passed twice; LocalPreReleaseTest 2.0.0-rc.1 7/7. Merge to main, tags local only.
