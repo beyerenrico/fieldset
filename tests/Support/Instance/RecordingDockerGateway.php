@@ -16,6 +16,7 @@ use App\Domain\Instance\Docker\ImageInfo;
 use App\Domain\Instance\Docker\Labels;
 use App\Domain\Instance\Docker\NetworkInfo;
 use App\Domain\Instance\Docker\ProcessOutcome;
+use App\Domain\Instance\Operations\ContainerIdentity;
 use Closure;
 use Throwable;
 
@@ -90,6 +91,8 @@ final class RecordingDockerGateway implements DockerGateway
     {
         $fake = new self;
         app()->instance(DockerGateway::class, $fake);
+        // Outside any container, wherever the suite runs: inside one (the coverage image) the lock would inspect it.
+        app()->instance(ContainerIdentity::class, new ContainerIdentity($fake, '/nonexistent/mountinfo', 'fsa-test-host'));
 
         return $fake;
     }
