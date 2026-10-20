@@ -34,7 +34,8 @@ use Throwable;
  * recipients), so `fsa install --from-backup` and `fsa restore` read it.
  *
  * - The stack is quiesced first (the gate goes up; app, scheduler and the backup service stop, then the queue with its
- *   grace period), so no write is acknowledged after the snapshot; a failed backup brings back what ran (gate down).
+ *   grace period), so no write is acknowledged after the snapshot; a failed backup, or a quiesce that fails half-way,
+ *   brings back what ran (gate down).
  * - The APP keys: encrypted, they go into the set as `secrets.env` (with the SMTP account, like `--include-secrets`);
  *   plain, they go beside it as `backups/<name>.app-key.env` (0600, ADR 0073), which the result names in a warning.
  * - Without the database volume there is nothing to dump: only the keys are saved beside (to the recipients when
@@ -101,9 +102,10 @@ final readonly class FinalBackup
     {
         $project = ComposeProject::forInstance($state, $this->directory);
         $encrypted = $state->recipients() !== [];
-        $running = $this->quiesce($state, $project);
+        $running = $this->running($project); // nothing changed yet when even this fails
 
         try {
+            $this->quiesce($state, $project, $running); // a failure half-way also goes back (gate D2)
             $outcome = $this->runner->backup($project, self::KIND, $lock->record->lockId, $encrypted ? ManualBackup::secrets($this->directory) : null);
             if (! $outcome->ok) {
                 throw new InstanceException($outcome->errorMessage(), ExitCode::HealthCheckFailed, 'final_backup_failed', null, true, ['reason' => $outcome->errorCode()]);
@@ -157,18 +159,23 @@ final readonly class FinalBackup
         return $relative.'.age';
     }
 
-    /**
-     * Gate up, then app, scheduler and the backup service, then the queue with its grace period (RestoreStack::quiesce);
-     * Postgres keeps running for the dump.
-     *
-     * @return list<string> the services that ran
-     */
-    private function quiesce(InstanceState $state, ComposeProject $project): array
+    /** @return list<string> the services that run before the quiesce: the ones reopen() starts again */
+    private function running(ComposeProject $project): array
     {
-        $running = array_values(array_filter(array_map(
+        return array_values(array_filter(array_map(
             static fn (ContainerInfo $container): ?string => $container->running() ? $container->service() : null,
             ComposeFile::serviceContainers($this->docker->composePs($project)),
         ), is_string(...)));
+    }
+
+    /**
+     * Gate up, then app, scheduler and the backup service, then the queue with its grace period (RestoreStack::quiesce);
+     * Postgres keeps running for the dump. The caller goes back (reopen) on any failure, also one in here.
+     *
+     * @param  list<string>  $running
+     */
+    private function quiesce(InstanceState $state, ComposeProject $project, array $running): void
+    {
         new RuntimeWriter($this->directory)->raiseGate($state, self::GATE_OPERATION);
         $writers = array_values(array_intersect(self::WRITERS, $running));
         if ($writers !== []) {
@@ -177,11 +184,14 @@ final readonly class FinalBackup
         if (in_array(AppRoles::QUEUE, $running, true)) {
             $this->docker->composeStop($project, [AppRoles::QUEUE], AppRoles::STOP_GRACE_SECONDS);
         }
-
-        return $running;
     }
 
-    /** @param  list<string>  $running */
+    /**
+     * Starts what ran before the quiesce again (whether or not its stop was reached: a running service stays up) and
+     * lowers the gate, also when Docker is gone.
+     *
+     * @param  list<string>  $running
+     */
     private function reopen(InstanceState $state, ComposeProject $project, array $running): void
     {
         try {

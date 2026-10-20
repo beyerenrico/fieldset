@@ -115,3 +115,10 @@ the proxy-mode hint and this ADR promised `fsa install --from-backup` would carr
 - Superseded statements: the file table and the `--keep-backups` paragraph of "Decision", "The app roles keep running
   during the backup", the consequence "`fsa restore` reads `backup.json`", and U19's review note that a final set is
   restored by hand.
+
+## Amendment 2026-10-20: uninstall after a failure half-way (M12 gate)
+- **A quiesce that fails (D2).** The services that run are read before the gate goes up; raising the gate and stopping
+  the writers and the queue are inside the same failure path as the backup, so a failed stop (or Docker gone after the
+  gate rose) starts again what ran and lowers the gate before exit 4 `final_backup_failed` (exit 10 when Docker is
+  gone, the gate lowered all the same). Before, such a failure left the gate up and app, scheduler and backup stopped
+  while the command said nothing was removed.
