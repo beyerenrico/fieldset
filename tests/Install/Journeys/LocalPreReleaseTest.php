@@ -134,7 +134,7 @@ it('tags only the pre-release version and never moves latest, 2 or 2.0', functio
         [$major, $minor] = explode('.', $this->version);
         $expected = [$this->version, "{$major}.{$minor}", $major, 'latest'];
         $sorted = static function (array $list): array {
-            sort($list);
+            sort($list, SORT_STRING);
 
             return $list;
         };
