@@ -7,7 +7,7 @@ namespace App\Domain\Forms\Actions;
 use App\Domain\Forms\Models\Form;
 use App\Domain\Forms\Support\DefinitionReport;
 use App\Domain\Identity\Models\User;
-use FormSchema\Json\Json;
+use Fieldset\Json\Json;
 use InvalidArgumentException;
 use JsonException;
 use stdClass;

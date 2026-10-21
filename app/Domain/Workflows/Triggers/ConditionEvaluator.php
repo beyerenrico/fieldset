@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Domain\Workflows\Triggers;
 
-use FormSchema\Json\Json;
-use FormSchema\Logic\Js;
-use FormSchema\Logic\JsonLogic;
-use FormSchema\Logic\LogicError;
+use Fieldset\Json\Json;
+use Fieldset\Logic\Js;
+use Fieldset\Logic\JsonLogic;
+use Fieldset\Logic\LogicError;
 use stdClass;
 
 /**
- * Workflow conditions: JsonLogic (the Form Schema dialect, ADR 0021) over the run context
+ * Workflow conditions: JsonLogic (the Fieldset dialect, ADR 0021) over the run context
  * `{ submission: { data, status, number, form_key, version, submitted_at, … }, form: {…}, trigger: {…} }`.
  * No conditions (null, `{}` or `[]`) always match; an evaluation error never matches.
  */

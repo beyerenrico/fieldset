@@ -8,7 +8,7 @@ use App\Domain\Forms\Actions\CreateForm;
 use App\Domain\Forms\Models\Form;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Tenancy\TenantContext;
-use FormSchema\Json\Json;
+use Fieldset\Json\Json;
 use Illuminate\Container\Attributes\Config;
 use Illuminate\Support\Facades\DB;
 

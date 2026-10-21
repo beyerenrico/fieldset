@@ -1,6 +1,6 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "form-schema-app/app",
+    "name": "fieldset/app",
     "type": "project",
     "description": "Open-source, self-hostable form schema application",
     "keywords": [
@@ -14,7 +14,7 @@
         "dedoc/scramble": "^0.13.48",
         "filament/filament": "^5.10",
         "firebase/php-jwt": "^7.2",
-        "form-schema/form-schema-php": "@dev",
+        "fieldset/fieldset-php": "@dev",
         "laravel/fortify": "^1.41",
         "laravel/framework": "^13.17",
         "laravel/horizon": "^5.50",
@@ -49,7 +49,7 @@
             "App\\": "app/",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/",
-            "FormSchema\\": "packages/form-schema-php/src/"
+            "Fieldset\\": "packages/fieldset-php/src/"
         }
     },
     "autoload-dev": {
@@ -129,7 +129,7 @@
     "repositories": [
         {
             "type": "path",
-            "url": "packages/form-schema-php",
+            "url": "packages/fieldset-php",
             "options": {
                 "symlink": true
             }

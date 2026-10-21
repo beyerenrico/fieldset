@@ -181,8 +181,8 @@ COPY spec/form-definition/1.0 ./spec/form-definition/1.0
 COPY spec/templates ./spec/templates
 # fsa validates release manifests against the schema (ManifestVerifier) and install.sh copies the shim from here.
 COPY distribution/manifest.schema.json distribution/shim.sh ./distribution/
-COPY packages/form-schema-php/composer.json packages/form-schema-php/LICENSE ./packages/form-schema-php/
-COPY packages/form-schema-php/src ./packages/form-schema-php/src
+COPY packages/fieldset-php/composer.json packages/fieldset-php/LICENSE ./packages/fieldset-php/
+COPY packages/fieldset-php/src ./packages/fieldset-php/src
 COPY --from=vendor /app/vendor ./vendor
 COPY --from=assets /app/public/build ./public/build
 COPY --from=assets /app/public/app ./public/app

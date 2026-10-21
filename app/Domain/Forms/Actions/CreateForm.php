@@ -13,7 +13,7 @@ use App\Domain\Forms\Support\DefinitionReport;
 use App\Domain\Forms\Support\InvalidDefinitionException;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Tenancy\TenantContext;
-use FormSchema\Json\Json;
+use Fieldset\Json\Json;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use stdClass;

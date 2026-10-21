@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use App\Domain\Forms\Builder\BuilderMapper;
 use App\Domain\Forms\Schema\DefinitionTools;
-use FormSchema\Json\Json;
+use Fieldset\Json\Json;
 use Symfony\Component\Finder\Finder;
 
 /** Every definition shipped with the spec: templates plus all conformance definitions. */

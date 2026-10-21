@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use App\Domain\Forms\Builder\CalculationCompiler;
 use App\Domain\Forms\Builder\LogicCompiler;
-use FormSchema\Json\Json;
+use Fieldset\Json\Json;
 
 dataset('logic round trips', [
     'equals option strictly' => ['{"===":[{"var":"type"},"repair"]}', 'rules'],

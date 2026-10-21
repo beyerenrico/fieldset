@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Release;
 
-use FormSchema\Json\Json;
-use FormSchema\Validation\MetaSchemaValidator;
+use Fieldset\Json\Json;
+use Fieldset\Validation\MetaSchemaValidator;
 use JsonException;
 
 /** Validates a release manifest against `distribution/manifest.schema.json` (JSON Schema 2020-12, opis). */

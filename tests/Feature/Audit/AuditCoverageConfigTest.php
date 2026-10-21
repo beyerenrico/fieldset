@@ -30,7 +30,7 @@ use App\Domain\Workflows\Actions\SaveWebhookEndpoint;
 use App\Domain\Workflows\Actions\SaveWorkflow;
 use App\Domain\Workflows\Models\WebhookEndpoint;
 use App\Domain\Workflows\Models\Workflow;
-use FormSchema\Json\Json;
+use Fieldset\Json\Json;
 use Spatie\Permission\Models\Permission;
 use Tests\Support\AuditTrail;
 

@@ -5,6 +5,6 @@ includes:
 parameters:
     level: 10
     paths:
-        - packages/form-schema-php/src
+        - packages/fieldset-php/src
         - app/Domain/Forms/Schema
     tmpDir: storage/phpstan-schema

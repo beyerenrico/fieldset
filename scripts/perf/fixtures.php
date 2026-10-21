@@ -40,7 +40,7 @@ use App\Domain\Identity\Tokens\Actions\CreateApiToken;
 use App\Domain\Identity\Tokens\TokenAbility;
 use App\Domain\Reports\Models\SavedReport;
 use App\Domain\Reports\Saved\SaveReport;
-use FormSchema\Json\Json;
+use Fieldset\Json\Json;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;

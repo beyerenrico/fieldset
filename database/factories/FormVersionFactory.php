@@ -6,7 +6,7 @@ namespace Database\Factories;
 
 use App\Domain\Forms\Models\Form;
 use App\Domain\Forms\Models\FormVersion;
-use FormSchema\Json\Json;
+use Fieldset\Json\Json;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**

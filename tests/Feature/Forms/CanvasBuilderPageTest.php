@@ -13,8 +13,8 @@ use App\Domain\Identity\Tenancy\TenantContext;
 use App\Filament\Admin\Resources\Forms\FormResource;
 use App\Filament\Admin\Resources\Forms\Pages\CanvasBuilder;
 use App\Filament\Admin\Resources\Forms\Pages\ListForms;
+use Fieldset\Json\Json;
 use Filament\Actions\Testing\TestAction;
-use FormSchema\Json\Json;
 use Livewire\Livewire;
 use Tests\Feature\Documents\DocumentFixtures;
 

@@ -83,7 +83,7 @@ it('holds every path and license file of docker/app/binaries.json (ADR 0071)', f
 it('ships no tests, agent docs or composer, but keeps the spec files the SDK reads (R5)', function (): void {
     $script = <<<'SH'
         cd /var/www/html
-        for path in tests docs scripts .github .git .env node_modules packages/form-schema-php/tests \
+        for path in tests docs scripts .github .git .env node_modules packages/fieldset-php/tests \
           packages/form-schema-js spec/conformance storage/logs/laravel.log /usr/bin/composer; do
           [ -e "$path" ] && echo "present: $path"
         done

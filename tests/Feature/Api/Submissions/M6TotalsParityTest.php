@@ -5,8 +5,8 @@ declare(strict_types=1);
 use App\Domain\Forms\Templates\TemplateCatalog;
 use App\Domain\Identity\Tenancy\TenantContext;
 use App\Domain\Submissions\Models\Submission;
-use FormSchema\Json\Json;
-use FormSchema\Json\JsonPointer;
+use Fieldset\Json\Json;
+use Fieldset\Json\JsonPointer;
 use Tests\Support\FieldAppApi;
 use Tests\Support\FieldAppScenario;
 

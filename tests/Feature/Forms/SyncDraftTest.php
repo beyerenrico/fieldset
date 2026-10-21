@@ -9,7 +9,7 @@ use App\Domain\Forms\Models\Form;
 use App\Domain\Identity\Enums\SystemRole;
 use App\Domain\Identity\Tenancy\TenantContext;
 use App\Filament\Admin\Resources\Forms\Pages\CanvasBuilder;
-use FormSchema\Json\Json;
+use Fieldset\Json\Json;
 use Livewire\Livewire;
 
 /* Builder v2 sync/save (ADR 0037): whole definitions, checksum guard, invalid definitions refused. */

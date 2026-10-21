@@ -9,7 +9,7 @@ declare(strict_types=1);
  */
 
 $thresholds = [
-    'packages/form-schema-php/src/' => 95.0,
+    'packages/fieldset-php/src/' => 95.0,
     'app/Domain/Forms/Schema/' => 95.0,
     'app/Domain/Identity/Tenancy/' => 95.0,
     'app/Domain/Instance/' => 90.0,

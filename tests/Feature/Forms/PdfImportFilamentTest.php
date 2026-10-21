@@ -7,7 +7,7 @@ use App\Domain\Forms\Models\Form;
 use App\Domain\Identity\Enums\SystemRole;
 use App\Filament\Admin\Resources\Forms\Pages\EditForm;
 use App\Filament\Admin\Resources\Forms\Pages\ListForms;
-use FormSchema\Json\Json;
+use Fieldset\Json\Json;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;

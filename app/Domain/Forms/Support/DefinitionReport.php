@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Forms\Support;
 
-use FormSchema\Lint\LintFinding;
+use Fieldset\Lint\LintFinding;
 
 /** Result of checking a definition: meta-schema errors and lint findings (spec §7.5). */
 final readonly class DefinitionReport

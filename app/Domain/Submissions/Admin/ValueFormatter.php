@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Submissions\Admin;
 
 use Carbon\CarbonImmutable;
-use FormSchema\Json\Json;
+use Fieldset\Json\Json;
 use NumberFormatter;
 use stdClass;
 use Throwable;

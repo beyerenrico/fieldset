@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Documents\Rendering;
 
-use FormSchema\Json\Json;
+use Fieldset\Json\Json;
 use UnexpectedValueException;
 
 /**

@@ -12,7 +12,7 @@ use App\Domain\Forms\Support\DefinitionChecker;
 use App\Domain\Forms\Support\DefinitionReport;
 use App\Domain\Forms\Support\InvalidDefinitionException;
 use App\Domain\Identity\Models\User;
-use FormSchema\Json\Json;
+use Fieldset\Json\Json;
 use Illuminate\Support\Facades\Cache;
 use JsonException;
 use stdClass;

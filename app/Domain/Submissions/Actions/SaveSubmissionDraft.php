@@ -12,7 +12,7 @@ use App\Domain\Submissions\Models\SubmissionEvent;
 use App\Domain\Submissions\Support\FormAccessResolver;
 use App\Domain\Submissions\Support\SubmissionVisibility;
 use App\Http\Api\ApiException;
-use FormSchema\Json\Json;
+use Fieldset\Json\Json;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use stdClass;

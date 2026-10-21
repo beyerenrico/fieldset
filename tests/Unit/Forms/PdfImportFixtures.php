@@ -9,7 +9,7 @@ use App\Domain\Forms\Import\Model\AcroFormDocument;
 use App\Domain\Forms\Import\PdfDefinitionBuilder;
 use App\Domain\Forms\Import\PdfImportResult;
 use App\Domain\Forms\Import\Qpdf\QpdfDocumentParser;
-use FormSchema\Json\Json;
+use Fieldset\Json\Json;
 use stdClass;
 
 /** Shared helpers for the PDF import tests: fixtures (tests/Fixtures/pdf) and definition lookups. */

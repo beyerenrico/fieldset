@@ -6,8 +6,8 @@ use App\Domain\Forms\Builder\ElementFields;
 use App\Domain\Forms\Builder\PaletteCatalog;
 use App\Domain\Forms\Support\BlankDefinition;
 use App\Domain\Forms\Support\DefinitionChecker;
-use FormSchema\Json\Json;
-use FormSchema\Lint\LintFinding;
+use Fieldset\Json\Json;
+use Fieldset\Lint\LintFinding;
 
 /* Builder v2 palette (ADR 0037): every element type once, grouped, with a valid default node. */
 

@@ -12,8 +12,8 @@ use App\Domain\Forms\Schema\DefinitionTools;
 use App\Domain\Identity\Enums\SystemRole;
 use App\Domain\Identity\Tenancy\TenantContext;
 use App\Filament\Admin\Resources\Forms\Pages\CanvasBuilder;
+use Fieldset\Json\Json;
 use Filament\Actions\Testing\TestAction;
-use FormSchema\Json\Json;
 use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 

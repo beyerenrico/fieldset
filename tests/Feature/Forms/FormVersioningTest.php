@@ -14,7 +14,7 @@ use App\Domain\Forms\Models\FormVersion;
 use App\Domain\Forms\Support\InvalidDefinitionException;
 use App\Domain\Identity\Enums\SystemRole;
 use App\Domain\Identity\Tenancy\TenantContext;
-use FormSchema\Json\Json;
+use Fieldset\Json\Json;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;

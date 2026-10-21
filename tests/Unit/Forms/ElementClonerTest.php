@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use App\Domain\Forms\Builder\ElementCloner;
 use App\Domain\Forms\Schema\DefinitionTools;
-use FormSchema\Json\Json;
+use Fieldset\Json\Json;
 
 /* Builder v2 cloneNode (ADR 0037): fresh ids, keys unique in the target scope, references rewritten. */
 

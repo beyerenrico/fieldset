@@ -9,7 +9,7 @@
         <testsuite name="Unit">
             <directory>tests/Unit</directory>
             <directory>tests/Arch</directory>
-            <directory>packages/form-schema-php/tests</directory>
+            <directory>packages/fieldset-php/tests</directory>
         </testsuite>
         <testsuite name="Feature">
             <directory>tests/Feature</directory>
@@ -23,7 +23,7 @@
     <source>
         <include>
             <directory>app</directory>
-            <directory>packages/form-schema-php/src</directory>
+            <directory>packages/fieldset-php/src</directory>
         </include>
     </source>
     <php>

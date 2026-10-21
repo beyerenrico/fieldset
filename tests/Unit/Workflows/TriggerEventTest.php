@@ -7,7 +7,7 @@ use App\Domain\Workflows\Enums\TriggerType;
 use App\Domain\Workflows\Models\Workflow;
 use App\Domain\Workflows\Triggers\ConditionEvaluator;
 use App\Domain\Workflows\Triggers\TriggerEvent;
-use FormSchema\Logic\JsonLogic;
+use Fieldset\Logic\JsonLogic;
 
 /* Trigger matching and condition evaluation without the database. */
 
