@@ -111,7 +111,7 @@ it('names only environment variables the code reads', function (): void {
         foreach ($names as $name) {
             // api.md's signature check runs on the integrator's server: its secret variable and PHP's HTTP_* request
             // headers are not variables of this application.
-            if ($path === 'docs/guide/api.md' && ($name === 'FORM_SCHEMA_WEBHOOK_SECRET' || str_starts_with($name, 'HTTP_'))) {
+            if ($path === 'docs/guide/api.md' && ($name === 'FIELDSET_WEBHOOK_SECRET' || str_starts_with($name, 'HTTP_'))) {
                 continue;
             }
             if (preg_match('/(?<![A-Za-z0-9_])'.preg_quote($name, '/').'(?![A-Za-z0-9_])/', $corpus) !== 1) {

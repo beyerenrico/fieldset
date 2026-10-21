@@ -47,7 +47,7 @@ mail is captured that e-mail lands in the catcher, so check the instance page or
 ## Copy backups off the host
 
 A backup on the same disk does not survive the loss of that disk. Copy `backups/` to another machine regularly, for
-example with `rsync -a /opt/fieldset/backups/ backup-host:form-schema-app/` from a cron job. Never copy
+example with `rsync -a /opt/fieldset/backups/ backup-host:fieldset-backups/` from a cron job. Never copy
 `staging/`: it holds plaintext working files.
 
 Turn on [encryption](#encryption) before you copy backups off the host: a plain backup holds the submissions and

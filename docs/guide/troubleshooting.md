@@ -113,8 +113,8 @@ back to "Aktiv".
 not active yet (run "Anmeldung testen", "Test sign-in").
 
 **Domain verification fails.** "Kein TXT-Eintrag gefunden" ("No TXT record found"): the record is missing, not yet
-visible (DNS caching), or was created as `_form-schema-app-verification.example.com.example.com` because the DNS
-provider appended the domain; then enter only `_form-schema-app-verification` as the name.
+visible (DNS caching), or was created as `_fieldset-verification.example.com.example.com` because the DNS
+provider appended the domain; then enter only `_fieldset-verification` as the name.
 
 **The provider reports an invalid redirect URI.** Register exactly the redirect URI shown on the SSO page
 (`https://<your server>/auth/sso/<id>/callback`). It follows the instance's URL: after

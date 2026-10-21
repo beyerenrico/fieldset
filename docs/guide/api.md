@@ -1,6 +1,6 @@
 # API and integrations
 
-form-schema-app offers two ways to connect other systems: the REST API at `/api/v1`, which the Field App
+Fieldset offers two ways to connect other systems: the REST API at `/api/v1`, which the Field App
 uses, and outbound webhooks sent by workflows.
 
 Contents:
@@ -9,7 +9,7 @@ Contents:
 - [Authentication](#authentication)
 - [Integration tokens](#integration-tokens)
 - [Webhooks](#webhooks)
-- [Form definitions (Form Schema Spec)](#form-definitions-form-schema-spec)
+- [Form definitions (Fieldset Spec)](#form-definitions-fieldset-spec)
 
 ## REST API (/api/v1)
 
@@ -209,7 +209,7 @@ PHP:
 
 ```php
 <?php
-$secret = getenv('FORM_SCHEMA_WEBHOOK_SECRET');
+$secret = getenv('FIELDSET_WEBHOOK_SECRET');
 $body = file_get_contents('php://input');
 $timestamp = $_SERVER['HTTP_X_TIMESTAMP'] ?? '';
 $signature = $_SERVER['HTTP_X_SIGNATURE'] ?? '';
@@ -249,9 +249,9 @@ export function verifyWebhook(rawBody, headers, secret) {
 `rawBody` must be the exact bytes received (for example `express.raw({ type: 'application/json' })`),
 not a re-serialized object.
 
-## Form definitions (Form Schema Spec)
+## Form definitions (Fieldset Spec)
 
-Forms are stored as JSON documents in the open Form Schema format: the specification is in
+Forms are stored as JSON documents in the open Fieldset Spec format: the specification is in
 [spec/form-definition/1.0/](../../spec/form-definition/1.0/README.md), with PHP and JavaScript SDKs in
 `packages/` (MIT). In the dashboard, "JSON exportieren" and "JSON importieren" move form definitions
 between instances or into version control.

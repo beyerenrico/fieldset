@@ -1,11 +1,11 @@
-# Agent guide: running form-schema-app with `fieldset`
+# Agent guide: running Fieldset with `fieldset`
 
-This guide is for an AI agent (or a script) that installs and operates a form-schema-app instance for a person. Every
+This guide is for an AI agent (or a script) that installs and operates a Fieldset instance for a person. Every
 recipe gives the exact commands, the JSON fields to read and what to do when a step fails. You need a shell on the
 host, Docker (Engine 24+ or Docker Desktop) and `curl`. You do not need the repository.
 
 The same guide ships with every release as the asset `agent-guide.md` and lives in the repository at
-`docs/guide/agent-guide.md`. People who prefer prose read the [install guide](https://github.com/beyerenrico/form-schema-app/blob/main/docs/guide/install.md). Links to other
+`docs/guide/agent-guide.md`. People who prefer prose read the [install guide](https://github.com/beyerenrico/fieldset/blob/main/docs/guide/install.md). Links to other
 guides point to the repository on GitHub, so they also work in the release asset.
 
 ## Contents
@@ -142,7 +142,7 @@ After exit 4 the instance's containers may exist already: run the same install c
 Goal: a demo instance on this computer, filled with sample data, mail caught by the instance's mail catcher.
 
 ```sh runnable
-curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/form-schema-app/releases/latest/download/install.sh | sh -s -- --dir ~/forms --org "Example Ltd" --owner-email owner@example.com --demo --secrets-file ~/forms-secrets.json --json --yes
+curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/fieldset/releases/latest/download/install.sh | sh -s -- --dir ~/forms --org "Example Ltd" --owner-email owner@example.com --demo --secrets-file ~/forms-secrets.json --json --yes
 ```
 
 ```json expect
@@ -267,7 +267,7 @@ Take a backup now:
 reminds you that a backup on the same disk is no backup: copy `data.path` to another machine. Scheduled backups carry
 no APP key: keep the `APP_KEY` and `APP_PREVIOUS_KEYS` lines of `~/forms/env/app.env` outside the host too (ask the
 person where), or a restore elsewhere cannot verify the backup and encrypted values stay unreadable (see
-[backup and restore](https://github.com/beyerenrico/form-schema-app/blob/main/docs/guide/backup-restore.md#copy-backups-off-the-host)).
+[backup and restore](https://github.com/beyerenrico/fieldset/blob/main/docs/guide/backup-restore.md#copy-backups-off-the-host)).
 
 To check the scheduled backups, read `warnings[].code` of `~/forms/fieldset status --json` (each `hint` names the command):
 
@@ -315,7 +315,7 @@ them on again:
 
 Notes:
 
-- `data.epoch`: a restore starts a new epoch of the audit log's hash chain (see [backup and restore](https://github.com/beyerenrico/form-schema-app/blob/main/docs/guide/backup-restore.md)).
+- `data.epoch`: a restore starts a new epoch of the audit log's hash chain (see [backup and restore](https://github.com/beyerenrico/fieldset/blob/main/docs/guide/backup-restore.md)).
 - Encrypted backups (`fieldset config set backup-encryption on`) restore with `--identity-file <file>` and
   `--passphrase-file <file>`.
 
@@ -438,7 +438,7 @@ over, an install from that backup on the new host.
    the version that made it or a newer one):
 
    ```sh runnable
-   curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/form-schema-app/releases/latest/download/install.sh | sh -s -- --version <old-version> --dir ~/forms-new --from-backup ~/forms-move/backup.tar.age --identity-file ~/forms-move/identity.age --passphrase-file ~/forms-passphrase --app-key-file ~/forms-move/app-key.env --secrets-file ~/forms-new-secrets.json --json --yes
+   curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/fieldset/releases/latest/download/install.sh | sh -s -- --version <old-version> --dir ~/forms-new --from-backup ~/forms-move/backup.tar.age --identity-file ~/forms-move/identity.age --passphrase-file ~/forms-passphrase --app-key-file ~/forms-move/app-key.env --secrets-file ~/forms-new-secrets.json --json --yes
    ```
 
    ```json expect
@@ -493,7 +493,7 @@ points to the server, and ports 80 and 443 are free and reachable. Run as root; 
 instead of `sh`:
 
 ```sh
-curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/form-schema-app/releases/latest/download/install.sh | sudo sh -s -- --dir /opt/fieldset --domain forms.example.com --acme-email ops@example.com --org "Example Ltd" --owner-email owner@example.com --secrets-file /root/forms-secrets.json --json --yes
+curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/fieldset/releases/latest/download/install.sh | sudo sh -s -- --dir /opt/fieldset --domain forms.example.com --acme-email ops@example.com --org "Example Ltd" --owner-email owner@example.com --secrets-file /root/forms-secrets.json --json --yes
 ```
 
 Expect exit 0 and `data.mode` `domain`, `data.url` `https://forms.example.com`, `data.sign_in_link.delivered`
@@ -502,7 +502,7 @@ Expect exit 0 and `data.mode` `domain`, `data.url` `https://forms.example.com`, 
 - `--acme-staging` uses Let's Encrypt's staging CA for a first try (the browser will not trust the certificate);
   `/opt/fieldset/fieldset config set acme-ca production --json` switches to real certificates afterwards.
 - Behind an existing reverse proxy, use `--behind-proxy traefik|caddy|port` (with `--url` and, for `port`, `--port`)
-  instead of `--domain`; see the [install guide](https://github.com/beyerenrico/form-schema-app/blob/main/docs/guide/install.md).
+  instead of `--domain`; see the [install guide](https://github.com/beyerenrico/fieldset/blob/main/docs/guide/install.md).
 - SMTP can be set during the install with the same `--smtp-*`, `--password-file` and `--from-address` flags.
 
 Failures: exit 3 `doctor_failed` with the check `dns` (the name does not point here yet: wait for DNS) or a port check
@@ -586,7 +586,7 @@ the backup. An encrypted final backup carries the keys inside (warning `final_ba
 is the exact command that brings the instance back, for example:
 
 ```sh
-curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/form-schema-app/releases/latest/download/install.sh | sh -s -- --dir ~/forms --from-backup ~/forms/backups/final-<UTC time> --app-key-file ~/forms/backups/final-<UTC time>.app-key.env --json --yes
+curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/fieldset/releases/latest/download/install.sh | sh -s -- --dir ~/forms --from-backup ~/forms/backups/final-<UTC time> --app-key-file ~/forms/backups/final-<UTC time>.app-key.env --json --yes
 ```
 
 Only if the person explicitly wants the backups deleted too:

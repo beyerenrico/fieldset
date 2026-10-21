@@ -1,6 +1,6 @@
-# form-schema-app documentation
+# Fieldset documentation
 
-form-schema-app is a free, self-hostable platform for digital forms. Office staff design forms in the
+Fieldset is a free, self-hostable platform for digital forms. Office staff design forms in the
 admin dashboard (`/admin`); field workers fill them in on a phone or tablet with the Field App (`/app`),
 also offline; the server numbers each submission, renders a branded PDF and runs workflows such as a
 review followed by an email to the customer.
@@ -33,7 +33,7 @@ repository (ADR 0042).
 |---|---|
 | [API and integrations](api.md) | The REST API, the OpenAPI document at `/docs/api`, webhooks and signature verification |
 | [Field App API contract](../api/field-app-v1.md) | The normative `/api/v1` contract |
-| [Form Schema Spec 1.0](../../spec/form-definition/1.0/README.md) | The open JSON format for form definitions (MIT) |
+| [Fieldset Spec 1.0](../../spec/form-definition/1.0/README.md) | The open JSON format for form definitions (MIT) |
 | [Architecture decisions](../adr/) | One ADR per decision |
 | [README](../../README.md) | Development setup, demo data, checks |
 | [Changelog](../../CHANGELOG.md) and [release notes](../releases/) | What changed in each version |

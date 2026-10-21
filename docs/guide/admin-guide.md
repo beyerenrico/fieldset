@@ -145,7 +145,7 @@ App.
 - **"Aus Vorlage"** ("From template"): "Servicebericht" (service report), "Rechnung" (invoice),
   "Prüfprotokoll" (inspection checklist), "Lieferschein" (delivery note), "Stundenzettel" (timesheet)
   or "Übergabeprotokoll" (handover protocol).
-- **"JSON importieren"** ("Import JSON"): a form definition file in the Form Schema format (up to
+- **"JSON importieren"** ("Import JSON"): a form definition file in the Fieldset Spec format (up to
   2 MB), uploaded or pasted.
 - **"Aus PDF importieren"** ("Import from PDF"): a fillable PDF (AcroForm fields, up to 20 MB and 50
   pages). The import runs in the background; the notification links to the new draft ("Entwurf
@@ -446,9 +446,9 @@ added separately. "DNS-Eintrag" ("DNS record") shows the TXT record to create at
 
 | Name (host) | Type | Value |
 |---|---|---|
-| `_form-schema-app-verification.example.com` | TXT | `form-schema-app-verification=<token>` |
+| `_fieldset-verification.example.com` | TXT | `fieldset-verification=<token>` |
 
-Some DNS providers add the domain themselves; then enter only `_form-schema-app-verification` as the
+Some DNS providers add the domain themselves; then enter only `_fieldset-verification` as the
 name. Click "Verifizieren" ("Verify") once the record is published. Only one organization can verify a
 domain. The server checks verified domains daily; after three failed checks in a row the domain loses
 its verification and admins are notified.

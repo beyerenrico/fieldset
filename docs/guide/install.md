@@ -1,6 +1,6 @@
 # Install guide
 
-form-schema-app 2.0 installs from a signed release with one command. You need no clone of the repository: the
+Fieldset 2.0 installs from a signed release with one command. You need no clone of the repository: the
 installer downloads the release manifest, checks its signature, pulls the images by digest and hands over to `fieldset`,
 the instance's command-line tool. Every later step (configuration, backups, upgrades) goes through `fieldset` as well.
 
@@ -20,14 +20,14 @@ from a clone of the repository (1.0) are described in the [archive](archive/1.0-
 ## Install
 
 ```sh
-curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/form-schema-app/releases/latest/download/install.sh | sh -s -- --org "Example Ltd" --owner-email owner@example.com
+curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/fieldset/releases/latest/download/install.sh | sh -s -- --org "Example Ltd" --owner-email owner@example.com
 ```
 
 `releases/latest` is the newest stable release. A pre-release (and any specific version) is installed from its own
 release, with the version named twice:
 
 ```sh
-curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/form-schema-app/releases/download/v<version>/install.sh | sh -s -- --version <version> --org "Example Ltd" --owner-email owner@example.com
+curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/fieldset/releases/download/v<version>/install.sh | sh -s -- --version <version> --org "Example Ltd" --owner-email owner@example.com
 ```
 
 What happens:
@@ -136,7 +136,7 @@ certificates yourself; `fieldset` does not manage such a stack.
 A 1.0 installation from a clone of the repository moves to 2.0 with:
 
 ```sh
-curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/form-schema-app/releases/latest/download/install.sh | sh -s -- --dir /opt/fieldset --adopt /srv/form-schema-app
+curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/fieldset/releases/latest/download/install.sh | sh -s -- --dir /opt/fieldset --adopt /srv/form-schema-app
 ```
 
 (or `fieldset adopt <checkout>` from an existing 2.0 shim). It reads the checkout without changing it, takes a 1.0-format

@@ -14,7 +14,7 @@ for high-severity issues. We credit reporters who want to be named.
 
 ## Scope
 
-In scope: the application in this repository, its Docker images and the Form Schema Spec tooling.
+In scope: the application in this repository, its Docker images and the Fieldset Spec tooling.
 Out of scope: third-party services an operator connects (SMTP providers, identity providers).
 
 ## Hardening notes for operators
