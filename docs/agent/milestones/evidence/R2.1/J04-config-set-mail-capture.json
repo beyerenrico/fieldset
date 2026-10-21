@@ -9,7 +9,7 @@
         "changed": true,
         "data": {
             "key": "mail",
-            "from": "smtp://fieldset-test-j04-smtp-9185:1025 (no TLS)",
+            "from": "smtp://fieldset-test-j04-smtp-2f95:1025 (no TLS)",
             "to": "capture",
             "url": "http://localhost:8081",
             "mode": "local",

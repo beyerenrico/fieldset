@@ -15,7 +15,7 @@
                     "hint": null,
                     "details": {
                         "engine": "29.2.1",
-                        "client": "29.9.1",
+                        "client": "29.9.2",
                         "compose": "5.6.0"
                     }
                 },
@@ -48,10 +48,10 @@
                 {
                     "key": "disk",
                     "status": "ok",
-                    "summary": "140.7 GiB free.",
+                    "summary": "134.1 GiB free.",
                     "hint": null,
                     "details": {
-                        "free_gib": 140.7,
+                        "free_gib": 134.1,
                         "path": "<work>/fieldset-test-j12-ae5"
                     }
                 },
@@ -159,7 +159,7 @@
         ]
     },
     "image_pulls": [
-        "<registry>/beyerenrico/fieldset@sha256:02ea5b6d3fb10fae38cb26911f85bb54c38bb3555ecd6ee89ffe3991154f5cc9"
+        "<registry>/beyerenrico/fieldset@sha256:b52ba13024da5368887563ddca1d780193874e0591b9063e8cc29f169d443b64"
     ],
     "service_starts": []
 }

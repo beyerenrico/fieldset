@@ -1,7 +1,7 @@
 {
-    "command": "install.sh --dir <work>/fieldset-test-j03 --version 2.1.0-alpha.1-test --behind-proxy traefik --proxy-network fieldset-test-proxy-596f03 --url https://forms.fieldset-test.example --org \"Proxy Org\" --owner-email owner@example.test --locale en --secrets-file <work>/owner-link.json --json",
+    "command": "install.sh --dir <work>/fieldset-test-j03 --version 2.1.0-alpha.1-test --behind-proxy traefik --proxy-network fieldset-test-proxy-42b596 --url https://forms.fieldset-test.example --org \"Proxy Org\" --owner-email owner@example.test --locale en --secrets-file <work>/owner-link.json --json",
     "exit_code": 0,
-    "seconds": 47.9,
+    "seconds": 48.9,
     "stdout": {
         "schema_version": 1,
         "command": "install",
@@ -13,12 +13,12 @@
             "version": "2.1.0-alpha.1-test",
             "mode": "proxy",
             "dir": "<work>/fieldset-test-j03",
-            "project": "fieldset-fieldset-test-j03-bf4d",
+            "project": "fieldset-fieldset-test-j03-239e",
             "port": null,
             "proxy": {
                 "setup": "traefik",
-                "network": "fieldset-test-proxy-596f03",
-                "container": "fieldset-test-harness-596f03-traefik-1",
+                "network": "fieldset-test-proxy-42b596",
+                "container": "fieldset-test-harness-42b596-traefik-1",
                 "trusted": [
                     "172.26.0.2"
                 ]
@@ -35,7 +35,7 @@
                 "<work>/fieldset-test-j03/fieldset doctor --post"
             ],
             "sign_in_link": {
-                "expires_at": "2026-10-21T10:13:37Z",
+                "expires_at": "2026-10-21T12:51:04Z",
                 "delivered": "secrets_file"
             }
         },
@@ -43,7 +43,7 @@
             {
                 "name": "sign_in_link",
                 "written_to": "<work>/owner-link.json",
-                "expires_at": "2026-10-21T10:13:37Z"
+                "expires_at": "2026-10-21T12:51:04Z"
             }
         ],
         "warnings": [],
@@ -51,7 +51,7 @@
     },
     "traefik_address": "172.26.0.2",
     "attached_to_shared_network": [
-        "fieldset-test-harness-596f03-traefik-1",
-        "fieldset-fieldset-test-j03-bf4d-app-1"
+        "fieldset-test-harness-42b596-traefik-1",
+        "fieldset-fieldset-test-j03-239e-app-1"
     ]
 }

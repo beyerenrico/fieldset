@@ -97,7 +97,7 @@
                 "delivered": "data"
             },
             "sign_in_link": {
-                "expires_at": "2026-10-21T09:36:28Z",
+                "expires_at": "2026-10-21T12:14:05Z",
                 "delivered": "secrets_file"
             }
         },
@@ -105,7 +105,7 @@
             {
                 "name": "sign_in_link",
                 "written_to": "<work>/j05-demo-link.json",
-                "expires_at": "2026-10-21T09:36:28Z"
+                "expires_at": "2026-10-21T12:14:05Z"
             }
         ],
         "warnings": [

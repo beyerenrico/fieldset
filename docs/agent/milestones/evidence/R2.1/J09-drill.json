@@ -1,5 +1,5 @@
 {
-    "command": "fieldset restore safety-adopt-20261021T095951Z --drill --accept-unauthenticated --json",
+    "command": "fieldset restore safety-adopt-20261021T123804Z --drill --accept-unauthenticated --json",
     "exit_code": 0,
     "stdout": {
         "schema_version": 1,
@@ -8,11 +8,11 @@
         "exit_code": 0,
         "changed": false,
         "data": {
-            "backup": "safety-adopt-20261021T095951Z",
+            "backup": "safety-adopt-20261021T123804Z",
             "format": "legacy",
             "authenticated": false,
             "encrypted": false,
-            "created_at": "20261021T095951Z",
+            "created_at": "20261021T123804Z",
             "backup_version": null,
             "migrations": {
                 "relation": "older",
@@ -26,10 +26,10 @@
                 "directories": 6,
                 "bytes": 917
             },
-            "database": "restore_drill_6a7fb655eb0c",
+            "database": "restore_drill_35e794c9d383",
             "dropped": true,
             "drill": {
-                "database": "restore_drill_6a7fb655eb0c",
+                "database": "restore_drill_35e794c9d383",
                 "counts": {
                     "organizations": 1,
                     "users": 9,
@@ -37,19 +37,19 @@
                     "form_versions": 1,
                     "submissions": 47,
                     "attachments": 0,
-                    "renditions": 38,
-                    "mail_messages": 7
+                    "renditions": 40,
+                    "mail_messages": 11
                 },
                 "audit": {
                     "epoch": 1,
                     "heads": [
                         {
                             "seq": 10,
-                            "hash": "1cb574354be2c122ab13394298658157cd927ed944909ff31cd15157722f2e4c"
+                            "hash": "d50ff46fdbff3059777bc0ffcc8f3b1f585d879d2bb0b147aa067d4dfde2bb5c"
                         },
                         {
                             "seq": 10,
-                            "hash": "b08e8c866d27181ea108dba66a76dde537ac027ae315728f3cae79bc99165146"
+                            "hash": "c69a2d09eec6a060e78ad854acf0f0f82bf55418a10c5f8b908177986eb17171"
                         }
                     ],
                     "intact": true,
@@ -57,35 +57,35 @@
                 },
                 "files": {
                     "archive": true,
-                    "referenced": 39,
-                    "missing": 38,
+                    "referenced": 41,
+                    "missing": 40,
                     "sample": [
-                        "private/load-test/019a3986-c72a-7236-9416-aab50f3ffd19.pdf",
-                        "private/load-test/019a3b8c-05ac-70fb-9aed-72ea0c3ec921.pdf",
-                        "private/load-test/019ab705-8eda-70f0-9879-5a8361705bb3.pdf",
-                        "private/load-test/019ac154-11ac-7239-8f72-44760b7d49ac.pdf",
-                        "private/load-test/019afdbf-e74c-730a-a812-0fbac6c04f5c.pdf",
-                        "private/load-test/019aff0e-122c-73ea-a559-4a44b7cb0a13.pdf",
-                        "private/load-test/019b5284-a5ec-7213-8cdc-f3ee43b0d6dd.pdf",
-                        "private/load-test/019b755d-8bec-7128-a160-71393bbba67f.pdf",
-                        "private/load-test/019bbf9d-b9ac-73dd-ab5d-4a1e657d193c.pdf",
-                        "private/load-test/019c71f2-8b73-72fb-9e13-9c63aa2dae25.pdf",
-                        "private/load-test/019c77d2-c063-7121-b0d4-d9b3c7e4b7ad.pdf",
-                        "private/load-test/019c87fd-ce8c-731c-b84f-818d3c368fc3.pdf",
-                        "private/load-test/019c8dbf-ce4c-7039-9bac-ea694da322c7.pdf",
-                        "private/load-test/019c9295-a6f9-7365-a0b3-ef34e377beb0.pdf",
-                        "private/load-test/019c93f6-13ac-73f4-849b-199e34664e89.pdf",
-                        "private/load-test/019c9e35-19fa-713c-b8bc-2529c80e30ab.pdf",
-                        "private/load-test/019cd362-09ec-73ec-bc22-ca067d1bc3da.pdf",
-                        "private/load-test/019cd6d2-c6ac-72cd-aed4-13fb3567c02a.pdf",
-                        "private/load-test/019d4ab9-35be-7169-8092-b35f5287ba89.pdf",
-                        "private/load-test/019ddb34-864e-7311-bc3f-9e802c419072.pdf"
+                        "private/load-test/019a48e2-3502-70cf-a733-3b5d7cc99524.pdf",
+                        "private/load-test/019a78e5-3dab-71a9-ae5a-1cd739c2acee.pdf",
+                        "private/load-test/019a94ce-0249-73d8-9bde-97313e41c2f4.pdf",
+                        "private/load-test/019b58d0-28e2-7355-9ab3-ef2f9b784226.pdf",
+                        "private/load-test/019b9778-32e2-71f0-84f8-9740da805a8e.pdf",
+                        "private/load-test/019b978b-7b09-7326-ab51-cdbb00a9d87f.pdf",
+                        "private/load-test/019bc590-6e42-703f-853c-cc5f8b1ef5e7.pdf",
+                        "private/load-test/019bdc96-a039-724f-a622-f33793dc532f.pdf",
+                        "private/load-test/019bfdbc-9e62-7280-9e7a-7cce81f77e2e.pdf",
+                        "private/load-test/019c3b70-3cab-70cc-b8e9-3a7a5822a8c5.pdf",
+                        "private/load-test/019c3be8-2562-7376-a023-ef4aaf7221a0.pdf",
+                        "private/load-test/019c7f6b-78a2-7085-871c-8938317808da.pdf",
+                        "private/load-test/019c9ed4-9bc1-713d-bfeb-7118ae1d1824.pdf",
+                        "private/load-test/019cb5ba-b5da-7357-9ce5-7b6b335b23ba.pdf",
+                        "private/load-test/019cc9eb-c9b9-716d-bf8f-3e3482806709.pdf",
+                        "private/load-test/019ce8e8-d3d8-7345-96eb-4f4625336b81.pdf",
+                        "private/load-test/019d9fd2-6877-73aa-ab91-63403bb118e0.pdf",
+                        "private/load-test/019db6fc-36a2-71b6-a800-26539a738a26.pdf",
+                        "private/load-test/019de329-b902-72f3-b37b-27fd3ea3bc13.pdf",
+                        "private/load-test/019df533-a482-7282-86aa-25882602f580.pdf"
                     ]
                 },
                 "render": {
                     "status": "rendered",
-                    "submission": "01a14d43-24b5-7324-b740-6bee2356019c",
-                    "bytes": 40508,
+                    "submission": "01a132e1-68a2-730e-a5e1-ef4eb6107ec5",
+                    "bytes": 47339,
                     "pages": 1,
                     "message": null
                 },
@@ -111,12 +111,12 @@
                     {
                         "name": "files",
                         "status": "warn",
-                        "message": "38 of 39 referenced file(s) missing from storage."
+                        "message": "40 of 41 referenced file(s) missing from storage."
                     },
                     {
                         "name": "render",
                         "status": "pass",
-                        "message": "A 1-page PDF of 01a14d43-24b5-7324-b740-6bee2356019c rendered."
+                        "message": "A 1-page PDF of 01a132e1-68a2-730e-a5e1-ef4eb6107ec5 rendered."
                     },
                     {
                         "name": "decrypt",

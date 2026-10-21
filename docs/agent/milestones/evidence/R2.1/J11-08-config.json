@@ -3,7 +3,7 @@
     "guide_command": "~/forms/fieldset config set webhooks on --json",
     "command": "<work>/fieldset-test-j11-forms/fieldset config set webhooks on --json",
     "exit_code": 0,
-    "seconds": 37,
+    "seconds": 37.1,
     "stdout": {
         "schema_version": 1,
         "command": "config",

@@ -8,30 +8,30 @@
         "exit_code": 0,
         "changed": true,
         "data": {
-            "uuid": "e6432bb3-f0ad-459c-9008-1a6c0dbc47a7",
+            "uuid": "35d18dd9-c115-4c96-9b26-0352b43d13ea",
             "removed": {
                 "containers": [
-                    "fieldset-fieldset-test-j02-0a24-edge-1",
-                    "fieldset-fieldset-test-j02-0a24-backup-1",
-                    "fieldset-fieldset-test-j02-0a24-mailpit-1",
-                    "fieldset-fieldset-test-j02-0a24-scheduler-1",
-                    "fieldset-fieldset-test-j02-0a24-queue-1",
-                    "fieldset-fieldset-test-j02-0a24-app-1",
-                    "fieldset-fieldset-test-j02-0a24-gotenberg-1",
-                    "fieldset-fieldset-test-j02-0a24-postgres-1",
-                    "fieldset-fieldset-test-j02-0a24-redis-1"
+                    "fieldset-fieldset-test-j02-c9ee-edge-1",
+                    "fieldset-fieldset-test-j02-c9ee-backup-1",
+                    "fieldset-fieldset-test-j02-c9ee-mailpit-1",
+                    "fieldset-fieldset-test-j02-c9ee-app-1",
+                    "fieldset-fieldset-test-j02-c9ee-queue-1",
+                    "fieldset-fieldset-test-j02-c9ee-scheduler-1",
+                    "fieldset-fieldset-test-j02-c9ee-gotenberg-1",
+                    "fieldset-fieldset-test-j02-c9ee-postgres-1",
+                    "fieldset-fieldset-test-j02-c9ee-redis-1"
                 ],
                 "networks": [
-                    "fieldset-fieldset-test-j02-0a24_default",
-                    "fieldset-fieldset-test-j02-0a24_edge",
-                    "fieldset-fieldset-test-j02-0a24_renderer"
+                    "fieldset-fieldset-test-j02-c9ee_default",
+                    "fieldset-fieldset-test-j02-c9ee_edge",
+                    "fieldset-fieldset-test-j02-c9ee_renderer"
                 ],
                 "volumes": [
-                    "fieldset-fieldset-test-j02-0a24_app-storage",
-                    "fieldset-fieldset-test-j02-0a24_edge-data",
-                    "fieldset-fieldset-test-j02-0a24_mailpit-data",
-                    "fieldset-fieldset-test-j02-0a24_pg-data",
-                    "fieldset-fieldset-test-j02-0a24_valkey-data"
+                    "fieldset-fieldset-test-j02-c9ee_app-storage",
+                    "fieldset-fieldset-test-j02-c9ee_edge-data",
+                    "fieldset-fieldset-test-j02-c9ee_mailpit-data",
+                    "fieldset-fieldset-test-j02-c9ee_pg-data",
+                    "fieldset-fieldset-test-j02-c9ee_valkey-data"
                 ]
             },
             "dir": "<work>/fieldset-test-j02",
@@ -66,27 +66,27 @@
     },
     "labelled_before": {
         "containers": [
-            "fieldset-fieldset-test-j02-0a24-edge-1",
-            "fieldset-fieldset-test-j02-0a24-backup-1",
-            "fieldset-fieldset-test-j02-0a24-mailpit-1",
-            "fieldset-fieldset-test-j02-0a24-scheduler-1",
-            "fieldset-fieldset-test-j02-0a24-queue-1",
-            "fieldset-fieldset-test-j02-0a24-app-1",
-            "fieldset-fieldset-test-j02-0a24-gotenberg-1",
-            "fieldset-fieldset-test-j02-0a24-postgres-1",
-            "fieldset-fieldset-test-j02-0a24-redis-1"
+            "fieldset-fieldset-test-j02-c9ee-edge-1",
+            "fieldset-fieldset-test-j02-c9ee-backup-1",
+            "fieldset-fieldset-test-j02-c9ee-mailpit-1",
+            "fieldset-fieldset-test-j02-c9ee-app-1",
+            "fieldset-fieldset-test-j02-c9ee-queue-1",
+            "fieldset-fieldset-test-j02-c9ee-scheduler-1",
+            "fieldset-fieldset-test-j02-c9ee-gotenberg-1",
+            "fieldset-fieldset-test-j02-c9ee-postgres-1",
+            "fieldset-fieldset-test-j02-c9ee-redis-1"
         ],
         "volumes": [
-            "fieldset-fieldset-test-j02-0a24_app-storage",
-            "fieldset-fieldset-test-j02-0a24_edge-data",
-            "fieldset-fieldset-test-j02-0a24_mailpit-data",
-            "fieldset-fieldset-test-j02-0a24_pg-data",
-            "fieldset-fieldset-test-j02-0a24_valkey-data"
+            "fieldset-fieldset-test-j02-c9ee_app-storage",
+            "fieldset-fieldset-test-j02-c9ee_edge-data",
+            "fieldset-fieldset-test-j02-c9ee_mailpit-data",
+            "fieldset-fieldset-test-j02-c9ee_pg-data",
+            "fieldset-fieldset-test-j02-c9ee_valkey-data"
         ],
         "networks": [
-            "fieldset-fieldset-test-j02-0a24_default",
-            "fieldset-fieldset-test-j02-0a24_edge",
-            "fieldset-fieldset-test-j02-0a24_renderer"
+            "fieldset-fieldset-test-j02-c9ee_default",
+            "fieldset-fieldset-test-j02-c9ee_edge",
+            "fieldset-fieldset-test-j02-c9ee_renderer"
         ]
     },
     "labelled_after": {

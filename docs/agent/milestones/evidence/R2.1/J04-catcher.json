@@ -9,7 +9,7 @@
         "changed": false,
         "data": {
             "dir": "<work>/fieldset-test-j04",
-            "project": "fieldset-fieldset-test-j04-4756",
+            "project": "fieldset-fieldset-test-j04-b483",
             "version": "2.1.0-alpha.1-test",
             "mode": "local",
             "url": "http://localhost:8081",
@@ -37,7 +37,7 @@
                 },
                 "size": "small",
                 "database": "fieldset",
-                "storage_volume": "fieldset-fieldset-test-j04-4756_app-storage",
+                "storage_volume": "fieldset-fieldset-test-j04-b483_app-storage",
                 "webhooks": "on",
                 "last_restore": null,
                 "backup": {
@@ -321,6 +321,6 @@
     },
     "install_test_mail": {
         "subject": "Fieldset: test mail",
-        "message_id": "e27130a6477dd203456901c62c8128c8@localhost"
+        "message_id": "2d0b2b6c060a7c88ee84180bea478ffe@localhost"
     }
 }

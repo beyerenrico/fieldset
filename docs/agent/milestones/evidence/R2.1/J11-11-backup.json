@@ -3,7 +3,7 @@
     "guide_command": "~/forms/fieldset backup --encrypt --include-secrets --identity-out ~/forms-identity.age --passphrase-file ~/forms-passphrase --json",
     "command": "<work>/fieldset-test-j11-forms/fieldset backup --encrypt --include-secrets --identity-out <work>/fieldset-test-j11-forms-identity.age --passphrase-file <work>/fieldset-test-j11-forms-passphrase --json",
     "exit_code": 0,
-    "seconds": 40.5,
+    "seconds": 40.6,
     "stdout": {
         "schema_version": 1,
         "command": "backup",
@@ -11,24 +11,24 @@
         "exit_code": 0,
         "changed": true,
         "data": {
-            "backup": "manual-20261021T103746Z",
-            "path": "<work>/fieldset-test-j11-forms/backups/manual-20261021T103746Z",
+            "backup": "manual-20261021T131546Z",
+            "path": "<work>/fieldset-test-j11-forms/backups/manual-20261021T131546Z",
             "kind": "manual",
-            "created_at": "2026-10-21T10:37:46Z",
+            "created_at": "2026-10-21T13:15:46Z",
             "bytes": 512312,
             "encrypted": true,
             "includes_secrets": true,
-            "app_key_fingerprint": "37c4-9861-d643-15cc",
+            "app_key_fingerprint": "ead1-e690-ce0a-8dc1",
             "files": {
                 "referenced": 1,
                 "missing": 0,
                 "missing_sample": []
             },
-            "free_bytes": 151103565824,
+            "free_bytes": 143914192896,
             "encryption": {
                 "enabled": true,
                 "recipients": [
-                    "age12saqpmpqxrde67nmyhdmrxk7f4s0lgw9nplxs68nh9v9vqhjxgnqtsnfjp"
+                    "age14psew25jaxl46s2xc5j247mk5hpzmccjc6qlj9wrcp7tp0xq390qth8cxj"
                 ],
                 "identity": "<work>/fieldset-test-j11-forms-identity.age"
             }

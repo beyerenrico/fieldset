@@ -13,7 +13,7 @@
             "version": "2.1.0-alpha.1-test",
             "mode": "local",
             "dir": "<work>/fieldset-test-j06",
-            "project": "fieldset-fieldset-test-j06-1270",
+            "project": "fieldset-fieldset-test-j06-c322",
             "port": 8081,
             "mail": {
                 "mode": "capture",
@@ -25,7 +25,7 @@
                 "lan_address": "192.168.178.28",
                 "url": "https://192.168.178.28",
                 "trust_url": "http://192.168.178.28/phone-trust",
-                "root_sha256": "14:AB:3E:F1:CC:64:B9:CA:CD:34:FC:D1:38:AF:5C:27:75:F9:5B:17:54:EB:72:BE:54:2E:D1:B4:0C:3F:55:E1",
+                "root_sha256": "4C:69:44:27:47:DD:FE:04:2D:D4:25:DD:34:09:54:92:02:4B:5F:6C:7F:DF:2B:C3:2D:DD:FB:C2:45:71:2B:9C",
                 "lan_address_current": null
             },
             "owner_email": "owner@example.test",
@@ -35,7 +35,7 @@
                 "<work>/fieldset-test-j06/fieldset doctor --post"
             ],
             "sign_in_link": {
-                "expires_at": "2026-10-21T10:25:25Z",
+                "expires_at": "2026-10-21T13:03:05Z",
                 "delivered": "secrets_file"
             }
         },
@@ -43,7 +43,7 @@
             {
                 "name": "sign_in_link",
                 "written_to": "<work>/owner-link.json",
-                "expires_at": "2026-10-21T10:25:25Z"
+                "expires_at": "2026-10-21T13:03:05Z"
             }
         ],
         "warnings": [
