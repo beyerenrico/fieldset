@@ -30,6 +30,12 @@ behaviour. **Breaking for every pre-release user, with no compatibility path:** 
 - **Upgrades** — `release.json` upgrades from `2.1.0-alpha.1`; 2.0 pre-release instances are not upgraded. A 1.0
   checkout is still adopted with `fieldset adopt` (its 1.0 project and database defaults are kept).
 
+### Security
+- **CVE-2026-111943** (Go `crypto/x509`, high) — the app image builds Compose and age with Go 1.27.3, uses a FrankenPHP
+  base built with Go 1.27.3 and the Docker CLI 29.9.2 (Go 1.26.10); cloudflared moves to 2026.10.2 (Go 1.27.3). The
+  postgres (gosu), Gotenberg, Mailpit and Caddy images have no release with the fixed Go yet: dated scan exceptions
+  until 2026-11-20 (ADR 0093).
+
 ## 2.0.0 — 2026-10-21 (tagged locally, not published)
 
 form-schema-app 2.0 is installed and operated without a clone of the repository: one command installs a signed
