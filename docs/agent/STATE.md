@@ -1,16 +1,14 @@
-# State: 2026-10-20T23:30Z
-v2 run (BUILD_PROMPT_V2.md, plan `docs/plans/2026-10-17-001-feat-docker-distribution-v2-plan.md`).
-M9–M12 done and merged to `main` (tags `m9-done`, `v2.0.0-alpha.1`, `m10-done`, `v2.0.0-alpha.2`, `m11-done`,
-`v2.0.0-beta.1`, `m12-done`, `v2.0.0-rc.1`; local only, never pushed). Reports: `docs/agent/milestones/M9.md`–`M12.md`.
+# State: 2026-10-21 — Run complete
+v2 run (BUILD_PROMPT_V2.md, plan `docs/plans/2026-10-17-001-feat-docker-distribution-v2-plan.md`) is complete.
+M9–M13 done and merged to `main`; 2.0.0 released locally: tag `v2.0.0` on the release-2.0.0 merge (local only,
+never pushed, nothing published). Tags: `m9-done` … `m13-done`, `v2.0.0-alpha.1`, `-alpha.2`, `-beta.1`, `-rc.1`, `v2.0.0`.
+Final report: `docs/agent/FINAL_REPORT_V2.md`; gate reports `docs/agent/milestones/M9.md`–`M13.md`.
 
 ## Next actions
-1. M13 gate passed on `m13-release` (report `docs/agent/milestones/M13.md`). Next, §15.10: merge to `main` `--no-ff`,
-   tag `m13-done`; full gate on `main`; build 2.0.0 (`FSA_PRERELEASE_VERSION=2.0.0` LocalPreReleaseTest + all install
-   journeys); tag `v2.0.0` locally; `FINAL_REPORT_V2.md`; STATE "Run complete". Then offer the GitHub Pages docs plan.
-2. Test DBs form_schema_ga/gb/gc (+_test_N) and the older ones (form_schema_m10b, u12, u12cov, u13, u14, u14b, u15,
-   test_bb/d/e/m9/z and their `_test_N`) may remain in the dev Postgres: left for the human.
-3. E2E: run with `--workers=2` when the host is busy; leave ≥ 60 s between runs (LEARNINGS 128). Commit journey
-   evidence before E2E and revert only PNGs afterwards (LEARNINGS 159).
+1. None for the agent. Human steps before a public release: FINAL_REPORT_V2.md "Human checklist" (GHCR first publish,
+   QUESTIONS 25/27/41/74/76, Trivy exceptions expire 2026-11-17 / 2026-11-20).
+2. Offered next: plan the GitHub Pages docs site (`/ce-plan`).
+3. Test DBs form_schema_ga/gb/gc (+_test_N) and older ones may remain in the dev Postgres: left for the human.
 
 ## Decisions taken (M9/M10, see ADRs 0047–0079)
 - Release tooling `release:manifest`/`release:version`; manifest and sign jobs split; stack file is a signed asset.
@@ -25,7 +23,7 @@ M9–M12 done and merged to `main` (tags `m9-done`, `v2.0.0-alpha.1`, `m10-done`
   `FSA_EVIDENCE_MILESTONE=M12` for M12 runs.
 
 ## Known problems
-- Trivy exceptions for gotenberg/caddy/cloudflared expire 2026-11-17: refresh pins or entries before a release.
+- Trivy exceptions expire 2026-11-17 (gotenberg/caddy/cloudflared) and 2026-11-20 (cloudflared CVE-2026-63209).
 - E2E runs rewrite evidence PNGs: revert only PNGs (LEARNINGS 159); commit journey evidence before E2E.
 - Long PHP runs need their own database (`form_schema_cov`); parallel agents use their own DBs.
 - Outbound Docker Hub pulls were flaky at times (retry).

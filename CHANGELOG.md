@@ -5,7 +5,7 @@ All notable changes to this project are documented here. The format follows
 [Semantic Versioning](https://semver.org/) (0.x: the API and data model may still change).
 The Form Schema Spec has its own changelog in `spec/form-definition/1.0/CHANGELOG.md`.
 
-## 2.0.0 — unreleased
+## 2.0.0 — 2026-10-21 (tagged locally, not published)
 
 form-schema-app 2.0 is installed and operated without a clone of the repository: one command installs a signed
 release, and the `fsa` tool configures, backs up, restores, upgrades, rolls back, resets and removes the instance,
