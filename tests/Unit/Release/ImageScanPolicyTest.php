@@ -21,7 +21,7 @@ function trivyExceptionFiles(): array
 it('keeps exception files only for third-party services of the release, never for the app image', function (): void {
     $services = array_map(fn (string $file): string => basename($file, '.trivyignore.yaml'), trivyExceptionFiles());
 
-    expect($services)->toEqualCanonicalizing(['caddy', 'cloudflared', 'gotenberg', 'postgres'])
+    expect($services)->toEqualCanonicalizing(['caddy', 'cloudflared', 'gotenberg', 'mailpit', 'postgres'])
         ->and(array_diff($services, ReleaseInputs::THIRD_PARTY_SERVICES))->toBe([])
         ->and(glob(base_path('distribution/trivy/*')))->toBe(trivyExceptionFiles())
         ->and(glob(base_path('distribution/trivy/.*ignore*')))->toBe([]);

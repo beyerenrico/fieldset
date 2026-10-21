@@ -5,6 +5,7 @@
 # out. An expired entry stops suppressing, so the release scan fails again until the entry is reviewed.
 # release.yml scans this image with only this file (--ignorefile, --show-suppressed).
 # 25 findings (1 critical, 24 high), all in usr/local/bin/gosu; 90 days (not reachable, upstream policy).
+# 1 more high finding in usr/local/bin/gosu, CVE-2026-111943 (Go 1.24.6 stdlib, 2026-10-21); 30 days (reachability not analysed).
 
 vulnerabilities:
   - id: CVE-2025-61726
@@ -132,3 +133,8 @@ vulnerabilities:
       - usr/local/bin/gosu
     expired_at: 2027-01-16
     statement: "Go 1.24.6 standard library in gosu 1.19, the latest gosu release, which the official postgres image ships. Not reachable: govulncheck (2026-10-18) finds no call path from gosu, which only switches user and execs the entrypoint. gosu SECURITY.md and the docker-library FAQ treat such findings as false positives and do not rebuild for them."
+  - id: CVE-2026-111943
+    paths:
+      - usr/local/bin/gosu
+    expired_at: 2026-11-20
+    statement: "Go 1.24.6 standard library in gosu 1.19, the latest gosu release; postgres 16.15-alpine (2026-09-21) is the newest image. Go crypto/x509 (CA distrust mitigation, published 2026-10-21) is fixed in Go 1.26.10 / 1.27.3 (fixed upstream, only the image release is missing: 30 days, ADR 0071). Reachability not analysed with govulncheck; gosu only switches user and execs the entrypoint and makes no TLS connection. Renew only after a reachability analysis."
