@@ -5,9 +5,14 @@ ADR 0092): U1–U8 done. Trivy fix for CVE-2026-111943 (human decision QUESTIONS
 merged into `rename-fieldset`, which is merged `--no-ff` into `main`; local tags `rename-done` and annotated `v2.1.0` on
 that merge commit. Nothing pushed. Gate report `docs/agent/milestones/R2.1.md`, evidence `milestones/evidence/R2.1/`.
 
+GitHub repo renamed to `beyerenrico/fieldset` by the human; they pushed `main` (ff5646ba). Its CI run failed in
+php-tests (16 tests): the job lacked Redis, Mailpit and the built frontend, and the runner's imagick turned the MFA QR
+code into PNG. Fixed on branch `ci-services` (services + `npm run build` in php-tests; SVG QR backend bound in
+AppServiceProvider), merged `--no-ff` into local `main`, not pushed. `v2.1.0` stays on ff5646ba (image has no imagick).
+
 ## Next actions
-1. Human steps (QUESTIONS 77c/d, RELEASING.md "Pre-publish checklist"): trademark check, GitHub repo rename to
-   `beyerenrico/fieldset` before any tag push, GHCR first publish, push only `v2.1.0` by name, delete old dev resources.
+1. Human: push `main`, confirm CI green. Then trademark check, GHCR first publish, push only `v2.1.0` (or a
+   `v2.1.0-…` pre-release) by name, delete old dev resources (QUESTIONS 77c/d, RELEASING.md "Pre-publish checklist").
 2. Trivy exceptions expire 2026-11-17 (older gotenberg, caddy entries) and 2026-11-20 (CVE-2026-111943 entries for
    postgres, gotenberg, mailpit, caddy; cloudflared CVE-2026-63209). Before any later release: refresh the pins to
    images built with Go ≥ 1.26.10 / 1.27.3, or renew the entries in a reviewed commit.

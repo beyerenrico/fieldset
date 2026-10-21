@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 use App\Domain\Identity\Auth\SharedAppAuthentication;
 use App\Domain\Identity\Models\User;
+use BaconQrCode\Renderer\Image\SvgImageBackEnd;
 use PragmaRX\Google2FA\Google2FA;
+use PragmaRX\Google2FAQRCode\Google2FA as QrCodeGoogle2FA;
 
 function enrollViaFilament(User $user): string
 {
@@ -87,4 +89,12 @@ it('renders the set-up QR code as a single-encoded SVG data URI', function (): v
 
     expect($uri)->toStartWith('data:image/svg+xml;base64,')
         ->and(base64_decode(substr($uri, strlen('data:image/svg+xml;base64,')), true))->toContain('<svg');
+});
+
+it('fixes the QR code backend to SVG whether or not the imagick extension is loaded', function (): void {
+    // Without an explicit backend the library picks Imagick (PNG) when the extension is loaded, as on CI runners.
+    $service = app(QrCodeGoogle2FA::class)->getQRCodeService();
+    $backend = (fn (): mixed => $this->imageBackEnd)->call($service);
+
+    expect($backend)->toBeInstanceOf(SvgImageBackEnd::class);
 });
