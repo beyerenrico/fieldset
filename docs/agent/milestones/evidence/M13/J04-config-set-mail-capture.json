@@ -9,7 +9,7 @@
         "changed": true,
         "data": {
             "key": "mail",
-            "from": "smtp://fsa-test-j04-smtp-e801:1025 (no TLS)",
+            "from": "smtp://fsa-test-j04-smtp-2233:1025 (no TLS)",
             "to": "capture",
             "url": "http://localhost:8081",
             "mode": "local",

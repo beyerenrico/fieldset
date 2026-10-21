@@ -31,7 +31,7 @@ function manifestWithPostgres(string $tag): ReleaseManifest
 }
 
 it('passes when the image\'s pg_dump major equals the server major, running it once per platform without network', function (): void {
-    $runner = new ScriptedCommandRunner()->push(new ProcessOutcome(0, PG_DUMP_16."\n"), new ProcessOutcome(0, PG_DUMP_16."\n"));
+    $runner = new ScriptedCommandRunner()->push(new ProcessOutcome(1, '', 'Error: No such image'), new ProcessOutcome(0, PG_DUMP_16."\n"), new ProcessOutcome(0), new ProcessOutcome(0, PG_DUMP_16."\n"));
 
     $results = new PgDumpCompatibility($runner)->check(ReleaseFixtures::manifest(), '127.0.0.1:5000');
 
@@ -40,30 +40,30 @@ it('passes when the image\'s pg_dump major equals the server major, running it o
         ->and(array_unique(array_column($results, 'client_major')))->toBe([16])
         ->and(array_unique(array_column($results, 'server_major')))->toBe([16])
         ->and($results[0]['pg_dump'])->toBe(PG_DUMP_16)
-        ->and($runner->runs[0]['command'])->toBe(['docker', 'run', '--rm', '--platform', 'linux/amd64', '--network', 'none', '--entrypoint', 'pg_dump', $image, '--version'])
-        ->and($runner->runs[1]['command'][4])->toBe('linux/arm64');
+        ->and($runner->runs[1]['command'])->toBe(['docker', 'run', '--rm', '--platform', 'linux/amd64', '--network', 'none', '--entrypoint', 'pg_dump', $image, '--version'])
+        ->and($runner->runs[3]['command'][4])->toBe('linux/arm64');
 });
 
 it('fails when the image\'s pg_dump major is below the manifest\'s Postgres major', function (): void {
-    $runner = new ScriptedCommandRunner()->push(new ProcessOutcome(0, PG_DUMP_16));
+    $runner = new ScriptedCommandRunner()->push(new ProcessOutcome(1, '', 'Error: No such image'), new ProcessOutcome(0, PG_DUMP_16));
 
     expect(fn () => new PgDumpCompatibility($runner)->check(manifestWithPostgres('17.2-alpine')))
         ->toThrow(ReleaseException::class, "The app image's pg_dump 16 (linux/amd64) is older than the manifest's Postgres 17");
 });
 
 it('accepts a newer client, checks only the platforms asked for and pulls from the image\'s own registry without a mirror', function (): void {
-    $runner = new ScriptedCommandRunner()->push(new ProcessOutcome(0, 'pg_dump (PostgreSQL) 17.1'));
+    $runner = new ScriptedCommandRunner()->push(new ProcessOutcome(1, '', 'Error: No such image'), new ProcessOutcome(0, 'pg_dump (PostgreSQL) 17.1'));
 
     $results = new PgDumpCompatibility($runner)->check(manifestWithPostgres('16'), null, ['linux/arm64']);
 
     expect($results)->toHaveCount(1)
         ->and($results[0])->toMatchArray(['platform' => 'linux/arm64', 'client_major' => 17, 'server_major' => 16])
-        ->and($runner->runs)->toHaveCount(1)
-        ->and($runner->runs[0]['command'][9])->toBe('ghcr.io/beyerenrico/form-schema-app@'.ReleaseFixtures::APP_DIGEST);
+        ->and($runner->runs)->toHaveCount(3)
+        ->and($runner->runs[1]['command'][9])->toBe('ghcr.io/beyerenrico/form-schema-app@'.ReleaseFixtures::APP_DIGEST);
 });
 
 it('fails when the image cannot run or prints no pg_dump version', function (ProcessOutcome $outcome, string $message): void {
-    $runner = new ScriptedCommandRunner()->push($outcome);
+    $runner = new ScriptedCommandRunner()->push(new ProcessOutcome(1, '', 'Error: No such image'), $outcome);
 
     expect(fn () => new PgDumpCompatibility($runner)->check(ReleaseFixtures::manifest()))->toThrow(ReleaseException::class, $message);
 })->with([
@@ -71,6 +71,30 @@ it('fails when the image cannot run or prints no pg_dump version', function (Pro
     'timed out' => [new ProcessOutcome(-1, '', '', true), 'timed out'],
     'no pg_dump' => [new ProcessOutcome(0, 'exec: pg_dump: not found'), 'printed no pg_dump version'],
 ]);
+
+it('removes the by-digest image after each platform when it was not local before, so the next platform can pull it', function (): void {
+    // Docker's classic image store keeps one platform per by-digest reference: arm64 cannot pull over the amd64 copy
+    $runner = new ScriptedCommandRunner()->push(new ProcessOutcome(1, '', 'Error: No such image'), new ProcessOutcome(0, PG_DUMP_16), new ProcessOutcome(0), new ProcessOutcome(1, '', 'cannot overwrite digest'));
+
+    expect(fn () => new PgDumpCompatibility($runner)->check(ReleaseFixtures::manifest(), '127.0.0.1:5000'))->toThrow(ReleaseException::class, 'cannot overwrite digest');
+
+    $image = '127.0.0.1:5000/beyerenrico/form-schema-app@'.ReleaseFixtures::APP_DIGEST;
+    expect(array_column($runner->runs, 'command'))->toBe([
+        ['docker', 'image', 'inspect', '--format', '{{.Id}}', $image],
+        ['docker', 'run', '--rm', '--platform', 'linux/amd64', '--network', 'none', '--entrypoint', 'pg_dump', $image, '--version'],
+        ['docker', 'image', 'rm', $image],
+        ['docker', 'run', '--rm', '--platform', 'linux/arm64', '--network', 'none', '--entrypoint', 'pg_dump', $image, '--version'],
+        ['docker', 'image', 'rm', $image],
+    ]);
+});
+
+it('keeps an image that was local before the check', function (): void {
+    $runner = new ScriptedCommandRunner()->push(new ProcessOutcome(0, 'sha256:'.str_repeat('c', 64)), new ProcessOutcome(0, PG_DUMP_16));
+
+    new PgDumpCompatibility($runner)->check(ReleaseFixtures::manifest(), null, ['linux/arm64']);
+
+    expect($runner->runs)->toHaveCount(2)->and($runner->lastCommand()[1])->toBe('run');
+});
 
 it('reads the server major from the postgres tag', function (string $tag, ?int $major): void {
     $pin = new ImagePin('docker.io', 'library/postgres', $tag, 'sha256:'.str_repeat('b', 64));
@@ -89,7 +113,8 @@ it('reads the client major from pg_dump --version', function (): void {
 });
 
 it('runs as release:check-pg-dump: JSON on success, exit 1 with the reason on a mismatch or an unreadable manifest', function (): void {
-    $runner = new ScriptedCommandRunner()->push(new ProcessOutcome(0, PG_DUMP_16), new ProcessOutcome(0, PG_DUMP_16), new ProcessOutcome(0, PG_DUMP_16));
+    $local = new ProcessOutcome(0, 'sha256:'.str_repeat('c', 64));
+    $runner = new ScriptedCommandRunner()->push($local, new ProcessOutcome(0, PG_DUMP_16), new ProcessOutcome(0, PG_DUMP_16), $local, new ProcessOutcome(0, PG_DUMP_16));
     app()->instance(CommandRunner::class, $runner);
     $good = tempnam(sys_get_temp_dir(), 'manifest');
     $newer = tempnam(sys_get_temp_dir(), 'manifest');
@@ -111,6 +136,6 @@ it('runs as release:check-pg-dump: JSON on success, exit 1 with the reason on a 
         @unlink($newer);
     }
 
-    expect($runner->runs)->toHaveCount(3)
-        ->and($runner->runs[2]['command'][4])->toBe('linux/amd64');
+    expect($runner->runs)->toHaveCount(5)
+        ->and($runner->runs[4]['command'][4])->toBe('linux/amd64');
 });

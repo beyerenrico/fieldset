@@ -332,3 +332,8 @@ Format: question · chosen option · impact · how to reverse.
    the manifest URL (C-L2); the pg_dump check's multi-platform run needs `--pull=always` on engines without the
    containerd store; J10's backup slot (now + 3 min) can be missed on a slow runner (fails, never passes falsely)
    · accept each or schedule.
+76. 2.0.0 release run (2026-10-21): (a) a new cloudflared exception, CVE-2026-63209 (klauspost/compress v1.18.0 in
+   the binary; fixed in 1.18.7, still in cloudflared 2026.10.2), 30 days to 2026-11-20 (ADR 0071); 2026.10.2 would drop
+   the amd64 libssl entry, the pin stays 2026.10.1 for 2.0.0 · confirm or bump the pin. (b) The pg_dump check's
+   multi-platform run (QUESTIONS 75) is fixed: it removes the image it pulled between platforms. (c) Dogfood E2E failed
+   once at the 2.0.0 run (m6-offline journey 3, a click timeout at host load 8) and passed on the rerun · watch.

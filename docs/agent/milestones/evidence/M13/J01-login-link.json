@@ -11,7 +11,7 @@
             "email": "owner@example.test",
             "kind": "admin",
             "sign_in_link": {
-                "expires_at": "2026-10-20T18:32:02Z",
+                "expires_at": "2026-10-20T22:32:51Z",
                 "delivered": "secrets_file"
             }
         },
@@ -19,7 +19,7 @@
             {
                 "name": "sign_in_link",
                 "written_to": "<work>/admin-link.json",
-                "expires_at": "2026-10-20T18:32:02Z"
+                "expires_at": "2026-10-20T22:32:51Z"
             }
         ],
         "warnings": [],

@@ -98,7 +98,7 @@ Current exceptions (findings per platform):
 | postgres | 25 (1 critical, 24 high) | 25 | `usr/local/bin/gosu` | 2027-01-16 | Go 1.24.6 stdlib in gosu 1.19, the latest. Per the M9 research of 2026-10-18: govulncheck finds no reachable call, and gosu's SECURITY.md and the docker-library FAQ call such findings false positives |
 | gotenberg | 87 high | 47 | chromium, chromium-common and libexpat1 by purl; `usr/bin/gotenberg`, `usr/bin/pdfcpu` | 2026-11-17 | fixed in trixie-security (155.0.8059.79-1~deb13u1, 2.9.0-1~deb13u1), Go 1.27.2, x/net 0.60.0, x/image 0.45.0, x/text 0.41.0 and x/crypto 0.55.0; waiting for a Gotenberg image release; reachability not analysed |
 | caddy | 4 high | 3 | `usr/bin/caddy` | 2026-11-17 | Go 1.26.8 stdlib and x/net 0.59.0, fixed in Go 1.26.9/1.27.2 and x/net 0.60.0; **reachable** per govulncheck (M9 research); accepted only until the next Caddy release |
-| cloudflared | 1 high (linux/amd64) | 1 | `pkg:deb/debian/libssl3t64` | 2026-11-17 | fixed in 3.5.7-1~deb13u3, waiting for a cloudflared image release; reachability not analysed; the tunnel is off by default |
+| cloudflared | 2 high (1 linux/amd64 only) | 2 | `pkg:deb/debian/libssl3t64`; `usr/local/bin/cloudflared` | 2026-11-17, 2026-11-20 | libssl fixed in 3.5.7-1~deb13u3; klauspost/compress v1.18.0 (CVE-2026-63209, found 2026-10-21) fixed in 1.18.7 but still in cloudflared 2026.10.2; waiting for a cloudflared image release; reachability not analysed; the tunnel is off by default |
 
 Tested with Trivy 0.76.0 on 2026-10-18 against the caddy pin:
 - An entry whose path does not match is not applied.

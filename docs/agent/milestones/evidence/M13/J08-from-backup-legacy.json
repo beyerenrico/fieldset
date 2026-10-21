@@ -35,10 +35,10 @@
         "changed": true,
         "data": {
             "url": "http://localhost:8082",
-            "version": "2.0.0-alpha.1-test",
+            "version": "2.0.0",
             "mode": "local",
             "dir": "<work>/fsa-test-j08c",
-            "project": "fsa-fsa-test-j08c-f86b",
+            "project": "fsa-fsa-test-j08c-e710",
             "port": 8082,
             "mail": {
                 "mode": "capture",

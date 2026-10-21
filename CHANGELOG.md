@@ -5,7 +5,7 @@ All notable changes to this project are documented here. The format follows
 [Semantic Versioning](https://semver.org/) (0.x: the API and data model may still change).
 The Form Schema Spec has its own changelog in `spec/form-definition/1.0/CHANGELOG.md`.
 
-## 2.0.0 — unreleased
+## 2.0.0 — 2026-10-21 (tagged locally, not published)
 
 form-schema-app 2.0 is installed and operated without a clone of the repository: one command installs a signed
 release, and the `fsa` tool configures, backs up, restores, upgrades, rolls back, resets and removes the instance,
@@ -195,6 +195,9 @@ instance with its data; see [the install guide](docs/guide/install.md#adopt-a-10
   loss counts; restore, reset, adopt, uninstall).
 
 ### Fixed
+- The release workflow's pg_dump check (`release:check-pg-dump`) now runs the app image on every platform: it removes
+  the image it pulled after each platform, since Docker's classic image store cannot pull the second platform of the
+  same digest over the first ("cannot overwrite digest").
 - `fsa restore <path>` with a path outside the instance directory answers exit 2 `backup_not_visible` (copy the backup
   into `backups/`), as documented, instead of `backup_not_found`: from the ops container such a path never exists.
 - After `install.sh --from-backup`, the `fsa config set mail smtp …` command in `data.confirm_commands` carries the

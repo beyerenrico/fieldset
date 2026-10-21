@@ -129,6 +129,22 @@ it('tags only the pre-release version and never moves latest, 2 or 2.0', functio
     $tags = array_values(array_filter($this->harness->tags('beyerenrico/form-schema-app'), static fn (string $tag): bool => ! str_starts_with($tag, 'sha256-')));
     preReleaseRecord(['release_version' => $info, 'registry_tags' => $tags]);
 
+    if (preReleaseChannel($this->version) === 'stable') {
+        // The final release (§15.10) moves X.Y, X and latest and is also served from latest/download (KTD22).
+        [$major, $minor] = explode('.', $this->version);
+        $expected = [$this->version, "{$major}.{$minor}", $major, 'latest'];
+        $sorted = static function (array $list): array {
+            sort($list, SORT_STRING);
+
+            return $list;
+        };
+        expect($info)->toMatchArray(['version' => $this->version, 'channel' => 'stable', 'prerelease' => false, 'image_tags' => $expected])
+            ->and($sorted($tags))->toBe($sorted($expected))
+            ->and(is_file($this->harness->latestDirectory().'/release-manifest.json'))->toBeTrue();
+
+        return;
+    }
+
     expect($info)->toMatchArray(['version' => $this->version, 'channel' => preReleaseChannel($this->version), 'prerelease' => true, 'image_tags' => [$this->version]])
         ->and(array_intersect($info['image_tags'], ['latest', '2', '2.0']))->toBe([])
         ->and($tags)->toBe([$this->version])

@@ -1,7 +1,7 @@
 {
     "guide_line": 351,
     "guide_command": "~/forms/fsa upgrade --to <version> --json",
-    "command": "<work>/fsa-test-j11-forms/fsa upgrade --to 2.0.0-alpha.1-test --json",
+    "command": "<work>/fsa-test-j11-forms/fsa upgrade --to 2.0.0 --json",
     "exit_code": 0,
     "seconds": 2.9,
     "stdout": {
@@ -11,8 +11,8 @@
         "exit_code": 0,
         "changed": false,
         "data": {
-            "from": "2.0.0-alpha.1-test",
-            "to": "2.0.0-alpha.1-test",
+            "from": "2.0.0",
+            "to": "2.0.0",
             "current": true
         },
         "secrets": [],

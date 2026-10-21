@@ -341,3 +341,11 @@
 - R51: a fresh agent with only the guide ran every recipe (attempt 1: lab sheet lacked FSA_REGISTRY/FSA_TRUST_KEY).
   15 + 11 findings, none high; one worktree agent fixed F1, F2, F4, F14 and the signature hint red-first plus the
   guide (8bd1287). Suite 7387; J11 + J08 27/27. J10 API reviewer in_review 431 ms (QUESTIONS 74).
+
+## 2026-10-21 2.0.0 release (§15.10)
+- Merged m13-release (66b9001, `m13-done`); full gate on main green; suite 7387, dev-stack E2E 79.
+- All install journeys against 2.0.0: 149/158 first run. Fixed release:check-pg-dump multi-platform pull (real
+  release.yml bug) and J07's older-release setup (ad0c61d), the stable-tag sort (fba09cd); reruns green, 2.0.0 multi-arch
+  built at fba09cd (476 s, install 46.9 s). Dogfood m6-offline flaked once at load 8.
+- Trivy: cloudflared CVE-2026-63209 unfixed in 2026.10.2 → 30-day exception (bac1caf, QUESTIONS 76). Suite 7389.
+- FINAL_REPORT_V2.md written; merged release-2.0.0, tagged `v2.0.0` locally (not pushed). Run complete.

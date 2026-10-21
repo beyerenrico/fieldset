@@ -9,10 +9,10 @@
         "changed": true,
         "data": {
             "url": "https://fsa-test-j08d.test",
-            "version": "2.0.0-alpha.1-test",
+            "version": "2.0.0",
             "mode": "domain",
             "dir": "<work>/fsa-test-j08d",
-            "project": "fsa-fsa-test-j08d-56ff",
+            "project": "fsa-fsa-test-j08d-8d9c",
             "port": null,
             "mail": {
                 "mode": "capture",
@@ -20,12 +20,12 @@
             },
             "owner_email": null,
             "from_backup": {
-                "backup": "final-20261020T212131Z",
+                "backup": "final-20261020T230130Z",
                 "format": "fsa",
                 "authenticated": false,
                 "encrypted": true,
-                "created_at": "2026-10-20T21:21:31Z",
-                "version": "2.0.0-alpha.1-test",
+                "created_at": "2026-10-20T23:01:30Z",
+                "version": "2.0.0",
                 "epoch": 5,
                 "recipients": {
                     "listed": [],

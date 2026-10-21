@@ -17,15 +17,15 @@
                 "container": null
             },
             "disk": {
-                "free_gib": 153.2
+                "free_gib": 152.3
             },
             "last_backup": null,
             "last_upgrade": null,
-            "version": "2.0.0-alpha.1-test",
+            "version": "2.0.0",
             "mode": "local",
             "url": "http://localhost:8081",
             "local_url": "http://localhost:8081",
-            "project": "fsa-fsa-test-j06-5fa0",
+            "project": "fsa-fsa-test-j06-fc83",
             "port": 8081,
             "health": "ok",
             "services": {
@@ -77,11 +77,11 @@
             },
             "tunnel": {
                 "state": "expired",
-                "hostname": "fsa-test-62d41345df.trycloudflare.com",
+                "hostname": "fsa-test-dd7d39b358.trycloudflare.com",
                 "url": null,
-                "expires_at": "2026-10-20T18:35:17Z",
+                "expires_at": "2026-10-20T22:36:11Z",
                 "admin": false,
-                "peer": "10.215.75.66",
+                "peer": "10.215.194.210",
                 "container": "running"
             },
             "backup": {
@@ -107,7 +107,7 @@
             "last_restore": null,
             "restore": {
                 "last": null,
-                "storage_volume": "fsa-fsa-test-j06-5fa0_app-storage",
+                "storage_volume": "fsa-fsa-test-j06-fc83_app-storage",
                 "webhooks_paused": false,
                 "interrupted": null,
                 "scratch_left": []
@@ -125,8 +125,8 @@
                         "email": "owner@example.test",
                         "kind": "owner",
                         "state": "unused",
-                        "created_at": "2026-10-20T18:29:55Z",
-                        "expires_at": "2026-10-20T19:29:55Z",
+                        "created_at": "2026-10-20T22:30:48Z",
+                        "expires_at": "2026-10-20T23:30:48Z",
                         "used_at": null,
                         "used_ip": null,
                         "created_by": "cli",
@@ -139,7 +139,7 @@
         "warnings": [
             {
                 "code": "tunnel_expired",
-                "message": "The quick tunnel fsa-test-62d41345df.trycloudflare.com expired at 2026-10-20T18:35:17Z; its address answers 503.",
+                "message": "The quick tunnel fsa-test-dd7d39b358.trycloudflare.com expired at 2026-10-20T22:36:11Z; its address answers 503.",
                 "hint": "The next fsa command that changes something removes it; `fsa tunnel start` starts a new one, `fsa tunnel stop` removes it now."
             }
         ],

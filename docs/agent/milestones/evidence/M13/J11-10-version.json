@@ -3,7 +3,7 @@
     "guide_command": "~/forms/fsa version --json",
     "command": "<work>/fsa-test-j11-forms/fsa version --json",
     "exit_code": 0,
-    "seconds": 0.6,
+    "seconds": 0.7,
     "stdout": {
         "schema_version": 1,
         "command": "version",
@@ -11,9 +11,9 @@
         "exit_code": 0,
         "changed": false,
         "data": {
-            "fsa": "2.0.0-alpha.1-test",
-            "revision": "8bd128769f3ca8f2c7b5000918ab7428f64702e6",
-            "instance": "2.0.0-alpha.1-test",
+            "fsa": "2.0.0",
+            "revision": "0e0e3965d1b85b2811b451fc3b1decf9d165adaa",
+            "instance": "2.0.0",
             "newest_known": null
         },
         "secrets": [],

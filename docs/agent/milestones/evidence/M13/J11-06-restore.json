@@ -1,7 +1,7 @@
 {
     "guide_line": 286,
     "guide_command": "~/forms/fsa restore <backup> --drill --json",
-    "command": "<work>/fsa-test-j11-forms/fsa restore manual-20261020T212533Z --drill --json",
+    "command": "<work>/fsa-test-j11-forms/fsa restore manual-20261020T234313Z --drill --json",
     "exit_code": 0,
     "seconds": 5.8,
     "stdout": {
@@ -11,12 +11,12 @@
         "exit_code": 0,
         "changed": false,
         "data": {
-            "backup": "manual-20261020T212533Z",
+            "backup": "manual-20261020T234313Z",
             "format": "fsa",
             "authenticated": true,
             "encrypted": false,
-            "created_at": "2026-10-20T21:25:33Z",
-            "backup_version": "2.0.0-alpha.1-test",
+            "created_at": "2026-10-20T23:43:13Z",
+            "backup_version": "2.0.0",
             "migrations": {
                 "relation": "same",
                 "count": 45,
@@ -29,10 +29,10 @@
                 "directories": 5,
                 "bytes": 910
             },
-            "database": "restore_drill_d1067c2b955e",
+            "database": "restore_drill_f05f169e9a33",
             "dropped": true,
             "drill": {
-                "database": "restore_drill_d1067c2b955e",
+                "database": "restore_drill_f05f169e9a33",
                 "counts": {
                     "organizations": 2,
                     "users": 10,
@@ -48,15 +48,15 @@
                     "heads": [
                         {
                             "seq": 14,
-                            "hash": "4818e27f5d3290fbf15a8f99dbefde6128dcb090f56041ba52bdad12ca768fe7"
+                            "hash": "5ac3cb54e3ba7e5c9b9d667942fa6fc735f77548da31620b46f056ee2209122e"
                         },
                         {
                             "seq": 1,
-                            "hash": "e417edca68371969041036b5ae5aa9bc2bfb0819789356cf988e81fd3dd1dd4b"
+                            "hash": "fc4f8c830073da6de427a7f4a2f462f8264e2b2667c607941db000bd56476740"
                         },
                         {
                             "seq": 11,
-                            "hash": "5bd0f6eb425c14c53306f28ea33cc7b8ac2a0796f6e0a5bd1fd3bb6d8ca4bd88"
+                            "hash": "547f17cc0027e2aa837fbd830c709e3266e108c6f4e02046c7cf0c2ca4bc855e"
                         }
                     ],
                     "intact": true,

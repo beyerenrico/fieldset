@@ -9,8 +9,8 @@
         "changed": true,
         "data": {
             "key": "mail",
-            "from": "smtp://fsa-test-j04-smtp-e801:1025 (no TLS) (catcher kept)",
-            "to": "smtp://fsa-test-j04-smtp-e801:1025 (no TLS)",
+            "from": "smtp://fsa-test-j04-smtp-2233:1025 (no TLS) (catcher kept)",
+            "to": "smtp://fsa-test-j04-smtp-2233:1025 (no TLS)",
             "url": "http://localhost:8081",
             "mode": "local",
             "reverted": false,
@@ -36,7 +36,7 @@
                 "mode": "smtp",
                 "catcher_url": null,
                 "catcher": "removed",
-                "catcher_volume_removed": "fsa-fsa-test-j04-a434_mailpit-data"
+                "catcher_volume_removed": "fsa-fsa-test-j04-38ba_mailpit-data"
             },
             "next_commands": [
                 "<work>/fsa-test-j04/fsa status"
@@ -46,21 +46,21 @@
         "warnings": [
             {
                 "code": "smtp_plaintext_auth",
-                "message": "The SMTP password goes to fsa-test-j04-smtp-e801 unencrypted (--smtp-encryption none).",
+                "message": "The SMTP password goes to fsa-test-j04-smtp-2233 unencrypted (--smtp-encryption none).",
                 "hint": "Use --smtp-encryption starttls or tls unless the relay runs on this host or your own trusted network."
             }
         ],
         "errors": []
     },
     "volumes_before": [
-        "fsa-fsa-test-j04-a434_app-storage",
-        "fsa-fsa-test-j04-a434_mailpit-data",
-        "fsa-fsa-test-j04-a434_pg-data",
-        "fsa-fsa-test-j04-a434_valkey-data"
+        "fsa-fsa-test-j04-38ba_app-storage",
+        "fsa-fsa-test-j04-38ba_mailpit-data",
+        "fsa-fsa-test-j04-38ba_pg-data",
+        "fsa-fsa-test-j04-38ba_valkey-data"
     ],
     "volumes_after": [
-        "fsa-fsa-test-j04-a434_app-storage",
-        "fsa-fsa-test-j04-a434_pg-data",
-        "fsa-fsa-test-j04-a434_valkey-data"
+        "fsa-fsa-test-j04-38ba_app-storage",
+        "fsa-fsa-test-j04-38ba_pg-data",
+        "fsa-fsa-test-j04-38ba_valkey-data"
     ]
 }

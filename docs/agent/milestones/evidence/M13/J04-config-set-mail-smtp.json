@@ -11,7 +11,7 @@
         "data": {
             "key": "mail",
             "from": "capture",
-            "to": "smtp://fsa-test-j04-smtp-e801:1025 (no TLS) (catcher kept)",
+            "to": "smtp://fsa-test-j04-smtp-2233:1025 (no TLS) (catcher kept)",
             "url": "http://localhost:8081",
             "mode": "local",
             "reverted": false,
@@ -33,7 +33,7 @@
                 "/up",
                 "/admin/login",
                 "gotenberg /health",
-                "test mail to ops@example.test accepted by smtp://fsa-test-j04-smtp-e801:1025 (no TLS) (catcher kept)"
+                "test mail to ops@example.test accepted by smtp://fsa-test-j04-smtp-2233:1025 (no TLS) (catcher kept)"
             ],
             "impact": null,
             "audited": true,
@@ -56,7 +56,7 @@
         "warnings": [
             {
                 "code": "smtp_plaintext_auth",
-                "message": "The SMTP password goes to fsa-test-j04-smtp-e801 unencrypted (--smtp-encryption none).",
+                "message": "The SMTP password goes to fsa-test-j04-smtp-2233 unencrypted (--smtp-encryption none).",
                 "hint": "Use --smtp-encryption starttls or tls unless the relay runs on this host or your own trusted network."
             },
             {
@@ -68,17 +68,17 @@
         "errors": []
     },
     "stderr_ndjson": [
-        "{\"ts\":\"2026-10-20T18:21:38Z\",\"phase\":\"snapshot\",\"level\":\"info\",\"message\":\"Starting snapshot\"}",
-        "{\"ts\":\"2026-10-20T18:21:38Z\",\"phase\":\"snapshot\",\"level\":\"info\",\"message\":\"Completed snapshot in 0 s\",\"elapsed_seconds\":0}",
-        "{\"ts\":\"2026-10-20T18:21:38Z\",\"phase\":\"preflight\",\"level\":\"info\",\"message\":\"Starting preflight\"}",
-        "{\"ts\":\"2026-10-20T18:21:38Z\",\"phase\":\"preflight\",\"level\":\"info\",\"message\":\"Completed preflight in 0 s\",\"elapsed_seconds\":0}",
-        "{\"ts\":\"2026-10-20T18:21:38Z\",\"phase\":\"apply\",\"level\":\"info\",\"message\":\"Starting apply (at most 6 min)\",\"max_seconds\":400}",
-        "{\"ts\":\"2026-10-20T18:21:57Z\",\"phase\":\"apply\",\"level\":\"info\",\"message\":\"Completed apply in 19 s\",\"elapsed_seconds\":19}",
-        "{\"ts\":\"2026-10-20T18:21:57Z\",\"phase\":\"verify\",\"level\":\"info\",\"message\":\"Starting verify (at most 13 min)\",\"max_seconds\":790}",
-        "{\"ts\":\"2026-10-20T18:21:59Z\",\"phase\":\"verify\",\"level\":\"info\",\"message\":\"Completed verify in 2 s\",\"elapsed_seconds\":2}",
-        "{\"ts\":\"2026-10-20T18:21:59Z\",\"phase\":\"workers\",\"level\":\"info\",\"message\":\"Starting workers (at most 5 min)\",\"max_seconds\":300}",
-        "{\"ts\":\"2026-10-20T18:22:30Z\",\"phase\":\"workers\",\"level\":\"info\",\"message\":\"Completed workers in 31 s\",\"elapsed_seconds\":31}",
-        "{\"ts\":\"2026-10-20T18:22:31Z\",\"phase\":\"audit\",\"level\":\"info\",\"message\":\"Starting audit\"}",
-        "{\"ts\":\"2026-10-20T18:22:32Z\",\"phase\":\"audit\",\"level\":\"info\",\"message\":\"Completed audit in 1 s\",\"elapsed_seconds\":1}"
+        "{\"ts\":\"2026-10-20T22:22:31Z\",\"phase\":\"snapshot\",\"level\":\"info\",\"message\":\"Starting snapshot\"}",
+        "{\"ts\":\"2026-10-20T22:22:31Z\",\"phase\":\"snapshot\",\"level\":\"info\",\"message\":\"Completed snapshot in 0 s\",\"elapsed_seconds\":0}",
+        "{\"ts\":\"2026-10-20T22:22:31Z\",\"phase\":\"preflight\",\"level\":\"info\",\"message\":\"Starting preflight\"}",
+        "{\"ts\":\"2026-10-20T22:22:32Z\",\"phase\":\"preflight\",\"level\":\"info\",\"message\":\"Completed preflight in 0 s\",\"elapsed_seconds\":0}",
+        "{\"ts\":\"2026-10-20T22:22:32Z\",\"phase\":\"apply\",\"level\":\"info\",\"message\":\"Starting apply (at most 6 min)\",\"max_seconds\":400}",
+        "{\"ts\":\"2026-10-20T22:22:51Z\",\"phase\":\"apply\",\"level\":\"info\",\"message\":\"Completed apply in 19 s\",\"elapsed_seconds\":19}",
+        "{\"ts\":\"2026-10-20T22:22:51Z\",\"phase\":\"verify\",\"level\":\"info\",\"message\":\"Starting verify (at most 13 min)\",\"max_seconds\":790}",
+        "{\"ts\":\"2026-10-20T22:22:52Z\",\"phase\":\"verify\",\"level\":\"info\",\"message\":\"Completed verify in 2 s\",\"elapsed_seconds\":2}",
+        "{\"ts\":\"2026-10-20T22:22:52Z\",\"phase\":\"workers\",\"level\":\"info\",\"message\":\"Starting workers (at most 5 min)\",\"max_seconds\":300}",
+        "{\"ts\":\"2026-10-20T22:23:24Z\",\"phase\":\"workers\",\"level\":\"info\",\"message\":\"Completed workers in 31 s\",\"elapsed_seconds\":31}",
+        "{\"ts\":\"2026-10-20T22:23:25Z\",\"phase\":\"audit\",\"level\":\"info\",\"message\":\"Starting audit\"}",
+        "{\"ts\":\"2026-10-20T22:23:26Z\",\"phase\":\"audit\",\"level\":\"info\",\"message\":\"Completed audit in 1 s\",\"elapsed_seconds\":1}"
     ]
 }

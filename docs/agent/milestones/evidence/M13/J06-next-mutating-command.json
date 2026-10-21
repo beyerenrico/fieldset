@@ -96,7 +96,7 @@
                 "delivered": null
             },
             "sign_in_link": {
-                "expires_at": "2026-10-20T18:51:17Z",
+                "expires_at": "2026-10-20T22:52:10Z",
                 "delivered": "secrets_file"
             }
         },
@@ -104,7 +104,7 @@
             {
                 "name": "sign_in_link",
                 "written_to": "<work>/j06-next-mutating-command-secrets.json",
-                "expires_at": "2026-10-20T18:51:17Z"
+                "expires_at": "2026-10-20T22:52:10Z"
             }
         ],
         "warnings": [
@@ -120,7 +120,7 @@
             },
             {
                 "code": "tunnel_removed",
-                "message": "The quick tunnel fsa-test-62d41345df.trycloudflare.com expired at 2026-10-20T18:35:17Z and was removed; the instance URL is http://localhost:8081 again.",
+                "message": "The quick tunnel fsa-test-dd7d39b358.trycloudflare.com expired at 2026-10-20T22:36:11Z and was removed; the instance URL is http://localhost:8081 again.",
                 "hint": "Start a new one with `fsa tunnel start`."
             }
         ],
