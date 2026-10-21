@@ -47,7 +47,7 @@
         "data": {
             "key": "backup-schedule",
             "from": "03:30",
-            "to": "11:52",
+            "to": "14:30",
             "url": "http://localhost:8081",
             "mode": "local",
             "reverted": false,
@@ -79,53 +79,53 @@
     },
     "skipped_run": {
         "kind": "scheduled",
-        "started_at": "2026-10-21T09:52:00Z",
+        "started_at": "2026-10-21T12:30:00Z",
         "encrypted": true,
         "backup": null,
         "status": "skipped",
         "reason": "lock_held",
-        "message": "An operation holds the instance lock: fieldset-test-hold by fieldset (container b9021dd3e5de, since 2026-10-21T09:48:57Z).",
-        "finished_at": "2026-10-21T09:52:00Z",
+        "message": "An operation holds the instance lock: fieldset-test-hold by fieldset (container f999a1ad4afb, since 2026-10-21T12:26:43Z).",
+        "finished_at": "2026-10-21T12:30:00Z",
         "recorded": true
     },
     "status_while_locked": {
         "last": {
             "kind": "scheduled",
-            "started_at": "2026-10-21T09:52:00Z",
+            "started_at": "2026-10-21T12:30:00Z",
             "encrypted": true,
             "backup": null,
             "status": "skipped",
             "reason": "lock_held",
-            "message": "An operation holds the instance lock: fieldset-test-hold by fieldset (container b9021dd3e5de, since 2026-10-21T09:48:57Z).",
-            "finished_at": "2026-10-21T09:52:00Z",
+            "message": "An operation holds the instance lock: fieldset-test-hold by fieldset (container f999a1ad4afb, since 2026-10-21T12:26:43Z).",
+            "finished_at": "2026-10-21T12:30:00Z",
             "recorded": true
         },
         "last_success": {
             "kind": "manual",
-            "started_at": "2026-10-21T09:47:40Z",
+            "started_at": "2026-10-21T12:25:27Z",
             "encrypted": true,
-            "backup": "manual-20261021T094740Z",
+            "backup": "manual-20261021T122527Z",
             "status": "succeeded",
             "bytes": 512312,
             "missing_files": 0,
-            "finished_at": "2026-10-21T09:47:40Z",
+            "finished_at": "2026-10-21T12:25:27Z",
             "recorded": true
         },
         "schedule": {
-            "time": "11:52",
+            "time": "14:30",
             "time_zone": "Europe/Berlin",
             "retention": 1,
-            "next_run": "2026-10-22T09:52:00Z"
+            "next_run": "2026-10-22T12:30:00Z"
         },
         "encrypted": true,
         "directory": "<work>/fieldset-test-j08/backups",
         "backups": {
             "count": 3,
-            "bytes": 1010915,
+            "bytes": 1010891,
             "newest": {
-                "name": "manual-20261021T094740Z",
+                "name": "manual-20261021T122527Z",
                 "kind": "manual",
-                "created_at": "2026-10-21T09:47:40Z",
+                "created_at": "2026-10-21T12:25:27Z",
                 "bytes": 512312,
                 "encrypted": true,
                 "kept": false
@@ -137,17 +137,17 @@
     },
     "scheduled_run": {
         "kind": "scheduled",
-        "started_at": "2026-10-21T09:53:01Z",
+        "started_at": "2026-10-21T12:31:00Z",
         "encrypted": true,
-        "backup": "scheduled-20261021T095301Z",
+        "backup": "scheduled-20261021T123100Z",
         "status": "succeeded",
         "bytes": 512312,
         "missing_files": 0,
-        "free_bytes": 150982168576,
+        "free_bytes": 143915241472,
         "pruned": [
             "scheduled-20261001T033000Z"
         ],
-        "finished_at": "2026-10-21T09:53:01Z",
+        "finished_at": "2026-10-21T12:31:00Z",
         "recorded": true
     },
     "backup_runs": [
@@ -159,41 +159,41 @@
     "status_after": {
         "last": {
             "kind": "scheduled",
-            "started_at": "2026-10-21T09:53:01Z",
+            "started_at": "2026-10-21T12:31:00Z",
             "encrypted": true,
-            "backup": "scheduled-20261021T095301Z",
+            "backup": "scheduled-20261021T123100Z",
             "status": "succeeded",
             "bytes": 512312,
             "missing_files": 0,
-            "finished_at": "2026-10-21T09:53:01Z",
+            "finished_at": "2026-10-21T12:31:00Z",
             "recorded": true
         },
         "last_success": {
             "kind": "scheduled",
-            "started_at": "2026-10-21T09:53:01Z",
+            "started_at": "2026-10-21T12:31:00Z",
             "encrypted": true,
-            "backup": "scheduled-20261021T095301Z",
+            "backup": "scheduled-20261021T123100Z",
             "status": "succeeded",
             "bytes": 512312,
             "missing_files": 0,
-            "finished_at": "2026-10-21T09:53:01Z",
+            "finished_at": "2026-10-21T12:31:00Z",
             "recorded": true
         },
         "schedule": {
-            "time": "11:52",
+            "time": "14:30",
             "time_zone": "Europe/Berlin",
             "retention": 1,
-            "next_run": "2026-10-22T09:52:00Z"
+            "next_run": "2026-10-22T12:30:00Z"
         },
         "encrypted": true,
         "directory": "<work>/fieldset-test-j08/backups",
         "backups": {
             "count": 3,
-            "bytes": 1523204,
+            "bytes": 1523180,
             "newest": {
-                "name": "scheduled-20261021T095301Z",
+                "name": "scheduled-20261021T123100Z",
                 "kind": "scheduled",
-                "created_at": "2026-10-21T09:53:01Z",
+                "created_at": "2026-10-21T12:31:00Z",
                 "bytes": 512312,
                 "encrypted": true,
                 "kept": false
@@ -207,8 +207,8 @@
         {
             "kind": "service",
             "status": "started",
-            "started_at": "2026-10-21T09:46:18Z",
-            "finished_at": "2026-10-21T09:46:18Z",
+            "started_at": "2026-10-21T12:24:04Z",
+            "finished_at": "2026-10-21T12:24:04Z",
             "encrypted": false,
             "schedule": "03:30",
             "time_zone": "Europe/Berlin",
@@ -217,22 +217,22 @@
         },
         {
             "kind": "manual",
-            "started_at": "2026-10-21T09:46:58Z",
+            "started_at": "2026-10-21T12:24:44Z",
             "encrypted": false,
-            "backup": "manual-20261021T094658Z",
+            "backup": "manual-20261021T122444Z",
             "status": "succeeded",
-            "bytes": 498580,
+            "bytes": 498556,
             "missing_files": 0,
-            "free_bytes": 151000444928,
+            "free_bytes": 143938338816,
             "pruned": [],
-            "finished_at": "2026-10-21T09:46:58Z",
+            "finished_at": "2026-10-21T12:24:44Z",
             "recorded": true
         },
         {
             "kind": "service",
             "status": "started",
-            "started_at": "2026-10-21T09:47:05Z",
-            "finished_at": "2026-10-21T09:47:05Z",
+            "started_at": "2026-10-21T12:24:50Z",
+            "finished_at": "2026-10-21T12:24:50Z",
             "encrypted": true,
             "schedule": "03:30",
             "time_zone": "Europe/Berlin",
@@ -241,22 +241,22 @@
         },
         {
             "kind": "manual",
-            "started_at": "2026-10-21T09:47:40Z",
+            "started_at": "2026-10-21T12:25:27Z",
             "encrypted": true,
-            "backup": "manual-20261021T094740Z",
+            "backup": "manual-20261021T122527Z",
             "status": "succeeded",
             "bytes": 512312,
             "missing_files": 0,
-            "free_bytes": 150999465984,
+            "free_bytes": 143932993536,
             "pruned": [],
-            "finished_at": "2026-10-21T09:47:40Z",
+            "finished_at": "2026-10-21T12:25:27Z",
             "recorded": true
         },
         {
             "kind": "service",
             "status": "started",
-            "started_at": "2026-10-21T09:47:46Z",
-            "finished_at": "2026-10-21T09:47:46Z",
+            "started_at": "2026-10-21T12:25:33Z",
+            "finished_at": "2026-10-21T12:25:33Z",
             "encrypted": true,
             "schedule": "03:30",
             "time_zone": "Europe/Berlin",
@@ -266,38 +266,38 @@
         {
             "kind": "service",
             "status": "started",
-            "started_at": "2026-10-21T09:48:23Z",
-            "finished_at": "2026-10-21T09:48:23Z",
+            "started_at": "2026-10-21T12:26:10Z",
+            "finished_at": "2026-10-21T12:26:10Z",
             "encrypted": true,
-            "schedule": "11:52",
+            "schedule": "14:30",
             "time_zone": "Europe/Berlin",
             "removed": [],
             "recorded": true
         },
         {
             "kind": "scheduled",
-            "started_at": "2026-10-21T09:52:00Z",
+            "started_at": "2026-10-21T12:30:00Z",
             "encrypted": true,
             "backup": null,
             "status": "skipped",
             "reason": "lock_held",
-            "message": "An operation holds the instance lock: fieldset-test-hold by fieldset (container b9021dd3e5de, since 2026-10-21T09:48:57Z).",
-            "finished_at": "2026-10-21T09:52:00Z",
+            "message": "An operation holds the instance lock: fieldset-test-hold by fieldset (container f999a1ad4afb, since 2026-10-21T12:26:43Z).",
+            "finished_at": "2026-10-21T12:30:00Z",
             "recorded": true
         },
         {
             "kind": "scheduled",
-            "started_at": "2026-10-21T09:53:01Z",
+            "started_at": "2026-10-21T12:31:00Z",
             "encrypted": true,
-            "backup": "scheduled-20261021T095301Z",
+            "backup": "scheduled-20261021T123100Z",
             "status": "succeeded",
             "bytes": 512312,
             "missing_files": 0,
-            "free_bytes": 150982168576,
+            "free_bytes": 143915241472,
             "pruned": [
                 "scheduled-20261001T033000Z"
             ],
-            "finished_at": "2026-10-21T09:53:01Z",
+            "finished_at": "2026-10-21T12:31:00Z",
             "recorded": true
         }
     ]

@@ -1,20 +1,14 @@
-# Trivy exceptions for the cloudflared image only (cloudflare/cloudflared:2026.10.1 in distribution/release.json).
+# Trivy exceptions for the cloudflared image only (cloudflare/cloudflared:2026.10.2 in distribution/release.json).
 # Policy (ADR 0071): what we build (the app image) is scanned strictly and has no exception file. A third-party
 # image may carry dated, scoped exceptions for findings without a fix in a released upstream image: one entry per
 # finding id, scoped to the component by `paths` or `purls`, with a `statement` and an `expired_at` at most 90 days
 # out. An expired entry stops suppressing, so the release scan fails again until the entry is reviewed.
 # release.yml scans this image with only this file (--ignorefile, --show-suppressed).
-# 1 high finding in libssl3t64 (Debian), linux/amd64 image only; 1 high finding in the cloudflared binary (both platforms);
-# 30 days each (fixed upstream, waiting for a cloudflared image release).
+# 1 high finding in the cloudflared binary (both platforms); 30 days (fixed upstream, waiting for a cloudflared release).
 
 vulnerabilities:
-  - id: CVE-2026-84782
-    purls:
-      - pkg:deb/debian/libssl3t64
-    expired_at: 2026-11-17
-    statement: "libssl3t64 3.5.7-1~deb13u2 in the linux/amd64 image of cloudflared 2026.10.1, the latest release; fixed in the Debian 13 package 3.5.7-1~deb13u3, waiting for a cloudflared image release. Reachability not analysed; the tunnel is off by default (ADR 0057)."
   - id: CVE-2026-63209
     paths:
       - usr/local/bin/cloudflared
     expired_at: 2026-11-20
-    statement: "github.com/klauspost/compress v1.18.0 in the cloudflared binary of 2026.10.1 (both platforms); fixed in 1.18.7, but cloudflared 2026.10.2 (2026-10-20, the latest) still ships v1.18.0 (Trivy 0.76.0, 2026-10-21), so we wait for a cloudflared release. Reachability not analysed; the tunnel is off by default (ADR 0057)."
+    statement: "github.com/klauspost/compress v1.18.0 in the cloudflared binary of 2026.10.2 (2026-10-20, the latest; both platforms); fixed in 1.18.7, still v1.18.0 in 2026.10.2 (Trivy 0.76.0, 2026-10-21), so we wait for a cloudflared release. Reachability not analysed; the tunnel is off by default (ADR 0057)."

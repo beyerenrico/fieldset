@@ -2,16 +2,16 @@
     "target": {
         "install": "install.sh --dir <work>/fieldset-test-dogfood --version 2.1.0-alpha.1-test --org \"Dogfood Org\" --owner-email owner@example.test --locale en --demo --secrets-file <work>/owner-link.json --json",
         "url": "http://localhost:8081",
-        "project": "fieldset-fieldset-test-dogfood-840d",
+        "project": "fieldset-fieldset-test-dogfood-eb69",
         "catcher": "http://localhost:8025",
         "platform": "linux/arm64"
     },
     "command": "playwright test --project=desktop --workers=2 (E2E_TARGET=fieldset, E2E_BASE_URL, E2E_COMPOSE_PROJECT, MAILPIT_URL, MAILPIT_AUTH set)",
     "exit_code": 0,
-    "seconds": 145.7,
+    "seconds": 148.8,
     "stats": {
-        "startTime": "2026-10-21T09:07:15.280Z",
-        "duration": 145257.416,
+        "startTime": "2026-10-21T11:44:33.038Z",
+        "duration": 148274.9,
         "expected": 71,
         "skipped": 8,
         "unexpected": 0,

@@ -1,5 +1,5 @@
 {
-    "request": "GET http://<app on fieldset-test-proxy-596f03>:8080/admin/login with X-Forwarded-For: 203.0.113.66, -Proto: https, -Host: evil.example",
+    "request": "GET http://<app on fieldset-test-proxy-42b596>:8080/admin/login with X-Forwarded-For: 203.0.113.66, -Proto: https, -Host: evil.example",
     "status": 200,
     "neighbour_address": "172.26.0.5",
     "session_ip_addresses": [

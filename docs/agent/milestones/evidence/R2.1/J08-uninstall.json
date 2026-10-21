@@ -8,27 +8,27 @@
         "exit_code": 0,
         "changed": true,
         "data": {
-            "uuid": "60025dce-5e5b-4966-83f6-6dd9286c7ca7",
+            "uuid": "8b58a68d-f157-418d-998d-694504e75768",
             "removed": {
                 "containers": [
-                    "fieldset-fieldset-test-j08-8922-backup-1",
-                    "fieldset-fieldset-test-j08-8922-queue-1",
-                    "fieldset-fieldset-test-j08-8922-scheduler-1",
-                    "fieldset-fieldset-test-j08-8922-app-1",
-                    "fieldset-fieldset-test-j08-8922-mailpit-1",
-                    "fieldset-fieldset-test-j08-8922-gotenberg-1",
-                    "fieldset-fieldset-test-j08-8922-postgres-1",
-                    "fieldset-fieldset-test-j08-8922-redis-1"
+                    "fieldset-fieldset-test-j08-f2d1-backup-1",
+                    "fieldset-fieldset-test-j08-f2d1-scheduler-1",
+                    "fieldset-fieldset-test-j08-f2d1-queue-1",
+                    "fieldset-fieldset-test-j08-f2d1-app-1",
+                    "fieldset-fieldset-test-j08-f2d1-mailpit-1",
+                    "fieldset-fieldset-test-j08-f2d1-gotenberg-1",
+                    "fieldset-fieldset-test-j08-f2d1-postgres-1",
+                    "fieldset-fieldset-test-j08-f2d1-redis-1"
                 ],
                 "networks": [
-                    "fieldset-fieldset-test-j08-8922_default",
-                    "fieldset-fieldset-test-j08-8922_renderer"
+                    "fieldset-fieldset-test-j08-f2d1_default",
+                    "fieldset-fieldset-test-j08-f2d1_renderer"
                 ],
                 "volumes": [
-                    "fieldset-fieldset-test-j08-8922_app-storage-r791df93cc435",
-                    "fieldset-fieldset-test-j08-8922_mailpit-data",
-                    "fieldset-fieldset-test-j08-8922_pg-data",
-                    "fieldset-fieldset-test-j08-8922_valkey-data"
+                    "fieldset-fieldset-test-j08-f2d1_app-storage-r7eddcfeb6eab",
+                    "fieldset-fieldset-test-j08-f2d1_mailpit-data",
+                    "fieldset-fieldset-test-j08-f2d1_pg-data",
+                    "fieldset-fieldset-test-j08-f2d1_valkey-data"
                 ]
             },
             "dir": "<work>/fieldset-test-j08",

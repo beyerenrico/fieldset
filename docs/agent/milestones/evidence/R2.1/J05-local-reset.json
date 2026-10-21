@@ -1,7 +1,7 @@
 {
     "command": "fieldset reset --yes --secrets-file <work>/j05-reset-link.json --json",
     "exit_code": 0,
-    "seconds": 65.9,
+    "seconds": 67.4,
     "stdout": {
         "schema_version": 1,
         "command": "reset",
@@ -19,18 +19,18 @@
             },
             "organization": "Demo",
             "owner_email": "owner@example.test",
-            "safety_backup": "safety-reset-20261021T092154Z",
+            "safety_backup": "safety-reset-20261021T115933Z",
             "audit_export": null,
             "epoch": 2,
             "previous_epoch": 1,
-            "storage_volume": "fieldset-fieldset-test-j05-local-7e00_app-storage-reset-257312374cea",
+            "storage_volume": "fieldset-fieldset-test-j05-local-885c_app-storage-reset-d8a78aa1d882",
             "flushed": {
                 "valkey": true,
                 "catcher": true
             },
             "left_behind": [],
             "removed": [
-                "volume fieldset-fieldset-test-j05-local-7e00_app-storage"
+                "volume fieldset-fieldset-test-j05-local-885c_app-storage"
             ],
             "next_commands": [
                 "<work>/fieldset-test-j05-local/fieldset status",
@@ -38,7 +38,7 @@
                 "<work>/fieldset-test-j05-local/fieldset doctor --post"
             ],
             "sign_in_link": {
-                "expires_at": "2026-10-21T10:22:01Z",
+                "expires_at": "2026-10-21T12:59:40Z",
                 "delivered": "secrets_file"
             }
         },
@@ -46,7 +46,7 @@
             {
                 "name": "sign_in_link",
                 "written_to": "<work>/j05-reset-link.json",
-                "expires_at": "2026-10-21T10:22:01Z"
+                "expires_at": "2026-10-21T12:59:40Z"
             }
         ],
         "warnings": [],
@@ -54,7 +54,7 @@
     },
     "before": {
         "catcher": 1,
-        "volume": "fieldset-fieldset-test-j05-local-7e00_app-storage",
+        "volume": "fieldset-fieldset-test-j05-local-885c_app-storage",
         "files": [
             "/var/www/html/storage/app/fieldset-test-j05-planted.txt",
             "/var/www/html/storage/app/private/branding/2/logo-1b075f0630465151.png"
@@ -68,7 +68,7 @@
     },
     "after": {
         "catcher": 0,
-        "volume": "fieldset-fieldset-test-j05-local-7e00_app-storage-reset-257312374cea",
+        "volume": "fieldset-fieldset-test-j05-local-885c_app-storage-reset-d8a78aa1d882",
         "files": [],
         "old_volume_left": false,
         "organizations": "Demo",
@@ -83,18 +83,18 @@
                 "previous_heads": [
                     {
                         "seq": 29,
-                        "hash": "ad209be7c75bdd8d7d803a83e347530456a336a38afe8f5f2dfa82a45f2c14aa"
+                        "hash": "e4f34dcdeb3b52245cb59696530f0db1d00f14555dc7eed41814a98f6ff505de"
                     },
                     {
                         "seq": 1,
-                        "hash": "0a5db8c3b74abe42c7af28da2d9e6ec68b0b3ad71a7cac2b0609aa7d9b58504f"
+                        "hash": "0e9032ff409c5da36bfebcdc84f3c1f254c9b33fcdc3a11c4166e3200343852f"
                     },
                     {
                         "seq": 11,
-                        "hash": "7a8e4dd65b0121f49f57cf0f7b5cafd65ef04784af77cb21fea2ebd0fb43034b"
+                        "hash": "e77521584a430edc21dfa56e754e6b574d9dadc482d2caa4fa4744cefed22f94"
                     }
                 ],
-                "safety_backup": "safety-reset-20261021T092154Z",
+                "safety_backup": "safety-reset-20261021T115933Z",
                 "audit_export": null,
                 "demo": false,
                 "host_uid": 501
@@ -106,30 +106,30 @@
             "previous_heads": [
                 {
                     "seq": 29,
-                    "hash": "ad209be7c75bdd8d7d803a83e347530456a336a38afe8f5f2dfa82a45f2c14aa"
+                    "hash": "e4f34dcdeb3b52245cb59696530f0db1d00f14555dc7eed41814a98f6ff505de"
                 },
                 {
                     "seq": 1,
-                    "hash": "0a5db8c3b74abe42c7af28da2d9e6ec68b0b3ad71a7cac2b0609aa7d9b58504f"
+                    "hash": "0e9032ff409c5da36bfebcdc84f3c1f254c9b33fcdc3a11c4166e3200343852f"
                 },
                 {
                     "seq": 11,
-                    "hash": "7a8e4dd65b0121f49f57cf0f7b5cafd65ef04784af77cb21fea2ebd0fb43034b"
+                    "hash": "e77521584a430edc21dfa56e754e6b574d9dadc482d2caa4fa4744cefed22f94"
                 }
             ]
         },
         "min_user_id": 11,
         "safety_mode": "700",
         "pruned_with_retention_1": [
-            "scheduled-20261022T092251Z",
-            "scheduled-20261023T092251Z"
+            "scheduled-20261022T120030Z",
+            "scheduled-20261023T120030Z"
         ]
     },
     "ledger": {
-        "at": "2026-10-21T09:21:53Z",
+        "at": "2026-10-21T11:59:31Z",
         "action": "reset",
         "host_uid": 501,
-        "journal": "257312374ceaa847",
+        "journal": "d8a78aa1d8820b10",
         "version": "2.1.0-alpha.1-test",
         "demo": false,
         "no_backup": false,
@@ -137,15 +137,15 @@
         "heads": [
             {
                 "seq": 29,
-                "hash": "ad209be7c75bdd8d7d803a83e347530456a336a38afe8f5f2dfa82a45f2c14aa"
+                "hash": "e4f34dcdeb3b52245cb59696530f0db1d00f14555dc7eed41814a98f6ff505de"
             },
             {
                 "seq": 1,
-                "hash": "0a5db8c3b74abe42c7af28da2d9e6ec68b0b3ad71a7cac2b0609aa7d9b58504f"
+                "hash": "0e9032ff409c5da36bfebcdc84f3c1f254c9b33fcdc3a11c4166e3200343852f"
             },
             {
                 "seq": 11,
-                "hash": "7a8e4dd65b0121f49f57cf0f7b5cafd65ef04784af77cb21fea2ebd0fb43034b"
+                "hash": "e77521584a430edc21dfa56e754e6b574d9dadc482d2caa4fa4744cefed22f94"
             }
         ],
         "intact": true
@@ -153,78 +153,78 @@
     "phases": [
         [
             "plan",
-            "2026-10-21T09:21:46Z",
-            "2026-10-21T09:21:47Z"
+            "2026-10-21T11:59:23Z",
+            "2026-10-21T11:59:25Z"
         ],
         [
             "quiesce",
-            "2026-10-21T09:21:47Z",
-            "2026-10-21T09:21:51Z"
+            "2026-10-21T11:59:25Z",
+            "2026-10-21T11:59:29Z"
         ],
         [
             "ledger",
-            "2026-10-21T09:21:51Z",
-            "2026-10-21T09:21:53Z"
+            "2026-10-21T11:59:29Z",
+            "2026-10-21T11:59:31Z"
         ],
         [
             "safety_backup",
-            "2026-10-21T09:21:53Z",
-            "2026-10-21T09:21:55Z"
+            "2026-10-21T11:59:31Z",
+            "2026-10-21T11:59:33Z"
         ],
         [
             "recreate_database",
-            "2026-10-21T09:21:55Z",
-            "2026-10-21T09:21:56Z"
+            "2026-10-21T11:59:33Z",
+            "2026-10-21T11:59:34Z"
         ],
         [
             "migrate",
-            "2026-10-21T09:21:56Z",
-            "2026-10-21T09:21:58Z"
+            "2026-10-21T11:59:35Z",
+            "2026-10-21T11:59:37Z"
         ],
         [
             "epoch",
-            "2026-10-21T09:21:58Z",
-            "2026-10-21T09:21:59Z"
+            "2026-10-21T11:59:37Z",
+            "2026-10-21T11:59:38Z"
         ],
         [
             "storage",
-            "2026-10-21T09:21:59Z",
-            "2026-10-21T09:21:59Z"
+            "2026-10-21T11:59:38Z",
+            "2026-10-21T11:59:38Z"
         ],
         [
             "flush",
-            "2026-10-21T09:21:59Z",
-            "2026-10-21T09:22:00Z"
+            "2026-10-21T11:59:38Z",
+            "2026-10-21T11:59:39Z"
         ],
         [
             "seed",
-            "2026-10-21T09:22:00Z",
-            "2026-10-21T09:22:01Z"
+            "2026-10-21T11:59:39Z",
+            "2026-10-21T11:59:40Z"
         ],
         [
             "verify",
-            "2026-10-21T09:22:01Z",
-            "2026-10-21T09:22:18Z"
+            "2026-10-21T11:59:40Z",
+            "2026-10-21T11:59:57Z"
         ],
         [
             "open",
-            "2026-10-21T09:22:18Z",
-            "2026-10-21T09:22:50Z"
+            "2026-10-21T11:59:57Z",
+            "2026-10-21T12:00:29Z"
         ],
         [
             "gate",
-            "2026-10-21T09:22:50Z",
-            "2026-10-21T09:22:50Z"
+            "2026-10-21T12:00:29Z",
+            "2026-10-21T12:00:29Z"
         ],
         [
             "cleanup",
-            "2026-10-21T09:22:50Z",
-            "2026-10-21T09:22:51Z"
+            "2026-10-21T12:00:29Z",
+            "2026-10-21T12:00:30Z"
         ]
     ],
     "link_consumed": [
         303,
-        "http://localhost:8081/admin/password-reset/reset?email=owner%40example.test&expires=1792575172&signature=<redacted>"
+        "http://localhost:8081/admin/password-reset/reset?email=owner%40example.test&expires=1792584631&signature=<redacted>"
     ],
     "demo_login_after": 422
 }

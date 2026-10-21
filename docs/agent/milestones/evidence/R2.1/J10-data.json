@@ -96,7 +96,7 @@
                     "delivered": "secrets_file"
                 },
                 "sign_in_link": {
-                    "expires_at": "2026-10-21T10:18:57Z",
+                    "expires_at": "2026-10-21T12:57:08Z",
                     "delivered": "secrets_file"
                 }
             },
@@ -149,7 +149,7 @@
                 {
                     "name": "sign_in_link",
                     "written_to": "<work>/demo-secrets.json",
-                    "expires_at": "2026-10-21T10:18:57Z"
+                    "expires_at": "2026-10-21T12:57:08Z"
                 }
             ],
             "warnings": [],
@@ -159,29 +159,29 @@
     "seed_load": {
         "command": "php artisan app:seed-load demo 100000 --force (one-off)",
         "exit_code": 0,
-        "seconds": 443,
+        "seconds": 429.6,
         "output": [
             "+-------------------+-----------------------+",
             "|                   | demo / service_report |",
             "+-------------------+-----------------------+",
             "| submissions       | 100000                |",
-            "| submission_values | 2323826               |",
-            "| tasks             | 40352                 |",
-            "| renditions        | 70707                 |",
-            "| workflow_runs     | 37940                 |",
-            "| mail_messages     | 16908                 |",
-            "| seconds           | 440.03                |",
+            "| submission_values | 2329431               |",
+            "| tasks             | 40689                 |",
+            "| renditions        | 70965                 |",
+            "| workflow_runs     | 38059                 |",
+            "| mail_messages     | 16900                 |",
+            "| seconds           | 426.96                |",
             "+-------------------+-----------------------+"
         ]
     },
     "rendition_gap": {
         "exit_code": 0,
-        "output": "21973"
+        "output": "21968"
     },
     "fixtures": {
         "command": "php -- demo 150000 < scripts/perf/fixtures.php (one-off)",
         "exit_code": 0,
-        "seconds": 8.3,
+        "seconds": 7.4,
         "result": {
             "organization": {
                 "id": 2,
@@ -200,25 +200,25 @@
                 2
             ],
             "sample": {
-                "completed": "01a15d2a-a5c8-7102-8d0d-1b5038e161a2",
-                "number": "LT-pf9zz3-050607",
-                "inReview": "01a15cef-2368-7120-b564-0fa141c4ad73"
+                "completed": "01a15e64-da1b-71a3-ad15-46a3887add99",
+                "number": "LT-i6fryj-067360",
+                "inReview": "01a15d5d-2e1b-7384-82eb-6c1e4650ffa6"
             },
             "counts": {
                 "submissions": 100000,
-                "submission_values": 2323826,
-                "tasks": 40352,
-                "renditions": 92880,
-                "workflow_runs": 37940,
-                "mail_messages": 16908,
+                "submission_values": 2329431,
+                "tasks": 40689,
+                "renditions": 93033,
+                "workflow_runs": 38059,
+                "mail_messages": 16900,
                 "activity_log": 150004,
                 "activity_log_all": 150021
             },
-            "auditInserted": 149789
+            "auditInserted": 149889
         }
     },
     "queue_settled": {
-        "seconds": 5.5,
+        "seconds": 5.4,
         "settled": true,
         "largest_backlog": 0
     }

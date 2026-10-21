@@ -12,7 +12,7 @@
             "version": "2.1.0-alpha.1-test",
             "mode": "domain",
             "dir": "<work>/fieldset-test-j08b",
-            "project": "fieldset-fieldset-test-j08b-b65c",
+            "project": "fieldset-fieldset-test-j08b-4425",
             "port": null,
             "mail": {
                 "mode": "capture",
@@ -20,19 +20,19 @@
             },
             "owner_email": null,
             "from_backup": {
-                "backup": "manual-20261021T095533Z",
+                "backup": "manual-20261021T123339Z",
                 "format": "fieldset",
                 "authenticated": true,
                 "encrypted": true,
-                "created_at": "2026-10-21T09:55:33Z",
+                "created_at": "2026-10-21T12:33:39Z",
                 "version": "2.1.0-alpha.1-test",
                 "epoch": 4,
                 "recipients": {
                     "listed": [
-                        "age1389tp0ng78ynql5588g43ky6v2lc2v7kdg638hk5edgeetk4fpgq5c2v2h"
+                        "age1uwl6ege0eanr4fx9lc5z5hs2na6n073l2xytnrzutaf40zh9xuesxsqjfq"
                     ],
                     "kept": [
-                        "age1389tp0ng78ynql5588g43ky6v2lc2v7kdg638hk5edgeetk4fpgq5c2v2h"
+                        "age1uwl6ege0eanr4fx9lc5z5hs2na6n073l2xytnrzutaf40zh9xuesxsqjfq"
                     ]
                 }
             },

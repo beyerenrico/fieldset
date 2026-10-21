@@ -3,7 +3,7 @@
     "guide_command": "~/forms/fieldset backup --json",
     "command": "<work>/fieldset-test-j11-forms/fieldset backup --json",
     "exit_code": 0,
-    "seconds": 2.7,
+    "seconds": 2.5,
     "stdout": {
         "schema_version": 1,
         "command": "backup",
@@ -11,20 +11,20 @@
         "exit_code": 0,
         "changed": true,
         "data": {
-            "backup": "manual-20261021T103515Z",
-            "path": "<work>/fieldset-test-j11-forms/backups/manual-20261021T103515Z",
+            "backup": "manual-20261021T131315Z",
+            "path": "<work>/fieldset-test-j11-forms/backups/manual-20261021T131315Z",
             "kind": "manual",
-            "created_at": "2026-10-21T10:35:15Z",
-            "bytes": 499510,
+            "created_at": "2026-10-21T13:13:15Z",
+            "bytes": 499493,
             "encrypted": false,
             "includes_secrets": false,
-            "app_key_fingerprint": "37c4-9861-d643-15cc",
+            "app_key_fingerprint": "ead1-e690-ce0a-8dc1",
             "files": {
                 "referenced": 1,
                 "missing": 0,
                 "missing_sample": []
             },
-            "free_bytes": 151126708224
+            "free_bytes": 143922847744
         },
         "secrets": [],
         "warnings": [

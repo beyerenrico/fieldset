@@ -5,6 +5,7 @@
 # out. An expired entry stops suppressing, so the release scan fails again until the entry is reviewed.
 # release.yml scans this image with only this file (--ignorefile, --show-suppressed).
 # 87 high findings: chromium and libexpat1 (Debian), Go in usr/bin/gotenberg and usr/bin/pdfcpu; 30 days (fixed upstream, waiting for a Gotenberg image release).
+# 2 more high findings (both binaries), CVE-2026-111943 (Go 1.27.1 stdlib, 2026-10-21); 30 days (fixed upstream, waiting for a Gotenberg image release).
 
 vulnerabilities:
   - id: CVE-2026-110136
@@ -281,3 +282,9 @@ vulnerabilities:
       - usr/bin/pdfcpu
     expired_at: 2026-11-17
     statement: "golang.org/x/crypto 0.54.0 (fixed in 0.55.0) in pdfcpu of gotenberg 8.38.1, the latest release; waiting for a Gotenberg image release. Reachability not analysed."
+  - id: CVE-2026-111943
+    paths:
+      - usr/bin/gotenberg
+      - usr/bin/pdfcpu
+    expired_at: 2026-11-20
+    statement: "Go 1.27.1 standard library in gotenberg and pdfcpu of gotenberg 8.38.1, the latest release (2026-10-15). Go crypto/x509 (CA distrust mitigation, published 2026-10-21) is fixed in Go 1.26.10 / 1.27.3 (fixed upstream, only the image release is missing: 30 days, ADR 0071). Waiting for a Gotenberg image release. Reachability not analysed: Gotenberg runs on the internal network only."

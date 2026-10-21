@@ -3,7 +3,7 @@
     "guide_command": "~/forms/fieldset status --json",
     "command": "<work>/fieldset-test-j11-forms/fieldset status --json",
     "exit_code": 0,
-    "seconds": 2.2,
+    "seconds": 2.1,
     "stdout": {
         "schema_version": 1,
         "command": "status",
@@ -20,7 +20,7 @@
                 "container": null
             },
             "disk": {
-                "free_gib": 140.8
+                "free_gib": 134
             },
             "last_backup": null,
             "last_upgrade": null,
@@ -28,7 +28,7 @@
             "mode": "local",
             "url": "http://localhost:8081",
             "local_url": "http://localhost:8081",
-            "project": "fieldset-fieldset-test-j11-forms-13b9",
+            "project": "fieldset-fieldset-test-j11-forms-80dc",
             "port": 8081,
             "health": "ok",
             "services": {
@@ -96,7 +96,7 @@
             "last_restore": null,
             "restore": {
                 "last": null,
-                "storage_volume": "fieldset-fieldset-test-j11-forms-13b9_app-storage",
+                "storage_volume": "fieldset-fieldset-test-j11-forms-80dc_app-storage",
                 "webhooks_paused": false,
                 "interrupted": null,
                 "scratch_left": []
@@ -114,8 +114,8 @@
                         "email": "owner@example.com",
                         "kind": "owner",
                         "state": "unused",
-                        "created_at": "2026-10-21T10:33:34Z",
-                        "expires_at": "2026-10-21T11:33:34Z",
+                        "created_at": "2026-10-21T13:11:35Z",
+                        "expires_at": "2026-10-21T14:11:35Z",
                         "used_at": null,
                         "used_ip": null,
                         "created_by": "cli",

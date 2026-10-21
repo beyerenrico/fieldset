@@ -358,3 +358,7 @@ Format: question · chosen option · impact · how to reverse.
    (RELEASING.md); push only `v2.1.0` by name. (d) Old dev resources to delete when convenient: volumes
    `form-schema-app_pg-data`, `form-schema-app_app-storage`; images `form-schema-app:local`, `form-schema-app:pre-u6`,
    `form-schema-app-ci`. Restoring the `.env` backup made in U6 is not needed.
+   **77a resolved (2026-10-21):** human answer to "How should I handle the Go security flaw that blocks 2.1.0?":
+   "Fix it, then release (Recommended)" ("New branch: update Go, Docker CLI, FrankenPHP and third-party image versions;
+   dated exceptions only where no fixed image exists. Then rescan, rerun all journeys, merge and tag v2.1.0 locally.").
+   Done on branch `sec-go-x509` (ADR 0093).

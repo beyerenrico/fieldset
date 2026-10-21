@@ -55,7 +55,7 @@
             "encryption": {
                 "enabled": true,
                 "recipients": [
-                    "age1389tp0ng78ynql5588g43ky6v2lc2v7kdg638hk5edgeetk4fpgq5c2v2h"
+                    "age1uwl6ege0eanr4fx9lc5z5hs2na6n073l2xytnrzutaf40zh9xuesxsqjfq"
                 ],
                 "identity": "<work>/j08-identity.age"
             },
@@ -80,20 +80,20 @@
         "exit_code": 0,
         "changed": true,
         "data": {
-            "backup": "manual-20261021T094740Z",
-            "path": "<work>/fieldset-test-j08/backups/manual-20261021T094740Z",
+            "backup": "manual-20261021T122527Z",
+            "path": "<work>/fieldset-test-j08/backups/manual-20261021T122527Z",
             "kind": "manual",
-            "created_at": "2026-10-21T09:47:40Z",
+            "created_at": "2026-10-21T12:25:27Z",
             "bytes": 512312,
             "encrypted": true,
             "includes_secrets": false,
-            "app_key_fingerprint": "82a5-d122-253b-6d12",
+            "app_key_fingerprint": "af90-0c5b-b904-6b85",
             "files": {
                 "referenced": 1,
                 "missing": 0,
                 "missing_sample": []
             },
-            "free_bytes": 150999465984
+            "free_bytes": 143932993536
         },
         "secrets": [],
         "warnings": [
