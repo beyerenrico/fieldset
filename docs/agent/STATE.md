@@ -35,3 +35,7 @@ FSA_EVIDENCE_MILESTONE=M12 vendor/bin/pest --testsuite=Install            # jour
 FSA_TEST_PLATFORM=linux/amd64 FSA_HARNESS_PLATFORMS=linux/amd64 vendor/bin/pest --testsuite=Install --filter=J01
 npm run e2e -- --reporter=line
 vendor/bin/rector --dry-run --no-progress-bar   # CI gate, must be 0 files
+
+## Rename to Fieldset (2026-10-21, branch `rename-fieldset`, plan `docs/plans/2026-10-21-001-refactor-rename-to-fieldset-plan.md`)
+- U6 switched the dev stack to the Compose project `fieldset` (reset steps: LEARNINGS 163). The stopped project
+  `form-schema-app` keeps its volumes and images for the human to remove. Suite DB: `DB_DATABASE=fieldset_test`.
