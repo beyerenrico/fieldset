@@ -13,7 +13,7 @@ use JsonException;
  */
 final readonly class InstanceDirectory
 {
-    public const string MARKER = '.fsa-instance';
+    public const string MARKER = '.fieldset-instance';
 
     public const string MARKER_SCHEMA = '1.0';
 
@@ -79,7 +79,7 @@ final readonly class InstanceDirectory
         @chmod($path, 0700);
         $directory = new self($path, SafeFiles::at($path));
         if (! self::isMarked($path)) {
-            $directory->write(self::MARKER, json_encode(['schema_version' => self::MARKER_SCHEMA, 'kind' => 'form-schema-app instance'], JSON_THROW_ON_ERROR)."\n");
+            $directory->write(self::MARKER, json_encode(['schema_version' => self::MARKER_SCHEMA, 'kind' => 'fieldset instance'], JSON_THROW_ON_ERROR)."\n");
         }
 
         return $directory;

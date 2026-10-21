@@ -34,7 +34,7 @@ final readonly class DatabaseAdmin
     private const int RENAME_ATTEMPTS = 3;
 
     /** The only roles a restore creates, adopts from or drops (review: never the app's own user). */
-    public const string ROLE = '/^fsa_(?:restore|drill)_[a-z0-9_]{1,40}$/D';
+    public const string ROLE = '/^fieldset_(?:restore|drill)_[a-z0-9_]{1,40}$/D';
 
     /** The only databases a restore drops or renames: its scratch, put-aside and drill databases. */
     public const string DROPPABLE = '/(?:^|_)(?:pre_)?restore_/';
@@ -214,7 +214,7 @@ final readonly class DatabaseAdmin
         if (! $this->exists($database) || ! $this->roleExists($role)) {
             throw new RestoreRefused('database_missing', "The database {$database} or the role {$role} does not exist.");
         }
-        $db = RestoreConnections::to($database, 'fsa_restore_adopt');
+        $db = RestoreConnections::to($database, 'fieldset_restore_adopt');
 
         try {
             $db->statement('SET search_path = pg_catalog');
@@ -222,7 +222,7 @@ final readonly class DatabaseAdmin
             $db->statement('DROP OWNED BY '.$role);
             $revoked = $this->revokeGrants($db);
         } finally {
-            RestoreConnections::close('fsa_restore_adopt');
+            RestoreConnections::close('fieldset_restore_adopt');
         }
         $settings = $this->resetSettings($database);
         $this->admin->statement('ALTER DATABASE '.$this->quote($database).' OWNER TO CURRENT_USER');
@@ -236,14 +236,14 @@ final readonly class DatabaseAdmin
     /** The superuser installs EXTENSIONS in the new database, so a restricted restore finds them installed (review S1). */
     private function installExtensions(string $database): void
     {
-        $db = RestoreConnections::to($database, 'fsa_restore_create');
+        $db = RestoreConnections::to($database, 'fieldset_restore_create');
 
         try {
             foreach (self::EXTENSIONS as $extension) {
                 $db->statement('CREATE EXTENSION IF NOT EXISTS '.$extension);
             }
         } finally {
-            RestoreConnections::close('fsa_restore_create');
+            RestoreConnections::close('fieldset_restore_create');
         }
     }
 
@@ -320,7 +320,7 @@ final readonly class DatabaseAdmin
     private function assertRestoreRole(string $role): void
     {
         if (preg_match(self::ROLE, $role) !== 1) {
-            throw new RestoreRefused('invalid_role', "{$role} is no role a restore creates (fsa_restore_… or fsa_drill_…).");
+            throw new RestoreRefused('invalid_role', "{$role} is no role a restore creates (fieldset_restore_… or fieldset_drill_…).");
         }
     }
 

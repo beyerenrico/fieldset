@@ -131,7 +131,7 @@ it('restores an older backup in place: the upgrade child migrates the scratch da
     expect($code)->toBe(0, (string) json_encode($json))
         ->and($child)->toHaveCount(1)
         ->and($child[0]['env'])->toContain('DB_DATABASE', 'PGAPPNAME', 'PGOPTIONS')
-        ->and($child[0]['command'])->toContain('--application-name=fsa_upgrade_'.$id, '--from='.InstanceCommandFixture::VERSION)
+        ->and($child[0]['command'])->toContain('--application-name=fieldset_upgrade_'.$id, '--from='.InstanceCommandFixture::VERSION)
         ->and(array_search('upgrade_child', $phases, true))->toBeGreaterThan(array_search('restore_database', $phases, true))
         ->and(array_search('upgrade_child', $phases, true))->toBeLessThan(array_search('finish', $phases, true));
 });
@@ -199,9 +199,9 @@ it('restores an unauthenticated archive only with --accept-unauthenticated, as a
 
     expect($refused)->toBe(2)->and($refusedJson['errors'][0]['code'])->toBe('backup_unauthenticated')
         ->and($code)->toBe(0, (string) json_encode($json))
-        ->and(implode(' ', $create['options']))->toContain('--restricted-role=fsa_restore_')
+        ->and(implode(' ', $create['options']))->toContain('--restricted-role=fieldset_restore_')
         ->and($create['env'])->toBe(['FIELDSET_RESTORE_DB_PASSWORD'])
-        ->and($pgRestore->env['PGUSER'])->toStartWith('fsa_restore_')
+        ->and($pgRestore->env['PGUSER'])->toStartWith('fieldset_restore_')
         ->and(implode(' ', $pgRestore->command))->toMatch('#--use-list=\S+/staging/restore-[0-9a-f]{12}/restore\.list -- #') // review S1; never in backups/ (M12 gate S3)
         ->and($this->restore->actions())->toContain('adopt')
         ->and(array_search('audit', $this->restore->actions(), true))->toBeLessThan(array_search('adopt', $this->restore->actions(), true))

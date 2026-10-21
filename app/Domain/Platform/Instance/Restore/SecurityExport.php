@@ -19,7 +19,7 @@ use stdClass;
  */
 final readonly class SecurityExport
 {
-    public const string FORMAT = 'fsa-security-state';
+    public const string FORMAT = 'fieldset-security-state';
 
     public const int VERSION = 1;
 

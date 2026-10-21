@@ -45,7 +45,7 @@ function asBackupRole(string $role, string $sql): bool
 }
 
 it('creates the backup role with a SCRAM verifier, read-all and insert-only rights', function (): void {
-    $role = 'fsa_backup_test_'.bin2hex(random_bytes(3));
+    $role = 'fieldset_backup_test_'.bin2hex(random_bytes(3));
     makeOrganization();
 
     $first = new BackupRole()->ensure(BACKUP_HEALTH_PASSWORD, $role);
@@ -63,11 +63,11 @@ it('creates the backup role with a SCRAM verifier, read-all and insert-only righ
         ->and(asBackupRole($role, "UPDATE backup_runs SET status = 'failed'"))->toBeFalse()
         ->and(asBackupRole($role, 'DELETE FROM backup_runs'))->toBeFalse()
         ->and(asBackupRole($role, "UPDATE organizations SET name = 'x'"))->toBeFalse()
-        ->and(asBackupRole($role, 'CREATE TABLE fsa_backup_probe (id int)'))->toBeFalse();
+        ->and(asBackupRole($role, 'CREATE TABLE fieldset_backup_probe (id int)'))->toBeFalse();
 });
 
 it('takes back rights granted to an existing backup role by hand', function (): void {
-    $role = 'fsa_backup_test_'.bin2hex(random_bytes(3));
+    $role = 'fieldset_backup_test_'.bin2hex(random_bytes(3));
     makeOrganization();
     new BackupRole()->ensure(BACKUP_HEALTH_PASSWORD, $role);
     DB::statement("GRANT UPDATE ON organizations TO {$role}");
@@ -81,7 +81,7 @@ it('takes back rights granted to an existing backup role by hand', function (): 
     expect($granted)->toBeTrue()
         ->and(asBackupRole($role, "UPDATE organizations SET name = 'x'"))->toBeFalse()
         ->and(asBackupRole($role, 'DELETE FROM backup_runs'))->toBeFalse()
-        ->and(asBackupRole($role, 'CREATE TABLE fsa_backup_probe (id int)'))->toBeFalse()
+        ->and(asBackupRole($role, 'CREATE TABLE fieldset_backup_probe (id int)'))->toBeFalse()
         ->and(asBackupRole($role, 'SELECT count(*) FROM organizations'))->toBeTrue()
         ->and(asBackupRole($role, "INSERT INTO backup_runs (kind, status, started_at) VALUES ('scheduled', 'succeeded', now())"))->toBeTrue()
         ->and(DB::scalar('SELECT count(*) FROM pg_auth_members m JOIN pg_roles r ON r.oid = m.roleid JOIN pg_roles u ON u.oid = m.member WHERE u.rolname = ?', [$role]))->toBe(1);
@@ -112,8 +112,8 @@ it('sets the role up from the one-off without printing the password', function (
     }
     $document = json_decode(trim($output), true, 512, JSON_THROW_ON_ERROR);
 
-    expect($code)->toBe(0)->and($document['status'])->toBe('ok')->and($document['data']['role'])->toBe('fsa_backup')
-        ->and((string) DB::scalar('SELECT rolpassword FROM pg_authid WHERE rolname = ?', ['fsa_backup']))->toStartWith('SCRAM-SHA-256$')
+    expect($code)->toBe(0)->and($document['status'])->toBe('ok')->and($document['data']['role'])->toBe('fieldset_backup')
+        ->and((string) DB::scalar('SELECT rolpassword FROM pg_authid WHERE rolname = ?', ['fieldset_backup']))->toStartWith('SCRAM-SHA-256$')
         ->and($output)->not->toContain(BACKUP_HEALTH_PASSWORD);
 });
 
@@ -127,7 +127,7 @@ it('refuses to run the one-off without a password', function (): void {
 });
 
 it('reports a failed role set-up without the statement', function (): void {
-    expect(fn () => new BackupRole()->ensure('', 'fsa_backup'))->toThrow(RuntimeException::class, 'needs a lowercase name and a password');
+    expect(fn () => new BackupRole()->ensure('', 'fieldset_backup'))->toThrow(RuntimeException::class, 'needs a lowercase name and a password');
     expect(fn () => DB::transaction(fn () => new BackupRole()->ensure(BACKUP_HEALTH_PASSWORD, 'pg_signal_backend')))->toThrow(RuntimeException::class, 'Could not set up the backup role pg_signal_backend (SQLSTATE');
 });
 

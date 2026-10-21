@@ -319,7 +319,7 @@ it('names the scratch database, the restricted role and the scratch directory wi
     $create = array_values(array_filter($this->move->databaseCalls, static fn (array $call): bool => $call['action'] === 'create'))[0];
 
     expect($code)->toBe(0, (string) json_encode($json))
-        ->and(implode(' ', $create['options']))->toMatch('/--database=form_schema_restore_[0-9a-f]{12} --restricted-role=fsa_restore_[0-9a-f]{12}/')
+        ->and(implode(' ', $create['options']))->toMatch('/--database=form_schema_restore_[0-9a-f]{12} --restricted-role=fieldset_restore_[0-9a-f]{12}/')
         ->and(RestoreNames::id('AB12-../c3;DROP'))->toBe('ab12c3d');
 });
 

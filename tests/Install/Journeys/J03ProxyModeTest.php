@@ -168,7 +168,7 @@ it('installs behind Traefik on a shared network, joining only the app and trusti
         ->and($attached)->toEqualCanonicalizing([$traefik, $project.'-app-1'])
         ->and(trim(j03Run(['docker', 'port', $project.'-app-1'])->getOutput()))->toBe('')
         ->and(trim(j03Run(['docker', 'port', $project.'-mailpit-1', '8025'])->getOutput()))->toStartWith('127.0.0.1:')
-        ->and(trim(j03Run(['docker', 'network', 'inspect', '-f', '{{json .Labels}}', $network])->getOutput()))->not->toContain('app.form-schema.instance');
+        ->and(trim(j03Run(['docker', 'network', 'inspect', '-f', '{{json .Labels}}', $network])->getOutput()))->not->toContain('app.fieldset.instance');
 });
 
 it('answers on the configured host through Traefik over TLS and honours the forwarded scheme and client', function (): void {

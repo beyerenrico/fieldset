@@ -123,7 +123,7 @@ restore](backup-restore.md)).
 | `runtime/`, `operations/`, `locks/` | runtime settings of the app, journals of running operations, locks |
 
 The directory is mode 0700. Docker volumes hold the database, the uploaded files and the certificates; they carry the
-label `app.form-schema.instance=<instance UUID>`.
+label `app.fieldset.instance=<instance UUID>`.
 
 ## Run without fsa
 

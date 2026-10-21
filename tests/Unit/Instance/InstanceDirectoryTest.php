@@ -22,8 +22,20 @@ it('initializes a 0700 directory with its marker, idempotently', function (): vo
 
     expect(fileperms($path) & 0777)->toBe(0700)
         ->and(InstanceDirectory::isMarked($path))->toBeTrue()
-        ->and(json_decode((string) file_get_contents($path.'/.fsa-instance'), true)['schema_version'])->toBe('1.0')
+        ->and(json_decode((string) file_get_contents($path.'/.fieldset-instance'), true)['schema_version'])->toBe('1.0')
         ->and(InstanceDirectory::open($path)->root)->toBe($directory->root);
+});
+
+it('names itself a fieldset instance in the marker and ignores the marker of the former name', function (): void {
+    $path = TemporaryInstance::path();
+    InstanceDirectory::initialize($path);
+    $former = TemporaryInstance::path();
+    mkdir($former, 0700);
+    file_put_contents($former.'/.fsa-instance', '{"schema_version":"1.0"}');
+
+    expect(json_decode((string) file_get_contents($path.'/.fieldset-instance'), true)['kind'])->toBe('fieldset instance')
+        ->and(InstanceDirectory::isMarked($former))->toBeFalse()
+        ->and(fn () => InstanceDirectory::open($former))->toThrow(NotAnInstanceDirectory::class);
 });
 
 it('refuses to open a directory without the marker', function (): void {
@@ -43,7 +55,7 @@ it('refuses a marker that is a symlink', function (): void {
     $path = TemporaryInstance::path();
     mkdir($path);
     $elsewhere = TemporaryInstance::directory();
-    symlink($elsewhere->path('.fsa-instance'), $path.'/.fsa-instance');
+    symlink($elsewhere->path('.fieldset-instance'), $path.'/.fieldset-instance');
 
     expect(InstanceDirectory::isMarked($path))->toBeFalse();
 });
@@ -51,10 +63,10 @@ it('refuses a marker that is a symlink', function (): void {
 it('accepts a hand-written marker but refuses one from a newer major version', function (): void {
     $path = TemporaryInstance::path();
     mkdir($path);
-    touch($path.'/.fsa-instance');
+    touch($path.'/.fieldset-instance');
     expect(InstanceDirectory::open($path)->root)->toBe($path);
 
-    file_put_contents($path.'/.fsa-instance', '{"schema_version":"2.0"}');
+    file_put_contents($path.'/.fieldset-instance', '{"schema_version":"2.0"}');
     expect(fn () => InstanceDirectory::open($path))->toThrow(IncompatibleSchema::class);
 });
 
@@ -77,18 +89,18 @@ it('refuses to follow a symlinked directory out of the instance directory', func
 
     expect(fn () => $directory->write('backups/escape.txt', 'x'))->toThrow(UnsafePath::class, 'outside the instance directory')
         ->and(file_exists($outside->root.'/escape.txt'))->toBeFalse()
-        ->and(fn () => $directory->read('backups/.fsa-instance'))->toThrow(UnsafePath::class)
+        ->and(fn () => $directory->read('backups/.fieldset-instance'))->toThrow(UnsafePath::class)
         ->and(fn () => $directory->ensureDirectory('backups/sub'))->toThrow(UnsafePath::class);
 });
 
 it('refuses to write over or read through a symlinked file', function (): void {
     $directory = TemporaryInstance::directory();
     $outside = TemporaryInstance::directory();
-    symlink($outside->path('.fsa-instance'), $directory->root.'/state.json');
+    symlink($outside->path('.fieldset-instance'), $directory->root.'/state.json');
 
     expect(fn () => $directory->write('state.json', '{}'))->toThrow(UnsafePath::class, 'symlink')
         ->and(fn () => $directory->read('state.json'))->toThrow(UnsafePath::class, 'symlink')
-        ->and(file_get_contents($outside->path('.fsa-instance')))->toContain('schema_version');
+        ->and(file_get_contents($outside->path('.fieldset-instance')))->toContain('schema_version');
 });
 
 it('rejects paths that are not plain relative paths', function (string $relative): void {
@@ -174,7 +186,7 @@ it('syncs the directory after a rename where the platform allows it', function (
 
     expect(SafeFiles::syncDirectory($directory->root))->toBeTrue()
         ->and(SafeFiles::syncDirectory($directory->root.'/missing'))->toBeFalse()
-        ->and($directory->files()->rename('.fsa-instance', 'moved/marker'))->toBeTrue()
+        ->and($directory->files()->rename('.fieldset-instance', 'moved/marker'))->toBeTrue()
         ->and($directory->files()->rename('missing', 'moved/other'))->toBeFalse();
 });
 

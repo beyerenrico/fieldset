@@ -140,7 +140,7 @@ function j05Secrets(string $file): array
 /** `php artisan app:demo-passwords --check --json` inside the instance's app container (U14's check, for real). */
 function j05Check(string $uuid): array
 {
-    $app = trim(j05Docker(['ps', '-q', '--filter', "label=app.form-schema.instance={$uuid}", '--filter', 'label=app.form-schema.role=app'])->getOutput());
+    $app = trim(j05Docker(['ps', '-q', '--filter', "label=app.fieldset.instance={$uuid}", '--filter', 'label=app.fieldset.role=app'])->getOutput());
     $process = j05Docker(['exec', $app, 'php', 'artisan', 'app:demo-passwords', '--check', '--json']);
 
     return json_decode(trim($process->getOutput()), true) ?? ['raw' => $process->getOutput().$process->getErrorOutput()];
@@ -388,7 +388,7 @@ it('installs a domain-mode demo: password is refused and every demo user signs i
     $connected = false;
     while ($process->isRunning()) {
         $uuid = InstanceJourney::uuid($this->domain);
-        $edge = $uuid === null || $connected ? '' : trim(j05Docker(['ps', '-aq', '--filter', 'label=app.form-schema.role=edge', '--filter', "label=app.form-schema.instance={$uuid}"])->getOutput());
+        $edge = $uuid === null || $connected ? '' : trim(j05Docker(['ps', '-aq', '--filter', 'label=app.fieldset.role=edge', '--filter', "label=app.fieldset.instance={$uuid}"])->getOutput());
         if ($edge !== '') {
             $this->acme->connectEdge($edge);
             $connected = true;
@@ -451,7 +451,7 @@ it('resets the domain demo with --demo --no-backup: an audit export instead of a
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput()."\n".$process->getOutput())
         ->and($json['data'])->toMatchArray(['organization' => 'J5 Domain Org', 'safety_backup' => null])
         ->and($export)->toMatch('/^audit-export-reset-\d{8}T\d{6}Z\.jsonl$/')
-        ->and($header)->toMatchArray(['format' => 'fsa-audit-export', 'version' => '1.0'])
+        ->and($header)->toMatchArray(['format' => 'fieldset-audit-export', 'version' => '1.0'])
         ->and($header['entries'])->toBeGreaterThan(0)
         ->and(decoct(fileperms($path) & 0777))->toBe('600')
         ->and(glob($this->domain.'/backups/safety-*') ?: [])->toBe([])

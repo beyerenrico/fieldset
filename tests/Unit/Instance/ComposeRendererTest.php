@@ -172,7 +172,7 @@ it('gives the backup service the read-only dump role, a key derived from APP_KEY
     $other = new ServiceEnvironments(new RenderContext($state, ComposeFixtures::secrets()->withAppKey('base64:'.base64_encode(str_repeat('x', 32)))))->backup();
 
     expect($env)->toMatchArray([
-        'DB_HOST' => 'postgres', 'DB_DATABASE' => 'form_schema', 'DB_USERNAME' => 'fsa_backup',
+        'DB_HOST' => 'postgres', 'DB_DATABASE' => 'form_schema', 'DB_USERNAME' => 'fieldset_backup',
         'DB_PASSWORD' => ComposeFixtures::BACKUP_DB_PASSWORD, 'BACKUP_AGE_RECIPIENTS' => $recipient,
     ])
         ->not->toHaveKey('APP_KEY')

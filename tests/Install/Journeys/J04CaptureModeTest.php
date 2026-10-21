@@ -81,7 +81,7 @@ function j04Docker(array $command): Process
 /** The running container of an instance service (by the role label), or ''. */
 function j04Container(string $role): string
 {
-    return trim(j04Docker(['ps', '-q', '--filter', 'label=app.form-schema.instance='.$GLOBALS['fsaJ04Uuid'], '--filter', 'label=app.form-schema.role='.$role])->getOutput());
+    return trim(j04Docker(['ps', '-q', '--filter', 'label=app.fieldset.instance='.$GLOBALS['fsaJ04Uuid'], '--filter', 'label=app.fieldset.role='.$role])->getOutput());
 }
 
 /**
@@ -233,7 +233,7 @@ it('passes the axe checks in a browser for both variants', function (): void {
 it('switches to SMTP with a stand-in Mailpit, the password on stdin, and the test mail arrives there', function (): void {
     $state = json_decode((string) file_get_contents($this->dir.'/state.json'), true);
     $smtp = $GLOBALS['fsaJ04Smtp'];
-    $started = j04Docker(['run', '-d', '--name', $smtp, '--label', 'app.form-schema.test=j04', '-e', 'MP_SMTP_AUTH_ACCEPT_ANY=1', '-e', 'MP_SMTP_AUTH_ALLOW_INSECURE=1', '-p', '127.0.0.1::8025', $state['digests']['mailpit']]);
+    $started = j04Docker(['run', '-d', '--name', $smtp, '--label', 'app.fieldset.test=j04', '-e', 'MP_SMTP_AUTH_ACCEPT_ANY=1', '-e', 'MP_SMTP_AUTH_ALLOW_INSECURE=1', '-p', '127.0.0.1::8025', $state['digests']['mailpit']]);
     $connected = j04Docker(['network', 'connect', $state['project'].'_default', $smtp]);
     $GLOBALS['fsaJ04SmtpPort'] = (int) (explode(':', trim(explode("\n", trim(j04Docker(['port', $smtp, '8025/tcp'])->getOutput()))[0]))[1] ?? 0);
     $flags = ['config', 'set', 'mail', 'smtp', '--smtp-host', $smtp, '--smtp-port', '1025', '--smtp-username', J04_SMTP_USER, '--password-stdin', '--from-address', 'forms@example.test', '--test-to', 'ops@example.test', '--json'];
@@ -334,7 +334,7 @@ function j04AttachRelay(string $dir, string $name, array $relay): array
 {
     $state = json_decode((string) @file_get_contents($dir.'/state.json'), true);
     if ($relay['port'] === 0 && is_string($state['digests']['mailpit'] ?? null)) {
-        j04Docker(['run', '-d', '--name', $name, '--label', 'app.form-schema.test=j04', '-e', 'MP_SMTP_AUTH_ACCEPT_ANY=1', '-e', 'MP_SMTP_AUTH_ALLOW_INSECURE=1', '-p', '127.0.0.1::8025', $state['digests']['mailpit']]);
+        j04Docker(['run', '-d', '--name', $name, '--label', 'app.fieldset.test=j04', '-e', 'MP_SMTP_AUTH_ACCEPT_ANY=1', '-e', 'MP_SMTP_AUTH_ALLOW_INSECURE=1', '-p', '127.0.0.1::8025', $state['digests']['mailpit']]);
         $relay['port'] = (int) (explode(':', trim(explode("\n", trim(j04Docker(['port', $name, '8025/tcp'])->getOutput()))[0]))[1] ?? 0);
     }
     $network = is_string($state['project'] ?? null) ? $state['project'].'_default' : null;
@@ -381,7 +381,7 @@ it('installs straight into SMTP mode with --smtp-* and a password file: no catch
     $json = InstanceJourney::json($process);
     $GLOBALS['fsaJ04SmtpUuid'] = InstanceJourney::uuid($dir);
     $test = $relay['port'] > 0 ? j04AwaitMessage($relay['port'], null, J04_OWNER, 30, 'test mail') : null;
-    $catchers = trim(j04Docker(['ps', '-aq', '--filter', 'label=app.form-schema.instance='.$GLOBALS['fsaJ04SmtpUuid'], '--filter', 'label=app.form-schema.role=mailpit'])->getOutput());
+    $catchers = trim(j04Docker(['ps', '-aq', '--filter', 'label=app.fieldset.instance='.$GLOBALS['fsaJ04SmtpUuid'], '--filter', 'label=app.fieldset.role=mailpit'])->getOutput());
     $show = InstanceJourney::json($this->journey->fsa($dir, ['config', 'show', '--json']));
     $status = InstanceJourney::json($this->journey->fsa($dir, ['status', '--json']));
     $this->journey->evidence('J04-install-smtp.json', ['command' => 'install.sh --dir <work>/fsa-test-j04-smtp … --smtp-host fsa-test-j04-relay-… --smtp-port 1025 --smtp-encryption none --smtp-username '.J04_SMTP_USER.' --password-file <work>/smtp-password --from-address forms@example.test --json',

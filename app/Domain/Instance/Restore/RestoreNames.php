@@ -39,7 +39,7 @@ final readonly class RestoreNames
         $base = substr($live, 0, 63 - strlen('_pre_restore_') - strlen($id));
 
         return new self(
-            $id, $live, $base.'_restore_'.$id, $base.'_pre_restore_'.$id, 'fsa_restore_'.$id,
+            $id, $live, $base.'_restore_'.$id, $base.'_pre_restore_'.$id, 'fieldset_restore_'.$id,
             RestoreStorage::current($state), RestoreStorage::fresh($state, $id),
         );
     }

@@ -24,7 +24,7 @@ use Throwable;
 #[Description('Migrate the database for an upgrade: alone, with lock_timeout, version steps and an index check')]
 #[Signature('instance:upgrade-migrate
         {--from= : The version the instance comes from (version steps since then run); empty runs them all}
-        {--application-name= : The session name fsa watches (fsa_upgrade_<hex>)}
+        {--application-name= : The session name fsa watches (fieldset_upgrade_<hex>)}
         {--wait-foreign=30 : Seconds to wait for other sessions on the database to end}
         {--lock-timeout=60 : Seconds a statement may wait for a lock}
         {--json : Print one JSON document on stdout}')]

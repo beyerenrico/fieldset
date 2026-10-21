@@ -193,7 +193,7 @@ final class EnvelopeMonitor
         if ($this->uuid() !== null && ($attributes[InstanceJourney::LABEL] ?? '') === $this->uuid) {
             return true;
         }
-        if (($attributes['app.form-schema.role'] ?? '') !== 'ops') {
+        if (($attributes['app.fieldset.role'] ?? '') !== 'ops') {
             return false;
         }
         $binds = new Process(['docker', 'inspect', '--format', '{{json .HostConfig.Binds}}', $id]);
@@ -210,7 +210,7 @@ final class EnvelopeMonitor
     /** @param  array<string, string>  $attributes */
     private function track(string $id, array $attributes): void
     {
-        $role = $attributes['app.form-schema.role'] ?? '';
+        $role = $attributes['app.fieldset.role'] ?? '';
         $this->containers[$id] = [
             'name' => $role === 'ops' ? 'ops:'.($attributes['name'] ?? $id) : ($attributes['name'] ?? $id),
             'service' => $attributes['com.docker.compose.service'] ?? ($role === 'ops' ? 'ops' : 'other'),

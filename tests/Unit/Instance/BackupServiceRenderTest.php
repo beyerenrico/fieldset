@@ -32,7 +32,7 @@ it('renders the backup service hardened, without the socket, with its 128 MiB sl
         ->and($service['stop_grace_period'])->toBe('30s')
         ->and($service['volumes'])->toBe([
             ['type' => 'volume', 'source' => 'app-storage', 'target' => '/var/www/html/storage/app', 'read_only' => true],
-            ['type' => 'bind', 'source' => './.fsa-instance', 'target' => '/fsa/instance/.fsa-instance', 'read_only' => true, 'bind' => ['create_host_path' => false]],
+            ['type' => 'bind', 'source' => './.fieldset-instance', 'target' => '/fsa/instance/.fieldset-instance', 'read_only' => true, 'bind' => ['create_host_path' => false]],
             ['type' => 'bind', 'source' => './locks', 'target' => '/fsa/instance/locks', 'read_only' => false, 'bind' => ['create_host_path' => false]],
             ['type' => 'bind', 'source' => './backups', 'target' => '/fsa/instance/backups', 'read_only' => false, 'bind' => ['create_host_path' => false]],
             ['type' => 'bind', 'source' => './staging/backup', 'target' => '/fsa/instance/staging/backup', 'read_only' => false, 'bind' => ['create_host_path' => false]],

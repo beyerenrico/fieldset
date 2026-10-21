@@ -253,7 +253,7 @@ final class ReleaseHarness
     {
         $network = $this->proxyNetwork ?? str_replace('fsa-test-harness-', 'fsa-test-proxy-', $this->project);
         if ($this->proxyNetwork === null) {
-            self::mustRun(['docker', 'network', 'create', '--label', 'app.form-schema.test=harness', $network]);
+            self::mustRun(['docker', 'network', 'create', '--label', 'app.fieldset.test=harness', $network]);
             $this->proxyNetwork = $network;
         }
         $compose = self::compose($this->project, $this->directory, ['FIELDSET_HARNESS_PROXY_NETWORK' => $network]);

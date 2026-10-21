@@ -99,7 +99,7 @@ function j06Docker(array $command, array $env = []): Process
 /** A container of the instance by its role, or ''. */
 function j06Container(string $role): string
 {
-    return trim(j06Docker(['ps', '-aq', '--filter', 'label=app.form-schema.instance='.($GLOBALS['fsaJ06Uuid'] ?? ''), '--filter', "label=app.form-schema.role={$role}"])->getOutput());
+    return trim(j06Docker(['ps', '-aq', '--filter', 'label=app.fieldset.instance='.($GLOBALS['fsaJ06Uuid'] ?? ''), '--filter', "label=app.fieldset.role={$role}"])->getOutput());
 }
 
 /** @return array{status: int, headers: array<string, string>, body: string} a request through the fake tunnel */
@@ -292,7 +292,7 @@ it('answers 503 on the expired tunnel host, reports it read-only, and the next m
     $before = [md5_file($this->dir.'/state.json'), md5_file($this->dir.'/runtime/runtime.json'), j06Container('tunnel')];
     $since = time();
     [$status, $statusJson] = j06Run($this, ['status'], 'J06-status-expired.json', $this->tunnel->environment(J06_TTL));
-    $changes = InstanceJourney::events($since, time() + 1, ['label=app.form-schema.instance='.$GLOBALS['fsaJ06Uuid'], 'type=container', 'event=create', 'event=destroy', 'event=stop']);
+    $changes = InstanceJourney::events($since, time() + 1, ['label=app.fieldset.instance='.$GLOBALS['fsaJ06Uuid'], 'type=container', 'event=create', 'event=destroy', 'event=stop']);
     $after = [md5_file($this->dir.'/state.json'), md5_file($this->dir.'/runtime/runtime.json'), j06Container('tunnel')];
     [$demo, $demoJson] = j06Run($this, ['demo', ...j06SecretsFile($this, 'next-mutating-command')], 'J06-next-mutating-command.json', $this->tunnel->environment(J06_TTL));
     $this->journey->evidence('J06-expiry.json', ['through_tunnel_after_expiry' => ['status' => $expired['status'], 'retry_after' => $expired['headers']['retry-after'] ?? null], 'status_changed_files' => $before !== $after, 'status_container_events' => $changes]);

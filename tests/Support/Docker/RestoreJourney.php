@@ -30,7 +30,7 @@ final class RestoreJourney
     /** The ID of the instance's service container of a role (app, postgres, backup …). */
     public static function container(string $uuid, string $role): string
     {
-        return trim(self::docker(['ps', '-q', '--filter', "label=app.form-schema.instance={$uuid}", '--filter', "label=app.form-schema.role={$role}", '--filter', 'label=com.docker.compose.oneoff=False'])->getOutput());
+        return trim(self::docker(['ps', '-q', '--filter', "label=app.fieldset.instance={$uuid}", '--filter', "label=app.fieldset.role={$role}", '--filter', 'label=com.docker.compose.oneoff=False'])->getOutput());
     }
 
     /** One value (tuples only, unaligned) from the instance's live database. */

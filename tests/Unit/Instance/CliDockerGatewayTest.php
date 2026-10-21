@@ -101,7 +101,7 @@ it('parses compose ps as NDJSON and as the older JSON array', function (string $
         ->and($containers[1]->running())->toBeFalse()
         ->and($containers[1]->health)->toBeNull();
 })->with([
-    'ndjson' => ['{"ID":"1","Name":"fsa-app-1","State":"running","Health":"healthy","Labels":"com.docker.compose.service=app,app.form-schema.instance=u"}'."\n".'{"ID":"2","Name":"fsa-queue-1","State":"exited","Health":"","Labels":"com.docker.compose.service=queue"}'],
+    'ndjson' => ['{"ID":"1","Name":"fsa-app-1","State":"running","Health":"healthy","Labels":"com.docker.compose.service=app,app.fieldset.instance=u"}'."\n".'{"ID":"2","Name":"fsa-queue-1","State":"exited","Health":"","Labels":"com.docker.compose.service=queue"}'],
     'array' => ['[{"ID":"1","Name":"fsa-app-1","State":"running","Health":"healthy","Labels":"com.docker.compose.service=app"},{"ID":"2","Name":"fsa-queue-1","State":"exited","Health":"","Labels":"com.docker.compose.service=queue"}]'],
 ]);
 
@@ -142,7 +142,7 @@ it('pulls by digest and inspects images, answering null for unknown ones', funct
 
 it('inspects a container for its ID and start time', function (): void {
     $this->runner->push(
-        new ProcessOutcome(0, json_encode(['Id' => str_repeat('a', 64), 'Name' => '/fsa-ops', 'State' => ['Status' => 'running', 'Running' => true, 'StartedAt' => '2026-10-17T10:00:00.123456789Z', 'Health' => ['Status' => 'healthy']], 'Config' => ['Image' => 'app', 'Labels' => ['app.form-schema.role' => 'ops']]])),
+        new ProcessOutcome(0, json_encode(['Id' => str_repeat('a', 64), 'Name' => '/fsa-ops', 'State' => ['Status' => 'running', 'Running' => true, 'StartedAt' => '2026-10-17T10:00:00.123456789Z', 'Health' => ['Status' => 'healthy']], 'Config' => ['Image' => 'app', 'Labels' => ['app.fieldset.role' => 'ops']]])),
         new ProcessOutcome(1, '', 'Error: No such container: gone'),
         new ProcessOutcome(1, '', 'Error response from daemon: something else'),
     );
@@ -154,7 +154,7 @@ it('inspects a container for its ID and start time', function (): void {
         ->and($container?->name)->toBe('fsa-ops')
         ->and($container?->startedAt)->toBe('2026-10-17T10:00:00.123456789Z')
         ->and($container?->health)->toBe('healthy')
-        ->and($container?->labels)->toBe(['app.form-schema.role' => 'ops'])
+        ->and($container?->labels)->toBe(['app.fieldset.role' => 'ops'])
         ->and($this->docker->inspectContainer('gone'))->toBeNull()
         ->and(fn () => $this->docker->inspectContainer('x'))->toThrow(DockerCommandFailed::class);
 });
@@ -214,23 +214,23 @@ it('inspects a network for its gateway and the addresses of attached containers 
 
 it('lists containers, volumes and networks by label', function (): void {
     $this->runner->push(
-        new ProcessOutcome(0, '{"ID":"'.str_repeat('b', 64).'","Names":"fsa-app-1","State":"running","Image":"app","Labels":"app.form-schema.instance=u1"}'),
-        new ProcessOutcome(0, '{"Name":"fsa_pgdata","Driver":"local","Labels":"app.form-schema.instance=u1,com.docker.compose.project=fsa"}'),
-        new ProcessOutcome(0, '{"ID":"n1","Name":"fsa_default","Labels":"app.form-schema.instance=u1"}'."\n"),
+        new ProcessOutcome(0, '{"ID":"'.str_repeat('b', 64).'","Names":"fsa-app-1","State":"running","Image":"app","Labels":"app.fieldset.instance=u1"}'),
+        new ProcessOutcome(0, '{"Name":"fsa_pgdata","Driver":"local","Labels":"app.fieldset.instance=u1,com.docker.compose.project=fsa"}'),
+        new ProcessOutcome(0, '{"ID":"n1","Name":"fsa_default","Labels":"app.fieldset.instance=u1"}'."\n"),
         new ProcessOutcome(0, ''),
     );
-    $labels = ['app.form-schema.instance' => 'u1', 'app.form-schema.role' => null];
+    $labels = ['app.fieldset.instance' => 'u1', 'app.fieldset.role' => null];
 
     $containers = $this->docker->containers($labels);
     $volumes = $this->docker->volumes($labels);
     $networks = $this->docker->networks($labels);
 
-    $filters = ['--filter', 'label=app.form-schema.instance=u1', '--filter', 'label=app.form-schema.role'];
+    $filters = ['--filter', 'label=app.fieldset.instance=u1', '--filter', 'label=app.fieldset.role'];
     expect($this->runner->runs[0]['command'])->toBe(['docker', 'container', 'ls', '--no-trunc', '--format', '{{json .}}', '--all', ...$filters])
         ->and($this->runner->runs[1]['command'])->toBe(['docker', 'volume', 'ls', '--format', '{{json .}}', ...$filters])
         ->and($this->runner->runs[2]['command'])->toBe(['docker', 'network', 'ls', '--no-trunc', '--format', '{{json .}}', ...$filters])
         ->and($containers[0]->name)->toBe('fsa-app-1')
-        ->and($volumes)->toEqual([new DockerResource('volume', 'fsa_pgdata', ['app.form-schema.instance' => 'u1', 'com.docker.compose.project' => 'fsa'])])
+        ->and($volumes)->toEqual([new DockerResource('volume', 'fsa_pgdata', ['app.fieldset.instance' => 'u1', 'com.docker.compose.project' => 'fsa'])])
         ->and($networks[0]->name)->toBe('fsa_default')
         ->and($this->docker->containers([], all: false))->toBe([])
         ->and($this->runner->lastCommand())->toBe(['docker', 'container', 'ls', '--no-trunc', '--format', '{{json .}}']);
@@ -240,7 +240,7 @@ it('builds docker run from a container spec with environment values out of argv'
     $spec = new ContainerSpec(
         image: 'ghcr.io/x/app@sha256:'.str_repeat('1', 64),
         command: ['upgrade', '--supervise'],
-        labels: ['app.form-schema.instance' => 'u1'],
+        labels: ['app.fieldset.instance' => 'u1'],
         env: ['HOME' => '/tmp', 'SMOKE_TOKEN' => 'tok-secret'],
         volumes: ['/var/run/docker.sock:/var/run/docker.sock', '/srv/forms:/srv/forms'],
         ports: ['127.0.0.1:8080:80'],
@@ -251,14 +251,14 @@ it('builds docker run from a container spec with environment values out of argv'
         groupAdd: ['998'],
     );
 
-    $this->docker->runContainer($spec->detachedAs('fsa-forms-ab12-supervisor', ['app.form-schema.role' => 'supervisor']), 'in', 30.0);
+    $this->docker->runContainer($spec->detachedAs('fsa-forms-ab12-supervisor', ['app.fieldset.role' => 'supervisor']), 'in', 30.0);
 
     $run = $this->runner->runs[0];
     expect($run['command'])->toBe([
         'docker', 'run', '--detach', '--interactive', '--rm', '--name', 'fsa-forms-ab12-supervisor', '--restart', 'no',
         '--network', 'fsa_default', '--user', '1000:1000', '--entrypoint', '/usr/local/bin/fsa', '--workdir', '/srv/forms',
         '--security-opt', 'no-new-privileges', // every container (M12 gate S6)
-        '--label', 'app.form-schema.instance=u1', '--label', 'app.form-schema.role=supervisor',
+        '--label', 'app.fieldset.instance=u1', '--label', 'app.fieldset.role=supervisor',
         '--volume', '/var/run/docker.sock:/var/run/docker.sock', '--volume', '/srv/forms:/srv/forms',
         '--publish', '127.0.0.1:8080:80', '--group-add', '998',
         '--env', 'HOME', '--env', 'SMOKE_TOKEN',

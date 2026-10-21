@@ -182,7 +182,7 @@ it('refuses what it cannot adopt with exit 7 and the reason, before 1.0 is touch
     'no containers of the project' => [fn (AdoptFixture $a) => $a->instance->docker->containers = [], 'legacy_not_found'],
     'started from another directory' => [fn (AdoptFixture $a) => $a->withLegacyStack(extraLabels: ['com.docker.compose.project.working_dir' => '/srv/elsewhere']), 'checkout_mismatch'],
     'no APP_KEY' => [fn (AdoptFixture $a) => file_put_contents($a->checkout.'/.env', AdoptFixture::env(['APP_KEY' => ''])), 'app_key_missing'],
-    'an fsa instance' => [fn (AdoptFixture $a) => $a->withLegacyStack(extraLabels: ['app.form-schema.instance' => '3f1c2b9e-8a4d-4c1e-9b7a-2d5e6f708192']), 'already_instance'],
+    'an fsa instance' => [fn (AdoptFixture $a) => $a->withLegacyStack(extraLabels: ['app.fieldset.instance' => '3f1c2b9e-8a4d-4c1e-9b7a-2d5e6f708192']), 'already_instance'],
     'a database name 2.0 cannot keep' => [fn (AdoptFixture $a) => file_put_contents($a->checkout.'/.env', AdoptFixture::env(['DB_DATABASE' => 'Forms-DB'])), 'unsupported_database_name'],
 ]);
 

@@ -22,7 +22,7 @@ use SensitiveParameter;
  */
 final readonly class BackupRole
 {
-    public const string NAME = 'fsa_backup';
+    public const string NAME = 'fieldset_backup';
 
     /** The one-off's environment variable that carries the password (never an argument). */
     public const string PASSWORD_ENV = 'FIELDSET_BACKUP_DB_PASSWORD';

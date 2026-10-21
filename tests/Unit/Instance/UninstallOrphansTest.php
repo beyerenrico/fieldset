@@ -80,7 +80,7 @@ it('refuses an installation that never ran from this directory, a malformed UUID
 
     expect($foreignCode)->toBe(2)
         ->and($foreign['errors'][0]['code'])->toBe('not_an_orphan')
-        ->and($foreign['errors'][0]['hint'])->toContain('docker ps -a --filter label=app.form-schema.instance=22222222-2222-4222-8222-222222222222')
+        ->and($foreign['errors'][0]['hint'])->toContain('docker ps -a --filter label=app.fieldset.instance=22222222-2222-4222-8222-222222222222')
         ->and($badCode)->toBe(2)
         ->and($ownCode)->toBe(2)
         ->and($own['errors'][0]['message'])->toContain('this instance')

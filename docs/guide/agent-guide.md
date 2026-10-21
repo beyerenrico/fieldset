@@ -126,7 +126,7 @@ this order:
 
 Once install.sh has verified the release it creates the instance directory, so an install that fails later (exit 2,
 3, 4 or 7, for example `doctor_failed`, `path_missing` or `backup_newer`) leaves that directory behind. Before the
-first container starts it holds only install.sh's scaffold (such as `.fsa-instance`, `fsa`, `locks`, `operations`,
+first container starts it holds only install.sh's scaffold (such as `.fieldset-instance`, `fsa`, `locks`, `operations`,
 `releases`), and `<dir>/fsa status` and `<dir>/fsa uninstall` answer exit 3 `no_state` ("the installation
 did not finish"). Then either:
 

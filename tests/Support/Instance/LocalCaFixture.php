@@ -15,7 +15,7 @@ use RuntimeException;
  */
 final class LocalCaFixture
 {
-    public const string ROOT_NAME = 'form-schema-app local CA - 2026 ECC Root';
+    public const string ROOT_NAME = 'Fieldset local CA - 2026 ECC Root';
 
     private const string CONFIG = <<<'CNF'
         [req]

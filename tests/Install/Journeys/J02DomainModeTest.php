@@ -107,7 +107,7 @@ it('installs in domain mode and gets a certificate from Pebble', function (): vo
     $connected = null;
     while ($process->isRunning()) {
         $uuid = InstanceJourney::uuid($this->dir);
-        $edge = $uuid === null || $connected !== null ? '' : trim(j02Docker(['ps', '-aq', '--filter', 'label=app.form-schema.role=edge', '--filter', "label=app.form-schema.instance={$uuid}"])->getOutput());
+        $edge = $uuid === null || $connected !== null ? '' : trim(j02Docker(['ps', '-aq', '--filter', 'label=app.fieldset.role=edge', '--filter', "label=app.fieldset.instance={$uuid}"])->getOutput());
         if ($edge !== '') {
             $this->acme->connectEdge($edge);
             $connected = j02Docker(['inspect', '-f', '{{.State.Status}}', $edge])->getOutput();
@@ -197,13 +197,13 @@ it('keeps /_mail/ behind a /platform session with MFA and audits the opening onc
     $navigate = $client->get('https://'.J02_DOMAIN.'/_mail/', ['headers' => ['Accept' => 'text/html', 'Sec-Fetch-Mode' => 'navigate']]);
     $xhr = $client->get('https://'.J02_DOMAIN.'/_mail/api/v1/messages', ['headers' => ['Accept' => 'application/json', 'X-Requested-With' => 'XMLHttpRequest']]);
     $internal = $client->get('https://'.J02_DOMAIN.'/_fsa/catcher-auth');
-    $app = trim(j02Docker(['ps', '-q', '--filter', 'label=app.form-schema.instance='.$GLOBALS['fsaJ02Uuid'], '--filter', 'label=app.form-schema.role=app'])->getOutput());
+    $app = trim(j02Docker(['ps', '-q', '--filter', 'label=app.fieldset.instance='.$GLOBALS['fsaJ02Uuid'], '--filter', 'label=app.fieldset.role=app'])->getOutput());
     j02Docker(['cp', TestImage::repository().'/tests/Install/Harness/operator-session.php', "{$app}:/tmp/operator-session.php"]);
     $session = json_decode(j02Docker(['exec', $app, 'php', '/tmp/operator-session.php', J02_OWNER])->getOutput(), true);
     $cookie = ['Cookie' => ($session['name'] ?? '').'='.($session['value'] ?? '')];
     $ui = $client->get('https://'.J02_DOMAIN.'/_mail/', ['headers' => [...$cookie, 'Accept' => 'text/html', 'Sec-Fetch-Mode' => 'navigate']]);
     $api = $client->get('https://'.J02_DOMAIN.'/_mail/api/v1/messages', ['headers' => [...$cookie, 'Accept' => 'application/json']]);
-    $postgres = trim(j02Docker(['ps', '-q', '--filter', 'label=app.form-schema.instance='.$GLOBALS['fsaJ02Uuid'], '--filter', 'label=app.form-schema.role=postgres'])->getOutput());
+    $postgres = trim(j02Docker(['ps', '-q', '--filter', 'label=app.fieldset.instance='.$GLOBALS['fsaJ02Uuid'], '--filter', 'label=app.fieldset.role=postgres'])->getOutput());
     $audits = trim(j02Docker(['exec', $postgres, 'psql', '-U', 'form_schema', '-d', 'form_schema', '-tAc', "SELECT count(*) FROM activity_log WHERE event = 'platform.catcher_opened'"])->getOutput());
     $this->journey->evidence('J02-catcher.json', [
         'without_session' => ['navigate' => [$navigate->getStatusCode(), $navigate->getHeaderLine('Location')], 'xhr' => $xhr->getStatusCode(), 'auth_endpoint_from_outside' => $internal->getStatusCode()],
@@ -234,9 +234,9 @@ it('trusts forwarded headers only from the edge, not from a container on another
     $uuid = $GLOBALS['fsaJ02Uuid'];
     $state = json_decode((string) file_get_contents($this->dir.'/state.json'), true);
     $forged = ['--header', 'Host: '.J02_DOMAIN, '--header', 'X-Forwarded-Host: evil.example', '--header', 'X-Forwarded-For: 203.0.113.7'];
-    $neighbour = j02Docker(['run', '--rm', '--network', $state['project'].'_default', '--label', "app.form-schema.instance={$uuid}", '--entrypoint', 'curl', $state['digests']['app'],
+    $neighbour = j02Docker(['run', '--rm', '--network', $state['project'].'_default', '--label', "app.fieldset.instance={$uuid}", '--entrypoint', 'curl', $state['digests']['app'],
         '--silent', '--output', '/dev/null', '--write-out', '%{http_code}', ...$forged, 'http://app:8080/admin/login'], $this->journey->release->platformEnvironment());
-    $edge = trim(j02Docker(['ps', '-q', '--filter', "label=app.form-schema.instance={$uuid}", '--filter', 'label=app.form-schema.role=edge'])->getOutput());
+    $edge = trim(j02Docker(['ps', '-q', '--filter', "label=app.fieldset.instance={$uuid}", '--filter', 'label=app.fieldset.role=edge'])->getOutput());
     $fromEdge = j02Docker(['exec', $edge, 'wget', '-q', '-S', '-O', '/dev/null', '--header', 'Host: '.J02_DOMAIN, '--header', 'X-Forwarded-Host: evil.example', 'http://app:8080/admin/login']);
     // A client's X-Forwarded-Port or Host port must not reach the links the app renders (ADR 0079): the edge strips the
     // header, and the app takes the port from the instance URL.

@@ -57,7 +57,7 @@ final class RestoreConnections
 
     public static function maintenance(): Connection
     {
-        return self::to(self::MAINTENANCE_DATABASE, 'fsa_restore_maintenance');
+        return self::to(self::MAINTENANCE_DATABASE, 'fieldset_restore_maintenance');
     }
 
     /** Disconnects and forgets a connection made with to(). */

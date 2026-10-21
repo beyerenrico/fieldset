@@ -374,7 +374,7 @@ fsa_run_container() { # <fsa args…>: the ops container (ADR 0070); returns its
 	done
 	# HOME and DOCKER_CONFIG on a tmpfs only this container sees: nothing on the host can plant a Docker CLI plugin
 	# or config into the process that holds the socket.
-	set -- --rm --init --label app.form-schema.role=ops --user "$fsa_user" \
+	set -- --rm --init --label app.fieldset.role=ops --user "$fsa_user" \
 		--tmpfs "/run/fsa-home:mode=0700,uid=${fsa_user%%:*},gid=${fsa_user#*:}" -e HOME=/run/fsa-home -e DOCKER_CONFIG=/run/fsa-home/.docker \
 		-e DOCKER_HOST=unix:///var/run/docker.sock -v "$fsa_socket:/var/run/docker.sock" -v "$fsa_dir:$fsa_dir" -w "$fsa_dir" "$@"
 	fsa_docker_run "$@"

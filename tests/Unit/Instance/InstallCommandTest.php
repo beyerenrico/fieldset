@@ -316,7 +316,7 @@ it('warns about containers of another installation that ran from this directory'
     expect($code)->toBe(0)
         ->and(collect($json['warnings'])->firstWhere('code', 'orphans_found')['hint'])
         ->toContain('Check first')
-        ->toContain('docker ps -a --filter label=app.form-schema.instance=11111111-1111-4111-8111-111111111111')
+        ->toContain('docker ps -a --filter label=app.fieldset.instance=11111111-1111-4111-8111-111111111111')
         ->toContain('fsa uninstall --orphans 11111111-1111-4111-8111-111111111111');
 });
 

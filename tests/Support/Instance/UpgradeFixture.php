@@ -263,7 +263,7 @@ final class UpgradeFixture
             'instance:upgrade-db' => $this->database($command[3] ?? ''),
             'instance:queue-drain' => $this->queue(in_array('--export', $command, true) ? 'export' : (in_array('--drop', $command, true) ? 'drop' : 'sizes')),
             'instance:security-export' => $this->exportOutcome ?? InstanceCommandFixture::oneOffJson(['command' => 'instance:security-export', 'status' => 'ok',
-                'data' => ['format' => 'fsa-security-state', 'version' => 1, 'generated_at' => '2026-10-20T10:00:00Z', 'since' => null, 'tables' => ['users' => ['columns' => ['id'], 'rows' => [[1]]]], 'sequences' => []]]),
+                'data' => ['format' => 'fieldset-security-state', 'version' => 1, 'generated_at' => '2026-10-20T10:00:00Z', 'since' => null, 'tables' => ['users' => ['columns' => ['id'], 'rows' => [[1]]]], 'sequences' => []]]),
             'instance:rollback-loss' => InstanceCommandFixture::oneOffJson(['command' => 'instance:rollback-loss', 'status' => 'ok',
                 'data' => ['since' => '2026-10-20T10:00:00Z', 'counts' => ['submissions' => 12, 'activity_log' => 340, 'users' => 0]]]),
             default => null,

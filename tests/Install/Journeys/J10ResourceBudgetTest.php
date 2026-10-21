@@ -141,7 +141,7 @@ it('installs domain mode with capture mail inside the envelope and records the t
             $lines[] = ['at' => round(microtime(true) - $started, 2), 'line' => $line];
         }
         $uuid = InstanceJourney::uuid($this->dir);
-        $edge = $uuid === null || $connected ? '' : trim(new Process(['docker', 'ps', '-aq', '--filter', 'label=app.form-schema.role=edge', '--filter', "label=app.form-schema.instance={$uuid}"])->mustRun()->getOutput());
+        $edge = $uuid === null || $connected ? '' : trim(new Process(['docker', 'ps', '-aq', '--filter', 'label=app.fieldset.role=edge', '--filter', "label=app.fieldset.instance={$uuid}"])->mustRun()->getOutput());
         if ($edge !== '') {
             $this->acme->connectEdge($edge);
             $connected = true;

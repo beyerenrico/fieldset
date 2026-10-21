@@ -163,7 +163,7 @@ it('creates the instance directory, stores the verified release and installs the
         ->and(collect(explode("\n", trim($process->getErrorOutput())))->map(fn (string $line): array => json_decode($line, true) ?? [])->pluck('phase')->all())
         ->toBe(['verify', 'pull', 'handover'])
         ->and(substr(sprintf('%o', fileperms($this->dir)), -3))->toBe('700')
-        ->and(file_get_contents($this->dir.'/.fsa-instance'))->toBe("{\"schema_version\":\"1.0\",\"kind\":\"form-schema-app instance\"}\n")
+        ->and(file_get_contents($this->dir.'/.fieldset-instance'))->toBe("{\"schema_version\":\"1.0\",\"kind\":\"form-schema-app instance\"}\n")
         ->and(file_get_contents($this->dir.'/releases/2.0.0-alpha.1/release-manifest.json'))->toBe($this->manifestJson)
         ->and(is_file($this->dir.'/releases/2.0.0-alpha.1/release-manifest.json.sigstore.json'))->toBeTrue()
         ->and(file_get_contents($this->dir.'/fsa'))->toBe(file_get_contents(base_path('distribution/shim.sh')))
@@ -183,7 +183,7 @@ it('hands over to fsa install in an ops container with the host facts, mounts an
 
     expect($process->getExitCode())->toBe(6)
         ->and(array_slice($run, 0, 20))->toBe([
-            'run', '--rm', '--init', '--label', 'app.form-schema.role=ops', '--user', "{$uid}:{$gid}", '--tmpfs', "/run/fsa-home:mode=0700,uid={$uid},gid={$gid}",
+            'run', '--rm', '--init', '--label', 'app.fieldset.role=ops', '--user', "{$uid}:{$gid}", '--tmpfs', "/run/fsa-home:mode=0700,uid={$uid},gid={$gid}",
             '-e', 'HOME=/run/fsa-home', '-e', 'DOCKER_CONFIG=/run/fsa-home/.docker',
             '-e', 'DOCKER_HOST=unix:///var/run/docker.sock', '-v', '/var/run/docker.sock:/var/run/docker.sock', '-v', "{$this->dir}:{$this->dir}", '-w',
         ])

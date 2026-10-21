@@ -250,7 +250,7 @@ final class InstanceCommandFixture
                 'data' => ['to' => 'owner@example.com', 'mailer' => 'smtp', ...(in_array('--install', $command, true) ? ['message_id' => self::MESSAGE_ID] : [])]]),
             'instance:pdf-test' => self::oneOffJson(['command' => 'instance:pdf-test', 'status' => 'ok', 'data' => ['bytes' => 1834]]),
             'instance:backup-role' => self::oneOffJson(['command' => 'instance:backup-role', 'status' => 'ok', 'changed' => true,
-                'data' => ['role' => 'fsa_backup', 'created' => true, 'granted' => ['pg_read_all_data', 'connect', 'insert:backup_runs']]]),
+                'data' => ['role' => 'fieldset_backup', 'created' => true, 'granted' => ['pg_read_all_data', 'connect', 'insert:backup_runs']]]),
             'instance:mail-captured' => self::oneOffJson(['command' => 'instance:mail-captured', 'status' => 'ok',
                 'data' => ['invitations' => 2, 'password_resets' => 1]]),
             'instance:operator-email' => self::oneOffJson(['command' => 'instance:operator-email', 'status' => 'ok', 'changed' => true,

@@ -13,7 +13,7 @@ use SensitiveParameter;
 /**
  * `SHA256SUMS` and its HMAC (R67, KTD16, ADR 0084). The sums use sha256sum's format (`<hex>  <name>`, sorted by name),
  * so `sha256sum -c SHA256SUMS` checks a backup by hand. `SHA256SUMS.hmac` holds the hex HMAC-SHA256 of the sums file's
- * bytes, keyed with BACKUP_HMAC_KEY: HKDF-SHA256 of the raw APP_KEY with the info `form-schema-app backup hmac v1`
+ * bytes, keyed with BACKUP_HMAC_KEY: HKDF-SHA256 of the raw APP_KEY with the info `fieldset backup hmac v1`
  * (ServiceEnvironments), so a restore authenticates a backup with keys from outside the archive. Both files are written
  * last, under temporary names, and renamed at the end: a backup with these two files is complete.
  */

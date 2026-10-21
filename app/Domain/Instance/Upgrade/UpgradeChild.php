@@ -26,7 +26,7 @@ use Throwable;
  * The supervisor's side of the upgrade child (KTD19 step 6, KTD25, plan U18, ADR 0086). It writes the request into the
  * stage directory, starts the target image's `fsa upgrade-child` detached (no socket, the instance network, the instance
  * directory read-only and only the stage writable, as the owner) and watches it: the child counts as alive while it runs
- * and its database session (`fsa_upgrade_<id>`) was seen active within IDLE_SECONDS, judged by a socket-less one-off
+ * and its database session (`fieldset_upgrade_<id>`) was seen active within IDLE_SECONDS, judged by a socket-less one-off
  * that reads `pg_stat_activity`. A child that hangs or overruns MAX_SECONDS is removed, its backend terminated, and the
  * upgrade rolls back. The result is the stage's `result.json`; none means the child crashed.
  */

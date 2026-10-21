@@ -136,7 +136,7 @@ final readonly class ResetApp
         }
         fsync($handle);
         fclose($handle);
-        $complete = is_array($header) && ($header['format'] ?? null) === 'fsa-audit-export' && is_int($header['entries'] ?? null) && $lines >= $header['entries'];
+        $complete = is_array($header) && ($header['format'] ?? null) === 'fieldset-audit-export' && is_int($header['entries'] ?? null) && $lines >= $header['entries'];
 
         return $complete ? $header : null;
     }

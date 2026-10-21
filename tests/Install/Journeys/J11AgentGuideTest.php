@@ -58,7 +58,7 @@ function j11SmtpHost(InstanceJourney $journey): string
     $name = 'fsa-test-j11-smtp-'.bin2hex(random_bytes(2));
     $GLOBALS['fsaJ11Smtp'] = $name;
     $GLOBALS['fsaJ11Project'] = $state['project'] ?? null;
-    j11Docker(['run', '-d', '--name', $name, '--label', 'app.form-schema.test=j11', '-e', 'MP_SMTP_AUTH_ACCEPT_ANY=1', '-e', 'MP_SMTP_AUTH_ALLOW_INSECURE=1', (string) ($state['digests']['mailpit'] ?? 'missing-mailpit-digest')]);
+    j11Docker(['run', '-d', '--name', $name, '--label', 'app.fieldset.test=j11', '-e', 'MP_SMTP_AUTH_ACCEPT_ANY=1', '-e', 'MP_SMTP_AUTH_ALLOW_INSECURE=1', (string) ($state['digests']['mailpit'] ?? 'missing-mailpit-digest')]);
     j11Docker(['network', 'connect', ($state['project'] ?? 'missing-project').'_default', $name]);
 
     return $name;

@@ -230,7 +230,7 @@ it('removes a failed audit export and brings the instance back (exit 5)', functi
 
 it('refuses an export that holds fewer entries than its header names', function (): void {
     $this->reset->instance->docker->fileRunResponder = static function (?string $entrypoint, array $command, string $file): ProcessOutcome {
-        file_put_contents($file, json_encode(['format' => 'fsa-audit-export', 'version' => '1.0', 'entries' => 3])."\n".'{"id":1}'."\n");
+        file_put_contents($file, json_encode(['format' => 'fieldset-audit-export', 'version' => '1.0', 'entries' => 3])."\n".'{"id":1}'."\n");
 
         return new ProcessOutcome(0);
     };

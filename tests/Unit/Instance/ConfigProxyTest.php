@@ -62,7 +62,7 @@ it('changes the public URL in proxy mode: APP_URL, runtime, Traefik labels, and 
         ->and(implode(' ', $labels))->toContain('Host(`forms2.example.com`)')
         ->and(new EnvFiles($config->instance->directory)->read('app')['APP_URL'])->toBe('https://forms2.example.com')
         ->and($verify)->toHaveCount(1)
-        ->and($verify[0]->labels['app.form-schema.role'])->toBe('config-verify');
+        ->and($verify[0]->labels['app.fieldset.role'])->toBe('config-verify');
 });
 
 it('refuses url outside proxy mode and malformed origins with exit 2', function (): void {

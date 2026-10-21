@@ -52,9 +52,12 @@ final readonly class BackupPreparer
         $detected = BackupSet::detect($source);
         [$set, $others] = $detected['encrypted'] ? [$this->decrypt((string) $detected['file'], $scratch, $identityFile, $passphrase), []] : $this->copy($source, $scratch, $detected['format']);
         $legacy = $detected['format'] === BackupSet::LEGACY;
-        $problems = [...BackupChecksums::verifySums($set), ...array_map(static fn (string $name): string => "{$name} is not part of a backup set", $others)];
-        [$hmac, $fingerprint] = $legacy || $problems !== [] ? [$legacy ? 'absent' : 'unchecked', null] : $this->hmac($set, $keys);
         $manifest = $legacy ? [] : $this->json($set.'/'.BackupManifest::FILE);
+        $problems = [
+            ...BackupChecksums::verifySums($set), ...array_map(static fn (string $name): string => "{$name} is not part of a backup set", $others),
+            ...($legacy ? [] : $this->formatProblems($manifest)),
+        ];
+        [$hmac, $fingerprint] = $legacy || $problems !== [] ? [$legacy ? 'absent' : 'unchecked', null] : $this->hmac($set, $keys);
         $storage = $problems === [] ? $this->storage($set, $scratch) : null;
         $dump = $problems === [] ? $this->dump($set, $scratch, $hmac !== 'verified') : ['entries' => 0, 'types' => [], 'rejected' => []];
         $migrations = $problems === [] ? MigrationSet::compare($this->migrations($set), $imageMigrations) : MigrationSet::unknown();
@@ -166,6 +169,23 @@ final readonly class BackupPreparer
         $rows = $this->tools->migrationRows($set.'/'.BackupWriter::DATABASE);
 
         return $rows->successful() ? MigrationSet::fromCopy($rows->stdout) : null;
+    }
+
+    /**
+     * A manifest of any other format (also `fieldset-backup`, the name before the rename to Fieldset) is no backup this
+     * version reads: named a problem, so the restore refuses it before the HMAC is checked.
+     *
+     * @param  array<string, mixed>  $manifest
+     * @return list<string>
+     */
+    private function formatProblems(array $manifest): array
+    {
+        $format = $manifest['format'] ?? null;
+        if ($format === BackupManifest::FORMAT) {
+            return [];
+        }
+
+        return [BackupManifest::FILE.' is of format ['.(is_string($format) ? $format : 'none').'], not '.BackupManifest::FORMAT];
     }
 
     /** @return array<string, mixed> */

@@ -106,7 +106,7 @@ final readonly class RestoreDrill
     /** The restricted role of a drill (hex ID only; null for a name that is no drill's). */
     private function role(string $id): ?string
     {
-        return preg_match('/^[0-9a-f]{12}$/D', $id) === 1 ? 'fsa_drill_'.$id : null;
+        return preg_match('/^[0-9a-f]{12}$/D', $id) === 1 ? 'fieldset_drill_'.$id : null;
     }
 
     private function cleanUp(ComposeProject $project, string $database, string $id): void

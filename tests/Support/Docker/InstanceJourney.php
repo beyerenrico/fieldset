@@ -17,7 +17,7 @@ use Symfony\Component\Process\Process;
  */
 final readonly class InstanceJourney
 {
-    public const string LABEL = 'app.form-schema.instance';
+    public const string LABEL = 'app.fieldset.instance';
 
     public function __construct(
         public ReleaseHarness $harness,

@@ -49,7 +49,7 @@ final readonly class EdgeService implements ServiceDefinition
     public const string USER = '65532:65532';
 
     /** Hash of the rendered Caddyfile: Compose recreates the edge when it changes. */
-    public const string CONFIG_LABEL = 'app.form-schema.edge-config';
+    public const string CONFIG_LABEL = 'app.fieldset.edge-config';
 
     public function specs(RenderContext $context): array
     {

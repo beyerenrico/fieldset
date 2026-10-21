@@ -39,7 +39,7 @@ function daemonConfig(InstanceDirectory $directory, array $overrides = []): Back
     return new BackupConfig(...[
         'instanceRoot' => $directory->root, 'storagePath' => $directory->root, 'ownerUid' => posix_getuid(), 'ownerGid' => posix_getgid(),
         'schedule' => '03:30', 'timeZone' => 'UTC', 'retention' => 7, 'minFreeMib' => 0, 'recipients' => [], 'hmacKey' => str_repeat('k', 32),
-        'fingerprints' => ['0123-4567-89ab-cdef'], 'database' => ['host' => 'postgres', 'port' => '5432', 'database' => 'x', 'username' => 'fsa_backup', 'password' => 'p'],
+        'fingerprints' => ['0123-4567-89ab-cdef'], 'database' => ['host' => 'postgres', 'port' => '5432', 'database' => 'x', 'username' => 'fieldset_backup', 'password' => 'p'],
         'appVersion' => '2.0.0-test', ...$overrides,
     ]);
 }
@@ -343,13 +343,13 @@ it('seals a plain backup under the caller\'s lock and refuses --include-secrets 
 it('reads its configuration from the environment and refuses malformed numbers', function (): void {
     $config = BackupConfig::fromEnvironment([
         'BACKUP_HMAC_KEY' => DAEMON_KEY, 'BACKUP_AGE_RECIPIENTS' => 'age1aaa, age1bbb', 'BACKUP_RETENTION' => '3', 'BACKUP_SCHEDULE' => 'off',
-        'DB_DATABASE' => 'form_schema', 'DB_USERNAME' => 'fsa_backup', 'DB_PASSWORD' => 'secret-pw', 'APP_VERSION' => '2.0.0-rc.1',
+        'DB_DATABASE' => 'form_schema', 'DB_USERNAME' => 'fieldset_backup', 'DB_PASSWORD' => 'secret-pw', 'APP_VERSION' => '2.0.0-rc.1',
     ]);
 
     expect($config->recipients)->toBe(['age1aaa', 'age1bbb'])->and($config->encrypts())->toBeTrue()
         ->and($config->retention)->toBe(3)->and($config->schedule()->enabled())->toBeFalse()
         ->and($config->instanceRoot)->toBe(BackupConfig::INSTANCE_ROOT)->and($config->storagePath)->toBe(BackupConfig::STORAGE_PATH)
-        ->and($config->libpqEnvironment())->toMatchArray(['PGHOST' => 'postgres', 'PGPORT' => '5432', 'PGDATABASE' => 'form_schema', 'PGUSER' => 'fsa_backup', 'PGPASSWORD' => 'secret-pw'])
+        ->and($config->libpqEnvironment())->toMatchArray(['PGHOST' => 'postgres', 'PGPORT' => '5432', 'PGDATABASE' => 'form_schema', 'PGUSER' => 'fieldset_backup', 'PGPASSWORD' => 'secret-pw'])
         ->and(print_r($config, true))->not->toContain('secret-pw')
         ->and(fn () => BackupConfig::fromEnvironment(['BACKUP_HMAC_KEY' => DAEMON_KEY, 'BACKUP_RETENTION' => 'seven']))->toThrow(InstanceException::class, 'BACKUP_RETENTION');
 });

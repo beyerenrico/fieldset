@@ -73,6 +73,15 @@ it('copies a plain fsa backup into the scratch directory and verifies the copy: 
         ->and($json['data']['manifest'])->toMatchArray(['version' => '2.0.0-alpha.1', 'app_key_fingerprints' => [KeyFingerprint::of(BackupSetFixture::APP_KEY)]]);
 });
 
+it('names a manifest of any other format a problem: a set from before the rename (fieldset-backup) is not one this version reads', function (): void {
+    $source = BackupSetFixture::fsa($this->work.'/manual-20261019T121000Z', manifest: ['format' => 'fsa-backup']);
+
+    [$code, $json] = prepare($source, $this->work.'/scratch', ['keys' => instanceKeys(BackupSetFixture::APP_KEY)]);
+
+    expect($code)->toBe(0)
+        ->and($json['data'])->toMatchArray(['problems' => ['manifest.json is of format [fsa-backup], not fieldset-backup'], 'hmac' => 'unchecked']);
+});
+
 it('reads only the copy it verified: a backups/ writer changing the set after the prepare step changes nothing later steps read (M12 gate)', function (): void {
     $source = BackupSetFixture::fsa($this->work.'/manual-20261019T123000Z');
 

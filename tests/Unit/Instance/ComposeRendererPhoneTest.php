@@ -50,7 +50,7 @@ it('renders the local-CA Caddyfile: internal CA, default_sni, port 80 only for t
     expect($caddyfile)->toContain("\tskip_install_trust\n")
         ->toContain("\tauto_https disable_redirects\n")
         ->toContain("\tdefault_sni \"192.168.1.20\"\n")
-        ->toContain("\t\tca local {\n\t\t\tname \"form-schema-app local CA\"\n")
+        ->toContain("\t\tca local {\n\t\t\tname \"Fieldset local CA\"\n")
         ->toContain("\"https://192.168.1.20\" {\n\ttls internal\n\thandle /_fsa/* {\n\t\trespond 404\n\t}\n\thandle {\n\t\treverse_proxy app:8080 {\n\t\t\theader_up -X-Forwarded-Port\n")
         ->toContain("\"http://\" {\n\t@phone_trust path /phone-trust /phone-trust/*\n\thandle @phone_trust {\n\t\treverse_proxy app:8080 {")
         ->toContain("\thandle {\n\t\tredir \"https://192.168.1.20{uri}\" 308\n\t}")

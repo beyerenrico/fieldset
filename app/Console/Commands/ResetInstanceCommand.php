@@ -78,7 +78,7 @@ final class ResetInstanceCommand extends Command
         try {
             return new ResetDatabase(RestoreConnections::maintenance())->recreate($live);
         } finally {
-            RestoreConnections::close('fsa_restore_maintenance');
+            RestoreConnections::close('fieldset_restore_maintenance');
         }
     }
 

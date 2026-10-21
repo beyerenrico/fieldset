@@ -71,7 +71,7 @@ it('returns to the previous release from the upgrade\'s safety backup, carrying 
         ->and($render)->toMatchArray(['version' => InstanceCommandFixture::VERSION, 'migrate' => false, 'settings' => ['storage_volume' => $state->project().'_app-storage-r'.$id]])
         ->and($finishCommand)->toContain('--reason=rolled_back', '--backup='.$this->upgrade->safetyBackups[0])->not->toContain('--no-carry')
         ->and(implode(' ', $finishCommand))->not->toContain('--source=')
-        ->and(json_decode((string) $this->inputs['instance:restore-finish'], true)['carry']['format'])->toBe('fsa-security-state')
+        ->and(json_decode((string) $this->inputs['instance:restore-finish'], true)['carry']['format'])->toBe('fieldset-security-state')
         ->and($this->upgrade->instance->oneOffCalls('instance:security-export')[0]['command'])->toContain('--json')
         ->and(new Ledger($this->upgrade->instance->directory)->last('rollback'))->toMatchArray(['reason' => 'manual', 'from' => UpgradeFixture::TARGET, 'to' => InstanceCommandFixture::VERSION])
         ->and($history[array_key_last($history)])->toMatchArray(['event' => 'rolled_back', 'from' => UpgradeFixture::TARGET, 'to' => InstanceCommandFixture::VERSION])

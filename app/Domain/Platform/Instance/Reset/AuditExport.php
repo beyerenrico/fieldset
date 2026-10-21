@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\DB;
  */
 final class AuditExport
 {
-    public const string FORMAT = 'fsa-audit-export';
+    public const string FORMAT = 'fieldset-audit-export';
 
     public const string VERSION = '1.0';
 

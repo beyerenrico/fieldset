@@ -29,7 +29,7 @@ final readonly class ServiceEnvironments
     public const string BACKUP_DB_ROLE = BackupRole::NAME;
 
     /** HKDF info of the backup HMAC key (R67): changing it breaks verification of every existing backup. */
-    public const string BACKUP_HMAC_INFO = 'form-schema-app backup hmac v1';
+    public const string BACKUP_HMAC_INFO = 'fieldset backup hmac v1';
 
     public const string MAILPIT_HOST = 'mailpit';
 

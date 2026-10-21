@@ -98,15 +98,15 @@ function j08Docker(array $command, ?string $input = null, int $timeout = 300): P
 /** The ID of the instance's container of a role (app, postgres, backup …). */
 function j08Container(string $uuid, string $role): string
 {
-    return trim(j08Docker(['ps', '-q', '--filter', "label=app.form-schema.instance={$uuid}", '--filter', "label=app.form-schema.role={$role}", '--filter', 'label=com.docker.compose.oneoff=False'])->getOutput());
+    return trim(j08Docker(['ps', '-q', '--filter', "label=app.fieldset.instance={$uuid}", '--filter', "label=app.fieldset.role={$role}", '--filter', 'label=com.docker.compose.oneoff=False'])->getOutput());
 }
 
-/** BACKUP_HMAC_KEY recomputed from APP_KEY in env/app.env: HKDF-SHA256, info `form-schema-app backup hmac v1` (R67). */
+/** BACKUP_HMAC_KEY recomputed from APP_KEY in env/app.env: HKDF-SHA256, info `fieldset backup hmac v1` (R67). */
 function j08HmacKey(string $dir): string
 {
     preg_match("/^APP_KEY='?base64:([A-Za-z0-9+\\/=]+)'?$/m", (string) file_get_contents($dir.'/env/app.env'), $match);
 
-    return hash_hkdf('sha256', (string) base64_decode($match[1] ?? '', true), 32, 'form-schema-app backup hmac v1');
+    return hash_hkdf('sha256', (string) base64_decode($match[1] ?? '', true), 32, 'fieldset backup hmac v1');
 }
 
 /** @return list<string> names inside a directory */
@@ -160,7 +160,7 @@ it('installs a local demo instance with the hardened backup service', function (
         ->and($caps)->toBe(['CHOWN', 'DAC_OVERRIDE', 'DAC_READ_SEARCH', 'FOWNER'])
         ->and($backup['HostConfig']['CapDrop'] ?? null)->toBe(['ALL'])
         ->and($backup['HostConfig']['ReadonlyRootfs'] ?? null)->toBeTrue()
-        ->and($mounts)->toBe(['/fsa/instance/.fsa-instance:ro', '/fsa/instance/backups:rw', '/fsa/instance/locks:rw', '/fsa/instance/staging/backup:rw', '/var/www/html/storage/app:ro']) // staging/backup: its settings and plain sets, outside backups/ (M12 gate S2/S3)
+        ->and($mounts)->toBe(['/fsa/instance/.fieldset-instance:ro', '/fsa/instance/backups:rw', '/fsa/instance/locks:rw', '/fsa/instance/staging/backup:rw', '/var/www/html/storage/app:ro']) // staging/backup: its settings and plain sets, outside backups/ (M12 gate S2/S3)
         ->and(json_encode($backup))->not->toContain('docker.sock')
         ->and(intdiv((int) ($backup['HostConfig']['Memory'] ?? 0), 1048576))->toBe(128)
         ->and($backup['HostConfig']['Tmpfs'] ?? null)->toHaveKey('/tmp');
@@ -289,7 +289,7 @@ it('restores the manual backup in place: later data gone, security state carried
         'numbering' => RestoreJourney::sql($uuid, "SELECT next_value FROM number_sequences WHERE period = 'fsa-test'"),
         'epoch' => RestoreJourney::sql($uuid, 'SELECT max(epoch) FROM audit_chain_epochs'),
         'restored_entries' => RestoreJourney::sql($uuid, "SELECT count(*) FROM activity_log WHERE event = 'instance.restored'"),
-        'backup_role_may_seal' => RestoreJourney::sql($uuid, "SELECT has_function_privilege('fsa_backup', 'audit_seal(bigint,bigint,character,character)', 'EXECUTE')"),
+        'backup_role_may_seal' => RestoreJourney::sql($uuid, "SELECT has_function_privilege('fieldset_backup', 'audit_seal(bigint,bigint,character,character)', 'EXECUTE')"),
         'public_acl' => RestoreJourney::sql($uuid, "SELECT coalesce(proacl::text, 'default') FROM pg_proc WHERE proname = 'audit_seal'"),
         'file_from_backup' => trim(RestoreJourney::docker(['exec', RestoreJourney::container($uuid, 'app'), 'cat', 'storage/app/private/fsa-test-j08/file.txt'])->getOutput()),
         'volume_after' => RestoreJourney::storageVolume($uuid),

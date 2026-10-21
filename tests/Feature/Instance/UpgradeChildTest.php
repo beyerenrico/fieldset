@@ -64,8 +64,8 @@ it('renders the target\'s files into its stage and migrates with the staged envi
         ->and($result['staged'])->toContain('compose.yaml', 'env/app.env', 'env/backup.env')
         ->and(UpgradeCompose::document((string) $staged->read('compose.yaml'))['services']['app']['image'])->toBe(UpgradeFixture::targetImage())
         ->and(new EnvFiles($staged)->read('app')['APP_KEY'])->toBe(new EnvFiles($this->directory)->read('app')['APP_KEY'])
-        ->and($run['command'])->toBe(['php', base_path('artisan'), 'instance:upgrade-migrate', '--application-name=fsa_upgrade_0123456789ab', '--from='.InstanceCommandFixture::VERSION, '--json'])
-        ->and($run['env'])->toMatchArray(['PGAPPNAME' => 'fsa_upgrade_0123456789ab', 'PGOPTIONS' => '-c lock_timeout='.ChildMigration::LOCK_TIMEOUT_SECONDS.'s'])
+        ->and($run['command'])->toBe(['php', base_path('artisan'), 'instance:upgrade-migrate', '--application-name=fieldset_upgrade_0123456789ab', '--from='.InstanceCommandFixture::VERSION, '--json'])
+        ->and($run['env'])->toMatchArray(['PGAPPNAME' => 'fieldset_upgrade_0123456789ab', 'PGOPTIONS' => '-c lock_timeout='.ChildMigration::LOCK_TIMEOUT_SECONDS.'s'])
         ->and(array_keys($run['env']))->toContain('DB_PASSWORD', 'DB_HOST')
         ->and($run['timeout'])->toBe(ChildMigration::TIMEOUT)
         ->and($this->config->state()->version())->toBe(InstanceCommandFixture::VERSION);

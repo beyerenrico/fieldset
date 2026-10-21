@@ -71,7 +71,7 @@ beforeEach(function (): void {
 /** The instance's container of a role. */
 function j09Container(string $uuid, string $role): string
 {
-    $process = new Process(['docker', 'ps', '-q', '--filter', "label=app.form-schema.instance={$uuid}", '--filter', "label=app.form-schema.role={$role}", '--filter', 'label=com.docker.compose.oneoff=False']);
+    $process = new Process(['docker', 'ps', '-q', '--filter', "label=app.fieldset.instance={$uuid}", '--filter', "label=app.fieldset.role={$role}", '--filter', 'label=com.docker.compose.oneoff=False']);
     $process->run();
 
     return trim($process->getOutput());
@@ -185,7 +185,7 @@ it('passes amcheck on the unique text indexes (emails, slugs) of the copy', func
 });
 
 it('left 1.0\'s volumes untouched and stopped, and its backup restores in a drill', function (): void {
-    $volumes = new Process(['docker', 'volume', 'ls', '--filter', 'label=com.docker.compose.project='.$this->v1->project, '--format', '{{.Name}} {{.Label "app.form-schema.instance"}}']);
+    $volumes = new Process(['docker', 'volume', 'ls', '--filter', 'label=com.docker.compose.project='.$this->v1->project, '--format', '{{.Name}} {{.Label "app.fieldset.instance"}}']);
     $volumes->run();
     $state = new Process(['docker', 'inspect', '-f', '{{.State.Status}}', $this->v1->container('app'), $this->v1->container('postgres')]);
     $state->run();

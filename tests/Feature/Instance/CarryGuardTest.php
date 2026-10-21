@@ -26,7 +26,7 @@ const GUARD_BACKUP_AT = '2026-10-19T12:00:00Z';
 
 beforeEach(function (): void {
     RestoreDatabases::target();
-    $this->role = RestoreDatabases::role('fsa_backup_guard');
+    $this->role = RestoreDatabases::role('fieldset_backup_guard');
     putenv(BackupRole::PASSWORD_ENV.'='.GUARD_PASSWORD);
     app()->instance(RestoreFinishCommand::STDIN, static fn (): string => '');
 });

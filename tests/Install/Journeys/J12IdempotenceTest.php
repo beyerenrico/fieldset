@@ -74,7 +74,7 @@ it('AE4 + AE3: takes the next free port when 8080 is taken, keeps it, and change
     // health_status): they are not changes. Every other instance event (create, start, stop, die, destroy,
     // network or volume events) is.
     $events = array_values(array_filter(
-        InstanceJourney::events($since, $until, ['label=app.form-schema.instance='.$uuid]),
+        InstanceJourney::events($since, $until, ['label=app.fieldset.instance='.$uuid]),
         fn (string $event): bool => preg_match('/^container (exec_(create|start|die)|health_status)\b/', $event) !== 1,
     ));
     $this->journey->evidence('J12-ae3-ae4.json', ['first' => ['exit_code' => $first->getExitCode(), 'stdout' => $json], 'second' => ['exit_code' => $second->getExitCode(), 'stdout' => $again, 'instance_events' => $events], 'third_text' => $text->getOutput()]);

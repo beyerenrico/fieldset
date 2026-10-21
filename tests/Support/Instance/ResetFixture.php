@@ -174,7 +174,7 @@ final class ResetFixture
 
     private function export(string $file): ProcessOutcome
     {
-        file_put_contents($file, json_encode(['format' => 'fsa-audit-export', 'version' => '1.0', 'epoch' => 1, 'heads' => ['0' => ['seq' => 7, 'hash' => self::HEAD]], 'entries' => 2])."\n"
+        file_put_contents($file, json_encode(['format' => 'fieldset-audit-export', 'version' => '1.0', 'epoch' => 1, 'heads' => ['0' => ['seq' => 7, 'hash' => self::HEAD]], 'entries' => 2])."\n"
             .'{"id":1,"event":"organization.created"}'."\n".'{"id":2,"event":"auth.login"}'."\n");
         chmod($file, 0600);
 

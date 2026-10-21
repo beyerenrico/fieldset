@@ -204,7 +204,7 @@ it('sets up the backup role with the password of env/backup.env, and refuses wit
     $runner = app(BackupRunner::class);
     $project = ComposeProject::forInstance($this->instance->state(), $this->instance->directory);
     $runner->ensureRole($project);
-    new EnvFiles($this->instance->directory)->write('backup', ['DB_USERNAME' => 'fsa_backup']);
+    new EnvFiles($this->instance->directory)->write('backup', ['DB_USERNAME' => 'fieldset_backup']);
 
     expect($this->instance->oneOffCalls('instance:backup-role')[0]['env'])->toBe(['FIELDSET_BACKUP_DB_PASSWORD'])
         ->and(fn () => $runner->ensureRole($project))->toThrow(InstanceException::class, 'no password for the backup role');

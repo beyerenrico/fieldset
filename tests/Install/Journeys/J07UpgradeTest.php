@@ -181,9 +181,9 @@ it('upgrades to rc.2 in a detached supervisor that keeps running when the foregr
         RestoreJourney::docker(['kill', $ops]);
     }
     $foreground->stop(5, SIGKILL);
-    $supervisor = UpgradeJourney::running('app.form-schema.role', 'supervisor', $uuid);
+    $supervisor = UpgradeJourney::running('app.fieldset.role', 'supervisor', $uuid);
     $during = InstanceJourney::json($this->journey->fsa($this->dir, ['status', '--json']));
-    $finished = UpgradeJourney::await(static fn (): bool => UpgradeJourney::running('app.form-schema.role', 'supervisor', $uuid) === [], 1200, 5);
+    $finished = UpgradeJourney::await(static fn (): bool => UpgradeJourney::running('app.fieldset.role', 'supervisor', $uuid) === [], 1200, 5);
     $after = InstanceJourney::json($this->journey->fsa($this->dir, ['status', '--json']));
     $state = json_decode((string) file_get_contents($this->dir.'/state.json'), true);
     $history = $state['history'];

@@ -29,7 +29,7 @@ final class BackupSetFixture
     /** The HMAC key a backup service derives from an APP key (ServiceEnvironments::backupHmacKey). */
     public static function hmacKey(string $appKey): string
     {
-        return hash_hkdf('sha256', (string) base64_decode(substr($appKey, 7), true), 32, 'form-schema-app backup hmac v1');
+        return hash_hkdf('sha256', (string) base64_decode(substr($appKey, 7), true), 32, 'fieldset backup hmac v1');
     }
 
     public static function recipient(): string
@@ -51,7 +51,7 @@ final class BackupSetFixture
         file_put_contents($dir.'/audit-heads.json', '{"epoch":1,"heads":{}}');
         file_put_contents($dir.'/settings.json', json_encode(['schema_version' => '1.0', 'mode' => 'local', 'url' => 'http://localhost:8080', 'recipients' => [], 'settings' => $settings], JSON_UNESCAPED_SLASHES));
         file_put_contents($dir.'/manifest.json', json_encode([
-            'schema_version' => '1.0', 'format' => 'fsa-backup', 'kind' => 'manual', 'name' => basename($dir),
+            'schema_version' => '1.0', 'format' => 'fieldset-backup', 'kind' => 'manual', 'name' => basename($dir),
             'created_at' => BackupName::parse(basename($dir))?->at->toIso8601ZuluString() ?? '2026-10-19T12:00:00Z', // a set names its own time
             'versions' => ['app' => InstanceCommandFixture::VERSION, 'postgres' => '16.15'], 'audit' => ['epoch' => 1, 'chains' => 1],
             'app_key_fingerprints' => [KeyFingerprint::of($appKey)], 'includes_secrets' => isset($extra['secrets.env']), ...$manifest,

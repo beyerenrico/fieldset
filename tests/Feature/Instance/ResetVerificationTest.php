@@ -141,7 +141,7 @@ it('drops the restricted role with each leftover restore or drill database (V5)'
 
     expect($code)->toBe(0)
         ->and($this->reset->droppedRoles)->toBe([
-            'form_schema_pre_restore_0a1b2c3d4e5f' => null, 'form_schema_restore_0a1b2c3d4e5f' => 'fsa_restore_0a1b2c3d4e5f', 'restore_drill_9f8e7d6c5b4a' => 'fsa_drill_9f8e7d6c5b4a',
+            'form_schema_pre_restore_0a1b2c3d4e5f' => null, 'form_schema_restore_0a1b2c3d4e5f' => 'fieldset_restore_0a1b2c3d4e5f', 'restore_drill_9f8e7d6c5b4a' => 'fieldset_drill_9f8e7d6c5b4a',
         ]);
 });
 

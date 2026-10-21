@@ -121,7 +121,7 @@ final class UpgradeJourney
     /** Running containers of the instance with a role label (the detached supervisor, the foreground ops container). */
     public static function running(string $label, string $value, ?string $uuid = null): array
     {
-        $filters = ['--filter', "label={$label}={$value}", ...($uuid === null ? [] : ['--filter', "label=app.form-schema.instance={$uuid}"])];
+        $filters = ['--filter', "label={$label}={$value}", ...($uuid === null ? [] : ['--filter', "label=app.fieldset.instance={$uuid}"])];
 
         return array_values(array_filter(explode("\n", trim(RestoreJourney::docker(['ps', '-q', ...$filters])->getOutput()))));
     }
@@ -129,7 +129,7 @@ final class UpgradeJourney
     /** The foreground ops containers of one instance (role `ops`, the instance directory mounted): no one else's. */
     public static function opsContainers(string $dir): array
     {
-        return array_values(array_filter(explode("\n", trim(RestoreJourney::docker(['ps', '-q', '--filter', 'label=app.form-schema.role=ops', '--filter', 'volume='.$dir])->getOutput()))));
+        return array_values(array_filter(explode("\n", trim(RestoreJourney::docker(['ps', '-q', '--filter', 'label=app.fieldset.role=ops', '--filter', 'volume='.$dir])->getOutput()))));
     }
 
     /** Waits (polling) until `$done` holds or `$seconds` passed; returns whether it held. */

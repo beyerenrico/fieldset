@@ -13,7 +13,7 @@ use SensitiveParameter;
  */
 final readonly class KeyFingerprint
 {
-    public const string INFO = 'form-schema-app app key fingerprint v1';
+    public const string INFO = 'fieldset app key fingerprint v1';
 
     public static function of(#[SensitiveParameter] string $appKey): string
     {

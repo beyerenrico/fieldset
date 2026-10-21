@@ -33,7 +33,7 @@ final readonly class FakeTunnel
         $platform = $platformEnvironment['DOCKER_DEFAULT_PLATFORM'] ?? null;
         $process = new Process([
             'docker', 'build', '--quiet', '--build-arg', 'BASE='.$caddy->reference(), ...($platform === null ? [] : ['--platform', $platform]),
-            '--label', 'app.form-schema.test=fake-tunnel', '-t', $image, TestImage::repository().'/tests/Install/Harness/fake-tunnel',
+            '--label', 'app.fieldset.test=fake-tunnel', '-t', $image, TestImage::repository().'/tests/Install/Harness/fake-tunnel',
         ]);
         $process->setTimeout(600);
         $process->run();
@@ -62,7 +62,7 @@ final readonly class FakeTunnel
     {
         $url = 'http://'.TunnelNetwork::peerAddress($subnet).':'.self::PORT.$path;
         $flags = array_merge(...array_map(static fn (string $header): array => ['--header', $header], $headers));
-        $process = new Process(['docker', 'run', '--rm', '--network', $project.'_'.TunnelNetwork::NAME, '--label', 'app.form-schema.test=fake-tunnel-client',
+        $process = new Process(['docker', 'run', '--rm', '--network', $project.'_'.TunnelNetwork::NAME, '--label', 'app.fieldset.test=fake-tunnel-client',
             '--entrypoint', 'curl', $appImage, '--silent', '--show-error', '--max-time', '20', '--include', ...$flags, $url], null, $platformEnvironment);
         $process->setTimeout(120);
         $process->run();

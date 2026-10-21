@@ -56,7 +56,7 @@ it('drops what a killed drill left together with its restricted role, and keeps 
     $first = $this->restore->databaseCalls[array_search('drop', $this->restore->actions(), true)];
 
     expect($code)->toBe(0, (string) json_encode($json))
-        ->and($first['options'])->toContain('--database=restore_drill_0123456789ab', '--role=fsa_drill_0123456789ab')
+        ->and($first['options'])->toContain('--database=restore_drill_0123456789ab', '--role=fieldset_drill_0123456789ab')
         ->and($this->restore->databases)->not->toContain('restore_drill_0123456789ab')
         ->and($drill['env'])->toContain('CACHE_STORE')
         ->and($json['data']['render_storage'])->toBe('live');

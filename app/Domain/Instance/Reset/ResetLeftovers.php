@@ -62,13 +62,13 @@ final readonly class ResetLeftovers
 
     /**
      * The restricted LOGIN role an unauthenticated restore or drill made for a scratch database (RestoreNames, RestoreDrill):
-     * `<db>_restore_<id>` → `fsa_restore_<id>`, `restore_drill_<id>` → `fsa_drill_<id>`; a put-aside database has none.
+     * `<db>_restore_<id>` → `fieldset_restore_<id>`, `restore_drill_<id>` → `fieldset_drill_<id>`; a put-aside database has none.
      */
     public static function role(string $database): ?string
     {
         return match (true) {
-            preg_match('/^restore_drill_([0-9a-f]{12})$/D', $database, $match) === 1 => 'fsa_drill_'.$match[1],
-            preg_match('/(?<!pre)_restore_([0-9a-f]{12})$/D', $database, $match) === 1 => 'fsa_restore_'.$match[1],
+            preg_match('/^restore_drill_([0-9a-f]{12})$/D', $database, $match) === 1 => 'fieldset_drill_'.$match[1],
+            preg_match('/(?<!pre)_restore_([0-9a-f]{12})$/D', $database, $match) === 1 => 'fieldset_restore_'.$match[1],
             default => null,
         };
     }

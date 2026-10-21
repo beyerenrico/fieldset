@@ -154,7 +154,7 @@ fsa_install_check_dir() { # --dir: absolute, normalized, mountable, not a system
 }
 
 fsa_install_foreign() { # <dir>: true when it is no instance directory and holds more than backups/
-	[ ! -f "$1/.fsa-instance" ] || return 1
+	[ ! -f "$1/.fieldset-instance" ] || return 1
 	for entry in "$1"/* "$1"/.[!.]* "$1"/..?*; do
 		[ -e "$entry" ] || [ -L "$entry" ] || continue
 		[ "${entry##*/}" = backups ] || return 0
@@ -229,7 +229,7 @@ fsa_install_prepare_dir() { # instance directory 0700, marker, verified release,
 	if ! { mkdir -p "$dir" && chmod 0700 "$dir"; } 2>/dev/null; then
 		fsa_install_fail 2 invalid_dir "Cannot create $dir." 'Pass --dir with a directory you can write to.'
 	fi
-	[ -f "$dir/.fsa-instance" ] || printf '{"schema_version":"1.0","kind":"form-schema-app instance"}\n' >"$dir/.fsa-instance"
+	[ -f "$dir/.fieldset-instance" ] || printf '{"schema_version":"1.0","kind":"form-schema-app instance"}\n' >"$dir/.fieldset-instance"
 	releases=$dir/releases/$release
 	{ mkdir -p "$releases" && chmod 0700 "$dir/releases" "$releases"; } 2>/dev/null || fsa_install_fail 2 invalid_dir "Cannot write to $dir."
 	for file in release-manifest.json release-manifest.json.sigstore.json; do

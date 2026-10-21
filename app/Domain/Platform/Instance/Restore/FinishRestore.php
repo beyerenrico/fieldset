@@ -28,7 +28,7 @@ use SensitiveParameter;
  */
 final readonly class FinishRestore
 {
-    public const string SOURCE_CONNECTION = 'fsa_restore_source';
+    public const string SOURCE_CONNECTION = 'fieldset_restore_source';
 
     /** The carry's keys without a pre-restore database (`--from-backup`, U18's rollback). */
     private const array NO_CARRY = ['carried' => null, 'carry_mode' => null, 'carry_skipped' => [], 'cascade_skipped' => [], 'sequences' => null];

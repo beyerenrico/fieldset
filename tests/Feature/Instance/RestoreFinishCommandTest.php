@@ -25,7 +25,7 @@ const FINISH_HEAD = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 
 beforeEach(function (): void {
     RestoreDatabases::target();
-    $this->role = RestoreDatabases::role('fsa_backup_finish');
+    $this->role = RestoreDatabases::role('fieldset_backup_finish');
     putenv(BackupRole::PASSWORD_ENV.'='.FINISH_PASSWORD);
     $this->stdin = '';
     app()->bind(RestoreFinishCommand::STDIN, fn () => fn (): string => $this->stdin);

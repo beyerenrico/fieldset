@@ -102,7 +102,7 @@ function cfgDocker(array $command): Process
 /** @return array<string, array{id: string, started: string}> service => its container (ID and start time) */
 function cfgContainers(string $uuid): array
 {
-    $ids = array_filter(explode("\n", trim(cfgDocker(['ps', '-aq', '--no-trunc', '--filter', "label=app.form-schema.instance={$uuid}"])->getOutput())));
+    $ids = array_filter(explode("\n", trim(cfgDocker(['ps', '-aq', '--no-trunc', '--filter', "label=app.fieldset.instance={$uuid}"])->getOutput())));
     $containers = [];
     foreach ($ids as $id) {
         $info = json_decode(cfgDocker(['inspect', '--format', '{{json .}}', $id])->getOutput(), true);
@@ -133,7 +133,7 @@ function cfgSet(object $test, array $arguments, bool $connect): Process
     $edge = '';
     while ($process->isRunning()) {
         if ($connect && $edge === '') {
-            $edge = trim(cfgDocker(['ps', '-aq', '--filter', 'label=app.form-schema.role=edge', '--filter', 'label=app.form-schema.instance='.$GLOBALS['fsaCfgUuid']])->getOutput());
+            $edge = trim(cfgDocker(['ps', '-aq', '--filter', 'label=app.fieldset.role=edge', '--filter', 'label=app.fieldset.instance='.$GLOBALS['fsaCfgUuid']])->getOutput());
             if ($edge !== '') {
                 $test->acme->connectEdge($edge);
             }
@@ -168,7 +168,7 @@ it('installs a local instance and shows its settings with secrets redacted', fun
 });
 
 it('lists the organization with SSO and exits 6 without --yes', function (): void {
-    $app = trim(cfgDocker(['ps', '-q', '--filter', 'label=app.form-schema.instance='.$GLOBALS['fsaCfgUuid'], '--filter', 'label=app.form-schema.role=app'])->getOutput());
+    $app = trim(cfgDocker(['ps', '-q', '--filter', 'label=app.fieldset.instance='.$GLOBALS['fsaCfgUuid'], '--filter', 'label=app.fieldset.role=app'])->getOutput());
     cfgDocker(['cp', TestImage::repository().'/tests/Install/Harness/sso-organization.php', "{$app}:/tmp/sso-organization.php"]);
     $created = cfgDocker(['exec', $app, 'php', '/tmp/sso-organization.php', CFG_OWNER]);
 
@@ -274,7 +274,7 @@ it('reverts to local mode with reverted: true when the ACME order fails, and the
 });
 
 it('audited the two successful changes as instance.config_changed with the host UID', function (): void {
-    $postgres = trim(cfgDocker(['ps', '-q', '--filter', 'label=app.form-schema.instance='.$GLOBALS['fsaCfgUuid'], '--filter', 'label=app.form-schema.role=postgres'])->getOutput());
+    $postgres = trim(cfgDocker(['ps', '-q', '--filter', 'label=app.fieldset.instance='.$GLOBALS['fsaCfgUuid'], '--filter', 'label=app.fieldset.role=postgres'])->getOutput());
     $rows = cfgDocker(['exec', $postgres, 'psql', '-U', 'form_schema', '-d', 'form_schema', '-tAc',
         "SELECT properties->>'key', properties->>'to', properties->>'host_uid', actor_type FROM activity_log WHERE event = 'instance.config_changed' ORDER BY id"]);
     $lines = array_values(array_filter(explode("\n", trim($rows->getOutput()))));

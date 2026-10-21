@@ -56,7 +56,7 @@ final class RestoreDatabaseCommand extends Command
         } catch (QueryException $e) {
             return $this->refuse('database_failed', 'The database step failed (SQLSTATE '.($e->errorInfo[0] ?? '?').'): '.($e->errorInfo[2] ?? $e->getPrevious()?->getMessage() ?? 'no message'));
         } finally {
-            RestoreConnections::close('fsa_restore_maintenance');
+            RestoreConnections::close('fieldset_restore_maintenance');
         }
         if ($this->option('json') === true) {
             return JsonResult::ok(self::NAME, $data, changed: $action !== 'list')->emit($this);
@@ -89,13 +89,13 @@ final class RestoreDatabaseCommand extends Command
     private function audit(DatabaseAdmin $admin, string $database, string $reference): array
     {
         try {
-            $restored = RestoreConnections::to($database, 'fsa_restore_audit');
-            $expected = RestoreConnections::to($reference, 'fsa_restore_reference');
+            $restored = RestoreConnections::to($database, 'fieldset_restore_audit');
+            $expected = RestoreConnections::to($reference, 'fieldset_restore_reference');
             $mismatches = app(AuditBaseline::class)->mismatches($admin, $database, $restored, $expected);
             $objects = count(SchemaAudit::objects($restored)) + count(SchemaAudit::expressions($restored));
         } finally {
-            RestoreConnections::close('fsa_restore_audit');
-            RestoreConnections::close('fsa_restore_reference');
+            RestoreConnections::close('fieldset_restore_audit');
+            RestoreConnections::close('fieldset_restore_reference');
         }
         if ($mismatches !== []) {
             throw new RestoreRefused('schema_mismatch', 'The restored database holds or lacks code this version defines differently: '.implode('; ', array_slice($mismatches, 0, 10)).'.', 'Nothing was swapped in. Restore only archives this app wrote.');

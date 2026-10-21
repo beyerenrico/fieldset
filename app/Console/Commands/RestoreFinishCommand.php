@@ -32,7 +32,7 @@ use RuntimeException;
         {--actor-uid= : Host UID of the operator running fsa}
         {--reason=restored : restored, or rolled_back (U18)}
         {--no-carry : Skip the security-state carry and the sequence floors (automatic rollback)}
-        {--backup-role=fsa_backup : The backup service\'s database role}
+        {--backup-role=fieldset_backup : The backup service\'s database role}
         {--backup-created-at= : When the backup was made (ISO 8601 with zone; the manifest\'s created_at): the carry\'s window}
         {--journal= : The fsa journal this finish belongs to: a second run for it writes no second epoch}
         {--json : Print one JSON document on stdout}')]

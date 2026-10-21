@@ -210,7 +210,7 @@ it('exports every audit entry with the epoch and the heads, one JSON document pe
     $rows = array_map(static fn (string $line): array => json_decode($line, true), array_slice($lines, 1));
 
     expect($code)->toBe(0)
-        ->and($header)->toMatchArray(['format' => 'fsa-audit-export', 'version' => '1.0', 'epoch' => 1, 'entries' => $count])
+        ->and($header)->toMatchArray(['format' => 'fieldset-audit-export', 'version' => '1.0', 'epoch' => 1, 'entries' => $count])
         ->and($header['heads'])->toEqual(json_decode((string) json_encode((object) $heads), true))
         ->and($header['epochs'])->toBe([])
         ->and($rows)->toHaveCount($count)

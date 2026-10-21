@@ -77,7 +77,7 @@ it('probes a port by publishing a throwaway container and reads the engine wordi
     }
 
     expect($probe->isFree(8080, 'app@sha256:'.str_repeat('a', 64)))->toBe($free)
-        ->and($docker->called('runContainer')[0]['spec'])->toEqual(new ContainerSpec(image: 'app@sha256:'.str_repeat('a', 64), labels: ['app.form-schema.role' => 'port-probe'], ports: ['127.0.0.1:8080:8080'], entrypoint: 'true'));
+        ->and($docker->called('runContainer')[0]['spec'])->toEqual(new ContainerSpec(image: 'app@sha256:'.str_repeat('a', 64), labels: ['app.fieldset.role' => 'port-probe'], ports: ['127.0.0.1:8080:8080'], entrypoint: 'true'));
 })->with([
     'free' => ['', true],
     'another container' => ['Bind for 127.0.0.1:8080 failed: port is already allocated', false],
