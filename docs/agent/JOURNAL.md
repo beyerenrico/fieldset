@@ -370,3 +370,13 @@
   service, no built frontend (Vite manifest, /app shell 503), imagick on the runner made the MFA QR code PNG.
 - php-tests now starts valkey and mailpit services and runs `npm ci && npm run build`; Google2FA is bound with an
   SVG backend (new test pins it). Suite 7405/7405, phpstan, rector, pint, actionlint clean. v2.1.0 tag unchanged.
+
+## 2026-10-22 CI green on GitHub (branch ci-e2e-scheduler; the human allowed pushing)
+- main d362fc1f: e2e and J03 failed `up --wait` ("scheduler has no healthcheck configured": the runner's Compose and
+  `healthcheck: disable: true`); J07 onwards lost the harness release server's host port after `docker network connect`.
+- Fixes: scheduler without a disabled check (compose.yaml, AppRoles), release server on the default bridge from the
+  start, reveal test under fake timers (js-tests "document is not defined"), V1Install::up() for J9's 1.0 tag stack,
+  full redacted Dogfood failures in the assertion message (one m7 drag spec failed once, passed before).
+- Verified on side branches, J9 7/7 locally. Merged into main 963c07c0: run 39685402735 green in every job (journeys
+  148 passed, 7 skipped, 3 warnings, 2 h 10 m).
+

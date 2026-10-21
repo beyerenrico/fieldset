@@ -202,3 +202,13 @@
    the binary (or untar a static release) and run `go version <file>` in a pinned golang image; Trivy's `--list-all-pkgs
    --format json` shows the same as the `stdlib` package of each `gobinary` target. Docker Hub's `ordering=last_updated`
    tag list shows whether any newer image exists at all.
+168. `healthcheck: disable: true` sets the container's test to NONE; the GitHub runner's Compose then fails
+   `docker compose up --wait` with "container … has no healthcheck configured", while local Compose v5 and the
+   bundled 5.6 accept it. Leave the healthcheck out instead (the app image defines none), and wait on old files (the
+   1.0 tag) by naming only the services with a check (V1Install::up()).
+169. On a GitHub runner, right after `docker network connect bridge` on the running harness release server, its
+   published host port refused connections (J07 onwards); not reproducible on Docker 29.2.1 locally, cause unverified.
+   Put a container on the network it needs when it is created (`network_mode: bridge`).
+170. Vitest/jsdom: a timer chain still pending when the test file ends fires after jsdom is torn down and fails the
+   run with "document is not defined", though every test passed. Run such chains to the end under fake timers.
+

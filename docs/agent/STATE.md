@@ -1,18 +1,21 @@
-# State: 2026-10-21 — Fieldset 2.1.0 cut locally (rename + Go x509 fix), not published
+# State: 2026-10-22 — Fieldset 2.1.0 cut locally, repo renamed and main pushed, CI green on GitHub
 v2 run complete (2.0.0, local tag `v2.0.0`, never published; `docs/agent/FINAL_REPORT_V2.md`).
 Rename to Fieldset (human decision, QUESTIONS 1/25; plan `docs/plans/2026-10-21-001-refactor-rename-to-fieldset-plan.md`,
 ADR 0092): U1–U8 done. Trivy fix for CVE-2026-111943 (human decision QUESTIONS 77a, ADR 0093) on branch `sec-go-x509`,
 merged into `rename-fieldset`, which is merged `--no-ff` into `main`; local tags `rename-done` and annotated `v2.1.0` on
-that merge commit. Nothing pushed. Gate report `docs/agent/milestones/R2.1.md`, evidence `milestones/evidence/R2.1/`.
+that merge commit. No tag pushed. Gate report `docs/agent/milestones/R2.1.md`, evidence `milestones/evidence/R2.1/`.
 
-GitHub repo renamed to `beyerenrico/fieldset` by the human; they pushed `main` (ff5646ba). Its CI run failed in
-php-tests (16 tests): the job lacked Redis, Mailpit and the built frontend, and the runner's imagick turned the MFA QR
-code into PNG. Fixed on branch `ci-services` (services + `npm run build` in php-tests; SVG QR backend bound in
-AppServiceProvider), merged `--no-ff` into local `main`, not pushed. `v2.1.0` stays on ff5646ba (image has no imagick).
+GitHub repo renamed to `beyerenrico/fieldset` by the human; they pushed `main` (ff5646ba), then allowed the agent to
+push to get CI green ("you are allowed to push … make sure that the CI is green"; never tags, never force). Fixes, all on
+main: `ci-services` (d362fc1f: php-tests services + frontend build, SVG MFA QR code) and `ci-e2e-scheduler` (963c07c0:
+no `healthcheck: disable: true` on the scheduler for older Compose, harness release server on the default bridge,
+reveal-test timer leak, J9 starts the 1.0 tag's stack without `up --wait` on its disabled check, full Dogfood
+failures in the log). `v2.1.0` stays on ff5646ba; two fixes change app code in the image (QR backend, stack file).
 
 ## Next actions
-1. Human: push `main`, confirm CI green. Then trademark check, GHCR first publish, push only `v2.1.0` (or a
-   `v2.1.0-…` pre-release) by name, delete old dev resources (QUESTIONS 77c/d, RELEASING.md "Pre-publish checklist").
+1. Human: decide whether `v2.1.0` moves from ff5646ba to a green main commit (its stack file still disables the
+   scheduler's healthcheck, which breaks `up --wait` with older Compose). Then trademark check, GHCR first publish, push
+   only `v2.1.0` (or a `v2.1.0-…` pre-release) by name, delete old dev resources (QUESTIONS 77c/d, RELEASING.md).
 2. Trivy exceptions expire 2026-11-17 (older gotenberg, caddy entries) and 2026-11-20 (CVE-2026-111943 entries for
    postgres, gotenberg, mailpit, caddy; cloudflared CVE-2026-63209). Before any later release: refresh the pins to
    images built with Go ≥ 1.26.10 / 1.27.3, or renew the entries in a reviewed commit.
