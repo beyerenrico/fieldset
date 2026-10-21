@@ -17,7 +17,7 @@
                 "container": null
             },
             "disk": {
-                "free_gib": 138.2
+                "free_gib": 131.5
             },
             "last_backup": null,
             "last_upgrade": null,
@@ -25,7 +25,7 @@
             "mode": "local",
             "url": "http://localhost:8081",
             "local_url": "http://localhost:8081",
-            "project": "fieldset-fieldset-test-j01-2006",
+            "project": "fieldset-fieldset-test-j01-7d9e",
             "port": 8081,
             "health": "ok",
             "services": {
@@ -93,7 +93,7 @@
             "last_restore": null,
             "restore": {
                 "last": null,
-                "storage_volume": "fieldset-fieldset-test-j01-2006_app-storage",
+                "storage_volume": "fieldset-fieldset-test-j01-7d9e_app-storage",
                 "webhooks_paused": false,
                 "interrupted": null,
                 "scratch_left": []

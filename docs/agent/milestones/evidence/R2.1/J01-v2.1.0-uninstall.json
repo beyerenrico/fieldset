@@ -8,27 +8,27 @@
         "exit_code": 0,
         "changed": true,
         "data": {
-            "uuid": "d09acef4-1c29-47a8-b6cc-00e0eb37aae7",
+            "uuid": "e34a1f2f-69b9-4f3c-ac92-1369b9e19852",
             "removed": {
                 "containers": [
-                    "fieldset-fieldset-test-j01-2006-backup-1",
-                    "fieldset-fieldset-test-j01-2006-app-1",
-                    "fieldset-fieldset-test-j01-2006-mailpit-1",
-                    "fieldset-fieldset-test-j01-2006-queue-1",
-                    "fieldset-fieldset-test-j01-2006-scheduler-1",
-                    "fieldset-fieldset-test-j01-2006-gotenberg-1",
-                    "fieldset-fieldset-test-j01-2006-redis-1",
-                    "fieldset-fieldset-test-j01-2006-postgres-1"
+                    "fieldset-fieldset-test-j01-7d9e-backup-1",
+                    "fieldset-fieldset-test-j01-7d9e-queue-1",
+                    "fieldset-fieldset-test-j01-7d9e-app-1",
+                    "fieldset-fieldset-test-j01-7d9e-mailpit-1",
+                    "fieldset-fieldset-test-j01-7d9e-scheduler-1",
+                    "fieldset-fieldset-test-j01-7d9e-gotenberg-1",
+                    "fieldset-fieldset-test-j01-7d9e-postgres-1",
+                    "fieldset-fieldset-test-j01-7d9e-redis-1"
                 ],
                 "networks": [
-                    "fieldset-fieldset-test-j01-2006_default",
-                    "fieldset-fieldset-test-j01-2006_renderer"
+                    "fieldset-fieldset-test-j01-7d9e_default",
+                    "fieldset-fieldset-test-j01-7d9e_renderer"
                 ],
                 "volumes": [
-                    "fieldset-fieldset-test-j01-2006_app-storage",
-                    "fieldset-fieldset-test-j01-2006_mailpit-data",
-                    "fieldset-fieldset-test-j01-2006_pg-data",
-                    "fieldset-fieldset-test-j01-2006_valkey-data"
+                    "fieldset-fieldset-test-j01-7d9e_app-storage",
+                    "fieldset-fieldset-test-j01-7d9e_mailpit-data",
+                    "fieldset-fieldset-test-j01-7d9e_pg-data",
+                    "fieldset-fieldset-test-j01-7d9e_valkey-data"
                 ]
             },
             "dir": "<work>/fieldset-test-j01",
@@ -56,24 +56,24 @@
     },
     "labelled_before": {
         "containers": [
-            "fieldset-fieldset-test-j01-2006-backup-1",
-            "fieldset-fieldset-test-j01-2006-app-1",
-            "fieldset-fieldset-test-j01-2006-mailpit-1",
-            "fieldset-fieldset-test-j01-2006-queue-1",
-            "fieldset-fieldset-test-j01-2006-scheduler-1",
-            "fieldset-fieldset-test-j01-2006-gotenberg-1",
-            "fieldset-fieldset-test-j01-2006-redis-1",
-            "fieldset-fieldset-test-j01-2006-postgres-1"
+            "fieldset-fieldset-test-j01-7d9e-backup-1",
+            "fieldset-fieldset-test-j01-7d9e-queue-1",
+            "fieldset-fieldset-test-j01-7d9e-app-1",
+            "fieldset-fieldset-test-j01-7d9e-mailpit-1",
+            "fieldset-fieldset-test-j01-7d9e-scheduler-1",
+            "fieldset-fieldset-test-j01-7d9e-gotenberg-1",
+            "fieldset-fieldset-test-j01-7d9e-postgres-1",
+            "fieldset-fieldset-test-j01-7d9e-redis-1"
         ],
         "volumes": [
-            "fieldset-fieldset-test-j01-2006_app-storage",
-            "fieldset-fieldset-test-j01-2006_mailpit-data",
-            "fieldset-fieldset-test-j01-2006_pg-data",
-            "fieldset-fieldset-test-j01-2006_valkey-data"
+            "fieldset-fieldset-test-j01-7d9e_app-storage",
+            "fieldset-fieldset-test-j01-7d9e_mailpit-data",
+            "fieldset-fieldset-test-j01-7d9e_pg-data",
+            "fieldset-fieldset-test-j01-7d9e_valkey-data"
         ],
         "networks": [
-            "fieldset-fieldset-test-j01-2006_default",
-            "fieldset-fieldset-test-j01-2006_renderer"
+            "fieldset-fieldset-test-j01-7d9e_default",
+            "fieldset-fieldset-test-j01-7d9e_renderer"
         ]
     },
     "labelled_after": {

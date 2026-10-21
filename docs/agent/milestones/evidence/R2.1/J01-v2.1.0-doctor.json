@@ -16,7 +16,7 @@
                     "hint": null,
                     "details": {
                         "engine": "29.2.1",
-                        "client": "29.9.1",
+                        "client": "29.9.2",
                         "compose": "5.6.0"
                     }
                 },
@@ -50,10 +50,10 @@
                 {
                     "key": "disk",
                     "status": "ok",
-                    "summary": "138.2 GiB free.",
+                    "summary": "131.5 GiB free.",
                     "hint": null,
                     "details": {
-                        "free_gib": 138.2,
+                        "free_gib": 131.5,
                         "path": "<work>/fieldset-test-j01"
                     }
                 },
