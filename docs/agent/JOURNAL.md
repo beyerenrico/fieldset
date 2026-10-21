@@ -364,3 +364,9 @@
 - Trivy green (app both arches, no exceptions). Suite 7404; JS/conformance unchanged; install journeys 151 passed /
   7 skipped (1 h 45 m), dogfood 71; 2.1.0 multi-arch 7/7 (2nd attempt: font CDN timeout); J1 amd64 5/5; J1+J7 at 2.1.0 13/13.
 - E2E dev stack 79 / 8 skips (run 1: m6-offline flake). Merged into rename-fieldset and main; tags rename-done, v2.1.0 local.
+
+## 2026-10-21 First CI run on GitHub after the rename (branch ci-services)
+- The human renamed the repo and pushed main; CI php-tests failed 16/7404: no Redis (63799) or Mailpit (18025)
+  service, no built frontend (Vite manifest, /app shell 503), imagick on the runner made the MFA QR code PNG.
+- php-tests now starts valkey and mailpit services and runs `npm ci && npm run build`; Google2FA is bound with an
+  SVG backend (new test pins it). Suite 7405/7405, phpstan, rector, pint, actionlint clean. v2.1.0 tag unchanged.

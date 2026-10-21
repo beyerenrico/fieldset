@@ -30,6 +30,7 @@ use App\Policies\MembershipPolicy;
 use App\Policies\OrganizationPolicy;
 use App\Policies\RolePolicy;
 use App\Support\Database\MigrationMutex;
+use BaconQrCode\Renderer\Image\SvgImageBackEnd;
 use Filament\Actions\Exports\Models\Export;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Console\CommandMutex;
@@ -40,6 +41,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use PragmaRX\Google2FAQRCode\Google2FA;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -51,6 +53,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->register(NotificationServiceProvider::class); // Notifier binding + notification listeners (M4-T06)
         // `migrate --isolated` on app start: a Postgres advisory lock that dies with its session (ADR 0079).
         $this->app->bind(CommandMutex::class, MigrationMutex::class);
+        // MFA set-up QR code: always SVG. Left unset, the library renders PNG whenever imagick is loaded.
+        $this->app->bind(Google2FA::class, fn (): Google2FA => new Google2FA(null, new SvgImageBackEnd));
     }
 
     public function boot(): void

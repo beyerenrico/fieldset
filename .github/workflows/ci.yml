@@ -56,6 +56,13 @@ jobs:
       gotenberg:
         image: gotenberg/gotenberg:8.38.1-chromium
         ports: ['13000:3000']
+      # Queue drain tests (Redis queue) and the Mailpit integration tests; host ports as in .env.example.
+      redis:
+        image: valkey/valkey:8-alpine
+        ports: ['63799:6379']
+      mailpit:
+        image: axllent/mailpit:v1.31
+        ports: ['11025:1025', '18025:8025']
     env:
       DB_HOST: 127.0.0.1
       DB_PORT: 5432
@@ -69,6 +76,11 @@ jobs:
       # postgresql-client: pg_dump and pg_restore 16 (Ubuntu 24.04) for the backup tests (ADR 0084).
       - run: sudo apt-get update && sudo apt-get install -y qpdf poppler-utils postgresql-client
       - run: composer install --no-interaction --prefer-dist --no-progress
+      # Pages that embed Vite assets (builder canvas) and the Field App shell (/app) need the built frontend.
+      - uses: actions/setup-node@v4
+        with: { node-version: '${{ env.NODE_VERSION }}', cache: npm }
+      - run: npm ci
+      - run: npm run build
       - run: cp .env.example .env && php artisan key:generate
       - run: vendor/bin/pest --compact --coverage-clover=storage/coverage/clover.xml --min=80
       - run: php scripts/coverage-thresholds.php storage/coverage/clover.xml
