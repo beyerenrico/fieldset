@@ -80,7 +80,7 @@ final class RestoreJourney
         $storage = self::docker(['exec', self::container($uuid, 'app'), 'tar', '-C', '/var/www/html/storage/app', '-czf', '-', '.'], timeout: 600);
         file_put_contents($directory.'/storage.tar.gz', $storage->getOutput());
         file_put_contents($directory.'/env', implode("\n", [
-            'APP_NAME=form-schema-app', "APP_KEY={$appKey}", 'APP_DEBUG=true', 'APP_URL=http://localhost:8080', 'SSO_ALLOW_INSECURE_IDP=true',
+            'APP_NAME=Fieldset', "APP_KEY={$appKey}", 'APP_DEBUG=true', 'APP_URL=http://localhost:8080', 'SSO_ALLOW_INSECURE_IDP=true',
             'TRUSTED_PROXIES=*', 'MAIL_FROM_ADDRESS=legacy@example.test', 'MAIL_PASSWORD=never-read-by-fieldset', '',
         ]));
         file_put_contents($directory.'/manifest.txt', "created_at=20261019T020000Z\npostgres=postgres (PostgreSQL) 16\nstorage=included\nenv=included\n");

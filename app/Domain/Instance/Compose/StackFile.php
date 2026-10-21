@@ -51,7 +51,7 @@ final readonly class StackFile
         'MAIL_HOST, MAIL_PORT' => 'the bundled catcher (mailpit:1025); set your SMTP server to deliver mail',
         'MAIL_SCHEME, MAIL_USERNAME, MAIL_PASSWORD' => 'empty (STARTTLS when offered; smtps for implicit TLS)',
         'MAIL_REQUIRE_TLS' => 'empty; set true with STARTTLS so the account never crosses the network unencrypted',
-        'MAIL_FROM_ADDRESS, MAIL_FROM_NAME' => 'forms@localhost, form-schema-app',
+        'MAIL_FROM_ADDRESS, MAIL_FROM_NAME' => 'forms@localhost, Fieldset',
         'FIELDSET_MAIL_CAPTURE' => 'true: admins see the capture banner; set false together with your SMTP server',
     ];
 
@@ -236,7 +236,7 @@ final readonly class StackFile
     private function header(): string
     {
         $lines = [
-            "form-schema-app {$this->version} stack file for Portainer, Coolify or `docker compose` (R18, ADR 0076).",
+            "Fieldset {$this->version} stack file for Portainer, Coolify or `docker compose` (R18, ADR 0076).",
             'Generated from the same renderer as `fieldset install --behind-proxy port`; do not edit the digests by hand.',
             '',
             'Configured only through environment variables (stack variables in Portainer or Coolify, or the shell):',

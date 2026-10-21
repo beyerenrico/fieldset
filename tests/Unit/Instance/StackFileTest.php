@@ -77,7 +77,7 @@ it('pins every image of a release by digest from the manifest pins, with an over
         '${FIELDSET_REGISTRY:-'.$pins['valkey']->registry.'}/'.$pins['valkey']->repository.'@'.$pins['valkey']->digest,
         '${FIELDSET_REGISTRY:-'.$pins['gotenberg']->registry.'}/'.$pins['gotenberg']->repository.'@'.$pins['gotenberg']->digest,
         '${FIELDSET_REGISTRY:-'.$pins['mailpit']->registry.'}/'.$pins['mailpit']->repository.'@'.$pins['mailpit']->digest,
-    ])->and($stack->yaml())->toContain('# form-schema-app 2.0.0 stack file');
+    ])->and($stack->yaml())->toContain('# Fieldset 2.0.0 stack file');
 });
 
 it('is configured only through environment variables: no env file, runtime mount, socket or instance label', function (): void {
@@ -162,7 +162,7 @@ it('names in its header what is missing without fieldset', function (): void {
         ->toContain('  docker compose -f compose.stack.yaml exec app php artisan app:install ')
         ->toContain('with the same variables set')
         ->toContain('2.0.0-alpha.2')
-        ->and(stackFile()->yaml())->toStartWith('# form-schema-app')
+        ->and(stackFile()->yaml())->toStartWith('# Fieldset')
         ->and(stackFile()->yaml())->toContain("\nservices:\n  app:\n    image: \"\${FIELDSET_REGISTRY:-registry.test:5000}/fieldset/app@sha256:");
 });
 

@@ -33,7 +33,7 @@ return [
         'heading' => 'Version',
         'version' => 'Laufende Version',
         'revision' => 'Revision',
-        'no_digests' => 'Keine Image-Digests: Diese Instanz wird nicht von fsa betrieben.',
+        'no_digests' => 'Keine Image-Digests: Diese Instanz wird nicht von fieldset betrieben.',
     ],
     'access' => [
         'heading' => 'Modus und URL',
@@ -43,7 +43,7 @@ return [
             'proxy' => 'Hinter Ihrem Reverse Proxy',
             'domain' => 'Eigene Domain mit automatischem HTTPS',
         ],
-        'not_fieldset' => 'Nicht von fsa betrieben',
+        'not_fieldset' => 'Nicht von fieldset betrieben',
         'url' => 'Instanz-URL',
         'local_url' => 'Lokale URL',
         'tunnel' => 'Quick Tunnel',
@@ -102,7 +102,7 @@ return [
         'current' => 'Version :version ist aktuell.',
     ],
     'backup_alert' => [
-        'subject' => 'Backup-Problem auf Ihrer form-schema-app-Instanz',
+        'subject' => 'Backup-Problem auf Ihrer Fieldset-Instanz',
         'greeting' => 'Ein Backup braucht Ihre Aufmerksamkeit.',
         'command' => 'Befehl auf dem Server: :command',
         'action' => 'Instanzseite öffnen',

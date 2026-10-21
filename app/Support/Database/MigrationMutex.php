@@ -21,7 +21,7 @@ use Illuminate\Database\DatabaseManager;
 final readonly class MigrationMutex implements CommandMutex
 {
     /** hashtext() of this name is the advisory lock key. */
-    public const string LOCK = 'form-schema-app:migrate';
+    public const string LOCK = 'fieldset:migrate';
 
     public function __construct(private CacheCommandMutex $fallback, private DatabaseManager $databases) {}
 

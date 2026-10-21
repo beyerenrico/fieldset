@@ -63,7 +63,7 @@ it('rejects malformed inputs', function (array $overrides, string $message): voi
 })->with([
     'schema version' => [['schema_version' => 2], 'schema_version must be 1'],
     'app image with a tag' => [['app_image' => 'ghcr.io/beyerenrico/fieldset:latest'], 'app_image must be registry/repository'],
-    'app image without registry' => [['app_image' => 'form-schema-app'], 'app_image must be registry/repository'],
+    'app image without registry' => [['app_image' => 'fieldset'], 'app_image must be registry/repository'],
     'notes url over http' => [['notes_url' => 'http://example.com/{version}'], 'notes_url must be an https URL'],
     'notes url without version' => [['notes_url' => 'https://example.com/notes'], 'notes_url must be an https URL'],
     'missing upgrade source' => [['upgrades_from' => ''], '"upgrades_from" must be a non-empty string'],

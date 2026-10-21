@@ -56,7 +56,7 @@ it('reports an exception as an envelope with its chain, frames and request id bu
         $frames = $event['exception']['values'][1]['stacktrace']['frames'];
 
         expect($request->url())->toBe('https://errors.example:8443/glitchtip/api/42/envelope/')
-            ->and($request->header('X-Sentry-Auth')[0])->toBe('Sentry sentry_version=7, sentry_client=form-schema-app/1.0, sentry_key=public123')
+            ->and($request->header('X-Sentry-Auth')[0])->toBe('Sentry sentry_version=7, sentry_client=fieldset/1.0, sentry_key=public123')
             ->and($request->header('Content-Type')[0])->toBe('application/x-sentry-envelope')
             ->and($header['event_id'])->toBe($event['event_id'])->toMatch('/^[0-9a-f]{32}$/')
             ->and($item['type'])->toBe('event')

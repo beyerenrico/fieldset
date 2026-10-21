@@ -170,7 +170,7 @@ final readonly class ServiceEnvironments
         $url = $this->context->settings->instanceUrl();
 
         return [
-            'APP_NAME' => 'form-schema-app',
+            'APP_NAME' => 'Fieldset',
             'APP_ENV' => 'production',
             'APP_DEBUG' => 'false',
             'APP_KEY' => $this->context->secrets->appKey,

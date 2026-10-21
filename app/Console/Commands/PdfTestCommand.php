@@ -25,8 +25,8 @@ final class PdfTestCommand extends Command
 {
     private const string NAME = 'instance:pdf-test';
 
-    private const string HTML = '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>form-schema-app</title></head>'
-        .'<body><h1>form-schema-app</h1><p>Install smoke test: this page was rendered by Gotenberg.</p></body></html>';
+    private const string HTML = '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Fieldset</title></head>'
+        .'<body><h1>Fieldset</h1><p>Install smoke test: this page was rendered by Gotenberg.</p></body></html>';
 
     public function handle(GotenbergClient $client): int
     {

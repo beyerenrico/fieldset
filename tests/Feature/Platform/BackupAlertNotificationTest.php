@@ -139,8 +139,8 @@ it('writes the mail in the operator\'s locale with the command and the instance 
             && $mail->actionUrl === route('filament.platform.pages.instance') && $mail->level === 'error';
     });
 })->with([
-    'English' => ['en', 'Backup problem on your form-schema-app instance', 'until the next backup succeeds'],
-    'German' => ['de', 'Backup-Problem auf Ihrer form-schema-app-Instanz', 'bis das nächste Backup gelingt'],
+    'English' => ['en', 'Backup problem on your Fieldset instance', 'until the next backup succeeds'],
+    'German' => ['de', 'Backup-Problem auf Ihrer Fieldset-Instanz', 'bis das nächste Backup gelingt'],
 ]);
 
 it('runs hourly from the scheduler', function (): void {

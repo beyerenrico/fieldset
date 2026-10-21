@@ -40,7 +40,7 @@ final class UpgradeFixture
 
     public const string TARGET_DIGEST = 'sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
 
-    public const string RELEASE_URL = 'https://releases.test/form-schema-app';
+    public const string RELEASE_URL = 'https://releases.test/fieldset';
 
     public const string CHILD_ID = 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd';
 

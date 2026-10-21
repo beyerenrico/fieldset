@@ -66,8 +66,8 @@ return [
             'mail' => 'E-Mail-Versand',
             'scheduler' => 'Zeitplaner',
             'disk' => 'Speicherplatz',
-            'runtime' => 'Instanz-Laufzeit (fsa)',
-            'backup' => 'Sicherungen (fsa)',
+            'runtime' => 'Instanz-Laufzeit (fieldset)',
+            'backup' => 'Sicherungen (fieldset)',
         ],
         'statuses' => [
             'ok' => 'OK',
@@ -121,7 +121,7 @@ return [
             'percent_free' => ':percent % frei auf dem Speicher-Volume.',
         ],
         'runtime' => [
-            'not_configured' => 'Keine fsa-Instanz: die Adresse kommt aus APP_URL.',
+            'not_configured' => 'Nicht von fieldset betrieben: die Adresse kommt aus APP_URL.',
             'ok' => 'Die Laufzeitdatei ist aktuell.',
             'last_good' => 'Die Laufzeitdatei ist unbrauchbar; der letzte gültige Stand bleibt in Kraft.',
             'fallback' => 'Die Laufzeitdatei ist unbrauchbar und es wurde noch kein gültiger Stand gelesen: APP_URL gilt und die Betriebssperre gilt als aktiv.',
@@ -135,7 +135,7 @@ return [
             'problem' => 'Problem',
         ],
         'backup' => [
-            'none' => 'Keine Sicherung erfasst: auf einer fsa-Instanz trägt der Sicherungsdienst jeden Lauf hier ein.',
+            'none' => 'Keine Sicherung erfasst: auf einer von fieldset betriebenen Instanz trägt der Sicherungsdienst jeden Lauf hier ein.',
             'ok' => 'Die letzte Sicherung war erfolgreich.',
             'failed' => 'Die letzte Sicherung ist fehlgeschlagen (:reason). Führen Sie `fieldset backup` aus und lesen Sie `fieldset logs backup`.',
             'skipped' => 'Geplante Sicherungen werden seit mehr als 24 Stunden übersprungen, weil ein Vorgang die Instanzsperre hält. Prüfen Sie `fieldset status`.',
@@ -143,7 +143,7 @@ return [
             'files_missing' => 'Die letzte Sicherung ist gelungen, aber :count Datei(en), auf die die Datenbank verweist, fehlten im Speicher: Sie kann sie nicht zurückbringen. Ältere Sicherungen bleiben erhalten, solange neue mehr Dateien vermissen. Prüfen Sie `fieldset status`.',
             'overdue' => 'Keine Sicherung ist rechtzeitig gelungen: Der Sicherungsdienst läuft möglicherweise nicht. Prüfen Sie `fieldset logs backup` und `fieldset status`.',
             'service_failed' => 'Der Sicherungsdienst kann nicht starten (:reason). Lesen Sie `fieldset logs backup`.',
-            'silent' => 'Der Sicherungsdienst dieser fsa-Instanz hat sich noch nicht gemeldet. Prüfen Sie `fieldset status` und `fieldset logs backup`.',
+            'silent' => 'Der Sicherungsdienst dieser Instanz hat sich noch nicht gemeldet. Prüfen Sie `fieldset status` und `fieldset logs backup`.',
             'retrying' => 'Der letzte geplante Lauf wurde übersprungen, weil ein Vorgang die Instanzsperre hielt; er wird jede Minute wiederholt.',
             'waiting' => 'Noch keine Sicherung: Der Sicherungsdienst wartet auf seinen ersten geplanten Lauf.',
             'next_run' => 'Nächster geplanter Lauf',

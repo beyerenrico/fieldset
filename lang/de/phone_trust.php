@@ -18,7 +18,7 @@ return [
         'download' => 'Root-Zertifikat herunterladen',
         'name' => 'Name auf dem Telefon',
         'fingerprint' => 'SHA-256-Fingerabdruck',
-        'compare' => 'Vergleichen Sie diesen Fingerabdruck mit dem, den fsa beim Einrichten von HTTPS für Telefone ausgegeben hat (fieldset status zeigt ihn ebenfalls), bevor Sie dem Zertifikat vertrauen. Fahren Sie nur fort, wenn beide übereinstimmen: Diese Seite kommt auch über unverschlüsseltes HTTP, jemand im selben Netzwerk könnte das Zertifikat austauschen.',
+        'compare' => 'Vergleichen Sie diesen Fingerabdruck mit dem, den fieldset beim Einrichten von HTTPS für Telefone ausgegeben hat (fieldset status zeigt ihn ebenfalls), bevor Sie dem Zertifikat vertrauen. Fahren Sie nur fort, wenn beide übereinstimmen: Diese Seite kommt auch über unverschlüsseltes HTTP, jemand im selben Netzwerk könnte das Zertifikat austauschen.',
     ],
     'ios' => [
         'heading' => 'iPhone und iPad (iOS)',

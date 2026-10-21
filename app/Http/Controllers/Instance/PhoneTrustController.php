@@ -36,7 +36,7 @@ final readonly class PhoneTrustController
 
     private const int QR_SIZE = 232;
 
-    public const string DOWNLOAD_NAME = 'form-schema-app-local-ca.crt';
+    public const string DOWNLOAD_NAME = 'fieldset-local-ca.crt';
 
     public function __construct(private RuntimeStateReader $reader, private Repository $config) {}
 

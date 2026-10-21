@@ -21,7 +21,7 @@ final readonly class InstanceSettings
 
     public const string DEFAULT_DATABASE = 'fieldset';
 
-    public const string DEFAULT_SENDER_NAME = 'form-schema-app';
+    public const string DEFAULT_SENDER_NAME = 'Fieldset';
 
     public const string DEFAULT_BACKUP_TIME = '03:30';
 

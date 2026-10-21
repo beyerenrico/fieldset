@@ -81,7 +81,7 @@ it('renders the stack file from the same pins and lists it as an asset (R18, ADR
 
         expect(array_keys($manifest->assets))->toBe(['compose.stack.yaml', 'install.sh', 'shim.sh'])
             ->and($manifest->assets['compose.stack.yaml']['sha256'])->toBe(hash('sha256', $yaml))
-            ->and($yaml)->toContain('# form-schema-app 2.1.0-alpha.2 stack file')
+            ->and($yaml)->toContain('# Fieldset 2.1.0-alpha.2 stack file')
             ->and($images)->toHaveCount(7);
         foreach ($images as [, $registryHost, $rest]) {
             expect($pinned)->toContain($registryHost.'/'.$rest);

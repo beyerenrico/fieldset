@@ -18,7 +18,7 @@ return [
         'download' => 'Download root certificate',
         'name' => 'Name on the phone',
         'fingerprint' => 'SHA-256 fingerprint',
-        'compare' => 'Before you trust the certificate, compare this fingerprint with the one fsa printed when it set up phone HTTPS (fieldset status shows it too). Continue only if both match: this page also comes over plain HTTP, so someone on the same network could swap the certificate.',
+        'compare' => 'Before you trust the certificate, compare this fingerprint with the one fieldset printed when it set up phone HTTPS (fieldset status shows it too). Continue only if both match: this page also comes over plain HTTP, so someone on the same network could swap the certificate.',
     ],
     'ios' => [
         'heading' => 'iPhone and iPad (iOS)',

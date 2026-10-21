@@ -17,9 +17,9 @@ return [
     'operator' => 'Set up mail delivery on the server:',
     'mail_settings' => 'Use your own SMTP server in Mail settings',
     'test_mail' => [
-        'subject' => 'form-schema-app: test mail',
-        'body' => 'This test mail from the form-schema-app instance at :url confirms the new SMTP settings. Mail is now delivered, no longer captured.',
-        'install_capture' => 'This test mail from the installation of the form-schema-app instance at :url confirms that mail reaches the mail catcher. Mail is captured, not delivered, until SMTP is set up with `fieldset config set mail smtp`.',
-        'install_smtp' => 'This test mail from the installation of the form-schema-app instance at :url confirms that the SMTP server accepts its mail.',
+        'subject' => 'Fieldset: test mail',
+        'body' => 'This test mail from the Fieldset instance at :url confirms the new SMTP settings. Mail is now delivered, no longer captured.',
+        'install_capture' => 'This test mail from the installation of the Fieldset instance at :url confirms that mail reaches the mail catcher. Mail is captured, not delivered, until SMTP is set up with `fieldset config set mail smtp`.',
+        'install_smtp' => 'This test mail from the installation of the Fieldset instance at :url confirms that the SMTP server accepts its mail.',
     ],
 ];

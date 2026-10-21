@@ -154,7 +154,7 @@ it('keeps HSTS for every other page of the instance host over plain HTTP', funct
 it('offers exactly the public root PEM for download, never a key', function (): void {
     $response = phoneTrust(PhoneTrustRoute::ROOT_PATH)->assertOk()
         ->assertHeader('Content-Type', 'application/x-x509-ca-cert')
-        ->assertHeader('Content-Disposition', 'attachment; filename="form-schema-app-local-ca.crt"')
+        ->assertHeader('Content-Disposition', 'attachment; filename="fieldset-local-ca.crt"')
         ->assertHeader('X-Content-Type-Options', 'nosniff');
 
     expect($response->getContent())->toBe($this->pem)->not->toContain('PRIVATE KEY')

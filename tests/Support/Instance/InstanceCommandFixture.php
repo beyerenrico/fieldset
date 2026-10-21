@@ -166,7 +166,7 @@ final class InstanceCommandFixture
         $url = $spec->command[array_key_last($spec->command)] ?? '';
 
         return $spec->entrypoint === 'curl' && str_starts_with($url, 'http://mailpit:8025/') && str_contains($url, '/api/v1/messages')
-            ? new ProcessOutcome(0, json_encode(['messages' => [['ID' => 'a1', 'MessageID' => self::MESSAGE_ID, 'Subject' => 'form-schema-app: test mail']]], JSON_THROW_ON_ERROR))
+            ? new ProcessOutcome(0, json_encode(['messages' => [['ID' => 'a1', 'MessageID' => self::MESSAGE_ID, 'Subject' => 'Fieldset: test mail']]], JSON_THROW_ON_ERROR))
             : null;
     }
 

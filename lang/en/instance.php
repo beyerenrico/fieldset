@@ -33,7 +33,7 @@ return [
         'heading' => 'Version',
         'version' => 'Running version',
         'revision' => 'Revision',
-        'no_digests' => 'No image digests: this instance is not run by fsa.',
+        'no_digests' => 'No image digests: this instance is not run by fieldset.',
     ],
     'access' => [
         'heading' => 'Mode and URL',
@@ -43,7 +43,7 @@ return [
             'proxy' => 'Behind your reverse proxy',
             'domain' => 'Own domain with automatic HTTPS',
         ],
-        'not_fieldset' => 'Not run by fsa',
+        'not_fieldset' => 'Not run by fieldset',
         'url' => 'Instance URL',
         'local_url' => 'Local URL',
         'tunnel' => 'Quick tunnel',
@@ -102,7 +102,7 @@ return [
         'current' => 'Version :version is up to date.',
     ],
     'backup_alert' => [
-        'subject' => 'Backup problem on your form-schema-app instance',
+        'subject' => 'Backup problem on your Fieldset instance',
         'greeting' => 'A backup needs your attention.',
         'command' => 'Command on the server: :command',
         'action' => 'Open the instance page',

@@ -196,7 +196,7 @@ it('(b) fails with exit 3 for a tampered manifest even when SHA256SUMS matches i
 
     expect($process->getExitCode())->toBe(3)
         ->and($process->getErrorOutput())->toContain('signature does not match')
-        ->and(array_filter(bootstrapDockerCalls($this), fn (array $call): bool => $call[0] === 'pull' && str_contains(end($call), 'form-schema-app')))->toBe([])
+        ->and(array_filter(bootstrapDockerCalls($this), fn (array $call): bool => $call[0] === 'pull' && str_contains(end($call), 'fieldset')))->toBe([])
         ->and(file_exists($this->work.'/tampered-instance'))->toBeFalse();
 });
 

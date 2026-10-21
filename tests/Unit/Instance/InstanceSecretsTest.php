@@ -87,7 +87,7 @@ it('reads settings with their defaults', function (): void {
         ->and($settings->smtpPort())->toBe(587)
         ->and($settings->smtpScheme())->toBeNull()
         ->and($settings->mailFromAddress())->toBe('forms@localhost')
-        ->and($settings->mailFromName())->toBe('form-schema-app')
+        ->and($settings->mailFromName())->toBe('Fieldset')
         ->and($settings->extraHosts())->toBe([])
         ->and($settings->instanceUrl())->toBe('http://localhost:8080')
         ->and($settings->localUrl())->toBe('http://localhost:8080');

@@ -50,7 +50,7 @@ it('refuses an unusable --to or release URL, an unknown release and an unreachab
         ->and(is_dir($this->dir.'/releases/9.9.9'))->toBeFalse();
 })->with([
     'not a version' => [['--to' => 'latest-and-greatest'], null, null, 2, 'invalid_version'],
-    'plain http outside the harness' => [[], 'http://releases.test/form-schema-app', null, 2, 'insecure_release_url'],
+    'plain http outside the harness' => [[], 'http://releases.test/fieldset', null, 2, 'insecure_release_url'],
     'no such release' => [['--to' => '9.9.9'], null, null, 2, 'release_not_found'],
     'server error' => [[], null, 500, 3, 'release_unavailable'],
 ]);

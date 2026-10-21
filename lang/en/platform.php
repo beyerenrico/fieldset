@@ -66,8 +66,8 @@ return [
             'mail' => 'Mail transport',
             'scheduler' => 'Scheduler',
             'disk' => 'Disk',
-            'runtime' => 'Instance runtime (fsa)',
-            'backup' => 'Backups (fsa)',
+            'runtime' => 'Instance runtime (fieldset)',
+            'backup' => 'Backups (fieldset)',
         ],
         'statuses' => [
             'ok' => 'OK',
@@ -121,7 +121,7 @@ return [
             'percent_free' => ':percent% free on the storage volume.',
         ],
         'runtime' => [
-            'not_configured' => 'Not an fsa instance: the address comes from APP_URL.',
+            'not_configured' => 'Not run by fieldset: the address comes from APP_URL.',
             'ok' => 'The runtime file is current.',
             'last_good' => 'The runtime file is unusable; the last good value stays in force.',
             'fallback' => 'The runtime file is unusable and no good value was read: APP_URL is used and the operation gate counts as raised.',
@@ -135,7 +135,7 @@ return [
             'problem' => 'Problem',
         ],
         'backup' => [
-            'none' => 'No backup recorded: on an fsa instance the backup service records every run here.',
+            'none' => 'No backup recorded: on an instance run by fieldset the backup service records every run here.',
             'ok' => 'The last backup succeeded.',
             'failed' => 'The last backup failed (:reason). Run `fieldset backup` and read `fieldset logs backup`.',
             'skipped' => 'Scheduled backups have been skipped for more than 24 hours because an operation held the instance lock. Check `fieldset status`.',
@@ -143,7 +143,7 @@ return [
             'files_missing' => 'The last backup succeeded, but :count file(s) the database references were not in storage: it cannot bring them back. Older backups are kept while new ones miss more files. Check `fieldset status`.',
             'overdue' => 'No backup succeeded in time: the backup service may not be running. Check `fieldset logs backup` and `fieldset status`.',
             'service_failed' => 'The backup service cannot start (:reason). Read `fieldset logs backup`.',
-            'silent' => 'The backup service of this fsa instance has not reported yet. Check `fieldset status` and `fieldset logs backup`.',
+            'silent' => 'The backup service of this instance has not reported yet. Check `fieldset status` and `fieldset logs backup`.',
             'retrying' => 'The last scheduled run was skipped because an operation held the instance lock; it is retried every minute.',
             'waiting' => 'No backup yet: the backup service waits for its first scheduled run.',
             'next_run' => 'Next scheduled run',
