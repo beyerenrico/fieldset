@@ -206,4 +206,4 @@ Human decision 2026-10-21 (QUESTIONS 1, 25): product, CLI, format and libraries 
 - [x] R-U5 Release identity, image and CI: `beyerenrico/fieldset`, harness `2.1.0-*-test` (bb512f3)
 - [x] R-U6 App config, translations, SSO TXT record, Keycloak realm, dev stack `fieldset` (a762456, 1eabfd9, 1cbc221, 63ed78f)
 - [x] R-U7 Current docs and docs tests (a1ffe69, 23ab5dc)
-- [~] R-U8 Gate and 2.1.0 release: ADR 0092, CHANGELOG 2.1.0, gate (`milestones/R2.1.md`) green except Trivy · blocked: CVE-2026-111943 (Go stdlib) in every Go binary needs new image pins (QUESTIONS 77); then merge, tags `rename-done`, `v2.1.0` (local only)
+- [x] R-U8 Gate and 2.1.0 release: ADR 0092, CHANGELOG 2.1.0, gate (`milestones/R2.1.md`); Trivy CVE-2026-111943 fixed on `sec-go-x509` (Go 1.27.3, FrankenPHP, Docker CLI 29.9.2, cloudflared 2026.10.2, dated exceptions for postgres/gotenberg/mailpit/caddy; ADR 0093, QUESTIONS 77a), full gate rerun green; merged to `main`, tags `rename-done`, `v2.1.0` (local only)

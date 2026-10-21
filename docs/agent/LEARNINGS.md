@@ -195,3 +195,10 @@
    (rename U8: CVE-2026-111943 in every Go binary). Scan early in a release run, before the long journeys.
 165. `scripts/fixtures/make-fillable-pdfs.mjs` is reproducible except the qpdf-encrypted variants (random salts): a
    rerun always changes `encrypted-*.pdf`.
+166. The app image's assets stage (Vite `laravel:fonts` plugin) fetches fonts over the network at build time: a CDN
+   connect timeout fails the harness build ("fetch failed", ConnectTimeoutError). Check the network and rerun; nothing in
+   the tree is wrong.
+167. To check which Go a third-party binary was built with, without trusting release notes: `docker create` + `docker cp`
+   the binary (or untar a static release) and run `go version <file>` in a pinned golang image; Trivy's `--list-all-pkgs
+   --format json` shows the same as the `stdlib` package of each `gobinary` target. Docker Hub's `ordering=last_updated`
+   tag list shows whether any newer image exists at all.
