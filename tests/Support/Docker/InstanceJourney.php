@@ -152,12 +152,15 @@ final readonly class InstanceJourney
         return new Client(['base_uri' => "http://localhost:{$port}", 'http_errors' => false, 'allow_redirects' => false, 'cookies' => true, 'timeout' => 30]);
     }
 
-    /** The milestone whose evidence directory journeys write to: FIELDSET_EVIDENCE_MILESTONE (e.g. M10), default M9. */
+    /**
+     * The milestone whose evidence directory journeys write to: FIELDSET_EVIDENCE_MILESTONE (a milestone such as M10, or a
+     * release such as R2.1), default M9.
+     */
     public static function evidenceMilestone(): string
     {
         $milestone = getenv('FIELDSET_EVIDENCE_MILESTONE');
 
-        return is_string($milestone) && preg_match('/^M\d{1,2}$/D', $milestone) === 1 ? $milestone : 'M9';
+        return is_string($milestone) && preg_match('/^(M\d{1,2}|R\d{1,2}\.\d{1,2})$/D', $milestone) === 1 ? $milestone : 'M9';
     }
 
     /**
