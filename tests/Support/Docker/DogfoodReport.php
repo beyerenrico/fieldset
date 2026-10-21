@@ -63,6 +63,36 @@ final class DogfoodReport
     }
 
     /**
+     * The failed tests' whole error messages (expected, received, call log), redacted, for the assertion message only: a
+     * failure on CI can then be read from its log, while the evidence keeps the first line.
+     */
+    public static function failureDetails(string $json): string
+    {
+        $report = json_decode($json, true);
+        $details = [];
+        $walk = static function (array $suite) use (&$walk, &$details): void {
+            foreach (is_array($suite['specs'] ?? null) ? $suite['specs'] : [] as $spec) {
+                foreach (is_array($spec['tests'] ?? null) ? $spec['tests'] : [] as $test) {
+                    foreach (is_array($test['results'] ?? null) ? $test['results'] : [] as $result) {
+                        $message = is_array($result) ? (string) data_get($result, 'error.message', '') : '';
+                        if ($message !== '') {
+                            $details[] = ($spec['title'] ?? '?').":\n".mb_substr((string) preg_replace('/\e\[[0-9;]*m/', '', $message), 0, 3000);
+                        }
+                    }
+                }
+            }
+            foreach (is_array($suite['suites'] ?? null) ? $suite['suites'] : [] as $child) {
+                $walk($child);
+            }
+        };
+        foreach (is_array($report) && is_array($report['suites'] ?? null) ? $report['suites'] : [] as $suite) {
+            $walk($suite);
+        }
+
+        return (string) EvidenceRedactor::transcript(['details' => implode("\n\n", $details)])['details'];
+    }
+
+    /**
      * @param  array<string, mixed>  $summary
      * @param  array<string, mixed>  $suite
      * @param  list<string>  $path  describe titles above this suite

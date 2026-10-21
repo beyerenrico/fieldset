@@ -101,7 +101,7 @@ it('passes the E2E suite against the instance, dev-only specs skipped with their
     ]);
     $reasons = array_unique(array_column($summary['skipped'], 'reason'));
 
-    expect($summary['stats']['unexpected'] ?? null)->toBe(0, json_encode($summary['failed'], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).$process->getErrorOutput())
+    expect($summary['stats']['unexpected'] ?? null)->toBe(0, json_encode($summary['failed'], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)."\n".DogfoodReport::failureDetails((string) @file_get_contents($report)).$process->getErrorOutput())
         ->and($process->getExitCode())->toBe(0, $process->getErrorOutput())
         ->and($summary['stats']['expected'] ?? 0)->toBeGreaterThanOrEqual(60)
         ->and(array_filter($reasons, static fn (string $reason): bool => ! array_any(DOGFOOD_ALLOWED_SKIPS, static fn (string $pattern): bool => preg_match($pattern, $reason) === 1)))->toBe([])

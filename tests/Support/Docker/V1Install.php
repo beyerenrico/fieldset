@@ -10,7 +10,7 @@ use Symfony\Component\Process\Process;
 /**
  * A clone-based 1.0.0 install for J9 (plan U19, ADR 0087), built from the local tag `v1.0.0` the way its install guide
  * says: the tag's files (`git archive`) in a `fieldset-test-…` checkout of the harness workspace, `.env` from the production
- * template, `docker compose up -d --wait` in the checkout. Only names change, so clean-up finds everything: the image is
+ * template, `docker compose up -d` in the checkout (up()). Only names change, so clean-up finds everything: the image is
  * `<FIELDSET_TEST_IMAGE_REPOSITORY>-v1:1.0.0` (compose.yaml's `form-schema-app:local` is the dev stack's) and the Compose
  * project `fieldset-test-j09-v1-<id>` (COMPOSE_PROJECT_NAME in `.env`, as an operator may set it). Compose runs with a clean
  * environment, so a COMPOSE_* variable of the test process never changes what 1.0 runs.
@@ -72,6 +72,34 @@ final readonly class V1Install
         $process->run();
 
         return $process;
+    }
+
+    /**
+     * `docker compose up -d` in the checkout, as its install guide says, then the wait of `up --wait`: services with a
+     * healthcheck healthy, the others running. 1.0's scheduler sets `healthcheck: disable: true`, which older Compose
+     * releases (the GitHub runner's) fail in `up --wait` with "no healthcheck configured", so `--wait` names only the rest.
+     */
+    public function up(): Process
+    {
+        $up = $this->compose(['up', '-d']);
+        $config = $up->isSuccessful() ? $this->compose(['config', '--format', 'json'], 60) : $up;
+        if (! $config->isSuccessful()) {
+            return $config;
+        }
+        $decoded = json_decode($config->getOutput(), true);
+        $services = is_array($decoded) && is_array($decoded['services'] ?? null) ? $decoded['services'] : [];
+        $checked = array_keys(array_filter($services, static fn (mixed $service): bool => data_get($service, 'healthcheck.disable') !== true));
+        $wait = $this->compose(['up', '-d', '--wait', ...$checked]);
+        if (! $wait->isSuccessful()) {
+            return $wait;
+        }
+        $running = $this->compose(['ps', '--status', 'running', '--services'], 60);
+        $stopped = array_diff(array_keys($services), explode("\n", trim($running->getOutput())));
+        if ($stopped !== []) {
+            throw new RuntimeException('1.0 services not running: '.implode(', ', $stopped)."\n".$this->compose(['ps', '--all'], 60)->getOutput());
+        }
+
+        return $wait;
     }
 
     /** The container of a service of the 1.0 project (running or not). */
