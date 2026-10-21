@@ -196,3 +196,14 @@ T03, T04 and T05 in parallel worktrees (predicted overlaps: journal phases, `fsa
   - R39 release check: the image's `pg_dump` major ≥ the manifest's Postgres major.
   - J10: backup service memory at the 1.0 data volume (M12 peak 68 MiB with demo data, slot 128 MiB).
 - [x] M13-T04 Gate M13, release 2.0.0 per §15.10 (local tag `v2.0.0`, FINAL_REPORT_V2.md, STATE "Run complete")
+
+## Rename to Fieldset → 2.1.0 (branch `rename-fieldset`, plan `docs/plans/2026-10-21-001-refactor-rename-to-fieldset-plan.md`)
+Human decision 2026-10-21 (QUESTIONS 1, 25): product, CLI, format and libraries renamed before the first publish.
+- [x] R-U1 PHP library `fieldset/fieldset-php`, namespace `Fieldset\` (29ee922)
+- [x] R-U2 JS packages `@fieldset/*`, Field App storage and preview message names (285a596)
+- [x] R-U3 Fieldset Spec 1.0: new `$id`, template URN `urn:fieldset:bundled-templates` (1433627)
+- [x] R-U4 Instance and CLI layer: `fieldset`, `fieldset:*`, `FIELDSET_*`, `app.fieldset.*`, persisted names (f3e3dfc, dbcd9cd, 0ba7941)
+- [x] R-U5 Release identity, image and CI: `beyerenrico/fieldset`, harness `2.1.0-*-test` (bb512f3)
+- [x] R-U6 App config, translations, SSO TXT record, Keycloak realm, dev stack `fieldset` (a762456, 1eabfd9, 1cbc221, 63ed78f)
+- [x] R-U7 Current docs and docs tests (a1ffe69, 23ab5dc)
+- [~] R-U8 Gate and 2.1.0 release: ADR 0092, CHANGELOG 2.1.0, gate (`milestones/R2.1.md`) green except Trivy · blocked: CVE-2026-111943 (Go stdlib) in every Go binary needs new image pins (QUESTIONS 77); then merge, tags `rename-done`, `v2.1.0` (local only)

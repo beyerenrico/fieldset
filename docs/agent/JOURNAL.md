@@ -349,3 +349,11 @@
   built at fba09cd (476 s, install 46.9 s). Dogfood m6-offline flaked once at load 8.
 - Trivy: cloudflared CVE-2026-63209 unfixed in 2026.10.2 → 30-day exception (bac1caf, QUESTIONS 76). Suite 7389.
 - FINAL_REPORT_V2.md written; merged release-2.0.0, tagged `v2.0.0` locally (not pushed). Run complete.
+
+## 2026-10-21 Rename U8: gate for 2.1.0 (branch rename-fieldset)
+- ADR 0092 and CHANGELOG 2.1.0 (220617a); journeys accept `FIELDSET_EVIDENCE_MILESTONE=R2.1`.
+- Static, licenses and audits clean; suite 7403/7403; Vitest 615/111/622/246; conformance 391/392; E2E 79 + 8 skips.
+- Install journeys at 2.1.0-alpha.1-test 151 passed / 7 skipped (1 h 42 m), dogfood 71; 2.1.0 multi-arch 7/7 (495 s);
+  J1 amd64 5/5; J1 + J7 at 2.1.0 13/13. No test resources left. fieldset-ci rebuilt (apt fine now).
+- Trivy red: CVE-2026-111943 (Go stdlib, published today) in every Go binary; pins as in v2.0.0. Merge and tags held
+  (QUESTIONS 77). PDF fixtures left (encrypted variants not reproducible).

@@ -1,41 +1,44 @@
-# State: 2026-10-21 — Run complete
-v2 run (BUILD_PROMPT_V2.md, plan `docs/plans/2026-10-17-001-feat-docker-distribution-v2-plan.md`) is complete.
-M9–M13 done and merged to `main`; 2.0.0 released locally: tag `v2.0.0` on the release-2.0.0 merge (local only,
-never pushed, nothing published). Tags: `m9-done` … `m13-done`, `v2.0.0-alpha.1`, `-alpha.2`, `-beta.1`, `-rc.1`, `v2.0.0`.
-Final report: `docs/agent/FINAL_REPORT_V2.md`; gate reports `docs/agent/milestones/M9.md`–`M13.md`.
+# State: 2026-10-21 — Rename to Fieldset: gate green except Trivy, 2.1.0 not cut
+v2 run complete (2.0.0, local tag `v2.0.0`, never published; `docs/agent/FINAL_REPORT_V2.md`).
+Rename to Fieldset (human decision, QUESTIONS 1/25; plan `docs/plans/2026-10-21-001-refactor-rename-to-fieldset-plan.md`,
+ADR 0092): U1–U7 done on branch `rename-fieldset`; U8 gate report `docs/agent/milestones/R2.1.md`, evidence
+`docs/agent/milestones/evidence/R2.1/`. **Not merged to `main`, no `rename-done` / `v2.1.0` tag** (Trivy).
 
 ## Next actions
-1. None for the agent. Human steps before a public release: FINAL_REPORT_V2.md "Human checklist" (GHCR first publish,
-   QUESTIONS 25/27/41/74/76, Trivy exceptions expire 2026-11-17 / 2026-11-20).
-2. Offered next: plan the GitHub Pages docs site (`/ce-plan`).
-3. Test DBs form_schema_ga/gb/gc (+_test_N) and older ones may remain in the dev Postgres: left for the human.
+1. Trivy (QUESTIONS 77a): CVE-2026-111943 (Go stdlib crypto/x509, fixed in 1.26.10 / 1.27.3) in every Go binary.
+   App image (no exceptions allowed): `docker/app/Dockerfile` golang 1.27.2 → 1.27.3 (age, compose), docker CLI
+   29.9.1 → a release built with fixed Go (29.9.2 exists, unverified), FrankenPHP base image rebuilt with fixed Go.
+   Third-party: newer pins in `distribution/release.json` or dated exceptions per ADR 0071 where no upstream fix exists.
+   Then rescan (scratchpad-style script: release.yml settings, app image local via the socket), rebuild, rerun
+   all install journeys (`FIELDSET_EVIDENCE_MILESTONE=R2.1`) + `FIELDSET_PRERELEASE_VERSION=2.1.0`, E2E.
+2. When every gate is green: `git checkout main && git merge --no-ff rename-fieldset`, tag `rename-done` and annotated
+   `v2.1.0` locally on the merge commit. Never push.
+3. Human steps (QUESTIONS 77c/d, RELEASING.md "Pre-publish checklist"): trademark check, GitHub repo rename before
+   any tag push, GHCR publish, delete old dev resources.
 
-## Decisions taken (M9/M10, see ADRs 0047–0079)
-- Release tooling `release:manifest`/`release:version`; manifest and sign jobs split; stack file is a signed asset.
-- Compose file is JSON; Valkey password + volume; cosign not in the image; Compose/age from source; scoped,
-  dated Trivy exceptions for third-party images (QUESTIONS 27 open; expire 2026-11-17 / 2027-01-16).
-- Runtime state drives URL/hosts/scheme/gate/tunnel policy; URL root keeps the request scheme behind a stale proxy.
-- Edge: Caddy, fixed address outside Docker's pool, only trusted proxy; catcher behind forward_auth with
-  edge-injected Mailpit Basic auth; acme_ca always set (LE prod default).
-- cloudflared is not a trusted proxy (ADR 0082); the app serves the local-CA trust page over plain HTTP too.
-- `fsa config set` reverts on failure with exit 5 `rolled_back`; queue/scheduler stay stopped until verified.
-- Journeys write evidence to `docs/agent/milestones/evidence/$FSA_EVIDENCE_MILESTONE` (default M9): set
-  `FSA_EVIDENCE_MILESTONE=M12` for M12 runs.
+## Gate results (R2.1.md)
+- Static, licenses, audits clean; PHP 7403/7403; Vitest 615/111/622/246; conformance 391/392; Field App build OK.
+- E2E dev stack 79 passed / 8 skipped. Install journeys (2.1.0-alpha.1-test) 151 passed / 7 skipped, dogfood 71;
+  2.1.0 multi-arch build 7/7; J1 amd64 5/5; J1 + J7 at 2.1.0 13/13. No test Docker resources left.
+- Trivy red (only valkey passes); existing exceptions still valid (2026-11-17 / 2026-11-20 / 2027-01-16).
+
+## Decisions taken
+- No version file for 2.1.0: `release:version` takes the version as an argument, `release.json` has none.
+- Journeys write release evidence to `R<major>.<minor>` (`FIELDSET_EVIDENCE_MILESTONE=R2.1`); M10-pinned journeys
+  still write into M10: copy to `R2.1/M10-pinned/` and restore M10 (R6).
+- PDF fixtures not regenerated (encrypted variants not reproducible; QUESTIONS 77b).
+- `fieldset-ci` rebuilt from `docker/ci/Dockerfile` (no longer a retag).
 
 ## Known problems
-- Trivy exceptions expire 2026-11-17 (gotenberg/caddy/cloudflared) and 2026-11-20 (cloudflared CVE-2026-63209).
-- E2E runs rewrite evidence PNGs: revert only PNGs (LEARNINGS 159); commit journey evidence before E2E.
-- Long PHP runs need their own database (`form_schema_cov`); parallel agents use their own DBs.
-- Outbound Docker Hub pulls were flaky at times (retry).
+- Trivy CVE-2026-111943 (above). Trivy exceptions expire 2026-11-17 / 2026-11-20.
+- E2E runs rewrite evidence PNGs: revert only PNGs (LEARNINGS 159).
+- Dev stack is Compose project `fieldset` (LEARNINGS 163); old `form-schema-app` volumes/images kept for the human.
+- The test image `fieldset-test-u1` was removed after the scan; journeys rebuild it.
 
 ## Resume commands
 COMPOSE_PROFILES=sso docker compose up -d --wait
-DB_DATABASE=form_schema_test php artisan test --compact --parallel
-FSA_EVIDENCE_MILESTONE=M12 vendor/bin/pest --testsuite=Install            # journeys (real Docker, fsa-test-*)
-FSA_TEST_PLATFORM=linux/amd64 FSA_HARNESS_PLATFORMS=linux/amd64 vendor/bin/pest --testsuite=Install --filter=J01
-npm run e2e -- --reporter=line
-vendor/bin/rector --dry-run --no-progress-bar   # CI gate, must be 0 files
-
-## Rename to Fieldset (2026-10-21, branch `rename-fieldset`, plan `docs/plans/2026-10-21-001-refactor-rename-to-fieldset-plan.md`)
-- U6 switched the dev stack to the Compose project `fieldset` (reset steps: LEARNINGS 163). The stopped project
-  `form-schema-app` keeps its volumes and images for the human to remove. Suite DB: `DB_DATABASE=fieldset_test`.
+DB_DATABASE=fieldset_test php artisan test --compact --parallel
+FIELDSET_EVIDENCE_MILESTONE=R2.1 FIELDSET_REQUIRE_DOCKER=1 vendor/bin/pest --testsuite=Install
+FIELDSET_EVIDENCE_MILESTONE=R2.1 FIELDSET_PRERELEASE_VERSION=2.1.0 vendor/bin/pest --testsuite=Install tests/Install/Journeys/LocalPreReleaseTest.php
+npm run e2e -- --reporter=line --workers=2
+vendor/bin/rector --dry-run --no-progress-bar   # must be 0 files

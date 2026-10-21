@@ -191,3 +191,7 @@
    `docker compose exec -T app php artisan db:seed --force`. scripts/qpdf and coverage.sh use the image `fieldset-ci`
    (a retag of `form-schema-app-ci` works when the apt mirror is down). APP_NAME also renames the session cookie and the
    cache/Redis/Horizon prefixes, so dev sessions and queued jobs are gone.
+164. Trivy findings move with its DB, not with the code: a gate on unchanged pins can turn red on the day of a release
+   (rename U8: CVE-2026-111943 in every Go binary). Scan early in a release run, before the long journeys.
+165. `scripts/fixtures/make-fillable-pdfs.mjs` is reproducible except the qpdf-encrypted variants (random salts): a
+   rerun always changes `encrypted-*.pdf`.

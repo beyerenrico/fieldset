@@ -346,3 +346,15 @@ Format: question · chosen option · impact · how to reverse.
 - Rename details: no 1.0 users besides the human, so 1.0 phone storage and SSO TXT names are renamed without fallback;
   spec `$id` on GitHub Pages (`beyerenrico.github.io/fieldset/spec/…`); release 2.1.0. Plan:
   `docs/plans/2026-10-21-001-refactor-rename-to-fieldset-plan.md`.
+
+77. Rename to Fieldset, 2.1.0 gate (2026-10-21, `milestones/R2.1.md`): (a) **Trivy red, merge and tags held:**
+   CVE-2026-111943 (Go crypto/x509, HIGH, fixed in Go 1.26.10 / 1.27.3; Trivy DB of 2026-10-21) in every Go binary of
+   the app image (age, compose, frankenphp, docker CLI) and in postgres (gosu), gotenberg, mailpit, caddy, cloudflared;
+   pins identical to v2.0.0, so v2.0.0 fails the same way. Needs golang 1.27.3, docker CLI ≥ 29.9.2, a FrankenPHP image
+   built with the fixed Go, newer third-party pins or dated exceptions (ADR 0071), then a rebuild and the install
+   journeys · decide and schedule. (b) PDF fixtures keep the producer `form-schema-app fixtures` (the encrypted
+   variants are not reproducible) · accept or regenerate all. (c) Human steps before publish: trademark check for
+   "Fieldset"; rename the GitHub repository to `beyerenrico/fieldset` before any tag push; GHCR first publish
+   (RELEASING.md); push only `v2.1.0` by name. (d) Old dev resources to delete when convenient: volumes
+   `form-schema-app_pg-data`, `form-schema-app_app-storage`; images `form-schema-app:local`, `form-schema-app:pre-u6`,
+   `form-schema-app-ci`. Restoring the `.env` backup made in U6 is not needed.
