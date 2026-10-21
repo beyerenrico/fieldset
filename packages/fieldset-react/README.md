@@ -1,6 +1,6 @@
 # @fieldset/fieldset-react
 
-The one React renderer for **Form Schema Spec 1.0** definitions. The Field App and the builder
+The one React renderer for **Fieldset Spec 1.0** definitions. The Field App and the builder
 preview both use it. All form semantics (visibility, defaults, calculated values, validation) come
 from `evaluate()` in [`@fieldset/fieldset-js`](../fieldset-js); the renderer only
 draws the result and collects input. It makes no network calls: files go through an injected

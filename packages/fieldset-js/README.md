@@ -1,6 +1,6 @@
 # @fieldset/fieldset-js
 
-Reference TypeScript SDK for **Form Schema Spec 1.0**
+Reference TypeScript SDK for **Fieldset Spec 1.0**
 ([`spec/form-definition/1.0/README.md`](../../spec/form-definition/1.0/README.md)). It validates,
 lints and evaluates Form Definitions and implements the JsonLogic dialect of the spec with its own
 evaluator ([ADR 0021](../../docs/adr/0021-own-jsonlogic-evaluator.md)). Every case in

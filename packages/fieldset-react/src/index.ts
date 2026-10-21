@@ -1,4 +1,4 @@
-/** React renderer for Form Schema Spec 1.0 (shared by the Field App and the builder preview). */
+/** React renderer for Fieldset Spec 1.0 (shared by the Field App and the builder preview). */
 export { FormRenderer } from './FormRenderer.tsx';
 export { useFormEvaluation } from './hooks/useFormEvaluation.ts';
 export type { FormEvaluation } from './hooks/useFormEvaluation.ts';

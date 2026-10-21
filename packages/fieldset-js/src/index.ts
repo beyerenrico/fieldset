@@ -1,4 +1,4 @@
-/** Reference TypeScript SDK of Form Schema Spec 1.0. */
+/** Reference TypeScript SDK of Fieldset Spec 1.0. */
 export {
     canonicalJson,
     checksum,

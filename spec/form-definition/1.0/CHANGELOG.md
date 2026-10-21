@@ -1,4 +1,11 @@
-# Changelog — Form Schema Spec 1.0
+# Changelog — Fieldset Spec 1.0
+
+## Rename — 2026-10-21 (no version change)
+- Renamed from "Form Schema Spec 1.0" to "Fieldset Spec 1.0". The meta-schema `$id` is now
+  `https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json` (was
+  `https://localhost/spec/form-definition/1.0/meta-schema.json`); the bundled template registry is
+  `urn:fieldset:bundled-templates`. No semantic change: `specVersion` stays `1.0.0`, `$schema` and
+  `source.registry` remain pattern-only, so definitions naming the former URIs stay valid.
 
 ## 1.0.0 — 2026-10-16
 - Initial release: definition structure, 30 element types, JsonLogic dialect with decimal and date

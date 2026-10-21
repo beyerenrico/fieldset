@@ -1,7 +1,7 @@
 {
     "name": "@fieldset/fieldset-react",
     "version": "1.0.0",
-    "description": "React renderer for Form Schema Spec 1.0 definitions (Field App and builder preview)",
+    "description": "React renderer for Fieldset Spec 1.0 definitions (Field App and builder preview)",
     "private": true,
     "type": "module",
     "license": "MIT",

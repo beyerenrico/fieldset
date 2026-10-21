@@ -18,8 +18,6 @@ use stdClass;
  */
 final class MetaSchemaValidator
 {
-    private const DEFAULT_ID = 'https://localhost/spec/form-definition/1.0/meta-schema.json';
-
     private readonly Validator $validator;
 
     private readonly string $schemaId;
@@ -32,8 +30,8 @@ final class MetaSchemaValidator
             throw new RuntimeException('The meta-schema must be a JSON object.');
         }
 
-        $id = $schema->{'$id'} ?? self::DEFAULT_ID;
-        $this->schemaId = is_string($id) ? $id : self::DEFAULT_ID;
+        $id = $schema->{'$id'} ?? SpecPaths::META_SCHEMA_ID;
+        $this->schemaId = is_string($id) ? $id : SpecPaths::META_SCHEMA_ID;
         $this->validator = new CompliantValidator(null, max(1, $maxErrors), false);
         $this->validator->resolver()?->registerRaw($schema, $this->schemaId);
     }

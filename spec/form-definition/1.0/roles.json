@@ -1,5 +1,5 @@
 {
-  "$comment": "Semantic role vocabulary for Form Schema Spec 1.0 (README §8). Additions are non-breaking.",
+  "$comment": "Semantic role vocabulary for Fieldset Spec 1.0 (README §8). Additions are non-breaking.",
   "version": "1.0.0",
   "roles": {
     "customer.name": "Name of the customer (person or company)",

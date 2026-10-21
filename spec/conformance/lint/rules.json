@@ -4,7 +4,7 @@
     {
       "description": "clean definition has no findings",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "lint_case",
         "title": "Lint Case",
@@ -35,7 +35,7 @@
     {
       "description": "duplicate key in root scope (across a section)",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "lint_case",
         "title": "Lint Case",
@@ -79,7 +79,7 @@
     {
       "description": "same key in repeater row and root is allowed",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "lint_case",
         "title": "Lint Case",
@@ -118,7 +118,7 @@
     {
       "description": "duplicate key across pages",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "lint_case",
         "title": "Lint Case",
@@ -161,7 +161,7 @@
     {
       "description": "duplicate page key",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "lint_case",
         "title": "Lint Case",
@@ -204,7 +204,7 @@
     {
       "description": "duplicate option value",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "lint_case",
         "title": "Lint Case",
@@ -245,7 +245,7 @@
     {
       "description": "unknown var reference",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "lint_case",
         "title": "Lint Case",
@@ -284,7 +284,7 @@
     {
       "description": "built-ins and dotted paths resolve",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "lint_case",
         "title": "Lint Case",
@@ -343,7 +343,7 @@
     {
       "description": "$root reference must exist at root",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "lint_case",
         "title": "Lint Case",
@@ -385,7 +385,7 @@
     {
       "description": "row keys are not visible at root",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "lint_case",
         "title": "Lint Case",
@@ -433,7 +433,7 @@
     {
       "description": "iteration operators scope var to the item",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "lint_case",
         "title": "Lint Case",
@@ -487,7 +487,7 @@
     {
       "description": "signerNameFrom must reference a key",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "lint_case",
         "title": "Lint Case",
@@ -519,7 +519,7 @@
     {
       "description": "sum row key must exist in the repeater",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "lint_case",
         "title": "Lint Case",
@@ -572,7 +572,7 @@
     {
       "description": "unknown operator",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "lint_case",
         "title": "Lint Case",
@@ -609,7 +609,7 @@
     {
       "description": "builtin comparison on a number field",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "lint_case",
         "title": "Lint Case",
@@ -654,7 +654,7 @@
     {
       "description": "builtin arithmetic on money",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "lint_case",
         "title": "Lint Case",
@@ -700,7 +700,7 @@
     {
       "description": "builtin equality on a numeric calculated value",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "lint_case",
         "title": "Lint Case",
@@ -759,7 +759,7 @@
     {
       "description": "builtin comparison on text calculated values is fine",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "lint_case",
         "title": "Lint Case",
@@ -800,7 +800,7 @@
     {
       "description": "decimal operators on numbers are fine",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "lint_case",
         "title": "Lint Case",
@@ -839,7 +839,7 @@
     {
       "description": "float literal in a decimal operator",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "lint_case",
         "title": "Lint Case",
@@ -884,7 +884,7 @@
     {
       "description": "integer literal in a decimal operator is fine",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "lint_case",
         "title": "Lint Case",
@@ -923,7 +923,7 @@
     {
       "description": "cycle between calculated elements",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "lint_case",
         "title": "Lint Case",
@@ -976,7 +976,7 @@
     {
       "description": "self reference is a cycle",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "lint_case",
         "title": "Lint Case",
@@ -1015,7 +1015,7 @@
     {
       "description": "aggregate over a repeater whose row calculation depends on the aggregate is a cycle",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "lint_case",
         "title": "Lint Case",
@@ -1077,7 +1077,7 @@
     {
       "description": "invalid numbering: missing SEQ",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "lint_case",
         "title": "Lint Case",
@@ -1114,7 +1114,7 @@
     {
       "description": "invalid numbering: yearly reset without year",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "lint_case",
         "title": "Lint Case",
@@ -1151,7 +1151,7 @@
     {
       "description": "invalid numbering: unknown token",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "lint_case",
         "title": "Lint Case",
@@ -1187,7 +1187,7 @@
     {
       "description": "valid monthly numbering",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "lint_case",
         "title": "Lint Case",
@@ -1218,7 +1218,7 @@
     {
       "description": "repeater bounds",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "lint_case",
         "title": "Lint Case",
@@ -1259,7 +1259,7 @@
     {
       "description": "invalid pattern",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "lint_case",
         "title": "Lint Case",
@@ -1293,7 +1293,7 @@
     {
       "description": "unknown role is a warning",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "lint_case",
         "title": "Lint Case",
@@ -1325,7 +1325,7 @@
     {
       "description": "duplicate role in one scope",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "lint_case",
         "title": "Lint Case",
@@ -1364,7 +1364,7 @@
     {
       "description": "same role in repeater rows and root is fine",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "lint_case",
         "title": "Lint Case",
@@ -1405,7 +1405,7 @@
     {
       "description": "empty page is a warning",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "lint_case",
         "title": "Lint Case",
@@ -1441,7 +1441,7 @@
     {
       "description": "renaming a published key is refused",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "lint_case",
         "title": "Lint Case",
@@ -1469,7 +1469,7 @@
       },
       "published": [
         {
-          "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+          "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
           "specVersion": "1.0.0",
           "key": "lint_case",
           "title": "Lint Case",
@@ -1507,7 +1507,7 @@
     {
       "description": "changing the type of a published key is refused",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "lint_case",
         "title": "Lint Case",
@@ -1535,7 +1535,7 @@
       },
       "published": [
         {
-          "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+          "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
           "specVersion": "1.0.0",
           "key": "lint_case",
           "title": "Lint Case",
@@ -1573,7 +1573,7 @@
     {
       "description": "label changes and new fields are fine",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "lint_case",
         "title": "Lint Case",
@@ -1607,7 +1607,7 @@
       },
       "published": [
         {
-          "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+          "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
           "specVersion": "1.0.0",
           "key": "lint_case",
           "title": "Lint Case",

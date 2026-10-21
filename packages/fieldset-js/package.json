@@ -1,7 +1,7 @@
 {
     "name": "@fieldset/fieldset-js",
     "version": "1.0.0",
-    "description": "Reference TypeScript SDK for Form Schema Spec 1.0 (validation, linting, logic, evaluation)",
+    "description": "Reference TypeScript SDK for Fieldset Spec 1.0 (validation, linting, logic, evaluation)",
     "private": true,
     "type": "module",
     "license": "MIT",

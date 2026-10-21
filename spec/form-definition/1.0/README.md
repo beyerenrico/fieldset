@@ -1,10 +1,11 @@
-# Form Schema Spec 1.0
+# Fieldset Spec 1.0
 
 Status: **1.0.0** · License: MIT · Meta-schema: [`meta-schema.json`](meta-schema.json) (JSON Schema 2020-12)
+Meta-schema `$id`: `https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json`
 Role vocabulary: [`roles.json`](roles.json) · Changes: [`CHANGELOG.md`](CHANGELOG.md) · Conformance: [`../../conformance/`](../../conformance)
 
 The key words MUST, MUST NOT, SHOULD and MAY are used as in RFC 2119. Two implementations (PHP
-`packages/form-schema-php`, TypeScript `packages/form-schema-js`) MUST produce identical results for
+`packages/fieldset-php`, TypeScript `packages/fieldset-js`) MUST produce identical results for
 every conformance case.
 
 ## 1. Concepts

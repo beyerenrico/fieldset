@@ -12,6 +12,9 @@ use RuntimeException;
  */
 final class SpecPaths
 {
+    /** The meta-schema `$id` (spec/form-definition/1.0/meta-schema.json). */
+    public const META_SCHEMA_ID = 'https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json';
+
     public static function specDirectory(): string
     {
         $source = realpath(__DIR__);
