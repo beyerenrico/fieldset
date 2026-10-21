@@ -333,7 +333,7 @@ it('carries the healthchecks of compose.yaml', function (): void {
 
     expect($rendered->service('app')['healthcheck']['test'])->toBe(['CMD', 'curl', '-fsS', 'http://localhost:8080/up'])
         ->and($rendered->service('queue')['healthcheck']['test'])->toBe(['CMD', 'php', 'artisan', 'horizon:status'])
-        ->and($rendered->service('scheduler')['healthcheck'])->toBe(['disable' => true])
+        ->and($rendered->service('scheduler'))->not->toHaveKey('healthcheck')
         ->and($rendered->service('postgres')['healthcheck']['test'])->toBe(['CMD', 'pg_isready', '-h', '127.0.0.1', '-U', 'fieldset', '-d', 'fieldset'])
         ->and($rendered->service('redis')['healthcheck']['test'])->toBe(['CMD-SHELL', 'valkey-cli ping | grep -q PONG'])
         ->and($rendered->service('app')['depends_on'])->toBe(['postgres' => ['condition' => 'service_healthy'], 'redis' => ['condition' => 'service_healthy']]);

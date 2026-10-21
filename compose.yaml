@@ -60,8 +60,8 @@ services:
     <<: *app
     command: ["php", "artisan", "schedule:work"]
     networks: [default]
-    healthcheck:
-      disable: true
+    # No healthcheck: the image defines none. `healthcheck: disable: true` sets the test to NONE, which older
+    # Compose releases (GitHub runners) treat as a check that never reports, failing `docker compose up --wait`.
 
   postgres:
     image: postgres:16-alpine

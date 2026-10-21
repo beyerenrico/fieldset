@@ -71,7 +71,8 @@ final readonly class AppRoles implements ServiceDefinition
                 ...$this->base($context, ['default']),
                 'command' => ['php', 'artisan', 'schedule:work'],
                 'stop_grace_period' => self::STOP_GRACE_SECONDS.'s',
-                'healthcheck' => ['disable' => true],
+                // No healthcheck (the image defines none), as in compose.yaml: `disable: true` would make Compose
+                // before v5 fail `up --wait` on the stack file (StackFile).
             ], $env->appRole(self::SCHEDULER), $volumes),
         ];
     }

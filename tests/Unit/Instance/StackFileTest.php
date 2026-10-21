@@ -146,6 +146,13 @@ it('migrates on app start and starts queue and scheduler only once the app is he
     }
 });
 
+it('disables no healthcheck, so plain docker compose up --wait works with older Compose releases', function (): void {
+    // `healthcheck: disable: true` sets the test to NONE; Compose before v5 then waits for a status that never comes.
+    foreach (stackFile()->document['services'] as $name => $service) {
+        expect($service['healthcheck'] ?? [])->not->toHaveKey('disable', "service {$name}");
+    }
+});
+
 it('publishes the app and the catcher UI on loopback ports that variables can move', function (): void {
     $services = stackFile()->document['services'];
 

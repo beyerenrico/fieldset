@@ -89,7 +89,7 @@ it('runs a 1.0.0 install built from the tag, with demo data and a stored file', 
     // The app first: Docker races when app, queue and scheduler copy the image's storage/app into the new app-storage
     // volume at once ("failed to mkdir …/_data/private: file exists"); the rest then starts as the install guide says.
     $first = $this->v1->compose(['up', '-d', '--wait', 'app']);
-    $up = $first->isSuccessful() ? $this->v1->compose(['up', '-d', '--wait']) : $first;
+    $up = $first->isSuccessful() ? $this->v1->up() : $first;
     if (! $up->isSuccessful()) {
         $logs = $this->v1->compose(['logs', '--no-color', '--tail', '40']);
         expect($up->getExitCode())->toBe(0, $up->getErrorOutput()."\n".$logs->getOutput());
@@ -260,10 +260,10 @@ it('uninstalls with a final backup and the writes since adopt, and docker compos
     $process = $this->journey->fieldset($this->dir, ['uninstall', '--yes', '--json']);
     $json = InstanceJourney::json($process);
     $left = InstanceJourney::labelled($uuid);
-    $up = $this->v1->compose(['up', '-d', '--wait']);
+    $up = $this->v1->up();
     $back = $up->isSuccessful() ? V1Install::data($this->v1->container('postgres')) : [];
     $adopted = $GLOBALS['fieldsetJ09Adopt']['data']['adopted'] ?? [];
-    $this->journey->evidence('J09-uninstall.json', ['commands' => ['fieldset uninstall --yes --json', 'docker compose up -d --wait (in the checkout)'], 'exit_code' => $process->getExitCode(), 'stdout' => $json, 'labelled_left' => $left, 'v1_after' => $back]);
+    $this->journey->evidence('J09-uninstall.json', ['commands' => ['fieldset uninstall --yes --json', 'docker compose up -d (in the checkout), then waits until it is up'], 'exit_code' => $process->getExitCode(), 'stdout' => $json, 'labelled_left' => $left, 'v1_after' => $back]);
 
     expect($write->getExitCode())->toBe(0, $write->getErrorOutput())
         ->and($process->getExitCode())->toBe(0, $process->getErrorOutput()."\n".$process->getOutput())
