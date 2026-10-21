@@ -8,12 +8,12 @@
         "exit_code": 0,
         "changed": false,
         "data": {
-            "backup": "manual-20261020T211912Z",
+            "backup": "manual-20261020T225911Z",
             "format": "fsa",
             "authenticated": true,
             "encrypted": true,
-            "created_at": "2026-10-20T21:19:12Z",
-            "backup_version": "2.0.0-alpha.1-test",
+            "created_at": "2026-10-20T22:59:11Z",
+            "backup_version": "2.0.0",
             "migrations": {
                 "relation": "same",
                 "count": 45,
@@ -26,10 +26,10 @@
                 "directories": 6,
                 "bytes": 916
             },
-            "database": "restore_drill_24bdf1b53c3c",
+            "database": "restore_drill_fb852d70404c",
             "dropped": true,
             "drill": {
-                "database": "restore_drill_24bdf1b53c3c",
+                "database": "restore_drill_fb852d70404c",
                 "counts": {
                     "organizations": 2,
                     "users": 10,
@@ -45,15 +45,15 @@
                     "heads": [
                         {
                             "seq": 13,
-                            "hash": "eb392154f330cc60f8f7f243daf79434374eaf6ca12e9f4180065b6001d82701"
+                            "hash": "02db683b592779be182d23c9e6ca9e850d56b8271a0b1a8327ad917e4afd0fe4"
                         },
                         {
                             "seq": 1,
-                            "hash": "f1626e66e48d43a3f6e31ce08cd3f29f68838839d0183bceadc2dce642b4bc52"
+                            "hash": "2a1efbf62c79e15d4645376cc6630abf970ad39872d7e074b96a9241a79a4f79"
                         },
                         {
                             "seq": 11,
-                            "hash": "4c44d842ddc45366657e3d925f4d885078d438710843dc32c3478cbce53d1dab"
+                            "hash": "5ef48f08c41545eda13c2bf98750dc2ed790966f293c0aebc39715dcc66a2c38"
                         }
                     ],
                     "intact": true,
@@ -67,8 +67,8 @@
                 },
                 "render": {
                     "status": "rendered",
-                    "submission": "2e788e48-787d-4cf7-9a6b-966a63fc8d60",
-                    "bytes": 21061,
+                    "submission": "8aa3359d-5e6a-40c9-bbbd-57babe8be46e",
+                    "bytes": 21065,
                     "pages": 1,
                     "message": null
                 },
@@ -99,7 +99,7 @@
                     {
                         "name": "render",
                         "status": "pass",
-                        "message": "A 1-page PDF of 2e788e48-787d-4cf7-9a6b-966a63fc8d60 rendered."
+                        "message": "A 1-page PDF of 8aa3359d-5e6a-40c9-bbbd-57babe8be46e rendered."
                     },
                     {
                         "name": "decrypt",

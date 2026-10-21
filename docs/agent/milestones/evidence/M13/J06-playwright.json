@@ -9,6 +9,6 @@
         "[3/5] [fsa-instance] › tests/e2e/fsa-phone-trust.spec.ts:61:3 › trust page at phone width › offers the public root certificate and nothing else",
         "[4/5] [fsa-instance] › tests/e2e/fsa-phone-trust.spec.ts:78:3 › in a browser that trusts the local CA › the Field App registers its service worker over HTTPS",
         "[5/5] [fsa-instance] › tests/e2e/fsa-phone-trust.spec.ts:93:3 › in a browser that trusts the local CA › the trust check reports trust and links to the Field App",
-        "  5 passed (3.4s)"
+        "  5 passed (3.2s)"
     ]
 }

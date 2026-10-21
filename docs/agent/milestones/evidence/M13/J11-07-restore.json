@@ -1,9 +1,9 @@
 {
     "guide_line": 297,
     "guide_command": "~/forms/fsa restore <backup> --yes --json",
-    "command": "<work>/fsa-test-j11-forms/fsa restore manual-20261020T212533Z --yes --json",
+    "command": "<work>/fsa-test-j11-forms/fsa restore manual-20261020T234313Z --yes --json",
     "exit_code": 0,
-    "seconds": 62.4,
+    "seconds": 62,
     "stdout": {
         "schema_version": 1,
         "command": "restore",
@@ -11,14 +11,14 @@
         "exit_code": 0,
         "changed": true,
         "data": {
-            "backup": "manual-20261020T212533Z",
+            "backup": "manual-20261020T234313Z",
             "format": "fsa",
             "authenticated": true,
             "encrypted": false,
-            "created_at": "2026-10-20T21:25:33Z",
-            "backup_version": "2.0.0-alpha.1-test",
+            "created_at": "2026-10-20T23:43:13Z",
+            "backup_version": "2.0.0",
             "url": "http://localhost:8081",
-            "storage_volume": "fsa-fsa-test-j11-forms-2e25_app-storage-rf6facd2bdfea",
+            "storage_volume": "fsa-fsa-test-j11-forms-01fb_app-storage-r3e742b160cb3",
             "epoch": 2,
             "previous_epoch": 1,
             "carried": {
@@ -66,7 +66,7 @@
                 "tested": 1,
                 "failed": []
             },
-            "safety_backup": "safety-restore-20261020T212547Z",
+            "safety_backup": "safety-restore-20261020T234327Z",
             "safety_backup_sealed": false,
             "keys_added": [],
             "valkey_flushed": true,

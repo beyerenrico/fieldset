@@ -10,7 +10,7 @@
         "data": {
             "key": "mail",
             "from": "capture",
-            "to": "smtp://fsa-test-j04-smtp-e801:1025 (catcher kept)",
+            "to": "smtp://fsa-test-j04-smtp-2233:1025 (catcher kept)",
             "url": "http://localhost:8081",
             "mode": "local",
             "reverted": true,
@@ -21,12 +21,12 @@
             },
             "failure": {
                 "error": "test_mail_failed",
-                "server": "smtp://fsa-test-j04-smtp-e801:1025 (catcher kept)"
+                "server": "smtp://fsa-test-j04-smtp-2233:1025 (catcher kept)"
             },
             "fix_first": "Check the SMTP host, port, encryption (starttls needs a server that offers STARTTLS; a relay without TLS takes --smtp-encryption none), user name and password against what the server answered (data.failure). Then run the command again; the previous mail settings stay until a test mail goes through.",
-            "command": "fsa config set mail smtp --smtp-host fsa-test-j04-smtp-e801 --smtp-port 1025 --smtp-username <the same user name> --password-stdin --from-address forms@example.test --yes",
+            "command": "fsa config set mail smtp --smtp-host fsa-test-j04-smtp-2233 --smtp-port 1025 --smtp-username <the same user name> --password-stdin --from-address forms@example.test --yes",
             "options": {
-                "--smtp-host": "fsa-test-j04-smtp-e801",
+                "--smtp-host": "fsa-test-j04-smtp-2233",
                 "--smtp-port": "1025",
                 "--smtp-username": "<the same user name>",
                 "--password-stdin": true,

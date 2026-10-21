@@ -1,7 +1,7 @@
 {
     "command": "install.sh --dir <work>/fsa-test-j04-smtp … --smtp-host fsa-test-j04-relay-… --smtp-port 1025 --smtp-encryption none --smtp-username fsa-test-relay-user --password-file <work>/smtp-password --from-address forms@example.test --json",
     "exit_code": 0,
-    "seconds": 49.6,
+    "seconds": 49.1,
     "stdout": {
         "schema_version": 1,
         "command": "install",
@@ -10,10 +10,10 @@
         "changed": true,
         "data": {
             "url": "http://localhost:8081",
-            "version": "2.0.0-alpha.1-test",
+            "version": "2.0.0",
             "mode": "local",
             "dir": "<work>/fsa-test-j04-smtp",
-            "project": "fsa-fsa-test-j04-smtp-9453",
+            "project": "fsa-fsa-test-j04-smtp-7543",
             "port": 8081,
             "mail": {
                 "mode": "smtp",
@@ -26,7 +26,7 @@
                 "<work>/fsa-test-j04-smtp/fsa doctor --post"
             ],
             "sign_in_link": {
-                "expires_at": "2026-10-20T19:24:23Z",
+                "expires_at": "2026-10-20T23:25:16Z",
                 "delivered": "secrets_file"
             }
         },
@@ -34,13 +34,13 @@
             {
                 "name": "sign_in_link",
                 "written_to": "<work>/smtp-owner-link.json",
-                "expires_at": "2026-10-20T19:24:23Z"
+                "expires_at": "2026-10-20T23:25:16Z"
             }
         ],
         "warnings": [
             {
                 "code": "smtp_plaintext_auth",
-                "message": "The SMTP password goes to fsa-test-j04-relay-b57a unencrypted (--smtp-encryption none).",
+                "message": "The SMTP password goes to fsa-test-j04-relay-5a26 unencrypted (--smtp-encryption none).",
                 "hint": "Use --smtp-encryption starttls or tls unless the relay runs on this host or your own trusted network."
             }
         ],
@@ -61,7 +61,7 @@
         "catcher": "removed",
         "catcher_url": null,
         "smtp": {
-            "host": "fsa-test-j04-relay-b57a",
+            "host": "fsa-test-j04-relay-5a26",
             "port": 1025,
             "scheme": "smtp",
             "encryption": "none"

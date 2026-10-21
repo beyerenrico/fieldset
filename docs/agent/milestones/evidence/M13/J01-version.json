@@ -8,9 +8,9 @@
         "exit_code": 0,
         "changed": false,
         "data": {
-            "fsa": "2.0.0-alpha.1-test",
-            "revision": "1843f979c65d6b793d1da2c01c19382d81cef7d1",
-            "instance": "2.0.0-alpha.1-test",
+            "fsa": "2.0.0",
+            "revision": "0e0e3965d1b85b2811b451fc3b1decf9d165adaa",
+            "instance": "2.0.0",
             "newest_known": null
         },
         "secrets": [],

@@ -17,15 +17,15 @@
                 "container": null
             },
             "disk": {
-                "free_gib": 153.2
+                "free_gib": 152.3
             },
             "last_backup": null,
             "last_upgrade": null,
-            "version": "2.0.0-alpha.1-test",
+            "version": "2.0.0",
             "mode": "local",
             "url": "http://localhost:8081",
             "local_url": "http://localhost:8081",
-            "project": "fsa-fsa-test-j01-305a",
+            "project": "fsa-fsa-test-j01-6a4c",
             "port": 8081,
             "health": "ok",
             "services": {
@@ -93,7 +93,7 @@
             "last_restore": null,
             "restore": {
                 "last": null,
-                "storage_volume": "fsa-fsa-test-j01-305a_app-storage",
+                "storage_volume": "fsa-fsa-test-j01-6a4c_app-storage",
                 "webhooks_paused": false,
                 "interrupted": null,
                 "scratch_left": []

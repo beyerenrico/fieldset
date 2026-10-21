@@ -9,24 +9,24 @@
         "changed": true,
         "data": {
             "action": "renew",
-            "url": "https://fsa-test-46ab0b0ca4.trycloudflare.com",
+            "url": "https://fsa-test-29cd992025.trycloudflare.com",
             "mode": "local",
             "local_url": "http://localhost:8081",
             "tunnel": {
-                "hostname": "fsa-test-46ab0b0ca4.trycloudflare.com",
-                "expires_at": "2026-10-20T19:37:18Z",
-                "peer": "10.215.75.66",
+                "hostname": "fsa-test-29cd992025.trycloudflare.com",
+                "expires_at": "2026-10-20T23:38:12Z",
+                "peer": "10.215.194.210",
                 "admin": false,
-                "url": "https://fsa-test-46ab0b0ca4.trycloudflare.com",
+                "url": "https://fsa-test-29cd992025.trycloudflare.com",
                 "state": "active"
             },
-            "previous_expires_at": "2026-10-20T19:36:44Z"
+            "previous_expires_at": "2026-10-20T23:37:38Z"
         },
         "secrets": [],
         "warnings": [
             {
                 "code": "tunnel_expires",
-                "message": "The tunnel now expires at 2026-10-20T19:37:18Z.",
+                "message": "The tunnel now expires at 2026-10-20T23:38:12Z.",
                 "hint": null
             }
         ],

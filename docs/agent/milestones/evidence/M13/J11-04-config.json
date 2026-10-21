@@ -1,9 +1,9 @@
 {
     "guide_line": 230,
     "guide_command": "~/forms/fsa config set mail smtp --smtp-host smtp.example.com --smtp-port 587 --smtp-username forms@example.com --password-file ~/smtp-password --from-address forms@example.com --test-to owner@example.com --json",
-    "command": "<work>/fsa-test-j11-forms/fsa config set mail smtp --smtp-host fsa-test-j11-smtp-8d6f --smtp-port 1025 --smtp-encryption none --smtp-username forms@example.com --password-file <work>/smtp-password --from-address forms@example.com --test-to owner@example.com --json",
+    "command": "<work>/fsa-test-j11-forms/fsa config set mail smtp --smtp-host fsa-test-j11-smtp-1363 --smtp-port 1025 --smtp-encryption none --smtp-username forms@example.com --password-file <work>/smtp-password --from-address forms@example.com --test-to owner@example.com --json",
     "exit_code": 0,
-    "seconds": 54.8,
+    "seconds": 54.9,
     "stdout": {
         "schema_version": 1,
         "command": "config",
@@ -13,7 +13,7 @@
         "data": {
             "key": "mail",
             "from": "capture",
-            "to": "smtp://fsa-test-j11-smtp-8d6f:1025 (no TLS) (catcher kept)",
+            "to": "smtp://fsa-test-j11-smtp-1363:1025 (no TLS) (catcher kept)",
             "url": "http://localhost:8081",
             "mode": "local",
             "reverted": false,
@@ -35,7 +35,7 @@
                 "/up",
                 "/admin/login",
                 "gotenberg /health",
-                "test mail to owner@example.com accepted by smtp://fsa-test-j11-smtp-8d6f:1025 (no TLS) (catcher kept)"
+                "test mail to owner@example.com accepted by smtp://fsa-test-j11-smtp-1363:1025 (no TLS) (catcher kept)"
             ],
             "impact": null,
             "audited": true,
@@ -58,7 +58,7 @@
         "warnings": [
             {
                 "code": "smtp_plaintext_auth",
-                "message": "The SMTP password goes to fsa-test-j11-smtp-8d6f unencrypted (--smtp-encryption none).",
+                "message": "The SMTP password goes to fsa-test-j11-smtp-1363 unencrypted (--smtp-encryption none).",
                 "hint": "Use --smtp-encryption starttls or tls unless the relay runs on this host or your own trusted network."
             }
         ],

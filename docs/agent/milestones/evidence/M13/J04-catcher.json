@@ -9,8 +9,8 @@
         "changed": false,
         "data": {
             "dir": "<work>/fsa-test-j04",
-            "project": "fsa-fsa-test-j04-a434",
-            "version": "2.0.0-alpha.1-test",
+            "project": "fsa-fsa-test-j04-38ba",
+            "version": "2.0.0",
             "mode": "local",
             "url": "http://localhost:8081",
             "settings": {
@@ -37,7 +37,7 @@
                 },
                 "size": "small",
                 "database": "form_schema",
-                "storage_volume": "fsa-fsa-test-j04-a434_app-storage",
+                "storage_volume": "fsa-fsa-test-j04-38ba_app-storage",
                 "webhooks": "on",
                 "last_restore": null,
                 "backup": {
@@ -321,6 +321,6 @@
     },
     "install_test_mail": {
         "subject": "form-schema-app: test mail",
-        "message_id": "f9c87a7d6acc5860340b634f60aa54d1@localhost"
+        "message_id": "8d86479b3aa7fc7e9091909975b727fb@localhost"
     }
 }

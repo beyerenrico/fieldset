@@ -1,0 +1,396 @@
+{
+    "release": "2.0.0",
+    "built": "2026-10-21",
+    "revision": "fba09cdaa3a51c5d65fcd5a56641f9412fabdb3d",
+    "published": false,
+    "note": "Built and tested against the local registry and release server (E18); the harness registry is removed after the run.",
+    "build_seconds": 476,
+    "version": "2.0.0",
+    "tag": "v2.0.0",
+    "channel": "stable",
+    "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+    ],
+    "app_index_digest": "sha256:43e7aa3c4ac271f12060dbd10fd0412c2170ae9d547efca3298bdb1c361facc4",
+    "images": {
+        "app": {
+            "image": "ghcr.io/beyerenrico/form-schema-app:2.0.0",
+            "digest": "sha256:43e7aa3c4ac271f12060dbd10fd0412c2170ae9d547efca3298bdb1c361facc4",
+            "platforms": {
+                "linux/amd64": {
+                    "digest": "sha256:8c2409442b30b8bfede36f1caa64458f151f1352b6f2d93b782ffea40dcc8004",
+                    "compressed_size": 168162482
+                },
+                "linux/arm64": {
+                    "digest": "sha256:7b701b12f99cd6489771ce4a190a50e5c5a47b5cf074aa9b37de605c9b39a398",
+                    "compressed_size": 160613793
+                }
+            }
+        },
+        "postgres": {
+            "image": "docker.io/library/postgres:16.15-alpine",
+            "digest": "sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea",
+            "platforms": {
+                "linux/amd64": {
+                    "digest": "sha256:1a66d744c1b459e13b05a8fca341da84cb63383e99ce262210efee5a319d4551",
+                    "compressed_size": 116071457
+                },
+                "linux/arm64": {
+                    "digest": "sha256:2c942175a1255a9abe0366e48c1b401d9f50f835b04dfea13f111609b5530df7",
+                    "compressed_size": 113892033
+                }
+            }
+        },
+        "valkey": {
+            "image": "docker.io/valkey/valkey:8.1.10-alpine",
+            "digest": "sha256:081c2f5cb575efc901aa80ff9cdbd1ec6a301682fd35e1ebb4b0990a4a4a8507",
+            "platforms": {
+                "linux/amd64": {
+                    "digest": "sha256:32627109abf6f741121096b45c732f758876803efd7b2e1018ebc0350d117119",
+                    "compressed_size": 17493916
+                },
+                "linux/arm64": {
+                    "digest": "sha256:6bd0360157519e3de7c49f6bae7d2bdfab574083bd7d266182db36b1646b0936",
+                    "compressed_size": 17937250
+                }
+            }
+        },
+        "gotenberg": {
+            "image": "docker.io/gotenberg/gotenberg:8.38.1-chromium",
+            "digest": "sha256:5da4ab7b8fe7326537369e17b661be765d9a2887f77722faacdbe6d55812fb96",
+            "platforms": {
+                "linux/amd64": {
+                    "digest": "sha256:63545039126042c5df622675ccb3dd9efd8b5c1faa0ec5265b787737e6d6757e",
+                    "compressed_size": 506746665
+                },
+                "linux/arm64": {
+                    "digest": "sha256:03ea46e44ae608b3402ac71d12161f5bde4af19ea4537fcb32ca26e7e31d6180",
+                    "compressed_size": 505802531
+                }
+            }
+        },
+        "mailpit": {
+            "image": "docker.io/axllent/mailpit:v1.31.6",
+            "digest": "sha256:23fe39e81bde596a918000b3135c0f85dc8bb4c9ea6be274b051143f3e300387",
+            "platforms": {
+                "linux/amd64": {
+                    "digest": "sha256:059454962fbda891cfa621c86a251cfd9cfe645cb43e0dcd9351a35e7a8f3155",
+                    "compressed_size": 16945472
+                },
+                "linux/arm64": {
+                    "digest": "sha256:cc34e6c1995288cd30a4d2bf7fe5cded246c6f2b7fa8199bbc911205721f76dc",
+                    "compressed_size": 16830700
+                }
+            }
+        },
+        "caddy": {
+            "image": "docker.io/library/caddy:2.11.7-alpine",
+            "digest": "sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f",
+            "platforms": {
+                "linux/amd64": {
+                    "digest": "sha256:173b26306d711395accaeba8b67afcaad2a085ccb1e6bf26010bfe8c095a5229",
+                    "compressed_size": 24874930
+                },
+                "linux/arm64": {
+                    "digest": "sha256:84058f1a0e5beb97664a9b79dcfd267b594c033d5bb88d8463cdfb59c0779197",
+                    "compressed_size": 23637011
+                }
+            }
+        },
+        "cloudflared": {
+            "image": "docker.io/cloudflare/cloudflared:2026.10.1",
+            "digest": "sha256:a15a3b50b8dabd57ac2090e9484c0247dba9dfa1f0df4d298d4317f9d69eb2d5",
+            "platforms": {
+                "linux/amd64": {
+                    "digest": "sha256:3c0502d2da137286136b44f5b1d0d0be7030cc4833db9f53cff86beadad6cefa",
+                    "compressed_size": 29665923
+                },
+                "linux/arm64": {
+                    "digest": "sha256:6d9f470f8df4161f90df39cd97719cdb8d02a8ade3885ab9b0ec15a495820b79",
+                    "compressed_size": 28464823
+                }
+            }
+        }
+    },
+    "assets": {
+        "compose.stack.yaml": {
+            "sha256": "7eff4e7264c4f8649cc3cd6fa208c24fdfe74058aeeb3293c6f8a4d989713403",
+            "size": 14136
+        },
+        "install.sh": {
+            "sha256": "8d5a78671d55d73c5a5b492c114d2a8e68913e99cc9ada19b48772712bd52650",
+            "size": 20804
+        },
+        "shim.sh": {
+            "sha256": "2f8f9ec9b5d9bd4c6480f341257dfd40803e918ceb14ef3dd0b75721bf2047f6",
+            "size": 22380
+        }
+    },
+    "signatures": {
+        "key": "local harness key (cosign-harness.pub), not the keyless production identity",
+        "release-manifest.json": true,
+        "install.sh": true
+    },
+    "release_version": {
+        "version": "2.0.0",
+        "tag": "v2.0.0",
+        "channel": "stable",
+        "prerelease": false,
+        "image_tags": [
+            "2.0.0",
+            "2.0",
+            "2",
+            "latest"
+        ]
+    },
+    "registry_tags": [
+        "2",
+        "2.0",
+        "2.0.0",
+        "latest"
+    ],
+    "dist": {
+        "directory": "dist/v2.0.0/ (git-ignored)",
+        "files": [
+            "SHA256SUMS",
+            "compose.stack.yaml",
+            "cosign-harness.pub",
+            "install.sh",
+            "install.sh.sigstore.json",
+            "release-manifest.json",
+            "release-manifest.json.sigstore.json",
+            "shim.sh"
+        ]
+    },
+    "install": {
+        "command": "install.sh --dir <work>/fsa-test-prerelease --version 2.0.0 --org \"Pre-release Org\" --owner-email owner@example.test --owner-name \"Pat Owner\" --locale en --secrets-file <work>/owner-link.json --json",
+        "platform": "linux/arm64",
+        "emulated": false,
+        "exit_code": 0,
+        "seconds": 46.9,
+        "stdout": {
+            "schema_version": 1,
+            "command": "install",
+            "status": "ok",
+            "exit_code": 0,
+            "changed": true,
+            "data": {
+                "url": "http://localhost:8081",
+                "version": "2.0.0",
+                "mode": "local",
+                "dir": "<work>/fsa-test-prerelease",
+                "project": "fsa-fsa-test-prerelease-408e",
+                "port": 8081,
+                "mail": {
+                    "mode": "capture",
+                    "catcher_url": "http://localhost:8025",
+                    "catcher_login_command": "fsa config show --catcher-login"
+                },
+                "owner_email": "owner@example.test",
+                "next_commands": [
+                    "<work>/fsa-test-prerelease/fsa status",
+                    "<work>/fsa-test-prerelease/fsa login-link owner@example.test",
+                    "<work>/fsa-test-prerelease/fsa doctor --post"
+                ],
+                "sign_in_link": {
+                    "expires_at": "2026-10-21T01:27:38Z",
+                    "delivered": "secrets_file"
+                }
+            },
+            "secrets": [
+                {
+                    "name": "sign_in_link",
+                    "written_to": "<work>/owner-link.json",
+                    "expires_at": "2026-10-21T01:27:38Z"
+                }
+            ],
+            "warnings": [],
+            "errors": []
+        }
+    },
+    "status": {
+        "schema_version": 1,
+        "command": "status",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": false,
+        "data": {
+            "dir": "<work>/fsa-test-prerelease",
+            "installed": true,
+            "operation": null,
+            "lock": null,
+            "supervisor": {
+                "running": false,
+                "container": null
+            },
+            "disk": {
+                "free_gib": 144.6
+            },
+            "last_backup": null,
+            "last_upgrade": null,
+            "version": "2.0.0",
+            "mode": "local",
+            "url": "http://localhost:8081",
+            "local_url": "http://localhost:8081",
+            "project": "fsa-fsa-test-prerelease-408e",
+            "port": 8081,
+            "health": "ok",
+            "services": {
+                "app": {
+                    "state": "running",
+                    "health": "healthy"
+                },
+                "queue": {
+                    "state": "running",
+                    "health": "healthy"
+                },
+                "scheduler": {
+                    "state": "running",
+                    "health": null
+                },
+                "postgres": {
+                    "state": "running",
+                    "health": "healthy"
+                },
+                "redis": {
+                    "state": "running",
+                    "health": "healthy"
+                },
+                "gotenberg": {
+                    "state": "running",
+                    "health": null
+                },
+                "mailpit": {
+                    "state": "running",
+                    "health": "healthy"
+                },
+                "backup": {
+                    "state": "running",
+                    "health": null
+                }
+            },
+            "mail": {
+                "mode": "capture",
+                "catcher_url": "http://localhost:8025",
+                "catcher_login_command": "fsa config show --catcher-login"
+            },
+            "proxy": null,
+            "phone_https": null,
+            "tunnel": null,
+            "backup": {
+                "last": null,
+                "last_success": null,
+                "schedule": {
+                    "time": "03:30",
+                    "time_zone": "Europe/Berlin",
+                    "retention": 7,
+                    "next_run": "2026-10-21T01:30:00Z"
+                },
+                "encrypted": false,
+                "directory": "<work>/fsa-test-prerelease/backups",
+                "backups": {
+                    "count": 0,
+                    "bytes": 0,
+                    "newest": null
+                },
+                "safety": [],
+                "partials": [],
+                "alerts": []
+            },
+            "last_restore": null,
+            "restore": {
+                "last": null,
+                "storage_volume": "fsa-fsa-test-prerelease-408e_app-storage",
+                "webhooks_paused": false,
+                "interrupted": null,
+                "scratch_left": []
+            },
+            "last_reset": null,
+            "reset": {
+                "last": null,
+                "interrupted": null
+            },
+            "sign_in_links": {
+                "count": 1,
+                "links": [
+                    {
+                        "id": 1,
+                        "email": "owner@example.test",
+                        "kind": "owner",
+                        "state": "unused",
+                        "created_at": "2026-10-21T00:27:38Z",
+                        "expires_at": "2026-10-21T01:27:38Z",
+                        "used_at": null,
+                        "used_ip": null,
+                        "created_by": "cli",
+                        "created_by_uid": 501
+                    }
+                ]
+            }
+        },
+        "secrets": [],
+        "warnings": [],
+        "errors": []
+    },
+    "fsa_version": {
+        "schema_version": 1,
+        "command": "version",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": false,
+        "data": {
+            "fsa": "2.0.0",
+            "revision": "fba09cdaa3a51c5d65fcd5a56641f9412fabdb3d",
+            "instance": "2.0.0",
+            "newest_known": null
+        },
+        "secrets": [],
+        "warnings": [],
+        "errors": []
+    },
+    "http": {
+        "/up": 200,
+        "/admin/login": 200,
+        "/login-link": 200,
+        "sign_in_link_consumed": 303,
+        "redirect_path": "/admin/password-reset/reset"
+    },
+    "uninstall": {
+        "exit_code": 0,
+        "status": "ok",
+        "data_deleted": true,
+        "removed": {
+            "containers": [
+                "fsa-fsa-test-prerelease-408e-backup-1",
+                "fsa-fsa-test-prerelease-408e-mailpit-1",
+                "fsa-fsa-test-prerelease-408e-app-1",
+                "fsa-fsa-test-prerelease-408e-queue-1",
+                "fsa-fsa-test-prerelease-408e-scheduler-1",
+                "fsa-fsa-test-prerelease-408e-gotenberg-1",
+                "fsa-fsa-test-prerelease-408e-postgres-1",
+                "fsa-fsa-test-prerelease-408e-redis-1"
+            ],
+            "networks": [
+                "fsa-fsa-test-prerelease-408e_default",
+                "fsa-fsa-test-prerelease-408e_renderer"
+            ],
+            "volumes": [
+                "fsa-fsa-test-prerelease-408e_app-storage",
+                "fsa-fsa-test-prerelease-408e_mailpit-data",
+                "fsa-fsa-test-prerelease-408e_pg-data",
+                "fsa-fsa-test-prerelease-408e_valkey-data"
+            ]
+        },
+        "labelled_before": {
+            "containers": 8,
+            "volumes": 4,
+            "networks": 2
+        },
+        "labelled_after": {
+            "containers": [],
+            "volumes": [],
+            "networks": []
+        }
+    }
+}

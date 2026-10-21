@@ -9,15 +9,15 @@
         "changed": true,
         "data": {
             "action": "start",
-            "url": "https://fsa-test-62d41345df.trycloudflare.com",
+            "url": "https://fsa-test-dd7d39b358.trycloudflare.com",
             "mode": "local",
             "local_url": "http://localhost:8081",
             "tunnel": {
-                "hostname": "fsa-test-62d41345df.trycloudflare.com",
-                "expires_at": "2026-10-20T18:35:17Z",
-                "peer": "10.215.75.66",
+                "hostname": "fsa-test-dd7d39b358.trycloudflare.com",
+                "expires_at": "2026-10-20T22:36:11Z",
+                "peer": "10.215.194.210",
                 "admin": false,
-                "url": "https://fsa-test-62d41345df.trycloudflare.com",
+                "url": "https://fsa-test-dd7d39b358.trycloudflare.com",
                 "state": "active"
             },
             "next_commands": [
@@ -113,12 +113,12 @@
         "warnings": [
             {
                 "code": "tunnel_third_party",
-                "message": "Traffic to https://fsa-test-62d41345df.trycloudflare.com passes Cloudflare, a third party, and the instance's sign-in, Field App and API are reachable from the internet until the tunnel stops.",
+                "message": "Traffic to https://fsa-test-dd7d39b358.trycloudflare.com passes Cloudflare, a third party, and the instance's sign-in, Field App and API are reachable from the internet until the tunnel stops.",
                 "hint": "Quick tunnels are for testing: no uptime guarantee, at most 200 concurrent requests."
             },
             {
                 "code": "tunnel_expires",
-                "message": "The tunnel expires at 2026-10-20T18:35:17Z; after that its address answers 503.",
+                "message": "The tunnel expires at 2026-10-20T22:36:11Z; after that its address answers 503.",
                 "hint": "Run `fsa tunnel renew` to keep it 4 more hours, `fsa tunnel stop` to end it now."
             },
             {

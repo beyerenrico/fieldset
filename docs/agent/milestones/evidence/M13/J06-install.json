@@ -1,7 +1,7 @@
 {
-    "command": "install.sh --dir <work>/fsa-test-j06 --version 2.0.0-alpha.1-test --org J6 Org --owner-email owner@example.test --locale en --phone-https local-ca --secrets-file <work>/owner-link.json --json",
+    "command": "install.sh --dir <work>/fsa-test-j06 --version 2.0.0 --org J6 Org --owner-email owner@example.test --locale en --phone-https local-ca --secrets-file <work>/owner-link.json --json",
     "exit_code": 0,
-    "seconds": 48.6,
+    "seconds": 48.5,
     "stdout": {
         "schema_version": 1,
         "command": "install",
@@ -10,10 +10,10 @@
         "changed": true,
         "data": {
             "url": "https://192.168.178.28",
-            "version": "2.0.0-alpha.1-test",
+            "version": "2.0.0",
             "mode": "local",
             "dir": "<work>/fsa-test-j06",
-            "project": "fsa-fsa-test-j06-5fa0",
+            "project": "fsa-fsa-test-j06-fc83",
             "port": 8081,
             "mail": {
                 "mode": "capture",
@@ -25,7 +25,7 @@
                 "lan_address": "192.168.178.28",
                 "url": "https://192.168.178.28",
                 "trust_url": "http://192.168.178.28/phone-trust",
-                "root_sha256": "A4:AA:AC:9C:E8:11:BB:D3:83:32:30:06:DE:4C:3F:4E:9B:8F:2D:54:04:8A:E7:4A:1E:1B:AC:F5:06:98:F9:54",
+                "root_sha256": "55:51:9B:13:CC:E3:75:35:D6:49:CB:68:F9:70:73:82:9F:BB:9A:7A:D3:2B:D4:B9:E7:9F:6E:E9:68:CD:97:93",
                 "lan_address_current": null
             },
             "owner_email": "owner@example.test",
@@ -35,7 +35,7 @@
                 "<work>/fsa-test-j06/fsa doctor --post"
             ],
             "sign_in_link": {
-                "expires_at": "2026-10-20T19:29:55Z",
+                "expires_at": "2026-10-20T23:30:48Z",
                 "delivered": "secrets_file"
             }
         },
@@ -43,7 +43,7 @@
             {
                 "name": "sign_in_link",
                 "written_to": "<work>/owner-link.json",
-                "expires_at": "2026-10-20T19:29:55Z"
+                "expires_at": "2026-10-20T23:30:48Z"
             }
         ],
         "warnings": [

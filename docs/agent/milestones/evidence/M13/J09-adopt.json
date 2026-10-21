@@ -1,7 +1,7 @@
 {
     "command": "install.sh --dir <work>/fsa-test-j09 --adopt <work>/fsa-test-j09-v1-<id> --yes --json",
     "exit_code": 0,
-    "seconds": 59.1,
+    "seconds": 59.9,
     "stdout": {
         "schema_version": 1,
         "command": "adopt",
@@ -9,33 +9,33 @@
         "exit_code": 0,
         "changed": true,
         "data": {
-            "url": "http://localhost:53852",
-            "version": "2.0.0-alpha.1-test",
+            "url": "http://localhost:63200",
+            "version": "2.0.0",
             "mode": "local",
             "dir": "<work>/fsa-test-j09",
-            "project": "fsa-fsa-test-j09-5377",
-            "port": 53852,
+            "project": "fsa-fsa-test-j09-84df",
+            "port": 63200,
             "mail": {
                 "mode": "capture",
                 "catcher_url": "http://localhost:8025",
                 "catcher_login_command": "fsa config show --catcher-login"
             },
             "adopted": {
-                "checkout": "<work>/fsa-test-j09-v1-1d909a",
-                "project": "fsa-test-j09-v1-1d909a",
+                "checkout": "<work>/fsa-test-j09-v1-fafc3d",
+                "project": "fsa-test-j09-v1-fafc3d",
                 "version": "1.0.0",
-                "backup": "safety-adopt-20261020T190346Z",
-                "backup_path": "<work>/fsa-test-j09/backups/safety-adopt-20261020T190346Z",
+                "backup": "safety-adopt-20261020T230446Z",
+                "backup_path": "<work>/fsa-test-j09/backups/safety-adopt-20261020T230446Z",
                 "verified": {
                     "counts": {
                         "activity_log": 20,
                         "attachments": 0,
                         "form_versions": 1,
                         "forms": 1,
-                        "mail_messages": 7,
+                        "mail_messages": 10,
                         "organizations": 1,
-                        "renditions": 28,
-                        "submissions": 45,
+                        "renditions": 35,
+                        "submissions": 47,
                         "users": 9
                     },
                     "chains": 2,
@@ -80,12 +80,12 @@
                     "waited_seconds": 0
                 },
                 "volumes": {
-                    "pg-data": "fsa-fsa-test-j09-5377_pg-data",
-                    "app-storage": "fsa-fsa-test-j09-5377_app-storage"
+                    "pg-data": "fsa-fsa-test-j09-84df_pg-data",
+                    "app-storage": "fsa-fsa-test-j09-84df_app-storage"
                 },
                 "legacy_volumes": {
-                    "pg-data": "fsa-test-j09-v1-1d909a_pg-data",
-                    "app-storage": "fsa-test-j09-v1-1d909a_app-storage"
+                    "pg-data": "fsa-test-j09-v1-fafc3d_pg-data",
+                    "app-storage": "fsa-test-j09-v1-fafc3d_app-storage"
                 }
             },
             "pending_mail": {
@@ -95,7 +95,7 @@
             },
             "way_back": [
                 "<work>/fsa-test-j09/fsa uninstall (a final backup first; the 1.0 volumes were never changed)",
-                "cd <work>/fsa-test-j09-v1-1d909a && docker compose up -d"
+                "cd <work>/fsa-test-j09-v1-fafc3d && docker compose up -d"
             ],
             "next_commands": [
                 "<work>/fsa-test-j09/fsa status",
@@ -113,23 +113,23 @@
         ],
         "errors": []
     },
-    "acknowledged_writes": 20,
+    "acknowledged_writes": 22,
     "before_adopt": {
         "submissions": 25,
         "users": 9,
         "heads": [
             {
                 "seq": 10,
-                "hash": "bf8e388bcfea3f47755e6ffb3b5a6fd69bfc9f76db1db6b3d4475cd1393988ef"
+                "hash": "9896b913280fd29d2810663ca05789129ec0e9b4c6e481a71d4a9cac36e3bfb0"
             },
             {
                 "seq": 10,
-                "hash": "8733fd023258ceb30b9477b211f706b55d78e21969f9fa3f014f7d4691f2e722"
+                "hash": "63d09acdfb38ce123911a081778af9a556b2fb1c9284330ed469eaf603fea136"
             }
         ]
     },
     "backup_manifest": {
-        "created_at": "20261020T190346Z",
+        "created_at": "20261020T230446Z",
         "postgres": "postgres (PostgreSQL) 16.15",
         "migrations": "40",
         "last_migration": "2026_10_23_100000_add_submissions_org_updated_at_index",
@@ -137,30 +137,30 @@
         "attachments": "0",
         "form_versions": "1",
         "forms": "1",
-        "mail_messages": "7",
+        "mail_messages": "10",
         "organizations": "1",
-        "renditions": "28",
-        "submissions": "45",
+        "renditions": "35",
+        "submissions": "47",
         "users": "9",
         "storage": "included",
         "env": "included",
         "source": "fsa adopt",
         "version": "1.0.0",
-        "project": "fsa-test-j09-v1-1d909a",
-        "app_key_fingerprints": "73ee-6e43-39f4-5090",
-        "journal": "895408998a4533a6"
+        "project": "fsa-test-j09-v1-fafc3d",
+        "app_key_fingerprints": "9851-a622-8afe-75ed",
+        "journal": "13399d817ac435dd"
     },
     "instance": {
-        "submissions": 45,
+        "submissions": 47,
         "users": 9,
         "heads": [
             {
                 "seq": 10,
-                "hash": "bf8e388bcfea3f47755e6ffb3b5a6fd69bfc9f76db1db6b3d4475cd1393988ef"
+                "hash": "9896b913280fd29d2810663ca05789129ec0e9b4c6e481a71d4a9cac36e3bfb0"
             },
             {
                 "seq": 10,
-                "hash": "8733fd023258ceb30b9477b211f706b55d78e21969f9fa3f014f7d4691f2e722"
+                "hash": "63d09acdfb38ce123911a081778af9a556b2fb1c9284330ed469eaf603fea136"
             }
         ]
     }

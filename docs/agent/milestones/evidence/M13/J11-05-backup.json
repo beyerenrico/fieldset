@@ -3,7 +3,7 @@
     "guide_command": "~/forms/fsa backup --json",
     "command": "<work>/fsa-test-j11-forms/fsa backup --json",
     "exit_code": 0,
-    "seconds": 2.5,
+    "seconds": 2.4,
     "stdout": {
         "schema_version": 1,
         "command": "backup",
@@ -11,20 +11,20 @@
         "exit_code": 0,
         "changed": true,
         "data": {
-            "backup": "manual-20261020T212533Z",
-            "path": "<work>/fsa-test-j11-forms/backups/manual-20261020T212533Z",
+            "backup": "manual-20261020T234313Z",
+            "path": "<work>/fsa-test-j11-forms/backups/manual-20261020T234313Z",
             "kind": "manual",
-            "created_at": "2026-10-20T21:25:33Z",
-            "bytes": 503145,
+            "created_at": "2026-10-20T23:43:13Z",
+            "bytes": 503126,
             "encrypted": false,
             "includes_secrets": false,
-            "app_key_fingerprint": "ea03-2ee2-64c4-f23d",
+            "app_key_fingerprint": "a90d-36ea-625f-afd2",
             "files": {
                 "referenced": 1,
                 "missing": 0,
                 "missing_sample": []
             },
-            "free_bytes": 164164501504
+            "free_bytes": 163423510528
         },
         "secrets": [],
         "warnings": [
