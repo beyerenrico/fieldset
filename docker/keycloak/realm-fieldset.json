@@ -1,6 +1,6 @@
 {
-  "realm": "form-schema",
-  "displayName": "Form Schema (development)",
+  "realm": "fieldset",
+  "displayName": "Fieldset (development)",
   "enabled": true,
   "sslRequired": "none",
   "registrationAllowed": false,
@@ -98,8 +98,8 @@
   ],
   "clients": [
     {
-      "clientId": "form-schema-app",
-      "name": "Form Schema App (OIDC, development)",
+      "clientId": "fieldset",
+      "name": "Fieldset (OIDC, development)",
       "description": "Confidential OIDC client of the SSO Demo GmbH provider (database/seeders/SsoDemoSeeder.php).",
       "enabled": true,
       "protocol": "openid-connect",
@@ -107,7 +107,7 @@
       "bearerOnly": false,
       "consentRequired": false,
       "clientAuthenticatorType": "client-secret",
-      "secret": "form-schema-dev-oidc-secret",
+      "secret": "fieldset-dev-oidc-secret",
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false,
@@ -144,7 +144,7 @@
     },
     {
       "clientId": "http://localhost:8080/auth/sso/3c7e9a1b-6d2f-4b8a-8e5c-1f4a7d9b2e60/saml/metadata",
-      "name": "Form Schema App (SAML, development)",
+      "name": "Fieldset (SAML, development)",
       "description": "SAML service provider of the SAML Demo GmbH provider (database/seeders/SsoDemoSeeder.php).",
       "enabled": true,
       "protocol": "saml",

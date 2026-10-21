@@ -48,7 +48,7 @@ function adminFixWithMfa(User $user): User
 function adminFixSave(User $actor, array $overrides = [], ?string $secret = null, IdentityProviderType $type = IdentityProviderType::Oidc): IdentityProvider
 {
     $config = $type === IdentityProviderType::Oidc
-        ? ['flavor' => 'generic', 'issuer' => 'https://idp.acme.example/realms/acme', 'client_id' => 'form-schema-app', 'scopes' => ['openid', 'email', 'profile']]
+        ? ['flavor' => 'generic', 'issuer' => 'https://idp.acme.example/realms/acme', 'client_id' => 'fieldset', 'scopes' => ['openid', 'email', 'profile']]
         : ['metadata_url' => 'https://idp.acme.example/saml/descriptor'];
 
     return app(SaveIdentityProvider::class)->handle(test()->org, $type, (string) ($overrides['name'] ?? 'Acme SSO'), [...$config, ...$overrides], $secret, $actor);

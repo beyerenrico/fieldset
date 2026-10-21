@@ -41,7 +41,7 @@ function ssoDemoRoles(User $user, Organization $org): array
 /** @return array<string, mixed> */
 function keycloakRealm(): array
 {
-    return json_decode((string) file_get_contents(base_path('docker/keycloak/realm-form-schema.json')), true, flags: JSON_THROW_ON_ERROR);
+    return json_decode((string) file_get_contents(base_path('docker/keycloak/realm-fieldset.json')), true, flags: JSON_THROW_ON_ERROR);
 }
 
 it('seeds SSO Demo GmbH: verified domain, active Keycloak OIDC provider, JIT, mapping and enforcement', function (): void {

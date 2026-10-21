@@ -44,8 +44,8 @@ class SsoDomain extends Model
 
     use LogsActivity;
 
-    /** TXT record value prefix: `form-schema-app-verification=<token>`. */
-    public const string TXT_VALUE_PREFIX = 'form-schema-app-verification=';
+    /** TXT record value prefix: `fieldset-verification=<token>`. */
+    public const string TXT_VALUE_PREFIX = 'fieldset-verification=';
 
     protected $attributes = [
         'verified_at' => null, 'last_checked_at' => null, 'last_check_result' => null, 'failed_checks' => 0, 'created_by' => null,
@@ -87,7 +87,7 @@ class SsoDomain extends Model
         return $this->verified_at !== null;
     }
 
-    /** DNS name of the TXT record, e.g. `_form-schema-app-verification.example.com`. */
+    /** DNS name of the TXT record, e.g. `_fieldset-verification.example.com`. */
     public function txtName(): string
     {
         return config()->string('sso.dns.txt_prefix').'.'.$this->domain;

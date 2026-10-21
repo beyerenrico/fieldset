@@ -9,14 +9,14 @@ return [
     // Allow http and private/loopback IdP hosts (Keycloak in Docker). Development and CI only.
     'allow_insecure_idp' => (bool) env('SSO_ALLOW_INSECURE_IDP', false),
 
-    // Domain verification: TXT `<txt_prefix>.<domain>` = `form-schema-app-verification=<token>`.
+    // Domain verification: TXT `<txt_prefix>.<domain>` = `fieldset-verification=<token>`.
     'dns' => [
         // dns: dns_get_record (production); config: the records below (development and CI).
         'driver' => env('SSO_DNS_DRIVER', 'dns'),
         // Config driver only: TXT name => list of values, e.g.
-        // {"_form-schema-app-verification.example.com": ["form-schema-app-verification=<token>"]}
+        // {"_fieldset-verification.example.com": ["fieldset-verification=<token>"]}
         'records' => json_decode((string) env('SSO_DNS_RECORDS', '{}'), true) ?: [],
-        'txt_prefix' => '_form-schema-app-verification',
+        'txt_prefix' => '_fieldset-verification',
     ],
 
     // sso:recheck-domains unverifies a domain after this many misses in a row.

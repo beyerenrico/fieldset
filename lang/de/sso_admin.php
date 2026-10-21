@@ -196,7 +196,7 @@ return [
         'txt_type' => 'Typ',
         'txt_value' => 'Wert',
         'dns_note' => 'Lassen Sie den Eintrag bestehen: Die Domain wird täglich geprüft und verliert ihre Verifizierung nach drei fehlgeschlagenen Prüfungen in Folge.',
-        'dns_provider_note' => 'Manche DNS-Anbieter ergänzen die Domain automatisch. Tragen Sie dann als Namen nur „_form-schema-app-verification“ ein.',
+        'dns_provider_note' => 'Manche DNS-Anbieter ergänzen die Domain automatisch. Tragen Sie dann als Namen nur „_fieldset-verification“ ein.',
         'close' => 'Schließen',
         'verify' => 'Verifizieren',
         'check_again' => 'Erneut prüfen',

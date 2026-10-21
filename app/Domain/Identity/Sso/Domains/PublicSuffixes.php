@@ -8,7 +8,7 @@ namespace App\Domain\Identity\Sso\Domains;
  * Public suffixes an organization can never claim as an SSO domain (ADR 0036). Every single-label name
  * (a TLD) is one; multi-label suffixes come from this curated excerpt of the Public Suffix List
  * (common second-level registries and shared hosting domains). The DNS TXT proof is the actual control:
- * nobody but the registry can publish a record at `_form-schema-app-verification.co.uk`.
+ * nobody but the registry can publish a record at `_fieldset-verification.co.uk`.
  */
 final class PublicSuffixes
 {

@@ -89,7 +89,7 @@ it('verifies a domain whose TXT record carries the token', function (): void {
     expect(app(VerifySsoDomain::class)->handle($domain, $this->owner))->toBe(DomainVerification::Verified);
 
     $domain->refresh();
-    expect($this->dns->queried)->toBe(['_form-schema-app-verification.acme.example'])
+    expect($this->dns->queried)->toBe(['_fieldset-verification.acme.example'])
         ->and($domain->isVerified())->toBeTrue()
         ->and($domain->last_check_result)->toBe(DomainVerification::Verified)
         ->and($domain->failed_checks)->toBe(0)
@@ -97,11 +97,23 @@ it('verifies a domain whose TXT record carries the token', function (): void {
         ->and(Activity::query()->where('event', 'sso.domain_verified')->sole()->causer_id)->toBe($this->owner->id);
 });
 
+it('ignores a record under the old form-schema-app label or with the old value prefix', function (): void {
+    $domain = ssoAdminClaimDomain($this->org, 'acme.example');
+    $this->dns->set('_form-schema-app-verification.acme.example', ['form-schema-app-verification='.$domain->verification_token]);
+
+    expect(app(VerifySsoDomain::class)->handle($domain, $this->owner))->toBe(DomainVerification::Missing);
+
+    $this->dns->set($domain->txtName(), ['form-schema-app-verification='.$domain->verification_token]);
+    expect(app(VerifySsoDomain::class)->handle($domain, $this->owner))->toBe(DomainVerification::Mismatch)
+        ->and($domain->refresh()->isVerified())->toBeFalse()
+        ->and($this->dns->queried)->each->toStartWith('_fieldset-verification.');
+});
+
 it('reports a missing or foreign record without verifying', function (): void {
     $domain = ssoAdminClaimDomain($this->org, 'acme.example');
 
     expect(app(VerifySsoDomain::class)->handle($domain, $this->owner))->toBe(DomainVerification::Missing);
-    $this->dns->set($domain->txtName(), ['form-schema-app-verification=someone-else']);
+    $this->dns->set($domain->txtName(), ['fieldset-verification=someone-else']);
     expect(app(VerifySsoDomain::class)->handle($domain, $this->owner))->toBe(DomainVerification::Mismatch);
     $this->dns->fail($domain->txtName());
     expect(app(VerifySsoDomain::class)->handle($domain, $this->owner))->toBe(DomainVerification::Error);
@@ -183,7 +195,7 @@ it('re-checks the verified domains of every organization without a tenant', func
     $this->dns->queried = [];
 
     $this->artisan('sso:recheck-domains')->expectsOutputToContain('2 verified');
-    expect($this->dns->queried)->toBe(['_form-schema-app-verification.a.example', '_form-schema-app-verification.b.example']);
+    expect($this->dns->queried)->toBe(['_fieldset-verification.a.example', '_fieldset-verification.b.example']);
 });
 
 it('removes a claim with one audit entry but keeps the last verified domain while SSO is enforced', function (): void {
@@ -203,9 +215,9 @@ it('removes a claim with one audit entry but keeps the last verified domain whil
 });
 
 it('reads TXT records from config in development and CI', function (): void {
-    config(['sso.dns.records' => ['_Form-Schema-App-Verification.Acme.Example.' => ['form-schema-app-verification=abc', 7]]]);
+    config(['sso.dns.records' => ['_Fieldset-Verification.Acme.Example.' => ['fieldset-verification=abc', 7]]]);
     $resolver = new ConfigTxtRecordResolver;
 
-    expect($resolver->txt('_form-schema-app-verification.acme.example'))->toBe(['form-schema-app-verification=abc'])
-        ->and($resolver->txt('_form-schema-app-verification.other.example'))->toBe([]);
+    expect($resolver->txt('_fieldset-verification.acme.example'))->toBe(['fieldset-verification=abc'])
+        ->and($resolver->txt('_fieldset-verification.other.example'))->toBe([]);
 });

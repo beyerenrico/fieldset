@@ -196,7 +196,7 @@ return [
         'txt_type' => 'Type',
         'txt_value' => 'Value',
         'dns_note' => 'Keep the record in place: the domain is checked daily and loses its verification after three failed checks in a row.',
-        'dns_provider_note' => 'Some DNS providers add your domain automatically. Then enter only “_form-schema-app-verification” as the name.',
+        'dns_provider_note' => 'Some DNS providers add your domain automatically. Then enter only “_fieldset-verification” as the name.',
         'close' => 'Close',
         'verify' => 'Verify',
         'check_again' => 'Check again',

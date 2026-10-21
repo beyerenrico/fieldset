@@ -37,7 +37,7 @@ function ssoAdminProviderErrors(Closure $save): array
 
 function ssoAdminGenericConfig(array $overrides = []): array
 {
-    return ['flavor' => 'generic', 'issuer' => 'https://idp.acme.example/realms/acme/', 'client_id' => 'form-schema-app', ...$overrides];
+    return ['flavor' => 'generic', 'issuer' => 'https://idp.acme.example/realms/acme/', 'client_id' => 'fieldset', ...$overrides];
 }
 
 beforeEach(function (): void {
@@ -54,7 +54,7 @@ it('creates a generic OIDC provider with normalized config, encrypted secret and
         ->client_secret->toBe('Sup3r-Secret!')
         ->jit_enabled->toBeTrue()
         ->and($provider->config)->toMatchArray([
-            'flavor' => 'generic', 'issuer' => 'https://idp.acme.example/realms/acme', 'client_id' => 'form-schema-app',
+            'flavor' => 'generic', 'issuer' => 'https://idp.acme.example/realms/acme', 'client_id' => 'fieldset',
             'scopes' => ['openid', 'email', 'profile', 'groups'], 'groups_claim' => 'groups', 'trust_unverified_email' => false,
         ])
         ->and($entry->event)->toBe('sso.provider_created')
@@ -80,8 +80,8 @@ it('requires an https issuer unless insecure IdPs are allowed for development', 
     }
 
     config(['sso.allow_insecure_idp' => true]);
-    expect(ssoAdminSaveProvider(ssoAdminGenericConfig(['issuer' => 'http://keycloak:8080/realms/form-schema']))->config['issuer'])
-        ->toBe('http://keycloak:8080/realms/form-schema');
+    expect(ssoAdminSaveProvider(ssoAdminGenericConfig(['issuer' => 'http://keycloak:8080/realms/fieldset']))->config['issuer'])
+        ->toBe('http://keycloak:8080/realms/fieldset');
 });
 
 it('validates the client id, scopes, groups claim and the flavor', function (): void {

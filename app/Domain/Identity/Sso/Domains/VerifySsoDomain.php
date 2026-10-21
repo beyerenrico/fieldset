@@ -18,7 +18,7 @@ use Illuminate\Validation\ValidationException;
 use Throwable;
 
 /**
- * Checks the domain's TXT record `_form-schema-app-verification.<domain>` = `form-schema-app-verification=<token>`
+ * Checks the domain's TXT record `_fieldset-verification.<domain>` = `fieldset-verification=<token>`
  * (ADR 0036). A null actor is the scheduled re-check.
  *
  * - Found: the domain becomes verified, unless another organization already holds it verified (refused with
