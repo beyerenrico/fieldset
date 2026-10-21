@@ -1,5 +1,5 @@
 /** Offline-store fixtures for agent A's tests (ADR 0035): rows, scope, engine reset, locks. */
-import type { JsonObject } from '@form-schema-app/form-schema-js';
+import type { JsonObject } from '@fieldset/fieldset-js';
 import { afterEach, beforeEach } from 'vitest';
 import { db } from '../../src/lib/db/db.ts';
 import type { AttachmentRow, DraftRow, Scope } from '../../src/lib/db/schema.ts';

@@ -1,4 +1,4 @@
-import { canonicalJson, type JsonObject } from '@form-schema-app/form-schema-js';
+import { canonicalJson, type JsonObject } from '@fieldset/fieldset-js';
 import { describe, expect, it } from 'vitest';
 import { normalizeIds, uuidv7, withFreshIds } from '../src/store/ids.ts';
 import { contractDefinition, testId } from './support/fixtures.ts';

@@ -13,8 +13,8 @@ import { preloadLazyScreens, renderApp } from '../utils/render-app.tsx';
 import { server, setupTestServer } from '../utils/server.ts';
 import { FAKE_TIMERS } from '../utils/a-store.ts';
 
-vi.mock('@form-schema-app/form-schema-react', async (importOriginal) => {
-    const actual = await importOriginal<typeof import('@form-schema-app/form-schema-react')>();
+vi.mock('@fieldset/fieldset-react', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@fieldset/fieldset-react')>();
     const { FakeRenderer } = await import('../utils/fake-renderer.tsx');
     return { ...actual, FormRenderer: FakeRenderer };
 });

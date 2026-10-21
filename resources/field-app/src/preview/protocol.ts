@@ -16,10 +16,10 @@ import type {
     EvaluationContext,
     FormDefinition,
     JsonObject,
-} from '@form-schema-app/form-schema-js';
+} from '@fieldset/fieldset-js';
 
-export const PREVIEW_MESSAGE = 'form-schema-preview';
-export const PREVIEW_READY = 'form-schema-preview-ready';
+export const PREVIEW_MESSAGE = 'fieldset-preview';
+export const PREVIEW_READY = 'fieldset-preview-ready';
 /** Target origin of builder → preview messages (the preview's origin is opaque). */
 export const PREVIEW_TARGET_ORIGIN = '*';
 /** `event.origin` of preview → builder messages: the serialization of an opaque origin. */
@@ -65,7 +65,7 @@ export function isPreviewReady(
 }
 
 /**
- * Preview side: accepts only `{ type: 'form-schema-preview', definition, data?, context? }` sent by
+ * Preview side: accepts only `{ type: 'fieldset-preview', definition, data?, context? }` sent by
  * the parent window (the builder) from the builder's origin. Messages from other origins, other
  * windows, or of other types are ignored.
  */

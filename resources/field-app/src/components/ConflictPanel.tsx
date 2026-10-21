@@ -1,4 +1,4 @@
-import type { FormDefinition, JsonObject } from '@form-schema-app/form-schema-js';
+import type { FormDefinition, JsonObject } from '@fieldset/fieldset-js';
 import { useEffect, useId, useMemo, useRef, type ReactNode } from 'react';
 import { useT } from '../i18n/I18nProvider.tsx';
 import { diffDrafts, summarize, type SummaryTexts } from '../lib/autosave/conflict-diff.ts';

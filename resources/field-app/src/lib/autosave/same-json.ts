@@ -1,5 +1,5 @@
 /** Deep JSON equality that ignores object key order (Postgres jsonb reorders keys). */
-import type { JsonValue } from '@form-schema-app/form-schema-js';
+import type { JsonValue } from '@fieldset/fieldset-js';
 
 function isObject(value: unknown): value is Readonly<Record<string, JsonValue>> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);

@@ -28,7 +28,7 @@ setupTestServer();
 describe('local storage helpers', () => {
     it('reads JSON with fallbacks and clears only app keys', () => {
         writeJson('x', [1]);
-        localStorage.setItem('fsa.bad', '{');
+        localStorage.setItem('fieldset.bad', '{');
         localStorage.setItem('other', 'keep');
         expect(readJson('x', [])).toEqual([1]);
         expect(readJson('bad', 'fallback')).toBe('fallback');
@@ -74,7 +74,7 @@ describe('shortcuts', () => {
         purgeShortcuts(1, [3, 5]);
         expect(getFavorites(1)).toEqual([]);
         expect(getRecent(1)).toEqual([3, 5]);
-        localStorage.setItem('fsa.favorites.2', '["x", 4]');
+        localStorage.setItem('fieldset.favorites.2', '["x", 4]');
         expect(getFavorites(2)).toEqual([4]);
     });
 });

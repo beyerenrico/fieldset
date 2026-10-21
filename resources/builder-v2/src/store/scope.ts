@@ -1,5 +1,5 @@
 /** Key scopes for the inspector (logic editor, key suggestions) and for unique keys on insert. */
-import type { JsonObject } from '@form-schema-app/form-schema-js';
+import type { JsonObject } from '@fieldset/fieldset-js';
 import type { Container, InspectorScope } from '../contract.ts';
 import type { Selection } from './history.ts';
 import { isObject, listProp, str } from './json.ts';

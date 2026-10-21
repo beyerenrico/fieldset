@@ -1,5 +1,5 @@
 /** Fixtures of the M6 gate fixes (agent F1): backend with reads, server drafts, local edits. */
-import type { JsonObject } from '@form-schema-app/form-schema-js';
+import type { JsonObject } from '@fieldset/fieldset-js';
 import { createLocalTransport } from '../../src/lib/autosave/local-transport.ts';
 import type { Submission } from '../../src/lib/api/types.ts';
 import { db } from '../../src/lib/db/db.ts';

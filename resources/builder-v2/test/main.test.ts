@@ -14,7 +14,7 @@ describe('Alpine entry', () => {
         expect(context.ready).toBe(true);
         expect(root.querySelectorAll('[data-builder-node]').length).toBeGreaterThan(0);
         expect(wire.sync).toHaveBeenCalled();
-        expect(window.FormSchemaBuilderV2).toBe(builderV2);
+        expect(window.FieldsetBuilderV2).toBe(builderV2);
         component.destroy();
         component.destroy();
     });

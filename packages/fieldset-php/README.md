@@ -86,7 +86,7 @@ foreach ($model->elements as $element) {
 
 ## Decisions where the spec leaves room
 
-These readings match the TypeScript SDK (`packages/form-schema-js`, README "Implementation notes");
+These readings match the TypeScript SDK (`packages/fieldset-js`, README "Implementation notes");
 both SDKs were cross-checked on ~40,000 generated logic, evaluation, lint and export inputs.
 
 - JSON numbers behave like JavaScript doubles: integers beyond 2^53 are rounded as `JSON.parse`

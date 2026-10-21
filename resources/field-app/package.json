@@ -1,5 +1,5 @@
 {
-    "name": "@form-schema-app/field-app",
+    "name": "@fieldset/field-app",
     "version": "1.0.0",
     "description": "Offline-first Field App (PWA) served at /app, plus the builder preview entry",
     "private": true,
@@ -19,8 +19,8 @@
         "format:check": "prettier --check ."
     },
     "dependencies": {
-        "@form-schema-app/form-schema-js": "*",
-        "@form-schema-app/form-schema-react": "*",
+        "@fieldset/fieldset-js": "*",
+        "@fieldset/fieldset-react": "*",
         "@radix-ui/react-slot": "1.5.0",
         "@tanstack/react-query": "5.104.3",
         "@tanstack/react-router": "1.170.44",

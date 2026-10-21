@@ -2,8 +2,8 @@
  * Shared state of the fill and review screens: data, local autosave, the draft's sync state from
  * the offline store (conflict, blocked, submit errors), context, attachments, uploads.
  */
-import type { EvaluationContext, JsonObject } from '@form-schema-app/form-schema-js';
-import type { AttachmentAdapter } from '@form-schema-app/form-schema-react';
+import type { EvaluationContext, JsonObject } from '@fieldset/fieldset-js';
+import type { AttachmentAdapter } from '@fieldset/fieldset-react';
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
 import { useT, type Translate } from '../i18n/I18nProvider.tsx';
 import type { ValidationDetail } from '../lib/api/errors.ts';

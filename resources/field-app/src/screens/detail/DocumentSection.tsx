@@ -1,5 +1,5 @@
 /** Submission detail: "Document (PDF)" and "Send to customer" (§9.1, §9.2). */
-import type { FormDefinition } from '@form-schema-app/form-schema-js';
+import type { FormDefinition } from '@fieldset/fieldset-js';
 import { useId, type ReactNode } from 'react';
 import { useT } from '../../i18n/I18nProvider.tsx';
 import type { Submission } from '../../lib/api/types.ts';

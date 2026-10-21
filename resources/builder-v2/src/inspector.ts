@@ -9,7 +9,7 @@
  * - When the inspected node disappears (delete, undo of an insert), the form settings are shown.
  * - Key suggestions arrive as `builder-v2:key-suggested` (see key-suggestion.ts).
  */
-import type { JsonObject } from '@form-schema-app/form-schema-js';
+import type { JsonObject } from '@fieldset/fieldset-js';
 import type { BuilderWire, InspectorKind, NodeChangedDetail, PublishedDetail } from './contract.ts';
 import type { Translator } from './i18n.ts';
 import { nodeLabel } from './canvas/labels.ts';

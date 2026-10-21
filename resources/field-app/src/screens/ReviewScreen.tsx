@@ -1,4 +1,4 @@
-import { FormRenderer } from '@form-schema-app/form-schema-react';
+import { FormRenderer } from '@fieldset/fieldset-react';
 import { getRouteApi, Link } from '@tanstack/react-router';
 import { useRef, type ReactNode } from 'react';
 import { SaveIndicator } from '../components/SaveIndicator.tsx';

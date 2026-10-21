@@ -1,5 +1,5 @@
 /** Small immutable JSON helpers (path copying for structural sharing). */
-import type { JsonObject, JsonValue } from '@form-schema-app/form-schema-js';
+import type { JsonObject, JsonValue } from '@fieldset/fieldset-js';
 
 export type PathSegment = string | number;
 export type Path = readonly PathSegment[];

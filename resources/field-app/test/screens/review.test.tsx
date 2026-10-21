@@ -2,7 +2,7 @@
  * Review and submit (§9.2, ADR 0035): the submit goes through the outbox with a persisted
  * Idempotency-Key; online the answer is shown at once, offline the submission is queued.
  */
-import type { FormDefinition } from '@form-schema-app/form-schema-js';
+import type { FormDefinition } from '@fieldset/fieldset-js';
 import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -16,8 +16,8 @@ import { DEFINITION, makeSubmission, makeVersion } from '../utils/fixtures.ts';
 import { preloadLazyScreens, renderApp } from '../utils/render-app.tsx';
 import { server, setupTestServer } from '../utils/server.ts';
 
-vi.mock('@form-schema-app/form-schema-react', async (importOriginal) => {
-    const actual = await importOriginal<typeof import('@form-schema-app/form-schema-react')>();
+vi.mock('@fieldset/fieldset-react', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@fieldset/fieldset-react')>();
     const { FakeRenderer } = await import('../utils/fake-renderer.tsx');
     return { ...actual, FormRenderer: FakeRenderer };
 });

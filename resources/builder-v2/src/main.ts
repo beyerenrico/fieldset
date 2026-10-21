@@ -18,7 +18,7 @@ interface AlpineContext {
 
 declare global {
     interface Window {
-        FormSchemaBuilderV2?: typeof builderV2;
+        FieldsetBuilderV2?: typeof builderV2;
     }
 }
 
@@ -46,4 +46,4 @@ export default function builderV2(strings: unknown = {}): BuilderV2Component {
     };
 }
 
-window.FormSchemaBuilderV2 = builderV2;
+window.FieldsetBuilderV2 = builderV2;

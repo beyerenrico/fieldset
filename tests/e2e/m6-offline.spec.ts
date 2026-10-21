@@ -162,8 +162,8 @@ test.describe('offline-first field app', () => {
         // No device credentials, cached session or catalog; the reloaded app may note its sync state.
         const meta = await tableKeys(page, 'meta');
         expect(meta.filter((key) => key === 'device' || key === 'session' || key.startsWith('catalog:'))).toEqual([]);
-        const keys = await page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith('fsa.')));
-        expect(keys.filter((key) => !['fsa.settings', 'fsa.pwa.installDismissed'].includes(key))).toEqual([]);
+        const keys = await page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith('fieldset.')));
+        expect(keys.filter((key) => !['fieldset.settings', 'fieldset.pwa.installDismissed'].includes(key))).toEqual([]);
       } finally {
         await member(/^reaktivieren$/i);
         await context.close();

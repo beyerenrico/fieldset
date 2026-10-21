@@ -1,5 +1,5 @@
 /** Row types of the offline store (ADR 0035). A shape change needs a new Dexie version in db.ts. */
-import type { JsonObject } from '@form-schema-app/form-schema-js';
+import type { JsonObject } from '@fieldset/fieldset-js';
 import type { SendInput } from '../api/endpoints.ts';
 import type { ValidationDetail } from '../api/errors.ts';
 import type {

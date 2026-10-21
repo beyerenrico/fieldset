@@ -1,5 +1,5 @@
 /** `draft.save` and `attachment.upload` steps of the sync engine (ADR 0035). */
-import type { JsonObject } from '@form-schema-app/form-schema-js';
+import type { JsonObject } from '@fieldset/fieldset-js';
 import { putSubmission, uploadAttachment } from '../api/endpoints.ts';
 import type { Submission } from '../api/types.ts';
 import { sameJson } from '../autosave/same-json.ts';

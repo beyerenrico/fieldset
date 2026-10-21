@@ -4,7 +4,7 @@ import {
     type ElementNode,
     type FormDefinition,
     type JsonObject,
-} from '@form-schema-app/form-schema-js';
+} from '@fieldset/fieldset-js';
 import type { SendInput } from '../api/endpoints.ts';
 
 export interface RecipientDraft {

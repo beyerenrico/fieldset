@@ -16,7 +16,7 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 COPY packages ./packages
 COPY resources ./resources
-# form-schema-js imports the normative spec JSON (meta-schema, roles) at build time.
+# fieldset-js imports the normative spec JSON (meta-schema, roles) at build time.
 COPY spec ./spec
 RUN npm ci --ignore-scripts || npm install --ignore-scripts
 COPY vite.config.js ./

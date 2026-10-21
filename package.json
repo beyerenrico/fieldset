@@ -1,6 +1,6 @@
 {
     "$schema": "https://www.schemastore.org/package.json",
-    "name": "form-schema-app",
+    "name": "fieldset",
     "version": "1.0.0",
     "private": true,
     "type": "module",
@@ -10,7 +10,7 @@
         "e2e": "PLAYWRIGHT_BROWSERS_PATH=storage/playwright playwright test",
         "licenses": "node scripts/check-licenses.mjs",
         "conformance:php": "vendor/bin/pest --group=conformance",
-        "conformance:js": "npm run conformance -w packages/form-schema-js",
+        "conformance:js": "npm run conformance -w packages/fieldset-js",
         "conformance": "npm run conformance:php && npm run conformance:js",
         "test": "npm run test --workspaces --if-present",
         "lint": "npm run lint --workspaces --if-present",
@@ -32,8 +32,8 @@
         "@laravel/multiplex": "^0.4.1"
     },
     "workspaces": [
-        "packages/form-schema-js",
-        "packages/form-schema-react",
+        "packages/fieldset-js",
+        "packages/fieldset-react",
         "resources/field-app",
         "resources/builder-v2"
     ]

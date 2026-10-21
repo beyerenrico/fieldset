@@ -9,7 +9,7 @@ const sources = import.meta.glob<string>('../src/**/*.{ts,tsx}', {
     eager: true,
 });
 const rendererSources = import.meta.glob<string>(
-    '../../../packages/{form-schema-react,form-schema-js}/src/**/*.{ts,tsx}',
+    '../../../packages/{fieldset-react,fieldset-js}/src/**/*.{ts,tsx}',
     { query: '?raw', import: 'default', eager: true },
 );
 

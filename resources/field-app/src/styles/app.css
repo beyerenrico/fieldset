@@ -75,7 +75,7 @@
     --radius-lg: calc(var(--radius) + 2px);
 }
 
-/* Renderer theme (packages/form-schema-react) mapped to the app tokens. */
+/* Renderer theme (packages/fieldset-react) mapped to the app tokens. */
 :root,
 :root .fsr-root {
     --fsr-color-text: var(--foreground);

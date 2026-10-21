@@ -8,8 +8,10 @@ import { PwaPrompts } from '../../../src/components/pwa/PwaPrompts.tsx';
 import { createOfflineDb } from '../../../src/lib/db/db.ts';
 import { watchDatabaseVersion } from '../../../src/lib/pwa/db-version.ts';
 import { flushDraftSessions } from '../../../src/lib/drafts/draft-session.ts';
+import { BACKGROUND_SYNC_TAG as REGISTERED_SYNC_TAG } from '../../../src/lib/outbox/background-sync.ts';
 import {
     BACKGROUND_SYNC_TAG,
+    SW_SYNC_MESSAGE,
     listenForServiceWorkerMessages,
 } from '../../../src/lib/pwa/sw-messages.ts';
 import {
@@ -33,20 +35,28 @@ afterEach(() => {
 });
 
 describe('Background Sync wake-up', () => {
+    it('registers the same tag and message names that public/sw-sync.js handles', () => {
+        expect(REGISTERED_SYNC_TAG).toBe('fieldset-outbox');
+        expect(BACKGROUND_SYNC_TAG).toBe(REGISTERED_SYNC_TAG);
+        expect(SW_SYNC_MESSAGE).toBe('fieldset-sync');
+        expect(swSyncSource).toContain(`event.tag !== '${REGISTERED_SYNC_TAG}'`);
+        expect(swSyncSource).toContain(`{ type: '${SW_SYNC_MESSAGE}' }`);
+    });
+
     it('turns the worker message into requestSync("sw") and ignores other messages', () => {
         const reasons: string[] = [];
         onSyncRequested((reason) => reasons.push(reason));
         const worker = new EventTarget();
         const stop = listenForServiceWorkerMessages(worker);
         worker.dispatchEvent(new MessageEvent('message', { data: { type: 'other' } }));
-        worker.dispatchEvent(new MessageEvent('message', { data: 'fsa-sync' }));
-        worker.dispatchEvent(new MessageEvent('message', { data: { type: 'fsa-sync' } }));
+        worker.dispatchEvent(new MessageEvent('message', { data: 'fieldset-sync' }));
+        worker.dispatchEvent(new MessageEvent('message', { data: { type: 'fieldset-sync' } }));
         stop();
-        worker.dispatchEvent(new MessageEvent('message', { data: { type: 'fsa-sync' } }));
+        worker.dispatchEvent(new MessageEvent('message', { data: { type: 'fieldset-sync' } }));
         expect(reasons).toEqual(['sw']);
     });
 
-    it('public/sw-sync.js posts fsa-sync to every open tab for the fsa-outbox tag only', async () => {
+    it('public/sw-sync.js posts fieldset-sync to every open tab for the fieldset-outbox tag only', async () => {
         const handlers = new Map<string, (event: unknown) => void>();
         const clients = [{ postMessage: vi.fn() }, { postMessage: vi.fn() }];
         const matchAll = vi.fn(() => Promise.resolve(clients));
@@ -71,7 +81,7 @@ describe('Background Sync wake-up', () => {
         await Promise.all(waits);
         expect(matchAll).toHaveBeenCalledWith({ type: 'window', includeUncontrolled: true });
         for (const client of clients) {
-            expect(client.postMessage).toHaveBeenCalledWith({ type: 'fsa-sync' });
+            expect(client.postMessage).toHaveBeenCalledWith({ type: 'fieldset-sync' });
         }
     });
 });
@@ -174,7 +184,7 @@ describe('offline store schema changes', () => {
     it('shows a reload banner when another tab upgrades the store', async () => {
         const user = userEvent.setup();
         const reload = vi.fn();
-        const name = `fsa-version-test-${String(Date.now())}`;
+        const name = `fieldset-version-test-${String(Date.now())}`;
         const current = createOfflineDb(name);
         await current.open();
         const stop = watchDatabaseVersion(current);
@@ -195,7 +205,7 @@ describe('offline store schema changes', () => {
     });
 
     it('asks to close other tabs when its own upgrade is blocked', () => {
-        const current = createOfflineDb(`fsa-blocked-test-${String(Date.now())}`);
+        const current = createOfflineDb(`fieldset-blocked-test-${String(Date.now())}`);
         watchDatabaseVersion(current);
         vi.spyOn(console, 'warn').mockImplementation(() => undefined);
         current.on('blocked').fire(new Event('blocked'));

@@ -1,5 +1,5 @@
-/** Namespaced localStorage/sessionStorage helpers (all app keys start with `fsa.`). */
-export const PREFIX = 'fsa.';
+/** Namespaced localStorage/sessionStorage helpers (all app keys start with `fieldset.`). */
+export const PREFIX = 'fieldset.';
 
 function storage(kind: 'local' | 'session'): Storage | null {
     try {

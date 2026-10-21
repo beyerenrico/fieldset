@@ -2,7 +2,7 @@
  * User-level commands shared by drag and drop, the keyboard, the Move menu, the palette and the
  * toolbar: validate, confirm, dispatch, announce and move focus.
  */
-import type { JsonObject } from '@form-schema-app/form-schema-js';
+import type { JsonObject } from '@fieldset/fieldset-js';
 import type { Container } from './contract.ts';
 import { computeMove, type MoveDirection } from './canvas/moves.ts';
 import { labelOf, listLabel, nodeLabel, positionOf } from './canvas/labels.ts';

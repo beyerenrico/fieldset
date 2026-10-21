@@ -1,4 +1,4 @@
-import { FormRenderer } from '@form-schema-app/form-schema-react';
+import { FormRenderer } from '@fieldset/fieldset-react';
 import { useQuery } from '@tanstack/react-query';
 import { getRouteApi, Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';

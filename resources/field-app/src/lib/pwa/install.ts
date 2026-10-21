@@ -18,7 +18,7 @@ export interface PlatformInfo {
 
 export type InstallOffer = 'none' | 'button' | 'ios';
 
-/** Per device, kept in localStorage (`fsa.` prefix). */
+/** Per device, kept in localStorage (`fieldset.` prefix). */
 export const INSTALL_DISMISSED_KEY = 'pwa.installDismissed';
 /** Per device, with the time it was hidden: the data warning returns after IOS_WARNING_SNOOZE_MS. */
 export const IOS_WARNING_HIDDEN_KEY = 'pwa.iosWarningHidden';

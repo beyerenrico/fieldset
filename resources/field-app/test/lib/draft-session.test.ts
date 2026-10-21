@@ -217,7 +217,7 @@ describe('draft sessions', () => {
     });
 });
 
-describe('one editing tab per draft (Web Lock fsa-draft:<uuid>)', () => {
+describe('one editing tab per draft (Web Lock fieldset-draft:<uuid>)', () => {
     /** Another tab holds the draft's lock until the returned function runs. */
     function holdInOtherTab(name: string): () => void {
         let letGo: () => void = () => undefined;
@@ -262,13 +262,13 @@ describe('one editing tab per draft (Web Lock fsa-draft:<uuid>)', () => {
             session.controller.update({ a: 1 });
             await session.controller.flush();
             expect(requests).toHaveLength(1);
-            expect(locks.granted).toEqual(['fsa-draft:draft-1']);
+            expect(locks.granted).toEqual(['fieldset-draft:draft-1']);
 
             endDraftSession('draft-1');
             await tick();
             const next = open(transport);
             expect(await next.lock.ready).toBe('held');
-            expect(locks.granted).toEqual(['fsa-draft:draft-1', 'fsa-draft:draft-1']);
+            expect(locks.granted).toEqual(['fieldset-draft:draft-1', 'fieldset-draft:draft-1']);
         } finally {
             locks.uninstall();
         }

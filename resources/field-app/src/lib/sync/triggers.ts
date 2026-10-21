@@ -17,7 +17,7 @@ const REASONS: ReadonlySet<string> = new Set<SyncReason>([
     'sw',
 ]);
 
-export const SYNC_CHANNEL = 'fsa-sync';
+export const SYNC_CHANNEL = 'fieldset-sync';
 
 type Listener = (reason: SyncReason) => void;
 

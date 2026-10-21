@@ -76,7 +76,7 @@ describe('pending server sign-out', () => {
         expect(await signOut()).toEqual({ reloading: false });
         expect(await db.drafts.count()).toBe(0);
         expect(hasPendingLogout()).toBe(true);
-        expect(localStorage.getItem('fsa.pendingLogout')).toBe('true');
+        expect(localStorage.getItem('fieldset.pendingLogout')).toBe('true');
     });
 
     it('stays pending after a server error and ends on success or when no session is left', async () => {

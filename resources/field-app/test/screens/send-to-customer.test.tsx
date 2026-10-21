@@ -1,5 +1,5 @@
 /** Submission detail "Send to customer": dialog, prefill from roles, validation, results, keys. */
-import type { FormDefinition } from '@form-schema-app/form-schema-js';
+import type { FormDefinition } from '@fieldset/fieldset-js';
 import { screen, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -10,8 +10,8 @@ import { DEFINITION, makeDocument, makeSubmission, makeVersion } from '../utils/
 import { preloadLazyScreens, renderApp } from '../utils/render-app.tsx';
 import { server, setupTestServer } from '../utils/server.ts';
 
-vi.mock('@form-schema-app/form-schema-react', async (importOriginal) => {
-    const actual = await importOriginal<typeof import('@form-schema-app/form-schema-react')>();
+vi.mock('@fieldset/fieldset-react', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@fieldset/fieldset-react')>();
     const { FakeRenderer } = await import('../utils/fake-renderer.tsx');
     return { ...actual, FormRenderer: FakeRenderer };
 });

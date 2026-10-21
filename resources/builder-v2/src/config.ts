@@ -1,5 +1,5 @@
 /** Reads and checks the BuilderConfig embedded as `<script type="application/json" data-builder-config>`. */
-import type { JsonObject } from '@form-schema-app/form-schema-js';
+import type { JsonObject } from '@fieldset/fieldset-js';
 import type { BuilderConfig, PaletteGroup, PaletteItem } from './contract.ts';
 import { isObject, str } from './store/json.ts';
 

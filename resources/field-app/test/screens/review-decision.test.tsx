@@ -9,8 +9,8 @@ import { makeSubmission, makeTask } from '../utils/fixtures.ts';
 import { preloadLazyScreens, renderApp } from '../utils/render-app.tsx';
 import { server, setupTestServer } from '../utils/server.ts';
 
-vi.mock('@form-schema-app/form-schema-react', async (importOriginal) => {
-    const actual = await importOriginal<typeof import('@form-schema-app/form-schema-react')>();
+vi.mock('@fieldset/fieldset-react', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@fieldset/fieldset-react')>();
     const { FakeRenderer } = await import('../utils/fake-renderer.tsx');
     return { ...actual, FormRenderer: FakeRenderer };
 });
@@ -187,7 +187,7 @@ describe('review decision', () => {
         await waitFor(() => {
             expect(screen.queryByRole('region', { name: 'Your review' })).not.toBeInTheDocument();
         });
-        expect(sessionStorage.getItem(`fsa.idem.task.${String(TASK_ID)}`)).toBeNull();
+        expect(sessionStorage.getItem(`fieldset.idem.task.${String(TASK_ID)}`)).toBeNull();
     });
 
     it('explains 409 review_blocked and keeps the task open for a later retry', async () => {
@@ -231,7 +231,7 @@ describe('review decision', () => {
             expect(screen.queryByRole('region', { name: 'Your review' })).not.toBeInTheDocument();
         });
         expect(backend.state.completions).toHaveLength(1);
-        expect(sessionStorage.getItem(`fsa.idem.task.${String(TASK_ID)}`)).toBeNull();
+        expect(sessionStorage.getItem(`fieldset.idem.task.${String(TASK_ID)}`)).toBeNull();
     });
 
     it('explains 404 for a task the user can no longer act on', async () => {
@@ -298,7 +298,7 @@ describe('review decision', () => {
         await user.click(within(dialog).getByRole('button', { name: 'Approve' }));
         expect(await screen.findByText('You approved this submission.')).toBeInTheDocument();
         expect(backend.state.completions[0]?.key).toBe(sent[0]);
-        expect(sessionStorage.getItem(`fsa.idem.task.${String(TASK_ID)}`)).toBeNull();
+        expect(sessionStorage.getItem(`fieldset.idem.task.${String(TASK_ID)}`)).toBeNull();
     });
 
     it('uses a fresh key after idempotency_key_reused', async () => {

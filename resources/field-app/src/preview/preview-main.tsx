@@ -1,4 +1,4 @@
-import '@form-schema-app/form-schema-react/styles.css';
+import '@fieldset/fieldset-react/styles.css';
 import './preview.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';

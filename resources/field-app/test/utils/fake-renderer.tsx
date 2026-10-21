@@ -1,6 +1,6 @@
 /** Black-box stand-in for <FormRenderer> in screen tests (the real one is tested in its package). */
-import type { EvaluationResult } from '@form-schema-app/form-schema-js';
-import type { FormRendererProps } from '@form-schema-app/form-schema-react';
+import type { EvaluationResult } from '@fieldset/fieldset-js';
+import type { FormRendererProps } from '@fieldset/fieldset-react';
 import type { ReactNode } from 'react';
 
 const RESULT: EvaluationResult = {

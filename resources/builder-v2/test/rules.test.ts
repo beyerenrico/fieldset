@@ -1,4 +1,4 @@
-import type { JsonObject } from '@form-schema-app/form-schema-js';
+import type { JsonObject } from '@fieldset/fieldset-js';
 import { describe, expect, it } from 'vitest';
 import type { Container, Operation } from '../src/contract.ts';
 import { insertNode } from '../src/store/ops.ts';

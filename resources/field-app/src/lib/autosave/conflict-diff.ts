@@ -4,7 +4,7 @@ import {
     type FormDefinition,
     type JsonObject,
     type JsonValue,
-} from '@form-schema-app/form-schema-js';
+} from '@fieldset/fieldset-js';
 
 export interface FieldDiff {
     readonly key: string;

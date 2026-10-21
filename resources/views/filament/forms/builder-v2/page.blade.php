@@ -40,12 +40,12 @@
             x-bind:data-builder-ready="ready ? '' : null"
         >
             {{-- async-alpine downloads the client before Alpine initialises this root. Registered with asyncData
-                 instead of x-load-src: Vite app builds drop entry exports, so main.ts also sets window.FormSchemaBuilderV2. --}}
+                 instead of x-load-src: Vite app builds drop entry exports, so main.ts also sets window.FieldsetBuilderV2. --}}
             <script @if (filled($cspNonce = \Illuminate\Support\Facades\Vite::cspNonce())) nonce="{{ $cspNonce }}" @endif>
                 (() => {
                     const register = () => window.Alpine.asyncData('builderV2', () =>
                         import(@js(\Illuminate\Support\Facades\Vite::asset('resources/builder-v2/src/main.ts')))
-                            .then((module) => module.default ?? window.FormSchemaBuilderV2));
+                            .then((module) => module.default ?? window.FieldsetBuilderV2));
                     window.Alpine?.asyncData ? register() : document.addEventListener('alpine:initializing', register, { once: true });
                 })();
             </script>

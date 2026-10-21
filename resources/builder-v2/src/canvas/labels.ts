@@ -1,5 +1,5 @@
 /** Human labels for nodes and lists (cards, announcements, history entries). */
-import type { JsonObject } from '@form-schema-app/form-schema-js';
+import type { JsonObject } from '@fieldset/fieldset-js';
 import type { Container } from '../contract.ts';
 import type { Translator } from '../i18n.ts';
 import { str } from '../store/json.ts';

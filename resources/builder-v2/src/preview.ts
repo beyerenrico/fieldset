@@ -9,8 +9,8 @@ import type { PreviewUpdate } from '../../field-app/src/preview/protocol.ts';
 import type { Definition } from './store/tree.ts';
 
 /** Mirrors resources/field-app/src/preview/protocol.ts (checked by test/preview.test.ts). */
-export const PREVIEW_MESSAGE = 'form-schema-preview';
-export const PREVIEW_READY = 'form-schema-preview-ready';
+export const PREVIEW_MESSAGE = 'fieldset-preview';
+export const PREVIEW_READY = 'fieldset-preview-ready';
 export const PREVIEW_TARGET_ORIGIN = '*';
 export const PREVIEW_SENDER_ORIGIN = 'null';
 export const PREVIEW_INTERVAL_MS = 250;

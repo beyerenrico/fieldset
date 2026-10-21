@@ -7,7 +7,7 @@
  * A session holds its draft's lock (draft-lock.ts); when another tab holds it, the session is
  * read-only and writes nothing.
  */
-import type { JsonObject } from '@form-schema-app/form-schema-js';
+import type { JsonObject } from '@fieldset/fieldset-js';
 import type { Submission } from '../api/types.ts';
 import {
     createApiAttachmentAdapter,

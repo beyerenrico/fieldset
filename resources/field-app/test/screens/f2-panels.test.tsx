@@ -14,8 +14,8 @@ import { writesOffline } from '../utils/f2-rows.ts';
 import { preloadLazyScreens, renderApp } from '../utils/render-app.tsx';
 import { server, setupTestServer } from '../utils/server.ts';
 
-vi.mock('@form-schema-app/form-schema-react', async (importOriginal) => {
-    const actual = await importOriginal<typeof import('@form-schema-app/form-schema-react')>();
+vi.mock('@fieldset/fieldset-react', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@fieldset/fieldset-react')>();
     const { FakeRenderer } = await import('../utils/fake-renderer.tsx');
     return { ...actual, FormRenderer: FakeRenderer };
 });
@@ -113,7 +113,7 @@ describe('the decision panel', () => {
     });
 
     it('shows the German copy with the formal address', async () => {
-        localStorage.setItem('fsa.settings', JSON.stringify({ language: 'de', largeText: false }));
+        localStorage.setItem('fieldset.settings', JSON.stringify({ language: 'de', largeText: false }));
         await blockedDraft('version_retired');
         renderApp(`/fill/${UUID}`);
         const panel = await screen.findByRole('region', { name: 'Entscheidung nötig' });

@@ -1,4 +1,4 @@
-import type { FormDefinition } from '@form-schema-app/form-schema-js';
+import type { FormDefinition } from '@fieldset/fieldset-js';
 import { describe, expect, it } from 'vitest';
 import {
     documentAnonymizedMessage,

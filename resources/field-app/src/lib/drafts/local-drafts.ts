@@ -2,7 +2,7 @@
  * Drafts on this device (ADR 0035): which copy an editor starts from, and a Submission-shaped view
  * of a local row for lists and the detail screen. Every read is filtered by organization and user.
  */
-import type { JsonObject } from '@form-schema-app/form-schema-js';
+import type { JsonObject } from '@fieldset/fieldset-js';
 import type { Submission } from '../api/types.ts';
 import { db } from '../db/db.ts';
 import type { DraftRow, OutboxRow, Scope } from '../db/schema.ts';

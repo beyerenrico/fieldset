@@ -1,5 +1,5 @@
 /** "Send to customer" (§9.2): button, dialog and the outcome of the last send. */
-import type { FormDefinition, JsonObject } from '@form-schema-app/form-schema-js';
+import type { FormDefinition, JsonObject } from '@fieldset/fieldset-js';
 import { Send } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ReactNode, type Ref } from 'react';
 import { Alert } from '../../components/ui/alert.tsx';

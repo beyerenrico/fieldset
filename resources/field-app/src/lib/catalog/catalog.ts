@@ -31,7 +31,7 @@ export class NotCachedError extends Error {
 }
 
 /** Cross-tab lock: one tab refreshes, the others skip (ADR 0035). */
-export const CATALOG_LOCK = 'fsa-catalog';
+export const CATALOG_LOCK = 'fieldset-catalog';
 /** Automatic triggers skip a refresh younger than this. */
 export const CATALOG_MAX_AGE_MS = 30_000;
 

@@ -1,5 +1,5 @@
 /** Read-only views over the canonical definition: node index, lists (containers) and depths. */
-import type { JsonObject } from '@form-schema-app/form-schema-js';
+import type { JsonObject } from '@fieldset/fieldset-js';
 import type { Container } from '../contract.ts';
 import { getIn, isList, isObject, listProp, str, type Path } from './json.ts';
 

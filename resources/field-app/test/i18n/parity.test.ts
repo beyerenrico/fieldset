@@ -44,7 +44,7 @@ describe('i18n helpers', () => {
         expect(loadPreferences()).toEqual({ largeText: false });
         savePreferences({ language: 'de', largeText: true });
         expect(loadPreferences()).toEqual({ language: 'de', largeText: true });
-        localStorage.setItem('fsa.settings', '{"language":"xx"}');
+        localStorage.setItem('fieldset.settings', '{"language":"xx"}');
         expect(loadPreferences()).toEqual({ largeText: false });
     });
 });

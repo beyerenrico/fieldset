@@ -206,7 +206,7 @@ describe('single flight', () => {
             expect(tabB.ran).toBe(false);
             expect(resultA).toMatchObject({ ran: true, sent: 1 });
             expect(backend.state.log).toHaveLength(1);
-            expect(locks.granted).toEqual(['fsa-sync']);
+            expect(locks.granted).toEqual(['fieldset-sync']);
         } finally {
             release();
             locks.uninstall();

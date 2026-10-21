@@ -16,14 +16,14 @@
         send() {
             const frame = this.$refs.frame;
             if (frame && frame.contentWindow) {
-                frame.contentWindow.postMessage({ type: 'form-schema-preview', definition: JSON.parse(this.definition) }, '*');
+                frame.contentWindow.postMessage({ type: 'fieldset-preview', definition: JSON.parse(this.definition) }, '*');
             }
         },
         init() {
             this.onMessage = (event) => {
                 const frame = this.$refs.frame;
                 if (frame && frame.contentWindow && event.source === frame.contentWindow && event.origin === 'null'
-                    && event.data && event.data.type === 'form-schema-preview-ready') {
+                    && event.data && event.data.type === 'fieldset-preview-ready') {
                     this.send();
                 }
             };

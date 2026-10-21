@@ -84,7 +84,7 @@ it('ships no tests, agent docs or composer, but keeps the spec files the SDK rea
     $script = <<<'SH'
         cd /var/www/html
         for path in tests docs scripts .github .git .env node_modules packages/fieldset-php/tests \
-          packages/form-schema-js spec/conformance storage/logs/laravel.log /usr/bin/composer; do
+          packages/fieldset-js spec/conformance storage/logs/laravel.log /usr/bin/composer; do
           [ -e "$path" ] && echo "present: $path"
         done
         command -v composer && echo "present: composer on PATH"

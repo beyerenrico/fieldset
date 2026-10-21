@@ -1,4 +1,4 @@
-import { canonicalJson, type JsonObject } from '@form-schema-app/form-schema-js';
+import { canonicalJson, type JsonObject } from '@fieldset/fieldset-js';
 import { basename } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { applyOperation } from '../src/store/ops.ts';
