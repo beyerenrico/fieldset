@@ -184,7 +184,16 @@ describe('reveal registry', () => {
         document.body.append(field);
         registry.reveal('/y', 'grp');
         expect(document.activeElement).toBe(button);
-        registry.reveal('/z', 'never-there');
+        // A missing target retries a few frames, then gives up; run that out here so no timer outlives the file.
+        vi.useFakeTimers();
+        try {
+            registry.reveal('/z', 'never-there');
+            vi.runAllTimers();
+            expect(vi.getTimerCount()).toBe(0);
+            expect(document.activeElement).toBe(button);
+        } finally {
+            vi.useRealTimers();
+        }
         input.remove();
         field.remove();
     });
