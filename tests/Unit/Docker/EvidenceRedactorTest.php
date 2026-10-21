@@ -11,13 +11,13 @@ use Tests\Support\Docker\EvidenceRedactor;
 
 it('redacts cookie values in Set-Cookie and Cookie headers but keeps names and attributes', function (): void {
     $redacted = EvidenceRedactor::transcript(['admin_login' => [
-        'Set-Cookie' => 'XSRF-TOKEN=eyJpdiI6IkVrT2s2dEk0Zm1v%3D%3D; expires=Sun, 18 Oct 2026 10:26:08 GMT; Max-Age=7200; path=/; secure; samesite=lax, __Host-form-schema-session=eyJpdiI6Ik1Wb2Rx%3D%3D; expires=Sun, 18 Oct 2026 10:26:08 GMT; Max-Age=7200; path=/; secure; httponly; samesite=lax',
+        'Set-Cookie' => 'XSRF-TOKEN=eyJpdiI6IkVrT2s2dEk0Zm1v%3D%3D; expires=Sun, 18 Oct 2026 10:26:08 GMT; Max-Age=7200; path=/; secure; samesite=lax, __Host-fieldset-session=eyJpdiI6Ik1Wb2Rx%3D%3D; expires=Sun, 18 Oct 2026 10:26:08 GMT; Max-Age=7200; path=/; secure; httponly; samesite=lax',
         'Cache-Control' => 'max-age=0, must-revalidate, no-cache, no-store, private',
-    ], 'request' => ['cookie' => '__Host-form-schema-session=abc123; XSRF-TOKEN=def456']]);
+    ], 'request' => ['cookie' => '__Host-fieldset-session=abc123; XSRF-TOKEN=def456']]);
 
-    expect($redacted['admin_login']['Set-Cookie'])->toBe('XSRF-TOKEN=<redacted>; expires=Sun, 18 Oct 2026 10:26:08 GMT; Max-Age=7200; path=/; secure; samesite=lax, __Host-form-schema-session=<redacted>; expires=Sun, 18 Oct 2026 10:26:08 GMT; Max-Age=7200; path=/; secure; httponly; samesite=lax')
+    expect($redacted['admin_login']['Set-Cookie'])->toBe('XSRF-TOKEN=<redacted>; expires=Sun, 18 Oct 2026 10:26:08 GMT; Max-Age=7200; path=/; secure; samesite=lax, __Host-fieldset-session=<redacted>; expires=Sun, 18 Oct 2026 10:26:08 GMT; Max-Age=7200; path=/; secure; httponly; samesite=lax')
         ->and($redacted['admin_login']['Cache-Control'])->toBe('max-age=0, must-revalidate, no-cache, no-store, private')
-        ->and($redacted['request']['cookie'])->toBe('__Host-form-schema-session=<redacted>; XSRF-TOKEN=<redacted>');
+        ->and($redacted['request']['cookie'])->toBe('__Host-fieldset-session=<redacted>; XSRF-TOKEN=<redacted>');
 });
 
 it('redacts raw header lines, header lists and XSRF/CSRF header values', function (): void {

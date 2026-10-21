@@ -2,7 +2,7 @@
     "$schema": "https://getcomposer.org/schema.json",
     "name": "fieldset/app",
     "type": "project",
-    "description": "Open-source, self-hostable form schema application",
+    "description": "Fieldset: open-source, self-hostable forms with an open form-definition format",
     "keywords": [
         "laravel",
         "framework"

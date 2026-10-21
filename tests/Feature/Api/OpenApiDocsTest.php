@@ -12,6 +12,7 @@ it('generates an OpenAPI 3.1 document covering the v1 routes', function (): void
     $doc = $this->getJson('/docs/api.json')->assertOk()->json();
 
     expect($doc['openapi'])->toStartWith('3.1')
+        ->and($doc['info']['title'])->toBe('Fieldset API v1')
         ->and(array_keys($doc['paths']))->toContain('/me', '/forms', '/submissions/{uuid}', '/submissions/{uuid}/submit', '/auth/device-status');
 });
 

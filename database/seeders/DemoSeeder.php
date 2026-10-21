@@ -92,7 +92,7 @@ final class DemoSeeder extends Seeder
                 ]],
             ],
         ], $owner);
-        app(SaveWebhookEndpoint::class)->handle(null, ['name' => 'ERP (Beispiel)', 'url' => 'https://erp.example.com/hooks/form-schema', 'active' => false], $owner);
+        app(SaveWebhookEndpoint::class)->handle(null, ['name' => 'ERP (Beispiel)', 'url' => 'https://erp.example.com/hooks/fieldset', 'active' => false], $owner);
     }
 
     /** Demo branding for PDFs and mails: colors, company details and a small generated logo. */

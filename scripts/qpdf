@@ -10,7 +10,7 @@ if [[ -n "$local_qpdf" && "$local_qpdf" != "$self" ]]; then
     exec "$local_qpdf" "$@"
 fi
 
-image="${QPDF_DOCKER_IMAGE:-form-schema-app-ci}"
+image="${QPDF_DOCKER_IMAGE:-fieldset-ci}"
 mounts=()
 seen=" "
 for arg in "$@"; do

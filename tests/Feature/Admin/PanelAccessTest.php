@@ -14,6 +14,13 @@ it('shows the login page', function (): void {
     $this->get('/admin/login')->assertOk();
 });
 
+it('brands the admin panel and its sign-in page with the product name Fieldset', function (): void {
+    expect(config('app.name'))->toBe('Fieldset')
+        ->and(Filament::getPanel('admin')->getBrandName())->toBe('Fieldset');
+
+    $this->get('/admin/login')->assertOk()->assertSee('Fieldset');
+});
+
 it('lets an owner open the tenant dashboard', function (): void {
     $org = makeOrganization();
 

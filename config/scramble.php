@@ -62,7 +62,7 @@ return [
     ],
 
     'ui' => [
-        'title' => 'form-schema-app API v1',
+        'title' => 'Fieldset API v1',
     ],
 
     /*

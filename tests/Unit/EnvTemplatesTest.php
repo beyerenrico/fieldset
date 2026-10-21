@@ -38,3 +38,8 @@ it('lists the same settings in both templates (production drops only dev port fo
     expect(array_values(array_diff($dev, $prod)))->each->toStartWith('FORWARD_')
         ->and(array_values(array_diff($prod, $dev)))->toBe([]);
 });
+
+it('names the product, its database and the Compose project Fieldset in both templates and compose.yaml', function (string $file): void {
+    expect(envTemplate($file))->toMatchArray(['APP_NAME' => 'Fieldset', 'DB_DATABASE' => 'fieldset', 'DB_USERNAME' => 'fieldset'])
+        ->and((string) file_get_contents(base_path('compose.yaml')))->toContain("name: fieldset\n", 'image: fieldset:local', '${DB_DATABASE:-fieldset}');
+})->with(['.env.example', '.env.production.example']);
