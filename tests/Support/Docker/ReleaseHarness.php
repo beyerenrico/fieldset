@@ -199,7 +199,8 @@ final class ReleaseHarness
 
     /**
      * The release server as a container on Docker's default bridge reaches it (`fieldset upgrade` downloads the target's
-     * manifest from inside its ops container, ADR 0086): the server joins the bridge once, and its address there serves.
+     * manifest from inside its ops container, ADR 0086). The server runs on the bridge (compose.harness.yaml), never
+     * connected later: on a GitHub runner releaseUrl() stopped answering right after that connect, failing J07 onwards.
      */
     public function containerReleaseUrl(): string
     {
@@ -207,8 +208,7 @@ final class ReleaseHarness
         $container = trim(self::mustRun([...$compose, 'ps', '-q', 'release-server'])->getOutput());
         $address = trim(self::mustRun(['docker', 'inspect', '-f', '{{with index .NetworkSettings.Networks "bridge"}}{{.IPAddress}}{{end}}', $container])->getOutput());
         if ($address === '') {
-            self::mustRun(['docker', 'network', 'connect', 'bridge', $container]);
-            $address = trim(self::mustRun(['docker', 'inspect', '-f', '{{with index .NetworkSettings.Networks "bridge"}}{{.IPAddress}}{{end}}', $container])->getOutput());
+            throw new RuntimeException("The release server {$container} has no address on Docker's default bridge.");
         }
 
         return "http://{$address}:8080";

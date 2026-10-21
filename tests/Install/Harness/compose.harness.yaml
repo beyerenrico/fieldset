@@ -25,8 +25,11 @@ services:
       - "127.0.0.1::5000"
 
   # Static release server for dist/ (download/v<version>/…, latest/download/… for stable releases only).
+  # On Docker's default bridge from the start: `fieldset upgrade` downloads from inside its ops container, which reaches
+  # it there (ReleaseHarness::containerReleaseUrl). Connecting it later lost its host port on a GitHub runner (CI, J07).
   release-server:
     image: docker.io/library/caddy:2.11.7-alpine@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f
+    network_mode: bridge
     command: ["caddy", "file-server", "--root", "/srv", "--listen", ":8080"]
     volumes:
       - ${FIELDSET_HARNESS_DIST:?set by ReleaseHarness}:/srv:ro
