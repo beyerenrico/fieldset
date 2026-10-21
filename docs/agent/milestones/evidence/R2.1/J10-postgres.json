@@ -1,0 +1,68 @@
+{
+    "covers": "admin-pages.mjs and api.mjs (pg_stat_reset() before them)",
+    "database_mib": 1268,
+    "blks_read": 17387108,
+    "blks_hit": 15524555,
+    "hit_pct": 47.2,
+    "temp_files": 35,
+    "temp_mib": 145,
+    "tables": [
+        {
+            "relname": "submission_values",
+            "mib": 913,
+            "heap_blks_read": 6066959,
+            "heap_blks_hit": 3875,
+            "idx_blks_read": 218789,
+            "idx_blks_hit": 26088
+        },
+        {
+            "relname": "submissions",
+            "mib": 150,
+            "heap_blks_read": 9593802,
+            "heap_blks_hit": 7569861,
+            "idx_blks_read": 68515,
+            "idx_blks_hit": 153210
+        },
+        {
+            "relname": "activity_log",
+            "mib": 105,
+            "heap_blks_read": 1190119,
+            "heap_blks_hit": 399183,
+            "idx_blks_read": 14607,
+            "idx_blks_hit": 49572
+        },
+        {
+            "relname": "renditions",
+            "mib": 45,
+            "heap_blks_read": 23246,
+            "heap_blks_hit": 79,
+            "idx_blks_read": 61,
+            "idx_blks_hit": 604
+        },
+        {
+            "relname": "workflow_runs",
+            "mib": 19,
+            "heap_blks_read": 34685,
+            "heap_blks_hit": 17026,
+            "idx_blks_read": 612,
+            "idx_blks_hit": 948
+        },
+        {
+            "relname": "tasks",
+            "mib": 13,
+            "heap_blks_read": 58098,
+            "heap_blks_hit": 497181,
+            "idx_blks_read": 6869,
+            "idx_blks_hit": 100471
+        }
+    ],
+    "settings": {
+        "effective_cache_size": "120MB",
+        "jit": "off",
+        "maintenance_work_mem": "20MB",
+        "max_connections": "30",
+        "max_parallel_workers_per_gather": "0",
+        "shared_buffers": "40MB",
+        "work_mem": "4MB"
+    }
+}

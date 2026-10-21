@@ -1,0 +1,84 @@
+{
+    "command": "printf … | fieldset config set mail smtp --smtp-host fieldset-test-j04-smtp-… --smtp-port 1025 --smtp-username fieldset-test-relay-user --password-stdin --from-address forms@example.test --test-to ops@example.test --json --smtp-encryption none",
+    "exit_code": 0,
+    "seconds": 55.7,
+    "stdout": {
+        "schema_version": 1,
+        "command": "config",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": true,
+        "data": {
+            "key": "mail",
+            "from": "capture",
+            "to": "smtp://fieldset-test-j04-smtp-9185:1025 (no TLS) (catcher kept)",
+            "url": "http://localhost:8081",
+            "mode": "local",
+            "reverted": false,
+            "previous": {
+                "url": "http://localhost:8081",
+                "mode": "local"
+            },
+            "services": {
+                "recreated": [
+                    "app",
+                    "queue",
+                    "scheduler",
+                    "mailpit"
+                ],
+                "added": [],
+                "removed": []
+            },
+            "checked": [
+                "/up",
+                "/admin/login",
+                "gotenberg /health",
+                "test mail to ops@example.test accepted by smtp://fieldset-test-j04-smtp-9185:1025 (no TLS) (catcher kept)"
+            ],
+            "impact": null,
+            "audited": true,
+            "mail": {
+                "mode": "smtp",
+                "catcher_url": "http://localhost:8025",
+                "catcher_login_command": "fieldset config show --catcher-login",
+                "catcher": "kept",
+                "captured": {
+                    "invitations": 1,
+                    "password_resets": 0
+                },
+                "remove_catcher_command": "fieldset config set mail smtp --remove-catcher"
+            },
+            "next_commands": [
+                "<work>/fieldset-test-j04/fieldset status"
+            ]
+        },
+        "secrets": [],
+        "warnings": [
+            {
+                "code": "smtp_plaintext_auth",
+                "message": "The SMTP password goes to fieldset-test-j04-smtp-9185 unencrypted (--smtp-encryption none).",
+                "hint": "Use --smtp-encryption starttls or tls unless the relay runs on this host or your own trusted network."
+            },
+            {
+                "code": "captured_mail",
+                "message": "1 pending invitation(s) and 0 open password reset(s) went to the catcher while mail was captured and never reached anyone.",
+                "hint": "Resend the invitations from the organizations' member lists; people waiting for a password reset request a new one."
+            }
+        ],
+        "errors": []
+    },
+    "stderr_ndjson": [
+        "{\"ts\":\"2026-10-21T09:17:00Z\",\"phase\":\"snapshot\",\"level\":\"info\",\"message\":\"Starting snapshot\"}",
+        "{\"ts\":\"2026-10-21T09:17:00Z\",\"phase\":\"snapshot\",\"level\":\"info\",\"message\":\"Completed snapshot in 0 s\",\"elapsed_seconds\":0}",
+        "{\"ts\":\"2026-10-21T09:17:00Z\",\"phase\":\"preflight\",\"level\":\"info\",\"message\":\"Starting preflight\"}",
+        "{\"ts\":\"2026-10-21T09:17:00Z\",\"phase\":\"preflight\",\"level\":\"info\",\"message\":\"Completed preflight in 0 s\",\"elapsed_seconds\":0}",
+        "{\"ts\":\"2026-10-21T09:17:00Z\",\"phase\":\"apply\",\"level\":\"info\",\"message\":\"Starting apply (at most 6 min)\",\"max_seconds\":400}",
+        "{\"ts\":\"2026-10-21T09:17:19Z\",\"phase\":\"apply\",\"level\":\"info\",\"message\":\"Completed apply in 19 s\",\"elapsed_seconds\":19}",
+        "{\"ts\":\"2026-10-21T09:17:19Z\",\"phase\":\"verify\",\"level\":\"info\",\"message\":\"Starting verify (at most 13 min)\",\"max_seconds\":790}",
+        "{\"ts\":\"2026-10-21T09:17:21Z\",\"phase\":\"verify\",\"level\":\"info\",\"message\":\"Completed verify in 2 s\",\"elapsed_seconds\":2}",
+        "{\"ts\":\"2026-10-21T09:17:21Z\",\"phase\":\"workers\",\"level\":\"info\",\"message\":\"Starting workers (at most 5 min)\",\"max_seconds\":300}",
+        "{\"ts\":\"2026-10-21T09:17:52Z\",\"phase\":\"workers\",\"level\":\"info\",\"message\":\"Completed workers in 31 s\",\"elapsed_seconds\":31}",
+        "{\"ts\":\"2026-10-21T09:17:54Z\",\"phase\":\"audit\",\"level\":\"info\",\"message\":\"Starting audit\"}",
+        "{\"ts\":\"2026-10-21T09:17:55Z\",\"phase\":\"audit\",\"level\":\"info\",\"message\":\"Completed audit in 1 s\",\"elapsed_seconds\":1}"
+    ]
+}

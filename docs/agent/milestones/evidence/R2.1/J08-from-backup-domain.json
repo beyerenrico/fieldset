@@ -1,0 +1,81 @@
+{
+    "command": "install.sh --dir <work>/fieldset-test-j08b --from-backup <backup>/backup.tar.age --identity-file … --passphrase-file … --app-key-file <old>/env/app.env --domain fieldset-test-j08b.test --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "install",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": true,
+        "data": {
+            "url": "https://fieldset-test-j08b.test",
+            "version": "2.1.0-alpha.1-test",
+            "mode": "domain",
+            "dir": "<work>/fieldset-test-j08b",
+            "project": "fieldset-fieldset-test-j08b-b65c",
+            "port": null,
+            "mail": {
+                "mode": "capture",
+                "catcher_url": "https://fieldset-test-j08b.test/_mail/"
+            },
+            "owner_email": null,
+            "from_backup": {
+                "backup": "manual-20261021T095533Z",
+                "format": "fieldset",
+                "authenticated": true,
+                "encrypted": true,
+                "created_at": "2026-10-21T09:55:33Z",
+                "version": "2.1.0-alpha.1-test",
+                "epoch": 4,
+                "recipients": {
+                    "listed": [
+                        "age1389tp0ng78ynql5588g43ky6v2lc2v7kdg638hk5edgeetk4fpgq5c2v2h"
+                    ],
+                    "kept": [
+                        "age1389tp0ng78ynql5588g43ky6v2lc2v7kdg638hk5edgeetk4fpgq5c2v2h"
+                    ]
+                }
+            },
+            "pending_mail": null,
+            "webhooks": "paused",
+            "confirm_commands": [
+                "fieldset config set webhooks on"
+            ],
+            "sign_in_link": null,
+            "next_commands": [
+                "<work>/fieldset-test-j08b/fieldset status",
+                "<work>/fieldset-test-j08b/fieldset login-link <admin-email>",
+                "<work>/fieldset-test-j08b/fieldset config set webhooks on"
+            ]
+        },
+        "secrets": [],
+        "warnings": [
+            {
+                "code": "certificate_pending",
+                "message": "fieldset-test-j08b.test resolves to 203.0.113.7, which is not an address of this host. The certificate is pending until it points at this host.",
+                "hint": "Point the A record of fieldset-test-j08b.test at this server's public address."
+            },
+            {
+                "code": "mail_captured_after_move",
+                "message": "Mail is captured in the bundled catcher until you switch it on: the old server may still be sending.",
+                "hint": "Once the move is complete: `fieldset config set mail smtp …` (the backup's server is under data.pending_mail)."
+            },
+            {
+                "code": "webhooks_paused",
+                "message": "Workflow webhooks wait until you confirm the move, so the old and the new server never both deliver.",
+                "hint": "Once DNS points here and the old server is stopped: `fieldset config set webhooks on`."
+            },
+            {
+                "code": "no_sign_in_link",
+                "message": "No --owner-email was given, so no sign-in link was issued; the restored users sign in as before.",
+                "hint": "Run `fieldset login-link <email> --secrets-file <file>` for an admin of the restored data."
+            }
+        ],
+        "errors": []
+    },
+    "url": "https://fieldset-test-j08b.test",
+    "runtime_webhooks": {
+        "paused": true
+    },
+    "organizations": "1"
+}

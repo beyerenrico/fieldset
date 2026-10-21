@@ -1,0 +1,87 @@
+{
+    "command": "fieldset config set mode local --yes --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "config",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": true,
+        "data": {
+            "key": "mode",
+            "from": "domain",
+            "to": "local",
+            "url": "http://localhost:8081",
+            "mode": "local",
+            "reverted": false,
+            "previous": {
+                "url": "https://fieldset-test-cfg.test",
+                "mode": "domain"
+            },
+            "services": {
+                "recreated": [
+                    "app",
+                    "queue",
+                    "scheduler",
+                    "mailpit"
+                ],
+                "added": [],
+                "removed": [
+                    "edge"
+                ]
+            },
+            "checked": [
+                "/up",
+                "/admin/login",
+                "gotenberg /health"
+            ],
+            "impact": {
+                "known": true,
+                "sso_organizations": [
+                    {
+                        "organization": {
+                            "id": 2,
+                            "name": "Fieldset Test SSO Org",
+                            "slug": "fieldset-test-sso-org"
+                        },
+                        "provider": {
+                            "type": "saml",
+                            "name": "Fieldset Test IdP",
+                            "status": "draft"
+                        },
+                        "follows_url": [
+                            "entity_id",
+                            "acs_url"
+                        ]
+                    }
+                ],
+                "links": {
+                    "invitations": 0,
+                    "document_links": 0,
+                    "login_links": 1,
+                    "data_exports": 0
+                }
+            },
+            "audited": true,
+            "next_commands": [
+                "<work>/fieldset-test-cfg/fieldset login-link <owner-email>",
+                "<work>/fieldset-test-cfg/fieldset status"
+            ]
+        },
+        "secrets": [],
+        "warnings": [
+            {
+                "code": "url_changed",
+                "message": "The instance URL is now http://localhost:8081 (was https://fieldset-test-cfg.test): installed home-screen apps, bookmarks and links already sent keep the old address.",
+                "hint": "Send new invitations or document links where needed."
+            },
+            {
+                "code": "sso_urls_changed",
+                "message": "Organizations with SSO must register the new URLs at their identity provider: Fieldset Test SSO Org.",
+                "hint": "Their admins find the new entity ID, ACS URL or redirect URI under SSO settings."
+            }
+        ],
+        "errors": []
+    },
+    "local_up": 200
+}

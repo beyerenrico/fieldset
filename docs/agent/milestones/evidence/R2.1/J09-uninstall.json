@@ -1,0 +1,131 @@
+{
+    "commands": [
+        "fieldset uninstall --yes --json",
+        "docker compose up -d --wait (in the checkout)"
+    ],
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "uninstall",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": true,
+        "data": {
+            "uuid": "6bceadb6-b86d-4a27-a914-ada8266a527e",
+            "removed": {
+                "containers": [
+                    "fieldset-fieldset-test-j09-0674-backup-1",
+                    "fieldset-fieldset-test-j09-0674-scheduler-1",
+                    "fieldset-fieldset-test-j09-0674-queue-1",
+                    "fieldset-fieldset-test-j09-0674-app-1",
+                    "fieldset-fieldset-test-j09-0674-mailpit-1",
+                    "fieldset-fieldset-test-j09-0674-gotenberg-1",
+                    "fieldset-fieldset-test-j09-0674-redis-1",
+                    "fieldset-fieldset-test-j09-0674-postgres-1"
+                ],
+                "networks": [
+                    "fieldset-fieldset-test-j09-0674_default",
+                    "fieldset-fieldset-test-j09-0674_renderer"
+                ],
+                "volumes": [
+                    "fieldset-fieldset-test-j09-0674_app-storage-r4c10a3d5fcdc",
+                    "fieldset-fieldset-test-j09-0674_mailpit-data",
+                    "fieldset-fieldset-test-j09-0674_pg-data",
+                    "fieldset-fieldset-test-j09-0674_valkey-data"
+                ]
+            },
+            "dir": "<work>/fieldset-test-j09",
+            "deleted_files": [
+                ".fieldset-instance",
+                "compose.yaml",
+                "env",
+                "fieldset",
+                "operations",
+                "releases",
+                "runtime",
+                "staging",
+                "state.json"
+            ],
+            "kept": [
+                "backups"
+            ],
+            "left_files": [],
+            "data_deleted": true,
+            "backups_deleted": false,
+            "final_backup": {
+                "dir": "backups/final-20261021T100212Z",
+                "backup": "final-20261021T100212Z",
+                "encrypted": false,
+                "includes_secrets": false,
+                "key_file": "backups/final-20261021T100212Z.app-key.env",
+                "missing_files": 39
+            },
+            "adopted": {
+                "checkout": "<work>/fieldset-test-j09-v1-089eaf",
+                "project": "fieldset-test-j09-v1-089eaf",
+                "backup": "safety-adopt-20261021T095951Z",
+                "pending": false,
+                "legacy_changed": false,
+                "writes_since_adopt": {
+                    "audit_entries": 1,
+                    "rows": {
+                        "activity_log": 1,
+                        "mail_messages": 1,
+                        "renditions": 1,
+                        "submissions": 3
+                    },
+                    "any": true
+                },
+                "restart_1_0": "cd <work>/fieldset-test-j09-v1-089eaf && docker compose up -d",
+                "jobs_in_1_0": {
+                    "left": 0,
+                    "delayed": 0,
+                    "unknown": false
+                }
+            }
+        },
+        "secrets": [],
+        "warnings": [
+            {
+                "code": "files_missing",
+                "message": "39 file(s) the database references were not in storage; manifest.json lists them.",
+                "hint": null
+            },
+            {
+                "code": "app_key_beside_backup",
+                "message": "The APP keys are in plaintext (0600) in <work>/fieldset-test-j09/backups/final-20261021T100212Z.app-key.env, beside the final backup.",
+                "hint": "Keep that file as safe as the backup. `install.sh --dir <work>/fieldset-test-j09 --from-backup <work>/fieldset-test-j09/backups/final-20261021T100212Z --app-key-file <work>/fieldset-test-j09/backups/final-20261021T100212Z.app-key.env` brings it back (install.sh takes a directory that holds only backups/; the instance's own fieldset is gone)."
+            },
+            {
+                "code": "restart_1_0",
+                "message": "The 1.0 install this instance was adopted from is stopped; its volumes were not changed since the adopt.",
+                "hint": "Bring it back with: cd <work>/fieldset-test-j09-v1-089eaf && docker compose up -d"
+            },
+            {
+                "code": "writes_since_adopt",
+                "message": "Data written since adopt (1 audit entries, row changes {\"activity_log\":1,\"mail_messages\":1,\"renditions\":1,\"submissions\":3}) is not in the 1.0 install. They are in the final backup backups/final-20261021T100212Z.",
+                "hint": "To get it back, create a 2.0 instance from it with `fieldset install --from-backup <work>/fieldset-test-j09/backups/final-20261021T100212Z` (the final backup's own warning names its keys)."
+            }
+        ],
+        "errors": []
+    },
+    "labelled_left": {
+        "containers": [],
+        "volumes": [],
+        "networks": []
+    },
+    "v1_after": {
+        "submissions": 47,
+        "users": 9,
+        "heads": [
+            {
+                "seq": 10,
+                "hash": "1cb574354be2c122ab13394298658157cd927ed944909ff31cd15157722f2e4c"
+            },
+            {
+                "seq": 10,
+                "hash": "b08e8c866d27181ea108dba66a76dde537ac027ae315728f3cae79bc99165146"
+            }
+        ]
+    }
+}

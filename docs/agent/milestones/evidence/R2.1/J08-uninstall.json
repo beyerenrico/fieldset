@@ -1,0 +1,62 @@
+{
+    "command": "fieldset uninstall --yes --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "uninstall",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": true,
+        "data": {
+            "uuid": "60025dce-5e5b-4966-83f6-6dd9286c7ca7",
+            "removed": {
+                "containers": [
+                    "fieldset-fieldset-test-j08-8922-backup-1",
+                    "fieldset-fieldset-test-j08-8922-queue-1",
+                    "fieldset-fieldset-test-j08-8922-scheduler-1",
+                    "fieldset-fieldset-test-j08-8922-app-1",
+                    "fieldset-fieldset-test-j08-8922-mailpit-1",
+                    "fieldset-fieldset-test-j08-8922-gotenberg-1",
+                    "fieldset-fieldset-test-j08-8922-postgres-1",
+                    "fieldset-fieldset-test-j08-8922-redis-1"
+                ],
+                "networks": [
+                    "fieldset-fieldset-test-j08-8922_default",
+                    "fieldset-fieldset-test-j08-8922_renderer"
+                ],
+                "volumes": [
+                    "fieldset-fieldset-test-j08-8922_app-storage-r791df93cc435",
+                    "fieldset-fieldset-test-j08-8922_mailpit-data",
+                    "fieldset-fieldset-test-j08-8922_pg-data",
+                    "fieldset-fieldset-test-j08-8922_valkey-data"
+                ]
+            },
+            "dir": "<work>/fieldset-test-j08",
+            "deleted_files": [
+                ".fieldset-instance",
+                "backups",
+                "compose.yaml",
+                "env",
+                "fieldset",
+                "operations",
+                "releases",
+                "runtime",
+                "staging",
+                "state.json"
+            ],
+            "kept": [],
+            "left_files": [],
+            "data_deleted": true,
+            "backups_deleted": true,
+            "final_backup": null
+        },
+        "secrets": [],
+        "warnings": [],
+        "errors": []
+    },
+    "labelled_after": {
+        "containers": [],
+        "volumes": [],
+        "networks": []
+    }
+}

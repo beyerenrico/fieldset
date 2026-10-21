@@ -1,0 +1,129 @@
+{
+    "command": "fieldset demo --secrets-file <work>/j06-next-mutating-command-secrets.json --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "demo",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": true,
+        "data": {
+            "url": "http://localhost:8081",
+            "mode": "local",
+            "mail": {
+                "mode": "capture",
+                "catcher_url": "http://localhost:8025",
+                "catcher_login_command": "fieldset config show --catcher-login"
+            },
+            "next_commands": [
+                "<work>/fieldset-test-j06/fieldset status",
+                "<work>/fieldset-test-j06/fieldset login-link owner@demo.test",
+                "<work>/fieldset-test-j06/fieldset demo --rotate-passwords"
+            ],
+            "demo": {
+                "organization": "Demo Haustechnik GmbH",
+                "seeded": false,
+                "passwords": null,
+                "exposure": [],
+                "users": [
+                    {
+                        "email": "owner@demo.test",
+                        "name": "Olivia Owner",
+                        "roles": [
+                            "owner"
+                        ]
+                    },
+                    {
+                        "email": "admin@demo.test",
+                        "name": "Adam Admin",
+                        "roles": [
+                            "admin"
+                        ]
+                    },
+                    {
+                        "email": "designer@demo.test",
+                        "name": "Dana Designer",
+                        "roles": [
+                            "designer"
+                        ]
+                    },
+                    {
+                        "email": "reviewer@demo.test",
+                        "name": "Rita Reviewer",
+                        "roles": [
+                            "reviewer"
+                        ]
+                    },
+                    {
+                        "email": "coordinator@demo.test",
+                        "name": "Cora Coordinator",
+                        "roles": [
+                            "designer",
+                            "reviewer"
+                        ]
+                    },
+                    {
+                        "email": "worker@demo.test",
+                        "name": "Willi Worker",
+                        "roles": [
+                            "field_worker"
+                        ]
+                    },
+                    {
+                        "email": "mobile@demo.test",
+                        "name": "Mia Mobil",
+                        "roles": [
+                            "field_worker"
+                        ]
+                    },
+                    {
+                        "email": "tablet@demo.test",
+                        "name": "Tom Tablet",
+                        "roles": [
+                            "field_worker"
+                        ]
+                    },
+                    {
+                        "email": "viewer@demo.test",
+                        "name": "Vera Viewer",
+                        "roles": [
+                            "viewer"
+                        ]
+                    }
+                ],
+                "login_url": "http://localhost:8081/admin/login",
+                "default_password_users": 0,
+                "delivered": null
+            },
+            "sign_in_link": {
+                "expires_at": "2026-10-21T09:46:53Z",
+                "delivered": "secrets_file"
+            }
+        },
+        "secrets": [
+            {
+                "name": "sign_in_link",
+                "written_to": "<work>/j06-next-mutating-command-secrets.json",
+                "expires_at": "2026-10-21T09:46:53Z"
+            }
+        ],
+        "warnings": [
+            {
+                "code": "demo_passwords_not_shown",
+                "message": "The demo data exists already; its passwords were shown once when it was added.",
+                "hint": "Run `fieldset demo --rotate-passwords` for new ones."
+            },
+            {
+                "code": "sign_in_link_issued",
+                "message": "The demo data exists already; only a new sign-in link for owner@demo.test was issued, and an earlier unused one no longer works.",
+                "hint": null
+            },
+            {
+                "code": "tunnel_removed",
+                "message": "The quick tunnel fieldset-test-f26a53873b.trycloudflare.com expired at 2026-10-21T09:30:52Z and was removed; the instance URL is http://localhost:8081 again.",
+                "hint": "Start a new one with `fieldset tunnel start`."
+            }
+        ],
+        "errors": []
+    }
+}

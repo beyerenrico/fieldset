@@ -1,0 +1,8 @@
+{
+    "guide_line": 426,
+    "guide_command": "mkdir -p -m 700 ~/forms-move && umask 077 && cp <backup-path>/backup.tar.age ~/forms-move/backup.tar.age && cp ~/forms-identity.age ~/forms-move/identity.age && grep -e '^APP_KEY=' -e '^APP_PREVIOUS_KEYS=' ~/forms/env/app.env > ~/forms-move/app-key.env",
+    "command": "mkdir -p -m 700 <work>/fieldset-test-j11-forms-move && umask 077 && cp <work>/fieldset-test-j11-forms/backups/manual-20261021T103746Z/backup.tar.age <work>/fieldset-test-j11-forms-move/backup.tar.age && cp <work>/fieldset-test-j11-forms-identity.age <work>/fieldset-test-j11-forms-move/identity.age && grep -e '^APP_KEY=' -e '^APP_PREVIOUS_KEYS=' <work>/fieldset-test-j11-forms/env/app.env > <work>/fieldset-test-j11-forms-move/app-key.env",
+    "exit_code": 0,
+    "seconds": 0,
+    "stdout": ""
+}

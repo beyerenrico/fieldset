@@ -1,0 +1,224 @@
+{
+    "target": {
+        "install": "install.sh --dir <work>/fieldset-test-dogfood --version 2.1.0-alpha.1-test --org \"Dogfood Org\" --owner-email owner@example.test --locale en --demo --secrets-file <work>/owner-link.json --json",
+        "url": "http://localhost:8081",
+        "project": "fieldset-fieldset-test-dogfood-840d",
+        "catcher": "http://localhost:8025",
+        "platform": "linux/arm64"
+    },
+    "command": "playwright test --project=desktop --workers=2 (E2E_TARGET=fieldset, E2E_BASE_URL, E2E_COMPOSE_PROJECT, MAILPIT_URL, MAILPIT_AUTH set)",
+    "exit_code": 0,
+    "seconds": 145.7,
+    "stats": {
+        "startTime": "2026-10-21T09:07:15.280Z",
+        "duration": 145257.416,
+        "expected": 71,
+        "skipped": 8,
+        "unexpected": 0,
+        "flaky": 0
+    },
+    "files": {
+        "auth.setup.ts": {
+            "passed": 2,
+            "skipped": 0,
+            "failed": 0
+        },
+        "fieldset-sign-in.spec.ts": {
+            "passed": 4,
+            "skipped": 0,
+            "failed": 0
+        },
+        "m0-foundation.spec.ts": {
+            "passed": 3,
+            "skipped": 0,
+            "failed": 0
+        },
+        "m1-builder.spec.ts": {
+            "passed": 1,
+            "skipped": 0,
+            "failed": 0
+        },
+        "m2-builder.spec.ts": {
+            "passed": 2,
+            "skipped": 0,
+            "failed": 0
+        },
+        "m2-field-app.spec.ts": {
+            "passed": 1,
+            "skipped": 0,
+            "failed": 0
+        },
+        "m3-documents.spec.ts": {
+            "passed": 3,
+            "skipped": 0,
+            "failed": 0
+        },
+        "m4-onboarding.spec.ts": {
+            "passed": 0,
+            "skipped": 1,
+            "failed": 0
+        },
+        "m4-review.spec.ts": {
+            "passed": 1,
+            "skipped": 0,
+            "failed": 0
+        },
+        "m4-versions.spec.ts": {
+            "passed": 4,
+            "skipped": 0,
+            "failed": 0
+        },
+        "m5-reports.spec.ts": {
+            "passed": 2,
+            "skipped": 0,
+            "failed": 0
+        },
+        "m6-offline.spec.ts": {
+            "passed": 4,
+            "skipped": 0,
+            "failed": 0
+        },
+        "m7-builder-v2.spec.ts": {
+            "passed": 4,
+            "skipped": 0,
+            "failed": 0
+        },
+        "m7-saml.spec.ts": {
+            "passed": 0,
+            "skipped": 1,
+            "failed": 0
+        },
+        "m7-sso.spec.ts": {
+            "passed": 0,
+            "skipped": 5,
+            "failed": 0
+        },
+        "m8-accessibility.spec.ts": {
+            "passed": 35,
+            "skipped": 1,
+            "failed": 0
+        },
+        "m8-csp.spec.ts": {
+            "passed": 4,
+            "skipped": 0,
+            "failed": 0
+        },
+        "m8-platform.spec.ts": {
+            "passed": 1,
+            "skipped": 0,
+            "failed": 0
+        }
+    },
+    "passed": [
+        "auth.setup.ts › sign in owner",
+        "auth.setup.ts › sign in designer",
+        "fieldset-sign-in.spec.ts › one-time sign-in links › an admin link signs in through the fragment, never in a request line, and works only once",
+        "fieldset-sign-in.spec.ts › one-time sign-in links › an admin with MFA still passes the MFA challenge, and the link never opens /platform",
+        "fieldset-sign-in.spec.ts › one-time sign-in links › the owner link leads to setting a password, offers MFA, and shows \"used\" afterwards",
+        "fieldset-sign-in.spec.ts › one-time sign-in links › expired and invalid links have their own German and English states",
+        "m0-foundation.spec.ts › field worker is kept out of the admin panel",
+        "m0-foundation.spec.ts › health check answers",
+        "m0-foundation.spec.ts › owner › owner reaches the dashboard and team management",
+        "m1-builder.spec.ts › designer builds a form from the service report template and publishes v1",
+        "m2-builder.spec.ts › designer previews an unsaved change in the phone frame, then publishes",
+        "m2-builder.spec.ts › designer imports a fillable PDF as a draft form",
+        "m2-field-app.spec.ts › field worker fills, signs and submits the service report",
+        "m3-documents.spec.ts › documents and email › field worker submits, opens the PDF and sends it to the customer",
+        "m3-documents.spec.ts › documents and email › the customer mail arrives in Mailpit with the PDF",
+        "m3-documents.spec.ts › documents and email › office › owner sees the rendition and the send in the submissions inbox",
+        "m4-review.spec.ts › journey 4: reject, resubmit, approve, PDF to the customer",
+        "m4-versions.spec.ts › journey 5: versions and re-rendering › a field worker submits the v1 service report and gets its PDF",
+        "m4-versions.spec.ts › journey 5: versions and re-rendering › designer › publishes v2 with a renamed label and a new field",
+        "m4-versions.spec.ts › journey 5: versions and re-rendering › office › re-rendering the v1 submission keeps input_hash, text and page count",
+        "m4-versions.spec.ts › journey 5: versions and re-rendering › designer rollback › rolling back to v1 creates v3",
+        "m5-reports.spec.ts › reports and dashboards › a field worker submits a report",
+        "m5-reports.spec.ts › reports and dashboards › office › explores, exports and saves a report",
+        "m6-offline.spec.ts › offline-first field app › journey 3: offline fill with 30 lines, a photo and a signature syncs exactly once",
+        "m6-offline.spec.ts › offline-first field app › a killed tab loses no data",
+        "m6-offline.spec.ts › offline-first field app › journey 7: the session expires offline; after signing in again the outbox syncs",
+        "m6-offline.spec.ts › offline-first field app › deactivation › a deactivated user's next sync leaves no local data",
+        "m7-builder-v2.spec.ts › designer builds the §7.2 example by drag and drop",
+        "m7-builder-v2.spec.ts › designer builds the §7.2 example with the keyboard only",
+        "m7-builder-v2.spec.ts › a change survives the v1 ↔ v2 round trip",
+        "m7-builder-v2.spec.ts › the canvas page has no axe violations",
+        "m8-accessibility.spec.ts › Field App sign-in › login: email step",
+        "m8-accessibility.spec.ts › Field App sign-in › login: password step",
+        "m8-accessibility.spec.ts › Field App screens › home",
+        "m8-accessibility.spec.ts › Field App screens › catalog",
+        "m8-accessibility.spec.ts › Field App screens › fill: page 1, then its error summary",
+        "m8-accessibility.spec.ts › Field App screens › fill: page 2 (material and labour)",
+        "m8-accessibility.spec.ts › Field App screens › fill: page 3 (acceptance and signature)",
+        "m8-accessibility.spec.ts › Field App screens › review",
+        "m8-accessibility.spec.ts › Field App screens › submitted detail",
+        "m8-accessibility.spec.ts › Field App screens › submissions",
+        "m8-accessibility.spec.ts › Field App screens › submission detail",
+        "m8-accessibility.spec.ts › Field App screens › notifications",
+        "m8-accessibility.spec.ts › Field App screens › settings",
+        "m8-accessibility.spec.ts › Field App screens › the fill flow works with the keyboard: order, visible focus, no trap",
+        "m8-accessibility.spec.ts › Field App screens › offline state",
+        "m8-accessibility.spec.ts › admin pages (owner) › dashboard",
+        "m8-accessibility.spec.ts › admin pages (owner) › forms list",
+        "m8-accessibility.spec.ts › admin pages (owner) › submissions inbox",
+        "m8-accessibility.spec.ts › admin pages (owner) › reports explorer",
+        "m8-accessibility.spec.ts › admin pages (owner) › saved reports",
+        "m8-accessibility.spec.ts › admin pages (owner) › workflows",
+        "m8-accessibility.spec.ts › admin pages (owner) › members",
+        "m8-accessibility.spec.ts › admin pages (owner) › SSO",
+        "m8-accessibility.spec.ts › admin pages (owner) › audit log",
+        "m8-accessibility.spec.ts › admin pages (owner) › privacy: retention",
+        "m8-accessibility.spec.ts › admin pages (owner) › privacy: legal holds",
+        "m8-accessibility.spec.ts › admin pages (owner) › privacy: personal data",
+        "m8-accessibility.spec.ts › admin pages (owner) › privacy: my data",
+        "m8-accessibility.spec.ts › admin pages (owner) › API tokens",
+        "m8-accessibility.spec.ts › admin pages (owner) › submission detail",
+        "m8-accessibility.spec.ts › admin pages (owner) › workflow editor",
+        "m8-accessibility.spec.ts › builders (designer) › canvas builder (v2) with the preview",
+        "m8-accessibility.spec.ts › builders (designer) › classic builder (v1)",
+        "m8-accessibility.spec.ts › Builder v2 keyboard walkthrough › palette → canvas → inspector by Tab, visible focus, Move menu and pick-up cancel with Esc, no trap",
+        "m8-accessibility.spec.ts › platform panel › login, MFA set-up, organizations, members and health",
+        "m8-csp.spec.ts › the guard reports an injected inline script and an uncaught error",
+        "m8-csp.spec.ts › Horizon renders under its CSP",
+        "m8-csp.spec.ts › designer › the forms list opens the canvas builder, whose sandboxed preview renders the form",
+        "m8-csp.spec.ts › designer › the classic builder stays one row action away",
+        "m8-platform.spec.ts › platform operator panel › operator signs in with MFA set-up, sees organizations and health, impersonates and exits"
+    ],
+    "skipped": [
+        {
+            "test": "m4-onboarding.spec.ts › journey 1: register an organization and onboard a designer and a field worker",
+            "reason": "dev stack only: organization sign-up needs APP_ALLOW_REGISTRATION=true, which a fieldset instance never sets"
+        },
+        {
+            "test": "m7-saml.spec.ts › single sign-on through Keycloak (SAML) › saml.reviewer signs in from the Field App and gets the Reviewer role",
+            "reason": "dev stack only: needs the dev Keycloak (COMPOSE_PROFILES=sso), SSO_ALLOW_INSECURE_IDP and the SsoDemoSeeder data"
+        },
+        {
+            "test": "m7-sso.spec.ts › single sign-on through Keycloak (OIDC) › Field App: email → Keycloak → home; JIT applies the groups mapping (Designer)",
+            "reason": "dev stack only: needs the dev Keycloak (COMPOSE_PROFILES=sso), SSO_ALLOW_INSECURE_IDP and the SsoDemoSeeder data"
+        },
+        {
+            "test": "m7-sso.spec.ts › single sign-on through Keycloak (OIDC) › Field App: a JIT user without groups gets the default role only",
+            "reason": "dev stack only: needs the dev Keycloak (COMPOSE_PROFILES=sso), SSO_ALLOW_INSECURE_IDP and the SsoDemoSeeder data"
+        },
+        {
+            "test": "m7-sso.spec.ts › single sign-on through Keycloak (OIDC) › admin: the email-first login continues at Keycloak and lands in the panel",
+            "reason": "dev stack only: needs the dev Keycloak (COMPOSE_PROFILES=sso), SSO_ALLOW_INSECURE_IDP and the SsoDemoSeeder data"
+        },
+        {
+            "test": "m7-sso.spec.ts › single sign-on through Keycloak (OIDC) › enforcement: no password step for the SSO domain; password login and reset are refused",
+            "reason": "dev stack only: needs the dev Keycloak (COMPOSE_PROFILES=sso), SSO_ALLOW_INSECURE_IDP and the SsoDemoSeeder data"
+        },
+        {
+            "test": "m7-sso.spec.ts › single sign-on through Keycloak (OIDC) › break-glass Owner: password and TOTP still work",
+            "reason": "dev stack only: needs the dev Keycloak (COMPOSE_PROFILES=sso), SSO_ALLOW_INSECURE_IDP and the SsoDemoSeeder data"
+        },
+        {
+            "test": "m8-accessibility.spec.ts › Field App sign-in › login: SSO choice (organization without enforcement)",
+            "reason": "dev stack only: the SAML demo organization comes from SsoDemoSeeder, which only the dev stack runs"
+        }
+    ],
+    "failed": [],
+    "stderr": [
+        "[desktop] › ../../../../../tests/e2e/m4-review.spec.ts:43:1 › journey 4: reject, resubmit, approve, PDF to the customer",
+        "[desktop] › ../../../../../tests/e2e/m4-versions.spec.ts:103:5 › journey 5: versions and re-rendering › office › re-rendering the v1 submission keeps input_hash, text and page count"
+    ]
+}

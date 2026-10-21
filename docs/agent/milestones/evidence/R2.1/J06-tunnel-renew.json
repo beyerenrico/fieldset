@@ -1,0 +1,35 @@
+{
+    "command": "fieldset tunnel renew --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "tunnel",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": true,
+        "data": {
+            "action": "renew",
+            "url": "https://fieldset-test-5a4c185fbb.trycloudflare.com",
+            "mode": "local",
+            "local_url": "http://localhost:8081",
+            "tunnel": {
+                "hostname": "fieldset-test-5a4c185fbb.trycloudflare.com",
+                "expires_at": "2026-10-21T10:32:55Z",
+                "peer": "10.215.104.2",
+                "admin": false,
+                "url": "https://fieldset-test-5a4c185fbb.trycloudflare.com",
+                "state": "active"
+            },
+            "previous_expires_at": "2026-10-21T10:32:21Z"
+        },
+        "secrets": [],
+        "warnings": [
+            {
+                "code": "tunnel_expires",
+                "message": "The tunnel now expires at 2026-10-21T10:32:55Z.",
+                "hint": null
+            }
+        ],
+        "errors": []
+    }
+}

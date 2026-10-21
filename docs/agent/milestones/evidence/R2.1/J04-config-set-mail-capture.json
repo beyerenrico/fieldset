@@ -1,0 +1,53 @@
+{
+    "command": "fieldset config set mail capture --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "config",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": true,
+        "data": {
+            "key": "mail",
+            "from": "smtp://fieldset-test-j04-smtp-9185:1025 (no TLS)",
+            "to": "capture",
+            "url": "http://localhost:8081",
+            "mode": "local",
+            "reverted": false,
+            "previous": {
+                "url": "http://localhost:8081",
+                "mode": "local"
+            },
+            "services": {
+                "recreated": [
+                    "app",
+                    "queue",
+                    "scheduler"
+                ],
+                "added": [
+                    "mailpit"
+                ],
+                "removed": []
+            },
+            "checked": [
+                "/up",
+                "/admin/login",
+                "gotenberg /health"
+            ],
+            "impact": null,
+            "audited": true,
+            "mail": {
+                "mode": "capture",
+                "catcher_url": "http://localhost:8025",
+                "catcher_login_command": "fieldset config show --catcher-login",
+                "catcher": "active"
+            },
+            "next_commands": [
+                "<work>/fieldset-test-j04/fieldset status"
+            ]
+        },
+        "secrets": [],
+        "warnings": [],
+        "errors": []
+    }
+}

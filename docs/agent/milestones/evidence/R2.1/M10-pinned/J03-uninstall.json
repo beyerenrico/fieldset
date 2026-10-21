@@ -1,0 +1,65 @@
+{
+    "command": "fieldset uninstall --yes --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "uninstall",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": true,
+        "data": {
+            "uuid": "33e8ce41-6b46-4ab7-a7d8-680c4562054c",
+            "removed": {
+                "containers": [
+                    "fieldset-fieldset-test-j03-bf4d-backup-1",
+                    "fieldset-fieldset-test-j03-bf4d-mailpit-1",
+                    "fieldset-fieldset-test-j03-bf4d-app-1",
+                    "fieldset-fieldset-test-j03-bf4d-queue-1",
+                    "fieldset-fieldset-test-j03-bf4d-scheduler-1",
+                    "fieldset-fieldset-test-j03-bf4d-gotenberg-1",
+                    "fieldset-fieldset-test-j03-bf4d-postgres-1",
+                    "fieldset-fieldset-test-j03-bf4d-redis-1"
+                ],
+                "networks": [
+                    "fieldset-fieldset-test-j03-bf4d_default",
+                    "fieldset-fieldset-test-j03-bf4d_renderer"
+                ],
+                "volumes": [
+                    "fieldset-fieldset-test-j03-bf4d_app-storage",
+                    "fieldset-fieldset-test-j03-bf4d_mailpit-data",
+                    "fieldset-fieldset-test-j03-bf4d_pg-data",
+                    "fieldset-fieldset-test-j03-bf4d_valkey-data"
+                ]
+            },
+            "dir": "<work>/fieldset-test-j03",
+            "deleted_files": [
+                ".fieldset-instance",
+                "backups",
+                "compose.yaml",
+                "env",
+                "fieldset",
+                "operations",
+                "releases",
+                "runtime",
+                "staging",
+                "state.json"
+            ],
+            "kept": [],
+            "left_files": [],
+            "data_deleted": true,
+            "backups_deleted": true,
+            "final_backup": null
+        },
+        "secrets": [],
+        "warnings": [],
+        "errors": []
+    },
+    "labelled_after": {
+        "containers": [],
+        "volumes": [],
+        "networks": []
+    },
+    "attached_after": [
+        "fieldset-test-harness-596f03-traefik-1"
+    ]
+}

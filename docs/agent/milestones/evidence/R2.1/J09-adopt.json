@@ -1,0 +1,167 @@
+{
+    "command": "install.sh --dir <work>/fieldset-test-j09 --adopt <work>/fieldset-test-j09-v1-<id> --yes --json",
+    "exit_code": 0,
+    "seconds": 61,
+    "stdout": {
+        "schema_version": 1,
+        "command": "adopt",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": true,
+        "data": {
+            "url": "http://localhost:64217",
+            "version": "2.1.0-alpha.1-test",
+            "mode": "local",
+            "dir": "<work>/fieldset-test-j09",
+            "project": "fieldset-fieldset-test-j09-0674",
+            "port": 64217,
+            "mail": {
+                "mode": "capture",
+                "catcher_url": "http://localhost:8025",
+                "catcher_login_command": "fieldset config show --catcher-login"
+            },
+            "adopted": {
+                "checkout": "<work>/fieldset-test-j09-v1-089eaf",
+                "project": "fieldset-test-j09-v1-089eaf",
+                "version": "1.0.0",
+                "backup": "safety-adopt-20261021T095951Z",
+                "backup_path": "<work>/fieldset-test-j09/backups/safety-adopt-20261021T095951Z",
+                "verified": {
+                    "counts": {
+                        "activity_log": 20,
+                        "attachments": 0,
+                        "form_versions": 1,
+                        "forms": 1,
+                        "mail_messages": 7,
+                        "organizations": 1,
+                        "renditions": 38,
+                        "submissions": 47,
+                        "users": 9
+                    },
+                    "chains": 2,
+                    "amcheck": [
+                        "activity_log_chain_idx",
+                        "cache_locks_pkey",
+                        "cache_pkey",
+                        "designs_organization_id_key_unique",
+                        "document_links_token_hash_unique",
+                        "document_sends_idempotency_key_unique",
+                        "external_identities_identity_provider_id_subject_unique",
+                        "failed_jobs_uuid_unique",
+                        "form_access_form_id_group_id_role_name_unique",
+                        "forms_organization_id_key_unique",
+                        "groups_organization_id_name_unique",
+                        "idempotency_keys_organization_id_user_id_key_unique",
+                        "identity_provider_mappings_identity_provider_id_claim_value_rol",
+                        "job_batches_pkey",
+                        "model_has_permissions_pkey",
+                        "model_has_roles_pkey",
+                        "notification_preferences_user_id_event_channel_unique",
+                        "number_sequences_organization_id_form_id_period_unique",
+                        "organizations_slug_unique",
+                        "password_reset_tokens_pkey",
+                        "permissions_name_guard_name_unique",
+                        "personal_access_tokens_token_unique",
+                        "roles_organization_id_name_guard_name_unique",
+                        "sessions_pkey",
+                        "sso_domains_organization_id_domain_unique",
+                        "sso_domains_verified_domain_unique",
+                        "submissions_organization_id_form_id_number_unique",
+                        "users_email_unique",
+                        "webhook_endpoints_organization_id_name_unique",
+                        "workflow_runs_workflow_id_submission_uuid_event_id_unique"
+                    ]
+                },
+                "drain": {
+                    "drained": true,
+                    "waiting": 0,
+                    "reserved": 0,
+                    "delayed": 0,
+                    "waited_seconds": 0
+                },
+                "volumes": {
+                    "pg-data": "fieldset-fieldset-test-j09-0674_pg-data",
+                    "app-storage": "fieldset-fieldset-test-j09-0674_app-storage"
+                },
+                "legacy_volumes": {
+                    "pg-data": "fieldset-test-j09-v1-089eaf_pg-data",
+                    "app-storage": "fieldset-test-j09-v1-089eaf_app-storage"
+                }
+            },
+            "pending_mail": {
+                "host": "smtp.example.com",
+                "port": 587,
+                "command": "fieldset config set mail smtp --smtp-host smtp.example.com --smtp-port 587 --smtp-username <account> --password-file <file>"
+            },
+            "way_back": [
+                "<work>/fieldset-test-j09/fieldset uninstall (a final backup first; the 1.0 volumes were never changed)",
+                "cd <work>/fieldset-test-j09-v1-089eaf && docker compose up -d"
+            ],
+            "next_commands": [
+                "<work>/fieldset-test-j09/fieldset status",
+                "<work>/fieldset-test-j09/fieldset login-link <admin-email>",
+                "<work>/fieldset-test-j09/fieldset doctor --post"
+            ]
+        },
+        "secrets": [],
+        "warnings": [
+            {
+                "code": "mail_captured_after_adopt",
+                "message": "Mail is captured by the instance's catcher until you confirm the SMTP server 1.0 used (smtp.example.com).",
+                "hint": "fieldset config set mail smtp --smtp-host smtp.example.com --smtp-port 587 --smtp-username <account> --password-file <file>"
+            }
+        ],
+        "errors": []
+    },
+    "acknowledged_writes": 20,
+    "before_adopt": {
+        "submissions": 25,
+        "users": 9,
+        "heads": [
+            {
+                "seq": 10,
+                "hash": "1cb574354be2c122ab13394298658157cd927ed944909ff31cd15157722f2e4c"
+            },
+            {
+                "seq": 10,
+                "hash": "b08e8c866d27181ea108dba66a76dde537ac027ae315728f3cae79bc99165146"
+            }
+        ]
+    },
+    "backup_manifest": {
+        "created_at": "20261021T095951Z",
+        "postgres": "postgres (PostgreSQL) 16.15",
+        "migrations": "40",
+        "last_migration": "2026_10_23_100000_add_submissions_org_updated_at_index",
+        "activity_log": "20",
+        "attachments": "0",
+        "form_versions": "1",
+        "forms": "1",
+        "mail_messages": "7",
+        "organizations": "1",
+        "renditions": "38",
+        "submissions": "47",
+        "users": "9",
+        "storage": "included",
+        "env": "included",
+        "source": "fieldset adopt",
+        "version": "1.0.0",
+        "project": "fieldset-test-j09-v1-089eaf",
+        "app_key_fingerprints": "e458-c366-8e5d-61be",
+        "journal": "15c85d432252ba38"
+    },
+    "instance": {
+        "submissions": 47,
+        "users": 9,
+        "heads": [
+            {
+                "seq": 10,
+                "hash": "1cb574354be2c122ab13394298658157cd927ed944909ff31cd15157722f2e4c"
+            },
+            {
+                "seq": 10,
+                "hash": "b08e8c866d27181ea108dba66a76dde537ac027ae315728f3cae79bc99165146"
+            }
+        ]
+    }
+}

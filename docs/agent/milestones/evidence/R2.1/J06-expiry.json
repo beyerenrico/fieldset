@@ -1,0 +1,11 @@
+{
+    "through_tunnel_after_expiry": {
+        "status": 503,
+        "retry_after": "300"
+    },
+    "status_changed_files": false,
+    "status_container_events": [
+        "container create fieldset-fieldset-test-j06-1270-app-run-91f3a77d7095",
+        "container destroy fieldset-fieldset-test-j06-1270-app-run-91f3a77d7095"
+    ]
+}

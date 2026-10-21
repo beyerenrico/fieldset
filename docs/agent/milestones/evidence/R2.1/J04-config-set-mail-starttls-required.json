@@ -1,0 +1,51 @@
+{
+    "command": "printf … | fieldset config set mail smtp --smtp-host fieldset-test-j04-smtp-… --smtp-port 1025 --smtp-username fieldset-test-relay-user --password-stdin --from-address forms@example.test --test-to ops@example.test --json",
+    "exit_code": 5,
+    "stdout": {
+        "schema_version": 1,
+        "command": "config",
+        "status": "rolled_back",
+        "exit_code": 5,
+        "changed": false,
+        "data": {
+            "key": "mail",
+            "from": "capture",
+            "to": "smtp://fieldset-test-j04-smtp-9185:1025 (catcher kept)",
+            "url": "http://localhost:8081",
+            "mode": "local",
+            "reverted": true,
+            "resumed_revert": false,
+            "attempted": {
+                "url": "http://localhost:8081",
+                "mode": "local"
+            },
+            "failure": {
+                "error": "test_mail_failed",
+                "server": "smtp://fieldset-test-j04-smtp-9185:1025 (catcher kept)"
+            },
+            "fix_first": "Check the SMTP host, port, encryption (starttls needs a server that offers STARTTLS; a relay without TLS takes --smtp-encryption none), user name and password against what the server answered (data.failure). Then run the command again; the previous mail settings stay until a test mail goes through.",
+            "command": "fieldset config set mail smtp --smtp-host fieldset-test-j04-smtp-9185 --smtp-port 1025 --smtp-username <the same user name> --password-stdin --from-address forms@example.test --yes",
+            "options": {
+                "--smtp-host": "fieldset-test-j04-smtp-9185",
+                "--smtp-port": "1025",
+                "--smtp-username": "<the same user name>",
+                "--password-stdin": true,
+                "--from-address": "forms@example.test",
+                "--yes": true
+            },
+            "next_commands": [
+                "<work>/fieldset-test-j04/fieldset status"
+            ]
+        },
+        "secrets": [],
+        "warnings": [],
+        "errors": [
+            {
+                "code": "test_mail_failed",
+                "message": "Changing mail failed, so the previous settings were restored: The SMTP server did not accept the test mail: TLS required but neither TLS or STARTTLS are in use.",
+                "hint": "Check the SMTP host, port, encryption (starttls needs a server that offers STARTTLS; a relay without TLS takes --smtp-encryption none), user name and password against what the server answered (data.failure). Then run the command again; the previous mail settings stay until a test mail goes through.",
+                "retryable": false
+            }
+        ]
+    }
+}

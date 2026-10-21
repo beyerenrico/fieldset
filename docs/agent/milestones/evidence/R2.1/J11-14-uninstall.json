@@ -1,0 +1,74 @@
+{
+    "guide_line": 465,
+    "guide_command": "~/forms/fieldset uninstall --keep-backups --yes --json",
+    "command": "<work>/fieldset-test-j11-forms/fieldset uninstall --keep-backups --yes --json",
+    "exit_code": 0,
+    "seconds": 6.6,
+    "stdout": {
+        "schema_version": 1,
+        "command": "uninstall",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": true,
+        "data": {
+            "uuid": "f31ba830-c62c-49fb-904b-b1af1b811e06",
+            "removed": {
+                "containers": [
+                    "fieldset-fieldset-test-j11-forms-13b9-backup-1",
+                    "fieldset-fieldset-test-j11-forms-13b9-scheduler-1",
+                    "fieldset-fieldset-test-j11-forms-13b9-queue-1",
+                    "fieldset-fieldset-test-j11-forms-13b9-app-1",
+                    "fieldset-fieldset-test-j11-forms-13b9-mailpit-1",
+                    "fieldset-fieldset-test-j11-forms-13b9-gotenberg-1",
+                    "fieldset-fieldset-test-j11-forms-13b9-postgres-1",
+                    "fieldset-fieldset-test-j11-forms-13b9-redis-1"
+                ],
+                "networks": [
+                    "fieldset-fieldset-test-j11-forms-13b9_default",
+                    "fieldset-fieldset-test-j11-forms-13b9_renderer"
+                ],
+                "volumes": [
+                    "fieldset-fieldset-test-j11-forms-13b9_app-storage-r8b983a589194",
+                    "fieldset-fieldset-test-j11-forms-13b9_mailpit-data",
+                    "fieldset-fieldset-test-j11-forms-13b9_pg-data",
+                    "fieldset-fieldset-test-j11-forms-13b9_valkey-data"
+                ]
+            },
+            "dir": "<work>/fieldset-test-j11-forms",
+            "deleted_files": [
+                ".fieldset-instance",
+                "compose.yaml",
+                "env",
+                "fieldset",
+                "operations",
+                "releases",
+                "runtime",
+                "staging",
+                "state.json"
+            ],
+            "kept": [
+                "backups"
+            ],
+            "left_files": [],
+            "data_deleted": true,
+            "backups_deleted": false,
+            "final_backup": {
+                "dir": "backups/final-20261021T103847Z",
+                "backup": "final-20261021T103847Z",
+                "encrypted": true,
+                "includes_secrets": true,
+                "key_file": null,
+                "missing_files": 0
+            }
+        },
+        "secrets": [],
+        "warnings": [
+            {
+                "code": "final_backup_encrypted",
+                "message": "The final backup <work>/fieldset-test-j11-forms/backups/final-20261021T103847Z is encrypted and carries the APP keys.",
+                "hint": "`install.sh --dir <work>/fieldset-test-j11-forms --from-backup <work>/fieldset-test-j11-forms/backups/final-20261021T103847Z/backup.tar.age --identity-file <identity> --passphrase-file <file> --accept-unauthenticated` brings it back (its HMAC needs the APP key from outside it: pass `--app-key-file` instead of --accept-unauthenticated if you kept it)."
+            }
+        ],
+        "errors": []
+    }
+}

@@ -1,0 +1,86 @@
+{
+    "guide_line": 440,
+    "guide_command": "curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/fieldset/releases/latest/download/install.sh | sh -s -- --version <old-version> --dir ~/forms-new --from-backup ~/forms-move/backup.tar.age --identity-file ~/forms-move/identity.age --passphrase-file ~/forms-passphrase --app-key-file ~/forms-move/app-key.env --secrets-file ~/forms-new-secrets.json --json --yes",
+    "command": "sh '<harness>/dist/download/v2.1.0-alpha.1-test/install.sh' --version 2.1.0-alpha.1-test --dir <work>/fieldset-test-j11-forms-new --from-backup <work>/fieldset-test-j11-forms-move/backup.tar.age --identity-file <work>/fieldset-test-j11-forms-move/identity.age --passphrase-file <work>/fieldset-test-j11-forms-passphrase --app-key-file <work>/fieldset-test-j11-forms-move/app-key.env --secrets-file <work>/fieldset-test-j11-forms-new-secrets.json --json --yes",
+    "exit_code": 0,
+    "seconds": 54.6,
+    "stdout": {
+        "schema_version": 1,
+        "command": "install",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": true,
+        "data": {
+            "url": "http://localhost:8082",
+            "version": "2.1.0-alpha.1-test",
+            "mode": "local",
+            "dir": "<work>/fieldset-test-j11-forms-new",
+            "project": "fieldset-fieldset-test-j11-forms-new-b17d",
+            "port": 8082,
+            "mail": {
+                "mode": "capture",
+                "catcher_url": "http://localhost:8026",
+                "catcher_login_command": "fieldset config show --catcher-login"
+            },
+            "owner_email": null,
+            "from_backup": {
+                "backup": "fieldset-test-j11-forms-move",
+                "format": "fieldset",
+                "authenticated": true,
+                "encrypted": true,
+                "created_at": "2026-10-21T10:37:46Z",
+                "version": "2.1.0-alpha.1-test",
+                "epoch": 3,
+                "recipients": {
+                    "listed": [
+                        "age12saqpmpqxrde67nmyhdmrxk7f4s0lgw9nplxs68nh9v9vqhjxgnqtsnfjp"
+                    ],
+                    "kept": []
+                }
+            },
+            "pending_mail": {
+                "host": "fieldset-test-j11-smtp-eab6",
+                "port": 1025,
+                "scheme": "smtp",
+                "encryption": "none",
+                "from_address": "forms@example.com",
+                "command": "fieldset config set mail smtp --smtp-host fieldset-test-j11-smtp-eab6 --smtp-port 1025 --smtp-encryption none --from-address forms@example.com --smtp-username <account> --password-file <file>"
+            },
+            "webhooks": "paused",
+            "confirm_commands": [
+                "fieldset config set webhooks on",
+                "fieldset config set mail smtp --smtp-host fieldset-test-j11-smtp-eab6 --smtp-port 1025 --smtp-encryption none --from-address forms@example.com --smtp-username <account> --password-file <file>"
+            ],
+            "sign_in_link": null,
+            "next_commands": [
+                "<work>/fieldset-test-j11-forms-new/fieldset status",
+                "<work>/fieldset-test-j11-forms-new/fieldset login-link <admin-email>",
+                "<work>/fieldset-test-j11-forms-new/fieldset config set webhooks on"
+            ]
+        },
+        "secrets": [],
+        "warnings": [
+            {
+                "code": "mail_captured_after_move",
+                "message": "Mail is captured in the bundled catcher until you switch it on: the old server may still be sending.",
+                "hint": "Once the move is complete: `fieldset config set mail smtp …` (the backup's server is under data.pending_mail)."
+            },
+            {
+                "code": "webhooks_paused",
+                "message": "Workflow webhooks wait until you confirm the move, so the old and the new server never both deliver.",
+                "hint": "Once DNS points here and the old server is stopped: `fieldset config set webhooks on`."
+            },
+            {
+                "code": "no_sign_in_link",
+                "message": "No --owner-email was given, so no sign-in link was issued; the restored users sign in as before.",
+                "hint": "Run `fieldset login-link <email> --secrets-file <file>` for an admin of the restored data."
+            },
+            {
+                "code": "backup_recipients_not_kept",
+                "message": "The backup lists the age recipient(s) age12saqpmpqxrde67nmyhdmrxk7f4s0lgw9nplxs68nh9v9vqhjxgnqtsnfjp; they were not taken over, so new backups are not encrypted.",
+                "hint": "If these are your keys, run the move again with --keep-recipients (a new directory); or turn encryption on with `fieldset config set backup-encryption on --identity-out <path> --passphrase-file <file>`."
+            }
+        ],
+        "errors": []
+    }
+}

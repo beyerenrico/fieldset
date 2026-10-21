@@ -1,0 +1,66 @@
+{
+    "command": "fieldset config set mail smtp --remove-catcher --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "config",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": true,
+        "data": {
+            "key": "mail",
+            "from": "smtp://fieldset-test-j04-smtp-9185:1025 (no TLS) (catcher kept)",
+            "to": "smtp://fieldset-test-j04-smtp-9185:1025 (no TLS)",
+            "url": "http://localhost:8081",
+            "mode": "local",
+            "reverted": false,
+            "previous": {
+                "url": "http://localhost:8081",
+                "mode": "local"
+            },
+            "services": {
+                "recreated": [],
+                "added": [],
+                "removed": [
+                    "mailpit"
+                ]
+            },
+            "checked": [
+                "/up",
+                "/admin/login",
+                "gotenberg /health"
+            ],
+            "impact": null,
+            "audited": true,
+            "mail": {
+                "mode": "smtp",
+                "catcher_url": null,
+                "catcher": "removed",
+                "catcher_volume_removed": "fieldset-fieldset-test-j04-4756_mailpit-data"
+            },
+            "next_commands": [
+                "<work>/fieldset-test-j04/fieldset status"
+            ]
+        },
+        "secrets": [],
+        "warnings": [
+            {
+                "code": "smtp_plaintext_auth",
+                "message": "The SMTP password goes to fieldset-test-j04-smtp-9185 unencrypted (--smtp-encryption none).",
+                "hint": "Use --smtp-encryption starttls or tls unless the relay runs on this host or your own trusted network."
+            }
+        ],
+        "errors": []
+    },
+    "volumes_before": [
+        "fieldset-fieldset-test-j04-4756_app-storage",
+        "fieldset-fieldset-test-j04-4756_mailpit-data",
+        "fieldset-fieldset-test-j04-4756_pg-data",
+        "fieldset-fieldset-test-j04-4756_valkey-data"
+    ],
+    "volumes_after": [
+        "fieldset-fieldset-test-j04-4756_app-storage",
+        "fieldset-fieldset-test-j04-4756_pg-data",
+        "fieldset-fieldset-test-j04-4756_valkey-data"
+    ]
+}
