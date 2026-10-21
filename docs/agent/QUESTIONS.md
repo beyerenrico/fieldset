@@ -337,3 +337,9 @@ Format: question · chosen option · impact · how to reverse.
    the amd64 libssl entry, the pin stays 2026.10.1 for 2.0.0 · confirm or bump the pin. (b) The pg_dump check's
    multi-platform run (QUESTIONS 75) is fixed: it removes the image it pulled between platforms. (c) Dogfood E2E failed
    once at the 2.0.0 run (m6-offline journey 3, a click timeout at host load 8) and passed on the rerun · watch.
+
+## Human decisions (2026-10-21)
+- 25: the repository will be renamed before the first publish; new name to be chosen (signer identity, `install.sh`,
+  images and docs change with it; item 1 is answered by the same decision).
+- 27, 76a: the dated Trivy exception policy (ADR 0071) is accepted; refresh pins or renew entries around 2026-11-17.
+- 41, 74: accepted for 2.0; document that large datasets need 4 GB; query tuning moves to 2.1.
