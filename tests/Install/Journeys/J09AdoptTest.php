@@ -23,10 +23,10 @@ use Tests\Support\Docker\V1Install;
  * - the adopt's 1.0 backup restores in place (`--accept-unauthenticated`): the upgrade child migrates it to this release
  *   (journal phase `upgrade_child`), the data and the stored file are the backup's, the audit epoch goes up with one
  *   `instance.restored` entry, `audit:verify` passes and the instance is healthy (review EV2);
- * - `fsa uninstall` takes a final backup and reports the writes made since adopt; `docker compose up -d` in the checkout
+ * - `fieldset uninstall` takes a final backup and reports the writes made since adopt; `docker compose up -d` in the checkout
  *   brings 1.0 back with its pre-adopt data.
  *
- * Everything is named `fsa-test-j09…` (the 1.0 image `<FIELDSET_TEST_IMAGE_REPOSITORY>-v1:1.0.0`) and removed afterwards.
+ * Everything is named `fieldset-test-j09…` (the 1.0 image `<FIELDSET_TEST_IMAGE_REPOSITORY>-v1:1.0.0`) and removed afterwards.
  */
 
 beforeAll(function (): void {
@@ -38,20 +38,20 @@ beforeAll(function (): void {
         [$harness, $release] = SharedHarness::get();
         $journey = new InstanceJourney($harness, $release, $harness->directory.'/j09');
         $v1 = V1Install::prepare($journey->work, bin2hex(random_bytes(3)));
-        $GLOBALS['fsaJ09'] = $journey;
-        $GLOBALS['fsaJ09V1'] = $v1;
+        $GLOBALS['fieldsetJ09'] = $journey;
+        $GLOBALS['fieldsetJ09V1'] = $v1;
         $v1->build();
     } catch (Throwable $exception) {
-        $GLOBALS['fsaJ09Error'] = $exception;
+        $GLOBALS['fieldsetJ09Error'] = $exception;
     }
 });
 
 afterAll(function (): void {
-    if (isset($GLOBALS['fsaJ09'])) {
-        InstanceJourney::cleanup($GLOBALS['fsaJ09']->work.'/fsa-test-j09', $GLOBALS['fsaJ09Uuid'] ?? null);
+    if (isset($GLOBALS['fieldsetJ09'])) {
+        InstanceJourney::cleanup($GLOBALS['fieldsetJ09']->work.'/fieldset-test-j09', $GLOBALS['fieldsetJ09Uuid'] ?? null);
     }
-    $GLOBALS['fsaJ09V1']?->remove();
-    unset($GLOBALS['fsaJ09'], $GLOBALS['fsaJ09V1'], $GLOBALS['fsaJ09Error'], $GLOBALS['fsaJ09Uuid'], $GLOBALS['fsaJ09Before'], $GLOBALS['fsaJ09Adopt'], $GLOBALS['fsaJ09Acked']);
+    $GLOBALS['fieldsetJ09V1']?->remove();
+    unset($GLOBALS['fieldsetJ09'], $GLOBALS['fieldsetJ09V1'], $GLOBALS['fieldsetJ09Error'], $GLOBALS['fieldsetJ09Uuid'], $GLOBALS['fieldsetJ09Before'], $GLOBALS['fieldsetJ09Adopt'], $GLOBALS['fieldsetJ09Acked']);
 });
 
 beforeEach(function (): void {
@@ -60,12 +60,12 @@ beforeEach(function (): void {
         expect(getenv('FIELDSET_REQUIRE_DOCKER'))->not->toBe('1', $reason);
         $this->markTestSkipped($reason.' (install journeys need a Docker engine)');
     }
-    if (isset($GLOBALS['fsaJ09Error'])) {
-        throw $GLOBALS['fsaJ09Error'];
+    if (isset($GLOBALS['fieldsetJ09Error'])) {
+        throw $GLOBALS['fieldsetJ09Error'];
     }
-    $this->journey = $GLOBALS['fsaJ09'];
-    $this->v1 = $GLOBALS['fsaJ09V1'];
-    $this->dir = $this->journey->work.'/fsa-test-j09';
+    $this->journey = $GLOBALS['fieldsetJ09'];
+    $this->v1 = $GLOBALS['fieldsetJ09V1'];
+    $this->dir = $this->journey->work.'/fieldset-test-j09';
 });
 
 /** The instance's container of a role. */
@@ -97,9 +97,9 @@ it('runs a 1.0.0 install built from the tag, with demo data and a stored file', 
     $seed = $this->v1->artisan(['db:seed', '--class=Database\\Seeders\\DemoSeeder', '--force']);
     $load = $this->v1->artisan(['app:seed-load', 'demo', '25', '--force']);
     $operator = $this->v1->artisan(['app:platform-admin', 'owner@demo.test']); // as the 1.0 install guide grants operators
-    $file = new Process(['docker', 'exec', '-u', 'www-data', $this->v1->container('app'), 'sh', '-c', 'mkdir -p storage/app/private/fsa-test-j09 && printf adopted > storage/app/private/fsa-test-j09/file.txt']);
+    $file = new Process(['docker', 'exec', '-u', 'www-data', $this->v1->container('app'), 'sh', '-c', 'mkdir -p storage/app/private/fieldset-test-j09 && printf adopted > storage/app/private/fieldset-test-j09/file.txt']);
     $file->run();
-    $GLOBALS['fsaJ09Before'] = V1Install::data($this->v1->container('postgres'));
+    $GLOBALS['fieldsetJ09Before'] = V1Install::data($this->v1->container('postgres'));
 
     expect($up->getExitCode())->toBe(0, $up->getErrorOutput())
         ->and($seed->getExitCode())->toBe(0, $seed->getErrorOutput().$seed->getOutput())
@@ -107,12 +107,12 @@ it('runs a 1.0.0 install built from the tag, with demo data and a stored file', 
         ->and($operator->getExitCode())->toBe(0, $operator->getErrorOutput().$operator->getOutput())
         ->and($file->getExitCode())->toBe(0, $file->getErrorOutput())
         ->and(j09Get($this->v1->port, '/up')['status'])->toBe(200)
-        ->and($GLOBALS['fsaJ09Before']['submissions'])->toBeGreaterThanOrEqual(25)
-        ->and($GLOBALS['fsaJ09Before']['heads'])->not->toBeEmpty();
+        ->and($GLOBALS['fieldsetJ09Before']['submissions'])->toBeGreaterThanOrEqual(25)
+        ->and($GLOBALS['fieldsetJ09Before']['heads'])->not->toBeEmpty();
 });
 
 it('adopts it with install.sh --adopt while writes go on until 1.0 stops: every acknowledged write is in 2.0', function (): void {
-    $before = $GLOBALS['fsaJ09Before'];
+    $before = $GLOBALS['fieldsetJ09Before'];
     $started = microtime(true);
     $adopt = $this->journey->installProcess($this->dir, ['--adopt', $this->v1->checkout, '--yes', '--json']);
     $adopt->start();
@@ -126,13 +126,13 @@ it('adopts it with install.sh --adopt while writes go on until 1.0 stops: every 
     }
     $adopt->wait();
     $json = InstanceJourney::json($adopt);
-    $GLOBALS['fsaJ09Uuid'] = InstanceJourney::uuid($this->dir);
-    $GLOBALS['fsaJ09Adopt'] = $json;
-    $GLOBALS['fsaJ09Acked'] = $acked;
+    $GLOBALS['fieldsetJ09Uuid'] = InstanceJourney::uuid($this->dir);
+    $GLOBALS['fieldsetJ09Adopt'] = $json;
+    $GLOBALS['fieldsetJ09Acked'] = $acked;
     $backup = (string) ($json['data']['adopted']['backup_path'] ?? '');
     $manifest = BackupSet::legacyManifest($backup);
-    $after = V1Install::data(j09Container((string) $GLOBALS['fsaJ09Uuid'], 'postgres'));
-    $this->journey->evidence('J09-adopt.json', ['command' => 'install.sh --dir <work>/fsa-test-j09 --adopt <work>/fsa-test-j09-v1-<id> --yes --json', 'exit_code' => $adopt->getExitCode(),
+    $after = V1Install::data(j09Container((string) $GLOBALS['fieldsetJ09Uuid'], 'postgres'));
+    $this->journey->evidence('J09-adopt.json', ['command' => 'install.sh --dir <work>/fieldset-test-j09 --adopt <work>/fieldset-test-j09-v1-<id> --yes --json', 'exit_code' => $adopt->getExitCode(),
         'seconds' => round(microtime(true) - $started, 1), 'stdout' => $json, 'acknowledged_writes' => $acked, 'before_adopt' => $before, 'backup_manifest' => $manifest, 'instance' => $after]);
 
     expect($adopt->getExitCode())->toBe(0, $adopt->getErrorOutput()."\n".$adopt->getOutput())
@@ -144,20 +144,20 @@ it('adopts it with install.sh --adopt while writes go on until 1.0 stops: every 
         ->and($after['users'])->toBe((int) ($manifest['users'] ?? -1))
         ->and($after['users'])->toBe($before['users']);
     foreach ($before['heads'] as $chain => $head) {
-        $hash = V1Install::sql(j09Container((string) $GLOBALS['fsaJ09Uuid'], 'postgres'), "SELECT hash FROM activity_log WHERE COALESCE(organization_id, 0) = {$chain} AND chain_seq = {$head['seq']};");
+        $hash = V1Install::sql(j09Container((string) $GLOBALS['fieldsetJ09Uuid'], 'postgres'), "SELECT hash FROM activity_log WHERE COALESCE(organization_id, 0) = {$chain} AND chain_seq = {$head['seq']};");
         expect($hash)->toBe($head['hash'], "audit chain {$chain}");
     }
 });
 
 it('kept the APP key, forced the safe values, and serves the copied data in 2.0 with intact audit chains', function (): void {
-    $uuid = (string) $GLOBALS['fsaJ09Uuid'];
+    $uuid = (string) $GLOBALS['fieldsetJ09Uuid'];
     $app = (string) file_get_contents($this->dir.'/env/app.env');
     $verify = new Process(['docker', 'exec', j09Container($uuid, 'app'), 'php', 'artisan', 'audit:verify']);
     $verify->setTimeout(600);
     $verify->run();
-    $file = new Process(['docker', 'exec', j09Container($uuid, 'app'), 'cat', 'storage/app/private/fsa-test-j09/file.txt']);
+    $file = new Process(['docker', 'exec', j09Container($uuid, 'app'), 'cat', 'storage/app/private/fieldset-test-j09/file.txt']);
     $file->run();
-    $link = $this->journey->fsa($this->dir, ['login-link', 'owner@demo.test', '--secrets-file', $this->journey->work.'/j09-link.json', '--json']);
+    $link = $this->journey->fieldset($this->dir, ['login-link', 'owner@demo.test', '--secrets-file', $this->journey->work.'/j09-link.json', '--json']);
 
     expect($app)->toContain("APP_KEY='{$this->v1->appKey}'")
         ->and($app)->toContain("APP_DEBUG='false'")->and($app)->toContain("SSO_ALLOW_INSECURE_IDP='false'")
@@ -169,19 +169,19 @@ it('kept the APP key, forced the safe values, and serves the copied data in 2.0 
 });
 
 it('passes amcheck on the unique text indexes (emails, slugs) of the copy', function (): void {
-    $process = new Process(['docker', 'exec', '-i', j09Container((string) $GLOBALS['fsaJ09Uuid'], 'postgres'), 'psql', '-X', '-q', '-A', '-t', '-v', 'ON_ERROR_STOP=1', '-U', 'form_schema', '-d', 'form_schema', '-f', '-']);
+    $process = new Process(['docker', 'exec', '-i', j09Container((string) $GLOBALS['fieldsetJ09Uuid'], 'postgres'), 'psql', '-X', '-q', '-A', '-t', '-v', 'ON_ERROR_STOP=1', '-U', 'form_schema', '-d', 'form_schema', '-f', '-']);
     $process->setInput(DatabaseProbe::AMCHECK);
     $process->setTimeout(600);
     $process->run();
-    preg_match_all('/fsa-amcheck ok (\S+)/', $process->getErrorOutput(), $ok);
-    $this->journey->evidence('J09-amcheck.json', ['exit_code' => $process->getExitCode(), 'checked' => $ok[1], 'failed' => substr_count($process->getErrorOutput(), 'fsa-amcheck failed'),
-        'adopt_amcheck' => $GLOBALS['fsaJ09Adopt']['data']['adopted']['verified']['amcheck'] ?? null]);
+    preg_match_all('/fieldset-amcheck ok (\S+)/', $process->getErrorOutput(), $ok);
+    $this->journey->evidence('J09-amcheck.json', ['exit_code' => $process->getExitCode(), 'checked' => $ok[1], 'failed' => substr_count($process->getErrorOutput(), 'fieldset-amcheck failed'),
+        'adopt_amcheck' => $GLOBALS['fieldsetJ09Adopt']['data']['adopted']['verified']['amcheck'] ?? null]);
 
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput())
-        ->and($process->getErrorOutput())->not->toContain('fsa-amcheck failed')
+        ->and($process->getErrorOutput())->not->toContain('fieldset-amcheck failed')
         ->and($ok[1])->toContain('users_email_unique')
         ->and(array_filter($ok[1], static fn (string $index): bool => str_contains($index, 'slug')))->not->toBeEmpty()
-        ->and(V1Install::sql(j09Container((string) $GLOBALS['fsaJ09Uuid'], 'postgres'), "SELECT count(*) FROM pg_extension WHERE extname = 'amcheck';"))->toBe('0');
+        ->and(V1Install::sql(j09Container((string) $GLOBALS['fieldsetJ09Uuid'], 'postgres'), "SELECT count(*) FROM pg_extension WHERE extname = 'amcheck';"))->toBe('0');
 });
 
 it('left 1.0\'s volumes untouched and stopped, and its backup restores in a drill', function (): void {
@@ -189,10 +189,10 @@ it('left 1.0\'s volumes untouched and stopped, and its backup restores in a dril
     $volumes->run();
     $state = new Process(['docker', 'inspect', '-f', '{{.State.Status}}', $this->v1->container('app'), $this->v1->container('postgres')]);
     $state->run();
-    $backup = (string) ($GLOBALS['fsaJ09Adopt']['data']['adopted']['backup'] ?? '');
-    $drill = $this->journey->fsa($this->dir, ['restore', $backup, '--drill', '--accept-unauthenticated', '--json']);
+    $backup = (string) ($GLOBALS['fieldsetJ09Adopt']['data']['adopted']['backup'] ?? '');
+    $drill = $this->journey->fieldset($this->dir, ['restore', $backup, '--drill', '--accept-unauthenticated', '--json']);
     $drillJson = InstanceJourney::json($drill);
-    $this->journey->evidence('J09-drill.json', ['command' => 'fsa restore '.$backup.' --drill --accept-unauthenticated --json', 'exit_code' => $drill->getExitCode(), 'stdout' => $drillJson]);
+    $this->journey->evidence('J09-drill.json', ['command' => 'fieldset restore '.$backup.' --drill --accept-unauthenticated --json', 'exit_code' => $drill->getExitCode(), 'stdout' => $drillJson]);
     $members = new Process(['tar', '-tzf', $this->dir.'/backups/'.$backup.'/storage.tar.gz']);
     $members->run();
     $files = $drillJson['data']['drill']['files'] ?? [];
@@ -204,7 +204,7 @@ it('left 1.0\'s volumes untouched and stopped, and its backup restores in a dril
         ->and($drill->getExitCode())->toBe(0, $drill->getErrorOutput()."\n".$drill->getOutput())
         // The storage made the round trip (M12 gate EV3): the archive holds the 1.0 file, the drill read it, and the only
         // references it misses are the load generator's renditions, which never had a file (LoadRows::renditions).
-        ->and(explode("\n", trim($members->getOutput())))->toContain('./private/fsa-test-j09/file.txt')
+        ->and(explode("\n", trim($members->getOutput())))->toContain('./private/fieldset-test-j09/file.txt')
         ->and($files['archive'] ?? null)->toBeTrue()
         ->and($drillJson['data']['storage']['files'] ?? 0)->toBeGreaterThanOrEqual(1)
         ->and($loadOnly)->toBe([])
@@ -215,19 +215,19 @@ it('left 1.0\'s volumes untouched and stopped, and its backup restores in a dril
 });
 
 it('restores the adopt\'s 1.0 backup in place through the upgrade child: its data, a new epoch, a healthy instance', function (): void {
-    $uuid = (string) $GLOBALS['fsaJ09Uuid'];
-    $adopted = $GLOBALS['fsaJ09Adopt']['data']['adopted'] ?? [];
+    $uuid = (string) $GLOBALS['fieldsetJ09Uuid'];
+    $adopted = $GLOBALS['fieldsetJ09Adopt']['data']['adopted'] ?? [];
     $backup = (string) ($adopted['backup'] ?? '');
     $postgres = j09Container($uuid, 'postgres');
     $epochBefore = V1Install::sql($postgres, 'SELECT coalesce(max(epoch), 1) FROM audit_chain_epochs;'); // no row yet: epoch 1 (adopt starts none)
-    $process = $this->journey->fsa($this->dir, ['restore', $backup, '--accept-unauthenticated', '--yes', '--json']);
+    $process = $this->journey->fieldset($this->dir, ['restore', $backup, '--accept-unauthenticated', '--yes', '--json']);
     $json = InstanceJourney::json($process);
     $postgres = j09Container($uuid, 'postgres');
     $after = V1Install::data($postgres);
     $verify = new Process(['docker', 'exec', j09Container($uuid, 'app'), 'php', 'artisan', 'audit:verify']);
     $verify->setTimeout(600);
     $verify->run();
-    $file = new Process(['docker', 'exec', j09Container($uuid, 'app'), 'cat', 'storage/app/private/fsa-test-j09/file.txt']);
+    $file = new Process(['docker', 'exec', j09Container($uuid, 'app'), 'cat', 'storage/app/private/fieldset-test-j09/file.txt']);
     $file->run();
     $journals = glob($this->dir.'/operations/history/*-restore-*.json') ?: [];
     $journal = json_decode((string) file_get_contents((string) end($journals)), true);
@@ -236,7 +236,7 @@ it('restores the adopt\'s 1.0 backup in place through the upgrade child: its dat
         'restored_entries' => V1Install::sql($postgres, "SELECT count(*) FROM activity_log WHERE event = 'instance.restored';"),
         'data' => ['submissions' => $after['submissions'], 'users' => $after['users']], 'file' => $file->getOutput(), 'audit_verify' => $verify->getExitCode(),
         'upgrade_child' => $child[0]['data'] ?? null, 'up' => j09Get($this->v1->port, '/up')['status']];
-    $this->journey->evidence('J09-restore-in-place.json', ['command' => 'fsa restore '.$backup.' --accept-unauthenticated --yes --json', 'exit_code' => $process->getExitCode(), 'stdout' => $json, 'checks' => $checks]);
+    $this->journey->evidence('J09-restore-in-place.json', ['command' => 'fieldset restore '.$backup.' --accept-unauthenticated --yes --json', 'exit_code' => $process->getExitCode(), 'stdout' => $json, 'checks' => $checks]);
 
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput()."\n".$process->getOutput())
         ->and($json['data'])->toMatchArray(['backup' => $backup, 'format' => 'legacy', 'authenticated' => false]) // a 1.0 manifest names no version: the child goes by migrations
@@ -253,17 +253,17 @@ it('restores the adopt\'s 1.0 backup in place through the upgrade child: its dat
 });
 
 it('uninstalls with a final backup and the writes since adopt, and docker compose up -d brings 1.0 back with its data', function (): void {
-    $uuid = (string) $GLOBALS['fsaJ09Uuid'];
+    $uuid = (string) $GLOBALS['fieldsetJ09Uuid'];
     $write = new Process(['docker', 'exec', j09Container($uuid, 'app'), 'php', 'artisan', 'app:seed-load', 'demo', '3', '--chunk=3', '--force']);
     $write->setTimeout(300);
     $write->run();
-    $process = $this->journey->fsa($this->dir, ['uninstall', '--yes', '--json']);
+    $process = $this->journey->fieldset($this->dir, ['uninstall', '--yes', '--json']);
     $json = InstanceJourney::json($process);
     $left = InstanceJourney::labelled($uuid);
     $up = $this->v1->compose(['up', '-d', '--wait']);
     $back = $up->isSuccessful() ? V1Install::data($this->v1->container('postgres')) : [];
-    $adopted = $GLOBALS['fsaJ09Adopt']['data']['adopted'] ?? [];
-    $this->journey->evidence('J09-uninstall.json', ['commands' => ['fsa uninstall --yes --json', 'docker compose up -d --wait (in the checkout)'], 'exit_code' => $process->getExitCode(), 'stdout' => $json, 'labelled_left' => $left, 'v1_after' => $back]);
+    $adopted = $GLOBALS['fieldsetJ09Adopt']['data']['adopted'] ?? [];
+    $this->journey->evidence('J09-uninstall.json', ['commands' => ['fieldset uninstall --yes --json', 'docker compose up -d --wait (in the checkout)'], 'exit_code' => $process->getExitCode(), 'stdout' => $json, 'labelled_left' => $left, 'v1_after' => $back]);
 
     expect($write->getExitCode())->toBe(0, $write->getErrorOutput())
         ->and($process->getExitCode())->toBe(0, $process->getErrorOutput()."\n".$process->getOutput())

@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Str;
 
 /*
- * The app-side commands behind `fsa login-link` and `fsa status` (KTD25: socket-less one-offs whose JSON fsa
+ * The app-side commands behind `fieldset login-link` and `fieldset status` (KTD25: socket-less one-offs whose JSON fieldset
  * passes through). The link appears only under `secrets`; listings never show a token.
  */
 
@@ -81,7 +81,7 @@ it('reports refusals with stable error codes', function (string $case, string $c
     ['rate limited', 'rate_limited', true],
 ]);
 
-it('lists unused links for fsa status without any token', function (): void {
+it('lists unused links for fieldset status without any token', function (): void {
     $used = memberOf($this->org, SystemRole::Admin);
     $usedToken = Str::after(app(IssueLoginLink::class)->handle($used)->url, '#');
     $this->post('/login-link', ['token' => $usedToken]);

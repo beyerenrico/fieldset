@@ -14,13 +14,13 @@ use Symfony\Component\HttpFoundation\IpUtils;
  *
  * - `/up` from loopback (TCP peer 127.0.0.0/8 or ::1): the container healthcheck `curl localhost:8080/up` keeps
  *   the app healthy behind the gate, so Compose does not restart or roll it back.
- * - a request carrying the operation's smoke token in `X-Fsa-Smoke-Token`, from a private address (client
+ * - a request carrying the operation's smoke token in `X-Fieldset-Smoke-Token`, from a private address (client
  *   address after trusted-proxy resolution, so a request forwarded by the edge counts as its real client), never
  *   through the tunnel. The token is compared in constant time.
  */
 final readonly class OperationGate
 {
-    public const string SMOKE_HEADER = 'X-Fsa-Smoke-Token';
+    public const string SMOKE_HEADER = 'X-Fieldset-Smoke-Token';
 
     public const int RETRY_AFTER = 30;
 

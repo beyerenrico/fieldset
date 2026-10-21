@@ -29,10 +29,10 @@ final class TunnelRules
     {
         $settings = InstanceSettings::of($state);
         if ($state->mode() !== 'local') {
-            throw new InvalidInput("The quick tunnel belongs to local mode; this instance runs in {$state->mode()} mode (R61).", 'invalid_combination', 'Phones open '.$settings->instanceUrl().' over HTTPS already. A tunnel needs `fsa config set mode local` first.');
+            throw new InvalidInput("The quick tunnel belongs to local mode; this instance runs in {$state->mode()} mode (R61).", 'invalid_combination', 'Phones open '.$settings->instanceUrl().' over HTTPS already. A tunnel needs `fieldset config set mode local` first.');
         }
         if ($settings->localCa()) {
-            throw new InvalidInput('The quick tunnel and the local CA exclude each other (R61).', 'invalid_combination', 'Turn the local CA off first: `fsa config set phone-https off --yes`.');
+            throw new InvalidInput('The quick tunnel and the local CA exclude each other (R61).', 'invalid_combination', 'Turn the local CA off first: `fieldset config set phone-https off --yes`.');
         }
     }
 }

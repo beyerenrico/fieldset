@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Domain\Instance\Console;
 
 /**
- * Which `fsa` flags take a host file path (KTD2, ADR 0070). The shim and install.sh apply the same rules: they
+ * Which `fieldset` flags take a host file path (KTD2, ADR 0070). The shim and install.sh apply the same rules: they
  * make the value absolute and mount its parent directory at the same path, read-only for inputs and read-write
- * for outputs. Keep `distribution/shim.sh` (fsa_file_flag_mode) in step; a test compares both.
+ * for outputs. Keep `distribution/shim.sh` (fieldset_file_flag_mode) in step; a test compares both.
  *
  * - outputs: `--secrets-file`, `--output`, any `--…-out`
  * - inputs: any other `--…-file`, `--from-backup`

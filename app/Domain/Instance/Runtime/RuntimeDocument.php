@@ -173,7 +173,7 @@ final class RuntimeDocument
         return new GateState($gate['raised'], $operation, self::timestamp($gate['since'] ?? null, 'gate.since'), $token);
     }
 
-    /** `webhooks.paused` (U17, ADR 0085): written by `fsa install --from-backup` until the operator confirms the move. */
+    /** `webhooks.paused` (U17, ADR 0085): written by `fieldset install --from-backup` until the operator confirms the move. */
     private static function webhooksPaused(mixed $webhooks): bool
     {
         if ($webhooks === null) {
@@ -188,7 +188,7 @@ final class RuntimeDocument
 
     /**
      * `updates` (plan U20, E15, ADR 0089): the release manifest URL the daily update check reads, only when the check is
-     * on (`fsa config set update-check on`); anything else, a malformed block included, keeps the check off.
+     * on (`fieldset config set update-check on`); anything else, a malformed block included, keeps the check off.
      */
     private static function updateManifestUrl(mixed $updates): ?string
     {

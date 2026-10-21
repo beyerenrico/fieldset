@@ -14,7 +14,7 @@ use Carbon\CarbonImmutable;
 use Throwable;
 
 /**
- * fsa's verdict on a prepared backup (R41, R42, R67, AE8, KTD18, plan U17, ADR 0085), before anything changes. In this
+ * fieldset's verdict on a prepared backup (R41, R42, R67, AE8, KTD18, plan U17, ADR 0085), before anything changes. In this
  * order: damaged (checksums) and unsafe (the dump's table of contents) are always refused (exit 2); a newer migration
  * set, or a version below the release's oldest upgrade source, is incompatible (exit 7, AE8); an archive whose HMAC
  * no key from outside it verifies needs `--accept-unauthenticated` (exit 2); every APP key the backup lists must be
@@ -60,7 +60,7 @@ final readonly class RestoreChecks
     /**
      * An in-place restore takes only this instance's own backups (review A3): the R64 carry matches rows by their IDs,
      * so another instance's users would inherit this one's revocations and erasures. A 1.0 archive names no instance; it
-     * counts as this instance's when the APP_KEY in its `env` is one of the instance's own keys. The backup `fsa adopt`
+     * counts as this instance's when the APP_KEY in its `env` is one of the instance's own keys. The backup `fieldset adopt`
      * wrote holds no key (U19, ADR 0087): its manifest's first key fingerprint counts only for exactly that set, by its
      * name and the digest of its SHA256SUMS as the adopt recorded them (review R1: the manifest is unauthenticated, a
      * fingerprint alone is no proof). Everything else goes to a new directory with `install.sh --dir <new directory> --from-backup <backup>`.
@@ -132,10 +132,10 @@ final readonly class RestoreChecks
             throw new InvalidInput('The backup is damaged: '.implode('; ', array_slice($backup->problems, 0, 5)).'.', 'backup_damaged', 'Use another backup; a changed or missing file is never restored.', ['problems' => $backup->problems]);
         }
         if ($backup->dump['rejected'] !== []) {
-            throw new InvalidInput('The dump holds objects a backup of this app never has: '.implode('; ', array_slice($backup->dump['rejected'], 0, 3)).'.', 'backup_unsafe', 'Nothing was restored. Use a backup written by fsa or by scripts/backup.sh of this app.', ['rejected' => $backup->dump['rejected']]);
+            throw new InvalidInput('The dump holds objects a backup of this app never has: '.implode('; ', array_slice($backup->dump['rejected'], 0, 3)).'.', 'backup_unsafe', 'Nothing was restored. Use a backup written by fieldset or by scripts/backup.sh of this app.', ['rejected' => $backup->dump['rejected']]);
         }
         if ($backup->migrations['relation'] === MigrationSet::NONE) {
-            throw new InvalidInput('The dump has no migrations table: it is not a backup of this app.', 'not_an_app_backup', 'Use a backup written by fsa or by scripts/backup.sh.');
+            throw new InvalidInput('The dump has no migrations table: it is not a backup of this app.', 'not_an_app_backup', 'Use a backup written by fieldset or by scripts/backup.sh.');
         }
     }
 
@@ -179,7 +179,7 @@ final readonly class RestoreChecks
         if ($backup->migrations['relation'] === MigrationSet::NEWER) {
             throw new InstanceException(
                 'The backup was made by a newer version: it ran migrations this version does not know ('.implode(', ', array_slice($backup->migrations['unknown'], 0, 3)).').',
-                ExitCode::Incompatible, 'backup_newer', 'Restore it with the version that made it (or a newer one): `fsa upgrade` first; nothing was changed.', false, ['unknown_migrations' => $backup->migrations['unknown']],
+                ExitCode::Incompatible, 'backup_newer', 'Restore it with the version that made it (or a newer one): `fieldset upgrade` first; nothing was changed.', false, ['unknown_migrations' => $backup->migrations['unknown']],
             );
         }
         if (! $backup->isLegacy() && $upgradesFrom !== null && self::below($backup->version(), $upgradesFrom)) {

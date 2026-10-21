@@ -8,12 +8,12 @@ use Illuminate\Support\Facades\Queue;
 
 /*
  * `instance:queue-drain` (KTD19 step 4, plan U18, ADR 0086) against the dev Valkey, on a queue of its own
- * (`fsa-test-u18-<random>`, which no Horizon of the dev stack works): the sizes by state, and `--drop` exporting every
+ * (`fieldset-test-u18-<random>`, which no Horizon of the dev stack works): the sizes by state, and `--drop` exporting every
  * job left over (pending, reserved, delayed) as its raw payload before deleting it.
  */
 
 beforeEach(function (): void {
-    $this->queue = 'fsa-test-u18-'.bin2hex(random_bytes(4));
+    $this->queue = 'fieldset-test-u18-'.bin2hex(random_bytes(4));
 });
 
 afterEach(function (): void {
@@ -31,9 +31,9 @@ function queueDrain(array $options = []): array
 
 it('reports the sizes of the queues by state', function (): void {
     $queue = Queue::connection('redis');
-    $queue->push('fsa-test-job', [], $this->queue);
-    $queue->push('fsa-test-job', [], $this->queue);
-    $queue->later(3600, 'fsa-test-delayed', [], $this->queue);
+    $queue->push('fieldset-test-job', [], $this->queue);
+    $queue->push('fieldset-test-job', [], $this->queue);
+    $queue->later(3600, 'fieldset-test-delayed', [], $this->queue);
 
     [$code, $json] = queueDrain(['--queue' => [$this->queue]]);
 
@@ -45,9 +45,9 @@ it('reports the sizes of the queues by state', function (): void {
 
 it('exports the jobs still pending or reserved with --export without deleting, and deletes them with --drop; delayed jobs stay', function (): void {
     $queue = Queue::connection('redis');
-    $queue->push('fsa-test-job', [], $this->queue);
-    $queue->push('fsa-test-job', [], $this->queue);
-    $queue->later(3600, 'fsa-test-delayed', [], $this->queue);
+    $queue->push('fieldset-test-job', [], $this->queue);
+    $queue->push('fieldset-test-job', [], $this->queue);
+    $queue->later(3600, 'fieldset-test-delayed', [], $this->queue);
 
     [$code, $export] = queueDrain(['--queue' => [$this->queue], '--export' => true]);
     [, $kept] = queueDrain(['--queue' => [$this->queue]]);
@@ -57,7 +57,7 @@ it('exports the jobs still pending or reserved with --export without deleting, a
     expect($code)->toBe(0, (string) json_encode($export))
         ->and($export['data']['payloads'])->toHaveCount(2)->and($export['changed'])->toBeFalse()
         ->and(array_unique(array_column($export['data']['payloads'], 'state')))->toBe(['pending'])
-        ->and($export['data']['payloads'][0]['payload'])->toContain('fsa-test-job')
+        ->and($export['data']['payloads'][0]['payload'])->toContain('fieldset-test-job')
         ->and($kept['data'])->toMatchArray(['pending' => 2, 'delayed' => 1])
         ->and($dropCode)->toBe(0)->and($drop['data']['dropped'])->toBe(2)->and($drop['changed'])->toBeTrue()
         ->and($after['data'])->toMatchArray(['pending' => 0, 'reserved' => 0, 'delayed' => 1]);

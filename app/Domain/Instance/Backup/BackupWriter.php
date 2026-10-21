@@ -142,7 +142,7 @@ final readonly class BackupWriter
      */
     private function secretsOnTmpfs(#[SensitiveParameter] string $secrets): string
     {
-        $directory = sys_get_temp_dir().'/fsa-secrets-'.bin2hex(random_bytes(8));
+        $directory = sys_get_temp_dir().'/fieldset-secrets-'.bin2hex(random_bytes(8));
         if (! @mkdir($directory, 0700)) {
             throw new RuntimeException('Cannot create a private temporary directory for secrets.env.');
         }

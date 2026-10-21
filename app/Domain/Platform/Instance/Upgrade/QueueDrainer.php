@@ -11,8 +11,8 @@ use InvalidArgumentException;
 /**
  * The queue side of an upgrade's drain (KTD19 step 4, plan U18, ADR 0086), in a socket-less one-off: the sizes of every
  * Horizon queue (pending, reserved by a running worker, delayed), and for `--drop-jobs` an export of every job left in
- * them as the raw payloads Laravel stored, which are then deleted. fsa saves the export to a 0600 file beside the safety
- * backup; the payloads may carry personal data and never reach fsa's output.
+ * them as the raw payloads Laravel stored, which are then deleted. fieldset saves the export to a 0600 file beside the safety
+ * backup; the payloads may carry personal data and never reach fieldset's output.
  */
 final readonly class QueueDrainer
 {
@@ -51,7 +51,7 @@ final readonly class QueueDrainer
 
     /**
      * The raw payloads of every job still pending or reserved (a worker took it but never finished: the workers are
-     * stopped when fsa asks). Delayed jobs are not part of it: they wait in Valkey for their time.
+     * stopped when fieldset asks). Delayed jobs are not part of it: they wait in Valkey for their time.
      *
      * @param  list<string>  $names
      * @return list<array{queue: string, state: string, payload: string}>
@@ -74,7 +74,7 @@ final readonly class QueueDrainer
     }
 
     /**
-     * Deletes every job still pending or reserved (after fsa saved export()'s payloads); delayed jobs stay.
+     * Deletes every job still pending or reserved (after fieldset saved export()'s payloads); delayed jobs stay.
      *
      * @param  list<string>  $names
      */

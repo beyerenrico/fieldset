@@ -11,9 +11,9 @@ use App\Domain\Instance\State\InstanceDirectory;
 
 /**
  * Who can change what the socket holder trusts (KTD2, ADR 0070): the instance directory, the state, the compose
- * file and the fsa shim must not be writable by group or others, and must belong to the instance owner as
+ * file and the fieldset shim must not be writable by group or others, and must belong to the instance owner as
  * containers see it (the host UID on rootful Docker, 0 on rootless Docker and Docker Desktop). Anyone who can
- * edit them can make fsa start containers of their choosing.
+ * edit them can make fieldset start containers of their choosing.
  */
 final readonly class PermissionsCheck implements DoctorCheck
 {
@@ -21,7 +21,7 @@ final readonly class PermissionsCheck implements DoctorCheck
         '' => 'the instance directory',
         InstanceDirectory::STATE_FILE => 'state.json',
         InstanceDirectory::COMPOSE_FILE => 'compose.yaml',
-        'fsa' => 'the fsa command',
+        'fieldset' => 'the fieldset command',
     ];
 
     public function key(): string

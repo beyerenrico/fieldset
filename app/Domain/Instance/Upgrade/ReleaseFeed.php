@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\Http;
 use Throwable;
 
 /**
- * The target release of `fsa upgrade` (R33, R58, KTD19 step 1, plan U18, ADR 0086). The installed fsa downloads the
+ * The target release of `fieldset upgrade` (R33, R58, KTD19 step 1, plan U18, ADR 0086). The installed fieldset downloads the
  * target's manifest and its `sign-blob` bundle from the release URL (GitHub Releases, or FIELDSET_RELEASE_URL: install.sh's
  * mirror, http only for harness builds), `download/v<version>/` for `--to`, `latest/download/` for the newest stable
  * release, into a fresh `releases/.download-*` directory, verifies them with the pinned cosign image against the identity
@@ -76,16 +76,16 @@ final readonly class ReleaseFeed
                 ->withOptions(['allow_redirects' => ['max' => 5, 'protocols' => stripos($url, 'http://') === 0 ? ['http', 'https'] : ['https']]])
                 ->get($url);
         } catch (Throwable $e) {
-            throw new InstanceException("Cannot download {$url}: ".$e->getMessage(), ExitCode::PreflightFailed, 'release_unavailable', 'Check the network and FIELDSET_RELEASE_URL, then run `fsa upgrade` again; nothing was changed.', true, [], $e);
+            throw new InstanceException("Cannot download {$url}: ".$e->getMessage(), ExitCode::PreflightFailed, 'release_unavailable', 'Check the network and FIELDSET_RELEASE_URL, then run `fieldset upgrade` again; nothing was changed.', true, [], $e);
         }
         if (in_array($response->status(), [404, 410], true) && $manifest) {
             throw $version === null
-                ? new InvalidInput('There is no latest release to upgrade to (pre-releases are never "latest").', 'no_latest_release', 'Name the version: `fsa upgrade --to <version>`.')
+                ? new InvalidInput('There is no latest release to upgrade to (pre-releases are never "latest").', 'no_latest_release', 'Name the version: `fieldset upgrade --to <version>`.')
                 : new InvalidInput("There is no release {$version}.", 'release_not_found', 'Check the version against the releases page; nothing was changed.');
         }
         $body = $response->body();
         if (! $response->successful() || $body === '' || strlen($body) > self::MAX_BYTES) {
-            throw new InstanceException("Cannot download {$url} (HTTP {$response->status()}).", ExitCode::PreflightFailed, 'release_unavailable', 'Check the network and FIELDSET_RELEASE_URL, then run `fsa upgrade` again; nothing was changed.', true);
+            throw new InstanceException("Cannot download {$url} (HTTP {$response->status()}).", ExitCode::PreflightFailed, 'release_unavailable', 'Check the network and FIELDSET_RELEASE_URL, then run `fieldset upgrade` again; nothing was changed.', true);
         }
 
         return $body;

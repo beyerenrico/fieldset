@@ -24,26 +24,26 @@ use Tests\Support\Docker\TestImage;
  *
  * - A loopback-only local install with --demo whose own organization is named "Demo" (the demo is seeded beside it, M11
  *   gate): the demo users sign in with `password` (Fortify's headless login, as the Field App does, then the session
- *   reaches /api/v1/me); the app-side check finds all nine and one organization besides the demo; `fsa demo` changes
- *   no demo data and its new demo owner link signs in; `fsa config set domain` is refused in its preflight (exit 3
- *   `default_password_in_use`) with nothing changed; `fsa demo --rotate-passwords` makes `password` and an existing
+ *   reaches /api/v1/me); the app-side check finds all nine and one organization besides the demo; `fieldset demo` changes
+ *   no demo data and its new demo owner link signs in; `fieldset config set domain` is refused in its preflight (exit 3
+ *   `default_password_in_use`) with nothing changed; `fieldset demo --rotate-passwords` makes `password` and an existing
  *   remembered session fail and the printed passwords work; the check then finds none.
  * - A domain-mode install with --demo against Pebble (as J2): `password` is refused, and every demo user signs in over
  *   HTTPS with the random password printed once into --secrets-file.
  *
  * Reset part (R43, R57, R68, KTD26; plan U23; ADR 0088):
  *
- * - `fsa reset --yes` on the local demo: the fresh instance holds the install's organization and owner only (the demo
+ * - `fieldset reset --yes` on the local demo: the fresh instance holds the install's organization and owner only (the demo
  *   users are gone, the owner's new link signs in), an empty storage volume (a planted file is gone, the volume is new),
  *   an empty catcher, a safety backup that retention never prunes, the ledger line with the final heads written before
  *   the database was recreated, and `instance.reset` as the first entry of the next epoch, naming those heads.
- * - `fsa reset --demo --no-backup --yes` on the domain demo: no safety backup, but an audit export (a real organization
+ * - `fieldset reset --demo --no-backup --yes` on the domain demo: no safety backup, but an audit export (a real organization
  *   existed), and the demo users of the fresh instance get random passwords (domain mode is reachable beyond loopback).
  *
- * Everything is named `fsa-test-j05-…` and removed afterwards. Evidence goes to the milestone of FIELDSET_EVIDENCE_MILESTONE.
+ * Everything is named `fieldset-test-j05-…` and removed afterwards. Evidence goes to the milestone of FIELDSET_EVIDENCE_MILESTONE.
  */
 
-const J05_DOMAIN = 'fsa-test-j05.test';
+const J05_DOMAIN = 'fieldset-test-j05.test';
 const J05_DEMO_USERS = [
     'owner@demo.test', 'admin@demo.test', 'designer@demo.test', 'reviewer@demo.test', 'coordinator@demo.test',
     'worker@demo.test', 'mobile@demo.test', 'tablet@demo.test', 'viewer@demo.test',
@@ -56,22 +56,22 @@ beforeAll(function (): void {
 
     try {
         [$harness, $release] = SharedHarness::get();
-        $GLOBALS['fsaJ05'] = new InstanceJourney($harness, $release, $harness->directory.'/j05');
-        $GLOBALS['fsaJ05Acme'] = AcmeHarness::start($harness);
+        $GLOBALS['fieldsetJ05'] = new InstanceJourney($harness, $release, $harness->directory.'/j05');
+        $GLOBALS['fieldsetJ05Acme'] = AcmeHarness::start($harness);
     } catch (Throwable $exception) {
-        $GLOBALS['fsaJ05Error'] = $exception;
+        $GLOBALS['fieldsetJ05Error'] = $exception;
     }
 });
 
 afterAll(function (): void {
-    if (isset($GLOBALS['fsaJ05'])) {
-        InstanceJourney::cleanup($GLOBALS['fsaJ05']->work.'/fsa-test-j05-local', $GLOBALS['fsaJ05LocalUuid'] ?? null);
-        InstanceJourney::cleanup($GLOBALS['fsaJ05']->work.'/fsa-test-j05-domain', $GLOBALS['fsaJ05DomainUuid'] ?? null);
+    if (isset($GLOBALS['fieldsetJ05'])) {
+        InstanceJourney::cleanup($GLOBALS['fieldsetJ05']->work.'/fieldset-test-j05-local', $GLOBALS['fieldsetJ05LocalUuid'] ?? null);
+        InstanceJourney::cleanup($GLOBALS['fieldsetJ05']->work.'/fieldset-test-j05-domain', $GLOBALS['fieldsetJ05DomainUuid'] ?? null);
     }
-    if (isset($GLOBALS['fsaJ05Acme'])) {
-        $GLOBALS['fsaJ05Acme']->stop();
+    if (isset($GLOBALS['fieldsetJ05Acme'])) {
+        $GLOBALS['fieldsetJ05Acme']->stop();
     }
-    unset($GLOBALS['fsaJ05'], $GLOBALS['fsaJ05Acme'], $GLOBALS['fsaJ05Error'], $GLOBALS['fsaJ05LocalUuid'], $GLOBALS['fsaJ05DomainUuid'], $GLOBALS['fsaJ05Port'], $GLOBALS['fsaJ05Root'], $GLOBALS['fsaJ05Session']);
+    unset($GLOBALS['fieldsetJ05'], $GLOBALS['fieldsetJ05Acme'], $GLOBALS['fieldsetJ05Error'], $GLOBALS['fieldsetJ05LocalUuid'], $GLOBALS['fieldsetJ05DomainUuid'], $GLOBALS['fieldsetJ05Port'], $GLOBALS['fieldsetJ05Root'], $GLOBALS['fieldsetJ05Session']);
 });
 
 beforeEach(function (): void {
@@ -80,19 +80,19 @@ beforeEach(function (): void {
         expect(getenv('FIELDSET_REQUIRE_DOCKER'))->not->toBe('1', $reason);
         $this->markTestSkipped($reason.' (install journeys need a Docker engine)');
     }
-    if (isset($GLOBALS['fsaJ05Error'])) {
-        throw $GLOBALS['fsaJ05Error'];
+    if (isset($GLOBALS['fieldsetJ05Error'])) {
+        throw $GLOBALS['fieldsetJ05Error'];
     }
-    $this->journey = $GLOBALS['fsaJ05'];
-    $this->acme = $GLOBALS['fsaJ05Acme'];
-    $this->local = $this->journey->work.'/fsa-test-j05-local';
-    $this->domain = $this->journey->work.'/fsa-test-j05-domain';
+    $this->journey = $GLOBALS['fieldsetJ05'];
+    $this->acme = $GLOBALS['fieldsetJ05Acme'];
+    $this->local = $this->journey->work.'/fieldset-test-j05-local';
+    $this->domain = $this->journey->work.'/fieldset-test-j05-domain';
 });
 
 /** An address the doctor accepts as this host's: a LAN address the shim reports, else a public one (as in J2). */
 function j05HostAddress(): string
 {
-    $process = new Process(['/bin/sh', '-c', '. "$1"; fsa_lan_addresses', 'sh', TestImage::repository().'/distribution/shim.sh'], null, ['FIELDSET_SHIM_LIBRARY' => '1']);
+    $process = new Process(['/bin/sh', '-c', '. "$1"; fieldset_lan_addresses', 'sh', TestImage::repository().'/distribution/shim.sh'], null, ['FIELDSET_SHIM_LIBRARY' => '1']);
     $process->run();
 
     return array_values(array_filter(preg_split('/\s+/', trim($process->getOutput())) ?: []))[0] ?? '1.1.1.1';
@@ -104,7 +104,7 @@ function j05Client(?int $port = null): Client
     $options = ['http_errors' => false, 'allow_redirects' => false, 'timeout' => 30, 'cookies' => new CookieJar];
 
     return new Client($port !== null ? [...$options, 'base_uri' => "http://localhost:{$port}"] : [
-        ...$options, 'base_uri' => 'https://'.J05_DOMAIN, RequestOptions::VERIFY => $GLOBALS['fsaJ05Root'] ?? false,
+        ...$options, 'base_uri' => 'https://'.J05_DOMAIN, RequestOptions::VERIFY => $GLOBALS['fieldsetJ05Root'] ?? false,
         'curl' => [CURLOPT_RESOLVE => [J05_DOMAIN.':443:127.0.0.1', J05_DOMAIN.':80:127.0.0.1']],
     ]);
 }
@@ -159,14 +159,14 @@ function j05Docker(array $command): Process
 /** The number of messages in the instance's catcher, through its loopback UI port with the login from --secrets-file. */
 function j05CatcherCount(InstanceJourney $journey, string $dir): ?int
 {
-    $status = InstanceJourney::json($journey->fsa($dir, ['status', '--json']));
+    $status = InstanceJourney::json($journey->fieldset($dir, ['status', '--json']));
     $port = (int) parse_url((string) ($status['data']['mail']['catcher_url'] ?? ''), PHP_URL_PORT);
     $file = $journey->work.'/j05-catcher-login.json';
     @unlink($file);
-    $journey->fsa($dir, ['config', 'show', '--catcher-login', '--secrets-file', $file, '--json']);
+    $journey->fieldset($dir, ['config', 'show', '--catcher-login', '--secrets-file', $file, '--json']);
     $password = (string) (json_decode((string) @file_get_contents($file), true)['secrets'][0]['value'] ?? '');
     @unlink($file);
-    $response = new Client(['http_errors' => false, 'timeout' => 10])->get("http://localhost:{$port}/api/v1/messages", ['auth' => ['fsa', $password]]);
+    $response = new Client(['http_errors' => false, 'timeout' => 10])->get("http://localhost:{$port}/api/v1/messages", ['auth' => ['fieldset', $password]]);
     $json = json_decode((string) $response->getBody(), true);
 
     return $response->getStatusCode() === 200 && is_array($json) ? (int) ($json['total'] ?? count($json['messages'] ?? [])) : null;
@@ -201,12 +201,12 @@ it('installs a loopback-only local demo whose users sign in with password', func
     $process = $this->journey->install($this->local, ['--org', 'Demo', '--owner-email', 'owner@example.test', '--locale', 'en', '--demo', '--secrets-file', $link, '--json']);
     $seconds = round(microtime(true) - $started, 1);
     $json = InstanceJourney::json($process);
-    $GLOBALS['fsaJ05LocalUuid'] = InstanceJourney::uuid($this->local);
-    $GLOBALS['fsaJ05Port'] = $json['data']['port'] ?? null;
-    $client = j05Client($GLOBALS['fsaJ05Port']);
+    $GLOBALS['fieldsetJ05LocalUuid'] = InstanceJourney::uuid($this->local);
+    $GLOBALS['fieldsetJ05Port'] = $json['data']['port'] ?? null;
+    $client = j05Client($GLOBALS['fieldsetJ05Port']);
     $login = j05Login($client, 'worker@demo.test', 'password');
     $me = j05Me($client);
-    $this->journey->evidence('J05-local-install.json', ['command' => 'install.sh --dir <work>/fsa-test-j05-local --version '.ReleaseHarness::version().' --org Demo --owner-email owner@example.test --locale en --demo --secrets-file <work>/j05-owner-link.json --json', 'exit_code' => $process->getExitCode(), 'seconds' => $seconds, 'stdout' => $json, 'login_with_password' => [$login->getStatusCode(), json_decode((string) $login->getBody(), true)], 'me' => $me]);
+    $this->journey->evidence('J05-local-install.json', ['command' => 'install.sh --dir <work>/fieldset-test-j05-local --version '.ReleaseHarness::version().' --org Demo --owner-email owner@example.test --locale en --demo --secrets-file <work>/j05-owner-link.json --json', 'exit_code' => $process->getExitCode(), 'seconds' => $seconds, 'stdout' => $json, 'login_with_password' => [$login->getStatusCode(), json_decode((string) $login->getBody(), true)], 'me' => $me]);
 
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput()."\n".$process->getOutput())
         ->and($json['data']['demo'])->toMatchArray(['organization' => 'Demo Haustechnik GmbH', 'seeded' => true, 'passwords' => 'default', 'default_password' => 'password', 'exposure' => [], 'delivered' => 'data'])
@@ -217,7 +217,7 @@ it('installs a loopback-only local demo whose users sign in with password', func
 });
 
 it('finds all nine demo accounts on password and the owner\'s organization "Demo" as a real one with the app-side check', function (): void {
-    $check = j05Check($GLOBALS['fsaJ05LocalUuid']);
+    $check = j05Check($GLOBALS['fieldsetJ05LocalUuid']);
     $this->journey->evidence('J05-local-check.json', ['command' => 'docker exec <app> php artisan app:demo-passwords --check --json', 'stdout' => $check]);
 
     expect($check['status'] ?? null)->toBe('ok', json_encode($check))
@@ -227,15 +227,15 @@ it('finds all nine demo accounts on password and the owner\'s organization "Demo
         ->and($check['data']['organizations'])->toBe(['total' => 2, 'non_demo' => 1]);
 });
 
-it('changes no demo data with fsa demo on the seeded instance and reports the new demo owner link, which signs in', function (): void {
+it('changes no demo data with fieldset demo on the seeded instance and reports the new demo owner link, which signs in', function (): void {
     $file = $this->journey->work.'/j05-demo-link.json';
-    $process = $this->journey->fsa($this->local, ['demo', '--secrets-file', $file, '--json']);
+    $process = $this->journey->fieldset($this->local, ['demo', '--secrets-file', $file, '--json']);
     $json = InstanceJourney::json($process);
     [, $token] = explode('#', j05Secrets($file)['sign_in_link'] ?? '#', 2);
-    $client = j05Client($GLOBALS['fsaJ05Port']);
+    $client = j05Client($GLOBALS['fieldsetJ05Port']);
     preg_match('/name="_token" value="([^"]+)"/', (string) $client->get('/login-link')->getBody(), $csrf);
     $consumed = $client->post('/login-link', ['form_params' => ['_token' => $csrf[1] ?? '', 'token' => $token]]);
-    $this->journey->evidence('J05-local-demo.json', ['command' => 'fsa demo --secrets-file <work>/j05-demo-link.json --json', 'exit_code' => $process->getExitCode(), 'stdout' => $json, 'link_consumed' => [$consumed->getStatusCode(), $consumed->getHeaderLine('Location')]]);
+    $this->journey->evidence('J05-local-demo.json', ['command' => 'fieldset demo --secrets-file <work>/j05-demo-link.json --json', 'exit_code' => $process->getExitCode(), 'stdout' => $json, 'link_consumed' => [$consumed->getStatusCode(), $consumed->getHeaderLine('Location')]]);
 
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput().$process->getOutput())
         ->and($json['changed'])->toBeTrue()
@@ -252,16 +252,16 @@ it('changes no demo data with fsa demo on the seeded instance and reports the ne
 it('refuses config set domain while the demo accounts sign in with password: exit 3 in the preflight, nothing changed', function (): void {
     $state = (string) file_get_contents($this->local.'/state.json');
     $started = microtime(true);
-    $process = $this->journey->fsa($this->local, ['config', 'set', 'domain', J05_DOMAIN, '--yes', '--json']);
+    $process = $this->journey->fieldset($this->local, ['config', 'set', 'domain', J05_DOMAIN, '--yes', '--json']);
     $seconds = round(microtime(true) - $started, 1);
     $json = InstanceJourney::json($process);
-    $client = j05Client($GLOBALS['fsaJ05Port']);
+    $client = j05Client($GLOBALS['fieldsetJ05Port']);
     $login = j05Login($client, 'viewer@demo.test', 'password');
-    $this->journey->evidence('J05-local-config-domain-refused.json', ['command' => 'fsa config set domain '.J05_DOMAIN.' --yes --json', 'exit_code' => $process->getExitCode(), 'seconds' => $seconds, 'stdout' => $json, 'state_unchanged' => $state === file_get_contents($this->local.'/state.json'), 'login_with_password_on_loopback' => $login->getStatusCode()]);
+    $this->journey->evidence('J05-local-config-domain-refused.json', ['command' => 'fieldset config set domain '.J05_DOMAIN.' --yes --json', 'exit_code' => $process->getExitCode(), 'seconds' => $seconds, 'stdout' => $json, 'state_unchanged' => $state === file_get_contents($this->local.'/state.json'), 'login_with_password_on_loopback' => $login->getStatusCode()]);
 
     expect($process->getExitCode())->toBe(3, $process->getErrorOutput().$process->getOutput())
         ->and($json['errors'][0]['code'])->toBe('default_password_in_use')
-        ->and($json['errors'][0]['hint'])->toContain('fsa demo --rotate-passwords')
+        ->and($json['errors'][0]['hint'])->toContain('fieldset demo --rotate-passwords')
         ->and($json['data']['users'])->toEqualCanonicalizing(J05_DEMO_USERS)
         ->and(file_get_contents($this->local.'/state.json'))->toBe($state)
         ->and(file_exists($this->local.'/'.OperationJournal::CURRENT))->toBeFalse()
@@ -270,20 +270,20 @@ it('refuses config set domain while the demo accounts sign in with password: exi
 });
 
 it('rotates the demo passwords: password and a remembered session stop working, the printed passwords work', function (): void {
-    $session = j05Client($GLOBALS['fsaJ05Port']);
+    $session = j05Client($GLOBALS['fieldsetJ05Port']);
     $before = j05Login($session, 'mobile@demo.test', 'password', remember: true);
     $meBefore = j05Me($session);
     $file = $this->journey->work.'/j05-rotated.json';
-    $process = $this->journey->fsa($this->local, ['demo', '--rotate-passwords', '--secrets-file', $file, '--json']);
+    $process = $this->journey->fieldset($this->local, ['demo', '--rotate-passwords', '--secrets-file', $file, '--json']);
     $json = InstanceJourney::json($process);
     $passwords = j05Secrets($file);
     $meAfter = j05Me($session);
-    $old = j05Login(j05Client($GLOBALS['fsaJ05Port']), 'mobile@demo.test', 'password');
-    $fresh = j05Client($GLOBALS['fsaJ05Port']);
+    $old = j05Login(j05Client($GLOBALS['fieldsetJ05Port']), 'mobile@demo.test', 'password');
+    $fresh = j05Client($GLOBALS['fieldsetJ05Port']);
     $new = j05Login($fresh, 'mobile@demo.test', $passwords['demo_password:mobile@demo.test'] ?? '');
-    $check = j05Check($GLOBALS['fsaJ05LocalUuid']);
+    $check = j05Check($GLOBALS['fieldsetJ05LocalUuid']);
     $this->journey->evidence('J05-local-rotate.json', [
-        'command' => 'fsa demo --rotate-passwords --secrets-file <work>/j05-rotated.json --json', 'exit_code' => $process->getExitCode(), 'stdout' => $json,
+        'command' => 'fieldset demo --rotate-passwords --secrets-file <work>/j05-rotated.json --json', 'exit_code' => $process->getExitCode(), 'stdout' => $json,
         'session_before' => [$before->getStatusCode(), $meBefore], 'session_after' => $meAfter, 'old_password' => $old->getStatusCode(), 'new_password' => [$new->getStatusCode(), j05Me($fresh)],
         'check_after' => $check['data'] ?? $check,
     ]);
@@ -303,8 +303,8 @@ it('rotates the demo passwords: password and a remembered session stop working, 
 });
 
 it('resets the local demo: install org and owner only, empty storage and catcher, a kept safety backup, the ledger before the drop, instance.reset with the old heads', function (): void {
-    $uuid = $GLOBALS['fsaJ05LocalUuid'];
-    j05Docker(['exec', RestoreJourney::container($uuid, 'app'), 'touch', '/var/www/html/storage/app/fsa-test-j05-planted.txt']);
+    $uuid = $GLOBALS['fieldsetJ05LocalUuid'];
+    j05Docker(['exec', RestoreJourney::container($uuid, 'app'), 'touch', '/var/www/html/storage/app/fieldset-test-j05-planted.txt']);
     $before = [
         'catcher' => j05CatcherCount($this->journey, $this->local), 'volume' => RestoreJourney::storageVolume($uuid), 'files' => j05StorageFiles($uuid),
         'organizations' => RestoreJourney::sql($uuid, 'SELECT count(*) FROM organizations'), 'users' => RestoreJourney::sql($uuid, 'SELECT count(*) FROM users'),
@@ -312,7 +312,7 @@ it('resets the local demo: install org and owner only, empty storage and catcher
     ];
     $file = $this->journey->work.'/j05-reset-link.json';
     $started = microtime(true);
-    $process = $this->journey->fsa($this->local, ['reset', '--yes', '--secrets-file', $file, '--json']);
+    $process = $this->journey->fieldset($this->local, ['reset', '--yes', '--secrets-file', $file, '--json']);
     $seconds = round(microtime(true) - $started, 1);
     $json = InstanceJourney::json($process);
     $journal = j05ResetJournal($this->local);
@@ -325,10 +325,10 @@ it('resets the local demo: install org and owner only, empty storage and catcher
     $scheduled = array_map(static fn (int $day): BackupEntry => new BackupEntry(BackupName::for('scheduled', CarbonImmutable::now('UTC')->addDays($day)), 1, false), range(1, 3));
     $pruned = array_map(static fn (BackupEntry $entry): string => $entry->name->name(), BackupRetention::prune([...$entries, ...$scheduled], 1));
     [, $token] = explode('#', j05Secrets($file)['sign_in_link'] ?? '#', 2);
-    $client = j05Client($GLOBALS['fsaJ05Port']);
+    $client = j05Client($GLOBALS['fieldsetJ05Port']);
     preg_match('/name="_token" value="([^"]+)"/', (string) $client->get('/login-link')->getBody(), $csrf);
     $consumed = $client->post('/login-link', ['form_params' => ['_token' => $csrf[1] ?? '', 'token' => $token]]);
-    $demoLogin = j05Login(j05Client($GLOBALS['fsaJ05Port']), 'worker@demo.test', 'password');
+    $demoLogin = j05Login(j05Client($GLOBALS['fieldsetJ05Port']), 'worker@demo.test', 'password');
     $after = [
         'catcher' => j05CatcherCount($this->journey, $this->local), 'volume' => RestoreJourney::storageVolume($uuid), 'files' => j05StorageFiles($uuid),
         'old_volume_left' => in_array($before['volume'], explode("\n", trim(j05Docker(['volume', 'ls', '-q', '--filter', 'name='.$before['volume']])->getOutput())), true),
@@ -336,13 +336,13 @@ it('resets the local demo: install org and owner only, empty storage and catcher
         'first_entry' => $first, 'epoch' => $epoch, 'min_user_id' => (int) RestoreJourney::sql($uuid, 'SELECT min(id) FROM users'), 'safety_mode' => $safety === '' ? null : decoct(fileperms($this->local.'/backups/'.$safety) & 0777), 'pruned_with_retention_1' => $pruned,
     ];
     $this->journey->evidence('J05-local-reset.json', [
-        'command' => 'fsa reset --yes --secrets-file <work>/j05-reset-link.json --json', 'exit_code' => $process->getExitCode(), 'seconds' => $seconds, 'stdout' => $json,
+        'command' => 'fieldset reset --yes --secrets-file <work>/j05-reset-link.json --json', 'exit_code' => $process->getExitCode(), 'seconds' => $seconds, 'stdout' => $json,
         'before' => $before, 'after' => $after, 'ledger' => $ledger, 'phases' => array_map(static fn (array $phase): array => [$phase['name'], $phase['started_at'], $phase['finished_at']], $journal['phases'] ?? []),
         'link_consumed' => [$consumed->getStatusCode(), $consumed->getHeaderLine('Location')], 'demo_login_after' => $demoLogin->getStatusCode(),
     ]);
 
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput()."\n".$process->getOutput())
-        ->and($before['files'])->toContain('/var/www/html/storage/app/fsa-test-j05-planted.txt')
+        ->and($before['files'])->toContain('/var/www/html/storage/app/fieldset-test-j05-planted.txt')
         ->and($before['catcher'])->toBeGreaterThan(0)->and((int) $before['users'])->toBeGreaterThan(1)
         ->and($json['data'])->toMatchArray(['organization' => 'Demo', 'owner_email' => 'owner@example.test', 'audit_export' => null, 'flushed' => ['valkey' => true, 'catcher' => true], 'left_behind' => []])
         ->and($safety)->toStartWith('safety-reset-')
@@ -373,10 +373,10 @@ it('resets the local demo: install org and owner only, empty storage and catcher
 });
 
 it('uninstalls the local demo without leaving anything labelled behind', function (): void {
-    $process = $this->journey->fsa($this->local, ['uninstall', '--yes', '--json']);
+    $process = $this->journey->fieldset($this->local, ['uninstall', '--yes', '--json']);
 
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput().$process->getOutput())
-        ->and(InstanceJourney::labelled($GLOBALS['fsaJ05LocalUuid']))->toBe(['containers' => [], 'volumes' => [], 'networks' => []]);
+        ->and(InstanceJourney::labelled($GLOBALS['fieldsetJ05LocalUuid']))->toBe(['containers' => [], 'volumes' => [], 'networks' => []]);
 });
 
 it('installs a domain-mode demo: password is refused and every demo user signs in with its printed random password', function (): void {
@@ -397,10 +397,10 @@ it('installs a domain-mode demo: password is refused and every demo user signs i
     }
     $seconds = round(microtime(true) - $started, 1);
     $json = InstanceJourney::json($process);
-    $GLOBALS['fsaJ05DomainUuid'] = InstanceJourney::uuid($this->domain);
+    $GLOBALS['fieldsetJ05DomainUuid'] = InstanceJourney::uuid($this->domain);
     $root = $this->journey->work.'/j05-pebble-root.pem';
     file_put_contents($root, $process->isSuccessful() ? $this->acme->issuingRoot() : '');
-    $GLOBALS['fsaJ05Root'] = $root;
+    $GLOBALS['fieldsetJ05Root'] = $root;
     $passwords = j05Secrets($secrets);
     $refused = j05Login(j05Client(), 'owner@demo.test', 'password');
     $logins = [];
@@ -409,7 +409,7 @@ it('installs a domain-mode demo: password is refused and every demo user signs i
         $logins[$email] = [j05Login($client, $email, $passwords['demo_password:'.$email] ?? '')->getStatusCode(), j05Me($client)[1]];
     }
     $this->journey->evidence('J05-domain-install.json', [
-        'command' => 'install.sh --dir <work>/fsa-test-j05-domain --version '.ReleaseHarness::version().' --org "J5 Domain Org" --owner-email owner@example.test --locale en --domain '.J05_DOMAIN.' --acme-ca '.AcmeHarness::DIRECTORY_URL.' --acme-ca-root-file <harness>/pebble-https-root.pem --demo --secrets-file <work>/j05-domain-secrets.json --json',
+        'command' => 'install.sh --dir <work>/fieldset-test-j05-domain --version '.ReleaseHarness::version().' --org "J5 Domain Org" --owner-email owner@example.test --locale en --domain '.J05_DOMAIN.' --acme-ca '.AcmeHarness::DIRECTORY_URL.' --acme-ca-root-file <harness>/pebble-https-root.pem --demo --secrets-file <work>/j05-domain-secrets.json --json',
         'exit_code' => $process->getExitCode(), 'seconds' => $seconds, 'stdout' => $json, 'secret_names' => array_keys($passwords),
         'login_with_password' => $refused->getStatusCode(), 'logins_with_printed_passwords' => $logins,
     ]);
@@ -426,10 +426,10 @@ it('installs a domain-mode demo: password is refused and every demo user signs i
 });
 
 it('resets the domain demo with --demo --no-backup: an audit export instead of a backup, random demo passwords that sign in', function (): void {
-    $uuid = $GLOBALS['fsaJ05DomainUuid'];
+    $uuid = $GLOBALS['fieldsetJ05DomainUuid'];
     $secrets = $this->journey->work.'/j05-domain-reset.json';
     $started = microtime(true);
-    $process = $this->journey->fsa($this->domain, ['reset', '--demo', '--no-backup', '--yes', '--secrets-file', $secrets, '--json'], ['FIELDSET_TEST_DNS' => J05_DOMAIN.'='.j05HostAddress()]);
+    $process = $this->journey->fieldset($this->domain, ['reset', '--demo', '--no-backup', '--yes', '--secrets-file', $secrets, '--json'], ['FIELDSET_TEST_DNS' => J05_DOMAIN.'='.j05HostAddress()]);
     $seconds = round(microtime(true) - $started, 1);
     $json = InstanceJourney::json($process);
     $passwords = j05Secrets($secrets);
@@ -442,7 +442,7 @@ it('resets the domain demo with --demo --no-backup: an audit export instead of a
     $me = j05Me($client);
     $organizations = RestoreJourney::sql($uuid, "SELECT string_agg(name, ',' ORDER BY id) FROM organizations");
     $this->journey->evidence('J05-domain-reset.json', [
-        'command' => 'fsa reset --demo --no-backup --yes --secrets-file <work>/j05-domain-reset.json --json', 'exit_code' => $process->getExitCode(), 'seconds' => $seconds, 'stdout' => $json,
+        'command' => 'fieldset reset --demo --no-backup --yes --secrets-file <work>/j05-domain-reset.json --json', 'exit_code' => $process->getExitCode(), 'seconds' => $seconds, 'stdout' => $json,
         'secret_names' => array_keys($passwords), 'export_header' => is_array($header) ? array_diff_key($header, ['heads' => true, 'epochs' => true]) : $header,
         'export_mode' => $export === '' ? null : decoct(fileperms($path) & 0777), 'safety_backups' => array_map(basename(...), glob($this->domain.'/backups/safety-*') ?: []),
         'organizations' => $organizations, 'login_with_password' => $refused->getStatusCode(), 'login_with_printed_password' => [$login->getStatusCode(), $me],
@@ -466,8 +466,8 @@ it('resets the domain demo with --demo --no-backup: an audit export instead of a
 });
 
 it('uninstalls the domain demo without leaving anything labelled behind', function (): void {
-    $process = $this->journey->fsa($this->domain, ['uninstall', '--yes', '--json'], ['FIELDSET_TEST_DNS' => J05_DOMAIN.'='.j05HostAddress()]);
+    $process = $this->journey->fieldset($this->domain, ['uninstall', '--yes', '--json'], ['FIELDSET_TEST_DNS' => J05_DOMAIN.'='.j05HostAddress()]);
 
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput().$process->getOutput())
-        ->and(InstanceJourney::labelled($GLOBALS['fsaJ05DomainUuid']))->toBe(['containers' => [], 'volumes' => [], 'networks' => []]);
+        ->and(InstanceJourney::labelled($GLOBALS['fieldsetJ05DomainUuid']))->toBe(['containers' => [], 'volumes' => [], 'networks' => []]);
 });

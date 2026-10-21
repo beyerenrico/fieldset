@@ -9,7 +9,7 @@ use Tests\Support\Instance\RestoreFixture;
 use Tests\Support\Instance\TemporaryInstance;
 
 /*
- * `fsa restore --drill` on the ops side (R41, plan U17, ADR 0085): the backup is prepared like a restore, restored into a
+ * `fieldset restore --drill` on the ops side (R41, plan U17, ADR 0085): the backup is prepared like a restore, restored into a
  * `restore_drill_*` scratch database and checked by `instance:restore-drill` in a one-off with a null mailer and a sync
  * queue; the scratch database is dropped whatever happened, and nothing of the instance changes: no gate, no stopped
  * service, no ledger line, no state change. And the erasure carry's data exports leave the restored volume.
@@ -29,7 +29,7 @@ it('drills a backup in a scratch database with a null mailer and a sync queue, d
     $mark = $this->restore->config->mark();
     $state = $this->restore->config->state()->toJson();
 
-    [$code, $json] = $this->restore->instance->run('fsa:restore', ['backup' => 'manual-20261019T120000Z', '--drill' => true]);
+    [$code, $json] = $this->restore->instance->run('fieldset:restore', ['backup' => 'manual-20261019T120000Z', '--drill' => true]);
     $drill = $this->restore->instance->oneOffCalls('instance:restore-drill')[0];
     $create = $this->restore->databaseCalls[array_search('create', $this->restore->actions(), true)];
 
@@ -51,7 +51,7 @@ it('drills a backup in a scratch database with a null mailer and a sync queue, d
 it('drops what a killed drill left together with its restricted role, and keeps the drill off the live cache (review A10, A14)', function (): void {
     $this->restore->databases[] = 'restore_drill_0123456789ab';
 
-    [$code, $json] = $this->restore->instance->run('fsa:restore', ['backup' => 'manual-20261019T120000Z', '--drill' => true]);
+    [$code, $json] = $this->restore->instance->run('fieldset:restore', ['backup' => 'manual-20261019T120000Z', '--drill' => true]);
     $drill = $this->restore->instance->oneOffCalls('instance:restore-drill')[0];
     $first = $this->restore->databaseCalls[array_search('drop', $this->restore->actions(), true)];
 
@@ -73,7 +73,7 @@ it('hands the storage archive\'s file list to the drill on stdin', function (): 
         return $previous($command, $input);
     });
 
-    $this->restore->instance->run('fsa:restore', ['backup' => 'manual-20261019T120000Z', '--drill' => true]);
+    $this->restore->instance->run('fieldset:restore', ['backup' => 'manual-20261019T120000Z', '--drill' => true]);
 
     expect($inputs)->toBe(["private/a.txt\n"]);
 });
@@ -83,7 +83,7 @@ it('exits 4 when a drill check fails, and still drops the scratch database', fun
         'data' => ['checks' => [['name' => 'decrypt', 'status' => 'fail', 'message' => 'users.two_factor_secret']]],
         'errors' => [['code' => 'drill_failed', 'message' => 'decrypt failed', 'hint' => null]]]);
 
-    [$code, $json] = $this->restore->instance->run('fsa:restore', ['backup' => 'manual-20261019T120000Z', '--drill' => true]);
+    [$code, $json] = $this->restore->instance->run('fieldset:restore', ['backup' => 'manual-20261019T120000Z', '--drill' => true]);
 
     expect($code)->toBe(4)->and($json['errors'][0]['code'])->toBe('drill_failed')
         ->and(array_filter($this->restore->databases, static fn (string $db): bool => str_starts_with($db, 'restore_drill_')))->toBe([]);
@@ -92,9 +92,9 @@ it('exits 4 when a drill check fails, and still drops the scratch database', fun
 it('drills an older backup (migrations pending) but refuses a newer one with exit 7', function (): void {
     $image = MigrationSet::image(base_path('database/migrations'));
     $this->restore->migrations = array_slice($image, 0, -1);
-    [$older] = $this->restore->instance->run('fsa:restore', ['backup' => 'manual-20261019T120000Z', '--drill' => true]);
+    [$older] = $this->restore->instance->run('fieldset:restore', ['backup' => 'manual-20261019T120000Z', '--drill' => true]);
     $this->restore->migrations = [...$image, '2099_01_01_000000_from_the_future'];
-    [$newer, $newerJson] = $this->restore->instance->run('fsa:restore', ['backup' => 'manual-20261019T120000Z', '--drill' => true]);
+    [$newer, $newerJson] = $this->restore->instance->run('fieldset:restore', ['backup' => 'manual-20261019T120000Z', '--drill' => true]);
 
     expect($older)->toBe(0)->and($newer)->toBe(7)->and($newerJson['errors'][0]['code'])->toBe('backup_newer');
 });

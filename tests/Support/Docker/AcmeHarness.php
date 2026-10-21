@@ -12,7 +12,7 @@ use Symfony\Component\Process\Process;
  * Pebble and challtestsrv for domain mode (plan U8, J2; ADR 0064, ADR 0075): the `acme` profile of the release
  * harness, on its own network with a fixed subnet, so challtestsrv can answer every A query with the edge's address
  * there. `connectEdge()` attaches an instance's edge to that network at that address: the edge then resolves
- * `pebble` and Pebble reaches the edge for HTTP-01. Everything is part of the `fsa-test-harness-*` project.
+ * `pebble` and Pebble reaches the edge for HTTP-01. Everything is part of the `fieldset-test-harness-*` project.
  *
  * - `httpsRoot` is the minica CA of Pebble's ACME endpoint, copied out of the image: the edge's `acme_ca_root`.
  * - `issuingRoot()` is the root Pebble signs certificates with; Pebble generates it on every start, so it is read

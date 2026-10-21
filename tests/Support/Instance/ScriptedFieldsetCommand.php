@@ -4,22 +4,22 @@ declare(strict_types=1);
 
 namespace Tests\Support\Instance;
 
-use App\Domain\Instance\Console\FsaCommand;
-use App\Domain\Instance\Console\FsaContext;
+use App\Domain\Instance\Console\FieldsetCommand;
+use App\Domain\Instance\Console\FieldsetContext;
 use App\Domain\Instance\Output\CommandResult;
 use Closure;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Contracts\Console\Kernel;
 
-/** An `fsa:scripted` command whose behaviour a test supplies; exercises the FsaCommand base. */
-#[Description('Test command for the fsa console base')]
-#[Signature('fsa:scripted {target? : Optional argument} {--smtp-password-file= : A file flag}')]
-final class ScriptedFsaCommand extends FsaCommand
+/** A `fieldset:scripted` command whose behaviour a test supplies; exercises the FieldsetCommand base. */
+#[Description('Test command for the fieldset console base')]
+#[Signature('fieldset:scripted {target? : Optional argument} {--smtp-password-file= : A file flag}')]
+final class ScriptedFieldsetCommand extends FieldsetCommand
 {
     public int $performed = 0;
 
-    /** @param  Closure(FsaContext): CommandResult  $script */
+    /** @param  Closure(FieldsetContext): CommandResult  $script */
     public function __construct(
         private readonly Closure $script,
         private readonly ?string $prompt = null,
@@ -28,7 +28,7 @@ final class ScriptedFsaCommand extends FsaCommand
         parent::__construct();
     }
 
-    /** @param  Closure(FsaContext): CommandResult  $script */
+    /** @param  Closure(FieldsetContext): CommandResult  $script */
     public static function register(Closure $script, ?string $prompt = null, bool $needsInstance = true): self
     {
         $command = new self($script, $prompt, $needsInstance);
@@ -37,7 +37,7 @@ final class ScriptedFsaCommand extends FsaCommand
         return $command;
     }
 
-    protected function perform(FsaContext $context): CommandResult
+    protected function perform(FieldsetContext $context): CommandResult
     {
         $this->performed++;
 
@@ -49,7 +49,7 @@ final class ScriptedFsaCommand extends FsaCommand
         return $this->needsInstance;
     }
 
-    protected function confirmationPrompt(FsaContext $context): ?string
+    protected function confirmationPrompt(FieldsetContext $context): ?string
     {
         return $this->prompt;
     }

@@ -17,7 +17,7 @@ return [
     'problems' => [
         'heading' => 'Probleme',
         'none' => 'Keine Probleme: Backups, Speicherplatz und Updates sind in Ordnung.',
-        'backup_failed' => 'Das letzte Backup ist fehlgeschlagen (:reason). Lesen Sie `fsa logs backup`, beheben Sie die Ursache und sichern Sie dann erneut.',
+        'backup_failed' => 'Das letzte Backup ist fehlgeschlagen (:reason). Lesen Sie `fieldset logs backup`, beheben Sie die Ursache und sichern Sie dann erneut.',
         'backup_service_failed' => 'Der Backup-Dienst kann nicht starten (:reason): Es laufen keine geplanten Backups.',
         'backup_overdue' => 'Innerhalb von zwei Stunden nach der geplanten Zeit ist kein Backup gelungen: Der Backup-Dienst läuft womöglich nicht.',
         'backup_disk_space' => 'Das letzte geplante Backup wurde übersprungen: zu wenig freier Speicherplatz.',
@@ -43,7 +43,7 @@ return [
             'proxy' => 'Hinter Ihrem Reverse Proxy',
             'domain' => 'Eigene Domain mit automatischem HTTPS',
         ],
-        'not_fsa' => 'Nicht von fsa betrieben',
+        'not_fieldset' => 'Nicht von fsa betrieben',
         'url' => 'Instanz-URL',
         'local_url' => 'Lokale URL',
         'tunnel' => 'Quick Tunnel',

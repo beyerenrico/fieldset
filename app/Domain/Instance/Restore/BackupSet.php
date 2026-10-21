@@ -12,13 +12,13 @@ use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Output\ExitCode;
 
 /**
- * What a restore can read (plan U17, R60, ADR 0084/0085): an fsa backup, plain (a directory with `manifest.json`) or
+ * What a restore can read (plan U17, R60, ADR 0084/0085): a fieldset backup, plain (a directory with `manifest.json`) or
  * encrypted (a directory with `backup.tar.age`, or that file alone), and the 1.0 format of `scripts/backup.sh` (a
  * directory with `manifest.txt`, `SHA256SUMS`, `database.dump`, optionally `storage.tar.gz` and `env`; no HMAC).
  */
 final readonly class BackupSet
 {
-    public const string FSA = 'fsa';
+    public const string FIELDSET = 'fieldset';
 
     public const string LEGACY = 'legacy';
 
@@ -27,13 +27,13 @@ final readonly class BackupSet
 
     public const string LEGACY_ENV = 'env';
 
-    /** Every name the set of an fsa backup can hold (the members of its age file). */
+    /** Every name the set of a fieldset backup can hold (the members of its age file). */
     public const array FILES = [
         BackupChecksums::SUMS, BackupChecksums::HMAC, BackupManifest::FILE, BackupWriter::SETTINGS, BackupWriter::HEADS,
         BackupWriter::DATABASE, BackupWriter::STORAGE, BackupWriter::SECRETS,
     ];
 
-    /** Every name a 1.0 set (scripts/backup.sh, and `fsa adopt`'s backup) can hold. */
+    /** Every name a 1.0 set (scripts/backup.sh, and `fieldset adopt`'s backup) can hold. */
     public const array LEGACY_FILES = [BackupChecksums::SUMS, self::LEGACY_MANIFEST, BackupWriter::DATABASE, BackupWriter::STORAGE, self::LEGACY_ENV];
 
     /** @return list<string> the names a set of the format can hold: the files a restore copies out of a plain backup */
@@ -50,7 +50,7 @@ final readonly class BackupSet
     public static function detect(string $path): array
     {
         if (is_file($path) && ! is_link($path) && str_ends_with($path, '.age')) {
-            return ['format' => self::FSA, 'encrypted' => true, 'file' => $path];
+            return ['format' => self::FIELDSET, 'encrypted' => true, 'file' => $path];
         }
         if (! is_dir($path) || is_link($path)) {
             throw self::notABackup($path);
@@ -58,8 +58,8 @@ final readonly class BackupSet
         $age = $path.'/'.BackupStore::ENCRYPTED_FILE;
 
         return match (true) {
-            is_file($age) && ! is_link($age) => ['format' => self::FSA, 'encrypted' => true, 'file' => $age],
-            is_file($path.'/'.BackupManifest::FILE) => ['format' => self::FSA, 'encrypted' => false, 'file' => null],
+            is_file($age) && ! is_link($age) => ['format' => self::FIELDSET, 'encrypted' => true, 'file' => $age],
+            is_file($path.'/'.BackupManifest::FILE) => ['format' => self::FIELDSET, 'encrypted' => false, 'file' => null],
             is_file($path.'/'.self::LEGACY_MANIFEST) && is_file($path.'/'.BackupChecksums::SUMS) => ['format' => self::LEGACY, 'encrypted' => false, 'file' => null],
             default => throw self::notABackup($path),
         };
@@ -116,7 +116,7 @@ final readonly class BackupSet
     private static function notABackup(string $path): InstanceException
     {
         return new InstanceException(
-            'This is not a backup fsa can restore: '.$path,
+            'This is not a backup fieldset can restore: '.$path,
             ExitCode::InvalidInput,
             'not_a_backup',
             'Pass a backup directory from backups/ (or its backup.tar.age), or a directory written by the 1.0 scripts/backup.sh.',

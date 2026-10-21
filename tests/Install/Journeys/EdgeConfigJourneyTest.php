@@ -53,7 +53,7 @@ function caddyImage(): string
 
 it('is accepted by docker compose config in domain mode, with only the edge publishing ports', function (): void {
     $root = renderedEdge([]);
-    $process = new Process(['docker', 'compose', '--project-name', 'fsa-test-'.bin2hex(random_bytes(4)), '--file', $root.'/compose.yaml', '--project-directory', $root, 'config', '--format', 'json'],
+    $process = new Process(['docker', 'compose', '--project-name', 'fieldset-test-'.bin2hex(random_bytes(4)), '--file', $root.'/compose.yaml', '--project-directory', $root, 'config', '--format', 'json'],
         $root, ['COMPOSE_DISABLE_ENV_FILE' => '1', 'COMPOSE_FILE' => false, 'COMPOSE_PROJECT_NAME' => false, 'COMPOSE_PROFILES' => false]);
     $process->setTimeout(120)->run();
     $config = json_decode($process->getOutput(), true) ?? [];
@@ -121,7 +121,7 @@ it('renders local-CA and tunnel projects that docker compose accepts and a local
     $state = $kind === 'local-ca' ? PhoneFixtures::localCa() : PhoneFixtures::tunnel();
     (new ComposeRenderer)->write($directory, $state, ComposeFixtures::secrets());
     $root = $directory->root;
-    $config = new Process(['docker', 'compose', '--project-name', 'fsa-test-'.bin2hex(random_bytes(4)), '--file', $root.'/compose.yaml', '--project-directory', $root, 'config', '--format', 'json'],
+    $config = new Process(['docker', 'compose', '--project-name', 'fieldset-test-'.bin2hex(random_bytes(4)), '--file', $root.'/compose.yaml', '--project-directory', $root, 'config', '--format', 'json'],
         $root, ['COMPOSE_DISABLE_ENV_FILE' => '1', 'COMPOSE_FILE' => false, 'COMPOSE_PROJECT_NAME' => false, 'COMPOSE_PROFILES' => false]);
     $config->setTimeout(120)->run();
     $services = json_decode($config->getOutput(), true)['services'] ?? [];

@@ -14,12 +14,12 @@ use App\Domain\Instance\State\UnsafePath;
  * The files a release renders into the instance directory and an upgrade or a rollback replaces (plan U18, ADR 0086,
  * review U18 A3, A10, S2): the compose file, the env files of its services, the edge's directory (the Caddyfile) and the
  * backup service's `staging/backup/instance.json`. Nothing else of a stage is ever taken (state, journals, locks, backups,
- * releases), and modes are fsa's own: 0600 for the compose and env files and the backup service's file, 0644 for the
+ * releases), and modes are fieldset's own: 0600 for the compose and env files and the backup service's file, 0644 for the
  * edge's (Caddy reads it as another user).
  *
  * Snapshots (`operations/<name>/`, 0700, files 0600) keep the live files before a stage replaces them, so a way back puts
  * exactly those back, whichever image runs it, without rendering a release with another release's renderer:
- * `files-before-upgrade-<id>` (step 7, kept as `previous-release` once the upgrade committed, for `fsa rollback`) and
+ * `files-before-upgrade-<id>` (step 7, kept as `previous-release` once the upgrade committed, for `fieldset rollback`) and
  * `files-before-rollback-<id>` (a rollback's swap). A snapshot is written to a temporary name and renamed, so a kill never
  * leaves half of one; the first complete one of a run is kept.
  */
@@ -36,7 +36,7 @@ final readonly class ReleaseFiles
     public function __construct(private InstanceDirectory $directory) {}
 
     /**
-     * Whether a staged file is one fsa takes; `runtime/` is skipped, never taken (the gate stays as the supervisor set it).
+     * Whether a staged file is one fieldset takes; `runtime/` is skipped, never taken (the gate stays as the supervisor set it).
      *
      * @param  list<string>  $services  the staged compose file's services
      */
@@ -60,7 +60,7 @@ final readonly class ReleaseFiles
         return str_starts_with($file, InstanceDirectory::RUNTIME_DIR.'/');
     }
 
-    /** fsa's mode for a release file. */
+    /** fieldset's mode for a release file. */
     public static function mode(string $file): int
     {
         return str_starts_with($file, EdgeService::DIRECTORY.'/') ? 0644 : 0600;
@@ -115,7 +115,7 @@ final readonly class ReleaseFiles
     }
 
     /**
-     * Puts a snapshot's files back: each with fsa's mode, release files the snapshot lacks removed.
+     * Puts a snapshot's files back: each with fieldset's mode, release files the snapshot lacks removed.
      *
      * @return bool whether there was a snapshot
      */
@@ -136,7 +136,7 @@ final readonly class ReleaseFiles
         return true;
     }
 
-    /** Writes one release file with fsa's mode (the env and staging directories 0700, the edge's 0755). */
+    /** Writes one release file with fieldset's mode (the env and staging directories 0700, the edge's 0755). */
     public function put(string $file, string $contents): void
     {
         $dir = dirname($file);

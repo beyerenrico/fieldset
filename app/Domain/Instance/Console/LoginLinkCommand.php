@@ -26,22 +26,22 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 
 /**
- * `fsa login-link <email>` (§7, R28, KTD21, ADR 0056): a single-use sign-in link (15 minutes) for an existing
+ * `fieldset login-link <email>` (§7, R28, KTD21, ADR 0056): a single-use sign-in link (15 minutes) for an existing
  * admin, issued by the app-side `identity:login-link` in a socket-less one-off (KTD25) and audited with the
  * caller's host UID. The link leaves only through `secrets`, --secrets-file or the browser hand-over (--open, or a
  * person at a desktop terminal). A one-off that prints no result is exit 4 (retryable), like install's one-offs.
  *
  * It takes the instance lock and refuses while any operation is unfinished (exit 9 `operation_unfinished`, U23
  * verification V9): between the runs of a reset or restore it would write a link and an audit entry into a database
- * whose final heads were already taken, or that is about to be replaced. A backup holding the lock (scheduled or `fsa
+ * whose final heads were already taken, or that is about to be replaced. A backup holding the lock (scheduled or `fieldset
  * backup`) changes no data: the journal is then read without the lock and the link issued (M12 gate C11); a backup runs
  * next to the app's own writes anyway.
  */
 #[Description('Issue a one-time sign-in link (15 minutes) for an existing admin')]
-#[Signature('fsa:login-link
+#[Signature('fieldset:login-link
         {email : E-mail of an existing admin}
         {--open : Open the link in the browser of a desktop session instead of printing it}')]
-final class LoginLinkCommand extends FsaCommand
+final class LoginLinkCommand extends FieldsetCommand
 {
     /** App error codes that are the caller's to fix (exit 2). */
     private const array INPUT_ERRORS = ['user_not_found', 'not_admin', 'inactive', 'sso_required', 'invalid_input'];
@@ -54,7 +54,7 @@ final class LoginLinkCommand extends FsaCommand
         return (bool) $this->option('open');
     }
 
-    protected function perform(FsaContext $context): CommandResult
+    protected function perform(FieldsetContext $context): CommandResult
     {
         $argument = $this->argument('email');
         $email = is_string($argument) ? strtolower(trim($argument)) : '';
@@ -87,10 +87,10 @@ final class LoginLinkCommand extends FsaCommand
     }
 
     /** The instance lock, or null while a backup holds it: a backup changes no data (C11). Any other holder: exit 9. */
-    private function lock(InstanceLock $lock, FsaContext $context): ?LockHandle
+    private function lock(InstanceLock $lock, FieldsetContext $context): ?LockHandle
     {
         try {
-            return $lock->acquire($this->laravel->make(ContainerIdentity::class)->holder('fsa', $context->facts->callerUid()), 'login-link');
+            return $lock->acquire($this->laravel->make(ContainerIdentity::class)->holder('fieldset', $context->facts->callerUid()), 'login-link');
         } catch (LockHeld $held) {
             if ($held->holder->operation !== BackupRun::OPERATION) {
                 throw $held;
@@ -107,8 +107,8 @@ final class LoginLinkCommand extends FsaCommand
         return match (true) {
             in_array($code, self::INPUT_ERRORS, true) => new InstanceException($result->errorMessage(), ExitCode::InvalidInput, $code, $result->errorHint()),
             $code === 'rate_limited' => new InstanceException($result->errorMessage(), ExitCode::AbortedUnchanged, $code, 'Wait a few minutes, then run the command again.', true),
-            in_array($code, self::NO_RESULT, true) => new InstanceException('The sign-in link could not be issued: '.$result->errorMessage(), ExitCode::HealthCheckFailed, $code, 'Check that the instance runs (`fsa status`, `fsa logs app`), then run the command again.', true, ['output' => $result->output]),
-            default => new InstanceException('The sign-in link could not be issued: '.$result->errorMessage(), ExitCode::InternalError, $code, 'Check that the instance runs (`fsa status`), then run the command again.', true, ['output' => $result->output]),
+            in_array($code, self::NO_RESULT, true) => new InstanceException('The sign-in link could not be issued: '.$result->errorMessage(), ExitCode::HealthCheckFailed, $code, 'Check that the instance runs (`fieldset status`, `fieldset logs app`), then run the command again.', true, ['output' => $result->output]),
+            default => new InstanceException('The sign-in link could not be issued: '.$result->errorMessage(), ExitCode::InternalError, $code, 'Check that the instance runs (`fieldset status`), then run the command again.', true, ['output' => $result->output]),
         };
     }
 }

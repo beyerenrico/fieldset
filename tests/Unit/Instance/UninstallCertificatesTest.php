@@ -9,7 +9,7 @@ use Tests\Support\Instance\ConfigFixture;
 use Tests\Support\Instance\TemporaryInstance;
 
 /*
- * M10 gate (ADR 0078): the Let's Encrypt duplicate-certificate warning of `fsa uninstall` follows the certificate
+ * M10 gate (ADR 0078): the Let's Encrypt duplicate-certificate warning of `fieldset uninstall` follows the certificate
  * volume, not the current mode. After `config set mode local` the edge is gone but its volume (and certificates)
  * stay until uninstall; an instance that never ran the edge has none and gets no warning.
  */
@@ -23,8 +23,8 @@ it('warns about the certificates after a return to local mode, because the edge 
     $state = $config->state();
     $config->instance->docker->withResource(new DockerResource(DockerResource::VOLUME, EdgeService::volumeName($state->project()), Labels::forInstance($state->uuid())));
 
-    [$asked, $prompt] = $config->instance->run('fsa:uninstall');
-    [$code, $json] = $config->instance->run('fsa:uninstall', ['--yes' => true]);
+    [$asked, $prompt] = $config->instance->run('fieldset:uninstall');
+    [$code, $json] = $config->instance->run('fieldset:uninstall', ['--yes' => true]);
 
     expect($state->setting('domain'))->toBeNull()
         ->and($asked)->toBe(6)
@@ -38,8 +38,8 @@ it('does not warn about certificates for an instance that never held any', funct
     $state = $config->state();
     $config->instance->docker->withResource(new DockerResource(DockerResource::VOLUME, $state->project().'_pg-data', Labels::forInstance($state->uuid())));
 
-    [, $prompt] = $config->instance->run('fsa:uninstall');
-    [$code, $json] = $config->instance->run('fsa:uninstall', ['--yes' => true]);
+    [, $prompt] = $config->instance->run('fieldset:uninstall');
+    [$code, $json] = $config->instance->run('fieldset:uninstall', ['--yes' => true]);
 
     expect($prompt['errors'][0]['message'])->not->toContain('certificates')
         ->and($code)->toBe(0)

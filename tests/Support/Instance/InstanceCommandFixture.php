@@ -20,7 +20,7 @@ use Illuminate\Support\Sleep;
 use Tests\Support\Release\ReleaseFixtures;
 
 /**
- * A marked instance directory with a stored release, scripted Docker and probes, for the `fsa:*` command tests
+ * A marked instance directory with a stored release, scripted Docker and probes, for the `fieldset:*` command tests
  * (plan U5). Docker answers like a healthy host: port probes succeed unless a port is in `$takenPorts`, cosign
  * verifies, one-off artisan commands print the JSON documents of the app side, the smoke test passes.
  */
@@ -54,7 +54,7 @@ final class InstanceCommandFixture
     /** @var array<string, ProcessOutcome> artisan command (app:install, migrate …) => outcome */
     public array $oneOffs = [];
 
-    /** The backup service's one-off (`fsa backup-daemon --once|--seal`); null: a successful run (backupRun()). */
+    /** The backup service's one-off (`fieldset backup-daemon --once|--seal`); null: a successful run (backupRun()). */
     public ?ProcessOutcome $backupOutcome = null;
 
     /** stdin of the last backup one-off (`--include-secrets`). */
@@ -104,7 +104,7 @@ final class InstanceCommandFixture
     }
 
     /**
-     * Runs an fsa command with --json and returns the exit code and the envelope.
+     * Runs a fieldset command with --json and returns the exit code and the envelope.
      *
      * @param  array<string, mixed>  $parameters
      * @return array{0: int, 1: array<string, mixed>}
@@ -199,7 +199,7 @@ final class InstanceCommandFixture
     }
 
     /**
-     * The JSON document of a successful `fsa backup-daemon --once` (BackupRun's recorded run).
+     * The JSON document of a successful `fieldset backup-daemon --once` (BackupRun's recorded run).
      *
      * @param  array<string, mixed>  $overrides
      */
@@ -219,14 +219,14 @@ final class InstanceCommandFixture
     /** @param  list<string>  $command */
     private function answerOneOff(array $command, ?string $input = null): ProcessOutcome
     {
-        if (($command[0] ?? null) === 'fsa' && ($command[1] ?? null) === 'backup-daemon' && in_array('--clean', $command, true)) {
+        if (($command[0] ?? null) === 'fieldset' && ($command[1] ?? null) === 'backup-daemon' && in_array('--clean', $command, true)) {
             if (! $this->cleanOutcome instanceof ProcessOutcome && $this->onClean instanceof Closure) {
                 ($this->onClean)();
             }
 
             return $this->cleanOutcome ?? self::oneOffJson(['command' => 'backup-daemon', 'status' => 'ok', 'changed' => true, 'data' => ['removed' => [], 'left' => []]]);
         }
-        if (($command[0] ?? null) === 'fsa' && ($command[1] ?? null) === 'backup-daemon') {
+        if (($command[0] ?? null) === 'fieldset' && ($command[1] ?? null) === 'backup-daemon') {
             $this->backupInput = $input;
 
             return $this->backupOutcome ?? self::backupRun(str_starts_with((string) ($command[3] ?? ''), '--kind=') ? substr((string) $command[3], 7) : 'manual');

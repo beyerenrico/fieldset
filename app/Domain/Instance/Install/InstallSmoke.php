@@ -34,7 +34,7 @@ use Illuminate\Support\Sleep;
  *   In capture mode a throwaway `curl` container on the default network then finds it by its Message-ID in the catcher's
  *   API (exit 4 `test_mail_not_captured`); the catcher's login reaches curl on stdin, never on a command line.
  *
- * `fsa config set` verifies with SmokeTest alone: a settings change renders no PDF and mails nobody (`config set mail
+ * `fieldset config set` verifies with SmokeTest alone: a settings change renders no PDF and mails nobody (`config set mail
  * smtp` sends its own test mail, ADR 0080). The owner's address stays out of messages and phase data (journaled).
  */
 final readonly class InstallSmoke
@@ -49,7 +49,7 @@ final readonly class InstallSmoke
 
     private const float CATCHER_TIMEOUT = 30.0;
 
-    private const string RESUME = 'then run `fsa install` again with the same flags: it resumes at the smoke test.';
+    private const string RESUME = 'then run `fieldset install` again with the same flags: it resumes at the smoke test.';
 
     public function __construct(private SmokeTest $smoke, private AppCommands $app, private DockerGateway $docker, private InstanceDirectory $directory) {}
 
@@ -86,7 +86,7 @@ final readonly class InstallSmoke
         $result = $this->app->pdfTest($project);
         if (! $result->ok) {
             throw new InstanceException('The test PDF did not render through Gotenberg.', ExitCode::HealthCheckFailed, 'pdf_render_failed',
-                'Read `fsa logs gotenberg` and `fsa logs app`, fix the cause, '.self::RESUME, true, ['code' => $result->errorCode(), 'output' => $result->errorMessage()]);
+                'Read `fieldset logs gotenberg` and `fieldset logs app`, fix the cause, '.self::RESUME, true, ['code' => $result->errorCode(), 'output' => $result->errorMessage()]);
         }
         $bytes = is_int($result->data['bytes'] ?? null) ? $result->data['bytes'] : 0;
 
@@ -118,19 +118,19 @@ final readonly class InstallSmoke
     {
         $settings = InstanceSettings::of($state);
         if ($settings->capturesMail()) {
-            return 'Read `fsa logs mailpit` and `fsa logs app`, fix the cause, '.self::RESUME;
+            return 'Read `fieldset logs mailpit` and `fieldset logs app`, fix the cause, '.self::RESUME;
         }
         $sender = str_ends_with($settings->mailFromAddress(), '@localhost') ? " Mail is sent from {$settings->mailFromAddress()}, which most servers refuse (--from-address)." : '';
 
         return 'Check the SMTP server, port, encryption and account in the output.'.$sender.' A server that was briefly unreachable: '.self::RESUME
-            .' Other settings or another account: `fsa uninstall --yes` and install again with the corrected --smtp-* flags, or install without them (capture mode) and switch with `fsa config set mail smtp`, which tests the server and keeps capture mode when it refuses.';
+            .' Other settings or another account: `fieldset uninstall --yes` and install again with the corrected --smtp-* flags, or install without them (capture mode) and switch with `fieldset config set mail smtp`, which tests the server and keeps capture mode when it refuses.';
     }
 
     private function messageId(OneOffResult $result): string
     {
         $id = $result->data['message_id'] ?? null;
         if (! is_string($id) || preg_match('/^[0-9a-f]{32}@[A-Za-z0-9.-]+$/D', $id) !== 1) {
-            throw new InstanceException('The test mail carries no Message-ID to look up in the mail catcher.', ExitCode::HealthCheckFailed, 'test_mail_failed', 'Install the release whose image runs this fsa (install.sh pulls both together).', false);
+            throw new InstanceException('The test mail carries no Message-ID to look up in the mail catcher.', ExitCode::HealthCheckFailed, 'test_mail_failed', 'Install the release whose image runs this fieldset (install.sh pulls both together).', false);
         }
 
         return $id;
@@ -162,7 +162,7 @@ final readonly class InstallSmoke
             }
         }
         throw new InstanceException('The test mail was accepted but did not show up in the mail catcher.', ExitCode::HealthCheckFailed, 'test_mail_not_captured',
-            'Read `fsa logs mailpit`, fix the cause, '.self::RESUME, true, ['output' => $output]);
+            'Read `fieldset logs mailpit`, fix the cause, '.self::RESUME, true, ['output' => $output]);
     }
 
     private function catcherPassword(): string

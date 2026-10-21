@@ -6,7 +6,7 @@ namespace App\Domain\Instance\Adopt;
 
 use App\Domain\Instance\Backup\BackupRunner;
 use App\Domain\Instance\Compose\ComposeRenderer;
-use App\Domain\Instance\Console\FsaContext;
+use App\Domain\Instance\Console\FieldsetContext;
 use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\HostFacts;
 use App\Domain\Instance\Install\FromBackupKeys;
@@ -50,7 +50,7 @@ final readonly class AdoptSequence
      * @param  array<string, mixed>  $preflight  the doctor phase's data
      * @return array<string, mixed> the data phases' results
      */
-    public function run(OperationRun $run, LegacyCheckout $checkout, LegacyInstall $legacy, array $preflight, AdoptRequest $request, FsaContext $context): array
+    public function run(OperationRun $run, LegacyCheckout $checkout, LegacyInstall $legacy, array $preflight, AdoptRequest $request, FieldsetContext $context): array
     {
         $run->phase('secrets', fn (): array => $this->keys->ensureKeys(static fn (): array => [$checkout->appKey(), $checkout->previousKeys()], $context->redactor));
         $this->interruption->checkpoint();

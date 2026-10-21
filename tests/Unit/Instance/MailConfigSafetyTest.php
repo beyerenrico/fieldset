@@ -163,7 +163,7 @@ it('talks plain SMTP to a relay only when asked with --smtp-encryption none, and
     expect($show['data']['settings']['mail']['smtp']['encryption'])->toBe('none');
 })->with(['account' => true, 'no account' => false]);
 
-it('names the missing --smtp-host as `fsa install` does: input_required with data.missing', function (): void {
+it('names the missing --smtp-host as `fieldset install` does: input_required with data.missing', function (): void {
     [$code, $json] = $this->config->set('mail', 'smtp', ['--smtp-port' => '587']);
 
     expect($code)->toBe(2)

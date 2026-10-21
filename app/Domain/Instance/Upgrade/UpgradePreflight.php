@@ -109,7 +109,7 @@ final readonly class UpgradePreflight
             try {
                 $this->docker->pullImage($reference);
             } catch (DockerCommandFailed $e) {
-                throw new InstanceException("Cannot pull {$reference}: ".$e->outcome->stderrTail(2), ExitCode::AbortedUnchanged, 'pull_failed', 'Check the network and FIELDSET_REGISTRY, then run `fsa upgrade` again; nothing was changed.', true, [], $e);
+                throw new InstanceException("Cannot pull {$reference}: ".$e->outcome->stderrTail(2), ExitCode::AbortedUnchanged, 'pull_failed', 'Check the network and FIELDSET_REGISTRY, then run `fieldset upgrade` again; nothing was changed.', true, [], $e);
             }
             $pulled[] = $reference;
         }
@@ -121,7 +121,7 @@ final readonly class UpgradePreflight
     public function assertBackupService(): void
     {
         if (! in_array('backup', ComposeFile::services($this->directory), true)) {
-            throw new InstanceException('This instance has no backup service, so no safety backup can be taken.', ExitCode::PreflightFailed, 'backup_service_missing', 'Any `fsa config set` that changes a setting (e.g. `fsa config set backup-retention <days>`) renders the compose file again with the backup service; then run `fsa upgrade` again. Nothing was changed.');
+            throw new InstanceException('This instance has no backup service, so no safety backup can be taken.', ExitCode::PreflightFailed, 'backup_service_missing', 'Any `fieldset config set` that changes a setting (e.g. `fieldset config set backup-retention <days>`) renders the compose file again with the backup service; then run `fieldset upgrade` again. Nothing was changed.');
         }
     }
 
@@ -145,7 +145,7 @@ final readonly class UpgradePreflight
         if (is_int($free) && $free < $required) {
             throw new InstanceException(
                 sprintf('Not enough free disk space for the upgrade: %d MiB needed (a safety backup, a second database and storage volume, headroom), %d MiB free.', intdiv($required, 1024 ** 2), intdiv($free, 1024 ** 2)),
-                ExitCode::PreflightFailed, 'low_disk_space', 'Free space on the disk that holds the instance and Docker (old backups in backups/), then run `fsa upgrade` again; nothing was changed.', false,
+                ExitCode::PreflightFailed, 'low_disk_space', 'Free space on the disk that holds the instance and Docker (old backups in backups/), then run `fieldset upgrade` again; nothing was changed.', false,
                 ['required_bytes' => $required, 'free_bytes' => $free],
             );
         }

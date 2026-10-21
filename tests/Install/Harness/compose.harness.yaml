@@ -1,11 +1,11 @@
 # Local release harness (plan KTD23, U7; ADR 0064, ADR 0067). Started and stopped only by
-# tests/Support/Docker/ReleaseHarness.php, which names the project fsa-test-harness-<run id> and sets the
+# tests/Support/Docker/ReleaseHarness.php, which names the project fieldset-test-harness-<run id> and sets the
 # FIELDSET_HARNESS_* variables. No real registry or account is involved: images are built and mirrored into this
 # registry, and dist/ is served like GitHub Releases' download paths.
 #
 # Later units add their substitutes here (the fake tunnel), each behind a profile so a plain release run stays
 # small: Pebble with challtestsrv is the `acme` profile (U8, J2), Traefik the `proxy` profile (U9, J3).
-name: fsa-test-harness
+name: fieldset-test-harness
 
 services:
   # CNCF Distribution. Partial indexes are accepted (validation platforms: none), so third-party images keep
@@ -101,7 +101,7 @@ services:
     command:
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
-      - --providers.docker.network=${FIELDSET_HARNESS_PROXY_NETWORK:-fsa-test-proxy}
+      - --providers.docker.network=${FIELDSET_HARNESS_PROXY_NETWORK:-fieldset-test-proxy}
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
       - --ping=true
@@ -123,7 +123,7 @@ networks:
         - subnet: "${FIELDSET_HARNESS_ACME_SUBNET:-10.214.0.0/24}"
   proxy:
     external: true
-    name: ${FIELDSET_HARNESS_PROXY_NETWORK:-fsa-test-proxy}
+    name: ${FIELDSET_HARNESS_PROXY_NETWORK:-fieldset-test-proxy}
 
 volumes:
   registry-data:

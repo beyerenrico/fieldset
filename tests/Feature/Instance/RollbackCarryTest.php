@@ -13,7 +13,7 @@ use Tests\Support\Instance\CarryFixture;
 use Tests\Support\Instance\RestoreDatabases;
 
 /*
- * R64 over a manual `fsa rollback` (plan U18, ADR 0086): the newer release exports its security state as a versioned
+ * R64 over a manual `fieldset rollback` (plan U18, ADR 0086): the newer release exports its security state as a versioned
  * document (`instance:security-export`), and the older release's `instance:restore-finish --reason=rolled_back` reads it
  * from stdin instead of a second database, materialised in a schema of the restored database for the unchanged carry and
  * sequence floors. The target is seeded as the pre-upgrade safety backup, the source changes the way the upgraded

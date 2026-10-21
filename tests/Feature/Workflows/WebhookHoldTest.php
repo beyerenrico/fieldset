@@ -16,8 +16,8 @@ use Tests\Feature\Workflows\WorkflowFixtures as W;
 use Tests\Support\Instance\RuntimeFixture;
 
 /*
- * Paused webhooks after a move (plan U17, ADR 0085): `fsa install --from-backup` starts the instance with
- * `webhooks.paused` in runtime.json until the operator confirms with `fsa config set webhooks on`. Meanwhile a webhook
+ * Paused webhooks after a move (plan U17, ADR 0085): `fieldset install --from-backup` starts the instance with
+ * `webhooks.paused` in runtime.json until the operator confirms with `fieldset config set webhooks on`. Meanwhile a webhook
  * step is not claimed: nothing is sent, the step stays pending, no attempt is counted, and the stalled-run sweep queues it
  * again later; once the flag is off the step is delivered. Other step types are not held.
  */

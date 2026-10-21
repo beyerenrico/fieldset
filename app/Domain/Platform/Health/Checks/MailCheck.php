@@ -11,7 +11,7 @@ use App\Domain\Platform\Health\SystemProbes;
 /**
  * The instance's default mail transport: SMTP is probed with a 2 s TCP connect (no login, no mail sent);
  * `log`/`array` warn because mail is not delivered; API transports are reported as configured, not probed.
- * Capture mode (config `mail.capture`, set by fsa; ADR 0080) warns too, whether or not the catcher is reachable: the
+ * Capture mode (config `mail.capture`, set by fieldset; ADR 0080) warns too, whether or not the catcher is reachable: the
  * mail arrives in the bundled catcher, not at its recipients. Organization SMTP settings (§8.8) are tested from the
  * organization's mail settings page, not here.
  */

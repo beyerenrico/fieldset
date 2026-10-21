@@ -159,7 +159,7 @@ jobs:
           persist-credentials: false
       - name: shellcheck install.sh, the shim and the image scripts
         run: |
-          files=(docker/app/entrypoint.sh docker/app/fsa)
+          files=(docker/app/entrypoint.sh docker/app/fieldset)
           if compgen -G 'distribution/*.sh' > /dev/null; then
             files+=(distribution/*.sh)
           fi
@@ -254,9 +254,9 @@ jobs:
       # Mirrored third-party blobs and the harness build cache (ReleaseHarness); keyed on what they depend on.
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: storage/fsa-test-cache
-          key: fsa-test-cache-${{ hashFiles('distribution/release.json', 'docker/app/Dockerfile', 'composer.lock', 'package-lock.json') }}
-          restore-keys: fsa-test-cache-
+          path: storage/fieldset-test-cache
+          key: fieldset-test-cache-${{ hashFiles('distribution/release.json', 'docker/app/Dockerfile', 'composer.lock', 'package-lock.json') }}
+          restore-keys: fieldset-test-cache-
       - run: vendor/bin/pest --testsuite=Install
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

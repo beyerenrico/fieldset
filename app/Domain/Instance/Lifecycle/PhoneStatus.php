@@ -14,7 +14,7 @@ use App\Domain\Instance\State\InstanceState;
 use App\Domain\Instance\Tunnel\TunnelStatus;
 
 /**
- * The phone-HTTPS part of `fsa status` (R19, R20, AE6, ADR 0082), read-only: the local CA (LAN address, trust page,
+ * The phone-HTTPS part of `fieldset status` (R19, R20, AE6, ADR 0082), read-only: the local CA (LAN address, trust page,
  * root fingerprint, whether the address is still the host's) and the quick tunnel (active, expired or stopped). An
  * expired tunnel is reported, never removed here: the next mutating command does that (TunnelSweeper).
  */
@@ -34,10 +34,10 @@ final readonly class PhoneStatus
             $warnings[] = [LanAddressCheck::WARNING, "The local CA's certificate is for {$localCa['lan_address']}, which is no longer an address of this host.", LanAddressCheck::hint(LanAddress::best($this->facts))];
         }
         if ($tunnel['state'] === 'expired') {
-            $warnings[] = ['tunnel_expired', "The quick tunnel {$tunnel['hostname']} expired at {$tunnel['expires_at']}; its address answers 503.", 'The next fsa command that changes something removes it; `fsa tunnel start` starts a new one, `fsa tunnel stop` removes it now.'];
+            $warnings[] = ['tunnel_expired', "The quick tunnel {$tunnel['hostname']} expired at {$tunnel['expires_at']}; its address answers 503.", 'The next fieldset command that changes something removes it; `fieldset tunnel start` starts a new one, `fieldset tunnel stop` removes it now.'];
         }
         if ($tunnel['state'] === 'stopped') {
-            $warnings[] = ['tunnel_stopped', 'The quick tunnel does not run any more (cloudflared is not restarted: a restart would get a new address).', 'The next fsa command that changes something removes it; `fsa tunnel start` starts a new one.'];
+            $warnings[] = ['tunnel_stopped', 'The quick tunnel does not run any more (cloudflared is not restarted: a restart would get a new address).', 'The next fieldset command that changes something removes it; `fieldset tunnel start` starts a new one.'];
         }
         if (LocalCaDeletion::pending($state)) {
             $warnings[] = ['local_ca_delete_pending', 'The local CA turned off earlier could not be deleted: its keys are still on the edge\'s certificate volume.', 'Run `'.LocalCaDeletion::RETRY_COMMAND.'` to delete it.'];

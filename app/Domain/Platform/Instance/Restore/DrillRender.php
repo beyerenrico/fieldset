@@ -37,7 +37,7 @@ final readonly class DrillRender
         if ($row === null) {
             return ['status' => 'skipped', 'submission' => null, 'bytes' => null, 'pages' => null, 'message' => 'The backup holds no submitted submission to render.'];
         }
-        $directory = sys_get_temp_dir().'/fsa-drill-'.bin2hex(random_bytes(6));
+        $directory = sys_get_temp_dir().'/fieldset-drill-'.bin2hex(random_bytes(6));
         $file = $directory.'/document.pdf';
 
         try {

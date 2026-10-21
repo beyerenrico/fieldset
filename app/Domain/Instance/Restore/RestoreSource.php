@@ -16,9 +16,9 @@ use RuntimeException;
 use SensitiveParameter;
 
 /**
- * Finds the backup a restore reads and prepares it (plan U17, ADR 0085). `fsa restore <backup>` takes a name in
- * `backups/` or a path inside the instance directory (the only paths the ops container is sure to see); `fsa install
- * --from-backup` takes any path the launcher mounted. The prepare step runs `fsa restore-prepare` from the app image with
+ * Finds the backup a restore reads and prepares it (plan U17, ADR 0085). `fieldset restore <backup>` takes a name in
+ * `backups/` or a path inside the instance directory (the only paths the ops container is sure to see); `fieldset install
+ * --from-backup` takes any path the launcher mounted. The prepare step runs `fieldset restore-prepare` from the app image with
  * `--network none` and no socket, the backup and the identity mounted read-only and only a fresh scratch directory
  * (`staging/restore-<id>`, 0750, inside the private staging directory, never in `backups/`, which people sync off the
  * host: it holds the decrypted set, M12 gate S3) writable; the passphrase and the HMAC keys travel on its stdin.
@@ -41,7 +41,7 @@ final readonly class RestoreSource
     {
         $argument = rtrim(trim($argument), '/');
         $path = match (true) {
-            $argument === '' => throw new InvalidInput('Name the backup to restore.', 'backup_required', 'Run `fsa status` for the newest backups, then `fsa restore <name>`.'),
+            $argument === '' => throw new InvalidInput('Name the backup to restore.', 'backup_required', 'Run `fieldset status` for the newest backups, then `fieldset restore <name>`.'),
             str_starts_with($argument, '/') => $argument,
             ! str_contains($argument, '/') => $this->directory->root.'/'.InstanceDirectory::BACKUPS_DIR.'/'.$argument,
             default => $this->directory->root.'/'.$argument,
@@ -49,10 +49,10 @@ final readonly class RestoreSource
         // The ops container sees only the instance directory: a path outside it is reported as such before its
         // existence is checked, since from in here it never exists (R51 F1).
         if (! $mountedElsewhere && ! str_starts_with($this->normalized($path).'/', $this->directory->root.'/')) {
-            throw new InvalidInput("{$path} lies outside the instance directory, which is all fsa restore can see.", 'backup_not_visible', 'Copy the backup into backups/ and run `fsa restore <name>`.');
+            throw new InvalidInput("{$path} lies outside the instance directory, which is all fieldset restore can see.", 'backup_not_visible', 'Copy the backup into backups/ and run `fieldset restore <name>`.');
         }
         if (str_contains($path, '/../') || str_ends_with($path, '/..') || ! file_exists($path)) {
-            throw new InvalidInput("There is no backup at {$path}.", 'backup_not_found', 'Run `fsa status` for the newest backups; a backup from elsewhere goes into backups/ first.');
+            throw new InvalidInput("There is no backup at {$path}.", 'backup_not_found', 'Run `fieldset status` for the newest backups; a backup from elsewhere goes into backups/ first.');
         }
 
         return $path;
@@ -117,14 +117,14 @@ final readonly class RestoreSource
         if ($identityFile !== null) {
             // Docker creates a missing bind source as a root-owned directory on the host: check before mounting.
             if (! is_file($identityFile) || ! is_readable($identityFile)) {
-                throw new InvalidInput("The identity file {$identityFile} is missing, unreadable or not a regular file.", 'identity_unreadable', 'Pass the path of the identity file that --identity-out of `fsa backup --encrypt` or `fsa config set backup-encryption on` wrote; nothing was changed.');
+                throw new InvalidInput("The identity file {$identityFile} is missing, unreadable or not a regular file.", 'identity_unreadable', 'Pass the path of the identity file that --identity-out of `fieldset backup --encrypt` or `fieldset config set backup-encryption on` wrote; nothing was changed.');
             }
             $volumes[] = $identityFile.':'.$identityFile.':ro'; // the file alone, never its directory (often $HOME)
         }
         $input = json_encode(['passphrase' => $passphrase, 'keys' => $keys->hmacKeys()], JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
         $outcome = OneOffResult::fromOutcome($this->docker->runContainer(new ContainerSpec(
             image: $runAs['image'],
-            command: ['fsa', 'restore-prepare', '--source='.$source, '--scratch='.$scratch, ...($identityFile === null ? [] : ['--identity-file='.$identityFile]), '--json'],
+            command: ['fieldset', 'restore-prepare', '--source='.$source, '--scratch='.$scratch, ...($identityFile === null ? [] : ['--identity-file='.$identityFile]), '--json'],
             labels: Labels::forInstance($runAs['uuid'], self::ROLE),
             volumes: array_values(array_unique($volumes)),
             network: 'none',
@@ -184,7 +184,7 @@ final readonly class RestoreSource
         $hint = match ($outcome->errorCode()) {
             'identity_required' => 'Pass the identity file with --identity-file and its passphrase with --passphrase-file or --passphrase-stdin.',
             'decrypt_failed' => 'Check the identity file and its passphrase; nothing was changed.',
-            'backup_unsafe' => 'Nothing was written; use a backup written by fsa or by scripts/backup.sh of this app.',
+            'backup_unsafe' => 'Nothing was written; use a backup written by fieldset or by scripts/backup.sh of this app.',
             default => $outcome->errorHint() ?? 'Read the output; nothing was changed.',
         };
         $exit = in_array($outcome->errorCode(), ['prepare_failed', 'one_off_failed', 'one_off_timeout'], true) ? ExitCode::HealthCheckFailed : ExitCode::InvalidInput;

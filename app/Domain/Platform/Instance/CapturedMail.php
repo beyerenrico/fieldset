@@ -13,10 +13,10 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
- * What capture mode kept from people (ADR 0080), counted from the app's own records when `fsa config set mail smtp`
+ * What capture mode kept from people (ADR 0080), counted from the app's own records when `fieldset config set mail smtp`
  * switches to real delivery: invitations still waiting for acceptance and password resets still valid. Their mails
  * went to the catcher, so the recipients never got them; the operator resends them. A reset token behind an unused
- * owner sign-in link does not count: fsa handed that link over itself, no mail was sent. Counting the catcher's
+ * owner sign-in link does not count: fieldset handed that link over itself, no mail was sent. Counting the catcher's
  * messages instead would need its credentials in the app and localized subjects. Read-only; counts only.
  */
 final class CapturedMail

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Tunnel;
 
-use App\Domain\Instance\Console\FsaContext;
+use App\Domain\Instance\Console\FieldsetContext;
 use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\Install\InstallRecord;
 use App\Domain\Instance\InstanceException;
@@ -25,7 +25,7 @@ use App\Domain\Instance\State\InstanceState;
 use Closure;
 
 /**
- * `fsa tunnel start|stop|renew` (§7, E11, R20, R29, R61, R65, AE6; KTD12; ADR 0057, ADR 0078, ADR 0082), each under the
+ * `fieldset tunnel start|stop|renew` (§7, E11, R20, R29, R61, R65, AE6; KTD12; ADR 0057, ADR 0078, ADR 0082), each under the
  * instance lock with a journal (operation `tunnel`, R54) and guarded against SIGTERM, SIGINT and SIGHUP (Interruption).
  *
  * start: local mode without the local CA (R61, exit 2); a running tunnel is answered as it is (`changed: false`) → the
@@ -58,7 +58,7 @@ final readonly class TunnelOperation
      * @param  bool  $confirmed  --yes, or the install that asked for the tunnel on its command line
      * @param  (Closure(string): bool)|null  $confirm  asks in a terminal; null when the command may not prompt
      */
-    public function start(FsaContext $context, bool $admin, bool $confirmed, ?Closure $confirm, bool $secretsToFile): CommandResult
+    public function start(FieldsetContext $context, bool $admin, bool $confirmed, ?Closure $confirm, bool $secretsToFile): CommandResult
     {
         $state = $this->installed();
         TunnelRules::assertCanStart($state);
@@ -73,17 +73,17 @@ final readonly class TunnelOperation
         return $this->starter->run($context, $project, $admin, $this->confirmOrganizations($exposure, $confirmed, $confirm), $secretsToFile);
     }
 
-    public function renew(FsaContext $context): CommandResult
+    public function renew(FieldsetContext $context): CommandResult
     {
         $state = $this->installed();
         $current = $this->status->of($state);
         if ($current['state'] !== 'active') {
-            throw new InvalidInput('No quick tunnel runs on this instance.', 'no_tunnel', 'Start one with `fsa tunnel start`.', ['tunnel' => $current]);
+            throw new InvalidInput('No quick tunnel runs on this instance.', 'no_tunnel', 'Start one with `fieldset tunnel start`.', ['tunnel' => $current]);
         }
 
         return $this->interruption->guard(fn (): CommandResult => $this->supervisor->run(
             self::OPERATION,
-            $this->identity->holder('fsa', $context->facts->callerUid()),
+            $this->identity->holder('fieldset', $context->facts->callerUid()),
             function (OperationRun $run) use ($state, $current, $context): CommandResult {
                 try {
                     $this->interruption->arm();
@@ -101,7 +101,7 @@ final readonly class TunnelOperation
         ));
     }
 
-    public function stop(FsaContext $context): CommandResult
+    public function stop(FieldsetContext $context): CommandResult
     {
         $state = $this->installed();
         $current = $this->status->of($state);
@@ -119,7 +119,7 @@ final readonly class TunnelOperation
      *
      * @param  array<string, mixed>  $current  TunnelStatus::of()
      */
-    public function expire(FsaContext $context, array $current, bool $resume): CommandResult
+    public function expire(FieldsetContext $context, array $current, bool $resume): CommandResult
     {
         return $this->removal($context, $current, 'expire', $resume);
     }
@@ -148,14 +148,14 @@ final readonly class TunnelOperation
      *
      * @param  array<string, mixed>  $current
      */
-    private function removal(FsaContext $context, array $current, string $action, bool $resume): CommandResult
+    private function removal(FieldsetContext $context, array $current, string $action, bool $resume): CommandResult
     {
         return $this->interruption->guard(function () use ($context, $current, $action, $resume): CommandResult {
             $this->interruption->checkpoint(); // a signal from earlier in this command stops it before anything starts
 
             return $this->supervisor->run(
                 self::OPERATION,
-                $this->identity->holder('fsa', $context->facts->callerUid()),
+                $this->identity->holder('fieldset', $context->facts->callerUid()),
                 fn (OperationRun $run): CommandResult => $this->stopSteps($run, $current),
                 resume: $resume,
                 context: ['action' => $action],
@@ -189,7 +189,7 @@ final readonly class TunnelOperation
     {
         $state = $this->directory->hasState() ? $this->directory->state() : null;
         if (! $state instanceof InstanceState || ! InstallRecord::isInstalled($state)) {
-            throw new InvalidInput('The instance is not installed yet.', 'not_installed', 'Run `fsa install` first (it resumes an unfinished install).');
+            throw new InvalidInput('The instance is not installed yet.', 'not_installed', 'Run `fieldset install` first (it resumes an unfinished install).');
         }
 
         return $state;

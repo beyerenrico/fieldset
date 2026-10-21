@@ -19,9 +19,9 @@ require_once __DIR__.'/../Platform/Support.php';
 /*
  * Plan U12, AE1 as amended by R59 (R24, KTD14; ADR 0080): while the instance mailer captures mail, every admin page of
  * an organization says so. Organizations on the instance mailer get the full banner, organizations with their own SMTP
- * server the narrower one (invitations, password resets, e-mail address confirmations); operators see the `fsa config set mail` command,
+ * server the narrower one (invitations, password resets, e-mail address confirmations); operators see the `fieldset config set mail` command,
  * everyone else "ask your instance owner", members who manage the organization the Mail settings link. Once SMTP is
- * configured (fsa drops FIELDSET_MAIL_CAPTURE) nobody sees a banner.
+ * configured (fieldset drops FIELDSET_MAIL_CAPTURE) nobody sees a banner.
  */
 
 beforeEach(function (): void {
@@ -49,7 +49,7 @@ it('shows the full banner to an admin of an organization on the instance mailer,
         ->toContain('role="region"')->toContain('aria-label="'.__('capture.label').'"')
         ->toContain(__('capture.full.title'))->toContain(__('capture.ask_owner'))
         ->toContain('data-capture-banner-settings')->toContain('/admin/'.$organization->slug.'/mail-settings')
-        ->not->toContain('data-capture-banner-command')->not->toContain('fsa config set mail');
+        ->not->toContain('data-capture-banner-command')->not->toContain('fieldset config set mail');
 });
 
 it('shows the narrower banner to an organization with its own SMTP server, without the Mail settings link (R59)', function (): void {
@@ -72,7 +72,7 @@ it('gives each organization its own variant (AE1)', function (): void {
         ->and(bannerPage(ownerOf($b), $b))->toContain('data-capture-banner="narrow"');
 });
 
-it('shows a platform operator the fsa command instead of "ask your instance owner"', function (): void {
+it('shows a platform operator the fieldset command instead of "ask your instance owner"', function (): void {
     $organization = makeOrganization(name: 'Operator Org');
     $operator = platformOperatorGrant(ownerOf($organization));
 
@@ -83,12 +83,12 @@ it('shows a platform operator the fsa command instead of "ask your instance owne
         ->not->toContain(__('capture.ask_owner'));
 });
 
-it('gives operators a command that fsa config set mail accepts, with the sender that local and proxy instances need', function (): void {
+it('gives operators a command that fieldset config set mail accepts, with the sender that local and proxy instances need', function (): void {
     preg_match_all('/--([a-z-]+)/', CaptureModeBanner::COMMAND, $flags);
-    $definition = Artisan::all()['fsa:config']->getDefinition();
+    $definition = Artisan::all()['fieldset:config']->getDefinition();
 
     // Without --from-address a local or proxy instance sends from forms@localhost, which providers refuse.
-    expect(CaptureModeBanner::COMMAND)->toStartWith('fsa config set mail smtp ')->toContain('--from-address <address>')
+    expect(CaptureModeBanner::COMMAND)->toStartWith('fieldset config set mail smtp ')->toContain('--from-address <address>')
         ->and(array_values(array_filter($flags[1], fn (string $flag): bool => ! $definition->hasOption($flag))))->toBe([]);
 });
 
@@ -118,7 +118,7 @@ it('shows members who cannot manage the organization the banner without the Mail
     expect($page)->toContain('data-capture-banner="full"')->toContain(__('capture.ask_owner'))->not->toContain('data-capture-banner-settings');
 });
 
-it('shows no banner once SMTP is configured (AE1: after fsa config set mail)', function (): void {
+it('shows no banner once SMTP is configured (AE1: after fieldset config set mail)', function (): void {
     $a = makeOrganization(name: 'Org A');
     $b = makeOrganization(name: 'Org B');
     bannerOwnSmtp($b);

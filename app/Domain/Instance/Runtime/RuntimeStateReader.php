@@ -13,7 +13,7 @@ use Throwable;
  * Reads runtime.json from the directory in config('instance.runtime_path') (FIELDSET_RUNTIME_PATH, KTD11).
  *
  * - Not configured: no state at all, and every caller behaves as before (checkout installs).
- * - Cached in this process, keyed on path, inode, size and mtime: `fsa` replaces the file by rename, so a new
+ * - Cached in this process, keyed on path, inode, size and mtime: `fieldset` replaces the file by rename, so a new
  *   inode always means new content, even within the same second. Never cached in Valkey.
  * - An unusable file (missing, unreadable, too large, invalid JSON, broken grammar) keeps the last good value of
  *   this process; without one the state falls back to APP_URL with the gate raised (fail closed). Each new problem

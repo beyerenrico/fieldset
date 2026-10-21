@@ -1,9 +1,9 @@
 import { test, expect, type BrowserContext } from './support/test';
 
-// Smoke E2E of a freshly installed `fsa` instance (BUILD_PROMPT_V2 §11 J1/J10, plan U15), project `fsa-instance`
+// Smoke E2E of a freshly installed `fieldset` instance (BUILD_PROMPT_V2 §11 J1/J10, plan U15), project `fieldset-instance`
 // only (never part of the desktop run). Everything comes from the environment:
-// - FIELDSET_INSTANCE_URL: the instance URL, e.g. https://fsa-test-j10.test (unset: all tests skip)
-// - FIELDSET_SMOKE_LINK: the owner's one-time sign-in link from `fsa install --secrets-file`
+// - FIELDSET_INSTANCE_URL: the instance URL, e.g. https://fieldset-test-j10.test (unset: all tests skip)
+// - FIELDSET_SMOKE_LINK: the owner's one-time sign-in link from `fieldset install --secrets-file`
 // - FIELDSET_SMOKE_PASSWORD: the password the owner sets through that link
 // - FIELDSET_CHROMIUM_ARGS: a JSON array of extra Chromium flags, e.g. host resolver rules for a test domain and
 //   --ignore-certificate-errors-spki-list for a test CA's chain (optional)
@@ -14,13 +14,13 @@ const LINK = process.env.FIELDSET_SMOKE_LINK ?? '';
 const PASSWORD = process.env.FIELDSET_SMOKE_PASSWORD ?? '';
 const CHROMIUM_ARGS: string[] = JSON.parse(process.env.FIELDSET_CHROMIUM_ARGS ?? '[]') as string[];
 
-test.skip(INSTANCE_URL === '' || LINK === '' || PASSWORD === '', 'FIELDSET_INSTANCE_URL, FIELDSET_SMOKE_LINK and FIELDSET_SMOKE_PASSWORD are needed: these tests run against an fsa instance.');
+test.skip(INSTANCE_URL === '' || LINK === '' || PASSWORD === '', 'FIELDSET_INSTANCE_URL, FIELDSET_SMOKE_LINK and FIELDSET_SMOKE_PASSWORD are needed: these tests run against a fieldset instance.');
 
 test.use({ launchOptions: { args: CHROMIUM_ARGS }, storageState: { cookies: [], origins: [] } });
 
 type StorageState = Awaited<ReturnType<BrowserContext['storageState']>>;
 
-test.describe.serial('fresh fsa instance', () => {
+test.describe.serial('fresh fieldset instance', () => {
   let ownerSession: StorageState | undefined;
 
   test('the owner link leads to setting a password', async ({ browser }) => {

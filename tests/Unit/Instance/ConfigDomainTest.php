@@ -13,7 +13,7 @@ use Tests\Support\Instance\InstanceCommandFixture;
 use Tests\Support\Instance\TemporaryInstance;
 
 /*
- * Plan U11 (R21, R31, R32, R54, KTD26; ADR 0077): `fsa config set domain` against scripted Docker. Local → domain
+ * Plan U11 (R21, R31, R32, R54, KTD26; ADR 0077): `fieldset config set domain` against scripted Docker. Local → domain
  * switches mode and URL through the renderer, recreates only what changed, waits for the certificate and audits;
  * a failed ACME order reverts to local with `reverted: true`; organizations with SSO are listed before (exit 6
  * without --yes); the same value again changes nothing without a Docker call. The real thing:
@@ -101,7 +101,7 @@ it('reverts to local mode with reverted: true when the edge gets no certificate'
         ->and($json['changed'])->toBeFalse()
         ->and($json['errors'][0]['code'])->toBe('certificate_failed')
         ->and($json['errors'][0]['message'])->toContain('the previous settings were restored')
-        ->and($json['errors'][0]['hint'])->toContain('points at this host')->not->toContain('fsa install')
+        ->and($json['errors'][0]['hint'])->toContain('points at this host')->not->toContain('fieldset install')
         ->and($json['data'])->toMatchArray(['reverted' => true, 'url' => 'http://localhost:8080', 'mode' => 'local'])
         ->and($json['data']['attempted'])->toBe(['url' => 'https://'.ConfigFixture::DOMAIN, 'mode' => 'domain'])
         ->and($this->config->state()->mode())->toBe('local')
@@ -130,17 +130,17 @@ it('stops the request-serving services and exits 8 when the revert fails too; th
         ->and($json['errors'][0]['code'])->toBe('revert_failed')
         ->and($json['data'])->toMatchArray(['reverted' => false, 'stopped' => true])
         ->and($json['data']['recovery'])->toHaveCount(3)
-        ->and($json['data']['recovery'][2])->toContain('fsa config set domain '.ConfigFixture::DOMAIN)->toContain('does not repeat the change')
+        ->and($json['data']['recovery'][2])->toContain('fieldset config set domain '.ConfigFixture::DOMAIN)->toContain('does not repeat the change')
         ->and($json['data']['stopped_services'])->toEqualCanonicalizing(['app', 'queue', 'scheduler', 'mailpit'])
         ->and($this->config->state()->mode())->toBe('local')
         ->and($this->config->openJournal()?->operation())->toBe('config');
 
-    [, $status] = $this->config->instance->run('fsa:status');
-    expect(collect($status['warnings'])->firstWhere('code', 'operation_unfinished')['hint'])->toContain('fsa config set domain '.ConfigFixture::DOMAIN);
+    [, $status] = $this->config->instance->run('fieldset:status');
+    expect(collect($status['warnings'])->firstWhere('code', 'operation_unfinished')['hint'])->toContain('fieldset config set domain '.ConfigFixture::DOMAIN);
 
     [$other, $refused] = $this->config->set('port', '8090', ['--yes' => true]);
     expect($other)->toBe(9)->and($refused['errors'][0]['code'])->toBe('operation_unfinished')
-        ->and($refused['errors'][0]['hint'])->toContain('fsa config set domain '.ConfigFixture::DOMAIN);
+        ->and($refused['errors'][0]['hint'])->toContain('fieldset config set domain '.ConfigFixture::DOMAIN);
 
     $this->config->certificate = true;
     $mark = $this->config->mark();

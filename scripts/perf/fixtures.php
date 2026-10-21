@@ -20,7 +20,7 @@ declare(strict_types=1);
  * DEVELOPMENT ONLY. Audit entries are append-only (trigger, ADR 0038): remove them with
  * `php artisan migrate:fresh --seed --force`, not with `app:seed-load --purge`.
  *
- * A throwaway `fsa-test-…` instance (J10, plan U15) runs it in a one-off of its app image, read from stdin:
+ * A throwaway `fieldset-test-…` instance (J10, plan U15) runs it in a one-off of its app image, read from stdin:
  *
  *     docker compose run --rm -T -e PERF_THROWAWAY_INSTANCE=1 app php -- demo 150000 < scripts/perf/fixtures.php
  *

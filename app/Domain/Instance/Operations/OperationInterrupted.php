@@ -8,7 +8,7 @@ use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Output\ExitCode;
 
 /**
- * A signal asked the running `fsa` command to stop (Ctrl-C, a closed SSH session, an agent's tool timeout,
+ * A signal asked the running `fieldset` command to stop (Ctrl-C, a closed SSH session, an agent's tool timeout,
  * `docker stop`; ADR 0078). Thrown from the signal handler into the step that was running: before any change it
  * aborts with exit 9 and nothing changed; during a `config set` apply or verify it starts the revert.
  */

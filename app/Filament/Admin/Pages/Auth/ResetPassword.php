@@ -27,7 +27,7 @@ use SensitiveParameter;
  * token in the session and sends a signed URL with the email only, so the token never appears in a URL. After
  * the password is set the owner is signed in (unless MFA is already enrolled: then the normal login with its
  * challenge) and lands on the profile page, which offers MFA. An account without an organization (an operator made by
- * `fsa config set operator-email`) goes to the /platform sign-in instead.
+ * `fieldset config set operator-email`) goes to the /platform sign-in instead.
  */
 class ResetPassword extends BaseResetPassword
 {
@@ -56,7 +56,7 @@ class ResetPassword extends BaseResetPassword
             return $response;
         }
         if (! $user->activeOrganizations()->exists()) {
-            // An operator made by `fsa config set operator-email` has no organization and no /admin page (ADR 0080):
+            // An operator made by `fieldset config set operator-email` has no organization and no /admin page (ADR 0080):
             // the operator panel's own sign-in, with its MFA set-up, comes next.
             Notification::make()->success()->persistent()
                 ->title(__('login_link.operator.ready_title'))->body(__('login_link.operator.ready_body'))->send();

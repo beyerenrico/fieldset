@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Schema;
 
 /*
  * One-time sign-in links (BUILD_PROMPT_V2 R27/R28, ADR 0056, ADR 0068): the owner's first link (a password-reset
- * broker token, 60 minutes) and `fsa login-link` links for existing admins (15 minutes). Only a SHA-256 hash of
+ * broker token, 60 minutes) and `fieldset login-link` links for existing admins (15 minutes). Only a SHA-256 hash of
  * the token is stored. Not tenant-owned, and no other table points here: a restore clears stale links with a
  * plain `DELETE FROM login_links` (R64).
  */

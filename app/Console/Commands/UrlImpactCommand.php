@@ -11,11 +11,11 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 /**
- * The app side of the confirmation of `fsa config set domain|url|port|mode` (R21, KTD25, ADR 0077): a socket-less
+ * The app side of the confirmation of `fieldset config set domain|url|port|mode` (R21, KTD25, ADR 0077): a socket-less
  * one-off that lists the organizations whose SSO URLs follow the instance URL and counts the links already sent with
  * the old address. Read-only.
  */
-#[Description('List what follows the instance URL: organizations with SSO and links already sent (for fsa config set)')]
+#[Description('List what follows the instance URL: organizations with SSO and links already sent (for fieldset config set)')]
 #[Signature('instance:url-impact
         {--json : Print one JSON document on stdout}')]
 final class UrlImpactCommand extends Command

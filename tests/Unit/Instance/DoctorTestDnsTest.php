@@ -19,7 +19,7 @@ afterEach(function (): void {
 it('parses host=addresses entries, and drops the whole map for any malformed entry', function (string $value, array $map): void {
     expect(DoctorProbes::parseTestDns($value))->toBe($map);
 })->with([
-    'one host' => ['fsa-test-j02.test=192.168.1.20', ['fsa-test-j02.test' => ['192.168.1.20']]],
+    'one host' => ['fieldset-test-j02.test=192.168.1.20', ['fieldset-test-j02.test' => ['192.168.1.20']]],
     'two hosts, IPv6' => ['A.test=10.0.0.1,fd00::1;b.test=8.8.8.8', ['a.test' => ['10.0.0.1', 'fd00::1'], 'b.test' => ['8.8.8.8']]],
     'trailing separator' => ['a.test=10.0.0.1;', ['a.test' => ['10.0.0.1']]],
     'not an address' => ['a.test=10.0.0.1;b.test=evil', []],
@@ -28,13 +28,13 @@ it('parses host=addresses entries, and drops the whole map for any malformed ent
 ]);
 
 it('ignores FIELDSET_TEST_DNS outside a release-harness build', function (): void {
-    putenv(DoctorProbes::TEST_DNS_ENV.'=fsa-test-dns.invalid=192.0.2.10');
+    putenv(DoctorProbes::TEST_DNS_ENV.'=fieldset-test-dns.invalid=192.0.2.10');
 
-    expect((new DoctorProbes)->resolve('fsa-test-dns.invalid', DNS_A))->toBe([]);
+    expect((new DoctorProbes)->resolve('fieldset-test-dns.invalid', DNS_A))->toBe([]);
 });
 
 it('answers from FIELDSET_TEST_DNS in a harness build, A and AAAA separately', function (): void {
-    putenv(DoctorProbes::TEST_DNS_ENV.'=fsa-test-dns.invalid=192.0.2.10,2001:db8::10');
+    putenv(DoctorProbes::TEST_DNS_ENV.'=fieldset-test-dns.invalid=192.0.2.10,2001:db8::10');
     $probes = new class extends DoctorProbes
     {
         protected function testDns(): array
@@ -43,8 +43,8 @@ it('answers from FIELDSET_TEST_DNS in a harness build, A and AAAA separately', f
         }
     };
 
-    expect($probes->resolve('FSA-TEST-DNS.invalid', DNS_A))->toBe(['192.0.2.10'])
-        ->and($probes->resolve('fsa-test-dns.invalid', DNS_AAAA))->toBe(['2001:db8::10']);
+    expect($probes->resolve('FIELDSET-TEST-DNS.invalid', DNS_A))->toBe(['192.0.2.10'])
+        ->and($probes->resolve('fieldset-test-dns.invalid', DNS_AAAA))->toBe(['2001:db8::10']);
 });
 
 it('passes FIELDSET_TEST_DNS from the shim into the ops container', function (): void {
@@ -54,11 +54,11 @@ it('passes FIELDSET_TEST_DNS from the shim into the ops container', function ():
     mkdir($dir, 0700);
     $image = 'ghcr.io/beyerenrico/form-schema-app@sha256:'.str_repeat('1', 64);
     file_put_contents($dir.'/state.json', InstanceState::create('3f1c2b9e-8a4d-4c1e-9b7a-2d5e6f708192', $dir, 501, 20, 501)->withRelease('2.0.0', ['app' => $image])->toJson());
-    copy(base_path('distribution/shim.sh'), $dir.'/fsa');
-    chmod($dir.'/fsa', 0700);
+    copy(base_path('distribution/shim.sh'), $dir.'/fieldset');
+    chmod($dir.'/fieldset', 0700);
 
     try {
-        $process = $scripts->run($dir.'/fsa', ['doctor', '--json'], ['STUB_UNAME' => 'Linux', 'STUB_DOCKER_INFO' => 'Ubuntu 24.04 LTS|host|[]', 'FIELDSET_TEST_DNS' => 'a.test=10.0.0.1']);
+        $process = $scripts->run($dir.'/fieldset', ['doctor', '--json'], ['STUB_UNAME' => 'Linux', 'STUB_DOCKER_INFO' => 'Ubuntu 24.04 LTS|host|[]', 'FIELDSET_TEST_DNS' => 'a.test=10.0.0.1']);
 
         expect($process->getExitCode())->toBe(0, $process->getErrorOutput())
             ->and(implode(' ', $scripts->opsRuns()[0]))->toContain('-e FIELDSET_TEST_DNS ')

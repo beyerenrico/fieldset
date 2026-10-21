@@ -22,7 +22,7 @@ use DateTimeZone;
 use SensitiveParameter;
 
 /**
- * The database side of a restore, from the socket-holding fsa process that never connects to a database itself
+ * The database side of a restore, from the socket-holding fieldset process that never connects to a database itself
  * (KTD25, plan U17, ADR 0085): `instance:restore-db` and `instance:restore-finish` run in socket-less one-offs of the app
  * service (passwords by name in their environment), and `pg_restore` runs from the app image in a throwaway container on
  * the instance's network with the backup set mounted read-only. An archive that failed or skipped the HMAC is restored
@@ -169,7 +169,7 @@ final readonly class RestoreDatabases
         return $outcome->data;
     }
 
-    /** The manifest's creation time as ISO 8601 UTC (fsa's `2026-10-19T12:00:00Z`, 1.0's `20261019T120000Z`), null otherwise. */
+    /** The manifest's creation time as ISO 8601 UTC (fieldset's `2026-10-19T12:00:00Z`, 1.0's `20261019T120000Z`), null otherwise. */
     public static function createdAt(mixed $value): ?string
     {
         if (! is_string($value)) {
@@ -193,7 +193,7 @@ final readonly class RestoreDatabases
     {
         $outcome = OneOffResult::fromOutcome($this->docker->composeRun($project, ComposeRenderer::ONE_OFF_SERVICE, ['php', 'artisan', 'instance:restore-db', $action, ...$options, '--json'], $env, timeout: self::TIMEOUT));
         if (! $outcome->ok) {
-            throw new InstanceException("The database step `{$action}` failed: ".$outcome->errorMessage(), ExitCode::HealthCheckFailed, 'restore_database_failed', 'Read the output; `fsa status` shows what is left.', true, ['action' => $action, 'code' => $outcome->errorCode(), 'output' => $outcome->output]);
+            throw new InstanceException("The database step `{$action}` failed: ".$outcome->errorMessage(), ExitCode::HealthCheckFailed, 'restore_database_failed', 'Read the output; `fieldset status` shows what is left.', true, ['action' => $action, 'code' => $outcome->errorCode(), 'output' => $outcome->output]);
         }
 
         return $outcome;

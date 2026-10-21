@@ -17,7 +17,7 @@ use Carbon\CarbonImmutable;
 use Throwable;
 
 /**
- * The quick tunnel as it is right now (R20, AE6, ADR 0082), read-only: what `fsa status` reports and what decides
+ * The quick tunnel as it is right now (R20, AE6, ADR 0082), read-only: what `fieldset status` reports and what decides
  * whether the next mutating command removes it (TunnelSweeper).
  *
  * - `none`: no tunnel in the state and none in runtime.json.

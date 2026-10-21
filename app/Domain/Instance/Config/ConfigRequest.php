@@ -8,7 +8,7 @@ use App\Domain\Instance\State\InstanceSettings;
 use SensitiveParameter;
 
 /**
- * One `fsa config set <key> <value>` (§7, R32, ADR 0077): the key, the raw value and the ACME options that only
+ * One `fieldset config set <key> <value>` (§7, R32, ADR 0077): the key, the raw value and the ACME options that only
  * `domain` and `acme-ca` take. `--acme-staging` arrives here as `acmeCa` (Let's Encrypt staging); the CA root is the
  * validated PEM of `--acme-ca-root-file`. The journal records the request without the PEM (its SHA-256 instead), so a
  * resumed run can tell "the same change" from another one. `mail` brings its SMTP flags (MailOptions, journaled) and
@@ -126,14 +126,14 @@ final readonly class ConfigRequest
     }
 
     /**
-     * `fsa config set <key> <value>` as a command line for hints (the CA root file is named, not inlined). Values a shell
+     * `fieldset config set <key> <value>` as a command line for hints (the CA root file is named, not inlined). Values a shell
      * would split are single-quoted (a sender name); placeholders such as `<the same file>` stay as they are.
      */
     public function commandLine(): string
     {
         $flags = array_map(static fn (string $flag, string|bool $value): string => $value === true ? $flag : $flag.' '.self::shellWord($value), array_keys($this->options()), $this->options());
 
-        return "fsa config set {$this->key} {$this->value} ".implode(' ', $flags);
+        return "fieldset config set {$this->key} {$this->value} ".implode(' ', $flags);
     }
 
     /** A value as one shell word: quoted unless it is a placeholder or safe as it stands. */

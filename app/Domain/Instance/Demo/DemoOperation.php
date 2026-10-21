@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Demo;
 
-use App\Domain\Instance\Console\FsaContext;
+use App\Domain\Instance\Console\FieldsetContext;
 use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\Install\InstallRecord;
 use App\Domain\Instance\Lifecycle\AppCommands;
@@ -20,7 +20,7 @@ use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceSettings;
 
 /**
- * `fsa demo` (§7, R29, R30, F2, ADR 0081) on an installed instance, under the instance lock with a journal (R54):
+ * `fieldset demo` (§7, R29, R30, F2, ADR 0081) on an installed instance, under the instance lock with a journal (R54):
  *
  * - Seeds the demo organization, forms, workflow and users unless they exist (`changed: false` then). Passwords follow
  *   the reachability rule: `password` on a loopback-only local instance (in `data.demo.default_password`), random ones
@@ -36,7 +36,7 @@ use App\Domain\Instance\State\InstanceSettings;
  *
  * SIGTERM, SIGINT and SIGHUP (Interruption, ADR 0078) are only recorded while it runs: the one-offs finish and their
  * one-time passwords and link are handed out, instead of a dead process leaving its journal open and the passwords
- * unseen. SIGKILL leaves the journal open; `fsa demo` with the same flags resumes it.
+ * unseen. SIGKILL leaves the journal open; `fieldset demo` with the same flags resumes it.
  */
 final readonly class DemoOperation
 {
@@ -51,11 +51,11 @@ final readonly class DemoOperation
         private Interruption $interruption,
     ) {}
 
-    public function run(FsaContext $context, bool $rotate, bool $secretsToFile): CommandResult
+    public function run(FieldsetContext $context, bool $rotate, bool $secretsToFile): CommandResult
     {
         $state = $this->directory->state();
         if (! InstallRecord::isInstalled($state)) {
-            throw new InvalidInput('The instance is not installed yet.', 'not_installed', 'Run `fsa install --demo` with the flags of your install: it resumes an unfinished install and adds the demo data.');
+            throw new InvalidInput('The instance is not installed yet.', 'not_installed', 'Run `fieldset install --demo` with the flags of your install: it resumes an unfinished install and adds the demo data.');
         }
         $project = ComposeProject::forInstance($state, $this->directory);
         $uid = $context->facts->callerUid();
@@ -65,7 +65,7 @@ final readonly class DemoOperation
 
             return $this->supervisor->run(
                 self::OPERATION,
-                $this->identity->holder('fsa', $uid),
+                $this->identity->holder('fieldset', $uid),
                 fn (OperationRun $run): CommandResult => $rotate ? $this->rotation($run, $project, $context, $uid, $secretsToFile) : $this->seeding($run, $project, $context, $uid, $secretsToFile),
                 resume: true,
                 context: ['rotate' => $rotate],
@@ -74,7 +74,7 @@ final readonly class DemoOperation
         });
     }
 
-    private function seeding(OperationRun $run, ComposeProject $project, FsaContext $context, int $uid, bool $toFile): CommandResult
+    private function seeding(OperationRun $run, ComposeProject $project, FieldsetContext $context, int $uid, bool $toFile): CommandResult
     {
         [$credentials, $warnings] = $this->demo->provide($run, $project, $uid, reissue: false);
         $result = CommandResult::ok(self::OPERATION, $this->summary(), changed: $credentials->changed());
@@ -85,12 +85,12 @@ final readonly class DemoOperation
         return $this->signIn($credentials->apply($result, $context, $toFile), $project, $context, $uid, $toFile, $credentials->changed());
     }
 
-    private function rotation(OperationRun $run, ComposeProject $project, FsaContext $context, int $uid, bool $toFile): CommandResult
+    private function rotation(OperationRun $run, ComposeProject $project, FieldsetContext $context, int $uid, bool $toFile): CommandResult
     {
         $credentials = $this->demo->rotation($run, $project, $uid);
         $result = CommandResult::ok(self::OPERATION, $this->summary(), changed: $credentials->changed());
         if (! $credentials->changed()) {
-            $result = $result->withWarning('no_demo_users', 'There are no demo accounts on this instance; nothing was rotated.', 'Add the demo data with `fsa demo`.');
+            $result = $result->withWarning('no_demo_users', 'There are no demo accounts on this instance; nothing was rotated.', 'Add the demo data with `fieldset demo`.');
         }
 
         return $credentials->apply($result, $context, $toFile);
@@ -100,7 +100,7 @@ final readonly class DemoOperation
      * The demo owner's one-time sign-in link (15 minutes); without one the result still stands, with a warning. A link
      * on a run that changed no demo data is reported as the change it is.
      */
-    private function signIn(CommandResult $result, ComposeProject $project, FsaContext $context, int $uid, bool $toFile, bool $changed): CommandResult
+    private function signIn(CommandResult $result, ComposeProject $project, FieldsetContext $context, int $uid, bool $toFile, bool $changed): CommandResult
     {
         $issued = $this->app->loginLink($project, DemoCredentials::OWNER, $uid);
         $link = $issued->ok ? $issued->secret(SignInDelivery::SECRET) : null;
@@ -119,13 +119,13 @@ final readonly class DemoOperation
     {
         $state = $this->directory->state();
         $settings = InstanceSettings::of($state);
-        $fsa = $this->directory->root.'/fsa';
+        $fieldset = $this->directory->root.'/fieldset';
 
         return [
             'url' => $settings->instanceUrl(),
             'mode' => $state->mode(),
             'mail' => MailSummary::of($state),
-            'next_commands' => ["{$fsa} status", "{$fsa} login-link ".DemoCredentials::OWNER, "{$fsa} demo --rotate-passwords"],
+            'next_commands' => ["{$fieldset} status", "{$fieldset} login-link ".DemoCredentials::OWNER, "{$fieldset} demo --rotate-passwords"],
         ];
     }
 }

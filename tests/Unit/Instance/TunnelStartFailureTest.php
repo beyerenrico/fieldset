@@ -10,7 +10,7 @@ use Tests\Support\Instance\TemporaryInstance;
 use Tests\Support\Instance\TunnelFixture;
 
 /*
- * M11 gate (A2, A3; ADR 0078, ADR 0082): `fsa tunnel start` changes nothing before its checks passed — the exposure is
+ * M11 gate (A2, A3; ADR 0078, ADR 0082): `fieldset tunnel start` changes nothing before its checks passed — the exposure is
  * checked again under the lock, the target and cloudflared's image are settled — and only then rotates demo passwords;
  * every failure after the rotation still lists them. Failure results follow `config set`'s agent contract: exit 5 with
  * `retry_after` or `fix_first`, exit 8 `revert_failed` with recovery steps, `internal_error` not retryable.
@@ -114,10 +114,10 @@ it('reports a reverted start like config set: fix_first, the command to repeat, 
         ->and($json['errors'][0])->toMatchArray(['code' => 'tunnel_unavailable', 'retryable' => false])
         ->and($json['data'])->toMatchArray([
             'url' => 'http://localhost:8080', 'mode' => 'local', 'reverted' => true,
-            'command' => 'fsa tunnel start --tunnel-admin', 'options' => ['--tunnel-admin' => true],
-            'next_commands' => [$this->fixture->config->instance->directory->root.'/fsa status'],
+            'command' => 'fieldset tunnel start --tunnel-admin', 'options' => ['--tunnel-admin' => true],
+            'next_commands' => [$this->fixture->config->instance->directory->root.'/fieldset status'],
         ])
-        ->and($json['data']['fix_first'])->toContain('fsa logs tunnel')
+        ->and($json['data']['fix_first'])->toContain('fieldset logs tunnel')
         ->and($json['data'])->not->toHaveKey('retry_after')
         ->and($json['data']['failure'])->toHaveKey('answer');
 });
@@ -133,7 +133,7 @@ it('reports an unexpected failure as internal_error that is not retried (A3)', f
         ->and($json['data']['failure'])->toBe(['exception' => RuntimeException::class]);
 });
 
-it('reports a failed revert as exit 8 with recovery steps that name `fsa tunnel stop` (A3)', function (): void {
+it('reports a failed revert as exit 8 with recovery steps that name `fieldset tunnel stop` (A3)', function (): void {
     $this->fixture->hostname = null;
     $this->fixture->failComposeUps(2);
 
@@ -144,14 +144,14 @@ it('reports a failed revert as exit 8 with recovery steps that name `fsa tunnel 
         ->and($json['errors'][0])->toMatchArray(['code' => 'revert_failed', 'retryable' => false])
         ->and($json['data'])->toMatchArray([
             'reverted' => false, 'revert_steps' => ['files'], 'stopped' => true,
-            'command' => 'fsa tunnel stop', 'url' => 'http://localhost:8080',
+            'command' => 'fieldset tunnel stop', 'url' => 'http://localhost:8080',
         ])
         ->and($json['data']['stopped_services'])->toContain('app', 'queue', 'scheduler')
         ->and($json['data']['stopped_services'])->not->toContain('postgres', 'redis')
         ->and($json['data']['failure']['code'])->toBe('tunnel_unavailable')
         ->and($json['data']['revert_failure']['code'])->toBe('services_unhealthy')
         ->and($json['data']['recovery'])->toHaveCount(3)
-        ->and($json['data']['recovery'][2])->toContain('`fsa tunnel stop`')
+        ->and($json['data']['recovery'][2])->toContain('`fieldset tunnel stop`')
         ->and($this->fixture->config->openJournal()?->operation())->toBe('tunnel');
 });
 

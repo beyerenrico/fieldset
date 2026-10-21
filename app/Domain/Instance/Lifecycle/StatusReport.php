@@ -29,7 +29,7 @@ use App\Domain\Instance\Upgrade\UpgradeJournal;
 use Throwable;
 
 /**
- * What `fsa status` reports (§7, R45, ADR 0056). Read-only: no file is written and no service is touched; the
+ * What `fieldset status` reports (§7, R45, ADR 0056). Read-only: no file is written and no service is touched; the
  * only container it starts is the socket-less one-off that lists unused sign-in links (without tokens), and only
  * while the database runs. Backups (ADR 0084): `last_backup` (the newest successful run) and `backup` (schedule, next
  * run, encryption, sizes, safety backups, alerts as warnings), from the run ledger and `backups/`. Phone HTTPS (ADR
@@ -94,7 +94,7 @@ final readonly class StatusReport
         $restore = new RestoreStatus($this->directory)->of($state, $this->journal->current()); // ADR 0085
         $reset = ResetStatus::of($state, $this->journal->current()); // ADR 0088
         $data = [...$data,
-            // The URL in effect: an active quick tunnel's, as `fsa tunnel` reports it, with the loopback URL beside it (ADR 0082).
+            // The URL in effect: an active quick tunnel's, as `fieldset tunnel` reports it, with the loopback URL beside it (ADR 0082).
             'version' => $state->version(), 'mode' => $state->mode(), 'url' => $phone['data']['tunnel']['url'] ?? $settings->instanceUrl(), 'local_url' => $settings->localUrl(), 'project' => $state->project(),
             'port' => $settings->publishesAppPort() ? $settings->port() : null, 'health' => $health, 'services' => $services,
             'mail' => MailSummary::of($state),
@@ -110,11 +110,11 @@ final readonly class StatusReport
             $result = $result->withWarning($code, $message, $hint);
         }
         if ($proxy !== null && $proxy['moved'] && $proxy['current'] !== null) {
-            $result = $result->withWarning(ProxyAddressCheck::WARNING, 'The app trusts '.implode(', ', $proxy['trusted']).' as its proxy, but the proxy is at '.$proxy['current'].' now.', 'Run `fsa config set trusted-proxy auto`.');
+            $result = $result->withWarning(ProxyAddressCheck::WARNING, 'The app trusts '.implode(', ', $proxy['trusted']).' as its proxy, but the proxy is at '.$proxy['current'].' now.', 'Run `fieldset config set trusted-proxy auto`.');
         }
         if (! in_array($health, ['ok', 'not_started'], true)) {
             $bad = array_keys(array_filter($services, static fn (array $service): bool => $service['state'] !== 'running' || ! in_array($service['health'], [null, 'healthy'], true)));
-            $result = $result->withWarning('services_unhealthy', 'Not running or unhealthy: '.implode(', ', $bad).'.', 'Read `fsa logs <service>`; `fsa doctor --post` checks the whole stack.');
+            $result = $result->withWarning('services_unhealthy', 'Not running or unhealthy: '.implode(', ', $bad).'.', 'Read `fieldset logs <service>`; `fieldset doctor --post` checks the whole stack.');
         }
 
         return $links === null && $data['installed'] === true && $health === 'ok'
@@ -176,7 +176,7 @@ final readonly class StatusReport
         if (! $result->ok || ! is_array($links)) {
             return null;
         }
-        // Only these fields leave fsa, whatever the app side prints: a token or URL never reaches `data` (R50).
+        // Only these fields leave fieldset, whatever the app side prints: a token or URL never reaches `data` (R50).
         $fields = array_flip(['id', 'email', 'kind', 'state', 'created_at', 'expires_at', 'used_at', 'used_ip', 'created_by', 'created_by_uid']);
         $rows = array_values(array_map(static fn (mixed $link): array => is_array($link) ? array_intersect_key($link, $fields) : [], $links));
 

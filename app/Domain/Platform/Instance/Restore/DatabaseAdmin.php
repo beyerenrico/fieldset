@@ -25,7 +25,7 @@ use stdClass;
  * - drop: a scratch or set-aside database, never the live one (DB_DATABASE) and never postgres/template0/template1;
  * - list: databases with a prefix (leftovers of an interrupted restore or drill).
  *
- * Names come from fsa and pass RestoreConnections::NAME, so quoting them as identifiers is safe. Role passwords reach
+ * Names come from fieldset and pass RestoreConnections::NAME, so quoting them as identifiers is safe. Role passwords reach
  * Postgres only as a SCRAM verifier (BackupRole::scramVerifier), and a failing role statement is reported by its
  * SQLSTATE only.
  */

@@ -28,7 +28,7 @@ use Tests\Support\Release\ReleaseFixtures;
 
 /**
  * An installed instance (RestoreFixture: scripted Docker, an in-memory database list, the real prepare step) whose Docker
- * and release server answer the steps of `fsa upgrade` (plan U18): a release server (Http fake) serving signed
+ * and release server answer the steps of `fieldset upgrade` (plan U18): a release server (Http fake) serving signed
  * manifests by version and `latest`, the upgrade child (the real StageRenderer renders the staged files in-process, the
  * result file says ok or failed; `crash` leaves none, `hang` keeps the container running), the liveness and index one-offs,
  * the queue drain, and safety backups written to disk as real sets so that their verification and a rollback's restore
@@ -140,10 +140,10 @@ final class UpgradeFixture
         $this->releases[$version] = $manifest->toJson();
     }
 
-    /** `fsa upgrade --supervise` (the detached supervisor's run, in-process) with --json. */
+    /** `fieldset upgrade --supervise` (the detached supervisor's run, in-process) with --json. */
     public function upgrade(array $options = []): array
     {
-        return $this->instance->run('fsa:upgrade', ['--supervise' => true, '--to' => self::TARGET, ...$options]);
+        return $this->instance->run('fieldset:upgrade', ['--supervise' => true, '--to' => self::TARGET, ...$options]);
     }
 
     public static function targetImage(): string
@@ -201,7 +201,7 @@ final class UpgradeFixture
 
     private function answerRun(ContainerSpec $spec): ?ProcessOutcome
     {
-        if ($spec->entrypoint !== 'fsa' || ($spec->command[0] ?? null) !== 'upgrade-child') {
+        if ($spec->entrypoint !== 'fieldset' || ($spec->command[0] ?? null) !== 'upgrade-child') {
             return null;
         }
         $stage = $spec->env[StageRenderer::STAGE_ENV] ?? '';
@@ -225,7 +225,7 @@ final class UpgradeFixture
             ($this->stage)($stage.'/'.StageRenderer::FILES);
         }
         $result = $this->child === 'ok'
-            ? ['status' => 'ok', 'migrated' => ['2026_10_20_000000_fsa_test_upgrade'], 'steps' => [], 'staged' => $staged, 'invalid_indexes' => []]
+            ? ['status' => 'ok', 'migrated' => ['2026_10_20_000000_fieldset_test_upgrade'], 'steps' => [], 'staged' => $staged, 'invalid_indexes' => []]
             : ['status' => 'failed', 'error' => ['code' => 'migration_failed', 'message' => 'SQLSTATE[55P03]: lock timeout'], 'staged' => $staged];
         file_put_contents($stage.'/'.StageRenderer::RESULT, json_encode($result, JSON_UNESCAPED_SLASHES));
     }
@@ -245,7 +245,7 @@ final class UpgradeFixture
     {
         $live = str_contains($this->compose(), self::TARGET_DIGEST);
         if ($live && $this->appUnhealthy && in_array('app', $services, true)) {
-            throw new DockerCommandFailed('compose up', new ProcessOutcome(1, '', 'dependency failed to start: container fsa-app-1 is unhealthy'));
+            throw new DockerCommandFailed('compose up', new ProcessOutcome(1, '', 'dependency failed to start: container fieldset-app-1 is unhealthy'));
         }
         if ($live && $this->unhealthyService !== null && in_array($this->unhealthyService, $services, true)) {
             throw new DockerCommandFailed('compose up', new ProcessOutcome(1, '', "container {$this->unhealthyService} is unhealthy"));
@@ -255,7 +255,7 @@ final class UpgradeFixture
     /** @param  list<string>  $command */
     private function answerOneOff(array $command): ?ProcessOutcome
     {
-        if (($command[0] ?? null) === 'fsa' && ($command[1] ?? null) === 'backup-daemon' && str_starts_with((string) ($command[3] ?? ''), '--kind=safety-')) {
+        if (($command[0] ?? null) === 'fieldset' && ($command[1] ?? null) === 'backup-daemon' && str_starts_with((string) ($command[3] ?? ''), '--kind=safety-')) {
             return $this->safetyOutcome ?? $this->safetyBackup(substr((string) $command[3], 7));
         }
 
@@ -275,7 +275,7 @@ final class UpgradeFixture
         $name = $kind.'-20261020T10'.sprintf('%04d', count($this->safetyBackups)).'Z';
         $this->safetyBackups[] = $name;
         $dir = $this->instance->directory->root.'/backups/'.$name;
-        BackupSetFixture::fsa($dir, ['kind' => $kind, ...$this->restore->manifest()], appKey: $this->restore->appKey());
+        BackupSetFixture::fieldset($dir, ['kind' => $kind, ...$this->restore->manifest()], appKey: $this->restore->appKey());
         if ($this->damagedSafety) {
             file_put_contents($dir.'/settings.json', '{"changed":true}');
         }
@@ -424,10 +424,10 @@ final class UpgradeFixture
         $this->instance->directory->saveState($this->instance->state()->withRecipients(['age1'.str_repeat('c', 58)]));
     }
 
-    /** `fsa rollback --yes` with --json. */
+    /** `fieldset rollback --yes` with --json. */
     public function rollback(array $options = []): array
     {
-        return $this->instance->run('fsa:rollback', ['--yes' => true, ...$options]);
+        return $this->instance->run('fieldset:rollback', ['--yes' => true, ...$options]);
     }
 
     /** The labels a detached supervisor container carries. */

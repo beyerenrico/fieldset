@@ -134,10 +134,10 @@ final readonly class RestoreRecovery
     /** @param  list<string>  $degraded */
     public static function degraded(CommandResult $result, array $degraded): CommandResult
     {
-        return $degraded === [] ? $result : $result->withWarning('services_degraded', 'The previous instance takes requests, but these services did not start or are not healthy: '.implode(', ', $degraded).'.', 'Read `fsa logs <service>`; `fsa status` shows them.');
+        return $degraded === [] ? $result : $result->withWarning('services_degraded', 'The previous instance takes requests, but these services did not start or are not healthy: '.implode(', ', $degraded).'.', 'Read `fieldset logs <service>`; `fieldset status` shows them.');
     }
 
-    /** @return list<string> what could not be removed (reported, removed by `fsa restore --abandon` or by hand) */
+    /** @return list<string> what could not be removed (reported, removed by `fieldset restore --abandon` or by hand) */
     public function dropScratch(ComposeProject $project, RestoreNames $names, bool $databases = true): array
     {
         $left = [];
@@ -248,7 +248,7 @@ final readonly class RestoreRecovery
     private function failed(Throwable $cause, string $summary, array $data): CommandResult
     {
         $code = $cause instanceof InstanceException ? $cause->errorCode : 'restore_failed';
-        $hint = $cause instanceof InstanceException && $cause->hint !== null ? $cause->hint : 'Read `fsa logs app` and the output, fix the cause, then run `fsa restore` again.';
+        $hint = $cause instanceof InstanceException && $cause->hint !== null ? $cause->hint : 'Read `fieldset logs app` and the output, fix the cause, then run `fieldset restore` again.';
         $details = $cause instanceof InstanceException ? $cause->data : [];
 
         return CommandResult::failed('restore', ExitCode::RolledBack, $code, $summary.' Cause: '.$cause->getMessage(), $hint, true, [...$details, ...$data], changed: true);

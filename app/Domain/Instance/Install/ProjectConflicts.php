@@ -12,9 +12,9 @@ use App\Domain\Instance\Output\ExitCode;
 
 /**
  * Resources an install must not touch (§6.3, R63). A compose project of the same name whose containers,
- * volumes or networks carry another instance's label, or none, makes install exit 7 and names them: fsa takes
+ * volumes or networks carry another instance's label, or none, makes install exit 7 and names them: fieldset takes
  * over nothing it did not create. Containers of other instances that ran from this very directory are orphans
- * of a hand-deleted directory: they are named in a warning, with `fsa uninstall --orphans <uuid>` as the fix.
+ * of a hand-deleted directory: they are named in a warning, with `fieldset uninstall --orphans <uuid>` as the fix.
  */
 final readonly class ProjectConflicts
 {
@@ -43,7 +43,7 @@ final readonly class ProjectConflicts
                 "The compose project {$project} exists and does not belong to this instance: ".implode(', ', $foreign).'.',
                 ExitCode::Incompatible,
                 'project_conflict',
-                'fsa never takes over resources it did not create. Remove them yourself if they are leftovers, or install into another directory.',
+                'fieldset never takes over resources it did not create. Remove them yourself if they are leftovers, or install into another directory.',
                 false,
                 ['project' => $project, 'resources' => $foreign],
             );

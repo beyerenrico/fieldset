@@ -17,7 +17,7 @@ use Throwable;
 /**
  * The last phase of a verified restore (plan U17 step 11, R57, ADR 0085): only now do the put-aside database and the
  * replaced storage volume go, with the scratch directory; the safety backup is encrypted to the recipients when
- * encryption is on, and the state records the restore (`fsa status`, `config show`: last restore). Nothing here can
+ * encryption is on, and the state records the restore (`fieldset status`, `config show`: last restore). Nothing here can
  * undo the restore: what fails is reported as a warning naming what is left.
  */
 final readonly class RestoreCleanup

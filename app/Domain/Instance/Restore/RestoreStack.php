@@ -90,7 +90,7 @@ final readonly class RestoreStack
             }
         }
 
-        throw new InstanceException('The audit chain heads could not be read.', ExitCode::HealthCheckFailed, 'audit_heads_failed', 'Read `fsa logs postgres`; nothing was changed yet.', true, ['output' => $outcome->stderrTail(5)]);
+        throw new InstanceException('The audit chain heads could not be read.', ExitCode::HealthCheckFailed, 'audit_heads_failed', 'Read `fieldset logs postgres`; nothing was changed yet.', true, ['output' => $outcome->stderrTail(5)]);
     }
 
     /** Saves the state and renders everything from it again (compose file, env files, runtime). */
@@ -188,7 +188,7 @@ final readonly class RestoreStack
         try {
             $this->docker->composeUp($project, $services, self::WAIT_SECONDS);
         } catch (DockerCommandFailed $e) {
-            throw new InstanceException('Services did not become healthy after the restore.', ExitCode::HealthCheckFailed, 'services_unhealthy', 'Read `fsa logs app`.', true, ['docker' => $e->outcome->stderrTail(5)], $e);
+            throw new InstanceException('Services did not become healthy after the restore.', ExitCode::HealthCheckFailed, 'services_unhealthy', 'Read `fieldset logs app`.', true, ['docker' => $e->outcome->stderrTail(5)], $e);
         }
     }
 

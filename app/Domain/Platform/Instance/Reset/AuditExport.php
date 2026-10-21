@@ -11,7 +11,7 @@ use Closure;
 use Illuminate\Support\Facades\DB;
 
 /**
- * The audit export `fsa reset --no-backup` writes when real organizations exist (plan U23, R43, ADR 0088): the database
+ * The audit export `fieldset reset --no-backup` writes when real organizations exist (plan U23, R43, ADR 0088): the database
  * is recreated and no backup keeps it, so this is the record of what the audit log held. JSON Lines, streamed: a header
  * (`format`, `version`, `exported_at`, the epoch, every recorded epoch, the chain heads and the number of entries), then
  * every `activity_log` row as stored (properties were redacted when they were written; the chain columns let the heads

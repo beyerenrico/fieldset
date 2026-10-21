@@ -34,7 +34,7 @@ use Illuminate\Support\Carbon;
  */
 #[Fillable(['user_id', 'kind', 'token_hash', 'expires_at', 'created_by', 'created_by_uid'])]
 #[Hidden(['token_hash'])]
-#[UsePolicy(InternalRecordPolicy::class)] // console only (fsa): never exposed through a UI or API
+#[UsePolicy(InternalRecordPolicy::class)] // console only (fieldset): never exposed through a UI or API
 final class LoginLink extends Model
 {
     use MassPrunable;

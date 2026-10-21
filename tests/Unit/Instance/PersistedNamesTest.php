@@ -46,7 +46,8 @@ it('keeps every name of the longest instance within the 63 bytes of a Postgres i
     $longestRole = 'fieldset_restore_'.str_repeat('a', 40);
     $longestApplication = 'fieldset_upgrade_'.str_repeat('f', 46);
 
-    expect(strlen($project))->toBeLessThanOrEqual(63)
+    expect($project)->toStartWith('fieldset-'.$slug.'-')
+        ->and(strlen($project))->toBeLessThanOrEqual(63)
         ->and(strlen($names->role))->toBeLessThanOrEqual(63)->and($names->role)->toStartWith('fieldset_restore_')
         ->and(strlen($names->scratch))->toBeLessThanOrEqual(63)
         ->and(strlen($names->aside))->toBeLessThanOrEqual(63)

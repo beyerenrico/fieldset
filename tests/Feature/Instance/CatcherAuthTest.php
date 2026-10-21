@@ -20,7 +20,7 @@ require_once __DIR__.'/Support.php';
 require_once __DIR__.'/../Platform/Support.php';
 
 /*
- * Plan U8 / R66 (ADR 0075): in domain mode the edge's forward_auth asks /_fsa/catcher-auth before every /_mail/
+ * Plan U8 / R66 (ADR 0075): in domain mode the edge's forward_auth asks /_fieldset/catcher-auth before every /_mail/
  * request. Only an active operator whose session signed in on /platform and who has MFA passes; every session's
  * first opening is audited once. The session is read from the cookie and never written back: Mailpit fires many
  * parallel requests, and a write would race with the /platform tab. Sessions live in the database here, so

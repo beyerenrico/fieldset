@@ -14,7 +14,7 @@ use App\Domain\Instance\State\InstanceState;
 use Tests\Support\Instance\AdoptFixture;
 
 /*
- * `fsa adopt` keeps 1.0 stopped while it works on 1.0's data (plan U19, ADR 0087, review A1, A2, A7), against the recording
+ * `fieldset adopt` keeps 1.0 stopped while it works on 1.0's data (plan U19, ADR 0087, review A1, A2, A7), against the recording
  * Docker gateway: a run killed in a phase and resumed by a fresh process continues only while 1.0 stayed stopped (else it
  * goes back, exit 5 `legacy_restarted`), every running service that is no infrastructure stops before the queue drains,
  * the baseline of "writes since adopt" is taken before 2.0 starts, and a resumed run appends the ledger line once.
@@ -152,7 +152,7 @@ it('takes the baseline of the writes since adopt before 2.0 starts, not after (r
 
     [$code, $json] = $this->adopt->adopt();
     $entry = app(Ledger::class)->last('adopted');
-    [$uninstall, $uninstallJson] = $this->adopt->instance->run('fsa:uninstall', ['--yes' => true]);
+    [$uninstall, $uninstallJson] = $this->adopt->instance->run('fieldset:uninstall', ['--yes' => true]);
 
     expect($code)->toBe(0, (string) json_encode($json))
         ->and($entry['baseline']['counts']['submissions'])->toBe(41)
@@ -225,7 +225,7 @@ it('leaves one 1.0-format backup when a run killed after the backup was complete
     $this->adopt->killAt('backup_1_0', latest: true);
     $this->adopt->adopt();
     $set = fenceBackups($this->adopt)[0];
-    $kept = sys_get_temp_dir().'/fsa-test-set-'.bin2hex(random_bytes(4));
+    $kept = sys_get_temp_dir().'/fieldset-test-set-'.bin2hex(random_bytes(4));
     exec('cp -Rp '.escapeshellarg($this->adopt->instance->directory->root.'/backups/'.$set).' '.escapeshellarg($kept));
     $this->adopt->restoreKill();
     exec('cp -Rp '.escapeshellarg($kept).' '.escapeshellarg($this->adopt->instance->directory->root.'/backups/'.$set).' && rm -rf '.escapeshellarg($kept)); // complete, but not journaled

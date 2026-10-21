@@ -18,7 +18,7 @@ final readonly class RuntimeState
 
     /**
      * @param  list<string>  $extraHosts  normalized host names or IP addresses (HostName)
-     * @param  bool  $webhooksPaused  after `fsa install --from-backup` until the operator confirms the move (ADR 0085):
+     * @param  bool  $webhooksPaused  after `fieldset install --from-backup` until the operator confirms the move (ADR 0085):
      *                                webhook steps wait (RunWorkflowStep)
      * @param  InstanceFacts|null  $instance  release, mode, digests and catcher for the /platform instance page (U20)
      * @param  string|null  $updateManifestUrl  the release manifest the daily update check reads; null = the check is off (E15)

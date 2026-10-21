@@ -1,4 +1,4 @@
-# Agent guide: running form-schema-app with `fsa`
+# Agent guide: running form-schema-app with `fieldset`
 
 This guide is for an AI agent (or a script) that installs and operates a form-schema-app instance for a person. Every
 recipe gives the exact commands, the JSON fields to read and what to do when a step fails. You need a shell on the
@@ -35,21 +35,21 @@ guides point to the repository on GitHub, so they also work in the release asset
    `reset`, `adopt`, and `config set` of a key that changes the URL) exit with 6 `confirmation_required` without it,
    and `data` then holds the question and the facts it is about. Show those to the person, then run the command again
    with `--yes`.
-4. **Never put a secret on the command line.** `fsa` refuses any flag whose name says password, passphrase, secret,
+4. **Never put a secret on the command line.** `fieldset` refuses any flag whose name says password, passphrase, secret,
    token or key (exit 2 `secret_in_argument`). Secrets go in through files (`--password-file`, `--passphrase-file`,
    `--app-key-file`) or stdin (`--password-stdin`, `--passphrase-stdin`).
 5. **Never print a secret.** One-time secrets (the sign-in link, random demo passwords, the mail catcher's password)
-   appear only under `secrets`. Pass `--secrets-file <file>` and `fsa` writes them to that file (mode 0600) instead;
+   appear only under `secrets`. Pass `--secrets-file <file>` and `fieldset` writes them to that file (mode 0600) instead;
    the envelope then names the file in `secrets[].written_to`. Hand the file, or its content, to the person; do not
    echo it into a chat log.
-6. **Run commands of an instance through its own shim:** `<dir>/fsa <command> …`, for example `~/forms/fsa status
+6. **Run commands of an instance through its own shim:** `<dir>/fieldset <command> …`, for example `~/forms/fieldset status
    --json`. `install.sh` creates the shim. With `--link` (or by answering its question) `install.sh` also links
-   `fsa` into your PATH; this guide always writes the full path.
+   `fieldset` into your PATH; this guide always writes the full path.
 7. **A command that stopped half-way is resumed, not repeated by hand.** Resuming means running the command the
    envelope names (`data.command`, see exit 9 below) or, for an install, the same install command again: it continues
    where it stopped (see [a failed install](#a-failed-install)). Never clean up or redo its steps yourself.
 
-Every command lists its flags with `<dir>/fsa <command> --help`.
+Every command lists its flags with `<dir>/fieldset <command> --help`.
 
 ## The result envelope
 
@@ -80,11 +80,11 @@ Every command lists its flags with `<dir>/fsa <command> --help`.
 | Exit | Meaning | What to do |
 |---|---|---|
 | 0 | Success | Read `data`. Look at `warnings` too. |
-| 1 | Internal error | Report `errors[0]` to the person. Run `<dir>/fsa status --json` to see what changed. |
+| 1 | Internal error | Report `errors[0]` to the person. Run `<dir>/fieldset status --json` to see what changed. |
 | 2 | Invalid input (a flag, a value, a missing file) | Fix the input named in `errors[0]`. Nothing changed, except with `secrets_file_unwritable`: the command may have done its work (`changed: true`) and only its secrets were not saved; the hint says how to get them again. A failed install leaves its directory: see [a failed install](#a-failed-install). |
 | 3 | Preflight failed: the doctor (Docker, disk, ports, DNS) or a precondition of the command, such as `default_password_in_use` (accounts still sign in with the demo password `password`) | `data.checks` lists the doctor's checks, each `{key, status, summary, hint, details}` with `status` `ok`, `warn`, `fail` or `skipped`; fix every `fail` as its `hint` says. A precondition names its fix in `errors[0].hint`. Then run the command again. Nothing changed; a failed install leaves its directory (see [a failed install](#a-failed-install)). |
 | 3 | install.sh could not download or verify the release (`release_unavailable`, `image_unavailable`, `verify_failed`, `manifest_signature_invalid`, …) | `data` is empty: read `errors[0]`. `release_unavailable` and `image_unavailable` are network problems (`retryable: true`). On `verify_failed` or `manifest_signature_invalid`, stop and report `errors[0]` to the person: never retry with another install.sh or release URL, never bypass the check. Only if `errors[0].message` shows that Sigstore (TUF, Rekor) could not be reached may the same command be run again later. Nothing changed: no directory was created. |
-| 4 | A step after the preflight failed (a service unhealthy, a migration, a restore step) | Read `errors[0].hint`: it says what was touched (the restore steps leave the live database and storage alone). Then `<dir>/fsa logs app --json`. An install resumes when run again. |
+| 4 | A step after the preflight failed (a service unhealthy, a migration, a restore step) | Read `errors[0].hint`: it says what was touched (the restore steps leave the live database and storage alone). Then `<dir>/fieldset logs app --json`. An install resumes when run again. |
 | 5 | Rolled back | The instance is back where it was. `errors[0].code` is the cause. See below. |
 | 6 | Confirmation required | Show `data.question` and the other `data` facts to the person; run again with `--yes` if they agree. |
 | 7 | Incompatible (version, schema, another instance's data) | Nothing changed (a failed install leaves its directory, see [a failed install](#a-failed-install)). `errors[0].hint` names the way forward (for example `--to <version>` or `--major`). |
@@ -95,27 +95,27 @@ Every command lists its flags with `<dir>/fsa <command> --help`.
 ### The recovery object
 
 When a command cannot finish, the envelope tells you how to continue. Commands in `data.command`, `data.next` and the
-hints start with a bare `fsa`; you may have no `fsa` on your PATH, so replace that leading `fsa` with `<dir>/fsa`, the
-instance's shim (for example `fsa upgrade --resume` becomes `~/forms/fsa upgrade --resume --json`). Read these fields in
+hints start with a bare `fieldset`; you may have no `fieldset` on your PATH, so replace that leading `fieldset` with `<dir>/fieldset`, the
+instance's shim (for example `fieldset upgrade --resume` becomes `~/forms/fieldset upgrade --resume --json`). Read these fields in
 this order:
 
 1. **Exit 9 `operation_unfinished`:** an earlier command stopped half-way. `data.command` is the exact command line that
    resumes it and `data.options` its flags (`data.operation` and `data.last_phase` say what stopped where). Run
    `data.command` with `--json` (plus `--yes` if the person agrees, and the same secret files it names). Every other
    changing command answers this exit until the operation is finished.
-2. **Exit 9 `instance_locked`:** another `fsa` command (or a scheduled backup) is running. Wait and run again.
+2. **Exit 9 `instance_locked`:** another `fieldset` command (or a scheduled backup) is running. Wait and run again.
 3. **Exit 5 (rolled back):** `data.retry_after` (seconds) means a passing problem: wait, then run the same command
    again. `data.fix_first` means fix that first. `data.command` and `data.options`, when present, are the command to
-   repeat. `fsa config set` and `fsa tunnel` fill all of these; `fsa upgrade`, `fsa restore` and `fsa reset` name the
+   repeat. `fieldset config set` and `fieldset tunnel` fill all of these; `fieldset upgrade`, `fieldset restore` and `fieldset reset` name the
    cause in `errors[0]` and the safety backup in `data.safety_backup`.
 4. **Exit 8 (rollback failed):** `errors[0].hint` is the complete instruction. `data.next` adds a machine-readable
    part, and its form depends on the command:
-   - `fsa upgrade`: `data.next` is the command to run: `fsa upgrade --resume`.
-   - `fsa rollback`: `data.next` is `fsa rollback`.
-   - `fsa restore`: `data.next` is a kind: `abort` (nothing was swapped), `return` (going back to the previous data),
+   - `fieldset upgrade`: `data.next` is the command to run: `fieldset upgrade --resume`.
+   - `fieldset rollback`: `data.next` is `fieldset rollback`.
+   - `fieldset restore`: `data.next` is a kind: `abort` (nothing was swapped), `return` (going back to the previous data),
      `forward` or `no_way_back` (continuing with the restored data). In every case the command is
-     `<dir>/fsa restore --abandon --yes --json`; the kind tells the person what they will end up with.
-   - `fsa config set` and `fsa tunnel`: `data.recovery` lists the steps; running the same command again finishes the
+     `<dir>/fieldset restore --abandon --yes --json`; the kind tells the person what they will end up with.
+   - `fieldset config set` and `fieldset tunnel`: `data.recovery` lists the steps; running the same command again finishes the
      revert.
 
    `data.safety_backup`, when present, names the backup taken before the operation. If the recovery command fails
@@ -126,13 +126,13 @@ this order:
 
 Once install.sh has verified the release it creates the instance directory, so an install that fails later (exit 2,
 3, 4 or 7, for example `doctor_failed`, `path_missing` or `backup_newer`) leaves that directory behind. Before the
-first container starts it holds only install.sh's scaffold (such as `.fieldset-instance`, `fsa`, `locks`, `operations`,
-`releases`), and `<dir>/fsa status` and `<dir>/fsa uninstall` answer exit 3 `no_state` ("the installation
+first container starts it holds only install.sh's scaffold (such as `.fieldset-instance`, `fieldset`, `locks`, `operations`,
+`releases`), and `<dir>/fieldset status` and `<dir>/fieldset uninstall` answer exit 3 `no_state` ("the installation
 did not finish"). Then either:
 
 - fix the cause and run the install command again with the same `--dir` (a corrected flag, such as another
   `--version`, is fine): it continues in that directory; or
-- if the person gives up on this install, remove the directory: `rm -r <dir>`. Only do that while `<dir>/fsa status
+- if the person gives up on this install, remove the directory: `rm -r <dir>`. Only do that while `<dir>/fieldset status
   --json` answers `no_state`: then no container, volume or network exists yet.
 
 After exit 4 the instance's containers may exist already: run the same install command again, it resumes.
@@ -174,14 +174,14 @@ Read:
   (`password`); when the instance is reachable from other machines, each account gets a random password instead, under
   `secrets` as `demo_password:<email>`.
 - `data.mail.catcher_url`: the mail catcher, where every mail of the instance lands. `data.mail.catcher_login_command`
-  (local and proxy mode) is `fsa config show --catcher-login`, which returns the catcher's password as a secret. Run it
-  as `~/forms/fsa config show --catcher-login --secrets-file ~/forms-catcher.json --json`: without `--secrets-file` the
+  (local and proxy mode) is `fieldset config show --catcher-login`, which returns the catcher's password as a secret. Run it
+  as `~/forms/fieldset config show --catcher-login --secrets-file ~/forms-catcher.json --json`: without `--secrets-file` the
   password is printed on stdout. The catcher asks for a user name and that password: the user name is
-  `data.catcher_login.user` (`fsa`), the password the secret `catcher_password`.
+  `data.catcher_login.user` (`fieldset`), the password the secret `catcher_password`.
 
 On a computer with a desktop, `--open` hands the sign-in link to the browser instead of a file
 (`data.sign_in_link.delivered` is then `browser`). A demo on an instance that is already installed:
-`~/forms/fsa demo --json --secrets-file ~/forms-secrets.json`.
+`~/forms/fieldset demo --json --secrets-file ~/forms-secrets.json`.
 
 Failures:
 
@@ -190,7 +190,7 @@ Failures:
 - Exit 10 `docker_too_old`: the Docker Engine is older than 24 (`data.checks` says which version runs). Update Docker.
 - Exit 7 `project_conflict`: another instance uses the same directory name. Pick another `--dir`.
 - Exit 10 `docker_missing` or `docker_unavailable`: install or start Docker.
-- Exit 4 (`services_unhealthy`, `migrate_failed`, …): read `~/forms/fsa logs app --json`, then run the same install
+- Exit 4 (`services_unhealthy`, `migrate_failed`, …): read `~/forms/fieldset logs app --json`, then run the same install
   command again; it resumes.
 - Any failed install leaves `~/forms` behind: see [a failed install](#a-failed-install).
 
@@ -199,7 +199,7 @@ Failures:
 Check that the instance is healthy, then issue a new sign-in link for an admin, for example when the first one expired.
 
 ```sh runnable
-~/forms/fsa status --json
+~/forms/fieldset status --json
 ```
 
 ```json expect
@@ -210,7 +210,7 @@ Check that the instance is healthy, then issue a new sign-in link for an admin, 
 `data.operation` is not null while an operation is unfinished (see exit 9).
 
 ```sh runnable
-~/forms/fsa login-link owner@example.com --secrets-file ~/forms-link.json --json
+~/forms/fieldset login-link owner@example.com --secrets-file ~/forms-link.json --json
 ```
 
 ```json expect
@@ -228,18 +228,18 @@ dashboard shows a "mail is captured" banner. Switch to the person's SMTP server.
 the person can read (for example `~/smtp-password`), never on the command line.
 
 ```sh runnable
-~/forms/fsa config set mail smtp --smtp-host smtp.example.com --smtp-port 587 --smtp-username forms@example.com --password-file ~/smtp-password --from-address forms@example.com --test-to owner@example.com --json
+~/forms/fieldset config set mail smtp --smtp-host smtp.example.com --smtp-port 587 --smtp-username forms@example.com --password-file ~/smtp-password --from-address forms@example.com --test-to owner@example.com --json
 ```
 
 ```json expect
 {"exit_code": 0, "status": "ok", "data": {"key": "mail", "from": "capture", "to": "<string>", "mail": {"mode": "smtp"}, "checked": "<list>"}}
 ```
 
-`fsa` sends a test mail to `--test-to` through the new server before it keeps the change; `data.checked` lists what
+`fieldset` sends a test mail to `--test-to` through the new server before it keeps the change; `data.checked` lists what
 it verified and `data.to` describes the new mail setup. The default encryption is
 STARTTLS on port 587 (`--smtp-encryption tls` for port 465, `none` only for a relay inside a trusted network). The
-password can also come from stdin: `printf '%s\n' "$smtp_password" | ~/forms/fsa config set mail smtp … --password-stdin --json`.
-The mail catcher keeps running for old mail; `--remove-catcher` removes it. `fsa config set mail capture` switches
+password can also come from stdin: `printf '%s\n' "$smtp_password" | ~/forms/fieldset config set mail smtp … --password-stdin --json`.
+The mail catcher keeps running for old mail; `--remove-catcher` removes it. `fieldset config set mail capture` switches
 back.
 
 Failures:
@@ -256,7 +256,7 @@ The instance backs up daily at 03:30 (its time zone) into `<dir>/backups/` and k
 Take a backup now:
 
 ```sh runnable
-~/forms/fsa backup --json
+~/forms/fieldset backup --json
 ```
 
 ```json expect
@@ -269,33 +269,33 @@ no APP key: keep the `APP_KEY` and `APP_PREVIOUS_KEYS` lines of `~/forms/env/app
 person where), or a restore elsewhere cannot verify the backup and encrypted values stay unreadable (see
 [backup and restore](https://github.com/beyerenrico/form-schema-app/blob/main/docs/guide/backup-restore.md#copy-backups-off-the-host)).
 
-To check the scheduled backups, read `warnings[].code` of `~/forms/fsa status --json` (each `hint` names the command):
+To check the scheduled backups, read `warnings[].code` of `~/forms/fieldset status --json` (each `hint` names the command):
 
 | Code | Meaning | Do |
 |---|---|---|
-| `backup_failed` | The last backup failed. | Read `~/forms/fsa logs backup --json`, fix the cause, run `~/forms/fsa backup --json`. |
-| `backup_disk_space` | The last scheduled backup was skipped for lack of disk space. | Free space (old backups in `backups/`), run `~/forms/fsa backup --json`. |
-| `backup_skipped` | Scheduled backups were skipped for more than 24 hours: an operation held the lock. | Finish the unfinished operation (`~/forms/fsa status --json` names it), run `~/forms/fsa backup --json`. |
-| `backup_service_failed` | The backup service cannot start. | Read `~/forms/fsa logs backup --json`; any `~/forms/fsa config set` that changes a setting renders its configuration again. |
+| `backup_failed` | The last backup failed. | Read `~/forms/fieldset logs backup --json`, fix the cause, run `~/forms/fieldset backup --json`. |
+| `backup_disk_space` | The last scheduled backup was skipped for lack of disk space. | Free space (old backups in `backups/`), run `~/forms/fieldset backup --json`. |
+| `backup_skipped` | Scheduled backups were skipped for more than 24 hours: an operation held the lock. | Finish the unfinished operation (`~/forms/fieldset status --json` names it), run `~/forms/fieldset backup --json`. |
+| `backup_service_failed` | The backup service cannot start. | Read `~/forms/fieldset logs backup --json`; any `~/forms/fieldset config set` that changes a setting renders its configuration again. |
 | `backup_files_missing` | The newest backup misses files the database references (its `manifest.json` lists them). | Check the storage volume; report to the person. |
-| `backup_overdue` | No backup succeeded within 2 hours of the scheduled slot. | `~/forms/fsa logs backup --json` and `~/forms/fsa doctor --post --json`, then `~/forms/fsa backup --json`. |
+| `backup_overdue` | No backup succeeded within 2 hours of the scheduled slot. | `~/forms/fieldset logs backup --json` and `~/forms/fieldset doctor --post --json`, then `~/forms/fieldset backup --json`. |
 | `backup_partial_left` | An interrupted backup left a partial directory that may hold unencrypted data. | The next run removes it; never copy it off the host. |
 
 Check that the backup restores, without touching the instance (a drill). `<backup>` is `data.backup` from above:
 
 ```sh runnable
-~/forms/fsa restore <backup> --drill --json
+~/forms/fieldset restore <backup> --drill --json
 ```
 
 ```json expect
 {"exit_code": 0, "status": "ok", "data": {"backup": "<string>", "dropped": true, "storage": "<object>"}}
 ```
 
-Restore it into the instance. This replaces the instance's data with the backup's, so ask the person first. `fsa`
+Restore it into the instance. This replaces the instance's data with the backup's, so ask the person first. `fieldset`
 takes a safety backup of the current data before it starts:
 
 ```sh runnable
-~/forms/fsa restore <backup> --yes --json
+~/forms/fieldset restore <backup> --yes --json
 ```
 
 ```json expect
@@ -306,7 +306,7 @@ After a restore, webhooks stay paused so that other systems are not notified twi
 them on again:
 
 ```sh runnable
-~/forms/fsa config set webhooks on --json
+~/forms/fieldset config set webhooks on --json
 ```
 
 ```json expect
@@ -316,7 +316,7 @@ them on again:
 Notes:
 
 - `data.epoch`: a restore starts a new epoch of the audit log's hash chain (see [backup and restore](https://github.com/beyerenrico/form-schema-app/blob/main/docs/guide/backup-restore.md)).
-- Encrypted backups (`fsa config set backup-encryption on`) restore with `--identity-file <file>` and
+- Encrypted backups (`fieldset config set backup-encryption on`) restore with `--identity-file <file>` and
   `--passphrase-file <file>`.
 
 Failures:
@@ -325,7 +325,7 @@ Failures:
   older than the oldest version this release upgrades from; restore it into an instance of an intermediate release
   first. Nothing changed.
 - Exit 2 `backup_not_found`, `backup_not_visible` (the path lies outside the instance directory, whether it exists or
-  not: `fsa restore` sees only that directory; copy the backup into `~/forms/backups/` and restore it by name), `not_an_app_backup` (the dump is not a backup of this app),
+  not: `fieldset restore` sees only that directory; copy the backup into `~/forms/backups/` and restore it by name), `not_an_app_backup` (the dump is not a backup of this app),
   `backup_unauthenticated` (the backup's signature does not match this instance's APP key: pass the key of the instance
   that made it with `--app-key-file`, or `--accept-unauthenticated` if the person accepts an unverified backup),
   `identity_required` (an encrypted backup), `path_missing` (the directory of the `--identity-file` does not exist),
@@ -339,17 +339,17 @@ Failures:
 
 ## Recipe: upgrade
 
-`fsa upgrade` takes a safety backup, pulls the new release, migrates, checks the new version's health, and rolls back
+`fieldset upgrade` takes a safety backup, pulls the new release, migrates, checks the new version's health, and rolls back
 by itself when the check fails. Without `--to` it upgrades to the newest stable release:
 
 ```sh
-~/forms/fsa upgrade --json
+~/forms/fieldset upgrade --json
 ```
 
 Upgrade to a named version (`<version>`, for example `2.0.1`):
 
 ```sh runnable
-~/forms/fsa upgrade --to <version> --json
+~/forms/fieldset upgrade --to <version> --json
 ```
 
 ```json expect
@@ -358,22 +358,22 @@ Upgrade to a named version (`<version>`, for example `2.0.1`):
 
 - `data.current: true`: the instance already runs that version; nothing changed.
 - After a real upgrade: `data.safety_backup`, `data.migrated` and `data.notes_url` (the release notes).
-- `~/forms/fsa version --json` shows the running version in `data.instance`. Its `data.newest_known` is always
+- `~/forms/fieldset version --json` shows the running version in `data.instance`. Its `data.newest_known` is always
   `null`: the update check runs in the app.
-- Update check: `~/forms/fsa config set update-check on --json` (or `off`) lets the app read the newest release's
-  manifest once a day; the result appears only on the `/platform` instance page. `~/forms/fsa config show --json` lists
+- Update check: `~/forms/fieldset config set update-check on --json` (or `off`) lets the app read the newest release's
+  manifest once a day; the result appears only on the `/platform` instance page. `~/forms/fieldset config show --json` lists
   what it contacts under `data.outbound_contacts`.
 
 The upgrade runs in a background container (the supervisor), so it goes on when your shell loses it (a closed SSH
 session, a timeout). Do not start it again: that answers exit 9 `supervisor_running`, and other commands answer
-`instance_locked` while it runs. Instead, `~/forms/fsa upgrade --follow --json` attaches to it and returns its result
-(or the last upgrade's result once it finished). `~/forms/fsa status --json` shows `data.supervisor.running` and
-`data.last_upgrade`. When `fsa status` reports an unfinished upgrade, run `~/forms/fsa upgrade --resume --json` only
+`instance_locked` while it runs. Instead, `~/forms/fieldset upgrade --follow --json` attaches to it and returns its result
+(or the last upgrade's result once it finished). `~/forms/fieldset status --json` shows `data.supervisor.running` and
+`data.last_upgrade`. When `fieldset status` reports an unfinished upgrade, run `~/forms/fieldset upgrade --resume --json` only
 once `data.supervisor.running` is `false`.
 
-"The last upgrade" is the last `fsa upgrade` run, even one that changed nothing: once an upgrade finished, running
-`fsa upgrade` again (it answers `current: true`) replaces it, and from then on `--follow` and `data.last_upgrade` show
-that run, not the real upgrade. Keep the real upgrade's own result, and use `~/forms/fsa version --json`
+"The last upgrade" is the last `fieldset upgrade` run, even one that changed nothing: once an upgrade finished, running
+`fieldset upgrade` again (it answers `current: true`) replaces it, and from then on `--follow` and `data.last_upgrade` show
+that run, not the real upgrade. Keep the real upgrade's own result, and use `~/forms/fieldset version --json`
 (`data.instance`) to see which version runs.
 
 Failures:
@@ -384,8 +384,8 @@ Failures:
   accepts losing them.
 - Exit 5 (`target_unhealthy` and others): the new version failed its checks and the instance runs the previous one
   again. `data.logs` holds the new version's log lines. Report them; do not retry blindly.
-- Exit 8 `upgrade_rollback_failed`: run `~/forms/fsa upgrade --resume --json` (`data.next`).
-- Going back after a successful upgrade: `~/forms/fsa rollback --yes --json` restores the upgrade's safety backup
+- Exit 8 `upgrade_rollback_failed`: run `~/forms/fieldset upgrade --resume --json` (`data.next`).
+- Going back after a successful upgrade: `~/forms/fieldset rollback --yes --json` restores the upgrade's safety backup
   into the previous version. Data written since the upgrade is lost: `data.loss` in the confirmation (exit 6) says
   how much.
 
@@ -398,7 +398,7 @@ over, an install from that backup on the new host.
    install the same version (or a newer one).
 
    ```sh runnable
-   ~/forms/fsa version --json
+   ~/forms/fieldset version --json
    ```
 
    ```json expect
@@ -410,7 +410,7 @@ over, an install from that backup on the new host.
    encryption on and writes the decryption identity to `--identity-out`, outside the instance directory:
 
    ```sh runnable
-   ~/forms/fsa backup --encrypt --include-secrets --identity-out ~/forms-identity.age --passphrase-file ~/forms-passphrase --json
+   ~/forms/fieldset backup --encrypt --include-secrets --identity-out ~/forms-identity.age --passphrase-file ~/forms-passphrase --json
    ```
 
    ```json expect
@@ -448,8 +448,8 @@ over, an install from that backup on the new host.
    For a domain, add `--domain <name>` (and `--acme-email <address>`); until the DNS name points to the new host, the
    instance reports "certificate pending". The moved instance starts with captured mail and paused webhooks so that
    nothing goes out twice while the old host still runs. `data.confirm_commands` lists the commands that turn both
-   back on (`fsa config set webhooks on`, `fsa config set mail smtp …`); run them once the person has switched over,
-   with `~/forms-new/fsa` and `--json`. The mail command carries the old server's host, port, encryption and sender
+   back on (`fieldset config set webhooks on`, `fieldset config set mail smtp …`); run them once the person has switched over,
+   with `~/forms-new/fieldset` and `--json`. The mail command carries the old server's host, port, encryption and sender
    address; only two placeholders are left: replace `<account>` with the SMTP user name and `<file>` with a file that
    holds the SMTP password (see [configure SMTP](#recipe-configure-smtp)). A server without a login needs neither:
    leave out `--smtp-username <account> --password-file <file>`.
@@ -457,13 +457,13 @@ over, an install from that backup on the new host.
    If the old instance encrypted its backups before the move, add `--keep-recipients` to the install command: the new
    instance then goes on encrypting its backups to the same identity (keep the identity and passphrase, step 5).
    Without it, the warning `backup_recipients_not_kept` says that new backups are not encrypted until you run
-   `~/forms-new/fsa config set backup-encryption on` there.
+   `~/forms-new/fieldset config set backup-encryption on` there.
 
 4. When the new host works and DNS points to it, remove the old instance. `--keep-backups` keeps its `backups/`
    directory and writes a final backup there first (`data.final_backup`):
 
    ```sh runnable
-   ~/forms/fsa uninstall --keep-backups --yes --json
+   ~/forms/fieldset uninstall --keep-backups --yes --json
    ```
 
    ```json expect
@@ -483,7 +483,7 @@ over, an install from that backup on the new host.
 Failures of step 3: exit 2 `decrypt_failed` (wrong identity or passphrase), `path_missing` (the identity's directory
 does not exist), `identity_unreadable` (no identity file at that path), `backup_unauthenticated` (wrong or
 missing `--app-key-file`), exit 7 `backup_newer` (the new host installs an older version than the old host runs: pass
-`--version <old-version>`; ignore the hint's `fsa upgrade`, which is for the old host). Each leaves `~/forms-new`
+`--version <old-version>`; ignore the hint's `fieldset upgrade`, which is for the old host). Each leaves `~/forms-new`
 behind: fix the cause and run the install command again (see [a failed install](#a-failed-install)).
 
 ## Recipe: VPS install
@@ -493,22 +493,22 @@ points to the server, and ports 80 and 443 are free and reachable. Run as root; 
 instead of `sh`:
 
 ```sh
-curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/form-schema-app/releases/latest/download/install.sh | sudo sh -s -- --dir /opt/form-schema-app --domain forms.example.com --acme-email ops@example.com --org "Example Ltd" --owner-email owner@example.com --secrets-file /root/forms-secrets.json --json --yes
+curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/form-schema-app/releases/latest/download/install.sh | sudo sh -s -- --dir /opt/fieldset --domain forms.example.com --acme-email ops@example.com --org "Example Ltd" --owner-email owner@example.com --secrets-file /root/forms-secrets.json --json --yes
 ```
 
 Expect exit 0 and `data.mode` `domain`, `data.url` `https://forms.example.com`, `data.sign_in_link.delivered`
-`secrets_file`. Then configure SMTP (recipe above) with `/opt/form-schema-app/fsa`.
+`secrets_file`. Then configure SMTP (recipe above) with `/opt/fieldset/fieldset`.
 
 - `--acme-staging` uses Let's Encrypt's staging CA for a first try (the browser will not trust the certificate);
-  `/opt/form-schema-app/fsa config set acme-ca production --json` switches to real certificates afterwards.
+  `/opt/fieldset/fieldset config set acme-ca production --json` switches to real certificates afterwards.
 - Behind an existing reverse proxy, use `--behind-proxy traefik|caddy|port` (with `--url` and, for `port`, `--port`)
   instead of `--domain`; see the [install guide](https://github.com/beyerenrico/form-schema-app/blob/main/docs/guide/install.md).
 - SMTP can be set during the install with the same `--smtp-*`, `--password-file` and `--from-address` flags.
 
 Failures: exit 3 `doctor_failed` with the check `dns` (the name does not point here yet: wait for DNS) or a port check
-(80 or 443 in use); exit 4: a service did not become healthy (read `/opt/form-schema-app/fsa logs edge --json` for
+(80 or 443 in use); exit 4: a service did not become healthy (read `/opt/fieldset/fieldset logs edge --json` for
 the certificate, `… logs app --json` for the application, then run the same command again; it resumes). A failed
-install leaves `/opt/form-schema-app` behind: run the same command again once the cause is fixed, or see
+install leaves `/opt/fieldset` behind: run the same command again once the cause is fixed, or see
 [a failed install](#a-failed-install).
 
 ## Recipe: phone demo
@@ -518,7 +518,7 @@ Goal: try the Field App on a phone in the same network. Phones need HTTPS for th
 **Local certificate authority** (phones in the same Wi-Fi):
 
 ```sh
-~/forms/fsa config set phone-https local-ca --yes --json
+~/forms/fieldset config set phone-https local-ca --yes --json
 ```
 
 Or at install: add `--phone-https local-ca` (with `--lan-address <IPv4>` when the computer has several addresses).
@@ -526,26 +526,26 @@ It changes the instance's URL to `https://<LAN address>` (hence `--yes`), adds a
 and 443 on that address, and restarts the services whose configuration changes (`data.services`). Read
 `data.phone_https.url` (the HTTPS address for the phone), `data.phone_https.trust_url` (a page the phone opens first,
 with the CA certificate and instructions) and `data.phone_https.root_sha256` (to compare on the phone). The person
-installs and trusts the certificate on the phone, then opens `url`. `~/forms/fsa config set phone-https off --yes
+installs and trusts the certificate on the phone, then opens `url`. `~/forms/fieldset config set phone-https off --yes
 --json` ends it.
 
 Failures: exit 3 `doctor_failed` (port 80 or 443 is in use on the LAN address; `data.checks`); exit 3
-`default_password_in_use` (demo accounts still use the documented password: run `~/forms/fsa demo --rotate-passwords
+`default_password_in_use` (demo accounts still use the documented password: run `~/forms/fieldset demo --rotate-passwords
 --json --secrets-file ~/forms-secrets.json` first; other accounts on that password: change it); exit 2
-`lan_address_required` (`~/forms/fsa config set lan-address <IPv4> --json` first); exit 5: the edge did not pass its
+`lan_address_required` (`~/forms/fieldset config set lan-address <IPv4> --json` first); exit 5: the edge did not pass its
 check and the instance is back on its previous URL (`data.fix_first` or `data.retry_after`, see the recovery object).
 
 **Quick tunnel** (a public `trycloudflare.com` address, no certificate to install; it expires):
 
 ```sh
-~/forms/fsa tunnel start --yes --json
+~/forms/fieldset tunnel start --yes --json
 ```
 
 Read `data.url` and `data.tunnel.expires_at`. `--yes` is needed when the instance holds organizations other than the
 demo, because their data becomes reachable from the internet. Through the tunnel only the Field App, the API and
 sign-in are reachable; `--tunnel-admin` opens the admin dashboard (`/admin`) there too, so pass it only when the person
 asks for it. Demo accounts still on the documented password get random ones first (under `secrets`, warning
-`demo_passwords_rotated`; pass `--secrets-file`). `fsa tunnel renew` extends it, `fsa tunnel stop` ends it. The tunnel
+`demo_passwords_rotated`; pass `--secrets-file`). `fieldset tunnel renew` extends it, `fieldset tunnel stop` ends it. The tunnel
 only works in local mode and not together with the local CA (exit 2 `invalid_combination`). Exit 3
 `default_password_in_use`: an account that is not a demo account still uses the documented password; change it first.
 
@@ -555,7 +555,7 @@ Move an instance to another domain name, or a local instance to a domain. Point 
 server first.
 
 ```sh
-/opt/form-schema-app/fsa config set domain new.example.com --yes --json
+/opt/fieldset/fieldset config set domain new.example.com --yes --json
 ```
 
 Without `--yes` the command exits 6: `data.question` is the question to show the person, and `data` describes the
@@ -563,19 +563,19 @@ change (`from`, `to`, `change`, `impact`). On success, `data.url` is the new URL
 Old links (sign-in links, links in sent mail) stop working.
 
 Failures: exit 3 `default_password_in_use` (a local instance whose demo accounts still use the documented password
-`password` would become reachable from the internet: run `/opt/form-schema-app/fsa demo --rotate-passwords --json
+`password` would become reachable from the internet: run `/opt/fieldset/fieldset demo --rotate-passwords --json
 --secrets-file <file>` first, which writes the new passwords to that file, then the command again; for an account that
 is not a demo account, change its password); exit 3 `doctor_failed` (DNS does not point here, or ports 80/443 are
 busy; `data.checks`); exit 5
 `certificate_failed` (no certificate could be obtained: the instance keeps its old domain; `data.fix_first` says what
-to fix). Back to local mode: `fsa config set mode local --yes`.
+to fix). Back to local mode: `fieldset config set mode local --yes`.
 
 ## Recipe: remove an instance
 
 Ask the person first. Keep the backups unless they say otherwise:
 
 ```sh
-~/forms/fsa uninstall --keep-backups --yes --json
+~/forms/fieldset uninstall --keep-backups --yes --json
 ```
 
 It removes the instance's containers, volumes, networks and directory, but writes a final backup into `backups/` first
@@ -592,7 +592,7 @@ curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/form-schema
 Only if the person explicitly wants the backups deleted too:
 
 ```sh
-~/forms/fsa uninstall --yes --json
+~/forms/fieldset uninstall --yes --json
 ```
 
 Without `--yes` the command exits 6 and `data` names what would be deleted (`final_backup`, `keeps_backups`).

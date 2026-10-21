@@ -16,9 +16,9 @@ use Tests\Support\Instance\TemporaryInstance;
 use Tests\Support\Instance\TunnelFixture;
 
 /*
- * M11 gate (A1; ADR 0078, ADR 0082): an unfinished `tunnel` journal must never block the instance for good. `fsa tunnel
+ * M11 gate (A1; ADR 0078, ADR 0082): an unfinished `tunnel` journal must never block the instance for good. `fieldset tunnel
  * stop` finishes any of them whatever the tunnel status says and converges to the state on disk; the next mutating
- * command does the same unless a live tunnel would go; the exit-9 hint names `fsa tunnel stop`. Tunnel and demo
+ * command does the same unless a live tunnel would go; the exit-9 hint names `fieldset tunnel stop`. Tunnel and demo
  * operations survive SIGTERM, SIGINT and SIGHUP like `config set` (Interruption). Real signals (SIGTERM and SIGHUP:
  * Pest handles SIGINT itself), sent to this process only while a handler is installed, or the runner would die.
  */
@@ -58,14 +58,14 @@ it('finishes a start whose revert failed, though the status says none, and nothi
     $this->fixture->hostname = null;
     $this->fixture->failComposeUps(2); // the revert's `up`
     [$code, $json] = $this->fixture->tunnel('start');
-    [, $status] = $this->fixture->config->instance->run('fsa:status');
+    [, $status] = $this->fixture->config->instance->run('fieldset:status');
     $this->fixture->failComposeUps();
 
     [$next, $nextJson] = $this->fixture->config->instance->run($command, $parameters);
 
     expect($code)->toBe(8, json_encode($json))
         ->and($status['data']['tunnel'])->toBeNull()
-        ->and($status['data']['operation']['command'])->toBe('fsa tunnel stop')
+        ->and($status['data']['operation']['command'])->toBe('fieldset tunnel stop')
         ->and($next)->toBe(0, json_encode($nextJson))
         ->and($nextJson['changed'])->toBeTrue()
         ->and($this->fixture->config->openJournal())->toBeNull()
@@ -74,11 +74,11 @@ it('finishes a start whose revert failed, though the status says none, and nothi
         ->and(collect($this->fixture->config->archivedJournals('tunnel'))->map(fn (JournalRecord $record): string => implode(',', ConfigFixture::phases($record)))->all())
         ->toContain('accounts:completed,preflight:completed,start:failed,revert:failed,remove:completed');
 })->with([
-    'fsa tunnel stop' => ['fsa:tunnel', ['action' => 'stop']],
-    'the next config set' => ['fsa:config', ['action' => 'set', 'key' => 'port', 'value' => '8090', '--yes' => true]],
+    'fieldset tunnel stop' => ['fieldset:tunnel', ['action' => 'stop']],
+    'the next config set' => ['fieldset:config', ['action' => 'set', 'key' => 'port', 'value' => '8090', '--yes' => true]],
 ]);
 
-it('names `fsa tunnel stop` when an unfinished tunnel operation blocks another command beside a live tunnel (A1)', function (): void {
+it('names `fieldset tunnel stop` when an unfinished tunnel operation blocks another command beside a live tunnel (A1)', function (): void {
     $this->fixture->tunnel('start');
     tunnelJournalCutOff($this, 'renew', 'renew'); // a renew killed while it waited for the hostname
 
@@ -87,8 +87,8 @@ it('names `fsa tunnel stop` when an unfinished tunnel operation blocks another c
 
     expect($blocked)->toBe(9)
         ->and($blockedJson['errors'][0]['code'])->toBe('operation_unfinished')
-        ->and($blockedJson['data']['command'])->toBe('fsa tunnel stop')
-        ->and($blockedJson['errors'][0]['hint'])->toContain('`fsa tunnel stop`')
+        ->and($blockedJson['data']['command'])->toBe('fieldset tunnel stop')
+        ->and($blockedJson['errors'][0]['hint'])->toContain('`fieldset tunnel stop`')
         ->and($stop)->toBe(0, json_encode($stopJson))
         ->and($this->fixture->config->openJournal())->toBeNull()
         ->and($this->fixture->tunnelContainer())->toBeNull()
@@ -176,7 +176,7 @@ it('lets the next command finish a cut-off renew once the tunnel expired (A1c)',
     tunnelJournalCutOff($this, 'renew', 'renew');
     CarbonImmutable::setTestNow('2026-10-18T16:00:01Z');
 
-    [$code, $json] = $this->fixture->config->instance->run('fsa:demo', ['--rotate-passwords' => true]);
+    [$code, $json] = $this->fixture->config->instance->run('fieldset:demo', ['--rotate-passwords' => true]);
 
     expect($code)->toBe(0, json_encode($json))
         ->and(collect($json['warnings'])->pluck('code')->all())->toContain('tunnel_removed')
@@ -201,7 +201,7 @@ it('does not loop on exit 9 when the expiry cleanup of `config set` fails (A1d)'
 
     expect($first)->toBe(9, json_encode($firstJson))
         ->and(collect($firstJson['warnings'])->pluck('code')->all())->toContain('tunnel_cleanup_failed')
-        ->and($firstJson['data']['command'] ?? null)->toBe('fsa tunnel stop')
+        ->and($firstJson['data']['command'] ?? null)->toBe('fieldset tunnel stop')
         ->and($stop)->toBe(0, json_encode($stopJson))
         ->and($stopJson['changed'])->toBeTrue()
         ->and($this->fixture->tunnelContainer())->toBeNull()
@@ -215,10 +215,10 @@ it('names the command that resumes an unfinished tunnel or demo operation (A1)',
     expect(OperationUnfinished::commandLine($record))->toBe($command)
         ->and(OperationUnfinished::hint($record))->toContain("`{$command}`");
 })->with([
-    'a tunnel start' => [TunnelOperation::OPERATION, ['action' => 'start', 'admin' => false], 'fsa tunnel stop'],
-    'a tunnel renew' => [TunnelOperation::OPERATION, ['action' => 'renew'], 'fsa tunnel stop'],
-    'a demo rotation' => [DemoOperation::OPERATION, ['rotate' => true], 'fsa demo --rotate-passwords'],
-    'a demo' => [DemoOperation::OPERATION, ['rotate' => false], 'fsa demo'],
+    'a tunnel start' => [TunnelOperation::OPERATION, ['action' => 'start', 'admin' => false], 'fieldset tunnel stop'],
+    'a tunnel renew' => [TunnelOperation::OPERATION, ['action' => 'renew'], 'fieldset tunnel stop'],
+    'a demo rotation' => [DemoOperation::OPERATION, ['rotate' => true], 'fieldset demo --rotate-passwords'],
+    'a demo' => [DemoOperation::OPERATION, ['rotate' => false], 'fieldset demo'],
 ]);
 
 it('finishes a demo password rotation through a signal and lists the passwords (A1)', function (): void {
@@ -229,9 +229,9 @@ it('finishes a demo password rotation through a signal and lists the passwords (
         }
     };
 
-    [$code, $json] = $this->fixture->config->instance->run('fsa:demo', ['--rotate-passwords' => true]);
+    [$code, $json] = $this->fixture->config->instance->run('fieldset:demo', ['--rotate-passwords' => true]);
 
-    expect($sent)->toBeTrue('no signal handler was installed during fsa demo')
+    expect($sent)->toBeTrue('no signal handler was installed during fieldset demo')
         ->and($code)->toBe(0, json_encode($json))
         ->and(collect($json['secrets'])->pluck('name')->all())->toContain('demo_password:'.DemoFixtures::EMAILS[0])
         ->and($this->fixture->config->openJournal())->toBeNull()
@@ -258,7 +258,7 @@ it('stops after a signal during the expiry cleanup instead of running the comman
         ->and($this->fixture->config->state()->setting('port'))->toBe(8080);
 });
 
-it('runs a failing removal once when `fsa tunnel stop` finishes an unfinished journal (review)', function (): void {
+it('runs a failing removal once when `fieldset tunnel stop` finishes an unfinished journal (review)', function (): void {
     $this->fixture->tunnel('start');
     $state = $this->fixture->config->state();
     tunnelJournalCutOff($this, 'stop', 'remove');
@@ -273,7 +273,7 @@ it('runs a failing removal once when `fsa tunnel stop` finishes an unfinished jo
         ->and($this->fixture->config->openJournal()?->operation())->toBe('tunnel');
 });
 
-it('lets `fsa tunnel renew` finish its own cut-off renew and keep the live tunnel (review)', function (): void {
+it('lets `fieldset tunnel renew` finish its own cut-off renew and keep the live tunnel (review)', function (): void {
     $this->fixture->tunnel('start');
     tunnelJournalCutOff($this, 'renew', 'renew', changes: false);
     CarbonImmutable::setTestNow('2026-10-18T15:00:00Z');

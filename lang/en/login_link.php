@@ -10,7 +10,7 @@ return [
     'login' => 'Go to the sign-in page',
     'recovery' => [
         'intro' => 'Ask for a new link on the server that runs this instance:',
-        'command' => 'fsa login-link <email>',
+        'command' => 'fieldset login-link <email>',
         'hint' => 'Replace <email> with the email address of your account. Each link works once.',
     ],
     'states' => [
@@ -42,7 +42,7 @@ return [
     'mfa' => [
         'offer_title' => 'Your password is set',
         'offer_body' => 'Protect your account with two-factor authentication (MFA): set up an authenticator app on this page.',
-        'expired' => 'The sign-in link has expired. Ask for a new one with fsa login-link <email>.',
+        'expired' => 'The sign-in link has expired. Ask for a new one with fieldset login-link <email>.',
     ],
     'operator' => [
         'ready_title' => 'Your password is set',

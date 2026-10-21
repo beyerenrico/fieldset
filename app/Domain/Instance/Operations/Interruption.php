@@ -8,7 +8,7 @@ use Closure;
 
 /**
  * Safe interruption of a foreground operation (ADR 0078). The shim runs the ops container with `--init`, so SIGTERM,
- * SIGINT and SIGHUP sent to `fsa` (Ctrl-C, a closed SSH session, an agent's tool timeout) reach this PHP process.
+ * SIGINT and SIGHUP sent to `fieldset` (Ctrl-C, a closed SSH session, an agent's tool timeout) reach this PHP process.
  * Without a handler PHP would die on the spot and leave a half-applied `config set` with its journal open.
  *
  * `guard()` installs handlers (the ops image's PHP has pcntl; without it the body simply runs unguarded) and

@@ -8,19 +8,19 @@ use Tests\Support\Instance\InstanceCommandFixture;
 use Tests\Support\Instance\TemporaryInstance;
 
 /*
- * U5 / M9-T08: `fsa login-link <email>` (R28, KTD21, KTD25): the app-side one-off issues the link, fsa hands it
+ * U5 / M9-T08: `fieldset login-link <email>` (R28, KTD21, KTD25): the app-side one-off issues the link, fieldset hands it
  * out only under `secrets`, in --secrets-file or through the browser hand-over (ADR 0056, ADR 0070).
  */
 
 beforeEach(function (): void {
     $this->fixture = new InstanceCommandFixture;
-    $this->fixture->run('fsa:install', InstanceCommandFixture::installFlags());
+    $this->fixture->run('fieldset:install', InstanceCommandFixture::installFlags());
 });
 
 afterEach(fn () => TemporaryInstance::cleanup());
 
 it('issues the link through a socket-less one-off and returns it only under secrets', function (): void {
-    [$code, $json] = $this->fixture->run('fsa:login-link', ['email' => ' Owner@Example.com ']);
+    [$code, $json] = $this->fixture->run('fieldset:login-link', ['email' => ' Owner@Example.com ']);
     $call = $this->fixture->oneOffCalls('identity:login-link')[0];
 
     expect($code)->toBe(0)
@@ -33,10 +33,10 @@ it('issues the link through a socket-less one-off and returns it only under secr
 
 it('writes the link to --secrets-file, returns it as JSON on a desktop, and hands it to the browser with --open', function (): void {
     $file = $this->fixture->directory->root.'/link.json';
-    [, $filed] = $this->fixture->run('fsa:login-link', ['email' => 'owner@example.com', '--secrets-file' => $file]);
-    $this->fixture->facts(['desktop' => true, 'tty' => true, 'openUrlFile' => '.fsa-open-url-00000000000000000000000000000000']);
-    [, $json] = $this->fixture->run('fsa:login-link', ['email' => 'owner@example.com']);
-    [, $browser] = $this->fixture->run('fsa:login-link', ['email' => 'owner@example.com', '--open' => true]);
+    [, $filed] = $this->fixture->run('fieldset:login-link', ['email' => 'owner@example.com', '--secrets-file' => $file]);
+    $this->fixture->facts(['desktop' => true, 'tty' => true, 'openUrlFile' => '.fieldset-open-url-00000000000000000000000000000000']);
+    [, $json] = $this->fixture->run('fieldset:login-link', ['email' => 'owner@example.com']);
+    [, $browser] = $this->fixture->run('fieldset:login-link', ['email' => 'owner@example.com', '--open' => true]);
 
     expect($filed['secrets'][0])->not->toHaveKey('value')
         ->and(file_get_contents($file))->toContain(InstanceCommandFixture::ADMIN_LINK)
@@ -44,12 +44,12 @@ it('writes the link to --secrets-file, returns it as JSON on a desktop, and hand
         ->and($json['data']['sign_in_link']['delivered'])->toBe('secrets')
         ->and($browser['secrets'])->toBe([])
         ->and($browser['data']['sign_in_link']['delivered'])->toBe('browser')
-        ->and($browser['data']['sign_in_link']['hint'])->toBe('If no browser opened, run `fsa login-link owner@example.com --secrets-file <file>`.')
+        ->and($browser['data']['sign_in_link']['hint'])->toBe('If no browser opened, run `fieldset login-link owner@example.com --secrets-file <file>`.')
         ->and(json_encode($browser))->not->toContain('admin-token');
 });
 
 it('ignores --open without a desktop session and returns the link under secrets', function (): void {
-    [, $json] = $this->fixture->run('fsa:login-link', ['email' => 'owner@example.com', '--open' => true]);
+    [, $json] = $this->fixture->run('fieldset:login-link', ['email' => 'owner@example.com', '--open' => true]);
 
     expect($json['data']['sign_in_link']['delivered'])->toBe('secrets')
         ->and($json['secrets'][0]['value'])->toBe(InstanceCommandFixture::ADMIN_LINK);
@@ -58,7 +58,7 @@ it('ignores --open without a desktop session and returns the link under secrets'
 it('maps the app errors to exit codes and never leaks a link', function (string $error, int $exit): void {
     $this->fixture->oneOffs['identity:login-link'] = InstanceCommandFixture::oneOffJson(['command' => 'identity:login-link', 'status' => 'failed', 'errors' => [['code' => $error, 'message' => "Refused: {$error}.", 'hint' => null, 'retryable' => false]]]);
 
-    [$code, $json] = $this->fixture->run('fsa:login-link', ['email' => 'someone@example.com']);
+    [$code, $json] = $this->fixture->run('fieldset:login-link', ['email' => 'someone@example.com']);
 
     expect($code)->toBe($exit)->and($json['errors'][0]['code'])->toBe($error)->and($json['secrets'])->toBe([]);
 })->with([
@@ -67,16 +67,16 @@ it('maps the app errors to exit codes and never leaks a link', function (string 
 
 it('exits 4 (retryable) when the one-off prints no result, and 2 for a malformed e-mail or an instance that is not installed', function (): void {
     $this->fixture->oneOffs['identity:login-link'] = new ProcessOutcome(1, '', 'could not connect to server');
-    [$brokenCode, $broken] = $this->fixture->run('fsa:login-link', ['email' => 'owner@example.com']);
+    [$brokenCode, $broken] = $this->fixture->run('fieldset:login-link', ['email' => 'owner@example.com']);
     $this->fixture->oneOffs['identity:login-link'] = new ProcessOutcome(124, '', '', true);
-    [$slowCode, $slow] = $this->fixture->run('fsa:login-link', ['email' => 'owner@example.com']);
+    [$slowCode, $slow] = $this->fixture->run('fieldset:login-link', ['email' => 'owner@example.com']);
     $this->fixture->oneOffs['identity:login-link'] = InstanceCommandFixture::oneOffJson(['command' => 'identity:login-link', 'status' => 'failed', 'errors' => [['code' => 'internal_error', 'message' => 'Unexpected.', 'hint' => null, 'retryable' => false]]]);
-    [$appCode] = $this->fixture->run('fsa:login-link', ['email' => 'owner@example.com']);
-    [$badCode] = $this->fixture->run('fsa:login-link', ['email' => 'not-an-email']);
+    [$appCode] = $this->fixture->run('fieldset:login-link', ['email' => 'owner@example.com']);
+    [$badCode] = $this->fixture->run('fieldset:login-link', ['email' => 'not-an-email']);
 
     $fresh = new InstanceCommandFixture;
     $fresh->directory->saveState(InstanceState::create('3f1c2b9e-8a4d-4c1e-9b7a-2d5e6f708192', $fresh->directory->root, 1, 1, 1));
-    [$notInstalledCode, $notInstalled] = $fresh->run('fsa:login-link', ['email' => 'owner@example.com']);
+    [$notInstalledCode, $notInstalled] = $fresh->run('fieldset:login-link', ['email' => 'owner@example.com']);
 
     expect($brokenCode)->toBe(4)
         ->and($broken['errors'][0]['code'])->toBe('one_off_failed')

@@ -27,7 +27,7 @@ use Throwable;
  * runs:
  *
  * 1. the CA's public root is copied from the certificate volume into the runtime directory (LocalCaStore), where the
- *    app's trust page serves it and computes the fingerprint fsa also prints;
+ *    app's trust page serves it and computes the fingerprint fieldset also prints;
  * 2. HTTPS to the LAN address, verified against that root, without SNI (curl sends none for an IP): the certificate is
  *    issued for the IP and `default_sni` picks it;
  * 3. port 80: the trust page answers 200 and anything else 308 to HTTPS.
@@ -42,7 +42,7 @@ final readonly class LocalCaEdge
 
     private const int ROOT_DELAY = 2;
 
-    private const string CA_MOUNT = '/run/fsa-local-ca';
+    private const string CA_MOUNT = '/run/fieldset-local-ca';
 
     private const float TIMEOUT = 120.0;
 
@@ -99,7 +99,7 @@ final readonly class LocalCaEdge
             }
         }
 
-        throw new InstanceException('The edge created no local CA.', ExitCode::HealthCheckFailed, 'local_ca_missing', 'Read `fsa logs edge`, fix the cause, then run the command again.', true, ['logs' => $this->logs($project)]);
+        throw new InstanceException('The edge created no local CA.', ExitCode::HealthCheckFailed, 'local_ca_missing', 'Read `fieldset logs edge`, fix the cause, then run the command again.', true, ['logs' => $this->logs($project)]);
     }
 
     /** @param  list<string>  $arguments */
@@ -117,7 +117,7 @@ final readonly class LocalCaEdge
 
     private function failure(string $message, ProcessOutcome $outcome, ComposeProject $project): InstanceException
     {
-        return new InstanceException($message, ExitCode::HealthCheckFailed, 'smoke_failed', 'Read `fsa logs edge` and `fsa logs app`, fix the cause, then run the command again.', true, [
+        return new InstanceException($message, ExitCode::HealthCheckFailed, 'smoke_failed', 'Read `fieldset logs edge` and `fieldset logs app`, fix the cause, then run the command again.', true, [
             'output' => trim($outcome->stdout."\n".$outcome->stderrTail(3)), 'logs' => $this->logs($project),
         ]);
     }

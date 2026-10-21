@@ -15,7 +15,7 @@ use Tests\Support\Instance\InstanceCommandFixture;
 use Tests\Support\Instance\TemporaryInstance;
 
 /*
- * Plan U12 (R22, R25, R50, AE9, KTD13; ADR 0080): `fsa config set mail smtp|capture`. The password arrives only on
+ * Plan U12 (R22, R25, R50, AE9, KTD13; ADR 0080): `fieldset config set mail smtp|capture`. The password arrives only on
  * stdin or from a file and never reaches the state, the journal, the JSON or the audit; a test mail through the new
  * server verifies the change and a refused one reverts to the previous settings (exit 5); the catcher stays read-only
  * until --remove-catcher; switching back to capture brings it back.
@@ -55,7 +55,7 @@ it('switches capture mode to SMTP with the password from stdin, keeps the catche
     $state = $this->config->state();
     expect($code)->toBe(0, json_encode($json))
         ->and($json['data'])->toMatchArray(['key' => 'mail', 'from' => 'capture', 'to' => 'smtp://smtp.example.com:587 (catcher kept)', 'reverted' => false])
-        ->and($json['data']['mail'])->toMatchArray(['mode' => 'smtp', 'catcher' => 'kept', 'catcher_url' => 'http://localhost:8025', 'captured' => ['invitations' => 2, 'password_resets' => 1], 'remove_catcher_command' => 'fsa config set mail smtp --remove-catcher', 'catcher_login_command' => 'fsa config show --catcher-login'])
+        ->and($json['data']['mail'])->toMatchArray(['mode' => 'smtp', 'catcher' => 'kept', 'catcher_url' => 'http://localhost:8025', 'captured' => ['invitations' => 2, 'password_resets' => 1], 'remove_catcher_command' => 'fieldset config set mail smtp --remove-catcher', 'catcher_login_command' => 'fieldset config show --catcher-login'])
         ->and($json['data']['checked'])->toContain('test mail to owner@example.com accepted by smtp://smtp.example.com:587 (catcher kept)')
         ->and(collect($json['warnings'])->pluck('code')->all())->toContain('captured_mail')
         ->and($state->setting('mail'))->toBe('smtp')
@@ -204,7 +204,7 @@ it('refuses invalid mail input with exit 2 before anything changes', function (a
         ->and($json['errors'][0]['code'])->toBe($error)
         ->and($this->config->methodsSince($mark))->toBe([]);
 })->with([
-    // M11 gate: the same code as `fsa install` (was `missing_flag`); data.missing: MailConfigSafetyTest.
+    // M11 gate: the same code as `fieldset install` (was `missing_flag`); data.missing: MailConfigSafetyTest.
     'no host from capture' => [['--smtp-port' => '587'], 'smtp', 'input_required'],
     'user without password' => [['--smtp-host' => 'smtp.example.com', '--smtp-username' => MAIL_USER], 'smtp', 'password_required'],
     'password without user' => [['--smtp-host' => 'smtp.example.com', '--password-stdin' => true], 'smtp', 'invalid_flag'],

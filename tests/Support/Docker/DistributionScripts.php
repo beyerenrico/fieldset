@@ -30,8 +30,8 @@ final readonly class DistributionScripts
     public function __construct(public string $shell = '/bin/dash')
     {
         // Not under the system temp directory: the launchers refuse /tmp and /var (macOS keeps TMPDIR there) as
-        // mount or instance paths (fsa_reserved_path).
-        $this->root = self::repository().'/storage/fsa-test-dist/'.bin2hex(random_bytes(6));
+        // mount or instance paths (fieldset_reserved_path).
+        $this->root = self::repository().'/storage/fieldset-test-dist/'.bin2hex(random_bytes(6));
         $this->bin = $this->root.'/bin';
         $this->log = $this->root.'/calls.log';
         mkdir($this->bin, 0700, true);
@@ -87,14 +87,14 @@ final readonly class DistributionScripts
     }
 
     /**
-     * The `docker run … --entrypoint fsa …` calls (the ops container), without the program name.
+     * The `docker run … --entrypoint fieldset …` calls (the ops container), without the program name.
      *
      * @return list<list<string>>
      */
     public function opsRuns(): array
     {
-        $runs = array_filter($this->calls('docker'), static fn (array $call): bool => ($call[1] ?? '') === 'run' && in_array('fsa', $call, true)
-            && ($call[array_search('fsa', $call, true) - 1] ?? '') === '--entrypoint');
+        $runs = array_filter($this->calls('docker'), static fn (array $call): bool => ($call[1] ?? '') === 'run' && in_array('fieldset', $call, true)
+            && ($call[array_search('fieldset', $call, true) - 1] ?? '') === '--entrypoint');
 
         return array_values(array_map(static fn (array $call): array => array_slice($call, 1), $runs));
     }

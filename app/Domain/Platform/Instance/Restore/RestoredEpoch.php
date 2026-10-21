@@ -25,8 +25,8 @@ final readonly class RestoredEpoch
     public function __construct(private AuditLogger $audit) {}
 
     /**
-     * With `$journal` (fsa's journal ID, recorded in the entry) a second run for the same journal writes nothing: a
-     * finish whose one-off committed before fsa recorded the phase (`--from-backup` resumes it on the live database)
+     * With `$journal` (fieldset's journal ID, recorded in the entry) a second run for the same journal writes nothing: a
+     * finish whose one-off committed before fieldset recorded the phase (`--from-backup` resumes it on the live database)
      * returns the epoch it began (`epoch_repeated`) instead of a second epoch and a second entry (review LOW 6).
      *
      * @param  array<int, array{seq: int, hash: string}>  $previousHeads

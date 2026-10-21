@@ -14,7 +14,7 @@ use App\Domain\Instance\Backup\BackupChecksums;
 const CHECKSUM_KEY = 'a-32-byte-hmac-key-for-the-tests';
 
 beforeEach(function (): void {
-    $this->set = sys_get_temp_dir().'/fsa-test-sums-'.bin2hex(random_bytes(4));
+    $this->set = sys_get_temp_dir().'/fieldset-test-sums-'.bin2hex(random_bytes(4));
     mkdir($this->set, 0700);
     file_put_contents($this->set.'/database.dump', 'PGDMP dump');
     file_put_contents($this->set.'/manifest.json', '{}');

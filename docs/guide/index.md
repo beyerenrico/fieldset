@@ -13,12 +13,12 @@ repository (ADR 0042).
 | Guide | Contents |
 |---|---|
 | [Install](install.md) | The one-line install, local, domain and proxy modes, phones, mail capture, demo data, the instance directory, adopting a 1.0 install |
-| [Agent guide](agent-guide.md) | Recipes for AI agents and scripts: exact `fsa` commands, the JSON fields to read, exit codes and recovery |
-| [Upgrade](upgrade.md) | `fsa upgrade` with its safety backup and automatic rollback, `fsa rollback`, the Field App update |
-| [Backup and restore](backup-restore.md) | The backup schedule, encryption, drills, `fsa restore`, moving to another server, chain epochs and the ledger |
-| [Configuration](configuration.md) | `fsa config` and every key, SMTP, what `fsa` sets for you |
-| [Troubleshooting](troubleshooting.md) | `fsa status`, doctor and logs, failed commands, certificates, proxies, mail, PDFs, Field App sync, SSO, login throttling, the audit log |
-| [Archive: 1.0 checkout installs](archive/1.0-install.md) | The 1.0 guides for installations from a clone of the repository: [install](archive/1.0-install.md), [upgrade](archive/1.0-upgrade.md), [backup and restore](archive/1.0-backup-restore.md), [configuration](archive/1.0-configuration.md), [troubleshooting](archive/1.0-troubleshooting.md). Not for `fsa` instances |
+| [Agent guide](agent-guide.md) | Recipes for AI agents and scripts: exact `fieldset` commands, the JSON fields to read, exit codes and recovery |
+| [Upgrade](upgrade.md) | `fieldset upgrade` with its safety backup and automatic rollback, `fieldset rollback`, the Field App update |
+| [Backup and restore](backup-restore.md) | The backup schedule, encryption, drills, `fieldset restore`, moving to another server, chain epochs and the ledger |
+| [Configuration](configuration.md) | `fieldset config` and every key, SMTP, what `fieldset` sets for you |
+| [Troubleshooting](troubleshooting.md) | `fieldset status`, doctor and logs, failed commands, certificates, proxies, mail, PDFs, Field App sync, SSO, login throttling, the audit log |
+| [Archive: 1.0 checkout installs](archive/1.0-install.md) | The 1.0 guides for installations from a clone of the repository: [install](archive/1.0-install.md), [upgrade](archive/1.0-upgrade.md), [backup and restore](archive/1.0-backup-restore.md), [configuration](archive/1.0-configuration.md), [troubleshooting](archive/1.0-troubleshooting.md). Not for `fieldset` instances |
 
 ## For organizations
 

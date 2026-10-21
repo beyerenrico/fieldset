@@ -6,7 +6,7 @@ namespace Tests\Support\Docs;
 
 /**
  * What the guides name in code (ADR 0042: every command, environment variable and path in a guide must exist in the
- * code): `fsa` invocations with their flags, install.sh flags, `php artisan` commands, environment variables and
+ * code): `fieldset` invocations with their flags, install.sh flags, `php artisan` commands, environment variables and
  * relative links. Only code is scanned: fenced blocks and inline code spans.
  */
 final class GuideReferences
@@ -25,16 +25,16 @@ final class GuideReferences
     }
 
     /**
-     * `fsa <command> … --flag` invocations (the shim, a PATH link or `<dir>/fsa`).
+     * `fieldset <command> … --flag` invocations (the shim, a PATH link or `<dir>/fieldset`).
      *
      * @return list<array{command: string, flags: list<string>, text: string}>
      */
-    public static function fsaCalls(string $code): array
+    public static function fieldsetCalls(string $code): array
     {
         $code = (string) preg_replace('/\\\\\n\s*/', ' ', $code);
-        preg_match_all('~(?:^|[\s/(])fsa ([a-z][a-z-]*)('.self::SEGMENT.')~m', $code, $matches, PREG_SET_ORDER);
+        preg_match_all('~(?:^|[\s/(])fieldset ([a-z][a-z-]*)('.self::SEGMENT.')~m', $code, $matches, PREG_SET_ORDER);
 
-        return array_map(static fn (array $m): array => ['command' => $m[1], 'flags' => self::flags($m[2]), 'text' => trim('fsa '.$m[1].$m[2])], $matches);
+        return array_map(static fn (array $m): array => ['command' => $m[1], 'flags' => self::flags($m[2]), 'text' => trim('fieldset '.$m[1].$m[2])], $matches);
     }
 
     /**

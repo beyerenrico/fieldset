@@ -10,7 +10,7 @@ use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceState;
 
 /**
- * The compose project of an instance: its name and the generated file. `fsa` always passes both explicitly, so
+ * The compose project of an instance: its name and the generated file. `fieldset` always passes both explicitly, so
  * COMPOSE_FILE or a stray .env never selects other files (KTD6).
  */
 final readonly class ComposeProject

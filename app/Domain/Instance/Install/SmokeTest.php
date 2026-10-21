@@ -30,7 +30,7 @@ use Throwable;
  * compose network and asks the app the way a browser on the published port would (Host: localhost:<port>,
  * which the app's trusted-host list accepts): `/up` and the admin login page (which needs the database and the
  * session table). A second one asks Gotenberg on the internal renderer network for its health. Both carry the
- * instance label. These are the HTTP checks `fsa install` and `fsa config set` (phase `verify`) share; the install adds
+ * instance label. These are the HTTP checks `fieldset install` and `fieldset config set` (phase `verify`) share; the install adds
  * a PDF render and a test mail (InstallSmoke, ADR 0072 amendment), which a settings change does not repeat.
  *
  * Domain mode (U8, ADR 0075) adds the edge, asked on its own network at its fixed address with the domain as SNI and
@@ -91,7 +91,7 @@ final readonly class SmokeTest
 
     /**
      * The app's `/up` and `/admin/login` on the internal network and Gotenberg's health. With the operation's smoke token
-     * (a restore behind the raised gate, plan U17) the requests carry it in `X-Fsa-Smoke-Token`, read by curl from
+     * (a restore behind the raised gate, plan U17) the requests carry it in `X-Fieldset-Smoke-Token`, read by curl from
      * stdin, never an argument.
      *
      * @return list<string> what was checked
@@ -145,7 +145,7 @@ final readonly class SmokeTest
                 "The edge got no certificate for {$domain} from {$settings->acmeCa()}.",
                 ExitCode::HealthCheckFailed,
                 'certificate_failed',
-                "Check that {$domain} points at this host and that ports 80 and 443 reach it from the internet, then run `fsa install` again with the same flags: it resumes at the smoke test and keeps the certificate storage. Repeated attempts count against the CA's rate limits; --acme-staging is for trials.",
+                "Check that {$domain} points at this host and that ports 80 and 443 reach it from the internet, then run `fieldset install` again with the same flags: it resumes at the smoke test and keeps the certificate storage. Repeated attempts count against the CA's rate limits; --acme-staging is for trials.",
                 true,
                 ['output' => trim($https->stdout."\n".$https->stderrTail(3)), 'logs' => $this->edgeLogs($project)],
             );
@@ -154,7 +154,7 @@ final readonly class SmokeTest
             '--max-time', '20', '--resolve', "{$domain}:80:{$address}", '--output', '/dev/null', '--write-out', '%{http_code} %{redirect_url}', "http://{$domain}/up",
         ]);
         if (trim($http->stdout) !== "308 https://{$domain}/up") {
-            throw new InstanceException("The edge does not redirect http://{$domain} to HTTPS.", ExitCode::HealthCheckFailed, 'smoke_failed', 'Read `fsa logs edge`, fix the cause, then run `fsa install` again with the same flags: it resumes at the smoke test.', true, ['output' => trim($http->stdout."\n".$http->stderrTail(3))]);
+            throw new InstanceException("The edge does not redirect http://{$domain} to HTTPS.", ExitCode::HealthCheckFailed, 'smoke_failed', 'Read `fieldset logs edge`, fix the cause, then run `fieldset install` again with the same flags: it resumes at the smoke test.', true, ['output' => trim($http->stdout."\n".$http->stderrTail(3))]);
         }
 
         return ["https://{$domain}/up", "http://{$domain} → https"];
@@ -186,7 +186,7 @@ final readonly class SmokeTest
 
     /**
      * @param  list<string>  $arguments
-     * @param  string|null  $smokeToken  sent as `X-Fsa-Smoke-Token` (curl reads the header from stdin, never an argument)
+     * @param  string|null  $smokeToken  sent as `X-Fieldset-Smoke-Token` (curl reads the header from stdin, never an argument)
      */
     private function edgeCurl(InstanceState $state, string $network, array $arguments, #[SensitiveParameter] ?string $smokeToken = null): ProcessOutcome
     {
@@ -228,7 +228,7 @@ final readonly class SmokeTest
                 'The smoke test failed for '.implode(', ', $urls).'.',
                 ExitCode::HealthCheckFailed,
                 'smoke_failed',
-                'Read `fsa logs app`, fix the cause, then run `fsa install` again with the same flags: it resumes at the smoke test. `fsa uninstall` removes the half-finished instance.',
+                'Read `fieldset logs app`, fix the cause, then run `fieldset install` again with the same flags: it resumes at the smoke test. `fieldset uninstall` removes the half-finished instance.',
                 true,
                 ['output' => trim($outcome->stdout."\n".$outcome->stderrTail(5))],
             );

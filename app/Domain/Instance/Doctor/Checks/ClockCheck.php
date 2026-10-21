@@ -28,7 +28,7 @@ final readonly class ClockCheck implements DoctorCheck
     {
         $reference = $context->registryDate === null ? false : strtotime($context->registryDate);
         if ($reference === false) {
-            return CheckResult::skipped($this->key(), 'No reference clock: fsa contacts no server just for the time.');
+            return CheckResult::skipped($this->key(), 'No reference clock: fieldset contacts no server just for the time.');
         }
         $skew = $context->probes->now() - $reference;
         $details = ['skew_seconds' => $skew];

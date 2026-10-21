@@ -47,7 +47,7 @@ final class AuditLogger
     }
 
     /**
-     * An entry by the instance owner at the host's command line (`fsa`, KTD21/KTD26): actor type `cli`, no
+     * An entry by the instance owner at the host's command line (`fieldset`, KTD21/KTD26): actor type `cli`, no
      * causer, and the host UID of whoever ran the command in `host_uid`.
      *
      * @param  array<string, mixed>  $properties

@@ -13,7 +13,7 @@ use Tests\Support\Instance\TarBuilder;
 use Tests\Support\Instance\TemporaryInstance;
 
 /*
- * Resuming and finishing `fsa restore` after a killed run or an exit 8 (review of plan U17, ADR 0085): a return to the
+ * Resuming and finishing `fieldset restore` after a killed run or an exit 8 (review of plan U17, ADR 0085): a return to the
  * previous instance that began is only ever finished (never verified, opened or cleaned up as a restore), a swap killed
  * between its two renames is renamed back, the gate goes down last and once it is down nothing swaps back, and a resumed
  * run on a quiesced instance never says "nothing changed".
@@ -78,7 +78,7 @@ it('continues a return after an exit 8 when the same command runs again: no seco
 it('lets --abandon finish a return after an exit 8 whose rename was done (review A2)', function (): void {
     $names = InterruptedRestore::returning($this->restore, [RestoreRecovery::DATABASE_RETURNING, RestoreRecovery::DATABASE_BACK]);
 
-    [$code, $json] = $this->restore->instance->run('fsa:restore', ['--abandon' => true, '--yes' => true]);
+    [$code, $json] = $this->restore->instance->run('fieldset:restore', ['--abandon' => true, '--yes' => true]);
 
     expect($code)->toBe(0, (string) json_encode($json))->and($json['data'])->toMatchArray(['abandoned' => true, 'returned_to_previous' => true])
         ->and($this->restore->databases)->toContain($names->live)->not->toContain($names->scratch)
@@ -186,7 +186,7 @@ it('pauses workflow webhooks after an in-place restore until the operator turns 
     $runtime = json_decode((string) file_get_contents($this->dir.'/runtime/runtime.json'), true);
 
     expect($code)->toBe(0, (string) json_encode($json))->and($json['data']['webhooks'])->toBe('paused')
-        ->and(collect($json['warnings'])->firstWhere('code', 'webhooks_paused')['hint'] ?? '')->toContain('fsa config set webhooks on')
+        ->and(collect($json['warnings'])->firstWhere('code', 'webhooks_paused')['hint'] ?? '')->toContain('fieldset config set webhooks on')
         ->and(InstanceSettings::of($this->restore->config->state())->webhooksPaused())->toBeTrue()
         ->and($runtime['webhooks']['paused'])->toBeTrue();
 });
@@ -283,7 +283,7 @@ it('warns when the free disk space cannot be read instead of passing silently (r
 it('reports a swap killed half-way as interrupted, not as "not swapped" (review A13)', function (): void {
     InterruptedRestore::journal($this->restore, 'erasures', started: 'swap');
 
-    [, $status] = $this->restore->instance->run('fsa:status');
+    [, $status] = $this->restore->instance->run('fieldset:status');
 
     expect($status['data']['restore']['interrupted'])->toMatchArray(['swap' => 'interrupted', 'swapped' => null, 'returning' => false]);
 });

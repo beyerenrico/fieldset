@@ -77,8 +77,8 @@ final readonly class AppRoles implements ServiceDefinition
     }
 
     /**
-     * The storage volume's declaration: Compose's own `<project>_app-storage`, or after a restore the fresh volume fsa
-     * created and filled (plan U17, ADR 0085), declared as an existing (external) volume of that name. fsa labelled it
+     * The storage volume's declaration: Compose's own `<project>_app-storage`, or after a restore the fresh volume fieldset
+     * created and filled (plan U17, ADR 0085), declared as an existing (external) volume of that name. fieldset labelled it
      * itself; uninstall removes it by the instance label like every other volume.
      *
      * @return array<string, array<string, mixed>>

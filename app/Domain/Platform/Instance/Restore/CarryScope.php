@@ -45,7 +45,7 @@ final class CarryScope
 
     private function __construct(public readonly string $mode, private readonly ?CarbonImmutable $since, private readonly ConnectionInterface $source) {}
 
-    /** The backup's time: fsa's `--backup-created-at`, else the restored database's newest audit entry. */
+    /** The backup's time: fieldset's `--backup-created-at`, else the restored database's newest audit entry. */
     public static function detect(ConnectionInterface $source, ConnectionInterface $target, ?CarbonImmutable $backupCreatedAt): self
     {
         $since = $backupCreatedAt ?? self::newestEntry($target);

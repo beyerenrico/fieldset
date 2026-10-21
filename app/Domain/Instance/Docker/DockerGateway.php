@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Instance\Docker;
 
 /**
- * The only way `fsa` reaches Docker (KTD1). Bound only inside an `fsa:*` command running in a marked instance
+ * The only way `fieldset` reaches Docker (KTD1). Bound only inside a `fieldset:*` command running in a marked instance
  * directory (InstanceServiceProvider); web, queue and scheduler code must never depend on it (arch test).
  *
  * Mutating calls throw DockerCommandFailed on a non-zero exit and DockerUnavailable when the daemon or CLI is
@@ -82,7 +82,7 @@ interface DockerGateway
 
     /**
      * The values of these keys in a container's environment (`Config.Env`), nothing else kept; null when there is no such
-     * container. `fsa adopt` compares what a 1.0 container runs with against its checkout's `.env` (plan U19).
+     * container. `fieldset adopt` compares what a 1.0 container runs with against its checkout's `.env` (plan U19).
      *
      * @param  list<string>  $keys
      * @return array<string, string>|null
@@ -128,13 +128,13 @@ interface DockerGateway
 
     /**
      * A `docker run` like runContainer whose stdout streams into `$outputFile` (created exclusively, mode 0600) instead of
-     * memory: the dump and the storage archive of a 1.0 install fsa adopts (plan U19), read through one-offs of its own.
+     * memory: the dump and the storage archive of a 1.0 install fieldset adopts (plan U19), read through one-offs of its own.
      */
     public function runContainerToFile(ContainerSpec $spec, string $outputFile, ?float $timeout = null): ProcessOutcome;
 
     /**
-     * Stops containers by ID (`docker container stop`), for a project fsa did not create and must not recreate: the 1.0
-     * install `fsa adopt` takes over (plan U19). `$timeout` is the grace before SIGKILL.
+     * Stops containers by ID (`docker container stop`), for a project fieldset did not create and must not recreate: the 1.0
+     * install `fieldset adopt` takes over (plan U19). `$timeout` is the grace before SIGKILL.
      *
      * @param  list<string>  $ids
      */
@@ -142,7 +142,7 @@ interface DockerGateway
 
     /**
      * Starts existing containers by ID (`docker container start`), unchanged: brings a 1.0 install back after a failed
-     * adopt (plan U19), where `compose up` would recreate its containers from a file fsa cannot render.
+     * adopt (plan U19), where `compose up` would recreate its containers from a file fieldset cannot render.
      *
      * @param  list<string>  $ids
      */

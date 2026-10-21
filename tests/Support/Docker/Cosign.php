@@ -20,7 +20,7 @@ final readonly class Cosign
     public const string IMAGE = ManifestVerifier::COSIGN_IMAGE;
 
     /** Protects only the throwaway harness key. */
-    public const string PASSWORD = 'fsa-test-harness';
+    public const string PASSWORD = 'fieldset-test-harness';
 
     private function __construct(private string $keyDirectory) {}
 
@@ -55,7 +55,7 @@ final readonly class Cosign
     }
 
     /**
-     * Verifies a blob against the local public key with the pinned cosign image, the one `install.sh` and `fsa`
+     * Verifies a blob against the local public key with the pinned cosign image, the one `install.sh` and `fieldset`
      * verify with (the app image ships no cosign, ADR 0071); returns the finished process (exit code 0 = verified).
      */
     public function verifyBlob(string $file, string $bundle): Process

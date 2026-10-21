@@ -14,7 +14,7 @@ use App\Domain\Instance\State\InstanceState;
 use Throwable;
 
 /**
- * The second half of `fsa restore` (plan U17 steps 10–11, KTD18, ADR 0085), from the swap on:
+ * The second half of `fieldset restore` (plan U17 steps 10–11, KTD18, ADR 0085), from the swap on:
  *
  * swap (databases renamed, the state names the fresh volume and pauses webhooks, APP keys rendered, Valkey flushed) →
  * verify (the app alone behind the gate, the smoke test with the gate's token) → open (every service starts, still
@@ -23,7 +23,7 @@ use Throwable;
  * Until the gate goes down a failure returns to the previous database and volume (RestoreRecovery); from then on the
  * restored instance takes requests, so nothing ever swaps back (review A4): the gate and clean-up phases fail forward.
  * A resumed run never raises the gate again once lowering began (review A1). Webhooks stay paused after an in-place
- * restore until `fsa config set webhooks on` (review A15): restored runs may repeat deliveries made after the backup.
+ * restore until `fieldset config set webhooks on` (review A15): restored runs may repeat deliveries made after the backup.
  * A signal (Interruption, M12 gate O8) is handled at the boundaries before verify, before open and before the gate: the
  * instance returns to the previous database and volume, as on a failed verification. Never with `$wayBack` false.
  */

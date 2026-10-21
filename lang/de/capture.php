@@ -19,7 +19,7 @@ return [
     'test_mail' => [
         'subject' => 'form-schema-app: Test-E-Mail',
         'body' => 'Diese Test-E-Mail der form-schema-app-Instanz unter :url bestätigt die neuen SMTP-Einstellungen. E-Mails werden jetzt zugestellt, nicht mehr abgefangen.',
-        'install_capture' => 'Diese Test-E-Mail der Installation der form-schema-app-Instanz unter :url bestätigt, dass E-Mails im Mail-Catcher ankommen. E-Mails werden abgefangen, nicht zugestellt, bis SMTP mit `fsa config set mail smtp` eingerichtet ist.',
+        'install_capture' => 'Diese Test-E-Mail der Installation der form-schema-app-Instanz unter :url bestätigt, dass E-Mails im Mail-Catcher ankommen. E-Mails werden abgefangen, nicht zugestellt, bis SMTP mit `fieldset config set mail smtp` eingerichtet ist.',
         'install_smtp' => 'Diese Test-E-Mail der Installation der form-schema-app-Instanz unter :url bestätigt, dass der SMTP-Server ihre E-Mails annimmt.',
     ],
 ];

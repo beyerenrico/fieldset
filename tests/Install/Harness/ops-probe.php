@@ -3,9 +3,9 @@
 declare(strict_types=1);
 
 /*
- * Stands in for `fsa <command>` inside the real ops container during the bootstrap journey (plan U4, until U5's
+ * Stands in for `fieldset <command>` inside the real ops container during the bootstrap journey (plan U4, until U5's
  * commands exist): it reports what install.sh or the shim handed over (argv, user, groups, environment, mounts,
- * socket access) and runs the launch checks every fsa command runs, with the image's own classes. With
+ * socket access) and runs the launch checks every fieldset command runs, with the image's own classes. With
  * --secrets-file it writes that file like a command would. Exit codes follow LaunchGuard (3 nonce, 2 path).
  */
 
@@ -41,7 +41,7 @@ $report = [
     'instance' => [
         'visible' => is_dir($directory),
         'marker' => is_file($directory.'/.fieldset-instance'),
-        'shim' => is_file($directory.'/fsa'),
+        'shim' => is_file($directory.'/fieldset'),
         'manifest' => is_file((string) getenv('FIELDSET_RELEASE_MANIFEST')),
         'writable' => is_writable($directory),
     ],

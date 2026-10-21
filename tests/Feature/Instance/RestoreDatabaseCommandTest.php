@@ -296,7 +296,7 @@ it('audits an unauthenticated restore: identical code passes, changed or extra c
 it('passes the schema audit after a real dump and restore, whose checks and defaults print differently (J08)', function (): void {
     $reference = RestoreDatabases::target();
     $restored = RestoreDatabases::empty('rdd');
-    $file = sys_get_temp_dir().'/fsa-test-audit-'.bin2hex(random_bytes(3)).'.dump';
+    $file = sys_get_temp_dir().'/fieldset-test-audit-'.bin2hex(random_bytes(3)).'.dump';
     new Process(['pg_dump', '--format=custom', '--no-owner', '--no-privileges', '--file='.$file], null, BackupScratchDatabase::libpq($reference))->mustRun();
     new Process(['pg_restore', '--no-owner', '--no-privileges', '--exit-on-error', '--dbname='.$restored, '--', $file], null, BackupScratchDatabase::libpq($restored))->mustRun();
     @unlink($file);
@@ -366,7 +366,7 @@ it('restores a real dump as the restricted role into the prepared database, pass
     $role = RestoreDatabases::role('fieldset_restore_test');
     putenv(RestoreDatabaseCommand::PASSWORD_ENV.'='.RESTORE_DB_PASSWORD);
     restoreDb('create', ['--database' => $name, '--restricted-role' => $role]);
-    $file = sys_get_temp_dir().'/fsa-test-audit-'.bin2hex(random_bytes(3)).'.dump';
+    $file = sys_get_temp_dir().'/fieldset-test-audit-'.bin2hex(random_bytes(3)).'.dump';
     new Process(['pg_dump', '--format=custom', '--no-owner', '--no-privileges', '--file='.$file], null, BackupScratchDatabase::libpq($reference))->mustRun();
     $toc = new Process(['pg_restore', '--list', '--', $file]);
     $toc->mustRun();
@@ -426,7 +426,7 @@ it('audits an older archive at its own migration set: what later migrations add 
         ->and($omitted)->toBe(1, json_encode($omittedJson))->and($omittedJson['errors'][0]['code'])->toBe('schema_mismatch')
         ->and($message)->toContain('missing trigger:activity_log.activity_log_append_only_trg')
         ->and($message)->not->toContain('audit_chain_epochs')
-        ->and(RestoreDatabases::admin()->query("SELECT count(*) FROM pg_database WHERE datname LIKE 'fsa\\_restore\\_ref\\_%'")->fetchColumn())->toBe(0);
+        ->and(RestoreDatabases::admin()->query("SELECT count(*) FROM pg_database WHERE datname LIKE 'fieldset\\_restore\\_ref\\_%'")->fetchColumn())->toBe(0);
 });
 
 it('refuses an archive that ran migrations this image does not know (review S3)', function (): void {

@@ -9,7 +9,7 @@ use Illuminate\Database\ConnectionInterface;
 /**
  * Credentials a backup carries that must not work again after a restore (plan U17, R64, ADR 0085): sessions,
  * remember-me tokens (a recaller cookie would sign a deleted session back in), password-reset tokens and one-time
- * sign-in links. Everyone signs in again; `fsa login-link` issues a fresh link.
+ * sign-in links. Everyone signs in again; `fieldset login-link` issues a fresh link.
  */
 final readonly class StaleCredentials
 {

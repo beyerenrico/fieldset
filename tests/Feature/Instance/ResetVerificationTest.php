@@ -12,11 +12,11 @@ use Tests\Support\Instance\ResetFixture;
 use Tests\Support\Instance\TemporaryInstance;
 
 /*
- * The verification review of `fsa reset` (plan U23, ADR 0088): a retake of the heads and the backup survives a kill inside
+ * The verification review of `fieldset reset` (plan U23, ADR 0088): a retake of the heads and the backup survives a kill inside
  * it (V1), every safety backup of the journal is sealed (V2), `drop_not_reached` covers only its own drop attempt (V3),
  * `--abandon` checks the journal again under the lock (V4), leftover restore databases go with their roles (V5), the
  * sequence floors are filtered before the drop (V6), the replaced volume goes by name even unlabelled (V8), and
- * `fsa login-link` refuses while an operation is unfinished (V9).
+ * `fieldset login-link` refuses while an operation is unfinished (V9).
  */
 
 beforeEach(function (): void {
@@ -135,13 +135,13 @@ it('asks again when the reset past its drop finished between the check and the l
 });
 
 it('drops the restricted role with each leftover restore or drill database (V5)', function (): void {
-    $this->reset->databases = ['form_schema', 'postgres', 'form_schema_pre_restore_0a1b2c3d4e5f', 'form_schema_restore_0a1b2c3d4e5f', 'restore_drill_9f8e7d6c5b4a'];
+    $this->reset->databases = ['fieldset', 'postgres', 'fieldset_pre_restore_0a1b2c3d4e5f', 'fieldset_restore_0a1b2c3d4e5f', 'restore_drill_9f8e7d6c5b4a'];
 
     [$code] = $this->reset->reset();
 
     expect($code)->toBe(0)
         ->and($this->reset->droppedRoles)->toBe([
-            'form_schema_pre_restore_0a1b2c3d4e5f' => null, 'form_schema_restore_0a1b2c3d4e5f' => 'fieldset_restore_0a1b2c3d4e5f', 'restore_drill_9f8e7d6c5b4a' => 'fieldset_drill_9f8e7d6c5b4a',
+            'fieldset_pre_restore_0a1b2c3d4e5f' => null, 'fieldset_restore_0a1b2c3d4e5f' => 'fieldset_restore_0a1b2c3d4e5f', 'restore_drill_9f8e7d6c5b4a' => 'fieldset_drill_9f8e7d6c5b4a',
         ]);
 });
 
@@ -169,15 +169,15 @@ it('removes the replaced storage volume by name even without the instance label 
         ->and(array_column($docker->called('removeVolume'), 'name'))->toContain($state->project().'_app-storage');
 });
 
-it('refuses fsa login-link while an operation is unfinished: exit 9, no link, no audit entry in the old database (V9)', function (): void {
+it('refuses fieldset login-link while an operation is unfinished: exit 9, no link, no audit entry in the old database (V9)', function (): void {
     verifiedJournal($this, [['quiesce', ['gate' => 'raised'], ['writers_ran' => false]], ['ledger', [], []]]);
     $mark = $this->reset->config->mark();
 
-    [$code, $json] = $this->reset->instance->run('fsa:login-link', ['email' => 'owner@example.com']);
+    [$code, $json] = $this->reset->instance->run('fieldset:login-link', ['email' => 'owner@example.com']);
 
     expect($code)->toBe(9, (string) json_encode($json))
         ->and($json['errors'][0]['code'])->toBe('operation_unfinished')
-        ->and($json['data']['command'])->toBe('fsa reset')
+        ->and($json['data']['command'])->toBe('fieldset reset')
         ->and(array_filter($this->reset->config->callsSince($mark, 'composeRun'), static fn (array $call): bool => ($call['command'][2] ?? null) === 'identity:login-link'))->toBe([])
         ->and(new Ledger($this->reset->instance->directory)->entries())->toBe([]);
 });

@@ -27,7 +27,7 @@ function fakeAge(): AgeCli
 }
 
 beforeEach(function (): void {
-    $this->outside = sys_get_temp_dir().'/fsa-test-identity-'.bin2hex(random_bytes(4));
+    $this->outside = sys_get_temp_dir().'/fieldset-test-identity-'.bin2hex(random_bytes(4));
     mkdir($this->outside, 0700);
     $this->identity = $this->outside.'/backup-identity.age';
 });

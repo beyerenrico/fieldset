@@ -11,7 +11,7 @@ use Illuminate\Notifications\Notification;
 use Throwable;
 
 /**
- * Mails a platform operator about a backup problem (R39, plan U20, ADR 0089): what is wrong, the `fsa` command that acts
+ * Mails a platform operator about a backup problem (R39, plan U20, ADR 0089): what is wrong, the `fieldset` command that acts
  * on it, and a link to the `/platform` instance page, which keeps showing the warning while mail is captured. Rendered
  * in the operator's locale (the notifier sets it).
  */

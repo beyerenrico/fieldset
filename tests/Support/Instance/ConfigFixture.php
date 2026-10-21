@@ -15,7 +15,7 @@ use App\Domain\Instance\State\InstanceState;
 use Closure;
 
 /**
- * An installed instance (local mode, scripted Docker) for the `fsa config` tests (plan U11, ADR 0077), with a run
+ * An installed instance (local mode, scripted Docker) for the `fieldset config` tests (plan U11, ADR 0077), with a run
  * responder that answers like a healthy host: port probes (loopback and host-wide) free unless listed, the smoke
  * test, the edge's HTTPS once it has a certificate and its HTTP → HTTPS redirect, and the config URL check. Tests
  * flip `$certificate`, `$smokeFails` or add ports to make a step fail.
@@ -62,27 +62,27 @@ final class ConfigFixture
         if ($prepare instanceof Closure) {
             $prepare($this->instance);
         }
-        [$code, $json] = $this->instance->run('fsa:install', InstanceCommandFixture::installFlags($installFlags));
+        [$code, $json] = $this->instance->run('fieldset:install', InstanceCommandFixture::installFlags($installFlags));
         if ($code !== 0) {
             throw new \RuntimeException('The fixture install failed: '.json_encode($json));
         }
     }
 
     /**
-     * `fsa config set <key> <value>` with --json.
+     * `fieldset config set <key> <value>` with --json.
      *
      * @param  array<string, mixed>  $options
      * @return array{0: int, 1: array<string, mixed>}
      */
     public function set(string $key, string $value, array $options = []): array
     {
-        return $this->instance->run('fsa:config', ['action' => 'set', 'key' => $key, 'value' => $value, ...$options]);
+        return $this->instance->run('fieldset:config', ['action' => 'set', 'key' => $key, 'value' => $value, ...$options]);
     }
 
     /** @return array{0: int, 1: array<string, mixed>} */
     public function show(): array
     {
-        return $this->instance->run('fsa:config', ['action' => 'show']);
+        return $this->instance->run('fieldset:config', ['action' => 'show']);
     }
 
     public function state(): InstanceState

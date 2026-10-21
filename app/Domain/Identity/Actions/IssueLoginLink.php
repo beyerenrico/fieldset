@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 
 /**
- * `fsa login-link <email>` (BUILD_PROMPT_V2 R28, ADR 0056): a one-time sign-in link for an existing admin.
+ * `fieldset login-link <email>` (BUILD_PROMPT_V2 R28, ADR 0056): a one-time sign-in link for an existing admin.
  * Single use, valid for at most 15 minutes, stored hashed, rate-limited per account, and a newer link
  * replaces older ones. Refused for a domain that enforces SSO (PasswordAuthGate, audited like a refused
  * password login). Issuing is audited with actor `cli` and the host UID.

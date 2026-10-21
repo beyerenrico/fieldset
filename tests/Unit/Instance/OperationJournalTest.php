@@ -44,7 +44,7 @@ it('records a phase before its step runs, so a fresh reader reports it with the 
     $this->journal->begin('upgrade', 1000, ['target' => '2.0.1']);
     $this->journal->startPhase('pull', ['digests' => ['app' => 'ghcr.io/x/app@sha256:'.str_repeat('1', 64)]]);
     $this->journal->completePhase('pull');
-    $this->journal->startPhase('backup', ['safety_backup' => '/srv/fsa/backups/safety-1']);
+    $this->journal->startPhase('backup', ['safety_backup' => '/srv/fieldset/backups/safety-1']);
 
     $reread = new OperationJournal($this->directory)->current();
 
@@ -55,7 +55,7 @@ it('records a phase before its step runs, so a fresh reader reports it with the 
         ->and($reread?->hasCompleted('backup'))->toBeFalse()
         ->and($reread?->resumeData())->toMatchArray([
             'target' => '2.0.1',
-            'safety_backup' => '/srv/fsa/backups/safety-1',
+            'safety_backup' => '/srv/fieldset/backups/safety-1',
         ])
         ->and($reread?->resumeData()['digests']['app'])->toEndWith(str_repeat('1', 64));
 });
@@ -77,7 +77,7 @@ it('survives a process kill between phases', function (): void {
         ->and($record?->hostUid())->toBe(1000)
         ->and($record?->lastStartedPhase())->toBe('backup')
         ->and($record?->hasCompleted('pull'))->toBeTrue()
-        ->and($record?->resumeData()['safety_backup'])->toBe('/srv/fsa/backups/safety-1');
+        ->and($record?->resumeData()['safety_backup'])->toBe('/srv/fieldset/backups/safety-1');
 });
 
 it('ignores a temporary file left by a kill in the middle of a write', function (): void {
@@ -98,8 +98,8 @@ it('refuses to begin while an earlier operation is unfinished and names it', fun
     } catch (OperationUnfinished $e) {
         expect($e->exitCode)->toBe(ExitCode::AbortedUnchanged)
             ->and($e->getMessage())->toContain('upgrade')->toContain('migrate')
-            // U18 (ADR 0086): an interrupted upgrade names `fsa upgrade --resume` and what it does in each phase
-            ->and($e->hint)->toStartWith('Run `fsa upgrade --resume`')->toContain('rolls back to the safety backup')
+            // U18 (ADR 0086): an interrupted upgrade names `fieldset upgrade --resume` and what it does in each phase
+            ->and($e->hint)->toStartWith('Run `fieldset upgrade --resume`')->toContain('rolls back to the safety backup')
             ->and($e->data['operation'])->toBe('upgrade')
             ->and($e->data['last_phase'])->toBe('migrate');
     }

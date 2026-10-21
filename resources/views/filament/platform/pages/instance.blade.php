@@ -60,7 +60,7 @@
             <x-slot name="heading">{{ __('instance.access.heading') }}</x-slot>
             <dl style="{{ $dl }}">
                 <dt style="opacity:.75">{{ __('instance.access.mode') }}</dt>
-                <dd style="{{ $dd }}" data-instance-mode="{{ $access['mode'] ?? 'unknown' }}">{{ $access['mode'] === null ? __($access['fsa'] ? 'instance.unknown' : 'instance.access.not_fsa') : __('instance.access.modes.'.$access['mode']) }}</dd>
+                <dd style="{{ $dd }}" data-instance-mode="{{ $access['mode'] ?? 'unknown' }}">{{ $access['mode'] === null ? __($access['fieldset'] ? 'instance.unknown' : 'instance.access.not_fieldset') : __('instance.access.modes.'.$access['mode']) }}</dd>
                 <dt style="opacity:.75">{{ __('instance.access.url') }}</dt><dd style="{{ $dd }}">{{ $access['url'] }}</dd>
                 @if ($access['local_url'] !== null && $access['local_url'] !== $access['url'])
                     <dt style="opacity:.75">{{ __('instance.access.local_url') }}</dt><dd style="{{ $dd }}">{{ $access['local_url'] }}</dd>
@@ -69,8 +69,8 @@
                     <dt style="opacity:.75">{{ __('instance.access.tunnel') }}</dt><dd style="{{ $dd }}">{{ $access['tunnel'] }}</dd>
                 @endif
             </dl>
-            @if ($access['fsa'])
-                <p style="margin:.5rem 0 0;font-size:.875rem">{{ __('instance.command') }} <code style="{{ $code }}">fsa config show</code></p>
+            @if ($access['fieldset'])
+                <p style="margin:.5rem 0 0;font-size:.875rem">{{ __('instance.command') }} <code style="{{ $code }}">fieldset config show</code></p>
             @endif
         </x-filament::section>
 
@@ -86,12 +86,12 @@
             </dl>
             @if ($mail['capture'])
                 <p style="margin:.5rem 0 0;font-size:.875rem">{{ __('instance.mail.capture_hint') }}</p>
-                @if ($access['fsa'])
-                    <p style="margin:.25rem 0 0;font-size:.875rem">{{ __('instance.command') }} <code style="{{ $code }}">fsa config set mail smtp</code></p>
+                @if ($access['fieldset'])
+                    <p style="margin:.25rem 0 0;font-size:.875rem">{{ __('instance.command') }} <code style="{{ $code }}">fieldset config set mail smtp</code></p>
                 @endif
             @endif
-            @if ($mail['catcher_url'] !== null && $access['mode'] !== 'domain' && $access['fsa'])
-                <p style="margin:.25rem 0 0;font-size:.875rem">{{ __('instance.mail.catcher_login') }} <code style="{{ $code }}">fsa config show --catcher-login</code></p>
+            @if ($mail['catcher_url'] !== null && $access['mode'] !== 'domain' && $access['fieldset'])
+                <p style="margin:.25rem 0 0;font-size:.875rem">{{ __('instance.mail.catcher_login') }} <code style="{{ $code }}">fieldset config show --catcher-login</code></p>
             @endif
         </x-filament::section>
 
@@ -108,8 +108,8 @@
                     <dt style="opacity:.75">{{ __('instance.backup.encrypted') }}</dt><dd style="{{ $dd }}">{{ __(($backup['last_success']['encrypted'] ?? false) === true ? 'instance.yes' : 'instance.no') }}</dd>
                 @endif
             </dl>
-            @if ($access['fsa'])
-                <p style="margin:.5rem 0 0;font-size:.875rem">{{ __('instance.backup.commands') }} <code style="{{ $code }}">fsa backup</code> · <code style="{{ $code }}">fsa config set backup-schedule HH:MM</code></p>
+            @if ($access['fieldset'])
+                <p style="margin:.5rem 0 0;font-size:.875rem">{{ __('instance.backup.commands') }} <code style="{{ $code }}">fieldset backup</code> · <code style="{{ $code }}">fieldset config set backup-schedule HH:MM</code></p>
             @endif
         </x-filament::section>
 
@@ -129,8 +129,8 @@
             <x-slot name="heading">{{ __('instance.updates.heading') }}</x-slot>
             @if (! $updates['enabled'])
                 <p style="margin:0" data-instance-updates="off">{{ __('instance.updates.off') }}</p>
-                @if ($access['fsa'])
-                    <p style="margin:.5rem 0 0;font-size:.875rem">{{ __('instance.command') }} <code style="{{ $code }}">fsa config set update-check on</code></p>
+                @if ($access['fieldset'])
+                    <p style="margin:.5rem 0 0;font-size:.875rem">{{ __('instance.command') }} <code style="{{ $code }}">fieldset config set update-check on</code></p>
                 @endif
             @else
                 <dl style="{{ $dl }}" data-instance-updates="{{ $updates['available'] ? 'available' : 'on' }}">
@@ -152,7 +152,7 @@
                 </dl>
                 <p style="margin:.5rem 0 0;font-size:.875rem">{{ match (true) { $updates['available'] => __('instance.updates.available', ['version' => $updates['latest']]), $updates['latest'] === null => __('instance.updates.unknown'), default => __('instance.updates.current', ['version' => $updates['current']]) } }}
                     @if ($updates['available'])
-                        <code style="{{ $code }}">fsa upgrade</code>
+                        <code style="{{ $code }}">fieldset upgrade</code>
                     @endif
                 </p>
             @endif

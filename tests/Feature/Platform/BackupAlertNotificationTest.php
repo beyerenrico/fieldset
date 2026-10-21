@@ -17,8 +17,8 @@ require_once __DIR__.'/Support.php';
 
 /*
  * R39 (plan U20, ADR 0089): failed or stale backups notify the platform operators, once per incident, by mail in their
- * locale with the `fsa` command and a link to the instance page, which keeps the warning while mail is captured. The
- * alerts are the ones `fsa status` reports as `warn` (BackupAlerts over `backup_runs`).
+ * locale with the `fieldset` command and a link to the instance page, which keeps the warning while mail is captured. The
+ * alerts are the ones `fieldset status` reports as `warn` (BackupAlerts over `backup_runs`).
  */
 
 /** @param  array<string, mixed>  $row */
@@ -59,7 +59,7 @@ it('mails every active operator once per failed backup, and again for a new fail
     Notification::assertSentToTimes($olga, BackupAlertNotification::class, 2);
     Notification::assertSentToTimes($otto, BackupAlertNotification::class, 2);
     Notification::assertNotSentTo([$inactive, $owner], BackupAlertNotification::class);
-    Notification::assertSentTo($olga, BackupAlertNotification::class, static fn (BackupAlertNotification $n): bool => $n->code === 'backup_failed' && $n->reason === 'storage_failed' && $n->command === 'fsa backup');
+    Notification::assertSentTo($olga, BackupAlertNotification::class, static fn (BackupAlertNotification $n): bool => $n->code === 'backup_failed' && $n->reason === 'storage_failed' && $n->command === 'fieldset backup');
 });
 
 it('notifies a stale backup (none within two hours of the slot) once while it lasts', function (): void {
@@ -72,7 +72,7 @@ it('notifies a stale backup (none within two hours of the slot) once while it la
     $later = app(BackupAlertNotifier::class)->notify();
 
     expect([$before, $later])->toBe([['backup_overdue'], []]);
-    Notification::assertSentTo($olga, BackupAlertNotification::class, static fn (BackupAlertNotification $n): bool => $n->code === 'backup_overdue' && $n->command === 'fsa doctor --post');
+    Notification::assertSentTo($olga, BackupAlertNotification::class, static fn (BackupAlertNotification $n): bool => $n->code === 'backup_overdue' && $n->command === 'fieldset doctor --post');
 });
 
 it('sends nothing without an alert, and remembers nothing without an operator', function (): void {
@@ -116,7 +116,7 @@ it('remembers no incident when no operator mail could be queued, so the next run
 
 it('sends nothing on an instance without backup runs', function (): void {
     platformOperator();
-    config(['instance.runtime_path' => '/run/fsa']);
+    config(['instance.runtime_path' => '/run/fieldset']);
 
     expect(app(BackupAlertNotifier::class)->notify())->toBe([]);
     Notification::assertNothingSent();
@@ -135,7 +135,7 @@ it('writes the mail in the operator\'s locale with the command and the instance 
         $mail = $notification->toMail($operator);
         $rendered = implode("\n", [...$mail->introLines, ...$mail->outroLines]);
 
-        return $mail->subject === $subject && str_contains($rendered, $text) && str_contains($rendered, 'fsa backup') && str_contains($rendered, 'pg_dump_failed')
+        return $mail->subject === $subject && str_contains($rendered, $text) && str_contains($rendered, 'fieldset backup') && str_contains($rendered, 'pg_dump_failed')
             && $mail->actionUrl === route('filament.platform.pages.instance') && $mail->level === 'error';
     });
 })->with([

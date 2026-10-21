@@ -9,7 +9,7 @@ use Tests\Support\Instance\InstanceCommandFixture;
 use Tests\Support\Instance\TemporaryInstance;
 
 /*
- * Plan U11/U12 (R32; ADR 0080): `fsa config set operator-email <email>` grants the operator role in a socket-less
+ * Plan U11/U12 (R32; ADR 0080): `fieldset config set operator-email <email>` grants the operator role in a socket-less
  * one-off, delivers the new account's first sign-in link only through `secrets` or --secrets-file, revokes the others
  * only with --revoke-previous (confirmed), and needs no render, journal or restart.
  */
@@ -101,7 +101,7 @@ it('keeps a delivered link that can still be used: changed: false, a warning wit
         ->and($json['data'])->not->toHaveKey('sign_in_link')
         ->and($json['warnings'][0]['code'])->toBe('sign_in_link_outstanding')
         ->and($json['warnings'][0]['message'])->toContain('2026-10-18T11:00:00Z')
-        ->and($json['warnings'][0]['hint'])->toContain('fsa config set operator-email new-ops@example.com');
+        ->and($json['warnings'][0]['hint'])->toContain('fieldset config set operator-email new-ops@example.com');
 });
 
 it('says when to retry a rate-limited link', function (): void {
@@ -122,7 +122,7 @@ it('refuses while another operation is unfinished (exit 9), before the one-off, 
 
     expect($code)->toBe(9, json_encode($json))
         ->and($json['errors'][0]['code'])->toBe('operation_unfinished')
-        ->and($json['errors'][0]['hint'])->toContain('fsa demo')
+        ->and($json['errors'][0]['hint'])->toContain('fieldset demo')
         ->and($this->config->instance->oneOffCalls('instance:operator-email'))->toBe([])
         ->and(app(InstanceLock::class)->current())->toBeNull();
 });
@@ -160,7 +160,7 @@ it('refuses --revoke-previous on other keys', function (): void {
 it('needs an installed instance', function (): void {
     $fixture = new InstanceCommandFixture;
 
-    [$code, $json] = $fixture->run('fsa:config', ['action' => 'set', 'key' => 'operator-email', 'value' => 'ops@example.com']);
+    [$code, $json] = $fixture->run('fieldset:config', ['action' => 'set', 'key' => 'operator-email', 'value' => 'ops@example.com']);
 
     expect($code)->toBe(2)->and($json['errors'][0]['code'])->toBe('not_installed');
 });

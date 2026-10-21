@@ -16,24 +16,24 @@ use Illuminate\Console\Command;
 use InvalidArgumentException;
 
 /**
- * The app side of the demo password rules (R29, KTD25, ADR 0081), run by fsa as a socket-less one-off:
+ * The app side of the demo password rules (R29, KTD25, ADR 0081), run by fieldset as a socket-less one-off:
  *
- * - `--check`: which accounts (demo or not) still sign in with `password`. `fsa tunnel start` and the local-CA edge
+ * - `--check`: which accounts (demo or not) still sign in with `password`. `fieldset tunnel start` and the local-CA edge
  *   (U14) refuse while `data.count` is above 0. Read-only; JSON `data`: `checked` (accounts with a known password),
  *   `count`, `users` (list of `{email, demo}`), and `organizations` (`total`, `non_demo`: organizations that are not
- *   deleted; `non_demo` leaves out the one marked `is_demo`, not "the slug demo"; `fsa tunnel start` needs `--yes`
+ *   deleted; `non_demo` leaves out the one marked `is_demo`, not "the slug demo"; `fieldset tunnel start` needs `--yes`
  *   while `non_demo` is above 0, R65, ADR 0082).
- * - `--rotate`: `fsa demo --rotate-passwords`. Every demo account gets a new random password (printed once under
+ * - `--rotate`: `fieldset demo --rotate-passwords`. Every demo account gets a new random password (printed once under
  *   `secrets` as `demo_password:<email>`), and its sessions, remember-me token, API tokens, unused sign-in links and
  *   password-reset token are revoked; audited
  *   per account. JSON `data`: `users` (emails), `sessions_ended`, `tokens_revoked`. No demo accounts: `changed: false`
  *   with the warning `no_demo_users`.
  */
-#[Description('Check for accounts with the demo password, or rotate the demo users\' passwords (fsa demo)')]
+#[Description('Check for accounts with the demo password, or rotate the demo users\' passwords (fieldset demo)')]
 #[Signature('app:demo-passwords
         {--check : Report the accounts that still sign in with the password "password"}
         {--rotate : Give every demo account a new random password and revoke its sessions, API tokens and sign-in links}
-        {--actor-uid= : Host UID of the operator running fsa (audit)}
+        {--actor-uid= : Host UID of the operator running fieldset (audit)}
         {--json : Print one JSON document on stdout}')]
 final class DemoPasswordsCommand extends Command
 {
@@ -77,7 +77,7 @@ final class DemoPasswordsCommand extends Command
         if (DemoAccounts::users()->isEmpty()) {
             $message = 'There are no demo accounts. Nothing was changed.';
             if ($this->option('json') === true) {
-                return JsonResult::ok(self::NAME, ['users' => [], 'sessions_ended' => 0, 'tokens_revoked' => 0])->withWarning('no_demo_users', $message, 'Add the demo data with `fsa demo`.')->emit($this);
+                return JsonResult::ok(self::NAME, ['users' => [], 'sessions_ended' => 0, 'tokens_revoked' => 0])->withWarning('no_demo_users', $message, 'Add the demo data with `fieldset demo`.')->emit($this);
             }
             $this->components->warn($message);
 

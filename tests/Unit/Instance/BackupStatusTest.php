@@ -12,9 +12,9 @@ use Tests\Support\Instance\RecordingDockerGateway;
 use Tests\Support\Instance\TemporaryInstance;
 
 /*
- * Backups in `fsa status` and `fsa config` (§7, R32, R39, R57, plan U16, ADR 0084): the last backup, the schedule and its
+ * Backups in `fieldset status` and `fieldset config` (§7, R32, R39, R57, plan U16, ADR 0084): the last backup, the schedule and its
  * next run, the safety backups with age and size, the alerts as warnings (from the run ledger, without a database), and
- * the backup keys of `fsa config set`, which apply, verify and revert like every key.
+ * the backup keys of `fieldset config set`, which apply, verify and revert like every key.
  */
 
 beforeEach(function (): void {
@@ -33,7 +33,7 @@ function ledgerRun(BackupRunLog $log, array $run): void
 it('reports no backup yet, the schedule and its next run, and no warning for a fresh instance', function (): void {
     $this->travelTo(CarbonImmutable::parse('2026-10-19T10:00:00Z'));
 
-    [$code, $json] = $this->instance->run('fsa:status');
+    [$code, $json] = $this->instance->run('fieldset:status');
     $backup = $json['data']['backup'];
 
     expect($code)->toBe(0)
@@ -52,7 +52,7 @@ it('reports the last backup, the backups on disk and the safety backups with age
         file_put_contents($dir.'/database.dump', str_repeat('x', $bytes));
     }
 
-    [, $json] = $this->instance->run('fsa:status');
+    [, $json] = $this->instance->run('fieldset:status');
     $backup = $json['data']['backup'];
 
     expect($json['data']['last_backup'])->toMatchArray(['kind' => 'scheduled', 'status' => 'succeeded', 'backup' => 'scheduled-20261019T033000Z', 'bytes' => 4096])
@@ -69,13 +69,13 @@ it('warns about a failed backup, lock skips older than a day, and a slot missed 
     ledgerRun($this->log, ['status' => 'skipped', 'reason' => 'lock_held', 'backup' => null, 'started_at' => '2026-10-18T03:30:00Z']);
     ledgerRun($this->log, ['status' => 'failed', 'reason' => 'pg_dump_failed', 'message' => 'connection refused', 'backup' => null, 'started_at' => '2026-10-19T03:30:00Z']);
 
-    [$code, $json] = $this->instance->run('fsa:status');
+    [$code, $json] = $this->instance->run('fieldset:status');
     $warnings = collect($json['warnings'])->keyBy('code');
 
     expect($code)->toBe(0)
         ->and($json['data']['backup']['alerts'])->toBe(['backup_failed', 'backup_skipped', 'backup_overdue'])
         ->and($warnings['backup_failed']['message'])->toContain('pg_dump_failed')->toContain('connection refused')
-        ->and($warnings['backup_failed']['hint'])->toContain('fsa backup')
+        ->and($warnings['backup_failed']['hint'])->toContain('fieldset backup')
         ->and($warnings['backup_skipped']['message'])->toContain('24 hours')
         ->and($warnings['backup_overdue']['message'])->toContain('2 hours of the scheduled slot')
         ->and($json['data']['last_backup']['started_at'])->toBe('2026-10-17T03:30:00Z');
@@ -86,7 +86,7 @@ it('warns at once about a run skipped for lack of disk space, in its own words',
     ledgerRun($this->log, ['started_at' => '2026-10-18T03:30:00Z']);
     ledgerRun($this->log, ['status' => 'skipped', 'reason' => 'low_disk_space', 'message' => 'Not enough free space: 10 MiB free, the backup would leave less than 1024 MiB.', 'backup' => null, 'started_at' => '2026-10-19T03:30:00Z']);
 
-    [, $json] = $this->instance->run('fsa:status');
+    [, $json] = $this->instance->run('fieldset:status');
     $warnings = collect($json['warnings'])->keyBy('code');
 
     expect($json['data']['backup']['alerts'])->toBe(['backup_disk_space'])
@@ -99,21 +99,21 @@ it('warns about a backup service that cannot start and names a command that rend
     ledgerRun($this->log, ['started_at' => '2026-10-19T03:30:00Z']);
     $this->log->append(['kind' => 'service', 'status' => 'failed', 'reason' => 'invalid_backup_config', 'message' => 'FIELDSET_BACKUP_RETENTION must be a whole number.', 'started_at' => '2026-10-19T10:00:00Z', 'finished_at' => '2026-10-19T10:00:00Z', 'encrypted' => false]);
 
-    [, $json] = $this->instance->run('fsa:status');
+    [, $json] = $this->instance->run('fieldset:status');
     $warnings = collect($json['warnings'])->keyBy('code');
 
     expect($json['data']['backup']['alerts'])->toContain('backup_service_failed')
         ->and($warnings['backup_service_failed']['message'])->toContain('invalid_backup_config')
-        ->and($warnings['backup_service_failed']['hint'])->toContain('fsa logs backup')->toContain('fsa config set')->not->toContain('fsa install');
+        ->and($warnings['backup_service_failed']['hint'])->toContain('fieldset logs backup')->toContain('fieldset config set')->not->toContain('fieldset install');
 });
 
 it('warns about a .partial directory an interrupted backup left, but not while an operation holds the lock', function (): void {
     $this->instance->directory->ensureDirectory('backups/manual-20261019T120000Z.partial');
 
-    [, $json] = $this->instance->run('fsa:status');
+    [, $json] = $this->instance->run('fieldset:status');
     $warnings = collect($json['warnings'])->keyBy('code');
     $handle = new InstanceLock($this->instance->directory, new RecordingDockerGateway)->acquire(TemporaryInstance::holder('c'), 'backup');
-    [, $locked] = $this->instance->run('fsa:status');
+    [, $locked] = $this->instance->run('fieldset:status');
     new InstanceLock($this->instance->directory, new RecordingDockerGateway)->release($handle);
 
     expect($json['data']['backup']['partials'])->toBe(['manual-20261019T120000Z.partial'])
@@ -125,7 +125,7 @@ it('warns about a .partial directory an interrupted backup left, but not while a
 it('warns when the newest successful backup misses referenced files (M12 gate D5)', function (): void {
     new BackupRunLog($this->instance->directory)->append(['kind' => 'scheduled', 'status' => 'succeeded', 'started_at' => '2026-10-19T03:30:00Z', 'backup' => 'scheduled-20261019T033000Z', 'missing_files' => 3]);
 
-    [, $json] = $this->instance->run('fsa:status');
+    [, $json] = $this->instance->run('fieldset:status');
     $warning = collect($json['warnings'])->firstWhere('code', 'backup_files_missing');
 
     expect($warning['message'] ?? '')->toContain('3 file(s)')->toContain('scheduled-20261019T033000Z')
@@ -135,7 +135,7 @@ it('warns when the newest successful backup misses referenced files (M12 gate D5
 it('also warns about the plain set of an encrypted backup an interrupted run left in staging/backup/', function (): void {
     $this->instance->directory->ensureDirectory('staging/backup/manual-20261019T120000Z.partial');
 
-    [, $json] = $this->instance->run('fsa:status');
+    [, $json] = $this->instance->run('fieldset:status');
     $warnings = collect($json['warnings'])->keyBy('code');
 
     expect($json['data']['backup']['partials'])->toBe(['staging/backup/manual-20261019T120000Z.partial'])
@@ -147,11 +147,11 @@ it('counts "overdue" without a success from the backup service\'s first start wi
     $now = $installed->addDays(3);
     $this->travelTo($now);
 
-    [, $before] = $this->instance->run('fsa:status');
+    [, $before] = $this->instance->run('fieldset:status');
     ledgerRun($this->log, ['kind' => 'service', 'status' => 'started', 'started_at' => $now->subHour()->toIso8601ZuluString(), 'schedule' => '03:30', 'backup' => null]);
-    [, $started] = $this->instance->run('fsa:status');
+    [, $started] = $this->instance->run('fieldset:status');
     $this->travelTo($now->addDay()->addHours(3));
-    [, $missed] = $this->instance->run('fsa:status');
+    [, $missed] = $this->instance->run('fieldset:status');
 
     expect($before['data']['backup']['alerts'])->toBe(['backup_overdue']) // the service never reported: from the install
         ->and($started['data']['backup']['alerts'])->toBe([]) // an upgraded instance gets its first slot first
@@ -159,7 +159,7 @@ it('counts "overdue" without a success from the backup service\'s first start wi
         ->and($missed['data']['backup']['alerts'])->toBe(['backup_overdue']);
 });
 
-it('shows the backup settings and keys in fsa config show', function (): void {
+it('shows the backup settings and keys in fieldset config show', function (): void {
     [$code, $json] = $this->config->show();
     $keys = collect($json['data']['keys'])->keyBy('key');
 
@@ -203,7 +203,7 @@ it('records the host time zone at install and sets up the backup role after the 
     $fixture = new InstanceCommandFixture;
     $fixture->facts(['timezone' => 'America/New_York']);
 
-    [$code] = $fixture->run('fsa:install', InstanceCommandFixture::installFlags());
+    [$code] = $fixture->run('fieldset:install', InstanceCommandFixture::installFlags());
     $calls = array_map(static fn (array $call): string => $call['command'][2] ?? '', $fixture->docker->called('composeRun'));
 
     expect($code)->toBe(0)

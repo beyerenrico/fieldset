@@ -14,13 +14,13 @@ use InvalidArgumentException;
 use RuntimeException;
 
 /**
- * The verification step of `fsa config set mail smtp` (R25, KTD25, ADR 0080): a socket-less one-off sends a test mail
+ * The verification step of `fieldset config set mail smtp` (R25, KTD25, ADR 0080): a socket-less one-off sends a test mail
  * through the instance mailer its env file configures, which apply has just pointed at the new SMTP server. Exit 0
  * when the server accepted it; the error text never carries the SMTP credentials. With --install it is the install
  * smoke test's mail (R11, ADR 0072 amendment): worded for capture mode or delivery, and `data.message_id` names its
- * Message-ID, which fsa looks up in the catcher.
+ * Message-ID, which fieldset looks up in the catcher.
  */
-#[Description('Send a test mail through the instance mailer (fsa config set mail smtp)')]
+#[Description('Send a test mail through the instance mailer (fieldset config set mail smtp)')]
 #[Signature('instance:mail-test
         {--to= : Recipient (default: the longest-standing active operator)}
         {--install : The install smoke test\'s mail (its wording, and data.message_id)}

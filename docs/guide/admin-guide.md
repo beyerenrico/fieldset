@@ -92,9 +92,9 @@ settings"): name, language and time zone. Scheduled workflows and report emails 
 
 **Several organizations.** A person can belong to several organizations. The organization switcher at
 the top of the dashboard lists those where they have dashboard access. The first organization is
-created at the install (`fsa install --org …`); further organizations can only be created through
+created at the install (`fieldset install --org …`); further organizations can only be created through
 self-registration ("Organisation registrieren", "Register organization"). Self-registration is off on an
-instance installed with `fsa`; on a 1.0 checkout install the operator can enable it (see the
+instance installed with `fieldset`; on a 1.0 checkout install the operator can enable it (see the
 [1.0 configuration reference](archive/1.0-configuration.md#application)).
 
 ## Members, groups and roles
@@ -402,7 +402,7 @@ dismissed. It comes in two variants:
   always use the instance's mailer.
 
 Platform operators see the command that sets up delivery on the server ("E-Mail-Versand auf dem Server
-einrichten:", "Set up mail delivery on the server:"), `fsa config set mail smtp --smtp-host <host>
+einrichten:", "Set up mail delivery on the server:"), `fieldset config set mail smtp --smtp-host <host>
 --smtp-username <user> --from-address <address> --password-stdin` (see
 [configuration](configuration.md#mail)); everyone else reads "Bitten Sie den Betreiber der Instanz, den
 E-Mail-Versand einzurichten." ("Ask your instance owner to set up mail delivery."). The banner disappears
@@ -639,7 +639,7 @@ deleted, an Owner or Admin uses this page.
 ## Platform operators (/platform)
 
 This section is for the people who run the server. The owner named at the install is an operator;
-`fsa config set operator-email <email>` adds one ([configuration](configuration.md#keys)). On a 1.0 checkout
+`fieldset config set operator-email <email>` adds one ([configuration](configuration.md#keys)). On a 1.0 checkout
 install operators get the role with `php artisan app:platform-admin <email>`
 ([1.0 install guide](archive/1.0-install.md#4-create-the-first-organization-and-owner)).
 They sign in at `/platform/login`, separately from `/admin`; a sign-in through an organization's single
@@ -650,10 +650,10 @@ hours (`PLATFORM_SESSION_HOURS`).
   status. "Mitglieder" ("Members") lists its members.
 - **"Zustand" ("Health")**: Horizon and its queues, failed jobs, Gotenberg, the mail transport, the
   scheduler and the free disk space, each "OK", "Warnung" ("Warning") or "Fehler" ("Failing").
-- **"Instanz" ("Instance")** (instances installed with `fsa`): problems first (a failed or stale backup,
-  low disk space, an available update, backups held only on this host), each with the `fsa` command to run on the
+- **"Instanz" ("Instance")** (instances installed with `fieldset`): problems first (a failed or stale backup,
+  low disk space, an available update, backups held only on this host), each with the `fieldset` command to run on the
   server; then version and image digests, mode and URL, mail delivery with the catcher link, the backup schedule and
-  last result, disk usage and, when the update check is on (`fsa config set update-check on`), whether a newer
+  last result, disk usage and, when the update check is on (`fieldset config set update-check on`), whether a newer
   release exists. Operators also get one e-mail per failed or stale backup.
 - **"Als Mitglied anmelden" ("Impersonate")** on a member: the operator sees the admin dashboard as that
   member, for support. A reason of 10 to 500 characters is required. It works only for active members

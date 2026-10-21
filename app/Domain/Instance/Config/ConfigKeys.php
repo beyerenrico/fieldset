@@ -26,7 +26,7 @@ use App\Domain\Instance\State\InstanceState;
 use Illuminate\Contracts\Container\Container;
 
 /**
- * The keys of `fsa config set` (§7, R32, ADR 0077) and their appliers, one per key; since 2.0.0 every key of R32
+ * The keys of `fieldset config set` (§7, R32, ADR 0077) and their appliers, one per key; since 2.0.0 every key of R32
  * (ADR 0089). `availability()` says per key where it applies and what to use instead
  * (`config show`, ADR 0078). `operator-email` changes the app's database, not the rendered stack, so it has its own
  * applier outside the render/verify/revert flow (ADR 0080).
@@ -114,7 +114,7 @@ final readonly class ConfigKeys
         throw new InvalidInput(
             'Unknown setting'.(preg_match('/^[a-z0-9-]{1,40}$/D', $key) === 1 ? " [{$key}]" : '').'.',
             'unknown_setting',
-            'Settings: '.implode(', ', self::keys()).'. Run `fsa config show` for their values.',
+            'Settings: '.implode(', ', self::keys()).'. Run `fieldset config show` for their values.',
         );
     }
 

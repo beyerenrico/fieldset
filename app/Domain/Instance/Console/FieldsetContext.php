@@ -13,8 +13,8 @@ use App\Domain\Instance\State\InstanceDirectory;
 use Carbon\CarbonImmutable;
 use SensitiveParameter;
 
-/** What an `fsa:*` command's `perform()` gets: host facts, progress, the secret registry and the instance. */
-final readonly class FsaContext
+/** What a `fieldset:*` command's `perform()` gets: host facts, progress, the secret registry and the instance. */
+final readonly class FieldsetContext
 {
     public function __construct(
         public HostFacts $facts,
@@ -38,7 +38,7 @@ final readonly class FsaContext
 
     /**
      * Whether a URL may go to the browser hand-over instead of the envelope: when asked with --open, or for a
-     * person at a desktop terminal (no --json, a TTY and a desktop session). An agent driving fsa with --json
+     * person at a desktop terminal (no --json, a TTY and a desktop session). An agent driving fieldset with --json
      * gets the link "as JSON" (R12) in `secrets` or its --secrets-file unless it asks for the browser.
      */
     public function handOverAllowed(): bool

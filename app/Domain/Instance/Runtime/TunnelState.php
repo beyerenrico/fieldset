@@ -7,7 +7,7 @@ namespace App\Domain\Instance\Runtime;
 use Carbon\CarbonImmutable;
 
 /**
- * The quick tunnel as `fsa tunnel start` records it (KTD12, ADR 0057): the trycloudflare hostname, its expiry,
+ * The quick tunnel as `fieldset tunnel start` records it (KTD12, ADR 0057): the trycloudflare hostname, its expiry,
  * cloudflared's fixed address on its own network (`peer`, the TCP peer of every tunnel request) and whether
  * `--tunnel-admin` opened /admin through it.
  */

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Restore;
 
-use App\Domain\Instance\Console\FsaContext;
+use App\Domain\Instance\Console\FieldsetContext;
 use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Operations\ContainerIdentity;
@@ -19,7 +19,7 @@ use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceState;
 
 /**
- * `fsa restore --abandon` (R54, plan U17, ADR 0085): ends a restore that stopped half-way, by its journal. Before the swap
+ * `fieldset restore --abandon` (R54, plan U17, ADR 0085): ends a restore that stopped half-way, by its journal. Before the swap
  * the scratch database, role, volume and directory go and the previous stack starts again; from the swap (or a return
  * that began) until the gate went down the previous database and volume come back (RestoreRecovery, also after an
  * exit 8); once the gate went down the restored instance took requests, so lowering and cleaning up are finished
@@ -36,16 +36,16 @@ final readonly class RestoreAbandon
         private RestoreFinale $finale,
     ) {}
 
-    public function abandon(FsaContext $context): CommandResult
+    public function abandon(FieldsetContext $context): CommandResult
     {
         $current = $this->journal->current();
         if (! $current instanceof JournalRecord || $current->operation() !== RestoreOperation::OPERATION) {
-            throw new InvalidInput('There is no interrupted restore to abandon.', 'nothing_to_abandon', 'Run `fsa status` to see what, if anything, is unfinished.');
+            throw new InvalidInput('There is no interrupted restore to abandon.', 'nothing_to_abandon', 'Run `fieldset status` to see what, if anything, is unfinished.');
         }
         $state = $this->directory->state();
 
         return $this->supervisor->run(
-            RestoreOperation::OPERATION, $this->identity->holder('fsa', $context->facts->callerUid()),
+            RestoreOperation::OPERATION, $this->identity->holder('fieldset', $context->facts->callerUid()),
             fn (OperationRun $run): CommandResult => $this->steps($run, $state), resume: true, progress: $context->progress,
         );
     }

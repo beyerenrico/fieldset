@@ -12,11 +12,11 @@ use Illuminate\Console\Command;
 use Throwable;
 
 /**
- * The queue sizes while an upgrade drains Horizon, and for `fsa upgrade --drop-jobs` the export (`--export`) and then
+ * The queue sizes while an upgrade drains Horizon, and for `fieldset upgrade --drop-jobs` the export (`--export`) and then
  * the deletion (`--drop`) of the jobs still pending or reserved (KTD19 step 4, plan U18, ADR 0086, QueueDrainer). Every
  * Horizon queue unless `--queue` names some.
  */
-#[Description('Queue sizes for fsa upgrade\'s drain; --export prints and --drop deletes the jobs left over')]
+#[Description('Queue sizes for fieldset upgrade\'s drain; --export prints and --drop deletes the jobs left over')]
 #[Signature('instance:queue-drain
         {--export : Print the raw payloads of every job still pending or reserved (nothing is deleted)}
         {--drop : Delete every job still pending or reserved (after --export was saved); delayed jobs stay}

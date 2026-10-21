@@ -1,10 +1,10 @@
 import { expectAccessible } from './support/axe';
 import { test, expect, type Page } from './support/test';
 
-// Phone trust page of a running `fsa` instance in local-CA mode (plan U14, R19, ADR 0057/0082), project
-// `fsa-instance` only (never part of the desktop run). Everything comes from the environment:
+// Phone trust page of a running `fieldset` instance in local-CA mode (plan U14, R19, ADR 0057/0082), project
+// `fieldset-instance` only (never part of the desktop run). Everything comes from the environment:
 // - FIELDSET_PHONE_TRUST_URL: the page on plain HTTP, e.g. http://192.168.178.24/phone-trust (unset: all tests skip)
-// - FIELDSET_LOCAL_CA_FINGERPRINT: the root's SHA-256 fingerprint as `fsa` printed it (optional)
+// - FIELDSET_LOCAL_CA_FINGERPRINT: the root's SHA-256 fingerprint as `fieldset` printed it (optional)
 // - FIELDSET_FIELD_APP_URL: the Field App over HTTPS, e.g. https://192.168.178.24/app/ (optional; the trailing slash
 //   matters: the service worker's scope is /app/)
 // - FIELDSET_LOCAL_CA_SPKI: comma-separated base64 SHA-256 SPKI hashes Chromium accepts without a certificate error
@@ -19,7 +19,7 @@ const SPKI = (process.env.FIELDSET_LOCAL_CA_SPKI ?? '').trim();
 const FINGERPRINT_FORMAT = /^[0-9A-F]{2}(:[0-9A-F]{2}){31}$/;
 const CHECK_TIMEOUT = 15_000;
 
-test.skip(TRUST_URL === '', 'FIELDSET_PHONE_TRUST_URL is not set: these tests need an fsa instance in local-CA mode.');
+test.skip(TRUST_URL === '', 'FIELDSET_PHONE_TRUST_URL is not set: these tests need a fieldset instance in local-CA mode.');
 
 if (SPKI !== '') {
   test.use({ launchOptions: { args: [`--ignore-certificate-errors-spki-list=${SPKI}`] } });

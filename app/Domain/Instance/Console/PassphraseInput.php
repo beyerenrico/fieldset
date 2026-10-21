@@ -33,7 +33,7 @@ final readonly class PassphraseInput
     private function __construct(private ?string $file, private bool $stdin, private Closure $read, private ?Closure $confirm) {}
 
     /** @param  bool  $twice  a new passphrase is entered twice in a terminal; an existing one (restore, R40) once */
-    public static function fromCommand(Command $command, FsaContext $context, bool $twice = true): self
+    public static function fromCommand(Command $command, FieldsetContext $context, bool $twice = true): self
     {
         $laravel = $command->getLaravel();
         $reader = $laravel->bound(self::STDIN) ? $laravel->make(self::STDIN) : null;
@@ -70,7 +70,7 @@ final readonly class PassphraseInput
     }
 
     /** @throws InvalidInput exit 2: both sources, an unreadable file, a passphrase that is too short or does not repeat */
-    public function read(FsaContext $context): ?string
+    public function read(FieldsetContext $context): ?string
     {
         if ($this->file !== null && $this->stdin) {
             throw new InvalidInput('--passphrase-file and --passphrase-stdin exclude each other.', 'invalid_flag', 'Pass the passphrase one way.');

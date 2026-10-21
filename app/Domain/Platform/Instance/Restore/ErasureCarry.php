@@ -13,7 +13,7 @@ use stdClass;
  * Re-applies an erasure (GDPR Art. 17, ADR 0039) that happened after the backup to the restored database (plan U17,
  * R64, ADR 0085): the same personal data AccountScrubber removes, written with the query builder on the target
  * connection. The account row itself gets the source's scrubbed columns (AccountCarry). Files are not touched here: the
- * one-off still mounts the pre-restore storage volume; the data-export directories of the account are returned so fsa
+ * one-off still mounts the pre-restore storage volume; the data-export directories of the account are returned so fieldset
  * can remove them from the restored volume.
  */
 final readonly class ErasureCarry

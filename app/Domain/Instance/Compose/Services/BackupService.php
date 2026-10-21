@@ -14,18 +14,18 @@ use App\Domain\Instance\Compose\ServiceSpec;
 use App\Domain\Instance\State\InstanceDirectory;
 
 /**
- * The backup service (E13, KTD15, U16; ADR 0059, ADR 0084): the app image as `fsa backup-daemon`, always rendered.
+ * The backup service (E13, KTD15, U16; ADR 0059, ADR 0084): the app image as `fieldset backup-daemon`, always rendered.
  *
  * - Container root with every capability dropped but DAC_READ_SEARCH and DAC_OVERRIDE (the private disk's 0700
  *   directories belong to www-data), CHOWN and FOWNER (its output belongs to the in-container owner), no new
  *   privileges, a read-only root file system, and never the Docker socket.
  * - Mounts: the storage volume read-only; of the instance directory only the marker (read-only), `locks/` (it takes
- *   the instance lock per run), `backups/` and `staging/backup/` (its settings, rendered by fsa, and the plain set of an
+ *   the instance lock per run), `backups/` and `staging/backup/` (its settings, rendered by fieldset, and the plain set of an
  *   encrypted backup being written: outside `backups/`, which people sync off the host, M12 gate S2/S3). Everything else
  *   it needs is in its env file (ServiceEnvironments::backup).
  * - The default network only, to reach Postgres as the backup role; it depends on a healthy Postgres.
  * - SIGTERM stops it between runs; a run cut off by the grace period leaves a `.partial` directory, removed by the
- *   next run, and a lock fsa takes over once the container is stopped (InstanceLock::isStale).
+ *   next run, and a lock fieldset takes over once the container is stopped (InstanceLock::isStale).
  */
 final readonly class BackupService implements ServiceDefinition
 {
@@ -41,7 +41,7 @@ final readonly class BackupService implements ServiceDefinition
 
         return [new ServiceSpec(self::NAME, [
             'image' => $context->image(ImageRole::App),
-            'command' => ['fsa', 'backup-daemon'],
+            'command' => ['fieldset', 'backup-daemon'],
             'user' => '0:0',
             'cap_drop' => ['ALL'],
             'cap_add' => self::CAPABILITIES,

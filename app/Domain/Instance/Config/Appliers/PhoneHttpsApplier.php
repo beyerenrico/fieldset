@@ -19,7 +19,7 @@ use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
 
 /**
- * `fsa config set phone-https local-ca|off` (§7, R19, R21, R61, ADR 0082) on a local install.
+ * `fieldset config set phone-https local-ca|off` (§7, R19, R21, R61, ADR 0082) on a local install.
  *
  * - `local-ca`: the edge joins the stack with Caddy's internal CA for the LAN address (the recorded one while it is
  *   still the host's, else the launcher's best candidate; `config set lan-address` picks another) and publishes 80 and
@@ -31,7 +31,7 @@ use App\Domain\Instance\State\InstanceState;
  *   the certificate volume; a later `local-ca` creates a new one, which phones must trust anew. A deletion that failed
  *   stays pending in the state (LocalCaDeletion): `off` again retries it, `local-ca` deletes it before its edge starts.
  *
- * The quick tunnel has its own command (`fsa tunnel`); domain and proxy mode already serve HTTPS (R61: exit 2).
+ * The quick tunnel has its own command (`fieldset tunnel`); domain and proxy mode already serve HTTPS (R61: exit 2).
  */
 final readonly class PhoneHttpsApplier implements SettingApplier, SettingHooks
 {
@@ -49,10 +49,10 @@ final readonly class PhoneHttpsApplier implements SettingApplier, SettingHooks
         $value = strtolower(trim($request->value));
         $settings = InstanceSettings::of($state);
         match (true) {
-            $value === 'tunnel' => throw new InvalidInput('The quick tunnel has its own command.', 'use_tunnel_command', 'Run `fsa tunnel start` (and `fsa tunnel stop`).'),
-            ! in_array($value, ['local-ca', 'off'], true) => throw new InvalidInput('Invalid value for phone-https.', 'invalid_value', 'Use local-ca or off; the quick tunnel is `fsa tunnel start`.'),
+            $value === 'tunnel' => throw new InvalidInput('The quick tunnel has its own command.', 'use_tunnel_command', 'Run `fieldset tunnel start` (and `fieldset tunnel stop`).'),
+            ! in_array($value, ['local-ca', 'off'], true) => throw new InvalidInput('Invalid value for phone-https.', 'invalid_value', 'Use local-ca or off; the quick tunnel is `fieldset tunnel start`.'),
             $state->mode() !== 'local' => throw new InvalidInput("Phone HTTPS belongs to local mode; this instance runs in {$state->mode()} mode, which serves HTTPS already (R61).", 'invalid_combination', 'Phones open '.$settings->instanceUrl().'.'),
-            $settings->tunnel() => throw new InvalidInput('The local CA and the quick tunnel exclude each other (R61).', 'invalid_combination', 'Stop the tunnel first: `fsa tunnel stop`.'),
+            $settings->tunnel() => throw new InvalidInput('The local CA and the quick tunnel exclude each other (R61).', 'invalid_combination', 'Stop the tunnel first: `fieldset tunnel stop`.'),
             default => null,
         };
         $from = $settings->phoneHttps() ?? 'off';
@@ -113,6 +113,6 @@ final readonly class PhoneHttpsApplier implements SettingApplier, SettingHooks
         }
 
         return LanAddress::best($this->facts)
-            ?? throw new InvalidInput('No LAN address of this host is known for the local CA.', 'lan_address_required', 'Set it first: `fsa config set lan-address <IPv4 address of this machine>`, then `fsa config set phone-https local-ca --yes`.');
+            ?? throw new InvalidInput('No LAN address of this host is known for the local CA.', 'lan_address_required', 'Set it first: `fieldset config set lan-address <IPv4 address of this machine>`, then `fieldset config set phone-https local-ca --yes`.');
     }
 }

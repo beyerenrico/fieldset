@@ -15,7 +15,7 @@ use App\Domain\Instance\State\InstanceState;
 use SensitiveParameter;
 
 /**
- * Who and what the fresh instance starts with after `fsa reset` (E9, plan U23, ADR 0088): install's seed phase again,
+ * Who and what the fresh instance starts with after `fieldset reset` (E9, plan U23, ADR 0088): install's seed phase again,
  * the first organization and its owner. Decided from the live database before anything stops (`instance:reset plan`):
  *
  * - the organization and locale the install record names (plain values), else the oldest real organization's;
@@ -52,11 +52,11 @@ final readonly class ResetSubject
         $digested = is_string($recorded['owner_email'] ?? null) ? $recorded['owner_email'] : null;
         $owner = array_find($operators, static fn (array $row): bool => $digest instanceof RecordDigest && $digested !== null && $digest->matches($digested, $row['email'])) ?? ($operators[0] ?? null);
         if ($owner === null) {
-            throw new InstanceException('No active platform operator can own the fresh instance.', ExitCode::PreflightFailed, 'owner_unknown', 'Grant the operator role with `fsa config set operator-email <email>`, then run `fsa reset` again; nothing was changed.');
+            throw new InstanceException('No active platform operator can own the fresh instance.', ExitCode::PreflightFailed, 'owner_unknown', 'Grant the operator role with `fieldset config set operator-email <email>`, then run `fieldset reset` again; nothing was changed.');
         }
         $first = is_array($data['organization'] ?? null) ? $data['organization'] : [];
         $organization = self::text($recorded['organization'] ?? null) ?? self::text($first['name'] ?? null)
-            ?? throw new InstanceException('The organization the instance was installed with is unknown.', ExitCode::PreflightFailed, 'organization_unknown', 'Install a new instance with `fsa install` instead; nothing was changed.');
+            ?? throw new InstanceException('The organization the instance was installed with is unknown.', ExitCode::PreflightFailed, 'organization_unknown', 'Install a new instance with `fieldset install` instead; nothing was changed.');
         $locale = array_find([$recorded['locale'] ?? null, $first['locale'] ?? null, $owner['locale'] ?? null], static fn (mixed $value): bool => in_array($value, InstallRequest::LOCALES, true));
         $counts = is_array($data['organizations'] ?? null) ? $data['organizations'] : [];
 
@@ -109,7 +109,7 @@ final readonly class ResetSubject
             return $subject;
         } catch (InvalidInput $e) {
             if ($subject->ownerName === null) {
-                throw new InstanceException('The fresh instance cannot be seeded with the recorded organization or owner: '.$e->getMessage(), ExitCode::PreflightFailed, 'reset_subject_invalid', 'Install a new instance with `fsa install` instead; nothing was changed.', previous: $e);
+                throw new InstanceException('The fresh instance cannot be seeded with the recorded organization or owner: '.$e->getMessage(), ExitCode::PreflightFailed, 'reset_subject_invalid', 'Install a new instance with `fieldset install` instead; nothing was changed.', previous: $e);
             }
 
             return self::valid(new self($subject->organization, $subject->locale, $subject->ownerEmail, null, $subject->organizations, $subject->nonDemo));

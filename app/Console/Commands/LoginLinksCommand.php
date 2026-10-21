@@ -13,7 +13,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 
 /**
- * One-time sign-in links for `fsa status` (ADR 0056, KTD25: a socket-less one-off). Never prints a token: only
+ * One-time sign-in links for `fieldset status` (ADR 0056, KTD25: a socket-less one-off). Never prints a token: only
  * the hash is stored.
  */
 #[Description('List one-time sign-in links (with --unused only those that can still be used)')]

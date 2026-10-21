@@ -12,7 +12,7 @@ use App\Domain\Instance\Backup\KeyFingerprint;
 use App\Domain\Instance\Restore\MigrationSet;
 
 /**
- * Backup sets on disk for the restore tests (plan U17): an fsa backup (plain or encrypted with tests/Fixtures/bin/
+ * Backup sets on disk for the restore tests (plan U17): a fieldset backup (plain or encrypted with tests/Fixtures/bin/
  * fake-age), or a 1.0 `scripts/backup.sh` directory, with a crafted storage archive and an HMAC keyed like ADR 0084
  * (HKDF of the APP key). `tools()` answers pg_restore's table of contents and migration rows without a real dump.
  */
@@ -38,12 +38,12 @@ final class BackupSetFixture
     }
 
     /**
-     * A plain fsa backup in `$dir` (created).
+     * A plain fieldset backup in `$dir` (created).
      *
      * @param  array<string, mixed>  $manifest  merged over the defaults
      * @param  array<string, string>  $extra  more files in the set (listed in SHA256SUMS)
      */
-    public static function fsa(string $dir, array $manifest = [], ?TarBuilder $storage = null, string $appKey = self::APP_KEY, array $extra = [], array $settings = []): string
+    public static function fieldset(string $dir, array $manifest = [], ?TarBuilder $storage = null, string $appKey = self::APP_KEY, array $extra = [], array $settings = []): string
     {
         @mkdir($dir, 0700, true);
         file_put_contents($dir.'/database.dump', "PGDMP\x01fixture dump");

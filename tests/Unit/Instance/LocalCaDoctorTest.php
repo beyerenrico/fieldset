@@ -24,7 +24,7 @@ use Tests\Support\Instance\TemporaryInstance;
 
 beforeEach(function (): void {
     $this->fixture = new InstanceCommandFixture;
-    $this->fixture->run('fsa:install', InstanceCommandFixture::installFlags());
+    $this->fixture->run('fieldset:install', InstanceCommandFixture::installFlags());
     $this->state = $this->fixture->state()->withSettings(['phone_https' => 'local-ca', 'lan_address' => PhoneFixtures::LAN, 'edge_subnet' => PhoneFixtures::EDGE_SUBNET])->withUrl('https://'.PhoneFixtures::LAN);
 });
 
@@ -69,6 +69,6 @@ it('skips the LAN address check without the local CA or without addresses to com
     expect($check->run(localCaContext($this, $this->fixture->state()))->status)->toBe(CheckStatus::Skipped)
         ->and($check->run(localCaContext($this, null, []))->status)->toBe(CheckStatus::Skipped)
         ->and($check->run(localCaContext($this))->status)->toBe(CheckStatus::Ok)
-        ->and($check->run(localCaContext($this, null, ['10.9.9.9']))->hint)->toContain('fsa config set lan-address 10.9.9.9 --yes')
+        ->and($check->run(localCaContext($this, null, ['10.9.9.9']))->hint)->toContain('fieldset config set lan-address 10.9.9.9 --yes')
         ->and(LanAddressCheck::hint(null))->toContain('<address>');
 });

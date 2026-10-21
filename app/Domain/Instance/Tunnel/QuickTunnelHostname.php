@@ -74,7 +74,7 @@ final readonly class QuickTunnelHostname
             }
         }
 
-        throw new InstanceException('The quick tunnel got no hostname from Cloudflare.', ExitCode::HealthCheckFailed, 'tunnel_unavailable', 'Quick tunnels need outbound internet access and have no uptime guarantee: check `fsa logs tunnel`, then run `fsa tunnel start` again.', true, [
+        throw new InstanceException('The quick tunnel got no hostname from Cloudflare.', ExitCode::HealthCheckFailed, 'tunnel_unavailable', 'Quick tunnels need outbound internet access and have no uptime guarantee: check `fieldset logs tunnel`, then run `fieldset tunnel start` again.', true, [
             'answer' => mb_substr($answer, 0, 500), 'logs' => $this->logs($project),
         ]);
     }

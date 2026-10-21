@@ -38,9 +38,9 @@ it('redacts CSP nonces, sign-in links, signatures and token fields, and leaves t
         'stdout' => ['data' => ['sign_in_link' => ['url' => 'https://forms.example/login-link#k3y.v4lue-_~', 'delivered' => 'stdout']]],
         'signed' => 'https://forms.example/invitations/7?expires=1760000000&signature=0f9a8b7c6d5e4f3a2b1c',
         'smoke_token' => 'c0ffee00c0ffee00c0ffee00c0ffee00',
-        'api' => ['access_token' => 'fsa_0123456789abcdef', 'token_type' => 'Bearer'],
+        'api' => ['access_token' => 'fieldset_0123456789abcdef', 'token_type' => 'Bearer'],
         'secrets' => ['database_password' => '[redacted]', 'valkey_password' => 'plain-leak'],
-        'Location' => 'https://fsa-test-j02.test/admin/login',
+        'Location' => 'https://fieldset-test-j02.test/admin/login',
         'audits' => '1',
     ]);
 
@@ -49,9 +49,9 @@ it('redacts CSP nonces, sign-in links, signatures and token fields, and leaves t
         ->and($redacted['signed'])->toBe('https://forms.example/invitations/7?expires=1760000000&signature=<redacted>')
         ->and($redacted['smoke_token'])->toBe('<redacted>')
         ->and($redacted['api'])->toBe(['access_token' => '<redacted>', 'token_type' => 'Bearer'])
-        // fsa's own redaction stays visible as such.
+        // fieldset's own redaction stays visible as such.
         ->and($redacted['secrets'])->toBe(['database_password' => '[redacted]', 'valkey_password' => '<redacted>'])
-        ->and($redacted['Location'])->toBe('https://fsa-test-j02.test/admin/login')
+        ->and($redacted['Location'])->toBe('https://fieldset-test-j02.test/admin/login')
         ->and($redacted['audits'])->toBe('1');
 });
 

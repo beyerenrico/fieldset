@@ -32,7 +32,7 @@ use App\Domain\Instance\State\InvalidState;
  *
  * Local-CA mode (R19, ADR 0082) uses the same service in local mode: Caddy's internal CA instead of ACME, and 80 and
  * 443/tcp published on the LAN address only (never 0.0.0.0). The CA's key lives on the same certificate volume
- * (`pki/`), which `fsa config set phone-https off` deletes (LocalCaStore).
+ * (`pki/`), which `fieldset config set phone-https off` deletes (LocalCaStore).
  */
 final readonly class EdgeService implements ServiceDefinition
 {

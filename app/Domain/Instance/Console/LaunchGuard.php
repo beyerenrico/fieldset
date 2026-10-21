@@ -10,14 +10,14 @@ use App\Domain\Instance\Output\ExitCode;
 use App\Domain\Instance\Output\InvalidInput;
 
 /**
- * Checks every `fsa` command started by the shim or install.sh makes before it touches anything (KTD2, ADR 0070):
+ * Checks every `fieldset` command started by the shim or install.sh makes before it touches anything (KTD2, ADR 0070):
  *
  * - The launcher wrote a nonce file into the instance directory and every writable mount. If the container
  *   cannot see it, the daemon mounted something else (Docker Desktop or Colima without file sharing for that
  *   path): exit 3 with a file-sharing hint, before a write could land inside the VM instead of on the host.
  * - No directory the launcher mounted for a file-path flag (FIELDSET_MOUNTS) may be reserved: one that equals,
  *   contains or lies inside a system path of the image or a directory other users can write to (RESERVED), or
- *   is / or /home. The launchers refuse these first (fsa_reserved_path in the shim, install.sh); this repeats it
+ *   is / or /home. The launchers refuse these first (fieldset_reserved_path in the shim, install.sh); this repeats it
  *   in the container, before any Docker call, for an older launcher. The instance directory is mounted at its own
  *   path and is the owner's alone (0700); the launchers check it, and a test temp directory may be one.
  * - A file-path flag (FilePathFlags) must point into the instance directory or a directory the launcher
@@ -47,7 +47,7 @@ final class LaunchGuard
         foreach ([$instancePath, ...$facts->writableMounts()] as $directory) {
             if (! is_file($directory.'/'.$facts->nonce)) {
                 throw new InstanceException(
-                    "Docker does not show {$directory} to the fsa container: the directory is not shared with the Docker engine.",
+                    "Docker does not show {$directory} to the fieldset container: the directory is not shared with the Docker engine.",
                     ExitCode::PreflightFailed,
                     'path_not_shared',
                     'Share the directory with Docker (Docker Desktop: Settings > Resources > File sharing; Colima: mounts in colima.yaml) or use a path under your home directory, then run the command again.',
@@ -72,9 +72,9 @@ final class LaunchGuard
             }
             if (! self::mounted($facts, $instancePath, $value, $kind === FilePathFlags::OUTPUT)) {
                 throw new InvalidInput(
-                    "--{$name} points outside every directory the fsa container can see: {$value}",
+                    "--{$name} points outside every directory the fieldset container can see: {$value}",
                     'path_not_mounted',
-                    'Pass an absolute path through the instance\'s fsa command or install.sh; they mount its directory.',
+                    'Pass an absolute path through the instance\'s fieldset command or install.sh; they mount its directory.',
                 );
             }
         }
@@ -96,9 +96,9 @@ final class LaunchGuard
         foreach (array_keys($facts->mounts) as $directory) {
             if (self::reserved($directory)) {
                 throw new InvalidInput(
-                    "The launcher mounted {$directory}, which would cover files of the fsa container or a directory other users can write to.",
+                    "The launcher mounted {$directory}, which would cover files of the fieldset container or a directory other users can write to.",
                     'path_reserved',
-                    'Pass file paths under your home directory or in the instance directory, and update the instance\'s fsa (install.sh).',
+                    'Pass file paths under your home directory or in the instance directory, and update the instance\'s fieldset (install.sh).',
                 );
             }
         }

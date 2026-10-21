@@ -18,7 +18,7 @@ require_once __DIR__.'/Support.php';
 
 /*
  * The `/platform` instance page (R39, R47, R48, R53, plan U20, ADR 0089): read-only, problems first (failed or stale
- * backup, disk, update available, backups held only on this host), each actionable status with its `fsa` command, then
+ * backup, disk, update available, backups held only on this host), each actionable status with its `fieldset` command, then
  * version and digests, mode and URL, mail with the catcher link, backups, disk and updates. Operators only.
  */
 
@@ -38,7 +38,7 @@ function instancePageRun(array $row): void
 }
 
 /**
- * An fsa runtime file with the instance block (local mode, catcher on the loopback port) and, optionally, the update check.
+ * A fieldset runtime file with the instance block (local mode, catcher on the loopback port) and, optionally, the update check.
  *
  * @param  array<string, mixed>  $overrides
  */
@@ -90,13 +90,13 @@ it('shows a failed last backup as the first problem, with the backup command, th
     $page = instancePageOpen();
 
     expect(instancePageProblems($page))->toBe(['backup_failed', 'disk_low', 'update_available', 'backups_on_host']);
-    $page->assertSeeInOrder(['data-instance-problem="backup_failed"', 'data-instance-severity="danger"', 'pg_dump_failed', 'fsa backup', 'data-instance-problem="disk_low"', 'fsa status', 'data-instance-problem="update_available"', 'fsa upgrade'], false)
+    $page->assertSeeInOrder(['data-instance-problem="backup_failed"', 'data-instance-severity="danger"', 'pg_dump_failed', 'fieldset backup', 'data-instance-problem="disk_low"', 'fieldset status', 'data-instance-problem="update_available"', 'fieldset upgrade'], false)
         ->assertSee(__('instance.problems.disk_low', ['percent' => 8]))
         ->assertSee('data-instance-backup-last="failed"', false);
     Http::assertNothingSent();
 });
 
-it('orders each backup alert by severity and names the command fsa status names', function (): void {
+it('orders each backup alert by severity and names the command fieldset status names', function (): void {
     instancePageRuntime();
     $this->travelTo(CarbonImmutable::parse('2026-10-19T12:00:00Z'));
     instancePageRun(['status' => 'succeeded', 'missing_files' => 3, 'started_at' => CarbonImmutable::parse('2026-10-19T03:30:00Z')]);
@@ -106,16 +106,16 @@ it('orders each backup alert by severity and names the command fsa status names'
     $page = instancePageOpen();
 
     expect(instancePageProblems($page))->toBe(['backup_service_failed', 'backup_disk_space', 'backup_files_missing', 'backups_on_host']);
-    $page->assertSeeInOrder(['invalid_schedule', 'fsa logs backup', __('instance.problems.backup_disk_space'), 'fsa backup', __('instance.problems.backup_files_missing', ['count' => 3])], false);
+    $page->assertSeeInOrder(['invalid_schedule', 'fieldset logs backup', __('instance.problems.backup_disk_space'), 'fieldset backup', __('instance.problems.backup_files_missing', ['count' => 3])], false);
 });
 
-it('warns when the backup service of an fsa instance never reported', function (): void {
+it('warns when the backup service of a fieldset instance never reported', function (): void {
     instancePageRuntime();
 
     $page = instancePageOpen();
 
     expect(instancePageProblems($page))->toBe(['backup_silent']);
-    $page->assertSeeInOrder([__('instance.problems.backup_silent'), 'fsa logs backup'], false)
+    $page->assertSeeInOrder([__('instance.problems.backup_silent'), 'fieldset logs backup'], false)
         ->assertSee('data-instance-backup-last="none"', false);
 });
 
@@ -129,20 +129,20 @@ it('shows version, digests, mode, URL and the loopback catcher link with its sig
         ->assertSee('data-instance-mode="local"', false)->assertSee(__('instance.access.modes.local'))->assertSee('http://localhost:8080')
         ->assertSee('data-instance-mail="capture"', false)->assertSee(__('instance.mail.capture'))
         ->assertSee('href="http://localhost:8025"', false)->assertSee('data-instance-catcher', false)
-        ->assertSee('fsa config set mail smtp')->assertSee('fsa config show --catcher-login');
+        ->assertSee('fieldset config set mail smtp')->assertSee('fieldset config show --catcher-login');
 });
 
 it('links the catcher behind the edge in domain mode without a sign-in command, and shows SMTP once configured', function (): void {
     instancePageRuntime([...RuntimeFixture::domain(), 'instance' => ['mode' => 'domain', 'catcher_url' => 'https://forms.example/_mail/']]);
 
     instancePageOpen()->assertSee('data-instance-mode="domain"', false)->assertSee('https://forms.example')
-        ->assertSee('href="https://forms.example/_mail/"', false)->assertDontSee('fsa config show --catcher-login');
+        ->assertSee('href="https://forms.example/_mail/"', false)->assertDontSee('fieldset config show --catcher-login');
 
     config(['mail.capture' => false, 'mail.mailers.smtp.host' => 'smtp.example.com']);
     instancePageRuntime(['instance' => ['catcher_url' => null]]);
     $this->get('/platform/instance')->assertOk()->assertSee('data-instance-mail="smtp"', false)
         ->assertSee(__('instance.mail.smtp', ['host' => 'smtp.example.com']))->assertDontSee('data-instance-catcher', false)
-        ->assertDontSee('fsa config set mail smtp');
+        ->assertDontSee('fieldset config set mail smtp');
 });
 
 it('shows the backup schedule, the next run and the last result from backup_runs', function (): void {
@@ -157,23 +157,23 @@ it('shows the backup schedule, the next run and the last result from backup_runs
     $page->assertSee(__('instance.backup.daily', ['time' => '03:30', 'zone' => 'Europe/Berlin']))
         ->assertSee('data-instance-backup-last="succeeded"', false)->assertSee(__('instance.backup.statuses.succeeded'))
         ->assertSee(Number::fileSize(5 * 1024 * 1024, precision: 1))->assertSee(__('instance.backup.next_run'))
-        ->assertSee('fsa config set backup-schedule HH:MM');
+        ->assertSee('fieldset config set backup-schedule HH:MM');
 });
 
-it('says there is no problem on an instance not run by fsa, and names no fsa command there', function (): void {
+it('says there is no problem on an instance not run by fieldset, and names no fieldset command there', function (): void {
     $page = instancePageOpen();
 
     $page->assertSee('data-instance-problems="none"', false)->assertSee(__('instance.problems.none'))
-        ->assertSee(__('instance.access.not_fsa'))->assertSee(__('instance.release.no_digests'))
+        ->assertSee(__('instance.access.not_fieldset'))->assertSee(__('instance.release.no_digests'))
         ->assertSee('data-instance-updates="off"', false)->assertSee(__('instance.updates.off'))
-        ->assertDontSee('fsa config set update-check on')->assertDontSee('data-instance-command', false)
+        ->assertDontSee('fieldset config set update-check on')->assertDontSee('data-instance-command', false)
         ->assertSee('data-instance-disk-percent="50"', false);
     Http::assertNothingSent();
 });
 
 it('names the command that turns the update check on, and says when it has not run yet', function (): void {
     instancePageRuntime();
-    instancePageOpen()->assertSee('data-instance-updates="off"', false)->assertSee('fsa config set update-check on');
+    instancePageOpen()->assertSee('data-instance-updates="off"', false)->assertSee('fieldset config set update-check on');
 
     instancePageRuntime(updates: true);
     $this->get('/platform/instance')->assertOk()->assertSee('data-instance-updates="on"', false)->assertSee(__('instance.updates.never'));

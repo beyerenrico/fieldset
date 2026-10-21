@@ -12,7 +12,7 @@ use Throwable;
 
 /**
  * Records that the backup service could not start (R39, ADR 0084), as a run of kind `service` with status `failed`, in
- * the ledger when the instance directory opens and in `backup_runs` when Postgres takes it: `fsa status` and `/platform`
+ * the ledger when the instance directory opens and in `backup_runs` when Postgres takes it: `fieldset status` and `/platform`
  * then name the reason (BackupAlerts `backup_service_failed`) instead of only missing backups. Docker restarts the
  * service, so the same failure again adds nothing; a later successful start supersedes it.
  */

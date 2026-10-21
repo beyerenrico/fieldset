@@ -10,7 +10,7 @@ use App\Domain\Instance\Doctor\DoctorContext;
 use App\Domain\Instance\HostFacts;
 
 /**
- * Removes nonce and browser hand-over files that interrupted fsa runs left in the instance directory (ADR 0070).
+ * Removes nonce and browser hand-over files that interrupted fieldset runs left in the instance directory (ADR 0070).
  * Files of the current run and anything younger than an hour (another run may still need it) stay.
  */
 final readonly class StaleFilesCheck implements DoctorCheck

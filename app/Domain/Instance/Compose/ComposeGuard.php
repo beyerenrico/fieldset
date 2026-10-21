@@ -46,7 +46,7 @@ final class ComposeGuard
         self::assertStrings($document, 'compose');
         foreach (['include', 'secrets', 'configs'] as $key) {
             if (array_key_exists($key, $document)) {
-                self::fail("The compose file would use [{$key}]; fsa renders everything into one file.");
+                self::fail("The compose file would use [{$key}]; fieldset renders everything into one file.");
             }
         }
         foreach ($document['services'] ?? [] as $name => $service) {

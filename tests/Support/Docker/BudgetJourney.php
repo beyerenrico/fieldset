@@ -24,7 +24,7 @@ final readonly class BudgetJourney
     private const array CLEARED_COMPOSE_ENV = ['COMPOSE_FILE', 'COMPOSE_PROJECT_NAME', 'COMPOSE_PROFILES', 'COMPOSE_ENV_FILES', 'COMPOSE_PATH_SEPARATOR'];
 
     /**
-     * `docker compose run --rm --no-deps -T app …` against the instance's own compose file (as fsa's one-offs), so the
+     * `docker compose run --rm --no-deps -T app …` against the instance's own compose file (as fieldset's one-offs), so the
      * container gets the app's env file, networks, storage volume, labels and memory limit.
      *
      * @param  list<string>  $command
@@ -137,7 +137,7 @@ final readonly class BudgetJourney
     /** psql as the instance's database owner (a superuser in the official image) inside its postgres container. */
     public static function psql(string $postgres, string $sql): Process
     {
-        $process = new Process(['docker', 'exec', $postgres, 'psql', '-v', 'ON_ERROR_STOP=1', '-U', 'form_schema', '-d', 'form_schema', '-tAc', $sql]);
+        $process = new Process(['docker', 'exec', $postgres, 'psql', '-v', 'ON_ERROR_STOP=1', '-U', 'fieldset', '-d', 'fieldset', '-tAc', $sql]);
         $process->setTimeout(600);
         $process->run();
 
@@ -220,7 +220,7 @@ final readonly class BudgetJourney
 
     /**
      * Phase durations of an install from its NDJSON progress lines, each stamped with its arrival (seconds since the
-     * command started): install.sh's own pull (its `pull` line until `handover`) and every fsa phase's `elapsed_seconds`.
+     * command started): install.sh's own pull (its `pull` line until `handover`) and every fieldset phase's `elapsed_seconds`.
      *
      * @param  list<array{at: float, line: string}>  $lines
      * @return array{phases: array<string, float>, pull_seconds: float}

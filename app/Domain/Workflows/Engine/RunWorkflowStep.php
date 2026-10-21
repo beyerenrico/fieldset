@@ -85,9 +85,9 @@ final class RunWorkflowStep implements ShouldQueue
     }
 
     /**
-     * A webhook step waits while the instance pauses webhooks after a move (`fsa install --from-backup`, runtime
+     * A webhook step waits while the instance pauses webhooks after a move (`fieldset install --from-backup`, runtime
      * `webhooks.paused`, ADR 0085): it is not claimed, so no attempt is counted and the run stays as it is; the
-     * stalled-run sweep (`workflows:tick`) queues it again until `fsa config set webhooks on` lifts the pause.
+     * stalled-run sweep (`workflows:tick`) queues it again until `fieldset config set webhooks on` lifts the pause.
      *
      * Fail closed (review S5): only runtime.json itself, or this process's last good value of it, can say webhooks are
      * not paused; an unusable file without one holds them. Without a runtime directory (checkout installs, tests) there

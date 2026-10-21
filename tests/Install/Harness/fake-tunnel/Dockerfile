@@ -1,5 +1,5 @@
 # The fake quick tunnel (tests/Install/Harness/fake-tunnel/fake-tunnel.sh; J6, ADR 0082), built by FakeTunnel as
-# fsa-test-fake-tunnel:<id>. BASE is the Caddy image pinned in distribution/release.json.
+# fieldset-test-fake-tunnel:<id>. BASE is the Caddy image pinned in distribution/release.json.
 ARG BASE
 FROM ${BASE}
 COPY --chmod=0755 fake-tunnel.sh /usr/local/bin/fake-tunnel

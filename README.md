@@ -11,8 +11,8 @@ tablet (also offline) to produce reports, invoices, checklists and other documen
   JavaScript SDKs (`packages/`, MIT)
 
 > Status: **2.0** — distributed as signed Docker images and installed, configured, backed up and upgraded with
-> one command-line tool, `fsa`. See [CHANGELOG.md](CHANGELOG.md) and the [guides](docs/guide/index.md). 1.0 installs
-> from a clone of the repository move to 2.0 with `fsa adopt`.
+> one command-line tool, `fieldset`. See [CHANGELOG.md](CHANGELOG.md) and the [guides](docs/guide/index.md). 1.0 installs
+> from a clone of the repository move to 2.0 with `fieldset adopt`.
 
 ## What you can do
 
@@ -63,11 +63,11 @@ for sample data. The [install guide](docs/guide/install.md) covers every mode; A
 [agent guide](docs/guide/agent-guide.md). Afterwards:
 
 ```bash
-./fsa status                       # in the instance directory (or <dir>/fsa, or fsa once linked into PATH)
-./fsa login-link owner@example.com # a new sign-in link
-./fsa config set mail smtp …       # deliver mail instead of capturing it
-./fsa backup                       # a backup now (daily backups run by themselves)
-./fsa upgrade                      # to the newest release, with automatic rollback
+./fieldset status                       # in the instance directory (or <dir>/fieldset, or fieldset once linked into PATH)
+./fieldset login-link owner@example.com # a new sign-in link
+./fieldset config set mail smtp …       # deliver mail instead of capturing it
+./fieldset backup                       # a backup now (daily backups run by themselves)
+./fieldset upgrade                      # to the newest release, with automatic rollback
 ```
 
 ## Development

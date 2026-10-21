@@ -19,10 +19,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
- * The app side of `fsa config set operator-email <email>` (R32, plan U11/U12, ADR 0080), in one transaction:
+ * The app side of `fieldset config set operator-email <email>` (R32, plan U11/U12, ADR 0080), in one transaction:
  *
  * - grants the platform operator role (ADR 0041) to the account with that address, creating it when there is none
- *   (no organization, a password nobody knows, the address counted as verified: fsa's caller vouches for it);
+ *   (no organization, a password nobody knows, the address counted as verified: fieldset's caller vouches for it);
  * - issues the first sign-in link (the owner link, password-reset broker, 60 minutes) when the account has no password
  *   of its own yet, so the new operator can set one; an account with a password signs in at /platform as before.
  *   A repeat for an operator who is one already issues a new link only when no usable one is left (unused, not

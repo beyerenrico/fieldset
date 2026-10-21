@@ -41,7 +41,7 @@ function quiesceOrder(UpgradeFixture $upgrade): array
 }
 
 it('waits after the gate rose until no request holds a database session, and only then seals and backs up', function (): void {
-    $this->upgrade->sessions = [[['pid' => 7, 'application_name' => '', 'user' => 'form_schema', 'state' => 'active']], []];
+    $this->upgrade->sessions = [[['pid' => 7, 'application_name' => '', 'user' => 'fieldset', 'state' => 'active']], []];
 
     [$code, $json] = $this->upgrade->upgrade();
     $order = quiesceOrder($this->upgrade);
@@ -54,7 +54,7 @@ it('waits after the gate rose until no request holds a database session, and onl
 });
 
 it('reverts with exit 9 and seals nothing when a session stays past the bound, naming it', function (): void {
-    $this->upgrade->sessions = [[['pid' => 7, 'application_name' => 'psql', 'user' => 'form_schema', 'state' => 'idle in transaction']]];
+    $this->upgrade->sessions = [[['pid' => 7, 'application_name' => 'psql', 'user' => 'fieldset', 'state' => 'idle in transaction']]];
 
     [$code, $json] = $this->upgrade->upgrade();
 
@@ -66,7 +66,7 @@ it('reverts with exit 9 and seals nothing when a session stays past the bound, n
         ->and(new OperationJournal($this->upgrade->instance->directory)->current())->toBeNull();
 });
 
-it('reverts with exit 9 when sealing the audit entries fails, naming `fsa upgrade` to run again (gate review C6)', function (): void {
+it('reverts with exit 9 when sealing the audit entries fails, naming `fieldset upgrade` to run again (gate review C6)', function (): void {
     $docker = $this->upgrade->instance->docker;
     $previous = $docker->composeRunResponder;
     $docker->respondToComposeRun(static fn (array $command, ?string $input = null): ?ProcessOutcome => ($command[2] ?? null) === 'audit:seal'
@@ -76,7 +76,7 @@ it('reverts with exit 9 when sealing the audit entries fails, naming `fsa upgrad
 
     expect($code)->toBe(9, (string) json_encode($json))
         ->and($json['errors'][0]['code'])->toBe('audit_seal_failed')
-        ->and($json['errors'][0]['hint'])->toContain('`fsa upgrade`')
+        ->and($json['errors'][0]['hint'])->toContain('`fieldset upgrade`')
         ->and(quiesceOrder($this->upgrade))->not->toContain('backup')
         ->and($this->upgrade->gate()['raised'])->toBeFalse();
 });

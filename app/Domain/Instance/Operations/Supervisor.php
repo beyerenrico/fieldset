@@ -21,7 +21,7 @@ use Throwable;
  * Runs a state-changing operation under the instance lock with its journal (R54, R69, KTD4, KTD5).
  *
  * - Lock first; a stale lock taken over is journaled (`lock_takeover`). The holder's heartbeat is written around
- *   every phase (`fsa status` shows it).
+ *   every phase (`fieldset status` shows it).
  * - An unfinished journal blocks a different operation (exit 9); the same operation continues with `resume`.
  * - A failure before any changing phase exits 9 (or its own pre-change code, e.g. 3) and archives the journal;
  *   after a change the journal stays open so a re-run can resume, unless the outcome closes it (ok, rolled back).
@@ -79,7 +79,7 @@ final readonly class Supervisor
     {
         $labels = Labels::forInstance($state->uuid(), self::ROLE);
         if ($this->docker->containers($labels, all: false) !== []) {
-            throw new InstanceException('A supervisor for this instance is already running.', ExitCode::AbortedUnchanged, 'supervisor_running', 'Follow it with `fsa upgrade --follow` (it returns its result); `fsa status` shows its journal.', true,
+            throw new InstanceException('A supervisor for this instance is already running.', ExitCode::AbortedUnchanged, 'supervisor_running', 'Follow it with `fieldset upgrade --follow` (it returns its result); `fieldset status` shows its journal.', true,
                 ['container' => $state->project().'-'.self::ROLE]);
         }
         $outcome = $this->docker->runContainer($spec->detachedAs($state->project().'-'.self::ROLE, $labels));

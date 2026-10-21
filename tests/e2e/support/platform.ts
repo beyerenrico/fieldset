@@ -20,8 +20,8 @@ export function newOperator(prefix: string): Operator {
 }
 
 /**
- * The Compose project whose app container runs artisan (plan U22, BUILD_PROMPT_V2 §11 dogfooding): an `fsa` instance's
- * (e.g. `fsa-fsa-test-dogfood-1a2b`), or the dev stack's when Playwright runs outside the checkout. Unset or empty:
+ * The Compose project whose app container runs artisan (plan U22, BUILD_PROMPT_V2 §11 dogfooding): a `fieldset` instance's
+ * (e.g. `fieldset-fieldset-test-dogfood-1a2b`), or the dev stack's when Playwright runs outside the checkout. Unset or empty:
  * `docker compose exec` in the working directory, the checkout's own project.
  */
 export const E2E_COMPOSE_PROJECT = process.env.E2E_COMPOSE_PROJECT ?? '';

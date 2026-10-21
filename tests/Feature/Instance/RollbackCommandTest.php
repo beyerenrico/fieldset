@@ -14,7 +14,7 @@ use Tests\Support\Instance\UpgradeFixture;
 use Tests\Support\Release\ReleaseFixtures;
 
 /*
- * `fsa rollback` (R37, R43, R57, R64, R68, plan U18, ADR 0086) after an upgrade alpha.1 → alpha.2, against the recording
+ * `fieldset rollback` (R37, R43, R57, R64, R68, plan U18, ADR 0086) after an upgrade alpha.1 → alpha.2, against the recording
  * Docker gateway: it asks first and names the loss, refuses without a previous release or after a restore since the
  * upgrade (exit 7), quiesces like an upgrade, records the ledger, exports the security state from the current release,
  * restores the pre-upgrade safety backup atomically, lets the **previous** image render its own files (render-only
@@ -82,7 +82,7 @@ it('returns to the previous release from the upgrade\'s safety backup, carrying 
 });
 
 it('asks first and names what is lost (exit 6 without --yes)', function (): void {
-    [$code, $json] = $this->upgrade->instance->run('fsa:rollback');
+    [$code, $json] = $this->upgrade->instance->run('fieldset:rollback');
 
     expect($code)->toBe(6)
         ->and($json['errors'][0]['message'])->toContain(InstanceCommandFixture::VERSION)->toContain('12 submissions')->toContain('340 audit entries')
@@ -101,11 +101,11 @@ it('refuses without a previous release, after a restore since the upgrade, and w
     [$code, $json] = $this->upgrade->rollback();
 
     expect($code)->toBe(7, (string) json_encode($json))->and($json['errors'][0]['code'])->toBe($error)
-        ->and($json['errors'][0]['hint'])->toContain($hint)->not->toContain('fsa install --from-backup') // gate review DOC14
+        ->and($json['errors'][0]['hint'])->toContain($hint)->not->toContain('fieldset install --from-backup') // gate review DOC14
         ->and($this->config->callsSince($mark, 'composeStop'))->toBe([]);
 })->with([
-    ['no previous', 'no_previous_release', '`fsa restore <backup>`'],
-    ['restored', 'restored_since_upgrade', '`fsa restore <backup>`'],
+    ['no previous', 'no_previous_release', '`fieldset restore <backup>`'],
+    ['restored', 'restored_since_upgrade', '`fieldset restore <backup>`'],
     ['missing backup', 'safety_backup_missing', '`install.sh --dir <new directory> --from-backup <backup>`'],
 ]);
 
@@ -136,7 +136,7 @@ it('returns to the upgraded release when the rolled-back one fails its verificat
         ->and($state->version())->toBe(UpgradeFixture::TARGET)
         ->and($state->previous())->not->toBeNull()
         ->and($this->upgrade->compose())->toContain(UpgradeFixture::TARGET_DIGEST)
-        ->and($this->upgrade->restore->databases)->toContain('form_schema')
+        ->and($this->upgrade->restore->databases)->toContain('fieldset')
         ->and(array_filter($this->upgrade->restore->databases, static fn (string $name): bool => str_contains($name, 'restore_')))->toBe([])
         ->and($this->upgrade->gate()['raised'])->toBeFalse();
 });
@@ -148,7 +148,7 @@ it('stops everything and names the way on when going back fails too (exit 8), an
 
     expect($code)->toBe(8, (string) json_encode($json))
         ->and($json['errors'][0]['code'])->toBe('rollback_return_failed')
-        ->and($json['errors'][0]['hint'])->toContain('fsa rollback')
+        ->and($json['errors'][0]['hint'])->toContain('fieldset rollback')
         ->and($this->upgrade->gate()['raised'])->toBeTrue()
         ->and(new OperationJournal($this->upgrade->instance->directory)->current()?->operation())->toBe('rollback');
 
@@ -163,7 +163,7 @@ it('stops everything and names the way on when going back fails too (exit 8), an
 
 it('lets the previous image only render, without a migration', function (): void {
     [$code] = $this->upgrade->rollback();
-    $stage = $this->upgrade->instance->runSpecs('fsa');
+    $stage = $this->upgrade->instance->runSpecs('fieldset');
     $render = array_values(array_filter($stage, static fn ($spec): bool => ($spec->command[0] ?? null) === 'upgrade-child'));
 
     expect($code)->toBe(0)
@@ -174,7 +174,7 @@ it('lets the previous image only render, without a migration', function (): void
 it('refuses a safety backup that is no longer the set the upgrade verified, even an authenticated one (M12 gate S4)', function (): void {
     $name = $this->upgrade->safetyBackups[0];
     exec('rm -rf '.escapeshellarg($this->dir.'/backups/'.$name));
-    BackupSetFixture::fsa($this->dir.'/backups/'.$name, ['kind' => 'safety-upgrade', ...$this->upgrade->restore->manifest()], appKey: $this->upgrade->restore->appKey(), settings: ['note' => 'another set']); // authenticated, but another set's content
+    BackupSetFixture::fieldset($this->dir.'/backups/'.$name, ['kind' => 'safety-upgrade', ...$this->upgrade->restore->manifest()], appKey: $this->upgrade->restore->appKey(), settings: ['note' => 'another set']); // authenticated, but another set's content
     $mark = $this->config->mark();
 
     [$code, $json] = $this->upgrade->rollback();

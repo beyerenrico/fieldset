@@ -278,7 +278,7 @@ final readonly class ConfigRollout
                 'Services did not become healthy: '.($failing === [] ? 'the stack' : implode(', ', $failing)).'.',
                 ExitCode::HealthCheckFailed,
                 'services_unhealthy',
-                'Read `fsa logs <service>` for the cause.',
+                'Read `fieldset logs <service>` for the cause.',
                 true,
                 ['services' => $failing, 'logs' => $this->logs($project, $failing), 'docker' => $e->outcome->stderrTail(5)],
                 $e,

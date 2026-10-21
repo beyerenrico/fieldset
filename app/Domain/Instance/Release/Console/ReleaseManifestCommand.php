@@ -19,7 +19,7 @@ use Illuminate\Console\Command;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * Release tooling for CI and the local harness (plan U7, ADR 0067), not an `fsa` command: it needs no instance
+ * Release tooling for CI and the local harness (plan U7, ADR 0067), not a `fieldset` command: it needs no instance
  * directory. Registry credentials for the app image (a private GHCR package before it is made public) come from
  * RELEASE_REGISTRY_USERNAME and RELEASE_REGISTRY_PASSWORD, never from flags.
  */

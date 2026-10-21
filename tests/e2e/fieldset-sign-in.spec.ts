@@ -5,7 +5,7 @@ import { test, expect, type Page } from './support/test';
 import { freshTotp } from './support/totp';
 
 // One-time sign-in links (BUILD_PROMPT_V2 R27/R28, KTD21, ADR 0056/0068), driven through the app-side commands
-// that `fsa login-link` runs as socket-less one-offs. The token travels in the URL fragment: no request line
+// that `fieldset login-link` runs as socket-less one-offs. The token travels in the URL fragment: no request line
 // carries it, only the landing page's POST body does. Each test creates its own demo-organization admin in the
 // app container, so reruns need no reseed; afterAll deletes them again (with their membership, operator grant
 // and links), or they pile up as demo members.
@@ -121,7 +121,7 @@ test.describe.serial('one-time sign-in links', () => {
         ).newPage();
         await again.goto(link.url);
         await expect(again.locator('main[data-login-link-state="used"]')).toBeVisible();
-        await expect(again.getByText('fsa login-link <email>')).toBeVisible();
+        await expect(again.getByText('fieldset login-link <email>')).toBeVisible();
         await expect(again).not.toHaveURL(/#/);
         await expectAccessible(again, 'sign-in link: used');
     });
@@ -177,7 +177,7 @@ test.describe.serial('one-time sign-in links', () => {
         ).newPage();
         await again.goto(link.url);
         await expect(again.locator('main[data-login-link-state="used"]')).toBeVisible();
-        await expect(again.getByText('fsa login-link <email>')).toBeVisible();
+        await expect(again.getByText('fieldset login-link <email>')).toBeVisible();
     });
 
     test('expired and invalid links have their own German and English states', async ({
@@ -215,7 +215,7 @@ test.describe.serial('one-time sign-in links', () => {
             await page.goto(expired.url);
             await expect(page.locator('main[data-login-link-state="expired"]')).toBeVisible();
             await expect(page.getByRole('heading', { name: texts.expired })).toBeVisible();
-            await expect(page.getByText('fsa login-link <email>')).toBeVisible();
+            await expect(page.getByText('fieldset login-link <email>')).toBeVisible();
 
             await page.goto(`/login-link#${'x'.repeat(64)}`);
             await expect(page.locator('main[data-login-link-state="invalid"]')).toBeVisible();

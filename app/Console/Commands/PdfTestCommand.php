@@ -18,7 +18,7 @@ use Illuminate\Console\Command;
  * document through the app's own Gotenberg client (the path every rendition takes) and checks that a PDF came back.
  * Nothing is stored. Exit 0 with `data.bytes` when it did; `pdf_render_failed` otherwise.
  */
-#[Description('Render a one-page test PDF through Gotenberg (fsa install smoke test)')]
+#[Description('Render a one-page test PDF through Gotenberg (fieldset install smoke test)')]
 #[Signature('instance:pdf-test
         {--json : Print one JSON document on stdout}')]
 final class PdfTestCommand extends Command
@@ -48,7 +48,7 @@ final class PdfTestCommand extends Command
 
     private function refuse(string $message): int
     {
-        $hint = 'Check that the gotenberg service runs (`fsa logs gotenberg`) and that the app reaches it.';
+        $hint = 'Check that the gotenberg service runs (`fieldset logs gotenberg`) and that the app reaches it.';
         if ($this->option('json') === true) {
             return JsonResult::failed(self::NAME, 'pdf_render_failed', $message, $hint, true)->emit($this);
         }

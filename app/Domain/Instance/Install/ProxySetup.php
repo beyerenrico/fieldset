@@ -21,7 +21,7 @@ use App\Domain\Instance\State\InstanceState;
  * - traefik, caddy: the proxy container's address on the shared network, read from the Docker engine at install
  *   (the doctor phase, nothing changes). The container is the one named by `--trusted-proxy` (name, ID or its
  *   address there), else the only container on that network running a Traefik or caddy-docker-proxy image. Not
- *   by DNS name: any neighbour may claim the same network alias. The name is kept: `fsa doctor` and `fsa status`
+ *   by DNS name: any neighbour may claim the same network alias. The name is kept: `fieldset doctor` and `fieldset status`
  *   re-resolve it and warn when its address moved (`drift()`, ADR 0078), and `config set trusted-proxy auto`
  *   follows it.
  * - port: the gateway of the instance's own default network, where connections to a loopback-published port
@@ -85,18 +85,18 @@ final readonly class ProxySetup
         $network = $project->name.'_default';
 
         return $this->docker->inspectNetwork($network)?->gateway()
-            ?? throw new InstanceException("The network {$network} reports no gateway.", ExitCode::HealthCheckFailed, 'gateway_unknown', 'Run `fsa install` again with the same flags: it resumes here.', true);
+            ?? throw new InstanceException("The network {$network} reports no gateway.", ExitCode::HealthCheckFailed, 'gateway_unknown', 'Run `fieldset install` again with the same flags: it resumes here.', true);
     }
 
     /**
      * The proxy's endpoint on the shared network: the container named by `$given` (name, ID or its address there),
      * else the only container running the setup's proxy image (exit 3 when none or several, with `data.candidates`).
-     * `fsa config set trusted-proxy` re-resolves through the same rule; `$forConfig` makes the hint name that command
+     * `fieldset config set trusted-proxy` re-resolves through the same rule; `$forConfig` makes the hint name that command
      * instead of the install flag.
      */
     public function endpointOn(NetworkInfo $network, string $kind, ?string $given, bool $forConfig = false): NetworkEndpoint
     {
-        $retry = $forConfig ? 'Run `fsa config set trusted-proxy <name>`' : 'Pass --trusted-proxy';
+        $retry = $forConfig ? 'Run `fieldset config set trusted-proxy <name>`' : 'Pass --trusted-proxy';
         if ($given !== null) {
             $endpoint = InputGrammar::isIp($given) ? $network->endpointAt($given) : $network->endpoint($given);
 
@@ -138,7 +138,7 @@ final readonly class ProxySetup
     }
 
     /**
-     * Where the trusted proxy is now, read-only (`fsa doctor`, `fsa status`; ADR 0078): traefik and caddy re-resolve the
+     * Where the trusted proxy is now, read-only (`fieldset doctor`, `fieldset status`; ADR 0078): traefik and caddy re-resolve the
      * recorded container on the shared network, the port setup re-reads its network's gateway. Null outside proxy
      * mode or without a recorded proxy.
      *

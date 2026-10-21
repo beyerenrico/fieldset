@@ -8,7 +8,7 @@ use Tests\Support\Instance\ConfigFixture;
 use Tests\Support\Instance\TemporaryInstance;
 
 /*
- * Plan U11 (R15, R32, ADR 0077): `fsa config set port` in local mode (a URL change: --yes) and the rules around it:
+ * Plan U11 (R15, R32, ADR 0077): `fieldset config set port` in local mode (a URL change: --yes) and the rules around it:
  * the port must be free (exit 3), not the catcher's (exit 2), not in domain mode (exit 2); a failed smoke test after
  * the change reverts to the old port.
  */
@@ -81,7 +81,7 @@ it('reverts to the old port when the smoke test fails after the change', functio
 
     expect($code)->toBe(5, json_encode($json))
         ->and($json['errors'][0]['code'])->toBe('smoke_failed')
-        ->and($json['errors'][0]['hint'])->toContain('fsa logs')->not->toContain('fsa install')
+        ->and($json['errors'][0]['hint'])->toContain('fieldset logs')->not->toContain('fieldset install')
         ->and($json['data'])->toMatchArray(['reverted' => true, 'url' => 'http://localhost:8080'])
         ->and($this->config->state()->setting('port'))->toBe(8080)
         ->and(ComposeFile::document($this->config->instance->directory)['services']['app']['ports'][0]['published'])->toBe('8080');
@@ -94,5 +94,5 @@ it('refuses the port in domain mode, where the edge publishes 80 and 443', funct
 
     expect($code)->toBe(2)
         ->and($json['errors'][0]['code'])->toBe('not_in_this_mode')
-        ->and($json['errors'][0]['hint'])->toContain('fsa config set mode local');
+        ->and($json['errors'][0]['hint'])->toContain('fieldset config set mode local');
 });

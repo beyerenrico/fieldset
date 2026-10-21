@@ -12,7 +12,7 @@ use App\Domain\Instance\Doctor\DoctorContext;
 use App\Domain\Instance\Lifecycle\ComposeFile;
 use App\Domain\Instance\State\InstanceState;
 
-/** `fsa doctor --post` (§7): every service of the compose file runs, and those with a healthcheck are healthy. */
+/** `fieldset doctor --post` (§7): every service of the compose file runs, and those with a healthcheck are healthy. */
 final readonly class ServicesCheck implements DoctorCheck
 {
     public function key(): string
@@ -23,7 +23,7 @@ final readonly class ServicesCheck implements DoctorCheck
     public function run(DoctorContext $context): CheckResult
     {
         if (! $context->state instanceof InstanceState || ComposeFile::services($context->directory) === []) {
-            return CheckResult::fail($this->key(), 'The instance has no services yet.', 'Run `fsa install` to finish the installation.');
+            return CheckResult::fail($this->key(), 'The instance has no services yet.', 'Run `fieldset install` to finish the installation.');
         }
         $containers = ComposeFile::serviceContainers($context->docker->composePs(ComposeProject::forInstance($context->state, $context->directory)));
         $problems = [];
@@ -38,7 +38,7 @@ final readonly class ServicesCheck implements DoctorCheck
             }
         }
         if ($problems !== []) {
-            return CheckResult::fail($this->key(), ucfirst(implode('; ', $problems)).'.', 'Read the logs with `fsa logs <service>`; `fsa install` resumes an unfinished installation.', ['services' => $states]);
+            return CheckResult::fail($this->key(), ucfirst(implode('; ', $problems)).'.', 'Read the logs with `fieldset logs <service>`; `fieldset install` resumes an unfinished installation.', ['services' => $states]);
         }
 
         return CheckResult::ok($this->key(), 'All '.count($states).' services run and are healthy.', ['services' => $states]);

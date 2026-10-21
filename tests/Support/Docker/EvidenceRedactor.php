@@ -16,7 +16,7 @@ final class EvidenceRedactor
 {
     public const string MASK = '<redacted>';
 
-    /** How `fsa config show` itself prints a secret. */
+    /** How `fieldset config show` itself prints a secret. */
     private const string FIELDSET_MASK = '[redacted]';
 
     /** Fields whose whole value is secret: *_token, *-token, *secret, *password (not token_type, not secrets lists). */
@@ -54,7 +54,7 @@ final class EvidenceRedactor
             return $value;
         }
         if ($key !== null && preg_match(self::SECRET_KEY, $key) === 1) {
-            return $value === self::FIELDSET_MASK ? $value : self::MASK; // fsa's own redaction stays visible
+            return $value === self::FIELDSET_MASK ? $value : self::MASK; // fieldset's own redaction stays visible
         }
 
         return self::json($value) ?? self::text($key !== null && preg_match(self::COOKIE_KEY, $key) === 1 ? self::cookies($value) : $value);
@@ -62,7 +62,7 @@ final class EvidenceRedactor
 
     /**
      * An envelope's `secrets` list keeps each entry's name, `written_to` and expiry but never its `value`; a `secrets`
-     * map (`config show`) keeps only fsa's own mask.
+     * map (`config show`) keeps only fieldset's own mask.
      *
      * @param  array<array-key, mixed>  $secrets
      * @return array<array-key, mixed>

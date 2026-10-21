@@ -7,7 +7,7 @@ namespace App\Domain\Instance\Config;
 use SensitiveParameter;
 
 /**
- * SMTP user name and password for `fsa config set mail smtp` (R25, R50, ADR 0080). They live only in the app roles'
+ * SMTP user name and password for `fieldset config set mail smtp` (R25, R50, ADR 0080). They live only in the app roles'
  * env files (MAIL_USERNAME, MAIL_PASSWORD), never in the state, the journal, the JSON or an audit entry; the password
  * arrives through stdin or a file. The user name is treated as a credential too (`config show` redacts it).
  */

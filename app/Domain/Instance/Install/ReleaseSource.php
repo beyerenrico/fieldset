@@ -15,7 +15,7 @@ use App\Domain\Instance\State\InstanceDirectory;
 
 /**
  * The release an install uses (R9, R58, ADR 0070). install.sh verified and stored the manifest under
- * `<dir>/releases/<version>/` and names it in FIELDSET_RELEASE_MANIFEST; fsa verifies it again with the pinned cosign
+ * `<dir>/releases/<version>/` and names it in FIELDSET_RELEASE_MANIFEST; fieldset verifies it again with the pinned cosign
  * image before it uses any digest, so a manifest swapped after install.sh cannot pick the images that get the
  * socket. A re-run through the shim (no FIELDSET_RELEASE_MANIFEST) uses the stored release of `--version`, or the
  * only one there is.

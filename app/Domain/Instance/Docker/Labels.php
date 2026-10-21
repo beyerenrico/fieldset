@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Instance\Docker;
 
 /**
- * Label keys of resources `fsa` creates (R63, KTD6). Our own keys use the `app.fieldset.*` prefix, because
+ * Label keys of resources `fieldset` creates (R63, KTD6). Our own keys use the `app.fieldset.*` prefix, because
  * Compose reserves `com.docker.compose.*`, which we only read.
  */
 final class Labels

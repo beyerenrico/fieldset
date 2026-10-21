@@ -14,7 +14,7 @@ use Closure;
  * the newest backup, or of this one), a second database (three times the dump: tables and indexes unpacked), a second
  * storage volume (the archive's unpacked bytes) and 1 GiB of headroom must fit on the file system of the instance
  * directory. Docker keeps volumes and the database in its own data root, which is the same disk on most single-disk
- * hosts; where it is not, this is the estimate fsa can make without reaching into Docker's directories. When the free
+ * hosts; where it is not, this is the estimate fieldset can make without reaching into Docker's directories. When the free
  * space cannot be read at all the check passes with `free: null` and the restore warns `disk_space_unknown` (review A12):
  * refusing would block every restore on a host whose file system does not report it.
  */
@@ -23,7 +23,7 @@ final readonly class RestoreSpace
     public const int HEADROOM = 1024 ** 3;
 
     /** Container key of a closure returning free bytes (tests). */
-    public const string FREE_BYTES = 'fsa.restore.free-bytes';
+    public const string FREE_BYTES = 'fieldset.restore.free-bytes';
 
     public function __construct(private BackupStore $store) {}
 

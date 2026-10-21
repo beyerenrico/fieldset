@@ -86,7 +86,7 @@ it('serves the domain with automatic HTTPS (no tls or redirect override) and pro
 it('answers the internal auth path with 404 from outside', function (): void {
     $file = caddyfile(new EdgeSite('forms.example.com'));
 
-    expect(caddyBlock($file, "\thandle /_fsa/* {"))->toBe(["\thandle /_fsa/* {", "\t\trespond 404", "\t}"])
+    expect(caddyBlock($file, "\thandle /_fieldset/* {"))->toBe(["\thandle /_fieldset/* {", "\t\trespond 404", "\t}"])
         ->and(CatcherRoute::AUTH_PATH)->toStartWith(CatcherRoute::INTERNAL_PREFIX);
 });
 
@@ -96,7 +96,7 @@ it('puts /_mail/ behind forward_auth to the app, then Mailpit with the edge-inje
     expect($file)->toContain("\tredir /_mail /_mail/ 308")
         ->and(caddyBlock($file, "\t\tforward_auth app:8080 {"))->toBe([
             "\t\tforward_auth app:8080 {",
-            "\t\t\turi \"/_fsa/catcher-auth\"",
+            "\t\t\turi \"/_fieldset/catcher-auth\"",
             "\t\t\theader_up -Authorization",
             "\t\t\theader_up -Upgrade",
             "\t\t\theader_up -Connection",
@@ -134,7 +134,7 @@ it('leaves /_mail/ to the app when mail goes out over SMTP (no catcher)', functi
         ->not->toContain('forward_auth')
         ->not->toContain('mailpit')
         ->not->toContain(CaddyfileRenderer::AUTHORIZATION_ENV)
-        ->toContain("\thandle /_fsa/* {");
+        ->toContain("\thandle /_fieldset/* {");
 });
 
 it('adds a loopback-only health site for the container healthcheck', function (): void {
@@ -150,7 +150,7 @@ it('never writes the catcher password: only the env placeholder', function (): v
     $file = caddyfile(EdgeSite::fromSettings(InstanceSettings::of(DomainFixtures::state())));
 
     expect($file)->not->toContain(ComposeFixtures::CATCHER_PASSWORD)
-        ->not->toContain(base64_encode('fsa:'.ComposeFixtures::CATCHER_PASSWORD))
+        ->not->toContain(base64_encode('fieldset:'.ComposeFixtures::CATCHER_PASSWORD))
         ->toContain('{env.'.CaddyfileRenderer::AUTHORIZATION_ENV.'}');
 });
 

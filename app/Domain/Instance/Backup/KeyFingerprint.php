@@ -7,7 +7,7 @@ namespace App\Domain\Instance\Backup;
 use SensitiveParameter;
 
 /**
- * A short, non-secret fingerprint of an APP_KEY (R67, KTD18, ADR 0084): `fsa backup` prints it and every manifest lists
+ * A short, non-secret fingerprint of an APP_KEY (R67, KTD18, ADR 0084): `fieldset backup` prints it and every manifest lists
  * the fingerprints of the keys its HMAC key derives from, so a restore can tell which key a backup needs without the key
  * itself. HKDF-SHA256 with its own info string, so it reveals nothing about the HMAC key; 64 bits, `xxxx-xxxx-xxxx-xxxx`.
  */

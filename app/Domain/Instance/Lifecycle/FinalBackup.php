@@ -28,10 +28,10 @@ use Carbon\CarbonImmutable;
 use Throwable;
 
 /**
- * The last backup `fsa uninstall --keep-backups` (and an adopted instance's uninstall) writes before it removes anything
+ * The last backup `fieldset uninstall --keep-backups` (and an adopted instance's uninstall) writes before it removes anything
  * (§13.3 "back up before destroying", ADR 0073 as amended by the M12 gate): a backup of the 2.0 format, `final-<UTC>`,
- * written by the backup service's own entry point like `fsa backup` (HMAC, SHA256SUMS, encrypted when the instance has
- * recipients), so `fsa install --from-backup` and `fsa restore` read it.
+ * written by the backup service's own entry point like `fieldset backup` (HMAC, SHA256SUMS, encrypted when the instance has
+ * recipients), so `fieldset install --from-backup` and `fieldset restore` read it.
  *
  * - The stack is quiesced first (the gate goes up; app, scheduler and the backup service stop, then the queue with its
  *   grace period), so no write is acknowledged after the snapshot; a failed backup, or a quiesce that fails half-way,
@@ -89,7 +89,7 @@ final readonly class FinalBackup
                 'The final backup failed, so nothing was removed: '.$detail,
                 ExitCode::HealthCheckFailed,
                 'final_backup_failed',
-                'Fix the cause (`fsa status`, `fsa logs backup`, free disk space), then run the same `fsa uninstall` again; or run `fsa uninstall --no-backup` to delete everything, backups/ included, without a final backup.',
+                'Fix the cause (`fieldset status`, `fieldset logs backup`, free disk space), then run the same `fieldset uninstall` again; or run `fieldset uninstall --no-backup` to delete everything, backups/ included, without a final backup.',
                 true,
                 $e instanceof InstanceException ? $e->data : [],
                 $e,
@@ -200,7 +200,7 @@ final readonly class FinalBackup
                 $this->docker->composeUp($project, $back, 300);
             }
         } catch (Throwable) {
-            // the backup's failure is what the caller reports; `fsa status` shows a service that did not start
+            // the backup's failure is what the caller reports; `fieldset status` shows a service that did not start
         } finally {
             new RuntimeWriter($this->directory)->lowerGate($state);
         }
@@ -209,7 +209,7 @@ final readonly class FinalBackup
     /** @param  list<DockerResource>  $volumes */
     private function find(array $volumes, string $volume): bool
     {
-        // A restored storage volume (ADR 0085) is fsa's own, labelled with its role instead of Compose's volume label.
+        // A restored storage volume (ADR 0085) is fieldset's own, labelled with its role instead of Compose's volume label.
         return array_any($volumes, static fn (DockerResource $v): bool => ($v->labels['com.docker.compose.volume'] ?? null) === $volume
             || ($v->labels[Labels::ROLE] ?? null) === $volume || str_ends_with($v->name, '_'.$volume));
     }

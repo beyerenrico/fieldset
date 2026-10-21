@@ -20,7 +20,7 @@ use Throwable;
 /**
  * The read-only instance page for operators (R39, R47, R48, plan U20, ADR 0089): problems first (failed or stale
  * backups, disk, an available update, backups held only on this host), then version and digests, mode and URL, mail with
- * the catcher link, backups, disk and the update check. Each actionable status names its `fsa` command; nothing here
+ * the catcher link, backups, disk and the update check. Each actionable status names its `fieldset` command; nothing here
  * changes the instance. Read on each load (InstanceOverview).
  */
 final class Instance extends Page

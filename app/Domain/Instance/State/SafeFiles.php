@@ -10,7 +10,7 @@ namespace App\Domain\Instance\State;
  * as the target, or a parent that resolves outside the root, is refused.
  *
  * With an owner (the backup service, which runs as container root, ADR 0084), every file and directory it creates is
- * given to that UID:GID before it becomes visible, so the instance owner and fsa can read and remove it.
+ * given to that UID:GID before it becomes visible, so the instance owner and fieldset can read and remove it.
  */
 final readonly class SafeFiles
 {

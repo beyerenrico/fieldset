@@ -14,15 +14,15 @@ use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
 
 /**
- * The envelope of `fsa install --from-backup` (plan U17, ADR 0085): the usual install summary plus where the data came
- * from, the mail and webhook state a move starts in and the commands that confirm it (`fsa config set webhooks on`,
- * `fsa config set mail smtp …`), and the warnings: certificate pending, mail captured, webhooks paused, an
+ * The envelope of `fieldset install --from-backup` (plan U17, ADR 0085): the usual install summary plus where the data came
+ * from, the mail and webhook state a move starts in and the commands that confirm it (`fieldset config set webhooks on`,
+ * `fieldset config set mail smtp …`), and the warnings: certificate pending, mail captured, webhooks paused, an
  * unauthenticated archive accepted.
  */
 final readonly class FromBackupResult
 {
-    /** The command that confirms the move (with `fsa`; the instance's own path is prefixed in next_commands). */
-    public const string CONFIRM_WEBHOOKS = 'fsa '.self::CONFIRM_WEBHOOKS_ARGS;
+    /** The command that confirms the move (with `fieldset`; the instance's own path is prefixed in next_commands). */
+    public const string CONFIRM_WEBHOOKS = 'fieldset '.self::CONFIRM_WEBHOOKS_ARGS;
 
     public const string CONFIRM_WEBHOOKS_ARGS = 'config set webhooks on';
 
@@ -41,7 +41,7 @@ final readonly class FromBackupResult
     public static function build(InstanceState $state, InstanceDirectory $directory, InstallRequest $request, PreparedBackup $backup, array $intake, array $preflight, array $finish, array $done): CommandResult
     {
         $settings = InstanceSettings::of($state);
-        $fsa = $directory->root.'/fsa';
+        $fieldset = $directory->root.'/fieldset';
         $email = $request->ownerEmailIfKnown();
         $pendingMail = is_array($intake['pending_mail'] ?? null) ? $intake['pending_mail'] : null; // read before the copy went
         $result = CommandResult::ok(Installer::OPERATION, [
@@ -53,18 +53,18 @@ final readonly class FromBackupResult
             'pending_mail' => $pendingMail, 'webhooks' => 'paused',
             'confirm_commands' => array_values(array_filter([self::CONFIRM_WEBHOOKS, $pendingMail['command'] ?? null])),
             SignInDelivery::SECRET => null,
-            'next_commands' => ["{$fsa} status", "{$fsa} login-link ".($email ?? '<admin-email>'), "{$fsa} ".self::CONFIRM_WEBHOOKS_ARGS],
+            'next_commands' => ["{$fieldset} status", "{$fieldset} login-link ".($email ?? '<admin-email>'), "{$fieldset} ".self::CONFIRM_WEBHOOKS_ARGS],
         ], changed: true);
         foreach (self::warnings($preflight, $intake, $email, $done) as [$code, $message, $hint]) {
             $result = $result->withWarning($code, $message, $hint);
         }
         $unconfirmed = array_values(array_diff(FromBackupSettings::recipients($backup)['kept'], $state->recipients()));
         if ($unconfirmed !== []) {
-            $result = $result->withWarning('backup_recipients_not_kept', 'The backup lists the age recipient(s) '.implode(', ', $unconfirmed).'; they were not taken over, so new backups are not encrypted.', 'If these are your keys, run the move again with --keep-recipients (a new directory); or turn encryption on with `fsa config set backup-encryption on --identity-out <path> --passphrase-file <file>`.');
+            $result = $result->withWarning('backup_recipients_not_kept', 'The backup lists the age recipient(s) '.implode(', ', $unconfirmed).'; they were not taken over, so new backups are not encrypted.', 'If these are your keys, run the move again with --keep-recipients (a new directory); or turn encryption on with `fieldset config set backup-encryption on --identity-out <path> --passphrase-file <file>`.');
         }
         $dropped = count(FromBackupSettings::recipients($backup)['dropped']);
         if ($dropped > 0) {
-            return $result->withWarning('backup_recipients_dropped', "{$dropped} backup recipient(s) from the backup were not taken over".($backup->authenticated() ? ' (not an age public key)' : ' (the backup is not authenticated)').'; new backups are encrypted only to the recipients you set.', 'Turn encryption on for this instance with `fsa config set backup-encryption on --identity-out <path> --passphrase-file <file>`.');
+            return $result->withWarning('backup_recipients_dropped', "{$dropped} backup recipient(s) from the backup were not taken over".($backup->authenticated() ? ' (not an age public key)' : ' (the backup is not authenticated)').'; new backups are encrypted only to the recipients you set.', 'Turn encryption on for this instance with `fieldset config set backup-encryption on --identity-out <path> --passphrase-file <file>`.');
         }
 
         return $result;
@@ -76,9 +76,9 @@ final readonly class FromBackupResult
         $recorded = InstallRecord::recorded($state)['from_backup'] ?? null;
         if ($recorded !== $backup->backup) {
             throw new InvalidInput(
-                'This instance is installed'.(is_string($recorded) ? ' from another backup' : '').'; fsa install changes nothing on an installed instance.',
+                'This instance is installed'.(is_string($recorded) ? ' from another backup' : '').'; fieldset install changes nothing on an installed instance.',
                 'use_restore',
-                'Install from the backup into a new, empty directory (--dir <directory>); `fsa restore` here takes only backups this instance made.',
+                'Install from the backup into a new, empty directory (--dir <directory>); `fieldset restore` here takes only backups this instance made.',
             );
         }
         $settings = InstanceSettings::of($state);
@@ -107,7 +107,7 @@ final readonly class FromBackupResult
                 $warnings[] = [$warning[0], (string) ($warning[1] ?? ''), is_string($warning[2] ?? null) ? $warning[2] : null];
             }
         }
-        $warnings[] = ['mail_captured_after_move', 'Mail is captured in the bundled catcher until you switch it on: the old server may still be sending.', 'Once the move is complete: `fsa config set mail smtp …` (the backup\'s server is under data.pending_mail).'];
+        $warnings[] = ['mail_captured_after_move', 'Mail is captured in the bundled catcher until you switch it on: the old server may still be sending.', 'Once the move is complete: `fieldset config set mail smtp …` (the backup\'s server is under data.pending_mail).'];
         $warnings[] = ['webhooks_paused', 'Workflow webhooks wait until you confirm the move, so the old and the new server never both deliver.', 'Once DNS points here and the old server is stopped: `'.self::CONFIRM_WEBHOOKS.'`.'];
         $failure = $done['link_failure'] ?? null;
         if (is_string($failure)) {

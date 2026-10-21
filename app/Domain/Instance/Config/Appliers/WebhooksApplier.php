@@ -13,7 +13,7 @@ use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
 
 /**
- * `fsa config set webhooks on|paused` (plan U17, ADR 0085): whether workflow webhooks go out. `fsa install --from-backup`
+ * `fieldset config set webhooks on|paused` (plan U17, ADR 0085): whether workflow webhooks go out. `fieldset install --from-backup`
  * starts a moved instance with them paused, so the old and the new server never both deliver; `on` is the operator's
  * confirmation that the move is complete (DNS switched, the old server stopped). It only rewrites runtime.json, which
  * the queue reads per job: no service restarts. Held webhook steps are taken up again by the stalled-run sweep.
@@ -26,7 +26,7 @@ final readonly class WebhooksApplier implements SettingApplier
     {
         $value = strtolower(trim($request->value));
         if (! in_array($value, ['on', 'paused'], true)) {
-            throw new InvalidInput('Webhooks are `on` or `paused`.', 'invalid_value', 'After moving an instance: `fsa config set webhooks on` once the old server no longer runs.');
+            throw new InvalidInput('Webhooks are `on` or `paused`.', 'invalid_value', 'After moving an instance: `fieldset config set webhooks on` once the old server no longer runs.');
         }
         $before = InstanceSettings::of($state)->webhooksPaused() ? 'paused' : 'on';
 

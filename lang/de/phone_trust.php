@@ -18,7 +18,7 @@ return [
         'download' => 'Root-Zertifikat herunterladen',
         'name' => 'Name auf dem Telefon',
         'fingerprint' => 'SHA-256-Fingerabdruck',
-        'compare' => 'Vergleichen Sie diesen Fingerabdruck mit dem, den fsa beim Einrichten von HTTPS für Telefone ausgegeben hat (fsa status zeigt ihn ebenfalls), bevor Sie dem Zertifikat vertrauen. Fahren Sie nur fort, wenn beide übereinstimmen: Diese Seite kommt auch über unverschlüsseltes HTTP, jemand im selben Netzwerk könnte das Zertifikat austauschen.',
+        'compare' => 'Vergleichen Sie diesen Fingerabdruck mit dem, den fsa beim Einrichten von HTTPS für Telefone ausgegeben hat (fieldset status zeigt ihn ebenfalls), bevor Sie dem Zertifikat vertrauen. Fahren Sie nur fort, wenn beide übereinstimmen: Diese Seite kommt auch über unverschlüsseltes HTTP, jemand im selben Netzwerk könnte das Zertifikat austauschen.',
     ],
     'ios' => [
         'heading' => 'iPhone und iPad (iOS)',
@@ -39,7 +39,7 @@ return [
             'Kehren Sie zu dieser Seite zurück: Die Prüfung unten zeigt, ob Ihr Telefon der Instanz vertraut.',
         ],
         'menus' => 'Die Menünamen unterscheiden sich je nach Hersteller. Finden Sie sie nicht, suchen Sie in den Einstellungen nach „CA-Zertifikat“.',
-        'tunnel' => 'Viele Android-Versionen und Browser vertrauen selbst installierten CAs bei installierten Web-Apps nicht. Unter Android ist deshalb der Quick Tunnel der empfohlene Weg. Er läuft nicht neben dieser CA: Schalten Sie auf dem Rechner, auf dem diese Instanz läuft, zuerst die CA mit fsa config set phone-https off --yes ab und führen Sie dann fsa tunnel start aus.',
+        'tunnel' => 'Viele Android-Versionen und Browser vertrauen selbst installierten CAs bei installierten Web-Apps nicht. Unter Android ist deshalb der Quick Tunnel der empfohlene Weg. Er läuft nicht neben dieser CA: Schalten Sie auf dem Rechner, auf dem diese Instanz läuft, zuerst die CA mit fieldset config set phone-https off --yes ab und führen Sie dann fieldset tunnel start aus.',
     ],
     'check' => [
         'heading' => 'Prüfung',

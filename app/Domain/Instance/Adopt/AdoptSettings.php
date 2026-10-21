@@ -17,7 +17,7 @@ use App\Domain\Instance\State\InputGrammar;
  * working unchanged); a loopback URL is local mode on APP_PORT. APP_KEY (and APP_PREVIOUS_KEYS) stay, so the data stays
  * readable and sessions stay valid; the database and its user keep their 1.0 names (the copied cluster has them). The
  * sender is kept when the 2.0 grammar takes it; mail starts captured, with 1.0's SMTP server named for `config set mail`.
- * Everything that decides how the instance runs comes from fsa's own rendering: APP_DEBUG, SSO_ALLOW_INSECURE_IDP and
+ * Everything that decides how the instance runs comes from fieldset's own rendering: APP_DEBUG, SSO_ALLOW_INSECURE_IDP and
  * SSO_DNS_DRIVER are forced safe and TRUSTED_PROXIES follows the mode (LegacyEnv::FORCED).
  */
 final class AdoptSettings
@@ -70,7 +70,7 @@ final class AdoptSettings
     }
 
     /**
-     * The SMTP server 1.0 delivered through, for `fsa config set mail smtp` (its credentials are never read).
+     * The SMTP server 1.0 delivered through, for `fieldset config set mail smtp` (its credentials are never read).
      *
      * @return array{host: string, port: int|null, command: string}|null
      */
@@ -84,6 +84,6 @@ final class AdoptSettings
         $port = $port !== null && ctype_digit($port) && InputGrammar::isPort((int) $port) ? (int) $port : null;
 
         return ['host' => $host, 'port' => $port,
-            'command' => 'fsa config set mail smtp --smtp-host '.$host.($port === null ? '' : ' --smtp-port '.$port).' --smtp-username <account> --password-file <file>'];
+            'command' => 'fieldset config set mail smtp --smtp-host '.$host.($port === null ? '' : ' --smtp-port '.$port).' --smtp-username <account> --password-file <file>'];
     }
 }

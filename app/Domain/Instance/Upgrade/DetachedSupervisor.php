@@ -25,16 +25,16 @@ use Illuminate\Support\Sleep;
 use Throwable;
 
 /**
- * The foreground side of `fsa upgrade` (KTD5, plan U18, ADR 0086). The upgrade runs in a detached ops container of the
+ * The foreground side of `fieldset upgrade` (KTD5, plan U18, ADR 0086). The upgrade runs in a detached ops container of the
  * **installed** image (`--rm`, `restart: no`, one per instance, labelled `supervisor`) with the Docker socket and the
  * instance directory at the same path, like the shim's ops container, so a closed SSH session or a killed foreground
- * `fsa` never stops it half-way. The foreground follows the journal (one progress event per phase) until the
+ * `fieldset` never stops it half-way. The foreground follows the journal (one progress event per phase) until the
  * supervisor's container is gone, then renders the envelope the supervisor left in a 0600 result file. Without one the
- * supervisor stopped abnormally: `fsa status` shows the journal and `fsa upgrade --resume` continues.
+ * supervisor stopped abnormally: `fieldset status` shows the journal and `fieldset upgrade --resume` continues.
  *
  * M12 gate O3: the result file stays until the next launch replaces it, named by `operations/supervisor.json` (container,
- * result file, start), so the outcome survives a killed foreground: `fsa upgrade --follow` attaches to a supervisor that
- * still runs (or returns the last result when none runs), and `fsa status` shows it as `last_upgrade`. `--resume` with no
+ * result file, start), so the outcome survives a killed foreground: `fieldset upgrade --follow` attaches to a supervisor that
+ * still runs (or returns the last result when none runs), and `fieldset status` shows it as `last_upgrade`. `--resume` with no
  * open journal is exit 2 `nothing_to_resume`, never a new upgrade.
  */
 final readonly class DetachedSupervisor
@@ -63,19 +63,19 @@ final readonly class DetachedSupervisor
     {
         $state = RestoreOperation::installed($this->directory);
         if ($request->resume && ! $this->journal->current() instanceof JournalRecord) {
-            throw new InvalidInput('There is no interrupted upgrade to resume.', 'nothing_to_resume', 'Run `fsa upgrade` (with --to <version> for a specific release) to start one; `fsa upgrade --follow` shows the last upgrade\'s result.');
+            throw new InvalidInput('There is no interrupted upgrade to resume.', 'nothing_to_resume', 'Run `fieldset upgrade` (with --to <version> for a specific release) to start one; `fieldset upgrade --follow` shows the last upgrade\'s result.');
         }
         $result = 'operations/supervisor-'.bin2hex(random_bytes(8)).'.json';
         $this->directory->ensureDirectory(InstanceDirectory::OPERATIONS_DIR);
         $container = $this->supervisor->launchDetached($state, $this->spec($state, $request, $facts, $result));
         $this->point($container, $result);
-        $progress->phase('supervisor', 'The upgrade runs in the background container '.$state->project().'-'.Supervisor::ROLE.'; following it (stopping this command does not stop it; `fsa upgrade --follow` attaches again).');
+        $progress->phase('supervisor', 'The upgrade runs in the background container '.$state->project().'-'.Supervisor::ROLE.'; following it (stopping this command does not stop it; `fieldset upgrade --follow` attaches again).');
 
         return $this->follow($container, $result, $progress);
     }
 
     /**
-     * `fsa upgrade --follow` (O3): attaches to the running supervisor and returns its envelope; with none running, the last
+     * `fieldset upgrade --follow` (O3): attaches to the running supervisor and returns its envelope; with none running, the last
      * upgrade's result (exit 2 `nothing_to_follow` when no upgrade ever ran here).
      */
     public function attach(ProgressReporter $progress): CommandResult
@@ -91,14 +91,14 @@ final readonly class DetachedSupervisor
             return $this->follow($running->id, $same ? $pointer['result'] : null, $progress);
         }
         if ($pointer['result'] === null) {
-            throw new InvalidInput('No upgrade runs, and none ran on this instance yet.', 'nothing_to_follow', 'Run `fsa upgrade` to start one.');
+            throw new InvalidInput('No upgrade runs, and none ran on this instance yet.', 'nothing_to_follow', 'Run `fieldset upgrade` to start one.');
         }
 
         return $this->outcome($pointer['result']);
     }
 
     /**
-     * The last upgrade's outcome for `fsa status` (O3): exit code, status, error codes, when it finished and the result
+     * The last upgrade's outcome for `fieldset status` (O3): exit code, status, error codes, when it finished and the result
      * file that holds its whole envelope; null when none ran or its result is missing.
      *
      * @return array{exit_code: int, status: string, codes: list<string>, from: mixed, to: mixed, finished_at: string|null, result_file: string}|null
@@ -121,7 +121,7 @@ final readonly class DetachedSupervisor
         ];
     }
 
-    /** The running supervisor container of this instance, if any (`fsa status` shows it, O4). */
+    /** The running supervisor container of this instance, if any (`fieldset status` shows it, O4). */
     public function running(InstanceState $state): ?ContainerInfo
     {
         $running = array_values(array_filter($this->docker->containers(Labels::forInstance($state->uuid(), Supervisor::ROLE), all: false), static fn (ContainerInfo $c): bool => $c->running()));
@@ -130,7 +130,7 @@ final readonly class DetachedSupervisor
     }
 
     /**
-     * The supervisor container: the installed app image as `fsa upgrade --supervise`, the socket and the instance
+     * The supervisor container: the installed app image as `fieldset upgrade --supervise`, the socket and the instance
      * directory (and the launcher's file mounts) at the same paths, the host facts as FIELDSET_* variables, no nonce (the
      * launch checks ran in the foreground).
      */
@@ -147,7 +147,7 @@ final readonly class DetachedSupervisor
             image: $state->digests()['app'], command: ['upgrade', '--supervise', '--dir', $root, ...$request->flags(), '--json'],
             env: $this->environment($facts, $result), volumes: $volumes,
             user: (function_exists('posix_getuid') ? posix_getuid() : 0).':'.(function_exists('posix_getgid') ? posix_getgid() : 0),
-            entrypoint: 'fsa', workdir: $root, groupAdd: is_int($socketGroup) && $socketGroup > 0 ? [(string) $socketGroup] : [],
+            entrypoint: 'fieldset', workdir: $root, groupAdd: is_int($socketGroup) && $socketGroup > 0 ? [(string) $socketGroup] : [],
         );
     }
 
@@ -174,13 +174,13 @@ final readonly class DetachedSupervisor
         return $this->outcome($result);
     }
 
-    /** The envelope a supervisor left (the file stays for `fsa status` and `--follow`), or `supervisor_lost`. */
+    /** The envelope a supervisor left (the file stays for `fieldset status` and `--follow`), or `supervisor_lost`. */
     private function outcome(?string $result): CommandResult
     {
         $document = $result === null ? null : $this->document($result);
         if ($document === null) {
             return CommandResult::failed('upgrade', ExitCode::InternalError, 'supervisor_lost', 'The upgrade supervisor stopped without a result.',
-                'Run `fsa status`: it shows the upgrade journal\'s last phase; `fsa upgrade --resume` continues an interrupted upgrade.', true, [], changed: true);
+                'Run `fieldset status`: it shows the upgrade journal\'s last phase; `fieldset upgrade --resume` continues an interrupted upgrade.', true, [], changed: true);
         }
 
         return CommandResult::fromArray($document['envelope'], ExitCode::tryFrom($document['exit_code']) ?? ExitCode::InternalError);

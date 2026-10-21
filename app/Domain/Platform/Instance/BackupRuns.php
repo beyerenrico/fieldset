@@ -9,12 +9,12 @@ use Illuminate\Support\Facades\DB;
 use stdClass;
 
 /**
- * What `/platform` reads about backups (R39, R47, ADR 0084): the newest rows of `backup_runs`, which the fsa backup
+ * What `/platform` reads about backups (R39, R47, ADR 0084): the newest rows of `backup_runs`, which the fieldset backup
  * service writes (its backup runs, and its own start with the schedule it runs, kind `service`), and the alerts they
  * raise (BackupAlerts), the overdue check included: the newest service start gives the schedule, and the starts since
  * the schedule is on the reference for an instance without a successful backup yet. The `/platform` instance page
  * (plan U20, InstanceOverview) shows them first, the health page's backup check (BackupCheck) as its status, and
- * BackupAlertNotifier mails them to the operators. An instance not run by fsa has no rows.
+ * BackupAlertNotifier mails them to the operators. An instance not run by fieldset has no rows.
  */
 final readonly class BackupRuns
 {

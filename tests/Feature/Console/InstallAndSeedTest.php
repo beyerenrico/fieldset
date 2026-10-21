@@ -135,7 +135,7 @@ function installJson(array $options): array
 
 function installPasswordFile(string $password): string
 {
-    $file = (string) tempnam(sys_get_temp_dir(), 'fsa-pw-');
+    $file = (string) tempnam(sys_get_temp_dir(), 'fieldset-pw-');
     file_put_contents($file, $password."\n");
 
     return $file;
@@ -226,7 +226,7 @@ it('leads the owner link to setting a password, signs the owner in, offers MFA a
 
     auth()->logout();
     $this->post('/login-link', ['token' => $token])->assertStatus(410)
-        ->assertSee(__('login_link.states.used.heading'))->assertSee('fsa login-link');
+        ->assertSee(__('login_link.states.used.heading'))->assertSee('fieldset login-link');
 });
 
 it('opens the signed reset page without a token in its URL', function (): void {

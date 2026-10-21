@@ -10,7 +10,7 @@ use App\Domain\Platform\Instance\Upgrade\VersionSteps;
  * behind. The rule covers everything the child runs: every migration directory `migrate` uses (packages' own paths and
  * database/migrations, as UpgradeMigrator) and the version steps (VersionSteps::STEPS). The only exceptions are the four
  * 1.0 index migrations that build concurrently (through ConcurrentIndex), by exact file name: they shipped in 1.0.0 and
- * already ran on every database an fsa instance can hold. A date cutoff would let a new file with a backdated name
+ * already ran on every database a fieldset instance can hold. A date cutoff would let a new file with a backdated name
  * through (review A12).
  */
 
@@ -58,7 +58,7 @@ function upgradeLintOffending(array $directories, array $steps): array
 
 function upgradeLintDirectory(): string
 {
-    $directory = sys_get_temp_dir().'/fsa-test-lint-'.bin2hex(random_bytes(4));
+    $directory = sys_get_temp_dir().'/fieldset-test-lint-'.bin2hex(random_bytes(4));
     mkdir($directory);
 
     return $directory;

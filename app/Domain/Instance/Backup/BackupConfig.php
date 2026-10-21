@@ -17,7 +17,7 @@ use SensitiveParameter;
  */
 final readonly class BackupConfig
 {
-    public const string INSTANCE_ROOT = '/fsa/instance';
+    public const string INSTANCE_ROOT = '/fieldset/instance';
 
     public const string STORAGE_PATH = '/var/www/html/storage/app';
 

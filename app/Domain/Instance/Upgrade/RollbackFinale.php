@@ -20,13 +20,13 @@ use App\Domain\Instance\State\RuntimeWriter;
 use Throwable;
 
 /**
- * The second half of `fsa rollback` (plan U18, ADR 0086), from the swap on, like a restore's (ADR 0085): swap (databases
+ * The second half of `fieldset rollback` (plan U18, ADR 0086), from the swap on, like a restore's (ADR 0085): swap (databases
  * renamed, the previous image's staged files made live, the state names the previous release and the fresh volume and
  * keeps no previous release, Valkey flushed) → verify (the previous app alone behind the gate, smoke test) → open
  * (everything but the quick tunnel) → gate (down: from here on fail forward) → cleanup (the upgraded database and the
  * superseded volume go, the safety backups are sealed, the history records `rolled_back`).
  *
- * Webhooks stay paused after a rollback until `fsa config set webhooks on` (M12 gate C2, as after a restore, ADR 0085):
+ * Webhooks stay paused after a rollback until `fieldset config set webhooks on` (M12 gate C2, as after a restore, ADR 0085):
  * workflow runs that were in flight at the safety backup come back and could repeat deliveries the receivers got since.
  * A signal is handled at the boundaries before verify, before open and before the gate: the upgraded release returns (O8).
  */
@@ -197,7 +197,7 @@ final readonly class RollbackFinale
             'loss' => $plan['loss'] ?? null, 'epoch' => $finish['epoch'] ?? null, 'carried' => $finish['carried'] ?? null, 'carry_mode' => $finish['carry_mode'] ?? null,
             'storage_volume' => $names->freshVolume, 'left_behind' => $cleanup['left_behind'] ?? [], 'webhooks' => 'paused',
         ], changed: true);
-        $result = $result->withWarning('webhooks_paused', 'Workflow webhooks are paused: runs restored from the safety backup could repeat deliveries made since.', 'Check the webhook receivers, then run `fsa config set webhooks on`.');
+        $result = $result->withWarning('webhooks_paused', 'Workflow webhooks are paused: runs restored from the safety backup could repeat deliveries made since.', 'Check the webhook receivers, then run `fieldset config set webhooks on`.');
         foreach (is_array($cleanup['warnings'] ?? null) ? $cleanup['warnings'] : [] as $warning) {
             $result = is_array($warning) ? $result->withWarning((string) $warning[0], (string) $warning[1], isset($warning[2]) ? (string) $warning[2] : null) : $result;
         }

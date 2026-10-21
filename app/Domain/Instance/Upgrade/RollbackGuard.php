@@ -17,7 +17,7 @@ use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceState;
 
 /**
- * Whether `fsa rollback` can return to the release before the last upgrade (R37, plan U18, ADR 0086), and what it would
+ * Whether `fieldset rollback` can return to the release before the last upgrade (R37, plan U18, ADR 0086), and what it would
  * lose. It needs the previous release the commit kept (version, digests, compose file) and that upgrade's safety backup
  * in `backups/`. It refuses (exit 7) after a restore, a reset, an install from a backup or an earlier rollback since that
  * upgrade: the pre-upgrade backup would silently undo them. The loss is counted by a socket-less one-off: what was
@@ -45,12 +45,12 @@ final readonly class RollbackGuard
         $index = array_key_last(array_filter($history, static fn (array $entry): bool => ($entry['event'] ?? null) === 'upgraded'));
         if ($previous === null || $index === null) {
             throw new InstanceException('There is no earlier release to return to: the instance was not upgraded since it was installed, or a rollback used the previous release already.', ExitCode::Incompatible, 'no_previous_release',
-                '`fsa restore <backup>` restores a backup of this version; `fsa status` lists the backups.');
+                '`fieldset restore <backup>` restores a backup of this version; `fieldset status` lists the backups.');
         }
         foreach (array_slice($history, $index + 1) as $entry) {
             if (in_array($entry['event'] ?? null, self::BLOCKING, true)) {
                 throw new InstanceException("An operation since the upgrade to {$state->version()} replaced the data ({$entry['event']}, {$entry['at']}): returning to the pre-upgrade backup would undo it.", ExitCode::Incompatible, 'restored_since_upgrade',
-                    'Restore the backup you want with `fsa restore <backup>` (the upgrade\'s safety backup is '.($history[$index]['safety_backup'] ?? 'gone').'). Nothing was changed.');
+                    'Restore the backup you want with `fieldset restore <backup>` (the upgrade\'s safety backup is '.($history[$index]['safety_backup'] ?? 'gone').'). Nothing was changed.');
             }
         }
         $backup = $history[$index]['safety_backup'] ?? null;

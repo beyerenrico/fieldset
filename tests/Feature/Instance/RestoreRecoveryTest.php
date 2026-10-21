@@ -15,10 +15,10 @@ use Tests\Support\Instance\RestoreFixture;
 use Tests\Support\Instance\TemporaryInstance;
 
 /*
- * The ways back of `fsa restore` (plan U17, KTD18, R54, ADR 0085): a failure before the swap exits 5 with the old instance
+ * The ways back of `fieldset restore` (plan U17, KTD18, R54, ADR 0085): a failure before the swap exits 5 with the old instance
  * running; a restored instance that fails its verification returns to the previous database and volume (exit 5); when
- * that fails too everything stops (exit 8) and the journal stays open; an interrupted restore is reported by `fsa status`,
- * resumed by running the same command again (a half-done swap is undone first) or cleaned up by `fsa restore --abandon`.
+ * that fails too everything stops (exit 8) and the journal stays open; an interrupted restore is reported by `fieldset status`,
+ * resumed by running the same command again (a half-done swap is undone first) or cleaned up by `fieldset restore --abandon`.
  */
 
 beforeEach(function (): void {
@@ -72,8 +72,8 @@ it('returns to the previous database and volume when the restored instance fails
 
     expect($code)->toBe(5, (string) json_encode($json))->and($json['data']['returned_to_previous'])->toBeTrue()
         ->and($swaps)->toHaveCount(2)
-        ->and(implode(' ', $swaps[1]['options']))->toContain('--live=form_schema')->toContain('_pre_restore_')
-        ->and($this->restore->databases)->toContain('form_schema')
+        ->and(implode(' ', $swaps[1]['options']))->toContain('--live=fieldset')->toContain('_pre_restore_')
+        ->and($this->restore->databases)->toContain('fieldset')
         ->and(array_values(array_filter($this->restore->databases, static fn (string $db): bool => str_contains($db, 'restore'))))->toBe([])
         ->and(InstanceSettings::of($state)->storageVolume())->toBeNull()
         ->and(array_column($this->restore->instance->docker->called('removeVolume'), 'name'))->toContain($state->project().'_app-storage-r'.substr((string) $this->restore->config->archivedJournal('restore')->id(), 0, 12))
@@ -106,13 +106,13 @@ it('stops everything and exits 8 when returning to the previous instance fails t
 
 it('reports a restore killed between the restore and the swap, leaves the live instance untouched, and abandons it cleanly', function (): void {
     $names = interruptedRestore($this->restore, 'erasures');
-    [, $status] = $this->restore->instance->run('fsa:status');
+    [, $status] = $this->restore->instance->run('fieldset:status');
     $mark = $this->restore->config->mark();
 
-    [$code, $json] = $this->restore->instance->run('fsa:restore', ['--abandon' => true, '--yes' => true]);
+    [$code, $json] = $this->restore->instance->run('fieldset:restore', ['--abandon' => true, '--yes' => true]);
 
-    expect($status['data']['restore']['interrupted'])->toMatchArray(['backup' => 'manual-20261019T120000Z', 'swapped' => false, 'abandon' => 'fsa restore --abandon --yes', 'resume' => 'fsa restore manual-20261019T120000Z --yes'])
-        ->and(collect($status['warnings'])->firstWhere('code', 'operation_unfinished')['hint'] ?? '')->toContain('fsa restore --abandon')->toContain('fsa restore manual-20261019T120000Z')
+    expect($status['data']['restore']['interrupted'])->toMatchArray(['backup' => 'manual-20261019T120000Z', 'swapped' => false, 'abandon' => 'fieldset restore --abandon --yes', 'resume' => 'fieldset restore manual-20261019T120000Z --yes'])
+        ->and(collect($status['warnings'])->firstWhere('code', 'operation_unfinished')['hint'] ?? '')->toContain('fieldset restore --abandon')->toContain('fieldset restore manual-20261019T120000Z')
         ->and($code)->toBe(0, (string) json_encode($json))->and($json['data'])->toMatchArray(['abandoned' => true, 'swapped' => false])
         ->and($this->restore->actions())->toBe(['drop'])
         ->and($this->restore->databases)->not->toContain($names->scratch)
@@ -147,8 +147,8 @@ it('undoes a swap a killed run left unverified when the same command runs again 
 });
 
 it('restores an encrypted backup with the identity file and the passphrase from a file, never in an argument', function (): void {
-    $file = BackupSetFixture::encrypt(BackupSetFixture::fsa($this->dir.'/backups/manual-20261019T150000Z', manifest: $this->restore->manifest(), appKey: $this->restore->appKey()));
-    $outside = sys_get_temp_dir().'/fsa-test-identity-'.bin2hex(random_bytes(3));
+    $file = BackupSetFixture::encrypt(BackupSetFixture::fieldset($this->dir.'/backups/manual-20261019T150000Z', manifest: $this->restore->manifest(), appKey: $this->restore->appKey()));
+    $outside = sys_get_temp_dir().'/fieldset-test-identity-'.bin2hex(random_bytes(3));
     mkdir($outside, 0700);
     $identity = BackupSetFixture::identityFile($outside.'/identity.age');
     file_put_contents($outside.'/passphrase', BackupSetFixture::PASSPHRASE."\n");
@@ -164,10 +164,10 @@ it('restores an encrypted backup with the identity file and the passphrase from 
         ->and($file)->toEndWith('backup.tar.age');
 });
 
-it('shows the last restore and the storage volume in fsa status and config show', function (): void {
+it('shows the last restore and the storage volume in fieldset status and config show', function (): void {
     $this->restore->restore();
 
-    [, $status] = $this->restore->instance->run('fsa:status');
+    [, $status] = $this->restore->instance->run('fieldset:status');
     [, $show] = $this->restore->config->show();
 
     expect($status['data']['last_restore'])->toMatchArray(['backup' => 'manual-20261019T120000Z', 'epoch' => 2, 'safety_backup' => 'safety-restore-20261019T120000Z'])

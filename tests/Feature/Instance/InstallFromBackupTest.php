@@ -16,7 +16,7 @@ use Tests\Support\Instance\FromBackupFixture;
 use Tests\Support\Instance\InstanceCommandFixture;
 
 /*
- * `fsa install --from-backup` (R42, R60, F6, plan U17, ADR 0085) against the recording Docker gateway: the backup's
+ * `fieldset install --from-backup` (R42, R60, F6, plan U17, ADR 0085) against the recording Docker gateway: the backup's
  * portable settings and the host's own, capture mail and paused webhooks, the backup's APP keys, the restore steps in
  * install phases, a pending certificate, the 1.0 format with its forced safe values, refusals and a resumed install.
  */
@@ -42,10 +42,10 @@ it('moves a local backup to a new instance: its data, its portable settings, cap
 
     expect($code)->toBe(0, (string) json_encode($json))
         ->and($json['data'])->toMatchArray(['mode' => 'local', 'url' => 'http://localhost:8080', 'webhooks' => 'paused', 'sign_in_link' => null])
-        ->and($json['data']['from_backup'])->toMatchArray(['backup' => 'manual-20261019T120000Z', 'format' => 'fsa', 'authenticated' => true, 'epoch' => 2])
+        ->and($json['data']['from_backup'])->toMatchArray(['backup' => 'manual-20261019T120000Z', 'format' => 'fieldset', 'authenticated' => true, 'epoch' => 2])
         ->and($json['data']['pending_mail'])->toMatchArray(['host' => 'mail.example.com', 'port' => 587])
-        ->and($json['data']['confirm_commands'][0])->toBe('fsa config set webhooks on')
-        ->and($json['data']['next_commands'])->toBe(array_map(fn (string $command): string => $this->move->instance->directory->root.'/fsa '.$command, ['status', 'login-link <admin-email>', 'config set webhooks on'])) // gate review DOC13
+        ->and($json['data']['confirm_commands'][0])->toBe('fieldset config set webhooks on')
+        ->and($json['data']['next_commands'])->toBe(array_map(fn (string $command): string => $this->move->instance->directory->root.'/fieldset '.$command, ['status', 'login-link <admin-email>', 'config set webhooks on'])) // gate review DOC13
         ->and(collect($json['warnings'])->pluck('code')->all())->toContain('mail_captured_after_move', 'webhooks_paused', 'no_sign_in_link')
         ->and($settings->capturesMail())->toBeTrue()->and($settings->webhooksPaused())->toBeTrue()
         ->and($runtime['webhooks'])->toBe(['paused' => true])
@@ -55,10 +55,10 @@ it('moves a local backup to a new instance: its data, its portable settings, cap
         ->and($app)->not->toHaveKey('MAIL_PASSWORD')->and($app['FIELDSET_MAIL_CAPTURE'] ?? null)->toBe('true')->and($app['MAIL_HOST'] ?? null)->toBe('mailpit')
         ->and($this->move->instance->oneOffCalls('app:install'))->toBe([])
         ->and($this->move->instance->oneOffCalls('migrate'))->toHaveCount(1)
-        ->and($finish['command'])->not->toContain('--source=form_schema')->and($finish['command'])->toContain('--backup=manual-20261019T120000Z')
+        ->and($finish['command'])->not->toContain('--source=fieldset')->and($finish['command'])->toContain('--backup=manual-20261019T120000Z')
         ->and(implode(' ', $finish['command']))->toMatch('/--journal=[0-9a-f]{12} /') // a resumed install never begins a second epoch (third review)
         ->and($this->move->actions())->toBe(['list', 'drop', 'create', 'swap', 'drop'])
-        ->and($this->move->databases)->toEqualCanonicalizing(['form_schema', 'postgres'])
+        ->and($this->move->databases)->toEqualCanonicalizing(['fieldset', 'postgres'])
         ->and($history)->toContain('installed', 'installed_from_backup')
         ->and(glob($this->move->instance->directory->root.'/staging/restore-*'))->toBe([])
         ->and(json_encode($json))->not->toContain(BackupSetFixture::APP_KEY);
@@ -76,7 +76,7 @@ it('confirms the backup\'s mail server with its encryption and sender, only the 
 
     expect($code)->toBe(0, (string) json_encode($json))
         ->and($json['data']['pending_mail'])->toMatchArray(['host' => 'relay.example.com', 'port' => 2525, 'encryption' => $encryption, 'from_address' => 'forms@example.com'])
-        ->and($json['data']['confirm_commands'][1])->toBe("fsa config set mail smtp --smtp-host relay.example.com --smtp-port 2525 --smtp-encryption {$encryption} --from-address forms@example.com --smtp-username <account> --password-file <file>");
+        ->and($json['data']['confirm_commands'][1])->toBe("fieldset config set mail smtp --smtp-host relay.example.com --smtp-port 2525 --smtp-encryption {$encryption} --from-address forms@example.com --smtp-username <account> --password-file <file>");
 })->with([
     'none' => [InstanceSettings::SMTP_PLAIN, 'none'],
     'tls' => [InstanceSettings::SMTP_IMPLICIT_TLS, 'tls'],
@@ -134,7 +134,7 @@ it('installs from a 1.0 backup and its env only with --accept-unauthenticated, f
 
 it('installs from an adopt backup, whose env holds no APP key, only with the key file its fingerprint names (review S1)', function (): void {
     $legacy = BackupSetFixture::legacy($this->move->outside.'/safety-adopt-20261019T120000Z', "APP_URL=http://localhost:8080\nMAIL_FROM_ADDRESS=old@legacy.test\n",
-        'source=fsa adopt'."\napp_key_fingerprints=".KeyFingerprint::of(BackupSetFixture::APP_KEY)."\n");
+        'source=fieldset adopt'."\napp_key_fingerprints=".KeyFingerprint::of(BackupSetFixture::APP_KEY)."\n");
 
     [$refused, $refusedJson] = $this->move->install($legacy, ['--accept-unauthenticated' => true]);
     [$wrong, $wrongJson] = $this->move->install($legacy, ['--accept-unauthenticated' => true, '--app-key-file' => $this->move->keyFile(BackupSetFixture::OTHER_KEY."\n")]);
@@ -147,7 +147,7 @@ it('installs from an adopt backup, whose env holds no APP key, only with the key
 });
 
 it('uses the APP key inside an encrypted backup with secrets, and keeps the other listed keys as previous keys', function (): void {
-    $dir = BackupSetFixture::fsa($this->move->outside.'/manual-20261019T130000Z', manifest: ['app_key_fingerprints' => [KeyFingerprint::of(BackupSetFixture::APP_KEY), KeyFingerprint::of(BackupSetFixture::OTHER_KEY)]],
+    $dir = BackupSetFixture::fieldset($this->move->outside.'/manual-20261019T130000Z', manifest: ['app_key_fingerprints' => [KeyFingerprint::of(BackupSetFixture::APP_KEY), KeyFingerprint::of(BackupSetFixture::OTHER_KEY)]],
         extra: ['secrets.env' => "APP_KEY='".BackupSetFixture::APP_KEY."'\nAPP_PREVIOUS_KEYS='".BackupSetFixture::OTHER_KEY."'\n"]);
     $file = BackupSetFixture::encrypt($dir);
     $identity = BackupSetFixture::identityFile($this->move->outside.'/identity.age');
@@ -169,7 +169,7 @@ it('refuses the flags a move does not take, and --from-backup flags without it',
 
     [$code, $json] = $withBackup
         ? $this->move->install($backup, $flags)
-        : $this->move->instance->run('fsa:install', ['--org' => 'Acme Forms', '--owner-email' => 'owner@example.com', ...$flags]);
+        : $this->move->instance->run('fieldset:install', ['--org' => 'Acme Forms', '--owner-email' => 'owner@example.com', ...$flags]);
 
     expect($code)->toBe(2)->and($json['errors'][0]['code'])->toBe($error)
         ->and($this->move->instance->directory->hasState())->toBeFalse();
@@ -212,10 +212,10 @@ it('resumes after a failed pg_restore, then changes nothing on a second run with
 
     expect($failed)->toBe(4)->and($failedJson['errors'][0]['code'])->toBe('pg_restore_failed')
         ->and($resumed)->toBe(0, (string) json_encode($resumedJson))
-        ->and($this->move->databases)->toEqualCanonicalizing(['form_schema', 'postgres'])
+        ->and($this->move->databases)->toEqualCanonicalizing(['fieldset', 'postgres'])
         ->and($again)->toBe(0)->and($againJson['changed'])->toBeFalse()
         ->and($other)->toBe(2)->and($otherJson['errors'][0]['code'])->toBe('use_restore')
-        ->and($otherJson['errors'][0]['hint'])->toContain('new, empty directory')->not->toContain('fsa restore <backup>'); // review A3
+        ->and($otherJson['errors'][0]['hint'])->toContain('new, empty directory')->not->toContain('fieldset restore <backup>'); // review A3
 });
 
 it('issues a sign-in link for an existing admin given with --owner-email', function (): void {
@@ -319,7 +319,7 @@ it('names the scratch database, the restricted role and the scratch directory wi
     $create = array_values(array_filter($this->move->databaseCalls, static fn (array $call): bool => $call['action'] === 'create'))[0];
 
     expect($code)->toBe(0, (string) json_encode($json))
-        ->and(implode(' ', $create['options']))->toMatch('/--database=form_schema_restore_[0-9a-f]{12} --restricted-role=fieldset_restore_[0-9a-f]{12}/')
+        ->and(implode(' ', $create['options']))->toMatch('/--database=fieldset_restore_[0-9a-f]{12} --restricted-role=fieldset_restore_[0-9a-f]{12}/')
         ->and(RestoreNames::id('AB12-../c3;DROP'))->toBe('ab12c3d');
 });
 

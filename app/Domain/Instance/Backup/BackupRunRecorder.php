@@ -9,7 +9,7 @@ use Throwable;
 
 /**
  * Records a backup run twice (R39, ADR 0084): in the ledger `backups/runs.log` (always; the daemon's memory and the
- * source of `fsa status`) and in the `backup_runs` table, through the backup role that may insert only there
+ * source of `fieldset status`) and in the `backup_runs` table, through the backup role that may insert only there
  * (`/platform` and the operator alerts read it). A run the table cannot take, because Postgres is down or the role is
  * missing, is still in the ledger with `recorded: false`.
  */
@@ -43,7 +43,7 @@ final readonly class BackupRunRecorder
         }
         $run = [...$run, 'recorded' => $recorded];
         $line = $run;
-        unset($line['result']); // the details go to the caller (fsa backup's envelope), not into every ledger line
+        unset($line['result']); // the details go to the caller (fieldset backup's envelope), not into every ledger line
         $this->log?->append($line);
 
         return $run;

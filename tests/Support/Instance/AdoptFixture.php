@@ -24,7 +24,7 @@ use RuntimeException;
 
 /**
  * A fresh instance directory (InstanceCommandFixture, nothing installed) next to a 1.0 checkout and its running Compose
- * project, for `fsa adopt` (plan U19) against the recording gateway: the checkout's compose.yaml, .env and package.json
+ * project, for `fieldset adopt` (plan U19) against the recording gateway: the checkout's compose.yaml, .env and package.json
  * as the 1.0.0 tag ships them; its six containers and two volumes labelled the way Compose labels them; and one-offs
  * that answer like the real images (du, pg_dump, pg_restore --list, tar, psql snapshots, amcheck, valkey-cli, cp,
  * pg_controldata). The copy's snapshot equals the 1.0 one unless `$copySnapshot` says otherwise.
@@ -54,7 +54,7 @@ final class AdoptFixture
     /** @var array<string, mixed>|null what the running instance holds at uninstall (null: the baseline) */
     public ?array $laterSnapshot = null;
 
-    /** Set by tests before `fsa uninstall`: the instance's probe then answers `$laterSnapshot`. */
+    /** Set by tests before `fieldset uninstall`: the instance's probe then answers `$laterSnapshot`. */
     public bool $uninstalling = false;
 
     /** @var list<string> valkey-cli answers in turn (waiting, reserved, delayed); the last one repeats */
@@ -64,7 +64,7 @@ final class AdoptFixture
     public array $failing = [];
 
     /** @var list<string> amcheck's notices */
-    public array $amcheck = ['fsa-amcheck ok users_email_unique', 'fsa-amcheck ok organizations_slug_unique'];
+    public array $amcheck = ['fieldset-amcheck ok users_email_unique', 'fieldset-amcheck ok organizations_slug_unique'];
 
     public string $clusterState = 'shut down';
 
@@ -90,7 +90,7 @@ final class AdoptFixture
     public function __construct(string $env = '', ?string $compose = null, string $version = '1.0.0')
     {
         $this->instance = new InstanceCommandFixture;
-        $this->checkout = sys_get_temp_dir().'/fsa-test-checkout-'.bin2hex(random_bytes(4));
+        $this->checkout = sys_get_temp_dir().'/fieldset-test-checkout-'.bin2hex(random_bytes(4));
         mkdir($this->checkout, 0700, true);
         file_put_contents($this->checkout.'/compose.yaml', $compose ?? self::compose());
         file_put_contents($this->checkout.'/.env', $env === '' ? self::env() : $env);
@@ -167,7 +167,7 @@ final class AdoptFixture
     {
         $this->syncEnvironment();
 
-        return $this->instance->run('fsa:adopt', ['checkout' => $this->checkout, '--yes' => true, ...$parameters]);
+        return $this->instance->run('fieldset:adopt', ['checkout' => $this->checkout, '--yes' => true, ...$parameters]);
     }
 
     /** 1.0's containers run with the checkout's `.env` (unless `$runningEnv` says otherwise) and Postgres 16 on Alpine. */
@@ -229,7 +229,7 @@ final class AdoptFixture
         if ($this->killed !== null) {
             exec('rm -rf '.escapeshellarg($this->killed['dir']));
         }
-        $dir = sys_get_temp_dir().'/fsa-test-killed-'.bin2hex(random_bytes(4));
+        $dir = sys_get_temp_dir().'/fieldset-test-killed-'.bin2hex(random_bytes(4));
         exec('cp -Rp '.escapeshellarg($this->instance->directory->root).' '.escapeshellarg($dir));
         $this->killed = ['dir' => $dir, 'containers' => $this->instance->docker->containers, 'resources' => $this->instance->docker->resources];
     }
@@ -254,7 +254,7 @@ final class AdoptFixture
         }
         $state = $this->instance->state();
         foreach ($args['services'] === [] ? ['app', 'queue', 'scheduler', 'postgres', 'redis', 'gotenberg', 'mailpit', 'backup'] : $args['services'] as $service) {
-            $id = 'fsa'.$service.'00000';
+            $id = 'fieldset'.$service.'00000';
             $this->instance->docker->containers[$id] = new ContainerInfo($id, $state->project().'-'.$service.'-1', 'running', '2026-10-19T10:00:00Z', null, 'image',
                 [Labels::COMPOSE_PROJECT => $state->project(), Labels::COMPOSE_SERVICE => $service, Labels::INSTANCE => $state->uuid(), Labels::ROLE => $service]);
         }
@@ -268,7 +268,7 @@ final class AdoptFixture
             'valkey-cli' => new ProcessOutcome(0, count($this->queue) > 1 ? array_shift($this->queue) : $this->queue[0]),
             'pg_restore', 'cp' => new ProcessOutcome(0),
             'pg_controldata' => new ProcessOutcome(0, "pg_control version number:            1300\nDatabase cluster state:               {$this->clusterState}\nLatest checkpoint location:           "
-                .(str_starts_with($spec->volumes[0] ?? '', 'fsa-') ? $this->copyCheckpoint : $this->checkpoint)."\n"),
+                .(str_starts_with($spec->volumes[0] ?? '', 'fieldset-') ? $this->copyCheckpoint : $this->checkpoint)."\n"),
             'cat' => new ProcessOutcome(0, $this->osRelease),
             default => null,
         };
@@ -279,7 +279,7 @@ final class AdoptFixture
         $calls = $this->instance->docker->called('runContainer');
         $sql = (string) ($calls[array_key_last($calls)]['input'] ?? '');
         $this->sql[] = $sql;
-        if (str_contains($sql, 'fsa-amcheck')) {
+        if (str_contains($sql, 'fieldset-amcheck')) {
             return new ProcessOutcome(0, '', implode("\n", array_map(static fn (string $line): string => 'psql:<stdin>:21: NOTICE:  '.$line, $this->amcheck))."\n");
         }
         if (! str_contains($sql, 'json_build_object')) {

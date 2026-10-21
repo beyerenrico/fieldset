@@ -83,7 +83,7 @@ final readonly class LockRecord
         return $this->containerStartedAt !== null && str_starts_with($this->containerStartedAt, self::PROCESS_START_PREFIX);
     }
 
-    /** "upgrade by fsa (container 0123456789ab, since 2026-10-17T10:00:00Z)" */
+    /** "upgrade by fieldset (container 0123456789ab, since 2026-10-17T10:00:00Z)" */
     public function describe(): string
     {
         if (! $this->complete) {

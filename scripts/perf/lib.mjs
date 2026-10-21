@@ -2,8 +2,8 @@
 // (http://localhost:8080 by default, PERF_BASE_URL to override); Playwright drives a real Chromium.
 // Results land in storage/agent-logs/perf (git-ignored) unless PERF_OUT_DIR says otherwise.
 //
-// An `fsa` instance (J10, plan U15) needs four more settings, all optional and unset for the dev stack:
-// - PERF_PASSWORDS_FILE: an `fsa --secrets-file` document; `demo_password:<email>` entries override PERF_PASSWORD;
+// A `fieldset` instance (J10, plan U15) needs four more settings, all optional and unset for the dev stack:
+// - PERF_PASSWORDS_FILE: a `fieldset --secrets-file` document; `demo_password:<email>` entries override PERF_PASSWORD;
 // - PERF_CHROMIUM_ARGS: a JSON array of extra Chromium flags (host resolver rules, trusted SPKI hashes);
 // - PERF_RESOLVE: `host:port:address` (curl's --resolve) for requests made from Node;
 // - PERF_CA_FILE: a PEM file Node trusts for those requests (the test CA of the instance's certificate).

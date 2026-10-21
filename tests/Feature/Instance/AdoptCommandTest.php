@@ -30,7 +30,7 @@ use Tests\Support\Instance\BackupSetFixture;
 use Tests\Support\Instance\InstanceCommandFixture;
 
 /*
- * `fsa adopt <checkout>` (R46 as changed by R60, F7, KTD20, plan U19, ADR 0087) against the recording Docker gateway: the
+ * `fieldset adopt <checkout>` (R46 as changed by R60, F7, KTD20, plan U19, ADR 0087) against the recording Docker gateway: the
  * allow-list of the 1.0 `.env` and the forced safe values, the mode inferred from APP_URL and APP_PORT, the KTD20 order,
  * the 1.0-format backup, the refusals (exit 7), the space check, a repeated adopt, uninstall's final backup and writes
  * since adopt. Failures, the drain, resume and `--abandon`: AdoptRecoveryTest.
@@ -121,7 +121,7 @@ it('writes the backup in the 1.0 format with only the allow-listed env values bu
         ->and(BackupSet::detect($dir)['format'])->toBe(BackupSet::LEGACY)
         ->and(LegacyEnv::read($env))->toEqual(['APP_URL' => 'http://localhost:8080', 'MAIL_FROM_ADDRESS' => 'forms@legacy.test', 'MAIL_FROM_NAME' => 'Legacy Forms', 'MAIL_HOST' => 'smtp.legacy.test', 'MAIL_PORT' => '587'])
         ->and($env)->not->toContain('DB_PASSWORD')->not->toContain('legacy-mail-secret-1')->not->toContain('SSO_')->not->toContain(AdoptFixture::APP_KEY)->toContain('--app-key-file') // review S1
-        ->and($manifest)->toMatchArray(['migrations' => '120', 'last_migration' => '2026_10_25_100000_v1_last', 'submissions' => '41', 'users' => '7', 'storage' => 'included', 'env' => 'included', 'source' => 'fsa adopt',
+        ->and($manifest)->toMatchArray(['migrations' => '120', 'last_migration' => '2026_10_25_100000_v1_last', 'submissions' => '41', 'users' => '7', 'storage' => 'included', 'env' => 'included', 'source' => 'fieldset adopt',
             'app_key_fingerprints' => AppKeys::of([AdoptFixture::APP_KEY])->fingerprints()[0]])
         ->and(substr(sprintf('%o', fileperms($dir)), -3))->toBe('700')->and(substr(sprintf('%o', fileperms($dir.'/env')), -3))->toBe('600')
         ->and($legacyMounts)->not->toBeEmpty()
@@ -166,7 +166,7 @@ it('refuses what it cannot adopt with exit 7 and the reason, before 1.0 is touch
     expect($code)->toBe(7, (string) json_encode($json))
         ->and($json['errors'][0]['code'])->toBe($error)
         ->and($json['errors'][0]['hint'])->not->toBeEmpty()
-        ->and($json['errors'][0]['hint'])->not->toContain('fsa install --from-backup') // the shim runs no install for another directory (gate review DOC14)
+        ->and($json['errors'][0]['hint'])->not->toContain('fieldset install --from-backup') // the shim runs no install for another directory (gate review DOC14)
         ->and($this->adopt->instance->docker->called('stopContainers'))->toBe([])
         ->and($this->adopt->instance->directory->hasState())->toBeFalse();
 })->with([
@@ -182,14 +182,14 @@ it('refuses what it cannot adopt with exit 7 and the reason, before 1.0 is touch
     'no containers of the project' => [fn (AdoptFixture $a) => $a->instance->docker->containers = [], 'legacy_not_found'],
     'started from another directory' => [fn (AdoptFixture $a) => $a->withLegacyStack(extraLabels: ['com.docker.compose.project.working_dir' => '/srv/elsewhere']), 'checkout_mismatch'],
     'no APP_KEY' => [fn (AdoptFixture $a) => file_put_contents($a->checkout.'/.env', AdoptFixture::env(['APP_KEY' => ''])), 'app_key_missing'],
-    'an fsa instance' => [fn (AdoptFixture $a) => $a->withLegacyStack(extraLabels: ['app.fieldset.instance' => '3f1c2b9e-8a4d-4c1e-9b7a-2d5e6f708192']), 'already_instance'],
+    'a fieldset instance' => [fn (AdoptFixture $a) => $a->withLegacyStack(extraLabels: ['app.fieldset.instance' => '3f1c2b9e-8a4d-4c1e-9b7a-2d5e6f708192']), 'already_instance'],
     'a database name 2.0 cannot keep' => [fn (AdoptFixture $a) => file_put_contents($a->checkout.'/.env', AdoptFixture::env(['DB_DATABASE' => 'Forms-DB'])), 'unsupported_database_name'],
 ]);
 
 it('refuses a path that is no checkout (exit 2) and asks before stopping 1.0 (exit 6)', function (): void {
-    [$missing, $missingJson] = $this->adopt->instance->run('fsa:adopt', ['checkout' => $this->adopt->checkout.'/nope', '--yes' => true]);
-    [$unconfirmed, $unconfirmedJson] = $this->adopt->instance->run('fsa:adopt', ['checkout' => $this->adopt->checkout]);
-    [$none, $noneJson] = $this->adopt->instance->run('fsa:adopt', ['--yes' => true]);
+    [$missing, $missingJson] = $this->adopt->instance->run('fieldset:adopt', ['checkout' => $this->adopt->checkout.'/nope', '--yes' => true]);
+    [$unconfirmed, $unconfirmedJson] = $this->adopt->instance->run('fieldset:adopt', ['checkout' => $this->adopt->checkout]);
+    [$none, $noneJson] = $this->adopt->instance->run('fieldset:adopt', ['--yes' => true]);
 
     expect($missing)->toBe(2)->and($missingJson['errors'][0]['code'])->toBe('not_a_checkout')
         ->and($unconfirmed)->toBe(6)->and($unconfirmedJson['errors'][0]['message'])->toContain('Stop the 1.0 install')
@@ -198,8 +198,8 @@ it('refuses a path that is no checkout (exit 2) and asks before stopping 1.0 (ex
 });
 
 it('refuses a checkout the launcher did not mount (exit 2)', function (): void {
-    $this->adopt->instance->facts(['nonce' => '.fsa-nonce-0123456789abcdef', 'mounts' => []]);
-    touch($this->adopt->instance->directory->root.'/.fsa-nonce-0123456789abcdef');
+    $this->adopt->instance->facts(['nonce' => '.fieldset-nonce-0123456789abcdef', 'mounts' => []]);
+    touch($this->adopt->instance->directory->root.'/.fieldset-nonce-0123456789abcdef');
 
     [$code, $json] = $this->adopt->adopt();
 
@@ -214,7 +214,7 @@ it('skips the smoke test\'s mail when the 1.0 data has no operator, and says how
     $warning = collect($json['warnings'])->firstWhere('code', 'test_mail_skipped');
 
     expect($code)->toBe(0, (string) json_encode($json))
-        ->and($warning['hint'] ?? '')->toContain('fsa config set operator-email');
+        ->and($warning['hint'] ?? '')->toContain('fieldset config set operator-email');
 });
 
 it('checks for twice the 1.0 data\'s space first (exit 3, 1.0 keeps running)', function (): void {
@@ -231,8 +231,8 @@ it('changes nothing when the same checkout is adopted again, and refuses another
     $this->adopt->adopt();
     $calls = count($this->adopt->instance->docker->calls);
     [$again, $againJson] = $this->adopt->adopt();
-    $other = sys_get_temp_dir().'/fsa-test-checkout-other-'.bin2hex(random_bytes(3));
-    [$refused, $refusedJson] = $this->adopt->instance->run('fsa:adopt', ['checkout' => $other, '--yes' => true]);
+    $other = sys_get_temp_dir().'/fieldset-test-checkout-other-'.bin2hex(random_bytes(3));
+    [$refused, $refusedJson] = $this->adopt->instance->run('fieldset:adopt', ['checkout' => $other, '--yes' => true]);
 
     expect($again)->toBe(0)->and($againJson['changed'])->toBeFalse()
         ->and($this->adopt->instance->docker->methodsSince($calls))->toBe([])
@@ -247,7 +247,7 @@ it('records the baseline in the ledger, and uninstall takes a final backup and r
     $this->adopt->instance->docker->withResource(new DockerResource(DockerResource::VOLUME, $state->project().'_pg-data', [Labels::INSTANCE => $state->uuid(), 'com.docker.compose.volume' => 'pg-data'])); // Compose made it
     $this->adopt->laterSnapshot = [...$this->adopt->snapshot, 'counts' => [...$this->adopt->snapshot['counts'], 'submissions' => 44], 'heads' => [...$this->adopt->snapshot['heads'], '1' => ['seq' => 185, 'hash' => 'cccc']]];
 
-    [$code, $json] = $this->adopt->instance->run('fsa:uninstall', ['--yes' => true]);
+    [$code, $json] = $this->adopt->instance->run('fieldset:uninstall', ['--yes' => true]);
 
     expect($entry)->toMatchArray(['action' => 'adopted', 'checkout' => $this->adopt->checkout, 'project' => 'form-schema-app', 'epoch' => 1])
         ->and($entry['baseline']['counts']['submissions'])->toBe(41)
@@ -257,16 +257,16 @@ it('records the baseline in the ledger, and uninstall takes a final backup and r
         ->and($json['data']['adopted'])->toMatchArray(['checkout' => $this->adopt->checkout, 'restart_1_0' => 'cd '.$this->adopt->checkout.' && docker compose up -d'])
         ->and($json['data']['adopted']['writes_since_adopt'])->toBe(['audit_entries' => 5, 'rows' => ['submissions' => 3], 'any' => true])
         ->and(collect($json['warnings'])->pluck('code')->all())->toContain('writes_since_adopt', 'restart_1_0')
-        ->and(collect($json['warnings'])->firstWhere('code', 'writes_since_adopt')['hint'] ?? '')->toContain('fsa install --from-backup')->not->toContain('pg_restore') // a 2.0 set since the M12 gate (review V3)
+        ->and(collect($json['warnings'])->firstWhere('code', 'writes_since_adopt')['hint'] ?? '')->toContain('fieldset install --from-backup')->not->toContain('pg_restore') // a 2.0 set since the M12 gate (review V3)
         ->and(adoptBackups($this->adopt))->toHaveCount(1);
 });
 
 it('uninstalls an adopted instance without a final backup with --no-backup, saying that the adopt backup goes too', function (): void {
     $this->adopt->adopt();
-    [$prompt] = [$this->adopt->instance->run('fsa:uninstall', [])];
-    [, $noBackupPrompt] = $this->adopt->instance->run('fsa:uninstall', ['--no-backup' => true]);
-    [, $keepPrompt] = $this->adopt->instance->run('fsa:uninstall', ['--no-backup' => true, '--keep-backups' => true]);
-    [$code, $json] = $this->adopt->instance->run('fsa:uninstall', ['--yes' => true, '--no-backup' => true]);
+    [$prompt] = [$this->adopt->instance->run('fieldset:uninstall', [])];
+    [, $noBackupPrompt] = $this->adopt->instance->run('fieldset:uninstall', ['--no-backup' => true]);
+    [, $keepPrompt] = $this->adopt->instance->run('fieldset:uninstall', ['--no-backup' => true, '--keep-backups' => true]);
+    [$code, $json] = $this->adopt->instance->run('fieldset:uninstall', ['--yes' => true, '--no-backup' => true]);
 
     expect($prompt[0])->toBe(6)->and($prompt[1]['errors'][0]['message'])->toContain('Write a final backup')->toContain($this->adopt->checkout)
         ->and($noBackupPrompt['errors'][0]['message'])->toContain('including backups/')->toContain('1.0 backup too')->toContain('No final backup is made')->toContain('is lost')->toContain($this->adopt->checkout) // review A8
@@ -279,7 +279,7 @@ it('says when the writes since adopt cannot be counted', function (): void {
     $this->adopt->adopt();
     unlink($this->adopt->instance->directory->root.'/backups/ledger.log');
 
-    [$code, $json] = $this->adopt->instance->run('fsa:uninstall', ['--yes' => true]);
+    [$code, $json] = $this->adopt->instance->run('fieldset:uninstall', ['--yes' => true]);
 
     expect($code)->toBe(0)->and($json['data']['adopted']['writes_since_adopt'])->toBeNull()
         ->and(collect($json['warnings'])->firstWhere('code', 'writes_since_adopt_unknown')['hint'] ?? '')->toContain('final backup');
@@ -295,7 +295,7 @@ it('leaves a backup that a restore of this instance takes as its own, and no oth
     $check = static fn (PreparedBackup $backup, AppKeys $keys): Closure => static fn () => RestoreChecks::assertSameInstance($backup, $runAs['uuid'], $keys, BackupIntake::insideKeys($backup), $runAs['adopt_backup'] ?? null);
     $adopted = $json['data']['adopted']['backup_path'];
     $outside = $this->adopt->instance->directory->root.'/forged'; // goes with the instance directory
-    $forged = BackupSetFixture::legacy($outside.'/a/'.basename($adopted), "APP_URL='http://localhost:8080'\n", "source=fsa adopt\napp_key_fingerprints={$own->fingerprints()[0]}\n");
+    $forged = BackupSetFixture::legacy($outside.'/a/'.basename($adopted), "APP_URL='http://localhost:8080'\n", "source=fieldset adopt\napp_key_fingerprints={$own->fingerprints()[0]}\n");
     $altered = $outside.'/b/'.basename($adopted);
     mkdir(dirname($altered), 0700, true);
     exec('cp -Rp '.escapeshellarg($adopted).' '.escapeshellarg($altered));

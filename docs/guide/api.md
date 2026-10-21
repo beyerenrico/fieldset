@@ -68,7 +68,7 @@ The API accepts two kinds of credentials: the Field App's cookie session (below)
 The Field App uses cookie-based sessions on the same origin (Laravel Sanctum's SPA mode): it fetches
 `/sanctum/csrf-cookie`, signs in with `POST /auth/login` (or single sign-on) and sends the
 `X-XSRF-TOKEN` header on every write. For this to work, the instance's host name must be a stateful domain: an
-instance installed with `fsa` adds its own host names by itself; a 1.0 checkout install lists them in
+instance installed with `fieldset` adds its own host names by itself; a 1.0 checkout install lists them in
 `SANCTUM_STATEFUL_DOMAINS` (see the [1.0 install guide](archive/1.0-install.md#2-create-the-env-file)). Sessions last
 30 days from the last use. The details, including two-factor authentication and the device check, are in
 the [API contract](../api/field-app-v1.md#authentication).

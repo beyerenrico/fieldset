@@ -11,7 +11,7 @@ use App\Domain\Instance\State\InstanceSettings;
 use SensitiveParameter;
 
 /**
- * The grammar of the `fsa config set mail smtp` flags (R25, ADR 0080), exit 2 for anything else: host names as for
+ * The grammar of the `fieldset config set mail smtp` flags (R25, ADR 0080), exit 2 for anything else: host names as for
  * every other setting (InputGrammar), the encryption as `starttls` (STARTTLS required, port 587), `tls` (implicit TLS,
  * port 465) or `none` (plain SMTP to a relay without TLS, port 25; the app's own per-organization SMTP uses the same
  * three, SmtpEncryption), and credentials that an env file can hold (no line break or NUL).

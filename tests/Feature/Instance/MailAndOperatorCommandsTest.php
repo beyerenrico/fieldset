@@ -27,8 +27,8 @@ use Livewire\Livewire;
 use Symfony\Component\Mailer\SentMessage;
 
 /*
- * The app side of `fsa config set mail` and `fsa config set operator-email` (plan U12, KTD25; ADR 0080), as the
- * socket-less one-offs fsa runs: `instance:mail-test` sends the test mail synchronously through the instance mailer,
+ * The app side of `fieldset config set mail` and `fieldset config set operator-email` (plan U12, KTD25; ADR 0080), as the
+ * socket-less one-offs fieldset runs: `instance:mail-test` sends the test mail synchronously through the instance mailer,
  * `instance:mail-captured` counts what capture mode kept from people, `instance:operator-email` grants the operator
  * role (creating the account and its first link when needed) and with --revoke-previous revokes the others.
  */
@@ -109,7 +109,7 @@ it('counts the pending invitations and open password resets that capture mode ke
         ['email' => 'fresh@example.com', 'token' => 'x', 'created_at' => now()->subMinutes(5)],
         ['email' => 'old@example.com', 'token' => 'y', 'created_at' => now()->subHours(2)],
     ]);
-    // The owner link fsa handed over itself is a reset token too, but no mail went out for it.
+    // The owner link fieldset handed over itself is a reset token too, but no mail went out for it.
     app(IssueOwnerLink::class)->handle(User::factory()->create(['email' => 'linked-owner@example.com']), 501);
 
     [$json, $exit] = mailCommandJson('instance:mail-captured');

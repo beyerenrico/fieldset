@@ -20,7 +20,7 @@ use Tests\Support\Instance\InstanceCommandFixture;
 use Tests\Support\Instance\TemporaryInstance;
 
 /*
- * Plan U11 (ADR 0077): the less travelled paths of `fsa config`: SMTP mail in `config show`, the request's command
+ * Plan U11 (ADR 0077): the less travelled paths of `fieldset config`: SMTP mail in `config show`, the request's command
  * line, ACME settings that drop a custom root, proxy lookups that fail, an unexpected exception during apply, and a
  * stop that fails after a failed revert.
  */
@@ -48,7 +48,7 @@ it('shows SMTP mail with its server as an active outbound contact and the SMTP s
 it('refuses config show without a state', function (): void {
     $fixture = new InstanceCommandFixture;
 
-    [$code, $json] = $fixture->run('fsa:config', ['action' => 'show']);
+    [$code, $json] = $fixture->run('fieldset:config', ['action' => 'show']);
 
     expect($code)->toBe(2)->and($json['errors'][0]['code'])->toBe('not_installed');
 });
@@ -56,7 +56,7 @@ it('refuses config show without a state', function (): void {
 it('names the command to repeat with every option, the CA root by reference', function (): void {
     $request = new ConfigRequest('domain', 'forms.example.com', 'ops@example.com', 'https://ca.example.com/dir', "-----BEGIN CERTIFICATE-----\nx\n-----END CERTIFICATE-----\n");
 
-    expect($request->commandLine())->toBe('fsa config set domain forms.example.com --acme-email ops@example.com --acme-ca https://ca.example.com/dir --acme-ca-root-file <the same file> --yes')
+    expect($request->commandLine())->toBe('fieldset config set domain forms.example.com --acme-email ops@example.com --acme-ca https://ca.example.com/dir --acme-ca-root-file <the same file> --yes')
         ->and($request->toContext()['acme_ca_root'])->toHaveLength(64)
         ->and($request->sameAs([...$request->toContext(), 'value' => 'other.example.com']))->toBeFalse();
 });

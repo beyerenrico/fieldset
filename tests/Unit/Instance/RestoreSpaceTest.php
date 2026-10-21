@@ -17,7 +17,7 @@ use Tests\Support\Instance\TemporaryInstance;
 beforeEach(function (): void {
     $this->directory = TemporaryInstance::directory();
     $this->space = new RestoreSpace(new BackupStore($this->directory));
-    $this->source = BackupSetFixture::fsa($this->directory->root.'/backups/manual-20261019T120000Z');
+    $this->source = BackupSetFixture::fieldset($this->directory->root.'/backups/manual-20261019T120000Z');
     $dump = fopen($this->source.'/database.dump', 'r+');
     ftruncate($dump, 64 * 1024 ** 2); // sparse: a large dump without the disk space
     fclose($dump);
@@ -57,7 +57,7 @@ it('leaves out what the copy leaves behind (dotfiles, other files), and counts a
     $set = setBytes($this->source);
     file_put_contents($this->source.'/.DS_Store', str_repeat('x', 4096));
     file_put_contents($this->source.'/notes.txt', str_repeat('x', 4096));
-    $encrypted = BackupSetFixture::encrypt(BackupSetFixture::fsa($this->directory->root.'/backups/manual-20261019T130000Z'));
+    $encrypted = BackupSetFixture::encrypt(BackupSetFixture::fieldset($this->directory->root.'/backups/manual-20261019T130000Z'));
     app()->instance(RestoreSpace::FREE_BYTES, static fn (): int => RestoreSpace::HEADROOM + $set);
 
     expect($this->space->assertScratch($this->source))->toBe(RestoreSpace::HEADROOM + $set);

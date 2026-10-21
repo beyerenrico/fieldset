@@ -10,7 +10,7 @@ use Tests\Support\Instance\InstanceCommandFixture;
 use Tests\Support\Instance\TemporaryInstance;
 
 /*
- * U13 / M11-T02: `fsa install --demo` (R29, AE2, KTD25, ADR 0081): after the stack started, the `demo` phase runs the
+ * U13 / M11-T02: `fieldset install --demo` (R29, AE2, KTD25, ADR 0081): after the stack started, the `demo` phase runs the
  * app-side seeder in a socket-less one-off; a loopback-only local install keeps `password` (reported in data), any
  * install reachable beyond loopback gives random passwords listed once with the owner link under `secrets`.
  */
@@ -30,11 +30,11 @@ function installDemoBehindProxy(InstanceCommandFixture $fixture, array $flags = 
         ? new NetworkInfo('net1', $name, false, ['172.31.0.0/16'], ['172.31.0.1'])
         : null;
 
-    return $fixture->run('fsa:install', InstanceCommandFixture::installFlags(['--behind-proxy' => 'port', '--url' => 'https://forms.example.com', '--demo' => true, ...$flags]));
+    return $fixture->run('fieldset:install', InstanceCommandFixture::installFlags(['--behind-proxy' => 'port', '--url' => 'https://forms.example.com', '--demo' => true, ...$flags]));
 }
 
 it('seeds the demo after the stack started on a loopback-only install and keeps the documented password', function (): void {
-    [$code, $json] = $this->fixture->run('fsa:install', InstanceCommandFixture::installFlags(['--demo' => true]));
+    [$code, $json] = $this->fixture->run('fieldset:install', InstanceCommandFixture::installFlags(['--demo' => true]));
     $journal = new OperationJournal($this->fixture->directory)->history()[0];
     $calls = $this->fixture->docker->calls;
     $lastUp = max(array_keys(array_filter($calls, static fn (array $call): bool => $call['method'] === 'composeUp')));
@@ -76,7 +76,7 @@ it('reissues random passwords on a resume after an attempt that seeded but never
     $this->fixture->smokeOutcome = null;
     $this->fixture->oneOffs['app:demo-seed'] = DemoFixtures::existing(0);
 
-    [$code, $json] = $this->fixture->run('fsa:install');
+    [$code, $json] = $this->fixture->run('fieldset:install');
     $phases = array_column(new OperationJournal($this->fixture->directory)->history()[0]->phases(), 'name');
 
     expect($failed)->toBe(4)
@@ -90,24 +90,24 @@ it('reissues random passwords on a resume after an attempt that seeded but never
 
 it('accepts --demo added on a resume before the demo ran', function (): void {
     $this->fixture->smokeOutcome = new ProcessOutcome(7, '', 'connection refused');
-    [$failed] = $this->fixture->run('fsa:install', InstanceCommandFixture::installFlags());
+    [$failed] = $this->fixture->run('fieldset:install', InstanceCommandFixture::installFlags());
     $this->fixture->smokeOutcome = null;
 
-    [$code, $json] = $this->fixture->run('fsa:install', ['--demo' => true]);
+    [$code, $json] = $this->fixture->run('fieldset:install', ['--demo' => true]);
 
     expect($failed)->toBe(4)
         ->and($code)->toBe(0, json_encode($json))
         ->and($json['data']['demo']['seeded'])->toBeTrue();
 });
 
-it('changes nothing for a repeated install with --demo once the demo is there, and points a new --demo at fsa demo', function (): void {
-    $this->fixture->run('fsa:install', InstanceCommandFixture::installFlags(['--demo' => true]));
+it('changes nothing for a repeated install with --demo once the demo is there, and points a new --demo at fieldset demo', function (): void {
+    $this->fixture->run('fieldset:install', InstanceCommandFixture::installFlags(['--demo' => true]));
     $calls = count($this->fixture->docker->calls);
-    [$same, $sameJson] = $this->fixture->run('fsa:install', InstanceCommandFixture::installFlags(['--demo' => true]));
+    [$same, $sameJson] = $this->fixture->run('fieldset:install', InstanceCommandFixture::installFlags(['--demo' => true]));
 
     $plain = new InstanceCommandFixture;
-    $plain->run('fsa:install', InstanceCommandFixture::installFlags());
-    [$added, $addedJson] = $plain->run('fsa:install', InstanceCommandFixture::installFlags(['--demo' => true]));
+    $plain->run('fieldset:install', InstanceCommandFixture::installFlags());
+    [$added, $addedJson] = $plain->run('fieldset:install', InstanceCommandFixture::installFlags(['--demo' => true]));
 
     expect($same)->toBe(0)
         ->and($sameJson['changed'])->toBeFalse()
@@ -115,14 +115,14 @@ it('changes nothing for a repeated install with --demo once the demo is there, a
         ->and($added)->toBe(2)
         ->and($addedJson['errors'][0]['code'])->toBe('use_config_set')
         ->and($addedJson['data']['flags'])->toBe([['flag' => '--demo', 'key' => null]])
-        ->and($addedJson['errors'][0]['hint'])->toContain('fsa demo');
+        ->and($addedJson['errors'][0]['hint'])->toContain('fieldset demo');
 });
 
 it('fails the install with exit 4 when the demo one-off fails, and resumes at the demo phase', function (): void {
     $this->fixture->oneOffs['app:demo-seed'] = new ProcessOutcome(124, '', '', true);
-    [$code, $json] = $this->fixture->run('fsa:install', InstanceCommandFixture::installFlags(['--demo' => true]));
+    [$code, $json] = $this->fixture->run('fieldset:install', InstanceCommandFixture::installFlags(['--demo' => true]));
     $this->fixture->oneOffs['app:demo-seed'] = DemoFixtures::seeded('default');
-    [$resumed, $done] = $this->fixture->run('fsa:install');
+    [$resumed, $done] = $this->fixture->run('fieldset:install');
 
     expect($code)->toBe(4)
         ->and($json['errors'][0])->toMatchArray(['code' => 'one_off_timeout', 'retryable' => true])

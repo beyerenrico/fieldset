@@ -21,19 +21,19 @@ beforeAll(function (): void {
     }
 
     try {
-        $GLOBALS['fsaHarness'] = ReleaseHarness::start();
-        $GLOBALS['fsaHarnessRelease'] = $GLOBALS['fsaHarness']->publish(ReleaseHarness::TEST_VERSION);
+        $GLOBALS['fieldsetHarness'] = ReleaseHarness::start();
+        $GLOBALS['fieldsetHarnessRelease'] = $GLOBALS['fieldsetHarness']->publish(ReleaseHarness::TEST_VERSION);
     } catch (Throwable $exception) {
-        $GLOBALS['fsaHarnessError'] = $exception;
+        $GLOBALS['fieldsetHarnessError'] = $exception;
     }
 });
 
 afterAll(function (): void {
-    if (isset($GLOBALS['fsaHarness'])) {
-        $GLOBALS['fsaHarness']->stop();
+    if (isset($GLOBALS['fieldsetHarness'])) {
+        $GLOBALS['fieldsetHarness']->stop();
     }
 
-    unset($GLOBALS['fsaHarness'], $GLOBALS['fsaHarnessRelease'], $GLOBALS['fsaHarnessError']);
+    unset($GLOBALS['fieldsetHarness'], $GLOBALS['fieldsetHarnessRelease'], $GLOBALS['fieldsetHarnessError']);
 });
 
 beforeEach(function (): void {
@@ -43,12 +43,12 @@ beforeEach(function (): void {
         $this->markTestSkipped($reason.' (install journeys need a Docker engine)');
     }
 
-    if (isset($GLOBALS['fsaHarnessError'])) {
-        throw $GLOBALS['fsaHarnessError'];
+    if (isset($GLOBALS['fieldsetHarnessError'])) {
+        throw $GLOBALS['fieldsetHarnessError'];
     }
 
-    $this->harness = $GLOBALS['fsaHarness'];
-    $this->release = $GLOBALS['fsaHarnessRelease'];
+    $this->harness = $GLOBALS['fieldsetHarness'];
+    $this->release = $GLOBALS['fieldsetHarnessRelease'];
 });
 
 it('generates a manifest that validates against the schema and lists every service by digest', function (): void {
@@ -79,7 +79,7 @@ it('serves every manifest digest from the local registry', function (): void {
     }
 });
 
-it('signs the manifest with the local key, verified by the pinned cosign image that install.sh and fsa use', function (): void {
+it('signs the manifest with the local key, verified by the pinned cosign image that install.sh and fieldset use', function (): void {
     $verify = $this->harness->cosign->verifyBlob($this->release->manifestPath(), $this->release->bundlePath());
 
     expect($verify->getExitCode())->toBe(0, $verify->getErrorOutput())

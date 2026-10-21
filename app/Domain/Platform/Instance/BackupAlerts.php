@@ -9,7 +9,7 @@ use DateTimeZone;
 use Throwable;
 
 /**
- * When backup runs need an operator (R39, plan U16, ADR 0084). One rule set for `fsa status` (the run ledger in
+ * When backup runs need an operator (R39, plan U16, ADR 0084). One rule set for `fieldset status` (the run ledger in
  * `backups/runs.log`) and `/platform` (the `backup_runs` table):
  *
  * - `backup_failed`: the newest backup run that was not skipped failed (until a later run succeeds);

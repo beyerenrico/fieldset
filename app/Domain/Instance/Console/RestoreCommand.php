@@ -17,7 +17,7 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 
 /**
- * `fsa restore <backup>` (§7, R41, R42, R64, R67, AE8, plan U17, ADR 0085): restores a backup into this instance after
+ * `fieldset restore <backup>` (§7, R41, R42, R64, R67, AE8, plan U17, ADR 0085): restores a backup into this instance after
  * confirmation (RestoreOperation), or with `--drill` checks it in a scratch database without touching the instance
  * (RestoreDrill). `--abandon` cleans up a restore that stopped half-way (RestoreAbandon).
  *
@@ -27,7 +27,7 @@ use Illuminate\Console\Attributes\Signature;
  * - `--accept-unauthenticated`: restore an archive no key from outside it authenticates (a 1.0 backup, a foreign one).
  */
 #[Description('Restore a backup into this instance (asks first), or check it with --drill')]
-#[Signature('fsa:restore
+#[Signature('fieldset:restore
         {backup? : A backup name in backups/ or a path inside the instance directory}
         {--drill : Restore into a scratch database, check it and drop it; the instance is not touched}
         {--abandon : Clean up a restore that stopped half-way and bring the instance back}
@@ -37,9 +37,9 @@ use Illuminate\Console\Attributes\Signature;
         {--passphrase-stdin : Read the identity\'s passphrase from stdin (a hidden prompt in a terminal)}
         {--app-key-file= : APP keys the backup was made with (one per line, or APP_KEY=/APP_PREVIOUS_KEYS= lines)}
         {--without-files : Restore a backup that carries no storage archive: the database only, the current files kept aside}')]
-final class RestoreCommand extends FsaCommand
+final class RestoreCommand extends FieldsetCommand
 {
-    protected function perform(FsaContext $context): CommandResult
+    protected function perform(FieldsetContext $context): CommandResult
     {
         if ($this->option('abandon') === true) {
             return $this->laravel->make(RestoreAbandon::class)->abandon($context);
@@ -55,7 +55,7 @@ final class RestoreCommand extends FsaCommand
      * Another unfinished operation (or a restore of another backup) exits 9 before the question (M12 gate C4); `data` names
      * the backup and the safety backup (O6).
      */
-    protected function confirmationPrompt(FsaContext $context): ?Confirmation
+    protected function confirmationPrompt(FieldsetContext $context): ?Confirmation
     {
         if ($this->option('drill') === true) {
             return null;
@@ -70,11 +70,11 @@ final class RestoreCommand extends FsaCommand
             ['backup' => $backup === '' ? null : $backup, 'safety_backup' => true]);
     }
 
-    private function request(FsaContext $context): RestoreRequest
+    private function request(FieldsetContext $context): RestoreRequest
     {
         $backup = $this->argument('backup');
         if (! is_string($backup) || trim($backup) === '') {
-            throw new InvalidInput('Name the backup to restore.', 'backup_required', 'Run `fsa status` for the newest backups, then `fsa restore <name>`.');
+            throw new InvalidInput('Name the backup to restore.', 'backup_required', 'Run `fieldset status` for the newest backups, then `fieldset restore <name>`.');
         }
         $identity = $this->option('identity-file');
         $identity = is_string($identity) && trim($identity) !== '' ? $this->absolute(trim($identity)) : null;
@@ -96,7 +96,7 @@ final class RestoreCommand extends FsaCommand
         );
     }
 
-    private function keyFile(FsaContext $context): ?AppKeys
+    private function keyFile(FieldsetContext $context): ?AppKeys
     {
         $path = $this->option('app-key-file');
         if (! is_string($path) || trim($path) === '') {

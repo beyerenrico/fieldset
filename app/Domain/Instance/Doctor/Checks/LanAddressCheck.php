@@ -49,7 +49,7 @@ final readonly class LanAddressCheck implements DoctorCheck
     public static function hint(?string $candidate): string
     {
         return $candidate === null
-            ? 'Re-issue the certificate for the current address: `fsa config set lan-address <address> --yes`.'
-            : "Re-issue the certificate for {$candidate}: `fsa config set lan-address {$candidate} --yes` (phones then open https://{$candidate}).";
+            ? 'Re-issue the certificate for the current address: `fieldset config set lan-address <address> --yes`.'
+            : "Re-issue the certificate for {$candidate}: `fieldset config set lan-address {$candidate} --yes` (phones then open https://{$candidate}).";
     }
 }

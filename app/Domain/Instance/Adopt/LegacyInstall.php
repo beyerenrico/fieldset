@@ -12,11 +12,11 @@ use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Output\ExitCode;
 
 /**
- * The running 1.0 install `fsa adopt` takes over (plan U19, ADR 0087), as Docker reports it: the containers of its Compose
+ * The running 1.0 install `fieldset adopt` takes over (plan U19, ADR 0087), as Docker reports it: the containers of its Compose
  * project (found by Compose's labels, one-offs left out) and which of them run, and its two volumes. Docker is the truth
  * about how 1.0 was started: the labels must name the checkout as working directory and its compose.yaml as the only
  * Compose file (an override is exit 7), and the project must have the bundled Postgres with its `pg-data` volume (exit 7
- * `external_database` otherwise). A project that carries an instance label is an fsa instance already (exit 7). The
+ * `external_database` otherwise). A project that carries an instance label is a fieldset instance already (exit 7). The
  * summary goes into the adopt journal, so a resumed adopt and a rollback know exactly which containers to start again.
  */
 final readonly class LegacyInstall
@@ -144,7 +144,7 @@ final readonly class LegacyInstall
         $volumes = array_filter([self::DATA_VOLUME => $data, self::STORAGE_VOLUME => $storage], is_string(...));
         foreach ($docker->volumes([Labels::INSTANCE => null]) as $volume) {
             if (in_array($volume->name, $volumes, true)) {
-                throw self::refused("The volume {$volume->name} belongs to an fsa instance.", 'already_instance', 'Manage it with that instance\'s fsa.');
+                throw self::refused("The volume {$volume->name} belongs to a fieldset instance.", 'already_instance', 'Manage it with that instance\'s fieldset.');
             }
         }
 

@@ -18,7 +18,7 @@ use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
 
 /**
- * The data of `fsa install --from-backup` (plan U17, KTD18, ADR 0085), with the restore's own steps: the dump goes into a
+ * The data of `fieldset install --from-backup` (plan U17, KTD18, ADR 0085), with the restore's own steps: the dump goes into a
  * scratch database `<db>_restore_<id>` (a role owning nothing else for an unauthenticated archive), which then takes the
  * live name from the empty database Postgres created at its first start; the storage archive fills the fresh volume the
  * state names. Both steps start over cleanly when a resumed install repeats them: what an interrupted attempt left of
@@ -60,7 +60,7 @@ final readonly class FromBackupData
     {
         $outcome = $this->app->migrate($project);
         if (! $outcome->successful()) {
-            throw new InstanceException('Migrating the reference database for the schema check failed.', ExitCode::HealthCheckFailed, 'migrate_failed', 'Read the output, then run `fsa install` again with the same flags: it resumes here.', true, ['output' => $outcome->stderrTail(10)]);
+            throw new InstanceException('Migrating the reference database for the schema check failed.', ExitCode::HealthCheckFailed, 'migrate_failed', 'Read the output, then run `fieldset install` again with the same flags: it resumes here.', true, ['output' => $outcome->stderrTail(10)]);
         }
     }
 

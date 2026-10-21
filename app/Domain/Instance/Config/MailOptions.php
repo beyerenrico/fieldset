@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Instance\Config;
 
 /**
- * The flags of `fsa config set mail smtp` (R25, ADR 0080) as typed; MailApplier validates them. None is a secret: the
+ * The flags of `fieldset config set mail smtp` (R25, ADR 0080) as typed; MailApplier validates them. None is a secret: the
  * user name and password travel as SmtpCredentials. The journal records these options (not the test recipient, which
  * changes nothing), so a resumed run can tell the same change from another one.
  */

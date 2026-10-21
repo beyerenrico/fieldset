@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\URL;
 use Tests\Support\Instance\RestoreDatabases;
 
 /*
- * The app side of `fsa reset` (plan U23, R43, R68, KTD26, ADR 0088), in socket-less one-offs: `instance:reset plan` (what the
+ * The app side of `fieldset reset` (plan U23, R43, R68, KTD26, ADR 0088), in socket-less one-offs: `instance:reset plan` (what the
  * reset must know from the live database before the stop), `instance:reset recreate` (the live database dropped and
  * created again, never another), `instance:reset epoch` (the new epoch seeded from the ledger with `instance.reset` and
  * the old heads as its first entry, once) and `instance:audit-export` (every audit entry with the heads, streamed).
@@ -218,7 +218,7 @@ it('exports every audit entry with the epoch and the heads, one JSON document pe
         ->and($rows[0])->toHaveKeys(['event', 'organization_id', 'properties', 'created_at']);
 });
 
-it('plans only well-formed sequence floors: a sequence name fsa cannot pass on is left out (V6)', function (): void {
+it('plans only well-formed sequence floors: a sequence name fieldset cannot pass on is left out (V6)', function (): void {
     DB::statement('CREATE SEQUENCE "Odd-Seq"');
     DB::selectOne('SELECT nextval(\'"Odd-Seq"\') AS value');
 

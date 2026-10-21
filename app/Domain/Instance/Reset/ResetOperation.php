@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Instance\Reset;
 
 use App\Domain\Instance\Backup\SafetyBackup;
-use App\Domain\Instance\Console\FsaContext;
+use App\Domain\Instance\Console\FieldsetContext;
 use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\Docker\DockerGateway;
 use App\Domain\Instance\Install\Installer;
@@ -37,7 +37,7 @@ use Closure;
 use Throwable;
 
 /**
- * `fsa reset` (§7, R43, R57, R68, KTD26, plan U23, ADR 0088) under the instance lock, journaled phase by phase. Up to the
+ * `fieldset reset` (§7, R43, R57, R68, KTD26, plan U23, ADR 0088) under the instance lock, journaled phase by phase. Up to the
  * drop nothing is lost:
  *
  * plan (the live database read: owner, organization; exit 3 when no owner exists) → quiesce (like a restore: gate up,
@@ -49,7 +49,7 @@ use Throwable;
  * Before the drop a failure (or a signal, at a phase boundary) takes the journaled way back (ResetWayBack: exit 5, or
  * exit 8 with every writer stopped); a run that finds it begun only finishes it, and `--abandon` takes it on request.
  * A resumed run that finds writers running (an earlier way back that started them) takes the heads, the backup and the
- * export again. From the drop on the reset only goes forward: the next `fsa reset` with the same flags continues
+ * export again. From the drop on the reset only goes forward: the next `fieldset reset` with the same flags continues
  * without asking. A new journal needs the operator's yes, checked again under the lock (review S4).
  */
 final readonly class ResetOperation
@@ -78,13 +78,13 @@ final readonly class ResetOperation
         private Interruption $interruption,
     ) {}
 
-    public function reset(ResetRequest $request, FsaContext $context, bool $secretsToFile): CommandResult
+    public function reset(ResetRequest $request, FieldsetContext $context, bool $secretsToFile): CommandResult
     {
         $state = RestoreOperation::installed($this->directory);
         $digest = RecordDigest::fromEnvFiles(new EnvFiles($this->directory));
 
         return $this->interruption->guard(fn (): CommandResult => $this->supervisor->run(
-            self::OPERATION, $this->identity->holder('fsa', $request->actorUid),
+            self::OPERATION, $this->identity->holder('fieldset', $request->actorUid),
             fn (OperationRun $run): CommandResult => $this->steps($run, $state, $request, $context, $secretsToFile, $digest),
             resume: true, context: $request->toContext(), progress: $context->progress, archive: $this->archive($digest),
             accepts: static fn (JournalRecord $record): bool => $request->sameAs($record->context()),
@@ -92,14 +92,14 @@ final readonly class ResetOperation
     }
 
     /**
-     * `fsa reset --abandon` (review A2): ends an interrupted reset before its drop by the journaled way back. After the
+     * `fieldset reset --abandon` (review A2): ends an interrupted reset before its drop by the journaled way back. After the
      * drop there is nothing to go back to (exit 2, the hint names the command that finishes it).
      */
-    public function abandon(FsaContext $context): CommandResult
+    public function abandon(FieldsetContext $context): CommandResult
     {
         $open = $this->journal->current();
         if (! $open instanceof JournalRecord || $open->operation() !== self::OPERATION) {
-            throw new InvalidInput('There is no interrupted reset to abandon.', 'nothing_to_abandon', 'Run `fsa status` to see what, if anything, is unfinished.');
+            throw new InvalidInput('There is no interrupted reset to abandon.', 'nothing_to_abandon', 'Run `fieldset status` to see what, if anything, is unfinished.');
         }
         if (self::dropBegan($open)) {
             throw new InvalidInput('The interrupted reset recreated the database already; there is nothing to go back to.', 'reset_past_drop', ResetStatus::hint($open));
@@ -108,10 +108,10 @@ final readonly class ResetOperation
         $digest = RecordDigest::fromEnvFiles(new EnvFiles($this->directory));
 
         return $this->supervisor->run(
-            self::OPERATION, $this->identity->holder('fsa', $context->facts->callerUid()),
+            self::OPERATION, $this->identity->holder('fieldset', $context->facts->callerUid()),
             function (OperationRun $run) use ($state): CommandResult {
                 if (! $run->isResumed()) { // the journal went between the check and the lock (verification V4)
-                    throw new InvalidInput('There is no interrupted reset to abandon.', 'nothing_to_abandon', 'Run `fsa status` to see what, if anything, is unfinished.');
+                    throw new InvalidInput('There is no interrupted reset to abandon.', 'nothing_to_abandon', 'Run `fieldset status` to see what, if anything, is unfinished.');
                 }
                 if (self::dropBegan($run->record())) {
                     throw new InvalidInput('The interrupted reset recreated the database already; there is nothing to go back to.', 'reset_past_drop', ResetStatus::hint($run->record()));
@@ -161,7 +161,7 @@ final readonly class ResetOperation
         return static fn (JournalRecord $record): JournalRecord => $record->withValuesReplaced(ResetSubject::PERSONAL, static fn (string $value): ?string => $digest?->digest($value));
     }
 
-    private function steps(OperationRun $run, InstanceState $state, ResetRequest $request, FsaContext $context, bool $toFile, ?RecordDigest $digest): CommandResult
+    private function steps(OperationRun $run, InstanceState $state, ResetRequest $request, FieldsetContext $context, bool $toFile, ?RecordDigest $digest): CommandResult
     {
         if (! $request->confirmed && ! self::continuesWithoutQuestion($run->record())) {
             throw new ConfirmationRequired(ResetRequest::question($request->noBackup)); // S4: decided under the lock

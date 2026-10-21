@@ -11,7 +11,7 @@ use Closure;
 
 /**
  * The `installed` entry in the state's history: written by the last install phase, it marks a finished instance
- * and records the inputs it was installed with, so a repeated `fsa install` can tell "same flags, nothing to do"
+ * and records the inputs it was installed with, so a repeated `fieldset install` can tell "same flags, nothing to do"
  * (R13, AE3) from "different flags, use config set" (exit 2).
  *
  * - Only inputs that were applied are recorded: when `app:install` found an organization already there, the app
@@ -81,7 +81,7 @@ final class InstallRecord
         foreach (InstallRequest::PROXY_FLAGS as $key) {
             $proxy[$key] = is_string($recorded[$key] ?? null) ? $recorded[$key] : null;
         }
-        // `fsa config set` (ADR 0077) may have changed mode, URL, network or trusted proxy since: compare with the state
+        // `fieldset config set` (ADR 0077) may have changed mode, URL, network or trusted proxy since: compare with the state
         // as it is now. --trusted-proxy is compared with the proxy the instance trusts (comparator(), ADR 0078).
         $settings = InstanceSettings::of($state);
         $proxy = [
@@ -97,9 +97,9 @@ final class InstallRecord
             'domain' => $setting('domain'),
             ...array_combine(InstallRequest::ACME_FLAGS, array_map($setting, InstallRequest::ACME_FLAGS)),
             ...$proxy,
-            // installed with --demo, or the demo added later by `fsa demo` (ADR 0081)
+            // installed with --demo, or the demo added later by `fieldset demo` (ADR 0081)
             'demo' => DemoData::recorded($state) ? 1 : null,
-            // phone HTTPS as it is now (`config set phone-https`, `fsa tunnel`; ADR 0082)
+            // phone HTTPS as it is now (`config set phone-https`, `fieldset tunnel`; ADR 0082)
             'phone_https' => $settings->phoneHttps(),
             'lan_address' => $settings->localCa() ? $settings->lanAddress() : null,
             // mail as it is now (`config set mail`, ADR 0080); the SMTP account is compared with the env files
@@ -111,7 +111,7 @@ final class InstallRecord
      * Compares one recorded input with an explicit flag: personal inputs through their digest; --trusted-proxy through
      * `$trusted`, which knows the trusted proxy by container name, ID prefix or address (install reports the name,
      * `config set trusted-proxy` takes any of them, ADR 0078). `--phone-https tunnel` matches an instance with a tunnel or
-     * without phone HTTPS: the quick tunnel ends on its own after 4 hours or with `fsa tunnel stop` (ADR 0082).
+     * without phone HTTPS: the quick tunnel ends on its own after 4 hours or with `fieldset tunnel stop` (ADR 0082).
      *
      * @param  (Closure(string): bool)|null  $trusted
      * @return Closure(string, string|int|null, string|int): bool true when equal

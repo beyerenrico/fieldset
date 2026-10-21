@@ -19,7 +19,7 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 
 /**
- * `fsa config show` and `fsa config set <key> <value>` (§7, R31, R32, R54, ADR 0077). `show` prints the effective
+ * `fieldset config show` and `fieldset config set <key> <value>` (§7, R31, R32, R54, ADR 0077). `show` prints the effective
  * settings (secrets redacted) and what each opt-in feature contacts; `--catcher-login` adds the catcher UI's password to
  * `secrets` (or --secrets-file) in the loopback modes (ADR 0080). `set` changes one setting under the instance lock and
  * journal: validate (exit 2), confirm a URL change (exit 6 without --yes or a terminal), preflight (exit 3), apply,
@@ -27,18 +27,18 @@ use Illuminate\Console\Attributes\Signature;
  * and the instance is stopped). The same value again is `changed: false` without touching Docker.
  *
  * Keys (ConfigKeys): domain, url, port, trusted-proxy, mode, acme-email, acme-ca, mail, phone-https, lan-address and
- * operator-email. `config set mail smtp|capture` takes the SMTP flags (SmtpInput, shared with `fsa install --smtp-*`);
+ * operator-email. `config set mail smtp|capture` takes the SMTP flags (SmtpInput, shared with `fieldset install --smtp-*`);
  * the password comes only from stdin (`--password-stdin`, or a hidden prompt in a terminal) or a file
  * (`--password-file`), never from a flag value (exit 2, SecretFlagGuard). `config set phone-https local-ca|off` and
- * `config set lan-address <IPv4>` run the local CA of local mode (ADR 0082; the quick tunnel is `fsa tunnel`).
+ * `config set lan-address <IPv4>` run the local CA of local mode (ADR 0082; the quick tunnel is `fieldset tunnel`).
  * `config set operator-email <email>` grants the operator role app-side (OperatorEmailApplier, ADR 0080).
- * `config set webhooks on` confirms a move (`fsa install --from-backup` pauses webhooks; ADR 0085).
+ * `config set webhooks on` confirms a move (`fieldset install --from-backup` pauses webhooks; ADR 0085).
  * `config set backup-schedule <HH:MM|off>`, `backup-retention <n>` and `backup-encryption on|off` set the backup policy
  * (ADR 0084); `backup-encryption on` writes a passphrase-protected identity to `--identity-out`, the passphrase from
  * `--passphrase-file` or `--passphrase-stdin` (PassphraseInput), never from a flag value.
  */
-#[Description('Show the settings (secrets redacted) or change one: fsa config show | fsa config set <key> <value>')]
-#[Signature('fsa:config
+#[Description('Show the settings (secrets redacted) or change one: fieldset config show | fieldset config set <key> <value>')]
+#[Signature('fieldset:config
         {action : show, or set}
         {key? : For set: domain, url, port, trusted-proxy, mode, acme-email, acme-ca, mail, phone-https, lan-address, operator-email, backup-schedule, backup-retention, backup-encryption, webhooks or update-check}
         {value? : For set: the new value}
@@ -61,31 +61,31 @@ use Illuminate\Console\Attributes\Signature;
         {--identity-out= : config set backup-encryption on: write the passphrase-protected backup identity here (outside the instance directory)}
         {--passphrase-file= : config set backup-encryption on: read the identity\'s passphrase from this file}
         {--passphrase-stdin : config set backup-encryption on: read the identity\'s passphrase from stdin (a hidden prompt, twice, in a terminal)}')]
-final class ConfigCommand extends FsaCommand
+final class ConfigCommand extends FieldsetCommand
 {
     /** Container key of a closure that returns stdin (tests); the real stdin otherwise (SmtpInput). */
     public const string STDIN = SmtpInput::STDIN;
 
-    protected function perform(FsaContext $context): CommandResult
+    protected function perform(FieldsetContext $context): CommandResult
     {
         return match ($this->argument('action')) {
             'show' => $this->show($context),
             'set' => $this->set($context),
-            default => throw InvalidInput::usage('Use `fsa config show` or `fsa config set <key> <value>`.'),
+            default => throw InvalidInput::usage('Use `fieldset config show` or `fieldset config set <key> <value>`.'),
         };
     }
 
-    private function show(FsaContext $context): CommandResult
+    private function show(FieldsetContext $context): CommandResult
     {
         if ($this->argument('key') !== null || $this->argument('value') !== null) {
-            throw InvalidInput::usage('`fsa config show` takes no further arguments.');
+            throw InvalidInput::usage('`fieldset config show` takes no further arguments.');
         }
         $show = $this->laravel->make(ConfigShow::class);
 
         return $this->option('catcher-login') === true ? $show->withCatcherLogin($show->build(), $context) : $show->build();
     }
 
-    private function set(FsaContext $context): CommandResult
+    private function set(FieldsetContext $context): CommandResult
     {
         $key = $this->argument('key');
         $value = $this->argument('value');
@@ -93,10 +93,10 @@ final class ConfigCommand extends FsaCommand
             ConfigKeys::check(strtolower(trim($key))); // a later or unknown key says so before a value is asked for
         }
         if (! is_string($key) || $key === '' || ! is_string($value) || trim($value) === '') {
-            throw InvalidInput::usage('Use `fsa config set <key> <value>`; `fsa config show` lists the keys.');
+            throw InvalidInput::usage('Use `fieldset config set <key> <value>`; `fieldset config show` lists the keys.');
         }
         if ($this->option('catcher-login') === true) {
-            throw new InvalidInput('--catcher-login belongs to `fsa config show`.', 'invalid_flag');
+            throw new InvalidInput('--catcher-login belongs to `fieldset config show`.', 'invalid_flag');
         }
         $confirm = $this->canPrompt($context, ignoreYes: true) ? fn (string $question): bool => $this->confirm($question) : null;
         $request = $this->request(strtolower(trim($key)), $value, $context);
@@ -111,7 +111,7 @@ final class ConfigCommand extends FsaCommand
         return TunnelSweeper::then($this->resultName(), $swept, fn (): CommandResult => $this->laravel->make(ConfigSetter::class)->set($request, $context, $confirm));
     }
 
-    private function request(string $key, string $value, FsaContext $context): ConfigRequest
+    private function request(string $key, string $value, FieldsetContext $context): ConfigRequest
     {
         $email = $this->option('acme-email');
         $ca = $this->option('acme-ca');
@@ -147,7 +147,7 @@ final class ConfigCommand extends FsaCommand
     }
 
     /** The SMTP user name and the password from stdin or a file (SmtpInput); read only for `config set mail`. */
-    private function credentials(string $key, SmtpInput $smtp, FsaContext $context): ?SmtpCredentials
+    private function credentials(string $key, SmtpInput $smtp, FieldsetContext $context): ?SmtpCredentials
     {
         if ($key !== 'mail' && $smtp->passwordSource() !== null) {
             throw new InvalidInput("The SMTP options do not apply to `config set {$key}`.", 'invalid_flag', '--password-stdin and --password-file belong to `config set mail smtp`.');

@@ -72,7 +72,7 @@ final readonly class ConfigVerifier
                 "The app does not answer for {$host}.",
                 ExitCode::HealthCheckFailed,
                 'url_check_failed',
-                'Read `fsa logs app` for the cause.',
+                'Read `fieldset logs app` for the cause.',
                 true,
                 ['output' => trim($outcome->stdout."\n".$outcome->stderrTail(3))],
             );

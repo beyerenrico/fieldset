@@ -9,8 +9,8 @@ use Symfony\Component\Process\Process;
 
 /**
  * Drives real installs for the lifecycle journeys (plan U5, J1/J12): install.sh of the harness release, the
- * instance's fsa shim, and Docker queries by the instance label. Instance directories live in the harness
- * workspace (shared with Docker Desktop) and are named `fsa-test-…`; `cleanup()` removes everything labelled
+ * instance's fieldset shim, and Docker queries by the instance label. Instance directories live in the harness
+ * workspace (shared with Docker Desktop) and are named `fieldset-test-…`; `cleanup()` removes everything labelled
  * with the instance UUID, whatever state a failed test left behind. SSH_CONNECTION keeps the shim from opening
  * a browser on a desktop host. A release built for another platform than the engine's runs emulated: install.sh
  * and the shim get DOCKER_DEFAULT_PLATFORM (HarnessRelease::platformEnvironment()).
@@ -50,9 +50,9 @@ final readonly class InstanceJourney
      * @param  list<string>  $arguments
      * @param  string|null  $input  stdin of the shim (J4 pipes the SMTP password for --password-stdin)
      */
-    public function fsa(string $dir, array $arguments, array $env = [], ?string $input = null): Process
+    public function fieldset(string $dir, array $arguments, array $env = [], ?string $input = null): Process
     {
-        return $this->run([$dir.'/fsa', ...$arguments], $env, $input);
+        return $this->run([$dir.'/fieldset', ...$arguments], $env, $input);
     }
 
     /**
@@ -61,9 +61,9 @@ final readonly class InstanceJourney
      *
      * @param  list<string>  $arguments
      */
-    public function fsaProcess(string $dir, array $arguments, array $env = []): Process
+    public function fieldsetProcess(string $dir, array $arguments, array $env = []): Process
     {
-        return $this->process([$dir.'/fsa', ...$arguments], $env);
+        return $this->process([$dir.'/fieldset', ...$arguments], $env);
     }
 
     /**
@@ -195,7 +195,7 @@ final readonly class InstanceJourney
             'FIELDSET_RELEASE_URL' => $this->harness->releaseUrl(),
             'FIELDSET_REGISTRY' => $this->harness->registry(),
             'FIELDSET_TRUST_KEY' => $this->harness->cosign->publicKey(),
-            'SSH_CONNECTION' => 'fsa-test 0 fsa-test 0',
+            'SSH_CONNECTION' => 'fieldset-test 0 fieldset-test 0',
             ...$this->release->platformEnvironment(),
             ...$env,
         ]);

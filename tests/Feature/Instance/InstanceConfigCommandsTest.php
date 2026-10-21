@@ -16,10 +16,10 @@ use App\Domain\Privacy\Models\DataExport;
 use Illuminate\Support\Facades\Artisan;
 
 /*
- * The app side of `fsa config set` (plan U11, KTD25, KTD26; ADR 0077): `instance:url-impact` lists the organizations
+ * The app side of `fieldset config set` (plan U11, KTD25, KTD26; ADR 0077): `instance:url-impact` lists the organizations
  * whose SSO URLs follow the instance URL and counts links already sent with the old address; `instance:config-changed`
  * writes the `instance.config_changed` audit entry by the command line with the host UID. Both print one JSON
- * document, as the socket-less one-offs fsa runs.
+ * document, as the socket-less one-offs fieldset runs.
  */
 
 /** @return array{0: array<string, mixed>, 1: int} */

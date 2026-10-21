@@ -12,7 +12,7 @@ use Tests\Support\Instance\InstanceCommandFixture;
 use Tests\Support\Instance\TemporaryInstance;
 
 /*
- * Plan U11 (R32, ADR 0077): `fsa config set mode local` from domain and proxy mode, the transitions it refuses, and
+ * Plan U11 (R32, ADR 0077): `fieldset config set mode local` from domain and proxy mode, the transitions it refuses, and
  * `acme-email` / `acme-ca` in domain mode.
  */
 

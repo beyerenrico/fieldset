@@ -17,7 +17,7 @@ final class InvalidState extends InstanceException
             $message,
             ExitCode::PreflightFailed,
             'invalid_instance_state',
-            'Run `fsa doctor`; restore the file from a backup if it was edited by hand.',
+            'Run `fieldset doctor`; restore the file from a backup if it was edited by hand.',
             false,
             [],
             $previous,

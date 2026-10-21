@@ -15,7 +15,7 @@ use SensitiveParameter;
 final readonly class InstanceSecrets
 {
     /** Mailpit UI user; the password is the catcher secret. */
-    public const string CATCHER_USER = 'fsa';
+    public const string CATCHER_USER = 'fieldset';
 
     /** @param  list<string>  $previousKeys  APP_PREVIOUS_KEYS, without the current key */
     public function __construct(

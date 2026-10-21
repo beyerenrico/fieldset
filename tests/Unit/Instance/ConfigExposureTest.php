@@ -11,7 +11,7 @@ use Tests\Support\Instance\TunnelFixture;
  * M11 gate (R29, AE2, E9; ADR 0081 amendment 2026-10-19): a `config set` change that makes the instance reachable in a
  * way it was not before (DemoPasswords::exposure() of the target has a reason the current state lacks) is refused in
  * its preflight, before anything changes, while an account still signs in with the demo password `password`: exit 3
- * `default_password_in_use`. Demo accounts are rotated first with `fsa demo --rotate-passwords`; other accounts' owners
+ * `default_password_in_use`. Demo accounts are rotated first with `fieldset demo --rotate-passwords`; other accounts' owners
  * change theirs. A change that widens nothing does not run the check.
  */
 
@@ -39,7 +39,7 @@ it('refuses config set domain on a local demo still on password, in the prefligh
         ->and($this->fixture->config->methodsSince($mark))->not->toContain('composeStop')
         ->and(ConfigFixture::phases($journal))->toBe(['snapshot:completed', 'preflight:failed']);
 })->with([
-    'demo accounts' => [['owner@demo.test', 'worker@demo.test'], [], 'fsa demo --rotate-passwords', ['owner@demo.test', 'worker@demo.test']],
+    'demo accounts' => [['owner@demo.test', 'worker@demo.test'], [], 'fieldset demo --rotate-passwords', ['owner@demo.test', 'worker@demo.test']],
     'another account' => [['owner@demo.test'], ['real@example.com'], 'Change the password of real@example.com', ['real@example.com']],
 ]);
 
@@ -76,6 +76,6 @@ it('checks the accounts once, not twice, when the local CA is turned on', functi
     expect($code)->toBe(3, json_encode($json))
         ->and($json['errors'][0]['code'])->toBe('default_password_in_use')
         ->and($json['errors'][0]['message'])->toContain('the local CA')
-        ->and($json['errors'][0]['hint'])->toContain('fsa demo --rotate-passwords')
+        ->and($json['errors'][0]['hint'])->toContain('fieldset demo --rotate-passwords')
         ->and($this->fixture->accountCalls)->toBe(['app:demo-passwords --check --json']);
 });

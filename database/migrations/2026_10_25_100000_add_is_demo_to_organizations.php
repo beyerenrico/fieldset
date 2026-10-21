@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Schema;
 /*
  * The demo organization is marked explicitly (R29, R65, ADR 0081 amendment 2026-10-19): only the demo seeder sets
  * `is_demo` (CreateOrganization with `demo: true`), and every decision about demo-ness reads it instead of the slug
- * `demo`, which a real organization could carry (`fsa install --org Demo` before the slug was reserved). At most one
+ * `demo`, which a real organization could carry (`fieldset install --org Demo` before the slug was reserved). At most one
  * organization is the demo, also counting a deleted one (it still blocks a new seeding).
  *
  * Backfill: the organization with the slug `demo` is the demo only when the seeder's owner account (owner@demo.test,

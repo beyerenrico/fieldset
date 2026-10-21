@@ -138,6 +138,6 @@ final readonly class AdoptData
         $containers = ComposeFile::serviceContainers($this->docker->composePs($project));
         $postgres = array_find($containers, static fn (ContainerInfo $c): bool => $c->service() === PostgresService::NAME && $c->running());
 
-        return $postgres instanceof ContainerInfo ? $postgres->id : throw new InstanceException('The instance\'s Postgres does not run.', ExitCode::HealthCheckFailed, 'services_unhealthy', 'Read `fsa logs postgres`.', true);
+        return $postgres instanceof ContainerInfo ? $postgres->id : throw new InstanceException('The instance\'s Postgres does not run.', ExitCode::HealthCheckFailed, 'services_unhealthy', 'Read `fieldset logs postgres`.', true);
     }
 }

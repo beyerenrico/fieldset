@@ -12,7 +12,7 @@ use Tests\Support\Instance\TemporaryInstance;
 use Tests\Support\Instance\TunnelFixture;
 
 /*
- * Plan U14 (R20, R29, R61, R65, AE6, KTD12; ADR 0057, ADR 0082): `fsa tunnel start|stop|renew` against scripted Docker.
+ * Plan U14 (R20, R29, R61, R65, AE6, KTD12; ADR 0057, ADR 0082): `fieldset tunnel start|stop|renew` against scripted Docker.
  */
 
 beforeEach(function (): void {
@@ -180,9 +180,9 @@ it('stops the tunnel: runtime cleared, cloudflared gone, the URL local again; a 
 
 it('reports the tunnel URL in effect as the status URL, with the local URL beside it (A7)', function (): void {
     $this->fixture->tunnel('start');
-    [, $active] = $this->fixture->config->instance->run('fsa:status');
+    [, $active] = $this->fixture->config->instance->run('fieldset:status');
     CarbonImmutable::setTestNow('2026-10-18T16:00:01Z');
-    [, $expired] = $this->fixture->config->instance->run('fsa:status');
+    [, $expired] = $this->fixture->config->instance->run('fieldset:status');
 
     expect($active['data']['url'])->toBe('https://'.PhoneFixtures::HOSTNAME)
         ->and($active['data']['local_url'])->toBe('http://localhost:8080')
@@ -198,7 +198,7 @@ it('reports an expired tunnel in status without changing anything (AE6)', functi
     $before = [$directory->read('state.json'), $directory->read('runtime/runtime.json')];
     $mark = $this->fixture->config->mark();
 
-    [$code, $json] = $this->fixture->config->instance->run('fsa:status');
+    [$code, $json] = $this->fixture->config->instance->run('fieldset:status');
 
     expect($code)->toBe(0)
         ->and($json['data']['tunnel'])->toMatchArray(['state' => 'expired', 'hostname' => PhoneFixtures::HOSTNAME, 'url' => null])
@@ -221,17 +221,17 @@ it('removes an expired tunnel before the next mutating command, which then runs 
         ->and($this->fixture->config->state()->setting('phone_https'))->toBeNull()
         ->and(collect($this->fixture->config->archivedJournals('tunnel'))->map(fn ($record) => $record->context()['action'] ?? null)->all())->toContain('expire');
 })->with([
-    'tunnel renew' => ['fsa:tunnel', ['action' => 'renew']],
-    'config set port' => ['fsa:config', ['action' => 'set', 'key' => 'port', 'value' => '8090', '--yes' => true]],
-    'config set port, unconfirmed (the command fails, the removal stays)' => ['fsa:config', ['action' => 'set', 'key' => 'port', 'value' => '8090']],
-    'config set operator-email' => ['fsa:config', ['action' => 'set', 'key' => 'operator-email', 'value' => 'ops@example.com']],
+    'tunnel renew' => ['fieldset:tunnel', ['action' => 'renew']],
+    'config set port' => ['fieldset:config', ['action' => 'set', 'key' => 'port', 'value' => '8090', '--yes' => true]],
+    'config set port, unconfirmed (the command fails, the removal stays)' => ['fieldset:config', ['action' => 'set', 'key' => 'port', 'value' => '8090']],
+    'config set operator-email' => ['fieldset:config', ['action' => 'set', 'key' => 'operator-email', 'value' => 'ops@example.com']],
 ]);
 
 it('removes a tunnel whose cloudflared stopped on the next mutating command', function (): void {
     $this->fixture->tunnel('start');
     $this->fixture->config->instance->docker->stopContainer('7unne1');
 
-    [, $statusJson] = $this->fixture->config->instance->run('fsa:status');
+    [, $statusJson] = $this->fixture->config->instance->run('fieldset:status');
     [$code, $json] = $this->fixture->tunnel('start');
 
     expect($statusJson['data']['tunnel']['state'])->toBe('stopped')

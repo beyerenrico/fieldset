@@ -9,7 +9,7 @@ use Tests\Support\Instance\ConfigFixture;
 use Tests\Support\Instance\TemporaryInstance;
 
 /*
- * M10 gate (ADR 0078): a foreground `fsa config set` that gets SIGTERM, SIGINT or SIGHUP (an agent's tool timeout,
+ * M10 gate (ADR 0078): a foreground `fieldset config set` that gets SIGTERM, SIGINT or SIGHUP (an agent's tool timeout,
  * Ctrl-C, a closed SSH session) must not leave an unverified configuration applied with its journal open. During
  * apply or verify the signal starts the journaled revert, which runs to its end even through a second signal; before
  * any change it aborts with exit 9 and nothing changed. Real signals, sent to this process.

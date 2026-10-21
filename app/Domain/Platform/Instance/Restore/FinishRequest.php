@@ -10,9 +10,9 @@ use JsonException;
 use Throwable;
 
 /**
- * The inputs of `instance:restore-finish` (plan U17, ADR 0085): options plus fsa's stdin document
+ * The inputs of `instance:restore-finish` (plan U17, ADR 0085): options plus fieldset's stdin document
  * `{"previous_heads": {...}, "previous_epoch": int|null, "from_backup": bool}` (empty stdin: none of them). A manual
- * `fsa rollback` adds `carry`: the current release's SecurityExport, the carry's source instead of `--source` (ADR 0086).
+ * `fieldset rollback` adds `carry`: the current release's SecurityExport, the carry's source instead of `--source` (ADR 0086).
  */
 final readonly class FinishRequest
 {
@@ -53,14 +53,14 @@ final readonly class FinishRequest
         }
     }
 
-    /** `--journal`: the fsa journal ID the finish belongs to (hex), null when absent. */
+    /** `--journal`: the fieldset journal ID the finish belongs to (hex), null when absent. */
     public static function journalId(mixed $value): ?string
     {
         if ($value === null || $value === '') {
             return null;
         }
         if (! is_string($value) || preg_match('/^[0-9a-f]{6,64}$/D', $value) !== 1) {
-            throw new InvalidArgumentException('--journal must be the hexadecimal ID of an fsa journal.');
+            throw new InvalidArgumentException('--journal must be the hexadecimal ID of a fieldset journal.');
         }
 
         return $value;

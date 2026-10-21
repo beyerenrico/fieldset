@@ -230,7 +230,7 @@ return [
     ],
 
     'environments' => [
-        // Worker counts come from env so `fsa` can size them to the instance's memory budget (E16, plan U3:
+        // Worker counts come from env so `fieldset` can size them to the instance's memory budget (E16, plan U3:
         // ResourceBudget sets HORIZON_MAX_PROCESSES); without the variable the defaults below apply.
         'production' => [
             'supervisor-1' => [

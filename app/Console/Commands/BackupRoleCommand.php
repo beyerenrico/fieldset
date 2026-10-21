@@ -12,11 +12,11 @@ use Illuminate\Console\Command;
 use RuntimeException;
 
 /**
- * Creates or updates the backup service's database role (`fsa install` after its migrations, `fsa backup` before each
+ * Creates or updates the backup service's database role (`fieldset install` after its migrations, `fieldset backup` before each
  * manual run; ADR 0084) in a socket-less one-off of the app service. The password comes from the environment variable
- * FIELDSET_BACKUP_DB_PASSWORD, which fsa passes by name, never as an argument, and is never printed.
+ * FIELDSET_BACKUP_DB_PASSWORD, which fieldset passes by name, never as an argument, and is never printed.
  */
-#[Description('Create or update the database role of the fsa backup service (read all data, insert backup runs)')]
+#[Description('Create or update the database role of the fieldset backup service (read all data, insert backup runs)')]
 #[Signature('instance:backup-role
         {--json : Print one JSON document on stdout}')]
 final class BackupRoleCommand extends Command

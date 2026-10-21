@@ -29,7 +29,7 @@ use function Laravel\Prompts\text;
 
 /**
  * Creates the first organization and its owner (BUILD_PROMPT §11 Operability; 2.0: R12, R26, R27, R50, KTD21).
- * The owner gets the platform operator role (ADR 0041). Non-interactive use (`fsa install` runs it as a
+ * The owner gets the platform operator role (ADR 0041). Non-interactive use (`fieldset install` runs it as a
  * socket-less one-off, KTD25): `--password-file`, or `--owner-link` for no password at all and a one-time first
  * sign-in link instead (password-reset broker, 60 minutes). `--password` still works but is deprecated (the value
  * shows in the process list). `--json` prints one JSON document; the link appears only under `secrets`, a
@@ -44,7 +44,7 @@ use function Laravel\Prompts\text;
         {--password-file= : Read the owner password from this file}
         {--owner-link : No password: issue a one-time first sign-in link (60 minutes) instead}
         {--locale=de : Organization locale (de|en)}
-        {--actor-uid= : Host UID of the operator running fsa (audit)}
+        {--actor-uid= : Host UID of the operator running fieldset (audit)}
         {--json : Print one JSON document on stdout}')]
 final class InstallCommand extends Command
 {
@@ -66,7 +66,7 @@ final class InstallCommand extends Command
         }
 
         // One transaction (U23 review A7): a failure never leaves an owner without the operator role or an organization
-        // without its owner link, which a repeated install (or `fsa reset`) would then take for a finished one.
+        // without its owner link, which a repeated install (or `fieldset reset`) would then take for a finished one.
         // Spatie caches permissions read inside the transaction (Valkey in an instance): forgotten before it and after a
         // failure, or the next run would find rows the rollback removed (verification V7).
         $registrar->forgetCachedPermissions();

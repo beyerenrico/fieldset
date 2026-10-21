@@ -32,7 +32,7 @@ beforeEach(function (): void {
     $this->output = new BufferedOutput;
     $this->progress = new ProgressReporter($this->output, true, new SecretRedactor);
     $this->state = DomainFixtures::state();
-    $this->project = new ComposeProject($this->state->project(), '/srv/fsa/compose.yaml', '/srv/fsa');
+    $this->project = new ComposeProject($this->state->project(), '/srv/fieldset/compose.yaml', '/srv/fieldset');
     Sleep::fake();
 });
 

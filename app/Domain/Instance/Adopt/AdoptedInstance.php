@@ -22,7 +22,7 @@ use Throwable;
  * What an adopted instance remembers about its 1.0 origin (plan U19, ADR 0087): the state's `adopted` history entry
  * (checkout, 1.0 project, backup, jobs left in 1.0's Valkey), or, while an adopt that stopped 1.0 is unfinished (review
  * A3), the same read from its open journal; and the baseline snapshot taken before 2.0 started (the ledger's `adopted`
- * line, else the journal's `baseline` phase). `fsa uninstall` uses it: an adopted instance gets a final backup unless
+ * line, else the journal's `baseline` phase). `fieldset uninstall` uses it: an adopted instance gets a final backup unless
  * `--no-backup` (its 1.0 checkout holds the data only up to the adopt), and the result reports the writes made since
  * adopt (DataSnapshot::writesSince), the jobs 1.0 will run when it comes back and the command that brings it back.
  */

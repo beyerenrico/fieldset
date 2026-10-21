@@ -17,17 +17,17 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 
 /**
- * `fsa doctor` (§7, R10, ADR 0072): Docker and Compose versions, architecture, memory, disk, path sharing,
+ * `fieldset doctor` (§7, R10, ADR 0072): Docker and Compose versions, architecture, memory, disk, path sharing,
  * permissions of the instance files, stale hand-over files (removed), DNS in domain mode, registry reachability,
  * clock skew, ports and, in proxy mode, whether the trusted proxy address still matches (`proxy_address_changed`);
  * with --post also the running services. Any failed check is exit 3 (10 for a too old
  * Docker) with the full report under `data.checks`; warnings pass with exit 0.
  */
 #[Description('Preflight and health checks of the host and the instance')]
-#[Signature('fsa:doctor {--post : Also check that every service runs and is healthy (after install or upgrade)}')]
-final class DoctorCommand extends FsaCommand
+#[Signature('fieldset:doctor {--post : Also check that every service runs and is healthy (after install or upgrade)}')]
+final class DoctorCommand extends FieldsetCommand
 {
-    protected function perform(FsaContext $context): CommandResult
+    protected function perform(FieldsetContext $context): CommandResult
     {
         $directory = $context->directory();
         $state = $directory->hasState() ? $directory->state() : null;

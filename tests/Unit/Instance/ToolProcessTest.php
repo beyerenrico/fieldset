@@ -57,7 +57,7 @@ it('writes stdout into a file the caller created, and the caller reads back exac
 });
 
 it('reports a program that cannot start', function (): void {
-    $result = ToolProcess::run(['/nonexistent/fsa-tool'], [], 5.0);
+    $result = ToolProcess::run(['/nonexistent/fieldset-tool'], [], 5.0);
 
     expect($result->successful())->toBeFalse();
 });

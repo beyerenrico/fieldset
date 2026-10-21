@@ -202,7 +202,7 @@ it('notices a backup service that is not running, cannot start, or never reporte
     backupRun($start('2026-10-19T11:59:00Z', 'failed', 'invalid_schedule'));
     $failed = app(BackupCheck::class)->run();
     DB::table('backup_runs')->delete();
-    config(['instance.runtime_path' => '/run/fsa']);
+    config(['instance.runtime_path' => '/run/fieldset']);
     $silent = app(BackupCheck::class)->run();
 
     expect([$waiting->status, $waiting->summary])->toBe([HealthStatus::Ok, __('platform.health.backup.waiting')])

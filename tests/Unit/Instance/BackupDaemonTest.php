@@ -47,7 +47,7 @@ function daemonConfig(InstanceDirectory $directory, array $overrides = []): Back
 /** A run whose database is unreachable on purpose: these tests never get as far as a dump. */
 function daemonRun(InstanceDirectory $directory, BackupConfig $config): BackupRun
 {
-    config(['database.connections.backup_none' => [...config('database.connections.pgsql'), 'database' => 'fsa_test_no_such_database']]);
+    config(['database.connections.backup_none' => [...config('database.connections.pgsql'), 'database' => 'fieldset_test_no_such_database']]);
     $db = DB::connection('backup_none');
     $store = new BackupStore($directory);
 
@@ -95,7 +95,7 @@ it('sleeps in short steps until the slot, then runs; a run skipped because the l
     expect($first)->toBeNull()->and($this->sleeps[0])->toBe(10)
         ->and(array_column($runs, 'status'))->toBe(['skipped', 'skipped', 'skipped'])
         ->and($runs[0])->toMatchArray(['kind' => 'scheduled', 'reason' => 'lock_held', 'recorded' => false])
-        ->and($runs[0]['message'])->toContain('upgrade by fsa')
+        ->and($runs[0]['message'])->toContain('upgrade by fieldset')
         ->and($ledger)->toHaveCount(1)
         ->and(max($this->sleeps))->toBeLessThanOrEqual(BackupDaemon::TICK_SECONDS)
         ->and(CarbonImmutable::parse((string) $runs[1]['started_at'])->diffInSeconds(CarbonImmutable::parse((string) $runs[2]['started_at'])))->toBeGreaterThanOrEqual(BackupSchedule::LOCK_RETRY_SECONDS)
@@ -166,7 +166,7 @@ it('releases the lock its own container took before a restart, and stops when to
     expect($lock->current())->toBeNull()->and($this->sleeps)->toBe([BackupDaemon::TICK_SECONDS, BackupDaemon::TICK_SECONDS]);
 });
 
-it('records the holder of a socket-less service by container ID, boot and init start, which fsa never judges by Docker\'s start time', function (): void {
+it('records the holder of a socket-less service by container ID, boot and init start, which fieldset never judges by Docker\'s start time', function (): void {
     $dir = $this->directory->root;
     file_put_contents($dir.'/mountinfo', '123 1 0:1 /var/lib/docker/containers/'.str_repeat('d', 64)."/hostname /etc/hostname rw - ext4 /dev/vda1 rw\n");
     file_put_contents($dir.'/stat', '1 (php (daemon)) S 0 1 1 0 -1 4194560 3000 0 0 0 20 5 0 0 20 0 1 0 987654 1000 200');
@@ -241,14 +241,14 @@ it('runs a slot missed since the service first started with its schedule at once
         ->and($this->sleeps)->toBe([]);
 });
 
-it('records a failed start once, with its reason, so fsa status and /platform can name it', function (): void {
-    config(['database.connections.backup_none' => [...config('database.connections.pgsql'), 'database' => 'fsa_test_no_such_database'], 'database.default' => 'backup_none']);
+it('records a failed start once, with its reason, so fieldset status and /platform can name it', function (): void {
+    config(['database.connections.backup_none' => [...config('database.connections.pgsql'), 'database' => 'fieldset_test_no_such_database'], 'database.default' => 'backup_none']);
     $env = ['FIELDSET_INSTANCE_ROOT' => $this->directory->root, 'BACKUP_HMAC_KEY' => DAEMON_KEY, 'FIELDSET_OWNER_UID' => (string) posix_getuid(), 'FIELDSET_OWNER_GID' => (string) posix_getgid(), 'BACKUP_TIME_ZONE' => 'Mars/Olympus'];
     foreach ($env as $key => $value) {
         putenv("{$key}={$value}");
     }
     $call = static function (): array {
-        $code = Artisan::call('fsa:backup-daemon', ['--json' => true]);
+        $code = Artisan::call('fieldset:backup-daemon', ['--json' => true]);
 
         return [$code, json_decode(trim(Artisan::output()), true, 512, JSON_THROW_ON_ERROR)];
     };
@@ -280,7 +280,7 @@ it('answers the one-off entry point with one JSON document: lock required, lock 
         putenv("{$key}={$value}");
     }
     $call = static function (array $options): array {
-        $code = Artisan::call('fsa:backup-daemon', [...$options, '--json' => true]);
+        $code = Artisan::call('fieldset:backup-daemon', [...$options, '--json' => true]);
 
         return [$code, json_decode(trim(Artisan::output()), true, 512, JSON_THROW_ON_ERROR)];
     };
@@ -325,9 +325,9 @@ it('seals a plain backup under the caller\'s lock and refuses --include-secrets 
     $handle = new InstanceLock($this->directory, new RecordingDockerGateway)->acquire(TemporaryInstance::holder('a'), 'upgrade');
 
     try {
-        $sealCode = Artisan::call('fsa:backup-daemon', ['--seal' => 'safety-upgrade-20261019T120000Z', '--lock-id' => $handle->record->lockId, '--json' => true]);
+        $sealCode = Artisan::call('fieldset:backup-daemon', ['--seal' => 'safety-upgrade-20261019T120000Z', '--lock-id' => $handle->record->lockId, '--json' => true]);
         $seal = json_decode(trim(Artisan::output()), true, 512, JSON_THROW_ON_ERROR);
-        $secretsCode = Artisan::call('fsa:backup-daemon', ['--once' => true, '--include-secrets' => true, '--lock-id' => $handle->record->lockId, '--json' => true]);
+        $secretsCode = Artisan::call('fieldset:backup-daemon', ['--once' => true, '--include-secrets' => true, '--lock-id' => $handle->record->lockId, '--json' => true]);
         $secrets = json_decode(trim(Artisan::output()), true, 512, JSON_THROW_ON_ERROR);
     } finally {
         foreach (array_keys($env) as $key) {
@@ -343,24 +343,24 @@ it('seals a plain backup under the caller\'s lock and refuses --include-secrets 
 it('reads its configuration from the environment and refuses malformed numbers', function (): void {
     $config = BackupConfig::fromEnvironment([
         'BACKUP_HMAC_KEY' => DAEMON_KEY, 'BACKUP_AGE_RECIPIENTS' => 'age1aaa, age1bbb', 'BACKUP_RETENTION' => '3', 'BACKUP_SCHEDULE' => 'off',
-        'DB_DATABASE' => 'form_schema', 'DB_USERNAME' => 'fieldset_backup', 'DB_PASSWORD' => 'secret-pw', 'APP_VERSION' => '2.0.0-rc.1',
+        'DB_DATABASE' => 'fieldset', 'DB_USERNAME' => 'fieldset_backup', 'DB_PASSWORD' => 'secret-pw', 'APP_VERSION' => '2.0.0-rc.1',
     ]);
 
     expect($config->recipients)->toBe(['age1aaa', 'age1bbb'])->and($config->encrypts())->toBeTrue()
         ->and($config->retention)->toBe(3)->and($config->schedule()->enabled())->toBeFalse()
         ->and($config->instanceRoot)->toBe(BackupConfig::INSTANCE_ROOT)->and($config->storagePath)->toBe(BackupConfig::STORAGE_PATH)
-        ->and($config->libpqEnvironment())->toMatchArray(['PGHOST' => 'postgres', 'PGPORT' => '5432', 'PGDATABASE' => 'form_schema', 'PGUSER' => 'fieldset_backup', 'PGPASSWORD' => 'secret-pw'])
+        ->and($config->libpqEnvironment())->toMatchArray(['PGHOST' => 'postgres', 'PGPORT' => '5432', 'PGDATABASE' => 'fieldset', 'PGUSER' => 'fieldset_backup', 'PGPASSWORD' => 'secret-pw'])
         ->and(print_r($config, true))->not->toContain('secret-pw')
         ->and(fn () => BackupConfig::fromEnvironment(['BACKUP_HMAC_KEY' => DAEMON_KEY, 'BACKUP_RETENTION' => 'seven']))->toThrow(InstanceException::class, 'BACKUP_RETENTION');
 });
 
-it('removes what interrupted runs left as the service, only under the lock of the fsa command that asks (--clean, uninstall, M12 gate)', function (): void {
+it('removes what interrupted runs left as the service, only under the lock of the fieldset command that asks (--clean, uninstall, M12 gate)', function (): void {
     $env = ['FIELDSET_INSTANCE_ROOT' => $this->directory->root, 'BACKUP_HMAC_KEY' => DAEMON_KEY, 'FIELDSET_OWNER_UID' => (string) posix_getuid(), 'FIELDSET_OWNER_GID' => (string) posix_getgid()];
     foreach ($env as $key => $value) {
         putenv("{$key}={$value}");
     }
     $call = static function (array $options): array {
-        $code = Artisan::call('fsa:backup-daemon', [...$options, '--json' => true]);
+        $code = Artisan::call('fieldset:backup-daemon', [...$options, '--json' => true]);
 
         return [$code, json_decode(trim(Artisan::output()), true, 512, JSON_THROW_ON_ERROR)];
     };

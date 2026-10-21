@@ -7,7 +7,7 @@ namespace App\Domain\Instance\Tunnel;
 use Carbon\CarbonImmutable;
 
 /**
- * How long a quick tunnel lives (E11, R20): 4 hours from `fsa tunnel start` or the last `fsa tunnel renew`. The
+ * How long a quick tunnel lives (E11, R20): 4 hours from `fieldset tunnel start` or the last `fieldset tunnel renew`. The
  * release-harness journeys shorten it (HarnessTunnel); production images always use 4 hours.
  */
 final class TunnelClock

@@ -12,8 +12,8 @@ use App\Domain\Instance\Release\ReleaseVersion;
 use App\Domain\Instance\State\InputGrammar;
 
 /**
- * The grammar of the `fsa install` flags (§7, R26): each value validated and normalized, exit 2 `invalid_flag` with a
- * hint otherwise. The SMTP flags use the grammar of `fsa config set mail smtp` (InstallMail, MailValues).
+ * The grammar of the `fieldset install` flags (§7, R26): each value validated and normalized, exit 2 `invalid_flag` with a
+ * hint otherwise. The SMTP flags use the grammar of `fieldset config set mail smtp` (InstallMail, MailValues).
  */
 final class InstallInputs
 {

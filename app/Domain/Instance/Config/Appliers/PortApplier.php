@@ -15,7 +15,7 @@ use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
 
 /**
- * `fsa config set port <n>` (R15, R32, ADR 0077): the app's loopback port in local mode (the URL becomes
+ * `fieldset config set port <n>` (R15, R32, ADR 0077): the app's loopback port in local mode (the URL becomes
  * `http://localhost:<n>`, so it is a URL change) and in proxy mode's `port` setup (the proxy's target; the URL stays).
  * Domain mode and shared proxy networks publish no app port (exit 2). The port must be free (exit 3); only the app
  * is recreated with the new binding (and, in local mode, queue and scheduler for the new APP_URL).
@@ -30,7 +30,7 @@ final readonly class PortApplier implements SettingApplier
         $settings = InstanceSettings::of($state);
         if (! $settings->publishesAppPort()) {
             throw new InvalidInput("`port` does not apply in {$state->mode()} mode: the app publishes no loopback port there.", 'not_in_this_mode', $state->mode() === 'domain'
-                ? 'Domain mode publishes 80 and 443 through the edge; `fsa config set mode local` returns to a loopback port.'
+                ? 'Domain mode publishes 80 and 443 through the edge; `fieldset config set mode local` returns to a loopback port.'
                 : 'On a shared proxy network the proxy reaches the app directly.');
         }
         if ($settings->runsCatcher() && $port === $settings->mailUiPort()) {

@@ -40,7 +40,7 @@ it('checks ports, identifiers, e-mail addresses, text and host lists', function 
         ->and(InputGrammar::isPort(65535))->toBeTrue()
         ->and(InputGrammar::isPort(0))->toBeFalse()
         ->and(InputGrammar::isPort('80'))->toBeFalse()
-        ->and(InputGrammar::isIdentifier('form_schema'))->toBeTrue()
+        ->and(InputGrammar::isIdentifier('fieldset'))->toBeTrue()
         ->and(InputGrammar::isIdentifier('Form-Schema'))->toBeFalse()
         ->and(InputGrammar::isEmail('forms@example.com'))->toBeTrue()
         ->and(InputGrammar::isEmail('forms+x@localhost'))->toBeTrue()
@@ -62,7 +62,7 @@ it('checks image references pinned by digest', function (): void {
     $digest = '@sha256:'.str_repeat('a', 64);
 
     expect(InputGrammar::isImageReference('ghcr.io/beyerenrico/form-schema-app'.$digest))->toBeTrue()
-        ->and(InputGrammar::isImageReference('localhost:5000/fsa/app'.$digest))->toBeTrue()
+        ->and(InputGrammar::isImageReference('localhost:5000/fieldset/app'.$digest))->toBeTrue()
         ->and(InputGrammar::isImageReference('postgres'.$digest))->toBeTrue()
         ->and(InputGrammar::isImageReference('postgres:16-alpine'))->toBeFalse()
         ->and(InputGrammar::isImageReference('evil${X}/app'.$digest))->toBeFalse()

@@ -20,9 +20,9 @@ use Tests\Support\Docker\TestImage;
  * U4 / M9-T07: install.sh and the shim against the local release harness with real Docker (R7, R8, R58, KTD2,
  * ADR 0070). The shared harness release (harness builds of the image and install.sh, SharedHarness) serves the
  * whole file. To observe the hand-over contract (argv, user, environment, mounts) a `docker` wrapper on PATH can
- * swap the ops container's `fsa` entrypoint for tests/Install/Harness/ops-probe.php, which reports it from inside
- * the real container; FIELDSET_PROBE_OFF=1 lets the real fsa commands run (U5: `fsa install` exits 2 for a missing
- * flag without a TTY, `fsa doctor` fails the nonce check). Full installs are J1 and J12.
+ * swap the ops container's `fieldset` entrypoint for tests/Install/Harness/ops-probe.php, which reports it from inside
+ * the real container; FIELDSET_PROBE_OFF=1 lets the real fieldset commands run (U5: `fieldset install` exits 2 for a missing
+ * flag without a TTY, `fieldset doctor` fails the nonce check). Full installs are J1 and J12.
  */
 
 beforeAll(function (): void {
@@ -32,15 +32,15 @@ beforeAll(function (): void {
 
     try {
         [$harness, $release] = SharedHarness::get();
-        $GLOBALS['fsaBootstrap'] = ['harness' => $harness, 'release' => $release, 'work' => bootstrapWorkspace($harness->directory.'/bootstrap')];
+        $GLOBALS['fieldsetBootstrap'] = ['harness' => $harness, 'release' => $release, 'work' => bootstrapWorkspace($harness->directory.'/bootstrap')];
     } catch (Throwable $exception) {
-        $GLOBALS['fsaBootstrapError'] = $exception;
+        $GLOBALS['fieldsetBootstrapError'] = $exception;
     }
 });
 
 afterAll(function (): void {
     // The shared harness (and the pulled app image with it) stays for the other journeys; SharedHarness stops it.
-    unset($GLOBALS['fsaBootstrap'], $GLOBALS['fsaBootstrapError']);
+    unset($GLOBALS['fieldsetBootstrap'], $GLOBALS['fieldsetBootstrapError']);
 });
 
 beforeEach(function (): void {
@@ -50,11 +50,11 @@ beforeEach(function (): void {
         $this->markTestSkipped($reason.' (install journeys need a Docker engine)');
     }
 
-    if (isset($GLOBALS['fsaBootstrapError'])) {
-        throw $GLOBALS['fsaBootstrapError'];
+    if (isset($GLOBALS['fieldsetBootstrapError'])) {
+        throw $GLOBALS['fieldsetBootstrapError'];
     }
 
-    ['harness' => $this->harness, 'release' => $this->release, 'work' => $this->work] = $GLOBALS['fsaBootstrap'];
+    ['harness' => $this->harness, 'release' => $this->release, 'work' => $this->work] = $GLOBALS['fieldsetBootstrap'];
     file_put_contents($this->work.'/docker.log', '');
     $this->appReference = $this->harness->registry().'/beyerenrico/form-schema-app@'.$this->release->appDigest;
 });
@@ -65,7 +65,7 @@ function bootstrapWorkspace(string $work): string
     mkdir($work.'/bin', 0755, true);
     mkdir($work.'/probe', 0755);
     copy(TestImage::repository().'/tests/Install/Harness/ops-probe.php', $work.'/probe/ops-probe.php');
-    file_put_contents($work.'/probe/probe.sh', "#!/bin/sh\nexec php /fsa-probe/ops-probe.php \"\$@\"\n");
+    file_put_contents($work.'/probe/probe.sh', "#!/bin/sh\nexec php /fieldset-probe/ops-probe.php \"\$@\"\n");
     file_put_contents($work.'/bin/docker', <<<'SH'
         #!/bin/sh
         { for a in "$@"; do printf '%s\037' "$a"; done; printf '\036\n'; } >> "$FIELDSET_DOCKER_LOG"
@@ -75,11 +75,11 @@ function bootstrapWorkspace(string $work): string
                 a=$1
                 shift
                 n=$((n - 1))
-                if [ "$prev" = --entrypoint ] && [ "$a" = fsa ]; then
-                    if [ -n "${FIELDSET_PROBE_OFF:-}" ]; then set -- "$@" fsa; else set -- "$@" /fsa-probe/probe.sh -v "$FIELDSET_PROBE_DIR:/fsa-probe:ro"; fi
-                    [ -z "${FIELDSET_PROBE_HIDE_NONCE:-}" ] || rm -f "$FIELDSET_PROBE_HIDE_NONCE"/.fsa-nonce-*
+                if [ "$prev" = --entrypoint ] && [ "$a" = fieldset ]; then
+                    if [ -n "${FIELDSET_PROBE_OFF:-}" ]; then set -- "$@" fieldset; else set -- "$@" /fieldset-probe/probe.sh -v "$FIELDSET_PROBE_DIR:/fieldset-probe:ro"; fi
+                    [ -z "${FIELDSET_PROBE_HIDE_NONCE:-}" ] || rm -f "$FIELDSET_PROBE_HIDE_NONCE"/.fieldset-nonce-*
                 elif [ -n "${FIELDSET_PROBE_DROP_MOUNT:-}" ] && [ "$a" = "$FIELDSET_PROBE_DROP_MOUNT:$FIELDSET_PROBE_DROP_MOUNT" ]; then
-                    set -- "$@" "$FIELDSET_PROBE_DIR:/fsa-probe-dropped:ro"
+                    set -- "$@" "$FIELDSET_PROBE_DIR:/fieldset-probe-dropped:ro"
                 else
                     set -- "$@" "$a"
                 fi
@@ -213,7 +213,7 @@ it('(d) verifies, pulls by digest and hands over to the ops container with mount
     $probe = bootstrapProbe($process)['probe'] ?? [];
     $calls = bootstrapDockerCalls($this);
     $order = array_map(fn (array $call): string => $call[0].(in_array($call[0], ['pull', 'run'], true) ? ' '.implode(' ', array_slice($call, -2)) : ''), $calls);
-    $ops = array_values(array_filter($calls, fn (array $call): bool => $call[0] === 'run' && in_array('fsa', $call, true)))[0];
+    $ops = array_values(array_filter($calls, fn (array $call): bool => $call[0] === 'run' && in_array('fieldset', $call, true)))[0];
     $desktop = PHP_OS_FAMILY === 'Darwin' || str_contains((string) shell_exec('docker info --format "{{.OperatingSystem}}"'), 'Docker Desktop');
 
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput().$process->getOutput())
@@ -227,7 +227,7 @@ it('(d) verifies, pulls by digest and hands over to the ops container with mount
         ->and($probe['home_writable'])->toBeTrue()
         ->and($probe['instance'])->toBe(['visible' => true, 'marker' => true, 'shim' => true, 'manifest' => true, 'writable' => true])
         ->and($probe['env'])->toMatchArray([
-            'HOME' => '/run/fsa-home', 'DOCKER_CONFIG' => '/run/fsa-home/.docker', 'DOCKER_HOST' => 'unix:///var/run/docker.sock',
+            'HOME' => '/run/fieldset-home', 'DOCKER_CONFIG' => '/run/fieldset-home/.docker', 'DOCKER_HOST' => 'unix:///var/run/docker.sock',
             'FIELDSET_LAUNCHER' => 'install.sh', 'FIELDSET_TTY' => '0', 'FIELDSET_HOST_UID' => (string) posix_getuid(), 'FIELDSET_HOST_GID' => (string) posix_getgid(),
             'FIELDSET_INSTANCE_DIR' => $directory, 'FIELDSET_DOCKER_RUNTIME' => $desktop ? 'desktop' : 'rootful',
             'FIELDSET_CONTAINER_UID' => $desktop ? '0' : (string) posix_getuid(), 'FIELDSET_REGISTRY' => $this->harness->registry(),
@@ -236,12 +236,12 @@ it('(d) verifies, pulls by digest and hands over to the ops container with mount
         ])
         ->and($probe['uid'])->toBe($desktop ? 0 : posix_getuid())
         ->and(substr(sprintf('%o', fileperms($directory)), -3))->toBe('700')
-        ->and(file_get_contents($directory.'/fsa'))->toBe(file_get_contents(TestImage::repository().'/distribution/shim.sh'))
+        ->and(file_get_contents($directory.'/fieldset'))->toBe(file_get_contents(TestImage::repository().'/distribution/shim.sh'))
         ->and(file_get_contents($directory.'/releases/'.ReleaseHarness::version().'/release-manifest.json'))->toBe(file_get_contents($this->release->manifestPath()))
-        ->and(glob($directory.'/.fsa-nonce-*'))->toBe([]);
+        ->and(glob($directory.'/.fieldset-nonce-*'))->toBe([]);
 });
 
-it('(d) the real fsa install exits 2 (input_required) without a terminal when a required flag is missing (R26)', function (): void {
+it('(d) the real fieldset install exits 2 (input_required) without a terminal when a required flag is missing (R26)', function (): void {
     [$process, $directory] = bootstrapInstall($this, 'missing-flag', ['--owner-email', 'owner@example.test', '--json'], ['FIELDSET_PROBE_OFF' => '1']);
     $json = json_decode($process->getOutput(), true);
 
@@ -250,15 +250,15 @@ it('(d) the real fsa install exits 2 (input_required) without a terminal when a 
         ->and($json['errors'][0]['code'])->toBe('input_required')
         ->and($json['data']['missing'])->toBe(['--org'])
         ->and(file_exists($directory.'/state.json'))->toBeFalse()
-        ->and(glob($directory.'/.fsa-nonce-*'))->toBe([]);
+        ->and(glob($directory.'/.fieldset-nonce-*'))->toBe([]);
 });
 
-it('(e) the shim runs the real fsa doctor, which fails the nonce check with exit 3 when the daemon cannot see the directory', function (): void {
+it('(e) the shim runs the real fieldset doctor, which fails the nonce check with exit 3 when the daemon cannot see the directory', function (): void {
     [, $directory] = bootstrapInstall($this, 'shim-instance');
     bootstrapWriteState($this, $directory);
 
-    $visible = bootstrapRun($this, [$directory.'/fsa', 'doctor', '--json'], ['FIELDSET_PROBE_OFF' => '1']);
-    $hidden = bootstrapRun($this, [$directory.'/fsa', 'doctor', '--json'], ['FIELDSET_PROBE_OFF' => '1', 'FIELDSET_PROBE_HIDE_NONCE' => $directory]);
+    $visible = bootstrapRun($this, [$directory.'/fieldset', 'doctor', '--json'], ['FIELDSET_PROBE_OFF' => '1']);
+    $hidden = bootstrapRun($this, [$directory.'/fieldset', 'doctor', '--json'], ['FIELDSET_PROBE_OFF' => '1', 'FIELDSET_PROBE_HIDE_NONCE' => $directory]);
     $checks = array_column(json_decode($visible->getOutput(), true)['data']['checks'] ?? [], 'status', 'key');
     $error = json_decode($hidden->getOutput(), true)['errors'][0] ?? [];
 
@@ -276,21 +276,21 @@ it('(f) writes a --secrets-file in a host directory on the host, and refuses pat
     $out = $this->work.'/host-out';
     mkdir($out, 0755);
 
-    $written = bootstrapRun($this, [$directory.'/fsa', 'login-link', 'owner@example.test', '--secrets-file', 'host-out/link.json', '--json']);
-    $unshared = bootstrapRun($this, [$directory.'/fsa', 'login-link', 'owner@example.test', '--secrets-file', $out.'/again.json', '--json'], ['FIELDSET_PROBE_DROP_MOUNT' => $out]);
+    $written = bootstrapRun($this, [$directory.'/fieldset', 'login-link', 'owner@example.test', '--secrets-file', 'host-out/link.json', '--json']);
+    $unshared = bootstrapRun($this, [$directory.'/fieldset', 'login-link', 'owner@example.test', '--secrets-file', $out.'/again.json', '--json'], ['FIELDSET_PROBE_DROP_MOUNT' => $out]);
     $outside = new Process([
-        'docker', 'run', '--rm', '--user', posix_getuid().':'.posix_getgid(), '-v', "{$directory}:{$directory}", '-v', $this->work.'/probe:/fsa-probe:ro',
-        '-e', 'FIELDSET_NONCE=.fsa-nonce-00000000000000000000000000000000', '-e', "FIELDSET_INSTANCE_DIR={$directory}", '-e', 'FIELDSET_MOUNTS=',
-        '--entrypoint', '/fsa-probe/probe.sh', $this->appReference, 'login-link', '--secrets-file', '/srv/elsewhere/link.json', '--dir', $directory,
+        'docker', 'run', '--rm', '--user', posix_getuid().':'.posix_getgid(), '-v', "{$directory}:{$directory}", '-v', $this->work.'/probe:/fieldset-probe:ro',
+        '-e', 'FIELDSET_NONCE=.fieldset-nonce-00000000000000000000000000000000', '-e', "FIELDSET_INSTANCE_DIR={$directory}", '-e', 'FIELDSET_MOUNTS=',
+        '--entrypoint', '/fieldset-probe/probe.sh', $this->appReference, 'login-link', '--secrets-file', '/srv/elsewhere/link.json', '--dir', $directory,
     ]);
-    touch($directory.'/.fsa-nonce-00000000000000000000000000000000');
+    touch($directory.'/.fieldset-nonce-00000000000000000000000000000000');
     $outside->run();
 
     expect($written->getExitCode())->toBe(0, $written->getErrorOutput().$written->getOutput())
         ->and(file_get_contents($out.'/link.json'))->toBe("{\"probe\":true}\n")
         ->and(substr(sprintf('%o', fileperms($out.'/link.json')), -3))->toBe('600')
         ->and(fileowner($out.'/link.json'))->toBe(posix_getuid())
-        ->and(glob($out.'/.fsa-nonce-*'))->toBe([])
+        ->and(glob($out.'/.fieldset-nonce-*'))->toBe([])
         ->and($unshared->getExitCode())->toBe(3)
         ->and(bootstrapProbe($unshared)['error']['code'] ?? null)->toBe('path_not_shared')
         ->and(file_exists($out.'/again.json'))->toBeFalse()

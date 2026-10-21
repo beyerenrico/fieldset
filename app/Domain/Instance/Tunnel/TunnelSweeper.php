@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Tunnel;
 
-use App\Domain\Instance\Console\FsaContext;
+use App\Domain\Instance\Console\FieldsetContext;
 use App\Domain\Instance\Install\InstallRecord;
 use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Operations\JournalRecord;
@@ -18,14 +18,14 @@ use Closure;
 
 /**
  * AE6, KTD12, ADR 0057/0082: nothing runs at the 4-hour mark (only a human command gets the Docker socket), so the app
- * answers the expired tunnel host with 503 on its own and `fsa status` only reports it. The next mutating `fsa` command
+ * answers the expired tunnel host with 503 on its own and `fieldset status` only reports it. The next mutating `fieldset` command
  * (`config set`, `demo`, `tunnel …`) first removes the tunnel through this sweeper, under the lock and journaled
  * (operation `tunnel`, action `expire`): runtime block, cloudflared and the app's tunnel network go, and the URL is
  * local again. A tunnel whose cloudflared stopped (it never restarts, `restart: "no"`) is removed the same way: its
  * hostname is gone for good.
  *
  * An unfinished `tunnel` journal (a start whose revert failed, a cut-off stop, renew or cleanup) is finished the same
- * way, whatever the state says, unless a live tunnel would go: then the command answers exit 9 naming `fsa tunnel
+ * way, whatever the state says, unless a live tunnel would go: then the command answers exit 9 naming `fieldset tunnel
  * stop`. Another operation's journal is left to the command, which resumes or names it, so no command is blocked by
  * the cleanup itself.
  */
@@ -39,7 +39,7 @@ final readonly class TunnelSweeper
     ) {}
 
     /** @return array{0: string, 1: string, 2: string|null}|null the warning for the command's result, null when nothing was swept */
-    public function sweep(FsaContext $context): ?array
+    public function sweep(FieldsetContext $context): ?array
     {
         $state = $this->directory->hasState() ? $this->directory->state() : null;
         $open = $this->journal->current();
@@ -54,15 +54,15 @@ final readonly class TunnelSweeper
         if ($result->exitCode->value !== 0) {
             $what = $open instanceof JournalRecord ? 'The unfinished `'.OperationUnfinished::cutOff($open).'` could not be finished' : 'The '.$current['state'].' quick tunnel could not be removed';
 
-            return ['tunnel_cleanup_failed', $what.': '.($result->errors[0]->message ?? 'unknown error'), 'Fix the cause, then run `fsa tunnel stop`.'];
+            return ['tunnel_cleanup_failed', $what.': '.($result->errors[0]->message ?? 'unknown error'), 'Fix the cause, then run `fieldset tunnel stop`.'];
         }
         $url = is_string($result->data['url'] ?? null) ? $result->data['url'] : '';
         if ($open instanceof JournalRecord) {
-            return ['tunnel_removed', 'An unfinished `'.OperationUnfinished::cutOff($open)."` was finished: the quick tunnel was removed and the instance URL is {$url} again.", 'Start a new one with `fsa tunnel start`.'];
+            return ['tunnel_removed', 'An unfinished `'.OperationUnfinished::cutOff($open)."` was finished: the quick tunnel was removed and the instance URL is {$url} again.", 'Start a new one with `fieldset tunnel start`.'];
         }
         $what = $current['state'] === 'expired' ? "expired at {$current['expires_at']}" : 'stopped running';
 
-        return ['tunnel_removed', 'The quick tunnel'.($current['hostname'] === null ? '' : " {$current['hostname']}")." {$what} and was removed; the instance URL is {$url} again.", 'Start a new one with `fsa tunnel start`.'];
+        return ['tunnel_removed', 'The quick tunnel'.($current['hostname'] === null ? '' : " {$current['hostname']}")." {$what} and was removed; the instance URL is {$url} again.", 'Start a new one with `fieldset tunnel start`.'];
     }
 
     /**
@@ -84,7 +84,7 @@ final readonly class TunnelSweeper
     }
 
     /**
-     * Only a tunnel fsa started (the state says so) that expired or stopped; a stray runtime block is `fsa tunnel stop`'s
+     * Only a tunnel fieldset started (the state says so) that expired or stopped; a stray runtime block is `fieldset tunnel stop`'s
      * to clear. With an unfinished tunnel journal, anything but a live tunnel.
      *
      * @param  array<string, mixed>  $current  TunnelStatus::of()

@@ -16,7 +16,7 @@ final class TemporaryInstance
 
     public static function path(): string
     {
-        $path = sys_get_temp_dir().'/fsa-test-'.bin2hex(random_bytes(6));
+        $path = sys_get_temp_dir().'/fieldset-test-'.bin2hex(random_bytes(6));
         self::$created[] = $path;
 
         return $path;
@@ -35,7 +35,7 @@ final class TemporaryInstance
         return $directory;
     }
 
-    public static function holder(string $container = 'a', string $startedAt = '2026-10-17T10:00:00.000000001Z', string $owner = 'fsa'): LockHolder
+    public static function holder(string $container = 'a', string $startedAt = '2026-10-17T10:00:00.000000001Z', string $owner = 'fieldset'): LockHolder
     {
         return new LockHolder($owner, str_repeat($container, 64), $startedAt, 4242, 'ops-host', 501);
     }

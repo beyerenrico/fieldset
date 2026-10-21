@@ -33,25 +33,25 @@ use InvalidArgumentException;
 use Throwable;
 
 /**
- * The backup service's entry point (`fsa backup-daemon`, an image role, hidden from users; KTD15, ADR 0084). It runs in
+ * The backup service's entry point (`fieldset backup-daemon`, an image role, hidden from users; KTD15, ADR 0084). It runs in
  * the `backup` service as container root with only DAC_READ_SEARCH, DAC_OVERRIDE, CHOWN and FOWNER, without the Docker
  * socket, with the storage volume read-only and the instance directory's marker, `locks/`, `backups/` and
  * `staging/backup/` mounted.
  *
  * - Without options: the daemon (BackupDaemon) until SIGTERM, SIGINT or SIGHUP. A start that fails (its configuration)
  *   is recorded (kind `service`, status `failed`) before it exits.
- * - `--once --kind=manual|final|safety-<operation> --lock-id=<id>`: one run as a one-off of `fsa backup`, uninstall's
- *   final backup or a safety backup, under the lock its fsa parent holds; `--include-secrets` reads `secrets.env` from
+ * - `--once --kind=manual|final|safety-<operation> --lock-id=<id>`: one run as a one-off of `fieldset backup`, uninstall's
+ *   final backup or a safety backup, under the lock its fieldset parent holds; `--include-secrets` reads `secrets.env` from
  *   stdin (encryption required). One JSON document on stdout.
  * - `--seal=<backup> --lock-id=<id>`: encrypts a plain backup in place to the recipients (safety backups, R57).
  * - `--clean --lock-id=<id>`: removes what interrupted runs left (`*.partial` sets in `backups/` and `staging/backup/`,
- *   tombstones), which stay root's (M12 gate S1), for `fsa uninstall`, whose ops container may not be root.
+ *   tombstones), which stay root's (M12 gate S1), for `fieldset uninstall`, whose ops container may not be root.
  */
-#[Description('Run the fsa backup service (the backup service role; use fsa backup for a manual backup)')]
-#[Signature('fsa:backup-daemon
+#[Description('Run the fieldset backup service (the backup service role; use fieldset backup for a manual backup)')]
+#[Signature('fieldset:backup-daemon
         {--once : Run one backup and exit}
         {--kind=manual : With --once: manual, final, or safety-upgrade|restore|reset|rollback|adopt}
-        {--lock-id= : With --once or --seal: the ID of the instance lock the calling fsa command holds}
+        {--lock-id= : With --once or --seal: the ID of the instance lock the calling fieldset command holds}
         {--include-secrets : With --once: read secrets.env from stdin into the (encrypted) backup}
         {--seal= : Encrypt this plain backup in place to the backup recipients}
         {--clean : Remove what interrupted runs left (partial sets, tombstones) under the lock of --lock-id}
@@ -62,7 +62,7 @@ final class BackupDaemonCommand extends Command
     private const string COMMAND = 'backup-daemon';
 
     /** Container key of a closure that returns stdin (tests). */
-    public const string STDIN = 'fsa.backup-daemon.stdin';
+    public const string STDIN = 'fieldset.backup-daemon.stdin';
 
     private bool $stopping = false;
 
@@ -137,7 +137,7 @@ final class BackupDaemonCommand extends Command
         $lockId = $this->lockId();
         $current = $this->laravel->make(InstanceLock::class)->current();
         if (! $current instanceof LockRecord || ! hash_equals($current->lockId, $lockId)) {
-            throw new BackupFailed('lock_mismatch', "The fsa command that asked for {$what} no longer holds the instance lock.");
+            throw new BackupFailed('lock_mismatch', "The fieldset command that asked for {$what} no longer holds the instance lock.");
         }
     }
 
@@ -181,7 +181,7 @@ final class BackupDaemonCommand extends Command
     {
         $lockId = $this->option('lock-id');
         if (! is_string($lockId) || preg_match('/^[0-9a-f]{32}$/D', $lockId) !== 1) {
-            throw new BackupFailed('lock_required', 'A one-off backup runs only under the lock of the fsa command that started it (--lock-id).');
+            throw new BackupFailed('lock_required', 'A one-off backup runs only under the lock of the fieldset command that started it (--lock-id).');
         }
 
         return $lockId;

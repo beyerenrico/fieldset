@@ -51,7 +51,7 @@ final readonly class AppCommands
     }
 
     /**
-     * Seeds the demo organization, forms, workflow and users (`fsa install --demo`, `fsa demo`; ADR 0081): `default`
+     * Seeds the demo organization, forms, workflow and users (`fieldset install --demo`, `fieldset demo`; ADR 0081): `default`
      * keeps the documented password, `random` prints one password per new demo user under `secrets`.
      */
     public function demoSeed(ComposeProject $project, string $passwords, int $actorUid): OneOffResult
@@ -59,7 +59,7 @@ final readonly class AppCommands
         return $this->json($project, ['php', 'artisan', 'app:demo-seed', '--passwords='.$passwords, '--actor-uid='.$actorUid, '--json']);
     }
 
-    /** New random passwords for every demo account, their sessions, API tokens and unused sign-in links revoked (`fsa demo --rotate-passwords`). */
+    /** New random passwords for every demo account, their sessions, API tokens and unused sign-in links revoked (`fieldset demo --rotate-passwords`). */
     public function rotateDemoPasswords(ComposeProject $project, int $actorUid): OneOffResult
     {
         return $this->json($project, ['php', 'artisan', 'app:demo-passwords', '--rotate', '--actor-uid='.$actorUid, '--json']);
@@ -74,13 +74,13 @@ final readonly class AppCommands
         return $this->json($project, ['php', 'artisan', 'app:demo-passwords', '--check', '--json']);
     }
 
-    /** Sign-in links without their tokens (`fsa status`). */
+    /** Sign-in links without their tokens (`fieldset status`). */
     public function loginLinks(ComposeProject $project, bool $unusedOnly = true): OneOffResult
     {
         return $this->json($project, ['php', 'artisan', 'identity:login-links', ...($unusedOnly ? ['--unused'] : []), '--json'], 120.0);
     }
 
-    /** What follows the instance URL: organizations with SSO and links already sent (`fsa config set`, ADR 0077). */
+    /** What follows the instance URL: organizations with SSO and links already sent (`fieldset config set`, ADR 0077). */
     public function urlImpact(ComposeProject $project): OneOffResult
     {
         return $this->json($project, ['php', 'artisan', 'instance:url-impact', '--json'], 120.0);

@@ -13,7 +13,7 @@ use App\Domain\Instance\Docker\CommandRunner;
  * point (no app code, no network, no mounts); the server major from the postgres pin's tag (`16.15-alpine` → 16).
  * Docker's classic image store keeps one platform per by-digest reference, so an image this check pulled is removed
  * after each platform; one that was local before is kept.
- * Release tooling like `release:manifest`, not an `fsa` path: it runs in CI and the local harness, never on an instance.
+ * Release tooling like `release:manifest`, not a `fieldset` path: it runs in CI and the local harness, never on an instance.
  */
 final readonly class PgDumpCompatibility
 {

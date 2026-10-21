@@ -31,14 +31,14 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Throwable;
 
 /**
- * Base of every `fsa:*` command (ADR 0066, R49, R50). Subclasses implement `perform()` and return a
+ * Base of every `fieldset:*` command (ADR 0066, R49, R50). Subclasses implement `perform()` and return a
  * CommandResult; the base:
  *
  * - adds `--json`, `--yes`, `--dir` and `--secrets-file`;
  * - rejects a secret passed as a flag value, and any usage error, with exit 2 in the envelope;
  * - when started by the shim or install.sh, requires their nonce file (exit 3: path not shared with Docker) and
  *   file-path flags inside mounted directories (exit 2), see LaunchGuard;
- * - requires the instance-directory marker (unless `requiresInstance()` is false, i.e. `fsa version`) and binds
+ * - requires the instance-directory marker (unless `requiresInstance()` is false, i.e. `fieldset version`) and binds
  *   the InstanceDirectory, which makes the DockerGateway resolvable (InstanceServiceProvider);
  * - registers the secret values of the instance's env files with the redactor, so they never reach any output;
  * - asks for confirmation of destructive commands, or exits 6 without a TTY (or with --json) and without --yes, with the
@@ -46,10 +46,10 @@ use Throwable;
  * - maps exceptions to exit codes and renders the envelope, with progress on stderr; if rendering itself fails,
  *   a minimal envelope still goes out (exit 1, `render_failed`), never a stack trace.
  */
-abstract class FsaCommand extends Command
+abstract class FieldsetCommand extends Command
 {
     /** Container key of an output that receives progress when there is no stderr (tests). */
-    public const string PROGRESS_OUTPUT = 'fsa.progress-output';
+    public const string PROGRESS_OUTPUT = 'fieldset.progress-output';
 
     public function __construct()
     {
@@ -107,16 +107,16 @@ abstract class FsaCommand extends Command
         }
     }
 
-    abstract protected function perform(FsaContext $context): CommandResult;
+    abstract protected function perform(FieldsetContext $context): CommandResult;
 
-    /** Only `fsa version` runs without an instance directory (KTD1). */
+    /** Only `fieldset version` runs without an instance directory (KTD1). */
     protected function requiresInstance(): bool
     {
         return true;
     }
 
     /** The question for a destructive command (with the facts it names), or null when nothing needs confirming. */
-    protected function confirmationPrompt(FsaContext $context): Confirmation|string|null
+    protected function confirmationPrompt(FieldsetContext $context): Confirmation|string|null
     {
         return null;
     }
@@ -143,7 +143,7 @@ abstract class FsaCommand extends Command
      * Whether the command may ask a question: never with --json (stdout carries one document), never without a
      * terminal, and not under --yes (which promises a run without questions) unless the caller ignores it.
      */
-    protected function canPrompt(FsaContext $context, bool $ignoreYes = false): bool
+    protected function canPrompt(FieldsetContext $context, bool $ignoreYes = false): bool
     {
         return ! $context->json && ($ignoreYes || ! $context->yes) && $context->facts->hasTerminal($this->input->isInteractive());
     }
@@ -154,13 +154,13 @@ abstract class FsaCommand extends Command
         return false;
     }
 
-    /** Envelope `command`: the name without the `fsa:` prefix. */
+    /** Envelope `command`: the name without the `fieldset:` prefix. */
     protected function resultName(): string
     {
-        return (string) preg_replace('/^fsa:/', '', (string) $this->getName());
+        return (string) preg_replace('/^fieldset:/', '', (string) $this->getName());
     }
 
-    private function buildContext(HostFacts $facts, ProgressReporter $progress, SecretRedactor $redactor, bool $json): FsaContext
+    private function buildContext(HostFacts $facts, ProgressReporter $progress, SecretRedactor $redactor, bool $json): FieldsetContext
     {
         $directory = null;
         if ($this->requiresInstance()) {
@@ -171,7 +171,7 @@ abstract class FsaCommand extends Command
             }
         }
 
-        return new FsaContext($facts, $progress, $redactor, $json, (bool) $this->option('yes'), $directory, $this->opensBrowser());
+        return new FieldsetContext($facts, $progress, $redactor, $json, (bool) $this->option('yes'), $directory, $this->opensBrowser());
     }
 
     /** Nonce and file-path checks for a command started by the shim or install.sh (LaunchGuard, ADR 0070). */
@@ -190,7 +190,7 @@ abstract class FsaCommand extends Command
         return rtrim(str_starts_with($path, '/') ? $path : getcwd().'/'.$path, '/');
     }
 
-    private function confirmIfNeeded(FsaContext $context): void
+    private function confirmIfNeeded(FieldsetContext $context): void
     {
         $question = $this->confirmationPrompt($context);
         if ($question === null || $context->yes) {
@@ -230,9 +230,9 @@ abstract class FsaCommand extends Command
      */
     private function renderFallback(CommandResult $result, Throwable $e, bool $json): int
     {
-        $failed = CommandResult::failed($result->command, ExitCode::InternalError, 'render_failed', 'The result could not be printed: '.$e::class.'.', 'Run the command again; `fsa status` shows what it changed.', true, ['exit_code' => $result->exitCode->value], $result->changed);
+        $failed = CommandResult::failed($result->command, ExitCode::InternalError, 'render_failed', 'The result could not be printed: '.$e::class.'.', 'Run the command again; `fieldset status` shows what it changed.', true, ['exit_code' => $result->exitCode->value], $result->changed);
         $document = json_encode($failed->toArray(), CommandResult::JSON_FLAGS);
-        $this->output->writeln($json ? $document : 'fsa '.$result->command.': failed (the result could not be printed)', OutputInterface::OUTPUT_RAW);
+        $this->output->writeln($json ? $document : 'fieldset '.$result->command.': failed (the result could not be printed)', OutputInterface::OUTPUT_RAW);
 
         return ExitCode::InternalError->value;
     }

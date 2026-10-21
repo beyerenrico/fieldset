@@ -12,7 +12,7 @@ use Tests\Support\Instance\UpgradeFixture;
 use Tests\Support\Release\ReleaseFixtures;
 
 /*
- * The target release of `fsa upgrade` (R33, R58, KTD19 step 1, plan U18, ADR 0086): downloaded from the release URL into
+ * The target release of `fieldset upgrade` (R33, R58, KTD19 step 1, plan U18, ADR 0086): downloaded from the release URL into
  * a fresh directory, verified with the pinned cosign image before anything uses it, stored under `releases/<version>/`
  * only then; every way it can fail ends before anything changes (exit 2, 3), and the child's launch failing rolls back.
  */

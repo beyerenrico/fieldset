@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Instance\Install;
 
 use App\Domain\Instance\Backup\BackupRunner;
-use App\Domain\Instance\Console\FsaContext;
+use App\Domain\Instance\Console\FieldsetContext;
 use App\Domain\Instance\Demo\DemoCredentials;
 use App\Domain\Instance\Demo\DemoData;
 use App\Domain\Instance\Docker\ComposeProject;
@@ -32,7 +32,7 @@ use App\Domain\Instance\State\InstanceState;
 use Carbon\CarbonImmutable;
 
 /**
- * `fsa install` (F1, F2, R9–R16, R54, R63, R69, ADR 0072, ADR 0075) in local mode or, with --domain, in domain
+ * `fieldset install` (F1, F2, R9–R16, R54, R63, R69, ADR 0072, ADR 0075) in local mode or, with --domain, in domain
  * mode (the edge with automatic HTTPS; the doctor checks DNS and ports 80/443 first, and the smoke test waits for the
  * certificate). Under the instance lock, with every phase journaled before it starts:
  *
@@ -80,7 +80,7 @@ final readonly class Installer
         return $state instanceof InstanceState && InstallRecord::isInstalled($state) ? InstallSituation::Finished : InstallSituation::Fresh;
     }
 
-    public function install(InstallRequest $request, FsaContext $context, bool $secretsToFile): CommandResult
+    public function install(InstallRequest $request, FieldsetContext $context, bool $secretsToFile): CommandResult
     {
         if ($this->situation() === InstallSituation::Finished) {
             return $this->unchanged($request);
@@ -88,7 +88,7 @@ final readonly class Installer
         $request = $this->effective($request);
         $request->assertConsistent();
         $this->assertModeFlags($request);
-        $holder = $this->identity->holder('fsa', $context->facts->callerUid());
+        $holder = $this->identity->holder('fieldset', $context->facts->callerUid());
 
         return $this->supervisor->run(
             self::OPERATION,
@@ -124,7 +124,7 @@ final readonly class Installer
         return $record->withValuesReplaced(InstallRecord::PERSONAL, static fn (string $value): ?string => $digest?->digest($value));
     }
 
-    private function steps(OperationRun $run, InstallRequest $request, FsaContext $context, bool $secretsToFile): CommandResult
+    private function steps(OperationRun $run, InstallRequest $request, FieldsetContext $context, bool $secretsToFile): CommandResult
     {
         if ($run->record()->phases() === [] && $this->directory->hasState() && InstallRecord::isInstalled($this->directory->state())) {
             return $this->unchanged($request); // another install finished while this one waited for the lock
@@ -181,7 +181,7 @@ final readonly class Installer
         $outcome = $this->app->migrate($project);
         if (! $outcome->successful()) {
             $output = implode("\n", array_slice(preg_split('/\R/', trim($outcome->stdout)) ?: [], -10));
-            throw new InstanceException('The database migrations failed.', ExitCode::HealthCheckFailed, 'migrate_failed', 'Read the output, fix the cause, then run `fsa install` again with the same flags: it resumes here.', true, ['output' => trim($output."\n".$outcome->stderrTail(10))]);
+            throw new InstanceException('The database migrations failed.', ExitCode::HealthCheckFailed, 'migrate_failed', 'Read the output, fix the cause, then run `fieldset install` again with the same flags: it resumes here.', true, ['output' => trim($output."\n".$outcome->stderrTail(10))]);
         }
         $this->backups->ensureRole($project);
 
@@ -189,7 +189,7 @@ final readonly class Installer
     }
 
     /** @return array{0: array<string, mixed>, 1: array{value: string, expires_at: CarbonImmutable|null}|null} */
-    private function appInstall(ComposeProject $project, InstallRequest $request, FsaContext $context): array
+    private function appInstall(ComposeProject $project, InstallRequest $request, FieldsetContext $context): array
     {
         $result = $this->app->install($project, $request, $context->facts->callerUid());
         if (! $result->ok) {
@@ -216,14 +216,14 @@ final readonly class Installer
      * @param  bool  $applied  whether app:install applied this run's app flags (not `already_installed`)
      * @return array{0: array{value: string, expires_at: CarbonImmutable|null}|null, 1: list<array{0: string, 1: string, 2: string|null}>}
      */
-    private function finish(ComposeProject $project, InstallRequest $request, FsaContext $context, ?array $link, bool $applied): array
+    private function finish(ComposeProject $project, InstallRequest $request, FieldsetContext $context, ?array $link, bool $applied): array
     {
         $warnings = [];
         if ($link === null) {
             $fresh = $this->app->loginLink($project, $request->ownerEmail(), $context->facts->callerUid());
             $link = $fresh->ok ? $fresh->secret(SignInDelivery::SECRET) : null;
             if ($link === null) {
-                $warnings[] = ['sign_in_link_unavailable', 'No sign-in link could be issued: '.$fresh->errorMessage(), "Run `fsa login-link {$request->ownerEmail()}` once the cause is fixed."];
+                $warnings[] = ['sign_in_link_unavailable', 'No sign-in link could be issued: '.$fresh->errorMessage(), "Run `fieldset login-link {$request->ownerEmail()}` once the cause is fixed."];
             } else {
                 $context->redactor->register($link['value']);
             }
@@ -242,17 +242,17 @@ final readonly class Installer
      * @param  list<array{0: string, 1: string, 2: string|null}>  $warnings
      * @param  array{value: string, expires_at: CarbonImmutable|null}|null  $link
      */
-    private function result(InstanceState $state, InstallRequest $request, array $preflight, array $warnings, ?array $link, FsaContext $context, bool $secretsToFile): CommandResult
+    private function result(InstanceState $state, InstallRequest $request, array $preflight, array $warnings, ?array $link, FieldsetContext $context, bool $secretsToFile): CommandResult
     {
         $result = CommandResult::ok(self::OPERATION, $this->summary($state, $request->ownerEmail()), changed: true);
         foreach (is_array($preflight['warnings'] ?? null) ? $preflight['warnings'] : [] as $warning) {
             $result = $result->withWarning((string) $warning['code'], (string) $warning['message'], is_string($warning['hint'] ?? null) ? $warning['hint'] : null);
         }
         foreach (is_array($preflight['orphans'] ?? null) ? $preflight['orphans'] : [] as $uuid) {
-            $result = $result->withWarning('orphans_found', "Containers of another installation ({$uuid}) ran from this directory.", "Check first that it does not run elsewhere (`docker ps -a --filter label=app.fieldset.instance={$uuid}` shows its containers and their directories). If it was deleted by hand, remove its leftovers with `fsa uninstall --orphans {$uuid} --yes`; fsa refuses while any of its containers runs.");
+            $result = $result->withWarning('orphans_found', "Containers of another installation ({$uuid}) ran from this directory.", "Check first that it does not run elsewhere (`docker ps -a --filter label=app.fieldset.instance={$uuid}` shows its containers and their directories). If it was deleted by hand, remove its leftovers with `fieldset uninstall --orphans {$uuid} --yes`; fieldset refuses while any of its containers runs.");
         }
         $localCa = InstanceSettings::of($state)->localCa() ? LocalCaInfo::warnings((string) InstanceSettings::of($state)->lanAddress()) : [];
-        foreach ([...$warnings, ...$localCa, ...array_filter([AcmeStaging::warning($state, $this->directory->root.'/fsa')])] as [$code, $message, $hint]) {
+        foreach ([...$warnings, ...$localCa, ...array_filter([AcmeStaging::warning($state, $this->directory->root.'/fieldset')])] as [$code, $message, $hint]) {
             $result = $result->withWarning($code, $message, $hint);
         }
 
@@ -261,7 +261,7 @@ final readonly class Installer
 
     /**
      * A finished instance: same flags change nothing (R13, AE3), different flags exit 2. No sign-in link is issued
-     * on this path (`data.sign_in_link: null`); the warning names `fsa login-link` for one.
+     * on this path (`data.sign_in_link: null`); the warning names `fieldset login-link` for one.
      */
     private function unchanged(InstallRequest $request): CommandResult
     {
@@ -272,7 +272,7 @@ final readonly class Installer
         $changed = $request->changedFlags(InstallRecord::applied($state), $equals);
         if ($changed !== []) {
             throw new InvalidInput(
-                'This instance is installed; '.implode(', ', $changed).' differ from its installation. fsa install changes nothing on an installed instance.',
+                'This instance is installed; '.implode(', ', $changed).' differ from its installation. fieldset install changes nothing on an installed instance.',
                 'use_config_set',
                 InstallFlags::hint($changed, $state),
                 ['flags' => InstallFlags::keys($changed, $state)],
@@ -285,7 +285,7 @@ final readonly class Installer
 
         // The quick tunnel is transient (ADR 0082): an ended one is no different installation, and install never starts one.
         return $request->phoneHttps() === 'tunnel' && ! InstanceSettings::of($state)->tunnel()
-            ? $result->withWarning('tunnel_not_running', 'No quick tunnel runs on this instance; fsa install changes nothing on an installed instance.', 'Start one with `fsa tunnel start`.')
+            ? $result->withWarning('tunnel_not_running', 'No quick tunnel runs on this instance; fieldset install changes nothing on an installed instance.', 'Start one with `fieldset tunnel start`.')
             : $result;
     }
 
@@ -312,7 +312,7 @@ final readonly class Installer
             throw new InvalidInput(
                 'The interrupted install already applied '.implode(', ', $changed).' with other values.',
                 'flag_already_applied',
-                'Run `fsa install` again with the values of the first run (or without these flags) to resume, or `fsa uninstall --yes` to start over.',
+                'Run `fieldset install` again with the values of the first run (or without these flags) to resume, or `fieldset uninstall --yes` to start over.',
             );
         }
         $request = $request->over($recorded);
@@ -344,7 +344,7 @@ final readonly class Installer
         if ($pem !== null) {
             AcmeCaRoot::write($this->directory, $pem);
         } elseif (! AcmeCaRoot::present($this->directory, $digest)) {
-            throw new InvalidInput('The interrupted install needs the ACME CA root again.', 'acme_ca_root_missing', 'Run `fsa install` again with the same --acme-ca-root-file.');
+            throw new InvalidInput('The interrupted install needs the ACME CA root again.', 'acme_ca_root_missing', 'Run `fieldset install` again with the same --acme-ca-root-file.');
         }
     }
 
@@ -362,7 +362,7 @@ final readonly class Installer
             "`{$command}` failed: ".$result->errorMessage(),
             $userInput ? ExitCode::InvalidInput : ExitCode::HealthCheckFailed,
             $userInput ? 'invalid_input' : 'app_install_failed',
-            $userInput ? 'Correct the flag and run `fsa install` again: it resumes here.' : 'Read the output, fix the cause, then run `fsa install` again with the same flags: it resumes here.',
+            $userInput ? 'Correct the flag and run `fieldset install` again: it resumes here.' : 'Read the output, fix the cause, then run `fieldset install` again with the same flags: it resumes here.',
             ! $userInput,
             ['code' => $result->errorCode(), 'output' => $result->output],
         );
@@ -372,7 +372,7 @@ final readonly class Installer
     private function summary(InstanceState $state, ?string $ownerEmail): array
     {
         $settings = InstanceSettings::of($state);
-        $fsa = $this->directory->root.'/fsa';
+        $fieldset = $this->directory->root.'/fieldset';
         $linkFor = $ownerEmail ?? '<owner-email>';
 
         return [
@@ -389,7 +389,7 @@ final readonly class Installer
             // Local-CA mode (ADR 0082): the trust page for the phone and the root's fingerprint to compare there.
             ...($settings->localCa() ? ['phone_https' => LocalCaInfo::data($state, $this->directory)] : []),
             'owner_email' => $ownerEmail,
-            'next_commands' => [...(AcmeStaging::active($state) ? [AcmeStaging::command($fsa)] : []), "{$fsa} status", "{$fsa} login-link {$linkFor}", "{$fsa} doctor --post"],
+            'next_commands' => [...(AcmeStaging::active($state) ? [AcmeStaging::command($fieldset)] : []), "{$fieldset} status", "{$fieldset} login-link {$linkFor}", "{$fieldset} doctor --post"],
         ];
     }
 }

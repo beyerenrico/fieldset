@@ -17,7 +17,7 @@ use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
 
 /**
- * Empties the mail catcher for `fsa reset` (plan U23, ADR 0088): the captured mail belongs to the data the reset removes.
+ * Empties the mail catcher for `fieldset reset` (plan U23, ADR 0088): the captured mail belongs to the data the reset removes.
  * Mailpit's API deletes every message on `DELETE /api/v1/messages` without IDs; a throwaway curl container on the
  * instance's network sends it with the catcher's login on stdin (never on a command line), under `/_mail/` in domain
  * mode. Without a catcher (SMTP mode with the catcher removed) there is nothing to empty.

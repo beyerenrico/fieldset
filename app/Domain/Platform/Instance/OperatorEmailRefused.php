@@ -6,7 +6,7 @@ namespace App\Domain\Platform\Instance;
 
 use RuntimeException;
 
-/** `fsa config set operator-email` cannot grant this address; `reason` is the stable error code of the JSON. */
+/** `fieldset config set operator-email` cannot grant this address; `reason` is the stable error code of the JSON. */
 final class OperatorEmailRefused extends RuntimeException
 {
     private function __construct(public readonly string $reason, string $message, public readonly ?string $hint = null)

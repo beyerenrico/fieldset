@@ -10,7 +10,7 @@ use Carbon\CarbonImmutable;
 
 /**
  * The name of a backup directory in `backups/` (ADR 0084): `<kind>-<UTC yyyymmddThhmmssZ>`. Kinds: `scheduled` (the
- * backup service), `manual` (`fsa backup`), `final` (uninstall's last backup, ADR 0073 as amended by the M12 gate) and
+ * backup service), `manual` (`fieldset backup`), `final` (uninstall's last backup, ADR 0073 as amended by the M12 gate) and
  * `safety-<operation>` (before an upgrade, restore, reset, rollback or adopt, R57). Only scheduled backups are ever
  * pruned (BackupRetention). A backup is written as `<name>.partial` and renamed once it is complete.
  */

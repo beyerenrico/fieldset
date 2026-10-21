@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-# One image for every role (ADR 0065): app (FrankenPHP, classic mode), queue (Horizon), scheduler, the `fsa` ops
+# One image for every role (ADR 0065): app (FrankenPHP, classic mode), queue (Horizon), scheduler, the `fieldset` ops
 # container and the backup daemon. The context is an allow-list (.dockerignore); the final stage carries no
 # tests, docs, dev dependencies or composer, and stays within 1.0 GB uncompressed per architecture (E17).
 # Every external image is pinned as tag@sha256 of its multi-arch index (linux/amd64 and linux/arm64, checked with
@@ -179,7 +179,7 @@ COPY storage ./storage
 COPY spec/LICENSE ./spec/LICENSE
 COPY spec/form-definition/1.0 ./spec/form-definition/1.0
 COPY spec/templates ./spec/templates
-# fsa validates release manifests against the schema (ManifestVerifier) and install.sh copies the shim from here.
+# fieldset validates release manifests against the schema (ManifestVerifier) and install.sh copies the shim from here.
 COPY distribution/manifest.schema.json distribution/shim.sh ./distribution/
 COPY packages/fieldset-php/composer.json packages/fieldset-php/LICENSE ./packages/fieldset-php/
 COPY packages/fieldset-php/src ./packages/fieldset-php/src
@@ -199,8 +199,8 @@ COPY --from=tools /out/cli-plugins/ /usr/local/lib/docker/cli-plugins/
 COPY --from=tools /out/doc/ /usr/share/doc/
 COPY --from=build /var/www/html /var/www/html
 COPY --chmod=0755 docker/app/entrypoint.sh /usr/local/bin/app-entrypoint
-COPY --chmod=0755 docker/app/fsa /usr/local/bin/fsa
-# Build flavor (R58, ADR 0070): only the release harness builds with FIELDSET_BUILD=harness, which lets fsa verify
+COPY --chmod=0755 docker/app/fieldset /usr/local/bin/fieldset
+# Build flavor (R58, ADR 0070): only the release harness builds with FIELDSET_BUILD=harness, which lets fieldset verify
 # releases with a local test key (FIELDSET_TRUST_KEY). Release builds keep the default; a file, not ENV, so that
 # `docker run -e` cannot change it.
 ARG FIELDSET_BUILD=production
@@ -210,7 +210,7 @@ RUN case "${FIELDSET_BUILD}" in production | harness) ;; *) echo "FIELDSET_BUILD
 ARG APP_VERSION=0.0.0-dev
 ARG APP_REVISION=
 LABEL org.opencontainers.image.title="form-schema-app" \
-      org.opencontainers.image.description="Self-hostable form schema application: app, queue, scheduler, fsa ops and backup roles" \
+      org.opencontainers.image.description="Self-hostable form schema application: app, queue, scheduler, fieldset ops and backup roles" \
       org.opencontainers.image.version="${APP_VERSION}" \
       org.opencontainers.image.revision="${APP_REVISION}" \
       org.opencontainers.image.source="https://github.com/beyerenrico/form-schema-app" \

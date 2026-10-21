@@ -29,19 +29,19 @@ use App\Domain\Instance\Release\ImagePin;
  * - FIELDSET_OPEN_URL_FILE: name of the file in the instance directory where a command hands a URL to the shim
  * - FIELDSET_RELEASE_MANIFEST: install.sh only, the verified `<dir>/releases/<version>/release-manifest.json`
  * - FIELDSET_REGISTRY: a registry mirror every image is pulled from instead of its own (ADR 0050)
- * - FIELDSET_RELEASE_URL: where releases are downloaded from instead of GitHub Releases (install.sh's mirror; `fsa upgrade`
+ * - FIELDSET_RELEASE_URL: where releases are downloaded from instead of GitHub Releases (install.sh's mirror; `fieldset upgrade`
  *   reads the target's manifest there, ADR 0086)
  * - DOCKER_DEFAULT_PLATFORM: Docker's own variable, passed through when the caller set it: `linux/amd64` or
  *   `linux/arm64`, optionally with a variant (`linux/arm64/v8`). The ops container ran as that platform, and every
- *   docker and compose process fsa starts inherits it, so the images are pulled and run as that platform (another
+ *   docker and compose process fieldset starts inherits it, so the images are pulled and run as that platform (another
  *   architecture than the engine's runs emulated; the doctor's architecture check reports it). Cosign runs as the
  *   engine's own platform (ContainerSpec::$enginePlatform)
  */
 final readonly class HostFacts
 {
-    public const string NONCE_PATTERN = '/^\.fsa-nonce-[0-9a-f]{16,64}$/D';
+    public const string NONCE_PATTERN = '/^\.fieldset-nonce-[0-9a-f]{16,64}$/D';
 
-    public const string OPEN_URL_PATTERN = '/^\.fsa-open-url-[0-9a-f]{16,64}$/D';
+    public const string OPEN_URL_PATTERN = '/^\.fieldset-open-url-[0-9a-f]{16,64}$/D';
 
     public const string PLATFORM_PATTERN = '/^linux\/(amd64|arm64)(\/v[1-9])?$/D';
 

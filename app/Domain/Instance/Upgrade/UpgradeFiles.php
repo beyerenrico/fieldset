@@ -10,7 +10,7 @@ use RecursiveIteratorIterator;
 use SplFileInfo;
 
 /**
- * File-system chores of the upgrade (plan U18, ADR 0086) for directories fsa itself made inside the instance directory
+ * File-system chores of the upgrade (plan U18, ADR 0086) for directories fieldset itself made inside the instance directory
  * (a stage, a scratch directory): removed depth-first without following symlinks.
  */
 final class UpgradeFiles

@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Mail;
 use Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport;
 
 /*
- * M11 gate (ADR 0080 amendment): fsa renders MAIL_REQUIRE_TLS=true for `--smtp-encryption starttls` and
+ * M11 gate (ADR 0080 amendment): fieldset renders MAIL_REQUIRE_TLS=true for `--smtp-encryption starttls` and
  * MAIL_AUTO_TLS=false for `none`; config/mail.php hands both to Symfony's EsmtpTransportFactory (`require_tls`,
  * `auto_tls` DSN options), so a server that hides STARTTLS gets no AUTH and no mail.
  */

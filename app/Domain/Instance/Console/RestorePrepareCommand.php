@@ -18,14 +18,14 @@ use JsonException;
 use RuntimeException;
 
 /**
- * `fsa restore-prepare` (an image role, hidden from users; plan U17, ADR 0085): BackupPreparer in a one-off of the app
- * image that fsa starts without the Docker socket and with `--network none`, the backup mounted read-only and only the
+ * `fieldset restore-prepare` (an image role, hidden from users; plan U17, ADR 0085): BackupPreparer in a one-off of the app
+ * image that fieldset starts without the Docker socket and with `--network none`, the backup mounted read-only and only the
  * scratch directory writable. Stdin carries one JSON document: the identity's passphrase (encrypted backups) and the
- * HMAC keys fsa derived from the APP keys outside the archive, with their fingerprints. Stdout carries one JSON envelope
+ * HMAC keys fieldset derived from the APP keys outside the archive, with their fingerprints. Stdout carries one JSON envelope
  * (PreparedBackup), never a secret.
  */
-#[Description('Decrypt, check and inspect a backup for a restore (an fsa restore role; use fsa restore)')]
-#[Signature('fsa:restore-prepare
+#[Description('Decrypt, check and inspect a backup for a restore (a fieldset restore role; use fieldset restore)')]
+#[Signature('fieldset:restore-prepare
         {--source= : The backup: a backup directory, its backup.tar.age, or a 1.0 backup directory}
         {--scratch= : An empty scratch directory for the decrypted set and the listings}
         {--identity-file= : The passphrase-protected backup identity (encrypted backups)}
@@ -36,7 +36,7 @@ final class RestorePrepareCommand extends Command
     private const string COMMAND = 'restore-prepare';
 
     /** Container key of a closure that returns stdin (tests). */
-    public const string STDIN = 'fsa.restore-prepare.stdin';
+    public const string STDIN = 'fieldset.restore-prepare.stdin';
 
     public function handle(BackupPreparer $preparer): int
     {
@@ -86,7 +86,7 @@ final class RestorePrepareCommand extends Command
         try {
             $decoded = trim($raw) === '' ? [] : json_decode($raw, true, 8, JSON_THROW_ON_ERROR);
         } catch (JsonException) {
-            throw new InstanceException('stdin is not the JSON document fsa sends.', errorCode: 'invalid_input');
+            throw new InstanceException('stdin is not the JSON document fieldset sends.', errorCode: 'invalid_input');
         }
         $keys = [];
         foreach (is_array($decoded['keys'] ?? null) ? $decoded['keys'] : [] as $key) {

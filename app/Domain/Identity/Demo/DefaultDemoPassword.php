@@ -6,7 +6,7 @@ namespace App\Domain\Identity\Demo;
 
 /**
  * The documented demo password `password` (DemoSeeder). Public knowledge, so never a secret: only a loopback-only
- * local instance keeps it (R29, AE2); `fsa` reports it in `data`, never under `secrets` (ADR 0081).
+ * local instance keeps it (R29, AE2); `fieldset` reports it in `data`, never under `secrets` (ADR 0081).
  */
 final readonly class DefaultDemoPassword implements DemoPasswordSource
 {

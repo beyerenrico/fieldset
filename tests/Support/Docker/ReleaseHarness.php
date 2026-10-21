@@ -19,9 +19,9 @@ use Throwable;
  * Image and install.sh are harness builds (`FIELDSET_BUILD=harness`, InstallScriptBuild; ADR 0070): they accept the
  * run's local key as FIELDSET_TRUST_KEY and the plain-http release server.
  *
- * Everything Docker-side is named `fsa-test-harness-<id>` and removed by stop(). Per-run files live in
- * storage/fsa-test-harness/<id>/ (deleted by stop()); downloaded blobs and the build cache are kept in
- * storage/fsa-test-cache/ so repeat runs stay offline and fast (delete that directory to reclaim the space).
+ * Everything Docker-side is named `fieldset-test-harness-<id>` and removed by stop(). Per-run files live in
+ * storage/fieldset-test-harness/<id>/ (deleted by stop()); downloaded blobs and the build cache are kept in
+ * storage/fieldset-test-cache/ so repeat runs stay offline and fast (delete that directory to reclaim the space).
  */
 final class ReleaseHarness
 {
@@ -54,9 +54,9 @@ final class ReleaseHarness
     public static function start(): self
     {
         $id = bin2hex(random_bytes(3));
-        $directory = TestImage::repository()."/storage/fsa-test-harness/{$id}";
+        $directory = TestImage::repository()."/storage/fieldset-test-harness/{$id}";
         mkdir("{$directory}/dist", 0755, true);
-        $project = "fsa-test-harness-{$id}";
+        $project = "fieldset-test-harness-{$id}";
 
         $compose = self::compose($project, $directory, []);
 
@@ -64,7 +64,7 @@ final class ReleaseHarness
             self::mustRun([...$compose, 'up', '-d', '--wait', 'registry', 'release-server'], 600);
             $harness = new self(
                 $project, $directory, self::publishedPort($compose, 'registry', 5000), self::publishedPort($compose, 'release-server', 8080),
-                Cosign::generate("{$directory}/keys"), new OciRegistry(TestImage::repository().'/storage/fsa-test-cache/oci'),
+                Cosign::generate("{$directory}/keys"), new OciRegistry(TestImage::repository().'/storage/fieldset-test-cache/oci'),
             );
             $harness->connectHostNetwork();
         } catch (Throwable $exception) {
@@ -128,7 +128,7 @@ final class ReleaseHarness
 
     /**
      * DOCKER_DEFAULT_PLATFORM for a release of one platform that is not the engine's (FIELDSET_TEST_PLATFORM or a single
-     * FIELDSET_HARNESS_PLATFORMS entry): install.sh, the shim and fsa then pull and run it under emulation (§15.6).
+     * FIELDSET_HARNESS_PLATFORMS entry): install.sh, the shim and fieldset then pull and run it under emulation (§15.6).
      *
      * @param  list<string>  $platforms
      * @return array<string, string>
@@ -168,7 +168,7 @@ final class ReleaseHarness
 
     /**
      * A release whose app image is the base release's with a few changes (J07, plan U18): a target that adds a migration,
-     * one whose health check fails, one whose `fsa` crashes. The image is built `FROM` the base digest in the harness
+     * one whose health check fails, one whose `fieldset` crashes. The image is built `FROM` the base digest in the harness
      * registry with `$instructions` (Dockerfile lines; `$files` are written next to the Dockerfile first) and the
      * version in APP_VERSION and the OCI label, then signed and published with its own manifest like publish().
      *
@@ -198,7 +198,7 @@ final class ReleaseHarness
     }
 
     /**
-     * The release server as a container on Docker's default bridge reaches it (`fsa upgrade` downloads the target's
+     * The release server as a container on Docker's default bridge reaches it (`fieldset upgrade` downloads the target's
      * manifest from inside its ops container, ADR 0086): the server joins the bridge once, and its address there serves.
      */
     public function containerReleaseUrl(): string
@@ -244,14 +244,14 @@ final class ReleaseHarness
     }
 
     /**
-     * Proxy mode's Traefik on an external network of its own (J3): creates `fsa-test-proxy-<id>` and starts the
+     * Proxy mode's Traefik on an external network of its own (J3): creates `fieldset-test-proxy-<id>` and starts the
      * `traefik` service of the proxy profile on it. Idempotent.
      *
      * @return array{network: string, container: string}
      */
     public function startProxy(): array
     {
-        $network = $this->proxyNetwork ?? str_replace('fsa-test-harness-', 'fsa-test-proxy-', $this->project);
+        $network = $this->proxyNetwork ?? str_replace('fieldset-test-harness-', 'fieldset-test-proxy-', $this->project);
         if ($this->proxyNetwork === null) {
             self::mustRun(['docker', 'network', 'create', '--label', 'app.fieldset.test=harness', $network]);
             $this->proxyNetwork = $network;
@@ -313,7 +313,7 @@ final class ReleaseHarness
     private function buildApp(ReleaseVersion $release, array $platforms, ReleaseInputs $inputs): string
     {
         $this->ensureBuilder();
-        $cache = TestImage::repository().'/storage/fsa-test-cache/buildx';
+        $cache = TestImage::repository().'/storage/fieldset-test-cache/buildx';
         $metadata = "{$this->directory}/build-metadata.json";
         $tags = array_merge(...array_map(fn (string $tag): array => ['-t', "{$this->registry()}/{$inputs->appRepository}:{$tag}"], $release->imageTags()));
         $log = self::logFile("{$this->project}-build.log");

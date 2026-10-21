@@ -12,16 +12,16 @@ use Carbon\CarbonInterface;
 use Illuminate\Support\Number;
 
 /**
- * Backups of an fsa instance (R39, ADR 0084), from the `backup_runs` table the backup service writes, as a persistent
+ * Backups of a fieldset instance (R39, ADR 0084), from the `backup_runs` table the backup service writes, as a persistent
  * warning on /platform, so a problem is visible while mail is captured:
  *
  * - fail: the last backup failed, the backup service's start failed, or no backup succeeded within two hours of the
  *   slot that was due (BackupAlerts `backup_overdue`: a service that is not running);
  * - warn: a scheduled run was skipped for lack of disk space, scheduled runs were skipped for more than 24 hours because
  *   an operation held the instance lock, the last successful backup misses referenced files (M12 gate D5), or the
- *   instance is run by fsa and its backup service never reported;
+ *   instance is run by fieldset and its backup service never reported;
  * - ok otherwise, saying truthfully what the last run was (a success, a skip that is retried, none yet). An instance not
- *   run by fsa (no runtime file) without rows has its own backup procedure. The instance page of U20 builds on the data.
+ *   run by fieldset (no runtime file) without rows has its own backup procedure. The instance page of U20 builds on the data.
  */
 final readonly class BackupCheck implements HealthCheck
 {

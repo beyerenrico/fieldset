@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Domain\Instance\Reset;
 
 /**
- * The flags of `fsa reset` (§7, R43, plan U23, ADR 0088): `--demo` adds the demo data to the fresh instance, `--no-backup`
+ * The flags of `fieldset reset` (§7, R43, plan U23, ADR 0088): `--demo` adds the demo data to the fresh instance, `--no-backup`
  * skips the safety backup (an audit export is still written while real organizations exist). They are the journal's
- * context: a resumed reset continues only with the same flags, and `fsa status` names the command with them.
+ * context: a resumed reset continues only with the same flags, and `fieldset status` names the command with them.
  * `confirmed`: the operator said yes (`--yes` or the prompt); the operation checks it again under the lock (review S4).
  */
 final readonly class ResetRequest
@@ -46,6 +46,6 @@ final readonly class ResetRequest
     /** @param  array<string, mixed>  $context */
     public static function commandLine(array $context): string
     {
-        return trim('fsa reset '.implode(' ', array_keys(self::options($context))));
+        return trim('fieldset reset '.implode(' ', array_keys(self::options($context))));
     }
 }

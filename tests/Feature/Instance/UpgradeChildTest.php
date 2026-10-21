@@ -17,7 +17,7 @@ use Tests\Support\Instance\TemporaryInstance;
 use Tests\Support\Instance\UpgradeFixture;
 
 /*
- * `fsa upgrade-child`, the target image's half of an upgrade (KTD19 step 6, R36, plan U18, ADR 0086): with the instance
+ * `fieldset upgrade-child`, the target image's half of an upgrade (KTD19 step 6, R36, plan U18, ADR 0086): with the instance
  * directory only to read, it renders the target's compose and env files into its stage with its own renderer, then runs
  * `instance:upgrade-migrate` with the staged app environment and libpq's session name and lock_timeout, and leaves its
  * outcome in `result.json` for the supervisor.
@@ -44,7 +44,7 @@ afterEach(function (): void {
 /** @return array{0: int, 1: array<string, mixed>|null} */
 function upgradeChild(string $dir): array
 {
-    $code = Artisan::call('fsa:upgrade-child', ['--dir' => $dir, '--json' => true]);
+    $code = Artisan::call('fieldset:upgrade-child', ['--dir' => $dir, '--json' => true]);
     $lines = array_values(array_filter(explode("\n", trim(Artisan::output()))));
 
     return [$code, json_decode((string) end($lines), true)];

@@ -22,7 +22,7 @@ use App\Domain\Instance\State\InstanceSettings;
 use Throwable;
 
 /**
- * The steps of `fsa config set mail` around the rollout (ADR 0080), all in socket-less one-offs or read-only Docker
+ * The steps of `fieldset config set mail` around the rollout (ADR 0080), all in socket-less one-offs or read-only Docker
  * calls:
  *
  * - the test mail through the new SMTP server, in verify: a refusal fails the change, which then reverts;
@@ -76,7 +76,7 @@ final readonly class MailCompletion
             $warnings = [...$warnings, ...$warning];
         }
         if ($after->keepsCatcher()) {
-            $mail['remove_catcher_command'] = 'fsa config set mail smtp --remove-catcher';
+            $mail['remove_catcher_command'] = 'fieldset config set mail smtp --remove-catcher';
         }
 
         return ['data' => ['mail' => $mail], 'warnings' => $warnings];

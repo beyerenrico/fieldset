@@ -7,23 +7,23 @@ namespace App\Domain\Platform\Instance\Overview;
 /**
  * The problems of the `/platform` instance page, in the order of plan U20 (R39, R47, R48): failed or stale backups, the
  * disk, an available update, and last the reminder that backups are held only on this host. Backup problems use the
- * alert codes `fsa status` reports as `warn` (BackupAlerts), with the same severity as the health page's backup check
- * and the command `fsa status` names in its hint; `backup_silent` is an fsa instance whose backup service never wrote a
+ * alert codes `fieldset status` reports as `warn` (BackupAlerts), with the same severity as the health page's backup check
+ * and the command `fieldset status` names in its hint; `backup_silent` is a fieldset instance whose backup service never wrote a
  * row. Disk thresholds are the health page's (below 10 % free warns, below 5 % is a danger).
  */
 final class InstanceProblems
 {
     /** Backup alert => severity and command, worst first. */
     public const array BACKUP = [
-        'backup_failed' => ['danger', 'fsa backup'],
-        'backup_service_failed' => ['danger', 'fsa logs backup'],
-        'backup_overdue' => ['danger', 'fsa doctor --post'],
-        'backup_disk_space' => ['warning', 'fsa backup'],
-        'backup_skipped' => ['warning', 'fsa status'],
+        'backup_failed' => ['danger', 'fieldset backup'],
+        'backup_service_failed' => ['danger', 'fieldset logs backup'],
+        'backup_overdue' => ['danger', 'fieldset doctor --post'],
+        'backup_disk_space' => ['warning', 'fieldset backup'],
+        'backup_skipped' => ['warning', 'fieldset status'],
         'backup_files_missing' => ['warning', null],
     ];
 
-    public const string UPGRADE_COMMAND = 'fsa upgrade';
+    public const string UPGRADE_COMMAND = 'fieldset upgrade';
 
     /**
      * @param  list<array{code: string, run: array<string, mixed>|null}>  $alerts  the backup alerts (BackupRuns::summary)
@@ -39,7 +39,7 @@ final class InstanceProblems
             }
         }
         if ($silent) {
-            $problems[] = new InstanceProblem('backup_silent', 'warning', (string) __('instance.problems.backup_silent'), 'fsa logs backup');
+            $problems[] = new InstanceProblem('backup_silent', 'warning', (string) __('instance.problems.backup_silent'), 'fieldset logs backup');
         }
 
         return $problems;
@@ -56,7 +56,7 @@ final class InstanceProblems
             return null;
         }
 
-        return new InstanceProblem('disk_low', $percent < 5 ? 'danger' : 'warning', (string) __('instance.problems.disk_low', ['percent' => $percent]), 'fsa status');
+        return new InstanceProblem('disk_low', $percent < 5 ? 'danger' : 'warning', (string) __('instance.problems.disk_low', ['percent' => $percent]), 'fieldset status');
     }
 
     public static function update(?string $latest): ?InstanceProblem

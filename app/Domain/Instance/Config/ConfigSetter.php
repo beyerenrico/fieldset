@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Config;
 
-use App\Domain\Instance\Console\FsaContext;
+use App\Domain\Instance\Console\FieldsetContext;
 use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\Install\AcmeCaRoot;
 use App\Domain\Instance\Install\InstallRecord;
@@ -26,7 +26,7 @@ use Closure;
 use Throwable;
 
 /**
- * `fsa config set <key> <value>` (R31, R32, R54, KTD6, KTD19, KTD26, ADR 0077, ADR 0078). For every key:
+ * `fieldset config set <key> <value>` (R31, R32, R54, KTD6, KTD19, KTD26, ADR 0077, ADR 0078). For every key:
  *
  * plan (validate, exit 2; the same value twice is `changed: false` without a Docker call) → confirm when the URL
  * changes (the organizations with SSO and the links that follow it; exit 6 without --yes) → under the lock and the
@@ -64,7 +64,7 @@ final readonly class ConfigSetter
     ) {}
 
     /** @param  (Closure(string): bool)|null  $confirm  asks in a terminal; null when the command may not prompt */
-    public function set(ConfigRequest $request, FsaContext $context, ?Closure $confirm): CommandResult
+    public function set(ConfigRequest $request, FieldsetContext $context, ?Closure $confirm): CommandResult
     {
         $applier = $this->keys->applier($request->key);
         $this->assertOptions($request);
@@ -81,7 +81,7 @@ final readonly class ConfigSetter
         }
         $revertOnly = $open instanceof JournalRecord && $open->hasStarted('revert');
         $impact = $change->changesUrl() && ! $revertOnly ? $this->confirm($change, $context, $confirm) : null;
-        $holder = $this->identity->holder('fsa', $context->facts->callerUid());
+        $holder = $this->identity->holder('fieldset', $context->facts->callerUid());
 
         return $this->interruption->guard(fn (): CommandResult => $this->supervisor->run(
             self::OPERATION,
@@ -100,7 +100,7 @@ final readonly class ConfigSetter
      *
      * @param  array<string, mixed>|null  $impact
      */
-    private function steps(OperationRun $run, SettingApplier $applier, ConfigChange $change, ConfigRequest $request, FsaContext $context, ?array $impact): CommandResult
+    private function steps(OperationRun $run, SettingApplier $applier, ConfigChange $change, ConfigRequest $request, FieldsetContext $context, ?array $impact): CommandResult
     {
         try {
             return $this->guardedSteps($run, $applier, $change, $request, $context, $impact);
@@ -110,7 +110,7 @@ final readonly class ConfigSetter
     }
 
     /** @param  array<string, mixed>|null  $impact */
-    private function guardedSteps(OperationRun $run, SettingApplier $applier, ConfigChange $change, ConfigRequest $request, FsaContext $context, ?array $impact): CommandResult
+    private function guardedSteps(OperationRun $run, SettingApplier $applier, ConfigChange $change, ConfigRequest $request, FieldsetContext $context, ?array $impact): CommandResult
     {
         $previousRoot = $this->previousRoot($run->record()->phaseData('snapshot'));
         $settled = $run->isResumed() && $run->record()->hasCompleted('workers') && ! $run->record()->hasStarted('revert');
@@ -119,7 +119,7 @@ final readonly class ConfigSetter
             $this->interruption->arm();
             $previousRoot = $this->previousRoot($run->phase('snapshot', fn (): array => $this->snapshot($change), changes: false));
             if (! $run->isResumed() && $this->directory->state()->toArray() !== $change->before->toArray()) {
-                throw new InstanceException('Another fsa command changed the instance while this one waited.', ExitCode::AbortedUnchanged, 'state_changed', 'Run the command again.', true);
+                throw new InstanceException('Another fieldset command changed the instance while this one waited.', ExitCode::AbortedUnchanged, 'state_changed', 'Run the command again.', true);
             }
             if ($run->isResumed() && $run->record()->hasStarted('revert')) {
                 return $this->finishRevert($run, $change, $request, $previousRoot, $context);
@@ -168,7 +168,7 @@ final readonly class ConfigSetter
      * @param  array<string, mixed>  $services
      * @param  array<string, mixed>  $checked
      */
-    private function finish(OperationRun $run, SettingApplier $applier, ConfigChange $change, ConfigRequest $request, FsaContext $context, ?array $impact, array $services, array $checked): CommandResult
+    private function finish(OperationRun $run, SettingApplier $applier, ConfigChange $change, ConfigRequest $request, FieldsetContext $context, ?array $impact, array $services, array $checked): CommandResult
     {
         $completed = $this->completed($applier, $change, $request);
         $audit = $run->phase('audit', fn (): array => $this->audit($change, $context), changes: false);
@@ -178,7 +178,7 @@ final readonly class ConfigSetter
     }
 
     /** @return array{checked: list<string>} the smoke test of the new settings, then the applier's own check */
-    private function verify(SettingApplier $applier, ConfigChange $change, ConfigRequest $request, FsaContext $context): array
+    private function verify(SettingApplier $applier, ConfigChange $change, ConfigRequest $request, FieldsetContext $context): array
     {
         $checked = $this->rollout->verify($change->after, $context->progress);
         if ($applier instanceof SettingHooks) {
@@ -203,7 +203,7 @@ final readonly class ConfigSetter
         try {
             return $applier->completed($change, $request, ComposeProject::forInstance($change->after, $this->directory));
         } catch (Throwable $e) {
-            return ['data' => [], 'warnings' => [['code' => 'completion_failed', 'message' => "The change was applied, but finishing it failed: {$e->getMessage()}", 'hint' => 'Check `fsa status`; the change itself stays.']]];
+            return ['data' => [], 'warnings' => [['code' => 'completion_failed', 'message' => "The change was applied, but finishing it failed: {$e->getMessage()}", 'hint' => 'Check `fieldset status`; the change itself stays.']]];
         }
     }
 
@@ -229,7 +229,7 @@ final readonly class ConfigSetter
      * then the applier's own checks. A resumed run replays the recorded target instead of checking again: the first
      * attempt may already have moved the instance onto the ports or the network the checks would now find taken.
      */
-    private function preflight(OperationRun $run, SettingApplier $applier, ConfigChange $change, FsaContext $context): ConfigChange
+    private function preflight(OperationRun $run, SettingApplier $applier, ConfigChange $change, FieldsetContext $context): ConfigChange
     {
         $data = $run->phase('preflight', function () use ($applier, $change, $context): array {
             $this->passwords->check($change->before, $change->after);
@@ -254,7 +254,7 @@ final readonly class ConfigSetter
      *
      * @param  array{code: string, message: string, hint: string, data: array<string, mixed>}  $error
      */
-    private function revert(OperationRun $run, ConfigChange $change, ConfigRequest $request, array $error, ?string $previousRoot, FsaContext $context, bool $resumed = false): CommandResult
+    private function revert(OperationRun $run, ConfigChange $change, ConfigRequest $request, array $error, ?string $previousRoot, FieldsetContext $context, bool $resumed = false): CommandResult
     {
         $this->interruption->disarm();
         $steps = [];
@@ -281,7 +281,7 @@ final readonly class ConfigSetter
      * An earlier run started the revert and was cut off, or the revert failed (exit 8): this run only finishes it, from
      * the snapshot, and never repeats the change that failed (ADR 0078).
      */
-    private function finishRevert(OperationRun $run, ConfigChange $change, ConfigRequest $request, ?string $previousRoot, FsaContext $context): CommandResult
+    private function finishRevert(OperationRun $run, ConfigChange $change, ConfigRequest $request, ?string $previousRoot, FieldsetContext $context): CommandResult
     {
         $failure = $run->record()->lastAttemptData('revert')['failure'] ?? null;
         $code = is_string($failure) ? $failure : 'revert_failed';
@@ -291,7 +291,7 @@ final readonly class ConfigSetter
     }
 
     /** @return array{audited: bool, error?: string} a failed audit is a warning: the verified change stays */
-    private function audit(ConfigChange $change, FsaContext $context): array
+    private function audit(ConfigChange $change, FieldsetContext $context): array
     {
         $summary = $context->redactor->redact($change->summary());
         /** @var array{key: string, from: string|null, to: string|null, url: array{from: string, to: string}} $summary */
@@ -309,7 +309,7 @@ final readonly class ConfigSetter
      *
      * @throws InstanceException exit 6 without --yes and without a terminal, exit 9 when declined
      */
-    private function confirm(ConfigChange $change, FsaContext $context, ?Closure $confirm): array
+    private function confirm(ConfigChange $change, FieldsetContext $context, ?Closure $confirm): array
     {
         $impact = $this->impact->assess(ComposeProject::forInstance($change->before, $this->directory));
         if ($context->yes) {
@@ -352,7 +352,7 @@ final readonly class ConfigSetter
     {
         $state = $this->directory->hasState() ? $this->directory->state() : null;
         if (! $state instanceof InstanceState || ! InstallRecord::isInstalled($state)) {
-            throw new InvalidInput('The instance is not installed yet.', 'not_installed', 'Run `fsa install` first (it resumes an unfinished install).');
+            throw new InvalidInput('The instance is not installed yet.', 'not_installed', 'Run `fieldset install` first (it resumes an unfinished install).');
         }
 
         return $state;

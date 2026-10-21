@@ -15,9 +15,9 @@ use Throwable;
 
 /**
  * The opt-in update check (E15, R48, plan U20, ADR 0061, ADR 0089). Off by default: only when runtime.json names a
- * release manifest URL (`fsa config set update-check on`) does the daily scheduled run send one plain GET for it, with
+ * release manifest URL (`fieldset config set update-check on`) does the daily scheduled run send one plain GET for it, with
  * no instance identifier, and nothing else. Off, it sends nothing at all. It reads `version` and `notes_url` of the
- * manifest as untrusted display data, never pulls or upgrades anything (`fsa upgrade` verifies the signature itself),
+ * manifest as untrusted display data, never pulls or upgrades anything (`fieldset upgrade` verifies the signature itself),
  * and keeps the outcome in the cache for the `/platform` instance page; a cache flush only empties the page until the
  * next run.
  *

@@ -9,10 +9,10 @@ use Symfony\Component\Process\Process;
 
 /**
  * A clone-based 1.0.0 install for J9 (plan U19, ADR 0087), built from the local tag `v1.0.0` the way its install guide
- * says: the tag's files (`git archive`) in an `fsa-test-…` checkout of the harness workspace, `.env` from the production
+ * says: the tag's files (`git archive`) in a `fieldset-test-…` checkout of the harness workspace, `.env` from the production
  * template, `docker compose up -d --wait` in the checkout. Only names change, so clean-up finds everything: the image is
  * `<FIELDSET_TEST_IMAGE_REPOSITORY>-v1:1.0.0` (compose.yaml's `form-schema-app:local` is the dev stack's) and the Compose
- * project `fsa-test-j09-v1-<id>` (COMPOSE_PROJECT_NAME in `.env`, as an operator may set it). Compose runs with a clean
+ * project `fieldset-test-j09-v1-<id>` (COMPOSE_PROJECT_NAME in `.env`, as an operator may set it). Compose runs with a clean
  * environment, so a COMPOSE_* variable of the test process never changes what 1.0 runs.
  */
 final readonly class V1Install
@@ -29,18 +29,18 @@ final readonly class V1Install
 
     public static function prepare(string $work, string $id): self
     {
-        $checkout = $work.'/fsa-test-j09-v1-'.$id;
+        $checkout = $work.'/fieldset-test-j09-v1-'.$id;
         if (! is_dir($checkout)) {
             mkdir($checkout, 0755, true);
         }
-        $archive = $work.'/fsa-test-j09-v1-'.$id.'.tar';
+        $archive = $work.'/fieldset-test-j09-v1-'.$id.'.tar';
         self::mustRun(['git', '-C', TestImage::repository(), 'archive', '--format=tar', '-o', $archive, self::TAG]);
         self::mustRun(['tar', '-xf', $archive, '-C', $checkout]);
         unlink($archive);
         $image = TestImage::repositoryName().'-v1:1.0.0';
         $compose = (string) file_get_contents($checkout.'/compose.yaml');
         file_put_contents($checkout.'/compose.yaml', str_replace('image: form-schema-app:local', 'image: '.$image, $compose));
-        $install = new self($checkout, 'fsa-test-j09-v1-'.$id, $image, self::freePort(), 'base64:'.base64_encode(random_bytes(32)));
+        $install = new self($checkout, 'fieldset-test-j09-v1-'.$id, $image, self::freePort(), 'base64:'.base64_encode(random_bytes(32)));
         $install->writeEnv();
 
         return $install;

@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Domain\Instance\Console\FieldsetContext;
 use App\Domain\Instance\Console\FilePathFlags;
-use App\Domain\Instance\Console\FsaContext;
 use App\Domain\Instance\Console\LaunchGuard;
 use App\Domain\Instance\Docker\DockerRuntime;
 use App\Domain\Instance\HostFacts;
@@ -12,23 +12,23 @@ use App\Domain\Instance\Output\ProgressReporter;
 use App\Domain\Instance\Output\SecretRedactor;
 use Illuminate\Support\Facades\Artisan;
 use Symfony\Component\Console\Output\NullOutput;
-use Tests\Support\Instance\ScriptedFsaCommand;
+use Tests\Support\Instance\ScriptedFieldsetCommand;
 use Tests\Support\Instance\TemporaryInstance;
 
 /*
  * U4 / M9-T07: the host-facts contract of the shim and install.sh (KTD2, §6.2, ADR 0070) and the checks every
- * fsa command makes when a launcher started it: the nonce must be visible (exit 3, file sharing) and file-path
+ * fieldset command makes when a launcher started it: the nonce must be visible (exit 3, file sharing) and file-path
  * flags must point into mounted directories (exit 2).
  */
 
-const LAUNCH_NONCE = '.fsa-nonce-0123456789abcdef0123456789abcdef';
+const LAUNCH_NONCE = '.fieldset-nonce-0123456789abcdef0123456789abcdef';
 
 beforeEach(function (): void {
     $this->directory = TemporaryInstance::withState();
     // A host directory the launcher would mount: not under the system temp directory, which is reserved (/tmp, /var).
-    $this->outside = base_path('storage/fsa-test-dist/launch-'.bin2hex(random_bytes(6)));
+    $this->outside = base_path('storage/fieldset-test-dist/launch-'.bin2hex(random_bytes(6)));
     mkdir($this->outside, 0700, true);
-    $this->command = ScriptedFsaCommand::register(fn (FsaContext $c): CommandResult => CommandResult::ok('scripted', ['nonce' => $c->facts->nonce]));
+    $this->command = ScriptedFieldsetCommand::register(fn (FieldsetContext $c): CommandResult => CommandResult::ok('scripted', ['nonce' => $c->facts->nonce]));
 });
 
 afterEach(function (): void {
@@ -49,7 +49,7 @@ function launchedFacts(string $directory, array $mounts = [], ?string $nonce = L
 /** @return array{0: int, 1: array<string, mixed>} */
 function launchedRun(array $parameters = []): array
 {
-    $code = Artisan::call('fsa:scripted', ['--json' => true, ...$parameters]);
+    $code = Artisan::call('fieldset:scripted', ['--json' => true, ...$parameters]);
 
     return [$code, json_decode(trim(Artisan::output()), true, 512, JSON_THROW_ON_ERROR)];
 }
@@ -57,20 +57,20 @@ function launchedRun(array $parameters = []): array
 it('reads the whole host-facts contract and drops invalid values', function (): void {
     $facts = HostFacts::fromEnvironment([
         'FIELDSET_LAUNCHER' => 'install.sh', 'FIELDSET_TTY' => '1', 'FIELDSET_HOST_UID' => '1000', 'FIELDSET_HOST_GID' => '1000', 'FIELDSET_HOST_OS' => 'linux',
-        'FIELDSET_INSTANCE_DIR' => '/srv/fsa/', 'FIELDSET_LAN_ADDRESSES' => '192.168.1.20 10.0.0.5  fe80::1 not-an-ip 192.168.1.20 ',
+        'FIELDSET_INSTANCE_DIR' => '/srv/fieldset/', 'FIELDSET_LAN_ADDRESSES' => '192.168.1.20 10.0.0.5  fe80::1 not-an-ip 192.168.1.20 ',
         'FIELDSET_DESKTOP' => '0', 'FIELDSET_TZ' => 'Europe/Berlin', 'FIELDSET_DOCKER_RUNTIME' => 'rootful', 'FIELDSET_CONTAINER_UID' => '1000',
         'FIELDSET_DOCKER_SOCKET' => '/var/run/docker.sock', 'FIELDSET_NONCE' => LAUNCH_NONCE,
-        'FIELDSET_MOUNTS' => "ro:/home/u/keys\nrw:/home/u/out\nro:/home/u/out\nxx:/bad\nrw:relative\n", 'FIELDSET_OPEN_URL_FILE' => '.fsa-open-url-00112233445566778899aabbccddeeff',
+        'FIELDSET_MOUNTS' => "ro:/home/u/keys\nrw:/home/u/out\nro:/home/u/out\nxx:/bad\nrw:relative\n", 'FIELDSET_OPEN_URL_FILE' => '.fieldset-open-url-00112233445566778899aabbccddeeff',
     ]);
     $invalid = HostFacts::fromEnvironment([
         'FIELDSET_LAUNCHER' => 'curl', 'FIELDSET_HOST_OS' => 'Linux; rm', 'FIELDSET_INSTANCE_DIR' => 'relative', 'FIELDSET_TZ' => '../../etc/passwd',
-        'FIELDSET_DOCKER_RUNTIME' => 'podman', 'FIELDSET_DOCKER_SOCKET' => "/var/run/docker.sock\n", 'FIELDSET_NONCE' => '../.fsa-nonce-0123456789abcdef',
+        'FIELDSET_DOCKER_RUNTIME' => 'podman', 'FIELDSET_DOCKER_SOCKET' => "/var/run/docker.sock\n", 'FIELDSET_NONCE' => '../.fieldset-nonce-0123456789abcdef',
         'FIELDSET_OPEN_URL_FILE' => '/tmp/url',
     ]);
 
     expect($facts->launcher)->toBe('install.sh')
         ->and($facts->tty)->toBeTrue()
-        ->and($facts->instanceDir)->toBe('/srv/fsa')
+        ->and($facts->instanceDir)->toBe('/srv/fieldset')
         ->and($facts->lanAddresses)->toBe(['192.168.1.20', '10.0.0.5', 'fe80::1'])
         ->and($facts->desktop)->toBeFalse()
         ->and($facts->timezone)->toBe('Europe/Berlin')
@@ -81,7 +81,7 @@ it('reads the whole host-facts contract and drops invalid values', function (): 
         ->and($facts->launched())->toBeTrue()
         ->and($facts->mounts)->toBe(['/home/u/keys' => false, '/home/u/out' => true])
         ->and($facts->writableMounts())->toBe(['/home/u/out'])
-        ->and($facts->openUrlFile)->toBe('.fsa-open-url-00112233445566778899aabbccddeeff')
+        ->and($facts->openUrlFile)->toBe('.fieldset-open-url-00112233445566778899aabbccddeeff')
         ->and([$invalid->launcher, $invalid->os, $invalid->instanceDir, $invalid->timezone, $invalid->runtime, $invalid->socket, $invalid->nonce, $invalid->openUrlFile])
         ->each->toBeNull()
         ->and($invalid->launched())->toBeFalse()
@@ -181,9 +181,9 @@ it('refuses a reserved mount before the nonce check and the command, with exit 2
 ]);
 
 it('reserves system paths of the image and shared writable directories, never home or /opt', function (): void {
-    expect(array_filter(['/', '/home', '/tmp', '/tmp/a', '/var/tmp', '/var/www/html', '/usr/local/lib/docker/cli-plugins', '/etc', '/run/fsa-home', '/proc/self',
+    expect(array_filter(['/', '/home', '/tmp', '/tmp/a', '/var/tmp', '/var/www/html', '/usr/local/lib/docker/cli-plugins', '/etc', '/run/fieldset-home', '/proc/self',
         '/sys', '/dev/shm', '/bin', '/sbin', '/lib', '/lib64/x', '/root', '/home/u/../../etc', '/./tmp//x/'], LaunchGuard::reserved(...)))->toHaveCount(19)
-        ->and(array_filter(['/home/u', '/home/u/fsa', '/opt/form-schema-app', '/srv/fsa', '/Users/u/out', '/tmpx', '/var2', '/usrlocal', '/mnt/tmp'], LaunchGuard::reserved(...)))->toBe([]);
+        ->and(array_filter(['/home/u', '/home/u/fieldset', '/opt/fieldset', '/srv/fieldset', '/Users/u/out', '/tmpx', '/var2', '/usrlocal', '/mnt/tmp'], LaunchGuard::reserved(...)))->toBe([]);
 });
 
 it('checks nothing for a command no launcher started', function (): void {
@@ -201,8 +201,8 @@ it('classifies file-path flags like the shim', function (): void {
 });
 
 it('hands a browser URL to the shim through a 0600 file only with a desktop session', function (): void {
-    $context = fn (HostFacts $facts): FsaContext => new FsaContext($facts, new ProgressReporter(new NullOutput, false, new SecretRedactor), new SecretRedactor, true, false, $this->directory);
-    $file = '.fsa-open-url-00112233445566778899aabbccddeeff';
+    $context = fn (HostFacts $facts): FieldsetContext => new FieldsetContext($facts, new ProgressReporter(new NullOutput, false, new SecretRedactor), new SecretRedactor, true, false, $this->directory);
+    $file = '.fieldset-open-url-00112233445566778899aabbccddeeff';
 
     $opened = $context(new HostFacts(desktop: true, openUrlFile: $file))->openInBrowser('https://localhost:8080/login-link#token=abc');
     $mode = fileperms($this->directory->root.'/'.$file) & 0777;
@@ -214,5 +214,5 @@ it('hands a browser URL to the shim through a 0600 file only with a desktop sess
         ->and($context(new HostFacts(desktop: true))->openInBrowser('https://x.test/'))->toBeFalse()
         ->and($context(new HostFacts(desktop: true, openUrlFile: $file))->openInBrowser('file:///etc/passwd'))->toBeFalse()
         ->and($context(new HostFacts(desktop: true, openUrlFile: $file))->openInBrowser('https://x.test/$(touch /tmp/x) y'))->toBeFalse()
-        ->and(new FsaContext(new HostFacts(desktop: true, openUrlFile: $file), new ProgressReporter(new NullOutput, false, new SecretRedactor), new SecretRedactor, true, false)->openInBrowser('https://x.test/'))->toBeFalse();
+        ->and(new FieldsetContext(new HostFacts(desktop: true, openUrlFile: $file), new ProgressReporter(new NullOutput, false, new SecretRedactor), new SecretRedactor, true, false)->openInBrowser('https://x.test/'))->toBeFalse();
 });

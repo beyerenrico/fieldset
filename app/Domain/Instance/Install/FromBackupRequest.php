@@ -10,13 +10,13 @@ use App\Domain\Instance\Restore\RestoreRequest;
 use SensitiveParameter;
 
 /**
- * The backup side of `fsa install --from-backup <backup>` (R42, R60, F6, plan U17, ADR 0085): the backup (any path the
+ * The backup side of `fieldset install --from-backup <backup>` (R42, R60, F6, plan U17, ADR 0085): the backup (any path the
  * launcher mounted), the identity file and its passphrase of an encrypted backup, the APP keys of `--app-key-file`,
  * `--accept-unauthenticated` and `--keep-recipients` (the backup's age recipients are kept only when confirmed, M12 gate
  * S2: whoever can write into a synced backups/ directory could have planted them). The passphrase and the keys never reach
  * the journal; its context holds the path, the identity file's path, whether a key file was given and the paths or
  * switches the passphrase and the keys came from (RestoreRequest::inputs), so the resume command is
- * `fsa install --from-backup <backup>` with the same flags (M12 gate O1).
+ * `fieldset install --from-backup <backup>` with the same flags (M12 gate O1).
  */
 final readonly class FromBackupRequest
 {
@@ -51,7 +51,7 @@ final readonly class FromBackupRequest
         throw new InvalidInput(
             implode(', ', $flags).' do(es) not apply with --from-backup.',
             'flag_not_applicable',
-            'The organization, its users and settings come from the backup, and a moved instance starts with mail captured: leave these flags out, then switch mail with `fsa config set mail smtp …` once the move is complete.',
+            'The organization, its users and settings come from the backup, and a moved instance starts with mail captured: leave these flags out, then switch mail with `fieldset config set mail smtp …` once the move is complete.',
             ['flags' => $flags],
         );
     }

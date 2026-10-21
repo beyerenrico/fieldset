@@ -7,7 +7,7 @@ namespace App\Domain\Instance\Reset;
 use App\Domain\Instance\Backup\BackupRunner;
 use App\Domain\Instance\Backup\SafetyBackup;
 use App\Domain\Instance\Compose\Services\AppRoles;
-use App\Domain\Instance\Console\FsaContext;
+use App\Domain\Instance\Console\FieldsetContext;
 use App\Domain\Instance\Demo\DemoCredentials;
 use App\Domain\Instance\Demo\DemoData;
 use App\Domain\Instance\Docker\ComposeProject;
@@ -31,7 +31,7 @@ use Carbon\CarbonImmutable;
 use Throwable;
 
 /**
- * The second half of `fsa reset` (plan U23, KTD26, ADR 0088), after the database was recreated (ResetOperation); it
+ * The second half of `fieldset reset` (plan U23, KTD26, ADR 0088), after the database was recreated (ResetOperation); it
  * only goes forward:
  *
  * migrate (again after every recreate, until the epoch began; and the backup service's role, as install does) → epoch
@@ -43,7 +43,7 @@ use Throwable;
  * reachability rule of R29] → gate (down) → cleanup (the replaced storage volume and leftovers of earlier restores
  * removed, ResetLeftovers; the safety backup sealed).
  *
- * Every phase is repeatable from the journal: a killed run is continued by the next `fsa reset` with the same flags.
+ * Every phase is repeatable from the journal: a killed run is continued by the next `fieldset reset` with the same flags.
  * Settings and secrets stay; webhooks are not paused (no data, so no run whose deliveries could repeat).
  */
 final readonly class ResetRebuild
@@ -63,7 +63,7 @@ final readonly class ResetRebuild
         private SafetySeal $seals,
     ) {}
 
-    public function run(OperationRun $run, InstanceState $state, ComposeProject $project, ResetRequest $request, ResetSubject $subject, FsaContext $context, bool $toFile): CommandResult
+    public function run(OperationRun $run, InstanceState $state, ComposeProject $project, ResetRequest $request, ResetSubject $subject, FieldsetContext $context, bool $toFile): CommandResult
     {
         try {
             return $this->forward($run, $state, $project, $request, $subject, $context, $toFile);
@@ -98,7 +98,7 @@ final readonly class ResetRebuild
         return $result;
     }
 
-    private function forward(OperationRun $run, InstanceState $state, ComposeProject $project, ResetRequest $request, ResetSubject $subject, FsaContext $context, bool $toFile): CommandResult
+    private function forward(OperationRun $run, InstanceState $state, ComposeProject $project, ResetRequest $request, ResetSubject $subject, FieldsetContext $context, bool $toFile): CommandResult
     {
         $record = $run->record();
         $run->phase('migrate', fn (): array => $this->migrate($project), always: ! $record->hasCompleted('epoch')); // after every recreate
@@ -207,7 +207,7 @@ final readonly class ResetRebuild
     private function flush(ComposeProject $project): array
     {
         if (! $this->stack->flushValkey($project)) {
-            throw new InstanceException('Valkey could not be emptied: queued jobs of the old data would run against new rows with the same IDs.', ExitCode::HealthCheckFailed, 'valkey_not_flushed', 'Read `fsa logs redis`; nothing starts before Valkey is empty', true);
+            throw new InstanceException('Valkey could not be emptied: queued jobs of the old data would run against new rows with the same IDs.', ExitCode::HealthCheckFailed, 'valkey_not_flushed', 'Read `fieldset logs redis`; nothing starts before Valkey is empty', true);
         }
 
         return ['valkey' => true, 'catcher' => $this->catcher->flush($this->directory->state(), $project)];
@@ -220,7 +220,7 @@ final readonly class ResetRebuild
      * @param  list<array{0: string, 1: string, 2: string|null}>  $warnings
      * @return array{value: string, expires_at: CarbonImmutable|null}|null
      */
-    private function freshLink(ComposeProject $project, ResetSubject $subject, ResetRequest $request, FsaContext $context, array &$warnings): ?array
+    private function freshLink(ComposeProject $project, ResetSubject $subject, ResetRequest $request, FieldsetContext $context, array &$warnings): ?array
     {
         $issued = $this->commands->loginLink($project, $subject->ownerEmail, $request->actorUid);
         $link = $issued->ok ? $issued->secret(SignInDelivery::SECRET) : null;
@@ -234,7 +234,7 @@ final readonly class ResetRebuild
         return $link;
     }
 
-    /** From the drop on there is no way back: the journal stays open, the gate up, and `fsa reset` continues. */
+    /** From the drop on there is no way back: the journal stays open, the gate up, and `fieldset reset` continues. */
     public function stuck(Throwable $cause, JournalRecord $record): CommandResult
     {
         $exit = $cause instanceof InstanceException && ! $cause->exitCode->isBeforeChange() ? $cause->exitCode : ExitCode::HealthCheckFailed;

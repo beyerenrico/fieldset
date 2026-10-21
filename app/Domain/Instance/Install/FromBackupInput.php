@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Install;
 
-use App\Domain\Instance\Console\FsaContext;
+use App\Domain\Instance\Console\FieldsetContext;
 use App\Domain\Instance\Console\PassphraseInput;
 use App\Domain\Instance\Output\InvalidInput;
 use App\Domain\Instance\Restore\AppKeys;
 use Illuminate\Console\Command;
 
 /**
- * Reads the `--from-backup` flags of `fsa install` (plan U17, ADR 0085): the backup path, the identity file and its
+ * Reads the `--from-backup` flags of `fieldset install` (plan U17, ADR 0085): the backup path, the identity file and its
  * passphrase (`--passphrase-file`, `--passphrase-stdin`; entered once, R40), the APP keys of `--app-key-file` (each one
  * registered with the redactor at once) and `--accept-unauthenticated`. The flags that belong to it are refused without
  * it, and the SMTP account flags with it (a moved instance starts with capture mail).
@@ -25,7 +25,7 @@ final class FromBackupInput
 
     private const array ACCOUNT = ['smtp-username', 'password-file'];
 
-    public static function fromCommand(Command $command, FsaContext $context): ?FromBackupRequest
+    public static function fromCommand(Command $command, FieldsetContext $context): ?FromBackupRequest
     {
         $backup = self::string($command, 'from-backup');
         if ($backup === null) {
@@ -33,7 +33,7 @@ final class FromBackupInput
         }
         $given = [...array_filter(self::ACCOUNT, static fn (string $option): bool => self::string($command, $option) !== null), ...($command->option('password-stdin') === true ? ['password-stdin'] : [])];
         if ($given !== []) {
-            throw new InvalidInput('--'.implode(', --', $given).' do(es) not apply with --from-backup.', 'flag_not_applicable', 'A moved instance starts with mail captured; switch it with `fsa config set mail smtp …` once the move is complete.');
+            throw new InvalidInput('--'.implode(', --', $given).' do(es) not apply with --from-backup.', 'flag_not_applicable', 'A moved instance starts with mail captured; switch it with `fieldset config set mail smtp …` once the move is complete.');
         }
         $identity = self::string($command, 'identity-file');
         $passphrase = PassphraseInput::fromCommand($command, $context, twice: false);
@@ -65,7 +65,7 @@ final class FromBackupInput
         }
     }
 
-    private static function keyFile(Command $command, FsaContext $context): ?AppKeys
+    private static function keyFile(Command $command, FieldsetContext $context): ?AppKeys
     {
         $path = self::string($command, 'app-key-file');
         if ($path === null) {

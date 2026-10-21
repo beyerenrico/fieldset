@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Domain\Instance\Console\FsaCommand;
+use App\Domain\Instance\Console\FieldsetCommand;
 use App\Domain\Instance\Docker\ContainerSpec;
 use App\Domain\Instance\Docker\DockerCommandFailed;
 use App\Domain\Instance\Docker\ProcessOutcome;
@@ -14,10 +14,10 @@ use Tests\Support\Instance\UpgradeFixture;
 use Tests\Support\Release\ReleaseFixtures;
 
 /*
- * The upgrade journal after an interruption (plan U18, KTD5, KTD19, R54, ADR 0086): `fsa upgrade --resume` decides from
+ * The upgrade journal after an interruption (plan U18, KTD5, KTD19, R54, ADR 0086): `fieldset upgrade --resume` decides from
  * the journal (before the safety backup: the previous services again; from the safety backup until the commit: the
- * rollback; after the commit: only the opening, never a restore), `fsa status` names the phase and the resume command,
- * the foreground `fsa upgrade` starts the detached supervisor and renders its result, and a target release that adds a
+ * rollback; after the commit: only the opening, never a restore), `fieldset status` names the phase and the resume command,
+ * the foreground `fieldset upgrade` starts the detached supervisor and renders its result, and a target release that adds a
  * service and an env key starts from its own staged files.
  */
 
@@ -44,7 +44,7 @@ it('reports a failure while opening without restoring anything, and finishes ope
 
     expect($code)->toBe(4, (string) json_encode($json))
         ->and($json['errors'][0]['code'])->toBe('open_failed')
-        ->and($json['errors'][0]['hint'])->toContain('fsa upgrade --resume')
+        ->and($json['errors'][0]['hint'])->toContain('fieldset upgrade --resume')
         ->and($this->upgrade->instance->state()->version())->toBe(UpgradeFixture::TARGET)
         ->and($open?->lastStartedPhase())->toBe('open')
         ->and($this->upgrade->restore->actions())->toBe([]);
@@ -63,7 +63,7 @@ it('finishes opening a committed upgrade whatever the flags, and never restores 
     $this->upgrade->interrupted('commit', completed: true);
     $mark = $this->config->mark();
 
-    [$code, $json] = $this->upgrade->instance->run('fsa:upgrade', ['--supervise' => true]);
+    [$code, $json] = $this->upgrade->instance->run('fieldset:upgrade', ['--supervise' => true]);
 
     expect($code)->toBe(0, (string) json_encode($json))
         ->and($this->upgrade->instance->state()->version())->toBe(UpgradeFixture::TARGET)
@@ -141,13 +141,13 @@ it('refuses a new upgrade while an interrupted one is open, naming the resume co
     $this->upgrade->interrupted('migrate');
 
     [$code, $json] = $this->upgrade->upgrade();
-    [, $status] = $this->upgrade->instance->run('fsa:status');
+    [, $status] = $this->upgrade->instance->run('fieldset:status');
     $warning = array_values(array_filter($status['warnings'], static fn (array $w): bool => $w['code'] === 'operation_unfinished'))[0];
 
     expect($code)->toBe(9)->and($json['errors'][0]['code'])->toBe('operation_unfinished')
-        ->and($json['errors'][0]['hint'])->toContain('fsa upgrade --resume')
-        ->and($status['data']['operation'])->toMatchArray(['operation' => 'upgrade', 'last_phase' => 'migrate', 'command' => 'fsa upgrade --resume'])
-        ->and($warning['hint'])->toContain('fsa upgrade --resume')->toContain('rolls back');
+        ->and($json['errors'][0]['hint'])->toContain('fieldset upgrade --resume')
+        ->and($status['data']['operation'])->toMatchArray(['operation' => 'upgrade', 'last_phase' => 'migrate', 'command' => 'fieldset upgrade --resume'])
+        ->and($warning['hint'])->toContain('fieldset upgrade --resume')->toContain('rolls back');
 });
 
 it('starts the detached supervisor from the installed image with the socket and the instance at the same path, and renders its result', function (): void {
@@ -168,14 +168,14 @@ it('starts the detached supervisor from the installed image with the socket and 
         return $previous($spec);
     });
 
-    [$code, $json] = $this->upgrade->instance->run('fsa:upgrade', ['--to' => UpgradeFixture::TARGET]);
+    [$code, $json] = $this->upgrade->instance->run('fieldset:upgrade', ['--to' => UpgradeFixture::TARGET]);
     $state = $this->upgrade->instance->state();
 
     expect($code)->toBe(0, (string) json_encode($json))
         ->and($json['data'])->toMatchArray(['from' => '2.0.0-alpha.1', 'to' => UpgradeFixture::TARGET])
         ->and($launched)->toBeInstanceOf(ContainerSpec::class)
         ->and($launched->image)->toBe($state->digests()['app'])
-        ->and($launched->entrypoint)->toBe('fsa')
+        ->and($launched->entrypoint)->toBe('fieldset')
         ->and($launched->command)->toBe(['upgrade', '--supervise', '--dir', $this->dir, '--to', UpgradeFixture::TARGET, '--json'])
         ->and($launched->volumes)->toContain('/var/run/docker.sock:/var/run/docker.sock', $this->dir.':'.$this->dir, '/home/ops/keys:/home/ops/keys:ro')
         ->and($launched->detach)->toBeTrue()->and($launched->remove)->toBeTrue()->and($launched->restart)->toBe('no')
@@ -183,7 +183,7 @@ it('starts the detached supervisor from the installed image with the socket and 
         ->and($launched->labels)->toMatchArray($this->upgrade->supervisorLabels())
         ->and($launched->env)->toMatchArray(['FIELDSET_HOST_UID' => (string) $facts->uid, 'FIELDSET_RELEASE_URL' => UpgradeFixture::RELEASE_URL, 'FIELDSET_INSTANCE_DIR' => $this->dir])
         ->and(array_keys($launched->env))->not->toContain('FIELDSET_NONCE')
-        ->and(glob($this->dir.'/operations/supervisor-*.json'))->toHaveCount(1); // M12 gate O3: the result stays for `fsa status` and `--follow`
+        ->and(glob($this->dir.'/operations/supervisor-*.json'))->toHaveCount(1); // M12 gate O3: the result stays for `fieldset status` and `--follow`
 });
 
 it('follows the running supervisor through its journal, and a journal it cannot read for a moment does not stop it', function (): void {
@@ -218,9 +218,9 @@ it('follows the running supervisor through its journal, and a journal it cannot 
         };
     };
     $events = new BufferedOutput;
-    app()->instance(FsaCommand::PROGRESS_OUTPUT, $events);
+    app()->instance(FieldsetCommand::PROGRESS_OUTPUT, $events);
 
-    [$code, $json] = $this->upgrade->instance->run('fsa:upgrade', ['--to' => UpgradeFixture::TARGET]);
+    [$code, $json] = $this->upgrade->instance->run('fieldset:upgrade', ['--to' => UpgradeFixture::TARGET]);
     $phases = array_map(static fn (string $line): string => (string) (json_decode($line, true)['message'] ?? ''), array_filter(explode("\n", $events->fetch())));
 
     expect($code)->toBe(5, (string) json_encode($json))
@@ -233,17 +233,17 @@ it('says where to look when the supervisor stops without a result', function ():
     $previous = $docker->runResponder;
     $docker->respondToRun(fn (ContainerSpec $spec): ?ProcessOutcome => in_array('--supervise', $spec->command, true) ? new ProcessOutcome(0, str_repeat('e', 64)."\n") : $previous($spec));
 
-    [$code, $json] = $this->upgrade->instance->run('fsa:upgrade', ['--to' => UpgradeFixture::TARGET]);
+    [$code, $json] = $this->upgrade->instance->run('fieldset:upgrade', ['--to' => UpgradeFixture::TARGET]);
 
     expect($code)->toBe(1)->and($json['errors'][0]['code'])->toBe('supervisor_lost')
-        ->and($json['errors'][0]['hint'])->toContain('fsa status');
+        ->and($json['errors'][0]['hint'])->toContain('fieldset status');
 });
 
 it('refuses to start a second supervisor while one runs (exit 9)', function (): void {
     $state = $this->upgrade->instance->state();
     $this->upgrade->instance->docker->withRunningContainer(str_repeat('f', 64), '2026-10-20T10:00:00Z', $this->upgrade->supervisorLabels(), $state->project().'-supervisor');
 
-    [$code, $json] = $this->upgrade->instance->run('fsa:upgrade', ['--to' => UpgradeFixture::TARGET]);
+    [$code, $json] = $this->upgrade->instance->run('fieldset:upgrade', ['--to' => UpgradeFixture::TARGET]);
 
     expect($code)->toBe(9)->and($json['errors'][0]['code'])->toBe('supervisor_running');
 });

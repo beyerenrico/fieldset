@@ -138,7 +138,7 @@ it('seals a restore safety backup a killed run wrote before its journal named it
     $upgrade->encrypt();
     InterruptedRestore::journal($restore, 'ledger', started: 'safety_backup');
     $orphan = 'safety-restore-'.CarbonImmutable::now('UTC')->addSecond()->format('Ymd\THis\Z');
-    BackupSetFixture::fsa($restore->instance->directory->root.'/backups/'.$orphan, ['kind' => 'safety-restore', ...$restore->manifest()], appKey: $restore->appKey());
+    BackupSetFixture::fieldset($restore->instance->directory->root.'/backups/'.$orphan, ['kind' => 'safety-restore', ...$restore->manifest()], appKey: $restore->appKey());
 
     [$code, $json] = $restore->restore();
 

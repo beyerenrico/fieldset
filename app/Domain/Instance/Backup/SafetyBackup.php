@@ -39,7 +39,7 @@ final readonly class SafetyBackup
                 "The safety backup before {$operation} failed: ".$outcome->errorMessage(),
                 ExitCode::AbortedUnchanged,
                 'safety_backup_failed',
-                'Fix the cause (`fsa logs backup`, free disk space), then run the command again; nothing was changed.',
+                'Fix the cause (`fieldset logs backup`, free disk space), then run the command again; nothing was changed.',
                 true,
                 ['reason' => $outcome->errorCode(), 'output' => $outcome->output],
             );

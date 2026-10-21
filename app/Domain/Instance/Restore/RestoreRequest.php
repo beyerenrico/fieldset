@@ -7,7 +7,7 @@ namespace App\Domain\Instance\Restore;
 use SensitiveParameter;
 
 /**
- * What `fsa restore` (and the drill) was asked for (plan U17, ADR 0085). The passphrase and the key file's keys are
+ * What `fieldset restore` (and the drill) was asked for (plan U17, ADR 0085). The passphrase and the key file's keys are
  * secrets: they never reach the journal, whose context holds only the backup, the flags, the identity file's path and
  * where the passphrase and the keys came from (`--passphrase-file` path or `--passphrase-stdin`, the `--app-key-file`
  * path), so the resume command names every input again (ResumeCommand, M12 gate O2).

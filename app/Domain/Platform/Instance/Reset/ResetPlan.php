@@ -12,11 +12,11 @@ use App\Domain\Platform\Models\PlatformAdmin;
 use Illuminate\Support\Facades\DB;
 
 /**
- * What `fsa reset` must know from the live database before it stops anything (plan U23, ADR 0088), read in a socket-less
+ * What `fieldset reset` must know from the live database before it stops anything (plan U23, ADR 0088), read in a socket-less
  * one-off (`instance:reset plan`): the organizations (soft-deleted ones count: their audit trail is still there) and how
  * many of them are not the demo, which decides whether a reset without a safety backup still writes an audit export;
  * the oldest real organization (name and locale, for an instance whose install record lacks them, e.g. one installed
- * from a backup); and the active platform operators, oldest grant first, from whom fsa picks the owner of the fresh
+ * from a backup); and the active platform operators, oldest grant first, from whom fieldset picks the owner of the fresh
  * instance (the install record keeps the owner's e-mail only as a digest); and the last value of every sequence, the
  * floors of the new database's sequences (review S1: signed links name row IDs, which must never be handed out again).
  * Read-only.

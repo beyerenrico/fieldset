@@ -15,7 +15,7 @@ use App\Domain\Instance\State\InputGrammar;
 use App\Domain\Instance\State\InstanceState;
 
 /**
- * The settings split of `fsa install --from-backup` (R42, KTD18, plan U17, ADR 0085). Portable settings come from the
+ * The settings split of `fieldset install --from-backup` (R42, KTD18, plan U17, ADR 0085). Portable settings come from the
  * backup (its settings.json, or the allow-listed values of a 1.0 `env`) and pass the same checks as `config set`; host-bound
  * ones (ports, LAN address, phone HTTPS, proxy wiring, tunnel, CA, owner) come from the flags and the host. Without a mode
  * flag the backup's mode applies: its domain (domain mode) or local mode; proxy mode needs its flags again (they name
@@ -67,7 +67,7 @@ final readonly class FromBackupSettings
      */
     public static function overlay(InstanceState $state, PreparedBackup $backup, string $freshVolume, bool $keepRecipients = false): InstanceState
     {
-        $portable = $backup->isLegacy() ? self::legacy($backup) : array_intersect_key(self::fsaSettings($backup), array_flip(self::KEPT));
+        $portable = $backup->isLegacy() ? self::legacy($backup) : array_intersect_key(self::fieldsetSettings($backup), array_flip(self::KEPT));
         $state = $state->withSettings(array_filter($portable, static fn (mixed $value): bool => $value !== null && $value !== ''));
         $recipients = $keepRecipients ? self::recipients($backup)['kept'] : [];
         if ($recipients !== []) {
@@ -95,7 +95,7 @@ final readonly class FromBackupSettings
 
     /**
      * The SMTP server the backed-up instance delivered through, for the operator to switch to after the move. The
-     * command carries every portable mail setting of an fsa backup (host, port, encryption, sender address), so only the
+     * command carries every portable mail setting of a fieldset backup (host, port, encryption, sender address), so only the
      * account (a credential: never in a backup's settings or any output, SmtpCredentials) and the password file are
      * placeholders (R51 F2). A 1.0 backup names its host and port only.
      *
@@ -103,7 +103,7 @@ final readonly class FromBackupSettings
      */
     public static function pendingMail(PreparedBackup $backup): ?array
     {
-        $settings = $backup->isLegacy() ? self::legacyMail($backup) : self::fsaSettings($backup);
+        $settings = $backup->isLegacy() ? self::legacyMail($backup) : self::fieldsetSettings($backup);
         $host = $settings['smtp_host'] ?? null;
         if (! is_string($host) || $host === '' || ($backup->isLegacy() === false && ($settings['mail'] ?? null) !== 'smtp')) {
             return null;
@@ -114,7 +114,7 @@ final readonly class FromBackupSettings
         $from = $settings['mail_from_address'] ?? null;
         $from = is_string($from) && InputGrammar::settingProblem('mail_from_address', $from) === null ? $from : null;
         $flags = array_filter(['--smtp-host' => $host, '--smtp-port' => $port, '--smtp-encryption' => $encryption, '--from-address' => $from], static fn (string|int|null $value): bool => $value !== null);
-        $command = 'fsa config set mail smtp';
+        $command = 'fieldset config set mail smtp';
         foreach ($flags as $flag => $value) {
             $command .= " {$flag} {$value}";
         }
@@ -127,7 +127,7 @@ final readonly class FromBackupSettings
     public static function origin(PreparedBackup $backup): array
     {
         if (! $backup->isLegacy()) {
-            $domain = self::fsaSettings($backup)['domain'] ?? null;
+            $domain = self::fieldsetSettings($backup)['domain'] ?? null;
 
             return [is_string($backup->settings['mode'] ?? null) ? $backup->settings['mode'] : null, is_string($domain) ? $domain : null];
         }
@@ -140,7 +140,7 @@ final readonly class FromBackupSettings
     }
 
     /** @return array<string, mixed> */
-    private static function fsaSettings(PreparedBackup $backup): array
+    private static function fieldsetSettings(PreparedBackup $backup): array
     {
         $settings = $backup->settings['settings'] ?? [];
 

@@ -14,7 +14,7 @@ use Tests\Support\Instance\InstanceCommandFixture;
 use Tests\Support\Instance\TemporaryInstance;
 
 /*
- * Plan U11 (§7, R31, R32, §10; ADR 0077): `fsa config show` (effective settings, secrets redacted, outbound contacts)
+ * Plan U11 (§7, R31, R32, §10; ADR 0077): `fieldset config show` (effective settings, secrets redacted, outbound contacts)
  * and the command's usage rules: unknown keys, invalid values (the update check arrived with 2.0.0, U20), an instance that is not
  * installed, a running operation (exit 9) and an unfinished one of another kind.
  */
@@ -39,7 +39,7 @@ it('shows every setting of a local instance with secrets redacted and no outboun
         ->and(collect($secrets)->contains(fn (string $secret): bool => str_contains($raw, $secret)))->toBeFalse()
         ->and($contacts->filter(fn (array $feature): bool => $feature['active'])->all())->toBe([])
         ->and($contacts['upgrades']['contacts'])->toContain(InstanceCommandFixture::MIRROR, 'https://github.com/beyerenrico/form-schema-app/releases')
-        ->and($contacts['upgrades']['purpose'])->toContain('fsa upgrade')->not->toContain('arrives with') // gate review stale texts
+        ->and($contacts['upgrades']['purpose'])->toContain('fieldset upgrade')->not->toContain('arrives with') // gate review stale texts
         ->and($contacts['acme']['contacts'])->toBe([])
         ->and(collect($json['data']['keys'])->firstWhere('key', 'mail'))->toMatchArray(['value' => 'capture', 'available' => true, 'settable_now' => true])
         ->and(collect($json['data']['keys'])->firstWhere('key', 'backup-schedule'))->toMatchArray(['value' => '03:30', 'available' => true, 'settable_now' => true]) // arrived with U16 (ADR 0084)
@@ -77,7 +77,7 @@ it('refuses invalid values and lists the keys for an unknown one, exit 2', funct
 it('refuses bad usage with exit 2', function (array $arguments): void {
     $fixture = new ConfigFixture;
 
-    [$code, $json] = $fixture->instance->run('fsa:config', $arguments);
+    [$code, $json] = $fixture->instance->run('fieldset:config', $arguments);
 
     expect($code)->toBe(2)->and($json['errors'][0]['code'])->toBe('invalid_usage');
 })->with([
@@ -95,7 +95,7 @@ it('refuses a secret passed as a flag value before parsing (R50)', function (): 
 it('needs an installed instance', function (): void {
     $fixture = new InstanceCommandFixture;
 
-    [$code, $json] = $fixture->run('fsa:config', ['action' => 'set', 'key' => 'port', 'value' => '8090']);
+    [$code, $json] = $fixture->run('fieldset:config', ['action' => 'set', 'key' => 'port', 'value' => '8090']);
 
     expect($code)->toBe(2)->and($json['errors'][0]['code'])->toBe('not_installed');
 });

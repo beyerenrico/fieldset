@@ -17,7 +17,7 @@ while [ $# -gt 0 ]; do
 	*) shift ;;
 	esac
 done
-name=fsa-test-$(od -An -N5 -tx1 /dev/urandom | tr -d ' \n')
+name=fieldset-test-$(od -An -N5 -tx1 /dev/urandom | tr -d ' \n')
 export XDG_CONFIG_HOME=/tmp XDG_DATA_HOME=/tmp
 cat >/tmp/Caddyfile <<EOF
 {

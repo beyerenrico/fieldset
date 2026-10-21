@@ -7,7 +7,7 @@ namespace App\Domain\Instance\State;
 use Stringable;
 
 /**
- * `schema_version` of files that two versions of fsa read (state, journal, lock, marker; KTD6). A newer minor
+ * `schema_version` of files that two versions of fieldset read (state, journal, lock, marker; KTD6). A newer minor
  * only adds keys, which readers keep; a higher major is incompatible and makes commands exit 7 rather than
  * rewrite the file.
  */

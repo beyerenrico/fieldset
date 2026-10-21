@@ -11,34 +11,34 @@ use Illuminate\Console\Attributes\Signature;
 use Throwable;
 
 /**
- * `fsa version` (§7, KTD1): the version of this fsa (the image), of the instance in the current or given
+ * `fieldset version` (§7, KTD1): the version of this fieldset (the image), of the instance in the current or given
  * directory if there is one, and the newest known release (null: the opt-in update check runs in the app and keeps its
- * result in the app's cache, which fsa does not read; `/platform` shows it, ADR 0089).
- * The only fsa command that runs without an instance directory, a database or Docker.
+ * result in the app's cache, which fieldset does not read; `/platform` shows it, ADR 0089).
+ * The only fieldset command that runs without an instance directory, a database or Docker.
  */
-#[Description('Show the versions of fsa, the instance and the newest known release')]
-#[Signature('fsa:version')]
-final class VersionCommand extends FsaCommand
+#[Description('Show the versions of fieldset, the instance and the newest known release')]
+#[Signature('fieldset:version')]
+final class VersionCommand extends FieldsetCommand
 {
     protected function requiresInstance(): bool
     {
         return false;
     }
 
-    protected function perform(FsaContext $context): CommandResult
+    protected function perform(FieldsetContext $context): CommandResult
     {
         $version = config('app.version');
         $revision = config('app.revision');
 
         return CommandResult::ok('version', [
-            'fsa' => is_string($version) ? $version : null,
+            'fieldset' => is_string($version) ? $version : null,
             'revision' => is_string($revision) && $revision !== '' ? $revision : null,
             'instance' => $this->instanceVersion($context),
             'newest_known' => null,
         ]);
     }
 
-    private function instanceVersion(FsaContext $context): ?string
+    private function instanceVersion(FieldsetContext $context): ?string
     {
         $option = $this->option('dir');
         $path = is_string($option) && $option !== '' ? $option : ($context->facts->instanceDir ?? (string) getcwd());

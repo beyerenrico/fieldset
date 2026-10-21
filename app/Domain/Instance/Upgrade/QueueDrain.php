@@ -16,9 +16,9 @@ use Illuminate\Support\Sleep;
 /**
  * Drains Horizon before an upgrade's safety backup (KTD19 step 4, plan U18, ADR 0086). The socket holder never opens
  * Valkey itself (KTD25): a socket-less one-off of the app service (`instance:queue-drain`) reports the queue sizes, and
- * fsa polls it while the workers finish what is waiting. Drained means no job is pending or reserved on any Horizon
+ * fieldset polls it while the workers finish what is waiting. Drained means no job is pending or reserved on any Horizon
  * queue; delayed jobs (retries, scheduled notifications) stay in Valkey and run after the upgrade. For `--drop-jobs`,
- * `export()` reads the payloads still pending or reserved and `drop()` deletes them once fsa saved them.
+ * `export()` reads the payloads still pending or reserved and `drop()` deletes them once fieldset saved them.
  */
 final readonly class QueueDrain
 {
@@ -82,7 +82,7 @@ final readonly class QueueDrain
     {
         $result = OneOffResult::fromOutcome($this->docker->composeRun($project, ComposeRenderer::ONE_OFF_SERVICE, ['php', 'artisan', 'instance:queue-drain', ...$flags, '--json'], timeout: self::TIMEOUT));
         if (! $result->ok) {
-            throw new InstanceException('The queue sizes could not be read: '.$result->errorMessage(), ExitCode::AbortedUnchanged, 'queue_unreadable', 'Check `fsa logs redis`, then run `fsa upgrade` again.', true, ['output' => $result->output]);
+            throw new InstanceException('The queue sizes could not be read: '.$result->errorMessage(), ExitCode::AbortedUnchanged, 'queue_unreadable', 'Check `fieldset logs redis`, then run `fieldset upgrade` again.', true, ['output' => $result->output]);
         }
 
         return $result;

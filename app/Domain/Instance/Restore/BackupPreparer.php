@@ -14,20 +14,20 @@ use SensitiveParameter;
 
 /**
  * The first step of every restore, drill and `--from-backup` (R41, R67, KTD16, KTD18, plan U17, ADR 0085), run by
- * `fsa restore-prepare` in a one-off of the app image without the Docker socket and without a network:
+ * `fieldset restore-prepare` in a one-off of the app image without the Docker socket and without a network:
  *
  * 1. an encrypted backup is decrypted (the identity file opened with the passphrase through batchpass, then
  *    `backup.tar.age` with the identity) into `<scratch>/backup.tar`, judged member by member and extracted into
  *    `<scratch>/set` (SafeExtractor); a plain backup directory's set files are copied there first, once every entry is
  *    a regular file (anything else in it is a problem of the set, dotfiles aside), so a backups/ writer cannot change
  *    what was checked before it is restored (M12 gate);
- * 2. `SHA256SUMS` must match the files; the HMAC is checked with the keys fsa passed from outside the archive (the
+ * 2. `SHA256SUMS` must match the files; the HMAC is checked with the keys fieldset passed from outside the archive (the
  *    instance's APP keys or a key file, as derived HMAC keys), never with a secret inside it;
  * 3. the storage archive (0640, so GNU tar can read it as the app UID later) is judged member by member; its regular
  *    files are listed in `<scratch>/storage-members.txt`;
  * 4. the dump's table of contents is judged (DumpInspector) and its migration set read from the dump itself.
  *
- * It reports; fsa decides (PreparedBackup). Nothing here connects anywhere or writes outside the scratch directory, and
+ * It reports; fieldset decides (PreparedBackup). Nothing here connects anywhere or writes outside the scratch directory, and
  * every path it reports lies in the scratch directory (RestoreSource::confined).
  */
 final readonly class BackupPreparer
@@ -219,7 +219,7 @@ final readonly class BackupPreparer
     {
         $values = BackupSet::legacyManifest($set);
 
-        // `fsa adopt` names the APP keys instead of copying them into `env` (plan U19, ADR 0087); 1.0's script names none.
+        // `fieldset adopt` names the APP keys instead of copying them into `env` (plan U19, ADR 0087); 1.0's script names none.
         $fingerprints = array_values(array_filter(explode(',', $values['app_key_fingerprints'] ?? ''), static fn (string $fingerprint): bool => preg_match('/^[0-9a-f]{4}(-[0-9a-f]{4}){3}$/D', $fingerprint) === 1));
 
         return ['format' => 'scripts/backup.sh', 'kind' => 'legacy', 'created_at' => $values['created_at'] ?? null, 'version' => null, 'postgres' => $values['postgres'] ?? null,

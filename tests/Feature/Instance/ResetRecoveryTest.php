@@ -12,7 +12,7 @@ use Tests\Support\Instance\ResetFixture;
 use Tests\Support\Instance\TemporaryInstance;
 
 /*
- * `fsa reset` when something goes wrong (plan U23, ADR 0088): every way back before the drop (exit 5, or exit 8 with the
+ * `fieldset reset` when something goes wrong (plan U23, ADR 0088): every way back before the drop (exit 5, or exit 8 with the
  * journal open), signals at a phase boundary, and the resume after the drop from the journal (no question, no repeated
  * ledger line, safety backup, recreate or epoch, a new owner link when the seeding happened earlier). The happy paths are
  * in ResetCommandTest.
@@ -64,14 +64,14 @@ it('resumes a reset that stopped before its epoch began: no question, no second 
     $mark = $this->reset->config->mark();
 
     [$failed, $failedJson] = $this->reset->reset();
-    [, $status] = $this->reset->instance->run('fsa:status');
+    [, $status] = $this->reset->instance->run('fieldset:status');
     $gate = resetRecoveryRuntime($this->dir)['gate']['raised'];
     [$code, $json] = $this->reset->reset([]); // no --yes, no terminal: nothing more can be lost
 
     expect($failed)->toBe(4)->and($failedJson['errors'][0]['code'])->toBe('reset_epoch_failed')
-        ->and($failedJson['errors'][0]['hint'])->toContain('fsa reset')->toContain('backups/'.ResetFixture::SAFETY)
+        ->and($failedJson['errors'][0]['hint'])->toContain('fieldset reset')->toContain('backups/'.ResetFixture::SAFETY)
         ->and($gate)->toBeTrue()
-        ->and($status['data']['reset']['interrupted'])->toMatchArray(['last_phase' => 'epoch', 'database_recreated' => true, 'safety_backup' => ResetFixture::SAFETY, 'resume' => 'fsa reset'])
+        ->and($status['data']['reset']['interrupted'])->toMatchArray(['last_phase' => 'epoch', 'database_recreated' => true, 'safety_backup' => ResetFixture::SAFETY, 'resume' => 'fieldset reset'])
         ->and(collect($status['warnings'])->firstWhere('code', 'operation_unfinished')['hint'])->toContain('continues from there without asking')
         ->and($code)->toBe(0, (string) json_encode($json))
         ->and($this->reset->actions())->toBe(['plan', 'plan', 'recreate', 'epoch', 'recreate', 'epoch']) // review M1: no database_not_fresh dead end
@@ -146,10 +146,10 @@ it('continues only with the flags it started with: another flag is exit 9 naming
     [$code, $json] = $this->reset->reset();
 
     expect($code)->toBe(9)->and($json['errors'][0]['code'])->toBe('operation_unfinished')
-        ->and($json['data'])->toMatchArray(['command' => 'fsa reset --demo', 'options' => ['--demo' => true]]);
+        ->and($json['data'])->toMatchArray(['command' => 'fieldset reset --demo', 'options' => ['--demo' => true]]);
 });
 
-it('continues a reset killed before the drop on the next fsa reset --yes, which asks again without it (nothing was deleted yet)', function (): void {
+it('continues a reset killed before the drop on the next fieldset reset --yes, which asks again without it (nothing was deleted yet)', function (): void {
     $journal = new OperationJournal($this->reset->instance->directory);
     $journal->begin('reset', posix_getuid(), ['demo' => false, 'no_backup' => false]);
     $journal->startPhase('plan', [], false);
@@ -157,12 +157,12 @@ it('continues a reset killed before the drop on the next fsa reset --yes, which 
     $journal->completePhase('plan', ['organization' => 'Acme Forms', 'locale' => 'en', 'organizations' => 1, 'non_demo' => 1, 'export' => false, 'storage_volume' => $this->reset->config->state()->project().'_app-storage']);
     $journal->startPhase('quiesce');
 
-    [, $status] = $this->reset->instance->run('fsa:status');
+    [, $status] = $this->reset->instance->run('fieldset:status');
     [$asked] = $this->reset->reset([]);
     [$code, $json] = $this->reset->reset();
 
     expect($status['data']['reset']['interrupted'])->toMatchArray(['last_phase' => 'quiesce', 'database_recreated' => false])
-        ->and(collect($status['warnings'])->firstWhere('code', 'operation_unfinished')['hint'])->toContain('fsa reset --yes')->toContain('Nothing was deleted yet')->toContain('fsa reset --abandon')
+        ->and(collect($status['warnings'])->firstWhere('code', 'operation_unfinished')['hint'])->toContain('fieldset reset --yes')->toContain('Nothing was deleted yet')->toContain('fieldset reset --abandon')
         ->and($asked)->toBe(6)
         ->and($code)->toBe(0, (string) json_encode($json))
         ->and($this->reset->actions())->toBe(['plan', 'recreate', 'epoch']) // the plan of the killed run stands; the ledger phase reads the final state
@@ -181,17 +181,17 @@ it('stops every writer behind the gate when the app does not start again before 
     [$code, $json] = $this->reset->reset();
     $stops = $this->reset->config->callsSince($mark, 'composeStop');
 
-    // Changed deliberately (review A2): the hint names `fsa reset --abandon`, and every writer is stopped (A1).
+    // Changed deliberately (review A2): the hint names `fieldset reset --abandon`, and every writer is stopped (A1).
     expect($code)->toBe(8, (string) json_encode($json))
         ->and($json['errors'][0]['code'])->toBe('reset_rollback_failed')
-        ->and($json['errors'][0]['hint'])->toContain('fsa reset --abandon')
+        ->and($json['errors'][0]['hint'])->toContain('fieldset reset --abandon')
         ->and($stops[array_key_last($stops)]['services'])->toBe(['app', 'queue', 'scheduler', 'backup'])
         ->and($this->reset->actions())->toBe(['plan', 'plan'])
         ->and(resetRecoveryRuntime($this->dir)['gate']['raised'])->toBeTrue()
         ->and(new OperationJournal($this->reset->instance->directory)->current()?->hasStarted('abort'))->toBeTrue();
 });
 
-it('finishes going back after an exit 8 on the next fsa reset, without a question, never forward (review A2)', function (): void {
+it('finishes going back after an exit 8 on the next fieldset reset, without a question, never forward (review A2)', function (): void {
     $this->reset->instance->backupOutcome = InstanceCommandFixture::oneOffJson(['command' => 'backup-daemon', 'status' => 'failed', 'errors' => [['code' => 'low_disk_space', 'message' => 'Not enough space.', 'hint' => null]]]);
     $this->reset->instance->docker->onCall['composeUp'] = static function (array $args): void {
         if ($args['services'] === ['app']) {
@@ -199,13 +199,13 @@ it('finishes going back after an exit 8 on the next fsa reset, without a questio
         }
     };
     [$halted] = $this->reset->reset();
-    [, $status] = $this->reset->instance->run('fsa:status');
+    [, $status] = $this->reset->instance->run('fieldset:status');
     $this->reset->instance->docker->onCall = []; // the app starts again
 
     [$code, $json] = $this->reset->reset([]); // no --yes: going back deletes nothing
 
     expect($halted)->toBe(8)
-        ->and($status['data']['reset']['interrupted'])->toMatchArray(['going_back' => true, 'database_recreated' => false, 'abandon' => 'fsa reset --abandon'])
+        ->and($status['data']['reset']['interrupted'])->toMatchArray(['going_back' => true, 'database_recreated' => false, 'abandon' => 'fieldset reset --abandon'])
         ->and(collect($status['warnings'])->firstWhere('code', 'operation_unfinished')['hint'])->toContain('stopped while going back')
         ->and($code)->toBe(5, (string) json_encode($json))
         ->and($json['errors'][0]['code'])->toBe('safety_backup_failed')

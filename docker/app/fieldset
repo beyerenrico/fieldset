@@ -1,15 +1,15 @@
 #!/bin/sh
-# fsa [flags] <command> [args…] runs `php artisan fsa:<command>`; without a command it lists them (KTD1, ADR 0065).
+# fieldset [flags] <command> [args…] runs `php artisan fieldset:<command>`; without a command it lists them (KTD1, ADR 0065).
 # - The first argument that is not a flag (or the value of a flag in value_flags: every value-taking option of the
-#   fsa:* commands, kept in step by ImageContractTest) is the command; flags before it move after it, so
-#   `fsa --json status` is `fsa:status --json` and `fsa --behind-proxy traefik install` is
-#   `fsa:install --behind-proxy traefik`. `--flag=value` always works. Without a command, --json lists as JSON.
-# - An unknown command exits 2 with an `unknown_command` error (the fsa JSON envelope on stdout with --json),
-#   never Laravel's plain text. `commands` lists the fsa:* commands for users, `roles` the entry points of image
+#   fieldset:* commands, kept in step by ImageContractTest) is the command; flags before it move after it, so
+#   `fieldset --json status` is `fieldset:status --json` and `fieldset --behind-proxy traefik install` is
+#   `fieldset:install --behind-proxy traefik`. `--flag=value` always works. Without a command, --json lists as JSON.
+# - An unknown command exits 2 with an `unknown_command` error (the fieldset JSON envelope on stdout with --json),
+#   never Laravel's plain text. `commands` lists the fieldset:* commands for users, `roles` the entry points of image
 #   roles (the backup service's daemon, the restore preparer, the upgrade child);
 #   tests/Unit/Docker/ImageContractTest.php keeps both in step with the registered commands.
 # - Symfony's console answers a literal --version with the framework version before any command runs, so the
-#   --version flag of `fsa install` (§7) and `fsa adopt` is passed on as --release, up to a literal -- (ADR 0072, 0087).
+#   --version flag of `fieldset install` (§7) and `fieldset adopt` is passed on as --release, up to a literal -- (ADR 0072, 0087).
 set -e
 commands='adopt backup config demo doctor install login-link logs reset restore rollback status tunnel uninstall upgrade version'
 roles='backup-daemon restore-prepare upgrade-child'
@@ -31,12 +31,12 @@ json_string() {
 }
 
 unknown_command() { # <command> <json: 0|1>
-	hint="Available commands: $(printf '%s' "$commands" | sed 's/ /, /g'). Run fsa without arguments to list them; put flags after the command or write them as --flag=value."
+	hint="Available commands: $(printf '%s' "$commands" | sed 's/ /, /g'). Run fieldset without arguments to list them; put flags after the command or write them as --flag=value."
 	if [ "$2" = 1 ]; then
 		printf '{"schema_version":1,"command":%s,"status":"failed","exit_code":2,"changed":false,"data":{},"secrets":[],"warnings":[],"errors":[{"code":"unknown_command","message":%s,"hint":%s,"retryable":false}]}\n' \
-			"$(json_string "$1")" "$(json_string "Unknown fsa command: $1")" "$(json_string "$hint")"
+			"$(json_string "$1")" "$(json_string "Unknown fieldset command: $1")" "$(json_string "$hint")"
 	else
-		printf 'fsa: unknown command: %s\n  Fix: %s\n' "$1" "$hint" >&2
+		printf 'fieldset: unknown command: %s\n  Fix: %s\n' "$1" "$hint" >&2
 	fi
 	exit 2
 }
@@ -89,5 +89,5 @@ while [ "$n" -gt 0 ]; do
 	set -- "$@" "$arg"
 done
 
-[ "$found" = 1 ] || exec php /var/www/html/artisan list fsa "$@"
-exec php /var/www/html/artisan "fsa:$command" "$@"
+[ "$found" = 1 ] || exec php /var/www/html/artisan list fieldset "$@"
+exec php /var/www/html/artisan "fieldset:$command" "$@"
