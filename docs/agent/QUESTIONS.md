@@ -343,3 +343,6 @@ Format: question · chosen option · impact · how to reverse.
   signer identity, `install.sh`, images and docs change with it. Trademark not yet checked (EUIPO/USPTO).
 - 27, 76a: the dated Trivy exception policy (ADR 0071) is accepted; refresh pins or renew entries around 2026-11-17.
 - 41, 74: accepted for 2.0; document that large datasets need 4 GB; query tuning moves to 2.1.
+- Rename details: no 1.0 users besides the human, so 1.0 phone storage and SSO TXT names are renamed without fallback;
+  spec `$id` on GitHub Pages (`beyerenrico.github.io/fieldset/spec/…`); release 2.1.0. Plan:
+  `docs/plans/2026-10-21-001-refactor-rename-to-fieldset-plan.md`.
