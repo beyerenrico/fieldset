@@ -4,7 +4,7 @@ import { test, expect } from './support/test';
 // The capture-mode banner (BUILD_PROMPT_V2 R24, plan R59, ADR 0080) in a real browser, with axe (WCAG 2.2 AA:
 // contrast, landmarks, names). It needs an fsa instance in capture mode, so the J4 install journey runs it
 // (tests/Install/Journeys/J04CaptureModeTest.php) with E2E_BASE_URL pointed at the instance and
-// FSA_CAPTURE_SESSIONS holding a session cookie per member; against the dev stack it has nothing to check and skips.
+// FIELDSET_CAPTURE_SESSIONS holding a session cookie per member; against the dev stack it has nothing to check and skips.
 
 interface CaptureSession {
   readonly name: string;
@@ -14,7 +14,7 @@ interface CaptureSession {
   readonly cookie: { readonly name: string; readonly value: string };
 }
 
-const sessions: readonly CaptureSession[] = JSON.parse(process.env.FSA_CAPTURE_SESSIONS ?? '[]');
+const sessions: readonly CaptureSession[] = JSON.parse(process.env.FIELDSET_CAPTURE_SESSIONS ?? '[]');
 
 test.describe('capture banner on an fsa instance', () => {
   test.skip(sessions.length === 0, 'runs from the J4 install journey against an fsa instance in capture mode');

@@ -281,7 +281,7 @@ final readonly class InstanceSettings
         return $this->int('backup_retention', self::DEFAULT_BACKUP_RETENTION);
     }
 
-    /** The instance's time zone, recorded from the host at install (FSA_TZ); UTC when unknown. */
+    /** The instance's time zone, recorded from the host at install (FIELDSET_TZ); UTC when unknown. */
     public function timeZone(): string
     {
         return $this->string('time_zone') ?? 'UTC';

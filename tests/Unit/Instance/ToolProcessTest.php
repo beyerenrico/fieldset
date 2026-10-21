@@ -24,7 +24,7 @@ it('reports the exit code, stdout and the tail of stderr', function (): void {
 it('streams stdout in chunks when asked and passes the environment on top of its own', function (): void {
     $chunks = '';
     $types = [];
-    $result = ToolProcess::run(['sh', '-c', 'printf "%s" "$FSA_TOOL_TEST"; seq 1 20000'], ['FSA_TOOL_TEST' => 'value:'], 10.0, static function (string $type, string $chunk) use (&$chunks, &$types): void {
+    $result = ToolProcess::run(['sh', '-c', 'printf "%s" "$FIELDSET_TOOL_TEST"; seq 1 20000'], ['FIELDSET_TOOL_TEST' => 'value:'], 10.0, static function (string $type, string $chunk) use (&$chunks, &$types): void {
         $chunks .= $chunk;
         $types[$type] = true;
     });

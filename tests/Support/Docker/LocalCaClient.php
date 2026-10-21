@@ -17,7 +17,7 @@ final class LocalCaClient
     /** The first private IPv4 address the shim reports for this host (the same rule as fsa's best candidate), or null. */
     public static function lanAddress(): ?string
     {
-        $process = new Process(['/bin/sh', '-c', '. "$1"; fsa_lan_addresses', 'sh', TestImage::repository().'/distribution/shim.sh'], null, ['FSA_SHIM_LIBRARY' => '1']);
+        $process = new Process(['/bin/sh', '-c', '. "$1"; fsa_lan_addresses', 'sh', TestImage::repository().'/distribution/shim.sh'], null, ['FIELDSET_SHIM_LIBRARY' => '1']);
         $process->run();
         $usable = array_values(array_filter(preg_split('/\s+/', trim($process->getOutput())) ?: [], static fn (string $ip): bool => filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) !== false && ! str_starts_with($ip, '127.') && ! str_starts_with($ip, '169.254.')));
         $private = array_values(array_filter($usable, static fn (string $ip): bool => filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE) === false));

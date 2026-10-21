@@ -179,7 +179,7 @@ final readonly class InstanceStack
         try {
             $this->docker->pullImage($image);
         } catch (DockerCommandFailed $e) {
-            throw new InstanceException("Cannot pull {$image}.", ExitCode::PreflightFailed, 'image_unavailable', 'Check the network and FSA_REGISTRY, then run `fsa install` again with the same flags: it resumes here.', true, ['image' => $image, 'stderr' => $e->outcome->stderrTail(3)], $e);
+            throw new InstanceException("Cannot pull {$image}.", ExitCode::PreflightFailed, 'image_unavailable', 'Check the network and FIELDSET_REGISTRY, then run `fsa install` again with the same flags: it resumes here.', true, ['image' => $image, 'stderr' => $e->outcome->stderrTail(3)], $e);
         }
     }
 

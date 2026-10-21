@@ -42,7 +42,7 @@ function upgradedTarget(UpgradeFixture $upgrade, bool $ownLayout = false): void
         }, static function (string $root): void {
             file_put_contents($root.'/env/indexer.env', "INDEXER=1\n");
             $app = (string) file_get_contents($root.'/env/app.env');
-            file_put_contents($root.'/env/app.env', preg_replace('/^REDIS_PASSWORD=/m', 'VALKEY_PASSWORD=', $app)."FSA_NEW_KEY='from-the-target'\n");
+            file_put_contents($root.'/env/app.env', preg_replace('/^REDIS_PASSWORD=/m', 'VALKEY_PASSWORD=', $app)."FIELDSET_NEW_KEY='from-the-target'\n");
         });
     }
     [$code, $json] = $upgrade->upgrade();
@@ -170,7 +170,7 @@ it('lets the previous image render with the env files in its own layout and the 
     expect($code)->toBe(0, (string) json_encode($json))
         ->and($mounted['volume'] ?? '')->toEndWith(':'.$this->dir.'/env:ro')
         ->and($mounted['app'] ?? [])->toBe($before)
-        ->and($mounted['app'] ?? [])->not->toHaveKey('FSA_NEW_KEY');
+        ->and($mounted['app'] ?? [])->not->toHaveKey('FIELDSET_NEW_KEY');
 });
 
 it('removes the merged env directory a killed render left, on the way back and in the cleanup (review V4)', function (string $phase): void {

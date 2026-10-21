@@ -68,7 +68,7 @@ it('refuses to run outside a marked instance directory (exit 2)', function (): v
         ->and($command->performed)->toBe(0);
 });
 
-it('finds the instance from FSA_INSTANCE_DIR or a relative --dir', function (): void {
+it('finds the instance from FIELDSET_INSTANCE_DIR or a relative --dir', function (): void {
     ScriptedFsaCommand::register(fn (FsaContext $c): CommandResult => CommandResult::ok('scripted', ['dir' => $c->directory()->root]));
     app()->instance(HostFacts::class, new HostFacts(tty: false, instanceDir: $this->directory->root));
 

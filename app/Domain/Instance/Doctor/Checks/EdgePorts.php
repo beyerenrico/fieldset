@@ -17,7 +17,7 @@ use App\Domain\Instance\State\InstanceState;
 /**
  * The ports check in domain mode (R10, U8; ADR 0075): the edge publishes 80 and 443 on every host address, so both
  * must be free there (443/udp for HTTP/3 is not probed): on 0.0.0.0, and on [::] when the host has an IPv6 address
- * (FSA_LAN_ADDRESSES; ADR 0078), where a listener on IPv6 only would otherwise make the edge fail to start. An engine
+ * (FIELDSET_LAN_ADDRESSES; ADR 0078), where a listener on IPv6 only would otherwise make the edge fail to start. An engine
  * that cannot bind [::] at all (IPv6 off) leaves IPv6 unprobed instead of failing the check. A rootless Docker engine
  * that may not publish ports below 1024 is reported as that, with the sysctl that fixes it, before any port is called
  * "in use". On an installed instance whose own edge runs, its ports are served by it and not probed.

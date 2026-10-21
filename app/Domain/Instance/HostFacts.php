@@ -12,24 +12,24 @@ use App\Domain\Instance\Release\ImagePin;
  * install.sh pass them as environment variables (BUILD_PROMPT_V2 §6.2, KTD2, ADR 0070). Invalid values are
  * dropped (null or empty), never trusted:
  *
- * - FSA_LAUNCHER: `install.sh` or `shim`
- * - FSA_TTY: 1/0, whether the ops container got a terminal (`-it` only then; never with --json)
- * - FSA_HOST_UID / FSA_HOST_GID: the invoking host user (recorded in the journal and the state)
- * - FSA_HOST_OS: `uname -s` in lower case, e.g. linux, darwin
- * - FSA_INSTANCE_DIR: the instance directory, mounted at the same absolute path
- * - FSA_LAN_ADDRESSES: space-separated candidate LAN addresses of the host (the ops container sees only its bridge)
- * - FSA_DESKTOP: 1 when a desktop session can open a browser (the shim opens what a command hands over in
- *   FSA_OPEN_URL_FILE, ADR 0070)
- * - FSA_TZ: the host time zone (IANA name)
- * - FSA_DOCKER_RUNTIME: rootful | rootless | desktop (DockerRuntime)
- * - FSA_CONTAINER_UID: the in-container owner UID (host UID on rootful, 0 otherwise)
- * - FSA_DOCKER_SOCKET: the socket path the daemon mounted into the ops container
- * - FSA_NONCE: name of the nonce file the launcher wrote into the instance directory and every writable mount
- * - FSA_MOUNTS: one `ro:<path>` or `rw:<path>` line per parent directory of a file-path flag
- * - FSA_OPEN_URL_FILE: name of the file in the instance directory where a command hands a URL to the shim
- * - FSA_RELEASE_MANIFEST: install.sh only, the verified `<dir>/releases/<version>/release-manifest.json`
- * - FSA_REGISTRY: a registry mirror every image is pulled from instead of its own (ADR 0050)
- * - FSA_RELEASE_URL: where releases are downloaded from instead of GitHub Releases (install.sh's mirror; `fsa upgrade`
+ * - FIELDSET_LAUNCHER: `install.sh` or `shim`
+ * - FIELDSET_TTY: 1/0, whether the ops container got a terminal (`-it` only then; never with --json)
+ * - FIELDSET_HOST_UID / FIELDSET_HOST_GID: the invoking host user (recorded in the journal and the state)
+ * - FIELDSET_HOST_OS: `uname -s` in lower case, e.g. linux, darwin
+ * - FIELDSET_INSTANCE_DIR: the instance directory, mounted at the same absolute path
+ * - FIELDSET_LAN_ADDRESSES: space-separated candidate LAN addresses of the host (the ops container sees only its bridge)
+ * - FIELDSET_DESKTOP: 1 when a desktop session can open a browser (the shim opens what a command hands over in
+ *   FIELDSET_OPEN_URL_FILE, ADR 0070)
+ * - FIELDSET_TZ: the host time zone (IANA name)
+ * - FIELDSET_DOCKER_RUNTIME: rootful | rootless | desktop (DockerRuntime)
+ * - FIELDSET_CONTAINER_UID: the in-container owner UID (host UID on rootful, 0 otherwise)
+ * - FIELDSET_DOCKER_SOCKET: the socket path the daemon mounted into the ops container
+ * - FIELDSET_NONCE: name of the nonce file the launcher wrote into the instance directory and every writable mount
+ * - FIELDSET_MOUNTS: one `ro:<path>` or `rw:<path>` line per parent directory of a file-path flag
+ * - FIELDSET_OPEN_URL_FILE: name of the file in the instance directory where a command hands a URL to the shim
+ * - FIELDSET_RELEASE_MANIFEST: install.sh only, the verified `<dir>/releases/<version>/release-manifest.json`
+ * - FIELDSET_REGISTRY: a registry mirror every image is pulled from instead of its own (ADR 0050)
+ * - FIELDSET_RELEASE_URL: where releases are downloaded from instead of GitHub Releases (install.sh's mirror; `fsa upgrade`
  *   reads the target's manifest there, ADR 0086)
  * - DOCKER_DEFAULT_PLATFORM: Docker's own variable, passed through when the caller set it: `linux/amd64` or
  *   `linux/arm64`, optionally with a variant (`linux/arm64/v8`). The ops container ran as that platform, and every
@@ -81,25 +81,25 @@ final readonly class HostFacts
         $match = static fn (string $key, string $pattern): ?string => isset($env[$key]) && preg_match($pattern, $env[$key]) === 1 ? $env[$key] : null;
 
         return new self(
-            tty: $bool('FSA_TTY'),
-            uid: $int('FSA_HOST_UID'),
-            gid: $int('FSA_HOST_GID'),
-            os: $match('FSA_HOST_OS', '/^[a-z0-9_-]{1,32}$/D'),
-            instanceDir: self::absolutePath($env['FSA_INSTANCE_DIR'] ?? null),
-            launcher: $match('FSA_LAUNCHER', '/^(install\.sh|shim)$/D'),
-            lanAddresses: self::addresses($env['FSA_LAN_ADDRESSES'] ?? ''),
-            desktop: $bool('FSA_DESKTOP'),
-            timezone: $match('FSA_TZ', self::TIMEZONE_PATTERN),
-            runtime: DockerRuntime::tryFrom($env['FSA_DOCKER_RUNTIME'] ?? ''),
-            containerUid: $int('FSA_CONTAINER_UID'),
-            socket: self::absolutePath($env['FSA_DOCKER_SOCKET'] ?? null),
-            nonce: $match('FSA_NONCE', self::NONCE_PATTERN),
-            mounts: self::mounts($env['FSA_MOUNTS'] ?? ''),
-            openUrlFile: $match('FSA_OPEN_URL_FILE', self::OPEN_URL_PATTERN),
-            releaseManifest: self::absolutePath($env['FSA_RELEASE_MANIFEST'] ?? null),
-            registry: $match('FSA_REGISTRY', '/'.ImagePin::REGISTRY_PATTERN.'/D'),
+            tty: $bool('FIELDSET_TTY'),
+            uid: $int('FIELDSET_HOST_UID'),
+            gid: $int('FIELDSET_HOST_GID'),
+            os: $match('FIELDSET_HOST_OS', '/^[a-z0-9_-]{1,32}$/D'),
+            instanceDir: self::absolutePath($env['FIELDSET_INSTANCE_DIR'] ?? null),
+            launcher: $match('FIELDSET_LAUNCHER', '/^(install\.sh|shim)$/D'),
+            lanAddresses: self::addresses($env['FIELDSET_LAN_ADDRESSES'] ?? ''),
+            desktop: $bool('FIELDSET_DESKTOP'),
+            timezone: $match('FIELDSET_TZ', self::TIMEZONE_PATTERN),
+            runtime: DockerRuntime::tryFrom($env['FIELDSET_DOCKER_RUNTIME'] ?? ''),
+            containerUid: $int('FIELDSET_CONTAINER_UID'),
+            socket: self::absolutePath($env['FIELDSET_DOCKER_SOCKET'] ?? null),
+            nonce: $match('FIELDSET_NONCE', self::NONCE_PATTERN),
+            mounts: self::mounts($env['FIELDSET_MOUNTS'] ?? ''),
+            openUrlFile: $match('FIELDSET_OPEN_URL_FILE', self::OPEN_URL_PATTERN),
+            releaseManifest: self::absolutePath($env['FIELDSET_RELEASE_MANIFEST'] ?? null),
+            registry: $match('FIELDSET_REGISTRY', '/'.ImagePin::REGISTRY_PATTERN.'/D'),
             platform: $match('DOCKER_DEFAULT_PLATFORM', self::PLATFORM_PATTERN),
-            releaseUrl: $match('FSA_RELEASE_URL', '#^https?://[A-Za-z0-9._~:/%-]+$#D'),
+            releaseUrl: $match('FIELDSET_RELEASE_URL', '#^https?://[A-Za-z0-9._~:/%-]+$#D'),
         );
     }
 

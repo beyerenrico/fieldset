@@ -27,7 +27,7 @@ foreach ($arguments as $index => $argument) {
 
 $facts = HostFacts::fromEnvironment(getenv());
 $directory = is_string($options['dir'] ?? null) ? $options['dir'] : (string) $facts->instanceDir;
-$environment = array_filter(getenv(), static fn (string $key): bool => str_starts_with($key, 'FSA_') || in_array($key, ['HOME', 'DOCKER_CONFIG', 'DOCKER_HOST'], true), ARRAY_FILTER_USE_KEY);
+$environment = array_filter(getenv(), static fn (string $key): bool => str_starts_with($key, 'FIELDSET_') || in_array($key, ['HOME', 'DOCKER_CONFIG', 'DOCKER_HOST'], true), ARRAY_FILTER_USE_KEY);
 ksort($environment);
 $report = [
     'argv' => $arguments,
@@ -42,7 +42,7 @@ $report = [
         'visible' => is_dir($directory),
         'marker' => is_file($directory.'/.fsa-instance'),
         'shim' => is_file($directory.'/fsa'),
-        'manifest' => is_file((string) getenv('FSA_RELEASE_MANIFEST')),
+        'manifest' => is_file((string) getenv('FIELDSET_RELEASE_MANIFEST')),
         'writable' => is_writable($directory),
     ],
 ];

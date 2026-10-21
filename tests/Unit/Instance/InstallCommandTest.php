@@ -367,7 +367,7 @@ it('refuses a manifest of another version than --version with exit 3', function 
     expect($code)->toBe(3)->and($json['errors'][0]['code'])->toBe('release_mismatch');
 });
 
-it('finds the stored release without FSA_RELEASE_MANIFEST and refuses one outside the instance directory', function (): void {
+it('finds the stored release without FIELDSET_RELEASE_MANIFEST and refuses one outside the instance directory', function (): void {
     $this->fixture->facts(['releaseManifest' => null]);
     [$stored] = installOnce($this->fixture);
 

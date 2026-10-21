@@ -41,7 +41,7 @@ final readonly class ServiceEnvironments
     public const string MAILPIT_KEPT_SMTP_BIND = '127.0.0.1:1025';
 
     /** Tells the app it runs in capture mode (config `mail.capture`): the admin banner and the health check read it. */
-    public const string CAPTURE_ENV = 'FSA_MAIL_CAPTURE';
+    public const string CAPTURE_ENV = 'FIELDSET_MAIL_CAPTURE';
 
     public function __construct(private RenderContext $context) {}
 
@@ -148,10 +148,10 @@ final readonly class ServiceEnvironments
             'BACKUP_SCHEDULE' => $settings->backupSchedule(),
             'BACKUP_TIME_ZONE' => $settings->timeZone(),
             'BACKUP_RETENTION' => (string) $settings->backupRetention(),
-            'FSA_INSTANCE_ROOT' => BackupConfig::INSTANCE_ROOT,
+            'FIELDSET_INSTANCE_ROOT' => BackupConfig::INSTANCE_ROOT,
             // The in-container owner (KTD2): the host user on rootful Docker, root on rootless Docker and Docker Desktop.
-            'FSA_OWNER_UID' => (string) $state->containerUid(),
-            'FSA_OWNER_GID' => (string) ($state->containerUid() === 0 ? 0 : $state->hostGid()),
+            'FIELDSET_OWNER_UID' => (string) $state->containerUid(),
+            'FIELDSET_OWNER_GID' => (string) ($state->containerUid() === 0 ? 0 : $state->hostGid()),
         ];
     }
 
@@ -189,7 +189,7 @@ final readonly class ServiceEnvironments
             'SSO_ALLOW_INSECURE_IDP' => 'false',
             'SSO_DNS_DRIVER' => 'dns',
             // The read-only runtime mount (KTD11): config('instance.runtime_path'), read by App\Domain\Instance\Runtime.
-            'FSA_RUNTIME_PATH' => RuntimeWriter::CONTAINER_PATH,
+            'FIELDSET_RUNTIME_PATH' => RuntimeWriter::CONTAINER_PATH,
         ];
     }
 
@@ -241,7 +241,7 @@ final readonly class ServiceEnvironments
     }
 
     /**
-     * Capture mode: SMTP to the bundled Mailpit (KTD13), and FSA_MAIL_CAPTURE for the banner and the health check (ADR
+     * Capture mode: SMTP to the bundled Mailpit (KTD13), and FIELDSET_MAIL_CAPTURE for the banner and the health check (ADR
      * 0080); else the configured server: STARTTLS required (MAIL_REQUIRE_TLS, so a server, or an attacker, that hides
      * STARTTLS gets neither the account nor the mail), implicit TLS (MAIL_SCHEME=smtps), or a plain relay
      * (MAIL_SCHEME=smtp, MAIL_AUTO_TLS=false) only when `--smtp-encryption none` asked for it (ADR 0080 amendment).

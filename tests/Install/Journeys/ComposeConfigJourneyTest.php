@@ -14,13 +14,13 @@ use Tests\Support\Instance\TemporaryInstance;
 /*
  * U3 / M9-T04: real `docker compose config` accepts the rendered project (plan U3 verification). Nothing is
  * started: `config` only parses and normalizes, so the journey must leave no container, volume or network.
- * Skips only when Docker is unreachable; FSA_REQUIRE_DOCKER=1 turns that skip into a failure.
+ * Skips only when Docker is unreachable; FIELDSET_REQUIRE_DOCKER=1 turns that skip into a failure.
  */
 
 beforeEach(function (): void {
     $reason = TestImage::dockerUnavailableReason();
     if ($reason !== null) {
-        expect(getenv('FSA_REQUIRE_DOCKER'))->not->toBe('1', $reason);
+        expect(getenv('FIELDSET_REQUIRE_DOCKER'))->not->toBe('1', $reason);
         $this->markTestSkipped($reason.' (install journeys need a Docker engine)');
     }
 });
@@ -114,7 +114,7 @@ function stackConfig(array $variables): array
     $directory = sys_get_temp_dir().'/fsa-test-stack-'.bin2hex(random_bytes(4));
     mkdir($directory);
     StackFile::render(ComposeFixtures::digests(), '2.0.0')->writeTo($directory.'/'.StackFile::NAME);
-    $unset = array_fill_keys(['COMPOSE_FILE', 'COMPOSE_PROJECT_NAME', 'COMPOSE_PROFILES', 'APP_URL', 'APP_KEY', 'DB_PASSWORD', 'REDIS_PASSWORD', 'MAILPIT_UI_PASSWORD', 'FSA_REGISTRY', 'APP_PORT', 'MAIL_HOST'], false);
+    $unset = array_fill_keys(['COMPOSE_FILE', 'COMPOSE_PROJECT_NAME', 'COMPOSE_PROFILES', 'APP_URL', 'APP_KEY', 'DB_PASSWORD', 'REDIS_PASSWORD', 'MAILPIT_UI_PASSWORD', 'FIELDSET_REGISTRY', 'APP_PORT', 'MAIL_HOST'], false);
     $process = new Process(['docker', 'compose', '--project-name', 'fsa-test-stack', '--file', $directory.'/'.StackFile::NAME, 'config', '--format', 'json'], $directory, [...$unset, ...$variables]);
     $process->setTimeout(120)->run();
     exec('rm -rf '.escapeshellarg($directory));

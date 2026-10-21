@@ -152,10 +152,10 @@ final readonly class InstanceJourney
         return new Client(['base_uri' => "http://localhost:{$port}", 'http_errors' => false, 'allow_redirects' => false, 'cookies' => true, 'timeout' => 30]);
     }
 
-    /** The milestone whose evidence directory journeys write to: FSA_EVIDENCE_MILESTONE (e.g. M10), default M9. */
+    /** The milestone whose evidence directory journeys write to: FIELDSET_EVIDENCE_MILESTONE (e.g. M10), default M9. */
     public static function evidenceMilestone(): string
     {
-        $milestone = getenv('FSA_EVIDENCE_MILESTONE');
+        $milestone = getenv('FIELDSET_EVIDENCE_MILESTONE');
 
         return is_string($milestone) && preg_match('/^M\d{1,2}$/D', $milestone) === 1 ? $milestone : 'M9';
     }
@@ -192,9 +192,9 @@ final readonly class InstanceJourney
     private function process(array $command, array $env): Process
     {
         $process = new Process($command, $this->work, [
-            'FSA_RELEASE_URL' => $this->harness->releaseUrl(),
-            'FSA_REGISTRY' => $this->harness->registry(),
-            'FSA_TRUST_KEY' => $this->harness->cosign->publicKey(),
+            'FIELDSET_RELEASE_URL' => $this->harness->releaseUrl(),
+            'FIELDSET_REGISTRY' => $this->harness->registry(),
+            'FIELDSET_TRUST_KEY' => $this->harness->cosign->publicKey(),
             'SSH_CONNECTION' => 'fsa-test 0 fsa-test 0',
             ...$this->release->platformEnvironment(),
             ...$env,

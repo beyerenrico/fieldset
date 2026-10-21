@@ -58,7 +58,7 @@ final class GuideReferences
         return array_values(array_unique($matches[1]));
     }
 
-    /** @return list<string> upper-case names with an underscore, such as `FSA_RELEASE_URL` or `APP_KEY` */
+    /** @return list<string> upper-case names with an underscore, such as `FIELDSET_RELEASE_URL` or `APP_KEY` */
     public static function environmentVariables(string $code): array
     {
         preg_match_all('/(?<![A-Za-z0-9_.\/-])[A-Z][A-Z0-9]*_[A-Z0-9_]*[A-Z0-9](?![A-Za-z0-9_])/', $code, $matches);

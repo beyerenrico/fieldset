@@ -82,8 +82,8 @@ Mail starts captured: the 1.0 SMTP server is only suggested for `fsa config set 
 
 | Variable | Meaning |
 |---|---|
-| `FSA_RELEASE_URL` | A mirror of the GitHub Releases page (https), for install.sh and `fsa upgrade` |
-| `FSA_REGISTRY` | A registry mirror (`host[:port]`) the images are pulled from |
+| `FIELDSET_RELEASE_URL` | A mirror of the GitHub Releases page (https), for install.sh and `fsa upgrade` |
+| `FIELDSET_REGISTRY` | A registry mirror (`host[:port]`) the images are pulled from |
 | `DOCKER_DEFAULT_PLATFORM` | `linux/amd64` or `linux/arm64`: pull and run that platform (another one runs emulated) |
 
 ## Organization settings

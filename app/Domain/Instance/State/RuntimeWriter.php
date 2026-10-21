@@ -33,7 +33,7 @@ final readonly class RuntimeWriter
 
     public const string FILE = InstanceDirectory::RUNTIME_DIR.'/runtime.json';
 
-    /** Mount point in the containers; the app reads it from FSA_RUNTIME_PATH (config instance.runtime_path, U10). */
+    /** Mount point in the containers; the app reads it from FIELDSET_RUNTIME_PATH (config instance.runtime_path, U10). */
     public const string CONTAINER_PATH = '/run/fsa-runtime';
 
     private const array LOWERED = ['raised' => false, 'operation' => null, 'since' => null, 'smoke_token' => null];

@@ -53,10 +53,10 @@ final readonly class BackupConfig
         $list = static fn (string $key): array => array_values(array_filter(array_map(trim(...), explode(',', $value($key)))));
 
         return new self(
-            $value('FSA_INSTANCE_ROOT', self::INSTANCE_ROOT),
-            $value('FSA_BACKUP_STORAGE', self::STORAGE_PATH),
-            self::int($value('FSA_OWNER_UID', '0'), 'FSA_OWNER_UID'),
-            self::int($value('FSA_OWNER_GID', '0'), 'FSA_OWNER_GID'),
+            $value('FIELDSET_INSTANCE_ROOT', self::INSTANCE_ROOT),
+            $value('FIELDSET_BACKUP_STORAGE', self::STORAGE_PATH),
+            self::int($value('FIELDSET_OWNER_UID', '0'), 'FIELDSET_OWNER_UID'),
+            self::int($value('FIELDSET_OWNER_GID', '0'), 'FIELDSET_OWNER_GID'),
             $value('BACKUP_SCHEDULE', BackupSchedule::DEFAULT_TIME),
             $value('BACKUP_TIME_ZONE', 'UTC'),
             self::int($value('BACKUP_RETENTION', (string) BackupRetention::DEFAULT_KEEP), 'BACKUP_RETENTION'),

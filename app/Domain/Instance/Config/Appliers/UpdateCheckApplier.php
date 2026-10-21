@@ -16,7 +16,7 @@ use App\Domain\Instance\Upgrade\ReleaseFeed;
 
 /**
  * `fsa config set update-check on|off` (E15, R32, R48, plan U20, ADR 0061, ADR 0089). Off by default. `on` records the
- * newest release's manifest URL under the release URL of this moment (FSA_RELEASE_URL or GitHub Releases, as `fsa
+ * newest release's manifest URL under the release URL of this moment (FIELDSET_RELEASE_URL or GitHub Releases, as `fsa
  * upgrade` uses it), so the app reads exactly what an upgrade would; `off` removes both. Only runtime.json changes, which
  * the scheduler reads before each run: no service restarts.
  */

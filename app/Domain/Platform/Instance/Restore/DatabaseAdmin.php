@@ -90,7 +90,7 @@ final readonly class DatabaseAdmin
             return ['database' => $database, 'owner' => $this->currentUser(), 'restricted' => false];
         }
         if ($password === null || $password === '') {
-            throw new RestoreRefused('password_missing', 'The restricted restore role needs a password (FSA_RESTORE_DB_PASSWORD).');
+            throw new RestoreRefused('password_missing', 'The restricted restore role needs a password (FIELDSET_RESTORE_DB_PASSWORD).');
         }
         $this->assertRestoreRole($role);
         $this->ensureRestrictedRole($role, $password);

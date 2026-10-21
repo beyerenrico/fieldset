@@ -80,7 +80,7 @@ it('renders the stack file with --stack-file and lists it in the manifest', func
         ])->assertSuccessful();
 
         expect(json_decode((string) file_get_contents($output), true)['assets']['compose.stack.yaml']['sha256'])->toBe(hash_file('sha256', $stack))
-            ->and((string) file_get_contents($stack))->toContain('${FSA_REGISTRY:-ghcr.io}/beyerenrico/form-schema-app@'.$appDigest);
+            ->and((string) file_get_contents($stack))->toContain('${FIELDSET_REGISTRY:-ghcr.io}/beyerenrico/form-schema-app@'.$appDigest);
     } finally {
         unlink($inputs);
         unlink($output);

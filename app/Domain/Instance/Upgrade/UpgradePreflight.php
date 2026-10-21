@@ -109,7 +109,7 @@ final readonly class UpgradePreflight
             try {
                 $this->docker->pullImage($reference);
             } catch (DockerCommandFailed $e) {
-                throw new InstanceException("Cannot pull {$reference}: ".$e->outcome->stderrTail(2), ExitCode::AbortedUnchanged, 'pull_failed', 'Check the network and FSA_REGISTRY, then run `fsa upgrade` again; nothing was changed.', true, [], $e);
+                throw new InstanceException("Cannot pull {$reference}: ".$e->outcome->stderrTail(2), ExitCode::AbortedUnchanged, 'pull_failed', 'Check the network and FIELDSET_REGISTRY, then run `fsa upgrade` again; nothing was changed.', true, [], $e);
             }
             $pulled[] = $reference;
         }

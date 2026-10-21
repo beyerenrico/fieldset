@@ -83,7 +83,7 @@ it('installs straight into SMTP mode: no catcher, MAIL_* for app, queue and sche
         expect($env->read($role))->toMatchArray([
             'MAIL_MAILER' => 'smtp', 'MAIL_HOST' => 'smtp.example.com', 'MAIL_PORT' => '587', 'MAIL_USERNAME' => SMTP_INSTALL_USER,
             'MAIL_PASSWORD' => SMTP_INSTALL_PASSWORD, 'MAIL_FROM_ADDRESS' => 'forms@example.com', 'MAIL_REQUIRE_TLS' => 'true',
-        ])->and($env->read($role))->not->toHaveKey('FSA_MAIL_CAPTURE')->not->toHaveKey('MAIL_SCHEME');
+        ])->and($env->read($role))->not->toHaveKey('FIELDSET_MAIL_CAPTURE')->not->toHaveKey('MAIL_SCHEME');
     }
 });
 
@@ -159,7 +159,7 @@ it('switches an instance installed in SMTP mode to capture mode: the catcher app
         ->and(InstanceSettings::of($this->fixture->state())->mailUiPort())->toBe(8025)
         ->and(ComposeFile::services($this->fixture->directory))->toContain(MailpitService::NAME)
         ->and($env->read('mailpit')['MP_UI_AUTH'] ?? '')->toMatch('/^fsa:[0-9a-f]{48}$/')
-        ->and($env->read('app'))->toMatchArray(['MAIL_HOST' => 'mailpit', 'FSA_MAIL_CAPTURE' => 'true'])
+        ->and($env->read('app'))->toMatchArray(['MAIL_HOST' => 'mailpit', 'FIELDSET_MAIL_CAPTURE' => 'true'])
         ->and($env->read('app'))->not->toHaveKey('MAIL_PASSWORD');
 });
 

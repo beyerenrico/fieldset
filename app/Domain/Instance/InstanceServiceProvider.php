@@ -64,7 +64,7 @@ final class InstanceServiceProvider extends ServiceProvider
 
             return $app->make(CliDockerGateway::class);
         });
-        // Release verification (R58, ADR 0070): the identity is built in; FSA_TRUST_KEY only in harness builds.
+        // Release verification (R58, ADR 0070): the identity is built in; FIELDSET_TRUST_KEY only in harness builds.
         $this->app->bind(TrustPolicy::class, static fn (): TrustPolicy => TrustPolicy::fromEnvironment(getenv(), BuildFlavor::current()));
         $this->app->bind(ManifestSchema::class, static fn (): ManifestSchema => ManifestSchema::bundled());
     }

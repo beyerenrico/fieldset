@@ -62,7 +62,7 @@ it('restores in place: prepare without network, quiesce, ledger, safety backup, 
         ->and([$prepare->capabilities, $pgRestore->capabilities, $tar->capabilities])->toBe([[], [], []]) // M12 gate S6: no capability
         ->and([$prepare->readOnlyRoot, $pgRestore->readOnlyRoot, $tar->readOnlyRoot])->toBe([true, true, true])
         ->and($tar->volumes[0])->toBe($state->project().'_app-storage-r'.$id.':/var/www/html/storage/app')
-        ->and($finish['env'])->toContain('DB_DATABASE', 'FSA_BACKUP_DB_PASSWORD')->and($finish['command'])->toContain('--source=form_schema', '--backup=manual-20261019T120000Z')
+        ->and($finish['env'])->toContain('DB_DATABASE', 'FIELDSET_BACKUP_DB_PASSWORD')->and($finish['command'])->toContain('--source=form_schema', '--backup=manual-20261019T120000Z')
         ->and($this->restore->actions())->toBe(['drop', 'create', 'swap', 'drop'])
         ->and($this->restore->databases)->toContain('form_schema')->not->toContain('form_schema_pre_restore_'.$id)->not->toContain('form_schema_restore_'.$id)
         ->and(InstanceSettings::of($state)->storageVolume())->toBe($state->project().'_app-storage-r'.$id)
@@ -200,7 +200,7 @@ it('restores an unauthenticated archive only with --accept-unauthenticated, as a
     expect($refused)->toBe(2)->and($refusedJson['errors'][0]['code'])->toBe('backup_unauthenticated')
         ->and($code)->toBe(0, (string) json_encode($json))
         ->and(implode(' ', $create['options']))->toContain('--restricted-role=fsa_restore_')
-        ->and($create['env'])->toBe(['FSA_RESTORE_DB_PASSWORD'])
+        ->and($create['env'])->toBe(['FIELDSET_RESTORE_DB_PASSWORD'])
         ->and($pgRestore->env['PGUSER'])->toStartWith('fsa_restore_')
         ->and(implode(' ', $pgRestore->command))->toMatch('#--use-list=\S+/staging/restore-[0-9a-f]{12}/restore\.list -- #') // review S1; never in backups/ (M12 gate S3)
         ->and($this->restore->actions())->toContain('adopt')

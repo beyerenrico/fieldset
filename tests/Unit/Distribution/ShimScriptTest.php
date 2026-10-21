@@ -54,7 +54,7 @@ it('runs the command in the ops image recorded in the state, never the previous 
         ->and(array_slice($run, array_search('--entrypoint', $run, true)))->toBe(['--entrypoint', 'fsa', SHIM_IMAGE, 'status', '--dir', $this->dir, '--json'])
         ->and($run[1])->toBe('-i')
         ->and($run)->not->toContain('-it')
-        ->and($this->scripts->opsEnvironment())->toMatchArray(['FSA_LAUNCHER' => 'shim', 'FSA_TTY' => '0', 'FSA_INSTANCE_DIR' => $this->dir]);
+        ->and($this->scripts->opsEnvironment())->toMatchArray(['FIELDSET_LAUNCHER' => 'shim', 'FIELDSET_TTY' => '0', 'FIELDSET_INSTANCE_DIR' => $this->dir]);
 });
 
 it('runs the ops container as DOCKER_DEFAULT_PLATFORM and passes it on, so fsa\'s docker calls use it too (ADR 0070)', function (): void {
@@ -62,7 +62,7 @@ it('runs the ops container as DOCKER_DEFAULT_PLATFORM and passes it on, so fsa\'
 
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput())
         ->and(implode(' ', $this->scripts->opsRuns()[0]))->toContain('-e DOCKER_DEFAULT_PLATFORM ')
-        ->and($this->scripts->opsEnvironment())->toMatchArray(['DOCKER_DEFAULT_PLATFORM' => 'linux/amd64', 'FSA_LAUNCHER' => 'shim'])
+        ->and($this->scripts->opsEnvironment())->toMatchArray(['DOCKER_DEFAULT_PLATFORM' => 'linux/amd64', 'FIELDSET_LAUNCHER' => 'shim'])
         ->and($this->scripts->dockerPlatforms())->toBe([['info', 'linux/amd64'], ['run', 'linux/amd64']]);
 });
 
@@ -150,7 +150,7 @@ it('fails with exit 3 when the state is missing or names no valid image', functi
 it('mounts the parent of every file-path flag at the same path, read-only for inputs (KTD2)', function (): void {
     mkdir($this->scripts->root.'/keys');
     file_put_contents($this->scripts->root.'/keys/pw', 'secret');
-    $hook = $this->scripts->writeExecutable('ops-hook', "#!/bin/sh\n[ -f \"\$FSA_INSTANCE_DIR/\$FSA_NONCE\" ] && [ -f \"{$this->out}/\$FSA_NONCE\" ] && touch \"\$STUB_ROOT/nonces-seen\"\n");
+    $hook = $this->scripts->writeExecutable('ops-hook', "#!/bin/sh\n[ -f \"\$FIELDSET_INSTANCE_DIR/\$FIELDSET_NONCE\" ] && [ -f \"{$this->out}/\$FIELDSET_NONCE\" ] && touch \"\$STUB_ROOT/nonces-seen\"\n");
 
     $root = realpath($this->scripts->root);
     $process = $this->scripts->run($this->dir.'/fsa', [
@@ -167,7 +167,7 @@ it('mounts the parent of every file-path flag at the same path, read-only for in
             'install', '--dir', $this->dir, "--secrets-file={$root}/out/link.json", "--smtp-password-file={$root}/keys/pw", "--owner-password-file={$root}/keys/pw",
             "--backup-key-file={$this->dir}/key.txt", "--from-backup={$root}/out/backup-1", '--owner-email', 'a@b.test',
         ])
-        ->and($this->scripts->opsEnvironment()['FSA_MOUNTS'])->toBe("rw:{$root}/out\nro:{$root}/keys\nro:{$root}/out\n")
+        ->and($this->scripts->opsEnvironment()['FIELDSET_MOUNTS'])->toBe("rw:{$root}/out\nro:{$root}/keys\nro:{$root}/out\n")
         ->and(is_file($this->scripts->root.'/nonces-seen'))->toBeTrue()
         ->and(glob($this->out.'/.fsa-nonce-*'))->toBe([])
         ->and(glob($this->dir.'/.fsa-nonce-*'))->toBe([]);
@@ -184,7 +184,7 @@ it('mounts adopt\'s 1.0 checkout read-only at its own physical path and passes t
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput())
         ->and(shimVolumes($run))->toContain("{$checkout}:{$checkout}:ro")
         ->and(array_slice($run, array_search(SHIM_IMAGE, $run, true) + 1))->toBe(['adopt', '--dir', $this->dir, $checkout, '--yes', '--json'])
-        ->and($this->scripts->opsEnvironment()['FSA_MOUNTS'])->toBe("ro:{$checkout}\n")
+        ->and($this->scripts->opsEnvironment()['FIELDSET_MOUNTS'])->toBe("ro:{$checkout}\n")
         ->and($missing->getExitCode())->toBe(2)->and($missing->getOutput())->toContain('path_missing');
 });
 
@@ -197,7 +197,7 @@ it('never takes the value of a flag as adopt\'s checkout (review S4)', function 
 
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput())
         ->and(array_slice($run, array_search(SHIM_IMAGE, $run, true) + 1))->toBe(['adopt', '--dir', $this->dir, '--release', '2.0.0', $checkout, '--json'])
-        ->and($this->scripts->opsEnvironment()['FSA_MOUNTS'])->toBe("ro:{$checkout}\n");
+        ->and($this->scripts->opsEnvironment()['FIELDSET_MOUNTS'])->toBe("ro:{$checkout}\n");
 });
 
 it('refuses file paths a bind mount cannot carry or whose directory does not exist (exit 2)', function (array $arguments, string $message): void {
@@ -284,10 +284,10 @@ it('selects the user, socket and owner UID per Docker runtime (KTD2)', function 
     $gid = trim((string) shell_exec('id -g'));
 
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput())
-        ->and($facts['FSA_DOCKER_RUNTIME'])->toBe($runtime)
+        ->and($facts['FIELDSET_DOCKER_RUNTIME'])->toBe($runtime)
         ->and($run[array_search('--user', $run, true) + 1])->toBe($root ? '0:0' : "{$uid}:{$gid}")
-        ->and($facts['FSA_CONTAINER_UID'])->toBe($root ? '0' : $uid)
-        ->and($facts['FSA_DOCKER_SOCKET'])->toBe($socket)
+        ->and($facts['FIELDSET_CONTAINER_UID'])->toBe($root ? '0' : $uid)
+        ->and($facts['FIELDSET_DOCKER_SOCKET'])->toBe($socket)
         ->and(shimVolumes($run)[0])->toBe("{$socket}:/var/run/docker.sock");
 })->with([
     'rootful Linux' => [[], 'rootful', false, '/var/run/docker.sock'],
@@ -366,14 +366,14 @@ it('uses a terminal only for a person: no --json, stdout a terminal, and for the
 
 it('opens a handed-over http(s) URL with the desktop opener, as one argument and without a shell', function (string $url, bool $opened): void {
     $this->scripts->writeExecutable('xdg-open', "#!/bin/sh\nprintf '%s' \"\$1\" > \"\$STUB_ROOT/opened\"\n");
-    $hook = $this->scripts->writeExecutable('ops-hook', "#!/bin/sh\nprintf '%s\\n' \"\$FAKE_URL\" > \"\$FSA_INSTANCE_DIR/\$FSA_OPEN_URL_FILE\"\n");
+    $hook = $this->scripts->writeExecutable('ops-hook', "#!/bin/sh\nprintf '%s\\n' \"\$FAKE_URL\" > \"\$FIELDSET_INSTANCE_DIR/\$FIELDSET_OPEN_URL_FILE\"\n");
 
     $process = $this->scripts->run($this->dir.'/fsa', ['demo'], [...$this->env, 'DISPLAY' => ':0', 'STUB_OPS_HOOK' => $hook, 'FAKE_URL' => $url]);
     $facts = $this->scripts->opsEnvironment();
 
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput())
-        ->and($facts['FSA_DESKTOP'])->toBe('1')
-        ->and($facts['FSA_OPEN_URL_FILE'])->toMatch('/^\.fsa-open-url-[0-9a-f]{32}$/')
+        ->and($facts['FIELDSET_DESKTOP'])->toBe('1')
+        ->and($facts['FIELDSET_OPEN_URL_FILE'])->toMatch('/^\.fsa-open-url-[0-9a-f]{32}$/')
         ->and(glob($this->dir.'/.fsa-open-url-*'))->toBe([])
         ->and(file_exists($this->scripts->root.'/pwned'))->toBeFalse();
     expect($opened ? file_get_contents($this->scripts->root.'/opened') : file_exists($this->scripts->root.'/opened'))->toBe($opened ? $url : false);
@@ -395,7 +395,7 @@ it('falls back when the browser does not open: the terminal if a person is there
     if ($terminal) {
         touch($tty);
     }
-    $snippet = 'fsa_nl="$(printf "\\nx")"; fsa_nl="${fsa_nl%x}"; fsa_dir="'.$this->dir.'"; FSA_OPEN_URL_FILE='.$file.'; fsa_opener=false; fsa_json='.$json
+    $snippet = 'fsa_nl="$(printf "\\nx")"; fsa_nl="${fsa_nl%x}"; fsa_dir="'.$this->dir.'"; FIELDSET_OPEN_URL_FILE='.$file.'; fsa_opener=false; fsa_json='.$json
         .'; fsa_tty_device="'.$tty.'"; fsa_cleanup_files="$fsa_dir/'.$file.'$fsa_nl"; fsa_open_url; printf "[%s]" "$fsa_cleanup_files"';
 
     $process = $this->scripts->source(base_path('distribution/shim.sh'), $snippet);
@@ -426,7 +426,7 @@ it('offers no browser hand-over without a desktop session', function (array $env
 
     $this->scripts->run($this->dir.'/fsa', ['demo'], [...$this->env, ...$env]);
 
-    expect($this->scripts->opsEnvironment())->toMatchArray(['FSA_DESKTOP' => '0', 'FSA_OPEN_URL_FILE' => ''])
+    expect($this->scripts->opsEnvironment())->toMatchArray(['FIELDSET_DESKTOP' => '0', 'FIELDSET_OPEN_URL_FILE' => ''])
         ->and(file_exists($this->scripts->root.'/opened'))->toBeFalse();
 })->with([
     'Linux without a display' => [[]],
@@ -440,10 +440,10 @@ it('reports host facts: time zone, LAN addresses without bridges, and the TTY on
     $facts = $this->scripts->opsEnvironment();
     $tz = $this->scripts->source(base_path('distribution/shim.sh'), 'fsa_timezone', ['TZ' => 'bad zone;rm']);
 
-    expect($facts['FSA_TZ'])->toBe('America/New_York')
-        ->and($facts['FSA_LAN_ADDRESSES'])->toBe('192.168.1.20 10.0.0.5 ')
-        ->and($facts['FSA_HOST_OS'])->toBe('linux')
-        ->and($facts['FSA_TTY'])->toBe('0')
+    expect($facts['FIELDSET_TZ'])->toBe('America/New_York')
+        ->and($facts['FIELDSET_LAN_ADDRESSES'])->toBe('192.168.1.20 10.0.0.5 ')
+        ->and($facts['FIELDSET_HOST_OS'])->toBe('linux')
+        ->and($facts['FIELDSET_TTY'])->toBe('0')
         ->and($tz->getOutput())->toBe('');
 });
 

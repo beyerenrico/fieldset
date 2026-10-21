@@ -82,12 +82,12 @@ it('keeps the trust literals identical to the image and the release workflow', f
         ->toContain("CERTIFICATE_IDENTITY_REGEXP: '".SignerIdentity::production()->identityRegexp."'");
 });
 
-it('refuses FSA_TRUST_KEY in the production build with exit 2 before any download or Docker call', function (): void {
-    $process = $this->scripts->run($this->production, ['--dir', $this->dir, '--json'], [...$this->env, 'FSA_TRUST_KEY' => $this->key]);
+it('refuses FIELDSET_TRUST_KEY in the production build with exit 2 before any download or Docker call', function (): void {
+    $process = $this->scripts->run($this->production, ['--dir', $this->dir, '--json'], [...$this->env, 'FIELDSET_TRUST_KEY' => $this->key]);
     $json = json_decode($process->getOutput(), true);
 
     expect($process->getExitCode())->toBe(2)
-        ->and($process->getErrorOutput())->toContain('FSA_TRUST_KEY is accepted only by release-harness builds')
+        ->and($process->getErrorOutput())->toContain('FIELDSET_TRUST_KEY is accepted only by release-harness builds')
         ->and($json['status'])->toBe('failed')
         ->and($json['command'])->toBe('install')
         ->and($json['errors'][0]['code'])->toBe('trust_key_not_allowed')
@@ -96,14 +96,14 @@ it('refuses FSA_TRUST_KEY in the production build with exit 2 before any downloa
 });
 
 it('allows plain-http release URLs only in the harness build', function (): void {
-    $http = ['FSA_RELEASE_URL' => 'http://127.0.0.1:1234', 'STUB_DOCKER_DOWN' => '1'];
+    $http = ['FIELDSET_RELEASE_URL' => 'http://127.0.0.1:1234', 'STUB_DOCKER_DOWN' => '1'];
     $production = $this->scripts->run($this->production, ['--dir', $this->dir], [...$this->env, ...$http]);
     $harness = $this->scripts->run($this->harness, ['--dir', $this->dir], [...$this->env, ...$http]);
 
     expect($production->getExitCode())->toBe(2)
-        ->and($production->getErrorOutput())->toContain('FSA_RELEASE_URL must be an https URL')
+        ->and($production->getErrorOutput())->toContain('FIELDSET_RELEASE_URL must be an https URL')
         ->and($harness->getExitCode())->toBe(10)
-        ->and($this->scripts->run($this->production, ['--dir', $this->dir], [...$this->env, 'FSA_RELEASE_URL' => 'ftp://x'])->getExitCode())->toBe(2);
+        ->and($this->scripts->run($this->production, ['--dir', $this->dir], [...$this->env, 'FIELDSET_RELEASE_URL' => 'ftp://x'])->getExitCode())->toBe(2);
 });
 
 it('verifies the manifest with the pinned cosign image and the built-in identity before pulling anything else', function (): void {
@@ -124,7 +124,7 @@ it('verifies the manifest with the pinned cosign image and the built-in identity
 });
 
 it('fails with exit 3 when the signature does not verify, before any other pull and without an instance directory', function (): void {
-    $process = $this->scripts->run($this->harness, ['--dir', $this->dir, '--json'], [...$this->env, 'FSA_TRUST_KEY' => $this->key, 'STUB_VERIFY_EXIT' => '1']);
+    $process = $this->scripts->run($this->harness, ['--dir', $this->dir, '--json'], [...$this->env, 'FIELDSET_TRUST_KEY' => $this->key, 'STUB_VERIFY_EXIT' => '1']);
     $pulls = array_map(fn (array $call): string => end($call), array_filter($this->scripts->calls('docker'), fn (array $call): bool => $call[1] === 'pull'));
 
     expect($process->getExitCode())->toBe(3)
@@ -137,13 +137,13 @@ it('fails with exit 3 when the signature does not verify, before any other pull 
 });
 
 it('gives the same stop-and-report hint for a bad signature as fsa and the agent guide (R51)', function (): void {
-    $process = $this->scripts->run($this->harness, ['--dir', $this->dir, '--json'], [...$this->env, 'FSA_TRUST_KEY' => $this->key, 'STUB_VERIFY_EXIT' => '1']);
+    $process = $this->scripts->run($this->harness, ['--dir', $this->dir, '--json'], [...$this->env, 'FIELDSET_TRUST_KEY' => $this->key, 'STUB_VERIFY_EXIT' => '1']);
 
     expect(json_decode($process->getOutput(), true)['errors'][0])->toMatchArray(['hint' => ManifestVerifier::SIGNATURE_HINT, 'retryable' => false]);
 });
 
 it('verifies with the local key and no network in the harness build', function (): void {
-    $process = $this->scripts->run($this->harness, ['--dir', $this->dir], [...$this->env, 'FSA_TRUST_KEY' => $this->key, 'STUB_IMAGE_PRESENT' => '1']);
+    $process = $this->scripts->run($this->harness, ['--dir', $this->dir], [...$this->env, 'FIELDSET_TRUST_KEY' => $this->key, 'STUB_IMAGE_PRESENT' => '1']);
     $create = array_values(array_filter($this->scripts->calls('docker'), fn (array $call): bool => $call[1] === 'create'))[0];
 
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput())
@@ -154,7 +154,7 @@ it('verifies with the local key and no network in the harness build', function (
 });
 
 it('creates the instance directory, stores the verified release and installs the shim from the image', function (): void {
-    $process = $this->scripts->run($this->production, ['--dir', $this->dir.'//', '--json'], [...$this->env, 'FSA_REGISTRY' => '127.0.0.1:5000']);
+    $process = $this->scripts->run($this->production, ['--dir', $this->dir.'//', '--json'], [...$this->env, 'FIELDSET_REGISTRY' => '127.0.0.1:5000']);
     $pulled = '127.0.0.1:5000/beyerenrico/form-schema-app@'.ReleaseFixtures::APP_DIGEST;
     $cat = array_values(array_filter($this->scripts->calls('docker'), fn (array $call): bool => in_array('cat', $call, true)))[0];
 
@@ -173,7 +173,7 @@ it('creates the instance directory, stores the verified release and installs the
 });
 
 it('hands over to fsa install in an ops container with the host facts, mounts and user (KTD2)', function (): void {
-    $hook = $this->scripts->writeExecutable('ops-hook', "#!/bin/sh\n[ -f \"\$FSA_INSTANCE_DIR/\$FSA_NONCE\" ] && touch \"\$STUB_ROOT/nonce-seen\"\n");
+    $hook = $this->scripts->writeExecutable('ops-hook', "#!/bin/sh\n[ -f \"\$FIELDSET_INSTANCE_DIR/\$FIELDSET_NONCE\" ] && touch \"\$STUB_ROOT/nonce-seen\"\n");
     $process = $this->scripts->run($this->production, ['--dir', $this->dir, '--owner-email', 'owner@example.test', '--json', '--yes'], [...$this->env, 'STUB_OPS_HOOK' => $hook, 'STUB_OPS_EXIT' => '6']);
     $run = $this->scripts->opsRuns()[0];
     $env = $this->scripts->opsEnvironment();
@@ -193,16 +193,16 @@ it('hands over to fsa install in an ops container with the host facts, mounts an
         ->and($run)->not->toContain('-i')
         ->and($run)->not->toContain('-it')
         ->and($env)->toMatchArray([
-            'FSA_LAUNCHER' => 'install.sh', 'FSA_TTY' => '0', 'FSA_HOST_UID' => $uid, 'FSA_HOST_GID' => $gid, 'FSA_HOST_OS' => 'linux',
-            'FSA_INSTANCE_DIR' => $this->dir, 'FSA_DESKTOP' => '0', 'FSA_TZ' => 'Europe/Berlin', 'FSA_DOCKER_RUNTIME' => 'rootful',
-            'FSA_CONTAINER_UID' => $uid, 'FSA_DOCKER_SOCKET' => '/var/run/docker.sock', 'FSA_MOUNTS' => '', 'FSA_OPEN_URL_FILE' => '',
-            'FSA_RELEASE_MANIFEST' => $this->dir.'/releases/2.0.0-alpha.1/release-manifest.json',
+            'FIELDSET_LAUNCHER' => 'install.sh', 'FIELDSET_TTY' => '0', 'FIELDSET_HOST_UID' => $uid, 'FIELDSET_HOST_GID' => $gid, 'FIELDSET_HOST_OS' => 'linux',
+            'FIELDSET_INSTANCE_DIR' => $this->dir, 'FIELDSET_DESKTOP' => '0', 'FIELDSET_TZ' => 'Europe/Berlin', 'FIELDSET_DOCKER_RUNTIME' => 'rootful',
+            'FIELDSET_CONTAINER_UID' => $uid, 'FIELDSET_DOCKER_SOCKET' => '/var/run/docker.sock', 'FIELDSET_MOUNTS' => '', 'FIELDSET_OPEN_URL_FILE' => '',
+            'FIELDSET_RELEASE_MANIFEST' => $this->dir.'/releases/2.0.0-alpha.1/release-manifest.json',
         ])
-        ->and($env['FSA_NONCE'])->toMatch('/^\.fsa-nonce-[0-9a-f]{32}$/')
+        ->and($env['FIELDSET_NONCE'])->toMatch('/^\.fsa-nonce-[0-9a-f]{32}$/')
         ->and(is_file($this->scripts->root.'/nonce-seen'))->toBeTrue()
         ->and(glob($this->dir.'/.fsa-nonce-*'))->toBe([]);
 
-    foreach (['FSA_LAUNCHER', 'FSA_TTY', 'FSA_HOST_UID', 'FSA_NONCE', 'FSA_MOUNTS', 'FSA_TRUST_KEY', 'FSA_REGISTRY', 'FSA_RELEASE_MANIFEST'] as $name) {
+    foreach (['FIELDSET_LAUNCHER', 'FIELDSET_TTY', 'FIELDSET_HOST_UID', 'FIELDSET_NONCE', 'FIELDSET_MOUNTS', 'FIELDSET_TRUST_KEY', 'FIELDSET_REGISTRY', 'FIELDSET_RELEASE_MANIFEST'] as $name) {
         expect(implode(' ', $run))->toContain("-e {$name} ");
     }
 });
@@ -246,14 +246,14 @@ it('accepts the same DOCKER_DEFAULT_PLATFORM values in install.sh, the shim and 
         ->and($shim)->toBe($php);
 });
 
-it('resolves the release and the image from the manifest, honouring FSA_REGISTRY', function (array $env, string $version, int $status, string $expected): void {
+it('resolves the release and the image from the manifest, honouring FIELDSET_REGISTRY', function (array $env, string $version, int $status, string $expected): void {
     $process = $this->scripts->source(base_path('distribution/install.sh'), 'json=0; version="'.$version.'"; fsa_install_read_manifest "'.$this->release.'/release-manifest.json" && printf "%s %s" "$release" "$ref"', $env);
 
     expect($process->getExitCode())->toBe($status)
         ->and($status === 0 ? $process->getOutput() : $process->getErrorOutput())->toContain($expected);
 })->with([
     'canonical registry' => [[], '', 0, '2.0.0-alpha.1 ghcr.io/beyerenrico/form-schema-app@'.ReleaseFixtures::APP_DIGEST],
-    'mirror' => [['FSA_REGISTRY' => 'mirror.example:5000'], '2.0.0-alpha.1', 0, 'mirror.example:5000/beyerenrico/form-schema-app@'],
+    'mirror' => [['FIELDSET_REGISTRY' => 'mirror.example:5000'], '2.0.0-alpha.1', 0, 'mirror.example:5000/beyerenrico/form-schema-app@'],
     'other version' => [[], '2.0.0', 3, 'The manifest is for 2.0.0-alpha.1, not 2.0.0'],
 ]);
 
@@ -286,7 +286,7 @@ it('validates flags and the instance directory with exit 2 before touching Docke
 })->with([
     'bad version' => [['--version', '2.0', '--dir', '{dir}'], [], '--version must look like'],
     'version with a newline' => [['--version', "2.0.0\nx", '--dir', '{dir}'], [], '--version must look like'],
-    'bad registry' => [['--dir', '{dir}'], ['FSA_REGISTRY' => 'https://evil'], 'FSA_REGISTRY must be a registry host'],
+    'bad registry' => [['--dir', '{dir}'], ['FIELDSET_REGISTRY' => 'https://evil'], 'FIELDSET_REGISTRY must be a registry host'],
     'bad platform' => [['--dir', '{dir}'], ['DOCKER_DEFAULT_PLATFORM' => 'linux/s390x'], 'DOCKER_DEFAULT_PLATFORM must be linux/amd64 or linux/arm64'],
     'dir with a colon' => [['--dir', '/tmp/a:b'], [], 'Cannot use /tmp/a:b'],
     'dir in the shared /tmp' => [['--dir', '/tmp/fsa'], [], 'Cannot use /tmp/fsa as the instance directory: fsa mounts it'],
@@ -459,7 +459,7 @@ it('hands over to fsa adopt with the 1.0 checkout mounted read-only for --adopt 
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput())
         ->and($ops)->toContain('-v', "{$checkout}:{$checkout}:ro")
         ->and(array_slice($ops, array_search('--entrypoint', $ops, true) + 3))->toBe(['adopt', '--dir', $this->dir, $checkout, '--yes', '--json'])
-        ->and($this->scripts->opsEnvironment()['FSA_MOUNTS'])->toBe("ro:{$checkout}\n");
+        ->and($this->scripts->opsEnvironment()['FIELDSET_MOUNTS'])->toBe("ro:{$checkout}\n");
 })->with([
     'separate value' => [['--adopt', '<checkout>']],
     'with =' => [['--adopt=<checkout>']],

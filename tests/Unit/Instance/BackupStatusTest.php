@@ -97,7 +97,7 @@ it('warns at once about a run skipped for lack of disk space, in its own words',
 it('warns about a backup service that cannot start and names a command that renders its configuration again (gate review DOC16)', function (): void {
     $this->travelTo(CarbonImmutable::parse('2026-10-19T12:00:00Z'));
     ledgerRun($this->log, ['started_at' => '2026-10-19T03:30:00Z']);
-    $this->log->append(['kind' => 'service', 'status' => 'failed', 'reason' => 'invalid_backup_config', 'message' => 'FSA_BACKUP_RETENTION must be a whole number.', 'started_at' => '2026-10-19T10:00:00Z', 'finished_at' => '2026-10-19T10:00:00Z', 'encrypted' => false]);
+    $this->log->append(['kind' => 'service', 'status' => 'failed', 'reason' => 'invalid_backup_config', 'message' => 'FIELDSET_BACKUP_RETENTION must be a whole number.', 'started_at' => '2026-10-19T10:00:00Z', 'finished_at' => '2026-10-19T10:00:00Z', 'encrypted' => false]);
 
     [, $json] = $this->instance->run('fsa:status');
     $warnings = collect($json['warnings'])->keyBy('code');

@@ -121,7 +121,7 @@ it('hands the edge only the catcher credential it injects, and serves the catche
     $rendered = DomainFixtures::render();
 
     expect($rendered->environments['edge'])->toBe([
-        'FSA_CATCHER_AUTHORIZATION' => 'Basic '.base64_encode('fsa:'.ComposeFixtures::CATCHER_PASSWORD),
+        'FIELDSET_CATCHER_AUTHORIZATION' => 'Basic '.base64_encode('fsa:'.ComposeFixtures::CATCHER_PASSWORD),
     ])
         ->and($rendered->environments['mailpit']['MP_WEBROOT'])->toBe('/_mail/')
         ->and($rendered->environments['mailpit']['MP_UI_AUTH'])->toBe('fsa:'.ComposeFixtures::CATCHER_PASSWORD)

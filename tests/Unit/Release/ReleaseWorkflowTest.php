@@ -133,7 +133,7 @@ it('publishes the checked-in production install.sh unchanged, never a harness bu
     expect(releaseWorkflow())->toContain('install.sh is not the production build')
         ->and(releaseWorkflow())->toContain('cp "${assets[@]}" distribution/manifest.schema.json dist/')
         ->and(releaseWorkflow())->not->toMatch('/sed[^\n]*install\.sh/')
-        ->and(releaseWorkflow())->not->toContain('FSA_BUILD');
+        ->and(releaseWorkflow())->not->toContain('FIELDSET_BUILD');
 });
 
 it('renders the stack file from the manifest pins and signs only after checking its images (R18, ADR 0076)', function (): void {

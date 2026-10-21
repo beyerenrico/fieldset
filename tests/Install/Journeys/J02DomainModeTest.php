@@ -19,7 +19,7 @@ use Tests\Support\Docker\TestImage;
  * with MFA (audited once) → a forged X-Forwarded-For/-Host from a container on another network is not trusted →
  * fsa uninstall --yes removes everything, the certificate volume included, with the rate-limit warning.
  *
- * The ops container resolves the domain through FSA_TEST_DNS (harness images only): it runs on the engine's default
+ * The ops container resolves the domain through FIELDSET_TEST_DNS (harness images only): it runs on the engine's default
  * network and cannot ask challtestsrv. Requests from the host go to 127.0.0.1:80/443 with the domain as SNI and Host.
  */
 
@@ -53,7 +53,7 @@ afterAll(function (): void {
 beforeEach(function (): void {
     $reason = TestImage::dockerUnavailableReason();
     if ($reason !== null) {
-        expect(getenv('FSA_REQUIRE_DOCKER'))->not->toBe('1', $reason);
+        expect(getenv('FIELDSET_REQUIRE_DOCKER'))->not->toBe('1', $reason);
         $this->markTestSkipped($reason.' (install journeys need a Docker engine)');
     }
     if (isset($GLOBALS['fsaJ02Error'])) {
@@ -62,13 +62,13 @@ beforeEach(function (): void {
     $this->journey = $GLOBALS['fsaJ02'];
     $this->acme = $GLOBALS['fsaJ02Acme'];
     $this->dir = $this->journey->work.'/fsa-test-j02';
-    $this->env = ['FSA_TEST_DNS' => J02_DOMAIN.'='.j02HostAddress()];
+    $this->env = ['FIELDSET_TEST_DNS' => J02_DOMAIN.'='.j02HostAddress()];
 });
 
 /** An address the doctor accepts as this host's: a LAN address the shim reports, else a public one (NAT warning). */
 function j02HostAddress(): string
 {
-    $process = new Process(['/bin/sh', '-c', '. "$1"; fsa_lan_addresses', 'sh', TestImage::repository().'/distribution/shim.sh'], null, ['FSA_SHIM_LIBRARY' => '1']);
+    $process = new Process(['/bin/sh', '-c', '. "$1"; fsa_lan_addresses', 'sh', TestImage::repository().'/distribution/shim.sh'], null, ['FIELDSET_SHIM_LIBRARY' => '1']);
     $process->run();
     $addresses = array_values(array_filter(preg_split('/\s+/', trim($process->getOutput())) ?: []));
 

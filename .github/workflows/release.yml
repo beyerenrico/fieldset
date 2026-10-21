@@ -149,7 +149,7 @@ jobs:
           for file in distribution/install.sh distribution/shim.sh; do
             [ -f "$file" ] || { echo "::error file=$file::$file is missing; a release ships it"; exit 1; }
           done
-          # Only the release harness generates build=harness (FSA_TRUST_KEY, plain http); never publish it (ADR 0070).
+          # Only the release harness generates build=harness (FIELDSET_TRUST_KEY, plain http); never publish it (ADR 0070).
           if [ "$(grep -cE '^[[:space:]]+build=production ' distribution/install.sh)" != 1 ] || grep -qE '^[[:space:]]+build=harness' distribution/install.sh; then
             echo "::error file=distribution/install.sh::install.sh is not the production build"
             exit 1
@@ -241,8 +241,8 @@ jobs:
           for required in install.sh shim.sh compose.stack.yaml; do
             jq -e --arg name "$required" '.assets[$name]' "$manifest" > /dev/null || fail "the manifest does not list ${required}"
           done
-          # The generated stack file runs only images the manifest pins: ${FSA_REGISTRY:-<registry>}/<repository>@<digest>.
-          pinned="$(jq -r '.images[] | "${FSA_REGISTRY:-\(.registry)}/\(.repository)@\(.digest)"' "$manifest")"
+          # The generated stack file runs only images the manifest pins: ${FIELDSET_REGISTRY:-<registry>}/<repository>@<digest>.
+          pinned="$(jq -r '.images[] | "${FIELDSET_REGISTRY:-\(.registry)}/\(.repository)@\(.digest)"' "$manifest")"
           images="$(sed -n 's/^[[:space:]]*image: "\(.*\)"$/\1/p' dist/compose.stack.yaml | sort -u)"
           [ -n "$images" ] || fail "compose.stack.yaml names no image"
           while read -r image; do

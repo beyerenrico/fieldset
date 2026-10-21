@@ -54,7 +54,7 @@
         },
         "images": {
             "type": "object",
-            "description": "Service name => image. Installs pull <registry or FSA_REGISTRY>/<repository>@<digest>, never a tag.",
+            "description": "Service name => image. Installs pull <registry or FIELDSET_REGISTRY>/<repository>@<digest>, never a tag.",
             "required": [
                 "app",
                 "postgres",

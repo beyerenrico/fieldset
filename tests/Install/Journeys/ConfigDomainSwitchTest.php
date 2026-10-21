@@ -54,7 +54,7 @@ afterAll(function (): void {
 beforeEach(function (): void {
     $reason = TestImage::dockerUnavailableReason();
     if ($reason !== null) {
-        expect(getenv('FSA_REQUIRE_DOCKER'))->not->toBe('1', $reason);
+        expect(getenv('FIELDSET_REQUIRE_DOCKER'))->not->toBe('1', $reason);
         $this->markTestSkipped($reason.' (install journeys need a Docker engine)');
     }
     if (isset($GLOBALS['fsaCfgError'])) {
@@ -64,13 +64,13 @@ beforeEach(function (): void {
     $this->acme = $GLOBALS['fsaCfgAcme'];
     $this->dir = $this->journey->work.'/fsa-test-cfg';
     $address = cfgHostAddress();
-    $this->env = ['FSA_TEST_DNS' => CFG_DOMAIN.'='.$address.';'.CFG_FAIL_DOMAIN.'='.$address];
+    $this->env = ['FIELDSET_TEST_DNS' => CFG_DOMAIN.'='.$address.';'.CFG_FAIL_DOMAIN.'='.$address];
 });
 
 /** An address the doctor accepts as this host's: a LAN address the shim reports, else a public one (NAT warning). */
 function cfgHostAddress(): string
 {
-    $process = new Process(['/bin/sh', '-c', '. "$1"; fsa_lan_addresses', 'sh', TestImage::repository().'/distribution/shim.sh'], null, ['FSA_SHIM_LIBRARY' => '1']);
+    $process = new Process(['/bin/sh', '-c', '. "$1"; fsa_lan_addresses', 'sh', TestImage::repository().'/distribution/shim.sh'], null, ['FIELDSET_SHIM_LIBRARY' => '1']);
     $process->run();
     $addresses = array_values(array_filter(preg_split('/\s+/', trim($process->getOutput())) ?: []));
 
@@ -125,7 +125,7 @@ function cfgContainers(string $uuid): array
 function cfgSet(object $test, array $arguments, bool $connect): Process
 {
     $process = new Process([$test->dir.'/fsa', 'config', 'set', ...$arguments, '--json'], $test->journey->work, [
-        'FSA_REGISTRY' => $test->journey->harness->registry(), 'SSH_CONNECTION' => 'fsa-test 0 fsa-test 0',
+        'FIELDSET_REGISTRY' => $test->journey->harness->registry(), 'SSH_CONNECTION' => 'fsa-test 0 fsa-test 0',
         ...$test->journey->release->platformEnvironment(), ...$test->env,
     ]);
     $process->setTimeout(1200);

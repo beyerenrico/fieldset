@@ -7,7 +7,7 @@ namespace App\Domain\Instance\Runtime;
 /** Where the runtime state of a reading came from. */
 enum RuntimeSource: string
 {
-    /** FSA_RUNTIME_PATH is not set (checkout install): the app behaves as before. */
+    /** FIELDSET_RUNTIME_PATH is not set (checkout install): the app behaves as before. */
     case NotConfigured = 'not_configured';
     /** The current runtime.json. */
     case File = 'file';

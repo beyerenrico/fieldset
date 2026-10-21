@@ -89,7 +89,7 @@ final readonly class ManifestVerifier
                 ExitCode::PreflightFailed,
                 'manifest_signature_invalid',
                 $this->trust->usesKey()
-                    ? 'The manifest was not signed with the FSA_TRUST_KEY key.'
+                    ? 'The manifest was not signed with the FIELDSET_TRUST_KEY key.'
                     : self::SIGNATURE_HINT,
                 $outcome->timedOut,
             );

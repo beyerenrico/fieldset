@@ -56,16 +56,16 @@ function launchedRun(array $parameters = []): array
 
 it('reads the whole host-facts contract and drops invalid values', function (): void {
     $facts = HostFacts::fromEnvironment([
-        'FSA_LAUNCHER' => 'install.sh', 'FSA_TTY' => '1', 'FSA_HOST_UID' => '1000', 'FSA_HOST_GID' => '1000', 'FSA_HOST_OS' => 'linux',
-        'FSA_INSTANCE_DIR' => '/srv/fsa/', 'FSA_LAN_ADDRESSES' => '192.168.1.20 10.0.0.5  fe80::1 not-an-ip 192.168.1.20 ',
-        'FSA_DESKTOP' => '0', 'FSA_TZ' => 'Europe/Berlin', 'FSA_DOCKER_RUNTIME' => 'rootful', 'FSA_CONTAINER_UID' => '1000',
-        'FSA_DOCKER_SOCKET' => '/var/run/docker.sock', 'FSA_NONCE' => LAUNCH_NONCE,
-        'FSA_MOUNTS' => "ro:/home/u/keys\nrw:/home/u/out\nro:/home/u/out\nxx:/bad\nrw:relative\n", 'FSA_OPEN_URL_FILE' => '.fsa-open-url-00112233445566778899aabbccddeeff',
+        'FIELDSET_LAUNCHER' => 'install.sh', 'FIELDSET_TTY' => '1', 'FIELDSET_HOST_UID' => '1000', 'FIELDSET_HOST_GID' => '1000', 'FIELDSET_HOST_OS' => 'linux',
+        'FIELDSET_INSTANCE_DIR' => '/srv/fsa/', 'FIELDSET_LAN_ADDRESSES' => '192.168.1.20 10.0.0.5  fe80::1 not-an-ip 192.168.1.20 ',
+        'FIELDSET_DESKTOP' => '0', 'FIELDSET_TZ' => 'Europe/Berlin', 'FIELDSET_DOCKER_RUNTIME' => 'rootful', 'FIELDSET_CONTAINER_UID' => '1000',
+        'FIELDSET_DOCKER_SOCKET' => '/var/run/docker.sock', 'FIELDSET_NONCE' => LAUNCH_NONCE,
+        'FIELDSET_MOUNTS' => "ro:/home/u/keys\nrw:/home/u/out\nro:/home/u/out\nxx:/bad\nrw:relative\n", 'FIELDSET_OPEN_URL_FILE' => '.fsa-open-url-00112233445566778899aabbccddeeff',
     ]);
     $invalid = HostFacts::fromEnvironment([
-        'FSA_LAUNCHER' => 'curl', 'FSA_HOST_OS' => 'Linux; rm', 'FSA_INSTANCE_DIR' => 'relative', 'FSA_TZ' => '../../etc/passwd',
-        'FSA_DOCKER_RUNTIME' => 'podman', 'FSA_DOCKER_SOCKET' => "/var/run/docker.sock\n", 'FSA_NONCE' => '../.fsa-nonce-0123456789abcdef',
-        'FSA_OPEN_URL_FILE' => '/tmp/url',
+        'FIELDSET_LAUNCHER' => 'curl', 'FIELDSET_HOST_OS' => 'Linux; rm', 'FIELDSET_INSTANCE_DIR' => 'relative', 'FIELDSET_TZ' => '../../etc/passwd',
+        'FIELDSET_DOCKER_RUNTIME' => 'podman', 'FIELDSET_DOCKER_SOCKET' => "/var/run/docker.sock\n", 'FIELDSET_NONCE' => '../.fsa-nonce-0123456789abcdef',
+        'FIELDSET_OPEN_URL_FILE' => '/tmp/url',
     ]);
 
     expect($facts->launcher)->toBe('install.sh')
@@ -85,7 +85,7 @@ it('reads the whole host-facts contract and drops invalid values', function (): 
         ->and([$invalid->launcher, $invalid->os, $invalid->instanceDir, $invalid->timezone, $invalid->runtime, $invalid->socket, $invalid->nonce, $invalid->openUrlFile])
         ->each->toBeNull()
         ->and($invalid->launched())->toBeFalse()
-        ->and(HostFacts::fromEnvironment(['FSA_INSTANCE_DIR' => '/'])->instanceDir)->toBe('/');
+        ->and(HostFacts::fromEnvironment(['FIELDSET_INSTANCE_DIR' => '/'])->instanceDir)->toBe('/');
 });
 
 it('derives the in-container owner UID from the runtime (KTD2)', function (): void {

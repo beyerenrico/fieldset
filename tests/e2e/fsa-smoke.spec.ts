@@ -2,19 +2,19 @@ import { test, expect, type BrowserContext } from './support/test';
 
 // Smoke E2E of a freshly installed `fsa` instance (BUILD_PROMPT_V2 §11 J1/J10, plan U15), project `fsa-instance`
 // only (never part of the desktop run). Everything comes from the environment:
-// - FSA_INSTANCE_URL: the instance URL, e.g. https://fsa-test-j10.test (unset: all tests skip)
-// - FSA_SMOKE_LINK: the owner's one-time sign-in link from `fsa install --secrets-file`
-// - FSA_SMOKE_PASSWORD: the password the owner sets through that link
-// - FSA_CHROMIUM_ARGS: a JSON array of extra Chromium flags, e.g. host resolver rules for a test domain and
+// - FIELDSET_INSTANCE_URL: the instance URL, e.g. https://fsa-test-j10.test (unset: all tests skip)
+// - FIELDSET_SMOKE_LINK: the owner's one-time sign-in link from `fsa install --secrets-file`
+// - FIELDSET_SMOKE_PASSWORD: the password the owner sets through that link
+// - FIELDSET_CHROMIUM_ARGS: a JSON array of extra Chromium flags, e.g. host resolver rules for a test domain and
 //   --ignore-certificate-errors-spki-list for a test CA's chain (optional)
 // The tests run in order in one context: the link signs the owner in, the next tests reuse that session.
 
-const INSTANCE_URL = process.env.FSA_INSTANCE_URL ?? '';
-const LINK = process.env.FSA_SMOKE_LINK ?? '';
-const PASSWORD = process.env.FSA_SMOKE_PASSWORD ?? '';
-const CHROMIUM_ARGS: string[] = JSON.parse(process.env.FSA_CHROMIUM_ARGS ?? '[]') as string[];
+const INSTANCE_URL = process.env.FIELDSET_INSTANCE_URL ?? '';
+const LINK = process.env.FIELDSET_SMOKE_LINK ?? '';
+const PASSWORD = process.env.FIELDSET_SMOKE_PASSWORD ?? '';
+const CHROMIUM_ARGS: string[] = JSON.parse(process.env.FIELDSET_CHROMIUM_ARGS ?? '[]') as string[];
 
-test.skip(INSTANCE_URL === '' || LINK === '' || PASSWORD === '', 'FSA_INSTANCE_URL, FSA_SMOKE_LINK and FSA_SMOKE_PASSWORD are needed: these tests run against an fsa instance.');
+test.skip(INSTANCE_URL === '' || LINK === '' || PASSWORD === '', 'FIELDSET_INSTANCE_URL, FIELDSET_SMOKE_LINK and FIELDSET_SMOKE_PASSWORD are needed: these tests run against an fsa instance.');
 
 test.use({ launchOptions: { args: CHROMIUM_ARGS }, storageState: { cookies: [], origins: [] } });
 

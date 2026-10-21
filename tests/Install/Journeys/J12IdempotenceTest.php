@@ -44,7 +44,7 @@ afterAll(function (): void {
 beforeEach(function (): void {
     $reason = TestImage::dockerUnavailableReason();
     if ($reason !== null) {
-        expect(getenv('FSA_REQUIRE_DOCKER'))->not->toBe('1', $reason);
+        expect(getenv('FIELDSET_REQUIRE_DOCKER'))->not->toBe('1', $reason);
         $this->markTestSkipped($reason.' (install journeys need a Docker engine)');
     }
     if (isset($GLOBALS['fsaJ12Error'])) {

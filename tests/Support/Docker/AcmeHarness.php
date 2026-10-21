@@ -36,8 +36,8 @@ final readonly class AcmeHarness
         $subnet = self::freeSubnet();
         $base = substr($subnet, 0, (int) strrpos($subnet, '.'));
         $environment = [
-            'FSA_HARNESS_ACME_SUBNET' => $subnet, 'FSA_HARNESS_DNS_IP' => "{$base}.10",
-            'FSA_HARNESS_PEBBLE_IP' => "{$base}.11", 'FSA_HARNESS_EDGE_IP' => "{$base}.50",
+            'FIELDSET_HARNESS_ACME_SUBNET' => $subnet, 'FIELDSET_HARNESS_DNS_IP' => "{$base}.10",
+            'FIELDSET_HARNESS_PEBBLE_IP' => "{$base}.11", 'FIELDSET_HARNESS_EDGE_IP' => "{$base}.50",
         ];
         $compose = [...$harness->composeCommand($environment), '--profile', 'acme'];
         self::mustRun([...$compose, 'up', '-d', '--wait', 'challtestsrv', 'pebble'], 600);

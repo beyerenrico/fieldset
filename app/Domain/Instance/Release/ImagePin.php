@@ -76,7 +76,7 @@ final readonly class ImagePin
         return "{$this->name()}:{$this->tag}@{$this->digest}";
     }
 
-    /** What an install pulls: `<mirror or registry>/<repository>@<digest>` (FSA_REGISTRY, ADR 0050). */
+    /** What an install pulls: `<mirror or registry>/<repository>@<digest>` (FIELDSET_REGISTRY, ADR 0050). */
     public function pullReference(?string $mirror = null): string
     {
         return ($mirror ?? $this->registry)."/{$this->repository}@{$this->digest}";

@@ -10,7 +10,7 @@ use JsonException;
 use Throwable;
 
 /**
- * Reads runtime.json from the directory in config('instance.runtime_path') (FSA_RUNTIME_PATH, KTD11).
+ * Reads runtime.json from the directory in config('instance.runtime_path') (FIELDSET_RUNTIME_PATH, KTD11).
  *
  * - Not configured: no state at all, and every caller behaves as before (checkout installs).
  * - Cached in this process, keyed on path, inode, size and mtime: `fsa` replaces the file by rename, so a new

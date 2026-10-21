@@ -36,7 +36,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         // ADR 0040: SecurityHeaders is outermost, so early answers (413, 503, CORS preflight) get headers too;
         // SecureCookies needs the proxy-aware scheme and runs after TrustProxies.
-        // ADR 0074: ResolveInstanceRuntime (instance URL, gate, tunnel policy from FSA_RUNTIME_PATH; a no-op without
+        // ADR 0074: ResolveInstanceRuntime (instance URL, gate, tunnel policy from FIELDSET_RUNTIME_PATH; a no-op without
         // it) runs after the framework's TrustHosts and TrustProxies and before SecureCookies and route middleware.
         $middleware->prepend([SecurityHeaders::class, AssignRequestId::class, LimitApiPayload::class]);
         $middleware->append([ResolveInstanceRuntime::class, SecureCookies::class]);

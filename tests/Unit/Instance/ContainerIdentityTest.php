@@ -55,8 +55,8 @@ it('reports no container outside Docker, so the lock is never judged stale', fun
 });
 
 it('reads host facts from the shim environment', function (): void {
-    $facts = HostFacts::fromEnvironment(['FSA_TTY' => '0', 'FSA_HOST_UID' => '1000', 'FSA_HOST_GID' => '1001', 'FSA_HOST_OS' => 'linux', 'FSA_INSTANCE_DIR' => '/srv/fsa']);
-    $empty = HostFacts::fromEnvironment(['FSA_HOST_UID' => 'abc', 'FSA_TTY' => 'maybe']);
+    $facts = HostFacts::fromEnvironment(['FIELDSET_TTY' => '0', 'FIELDSET_HOST_UID' => '1000', 'FIELDSET_HOST_GID' => '1001', 'FIELDSET_HOST_OS' => 'linux', 'FIELDSET_INSTANCE_DIR' => '/srv/fsa']);
+    $empty = HostFacts::fromEnvironment(['FIELDSET_HOST_UID' => 'abc', 'FIELDSET_TTY' => 'maybe']);
 
     expect($facts->tty)->toBeFalse()
         ->and($facts->uid)->toBe(1000)

@@ -17,7 +17,7 @@ use Symfony\Component\Process\Process;
  * container, with the run's argv), STUB_PULL_STDERR, STUB_RELEASE_DIR (files `curl` serves by base name; a missing
  * file is HTTP 404, exit 22), STUB_CURL_EXIT (a network failure: that curl exit code, HTTP code 000) and STUB_UNAME
  * (`uname -s`). Every docker call also logs its subcommand with the DOCKER_DEFAULT_PLATFORM it saw (`dockerPlatforms()`),
- * and the ops-container dump includes that variable next to the FSA_* ones.
+ * and the ops-container dump includes that variable next to the FIELDSET_* ones.
  */
 final readonly class DistributionScripts
 {
@@ -64,7 +64,7 @@ final readonly class DistributionScripts
      */
     public function source(string $script, string $snippet, array $env = [], ?string $cwd = null): Process
     {
-        $guard = str_ends_with($script, 'install.sh') ? 'FSA_INSTALL_LIBRARY' : 'FSA_SHIM_LIBRARY';
+        $guard = str_ends_with($script, 'install.sh') ? 'FIELDSET_INSTALL_LIBRARY' : 'FIELDSET_SHIM_LIBRARY';
 
         return $this->process([$this->shell, '-c', $guard.'=1; . "$0"; '.$snippet, $script], $env, $cwd);
     }
@@ -116,7 +116,7 @@ final readonly class DistributionScripts
         return $calls;
     }
 
-    /** @return array<string, string> FSA_* variables and DOCKER_DEFAULT_PLATFORM the last ops container would get (dumped by the stub) */
+    /** @return array<string, string> FIELDSET_* variables and DOCKER_DEFAULT_PLATFORM the last ops container would get (dumped by the stub) */
     public function opsEnvironment(): array
     {
         $env = [];
@@ -156,11 +156,11 @@ final readonly class DistributionScripts
             'HOME' => $this->root.'/home',
             'TMPDIR' => $this->root,
             'DOCKER_HOST' => false,
-            'FSA_TRUST_KEY' => false,
-            'FSA_RELEASE_URL' => false,
-            'FSA_REGISTRY' => false,
+            'FIELDSET_TRUST_KEY' => false,
+            'FIELDSET_RELEASE_URL' => false,
+            'FIELDSET_REGISTRY' => false,
             'DOCKER_DEFAULT_PLATFORM' => false,
-            'FSA_TEST_DNS' => false,
+            'FIELDSET_TEST_DNS' => false,
             'DISPLAY' => false,
             'WAYLAND_DISPLAY' => false,
             'SSH_CONNECTION' => false,
@@ -203,7 +203,7 @@ final readonly class DistributionScripts
             [ "$a" != /var/www/html/distribution/shim.sh ] || exec cat "$STUB_SHIM"
         done
         : > "$STUB_ROOT/ops-env"
-        for v in $(env | sed -n -e 's/^\(FSA_[A-Z_]*\)=.*/\1/p' -e 's/^\(DOCKER_DEFAULT_PLATFORM\)=.*/\1/p'); do
+        for v in $(env | sed -n -e 's/^\(FIELDSET_[A-Z_]*\)=.*/\1/p' -e 's/^\(DOCKER_DEFAULT_PLATFORM\)=.*/\1/p'); do
             eval "val=\${$v}"
             printf '%s=%s\036' "$v" "$val" >> "$STUB_ROOT/ops-env"
         done

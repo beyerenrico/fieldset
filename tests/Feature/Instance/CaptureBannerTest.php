@@ -21,7 +21,7 @@ require_once __DIR__.'/../Platform/Support.php';
  * an organization says so. Organizations on the instance mailer get the full banner, organizations with their own SMTP
  * server the narrower one (invitations, password resets, e-mail address confirmations); operators see the `fsa config set mail` command,
  * everyone else "ask your instance owner", members who manage the organization the Mail settings link. Once SMTP is
- * configured (fsa drops FSA_MAIL_CAPTURE) nobody sees a banner.
+ * configured (fsa drops FIELDSET_MAIL_CAPTURE) nobody sees a banner.
  */
 
 beforeEach(function (): void {

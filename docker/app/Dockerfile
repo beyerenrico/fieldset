@@ -200,12 +200,12 @@ COPY --from=tools /out/doc/ /usr/share/doc/
 COPY --from=build /var/www/html /var/www/html
 COPY --chmod=0755 docker/app/entrypoint.sh /usr/local/bin/app-entrypoint
 COPY --chmod=0755 docker/app/fsa /usr/local/bin/fsa
-# Build flavor (R58, ADR 0070): only the release harness builds with FSA_BUILD=harness, which lets fsa verify
-# releases with a local test key (FSA_TRUST_KEY). Release builds keep the default; a file, not ENV, so that
+# Build flavor (R58, ADR 0070): only the release harness builds with FIELDSET_BUILD=harness, which lets fsa verify
+# releases with a local test key (FIELDSET_TRUST_KEY). Release builds keep the default; a file, not ENV, so that
 # `docker run -e` cannot change it.
-ARG FSA_BUILD=production
-RUN case "${FSA_BUILD}" in production | harness) ;; *) echo "FSA_BUILD must be production or harness" >&2; exit 1 ;; esac \
- && printf '%s\n' "${FSA_BUILD}" > /var/www/html/distribution/.build-flavor
+ARG FIELDSET_BUILD=production
+RUN case "${FIELDSET_BUILD}" in production | harness) ;; *) echo "FIELDSET_BUILD must be production or harness" >&2; exit 1 ;; esac \
+ && printf '%s\n' "${FIELDSET_BUILD}" > /var/www/html/distribution/.build-flavor
 # Version metadata last, so a version bump rebuilds no layer above (KTD9, R1).
 ARG APP_VERSION=0.0.0-dev
 ARG APP_REVISION=

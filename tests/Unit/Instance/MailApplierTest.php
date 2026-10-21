@@ -62,7 +62,7 @@ it('switches capture mode to SMTP with the password from stdin, keeps the catche
         ->and($state->setting('smtp_port'))->toBe(587)
         ->and($state->setting('mail_catcher'))->toBe('kept')
         ->and($env->read('app'))->toMatchArray(['MAIL_HOST' => 'smtp.example.com', 'MAIL_PORT' => '587', 'MAIL_USERNAME' => MAIL_USER, 'MAIL_PASSWORD' => MAIL_PASSWORD, 'MAIL_FROM_ADDRESS' => 'forms@example.com'])
-        ->and($env->read('app'))->not->toHaveKey('FSA_MAIL_CAPTURE')
+        ->and($env->read('app'))->not->toHaveKey('FIELDSET_MAIL_CAPTURE')
         ->and($env->read('queue'))->toMatchArray(['MAIL_HOST' => 'smtp.example.com', 'MAIL_PASSWORD' => MAIL_PASSWORD])
         ->and($env->read('mailpit'))->toMatchArray(['MP_SMTP_BIND_ADDR' => '127.0.0.1:1025'])
         ->and(ComposeFile::services($this->config->instance->directory))->toContain(MailpitService::NAME)
@@ -98,7 +98,7 @@ it('reverts to capture mode when the server refuses the test mail (exit 5) and k
         ->and($json['data'])->toMatchArray(['reverted' => true])
         ->and($json['data']['command'])->toContain('--smtp-username <the same user name> --password-stdin')
         ->and($this->config->state()->setting('mail'))->toBeNull()
-        ->and($env->read('app'))->toMatchArray(['MAIL_HOST' => 'mailpit', 'FSA_MAIL_CAPTURE' => 'true'])
+        ->and($env->read('app'))->toMatchArray(['MAIL_HOST' => 'mailpit', 'FIELDSET_MAIL_CAPTURE' => 'true'])
         ->and($env->read('app'))->not->toHaveKey('MAIL_PASSWORD')
         ->and($env->read('mailpit'))->not->toHaveKey('MP_SMTP_BIND_ADDR')
         ->and($this->config->instance->directory->exists(ConfigRollout::CREDENTIALS_STASH))->toBeFalse()
@@ -170,7 +170,7 @@ it('switches back to capture mode: the catcher returns on a free port and the cr
         ->and($json['data']['mail'])->toMatchArray(['mode' => 'capture', 'catcher' => 'active', 'catcher_url' => 'http://localhost:8026'])
         ->and(collect($json['warnings'])->pluck('code')->all())->toContain('catcher_port_changed')
         ->and(ComposeFile::services($this->config->instance->directory))->toContain(MailpitService::NAME)
-        ->and($env->read('app'))->toMatchArray(['MAIL_HOST' => 'mailpit', 'FSA_MAIL_CAPTURE' => 'true'])
+        ->and($env->read('app'))->toMatchArray(['MAIL_HOST' => 'mailpit', 'FIELDSET_MAIL_CAPTURE' => 'true'])
         ->and($env->read('app'))->not->toHaveKey('MAIL_USERNAME');
 });
 

@@ -425,7 +425,7 @@ it('reports a timeout while streaming to a file', function (): void {
 it('runs real processes without a shell, with timeouts and start failures', function (): void {
     $runner = new SymfonyCommandRunner;
 
-    $ok = $runner->run([PHP_BINARY, '-r', 'fwrite(STDERR, "e"); echo getenv("FSA_X"), "|", var_export(getenv("FSA_GONE"), true), "|", stream_get_contents(STDIN); exit(3);'], ['FSA_X' => 'a b$c', 'FSA_GONE' => false], 'in');
+    $ok = $runner->run([PHP_BINARY, '-r', 'fwrite(STDERR, "e"); echo getenv("FIELDSET_X"), "|", var_export(getenv("FIELDSET_GONE"), true), "|", stream_get_contents(STDIN); exit(3);'], ['FIELDSET_X' => 'a b$c', 'FIELDSET_GONE' => false], 'in');
     $slow = $runner->run([PHP_BINARY, '-r', 'sleep(5);'], [], null, 0.5);
     $missing = $runner->run(['/nonexistent/docker-'.bin2hex(random_bytes(3))]);
 

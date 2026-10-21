@@ -27,7 +27,7 @@ use Tests\Support\Docker\TestImage;
  * backup at that data volume with the backup service's memory peak against its slot (plan U22) → no container was
  * OOM-killed or restarted → uninstall. Timings and p95s are recorded against the 1.0 targets with a verdict each; a
  * miss is reported in the evidence and ADR 0083, never asserted away (rule 4 of §13), while OOM kills, restarts and
- * failed steps fail the journey. Evidence goes to the milestone of FSA_EVIDENCE_MILESTONE (J10-*.json).
+ * failed steps fail the journey. Evidence goes to the milestone of FIELDSET_EVIDENCE_MILESTONE (J10-*.json).
  */
 
 const J10_DOMAIN = 'fsa-test-j10.test';
@@ -72,7 +72,7 @@ afterAll(function (): void {
 beforeEach(function (): void {
     $reason = TestImage::dockerUnavailableReason();
     if ($reason !== null) {
-        expect(getenv('FSA_REQUIRE_DOCKER'))->not->toBe('1', $reason);
+        expect(getenv('FIELDSET_REQUIRE_DOCKER'))->not->toBe('1', $reason);
         $this->markTestSkipped($reason.' (install journeys need a Docker engine)');
     }
     if (isset($GLOBALS['fsaJ10Error'])) {
@@ -82,7 +82,7 @@ beforeEach(function (): void {
     $this->acme = $GLOBALS['fsaJ10Acme'];
     $this->dir = $this->journey->work.'/fsa-test-j10';
     $this->monitor = $this->journey->work.'/envelope.json';
-    $this->env = ['FSA_TEST_DNS' => J10_DOMAIN.'='.(LocalCaClient::lanAddress() ?? '1.1.1.1')];
+    $this->env = ['FIELDSET_TEST_DNS' => J10_DOMAIN.'='.(LocalCaClient::lanAddress() ?? '1.1.1.1')];
 });
 
 /** Nearest-rank percentile, as scripts/perf/lib.mjs computes it; null without values. @param  list<int|float>  $values */
@@ -102,7 +102,7 @@ function j10Json(Process $process): array
     return is_array($decoded) ? $decoded : ['raw' => substr($output, -2000), 'stderr' => substr($process->getErrorOutput(), -2000)];
 }
 
-/** The release platform: native, or the emulated one of FSA_TEST_PLATFORM / FSA_HARNESS_PLATFORMS. */
+/** The release platform: native, or the emulated one of FIELDSET_TEST_PLATFORM / FIELDSET_HARNESS_PLATFORMS. */
 function j10Platform(): string
 {
     return ReleaseHarness::platforms()[0];
@@ -198,8 +198,8 @@ it('passes the smoke E2E in Chromium against the instance URL', function (): voi
     $link = (string) (json_decode((string) file_get_contents($work.'/owner-link.json'), true)['secrets'][0]['value'] ?? '');
     EnvelopeMonitor::phase($this->monitor, 'smoke');
     $process = new Process([TestImage::repository().'/node_modules/.bin/playwright', 'test', 'tests/e2e/fsa-smoke.spec.ts', '--project=fsa-instance', '--reporter=line'], TestImage::repository(), [
-        'PLAYWRIGHT_BROWSERS_PATH' => BudgetJourney::browsers(), 'FSA_INSTANCE_URL' => 'https://'.J10_DOMAIN, 'FSA_SMOKE_LINK' => $link,
-        'FSA_SMOKE_PASSWORD' => 'J10-'.bin2hex(random_bytes(12)), 'FSA_CHROMIUM_ARGS' => json_encode($GLOBALS['fsaJ10Chromium'], JSON_THROW_ON_ERROR),
+        'PLAYWRIGHT_BROWSERS_PATH' => BudgetJourney::browsers(), 'FIELDSET_INSTANCE_URL' => 'https://'.J10_DOMAIN, 'FIELDSET_SMOKE_LINK' => $link,
+        'FIELDSET_SMOKE_PASSWORD' => 'J10-'.bin2hex(random_bytes(12)), 'FIELDSET_CHROMIUM_ARGS' => json_encode($GLOBALS['fsaJ10Chromium'], JSON_THROW_ON_ERROR),
     ]);
     $process->setTimeout(600);
     $process->run();

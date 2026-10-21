@@ -17,7 +17,7 @@ final class EvidenceRedactor
     public const string MASK = '<redacted>';
 
     /** How `fsa config show` itself prints a secret. */
-    private const string FSA_MASK = '[redacted]';
+    private const string FIELDSET_MASK = '[redacted]';
 
     /** Fields whose whole value is secret: *_token, *-token, *secret, *password (not token_type, not secrets lists). */
     private const string SECRET_KEY = '/(?:^|[_-])(?:token|secret|password)$/i';
@@ -54,7 +54,7 @@ final class EvidenceRedactor
             return $value;
         }
         if ($key !== null && preg_match(self::SECRET_KEY, $key) === 1) {
-            return $value === self::FSA_MASK ? $value : self::MASK; // fsa's own redaction stays visible
+            return $value === self::FIELDSET_MASK ? $value : self::MASK; // fsa's own redaction stays visible
         }
 
         return self::json($value) ?? self::text($key !== null && preg_match(self::COOKIE_KEY, $key) === 1 ? self::cookies($value) : $value);
@@ -83,7 +83,7 @@ final class EvidenceRedactor
 
     private static function mask(mixed $value): mixed
     {
-        return ! is_string($value) || $value === self::FSA_MASK ? $value : self::MASK;
+        return ! is_string($value) || $value === self::FIELDSET_MASK ? $value : self::MASK;
     }
 
     /**

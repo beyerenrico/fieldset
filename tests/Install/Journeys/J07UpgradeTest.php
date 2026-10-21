@@ -30,7 +30,7 @@ const J07_UNHEALTHY = '2.0.0-rc.3-test';
 
 const J07_CRASHING = '2.0.0-rc.4-test';
 
-/** Older than J07_FROM: J07 publishes it itself, since the shared harness's version (FSA_RELEASE_VERSION) may be newer. */
+/** Older than J07_FROM: J07 publishes it itself, since the shared harness's version (FIELDSET_RELEASE_VERSION) may be newer. */
 const J07_OLDER = '2.0.0-beta.1-test';
 
 const J07_PROXY_HOST = 'j07.fsa-test.example';
@@ -66,7 +66,7 @@ afterAll(function (): void {
 beforeEach(function (): void {
     $reason = TestImage::dockerUnavailableReason();
     if ($reason !== null) {
-        expect(getenv('FSA_REQUIRE_DOCKER'))->not->toBe('1', $reason);
+        expect(getenv('FIELDSET_REQUIRE_DOCKER'))->not->toBe('1', $reason);
         $this->markTestSkipped($reason.' (install journeys need a Docker engine)');
     }
     if (isset($GLOBALS['fsaJ07Error'])) {
@@ -75,7 +75,7 @@ beforeEach(function (): void {
     $this->journey = $GLOBALS['fsaJ07'];
     $this->dir = $this->journey->work.'/fsa-test-j07';
     $this->proxyDir = $this->journey->work.'/fsa-test-j07p';
-    $this->upgradeEnv = ['FSA_RELEASE_URL' => $GLOBALS['fsaJ07Url']];
+    $this->upgradeEnv = ['FIELDSET_RELEASE_URL' => $GLOBALS['fsaJ07Url']];
 });
 
 /** @param  array<string, mixed>  $values */

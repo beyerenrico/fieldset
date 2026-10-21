@@ -25,7 +25,7 @@ final readonly class BackupRole
     public const string NAME = 'fsa_backup';
 
     /** The one-off's environment variable that carries the password (never an argument). */
-    public const string PASSWORD_ENV = 'FSA_BACKUP_DB_PASSWORD';
+    public const string PASSWORD_ENV = 'FIELDSET_BACKUP_DB_PASSWORD';
 
     public const int SCRAM_ITERATIONS = 4096;
 

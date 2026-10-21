@@ -19,7 +19,7 @@ use InvalidArgumentException;
 /**
  * Database-level steps of `fsa restore`, the drill and `fsa install --from-backup` (plan U17, ADR 0085), in a
  * socket-less one-off of the app service (KTD25) on the maintenance database: `create` (with --restricted-role for an
- * archive without a valid HMAC; its password comes from FSA_RESTORE_DB_PASSWORD by name), `drop`, `swap`, `rename`, `adopt`,
+ * archive without a valid HMAC; its password comes from FIELDSET_RESTORE_DB_PASSWORD by name), `drop`, `swap`, `rename`, `adopt`,
  * `audit` (SchemaAudit: an unauthenticated archive's code-bearing objects against a database this image migrated) and
  * `list` (DatabaseAdmin). One JSON document with --json; never a password.
  */
@@ -27,7 +27,7 @@ use InvalidArgumentException;
 #[Signature('instance:restore-db
         {action : create, drop, swap, rename, adopt, audit or list}
         {--database= : The database to create, drop, rename or adopt; with swap the incoming one}
-        {--restricted-role= : create: the role that owns the new database (password in FSA_RESTORE_DB_PASSWORD)}
+        {--restricted-role= : create: the role that owns the new database (password in FIELDSET_RESTORE_DB_PASSWORD)}
         {--role= : drop or adopt: the restricted role}
         {--live= : swap: the live database name}
         {--aside= : swap: the name the live database moves to}
@@ -37,7 +37,7 @@ use InvalidArgumentException;
         {--json : Print one JSON document on stdout}')]
 final class RestoreDatabaseCommand extends Command
 {
-    public const string PASSWORD_ENV = 'FSA_RESTORE_DB_PASSWORD';
+    public const string PASSWORD_ENV = 'FIELDSET_RESTORE_DB_PASSWORD';
 
     private const string NAME = 'instance:restore-db';
 

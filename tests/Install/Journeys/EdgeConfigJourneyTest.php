@@ -16,13 +16,13 @@ use Tests\Support\Instance\TemporaryInstance;
 /*
  * Plan U8 (ADR 0075): the rendered domain-mode project is accepted by real `docker compose config`, and the rendered
  * Caddyfile by `caddy validate` of the pinned Caddy image, as the edge mounts it (read-only, non-root). Nothing is
- * started but the throwaway validator. Skips only when Docker is unreachable; FSA_REQUIRE_DOCKER=1 fails instead.
+ * started but the throwaway validator. Skips only when Docker is unreachable; FIELDSET_REQUIRE_DOCKER=1 fails instead.
  */
 
 beforeEach(function (): void {
     $reason = TestImage::dockerUnavailableReason();
     if ($reason !== null) {
-        expect(getenv('FSA_REQUIRE_DOCKER'))->not->toBe('1', $reason);
+        expect(getenv('FIELDSET_REQUIRE_DOCKER'))->not->toBe('1', $reason);
         $this->markTestSkipped($reason.' (install journeys need a Docker engine)');
     }
 });
@@ -68,7 +68,7 @@ it('is accepted by docker compose config in domain mode, with only the edge publ
 it('renders Caddyfiles that the pinned Caddy validates as the edge mounts them', function (array $settings): void {
     $root = renderedEdge($settings);
     $process = new Process(['docker', 'run', '--rm', '--user', '65532:65532', '--read-only', '--tmpfs', '/tmp', '--tmpfs', '/data/caddy', '--tmpfs', '/config/caddy',
-        '--env', 'FSA_CATCHER_AUTHORIZATION=Basic eDp5', '--volume', $root.'/edge:/etc/caddy:ro', caddyImage(), 'caddy', 'validate', '--config', '/etc/caddy/Caddyfile', '--adapter', 'caddyfile']);
+        '--env', 'FIELDSET_CATCHER_AUTHORIZATION=Basic eDp5', '--volume', $root.'/edge:/etc/caddy:ro', caddyImage(), 'caddy', 'validate', '--config', '/etc/caddy/Caddyfile', '--adapter', 'caddyfile']);
     $process->setTimeout(300)->run();
 
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput())

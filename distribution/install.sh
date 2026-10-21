@@ -14,8 +14,8 @@
 # and --help itself; with --adopt <checkout> it hands over to `fsa adopt <checkout>` instead (a 1.0 install, ADR 0087). Its own stdin is never passed on (with curl | sh it is the script), so --password-stdin (the SMTP
 # password of --smtp-username) and --passphrase-stdin (the identity's passphrase of --from-backup) work only as fsa's
 # hidden prompt on a terminal; else use --password-file or --passphrase-file. With
-# --json, stdout carries only the JSON result and stderr only NDJSON events. FSA_RELEASE_URL and
-# FSA_REGISTRY point at a mirror. Docker's DOCKER_DEFAULT_PLATFORM (linux/amd64 or linux/arm64) picks the platform
+# --json, stdout carries only the JSON result and stderr only NDJSON events. FIELDSET_RELEASE_URL and
+# FIELDSET_REGISTRY point at a mirror. Docker's DOCKER_DEFAULT_PLATFORM (linux/amd64 or linux/arm64) picks the platform
 # of the images install.sh and fsa pull and run (cosign excepted), e.g. amd64 under emulation on Apple Silicon.
 # Everything is in functions and runs from the last line, so a truncated download executes nothing.
 
@@ -86,20 +86,20 @@ fsa_install_platform_ok() { # <DOCKER_DEFAULT_PLATFORM>: the same rule as the sh
 }
 
 fsa_install_check_inputs() { # everything that needs no network: exit 2 before any download
-	if [ -n "${FSA_TRUST_KEY:-}" ]; then
-		[ "$build" = harness ] || fsa_install_fail 2 trust_key_not_allowed 'FSA_TRUST_KEY is accepted only by release-harness builds of install.sh.' 'Unset FSA_TRUST_KEY; releases are verified against the signer identity built into install.sh.'
-		[ -f "$FSA_TRUST_KEY" ] || fsa_install_fail 2 trust_key_invalid 'FSA_TRUST_KEY does not name a file.'
+	if [ -n "${FIELDSET_TRUST_KEY:-}" ]; then
+		[ "$build" = harness ] || fsa_install_fail 2 trust_key_not_allowed 'FIELDSET_TRUST_KEY is accepted only by release-harness builds of install.sh.' 'Unset FIELDSET_TRUST_KEY; releases are verified against the signer identity built into install.sh.'
+		[ -f "$FIELDSET_TRUST_KEY" ] || fsa_install_fail 2 trust_key_invalid 'FIELDSET_TRUST_KEY does not name a file.'
 	fi
-	url=${FSA_RELEASE_URL:-https://github.com/beyerenrico/form-schema-app/releases}
+	url=${FIELDSET_RELEASE_URL:-https://github.com/beyerenrico/form-schema-app/releases}
 	url=${url%/}
 	case $url in
 	https://*) proto='=https' ;;
-	http://*) [ "$build" = harness ] || fsa_install_fail 2 insecure_release_url 'FSA_RELEASE_URL must be an https URL.'
+	http://*) [ "$build" = harness ] || fsa_install_fail 2 insecure_release_url 'FIELDSET_RELEASE_URL must be an https URL.'
 		proto='=https,http' ;;
-	*) fsa_install_fail 2 invalid_release_url 'FSA_RELEASE_URL must be an https URL.' ;;
+	*) fsa_install_fail 2 invalid_release_url 'FIELDSET_RELEASE_URL must be an https URL.' ;;
 	esac
-	if [ -n "${FSA_REGISTRY:-}" ] && ! printf '%s\n' "$FSA_REGISTRY" | grep -Eqx '(localhost|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+|[0-9]{1,3}(\.[0-9]{1,3}){3})(:[0-9]{1,5})?'; then
-		fsa_install_fail 2 invalid_registry 'FSA_REGISTRY must be a registry host, optionally with a port.'
+	if [ -n "${FIELDSET_REGISTRY:-}" ] && ! printf '%s\n' "$FIELDSET_REGISTRY" | grep -Eqx '(localhost|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+|[0-9]{1,3}(\.[0-9]{1,3}){3})(:[0-9]{1,5})?'; then
+		fsa_install_fail 2 invalid_registry 'FIELDSET_REGISTRY must be a registry host, optionally with a port.'
 	fi
 	# The docker CLI reads DOCKER_DEFAULT_PLATFORM for every pull, create and run (cosign's clear it); the shim
 	# hands it to fsa.
@@ -172,7 +172,7 @@ fsa_install_download() { # <url> <file> <what>: 404 is an input error (exit 2), 
 		fsa_install_fail 3 manifest_missing "Cannot download $1: the release has no $3 (HTTP $http)." 'Install another release; this one is incomplete.' ;;
 	esac
 	fsa_install_fail 3 release_unavailable "Cannot download $1: $(tail -n 1 "$tmp/curl.err" 2>/dev/null)" \
-		'Check the network and FSA_RELEASE_URL, then run install.sh again.' true
+		'Check the network and FIELDSET_RELEASE_URL, then run install.sh again.' true
 }
 
 fsa_install_docker() { # <docker args...>: Docker's stderr goes to $tmp/docker.err (stderr stays NDJSON with --json)
@@ -192,8 +192,8 @@ fsa_install_verify() { # <dir with the manifest and its bundle>: cosign verify-b
 	if ! { mkdir "$stage" && cp "$work/release-manifest.json" "$stage/release-manifest.json" && cp "$work/release-manifest.json.sigstore.json" "$stage/bundle.json"; } 2>/dev/null; then
 		fsa_install_fail 3 verify_failed 'Cannot stage the manifest for verification.'
 	fi
-	if [ -n "${FSA_TRUST_KEY:-}" ]; then
-		cp "$FSA_TRUST_KEY" "$stage/trust.pub" || fsa_install_fail 2 trust_key_invalid 'Cannot read FSA_TRUST_KEY.'
+	if [ -n "${FIELDSET_TRUST_KEY:-}" ]; then
+		cp "$FIELDSET_TRUST_KEY" "$stage/trust.pub" || fsa_install_fail 2 trust_key_invalid 'Cannot read FIELDSET_TRUST_KEY.'
 		set -- --network none "$cosign_image" verify-blob --bundle /verify/bundle.json --key /verify/trust.pub --insecure-ignore-tlog=true
 	else
 		set -- "$cosign_image" verify-blob --bundle /verify/bundle.json --certificate-identity-regexp "$identity_regexp" \
@@ -212,7 +212,7 @@ fsa_install_verify() { # <dir with the manifest and its bundle>: cosign verify-b
 		'Install only releases published by the form-schema-app release workflow: never retry with another install.sh or release URL and never bypass this check. Only if the message shows that Sigstore (TUF, Rekor) could not be reached may the same command be run again later.'
 }
 
-fsa_install_read_manifest() { # <manifest>: sets release (version) and ref (app image by digest, FSA_REGISTRY applied)
+fsa_install_read_manifest() { # <manifest>: sets release (version) and ref (app image by digest, FIELDSET_REGISTRY applied)
 	flat=$(tr -d ' \t\r\n' <"$1")
 	release=$(printf '%s\n' "$flat" | sed -n 's/^{"schema_version":1,"version":"\([0-9A-Za-z.-]*\)".*/\1/p')
 	app=$(printf '%s\n' "$flat" | sed -n 's/.*"images":{"app":{"registry":"\([a-z0-9.:-]*\)","repository":"\([a-z0-9._\/-]*\)","tag":"[A-Za-z0-9_.-]*","digest":"\(sha256:[a-f0-9]\{64\}\)".*/\1 \2 \3/p')
@@ -221,7 +221,7 @@ fsa_install_read_manifest() { # <manifest>: sets release (version) and ref (app 
 		'Run install.sh with the same --version as the release you download it from, or omit --version.'
 	registry=${app%% *}
 	app=${app#* }
-	ref=${FSA_REGISTRY:-$registry}/${app%% *}@${app#* }
+	ref=${FIELDSET_REGISTRY:-$registry}/${app%% *}@${app#* }
 }
 
 fsa_install_prepare_dir() { # instance directory 0700, marker, verified release, shim from the image
@@ -264,7 +264,7 @@ fsa_install_usage() {
 	printf 'Flags of each command: fsa install --help, fsa <command> --help (without the PATH link: <dir>/fsa <command> --help).\n'
 	printf 'Guides: docs/guide/install.md and, for agents and scripts, docs/guide/agent-guide.md (also a release asset),\n'
 	printf '  in the repository https://github.com/beyerenrico/form-schema-app.\n'
-	printf 'FSA_RELEASE_URL, FSA_REGISTRY: mirrors.\n'
+	printf 'FIELDSET_RELEASE_URL, FIELDSET_REGISTRY: mirrors.\n'
 	printf 'DOCKER_DEFAULT_PLATFORM=linux/amd64 or linux/arm64: pull and run that platform (another one runs emulated).\n'
 }
 
@@ -317,26 +317,26 @@ fsa_install_main() {
 	fsa_install_read_manifest "$tmp/release-manifest.json"
 	fsa_install_phase pull "Pulling $ref${DOCKER_DEFAULT_PLATFORM:+ for $DOCKER_DEFAULT_PLATFORM}"
 	fsa_install_docker pull -q "$ref" >/dev/null ||
-		fsa_install_fail 3 image_unavailable "Cannot pull $ref: $(fsa_install_docker_error)" 'Check the network and FSA_REGISTRY, then run install.sh again.' true
+		fsa_install_fail 3 image_unavailable "Cannot pull $ref: $(fsa_install_docker_error)" 'Check the network and FIELDSET_REGISTRY, then run install.sh again.' true
 	fsa_install_prepare_dir
 
 	command=install
 	[ -z "$adopt" ] || command=adopt
 	fsa_install_phase handover "Starting fsa $command $release in $dir"
-	# The shim from the verified image runs the handover; FSA_SHIM_LIBRARY=1 makes it define its functions only.
+	# The shim from the verified image runs the handover; FIELDSET_SHIM_LIBRARY=1 makes it define its functions only.
 	# shellcheck disable=SC2034 # read by the sourced shim
-	FSA_SHIM_LIBRARY=1 FSA_LAUNCHER=install.sh
+	FIELDSET_SHIM_LIBRARY=1 FIELDSET_LAUNCHER=install.sh
 	# shellcheck source=/dev/null # distribution/shim.sh, linted on its own
 	. "$dir/fsa"
-	FSA_RELEASE_MANIFEST=$releases/release-manifest.json
-	export FSA_RELEASE_MANIFEST
+	FIELDSET_RELEASE_MANIFEST=$releases/release-manifest.json
+	export FIELDSET_RELEASE_MANIFEST
 	status=0
 	if [ -n "$adopt" ]; then # --adopt <checkout>: `fsa adopt` converts a 1.0 install (the shim mounts it read-only, ADR 0087)
 		fsa_run "$dir" "$ref" adopt --dir "$dir" "$adopt" "$@" || status=$?
 	else
 		fsa_run "$dir" "$ref" install --dir "$dir" "$@" || status=$?
 	fi
-	if [ "$status" = 0 ] && fsa_install_wants_prompt "$link" "$yes" "$json" "${FSA_TTY:-0}"; then
+	if [ "$status" = 0 ] && fsa_install_wants_prompt "$link" "$yes" "$json" "${FIELDSET_TTY:-0}"; then
 		printf 'Link fsa into your PATH? [y/N] ' >/dev/tty
 		read -r answer </dev/tty || answer=''
 		case $answer in [Yy]*) link=1 ;; esac
@@ -345,4 +345,4 @@ fsa_install_main() {
 	exit "$status"
 }
 
-[ "${FSA_INSTALL_LIBRARY:-}" = 1 ] || { fsa_install_main "$@"; }
+[ "${FIELDSET_INSTALL_LIBRARY:-}" = 1 ] || { fsa_install_main "$@"; }

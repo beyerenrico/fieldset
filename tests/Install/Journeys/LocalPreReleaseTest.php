@@ -14,16 +14,16 @@ use Tests\Support\Docker\TestImage;
 
 /*
  * The milestone pre-release, built and tested locally (BUILD_PROMPT_V2 §12, §15.6, E18; ADR 0064, ADR 0067). Runs
- * only with FSA_PRERELEASE_VERSION (e.g. 2.0.0-alpha.1): the harness publishes exactly that version as a multi-arch
+ * only with FIELDSET_PRERELEASE_VERSION (e.g. 2.0.0-alpha.1): the harness publishes exactly that version as a multi-arch
  * index (linux/amd64 + linux/arm64; the foreign platform's stages build under emulation), the manifest is
  * validated and its signature verified with the run's local key, then install.sh (harness build) installs it
  * natively, fsa reports it, and fsa uninstall removes it. The verified assets are kept in dist/v<version>/
  * (git-ignored; the images live only in the harness registry, which is removed afterwards), and a redacted
- * summary goes to docs/agent/milestones/evidence/<FSA_EVIDENCE_MILESTONE, default M9>/prerelease-<version>.json. Nothing is pushed or published.
+ * summary goes to docs/agent/milestones/evidence/<FIELDSET_EVIDENCE_MILESTONE, default M9>/prerelease-<version>.json. Nothing is pushed or published.
  */
 
 beforeAll(function (): void {
-    $version = getenv('FSA_PRERELEASE_VERSION');
+    $version = getenv('FIELDSET_PRERELEASE_VERSION');
     if (! is_string($version) || $version === '' || TestImage::dockerUnavailableReason() !== null) {
         return;
     }
@@ -54,12 +54,12 @@ afterAll(function (): void {
 });
 
 beforeEach(function (): void {
-    if (! is_string(getenv('FSA_PRERELEASE_VERSION')) || getenv('FSA_PRERELEASE_VERSION') === '') {
-        $this->markTestSkipped('Set FSA_PRERELEASE_VERSION (e.g. 2.0.0-alpha.1) to build and test the local pre-release.');
+    if (! is_string(getenv('FIELDSET_PRERELEASE_VERSION')) || getenv('FIELDSET_PRERELEASE_VERSION') === '') {
+        $this->markTestSkipped('Set FIELDSET_PRERELEASE_VERSION (e.g. 2.0.0-alpha.1) to build and test the local pre-release.');
     }
     $reason = TestImage::dockerUnavailableReason();
     if ($reason !== null) {
-        expect(getenv('FSA_REQUIRE_DOCKER'))->not->toBe('1', $reason);
+        expect(getenv('FIELDSET_REQUIRE_DOCKER'))->not->toBe('1', $reason);
         $this->markTestSkipped($reason.' (install journeys need a Docker engine)');
     }
     if (isset($GLOBALS['fsaPreError'])) {

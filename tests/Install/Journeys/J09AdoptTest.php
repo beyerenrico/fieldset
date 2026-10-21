@@ -26,7 +26,7 @@ use Tests\Support\Docker\V1Install;
  * - `fsa uninstall` takes a final backup and reports the writes made since adopt; `docker compose up -d` in the checkout
  *   brings 1.0 back with its pre-adopt data.
  *
- * Everything is named `fsa-test-j09…` (the 1.0 image `<FSA_TEST_IMAGE_REPOSITORY>-v1:1.0.0`) and removed afterwards.
+ * Everything is named `fsa-test-j09…` (the 1.0 image `<FIELDSET_TEST_IMAGE_REPOSITORY>-v1:1.0.0`) and removed afterwards.
  */
 
 beforeAll(function (): void {
@@ -57,7 +57,7 @@ afterAll(function (): void {
 beforeEach(function (): void {
     $reason = TestImage::dockerUnavailableReason();
     if ($reason !== null) {
-        expect(getenv('FSA_REQUIRE_DOCKER'))->not->toBe('1', $reason);
+        expect(getenv('FIELDSET_REQUIRE_DOCKER'))->not->toBe('1', $reason);
         $this->markTestSkipped($reason.' (install journeys need a Docker engine)');
     }
     if (isset($GLOBALS['fsaJ09Error'])) {

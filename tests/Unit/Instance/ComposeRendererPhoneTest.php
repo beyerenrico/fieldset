@@ -56,7 +56,7 @@ it('renders the local-CA Caddyfile: internal CA, default_sni, port 80 only for t
         ->toContain("\thandle {\n\t\tredir \"https://192.168.1.20{uri}\" 308\n\t}")
         ->toContain('http://:8081 {')
         ->not->toContain('acme_ca')
-        ->not->toContain('FSA_CATCHER_AUTHORIZATION');
+        ->not->toContain('FIELDSET_CATCHER_AUTHORIZATION');
 });
 
 it('refuses a local-CA address that is not IPv4 as a renderer bug (exit 1)', function (string $address): void {

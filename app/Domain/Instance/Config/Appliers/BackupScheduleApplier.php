@@ -15,7 +15,7 @@ use App\Domain\Instance\State\InstanceState;
 
 /**
  * `fsa config set backup-schedule <HH:MM|off>` (E13, R32, ADR 0084): the daily time of scheduled backups in the instance's
- * time zone, or `off`. The time zone is the host's (FSA_TZ), recorded at install; a change that finds none recorded
+ * time zone, or `off`. The time zone is the host's (FIELDSET_TZ), recorded at install; a change that finds none recorded
  * records it now. Only the backup service is recreated (its env file changes); the change applies, verifies and
  * reverts like every key (ADR 0077, ADR 0078).
  */

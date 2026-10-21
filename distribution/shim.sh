@@ -1,7 +1,7 @@
 #!/bin/sh
 # fsa: runs an `fsa` command of this instance in a throwaway ops container (BUILD_PROMPT_V2 §6.2, §13.1;
 # ADR 0048, 0049, 0070). install.sh installs it as <instance dir>/fsa and sources it for the first
-# `fsa install`. It passes host facts as FSA_* variables, mounts the Docker socket, the instance directory at the
+# `fsa install`. It passes host facts as FIELDSET_* variables, mounts the Docker socket, the instance directory at the
 # same absolute path and the parent directory of every file-path flag, writes a nonce file the container must
 # see, and opens a URL a command hands back. The ops image comes from state.json (digests.app), never from a
 # release manifest, so a failed shim swap cannot lock the owner out.
@@ -12,7 +12,7 @@
 # the command's JSON document and stderr only NDJSON events (KTD3). Docker's DOCKER_DEFAULT_PLATFORM, when set
 # (linux/amd64 or linux/arm64), picks the platform of the ops container and, passed on, of every image fsa runs.
 #
-# Contract with install.sh (keep stable): FSA_SHIM_LIBRARY=1 only defines the functions, and
+# Contract with install.sh (keep stable): FIELDSET_SHIM_LIBRARY=1 only defines the functions, and
 # `fsa_run <instance dir> <image> <fsa command> [args...]` returns the command's exit code.
 
 fsa_json_string() {
@@ -114,46 +114,46 @@ fsa_lan_addresses() { # candidate LAN addresses, without loopback and container 
 
 fsa_browser_opener() { # sets fsa_opener when a desktop session can open a browser
 	fsa_opener=''
-	case $FSA_HOST_OS in
+	case $FIELDSET_HOST_OS in
 	darwin) [ -n "${SSH_CONNECTION:-}" ] || ! command -v open >/dev/null 2>&1 || fsa_opener=open ;;
 	linux) [ -z "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ] || ! command -v xdg-open >/dev/null 2>&1 || fsa_opener=xdg-open ;;
 	esac
 }
 
-fsa_host_facts() { # exports the FSA_* host facts; sets fsa_user, fsa_group and fsa_socket (KTD2)
-	FSA_HOST_UID=$(id -u)
-	FSA_HOST_GID=$(id -g)
-	FSA_HOST_OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-	FSA_TZ=$(fsa_timezone)
-	FSA_LAN_ADDRESSES=$(fsa_lan_addresses)
+fsa_host_facts() { # exports the FIELDSET_* host facts; sets fsa_user, fsa_group and fsa_socket (KTD2)
+	FIELDSET_HOST_UID=$(id -u)
+	FIELDSET_HOST_GID=$(id -g)
+	FIELDSET_HOST_OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+	FIELDSET_TZ=$(fsa_timezone)
+	FIELDSET_LAN_ADDRESSES=$(fsa_lan_addresses)
 	fsa_browser_opener
-	FSA_DESKTOP=0
-	[ -z "$fsa_opener" ] || FSA_DESKTOP=1
+	FIELDSET_DESKTOP=0
+	[ -z "$fsa_opener" ] || FIELDSET_DESKTOP=1
 	fsa_info=$(docker info --format '{{.OperatingSystem}}|{{.Name}}|{{json .SecurityOptions}}' 2>/dev/null) ||
 		fsa_fail 10 docker_unavailable 'The Docker daemon is not reachable.' 'Start Docker (or check DOCKER_HOST and your docker group membership), then run the command again.' true
-	case "$FSA_HOST_OS|$fsa_info" in
-	*name=rootless*) FSA_DOCKER_RUNTIME=rootless ;;
-	linux\|*'Docker Desktop'* | linux\|*OrbStack* | linux\|*\|colima*\|* | linux\|*\|lima-*\|* | linux\|*\|rancher-desktop\|*) FSA_DOCKER_RUNTIME=desktop ;;
-	linux\|*) FSA_DOCKER_RUNTIME=rootful ;;
-	*) FSA_DOCKER_RUNTIME=desktop ;;
+	case "$FIELDSET_HOST_OS|$fsa_info" in
+	*name=rootless*) FIELDSET_DOCKER_RUNTIME=rootless ;;
+	linux\|*'Docker Desktop'* | linux\|*OrbStack* | linux\|*\|colima*\|* | linux\|*\|lima-*\|* | linux\|*\|rancher-desktop\|*) FIELDSET_DOCKER_RUNTIME=desktop ;;
+	linux\|*) FIELDSET_DOCKER_RUNTIME=rootful ;;
+	*) FIELDSET_DOCKER_RUNTIME=desktop ;;
 	esac
 	fsa_socket=/var/run/docker.sock
 	case ${DOCKER_HOST:-} in
-	'') [ "$FSA_DOCKER_RUNTIME" != rootless ] || fsa_socket=${XDG_RUNTIME_DIR:-/run/user/$FSA_HOST_UID}/docker.sock ;;
-	unix://*) [ "$FSA_DOCKER_RUNTIME" = desktop ] || fsa_socket=${DOCKER_HOST#unix://} ;;
+	'') [ "$FIELDSET_DOCKER_RUNTIME" != rootless ] || fsa_socket=${XDG_RUNTIME_DIR:-/run/user/$FIELDSET_HOST_UID}/docker.sock ;;
+	unix://*) [ "$FIELDSET_DOCKER_RUNTIME" = desktop ] || fsa_socket=${DOCKER_HOST#unix://} ;;
 	*) fsa_fail 10 docker_host_unsupported "fsa needs the local Docker socket, not DOCKER_HOST=$DOCKER_HOST." 'Unset DOCKER_HOST or point it at a unix:// socket.' ;;
 	esac
 	fsa_group=''
-	if [ "$FSA_DOCKER_RUNTIME" = rootful ]; then
-		FSA_CONTAINER_UID=$FSA_HOST_UID
-		fsa_user=$FSA_HOST_UID:$FSA_HOST_GID
+	if [ "$FIELDSET_DOCKER_RUNTIME" = rootful ]; then
+		FIELDSET_CONTAINER_UID=$FIELDSET_HOST_UID
+		fsa_user=$FIELDSET_HOST_UID:$FIELDSET_HOST_GID
 		fsa_group=$(stat -L -c %g "$fsa_socket" 2>/dev/null) || fsa_group=''  # rootful means Linux: GNU or busybox stat
 	else
-		FSA_CONTAINER_UID=0
+		FIELDSET_CONTAINER_UID=0
 		fsa_user=0:0
 	fi
-	FSA_DOCKER_SOCKET=$fsa_socket
-	export FSA_HOST_UID FSA_HOST_GID FSA_HOST_OS FSA_TZ FSA_LAN_ADDRESSES FSA_DESKTOP FSA_DOCKER_RUNTIME FSA_CONTAINER_UID FSA_DOCKER_SOCKET
+	FIELDSET_DOCKER_SOCKET=$fsa_socket
+	export FIELDSET_HOST_UID FIELDSET_HOST_GID FIELDSET_HOST_OS FIELDSET_TZ FIELDSET_LAN_ADDRESSES FIELDSET_DESKTOP FIELDSET_DOCKER_RUNTIME FIELDSET_CONTAINER_UID FIELDSET_DOCKER_SOCKET
 }
 
 fsa_platform_ok() { # <DOCKER_DEFAULT_PLATFORM>: a platform releases ship, optionally with a variant (ADR 0070)
@@ -214,8 +214,8 @@ fsa_add_mount() { # <directory> <ro|rw>: mounts its physical path at the same pa
 	case "$fsa_nl$fsa_mounts" in *"$fsa_nl$2:$fsa_mount_dir$fsa_nl"*) return 0 ;; esac
 	fsa_mounts=$fsa_mounts$2:$fsa_mount_dir$fsa_nl
 	if [ "$2" = rw ]; then
-		{ : >"$fsa_mount_dir/$FSA_NONCE"; } 2>/dev/null || fsa_fail 2 path_unwritable "Cannot write to $fsa_mount_dir." 'Pass a path in a directory you can write to.'
-		fsa_cleanup_files=$fsa_cleanup_files$fsa_mount_dir/$FSA_NONCE$fsa_nl
+		{ : >"$fsa_mount_dir/$FIELDSET_NONCE"; } 2>/dev/null || fsa_fail 2 path_unwritable "Cannot write to $fsa_mount_dir." 'Pass a path in a directory you can write to.'
+		fsa_cleanup_files=$fsa_cleanup_files$fsa_mount_dir/$FIELDSET_NONCE$fsa_nl
 	fi
 }
 
@@ -255,9 +255,9 @@ fsa_keep_file() { # <path>: leave this file in place at cleanup
 	fsa_cleanup_files=$fsa_kept
 }
 
-fsa_open_url() { # the URL a command handed over in FSA_OPEN_URL_FILE: http(s) only, one argument, no shell
-	[ -n "${FSA_OPEN_URL_FILE:-}" ] && [ -f "$fsa_dir/$FSA_OPEN_URL_FILE" ] || return 0
-	fsa_url_file=$fsa_dir/$FSA_OPEN_URL_FILE
+fsa_open_url() { # the URL a command handed over in FIELDSET_OPEN_URL_FILE: http(s) only, one argument, no shell
+	[ -n "${FIELDSET_OPEN_URL_FILE:-}" ] && [ -f "$fsa_dir/$FIELDSET_OPEN_URL_FILE" ] || return 0
+	fsa_url_file=$fsa_dir/$FIELDSET_OPEN_URL_FILE
 	chmod 0600 "$fsa_url_file" 2>/dev/null || true
 	fsa_url=$(head -n 1 "$fsa_url_file")
 	if ! printf '%s\n' "$fsa_url" | grep -Eqx 'https?://[][A-Za-z0-9._~:/?#@!$&()*+,;=%-]+'; then
@@ -295,25 +295,25 @@ fsa_run_setup() { # host facts, the terminal decision, the nonce and the hand-ov
 			"Unset DOCKER_DEFAULT_PLATFORM to use the engine's own platform."
 	fi
 	fsa_host_facts
-	FSA_LAUNCHER=${FSA_LAUNCHER:-shim}
+	FIELDSET_LAUNCHER=${FIELDSET_LAUNCHER:-shim}
 	fsa_stdin_tty=0 fsa_stdout_tty=0 fsa_tty_usable=0
 	[ ! -t 0 ] || fsa_stdin_tty=1
 	[ ! -t 1 ] || fsa_stdout_tty=1
 	! (exec <"$fsa_tty_device") 2>/dev/null || fsa_tty_usable=1
-	FSA_TTY=0
-	! fsa_wants_tty "$FSA_LAUNCHER" "$fsa_json" "$fsa_stdin_tty" "$fsa_stdout_tty" "$fsa_tty_usable" || FSA_TTY=1
-	FSA_INSTANCE_DIR=$fsa_dir
-	FSA_NONCE=.fsa-nonce-$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')
-	FSA_OPEN_URL_FILE=''
-	[ -z "$fsa_opener" ] || FSA_OPEN_URL_FILE=.fsa-open-url-$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')
+	FIELDSET_TTY=0
+	! fsa_wants_tty "$FIELDSET_LAUNCHER" "$fsa_json" "$fsa_stdin_tty" "$fsa_stdout_tty" "$fsa_tty_usable" || FIELDSET_TTY=1
+	FIELDSET_INSTANCE_DIR=$fsa_dir
+	FIELDSET_NONCE=.fsa-nonce-$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')
+	FIELDSET_OPEN_URL_FILE=''
+	[ -z "$fsa_opener" ] || FIELDSET_OPEN_URL_FILE=.fsa-open-url-$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')
 	fsa_mounts=''
-	fsa_cleanup_files=$fsa_dir/$FSA_NONCE$fsa_nl${FSA_OPEN_URL_FILE:+$fsa_dir/$FSA_OPEN_URL_FILE$fsa_nl}
-	{ : >"$fsa_dir/$FSA_NONCE"; } 2>/dev/null || fsa_fail 3 instance_unwritable "Cannot write to $fsa_dir." 'Run fsa as the instance owner.'
+	fsa_cleanup_files=$fsa_dir/$FIELDSET_NONCE$fsa_nl${FIELDSET_OPEN_URL_FILE:+$fsa_dir/$FIELDSET_OPEN_URL_FILE$fsa_nl}
+	{ : >"$fsa_dir/$FIELDSET_NONCE"; } 2>/dev/null || fsa_fail 3 instance_unwritable "Cannot write to $fsa_dir." 'Run fsa as the instance owner.'
 	fsa_tmp=$(mktemp -d "${TMPDIR:-/tmp}/fsa-run.XXXXXX" 2>/dev/null) || fsa_fail 3 tmp_unavailable 'Cannot create a temporary directory.'
-	if [ -n "${FSA_TRUST_KEY:-}" ]; then
-		fsa_add_mount "$(dirname "$FSA_TRUST_KEY")" ro
-		FSA_TRUST_KEY=$fsa_mount_dir/$(basename "$FSA_TRUST_KEY")
-		export FSA_TRUST_KEY
+	if [ -n "${FIELDSET_TRUST_KEY:-}" ]; then
+		fsa_add_mount "$(dirname "$FIELDSET_TRUST_KEY")" ro
+		FIELDSET_TRUST_KEY=$fsa_mount_dir/$(basename "$FIELDSET_TRUST_KEY")
+		export FIELDSET_TRUST_KEY
 	fi
 }
 
@@ -333,11 +333,11 @@ fsa_docker_run() { # <docker run args…>: stdout streams through, stderr goes t
 	{
 		{
 			fsa_rc=0
-			if [ "$FSA_TTY" = 1 ] && [ "$FSA_LAUNCHER" != shim ]; then
+			if [ "$FIELDSET_TTY" = 1 ] && [ "$FIELDSET_LAUNCHER" != shim ]; then
 				docker run -it "$@" <"$fsa_tty_device" 2>&1 1>&3 3>&- || fsa_rc=$?
-			elif [ "$FSA_TTY" = 1 ]; then
+			elif [ "$FIELDSET_TTY" = 1 ]; then
 				docker run -it "$@" 2>&1 1>&3 3>&- || fsa_rc=$?
-			elif [ "$FSA_LAUNCHER" = shim ]; then
+			elif [ "$FIELDSET_LAUNCHER" = shim ]; then
 				docker run -i "$@" 2>&1 1>&3 3>&- || fsa_rc=$?
 			else
 				docker run "$@" </dev/null 2>&1 1>&3 3>&- || fsa_rc=$?
@@ -365,11 +365,11 @@ fsa_run_container() { # <fsa args…>: the ops container (ADR 0070); returns its
 	set +f
 	IFS=$fsa_old_ifs
 	[ -z "$fsa_group" ] || set -- --group-add "$fsa_group" "$@"
-	# FSA_TEST_DNS: fixed DNS answers for the doctor; FSA_TEST_TUNNEL: the fake tunnel image and lifetime. Both are
+	# FIELDSET_TEST_DNS: fixed DNS answers for the doctor; FIELDSET_TEST_TUNNEL: the fake tunnel image and lifetime. Both are
 	# honoured only by release-harness images (ADR 0075, ADR 0082).
-	for fsa_var in FSA_LAUNCHER FSA_TTY FSA_HOST_UID FSA_HOST_GID FSA_HOST_OS FSA_INSTANCE_DIR FSA_LAN_ADDRESSES FSA_DESKTOP \
-		FSA_TZ FSA_DOCKER_RUNTIME FSA_CONTAINER_UID FSA_DOCKER_SOCKET FSA_NONCE FSA_MOUNTS FSA_OPEN_URL_FILE \
-		FSA_TRUST_KEY FSA_REGISTRY FSA_RELEASE_URL FSA_RELEASE_MANIFEST DOCKER_DEFAULT_PLATFORM FSA_TEST_DNS FSA_TEST_TUNNEL; do
+	for fsa_var in FIELDSET_LAUNCHER FIELDSET_TTY FIELDSET_HOST_UID FIELDSET_HOST_GID FIELDSET_HOST_OS FIELDSET_INSTANCE_DIR FIELDSET_LAN_ADDRESSES FIELDSET_DESKTOP \
+		FIELDSET_TZ FIELDSET_DOCKER_RUNTIME FIELDSET_CONTAINER_UID FIELDSET_DOCKER_SOCKET FIELDSET_NONCE FIELDSET_MOUNTS FIELDSET_OPEN_URL_FILE \
+		FIELDSET_TRUST_KEY FIELDSET_REGISTRY FIELDSET_RELEASE_URL FIELDSET_RELEASE_MANIFEST DOCKER_DEFAULT_PLATFORM FIELDSET_TEST_DNS FIELDSET_TEST_TUNNEL; do
 		set -- -e "$fsa_var" "$@"
 	done
 	# HOME and DOCKER_CONFIG on a tmpfs only this container sees: nothing on the host can plant a Docker CLI plugin
@@ -459,8 +459,8 @@ fsa_run() { # <instance dir> <image> <fsa command> [args...]: runs it in an ops 
 		fi
 	done
 	[ "$fsa_found" = 0 ] || set -- "$fsa_command" --dir "$fsa_dir" "$@"
-	FSA_MOUNTS=$fsa_mounts
-	export FSA_LAUNCHER FSA_TTY FSA_INSTANCE_DIR FSA_NONCE FSA_MOUNTS FSA_OPEN_URL_FILE
+	FIELDSET_MOUNTS=$fsa_mounts
+	export FIELDSET_LAUNCHER FIELDSET_TTY FIELDSET_INSTANCE_DIR FIELDSET_NONCE FIELDSET_MOUNTS FIELDSET_OPEN_URL_FILE
 
 	fsa_status=0
 	fsa_run_container "$@" || fsa_status=$?
@@ -484,7 +484,7 @@ fsa_shim_main() {
 	command -v docker >/dev/null 2>&1 || fsa_fail 10 docker_missing 'Docker is not installed.' 'Install Docker, then run the command again.'
 	fsa_image=$(fsa_state_image "$fsa_home/state.json") ||
 		fsa_fail 3 no_state "$fsa_home has no usable state.json; the installation did not finish." 'Run install.sh again with the same flags to finish it.'
-	FSA_LAUNCHER=shim
+	FIELDSET_LAUNCHER=shim
 	trap fsa_run_cleanup EXIT
 	trap 'exit 130' INT
 	trap 'exit 143' TERM
@@ -493,4 +493,4 @@ fsa_shim_main() {
 	exit "$fsa_exit"
 }
 
-[ "${FSA_SHIM_LIBRARY:-}" = 1 ] || { fsa_shim_main "$@"; }
+[ "${FIELDSET_SHIM_LIBRARY:-}" = 1 ] || { fsa_shim_main "$@"; }

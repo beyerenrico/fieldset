@@ -15,7 +15,7 @@ use App\Domain\Instance\Output\InvalidInput;
  * - The launcher wrote a nonce file into the instance directory and every writable mount. If the container
  *   cannot see it, the daemon mounted something else (Docker Desktop or Colima without file sharing for that
  *   path): exit 3 with a file-sharing hint, before a write could land inside the VM instead of on the host.
- * - No directory the launcher mounted for a file-path flag (FSA_MOUNTS) may be reserved: one that equals,
+ * - No directory the launcher mounted for a file-path flag (FIELDSET_MOUNTS) may be reserved: one that equals,
  *   contains or lies inside a system path of the image or a directory other users can write to (RESERVED), or
  *   is / or /home. The launchers refuse these first (fsa_reserved_path in the shim, install.sh); this repeats it
  *   in the container, before any Docker call, for an older launcher. The instance directory is mounted at its own
@@ -23,7 +23,7 @@ use App\Domain\Instance\Output\InvalidInput;
  * - A file-path flag (FilePathFlags) must point into the instance directory or a directory the launcher
  *   mounted (writable for outputs), else exit 2.
  *
- * A command not started by a launcher (no FSA_NONCE, e.g. the detached supervisor) skips all checks.
+ * A command not started by a launcher (no FIELDSET_NONCE, e.g. the detached supervisor) skips all checks.
  */
 final class LaunchGuard
 {

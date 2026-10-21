@@ -1,6 +1,6 @@
 #!/bin/sh
 # The fake quick tunnel of the release harness (J6, BUILD_PROMPT_V2 §11; ADR 0082). It stands in for cloudflared in
-# the instance's `tunnel` service (FSA_TEST_TUNNEL, honoured only by harness images) and takes the same arguments
+# the instance's `tunnel` service (FIELDSET_TEST_TUNNEL, honoured only by harness images) and takes the same arguments
 # (`tunnel --metrics <addr:port> --url http://app:8080`):
 # - its metrics server answers /quicktunnel like cloudflared's ({"hostname":"<name>.trycloudflare.com"}), with a new
 #   random name on every start, as a real quick tunnel gets;

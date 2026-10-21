@@ -42,7 +42,7 @@ use Tests\Support\Instance\RecordingDockerGateway;
  * that a real `fsa install --from-backup` takes into a fourth directory (M12 gate), and a 1.0 `scripts/backup.sh` archive
  * with `--accept-unauthenticated` into a third (the unsafe 1.0 values never applied).
  *
- * Everything is named `fsa-test-j08…` and removed afterwards. Evidence goes to the milestone of FSA_EVIDENCE_MILESTONE.
+ * Everything is named `fsa-test-j08…` and removed afterwards. Evidence goes to the milestone of FIELDSET_EVIDENCE_MILESTONE.
  */
 
 const J08_PASSPHRASE = 'j08 backup identity passphrase';
@@ -74,7 +74,7 @@ afterAll(function (): void {
 beforeEach(function (): void {
     $reason = TestImage::dockerUnavailableReason();
     if ($reason !== null) {
-        expect(getenv('FSA_REQUIRE_DOCKER'))->not->toBe('1', $reason);
+        expect(getenv('FIELDSET_REQUIRE_DOCKER'))->not->toBe('1', $reason);
         $this->markTestSkipped($reason.' (install journeys need a Docker engine)');
     }
     if (isset($GLOBALS['fsaJ08Error'])) {
@@ -384,7 +384,7 @@ it('moves the instance with --from-backup into a second directory with a new --d
     $process = $this->journey->install($target, [
         '--from-backup', ($backup['data']['path'] ?? '').'/backup.tar.age', '--identity-file', $this->journey->work.'/j08-identity.age',
         '--passphrase-file', $this->journey->work.'/j08-passphrase.txt', '--app-key-file', $this->dir.'/env/app.env', '--domain', 'fsa-test-j08b.test', '--keep-recipients', '--json',
-    ], ['FSA_TEST_DNS' => 'fsa-test-j08b.test=203.0.113.7']);
+    ], ['FIELDSET_TEST_DNS' => 'fsa-test-j08b.test=203.0.113.7']);
     $json = InstanceJourney::json($process);
     $uuid = (string) InstanceJourney::uuid($target);
     $state = json_decode((string) @file_get_contents($target.'/state.json'), true) ?: [];
@@ -403,7 +403,7 @@ it('moves the instance with --from-backup into a second directory with a new --d
         ->and((string) ($json['data']['dir'] ?? ''))->toEndWith('/fsa-test-j08b')
         ->and($json['data']['next_commands'] ?? null)->toBe(array_map(static fn (string $command): string => ($json['data']['dir'] ?? '').'/fsa '.$command, ['status', 'login-link <admin-email>', 'config set webhooks on'])) // gate review DOC13
         ->and($state['url'] ?? null)->toBe('https://fsa-test-j08b.test')
-        ->and($env)->toContain("FSA_MAIL_CAPTURE='true'")
+        ->and($env)->toContain("FIELDSET_MAIL_CAPTURE='true'")
         ->and($runtime['webhooks'] ?? null)->toBe(['paused' => true])
         ->and($orgs)->toBe('1')->and($sameKey)->toBeTrue()
         ->and($json['data']['from_backup']['recipients']['kept'] ?? [])->not->toBeEmpty() // --keep-recipients (M12 gate S2)
@@ -420,7 +420,7 @@ it('installs a fourth instance from uninstall\'s encrypted final backup with a r
     $process = $this->journey->install($target, [
         '--from-backup', $final.'/backup.tar.age', '--identity-file', $this->journey->work.'/j08-identity.age', '--passphrase-file', $this->journey->work.'/j08-passphrase.txt',
         '--accept-unauthenticated', '--domain', 'fsa-test-j08d.test', '--json',
-    ], ['FSA_TEST_DNS' => 'fsa-test-j08d.test=203.0.113.7']);
+    ], ['FIELDSET_TEST_DNS' => 'fsa-test-j08d.test=203.0.113.7']);
     $json = InstanceJourney::json($process);
     $uuid = (string) InstanceJourney::uuid($target);
     $orgs = RestoreJourney::sql($uuid, "SELECT count(*) FROM organizations WHERE name = 'Backup Org'");

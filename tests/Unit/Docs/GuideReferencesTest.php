@@ -141,7 +141,7 @@ it('finds fsa calls, install.sh flags and environment variables in code', functi
 
     expect(GuideReferences::fsaCalls($code))->toBe([['command' => 'config', 'flags' => ['smtp-host', 'password-file', 'json'], 'text' => 'fsa config set mail smtp --smtp-host x --password-file f --json']])
         ->and(GuideReferences::installCalls($code)[0]['flags'])->toBe(['dir', 'demo'])
-        ->and(GuideReferences::environmentVariables('FSA_RELEASE_URL=x APP_KEY a_b path/X_Y'))->toBe(['FSA_RELEASE_URL', 'APP_KEY'])
+        ->and(GuideReferences::environmentVariables('FIELDSET_RELEASE_URL=x APP_KEY a_b path/X_Y'))->toBe(['FIELDSET_RELEASE_URL', 'APP_KEY'])
         ->and(GuideReferences::code("a `fsa status` b\n```sh\nfsa logs\n```\n"))->toBe(['fsa logs', 'fsa status'])
         ->and(GuideReferences::relativeLinks('[a](install.md#x) [b](https://x.test) [c](../adr/)'))->toBe(['install.md', '../adr/']);
 });

@@ -16,8 +16,8 @@ use Throwable;
  * generated per run. `publish()` mirrors the release workflow without accounts: build and push the app image
  * with SBOM and provenance, sign it, mirror every third-party pin by digest, generate the manifest with
  * `release:manifest`, sign it with `sign-blob --bundle`, and lay it out under dist/ like GitHub Releases.
- * Image and install.sh are harness builds (`FSA_BUILD=harness`, InstallScriptBuild; ADR 0070): they accept the
- * run's local key as FSA_TRUST_KEY and the plain-http release server.
+ * Image and install.sh are harness builds (`FIELDSET_BUILD=harness`, InstallScriptBuild; ADR 0070): they accept the
+ * run's local key as FIELDSET_TRUST_KEY and the plain-http release server.
  *
  * Everything Docker-side is named `fsa-test-harness-<id>` and removed by stop(). Per-run files live in
  * storage/fsa-test-harness/<id>/ (deleted by stop()); downloaded blobs and the build cache are kept in
@@ -82,7 +82,7 @@ final class ReleaseHarness
         return "127.0.0.1:{$this->registryPort}";
     }
 
-    /** Stands in for https://github.com/beyerenrico/form-schema-app/releases (FSA_RELEASE_URL). */
+    /** Stands in for https://github.com/beyerenrico/form-schema-app/releases (FIELDSET_RELEASE_URL). */
     public function releaseUrl(): string
     {
         return "http://127.0.0.1:{$this->releasePort}";
@@ -94,20 +94,20 @@ final class ReleaseHarness
     }
 
     /**
-     * The version the shared harness publishes and the journeys install: FSA_RELEASE_VERSION when set (validated),
-     * else TEST_VERSION. LocalPreReleaseTest publishes its own version (FSA_PRERELEASE_VERSION).
+     * The version the shared harness publishes and the journeys install: FIELDSET_RELEASE_VERSION when set (validated),
+     * else TEST_VERSION. LocalPreReleaseTest publishes its own version (FIELDSET_PRERELEASE_VERSION).
      */
     public static function version(): string
     {
-        $version = getenv('FSA_RELEASE_VERSION');
+        $version = getenv('FIELDSET_RELEASE_VERSION');
 
         return is_string($version) && $version !== '' ? (string) ReleaseVersion::parse($version) : self::TEST_VERSION;
     }
 
-    /** Native platform, or FSA_TEST_PLATFORM (emulation), or the comma list FSA_HARNESS_PLATFORMS. @return list<string> */
+    /** Native platform, or FIELDSET_TEST_PLATFORM (emulation), or the comma list FIELDSET_HARNESS_PLATFORMS. @return list<string> */
     public static function platforms(): array
     {
-        $list = getenv('FSA_HARNESS_PLATFORMS');
+        $list = getenv('FIELDSET_HARNESS_PLATFORMS');
         if (is_string($list) && $list !== '') {
             return array_values(array_filter(array_map(trim(...), explode(',', $list))));
         }
@@ -127,8 +127,8 @@ final class ReleaseHarness
     }
 
     /**
-     * DOCKER_DEFAULT_PLATFORM for a release of one platform that is not the engine's (FSA_TEST_PLATFORM or a single
-     * FSA_HARNESS_PLATFORMS entry): install.sh, the shim and fsa then pull and run it under emulation (§15.6).
+     * DOCKER_DEFAULT_PLATFORM for a release of one platform that is not the engine's (FIELDSET_TEST_PLATFORM or a single
+     * FIELDSET_HARNESS_PLATFORMS entry): install.sh, the shim and fsa then pull and run it under emulation (§15.6).
      *
      * @param  list<string>  $platforms
      * @return array<string, string>
@@ -256,7 +256,7 @@ final class ReleaseHarness
             self::mustRun(['docker', 'network', 'create', '--label', 'app.form-schema.test=harness', $network]);
             $this->proxyNetwork = $network;
         }
-        $compose = self::compose($this->project, $this->directory, ['FSA_HARNESS_PROXY_NETWORK' => $network]);
+        $compose = self::compose($this->project, $this->directory, ['FIELDSET_HARNESS_PROXY_NETWORK' => $network]);
         self::mustRun([...$compose, '--profile', 'proxy', 'up', '-d', '--wait', 'traefik'], 600);
         $container = trim(self::mustRun([...$compose, '--profile', 'proxy', 'ps', '--format', '{{.Name}}', 'traefik'])->getOutput());
 
@@ -269,7 +269,7 @@ final class ReleaseHarness
         if ($this->proxyNetwork === null) {
             return;
         }
-        $compose = self::compose($this->project, $this->directory, ['FSA_HARNESS_PROXY_NETWORK' => $this->proxyNetwork]);
+        $compose = self::compose($this->project, $this->directory, ['FIELDSET_HARNESS_PROXY_NETWORK' => $this->proxyNetwork]);
         new Process([...$compose, '--profile', 'proxy', 'rm', '--force', '--stop', 'traefik'])->setTimeout(300)->run();
         new Process(['docker', 'network', 'rm', $this->proxyNetwork])->setTimeout(120)->run();
         $this->proxyNetwork = null;
@@ -320,7 +320,7 @@ final class ReleaseHarness
         $process = new Process([
             'docker', 'buildx', 'build', '--builder', $this->project, '--progress=plain', '--platform', implode(',', $platforms),
             '--sbom=true', '--provenance=mode=max', '-f', 'docker/app/Dockerfile',
-            '--build-arg', "APP_VERSION={$release}", '--build-arg', 'APP_REVISION='.TestImage::revision(), '--build-arg', 'FSA_BUILD=harness', ...$tags,
+            '--build-arg', "APP_VERSION={$release}", '--build-arg', 'APP_REVISION='.TestImage::revision(), '--build-arg', 'FIELDSET_BUILD=harness', ...$tags,
             ...(is_file("{$cache}/index.json") ? ['--cache-from', "type=local,src={$cache}"] : []),
             '--cache-to', "type=local,dest={$cache},mode=max", '--push', '--metadata-file', $metadata, '.',
         ], TestImage::repository());
@@ -399,7 +399,7 @@ final class ReleaseHarness
         $container = trim(self::mustRun([...$compose, 'ps', '-q', 'registry'])->getOutput());
         $address = trim(self::mustRun(['docker', 'inspect', '-f', '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}', $container])->getOutput());
         self::mustRun([...self::compose($this->project, $this->directory, [
-            'FSA_HARNESS_REGISTRY_PORT' => (string) $this->registryPort, 'FSA_HARNESS_REGISTRY_TARGET' => "{$address}:5000",
+            'FIELDSET_HARNESS_REGISTRY_PORT' => (string) $this->registryPort, 'FIELDSET_HARNESS_REGISTRY_TARGET' => "{$address}:5000",
         ]), '--profile', 'forwarder', 'up', '-d', 'registry-forwarder'], 300);
 
         for ($attempt = 0; $attempt < 20 && ! $this->hostNetworkReaches(); $attempt++) {
@@ -452,7 +452,7 @@ final class ReleaseHarness
      */
     private static function compose(string $project, string $directory, array $environment): array
     {
-        $variables = ['FSA_HARNESS_DIST' => "{$directory}/dist", ...$environment];
+        $variables = ['FIELDSET_HARNESS_DIST' => "{$directory}/dist", ...$environment];
 
         return ['env', ...array_map(static fn (string $key, string $value): string => "{$key}={$value}", array_keys($variables), $variables),
             'docker', 'compose', '-p', $project, '-f', TestImage::repository().'/tests/Install/Harness/compose.harness.yaml'];

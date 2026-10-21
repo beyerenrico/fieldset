@@ -207,8 +207,8 @@ jobs:
   # Real Docker against the local harness (KTD23): minutes per journey, so only on main and milestone branches.
   # Every journey on amd64 (§11; arm64 runs locally), the dogfooding E2E run included (plan U22, ADR 0091): Playwright,
   # its Chromium and poppler for J4, J6, J10 and the E2E suite, the v1.0.0 tag for J9's 1.0 install, a 2-CPU-pinnable
-  # runner for J10. FSA_REQUIRE_DOCKER and FSA_REQUIRE_PLAYWRIGHT turn a missing tool into a failure instead of a skip;
-  # only LocalPreReleaseTest skips (it builds a named pre-release, FSA_PRERELEASE_VERSION, at a milestone gate).
+  # runner for J10. FIELDSET_REQUIRE_DOCKER and FIELDSET_REQUIRE_PLAYWRIGHT turn a missing tool into a failure instead of a skip;
+  # only LocalPreReleaseTest skips (it builds a named pre-release, FIELDSET_PRERELEASE_VERSION, at a milestone gate).
   install-journeys:
     if: >-
       github.event_name == 'push' && (github.ref == 'refs/heads/main'
@@ -220,10 +220,10 @@ jobs:
     permissions:
       contents: read
     env:
-      FSA_REQUIRE_DOCKER: '1'
-      FSA_REQUIRE_PLAYWRIGHT: '1'
-      FSA_HARNESS_PLATFORMS: linux/amd64
-      FSA_EVIDENCE_MILESTONE: M13
+      FIELDSET_REQUIRE_DOCKER: '1'
+      FIELDSET_REQUIRE_PLAYWRIGHT: '1'
+      FIELDSET_HARNESS_PLATFORMS: linux/amd64
+      FIELDSET_EVIDENCE_MILESTONE: M13
       PLAYWRIGHT_BROWSERS_PATH: storage/playwright
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

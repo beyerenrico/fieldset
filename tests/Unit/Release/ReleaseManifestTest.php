@@ -76,7 +76,7 @@ it('renders the stack file from the same pins and lists it as an asset (R18, ADR
     try {
         $manifest = manifestBuilder()->build(new ReleaseRequest(ReleaseVersion::parse('2.0.0-alpha.2'), $appDigest, $inputs, assets: requiredAssets(), stackFile: $stack));
         $yaml = (string) file_get_contents($stack);
-        preg_match_all('/^\s+image: "\$\{FSA_REGISTRY:-([^}]+)\}\/(.+)"$/m', $yaml, $images, PREG_SET_ORDER);
+        preg_match_all('/^\s+image: "\$\{FIELDSET_REGISTRY:-([^}]+)\}\/(.+)"$/m', $yaml, $images, PREG_SET_ORDER);
         $pinned = array_map(fn (ManifestImage $image): string => $image->pin->pullReference(), $manifest->images);
 
         expect(array_keys($manifest->assets))->toBe(['compose.stack.yaml', 'install.sh', 'shim.sh'])

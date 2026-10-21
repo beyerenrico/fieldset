@@ -58,7 +58,7 @@ afterAll(function (): void {
 beforeEach(function (): void {
     $reason = TestImage::dockerUnavailableReason();
     if ($reason !== null) {
-        expect(getenv('FSA_REQUIRE_DOCKER'))->not->toBe('1', $reason);
+        expect(getenv('FIELDSET_REQUIRE_DOCKER'))->not->toBe('1', $reason);
         $this->markTestSkipped($reason.' (install journeys need a Docker engine)');
     }
     if (isset($GLOBALS['fsaJ04Error'])) {
@@ -209,7 +209,7 @@ it('shows each organization its banner variant and only the operator the command
 it('passes the axe checks in a browser for both variants', function (): void {
     $playwright = TestImage::repository().'/node_modules/.bin/playwright';
     if (! is_file($playwright)) {
-        expect(getenv('FSA_REQUIRE_PLAYWRIGHT'))->not->toBe('1', 'Playwright is not installed (npm ci)');
+        expect(getenv('FIELDSET_REQUIRE_PLAYWRIGHT'))->not->toBe('1', 'Playwright is not installed (npm ci)');
         $this->markTestSkipped('Playwright is not installed (npm ci).');
     }
     $setup = $GLOBALS['fsaJ04Setup'];
@@ -219,7 +219,7 @@ it('passes the axe checks in a browser for both variants', function (): void {
         ['name' => 'org admin (own SMTP)', 'path' => '/admin/'.$setup['org_b'], 'variant' => 'narrow', 'label' => 'Mail capture', 'cookie' => $setup['cookies']['admin_b']],
     ];
     $process = new Process([$playwright, 'test', 'tests/e2e/fsa-capture-banner.spec.ts', '--project=desktop', '--no-deps', '--reporter=line'], TestImage::repository(), [
-        'E2E_BASE_URL' => 'http://localhost:'.$GLOBALS['fsaJ04Port'], 'FSA_CAPTURE_SESSIONS' => json_encode($sessions, JSON_THROW_ON_ERROR),
+        'E2E_BASE_URL' => 'http://localhost:'.$GLOBALS['fsaJ04Port'], 'FIELDSET_CAPTURE_SESSIONS' => json_encode($sessions, JSON_THROW_ON_ERROR),
         'PLAYWRIGHT_BROWSERS_PATH' => TestImage::repository().'/storage/playwright',
     ]);
     $process->setTimeout(300);

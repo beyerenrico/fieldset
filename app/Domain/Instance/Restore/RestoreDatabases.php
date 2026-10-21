@@ -33,7 +33,7 @@ final readonly class RestoreDatabases
     public const string ROLE = 'restore';
 
     /** The one-off env variable with the restricted role's password (instance:restore-db). */
-    public const string ROLE_PASSWORD_ENV = 'FSA_RESTORE_DB_PASSWORD';
+    public const string ROLE_PASSWORD_ENV = 'FIELDSET_RESTORE_DB_PASSWORD';
 
     /** A dump of a large instance: pg_restore rebuilds every index. */
     public const float RESTORE_TIMEOUT = 21600.0;

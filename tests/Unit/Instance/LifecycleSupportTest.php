@@ -42,8 +42,8 @@ it('reads the engine info: architecture, memory, rootless and clock', function (
 });
 
 it('takes the verified release manifest and the registry mirror from install.sh', function (): void {
-    $facts = HostFacts::fromEnvironment(['FSA_RELEASE_MANIFEST' => '/srv/fsa/releases/2.0.0/release-manifest.json', 'FSA_REGISTRY' => '127.0.0.1:5000', 'FSA_HOST_GID' => '20']);
-    $bad = HostFacts::fromEnvironment(['FSA_RELEASE_MANIFEST' => 'relative.json', 'FSA_REGISTRY' => 'evil.example/path']);
+    $facts = HostFacts::fromEnvironment(['FIELDSET_RELEASE_MANIFEST' => '/srv/fsa/releases/2.0.0/release-manifest.json', 'FIELDSET_REGISTRY' => '127.0.0.1:5000', 'FIELDSET_HOST_GID' => '20']);
+    $bad = HostFacts::fromEnvironment(['FIELDSET_RELEASE_MANIFEST' => 'relative.json', 'FIELDSET_REGISTRY' => 'evil.example/path']);
 
     expect($facts->releaseManifest)->toBe('/srv/fsa/releases/2.0.0/release-manifest.json')
         ->and($facts->registry)->toBe('127.0.0.1:5000')

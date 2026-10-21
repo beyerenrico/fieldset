@@ -21,13 +21,13 @@ use Tests\Support\Docker\TestImage;
  *   trusts the CA (SPKI list, standing in for a phone) loads the Field App on https://<IP> and its service worker
  *   registers, the trust page is axe-clean at phone width → mutual exclusion with the tunnel (exit 2) → turning the
  *   local CA off deletes the CA key from the certificate volume.
- * - Quick tunnel with the fake tunnel (FSA_TEST_TUNNEL, harness images only): organizations besides the demo need --yes
+ * - Quick tunnel with the fake tunnel (FIELDSET_TEST_TUNNEL, harness images only): organizations besides the demo need --yes
  *   (exit 6); another account on `password` refuses (exit 3); start rotates the demo passwords and reaches /app and
  *   /api while /platform, /admin and the trust page are 404; after its (shortened) lifetime the tunnel host answers 503,
  *   `fsa status` reports it expired without changing anything, and the next mutating command removes it (AE6); renew
  *   and stop; local CA and domain next to a tunnel exit 2.
  *
- * Everything is named `fsa-test-j06-…` and removed afterwards. Evidence goes to the milestone of FSA_EVIDENCE_MILESTONE.
+ * Everything is named `fsa-test-j06-…` and removed afterwards. Evidence goes to the milestone of FIELDSET_EVIDENCE_MILESTONE.
  */
 
 const J06_TTL = 180;
@@ -41,7 +41,7 @@ beforeAll(function (): void {
         [$harness, $release] = SharedHarness::get();
         $GLOBALS['fsaJ06'] = new InstanceJourney($harness, $release, $harness->directory.'/j06');
         $GLOBALS['fsaJ06Tunnel'] = FakeTunnel::build($release->platformEnvironment());
-        $GLOBALS['fsaJ06Lan'] = LocalCaClient::lanAddress() ?? throw new RuntimeException('J6 needs a private IPv4 LAN address on this host (FSA_LAN_ADDRESSES is empty).');
+        $GLOBALS['fsaJ06Lan'] = LocalCaClient::lanAddress() ?? throw new RuntimeException('J6 needs a private IPv4 LAN address on this host (FIELDSET_LAN_ADDRESSES is empty).');
     } catch (Throwable $exception) {
         $GLOBALS['fsaJ06Error'] = $exception;
     }
@@ -62,7 +62,7 @@ afterAll(function (): void {
 beforeEach(function (): void {
     $reason = TestImage::dockerUnavailableReason();
     if ($reason !== null) {
-        expect(getenv('FSA_REQUIRE_DOCKER'))->not->toBe('1', $reason);
+        expect(getenv('FIELDSET_REQUIRE_DOCKER'))->not->toBe('1', $reason);
         $this->markTestSkipped($reason.' (install journeys need a Docker engine)');
     }
     if (isset($GLOBALS['fsaJ06Error'])) {
@@ -190,8 +190,8 @@ it('loads the Field App over HTTPS in a browser that trusts the CA, its service 
     $handshake = LocalCaClient::handshake($this->lan, $this->dir.'/runtime/local-ca-root.crt');
     $spki = LocalCaClient::spki([(string) file_get_contents($this->dir.'/runtime/local-ca-root.crt'), ...$handshake['chain']]);
     $process = LocalCaClient::playwright([
-        'FSA_PHONE_TRUST_URL' => "http://{$this->lan}/phone-trust", 'FSA_FIELD_APP_URL' => "https://{$this->lan}/app/",
-        'FSA_LOCAL_CA_FINGERPRINT' => (string) $GLOBALS['fsaJ06Fingerprint'], 'FSA_LOCAL_CA_SPKI' => $spki,
+        'FIELDSET_PHONE_TRUST_URL' => "http://{$this->lan}/phone-trust", 'FIELDSET_FIELD_APP_URL' => "https://{$this->lan}/app/",
+        'FIELDSET_LOCAL_CA_FINGERPRINT' => (string) $GLOBALS['fsaJ06Fingerprint'], 'FIELDSET_LOCAL_CA_SPKI' => $spki,
     ]);
     $output = trim($process->getOutput()."\n".$process->getErrorOutput());
     $this->journey->evidence('J06-playwright.json', ['command' => 'playwright test --project=fsa-instance (tests/e2e/fsa-phone-trust.spec.ts)', 'exit_code' => $process->getExitCode(), 'output' => array_slice(explode("\n", $output), -25)]);

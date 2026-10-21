@@ -50,7 +50,7 @@ afterAll(function (): void {
 beforeEach(function (): void {
     $reason = TestImage::dockerUnavailableReason();
     if ($reason !== null) {
-        expect(getenv('FSA_REQUIRE_DOCKER'))->not->toBe('1', $reason);
+        expect(getenv('FIELDSET_REQUIRE_DOCKER'))->not->toBe('1', $reason);
         $this->markTestSkipped($reason.' (install journeys need a Docker engine)');
     }
     if (isset($GLOBALS['fsaJ03Error'])) {
@@ -224,7 +224,7 @@ it('runs the release stack file with plain docker compose and only environment v
         ...array_fill_keys(['COMPOSE_FILE', 'COMPOSE_PROJECT_NAME', 'COMPOSE_PROFILES', 'COMPOSE_ENV_FILES', 'DOCKER_DEFAULT_PLATFORM', 'TRUSTED_PROXIES', 'TRUSTED_HOSTS',
             'MAIL_HOST', 'MAIL_PORT', 'MAIL_SCHEME', 'MAIL_REQUIRE_TLS', 'MAIL_USERNAME', 'MAIL_PASSWORD', 'MAIL_FROM_ADDRESS', 'MAIL_FROM_NAME'], false),
         ...$this->journey->release->platformEnvironment(),
-        'FSA_REGISTRY' => $this->journey->harness->registry(), 'APP_URL' => 'https://stack.fsa-test.example',
+        'FIELDSET_REGISTRY' => $this->journey->harness->registry(), 'APP_URL' => 'https://stack.fsa-test.example',
         'APP_KEY' => 'base64:'.base64_encode(random_bytes(32)), 'DB_PASSWORD' => bin2hex(random_bytes(16)),
         'REDIS_PASSWORD' => bin2hex(random_bytes(16)), 'MAILPIT_UI_PASSWORD' => bin2hex(random_bytes(8)),
         'APP_PORT' => (string) j03FreePort(), 'MAILPIT_UI_PORT' => (string) j03FreePort(),
@@ -243,7 +243,7 @@ it('runs the release stack file with plain docker compose and only environment v
         $install->setTimeout(300)->run();
         $lines = explode("\n", trim($install->getOutput()));
         $installed = json_decode(end($lines), true);
-        $this->journey->evidence('J03-stack-file.json', ['command' => 'docker compose --project-name fsa-test-stack-<id> --file compose.stack.yaml up --detach --wait (environment variables only: FSA_REGISTRY, APP_URL, APP_KEY, DB_PASSWORD, REDIS_PASSWORD, MAILPIT_UI_PASSWORD, APP_PORT, MAILPIT_UI_PORT)',
+        $this->journey->evidence('J03-stack-file.json', ['command' => 'docker compose --project-name fsa-test-stack-<id> --file compose.stack.yaml up --detach --wait (environment variables only: FIELDSET_REGISTRY, APP_URL, APP_KEY, DB_PASSWORD, REDIS_PASSWORD, MAILPIT_UI_PASSWORD, APP_PORT, MAILPIT_UI_PORT)',
             'exit_code' => $up->getExitCode(), 'seconds' => $seconds, 'smoke' => trim($smoke->getOutput()), 'published_up' => $published, 'app_install' => ['exit_code' => $install->getExitCode(), 'status' => $installed['status'] ?? null]], 'M10');
 
         expect($up->getExitCode())->toBe(0, $up->getErrorOutput())

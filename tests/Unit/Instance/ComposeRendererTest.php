@@ -181,7 +181,7 @@ it('gives the backup service the read-only dump role, a key derived from APP_KEY
         ->and($env['BACKUP_HMAC_KEY'])->not->toBe($other['BACKUP_HMAC_KEY'])
         ->and($env['BACKUP_APP_FINGERPRINTS'])->toMatch('/^[0-9a-f]{4}(-[0-9a-f]{4}){3}$/')
         ->and($env['BACKUP_APP_FINGERPRINTS'])->not->toBe($other['BACKUP_APP_FINGERPRINTS'])
-        ->and($env)->toMatchArray(['BACKUP_SCHEDULE' => '03:30', 'BACKUP_TIME_ZONE' => 'UTC', 'BACKUP_RETENTION' => '7', 'FSA_INSTANCE_ROOT' => '/fsa/instance'])
+        ->and($env)->toMatchArray(['BACKUP_SCHEDULE' => '03:30', 'BACKUP_TIME_ZONE' => 'UTC', 'BACKUP_RETENTION' => '7', 'FIELDSET_INSTANCE_ROOT' => '/fsa/instance'])
         ->and(ComposeFixtures::render()->services())->toContain('backup'); // rendered since U16 (ADR 0084)
 });
 
@@ -275,7 +275,7 @@ it('mounts the runtime directory read-only into app, queue and scheduler only', 
 
     foreach (['app', 'queue', 'scheduler'] as $role) {
         expect($rendered->service($role)['volumes'])->toContain($mount)
-            ->and($rendered->environments[$role]['FSA_RUNTIME_PATH'])->toBe('/run/fsa-runtime');
+            ->and($rendered->environments[$role]['FIELDSET_RUNTIME_PATH'])->toBe('/run/fsa-runtime');
     }
     foreach (['postgres', 'redis', 'gotenberg', 'mailpit'] as $service) {
         expect(json_encode($rendered->service($service)))->not->toContain('runtime');

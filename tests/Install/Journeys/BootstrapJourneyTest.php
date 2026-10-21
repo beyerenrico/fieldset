@@ -21,7 +21,7 @@ use Tests\Support\Docker\TestImage;
  * ADR 0070). The shared harness release (harness builds of the image and install.sh, SharedHarness) serves the
  * whole file. To observe the hand-over contract (argv, user, environment, mounts) a `docker` wrapper on PATH can
  * swap the ops container's `fsa` entrypoint for tests/Install/Harness/ops-probe.php, which reports it from inside
- * the real container; FSA_PROBE_OFF=1 lets the real fsa commands run (U5: `fsa install` exits 2 for a missing
+ * the real container; FIELDSET_PROBE_OFF=1 lets the real fsa commands run (U5: `fsa install` exits 2 for a missing
  * flag without a TTY, `fsa doctor` fails the nonce check). Full installs are J1 and J12.
  */
 
@@ -46,7 +46,7 @@ afterAll(function (): void {
 beforeEach(function (): void {
     $reason = TestImage::dockerUnavailableReason();
     if ($reason !== null) {
-        expect(getenv('FSA_REQUIRE_DOCKER'))->not->toBe('1', $reason);
+        expect(getenv('FIELDSET_REQUIRE_DOCKER'))->not->toBe('1', $reason);
         $this->markTestSkipped($reason.' (install journeys need a Docker engine)');
     }
 
@@ -68,7 +68,7 @@ function bootstrapWorkspace(string $work): string
     file_put_contents($work.'/probe/probe.sh', "#!/bin/sh\nexec php /fsa-probe/ops-probe.php \"\$@\"\n");
     file_put_contents($work.'/bin/docker', <<<'SH'
         #!/bin/sh
-        { for a in "$@"; do printf '%s\037' "$a"; done; printf '\036\n'; } >> "$FSA_DOCKER_LOG"
+        { for a in "$@"; do printf '%s\037' "$a"; done; printf '\036\n'; } >> "$FIELDSET_DOCKER_LOG"
         if [ "${1:-}" = run ]; then
             n=$# prev=''
             while [ "$n" -gt 0 ]; do
@@ -76,17 +76,17 @@ function bootstrapWorkspace(string $work): string
                 shift
                 n=$((n - 1))
                 if [ "$prev" = --entrypoint ] && [ "$a" = fsa ]; then
-                    if [ -n "${FSA_PROBE_OFF:-}" ]; then set -- "$@" fsa; else set -- "$@" /fsa-probe/probe.sh -v "$FSA_PROBE_DIR:/fsa-probe:ro"; fi
-                    [ -z "${FSA_PROBE_HIDE_NONCE:-}" ] || rm -f "$FSA_PROBE_HIDE_NONCE"/.fsa-nonce-*
-                elif [ -n "${FSA_PROBE_DROP_MOUNT:-}" ] && [ "$a" = "$FSA_PROBE_DROP_MOUNT:$FSA_PROBE_DROP_MOUNT" ]; then
-                    set -- "$@" "$FSA_PROBE_DIR:/fsa-probe-dropped:ro"
+                    if [ -n "${FIELDSET_PROBE_OFF:-}" ]; then set -- "$@" fsa; else set -- "$@" /fsa-probe/probe.sh -v "$FIELDSET_PROBE_DIR:/fsa-probe:ro"; fi
+                    [ -z "${FIELDSET_PROBE_HIDE_NONCE:-}" ] || rm -f "$FIELDSET_PROBE_HIDE_NONCE"/.fsa-nonce-*
+                elif [ -n "${FIELDSET_PROBE_DROP_MOUNT:-}" ] && [ "$a" = "$FIELDSET_PROBE_DROP_MOUNT:$FIELDSET_PROBE_DROP_MOUNT" ]; then
+                    set -- "$@" "$FIELDSET_PROBE_DIR:/fsa-probe-dropped:ro"
                 else
                     set -- "$@" "$a"
                 fi
                 prev=$a
             done
         fi
-        exec "$FSA_REAL_DOCKER" "$@"
+        exec "$FIELDSET_REAL_DOCKER" "$@"
         SH);
     chmod($work.'/bin/docker', 0755);
     chmod($work.'/probe/probe.sh', 0755);
@@ -103,12 +103,12 @@ function bootstrapRun(object $test, array $command, array $env = [], ?string $cw
 {
     $process = new Process($command, $cwd ?? $test->work, [
         'PATH' => $test->work.'/bin:'.getenv('PATH'),
-        'FSA_DOCKER_LOG' => $test->work.'/docker.log',
-        'FSA_REAL_DOCKER' => trim((string) shell_exec('command -v docker')),
-        'FSA_PROBE_DIR' => $test->work.'/probe',
-        'FSA_RELEASE_URL' => $test->harness->releaseUrl(),
-        'FSA_REGISTRY' => $test->harness->registry(),
-        'FSA_TRUST_KEY' => $test->harness->cosign->publicKey(),
+        'FIELDSET_DOCKER_LOG' => $test->work.'/docker.log',
+        'FIELDSET_REAL_DOCKER' => trim((string) shell_exec('command -v docker')),
+        'FIELDSET_PROBE_DIR' => $test->work.'/probe',
+        'FIELDSET_RELEASE_URL' => $test->harness->releaseUrl(),
+        'FIELDSET_REGISTRY' => $test->harness->registry(),
+        'FIELDSET_TRUST_KEY' => $test->harness->cosign->publicKey(),
         ...$env,
     ]);
     $process->setTimeout(900);
@@ -200,7 +200,7 @@ it('(b) fails with exit 3 for a tampered manifest even when SHA256SUMS matches i
         ->and(file_exists($this->work.'/tampered-instance'))->toBeFalse();
 });
 
-it('(c) exits 2 for FSA_TRUST_KEY with the production install.sh, before any Docker call', function (): void {
+it('(c) exits 2 for FIELDSET_TRUST_KEY with the production install.sh, before any Docker call', function (): void {
     $process = bootstrapRun($this, ['/bin/sh', TestImage::repository().'/distribution/install.sh', '--dir', $this->work.'/production', '--json']);
 
     expect($process->getExitCode())->toBe(2)
@@ -228,11 +228,11 @@ it('(d) verifies, pulls by digest and hands over to the ops container with mount
         ->and($probe['instance'])->toBe(['visible' => true, 'marker' => true, 'shim' => true, 'manifest' => true, 'writable' => true])
         ->and($probe['env'])->toMatchArray([
             'HOME' => '/run/fsa-home', 'DOCKER_CONFIG' => '/run/fsa-home/.docker', 'DOCKER_HOST' => 'unix:///var/run/docker.sock',
-            'FSA_LAUNCHER' => 'install.sh', 'FSA_TTY' => '0', 'FSA_HOST_UID' => (string) posix_getuid(), 'FSA_HOST_GID' => (string) posix_getgid(),
-            'FSA_INSTANCE_DIR' => $directory, 'FSA_DOCKER_RUNTIME' => $desktop ? 'desktop' : 'rootful',
-            'FSA_CONTAINER_UID' => $desktop ? '0' : (string) posix_getuid(), 'FSA_REGISTRY' => $this->harness->registry(),
-            'FSA_RELEASE_MANIFEST' => "{$directory}/releases/".ReleaseHarness::version().'/release-manifest.json',
-            'FSA_TRUST_KEY' => realpath($this->harness->cosign->publicKey()),
+            'FIELDSET_LAUNCHER' => 'install.sh', 'FIELDSET_TTY' => '0', 'FIELDSET_HOST_UID' => (string) posix_getuid(), 'FIELDSET_HOST_GID' => (string) posix_getgid(),
+            'FIELDSET_INSTANCE_DIR' => $directory, 'FIELDSET_DOCKER_RUNTIME' => $desktop ? 'desktop' : 'rootful',
+            'FIELDSET_CONTAINER_UID' => $desktop ? '0' : (string) posix_getuid(), 'FIELDSET_REGISTRY' => $this->harness->registry(),
+            'FIELDSET_RELEASE_MANIFEST' => "{$directory}/releases/".ReleaseHarness::version().'/release-manifest.json',
+            'FIELDSET_TRUST_KEY' => realpath($this->harness->cosign->publicKey()),
         ])
         ->and($probe['uid'])->toBe($desktop ? 0 : posix_getuid())
         ->and(substr(sprintf('%o', fileperms($directory)), -3))->toBe('700')
@@ -242,7 +242,7 @@ it('(d) verifies, pulls by digest and hands over to the ops container with mount
 });
 
 it('(d) the real fsa install exits 2 (input_required) without a terminal when a required flag is missing (R26)', function (): void {
-    [$process, $directory] = bootstrapInstall($this, 'missing-flag', ['--owner-email', 'owner@example.test', '--json'], ['FSA_PROBE_OFF' => '1']);
+    [$process, $directory] = bootstrapInstall($this, 'missing-flag', ['--owner-email', 'owner@example.test', '--json'], ['FIELDSET_PROBE_OFF' => '1']);
     $json = json_decode($process->getOutput(), true);
 
     expect($process->getExitCode())->toBe(2, $process->getErrorOutput().$process->getOutput())
@@ -257,8 +257,8 @@ it('(e) the shim runs the real fsa doctor, which fails the nonce check with exit
     [, $directory] = bootstrapInstall($this, 'shim-instance');
     bootstrapWriteState($this, $directory);
 
-    $visible = bootstrapRun($this, [$directory.'/fsa', 'doctor', '--json'], ['FSA_PROBE_OFF' => '1']);
-    $hidden = bootstrapRun($this, [$directory.'/fsa', 'doctor', '--json'], ['FSA_PROBE_OFF' => '1', 'FSA_PROBE_HIDE_NONCE' => $directory]);
+    $visible = bootstrapRun($this, [$directory.'/fsa', 'doctor', '--json'], ['FIELDSET_PROBE_OFF' => '1']);
+    $hidden = bootstrapRun($this, [$directory.'/fsa', 'doctor', '--json'], ['FIELDSET_PROBE_OFF' => '1', 'FIELDSET_PROBE_HIDE_NONCE' => $directory]);
     $checks = array_column(json_decode($visible->getOutput(), true)['data']['checks'] ?? [], 'status', 'key');
     $error = json_decode($hidden->getOutput(), true)['errors'][0] ?? [];
 
@@ -277,10 +277,10 @@ it('(f) writes a --secrets-file in a host directory on the host, and refuses pat
     mkdir($out, 0755);
 
     $written = bootstrapRun($this, [$directory.'/fsa', 'login-link', 'owner@example.test', '--secrets-file', 'host-out/link.json', '--json']);
-    $unshared = bootstrapRun($this, [$directory.'/fsa', 'login-link', 'owner@example.test', '--secrets-file', $out.'/again.json', '--json'], ['FSA_PROBE_DROP_MOUNT' => $out]);
+    $unshared = bootstrapRun($this, [$directory.'/fsa', 'login-link', 'owner@example.test', '--secrets-file', $out.'/again.json', '--json'], ['FIELDSET_PROBE_DROP_MOUNT' => $out]);
     $outside = new Process([
         'docker', 'run', '--rm', '--user', posix_getuid().':'.posix_getgid(), '-v', "{$directory}:{$directory}", '-v', $this->work.'/probe:/fsa-probe:ro',
-        '-e', 'FSA_NONCE=.fsa-nonce-00000000000000000000000000000000', '-e', "FSA_INSTANCE_DIR={$directory}", '-e', 'FSA_MOUNTS=',
+        '-e', 'FIELDSET_NONCE=.fsa-nonce-00000000000000000000000000000000', '-e', "FIELDSET_INSTANCE_DIR={$directory}", '-e', 'FIELDSET_MOUNTS=',
         '--entrypoint', '/fsa-probe/probe.sh', $this->appReference, 'login-link', '--secrets-file', '/srv/elsewhere/link.json', '--dir', $directory,
     ]);
     touch($directory.'/.fsa-nonce-00000000000000000000000000000000');

@@ -22,7 +22,7 @@ use RuntimeException;
  * Prepares a restored database for the swap (`fsa restore`, `fsa install --from-backup`; plan U17, ADR 0085) in a
  * socket-less one-off whose DB_DATABASE is that database (FinishRestore): new audit epoch and `instance.restored`,
  * the R64 carry and the sequence floors from `--source`, stale credentials cleared, grants, decrypt sample. fsa passes
- * the ledger's final heads on stdin and the backup role's password in FSA_BACKUP_DB_PASSWORD (never an argument).
+ * the ledger's final heads on stdin and the backup role's password in FIELDSET_BACKUP_DB_PASSWORD (never an argument).
  */
 #[Description('Prepare a restored database for the swap: audit epoch, security-state carry, sequences, grants, decrypt check')]
 #[Signature('instance:restore-finish

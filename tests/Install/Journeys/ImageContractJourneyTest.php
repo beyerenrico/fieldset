@@ -7,14 +7,14 @@ use Tests\Support\Docker\TestImage;
 
 /*
  * U1 / M9-T02 image contract on the built image (R1, R5, R6, E17, KTD8, KTD9, ADR 0065). Builds
- * `fsa-test-u1:latest` natively, or `fsa-test-u1:<arch>` with FSA_TEST_PLATFORM=linux/<arch> under emulation.
- * Skips only when Docker is unreachable; FSA_REQUIRE_DOCKER=1 turns that skip into a failure.
+ * `fsa-test-u1:latest` natively, or `fsa-test-u1:<arch>` with FIELDSET_TEST_PLATFORM=linux/<arch> under emulation.
+ * Skips only when Docker is unreachable; FIELDSET_REQUIRE_DOCKER=1 turns that skip into a failure.
  */
 
 beforeEach(function (): void {
     $reason = TestImage::dockerUnavailableReason();
     if ($reason !== null) {
-        expect(getenv('FSA_REQUIRE_DOCKER'))->not->toBe('1', $reason);
+        expect(getenv('FIELDSET_REQUIRE_DOCKER'))->not->toBe('1', $reason);
         $this->markTestSkipped($reason.' (install journeys need a Docker engine)');
     }
 });

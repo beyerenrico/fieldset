@@ -149,7 +149,7 @@ it('uses a local key without network only through the harness build', function (
     file_put_contents($key, "-----BEGIN PUBLIC KEY-----\n-----END PUBLIC KEY-----\n");
     $harnessFlavor = $this->directory->path().'/flavor';
     file_put_contents($harnessFlavor, "harness\n");
-    $trust = TrustPolicy::fromEnvironment(['FSA_TRUST_KEY' => $key], BuildFlavor::current($harnessFlavor));
+    $trust = TrustPolicy::fromEnvironment(['FIELDSET_TRUST_KEY' => $key], BuildFlavor::current($harnessFlavor));
 
     manifestVerifier($this->docker, $trust)->verify($this->manifest, $this->bundle);
     $spec = $this->docker->called('runContainer')[0]['spec'];
@@ -157,9 +157,9 @@ it('uses a local key without network only through the harness build', function (
     expect($spec->command)->toBe(['verify-blob', '--bundle', '/verify/bundle.json', '--key', '/verify/trust.pub', '--insecure-ignore-tlog=true', '-'])
         ->and($spec->volumes)->toBe(["{$this->bundle}:/verify/bundle.json:ro", "{$key}:/verify/trust.pub:ro"])
         ->and($spec->network)->toBe('none')
-        ->and(fn () => TrustPolicy::fromEnvironment(['FSA_TRUST_KEY' => $key], BuildFlavor::Production))
+        ->and(fn () => TrustPolicy::fromEnvironment(['FIELDSET_TRUST_KEY' => $key], BuildFlavor::Production))
         ->toThrow(fn (InvalidInput $e) => expect([$e->exitCode, $e->errorCode])->toBe([ExitCode::InvalidInput, 'trust_key_not_allowed']))
-        ->and(fn () => TrustPolicy::fromEnvironment(['FSA_TRUST_KEY' => 'cosign.pub'], BuildFlavor::Harness))->toThrow(InvalidInput::class, 'absolute path');
+        ->and(fn () => TrustPolicy::fromEnvironment(['FIELDSET_TRUST_KEY' => 'cosign.pub'], BuildFlavor::Harness))->toThrow(InvalidInput::class, 'absolute path');
 });
 
 it('mounts a pinned trusted root for offline keyless verification and adds no network', function (): void {
@@ -179,7 +179,7 @@ it('defaults to the keyless production identity and treats only an explicit harn
     $file = $this->directory->path().'/flavor';
 
     expect(TrustPolicy::fromEnvironment([], BuildFlavor::Harness)->identity)->toEqual(SignerIdentity::production())
-        ->and(TrustPolicy::fromEnvironment(['FSA_TRUST_KEY' => ''], BuildFlavor::Production)->usesKey())->toBeFalse()
+        ->and(TrustPolicy::fromEnvironment(['FIELDSET_TRUST_KEY' => ''], BuildFlavor::Production)->usesKey())->toBeFalse()
         ->and(BuildFlavor::current($file))->toBe(BuildFlavor::Production);
 
     file_put_contents($file, "Harness\n");

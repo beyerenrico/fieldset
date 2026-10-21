@@ -10,7 +10,7 @@ use Symfony\Component\Process\Process;
 /**
  * Builds the app image once per test process as `fsa-test-u1:<tag>` and runs throwaway containers of it
  * (install journeys, KTD23). Only resources named `fsa-test-*` are created; containers are removed.
- * FSA_TEST_PLATFORM (e.g. linux/amd64) builds and runs another architecture under emulation.
+ * FIELDSET_TEST_PLATFORM (e.g. linux/amd64) builds and runs another architecture under emulation.
  */
 final class TestImage
 {
@@ -37,7 +37,7 @@ final class TestImage
 
     public static function platform(): ?string
     {
-        $platform = getenv('FSA_TEST_PLATFORM');
+        $platform = getenv('FIELDSET_TEST_PLATFORM');
 
         return is_string($platform) && $platform !== '' ? $platform : null;
     }
@@ -103,18 +103,18 @@ final class TestImage
     }
 
     /**
-     * `fsa-test-u1`, or FSA_TEST_IMAGE_REPOSITORY (an `fsa-test-…` name), so that journeys in two checkouts on one
+     * `fsa-test-u1`, or FIELDSET_TEST_IMAGE_REPOSITORY (an `fsa-test-…` name), so that journeys in two checkouts on one
      * Docker engine do not retag each other's image.
      */
     public static function repositoryName(): string
     {
-        $name = getenv('FSA_TEST_IMAGE_REPOSITORY');
+        $name = getenv('FIELDSET_TEST_IMAGE_REPOSITORY');
         if (! is_string($name) || $name === '') {
             return self::REPOSITORY;
         }
 
         if (preg_match('/^fsa-test-[a-z0-9][a-z0-9-]*$/', $name) !== 1) {
-            throw new RuntimeException("FSA_TEST_IMAGE_REPOSITORY must be an fsa-test-… image name, got \"{$name}\".");
+            throw new RuntimeException("FIELDSET_TEST_IMAGE_REPOSITORY must be an fsa-test-… image name, got \"{$name}\".");
         }
 
         return $name;

@@ -13,7 +13,7 @@ use App\Domain\Instance\State\InstanceState;
 
 /**
  * Local-CA mode on an installed instance (R19, ADR 0082): whether the LAN address the certificate was issued for is
- * still one of this host's addresses (FSA_LAN_ADDRESSES). A laptop that moved to another network has a new address,
+ * still one of this host's addresses (FIELDSET_LAN_ADDRESSES). A laptop that moved to another network has a new address,
  * phones no longer reach the old one, and the edge may not even bind it: the warning offers to re-issue the
  * certificate for the best current candidate. Skipped outside local-CA mode, and when the launcher reported no
  * addresses at all.

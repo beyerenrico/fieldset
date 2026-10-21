@@ -74,10 +74,10 @@ it('ships the manifest schema and the shim, and records a production build flavo
     $dockerfile = DockerfileStages::fromFile(base_path('docker/app/Dockerfile'));
 
     expect($dockerfile->stage('build'))->toContain('COPY distribution/manifest.schema.json distribution/shim.sh ./distribution/')
-        ->and($dockerfile->finalStage())->toMatch('/^ARG FSA_BUILD=production$/m')
+        ->and($dockerfile->finalStage())->toMatch('/^ARG FIELDSET_BUILD=production$/m')
         ->and($dockerfile->finalStage())->toContain('production | harness')
         ->and($dockerfile->finalStage())->toContain('> /var/www/html/distribution/.build-flavor')
-        ->and((string) file_get_contents(base_path('.github/workflows/release.yml')))->not->toContain('FSA_BUILD');
+        ->and((string) file_get_contents(base_path('.github/workflows/release.yml')))->not->toContain('FIELDSET_BUILD');
 });
 
 it('puts the XDG config and data homes on writable paths (R6)', function (): void {

@@ -15,9 +15,9 @@ use App\Domain\Instance\State\InstanceDirectory;
 
 /**
  * The release an install uses (R9, R58, ADR 0070). install.sh verified and stored the manifest under
- * `<dir>/releases/<version>/` and names it in FSA_RELEASE_MANIFEST; fsa verifies it again with the pinned cosign
+ * `<dir>/releases/<version>/` and names it in FIELDSET_RELEASE_MANIFEST; fsa verifies it again with the pinned cosign
  * image before it uses any digest, so a manifest swapped after install.sh cannot pick the images that get the
- * socket. A re-run through the shim (no FSA_RELEASE_MANIFEST) uses the stored release of `--version`, or the
+ * socket. A re-run through the shim (no FIELDSET_RELEASE_MANIFEST) uses the stored release of `--version`, or the
  * only one there is.
  */
 final readonly class ReleaseSource
@@ -53,7 +53,7 @@ final readonly class ReleaseSource
         $given = $facts->releaseManifest;
         if ($given !== null) {
             if (! str_starts_with($given, $directory->root.'/')) {
-                throw new InvalidInput('FSA_RELEASE_MANIFEST must point into the instance directory.', 'manifest_outside_instance', 'Run install.sh, which stores the verified release in <dir>/releases/.');
+                throw new InvalidInput('FIELDSET_RELEASE_MANIFEST must point into the instance directory.', 'manifest_outside_instance', 'Run install.sh, which stores the verified release in <dir>/releases/.');
             }
 
             return $given;

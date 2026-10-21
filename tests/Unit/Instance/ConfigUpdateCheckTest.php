@@ -7,7 +7,7 @@ use Tests\Support\Instance\TemporaryInstance;
 
 /*
  * `fsa config set update-check on|off` (E15, R32, R48, plan U20, ADR 0061, ADR 0089): off by default. `on` records the
- * newest release's manifest URL under the release URL in force (FSA_RELEASE_URL or GitHub Releases) in runtime.json, which
+ * newest release's manifest URL under the release URL in force (FIELDSET_RELEASE_URL or GitHub Releases) in runtime.json, which
  * the app's scheduler reads; no service is recreated, and `config show` names the contact. `off` removes it again.
  */
 
@@ -56,7 +56,7 @@ it('turns the check on and off through runtime.json without recreating a service
         ->and($this->config->state()->setting('update_url'))->toBeNull();
 });
 
-it('reads the release mirror named by FSA_RELEASE_URL', function (): void {
+it('reads the release mirror named by FIELDSET_RELEASE_URL', function (): void {
     $this->config->instance->facts(['releaseUrl' => 'https://mirror.example.com/fsa/releases/']);
 
     [$code, $json] = $this->config->set('update-check', 'on');

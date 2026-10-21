@@ -3,23 +3,23 @@ import { test, expect, type Page } from './support/test';
 
 // Phone trust page of a running `fsa` instance in local-CA mode (plan U14, R19, ADR 0057/0082), project
 // `fsa-instance` only (never part of the desktop run). Everything comes from the environment:
-// - FSA_PHONE_TRUST_URL: the page on plain HTTP, e.g. http://192.168.178.24/phone-trust (unset: all tests skip)
-// - FSA_LOCAL_CA_FINGERPRINT: the root's SHA-256 fingerprint as `fsa` printed it (optional)
-// - FSA_FIELD_APP_URL: the Field App over HTTPS, e.g. https://192.168.178.24/app/ (optional; the trailing slash
+// - FIELDSET_PHONE_TRUST_URL: the page on plain HTTP, e.g. http://192.168.178.24/phone-trust (unset: all tests skip)
+// - FIELDSET_LOCAL_CA_FINGERPRINT: the root's SHA-256 fingerprint as `fsa` printed it (optional)
+// - FIELDSET_FIELD_APP_URL: the Field App over HTTPS, e.g. https://192.168.178.24/app/ (optional; the trailing slash
 //   matters: the service worker's scope is /app/)
-// - FSA_LOCAL_CA_SPKI: comma-separated base64 SHA-256 SPKI hashes Chromium accepts without a certificate error
+// - FIELDSET_LOCAL_CA_SPKI: comma-separated base64 SHA-256 SPKI hashes Chromium accepts without a certificate error
 //   (--ignore-certificate-errors-spki-list), standing in for a phone that trusts the local CA (optional)
 // Never `ignoreHTTPSErrors`: the trust check must see the certificate exactly as the browser judges it.
 
-const TRUST_URL = process.env.FSA_PHONE_TRUST_URL ?? '';
-const FINGERPRINT = (process.env.FSA_LOCAL_CA_FINGERPRINT ?? '').trim().toUpperCase();
-const FIELD_APP_ENV = process.env.FSA_FIELD_APP_URL ?? '';
+const TRUST_URL = process.env.FIELDSET_PHONE_TRUST_URL ?? '';
+const FINGERPRINT = (process.env.FIELDSET_LOCAL_CA_FINGERPRINT ?? '').trim().toUpperCase();
+const FIELD_APP_ENV = process.env.FIELDSET_FIELD_APP_URL ?? '';
 const FIELD_APP_URL = FIELD_APP_ENV === '' ? '' : FIELD_APP_ENV.replace(/\/*$/, '/');
-const SPKI = (process.env.FSA_LOCAL_CA_SPKI ?? '').trim();
+const SPKI = (process.env.FIELDSET_LOCAL_CA_SPKI ?? '').trim();
 const FINGERPRINT_FORMAT = /^[0-9A-F]{2}(:[0-9A-F]{2}){31}$/;
 const CHECK_TIMEOUT = 15_000;
 
-test.skip(TRUST_URL === '', 'FSA_PHONE_TRUST_URL is not set: these tests need an fsa instance in local-CA mode.');
+test.skip(TRUST_URL === '', 'FIELDSET_PHONE_TRUST_URL is not set: these tests need an fsa instance in local-CA mode.');
 
 if (SPKI !== '') {
   test.use({ launchOptions: { args: [`--ignore-certificate-errors-spki-list=${SPKI}`] } });
@@ -73,7 +73,7 @@ test.describe('trust page at phone width', () => {
 });
 
 test.describe('in a browser that trusts the local CA', () => {
-  test.skip(FIELD_APP_URL === '', 'FSA_FIELD_APP_URL is not set.');
+  test.skip(FIELD_APP_URL === '', 'FIELDSET_FIELD_APP_URL is not set.');
 
   test('the Field App registers its service worker over HTTPS', async ({ page }) => {
     await page.goto(FIELD_APP_URL);

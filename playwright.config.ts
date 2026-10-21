@@ -4,11 +4,11 @@ import { defineConfig, devices } from '@playwright/test';
 // Browsers live in storage/playwright (PLAYWRIGHT_BROWSERS_PATH), never in global caches.
 
 /**
- * The `fsa-instance` project's base URL: the phone trust page's origin (FSA_PHONE_TRUST_URL, J6) or the instance URL
- * (FSA_INSTANCE_URL, the smoke spec); nothing when neither is set.
+ * The `fsa-instance` project's base URL: the phone trust page's origin (FIELDSET_PHONE_TRUST_URL, J6) or the instance URL
+ * (FIELDSET_INSTANCE_URL, the smoke spec); nothing when neither is set.
  */
 function fsaInstanceBaseUrl(): { baseURL?: string } {
-  const page = process.env.FSA_PHONE_TRUST_URL || process.env.FSA_INSTANCE_URL;
+  const page = process.env.FIELDSET_PHONE_TRUST_URL || process.env.FIELDSET_INSTANCE_URL;
   return page === undefined || page === '' ? {} : { baseURL: new URL(page).origin };
 }
 

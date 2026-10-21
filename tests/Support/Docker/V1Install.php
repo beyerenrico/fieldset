@@ -11,7 +11,7 @@ use Symfony\Component\Process\Process;
  * A clone-based 1.0.0 install for J9 (plan U19, ADR 0087), built from the local tag `v1.0.0` the way its install guide
  * says: the tag's files (`git archive`) in an `fsa-test-…` checkout of the harness workspace, `.env` from the production
  * template, `docker compose up -d --wait` in the checkout. Only names change, so clean-up finds everything: the image is
- * `<FSA_TEST_IMAGE_REPOSITORY>-v1:1.0.0` (compose.yaml's `form-schema-app:local` is the dev stack's) and the Compose
+ * `<FIELDSET_TEST_IMAGE_REPOSITORY>-v1:1.0.0` (compose.yaml's `form-schema-app:local` is the dev stack's) and the Compose
  * project `fsa-test-j09-v1-<id>` (COMPOSE_PROJECT_NAME in `.env`, as an operator may set it). Compose runs with a clean
  * environment, so a COMPOSE_* variable of the test process never changes what 1.0 runs.
  */

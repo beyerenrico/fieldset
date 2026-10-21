@@ -60,7 +60,7 @@ it('runs the backup service once under the lock it holds, after the backup role,
         ])
         ->and($json['changed'])->toBeTrue()
         ->and(collect($json['warnings'])->pluck('code')->all())->toBe(['backup_on_host'])
-        ->and($role)->toHaveCount(1)->and($role[0]['env'])->toBe(['FSA_BACKUP_DB_PASSWORD'])
+        ->and($role)->toHaveCount(1)->and($role[0]['env'])->toBe(['FIELDSET_BACKUP_DB_PASSWORD'])
         ->and($run['command'])->toBe(['fsa', 'backup-daemon', '--once', '--kind=manual', '--lock-id='.$held?->lockId, '--json'])
         ->and($held)->toBeInstanceOf(LockRecord::class)->and($held?->operation)->toBe('backup')
         ->and(new InstanceLock($this->instance->directory, $this->instance->docker)->current())->toBeNull()
@@ -206,6 +206,6 @@ it('sets up the backup role with the password of env/backup.env, and refuses wit
     $runner->ensureRole($project);
     new EnvFiles($this->instance->directory)->write('backup', ['DB_USERNAME' => 'fsa_backup']);
 
-    expect($this->instance->oneOffCalls('instance:backup-role')[0]['env'])->toBe(['FSA_BACKUP_DB_PASSWORD'])
+    expect($this->instance->oneOffCalls('instance:backup-role')[0]['env'])->toBe(['FIELDSET_BACKUP_DB_PASSWORD'])
         ->and(fn () => $runner->ensureRole($project))->toThrow(InstanceException::class, 'no password for the backup role');
 });

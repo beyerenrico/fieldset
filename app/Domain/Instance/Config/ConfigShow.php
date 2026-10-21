@@ -31,7 +31,7 @@ use App\Domain\Instance\State\InstanceState;
  */
 final readonly class ConfigShow
 {
-    /** Where releases come from; contacted only by an upgrade (§6.5, install.sh's FSA_RELEASE_URL default). */
+    /** Where releases come from; contacted only by an upgrade (§6.5, install.sh's FIELDSET_RELEASE_URL default). */
     public const string RELEASES_URL = 'https://github.com/beyerenrico/form-schema-app/releases';
 
     /** Secret env values by service and key => the name `config show` lists. */
@@ -173,7 +173,7 @@ final readonly class ConfigShow
 
     /**
      * Opt-in features and what each contacts (§10: no outbound calls by default). The registries are those of the
-     * pinned images (a mirror when install used FSA_REGISTRY).
+     * pinned images (a mirror when install used FIELDSET_REGISTRY).
      *
      * @return array{default: string, features: list<array<string, mixed>>}
      */

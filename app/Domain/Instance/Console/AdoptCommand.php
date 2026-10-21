@@ -63,7 +63,7 @@ final class AdoptCommand extends FsaCommand
         return str_starts_with($checkout, '/') ? $checkout : getcwd().'/'.$checkout;
     }
 
-    /** A launcher mounts the checkout read-only at its own path (FSA_MOUNTS); anything else is invisible here (exit 2). */
+    /** A launcher mounts the checkout read-only at its own path (FIELDSET_MOUNTS); anything else is invisible here (exit 2). */
     private function assertVisible(FsaContext $context, string $checkout): void
     {
         $facts = $context->facts;

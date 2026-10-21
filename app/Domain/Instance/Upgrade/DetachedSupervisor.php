@@ -40,7 +40,7 @@ use Throwable;
 final readonly class DetachedSupervisor
 {
     /** The supervisor's environment variable naming its result file (relative to the instance directory). */
-    public const string RESULT_ENV = 'FSA_SUPERVISOR_RESULT';
+    public const string RESULT_ENV = 'FIELDSET_SUPERVISOR_RESULT';
 
     public const string RESULT_PATTERN = '/^operations\/supervisor-[0-9a-f]{16}\.json$/D';
 
@@ -50,7 +50,7 @@ final readonly class DetachedSupervisor
     public const string POINTER = InstanceDirectory::OPERATIONS_DIR.'/supervisor.json';
 
     /** Variables passed on from the foreground's own environment: harness-only switches (ADR 0070, 0075, 0082). */
-    private const array PASSED = ['FSA_TRUST_KEY', 'FSA_TEST_DNS', 'FSA_TEST_TUNNEL'];
+    private const array PASSED = ['FIELDSET_TRUST_KEY', 'FIELDSET_TEST_DNS', 'FIELDSET_TEST_TUNNEL'];
 
     public function __construct(
         private InstanceDirectory $directory,
@@ -131,7 +131,7 @@ final readonly class DetachedSupervisor
 
     /**
      * The supervisor container: the installed app image as `fsa upgrade --supervise`, the socket and the instance
-     * directory (and the launcher's file mounts) at the same paths, the host facts as FSA_* variables, no nonce (the
+     * directory (and the launcher's file mounts) at the same paths, the host facts as FIELDSET_* variables, no nonce (the
      * launch checks ran in the foreground).
      */
     public function spec(InstanceState $state, UpgradeRequest $request, HostFacts $facts, string $result): ContainerSpec
@@ -270,11 +270,11 @@ final readonly class DetachedSupervisor
     private function environment(HostFacts $facts, string $result): array
     {
         $env = array_filter([
-            'FSA_HOST_UID' => $facts->uid === null ? null : (string) $facts->uid, 'FSA_HOST_GID' => $facts->gid === null ? null : (string) $facts->gid,
-            'FSA_HOST_OS' => $facts->os, 'FSA_INSTANCE_DIR' => $this->directory->root, 'FSA_LAN_ADDRESSES' => implode(' ', $facts->lanAddresses),
-            'FSA_TZ' => $facts->timezone, 'FSA_DOCKER_RUNTIME' => $facts->runtime?->value, 'FSA_DOCKER_SOCKET' => $facts->socket,
-            'FSA_CONTAINER_UID' => $facts->containerUid === null ? null : (string) $facts->containerUid,
-            'FSA_REGISTRY' => $facts->registry, 'FSA_RELEASE_URL' => $facts->releaseUrl, 'DOCKER_DEFAULT_PLATFORM' => $facts->platform,
+            'FIELDSET_HOST_UID' => $facts->uid === null ? null : (string) $facts->uid, 'FIELDSET_HOST_GID' => $facts->gid === null ? null : (string) $facts->gid,
+            'FIELDSET_HOST_OS' => $facts->os, 'FIELDSET_INSTANCE_DIR' => $this->directory->root, 'FIELDSET_LAN_ADDRESSES' => implode(' ', $facts->lanAddresses),
+            'FIELDSET_TZ' => $facts->timezone, 'FIELDSET_DOCKER_RUNTIME' => $facts->runtime?->value, 'FIELDSET_DOCKER_SOCKET' => $facts->socket,
+            'FIELDSET_CONTAINER_UID' => $facts->containerUid === null ? null : (string) $facts->containerUid,
+            'FIELDSET_REGISTRY' => $facts->registry, 'FIELDSET_RELEASE_URL' => $facts->releaseUrl, 'DOCKER_DEFAULT_PLATFORM' => $facts->platform,
         ], static fn (?string $value): bool => $value !== null && $value !== '');
         foreach (self::PASSED as $name) {
             $value = getenv($name);

@@ -40,7 +40,7 @@ use Tests\Support\Docker\TestImage;
  * - `fsa reset --demo --no-backup --yes` on the domain demo: no safety backup, but an audit export (a real organization
  *   existed), and the demo users of the fresh instance get random passwords (domain mode is reachable beyond loopback).
  *
- * Everything is named `fsa-test-j05-…` and removed afterwards. Evidence goes to the milestone of FSA_EVIDENCE_MILESTONE.
+ * Everything is named `fsa-test-j05-…` and removed afterwards. Evidence goes to the milestone of FIELDSET_EVIDENCE_MILESTONE.
  */
 
 const J05_DOMAIN = 'fsa-test-j05.test';
@@ -77,7 +77,7 @@ afterAll(function (): void {
 beforeEach(function (): void {
     $reason = TestImage::dockerUnavailableReason();
     if ($reason !== null) {
-        expect(getenv('FSA_REQUIRE_DOCKER'))->not->toBe('1', $reason);
+        expect(getenv('FIELDSET_REQUIRE_DOCKER'))->not->toBe('1', $reason);
         $this->markTestSkipped($reason.' (install journeys need a Docker engine)');
     }
     if (isset($GLOBALS['fsaJ05Error'])) {
@@ -92,7 +92,7 @@ beforeEach(function (): void {
 /** An address the doctor accepts as this host's: a LAN address the shim reports, else a public one (as in J2). */
 function j05HostAddress(): string
 {
-    $process = new Process(['/bin/sh', '-c', '. "$1"; fsa_lan_addresses', 'sh', TestImage::repository().'/distribution/shim.sh'], null, ['FSA_SHIM_LIBRARY' => '1']);
+    $process = new Process(['/bin/sh', '-c', '. "$1"; fsa_lan_addresses', 'sh', TestImage::repository().'/distribution/shim.sh'], null, ['FIELDSET_SHIM_LIBRARY' => '1']);
     $process->run();
 
     return array_values(array_filter(preg_split('/\s+/', trim($process->getOutput())) ?: []))[0] ?? '1.1.1.1';
@@ -383,7 +383,7 @@ it('installs a domain-mode demo: password is refused and every demo user signs i
     $secrets = $this->journey->work.'/j05-domain-secrets.json';
     $flags = ['--org', 'J5 Domain Org', '--owner-email', 'owner@example.test', '--locale', 'en', '--domain', J05_DOMAIN, '--acme-ca', AcmeHarness::DIRECTORY_URL, '--acme-ca-root-file', $this->acme->httpsRoot, '--demo', '--secrets-file', $secrets, '--json'];
     $started = microtime(true);
-    $process = $this->journey->installProcess($this->domain, $flags, ['FSA_TEST_DNS' => J05_DOMAIN.'='.j05HostAddress()]);
+    $process = $this->journey->installProcess($this->domain, $flags, ['FIELDSET_TEST_DNS' => J05_DOMAIN.'='.j05HostAddress()]);
     $process->start();
     $connected = false;
     while ($process->isRunning()) {
@@ -429,7 +429,7 @@ it('resets the domain demo with --demo --no-backup: an audit export instead of a
     $uuid = $GLOBALS['fsaJ05DomainUuid'];
     $secrets = $this->journey->work.'/j05-domain-reset.json';
     $started = microtime(true);
-    $process = $this->journey->fsa($this->domain, ['reset', '--demo', '--no-backup', '--yes', '--secrets-file', $secrets, '--json'], ['FSA_TEST_DNS' => J05_DOMAIN.'='.j05HostAddress()]);
+    $process = $this->journey->fsa($this->domain, ['reset', '--demo', '--no-backup', '--yes', '--secrets-file', $secrets, '--json'], ['FIELDSET_TEST_DNS' => J05_DOMAIN.'='.j05HostAddress()]);
     $seconds = round(microtime(true) - $started, 1);
     $json = InstanceJourney::json($process);
     $passwords = j05Secrets($secrets);
@@ -466,7 +466,7 @@ it('resets the domain demo with --demo --no-backup: an audit export instead of a
 });
 
 it('uninstalls the domain demo without leaving anything labelled behind', function (): void {
-    $process = $this->journey->fsa($this->domain, ['uninstall', '--yes', '--json'], ['FSA_TEST_DNS' => J05_DOMAIN.'='.j05HostAddress()]);
+    $process = $this->journey->fsa($this->domain, ['uninstall', '--yes', '--json'], ['FIELDSET_TEST_DNS' => J05_DOMAIN.'='.j05HostAddress()]);
 
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput().$process->getOutput())
         ->and(InstanceJourney::labelled($GLOBALS['fsaJ05DomainUuid']))->toBe(['containers' => [], 'volumes' => [], 'networks' => []]);

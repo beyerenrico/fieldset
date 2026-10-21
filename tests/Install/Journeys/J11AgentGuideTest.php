@@ -16,7 +16,7 @@ use Tests\Support\Docs\GuideCommand;
  * GuideCommand maps what the harness stands in for (the one-liner, `~/forms…` → `fsa-test-j11-forms…` in the work
  * directory, a stand-in Mailpit for the SMTP server, placeholders from earlier results). The test provides the two
  * files the guide asks the person to create (the SMTP password and the backup passphrase). Transcripts go to
- * docs/agent/milestones/evidence/$FSA_EVIDENCE_MILESTONE/J11-*.json; everything labelled with the instances' UUIDs, the
+ * docs/agent/milestones/evidence/$FIELDSET_EVIDENCE_MILESTONE/J11-*.json; everything labelled with the instances' UUIDs, the
  * stand-in and the work directory are removed afterwards.
  */
 
@@ -116,7 +116,7 @@ afterAll(function (): void {
 beforeEach(function (): void {
     $reason = TestImage::dockerUnavailableReason();
     if ($reason !== null) {
-        expect(getenv('FSA_REQUIRE_DOCKER'))->not->toBe('1', $reason);
+        expect(getenv('FIELDSET_REQUIRE_DOCKER'))->not->toBe('1', $reason);
         $this->markTestSkipped($reason.' (install journeys need a Docker engine)');
     }
     if (isset($GLOBALS['fsaJ11Error'])) {
@@ -137,7 +137,7 @@ it('runs the agent guide block', function (int $index): void {
         j11Docker(['network', 'disconnect', '-f', ($GLOBALS['fsaJ11Project'] ?? '').'_default', $GLOBALS['fsaJ11Smtp']]);
     }
     // `fsa upgrade` downloads the target's manifest inside its container: the release server's bridge address (as J7).
-    $env = str_contains($command, ' upgrade') ? ['FSA_RELEASE_URL' => $journey->harness->containerReleaseUrl()] : [];
+    $env = str_contains($command, ' upgrade') ? ['FIELDSET_RELEASE_URL' => $journey->harness->containerReleaseUrl()] : [];
 
     $started = microtime(true);
     $process = $journey->shell($command, $env);

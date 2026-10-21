@@ -29,7 +29,7 @@ use JsonException;
 final readonly class StageRenderer
 {
     /** The child's environment variable naming its stage directory (never an argument). */
-    public const string STAGE_ENV = 'FSA_UPGRADE_STAGE';
+    public const string STAGE_ENV = 'FIELDSET_UPGRADE_STAGE';
 
     public const string REQUEST = 'request.json';
 

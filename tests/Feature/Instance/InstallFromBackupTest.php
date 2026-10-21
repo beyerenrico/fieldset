@@ -52,7 +52,7 @@ it('moves a local backup to a new instance: its data, its portable settings, cap
         ->and($settings->backupRetention())->toBe(9)->and($settings->timeZone())->toBe('Europe/Berlin')->and($settings->mailFromAddress())->toBe('forms@example.com')
         ->and($settings->storageVolume())->toStartWith($state->project().'_app-storage-r')
         ->and($app['APP_KEY'])->toBe(BackupSetFixture::APP_KEY)
-        ->and($app)->not->toHaveKey('MAIL_PASSWORD')->and($app['FSA_MAIL_CAPTURE'] ?? null)->toBe('true')->and($app['MAIL_HOST'] ?? null)->toBe('mailpit')
+        ->and($app)->not->toHaveKey('MAIL_PASSWORD')->and($app['FIELDSET_MAIL_CAPTURE'] ?? null)->toBe('true')->and($app['MAIL_HOST'] ?? null)->toBe('mailpit')
         ->and($this->move->instance->oneOffCalls('app:install'))->toBe([])
         ->and($this->move->instance->oneOffCalls('migrate'))->toHaveCount(1)
         ->and($finish['command'])->not->toContain('--source=form_schema')->and($finish['command'])->toContain('--backup=manual-20261019T120000Z')

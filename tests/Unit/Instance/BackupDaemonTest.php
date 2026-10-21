@@ -243,7 +243,7 @@ it('runs a slot missed since the service first started with its schedule at once
 
 it('records a failed start once, with its reason, so fsa status and /platform can name it', function (): void {
     config(['database.connections.backup_none' => [...config('database.connections.pgsql'), 'database' => 'fsa_test_no_such_database'], 'database.default' => 'backup_none']);
-    $env = ['FSA_INSTANCE_ROOT' => $this->directory->root, 'BACKUP_HMAC_KEY' => DAEMON_KEY, 'FSA_OWNER_UID' => (string) posix_getuid(), 'FSA_OWNER_GID' => (string) posix_getgid(), 'BACKUP_TIME_ZONE' => 'Mars/Olympus'];
+    $env = ['FIELDSET_INSTANCE_ROOT' => $this->directory->root, 'BACKUP_HMAC_KEY' => DAEMON_KEY, 'FIELDSET_OWNER_UID' => (string) posix_getuid(), 'FIELDSET_OWNER_GID' => (string) posix_getgid(), 'BACKUP_TIME_ZONE' => 'Mars/Olympus'];
     foreach ($env as $key => $value) {
         putenv("{$key}={$value}");
     }
@@ -275,7 +275,7 @@ it('records a failed start once, with its reason, so fsa status and /platform ca
 });
 
 it('answers the one-off entry point with one JSON document: lock required, lock lost, low disk space, a seal', function (): void {
-    $env = ['FSA_INSTANCE_ROOT' => $this->directory->root, 'BACKUP_HMAC_KEY' => DAEMON_KEY, 'FSA_OWNER_UID' => (string) posix_getuid(), 'FSA_OWNER_GID' => (string) posix_getgid(), 'BACKUP_MIN_FREE_MIB' => '999999999'];
+    $env = ['FIELDSET_INSTANCE_ROOT' => $this->directory->root, 'BACKUP_HMAC_KEY' => DAEMON_KEY, 'FIELDSET_OWNER_UID' => (string) posix_getuid(), 'FIELDSET_OWNER_GID' => (string) posix_getgid(), 'BACKUP_MIN_FREE_MIB' => '999999999'];
     foreach ($env as $key => $value) {
         putenv("{$key}={$value}");
     }
@@ -314,7 +314,7 @@ it('answers the one-off entry point with one JSON document: lock required, lock 
 
 it('seals a plain backup under the caller\'s lock and refuses --include-secrets without secrets on stdin', function (): void {
     $recipient = 'age1'.str_repeat('r', 58);
-    $env = ['FSA_INSTANCE_ROOT' => $this->directory->root, 'BACKUP_HMAC_KEY' => DAEMON_KEY, 'FSA_OWNER_UID' => (string) posix_getuid(), 'FSA_OWNER_GID' => (string) posix_getgid(), 'BACKUP_AGE_RECIPIENTS' => $recipient];
+    $env = ['FIELDSET_INSTANCE_ROOT' => $this->directory->root, 'BACKUP_HMAC_KEY' => DAEMON_KEY, 'FIELDSET_OWNER_UID' => (string) posix_getuid(), 'FIELDSET_OWNER_GID' => (string) posix_getgid(), 'BACKUP_AGE_RECIPIENTS' => $recipient];
     foreach ($env as $key => $value) {
         putenv("{$key}={$value}");
     }
@@ -355,7 +355,7 @@ it('reads its configuration from the environment and refuses malformed numbers',
 });
 
 it('removes what interrupted runs left as the service, only under the lock of the fsa command that asks (--clean, uninstall, M12 gate)', function (): void {
-    $env = ['FSA_INSTANCE_ROOT' => $this->directory->root, 'BACKUP_HMAC_KEY' => DAEMON_KEY, 'FSA_OWNER_UID' => (string) posix_getuid(), 'FSA_OWNER_GID' => (string) posix_getgid()];
+    $env = ['FIELDSET_INSTANCE_ROOT' => $this->directory->root, 'BACKUP_HMAC_KEY' => DAEMON_KEY, 'FIELDSET_OWNER_UID' => (string) posix_getuid(), 'FIELDSET_OWNER_GID' => (string) posix_getgid()];
     foreach ($env as $key => $value) {
         putenv("{$key}={$value}");
     }

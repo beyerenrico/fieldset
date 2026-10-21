@@ -181,8 +181,8 @@ it('starts the detached supervisor from the installed image with the socket and 
         ->and($launched->detach)->toBeTrue()->and($launched->remove)->toBeTrue()->and($launched->restart)->toBe('no')
         ->and($launched->name)->toBe($state->project().'-supervisor')
         ->and($launched->labels)->toMatchArray($this->upgrade->supervisorLabels())
-        ->and($launched->env)->toMatchArray(['FSA_HOST_UID' => (string) $facts->uid, 'FSA_RELEASE_URL' => UpgradeFixture::RELEASE_URL, 'FSA_INSTANCE_DIR' => $this->dir])
-        ->and(array_keys($launched->env))->not->toContain('FSA_NONCE')
+        ->and($launched->env)->toMatchArray(['FIELDSET_HOST_UID' => (string) $facts->uid, 'FIELDSET_RELEASE_URL' => UpgradeFixture::RELEASE_URL, 'FIELDSET_INSTANCE_DIR' => $this->dir])
+        ->and(array_keys($launched->env))->not->toContain('FIELDSET_NONCE')
         ->and(glob($this->dir.'/operations/supervisor-*.json'))->toHaveCount(1); // M12 gate O3: the result stays for `fsa status` and `--follow`
 });
 
@@ -257,7 +257,7 @@ it('starts a target that adds a service and an env key from its own staged files
         $document['services']['indexer'] = [...$document['services']['gotenberg'], 'image' => $document['services']['app']['image'], 'env_file' => ['./env/indexer.env']];
         file_put_contents($files.'/compose.yaml', $header."\n".json_encode($document, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)."\n");
         file_put_contents($files.'/env/indexer.env', "INDEXER=1\n");
-        file_put_contents($files.'/env/app.env', file_get_contents($files.'/env/app.env')."FSA_NEW_KEY='from-the-target'\n");
+        file_put_contents($files.'/env/app.env', file_get_contents($files.'/env/app.env')."FIELDSET_NEW_KEY='from-the-target'\n");
     };
     $mark = $this->config->mark();
 
@@ -265,7 +265,7 @@ it('starts a target that adds a service and an env key from its own staged files
 
     expect($code)->toBe(0, (string) json_encode($json))
         ->and($this->upgrade->compose())->toContain('"indexer"')
-        ->and((string) file_get_contents($this->dir.'/env/app.env'))->toContain("FSA_NEW_KEY='from-the-target'")
+        ->and((string) file_get_contents($this->dir.'/env/app.env'))->toContain("FIELDSET_NEW_KEY='from-the-target'")
         ->and(is_file($this->dir.'/env/indexer.env'))->toBeTrue()
         ->and($this->upgrade->ups($mark)[0])->toContain('indexer')
         ->and($this->config->callsSince($mark, 'composeConfig'))->not->toBeEmpty();

@@ -11,7 +11,7 @@ use App\Domain\Instance\Doctor\DoctorContext;
 
 /**
  * Domain mode (R10, AE5): does the domain resolve to this host? A and AAAA records are checked separately, against
- * the host's addresses from the launcher (FSA_LAN_ADDRESSES, global IPv4 on a VPS). The ops container sees no
+ * the host's addresses from the launcher (FIELDSET_LAN_ADDRESSES, global IPv4 on a VPS). The ops container sees no
  * public address of its own and fsa makes no outbound call to learn one (§10), so:
  *
  * - no record at all, or a record pointing at a non-public address that is not the host's: fail;

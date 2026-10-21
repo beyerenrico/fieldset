@@ -7,8 +7,8 @@ namespace App\Domain\Instance\Tunnel;
 use App\Domain\Instance\Release\BuildFlavor;
 
 /**
- * The fake tunnel of the release-harness journeys (J6, §11 "a fake tunnel container"; ADR 0082), like FSA_TEST_DNS
- * (ADR 0075): `FSA_TEST_TUNNEL=image=<fsa-test-… image>[;ttl=<seconds>]` replaces cloudflared's image with one the
+ * The fake tunnel of the release-harness journeys (J6, §11 "a fake tunnel container"; ADR 0082), like FIELDSET_TEST_DNS
+ * (ADR 0075): `FIELDSET_TEST_TUNNEL=image=<fsa-test-… image>[;ttl=<seconds>]` replaces cloudflared's image with one the
  * harness built (it answers `/quicktunnel` with a `*.trycloudflare.com` name and forwards to the app) and shortens the
  * 4-hour lifetime so a journey can watch it expire. Only release-harness images honour it (BuildFlavor is read from the
  * image, never from the environment); a production image ignores the variable. Anything malformed is ignored as a
@@ -16,7 +16,7 @@ use App\Domain\Instance\Release\BuildFlavor;
  */
 final class HarnessTunnel
 {
-    public const string ENV = 'FSA_TEST_TUNNEL';
+    public const string ENV = 'FIELDSET_TEST_TUNNEL';
 
     private const string IMAGE = '/^fsa-test-[a-z0-9][a-z0-9-]{0,62}:[a-z0-9][a-z0-9._-]{0,63}$/D';
 

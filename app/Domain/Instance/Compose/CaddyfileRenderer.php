@@ -51,7 +51,7 @@ final readonly class CaddyfileRenderer
     public const string ACME_ROOT_FILE = 'acme-ca-root.pem';
 
     /** The edge's env variable with `Basic <base64(fsa:catcher password)>` towards Mailpit. */
-    public const string AUTHORIZATION_ENV = 'FSA_CATCHER_AUTHORIZATION';
+    public const string AUTHORIZATION_ENV = 'FIELDSET_CATCHER_AUTHORIZATION';
 
     public const int HEALTH_PORT = 8081;
 

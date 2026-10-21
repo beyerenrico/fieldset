@@ -13,7 +13,7 @@ use Symfony\Component\Process\Process;
 /**
  * The fake quick tunnel for J6 (BUILD_PROMPT_V2 §11 "a fake tunnel container"; ADR 0082): an image built here from
  * tests/Install/Harness/fake-tunnel on the Caddy pin of distribution/release.json, named `fsa-test-fake-tunnel:<id>`.
- * Passed to fsa as FSA_TEST_TUNNEL (harness images only), it replaces cloudflared in the instance's `tunnel` service:
+ * Passed to fsa as FIELDSET_TEST_TUNNEL (harness images only), it replaces cloudflared in the instance's `tunnel` service:
  * `/quicktunnel` names a random `fsa-test-….trycloudflare.com` host, and port 8443 forwards to the app from the tunnel
  * peer's fixed address with that Host. `request()` is a client of the tunnel: a curl container on the instance's tunnel
  * network, aimed at that port.
@@ -44,10 +44,10 @@ final readonly class FakeTunnel
         return new self($image);
     }
 
-    /** FSA_TEST_TUNNEL for the fsa commands: this image, and the tunnel's lifetime in seconds. */
+    /** FIELDSET_TEST_TUNNEL for the fsa commands: this image, and the tunnel's lifetime in seconds. */
     public function environment(int $ttl): array
     {
-        return ['FSA_TEST_TUNNEL' => "image={$this->image};ttl={$ttl}"];
+        return ['FIELDSET_TEST_TUNNEL' => "image={$this->image};ttl={$ttl}"];
     }
 
     /**

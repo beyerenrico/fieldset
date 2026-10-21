@@ -20,7 +20,7 @@ use Tests\Support\Docker\TestImage;
  * harness workspace, so the specs' screenshots of earlier milestones' evidence never touch the checkout (LEARNINGS 159).
  *
  * Everything is named `fsa-test-dogfood…` and removed afterwards. Evidence: dogfood-e2e.json in the milestone of
- * FSA_EVIDENCE_MILESTONE (per spec file: passed, skipped with the reason, failed with the first error line).
+ * FIELDSET_EVIDENCE_MILESTONE (per spec file: passed, skipped with the reason, failed with the first error line).
  */
 
 /** Skip reasons a spec may give on an instance: the dev-only marker and the J4-only capture-banner spec. */
@@ -49,7 +49,7 @@ afterAll(function (): void {
 beforeEach(function (): void {
     $reason = TestImage::dockerUnavailableReason();
     if ($reason !== null) {
-        expect(getenv('FSA_REQUIRE_DOCKER'))->not->toBe('1', $reason);
+        expect(getenv('FIELDSET_REQUIRE_DOCKER'))->not->toBe('1', $reason);
         $this->markTestSkipped($reason.' (install journeys need a Docker engine)');
     }
     if (isset($GLOBALS['fsaDogfoodError'])) {
@@ -76,7 +76,7 @@ it('installs a local-mode demo instance from the harness release', function (): 
 it('passes the E2E suite against the instance, dev-only specs skipped with their reason', function (): void {
     $playwright = TestImage::repository().'/node_modules/.bin/playwright';
     if (! is_file($playwright)) {
-        expect(getenv('FSA_REQUIRE_PLAYWRIGHT'))->not->toBe('1', 'Playwright is not installed (npm ci)');
+        expect(getenv('FIELDSET_REQUIRE_PLAYWRIGHT'))->not->toBe('1', 'Playwright is not installed (npm ci)');
         $this->markTestSkipped('Playwright is not installed (npm ci).');
     }
     $install = $GLOBALS['fsaDogfoodInstall'] ?? [];
