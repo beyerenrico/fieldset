@@ -14,6 +14,9 @@ final class GuideReferences
     /** A segment of one command line: up to a pipe, `;`, `&&` or the end of the line. */
     private const string SEGMENT = '[^|;&\n`]*';
 
+    /** The CLI's name before the rename to `fieldset` (2.1.0); none of its commands exists any more. */
+    private const string FORMER_CLI = 'fsa';
+
     /** @return list<string> fenced block bodies and inline code spans */
     public static function code(string $markdown): array
     {
@@ -35,6 +38,19 @@ final class GuideReferences
         preg_match_all('~(?:^|[\s/(])fieldset ([a-z][a-z-]*)('.self::SEGMENT.')~m', $code, $matches, PREG_SET_ORDER);
 
         return array_map(static fn (array $m): array => ['command' => $m[1], 'flags' => self::flags($m[2]), 'text' => trim('fieldset '.$m[1].$m[2])], $matches);
+    }
+
+    /**
+     * Invocations of the CLI's name before 2.1.0: `fsa <command>` and its artisan names `fsa:<command>`. The bare
+     * name (`fsa`) and words that only start with it (`fsa-test-…`) are not invocations.
+     *
+     * @return list<string>
+     */
+    public static function formerCliCalls(string $code): array
+    {
+        preg_match_all('~(?:^|[\s/(])('.self::FORMER_CLI.'[ :][a-z][a-z-]*)~m', $code, $matches);
+
+        return array_values(array_unique($matches[1]));
     }
 
     /**

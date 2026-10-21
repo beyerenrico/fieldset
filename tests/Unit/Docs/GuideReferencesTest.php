@@ -123,6 +123,19 @@ it('names only environment variables the code reads', function (): void {
     expect($problems)->toBe([]);
 });
 
+it('names no command of the former CLI fsa (renamed to fieldset in 2.1.0)', function (): void {
+    $problems = [];
+    foreach (guideFiles() as $path => $markdown) {
+        foreach (GuideReferences::code($markdown) as $code) {
+            foreach (GuideReferences::formerCliCalls($code) as $call) {
+                $problems[] = "{$path}: `{$call}` names the former CLI; the command is now `fieldset`";
+            }
+        }
+    }
+
+    expect($problems)->toBe([]);
+});
+
 it('links only to files that exist', function (): void {
     $problems = [];
     foreach (guideFiles() as $path => $markdown) {
@@ -144,4 +157,12 @@ it('finds fieldset calls, install.sh flags and environment variables in code', f
         ->and(GuideReferences::environmentVariables('FIELDSET_RELEASE_URL=x APP_KEY a_b path/X_Y'))->toBe(['FIELDSET_RELEASE_URL', 'APP_KEY'])
         ->and(GuideReferences::code("a `fieldset status` b\n```sh\nfieldset logs\n```\n"))->toBe(['fieldset logs', 'fieldset status'])
         ->and(GuideReferences::relativeLinks('[a](install.md#x) [b](https://x.test) [c](../adr/)'))->toBe(['install.md', '../adr/']);
+});
+
+it('finds invocations of the former CLI fsa, but not the bare name or other words starting with it', function (): void {
+    $guide = "Run `fsa install --dir ~/forms`, then:\n```sh\n~/forms/fsa status --json | jq .\nphp artisan fsa:backup\n```\n`fsa` sets it; `fsa-test-x`, `fsa_x`, `fsautil x`.\n";
+    $calls = array_merge(...array_map(GuideReferences::formerCliCalls(...), GuideReferences::code($guide)));
+
+    expect($calls)->toBe(['fsa status', 'fsa:backup', 'fsa install'])
+        ->and(GuideReferences::formerCliCalls('fieldset install --dir x'))->toBe([]);
 });
