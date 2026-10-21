@@ -8,7 +8,7 @@
 # image tag and never move X.Y, X or latest. RELEASING.md describes the human steps around it.
 #
 # install.sh and the image verify signatures against this workflow's identity:
-#   https://github.com/beyerenrico/form-schema-app/.github/workflows/release.yml@refs/tags/v<semver>
+#   https://github.com/beyerenrico/fieldset/.github/workflows/release.yml@refs/tags/v<semver>
 #   issuer https://token.actions.githubusercontent.com
 # Renaming this file, the repository or the owner changes that identity and needs a new install.sh and image.
 
@@ -30,10 +30,10 @@ defaults:
 
 env:
   PHP_VERSION: '8.4'
-  IMAGE: ghcr.io/beyerenrico/form-schema-app
+  IMAGE: ghcr.io/beyerenrico/fieldset
   COSIGN_RELEASE: v3.1.3
   CERTIFICATE_ISSUER: https://token.actions.githubusercontent.com
-  CERTIFICATE_IDENTITY_REGEXP: '^https://github\.com/beyerenrico/form-schema-app/\.github/workflows/release\.yml@refs/tags/v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(alpha|beta|rc)(\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?$'
+  CERTIFICATE_IDENTITY_REGEXP: '^https://github\.com/beyerenrico/fieldset/\.github/workflows/release\.yml@refs/tags/v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(alpha|beta|rc)(\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?$'
   TRIVY_IMAGE: docker.io/aquasec/trivy:0.76.0@sha256:2416d1f74045b57274df1a340eee6b510cacd73c66a6ccb8da092b117eb7d222
 
 jobs:

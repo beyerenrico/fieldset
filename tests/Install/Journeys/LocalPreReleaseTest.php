@@ -107,7 +107,7 @@ it('publishes a signed multi-arch pre-release whose manifest validates and lists
         ->and($manifest->channel()->value)->toBe(preReleaseChannel($this->version))
         ->and($manifest->platforms)->toBe(PlatformImage::SUPPORTED)
         ->and(array_keys($manifest->images))->toBe(ReleaseManifest::SERVICES)
-        ->and($manifest->images['app']->pin->name())->toBe('ghcr.io/beyerenrico/form-schema-app')
+        ->and($manifest->images['app']->pin->name())->toBe('ghcr.io/beyerenrico/fieldset')
         ->and($manifest->images['app']->pin->tag)->toBe($this->version)
         ->and($manifest->images['app']->pin->digest)->toBe($this->release->appDigest)
         ->and($manifestCheck->getExitCode())->toBe(0, $manifestCheck->getErrorOutput())
@@ -126,7 +126,7 @@ it('tags only the pre-release version and never moves latest, 2 or 2.0', functio
     $command = new Process([PHP_BINARY, 'artisan', 'release:version', $this->release->version->tag()], TestImage::repository());
     $command->mustRun();
     $info = json_decode(trim($command->getOutput()), true);
-    $tags = array_values(array_filter($this->harness->tags('beyerenrico/form-schema-app'), static fn (string $tag): bool => ! str_starts_with($tag, 'sha256-')));
+    $tags = array_values(array_filter($this->harness->tags('beyerenrico/fieldset'), static fn (string $tag): bool => ! str_starts_with($tag, 'sha256-')));
     preReleaseRecord(['release_version' => $info, 'registry_tags' => $tags]);
 
     if (preReleaseChannel($this->version) === 'stable') {

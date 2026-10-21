@@ -96,7 +96,7 @@ it('labels the image with version, revision, source and license (R1, KTD9)', fun
         ->and($final)->toMatch('/^ARG APP_REVISION/m')
         ->and($final)->toContain('org.opencontainers.image.version="${APP_VERSION}"')
         ->and($final)->toContain('org.opencontainers.image.revision="${APP_REVISION}"')
-        ->and($final)->toContain('org.opencontainers.image.source="https://github.com/beyerenrico/form-schema-app"')
+        ->and($final)->toContain('org.opencontainers.image.source="https://github.com/beyerenrico/fieldset"')
         ->and($final)->toContain(sprintf('org.opencontainers.image.licenses="%s"', $license))
         ->and($final)->toContain('APP_VERSION="${APP_VERSION}"');
 });

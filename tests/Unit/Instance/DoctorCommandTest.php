@@ -221,7 +221,7 @@ it('reaches the registries of missing images, reads the clock from them and skip
     $this->fixture->docker->images = [];
     $this->fixture->probes->registry = ['status' => 401, 'date' => $date];
     $state = $this->fixture->state()->withRelease('2.0.0-alpha.1', [
-        'app' => 'ghcr.io/beyerenrico/form-schema-app@sha256:'.str_repeat('a', 64),
+        'app' => 'ghcr.io/beyerenrico/fieldset@sha256:'.str_repeat('a', 64),
         'postgres' => '127.0.0.1:5000/library/postgres@sha256:'.str_repeat('b', 64),
     ]);
     $this->fixture->directory->saveState($state);

@@ -61,7 +61,7 @@ it('checks ports, identifiers, e-mail addresses, text and host lists', function 
 it('checks image references pinned by digest', function (): void {
     $digest = '@sha256:'.str_repeat('a', 64);
 
-    expect(InputGrammar::isImageReference('ghcr.io/beyerenrico/form-schema-app'.$digest))->toBeTrue()
+    expect(InputGrammar::isImageReference('ghcr.io/beyerenrico/fieldset'.$digest))->toBeTrue()
         ->and(InputGrammar::isImageReference('localhost:5000/fieldset/app'.$digest))->toBeTrue()
         ->and(InputGrammar::isImageReference('postgres'.$digest))->toBeTrue()
         ->and(InputGrammar::isImageReference('postgres:16-alpine'))->toBeFalse()

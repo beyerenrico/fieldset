@@ -11,7 +11,7 @@ use Tests\Support\Instance\TemporaryInstance;
  * the app's scheduler reads; no service is recreated, and `config show` names the contact. `off` removes it again.
  */
 
-const CONFIG_UPDATE_GITHUB = 'https://github.com/beyerenrico/form-schema-app/releases/latest/download/release-manifest.json';
+const CONFIG_UPDATE_GITHUB = 'https://github.com/beyerenrico/fieldset/releases/latest/download/release-manifest.json';
 
 beforeEach(function (): void {
     $this->config = new ConfigFixture;

@@ -59,7 +59,7 @@ it('pins every container image it runs by digest', function (string $workflow): 
 
 it('pins the signer identity to this workflow on a release tag', function (): void {
     $pattern = '/'.str_replace('/', '\/', signerIdentityPattern()).'/';
-    $identity = fn (string $ref): string => "https://github.com/beyerenrico/form-schema-app/.github/workflows/release.yml@{$ref}";
+    $identity = fn (string $ref): string => "https://github.com/beyerenrico/fieldset/.github/workflows/release.yml@{$ref}";
 
     foreach (['v2.0.0', 'v2.0.0-alpha.1', 'v2.0.0-rc.1', 'v10.2.33', 'v2.0.0-beta.1.2'] as $tag) {
         expect(preg_match($pattern, $identity("refs/tags/{$tag}")))->toBe(1, $tag)
@@ -72,10 +72,10 @@ it('pins the signer identity to this workflow on a release tag', function (): vo
         $identity('refs/tags/v2.0.0-dev.1'),
         $identity('refs/tags/v2.0.0+build'),
         $identity('refs/tags/v2.0.0/x'),
-        'https://github.com/beyerenrico/form-schema-app/.github/workflows/ci.yml@refs/tags/v2.0.0',
-        'https://github.com/someone-else/form-schema-app/.github/workflows/release.yml@refs/tags/v2.0.0',
-        'https://github.com/beyerenrico/form-schema-app/.github/workflows/release.yml@refs/tags/v2.0.0 ',
-        'xhttps://github.com/beyerenrico/form-schema-app/.github/workflows/release.yml@refs/tags/v2.0.0',
+        'https://github.com/beyerenrico/fieldset/.github/workflows/ci.yml@refs/tags/v2.0.0',
+        'https://github.com/someone-else/fieldset/.github/workflows/release.yml@refs/tags/v2.0.0',
+        'https://github.com/beyerenrico/fieldset/.github/workflows/release.yml@refs/tags/v2.0.0 ',
+        'xhttps://github.com/beyerenrico/fieldset/.github/workflows/release.yml@refs/tags/v2.0.0',
     ] as $other) {
         expect(preg_match($pattern, $other))->toBe(0, $other);
     }

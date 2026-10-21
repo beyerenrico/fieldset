@@ -1,7 +1,7 @@
 #!/bin/sh
 # Fieldset installer (BUILD_PROMPT_V2 R7, R8, R58; ADR 0048, 0060, 0070):
 #
-#   curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/form-schema-app/releases/download/v<version>/install.sh | sh -s -- --version <version> [flags]
+#   curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/fieldset/releases/download/v<version>/install.sh | sh -s -- --version <version> [flags]
 #
 # A pre-release (2.0.0-rc.1 …) is published with --latest=false, so take install.sh from its own release as above.
 # From 2.0.0 on, the newest stable release is also at .../releases/latest/download/install.sh (then omit --version).
@@ -22,7 +22,7 @@
 fieldset_install_trust() {
 	build=production # the release harness generates a copy with build=harness (ADR 0070); never edit by hand
 	cosign_image='ghcr.io/sigstore/cosign/cosign:v3.1.3@sha256:9e5c2f2edc34351160407ca3416c61855bdf9403c3c5936e0f0be7fc261611b8'
-	identity_regexp='^https://github\.com/beyerenrico/form-schema-app/\.github/workflows/release\.yml@refs/tags/v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(alpha|beta|rc)(\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?$'
+	identity_regexp='^https://github\.com/beyerenrico/fieldset/\.github/workflows/release\.yml@refs/tags/v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(alpha|beta|rc)(\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?$'
 	oidc_issuer='https://token.actions.githubusercontent.com'
 	workflow_trigger='push'
 }
@@ -90,7 +90,7 @@ fieldset_install_check_inputs() { # everything that needs no network: exit 2 bef
 		[ "$build" = harness ] || fieldset_install_fail 2 trust_key_not_allowed 'FIELDSET_TRUST_KEY is accepted only by release-harness builds of install.sh.' 'Unset FIELDSET_TRUST_KEY; releases are verified against the signer identity built into install.sh.'
 		[ -f "$FIELDSET_TRUST_KEY" ] || fieldset_install_fail 2 trust_key_invalid 'FIELDSET_TRUST_KEY does not name a file.'
 	fi
-	url=${FIELDSET_RELEASE_URL:-https://github.com/beyerenrico/form-schema-app/releases}
+	url=${FIELDSET_RELEASE_URL:-https://github.com/beyerenrico/fieldset/releases}
 	url=${url%/}
 	case $url in
 	https://*) proto='=https' ;;
@@ -257,13 +257,13 @@ fieldset_install_wants_prompt() { # <link: ''|0|1> <yes> <json> <tty> (0|1): ask
 
 fieldset_install_usage() {
 	printf 'Usage: curl --proto =https --tlsv1.2 -fsSL <release>/install.sh | sh -s -- [--version <version>] [fieldset install flags] [--link|--no-link]\n'
-	printf '  <release> is https://github.com/beyerenrico/form-schema-app/releases/download/v<version> (pre-releases: also pass\n'
+	printf '  <release> is https://github.com/beyerenrico/fieldset/releases/download/v<version> (pre-releases: also pass\n'
 	printf '  --version <version>); from 2.0.0 on also .../releases/latest/download for the newest stable release.\n'
 	printf '  --yes answers every question and does not link fieldset into PATH unless --link is given.\n'
 	printf '  --adopt <checkout> converts the 1.0 install in <checkout> into this new instance (fieldset adopt --help).\n'
 	printf 'Flags of each command: fieldset install --help, fieldset <command> --help (without the PATH link: <dir>/fieldset <command> --help).\n'
 	printf 'Guides: docs/guide/install.md and, for agents and scripts, docs/guide/agent-guide.md (also a release asset),\n'
-	printf '  in the repository https://github.com/beyerenrico/form-schema-app.\n'
+	printf '  in the repository https://github.com/beyerenrico/fieldset.\n'
 	printf 'FIELDSET_RELEASE_URL, FIELDSET_REGISTRY: mirrors.\n'
 	printf 'DOCKER_DEFAULT_PLATFORM=linux/amd64 or linux/arm64: pull and run that platform (another one runs emulated).\n'
 }

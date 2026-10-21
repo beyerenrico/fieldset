@@ -30,7 +30,7 @@ it('runs as a non-root user and reports its version and labels', function (): vo
         ->and($config['Labels'])->toMatchArray([
             'org.opencontainers.image.version' => TestImage::VERSION,
             'org.opencontainers.image.revision' => TestImage::revision(),
-            'org.opencontainers.image.source' => 'https://github.com/beyerenrico/form-schema-app',
+            'org.opencontainers.image.source' => 'https://github.com/beyerenrico/fieldset',
             'org.opencontainers.image.licenses' => 'AGPL-3.0-only',
         ])
         ->and($version->getExitCode())->toBe(0, $version->getErrorOutput())

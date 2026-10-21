@@ -86,7 +86,7 @@ final class InstanceCommandFixture
 
     public static function appImage(): string
     {
-        return self::MIRROR.'/beyerenrico/form-schema-app@'.ReleaseFixtures::APP_DIGEST;
+        return self::MIRROR.'/beyerenrico/fieldset@'.ReleaseFixtures::APP_DIGEST;
     }
 
     /** @param  array<string, mixed>  $overrides  HostFacts constructor arguments */

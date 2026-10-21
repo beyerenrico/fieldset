@@ -48,9 +48,9 @@ it('writes a schema-valid manifest to a file', function (): void {
 
     try {
         $this->artisan('release:manifest', [
-            'version' => 'v2.0.0-alpha.1', '--app-digest' => $appDigest, '--inputs' => $inputs,
+            'version' => 'v2.1.0-alpha.1', '--app-digest' => $appDigest, '--inputs' => $inputs,
             '--asset' => [base_path('distribution/release.json'), base_path('distribution/install.sh'), base_path('distribution/shim.sh')], '--output' => $output,
-        ])->expectsOutputToContain('Release manifest for 2.0.0-alpha.1 (alpha) written to')->assertSuccessful();
+        ])->expectsOutputToContain('Release manifest for 2.1.0-alpha.1 (alpha) written to')->assertSuccessful();
 
         $json = (string) file_get_contents($output);
         expect(ManifestSchema::bundled()->errors($json))->toBe([])
@@ -75,12 +75,12 @@ it('renders the stack file with --stack-file and lists it in the manifest', func
 
     try {
         $this->artisan('release:manifest', [
-            'version' => '2.0.0-alpha.2', '--app-digest' => $appDigest, '--inputs' => $inputs, '--stack-file' => $stack,
+            'version' => '2.1.0-alpha.2', '--app-digest' => $appDigest, '--inputs' => $inputs, '--stack-file' => $stack,
             '--asset' => [base_path('distribution/install.sh'), base_path('distribution/shim.sh')], '--output' => $output,
         ])->assertSuccessful();
 
         expect(json_decode((string) file_get_contents($output), true)['assets']['compose.stack.yaml']['sha256'])->toBe(hash_file('sha256', $stack))
-            ->and((string) file_get_contents($stack))->toContain('${FIELDSET_REGISTRY:-ghcr.io}/beyerenrico/form-schema-app@'.$appDigest);
+            ->and((string) file_get_contents($stack))->toContain('${FIELDSET_REGISTRY:-ghcr.io}/beyerenrico/fieldset@'.$appDigest);
     } finally {
         unlink($inputs);
         unlink($output);
@@ -95,9 +95,9 @@ it('prints the manifest to stdout without --output', function (): void {
 
     try {
         $this->artisan('release:manifest', [
-            'version' => '2.0.0', '--app-digest' => $appDigest, '--inputs' => $inputs, '--platform' => ['linux/arm64'],
-            '--upgrades-from' => 'v2.0.0-rc.1', '--asset' => [base_path('distribution/install.sh'), base_path('distribution/shim.sh')],
-        ])->expectsOutputToContain('"upgrades_from": "2.0.0-rc.1"')->assertSuccessful();
+            'version' => '2.1.0', '--app-digest' => $appDigest, '--inputs' => $inputs, '--platform' => ['linux/arm64'],
+            '--upgrades-from' => 'v2.1.0-rc.1', '--asset' => [base_path('distribution/install.sh'), base_path('distribution/shim.sh')],
+        ])->expectsOutputToContain('"upgrades_from": "2.1.0-rc.1"')->assertSuccessful();
     } finally {
         unlink($inputs);
     }
@@ -109,14 +109,14 @@ it('fails without the app digest, with a missing pin or an unwritable output', f
     $registry->fake();
 
     try {
-        $this->artisan('release:manifest', ['version' => '2.0.0', '--inputs' => $inputs])
+        $this->artisan('release:manifest', ['version' => '2.1.0', '--inputs' => $inputs])
             ->expectsOutputToContain('--app-digest is required')->assertFailed();
-        $this->artisan('release:manifest', ['version' => '2.0.0', '--app-digest' => $appDigest, '--inputs' => $inputs.'.missing'])
+        $this->artisan('release:manifest', ['version' => '2.1.0', '--app-digest' => $appDigest, '--inputs' => $inputs.'.missing'])
             ->expectsOutputToContain('Cannot read the release inputs')->assertFailed();
-        $this->artisan('release:manifest', ['version' => '2.0.0', '--app-digest' => $appDigest, '--inputs' => $inputs, '--output' => '/nonexistent/dir/manifest.json'])
+        $this->artisan('release:manifest', ['version' => '2.1.0', '--app-digest' => $appDigest, '--inputs' => $inputs, '--output' => '/nonexistent/dir/manifest.json'])
             ->expectsOutputToContain('A release ships the asset "install.sh"')->assertFailed();
         $this->artisan('release:manifest', [
-            'version' => '2.0.0', '--app-digest' => $appDigest, '--inputs' => $inputs, '--output' => '/nonexistent/dir/manifest.json',
+            'version' => '2.1.0', '--app-digest' => $appDigest, '--inputs' => $inputs, '--output' => '/nonexistent/dir/manifest.json',
             '--asset' => [base_path('distribution/install.sh'), base_path('distribution/shim.sh')],
         ])->expectsOutputToContain('Cannot write the manifest')->assertFailed();
     } finally {

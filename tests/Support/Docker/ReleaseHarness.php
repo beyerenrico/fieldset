@@ -25,7 +25,7 @@ use Throwable;
  */
 final class ReleaseHarness
 {
-    public const string TEST_VERSION = '2.0.0-alpha.1-test';
+    public const string TEST_VERSION = '2.1.0-alpha.1-test';
 
     public const string MANIFEST = 'release-manifest.json';
 
@@ -82,7 +82,7 @@ final class ReleaseHarness
         return "127.0.0.1:{$this->registryPort}";
     }
 
-    /** Stands in for https://github.com/beyerenrico/form-schema-app/releases (FIELDSET_RELEASE_URL). */
+    /** Stands in for https://github.com/beyerenrico/fieldset/releases (FIELDSET_RELEASE_URL). */
     public function releaseUrl(): string
     {
         return "http://127.0.0.1:{$this->releasePort}";

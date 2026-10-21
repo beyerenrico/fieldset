@@ -56,7 +56,7 @@ beforeEach(function (): void {
 
     ['harness' => $this->harness, 'release' => $this->release, 'work' => $this->work] = $GLOBALS['fieldsetBootstrap'];
     file_put_contents($this->work.'/docker.log', '');
-    $this->appReference = $this->harness->registry().'/beyerenrico/form-schema-app@'.$this->release->appDigest;
+    $this->appReference = $this->harness->registry().'/beyerenrico/fieldset@'.$this->release->appDigest;
 });
 
 /** The docker wrapper, the probe and a log; returns the workspace path. */
@@ -166,7 +166,7 @@ it('(a) runs nothing from a truncated install.sh', function (): void {
 });
 
 it('(b) fails with exit 3 for a manifest signed by another key, before pulling anything but cosign', function (): void {
-    $version = '2.0.0-alpha.2-test';
+    $version = '2.1.0-alpha.2-test';
     $directory = $this->harness->distDirectory()."/download/v{$version}";
     mkdir($directory, 0755, true);
     copy($this->release->manifestPath(), $directory.'/release-manifest.json');
@@ -183,7 +183,7 @@ it('(b) fails with exit 3 for a manifest signed by another key, before pulling a
 });
 
 it('(b) fails with exit 3 for a tampered manifest even when SHA256SUMS matches it', function (): void {
-    $version = '2.0.0-alpha.3-test';
+    $version = '2.1.0-alpha.3-test';
     $directory = $this->harness->distDirectory()."/download/v{$version}";
     mkdir($directory, 0755, true);
     $manifest = $this->release->manifest();

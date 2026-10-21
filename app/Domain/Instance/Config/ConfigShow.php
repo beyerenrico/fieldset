@@ -32,7 +32,7 @@ use App\Domain\Instance\State\InstanceState;
 final readonly class ConfigShow
 {
     /** Where releases come from; contacted only by an upgrade (§6.5, install.sh's FIELDSET_RELEASE_URL default). */
-    public const string RELEASES_URL = 'https://github.com/beyerenrico/form-schema-app/releases';
+    public const string RELEASES_URL = 'https://github.com/beyerenrico/fieldset/releases';
 
     /** Secret env values by service and key => the name `config show` lists. */
     private const array SECRETS = [

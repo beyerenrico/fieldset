@@ -148,7 +148,7 @@ final class UpgradeFixture
 
     public static function targetImage(): string
     {
-        return InstanceCommandFixture::MIRROR.'/beyerenrico/form-schema-app@'.self::TARGET_DIGEST;
+        return InstanceCommandFixture::MIRROR.'/beyerenrico/fieldset@'.self::TARGET_DIGEST;
     }
 
     /** @return list<string> the services of each compose up since the mark, in order */

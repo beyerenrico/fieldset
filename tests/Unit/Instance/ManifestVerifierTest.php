@@ -49,7 +49,7 @@ it('runs the pinned cosign image against the anchored production identity and re
         ->and($spec->image)->toBe('ghcr.io/sigstore/cosign/cosign:v3.1.3@sha256:9e5c2f2edc34351160407ca3416c61855bdf9403c3c5936e0f0be7fc261611b8')
         ->and($spec->command)->toBe([
             'verify-blob', '--bundle', '/verify/bundle.json',
-            '--certificate-identity-regexp', '^https://github\.com/beyerenrico/form-schema-app/\.github/workflows/release\.yml@refs/tags/v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(alpha|beta|rc)(\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?$',
+            '--certificate-identity-regexp', '^https://github\.com/beyerenrico/fieldset/\.github/workflows/release\.yml@refs/tags/v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(alpha|beta|rc)(\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?$',
             '--certificate-oidc-issuer', 'https://token.actions.githubusercontent.com',
             '--certificate-github-workflow-trigger', 'push',
             '-',
@@ -200,10 +200,11 @@ it('pins the production identity to this repository and release workflow on a re
         '--certificate-oidc-issuer', 'https://token.actions.githubusercontent.com',
         '--certificate-github-workflow-trigger', 'push',
     ])
-        ->and(preg_match($pattern, 'https://github.com/beyerenrico/form-schema-app/.github/workflows/release.yml@refs/tags/v2.0.0-alpha.1'))->toBe(1)
-        ->and(preg_match($pattern, 'https://github.com/beyerenrico/form-schema-app/.github/workflows/release.yml@refs/heads/main'))->toBe(0)
-        ->and(preg_match($pattern, 'https://github.com/beyerenrico/form-schema-app/.github/workflows/releasexyml@refs/tags/v2.0.0'))->toBe(0)
+        ->and(preg_match($pattern, 'https://github.com/beyerenrico/fieldset/.github/workflows/release.yml@refs/tags/v2.0.0-alpha.1'))->toBe(1)
+        ->and(preg_match($pattern, 'https://github.com/beyerenrico/fieldset/.github/workflows/release.yml@refs/heads/main'))->toBe(0)
+        ->and(preg_match($pattern, 'https://github.com/beyerenrico/fieldset/.github/workflows/releasexyml@refs/tags/v2.0.0'))->toBe(0)
         ->and(preg_match($pattern, 'https://github.com/goreleaser/goreleaser/.github/workflows/release.yml@refs/tags/v2.18.3'))->toBe(0)
+        ->and(preg_match($pattern, 'https://github.com/beyerenrico/form-schema-app/.github/workflows/release.yml@refs/tags/v2.1.0'))->toBe(0)
         ->and(fn () => new SignerIdentity('https://github.com/.*'))->toThrow(ReleaseException::class, 'anchored');
 });
 

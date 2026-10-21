@@ -106,7 +106,7 @@ it('reads the last JSON document of a one-off and keeps its secrets out of debug
 it('tells registries apart from Docker Hub references', function (string $image, string $registry): void {
     expect(RegistryCheck::registryOf($image))->toBe($registry);
 })->with([
-    ['ghcr.io/beyerenrico/form-schema-app@sha256:'.str_repeat('a', 64), 'ghcr.io'],
+    ['ghcr.io/beyerenrico/fieldset@sha256:'.str_repeat('a', 64), 'ghcr.io'],
     ['127.0.0.1:5000/library/postgres@sha256:'.str_repeat('a', 64), '127.0.0.1:5000'],
     ['localhost/x@sha256:'.str_repeat('a', 64), 'localhost'],
     ['library/postgres@sha256:'.str_repeat('a', 64), 'docker.io'],

@@ -12,7 +12,7 @@ use Tests\Support\Docker\UpgradeJourney;
 
 /*
  * J7 (BUILD_PROMPT_V2 §11, R33–R37, R55, R57, R62, AE7, F5; plan U18; ADR 0086) with real Docker. Releases built
- * locally into the harness: 2.0.0-rc.1-test (installed), and three targets derived from it: rc.2-test adds a migration
+ * locally into the harness: 2.1.0-rc.1-test (installed), and three targets derived from it: rc.2-test adds a migration
  * (the happy upgrade), rc.3-test answers 503 to everything (its health check fails), rc.4-test has a `fieldset` entry point
  * that crashes. In local mode (`--demo`): the crashing target rolls back (exit 5); AE7: the unhealthy target rolls back
  * while an API client writes until the gate rises (the previous digests run again, the database equals the safety
@@ -22,16 +22,16 @@ use Tests\Support\Docker\UpgradeJourney;
  * the gate gets 503 and is retried after the rollback. Everything is named `fieldset-test-j07…` and removed afterwards.
  */
 
-const J07_FROM = '2.0.0-rc.1-test';
+const J07_FROM = '2.1.0-rc.1-test';
 
-const J07_HAPPY = '2.0.0-rc.2-test';
+const J07_HAPPY = '2.1.0-rc.2-test';
 
-const J07_UNHEALTHY = '2.0.0-rc.3-test';
+const J07_UNHEALTHY = '2.1.0-rc.3-test';
 
-const J07_CRASHING = '2.0.0-rc.4-test';
+const J07_CRASHING = '2.1.0-rc.4-test';
 
 /** Older than J07_FROM: J07 publishes it itself, since the shared harness's version (FIELDSET_RELEASE_VERSION) may be newer. */
-const J07_OLDER = '2.0.0-beta.1-test';
+const J07_OLDER = '2.1.0-beta.1-test';
 
 const J07_PROXY_HOST = 'j07.fieldset-test.example';
 
@@ -118,7 +118,7 @@ function j07WriteThroughUpgrade(InstanceJourney $journey, string $dir, string $u
     return ['process' => $process, 'acked' => $acked, 'gated' => $gated, 'statuses' => $statuses, 'retried' => $retried, 'digest_live' => $digest];
 }
 
-it('installs 2.0.0-rc.1-test with demo data in local mode and an API client', function (): void {
+it('installs 2.1.0-rc.1-test with demo data in local mode and an API client', function (): void {
     $install = $this->journey->install($this->dir, ['--demo', '--org', 'J7 Org', '--owner-email', 'owner@example.test', '--owner-name', 'Pat Owner', '--locale', 'en', '--yes', '--json']);
     $json = InstanceJourney::json($install);
     $GLOBALS['fieldsetJ07Uuid'] = InstanceJourney::uuid($this->dir);

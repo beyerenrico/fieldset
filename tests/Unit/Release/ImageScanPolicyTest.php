@@ -82,6 +82,6 @@ it('scans the app image strictly and each third-party image with only its own ex
         ->and($release)->toContain('--no-progress "${exceptions[@]}" "$reference"')
         ->and(substr_count($release, '--ignorefile'))->toBe(2)
         ->and($release)->toContain('--severity CRITICAL,HIGH --ignore-unfixed --exit-code 1')
-        ->and($ci)->toContain("--ignore-unfixed --exit-code 1 --no-progress --ignorefile '' \\\n            form-schema-app:scan")
+        ->and($ci)->toContain("--ignore-unfixed --exit-code 1 --no-progress --ignorefile '' \\\n            fieldset:scan")
         ->and($ci)->not->toContain('trivyignore');
 });

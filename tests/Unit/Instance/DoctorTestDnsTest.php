@@ -52,7 +52,7 @@ it('passes FIELDSET_TEST_DNS from the shim into the ops container', function ():
     mkdir($scripts->root.'/home');
     $dir = $scripts->root.'/instance';
     mkdir($dir, 0700);
-    $image = 'ghcr.io/beyerenrico/form-schema-app@sha256:'.str_repeat('1', 64);
+    $image = 'ghcr.io/beyerenrico/fieldset@sha256:'.str_repeat('1', 64);
     file_put_contents($dir.'/state.json', InstanceState::create('3f1c2b9e-8a4d-4c1e-9b7a-2d5e6f708192', $dir, 501, 20, 501)->withRelease('2.0.0', ['app' => $image])->toJson());
     copy(base_path('distribution/shim.sh'), $dir.'/fieldset');
     chmod($dir.'/fieldset', 0700);

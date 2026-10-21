@@ -1,7 +1,7 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://raw.githubusercontent.com/beyerenrico/form-schema-app/main/distribution/manifest.schema.json",
-    "title": "form-schema-app release manifest",
+    "$id": "https://raw.githubusercontent.com/beyerenrico/fieldset/main/distribution/manifest.schema.json",
+    "title": "Fieldset release manifest",
     "description": "Pins every image of a release by digest and lists asset checksums (BUILD_PROMPT_V2 R2, R4; ADR 0060, 0067). Signed with cosign sign-blob --bundle; it carries no signer identity, which install.sh and the image hold (R58). Readers ignore unknown keys; an incompatible change raises schema_version.",
     "type": "object",
     "required": [

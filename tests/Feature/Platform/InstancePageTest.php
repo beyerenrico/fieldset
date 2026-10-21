@@ -22,11 +22,11 @@ require_once __DIR__.'/Support.php';
  * version and digests, mode and URL, mail with the catcher link, backups, disk and updates. Operators only.
  */
 
-const INSTANCE_PAGE_APP = 'ghcr.io/beyerenrico/form-schema-app@sha256:'.'1111111111111111111111111111111111111111111111111111111111111111';
+const INSTANCE_PAGE_APP = 'ghcr.io/beyerenrico/fieldset@sha256:'.'1111111111111111111111111111111111111111111111111111111111111111';
 
 const INSTANCE_PAGE_POSTGRES = 'docker.io/library/postgres@sha256:'.'2222222222222222222222222222222222222222222222222222222222222222';
 
-const INSTANCE_PAGE_MANIFEST = 'https://github.com/beyerenrico/form-schema-app/releases/latest/download/release-manifest.json';
+const INSTANCE_PAGE_MANIFEST = 'https://github.com/beyerenrico/fieldset/releases/latest/download/release-manifest.json';
 
 /** @param  array<string, mixed>  $row */
 function instancePageRun(array $row): void

@@ -101,7 +101,7 @@ final class FakeRegistry
             $data['images'][$service] = "{$pin->name()}:{$pin->tag}@".$this->image($mirror ?? $pin->registry, $pin->repository, $platforms);
         }
 
-        return [$data, $this->image($mirror ?? 'ghcr.io', 'beyerenrico/form-schema-app', $platforms)];
+        return [$data, $this->image($mirror ?? 'ghcr.io', 'beyerenrico/fieldset', $platforms)];
     }
 
     /**

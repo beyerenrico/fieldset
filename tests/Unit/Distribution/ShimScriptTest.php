@@ -13,7 +13,7 @@ use Tests\Support\Instance\FieldsetCommandFlags;
  * user per Docker runtime and the browser hand-over. Docker is a recording stub here; the journey runs it for real.
  */
 
-const SHIM_IMAGE = 'ghcr.io/beyerenrico/form-schema-app@sha256:1111111111111111111111111111111111111111111111111111111111111111';
+const SHIM_IMAGE = 'ghcr.io/beyerenrico/fieldset@sha256:1111111111111111111111111111111111111111111111111111111111111111';
 
 beforeEach(function (): void {
     $this->scripts = new DistributionScripts;
@@ -22,7 +22,7 @@ beforeEach(function (): void {
     mkdir($this->dir, 0700);
     $state = InstanceState::create('3f1c2b9e-8a4d-4c1e-9b7a-2d5e6f708192', $this->dir, 501, 20, 501)
         ->withRelease('2.0.0', ['app' => SHIM_IMAGE, 'postgres' => 'docker.io/library/postgres@sha256:'.str_repeat('2', 64)])
-        ->withPreviousRelease('2.0.0-rc.1', ['app' => 'ghcr.io/beyerenrico/form-schema-app@sha256:'.str_repeat('3', 64)], '{"services":{}}');
+        ->withPreviousRelease('2.0.0-rc.1', ['app' => 'ghcr.io/beyerenrico/fieldset@sha256:'.str_repeat('3', 64)], '{"services":{}}');
     file_put_contents($this->dir.'/state.json', $state->toJson());
     copy(base_path('distribution/shim.sh'), $this->dir.'/fieldset');
     chmod($this->dir.'/fieldset', 0700);
@@ -142,7 +142,7 @@ it('fails with exit 3 when the state is missing or names no valid image', functi
         ->and($this->scripts->opsRuns())->toBe([]);
 })->with([
     'missing' => '',
-    'tag instead of digest' => "{\n    \"digests\": {\n        \"app\": \"ghcr.io/beyerenrico/form-schema-app:latest\"\n    }\n}\n",
+    'tag instead of digest' => "{\n    \"digests\": {\n        \"app\": \"ghcr.io/beyerenrico/fieldset:latest\"\n    }\n}\n",
     'injection attempt' => "{\n    \"digests\": {\n        \"app\": \"x@sha256:".str_repeat('a', 64)." --privileged\"\n    }\n}\n",
     'empty digests' => "{\n    \"digests\": [],\n    \"previous\": {\n        \"digests\": {\n            \"app\": \"".SHIM_IMAGE."\"\n        }\n    }\n}\n",
 ]);

@@ -72,7 +72,7 @@ it('pins every image of a release by digest from the manifest pins, with an over
     $images = array_values(array_unique(array_map(fn (array $service): string => $service['image'], $stack->document['services'])));
 
     expect($images)->toEqualCanonicalizing([
-        '${FIELDSET_REGISTRY:-ghcr.io}/beyerenrico/form-schema-app@sha256:'.str_repeat('a', 64),
+        '${FIELDSET_REGISTRY:-ghcr.io}/beyerenrico/fieldset@sha256:'.str_repeat('a', 64),
         '${FIELDSET_REGISTRY:-'.$pins['postgres']->registry.'}/'.$pins['postgres']->repository.'@'.$pins['postgres']->digest,
         '${FIELDSET_REGISTRY:-'.$pins['valkey']->registry.'}/'.$pins['valkey']->repository.'@'.$pins['valkey']->digest,
         '${FIELDSET_REGISTRY:-'.$pins['gotenberg']->registry.'}/'.$pins['gotenberg']->repository.'@'.$pins['gotenberg']->digest,

@@ -82,6 +82,32 @@ it('keeps the trust literals identical to the image and the release workflow', f
         ->toContain("CERTIFICATE_IDENTITY_REGEXP: '".SignerIdentity::production()->identityRegexp."'");
 });
 
+it('derives one repository and workflow path from SignerIdentity, install.sh, release.yml and release.json', function (): void {
+    preg_match("/^  CERTIFICATE_IDENTITY_REGEXP: '(.+)'$/m", (string) file_get_contents(base_path('.github/workflows/release.yml')), $workflow);
+    preg_match('/^  IMAGE: (\S+)$/m', (string) file_get_contents(base_path('.github/workflows/release.yml')), $image);
+    $origin = function (string $regexp): array {
+        preg_match('#^\^https://github\\\\\\.com/([^/]+/[^/]+)/\\\\\\.github/workflows/([^@]+)@refs/tags/v#', $regexp, $match);
+
+        return array_map(fn (string $part): string => str_replace('\\.', '.', $part), array_slice($match, 1));
+    };
+    $expected = ['beyerenrico/fieldset', '.github/workflows/release.yml'];
+    $sources = [
+        'SignerIdentity' => SignerIdentity::production()->identityRegexp,
+        'install.sh' => installTrustLiterals()['identity_regexp'] ?? '',
+        'release.yml' => $workflow[1] ?? '',
+    ];
+
+    foreach ($sources as $source => $regexp) {
+        [$repository, $file] = $origin($regexp) + ['', ''];
+        expect([$repository, ".github/workflows/{$file}"])->toBe($expected, $source);
+    }
+
+    expect(SignerIdentity::PRODUCTION_REPOSITORY)->toBe($expected[0])
+        ->and(file_exists(base_path($expected[1])))->toBeTrue()
+        ->and($image[1] ?? null)->toBe('ghcr.io/'.$expected[0])
+        ->and(json_decode((string) file_get_contents(base_path('distribution/release.json')), true)['app_image'])->toBe('ghcr.io/'.$expected[0]);
+});
+
 it('refuses FIELDSET_TRUST_KEY in the production build with exit 2 before any download or Docker call', function (): void {
     $process = $this->scripts->run($this->production, ['--dir', $this->dir, '--json'], [...$this->env, 'FIELDSET_TRUST_KEY' => $this->key]);
     $json = json_decode($process->getOutput(), true);
@@ -115,12 +141,12 @@ it('verifies the manifest with the pinned cosign image and the built-in identity
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput())
         ->and(array_map(fn (array $call): string => $call[1].($call[1] === 'pull' ? ' '.$call[3] : ''), array_slice($docker, 0, 8)))->toBe([
             'version', 'image', 'pull '.ManifestVerifier::COSIGN_IMAGE, 'create', 'cp', 'start', 'rm',
-            'pull ghcr.io/beyerenrico/form-schema-app@'.ReleaseFixtures::APP_DIGEST,
+            'pull ghcr.io/beyerenrico/fieldset@'.ReleaseFixtures::APP_DIGEST,
         ])
         ->and(array_slice($create, 2))->toBe(['-e', 'HOME=/tmp', ManifestVerifier::COSIGN_IMAGE, ...array_slice($verifier->cosignArguments(), 0, -1), '/verify/release-manifest.json'])
         ->and(file_get_contents($this->scripts->root.'/verified/release-manifest.json'))->toBe($this->manifestJson)
         ->and(substr(sprintf('%o', fileperms($this->scripts->root.'/verified/bundle.json')), -3))->toBe('644')
-        ->and($this->scripts->calls('curl')[0])->toContain('--proto', '=https', '--tlsv1.2', 'https://github.com/beyerenrico/form-schema-app/releases/download/v2.0.0-alpha.1/release-manifest.json');
+        ->and($this->scripts->calls('curl')[0])->toContain('--proto', '=https', '--tlsv1.2', 'https://github.com/beyerenrico/fieldset/releases/download/v2.0.0-alpha.1/release-manifest.json');
 });
 
 it('fails with exit 3 when the signature does not verify, before any other pull and without an instance directory', function (): void {
@@ -150,12 +176,12 @@ it('verifies with the local key and no network in the harness build', function (
         ->and(array_slice($create, 2))->toBe(['-e', 'HOME=/tmp', '--network', 'none', ManifestVerifier::COSIGN_IMAGE, 'verify-blob', '--bundle', '/verify/bundle.json', '--key', '/verify/trust.pub', '--insecure-ignore-tlog=true', '/verify/release-manifest.json'])
         ->and(file_get_contents($this->scripts->root.'/verified/trust.pub'))->toBe("-----BEGIN PUBLIC KEY-----\n")
         ->and(array_filter($this->scripts->calls('docker'), fn (array $call): bool => $call[1] === 'pull' && end($call) === ManifestVerifier::COSIGN_IMAGE))->toBe([])
-        ->and($this->scripts->calls('curl')[0])->toContain('https://github.com/beyerenrico/form-schema-app/releases/latest/download/release-manifest.json');
+        ->and($this->scripts->calls('curl')[0])->toContain('https://github.com/beyerenrico/fieldset/releases/latest/download/release-manifest.json');
 });
 
 it('creates the instance directory, stores the verified release and installs the shim from the image', function (): void {
     $process = $this->scripts->run($this->production, ['--dir', $this->dir.'//', '--json'], [...$this->env, 'FIELDSET_REGISTRY' => '127.0.0.1:5000']);
-    $pulled = '127.0.0.1:5000/beyerenrico/form-schema-app@'.ReleaseFixtures::APP_DIGEST;
+    $pulled = '127.0.0.1:5000/beyerenrico/fieldset@'.ReleaseFixtures::APP_DIGEST;
     $cat = array_values(array_filter($this->scripts->calls('docker'), fn (array $call): bool => in_array('cat', $call, true)))[0];
 
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput())
@@ -177,7 +203,7 @@ it('hands over to fieldset install in an ops container with the host facts, moun
     $process = $this->scripts->run($this->production, ['--dir', $this->dir, '--owner-email', 'owner@example.test', '--json', '--yes'], [...$this->env, 'STUB_OPS_HOOK' => $hook, 'STUB_OPS_EXIT' => '6']);
     $run = $this->scripts->opsRuns()[0];
     $env = $this->scripts->opsEnvironment();
-    $image = 'ghcr.io/beyerenrico/form-schema-app@'.ReleaseFixtures::APP_DIGEST;
+    $image = 'ghcr.io/beyerenrico/fieldset@'.ReleaseFixtures::APP_DIGEST;
     $uid = trim((string) shell_exec('id -u'));
     $gid = trim((string) shell_exec('id -g'));
 
@@ -252,8 +278,8 @@ it('resolves the release and the image from the manifest, honouring FIELDSET_REG
     expect($process->getExitCode())->toBe($status)
         ->and($status === 0 ? $process->getOutput() : $process->getErrorOutput())->toContain($expected);
 })->with([
-    'canonical registry' => [[], '', 0, '2.0.0-alpha.1 ghcr.io/beyerenrico/form-schema-app@'.ReleaseFixtures::APP_DIGEST],
-    'mirror' => [['FIELDSET_REGISTRY' => 'mirror.example:5000'], '2.0.0-alpha.1', 0, 'mirror.example:5000/beyerenrico/form-schema-app@'],
+    'canonical registry' => [[], '', 0, '2.0.0-alpha.1 ghcr.io/beyerenrico/fieldset@'.ReleaseFixtures::APP_DIGEST],
+    'mirror' => [['FIELDSET_REGISTRY' => 'mirror.example:5000'], '2.0.0-alpha.1', 0, 'mirror.example:5000/beyerenrico/fieldset@'],
     'other version' => [[], '2.0.0', 3, 'The manifest is for 2.0.0-alpha.1, not 2.0.0'],
 ]);
 
@@ -327,7 +353,7 @@ it('exits 10 when the Docker daemon is down and 3 when the release cannot be dow
     expect($down->getExitCode())->toBe(10)
         ->and(json_decode($down->getOutput(), true)['errors'][0])->toMatchArray(['code' => 'docker_unavailable', 'retryable' => true])
         ->and($missing->getExitCode())->toBe(3)
-        ->and($missing->getErrorOutput())->toContain('Cannot download https://github.com/beyerenrico/form-schema-app/releases/download/v2.0.0-alpha.1/release-manifest.json.sigstore.json')
+        ->and($missing->getErrorOutput())->toContain('Cannot download https://github.com/beyerenrico/fieldset/releases/download/v2.0.0-alpha.1/release-manifest.json.sigstore.json')
         ->and(file_exists($this->dir))->toBeFalse();
 });
 

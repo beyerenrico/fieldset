@@ -38,7 +38,7 @@ it('shows every setting of a local instance with secrets redacted and no outboun
         ->and($json['data']['secrets'])->toMatchArray(['app_key' => SecretRedactor::REPLACEMENT, 'database_password' => SecretRedactor::REPLACEMENT, 'catcher_password' => SecretRedactor::REPLACEMENT])
         ->and(collect($secrets)->contains(fn (string $secret): bool => str_contains($raw, $secret)))->toBeFalse()
         ->and($contacts->filter(fn (array $feature): bool => $feature['active'])->all())->toBe([])
-        ->and($contacts['upgrades']['contacts'])->toContain(InstanceCommandFixture::MIRROR, 'https://github.com/beyerenrico/form-schema-app/releases')
+        ->and($contacts['upgrades']['contacts'])->toContain(InstanceCommandFixture::MIRROR, 'https://github.com/beyerenrico/fieldset/releases')
         ->and($contacts['upgrades']['purpose'])->toContain('fieldset upgrade')->not->toContain('arrives with') // gate review stale texts
         ->and($contacts['acme']['contacts'])->toBe([])
         ->and(collect($json['data']['keys'])->firstWhere('key', 'mail'))->toMatchArray(['value' => 'capture', 'available' => true, 'settable_now' => true])

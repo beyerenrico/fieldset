@@ -209,12 +209,12 @@ RUN case "${FIELDSET_BUILD}" in production | harness) ;; *) echo "FIELDSET_BUILD
 # Version metadata last, so a version bump rebuilds no layer above (KTD9, R1).
 ARG APP_VERSION=0.0.0-dev
 ARG APP_REVISION=
-LABEL org.opencontainers.image.title="form-schema-app" \
-      org.opencontainers.image.description="Self-hostable form schema application: app, queue, scheduler, fieldset ops and backup roles" \
+LABEL org.opencontainers.image.title="fieldset" \
+      org.opencontainers.image.description="Fieldset, a self-hostable form application: app, queue, scheduler, fieldset ops and backup roles" \
       org.opencontainers.image.version="${APP_VERSION}" \
       org.opencontainers.image.revision="${APP_REVISION}" \
-      org.opencontainers.image.source="https://github.com/beyerenrico/form-schema-app" \
-      org.opencontainers.image.url="https://github.com/beyerenrico/form-schema-app" \
+      org.opencontainers.image.source="https://github.com/beyerenrico/fieldset" \
+      org.opencontainers.image.url="https://github.com/beyerenrico/fieldset" \
       org.opencontainers.image.licenses="AGPL-3.0-only"
 ENV APP_VERSION="${APP_VERSION}" \
     APP_REVISION="${APP_REVISION}"

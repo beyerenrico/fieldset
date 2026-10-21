@@ -20,7 +20,7 @@ require_once __DIR__.'/../Platform/Support.php';
  * shows "update available" with the notes link (https only) and `fieldset upgrade`.
  */
 
-const UPDATE_CHECK_URL = 'https://github.com/beyerenrico/form-schema-app/releases/latest/download/release-manifest.json';
+const UPDATE_CHECK_URL = 'https://github.com/beyerenrico/fieldset/releases/latest/download/release-manifest.json';
 
 function updateCheckOn(string $url = UPDATE_CHECK_URL): void
 {
@@ -30,7 +30,7 @@ function updateCheckOn(string $url = UPDATE_CHECK_URL): void
 /** @param  array<string, mixed>  $manifest */
 function updateCheckManifest(array $manifest = []): string
 {
-    return (string) json_encode(['schema_version' => 1, 'version' => '2.1.0', 'channel' => 'stable', 'notes_url' => 'https://github.com/beyerenrico/form-schema-app/releases/tag/v2.1.0', ...$manifest]);
+    return (string) json_encode(['schema_version' => 1, 'version' => '2.1.0', 'channel' => 'stable', 'notes_url' => 'https://github.com/beyerenrico/fieldset/releases/tag/v2.1.0', ...$manifest]);
 }
 
 function updateCheckScheduled(): Event
@@ -90,7 +90,7 @@ it('reads only the manifest URL once and shows update available with the notes l
     $this->get('/platform/instance')->assertOk()
         ->assertSee('data-instance-problem="update_available"', false)->assertSee(__('instance.problems.update_available', ['version' => '2.1.0']))
         ->assertSee('data-instance-updates="available"', false)->assertSee('fieldset upgrade')
-        ->assertSee('href="https://github.com/beyerenrico/form-schema-app/releases/tag/v2.1.0"', false);
+        ->assertSee('href="https://github.com/beyerenrico/fieldset/releases/tag/v2.1.0"', false);
     Http::assertSentCount(1); // the page itself never calls out
 });
 
