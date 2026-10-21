@@ -1,0 +1,171 @@
+{
+    "command": "fieldset doctor --post --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "doctor",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": false,
+        "data": {
+            "checks": [
+                {
+                    "key": "docker",
+                    "status": "ok",
+                    "summary": "Docker Engine 29.2.1, Compose 5.6.0.",
+                    "hint": null,
+                    "details": {
+                        "engine": "29.2.1",
+                        "client": "29.9.1",
+                        "compose": "5.6.0"
+                    }
+                },
+                {
+                    "key": "architecture",
+                    "status": "warn",
+                    "summary": "The engine runs linux/arm64; DOCKER_DEFAULT_PLATFORM runs the linux/amd64 images under emulation, which is much slower.",
+                    "hint": "Unset DOCKER_DEFAULT_PLATFORM to run the linux/arm64 images this release also ships.",
+                    "details": {
+                        "platform": "linux/amd64",
+                        "engine_platform": "linux/arm64",
+                        "emulated": true,
+                        "docker_default_platform": "linux/amd64",
+                        "release_platforms": [
+                            "linux/amd64",
+                            "linux/arm64"
+                        ],
+                        "os": "Docker Desktop"
+                    }
+                },
+                {
+                    "key": "memory",
+                    "status": "ok",
+                    "summary": "15972 MiB of memory.",
+                    "hint": null,
+                    "details": {
+                        "total_mib": 15972,
+                        "minimum_mib": 2048
+                    }
+                },
+                {
+                    "key": "disk",
+                    "status": "ok",
+                    "summary": "139.1 GiB free.",
+                    "hint": null,
+                    "details": {
+                        "free_gib": 139.1,
+                        "path": "<work>/fieldset-test-j01"
+                    }
+                },
+                {
+                    "key": "path_sharing",
+                    "status": "ok",
+                    "summary": "The Docker engine shares the instance directory with fieldset.",
+                    "hint": null,
+                    "details": {
+                        "dir": "<work>/fieldset-test-j01",
+                        "mounts": [
+                            "<harness>/keys"
+                        ]
+                    }
+                },
+                {
+                    "key": "permissions",
+                    "status": "ok",
+                    "summary": "Only the instance owner can change the instance files.",
+                    "hint": null,
+                    "details": {
+                        "owner_uid": 0
+                    }
+                },
+                {
+                    "key": "stale_files",
+                    "status": "ok",
+                    "summary": "No stale hand-over files.",
+                    "hint": null,
+                    "details": {
+                        "removed": []
+                    }
+                },
+                {
+                    "key": "dns",
+                    "status": "skipped",
+                    "summary": "Local mode: no domain to resolve.",
+                    "hint": null,
+                    "details": []
+                },
+                {
+                    "key": "registry",
+                    "status": "ok",
+                    "summary": "Every image is already on this host.",
+                    "hint": null,
+                    "details": {
+                        "missing": []
+                    }
+                },
+                {
+                    "key": "clock",
+                    "status": "skipped",
+                    "summary": "No reference clock: fieldset contacts no server just for the time.",
+                    "hint": null,
+                    "details": []
+                },
+                {
+                    "key": "ports",
+                    "status": "ok",
+                    "summary": "Ports 8081, 8025 are served by this instance.",
+                    "hint": null,
+                    "details": {
+                        "ports": {
+                            "app": 8081,
+                            "mail_ui": 8025
+                        },
+                        "taken": []
+                    }
+                },
+                {
+                    "key": "proxy",
+                    "status": "skipped",
+                    "summary": "Not in proxy mode.",
+                    "hint": null,
+                    "details": []
+                },
+                {
+                    "key": "lan_address",
+                    "status": "skipped",
+                    "summary": "Phone HTTPS with the local CA is off.",
+                    "hint": null,
+                    "details": []
+                },
+                {
+                    "key": "services",
+                    "status": "ok",
+                    "summary": "All 8 services run and are healthy.",
+                    "hint": null,
+                    "details": {
+                        "services": {
+                            "app": "running (healthy)",
+                            "queue": "running (healthy)",
+                            "scheduler": "running",
+                            "postgres": "running (healthy)",
+                            "redis": "running (healthy)",
+                            "gotenberg": "running",
+                            "mailpit": "running (healthy)",
+                            "backup": "running"
+                        }
+                    }
+                }
+            ],
+            "post": true
+        },
+        "secrets": [],
+        "warnings": [
+            {
+                "code": "doctor_architecture",
+                "message": "The engine runs linux/arm64; DOCKER_DEFAULT_PLATFORM runs the linux/amd64 images under emulation, which is much slower.",
+                "hint": "Unset DOCKER_DEFAULT_PLATFORM to run the linux/arm64 images this release also ships."
+            }
+        ],
+        "errors": []
+    }
+}

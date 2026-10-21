@@ -1,0 +1,20 @@
+{
+    "command": "fieldset version --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "version",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": false,
+        "data": {
+            "fieldset": "2.1.0",
+            "revision": "59a0b0970694da9baf535e44cf742eae7ca7b137",
+            "instance": "2.1.0",
+            "newest_known": null
+        },
+        "secrets": [],
+        "warnings": [],
+        "errors": []
+    }
+}
