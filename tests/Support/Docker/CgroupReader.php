@@ -8,7 +8,7 @@ use Symfony\Component\Process\Process;
 
 /**
  * Reads containers' cgroup v2 memory.stat from the engine's cgroup tree for J10's EnvelopeMonitor (ADR 0083): one
- * throwaway container `fsa-test-cgroup-<hex>` with the tree mounted read-only (no privileges, no network), so a sample
+ * throwaway container `fieldset-test-cgroup-<hex>` with the tree mounted read-only (no privileges, no network), so a sample
  * of every service costs one `docker exec` outside the measured containers instead of one inside each of them. It
  * removes itself after four hours at the latest (`--rm`, `sleep`). `memory.stat` tells what `docker stats` cannot:
  * anonymous memory and shared memory (Postgres' shared buffers), which the kernel cannot reclaim without swap.
@@ -22,7 +22,7 @@ final readonly class CgroupReader
     /** Starts the reader from an image that is present (it needs `sh`, `grep` and `sleep`), or null when that fails. */
     public static function start(string $image): ?self
     {
-        $name = 'fsa-test-cgroup-'.bin2hex(random_bytes(3));
+        $name = 'fieldset-test-cgroup-'.bin2hex(random_bytes(3));
         $process = new Process(['docker', 'run', '--detach', '--rm', '--name', $name, '--network', 'none', '--volume', '/sys/fs/cgroup:/host-cgroup:ro',
             '--entrypoint', 'sleep', $image, (string) self::LIFETIME_SECONDS]);
         $process->setTimeout(120);

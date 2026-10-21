@@ -10,7 +10,7 @@ use Tests\Support\Instance\UpgradeFixture;
  * The staged files a child leaves (plan U18, KTD19 steps 6–7, KTD25, ADR 0086, review U18 S2): only the compose file,
  * the env files of its services and the known service files are taken, env files always 0600; anything else in the stage
  * is refused, as is a staged compose file that reaches past the containers or runs an image the release does not pin.
- * The previous image's stage of `fsa rollback` passes the same validation before any of its files is used.
+ * The previous image's stage of `fieldset rollback` passes the same validation before any of its files is used.
  */
 
 beforeEach(function (): void {
@@ -73,7 +73,7 @@ it('refuses RUN_MIGRATIONS in a staged env file and an external volume that is n
         'migrations' => $this->upgrade->editStagedCompose(static fn (array $d): array => $d, static function (string $root): void {
             file_put_contents($root.'/env/app.env', file_get_contents($root.'/env/app.env')."RUN_MIGRATIONS='true'\n");
         }),
-        'other instance' => $this->upgrade->editStagedCompose(static fn (array $d): array => [...$d, 'volumes' => [...$d['volumes'], 'app-storage' => ['name' => 'fsa-other-1a2b_app-storage', 'external' => true]]]),
+        'other instance' => $this->upgrade->editStagedCompose(static fn (array $d): array => [...$d, 'volumes' => [...$d['volumes'], 'app-storage' => ['name' => 'fieldset-other-1a2b_app-storage', 'external' => true]]]),
         default => $this->upgrade->editStagedCompose(static fn (array $d): array => [...$d, 'volumes' => [...$d['volumes'], 'app-storage' => ['name' => $project.'_app-storage-rdeadbeef0000', 'external' => true]]]),
     };
 
@@ -95,7 +95,7 @@ it('takes an external storage volume this instance restored and labelled', funct
     expect($code)->toBe(0, (string) json_encode($json))->and($this->upgrade->compose())->toContain($volume);
 });
 
-it('validates the previous image\'s stage of fsa rollback before using any of its files', function (): void {
+it('validates the previous image\'s stage of fieldset rollback before using any of its files', function (): void {
     [$code] = $this->upgrade->upgrade();
     expect($code)->toBe(0);
     $this->upgrade->editStagedCompose(static fn (array $d): array => [...$d, 'services' => [...$d['services'], 'gotenberg' => [...$d['services']['gotenberg'], 'volumes' => [['type' => 'bind', 'source' => '/var/run/docker.sock', 'target' => '/var/run/docker.sock']]]]]);

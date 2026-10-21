@@ -17,7 +17,7 @@ use Carbon\CarbonImmutable;
  * Everything the read-only `/platform` instance page shows (R39, R47, R48, plan U20, ADR 0089), read on each load from
  * what the app may read: the running image's version (config), runtime.json (mode, URLs, digests, catcher URL, whether
  * the update check is on), the `backup_runs` table, the disk under storage/ and the stored outcome of the update check.
- * Problems come first (InstanceProblems); an instance not run by fsa has no runtime file and shows what applies.
+ * Problems come first (InstanceProblems); an instance not run by fieldset has no runtime file and shows what applies.
  */
 final readonly class InstanceOverview
 {
@@ -32,7 +32,7 @@ final readonly class InstanceOverview
      * @return array{
      *     problems: list<InstanceProblem>,
      *     release: array{version: string, revision: string|null, installed: string|null, digests: array<string, string>},
-     *     access: array{fsa: bool, mode: string|null, url: string, local_url: string|null, tunnel: string|null},
+     *     access: array{fieldset: bool, mode: string|null, url: string, local_url: string|null, tunnel: string|null},
      *     mail: array{capture: bool, transport: string, host: string|null, catcher_url: string|null},
      *     backup: array{schedule: string|null, time_zone: string|null, next_run: CarbonImmutable|null, last: array<string, mixed>|null, last_success: array<string, mixed>|null},
      *     disk: array{free: float, total: float, percent: int}|null,
@@ -42,22 +42,22 @@ final readonly class InstanceOverview
     public function build(?CarbonImmutable $now = null): array
     {
         $now ??= CarbonImmutable::now('UTC');
-        $fsa = is_string(config('instance.runtime_path')) && config('instance.runtime_path') !== '';
+        $fieldset = is_string(config('instance.runtime_path')) && config('instance.runtime_path') !== '';
         $state = $this->state();
         $summary = $this->runs->summary($now);
         $space = $this->probes->diskSpace(storage_path());
         $updates = $this->updates();
-        $silent = $fsa && $summary['last'] === null && $summary['service'] === null;
+        $silent = $fieldset && $summary['last'] === null && $summary['service'] === null;
 
         $problems = InstanceProblems::backups($summary['alerts'], $silent);
         $problems[] = InstanceProblems::disk($space);
         $problems[] = InstanceProblems::update($updates['available'] ? $updates['latest'] : null);
-        $problems[] = $fsa && $summary['last_success'] !== null ? InstanceProblems::onHost() : null;
+        $problems[] = $fieldset && $summary['last_success'] !== null ? InstanceProblems::onHost() : null;
 
         return [
             'problems' => array_values(array_filter($problems)),
             'release' => $this->release($state),
-            'access' => $this->access($fsa, $state, $now),
+            'access' => $this->access($fieldset, $state, $now),
             'mail' => $this->mail($state),
             'backup' => [
                 'schedule' => is_string($summary['service']['schedule'] ?? null) ? $summary['service']['schedule'] : null,
@@ -71,7 +71,7 @@ final readonly class InstanceOverview
         ];
     }
 
-    /** The runtime state from the file (or its last good value); none for an instance not run by fsa or without a good file. */
+    /** The runtime state from the file (or its last good value); none for an instance not run by fieldset or without a good file. */
     private function state(): ?RuntimeState
     {
         $reading = $this->runtime->reading();
@@ -92,13 +92,13 @@ final readonly class InstanceOverview
         ];
     }
 
-    /** @return array{fsa: bool, mode: string|null, url: string, local_url: string|null, tunnel: string|null} */
-    private function access(bool $fsa, ?RuntimeState $state, CarbonImmutable $now): array
+    /** @return array{fieldset: bool, mode: string|null, url: string, local_url: string|null, tunnel: string|null} */
+    private function access(bool $fieldset, ?RuntimeState $state, CarbonImmutable $now): array
     {
         $tunnel = $state?->tunnel;
 
         return [
-            'fsa' => $fsa,
+            'fieldset' => $fieldset,
             'mode' => $state?->instance?->mode,
             'url' => $state->instanceUrl ?? (string) config('app.url'),
             'local_url' => $state?->localUrl,

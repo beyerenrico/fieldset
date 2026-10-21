@@ -19,7 +19,7 @@ use Tests\Support\Instance\ScriptedCommandRunner;
 use Tests\Support\Instance\TemporaryInstance;
 
 /*
- * Plan U8 (F1, R10, R16, AE5; ADR 0075): `fsa install --domain` against scripted Docker: DNS and ports 80/443 first,
+ * Plan U8 (F1, R10, R16, AE5; ADR 0075): `fieldset install --domain` against scripted Docker: DNS and ports 80/443 first,
  * the edge in the stack, the smoke test waiting for the certificate, exit 4 when none comes. The real thing:
  * tests/Install/Journeys/J02DomainModeTest.php (Pebble).
  */
@@ -66,7 +66,7 @@ function domainRun(object $test, ContainerSpec $spec): ?ProcessOutcome
 
 function installDomain(InstanceCommandFixture $fixture, array $flags = []): array
 {
-    return $fixture->run('fsa:install', InstanceCommandFixture::installFlags([...DOMAIN_FLAGS, ...$flags]));
+    return $fixture->run('fieldset:install', InstanceCommandFixture::installFlags([...DOMAIN_FLAGS, ...$flags]));
 }
 
 /** A self-signed CA certificate, as a private ACME directory's HTTPS root would be. */
@@ -154,7 +154,7 @@ it('sets the ACME contact, staging and a custom CA root from the flags', functio
 });
 
 it('refuses inconsistent or malformed domain-mode flags with exit 2 before anything runs', function (array $flags, string $error): void {
-    [$code, $json] = $this->fixture->run('fsa:install', InstanceCommandFixture::installFlags($flags));
+    [$code, $json] = $this->fixture->run('fieldset:install', InstanceCommandFixture::installFlags($flags));
 
     expect($code)->toBe(2, json_encode($json))
         ->and($json['errors'][0]['code'])->toBe($error)
@@ -285,8 +285,8 @@ it('reports domain mode in status and serves 80/443 from its own edge in doctor'
     ], $state->project().'-edge-1');
     $probes = count($this->fixture->runSpecs('true'));
 
-    [, $status] = $this->fixture->run('fsa:status');
-    [$doctorCode, $doctor] = $this->fixture->run('fsa:doctor');
+    [, $status] = $this->fixture->run('fieldset:status');
+    [$doctorCode, $doctor] = $this->fixture->run('fieldset:doctor');
 
     expect($status['data'])->toMatchArray(['mode' => 'domain', 'url' => 'https://forms.example.com', 'port' => null])
         ->and($status['data']['mail']['catcher_url'])->toBe('https://forms.example.com/_mail/')
@@ -301,8 +301,8 @@ it('warns about the CA\'s duplicate-certificate limit before and after uninstall
     $volume = EdgeService::volumeName($this->fixture->state()->project());
     $this->fixture->docker->withResource(new DockerResource(DockerResource::VOLUME, $volume, Labels::forInstance($uuid)));
 
-    [$asked, $prompt] = $this->fixture->run('fsa:uninstall');
-    [$code, $json] = $this->fixture->run('fsa:uninstall', ['--yes' => true]);
+    [$asked, $prompt] = $this->fixture->run('fieldset:uninstall');
+    [$code, $json] = $this->fixture->run('fieldset:uninstall', ['--yes' => true]);
 
     expect($asked)->toBe(6)
         ->and($prompt['errors'][0]['message'])->toContain('required: The certificates for forms.example.com')

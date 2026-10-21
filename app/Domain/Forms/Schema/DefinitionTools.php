@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Forms\Schema;
 
 use Closure;
-use FormSchema\Json\Json;
+use Fieldset\Json\Json;
 use stdClass;
 
 /**

@@ -11,7 +11,7 @@ use Illuminate\Support\Sleep;
 
 /**
  * Drains 1.0's queue before adopt stops it (KTD20 step 1, plan U19, ADR 0087). With app and scheduler stopped nothing
- * queues new jobs; Horizon keeps working while fsa counts the jobs in 1.0's Valkey, which 2.0 does not take over: a
+ * queues new jobs; Horizon keeps working while fieldset counts the jobs in 1.0's Valkey, which 2.0 does not take over: a
  * one-off of the manifest's Valkey image on 1.0's default network runs one Lua script over the queue keys (any Redis
  * prefix): jobs waiting (lists, without Laravel's `:notify` lists), reserved (running) and delayed (scheduled for later).
  * Drained means nothing waits and nothing runs; delayed jobs never drain on their own and are reported. 1.0's Valkey has

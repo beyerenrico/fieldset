@@ -1,4 +1,4 @@
-import type { JsonObject } from '@form-schema-app/form-schema-js';
+import type { JsonObject } from '@fieldset/fieldset-js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BuilderWire, SyncResult, SyncState } from '../src/contract.ts';
 import { DEBOUNCE_MS, MAX_WAIT_MS, RETRY_BASE_MS, SyncScheduler } from '../src/sync/scheduler.ts';

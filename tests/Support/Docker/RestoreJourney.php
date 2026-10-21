@@ -30,13 +30,13 @@ final class RestoreJourney
     /** The ID of the instance's service container of a role (app, postgres, backup …). */
     public static function container(string $uuid, string $role): string
     {
-        return trim(self::docker(['ps', '-q', '--filter', "label=app.form-schema.instance={$uuid}", '--filter', "label=app.form-schema.role={$role}", '--filter', 'label=com.docker.compose.oneoff=False'])->getOutput());
+        return trim(self::docker(['ps', '-q', '--filter', "label=app.fieldset.instance={$uuid}", '--filter', "label=app.fieldset.role={$role}", '--filter', 'label=com.docker.compose.oneoff=False'])->getOutput());
     }
 
     /** One value (tuples only, unaligned) from the instance's live database. */
-    public static function sql(string $uuid, string $sql, string $database = 'form_schema'): string
+    public static function sql(string $uuid, string $sql, string $database = 'fieldset'): string
     {
-        return trim(self::docker(['exec', self::container($uuid, 'postgres'), 'psql', '-U', 'form_schema', '-d', $database, '-tAc', $sql])->getOutput());
+        return trim(self::docker(['exec', self::container($uuid, 'postgres'), 'psql', '-U', 'fieldset', '-d', $database, '-tAc', $sql])->getOutput());
     }
 
     /** The storage volume the app container mounts. */
@@ -61,7 +61,7 @@ final class RestoreJourney
     public static function escaping(string $source, string $target, string $hmacKey): string
     {
         self::copy($source, $target);
-        new TarBuilder()->directory('./')->file('./../../../fsa-test-j08-escaped', 'pwned')->writeTo($target.'/storage.tar.gz', gzip: true);
+        new TarBuilder()->directory('./')->file('./../../../fieldset-test-j08-escaped', 'pwned')->writeTo($target.'/storage.tar.gz', gzip: true);
         self::sums($target, $hmacKey);
 
         return $target;
@@ -75,13 +75,13 @@ final class RestoreJourney
     public static function legacy(string $uuid, string $directory, string $appKey): string
     {
         @mkdir($directory, 0700, true);
-        $dump = self::docker(['exec', self::container($uuid, 'postgres'), 'pg_dump', '-U', 'form_schema', '-d', 'form_schema', '--format=custom', '--no-owner', '--no-privileges'], timeout: 600);
+        $dump = self::docker(['exec', self::container($uuid, 'postgres'), 'pg_dump', '-U', 'fieldset', '-d', 'fieldset', '--format=custom', '--no-owner', '--no-privileges'], timeout: 600);
         file_put_contents($directory.'/database.dump', $dump->getOutput());
         $storage = self::docker(['exec', self::container($uuid, 'app'), 'tar', '-C', '/var/www/html/storage/app', '-czf', '-', '.'], timeout: 600);
         file_put_contents($directory.'/storage.tar.gz', $storage->getOutput());
         file_put_contents($directory.'/env', implode("\n", [
-            'APP_NAME=form-schema-app', "APP_KEY={$appKey}", 'APP_DEBUG=true', 'APP_URL=http://localhost:8080', 'SSO_ALLOW_INSECURE_IDP=true',
-            'TRUSTED_PROXIES=*', 'MAIL_FROM_ADDRESS=legacy@example.test', 'MAIL_PASSWORD=never-read-by-fsa', '',
+            'APP_NAME=Fieldset', "APP_KEY={$appKey}", 'APP_DEBUG=true', 'APP_URL=http://localhost:8080', 'SSO_ALLOW_INSECURE_IDP=true',
+            'TRUSTED_PROXIES=*', 'MAIL_FROM_ADDRESS=legacy@example.test', 'MAIL_PASSWORD=never-read-by-fieldset', '',
         ]));
         file_put_contents($directory.'/manifest.txt', "created_at=20261019T020000Z\npostgres=postgres (PostgreSQL) 16\nstorage=included\nenv=included\n");
         $sums = '';

@@ -11,9 +11,9 @@ use Tests\Support\Instance\TemporaryInstance;
 use Tests\Support\Instance\TunnelFixture;
 
 /*
- * M11 gate (A4–A6; ADR 0072, ADR 0082): `fsa install --phone-https tunnel` reports what the tunnel did to the demo
+ * M11 gate (A4–A6; ADR 0072, ADR 0082): `fieldset install --phone-https tunnel` reports what the tunnel did to the demo
  * passwords, resumes with the same flags (or none) and starts the tunnel then, and a repeated identical install after
- * the tunnel ended changes nothing and points to `fsa tunnel start`.
+ * the tunnel ended changes nothing and points to `fieldset tunnel start`.
  */
 
 beforeEach(function (): void {
@@ -33,7 +33,7 @@ it('reports the rotated demo passwords, not the install\'s default ones, when th
     $this->fixture->demoDefaults = DemoFixtures::EMAILS;
     $this->fixture->hostname = null;
 
-    [$code, $json] = $this->fresh->run('fsa:install', InstanceCommandFixture::installFlags(['--demo' => true, '--phone-https' => 'tunnel']));
+    [$code, $json] = $this->fresh->run('fieldset:install', InstanceCommandFixture::installFlags(['--demo' => true, '--phone-https' => 'tunnel']));
 
     expect($code)->toBe(5, json_encode($json))
         ->and($json['command'])->toBe('install')
@@ -45,10 +45,10 @@ it('reports the rotated demo passwords, not the install\'s default ones, when th
 
 it('resumes an interrupted install with --phone-https tunnel and starts the tunnel then (A5)', function (bool $sameFlags): void {
     $this->fresh->oneOffs['migrate'] = new ProcessOutcome(1, '', 'SQLSTATE[08006] connection refused');
-    [$failed, $failedJson] = $this->fresh->run('fsa:install', InstanceCommandFixture::installFlags(['--phone-https' => 'tunnel']));
+    [$failed, $failedJson] = $this->fresh->run('fieldset:install', InstanceCommandFixture::installFlags(['--phone-https' => 'tunnel']));
     unset($this->fresh->oneOffs['migrate']);
 
-    [$code, $json] = $this->fresh->run('fsa:install', InstanceCommandFixture::installFlags($sameFlags ? ['--phone-https' => 'tunnel'] : []));
+    [$code, $json] = $this->fresh->run('fieldset:install', InstanceCommandFixture::installFlags($sameFlags ? ['--phone-https' => 'tunnel'] : []));
 
     expect($failed)->toBe(4, json_encode($failedJson))
         ->and($code)->toBe(0, json_encode($json))
@@ -58,28 +58,28 @@ it('resumes an interrupted install with --phone-https tunnel and starts the tunn
         ->and($this->fixture->tunnelContainer())->toBe('running');
 })->with(['the same flags' => true, 'without --phone-https' => false]);
 
-it('changes nothing on a repeated identical install after the tunnel ended and points to `fsa tunnel start` (A6)', function (): void {
+it('changes nothing on a repeated identical install after the tunnel ended and points to `fieldset tunnel start` (A6)', function (): void {
     $flags = InstanceCommandFixture::installFlags(['--phone-https' => 'tunnel']);
-    $this->fresh->run('fsa:install', $flags);
-    $this->fresh->run('fsa:tunnel', ['action' => 'stop']);
+    $this->fresh->run('fieldset:install', $flags);
+    $this->fresh->run('fieldset:tunnel', ['action' => 'stop']);
 
-    [$code, $json] = $this->fresh->run('fsa:install', $flags);
+    [$code, $json] = $this->fresh->run('fieldset:install', $flags);
 
     expect($code)->toBe(0, json_encode($json))
         ->and($json['changed'])->toBeFalse()
         ->and(collect($json['warnings'])->pluck('code')->all())->toContain('tunnel_not_running')
-        ->and(collect($json['warnings'])->firstWhere('code', 'tunnel_not_running')['hint'])->toContain('`fsa tunnel start`')
+        ->and(collect($json['warnings'])->firstWhere('code', 'tunnel_not_running')['hint'])->toContain('`fieldset tunnel start`')
         ->and($this->fixture->tunnelContainer())->toBeNull();
 });
 
 it('still refuses --phone-https tunnel on a finished install that runs the local CA (A6)', function (): void {
-    $this->fresh->run('fsa:install', InstanceCommandFixture::installFlags());
+    $this->fresh->run('fieldset:install', InstanceCommandFixture::installFlags());
     $directory = $this->fresh->directory;
     $directory->saveState($directory->state()->withSettings(['phone_https' => 'local-ca', 'lan_address' => PhoneFixtures::LAN, 'edge_subnet' => PhoneFixtures::EDGE_SUBNET]));
 
-    [$code, $json] = $this->fresh->run('fsa:install', InstanceCommandFixture::installFlags(['--phone-https' => 'tunnel']));
+    [$code, $json] = $this->fresh->run('fieldset:install', InstanceCommandFixture::installFlags(['--phone-https' => 'tunnel']));
 
     expect($code)->toBe(2)
         ->and($json['errors'][0]['code'])->toBe('use_config_set')
-        ->and($json['errors'][0]['hint'])->toContain('fsa tunnel start');
+        ->and($json['errors'][0]['hint'])->toContain('fieldset tunnel start');
 });

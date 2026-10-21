@@ -1,5 +1,5 @@
 /** Evaluation context for `evaluate()`: today/now in the organization's time zone. */
-import type { EvaluationContext } from '@form-schema-app/form-schema-js';
+import type { EvaluationContext } from '@fieldset/fieldset-js';
 import type { Me, Organization } from '../api/types.ts';
 
 const pad = (value: number, width = 2): string => String(Math.abs(value)).padStart(width, '0');

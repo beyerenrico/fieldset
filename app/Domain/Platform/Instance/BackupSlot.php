@@ -10,7 +10,7 @@ use InvalidArgumentException;
 
 /**
  * The daily slots of a backup schedule (`HH:MM` in a time zone; ADR 0084), shared by the backup service (BackupSchedule)
- * and the alerts on `/platform` and in `fsa status` (BackupAlerts). One slot per calendar day of the zone: on the night
+ * and the alerts on `/platform` and in `fieldset status` (BackupAlerts). One slot per calendar day of the zone: on the night
  * the clock falls back, the ambiguous time is its first occurrence; on the night it springs forward, a missing time is
  * the moment after the gap (PHP's DateTime rules).
  */

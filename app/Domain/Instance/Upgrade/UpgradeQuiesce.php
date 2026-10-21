@@ -69,7 +69,7 @@ final readonly class UpgradeQuiesce
             if (! $dropJobs) {
                 throw new InstanceException(
                     "The queue did not drain within {$drain['waited']} s ({$drain['pending']} pending, {$drain['reserved']} running).", ExitCode::AbortedUnchanged, 'drain_timeout',
-                    "Run `fsa {$operation}` again later".($operation === UpgradeJournal::OPERATION ? ', or with --drop-jobs to save the remaining jobs to a file and drop them' : '').'. Nothing was changed; the instance runs as before.', true, ['queue' => $drain],
+                    "Run `fieldset {$operation}` again later".($operation === UpgradeJournal::OPERATION ? ', or with --drop-jobs to save the remaining jobs to a file and drop them' : '').'. Nothing was changed; the instance runs as before.', true, ['queue' => $drain],
                 );
             }
         }
@@ -96,9 +96,9 @@ final readonly class UpgradeQuiesce
         try {
             $this->docker->composeUp($project, self::WORKERS, self::WAIT_SECONDS);
         } catch (DockerCommandFailed $e) {
-            $again = $operation === UpgradeJournal::OPERATION ? 'fsa upgrade --resume' : "fsa {$operation}";
+            $again = $operation === UpgradeJournal::OPERATION ? 'fieldset upgrade --resume' : "fieldset {$operation}";
             throw new InstanceException("The {$operation} stopped before it changed anything, and the app takes requests again, but queue, scheduler or backup did not start.", ExitCode::HealthCheckFailed, 'services_unhealthy',
-                "Read `fsa logs queue`, fix the cause, then run `{$again}` to finish going back; the app runs {$state->version()}.", true, ['docker' => $e->outcome->stderrTail(5)], $e);
+                "Read `fieldset logs queue`, fix the cause, then run `{$again}` to finish going back; the app runs {$state->version()}.", true, ['docker' => $e->outcome->stderrTail(5)], $e);
         }
     }
 
@@ -130,7 +130,7 @@ final readonly class UpgradeQuiesce
     {
         $outcome = $this->docker->composeRun($project, ComposeRenderer::ONE_OFF_SERVICE, ['php', 'artisan', 'audit:seal'], timeout: 600.0);
         if (! $outcome->successful()) {
-            throw new InstanceException('Sealing the pending audit entries failed.', ExitCode::AbortedUnchanged, 'audit_seal_failed', "Read `fsa logs postgres`, then run `fsa {$operation}` again; nothing was changed and the instance runs as before.", true, ['output' => $outcome->stderrTail(5)]);
+            throw new InstanceException('Sealing the pending audit entries failed.', ExitCode::AbortedUnchanged, 'audit_seal_failed', "Read `fieldset logs postgres`, then run `fieldset {$operation}` again; nothing was changed and the instance runs as before.", true, ['output' => $outcome->stderrTail(5)]);
         }
     }
 

@@ -11,7 +11,7 @@ use Illuminate\Support\ServiceProvider;
 /**
  * Instance runtime wiring (KTD11, KTD24, ADR 0074): the only instance code web and queue processes load. The
  * reader is a process-wide singleton, so a worker keeps its last good value across jobs (scoped instances are
- * reset per job). Nothing here touches the runtime file at boot; without FSA_RUNTIME_PATH everything is a no-op.
+ * reset per job). Nothing here touches the runtime file at boot; without FIELDSET_RUNTIME_PATH everything is a no-op.
  */
 final class RuntimeServiceProvider extends ServiceProvider
 {

@@ -148,7 +148,7 @@ final readonly class InstallPreflight
         $details = $report->result('ports')->details ?? [];
         $ports = is_array($details['ports'] ?? null) ? $details['ports'] : [];
         if ((! $sharedNetwork && ! is_int($ports['app'] ?? null)) || ($catcher && ! is_int($ports['mail_ui'] ?? null))) {
-            throw new InstanceException('The preflight chose no ports.', ExitCode::PreflightFailed, 'ports_unknown', 'Run `fsa doctor` to see why the port check did not run.');
+            throw new InstanceException('The preflight chose no ports.', ExitCode::PreflightFailed, 'ports_unknown', 'Run `fieldset doctor` to see why the port check did not run.');
         }
 
         return array_filter(['app' => $sharedNetwork ? null : $ports['app'], 'mail_ui' => $catcher ? $ports['mail_ui'] : null], is_int(...));

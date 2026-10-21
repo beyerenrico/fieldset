@@ -1,4 +1,4 @@
-import type { FormRendererProps } from '@form-schema-app/form-schema-react';
+import type { FormRendererProps } from '@fieldset/fieldset-react';
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactElement } from 'react';
@@ -15,8 +15,8 @@ import {
 import { sampleContext } from '../src/preview/sample-context.ts';
 import { previewTexts } from '../src/preview/texts.ts';
 
-vi.mock('@form-schema-app/form-schema-react', async (importActual) => {
-    const actual = await importActual<typeof import('@form-schema-app/form-schema-react')>();
+vi.mock('@fieldset/fieldset-react', async (importActual) => {
+    const actual = await importActual<typeof import('@fieldset/fieldset-react')>();
     function FakeRenderer(props: FormRendererProps): ReactElement {
         const definition = props.definition as { title: string };
         if (definition.title === 'boom') {

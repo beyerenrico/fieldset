@@ -6,7 +6,7 @@ namespace App\Domain\Instance\Config;
 
 use App\Domain\Instance\Compose\EdgeNetwork;
 use App\Domain\Instance\Config\Appliers\MailValues;
-use App\Domain\Instance\Console\FsaContext;
+use App\Domain\Instance\Console\FieldsetContext;
 use App\Domain\Instance\Output\CommandResult;
 use App\Domain\Instance\Output\InvalidInput;
 use App\Domain\Instance\Output\SecretRedactor;
@@ -19,10 +19,10 @@ use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
 
 /**
- * `fsa config show` (R31, §10 privacy, ADR 0077): every setting as it is in effect, read from the state alone (no
+ * `fieldset config show` (R31, §10 privacy, ADR 0077): every setting as it is in effect, read from the state alone (no
  * Docker call, so it also answers while the engine is down): mode, URL, ports, domain and ACME inputs, proxy setup,
  * trusted proxies, mail as it stands, size. Secrets appear only by name with `[redacted]`. `keys` lists what
- * `fsa config set` takes, with the current value, the modes it applies in, whether it is settable now and the key to
+ * `fieldset config set` takes, with the current value, the modes it applies in, whether it is settable now and the key to
  * use instead (ADR 0078), and `outbound_contacts` what each opt-in feature contacts: nothing by default.
  *
  * `--catcher-login` (ADR 0080) adds the catcher UI's generated password as the one-time secret `catcher_password`
@@ -31,8 +31,8 @@ use App\Domain\Instance\State\InstanceState;
  */
 final readonly class ConfigShow
 {
-    /** Where releases come from; contacted only by an upgrade (§6.5, install.sh's FSA_RELEASE_URL default). */
-    public const string RELEASES_URL = 'https://github.com/beyerenrico/form-schema-app/releases';
+    /** Where releases come from; contacted only by an upgrade (§6.5, install.sh's FIELDSET_RELEASE_URL default). */
+    public const string RELEASES_URL = 'https://github.com/beyerenrico/fieldset/releases';
 
     /** Secret env values by service and key => the name `config show` lists. */
     private const array SECRETS = [
@@ -47,7 +47,7 @@ final readonly class ConfigShow
     {
         $state = $this->directory->hasState() ? $this->directory->state() : null;
         if (! $state instanceof InstanceState) {
-            throw new InvalidInput('The instance has no state yet.', 'not_installed', 'Run `fsa install` first.');
+            throw new InvalidInput('The instance has no state yet.', 'not_installed', 'Run `fieldset install` first.');
         }
         $settings = InstanceSettings::of($state);
 
@@ -65,16 +65,16 @@ final readonly class ConfigShow
     }
 
     /**
-     * The catcher UI's login for the loopback modes: user `fsa` in data, the generated password as a one-time secret.
+     * The catcher UI's login for the loopback modes: user `fieldset` in data, the generated password as a one-time secret.
      *
      * @throws InvalidInput exit 2 without a catcher, or in domain mode, where the edge signs in for a /platform session
      */
-    public function withCatcherLogin(CommandResult $result, FsaContext $context): CommandResult
+    public function withCatcherLogin(CommandResult $result, FieldsetContext $context): CommandResult
     {
         $state = $this->directory->state();
         $settings = InstanceSettings::of($state);
         if (! $settings->runsCatcher()) {
-            throw new InvalidInput('The mail catcher is removed: there is no catcher login.', 'no_catcher', '`fsa config set mail capture` brings it back.');
+            throw new InvalidInput('The mail catcher is removed: there is no catcher login.', 'no_catcher', '`fieldset config set mail capture` brings it back.');
         }
         if ($state->mode() === 'domain') {
             throw new InvalidInput('In domain mode the catcher needs no password: the edge signs in for you.', 'catcher_login_not_needed', "Open {$settings->catcherUrl()} signed in to /platform with MFA.");
@@ -82,7 +82,7 @@ final readonly class ConfigShow
         $auth = new EnvFiles($this->directory)->read('mailpit')['MP_UI_AUTH'] ?? '';
         $prefix = InstanceSecrets::CATCHER_USER.':';
         if (! str_starts_with($auth, $prefix) || strlen($auth) === strlen($prefix)) {
-            throw new InvalidInput('The catcher\'s credentials are missing from env/mailpit.env.', 'no_catcher', 'Run `fsa install` again to render them.');
+            throw new InvalidInput('The catcher\'s credentials are missing from env/mailpit.env.', 'no_catcher', 'Run `fieldset install` again to render them.');
         }
 
         return $result
@@ -173,7 +173,7 @@ final readonly class ConfigShow
 
     /**
      * Opt-in features and what each contacts (§10: no outbound calls by default). The registries are those of the
-     * pinned images (a mirror when install used FSA_REGISTRY).
+     * pinned images (a mirror when install used FIELDSET_REGISTRY).
      *
      * @return array{default: string, features: list<array<string, mixed>>}
      */
@@ -185,17 +185,17 @@ final readonly class ConfigShow
             ['feature' => 'acme', 'active' => $state->mode() === 'domain', 'contacts' => $state->mode() === 'domain' ? [$settings->acmeCa()] : [],
                 'purpose' => 'Domain mode: the edge orders and renews certificates from this ACME directory (and its challenges reach port 80/443).'],
             ['feature' => 'smtp', 'active' => ! $settings->capturesMail(), 'contacts' => $settings->capturesMail() ? [] : [(string) $settings->smtpHost()],
-                'purpose' => 'Real mail delivery through this server (fsa config set mail smtp); capture mode keeps every mail in the bundled catcher.'],
+                'purpose' => 'Real mail delivery through this server (fieldset config set mail smtp); capture mode keeps every mail in the bundled catcher.'],
             ['feature' => 'upgrades', 'active' => false, 'contacts' => [...$registries, self::RELEASES_URL],
-                'purpose' => 'Only when you run `fsa upgrade`: the release manifest and the pinned images.'],
+                'purpose' => 'Only when you run `fieldset upgrade`: the release manifest and the pinned images.'],
             ['feature' => 'tunnel', 'active' => $settings->tunnel(), 'contacts' => $settings->tunnel() ? ['Cloudflare (trycloudflare.com quick tunnel)'] : [],
-                'purpose' => 'Only while `fsa tunnel start` runs one (4 hours unless renewed): cloudflared connects out to Cloudflare, which serves the instance under a random *.trycloudflare.com name.'],
+                'purpose' => 'Only while `fieldset tunnel start` runs one (4 hours unless renewed): cloudflared connects out to Cloudflare, which serves the instance under a random *.trycloudflare.com name.'],
             ['feature' => 'update_check', 'active' => $updates !== null, 'contacts' => $updates === null ? [] : [$updates],
-                'purpose' => 'Off by default (`fsa config set update-check on`): once a day the app reads the newest release manifest, with no instance identifier, and /platform shows whether an update is available.'],
+                'purpose' => 'Off by default (`fieldset config set update-check on`): once a day the app reads the newest release manifest, with no instance identifier, and /platform shows whether an update is available.'],
         ];
 
         return [
-            'default' => 'none: without these features neither fsa nor the instance calls out (identity providers and SMTP servers that organization admins configure for their own organization are contacted as configured)',
+            'default' => 'none: without these features neither fieldset nor the instance calls out (identity providers and SMTP servers that organization admins configure for their own organization are contacted as configured)',
             'features' => $features,
         ];
     }

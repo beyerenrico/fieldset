@@ -1,0 +1,396 @@
+{
+    "release": "2.1.0",
+    "built": "2026-10-21",
+    "revision": "fe7caaf42a8895cc643f36f19730463420edfd79",
+    "published": false,
+    "note": "Built and tested against the local registry and release server (E18); the harness registry is removed after the run.",
+    "build_seconds": 496.6,
+    "version": "2.1.0",
+    "tag": "v2.1.0",
+    "channel": "stable",
+    "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+    ],
+    "app_index_digest": "sha256:0b19d6742ff57e881b79c33507e81e72cfa7d48271c0c41e7f944aeca01c916b",
+    "images": {
+        "app": {
+            "image": "ghcr.io/beyerenrico/fieldset:2.1.0",
+            "digest": "sha256:0b19d6742ff57e881b79c33507e81e72cfa7d48271c0c41e7f944aeca01c916b",
+            "platforms": {
+                "linux/amd64": {
+                    "digest": "sha256:1b5767aa200fea3f9a87bffcad157fcb97c4f5ed8b2faab89f01cd299cf695e6",
+                    "compressed_size": 168162996
+                },
+                "linux/arm64": {
+                    "digest": "sha256:859d232a99c7a95f2b30f456a0831deef015d8e2f90c5a051f34dfe70a0f3793",
+                    "compressed_size": 160617491
+                }
+            }
+        },
+        "postgres": {
+            "image": "docker.io/library/postgres:16.15-alpine",
+            "digest": "sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea",
+            "platforms": {
+                "linux/amd64": {
+                    "digest": "sha256:1a66d744c1b459e13b05a8fca341da84cb63383e99ce262210efee5a319d4551",
+                    "compressed_size": 116071457
+                },
+                "linux/arm64": {
+                    "digest": "sha256:2c942175a1255a9abe0366e48c1b401d9f50f835b04dfea13f111609b5530df7",
+                    "compressed_size": 113892033
+                }
+            }
+        },
+        "valkey": {
+            "image": "docker.io/valkey/valkey:8.1.10-alpine",
+            "digest": "sha256:081c2f5cb575efc901aa80ff9cdbd1ec6a301682fd35e1ebb4b0990a4a4a8507",
+            "platforms": {
+                "linux/amd64": {
+                    "digest": "sha256:32627109abf6f741121096b45c732f758876803efd7b2e1018ebc0350d117119",
+                    "compressed_size": 17493916
+                },
+                "linux/arm64": {
+                    "digest": "sha256:6bd0360157519e3de7c49f6bae7d2bdfab574083bd7d266182db36b1646b0936",
+                    "compressed_size": 17937250
+                }
+            }
+        },
+        "gotenberg": {
+            "image": "docker.io/gotenberg/gotenberg:8.38.1-chromium",
+            "digest": "sha256:5da4ab7b8fe7326537369e17b661be765d9a2887f77722faacdbe6d55812fb96",
+            "platforms": {
+                "linux/amd64": {
+                    "digest": "sha256:63545039126042c5df622675ccb3dd9efd8b5c1faa0ec5265b787737e6d6757e",
+                    "compressed_size": 506746665
+                },
+                "linux/arm64": {
+                    "digest": "sha256:03ea46e44ae608b3402ac71d12161f5bde4af19ea4537fcb32ca26e7e31d6180",
+                    "compressed_size": 505802531
+                }
+            }
+        },
+        "mailpit": {
+            "image": "docker.io/axllent/mailpit:v1.31.6",
+            "digest": "sha256:23fe39e81bde596a918000b3135c0f85dc8bb4c9ea6be274b051143f3e300387",
+            "platforms": {
+                "linux/amd64": {
+                    "digest": "sha256:059454962fbda891cfa621c86a251cfd9cfe645cb43e0dcd9351a35e7a8f3155",
+                    "compressed_size": 16945472
+                },
+                "linux/arm64": {
+                    "digest": "sha256:cc34e6c1995288cd30a4d2bf7fe5cded246c6f2b7fa8199bbc911205721f76dc",
+                    "compressed_size": 16830700
+                }
+            }
+        },
+        "caddy": {
+            "image": "docker.io/library/caddy:2.11.7-alpine",
+            "digest": "sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f",
+            "platforms": {
+                "linux/amd64": {
+                    "digest": "sha256:173b26306d711395accaeba8b67afcaad2a085ccb1e6bf26010bfe8c095a5229",
+                    "compressed_size": 24874930
+                },
+                "linux/arm64": {
+                    "digest": "sha256:84058f1a0e5beb97664a9b79dcfd267b594c033d5bb88d8463cdfb59c0779197",
+                    "compressed_size": 23637011
+                }
+            }
+        },
+        "cloudflared": {
+            "image": "docker.io/cloudflare/cloudflared:2026.10.2",
+            "digest": "sha256:0e56c13c7058fcef9c4f0e7d83372f82330548dbf8f8b366f3d8b506526d93b2",
+            "platforms": {
+                "linux/amd64": {
+                    "digest": "sha256:66b0b9c71c0a1b2febe8e4ef2988ff5fb9cf90ff8d3cc69e25b572d4bf5adce0",
+                    "compressed_size": 29670532
+                },
+                "linux/arm64": {
+                    "digest": "sha256:89c70b8e7a907476d71cc7ef31ac3557a9ac6439e52988041b415e975481e5ba",
+                    "compressed_size": 28466374
+                }
+            }
+        }
+    },
+    "assets": {
+        "compose.stack.yaml": {
+            "sha256": "af8a2b72475eb1e0828d74f0997bc2dbe0eab1c4384609d92adbc26461a72faf",
+            "size": 14118
+        },
+        "install.sh": {
+            "sha256": "55566a9812f5c3afef42c7a51996081a03232712564ba9a1167e87256b2f3c3a",
+            "size": 21609
+        },
+        "shim.sh": {
+            "sha256": "00912b1169d29b4605e6e355893d5eeb8291fda60a52471dff67b190d80ed366",
+            "size": 25215
+        }
+    },
+    "signatures": {
+        "key": "local harness key (cosign-harness.pub), not the keyless production identity",
+        "release-manifest.json": true,
+        "install.sh": true
+    },
+    "release_version": {
+        "version": "2.1.0",
+        "tag": "v2.1.0",
+        "channel": "stable",
+        "prerelease": false,
+        "image_tags": [
+            "2.1.0",
+            "2.1",
+            "2",
+            "latest"
+        ]
+    },
+    "registry_tags": [
+        "2",
+        "2.1",
+        "2.1.0",
+        "latest"
+    ],
+    "dist": {
+        "directory": "dist/v2.1.0/ (git-ignored)",
+        "files": [
+            "SHA256SUMS",
+            "compose.stack.yaml",
+            "cosign-harness.pub",
+            "install.sh",
+            "install.sh.sigstore.json",
+            "release-manifest.json",
+            "release-manifest.json.sigstore.json",
+            "shim.sh"
+        ]
+    },
+    "install": {
+        "command": "install.sh --dir <work>/fieldset-test-prerelease --version 2.1.0 --org \"Pre-release Org\" --owner-email owner@example.test --owner-name \"Pat Owner\" --locale en --secrets-file <work>/owner-link.json --json",
+        "platform": "linux/arm64",
+        "emulated": false,
+        "exit_code": 0,
+        "seconds": 48.5,
+        "stdout": {
+            "schema_version": 1,
+            "command": "install",
+            "status": "ok",
+            "exit_code": 0,
+            "changed": true,
+            "data": {
+                "url": "http://localhost:8081",
+                "version": "2.1.0",
+                "mode": "local",
+                "dir": "<work>/fieldset-test-prerelease",
+                "project": "fieldset-fieldset-test-prerelease-42fc",
+                "port": 8081,
+                "mail": {
+                    "mode": "capture",
+                    "catcher_url": "http://localhost:8025",
+                    "catcher_login_command": "fieldset config show --catcher-login"
+                },
+                "owner_email": "owner@example.test",
+                "next_commands": [
+                    "<work>/fieldset-test-prerelease/fieldset status",
+                    "<work>/fieldset-test-prerelease/fieldset login-link owner@example.test",
+                    "<work>/fieldset-test-prerelease/fieldset doctor --post"
+                ],
+                "sign_in_link": {
+                    "expires_at": "2026-10-21T14:28:51Z",
+                    "delivered": "secrets_file"
+                }
+            },
+            "secrets": [
+                {
+                    "name": "sign_in_link",
+                    "written_to": "<work>/owner-link.json",
+                    "expires_at": "2026-10-21T14:28:51Z"
+                }
+            ],
+            "warnings": [],
+            "errors": []
+        }
+    },
+    "status": {
+        "schema_version": 1,
+        "command": "status",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": false,
+        "data": {
+            "dir": "<work>/fieldset-test-prerelease",
+            "installed": true,
+            "operation": null,
+            "lock": null,
+            "supervisor": {
+                "running": false,
+                "container": null
+            },
+            "disk": {
+                "free_gib": 128.2
+            },
+            "last_backup": null,
+            "last_upgrade": null,
+            "version": "2.1.0",
+            "mode": "local",
+            "url": "http://localhost:8081",
+            "local_url": "http://localhost:8081",
+            "project": "fieldset-fieldset-test-prerelease-42fc",
+            "port": 8081,
+            "health": "ok",
+            "services": {
+                "app": {
+                    "state": "running",
+                    "health": "healthy"
+                },
+                "queue": {
+                    "state": "running",
+                    "health": "healthy"
+                },
+                "scheduler": {
+                    "state": "running",
+                    "health": null
+                },
+                "postgres": {
+                    "state": "running",
+                    "health": "healthy"
+                },
+                "redis": {
+                    "state": "running",
+                    "health": "healthy"
+                },
+                "gotenberg": {
+                    "state": "running",
+                    "health": null
+                },
+                "mailpit": {
+                    "state": "running",
+                    "health": "healthy"
+                },
+                "backup": {
+                    "state": "running",
+                    "health": null
+                }
+            },
+            "mail": {
+                "mode": "capture",
+                "catcher_url": "http://localhost:8025",
+                "catcher_login_command": "fieldset config show --catcher-login"
+            },
+            "proxy": null,
+            "phone_https": null,
+            "tunnel": null,
+            "backup": {
+                "last": null,
+                "last_success": null,
+                "schedule": {
+                    "time": "03:30",
+                    "time_zone": "Europe/Berlin",
+                    "retention": 7,
+                    "next_run": "2026-10-22T01:30:00Z"
+                },
+                "encrypted": false,
+                "directory": "<work>/fieldset-test-prerelease/backups",
+                "backups": {
+                    "count": 0,
+                    "bytes": 0,
+                    "newest": null
+                },
+                "safety": [],
+                "partials": [],
+                "alerts": []
+            },
+            "last_restore": null,
+            "restore": {
+                "last": null,
+                "storage_volume": "fieldset-fieldset-test-prerelease-42fc_app-storage",
+                "webhooks_paused": false,
+                "interrupted": null,
+                "scratch_left": []
+            },
+            "last_reset": null,
+            "reset": {
+                "last": null,
+                "interrupted": null
+            },
+            "sign_in_links": {
+                "count": 1,
+                "links": [
+                    {
+                        "id": 1,
+                        "email": "owner@example.test",
+                        "kind": "owner",
+                        "state": "unused",
+                        "created_at": "2026-10-21T13:28:51Z",
+                        "expires_at": "2026-10-21T14:28:51Z",
+                        "used_at": null,
+                        "used_ip": null,
+                        "created_by": "cli",
+                        "created_by_uid": 501
+                    }
+                ]
+            }
+        },
+        "secrets": [],
+        "warnings": [],
+        "errors": []
+    },
+    "fieldset_version": {
+        "schema_version": 1,
+        "command": "version",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": false,
+        "data": {
+            "fieldset": "2.1.0",
+            "revision": "fe7caaf42a8895cc643f36f19730463420edfd79",
+            "instance": "2.1.0",
+            "newest_known": null
+        },
+        "secrets": [],
+        "warnings": [],
+        "errors": []
+    },
+    "http": {
+        "/up": 200,
+        "/admin/login": 200,
+        "/login-link": 200,
+        "sign_in_link_consumed": 303,
+        "redirect_path": "/admin/password-reset/reset"
+    },
+    "uninstall": {
+        "exit_code": 0,
+        "status": "ok",
+        "data_deleted": true,
+        "removed": {
+            "containers": [
+                "fieldset-fieldset-test-prerelease-42fc-backup-1",
+                "fieldset-fieldset-test-prerelease-42fc-mailpit-1",
+                "fieldset-fieldset-test-prerelease-42fc-gotenberg-1",
+                "fieldset-fieldset-test-prerelease-42fc-app-1",
+                "fieldset-fieldset-test-prerelease-42fc-queue-1",
+                "fieldset-fieldset-test-prerelease-42fc-scheduler-1",
+                "fieldset-fieldset-test-prerelease-42fc-redis-1",
+                "fieldset-fieldset-test-prerelease-42fc-postgres-1"
+            ],
+            "networks": [
+                "fieldset-fieldset-test-prerelease-42fc_default",
+                "fieldset-fieldset-test-prerelease-42fc_renderer"
+            ],
+            "volumes": [
+                "fieldset-fieldset-test-prerelease-42fc_app-storage",
+                "fieldset-fieldset-test-prerelease-42fc_mailpit-data",
+                "fieldset-fieldset-test-prerelease-42fc_pg-data",
+                "fieldset-fieldset-test-prerelease-42fc_valkey-data"
+            ]
+        },
+        "labelled_before": {
+            "containers": 8,
+            "volumes": 4,
+            "networks": 2
+        },
+        "labelled_after": {
+            "containers": [],
+            "volumes": [],
+            "networks": []
+        }
+    }
+}

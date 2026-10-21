@@ -1,0 +1,97 @@
+{
+    "command": "fieldset uninstall --yes --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "uninstall",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": true,
+        "data": {
+            "uuid": "35d18dd9-c115-4c96-9b26-0352b43d13ea",
+            "removed": {
+                "containers": [
+                    "fieldset-fieldset-test-j02-c9ee-edge-1",
+                    "fieldset-fieldset-test-j02-c9ee-backup-1",
+                    "fieldset-fieldset-test-j02-c9ee-mailpit-1",
+                    "fieldset-fieldset-test-j02-c9ee-app-1",
+                    "fieldset-fieldset-test-j02-c9ee-queue-1",
+                    "fieldset-fieldset-test-j02-c9ee-scheduler-1",
+                    "fieldset-fieldset-test-j02-c9ee-gotenberg-1",
+                    "fieldset-fieldset-test-j02-c9ee-postgres-1",
+                    "fieldset-fieldset-test-j02-c9ee-redis-1"
+                ],
+                "networks": [
+                    "fieldset-fieldset-test-j02-c9ee_default",
+                    "fieldset-fieldset-test-j02-c9ee_edge",
+                    "fieldset-fieldset-test-j02-c9ee_renderer"
+                ],
+                "volumes": [
+                    "fieldset-fieldset-test-j02-c9ee_app-storage",
+                    "fieldset-fieldset-test-j02-c9ee_edge-data",
+                    "fieldset-fieldset-test-j02-c9ee_mailpit-data",
+                    "fieldset-fieldset-test-j02-c9ee_pg-data",
+                    "fieldset-fieldset-test-j02-c9ee_valkey-data"
+                ]
+            },
+            "dir": "<work>/fieldset-test-j02",
+            "deleted_files": [
+                ".fieldset-instance",
+                "backups",
+                "compose.yaml",
+                "edge",
+                "env",
+                "fieldset",
+                "operations",
+                "releases",
+                "runtime",
+                "staging",
+                "state.json"
+            ],
+            "kept": [],
+            "left_files": [],
+            "data_deleted": true,
+            "backups_deleted": true,
+            "final_backup": null
+        },
+        "secrets": [],
+        "warnings": [
+            {
+                "code": "certificates_removed",
+                "message": "The certificates for fieldset-test-j02.test were removed with the instance. Let's Encrypt allows only a few identical certificates per week, so a new install of the same domain may be refused for a while.",
+                "hint": "Use --acme-staging for trial installs; reinstalling the same domain often counts against the CA's duplicate-certificate limit."
+            }
+        ],
+        "errors": []
+    },
+    "labelled_before": {
+        "containers": [
+            "fieldset-fieldset-test-j02-c9ee-edge-1",
+            "fieldset-fieldset-test-j02-c9ee-backup-1",
+            "fieldset-fieldset-test-j02-c9ee-mailpit-1",
+            "fieldset-fieldset-test-j02-c9ee-app-1",
+            "fieldset-fieldset-test-j02-c9ee-queue-1",
+            "fieldset-fieldset-test-j02-c9ee-scheduler-1",
+            "fieldset-fieldset-test-j02-c9ee-gotenberg-1",
+            "fieldset-fieldset-test-j02-c9ee-postgres-1",
+            "fieldset-fieldset-test-j02-c9ee-redis-1"
+        ],
+        "volumes": [
+            "fieldset-fieldset-test-j02-c9ee_app-storage",
+            "fieldset-fieldset-test-j02-c9ee_edge-data",
+            "fieldset-fieldset-test-j02-c9ee_mailpit-data",
+            "fieldset-fieldset-test-j02-c9ee_pg-data",
+            "fieldset-fieldset-test-j02-c9ee_valkey-data"
+        ],
+        "networks": [
+            "fieldset-fieldset-test-j02-c9ee_default",
+            "fieldset-fieldset-test-j02-c9ee_edge",
+            "fieldset-fieldset-test-j02-c9ee_renderer"
+        ]
+    },
+    "labelled_after": {
+        "containers": [],
+        "volumes": [],
+        "networks": []
+    }
+}

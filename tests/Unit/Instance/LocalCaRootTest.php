@@ -12,7 +12,7 @@ use Tests\Support\Instance\LocalCaFixture;
  */
 
 beforeEach(function (): void {
-    $this->directory = sys_get_temp_dir().'/fsa-local-ca-'.bin2hex(random_bytes(6));
+    $this->directory = sys_get_temp_dir().'/fieldset-local-ca-'.bin2hex(random_bytes(6));
     mkdir($this->directory, 0755);
     $this->config = new Repository(['instance' => ['runtime_path' => $this->directory]]);
 });
@@ -57,7 +57,7 @@ it('ends the PEM with exactly one newline and accepts CRLF line endings', functi
 
 it('has no root without a configured runtime directory or without the file', function (?string $path): void {
     expect(LocalCaRoot::fromRuntime(new Repository(['instance' => ['runtime_path' => $path]])))->toBeNull();
-})->with(['not configured' => [null], 'blank' => ['  '], 'missing directory' => ['/nonexistent/fsa-runtime']]);
+})->with(['not configured' => [null], 'blank' => ['  '], 'missing directory' => ['/nonexistent/fieldset-runtime']]);
 
 it('has no root when the runtime directory holds no certificate file', function (): void {
     expect(LocalCaRoot::fromRuntime($this->config))->toBeNull();

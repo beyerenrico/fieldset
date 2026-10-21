@@ -29,12 +29,12 @@ use App\Domain\Instance\State\InstanceState;
 use Throwable;
 
 /**
- * `fsa uninstall` (R44, R63, §13.3, ADR 0072, ADR 0073). Only resources labelled with the instance UUID are removed,
+ * `fieldset uninstall` (R44, R63, §13.3, ADR 0072, ADR 0073). Only resources labelled with the instance UUID are removed,
  * found by label rather than through the compose file, so nothing of another project is touched even when the
  * names collide: containers (forced), then networks, then volumes. Then the files of the instance directory go.
  *
  * - --keep-backups keeps `backups/` and first writes a final backup into it (FinalBackup: a 2.0 backup `final-<UTC>`
- *   that `fsa install --from-backup` reads, the APP keys inside it when encrypted or beside it); if that fails nothing
+ *   that `fieldset install --from-backup` reads, the APP keys inside it when encrypted or beside it); if that fails nothing
  *   is removed (exit 4). Without it, data and backups are deleted.
  * - An adopted instance (plan U19, ADR 0087) gets the final backup and keeps `backups/` without --keep-backups, unless
  *   --no-backup: its 1.0 checkout holds the data only up to the adopt. The result names the writes made since adopt
@@ -74,10 +74,10 @@ final readonly class Uninstaller
         $adopted = $this->adopted->current($state);
         $legacyChanged = $adopted === null ? null : $this->adopted->legacyChanged($state);
         $keepBackups = $keepBackups || ($adopted !== null && ! $noBackup);
-        $handle = $this->lock->acquire($this->identity->holder('fsa', $facts->callerUid()), 'uninstall');
+        $handle = $this->lock->acquire($this->identity->holder('fieldset', $facts->callerUid()), 'uninstall');
 
         // The lock stays until everything but itself is gone, so no other operation writes into a half-deleted
-        // directory (the marker goes first among the files, after it no fsa command accepts the directory).
+        // directory (the marker goes first among the files, after it no fieldset command accepts the directory).
         try {
             $volumes = $uuid === null ? [] : $this->docker->volumes([Labels::INSTANCE => $uuid]);
             $final = $keepBackups && ! $noBackup ? $this->backup->write($this->ids->state(), $volumes, $handle) : null; // quiesced first (gate D2)
@@ -117,7 +117,7 @@ final readonly class Uninstaller
         $restore = match (true) {
             $set === null => 'They authenticate the backups kept in backups/ (`--app-key-file`).',
             $keys === null => "`install.sh --dir {$root} --from-backup {$root}/{$set}/backup.tar.age --identity-file <identity> --passphrase-file <file> --accept-unauthenticated` brings it back (its HMAC needs the APP key from outside it: pass `--app-key-file` instead of --accept-unauthenticated if you kept it).",
-            default => "`install.sh --dir {$root} --from-backup {$root}/{$set} --app-key-file {$root}/{$keys}` brings it back (install.sh takes a directory that holds only backups/; the instance's own fsa is gone).",
+            default => "`install.sh --dir {$root} --from-backup {$root}/{$set} --app-key-file {$root}/{$keys}` brings it back (install.sh takes a directory that holds only backups/; the instance's own fieldset is gone).",
         };
         if ($keys === null) {
             return $result->withWarning('final_backup_encrypted', "The final backup {$root}/{$set} is encrypted and carries the APP keys.", $restore);
@@ -147,9 +147,9 @@ final readonly class Uninstaller
         }
         $where = $set === null ? 'They are in no backup (--no-backup).' : "They are in the final backup {$set}.";
 
-        // The final set is a 2.0 backup (M12 gate; review V3 resolved): `fsa install --from-backup` reads it.
+        // The final set is a 2.0 backup (M12 gate; review V3 resolved): `fieldset install --from-backup` reads it.
         return $result->withWarning('writes_since_adopt', "Data written since adopt ({$writes['audit_entries']} audit entries, row changes ".json_encode($writes['rows']).') is not in the 1.0 install. '.$where,
-            $set === null ? null : "To get it back, create a 2.0 instance from it with `fsa install --from-backup {$this->directory->root}/{$set}` (the final backup's own warning names its keys).");
+            $set === null ? null : "To get it back, create a 2.0 instance from it with `fieldset install --from-backup {$this->directory->root}/{$set}` (the final backup's own warning names its keys).");
     }
 
     /**
@@ -194,14 +194,14 @@ final readonly class Uninstaller
     public function orphans(string $uuid): CommandResult
     {
         if (preg_match(InstanceIdResolver::UUID, $uuid) !== 1) {
-            throw new InvalidInput('--orphans takes the UUID of an installation, as `fsa install` names it.', 'invalid_flag');
+            throw new InvalidInput('--orphans takes the UUID of an installation, as `fieldset install` names it.', 'invalid_flag');
         }
         $own = $this->ids->resolve();
         if ($uuid === $own) {
-            throw new InvalidInput('That is this instance; run `fsa uninstall` without --orphans to remove it.', 'invalid_flag');
+            throw new InvalidInput('That is this instance; run `fieldset uninstall` without --orphans to remove it.', 'invalid_flag');
         }
         if (! in_array($uuid, $this->conflicts->orphans($this->directory->root, $own ?? ''), true)) {
-            throw new InvalidInput("Installation {$uuid} has no container that ran from this directory; fsa removes only the orphans `fsa install` names here.", 'not_an_orphan', 'If its resources are leftovers, check them (`docker ps -a --filter label='.Labels::INSTANCE."={$uuid}`, `docker volume ls --filter label=".Labels::INSTANCE."={$uuid}`) and remove them yourself.");
+            throw new InvalidInput("Installation {$uuid} has no container that ran from this directory; fieldset removes only the orphans `fieldset install` names here.", 'not_an_orphan', 'If its resources are leftovers, check them (`docker ps -a --filter label='.Labels::INSTANCE."={$uuid}`, `docker volume ls --filter label=".Labels::INSTANCE."={$uuid}`) and remove them yourself.");
         }
         $containers = $this->docker->containers([Labels::INSTANCE => $uuid]);
         $this->refuseLive($uuid, $containers);
@@ -212,7 +212,7 @@ final readonly class Uninstaller
         return $elsewhere === [] ? $result : $result->withWarning(
             'orphan_volumes_kept',
             "Installation {$uuid} still has containers outside this directory (".implode(', ', array_map(static fn (ContainerInfo $c): string => $c->name, $elsewhere)).'): only its containers that ran from here were removed; its volumes and networks were kept.',
-            'If that installation was moved, manage it from its new directory with its own `fsa`.',
+            'If that installation was moved, manage it from its new directory with its own `fieldset`.',
         );
     }
 
@@ -229,7 +229,7 @@ final readonly class Uninstaller
                 "Installation {$uuid} is running (".implode(', ', array_map(static fn (ContainerInfo $c): string => $c->name, $running)).'); its directory may have moved rather than been deleted.',
                 ExitCode::Incompatible,
                 'orphans_live',
-                'Nothing was removed. Stop it from its own directory first (`fsa uninstall` there removes it completely), or leave it alone.',
+                'Nothing was removed. Stop it from its own directory first (`fieldset uninstall` there removes it completely), or leave it alone.',
                 false,
                 ['uuid' => $uuid, 'running' => array_map(static fn (ContainerInfo $c): string => $c->name, $running)],
             );
@@ -262,7 +262,7 @@ final readonly class Uninstaller
         } catch (DockerCommandFailed $e) {
             $changed = $backedUp || array_merge(...array_values($removed)) !== [];
 
-            throw new InstanceException('Not every resource could be removed: '.$e->getMessage(), ExitCode::HealthCheckFailed, 'uninstall_incomplete', 'Run the same `fsa uninstall` command again to finish; the instance files are kept until everything is gone.', true, ['removed' => $removed, 'stderr' => $e->outcome->stderrTail(3)], $e, $changed);
+            throw new InstanceException('Not every resource could be removed: '.$e->getMessage(), ExitCode::HealthCheckFailed, 'uninstall_incomplete', 'Run the same `fieldset uninstall` command again to finish; the instance files are kept until everything is gone.', true, ['removed' => $removed, 'stderr' => $e->outcome->stderrTail(3)], $e, $changed);
         }
 
         return $removed;
@@ -304,14 +304,14 @@ final readonly class Uninstaller
 
         return $result->withWarning(
             'files_left',
-            'fsa could not remove '.($absolute === [] ? 'some files' : implode(', ', $absolute)).$more.': they belong to another user, usually root (what a backup run that was cut off leaves behind), and may hold plaintext data.',
+            'fieldset could not remove '.($absolute === [] ? 'some files' : implode(', ', $absolute)).$more.': they belong to another user, usually root (what a backup run that was cut off leaves behind), and may hold plaintext data.',
             ($absolute === [] ? '' : 'Remove them yourself: sudo rm -rf -- '.implode(' ', array_map(escapeshellarg(...), $absolute))).($others === 0 ? '' : ($absolute === [] ? '' : '; ').'remove the '.$others.' more with an unprintable name in '.$this->directory->root.' by hand.'),
         );
     }
 
     /**
      * Partial sets and tombstones of interrupted backup runs, removed by the backup service as root under this lock
-     * (`fsa backup-daemon --clean`): the ops container runs as the host user on rootful Docker and cannot. Best effort:
+     * (`fieldset backup-daemon --clean`): the ops container runs as the host user on rootful Docker and cannot. Best effort:
      * deleteFiles() names whatever stays.
      */
     private function cleanPartials(?InstanceState $state, LockHandle $handle): void

@@ -10,14 +10,14 @@ use Symfony\Component\Process\Process;
 /**
  * The host's view of a local-CA instance for J6 (R19, ADR 0082): the LAN address the journeys use, TLS to it without
  * SNI against the instance's root, plain HTTP on port 80, the SPKI hashes Chromium is told to trust (standing in for a
- * phone that installed the CA), and the Playwright run of tests/e2e/fsa-phone-trust.spec.ts.
+ * phone that installed the CA), and the Playwright run of tests/e2e/fieldset-phone-trust.spec.ts.
  */
 final class LocalCaClient
 {
-    /** The first private IPv4 address the shim reports for this host (the same rule as fsa's best candidate), or null. */
+    /** The first private IPv4 address the shim reports for this host (the same rule as fieldset's best candidate), or null. */
     public static function lanAddress(): ?string
     {
-        $process = new Process(['/bin/sh', '-c', '. "$1"; fsa_lan_addresses', 'sh', TestImage::repository().'/distribution/shim.sh'], null, ['FSA_SHIM_LIBRARY' => '1']);
+        $process = new Process(['/bin/sh', '-c', '. "$1"; fieldset_lan_addresses', 'sh', TestImage::repository().'/distribution/shim.sh'], null, ['FIELDSET_SHIM_LIBRARY' => '1']);
         $process->run();
         $usable = array_values(array_filter(preg_split('/\s+/', trim($process->getOutput())) ?: [], static fn (string $ip): bool => filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) !== false && ! str_starts_with($ip, '127.') && ! str_starts_with($ip, '169.254.')));
         $private = array_values(array_filter($usable, static fn (string $ip): bool => filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE) === false));
@@ -95,7 +95,7 @@ final class LocalCaClient
     }
 
     /**
-     * tests/e2e/fsa-phone-trust.spec.ts with Chromium trusting the CA (project `fsa-instance`). The spec is named: the
+     * tests/e2e/fieldset-phone-trust.spec.ts with Chromium trusting the CA (project `fieldset-instance`). The spec is named: the
      * project also matches the instance smoke spec (U15, J10), which skips without its own environment.
      *
      * @param  array<string, string>  $env
@@ -108,7 +108,7 @@ final class LocalCaClient
             throw new RuntimeException("Playwright is not installed ({$binary}); run `npm ci` first.");
         }
         $browsers = is_dir($repository.'/storage/playwright') ? $repository.'/storage/playwright' : dirname((string) realpath($repository.'/node_modules')).'/storage/playwright';
-        $process = new Process([$binary, 'test', 'tests/e2e/fsa-phone-trust.spec.ts', '--project=fsa-instance', '--reporter=line'], $repository, ['PLAYWRIGHT_BROWSERS_PATH' => $browsers, ...$env]);
+        $process = new Process([$binary, 'test', 'tests/e2e/fieldset-phone-trust.spec.ts', '--project=fieldset-instance', '--reporter=line'], $repository, ['PLAYWRIGHT_BROWSERS_PATH' => $browsers, ...$env]);
         $process->setTimeout(600);
         $process->run();
 

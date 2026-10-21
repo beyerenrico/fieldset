@@ -104,7 +104,7 @@ final readonly class InstanceLock
         }
     }
 
-    /** Records liveness for `fsa status`; written by the holder only. */
+    /** Records liveness for `fieldset status`; written by the holder only. */
     public function heartbeat(LockHandle $handle): void
     {
         if ($this->current()?->lockId === $handle->record->lockId) {

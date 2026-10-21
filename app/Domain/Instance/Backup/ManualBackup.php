@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Backup;
 
-use App\Domain\Instance\Console\FsaContext;
+use App\Domain\Instance\Console\FieldsetContext;
 use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\Install\InstallRecord;
 use App\Domain\Instance\InstanceException;
@@ -22,7 +22,7 @@ use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceState;
 
 /**
- * `fsa backup` without the key set-up (R38, R40, R67, ADR 0084): under the instance lock, the backup service's entry
+ * `fieldset backup` without the key set-up (R38, R40, R67, ADR 0084): under the instance lock, the backup service's entry
  * point runs once (BackupRunner) and writes `backups/manual-<time>/`, encrypted when the instance has recipients. With
  * `--include-secrets` the APP keys and the SMTP account from env/app.env go into the backup on the one-off's stdin
  * (never an argument); that needs encryption (exit 2 otherwise). The result names the backup, its size, whether it is
@@ -45,13 +45,13 @@ final readonly class ManualBackup
         private OperationJournal $journal,
     ) {}
 
-    public function run(FsaContext $context, bool $includeSecrets): CommandResult
+    public function run(FieldsetContext $context, bool $includeSecrets): CommandResult
     {
         $state = $this->installedState();
         if ($includeSecrets && $state->recipients() === []) {
-            throw new InvalidInput('--include-secrets needs an encrypted backup.', 'encryption_required', 'Add --encrypt (with --identity-out and --passphrase-file) or run `fsa config set backup-encryption on` first.');
+            throw new InvalidInput('--include-secrets needs an encrypted backup.', 'encryption_required', 'Add --encrypt (with --identity-out and --passphrase-file) or run `fieldset config set backup-encryption on` first.');
         }
-        $handle = $this->lock->acquire($this->identity->holder('fsa', $context->facts->callerUid()), self::OPERATION);
+        $handle = $this->lock->acquire($this->identity->holder('fieldset', $context->facts->callerUid()), self::OPERATION);
         $open = $this->journal->current(); // read under the lock: no operation can begin in between
         if ($open instanceof JournalRecord) {
             $this->lock->release($handle);
@@ -82,8 +82,8 @@ final readonly class ManualBackup
             };
 
             return CommandResult::failed('backup', $exit, $code, 'The backup failed: '.$outcome->errorMessage(), $code === 'low_disk_space'
-                ? 'Free space on the disk holding the instance directory (old backups in backups/), then run `fsa backup` again.'
-                : 'Read `fsa logs backup` and `fsa status`, fix the cause, then run `fsa backup` again; nothing was left in backups/.', $exit === ExitCode::HealthCheckFailed, ['output' => $outcome->output]);
+                ? 'Free space on the disk holding the instance directory (old backups in backups/), then run `fieldset backup` again.'
+                : 'Read `fieldset logs backup` and `fieldset status`, fix the cause, then run `fieldset backup` again; nothing was left in backups/.', $exit === ExitCode::HealthCheckFailed, ['output' => $outcome->output]);
         }
         $run = $outcome->data;
         $details = is_array($run['result'] ?? null) ? $run['result'] : [];
@@ -96,7 +96,7 @@ final readonly class ManualBackup
         ], changed: true);
         foreach (is_array($details['warnings'] ?? null) ? $details['warnings'] : [] as $warning) {
             if (is_array($warning) && is_string($warning['code'] ?? null)) {
-                $result = $result->withWarning($warning['code'], (string) ($warning['message'] ?? ''), $warning['code'] === 'files_missing' ? 'manifest.json in the backup lists them; `fsa status` shows the newest backups.' : null);
+                $result = $result->withWarning($warning['code'], (string) ($warning['message'] ?? ''), $warning['code'] === 'files_missing' ? 'manifest.json in the backup lists them; `fieldset status` shows the newest backups.' : null);
             }
         }
 
@@ -120,7 +120,7 @@ final readonly class ManualBackup
         $state = $this->directory->hasState() ? $this->directory->state() : null;
         if (! $state instanceof InstanceState || ! InstallRecord::isInstalled($state)) {
             $open = $this->journal->current(); // an unfinished install or adopt names itself and its way out (exit 9)
-            throw $open instanceof JournalRecord ? new OperationUnfinished($open) : new InvalidInput('The instance is not installed yet.', 'not_installed', 'Run `fsa install` first (it resumes an unfinished install).');
+            throw $open instanceof JournalRecord ? new OperationUnfinished($open) : new InvalidInput('The instance is not installed yet.', 'not_installed', 'Run `fieldset install` first (it resumes an unfinished install).');
         }
 
         return $state;

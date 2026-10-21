@@ -14,19 +14,19 @@ use Illuminate\Database\Eloquent\Model;
 use InvalidArgumentException;
 
 /**
- * The audit entry of a successful `fsa config set` (KTD26, ADR 0077), written in a socket-less one-off: event
+ * The audit entry of a successful `fieldset config set` (KTD26, ADR 0077), written in a socket-less one-off: event
  * `instance.config_changed` by the instance owner at the command line (actor `cli`, host UID), with the key, the old
- * and the new value and, when it moved, the instance URL. fsa passes only plain settings (never a secret) and
+ * and the new value and, when it moved, the instance URL. fieldset passes only plain settings (never a secret) and
  * redacts its known secrets before; the values are checked as plain single-line text here.
  */
-#[Description('Audit a changed instance setting (fsa config set)')]
+#[Description('Audit a changed instance setting (fieldset config set)')]
 #[Signature('instance:config-changed
         {--key= : The setting, e.g. domain}
         {--old= : Its previous value (empty for none)}
         {--new= : Its new value (empty for none)}
         {--old-url= : The previous instance URL, when the URL changed}
         {--new-url= : The new instance URL, when the URL changed}
-        {--actor-uid= : Host UID of the operator running fsa}
+        {--actor-uid= : Host UID of the operator running fieldset}
         {--json : Print one JSON document on stdout}')]
 final class ConfigChangedCommand extends Command
 {

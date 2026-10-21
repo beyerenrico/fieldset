@@ -9,8 +9,8 @@ use App\Domain\Instance\State\InstanceSettings;
 use Throwable;
 
 /**
- * Messages of `fsa config set` (ADR 0077, ADR 0078): a failure of apply, verify or revert in config terms (the
- * install's smoke test and stack helpers speak of resuming `fsa install`), whether repeating the same command can
+ * Messages of `fieldset config set` (ADR 0077, ADR 0078): a failure of apply, verify or revert in config terms (the
+ * install's smoke test and stack helpers speak of resuming `fieldset install`), whether repeating the same command can
  * help, and the warnings a URL change carries.
  */
 final class ConfigFailure
@@ -78,11 +78,11 @@ final class ConfigFailure
 
         return match ($code) {
             'certificate_failed' => "Check that {$domain} points at this host, that ports 80 and 443 reach it from the internet and that the ACME directory is reachable, then run the command again. Repeated attempts count against the CA's rate limits; --acme-staging is for trials.",
-            'services_unhealthy', 'smoke_failed', 'url_check_failed' => 'Read `fsa logs <service>` for the cause, fix it, then run the command again.',
+            'services_unhealthy', 'smoke_failed', 'url_check_failed' => 'Read `fieldset logs <service>` for the cause, fix it, then run the command again.',
             'test_mail_failed' => self::testMailHint($change),
             'interrupted' => 'The command was stopped (a signal: Ctrl-C, a closed session or a tool timeout) and restored the previous settings; run it again when it can finish.',
             'docker_unavailable', 'docker_command_failed' => 'Check that the Docker engine runs (`docker info`), then run the command again.',
-            default => 'Fix the cause, then run the command again; `fsa status` shows the instance.',
+            default => 'Fix the cause, then run the command again; `fieldset status` shows the instance.',
         };
     }
 

@@ -20,17 +20,17 @@ use Tests\Support\Docker\TestImage;
  * J10 (BUILD_PROMPT_V2 §11, E16, §2.3 "Small"; plan U15; ADR 0083): the shipped stack inside the E16 envelope. Domain mode
  * with capture mail against Pebble (as J2), no Keycloak, the scheduler running and production Horizon settings. Memory:
  * the generated compose file's own limits (ResourceBudget, small). CPU: EnvelopeMonitor pins every container of the
- * instance, its one-offs and the fsa ops containers to the same two CPUs as soon as Docker creates them, the way a
+ * instance, its one-offs and the fieldset ops containers to the same two CPUs as soon as Docker creates them, the way a
  * 2-vCPU host shares its CPUs. Under that envelope: install (time to the sign-in link, pulls reported separately) → the
- * smoke E2E in Chromium → `fsa demo`, the 1.0 load (`app:seed-load demo 100000`, perf fixtures with 150k audit entries)
+ * smoke E2E in Chromium → `fieldset demo`, the 1.0 load (`app:seed-load demo 100000`, perf fixtures with 150k audit entries)
  * → a 10-page PDF (scripts/perf/pdf.php) → scripts/perf/admin-pages.mjs and api.mjs at their 1.0 settings → a scheduled
  * backup at that data volume with the backup service's memory peak against its slot (plan U22) → no container was
  * OOM-killed or restarted → uninstall. Timings and p95s are recorded against the 1.0 targets with a verdict each; a
  * miss is reported in the evidence and ADR 0083, never asserted away (rule 4 of §13), while OOM kills, restarts and
- * failed steps fail the journey. Evidence goes to the milestone of FSA_EVIDENCE_MILESTONE (J10-*.json).
+ * failed steps fail the journey. Evidence goes to the milestone of FIELDSET_EVIDENCE_MILESTONE (J10-*.json).
  */
 
-const J10_DOMAIN = 'fsa-test-j10.test';
+const J10_DOMAIN = 'fieldset-test-j10.test';
 const J10_OWNER = 'owner@example.test';
 const J10_SERVICES = ['app', 'backup', 'edge', 'gotenberg', 'mailpit', 'postgres', 'queue', 'redis', 'scheduler'];
 /** The 1.0 targets (BUILD_PROMPT §11, ADR 0046) and E16's install target (§2.3), in ms. */
@@ -43,46 +43,46 @@ beforeAll(function (): void {
 
     try {
         [$harness, $release] = SharedHarness::get();
-        $GLOBALS['fsaJ10'] = new InstanceJourney($harness, $release, $harness->directory.'/j10');
-        $GLOBALS['fsaJ10Acme'] = AcmeHarness::start($harness);
-        $GLOBALS['fsaJ10Cpuset'] = EnvelopeMonitor::cpuset();
-        $GLOBALS['fsaJ10Monitor'] = EnvelopeMonitor::spawn($GLOBALS['fsaJ10']->work.'/envelope.json', $GLOBALS['fsaJ10']->work.'/fsa-test-j10', $GLOBALS['fsaJ10Cpuset']);
+        $GLOBALS['fieldsetJ10'] = new InstanceJourney($harness, $release, $harness->directory.'/j10');
+        $GLOBALS['fieldsetJ10Acme'] = AcmeHarness::start($harness);
+        $GLOBALS['fieldsetJ10Cpuset'] = EnvelopeMonitor::cpuset();
+        $GLOBALS['fieldsetJ10Monitor'] = EnvelopeMonitor::spawn($GLOBALS['fieldsetJ10']->work.'/envelope.json', $GLOBALS['fieldsetJ10']->work.'/fieldset-test-j10', $GLOBALS['fieldsetJ10Cpuset']);
     } catch (Throwable $exception) {
-        $GLOBALS['fsaJ10Error'] = $exception;
+        $GLOBALS['fieldsetJ10Error'] = $exception;
     }
 });
 
 afterAll(function (): void {
-    if (isset($GLOBALS['fsaJ10Monitor']) && $GLOBALS['fsaJ10Monitor']->isRunning()) {
+    if (isset($GLOBALS['fieldsetJ10Monitor']) && $GLOBALS['fieldsetJ10Monitor']->isRunning()) {
         try {
-            EnvelopeMonitor::finish($GLOBALS['fsaJ10Monitor'], $GLOBALS['fsaJ10']->work.'/envelope.json');
+            EnvelopeMonitor::finish($GLOBALS['fieldsetJ10Monitor'], $GLOBALS['fieldsetJ10']->work.'/envelope.json');
         } catch (RuntimeException) {
             // no summary yet: nothing to report, and the reader (if any) removes itself
         }
     }
-    if (isset($GLOBALS['fsaJ10'])) {
-        InstanceJourney::cleanup($GLOBALS['fsaJ10']->work.'/fsa-test-j10', $GLOBALS['fsaJ10Uuid'] ?? null);
+    if (isset($GLOBALS['fieldsetJ10'])) {
+        InstanceJourney::cleanup($GLOBALS['fieldsetJ10']->work.'/fieldset-test-j10', $GLOBALS['fieldsetJ10Uuid'] ?? null);
     }
-    if (isset($GLOBALS['fsaJ10Acme'])) {
-        $GLOBALS['fsaJ10Acme']->stop();
+    if (isset($GLOBALS['fieldsetJ10Acme'])) {
+        $GLOBALS['fieldsetJ10Acme']->stop();
     }
-    unset($GLOBALS['fsaJ10'], $GLOBALS['fsaJ10Acme'], $GLOBALS['fsaJ10Error'], $GLOBALS['fsaJ10Uuid'], $GLOBALS['fsaJ10Monitor'], $GLOBALS['fsaJ10Cpuset'], $GLOBALS['fsaJ10Chromium']);
+    unset($GLOBALS['fieldsetJ10'], $GLOBALS['fieldsetJ10Acme'], $GLOBALS['fieldsetJ10Error'], $GLOBALS['fieldsetJ10Uuid'], $GLOBALS['fieldsetJ10Monitor'], $GLOBALS['fieldsetJ10Cpuset'], $GLOBALS['fieldsetJ10Chromium']);
 });
 
 beforeEach(function (): void {
     $reason = TestImage::dockerUnavailableReason();
     if ($reason !== null) {
-        expect(getenv('FSA_REQUIRE_DOCKER'))->not->toBe('1', $reason);
+        expect(getenv('FIELDSET_REQUIRE_DOCKER'))->not->toBe('1', $reason);
         $this->markTestSkipped($reason.' (install journeys need a Docker engine)');
     }
-    if (isset($GLOBALS['fsaJ10Error'])) {
-        throw $GLOBALS['fsaJ10Error'];
+    if (isset($GLOBALS['fieldsetJ10Error'])) {
+        throw $GLOBALS['fieldsetJ10Error'];
     }
-    $this->journey = $GLOBALS['fsaJ10'];
-    $this->acme = $GLOBALS['fsaJ10Acme'];
-    $this->dir = $this->journey->work.'/fsa-test-j10';
+    $this->journey = $GLOBALS['fieldsetJ10'];
+    $this->acme = $GLOBALS['fieldsetJ10Acme'];
+    $this->dir = $this->journey->work.'/fieldset-test-j10';
     $this->monitor = $this->journey->work.'/envelope.json';
-    $this->env = ['FSA_TEST_DNS' => J10_DOMAIN.'='.(LocalCaClient::lanAddress() ?? '1.1.1.1')];
+    $this->env = ['FIELDSET_TEST_DNS' => J10_DOMAIN.'='.(LocalCaClient::lanAddress() ?? '1.1.1.1')];
 });
 
 /** Nearest-rank percentile, as scripts/perf/lib.mjs computes it; null without values. @param  list<int|float>  $values */
@@ -102,13 +102,13 @@ function j10Json(Process $process): array
     return is_array($decoded) ? $decoded : ['raw' => substr($output, -2000), 'stderr' => substr($process->getErrorOutput(), -2000)];
 }
 
-/** The release platform: native, or the emulated one of FSA_TEST_PLATFORM / FSA_HARNESS_PLATFORMS. */
+/** The release platform: native, or the emulated one of FIELDSET_TEST_PLATFORM / FIELDSET_HARNESS_PLATFORMS. */
 function j10Platform(): string
 {
     return ReleaseHarness::platforms()[0];
 }
 
-/** fsa doubles every memory limit when the images run emulated (ADR 0070, RenderContext); 1 on a native run. */
+/** fieldset doubles every memory limit when the images run emulated (ADR 0070, RenderContext); 1 on a native run. */
 function j10MemoryFactor(): int
 {
     return ReleaseHarness::platformEnvironment(ReleaseHarness::platforms()) === [] ? 1 : RenderContext::EMULATION_MEMORY_FACTOR;
@@ -117,11 +117,11 @@ function j10MemoryFactor(): int
 /** @return array<string, string> the settings scripts/perf/*.mjs need for this instance (lib.mjs) */
 function j10PerfEnv(): array
 {
-    $work = $GLOBALS['fsaJ10']->work;
+    $work = $GLOBALS['fieldsetJ10']->work;
 
     return [
         'PERF_BASE_URL' => 'https://'.J10_DOMAIN, 'PERF_OUT_DIR' => $work.'/perf', 'PERF_PASSWORDS_FILE' => $work.'/demo-secrets.json',
-        'PERF_CHROMIUM_ARGS' => json_encode($GLOBALS['fsaJ10Chromium'], JSON_THROW_ON_ERROR), 'PERF_RESOLVE' => J10_DOMAIN.':443:127.0.0.1',
+        'PERF_CHROMIUM_ARGS' => json_encode($GLOBALS['fieldsetJ10Chromium'], JSON_THROW_ON_ERROR), 'PERF_RESOLVE' => J10_DOMAIN.':443:127.0.0.1',
         'PERF_CA_FILE' => $work.'/pebble-issuing-root.pem', 'PERF_QUIET_LOAD' => (string) (getenv('PERF_QUIET_LOAD') ?: '10'), 'PERF_QUIET_WAIT' => '300',
     ];
 }
@@ -141,7 +141,7 @@ it('installs domain mode with capture mail inside the envelope and records the t
             $lines[] = ['at' => round(microtime(true) - $started, 2), 'line' => $line];
         }
         $uuid = InstanceJourney::uuid($this->dir);
-        $edge = $uuid === null || $connected ? '' : trim(new Process(['docker', 'ps', '-aq', '--filter', 'label=app.form-schema.role=edge', '--filter', "label=app.form-schema.instance={$uuid}"])->mustRun()->getOutput());
+        $edge = $uuid === null || $connected ? '' : trim(new Process(['docker', 'ps', '-aq', '--filter', 'label=app.fieldset.role=edge', '--filter', "label=app.fieldset.instance={$uuid}"])->mustRun()->getOutput());
         if ($edge !== '') {
             $this->acme->connectEdge($edge);
             $connected = true;
@@ -150,11 +150,11 @@ it('installs domain mode with capture mail inside the envelope and records the t
     }
     $seconds = round(microtime(true) - $started, 1);
     $json = InstanceJourney::json($process);
-    $GLOBALS['fsaJ10Uuid'] = InstanceJourney::uuid($this->dir);
+    $GLOBALS['fieldsetJ10Uuid'] = InstanceJourney::uuid($this->dir);
     $timing = BudgetJourney::phases($lines);
     $withoutPull = round($seconds - $timing['pull_seconds'], 1);
     $this->journey->evidence('J10-install.json', [
-        'command' => 'install.sh --dir <work>/fsa-test-j10 --version '.ReleaseHarness::version().' '.implode(' ', array_slice($flags, 0, 14)).' --acme-ca-root-file <harness>/pebble-https-root.pem --secrets-file <work>/owner-link.json --json',
+        'command' => 'install.sh --dir <work>/fieldset-test-j10 --version '.ReleaseHarness::version().' '.implode(' ', array_slice($flags, 0, 14)).' --acme-ca-root-file <harness>/pebble-https-root.pem --secrets-file <work>/owner-link.json --json',
         'exit_code' => $process->getExitCode(), 'seconds' => $seconds, 'pull_seconds' => $timing['pull_seconds'], 'seconds_without_pull' => $withoutPull,
         'target_seconds' => J10_TARGETS['install_ms'] / 1000, 'verdict' => $withoutPull * 1000 <= J10_TARGETS['install_ms'] ? 'met' : 'missed',
         'phases' => $timing['phases'], 'pull_size' => BudgetJourney::pullSize($this->journey->release, j10Platform()),
@@ -170,20 +170,20 @@ it('installs domain mode with capture mail inside the envelope and records the t
 
 it('runs every service pinned to the two CPUs with the small budget\'s memory limits', function (): void {
     $budget = ResourceBudget::forSize('small');
-    $containers = BudgetJourney::containers($GLOBALS['fsaJ10Uuid']);
+    $containers = BudgetJourney::containers($GLOBALS['fieldsetJ10Uuid']);
     $limits = array_map(static fn (array $c): int => $c['memory_limit_mib'], $containers);
     $info = json_decode(new Process(['docker', 'info', '--format', '{{json .}}'])->mustRun()->getOutput(), true);
     $this->journey->evidence('J10-envelope.json', [
         'engine' => ['cpus' => $info['NCPU'] ?? null, 'memory_mib' => intdiv((int) ($info['MemTotal'] ?? 0), 1048576), 'architecture' => $info['Architecture'] ?? null,
             'kernel' => $info['KernelVersion'] ?? null, 'operating_system' => $info['OperatingSystem'] ?? null, 'server_version' => $info['ServerVersion'] ?? null, 'cgroup' => ($info['CgroupDriver'] ?? '').' v'.($info['CgroupVersion'] ?? '')],
         'platform' => j10Platform(), 'memory_factor' => j10MemoryFactor(),
-        'cpuset' => $GLOBALS['fsaJ10Cpuset'], 'memory_limits_mib' => $limits, 'limits_sum_mib' => array_sum($limits),
+        'cpuset' => $GLOBALS['fieldsetJ10Cpuset'], 'memory_limits_mib' => $limits, 'limits_sum_mib' => array_sum($limits),
         'budget' => ['host_mib' => $budget->hostMib(), 'headroom_mib' => $budget->headroomMib(), 'available_mib' => $budget->availableMib(), 'worst_case_mib' => $budget->worstCaseMib()],
         'containers' => $containers,
     ]);
 
     expect(array_keys($containers))->toBe(J10_SERVICES)
-        ->and(array_unique(array_column($containers, 'cpuset')))->toBe([$GLOBALS['fsaJ10Cpuset']])
+        ->and(array_unique(array_column($containers, 'cpuset')))->toBe([$GLOBALS['fieldsetJ10Cpuset']])
         ->and(array_sum($limits))->toBeLessThanOrEqual($budget->availableMib() * j10MemoryFactor());
     foreach ($limits as $service => $mib) {
         expect($mib)->toBe($budget->limitMib($service) * j10MemoryFactor(), $service);
@@ -194,16 +194,16 @@ it('passes the smoke E2E in Chromium against the instance URL', function (): voi
     $work = $this->journey->work;
     file_put_contents($work.'/pebble-issuing-root.pem', $this->acme->issuingRoot());
     $chain = BudgetJourney::servedChain(J10_DOMAIN, $work.'/pebble-issuing-root.pem');
-    $GLOBALS['fsaJ10Chromium'] = ['--host-resolver-rules=MAP '.J10_DOMAIN.' 127.0.0.1', '--ignore-certificate-errors-spki-list='.LocalCaClient::spki([...$chain, $this->acme->issuingRoot()])];
+    $GLOBALS['fieldsetJ10Chromium'] = ['--host-resolver-rules=MAP '.J10_DOMAIN.' 127.0.0.1', '--ignore-certificate-errors-spki-list='.LocalCaClient::spki([...$chain, $this->acme->issuingRoot()])];
     $link = (string) (json_decode((string) file_get_contents($work.'/owner-link.json'), true)['secrets'][0]['value'] ?? '');
     EnvelopeMonitor::phase($this->monitor, 'smoke');
-    $process = new Process([TestImage::repository().'/node_modules/.bin/playwright', 'test', 'tests/e2e/fsa-smoke.spec.ts', '--project=fsa-instance', '--reporter=line'], TestImage::repository(), [
-        'PLAYWRIGHT_BROWSERS_PATH' => BudgetJourney::browsers(), 'FSA_INSTANCE_URL' => 'https://'.J10_DOMAIN, 'FSA_SMOKE_LINK' => $link,
-        'FSA_SMOKE_PASSWORD' => 'J10-'.bin2hex(random_bytes(12)), 'FSA_CHROMIUM_ARGS' => json_encode($GLOBALS['fsaJ10Chromium'], JSON_THROW_ON_ERROR),
+    $process = new Process([TestImage::repository().'/node_modules/.bin/playwright', 'test', 'tests/e2e/fieldset-smoke.spec.ts', '--project=fieldset-instance', '--reporter=line'], TestImage::repository(), [
+        'PLAYWRIGHT_BROWSERS_PATH' => BudgetJourney::browsers(), 'FIELDSET_INSTANCE_URL' => 'https://'.J10_DOMAIN, 'FIELDSET_SMOKE_LINK' => $link,
+        'FIELDSET_SMOKE_PASSWORD' => 'J10-'.bin2hex(random_bytes(12)), 'FIELDSET_CHROMIUM_ARGS' => json_encode($GLOBALS['fieldsetJ10Chromium'], JSON_THROW_ON_ERROR),
     ]);
     $process->setTimeout(600);
     $process->run();
-    $this->journey->evidence('J10-smoke.json', ['command' => 'playwright test tests/e2e/fsa-smoke.spec.ts --project=fsa-instance', 'exit_code' => $process->getExitCode(), 'output' => array_slice(explode("\n", trim($process->getOutput())), -12)]);
+    $this->journey->evidence('J10-smoke.json', ['command' => 'playwright test tests/e2e/fieldset-smoke.spec.ts --project=fieldset-instance', 'exit_code' => $process->getExitCode(), 'output' => array_slice(explode("\n", trim($process->getOutput())), -12)]);
 
     expect($link)->toContain('/login-link#')
         ->and($process->getExitCode())->toBe(0, $process->getOutput().$process->getErrorOutput())
@@ -212,7 +212,7 @@ it('passes the smoke E2E in Chromium against the instance URL', function (): voi
 
 it('adds the demo organization and loads the 1.0 test volume', function (): void {
     EnvelopeMonitor::phase($this->monitor, 'demo');
-    $demo = $this->journey->fsa($this->dir, ['demo', '--secrets-file', $this->journey->work.'/demo-secrets.json', '--json'], $this->env);
+    $demo = $this->journey->fieldset($this->dir, ['demo', '--secrets-file', $this->journey->work.'/demo-secrets.json', '--json'], $this->env);
     EnvelopeMonitor::phase($this->monitor, 'seed');
     $started = microtime(true);
     $seed = BudgetJourney::oneOff($this->dir, ['php', 'artisan', 'app:seed-load', 'demo', '100000', '--force', '--no-ansi']);
@@ -228,7 +228,7 @@ it('adds the demo organization and loads the 1.0 test volume', function (): void
     unset($data['token']);
     // What documents:sweep dispatched while the load was generated (before the gap was filled) drains before measuring.
     EnvelopeMonitor::phase($this->monitor, 'settle');
-    $settle = BudgetJourney::settleQueue(BudgetJourney::containers($GLOBALS['fsaJ10Uuid'])['app']['id']);
+    $settle = BudgetJourney::settleQueue(BudgetJourney::containers($GLOBALS['fieldsetJ10Uuid'])['app']['id']);
     $this->journey->evidence('J10-data.json', [
         'demo' => ['exit_code' => $demo->getExitCode(), 'stdout' => InstanceJourney::json($demo)],
         'seed_load' => ['command' => 'php artisan app:seed-load demo 100000 --force (one-off)', 'exit_code' => $seed->getExitCode(), 'seconds' => $seedSeconds, 'output' => array_slice(explode("\n", trim($seed->getOutput())), -12)],
@@ -253,7 +253,7 @@ it('adds the demo organization and loads the 1.0 test volume', function (): void
  */
 function j10FillRenditionGap(): Process
 {
-    return BudgetJourney::psql(BudgetJourney::containers($GLOBALS['fsaJ10Uuid'])['postgres']['id'], j10RenditionGapSql());
+    return BudgetJourney::psql(BudgetJourney::containers($GLOBALS['fieldsetJ10Uuid'])['postgres']['id'], j10RenditionGapSql());
 }
 
 function j10RenditionGapSql(): string
@@ -298,7 +298,7 @@ it('renders a 10-page PDF inline and through the queue', function (): void {
 it('measures the admin pages at the 1.0 volume and settings', function (): void {
     EnvelopeMonitor::phase($this->monitor, 'admin-pages');
     // Postgres' I/O counters from here on cover only the two measured scripts (J10-postgres.json).
-    BudgetJourney::psql(BudgetJourney::containers($GLOBALS['fsaJ10Uuid'])['postgres']['id'], 'SELECT pg_stat_reset()');
+    BudgetJourney::psql(BudgetJourney::containers($GLOBALS['fieldsetJ10Uuid'])['postgres']['id'], 'SELECT pg_stat_reset()');
     $process = BudgetJourney::perf('admin-pages.mjs', [], j10PerfEnv());
     $result = json_decode((string) @file_get_contents($this->journey->work.'/perf/admin-pages.json'), true) ?? [];
     $pages = array_map(static fn (array $row): array => isset($row['error']) ? $row : [
@@ -335,16 +335,16 @@ it('runs a scheduled backup at the 1.0 data volume inside the backup service\'s 
     $zone = is_string($state['settings']['time_zone'] ?? null) ? $state['settings']['time_zone'] : 'UTC';
     $slot = CarbonImmutable::now($zone)->addMinutes(3)->startOfMinute();
     // Recreates the backup service (a fresh cgroup, so memory.peak covers only the idle daemon and this run).
-    $schedule = $this->journey->fsa($this->dir, ['config', 'set', 'backup-schedule', $slot->format('H:i'), '--json'], $this->env);
-    $containers = BudgetJourney::containers($GLOBALS['fsaJ10Uuid']);
-    $database = trim(BudgetJourney::psql($containers['postgres']['id'], "SELECT pg_database_size('form_schema')")->getOutput());
+    $schedule = $this->journey->fieldset($this->dir, ['config', 'set', 'backup-schedule', $slot->format('H:i'), '--json'], $this->env);
+    $containers = BudgetJourney::containers($GLOBALS['fieldsetJ10Uuid']);
+    $database = trim(BudgetJourney::psql($containers['postgres']['id'], "SELECT pg_database_size('fieldset')")->getOutput());
     [$run, $samples] = j10SampleBackup($this->dir, $containers['backup']['id'], $slot->utc(), $slot->utc()->addMinutes(45));
     $cgroup = BudgetJourney::cgroup($containers['backup']['id']);
     $limit = (int) $containers['backup']['memory_limit_mib'];
     $peak = (float) ($cgroup['memory_peak_mib'] ?? 0);
     $unreclaimable = $samples === [] ? null : max(array_map(static fn (array $s): float => round($s['anon'] + $s['shmem'], 1), $samples));
     $this->journey->evidence('J10-backup.json', [
-        'command' => 'fsa config set backup-schedule <now + 3 min> --json, then the daemon\'s scheduled run (unencrypted)', 'schedule_exit_code' => $schedule->getExitCode(),
+        'command' => 'fieldset config set backup-schedule <now + 3 min> --json, then the daemon\'s scheduled run (unencrypted)', 'schedule_exit_code' => $schedule->getExitCode(),
         'data_volume' => ['database_bytes' => (int) $database, 'database_mib' => round((int) $database / 1048576, 1), 'note' => 'after app:seed-load demo 100000 and the perf fixtures (150k audit entries)'],
         'run' => $run, 'limit_mib' => $limit, 'memory_peak_mib' => $peak, 'unreclaimable_peak_mib' => $unreclaimable,
         'margin_rule' => "unreclaimable peak + 30 MiB <= {$limit} MiB (ADR 0083; memory.peak includes page cache the kernel reclaims at the limit)",
@@ -367,7 +367,7 @@ it('runs a scheduled backup at the 1.0 data volume inside the backup service\'s 
  */
 function j10SampleBackup(string $dir, string $container, CarbonImmutable $slot, CarbonImmutable $until): array
 {
-    $reader = CgroupReader::start($GLOBALS['fsaJ10']->release->appReference);
+    $reader = CgroupReader::start($GLOBALS['fieldsetJ10']->release->appReference);
     $samples = [];
     try {
         while (CarbonImmutable::now('UTC')->lessThan($until)) {
@@ -394,8 +394,8 @@ function j10SampleBackup(string $dir, string $container, CarbonImmutable $slot, 
 it('kept every container alive through all of it: no OOM kill, no restart', function (): void {
     EnvelopeMonitor::phase($this->monitor, 'end');
     sleep(3);
-    $summary = EnvelopeMonitor::finish($GLOBALS['fsaJ10Monitor'], $this->monitor);
-    $containers = BudgetJourney::containers($GLOBALS['fsaJ10Uuid']);
+    $summary = EnvelopeMonitor::finish($GLOBALS['fieldsetJ10Monitor'], $this->monitor);
+    $containers = BudgetJourney::containers($GLOBALS['fieldsetJ10Uuid']);
     $cgroups = array_map(static fn (array $c): array => BudgetJourney::cgroup($c['id']), $containers);
     $tracked = collect($summary['containers']);
     $peaks = [];
@@ -421,8 +421,8 @@ it('kept every container alive through all of it: no OOM kill, no restart', func
 });
 
 it('uninstalls without leaving anything labelled behind', function (): void {
-    $process = $this->journey->fsa($this->dir, ['uninstall', '--yes', '--json'], $this->env);
+    $process = $this->journey->fieldset($this->dir, ['uninstall', '--yes', '--json'], $this->env);
 
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput().$process->getOutput())
-        ->and(InstanceJourney::labelled($GLOBALS['fsaJ10Uuid']))->toBe(['containers' => [], 'volumes' => [], 'networks' => []]);
+        ->and(InstanceJourney::labelled($GLOBALS['fieldsetJ10Uuid']))->toBe(['containers' => [], 'volumes' => [], 'networks' => []]);
 });

@@ -20,8 +20,8 @@ use App\Domain\Instance\Tunnel\HarnessTunnel;
  *   host and scheme for them; cloudflared is no trusted proxy, ADR 0082); it reaches the app there directly
  *   (`--url http://app:8080`), never through the edge.
  * - `restart: "no"`: every restart creates a new random hostname, which runtime.json would not know. A stopped tunnel is
- *   removed by the next mutating `fsa` command (TunnelSweeper), never restarted.
- * - The metrics server listens on the tunnel network only, so `fsa tunnel start` reads the hostname from `/quicktunnel`
+ *   removed by the next mutating `fieldset` command (TunnelSweeper), never restarted.
+ * - The metrics server listens on the tunnel network only, so `fieldset tunnel start` reads the hostname from `/quicktunnel`
  *   with a one-off on that network (QuickTunnelHostname). Nothing is published.
  * - No secret and no env at all; non-root (the image's 65532), read-only root, every capability dropped.
  * - The release-harness journeys swap in their fake tunnel image (HarnessTunnel, harness builds only).

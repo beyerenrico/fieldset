@@ -46,12 +46,12 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_DB: form_schema_test
-          POSTGRES_USER: form_schema
+          POSTGRES_DB: fieldset_test
+          POSTGRES_USER: fieldset
           POSTGRES_PASSWORD: secret
         ports: ['5432:5432']
         options: >-
-          --health-cmd "pg_isready -U form_schema" --health-interval 5s --health-timeout 5s --health-retries 10
+          --health-cmd "pg_isready -U fieldset" --health-interval 5s --health-timeout 5s --health-retries 10
       # Document rendering integration tests (ADR 0028); GOTENBERG_URL in .env.example points at 13000.
       gotenberg:
         image: gotenberg/gotenberg:8.38.1-chromium
@@ -59,7 +59,8 @@ jobs:
     env:
       DB_HOST: 127.0.0.1
       DB_PORT: 5432
-      DB_USERNAME: form_schema
+      DB_DATABASE: fieldset_test
+      DB_USERNAME: fieldset
       DB_PASSWORD: secret
     steps:
       - uses: actions/checkout@v4
@@ -145,7 +146,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: docker build -f docker/app/Dockerfile -t form-schema-app:ci .
+      - run: docker build -f docker/app/Dockerfile -t fieldset:ci .
 
   # --- 2.0 distribution (plan U7, ADR 0067): linters, image scan and install journeys ---
 
@@ -159,7 +160,7 @@ jobs:
           persist-credentials: false
       - name: shellcheck install.sh, the shim and the image scripts
         run: |
-          files=(docker/app/entrypoint.sh docker/app/fsa)
+          files=(docker/app/entrypoint.sh docker/app/fieldset)
           if compgen -G 'distribution/*.sh' > /dev/null; then
             files+=(distribution/*.sh)
           fi
@@ -194,7 +195,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - run: docker build -f docker/app/Dockerfile -t form-schema-app:scan .
+      - run: docker build -f docker/app/Dockerfile -t fieldset:scan .
       # Fixable critical or high findings fail, as in the release workflow (ADR 0060). The app image is scanned
       # strictly, with no ignore file (ADR 0071).
       - name: Trivy scan of the app image
@@ -202,13 +203,13 @@ jobs:
           mkdir -p "$RUNNER_TEMP/trivy-cache"
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock:ro -v "$RUNNER_TEMP/trivy-cache:/root/.cache/trivy" \
             "$TRIVY_IMAGE" image --severity CRITICAL,HIGH --ignore-unfixed --exit-code 1 --no-progress --ignorefile '' \
-            form-schema-app:scan
+            fieldset:scan
 
   # Real Docker against the local harness (KTD23): minutes per journey, so only on main and milestone branches.
   # Every journey on amd64 (§11; arm64 runs locally), the dogfooding E2E run included (plan U22, ADR 0091): Playwright,
   # its Chromium and poppler for J4, J6, J10 and the E2E suite, the v1.0.0 tag for J9's 1.0 install, a 2-CPU-pinnable
-  # runner for J10. FSA_REQUIRE_DOCKER and FSA_REQUIRE_PLAYWRIGHT turn a missing tool into a failure instead of a skip;
-  # only LocalPreReleaseTest skips (it builds a named pre-release, FSA_PRERELEASE_VERSION, at a milestone gate).
+  # runner for J10. FIELDSET_REQUIRE_DOCKER and FIELDSET_REQUIRE_PLAYWRIGHT turn a missing tool into a failure instead of a skip;
+  # only LocalPreReleaseTest skips (it builds a named pre-release, FIELDSET_PRERELEASE_VERSION, at a milestone gate).
   install-journeys:
     if: >-
       github.event_name == 'push' && (github.ref == 'refs/heads/main'
@@ -220,10 +221,10 @@ jobs:
     permissions:
       contents: read
     env:
-      FSA_REQUIRE_DOCKER: '1'
-      FSA_REQUIRE_PLAYWRIGHT: '1'
-      FSA_HARNESS_PLATFORMS: linux/amd64
-      FSA_EVIDENCE_MILESTONE: M13
+      FIELDSET_REQUIRE_DOCKER: '1'
+      FIELDSET_REQUIRE_PLAYWRIGHT: '1'
+      FIELDSET_HARNESS_PLATFORMS: linux/amd64
+      FIELDSET_EVIDENCE_MILESTONE: M13
       PLAYWRIGHT_BROWSERS_PATH: storage/playwright
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -254,9 +255,9 @@ jobs:
       # Mirrored third-party blobs and the harness build cache (ReleaseHarness); keyed on what they depend on.
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: storage/fsa-test-cache
-          key: fsa-test-cache-${{ hashFiles('distribution/release.json', 'docker/app/Dockerfile', 'composer.lock', 'package-lock.json') }}
-          restore-keys: fsa-test-cache-
+          path: storage/fieldset-test-cache
+          key: fieldset-test-cache-${{ hashFiles('distribution/release.json', 'docker/app/Dockerfile', 'composer.lock', 'package-lock.json') }}
+          restore-keys: fieldset-test-cache-
       - run: vendor/bin/pest --testsuite=Install
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

@@ -75,7 +75,7 @@ describe('device-status recovery', () => {
         setOrganizationId(1);
         writeJson('favorites.1', [3]);
         writeJson('settings', { largeText: true });
-        sessionStorage.setItem('fsa.idem.x.1', '"k"');
+        sessionStorage.setItem('fieldset.idem.x.1', '"k"');
         let hookCalls = 0;
         const stop = onLocalDataCleared(() => {
             hookCalls++;
@@ -95,7 +95,7 @@ describe('device-status recovery', () => {
         expect(await getDeviceRecord()).toBeUndefined();
         expect(getOrganizationId()).toBeNull();
         expect(readJson('favorites.1', null)).toBeNull();
-        expect(sessionStorage.getItem('fsa.idem.x.1')).toBeNull();
+        expect(sessionStorage.getItem('fieldset.idem.x.1')).toBeNull();
         expect(readJson('settings', null)).toEqual({ largeText: true });
         expect(hookCalls).toBe(1);
     });

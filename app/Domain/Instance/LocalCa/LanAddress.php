@@ -10,7 +10,7 @@ use App\Domain\Instance\Output\InvalidInput;
 /**
  * The LAN address of local-CA mode (R19, ADR 0082): the edge binds 80/443 there and Caddy's internal CA issues the
  * certificate for it. The ops container sees only its bridge, so the candidates come from the launcher
- * (FSA_LAN_ADDRESSES, HostFacts). Only IPv4 unicast addresses qualify: phones reach an IPv4 LAN address, and an IPv6
+ * (FIELDSET_LAN_ADDRESSES, HostFacts). Only IPv4 unicast addresses qualify: phones reach an IPv4 LAN address, and an IPv6
  * link-local one would need a zone.
  *
  * The best candidate is the first private address (10/8, 172.16/12, 192.168/16), else the first other usable IPv4

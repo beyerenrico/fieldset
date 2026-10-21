@@ -11,8 +11,8 @@ use App\Domain\Instance\Doctor\DoctorContext;
 
 /**
  * Domain mode (R10, AE5): does the domain resolve to this host? A and AAAA records are checked separately, against
- * the host's addresses from the launcher (FSA_LAN_ADDRESSES, global IPv4 on a VPS). The ops container sees no
- * public address of its own and fsa makes no outbound call to learn one (§10), so:
+ * the host's addresses from the launcher (FIELDSET_LAN_ADDRESSES, global IPv4 on a VPS). The ops container sees no
+ * public address of its own and fieldset makes no outbound call to learn one (§10), so:
  *
  * - no record at all, or a record pointing at a non-public address that is not the host's: fail;
  * - an A record pointing elsewhere while the host has a public IPv4: fail;
@@ -71,7 +71,7 @@ final readonly class DnsCheck implements DoctorCheck
             return [CheckStatus::Fail, "{$domain} resolves to {$list}, but this host's address is ".implode(', ', $host).'.', $hint];
         }
 
-        return [CheckStatus::Warn, "{$domain} resolves to {$list}; this host has only private addresses, so fsa cannot tell whether that is its public address (NAT).", 'Make sure ports 80 and 443 of that address reach this host.'];
+        return [CheckStatus::Warn, "{$domain} resolves to {$list}; this host has only private addresses, so fieldset cannot tell whether that is its public address (NAT).", 'Make sure ports 80 and 443 of that address reach this host.'];
     }
 
     /**
@@ -88,7 +88,7 @@ final readonly class DnsCheck implements DoctorCheck
             return [CheckStatus::Fail, "{$domain} has AAAA records ({$list}) that are not public addresses.", "Remove the AAAA record of {$domain} or point it at this server."];
         }
 
-        return [CheckStatus::Warn, "{$domain} has AAAA records ({$list}); fsa cannot see this host's IPv6 addresses.", 'Make sure the AAAA record points at this server, or remove it: certificate requests may use IPv6.'];
+        return [CheckStatus::Warn, "{$domain} has AAAA records ({$list}); fieldset cannot see this host's IPv6 addresses.", 'Make sure the AAAA record points at this server, or remove it: certificate requests may use IPv6.'];
     }
 
     private static function isPublic(string $ip): bool

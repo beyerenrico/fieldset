@@ -6,7 +6,7 @@ namespace App\Domain\Instance\Install;
 
 use App\Domain\Instance\Backup\BackupRunner;
 use App\Domain\Instance\Compose\ComposeRenderer;
-use App\Domain\Instance\Console\FsaContext;
+use App\Domain\Instance\Console\FieldsetContext;
 use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\HostFacts;
 use App\Domain\Instance\InstanceException;
@@ -38,7 +38,7 @@ use Illuminate\Support\Str;
 use Throwable;
 
 /**
- * `fsa install --from-backup <backup>` (R42, R60, F6, plan U17, ADR 0085): a new instance on this host from a backup,
+ * `fieldset install --from-backup <backup>` (R42, R60, F6, plan U17, ADR 0085): a new instance on this host from a backup,
  * journaled and resumable like every install:
  *
  * backup (verify the release; prepare and judge the backup without socket or network, BackupIntake) → doctor (the
@@ -49,7 +49,7 @@ use Throwable;
  * `instance.restored`, stale credentials, grants, decrypt sample) → start → smoke (internal only while the certificate
  * is pending) → done (a sign-in link for `--owner-email`, the installed records).
  *
- * Only this command resumes its journal (a plain `fsa install` refuses it, M12 gate O1), and it needs the inputs the first
+ * Only this command resumes its journal (a plain `fieldset install` refuses it, M12 gate O1), and it needs the inputs the first
  * run had while it still prepares the backup again (ResumeInputs: exit 2 before the lock, O2).
  */
 final readonly class FromBackupInstall
@@ -74,7 +74,7 @@ final readonly class FromBackupInstall
         private OperationJournal $journal,
     ) {}
 
-    public function install(InstallRequest $request, FromBackupRequest $backup, FsaContext $context, bool $secretsToFile): CommandResult
+    public function install(InstallRequest $request, FromBackupRequest $backup, FieldsetContext $context, bool $secretsToFile): CommandResult
     {
         FromBackupRequest::assertApplicable($request);
         $state = $this->directory->hasState() ? $this->directory->state() : null;
@@ -87,7 +87,7 @@ final readonly class FromBackupInstall
         }
 
         return $this->supervisor->run(
-            Installer::OPERATION, $this->identity->holder('fsa', $context->facts->callerUid()),
+            Installer::OPERATION, $this->identity->holder('fieldset', $context->facts->callerUid()),
             fn (OperationRun $run): CommandResult => $this->steps($run, $request, $backup, $context, $secretsToFile),
             resume: true, context: [...$request->toContext(), ...$backup->toContext()], progress: $context->progress,
             archive: $this->withoutPersonalInputs(...),
@@ -96,7 +96,7 @@ final readonly class FromBackupInstall
     }
 
     /** A failed attempt never leaves the decrypted set (a plaintext dump, secrets.env) behind (review A5). */
-    private function steps(OperationRun $run, InstallRequest $request, FromBackupRequest $backup, FsaContext $context, bool $secretsToFile): CommandResult
+    private function steps(OperationRun $run, InstallRequest $request, FromBackupRequest $backup, FieldsetContext $context, bool $secretsToFile): CommandResult
     {
         $id = RestoreNames::id($run->record()->id());
         try {
@@ -112,7 +112,7 @@ final readonly class FromBackupInstall
         }
     }
 
-    private function phases(OperationRun $run, InstallRequest $request, FromBackupRequest $backup, FsaContext $context, bool $secretsToFile, string $id): CommandResult
+    private function phases(OperationRun $run, InstallRequest $request, FromBackupRequest $backup, FieldsetContext $context, bool $secretsToFile, string $id): CommandResult
     {
         $record = $run->record();
         $request = $record->phases() === [] ? $request : $request->over($record->context());
@@ -209,7 +209,7 @@ final readonly class FromBackupInstall
         $outcome = $this->app->migrate($project);
         if (! $outcome->successful()) {
             $output = implode("\n", array_slice(preg_split('/\R/', trim($outcome->stdout)) ?: [], -10));
-            throw new InstanceException('The database migrations of the restored data failed.', ExitCode::HealthCheckFailed, 'migrate_failed', 'Read the output, fix the cause, then run `fsa install` again with the same flags: it resumes here.', true, ['output' => trim($output."\n".$outcome->stderrTail(10))]);
+            throw new InstanceException('The database migrations of the restored data failed.', ExitCode::HealthCheckFailed, 'migrate_failed', 'Read the output, fix the cause, then run `fieldset install` again with the same flags: it resumes here.', true, ['output' => trim($output."\n".$outcome->stderrTail(10))]);
         }
         $this->backups->ensureRole($project);
 
@@ -223,7 +223,7 @@ final readonly class FromBackupInstall
      * @param  array<string, mixed>  $finish
      * @return array{0: array{value: string, expires_at: CarbonImmutable|null}|null, 1: string|null} the link, or why there is none
      */
-    private function finish(ComposeProject $project, InstallRequest $request, PreparedBackup $backup, array $finish, FsaContext $context, string $id): array
+    private function finish(ComposeProject $project, InstallRequest $request, PreparedBackup $backup, array $finish, FieldsetContext $context, string $id): array
     {
         $this->source->discard($id);
         $state = $this->directory->state();

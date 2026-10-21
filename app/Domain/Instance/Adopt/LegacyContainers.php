@@ -11,7 +11,7 @@ use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Output\ExitCode;
 
 /**
- * The containers of a 1.0 Compose project as `fsa adopt` accepts them (plan U19, ADR 0087, review S3), looked up by the
+ * The containers of a 1.0 Compose project as `fieldset adopt` accepts them (plan U19, ADR 0087, review S3), looked up by the
  * project label and then inspected one by one (`docker ps` joins labels with commas; inspect returns them exactly, and the
  * volume mounts). Every container must carry Compose's working-directory label naming the checkout and its config-files
  * label naming only the checkout's compose.yaml; one container per service (a `--scale`d service is refused, adopt would
@@ -51,7 +51,7 @@ final readonly class LegacyContainers
     {
         $labels = $container->labels;
         if (isset($labels[Labels::INSTANCE])) {
-            throw self::refused("The Compose project {$project} belongs to an fsa instance, not to a 1.0 checkout.", 'already_instance', 'Manage it with that instance\'s fsa.');
+            throw self::refused("The Compose project {$project} belongs to a fieldset instance, not to a 1.0 checkout.", 'already_instance', 'Manage it with that instance\'s fieldset.');
         }
         $dir = $labels[LegacyInstall::WORKING_DIR] ?? null;
         $files = array_values(array_filter(explode(',', $labels[LegacyInstall::CONFIG_FILES] ?? ''), static fn (string $file): bool => $file !== ''));
@@ -60,7 +60,7 @@ final readonly class LegacyContainers
             throw self::refused("The container {$container->name} of the Compose project {$project} lacks Compose's service, working-directory or config-files label.", 'legacy_unlabelled', 'Adopt takes over containers that `docker compose up` in the checkout created; recreate it there (`docker compose up -d`).');
         }
         if (self::real($dir) !== self::real($checkout)) {
-            throw self::refused("The Compose project {$project} was started from {$dir}, not from {$checkout}.", 'checkout_mismatch', "Pass the checkout the 1.0 install runs from: fsa adopt {$dir}");
+            throw self::refused("The Compose project {$project} was started from {$dir}, not from {$checkout}.", 'checkout_mismatch', "Pass the checkout the 1.0 install runs from: fieldset adopt {$dir}");
         }
         if (array_map(self::real(...), $files) !== [self::real($checkout.'/'.LegacyCheckout::COMPOSE_FILE)]) {
             throw self::refused('The 1.0 install was started with these Compose files: '.implode(', ', $files).'. Adopt copies only what compose.yaml of 1.0 defines.', 'compose_file_override', 'Restart 1.0 with compose.yaml alone (COMPOSE_FILE=compose.yaml, `docker compose up -d`), then run adopt again.');

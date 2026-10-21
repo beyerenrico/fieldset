@@ -25,38 +25,38 @@ beforeAll(function (): void {
 
     try {
         [$harness, $release] = SharedHarness::get();
-        $GLOBALS['fsaJ12'] = new InstanceJourney($harness, $release, $harness->directory.'/j12');
+        $GLOBALS['fieldsetJ12'] = new InstanceJourney($harness, $release, $harness->directory.'/j12');
     } catch (Throwable $exception) {
-        $GLOBALS['fsaJ12Error'] = $exception;
+        $GLOBALS['fieldsetJ12Error'] = $exception;
     }
 });
 
 afterAll(function (): void {
-    if (isset($GLOBALS['fsaJ12'])) {
-        foreach (['fsa-test-j12-ports', 'fsa-test-j12-ae5', 'fsa-test-j12-ae9'] as $name) {
-            InstanceJourney::cleanup($GLOBALS['fsaJ12']->work.'/'.$name);
+    if (isset($GLOBALS['fieldsetJ12'])) {
+        foreach (['fieldset-test-j12-ports', 'fieldset-test-j12-ae5', 'fieldset-test-j12-ae9'] as $name) {
+            InstanceJourney::cleanup($GLOBALS['fieldsetJ12']->work.'/'.$name);
         }
     }
-    new Process(['docker', 'rm', '-f', 'fsa-test-j12-port-blocker'])->run();
-    unset($GLOBALS['fsaJ12'], $GLOBALS['fsaJ12Error']);
+    new Process(['docker', 'rm', '-f', 'fieldset-test-j12-port-blocker'])->run();
+    unset($GLOBALS['fieldsetJ12'], $GLOBALS['fieldsetJ12Error']);
 });
 
 beforeEach(function (): void {
     $reason = TestImage::dockerUnavailableReason();
     if ($reason !== null) {
-        expect(getenv('FSA_REQUIRE_DOCKER'))->not->toBe('1', $reason);
+        expect(getenv('FIELDSET_REQUIRE_DOCKER'))->not->toBe('1', $reason);
         $this->markTestSkipped($reason.' (install journeys need a Docker engine)');
     }
-    if (isset($GLOBALS['fsaJ12Error'])) {
-        throw $GLOBALS['fsaJ12Error'];
+    if (isset($GLOBALS['fieldsetJ12Error'])) {
+        throw $GLOBALS['fieldsetJ12Error'];
     }
-    $this->journey = $GLOBALS['fsaJ12'];
+    $this->journey = $GLOBALS['fieldsetJ12'];
 });
 
 it('AE4 + AE3: takes the next free port when 8080 is taken, keeps it, and changes nothing on a re-run', function (): void {
-    $dir = $this->journey->work.'/fsa-test-j12-ports';
+    $dir = $this->journey->work.'/fieldset-test-j12-ports';
     // 8080 is taken by this blocker, or already by something else (the blocker then fails to start): either way taken.
-    new Process(['docker', 'run', '-d', '--rm', '--name', 'fsa-test-j12-port-blocker', '-p', '127.0.0.1:8080:8080', '--entrypoint', 'sleep', $this->journey->release->appReference, '900'], null, $this->journey->release->platformEnvironment())->run();
+    new Process(['docker', 'run', '-d', '--rm', '--name', 'fieldset-test-j12-port-blocker', '-p', '127.0.0.1:8080:8080', '--entrypoint', 'sleep', $this->journey->release->appReference, '900'], null, $this->journey->release->platformEnvironment())->run();
 
     $first = $this->journey->install($dir, [...J12_FLAGS, '--json']);
     $json = InstanceJourney::json($first);
@@ -74,7 +74,7 @@ it('AE4 + AE3: takes the next free port when 8080 is taken, keeps it, and change
     // health_status): they are not changes. Every other instance event (create, start, stop, die, destroy,
     // network or volume events) is.
     $events = array_values(array_filter(
-        InstanceJourney::events($since, $until, ['label=app.form-schema.instance='.$uuid]),
+        InstanceJourney::events($since, $until, ['label=app.fieldset.instance='.$uuid]),
         fn (string $event): bool => preg_match('/^container (exec_(create|start|die)|health_status)\b/', $event) !== 1,
     ));
     $this->journey->evidence('J12-ae3-ae4.json', ['first' => ['exit_code' => $first->getExitCode(), 'stdout' => $json], 'second' => ['exit_code' => $second->getExitCode(), 'stdout' => $again, 'instance_events' => $events], 'third_text' => $text->getOutput()]);
@@ -93,10 +93,10 @@ it('AE4 + AE3: takes the next free port when 8080 is taken, keeps it, and change
 });
 
 it('AE9: refuses a secret passed as a flag value with exit 2 and a stdin/file hint', function (): void {
-    $dir = $this->journey->work.'/fsa-test-j12-ae9';
+    $dir = $this->journey->work.'/fieldset-test-j12-ae9';
     $process = $this->journey->install($dir, [...J12_FLAGS, '--smtp-password=hunter2-j12', '--json']);
     $json = InstanceJourney::json($process);
-    $shim = $this->journey->fsa($this->journey->work.'/fsa-test-j12-ports', ['doctor', '--api-token=hunter2-j12', '--json']);
+    $shim = $this->journey->fieldset($this->journey->work.'/fieldset-test-j12-ports', ['doctor', '--api-token=hunter2-j12', '--json']);
 
     expect($process->getExitCode())->toBe(2, $process->getErrorOutput().$process->getOutput())
         ->and($json['errors'][0]['code'])->toBe('secret_in_argument')
@@ -108,9 +108,9 @@ it('AE9: refuses a secret passed as a flag value with exit 2 and a stdin/file hi
 });
 
 it('AE5: exits 3 for a domain that does not resolve here, before any service starts or another image is pulled', function (): void {
-    $dir = $this->journey->work.'/fsa-test-j12-ae5';
+    $dir = $this->journey->work.'/fieldset-test-j12-ae5';
     $since = time();
-    $process = $this->journey->install($dir, [...J12_FLAGS, '--domain', 'fsa-test-ae5.invalid', '--json']);
+    $process = $this->journey->install($dir, [...J12_FLAGS, '--domain', 'fieldset-test-ae5.invalid', '--json']);
     $until = time() + 1;
     $json = InstanceJourney::json($process);
     $dns = collect($json['data']['checks'] ?? [])->firstWhere('key', 'dns');

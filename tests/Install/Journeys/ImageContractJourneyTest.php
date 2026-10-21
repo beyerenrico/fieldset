@@ -7,14 +7,14 @@ use Tests\Support\Docker\TestImage;
 
 /*
  * U1 / M9-T02 image contract on the built image (R1, R5, R6, E17, KTD8, KTD9, ADR 0065). Builds
- * `fsa-test-u1:latest` natively, or `fsa-test-u1:<arch>` with FSA_TEST_PLATFORM=linux/<arch> under emulation.
- * Skips only when Docker is unreachable; FSA_REQUIRE_DOCKER=1 turns that skip into a failure.
+ * `fieldset-test-u1:latest` natively, or `fieldset-test-u1:<arch>` with FIELDSET_TEST_PLATFORM=linux/<arch> under emulation.
+ * Skips only when Docker is unreachable; FIELDSET_REQUIRE_DOCKER=1 turns that skip into a failure.
  */
 
 beforeEach(function (): void {
     $reason = TestImage::dockerUnavailableReason();
     if ($reason !== null) {
-        expect(getenv('FSA_REQUIRE_DOCKER'))->not->toBe('1', $reason);
+        expect(getenv('FIELDSET_REQUIRE_DOCKER'))->not->toBe('1', $reason);
         $this->markTestSkipped($reason.' (install journeys need a Docker engine)');
     }
 });
@@ -30,7 +30,7 @@ it('runs as a non-root user and reports its version and labels', function (): vo
         ->and($config['Labels'])->toMatchArray([
             'org.opencontainers.image.version' => TestImage::VERSION,
             'org.opencontainers.image.revision' => TestImage::revision(),
-            'org.opencontainers.image.source' => 'https://github.com/beyerenrico/form-schema-app',
+            'org.opencontainers.image.source' => 'https://github.com/beyerenrico/fieldset',
             'org.opencontainers.image.licenses' => 'AGPL-3.0-only',
         ])
         ->and($version->getExitCode())->toBe(0, $version->getErrorOutput())
@@ -83,8 +83,8 @@ it('holds every path and license file of docker/app/binaries.json (ADR 0071)', f
 it('ships no tests, agent docs or composer, but keeps the spec files the SDK reads (R5)', function (): void {
     $script = <<<'SH'
         cd /var/www/html
-        for path in tests docs scripts .github .git .env node_modules packages/form-schema-php/tests \
-          packages/form-schema-js spec/conformance storage/logs/laravel.log /usr/bin/composer; do
+        for path in tests docs scripts .github .git .env node_modules packages/fieldset-php/tests \
+          packages/fieldset-js spec/conformance storage/logs/laravel.log /usr/bin/composer; do
           [ -e "$path" ] && echo "present: $path"
         done
         command -v composer && echo "present: composer on PATH"
@@ -101,7 +101,7 @@ it('ships no tests, agent docs or composer, but keeps the spec files the SDK rea
 });
 
 it('starts the app role without permission errors in its logs (R6)', function (): void {
-    $name = 'fsa-test-u1-app-'.bin2hex(random_bytes(4));
+    $name = 'fieldset-test-u1-app-'.bin2hex(random_bytes(4));
     $platform = TestImage::platform();
     TestImage::mustRun([
         'docker', 'run', '-d', '--name', $name, ...($platform === null ? [] : ['--platform', $platform]),
@@ -133,14 +133,14 @@ it('starts the app role without permission errors in its logs (R6)', function ()
 it('fits the image size budget of 1.0 GB uncompressed (E17)', function (): void {
     $inspect = TestImage::mustRun(['docker', 'image', 'inspect', '--format', '{{.Size}} {{.Architecture}}', TestImage::reference()]);
     [$size, $arch] = explode(' ', trim($inspect->getOutput()));
-    file_put_contents(TestImage::logFile("fsa-test-u1-size-{$arch}.txt"), $size.PHP_EOL);
+    file_put_contents(TestImage::logFile("fieldset-test-u1-size-{$arch}.txt"), $size.PHP_EOL);
 
     expect((int) $size)->toBeLessThanOrEqual(1_000_000_000);
 });
 
-it('runs fsa as an arbitrary user without the app start-up (KTD2)', function (): void {
-    $process = TestImage::run(['--user', '4242:4242', '-e', 'HOME=/tmp'], ['fsa']);
+it('runs fieldset as an arbitrary user without the app start-up (KTD2)', function (): void {
+    $process = TestImage::run(['--user', '4242:4242', '-e', 'HOME=/tmp'], ['fieldset']);
 
-    expect($process->getOutput().$process->getErrorOutput())->toContain('"fsa" namespace')
+    expect($process->getOutput().$process->getErrorOutput())->toContain('"fieldset" namespace')
         ->and($process->getErrorOutput())->not->toMatch('/permission denied/i');
 });

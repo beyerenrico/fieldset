@@ -28,10 +28,10 @@ use Tests\Support\Instance\TemporaryInstance;
 
 afterEach(fn () => TemporaryInstance::cleanup());
 
-it('names the project fsa-<slug>-<hex> in Compose grammar, even for dotted or capitalised directories', function (string $path, string $slug): void {
+it('names the project fieldset-<slug>-<hex> in Compose grammar, even for dotted or capitalised directories', function (string $path, string $slug): void {
     $rendered = ComposeFixtures::render(path: $path);
 
-    expect($rendered->project)->toMatch('/^fsa-'.$slug.'-[0-9a-f]{4}$/')
+    expect($rendered->project)->toMatch('/^fieldset-'.$slug.'-[0-9a-f]{4}$/')
         ->toMatch(ComposeProject::NAME_PATTERN)
         ->and($rendered->document['name'])->toBe($rendered->project);
 })->with([
@@ -109,7 +109,7 @@ it('points app, queue and scheduler at Mailpit in capture mode and never publish
         ->and($mailpit['volumes'])->toBe([['type' => 'volume', 'source' => 'mailpit-data', 'target' => '/data']])
         ->and($rendered->document['volumes'])->toHaveKey('mailpit-data')
         ->and($rendered->environments['mailpit'])->toMatchArray([
-            'MP_UI_AUTH' => 'fsa:'.ComposeFixtures::CATCHER_PASSWORD,
+            'MP_UI_AUTH' => 'fieldset:'.ComposeFixtures::CATCHER_PASSWORD,
             'MP_MAX_MESSAGES' => '500',
             'MP_DATABASE' => '/data/mailpit.db',
             'MP_DISABLE_VERSION_CHECK' => 'true',
@@ -144,12 +144,12 @@ it('gives APP_KEY and the database credentials only to app, queue and scheduler,
 
     foreach (['app', 'queue', 'scheduler'] as $role) {
         expect($rendered->environments[$role])->toMatchArray([
-            'APP_KEY' => ComposeFixtures::APP_KEY, 'DB_HOST' => 'postgres', 'DB_DATABASE' => 'form_schema',
-            'DB_USERNAME' => 'form_schema', 'DB_PASSWORD' => ComposeFixtures::DB_PASSWORD, 'REDIS_PASSWORD' => ComposeFixtures::VALKEY_PASSWORD,
+            'APP_KEY' => ComposeFixtures::APP_KEY, 'DB_HOST' => 'postgres', 'DB_DATABASE' => 'fieldset',
+            'DB_USERNAME' => 'fieldset', 'DB_PASSWORD' => ComposeFixtures::DB_PASSWORD, 'REDIS_PASSWORD' => ComposeFixtures::VALKEY_PASSWORD,
         ]);
     }
     expect(ComposeRenderer::ONE_OFF_SERVICE)->toBe('app')
-        ->and($rendered->environments['postgres'])->toBe(['POSTGRES_DB' => 'form_schema', 'POSTGRES_USER' => 'form_schema', 'POSTGRES_PASSWORD' => ComposeFixtures::DB_PASSWORD]);
+        ->and($rendered->environments['postgres'])->toBe(['POSTGRES_DB' => 'fieldset', 'POSTGRES_USER' => 'fieldset', 'POSTGRES_PASSWORD' => ComposeFixtures::DB_PASSWORD]);
     foreach (['redis', 'gotenberg', 'mailpit'] as $service) {
         $env = $rendered->environments[$service];
         expect($env)->not->toHaveKeys(['APP_KEY', 'DB_PASSWORD', 'DB_USERNAME', 'POSTGRES_PASSWORD'])
@@ -172,7 +172,7 @@ it('gives the backup service the read-only dump role, a key derived from APP_KEY
     $other = new ServiceEnvironments(new RenderContext($state, ComposeFixtures::secrets()->withAppKey('base64:'.base64_encode(str_repeat('x', 32)))))->backup();
 
     expect($env)->toMatchArray([
-        'DB_HOST' => 'postgres', 'DB_DATABASE' => 'form_schema', 'DB_USERNAME' => 'fsa_backup',
+        'DB_HOST' => 'postgres', 'DB_DATABASE' => 'fieldset', 'DB_USERNAME' => 'fieldset_backup',
         'DB_PASSWORD' => ComposeFixtures::BACKUP_DB_PASSWORD, 'BACKUP_AGE_RECIPIENTS' => $recipient,
     ])
         ->not->toHaveKey('APP_KEY')
@@ -181,7 +181,7 @@ it('gives the backup service the read-only dump role, a key derived from APP_KEY
         ->and($env['BACKUP_HMAC_KEY'])->not->toBe($other['BACKUP_HMAC_KEY'])
         ->and($env['BACKUP_APP_FINGERPRINTS'])->toMatch('/^[0-9a-f]{4}(-[0-9a-f]{4}){3}$/')
         ->and($env['BACKUP_APP_FINGERPRINTS'])->not->toBe($other['BACKUP_APP_FINGERPRINTS'])
-        ->and($env)->toMatchArray(['BACKUP_SCHEDULE' => '03:30', 'BACKUP_TIME_ZONE' => 'UTC', 'BACKUP_RETENTION' => '7', 'FSA_INSTANCE_ROOT' => '/fsa/instance'])
+        ->and($env)->toMatchArray(['BACKUP_SCHEDULE' => '03:30', 'BACKUP_TIME_ZONE' => 'UTC', 'BACKUP_RETENTION' => '7', 'FIELDSET_INSTANCE_ROOT' => '/fieldset/instance'])
         ->and(ComposeFixtures::render()->services())->toContain('backup'); // rendered since U16 (ADR 0084)
 });
 
@@ -271,11 +271,11 @@ it('keeps a restart policy a later service sets itself, as the tunnel will', fun
 
 it('mounts the runtime directory read-only into app, queue and scheduler only', function (): void {
     $rendered = ComposeFixtures::render();
-    $mount = ['type' => 'bind', 'source' => './runtime', 'target' => '/run/fsa-runtime', 'read_only' => true, 'bind' => ['create_host_path' => false]];
+    $mount = ['type' => 'bind', 'source' => './runtime', 'target' => '/run/fieldset-runtime', 'read_only' => true, 'bind' => ['create_host_path' => false]];
 
     foreach (['app', 'queue', 'scheduler'] as $role) {
         expect($rendered->service($role)['volumes'])->toContain($mount)
-            ->and($rendered->environments[$role]['FSA_RUNTIME_PATH'])->toBe('/run/fsa-runtime');
+            ->and($rendered->environments[$role]['FIELDSET_RUNTIME_PATH'])->toBe('/run/fieldset-runtime');
     }
     foreach (['postgres', 'redis', 'gotenberg', 'mailpit'] as $service) {
         expect(json_encode($rendered->service($service)))->not->toContain('runtime');
@@ -334,7 +334,7 @@ it('carries the healthchecks of compose.yaml', function (): void {
     expect($rendered->service('app')['healthcheck']['test'])->toBe(['CMD', 'curl', '-fsS', 'http://localhost:8080/up'])
         ->and($rendered->service('queue')['healthcheck']['test'])->toBe(['CMD', 'php', 'artisan', 'horizon:status'])
         ->and($rendered->service('scheduler')['healthcheck'])->toBe(['disable' => true])
-        ->and($rendered->service('postgres')['healthcheck']['test'])->toBe(['CMD', 'pg_isready', '-h', '127.0.0.1', '-U', 'form_schema', '-d', 'form_schema'])
+        ->and($rendered->service('postgres')['healthcheck']['test'])->toBe(['CMD', 'pg_isready', '-h', '127.0.0.1', '-U', 'fieldset', '-d', 'fieldset'])
         ->and($rendered->service('redis')['healthcheck']['test'])->toBe(['CMD-SHELL', 'valkey-cli ping | grep -q PONG'])
         ->and($rendered->service('app')['depends_on'])->toBe(['postgres' => ['condition' => 'service_healthy'], 'redis' => ['condition' => 'service_healthy']]);
 });
@@ -374,7 +374,7 @@ it('writes the compose file, 0600 env files and the runtime directory, and drops
         ->and($env->read('redis')['VALKEY_EXTRA_FLAGS'])->toBe('--requirepass '.ComposeFixtures::VALKEY_PASSWORD)
         ->and($directory->exists('runtime/runtime.json'))->toBeTrue()
         ->and($yaml)->toBe($written->yaml())
-        ->and($yaml)->toStartWith('# Generated by fsa')
+        ->and($yaml)->toStartWith('# Generated by fieldset')
         ->and(json_decode(substr($yaml, (int) strpos($yaml, '{')), true, 64, JSON_THROW_ON_ERROR))->toBe($written->document);
 
     $renderer->write($directory, $state->withSettings(ComposeFixtures::smtpSettings()), ComposeFixtures::secrets());

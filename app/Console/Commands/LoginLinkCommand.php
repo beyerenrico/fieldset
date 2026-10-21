@@ -17,13 +17,13 @@ use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 /**
- * The app side of `fsa login-link <email>` (R28, KTD25): runs in a one-off container without the Docker socket
+ * The app side of `fieldset login-link <email>` (R28, KTD25): runs in a one-off container without the Docker socket
  * and prints the link once. With --json the link appears only under `secrets`.
  */
 #[Description('Issue a one-time sign-in link (15 minutes, single use) for an existing admin')]
 #[Signature('identity:login-link
         {email : Email of an existing admin user}
-        {--actor-uid= : Host UID of the operator running fsa (audit)}
+        {--actor-uid= : Host UID of the operator running fieldset (audit)}
         {--json : Print one JSON document on stdout}')]
 final class LoginLinkCommand extends Command
 {

@@ -13,22 +13,22 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 
 /**
- * `fsa adopt <checkout>` (§7, R46 as changed by R60, F7, plan U19, ADR 0087): converts a clone-based 1.0 install into an
+ * `fieldset adopt <checkout>` (§7, R46 as changed by R60, F7, plan U19, ADR 0087): converts a clone-based 1.0 install into an
  * instance in this directory by copying its data (AdoptOperation); 1.0's checkout and volumes stay as they were, so
- * `fsa uninstall` and `docker compose up -d` in the checkout bring 1.0 back. install.sh starts it with `--adopt <checkout>`
+ * `fieldset uninstall` and `docker compose up -d` in the checkout bring 1.0 back. install.sh starts it with `--adopt <checkout>`
  * in a new directory; the launchers mount the checkout read-only at its own path. Asks first (it stops 1.0): exit 6
  * without a terminal (or with --json) unless --yes. `--abandon` undoes an adopt that stopped half-way.
  */
 #[Description('Convert a 1.0 checkout install into an instance by copying its data (asks first)')]
-#[Signature('fsa:adopt
+#[Signature('fieldset:adopt
         {checkout? : The 1.0 install\'s checkout: the directory `docker compose up` runs in}
         {--release= : Release version; must match the verified manifest}
         {--drop-jobs : Go on when 1.0\'s queued jobs do not drain within 2 minutes (they stay in 1.0\'s Valkey)}
         {--abandon : Undo an adopt that stopped half-way: start 1.0 again and remove what adopt created here}')]
-final class AdoptCommand extends FsaCommand
+final class AdoptCommand extends FieldsetCommand
 {
     /** `data` names the checkout and the new instance's directory (M12 gate O6). */
-    protected function confirmationPrompt(FsaContext $context): Confirmation
+    protected function confirmationPrompt(FieldsetContext $context): Confirmation
     {
         if ($this->option('abandon') === true) {
             return new Confirmation('Undo the interrupted adopt: start 1.0 again and remove the containers, volumes and files it created here?', ['abandon' => true]);
@@ -39,7 +39,7 @@ final class AdoptCommand extends FsaCommand
             ['checkout' => $checkout, 'dir' => $context->directory()->root]);
     }
 
-    protected function perform(FsaContext $context): CommandResult
+    protected function perform(FieldsetContext $context): CommandResult
     {
         $operation = $this->laravel->make(AdoptOperation::class);
         if ($this->option('abandon') === true) {
@@ -56,15 +56,15 @@ final class AdoptCommand extends FsaCommand
     {
         $checkout = $this->argument('checkout');
         if (! is_string($checkout) || trim($checkout) === '') {
-            throw new InvalidInput('Name the 1.0 checkout to adopt.', 'checkout_required', 'Pass the directory of the 1.0 install: fsa adopt /srv/form-schema-app');
+            throw new InvalidInput('Name the 1.0 checkout to adopt.', 'checkout_required', 'Pass the directory of the 1.0 install: fieldset adopt /srv/form-schema-app');
         }
         $checkout = rtrim(trim($checkout), '/');
 
         return str_starts_with($checkout, '/') ? $checkout : getcwd().'/'.$checkout;
     }
 
-    /** A launcher mounts the checkout read-only at its own path (FSA_MOUNTS); anything else is invisible here (exit 2). */
-    private function assertVisible(FsaContext $context, string $checkout): void
+    /** A launcher mounts the checkout read-only at its own path (FIELDSET_MOUNTS); anything else is invisible here (exit 2). */
+    private function assertVisible(FieldsetContext $context, string $checkout): void
     {
         $facts = $context->facts;
         if (! $facts->launched() || str_starts_with($checkout.'/', $context->directory()->root.'/')) {
@@ -72,7 +72,7 @@ final class AdoptCommand extends FsaCommand
         }
         $mounted = array_any(array_keys($facts->mounts), static fn (string $root): bool => $checkout === rtrim($root, '/') || str_starts_with($checkout.'/', rtrim($root, '/').'/'));
         if (! $mounted) {
-            throw new InvalidInput("{$checkout} is not mounted into the fsa container.", 'path_not_mounted', 'Run adopt through install.sh (--adopt <checkout>) or the instance\'s fsa, which mount the checkout.');
+            throw new InvalidInput("{$checkout} is not mounted into the fieldset container.", 'path_not_mounted', 'Run adopt through install.sh (--adopt <checkout>) or the instance\'s fieldset, which mount the checkout.');
         }
     }
 }

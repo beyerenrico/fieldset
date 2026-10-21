@@ -17,7 +17,7 @@ use Throwable;
 class DoctorProbes
 {
     /** Harness builds only: fixed DNS answers for the doctor (`host=ip,ip;host2=ip`). */
-    public const string TEST_DNS_ENV = 'FSA_TEST_DNS';
+    public const string TEST_DNS_ENV = 'FIELDSET_TEST_DNS';
 
     /**
      * Addresses of one record type, as the resolver of the ops container (the Docker engine's DNS) answers.
@@ -104,7 +104,7 @@ class DoctorProbes
 
     /**
      * Fixed DNS answers for the release-harness journeys (ADR 0075): the ops container runs on the engine's default
-     * network with its resolver, which knows nothing of the harness DNS (challtestsrv), so J2 passes FSA_TEST_DNS.
+     * network with its resolver, which knows nothing of the harness DNS (challtestsrv), so J2 passes FIELDSET_TEST_DNS.
      * A production build ignores it (BuildFlavor is read from the image, not the environment).
      *
      * @return array<string, list<string>>

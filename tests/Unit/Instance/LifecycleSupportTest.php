@@ -22,7 +22,7 @@ use Tests\Support\Instance\TemporaryInstance;
 
 /*
  * U5 / M9-T08: the pieces under the lifecycle commands: engine info, host facts of the install hand-over, the
- * port probe, one-off results, the probes seam, the fsa wrapper's --version mapping and the registration.
+ * port probe, one-off results, the probes seam, the fieldset wrapper's --version mapping and the registration.
  */
 
 afterEach(fn () => TemporaryInstance::cleanup());
@@ -42,10 +42,10 @@ it('reads the engine info: architecture, memory, rootless and clock', function (
 });
 
 it('takes the verified release manifest and the registry mirror from install.sh', function (): void {
-    $facts = HostFacts::fromEnvironment(['FSA_RELEASE_MANIFEST' => '/srv/fsa/releases/2.0.0/release-manifest.json', 'FSA_REGISTRY' => '127.0.0.1:5000', 'FSA_HOST_GID' => '20']);
-    $bad = HostFacts::fromEnvironment(['FSA_RELEASE_MANIFEST' => 'relative.json', 'FSA_REGISTRY' => 'evil.example/path']);
+    $facts = HostFacts::fromEnvironment(['FIELDSET_RELEASE_MANIFEST' => '/srv/fieldset/releases/2.0.0/release-manifest.json', 'FIELDSET_REGISTRY' => '127.0.0.1:5000', 'FIELDSET_HOST_GID' => '20']);
+    $bad = HostFacts::fromEnvironment(['FIELDSET_RELEASE_MANIFEST' => 'relative.json', 'FIELDSET_REGISTRY' => 'evil.example/path']);
 
-    expect($facts->releaseManifest)->toBe('/srv/fsa/releases/2.0.0/release-manifest.json')
+    expect($facts->releaseManifest)->toBe('/srv/fieldset/releases/2.0.0/release-manifest.json')
         ->and($facts->registry)->toBe('127.0.0.1:5000')
         ->and($facts->callerGid())->toBe(20)
         ->and($bad->releaseManifest)->toBeNull()
@@ -77,7 +77,7 @@ it('probes a port by publishing a throwaway container and reads the engine wordi
     }
 
     expect($probe->isFree(8080, 'app@sha256:'.str_repeat('a', 64)))->toBe($free)
-        ->and($docker->called('runContainer')[0]['spec'])->toEqual(new ContainerSpec(image: 'app@sha256:'.str_repeat('a', 64), labels: ['app.form-schema.role' => 'port-probe'], ports: ['127.0.0.1:8080:8080'], entrypoint: 'true'));
+        ->and($docker->called('runContainer')[0]['spec'])->toEqual(new ContainerSpec(image: 'app@sha256:'.str_repeat('a', 64), labels: ['app.fieldset.role' => 'port-probe'], ports: ['127.0.0.1:8080:8080'], entrypoint: 'true'));
 })->with([
     'free' => ['', true],
     'another container' => ['Bind for 127.0.0.1:8080 failed: port is already allocated', false],
@@ -106,7 +106,7 @@ it('reads the last JSON document of a one-off and keeps its secrets out of debug
 it('tells registries apart from Docker Hub references', function (string $image, string $registry): void {
     expect(RegistryCheck::registryOf($image))->toBe($registry);
 })->with([
-    ['ghcr.io/beyerenrico/form-schema-app@sha256:'.str_repeat('a', 64), 'ghcr.io'],
+    ['ghcr.io/beyerenrico/fieldset@sha256:'.str_repeat('a', 64), 'ghcr.io'],
     ['127.0.0.1:5000/library/postgres@sha256:'.str_repeat('a', 64), '127.0.0.1:5000'],
     ['localhost/x@sha256:'.str_repeat('a', 64), 'localhost'],
     ['library/postgres@sha256:'.str_repeat('a', 64), 'docker.io'],
@@ -124,26 +124,26 @@ it('probes the host through one seam', function (): void {
         ->and($probes->stat($file.'-missing'))->toBeNull()
         ->and($probes->diskFree(sys_get_temp_dir()))->toBeFloat()
         ->and($probes->now())->toBeGreaterThan(1_700_000_000)
-        ->and($probes->resolve('fsa-test.invalid', DNS_A))->toBe([]);
+        ->and($probes->resolve('fieldset-test.invalid', DNS_A))->toBe([]);
 
     Http::fake(fn () => throw new RuntimeException('offline'));
     expect($probes->head('https://unreachable.test/v2/'))->toBeNull();
 });
 
-it('passes fsa --version on as --release, because Symfony would answer it itself', function (array $arguments, string $call): void {
+it('passes fieldset --version on as --release, because Symfony would answer it itself', function (array $arguments, string $call): void {
     $harness = new ScriptHarness(base_path());
 
     try {
-        expect($harness->run('docker/app/fsa', $arguments))->toBe([$call]);
+        expect($harness->run('docker/app/fieldset', $arguments))->toBe([$call]);
     } finally {
         $harness->cleanUp();
     }
 })->with([
-    'flag and value' => [['install', '--version', '2.0.0', '--json'], 'php /var/www/html/artisan fsa:install --release 2.0.0 --json'],
-    'flag with =' => [['install', '--version=2.0.0-rc.1'], 'php /var/www/html/artisan fsa:install --release=2.0.0-rc.1'],
-    'other flags untouched' => [['install', '--org', 'Acme Forms', '--dir', '/srv/fsa'], 'php /var/www/html/artisan fsa:install --org Acme Forms --dir /srv/fsa'],
-    'other commands untouched' => [['version', '--version'], 'php /var/www/html/artisan fsa:version --version'],
-    'nothing after --' => [['install', '--', '--version'], 'php /var/www/html/artisan fsa:install -- --version'],
+    'flag and value' => [['install', '--version', '2.0.0', '--json'], 'php /var/www/html/artisan fieldset:install --release 2.0.0 --json'],
+    'flag with =' => [['install', '--version=2.0.0-rc.1'], 'php /var/www/html/artisan fieldset:install --release=2.0.0-rc.1'],
+    'other flags untouched' => [['install', '--org', 'Acme Forms', '--dir', '/srv/fieldset'], 'php /var/www/html/artisan fieldset:install --org Acme Forms --dir /srv/fieldset'],
+    'other commands untouched' => [['version', '--version'], 'php /var/www/html/artisan fieldset:version --version'],
+    'nothing after --' => [['install', '--', '--version'], 'php /var/www/html/artisan fieldset:install -- --version'],
 ]);
 
 it('registers the lifecycle commands', function (): void {
@@ -152,5 +152,5 @@ it('registers the lifecycle commands', function (): void {
     foreach (InstanceServiceProvider::COMMANDS as $class) {
         expect($commands)->toContain(app($class)->getName());
     }
-    expect($commands)->toContain('fsa:install', 'fsa:doctor', 'fsa:status', 'fsa:logs', 'fsa:version', 'fsa:uninstall', 'fsa:login-link');
+    expect($commands)->toContain('fieldset:install', 'fieldset:doctor', 'fieldset:status', 'fieldset:logs', 'fieldset:version', 'fieldset:uninstall', 'fieldset:login-link');
 });

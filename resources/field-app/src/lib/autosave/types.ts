@@ -1,4 +1,4 @@
-import type { JsonObject } from '@form-schema-app/form-schema-js';
+import type { JsonObject } from '@fieldset/fieldset-js';
 
 /**
  * Local save states (ADR 0035): `saved` means "saved on this device". The sync state of the draft

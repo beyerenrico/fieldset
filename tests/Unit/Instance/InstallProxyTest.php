@@ -13,7 +13,7 @@ use Tests\Support\Instance\InstanceCommandFixture;
 use Tests\Support\Instance\TemporaryInstance;
 
 /*
- * U9 / M10-T03: `fsa install --behind-proxy traefik|caddy|port --url …` against scripted Docker (R17, R61,
+ * U9 / M10-T03: `fieldset install --behind-proxy traefik|caddy|port --url …` against scripted Docker (R17, R61,
  * ADR 0076): flag validation, how the single trusted proxy address is found, and resume/repeat rules. The real
  * thing runs in tests/Install/Journeys/J03ProxyModeTest.php.
  */
@@ -43,7 +43,7 @@ function withSharedNetwork(InstanceCommandFixture $fixture, array $containers = 
 
 function installProxy(InstanceCommandFixture $fixture, array $flags = []): array
 {
-    return $fixture->run('fsa:install', InstanceCommandFixture::installFlags(['--behind-proxy' => 'traefik', '--proxy-network' => 'edge-net', '--url' => PROXY_URL, ...$flags]));
+    return $fixture->run('fieldset:install', InstanceCommandFixture::installFlags(['--behind-proxy' => 'traefik', '--proxy-network' => 'edge-net', '--url' => PROXY_URL, ...$flags]));
 }
 
 it('installs behind Traefik on a shared network and trusts exactly the Traefik container found by its image', function (): void {
@@ -120,7 +120,7 @@ it('publishes a loopback port in the port setup and trusts the gateway its conne
         ? new NetworkInfo('net1', $name, false, ['172.31.0.0/16'], ['172.31.0.1'])
         : null;
 
-    [$code, $json] = $this->fixture->run('fsa:install', InstanceCommandFixture::installFlags(['--behind-proxy' => 'port', '--url' => PROXY_URL]));
+    [$code, $json] = $this->fixture->run('fieldset:install', InstanceCommandFixture::installFlags(['--behind-proxy' => 'port', '--url' => PROXY_URL]));
     $state = $this->fixture->state();
     $journal = new OperationJournal($this->fixture->directory)->history()[0];
 
@@ -135,9 +135,9 @@ it('publishes a loopback port in the port setup and trusts the gateway its conne
 });
 
 it('fails the port setup with exit 4 and resumes when the default network reports no gateway', function (): void {
-    [$code, $json] = $this->fixture->run('fsa:install', InstanceCommandFixture::installFlags(['--behind-proxy' => 'port', '--url' => PROXY_URL]));
+    [$code, $json] = $this->fixture->run('fieldset:install', InstanceCommandFixture::installFlags(['--behind-proxy' => 'port', '--url' => PROXY_URL]));
     $this->fixture->docker->networkResponder = fn (string $name): NetworkInfo => new NetworkInfo('net1', $name, false, [], ['172.31.0.1']);
-    [$resumed, $done] = $this->fixture->run('fsa:install');
+    [$resumed, $done] = $this->fixture->run('fieldset:install');
 
     expect($code)->toBe(4)
         ->and($json['errors'][0]['code'])->toBe('gateway_unknown')
@@ -146,7 +146,7 @@ it('fails the port setup with exit 4 and resumes when the default network report
 });
 
 it('refuses flags that do not fit together with exit 2 before touching Docker', function (array $flags, string $error, string $needle): void {
-    [$code, $json] = $this->fixture->run('fsa:install', InstanceCommandFixture::installFlags($flags));
+    [$code, $json] = $this->fixture->run('fieldset:install', InstanceCommandFixture::installFlags($flags));
 
     expect($code)->toBe(2, json_encode($json))
         ->and($json['errors'][0]['code'])->toBe($error)
@@ -192,7 +192,7 @@ it('resumes an interrupted proxy install with the recorded flags and refuses cha
     unset($this->fixture->oneOffs['migrate']);
 
     [$conflictCode, $conflict] = installProxy($this->fixture, ['--url' => 'https://other.example.com']);
-    [$resumedCode, $resumed] = $this->fixture->run('fsa:install');
+    [$resumedCode, $resumed] = $this->fixture->run('fieldset:install');
 
     expect($failed)->toBe(4)
         ->and($conflictCode)->toBe(2)
@@ -209,8 +209,8 @@ it('reports no app port in status and probes none in doctor on a shared proxy ne
     $this->fixture->withRunningStack();
     $probesBefore = count($this->fixture->runSpecs('true'));
 
-    [$statusCode, $status] = $this->fixture->run('fsa:status');
-    [$doctorCode, $doctor] = $this->fixture->run('fsa:doctor');
+    [$statusCode, $status] = $this->fixture->run('fieldset:status');
+    [$doctorCode, $doctor] = $this->fixture->run('fieldset:doctor');
     $probed = array_map(fn ($spec): string => $spec->ports[0] ?? '', array_slice($this->fixture->runSpecs('true'), $probesBefore));
     $ports = array_values(array_filter($doctor['data']['checks'], fn (array $check): bool => $check['key'] === 'ports'))[0];
 

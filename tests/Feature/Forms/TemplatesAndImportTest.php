@@ -11,7 +11,7 @@ use App\Domain\Forms\Support\DefinitionChecker;
 use App\Domain\Forms\Templates\TemplateCatalog;
 use App\Domain\Identity\Enums\SystemRole;
 use App\Domain\Identity\Tenancy\TenantContext;
-use FormSchema\Json\Json;
+use Fieldset\Json\Json;
 use Illuminate\Support\Facades\DB;
 
 beforeEach(function (): void {

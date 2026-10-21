@@ -16,7 +16,7 @@ use Symfony\Component\HttpFoundation\Response;
  * (ADR 0040). Runs globally, before StartSession and the CSRF middleware write their cookies.
  * SameSite stays at config('session.same_site') (lax), HttpOnly at config('session.http_only').
  *
- * On an `fsa` instance (ADR 0074) both follow the scheme the runtime resolved for the request host: Secure exactly
+ * On a `fieldset` instance (ADR 0074) both follow the scheme the runtime resolved for the request host: Secure exactly
  * when it is HTTPS, and then the session cookie is `__Host-<name>` (ASVS 3.4.4: Secure, Path=/, no Domain), so a
  * plain-http localhost request keeps a cookie the browser accepts. A configured SESSION_DOMAIN or path rules the
  * prefix out.

@@ -20,7 +20,7 @@ const CARRY_PASSWORD = '0123456789abcdef0123456789abcdef0123456789abcdef';
 
 beforeEach(function (): void {
     RestoreDatabases::target();
-    $this->role = RestoreDatabases::role('fsa_backup_carry');
+    $this->role = RestoreDatabases::role('fieldset_backup_carry');
     putenv(BackupRole::PASSWORD_ENV.'='.CARRY_PASSWORD);
     app()->instance(RestoreFinishCommand::STDIN, static fn (): string => '');
 });

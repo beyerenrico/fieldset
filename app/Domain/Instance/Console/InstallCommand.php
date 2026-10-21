@@ -25,7 +25,7 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 
 /**
- * `fsa install` (§7, F1, F2, R9–R17, R26, ADR 0072, ADR 0075, ADR 0076): creates and starts an instance from the
+ * `fieldset install` (§7, F1, F2, R9–R17, R26, ADR 0072, ADR 0075, ADR 0076): creates and starts an instance from the
  * release install.sh verified, in local mode, in domain mode (--domain: the edge with automatic HTTPS, after the DNS
  * preflight, AE5) or in proxy mode (--behind-proxy); resumes a half-finished install, and changes nothing on a
  * finished one. A new install needs --org and --owner-email: prompted in a terminal, exit 2 (`input_required`)
@@ -37,13 +37,13 @@ use Illuminate\Console\Attributes\Signature;
  * from a backup instead (FromBackupInstall, plan U17, ADR 0085).
  */
 #[Description('Create and start an instance (local, domain or proxy mode), or resume an unfinished install')]
-#[Signature('fsa:install
+#[Signature('fieldset:install
         {--org= : Organization name (required for a new install)}
         {--owner-email= : Owner e-mail (required for a new install); the owner gets a one-time sign-in link}
         {--owner-name= : Owner name (default: the part of the e-mail before the @)}
         {--locale= : Organization and owner locale: de or en (default de)}
         {--port= : Loopback port of the app (default 8080, or the next free one; local mode and --behind-proxy port)}
-        {--release= : Release version; the fsa wrapper passes --version as this. Must match the verified manifest}
+        {--release= : Release version; the fieldset wrapper passes --version as this. Must match the verified manifest}
         {--domain= : Domain mode: the edge serves https://<domain> with a certificate from ACME (DNS must point here)}
         {--acme-email= : Domain mode: contact address for the ACME account (shared with the CA; default none)}
         {--acme-staging : Domain mode: Let\'s Encrypt staging (untrusted certificates; for trial installs)}
@@ -64,7 +64,7 @@ use Illuminate\Console\Attributes\Signature;
         {--password-stdin : Read the SMTP password from stdin (a hidden prompt in a terminal; install.sh: terminal only)}
         {--from-address= : The sender address of instance mail (default forms@<domain>, else forms@localhost)}
         {--from-name= : The sender name of instance mail}
-        {--encrypt : Encrypted backups: not at install yet; use fsa config set backup-encryption on afterwards}
+        {--encrypt : Encrypted backups: not at install yet; use fieldset config set backup-encryption on afterwards}
         {--from-backup= : Create the instance from a backup (its data, URL and settings; a 1.0 backup too): mail starts captured, webhooks paused}
         {--identity-file= : --from-backup: the passphrase-protected backup identity of an encrypted backup}
         {--passphrase-file= : --from-backup: read the identity\'s passphrase from this file}
@@ -73,7 +73,7 @@ use Illuminate\Console\Attributes\Signature;
         {--accept-unauthenticated : --from-backup: install from an archive no key from outside it authenticates (a 1.0 backup)}
         {--keep-recipients : --from-backup: keep the authenticated backup\'s age recipients, so new backups are encrypted to them}
         {--open : Open the owner sign-in link in the browser of a desktop session instead of printing it}')]
-final class InstallCommand extends FsaCommand
+final class InstallCommand extends FieldsetCommand
 {
     private const array PROMPTS = ['organization' => 'Organization name', 'owner_email' => 'Owner e-mail'];
 
@@ -82,7 +82,7 @@ final class InstallCommand extends FsaCommand
         return (bool) $this->option('open');
     }
 
-    protected function perform(FsaContext $context): CommandResult
+    protected function perform(FieldsetContext $context): CommandResult
     {
         $this->refuseLaterOptions();
         $request = $this->withAcmeOptions(InstallRequest::fromOptions($this->options()));
@@ -116,7 +116,7 @@ final class InstallCommand extends FsaCommand
     {
         if ($this->option('encrypt') === true) {
             // Backups and their encryption exist since U16 (ADR 0084), but not as an install step yet.
-            throw new InvalidInput('--encrypt is not available at install yet.', 'unsupported_option', 'Install without it, then run `fsa config set backup-encryption on --identity-out <path> --passphrase-file <file>` (or `fsa backup --encrypt …`).');
+            throw new InvalidInput('--encrypt is not available at install yet.', 'unsupported_option', 'Install without it, then run `fieldset config set backup-encryption on --identity-out <path> --passphrase-file <file>` (or `fieldset backup --encrypt …`).');
         }
     }
 
@@ -135,7 +135,7 @@ final class InstallCommand extends FsaCommand
     }
 
     /** R26: missing values are prompted in a terminal and an input error (exit 2) without one, under --yes or --json. */
-    private function askMissing(InstallRequest $request, FsaContext $context): InstallRequest
+    private function askMissing(InstallRequest $request, FieldsetContext $context): InstallRequest
     {
         $missing = $request->missing();
         if ($missing === []) {
@@ -147,7 +147,7 @@ final class InstallCommand extends FsaCommand
                 'A new install needs '.implode(' and ', $flags).'.',
                 ExitCode::InvalidInput,
                 'input_required',
-                'Pass '.implode(' and ', $flags).' (fsa never prompts without a terminal, or with --yes or --json).',
+                'Pass '.implode(' and ', $flags).' (fieldset never prompts without a terminal, or with --yes or --json).',
                 false,
                 ['missing' => $flags],
             );

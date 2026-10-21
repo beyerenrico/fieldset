@@ -182,3 +182,23 @@
 162. 99b also bites a check that runs one by-digest image per platform (`release:check-pg-dump`): amd64 then arm64 of
    the same index digest fails with "cannot overwrite digest". Remove the pulled image between platforms. A journey that
    needs an older release must publish it itself: FSA_RELEASE_VERSION can make the shared harness's version the newest.
+163. Renaming the Compose project (rename U6: `form-schema-app` → `fieldset`) gives the dev stack new containers and
+   empty volumes. Reset: `docker compose -p form-schema-app stop` (never `down -v`: the old volumes
+   `form-schema-app_pg-data`/`_app-storage` and images stay for the human); in `.env` set `APP_NAME=Fieldset`,
+   `DB_DATABASE=fieldset`, `DB_USERNAME=fieldset`; `docker compose up -d --wait postgres` alone first (LEARNINGS 146;
+   the init script creates `fieldset_test`, `_b`, `_c`), then `redis gotenberg mailpit`; `php artisan migrate`;
+   `COMPOSE_PROFILES=sso docker compose build app` (no source mount: the image must be rebuilt), `up -d --wait`,
+   `docker compose exec -T app php artisan db:seed --force`. scripts/qpdf and coverage.sh use the image `fieldset-ci`
+   (a retag of `form-schema-app-ci` works when the apt mirror is down). APP_NAME also renames the session cookie and the
+   cache/Redis/Horizon prefixes, so dev sessions and queued jobs are gone.
+164. Trivy findings move with its DB, not with the code: a gate on unchanged pins can turn red on the day of a release
+   (rename U8: CVE-2026-111943 in every Go binary). Scan early in a release run, before the long journeys.
+165. `scripts/fixtures/make-fillable-pdfs.mjs` is reproducible except the qpdf-encrypted variants (random salts): a
+   rerun always changes `encrypted-*.pdf`.
+166. The app image's assets stage (Vite `laravel:fonts` plugin) fetches fonts over the network at build time: a CDN
+   connect timeout fails the harness build ("fetch failed", ConnectTimeoutError). Check the network and rerun; nothing in
+   the tree is wrong.
+167. To check which Go a third-party binary was built with, without trusting release notes: `docker create` + `docker cp`
+   the binary (or untar a static release) and run `go version <file>` in a pinned golang image; Trivy's `--list-all-pkgs
+   --format json` shows the same as the `stdlib` package of each `gobinary` target. Docker Hub's `ordering=last_updated`
+   tag list shows whether any newer image exists at all.

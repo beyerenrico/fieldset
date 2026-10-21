@@ -13,7 +13,7 @@ use RuntimeException;
 use Throwable;
 
 /**
- * The test mail of `fsa config set mail smtp` (R25, ADR 0080) and of the install smoke test (R11, ADR 0072 amendment),
+ * The test mail of `fieldset config set mail smtp` (R25, ADR 0080) and of the install smoke test (R11, ADR 0072 amendment),
  * sent synchronously through the instance mailer as the one-off's env configures it: the new SMTP server, the configured
  * one, or the bundled catcher in capture mode. It counts as sent only when the server accepted it. It goes to the given
  * address, else to the longest-standing active operator (the install owner, usually). Errors reach the caller without

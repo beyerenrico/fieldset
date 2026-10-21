@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Instance\Restore;
 
 use App\Domain\Instance\Compose\ComposeRenderer;
-use App\Domain\Instance\Console\FsaContext;
+use App\Domain\Instance\Console\FieldsetContext;
 use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\Docker\DockerGateway;
 use App\Domain\Instance\Lifecycle\OneOffResult;
@@ -20,7 +20,7 @@ use App\Domain\Instance\State\InstanceDirectory;
 use Throwable;
 
 /**
- * `fsa restore --drill <backup>` (R41, plan U17, ADR 0085): proves a backup restores without touching the instance.
+ * `fieldset restore --drill <backup>` (R41, plan U17, ADR 0085): proves a backup restores without touching the instance.
  * Under the instance lock it prepares the backup like a restore, restores the dump into a scratch database
  * `restore_drill_<id>` (the restricted role for an unauthenticated archive) and runs `instance:restore-drill` against
  * it in a one-off with a null mailer and a sync queue: counts, chain heads, the storage archive against the file
@@ -51,13 +51,13 @@ final readonly class RestoreDrill
         private RestoreSource $source,
     ) {}
 
-    public function drill(RestoreRequest $request, FsaContext $context): CommandResult
+    public function drill(RestoreRequest $request, FieldsetContext $context): CommandResult
     {
         $state = RestoreOperation::installed($this->directory);
         $project = ComposeProject::forInstance($state, $this->directory);
         $id = bin2hex(random_bytes(6));
         $database = self::PREFIX.$id;
-        $handle = $this->lock->acquire($this->identity->holder('fsa', $request->actorUid), self::OPERATION);
+        $handle = $this->lock->acquire($this->identity->holder('fieldset', $request->actorUid), self::OPERATION);
         $open = $this->journal->current(); // under the lock: no drill next to an unfinished operation (M12 gate C4)
         if ($open instanceof JournalRecord) {
             $this->lock->release($handle);
@@ -106,7 +106,7 @@ final readonly class RestoreDrill
     /** The restricted role of a drill (hex ID only; null for a name that is no drill's). */
     private function role(string $id): ?string
     {
-        return preg_match('/^[0-9a-f]{12}$/D', $id) === 1 ? 'fsa_drill_'.$id : null;
+        return preg_match('/^[0-9a-f]{12}$/D', $id) === 1 ? 'fieldset_drill_'.$id : null;
     }
 
     private function cleanUp(ComposeProject $project, string $database, string $id): void

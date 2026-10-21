@@ -38,7 +38,7 @@ final readonly class SequenceAdvancer
 
     /**
      * Moves every sequence of `$target` that stands below its floor up to it (a sequence the floors do not name, or one
-     * `$target` lacks, is left alone). `fsa reset` passes the old database's values (U23 review S1).
+     * `$target` lacks, is left alone). `fieldset reset` passes the old database's values (U23 review S1).
      *
      * @param  array<string, int>  $floors  sequence name => last value
      * @return int how many were moved

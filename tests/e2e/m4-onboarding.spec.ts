@@ -4,7 +4,7 @@ import { devStackOnly, mailpitOptions } from './support/target';
 // Journey 1 (§12): an owner registers an organization (email verified via Mailpit) and invites a
 // designer and a field worker, who accept their invitations. Requires APP_ALLOW_REGISTRATION=true
 // (set in CI and in .env for the dev stack).
-devStackOnly('organization sign-up needs APP_ALLOW_REGISTRATION=true, which an fsa instance never sets');
+devStackOnly('organization sign-up needs APP_ALLOW_REGISTRATION=true, which a fieldset instance never sets');
 const evidence = (name: string) => `docs/agent/milestones/evidence/M4/${name}.png`;
 const RUN = Date.now();
 const OWNER = `owner-${RUN}@example.test`;

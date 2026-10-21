@@ -15,7 +15,7 @@ use Tests\Support\Instance\InstanceCommandFixture;
 use Tests\Support\Instance\TemporaryInstance;
 
 /*
- * Plan U12 (R22, R25, R50, AE9, KTD13; ADR 0080): `fsa config set mail smtp|capture`. The password arrives only on
+ * Plan U12 (R22, R25, R50, AE9, KTD13; ADR 0080): `fieldset config set mail smtp|capture`. The password arrives only on
  * stdin or from a file and never reaches the state, the journal, the JSON or the audit; a test mail through the new
  * server verifies the change and a refused one reverts to the previous settings (exit 5); the catcher stays read-only
  * until --remove-catcher; switching back to capture brings it back.
@@ -55,14 +55,14 @@ it('switches capture mode to SMTP with the password from stdin, keeps the catche
     $state = $this->config->state();
     expect($code)->toBe(0, json_encode($json))
         ->and($json['data'])->toMatchArray(['key' => 'mail', 'from' => 'capture', 'to' => 'smtp://smtp.example.com:587 (catcher kept)', 'reverted' => false])
-        ->and($json['data']['mail'])->toMatchArray(['mode' => 'smtp', 'catcher' => 'kept', 'catcher_url' => 'http://localhost:8025', 'captured' => ['invitations' => 2, 'password_resets' => 1], 'remove_catcher_command' => 'fsa config set mail smtp --remove-catcher', 'catcher_login_command' => 'fsa config show --catcher-login'])
+        ->and($json['data']['mail'])->toMatchArray(['mode' => 'smtp', 'catcher' => 'kept', 'catcher_url' => 'http://localhost:8025', 'captured' => ['invitations' => 2, 'password_resets' => 1], 'remove_catcher_command' => 'fieldset config set mail smtp --remove-catcher', 'catcher_login_command' => 'fieldset config show --catcher-login'])
         ->and($json['data']['checked'])->toContain('test mail to owner@example.com accepted by smtp://smtp.example.com:587 (catcher kept)')
         ->and(collect($json['warnings'])->pluck('code')->all())->toContain('captured_mail')
         ->and($state->setting('mail'))->toBe('smtp')
         ->and($state->setting('smtp_port'))->toBe(587)
         ->and($state->setting('mail_catcher'))->toBe('kept')
         ->and($env->read('app'))->toMatchArray(['MAIL_HOST' => 'smtp.example.com', 'MAIL_PORT' => '587', 'MAIL_USERNAME' => MAIL_USER, 'MAIL_PASSWORD' => MAIL_PASSWORD, 'MAIL_FROM_ADDRESS' => 'forms@example.com'])
-        ->and($env->read('app'))->not->toHaveKey('FSA_MAIL_CAPTURE')
+        ->and($env->read('app'))->not->toHaveKey('FIELDSET_MAIL_CAPTURE')
         ->and($env->read('queue'))->toMatchArray(['MAIL_HOST' => 'smtp.example.com', 'MAIL_PASSWORD' => MAIL_PASSWORD])
         ->and($env->read('mailpit'))->toMatchArray(['MP_SMTP_BIND_ADDR' => '127.0.0.1:1025'])
         ->and(ComposeFile::services($this->config->instance->directory))->toContain(MailpitService::NAME)
@@ -98,7 +98,7 @@ it('reverts to capture mode when the server refuses the test mail (exit 5) and k
         ->and($json['data'])->toMatchArray(['reverted' => true])
         ->and($json['data']['command'])->toContain('--smtp-username <the same user name> --password-stdin')
         ->and($this->config->state()->setting('mail'))->toBeNull()
-        ->and($env->read('app'))->toMatchArray(['MAIL_HOST' => 'mailpit', 'FSA_MAIL_CAPTURE' => 'true'])
+        ->and($env->read('app'))->toMatchArray(['MAIL_HOST' => 'mailpit', 'FIELDSET_MAIL_CAPTURE' => 'true'])
         ->and($env->read('app'))->not->toHaveKey('MAIL_PASSWORD')
         ->and($env->read('mailpit'))->not->toHaveKey('MP_SMTP_BIND_ADDR')
         ->and($this->config->instance->directory->exists(ConfigRollout::CREDENTIALS_STASH))->toBeFalse()
@@ -170,7 +170,7 @@ it('switches back to capture mode: the catcher returns on a free port and the cr
         ->and($json['data']['mail'])->toMatchArray(['mode' => 'capture', 'catcher' => 'active', 'catcher_url' => 'http://localhost:8026'])
         ->and(collect($json['warnings'])->pluck('code')->all())->toContain('catcher_port_changed')
         ->and(ComposeFile::services($this->config->instance->directory))->toContain(MailpitService::NAME)
-        ->and($env->read('app'))->toMatchArray(['MAIL_HOST' => 'mailpit', 'FSA_MAIL_CAPTURE' => 'true'])
+        ->and($env->read('app'))->toMatchArray(['MAIL_HOST' => 'mailpit', 'FIELDSET_MAIL_CAPTURE' => 'true'])
         ->and($env->read('app'))->not->toHaveKey('MAIL_USERNAME');
 });
 
@@ -204,7 +204,7 @@ it('refuses invalid mail input with exit 2 before anything changes', function (a
         ->and($json['errors'][0]['code'])->toBe($error)
         ->and($this->config->methodsSince($mark))->toBe([]);
 })->with([
-    // M11 gate: the same code as `fsa install` (was `missing_flag`); data.missing: MailConfigSafetyTest.
+    // M11 gate: the same code as `fieldset install` (was `missing_flag`); data.missing: MailConfigSafetyTest.
     'no host from capture' => [['--smtp-port' => '587'], 'smtp', 'input_required'],
     'user without password' => [['--smtp-host' => 'smtp.example.com', '--smtp-username' => MAIL_USER], 'smtp', 'password_required'],
     'password without user' => [['--smtp-host' => 'smtp.example.com', '--password-stdin' => true], 'smtp', 'invalid_flag'],

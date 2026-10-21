@@ -121,10 +121,10 @@ it('hands the edge only the catcher credential it injects, and serves the catche
     $rendered = DomainFixtures::render();
 
     expect($rendered->environments['edge'])->toBe([
-        'FSA_CATCHER_AUTHORIZATION' => 'Basic '.base64_encode('fsa:'.ComposeFixtures::CATCHER_PASSWORD),
+        'FIELDSET_CATCHER_AUTHORIZATION' => 'Basic '.base64_encode('fieldset:'.ComposeFixtures::CATCHER_PASSWORD),
     ])
         ->and($rendered->environments['mailpit']['MP_WEBROOT'])->toBe('/_mail/')
-        ->and($rendered->environments['mailpit']['MP_UI_AUTH'])->toBe('fsa:'.ComposeFixtures::CATCHER_PASSWORD)
+        ->and($rendered->environments['mailpit']['MP_UI_AUTH'])->toBe('fieldset:'.ComposeFixtures::CATCHER_PASSWORD)
         ->and(ComposeFixtures::render()->environments['mailpit'])->not->toHaveKey('MP_WEBROOT');
 });
 
@@ -177,5 +177,5 @@ it('writes the Caddyfile 0644 in a 0755 folder and the edge env file 0600, with 
     foreach (ComposeFixtures::secretValues() as $secret) {
         expect($public)->not->toContain($secret);
     }
-    expect($public)->not->toContain(base64_encode('fsa:'.ComposeFixtures::CATCHER_PASSWORD));
+    expect($public)->not->toContain(base64_encode('fieldset:'.ComposeFixtures::CATCHER_PASSWORD));
 });

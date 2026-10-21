@@ -56,7 +56,7 @@ it('saves the provider with a write-only secret and shows the callback URL', fun
 
     Livewire::test(SsoSettings::class)
         ->fillForm(['type' => 'oidc', 'name' => 'Acme Keycloak', 'flavor' => 'generic', 'issuer' => 'https://sso.acme.example/realms/acme',
-            'client_id' => 'form-schema-app', 'client_secret' => 'Sup3r-Secret!', 'scopes' => ['openid', 'email'], 'jit_enabled' => true], 'providerForm')
+            'client_id' => 'fieldset', 'client_secret' => 'Sup3r-Secret!', 'scopes' => ['openid', 'email'], 'jit_enabled' => true], 'providerForm')
         ->call('saveProvider')
         ->assertHasNoErrors()
         ->assertSet('provider.client_secret', null)
@@ -103,7 +103,7 @@ it('adds, shows, verifies and removes domains', function (): void {
     $domain = SsoDomain::query()->sole();
 
     $page->mountTableAction('dnsRecord', $domain)
-        ->assertTableActionDataSet(['txt_name' => '_form-schema-app-verification.acme.example', 'txt_value' => $domain->txtValue()]);
+        ->assertTableActionDataSet(['txt_name' => '_fieldset-verification.acme.example', 'txt_value' => $domain->txtValue()]);
 
     Livewire::test(SsoSettings::class)->callTableAction('addDomain', data: ['domain' => 'boss@acme.example'])
         ->assertHasTableActionErrors(['domain']);

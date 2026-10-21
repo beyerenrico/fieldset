@@ -1,5 +1,5 @@
 /** Where new nodes go (palette click/Enter) and the repeater confirmation rule for moves. */
-import type { JsonObject } from '@form-schema-app/form-schema-js';
+import type { JsonObject } from '@fieldset/fieldset-js';
 import type { Container } from './contract.ts';
 import type { Selection } from './store/history.ts';
 import { canDrop, type Refusal } from './store/rules.ts';

@@ -34,7 +34,7 @@ final readonly class BackupStore
     /** The backup service's private directory, outside `backups/` (mounted read-write into the service only). */
     public const string STAGING = InstanceDirectory::STAGING_DIR.'/backup';
 
-    /** The instance's identity and portable settings, rendered by fsa (PortableSettings::document), in STAGING. */
+    /** The instance's identity and portable settings, rendered by fieldset (PortableSettings::document), in STAGING. */
     public const string META_FILE = 'instance.json';
 
     public const string META = self::STAGING.'/'.self::META_FILE;
@@ -76,7 +76,7 @@ final readonly class BackupStore
         return $entries;
     }
 
-    /** @return array<string, mixed> META as fsa rendered it last; empty when it is missing or unreadable */
+    /** @return array<string, mixed> META as fieldset rendered it last; empty when it is missing or unreadable */
     public function meta(): array
     {
         $json = $this->directory->exists(self::META) ? $this->directory->read(self::META) : null;

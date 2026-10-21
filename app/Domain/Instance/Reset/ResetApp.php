@@ -18,7 +18,7 @@ use Carbon\CarbonImmutable;
 use RuntimeException;
 
 /**
- * The app-side steps of `fsa reset` as socket-less one-offs of the app service (KTD25, plan U23, ADR 0088): the fsa process
+ * The app-side steps of `fieldset reset` as socket-less one-offs of the app service (KTD25, plan U23, ADR 0088): the fieldset process
  * holding the socket never connects to a database. `instance:reset plan|recreate|epoch` answer with a JSON document;
  * `instance:audit-export` streams JSON Lines into `backups/audit-export-reset-<UTC time>.jsonl`, the record of the audit
  * log when no safety backup keeps it: written in `staging/` as `.partial` (0600, never plaintext in `backups/`), moved
@@ -41,13 +41,13 @@ final readonly class ResetApp
     /** @throws InstanceException exit 4 when the live database cannot be read (nothing changed yet) */
     public function plan(ComposeProject $project): OneOffResult
     {
-        return $this->run($project, ['plan'], 'reset_plan_failed', 'Check that the instance runs (`fsa status`, `fsa logs postgres`); nothing was changed.');
+        return $this->run($project, ['plan'], 'reset_plan_failed', 'Check that the instance runs (`fieldset status`, `fieldset logs postgres`); nothing was changed.');
     }
 
     /** @return array<string, mixed> */
     public function recreate(ComposeProject $project): array
     {
-        return $this->run($project, ['recreate'], 'database_recreate_failed', 'Read `fsa logs postgres`, then run `fsa reset` again: it continues here.')->data;
+        return $this->run($project, ['recreate'], 'database_recreate_failed', 'Read `fieldset logs postgres`, then run `fieldset reset` again: it continues here.')->data;
     }
 
     /**
@@ -59,7 +59,7 @@ final readonly class ResetApp
         $options = ['epoch', '--epoch-seed='.$seed, '--actor-uid='.$actorUid, ...($safetyBackup === null ? [] : ['--safety-backup='.$safetyBackup]),
             ...($auditExport === null ? [] : ['--audit-export='.$auditExport]), ...($demo ? ['--demo'] : [])];
 
-        return $this->run($project, $options, 'reset_epoch_failed', 'Read the output, then run `fsa reset` again: it continues here.', json_encode($input, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR))->data;
+        return $this->run($project, $options, 'reset_epoch_failed', 'Read the output, then run `fieldset reset` again: it continues here.', json_encode($input, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR))->data;
     }
 
     /**
@@ -81,7 +81,7 @@ final readonly class ResetApp
         $header = $outcome->successful() ? $this->header($partial) : null;
         if ($header === null) {
             @unlink($partial);
-            throw new InstanceException('The audit export failed: '.($outcome->successful() ? 'it is incomplete (no export header, or fewer entries than the header names)' : $outcome->stderrTail(5)), ExitCode::HealthCheckFailed, 'audit_export_failed', 'Read the output; nothing was deleted. Run `fsa reset` again, or without --no-backup to keep a full backup.', true);
+            throw new InstanceException('The audit export failed: '.($outcome->successful() ? 'it is incomplete (no export header, or fewer entries than the header names)' : $outcome->stderrTail(5)), ExitCode::HealthCheckFailed, 'audit_export_failed', 'Read the output; nothing was deleted. Run `fieldset reset` again, or without --no-backup to keep a full backup.', true);
         }
         $file = $recipients === [] ? $name : $name.'.age';
         $final = $this->directory->path(InstanceDirectory::BACKUPS_DIR.'/'.$file);
@@ -136,7 +136,7 @@ final readonly class ResetApp
         }
         fsync($handle);
         fclose($handle);
-        $complete = is_array($header) && ($header['format'] ?? null) === 'fsa-audit-export' && is_int($header['entries'] ?? null) && $lines >= $header['entries'];
+        $complete = is_array($header) && ($header['format'] ?? null) === 'fieldset-audit-export' && is_int($header['entries'] ?? null) && $lines >= $header['entries'];
 
         return $complete ? $header : null;
     }

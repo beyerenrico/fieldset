@@ -13,7 +13,7 @@ use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
 
 /**
- * The envelopes of `fsa config set` (ADR 0077, ADR 0078). One shape for agents: `data.url` and `data.mode` are always
+ * The envelopes of `fieldset config set` (ADR 0077, ADR 0078). One shape for agents: `data.url` and `data.mode` are always
  * the effective values as strings (the change itself is `data.change` where it is not applied yet), `data.command`
  * and `data.options` name the exact command to repeat, `data.next_commands` what to run next. A reverted change is
  * `rolled_back` (exit 5) with `retry_after` or `fix_first`; a failed revert (exit 8) says which of its steps finished.
@@ -63,11 +63,11 @@ final readonly class ConfigResults
         foreach ([...$change->warnings, ...$completed['warnings']] as $warning) {
             $result = $result->withWarning($warning['code'], $warning['message'], $warning['hint']);
         }
-        foreach ([...ConfigFailure::impactWarnings($change, $impact), ...array_filter([AcmeStaging::warning($change->after, $this->fsa())])] as [$code, $message, $hint]) {
+        foreach ([...ConfigFailure::impactWarnings($change, $impact), ...array_filter([AcmeStaging::warning($change->after, $this->fieldset())])] as [$code, $message, $hint]) {
             $result = $result->withWarning($code, $message, $hint);
         }
 
-        return ($audit['audited'] ?? false) === true ? $result : $result->withWarning('audit_failed', 'The change was applied, but its audit entry could not be written: '.($audit['error'] ?? 'unknown error').'.', 'The state history (state.json) records the change; check `fsa logs app`.');
+        return ($audit['audited'] ?? false) === true ? $result : $result->withWarning('audit_failed', 'The change was applied, but its audit entry could not be written: '.($audit['error'] ?? 'unknown error').'.', 'The state history (state.json) records the change; check `fieldset logs app`.');
     }
 
     /**
@@ -89,7 +89,7 @@ final readonly class ConfigResults
         $result = CommandResult::failed(self::COMMAND, ExitCode::RolledBack, $error['code'], $message, $error['hint'], $retryable, [
             ...self::data($change, $change->before), 'reverted' => true, 'resumed_revert' => $resumed,
             'attempted' => ['url' => $change->newUrl(), 'mode' => $change->after->mode()], 'failure' => $error['data'], ...$retry,
-            'command' => $request->commandLine(), 'options' => $request->options(), 'next_commands' => [$this->fsa().' status'],
+            'command' => $request->commandLine(), 'options' => $request->options(), 'next_commands' => [$this->fieldset().' status'],
         ]);
         foreach ($change->warnings as $warning) {
             if (! in_array($warning['code'], self::TARGET_WARNINGS, true)) {
@@ -118,8 +118,8 @@ final readonly class ConfigResults
             default => "Writing the previous settings back failed: state.json and the files rendered from it may still hold the attempted change ({$change->key} {$change->to})",
         };
         $recovery = [
-            $where.($stopped !== null ? '; '.implode(', ', $stopped).' are stopped, so nothing serves requests half-configured (Postgres and Valkey keep running).' : '; stopping the services failed as well, check `fsa status`.'),
-            'Find the cause in the errors above and in `fsa logs <service>` (a port taken by another program, a full disk, the Docker engine) and fix it.',
+            $where.($stopped !== null ? '; '.implode(', ', $stopped).' are stopped, so nothing serves requests half-configured (Postgres and Valkey keep running).' : '; stopping the services failed as well, check `fieldset status`.'),
+            'Find the cause in the errors above and in `fieldset logs <service>` (a port taken by another program, a full disk, the Docker engine) and fix it.',
             'Then run `'.$request->commandLine().'` again: it finishes restoring the previous settings from the snapshot in the journal and does not repeat the change; run it once more afterwards to try the change again.',
         ];
 
@@ -147,18 +147,18 @@ final readonly class ConfigResults
      */
     private function nextCommands(ConfigChange $change): array
     {
-        $fsa = $this->fsa();
+        $fieldset = $this->fieldset();
 
         return [
-            ...(AcmeStaging::active($change->after) ? [AcmeStaging::command($fsa)] : []),
-            ...($change->changesUrl() ? ["{$fsa} login-link <owner-email>"] : []),
-            "{$fsa} status",
+            ...(AcmeStaging::active($change->after) ? [AcmeStaging::command($fieldset)] : []),
+            ...($change->changesUrl() ? ["{$fieldset} login-link <owner-email>"] : []),
+            "{$fieldset} status",
         ];
     }
 
-    /** The instance's launcher, as `fsa install` names it in its next commands (fsa may not be on the PATH). */
-    private function fsa(): string
+    /** The instance's launcher, as `fieldset install` names it in its next commands (fieldset may not be on the PATH). */
+    private function fieldset(): string
     {
-        return $this->directory->root.'/fsa';
+        return $this->directory->root.'/fieldset';
     }
 }

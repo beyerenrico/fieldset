@@ -31,7 +31,7 @@ use Symfony\Component\Mime\Part\DataPart;
  */
 class BrandedMail extends Mailable
 {
-    public const string LOGO_CID = 'organization-logo@mail.form-schema';
+    public const string LOGO_CID = 'organization-logo@mail.fieldset';
 
     /** Logo types every mail client displays. */
     private const array LOGO_TYPES = ['image/png', 'image/jpeg', 'image/gif'];

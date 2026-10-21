@@ -9,7 +9,7 @@ use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\State\InstanceState;
 
 /**
- * One settable key of `fsa config set` (R32, ADR 0077). ConfigSetter runs every applier the same way: plan
+ * One settable key of `fieldset config set` (R32, ADR 0077). ConfigSetter runs every applier the same way: plan
  * (validate, exit 2) → confirm when the URL changes (exit 6) → lock and journal → preflight (exit 3) → apply the
  * rendered target → verify → revert on failure.
  */

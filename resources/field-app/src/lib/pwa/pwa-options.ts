@@ -64,7 +64,7 @@ export function fieldAppPwaOptions(swSyncRevision: string): Partial<VitePWAOptio
         includeAssets: ['icons/icon.svg', 'icons/apple-touch-icon-180.png'],
         manifest: {
             id: APP_BASE,
-            name: 'Form Schema Field App',
+            name: 'Fieldset Field App',
             short_name: 'Field App',
             description: 'Fill in forms on site, also offline.',
             lang: 'de',

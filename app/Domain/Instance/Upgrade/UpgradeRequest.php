@@ -9,7 +9,7 @@ use App\Domain\Instance\Release\ReleaseException;
 use App\Domain\Instance\Release\ReleaseVersion;
 
 /**
- * What `fsa upgrade` was asked for (R33, KTD19, plan U18, ADR 0086): `--to` a version (the newest release otherwise),
+ * What `fieldset upgrade` was asked for (R33, KTD19, plan U18, ADR 0086): `--to` a version (the newest release otherwise),
  * `--major` to cross a major version, `--drop-jobs` to save and drop the jobs a bounded drain leaves behind, `--resume`
  * to continue an interrupted upgrade. Nothing here is secret; the journal keeps it as its context.
  */
@@ -33,7 +33,7 @@ final readonly class UpgradeRequest
             try {
                 $version = (string) ReleaseVersion::fromInput($version);
             } catch (ReleaseException) {
-                throw new InvalidInput("--to must name a release version such as 2.0.1 or 2.1.0-rc.1, not {$version}.", 'invalid_version', 'Run `fsa version` for the newest known release.');
+                throw new InvalidInput("--to must name a release version such as 2.0.1 or 2.1.0-rc.1, not {$version}.", 'invalid_version', 'Run `fieldset version` for the newest known release.');
             }
         }
 

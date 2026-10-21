@@ -28,7 +28,7 @@ it('creates a versioned state with slug, project name, owner and mode', function
     expect($state->schemaVersion())->toBe('1.0')
         ->and($state->uuid())->toBe(STATE_UUID)
         ->and($state->slug())->toBe('my-instance-v2')
-        ->and($state->project())->toMatch('/^fsa-my-instance-v2-[0-9a-f]{4}$/')
+        ->and($state->project())->toMatch('/^fieldset-my-instance-v2-[0-9a-f]{4}$/')
         ->and($state->path())->toBe('/srv/My Instance.v2')
         ->and($state->hostUid())->toBe(1000)
         ->and($state->hostGid())->toBe(1000)
@@ -48,7 +48,7 @@ it('derives a valid project name from awkward directory names', function (string
     expect($state->slug())->toBe($slug)
         ->and($state->project())->toMatch('/^[a-z0-9][a-z0-9_-]*$/');
 })->with([
-    ['/opt/form-schema-app', 'form-schema-app'],
+    ['/opt/fieldset', 'fieldset'],
     ['/home/a/...', 'instance'],
     ['/x/'.str_repeat('Ab.', 30), substr(str_repeat('ab-', 14), 0, 40)],
 ]);
@@ -62,7 +62,7 @@ it('gives two instances with the same directory name different project names', f
 
 it('round-trips through JSON and changes only through immutable withers', function (): void {
     CarbonImmutable::setTestNow('2026-10-17 12:00:00');
-    $state = InstanceState::create(STATE_UUID, '/srv/fsa', 1000, 1000, 1000);
+    $state = InstanceState::create(STATE_UUID, '/srv/fieldset', 1000, 1000, 1000);
 
     $next = $state->withMode('domain')
         ->withUrl('https://forms.example.com')
@@ -87,7 +87,7 @@ it('round-trips through JSON and changes only through immutable withers', functi
 });
 
 it('preserves keys from a newer minor version and keeps its schema version', function (): void {
-    $document = [...InstanceState::create(STATE_UUID, '/srv/fsa', 0, 0, 0)->toArray(), 'schema_version' => '1.3', 'tunnel' => ['admin' => true]];
+    $document = [...InstanceState::create(STATE_UUID, '/srv/fieldset', 0, 0, 0)->toArray(), 'schema_version' => '1.3', 'tunnel' => ['admin' => true]];
 
     $state = InstanceState::fromArray($document)->withUrl('http://localhost:8080');
 
@@ -111,19 +111,19 @@ it('refuses a state from a newer major version (exit 7) and never rewrites it', 
 });
 
 it('accepts an integer schema version as major.0', function (): void {
-    $document = [...InstanceState::create(STATE_UUID, '/srv/fsa', 0, 0, 0)->toArray(), 'schema_version' => 1];
+    $document = [...InstanceState::create(STATE_UUID, '/srv/fieldset', 0, 0, 0)->toArray(), 'schema_version' => 1];
 
     expect(InstanceState::fromArray($document)->schemaVersion())->toBe('1.0');
 });
 
 it('rejects invalid documents', function (array $override, string $problem): void {
-    $document = [...InstanceState::create(STATE_UUID, '/srv/fsa', 0, 0, 0)->toArray(), ...$override];
+    $document = [...InstanceState::create(STATE_UUID, '/srv/fieldset', 0, 0, 0)->toArray(), ...$override];
 
     expect(fn () => InstanceState::fromArray($document))->toThrow(InvalidState::class, $problem);
 })->with([
     'schema' => [['schema_version' => 'one'], 'schema_version'],
     'uuid' => [['uuid' => 'not-a-uuid'], 'uuid'],
-    'relative path' => [['path' => 'srv/fsa'], 'path'],
+    'relative path' => [['path' => 'srv/fieldset'], 'path'],
     'mode' => [['mode' => 'cluster'], 'mode'],
     'owner' => [['owner' => ['host_uid' => -1, 'host_gid' => 0, 'container_uid' => 0]], 'owner.host_uid'],
     'url credentials' => [['url' => 'https://user:pw@example.com'], 'url'],
@@ -140,7 +140,7 @@ it('rejects invalid documents', function (array $override, string $problem): voi
 ]);
 
 it('refuses secret-looking settings: secrets live only in env files', function (string $key): void {
-    expect(fn () => InstanceState::create(STATE_UUID, '/srv/fsa', 0, 0, 0)->withSetting($key, 'x'))
+    expect(fn () => InstanceState::create(STATE_UUID, '/srv/fieldset', 0, 0, 0)->withSetting($key, 'x'))
         ->toThrow(InstanceException::class, 'secrets live only in the service env files');
 })->with(['smtp_password', 'APP_KEY', 'backup_passphrase', 'api_token']);
 

@@ -12,8 +12,8 @@ use Tests\Support\Instance\TemporaryInstance;
 use Tests\Support\Instance\TunnelFixture;
 
 /*
- * Plan U14 (R19, R21, R29, R61; KTD10; ADR 0082): the local CA through `fsa install --phone-https local-ca` and
- * `fsa config set phone-https|lan-address`, against scripted Docker. The edge's answers come from localCaEdge().
+ * Plan U14 (R19, R21, R29, R61; KTD10; ADR 0082): the local CA through `fieldset install --phone-https local-ca` and
+ * `fieldset config set phone-https|lan-address`, against scripted Docker. The edge's answers come from localCaEdge().
  */
 
 /** Scripted local-CA edge: the root on the volume, HTTPS without SNI, port 80 (308 / trust page), the key deletion. */
@@ -65,7 +65,7 @@ it('installs with --phone-https local-ca on the best LAN address: edge, https UR
     $root = LocalCaFixture::root();
     $log = localCaEdge($fixture, $root);
 
-    [$code, $json] = $fixture->run('fsa:install', InstanceCommandFixture::installFlags(['--phone-https' => 'local-ca']));
+    [$code, $json] = $fixture->run('fieldset:install', InstanceCommandFixture::installFlags(['--phone-https' => 'local-ca']));
     $state = $fixture->state();
 
     expect($code)->toBe(0, json_encode($json))
@@ -86,31 +86,31 @@ it('installs with --phone-https local-ca on the best LAN address: edge, https UR
 it('takes --lan-address, and refuses an install without any LAN address (exit 2)', function (): void {
     $fixture = new InstanceCommandFixture;
     localCaEdge($fixture);
-    [$none, $noneJson] = $fixture->run('fsa:install', InstanceCommandFixture::installFlags(['--phone-https' => 'local-ca']));
-    [$code, $json] = $fixture->run('fsa:install', InstanceCommandFixture::installFlags(['--phone-https' => 'local-ca', '--lan-address' => PhoneFixtures::LAN]));
+    [$none, $noneJson] = $fixture->run('fieldset:install', InstanceCommandFixture::installFlags(['--phone-https' => 'local-ca']));
+    [$code, $json] = $fixture->run('fieldset:install', InstanceCommandFixture::installFlags(['--phone-https' => 'local-ca', '--lan-address' => PhoneFixtures::LAN]));
 
     expect($none)->toBe(2)->and($noneJson['errors'][0]['code'])->toBe('lan_address_required')
         ->and($code)->toBe(0, json_encode($json))
         ->and($json['data']['url'])->toBe('https://'.PhoneFixtures::LAN);
 });
 
-it('points a repeated install with --phone-https to config set and fsa tunnel (exit 2)', function (): void {
+it('points a repeated install with --phone-https to config set and fieldset tunnel (exit 2)', function (): void {
     $fixture = new InstanceCommandFixture;
-    $fixture->run('fsa:install', InstanceCommandFixture::installFlags());
+    $fixture->run('fieldset:install', InstanceCommandFixture::installFlags());
 
-    [$code, $json] = $fixture->run('fsa:install', InstanceCommandFixture::installFlags(['--phone-https' => 'local-ca', '--lan-address' => PhoneFixtures::LAN]));
+    [$code, $json] = $fixture->run('fieldset:install', InstanceCommandFixture::installFlags(['--phone-https' => 'local-ca', '--lan-address' => PhoneFixtures::LAN]));
 
     expect($code)->toBe(2)
         ->and($json['errors'][0]['code'])->toBe('use_config_set')
         ->and($json['data']['flags'])->toContain(['flag' => '--phone-https', 'key' => 'phone-https'], ['flag' => '--lan-address', 'key' => 'lan-address'])
-        ->and($json['errors'][0]['hint'])->toContain('fsa tunnel start|stop');
+        ->and($json['errors'][0]['hint'])->toContain('fieldset tunnel start|stop');
 });
 
 it('fails the preflight when 80 or 443 is taken on the LAN address (exit 3)', function (): void {
     $fixture = new InstanceCommandFixture;
     $fixture->takenPorts = [443];
 
-    [$code, $json] = $fixture->run('fsa:install', InstanceCommandFixture::installFlags(['--phone-https' => 'local-ca', '--lan-address' => PhoneFixtures::LAN]));
+    [$code, $json] = $fixture->run('fieldset:install', InstanceCommandFixture::installFlags(['--phone-https' => 'local-ca', '--lan-address' => PhoneFixtures::LAN]));
     $ports = collect($json['data']['checks'])->firstWhere('key', 'ports');
 
     expect($code)->toBe(3)
@@ -133,7 +133,7 @@ it('turns the local CA on with config set: --yes for the URL, free ports, no dem
 
     expect($unconfirmed)->toBe(6)
         ->and($refused)->toBe(3)->and($refusedJson['errors'][0]['code'])->toBe('default_password_in_use')
-        ->and($refusedJson['errors'][0]['hint'])->toContain('fsa demo --rotate-passwords')
+        ->and($refusedJson['errors'][0]['hint'])->toContain('fieldset demo --rotate-passwords')
         ->and($code)->toBe(0, json_encode($json))
         ->and($json['data']['url'])->toBe('https://'.PhoneFixtures::LAN)
         ->and($json['data']['phone_https'])->toMatchArray(['mode' => 'local-ca', 'lan_address' => PhoneFixtures::LAN, 'lan_address_current' => true])
@@ -212,12 +212,12 @@ it('reports a LAN address that is no longer the host\'s in doctor and status, wi
     $fixture->config->set('phone-https', 'local-ca', ['--yes' => true]);
     $fixture->config->instance->facts(['lanAddresses' => ['192.168.7.7']]);
 
-    [, $doctor] = $fixture->config->instance->run('fsa:doctor');
-    [, $status] = $fixture->config->instance->run('fsa:status');
+    [, $doctor] = $fixture->config->instance->run('fieldset:doctor');
+    [, $status] = $fixture->config->instance->run('fieldset:status');
     $check = collect($doctor['data']['checks'])->firstWhere('key', 'lan_address');
 
     expect($check['status'])->toBe('warn')
-        ->and($check['hint'])->toContain('fsa config set lan-address 192.168.7.7 --yes')
+        ->and($check['hint'])->toContain('fieldset config set lan-address 192.168.7.7 --yes')
         ->and($status['data']['phone_https']['lan_address_current'])->toBeFalse()
         ->and(collect($status['warnings'])->pluck('code')->all())->toContain('lan_address_changed');
 });

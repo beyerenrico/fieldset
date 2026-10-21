@@ -11,7 +11,7 @@ use RuntimeException;
 use SensitiveParameter;
 
 /**
- * The database role of an fsa instance's backup service (plan KTD7, KTD15, U16; ADR 0084): it logs in with its own
+ * The database role of a fieldset instance's backup service (plan KTD7, KTD15, U16; ADR 0084): it logs in with its own
  * password (env/backup.env), reads every table through `pg_read_all_data` for the dump and the snapshot queries, and may
  * insert into `backup_runs`, nothing else. `instance:backup-role` creates or updates it in a socket-less one-off of the
  * app service, whose database user is the image's superuser.
@@ -22,10 +22,10 @@ use SensitiveParameter;
  */
 final readonly class BackupRole
 {
-    public const string NAME = 'fsa_backup';
+    public const string NAME = 'fieldset_backup';
 
     /** The one-off's environment variable that carries the password (never an argument). */
-    public const string PASSWORD_ENV = 'FSA_BACKUP_DB_PASSWORD';
+    public const string PASSWORD_ENV = 'FIELDSET_BACKUP_DB_PASSWORD';
 
     public const int SCRAM_ITERATIONS = 4096;
 

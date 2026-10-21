@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Collection;
 
 /**
  * The demo organization and its accounts (DemoSeeder, BUILD_PROMPT_V2 R29): one user per persona with the roles and
- * groups the seeder gives them. The table is the single list of "demo users": the seeder creates them, `fsa demo
+ * groups the seeder gives them. The table is the single list of "demo users": the seeder creates them, `fieldset demo
  * --rotate-passwords` rotates exactly these (ADR 0081). The demo organization is the one marked `is_demo` (only the
  * seeder marks it, through CreateOrganization), never "the one with the slug demo": `demo` is its usual slug, reserved
  * since the M11 gate, but a real organization may hold it from before.
@@ -52,7 +52,7 @@ final class DemoAccounts
         return [self::OWNER, ...array_keys(self::PEOPLE)];
     }
 
-    /** @return list<array{email: string, name: string, roles: list<string>}> the personas for `fsa demo` output */
+    /** @return list<array{email: string, name: string, roles: list<string>}> the personas for `fieldset demo` output */
     public static function personas(): array
     {
         $people = array_map(

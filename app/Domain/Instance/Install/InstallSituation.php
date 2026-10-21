@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Install;
 
-/** Where `fsa install` starts from (R13, §7 "after exit 4, running install again resumes"). */
+/** Where `fieldset install` starts from (R13, §7 "after exit 4, running install again resumes"). */
 enum InstallSituation
 {
     /** No finished install and no unfinished install journal. */

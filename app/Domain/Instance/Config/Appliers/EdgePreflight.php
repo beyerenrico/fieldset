@@ -22,7 +22,7 @@ use Throwable;
 
 /**
  * Domain mode's preflight for `config set domain` (R10, AE5, ADR 0075): the install's DNS check for the new domain
- * (A and AAAA against the host's addresses; FSA_TEST_DNS in harness images) and its ports check, which needs 80
+ * (A and AAAA against the host's addresses; FIELDSET_TEST_DNS in harness images) and its ports check, which needs 80
  * and 443 free on the host unless this instance's own edge already serves them. A failure is exit 3 with the
  * results under `data.checks`, before anything changes; warnings come back for the result.
  */

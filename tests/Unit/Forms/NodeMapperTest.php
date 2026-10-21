@@ -5,7 +5,7 @@ declare(strict_types=1);
 use App\Domain\Forms\Builder\KeyTypes;
 use App\Domain\Forms\Builder\NodeMapper;
 use App\Domain\Forms\Schema\DefinitionTools;
-use FormSchema\Json\Json;
+use Fieldset\Json\Json;
 use Symfony\Component\Finder\Finder;
 
 /* Builder v2 inspector (ADR 0037): one node (settings, page or element) ↔ v1 field state, losslessly. */

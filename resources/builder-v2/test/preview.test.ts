@@ -71,7 +71,7 @@ describe('preview feed', () => {
             [target, window.location.origin, { type: PREVIEW_READY }],
             [window, 'null', { type: PREVIEW_READY }],
             [target, 'null', { type: PREVIEW_MESSAGE }],
-            [target, 'null', 'form-schema-preview-ready'],
+            [target, 'null', 'fieldset-preview-ready'],
         ];
         for (const [source, origin, data] of cases) {
             const local = new PreviewFeed(frame, { getDefinition: () => definition as never });

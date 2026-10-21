@@ -3,7 +3,7 @@
  * Orchestrator-owned: a change needs both sides and the fixtures in tests/Fixtures/builder-v2/contract.
  * JSON travels as strings over Livewire (it would turn `{}` into `[]`, ADR 0022).
  */
-import type { JsonObject } from '@form-schema-app/form-schema-js';
+import type { JsonObject } from '@fieldset/fieldset-js';
 
 /** Where a node lives: the page list, a page, a section/repeater's elements, or one column. */
 export type Container =

@@ -15,11 +15,11 @@ use SensitiveParameter;
 use Throwable;
 
 /**
- * One backup run in the backup service (KTD4, KTD15, R57, ADR 0084), scheduled or as a one-off of `fsa backup` and the
+ * One backup run in the backup service (KTD4, KTD15, R57, ADR 0084), scheduled or as a one-off of `fieldset backup` and the
  * safety-backup entry point:
  *
  * - The lock: a scheduled run takes the instance lock itself and never takes over anyone else's (an operation holding
- *   it makes the run a skip); a one-off runs under the lock its fsa parent holds, named by its ID, and refuses
+ *   it makes the run a skip); a one-off runs under the lock its fieldset parent holds, named by its ID, and refuses
  *   otherwise.
  * - Under the lock: leftovers of an interrupted run go, the run must fit on the disk (a scheduled run is skipped,
  *   another fails), the writer writes the set, and after a successful scheduled run retention prunes old scheduled
@@ -41,7 +41,7 @@ final readonly class BackupRun
     ) {}
 
     /**
-     * @param  string|null  $parentLock  the lock ID of the fsa command this one-off runs for; null for a scheduled run
+     * @param  string|null  $parentLock  the lock ID of the fieldset command this one-off runs for; null for a scheduled run
      * @return array<string, mixed> the recorded run (status succeeded, failed or skipped)
      */
     public function run(BackupName $name, LockHolder $holder, ?string $parentLock = null, #[SensitiveParameter] ?string $secrets = null, bool $recordSkip = true): array
@@ -180,14 +180,14 @@ final readonly class BackupRun
             try {
                 $this->lock->heartbeat($handle);
             } catch (Throwable) {
-                // Best effort, as for every operation: the heartbeat only informs `fsa status`; the lock is held either way.
+                // Best effort, as for every operation: the heartbeat only informs `fieldset status`; the lock is held either way.
             }
 
             return $handle;
         }
         $current = $this->lock->current();
         if (! $current instanceof LockRecord || ! hash_equals($current->lockId, $parentLock)) {
-            throw new BackupFailed('lock_mismatch', 'The fsa command that started this backup no longer holds the instance lock.');
+            throw new BackupFailed('lock_mismatch', 'The fieldset command that started this backup no longer holds the instance lock.');
         }
 
         return null;

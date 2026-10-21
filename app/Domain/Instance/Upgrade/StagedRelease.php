@@ -22,12 +22,12 @@ use App\Domain\Instance\State\InstanceState;
 use Throwable;
 
 /**
- * The staged files of a child (KTD19 steps 6 and 7, plan U18, ADR 0086, review U18 S2): the target's, or for `fsa rollback`
+ * The staged files of a child (KTD19 steps 6 and 7, plan U18, ADR 0086, review U18 S2): the target's, or for `fieldset rollback`
  * the previous image's. `validate()`: only release files (ReleaseFiles: the compose file, env files of its services, the
  * edge's files, the backup service's `instance.json`; `runtime/` is ignored) may be staged, `docker compose config` must
  * accept the project, its app service must run the expected app digest, every service an image the release pins, and
  * the compose file must pass the installed release's ComposeGuard (defence in depth: the release is signed, but its
- * files are started by the process that holds the socket). `install()`: those files replace the live ones with fsa's
+ * files are started by the process that holds the socket). `install()`: those files replace the live ones with fieldset's
  * modes (env files 0600 whatever the child left), never the runtime directory (the gate stays as the supervisor set it);
  * env files of services the stage no longer renders go. Step 7 starts every staged service except queue, scheduler and
  * backup (they start after the commit) and the catcher and the quick tunnel, which are not recreated by an upgrade (a
@@ -53,7 +53,7 @@ final readonly class StagedRelease
         $services = array_map(strval(...), array_keys(is_array($document['services'] ?? null) ? $document['services'] : []));
         $foreign = array_values(array_filter(StageRenderer::list($root), static fn (string $file): bool => ! ReleaseFiles::runtime($file) && ! ReleaseFiles::allowed($file, $services)));
         if ($foreign !== []) {
-            $this->refuse('The stage holds files fsa never takes from a release: '.implode(', ', array_slice($foreign, 0, 10)).'.', ['files' => $foreign]);
+            $this->refuse('The stage holds files fieldset never takes from a release: '.implode(', ', array_slice($foreign, 0, 10)).'.', ['files' => $foreign]);
         }
         try {
             $model = $this->docker->composeConfig(new ComposeProject($state->project(), $root.'/'.InstanceDirectory::COMPOSE_FILE, $root));

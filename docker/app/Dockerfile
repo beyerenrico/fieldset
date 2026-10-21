@@ -1,9 +1,10 @@
 # syntax=docker/dockerfile:1.7
-# One image for every role (ADR 0065): app (FrankenPHP, classic mode), queue (Horizon), scheduler, the `fsa` ops
+# One image for every role (ADR 0065): app (FrankenPHP, classic mode), queue (Horizon), scheduler, the `fieldset` ops
 # container and the backup daemon. The context is an allow-list (.dockerignore); the final stage carries no
 # tests, docs, dev dependencies or composer, and stays within 1.0 GB uncompressed per architecture (E17).
 # Every external image is pinned as tag@sha256 of its multi-arch index (linux/amd64 and linux/arm64, checked with
-# `docker buildx imagetools inspect` on 2026-10-18); refresh tag and digest together (ImageContractTest).
+# `docker buildx imagetools inspect` on 2026-10-18; golang and FrankenPHP on 2026-10-21, ADR 0093); refresh tag and
+# digest together (ImageContractTest).
 
 FROM composer:2@sha256:af98f42dfff7c68ba8d53c2164fd9fde1087b7d449514baa38c418b1f6bc4bac AS vendor
 WORKDIR /app
@@ -16,7 +17,7 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 COPY packages ./packages
 COPY resources ./resources
-# form-schema-js imports the normative spec JSON (meta-schema, roles) at build time.
+# fieldset-js imports the normative spec JSON (meta-schema, roles) at build time.
 COPY spec ./spec
 RUN npm ci --ignore-scripts || npm install --ignore-scripts
 COPY vite.config.js ./
@@ -27,10 +28,10 @@ RUN npm run build
 # Refresh it by changing the URL and both checksums together. docker/app/binaries.json lists every binary the
 # image adds, with version, source and license (ADR 0071).
 FROM scratch AS downloads-amd64
-ADD --checksum=sha256:c158ecc55adb3afb01bbd3539ed3b997d20c26dbdc418080506cc1bf5243ff57 https://download.docker.com/linux/static/stable/x86_64/docker-29.9.1.tgz /docker.tgz
+ADD --checksum=sha256:9ac225999fd5e863f7694c728ef23d480616b1e5639328fa309befd4243d69eb https://download.docker.com/linux/static/stable/x86_64/docker-29.9.2.tgz /docker.tgz
 
 FROM scratch AS downloads-arm64
-ADD --checksum=sha256:3e93cc6d1a686456a3b18eefdde26467a837a7a2b257af22e27cba1dbc1b2018 https://download.docker.com/linux/static/stable/aarch64/docker-29.9.1.tgz /docker.tgz
+ADD --checksum=sha256:873b3e0207857c3b2f28392fb922f3ea6efe37620c16d4d4aaf2fef409c90b73 https://download.docker.com/linux/static/stable/aarch64/docker-29.9.2.tgz /docker.tgz
 
 # hadolint ignore=DL3006
 FROM downloads-${TARGETARCH} AS downloads
@@ -43,7 +44,7 @@ FROM downloads-${TARGETARCH} AS downloads
 # CGO_ENABLED=0, -trimpath and -buildid= make the binaries reproducible; -s -w drops the symbol tables (the build
 # info that scanners read stays). The version strings are upstream's (`docker compose version`: v5.6.0,
 # `age --version`: v1.3.2).
-FROM --platform=$BUILDPLATFORM golang:1.27.2-bookworm@sha256:5cf287a799e6b94384bad13d16b14904c531f51ba65792237e122ce42b392f61 AS go-toolchain
+FROM --platform=$BUILDPLATFORM golang:1.27.3-bookworm@sha256:21ade014faf952365b9ecbd8dbdb87176fbacb82fac9fb132d9f2a7b8cc3f132 AS go-toolchain
 ENV CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-trimpath
 WORKDIR /src
 
@@ -84,8 +85,8 @@ RUN GOOS=linux GOARCH="${TARGETARCH}" GOPROXY=off go build -ldflags "-s -w -buil
 # Apache-2.0 asks for the LICENSE and NOTICE next to redistributed binaries (Docker CLI, Compose); age is
 # BSD-3-Clause.
 FROM --platform=$BUILDPLATFORM debian:bookworm-slim@sha256:7c7b2c966bc9ee8cedfeef67e0e279108992c77681fa595db4a9d65c06ccc587 AS tools
-ADD --checksum=sha256:2d81ea060825006fc8f3fe28aa5dc0ffeb80faf325b612c955229157b8c10dc0 https://raw.githubusercontent.com/docker/cli/v29.9.1/LICENSE /out/doc/docker-cli/LICENSE
-ADD --checksum=sha256:a8c869fbda819afb8d80e0ac19bac52e766bc6c19cb38cf94f52d64c4be2aab6 https://raw.githubusercontent.com/docker/cli/v29.9.1/NOTICE /out/doc/docker-cli/NOTICE
+ADD --checksum=sha256:2d81ea060825006fc8f3fe28aa5dc0ffeb80faf325b612c955229157b8c10dc0 https://raw.githubusercontent.com/docker/cli/v29.9.2/LICENSE /out/doc/docker-cli/LICENSE
+ADD --checksum=sha256:a8c869fbda819afb8d80e0ac19bac52e766bc6c19cb38cf94f52d64c4be2aab6 https://raw.githubusercontent.com/docker/cli/v29.9.2/NOTICE /out/doc/docker-cli/NOTICE
 COPY --from=downloads / /downloads/
 COPY --from=compose /out/docker-compose /out/cli-plugins/docker-compose
 COPY --from=compose-source /src/LICENSE /src/NOTICE /out/doc/docker-compose/
@@ -98,7 +99,7 @@ RUN tar -xzf /downloads/docker.tgz -C /out/bin --strip-components=1 docker/docke
 # (E13: pg_dump must match the server major; bookworm ships 15). The PHP base image keeps its build toolchain
 # (compilers, binutils, headers: ~170 MB); it is removed here, and the `runtime` stage flattens the result so
 # that the removal actually shrinks the image.
-FROM dunglas/frankenphp:1-php8.4-bookworm@sha256:14007e6207a57651cb402970a44e5f2df15bfeffcbdeb5bbb322271949878b07 AS runtime-build
+FROM dunglas/frankenphp:1-php8.4-bookworm@sha256:88cec19e1b1570b258f3e2d8aa91485dc20ad32920adc132d8b35f0c41affef7 AS runtime-build
 # PGDG signing key, fingerprint B97B 0AFC AA1A 47F0 44F2 44A0 7FCC 7D46 ACCC 4CF8 (postgresql.org/download/linux/debian).
 ADD --checksum=sha256:0144068502a1eddd2a0280ede10ef607d1ec592ce819940991203941564e8e76 https://www.postgresql.org/media/keys/ACCC4CF8.asc /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
 # DL4006: the library scan pipes on purpose without pipefail (dpkg-query fails for paths no package owns).
@@ -179,10 +180,10 @@ COPY storage ./storage
 COPY spec/LICENSE ./spec/LICENSE
 COPY spec/form-definition/1.0 ./spec/form-definition/1.0
 COPY spec/templates ./spec/templates
-# fsa validates release manifests against the schema (ManifestVerifier) and install.sh copies the shim from here.
+# fieldset validates release manifests against the schema (ManifestVerifier) and install.sh copies the shim from here.
 COPY distribution/manifest.schema.json distribution/shim.sh ./distribution/
-COPY packages/form-schema-php/composer.json packages/form-schema-php/LICENSE ./packages/form-schema-php/
-COPY packages/form-schema-php/src ./packages/form-schema-php/src
+COPY packages/fieldset-php/composer.json packages/fieldset-php/LICENSE ./packages/fieldset-php/
+COPY packages/fieldset-php/src ./packages/fieldset-php/src
 COPY --from=vendor /app/vendor ./vendor
 COPY --from=assets /app/public/build ./public/build
 COPY --from=assets /app/public/app ./public/app
@@ -199,22 +200,22 @@ COPY --from=tools /out/cli-plugins/ /usr/local/lib/docker/cli-plugins/
 COPY --from=tools /out/doc/ /usr/share/doc/
 COPY --from=build /var/www/html /var/www/html
 COPY --chmod=0755 docker/app/entrypoint.sh /usr/local/bin/app-entrypoint
-COPY --chmod=0755 docker/app/fsa /usr/local/bin/fsa
-# Build flavor (R58, ADR 0070): only the release harness builds with FSA_BUILD=harness, which lets fsa verify
-# releases with a local test key (FSA_TRUST_KEY). Release builds keep the default; a file, not ENV, so that
+COPY --chmod=0755 docker/app/fieldset /usr/local/bin/fieldset
+# Build flavor (R58, ADR 0070): only the release harness builds with FIELDSET_BUILD=harness, which lets fieldset verify
+# releases with a local test key (FIELDSET_TRUST_KEY). Release builds keep the default; a file, not ENV, so that
 # `docker run -e` cannot change it.
-ARG FSA_BUILD=production
-RUN case "${FSA_BUILD}" in production | harness) ;; *) echo "FSA_BUILD must be production or harness" >&2; exit 1 ;; esac \
- && printf '%s\n' "${FSA_BUILD}" > /var/www/html/distribution/.build-flavor
+ARG FIELDSET_BUILD=production
+RUN case "${FIELDSET_BUILD}" in production | harness) ;; *) echo "FIELDSET_BUILD must be production or harness" >&2; exit 1 ;; esac \
+ && printf '%s\n' "${FIELDSET_BUILD}" > /var/www/html/distribution/.build-flavor
 # Version metadata last, so a version bump rebuilds no layer above (KTD9, R1).
 ARG APP_VERSION=0.0.0-dev
 ARG APP_REVISION=
-LABEL org.opencontainers.image.title="form-schema-app" \
-      org.opencontainers.image.description="Self-hostable form schema application: app, queue, scheduler, fsa ops and backup roles" \
+LABEL org.opencontainers.image.title="fieldset" \
+      org.opencontainers.image.description="Fieldset, a self-hostable form application: app, queue, scheduler, fieldset ops and backup roles" \
       org.opencontainers.image.version="${APP_VERSION}" \
       org.opencontainers.image.revision="${APP_REVISION}" \
-      org.opencontainers.image.source="https://github.com/beyerenrico/form-schema-app" \
-      org.opencontainers.image.url="https://github.com/beyerenrico/form-schema-app" \
+      org.opencontainers.image.source="https://github.com/beyerenrico/fieldset" \
+      org.opencontainers.image.url="https://github.com/beyerenrico/fieldset" \
       org.opencontainers.image.licenses="AGPL-3.0-only"
 ENV APP_VERSION="${APP_VERSION}" \
     APP_REVISION="${APP_REVISION}"

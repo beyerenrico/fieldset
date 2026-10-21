@@ -1,7 +1,7 @@
 import { expect, type Page } from '@playwright/test';
 import { signOnCanvas } from './field-app';
 
-// Helpers for the offline journeys (M6, ADR 0035): service worker, the Dexie store `fsa-offline` and
+// Helpers for the offline journeys (M6, ADR 0035): service worker, the Dexie store `fieldset-offline` and
 // direct API checks with the browser's session.
 
 /** A 1×1 PNG: enough for the photo element (the app re-encodes it). */
@@ -15,7 +15,7 @@ export function countRows(page: Page, table: string): Promise<number> {
   return page.evaluate(
     (name) =>
       new Promise<number>((resolve) => {
-        const open = indexedDB.open('fsa-offline');
+        const open = indexedDB.open('fieldset-offline');
         open.onerror = () => resolve(-1);
         open.onsuccess = () => {
           const db = open.result;
@@ -44,7 +44,7 @@ export function tableKeys(page: Page, table: string): Promise<string[]> {
   return page.evaluate(
     (name) =>
       new Promise<string[]>((resolve) => {
-        const open = indexedDB.open('fsa-offline');
+        const open = indexedDB.open('fieldset-offline');
         open.onerror = () => resolve([]);
         open.onsuccess = () => {
           const db = open.result;

@@ -52,7 +52,7 @@ final readonly class ProxyAddressCheck implements DoctorCheck
         return CheckResult::warn(
             $this->key(),
             "The trusted proxy address no longer matches: the app trusts {$trusted}, but {$where}. Until it is updated, the app ignores the proxy's forwarded headers and sees every client as the proxy.",
-            'Run `fsa config set trusted-proxy auto` (start the proxy first if it is down); give the proxy a fixed address on the network to avoid this.',
+            'Run `fieldset config set trusted-proxy auto` (start the proxy first if it is down); give the proxy a fixed address on the network to avoid this.',
             $details,
             self::WARNING,
         );

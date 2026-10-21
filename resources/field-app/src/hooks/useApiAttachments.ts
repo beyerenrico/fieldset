@@ -1,5 +1,5 @@
 /** Local-first attachment adapter bound to one submission: previews, merging, removal, cleanup. */
-import type { AttachmentAdapter } from '@form-schema-app/form-schema-react';
+import type { AttachmentAdapter } from '@fieldset/fieldset-react';
 import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import type { AttachmentRecord } from '../lib/api/types.ts';
 import {

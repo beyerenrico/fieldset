@@ -11,7 +11,7 @@ use Tests\Support\Instance\AdoptFixture;
 use Tests\Support\Instance\InstanceCommandFixture;
 
 /*
- * `fsa adopt` when something goes wrong (plan U19, ADR 0087), against the recording Docker gateway: the way back of a
+ * `fieldset adopt` when something goes wrong (plan U19, ADR 0087), against the recording Docker gateway: the way back of a
  * failure before 2.0 starts (1.0 runs again, nothing of 2.0 is left, exit 5; exit 9 before 1.0 was touched; exit 8 when
  * 1.0 does not start again), the drain of 1.0's queue, a resume after 2.0 started, and `--abandon`.
  */
@@ -54,7 +54,7 @@ it('goes back when a step fails before 2.0 starts: 1.0 runs again and nothing of
 })->with([
     'the copy fails' => [fn (AdoptFixture $a) => $a->failing['cp'] = new ProcessOutcome(1, '', 'cp: write error: No space left on device'), 'copy_failed'],
     'the copy differs from the backup' => [fn (AdoptFixture $a) => $a->copySnapshot = [...$a->snapshot, 'counts' => [...$a->snapshot['counts'], 'submissions' => 40]], 'copy_mismatch'],
-    'amcheck fails' => [fn (AdoptFixture $a) => $a->amcheck = ['fsa-amcheck ok organizations_slug_unique', 'fsa-amcheck failed users_email_unique item order invariant violated'], 'amcheck_failed'],
+    'amcheck fails' => [fn (AdoptFixture $a) => $a->amcheck = ['fieldset-amcheck ok organizations_slug_unique', 'fieldset-amcheck failed users_email_unique item order invariant violated'], 'amcheck_failed'],
     'the cluster was not shut down cleanly' => [fn (AdoptFixture $a) => $a->clusterState = 'in production', 'postgres_not_shut_down'],
     'the dump fails' => [fn (AdoptFixture $a) => $a->failing['file:pg_dump'] = new ProcessOutcome(1, '', 'pg_dump: error: connection failed'), 'legacy_backup_failed'],
     'the migrations fail' => [fn (AdoptFixture $a) => $a->instance->oneOffs['migrate'] = new ProcessOutcome(1, 'Migrating', 'SQLSTATE[42P07]'), 'migrate_failed'],
@@ -138,7 +138,7 @@ it('removes the new instance\'s containers before it starts 1.0 again, and names
         ->and($json['errors'][0]['message'])->toContain('1.0 was started again')
         ->and($json['data']['rollback']['not_running'])->toBe(['app'])
         ->and(collect($json['warnings'])->pluck('code')->all())->toContain('legacy_not_running')
-        ->and(array_filter($json['data']['rollback']['removed'], static fn (string $what): bool => str_starts_with($what, 'container fsa-') && str_ends_with($what, '-postgres-1')))->toHaveCount(1)
+        ->and(array_filter($json['data']['rollback']['removed'], static fn (string $what): bool => str_starts_with($what, 'container fieldset-') && str_ends_with($what, '-postgres-1')))->toHaveCount(1)
         ->and(array_search('removeContainer', $methods, true))->toBeLessThan(array_search('startContainers', $methods, true));
 });
 
@@ -152,7 +152,7 @@ it('resumes forward after 2.0 started, and refuses --abandon then (it would dele
         $start($args);
     };
     [$failed, $failedJson] = $this->adopt->adopt();
-    [$abandon, $abandonJson] = $this->adopt->instance->run('fsa:adopt', ['--abandon' => true, '--yes' => true]);
+    [$abandon, $abandonJson] = $this->adopt->instance->run('fieldset:adopt', ['--abandon' => true, '--yes' => true]);
     $docker->onCall['composeUp'] = $start;
     $copies = count($this->adopt->specs('cp'));
     [$resumed, $resumedJson] = $this->adopt->adopt();
@@ -166,7 +166,7 @@ it('resumes forward after 2.0 started, and refuses --abandon then (it would dele
 });
 
 it('finishes going back after a run that could not start 1.0 again (exit 8), and --abandon needs an unfinished adopt', function (): void {
-    [$nothing, $nothingJson] = $this->adopt->instance->run('fsa:adopt', ['--abandon' => true, '--yes' => true]);
+    [$nothing, $nothingJson] = $this->adopt->instance->run('fieldset:adopt', ['--abandon' => true, '--yes' => true]);
     $this->adopt->failing['cp'] = new ProcessOutcome(1, '', 'no space');
     $this->adopt->instance->docker->failOn('startContainers', new DockerCommandFailed('container start', new ProcessOutcome(1, '', 'Error response from daemon')));
     [$failed, $failedJson] = $this->adopt->adopt();
@@ -190,7 +190,7 @@ it('abandons an adopt that stopped half-way', function (): void {
     $this->adopt->adopt();
     unset($this->adopt->instance->docker->failures['startContainers']);
 
-    [$code, $json] = $this->adopt->instance->run('fsa:adopt', ['--abandon' => true, '--yes' => true]);
+    [$code, $json] = $this->adopt->instance->run('fieldset:adopt', ['--abandon' => true, '--yes' => true]);
 
     expect($code)->toBe(0, (string) json_encode($json))->and($json['data'])->toMatchArray(['abandoned' => true, 'checkout' => $this->adopt->checkout])
         ->and(app(OperationJournal::class)->current())->toBeNull();

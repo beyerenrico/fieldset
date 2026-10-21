@@ -14,7 +14,7 @@ use Throwable;
 
 /**
  * Notifies the platform operators of failed or stale backups (R39, plan U20, ADR 0089), run hourly by the scheduler
- * (`instance:backup-alerts`). It raises the alerts `fsa status` reports as `warn` and the instance page shows first
+ * (`instance:backup-alerts`). It raises the alerts `fieldset status` reports as `warn` and the instance page shows first
  * (BackupRuns, BackupAlerts), each once per incident: an alert is identified by its code and the run it is about (for
  * `backup_overdue` the last success), remembered for 30 days in the cache. A new failure, or the same alert again after a
  * success, is a new incident. Without an active operator nothing is remembered, so the first operator still hears of it.

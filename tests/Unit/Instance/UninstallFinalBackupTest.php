@@ -13,7 +13,7 @@ use Tests\Support\Instance\InstanceCommandFixture;
 use Tests\Support\Instance\TemporaryInstance;
 
 /*
- * §13.3 "back up before destroying" (ADR 0073 as amended by the M12 gate): `fsa uninstall --keep-backups` first quiesces
+ * §13.3 "back up before destroying" (ADR 0073 as amended by the M12 gate): `fieldset uninstall --keep-backups` first quiesces
  * the instance and writes backups/final-<UTC>, a 2.0 backup from the backup service's own entry point (HMAC, SHA256SUMS,
  * encrypted with the APP keys inside when the instance has recipients, else the keys beside it), and removes nothing
  * when that fails (exit 4, the stack runs again). The one-offs are scripted (RecordingDockerGateway).
@@ -21,7 +21,7 @@ use Tests\Support\Instance\TemporaryInstance;
 
 beforeEach(function (): void {
     $this->fixture = new InstanceCommandFixture;
-    $this->fixture->run('fsa:install', InstanceCommandFixture::installFlags());
+    $this->fixture->run('fieldset:install', InstanceCommandFixture::installFlags());
     $this->uuid = $this->fixture->state()->uuid();
     $this->project = $this->fixture->state()->project();
     $this->fixture->withRunningStack();
@@ -42,7 +42,7 @@ it('quiesces, then writes a 2.0 final backup through the backup service before r
     $appKey = new EnvFiles($this->fixture->directory)->read('app')['APP_KEY'];
     $mark = count($this->fixture->docker->methods());
 
-    [$code, $json] = $this->fixture->run('fsa:uninstall', ['--yes' => true, '--keep-backups' => true]);
+    [$code, $json] = $this->fixture->run('fieldset:uninstall', ['--yes' => true, '--keep-backups' => true]);
     $run = finalBackupRuns($this->fixture)[0];
     $methods = $this->fixture->docker->methodsSince($mark);
     $stops = $this->fixture->docker->called('composeStop');
@@ -62,7 +62,7 @@ it('quiesces, then writes a 2.0 final backup through the backup service before r
         ->and(substr(sprintf('%o', fileperms($keyFile)), -3))->toBe('600')
         ->and((string) file_get_contents($keyFile))->toContain("APP_KEY='{$appKey}'")->toStartWith('# The APP keys')
         ->and($warning['message'] ?? '')->toContain($keyFile)->toContain('plaintext')
-        ->and($warning['hint'] ?? '')->toContain('install.sh --dir ') // M12 gate: the uninstalled directory has no fsa any more (DOC14)
+        ->and($warning['hint'] ?? '')->toContain('install.sh --dir ') // M12 gate: the uninstalled directory has no fieldset any more (DOC14)
         ->and($warning['hint'] ?? '')->toContain('--from-backup '.$this->backups.'/final-20261019T120000Z --app-key-file '.$keyFile)
         ->and($json['data']['removed']['volumes'])->toBe([$this->project.'_pg-data', $this->project.'_app-storage'])
         ->and(json_encode($json))->not->toContain($appKey);
@@ -72,7 +72,7 @@ it('puts the APP keys and the SMTP account into the encrypted final backup when 
     $this->fixture->directory->saveState($this->fixture->state()->withRecipients(['age1'.str_repeat('a', 58)]));
     $appKey = new EnvFiles($this->fixture->directory)->read('app')['APP_KEY'];
 
-    [$code, $json] = $this->fixture->run('fsa:uninstall', ['--yes' => true, '--keep-backups' => true]);
+    [$code, $json] = $this->fixture->run('fieldset:uninstall', ['--yes' => true, '--keep-backups' => true]);
 
     expect($code)->toBe(0, (string) json_encode($json))
         ->and(finalBackupRuns($this->fixture)[0]['command'])->toContain('--kind=final')->toContain('--include-secrets')
@@ -87,7 +87,7 @@ it('starts only Postgres for the backup when the instance is stopped, and stops 
         $this->fixture->docker->stopContainer((string) $id);
     }
 
-    [$code] = $this->fixture->run('fsa:uninstall', ['--yes' => true, '--keep-backups' => true]);
+    [$code] = $this->fixture->run('fieldset:uninstall', ['--yes' => true, '--keep-backups' => true]);
 
     expect($code)->toBe(0)
         ->and($this->fixture->docker->called('composeStop'))->toBe([])
@@ -97,14 +97,14 @@ it('starts only Postgres for the backup when the instance is stopped, and stops 
 it('removes nothing, leaves no key file and starts the quiesced stack again when the backup fails (exit 4)', function (): void {
     $this->fixture->backupOutcome = InstanceCommandFixture::oneOffJson(['command' => 'backup-daemon', 'status' => 'failed', 'errors' => [['code' => 'pg_dump_failed', 'message' => 'pg_dump failed (exit 1): connection to server failed', 'hint' => null]]]);
 
-    [$code, $json] = $this->fixture->run('fsa:uninstall', ['--yes' => true, '--keep-backups' => true]);
+    [$code, $json] = $this->fixture->run('fieldset:uninstall', ['--yes' => true, '--keep-backups' => true]);
     $runtime = json_decode((string) $this->fixture->directory->read('runtime/runtime.json'), true);
 
     expect($code)->toBe(4, (string) json_encode($json))
         ->and($json['errors'][0]['code'])->toBe('final_backup_failed')
         ->and($json['errors'][0]['retryable'])->toBeTrue()
         ->and($json['errors'][0]['message'])->toContain('connection to server failed')
-        ->and($json['errors'][0]['hint'])->toContain('fsa uninstall --no-backup')
+        ->and($json['errors'][0]['hint'])->toContain('fieldset uninstall --no-backup')
         ->and($json['data']['reason'] ?? null)->toBe('pg_dump_failed')
         ->and($json['changed'])->toBeFalse()
         ->and(array_slice($this->fixture->docker->called('composeUp'), -1)[0]['services'])->toEqualCanonicalizing(['app', 'scheduler', 'backup', 'queue'])
@@ -121,7 +121,7 @@ it('refuses when Postgres cannot be started for the backup', function (): void {
     }
     $this->fixture->docker->failOn('composeUp', new DockerCommandFailed('compose up', new ProcessOutcome(1, '', 'no space left on device')));
 
-    [$code, $json] = $this->fixture->run('fsa:uninstall', ['--yes' => true, '--keep-backups' => true]);
+    [$code, $json] = $this->fixture->run('fieldset:uninstall', ['--yes' => true, '--keep-backups' => true]);
 
     expect($code)->toBe(4)->and($json['errors'][0]['message'])->toContain('no space left')->and($this->fixture->docker->called('removeVolume'))->toBe([]);
 });
@@ -129,7 +129,7 @@ it('refuses when Postgres cannot be started for the backup', function (): void {
 it('keeps exit 10 when Docker disappears during the final backup', function (): void {
     $this->fixture->docker->failOn('composePs', new DockerUnavailable('The Docker daemon is not reachable.'));
 
-    [$code] = $this->fixture->run('fsa:uninstall', ['--yes' => true, '--keep-backups' => true]);
+    [$code] = $this->fixture->run('fieldset:uninstall', ['--yes' => true, '--keep-backups' => true]);
 
     expect($code)->toBe(10)->and(glob($this->backups.'/final-*'))->toBe([]);
 });
@@ -138,7 +138,7 @@ it('starts what it stopped again and lowers the gate when quiescing itself fails
     $this->fixture->docker->failOn('composeStop', new DockerCommandFailed('compose stop', new ProcessOutcome(1, '', 'Error response from daemon: cannot stop container')));
     $mark = count($this->fixture->docker->called('composeUp'));
 
-    [$code, $json] = $this->fixture->run('fsa:uninstall', ['--yes' => true, '--keep-backups' => true]);
+    [$code, $json] = $this->fixture->run('fieldset:uninstall', ['--yes' => true, '--keep-backups' => true]);
     $runtime = json_decode((string) $this->fixture->directory->read('runtime/runtime.json'), true);
     $restarted = array_slice($this->fixture->docker->called('composeUp'), $mark);
 
@@ -156,7 +156,7 @@ it('starts what it stopped again and lowers the gate when quiescing itself fails
 it('lowers the gate and keeps exit 10 when Docker disappears while it quiesces (M12 gate D2)', function (): void {
     $this->fixture->docker->failOn('composeStop', new DockerUnavailable('The Docker daemon is not reachable.'));
 
-    [$code] = $this->fixture->run('fsa:uninstall', ['--yes' => true, '--keep-backups' => true]);
+    [$code] = $this->fixture->run('fieldset:uninstall', ['--yes' => true, '--keep-backups' => true]);
     $runtime = json_decode((string) $this->fixture->directory->read('runtime/runtime.json'), true);
 
     expect($code)->toBe(10)
@@ -167,7 +167,7 @@ it('lowers the gate and keeps exit 10 when Docker disappears while it quiesces (
 it('cannot back up without a readable state and says how to go on', function (): void {
     $this->fixture->directory->write('state.json', '{"broken": true}');
 
-    [$code, $json] = $this->fixture->run('fsa:uninstall', ['--yes' => true, '--keep-backups' => true]);
+    [$code, $json] = $this->fixture->run('fieldset:uninstall', ['--yes' => true, '--keep-backups' => true]);
 
     expect($code)->toBe(4)
         ->and($json['errors'][0]['message'])->toContain('state is unreadable')
@@ -177,7 +177,7 @@ it('cannot back up without a readable state and says how to go on', function ():
 it('refuses without the backup role\'s password, and removes nothing', function (): void {
     new EnvFiles($this->fixture->directory)->write('backup', ['DB_HOST' => 'postgres']);
 
-    [$code, $json] = $this->fixture->run('fsa:uninstall', ['--yes' => true, '--keep-backups' => true]);
+    [$code, $json] = $this->fixture->run('fieldset:uninstall', ['--yes' => true, '--keep-backups' => true]);
 
     expect($code)->toBe(4)
         ->and($json['errors'][0]['code'])->toBe('final_backup_failed')
@@ -187,10 +187,10 @@ it('refuses without the backup role\'s password, and removes nothing', function 
 
 it('saves only the APP keys when no database volume is left (to the recipients when encryption is on), and nothing without a key', function (): void {
     $this->fixture->docker->resources = [];
-    [$code, $json] = $this->fixture->run('fsa:uninstall', ['--yes' => true, '--keep-backups' => true]);
+    [$code, $json] = $this->fixture->run('fieldset:uninstall', ['--yes' => true, '--keep-backups' => true]);
 
     $bare = new InstanceCommandFixture;
-    [$bareCode, $nothing] = $bare->run('fsa:uninstall', ['--yes' => true, '--keep-backups' => true]);
+    [$bareCode, $nothing] = $bare->run('fieldset:uninstall', ['--yes' => true, '--keep-backups' => true]);
 
     expect($code)->toBe(0, (string) json_encode($json))
         ->and($json['data']['final_backup'])->toMatchArray(['dir' => null, 'backup' => null, 'encrypted' => false])
@@ -207,7 +207,7 @@ it('encrypts the saved APP keys to the recipients when there is no database to b
     $this->fixture->directory->saveState($this->fixture->state()->withRecipients([$recipient]));
     $this->fixture->docker->resources = [];
 
-    [$code, $json] = $this->fixture->run('fsa:uninstall', ['--yes' => true, '--keep-backups' => true]);
+    [$code, $json] = $this->fixture->run('fieldset:uninstall', ['--yes' => true, '--keep-backups' => true]);
     $file = $this->fixture->directory->root.'/'.$json['data']['final_backup']['key_file'];
 
     expect($code)->toBe(0, (string) json_encode($json))

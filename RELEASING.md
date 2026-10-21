@@ -1,4 +1,4 @@
-# Releasing form-schema-app
+# Releasing Fieldset
 
 Written in M9 (plan U7), completed in M13 (U21) with the agent guide and the post-publish checklist.
 
@@ -8,13 +8,13 @@ described below.
 
 ## What a release is
 
-- Multi-arch app image `ghcr.io/beyerenrico/form-schema-app` (linux/amd64, linux/arm64), with SBOM and
+- Multi-arch app image `ghcr.io/beyerenrico/fieldset` (linux/amd64, linux/arm64), with SBOM and
   provenance attestations, signed keylessly with cosign. The index and every manifest in it are signed.
 - Release assets on the GitHub Release of the tag:
   - `install.sh` and its bundle `install.sh.sigstore.json`;
   - `release-manifest.json` and its bundle `release-manifest.json.sigstore.json`;
   - `shim.sh`;
-  - `compose.stack.yaml`, the stack file for running without `fsa` (R18, ADR 0076). It is generated for every
+  - `compose.stack.yaml`, the stack file for running without `fieldset` (R18, ADR 0076). It is generated for every
     release from the manifest's pins, so it is not a file in the repository;
   - `agent-guide.md`, the agent guide (`docs/guide/agent-guide.md`; the manifest job adds it whenever the file
     exists, and the sign job checks it against the tagged commit);
@@ -30,21 +30,21 @@ described below.
 ### Installing a release
 
 `releases/latest/download/` resolves to the newest stable GitHub Release. Pre-releases are published with
-`--prerelease --latest=false` (`release.yml`), so a 2.x `latest` only exists from 2.0.0 on. This one-liner works
+`--prerelease --latest=false` (`release.yml`), so a 2.x `latest` only exists from 2.1.0 on (2.0.0 was never published). This one-liner works
 only for stable releases:
 
 ```sh
-curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/form-schema-app/releases/latest/download/install.sh | sh -s -- [flags]
+curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/fieldset/releases/latest/download/install.sh | sh -s -- [flags]
 ```
 
-For a pre-release (and for every release before 2.0.0), name the version twice: in the download path, and as
+For a pre-release (and for every release before 2.1.0), name the version twice: in the download path, and as
 `--version`, which makes `install.sh` fetch the manifest from `download/v<version>/` instead of `latest/download/`:
 
 ```sh
-curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/form-schema-app/releases/download/v<ver>/install.sh | sh -s -- --version <ver> [flags]
+curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/fieldset/releases/download/v<ver>/install.sh | sh -s -- --version <ver> [flags]
 ```
 
-For example `<ver>` = `2.0.0-alpha.1`.
+For example `<ver>` = `2.1.0-alpha.1`.
 
 ### The signer identity
 
@@ -52,7 +52,7 @@ For example `<ver>` = `2.0.0-alpha.1`.
 the manifest (R58, ADR 0060):
 
 - certificate identity, an anchored regular expression for
-  `https://github.com/beyerenrico/form-schema-app/.github/workflows/release.yml@refs/tags/v<semver>`
+  `https://github.com/beyerenrico/fieldset/.github/workflows/release.yml@refs/tags/v<semver>`
   (the exact expression is `CERTIFICATE_IDENTITY_REGEXP` in `.github/workflows/release.yml`);
 - OIDC issuer `https://token.actions.githubusercontent.com`;
 - workflow trigger `push`.
@@ -71,9 +71,23 @@ image would then reject new releases.
 3. **Workflow permissions.** The workflow sets `permissions: {}` and grants each job only what it needs:
    `packages: write` and `id-token: write` to push and sign, `contents: write` to publish. Repository
    settings must allow these (Settings → Actions → General → Workflow permissions).
-4. **GHCR package visibility.** The first push creates the package `form-schema-app` as private. Anonymous
+4. **GHCR package visibility.** The first push creates the package `fieldset` as private. Anonymous
    pulls need it public. **Once a package is public, it cannot be made private again** (GitHub docs, ADR 0050).
    Make it public only when the first release candidate has passed the checks below.
+
+## Pre-publish checklist
+
+Human steps before the first tag push of 2.1.0, the first release under the name Fieldset. The autonomous build
+cannot do them.
+
+- [ ] **Trademark check done** for the name "Fieldset" (product, CLI `fieldset`, Fieldset Spec 1.0).
+- [ ] **GitHub repository renamed to `beyerenrico/fieldset` before any tag push.** The signer identity built into
+      `install.sh`, the image and `release.yml` names that repository (see [The signer identity](#the-signer-identity)).
+      A tag pushed before the rename is signed under the old repository's identity, and every installer rejects
+      the release.
+- [ ] **Push only the `v2.1.0` tag, by name** (`git push origin v2.1.0`; for the first public publish, the
+      `v2.1.0-…` pre-release tag of step 2 below, also by name). Never `git push --tags`: it would also push the
+      local `v2.0.0` tag, which was never published, and every milestone and test tag.
 
 ## Publishing a release
 
@@ -82,17 +96,17 @@ image would then reject new releases.
    `install.sh` and `shim.sh` (it does not check the changelog). Before tagging, also run locally:
    - the install journeys, J11 (the agent guide's doc-test) among them:
      `vendor/bin/pest --testsuite=Install` (see [the harness](#building-and-testing-a-release-locally-harness));
-   - the guide checks in the fast suite (`tests/Unit/Docs`): every `fsa` command, flag, environment variable and
+   - the guide checks in the fast suite (`tests/Unit/Docs`): every `fieldset` command, flag, environment variable and
      link the guides name exists (ADR 0042);
    - the Trivy exception dates (see below).
 2. Tag and push:
 
    ```sh
-   git tag -s v2.0.0-alpha.1 -m "form-schema-app 2.0.0-alpha.1"
-   git push origin v2.0.0-alpha.1
+   git tag -s v2.1.0-alpha.1 -m "fieldset 2.1.0-alpha.1"
+   git push origin v2.1.0-alpha.1
    ```
 
-   The **first public publish must be a pre-release** (for example `v2.0.0-alpha.1`), so `latest` does not move
+   The **first public publish must be a pre-release** (for example `v2.1.0-alpha.1`), so `latest` does not move
    (E18).
 3. Watch the `Release` workflow. It runs these jobs:
 
@@ -101,7 +115,7 @@ image would then reject new releases.
    | prepare | validates the tag (`release:version`) and computes the image tags |
    | image | buildx multi-arch build with `--sbom=true --provenance=mode=max`, pushed by digest only; `cosign sign --recursive` (keyless); verifies the identity |
    | manifest | `php artisan release:manifest --stack-file=dist/compose.stack.yaml` (every image by digest; also renders the stack file from the same pins and lists it as an asset) with production dependencies only (`composer install --no-dev --no-scripts --no-plugins`); refuses a harness build of `install.sh`; then the R39 check `php artisan release:check-pg-dump` (the app image's `pg_dump` major must not be below the manifest's Postgres major, run on both platforms, arm64 under QEMU, after a read-only GHCR login; ADR 0091); **no OIDC token** |
-   | sign | runs no PHP or Composer: checks that the manifest's `images.app` digest is the one the image job pushed, that every file except the manifest and `compose.stack.yaml` equals the tagged commit's, and that every asset the manifest lists matches its checksum there. The manifest must list `install.sh`, `shim.sh` and `compose.stack.yaml`; every `image:` line of the stack file must be a manifest pin in the form `${FSA_REGISTRY:-<registry>}/<repository>@<digest>`, and the stack file must not mount the Docker socket. Then `cosign sign-blob --bundle` for the manifest and `install.sh` (keyless) and writes `SHA256SUMS` |
+   | sign | runs no PHP or Composer: checks that the manifest's `images.app` digest is the one the image job pushed, that every file except the manifest and `compose.stack.yaml` equals the tagged commit's, and that every asset the manifest lists matches its checksum there. The manifest must list `install.sh`, `shim.sh` and `compose.stack.yaml`; every `image:` line of the stack file must be a manifest pin in the form `${FIELDSET_REGISTRY:-<registry>}/<repository>@<digest>`, and the stack file must not mount the Docker socket. Then `cosign sign-blob --bundle` for the manifest and `install.sh` (keyless) and writes `SHA256SUMS` |
    | scan | Trivy on the app image (no exceptions) and every third-party digest (only its own exception file, ADR 0071) on both platforms; a fixable critical or high finding fails the release |
    | tag | points the release's image tags at the scanned digest, and checks that the digest is unchanged |
    | publish | creates a **draft** GitHub Release with every asset |
@@ -130,12 +144,12 @@ server for `dist/`, a buildx builder on `network=host` and a cosign key pair gen
 
 ```sh
 vendor/bin/pest --testsuite=Install --filter=HarnessRelease           # build, sign, serve and check a release
-FSA_TEST_PLATFORM=linux/amd64 vendor/bin/pest --testsuite=Install --filter=HarnessRelease   # emulated amd64
-FSA_HARNESS_PLATFORMS=linux/amd64,linux/arm64 vendor/bin/pest --testsuite=Install --filter=HarnessRelease
+FIELDSET_TEST_PLATFORM=linux/amd64 vendor/bin/pest --testsuite=Install --filter=HarnessRelease   # emulated amd64
+FIELDSET_HARNESS_PLATFORMS=linux/amd64,linux/arm64 vendor/bin/pest --testsuite=Install --filter=HarnessRelease
 ```
 
 `tests/Support/Docker/ReleaseHarness.php` drives it. `ReleaseHarness::start()` brings up the compose project
-`fsa-test-harness-<id>` from `tests/Install/Harness/compose.harness.yaml`. `publish($version)` then runs the
+`fieldset-test-harness-<id>` from `tests/Install/Harness/compose.harness.yaml`. `publish($version)` then runs the
 steps of the workflow:
 
 1. build and push the app image with SBOM and provenance;
@@ -144,31 +158,31 @@ steps of the workflow:
 4. run `release:manifest --stack-file`, which also writes `compose.stack.yaml`, and `cosign sign-blob --bundle`;
 5. lay out `dist/download/v<version>/`, plus `dist/latest/download/` for stable versions only.
 
-Proxy-mode journeys (J3) call `startProxy()`, which creates the external network `fsa-test-proxy-<id>` and starts
+Proxy-mode journeys (J3) call `startProxy()`, which creates the external network `fieldset-test-proxy-<id>` and starts
 Traefik from the `proxy` profile on it. `stop()` removes the containers, the networks (Traefik's too), the volume,
 the builder and the run directory.
 
 - Registry: `ReleaseHarness::registry()` (`127.0.0.1:<port>`) works for the host, the Docker daemon and
-  host-network containers. Installs pull `<registry>/<repository>@<digest>` there (`FSA_REGISTRY`).
+  host-network containers. Installs pull `<registry>/<repository>@<digest>` there (`FIELDSET_REGISTRY`).
 - Release server: `ReleaseHarness::releaseUrl()` stands in for
-  `https://github.com/beyerenrico/form-schema-app/releases` (`FSA_RELEASE_URL`).
-- Local public key: `$harness->cosign->publicKey()`. Only harness builds accept it (`FSA_TRUST_KEY`, U4).
+  `https://github.com/beyerenrico/fieldset/releases` (`FIELDSET_RELEASE_URL`).
+- Local public key: `$harness->cosign->publicKey()`. Only harness builds accept it (`FIELDSET_TRUST_KEY`, U4).
 
-Leftovers from an interrupted run (from the repository root). The compose file requires `FSA_HARNESS_DIST`,
+Leftovers from an interrupted run (from the repository root). The compose file requires `FIELDSET_HARNESS_DIST`,
 which `ReleaseHarness` sets to the run's `dist/`; give it as an absolute path, because Compose reads a relative
 one as a volume name or resolves it against `tests/Install/Harness/`. The profiles match `ReleaseHarness::stop()`.
 Traefik's network is external, so `down` leaves it; remove it after a proxy journey:
 
 ```sh
-FSA_HARNESS_DIST="$PWD/storage/fsa-test-harness/<id>/dist" docker compose -p fsa-test-harness-<id> \
+FIELDSET_HARNESS_DIST="$PWD/storage/fieldset-test-harness/<id>/dist" docker compose -p fieldset-test-harness-<id> \
   -f tests/Install/Harness/compose.harness.yaml --profile forwarder --profile acme --profile proxy \
   down --volumes --remove-orphans
-docker network rm fsa-test-proxy-<id>   # only after a proxy journey
-docker buildx rm fsa-test-harness-<id>
-rm -rf storage/fsa-test-harness/<id>
+docker network rm fieldset-test-proxy-<id>   # only after a proxy journey
+docker buildx rm fieldset-test-harness-<id>
+rm -rf storage/fieldset-test-harness/<id>
 ```
 
-Mirrored blobs and the build cache stay in `storage/fsa-test-cache/`; delete that directory to reclaim the disk
+Mirrored blobs and the build cache stay in `storage/fieldset-test-cache/`; delete that directory to reclaim the disk
 space.
 
 Lint locally like CI:
@@ -176,7 +190,7 @@ Lint locally like CI:
 ```sh
 docker run --rm -v "$PWD:/repo:ro" -w /repo rhysd/actionlint:1.7.12 -color
 docker run --rm -i hadolint/hadolint:v2.15.1 hadolint - < docker/app/Dockerfile
-docker run --rm -v "$PWD:/mnt:ro" -w /mnt koalaman/shellcheck:v0.11.0 docker/app/entrypoint.sh docker/app/fsa distribution/*.sh
+docker run --rm -v "$PWD:/mnt:ro" -w /mnt koalaman/shellcheck:v0.11.0 docker/app/entrypoint.sh docker/app/fieldset distribution/*.sh
 ```
 
 ## Post-publish checklist
@@ -187,7 +201,7 @@ already pulls every digest without credentials (`verify-public`) and compares th
 run inside the autonomous build (§15.1). All of them are **not yet verified**. The list ends with the six checks R52
 names.
 
-- [ ] A real provider's SMTP server with `fsa config set mail smtp`, once with STARTTLS (port 587) and once with
+- [ ] A real provider's SMTP server with `fieldset config set mail smtp`, once with STARTTLS (port 587) and once with
       implicit TLS (`--smtp-encryption tls`, port 465): the test mail arrives and so does an invitation. J4 covers
       only Mailpit over plain SMTP with AUTH (ADR 0080). Not yet verified.
 - [ ] The German capture banner read by a real screen reader (VoiceOver or NVDA): the region's name, both
@@ -195,13 +209,13 @@ names.
 - [ ] **Stable releases only:** the `/platform` instance page's update check (when turned on) finds the published
       release and shows its notes link. The check reads `latest/download/`, which never points to a pre-release, so a
       pre-release cannot pass this check. Not yet verified.
-- [ ] **GHCR package public.** The package `form-schema-app` is public (irreversible), made public only after the
+- [ ] **GHCR package public.** The package `fieldset` is public (irreversible), made public only after the
       first pre-release passed review. Not yet verified.
 - [ ] **Anonymous pull of every digest.** Logged out of GHCR (`docker logout ghcr.io`), every image digest in the
       release's `release-manifest.json` pulls on amd64 and on arm64:
 
   ```sh
-  curl -fsSLO https://github.com/beyerenrico/form-schema-app/releases/download/v<ver>/release-manifest.json
+  curl -fsSLO https://github.com/beyerenrico/fieldset/releases/download/v<ver>/release-manifest.json
   jq -r '.images[] | "\(.registry)/\(.repository)@\(.digest)"' release-manifest.json | while read -r ref; do
     docker pull --platform linux/amd64 "$ref" && docker pull --platform linux/arm64 "$ref"
   done
@@ -211,7 +225,7 @@ names.
 - [ ] **`cosign verify` with the pinned identity**, run from a machine outside CI:
 
   ```sh
-  cosign verify ghcr.io/beyerenrico/form-schema-app@<digest> \
+  cosign verify ghcr.io/beyerenrico/fieldset@<digest> \
     --certificate-identity-regexp '<CERTIFICATE_IDENTITY_REGEXP from release.yml>' \
     --certificate-oidc-issuer https://token.actions.githubusercontent.com \
     --certificate-github-workflow-trigger push
@@ -220,16 +234,16 @@ names.
     --certificate-github-workflow-trigger push
   ```
 
-  These are the flags `install.sh` (`fsa_install_trust()`) and `fsa` (`SignerIdentity`) verify the manifest with
+  These are the flags `install.sh` (`fieldset_install_trust()`) and `fieldset` (`SignerIdentity`) verify the manifest with
   (ADR 0070). Not yet verified.
 - [ ] **One-liner install on a throwaway VPS against Let's Encrypt staging:** domain mode with `--acme-staging`
       (a pre-release needs the `download/v<ver>` form with `--version`, see [Installing a release](#installing-a-release)),
-      then the owner's sign-in link, `fsa status`, `fsa backup`, and `fsa config set acme-ca production` once the
+      then the owner's sign-in link, `fieldset status`, `fieldset backup`, and `fieldset config set acme-ca production` once the
       staging certificate was issued. Follow the shipped `agent-guide.md`'s "VPS install" recipe. Not yet verified.
-- [ ] **A real tunnel.** A cloudflared quick tunnel (`fsa tunnel start`) reached from a phone: the hostname read from
+- [ ] **A real tunnel.** A cloudflared quick tunnel (`fieldset tunnel start`) reached from a phone: the hostname read from
       `/quicktunnel`, what cloudflared forwards to the app (Host, `X-Forwarded-*`), and throttling, since every
       tunnel client shares cloudflared's address for throttles and audit IPs (ADR 0082). Not yet verified.
-- [ ] **The local CA on one iOS and one Android device** (`fsa config set phone-https local-ca`): the trust page,
+- [ ] **The local CA on one iOS and one Android device** (`fieldset config set phone-https local-ca`): the trust page,
       the CA installed and trusted, then the Field App installs to the home screen, works offline and syncs.
       Not yet verified.
 

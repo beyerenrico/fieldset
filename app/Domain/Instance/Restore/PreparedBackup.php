@@ -7,10 +7,10 @@ namespace App\Domain\Instance\Restore;
 use App\Domain\Instance\Backup\BackupChecksums;
 
 /**
- * What `fsa restore-prepare` found out about a backup (plan U17, ADR 0085): the format, where its plain set now lies,
+ * What `fieldset restore-prepare` found out about a backup (plan U17, ADR 0085): the format, where its plain set now lies,
  * whether the checksums and the HMAC hold, the storage archive's members, the dump's table of contents and its migration
  * set. It carries no secret (secrets.env and a 1.0 `env` stay files in the set); it crosses from the socket-less one-off
- * to fsa as JSON, and fsa makes every decision on it (RestoreChecks).
+ * to fieldset as JSON, and fieldset makes every decision on it (RestoreChecks).
  */
 final readonly class PreparedBackup
 {

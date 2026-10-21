@@ -1,0 +1,22 @@
+{
+    "command": "fieldset config set domain fieldset-test-cfg.test (same options) --yes --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "config",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": false,
+        "data": {
+            "key": "domain",
+            "from": "fieldset-test-cfg.test",
+            "to": "fieldset-test-cfg.test",
+            "url": "https://fieldset-test-cfg.test",
+            "mode": "domain",
+            "reverted": false
+        },
+        "secrets": [],
+        "warnings": [],
+        "errors": []
+    }
+}

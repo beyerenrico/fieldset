@@ -35,7 +35,7 @@ it('passes when the image\'s pg_dump major equals the server major, running it o
 
     $results = new PgDumpCompatibility($runner)->check(ReleaseFixtures::manifest(), '127.0.0.1:5000');
 
-    $image = '127.0.0.1:5000/beyerenrico/form-schema-app@'.ReleaseFixtures::APP_DIGEST;
+    $image = '127.0.0.1:5000/beyerenrico/fieldset@'.ReleaseFixtures::APP_DIGEST;
     expect(array_column($results, 'platform'))->toBe(['linux/amd64', 'linux/arm64'])
         ->and(array_unique(array_column($results, 'client_major')))->toBe([16])
         ->and(array_unique(array_column($results, 'server_major')))->toBe([16])
@@ -59,7 +59,7 @@ it('accepts a newer client, checks only the platforms asked for and pulls from t
     expect($results)->toHaveCount(1)
         ->and($results[0])->toMatchArray(['platform' => 'linux/arm64', 'client_major' => 17, 'server_major' => 16])
         ->and($runner->runs)->toHaveCount(3)
-        ->and($runner->runs[1]['command'][9])->toBe('ghcr.io/beyerenrico/form-schema-app@'.ReleaseFixtures::APP_DIGEST);
+        ->and($runner->runs[1]['command'][9])->toBe('ghcr.io/beyerenrico/fieldset@'.ReleaseFixtures::APP_DIGEST);
 });
 
 it('fails when the image cannot run or prints no pg_dump version', function (ProcessOutcome $outcome, string $message): void {
@@ -78,7 +78,7 @@ it('removes the by-digest image after each platform when it was not local before
 
     expect(fn () => new PgDumpCompatibility($runner)->check(ReleaseFixtures::manifest(), '127.0.0.1:5000'))->toThrow(ReleaseException::class, 'cannot overwrite digest');
 
-    $image = '127.0.0.1:5000/beyerenrico/form-schema-app@'.ReleaseFixtures::APP_DIGEST;
+    $image = '127.0.0.1:5000/beyerenrico/fieldset@'.ReleaseFixtures::APP_DIGEST;
     expect(array_column($runner->runs, 'command'))->toBe([
         ['docker', 'image', 'inspect', '--format', '{{.Id}}', $image],
         ['docker', 'run', '--rm', '--platform', 'linux/amd64', '--network', 'none', '--entrypoint', 'pg_dump', $image, '--version'],

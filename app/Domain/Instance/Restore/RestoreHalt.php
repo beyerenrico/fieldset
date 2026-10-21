@@ -18,14 +18,14 @@ use Throwable;
  * Exit 8 of a restore (plan U17, ADR 0085): every writer stops, the gate stays up, the journal stays open, and the
  * result names what is where and the one command that continues (third review L4, L5):
  *
- * - `abort`: going back before the swap failed; nothing was swapped, `fsa restore --abandon` starts the previous instance;
- * - `return`: returning to the previous instance failed; `--abandon` (or the same `fsa restore`) continues returning;
+ * - `abort`: going back before the swap failed; nothing was swapped, `fieldset restore --abandon` starts the previous instance;
+ * - `return`: returning to the previous instance failed; `--abandon` (or the same `fieldset restore`) continues returning;
  * - `no_way_back`: the put-aside database or the previous volume is gone; `--abandon` continues with the restored data;
  * - `forward`: continuing with the restored data failed too.
  *
- * The safety backup cannot be restored in place while the journal is open (`fsa restore` of another backup exits 9), so
+ * The safety backup cannot be restored in place while the journal is open (`fieldset restore` of another backup exits 9), so
  * the last resort is always installing it into a new directory with `install.sh --dir <new directory> --from-backup <path>`
- * (the instance's own `fsa` manages only its directory). `--abandon` asks first, so the hints name `--yes` (gate review O9).
+ * (the instance's own `fieldset` manages only its directory). `--abandon` asks first, so the hints name `--yes` (gate review O9).
  */
 final readonly class RestoreHalt
 {
@@ -59,10 +59,10 @@ final readonly class RestoreHalt
         $last = ' If that fails too, install the safety backup'.($safetyBackup === null ? '' : " {$safetyBackup}")." into a new directory with `install.sh --dir <new directory> --from-backup {$path}`.";
 
         return match ($kind) {
-            'abort' => "Nothing was swapped: {$names->live} and {$names->currentVolume} are unchanged. Read `fsa logs app`, then run `fsa restore --abandon --yes` to start the previous instance again.",
-            'no_way_back' => "{$where} There is no way back: run `fsa restore --abandon --yes` to continue with the restored database and volume.".$last,
-            'forward' => "{$where} Read `fsa logs app`, then run `fsa restore --abandon --yes` again.".$last,
-            default => "{$where} Run `fsa restore --abandon --yes` (or the same `fsa restore` command again, with --yes) to continue returning to the previous instance.".$last,
+            'abort' => "Nothing was swapped: {$names->live} and {$names->currentVolume} are unchanged. Read `fieldset logs app`, then run `fieldset restore --abandon --yes` to start the previous instance again.",
+            'no_way_back' => "{$where} There is no way back: run `fieldset restore --abandon --yes` to continue with the restored database and volume.".$last,
+            'forward' => "{$where} Read `fieldset logs app`, then run `fieldset restore --abandon --yes` again.".$last,
+            default => "{$where} Run `fieldset restore --abandon --yes` (or the same `fieldset restore` command again, with --yes) to continue returning to the previous instance.".$last,
         };
     }
 }

@@ -1,0 +1,59 @@
+{
+    "http": [
+        308,
+        "https://fieldset-test-j02.test/admin/login"
+    ],
+    "admin_login": {
+        "Alt-Svc": "h3=\":443\"; ma=2592000",
+        "Cache-Control": "max-age=0, must-revalidate, no-cache, no-store, private",
+        "Content-Security-Policy": "default-src 'self'; script-src 'self' 'nonce-<redacted>' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; media-src 'self' blob:; frame-src 'self'; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests",
+        "Content-Type": "text/html; charset=utf-8",
+        "Cross-Origin-Opener-Policy": "same-origin",
+        "Date": "Wed, 21 Oct 2026 11:50:38 GMT",
+        "Expires": "Fri, 01 Jan 1990 00:00:00 GMT",
+        "Permissions-Policy": "accelerometer=(), camera=(), display-capture=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), serial=(), usb=()",
+        "Pragma": "no-cache",
+        "Referrer-Policy": "same-origin",
+        "Server": "FrankenPHP Caddy",
+        "Set-Cookie": "XSRF-TOKEN=<redacted>; expires=Fri, 20 Nov 2026 11:50:38 GMT; Max-Age=2592000; path=/; secure; samesite=lax, __Host-fieldset-session=<redacted>; expires=Fri, 20 Nov 2026 11:50:38 GMT; Max-Age=2592000; path=/; secure; httponly; samesite=lax",
+        "Strict-Transport-Security": "max-age=31536000",
+        "Vary": "Accept-Encoding",
+        "Via": "1.1 Caddy",
+        "X-Content-Type-Options": "nosniff, nosniff",
+        "X-Frame-Options": "DENY",
+        "X-Request-Id": "cb668966-0454-4c88-84da-f295306e72b7",
+        "Transfer-Encoding": "chunked"
+    },
+    "preview_asset": {
+        "Access-Control-Allow-Origin": "*",
+        "Alt-Svc": "h3=\":443\"; ma=2592000",
+        "Content-Type": "text/javascript; charset=utf-8",
+        "Date": "Wed, 21 Oct 2026 11:50:38 GMT",
+        "Etag": "\"dmagm1uoqscg-ahuv-gzip\"",
+        "Last-Modified": "Wed, 21 Oct 2026 10:55:01 GMT",
+        "Server": "FrankenPHP Caddy",
+        "Vary": "Accept-Encoding",
+        "Via": "1.1 Caddy",
+        "X-Content-Type-Options": "nosniff",
+        "Transfer-Encoding": "chunked"
+    },
+    "field_app": {
+        "Alt-Svc": "h3=\":443\"; ma=2592000",
+        "Cache-Control": "no-cache, private",
+        "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests",
+        "Content-Type": "text/html; charset=utf-8",
+        "Cross-Origin-Opener-Policy": "same-origin",
+        "Date": "Wed, 21 Oct 2026 11:50:38 GMT",
+        "Permissions-Policy": "accelerometer=(), camera=(self), display-capture=(), geolocation=(self), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), serial=(), usb=()",
+        "Referrer-Policy": "same-origin",
+        "Server": "FrankenPHP Caddy",
+        "Set-Cookie": "XSRF-TOKEN=<redacted>; expires=Fri, 20 Nov 2026 11:50:38 GMT; Max-Age=2592000; path=/; secure; samesite=lax, __Host-fieldset-session=<redacted>; expires=Fri, 20 Nov 2026 11:50:38 GMT; Max-Age=2592000; path=/; secure; httponly; samesite=lax",
+        "Strict-Transport-Security": "max-age=31536000",
+        "Vary": "Accept-Encoding",
+        "Via": "1.1 Caddy",
+        "X-Content-Type-Options": "nosniff, nosniff",
+        "X-Frame-Options": "DENY",
+        "X-Request-Id": "024dbc69-33e1-4f42-834b-ef0d123b15dc",
+        "Transfer-Encoding": "chunked"
+    }
+}

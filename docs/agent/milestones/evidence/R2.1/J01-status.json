@@ -1,0 +1,115 @@
+{
+    "command": "fieldset status --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "status",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": false,
+        "data": {
+            "dir": "<work>/fieldset-test-j01",
+            "installed": true,
+            "operation": null,
+            "lock": null,
+            "supervisor": {
+                "running": false,
+                "container": null
+            },
+            "disk": {
+                "free_gib": 134.3
+            },
+            "last_backup": null,
+            "last_upgrade": null,
+            "version": "2.1.0-alpha.1-test",
+            "mode": "local",
+            "url": "http://localhost:8081",
+            "local_url": "http://localhost:8081",
+            "project": "fieldset-fieldset-test-j01-7899",
+            "port": 8081,
+            "health": "ok",
+            "services": {
+                "app": {
+                    "state": "running",
+                    "health": "healthy"
+                },
+                "queue": {
+                    "state": "running",
+                    "health": "healthy"
+                },
+                "scheduler": {
+                    "state": "running",
+                    "health": null
+                },
+                "postgres": {
+                    "state": "running",
+                    "health": "healthy"
+                },
+                "redis": {
+                    "state": "running",
+                    "health": "healthy"
+                },
+                "gotenberg": {
+                    "state": "running",
+                    "health": null
+                },
+                "mailpit": {
+                    "state": "running",
+                    "health": "healthy"
+                },
+                "backup": {
+                    "state": "running",
+                    "health": null
+                }
+            },
+            "mail": {
+                "mode": "capture",
+                "catcher_url": "http://localhost:8025",
+                "catcher_login_command": "fieldset config show --catcher-login"
+            },
+            "proxy": null,
+            "phone_https": null,
+            "tunnel": null,
+            "backup": {
+                "last": null,
+                "last_success": null,
+                "schedule": {
+                    "time": "03:30",
+                    "time_zone": "Europe/Berlin",
+                    "retention": 7,
+                    "next_run": "2026-10-22T01:30:00Z"
+                },
+                "encrypted": false,
+                "directory": "<work>/fieldset-test-j01/backups",
+                "backups": {
+                    "count": 0,
+                    "bytes": 0,
+                    "newest": null
+                },
+                "safety": [],
+                "partials": [],
+                "alerts": []
+            },
+            "last_restore": null,
+            "restore": {
+                "last": null,
+                "storage_volume": "fieldset-fieldset-test-j01-7899_app-storage",
+                "webhooks_paused": false,
+                "interrupted": null,
+                "scratch_left": []
+            },
+            "last_reset": null,
+            "reset": {
+                "last": null,
+                "interrupted": null
+            },
+            "sign_in_links": {
+                "count": 0,
+                "links": []
+            }
+        },
+        "secrets": [],
+        "warnings": [],
+        "errors": []
+    }
+}

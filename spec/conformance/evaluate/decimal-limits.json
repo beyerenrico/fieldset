@@ -1,7 +1,7 @@
 {
   "description": "number and money values have at most 60 digits (spec §5.1)",
   "definition": {
-    "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+    "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
     "specVersion": "1.0.0",
     "key": "decimal_limits",
     "title": "Decimal Limits",

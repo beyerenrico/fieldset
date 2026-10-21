@@ -9,12 +9,12 @@
         <testsuite name="Unit">
             <directory>tests/Unit</directory>
             <directory>tests/Arch</directory>
-            <directory>packages/form-schema-php/tests</directory>
+            <directory>packages/fieldset-php/tests</directory>
         </testsuite>
         <testsuite name="Feature">
             <directory>tests/Feature</directory>
         </testsuite>
-        <!-- Install journeys (KTD23): real Docker, fsa-test-* resources, minutes per file. Not part of the
+        <!-- Install journeys (KTD23): real Docker, fieldset-test-* resources, minutes per file. Not part of the
              default run or coverage; select the suite by name (AGENTS.md, key commands). -->
         <testsuite name="Install">
             <directory>tests/Install</directory>
@@ -23,7 +23,7 @@
     <source>
         <include>
             <directory>app</directory>
-            <directory>packages/form-schema-php/src</directory>
+            <directory>packages/fieldset-php/src</directory>
         </include>
     </source>
     <php>
@@ -35,7 +35,7 @@
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
         <env name="DB_CONNECTION" value="pgsql"/>
-        <env name="DB_DATABASE" value="form_schema_test"/>
+        <env name="DB_DATABASE" value="fieldset_test"/>
         <env name="DB_URL" value=""/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>

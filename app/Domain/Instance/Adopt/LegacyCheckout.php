@@ -14,7 +14,7 @@ use App\Domain\Instance\State\InputGrammar;
 use App\Domain\Instance\State\InstanceSettings;
 
 /**
- * The files of a clone-based 1.0 install that `fsa adopt` reads (R46 as changed by R60, KTD20, plan U19, ADR 0087), mounted
+ * The files of a clone-based 1.0 install that `fieldset adopt` reads (R46 as changed by R60, KTD20, plan U19, ADR 0087), mounted
  * read-only and never changed. Of its `.env` only the allow-list LegacyEnv::ADOPT is read: the APP keys, the URL and port,
  * the sender and SMTP server, the Compose project and files, and the bundled database's name and user (never DB_PASSWORD,
  * SMTP credentials, APP_DEBUG, SSO_* or TRUSTED_PROXIES). Refused with exit 7 and the reason, before anything changes:
@@ -33,6 +33,9 @@ final readonly class LegacyCheckout
 
     /** The project name 1.0's compose.yaml declares (`name:`). */
     public const string DEFAULT_PROJECT = 'form-schema-app';
+
+    /** The database and user name of 1.0's template, used when the checkout's .env names none (R6 of the Fieldset rename). */
+    public const string DEFAULT_DATABASE = 'form_schema';
 
     private const int MAX_BYTES = 1024 * 1024;
 
@@ -139,7 +142,7 @@ final readonly class LegacyCheckout
 
     private function identifier(string $key): string
     {
-        $value = $this->value($key) ?? InstanceSettings::DEFAULT_DATABASE;
+        $value = $this->value($key) ?? self::DEFAULT_DATABASE;
         if (! InputGrammar::isIdentifier($value)) {
             throw self::refused("The 1.0 {$key} [{$value}] is not a name an instance can keep (lowercase letters, digits and _).", 'unsupported_database_name', 'Adopt supports the database and user names of the 1.0 template; rename them in Postgres first.');
         }
@@ -184,7 +187,7 @@ final readonly class LegacyCheckout
         $package = json_decode(is_file($path.'/package.json') ? self::file($path, 'package.json') : '', true);
         $version = is_array($package) && is_string($package['version'] ?? null) ? $package['version'] : null;
         if ($version === null || preg_match('/^1\.\d+\.\d+$/D', $version) !== 1) {
-            throw self::refused('Adopt converts 1.x installs; this checkout is '.($version === null ? 'of an unknown version' : "version {$version}").'.', 'unsupported_version', 'Check out a 1.x release (git describe --tags), or install 2.0 with `fsa install`.');
+            throw self::refused('Adopt converts 1.x installs; this checkout is '.($version === null ? 'of an unknown version' : "version {$version}").'.', 'unsupported_version', 'Check out a 1.x release (git describe --tags), or install 2.0 with `fieldset install`.');
         }
 
         return $version;
@@ -195,7 +198,7 @@ final readonly class LegacyCheckout
         $file = $path.'/'.$name;
         $contents = is_link($file) || ! is_readable($file) ? false : @file_get_contents($file, false, null, 0, self::MAX_BYTES);
         if ($contents === false) {
-            throw new InvalidInput("The checkout's {$name} cannot be read.", 'checkout_unreadable', 'Run fsa as a user who can read the checkout (its .env is often mode 0600).');
+            throw new InvalidInput("The checkout's {$name} cannot be read.", 'checkout_unreadable', 'Run fieldset as a user who can read the checkout (its .env is often mode 0600).');
         }
 
         return $contents;

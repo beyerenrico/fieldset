@@ -1,0 +1,44 @@
+{
+    "command": "install.sh --dir <work>/fieldset-test-j02 --version 2.1.0-alpha.1-test --org J2 Org --owner-email owner@example.test --locale en --domain fieldset-test-j02.test --acme-email ops@example.test --acme-ca https://pebble:14000/dir --acme-ca-root-file <harness>/pebble-https-root.pem --secrets-file <work>/owner-link.json --json",
+    "exit_code": 0,
+    "seconds": 48.8,
+    "edge_connected_while": "created",
+    "stdout": {
+        "schema_version": 1,
+        "command": "install",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": true,
+        "data": {
+            "url": "https://fieldset-test-j02.test",
+            "version": "2.1.0-alpha.1-test",
+            "mode": "domain",
+            "dir": "<work>/fieldset-test-j02",
+            "project": "fieldset-fieldset-test-j02-c9ee",
+            "port": null,
+            "mail": {
+                "mode": "capture",
+                "catcher_url": "https://fieldset-test-j02.test/_mail/"
+            },
+            "owner_email": "owner@example.test",
+            "next_commands": [
+                "<work>/fieldset-test-j02/fieldset status",
+                "<work>/fieldset-test-j02/fieldset login-link owner@example.test",
+                "<work>/fieldset-test-j02/fieldset doctor --post"
+            ],
+            "sign_in_link": {
+                "expires_at": "2026-10-21T12:50:00Z",
+                "delivered": "secrets_file"
+            }
+        },
+        "secrets": [
+            {
+                "name": "sign_in_link",
+                "written_to": "<work>/owner-link.json",
+                "expires_at": "2026-10-21T12:50:00Z"
+            }
+        ],
+        "warnings": [],
+        "errors": []
+    }
+}

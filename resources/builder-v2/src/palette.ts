@@ -2,7 +2,7 @@
  * The palette (ADR 0037): one button per element type. Click or Enter inserts after the selection;
  * the buttons are also SortableJS clone sources (see canvas/sortable.ts).
  */
-import type { JsonObject } from '@form-schema-app/form-schema-js';
+import type { JsonObject } from '@fieldset/fieldset-js';
 import type { PaletteGroup } from './contract.ts';
 import { h } from './dom.ts';
 import type { Translator } from './i18n.ts';

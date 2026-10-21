@@ -1,0 +1,72 @@
+{
+    "command": "fieldset config set phone-https off --yes --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "config",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": true,
+        "data": {
+            "key": "phone-https",
+            "from": "local-ca",
+            "to": "off",
+            "url": "http://localhost:8081",
+            "mode": "local",
+            "reverted": false,
+            "previous": {
+                "url": "https://192.168.178.28",
+                "mode": "local"
+            },
+            "services": {
+                "recreated": [
+                    "app",
+                    "queue",
+                    "scheduler"
+                ],
+                "added": [],
+                "removed": [
+                    "edge"
+                ]
+            },
+            "checked": [
+                "/up",
+                "/admin/login",
+                "gotenberg /health"
+            ],
+            "impact": {
+                "known": true,
+                "sso_organizations": [],
+                "links": {
+                    "invitations": 0,
+                    "document_links": 0,
+                    "login_links": 1,
+                    "data_exports": 0
+                }
+            },
+            "audited": true,
+            "phone_https": {
+                "mode": null,
+                "ca_deleted": true
+            },
+            "next_commands": [
+                "<work>/fieldset-test-j06/fieldset login-link <owner-email>",
+                "<work>/fieldset-test-j06/fieldset status"
+            ]
+        },
+        "secrets": [],
+        "warnings": [
+            {
+                "code": "local_ca_deleted",
+                "message": "The local CA and its keys were deleted. Remove its certificate from the phones that trusted it.",
+                "hint": null
+            },
+            {
+                "code": "url_changed",
+                "message": "The instance URL is now http://localhost:8081 (was https://192.168.178.28): installed home-screen apps, bookmarks and links already sent keep the old address.",
+                "hint": "Send new invitations or document links where needed."
+            }
+        ],
+        "errors": []
+    }
+}

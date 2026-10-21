@@ -1,6 +1,6 @@
-# form-schema-app documentation
+# Fieldset documentation
 
-form-schema-app is a free, self-hostable platform for digital forms. Office staff design forms in the
+Fieldset is a free, self-hostable platform for digital forms. Office staff design forms in the
 admin dashboard (`/admin`); field workers fill them in on a phone or tablet with the Field App (`/app`),
 also offline; the server numbers each submission, renders a branded PDF and runs workflows such as a
 review followed by an email to the customer.
@@ -13,12 +13,12 @@ repository (ADR 0042).
 | Guide | Contents |
 |---|---|
 | [Install](install.md) | The one-line install, local, domain and proxy modes, phones, mail capture, demo data, the instance directory, adopting a 1.0 install |
-| [Agent guide](agent-guide.md) | Recipes for AI agents and scripts: exact `fsa` commands, the JSON fields to read, exit codes and recovery |
-| [Upgrade](upgrade.md) | `fsa upgrade` with its safety backup and automatic rollback, `fsa rollback`, the Field App update |
-| [Backup and restore](backup-restore.md) | The backup schedule, encryption, drills, `fsa restore`, moving to another server, chain epochs and the ledger |
-| [Configuration](configuration.md) | `fsa config` and every key, SMTP, what `fsa` sets for you |
-| [Troubleshooting](troubleshooting.md) | `fsa status`, doctor and logs, failed commands, certificates, proxies, mail, PDFs, Field App sync, SSO, login throttling, the audit log |
-| [Archive: 1.0 checkout installs](archive/1.0-install.md) | The 1.0 guides for installations from a clone of the repository: [install](archive/1.0-install.md), [upgrade](archive/1.0-upgrade.md), [backup and restore](archive/1.0-backup-restore.md), [configuration](archive/1.0-configuration.md), [troubleshooting](archive/1.0-troubleshooting.md). Not for `fsa` instances |
+| [Agent guide](agent-guide.md) | Recipes for AI agents and scripts: exact `fieldset` commands, the JSON fields to read, exit codes and recovery |
+| [Upgrade](upgrade.md) | `fieldset upgrade` with its safety backup and automatic rollback, `fieldset rollback`, the Field App update |
+| [Backup and restore](backup-restore.md) | The backup schedule, encryption, drills, `fieldset restore`, moving to another server, chain epochs and the ledger |
+| [Configuration](configuration.md) | `fieldset config` and every key, SMTP, what `fieldset` sets for you |
+| [Troubleshooting](troubleshooting.md) | `fieldset status`, doctor and logs, failed commands, certificates, proxies, mail, PDFs, Field App sync, SSO, login throttling, the audit log |
+| [Archive: 1.0 checkout installs](archive/1.0-install.md) | The 1.0 guides for installations from a clone of the repository: [install](archive/1.0-install.md), [upgrade](archive/1.0-upgrade.md), [backup and restore](archive/1.0-backup-restore.md), [configuration](archive/1.0-configuration.md), [troubleshooting](archive/1.0-troubleshooting.md). Not for `fieldset` instances |
 
 ## For organizations
 
@@ -33,7 +33,7 @@ repository (ADR 0042).
 |---|---|
 | [API and integrations](api.md) | The REST API, the OpenAPI document at `/docs/api`, webhooks and signature verification |
 | [Field App API contract](../api/field-app-v1.md) | The normative `/api/v1` contract |
-| [Form Schema Spec 1.0](../../spec/form-definition/1.0/README.md) | The open JSON format for form definitions (MIT) |
+| [Fieldset Spec 1.0](../../spec/form-definition/1.0/README.md) | The open JSON format for form definitions (MIT) |
 | [Architecture decisions](../adr/) | One ADR per decision |
 | [README](../../README.md) | Development setup, demo data, checks |
 | [Changelog](../../CHANGELOG.md) and [release notes](../releases/) | What changed in each version |

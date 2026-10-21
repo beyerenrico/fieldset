@@ -51,9 +51,9 @@ final readonly class RestoreResult
         if (($finish['carry_mode'] ?? null) === 'reset') {
             $result = $result->withWarning('carry_skipped_after_reset', 'The instance was reset after this backup: no security state was carried from the reset instance, whose accounts are other people under other IDs.', 'Check the restored accounts and access in the admin panel.');
         }
-        $result = $result->withData(['webhooks' => 'paused'])->withWarning('webhooks_paused', 'Workflow webhooks are paused: restored runs could repeat deliveries made after the backup.', 'Check the webhook receivers, then run `fsa config set webhooks on`.');
+        $result = $result->withData(['webhooks' => 'paused'])->withWarning('webhooks_paused', 'Workflow webhooks are paused: restored runs could repeat deliveries made after the backup.', 'Check the webhook receivers, then run `fieldset config set webhooks on`.');
         if (($record->phaseData('swap')['flushed'] ?? true) === false) {
-            return $result->withWarning('valkey_not_flushed', 'Valkey could not be flushed: cached values and queued jobs of the replaced data may remain.', 'Run `fsa logs redis`; queued jobs that miss their data fail on their own.');
+            return $result->withWarning('valkey_not_flushed', 'Valkey could not be flushed: cached values and queued jobs of the replaced data may remain.', 'Run `fieldset logs redis`; queued jobs that miss their data fail on their own.');
         }
 
         return $result;

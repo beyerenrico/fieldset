@@ -18,17 +18,17 @@ use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 /**
- * The app side of `fsa config set operator-email <email>` (R32, KTD25, ADR 0080): a socket-less one-off grants the
+ * The app side of `fieldset config set operator-email <email>` (R32, KTD25, ADR 0080): a socket-less one-off grants the
  * operator role (creating the account when needed), issues the first sign-in link when the account has no password
  * yet (on a repeat only when no usable link is left), and with --revoke-previous revokes every other operator. With
  * --json the link appears only under `secrets`; `data.link` is `issued`, `outstanding` (a usable link was kept) or
  * `none`, with `data.link_expires_at`.
  */
-#[Description('Make an address a platform operator (fsa config set operator-email)')]
+#[Description('Make an address a platform operator (fieldset config set operator-email)')]
 #[Signature('instance:operator-email
         {--email= : The new operator\'s address}
         {--revoke-previous : Revoke the operator role of everyone else}
-        {--actor-uid= : Host UID of the operator running fsa (audit)}
+        {--actor-uid= : Host UID of the operator running fieldset (audit)}
         {--json : Print one JSON document on stdout}')]
 final class OperatorEmailCommand extends Command
 {

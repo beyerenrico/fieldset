@@ -7,7 +7,7 @@ namespace App\Domain\Instance\Output;
 use App\Domain\Instance\InstanceException;
 
 /**
- * The result envelope of every `fsa` command (KTD3, plan "Result envelope"): one JSON document on stdout with
+ * The result envelope of every `fieldset` command (KTD3, plan "Result envelope"): one JSON document on stdout with
  * `schema_version`, `command`, `status`, `exit_code` (the process's exit code as a number, M12 gate O10; additive, the
  * schema version stays 1), `changed`, `data`, `secrets`, `warnings` and `errors`. Secret values appear only under
  * `secrets` (or in the --secrets-file); anything else is passed through the redactor (R50).
@@ -53,7 +53,7 @@ final readonly class CommandResult
     }
 
     /**
-     * An envelope another fsa process rendered (the detached upgrade supervisor's result file, ADR 0086): its exit code
+     * An envelope another fieldset process rendered (the detached upgrade supervisor's result file, ADR 0086): its exit code
      * follows from `status` and the first error's code, secrets are never carried over. Unknown shapes become exit 1.
      *
      * @param  array<string, mixed>  $envelope

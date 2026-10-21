@@ -1,0 +1,225 @@
+{
+    "demo": {
+        "exit_code": 0,
+        "stdout": {
+            "schema_version": 1,
+            "command": "demo",
+            "status": "ok",
+            "exit_code": 0,
+            "changed": true,
+            "data": {
+                "url": "https://fieldset-test-j10.test",
+                "mode": "domain",
+                "mail": {
+                    "mode": "capture",
+                    "catcher_url": "https://fieldset-test-j10.test/_mail/"
+                },
+                "next_commands": [
+                    "<work>/fieldset-test-j10/fieldset status",
+                    "<work>/fieldset-test-j10/fieldset login-link owner@demo.test",
+                    "<work>/fieldset-test-j10/fieldset demo --rotate-passwords"
+                ],
+                "demo": {
+                    "organization": "Demo Haustechnik GmbH",
+                    "seeded": true,
+                    "passwords": "random",
+                    "exposure": [
+                        "domain_mode"
+                    ],
+                    "users": [
+                        {
+                            "email": "owner@demo.test",
+                            "name": "Olivia Owner",
+                            "roles": [
+                                "owner"
+                            ]
+                        },
+                        {
+                            "email": "admin@demo.test",
+                            "name": "Adam Admin",
+                            "roles": [
+                                "admin"
+                            ]
+                        },
+                        {
+                            "email": "designer@demo.test",
+                            "name": "Dana Designer",
+                            "roles": [
+                                "designer"
+                            ]
+                        },
+                        {
+                            "email": "reviewer@demo.test",
+                            "name": "Rita Reviewer",
+                            "roles": [
+                                "reviewer"
+                            ]
+                        },
+                        {
+                            "email": "coordinator@demo.test",
+                            "name": "Cora Coordinator",
+                            "roles": [
+                                "designer",
+                                "reviewer"
+                            ]
+                        },
+                        {
+                            "email": "worker@demo.test",
+                            "name": "Willi Worker",
+                            "roles": [
+                                "field_worker"
+                            ]
+                        },
+                        {
+                            "email": "mobile@demo.test",
+                            "name": "Mia Mobil",
+                            "roles": [
+                                "field_worker"
+                            ]
+                        },
+                        {
+                            "email": "tablet@demo.test",
+                            "name": "Tom Tablet",
+                            "roles": [
+                                "field_worker"
+                            ]
+                        },
+                        {
+                            "email": "viewer@demo.test",
+                            "name": "Vera Viewer",
+                            "roles": [
+                                "viewer"
+                            ]
+                        }
+                    ],
+                    "login_url": "https://fieldset-test-j10.test/admin/login",
+                    "delivered": "secrets_file"
+                },
+                "sign_in_link": {
+                    "expires_at": "2026-10-21T12:57:08Z",
+                    "delivered": "secrets_file"
+                }
+            },
+            "secrets": [
+                {
+                    "name": "demo_password:owner@demo.test",
+                    "written_to": "<work>/demo-secrets.json",
+                    "expires_at": null
+                },
+                {
+                    "name": "demo_password:admin@demo.test",
+                    "written_to": "<work>/demo-secrets.json",
+                    "expires_at": null
+                },
+                {
+                    "name": "demo_password:designer@demo.test",
+                    "written_to": "<work>/demo-secrets.json",
+                    "expires_at": null
+                },
+                {
+                    "name": "demo_password:reviewer@demo.test",
+                    "written_to": "<work>/demo-secrets.json",
+                    "expires_at": null
+                },
+                {
+                    "name": "demo_password:coordinator@demo.test",
+                    "written_to": "<work>/demo-secrets.json",
+                    "expires_at": null
+                },
+                {
+                    "name": "demo_password:worker@demo.test",
+                    "written_to": "<work>/demo-secrets.json",
+                    "expires_at": null
+                },
+                {
+                    "name": "demo_password:mobile@demo.test",
+                    "written_to": "<work>/demo-secrets.json",
+                    "expires_at": null
+                },
+                {
+                    "name": "demo_password:tablet@demo.test",
+                    "written_to": "<work>/demo-secrets.json",
+                    "expires_at": null
+                },
+                {
+                    "name": "demo_password:viewer@demo.test",
+                    "written_to": "<work>/demo-secrets.json",
+                    "expires_at": null
+                },
+                {
+                    "name": "sign_in_link",
+                    "written_to": "<work>/demo-secrets.json",
+                    "expires_at": "2026-10-21T12:57:08Z"
+                }
+            ],
+            "warnings": [],
+            "errors": []
+        }
+    },
+    "seed_load": {
+        "command": "php artisan app:seed-load demo 100000 --force (one-off)",
+        "exit_code": 0,
+        "seconds": 429.6,
+        "output": [
+            "+-------------------+-----------------------+",
+            "|                   | demo / service_report |",
+            "+-------------------+-----------------------+",
+            "| submissions       | 100000                |",
+            "| submission_values | 2329431               |",
+            "| tasks             | 40689                 |",
+            "| renditions        | 70965                 |",
+            "| workflow_runs     | 38059                 |",
+            "| mail_messages     | 16900                 |",
+            "| seconds           | 426.96                |",
+            "+-------------------+-----------------------+"
+        ]
+    },
+    "rendition_gap": {
+        "exit_code": 0,
+        "output": "21968"
+    },
+    "fixtures": {
+        "command": "php -- demo 150000 < scripts/perf/fixtures.php (one-off)",
+        "exit_code": 0,
+        "seconds": 7.4,
+        "result": {
+            "organization": {
+                "id": 2,
+                "slug": "demo"
+            },
+            "serviceReport": {
+                "id": 1,
+                "versionId": 1
+            },
+            "perf300": {
+                "id": 2,
+                "versionId": 2
+            },
+            "savedReports": [
+                1,
+                2
+            ],
+            "sample": {
+                "completed": "01a15e64-da1b-71a3-ad15-46a3887add99",
+                "number": "LT-i6fryj-067360",
+                "inReview": "01a15d5d-2e1b-7384-82eb-6c1e4650ffa6"
+            },
+            "counts": {
+                "submissions": 100000,
+                "submission_values": 2329431,
+                "tasks": 40689,
+                "renditions": 93033,
+                "workflow_runs": 38059,
+                "mail_messages": 16900,
+                "activity_log": 150004,
+                "activity_log_all": 150021
+            },
+            "auditInserted": 149889
+        }
+    },
+    "queue_settled": {
+        "seconds": 5.4,
+        "settled": true,
+        "largest_backlog": 0
+    }
+}

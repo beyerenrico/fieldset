@@ -17,7 +17,7 @@ use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
 
 /**
- * `fsa config set domain <name>` (R16, R21, R32, ADR 0075, ADR 0077): switches local or proxy mode to domain mode,
+ * `fieldset config set domain <name>` (R16, R21, R32, ADR 0075, ADR 0077): switches local or proxy mode to domain mode,
  * or changes the domain of a domain-mode instance. The URL becomes `https://<name>`; the edge joins the stack with
  * its fixed address (the subnet chosen once in the preflight and kept, also across domain → local → domain), and
  * proxy mode's settings go. `--acme-email`, `--acme-ca`/`--acme-staging` and `--acme-ca-root-file` set the ACME

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use App\Domain\Forms\Schema\DefinitionDiff;
 use App\Domain\Forms\Schema\DiffEntry;
-use FormSchema\Json\Json;
+use Fieldset\Json\Json;
 
 function diffFixture(array $elements): stdClass
 {

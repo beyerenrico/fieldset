@@ -10,12 +10,12 @@ use RuntimeException;
 
 /**
  * Certificates for the phone trust tests (R19, ADR 0082): a self-signed EC root as Caddy's internal CA makes it
- * (basicConstraints CA:TRUE), a non-CA certificate, a private key, and `local-ca-root.crt` as `fsa` writes it into the
+ * (basicConstraints CA:TRUE), a non-CA certificate, a private key, and `local-ca-root.crt` as `fieldset` writes it into the
  * runtime directory (0644). The OpenSSL config is written once per process, so no system openssl.cnf is needed.
  */
 final class LocalCaFixture
 {
-    public const string ROOT_NAME = 'form-schema-app local CA - 2026 ECC Root';
+    public const string ROOT_NAME = 'Fieldset local CA - 2026 ECC Root';
 
     private const string CONFIG = <<<'CNF'
         [req]
@@ -50,7 +50,7 @@ final class LocalCaFixture
         return (string) $pem;
     }
 
-    /** Writes `local-ca-root.crt` into a runtime directory, replaced by rename like `fsa` does. */
+    /** Writes `local-ca-root.crt` into a runtime directory, replaced by rename like `fieldset` does. */
     public static function install(string $directory, string $content): string
     {
         $path = $directory.'/'.LocalCaRoot::FILE;
@@ -100,7 +100,7 @@ final class LocalCaFixture
     private static function config(): string
     {
         if (self::$config === null || ! is_file(self::$config)) {
-            self::$config = sys_get_temp_dir().'/fsa-local-ca-test-'.getmypid().'.cnf';
+            self::$config = sys_get_temp_dir().'/fieldset-local-ca-test-'.getmypid().'.cnf';
             file_put_contents(self::$config, self::CONFIG."\n");
         }
 

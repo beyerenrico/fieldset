@@ -15,18 +15,18 @@ use stdClass;
 
 /**
  * The release's stack file (R18, ADR 0076): a compose file for Portainer, Coolify or plain `docker compose`
- * without `fsa`, configured only through environment variables. It is rendered by ComposeRenderer from a
+ * without `fieldset`, configured only through environment variables. It is rendered by ComposeRenderer from a
  * proxy-mode (`port` setup) state with the release's image digests, so the two cannot drift, and then made
  * env-only:
  *
  * - secrets and the URL become `${VAR:?…}` (placeholders in the render are replaced, so every value derived from a
  *   secret follows, e.g. Valkey's `--requirepass`); mail, trusted proxies and hosts become `${VAR:-default}`;
- * - images stay pinned by digest, with the registry overridable (`${FSA_REGISTRY:-ghcr.io}/…@sha256:…`, E4);
+ * - images stay pinned by digest, with the registry overridable (`${FIELDSET_REGISTRY:-ghcr.io}/…@sha256:…`, E4);
  * - no env files, no runtime directory (the app then uses APP_URL, TRUSTED_HOSTS and TRUSTED_PROXIES), no instance
  *   labels; the app migrates on start (RUN_MIGRATIONS, there is no supervised one-off), and queue and scheduler wait
  *   for it to be healthy.
  *
- * The header documents the variables and what is missing without `fsa` (plan U9).
+ * The header documents the variables and what is missing without `fieldset` (plan U9).
  */
 final readonly class StackFile
 {
@@ -38,12 +38,12 @@ final readonly class StackFile
         'APP_KEY' => 'base64:<32 random bytes, base64>, e.g. `echo "base64:$(openssl rand -base64 32)"`; keep it, it encrypts data',
         'DB_PASSWORD' => 'Postgres password (letters and digits), e.g. `openssl rand -hex 24`',
         'REDIS_PASSWORD' => 'Valkey password (letters and digits)',
-        'MAILPIT_UI_PASSWORD' => 'password of the mail catcher UI, user "fsa" (letters and digits)',
+        'MAILPIT_UI_PASSWORD' => 'password of the mail catcher UI, user "fieldset" (letters and digits)',
     ];
 
     /** Optional variables => their default. */
     public const array OPTIONAL = [
-        'FSA_REGISTRY' => 'the image registries in the file (set it for a mirror; digests stay pinned)',
+        'FIELDSET_REGISTRY' => 'the image registries in the file (set it for a mirror; digests stay pinned)',
         'APP_PORT' => '8080, published on 127.0.0.1 only',
         'MAILPIT_UI_PORT' => '8025, published on 127.0.0.1 only',
         'TRUSTED_PROXIES' => 'none; your proxy\'s address as the app sees it, never a subnet shared with other containers',
@@ -51,28 +51,28 @@ final readonly class StackFile
         'MAIL_HOST, MAIL_PORT' => 'the bundled catcher (mailpit:1025); set your SMTP server to deliver mail',
         'MAIL_SCHEME, MAIL_USERNAME, MAIL_PASSWORD' => 'empty (STARTTLS when offered; smtps for implicit TLS)',
         'MAIL_REQUIRE_TLS' => 'empty; set true with STARTTLS so the account never crosses the network unencrypted',
-        'MAIL_FROM_ADDRESS, MAIL_FROM_NAME' => 'forms@localhost, form-schema-app',
-        'FSA_MAIL_CAPTURE' => 'true: admins see the capture banner; set false together with your SMTP server',
+        'MAIL_FROM_ADDRESS, MAIL_FROM_NAME' => 'forms@localhost, Fieldset',
+        'FIELDSET_MAIL_CAPTURE' => 'true: admins see the capture banner; set false together with your SMTP server',
     ];
 
-    private const string URL = 'https://stack-url.fsa.invalid';
+    private const string URL = 'https://stack-url.fieldset.invalid';
 
     private const string UUID = '00000000-0000-4000-8000-000000000000';
 
     /** Placeholder secret => the variable that replaces it. */
     private const array SECRETS = [
-        '__FSA_STACK_APP_KEY__' => 'APP_KEY', '__FSA_STACK_DB_PASSWORD__' => 'DB_PASSWORD',
-        '__FSA_STACK_REDIS_PASSWORD__' => 'REDIS_PASSWORD', '__FSA_STACK_MAILPIT_UI_PASSWORD__' => 'MAILPIT_UI_PASSWORD',
+        '__FIELDSET_STACK_APP_KEY__' => 'APP_KEY', '__FIELDSET_STACK_DB_PASSWORD__' => 'DB_PASSWORD',
+        '__FIELDSET_STACK_REDIS_PASSWORD__' => 'REDIS_PASSWORD', '__FIELDSET_STACK_MAILPIT_UI_PASSWORD__' => 'MAILPIT_UI_PASSWORD',
     ];
 
     /** App-role variables that keep the rendered value as their default. */
-    private const array OVERRIDABLE = ['MAIL_HOST', 'MAIL_PORT', 'MAIL_FROM_ADDRESS', 'MAIL_FROM_NAME', 'FSA_MAIL_CAPTURE'];
+    private const array OVERRIDABLE = ['MAIL_HOST', 'MAIL_PORT', 'MAIL_FROM_ADDRESS', 'MAIL_FROM_NAME', 'FIELDSET_MAIL_CAPTURE'];
 
     /** App-role variables added with an empty default. */
     private const array ADDED = ['TRUSTED_PROXIES', 'TRUSTED_HOSTS', 'MAIL_SCHEME', 'MAIL_REQUIRE_TLS', 'MAIL_USERNAME', 'MAIL_PASSWORD'];
 
-    /** Rendered values that mean nothing without `fsa` (runtime directory; SecureCookies decides Secure itself). */
-    private const array DROPPED = ['FSA_RUNTIME_PATH', 'SESSION_SECURE_COOKIE'];
+    /** Rendered values that mean nothing without `fieldset` (runtime directory; SecureCookies decides Secure itself). */
+    private const array DROPPED = ['FIELDSET_RUNTIME_PATH', 'SESSION_SECURE_COOKIE'];
 
     /** Published loopback ports => the variable that overrides them. */
     private const array PORTS = ['app' => 'APP_PORT', 'mailpit' => 'MAILPIT_UI_PORT'];
@@ -93,7 +93,7 @@ final readonly class StackFile
             ->withUrl(self::URL)
             ->withSettings(['proxy' => 'port']);
         $secrets = array_keys(self::SECRETS);
-        // Without fsa there is no instance directory and no backup role: the backup service stays out (R18, ADR 0084).
+        // Without fieldset there is no instance directory and no backup role: the backup service stays out (R18, ADR 0084).
         $definitions = array_values(array_filter(ComposeRenderer::defaultDefinitions(), static fn (ServiceDefinition $definition): bool => ! $definition instanceof BackupService));
         $rendered = new ComposeRenderer($definitions)->render($state, new InstanceSecrets($secrets[0], $secrets[1], $secrets[2], $secrets[3], 'unused'));
         $services = [];
@@ -182,12 +182,12 @@ final readonly class StackFile
         return str_replace(array_values($replacements), array_keys($replacements), $value);
     }
 
-    /** `registry/repository@digest` → `${FSA_REGISTRY:-registry}/repository@digest`. */
+    /** `registry/repository@digest` → `${FIELDSET_REGISTRY:-registry}/repository@digest`. */
     private static function image(string $reference): string
     {
         [$registry, $rest] = explode('/', $reference, 2);
 
-        return '${FSA_REGISTRY:-'.$registry.'}/'.$rest;
+        return '${FIELDSET_REGISTRY:-'.$registry.'}/'.$rest;
     }
 
     /**
@@ -226,7 +226,7 @@ final readonly class StackFile
     {
         $json = json_encode($document, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
         $stripped = (string) preg_replace(self::INTERPOLATION, '', $json);
-        foreach (['$' => 'an unknown interpolation', '__FSA_STACK_' => 'a placeholder', self::URL => 'the placeholder URL', 'docker.sock' => 'the Docker socket', 'env_file' => 'an env file'] as $needle => $what) {
+        foreach (['$' => 'an unknown interpolation', '__FIELDSET_STACK_' => 'a placeholder', self::URL => 'the placeholder URL', 'docker.sock' => 'the Docker socket', 'env_file' => 'an env file'] as $needle => $what) {
             if (str_contains($stripped, $needle)) {
                 throw new InstanceException("The stack file would contain {$what}.", ExitCode::InternalError, 'unsafe_stack_file');
             }
@@ -236,8 +236,8 @@ final readonly class StackFile
     private function header(): string
     {
         $lines = [
-            "form-schema-app {$this->version} stack file for Portainer, Coolify or `docker compose` (R18, ADR 0076).",
-            'Generated from the same renderer as `fsa install --behind-proxy port`; do not edit the digests by hand.',
+            "Fieldset {$this->version} stack file for Portainer, Coolify or `docker compose` (R18, ADR 0076).",
+            'Generated from the same renderer as `fieldset install --behind-proxy port`; do not edit the digests by hand.',
             '',
             'Configured only through environment variables (stack variables in Portainer or Coolify, or the shell):',
             ...array_map(static fn (string $name, string $what): string => "  {$name} (required): {$what}", array_keys(self::REQUIRED), self::REQUIRED),
@@ -251,11 +251,11 @@ final readonly class StackFile
             '  docker compose -f compose.stack.yaml exec app php artisan app:install --organization="My Org" --name="Your Name" --email=you@example.com --owner-link',
             'It prints a one-time sign-in link (60 minutes) for the owner.',
             '',
-            'Missing without fsa (install with fsa to get them):',
-            '  - no fsa commands: no doctor, status, logs, login-link, config set or uninstall;',
+            'Missing without fieldset (install with fieldset to get them):',
+            '  - no fieldset commands: no doctor, status, logs, login-link, config set or uninstall;',
             '  - no upgrade supervisor: no pre-upgrade backup, health gate or automatic rollback. Upgrade by hand: back up,',
             '    replace this file with the new release\'s, redeploy; migrations are forward-only;',
-            '  - no backups through fsa: no scheduled, verified or encrypted backups; dump Postgres and the app-storage volume yourself;',
+            '  - no backups through fieldset: no scheduled, verified or encrypted backups; dump Postgres and the app-storage volume yourself;',
             '  - no runtime state: a URL change needs APP_URL and a redeploy; no operation gate, no quick tunnel, no local CA, no edge;',
             '  - fixed resource limits (the 2 GB profile) and no instance labels.',
         ];

@@ -11,8 +11,8 @@ namespace Tests\Support\Docs;
  * - the one-liner `curl … releases/latest/download/install.sh | sh -s --` becomes the harness release's install.sh with
  *   `--version` (harness releases are pre-releases, which never land in `latest/download`), unless the block passes its
  *   own `--version` (the move installs the old host's version, `<old-version>`);
- * - `~/forms…` (the instance directories) become `fsa-test-j11-forms…` in the journey's work directory, so every Docker
- *   resource carries `fsa-test-`; any other `~/` path becomes the work directory;
+ * - `~/forms…` (the instance directories) become `fieldset-test-j11-forms…` in the journey's work directory, so every Docker
+ *   resource carries `fieldset-test-`; any other `~/` path becomes the work directory;
  * - `smtp.example.com --smtp-port 587` becomes the stand-in Mailpit on the instance network, plain SMTP on 1025;
  * - `<name>` placeholders become values from earlier results.
  */
@@ -36,7 +36,7 @@ final readonly class GuideCommand
         $command = (string) preg_replace('/\\\\\n\s*/', ' ', $command);
         $version = preg_match('/\s--version[\s=]/', $command) === 1 ? '' : ' --version '.escapeshellarg($this->version); // a block's own wins
         $command = (string) preg_replace_callback(self::ONE_LINER, fn (): string => 'sh '.escapeshellarg($this->installScript).$version, $command);
-        $command = str_replace(['~/forms', '~/'], [$this->work.'/fsa-test-j11-forms', $this->work.'/'], $command);
+        $command = str_replace(['~/forms', '~/'], [$this->work.'/fieldset-test-j11-forms', $this->work.'/'], $command);
         if ($this->smtpHost !== null) {
             $command = str_replace('smtp.example.com --smtp-port 587', $this->smtpHost.' --smtp-port 1025 --smtp-encryption none', $command);
         }

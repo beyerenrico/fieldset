@@ -18,7 +18,7 @@ return [
         'download' => 'Download root certificate',
         'name' => 'Name on the phone',
         'fingerprint' => 'SHA-256 fingerprint',
-        'compare' => 'Before you trust the certificate, compare this fingerprint with the one fsa printed when it set up phone HTTPS (fsa status shows it too). Continue only if both match: this page also comes over plain HTTP, so someone on the same network could swap the certificate.',
+        'compare' => 'Before you trust the certificate, compare this fingerprint with the one fieldset printed when it set up phone HTTPS (fieldset status shows it too). Continue only if both match: this page also comes over plain HTTP, so someone on the same network could swap the certificate.',
     ],
     'ios' => [
         'heading' => 'iPhone and iPad (iOS)',
@@ -39,7 +39,7 @@ return [
             'Come back to this page: the check below shows whether your phone trusts the instance.',
         ],
         'menus' => 'The menu names differ between manufacturers. If you cannot find them, search the settings for "CA certificate".',
-        'tunnel' => 'Many Android versions and browsers do not trust user-installed CAs for installed web apps. On Android, the quick tunnel is the recommended way. It cannot run next to this CA, so on the computer that runs this instance first turn the CA off with fsa config set phone-https off --yes, then run fsa tunnel start.',
+        'tunnel' => 'Many Android versions and browsers do not trust user-installed CAs for installed web apps. On Android, the quick tunnel is the recommended way. It cannot run next to this CA, so on the computer that runs this instance first turn the CA off with fieldset config set phone-https off --yes, then run fieldset tunnel start.',
     ],
     'check' => [
         'heading' => 'Check',

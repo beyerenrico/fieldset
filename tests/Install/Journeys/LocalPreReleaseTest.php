@@ -14,63 +14,63 @@ use Tests\Support\Docker\TestImage;
 
 /*
  * The milestone pre-release, built and tested locally (BUILD_PROMPT_V2 §12, §15.6, E18; ADR 0064, ADR 0067). Runs
- * only with FSA_PRERELEASE_VERSION (e.g. 2.0.0-alpha.1): the harness publishes exactly that version as a multi-arch
+ * only with FIELDSET_PRERELEASE_VERSION (e.g. 2.0.0-alpha.1): the harness publishes exactly that version as a multi-arch
  * index (linux/amd64 + linux/arm64; the foreign platform's stages build under emulation), the manifest is
  * validated and its signature verified with the run's local key, then install.sh (harness build) installs it
- * natively, fsa reports it, and fsa uninstall removes it. The verified assets are kept in dist/v<version>/
+ * natively, fieldset reports it, and fieldset uninstall removes it. The verified assets are kept in dist/v<version>/
  * (git-ignored; the images live only in the harness registry, which is removed afterwards), and a redacted
- * summary goes to docs/agent/milestones/evidence/<FSA_EVIDENCE_MILESTONE, default M9>/prerelease-<version>.json. Nothing is pushed or published.
+ * summary goes to docs/agent/milestones/evidence/<FIELDSET_EVIDENCE_MILESTONE, default M9>/prerelease-<version>.json. Nothing is pushed or published.
  */
 
 beforeAll(function (): void {
-    $version = getenv('FSA_PRERELEASE_VERSION');
+    $version = getenv('FIELDSET_PRERELEASE_VERSION');
     if (! is_string($version) || $version === '' || TestImage::dockerUnavailableReason() !== null) {
         return;
     }
 
     try {
         $harness = ReleaseHarness::start();
-        $GLOBALS['fsaPre'] = ['harness' => $harness];
+        $GLOBALS['fieldsetPre'] = ['harness' => $harness];
         $started = microtime(true);
         $release = $harness->publish($version, PlatformImage::SUPPORTED);
-        $GLOBALS['fsaPre'] += [
+        $GLOBALS['fieldsetPre'] += [
             'release' => $release,
             'journey' => new InstanceJourney($harness, $release, $harness->directory.'/prerelease'),
             'summary' => ['build_seconds' => round(microtime(true) - $started, 1)],
         ];
     } catch (Throwable $exception) {
-        $GLOBALS['fsaPreError'] = $exception;
+        $GLOBALS['fieldsetPreError'] = $exception;
     }
 });
 
 afterAll(function (): void {
-    if (isset($GLOBALS['fsaPre']['journey'])) {
-        InstanceJourney::cleanup($GLOBALS['fsaPre']['journey']->work.'/fsa-test-prerelease', $GLOBALS['fsaPre']['uuid'] ?? null);
+    if (isset($GLOBALS['fieldsetPre']['journey'])) {
+        InstanceJourney::cleanup($GLOBALS['fieldsetPre']['journey']->work.'/fieldset-test-prerelease', $GLOBALS['fieldsetPre']['uuid'] ?? null);
     }
-    if (isset($GLOBALS['fsaPre']['harness'])) {
-        $GLOBALS['fsaPre']['harness']->stop();
+    if (isset($GLOBALS['fieldsetPre']['harness'])) {
+        $GLOBALS['fieldsetPre']['harness']->stop();
     }
-    unset($GLOBALS['fsaPre'], $GLOBALS['fsaPreError']);
+    unset($GLOBALS['fieldsetPre'], $GLOBALS['fieldsetPreError']);
 });
 
 beforeEach(function (): void {
-    if (! is_string(getenv('FSA_PRERELEASE_VERSION')) || getenv('FSA_PRERELEASE_VERSION') === '') {
-        $this->markTestSkipped('Set FSA_PRERELEASE_VERSION (e.g. 2.0.0-alpha.1) to build and test the local pre-release.');
+    if (! is_string(getenv('FIELDSET_PRERELEASE_VERSION')) || getenv('FIELDSET_PRERELEASE_VERSION') === '') {
+        $this->markTestSkipped('Set FIELDSET_PRERELEASE_VERSION (e.g. 2.0.0-alpha.1) to build and test the local pre-release.');
     }
     $reason = TestImage::dockerUnavailableReason();
     if ($reason !== null) {
-        expect(getenv('FSA_REQUIRE_DOCKER'))->not->toBe('1', $reason);
+        expect(getenv('FIELDSET_REQUIRE_DOCKER'))->not->toBe('1', $reason);
         $this->markTestSkipped($reason.' (install journeys need a Docker engine)');
     }
-    if (isset($GLOBALS['fsaPreError'])) {
-        throw $GLOBALS['fsaPreError'];
+    if (isset($GLOBALS['fieldsetPreError'])) {
+        throw $GLOBALS['fieldsetPreError'];
     }
 
-    $this->harness = $GLOBALS['fsaPre']['harness'];
-    $this->release = $GLOBALS['fsaPre']['release'];
-    $this->journey = $GLOBALS['fsaPre']['journey'];
+    $this->harness = $GLOBALS['fieldsetPre']['harness'];
+    $this->release = $GLOBALS['fieldsetPre']['release'];
+    $this->journey = $GLOBALS['fieldsetPre']['journey'];
     $this->version = (string) $this->release->version;
-    $this->dir = $this->journey->work.'/fsa-test-prerelease';
+    $this->dir = $this->journey->work.'/fieldset-test-prerelease';
 });
 
 /** The channel a pre-release version names (2.0.0-beta.1 → beta), read from the string, not from ReleaseVersion. */
@@ -87,7 +87,7 @@ function preReleaseManifest(HarnessRelease $release): ReleaseManifest
 /** @param  array<string, mixed>  $values */
 function preReleaseRecord(array $values): void
 {
-    $GLOBALS['fsaPre']['summary'] = [...$GLOBALS['fsaPre']['summary'], ...$values];
+    $GLOBALS['fieldsetPre']['summary'] = [...$GLOBALS['fieldsetPre']['summary'], ...$values];
 }
 
 it('publishes a signed multi-arch pre-release whose manifest validates and lists every image by digest', function (): void {
@@ -107,7 +107,7 @@ it('publishes a signed multi-arch pre-release whose manifest validates and lists
         ->and($manifest->channel()->value)->toBe(preReleaseChannel($this->version))
         ->and($manifest->platforms)->toBe(PlatformImage::SUPPORTED)
         ->and(array_keys($manifest->images))->toBe(ReleaseManifest::SERVICES)
-        ->and($manifest->images['app']->pin->name())->toBe('ghcr.io/beyerenrico/form-schema-app')
+        ->and($manifest->images['app']->pin->name())->toBe('ghcr.io/beyerenrico/fieldset')
         ->and($manifest->images['app']->pin->tag)->toBe($this->version)
         ->and($manifest->images['app']->pin->digest)->toBe($this->release->appDigest)
         ->and($manifestCheck->getExitCode())->toBe(0, $manifestCheck->getErrorOutput())
@@ -126,7 +126,7 @@ it('tags only the pre-release version and never moves latest, 2 or 2.0', functio
     $command = new Process([PHP_BINARY, 'artisan', 'release:version', $this->release->version->tag()], TestImage::repository());
     $command->mustRun();
     $info = json_decode(trim($command->getOutput()), true);
-    $tags = array_values(array_filter($this->harness->tags('beyerenrico/form-schema-app'), static fn (string $tag): bool => ! str_starts_with($tag, 'sha256-')));
+    $tags = array_values(array_filter($this->harness->tags('beyerenrico/fieldset'), static fn (string $tag): bool => ! str_starts_with($tag, 'sha256-')));
     preReleaseRecord(['release_version' => $info, 'registry_tags' => $tags]);
 
     if (preReleaseChannel($this->version) === 'stable') {
@@ -175,22 +175,22 @@ it('keeps the verified release assets and the local public key in dist/', functi
         ->and(array_unique($verified))->toBe([true]);
 });
 
-it('installs it natively with the harness install.sh and reports it with fsa status and fsa version', function (): void {
+it('installs it natively with the harness install.sh and reports it with fieldset status and fieldset version', function (): void {
     $secrets = $this->journey->work.'/owner-link.json';
     $started = microtime(true);
     $install = $this->journey->install($this->dir, ['--org', 'Pre-release Org', '--owner-email', 'owner@example.test', '--owner-name', 'Pat Owner', '--locale', 'en', '--secrets-file', $secrets, '--json']);
     $seconds = round(microtime(true) - $started, 1);
     $json = InstanceJourney::json($install);
-    $GLOBALS['fsaPre']['uuid'] = InstanceJourney::uuid($this->dir);
-    $GLOBALS['fsaPre']['port'] = $json['data']['port'] ?? null;
+    $GLOBALS['fieldsetPre']['uuid'] = InstanceJourney::uuid($this->dir);
+    $GLOBALS['fieldsetPre']['port'] = $json['data']['port'] ?? null;
     $link = json_decode((string) @file_get_contents($secrets), true)['secrets'][0] ?? [];
-    $GLOBALS['fsaPre']['link'] = $link['value'] ?? '';
-    $status = $this->journey->fsa($this->dir, ['status', '--json']);
-    $version = $this->journey->fsa($this->dir, ['version', '--json']);
+    $GLOBALS['fieldsetPre']['link'] = $link['value'] ?? '';
+    $status = $this->journey->fieldset($this->dir, ['status', '--json']);
+    $version = $this->journey->fieldset($this->dir, ['version', '--json']);
     $statusJson = InstanceJourney::json($status);
-    preReleaseRecord(['install' => ['command' => "install.sh --dir <work>/fsa-test-prerelease --version {$this->version} --org \"Pre-release Org\" --owner-email owner@example.test --owner-name \"Pat Owner\" --locale en --secrets-file <work>/owner-link.json --json",
+    preReleaseRecord(['install' => ['command' => "install.sh --dir <work>/fieldset-test-prerelease --version {$this->version} --org \"Pre-release Org\" --owner-email owner@example.test --owner-name \"Pat Owner\" --locale en --secrets-file <work>/owner-link.json --json",
         'platform' => ReleaseHarness::nativePlatform(), 'emulated' => false, 'exit_code' => $install->getExitCode(), 'seconds' => $seconds, 'stdout' => $json],
-        'status' => $statusJson, 'fsa_version' => InstanceJourney::json($version)]);
+        'status' => $statusJson, 'fieldset_version' => InstanceJourney::json($version)]);
 
     expect($install->getExitCode())->toBe(0, $install->getErrorOutput()."\n".$install->getOutput())
         ->and($this->release->platformEnvironment())->toBe([])
@@ -203,15 +203,15 @@ it('installs it natively with the harness install.sh and reports it with fsa sta
         ->and($statusJson['data'])->toMatchArray(['installed' => true, 'version' => $this->version, 'health' => 'ok', 'mode' => 'local'])
         ->and(array_keys($statusJson['data']['services']))->toBe(['app', 'queue', 'scheduler', 'postgres', 'redis', 'gotenberg', 'mailpit', 'backup'])
         ->and($version->getExitCode())->toBe(0, $version->getOutput())
-        ->and(InstanceJourney::json($version)['data'])->toMatchArray(['fsa' => $this->version, 'instance' => $this->version]);
+        ->and(InstanceJourney::json($version)['data'])->toMatchArray(['fieldset' => $this->version, 'instance' => $this->version]);
     foreach ($statusJson['data']['services'] as $service => $state) {
         expect($state['state'])->toBe('running', $service)->and($state['health'])->toBeIn(['healthy', null], $service);
     }
 });
 
 it('answers /up and /admin/login and lets the sign-in link from the secrets file lead into the password-set flow', function (): void {
-    $http = InstanceJourney::http($GLOBALS['fsaPre']['port']);
-    [, $token] = explode('#', $GLOBALS['fsaPre']['link'], 2) + [1 => ''];
+    $http = InstanceJourney::http($GLOBALS['fieldsetPre']['port']);
+    [, $token] = explode('#', $GLOBALS['fieldsetPre']['link'], 2) + [1 => ''];
     $up = $http->get('/up')->getStatusCode();
     $login = $http->get('/admin/login')->getStatusCode();
     $landing = $http->get('/login-link');
@@ -227,10 +227,10 @@ it('answers /up and /admin/login and lets the sign-in link from the secrets file
         ->and($consumed->getHeaderLine('Location'))->toContain('/admin/password-reset/reset');
 });
 
-it('uninstalls with fsa uninstall --yes without leaving a labelled container, volume or network', function (): void {
-    $uuid = $GLOBALS['fsaPre']['uuid'];
+it('uninstalls with fieldset uninstall --yes without leaving a labelled container, volume or network', function (): void {
+    $uuid = $GLOBALS['fieldsetPre']['uuid'];
     $before = InstanceJourney::labelled($uuid);
-    $uninstall = $this->journey->fsa($this->dir, ['uninstall', '--yes', '--json']);
+    $uninstall = $this->journey->fieldset($this->dir, ['uninstall', '--yes', '--json']);
     $after = InstanceJourney::labelled($uuid);
     $json = InstanceJourney::json($uninstall);
     preReleaseRecord(['uninstall' => ['exit_code' => $uninstall->getExitCode(), 'status' => $json['status'] ?? null, 'data_deleted' => $json['data']['data_deleted'] ?? null,
@@ -246,7 +246,7 @@ it('writes a redacted summary for the milestone evidence', function (): void {
     $name = "prerelease-{$this->version}.json";
     $this->journey->evidence($name, ['release' => $this->version, 'built' => date('Y-m-d'), 'revision' => TestImage::revision(), 'published' => false,
         'note' => 'Built and tested against the local registry and release server (E18); the harness registry is removed after the run.',
-        ...$GLOBALS['fsaPre']['summary']]);
+        ...$GLOBALS['fieldsetPre']['summary']]);
     $json = (string) file_get_contents(TestImage::repository().'/docs/agent/milestones/evidence/'.InstanceJourney::evidenceMilestone().'/'.$name);
     $home = (string) getenv('HOME');
 

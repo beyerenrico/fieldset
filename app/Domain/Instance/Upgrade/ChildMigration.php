@@ -14,7 +14,7 @@ use App\Domain\Instance\State\InstanceDirectory;
 /**
  * The child's second half (KTD19 step 6, R36, plan U18, ADR 0086), in the target image: `instance:upgrade-migrate` as a
  * subprocess with the app's environment as the target rendered it (staged `env/app.env`), so new keys the target's
- * migrations read are there. libpq's own variables name the session `fsa_upgrade_<id>`, by which the supervisor finds
+ * migrations read are there. libpq's own variables name the session `fieldset_upgrade_<id>`, by which the supervisor finds
  * its backend in `pg_stat_activity` (liveness, termination), and set `lock_timeout` for every statement. The app side
  * requires zero foreign connections first, migrates (never `CONCURRENTLY`: writers are stopped), runs the version steps
  * from the installed version on, and checks that no index is invalid.
@@ -32,7 +32,7 @@ final readonly class ChildMigration
     /** The session name of a journal's child (`application_name`). */
     public static function applicationName(string $id): string
     {
-        return 'fsa_upgrade_'.$id;
+        return 'fieldset_upgrade_'.$id;
     }
 
     /** @return array<string, string> libpq's environment for the child's session */

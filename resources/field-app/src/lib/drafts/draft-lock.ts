@@ -1,6 +1,6 @@
 /**
  * One editing tab per draft (ADR 0035): the tab that opens a draft holds the Web Lock
- * `fsa-draft:<uuid>` until its session ends. A tab that finds the lock taken opens the draft
+ * `fieldset-draft:<uuid>` until its session ends. A tab that finds the lock taken opens the draft
  * read-only and writes nothing. Without Web Locks there is no lock: the last writer wins.
  */
 import { lockManager, type LockManagerLike } from '../sync/lock.ts';
@@ -17,7 +17,7 @@ export interface DraftLock {
     readonly release: () => void;
 }
 
-export const draftLockName = (uuid: string): string => `fsa-draft:${uuid}`;
+export const draftLockName = (uuid: string): string => `fieldset-draft:${uuid}`;
 
 class WebDraftLock implements DraftLock {
     private state: DraftLockState;

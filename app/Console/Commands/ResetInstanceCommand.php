@@ -19,7 +19,7 @@ use Illuminate\Database\QueryException;
 use InvalidArgumentException;
 
 /**
- * The database steps of `fsa reset` (plan U23, KTD26, ADR 0088), each in a socket-less one-off of the app service (KTD25):
+ * The database steps of `fieldset reset` (plan U23, KTD26, ADR 0088), each in a socket-less one-off of the app service (KTD25):
  *
  * - `plan`: read-only, the live database: organizations, the oldest real one, the active operators (ResetPlan);
  * - `recreate`: from the maintenance database, the database DB_DATABASE names dropped and created again (ResetDatabase);
@@ -28,11 +28,11 @@ use InvalidArgumentException;
  *
  * One JSON document with --json; never a password.
  */
-#[Description('Plan, recreate the database or begin the audit epoch of an fsa reset')]
+#[Description('Plan, recreate the database or begin the audit epoch of a fieldset reset')]
 #[Signature('instance:reset
         {action : plan, recreate or epoch}
         {--epoch-seed=0 : epoch: the highest audit epoch the host-side ledger knows}
-        {--actor-uid= : epoch: host UID of the operator running fsa}
+        {--actor-uid= : epoch: host UID of the operator running fieldset}
         {--safety-backup= : epoch: the safety backup that keeps the old data}
         {--audit-export= : epoch: the audit export written instead of a safety backup}
         {--demo : epoch: the reset adds the demo data}
@@ -78,7 +78,7 @@ final class ResetInstanceCommand extends Command
         try {
             return new ResetDatabase(RestoreConnections::maintenance())->recreate($live);
         } finally {
-            RestoreConnections::close('fsa_restore_maintenance');
+            RestoreConnections::close('fieldset_restore_maintenance');
         }
     }
 

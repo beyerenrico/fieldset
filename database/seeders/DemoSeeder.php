@@ -31,8 +31,8 @@ use Illuminate\Database\Seeder;
  * the default document design and a published service report with "send to customer" enabled. The organization is
  * marked `is_demo` and gets the reserved slug `demo` (CreateOrganization); an existing demo organization, also a
  * deleted one, makes the seeder do nothing.
- * Password for every demo user it creates: "password", unless a DemoPasswordSource is bound (2.0: `fsa install --demo`
- * and `fsa demo` bind random passwords whenever the instance is reachable beyond loopback, R29, ADR 0081). An
+ * Password for every demo user it creates: "password", unless a DemoPasswordSource is bound (2.0: `fieldset install --demo`
+ * and `fieldset demo` bind random passwords whenever the instance is reachable beyond loopback, R29, ADR 0081). An
  * existing account keeps its password. Not run by DatabaseSeeder in production; `app:demo-seed` runs it there.
  */
 final class DemoSeeder extends Seeder
@@ -92,7 +92,7 @@ final class DemoSeeder extends Seeder
                 ]],
             ],
         ], $owner);
-        app(SaveWebhookEndpoint::class)->handle(null, ['name' => 'ERP (Beispiel)', 'url' => 'https://erp.example.com/hooks/form-schema', 'active' => false], $owner);
+        app(SaveWebhookEndpoint::class)->handle(null, ['name' => 'ERP (Beispiel)', 'url' => 'https://erp.example.com/hooks/fieldset', 'active' => false], $owner);
     }
 
     /** Demo branding for PDFs and mails: colors, company details and a small generated logo. */

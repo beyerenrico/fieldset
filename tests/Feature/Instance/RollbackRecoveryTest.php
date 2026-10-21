@@ -13,7 +13,7 @@ use Tests\Support\Instance\UpgradeFixture;
 use Tests\Support\Release\ReleaseFixtures;
 
 /*
- * `fsa rollback` on its ways back and its edges (plan U18, R37, R55, R57, R64, R69, ADR 0086, review U18 A1, A3, A8, A10,
+ * `fieldset rollback` on its ways back and its edges (plan U18, R37, R55, R57, R64, R69, ADR 0086, review U18 A1, A3, A8, A10,
  * S1): requests in flight end before the security state is exported; a drain timeout is exit 9; going back restores
  * the files the swap replaced exactly, in journaled steps a kill cannot repeat on a live instance; the previous image
  * renders with env files in its own layout; exit 8 names the safety backup and both digest sets; a revert that cannot
@@ -42,7 +42,7 @@ function upgradedTarget(UpgradeFixture $upgrade, bool $ownLayout = false): void
         }, static function (string $root): void {
             file_put_contents($root.'/env/indexer.env', "INDEXER=1\n");
             $app = (string) file_get_contents($root.'/env/app.env');
-            file_put_contents($root.'/env/app.env', preg_replace('/^REDIS_PASSWORD=/m', 'VALKEY_PASSWORD=', $app)."FSA_NEW_KEY='from-the-target'\n");
+            file_put_contents($root.'/env/app.env', preg_replace('/^REDIS_PASSWORD=/m', 'VALKEY_PASSWORD=', $app)."FIELDSET_NEW_KEY='from-the-target'\n");
         });
     }
     [$code, $json] = $upgrade->upgrade();
@@ -52,7 +52,7 @@ function upgradedTarget(UpgradeFixture $upgrade, bool $ownLayout = false): void
 
 it('exports the security state only after no request holds a database session', function (): void {
     upgradedTarget($this->upgrade);
-    $this->upgrade->sessions = [[['pid' => 9, 'application_name' => '', 'user' => 'form_schema', 'state' => 'active']], []];
+    $this->upgrade->sessions = [[['pid' => 9, 'application_name' => '', 'user' => 'fieldset', 'state' => 'active']], []];
     $mark = $this->config->mark();
 
     [$code, $json] = $this->upgrade->rollback();
@@ -69,7 +69,7 @@ it('stops with exit 9, exports nothing and closes its journal when a session sta
     $docker = $this->upgrade->instance->docker;
     $previous = $docker->composeRunResponder;
     match ($case) {
-        'session' => $this->upgrade->sessions = [[['pid' => 9, 'application_name' => 'psql', 'user' => 'form_schema', 'state' => 'idle']]],
+        'session' => $this->upgrade->sessions = [[['pid' => 9, 'application_name' => 'psql', 'user' => 'fieldset', 'state' => 'idle']]],
         'drain' => $this->upgrade->drain = [['pending' => 3, 'reserved' => 1, 'delayed' => 0]],
         default => $docker->respondToComposeRun(static fn (array $command, ?string $input = null): ?ProcessOutcome => ($command[2] ?? null) === 'audit:seal'
             ? new ProcessOutcome(1, '', 'could not connect') : $previous($command, $input)),
@@ -87,7 +87,7 @@ it('stops with exit 9, exports nothing and closes its journal when a session sta
 
     expect($code)->toBe(9, (string) json_encode($json))
         ->and($json['errors'][0]['code'])->toBe($error)
-        ->and($json['errors'][0]['hint'])->toContain('`fsa rollback`')->not->toContain('fsa upgrade') // gate review C6
+        ->and($json['errors'][0]['hint'])->toContain('`fieldset rollback`')->not->toContain('fieldset upgrade') // gate review C6
         ->and($exported)->toBe([])
         ->and($gate)->toBeFalse()
         ->and($open)->toBeNull() // review V1
@@ -170,7 +170,7 @@ it('lets the previous image render with the env files in its own layout and the 
     expect($code)->toBe(0, (string) json_encode($json))
         ->and($mounted['volume'] ?? '')->toEndWith(':'.$this->dir.'/env:ro')
         ->and($mounted['app'] ?? [])->toBe($before)
-        ->and($mounted['app'] ?? [])->not->toHaveKey('FSA_NEW_KEY');
+        ->and($mounted['app'] ?? [])->not->toHaveKey('FIELDSET_NEW_KEY');
 });
 
 it('removes the merged env directory a killed render left, on the way back and in the cleanup (review V4)', function (string $phase): void {
@@ -244,7 +244,7 @@ it('seals the safety backups it leaves behind when it goes back', function (stri
 it('keeps every pre-rollback safety backup until the operator deletes it, also through a later upgrade (R57)', function (): void {
     upgradedTarget($this->upgrade);
     $older = 'safety-rollback-20261001T100000Z';
-    BackupSetFixture::fsa($this->dir.'/backups/'.$older, ['kind' => 'safety-rollback', ...$this->upgrade->restore->manifest()], appKey: $this->upgrade->restore->appKey());
+    BackupSetFixture::fieldset($this->dir.'/backups/'.$older, ['kind' => 'safety-rollback', ...$this->upgrade->restore->manifest()], appKey: $this->upgrade->restore->appKey());
 
     [$code, $json] = $this->upgrade->rollback();
     $own = (string) $json['data']['safety_backup'];

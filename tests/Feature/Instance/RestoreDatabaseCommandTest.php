@@ -74,7 +74,7 @@ it('creates a scratch database, and refuses one that exists, a system database o
 
 it('creates a database for a restricted role that only it may connect to, and needs the role password', function (): void {
     $name = RestoreDatabases::name('restore_rdr');
-    $role = RestoreDatabases::role('fsa_restore_test');
+    $role = RestoreDatabases::role('fieldset_restore_test');
 
     [$missing, $noPassword] = restoreDb('create', ['--database' => $name, '--restricted-role' => $role]);
     putenv(RestoreDatabaseCommand::PASSWORD_ENV.'='.RESTORE_DB_PASSWORD);
@@ -93,7 +93,7 @@ it('creates a database for a restricted role that only it may connect to, and ne
 
 it('installs pg_trgm as the superuser before a restricted restore, so the role cannot add members to it (review S1)', function (): void {
     $name = RestoreDatabases::name('restore_rdr');
-    $role = RestoreDatabases::role('fsa_restore_test');
+    $role = RestoreDatabases::role('fieldset_restore_test');
     putenv(RestoreDatabaseCommand::PASSWORD_ENV.'='.RESTORE_DB_PASSWORD);
 
     [$code, $json] = restoreDb('create', ['--database' => $name, '--restricted-role' => $role]);
@@ -112,7 +112,7 @@ it('installs pg_trgm as the superuser before a restricted restore, so the role c
 
 it('adopts a restricted restore: objects and database go to the superuser, the role goes, PUBLIC may connect again', function (): void {
     $name = RestoreDatabases::name('restore_rdr');
-    $role = RestoreDatabases::role('fsa_restore_test');
+    $role = RestoreDatabases::role('fieldset_restore_test');
     putenv(RestoreDatabaseCommand::PASSWORD_ENV.'='.RESTORE_DB_PASSWORD);
     restoreDb('create', ['--database' => $name, '--restricted-role' => $role]);
     restoreDbQuery($name, "SET ROLE {$role}; CREATE TABLE restored (id int); RESET ROLE");
@@ -130,8 +130,8 @@ it('adopts a restricted restore: objects and database go to the superuser, the r
 
 it('adopts without the grants and database settings the restore left behind (review S2)', function (): void {
     $name = RestoreDatabases::name('restore_rdr');
-    $role = RestoreDatabases::role('fsa_restore_test');
-    $grantee = RestoreDatabases::role('fsa_restore_grantee');
+    $role = RestoreDatabases::role('fieldset_restore_test');
+    $grantee = RestoreDatabases::role('fieldset_restore_grantee');
     RestoreDatabases::admin()->exec("CREATE ROLE {$grantee} NOLOGIN");
     putenv(RestoreDatabaseCommand::PASSWORD_ENV.'='.RESTORE_DB_PASSWORD);
     restoreDb('create', ['--database' => $name, '--restricted-role' => $role]);
@@ -194,7 +194,7 @@ it('refuses a swap with a missing database, a taken aside name or repeated names
 
 it('drops a scratch database and its role, never the live or a system database', function (): void {
     $name = RestoreDatabases::name('restore_rdr');
-    $role = RestoreDatabases::role('fsa_restore_test');
+    $role = RestoreDatabases::role('fieldset_restore_test');
     putenv(RestoreDatabaseCommand::PASSWORD_ENV.'='.RESTORE_DB_PASSWORD);
     restoreDb('create', ['--database' => $name, '--restricted-role' => $role]);
 
@@ -296,7 +296,7 @@ it('audits an unauthenticated restore: identical code passes, changed or extra c
 it('passes the schema audit after a real dump and restore, whose checks and defaults print differently (J08)', function (): void {
     $reference = RestoreDatabases::target();
     $restored = RestoreDatabases::empty('rdd');
-    $file = sys_get_temp_dir().'/fsa-test-audit-'.bin2hex(random_bytes(3)).'.dump';
+    $file = sys_get_temp_dir().'/fieldset-test-audit-'.bin2hex(random_bytes(3)).'.dump';
     new Process(['pg_dump', '--format=custom', '--no-owner', '--no-privileges', '--file='.$file], null, BackupScratchDatabase::libpq($reference))->mustRun();
     new Process(['pg_restore', '--no-owner', '--no-privileges', '--exit-on-error', '--dbname='.$restored, '--', $file], null, BackupScratchDatabase::libpq($restored))->mustRun();
     @unlink($file);
@@ -311,7 +311,7 @@ it('refuses an extension the restore owns or whose members differ, and passes th
     $restored = $case === 'owned by the restricted role' ? RestoreDatabases::name('restore_rdr') : RestoreDatabases::empty('rdd');
     $evil = 'CREATE FUNCTION evil() RETURNS text AS $f$ SELECT current_user::text $f$ LANGUAGE sql; ALTER EXTENSION pg_trgm ADD FUNCTION evil()';
     if ($case === 'owned by the restricted role') {
-        $role = RestoreDatabases::role('fsa_restore_test');
+        $role = RestoreDatabases::role('fieldset_restore_test');
         putenv(RestoreDatabaseCommand::PASSWORD_ENV.'='.RESTORE_DB_PASSWORD);
         restoreDb('create', ['--database' => $restored, '--restricted-role' => $role]);
         restoreDbQuery($restored, "DROP EXTENSION pg_trgm; SET ROLE {$role}; CREATE EXTENSION pg_trgm; {$evil}; RESET ROLE");
@@ -334,7 +334,7 @@ it('refuses an extension the restore owns or whose members differ, and passes th
 it('refuses grants to others than the owner, a disabled trigger and database settings the reference lacks (review S2)', function (): void {
     $restored = RestoreDatabases::target();
     $reference = RestoreDatabases::sourceFromTarget();
-    $grantee = RestoreDatabases::role('fsa_restore_grantee');
+    $grantee = RestoreDatabases::role('fieldset_restore_grantee');
     RestoreDatabases::admin()->exec("CREATE ROLE {$grantee} NOLOGIN");
     $db = DB::connection(RestoreDatabases::TARGET);
     $db->unprepared(implode("\n", [
@@ -363,10 +363,10 @@ it('refuses grants to others than the owner, a disabled trigger and database set
 it('restores a real dump as the restricted role into the prepared database, passes the audit and adopts (review S1)', function (): void {
     $reference = RestoreDatabases::target();
     $name = RestoreDatabases::name('restore_rdr');
-    $role = RestoreDatabases::role('fsa_restore_test');
+    $role = RestoreDatabases::role('fieldset_restore_test');
     putenv(RestoreDatabaseCommand::PASSWORD_ENV.'='.RESTORE_DB_PASSWORD);
     restoreDb('create', ['--database' => $name, '--restricted-role' => $role]);
-    $file = sys_get_temp_dir().'/fsa-test-audit-'.bin2hex(random_bytes(3)).'.dump';
+    $file = sys_get_temp_dir().'/fieldset-test-audit-'.bin2hex(random_bytes(3)).'.dump';
     new Process(['pg_dump', '--format=custom', '--no-owner', '--no-privileges', '--file='.$file], null, BackupScratchDatabase::libpq($reference))->mustRun();
     $toc = new Process(['pg_restore', '--list', '--', $file]);
     $toc->mustRun();
@@ -426,7 +426,7 @@ it('audits an older archive at its own migration set: what later migrations add 
         ->and($omitted)->toBe(1, json_encode($omittedJson))->and($omittedJson['errors'][0]['code'])->toBe('schema_mismatch')
         ->and($message)->toContain('missing trigger:activity_log.activity_log_append_only_trg')
         ->and($message)->not->toContain('audit_chain_epochs')
-        ->and(RestoreDatabases::admin()->query("SELECT count(*) FROM pg_database WHERE datname LIKE 'fsa\\_restore\\_ref\\_%'")->fetchColumn())->toBe(0);
+        ->and(RestoreDatabases::admin()->query("SELECT count(*) FROM pg_database WHERE datname LIKE 'fieldset\\_restore\\_ref\\_%'")->fetchColumn())->toBe(0);
 });
 
 it('refuses an archive that ran migrations this image does not know (review S3)', function (): void {

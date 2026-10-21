@@ -11,7 +11,7 @@ use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
 
 /**
- * The grammar of `fsa config set` values (ADR 0077): the same rules as the install flags (InputGrammar, ADR 0075,
+ * The grammar of `fieldset config set` values (ADR 0077): the same rules as the install flags (InputGrammar, ADR 0075,
  * ADR 0076), normalized the same way, with messages that name the setting. Exit 2 for anything else.
  */
 final class ConfigValues
@@ -100,9 +100,9 @@ final class ConfigValues
         $phone = $state->setting('phone_https');
         if (is_string($phone) && $phone !== '') {
             $off = match ($phone) {
-                'local-ca' => 'Turn the local CA off first with `fsa config set phone-https off --yes`',
-                'tunnel' => 'Stop the quick tunnel first with `fsa tunnel stop`',
-                default => 'Turn phone HTTPS off first (`fsa config set phone-https off --yes`, or `fsa tunnel stop` for the quick tunnel)',
+                'local-ca' => 'Turn the local CA off first with `fieldset config set phone-https off --yes`',
+                'tunnel' => 'Stop the quick tunnel first with `fieldset tunnel stop`',
+                default => 'Turn phone HTTPS off first (`fieldset config set phone-https off --yes`, or `fieldset tunnel stop` for the quick tunnel)',
             };
             throw new InvalidInput("Phone HTTPS ({$phone}) and {$target} exclude each other.", 'invalid_combination', $off.', then change the mode.');
         }

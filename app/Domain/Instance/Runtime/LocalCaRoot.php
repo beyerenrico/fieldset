@@ -9,7 +9,7 @@ use OpenSSLCertificate;
 use Throwable;
 
 /**
- * The public root certificate of the local CA (R19, ADR 0082), which `fsa` copies from the edge's Caddy data into the
+ * The public root certificate of the local CA (R19, ADR 0082), which `fieldset` copies from the edge's Caddy data into the
  * runtime directory as `local-ca-root.crt` (0644) for the phone trust page. Never a key.
  *
  * Accepted only as a regular file (no symlink) of at most 16 KiB that holds exactly one PEM certificate and nothing

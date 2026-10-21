@@ -13,7 +13,7 @@ use Tests\Support\Instance\InstanceCommandFixture;
 use Tests\Support\Instance\TemporaryInstance;
 
 /*
- * Plan U11 (R17, R32, KTD10; ADR 0076, ADR 0077): `fsa config set url` and `trusted-proxy` in proxy mode, and the
+ * Plan U11 (R17, R32, KTD10; ADR 0076, ADR 0077): `fieldset config set url` and `trusted-proxy` in proxy mode, and the
  * proxy-mode side of `port` and `mode local`. The trusted proxy is re-resolved through the engine (never DNS), so a
  * recreated Traefik with a new address is followed with `auto`.
  */
@@ -62,7 +62,7 @@ it('changes the public URL in proxy mode: APP_URL, runtime, Traefik labels, and 
         ->and(implode(' ', $labels))->toContain('Host(`forms2.example.com`)')
         ->and(new EnvFiles($config->instance->directory)->read('app')['APP_URL'])->toBe('https://forms2.example.com')
         ->and($verify)->toHaveCount(1)
-        ->and($verify[0]->labels['app.form-schema.role'])->toBe('config-verify');
+        ->and($verify[0]->labels['app.fieldset.role'])->toBe('config-verify');
 });
 
 it('refuses url outside proxy mode and malformed origins with exit 2', function (): void {
@@ -151,8 +151,8 @@ it('makes a repeated install compare with the changed URL (use config set), not 
     $config = configTraefik();
     $config->set('url', 'https://forms2.example.com', ['--yes' => true]);
 
-    [$old, $refused] = $config->instance->run('fsa:install', InstanceCommandFixture::installFlags(['--behind-proxy' => 'traefik', '--proxy-network' => 'edge-net', '--url' => 'https://forms.example.com']));
-    [$same, $unchanged] = $config->instance->run('fsa:install', InstanceCommandFixture::installFlags(['--behind-proxy' => 'traefik', '--proxy-network' => 'edge-net', '--url' => 'https://forms2.example.com']));
+    [$old, $refused] = $config->instance->run('fieldset:install', InstanceCommandFixture::installFlags(['--behind-proxy' => 'traefik', '--proxy-network' => 'edge-net', '--url' => 'https://forms.example.com']));
+    [$same, $unchanged] = $config->instance->run('fieldset:install', InstanceCommandFixture::installFlags(['--behind-proxy' => 'traefik', '--proxy-network' => 'edge-net', '--url' => 'https://forms2.example.com']));
 
     expect($old)->toBe(2)->and($refused['errors'][0]['code'])->toBe('use_config_set')
         ->and($same)->toBe(0)->and($unchanged['changed'])->toBeFalse();

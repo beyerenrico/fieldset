@@ -1,0 +1,121 @@
+{
+    "guide_line": 144,
+    "guide_command": "curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/fieldset/releases/latest/download/install.sh | sh -s -- --dir ~/forms --org \"Example Ltd\" --owner-email owner@example.com --demo --secrets-file ~/forms-secrets.json --json --yes",
+    "command": "sh '<harness>/dist/download/v2.1.0-alpha.1-test/install.sh' --version '2.1.0-alpha.1-test' --dir <work>/fieldset-test-j11-forms --org \"Example Ltd\" --owner-email owner@example.com --demo --secrets-file <work>/fieldset-test-j11-forms-secrets.json --json --yes",
+    "exit_code": 0,
+    "seconds": 50.9,
+    "stdout": {
+        "schema_version": 1,
+        "command": "install",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": true,
+        "data": {
+            "url": "http://localhost:8081",
+            "version": "2.1.0-alpha.1-test",
+            "mode": "local",
+            "dir": "<work>/fieldset-test-j11-forms",
+            "project": "fieldset-fieldset-test-j11-forms-80dc",
+            "port": 8081,
+            "mail": {
+                "mode": "capture",
+                "catcher_url": "http://localhost:8025",
+                "catcher_login_command": "fieldset config show --catcher-login"
+            },
+            "owner_email": "owner@example.com",
+            "next_commands": [
+                "<work>/fieldset-test-j11-forms/fieldset status",
+                "<work>/fieldset-test-j11-forms/fieldset login-link owner@example.com",
+                "<work>/fieldset-test-j11-forms/fieldset doctor --post"
+            ],
+            "sign_in_link": {
+                "expires_at": "2026-10-21T14:11:35Z",
+                "delivered": "secrets_file"
+            },
+            "demo": {
+                "organization": "Demo Haustechnik GmbH",
+                "seeded": true,
+                "passwords": "default",
+                "default_password": "<redacted>",
+                "exposure": [],
+                "users": [
+                    {
+                        "email": "owner@demo.test",
+                        "name": "Olivia Owner",
+                        "roles": [
+                            "owner"
+                        ]
+                    },
+                    {
+                        "email": "admin@demo.test",
+                        "name": "Adam Admin",
+                        "roles": [
+                            "admin"
+                        ]
+                    },
+                    {
+                        "email": "designer@demo.test",
+                        "name": "Dana Designer",
+                        "roles": [
+                            "designer"
+                        ]
+                    },
+                    {
+                        "email": "reviewer@demo.test",
+                        "name": "Rita Reviewer",
+                        "roles": [
+                            "reviewer"
+                        ]
+                    },
+                    {
+                        "email": "coordinator@demo.test",
+                        "name": "Cora Coordinator",
+                        "roles": [
+                            "designer",
+                            "reviewer"
+                        ]
+                    },
+                    {
+                        "email": "worker@demo.test",
+                        "name": "Willi Worker",
+                        "roles": [
+                            "field_worker"
+                        ]
+                    },
+                    {
+                        "email": "mobile@demo.test",
+                        "name": "Mia Mobil",
+                        "roles": [
+                            "field_worker"
+                        ]
+                    },
+                    {
+                        "email": "tablet@demo.test",
+                        "name": "Tom Tablet",
+                        "roles": [
+                            "field_worker"
+                        ]
+                    },
+                    {
+                        "email": "viewer@demo.test",
+                        "name": "Vera Viewer",
+                        "roles": [
+                            "viewer"
+                        ]
+                    }
+                ],
+                "login_url": "http://localhost:8081/admin/login",
+                "delivered": "data"
+            }
+        },
+        "secrets": [
+            {
+                "name": "sign_in_link",
+                "written_to": "<work>/fieldset-test-j11-forms-secrets.json",
+                "expires_at": "2026-10-21T14:11:35Z"
+            }
+        ],
+        "warnings": [],
+        "errors": []
+    }
+}

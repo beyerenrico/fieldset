@@ -1,0 +1,108 @@
+{
+    "commands": [
+        "install.sh --dir <work>/fieldset-test-j08c --from-backup <1.0 archive> --json",
+        "install.sh --dir <work>/fieldset-test-j08c --from-backup <1.0 archive> --accept-unauthenticated --json"
+    ],
+    "refused": {
+        "exit_code": 2,
+        "stdout": {
+            "schema_version": 1,
+            "command": "install",
+            "status": "failed",
+            "exit_code": 2,
+            "changed": false,
+            "data": {
+                "hmac": "absent"
+            },
+            "secrets": [],
+            "warnings": [],
+            "errors": [
+                {
+                    "code": "backup_unauthenticated",
+                    "message": "The backup is not authenticated: the 1.0 format carries no HMAC.",
+                    "hint": "Pass the APP key it was made with (--app-key-file), or --accept-unauthenticated if you trust where it comes from; it is then restored by a role that owns only the scratch database.",
+                    "retryable": false
+                }
+            ]
+        }
+    },
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "install",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": true,
+        "data": {
+            "url": "http://localhost:8082",
+            "version": "2.1.0-alpha.1-test",
+            "mode": "local",
+            "dir": "<work>/fieldset-test-j08c",
+            "project": "fieldset-fieldset-test-j08c-0c45",
+            "port": 8082,
+            "mail": {
+                "mode": "capture",
+                "catcher_url": "http://localhost:8026",
+                "catcher_login_command": "fieldset config show --catcher-login"
+            },
+            "owner_email": null,
+            "from_backup": {
+                "backup": "20261019T020000Z",
+                "format": "legacy",
+                "authenticated": false,
+                "encrypted": false,
+                "created_at": "20261019T020000Z",
+                "version": null,
+                "epoch": 4,
+                "recipients": {
+                    "listed": [],
+                    "kept": []
+                }
+            },
+            "pending_mail": null,
+            "webhooks": "paused",
+            "confirm_commands": [
+                "fieldset config set webhooks on"
+            ],
+            "sign_in_link": null,
+            "next_commands": [
+                "<work>/fieldset-test-j08c/fieldset status",
+                "<work>/fieldset-test-j08c/fieldset login-link <admin-email>",
+                "<work>/fieldset-test-j08c/fieldset config set webhooks on"
+            ]
+        },
+        "secrets": [],
+        "warnings": [
+            {
+                "code": "backup_unauthenticated",
+                "message": "The backup is not authenticated (the 1.0 format carries no HMAC); it was accepted with --accept-unauthenticated.",
+                "hint": null
+            },
+            {
+                "code": "mail_captured_after_move",
+                "message": "Mail is captured in the bundled catcher until you switch it on: the old server may still be sending.",
+                "hint": "Once the move is complete: `fieldset config set mail smtp …` (the backup's server is under data.pending_mail)."
+            },
+            {
+                "code": "webhooks_paused",
+                "message": "Workflow webhooks wait until you confirm the move, so the old and the new server never both deliver.",
+                "hint": "Once DNS points here and the old server is stopped: `fieldset config set webhooks on`."
+            },
+            {
+                "code": "no_sign_in_link",
+                "message": "No --owner-email was given, so no sign-in link was issued; the restored users sign in as before.",
+                "hint": "Run `fieldset login-link <email> --secrets-file <file>` for an admin of the restored data."
+            }
+        ],
+        "errors": []
+    },
+    "forced": {
+        "APP_DEBUG": true,
+        "SSO_ALLOW_INSECURE_IDP": true,
+        "TRUSTED_PROXIES": false
+    },
+    "runtime_webhooks": {
+        "paused": true
+    },
+    "organizations": "1"
+}

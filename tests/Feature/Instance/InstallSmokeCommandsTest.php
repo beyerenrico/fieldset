@@ -11,9 +11,9 @@ use Symfony\Component\Mime\Email;
 use Tests\Feature\Documents\DocumentFixtures;
 
 /*
- * The app side of the install smoke test (R11, KTD25; ADR 0072 amendment), as the socket-less one-offs fsa runs:
+ * The app side of the install smoke test (R11, KTD25; ADR 0072 amendment), as the socket-less one-offs fieldset runs:
  * `instance:pdf-test` renders one page through the app's Gotenberg client, `instance:mail-test --install` sends the
- * install's test mail with a Message-ID of its own (fsa looks it up in the catcher) and wording for capture mode or
+ * install's test mail with a Message-ID of its own (fieldset looks it up in the catcher) and wording for capture mode or
  * delivery.
  */
 

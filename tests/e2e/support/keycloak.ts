@@ -4,7 +4,7 @@ import { fieldAppContinueToSso } from './field-app';
 // The dev Keycloak (docker/keycloak, COMPOSE_PROFILES=sso). Its issuer is fixed by KC_HOSTNAME; Chromium
 // resolves *.localhost to loopback by itself and keeps Keycloak's Secure cookies over http there.
 export const KEYCLOAK_URL = process.env.E2E_KEYCLOAK_URL ?? 'http://keycloak.localhost:8180';
-export const KEYCLOAK_REALM = `${KEYCLOAK_URL}/realms/form-schema`;
+export const KEYCLOAK_REALM = `${KEYCLOAK_URL}/realms/fieldset`;
 export const SSO_PASSWORD = 'password';
 
 const HELLO = /^(hello|hallo), /i;

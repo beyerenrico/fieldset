@@ -21,13 +21,13 @@ use Tests\Support\Docker\TestImage;
  *   trusts the CA (SPKI list, standing in for a phone) loads the Field App on https://<IP> and its service worker
  *   registers, the trust page is axe-clean at phone width → mutual exclusion with the tunnel (exit 2) → turning the
  *   local CA off deletes the CA key from the certificate volume.
- * - Quick tunnel with the fake tunnel (FSA_TEST_TUNNEL, harness images only): organizations besides the demo need --yes
+ * - Quick tunnel with the fake tunnel (FIELDSET_TEST_TUNNEL, harness images only): organizations besides the demo need --yes
  *   (exit 6); another account on `password` refuses (exit 3); start rotates the demo passwords and reaches /app and
  *   /api while /platform, /admin and the trust page are 404; after its (shortened) lifetime the tunnel host answers 503,
- *   `fsa status` reports it expired without changing anything, and the next mutating command removes it (AE6); renew
+ *   `fieldset status` reports it expired without changing anything, and the next mutating command removes it (AE6); renew
  *   and stop; local CA and domain next to a tunnel exit 2.
  *
- * Everything is named `fsa-test-j06-…` and removed afterwards. Evidence goes to the milestone of FSA_EVIDENCE_MILESTONE.
+ * Everything is named `fieldset-test-j06-…` and removed afterwards. Evidence goes to the milestone of FIELDSET_EVIDENCE_MILESTONE.
  */
 
 const J06_TTL = 180;
@@ -39,22 +39,22 @@ beforeAll(function (): void {
 
     try {
         [$harness, $release] = SharedHarness::get();
-        $GLOBALS['fsaJ06'] = new InstanceJourney($harness, $release, $harness->directory.'/j06');
-        $GLOBALS['fsaJ06Tunnel'] = FakeTunnel::build($release->platformEnvironment());
-        $GLOBALS['fsaJ06Lan'] = LocalCaClient::lanAddress() ?? throw new RuntimeException('J6 needs a private IPv4 LAN address on this host (FSA_LAN_ADDRESSES is empty).');
+        $GLOBALS['fieldsetJ06'] = new InstanceJourney($harness, $release, $harness->directory.'/j06');
+        $GLOBALS['fieldsetJ06Tunnel'] = FakeTunnel::build($release->platformEnvironment());
+        $GLOBALS['fieldsetJ06Lan'] = LocalCaClient::lanAddress() ?? throw new RuntimeException('J6 needs a private IPv4 LAN address on this host (FIELDSET_LAN_ADDRESSES is empty).');
     } catch (Throwable $exception) {
-        $GLOBALS['fsaJ06Error'] = $exception;
+        $GLOBALS['fieldsetJ06Error'] = $exception;
     }
 });
 
 afterAll(function (): void {
-    if (isset($GLOBALS['fsaJ06'])) {
-        InstanceJourney::cleanup($GLOBALS['fsaJ06']->work.'/fsa-test-j06', $GLOBALS['fsaJ06Uuid'] ?? null);
+    if (isset($GLOBALS['fieldsetJ06'])) {
+        InstanceJourney::cleanup($GLOBALS['fieldsetJ06']->work.'/fieldset-test-j06', $GLOBALS['fieldsetJ06Uuid'] ?? null);
     }
-    if (isset($GLOBALS['fsaJ06Tunnel'])) {
-        $GLOBALS['fsaJ06Tunnel']->remove();
+    if (isset($GLOBALS['fieldsetJ06Tunnel'])) {
+        $GLOBALS['fieldsetJ06Tunnel']->remove();
     }
-    foreach (['fsaJ06', 'fsaJ06Tunnel', 'fsaJ06Lan', 'fsaJ06Error', 'fsaJ06Uuid', 'fsaJ06Fingerprint', 'fsaJ06Hostname'] as $key) {
+    foreach (['fieldsetJ06', 'fieldsetJ06Tunnel', 'fieldsetJ06Lan', 'fieldsetJ06Error', 'fieldsetJ06Uuid', 'fieldsetJ06Fingerprint', 'fieldsetJ06Hostname'] as $key) {
         unset($GLOBALS[$key]);
     }
 });
@@ -62,16 +62,16 @@ afterAll(function (): void {
 beforeEach(function (): void {
     $reason = TestImage::dockerUnavailableReason();
     if ($reason !== null) {
-        expect(getenv('FSA_REQUIRE_DOCKER'))->not->toBe('1', $reason);
+        expect(getenv('FIELDSET_REQUIRE_DOCKER'))->not->toBe('1', $reason);
         $this->markTestSkipped($reason.' (install journeys need a Docker engine)');
     }
-    if (isset($GLOBALS['fsaJ06Error'])) {
-        throw $GLOBALS['fsaJ06Error'];
+    if (isset($GLOBALS['fieldsetJ06Error'])) {
+        throw $GLOBALS['fieldsetJ06Error'];
     }
-    $this->journey = $GLOBALS['fsaJ06'];
-    $this->tunnel = $GLOBALS['fsaJ06Tunnel'];
-    $this->lan = $GLOBALS['fsaJ06Lan'];
-    $this->dir = $this->journey->work.'/fsa-test-j06';
+    $this->journey = $GLOBALS['fieldsetJ06'];
+    $this->tunnel = $GLOBALS['fieldsetJ06Tunnel'];
+    $this->lan = $GLOBALS['fieldsetJ06Lan'];
+    $this->dir = $this->journey->work.'/fieldset-test-j06';
 });
 
 /** @return array<string, mixed> */
@@ -99,7 +99,7 @@ function j06Docker(array $command, array $env = []): Process
 /** A container of the instance by its role, or ''. */
 function j06Container(string $role): string
 {
-    return trim(j06Docker(['ps', '-aq', '--filter', 'label=app.form-schema.instance='.($GLOBALS['fsaJ06Uuid'] ?? ''), '--filter', "label=app.form-schema.role={$role}"])->getOutput());
+    return trim(j06Docker(['ps', '-aq', '--filter', 'label=app.fieldset.instance='.($GLOBALS['fieldsetJ06Uuid'] ?? ''), '--filter', "label=app.fieldset.role={$role}"])->getOutput());
 }
 
 /** @return array{status: int, headers: array<string, string>, body: string} a request through the fake tunnel */
@@ -107,7 +107,7 @@ function j06ThroughTunnel(string $dir, string $path, array $headers = []): array
 {
     $state = j06State($dir);
 
-    return FakeTunnel::request($state['project'], $state['digests']['app'], $state['settings']['tunnel_subnet'], $path, $GLOBALS['fsaJ06']->release->platformEnvironment(), $headers);
+    return FakeTunnel::request($state['project'], $state['digests']['app'], $state['settings']['tunnel_subnet'], $path, $GLOBALS['fieldsetJ06']->release->platformEnvironment(), $headers);
 }
 
 /**
@@ -124,9 +124,9 @@ function j06SecretsFile(object $test, string $name): array
 /** @param  array<string, string>  $env */
 function j06Run(object $test, array $arguments, string $evidence, array $env = []): array
 {
-    $process = $test->journey->fsa($test->dir, [...$arguments, '--json'], $env);
+    $process = $test->journey->fieldset($test->dir, [...$arguments, '--json'], $env);
     $json = InstanceJourney::json($process);
-    $test->journey->evidence($evidence, ['command' => 'fsa '.implode(' ', $arguments).' --json', 'exit_code' => $process->getExitCode(), 'stdout' => $json]);
+    $test->journey->evidence($evidence, ['command' => 'fieldset '.implode(' ', $arguments).' --json', 'exit_code' => $process->getExitCode(), 'stdout' => $json]);
 
     return [$process, $json];
 }
@@ -136,16 +136,16 @@ it('installs with --phone-https local-ca on the LAN address and prints the root 
     $started = microtime(true);
     $process = $this->journey->install($this->dir, $flags);
     $json = InstanceJourney::json($process);
-    $GLOBALS['fsaJ06Uuid'] = InstanceJourney::uuid($this->dir);
+    $GLOBALS['fieldsetJ06Uuid'] = InstanceJourney::uuid($this->dir);
     $root = (string) @file_get_contents($this->dir.'/runtime/local-ca-root.crt');
-    $GLOBALS['fsaJ06Fingerprint'] = $json['data']['phone_https']['root_sha256'] ?? null;
-    $this->journey->evidence('J06-install.json', ['command' => 'install.sh --dir <work>/fsa-test-j06 --version '.ReleaseHarness::version().' '.implode(' ', array_slice($flags, 0, 8)).' --secrets-file <work>/owner-link.json --json', 'exit_code' => $process->getExitCode(), 'seconds' => round(microtime(true) - $started, 1), 'stdout' => $json]);
+    $GLOBALS['fieldsetJ06Fingerprint'] = $json['data']['phone_https']['root_sha256'] ?? null;
+    $this->journey->evidence('J06-install.json', ['command' => 'install.sh --dir <work>/fieldset-test-j06 --version '.ReleaseHarness::version().' '.implode(' ', array_slice($flags, 0, 8)).' --secrets-file <work>/owner-link.json --json', 'exit_code' => $process->getExitCode(), 'seconds' => round(microtime(true) - $started, 1), 'stdout' => $json]);
 
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput()."\n".$process->getOutput())
         ->and($json['data']['url'])->toBe("https://{$this->lan}")
         ->and($json['data']['mode'])->toBe('local')
         ->and($json['data']['phone_https'])->toMatchArray(['mode' => 'local-ca', 'lan_address' => $this->lan, 'trust_url' => "http://{$this->lan}/phone-trust"])
-        ->and($GLOBALS['fsaJ06Fingerprint'])->toBe(implode(':', str_split(strtoupper((string) openssl_x509_fingerprint($root, 'sha256')), 2)))
+        ->and($GLOBALS['fieldsetJ06Fingerprint'])->toBe(implode(':', str_split(strtoupper((string) openssl_x509_fingerprint($root, 'sha256')), 2)))
         ->and(collect($json['warnings'])->pluck('code')->all())->toContain('local_ca_trust', 'lan_exposed', 'url_changed_phone_data')
         ->and(j06State($this->dir)['settings'])->toMatchArray(['phone_https' => 'local-ca', 'lan_address' => $this->lan])
         ->and(j06Runtime($this->dir)['instance_url'])->toBe("https://{$this->lan}")
@@ -177,7 +177,7 @@ it('serves only the trust page and the root certificate on port 80, everything e
     expect($admin['status'])->toBe(308)->and($admin['location'])->toBe("https://{$this->lan}/admin/login?x=1")
         ->and($app['status'])->toBe(308)
         ->and($trust['status'])->toBe(200)
-        ->and($trust['body'])->toContain((string) $GLOBALS['fsaJ06Fingerprint'])
+        ->and($trust['body'])->toContain((string) $GLOBALS['fieldsetJ06Fingerprint'])
         ->and($trust['headers'])->not->toHaveKey('strict-transport-security')
         ->and($trust['headers'])->not->toHaveKey('set-cookie')
         ->and($trust['headers']['content-security-policy'] ?? '')->not->toContain('upgrade-insecure-requests')
@@ -190,11 +190,11 @@ it('loads the Field App over HTTPS in a browser that trusts the CA, its service 
     $handshake = LocalCaClient::handshake($this->lan, $this->dir.'/runtime/local-ca-root.crt');
     $spki = LocalCaClient::spki([(string) file_get_contents($this->dir.'/runtime/local-ca-root.crt'), ...$handshake['chain']]);
     $process = LocalCaClient::playwright([
-        'FSA_PHONE_TRUST_URL' => "http://{$this->lan}/phone-trust", 'FSA_FIELD_APP_URL' => "https://{$this->lan}/app/",
-        'FSA_LOCAL_CA_FINGERPRINT' => (string) $GLOBALS['fsaJ06Fingerprint'], 'FSA_LOCAL_CA_SPKI' => $spki,
+        'FIELDSET_PHONE_TRUST_URL' => "http://{$this->lan}/phone-trust", 'FIELDSET_FIELD_APP_URL' => "https://{$this->lan}/app/",
+        'FIELDSET_LOCAL_CA_FINGERPRINT' => (string) $GLOBALS['fieldsetJ06Fingerprint'], 'FIELDSET_LOCAL_CA_SPKI' => $spki,
     ]);
     $output = trim($process->getOutput()."\n".$process->getErrorOutput());
-    $this->journey->evidence('J06-playwright.json', ['command' => 'playwright test --project=fsa-instance (tests/e2e/fsa-phone-trust.spec.ts)', 'exit_code' => $process->getExitCode(), 'output' => array_slice(explode("\n", $output), -25)]);
+    $this->journey->evidence('J06-playwright.json', ['command' => 'playwright test --project=fieldset-instance (tests/e2e/fieldset-phone-trust.spec.ts)', 'exit_code' => $process->getExitCode(), 'output' => array_slice(explode("\n", $output), -25)]);
 
     expect($process->getExitCode())->toBe(0, $output)
         ->and($output)->not->toContain('skipped');
@@ -206,7 +206,7 @@ it('reports the local CA in status and doctor, and refuses a tunnel next to it (
     [$tunnel, $tunnelJson] = j06Run($this, ['tunnel', 'start', '--yes'], 'J06-tunnel-next-to-local-ca.json', $this->tunnel->environment(J06_TTL));
 
     expect($status->getExitCode())->toBe(0, $status->getOutput())
-        ->and($statusJson['data']['phone_https'])->toMatchArray(['mode' => 'local-ca', 'root_sha256' => $GLOBALS['fsaJ06Fingerprint'], 'lan_address_current' => true])
+        ->and($statusJson['data']['phone_https'])->toMatchArray(['mode' => 'local-ca', 'root_sha256' => $GLOBALS['fieldsetJ06Fingerprint'], 'lan_address_current' => true])
         ->and($statusJson['data']['services'])->toHaveKey('edge')
         ->and($doctor->getExitCode())->toBe(0, $doctor->getOutput())
         ->and(collect($doctorJson['data']['checks'])->firstWhere('key', 'lan_address')['status'] ?? null)->toBe('ok')
@@ -252,15 +252,15 @@ it('starts the tunnel only with --yes beside other organizations and never besid
 it('starts the fake tunnel, rotates the demo passwords, and lets only the Field App, API and sign-in through', function (): void {
     [$process, $json] = j06Run($this, ['tunnel', 'start', '--yes', ...j06SecretsFile($this, 'tunnel-start')], 'J06-tunnel-start.json', $this->tunnel->environment(J06_TTL));
     $runtime = j06Runtime($this->dir);
-    $GLOBALS['fsaJ06Hostname'] = $runtime['tunnel']['hostname'] ?? null;
+    $GLOBALS['fieldsetJ06Hostname'] = $runtime['tunnel']['hostname'] ?? null;
     $paths = ['/app', '/api/v1/me', '/sanctum/csrf-cookie', '/platform', '/admin', '/horizon', '/phone-trust', '/docs/api'];
     $answers = array_combine($paths, array_map(fn (string $path): array => j06ThroughTunnel($this->dir, $path), $paths));
     $forged = j06ThroughTunnel($this->dir, '/platform', ['X-Forwarded-Host: localhost', 'X-Forwarded-For: 127.0.0.1']);
     $this->journey->evidence('J06-tunnel-paths.json', [...array_map(static fn (array $answer): int => $answer['status'], $answers), '/platform with X-Forwarded-Host: localhost' => $forged['status']]);
 
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput().$process->getOutput())
-        ->and($json['data']['url'])->toMatch('/^https:\/\/fsa-test-[0-9a-f]+\.trycloudflare\.com$/')
-        ->and($json['data']['tunnel'])->toMatchArray(['hostname' => $GLOBALS['fsaJ06Hostname'], 'admin' => false, 'peer' => $runtime['tunnel']['peer']])
+        ->and($json['data']['url'])->toMatch('/^https:\/\/fieldset-test-[0-9a-f]+\.trycloudflare\.com$/')
+        ->and($json['data']['tunnel'])->toMatchArray(['hostname' => $GLOBALS['fieldsetJ06Hostname'], 'admin' => false, 'peer' => $runtime['tunnel']['peer']])
         ->and(collect($json['warnings'])->pluck('code')->all())->toContain('tunnel_third_party', 'tunnel_expires', 'url_changed_phone_data', 'demo_passwords_rotated')
         ->and(collect($json['secrets'])->pluck('name')->filter(static fn (string $name): bool => str_starts_with($name, 'demo_password:'))->count())->toBe(9)
         ->and(j06State($this->dir)['settings'])->toMatchArray(['phone_https' => 'tunnel'])
@@ -277,7 +277,7 @@ it('starts the fake tunnel, rotates the demo passwords, and lets only the Field 
 
 it('refuses the local CA and domain mode next to the tunnel (R61)', function (): void {
     [$localCa, $localCaJson] = j06Run($this, ['config', 'set', 'phone-https', 'local-ca', '--yes'], 'J06-local-ca-next-to-tunnel.json', $this->tunnel->environment(J06_TTL));
-    [$domain, $domainJson] = j06Run($this, ['config', 'set', 'domain', 'fsa-test-j06.test', '--yes'], 'J06-domain-next-to-tunnel.json', $this->tunnel->environment(J06_TTL));
+    [$domain, $domainJson] = j06Run($this, ['config', 'set', 'domain', 'fieldset-test-j06.test', '--yes'], 'J06-domain-next-to-tunnel.json', $this->tunnel->environment(J06_TTL));
 
     expect($localCa->getExitCode())->toBe(2)->and($localCaJson['errors'][0]['code'])->toBe('invalid_combination')
         ->and($domain->getExitCode())->toBe(2)->and($domainJson['errors'][0]['code'])->toBe('invalid_combination');
@@ -292,7 +292,7 @@ it('answers 503 on the expired tunnel host, reports it read-only, and the next m
     $before = [md5_file($this->dir.'/state.json'), md5_file($this->dir.'/runtime/runtime.json'), j06Container('tunnel')];
     $since = time();
     [$status, $statusJson] = j06Run($this, ['status'], 'J06-status-expired.json', $this->tunnel->environment(J06_TTL));
-    $changes = InstanceJourney::events($since, time() + 1, ['label=app.form-schema.instance='.$GLOBALS['fsaJ06Uuid'], 'type=container', 'event=create', 'event=destroy', 'event=stop']);
+    $changes = InstanceJourney::events($since, time() + 1, ['label=app.fieldset.instance='.$GLOBALS['fieldsetJ06Uuid'], 'type=container', 'event=create', 'event=destroy', 'event=stop']);
     $after = [md5_file($this->dir.'/state.json'), md5_file($this->dir.'/runtime/runtime.json'), j06Container('tunnel')];
     [$demo, $demoJson] = j06Run($this, ['demo', ...j06SecretsFile($this, 'next-mutating-command')], 'J06-next-mutating-command.json', $this->tunnel->environment(J06_TTL));
     $this->journey->evidence('J06-expiry.json', ['through_tunnel_after_expiry' => ['status' => $expired['status'], 'retry_after' => $expired['headers']['retry-after'] ?? null], 'status_changed_files' => $before !== $after, 'status_container_events' => $changes]);
@@ -300,7 +300,7 @@ it('answers 503 on the expired tunnel host, reports it read-only, and the next m
     expect($expired['status'])->toBe(503)
         ->and($expired['headers']['retry-after'] ?? null)->toBe('300')
         ->and($status->getExitCode())->toBe(0, $status->getOutput())
-        ->and($statusJson['data']['tunnel'])->toMatchArray(['state' => 'expired', 'hostname' => $GLOBALS['fsaJ06Hostname']])
+        ->and($statusJson['data']['tunnel'])->toMatchArray(['state' => 'expired', 'hostname' => $GLOBALS['fieldsetJ06Hostname']])
         ->and(collect($statusJson['warnings'])->pluck('code')->all())->toContain('tunnel_expired')
         ->and($after)->toBe($before)
         ->and(array_filter($changes, static fn (string $event): bool => ! str_contains($event, 'smoke') && ! str_contains($event, 'run-')))->toBe([])
@@ -335,8 +335,8 @@ it('renews a living tunnel and stops it', function (): void {
 });
 
 it('uninstalls with everything it created', function (): void {
-    $uuid = $GLOBALS['fsaJ06Uuid'];
-    $process = $this->journey->fsa($this->dir, ['uninstall', '--yes', '--json']);
+    $uuid = $GLOBALS['fieldsetJ06Uuid'];
+    $process = $this->journey->fieldset($this->dir, ['uninstall', '--yes', '--json']);
 
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput().$process->getOutput())
         ->and(InstanceJourney::labelled($uuid))->toBe(['containers' => [], 'volumes' => [], 'networks' => []]);

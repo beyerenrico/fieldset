@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { JsonObject, JsonValue } from '@form-schema-app/form-schema-js';
+import type { JsonObject, JsonValue } from '@fieldset/fieldset-js';
 import type { BuilderConfig } from '../../src/contract.ts';
 
 /** The repository root (this file lives in resources/builder-v2/test/support). */

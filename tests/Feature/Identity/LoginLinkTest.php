@@ -170,21 +170,21 @@ it('shows the used, expired, invalid and rate-limited states in German and Engli
     auth()->logout();
 
     $this->post('/login-link', ['token' => $used])->assertStatus(410)
-        ->assertSee(trans('login_link.states.used.heading', [], $locale))->assertSee('fsa login-link &lt;email&gt;', false);
+        ->assertSee(trans('login_link.states.used.heading', [], $locale))->assertSee('fieldset login-link &lt;email&gt;', false);
 
     $expired = loginLinkToken(loginLinkIssue(memberOf($this->org, SystemRole::Admin)));
     $this->travel(16)->minutes();
     $this->post('/login-link', ['token' => $expired])->assertStatus(410)
-        ->assertSee(trans('login_link.states.expired.heading', [], $locale))->assertSee('fsa login-link');
+        ->assertSee(trans('login_link.states.expired.heading', [], $locale))->assertSee('fieldset login-link');
 
     $this->post('/login-link', ['token' => Str::random(64)])->assertNotFound()
-        ->assertSee(trans('login_link.states.invalid.heading', [], $locale))->assertSee('fsa login-link');
+        ->assertSee(trans('login_link.states.invalid.heading', [], $locale))->assertSee('fieldset login-link');
 
     foreach (range(1, ConsumeLoginLink::MAX_ATTEMPTS_PER_MINUTE) as $ignored) {
         $this->post('/login-link', ['token' => 'x']);
     }
     $this->post('/login-link', ['token' => $expired])->assertStatus(429)->assertHeader('Retry-After')
-        ->assertSee(trans('login_link.states.rate_limited.heading', [], $locale))->assertSee('fsa login-link');
+        ->assertSee(trans('login_link.states.rate_limited.heading', [], $locale))->assertSee('fieldset login-link');
     $this->assertGuest();
 })->with(['de', 'en']);
 

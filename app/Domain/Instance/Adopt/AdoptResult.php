@@ -16,7 +16,7 @@ use App\Domain\Instance\State\InstanceState;
 use Throwable;
 
 /**
- * The envelopes of `fsa adopt` (plan U19, ADR 0087): the install summary plus where the data came from (checkout, project,
+ * The envelopes of `fieldset adopt` (plan U19, ADR 0087): the install summary plus where the data came from (checkout, project,
  * the 1.0-format backup, what was verified), the SMTP server to confirm, and the way back; a finished adopt of the same
  * checkout changes nothing; a failed one says that 1.0 runs again and why.
  */
@@ -31,7 +31,7 @@ final readonly class AdoptResult
     public static function build(InstanceState $state, InstanceDirectory $directory, LegacyInstall $legacy, array $preflight, array $data): CommandResult
     {
         $settings = InstanceSettings::of($state);
-        $fsa = $directory->root.'/fsa';
+        $fieldset = $directory->root.'/fieldset';
         $pending = is_array($preflight['pending_mail'] ?? null) ? $preflight['pending_mail'] : null;
         $backup = is_array($data['backup'] ?? null) ? $data['backup'] : [];
         $verify = is_array($data['verify'] ?? null) ? $data['verify'] : [];
@@ -46,8 +46,8 @@ final readonly class AdoptResult
                 'drain' => $drain, 'volumes' => $data['copy']['volumes'] ?? [], 'legacy_volumes' => $legacy->volumes,
             ],
             'pending_mail' => $pending,
-            'way_back' => self::wayBack($fsa, $legacy),
-            'next_commands' => ["{$fsa} status", "{$fsa} login-link <admin-email>", "{$fsa} doctor --post"],
+            'way_back' => self::wayBack($fieldset, $legacy),
+            'next_commands' => ["{$fieldset} status", "{$fieldset} login-link <admin-email>", "{$fieldset} doctor --post"],
         ], changed: true);
 
         return self::smokeWarnings(self::warnings($result, $pending, $drain, $backup), is_array($data['smoke'] ?? null) ? $data['smoke'] : []);
@@ -102,9 +102,9 @@ final readonly class AdoptResult
     }
 
     /** @return list<string> */
-    public static function wayBack(string $fsa, LegacyInstall $legacy): array
+    public static function wayBack(string $fieldset, LegacyInstall $legacy): array
     {
-        return ["{$fsa} uninstall (a final backup first; the 1.0 volumes were never changed)", "cd {$legacy->checkout} && docker compose up -d"];
+        return ["{$fieldset} uninstall (a final backup first; the 1.0 volumes were never changed)", "cd {$legacy->checkout} && docker compose up -d"];
     }
 
     /**
@@ -139,6 +139,6 @@ final readonly class AdoptResult
             return $result;
         }
 
-        return $result->withWarning('test_mail_skipped', 'No test mail was sent: the 1.0 data has no active operator (1.0 granted them with `app:platform-admin`).', 'Name one with `fsa config set operator-email <email>`; it can then open /platform and receives instance mail.');
+        return $result->withWarning('test_mail_skipped', 'No test mail was sent: the 1.0 data has no active operator (1.0 granted them with `app:platform-admin`).', 'Name one with `fieldset config set operator-email <email>`; it can then open /platform and receives instance mail.');
     }
 }

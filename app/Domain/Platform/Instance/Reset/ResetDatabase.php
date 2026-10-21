@@ -9,7 +9,7 @@ use App\Domain\Platform\Instance\Restore\RestoreRefused;
 use Illuminate\Database\Connection;
 
 /**
- * Recreates the instance's database for `fsa reset` (plan U23, ADR 0088) from the maintenance database, as the
+ * Recreates the instance's database for `fieldset reset` (plan U23, ADR 0088) from the maintenance database, as the
  * instance's Postgres superuser in a socket-less one-off (`instance:reset recreate`): the append-only audit triggers
  * forbid truncating, so the database is dropped (its sessions terminated) and created again, empty, under the same
  * name and owner. Only ever the database the one-off's DB_DATABASE names, never postgres or a template. Both

@@ -117,7 +117,7 @@ Non-multipart request bodies larger than 2 MB (`submissions.max_payload_bytes`) 
 
 ## Evaluation context for the client renderer
 
-The client runs `evaluate(definition, data, context)` from `@form-schema-app/form-schema-js` with
+The client runs `evaluate(definition, data, context)` from `@fieldset/fieldset-js` with
 `context = { today, now, user: { name, email }, org: { name }, formVersion }` (today/now in the
 organization time zone). Server results are authoritative; calculated values sent by the client are
 ignored.

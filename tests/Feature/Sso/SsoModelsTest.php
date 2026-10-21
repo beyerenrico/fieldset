@@ -60,11 +60,11 @@ it('encrypts the provider config and client secret at rest and decrypts them on 
     [, $provider] = organizationWithProvider();
     $raw = DB::table('identity_providers')->where('id', $provider->id)->first();
 
-    expect($raw->config)->not->toContain('form-schema-app')->not->toContain('issuer')
+    expect($raw->config)->not->toContain('fieldset')->not->toContain('issuer')
         ->and($raw->client_secret)->not->toBe($provider->client_secret)
         ->and(strlen((string) $raw->client_secret))->toBeGreaterThan(40)
         ->and(IdentityProvider::query()->withoutTenant()->findOrFail($provider->id))
-        ->config->toMatchArray(['client_id' => 'form-schema-app', 'flavor' => 'generic'])
+        ->config->toMatchArray(['client_id' => 'fieldset', 'flavor' => 'generic'])
         ->client_secret->toBe($provider->client_secret);
 });
 
@@ -111,8 +111,8 @@ it('names the verification TXT record after the domain and the token', function 
     $org = makeOrganization();
     $domain = $this->tenant->run($org, fn (): SsoDomain => SsoDomain::factory()->create(['domain' => 'acme.example']));
 
-    expect($domain->txtName())->toBe('_form-schema-app-verification.acme.example')
-        ->and($domain->txtValue())->toBe('form-schema-app-verification='.$domain->verification_token)
+    expect($domain->txtName())->toBe('_fieldset-verification.acme.example')
+        ->and($domain->txtValue())->toBe('fieldset-verification='.$domain->verification_token)
         ->and($domain->verification_token)->toMatch('/^[0-9a-f]{40}$/')
         ->and($domain->isVerified())->toBeFalse();
 });
@@ -181,7 +181,7 @@ it('binds every SSO contract to its final class with safe skeleton defaults', fu
 
     $discovery = app(HomeRealmDiscovery::class)->discover('worker@acme.example', SsoClient::App);
     expect($discovery->isSso())->toBeFalse()->and($discovery->provider)->toBeNull()
-        ->and(app(TxtRecordResolver::class)->txt('_form-schema-app-verification.acme.example'))->toBe([]);
+        ->and(app(TxtRecordResolver::class)->txt('_fieldset-verification.acme.example'))->toBe([]);
     app(PasswordAuthGate::class)->assertPasswordLogin('worker@acme.example');
     app(PasswordAuthGate::class)->assertPasswordReset('worker@acme.example');
 

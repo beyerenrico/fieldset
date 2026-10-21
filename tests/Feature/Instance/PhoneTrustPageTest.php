@@ -98,8 +98,8 @@ it('explains the iOS and Android steps, the tunnel on Android, the unsynced data
         ->toContain('Einstellungen → Allgemein → VPN und Geräteverwaltung')
         ->toContain('Zertifikatsvertrauenseinstellungen und aktivieren Sie das volle Vertrauen für „'.LocalCaFixture::ROOT_NAME.'“')
         ->toContain('„Zertifikat installieren“ → „CA-Zertifikat“')
-        ->toContain('fsa tunnel start')->toContain('noch nicht synchronisiert')->toContain('Profil entfernen')
-        ->toContain('für jede beliebige Website bürgen')->toContain('fsa status');
+        ->toContain('fieldset tunnel start')->toContain('noch nicht synchronisiert')->toContain('Profil entfernen')
+        ->toContain('für jede beliebige Website bürgen')->toContain('fieldset status');
     expect(substr_count((string) $response->getContent(), '<ol data-steps='))->toBe(2);
 });
 
@@ -110,12 +110,12 @@ it('tells Android users to turn the local CA off before the tunnel, which refuse
     } catch (InvalidInput $refusal) {
         $hint = (string) $refusal->hint;
     }
-    preg_match('/`(fsa [^`]+)`/', $hint, $command);
+    preg_match('/`(fieldset [^`]+)`/', $hint, $command);
     $text = phoneTrustText(phoneTrust(PhoneTrustRoute::PATH.'?lang='.$lang)->assertOk());
 
-    expect($command[1] ?? null)->toBe('fsa config set phone-https off --yes')
-        ->and($text)->toContain($command[1])->toContain('fsa tunnel start')
-        ->and(strpos($text, $command[1]))->toBeLessThan(strpos($text, 'fsa tunnel start'));
+    expect($command[1] ?? null)->toBe('fieldset config set phone-https off --yes')
+        ->and($text)->toContain($command[1])->toContain('fieldset tunnel start')
+        ->and(strpos($text, $command[1]))->toBeLessThan(strpos($text, 'fieldset tunnel start'));
 })->with(['de', 'en']);
 
 it('speaks English with ?lang=en or an English browser, German otherwise', function (array $query, array $headers, string $lang): void {
@@ -154,7 +154,7 @@ it('keeps HSTS for every other page of the instance host over plain HTTP', funct
 it('offers exactly the public root PEM for download, never a key', function (): void {
     $response = phoneTrust(PhoneTrustRoute::ROOT_PATH)->assertOk()
         ->assertHeader('Content-Type', 'application/x-x509-ca-cert')
-        ->assertHeader('Content-Disposition', 'attachment; filename="form-schema-app-local-ca.crt"')
+        ->assertHeader('Content-Disposition', 'attachment; filename="fieldset-local-ca.crt"')
         ->assertHeader('X-Content-Type-Options', 'nosniff');
 
     expect($response->getContent())->toBe($this->pem)->not->toContain('PRIVATE KEY')

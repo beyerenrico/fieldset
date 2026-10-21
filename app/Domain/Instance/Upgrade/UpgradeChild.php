@@ -24,9 +24,9 @@ use Throwable;
 
 /**
  * The supervisor's side of the upgrade child (KTD19 step 6, KTD25, plan U18, ADR 0086). It writes the request into the
- * stage directory, starts the target image's `fsa upgrade-child` detached (no socket, the instance network, the instance
+ * stage directory, starts the target image's `fieldset upgrade-child` detached (no socket, the instance network, the instance
  * directory read-only and only the stage writable, as the owner) and watches it: the child counts as alive while it runs
- * and its database session (`fsa_upgrade_<id>`) was seen active within IDLE_SECONDS, judged by a socket-less one-off
+ * and its database session (`fieldset_upgrade_<id>`) was seen active within IDLE_SECONDS, judged by a socket-less one-off
  * that reads `pg_stat_activity`. A child that hangs or overruns MAX_SECONDS is removed, its backend terminated, and the
  * upgrade rolls back. The result is the stage's `result.json`; none means the child crashed.
  */
@@ -101,7 +101,7 @@ final readonly class UpgradeChild
             env: [StageRenderer::STAGE_ENV => $stage, 'HOME' => '/tmp'],
             volumes: [$root.':'.$root.':ro', ...($env === null ? [] : [$env.':'.$root.'/'.InstanceDirectory::ENV_DIR.':ro']), $stage.':'.$stage],
             network: $project->name.'_default', user: $state->containerUid().':'.($state->containerUid() === 0 ? 0 : $state->hostGid()),
-            entrypoint: 'fsa', detach: true, remove: false, restart: 'no',
+            entrypoint: 'fieldset', detach: true, remove: false, restart: 'no',
         ), null, 300.0);
         if (! $outcome->successful() || trim($outcome->stdout) === '') {
             throw new InstanceException('The target image\'s upgrade child did not start: '.$outcome->stderrTail(3), ExitCode::RolledBack, 'child_failed', null, true, ['output' => $outcome->stderrTail(10)]);

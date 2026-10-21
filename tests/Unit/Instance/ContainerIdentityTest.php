@@ -22,11 +22,11 @@ it('identifies its container from the mount table and asks Docker for its start 
     $id = str_repeat('e', 64);
     $docker = (new RecordingDockerGateway)->withRunningContainer($id, '2026-10-17T10:00:00.1Z');
 
-    $holder = new ContainerIdentity($docker, mountTable($id), 'ops')->holder('fsa', 1000);
+    $holder = new ContainerIdentity($docker, mountTable($id), 'ops')->holder('fieldset', 1000);
 
     expect($holder->containerId)->toBe($id)
         ->and($holder->containerStartedAt)->toBe('2026-10-17T10:00:00.1Z')
-        ->and($holder->owner)->toBe('fsa')
+        ->and($holder->owner)->toBe('fieldset')
         ->and($holder->hostUid)->toBe(1000)
         ->and($holder->hostname)->toBe('ops')
         ->and($holder->pid)->toBe(getmypid());
@@ -47,7 +47,7 @@ it('does not take a hostname with a trailing newline for a container ID', functi
 it('reports no container outside Docker, so the lock is never judged stale', function (): void {
     $docker = new RecordingDockerGateway;
 
-    $holder = new ContainerIdentity($docker, '/nonexistent', 'dev-laptop')->holder('fsa', null);
+    $holder = new ContainerIdentity($docker, '/nonexistent', 'dev-laptop')->holder('fieldset', null);
 
     expect($holder->containerId)->toBeNull()
         ->and($holder->containerStartedAt)->toBeNull()
@@ -55,14 +55,14 @@ it('reports no container outside Docker, so the lock is never judged stale', fun
 });
 
 it('reads host facts from the shim environment', function (): void {
-    $facts = HostFacts::fromEnvironment(['FSA_TTY' => '0', 'FSA_HOST_UID' => '1000', 'FSA_HOST_GID' => '1001', 'FSA_HOST_OS' => 'linux', 'FSA_INSTANCE_DIR' => '/srv/fsa']);
-    $empty = HostFacts::fromEnvironment(['FSA_HOST_UID' => 'abc', 'FSA_TTY' => 'maybe']);
+    $facts = HostFacts::fromEnvironment(['FIELDSET_TTY' => '0', 'FIELDSET_HOST_UID' => '1000', 'FIELDSET_HOST_GID' => '1001', 'FIELDSET_HOST_OS' => 'linux', 'FIELDSET_INSTANCE_DIR' => '/srv/fieldset']);
+    $empty = HostFacts::fromEnvironment(['FIELDSET_HOST_UID' => 'abc', 'FIELDSET_TTY' => 'maybe']);
 
     expect($facts->tty)->toBeFalse()
         ->and($facts->uid)->toBe(1000)
         ->and($facts->gid)->toBe(1001)
         ->and($facts->os)->toBe('linux')
-        ->and($facts->instanceDir)->toBe('/srv/fsa')
+        ->and($facts->instanceDir)->toBe('/srv/fieldset')
         ->and($facts->callerUid())->toBe(1000)
         ->and($empty->tty)->toBeNull()
         ->and($empty->uid)->toBeNull()

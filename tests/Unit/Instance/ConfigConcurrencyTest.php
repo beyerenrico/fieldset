@@ -11,7 +11,7 @@ use Tests\Support\Instance\ConfigFixture;
 use Tests\Support\Instance\TemporaryInstance;
 
 /*
- * M10 gate (ADR 0078): two `fsa config set` runs must never mix. A live lock refuses a second run up front, before
+ * M10 gate (ADR 0078): two `fieldset config set` runs must never mix. A live lock refuses a second run up front, before
  * its URL-impact one-off; a run that found no unfinished journal never adopts one another run opened while it asked
  * for confirmation; a resume takes only the journal of the same key, value and options.
  */
@@ -59,7 +59,7 @@ it('does not adopt a journal another run opened during its confirmation window',
     $open = $this->config->openJournal();
     expect($code)->toBe(9, json_encode($json))
         ->and($json['errors'][0]['code'])->toBe('operation_unfinished')
-        ->and($json['data']['command'])->toBe('fsa config set port 8095 --yes')
+        ->and($json['data']['command'])->toBe('fieldset config set port 8095 --yes')
         ->and($open?->context()['value'])->toBe('8095')
         ->and(collect($open?->events())->pluck('type')->all())->not->toContain('resumed')
         ->and($this->config->state()->setting('port'))->toBe(8080);
@@ -86,9 +86,9 @@ it('names the exact command with its options when another config change is unfin
     $this->journal->startPhase('apply');
 
     [$code, $json] = $this->config->set('port', '8090', ['--yes' => true]);
-    [, $status] = $this->config->instance->run('fsa:status');
+    [, $status] = $this->config->instance->run('fieldset:status');
 
-    $command = 'fsa config set domain '.ConfigFixture::DOMAIN.' --acme-email ops@example.com --acme-staging --yes';
+    $command = 'fieldset config set domain '.ConfigFixture::DOMAIN.' --acme-email ops@example.com --acme-staging --yes';
     expect($code)->toBe(9)
         ->and($json['data']['command'])->toBe($command)
         ->and($json['data']['options'])->toBe(['--acme-email' => 'ops@example.com', '--acme-staging' => true, '--yes' => true])

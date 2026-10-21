@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Instance\Output;
 
 /**
- * `fsa` exit codes: BUILD_PROMPT_V2 §7 plus 8 and 9 (plan KTD3) and 1 for unexpected internal errors (ADR 0066).
+ * `fieldset` exit codes: BUILD_PROMPT_V2 §7 plus 8 and 9 (plan KTD3) and 1 for unexpected internal errors (ADR 0066).
  * Change only with an ADR; agents branch on these numbers.
  */
 enum ExitCode: int

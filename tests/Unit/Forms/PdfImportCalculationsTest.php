@@ -5,7 +5,7 @@ declare(strict_types=1);
 use App\Domain\Forms\Import\Mapping\CalculationMapper;
 use App\Domain\Forms\Import\Model\TextRun;
 use App\Domain\Forms\Import\Qpdf\ContentStreamText;
-use FormSchema\Json\Json;
+use Fieldset\Json\Json;
 
 beforeEach(function (): void {
     $this->refs = [

@@ -1,5 +1,5 @@
 /** In-memory fake of the Field App API for MSW (test fixture: mutable on purpose). */
-import type { JsonObject } from '@form-schema-app/form-schema-js';
+import type { JsonObject } from '@fieldset/fieldset-js';
 import { http, HttpResponse, type JsonBodyType } from 'msw';
 import type {
     AppNotification,

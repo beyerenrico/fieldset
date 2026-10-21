@@ -29,7 +29,7 @@ class IdentityProviderFactory extends Factory
             'config' => [
                 'flavor' => OidcFlavor::Generic->value,
                 'issuer' => 'https://idp.example.test/realms/acme',
-                'client_id' => 'form-schema-app',
+                'client_id' => 'fieldset',
                 'scopes' => ['openid', 'email', 'profile'],
             ],
             'client_secret' => Str::random(40),

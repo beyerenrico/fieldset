@@ -13,7 +13,7 @@ use Tests\Support\Instance\UpgradeFixture;
 
 /*
  * Following an upgrade whose foreground went away (M12 gate O3, O4): the supervisor's result stays until the next launch
- * replaces it; `fsa upgrade --follow` attaches to a running supervisor or returns the last result; `fsa status` shows it as
+ * replaces it; `fieldset upgrade --follow` attaches to a running supervisor or returns the last result; `fieldset status` shows it as
  * `last_upgrade`, tells a running operation from an interrupted one and names a stale lock; `--resume` with nothing open
  * starts nothing and a resumed run aims at the release its journal began with.
  */
@@ -49,7 +49,7 @@ function supervisorLeaves(object $test, int $exit, array $codes = []): void
 it('refuses --resume with nothing to resume and starts no supervisor, in the foreground and in the supervisor (exit 2)', function (): void {
     supervisorLeaves($this, 0);
 
-    [$code, $json] = $this->upgrade->instance->run('fsa:upgrade', ['--resume' => true]);
+    [$code, $json] = $this->upgrade->instance->run('fieldset:upgrade', ['--resume' => true]);
     [$supervised, $supervisedJson] = $this->upgrade->upgrade(['--resume' => true, '--to' => null]);
 
     expect($code)->toBe(2, (string) json_encode($json))->and($json['errors'][0]['code'])->toBe('nothing_to_resume')
@@ -71,14 +71,14 @@ it('resumes towards the release the interrupted run aimed at, not the latest one
         ->and($this->upgrade->instance->state()->version())->toBe(UpgradeFixture::TARGET);
 });
 
-it('keeps the result for --follow and fsa status after the foreground is gone, until the next launch replaces it', function (): void {
+it('keeps the result for --follow and fieldset status after the foreground is gone, until the next launch replaces it', function (): void {
     supervisorLeaves($this, 5, ['target_unhealthy']);
 
-    [$code] = $this->upgrade->instance->run('fsa:upgrade', ['--to' => UpgradeFixture::TARGET]);
+    [$code] = $this->upgrade->instance->run('fieldset:upgrade', ['--to' => UpgradeFixture::TARGET]);
     $first = glob($this->dir.'/operations/supervisor-*.json');
-    [$followed, $followedJson] = $this->upgrade->instance->run('fsa:upgrade', ['--follow' => true]);
-    [, $status] = $this->upgrade->instance->run('fsa:status');
-    [$again] = $this->upgrade->instance->run('fsa:upgrade', ['--to' => UpgradeFixture::TARGET]);
+    [$followed, $followedJson] = $this->upgrade->instance->run('fieldset:upgrade', ['--follow' => true]);
+    [, $status] = $this->upgrade->instance->run('fieldset:status');
+    [$again] = $this->upgrade->instance->run('fieldset:upgrade', ['--to' => UpgradeFixture::TARGET]);
     $second = glob($this->dir.'/operations/supervisor-*.json');
 
     expect($code)->toBe(5)->and($first)->toHaveCount(1)
@@ -102,7 +102,7 @@ it('attaches --follow to a running supervisor, follows its journal and returns i
         }
     };
 
-    [$code, $json] = $this->upgrade->instance->run('fsa:upgrade', ['--follow' => true]);
+    [$code, $json] = $this->upgrade->instance->run('fieldset:upgrade', ['--follow' => true]);
 
     expect($code)->toBe(0, (string) json_encode($json))->and($json['data']['to'])->toBe(UpgradeFixture::TARGET)
         ->and($polls)->toBeGreaterThanOrEqual(2)
@@ -110,27 +110,27 @@ it('attaches --follow to a running supervisor, follows its journal and returns i
 });
 
 it('says there is nothing to follow, refuses --follow with other flags, and names --follow while a supervisor runs', function (): void {
-    [$nothing, $nothingJson] = $this->upgrade->instance->run('fsa:upgrade', ['--follow' => true]);
-    [$mixed, $mixedJson] = $this->upgrade->instance->run('fsa:upgrade', ['--follow' => true, '--to' => UpgradeFixture::TARGET]);
+    [$nothing, $nothingJson] = $this->upgrade->instance->run('fieldset:upgrade', ['--follow' => true]);
+    [$mixed, $mixedJson] = $this->upgrade->instance->run('fieldset:upgrade', ['--follow' => true, '--to' => UpgradeFixture::TARGET]);
     $this->upgrade->instance->docker->withRunningContainer(str_repeat('f', 64), '2026-10-20T10:00:00Z', $this->upgrade->supervisorLabels(), $this->upgrade->instance->state()->project().'-supervisor');
-    [$busy, $busyJson] = $this->upgrade->instance->run('fsa:upgrade', ['--to' => UpgradeFixture::TARGET]);
+    [$busy, $busyJson] = $this->upgrade->instance->run('fieldset:upgrade', ['--to' => UpgradeFixture::TARGET]);
 
     expect($nothing)->toBe(2)->and($nothingJson['errors'][0]['code'])->toBe('nothing_to_follow')
         ->and($mixed)->toBe(2)->and($mixedJson['errors'][0]['code'])->toBe('invalid_flag')
-        ->and($busy)->toBe(9)->and($busyJson['errors'][0]['hint'])->toContain('fsa upgrade --follow')
+        ->and($busy)->toBe(9)->and($busyJson['errors'][0]['hint'])->toContain('fieldset upgrade --follow')
         ->and($busyJson['data']['container'])->toEndWith('-supervisor');
 });
 
 it('tells a running operation from an interrupted one, names the supervisor and a stale lock (O4)', function (): void {
     $this->upgrade->interrupted('migrate');
-    [, $interrupted] = $this->upgrade->instance->run('fsa:status');
+    [, $interrupted] = $this->upgrade->instance->run('fieldset:status');
     $state = $this->upgrade->instance->state();
     $this->upgrade->instance->docker->withRunningContainer(str_repeat('f', 64), '2026-10-20T10:00:00Z', $this->upgrade->supervisorLabels(), $state->project().'-supervisor');
-    [, $running] = $this->upgrade->instance->run('fsa:status');
+    [, $running] = $this->upgrade->instance->run('fieldset:status');
     $this->upgrade->instance->docker->forgetContainer(str_repeat('f', 64));
     $lock = app(InstanceLock::class);
-    $handle = $lock->acquire(new LockHolder('fsa', str_repeat('9', 64), '2026-10-20T09:00:00Z', 7, 'gone', posix_getuid()), 'upgrade');
-    [, $stale] = $this->upgrade->instance->run('fsa:status');
+    $handle = $lock->acquire(new LockHolder('fieldset', str_repeat('9', 64), '2026-10-20T09:00:00Z', 7, 'gone', posix_getuid()), 'upgrade');
+    [, $stale] = $this->upgrade->instance->run('fieldset:status');
     $lock->release($handle);
 
     expect($interrupted['data']['operation'])->toMatchArray(['operation' => 'upgrade', 'state' => 'interrupted'])

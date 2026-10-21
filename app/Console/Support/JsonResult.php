@@ -10,9 +10,9 @@ use SensitiveParameter;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * The JSON document of the app-side one-off commands that `fsa` runs without the Docker socket (KTD25):
- * `app:install`, `identity:login-link`, `identity:login-links`. Same shape as the `fsa` result envelope (KTD3:
- * schema_version, command, status, changed, data, secrets, warnings, errors), so `fsa` can pass it through. A
+ * The JSON document of the app-side one-off commands that `fieldset` runs without the Docker socket (KTD25):
+ * `app:install`, `identity:login-link`, `identity:login-links`. Same shape as the `fieldset` result envelope (KTD3:
+ * schema_version, command, status, changed, data, secrets, warnings, errors), so `fieldset` can pass it through. A
  * secret (a one-time sign-in link) appears only under `secrets`; passwords never appear (R50).
  */
 final readonly class JsonResult

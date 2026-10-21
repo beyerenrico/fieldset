@@ -13,9 +13,9 @@ use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
 
 /**
- * The envelope of a finished `fsa reset` (R43, R49, plan U23, ADR 0088): the URL and mode, the fresh organization and
+ * The envelope of a finished `fieldset reset` (R43, R49, plan U23, ADR 0088): the URL and mode, the fresh organization and
  * owner, what kept the old data (`safety_backup`, or `audit_export` with `--no-backup`), the epochs, the new storage
- * volume, whether Valkey and the catcher were emptied, and the next commands (with the instance's own `fsa`). The owner's sign-in link and the demo
+ * volume, whether Valkey and the catcher were emptied, and the next commands (with the instance's own `fieldset`). The owner's sign-in link and the demo
  * passwords are added by the caller as one-time secrets.
  */
 final class ResetResult
@@ -29,7 +29,7 @@ final class ResetResult
     public static function ok(InstanceDirectory $directory, InstanceState $state, ResetSubject $subject, JournalRecord $record, array $epoch, array $flushed, array $cleanup, array $warnings): CommandResult
     {
         $settings = InstanceSettings::of($state);
-        $fsa = $directory->root.'/fsa';
+        $fieldset = $directory->root.'/fieldset';
         $export = $record->phaseData('audit_export');
         $left = is_array($cleanup['left_behind'] ?? null) ? array_values($cleanup['left_behind']) : [];
         $result = CommandResult::ok(ResetOperation::OPERATION, [
@@ -39,7 +39,7 @@ final class ResetResult
             'epoch' => $epoch['epoch'] ?? null, 'previous_epoch' => $epoch['previous_epoch'] ?? null,
             'storage_volume' => RestoreStorage::current($state), 'flushed' => ['valkey' => ($flushed['valkey'] ?? false) === true, 'catcher' => $flushed['catcher'] ?? null],
             'left_behind' => $left, 'removed' => is_array($cleanup['removed'] ?? null) ? array_values($cleanup['removed']) : [],
-            'next_commands' => ["{$fsa} status", "{$fsa} login-link {$subject->ownerEmail}", "{$fsa} doctor --post"],
+            'next_commands' => ["{$fieldset} status", "{$fieldset} login-link {$subject->ownerEmail}", "{$fieldset} doctor --post"],
         ], changed: true);
         foreach (self::warnings($record, $flushed, $left, $warnings) as [$code, $message, $hint]) {
             $result = $result->withWarning($code, $message, $hint);

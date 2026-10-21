@@ -13,10 +13,10 @@ final class LockHeld extends InstanceException
     public function __construct(public readonly LockRecord $holder)
     {
         parent::__construct(
-            'Another fsa operation holds the instance lock: '.$holder->describe().'.',
+            'Another fieldset operation holds the instance lock: '.$holder->describe().'.',
             ExitCode::AbortedUnchanged,
             'instance_locked',
-            'Wait for it to finish (`fsa status` shows its progress), then run the command again.',
+            'Wait for it to finish (`fieldset status` shows its progress), then run the command again.',
             true,
             ['holder' => $holder->toArray()],
         );

@@ -4,7 +4,7 @@
     {
       "description": "minimal valid definition",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "meta",
         "title": "Meta",
@@ -29,7 +29,7 @@
     {
       "description": "x- extensions are allowed everywhere",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "meta",
         "title": "Meta",
@@ -70,7 +70,7 @@
     {
       "description": "unknown top-level property",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "meta",
         "title": "Meta",
@@ -96,7 +96,7 @@
     {
       "description": "unknown element property",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "meta",
         "title": "Meta",
@@ -122,7 +122,7 @@
     {
       "description": "record type is reserved",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "meta",
         "title": "Meta",
@@ -153,7 +153,7 @@
     {
       "description": "key must be snake_case",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "meta",
         "title": "Meta",
@@ -178,7 +178,7 @@
     {
       "description": "id must be a uuid",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "meta",
         "title": "Meta",
@@ -203,7 +203,7 @@
     {
       "description": "money requires currency",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "meta",
         "title": "Meta",
@@ -234,7 +234,7 @@
     {
       "description": "select requires options",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "meta",
         "title": "Meta",
@@ -265,7 +265,7 @@
     {
       "description": "options on a text element are not allowed",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "meta",
         "title": "Meta",
@@ -296,7 +296,7 @@
     {
       "description": "columns need 2-4 columns",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "meta",
         "title": "Meta",
@@ -331,7 +331,7 @@
     {
       "description": "specVersion must be 1.0.x",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "2.0.0",
         "key": "meta",
         "title": "Meta",
@@ -356,7 +356,7 @@
     {
       "description": "source lineage",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "meta",
         "title": "Meta",
@@ -386,7 +386,7 @@
     {
       "description": "i18n label maps",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "meta",
         "title": "Meta",
@@ -417,7 +417,7 @@
     {
       "description": "image must be a data URI or asset reference",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "meta",
         "title": "Meta",
@@ -448,7 +448,7 @@
     {
       "description": "nested repeater in section in columns",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "meta",
         "title": "Meta",
@@ -508,7 +508,7 @@
     {
       "description": "pages must not be empty",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "meta",
         "title": "Meta",

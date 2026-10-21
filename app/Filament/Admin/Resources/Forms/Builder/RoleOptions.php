@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Admin\Resources\Forms\Builder;
 
-use FormSchema\Json\Json;
+use Fieldset\Json\Json;
 use stdClass;
 
 /** Semantic role vocabulary (spec roles.json, D11) as select options. */

@@ -13,8 +13,8 @@ use Tests\Support\Instance\TemporaryInstance;
 
 /*
  * Resuming with the right command and inputs (M12 gate O1, O2/C7, C11): an install journal begun by `--from-backup` resumes
- * only as that command (a plain `fsa install` exits 9 and names it); every resume line names the inputs the resumed run
- * needs; a resumed restore or rollback without one exits 2 before the lock instead of taking the way back; `fsa login-link`
+ * only as that command (a plain `fieldset install` exits 9 and names it); every resume line names the inputs the resumed run
+ * needs; a resumed restore or rollback without one exits 2 before the lock instead of taking the way back; `fieldset login-link`
  * issues its link next to a running backup.
  */
 
@@ -22,7 +22,7 @@ afterEach(function (): void {
     TemporaryInstance::cleanup();
 });
 
-it('refuses a plain fsa install over an unfinished install from a backup and names the --from-backup command (O1)', function (): void {
+it('refuses a plain fieldset install over an unfinished install from a backup and names the --from-backup command (O1)', function (): void {
     $move = new FromBackupFixture;
     $backup = $move->backup();
     $keyFile = $move->keyFile();
@@ -32,15 +32,15 @@ it('refuses a plain fsa install over an unfinished install from a backup and nam
     $phases = count($journal->current()?->phases() ?? []);
     $move->pgRestore = null;
 
-    [$code, $json] = $move->instance->run('fsa:install', ['--org' => 'Acme', '--owner-email' => 'owner@example.com']);
-    [, $status] = $move->instance->run('fsa:status');
+    [$code, $json] = $move->instance->run('fieldset:install', ['--org' => 'Acme', '--owner-email' => 'owner@example.com']);
+    [, $status] = $move->instance->run('fieldset:status');
     [$resumed, $resumedJson] = $move->install($backup, ['--app-key-file' => $keyFile]);
 
     expect($failed)->toBe(4)
         ->and($code)->toBe(9, (string) json_encode($json))->and($json['errors'][0]['code'])->toBe('operation_unfinished')
-        ->and($json['data']['command'])->toBe("fsa install --from-backup {$backup} --app-key-file {$keyFile}")
-        ->and($json['errors'][0]['hint'])->toContain('a plain `fsa install` cannot take it over')
-        ->and($status['data']['operation']['command'])->toBe("fsa install --from-backup {$backup} --app-key-file {$keyFile}")
+        ->and($json['data']['command'])->toBe("fieldset install --from-backup {$backup} --app-key-file {$keyFile}")
+        ->and($json['errors'][0]['hint'])->toContain('a plain `fieldset install` cannot take it over')
+        ->and($status['data']['operation']['command'])->toBe("fieldset install --from-backup {$backup} --app-key-file {$keyFile}")
         ->and($move->instance->oneOffCalls('app:install'))->toBe([])
         ->and($resumed)->toBe(0, (string) json_encode($resumedJson))
         ->and(array_column($move->instance->state()->history(), 'event'))->toContain('installed_from_backup');
@@ -68,7 +68,7 @@ it('refuses a resumed install from a backup without the APP key file it began wi
 it('records where the passphrase and the APP keys came from, never their values, so the resume line repeats the flags (O2)', function (): void {
     $restore = new RestoreFixture;
     $restore->backup();
-    $outside = sys_get_temp_dir().'/fsa-test-keys-'.bin2hex(random_bytes(4));
+    $outside = sys_get_temp_dir().'/fieldset-test-keys-'.bin2hex(random_bytes(4));
     mkdir($outside, 0700);
     file_put_contents($outside.'/app.env', $restore->appKey()."\n");
     $restore->pgRestore = new ProcessOutcome(1, '', 'pg_restore: error: relation exists');
@@ -133,10 +133,10 @@ it('refuses a resumed rollback without the passphrase source of the first run (e
     $journal->completePhase('quiesce', ['gate' => 'raised']);
     $mark = count($restore->instance->docker->calls);
 
-    [$code, $json] = $restore->instance->run('fsa:rollback', ['--yes' => true]);
+    [$code, $json] = $restore->instance->run('fieldset:rollback', ['--yes' => true]);
 
     expect($code)->toBe(2, (string) json_encode($json))->and($json['errors'][0]['code'])->toBe('identity_required')
-        ->and($json['data']['command'])->toBe('fsa rollback --identity-file /srv/keys/id.age --passphrase-file /srv/keys/pass')
+        ->and($json['data']['command'])->toBe('fieldset rollback --identity-file /srv/keys/id.age --passphrase-file /srv/keys/pass')
         ->and(array_slice($restore->instance->docker->calls, $mark))->toBe([])
         ->and($journal->current()?->lastStartedPhase())->toBe('quiesce');
 });
@@ -144,9 +144,9 @@ it('refuses a resumed rollback without the passphrase source of the first run (e
 it('issues a sign-in link while a backup holds the instance lock, but not while another operation does (C11)', function (string $operation, int $expected): void {
     $restore = new RestoreFixture;
     $lock = app(InstanceLock::class);
-    $handle = $lock->acquire(new LockHolder('backup-daemon', null, null, 4242, 'fsa-test', posix_getuid()), $operation);
+    $handle = $lock->acquire(new LockHolder('backup-daemon', null, null, 4242, 'fieldset-test', posix_getuid()), $operation);
 
-    [$code, $json] = $restore->instance->run('fsa:login-link', ['email' => 'owner@example.com', '--secrets-file' => $restore->instance->directory->root.'/link.json']);
+    [$code, $json] = $restore->instance->run('fieldset:login-link', ['email' => 'owner@example.com', '--secrets-file' => $restore->instance->directory->root.'/link.json']);
     $lock->release($handle);
 
     expect($code)->toBe($expected, (string) json_encode($json))

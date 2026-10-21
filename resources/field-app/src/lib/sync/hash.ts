@@ -2,7 +2,7 @@
  * A stable hash of draft data: key order is ignored like in sameJson (Postgres jsonb reorders keys),
  * so the data of a PUT whose answer was lost can be recognised in a later server copy.
  */
-import type { JsonObject, JsonValue } from '@form-schema-app/form-schema-js';
+import type { JsonObject, JsonValue } from '@fieldset/fieldset-js';
 
 function isObject(value: JsonValue): value is JsonObject {
     return typeof value === 'object' && value !== null && !Array.isArray(value);

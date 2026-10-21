@@ -48,7 +48,7 @@ final readonly class RenderContext
     public function image(ImageRole $role): string
     {
         return $this->state->digests()[$role->value]
-            ?? throw new InvalidState("The instance state pins no image digest for [{$role->value}]; run `fsa upgrade` or reinstall from a release manifest.");
+            ?? throw new InvalidState("The instance state pins no image digest for [{$role->value}]; run `fieldset upgrade` or reinstall from a release manifest.");
     }
 
     /** @return array<string, string> */

@@ -2,7 +2,7 @@
  * §9.2 AC "syncs exactly once" at the engine level: an offline fill with 30 lines and two photos,
  * a queued submit, then online. Lost responses retry with the stored Idempotency-Key.
  */
-import type { JsonObject } from '@form-schema-app/form-schema-js';
+import type { JsonObject } from '@fieldset/fieldset-js';
 import { http } from 'msw';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AutosaveController } from '../../../src/lib/autosave/controller.ts';

@@ -13,8 +13,8 @@ use App\Domain\Instance\Output\ExitCode;
 use Illuminate\Support\Sleep;
 
 /**
- * Stops and starts the 1.0 install `fsa adopt` takes over (KTD20 steps 1 and 3, plan U19, ADR 0087), container by container
- * (`docker container stop/start`), never through Compose: Compose would recreate 1.0's containers from a file fsa cannot
+ * Stops and starts the 1.0 install `fieldset adopt` takes over (KTD20 steps 1 and 3, plan U19, ADR 0087), container by container
+ * (`docker container stop/start`), never through Compose: Compose would recreate 1.0's containers from a file fieldset cannot
  * render the way 1.0 did. Order: app, scheduler and every other running service that is no infrastructure (writers()),
  * then the queue once Horizon drained it (QueueDrain, in 1.0's Valkey database) with its stop grace, then, after the
  * backup, Postgres with a long grace (a clean shutdown: the copy must start without recovery), Valkey and Gotenberg.
@@ -46,7 +46,7 @@ final readonly class LegacyStack
         if ($drain['drained'] !== true && ! $dropJobs) {
             $unknown = $drain['drained'] === null;
             throw new InstanceException(
-                $unknown ? "The jobs in 1.0's Valkey could not be counted, so fsa cannot tell whether its queue drained." : "1.0's queue did not drain within ".QueueDrain::SECONDS." s ({$drain['waiting']} waiting, {$drain['reserved']} running).",
+                $unknown ? "The jobs in 1.0's Valkey could not be counted, so fieldset cannot tell whether its queue drained." : "1.0's queue did not drain within ".QueueDrain::SECONDS." s ({$drain['waiting']} waiting, {$drain['reserved']} running).",
                 ExitCode::HealthCheckFailed, $unknown ? 'drain_unknown' : 'drain_timeout',
                 ($unknown ? 'Check that 1.0\'s Valkey answers without a password on its default network, ' : 'Let 1.0 finish its jobs and run adopt again, ')
                     .'or pass --drop-jobs: jobs left then stay in 1.0\'s Valkey (they run if 1.0 is started again).',

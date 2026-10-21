@@ -11,7 +11,7 @@ use Throwable;
 
 /**
  * The JSON document an app-side one-off prints (`app:install`, `identity:login-link`, `identity:login-links`;
- * App\Console\Support\JsonResult, the fsa envelope shape). The last stdout line that parses as such a document
+ * App\Console\Support\JsonResult, the fieldset envelope shape). The last stdout line that parses as such a document
  * counts; compose and the entrypoint print nothing else on stdout. Secrets stay in this object: callers hand them
  * to the result's `secrets` and never to data, warnings, errors or the journal (R50).
  */

@@ -17,8 +17,8 @@ vi.mock('../../src/lib/outbox/outbox.ts', async (importOriginal) => ({
     enqueueAttachmentUpload: vi.fn(() => Promise.resolve()),
 }));
 
-vi.mock('@form-schema-app/form-schema-react', async (importOriginal) => {
-    const actual = await importOriginal<typeof import('@form-schema-app/form-schema-react')>();
+vi.mock('@fieldset/fieldset-react', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@fieldset/fieldset-react')>();
     const { FakeRenderer } = await import('../utils/fake-renderer.tsx');
     return { ...actual, FormRenderer: FakeRenderer };
 });

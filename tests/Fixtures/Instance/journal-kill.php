@@ -17,6 +17,6 @@ $journal = new OperationJournal(InstanceDirectory::open($argv[1]));
 $journal->begin('upgrade', 1000, ['target' => '2.0.1']);
 $journal->startPhase('pull');
 $journal->completePhase('pull');
-$journal->startPhase('backup', ['safety_backup' => '/srv/fsa/backups/safety-1']);
+$journal->startPhase('backup', ['safety_backup' => '/srv/fieldset/backups/safety-1']);
 
 posix_kill(getmypid(), SIGKILL);

@@ -32,7 +32,7 @@ final class RestoreFixture
     public InstanceCommandFixture $instance;
 
     /** @var list<string> */
-    public array $databases = ['form_schema', 'postgres'];
+    public array $databases = ['fieldset', 'postgres'];
 
     /** @var array<string, true> restore-db actions to fail */
     public array $failDatabase = [];
@@ -82,10 +82,10 @@ final class RestoreFixture
         return new EnvFiles($this->instance->directory)->read('app')['APP_KEY'];
     }
 
-    /** A plain fsa backup in backups/ made by this instance (or `$instance`) with its APP key (or `$appKey`). */
+    /** A plain fieldset backup in backups/ made by this instance (or `$instance`) with its APP key (or `$appKey`). */
     public function backup(string $name = 'manual-20261019T120000Z', ?string $appKey = null, ?TarBuilder $storage = null, ?string $instance = null): string
     {
-        return BackupSetFixture::fsa($this->instance->directory->root.'/backups/'.$name, manifest: $this->manifest($instance), storage: $storage, appKey: $appKey ?? $this->appKey());
+        return BackupSetFixture::fieldset($this->instance->directory->root.'/backups/'.$name, manifest: $this->manifest($instance), storage: $storage, appKey: $appKey ?? $this->appKey());
     }
 
     /** @return array{instance: array{uuid: string, project: string}} the manifest part naming the instance that made a backup */
@@ -99,7 +99,7 @@ final class RestoreFixture
     /** @param  array<string, mixed>  $options */
     public function restore(string $backup = 'manual-20261019T120000Z', array $options = []): array
     {
-        return $this->instance->run('fsa:restore', ['backup' => $backup, '--yes' => true, ...$options]);
+        return $this->instance->run('fieldset:restore', ['backup' => $backup, '--yes' => true, ...$options]);
     }
 
     /** @return list<ContainerSpec> runContainer specs whose command or entrypoint matches */
@@ -119,14 +119,14 @@ final class RestoreFixture
     private function answerRun(ContainerSpec $spec): ?ProcessOutcome
     {
         return match (true) {
-            ($spec->command[0] ?? null) === 'fsa' && ($spec->command[1] ?? null) === 'restore-prepare' => $this->prepare($spec),
+            ($spec->command[0] ?? null) === 'fieldset' && ($spec->command[1] ?? null) === 'restore-prepare' => $this->prepare($spec),
             $spec->entrypoint === 'pg_restore' => $this->pgRestore ?? new ProcessOutcome(0),
             $spec->entrypoint === 'tar' => $this->tar ?? new ProcessOutcome(0),
             default => null,
         };
     }
 
-    /** The prepare container, run in-process with the arguments and stdin fsa gave it. */
+    /** The prepare container, run in-process with the arguments and stdin fieldset gave it. */
     private function prepare(ContainerSpec $spec): ProcessOutcome
     {
         $calls = $this->instance->docker->called('runContainer');
@@ -222,7 +222,7 @@ final class RestoreFixture
     {
         $this->databases[] = $options['database'];
 
-        return ['database' => $options['database'], 'owner' => $options['restricted-role'] ?? 'form_schema', 'restricted' => isset($options['restricted-role'])];
+        return ['database' => $options['database'], 'owner' => $options['restricted-role'] ?? 'fieldset', 'restricted' => isset($options['restricted-role'])];
     }
 
     private function forget(string $database): bool

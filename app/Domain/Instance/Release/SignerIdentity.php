@@ -12,7 +12,7 @@ namespace App\Domain\Instance\Release;
  */
 final readonly class SignerIdentity
 {
-    public const string PRODUCTION_REPOSITORY = 'beyerenrico/form-schema-app';
+    public const string PRODUCTION_REPOSITORY = 'beyerenrico/fieldset';
 
     public const string PRODUCTION_WORKFLOW = 'release.yml';
 

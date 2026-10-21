@@ -48,7 +48,7 @@ final readonly class LegacyRuntime
         $service = array_find(['app', 'queue', 'scheduler'], static fn (string $service): bool => isset($legacy->containers[$service]));
         $env = $service === null ? null : $this->docker->containerEnv($legacy->containers[$service], self::COMPARED);
         if ($env === null) {
-            throw $this->refused('No app container of the 1.0 install can be read, so fsa cannot tell what it runs with.', 'legacy_not_found', 'Start 1.0 in its checkout (`docker compose up -d`) and run adopt again.');
+            throw $this->refused('No app container of the 1.0 install can be read, so fieldset cannot tell what it runs with.', 'legacy_not_found', 'Start 1.0 in its checkout (`docker compose up -d`) and run adopt again.');
         }
         $differ = array_values(array_filter(self::COMPARED, static fn (string $key): bool => self::value($checkout->value($key)) !== self::value($env[$key] ?? null)));
         if ($differ !== []) {

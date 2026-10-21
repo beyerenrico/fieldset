@@ -15,7 +15,7 @@ return [
     |
     */
 
-    'name' => env('APP_NAME', 'form-schema-app'),
+    'name' => env('APP_NAME', 'Fieldset'),
 
     /*
     | Release version and VCS revision, baked into the image by the APP_VERSION and APP_REVISION build

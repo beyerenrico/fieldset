@@ -36,7 +36,7 @@ it('creates the lock directory atomically and records owner, operation, holder c
         ->and(is_dir($this->directory->path(InstanceLock::DIRECTORY)))->toBeTrue()
         ->and(fileperms($this->directory->path(InstanceLock::DIRECTORY)) & 0777)->toBe(0700)
         ->and($record?->lockId)->toBe($handle->record->lockId)
-        ->and($record?->owner)->toBe('fsa')
+        ->and($record?->owner)->toBe('fieldset')
         ->and($record?->operation)->toBe('upgrade')
         ->and($record?->containerId)->toBe(str_repeat('a', 64))
         ->and($record?->containerStartedAt)->toBe(LOCK_STARTED)
@@ -149,7 +149,7 @@ it('releases its lock so the next operation can take it', function (): void {
 });
 
 it('never declares a lock stale when the holder ran outside a container', function (): void {
-    $this->lock->acquire(new LockHolder('fsa', null, null, 77, 'dev-host', 501), 'install');
+    $this->lock->acquire(new LockHolder('fieldset', null, null, 77, 'dev-host', 501), 'install');
 
     expect($this->lock->isStale($this->lock->current()))->toBeFalse()
         ->and(fn () => $this->lock->acquire($this->holderB, 'install'))->toThrow(LockHeld::class);

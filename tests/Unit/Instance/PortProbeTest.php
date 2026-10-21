@@ -90,7 +90,7 @@ it('installs on a shared proxy network although every loopback app port is taken
     $fixture->docker->containers[$id] = new ContainerInfo($id, 'traefik-1', 'running', null, null, 'traefik:v3.7.15');
     $fixture->docker->withNetwork(new NetworkInfo('net0', 'edge-net', false, ['172.20.0.0/16'], ['172.20.0.1'], [new NetworkEndpoint($id, 'traefik-1', '172.20.0.5')]));
 
-    [$code, $json] = $fixture->run('fsa:install', InstanceCommandFixture::installFlags(['--behind-proxy' => 'traefik', '--proxy-network' => 'edge-net', '--url' => 'https://forms.example.com']));
+    [$code, $json] = $fixture->run('fieldset:install', InstanceCommandFixture::installFlags(['--behind-proxy' => 'traefik', '--proxy-network' => 'edge-net', '--url' => 'https://forms.example.com']));
 
     $probed = array_map(fn (ContainerSpec $spec): string => $spec->ports[0], $fixture->runSpecs('true'));
     expect($code)->toBe(0, json_encode($json))

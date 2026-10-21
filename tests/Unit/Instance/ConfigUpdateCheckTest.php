@@ -6,12 +6,12 @@ use Tests\Support\Instance\ConfigFixture;
 use Tests\Support\Instance\TemporaryInstance;
 
 /*
- * `fsa config set update-check on|off` (E15, R32, R48, plan U20, ADR 0061, ADR 0089): off by default. `on` records the
- * newest release's manifest URL under the release URL in force (FSA_RELEASE_URL or GitHub Releases) in runtime.json, which
+ * `fieldset config set update-check on|off` (E15, R32, R48, plan U20, ADR 0061, ADR 0089): off by default. `on` records the
+ * newest release's manifest URL under the release URL in force (FIELDSET_RELEASE_URL or GitHub Releases) in runtime.json, which
  * the app's scheduler reads; no service is recreated, and `config show` names the contact. `off` removes it again.
  */
 
-const CONFIG_UPDATE_GITHUB = 'https://github.com/beyerenrico/form-schema-app/releases/latest/download/release-manifest.json';
+const CONFIG_UPDATE_GITHUB = 'https://github.com/beyerenrico/fieldset/releases/latest/download/release-manifest.json';
 
 beforeEach(function (): void {
     $this->config = new ConfigFixture;
@@ -56,13 +56,13 @@ it('turns the check on and off through runtime.json without recreating a service
         ->and($this->config->state()->setting('update_url'))->toBeNull();
 });
 
-it('reads the release mirror named by FSA_RELEASE_URL', function (): void {
-    $this->config->instance->facts(['releaseUrl' => 'https://mirror.example.com/fsa/releases/']);
+it('reads the release mirror named by FIELDSET_RELEASE_URL', function (): void {
+    $this->config->instance->facts(['releaseUrl' => 'https://mirror.example.com/fieldset/releases/']);
 
     [$code, $json] = $this->config->set('update-check', 'on');
 
     expect($code)->toBe(0, (string) json_encode($json))
-        ->and(runtimeUpdates($this->config)['manifest_url'] ?? null)->toBe('https://mirror.example.com/fsa/releases/latest/download/release-manifest.json');
+        ->and(runtimeUpdates($this->config)['manifest_url'] ?? null)->toBe('https://mirror.example.com/fieldset/releases/latest/download/release-manifest.json');
 });
 
 it('refuses other values and an http release URL outside harness builds with exit 2', function (string $value, ?string $releaseUrl, string $error): void {

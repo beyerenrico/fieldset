@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "10a327f15547d13ec2396d49688a76e3",
+    "content-hash": "5a1e152dc89bf207c1f74d1499cf23f2",
     "packages": [
         {
             "name": "anourvalar/eloquent-serialize",
@@ -1373,6 +1373,40 @@
             "time": "2025-03-06T22:45:56+00:00"
         },
         {
+            "name": "fieldset/fieldset-php",
+            "version": "dev-rename-fieldset",
+            "dist": {
+                "type": "path",
+                "url": "packages/fieldset-php",
+                "reference": "89bbb23574266f917da5fcc5cac164eb8682403e"
+            },
+            "require": {
+                "brick/math": "^1.0",
+                "ext-json": "*",
+                "opis/json-schema": "^2.6",
+                "php": "^8.4"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Fieldset\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Fieldset\\Tests\\": "tests/"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "Reference PHP implementation of the Fieldset Spec 1.0: meta-schema validation, linter, JsonLogic dialect, evaluator.",
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
             "name": "filament/actions",
             "version": "v5.10.2",
             "source": {
@@ -1938,40 +1972,6 @@
                 "source": "https://github.com/googleapis/php-jwt/tree/v7.2.1"
             },
             "time": "2026-09-28T17:51:46+00:00"
-        },
-        {
-            "name": "form-schema/form-schema-php",
-            "version": "dev-m7-sso-builder",
-            "dist": {
-                "type": "path",
-                "url": "packages/form-schema-php",
-                "reference": "7f1a311acd2ad7deba910a30ddcd7b5795e607c1"
-            },
-            "require": {
-                "brick/math": "^1.0",
-                "ext-json": "*",
-                "opis/json-schema": "^2.6",
-                "php": "^8.4"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "FormSchema\\": "src/"
-                }
-            },
-            "autoload-dev": {
-                "psr-4": {
-                    "FormSchema\\Tests\\": "tests/"
-                }
-            },
-            "license": [
-                "MIT"
-            ],
-            "description": "Reference PHP implementation of the Form Schema Spec 1.0: meta-schema validation, linter, JsonLogic dialect, evaluator.",
-            "transport-options": {
-                "symlink": true,
-                "relative": true
-            }
         },
         {
             "name": "fruitcake/php-cors",
@@ -15124,7 +15124,7 @@
     "aliases": [],
     "minimum-stability": "stable",
     "stability-flags": {
-        "form-schema/form-schema-php": 20
+        "fieldset/fieldset-php": 20
     },
     "prefer-stable": true,
     "prefer-lowest": false,

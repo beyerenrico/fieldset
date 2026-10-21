@@ -21,14 +21,14 @@ use Tests\Support\Instance\TemporaryInstance;
 
 it('renders Compose\'s own storage volume until a restore names a fresh one', function (): void {
     $plain = ComposeFixtures::render();
-    $restored = ComposeFixtures::render(['storage_volume' => 'fsa-srv-1a2b_app-storage-20261019t120000z']);
+    $restored = ComposeFixtures::render(['storage_volume' => 'fieldset-srv-1a2b_app-storage-20261019t120000z']);
     $mounts = static fn (array $document, string $service): array => array_values(array_filter(
         $document['services'][$service]['volumes'],
         static fn (array $volume): bool => $volume['source'] === 'app-storage',
     ));
 
     expect($plain->document['volumes']['app-storage'])->not->toHaveKey('name')
-        ->and($restored->document['volumes']['app-storage'])->toBe(['name' => 'fsa-srv-1a2b_app-storage-20261019t120000z', 'external' => true])
+        ->and($restored->document['volumes']['app-storage'])->toBe(['name' => 'fieldset-srv-1a2b_app-storage-20261019t120000z', 'external' => true])
         ->and($mounts($restored->document, 'app'))->toHaveCount(1)
         ->and($mounts($restored->document, 'queue'))->toHaveCount(1)
         ->and($mounts($restored->document, 'backup'))->toHaveCount(1);

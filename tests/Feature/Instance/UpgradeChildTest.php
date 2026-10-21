@@ -17,7 +17,7 @@ use Tests\Support\Instance\TemporaryInstance;
 use Tests\Support\Instance\UpgradeFixture;
 
 /*
- * `fsa upgrade-child`, the target image's half of an upgrade (KTD19 step 6, R36, plan U18, ADR 0086): with the instance
+ * `fieldset upgrade-child`, the target image's half of an upgrade (KTD19 step 6, R36, plan U18, ADR 0086): with the instance
  * directory only to read, it renders the target's compose and env files into its stage with its own renderer, then runs
  * `instance:upgrade-migrate` with the staged app environment and libpq's session name and lock_timeout, and leaves its
  * outcome in `result.json` for the supervisor.
@@ -44,7 +44,7 @@ afterEach(function (): void {
 /** @return array{0: int, 1: array<string, mixed>|null} */
 function upgradeChild(string $dir): array
 {
-    $code = Artisan::call('fsa:upgrade-child', ['--dir' => $dir, '--json' => true]);
+    $code = Artisan::call('fieldset:upgrade-child', ['--dir' => $dir, '--json' => true]);
     $lines = array_values(array_filter(explode("\n", trim(Artisan::output()))));
 
     return [$code, json_decode((string) end($lines), true)];
@@ -64,8 +64,8 @@ it('renders the target\'s files into its stage and migrates with the staged envi
         ->and($result['staged'])->toContain('compose.yaml', 'env/app.env', 'env/backup.env')
         ->and(UpgradeCompose::document((string) $staged->read('compose.yaml'))['services']['app']['image'])->toBe(UpgradeFixture::targetImage())
         ->and(new EnvFiles($staged)->read('app')['APP_KEY'])->toBe(new EnvFiles($this->directory)->read('app')['APP_KEY'])
-        ->and($run['command'])->toBe(['php', base_path('artisan'), 'instance:upgrade-migrate', '--application-name=fsa_upgrade_0123456789ab', '--from='.InstanceCommandFixture::VERSION, '--json'])
-        ->and($run['env'])->toMatchArray(['PGAPPNAME' => 'fsa_upgrade_0123456789ab', 'PGOPTIONS' => '-c lock_timeout='.ChildMigration::LOCK_TIMEOUT_SECONDS.'s'])
+        ->and($run['command'])->toBe(['php', base_path('artisan'), 'instance:upgrade-migrate', '--application-name=fieldset_upgrade_0123456789ab', '--from='.InstanceCommandFixture::VERSION, '--json'])
+        ->and($run['env'])->toMatchArray(['PGAPPNAME' => 'fieldset_upgrade_0123456789ab', 'PGOPTIONS' => '-c lock_timeout='.ChildMigration::LOCK_TIMEOUT_SECONDS.'s'])
         ->and(array_keys($run['env']))->toContain('DB_PASSWORD', 'DB_HOST')
         ->and($run['timeout'])->toBe(ChildMigration::TIMEOUT)
         ->and($this->config->state()->version())->toBe(InstanceCommandFixture::VERSION);

@@ -8,7 +8,7 @@ use App\Domain\Audit\AuditLogger;
 use App\Domain\Forms\Models\Form;
 use App\Domain\Forms\Models\FormVersion;
 use App\Domain\Identity\Models\User;
-use FormSchema\Json\Json;
+use Fieldset\Json\Json;
 use stdClass;
 
 /** Exports a definition (draft or a version) plus its design reference as a JSON document. */

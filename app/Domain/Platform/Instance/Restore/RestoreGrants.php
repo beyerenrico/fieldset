@@ -11,7 +11,7 @@ use SensitiveParameter;
 /**
  * Rights a restored database needs again (plan U17, ADR 0084 "left for U17", ADR 0085). Backups are dumped with
  * `--no-privileges`, so a restored database has the default ACLs: PUBLIC may EXECUTE every function, the SECURITY
- * DEFINER audit functions included, and the backup service's role (fsa_backup) with it could seal or prune audit
+ * DEFINER audit functions included, and the backup service's role (fieldset_backup) with it could seal or prune audit
  * entries. The audit hardening's `REVOKE ALL … FROM PUBLIC` is applied again, and the backup role is set up again for
  * this database (BackupRole: CONNECT, read all data, insert into backup_runs).
  */

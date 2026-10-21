@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Adopt;
 
-use App\Domain\Instance\Console\FsaContext;
+use App\Domain\Instance\Console\FieldsetContext;
 use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\Install\InstallRecord;
 use App\Domain\Instance\Install\InstallSmoke;
@@ -27,7 +27,7 @@ use Closure;
 use Throwable;
 
 /**
- * `fsa adopt <checkout>` (R46 as changed by R60, F7, J9, KTD20, plan U19, ADR 0087): a 1.0 install becomes an instance by
+ * `fieldset adopt <checkout>` (R46 as changed by R60, F7, J9, KTD20, plan U19, ADR 0087): a 1.0 install becomes an instance by
  * copying its data, journaled and resumable under the instance lock:
  *
  * doctor (AdoptPreflight; 1.0 keeps running) → the phases before 2.0 starts (AdoptSequence: secrets, state, pull,
@@ -36,7 +36,7 @@ use Throwable;
  *
  * Any failure before `start` goes back (AdoptRollback): 1.0 runs again unchanged and nothing of 2.0 is left (exit 5; exit
  * 9 when 1.0 had not been stopped yet; exit 8 when 1.0 does not start again). From `start` on the instance runs on its own
- * copy and a failure leaves the journal open for a resume (exit 4, with an adopt hint); `fsa uninstall` (which treats the
+ * copy and a failure leaves the journal open for a resume (exit 4, with an adopt hint); `fieldset uninstall` (which treats the
  * unfinished adopt as adopted) and `docker compose up -d` in the checkout lead back. 1.0 must still be stopped before and
  * right after `start` on every run (verification review V1, A1), else exit 4 `legacy_restarted` without going back. A
  * resumed run continues where the last one stopped; one that began going back finishes that.
@@ -69,7 +69,7 @@ final readonly class AdoptOperation
         private Interruption $interruption,
     ) {}
 
-    public function adopt(AdoptRequest $request, FsaContext $context): CommandResult
+    public function adopt(AdoptRequest $request, FieldsetContext $context): CommandResult
     {
         $state = $this->directory->hasState() ? $this->directory->state() : null;
         if ($state instanceof InstanceState && InstallRecord::isInstalled($state)) {
@@ -77,7 +77,7 @@ final readonly class AdoptOperation
         }
 
         return $this->interruption->guard(fn (): CommandResult => $this->supervisor->run(
-            self::OPERATION, $this->identity->holder('fsa', $request->callerUid),
+            self::OPERATION, $this->identity->holder('fieldset', $request->callerUid),
             fn (OperationRun $run): CommandResult => $this->steps($run, $request, $context),
             resume: true, context: $request->toContext(), progress: $context->progress,
             accepts: static fn (JournalRecord $record): bool => ($record->context()['checkout'] ?? null) === $request->checkout,
@@ -85,30 +85,30 @@ final readonly class AdoptOperation
     }
 
     /**
-     * `fsa adopt --abandon`: an adopt that stopped before 2.0 started goes back like a failed one (1.0 starts again, the
+     * `fieldset adopt --abandon`: an adopt that stopped before 2.0 started goes back like a failed one (1.0 starts again, the
      * new instance's resources and files go), also after an exit 8 once 1.0 can start. Once 2.0 started it may hold
-     * writes of its own: then only `fsa uninstall` (a final backup first) leads back (exit 2 `adopt_started`).
+     * writes of its own: then only `fieldset uninstall` (a final backup first) leads back (exit 2 `adopt_started`).
      *
      * @throws InvalidInput exit 2 without an unfinished adopt, or once 2.0 started
      */
-    public function abandon(FsaContext $context): CommandResult
+    public function abandon(FieldsetContext $context): CommandResult
     {
         $current = $this->journal->current();
         if (! $current instanceof JournalRecord || $current->operation() !== self::OPERATION) {
-            throw new InvalidInput('No unfinished adopt to abandon here.', 'nothing_to_abandon', 'An adopt that finished is undone with `fsa uninstall` and `docker compose up -d` in the 1.0 checkout.');
+            throw new InvalidInput('No unfinished adopt to abandon here.', 'nothing_to_abandon', 'An adopt that finished is undone with `fieldset uninstall` and `docker compose up -d` in the 1.0 checkout.');
         }
         if ($current->hasStarted('start')) {
-            throw new InvalidInput('This adopt already started 2.0 on its copy, which may hold new data: abandoning it would delete that without a backup.', 'adopt_started', 'Run `'.OperationUnfinished::commandLine($current).'` again to finish it, or `fsa uninstall` (a final backup first) and then `docker compose up -d` in the 1.0 checkout.');
+            throw new InvalidInput('This adopt already started 2.0 on its copy, which may hold new data: abandoning it would delete that without a backup.', 'adopt_started', 'Run `'.OperationUnfinished::commandLine($current).'` again to finish it, or `fieldset uninstall` (a final backup first) and then `docker compose up -d` in the 1.0 checkout.');
         }
 
-        return $this->supervisor->run(self::OPERATION, $this->identity->holder('fsa', $context->facts->callerUid()),
+        return $this->supervisor->run(self::OPERATION, $this->identity->holder('fieldset', $context->facts->callerUid()),
             fn (OperationRun $run): CommandResult => $this->undo($run, null), resume: true, progress: $context->progress);
     }
 
-    private function steps(OperationRun $run, AdoptRequest $request, FsaContext $context): CommandResult
+    private function steps(OperationRun $run, AdoptRequest $request, FieldsetContext $context): CommandResult
     {
         if (array_any($run->record()->events(), static fn (array $event): bool => $event['type'] === 'rollback')) {
-            return $this->undo($run, new InstanceException('An earlier attempt began going back.', ExitCode::RolledBack, 'adopt_interrupted', "Run `fsa adopt {$request->checkout} --yes` again to start over."));
+            return $this->undo($run, new InstanceException('An earlier attempt began going back.', ExitCode::RolledBack, 'adopt_interrupted', "Run `fieldset adopt {$request->checkout} --yes` again to start over."));
         }
         if (! $run->record()->hasStarted('start')) {
             try {
@@ -159,7 +159,7 @@ final readonly class AdoptOperation
     {
         $adopted = $preflight['app_key_fingerprints'] ?? null;
         if (is_array($adopted) && $adopted !== AppKeys::of([$checkout->appKey(), ...$checkout->previousKeys()])->fingerprints()) {
-            throw new InstanceException('The APP keys in the 1.0 .env changed since this adopt began.', ExitCode::Incompatible, 'env_changed', 'Restore the .env 1.0 runs with, or abandon this adopt (`fsa adopt --abandon --yes`) and start over.');
+            throw new InstanceException('The APP keys in the 1.0 .env changed since this adopt began.', ExitCode::Incompatible, 'env_changed', 'Restore the .env 1.0 runs with, or abandon this adopt (`fieldset adopt --abandon --yes`) and start over.');
         }
     }
 
@@ -175,7 +175,7 @@ final readonly class AdoptOperation
             $this->sequence->assertStopped($run, $this->directory->state(), $legacy);
         } catch (InstanceException $e) {
             throw new InstanceException($e->getMessage(), $e->exitCode, $e->errorCode,
-                "To keep 1.0: `fsa uninstall` (a final backup first), then `docker compose up -d` in {$request->checkout}. To adopt its current data: `fsa uninstall`, stop 1.0 (`docker compose stop` there), then `fsa adopt {$request->checkout} --yes` again.",
+                "To keep 1.0: `fieldset uninstall` (a final backup first), then `docker compose up -d` in {$request->checkout}. To adopt its current data: `fieldset uninstall`, stop 1.0 (`docker compose stop` there), then `fieldset adopt {$request->checkout} --yes` again.",
                 false, $e->data, $e, true);
         }
     }
@@ -194,7 +194,7 @@ final readonly class AdoptOperation
             return $phase();
         } catch (InstanceException $e) {
             throw new InstanceException($e->getMessage(), $e->exitCode, $e->errorCode,
-                "Find the cause (`fsa logs`), then run `fsa adopt {$request->checkout} --yes` again: it resumes here. To go back to 1.0 instead: `fsa uninstall` (a final backup first), then `docker compose up -d` in {$request->checkout}.",
+                "Find the cause (`fieldset logs`), then run `fieldset adopt {$request->checkout} --yes` again: it resumes here. To go back to 1.0 instead: `fieldset uninstall` (a final backup first), then `docker compose up -d` in {$request->checkout}.",
                 $e->retryable, $e->data, $e, true);
         }
     }

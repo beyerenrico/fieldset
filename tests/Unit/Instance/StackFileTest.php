@@ -17,7 +17,7 @@ use Tests\Support\Instance\ComposeFixtures;
  * Plan U9 (R18, ADR 0076): the release's stack file for Portainer, Coolify and plain `docker compose`. It is
  * rendered from the same renderer as proxy mode, so the drift test compares it with a proxy-mode render; it is
  * configured only through environment variables, and its header documents them and what is missing without
- * fsa. J3 starts it with real Docker; the ComposeConfig journey parses it with Compose.
+ * fieldset. J3 starts it with real Docker; the ComposeConfig journey parses it with Compose.
  */
 
 const STACK_INTERPOLATION = '/\$\{([A-Z][A-Z0-9_]*)(?::([-?])([^${}]*))?\}/';
@@ -27,10 +27,10 @@ function stackFile(): StackFile
     return StackFile::render(ComposeFixtures::digests(), '2.0.0-alpha.2');
 }
 
-/** @return array<string, string> service => image with `${FSA_REGISTRY:-x}` resolved to x */
+/** @return array<string, string> service => image with `${FIELDSET_REGISTRY:-x}` resolved to x */
 function stackImages(StackFile $stack): array
 {
-    return array_map(fn (array $service): string => (string) preg_replace('/^\$\{FSA_REGISTRY:-([^}]+)\}/', '$1', $service['image']), $stack->document['services']);
+    return array_map(fn (array $service): string => (string) preg_replace('/^\$\{FIELDSET_REGISTRY:-([^}]+)\}/', '$1', $service['image']), $stack->document['services']);
 }
 
 /** @return array<string, string> variable => `-` (default) or `?` (required) */
@@ -49,7 +49,7 @@ function stackVariables(StackFile $stack): array
 it('lists the same services and images as the proxy-mode render (drift test)', function (): void {
     $stack = stackFile();
     $render = new ComposeRenderer()->render(ComposeFixtures::proxyState('port'), ComposeFixtures::secrets());
-    // The backup service needs fsa's instance directory and backup role: the stack file leaves it out (R18, ADR 0084).
+    // The backup service needs fieldset's instance directory and backup role: the stack file leaves it out (R18, ADR 0084).
     $renderServices = array_diff_key($render->document['services'], ['backup' => true]);
     $renderImages = array_map(fn (array $service): string => $service['image'], $renderServices);
 
@@ -72,12 +72,12 @@ it('pins every image of a release by digest from the manifest pins, with an over
     $images = array_values(array_unique(array_map(fn (array $service): string => $service['image'], $stack->document['services'])));
 
     expect($images)->toEqualCanonicalizing([
-        '${FSA_REGISTRY:-ghcr.io}/beyerenrico/form-schema-app@sha256:'.str_repeat('a', 64),
-        '${FSA_REGISTRY:-'.$pins['postgres']->registry.'}/'.$pins['postgres']->repository.'@'.$pins['postgres']->digest,
-        '${FSA_REGISTRY:-'.$pins['valkey']->registry.'}/'.$pins['valkey']->repository.'@'.$pins['valkey']->digest,
-        '${FSA_REGISTRY:-'.$pins['gotenberg']->registry.'}/'.$pins['gotenberg']->repository.'@'.$pins['gotenberg']->digest,
-        '${FSA_REGISTRY:-'.$pins['mailpit']->registry.'}/'.$pins['mailpit']->repository.'@'.$pins['mailpit']->digest,
-    ])->and($stack->yaml())->toContain('# form-schema-app 2.0.0 stack file');
+        '${FIELDSET_REGISTRY:-ghcr.io}/beyerenrico/fieldset@sha256:'.str_repeat('a', 64),
+        '${FIELDSET_REGISTRY:-'.$pins['postgres']->registry.'}/'.$pins['postgres']->repository.'@'.$pins['postgres']->digest,
+        '${FIELDSET_REGISTRY:-'.$pins['valkey']->registry.'}/'.$pins['valkey']->repository.'@'.$pins['valkey']->digest,
+        '${FIELDSET_REGISTRY:-'.$pins['gotenberg']->registry.'}/'.$pins['gotenberg']->repository.'@'.$pins['gotenberg']->digest,
+        '${FIELDSET_REGISTRY:-'.$pins['mailpit']->registry.'}/'.$pins['mailpit']->repository.'@'.$pins['mailpit']->digest,
+    ])->and($stack->yaml())->toContain('# Fieldset 2.0.0 stack file');
 });
 
 it('is configured only through environment variables: no env file, runtime mount, socket or instance label', function (): void {
@@ -87,11 +87,11 @@ it('is configured only through environment variables: no env file, runtime mount
     expect($json)->not->toContain('env_file')
         ->not->toContain('./env/')
         ->not->toContain(RuntimeWriter::CONTAINER_PATH)
-        ->not->toContain('FSA_RUNTIME_PATH')
+        ->not->toContain('FIELDSET_RUNTIME_PATH')
         ->not->toContain('docker.sock')
         ->not->toContain(Labels::INSTANCE)
-        ->not->toContain('__FSA_STACK_')
-        ->not->toContain('fsa.invalid')
+        ->not->toContain('__FIELDSET_STACK_')
+        ->not->toContain('fieldset.invalid')
         ->and($stack->document)->not->toHaveKey('name');
     foreach ($stack->document['services'] as $name => $service) {
         expect($service['environment'])->toBeArray()->not->toBeEmpty()
@@ -129,7 +129,7 @@ it('derives every secret-bearing value from the variables, Valkey and Mailpit in
     ])->and($services['app']['environment'])->not->toHaveKey('SESSION_SECURE_COOKIE')
         ->and($services['postgres']['environment']['POSTGRES_PASSWORD'])->toBe('${DB_PASSWORD:?set DB_PASSWORD, see the header}')
         ->and($services['redis']['environment']['VALKEY_EXTRA_FLAGS'])->toBe('--requirepass ${REDIS_PASSWORD:?set REDIS_PASSWORD, see the header}')
-        ->and($services['mailpit']['environment']['MP_UI_AUTH'])->toBe('fsa:${MAILPIT_UI_PASSWORD:?set MAILPIT_UI_PASSWORD, see the header}')
+        ->and($services['mailpit']['environment']['MP_UI_AUTH'])->toBe('fieldset:${MAILPIT_UI_PASSWORD:?set MAILPIT_UI_PASSWORD, see the header}')
         ->and($services['gotenberg']['environment'])->not->toHaveKey('APP_KEY')
         ->and($services['gotenberg']['environment'])->not->toHaveKey('TRUSTED_PROXIES');
 });
@@ -153,21 +153,21 @@ it('publishes the app and the catcher UI on loopback ports that variables can mo
         ->and($services['mailpit']['ports'])->toBe([['target' => 8025, 'published' => '${MAILPIT_UI_PORT:-8025}', 'host_ip' => '127.0.0.1', 'protocol' => 'tcp']]);
 });
 
-it('names in its header what is missing without fsa', function (): void {
+it('names in its header what is missing without fieldset', function (): void {
     $header = implode("\n", array_filter(explode("\n", stackFile()->yaml()), fn (string $line): bool => str_starts_with($line, '#')));
 
     expect($header)->toContain('no upgrade supervisor')
-        ->toContain('no backups through fsa')
-        ->toContain('no fsa commands')
+        ->toContain('no backups through fieldset')
+        ->toContain('no fieldset commands')
         ->toContain('  docker compose -f compose.stack.yaml exec app php artisan app:install ')
         ->toContain('with the same variables set')
         ->toContain('2.0.0-alpha.2')
-        ->and(stackFile()->yaml())->toStartWith('# form-schema-app')
-        ->and(stackFile()->yaml())->toContain("\nservices:\n  app:\n    image: \"\${FSA_REGISTRY:-registry.test:5000}/fsa/app@sha256:");
+        ->and(stackFile()->yaml())->toStartWith('# Fieldset')
+        ->and(stackFile()->yaml())->toContain("\nservices:\n  app:\n    image: \"\${FIELDSET_REGISTRY:-registry.test:5000}/fieldset/app@sha256:");
 });
 
 it('writes the file and reports a path it cannot write', function (): void {
-    $path = sys_get_temp_dir().'/fsa-stack-'.bin2hex(random_bytes(4)).'.yaml';
+    $path = sys_get_temp_dir().'/fieldset-stack-'.bin2hex(random_bytes(4)).'.yaml';
     stackFile()->writeTo($path);
 
     expect((string) file_get_contents($path))->toBe(stackFile()->yaml())

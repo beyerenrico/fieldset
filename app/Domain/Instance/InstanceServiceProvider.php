@@ -35,12 +35,12 @@ use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\ServiceProvider;
 
 /**
- * Instance (fsa) wiring (ADR 0066). Registration only: it never opens database or cache connections, because the
+ * Instance (fieldset) wiring (ADR 0066). Registration only: it never opens database or cache connections, because the
  * ops container has neither (KTD1, KTD25).
  *
- * The Docker gateway resolves only after an `fsa:*` command has opened a marked instance directory
- * (FsaCommand binds the InstanceDirectory); anywhere else, web and queue included, resolving it throws.
- * The `fsa:*` commands are registered here as they arrive (U5 onwards); constructing them touches nothing.
+ * The Docker gateway resolves only after a `fieldset:*` command has opened a marked instance directory
+ * (FieldsetCommand binds the InstanceDirectory); anywhere else, web and queue included, resolving it throws.
+ * The `fieldset:*` commands are registered here as they arrive (U5 onwards); constructing them touches nothing.
  */
 final class InstanceServiceProvider extends ServiceProvider
 {
@@ -64,7 +64,7 @@ final class InstanceServiceProvider extends ServiceProvider
 
             return $app->make(CliDockerGateway::class);
         });
-        // Release verification (R58, ADR 0070): the identity is built in; FSA_TRUST_KEY only in harness builds.
+        // Release verification (R58, ADR 0070): the identity is built in; FIELDSET_TRUST_KEY only in harness builds.
         $this->app->bind(TrustPolicy::class, static fn (): TrustPolicy => TrustPolicy::fromEnvironment(getenv(), BuildFlavor::current()));
         $this->app->bind(ManifestSchema::class, static fn (): ManifestSchema => ManifestSchema::bundled());
     }

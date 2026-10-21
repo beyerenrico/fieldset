@@ -8,7 +8,7 @@ use App\Domain\Instance\Docker\ProcessOutcome;
 
 /**
  * Scripted answers of the app-side demo one-offs (`app:demo-seed`, `app:demo-passwords`; ADR 0081) for the
- * `fsa demo` and `fsa install --demo` tests: the JSON documents DemoSeedCommand and DemoPasswordsCommand print.
+ * `fieldset demo` and `fieldset install --demo` tests: the JSON documents DemoSeedCommand and DemoPasswordsCommand print.
  */
 final class DemoFixtures
 {

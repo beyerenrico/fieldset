@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Domain\Instance\Console\FsaContext;
+use App\Domain\Instance\Console\FieldsetContext;
 use App\Domain\Instance\Docker\DockerCommandFailed;
 use App\Domain\Instance\Docker\DockerResource;
 use App\Domain\Instance\Docker\Labels;
@@ -22,11 +22,11 @@ use Tests\Support\Instance\ResetFixture;
 use Tests\Support\Instance\TemporaryInstance;
 
 /*
- * The second review of `fsa reset` (plan U23, ADR 0088): the journaled way back before the drop and `--abandon` (A2), the
+ * The second review of `fieldset reset` (plan U23, ADR 0088): the journaled way back before the drop and `--abandon` (A2), the
  * writers stopped on exit 8 and before every drop, and the heads, backup and export taken again when writers ran before a
  * resumed reset (A1), a failed drop that never reached the database counted as before the drop (A3), the confirmation
  * checked under the lock (S4), leftovers of earlier restores removed (A4/S5), a repeated clean-up (A6) and a repeated
- * phase after its side effect, `fsa backup` refused while a reset is unfinished (A8), status hints by phase (A9), and
+ * phase after its side effect, `fieldset backup` refused while a reset is unfinished (A8), status hints by phase (A9), and
  * the safety backup sealed to the recipients.
  */
 
@@ -81,11 +81,11 @@ function wayBackKilledIn(object $test, string $phase): void
     $test->reset->instance->directory->write(OperationJournal::CURRENT, (string) json_encode([...$document, 'phases' => $phases, 'events' => $events, 'outcome' => null, 'finished_at' => null, 'result' => []]), 0600);
 }
 
-function wayBackContext(): FsaContext
+function wayBackContext(): FieldsetContext
 {
     $redactor = new SecretRedactor;
 
-    return new FsaContext(app(HostFacts::class), new ProgressReporter(new NullOutput, true, $redactor), $redactor, true, false, app(InstanceDirectory::class));
+    return new FieldsetContext(app(HostFacts::class), new ProgressReporter(new NullOutput, true, $redactor), $redactor, true, false, app(InstanceDirectory::class));
 }
 
 it('abandons a reset killed before the drop: the instance starts again as it was, the journal closes (review A2)', function (): void {
@@ -112,7 +112,7 @@ it('refuses --abandon after the drop (nothing to go back to) and without an inte
 
     expect($nothing)->toBe(2)->and($nothingJson['errors'][0]['code'])->toBe('nothing_to_abandon')
         ->and($code)->toBe(2)->and($json['errors'][0]['code'])->toBe('reset_past_drop')
-        ->and($json['errors'][0]['hint'])->toContain('fsa reset')->toContain('backups/'.ResetFixture::SAFETY)
+        ->and($json['errors'][0]['hint'])->toContain('fieldset reset')->toContain('backups/'.ResetFixture::SAFETY)
         ->and($this->journal->current()?->operation())->toBe('reset');
 });
 
@@ -138,14 +138,14 @@ it('counts a failed drop that never reached the database as before the drop, als
 
     [$halted] = $this->reset->reset();
     $open = $this->journal->current();
-    [, $status] = $this->reset->instance->run('fsa:status');
+    [, $status] = $this->reset->instance->run('fieldset:status');
     $this->reset->instance->docker->onCall = [];
     [$code, $json] = $this->reset->reset([]); // going back: no question, and never the drop again
 
     expect($halted)->toBe(8)
         ->and(ResetOperation::pastDrop($open))->toBeFalse()
         ->and(array_column($open?->events() ?? [], 'type'))->toContain(ResetOperation::DROP_NOT_REACHED)
-        ->and($status['data']['reset']['interrupted'])->toMatchArray(['database_recreated' => false, 'going_back' => true, 'abandon' => 'fsa reset --abandon'])
+        ->and($status['data']['reset']['interrupted'])->toMatchArray(['database_recreated' => false, 'going_back' => true, 'abandon' => 'fieldset reset --abandon'])
         ->and($code)->toBe(5, (string) json_encode($json))
         ->and($this->reset->actions())->toBe(['plan', 'plan', 'recreate', 'plan'])
         ->and($this->journal->current())->toBeNull();
@@ -198,13 +198,13 @@ it('asks again under the lock: a new reset without a yes is exit 6 and starts no
 
 it('removes the leftovers of earlier restores: restore-made databases and older storage volumes (review A4/S5)', function (): void {
     $state = $this->reset->config->state();
-    $this->reset->databases = ['form_schema', 'postgres', 'form_schema_pre_restore_0a1b2c3d4e5f', 'form_schema_restore_0a1b2c3d4e5f', 'restore_drill_9f8e7d6c5b4a', 'other_database'];
+    $this->reset->databases = ['fieldset', 'postgres', 'fieldset_pre_restore_0a1b2c3d4e5f', 'fieldset_restore_0a1b2c3d4e5f', 'restore_drill_9f8e7d6c5b4a', 'other_database'];
     $this->reset->instance->docker->withResource(new DockerResource(DockerResource::VOLUME, $state->project().'_app-storage-r0a1b2c3d4e5f', Labels::forInstance($state->uuid(), 'app-storage')));
 
     [$code, $json] = $this->reset->reset();
 
     expect($code)->toBe(0, (string) json_encode($json))
-        ->and($this->reset->dropped)->toBe(['form_schema_pre_restore_0a1b2c3d4e5f', 'form_schema_restore_0a1b2c3d4e5f', 'restore_drill_9f8e7d6c5b4a'])
+        ->and($this->reset->dropped)->toBe(['fieldset_pre_restore_0a1b2c3d4e5f', 'fieldset_restore_0a1b2c3d4e5f', 'restore_drill_9f8e7d6c5b4a'])
         ->and($json['data']['removed'])->toContain('volume '.$state->project().'_app-storage', 'volume '.$state->project().'_app-storage-r0a1b2c3d4e5f', 'database restore_drill_9f8e7d6c5b4a')
         ->and($json['data']['left_behind'])->toBe([]);
 });
@@ -241,14 +241,14 @@ it('repeats a non-repeatable phase a killed run left after its side effect (the 
         ->and($this->reset->config->state()->setting('storage_volume'))->toBe($fresh);
 });
 
-it('refuses fsa backup while a reset is unfinished: exit 9 naming fsa reset (review A8)', function (): void {
+it('refuses fieldset backup while a reset is unfinished: exit 9 naming fieldset reset (review A8)', function (): void {
     wayBackJournal($this, ['quiesce' => [], 'ledger' => [], 'safety_backup' => ['backup' => ResetFixture::SAFETY], 'recreate_database' => false]);
     $mark = $this->reset->config->mark();
 
-    [$code, $json] = $this->reset->instance->run('fsa:backup');
+    [$code, $json] = $this->reset->instance->run('fieldset:backup');
 
     expect($code)->toBe(9)->and($json['errors'][0]['code'])->toBe('operation_unfinished')
-        ->and($json['data']['command'])->toBe('fsa reset')
+        ->and($json['data']['command'])->toBe('fieldset reset')
         ->and(array_filter($this->reset->config->callsSince($mark, 'composeRun'), static fn (array $call): bool => ($call['command'][1] ?? null) === 'backup-daemon'))->toBe([]);
 });
 

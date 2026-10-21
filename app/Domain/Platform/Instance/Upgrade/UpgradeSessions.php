@@ -22,8 +22,8 @@ use stdClass;
  */
 final readonly class UpgradeSessions
 {
-    /** application_name of an upgrade child (ChildMigration on the ops side): `fsa_upgrade_<hex>`. */
-    public const string APPLICATION = '/^fsa_upgrade_[0-9a-f]{6,64}$/D';
+    /** application_name of an upgrade child (ChildMigration on the ops side): `fieldset_upgrade_<hex>`. */
+    public const string APPLICATION = '/^fieldset_upgrade_[0-9a-f]{6,46}$/D';
 
     public function __construct(private Connection $db) {}
 
@@ -31,7 +31,7 @@ final readonly class UpgradeSessions
     public static function application(mixed $value): string
     {
         if (! is_string($value) || preg_match(self::APPLICATION, $value) !== 1) {
-            throw new InvalidArgumentException('--application-name must be an upgrade child\'s session name (fsa_upgrade_<hex>).');
+            throw new InvalidArgumentException('--application-name must be an upgrade child\'s session name (fieldset_upgrade_<hex>).');
         }
 
         return $value;

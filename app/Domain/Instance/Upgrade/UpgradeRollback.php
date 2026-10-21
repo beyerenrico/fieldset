@@ -37,7 +37,7 @@ use Throwable;
  * (databases renamed, the state names the fresh volume, Valkey flushed) → rollback_verify (the previous app behind the
  * gate passes the smoke test) → rollback_open (everything but the quick tunnel starts, the gate goes down) →
  * rollback_cleanup (UpgradeRollbackCleanup). Exit 5 with the cause and its logs; any failure until the gate went down
- * is exit 8 (UpgradeHalt), and `fsa upgrade --resume` repeats the rollback: phases before the swap from a clean
+ * is exit 8 (UpgradeHalt), and `fieldset upgrade --resume` repeats the rollback: phases before the swap from a clean
  * scratch state, the swap only when the databases say it did not happen; once `rollback_open` completed, only the
  * cleanup (review A2).
  */
@@ -229,7 +229,7 @@ final readonly class UpgradeRollback
         $from = (string) ($release['from'] ?? '');
         $result = CommandResult::failed('upgrade', ExitCode::RolledBack, $code,
             "The upgrade to {$to} failed and was rolled back; the instance runs {$from} again with the data of the safety backup. Cause: ".$cause->getMessage(),
-            'Read the logs in `data.logs` and `fsa logs app`; nothing written since the safety backup was lost (writers were stopped). Run `fsa upgrade` again once the cause is fixed.',
+            'Read the logs in `data.logs` and `fieldset logs app`; nothing written since the safety backup was lost (writers were stopped). Run `fieldset upgrade` again once the cause is fixed.',
             true, ['from' => $from, 'to' => $to, 'running' => $from, 'safety_backup' => $backupName, 'logs' => $logs, 'storage_volume' => $names->freshVolume,
                 'left_behind' => $cleanup['left_behind'] ?? []], changed: true);
         foreach (is_array($cleanup['warnings'] ?? null) ? $cleanup['warnings'] : [] as $warning) {

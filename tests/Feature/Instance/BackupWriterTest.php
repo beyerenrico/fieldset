@@ -119,7 +119,7 @@ it('writes every artifact, verifies the dump, and authenticates the set with SHA
         ->and(BackupChecksums::verify($path, WRITER_KEY))->toBe([])
         ->and(BackupChecksums::verify($path, str_repeat('x', 32)))->toBe(['the HMAC does not match (another APP_KEY, or the sums were changed)'])
         ->and($listed->getOutput())->toContain('TABLE DATA public activity_log')->toContain('TABLE DATA public backup_runs')
-        ->and($manifest)->toMatchArray(['format' => 'fsa-backup', 'kind' => 'manual', 'encrypted' => false, 'includes_secrets' => false, 'app_key_fingerprints' => ['0123-4567-89ab-cdef']])
+        ->and($manifest)->toMatchArray(['format' => 'fieldset-backup', 'kind' => 'manual', 'encrypted' => false, 'includes_secrets' => false, 'app_key_fingerprints' => ['0123-4567-89ab-cdef']])
         ->and($manifest['instance'])->toBe(['uuid' => '3f1c2b9e-8a4d-4c1e-9b7a-2d5e6f708192', 'project' => $this->project, 'version' => '2.0.0-test', 'mode' => 'domain'])
         ->and($manifest['versions']['pg_dump'])->toStartWith('pg_dump (PostgreSQL) 16.')
         ->and($manifest['versions']['postgres'])->toStartWith('16.')

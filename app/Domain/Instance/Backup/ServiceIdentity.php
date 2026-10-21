@@ -13,7 +13,7 @@ use App\Domain\Instance\Operations\LockRecord;
  * fallback) and, instead of Docker's start time, the start of the container's init process: `proc:<boot ID>:<clock
  * ticks since boot>` (the kernel's random boot ID and field 22 of /proc/1/stat), which changes with every container
  * start, across host reboots too (the ticks alone could repeat after one): the daemon can tell its own lock from before
- * a restart (InstanceLock::releaseOwnStale), and fsa treats such a lock as stale only once Docker reports the container
+ * a restart (InstanceLock::releaseOwnStale), and fieldset treats such a lock as stale only once Docker reports the container
  * gone or stopped (InstanceLock::isStale). Without a readable boot ID it is `proc:<ticks>`.
  */
 final readonly class ServiceIdentity

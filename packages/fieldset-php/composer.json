@@ -1,0 +1,23 @@
+{
+    "name": "fieldset/fieldset-php",
+    "description": "Reference PHP implementation of the Fieldset Spec 1.0: meta-schema validation, linter, JsonLogic dialect, evaluator.",
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "php": "^8.4",
+        "ext-json": "*",
+        "brick/math": "^1.0",
+        "opis/json-schema": "^2.6"
+    },
+    "autoload": {
+        "psr-4": {
+            "Fieldset\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Fieldset\\Tests\\": "tests/"
+        }
+    },
+    "minimum-stability": "stable"
+}

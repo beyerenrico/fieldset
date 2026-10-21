@@ -42,7 +42,7 @@ final class AuditLabels
 
     /**
      * The causer's name (an erased account shows "Deleted user", translated), "System", "<name> (API token)" or
-     * "Command line (host UID n)" for entries written for `fsa` (AuditLogger::cli()).
+     * "Command line (host UID n)" for entries written for `fieldset` (AuditLogger::cli()).
      */
     public static function actor(Activity $activity): string
     {

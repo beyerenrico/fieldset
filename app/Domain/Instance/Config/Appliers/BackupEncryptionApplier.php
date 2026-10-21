@@ -17,7 +17,7 @@ use App\Domain\Instance\State\InstanceDirectory;
 use App\Domain\Instance\State\InstanceState;
 
 /**
- * `fsa config set backup-encryption on|off` (R32, R40, KTD17, ADR 0084).
+ * `fieldset config set backup-encryption on|off` (R32, R40, KTD17, ADR 0084).
  *
  * - `on --identity-out <path> --passphrase-file <file>|--passphrase-stdin`: the preflight generates an age key pair,
  *   writes the passphrase-protected identity outside the instance directory and decrypt-tests it (KeySetup); the target
@@ -43,7 +43,7 @@ final readonly class BackupEncryptionApplier implements SettingApplier, SettingH
             return new ConfigChange(self::KEY, $state, $state->withRecipients([]), $from, 'off');
         }
         if ($value !== 'on') {
-            throw new InvalidInput('backup-encryption takes `on` or `off`.', 'invalid_value', 'For example `fsa config set backup-encryption on --identity-out ~/fsa-backup-identity.age --passphrase-file ~/passphrase.txt`.');
+            throw new InvalidInput('backup-encryption takes `on` or `off`.', 'invalid_value', 'For example `fieldset config set backup-encryption on --identity-out ~/fieldset-backup-identity.age --passphrase-file ~/passphrase.txt`.');
         }
         if ($enabled) {
             return new ConfigChange(self::KEY, $state, $state, $from, 'on');

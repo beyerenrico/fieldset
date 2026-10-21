@@ -17,7 +17,7 @@ use SensitiveParameter;
  *
  * 1. a new audit epoch and `instance.restored` as its first entry (RestoredEpoch);
  * 2. with the pre-restore database: the R64 security-state carry and the sequence floors (U18's automatic rollback
- *    skips both: writers were stopped since its safety backup; a manual `fsa rollback` reads them from the newer
+ *    skips both: writers were stopped since its safety backup; a manual `fieldset rollback` reads them from the newer
  *    release's SecurityExport, materialised by SecurityImport, because the older code cannot read the newer schema);
  * 3. sessions, remember tokens, password-reset tokens and sign-in links cleared;
  * 4. the audit functions' grants and the backup role (RestoreGrants);
@@ -28,7 +28,7 @@ use SensitiveParameter;
  */
 final readonly class FinishRestore
 {
-    public const string SOURCE_CONNECTION = 'fsa_restore_source';
+    public const string SOURCE_CONNECTION = 'fieldset_restore_source';
 
     /** The carry's keys without a pre-restore database (`--from-backup`, U18's rollback). */
     private const array NO_CARRY = ['carried' => null, 'carry_mode' => null, 'carry_skipped' => [], 'cascade_skipped' => [], 'sequences' => null];

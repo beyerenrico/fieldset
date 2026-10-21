@@ -55,7 +55,7 @@ it('renders the instance URL, extra hosts, an empty tunnel and a lowered gate fr
 
 it('tells the app the update check\'s manifest URL only while the check is on (U20)', function (): void {
     $directory = TemporaryInstance::directory();
-    $url = 'https://github.com/beyerenrico/form-schema-app/releases/latest/download/release-manifest.json';
+    $url = 'https://github.com/beyerenrico/fieldset/releases/latest/download/release-manifest.json';
     $writer = new RuntimeWriter($directory);
 
     expect($writer->document(ComposeFixtures::state(['update_check' => true, 'update_url' => $url], $directory->root))['updates'])->toBe(['check' => true, 'manifest_url' => $url])

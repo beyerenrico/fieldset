@@ -15,7 +15,7 @@ import { test, expect, type Locator, type Page } from './support/test';
 // other journey opens: Horizon, and the canvas builder (now the default, ADR 0044) with its sandboxed
 // preview rendering a form. /platform and the impersonation banner are in m8-platform.spec.ts.
 
-/** Operators the Horizon test created on an fsa instance (none on the dev stack). */
+/** Operators the Horizon test created on a fieldset instance (none on the dev stack). */
 const operators: string[] = [];
 test.afterAll(() => deleteUsers(operators));
 
@@ -39,7 +39,7 @@ test('the guard reports an injected inline script and an uncaught error', async 
 });
 
 test('Horizon renders under its CSP', async ({ page }) => {
-  // Open to everyone in APP_ENV=local (Horizon's gate). An fsa instance runs in production, where Horizon sits behind
+  // Open to everyone in APP_ENV=local (Horizon's gate). A fieldset instance runs in production, where Horizon sits behind
   // the operator's /platform session (ADR 0041 amendment, plan U6): sign in as a fresh operator with MFA first.
   if (!ON_DEV_STACK) {
     test.setTimeout(120_000);

@@ -67,7 +67,7 @@ it('only seals and closes when the kill came during the seal after the abort (re
 it('lets --abandon finish an abort a killed run left half done (review M2)', function (): void {
     $names = InterruptedRestore::aborting($this->restore);
 
-    [$code, $json] = $this->restore->instance->run('fsa:restore', ['--abandon' => true, '--yes' => true]);
+    [$code, $json] = $this->restore->instance->run('fieldset:restore', ['--abandon' => true, '--yes' => true]);
 
     expect($code)->toBe(0, (string) json_encode($json))->and($json['data'])->toMatchArray(['abandoned' => true, 'swapped' => false])
         ->and($this->restore->databases)->not->toContain($names->scratch)
@@ -99,7 +99,7 @@ it('gives the abort its own hint when even the previous app does not start: noth
     [$code, $json] = $this->restore->restore();
 
     expect($code)->toBe(8, (string) json_encode($json))
-        ->and($json['errors'][0]['hint'])->toContain('Nothing was swapped')->toContain('fsa restore --abandon')->not->toContain('continue returning');
+        ->and($json['errors'][0]['hint'])->toContain('Nothing was swapped')->toContain('fieldset restore --abandon')->not->toContain('continue returning');
 });
 
 it('stops app, queue, scheduler and backup before it renames the databases back (review M3)', function (): void {
@@ -124,7 +124,7 @@ it('stops the workers an earlier run started when --abandon returns after open (
     InterruptedRestore::swapped($this->restore, $names);
     $mark = $this->restore->config->mark();
 
-    [$code, $json] = $this->restore->instance->run('fsa:restore', ['--abandon' => true, '--yes' => true]);
+    [$code, $json] = $this->restore->instance->run('fieldset:restore', ['--abandon' => true, '--yes' => true]);
     $stop = InterruptedRestore::position($this->restore, frontendStop(), $mark);
     $swapBack = InterruptedRestore::position($this->restore, InterruptedRestore::databaseCall('swap'), $mark);
 
@@ -137,30 +137,30 @@ it('continues with the restored data on --abandon when there is no way back, aft
     InterruptedRestore::returning($this->restore, []); // the put-aside database vanished: nothing to rename back
 
     [$stuck, $stuckJson] = $this->restore->restore();
-    [$code, $json] = $this->restore->instance->run('fsa:restore', ['--abandon' => true, '--yes' => true]);
+    [$code, $json] = $this->restore->instance->run('fieldset:restore', ['--abandon' => true, '--yes' => true]);
 
     expect($stuck)->toBe(8, (string) json_encode($stuckJson))
-        ->and($stuckJson['errors'][0]['hint'])->toContain('fsa restore --abandon --yes')->toContain('install.sh --dir <new directory> --from-backup')->not->toContain('fsa install --from-backup')->not->toContain('with `fsa restore`') // gate review DOC14, O9
+        ->and($stuckJson['errors'][0]['hint'])->toContain('fieldset restore --abandon --yes')->toContain('install.sh --dir <new directory> --from-backup')->not->toContain('fieldset install --from-backup')->not->toContain('with `fieldset restore`') // gate review DOC14, O9
         ->and($code)->toBe(0, (string) json_encode($json))->and($json['data'])->toMatchArray(['abandoned' => false, 'completed' => true, 'forward' => true])
         ->and(InterruptedRestore::gateRaised($this->dir))->toBeFalse()
         ->and(InstanceSettings::of($this->restore->config->state())->storageVolume())->toContain('_app-storage-r')
         ->and(new OperationJournal($this->restore->instance->directory)->current())->toBeNull();
 });
 
-it('names --abandon and a new directory, never `fsa restore` of the safety backup, when the way back fails (review L4)', function (): void {
+it('names --abandon and a new directory, never `fieldset restore` of the safety backup, when the way back fails (review L4)', function (): void {
     InterruptedRestore::returning($this->restore, [RestoreRecovery::DATABASE_RETURNING, RestoreRecovery::DATABASE_BACK]);
     $this->restore->config->smokeFails = static fn (array $urls, array $command): bool => in_array('@-', $command, true);
 
     [$code, $json] = $this->restore->restore();
 
     expect($code)->toBe(8, (string) json_encode($json))
-        ->and($json['errors'][0]['hint'])->toContain('fsa restore --abandon --yes')->toContain('`install.sh --dir <new directory> --from-backup '.$this->dir.'/backups/safety-restore-20261019T120000Z`')->not->toContain('fsa install --from-backup'); // gate review DOC14, O9
+        ->and($json['errors'][0]['hint'])->toContain('fieldset restore --abandon --yes')->toContain('`install.sh --dir <new directory> --from-backup '.$this->dir.'/backups/safety-restore-20261019T120000Z`')->not->toContain('fieldset install --from-backup'); // gate review DOC14, O9
 });
 
 it('warns when the free space for the scratch set cannot be read, in a drill too (review A12)', function (): void {
     app()->instance(RestoreSpace::FREE_BYTES, static fn (): ?int => null);
 
-    [$code, $json] = $this->restore->instance->run('fsa:restore', ['backup' => 'manual-20261019T120000Z', '--drill' => true]);
+    [$code, $json] = $this->restore->instance->run('fieldset:restore', ['backup' => 'manual-20261019T120000Z', '--drill' => true]);
 
     expect($code)->toBe(0, (string) json_encode($json))->and(array_column($json['warnings'], 'code'))->toContain('disk_space_unknown');
 });

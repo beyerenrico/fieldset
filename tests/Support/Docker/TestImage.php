@@ -8,13 +8,13 @@ use RuntimeException;
 use Symfony\Component\Process\Process;
 
 /**
- * Builds the app image once per test process as `fsa-test-u1:<tag>` and runs throwaway containers of it
- * (install journeys, KTD23). Only resources named `fsa-test-*` are created; containers are removed.
- * FSA_TEST_PLATFORM (e.g. linux/amd64) builds and runs another architecture under emulation.
+ * Builds the app image once per test process as `fieldset-test-u1:<tag>` and runs throwaway containers of it
+ * (install journeys, KTD23). Only resources named `fieldset-test-*` are created; containers are removed.
+ * FIELDSET_TEST_PLATFORM (e.g. linux/amd64) builds and runs another architecture under emulation.
  */
 final class TestImage
 {
-    public const string REPOSITORY = 'fsa-test-u1';
+    public const string REPOSITORY = 'fieldset-test-u1';
 
     public const string VERSION = '2.0.0-test.u1';
 
@@ -37,7 +37,7 @@ final class TestImage
 
     public static function platform(): ?string
     {
-        $platform = getenv('FSA_TEST_PLATFORM');
+        $platform = getenv('FIELDSET_TEST_PLATFORM');
 
         return is_string($platform) && $platform !== '' ? $platform : null;
     }
@@ -103,18 +103,18 @@ final class TestImage
     }
 
     /**
-     * `fsa-test-u1`, or FSA_TEST_IMAGE_REPOSITORY (an `fsa-test-…` name), so that journeys in two checkouts on one
+     * `fieldset-test-u1`, or FIELDSET_TEST_IMAGE_REPOSITORY (a `fieldset-test-…` name), so that journeys in two checkouts on one
      * Docker engine do not retag each other's image.
      */
     public static function repositoryName(): string
     {
-        $name = getenv('FSA_TEST_IMAGE_REPOSITORY');
+        $name = getenv('FIELDSET_TEST_IMAGE_REPOSITORY');
         if (! is_string($name) || $name === '') {
             return self::REPOSITORY;
         }
 
-        if (preg_match('/^fsa-test-[a-z0-9][a-z0-9-]*$/', $name) !== 1) {
-            throw new RuntimeException("FSA_TEST_IMAGE_REPOSITORY must be an fsa-test-… image name, got \"{$name}\".");
+        if (preg_match('/^fieldset-test-[a-z0-9][a-z0-9-]*$/', $name) !== 1) {
+            throw new RuntimeException("FIELDSET_TEST_IMAGE_REPOSITORY must be a fieldset-test-… image name, got \"{$name}\".");
         }
 
         return $name;
@@ -124,7 +124,7 @@ final class TestImage
     {
         $arch = $platform === null ? 'native' : str_replace('linux/', '', $platform);
         $reference = self::repositoryName().':'.($platform === null ? 'latest' : $arch);
-        $log = self::logFile("fsa-test-u1-build-{$arch}.log");
+        $log = self::logFile("fieldset-test-u1-build-{$arch}.log");
         file_put_contents($log, '');
 
         $process = new Process([

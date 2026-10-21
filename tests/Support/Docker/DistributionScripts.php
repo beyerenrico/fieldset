@@ -17,7 +17,7 @@ use Symfony\Component\Process\Process;
  * container, with the run's argv), STUB_PULL_STDERR, STUB_RELEASE_DIR (files `curl` serves by base name; a missing
  * file is HTTP 404, exit 22), STUB_CURL_EXIT (a network failure: that curl exit code, HTTP code 000) and STUB_UNAME
  * (`uname -s`). Every docker call also logs its subcommand with the DOCKER_DEFAULT_PLATFORM it saw (`dockerPlatforms()`),
- * and the ops-container dump includes that variable next to the FSA_* ones.
+ * and the ops-container dump includes that variable next to the FIELDSET_* ones.
  */
 final readonly class DistributionScripts
 {
@@ -30,8 +30,8 @@ final readonly class DistributionScripts
     public function __construct(public string $shell = '/bin/dash')
     {
         // Not under the system temp directory: the launchers refuse /tmp and /var (macOS keeps TMPDIR there) as
-        // mount or instance paths (fsa_reserved_path).
-        $this->root = self::repository().'/storage/fsa-test-dist/'.bin2hex(random_bytes(6));
+        // mount or instance paths (fieldset_reserved_path).
+        $this->root = self::repository().'/storage/fieldset-test-dist/'.bin2hex(random_bytes(6));
         $this->bin = $this->root.'/bin';
         $this->log = $this->root.'/calls.log';
         mkdir($this->bin, 0700, true);
@@ -64,7 +64,7 @@ final readonly class DistributionScripts
      */
     public function source(string $script, string $snippet, array $env = [], ?string $cwd = null): Process
     {
-        $guard = str_ends_with($script, 'install.sh') ? 'FSA_INSTALL_LIBRARY' : 'FSA_SHIM_LIBRARY';
+        $guard = str_ends_with($script, 'install.sh') ? 'FIELDSET_INSTALL_LIBRARY' : 'FIELDSET_SHIM_LIBRARY';
 
         return $this->process([$this->shell, '-c', $guard.'=1; . "$0"; '.$snippet, $script], $env, $cwd);
     }
@@ -87,14 +87,14 @@ final readonly class DistributionScripts
     }
 
     /**
-     * The `docker run … --entrypoint fsa …` calls (the ops container), without the program name.
+     * The `docker run … --entrypoint fieldset …` calls (the ops container), without the program name.
      *
      * @return list<list<string>>
      */
     public function opsRuns(): array
     {
-        $runs = array_filter($this->calls('docker'), static fn (array $call): bool => ($call[1] ?? '') === 'run' && in_array('fsa', $call, true)
-            && ($call[array_search('fsa', $call, true) - 1] ?? '') === '--entrypoint');
+        $runs = array_filter($this->calls('docker'), static fn (array $call): bool => ($call[1] ?? '') === 'run' && in_array('fieldset', $call, true)
+            && ($call[array_search('fieldset', $call, true) - 1] ?? '') === '--entrypoint');
 
         return array_values(array_map(static fn (array $call): array => array_slice($call, 1), $runs));
     }
@@ -116,7 +116,7 @@ final readonly class DistributionScripts
         return $calls;
     }
 
-    /** @return array<string, string> FSA_* variables and DOCKER_DEFAULT_PLATFORM the last ops container would get (dumped by the stub) */
+    /** @return array<string, string> FIELDSET_* variables and DOCKER_DEFAULT_PLATFORM the last ops container would get (dumped by the stub) */
     public function opsEnvironment(): array
     {
         $env = [];
@@ -156,11 +156,11 @@ final readonly class DistributionScripts
             'HOME' => $this->root.'/home',
             'TMPDIR' => $this->root,
             'DOCKER_HOST' => false,
-            'FSA_TRUST_KEY' => false,
-            'FSA_RELEASE_URL' => false,
-            'FSA_REGISTRY' => false,
+            'FIELDSET_TRUST_KEY' => false,
+            'FIELDSET_RELEASE_URL' => false,
+            'FIELDSET_REGISTRY' => false,
             'DOCKER_DEFAULT_PLATFORM' => false,
-            'FSA_TEST_DNS' => false,
+            'FIELDSET_TEST_DNS' => false,
             'DISPLAY' => false,
             'WAYLAND_DISPLAY' => false,
             'SSH_CONNECTION' => false,
@@ -203,7 +203,7 @@ final readonly class DistributionScripts
             [ "$a" != /var/www/html/distribution/shim.sh ] || exec cat "$STUB_SHIM"
         done
         : > "$STUB_ROOT/ops-env"
-        for v in $(env | sed -n -e 's/^\(FSA_[A-Z_]*\)=.*/\1/p' -e 's/^\(DOCKER_DEFAULT_PLATFORM\)=.*/\1/p'); do
+        for v in $(env | sed -n -e 's/^\(FIELDSET_[A-Z_]*\)=.*/\1/p' -e 's/^\(DOCKER_DEFAULT_PLATFORM\)=.*/\1/p'); do
             eval "val=\${$v}"
             printf '%s=%s\036' "$v" "$val" >> "$STUB_ROOT/ops-env"
         done

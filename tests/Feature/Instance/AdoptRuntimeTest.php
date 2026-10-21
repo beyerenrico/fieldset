@@ -17,7 +17,7 @@ use Tests\Support\Instance\AdoptFixture;
 const ADOPT_OTHER_KEY = 'base64:'.'T1RIRVJPVEhFUk9USEVST1RIRVJPVEhFUk9USEVSMTI=';
 
 /*
- * What `fsa adopt` checks of the running 1.0 install and what uninstall makes of an adopt (plan U19, ADR 0087, review S1,
+ * What `fieldset adopt` checks of the running 1.0 install and what uninstall makes of an adopt (plan U19, ADR 0087, review S1,
  * S2, S3, A3, A4, A5, A6), against the recording Docker gateway: the `.env` against the app container's environment, the
  * Postgres image, Valkey's database, volume names from the containers' mounts, an adopt that failed after 2.0 started,
  * and the jobs 1.0 runs when it comes back.
@@ -81,7 +81,7 @@ it('goes back when the checkout changed before a resumed run, instead of leaving
 });
 
 it('finds 1.0 when Compose started it through a symlink to the checkout (review nit)', function (): void {
-    $link = sys_get_temp_dir().'/fsa-test-link-'.bin2hex(random_bytes(4));
+    $link = sys_get_temp_dir().'/fieldset-test-link-'.bin2hex(random_bytes(4));
     symlink($this->adopt->checkout, $link);
     $this->adopt->withLegacyStack(extraLabels: ['com.docker.compose.project.working_dir' => $link, 'com.docker.compose.project.config_files' => $link.'/compose.yaml']);
 
@@ -148,17 +148,17 @@ it('treats an adopt that failed after 2.0 started as adopted: adopt hints, and u
     };
 
     [$failed, $failedJson] = $this->adopt->adopt(['--drop-jobs' => true]);
-    [$prompt, $promptJson] = $this->adopt->instance->run('fsa:uninstall', []);
+    [$prompt, $promptJson] = $this->adopt->instance->run('fieldset:uninstall', []);
     $docker->onCall['composeUp'] = $start;
     $state = $this->adopt->instance->state();
     $docker->withResource(new DockerResource(DockerResource::VOLUME, $state->project().'_pg-data', [Labels::INSTANCE => $state->uuid(), 'com.docker.compose.volume' => 'pg-data'])); // Compose made it
     $appKey = new EnvFiles($this->adopt->instance->directory)->read('app')['APP_KEY'];
-    [$code, $json] = $this->adopt->instance->run('fsa:uninstall', ['--yes' => true]);
+    [$code, $json] = $this->adopt->instance->run('fieldset:uninstall', ['--yes' => true]);
     $keyFile = $this->adopt->instance->directory->root.'/'.$json['data']['final_backup']['key_file'];
     $restart = collect($json['warnings'])->firstWhere('code', 'restart_1_0');
 
     expect($failed)->toBe(4, (string) json_encode($failedJson))
-        ->and($failedJson['errors'][0]['hint'])->toContain('fsa adopt '.$this->adopt->checkout)->toContain('fsa uninstall')->not->toContain('fsa install')
+        ->and($failedJson['errors'][0]['hint'])->toContain('fieldset adopt '.$this->adopt->checkout)->toContain('fieldset uninstall')->not->toContain('fieldset install')
         ->and($prompt)->toBe(6)->and($promptJson['errors'][0]['message'])->toContain('Write a final backup')->toContain($this->adopt->checkout)
         ->and($code)->toBe(0, (string) json_encode($json))
         ->and($json['data']['adopted'])->toMatchArray(['checkout' => $this->adopt->checkout, 'pending' => true, 'jobs_in_1_0' => ['left' => 4, 'delayed' => 2, 'unknown' => false]])

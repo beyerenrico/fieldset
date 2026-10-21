@@ -1,7 +1,7 @@
 {
   "description": "email: JS whitespace semantics and a 254-code-point limit (spec §5.6)",
   "definition": {
-    "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+    "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
     "specVersion": "1.0.0",
     "key": "email_limits",
     "title": "Email Limits",

@@ -92,7 +92,7 @@ final class RecordingDockerGateway implements DockerGateway
         $fake = new self;
         app()->instance(DockerGateway::class, $fake);
         // Outside any container, wherever the suite runs: inside one (the coverage image) the lock would inspect it.
-        app()->instance(ContainerIdentity::class, new ContainerIdentity($fake, '/nonexistent/mountinfo', 'fsa-test-host'));
+        app()->instance(ContainerIdentity::class, new ContainerIdentity($fake, '/nonexistent/mountinfo', 'fieldset-test-host'));
 
         return $fake;
     }

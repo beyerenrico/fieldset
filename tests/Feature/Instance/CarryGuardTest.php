@@ -26,7 +26,7 @@ const GUARD_BACKUP_AT = '2026-10-19T12:00:00Z';
 
 beforeEach(function (): void {
     RestoreDatabases::target();
-    $this->role = RestoreDatabases::role('fsa_backup_guard');
+    $this->role = RestoreDatabases::role('fieldset_backup_guard');
     putenv(BackupRole::PASSWORD_ENV.'='.GUARD_PASSWORD);
     app()->instance(RestoreFinishCommand::STDIN, static fn (): string => '');
 });
@@ -97,7 +97,7 @@ it('carries only audited or timestamped changes when the source was itself resto
         ->and($target->table('platform_admins')->pluck('user_id')->all())->toBe([$this->owner->id]);
 });
 
-it('dates the backup by the restored database\'s newest audit entry when fsa passes no time', function (): void {
+it('dates the backup by the restored database\'s newest audit entry when fieldset passes no time', function (): void {
     CarryFixture::scope($this); // the backup's own audit log ends with the seed's entries (now)
     CarryFixture::epoch(DB::connection(RestoreDatabases::SOURCE), now()->utc()->addHour()->format('Y-m-d H:i:s'));
     DB::connection(RestoreDatabases::SOURCE)->table('webhook_endpoints')->where('id', $this->deletedHook->id)->delete();

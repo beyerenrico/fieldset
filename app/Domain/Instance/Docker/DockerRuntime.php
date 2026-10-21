@@ -6,7 +6,7 @@ namespace App\Domain\Instance\Docker;
 
 /**
  * How the Docker engine maps container users to host files (KTD2, §6.3, ADR 0070). The shim and install.sh
- * detect it on the host (`docker info`, host OS) and pass it as FSA_DOCKER_RUNTIME.
+ * detect it on the host (`docker info`, host OS) and pass it as FIELDSET_DOCKER_RUNTIME.
  *
  * - rootful: a native Linux daemon; container UIDs are host UIDs. The ops container runs as the host user with
  *   the socket's group added, and files in the instance directory are owned by the host UID.

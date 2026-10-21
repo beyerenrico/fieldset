@@ -12,7 +12,7 @@ use App\Domain\Identity\Sessions\EndUserAccess;
 use Illuminate\Support\Facades\DB;
 
 /**
- * `fsa demo --rotate-passwords` (R29, ADR 0081): every demo account (DemoAccounts) gets a new random password, and its
+ * `fieldset demo --rotate-passwords` (R29, ADR 0081): every demo account (DemoAccounts) gets a new random password, and its
  * sessions, remember-me token, API tokens, unused one-time sign-in links and password-reset token are revoked, so
  * whoever knew the old password (`password` on a loopback demo that is about to become reachable) or holds an earlier
  * link is signed out and locked out everywhere. Devices are not wiped: their data is the demo's own. One audit entry

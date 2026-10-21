@@ -7,7 +7,7 @@ namespace App\Domain\Instance\Output;
 use SensitiveParameter;
 
 /**
- * Registry of the secret values one `fsa` command has seen. Everything rendered outside `secrets` (data,
+ * Registry of the secret values one `fieldset` command has seen. Everything rendered outside `secrets` (data,
  * warnings, errors, NDJSON progress, human output) passes through it, so a secret that leaks into a message by
  * mistake is replaced instead of printed (R50). Deliberately mutable: secrets become known while a command runs.
  */

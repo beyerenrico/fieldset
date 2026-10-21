@@ -1,5 +1,5 @@
 /** UUIDv7 ids for new nodes and id normalization of loaded definitions. */
-import type { JsonObject, JsonValue } from '@form-schema-app/form-schema-js';
+import type { JsonObject, JsonValue } from '@fieldset/fieldset-js';
 import { isObject, listProp, str } from './json.ts';
 
 export type RandomFill = (bytes: Uint8Array<ArrayBuffer>) => Uint8Array<ArrayBuffer>;

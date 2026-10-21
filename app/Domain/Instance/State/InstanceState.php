@@ -82,10 +82,10 @@ final readonly class InstanceState
         return $slug === '' ? 'instance' : $slug;
     }
 
-    /** `fsa-<slug>-<4 hex>`: the hex comes from the UUID, so two instances with the same directory name differ. */
+    /** `fieldset-<slug>-<4 hex>`: the hex comes from the UUID, so two instances with the same directory name differ. */
     public static function projectFor(string $slug, string $uuid): string
     {
-        return 'fsa-'.$slug.'-'.substr(hash('sha256', $uuid), 0, 4);
+        return 'fieldset-'.$slug.'-'.substr(hash('sha256', $uuid), 0, 4);
     }
 
     /** @return array<string, mixed> */

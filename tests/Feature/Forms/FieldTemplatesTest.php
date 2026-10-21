@@ -12,7 +12,7 @@ use App\Domain\Identity\Models\Organization;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Tenancy\TenantContext;
 use App\Domain\Submissions\Support\SubmissionEvaluator;
-use FormSchema\Evaluation\EvaluationResult;
+use Fieldset\Evaluation\EvaluationResult;
 
 /* M3-T10: delivery note, timesheet and handover protocol (BUILD_PROMPT §7.6). */
 
@@ -63,7 +63,7 @@ it('publishes each new template as version 1 with lineage', function (string $ke
 
     expect($version->version)->toBe(1)
         ->and($version->definition->source->template)->toBe($key)
-        ->and($version->definition->source->registry)->toBe('urn:form-schema-app:bundled-templates');
+        ->and($version->definition->source->registry)->toBe('urn:fieldset:bundled-templates');
 })->with(['delivery_note', 'timesheet', 'handover_protocol']);
 
 it('computes timesheet hours per row from start, end and break, and their sum', function (): void {

@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 
 /**
- * What follows the instance URL when an operator changes it with `fsa config set` (R21, ADR 0077), across all
+ * What follows the instance URL when an operator changes it with `fieldset config set` (R21, ADR 0077), across all
  * organizations (platform scope):
  *
  * - organizations with an SSO provider: the SAML SP entity ID and ACS URL, or the OIDC redirect URI, are built from

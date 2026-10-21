@@ -14,10 +14,10 @@ use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
 
 /**
- * `fsa config set lan-address <IPv4>` (R19, ADR 0082): the LAN address of the local CA. With the local CA on it
+ * `fieldset config set lan-address <IPv4>` (R19, ADR 0082): the LAN address of the local CA. With the local CA on it
  * re-issues the certificate for the new address (the Caddyfile changes, so the edge is recreated, and Caddy's CA signs a
  * certificate for it; the CA itself stays, so trusting phones keep trusting it), moves 80/443 there and makes
- * https://<address> the URL (exit 6 without --yes); `fsa doctor` and `fsa status` offer it when the host's address
+ * https://<address> the URL (exit 6 without --yes); `fieldset doctor` and `fieldset status` offer it when the host's address
  * changed. With the local CA off it only records the address `phone-https local-ca` will use.
  */
 final readonly class LanAddressApplier implements SettingApplier

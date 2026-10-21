@@ -2,7 +2,7 @@
  * Background Sync is only a Chromium wake-up (§9.2, ADR 0035): the service worker's `sync` handler
  * posts to open clients, which then run their own engine. Safari and Firefox have no SyncManager.
  */
-export const BACKGROUND_SYNC_TAG = 'fsa-outbox';
+export const BACKGROUND_SYNC_TAG = 'fieldset-outbox';
 
 interface SyncManagerLike {
     register(tag: string): Promise<void>;

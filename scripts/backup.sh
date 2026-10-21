@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Back up a form-schema-app Docker Compose installation (docs/guide/backup-restore.md):
+# Back up a Fieldset Docker Compose installation (docs/guide/backup-restore.md):
 #   database.dump    PostgreSQL, pg_dump custom format (run inside the postgres container)
 #   storage.tar.gz   the app-storage volume (/var/www/html/storage/app: renditions, attachments, logos, …)
 #   env              a copy of .env, only with --include-env (it holds APP_KEY and other secrets)

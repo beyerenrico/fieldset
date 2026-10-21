@@ -92,9 +92,9 @@ settings"): name, language and time zone. Scheduled workflows and report emails 
 
 **Several organizations.** A person can belong to several organizations. The organization switcher at
 the top of the dashboard lists those where they have dashboard access. The first organization is
-created at the install (`fsa install --org …`); further organizations can only be created through
+created at the install (`fieldset install --org …`); further organizations can only be created through
 self-registration ("Organisation registrieren", "Register organization"). Self-registration is off on an
-instance installed with `fsa`; on a 1.0 checkout install the operator can enable it (see the
+instance installed with `fieldset`; on a 1.0 checkout install the operator can enable it (see the
 [1.0 configuration reference](archive/1.0-configuration.md#application)).
 
 ## Members, groups and roles
@@ -145,7 +145,7 @@ App.
 - **"Aus Vorlage"** ("From template"): "Servicebericht" (service report), "Rechnung" (invoice),
   "Prüfprotokoll" (inspection checklist), "Lieferschein" (delivery note), "Stundenzettel" (timesheet)
   or "Übergabeprotokoll" (handover protocol).
-- **"JSON importieren"** ("Import JSON"): a form definition file in the Form Schema format (up to
+- **"JSON importieren"** ("Import JSON"): a form definition file in the Fieldset Spec format (up to
   2 MB), uploaded or pasted.
 - **"Aus PDF importieren"** ("Import from PDF"): a fillable PDF (AcroForm fields, up to 20 MB and 50
   pages). The import runs in the background; the notification links to the new draft ("Entwurf
@@ -402,7 +402,7 @@ dismissed. It comes in two variants:
   always use the instance's mailer.
 
 Platform operators see the command that sets up delivery on the server ("E-Mail-Versand auf dem Server
-einrichten:", "Set up mail delivery on the server:"), `fsa config set mail smtp --smtp-host <host>
+einrichten:", "Set up mail delivery on the server:"), `fieldset config set mail smtp --smtp-host <host>
 --smtp-username <user> --from-address <address> --password-stdin` (see
 [configuration](configuration.md#mail)); everyone else reads "Bitten Sie den Betreiber der Instanz, den
 E-Mail-Versand einzurichten." ("Ask your instance owner to set up mail delivery."). The banner disappears
@@ -446,9 +446,9 @@ added separately. "DNS-Eintrag" ("DNS record") shows the TXT record to create at
 
 | Name (host) | Type | Value |
 |---|---|---|
-| `_form-schema-app-verification.example.com` | TXT | `form-schema-app-verification=<token>` |
+| `_fieldset-verification.example.com` | TXT | `fieldset-verification=<token>` |
 
-Some DNS providers add the domain themselves; then enter only `_form-schema-app-verification` as the
+Some DNS providers add the domain themselves; then enter only `_fieldset-verification` as the
 name. Click "Verifizieren" ("Verify") once the record is published. Only one organization can verify a
 domain. The server checks verified domains daily; after three failed checks in a row the domain loses
 its verification and admins are notified.
@@ -639,7 +639,7 @@ deleted, an Owner or Admin uses this page.
 ## Platform operators (/platform)
 
 This section is for the people who run the server. The owner named at the install is an operator;
-`fsa config set operator-email <email>` adds one ([configuration](configuration.md#keys)). On a 1.0 checkout
+`fieldset config set operator-email <email>` adds one ([configuration](configuration.md#keys)). On a 1.0 checkout
 install operators get the role with `php artisan app:platform-admin <email>`
 ([1.0 install guide](archive/1.0-install.md#4-create-the-first-organization-and-owner)).
 They sign in at `/platform/login`, separately from `/admin`; a sign-in through an organization's single
@@ -650,10 +650,10 @@ hours (`PLATFORM_SESSION_HOURS`).
   status. "Mitglieder" ("Members") lists its members.
 - **"Zustand" ("Health")**: Horizon and its queues, failed jobs, Gotenberg, the mail transport, the
   scheduler and the free disk space, each "OK", "Warnung" ("Warning") or "Fehler" ("Failing").
-- **"Instanz" ("Instance")** (instances installed with `fsa`): problems first (a failed or stale backup,
-  low disk space, an available update, backups held only on this host), each with the `fsa` command to run on the
+- **"Instanz" ("Instance")** (instances installed with `fieldset`): problems first (a failed or stale backup,
+  low disk space, an available update, backups held only on this host), each with the `fieldset` command to run on the
   server; then version and image digests, mode and URL, mail delivery with the catcher link, the backup schedule and
-  last result, disk usage and, when the update check is on (`fsa config set update-check on`), whether a newer
+  last result, disk usage and, when the update check is on (`fieldset config set update-check on`), whether a newer
   release exists. Operators also get one e-mail per failed or stale backup.
 - **"Als Mitglied anmelden" ("Impersonate")** on a member: the operator sees the admin dashboard as that
   member, for support. A reason of 10 to 500 characters is required. It works only for active members

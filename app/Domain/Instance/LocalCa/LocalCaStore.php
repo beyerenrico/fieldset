@@ -17,7 +17,7 @@ use App\Domain\Instance\State\InstanceState;
 /**
  * The local CA on the edge's certificate volume (R19, ADR 0082). Caddy keeps its internal CA under
  * `/data/caddy/pki/authorities/local/` (root and intermediate, each with its key, 0600 for Caddy's UID) and the leaf
- * certificates under `/data/caddy/certificates/local/`. fsa never opens the volume itself: a throwaway container of the
+ * certificates under `/data/caddy/certificates/local/`. fieldset never opens the volume itself: a throwaway container of the
  * pinned Caddy image, as Caddy's UID and without a network, reads the public root or deletes the CA.
  *
  * - `root()`: the root certificate only, checked to be exactly one CA certificate and nothing else (never a key).
@@ -55,7 +55,7 @@ final readonly class LocalCaStore
     {
         $outcome = $this->docker->runContainer($this->spec($state, 'rm', ['-rf', self::CA_DIRECTORY, self::CERTIFICATES], readOnly: false), null, self::TIMEOUT);
         if (! $outcome->successful()) {
-            throw new InstanceException('The local CA could not be deleted from the edge\'s certificate volume: '.$outcome->stderrTail(2), ExitCode::HealthCheckFailed, 'local_ca_delete_failed', 'Run the command again; `fsa uninstall` removes the volume with the instance.', true);
+            throw new InstanceException('The local CA could not be deleted from the edge\'s certificate volume: '.$outcome->stderrTail(2), ExitCode::HealthCheckFailed, 'local_ca_delete_failed', 'Run the command again; `fieldset uninstall` removes the volume with the instance.', true);
         }
     }
 

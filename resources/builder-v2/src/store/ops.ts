@@ -3,7 +3,7 @@
  * branch it changes (structural sharing) and never rebuilds a node field by field, so unknown and
  * `x-*` properties survive untouched.
  */
-import type { JsonObject, JsonValue } from '@form-schema-app/form-schema-js';
+import type { JsonObject, JsonValue } from '@fieldset/fieldset-js';
 import type { Container, InspectorKind, Operation } from '../contract.ts';
 import { getIn, isList, isObject, listProp, omit, setIn } from './json.ts';
 import {

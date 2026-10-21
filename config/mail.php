@@ -49,7 +49,7 @@ return [
             'password' => env('MAIL_PASSWORD'),
             'timeout' => null,
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
-            // Symfony's EsmtpTransportFactory options (fsa instances, ADR 0080 amendment): `require_tls` refuses a server
+            // Symfony's EsmtpTransportFactory options (fieldset instances, ADR 0080 amendment): `require_tls` refuses a server
             // that offers no STARTTLS before any AUTH or mail, `auto_tls` false never starts STARTTLS (a plain relay).
             'require_tls' => env('MAIL_REQUIRE_TLS', false),
             'auto_tls' => env('MAIL_AUTO_TLS', true),
@@ -123,9 +123,9 @@ return [
 
     /*
     | Capture mode (BUILD_PROMPT_V2 E8, R22, ADR 0054, ADR 0080): the instance mailer delivers into the bundled mail
-    | catcher, so nothing leaves the server. `fsa` sets FSA_MAIL_CAPTURE=true on app, queue and scheduler while it is
+    | catcher, so nothing leaves the server. `fieldset` sets FIELDSET_MAIL_CAPTURE=true on app, queue and scheduler while it is
     | on; admins then see the capture banner and the health check warns. Unset everywhere else (checkouts, dev, CI).
     */
-    'capture' => filter_var(env('FSA_MAIL_CAPTURE', false), FILTER_VALIDATE_BOOL),
+    'capture' => filter_var(env('FIELDSET_MAIL_CAPTURE', false), FILTER_VALIDATE_BOOL),
 
 ];

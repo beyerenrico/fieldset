@@ -23,12 +23,12 @@ use Throwable;
  * (ADR 0085, U17 M2/L4/L7):
  *
  * - journaled as the phase `abort` before anything is touched, with the cause as its start data: a run killed while going
- *   back, or one that ended in exit 8, is finished as an abort by the next `fsa reset` (or `fsa reset --abandon`), never
+ *   back, or one that ended in exit 8, is finished as an abort by the next `fieldset reset` (or `fieldset reset --abandon`), never
  *   resumed forward over the writes the reopened instance took;
  * - `RestoreStack::reopenPrevious()`: the unchanged app starts, the gate goes down once it is healthy, the other services
  *   start (one that does not is a warning);
  * - when the app does not become healthy, every writer stops (RestoreHalt::WRITERS), the gate stays up and the journal
- *   open: exit 8, and `fsa reset --abandon` tries again.
+ *   open: exit 8, and `fieldset reset --abandon` tries again.
  *
  * `--abandon` (A2) is the same way back on request: before the drop only, closing the journal with `ok`.
  */
@@ -47,14 +47,14 @@ final readonly class ResetWayBack
             return $this->halt($project, $cause, $e, $run->record());
         }
         $code = $cause instanceof InstanceException ? $cause->errorCode : 'reset_failed';
-        $hint = $cause instanceof InstanceException && $cause->hint !== null ? $cause->hint : 'Fix the cause, then run `fsa reset` again.';
+        $hint = $cause instanceof InstanceException && $cause->hint !== null ? $cause->hint : 'Fix the cause, then run `fieldset reset` again.';
         $result = CommandResult::failed(ResetOperation::OPERATION, ExitCode::RolledBack, $code, 'The reset failed before anything was deleted; the instance runs as before. Cause: '.$cause->getMessage(),
             $hint, true, [...($cause instanceof InstanceException ? $cause->data : []), 'safety_backup' => ResetResult::safetyBackup($run->record())], changed: true);
 
         return $this->rebuild->seal(RestoreRecovery::degraded($result, $degraded), $run->record());
     }
 
-    /** `fsa reset --abandon` before the drop: the previous instance runs again and the journal closes. */
+    /** `fieldset reset --abandon` before the drop: the previous instance runs again and the journal closes. */
     public function abandon(OperationRun $run, InstanceState $state, ComposeProject $project): CommandResult
     {
         $cause = new InstanceException('The reset was abandoned.', ExitCode::RolledBack, 'reset_abandoned');
@@ -103,7 +103,7 @@ final readonly class ResetWayBack
 
         return CommandResult::failed(ResetOperation::OPERATION, ExitCode::RollbackFailed, 'reset_rollback_failed',
             'The reset failed before anything was deleted ('.$cause->getMessage().'), and starting the instance again failed too ('.$failure->getMessage().'); every writer is stopped behind the gate.',
-            'Nothing was deleted. Read `fsa logs app`, then run `fsa reset --abandon` (or the same `'.ResetRequest::commandLine($record->context()).'`) to start the instance again.',
+            'Nothing was deleted. Read `fieldset logs app`, then run `fieldset reset --abandon` (or the same `'.ResetRequest::commandLine($record->context()).'`) to start the instance again.',
             false, ['safety_backup' => ResetResult::safetyBackup($record)], changed: true);
     }
 }

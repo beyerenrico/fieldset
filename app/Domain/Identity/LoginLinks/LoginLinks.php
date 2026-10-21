@@ -88,7 +88,7 @@ final readonly class LoginLinks
     }
 
     /**
-     * Links that can still be used: not used and not expired (`fsa status`).
+     * Links that can still be used: not used and not expired (`fieldset status`).
      *
      * @return Collection<int, LoginLink>
      */

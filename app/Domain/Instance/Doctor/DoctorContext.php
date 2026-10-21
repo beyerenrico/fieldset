@@ -13,8 +13,8 @@ use App\Domain\Instance\State\InstanceState;
 
 /**
  * What the doctor checks look at: host facts, the instance directory and state, the Docker engine, and what the
- * caller is about to do. `fsa install` selects ports (`selectPorts`) and passes the release it verified;
- * `fsa doctor` checks an existing instance (with `post`, its running services too). Mutable only for memos that
+ * caller is about to do. `fieldset install` selects ports (`selectPorts`) and passes the release it verified;
+ * `fieldset doctor` checks an existing instance (with `post`, its running services too). Mutable only for memos that
  * later checks reuse (engine info, the registry's clock).
  */
 final class DoctorContext

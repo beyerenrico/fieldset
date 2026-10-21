@@ -1,0 +1,39 @@
+{
+    "command": "php -- 160 6 10 < scripts/perf/pdf.php (one-off)",
+    "exit_code": 0,
+    "result": {
+        "submission": "01a15e82-89bc-7104-b0a2-36a0edba160c",
+        "rows": 160,
+        "photos": 6,
+        "pages": 10,
+        "pdfBytes": 1491704,
+        "inlineMs": [
+            1042,
+            744,
+            995,
+            971,
+            990,
+            930,
+            955,
+            717,
+            742,
+            781
+        ],
+        "queuedMs": [
+            2662,
+            991,
+            3843,
+            3783,
+            3732,
+            1151,
+            3754,
+            3827,
+            3767,
+            3795
+        ]
+    },
+    "inline_p95_ms": 1042,
+    "queued_p95_ms": 3843,
+    "target_ms": 10000,
+    "verdict": "met"
+}

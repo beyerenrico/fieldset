@@ -1,0 +1,29 @@
+{
+    "request": "GET https://forms.fieldset-test.example/admin/login via Traefik (client sends a forged X-Forwarded-For: 198.51.100.7)",
+    "status": 200,
+    "headers": [
+        "HTTP/2 200 ",
+        "cache-control: max-age=0, must-revalidate, no-cache, no-store, private",
+        "content-security-policy: default-src 'self'; script-src 'self' 'nonce-<redacted>' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; media-src 'self' blob:; frame-src 'self'; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests",
+        "content-type: text/html; charset=utf-8",
+        "cross-origin-opener-policy: same-origin",
+        "date: Wed, 21 Oct 2026 11:51:41 GMT",
+        "expires: Fri, 01 Jan 1990 00:00:00 GMT",
+        "permissions-policy: accelerometer=(), camera=(), display-capture=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), serial=(), usb=()",
+        "pragma: no-cache",
+        "referrer-policy: same-origin",
+        "server: FrankenPHP Caddy",
+        "set-cookie: XSRF-TOKEN=<redacted>; expires=Fri, 20 Nov 2026 11:51:41 GMT; Max-Age=2592000; path=/; secure; samesite=lax",
+        "set-cookie: __Host-fieldset-session=<redacted>; expires=Fri, 20 Nov 2026 11:51:41 GMT; Max-Age=2592000; path=/; secure; httponly; samesite=lax",
+        "strict-transport-security: max-age=31536000",
+        "vary: Accept-Encoding",
+        "x-content-type-options: nosniff",
+        "x-content-type-options: nosniff",
+        "x-frame-options: DENY",
+        "x-request-id: 19aa53f5-bc81-4143-91a6-e398db971bf3"
+    ],
+    "client_address": "172.26.0.4",
+    "session_ip_addresses": [
+        "172.26.0.4"
+    ]
+}

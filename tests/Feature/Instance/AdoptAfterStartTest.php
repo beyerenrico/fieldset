@@ -8,7 +8,7 @@ use App\Domain\Instance\Operations\OperationJournal;
 use Tests\Support\Instance\AdoptFixture;
 
 /*
- * `fsa adopt` from `start` on (plan U19, ADR 0087, verification review V1, A1, V4), against the recording Docker gateway:
+ * `fieldset adopt` from `start` on (plan U19, ADR 0087, verification review V1, A1, V4), against the recording Docker gateway:
  * 1.0 must not have run since adopt stopped it, checked before `start` on every run (a resumed one past `start` too) and
  * again right after it; when it ran, the run stops with exit 4 `legacy_restarted`, the journal stays open and nothing goes
  * back. A resumed run past `start` no longer reads the checkout. Uninstall says whether 1.0 ran since the adopt.
@@ -62,7 +62,7 @@ it('stops a resumed run past start when 1.0 ran meanwhile: exit 4, journal open,
         ->and($code)->toBe(4, (string) json_encode($json))
         ->and($json['errors'][0]['code'])->toBe('legacy_restarted')
         ->and($json['errors'][0]['message'])->toContain('app was started again')
-        ->and($json['errors'][0]['hint'])->toContain('fsa uninstall')->toContain('fsa adopt '.$this->adopt->checkout)
+        ->and($json['errors'][0]['hint'])->toContain('fieldset uninstall')->toContain('fieldset adopt '.$this->adopt->checkout)
         ->and(count($docker->called('composeUp')))->toBe($ups)
         ->and($docker->called('removeVolume'))->toBe([])->and($docker->called('removeContainer'))->toBe([])
         ->and($this->adopt->legacyCalls('startContainers'))->toBe([])
@@ -108,7 +108,7 @@ it('says at uninstall whether 1.0 ran since the adopt (review V1)', function (bo
         useLegacyAndStop($this->adopt);
     }
 
-    [$code, $json] = $this->adopt->instance->run('fsa:uninstall', ['--yes' => true]);
+    [$code, $json] = $this->adopt->instance->run('fieldset:uninstall', ['--yes' => true]);
     $restart = collect($json['warnings'])->firstWhere('code', 'restart_1_0');
 
     expect($code)->toBe(0, (string) json_encode($json))
@@ -130,14 +130,14 @@ it('names the adopt and its ways out when another command finds it unfinished (U
         $this->adopt->restoreKill();
     }
 
-    [, $status] = $this->adopt->instance->run('fsa:status');
-    [$backup, $backupJson] = $this->adopt->instance->run('fsa:backup', []);
+    [, $status] = $this->adopt->instance->run('fieldset:status');
+    [$backup, $backupJson] = $this->adopt->instance->run('fieldset:backup', []);
     $warning = collect($status['warnings'])->firstWhere('code', 'operation_unfinished');
 
-    expect($warning['hint'] ?? '')->toContain('fsa adopt '.$this->adopt->checkout)->toContain($way)
+    expect($warning['hint'] ?? '')->toContain('fieldset adopt '.$this->adopt->checkout)->toContain($way)
         ->and($backup)->toBe(9)->and($backupJson['errors'][0]['code'])->toBe('operation_unfinished')
-        ->and($backupJson['data']['command'])->toBe('fsa adopt '.$this->adopt->checkout.' --yes'); // M12 gate O9: the resume line names --yes
+        ->and($backupJson['data']['command'])->toBe('fieldset adopt '.$this->adopt->checkout.' --yes'); // M12 gate O9: the resume line names --yes
 })->with([
-    'before start' => [false, 'fsa adopt --abandon'],
-    'after start' => [true, 'fsa uninstall'],
+    'before start' => [false, 'fieldset adopt --abandon'],
+    'after start' => [true, 'fieldset uninstall'],
 ]);

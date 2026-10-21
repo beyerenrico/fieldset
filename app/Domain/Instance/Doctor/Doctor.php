@@ -23,7 +23,7 @@ use App\Domain\Instance\InstanceException;
 use Throwable;
 
 /**
- * `fsa doctor` and install's preflight (R10, ADR 0072). Checks run in a fixed order (registry before clock, which
+ * `fieldset doctor` and install's preflight (R10, ADR 0072). Checks run in a fixed order (registry before clock, which
  * reuses its answer); a check that throws counts as failed, except an unreachable Docker engine, which is exit 10
  * for the whole command.
  */
@@ -41,7 +41,7 @@ final readonly class Doctor
                 throw $e;
             } catch (Throwable $e) {
                 $hint = $e instanceof InstanceException ? $e->hint : null;
-                $results[] = CheckResult::fail($check->key(), $e->getMessage(), $hint ?? 'Run `fsa doctor` again; if it keeps failing, check the Docker engine.');
+                $results[] = CheckResult::fail($check->key(), $e->getMessage(), $hint ?? 'Run `fieldset doctor` again; if it keeps failing, check the Docker engine.');
             }
         }
 

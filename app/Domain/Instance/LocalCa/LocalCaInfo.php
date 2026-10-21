@@ -12,7 +12,7 @@ use App\Domain\Instance\State\InstanceState;
 use App\Domain\Instance\State\RuntimeWriter;
 
 /**
- * What install, `config set` and `fsa status` report about local-CA mode (R19, ADR 0082): the LAN address, the HTTPS
+ * What install, `config set` and `fieldset status` report about local-CA mode (R19, ADR 0082): the LAN address, the HTTPS
  * URL, the plain-HTTP trust page for the phone, and the root's SHA-256 fingerprint, the same the trust page shows, so a
  * person can compare both before trusting the CA. Read-only.
  */
@@ -51,7 +51,7 @@ final class LocalCaInfo
     {
         return [
             ['local_ca_trust', "Phones that trust this instance's CA accept any certificate it signs: compare the fingerprint on ".self::trustUrl($address).' with the one printed here before trusting it, and remove the CA from the phone after the demo.', null],
-            ['lan_exposed', "The instance answers on {$address} (ports 80 and 443) for every device in this network.", 'Turn it off with `fsa config set phone-https off --yes`.'],
+            ['lan_exposed', "The instance answers on {$address} (ports 80 and 443) for every device in this network.", 'Turn it off with `fieldset config set phone-https off --yes`.'],
             ['url_changed_phone_data', 'Data a phone has not synced yet stays behind when the instance URL changes later (another LAN address, a tunnel or a domain), and home-screen apps keep the old address.', 'Let every phone sync before you change the URL.'],
         ];
     }

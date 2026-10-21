@@ -20,7 +20,7 @@ use Illuminate\Support\Sleep;
 use Tests\Support\Release\ReleaseFixtures;
 
 /**
- * A marked instance directory with a stored release, scripted Docker and probes, for the `fsa:*` command tests
+ * A marked instance directory with a stored release, scripted Docker and probes, for the `fieldset:*` command tests
  * (plan U5). Docker answers like a healthy host: port probes succeed unless a port is in `$takenPorts`, cosign
  * verifies, one-off artisan commands print the JSON documents of the app side, the smoke test passes.
  */
@@ -54,7 +54,7 @@ final class InstanceCommandFixture
     /** @var array<string, ProcessOutcome> artisan command (app:install, migrate …) => outcome */
     public array $oneOffs = [];
 
-    /** The backup service's one-off (`fsa backup-daemon --once|--seal`); null: a successful run (backupRun()). */
+    /** The backup service's one-off (`fieldset backup-daemon --once|--seal`); null: a successful run (backupRun()). */
     public ?ProcessOutcome $backupOutcome = null;
 
     /** stdin of the last backup one-off (`--include-secrets`). */
@@ -86,7 +86,7 @@ final class InstanceCommandFixture
 
     public static function appImage(): string
     {
-        return self::MIRROR.'/beyerenrico/form-schema-app@'.ReleaseFixtures::APP_DIGEST;
+        return self::MIRROR.'/beyerenrico/fieldset@'.ReleaseFixtures::APP_DIGEST;
     }
 
     /** @param  array<string, mixed>  $overrides  HostFacts constructor arguments */
@@ -104,7 +104,7 @@ final class InstanceCommandFixture
     }
 
     /**
-     * Runs an fsa command with --json and returns the exit code and the envelope.
+     * Runs a fieldset command with --json and returns the exit code and the envelope.
      *
      * @param  array<string, mixed>  $parameters
      * @return array{0: int, 1: array<string, mixed>}
@@ -166,7 +166,7 @@ final class InstanceCommandFixture
         $url = $spec->command[array_key_last($spec->command)] ?? '';
 
         return $spec->entrypoint === 'curl' && str_starts_with($url, 'http://mailpit:8025/') && str_contains($url, '/api/v1/messages')
-            ? new ProcessOutcome(0, json_encode(['messages' => [['ID' => 'a1', 'MessageID' => self::MESSAGE_ID, 'Subject' => 'form-schema-app: test mail']]], JSON_THROW_ON_ERROR))
+            ? new ProcessOutcome(0, json_encode(['messages' => [['ID' => 'a1', 'MessageID' => self::MESSAGE_ID, 'Subject' => 'Fieldset: test mail']]], JSON_THROW_ON_ERROR))
             : null;
     }
 
@@ -199,7 +199,7 @@ final class InstanceCommandFixture
     }
 
     /**
-     * The JSON document of a successful `fsa backup-daemon --once` (BackupRun's recorded run).
+     * The JSON document of a successful `fieldset backup-daemon --once` (BackupRun's recorded run).
      *
      * @param  array<string, mixed>  $overrides
      */
@@ -219,14 +219,14 @@ final class InstanceCommandFixture
     /** @param  list<string>  $command */
     private function answerOneOff(array $command, ?string $input = null): ProcessOutcome
     {
-        if (($command[0] ?? null) === 'fsa' && ($command[1] ?? null) === 'backup-daemon' && in_array('--clean', $command, true)) {
+        if (($command[0] ?? null) === 'fieldset' && ($command[1] ?? null) === 'backup-daemon' && in_array('--clean', $command, true)) {
             if (! $this->cleanOutcome instanceof ProcessOutcome && $this->onClean instanceof Closure) {
                 ($this->onClean)();
             }
 
             return $this->cleanOutcome ?? self::oneOffJson(['command' => 'backup-daemon', 'status' => 'ok', 'changed' => true, 'data' => ['removed' => [], 'left' => []]]);
         }
-        if (($command[0] ?? null) === 'fsa' && ($command[1] ?? null) === 'backup-daemon') {
+        if (($command[0] ?? null) === 'fieldset' && ($command[1] ?? null) === 'backup-daemon') {
             $this->backupInput = $input;
 
             return $this->backupOutcome ?? self::backupRun(str_starts_with((string) ($command[3] ?? ''), '--kind=') ? substr((string) $command[3], 7) : 'manual');
@@ -250,7 +250,7 @@ final class InstanceCommandFixture
                 'data' => ['to' => 'owner@example.com', 'mailer' => 'smtp', ...(in_array('--install', $command, true) ? ['message_id' => self::MESSAGE_ID] : [])]]),
             'instance:pdf-test' => self::oneOffJson(['command' => 'instance:pdf-test', 'status' => 'ok', 'data' => ['bytes' => 1834]]),
             'instance:backup-role' => self::oneOffJson(['command' => 'instance:backup-role', 'status' => 'ok', 'changed' => true,
-                'data' => ['role' => 'fsa_backup', 'created' => true, 'granted' => ['pg_read_all_data', 'connect', 'insert:backup_runs']]]),
+                'data' => ['role' => 'fieldset_backup', 'created' => true, 'granted' => ['pg_read_all_data', 'connect', 'insert:backup_runs']]]),
             'instance:mail-captured' => self::oneOffJson(['command' => 'instance:mail-captured', 'status' => 'ok',
                 'data' => ['invitations' => 2, 'password_resets' => 1]]),
             'instance:operator-email' => self::oneOffJson(['command' => 'instance:operator-email', 'status' => 'ok', 'changed' => true,

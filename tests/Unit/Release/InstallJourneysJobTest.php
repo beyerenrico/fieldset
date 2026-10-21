@@ -19,9 +19,9 @@ it('runs the whole Install suite on an amd64 runner with Docker and Playwright r
     $job = installJourneysJob();
 
     expect($job)->toContain('runs-on: ubuntu-24.04')
-        ->and($job)->toContain("FSA_REQUIRE_DOCKER: '1'")
-        ->and($job)->toContain("FSA_REQUIRE_PLAYWRIGHT: '1'")
-        ->and($job)->toContain('FSA_HARNESS_PLATFORMS: linux/amd64')
+        ->and($job)->toContain("FIELDSET_REQUIRE_DOCKER: '1'")
+        ->and($job)->toContain("FIELDSET_REQUIRE_PLAYWRIGHT: '1'")
+        ->and($job)->toContain('FIELDSET_HARNESS_PLATFORMS: linux/amd64')
         ->and($job)->toContain('- run: vendor/bin/pest --testsuite=Install')
         ->and($job)->not->toContain('--filter');
 });

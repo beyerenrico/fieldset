@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Demo;
 
-use App\Domain\Instance\Console\FsaContext;
+use App\Domain\Instance\Console\FieldsetContext;
 use App\Domain\Instance\Lifecycle\OneOffResult;
 use App\Domain\Instance\Output\CommandResult;
 use SensitiveParameter;
 
 /**
- * What `app:demo-seed` or `app:demo-passwords --rotate` answered, as `fsa` hands it out (R29, R50, ADR 0081):
+ * What `app:demo-seed` or `app:demo-passwords --rotate` answered, as `fieldset` hands it out (R29, R50, ADR 0081):
  * `data.demo` describes the demo (organization, users, password mode, why the instance counts as reachable), and
  * random passwords leave only as one-time secrets named `demo_password:<email>` (envelope `secrets` or
  * `--secrets-file`), never in data, warnings, the journal or progress. The documented default `password` is public:
@@ -24,7 +24,7 @@ final readonly class DemoCredentials
     /** The documented demo password (App\Domain\Identity\Demo\DefaultDemoPassword::PASSWORD): public, never a secret. */
     public const string DEFAULT_PASSWORD = 'password';
 
-    /** The demo organization's owner (App\Domain\Identity\Demo\DemoAccounts::OWNER): `fsa demo` signs in as this account. */
+    /** The demo organization's owner (App\Domain\Identity\Demo\DemoAccounts::OWNER): `fieldset demo` signs in as this account. */
     public const string OWNER = 'owner@demo.test';
 
     /**
@@ -107,7 +107,7 @@ final readonly class DemoCredentials
     }
 
     /** `data.demo` plus one secret per random password; `delivered` says where the passwords went. */
-    public function apply(CommandResult $result, FsaContext $context, bool $toFile): CommandResult
+    public function apply(CommandResult $result, FieldsetContext $context, bool $toFile): CommandResult
     {
         $delivered = match (true) {
             $this->passwords !== [] => $toFile ? 'secrets_file' : 'secrets',

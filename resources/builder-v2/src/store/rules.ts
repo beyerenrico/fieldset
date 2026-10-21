@@ -1,5 +1,5 @@
 /** Nesting rules (ADR 0037): where a page or element may go, and the column limits. */
-import type { JsonObject } from '@form-schema-app/form-schema-js';
+import type { JsonObject } from '@fieldset/fieldset-js';
 import type { Container, Operation } from '../contract.ts';
 import { listProp } from './json.ts';
 import {

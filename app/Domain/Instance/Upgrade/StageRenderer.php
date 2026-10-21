@@ -15,7 +15,7 @@ use App\Domain\Instance\State\UnsafePath;
 use JsonException;
 
 /**
- * The child's first half (KTD19 step 6, R36, plan U18, ADR 0086), run by the **target** image's fsa: it renders the
+ * The child's first half (KTD19 step 6, R36, plan U18, ADR 0086), run by the **target** image's fieldset: it renders the
  * target release's compose file, env files and service files from the instance state (with the target's version and
  * digests) and the secrets of the current env files into the stage directory, with the target's own renderer. A target
  * that adds a service or an env key therefore starts from what it rendered itself, not from what the installed version
@@ -23,13 +23,13 @@ use JsonException;
  *
  * Stage layout (`operations/upgrade-<id>/`): `request.json` (written by the supervisor: version, digests, emulation,
  * settings to render with, whether to migrate), `files/` (the rendered tree, an instance directory of its own),
- * `result.json` (the child's outcome). A manual `fsa rollback` runs the **previous** image's child to render only: its
+ * `result.json` (the child's outcome). A manual `fieldset rollback` runs the **previous** image's child to render only: its
  * own compose file for the current settings and the restored storage volume, without migrating.
  */
 final readonly class StageRenderer
 {
     /** The child's environment variable naming its stage directory (never an argument). */
-    public const string STAGE_ENV = 'FSA_UPGRADE_STAGE';
+    public const string STAGE_ENV = 'FIELDSET_UPGRADE_STAGE';
 
     public const string REQUEST = 'request.json';
 
@@ -62,7 +62,7 @@ final readonly class StageRenderer
         return self::list($files->root);
     }
 
-    /** Whether a stage path is one fsa makes: `<instance>/operations/upgrade-<hex>`. */
+    /** Whether a stage path is one fieldset makes: `<instance>/operations/upgrade-<hex>`. */
     public static function valid(InstanceDirectory $directory, string $stage): bool
     {
         return preg_match('#^'.preg_quote($directory->root.'/'.InstanceDirectory::OPERATIONS_DIR.'/upgrade-', '#').'[0-9a-f]{6,64}$#D', $stage) === 1 && is_dir($stage) && ! is_link($stage);

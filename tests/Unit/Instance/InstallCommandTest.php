@@ -16,7 +16,7 @@ use Tests\Support\Instance\InstanceCommandFixture;
 use Tests\Support\Instance\TemporaryInstance;
 
 /*
- * U5 / M9-T08: `fsa install` in local mode against scripted Docker (F2, R9–R15, R54, R63, R69; AE3, AE4, AE5,
+ * U5 / M9-T08: `fieldset install` in local mode against scripted Docker (F2, R9–R15, R54, R63, R69; AE3, AE4, AE5,
  * AE9). The real thing runs in tests/Install/Journeys/J01LocalInstallTest.php and J12IdempotenceTest.php.
  */
 
@@ -28,7 +28,7 @@ afterEach(fn () => TemporaryInstance::cleanup());
 
 function installOnce(InstanceCommandFixture $fixture, array $flags = []): array
 {
-    return $fixture->run('fsa:install', InstanceCommandFixture::installFlags($flags));
+    return $fixture->run('fieldset:install', InstanceCommandFixture::installFlags($flags));
 }
 
 it('installs a local instance phase by phase and hands out the owner link only under secrets', function (): void {
@@ -43,7 +43,7 @@ it('installs a local instance phase by phase and hands out the owner link only u
         ->and($json['changed'])->toBeTrue()
         ->and($json['data'])->toMatchArray(['url' => 'http://localhost:8080', 'port' => 8080, 'version' => '2.0.0-alpha.1', 'mode' => 'local', 'owner_email' => 'owner@example.com'])
         // M11 gate: the catcher UI asks for its login, so the result says where to get it (local and proxy mode).
-        ->and($json['data']['mail'])->toBe(['mode' => 'capture', 'catcher_url' => 'http://localhost:8025', 'catcher_login_command' => 'fsa config show --catcher-login'])
+        ->and($json['data']['mail'])->toBe(['mode' => 'capture', 'catcher_url' => 'http://localhost:8025', 'catcher_login_command' => 'fieldset config show --catcher-login'])
         ->and($json['data']['sign_in_link'])->toBe(['expires_at' => '2026-10-18T11:00:00Z', 'delivered' => 'secrets'])
         ->and($json['secrets'])->toBe([['name' => 'sign_in_link', 'value' => InstanceCommandFixture::LINK, 'expires_at' => '2026-10-18T11:00:00Z']])
         ->and(json_encode([$json['data'], $json['warnings'], $json['errors']]))->not->toContain('owner-token')
@@ -82,13 +82,13 @@ it('runs the smoke test through the compose networks with the instance label, ne
         ->and($gotenberg->command)->toContain('http://gotenberg:3000/health');
 });
 
-it('changes nothing when run again with the same flags (AE3), and names fsa login-link for a sign-in link', function (): void {
+it('changes nothing when run again with the same flags (AE3), and names fieldset login-link for a sign-in link', function (): void {
     installOnce($this->fixture);
     $calls = count($this->fixture->docker->calls);
     $stateBefore = $this->fixture->state()->toJson();
 
     [$code, $json] = installOnce($this->fixture);
-    [$bareCode, $bare] = $this->fixture->run('fsa:install');
+    [$bareCode, $bare] = $this->fixture->run('fieldset:install');
 
     expect($code)->toBe(0)
         ->and($json['changed'])->toBeFalse()
@@ -98,13 +98,13 @@ it('changes nothing when run again with the same flags (AE3), and names fsa logi
         ->and($json['data'])->toHaveKey('sign_in_link')
         ->and($json['data']['sign_in_link'])->toBeNull()
         ->and($json['warnings'][0]['code'])->toBe('no_sign_in_link')
-        ->and($json['warnings'][0]['hint'])->toContain('fsa login-link owner@example.com --secrets-file')
+        ->and($json['warnings'][0]['hint'])->toContain('fieldset login-link owner@example.com --secrets-file')
         ->and($this->fixture->docker->methodsSince($calls))->toBe([])
         ->and($this->fixture->state()->toJson())->toBe($stateBefore)
         ->and($bareCode)->toBe(0)
         ->and($bare['changed'])->toBeFalse()
         ->and($bare['data']['owner_email'])->toBeNull()
-        ->and($bare['warnings'][0]['hint'])->toContain('fsa login-link <email> --secrets-file');
+        ->and($bare['warnings'][0]['hint'])->toContain('fieldset login-link <email> --secrets-file');
 });
 
 it('compares the owner flags of a repeated install through their digests, also after a key rotation', function (): void {
@@ -127,12 +127,12 @@ it('refuses different flags on a finished instance with exit 2 and the config-se
     installOnce($this->fixture);
     $calls = count($this->fixture->docker->calls);
 
-    [$code, $json] = $this->fixture->run('fsa:install', $flags);
+    [$code, $json] = $this->fixture->run('fieldset:install', $flags);
 
     expect($code)->toBe(2)
         ->and($json['errors'][0]['code'])->toBe('use_config_set')
         ->and($json['errors'][0]['message'])->toContain($flag)
-        ->and($json['errors'][0]['hint'])->toContain('fsa config set')->toContain('fsa config show')->toContain('fsa uninstall')
+        ->and($json['errors'][0]['hint'])->toContain('fieldset config set')->toContain('fieldset config show')->toContain('fieldset uninstall')
         ->and($this->fixture->docker->methodsSince($calls))->toBe([]);
 })->with([
     'organization' => [['--org' => 'Other Org'], '--org'],
@@ -142,13 +142,13 @@ it('refuses different flags on a finished instance with exit 2 and the config-se
     'domain' => [['--domain' => 'forms.example.com'], '--domain'],
 ]);
 
-it('points a different --version to `fsa upgrade --to`, without the stale pre-release note (gate review stale texts)', function (): void {
+it('points a different --version to `fieldset upgrade --to`, without the stale pre-release note (gate review stale texts)', function (): void {
     installOnce($this->fixture);
 
-    [$code, $json] = $this->fixture->run('fsa:install', ['--release' => '2.0.1']);
+    [$code, $json] = $this->fixture->run('fieldset:install', ['--release' => '2.0.1']);
 
     expect($code)->toBe(2)
-        ->and($json['errors'][0]['hint'])->toContain('`fsa upgrade --to <version>`')->not->toContain('rc.1');
+        ->and($json['errors'][0]['hint'])->toContain('`fieldset upgrade --to <version>`')->not->toContain('rc.1');
 });
 
 it('takes the next free port when 8080 is taken and keeps it on a re-run (AE4)', function (): void {
@@ -157,7 +157,7 @@ it('takes the next free port when 8080 is taken and keeps it on a re-run (AE4)',
     [$code, $json] = installOnce($this->fixture);
     $probes = count($this->fixture->runSpecs('true'));
     [, $again] = installOnce($this->fixture);
-    Artisan::call('fsa:install', ['--dir' => $this->fixture->directory->root]);
+    Artisan::call('fieldset:install', ['--dir' => $this->fixture->directory->root]);
     $text = Artisan::output();
 
     expect($code)->toBe(0)
@@ -259,7 +259,7 @@ it('keeps flags corrected on one resume for the next one', function (): void {
     installOnce($this->fixture, ['--org' => 'Second Name']);
     unset($this->fixture->oneOffs['migrate']);
 
-    [$code] = $this->fixture->run('fsa:install');
+    [$code] = $this->fixture->run('fieldset:install');
 
     expect($code)->toBe(0)
         ->and($this->fixture->oneOffCalls('app:install')[0]['command'])->toContain('--organization=Second Name');
@@ -316,14 +316,14 @@ it('warns about containers of another installation that ran from this directory'
     expect($code)->toBe(0)
         ->and(collect($json['warnings'])->firstWhere('code', 'orphans_found')['hint'])
         ->toContain('Check first')
-        ->toContain('docker ps -a --filter label=app.form-schema.instance=11111111-1111-4111-8111-111111111111')
-        ->toContain('fsa uninstall --orphans 11111111-1111-4111-8111-111111111111');
+        ->toContain('docker ps -a --filter label=app.fieldset.instance=11111111-1111-4111-8111-111111111111')
+        ->toContain('fieldset uninstall --orphans 11111111-1111-4111-8111-111111111111');
 });
 
 it('exits 2 (not 6, which means confirmation) for missing required flags without a terminal or under --yes, and asks for them in a terminal', function (): void {
-    [$code, $json] = $this->fixture->run('fsa:install', ['--owner-email' => 'owner@example.com']);
+    [$code, $json] = $this->fixture->run('fieldset:install', ['--owner-email' => 'owner@example.com']);
     $this->fixture->facts(['tty' => true]);
-    [$yesCode] = $this->fixture->run('fsa:install', ['--yes' => true]);
+    [$yesCode] = $this->fixture->run('fieldset:install', ['--yes' => true]);
 
     expect($code)->toBe(2)
         ->and($json['status'])->toBe('failed')
@@ -332,7 +332,7 @@ it('exits 2 (not 6, which means confirmation) for missing required flags without
         ->and($yesCode)->toBe(2)
         ->and($this->fixture->docker->calls)->toBe([]);
 
-    $this->artisan('fsa:install', ['--dir' => $this->fixture->directory->root, '--owner-email' => 'owner@example.com'])
+    $this->artisan('fieldset:install', ['--dir' => $this->fixture->directory->root, '--owner-email' => 'owner@example.com'])
         ->expectsQuestion('Organization name', 'Asked Org')
         ->assertExitCode(0);
     expect($this->fixture->oneOffCalls('app:install')[0]['command'])->toContain('--organization=Asked Org');
@@ -367,7 +367,7 @@ it('refuses a manifest of another version than --version with exit 3', function 
     expect($code)->toBe(3)->and($json['errors'][0]['code'])->toBe('release_mismatch');
 });
 
-it('finds the stored release without FSA_RELEASE_MANIFEST and refuses one outside the instance directory', function (): void {
+it('finds the stored release without FIELDSET_RELEASE_MANIFEST and refuses one outside the instance directory', function (): void {
     $this->fixture->facts(['releaseManifest' => null]);
     [$stored] = installOnce($this->fixture);
 
@@ -394,7 +394,7 @@ it('writes the link to --secrets-file, or hands it to the browser with --open, n
     [$code, $json] = installOnce($this->fixture, ['--secrets-file' => $file]);
 
     $desktop = new InstanceCommandFixture;
-    $desktop->facts(['desktop' => true, 'tty' => true, 'openUrlFile' => '.fsa-open-url-0123456789abcdef0123456789abcdef']);
+    $desktop->facts(['desktop' => true, 'tty' => true, 'openUrlFile' => '.fieldset-open-url-0123456789abcdef0123456789abcdef']);
     [, $browser] = installOnce($desktop, ['--open' => true]);
 
     expect($code)->toBe(0)
@@ -403,19 +403,19 @@ it('writes the link to --secrets-file, or hands it to the browser with --open, n
         ->and(file_get_contents($file))->toContain(InstanceCommandFixture::LINK)
         ->and($browser['secrets'])->toBe([])
         ->and($browser['data']['sign_in_link']['delivered'])->toBe('browser')
-        ->and($browser['data']['sign_in_link']['hint'])->toContain('fsa login-link owner@example.com --secrets-file')
+        ->and($browser['data']['sign_in_link']['hint'])->toContain('fieldset login-link owner@example.com --secrets-file')
         ->and(json_encode($browser))->not->toContain('owner-token')
-        ->and(trim((string) $desktop->directory->read('.fsa-open-url-0123456789abcdef0123456789abcdef')))->toBe(InstanceCommandFixture::LINK);
+        ->and(trim((string) $desktop->directory->read('.fieldset-open-url-0123456789abcdef0123456789abcdef')))->toBe(InstanceCommandFixture::LINK);
 });
 
 it('returns the link as JSON (R12) under --json even on a desktop, and hands it to the browser only for a person at a terminal', function (): void {
-    $handOver = '.fsa-open-url-0123456789abcdef0123456789abcdef';
+    $handOver = '.fieldset-open-url-0123456789abcdef0123456789abcdef';
     $this->fixture->facts(['desktop' => true, 'tty' => true, 'openUrlFile' => $handOver]);
     [, $json] = installOnce($this->fixture);
 
     $person = new InstanceCommandFixture;
     $person->facts(['desktop' => true, 'tty' => true, 'openUrlFile' => $handOver]);
-    $exit = Artisan::call('fsa:install', ['--dir' => $person->directory->root, ...InstanceCommandFixture::installFlags()]);
+    $exit = Artisan::call('fieldset:install', ['--dir' => $person->directory->root, ...InstanceCommandFixture::installFlags()]);
     $text = Artisan::output();
 
     expect($json['secrets'][0]['value'])->toBe(InstanceCommandFixture::LINK)
@@ -426,7 +426,7 @@ it('returns the link as JSON (R12) under --json even on a desktop, and hands it 
         ->and(trim((string) $person->directory->read($handOver)))->toBe(InstanceCommandFixture::LINK);
 });
 
-it('names fsa login-link when the secrets file cannot be written after the install', function (): void {
+it('names fieldset login-link when the secrets file cannot be written after the install', function (): void {
     $file = $this->fixture->directory->root.'/out/link.json';
     mkdir(dirname($file));
     $this->fixture->docker->beforeRun = static function () use ($file): void {
@@ -440,7 +440,7 @@ it('names fsa login-link when the secrets file cannot be written after the insta
     expect($code)->toBe(2)
         ->and($json['changed'])->toBeTrue()
         ->and($json['errors'][0]['code'])->toBe('secrets_file_unwritable')
-        ->and($json['errors'][0]['hint'])->toContain('fsa login-link owner@example.com --secrets-file')
+        ->and($json['errors'][0]['hint'])->toContain('fieldset login-link owner@example.com --secrets-file')
         ->and(json_encode($json))->not->toContain('owner-token');
 });
 
@@ -479,7 +479,7 @@ it('finishes with a warning when no sign-in link can be issued', function (): vo
     expect($code)->toBe(0)
         ->and($json['secrets'])->toBe([])
         ->and($json['warnings'][0]['code'])->toBe('sign_in_link_unavailable')
-        ->and($json['warnings'][0]['hint'])->toContain('fsa login-link owner@example.com');
+        ->and($json['warnings'][0]['hint'])->toContain('fieldset login-link owner@example.com');
 });
 
 it('exits 2 when app:install refuses the input and resumes with a corrected flag', function (): void {
@@ -518,7 +518,7 @@ it('exits 9 while another operation is unfinished or holds the lock', function (
 it('refuses an empty answer to a prompt with exit 2', function (): void {
     $this->fixture->facts(['tty' => true]);
 
-    $this->artisan('fsa:install', ['--dir' => $this->fixture->directory->root, '--owner-email' => 'owner@example.com'])
+    $this->artisan('fieldset:install', ['--dir' => $this->fixture->directory->root, '--owner-email' => 'owner@example.com'])
         ->expectsQuestion('Organization name', '')
         ->assertExitCode(2);
     expect($this->fixture->docker->calls)->toBe([]);

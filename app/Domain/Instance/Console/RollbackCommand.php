@@ -16,19 +16,19 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 
 /**
- * `fsa rollback` (§7, R37, plan U18, ADR 0086): returns to the release before the last upgrade from that upgrade's
+ * `fieldset rollback` (§7, R37, plan U18, ADR 0086): returns to the release before the last upgrade from that upgrade's
  * safety backup (RollbackOperation). It asks first and says what will be lost: everything written since the safety
  * backup, counted (exit 6 without a terminal or --yes). A sealed (encrypted) safety backup needs the backup identity
- * and its passphrase, like `fsa restore`.
+ * and its passphrase, like `fieldset restore`.
  */
 #[Description('Return to the release before the last upgrade, from its safety backup (asks first)')]
-#[Signature('fsa:rollback
+#[Signature('fieldset:rollback
         {--identity-file= : The passphrase-protected backup identity (when the safety backup is encrypted)}
         {--passphrase-file= : Read the identity\'s passphrase from this file}
         {--passphrase-stdin : Read the identity\'s passphrase from stdin (a hidden prompt in a terminal)}')]
-final class RollbackCommand extends FsaCommand
+final class RollbackCommand extends FieldsetCommand
 {
-    protected function perform(FsaContext $context): CommandResult
+    protected function perform(FieldsetContext $context): CommandResult
     {
         $identity = $this->option('identity-file');
         $identity = is_string($identity) && trim($identity) !== '' ? (str_starts_with(trim($identity), '/') ? trim($identity) : getcwd().'/'.trim($identity)) : null;
@@ -44,7 +44,7 @@ final class RollbackCommand extends FsaCommand
      * An interrupted rollback continues without a question and without the guard: its journal holds the plan, and after its
      * swap the state names no previous release any more.
      */
-    protected function confirmationPrompt(FsaContext $context): ?Confirmation
+    protected function confirmationPrompt(FieldsetContext $context): ?Confirmation
     {
         if ($this->refuseUnfinished(static fn (JournalRecord $open): bool => $open->operation() === RollbackOperation::OPERATION) instanceof JournalRecord) {
             return null;

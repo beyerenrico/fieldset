@@ -18,9 +18,9 @@ use App\Domain\Instance\State\InstanceState;
 use Closure;
 
 /**
- * `fsa install --smtp-host … [--smtp-port] [--smtp-encryption starttls|tls] [--smtp-username … --password-stdin|
+ * `fieldset install --smtp-host … [--smtp-port] [--smtp-encryption starttls|tls] [--smtp-username … --password-stdin|
  * --password-file] [--from-address] [--from-name]` (§7, E8, R11, R22, R25, ADR 0080 amendment): the instance starts in
- * SMTP mode instead of capture mode. The flags use the grammar of `fsa config set mail smtp` (MailValues).
+ * SMTP mode instead of capture mode. The flags use the grammar of `fieldset config set mail smtp` (MailValues).
  *
  * - The server flags are consumed by the doctor phase (journaled there under `mail`, so a resume keeps them): no catcher
  *   port is chosen and no catcher image checked. The state phase writes them into the state and renders app, queue
@@ -28,7 +28,7 @@ use Closure;
  * - The account is consumed by the state phase: the user name and the password live only in the app roles' env files,
  *   never in the journal (which records `smtp_credentials: 1`), the state or any output. A resume before the state
  *   phase needs the password again; after it, a different account is `flag_already_applied`.
- * - A finished instance compares with its state as it is now (`fsa config set mail` may have changed it), the account
+ * - A finished instance compares with its state as it is now (`fieldset config set mail` may have changed it), the account
  *   with the env files.
  */
 final class InstallMail
@@ -78,7 +78,7 @@ final class InstallMail
         $others = array_values(array_intersect_key(self::FLAGS, array_diff_key($explicit, ['smtp_host' => true, 'smtp_credentials' => true])));
         $others = [...$others, ...($username ? ['--smtp-username'] : []), ...($passwordSource === null ? [] : ['--password-'.$passwordSource])];
         if (! array_key_exists('smtp_host', $explicit) && $others !== []) {
-            throw new InstanceException(implode(', ', $others).' need(s) --smtp-host.', ExitCode::InvalidInput, 'input_required', 'Pass --smtp-host <server> to install with your SMTP server, or leave the SMTP flags out to start in capture mode (`fsa config set mail smtp` switches later).', false, ['missing' => ['--smtp-host']]);
+            throw new InstanceException(implode(', ', $others).' need(s) --smtp-host.', ExitCode::InvalidInput, 'input_required', 'Pass --smtp-host <server> to install with your SMTP server, or leave the SMTP flags out to start in capture mode (`fieldset config set mail smtp` switches later).', false, ['missing' => ['--smtp-host']]);
         }
         if ($username && $passwordSource === null) {
             throw new InvalidInput('--smtp-username needs the password.', 'password_required', 'Pass --password-file=<path> (mode 0600), or --password-stdin; never as a flag value.');
@@ -187,7 +187,7 @@ final class InstallMail
     public static function assertAccountKnown(InstallRequest $request, bool $stateWritten): void
     {
         if (! $stateWritten && ($request->explicit()['smtp_credentials'] ?? null) === 1 && ! $request->smtpCredentials() instanceof SmtpCredentials) {
-            throw new InvalidInput('The interrupted install needs the SMTP password again.', 'password_required', 'Run `fsa install` again with the same --smtp-username and --password-file (or --password-stdin).');
+            throw new InvalidInput('The interrupted install needs the SMTP password again.', 'password_required', 'Run `fieldset install` again with the same --smtp-username and --password-file (or --password-stdin).');
         }
     }
 

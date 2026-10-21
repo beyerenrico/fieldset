@@ -8,15 +8,15 @@ use App\Domain\Instance\Config\ConfigKeys;
 use App\Domain\Instance\State\InstanceState;
 
 /**
- * What a repeated `fsa install` with different flags tells an agent (exit 2 `use_config_set`, ADR 0078): per flag the
- * `fsa config set` key that changes it on this instance, or none, and a hint that says plainly what is possible.
+ * What a repeated `fieldset install` with different flags tells an agent (exit 2 `use_config_set`, ADR 0078): per flag the
+ * `fieldset config set` key that changes it on this instance, or none, and a hint that says plainly what is possible.
  * Proxy mode cannot be entered or re-wired on an installed instance: the data moves through uninstall's final backup
  * (a 2.0 backup, ADR 0073 as amended by the M12 gate) and `install.sh --dir <new> --from-backup <backup>` into a fresh
- * directory; another release arrives with `fsa upgrade`.
+ * directory; another release arrives with `fieldset upgrade`.
  */
 final class InstallFlags
 {
-    public const string PROXY_SWITCH = 'Switching to proxy mode, or changing its setup or network, is not possible on an installed instance: it needs `fsa uninstall` and a fresh `fsa install --behind-proxy traefik|caddy|port --url <origin>`. To carry the data over, run `fsa uninstall --keep-backups` (it writes a final backup into backups/ and keeps that directory), then `install.sh --dir <dir> --from-backup <dir>/backups/final-<time>` with the proxy flags, adding `--app-key-file <dir>/backups/final-<time>.app-key.env` when backups are not encrypted, or `--identity-file`, the passphrase and `--accept-unauthenticated` when they are (the APP keys are inside the encrypted backup).';
+    public const string PROXY_SWITCH = 'Switching to proxy mode, or changing its setup or network, is not possible on an installed instance: it needs `fieldset uninstall` and a fresh `fieldset install --behind-proxy traefik|caddy|port --url <origin>`. To carry the data over, run `fieldset uninstall --keep-backups` (it writes a final backup into backups/ and keeps that directory), then `install.sh --dir <dir> --from-backup <dir>/backups/final-<time>` with the proxy flags, adding `--app-key-file <dir>/backups/final-<time>.app-key.env` when backups are not encrypted, or `--identity-file`, the passphrase and `--accept-unauthenticated` when they are (the APP keys are inside the encrypted backup).';
 
     /** Install flag => the config key for it. */
     private const array KEYS = [
@@ -59,15 +59,15 @@ final class InstallFlags
         $app = array_intersect($rest, self::APP);
 
         return implode(' ', array_filter([
-            $settable === [] ? null : 'Change '.implode(', ', $settable).' with `fsa config set <key> <value>` (data.flags names the key).',
+            $settable === [] ? null : 'Change '.implode(', ', $settable).' with `fieldset config set <key> <value>` (data.flags names the key).',
             self::proxySwitch($flags, $state) ? self::PROXY_SWITCH : null,
             $app === [] ? null : implode(', ', $app).' apply only to a new instance: change the organization and its users in the admin panel.',
-            in_array('--version', $rest, true) ? 'Move this instance to another release with `fsa upgrade --to <version>`.' : null,
-            in_array('--demo', $rest, true) ? 'Add the demo data to this instance with `fsa demo`.' : null,
-            in_array('--phone-https', $flags, true) ? 'Phone HTTPS: `fsa config set phone-https local-ca|off` for the local CA, `fsa tunnel start|stop` for the quick tunnel.' : null,
+            in_array('--version', $rest, true) ? 'Move this instance to another release with `fieldset upgrade --to <version>`.' : null,
+            in_array('--demo', $rest, true) ? 'Add the demo data to this instance with `fieldset demo`.' : null,
+            in_array('--phone-https', $flags, true) ? 'Phone HTTPS: `fieldset config set phone-https local-ca|off` for the local CA, `fieldset tunnel start|stop` for the quick tunnel.' : null,
             array_intersect($flags, ['--smtp-host', '--smtp-port', '--smtp-encryption', '--smtp-username', '--from-address', '--from-name']) !== []
-                ? 'Mail: `fsa config set mail smtp --smtp-host <host> --smtp-username <user> --from-address <address> --password-stdin` changes the server (with a test mail; leave the account out for a server without one), `fsa config set mail capture` goes back to the catcher.' : null,
-            '`fsa config show` lists what `fsa config set` can change; `fsa uninstall` and a fresh install apply anything else.',
+                ? 'Mail: `fieldset config set mail smtp --smtp-host <host> --smtp-username <user> --from-address <address> --password-stdin` changes the server (with a test mail; leave the account out for a server without one), `fieldset config set mail capture` goes back to the catcher.' : null,
+            '`fieldset config show` lists what `fieldset config set` can change; `fieldset uninstall` and a fresh install apply anything else.',
         ]));
     }
 

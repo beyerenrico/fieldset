@@ -78,7 +78,7 @@ final class OperationRun
         return (int) round((hrtime(true) - $started) / 1e9);
     }
 
-    /** Records liveness of the lock holder (`fsa status`); cheap, and never fails the operation. */
+    /** Records liveness of the lock holder (`fieldset status`); cheap, and never fails the operation. */
     public function heartbeat(): void
     {
         if (! $this->heartbeat instanceof Closure) {
@@ -90,7 +90,7 @@ final class OperationRun
         } catch (OperationInterrupted $interrupted) {
             throw $interrupted; // a signal that landed here interrupts the operation, it is no heartbeat failure
         } catch (Throwable) {
-            // best effort: a lost heartbeat only makes `fsa status` show an older time
+            // best effort: a lost heartbeat only makes `fieldset status` show an older time
         }
     }
 

@@ -251,7 +251,7 @@ it('never fails an operation because the heartbeat cannot be written', function 
 it('starts one detached, labelled supervisor container per instance', function (): void {
     $state = $this->directory->state();
 
-    $id = $this->supervisor->launchDetached($state, new ContainerSpec('ghcr.io/x/app@sha256:'.str_repeat('1', 64), ['fsa', 'upgrade', '--supervise']));
+    $id = $this->supervisor->launchDetached($state, new ContainerSpec('ghcr.io/x/app@sha256:'.str_repeat('1', 64), ['fieldset', 'upgrade', '--supervise']));
 
     $spec = $this->docker->called('runContainer')[0]['spec'];
     expect($id)->toBe(str_repeat('c', 64))

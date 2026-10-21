@@ -7,7 +7,7 @@ import type { AuthNotice } from './auth-events.ts';
 import { endSession, purgeDevice } from './local-data.ts';
 import { LOGIN_PATH, hardReload } from './reload.ts';
 
-export const ACCOUNT_CHANNEL = 'fsa-account';
+export const ACCOUNT_CHANNEL = 'fieldset-account';
 
 export type AccountEvent = 'logout' | 'wiped';
 

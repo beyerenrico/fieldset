@@ -3,7 +3,7 @@
  * safe, idempotent uploads, Idempotency-Key replays, lost responses, offline and expired sessions.
  * Test fixture: mutable on purpose.
  */
-import type { JsonObject } from '@form-schema-app/form-schema-js';
+import type { JsonObject } from '@fieldset/fieldset-js';
 import { http, HttpResponse } from 'msw';
 import { vi } from 'vitest';
 import * as endpoints from '../../src/lib/api/endpoints.ts';

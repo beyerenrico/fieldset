@@ -6,7 +6,7 @@ namespace App\Domain\Forms\Builder;
 
 use App\Domain\Forms\Builder\FieldSpec as F;
 use App\Domain\Forms\Support\BlankDefinition;
-use FormSchema\Json\Json;
+use Fieldset\Json\Json;
 use InvalidArgumentException;
 use stdClass;
 

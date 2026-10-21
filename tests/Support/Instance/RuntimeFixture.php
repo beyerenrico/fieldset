@@ -7,7 +7,7 @@ namespace Tests\Support\Instance;
 use Carbon\CarbonImmutable;
 
 /**
- * Runtime directories for the app-side runtime tests (U10): runtime.json as `fsa` writes it, replaced by rename
+ * Runtime directories for the app-side runtime tests (U10): runtime.json as `fieldset` writes it, replaced by rename
  * (a new inode on every write), wired into config('instance.runtime_path'). Call cleanup() in afterEach.
  */
 final class RuntimeFixture
@@ -35,7 +35,7 @@ final class RuntimeFixture
     /** An empty runtime directory (no runtime.json yet), wired into the config. */
     public static function directory(): string
     {
-        $directory = sys_get_temp_dir().'/fsa-runtime-'.bin2hex(random_bytes(6));
+        $directory = sys_get_temp_dir().'/fieldset-runtime-'.bin2hex(random_bytes(6));
         mkdir($directory, 0755);
         self::$created[] = $directory;
         config(['instance.runtime_path' => $directory]);

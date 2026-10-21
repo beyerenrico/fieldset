@@ -8,7 +8,7 @@ use Tests\Support\Instance\InstanceCommandFixture;
 use Tests\Support\Instance\TemporaryInstance;
 
 /*
- * `fsa uninstall` after a backup run that was cut off (M12 gate): its partial sets in backups/ and staging/backup/ stay
+ * `fieldset uninstall` after a backup run that was cut off (M12 gate): its partial sets in backups/ and staging/backup/ stay
  * root's (0700, gate S1), which the ops container cannot remove when it runs as the host user (rootful Docker). The
  * backup service removes them as root under the uninstall lock before the stack goes (`backup-daemon --clean`), and
  * what still stays is named instead of reported deleted. A directory with mode 0 stands in for root's (the tests do
@@ -21,7 +21,7 @@ const STAGED = 'staging/backup/manual-20261019T120000Z.partial';
 
 beforeEach(function (): void {
     $this->fixture = new InstanceCommandFixture;
-    $this->fixture->run('fsa:install', InstanceCommandFixture::installFlags());
+    $this->fixture->run('fieldset:install', InstanceCommandFixture::installFlags());
     $this->uuid = $this->fixture->state()->uuid();
     $this->fixture->withRunningStack();
     $this->fixture->docker->withResource(new DockerResource(DockerResource::VOLUME, 'proj_pg-data', Labels::forInstance($this->uuid)));
@@ -58,13 +58,13 @@ it('has the backup service remove partial sets as root under the uninstall lock 
         }
     };
 
-    [$code, $json] = $this->fixture->run('fsa:uninstall', ['--yes' => true]);
+    [$code, $json] = $this->fixture->run('fieldset:uninstall', ['--yes' => true]);
     $methods = $this->fixture->docker->methods();
     $clean = cleanRuns($this->fixture);
 
     expect($code)->toBe(0, (string) json_encode($json))
         ->and($clean)->toHaveCount(1)
-        ->and(implode(' ', $clean[0]['command']))->toMatch('/^fsa backup-daemon --clean --lock-id=[0-9a-f]{32} --json$/')
+        ->and(implode(' ', $clean[0]['command']))->toMatch('/^fieldset backup-daemon --clean --lock-id=[0-9a-f]{32} --json$/')
         ->and(array_search('composeRun', $methods, true))->toBeLessThan(array_search('removeContainer', $methods, true))
         ->and($json['data'])->toMatchArray(['data_deleted' => true, 'backups_deleted' => true, 'left_files' => []])
         ->and(collect($json['warnings'])->pluck('code')->all())->not->toContain('files_left')
@@ -75,7 +75,7 @@ it('names the files it could not remove instead of reporting data and backups de
     plantPartials($this->root);
     $this->fixture->cleanOutcome = InstanceCommandFixture::oneOffJson(['command' => 'backup-daemon', 'status' => 'failed', 'errors' => [['code' => 'internal_error', 'message' => 'no such image', 'hint' => null]]]);
 
-    [$code, $json] = $this->fixture->run('fsa:uninstall', ['--yes' => true]);
+    [$code, $json] = $this->fixture->run('fieldset:uninstall', ['--yes' => true]);
     $warning = collect($json['warnings'])->firstWhere('code', 'files_left');
 
     expect($code)->toBe(0, (string) json_encode($json))
@@ -90,7 +90,7 @@ it('keeps backups/ with --keep-backups and reports only the data left outside it
     plantPartials($this->root);
     $this->fixture->cleanOutcome = InstanceCommandFixture::oneOffJson(['command' => 'backup-daemon', 'status' => 'failed', 'errors' => [['code' => 'lock_mismatch', 'message' => 'lost', 'hint' => null]]]);
 
-    [$code, $json] = $this->fixture->run('fsa:uninstall', ['--yes' => true, '--keep-backups' => true, '--no-backup' => true]);
+    [$code, $json] = $this->fixture->run('fieldset:uninstall', ['--yes' => true, '--keep-backups' => true, '--no-backup' => true]);
 
     expect($code)->toBe(0, (string) json_encode($json))
         ->and($json['data'])->toMatchArray(['data_deleted' => false, 'backups_deleted' => false, 'kept' => ['backups'], 'left_files' => [STAGED, PARTIAL]])
@@ -103,7 +103,7 @@ it('goes on when it cannot even list what interrupted runs left (staging/ replac
     exec('rm -rf '.escapeshellarg($this->root.'/staging'));
     symlink($outside, $this->root.'/staging');
 
-    [$code, $json] = $this->fixture->run('fsa:uninstall', ['--yes' => true]);
+    [$code, $json] = $this->fixture->run('fieldset:uninstall', ['--yes' => true]);
 
     expect($code)->toBe(0, (string) json_encode($json))
         ->and(cleanRuns($this->fixture))->toBe([])
@@ -118,7 +118,7 @@ it('quotes every path in the command it suggests, and leaves names it cannot pri
         chmod($this->root.'/'.$name, 0);
     }
 
-    [$code, $json] = $this->fixture->run('fsa:uninstall', ['--yes' => true]);
+    [$code, $json] = $this->fixture->run('fieldset:uninstall', ['--yes' => true]);
     $warning = collect($json['warnings'])->firstWhere('code', 'files_left');
 
     expect($code)->toBe(0, (string) json_encode($json))
@@ -128,7 +128,7 @@ it('quotes every path in the command it suggests, and leaves names it cannot pri
 })->skip(fn (): bool => posix_geteuid() === 0, 'root removes any file');
 
 it('runs no clean-up one-off when no interrupted run left anything', function (): void {
-    [$code, $json] = $this->fixture->run('fsa:uninstall', ['--yes' => true]);
+    [$code, $json] = $this->fixture->run('fieldset:uninstall', ['--yes' => true]);
 
     expect($code)->toBe(0, (string) json_encode($json))
         ->and(cleanRuns($this->fixture))->toBe([])

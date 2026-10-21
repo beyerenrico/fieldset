@@ -71,7 +71,7 @@ it('records a CA deletion that failed on phone-https off and retries it with the
 
     [$off, $offJson] = $fixture->config->set('phone-https', 'off', ['--yes' => true]);
     $pending = $fixture->config->state()->setting('local_ca_delete');
-    [, $status] = $fixture->config->instance->run('fsa:status');
+    [, $status] = $fixture->config->instance->run('fieldset:status');
     $fails = false;
     [$retry, $retryJson] = $fixture->config->set('phone-https', 'off', ['--yes' => true]);
     $mark = $fixture->config->mark();
@@ -80,7 +80,7 @@ it('records a CA deletion that failed on phone-https off and retries it with the
     $failed = collect($offJson['warnings'])->firstWhere('code', 'local_ca_delete_failed');
     expect($off)->toBe(0, json_encode($offJson))
         ->and($offJson['data']['phone_https'])->toBe(['mode' => null, 'ca_deleted' => false])
-        ->and($failed['hint'] ?? '')->toContain('fsa config set phone-https off')
+        ->and($failed['hint'] ?? '')->toContain('fieldset config set phone-https off')
         ->and($pending)->toBe('pending')
         ->and(collect($status['warnings'])->pluck('code')->all())->toContain('local_ca_delete_pending')
         ->and($retry)->toBe(0, json_encode($retryJson))
@@ -145,6 +145,6 @@ it('names the command that turns phone HTTPS off when it blocks another mode (R6
 
     expect($hint)->toContain($command);
 })->with([
-    'local CA' => ['local-ca', 'fsa config set phone-https off --yes'],
-    'tunnel' => ['tunnel', 'fsa tunnel stop'],
+    'local CA' => ['local-ca', 'fieldset config set phone-https off --yes'],
+    'tunnel' => ['tunnel', 'fieldset tunnel stop'],
 ]);

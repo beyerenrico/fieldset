@@ -12,9 +12,9 @@ use Symfony\Component\Process\Process;
 
 /**
  * The fake quick tunnel for J6 (BUILD_PROMPT_V2 §11 "a fake tunnel container"; ADR 0082): an image built here from
- * tests/Install/Harness/fake-tunnel on the Caddy pin of distribution/release.json, named `fsa-test-fake-tunnel:<id>`.
- * Passed to fsa as FSA_TEST_TUNNEL (harness images only), it replaces cloudflared in the instance's `tunnel` service:
- * `/quicktunnel` names a random `fsa-test-….trycloudflare.com` host, and port 8443 forwards to the app from the tunnel
+ * tests/Install/Harness/fake-tunnel on the Caddy pin of distribution/release.json, named `fieldset-test-fake-tunnel:<id>`.
+ * Passed to fieldset as FIELDSET_TEST_TUNNEL (harness images only), it replaces cloudflared in the instance's `tunnel` service:
+ * `/quicktunnel` names a random `fieldset-test-….trycloudflare.com` host, and port 8443 forwards to the app from the tunnel
  * peer's fixed address with that Host. `request()` is a client of the tunnel: a curl container on the instance's tunnel
  * network, aimed at that port.
  */
@@ -27,13 +27,13 @@ final readonly class FakeTunnel
     /** @param  array<string, string>  $platformEnvironment  DOCKER_DEFAULT_PLATFORM of an emulated run */
     public static function build(array $platformEnvironment = []): self
     {
-        $image = 'fsa-test-fake-tunnel:'.bin2hex(random_bytes(4));
+        $image = 'fieldset-test-fake-tunnel:'.bin2hex(random_bytes(4));
         $caddy = ReleaseInputs::fromFile(TestImage::repository().'/distribution/release.json')->images['caddy']
             ?? throw new RuntimeException('distribution/release.json pins no Caddy image.');
         $platform = $platformEnvironment['DOCKER_DEFAULT_PLATFORM'] ?? null;
         $process = new Process([
             'docker', 'build', '--quiet', '--build-arg', 'BASE='.$caddy->reference(), ...($platform === null ? [] : ['--platform', $platform]),
-            '--label', 'app.form-schema.test=fake-tunnel', '-t', $image, TestImage::repository().'/tests/Install/Harness/fake-tunnel',
+            '--label', 'app.fieldset.test=fake-tunnel', '-t', $image, TestImage::repository().'/tests/Install/Harness/fake-tunnel',
         ]);
         $process->setTimeout(600);
         $process->run();
@@ -44,10 +44,10 @@ final readonly class FakeTunnel
         return new self($image);
     }
 
-    /** FSA_TEST_TUNNEL for the fsa commands: this image, and the tunnel's lifetime in seconds. */
+    /** FIELDSET_TEST_TUNNEL for the fieldset commands: this image, and the tunnel's lifetime in seconds. */
     public function environment(int $ttl): array
     {
-        return ['FSA_TEST_TUNNEL' => "image={$this->image};ttl={$ttl}"];
+        return ['FIELDSET_TEST_TUNNEL' => "image={$this->image};ttl={$ttl}"];
     }
 
     /**
@@ -62,7 +62,7 @@ final readonly class FakeTunnel
     {
         $url = 'http://'.TunnelNetwork::peerAddress($subnet).':'.self::PORT.$path;
         $flags = array_merge(...array_map(static fn (string $header): array => ['--header', $header], $headers));
-        $process = new Process(['docker', 'run', '--rm', '--network', $project.'_'.TunnelNetwork::NAME, '--label', 'app.form-schema.test=fake-tunnel-client',
+        $process = new Process(['docker', 'run', '--rm', '--network', $project.'_'.TunnelNetwork::NAME, '--label', 'app.fieldset.test=fake-tunnel-client',
             '--entrypoint', 'curl', $appImage, '--silent', '--show-error', '--max-time', '20', '--include', ...$flags, $url], null, $platformEnvironment);
         $process->setTimeout(120);
         $process->run();

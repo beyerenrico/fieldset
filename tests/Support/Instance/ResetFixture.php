@@ -11,9 +11,9 @@ use App\Domain\Instance\Operations\JournalRecord;
 use Closure;
 
 /**
- * An installed, running instance (ConfigFixture) whose Docker answers the steps of `fsa reset` (plan U23, ADR 0088):
+ * An installed, running instance (ConfigFixture) whose Docker answers the steps of `fieldset reset` (plan U23, ADR 0088):
  * `instance:reset plan|recreate|epoch` like the app (the epoch begins once: a second call answers `began: false`),
- * `instance:audit-export` as a JSON Lines stream into the file fsa names, `audit:verify --heads`, `audit:seal`, the Valkey
+ * `instance:audit-export` as a JSON Lines stream into the file fieldset names, `audit:verify --heads`, `audit:seal`, the Valkey
  * flush, a safety backup that leaves a real backup directory behind, and `instance:restore-db list|drop` over
  * `$databases` (the leftovers of earlier restores). `$hooks` run before an artisan one-off is answered (a signal, a
  * failure); `$answers` replace an action's answer.
@@ -37,7 +37,7 @@ final class ResetFixture
     ];
 
     /** @var list<string> the databases `instance:restore-db list` reports */
-    public array $databases = ['form_schema', 'postgres'];
+    public array $databases = ['fieldset', 'postgres'];
 
     /** @var list<string> databases `instance:restore-db drop` dropped */
     public array $dropped = [];
@@ -70,14 +70,14 @@ final class ResetFixture
     }
 
     /**
-     * `fsa reset --yes --json` with further options.
+     * `fieldset reset --yes --json` with further options.
      *
      * @param  array<string, mixed>  $options
      * @return array{0: int, 1: array<string, mixed>}
      */
     public function reset(array $options = ['--yes' => true]): array
     {
-        return $this->instance->run('fsa:reset', $options);
+        return $this->instance->run('fieldset:reset', $options);
     }
 
     /** @return list<string> the instance:reset actions in call order */
@@ -100,8 +100,8 @@ final class ResetFixture
     /** @param  list<string>  $command */
     private function answer(array $command, ?string $input): ?ProcessOutcome
     {
-        if (($command[0] ?? null) === 'fsa' && ($command[1] ?? null) === 'backup-daemon' && ($command[3] ?? null) === '--kind=safety-reset') {
-            BackupSetFixture::fsa($this->instance->directory->root.'/backups/'.self::SAFETY, ['kind' => 'safety-reset']);
+        if (($command[0] ?? null) === 'fieldset' && ($command[1] ?? null) === 'backup-daemon' && ($command[3] ?? null) === '--kind=safety-reset') {
+            BackupSetFixture::fieldset($this->instance->directory->root.'/backups/'.self::SAFETY, ['kind' => 'safety-reset']);
 
             return null; // InstanceCommandFixture answers with the recorded run
         }
@@ -138,7 +138,7 @@ final class ResetFixture
 
         return match ($action) {
             'plan' => self::ok($this->plan, false),
-            'recreate' => self::ok(['database' => 'form_schema', 'dropped' => true, 'created' => true]),
+            'recreate' => self::ok(['database' => 'fieldset', 'dropped' => true, 'created' => true]),
             'epoch' => $this->epoch(),
             default => self::failed('invalid_input', 'The action must be plan, recreate or epoch.'),
         };
@@ -174,7 +174,7 @@ final class ResetFixture
 
     private function export(string $file): ProcessOutcome
     {
-        file_put_contents($file, json_encode(['format' => 'fsa-audit-export', 'version' => '1.0', 'epoch' => 1, 'heads' => ['0' => ['seq' => 7, 'hash' => self::HEAD]], 'entries' => 2])."\n"
+        file_put_contents($file, json_encode(['format' => 'fieldset-audit-export', 'version' => '1.0', 'epoch' => 1, 'heads' => ['0' => ['seq' => 7, 'hash' => self::HEAD]], 'entries' => 2])."\n"
             .'{"id":1,"event":"organization.created"}'."\n".'{"id":2,"event":"auth.login"}'."\n");
         chmod($file, 0600);
 

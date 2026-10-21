@@ -16,7 +16,7 @@ use Tests\Support\Instance\TarBuilder;
 const SET_NAMES = ['SHA256SUMS', 'SHA256SUMS.hmac', 'audit-heads.json', 'database.dump', 'manifest.json', 'settings.json', 'storage.tar.gz', 'secrets.env'];
 
 beforeEach(function (): void {
-    $this->work = sys_get_temp_dir().'/fsa-test-extract-'.bin2hex(random_bytes(4));
+    $this->work = sys_get_temp_dir().'/fieldset-test-extract-'.bin2hex(random_bytes(4));
     mkdir($this->work.'/out', 0700, true);
 });
 

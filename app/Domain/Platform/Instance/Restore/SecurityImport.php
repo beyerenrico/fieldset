@@ -10,16 +10,16 @@ use InvalidArgumentException;
 
 /**
  * Materialises a SecurityExport in the restored database (R64, plan U18, ADR 0086), so the unchanged R64 carry (and
- * the sequence floors) read it as their source: a schema `fsa_carry_<hex>` gets one table per exported table, typed like
+ * the sequence floors) read it as their source: a schema `fieldset_carry_<hex>` gets one table per exported table, typed like
  * the restored database's own (`CREATE TABLE … AS SELECT <shared columns> FROM public.… WITH NO DATA`: an older schema
  * simply has fewer columns, a table it lacks is skipped), the exported rows, and a `pg_sequences` table with the last
- * values. A second connection with `search_path = fsa_carry_<hex>, pg_catalog` is the carry's source (pg_catalog after
+ * values. A second connection with `search_path = fieldset_carry_<hex>, pg_catalog` is the carry's source (pg_catalog after
  * it, so the schema's `pg_sequences` wins). The schema is committed before the carry's transaction (that connection must
  * see it) and dropped afterwards, whatever happened.
  */
 final class SecurityImport
 {
-    public const string CONNECTION = 'fsa_restore_carry';
+    public const string CONNECTION = 'fieldset_restore_carry';
 
     private const int CHUNK = 500;
 
@@ -37,7 +37,7 @@ final class SecurityImport
         if (($document['format'] ?? null) !== SecurityExport::FORMAT || ! is_int($document['version'] ?? null) || $document['version'] > SecurityExport::VERSION) {
             throw new RestoreRefused('carry_format', 'The security state export is not one this version reads (format '.json_encode($document['format'] ?? null).', version '.json_encode($document['version'] ?? null).').', 'Roll back to a release that knows the export of the current one.');
         }
-        $this->schema = 'fsa_carry_'.bin2hex(random_bytes(4));
+        $this->schema = 'fieldset_carry_'.bin2hex(random_bytes(4));
         $this->target->statement('CREATE SCHEMA '.$this->schema);
         foreach (is_array($document['tables'] ?? null) ? $document['tables'] : [] as $table => $data) {
             if (is_string($table) && is_array($data)) {

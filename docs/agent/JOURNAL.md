@@ -349,3 +349,18 @@
   built at fba09cd (476 s, install 46.9 s). Dogfood m6-offline flaked once at load 8.
 - Trivy: cloudflared CVE-2026-63209 unfixed in 2026.10.2 → 30-day exception (bac1caf, QUESTIONS 76). Suite 7389.
 - FINAL_REPORT_V2.md written; merged release-2.0.0, tagged `v2.0.0` locally (not pushed). Run complete.
+
+## 2026-10-21 Rename U8: gate for 2.1.0 (branch rename-fieldset)
+- ADR 0092 and CHANGELOG 2.1.0 (220617a); journeys accept `FIELDSET_EVIDENCE_MILESTONE=R2.1`.
+- Static, licenses and audits clean; suite 7403/7403; Vitest 615/111/622/246; conformance 391/392; E2E 79 + 8 skips.
+- Install journeys at 2.1.0-alpha.1-test 151 passed / 7 skipped (1 h 42 m), dogfood 71; 2.1.0 multi-arch 7/7 (495 s);
+  J1 amd64 5/5; J1 + J7 at 2.1.0 13/13. No test resources left. fieldset-ci rebuilt (apt fine now).
+- Trivy red: CVE-2026-111943 (Go stdlib, published today) in every Go binary; pins as in v2.0.0. Merge and tags held
+  (QUESTIONS 77). PDF fixtures left (encrypted variants not reproducible).
+
+## 2026-10-21 Go x509 fix and 2.1.0 cut (branch sec-go-x509, human decision QUESTIONS 77a)
+- golang 1.27.3, FrankenPHP rebuilt with Go 1.27.3, Docker CLI 29.9.2 (Go 1.26.10), cloudflared 2026.10.2 (Go 1.27.3;
+  libssl entry dropped); postgres/gotenberg/mailpit/caddy have no fixed image: 30-day entries to 2026-11-20 (ADR 0093).
+- Trivy green (app both arches, no exceptions). Suite 7404; JS/conformance unchanged; install journeys 151 passed /
+  7 skipped (1 h 45 m), dogfood 71; 2.1.0 multi-arch 7/7 (2nd attempt: font CDN timeout); J1 amd64 5/5; J1+J7 at 2.1.0 13/13.
+- E2E dev stack 79 / 8 skips (run 1: m6-offline flake). Merged into rename-fieldset and main; tags rename-done, v2.1.0 local.

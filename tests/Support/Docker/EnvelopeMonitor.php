@@ -10,7 +10,7 @@ use Symfony\Component\Process\Process;
 /**
  * The E16 envelope of J10 (plan U15, ADR 0083), as a background process next to the journey: it pins every container
  * of the instance under test (names containing `$match`, one-offs included; unnamed throwaways by the instance label,
- * once `<instance dir>/state.json` names the UUID) and every `fsa` ops container that mounts the instance directory
+ * once `<instance dir>/state.json` names the UUID) and every `fieldset` ops container that mounts the instance directory
  * to the same two CPUs (`docker update --cpuset-cpus`) as soon as Docker reports its creation, the way a
  * 2-vCPU host shares its two CPUs between all of them; memory limits are the generated compose file's own. It streams
  * `docker stats` and keeps per-container and per-phase peaks of memory (MiB, cache excluded, as `docker stats` counts)
@@ -193,7 +193,7 @@ final class EnvelopeMonitor
         if ($this->uuid() !== null && ($attributes[InstanceJourney::LABEL] ?? '') === $this->uuid) {
             return true;
         }
-        if (($attributes['app.form-schema.role'] ?? '') !== 'ops') {
+        if (($attributes['app.fieldset.role'] ?? '') !== 'ops') {
             return false;
         }
         $binds = new Process(['docker', 'inspect', '--format', '{{json .HostConfig.Binds}}', $id]);
@@ -210,7 +210,7 @@ final class EnvelopeMonitor
     /** @param  array<string, string>  $attributes */
     private function track(string $id, array $attributes): void
     {
-        $role = $attributes['app.form-schema.role'] ?? '';
+        $role = $attributes['app.fieldset.role'] ?? '';
         $this->containers[$id] = [
             'name' => $role === 'ops' ? 'ops:'.($attributes['name'] ?? $id) : ($attributes['name'] ?? $id),
             'service' => $attributes['com.docker.compose.service'] ?? ($role === 'ops' ? 'ops' : 'other'),

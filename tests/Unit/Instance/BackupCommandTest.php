@@ -16,16 +16,16 @@ use Tests\Support\Instance\InstanceCommandFixture;
 use Tests\Support\Instance\TemporaryInstance;
 
 /*
- * `fsa backup` and the safety-backup entry point on the ops side (R38, R40, R57, KTD25, plan U16, ADR 0084), against the
+ * `fieldset backup` and the safety-backup entry point on the ops side (R38, R40, R57, KTD25, plan U16, ADR 0084), against the
  * recording Docker gateway: Postgres up, the backup role set up in a socket-less one-off of the app service (password by
- * name), then the backup service's own entry point as a one-off of that service under the instance lock fsa holds.
+ * name), then the backup service's own entry point as a one-off of that service under the instance lock fieldset holds.
  */
 
 beforeEach(function (): void {
     $this->config = new ConfigFixture;
     $this->instance = $this->config->instance;
     $this->instance->withRunningStack();
-    $this->outside = sys_get_temp_dir().'/fsa-test-backup-'.bin2hex(random_bytes(4));
+    $this->outside = sys_get_temp_dir().'/fieldset-test-backup-'.bin2hex(random_bytes(4));
     mkdir($this->outside, 0700);
 });
 
@@ -49,7 +49,7 @@ it('runs the backup service once under the lock it holds, after the backup role,
     };
     $mark = $this->config->mark();
 
-    [$code, $json] = $this->instance->run('fsa:backup');
+    [$code, $json] = $this->instance->run('fieldset:backup');
     $role = array_values(array_filter($this->config->callsSince($mark, 'composeRun'), static fn (array $call): bool => ($call['command'][2] ?? null) === 'instance:backup-role'));
     $run = backupOneOffs($this->instance)[0];
 
@@ -60,8 +60,8 @@ it('runs the backup service once under the lock it holds, after the backup role,
         ])
         ->and($json['changed'])->toBeTrue()
         ->and(collect($json['warnings'])->pluck('code')->all())->toBe(['backup_on_host'])
-        ->and($role)->toHaveCount(1)->and($role[0]['env'])->toBe(['FSA_BACKUP_DB_PASSWORD'])
-        ->and($run['command'])->toBe(['fsa', 'backup-daemon', '--once', '--kind=manual', '--lock-id='.$held?->lockId, '--json'])
+        ->and($role)->toHaveCount(1)->and($role[0]['env'])->toBe(['FIELDSET_BACKUP_DB_PASSWORD'])
+        ->and($run['command'])->toBe(['fieldset', 'backup-daemon', '--once', '--kind=manual', '--lock-id='.$held?->lockId, '--json'])
         ->and($held)->toBeInstanceOf(LockRecord::class)->and($held?->operation)->toBe('backup')
         ->and(new InstanceLock($this->instance->directory, $this->instance->docker)->current())->toBeNull()
         ->and($this->config->methodsSince($mark))->not->toContain('composeUp')
@@ -74,7 +74,7 @@ it('prints the APP_KEY fingerprint unredacted: it names the key without being a 
     $run['data']['result']['app_key_fingerprints'] = [$fingerprint];
     $this->instance->backupOutcome = InstanceCommandFixture::oneOffJson($run);
 
-    [$code, $json] = $this->instance->run('fsa:backup');
+    [$code, $json] = $this->instance->run('fieldset:backup');
 
     expect($code)->toBe(0)->and($fingerprint)->toMatch('/^[0-9a-f]{4}(-[0-9a-f]{4}){3}$/')
         ->and($json['data']['app_key_fingerprint'])->toBe($fingerprint);
@@ -86,7 +86,7 @@ it('starts Postgres first when the instance is stopped', function (): void {
     }
     $mark = $this->config->mark();
 
-    [$code] = $this->instance->run('fsa:backup');
+    [$code] = $this->instance->run('fieldset:backup');
 
     expect($code)->toBe(0)->and($this->config->callsSince($mark, 'composeUp')[0]['services'])->toBe(['postgres']);
 });
@@ -94,7 +94,7 @@ it('starts Postgres first when the instance is stopped', function (): void {
 it('maps a failed run to exit 3 for low disk space and exit 4 otherwise, leaving the lock free', function (string $reason, int $exit, bool $retryable): void {
     $this->instance->backupOutcome = InstanceCommandFixture::oneOffJson(['command' => 'backup-daemon', 'status' => 'failed', 'errors' => [['code' => $reason, 'message' => 'it went wrong', 'hint' => null, 'retryable' => true]]]);
 
-    [$code, $json] = $this->instance->run('fsa:backup');
+    [$code, $json] = $this->instance->run('fieldset:backup');
 
     expect($code)->toBe($exit)
         ->and($json['errors'][0]['code'])->toBe($reason)
@@ -109,11 +109,11 @@ it('maps a failed run to exit 3 for low disk space and exit 4 otherwise, leaving
 
 it('reports a one-off without a result and a failed role set-up', function (): void {
     $this->instance->backupOutcome = new ProcessOutcome(137, '', 'Killed');
-    [$code, $json] = $this->instance->run('fsa:backup');
+    [$code, $json] = $this->instance->run('fieldset:backup');
     expect($code)->toBe(4)->and($json['errors'][0]['code'])->toBe('one_off_failed');
 
     $this->instance->oneOffs['instance:backup-role'] = InstanceCommandFixture::oneOffJson(['command' => 'instance:backup-role', 'status' => 'failed', 'errors' => [['code' => 'backup_role_failed', 'message' => 'no superuser', 'hint' => null, 'retryable' => false]]]);
-    [$roleCode, $role] = $this->instance->run('fsa:backup');
+    [$roleCode, $role] = $this->instance->run('fieldset:backup');
     expect($roleCode)->toBe(4)->and($role['errors'][0]['code'])->toBe('backup_role_failed');
 });
 
@@ -122,18 +122,18 @@ it('refuses while another operation holds the lock, without starting anything', 
     new InstanceLock($this->instance->directory, $this->instance->docker)->acquire(TemporaryInstance::holder('e', '2026-10-19T09:00:00Z'), 'upgrade');
     $mark = $this->config->mark();
 
-    [$code, $json] = $this->instance->run('fsa:backup');
+    [$code, $json] = $this->instance->run('fieldset:backup');
 
     expect($code)->toBe(9)->and($json['errors'][0]['code'])->toBe('instance_locked')
         ->and(array_filter($this->config->callsSince($mark, 'composeRun')))->toBe([]);
 });
 
 it('refuses --include-secrets without encryption, and passes the secrets on stdin only when encryption is on', function (): void {
-    [$code, $json] = $this->instance->run('fsa:backup', ['--include-secrets' => true]);
+    [$code, $json] = $this->instance->run('fieldset:backup', ['--include-secrets' => true]);
     expect($code)->toBe(2)->and($json['errors'][0]['code'])->toBe('encryption_required')->and(backupOneOffs($this->instance))->toBe([]);
 
     $this->instance->directory->saveState($this->instance->state()->withRecipients(['age1'.str_repeat('c', 58)]));
-    [$encryptedCode] = $this->instance->run('fsa:backup', ['--include-secrets' => true]);
+    [$encryptedCode] = $this->instance->run('fieldset:backup', ['--include-secrets' => true]);
     $app = new EnvFiles($this->instance->directory)->read('app');
     $run = backupOneOffs($this->instance)[0];
 
@@ -147,10 +147,10 @@ it('turns encryption on first with --encrypt, then backs up', function (): void 
     app()->instance(AgeCli::class, new AgeCli(base_path('tests/Fixtures/bin/fake-age'), base_path('tests/Fixtures/bin/fake-age-keygen')));
     file_put_contents($this->outside.'/pass', 'a long enough passphrase');
 
-    [$missing, $missingJson] = $this->instance->run('fsa:backup', ['--encrypt' => true]);
-    [$code, $json] = $this->instance->run('fsa:backup', ['--encrypt' => true, '--identity-out' => $this->outside.'/id.age', '--passphrase-file' => $this->outside.'/pass']);
-    [$againCode, $again] = $this->instance->run('fsa:backup', ['--encrypt' => true]);
-    [$strayCode, $stray] = $this->instance->run('fsa:backup', ['--identity-out' => $this->outside.'/other.age']);
+    [$missing, $missingJson] = $this->instance->run('fieldset:backup', ['--encrypt' => true]);
+    [$code, $json] = $this->instance->run('fieldset:backup', ['--encrypt' => true, '--identity-out' => $this->outside.'/id.age', '--passphrase-file' => $this->outside.'/pass']);
+    [$againCode, $again] = $this->instance->run('fieldset:backup', ['--encrypt' => true]);
+    [$strayCode, $stray] = $this->instance->run('fieldset:backup', ['--identity-out' => $this->outside.'/other.age']);
 
     expect($missing)->toBe(2)->and($missingJson['errors'][0]['code'])->toBe('identity_required')
         ->and($code)->toBe(0, (string) json_encode($json))
@@ -167,9 +167,9 @@ it('refuses an instance without a backup service or not installed yet', function
     unset($compose['services']['backup']);
     $this->instance->directory->write('compose.yaml', json_encode($compose), 0600);
 
-    [$code, $json] = $this->instance->run('fsa:backup');
+    [$code, $json] = $this->instance->run('fieldset:backup');
     $fresh = new InstanceCommandFixture;
-    [$freshCode, $freshJson] = $fresh->run('fsa:backup');
+    [$freshCode, $freshJson] = $fresh->run('fieldset:backup');
 
     expect($code)->toBe(3)->and($json['errors'][0]['code'])->toBe('backup_service_missing')
         ->and($freshCode)->toBe(2)->and($freshJson['errors'][0]['code'])->toBe('not_installed');
@@ -188,10 +188,10 @@ it('takes a safety backup under the caller\'s lock and seals it once the operati
     $calls = backupOneOffs($this->instance);
 
     expect($taken)->toMatchArray(['backup' => 'safety-upgrade-20261019T120000Z', 'bytes' => 52_431, 'created_at' => '2026-10-19T12:00:00Z'])
-        ->and($calls[0]['command'])->toBe(['fsa', 'backup-daemon', '--once', '--kind=safety-upgrade', '--lock-id='.$handle->record->lockId, '--json'])
+        ->and($calls[0]['command'])->toBe(['fieldset', 'backup-daemon', '--once', '--kind=safety-upgrade', '--lock-id='.$handle->record->lockId, '--json'])
         ->and($plain)->toBe(['backup' => $taken['backup'], 'encrypted' => false, 'changed' => false])
         ->and($sealed)->toBe(['backup' => $taken['backup'], 'encrypted' => true, 'changed' => true])
-        ->and($calls[1]['command'])->toBe(['fsa', 'backup-daemon', '--seal='.$taken['backup'], '--lock-id='.$handle->record->lockId, '--json'])
+        ->and($calls[1]['command'])->toBe(['fieldset', 'backup-daemon', '--seal='.$taken['backup'], '--lock-id='.$handle->record->lockId, '--json'])
         ->and(fn () => $safety->take($this->instance->state(), 'install', $handle))->toThrow(InvalidArgumentException::class);
 
     $this->instance->backupOutcome = InstanceCommandFixture::oneOffJson(['command' => 'backup-daemon', 'status' => 'failed', 'errors' => [['code' => 'pg_dump_failed', 'message' => 'boom', 'hint' => null, 'retryable' => true]]]);
@@ -204,8 +204,8 @@ it('sets up the backup role with the password of env/backup.env, and refuses wit
     $runner = app(BackupRunner::class);
     $project = ComposeProject::forInstance($this->instance->state(), $this->instance->directory);
     $runner->ensureRole($project);
-    new EnvFiles($this->instance->directory)->write('backup', ['DB_USERNAME' => 'fsa_backup']);
+    new EnvFiles($this->instance->directory)->write('backup', ['DB_USERNAME' => 'fieldset_backup']);
 
-    expect($this->instance->oneOffCalls('instance:backup-role')[0]['env'])->toBe(['FSA_BACKUP_DB_PASSWORD'])
+    expect($this->instance->oneOffCalls('instance:backup-role')[0]['env'])->toBe(['FIELDSET_BACKUP_DB_PASSWORD'])
         ->and(fn () => $runner->ensureRole($project))->toThrow(InstanceException::class, 'no password for the backup role');
 });

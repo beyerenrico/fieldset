@@ -8,12 +8,12 @@ use JsonException;
 
 /**
  * An instance directory (BUILD_PROMPT_V2 §6.3) and its layout. The marker file says "this is an instance";
- * install.sh drops it before handing over, and every fsa command but `version` requires it (KTD1). All access
+ * install.sh drops it before handing over, and every fieldset command but `version` requires it (KTD1). All access
  * goes through SafeFiles: temp-file-plus-rename writes that never follow symlinks out of the directory.
  */
 final readonly class InstanceDirectory
 {
-    public const string MARKER = '.fsa-instance';
+    public const string MARKER = '.fieldset-instance';
 
     public const string MARKER_SCHEMA = '1.0';
 
@@ -32,7 +32,7 @@ final readonly class InstanceDirectory
     public const string BACKUPS_DIR = 'backups';
 
     /**
-     * fsa's private working files that may hold plaintext (0700, never to be synced off the host, M12 gate S2/S3): the
+     * fieldset's private working files that may hold plaintext (0700, never to be synced off the host, M12 gate S2/S3): the
      * backup service's settings and the plain sets of encrypted backups being written (`staging/backup/`), restore
      * scratch directories (`staging/restore-<id>/`). Only finished files move into `backups/`.
      */
@@ -79,7 +79,7 @@ final readonly class InstanceDirectory
         @chmod($path, 0700);
         $directory = new self($path, SafeFiles::at($path));
         if (! self::isMarked($path)) {
-            $directory->write(self::MARKER, json_encode(['schema_version' => self::MARKER_SCHEMA, 'kind' => 'form-schema-app instance'], JSON_THROW_ON_ERROR)."\n");
+            $directory->write(self::MARKER, json_encode(['schema_version' => self::MARKER_SCHEMA, 'kind' => 'fieldset instance'], JSON_THROW_ON_ERROR)."\n");
         }
 
         return $directory;

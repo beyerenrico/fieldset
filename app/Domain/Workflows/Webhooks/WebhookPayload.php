@@ -7,7 +7,7 @@ namespace App\Domain\Workflows\Webhooks;
 use App\Domain\Forms\Models\Form;
 use App\Domain\Submissions\Models\Submission;
 use App\Domain\Workflows\Engine\StepContext;
-use FormSchema\Json\Json;
+use Fieldset\Json\Json;
 
 /**
  * Webhook body (§10): the event name, ids, a submission summary and the submitted data snapshot (decimal

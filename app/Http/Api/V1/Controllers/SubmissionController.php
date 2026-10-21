@@ -14,7 +14,7 @@ use App\Domain\Submissions\Support\ClientSubmittedAt;
 use App\Domain\Submissions\Support\SubmissionVisibility;
 use App\Http\Api\ApiException;
 use App\Http\Api\ApiResponse;
-use FormSchema\Json\Json;
+use Fieldset\Json\Json;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;

@@ -1,8 +1,8 @@
 /**
- * Single flight across tabs (ADR 0035): the Web Lock `fsa-sync`, requested with ifAvailable, so a
+ * Single flight across tabs (ADR 0035): the Web Lock `fieldset-sync`, requested with ifAvailable, so a
  * tab whose request finds the lock taken skips the run. Without Web Locks, a mutex in this tab.
  */
-export const SYNC_LOCK = 'fsa-sync';
+export const SYNC_LOCK = 'fieldset-sync';
 
 export interface LockManagerLike {
     request<T>(

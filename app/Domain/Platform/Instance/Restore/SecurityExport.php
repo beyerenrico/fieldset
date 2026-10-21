@@ -9,17 +9,17 @@ use Illuminate\Database\Connection;
 use stdClass;
 
 /**
- * The versioned export of the security state for a manual rollback (R64, plan U18, ADR 0086). `fsa rollback` returns to
+ * The versioned export of the security state for a manual rollback (R64, plan U18, ADR 0086). `fieldset rollback` returns to
  * an older release whose code cannot read the newer schema, so the R64 carry cannot read the pre-rollback database as a
  * second connection the way a restore does (ADR 0085). Instead the current image exports, in a socket-less one-off, the
  * rows the carry reads (FORMAT, VERSION 1): per table its columns and rows, the audit entries after the backup, and the
  * sequences' last values. The previous image materialises the document in a schema of the restored database
  * (SecurityImport) and runs the same carry against it. The document holds password hashes, encrypted MFA secrets and
- * e-mail addresses: fsa keeps it only in a 0600 file of the restore's scratch directory and hands it over on stdin.
+ * e-mail addresses: fieldset keeps it only in a 0600 file of the restore's scratch directory and hands it over on stdin.
  */
 final readonly class SecurityExport
 {
-    public const string FORMAT = 'fsa-security-state';
+    public const string FORMAT = 'fieldset-security-state';
 
     public const int VERSION = 1;
 

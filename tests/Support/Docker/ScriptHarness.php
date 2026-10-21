@@ -7,9 +7,9 @@ namespace Tests\Support\Docker;
 use Symfony\Component\Process\Process;
 
 /**
- * Runs an image script (docker/app/entrypoint.sh, docker/app/fsa) on the host with `php`, `sleep` and the role
+ * Runs an image script (docker/app/entrypoint.sh, docker/app/fieldset) on the host with `php`, `sleep` and the role
  * commands replaced by stubs that only record how they were called (and exit 0, or the codes set with
- * exitCodes()). The image's `fsa` wrapper is on the stub PATH as well, so an entrypoint test sees the artisan call
+ * exitCodes()). The image's `fieldset` wrapper is on the stub PATH as well, so an entrypoint test sees the artisan call
  * it makes.
  */
 final readonly class ScriptHarness
@@ -33,7 +33,7 @@ final readonly class ScriptHarness
 
     public function __construct(private string $repository)
     {
-        $directory = sys_get_temp_dir().'/fsa-script-harness-'.bin2hex(random_bytes(6));
+        $directory = sys_get_temp_dir().'/fieldset-script-harness-'.bin2hex(random_bytes(6));
         $this->bin = $directory.'/bin';
         $this->log = $directory.'/calls.log';
         mkdir($this->bin, 0700, true);
@@ -43,7 +43,7 @@ final readonly class ScriptHarness
             $this->writeExecutable($stub, self::STUB."\n");
         }
 
-        $this->writeExecutable('fsa', (string) file_get_contents($repository.'/docker/app/fsa'));
+        $this->writeExecutable('fieldset', (string) file_get_contents($repository.'/docker/app/fieldset'));
     }
 
     /**
@@ -92,7 +92,7 @@ final readonly class ScriptHarness
 
     public function cleanUp(): void
     {
-        foreach ([...self::STUBS, 'fsa'] as $file) {
+        foreach ([...self::STUBS, 'fieldset'] as $file) {
             @unlink($this->bin.'/'.$file);
             @unlink(dirname($this->log).'/'.$file.'.exits');
         }

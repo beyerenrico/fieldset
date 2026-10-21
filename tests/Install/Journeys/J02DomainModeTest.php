@@ -12,18 +12,18 @@ use Tests\Support\Docker\SharedHarness;
 use Tests\Support\Docker\TestImage;
 
 /*
- * J2 (BUILD_PROMPT_V2 §11, plan U8; ADR 0075): domain mode against Pebble with challtestsrv. install.sh → fsa install
+ * J2 (BUILD_PROMPT_V2 §11, plan U8; ADR 0075): domain mode against Pebble with challtestsrv. install.sh → fieldset install
  * --domain with Pebble as the ACME directory → the edge gets a certificate whose chain verifies against Pebble's
  * current issuing root → HTTP redirects to HTTPS, the 1.0 headers and the preview CORS arrive unchanged, only the
  * edge publishes 80, 443 and 443/udp → /_mail/ answers 401/302 without a /platform session and opens for an operator
  * with MFA (audited once) → a forged X-Forwarded-For/-Host from a container on another network is not trusted →
- * fsa uninstall --yes removes everything, the certificate volume included, with the rate-limit warning.
+ * fieldset uninstall --yes removes everything, the certificate volume included, with the rate-limit warning.
  *
- * The ops container resolves the domain through FSA_TEST_DNS (harness images only): it runs on the engine's default
+ * The ops container resolves the domain through FIELDSET_TEST_DNS (harness images only): it runs on the engine's default
  * network and cannot ask challtestsrv. Requests from the host go to 127.0.0.1:80/443 with the domain as SNI and Host.
  */
 
-const J02_DOMAIN = 'fsa-test-j02.test';
+const J02_DOMAIN = 'fieldset-test-j02.test';
 const J02_OWNER = 'owner@example.test';
 
 beforeAll(function (): void {
@@ -33,42 +33,42 @@ beforeAll(function (): void {
 
     try {
         [$harness, $release] = SharedHarness::get();
-        $GLOBALS['fsaJ02'] = new InstanceJourney($harness, $release, $harness->directory.'/j02');
-        $GLOBALS['fsaJ02Acme'] = AcmeHarness::start($harness);
+        $GLOBALS['fieldsetJ02'] = new InstanceJourney($harness, $release, $harness->directory.'/j02');
+        $GLOBALS['fieldsetJ02Acme'] = AcmeHarness::start($harness);
     } catch (Throwable $exception) {
-        $GLOBALS['fsaJ02Error'] = $exception;
+        $GLOBALS['fieldsetJ02Error'] = $exception;
     }
 });
 
 afterAll(function (): void {
-    if (isset($GLOBALS['fsaJ02'])) {
-        InstanceJourney::cleanup($GLOBALS['fsaJ02']->work.'/fsa-test-j02', $GLOBALS['fsaJ02Uuid'] ?? null);
+    if (isset($GLOBALS['fieldsetJ02'])) {
+        InstanceJourney::cleanup($GLOBALS['fieldsetJ02']->work.'/fieldset-test-j02', $GLOBALS['fieldsetJ02Uuid'] ?? null);
     }
-    if (isset($GLOBALS['fsaJ02Acme'])) {
-        $GLOBALS['fsaJ02Acme']->stop();
+    if (isset($GLOBALS['fieldsetJ02Acme'])) {
+        $GLOBALS['fieldsetJ02Acme']->stop();
     }
-    unset($GLOBALS['fsaJ02'], $GLOBALS['fsaJ02Acme'], $GLOBALS['fsaJ02Error'], $GLOBALS['fsaJ02Uuid'], $GLOBALS['fsaJ02Root']);
+    unset($GLOBALS['fieldsetJ02'], $GLOBALS['fieldsetJ02Acme'], $GLOBALS['fieldsetJ02Error'], $GLOBALS['fieldsetJ02Uuid'], $GLOBALS['fieldsetJ02Root']);
 });
 
 beforeEach(function (): void {
     $reason = TestImage::dockerUnavailableReason();
     if ($reason !== null) {
-        expect(getenv('FSA_REQUIRE_DOCKER'))->not->toBe('1', $reason);
+        expect(getenv('FIELDSET_REQUIRE_DOCKER'))->not->toBe('1', $reason);
         $this->markTestSkipped($reason.' (install journeys need a Docker engine)');
     }
-    if (isset($GLOBALS['fsaJ02Error'])) {
-        throw $GLOBALS['fsaJ02Error'];
+    if (isset($GLOBALS['fieldsetJ02Error'])) {
+        throw $GLOBALS['fieldsetJ02Error'];
     }
-    $this->journey = $GLOBALS['fsaJ02'];
-    $this->acme = $GLOBALS['fsaJ02Acme'];
-    $this->dir = $this->journey->work.'/fsa-test-j02';
-    $this->env = ['FSA_TEST_DNS' => J02_DOMAIN.'='.j02HostAddress()];
+    $this->journey = $GLOBALS['fieldsetJ02'];
+    $this->acme = $GLOBALS['fieldsetJ02Acme'];
+    $this->dir = $this->journey->work.'/fieldset-test-j02';
+    $this->env = ['FIELDSET_TEST_DNS' => J02_DOMAIN.'='.j02HostAddress()];
 });
 
 /** An address the doctor accepts as this host's: a LAN address the shim reports, else a public one (NAT warning). */
 function j02HostAddress(): string
 {
-    $process = new Process(['/bin/sh', '-c', '. "$1"; fsa_lan_addresses', 'sh', TestImage::repository().'/distribution/shim.sh'], null, ['FSA_SHIM_LIBRARY' => '1']);
+    $process = new Process(['/bin/sh', '-c', '. "$1"; fieldset_lan_addresses', 'sh', TestImage::repository().'/distribution/shim.sh'], null, ['FIELDSET_SHIM_LIBRARY' => '1']);
     $process->run();
     $addresses = array_values(array_filter(preg_split('/\s+/', trim($process->getOutput())) ?: []));
 
@@ -80,7 +80,7 @@ function j02Client(): Client
 {
     return new Client([
         'http_errors' => false, 'allow_redirects' => false, 'timeout' => 30,
-        RequestOptions::VERIFY => $GLOBALS['fsaJ02Root'] ?? false,
+        RequestOptions::VERIFY => $GLOBALS['fieldsetJ02Root'] ?? false,
         'curl' => [CURLOPT_RESOLVE => [J02_DOMAIN.':443:127.0.0.1', J02_DOMAIN.':80:127.0.0.1']],
     ]);
 }
@@ -107,7 +107,7 @@ it('installs in domain mode and gets a certificate from Pebble', function (): vo
     $connected = null;
     while ($process->isRunning()) {
         $uuid = InstanceJourney::uuid($this->dir);
-        $edge = $uuid === null || $connected !== null ? '' : trim(j02Docker(['ps', '-aq', '--filter', 'label=app.form-schema.role=edge', '--filter', "label=app.form-schema.instance={$uuid}"])->getOutput());
+        $edge = $uuid === null || $connected !== null ? '' : trim(j02Docker(['ps', '-aq', '--filter', 'label=app.fieldset.role=edge', '--filter', "label=app.fieldset.instance={$uuid}"])->getOutput());
         if ($edge !== '') {
             $this->acme->connectEdge($edge);
             $connected = j02Docker(['inspect', '-f', '{{.State.Status}}', $edge])->getOutput();
@@ -115,10 +115,10 @@ it('installs in domain mode and gets a certificate from Pebble', function (): vo
         usleep(200_000);
     }
     $json = InstanceJourney::json($process);
-    $GLOBALS['fsaJ02Uuid'] = InstanceJourney::uuid($this->dir);
+    $GLOBALS['fieldsetJ02Uuid'] = InstanceJourney::uuid($this->dir);
     $state = json_decode((string) @file_get_contents($this->dir.'/state.json'), true);
     $runtime = json_decode((string) @file_get_contents($this->dir.'/runtime/runtime.json'), true);
-    $this->journey->evidence('J02-install.json', ['command' => 'install.sh --dir <work>/fsa-test-j02 --version '.ReleaseHarness::version().' '.implode(' ', array_slice($flags, 0, 12)).' --acme-ca-root-file <harness>/pebble-https-root.pem --secrets-file <work>/owner-link.json --json', 'exit_code' => $process->getExitCode(), 'seconds' => round(microtime(true) - $started, 1), 'edge_connected_while' => trim((string) $connected), 'stdout' => $json], 'M10');
+    $this->journey->evidence('J02-install.json', ['command' => 'install.sh --dir <work>/fieldset-test-j02 --version '.ReleaseHarness::version().' '.implode(' ', array_slice($flags, 0, 12)).' --acme-ca-root-file <harness>/pebble-https-root.pem --secrets-file <work>/owner-link.json --json', 'exit_code' => $process->getExitCode(), 'seconds' => round(microtime(true) - $started, 1), 'edge_connected_while' => trim((string) $connected), 'stdout' => $json], 'M10');
 
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput()."\n".$process->getOutput()."\n".$this->acme->logs())
         ->and($json['data'])->toMatchArray(['url' => 'https://'.J02_DOMAIN, 'mode' => 'domain', 'port' => null])
@@ -133,7 +133,7 @@ it('installs in domain mode and gets a certificate from Pebble', function (): vo
 it('serves a certificate whose chain verifies against Pebble\'s current issuing root', function (): void {
     $root = $this->journey->work.'/pebble-issuing-root.pem';
     file_put_contents($root, $this->acme->issuingRoot());
-    $GLOBALS['fsaJ02Root'] = $root;
+    $GLOBALS['fieldsetJ02Root'] = $root;
     $context = stream_context_create(['ssl' => ['cafile' => $root, 'verify_peer' => true, 'verify_peer_name' => true, 'peer_name' => J02_DOMAIN, 'capture_peer_cert' => true]]);
     $socket = @stream_socket_client('ssl://127.0.0.1:443', $errno, $error, 30, STREAM_CLIENT_CONNECT, $context);
     $certificate = $socket === false ? false : openssl_x509_parse(stream_context_get_params($socket)['options']['ssl']['peer_certificate']);
@@ -178,7 +178,7 @@ it('redirects HTTP to HTTPS and passes the app\'s security headers and preview C
 
 it('publishes only 80, 443 and 443/udp, all from the edge', function (): void {
     $published = [];
-    foreach (InstanceJourney::labelled($GLOBALS['fsaJ02Uuid'])['containers'] as $name) {
+    foreach (InstanceJourney::labelled($GLOBALS['fieldsetJ02Uuid'])['containers'] as $name) {
         $ports = array_values(array_filter(explode("\n", trim(j02Docker(['port', $name])->getOutput()))));
         if ($ports !== []) {
             $published[$name] = $ports;
@@ -196,15 +196,15 @@ it('keeps /_mail/ behind a /platform session with MFA and audits the opening onc
     $client = j02Client();
     $navigate = $client->get('https://'.J02_DOMAIN.'/_mail/', ['headers' => ['Accept' => 'text/html', 'Sec-Fetch-Mode' => 'navigate']]);
     $xhr = $client->get('https://'.J02_DOMAIN.'/_mail/api/v1/messages', ['headers' => ['Accept' => 'application/json', 'X-Requested-With' => 'XMLHttpRequest']]);
-    $internal = $client->get('https://'.J02_DOMAIN.'/_fsa/catcher-auth');
-    $app = trim(j02Docker(['ps', '-q', '--filter', 'label=app.form-schema.instance='.$GLOBALS['fsaJ02Uuid'], '--filter', 'label=app.form-schema.role=app'])->getOutput());
+    $internal = $client->get('https://'.J02_DOMAIN.'/_fieldset/catcher-auth');
+    $app = trim(j02Docker(['ps', '-q', '--filter', 'label=app.fieldset.instance='.$GLOBALS['fieldsetJ02Uuid'], '--filter', 'label=app.fieldset.role=app'])->getOutput());
     j02Docker(['cp', TestImage::repository().'/tests/Install/Harness/operator-session.php', "{$app}:/tmp/operator-session.php"]);
     $session = json_decode(j02Docker(['exec', $app, 'php', '/tmp/operator-session.php', J02_OWNER])->getOutput(), true);
     $cookie = ['Cookie' => ($session['name'] ?? '').'='.($session['value'] ?? '')];
     $ui = $client->get('https://'.J02_DOMAIN.'/_mail/', ['headers' => [...$cookie, 'Accept' => 'text/html', 'Sec-Fetch-Mode' => 'navigate']]);
     $api = $client->get('https://'.J02_DOMAIN.'/_mail/api/v1/messages', ['headers' => [...$cookie, 'Accept' => 'application/json']]);
-    $postgres = trim(j02Docker(['ps', '-q', '--filter', 'label=app.form-schema.instance='.$GLOBALS['fsaJ02Uuid'], '--filter', 'label=app.form-schema.role=postgres'])->getOutput());
-    $audits = trim(j02Docker(['exec', $postgres, 'psql', '-U', 'form_schema', '-d', 'form_schema', '-tAc', "SELECT count(*) FROM activity_log WHERE event = 'platform.catcher_opened'"])->getOutput());
+    $postgres = trim(j02Docker(['ps', '-q', '--filter', 'label=app.fieldset.instance='.$GLOBALS['fieldsetJ02Uuid'], '--filter', 'label=app.fieldset.role=postgres'])->getOutput());
+    $audits = trim(j02Docker(['exec', $postgres, 'psql', '-U', 'fieldset', '-d', 'fieldset', '-tAc', "SELECT count(*) FROM activity_log WHERE event = 'platform.catcher_opened'"])->getOutput());
     $this->journey->evidence('J02-catcher.json', [
         'without_session' => ['navigate' => [$navigate->getStatusCode(), $navigate->getHeaderLine('Location')], 'xhr' => $xhr->getStatusCode(), 'auth_endpoint_from_outside' => $internal->getStatusCode()],
         'operator_with_mfa' => ['ui' => $ui->getStatusCode(), 'api' => $api->getStatusCode(), 'csp' => $ui->getHeader('Content-Security-Policy'), 'x_frame_options' => $ui->getHeaderLine('X-Frame-Options')],
@@ -231,12 +231,12 @@ it('keeps /_mail/ behind a /platform session with MFA and audits the opening onc
 });
 
 it('trusts forwarded headers only from the edge, not from a container on another network', function (): void {
-    $uuid = $GLOBALS['fsaJ02Uuid'];
+    $uuid = $GLOBALS['fieldsetJ02Uuid'];
     $state = json_decode((string) file_get_contents($this->dir.'/state.json'), true);
     $forged = ['--header', 'Host: '.J02_DOMAIN, '--header', 'X-Forwarded-Host: evil.example', '--header', 'X-Forwarded-For: 203.0.113.7'];
-    $neighbour = j02Docker(['run', '--rm', '--network', $state['project'].'_default', '--label', "app.form-schema.instance={$uuid}", '--entrypoint', 'curl', $state['digests']['app'],
+    $neighbour = j02Docker(['run', '--rm', '--network', $state['project'].'_default', '--label', "app.fieldset.instance={$uuid}", '--entrypoint', 'curl', $state['digests']['app'],
         '--silent', '--output', '/dev/null', '--write-out', '%{http_code}', ...$forged, 'http://app:8080/admin/login'], $this->journey->release->platformEnvironment());
-    $edge = trim(j02Docker(['ps', '-q', '--filter', "label=app.form-schema.instance={$uuid}", '--filter', 'label=app.form-schema.role=edge'])->getOutput());
+    $edge = trim(j02Docker(['ps', '-q', '--filter', "label=app.fieldset.instance={$uuid}", '--filter', 'label=app.fieldset.role=edge'])->getOutput());
     $fromEdge = j02Docker(['exec', $edge, 'wget', '-q', '-S', '-O', '/dev/null', '--header', 'Host: '.J02_DOMAIN, '--header', 'X-Forwarded-Host: evil.example', 'http://app:8080/admin/login']);
     // A client's X-Forwarded-Port or Host port must not reach the links the app renders (ADR 0079): the edge strips the
     // header, and the app takes the port from the instance URL.
@@ -256,11 +256,11 @@ it('trusts forwarded headers only from the edge, not from a container on another
         ->and((string) $forgedHost->getBody())->not->toContain(J02_DOMAIN.':8443');
 });
 
-it('reports the instance with fsa status and doctor --post', function (): void {
-    $status = $this->journey->fsa($this->dir, ['status', '--json'], $this->env);
-    $doctor = $this->journey->fsa($this->dir, ['doctor', '--post', '--json'], $this->env);
+it('reports the instance with fieldset status and doctor --post', function (): void {
+    $status = $this->journey->fieldset($this->dir, ['status', '--json'], $this->env);
+    $doctor = $this->journey->fieldset($this->dir, ['doctor', '--post', '--json'], $this->env);
     $statusJson = InstanceJourney::json($status);
-    $this->journey->evidence('J02-status.json', ['command' => 'fsa status --json', 'exit_code' => $status->getExitCode(), 'stdout' => $statusJson], 'M10');
+    $this->journey->evidence('J02-status.json', ['command' => 'fieldset status --json', 'exit_code' => $status->getExitCode(), 'stdout' => $statusJson], 'M10');
 
     expect($status->getExitCode())->toBe(0, $status->getOutput())
         ->and($statusJson['data'])->toMatchArray(['mode' => 'domain', 'url' => 'https://'.J02_DOMAIN, 'health' => 'ok'])
@@ -269,11 +269,11 @@ it('reports the instance with fsa status and doctor --post', function (): void {
 });
 
 it('uninstalls with the certificate volume and warns about the CA\'s duplicate-certificate limit', function (): void {
-    $uuid = $GLOBALS['fsaJ02Uuid'];
+    $uuid = $GLOBALS['fieldsetJ02Uuid'];
     $before = InstanceJourney::labelled($uuid);
-    $process = $this->journey->fsa($this->dir, ['uninstall', '--yes', '--json'], $this->env);
+    $process = $this->journey->fieldset($this->dir, ['uninstall', '--yes', '--json'], $this->env);
     $json = InstanceJourney::json($process);
-    $this->journey->evidence('J02-uninstall.json', ['command' => 'fsa uninstall --yes --json', 'exit_code' => $process->getExitCode(), 'stdout' => $json, 'labelled_before' => $before, 'labelled_after' => InstanceJourney::labelled($uuid)], 'M10');
+    $this->journey->evidence('J02-uninstall.json', ['command' => 'fieldset uninstall --yes --json', 'exit_code' => $process->getExitCode(), 'stdout' => $json, 'labelled_before' => $before, 'labelled_after' => InstanceJourney::labelled($uuid)], 'M10');
 
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput().$process->getOutput())
         ->and($before['containers'])->toHaveCount(9) // with the backup service since U16 (ADR 0084)

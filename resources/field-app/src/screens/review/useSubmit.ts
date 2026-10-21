@@ -3,7 +3,7 @@
  * submit goes through the outbox (persisted Idempotency-Key and body). Online the screen shows the
  * answer; offline the submission is queued and the detail says "number pending".
  */
-import { evaluate } from '@form-schema-app/form-schema-js';
+import { evaluate } from '@fieldset/fieldset-js';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { useCallback, useState } from 'react';

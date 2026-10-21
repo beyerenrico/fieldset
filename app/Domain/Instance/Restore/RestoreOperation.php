@@ -7,7 +7,7 @@ namespace App\Domain\Instance\Restore;
 use App\Domain\Instance\Adopt\AdoptedInstance;
 use App\Domain\Instance\Backup\KeyFingerprint;
 use App\Domain\Instance\Backup\SafetyBackup;
-use App\Domain\Instance\Console\FsaContext;
+use App\Domain\Instance\Console\FieldsetContext;
 use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\Install\InstallRecord;
 use App\Domain\Instance\InstanceException;
@@ -32,7 +32,7 @@ use App\Domain\Instance\Upgrade\OlderBackupMigration;
 use Throwable;
 
 /**
- * `fsa restore <backup>` (R41, R64, R68, AE8, KTD18, KTD26, plan U17 steps 1–11, ADR 0085), journaled phase by phase:
+ * `fieldset restore <backup>` (R41, R64, R68, AE8, KTD18, KTD26, plan U17 steps 1–11, ADR 0085), journaled phase by phase:
  *
  * plan (the names, from the journal ID) → prepare (decrypt, check, judge: exit 2/7 before anything changes) → space
  * (exit 3) → quiesce (gate up, writers stopped, audit sealed) → ledger (final heads) → safety_backup → restore_database
@@ -76,7 +76,7 @@ final readonly class RestoreOperation
         private Interruption $interruption,
     ) {}
 
-    public function restore(RestoreRequest $request, FsaContext $context): CommandResult
+    public function restore(RestoreRequest $request, FieldsetContext $context): CommandResult
     {
         $state = self::installed($this->directory);
         $open = $this->journal->current();
@@ -85,7 +85,7 @@ final readonly class RestoreOperation
         }
 
         return $this->interruption->guard(fn (): CommandResult => $this->supervisor->run(
-            self::OPERATION, $this->identity->holder('fsa', $request->actorUid),
+            self::OPERATION, $this->identity->holder('fieldset', $request->actorUid),
             fn (OperationRun $run): CommandResult => $this->steps($run, $state, $request),
             resume: true, context: $request->toContext(), progress: $context->progress,
             accepts: static fn (JournalRecord $record): bool => ($record->context()['backup'] ?? null) === $request->backup,
@@ -110,7 +110,7 @@ final readonly class RestoreOperation
         if (! $state instanceof InstanceState || ! InstallRecord::isInstalled($state)) {
             $open = new OperationJournal($directory)->current();
             throw $open instanceof JournalRecord ? new OperationUnfinished($open)
-                : new InvalidInput('The instance is not installed yet.', 'not_installed', 'Run `fsa install` first; `fsa install --from-backup <backup>` installs from a backup.');
+                : new InvalidInput('The instance is not installed yet.', 'not_installed', 'Run `fieldset install` first; `fieldset install --from-backup <backup>` installs from a backup.');
         }
 
         return $state;

@@ -17,17 +17,17 @@ use Illuminate\Database\QueryException;
 use InvalidArgumentException;
 
 /**
- * Database-level steps of `fsa restore`, the drill and `fsa install --from-backup` (plan U17, ADR 0085), in a
+ * Database-level steps of `fieldset restore`, the drill and `fieldset install --from-backup` (plan U17, ADR 0085), in a
  * socket-less one-off of the app service (KTD25) on the maintenance database: `create` (with --restricted-role for an
- * archive without a valid HMAC; its password comes from FSA_RESTORE_DB_PASSWORD by name), `drop`, `swap`, `rename`, `adopt`,
+ * archive without a valid HMAC; its password comes from FIELDSET_RESTORE_DB_PASSWORD by name), `drop`, `swap`, `rename`, `adopt`,
  * `audit` (SchemaAudit: an unauthenticated archive's code-bearing objects against a database this image migrated) and
  * `list` (DatabaseAdmin). One JSON document with --json; never a password.
  */
-#[Description('Create, swap, rename, adopt, audit, drop or list the databases of an fsa restore')]
+#[Description('Create, swap, rename, adopt, audit, drop or list the databases of a fieldset restore')]
 #[Signature('instance:restore-db
         {action : create, drop, swap, rename, adopt, audit or list}
         {--database= : The database to create, drop, rename or adopt; with swap the incoming one}
-        {--restricted-role= : create: the role that owns the new database (password in FSA_RESTORE_DB_PASSWORD)}
+        {--restricted-role= : create: the role that owns the new database (password in FIELDSET_RESTORE_DB_PASSWORD)}
         {--role= : drop or adopt: the restricted role}
         {--live= : swap: the live database name}
         {--aside= : swap: the name the live database moves to}
@@ -37,7 +37,7 @@ use InvalidArgumentException;
         {--json : Print one JSON document on stdout}')]
 final class RestoreDatabaseCommand extends Command
 {
-    public const string PASSWORD_ENV = 'FSA_RESTORE_DB_PASSWORD';
+    public const string PASSWORD_ENV = 'FIELDSET_RESTORE_DB_PASSWORD';
 
     private const string NAME = 'instance:restore-db';
 
@@ -56,7 +56,7 @@ final class RestoreDatabaseCommand extends Command
         } catch (QueryException $e) {
             return $this->refuse('database_failed', 'The database step failed (SQLSTATE '.($e->errorInfo[0] ?? '?').'): '.($e->errorInfo[2] ?? $e->getPrevious()?->getMessage() ?? 'no message'));
         } finally {
-            RestoreConnections::close('fsa_restore_maintenance');
+            RestoreConnections::close('fieldset_restore_maintenance');
         }
         if ($this->option('json') === true) {
             return JsonResult::ok(self::NAME, $data, changed: $action !== 'list')->emit($this);
@@ -89,13 +89,13 @@ final class RestoreDatabaseCommand extends Command
     private function audit(DatabaseAdmin $admin, string $database, string $reference): array
     {
         try {
-            $restored = RestoreConnections::to($database, 'fsa_restore_audit');
-            $expected = RestoreConnections::to($reference, 'fsa_restore_reference');
+            $restored = RestoreConnections::to($database, 'fieldset_restore_audit');
+            $expected = RestoreConnections::to($reference, 'fieldset_restore_reference');
             $mismatches = app(AuditBaseline::class)->mismatches($admin, $database, $restored, $expected);
             $objects = count(SchemaAudit::objects($restored)) + count(SchemaAudit::expressions($restored));
         } finally {
-            RestoreConnections::close('fsa_restore_audit');
-            RestoreConnections::close('fsa_restore_reference');
+            RestoreConnections::close('fieldset_restore_audit');
+            RestoreConnections::close('fieldset_restore_reference');
         }
         if ($mismatches !== []) {
             throw new RestoreRefused('schema_mismatch', 'The restored database holds or lacks code this version defines differently: '.implode('; ', array_slice($mismatches, 0, 10)).'.', 'Nothing was swapped in. Restore only archives this app wrote.');

@@ -14,7 +14,7 @@ use App\Domain\Platform\Instance\BackupRole;
 use SensitiveParameter;
 
 /**
- * SQL against a Postgres container `fsa adopt` reaches without a password (plan U19, ADR 0087): `psql` in a one-off of the
+ * SQL against a Postgres container `fieldset adopt` reaches without a password (plan U19, ADR 0087): `psql` in a one-off of the
  * manifest's Postgres image that shares the container's network namespace (`--network container:<id>`) and connects to
  * 127.0.0.1, which the official image's pg_hba.conf trusts (initdb's default for local connections; the 1.0 install's
  * DB_PASSWORD is never read). The SQL goes in on stdin, never in argv. Used for the 1.0 database before its backup, for
@@ -35,7 +35,7 @@ final readonly class DatabaseProbe
     public const string AMCHECK = <<<'AMCHECK_SQL'
         BEGIN;
         CREATE EXTENSION IF NOT EXISTS amcheck;
-        DO $fsa$
+        DO $fieldset$
         DECLARE r record;
         BEGIN
           FOR r IN
@@ -47,13 +47,13 @@ final readonly class DatabaseProbe
           LOOP
             BEGIN
               PERFORM bt_index_check(r.oid, true);
-              RAISE NOTICE 'fsa-amcheck ok %', r.relname;
+              RAISE NOTICE 'fieldset-amcheck ok %', r.relname;
             EXCEPTION WHEN others THEN
-              RAISE NOTICE 'fsa-amcheck failed % %', r.relname, SQLERRM;
+              RAISE NOTICE 'fieldset-amcheck failed % %', r.relname, SQLERRM;
             END;
           END LOOP;
         END
-        $fsa$;
+        $fieldset$;
         ROLLBACK;
         AMCHECK_SQL;
 
@@ -82,8 +82,8 @@ final readonly class DatabaseProbe
         if (! $outcome->successful()) {
             throw new InstanceException('amcheck could not run on the copied database: '.$outcome->stderrTail(3), ExitCode::HealthCheckFailed, 'amcheck_failed', 'Read the output; the copy is not used.', true);
         }
-        preg_match_all('/fsa-amcheck ok (\S+)/', $outcome->stderr, $ok);
-        preg_match_all('/fsa-amcheck failed (\S+ [^\r\n]*)/', $outcome->stderr, $failed);
+        preg_match_all('/fieldset-amcheck ok (\S+)/', $outcome->stderr, $ok);
+        preg_match_all('/fieldset-amcheck failed (\S+ [^\r\n]*)/', $outcome->stderr, $failed);
 
         return ['checked' => [...$ok[1], ...array_map(static fn (string $line): string => explode(' ', $line, 2)[0], $failed[1])], 'failed' => $failed[1]];
     }

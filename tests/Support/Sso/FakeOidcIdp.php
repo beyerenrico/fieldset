@@ -34,7 +34,7 @@ use Tests\Feature\Workflows\FakeHostResolver;
  */
 final class FakeOidcIdp
 {
-    public const string CLIENT_ID = 'form-schema-app';
+    public const string CLIENT_ID = 'fieldset';
 
     public const string CLIENT_SECRET = 'fake-client-secret';
 

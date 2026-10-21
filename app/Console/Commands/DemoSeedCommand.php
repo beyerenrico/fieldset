@@ -24,17 +24,17 @@ use InvalidArgumentException;
 use RuntimeException;
 
 /**
- * The app side of `fsa install --demo` and `fsa demo` (R29, R30, KTD25, ADR 0081): runs DemoSeeder (which
+ * The app side of `fieldset install --demo` and `fieldset demo` (R29, R30, KTD25, ADR 0081): runs DemoSeeder (which
  * DatabaseSeeder skips in production) in a socket-less one-off. `--passwords=random` gives every demo user it creates a
  * random password, printed once under `secrets` as `demo_password:<email>`; `default` keeps the documented `password`,
  * which is public and therefore reported in `data.default_password`, never as a secret. The seeding is one
  * transaction, and jobs it queues wait for the commit, so a failure leaves no half demo behind. An existing demo
  * organization changes nothing (`already_seeded`) and reports how many demo accounts still have `password`.
  */
-#[Description('Add the demo organization, forms, workflow and users (fsa install --demo, fsa demo)')]
+#[Description('Add the demo organization, forms, workflow and users (fieldset install --demo, fieldset demo)')]
 #[Signature('app:demo-seed
         {--passwords=default : default (the documented password "password": loopback-only instances) or random (printed once)}
-        {--actor-uid= : Host UID of the operator running fsa (audit)}
+        {--actor-uid= : Host UID of the operator running fieldset (audit)}
         {--json : Print one JSON document on stdout}')]
 final class DemoSeedCommand extends Command
 {
@@ -109,7 +109,7 @@ final class DemoSeedCommand extends Command
         }
         $data = [...$this->summary($organization), 'seeded' => false, 'passwords' => null, 'default_password_users' => count($onDefault), 'deleted' => $organization->trashed()];
 
-        return JsonResult::ok(self::NAME, $data)->withWarning('already_seeded', $message, 'Rotate the demo passwords with `fsa demo --rotate-passwords`.')->emit($this);
+        return JsonResult::ok(self::NAME, $data)->withWarning('already_seeded', $message, 'Rotate the demo passwords with `fieldset demo --rotate-passwords`.')->emit($this);
     }
 
     /** @return array{organization: array{id: int, name: string, slug: string}, users: list<array{email: string, name: string, roles: list<string>}>, login_url: string} */

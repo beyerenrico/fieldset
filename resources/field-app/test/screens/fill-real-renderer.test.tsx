@@ -1,4 +1,4 @@
-/** Integration with the REAL renderer from packages/form-schema-react (no mock). */
+/** Integration with the REAL renderer from packages/fieldset-react (no mock). */
 import { screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../../src/lib/db/db.ts';

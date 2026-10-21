@@ -17,16 +17,16 @@ use Illuminate\Console\Command;
 use Throwable;
 
 /**
- * `fsa upgrade-child` (an image role, hidden from users; KTD19 step 6, R36, plan U18, ADR 0086): what the **target**
+ * `fieldset upgrade-child` (an image role, hidden from users; KTD19 step 6, R36, plan U18, ADR 0086): what the **target**
  * image does for an upgrade, in a container the installed supervisor starts without the Docker socket, on the instance
- * network, with the instance directory read-only and only its stage directory (FSA_UPGRADE_STAGE) writable: render the
+ * network, with the instance directory read-only and only its stage directory (FIELDSET_UPGRADE_STAGE) writable: render the
  * target's compose and env files into the stage (StageRenderer), then migrate with them (ChildMigration); for a manual
  * rollback the previous image only renders (`migrate: false` in the request). The outcome
  * goes to `result.json` in the stage, where the supervisor reads it after the container exited (a crash leaves none),
  * and to stdout.
  */
-#[Description('Render and migrate the target release of an upgrade (an fsa upgrade role; use fsa upgrade)')]
-#[Signature('fsa:upgrade-child
+#[Description('Render and migrate the target release of an upgrade (a fieldset upgrade role; use fieldset upgrade)')]
+#[Signature('fieldset:upgrade-child
         {--dir= : The instance directory (mounted read-only)}
         {--json : Print one JSON document on stdout}')]
 #[Hidden]

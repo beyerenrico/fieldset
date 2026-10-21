@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
 /**
- * The audit epoch of the database `fsa reset` created (plan U23, KTD26, R43, R68, ADR 0088): right after the migrations,
+ * The audit epoch of the database `fieldset reset` created (plan U23, KTD26, R43, R68, ADR 0088): right after the migrations,
  * before anything else writes to it, the epoch goes one above the ledger's seed with the heads of the chains the reset
  * replaced (the old database's final heads from `backups/ledger.log`), and `instance.reset` by the instance owner at the
  * command line becomes its first entry, naming both epochs, the old heads and the safety backup or audit export that
@@ -47,7 +47,7 @@ final readonly class ResetEpoch
                 return ['epoch' => ChainEpoch::current(), 'previous_epoch' => $previousEpoch, 'activity_id' => $began, 'began' => false, 'sequences' => $raised];
             }
             if (DB::table('audit_chain_epochs')->exists() || DB::table('activity_log')->exists()) {
-                throw new RestoreRefused('database_not_fresh', 'The database already holds audit entries or epochs; the reset begins the epoch only in the database it created.', 'Run `fsa reset` again: until the epoch began it recreates the database first.');
+                throw new RestoreRefused('database_not_fresh', 'The database already holds audit entries or epochs; the reset begins the epoch only in the database it created.', 'Run `fieldset reset` again: until the epoch began it recreates the database first.');
             }
             $epoch = ChainEpoch::begin('reset', $seed, $previousHeads);
             $activity = $this->audit->cli(self::EVENT, null, [

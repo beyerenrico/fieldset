@@ -20,12 +20,12 @@ use Tests\Support\Instance\AdoptFixture;
 use Tests\Support\Instance\RecordingDockerGateway;
 
 /*
- * The parts of `fsa adopt` (plan U19, ADR 0087) on their own: snapshots and their comparison, the mode and settings taken
+ * The parts of `fieldset adopt` (plan U19, ADR 0087) on their own: snapshots and their comparison, the mode and settings taken
  * from a 1.0 `.env`, reading a checkout, and starting 1.0 again.
  */
 
 beforeEach(function (): void {
-    $this->checkout = sys_get_temp_dir().'/fsa-test-parts-'.bin2hex(random_bytes(4));
+    $this->checkout = sys_get_temp_dir().'/fieldset-test-parts-'.bin2hex(random_bytes(4));
     mkdir($this->checkout, 0700, true);
     file_put_contents($this->checkout.'/compose.yaml', AdoptFixture::compose());
     file_put_contents($this->checkout.'/package.json', '{"version":"1.2.3"}');
@@ -68,6 +68,14 @@ it('infers proxy mode only for a URL on another host than the loopback', functio
     'public https' => ['https://forms.example.com', true],
     'LAN http' => ['http://10.0.0.5:8080', true],
 ]);
+
+it('falls back to the 1.0 template names, not the Fieldset defaults: project form-schema-app, database and user form_schema', function (): void {
+    $checkout = adoptCheckout($this->checkout, AdoptFixture::env(['DB_DATABASE' => null, 'DB_USERNAME' => null]));
+
+    expect($checkout->project)->toBe('form-schema-app')->and(LegacyCheckout::DEFAULT_PROJECT)->toBe('form-schema-app')
+        ->and($checkout->database())->toBe('form_schema')->and($checkout->username())->toBe('form_schema')
+        ->and(LegacyCheckout::DEFAULT_DATABASE)->toBe('form_schema');
+});
 
 it('reads a checkout: the project name, keys, port and settings, and only the allow-listed values', function (): void {
     $checkout = adoptCheckout($this->checkout, AdoptFixture::env(['COMPOSE_PROJECT_NAME' => 'forms-prod', 'APP_PORT' => 'eighty', 'APP_PREVIOUS_KEYS' => 'base64:'.base64_encode(str_repeat('p', 32)).',not-a-key',

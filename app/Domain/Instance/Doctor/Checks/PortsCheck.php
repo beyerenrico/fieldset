@@ -17,12 +17,12 @@ use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
 
 /**
- * Loopback ports (R10, R15, AE4). For `fsa install` it selects them: the app gets 8080 or the next free port
+ * Loopback ports (R10, R15, AE4). For `fieldset install` it selects them: the app gets 8080 or the next free port
  * (an explicit --port must be free), the mail catcher UI 8025 or the next free one; the choice lands in the
  * install journal and the state, so a resumed or repeated install keeps its own ports without probing again. An
  * install on a shared proxy network publishes no app port, so only the catcher UI's is chosen; an install with
  * --smtp-host runs no catcher, so no catcher UI port is chosen (ADR 0080 amendment).
- * For `fsa doctor` it checks the instance's ports: a port published by the instance's own running container
+ * For `fieldset doctor` it checks the instance's ports: a port published by the instance's own running container
  * (app, mailpit) is served by it and not probed.
  *
  * Local-CA mode (ADR 0082) adds 80 and 443 on the LAN address (LocalCaPorts).
@@ -68,7 +68,7 @@ final readonly class PortsCheck implements DoctorCheck
         $taken = [];
         $requested = $context->requestedPort;
         if ($requested !== null && ! $this->probe->isFree($requested, $image, $context->uuid)) {
-            return CheckResult::fail($this->key(), "Port {$requested} is in use on 127.0.0.1.", 'Free the port, or pass another --port (without --port fsa picks 8080 or the next free port).', ['ports' => [], 'taken' => [$requested]]);
+            return CheckResult::fail($this->key(), "Port {$requested} is in use on 127.0.0.1.", 'Free the port, or pass another --port (without --port fieldset picks 8080 or the next free port).', ['ports' => [], 'taken' => [$requested]]);
         }
         $port = $requested ?? $this->firstFree(InstanceSettings::DEFAULT_PORT, [], $image, $context->uuid, $taken);
         $mail = $port === null || ! $context->catcher ? null : $this->firstFree(InstanceSettings::DEFAULT_MAIL_UI_PORT, [$port], $image, $context->uuid, $taken);
@@ -126,7 +126,7 @@ final readonly class PortsCheck implements DoctorCheck
         $taken = array_values(array_filter($probed, fn (int $port): bool => ! $this->probe->isFree($port, $image, $context->uuid)));
         $details = ['ports' => $ports, 'taken' => $taken];
         if ($taken !== [] && ! $context->installed()) {
-            return CheckResult::warn($this->key(), 'Port(s) '.implode(', ', $taken).' in use on 127.0.0.1.', 'fsa install picks the next free port and reports it.', $details);
+            return CheckResult::warn($this->key(), 'Port(s) '.implode(', ', $taken).' in use on 127.0.0.1.', 'fieldset install picks the next free port and reports it.', $details);
         }
         if ($taken !== []) {
             return CheckResult::fail($this->key(), 'Port(s) '.implode(', ', $taken).' of this instance are in use by another program.', 'Stop the other program, then start the instance again.', $details);

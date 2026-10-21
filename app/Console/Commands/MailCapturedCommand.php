@@ -11,10 +11,10 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 /**
- * What capture mode kept from people, for the result of `fsa config set mail smtp` (ADR 0080): a socket-less one-off
+ * What capture mode kept from people, for the result of `fieldset config set mail smtp` (ADR 0080): a socket-less one-off
  * counts the invitations still waiting and the password resets still valid. Read-only.
  */
-#[Description('Count invitations and password resets that capture mode kept in the catcher (fsa config set mail)')]
+#[Description('Count invitations and password resets that capture mode kept in the catcher (fieldset config set mail)')]
 #[Signature('instance:mail-captured
         {--json : Print one JSON document on stdout}')]
 final class MailCapturedCommand extends Command

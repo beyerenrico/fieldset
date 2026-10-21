@@ -19,7 +19,7 @@ use Tests\Support\Instance\ResetFixture;
 use Tests\Support\Instance\TemporaryInstance;
 
 /*
- * `fsa reset` on the ops side (R43, R57, R68, KTD26, plan U23, ADR 0088), against the recording Docker gateway: the plan
+ * `fieldset reset` on the ops side (R43, R57, R68, KTD26, plan U23, ADR 0088), against the recording Docker gateway: the plan
  * one-off, quiesce, the ledger with the final heads before the database goes, the safety backup or the audit export, the
  * recreated database, migrations, the epoch from the ledger with `instance.reset`, a fresh storage volume, the Valkey and
  * catcher flush, install's seed phase, the verification behind the gate and `--demo` under the reachability rule. Ways
@@ -82,8 +82,8 @@ it('resets with --yes: quiesce, the ledger before the drop, safety backup, recre
         ->and(array_column($this->reset->instance->docker->called('removeVolume'), 'name'))->toBe([$fresh, $state->project().'_app-storage'])
         ->and(collect($this->reset->instance->docker->called('composeRun'))->contains(fn (array $call): bool => ($call['command'][0] ?? null) === 'valkey-cli'))->toBeTrue()
         ->and($flush)->toHaveCount(1)
-        ->and(implode(' ', $flush[0]->command))->toContain('http://mailpit:8025/api/v1/messages')->not->toContain('fsa:')
-        ->and($flushCall[0]['input'])->toStartWith('user = "fsa:')
+        ->and(implode(' ', $flush[0]->command))->toContain('http://mailpit:8025/api/v1/messages')->not->toContain('fieldset:')
+        ->and($flushCall[0]['input'])->toStartWith('user = "fieldset:')
         ->and($install[0]['command'])->toContain('--organization=Acme Forms', '--email=owner@example.com', '--name=Olivia Owner', '--locale=en', '--owner-link')
         ->and(resetRuntime($this->dir)['gate']['raised'])->toBeFalse()
         ->and(new OperationJournal($this->reset->instance->directory)->current())->toBeNull()
@@ -91,7 +91,7 @@ it('resets with --yes: quiesce, the ledger before the drop, safety backup, recre
             'epoch' => 2, 'previous_epoch' => 1, 'storage_volume' => $fresh, 'flushed' => ['valkey' => true, 'catcher' => true], 'left_behind' => [],
             'removed' => ['volume '.$state->project().'_app-storage']])
         ->and($json['data']['sign_in_link']['delivered'])->toBe('secrets')
-        ->and($json['data']['next_commands'])->toBe(["{$this->dir}/fsa status", "{$this->dir}/fsa login-link owner@example.com", "{$this->dir}/fsa doctor --post"]) // the instance's own fsa (gate review)
+        ->and($json['data']['next_commands'])->toBe(["{$this->dir}/fieldset status", "{$this->dir}/fieldset login-link owner@example.com", "{$this->dir}/fieldset doctor --post"]) // the instance's own fieldset (gate review)
         ->and(array_column($json['secrets'], 'name'))->toBe(['sign_in_link'])
         ->and($json['warnings'])->toBe([])
         ->and($after->history()[array_key_last($after->history())])->toMatchArray(['event' => 'reset', 'journal' => $journal->id(), 'epoch' => 2, 'previous_epoch' => 1, 'safety_backup' => ResetFixture::SAFETY, 'demo' => false]);
@@ -240,13 +240,13 @@ it('keeps the documented password with --demo on a loopback-only instance, and r
 
 it('forgets the demo of before the reset: install --demo then counts as a change', function (): void {
     $this->reset->instance->oneOffs['app:demo-seed'] = DemoFixtures::seeded('default');
-    $this->reset->instance->run('fsa:demo');
+    $this->reset->instance->run('fieldset:demo');
 
     $this->reset->reset();
-    [$code, $json] = $this->reset->instance->run('fsa:install', InstanceCommandFixture::installFlags(['--owner-email' => 'owner@example.com', '--demo' => true]));
+    [$code, $json] = $this->reset->instance->run('fieldset:install', InstanceCommandFixture::installFlags(['--owner-email' => 'owner@example.com', '--demo' => true]));
 
     expect($code)->toBe(2)->and($json['errors'][0]['code'])->toBe('use_config_set')
-        ->and($json['errors'][0]['hint'])->toContain('fsa demo');
+        ->and($json['errors'][0]['hint'])->toContain('fieldset demo');
 });
 
 it('refuses when no active operator can own the fresh instance: exit 3 before anything stops', function (): void {
@@ -256,7 +256,7 @@ it('refuses when no active operator can own the fresh instance: exit 3 before an
     [$code, $json] = $this->reset->reset();
 
     expect($code)->toBe(3)->and($json['errors'][0]['code'])->toBe('owner_unknown')
-        ->and($json['errors'][0]['hint'])->toContain('fsa config set operator-email')
+        ->and($json['errors'][0]['hint'])->toContain('fieldset config set operator-email')
         ->and($this->reset->config->methodsSince($mark))->not->toContain('composeStop')
         ->and(new OperationJournal($this->reset->instance->directory)->current())->toBeNull();
 });
@@ -316,10 +316,10 @@ it('finds nothing to empty without a catcher (SMTP mode, catcher removed)', func
         ->and(array_filter($this->reset->instance->runSpecs('curl'), static fn ($spec): bool => in_array('DELETE', $spec->command, true)))->toBe([]);
 });
 
-it('reports the last reset in fsa status', function (): void {
+it('reports the last reset in fieldset status', function (): void {
     $this->reset->reset();
 
-    [, $status] = $this->reset->instance->run('fsa:status');
+    [, $status] = $this->reset->instance->run('fieldset:status');
 
     expect($status['data']['last_reset'])->toMatchArray(['epoch' => 2, 'safety_backup' => ResetFixture::SAFETY, 'audit_export' => null, 'demo' => false])
         ->and($status['data']['reset']['interrupted'])->toBeNull();
@@ -328,7 +328,7 @@ it('reports the last reset in fsa status', function (): void {
 it('refuses an instance that is not installed', function (): void {
     $fresh = new InstanceCommandFixture;
 
-    [$code, $json] = $fresh->run('fsa:reset', ['--yes' => true]);
+    [$code, $json] = $fresh->run('fieldset:reset', ['--yes' => true]);
 
     expect($code)->toBe(2)->and($json['errors'][0]['code'])->toBe('not_installed');
 });

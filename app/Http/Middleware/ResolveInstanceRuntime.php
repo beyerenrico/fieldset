@@ -19,7 +19,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 /**
  * Applies the instance runtime state to each request (R56, R62, R65; KTD11, KTD12; ADR 0074). Global middleware,
  * after TrustHosts (whose patterns already include the runtime hosts) and TrustProxies, before SecureCookies and
- * every route middleware. A no-op without FSA_RUNTIME_PATH.
+ * every route middleware. A no-op without FIELDSET_RUNTIME_PATH.
  *
  * 1. A request from cloudflared's address gets its host pinned to the tunnel hostname (TunnelPathPolicy).
  * 2. Reading the host: an unknown host gets its 400 here (TrustedHosts), as before. The URL root and the HTTPS

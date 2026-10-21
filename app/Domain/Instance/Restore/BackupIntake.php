@@ -12,7 +12,7 @@ use App\Domain\Instance\State\InstanceDirectory;
 use Throwable;
 
 /**
- * The common start of `fsa restore`, the drill and `fsa install --from-backup` (plan U17, ADR 0085): resolve the backup,
+ * The common start of `fieldset restore`, the drill and `fieldset install --from-backup` (plan U17, ADR 0085): resolve the backup,
  * prepare it in the socket-less one-off with every APP key from outside the archive, and judge it (RestoreChecks). The
  * keys it may still need are the key file's keys that the backup lists and the instance does not have yet: they become
  * APP_PREVIOUS_KEYS, so data encrypted under them still decrypts after the restore.
@@ -53,7 +53,7 @@ final readonly class BackupIntake
         return ['backup' => $backup, 'warnings' => $warnings, 'add' => $add];
     }
 
-    /** The APP keys inside the set: `secrets.env` of an fsa backup with secrets, the `env` of a 1.0 backup. */
+    /** The APP keys inside the set: `secrets.env` of a fieldset backup with secrets, the `env` of a 1.0 backup. */
     public static function insideKeys(PreparedBackup $backup): AppKeys
     {
         $file = match (true) {

@@ -3,7 +3,38 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/) (0.x: the API and data model may still change).
-The Form Schema Spec has its own changelog in `spec/form-definition/1.0/CHANGELOG.md`.
+The Fieldset Spec has its own changelog in `spec/form-definition/1.0/CHANGELOG.md`.
+
+## 2.1.0 — 2026-10-21 (tagged locally, not published)
+
+The product is renamed from form-schema-app to **Fieldset** before its first public release. Nothing else changes in
+behaviour. **Breaking for every pre-release user, with no compatibility path:** old names are removed, not aliased
+(ADR 0092).
+
+### Changed
+- **Name** — product, repository `beyerenrico/fieldset`, image `ghcr.io/beyerenrico/fieldset`, signer identity
+  (`https://github.com/beyerenrico/fieldset/.github/workflows/release.yml@refs/tags/v…`), release notes URL.
+- **CLI** — `fieldset` replaces `fsa`: the shim, the artisan namespace `fieldset:*`, the installer link and default
+  directories (`/opt/fieldset`, `~/fieldset`), environment variables `FIELDSET_*` (were `FSA_*`).
+- **Instance resources** — Compose projects `fieldset-<slug>-<hex>`, labels `app.fieldset.*`, marker file
+  `.fieldset-instance`, database and role names `fieldset*`; backup, audit-export and security-export formats and the
+  backup key derivation use the new name. A backup written by 2.0 pre-releases is rejected as an unknown format.
+- **Format and libraries** — "Fieldset Spec 1.0" (still version 1.0, no semantic change) with the `$id`
+  `https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json` and the template registry
+  `urn:fieldset:bundled-templates`; PHP package `fieldset/fieldset-php` (namespace `Fieldset\`), npm workspaces
+  `@fieldset/fieldset-js`, `@fieldset/fieldset-react`, `@fieldset/field-app`, `@fieldset/builder-v2`.
+- **SSO domain verification** — the TXT record is `_fieldset-verification.<domain>` with
+  `fieldset-verification=<token>`; domains verified with the old record must be verified again.
+- **Field App** — browser storage, sync and preview message names use the new prefix: unsynced data on a phone that ran
+  1.0 must be synced before switching.
+- **Upgrades** — `release.json` upgrades from `2.1.0-alpha.1`; 2.0 pre-release instances are not upgraded. A 1.0
+  checkout is still adopted with `fieldset adopt` (its 1.0 project and database defaults are kept).
+
+### Security
+- **CVE-2026-111943** (Go `crypto/x509`, high) — the app image builds Compose and age with Go 1.27.3, uses a FrankenPHP
+  base built with Go 1.27.3 and the Docker CLI 29.9.2 (Go 1.26.10); cloudflared moves to 2026.10.2 (Go 1.27.3). The
+  postgres (gosu), Gotenberg, Mailpit and Caddy images have no release with the fixed Go yet: dated scan exceptions
+  until 2026-11-20 (ADR 0093).
 
 ## 2.0.0 — 2026-10-21 (tagged locally, not published)
 

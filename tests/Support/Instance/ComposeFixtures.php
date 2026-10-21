@@ -35,14 +35,14 @@ final class ComposeFixtures
     {
         $digests = [];
         foreach (ImageRole::cases() as $index => $role) {
-            $digests[$role->value] = 'registry.test:5000/fsa/'.$role->value.'@sha256:'.str_repeat(dechex($index + 1), 64);
+            $digests[$role->value] = 'registry.test:5000/fieldset/'.$role->value.'@sha256:'.str_repeat(dechex($index + 1), 64);
         }
 
         return $digests;
     }
 
     /** @param  array<string, string|int|bool|null>  $settings */
-    public static function state(array $settings = [], string $path = '/srv/fsa'): InstanceState
+    public static function state(array $settings = [], string $path = '/srv/fieldset'): InstanceState
     {
         $state = InstanceState::create(self::UUID, $path, 1000, 1000, 1000)->withRelease('2.0.0', self::digests());
 
@@ -72,7 +72,7 @@ final class ComposeFixtures
     }
 
     /** @param  array<string, string|int|bool|null>  $settings */
-    public static function render(array $settings = [], string $path = '/srv/fsa'): RenderedProject
+    public static function render(array $settings = [], string $path = '/srv/fieldset'): RenderedProject
     {
         return (new ComposeRenderer)->render(self::state($settings, $path), self::secrets());
     }

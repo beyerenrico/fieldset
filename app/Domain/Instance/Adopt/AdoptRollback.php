@@ -18,7 +18,7 @@ use Throwable;
  * The way back of an adopt that failed before 2.0 started (plan U19, ADR 0087): every container, network and volume
  * labelled with the new instance's UUID goes first (2.0 never served, so nothing of it is lost, and none of its
  * containers can hold a port 1.0 needs), then 1.0 starts again exactly as it ran (LegacyStack::restart; its volumes were
- * only read) and fsa checks that its containers run, then the files adopt generated go (state, compose file, env and
+ * only read) and fieldset checks that its containers run, then the files adopt generated go (state, compose file, env and
  * runtime files) and a `.partial` backup a killed run left, so a later adopt starts fresh. The 1.0-format backup, the
  * journal archive and the release stay. A failure to start 1.0 again is exit 8 with the command that brings it back by
  * hand; leftovers and 1.0 containers that do not run are named.
@@ -44,7 +44,7 @@ final readonly class AdoptRollback
             throw new InstanceException(
                 '1.0 could not be started again: '.$e->getMessage(),
                 ExitCode::RollbackFailed, 'rollback_failed',
-                "Start it by hand: cd {$legacy->checkout} && docker compose up -d (its volumes were not changed). Then run `fsa adopt --abandon` here to finish.",
+                "Start it by hand: cd {$legacy->checkout} && docker compose up -d (its volumes were not changed). Then run `fieldset adopt --abandon` here to finish.",
                 true, ['checkout' => $legacy->checkout, 'project' => $legacy->project, 'removed' => $removed, 'left' => $left], $e, true,
             );
         }

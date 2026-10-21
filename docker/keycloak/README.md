@@ -11,7 +11,7 @@ COMPOSE_PROFILES=sso docker compose up -d --force-recreate keycloak   # after ed
 php artisan db:seed --class=SsoDemoSeeder                   # the matching organizations (idempotent)
 ```
 
-- Issuer: `http://keycloak.localhost:8180/realms/form-schema` (`KC_HOSTNAME`). Browsers resolve
+- Issuer: `http://keycloak.localhost:8180/realms/fieldset` (`KC_HOSTNAME`). Browsers resolve
   `*.localhost` to loopback by themselves; the app containers reach it through `extra_hosts:
   keycloak.localhost:host-gateway`. With `KC_HOSTNAME_BACKCHANNEL_DYNAMIC`, token and JWKS URLs follow the
   host that asked (`http://localhost:8180/...` from the host). The issuer never changes.
@@ -21,16 +21,16 @@ php artisan db:seed --class=SsoDemoSeeder                   # the matching organ
   refuses plain http from outside the container (`sslRequired: external` on the master realm); use
   `docker compose exec keycloak /opt/keycloak/bin/kcadm.sh` instead.
 
-## Realm `form-schema` (`sslRequired: none`)
+## Realm `fieldset` (`sslRequired: none`)
 
 | Client | Settings |
 |---|---|
-| `form-schema-app` (OIDC, confidential) | secret `form-schema-dev-oidc-secret`; standard flow only; PKCE S256 required; redirect URI `http://localhost:8080/auth/sso/0b9f2d6e-5c1a-4e8b-9f3d-7a2c4e6b8d10/callback`; mapper `groups` (group names, no full path) in the ID token, access token and userinfo |
+| `fieldset` (OIDC, confidential) | secret `fieldset-dev-oidc-secret`; standard flow only; PKCE S256 required; redirect URI `http://localhost:8080/auth/sso/0b9f2d6e-5c1a-4e8b-9f3d-7a2c4e6b8d10/callback`; mapper `groups` (group names, no full path) in the ID token, access token and userinfo |
 | `http://localhost:8080/auth/sso/3c7e9a1b-6d2f-4b8a-8e5c-1f4a7d9b2e60/saml/metadata` (SAML) | ACS (POST) `…/saml/acs`; response and assertion signed (RSA-SHA256); NameID format email (forced); attributes `email`, `firstName`, `lastName`, `groups`; AuthnRequests need no signature |
 
 The provider uuids, the client id and the secret are the ones `database/seeders/SsoDemoSeeder.php` writes;
 `tests/Feature/Sso/SeedSsoDemoTest.php` checks that both files agree. SAML metadata:
-`http://keycloak.localhost:8180/realms/form-schema/protocol/saml/descriptor`.
+`http://keycloak.localhost:8180/realms/fieldset/protocol/saml/descriptor`.
 
 Users (password `password`, email verified, no required actions):
 

@@ -8,11 +8,11 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /*
- * The result of every backup run of an fsa instance (R39, plan U16, ADR 0084): scheduled runs of the backup service,
- * manual `fsa backup` and the safety backups of upgrade, restore, reset and rollback. The backup service writes it
- * through the role `fsa_backup`, which may only read (pg_read_all_data) and insert here (`instance:backup-role`), so
+ * The result of every backup run of a fieldset instance (R39, plan U16, ADR 0084): scheduled runs of the backup service,
+ * manual `fieldset backup` and the safety backups of upgrade, restore, reset and rollback. The backup service writes it
+ * through the role `fieldset_backup`, which may only read (pg_read_all_data) and insert here (`instance:backup-role`), so
  * the id comes from the database, not from a sequence the role would need rights on. `/platform` and the operator
- * alerts read it (App\Domain\Platform\Instance\BackupRuns); `fsa status` reads the same runs from the ledger in
+ * alerts read it (App\Domain\Platform\Instance\BackupRuns); `fieldset status` reads the same runs from the ledger in
  * `backups/runs.log`, which also holds runs the database could not take (a failed run while Postgres is down).
  */
 return new class extends Migration

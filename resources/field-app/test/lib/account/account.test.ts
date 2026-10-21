@@ -47,7 +47,7 @@ beforeEach(async () => {
     setCurrentUserId(7);
     writeJson('favorites.1', [3]);
     writeJson('settings', { largeText: true });
-    sessionStorage.setItem('fsa.idem.x', '"k"');
+    sessionStorage.setItem('fieldset.idem.x', '"k"');
 });
 
 afterEach(() => {
@@ -63,7 +63,7 @@ async function expectEverythingGone(): Promise<void> {
     expect(getCurrentUserId()).toBeNull();
     expect(getOrganizationId()).toBeNull();
     expect(readJson('favorites.1', null)).toBeNull();
-    expect(sessionStorage.getItem('fsa.idem.x')).toBeNull();
+    expect(sessionStorage.getItem('fieldset.idem.x')).toBeNull();
     expect(readJson('settings', null)).toEqual({ largeText: true });
     expect(browser.deleted).toEqual(['workbox-precache', 'runtime']);
     expect(browser.unregister).toHaveBeenCalledTimes(1);

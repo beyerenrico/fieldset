@@ -11,7 +11,7 @@ use App\Domain\Instance\Doctor\DoctorContext;
 
 /**
  * Registry reachability (R10) for the images the instance still has to pull. Images already on the host need no
- * registry; a loopback mirror (the release harness, FSA_REGISTRY=127.0.0.1:…) is reached by the engine, not by
+ * registry; a loopback mirror (the release harness, FIELDSET_REGISTRY=127.0.0.1:…) is reached by the engine, not by
  * this container, so the pull is its check. An unreachable registry warns: the pull phase decides. The first
  * answer's `Date` header is the clock check's reference.
  */
@@ -47,7 +47,7 @@ final readonly class RegistryCheck implements DoctorCheck
         }
         $details = ['missing' => $missing, 'reachable' => $reached, 'unreachable' => $unreachable];
         if ($unreachable !== []) {
-            return CheckResult::warn($this->key(), 'Cannot reach '.implode(', ', $unreachable).'.', 'Check the network, a proxy or FSA_REGISTRY; pulling the images will fail without it.', $details);
+            return CheckResult::warn($this->key(), 'Cannot reach '.implode(', ', $unreachable).'.', 'Check the network, a proxy or FIELDSET_REGISTRY; pulling the images will fail without it.', $details);
         }
 
         return CheckResult::ok($this->key(), 'Registries reachable: '.implode(', ', $reached).'.', $details);

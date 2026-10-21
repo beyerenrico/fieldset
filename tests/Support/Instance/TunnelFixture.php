@@ -14,7 +14,7 @@ use App\Domain\Instance\State\RuntimeWriter;
 use App\Domain\Instance\Tunnel\QuickTunnelHostname;
 
 /**
- * An installed local instance (ConfigFixture) for the `fsa tunnel` and local-CA tests (plan U14, ADR 0082), with
+ * An installed local instance (ConfigFixture) for the `fieldset tunnel` and local-CA tests (plan U14, ADR 0082), with
  * scripted answers for what those commands ask:
  *
  * - cloudflared's `/quicktunnel` (`$hostname`, or an empty name while `$hostname` is null);
@@ -89,7 +89,7 @@ final class TunnelFixture
      */
     public function tunnel(string $action, array $options = []): array
     {
-        return $this->instance->run('fsa:tunnel', ['action' => $action, ...$options]);
+        return $this->instance->run('fieldset:tunnel', ['action' => $action, ...$options]);
     }
 
     /** @return array{hostname: string|null, expires_at: string|null, peer: string|null, admin: bool} */

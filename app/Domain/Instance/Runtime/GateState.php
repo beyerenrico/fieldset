@@ -9,7 +9,7 @@ use Carbon\CarbonImmutable;
 /**
  * The operation gate (R62, KTD19): while it is raised, external requests get 503 and only a request carrying the
  * operation's smoke token from the internal network passes (OperationGate). The token is random per operation and
- * lives only in runtime.json, which `fsa` writes with raiseGate() and clears with lowerGate().
+ * lives only in runtime.json, which `fieldset` writes with raiseGate() and clears with lowerGate().
  */
 final readonly class GateState
 {

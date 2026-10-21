@@ -1,0 +1,76 @@
+{
+    "command": "install.sh --dir <work>/fieldset-test-j04-smtp … --smtp-host fieldset-test-j04-relay-… --smtp-port 1025 --smtp-encryption none --smtp-username fieldset-test-relay-user --password-file <work>/smtp-password --from-address forms@example.test --json",
+    "exit_code": 0,
+    "seconds": 51.9,
+    "stdout": {
+        "schema_version": 1,
+        "command": "install",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": true,
+        "data": {
+            "url": "http://localhost:8081",
+            "version": "2.1.0-alpha.1-test",
+            "mode": "local",
+            "dir": "<work>/fieldset-test-j04-smtp",
+            "project": "fieldset-fieldset-test-j04-smtp-9bb2",
+            "port": 8081,
+            "mail": {
+                "mode": "smtp",
+                "catcher_url": null
+            },
+            "owner_email": "owner@example.test",
+            "next_commands": [
+                "<work>/fieldset-test-j04-smtp/fieldset status",
+                "<work>/fieldset-test-j04-smtp/fieldset login-link owner@example.test",
+                "<work>/fieldset-test-j04-smtp/fieldset doctor --post"
+            ],
+            "sign_in_link": {
+                "expires_at": "2026-10-21T12:57:20Z",
+                "delivered": "secrets_file"
+            }
+        },
+        "secrets": [
+            {
+                "name": "sign_in_link",
+                "written_to": "<work>/smtp-owner-link.json",
+                "expires_at": "2026-10-21T12:57:20Z"
+            }
+        ],
+        "warnings": [
+            {
+                "code": "smtp_plaintext_auth",
+                "message": "The SMTP password goes to fieldset-test-j04-relay-3036 unencrypted (--smtp-encryption none).",
+                "hint": "Use --smtp-encryption starttls or tls unless the relay runs on this host or your own trusted network."
+            }
+        ],
+        "errors": []
+    },
+    "relay_connected": 0,
+    "test_mail_at_stand_in": {
+        "subject": "Fieldset: test mail",
+        "to": [
+            {
+                "Name": "",
+                "Address": "owner@example.test"
+            }
+        ]
+    },
+    "config_show_mail": {
+        "mode": "smtp",
+        "catcher": "removed",
+        "catcher_url": null,
+        "smtp": {
+            "host": "fieldset-test-j04-relay-3036",
+            "port": 1025,
+            "scheme": "smtp",
+            "encryption": "none"
+        },
+        "from_address": "forms@example.test",
+        "from_name": "Fieldset"
+    },
+    "status_mail": {
+        "mode": "smtp",
+        "catcher_url": null
+    }
+}

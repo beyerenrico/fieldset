@@ -123,7 +123,7 @@ describe('install prompt', () => {
         ).toBeInTheDocument();
         await user.click(screen.getByRole('button', { name: 'Not now' }));
         expect(screen.queryByRole('status')).not.toBeInTheDocument();
-        expect(localStorage.getItem(`fsa.${INSTALL_DISMISSED_KEY}`)).toBe('true');
+        expect(localStorage.getItem(`fieldset.${INSTALL_DISMISSED_KEY}`)).toBe('true');
         unmount();
         renderWithI18n(<InstallPrompt platform={IPHONE} />);
         expect(screen.queryByRole('status')).not.toBeInTheDocument();
@@ -137,7 +137,7 @@ describe('install prompt', () => {
             attachmentRow({ uuid: 'a2', state: 'failed' }),
             attachmentRow({ uuid: 'other', userId: 99 }),
         ]);
-        localStorage.setItem(`fsa.${INSTALL_DISMISSED_KEY}`, 'true');
+        localStorage.setItem(`fieldset.${INSTALL_DISMISSED_KEY}`, 'true');
         const { unmount } = renderWithI18n(<InstallPrompt platform={IPHONE} />);
         // Two attachments of one submission: one submission is not synced.
         const warning = await screen.findByText(/Submissions not synced yet: 1\./);
@@ -152,7 +152,7 @@ describe('install prompt', () => {
         expect(screen.queryByRole('status')).not.toBeInTheDocument();
         second.unmount();
 
-        const hiddenAt = Number(localStorage.getItem(`fsa.${IOS_WARNING_HIDDEN_KEY}`));
+        const hiddenAt = Number(localStorage.getItem(`fieldset.${IOS_WARNING_HIDDEN_KEY}`));
         expect(isIosWarningHidden(hiddenAt + IOS_WARNING_SNOOZE_MS - 1)).toBe(true);
         expect(isIosWarningHidden(hiddenAt + IOS_WARNING_SNOOZE_MS)).toBe(false);
         vi.spyOn(Date, 'now').mockReturnValue(hiddenAt + IOS_WARNING_SNOOZE_MS);

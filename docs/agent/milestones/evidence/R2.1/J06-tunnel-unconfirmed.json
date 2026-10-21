@@ -1,0 +1,24 @@
+{
+    "command": "fieldset tunnel start --json",
+    "exit_code": 6,
+    "stdout": {
+        "schema_version": 1,
+        "command": "tunnel",
+        "status": "aborted",
+        "exit_code": 6,
+        "changed": false,
+        "data": {
+            "question": "This instance holds 1 organization(s) besides the demo. The quick tunnel makes their sign-in, the Field App and the API reachable from the internet through Cloudflare for 4 hours. Start it?"
+        },
+        "secrets": [],
+        "warnings": [],
+        "errors": [
+            {
+                "code": "confirmation_required",
+                "message": "Confirmation required: This instance holds 1 organization(s) besides the demo. The quick tunnel makes their sign-in, the Field App and the API reachable from the internet through Cloudflare for 4 hours. Start it?",
+                "hint": "Re-run with --yes to confirm.",
+                "retryable": false
+            }
+        ]
+    }
+}

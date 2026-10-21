@@ -15,7 +15,7 @@ use App\Domain\Instance\State\InvalidState;
 final readonly class LocalCaSite
 {
     /** The CA's name: Caddy puts it into the root's and the intermediate's common names. */
-    public const string CA_NAME = 'form-schema-app local CA';
+    public const string CA_NAME = 'Fieldset local CA';
 
     public function __construct(public string $address) {}
 

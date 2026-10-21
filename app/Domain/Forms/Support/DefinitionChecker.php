@@ -6,8 +6,8 @@ namespace App\Domain\Forms\Support;
 
 use App\Domain\Forms\Models\Form;
 use App\Domain\Forms\Models\FormVersion;
-use FormSchema\Lint\Linter;
-use FormSchema\Validation\MetaSchemaValidator;
+use Fieldset\Lint\Linter;
+use Fieldset\Validation\MetaSchemaValidator;
 
 /** Runs the meta-schema check and the linter, with the form's published history (spec §7.5, §6). */
 final readonly class DefinitionChecker

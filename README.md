@@ -1,4 +1,4 @@
-# form-schema-app
+# Fieldset
 
 Free, open-source, self-hostable digital forms for small and medium-sized businesses.
 Office staff design structured forms in an admin dashboard; field workers fill them on a phone or
@@ -7,12 +7,12 @@ tablet (also offline) to produce reports, invoices, checklists and other documen
 - **Admin dashboard** — Laravel 13 + Filament 5 at `/admin`: form builders, designs, workflows,
   submissions inbox, review tasks, reports and dashboards, team, SSO, audit log and privacy tools
 - **Field App** — React PWA at `/app`: fill (also offline), sign, photograph, submit, review, send the PDF
-- **Form Schema Spec** — open, versioned JSON format for form definitions (`spec/`, MIT) with PHP and
+- **Fieldset Spec** — open, versioned JSON format for form definitions (`spec/`, MIT) with PHP and
   JavaScript SDKs (`packages/`, MIT)
 
 > Status: **2.0** — distributed as signed Docker images and installed, configured, backed up and upgraded with
-> one command-line tool, `fsa`. See [CHANGELOG.md](CHANGELOG.md) and the [guides](docs/guide/index.md). 1.0 installs
-> from a clone of the repository move to 2.0 with `fsa adopt`.
+> one command-line tool, `fieldset`. See [CHANGELOG.md](CHANGELOG.md) and the [guides](docs/guide/index.md). 1.0 installs
+> from a clone of the repository move to 2.0 with `fieldset adopt`.
 
 ## What you can do
 
@@ -54,7 +54,7 @@ tablet (also offline) to produce reports, invoices, checklists and other documen
 On a server or your own computer with Docker:
 
 ```bash
-curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/form-schema-app/releases/latest/download/install.sh | sh -s -- --org "Example Ltd" --owner-email owner@example.com
+curl --proto '=https' --tlsv1.2 -fsSL https://github.com/beyerenrico/fieldset/releases/latest/download/install.sh | sh -s -- --org "Example Ltd" --owner-email owner@example.com
 ```
 
 This verifies the release signature, installs a local instance and prints its URL and a one-time sign-in link for the
@@ -63,11 +63,11 @@ for sample data. The [install guide](docs/guide/install.md) covers every mode; A
 [agent guide](docs/guide/agent-guide.md). Afterwards:
 
 ```bash
-./fsa status                       # in the instance directory (or <dir>/fsa, or fsa once linked into PATH)
-./fsa login-link owner@example.com # a new sign-in link
-./fsa config set mail smtp …       # deliver mail instead of capturing it
-./fsa backup                       # a backup now (daily backups run by themselves)
-./fsa upgrade                      # to the newest release, with automatic rollback
+./fieldset status                       # in the instance directory (or <dir>/fieldset, or fieldset once linked into PATH)
+./fieldset login-link owner@example.com # a new sign-in link
+./fieldset config set mail smtp …       # deliver mail instead of capturing it
+./fieldset backup                       # a backup now (daily backups run by themselves)
+./fieldset upgrade                      # to the newest release, with automatic rollback
 ```
 
 ## Development
@@ -130,7 +130,7 @@ models are unserialized. See `docs/adr/` for every decision.
 ## Licenses
 
 - Application: **AGPL-3.0-only** (`LICENSE`)
-- Form Schema Spec (`spec/`) and SDK packages (`packages/form-schema-php`, `packages/form-schema-js`): **MIT**
+- Fieldset Spec (`spec/`) and SDK packages (`packages/fieldset-php`, `packages/fieldset-js`, `packages/fieldset-react`): **MIT**
 
 ## Security
 

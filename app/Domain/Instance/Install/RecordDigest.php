@@ -18,7 +18,7 @@ final readonly class RecordDigest
 {
     public const string PREFIX = 'hmac-sha256:';
 
-    private const string CONTEXT = 'fsa:install-record:v1';
+    private const string CONTEXT = 'fieldset:install-record:v1';
 
     /** @param  list<string>  $keys  derived keys, current first */
     private function __construct(#[SensitiveParameter] private array $keys) {}

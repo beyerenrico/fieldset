@@ -12,7 +12,7 @@ use Tests\Support\Instance\UpgradeFixture;
  * What the automatic rollback does with the stack (plan U18, R35, R62, KTD19, ADR 0086, review U18 A2, A3, A4, A7, A9):
  * a rollback killed after it reopened the instance only finishes its cleanup; the env files the target overwrote come
  * back before the installed release renders again; services only the target had go; the previous app answers behind
- * the gate while the data is restored; `fsa status` reports the rollback and no scratch warning while a journal is open.
+ * the gate while the data is restored; `fieldset status` reports the rollback and no scratch warning while a journal is open.
  */
 
 beforeEach(function (): void {
@@ -120,21 +120,21 @@ it('keeps the gated app answering while the data is restored: the previous app r
         ->and($this->upgrade->restore->actions())->toContain('swap');
 });
 
-it('reports an automatic rollback as the last restore in fsa status', function (): void {
+it('reports an automatic rollback as the last restore in fieldset status', function (): void {
     $this->upgrade->child = 'fail';
     [$code] = $this->upgrade->upgrade();
 
-    [, $status] = $this->upgrade->instance->run('fsa:status');
+    [, $status] = $this->upgrade->instance->run('fieldset:status');
 
     expect($code)->toBe(5)
         ->and($status['data']['last_restore'])->toMatchArray(['backup' => $this->upgrade->safetyBackups[0]]);
 });
 
-it('raises no scratch warning in fsa status while an upgrade journal is open', function (): void {
+it('raises no scratch warning in fieldset status while an upgrade journal is open', function (): void {
     $this->upgrade->interrupted('migrate');
     mkdir($this->dir.'/staging/restore-0123456789ab', 0700, true);
 
-    [, $status] = $this->upgrade->instance->run('fsa:status');
+    [, $status] = $this->upgrade->instance->run('fieldset:status');
 
     expect(array_column($status['warnings'], 'code'))->not->toContain('restore_scratch_left')
         ->and($status['data']['restore']['scratch_left'])->toBe([]);
@@ -144,7 +144,7 @@ it('names scratch directories left in staging/, and a pre-release\'s in backups/
     mkdir($this->dir.'/staging/restore-0123456789ab', 0700, true);
     mkdir($this->dir.'/backups/.restore-ba9876543210', 0700, true);
 
-    [, $status] = $this->upgrade->instance->run('fsa:status');
+    [, $status] = $this->upgrade->instance->run('fieldset:status');
     $warning = collect($status['warnings'])->firstWhere('code', 'restore_scratch_left');
 
     expect($status['data']['restore']['scratch_left'])->toBe(['staging/restore-0123456789ab', 'backups/.restore-ba9876543210'])

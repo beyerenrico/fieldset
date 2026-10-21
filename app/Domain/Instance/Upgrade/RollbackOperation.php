@@ -43,7 +43,7 @@ use App\Domain\Instance\State\InstanceState;
 use Throwable;
 
 /**
- * `fsa rollback` (R37, R43, R57, R64, R68, plan U18, ADR 0086): returns to the release before the last upgrade from
+ * `fieldset rollback` (R37, R43, R57, R64, R68, plan U18, ADR 0086): returns to the release before the last upgrade from
  * that upgrade's safety backup, journaled phase by phase like a restore (ADR 0085), whose primitives it uses:
  *
  * plan (RollbackGuard: the previous release, the safety backup, the loss; exit 7 otherwise) → prepare (the safety
@@ -98,7 +98,7 @@ final readonly class RollbackOperation
         }
         $inputs = $request->inputs();
 
-        return $this->interruption->guard(fn (): CommandResult => $this->supervisor->run(self::OPERATION, $this->identity->holder('fsa', $request->actorUid),
+        return $this->interruption->guard(fn (): CommandResult => $this->supervisor->run(self::OPERATION, $this->identity->holder('fieldset', $request->actorUid),
             fn (OperationRun $run): CommandResult => $this->steps($run, $state, $request),
             resume: true, context: ['identity_file' => $inputs['identity_file'], 'passphrase_file' => $inputs['passphrase_file'], 'passphrase_stdin' => $inputs['passphrase_stdin']], progress: $progress));
     }

@@ -14,8 +14,8 @@ use Illuminate\Database\QueryException;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * The checks of `fsa restore --drill` (R41, plan U17, ADR 0085) in a socket-less one-off whose DB_DATABASE is the drill's
- * scratch database (`restore_drill_…`; anything else is refused), with fsa's null mailer and sync queue (MAIL_MAILER,
+ * The checks of `fieldset restore --drill` (R41, plan U17, ADR 0085) in a socket-less one-off whose DB_DATABASE is the drill's
+ * scratch database (`restore_drill_…`; anything else is refused), with fieldset's null mailer and sync queue (MAIL_MAILER,
  * QUEUE_CONNECTION by name): counts, audit heads, files, one render into a temporary directory, decrypt sample,
  * migrations (DrillReport). stdin carries the storage archive's member list (one path per line); `--no-storage` when
  * the backup has none. The JSON document always carries the report; it fails when a check fails.
@@ -29,7 +29,7 @@ final class RestoreDrillCommand extends Command
     /** Container key of a closure returning stdin (tests); the one-off reads STDIN. */
     public const string STDIN = 'instance.restore-drill.stdin';
 
-    /** The drill's databases (fsa names them `restore_drill_<time>`); never the live one. */
+    /** The drill's databases (fieldset names them `restore_drill_<time>`); never the live one. */
     public const string DATABASE = '/(?:^|_)restore_drill_[a-z0-9_]{1,40}$/D';
 
     private const string NAME = 'instance:restore-drill';

@@ -19,22 +19,22 @@ use InvalidArgumentException;
 use RuntimeException;
 
 /**
- * Prepares a restored database for the swap (`fsa restore`, `fsa install --from-backup`; plan U17, ADR 0085) in a
+ * Prepares a restored database for the swap (`fieldset restore`, `fieldset install --from-backup`; plan U17, ADR 0085) in a
  * socket-less one-off whose DB_DATABASE is that database (FinishRestore): new audit epoch and `instance.restored`,
- * the R64 carry and the sequence floors from `--source`, stale credentials cleared, grants, decrypt sample. fsa passes
- * the ledger's final heads on stdin and the backup role's password in FSA_BACKUP_DB_PASSWORD (never an argument).
+ * the R64 carry and the sequence floors from `--source`, stale credentials cleared, grants, decrypt sample. fieldset passes
+ * the ledger's final heads on stdin and the backup role's password in FIELDSET_BACKUP_DB_PASSWORD (never an argument).
  */
 #[Description('Prepare a restored database for the swap: audit epoch, security-state carry, sequences, grants, decrypt check')]
 #[Signature('instance:restore-finish
-        {--source= : The pre-restore database (omit for fsa install --from-backup: nothing to carry)}
+        {--source= : The pre-restore database (omit for fieldset install --from-backup: nothing to carry)}
         {--backup= : The backup the database was restored from (recorded in the audit entry)}
         {--epoch-seed=0 : The highest audit epoch the host-side ledger knows}
-        {--actor-uid= : Host UID of the operator running fsa}
+        {--actor-uid= : Host UID of the operator running fieldset}
         {--reason=restored : restored, or rolled_back (U18)}
         {--no-carry : Skip the security-state carry and the sequence floors (automatic rollback)}
-        {--backup-role=fsa_backup : The backup service\'s database role}
+        {--backup-role=fieldset_backup : The backup service\'s database role}
         {--backup-created-at= : When the backup was made (ISO 8601 with zone; the manifest\'s created_at): the carry\'s window}
-        {--journal= : The fsa journal this finish belongs to: a second run for it writes no second epoch}
+        {--journal= : The fieldset journal this finish belongs to: a second run for it writes no second epoch}
         {--json : Print one JSON document on stdout}')]
 final class RestoreFinishCommand extends Command
 {

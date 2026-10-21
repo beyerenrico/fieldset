@@ -4,7 +4,7 @@
  * it sends the op, so the server always gets the latest local state. A write is refused once the
  * session ended (SessionEndedError) and a full storage is reported as StorageFullError.
  */
-import type { JsonObject } from '@form-schema-app/form-schema-js';
+import type { JsonObject } from '@fieldset/fieldset-js';
 import type { Submission } from '../api/types.ts';
 import { db } from '../db/db.ts';
 import type { DraftRow, Scope } from '../db/schema.ts';

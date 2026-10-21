@@ -4,7 +4,7 @@ Every instance backs itself up. This guide covers the schedule, encryption, copy
 drills, restoring, moving to another server and the audit log's chain epochs. Agents: see the
 [agent guide](agent-guide.md#recipe-backup-and-restore).
 
-Never restore an instance by hand (`pg_restore`, `psql`, copying volumes): `fsa restore` quiesces the instance,
+Never restore an instance by hand (`pg_restore`, `psql`, copying volumes): `fieldset restore` quiesces the instance,
 takes a safety backup, keeps the audit log verifiable and re-applies security changes. The 1.0 scripts
 (`scripts/backup.sh`, the manual restore) are for checkout installs only and are in the
 [archive](archive/1.0-backup-restore.md).
@@ -22,8 +22,8 @@ A backup is a directory `backups/<kind>-<UTC time>/` in the instance directory w
 Everything is read from one database snapshot while the instance keeps running, and a backup counts only once its
 dump reads back. With encryption on, the whole set is one file, `backup.tar.age`.
 
-Kinds: `scheduled`, `manual` (`fsa backup`), `final` (before `fsa uninstall --keep-backups`) and `safety-…` (taken
-by `fsa upgrade`, `restore`, `reset`, `rollback` and `adopt` before they change data).
+Kinds: `scheduled`, `manual` (`fieldset backup`), `final` (before `fieldset uninstall --keep-backups`) and `safety-…` (taken
+by `fieldset upgrade`, `restore`, `reset`, `rollback` and `adopt` before they change data).
 
 ## Schedule and retention
 
@@ -33,21 +33,21 @@ backup is replaced by the next successful upgrade's). A file named `keep` inside
 pruning. A run that would leave less than 1 GiB free is skipped.
 
 ```sh
-fsa config set backup-schedule 02:15     # or off
-fsa config set backup-retention 14       # 1 to 365
-fsa backup                               # a backup now
-fsa status                               # last backup, next run, backups on disk, alerts
+fieldset config set backup-schedule 02:15     # or off
+fieldset config set backup-retention 14       # 1 to 365
+fieldset backup                               # a backup now
+fieldset status                               # last backup, next run, backups on disk, alerts
 ```
 
-`fsa status` and the `/platform` health page warn when the last backup failed, a run was skipped, no backup succeeded
+`fieldset status` and the `/platform` health page warn when the last backup failed, a run was skipped, no backup succeeded
 within two hours of its slot, or the backup service does not run. The `/platform` instance page shows the same warnings first, with
-the `fsa` command for each, and every active platform operator gets one e-mail per incident (checked hourly). While
-mail is captured that e-mail lands in the catcher, so check the instance page or `fsa status`.
+the `fieldset` command for each, and every active platform operator gets one e-mail per incident (checked hourly). While
+mail is captured that e-mail lands in the catcher, so check the instance page or `fieldset status`.
 
 ## Copy backups off the host
 
 A backup on the same disk does not survive the loss of that disk. Copy `backups/` to another machine regularly, for
-example with `rsync -a /opt/form-schema-app/backups/ backup-host:form-schema-app/` from a cron job. Never copy
+example with `rsync -a /opt/fieldset/backups/ backup-host:fieldset-backups/` from a cron job. Never copy
 `staging/`: it holds plaintext working files.
 
 Turn on [encryption](#encryption) before you copy backups off the host: a plain backup holds the submissions and
@@ -64,19 +64,19 @@ passwords). With encryption on, keep the identity and its passphrase there too. 
 ## Encryption
 
 ```sh
-fsa config set backup-encryption on --identity-out ~/forms-backup-identity.age --passphrase-file ~/forms-passphrase
+fieldset config set backup-encryption on --identity-out ~/forms-backup-identity.age --passphrase-file ~/forms-passphrase
 ```
 
 This creates an age key pair. The private key (the identity) is written, encrypted with your passphrase (at least 12
 characters), to `--identity-out`, which must be outside the instance directory; only the public key stays in the
 instance. Every later backup is one encrypted file. Keep the identity and the passphrase somewhere else: without them,
 no encrypted backup can be read. `--passphrase-stdin` asks for the passphrase on a terminal instead of reading a file.
-`fsa config set backup-encryption off` switches back to plain backups.
+`fieldset config set backup-encryption off` switches back to plain backups.
 
 ## Restore drill
 
 ```sh
-fsa restore manual-20261020T101500Z --drill
+fieldset restore manual-20261020T101500Z --drill
 ```
 
 A drill restores the backup into a scratch database, reports counts, the audit chain heads, missing files, a test PDF
@@ -86,11 +86,11 @@ confirming. Run one after every upgrade and regularly on the backups you copy of
 ## Restore
 
 ```sh
-fsa restore manual-20261020T101500Z
-fsa config set webhooks on      # after checking the restored instance
+fieldset restore manual-20261020T101500Z
+fieldset config set webhooks on      # after checking the restored instance
 ```
 
-The argument is a backup name in `backups/` or a path inside the instance directory. After your confirmation `fsa`:
+The argument is a backup name in `backups/` or a path inside the instance directory. After your confirmation `fieldset`:
 
 1. decrypts and checks the backup in a container without network: checksums, the HMAC (verified only with APP keys
    from outside the archive), every archive member and every object of the dump;
@@ -114,12 +114,12 @@ previous keys so old data still decrypts); `--accept-unauthenticated` for a back
 Only backups of the same instance restore in place. A backup from a newer version is refused (exit 7 `backup_newer`):
 upgrade first. A restore needs free space for one more copy of the backup's dump and files.
 
-If a restore stopped half-way, `fsa restore --abandon` cleans up and brings the instance back (also after exit 8; the
+If a restore stopped half-way, `fieldset restore --abandon` cleans up and brings the instance back (also after exit 8; the
 hint and `data.next` say whether it returns to the previous data or continues with the restored data).
 
 ## Move to another server
 
-1. On the old host: `fsa backup --encrypt --include-secrets --identity-out <file> --passphrase-file <file>` (the first
+1. On the old host: `fieldset backup --encrypt --include-secrets --identity-out <file> --passphrase-file <file>` (the first
    `--encrypt` turns encryption on).
 2. Copy the backup's `backup.tar.age`, the identity and the APP key lines of `env/app.env` to the new host, for
    example `grep -e '^APP_KEY=' -e '^APP_PREVIOUS_KEYS=' env/app.env > app-key.env` (not the whole file: it also
@@ -128,7 +128,7 @@ hint and `data.next` say whether it returns to the previous data or continues wi
    --passphrase-file <file> --app-key-file <file>` (plus `--domain <name>` for a domain; until DNS points to the new
    host the instance reports "certificate pending").
 4. The moved instance starts with captured mail and paused webhooks so nothing goes out twice; the result lists the
-   commands that turn them on (`fsa config set webhooks on`, `fsa config set mail smtp …`). Switch DNS, then remove
+   commands that turn them on (`fieldset config set webhooks on`, `fieldset config set mail smtp …`). Switch DNS, then remove
    the old instance.
 
 Settings that belong to the instance come from the backup, host-bound ones (directory, ports, domain) from the flags.

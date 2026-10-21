@@ -17,7 +17,7 @@ use Tests\Support\Release\ReleaseFixtures;
 
 /*
  * The upgrade supervisor's state transitions (plan U18 execution note, KTD19, R33–R36, R55, R57, R62, R69, ADR 0086),
- * against the recording Docker gateway: `fsa upgrade --supervise` is the detached supervisor's own run, in-process. Each
+ * against the recording Docker gateway: `fieldset upgrade --supervise` is the detached supervisor's own run, in-process. Each
  * test drives one path of the upgrade journal: the happy order, the refusals before anything changes (exit 7, 3, 0), the
  * failures before the safety backup (exit 9 with the previous services running again), the failures from the safety
  * backup until the commit (automatic rollback, exit 5), and a rollback that fails itself (exit 8).
@@ -50,7 +50,7 @@ it('upgrades in the KTD19 order and commits the target release with the previous
     expect($code)->toBe(0, (string) json_encode($json))
         ->and(upgradePhases($this->config))->toBe(['release', 'doctor', 'pull', 'quiesce', 'safety_backup', 'migrate', 'start', 'smoke', 'commit', 'open'])
         ->and($json['status'])->toBe('ok')->and($json['changed'])->toBeTrue()
-        ->and($json['data'])->toMatchArray(['from' => '2.0.0-alpha.1', 'to' => UpgradeFixture::TARGET, 'safety_backup' => $this->upgrade->safetyBackups[0], 'migrated' => ['2026_10_20_000000_fsa_test_upgrade']])
+        ->and($json['data'])->toMatchArray(['from' => '2.0.0-alpha.1', 'to' => UpgradeFixture::TARGET, 'safety_backup' => $this->upgrade->safetyBackups[0], 'migrated' => ['2026_10_20_000000_fieldset_test_upgrade']])
         ->and($state->version())->toBe(UpgradeFixture::TARGET)
         ->and($state->digests()['app'])->toBe(UpgradeFixture::targetImage())
         ->and($state->previous())->toMatchArray(['version' => '2.0.0-alpha.1'])
@@ -98,7 +98,7 @@ it('keeps the app answering 503 behind the gate while writers stop, and starts o
 it('runs the target image as a child without the socket, on the instance network, with the instance read-only', function (): void {
     [$code] = $this->upgrade->upgrade();
     $state = $this->upgrade->instance->state();
-    $child = array_values(array_filter($this->upgrade->instance->runSpecs('fsa'), static fn ($spec): bool => ($spec->command[0] ?? null) === 'upgrade-child'))[0];
+    $child = array_values(array_filter($this->upgrade->instance->runSpecs('fieldset'), static fn ($spec): bool => ($spec->command[0] ?? null) === 'upgrade-child'))[0];
     $stage = $child->env[StageRenderer::STAGE_ENV];
 
     expect($code)->toBe(0)
@@ -127,9 +127,9 @@ it('refuses an older --to, a major without --major and a source below the oldest
         ->and($this->upgrade->instance->state()->version())->toBe('2.0.0-alpha.1')
         ->and(new OperationJournal($this->upgrade->instance->directory)->current())->toBeNull();
 })->with([
-    'older' => ['2.0.0-alpha.0', '2.0.0-alpha.0', 'downgrade_refused', 'fsa rollback'],
+    'older' => ['2.0.0-alpha.0', '2.0.0-alpha.0', 'downgrade_refused', 'fieldset rollback'],
     'major' => ['3.0.0', null, 'major_upgrade', '--major'],
-    'too old a source' => ['2.0.0-beta.1', '2.0.0-alpha.3', 'upgrade_path', 'fsa upgrade --to 2.0.0-alpha.3'],
+    'too old a source' => ['2.0.0-beta.1', '2.0.0-alpha.3', 'upgrade_path', 'fieldset upgrade --to 2.0.0-alpha.3'],
 ]);
 
 it('refuses an instance whose compose file lacks the backup service (exit 3) and names a command that renders it again (gate review DOC16)', function (): void {
@@ -143,7 +143,7 @@ it('refuses an instance whose compose file lacks the backup service (exit 3) and
 
     expect($code)->toBe(3, (string) json_encode($json))
         ->and($json['errors'][0]['code'])->toBe('backup_service_missing')
-        ->and($json['errors'][0]['hint'])->toContain('fsa config set')->not->toContain('fsa install')
+        ->and($json['errors'][0]['hint'])->toContain('fieldset config set')->not->toContain('fieldset install')
         ->and($this->config->callsSince($mark, 'composeStop'))->toBe([])
         ->and(new OperationJournal($directory)->current())->toBeNull();
 });
@@ -273,7 +273,7 @@ it('rolls back when the child fails: the safety backup restored atomically witho
         ->and($finish)->toContain('--reason=rolled_back', '--no-carry', '--backup='.$this->upgrade->safetyBackups[0])
         ->and(implode(' ', $finish))->not->toContain('--source=')
         ->and($this->upgrade->restore->actions())->toBe(['drop', 'create', 'swap', 'drop'])
-        ->and($this->upgrade->restore->databases)->toContain('form_schema')->not->toContain('form_schema_pre_restore_'.$id)
+        ->and($this->upgrade->restore->databases)->toContain('fieldset')->not->toContain('fieldset_pre_restore_'.$id)
         ->and($state->version())->toBe('2.0.0-alpha.1')
         ->and($state->digests())->toBe($before->digests())
         ->and($this->upgrade->compose())->toContain(ReleaseFixtures::APP_DIGEST)->not->toContain(UpgradeFixture::TARGET_DIGEST)
@@ -300,7 +300,7 @@ it('flushes Valkey and appends the ledger with the safety backup\'s heads before
 
 it('rolls back a child that crashed (no result) with its last log lines, exit 5', function (): void {
     $this->upgrade->child = 'crash';
-    $this->upgrade->instance->docker->logs = "fsa: segmentation fault\n";
+    $this->upgrade->instance->docker->logs = "fieldset: segmentation fault\n";
 
     [$code, $json] = $this->upgrade->upgrade();
 
@@ -371,15 +371,15 @@ it('stops everything and exits 8 with the backup path and both digest sets when 
         ->and($json['data']['safety_backup'])->toBe($this->dir.'/backups/'.$this->upgrade->safetyBackups[0])
         ->and($json['data']['digests']['previous']['app'])->toBe(InstanceCommandFixture::appImage())
         ->and($json['data']['digests']['target']['app'])->toBe(UpgradeFixture::targetImage())
-        ->and($json['errors'][0]['hint'])->toContain('fsa upgrade --resume')->toContain('install.sh --dir <new directory> --from-backup '.$this->dir.'/backups/'.$this->upgrade->safetyBackups[0])->not->toContain('fsa install --from-backup') // gate review DOC14
+        ->and($json['errors'][0]['hint'])->toContain('fieldset upgrade --resume')->toContain('install.sh --dir <new directory> --from-backup '.$this->dir.'/backups/'.$this->upgrade->safetyBackups[0])->not->toContain('fieldset install --from-backup') // gate review DOC14
         ->and($stops[array_key_last($stops)])->toBe('app,queue,scheduler,backup')
         ->and($this->upgrade->gate()['raised'])->toBeTrue()
         ->and(new OperationJournal($this->upgrade->instance->directory)->current()?->operation())->toBe('upgrade');
 });
 
 it('removes the superseded pre-upgrade safety backup after the commit and keeps the new one', function (): void {
-    $old = BackupSetFixture::fsa($this->dir.'/backups/safety-upgrade-20261001T000000Z', ['kind' => 'safety-upgrade', ...$this->upgrade->restore->manifest()], appKey: $this->upgrade->restore->appKey());
-    $restoreSafety = BackupSetFixture::fsa($this->dir.'/backups/safety-restore-20261001T000000Z', ['kind' => 'safety-restore', ...$this->upgrade->restore->manifest()], appKey: $this->upgrade->restore->appKey());
+    $old = BackupSetFixture::fieldset($this->dir.'/backups/safety-upgrade-20261001T000000Z', ['kind' => 'safety-upgrade', ...$this->upgrade->restore->manifest()], appKey: $this->upgrade->restore->appKey());
+    $restoreSafety = BackupSetFixture::fieldset($this->dir.'/backups/safety-restore-20261001T000000Z', ['kind' => 'safety-restore', ...$this->upgrade->restore->manifest()], appKey: $this->upgrade->restore->appKey());
 
     [$code, $json] = $this->upgrade->upgrade();
 
@@ -395,7 +395,7 @@ it('halts instead of restoring another set put under the safety backup\'s name b
     $this->upgrade->stage = function (): void {
         $name = $this->upgrade->safetyBackups[0];
         exec('rm -rf '.escapeshellarg($this->dir.'/backups/'.$name));
-        BackupSetFixture::fsa($this->dir.'/backups/'.$name, ['kind' => 'safety-upgrade', ...$this->upgrade->restore->manifest()], appKey: $this->upgrade->restore->appKey(), settings: ['note' => 'another set']); // authenticated, but another set's content
+        BackupSetFixture::fieldset($this->dir.'/backups/'.$name, ['kind' => 'safety-upgrade', ...$this->upgrade->restore->manifest()], appKey: $this->upgrade->restore->appKey(), settings: ['note' => 'another set']); // authenticated, but another set's content
     };
 
     [$code, $json] = $this->upgrade->upgrade();
@@ -407,7 +407,7 @@ it('halts instead of restoring another set put under the safety backup\'s name b
 });
 
 it('never removes a superseded pre-upgrade safety backup the operator marked kept', function (): void {
-    $kept = BackupSetFixture::fsa($this->dir.'/backups/safety-upgrade-20261001T000000Z', ['kind' => 'safety-upgrade', ...$this->upgrade->restore->manifest()], appKey: $this->upgrade->restore->appKey());
+    $kept = BackupSetFixture::fieldset($this->dir.'/backups/safety-upgrade-20261001T000000Z', ['kind' => 'safety-upgrade', ...$this->upgrade->restore->manifest()], appKey: $this->upgrade->restore->appKey());
     touch($kept.'/'.BackupStore::KEEP_MARKER);
 
     [$code, $json] = $this->upgrade->upgrade();
@@ -418,7 +418,7 @@ it('never removes a superseded pre-upgrade safety backup the operator marked kep
 });
 
 it('keeps the superseded safety backup when the upgrade rolls back', function (): void {
-    $old = BackupSetFixture::fsa($this->dir.'/backups/safety-upgrade-20261001T000000Z', ['kind' => 'safety-upgrade', ...$this->upgrade->restore->manifest()], appKey: $this->upgrade->restore->appKey());
+    $old = BackupSetFixture::fieldset($this->dir.'/backups/safety-upgrade-20261001T000000Z', ['kind' => 'safety-upgrade', ...$this->upgrade->restore->manifest()], appKey: $this->upgrade->restore->appKey());
     $this->upgrade->child = 'fail';
 
     [$code] = $this->upgrade->upgrade();

@@ -5,7 +5,7 @@ declare(strict_types=1);
 use App\Domain\Forms\Actions\PublishForm;
 use App\Domain\Forms\Models\FormVersion;
 use App\Domain\Identity\Tenancy\TenantContext;
-use FormSchema\Json\Json;
+use Fieldset\Json\Json;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\FieldAppApi;

@@ -14,7 +14,7 @@ use App\Domain\Instance\Config\ConfigRequest;
  * APP key file, `--accept-unauthenticated`, `--without-files` and `--keep-recipients` where they were given, and `--yes`
  * for the commands that ask first (restore, adopt; a resumed rollback asks nothing). A journal of an earlier build that
  * recorded no path names a placeholder (`<file>`). An install journal that came from `--from-backup` resumes only as
- * `fsa install --from-backup <backup>`, never as a plain install.
+ * `fieldset install --from-backup <backup>`, never as a plain install.
  */
 final class ResumeCommand
 {
@@ -38,10 +38,10 @@ final class ResumeCommand
     }
 
     /**
-     * The open journal a plain `fsa install` may continue. One that `--from-backup` began resumes only by that command
+     * The open journal a plain `fieldset install` may continue. One that `--from-backup` began resumes only by that command
      * (O1): taken over, the restore phases would be skipped and an empty instance marked installed.
      *
-     * @throws OperationUnfinished exit 9, naming `fsa install --from-backup <backup>` with its flags
+     * @throws OperationUnfinished exit 9, naming `fieldset install --from-backup <backup>` with its flags
      */
     public static function forPlainInstall(?JournalRecord $open): ?JournalRecord
     {
@@ -72,17 +72,17 @@ final class ResumeCommand
         };
     }
 
-    /** The subcommand with its argument: `fsa restore <backup>`, `fsa adopt <checkout>`, `fsa install --from-backup <backup>`. */
+    /** The subcommand with its argument: `fieldset restore <backup>`, `fieldset adopt <checkout>`, `fieldset install --from-backup <backup>`. */
     public static function command(JournalRecord $record): string
     {
         $context = $record->context();
         $backup = self::fromBackup($record);
 
         return match ($record->operation()) {
-            'restore' => 'fsa restore '.ConfigRequest::shellWord((string) ($context['backup'] ?? '<backup>')),
-            'adopt' => 'fsa adopt '.ConfigRequest::shellWord((string) ($context['checkout'] ?? '<checkout>')),
-            'install' => $backup === null ? 'fsa install' : 'fsa install --from-backup '.ConfigRequest::shellWord($backup),
-            default => 'fsa '.$record->operation(),
+            'restore' => 'fieldset restore '.ConfigRequest::shellWord((string) ($context['backup'] ?? '<backup>')),
+            'adopt' => 'fieldset adopt '.ConfigRequest::shellWord((string) ($context['checkout'] ?? '<checkout>')),
+            'install' => $backup === null ? 'fieldset install' : 'fieldset install --from-backup '.ConfigRequest::shellWord($backup),
+            default => 'fieldset '.$record->operation(),
         };
     }
 

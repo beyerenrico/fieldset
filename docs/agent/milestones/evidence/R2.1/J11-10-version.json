@@ -1,0 +1,23 @@
+{
+    "guide_line": 400,
+    "guide_command": "~/forms/fieldset version --json",
+    "command": "<work>/fieldset-test-j11-forms/fieldset version --json",
+    "exit_code": 0,
+    "seconds": 0.6,
+    "stdout": {
+        "schema_version": 1,
+        "command": "version",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": false,
+        "data": {
+            "fieldset": "2.1.0-alpha.1-test",
+            "revision": "4c68e46608fc93ca0683835e0eff77c97436bed3",
+            "instance": "2.1.0-alpha.1-test",
+            "newest_known": null
+        },
+        "secrets": [],
+        "warnings": [],
+        "errors": []
+    }
+}

@@ -37,21 +37,21 @@ it('lists every service image by digest with per-platform sizes and validates ag
     [$inputs, $appDigest] = $registry->inputs();
     $registry->fake();
 
-    $manifest = manifestBuilder()->build(new ReleaseRequest(ReleaseVersion::parse('2.0.0-alpha.1'), $appDigest, $inputs, assets: requiredAssets()));
+    $manifest = manifestBuilder()->build(new ReleaseRequest(ReleaseVersion::parse('2.1.0-alpha.1'), $appDigest, $inputs, assets: requiredAssets()));
     $json = $manifest->toJson();
     $data = json_decode($json, true);
 
     expect(ManifestSchema::bundled()->errors($json))->toBe([])
         ->and(array_keys($data))->toBe(['schema_version', 'version', 'channel', 'notes_url', 'upgrades_from', 'platforms', 'images', 'assets'])
         ->and($data['schema_version'])->toBe(1)
-        ->and($data['version'])->toBe('2.0.0-alpha.1')
+        ->and($data['version'])->toBe('2.1.0-alpha.1')
         ->and($data['channel'])->toBe('alpha')
-        ->and($data['upgrades_from'])->toBe('2.0.0-alpha.1')
-        ->and($data['notes_url'])->toBe('https://github.com/beyerenrico/form-schema-app/releases/tag/v2.0.0-alpha.1')
+        ->and($data['upgrades_from'])->toBe('2.1.0-alpha.1')
+        ->and($data['notes_url'])->toBe('https://github.com/beyerenrico/fieldset/releases/tag/v2.1.0-alpha.1')
         ->and($data['platforms'])->toBe(['linux/amd64', 'linux/arm64'])
         ->and(array_keys($data['images']))->toBe(ReleaseManifest::SERVICES)
         ->and($data['images']['app'])->toMatchArray([
-            'registry' => 'ghcr.io', 'repository' => 'beyerenrico/form-schema-app', 'tag' => '2.0.0-alpha.1', 'digest' => $appDigest,
+            'registry' => 'ghcr.io', 'repository' => 'beyerenrico/fieldset', 'tag' => '2.1.0-alpha.1', 'digest' => $appDigest,
         ])
         ->and($data['images']['app']['platforms']['linux/amd64']['compressed_size'])->toBe(21_000)
         ->and($data['images']['postgres']['digest'])->toBe($inputs->images['postgres']->digest)
@@ -74,19 +74,19 @@ it('renders the stack file from the same pins and lists it as an asset (R18, ADR
     mkdir(dirname($stack));
 
     try {
-        $manifest = manifestBuilder()->build(new ReleaseRequest(ReleaseVersion::parse('2.0.0-alpha.2'), $appDigest, $inputs, assets: requiredAssets(), stackFile: $stack));
+        $manifest = manifestBuilder()->build(new ReleaseRequest(ReleaseVersion::parse('2.1.0-alpha.2'), $appDigest, $inputs, assets: requiredAssets(), stackFile: $stack));
         $yaml = (string) file_get_contents($stack);
-        preg_match_all('/^\s+image: "\$\{FSA_REGISTRY:-([^}]+)\}\/(.+)"$/m', $yaml, $images, PREG_SET_ORDER);
+        preg_match_all('/^\s+image: "\$\{FIELDSET_REGISTRY:-([^}]+)\}\/(.+)"$/m', $yaml, $images, PREG_SET_ORDER);
         $pinned = array_map(fn (ManifestImage $image): string => $image->pin->pullReference(), $manifest->images);
 
         expect(array_keys($manifest->assets))->toBe(['compose.stack.yaml', 'install.sh', 'shim.sh'])
             ->and($manifest->assets['compose.stack.yaml']['sha256'])->toBe(hash('sha256', $yaml))
-            ->and($yaml)->toContain('# form-schema-app 2.0.0-alpha.2 stack file')
+            ->and($yaml)->toContain('# Fieldset 2.1.0-alpha.2 stack file')
             ->and($images)->toHaveCount(7);
         foreach ($images as [, $registryHost, $rest]) {
             expect($pinned)->toContain($registryHost.'/'.$rest);
         }
-        expect(fn () => manifestBuilder()->build(new ReleaseRequest(ReleaseVersion::parse('2.0.0'), $appDigest, $inputs, assets: requiredAssets(), stackFile: '/nonexistent-dir/compose.stack.yaml')))
+        expect(fn () => manifestBuilder()->build(new ReleaseRequest(ReleaseVersion::parse('2.1.0'), $appDigest, $inputs, assets: requiredAssets(), stackFile: '/nonexistent-dir/compose.stack.yaml')))
             ->toThrow(ReleaseException::class, 'Cannot write the stack file');
     } finally {
         @unlink($stack);
@@ -105,16 +105,16 @@ it('checksums the release assets by file name', function (): void {
 
     try {
         $manifest = manifestBuilder()->build(new ReleaseRequest(
-            ReleaseVersion::parse('2.0.0'), $appDigest, $inputs, assets: ["{$directory}/shim.sh", "{$directory}/install.sh"],
+            ReleaseVersion::parse('2.1.0'), $appDigest, $inputs, assets: ["{$directory}/shim.sh", "{$directory}/install.sh"],
         ));
 
         expect($manifest->assets)->toBe([
             'install.sh' => ['sha256' => hash('sha256', "#!/bin/sh\necho install\n"), 'size' => 23],
             'shim.sh' => ['sha256' => hash('sha256', "#!/bin/sh\n"), 'size' => 10],
         ])
-            ->and(fn () => manifestBuilder()->build(new ReleaseRequest(ReleaseVersion::parse('2.0.0'), $appDigest, $inputs, assets: ["{$directory}/missing.sh"])))
+            ->and(fn () => manifestBuilder()->build(new ReleaseRequest(ReleaseVersion::parse('2.1.0'), $appDigest, $inputs, assets: ["{$directory}/missing.sh"])))
             ->toThrow(ReleaseException::class, 'Cannot read the release asset')
-            ->and(fn () => manifestBuilder()->build(new ReleaseRequest(ReleaseVersion::parse('2.0.0'), $appDigest, $inputs, assets: ["{$directory}/shim.sh", "{$directory}/shim.sh"])))
+            ->and(fn () => manifestBuilder()->build(new ReleaseRequest(ReleaseVersion::parse('2.1.0'), $appDigest, $inputs, assets: ["{$directory}/shim.sh", "{$directory}/shim.sh"])))
             ->toThrow(ReleaseException::class, 'Two release assets are named "shim.sh"');
     } finally {
         array_map(unlink(...), glob("{$directory}/*") ?: []);
@@ -128,7 +128,7 @@ it('fails when the registry does not hold a pinned third-party digest', function
     $data['images']['mailpit'] = 'docker.io/axllent/mailpit:v1.31.6@sha256:'.str_repeat('d', 64);
     $registry->fake();
 
-    expect(fn () => manifestBuilder()->build(new ReleaseRequest(ReleaseVersion::parse('2.0.0'), $appDigest, ReleaseInputs::fromArray($data), assets: requiredAssets())))
+    expect(fn () => manifestBuilder()->build(new ReleaseRequest(ReleaseVersion::parse('2.1.0'), $appDigest, ReleaseInputs::fromArray($data), assets: requiredAssets())))
         ->toThrow(ReleaseException::class, 'docker.io/axllent/mailpit@sha256:'.str_repeat('d', 64).' is not in the registry');
 });
 
@@ -138,14 +138,14 @@ it('lists only the requested platforms and reads a local mirror for the harness'
     $registry->fake();
 
     $manifest = manifestBuilder()->build(new ReleaseRequest(
-        ReleaseVersion::parse('2.0.0-alpha.1-test'), $appDigest, $inputs, ['linux/arm64'], requiredAssets(), '127.0.0.1:5000',
+        ReleaseVersion::parse('2.1.0-alpha.1-test'), $appDigest, $inputs, ['linux/arm64'], requiredAssets(), '127.0.0.1:5000',
     ));
 
     expect($manifest->platforms)->toBe(['linux/arm64'])
         ->and($manifest->images['app']->pin->registry)->toBe('ghcr.io')
         ->and($manifest->images['caddy']->pin->registry)->toBe('docker.io')
         ->and($manifest->images['caddy']->platforms['linux/arm64']->compressedSize)->toBe(15)
-        ->and(fn () => manifestBuilder()->build(new ReleaseRequest(ReleaseVersion::parse('2.0.0'), $appDigest, $inputs, ['linux/arm64'], requiredAssets(), 'not a registry')))
+        ->and(fn () => manifestBuilder()->build(new ReleaseRequest(ReleaseVersion::parse('2.1.0'), $appDigest, $inputs, ['linux/arm64'], requiredAssets(), 'not a registry')))
         ->toThrow(ReleaseException::class, 'Invalid image registry');
 });
 
@@ -158,15 +158,15 @@ it('honours an upgrade-source override but never one newer than the release', fu
     );
 
     expect((string) manifestBuilder()->build($request('2.1.0', '2.0.0'))->upgradesFrom)->toBe('2.0.0')
-        ->and(fn () => manifestBuilder()->build($request('2.0.0-alpha.0', null)))
-        ->toThrow(ReleaseException::class, 'Release 2.0.0-alpha.0 cannot upgrade from the newer version 2.0.0-alpha.1');
+        ->and(fn () => manifestBuilder()->build($request('2.1.0-alpha.0', null)))
+        ->toThrow(ReleaseException::class, 'Release 2.1.0-alpha.0 cannot upgrade from the newer version 2.1.0-alpha.1');
 });
 
 it('round-trips through JSON after a schema check', function (): void {
     $registry = new FakeRegistry;
     [$inputs, $appDigest] = $registry->inputs();
     $registry->fake();
-    $manifest = manifestBuilder()->build(new ReleaseRequest(ReleaseVersion::parse('2.0.0-rc.1'), $appDigest, $inputs, assets: requiredAssets()));
+    $manifest = manifestBuilder()->build(new ReleaseRequest(ReleaseVersion::parse('2.1.0-rc.1'), $appDigest, $inputs, assets: requiredAssets()));
 
     $parsed = ReleaseManifest::fromJson($manifest->toJson(), ManifestSchema::bundled());
 
@@ -178,7 +178,7 @@ it('rejects manifests that break the schema', function (Closure $tamper, string 
     $registry = new FakeRegistry;
     [$inputs, $appDigest] = $registry->inputs();
     $registry->fake();
-    $data = manifestBuilder()->build(new ReleaseRequest(ReleaseVersion::parse('2.0.0'), $appDigest, $inputs, assets: requiredAssets()))->toArray();
+    $data = manifestBuilder()->build(new ReleaseRequest(ReleaseVersion::parse('2.1.0'), $appDigest, $inputs, assets: requiredAssets()))->toArray();
     $json = json_encode($tamper($data), JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
 
     expect(implode("\n", ManifestSchema::bundled()->errors($json)))->toContain($pointer)

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Domain\Instance\Console\FsaCommand;
+use App\Domain\Instance\Console\FieldsetCommand;
 use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\Docker\ProcessOutcome;
 use App\Domain\Instance\Lifecycle\AppCommands;
@@ -17,7 +17,7 @@ use Tests\Support\Instance\InstanceCommandFixture;
 use Tests\Support\Instance\TemporaryInstance;
 
 /*
- * U13 / M11-T02: `fsa demo` (§7, R29, R30, AE2, ADR 0081) against scripted Docker. The app-side seeder runs as a
+ * U13 / M11-T02: `fieldset demo` (§7, R29, R30, AE2, ADR 0081) against scripted Docker. The app-side seeder runs as a
  * socket-less one-off with `--passwords=default` on a loopback-only instance and `random` beyond loopback; random
  * passwords leave only under `secrets` (or --secrets-file), never in data, the journal, the state or progress; the
  * demo owner's sign-in link follows the delivery policy; `--rotate-passwords` rotates and revokes.
@@ -25,14 +25,14 @@ use Tests\Support\Instance\TemporaryInstance;
 
 beforeEach(function (): void {
     $this->fixture = new InstanceCommandFixture;
-    $this->fixture->run('fsa:install', InstanceCommandFixture::installFlags());
+    $this->fixture->run('fieldset:install', InstanceCommandFixture::installFlags());
     $this->fixture->oneOffs['app:demo-seed'] = DemoFixtures::seeded('default');
     $this->fixture->oneOffs['app:demo-passwords'] = DemoFixtures::rotated();
 });
 
 afterEach(fn () => TemporaryInstance::cleanup());
 
-/** The archived journal of the last `fsa demo` run. */
+/** The archived journal of the last `fieldset demo` run. */
 function demoJournal(InstanceCommandFixture $fixture): JournalRecord
 {
     $runs = array_values(array_filter(new OperationJournal($fixture->directory)->history(), static fn (JournalRecord $record): bool => $record->operation() === 'demo'));
@@ -47,7 +47,7 @@ function demoExposed(InstanceCommandFixture $fixture): void
 }
 
 it('seeds a loopback-only instance with the documented password in data and hands out the demo owner link', function (): void {
-    [$code, $json] = $this->fixture->run('fsa:demo');
+    [$code, $json] = $this->fixture->run('fieldset:demo');
     $seed = $this->fixture->oneOffCalls('app:demo-seed');
     $link = $this->fixture->oneOffCalls('identity:login-link');
     $journal = demoJournal($this->fixture);
@@ -61,8 +61,8 @@ it('seeds a loopback-only instance with the documented password in data and hand
         ->and($json['data']['demo'])->toMatchArray(['organization' => 'Demo Haustechnik GmbH', 'seeded' => true, 'passwords' => 'default', 'default_password' => 'password', 'exposure' => [], 'delivered' => 'data', 'login_url' => DemoFixtures::LOGIN_URL])
         ->and(array_column($json['data']['demo']['users'], 'email'))->toBe(DemoFixtures::EMAILS)
         ->and($json['data']['url'])->toBe('http://localhost:8080')
-        ->and($json['data']['mail'])->toBe(['mode' => 'capture', 'catcher_url' => 'http://localhost:8025', 'catcher_login_command' => 'fsa config show --catcher-login'])
-        ->and($json['data']['next_commands'])->toContain($this->fixture->directory->root.'/fsa demo --rotate-passwords')
+        ->and($json['data']['mail'])->toBe(['mode' => 'capture', 'catcher_url' => 'http://localhost:8025', 'catcher_login_command' => 'fieldset config show --catcher-login'])
+        ->and($json['data']['next_commands'])->toContain($this->fixture->directory->root.'/fieldset demo --rotate-passwords')
         ->and($link[0]['command'])->toBe(['php', 'artisan', 'identity:login-link', '--actor-uid='.posix_getuid(), '--json', '--', 'owner@demo.test'])
         ->and($json['data']['sign_in_link']['delivered'])->toBe('secrets')
         ->and($json['secrets'])->toBe([['name' => 'sign_in_link', 'value' => InstanceCommandFixture::ADMIN_LINK, 'expires_at' => '2026-10-18T10:15:00Z']])
@@ -77,9 +77,9 @@ it('seeds random passwords beyond loopback and keeps them out of data, journal, 
     demoExposed($this->fixture);
     $this->fixture->oneOffs['app:demo-seed'] = DemoFixtures::seeded('random');
     $progress = new BufferedOutput;
-    app()->instance(FsaCommand::PROGRESS_OUTPUT, $progress);
+    app()->instance(FieldsetCommand::PROGRESS_OUTPUT, $progress);
 
-    [$code, $json] = $this->fixture->run('fsa:demo');
+    [$code, $json] = $this->fixture->run('fieldset:demo');
     $secrets = array_column($json['secrets'], 'value', 'name');
     $journal = json_encode(demoJournal($this->fixture)->toArray());
     $outside = json_encode([$json['data'], $json['warnings']]).$journal.$this->fixture->state()->toJson().$progress->fetch();
@@ -103,7 +103,7 @@ it('counts a tunnel or phone HTTPS on a local instance, and an unreadable runtim
     };
     $this->fixture->oneOffs['app:demo-seed'] = DemoFixtures::seeded('random');
 
-    [, $json] = $this->fixture->run('fsa:demo');
+    [, $json] = $this->fixture->run('fieldset:demo');
 
     expect($json['data']['demo']['exposure'])->toBe($exposure)
         ->and($this->fixture->oneOffCalls('app:demo-seed')[0]['command'])->toContain('--passwords=random');
@@ -116,7 +116,7 @@ it('counts a tunnel or phone HTTPS on a local instance, and an unreadable runtim
 it('changes no demo data when the demo exists on a loopback instance, still tells the documented password, and reports the new link', function (): void {
     $this->fixture->oneOffs['app:demo-seed'] = DemoFixtures::existing(9);
 
-    [$code, $json] = $this->fixture->run('fsa:demo');
+    [$code, $json] = $this->fixture->run('fieldset:demo');
 
     expect($code)->toBe(0)
         ->and($json['changed'])->toBeTrue()
@@ -131,7 +131,7 @@ it('reports nothing changed when the demo exists and no new link could be issued
     $this->fixture->oneOffs['app:demo-seed'] = DemoFixtures::existing(9);
     $this->fixture->oneOffs['identity:login-link'] = InstanceCommandFixture::oneOffJson(['command' => 'identity:login-link', 'status' => 'failed', 'errors' => [['code' => 'rate_limited', 'message' => 'Too many links.', 'hint' => null, 'retryable' => true]]]);
 
-    [$code, $json] = $this->fixture->run('fsa:demo');
+    [$code, $json] = $this->fixture->run('fieldset:demo');
 
     expect($code)->toBe(0)
         ->and($json['changed'])->toBeFalse()
@@ -142,7 +142,7 @@ it('rotates an existing demo that still has the documented password once the ins
     demoExposed($this->fixture);
     $this->fixture->oneOffs['app:demo-seed'] = DemoFixtures::existing(9);
 
-    [$code, $json] = $this->fixture->run('fsa:demo');
+    [$code, $json] = $this->fixture->run('fieldset:demo');
     $journal = demoJournal($this->fixture);
     $history = $this->fixture->state()->history();
 
@@ -161,20 +161,20 @@ it('says how to get new passwords when an existing demo already has random ones'
     demoExposed($this->fixture);
     $this->fixture->oneOffs['app:demo-seed'] = DemoFixtures::existing(0);
 
-    [$code, $json] = $this->fixture->run('fsa:demo');
+    [$code, $json] = $this->fixture->run('fieldset:demo');
 
     expect($code)->toBe(0)
         ->and($json['changed'])->toBeTrue() // the new demo owner link
         ->and($json['data']['demo'])->toMatchArray(['passwords' => null, 'delivered' => null])
         ->and($json['warnings'][0]['code'])->toBe('demo_passwords_not_shown')
-        ->and($json['warnings'][0]['hint'])->toContain('fsa demo --rotate-passwords')
+        ->and($json['warnings'][0]['hint'])->toContain('fieldset demo --rotate-passwords')
         ->and($this->fixture->oneOffCalls('app:demo-passwords'))->toBe([]);
 });
 
 it('rotates every demo password with --rotate-passwords, into --secrets-file when given, without a sign-in link', function (): void {
     $file = $this->fixture->directory->root.'/demo-passwords.json';
 
-    [$code, $json] = $this->fixture->run('fsa:demo', ['--rotate-passwords' => true, '--secrets-file' => $file]);
+    [$code, $json] = $this->fixture->run('fieldset:demo', ['--rotate-passwords' => true, '--secrets-file' => $file]);
     $written = json_decode((string) file_get_contents($file), true);
 
     expect($code)->toBe(0, json_encode($json))
@@ -191,7 +191,7 @@ it('rotates every demo password with --rotate-passwords, into --secrets-file whe
 it('reports no_demo_users when there is nothing to rotate', function (): void {
     $this->fixture->oneOffs['app:demo-passwords'] = DemoFixtures::noDemoUsers();
 
-    [$code, $json] = $this->fixture->run('fsa:demo', ['--rotate-passwords' => true]);
+    [$code, $json] = $this->fixture->run('fieldset:demo', ['--rotate-passwords' => true]);
 
     expect($code)->toBe(0)
         ->and($json['changed'])->toBeFalse()
@@ -203,40 +203,40 @@ it('reports no_demo_users when there is nothing to rotate', function (): void {
 it('hands the demo owner link to the browser with --open on a desktop, never the passwords', function (): void {
     demoExposed($this->fixture);
     $this->fixture->oneOffs['app:demo-seed'] = DemoFixtures::seeded('random');
-    $this->fixture->facts(['desktop' => true, 'openUrlFile' => '.fsa-open-url-00000000000000000000000000000000']);
+    $this->fixture->facts(['desktop' => true, 'openUrlFile' => '.fieldset-open-url-00000000000000000000000000000000']);
 
-    [, $json] = $this->fixture->run('fsa:demo', ['--open' => true]);
+    [, $json] = $this->fixture->run('fieldset:demo', ['--open' => true]);
 
     expect($json['data']['sign_in_link']['delivered'])->toBe('browser')
         ->and(array_column($json['secrets'], 'name'))->not->toContain('sign_in_link')
         ->and($json['secrets'])->toHaveCount(9)
-        ->and((string) $this->fixture->directory->read('.fsa-open-url-00000000000000000000000000000000'))->toContain('admin-token')
-        ->and((string) $this->fixture->directory->read('.fsa-open-url-00000000000000000000000000000000'))->not->toContain('pw-seed-');
+        ->and((string) $this->fixture->directory->read('.fieldset-open-url-00000000000000000000000000000000'))->toContain('admin-token')
+        ->and((string) $this->fixture->directory->read('.fieldset-open-url-00000000000000000000000000000000'))->not->toContain('pw-seed-');
 });
 
 it('still succeeds with a warning when no sign-in link can be issued', function (): void {
     $this->fixture->oneOffs['identity:login-link'] = InstanceCommandFixture::oneOffJson(['command' => 'identity:login-link', 'status' => 'failed', 'errors' => [['code' => 'rate_limited', 'message' => 'Too many links.', 'hint' => null, 'retryable' => true]]]);
 
-    [$code, $json] = $this->fixture->run('fsa:demo');
+    [$code, $json] = $this->fixture->run('fieldset:demo');
 
     expect($code)->toBe(0)
         ->and($json['data']['sign_in_link'])->toBeNull()
         ->and($json['warnings'][0]['code'])->toBe('sign_in_link_unavailable')
-        ->and($json['warnings'][0]['hint'])->toContain('fsa login-link owner@demo.test --secrets-file <file>');
+        ->and($json['warnings'][0]['hint'])->toContain('fieldset login-link owner@demo.test --secrets-file <file>');
 });
 
 it('exits 4 (retryable) when the seeding one-off fails and resumes on the next run', function (): void {
     $this->fixture->oneOffs['app:demo-seed'] = new ProcessOutcome(1, '', 'could not connect to server');
 
-    [$code, $json] = $this->fixture->run('fsa:demo');
+    [$code, $json] = $this->fixture->run('fieldset:demo');
     $open = new OperationJournal($this->fixture->directory)->current();
     $this->fixture->oneOffs['app:demo-seed'] = DemoFixtures::seeded('default');
-    [$again, $done] = $this->fixture->run('fsa:demo');
+    [$again, $done] = $this->fixture->run('fieldset:demo');
     $events = array_column(demoJournal($this->fixture)->events(), 'type');
 
     expect($code)->toBe(4)
         ->and($json['errors'][0])->toMatchArray(['code' => 'one_off_failed', 'retryable' => true])
-        ->and($json['errors'][0]['hint'])->toContain('fsa status')
+        ->and($json['errors'][0]['hint'])->toContain('fieldset status')
         ->and($open?->operation())->toBe('demo')
         ->and($again)->toBe(0, json_encode($done))
         ->and($done['changed'])->toBeTrue()
@@ -246,7 +246,7 @@ it('exits 4 (retryable) when the seeding one-off fails and resumes on the next r
 it('maps an app-side refusal of the seeding to exit 4 demo_failed', function (): void {
     $this->fixture->oneOffs['app:demo-seed'] = InstanceCommandFixture::oneOffJson(['command' => 'app:demo-seed', 'status' => 'failed', 'errors' => [['code' => 'invalid_input', 'message' => 'Bad mode.', 'hint' => null, 'retryable' => false]]]);
 
-    [$code, $json] = $this->fixture->run('fsa:demo');
+    [$code, $json] = $this->fixture->run('fieldset:demo');
 
     expect($code)->toBe(4)->and($json['errors'][0]['code'])->toBe('demo_failed')->and($json['errors'][0]['message'])->toContain('Bad mode.');
 });
@@ -255,7 +255,7 @@ it('refuses a locked instance (exit 9) before any one-off', function (): void {
     $this->fixture->docker->withRunningContainer(str_repeat('b', 64), '2026-10-18T10:00:00Z');
     app(InstanceLock::class)->acquire(TemporaryInstance::holder('b', '2026-10-18T10:00:00Z'), 'upgrade');
 
-    [$code, $json] = $this->fixture->run('fsa:demo');
+    [$code, $json] = $this->fixture->run('fieldset:demo');
 
     expect($code)->toBe(9)
         ->and($json['errors'][0]['code'])->toBe('instance_locked')
@@ -266,11 +266,11 @@ it('refuses an instance that is not installed yet (exit 2) before any one-off', 
     $fresh = new InstanceCommandFixture;
     $fresh->directory->saveState(InstanceState::create('3f1c2b9e-8a4d-4c1e-9b7a-2d5e6f708192', $fresh->directory->root, 1, 1, 1));
 
-    [$code, $json] = $fresh->run('fsa:demo');
+    [$code, $json] = $fresh->run('fieldset:demo');
 
     expect($code)->toBe(2)
         ->and($json['errors'][0]['code'])->toBe('not_installed')
-        ->and($json['errors'][0]['hint'])->toContain('fsa install --demo')
+        ->and($json['errors'][0]['hint'])->toContain('fieldset install --demo')
         ->and($fresh->docker->calls)->toBe([]);
 });
 

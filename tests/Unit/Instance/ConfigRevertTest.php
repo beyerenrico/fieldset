@@ -9,7 +9,7 @@ use Tests\Support\Instance\ConfigFixture;
 use Tests\Support\Instance\TemporaryInstance;
 
 /*
- * M10 gate (ADR 0078, amends ADR 0077): what `fsa config set` reports when a change fails. A change that was reverted
+ * M10 gate (ADR 0078, amends ADR 0077): what `fieldset config set` reports when a change fails. A change that was reverted
  * is `rolled_back` with exit 5 (§7), retryable only for transient engine trouble (`data.retry_after`), otherwise
  * with a `data.fix_first` marker; `data.url` and `data.mode` are always strings; a failed revert says exactly which
  * of its steps completed and stops only what serves requests (app roles, edge, catcher), never the databases.
@@ -33,7 +33,7 @@ it('reports a reverted change as rolled_back with exit 5 and a fix_first marker 
         ->and($json['data']['fix_first'])->toBe($json['errors'][0]['hint'])
         ->and($json['data'])->not->toHaveKey('retry_after')
         ->and($json['data'])->toMatchArray(['reverted' => true, 'url' => 'http://localhost:8080', 'mode' => 'local'])
-        ->and($json['data']['command'])->toBe('fsa config set domain '.ConfigFixture::DOMAIN.' --yes')
+        ->and($json['data']['command'])->toBe('fieldset config set domain '.ConfigFixture::DOMAIN.' --yes')
         ->and($this->config->archivedJournal()->outcome()?->value)->toBe('rolled_back');
 });
 

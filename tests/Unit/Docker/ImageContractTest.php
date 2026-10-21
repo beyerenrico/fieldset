@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Artisan;
 use Tests\Support\Docker\DockerfileStages;
 use Tests\Support\Docker\DockerIgnore;
 use Tests\Support\Docker\ScriptHarness;
-use Tests\Support\Instance\FsaCommandFlags;
+use Tests\Support\Instance\FieldsetCommandFlags;
 
 /*
  * U1 / M9-T02: the app image contract as written in docker/app (R1, R5, R6, E17, KTD8, KTD9, ADR 0065).
@@ -20,13 +20,13 @@ dataset('build context', [
     'app code' => ['app/Providers/AppServiceProvider.php', true],
     'artisan' => ['artisan', true],
     'composer lock' => ['composer.lock', true],
-    'php package source' => ['packages/form-schema-php/src/Support/SpecPaths.php', true],
-    'js package source' => ['packages/form-schema-js/src/index.ts', true],
+    'php package source' => ['packages/fieldset-php/src/Support/SpecPaths.php', true],
+    'js package source' => ['packages/fieldset-js/src/index.ts', true],
     'storage skeleton' => ['storage/framework/views/.gitignore', true],
     'bootstrap cache skeleton' => ['bootstrap/cache/.gitignore', true],
     'image scripts' => ['docker/app/entrypoint.sh', true],
     'manifest schema' => ['distribution/manifest.schema.json', true],
-    'fsa shim' => ['distribution/shim.sh', true],
+    'fieldset shim' => ['distribution/shim.sh', true],
     'install script' => ['distribution/install.sh', false],
     'release inputs' => ['distribution/release.json', false],
     'trivy exceptions' => ['distribution/trivy/postgres.trivyignore.yaml', false],
@@ -42,9 +42,9 @@ dataset('build context', [
     'git' => ['.git/HEAD', false],
     'host vendor' => ['vendor/autoload.php', false],
     'node modules' => ['node_modules/vite/package.json', false],
-    'workspace node modules' => ['packages/form-schema-js/node_modules/x/index.js', false],
-    'php package tests' => ['packages/form-schema-php/tests/Pest.php', false],
-    'js package tests' => ['packages/form-schema-js/test/evaluate.test.ts', false],
+    'workspace node modules' => ['packages/fieldset-js/node_modules/x/index.js', false],
+    'php package tests' => ['packages/fieldset-php/tests/Pest.php', false],
+    'js package tests' => ['packages/fieldset-js/test/evaluate.test.ts', false],
     'workspace tests' => ['resources/field-app/test/setup.ts', false],
     'spec conformance' => ['spec/conformance/README.md', false],
     'storage logs' => ['storage/logs/laravel.log', false],
@@ -66,7 +66,7 @@ it('never copies the whole context or ships composer in the final stage', functi
         ->and($dockerfile->finalStageName())->toBe('app')
         ->and($final)->not->toContain('composer')
         ->and($final)->toMatch('/^USER\s+www-data$/m')
-        ->and($final)->toContain('/usr/local/bin/fsa')
+        ->and($final)->toContain('COPY --chmod=0755 docker/app/fieldset /usr/local/bin/fieldset')
         ->and($final)->toContain('ENTRYPOINT ["app-entrypoint"]');
 });
 
@@ -74,10 +74,10 @@ it('ships the manifest schema and the shim, and records a production build flavo
     $dockerfile = DockerfileStages::fromFile(base_path('docker/app/Dockerfile'));
 
     expect($dockerfile->stage('build'))->toContain('COPY distribution/manifest.schema.json distribution/shim.sh ./distribution/')
-        ->and($dockerfile->finalStage())->toMatch('/^ARG FSA_BUILD=production$/m')
+        ->and($dockerfile->finalStage())->toMatch('/^ARG FIELDSET_BUILD=production$/m')
         ->and($dockerfile->finalStage())->toContain('production | harness')
         ->and($dockerfile->finalStage())->toContain('> /var/www/html/distribution/.build-flavor')
-        ->and((string) file_get_contents(base_path('.github/workflows/release.yml')))->not->toContain('FSA_BUILD');
+        ->and((string) file_get_contents(base_path('.github/workflows/release.yml')))->not->toContain('FIELDSET_BUILD');
 });
 
 it('puts the XDG config and data homes on writable paths (R6)', function (): void {
@@ -96,7 +96,7 @@ it('labels the image with version, revision, source and license (R1, KTD9)', fun
         ->and($final)->toMatch('/^ARG APP_REVISION/m')
         ->and($final)->toContain('org.opencontainers.image.version="${APP_VERSION}"')
         ->and($final)->toContain('org.opencontainers.image.revision="${APP_REVISION}"')
-        ->and($final)->toContain('org.opencontainers.image.source="https://github.com/beyerenrico/form-schema-app"')
+        ->and($final)->toContain('org.opencontainers.image.source="https://github.com/beyerenrico/fieldset"')
         ->and($final)->toContain(sprintf('org.opencontainers.image.licenses="%s"', $license))
         ->and($final)->toContain('APP_VERSION="${APP_VERSION}"');
 });
@@ -164,7 +164,7 @@ it('pins every external image it builds from or copies from as tag@sha256 (multi
     expect(array_unique(array_filter($external, fn (string $reference): bool => str_starts_with($reference, 'composer:'))))->toHaveCount(1);
 });
 
-it('ships no cosign binary: fsa and install.sh verify with the pinned cosign image (ADR 0070, ADR 0071)', function (): void {
+it('ships no cosign binary: fieldset and install.sh verify with the pinned cosign image (ADR 0070, ADR 0071)', function (): void {
     expect((string) file_get_contents(base_path('docker/app/Dockerfile')))->not->toMatch('/cosign/i');
 });
 
@@ -228,19 +228,19 @@ describe('entrypoint roles', function (): void {
         'still locked after 60 attempts' => [array_fill(0, 60, 75), 75, 60],
     ]);
 
-    it('skips optimize and migrations for fsa and the backup daemon', function (array $command, string $call): void {
+    it('skips optimize and migrations for fieldset and the backup daemon', function (array $command, string $call): void {
         $command = array_map(fn (string $part): string => str_replace('{bin}', $this->harness->bin, $part), $command);
 
         expect($this->harness->run('docker/app/entrypoint.sh', $command, ['RUN_MIGRATIONS' => 'true']))->toBe([$call]);
     })->with([
-        'fsa' => [['fsa', 'status', '--json'], 'php /var/www/html/artisan fsa:status --json'],
-        'backup daemon' => [['fsa', 'backup-daemon'], 'php /var/www/html/artisan fsa:backup-daemon'],
-        'fsa by path' => [['{bin}/fsa', 'version'], 'php /var/www/html/artisan fsa:version'],
-        'artisan fsa command' => [['php', 'artisan', 'fsa:backup-daemon'], 'php artisan fsa:backup-daemon'],
+        'fieldset' => [['fieldset', 'status', '--json'], 'php /var/www/html/artisan fieldset:status --json'],
+        'backup daemon' => [['fieldset', 'backup-daemon'], 'php /var/www/html/artisan fieldset:backup-daemon'],
+        'fieldset by path' => [['{bin}/fieldset', 'version'], 'php /var/www/html/artisan fieldset:version'],
+        'artisan fieldset command' => [['php', 'artisan', 'fieldset:backup-daemon'], 'php artisan fieldset:backup-daemon'],
     ]);
 });
 
-describe('fsa wrapper', function (): void {
+describe('fieldset wrapper', function (): void {
     beforeEach(function (): void {
         $this->harness = new ScriptHarness(base_path());
     });
@@ -249,35 +249,35 @@ describe('fsa wrapper', function (): void {
         $this->harness->cleanUp();
     });
 
-    it('runs php artisan fsa:<command> and lists the commands without one', function (array $arguments, string $call): void {
-        expect($this->harness->run('docker/app/fsa', $arguments))->toBe([$call]);
+    it('runs php artisan fieldset:<command> and lists the commands without one', function (array $arguments, string $call): void {
+        expect($this->harness->run('docker/app/fieldset', $arguments))->toBe([$call]);
     })->with([
-        'command with options' => [['install', '--mode', 'local', '--json'], 'php /var/www/html/artisan fsa:install --mode local --json'],
-        'no command' => [[], 'php /var/www/html/artisan list fsa'],
-        'list options only' => [['--format=json'], 'php /var/www/html/artisan list fsa --format=json'],
-        'list as JSON' => [['--json'], 'php /var/www/html/artisan list fsa --format=json'],
-        'flag before the command' => [['--json', 'status'], 'php /var/www/html/artisan fsa:status --json'],
-        'flags before and after' => [['--yes', 'uninstall', '--json'], 'php /var/www/html/artisan fsa:uninstall --yes --json'],
-        'value flags before the command' => [['--dir', '/srv/fsa', '--secrets-file', 'link.json', 'login-link', 'a@b.test'], 'php /var/www/html/artisan fsa:login-link --dir /srv/fsa --secrets-file link.json a@b.test'],
-        'install --version after a leading flag' => [['--json', 'install', '--version', '2.0.0'], 'php /var/www/html/artisan fsa:install --json --release 2.0.0'],
-        'value flag before the command' => [['--behind-proxy', 'traefik', 'install', '--json'], 'php /var/www/html/artisan fsa:install --behind-proxy traefik --json'],
-        'optional-value flag before the command' => [['--port', '8080', '--url', 'http://x.test', 'install'], 'php /var/www/html/artisan fsa:install --port 8080 --url http://x.test'],
-        'flag=value before the command' => [['--behind-proxy=traefik', 'install'], 'php /var/www/html/artisan fsa:install --behind-proxy=traefik'],
-        'install --version before the command' => [['--version', '2.0.0', 'install'], 'php /var/www/html/artisan fsa:install --release 2.0.0'],
-        'logs value flag before the command' => [['--tail', '50', 'logs', 'app'], 'php /var/www/html/artisan fsa:logs --tail 50 app'],
-        'positional after --' => [['login-link', '--', '--json'], 'php /var/www/html/artisan fsa:login-link -- --json'],
-        'image role' => [['backup-daemon'], 'php /var/www/html/artisan fsa:backup-daemon'],
+        'command with options' => [['install', '--mode', 'local', '--json'], 'php /var/www/html/artisan fieldset:install --mode local --json'],
+        'no command' => [[], 'php /var/www/html/artisan list fieldset'],
+        'list options only' => [['--format=json'], 'php /var/www/html/artisan list fieldset --format=json'],
+        'list as JSON' => [['--json'], 'php /var/www/html/artisan list fieldset --format=json'],
+        'flag before the command' => [['--json', 'status'], 'php /var/www/html/artisan fieldset:status --json'],
+        'flags before and after' => [['--yes', 'uninstall', '--json'], 'php /var/www/html/artisan fieldset:uninstall --yes --json'],
+        'value flags before the command' => [['--dir', '/srv/fieldset', '--secrets-file', 'link.json', 'login-link', 'a@b.test'], 'php /var/www/html/artisan fieldset:login-link --dir /srv/fieldset --secrets-file link.json a@b.test'],
+        'install --version after a leading flag' => [['--json', 'install', '--version', '2.0.0'], 'php /var/www/html/artisan fieldset:install --json --release 2.0.0'],
+        'value flag before the command' => [['--behind-proxy', 'traefik', 'install', '--json'], 'php /var/www/html/artisan fieldset:install --behind-proxy traefik --json'],
+        'optional-value flag before the command' => [['--port', '8080', '--url', 'http://x.test', 'install'], 'php /var/www/html/artisan fieldset:install --port 8080 --url http://x.test'],
+        'flag=value before the command' => [['--behind-proxy=traefik', 'install'], 'php /var/www/html/artisan fieldset:install --behind-proxy=traefik'],
+        'install --version before the command' => [['--version', '2.0.0', 'install'], 'php /var/www/html/artisan fieldset:install --release 2.0.0'],
+        'logs value flag before the command' => [['--tail', '50', 'logs', 'app'], 'php /var/www/html/artisan fieldset:logs --tail 50 app'],
+        'positional after --' => [['login-link', '--', '--json'], 'php /var/www/html/artisan fieldset:login-link -- --json'],
+        'image role' => [['backup-daemon'], 'php /var/www/html/artisan fieldset:backup-daemon'],
     ]);
 
     it('answers an unknown command with exit 2 and an unknown_command error, never artisan', function (array $arguments, bool $json): void {
-        $process = $this->harness->attempt('docker/app/fsa', $arguments);
+        $process = $this->harness->attempt('docker/app/fieldset', $arguments);
         $command = array_values(array_filter($arguments, fn (string $arg): bool => ! str_starts_with($arg, '-')))[0];
 
         expect($process->getExitCode())->toBe(2)
             ->and($this->harness->calls())->toBe([]);
         if (! $json) {
             expect($process->getOutput())->toBe('')
-                ->and($process->getErrorOutput())->toContain("fsa: unknown command: {$command}")
+                ->and($process->getErrorOutput())->toContain("fieldset: unknown command: {$command}")
                 ->and($process->getErrorOutput())->toContain('Available commands: adopt, backup, config, demo, doctor, install, login-link');
 
             return;
@@ -286,13 +286,13 @@ describe('fsa wrapper', function (): void {
             'schema_version' => 1, 'command' => $command, 'status' => 'failed', 'exit_code' => 2, 'changed' => false, 'data' => [], 'secrets' => [], 'warnings' => [],
             'errors' => [[
                 'code' => 'unknown_command',
-                'message' => "Unknown fsa command: {$command}",
-                'hint' => 'Available commands: adopt, backup, config, demo, doctor, install, login-link, logs, reset, restore, rollback, status, tunnel, uninstall, upgrade, version. Run fsa without arguments to list them; put flags after the command or write them as --flag=value.',
+                'message' => "Unknown fieldset command: {$command}",
+                'hint' => 'Available commands: adopt, backup, config, demo, doctor, install, login-link, logs, reset, restore, rollback, status, tunnel, uninstall, upgrade, version. Run fieldset without arguments to list them; put flags after the command or write them as --flag=value.',
                 'retryable' => false,
             ]],
         ])->and($process->getErrorOutput())->toBe('');
     })->with([
-        'not an fsa command' => [['migrate', '--json'], true], // `upgrade` and `rollback` shipped with U18 (ADR 0086)
+        'not a fieldset command' => [['migrate', '--json'], true], // `upgrade` and `rollback` shipped with U18 (ADR 0086)
         'typo with a leading flag' => [['--json', 'stauts'], true],
         'quote in the name' => [['--json', 'x"y\\z'], true],
         'two words' => [['--json', 'logs status'], true],
@@ -300,22 +300,22 @@ describe('fsa wrapper', function (): void {
         'value of a flag no command knows' => [['--json', '--colour', 'red', 'install'], true],
     ]);
 
-    it('knows exactly the registered fsa commands (users) and the image role entry points', function (): void {
-        $wrapper = (string) file_get_contents(base_path('docker/app/fsa'));
+    it('knows exactly the registered fieldset commands (users) and the image role entry points', function (): void {
+        $wrapper = (string) file_get_contents(base_path('docker/app/fieldset'));
         preg_match("/^commands='([a-z -]+)'$/m", $wrapper, $commands);
         preg_match("/^roles='([a-z -]+)'$/m", $wrapper, $roles);
-        $registered = collect(Artisan::all())->filter(fn ($command, string $name): bool => str_starts_with($name, 'fsa:'));
-        $visible = $registered->reject(fn ($command): bool => $command->isHidden())->keys()->map(fn (string $name): string => substr($name, 4))->sort()->values()->all();
-        $hidden = $registered->filter(fn ($command): bool => $command->isHidden())->keys()->map(fn (string $name): string => substr($name, 4))->all();
+        $registered = collect(Artisan::all())->filter(fn ($command, string $name): bool => str_starts_with($name, 'fieldset:'));
+        $visible = $registered->reject(fn ($command): bool => $command->isHidden())->keys()->map(fn (string $name): string => substr($name, strlen('fieldset:')))->sort()->values()->all();
+        $hidden = $registered->filter(fn ($command): bool => $command->isHidden())->keys()->map(fn (string $name): string => substr($name, strlen('fieldset:')))->all();
 
         expect(explode(' ', $commands[1] ?? ''))->toBe($visible)
             ->and(explode(' ', $roles[1] ?? ''))->toBe(['backup-daemon', 'restore-prepare', 'upgrade-child'])
             ->and(array_diff($hidden, ['backup-daemon', 'restore-prepare', 'upgrade-child']))->toBe([]);
     });
 
-    it('knows every value-taking option of the fsa commands, so a flag before the command keeps its value', function (): void {
-        preg_match("/^value_flags='([^']+)'$/m", (string) file_get_contents(base_path('docker/app/fsa')), $listed);
+    it('knows every value-taking option of the fieldset commands, so a flag before the command keeps its value', function (): void {
+        preg_match("/^value_flags='([^']+)'$/m", (string) file_get_contents(base_path('docker/app/fieldset')), $listed);
 
-        expect(preg_split('/\\s+/', trim($listed[1] ?? '')))->toBe(FsaCommandFlags::valueFlags());
+        expect(preg_split('/\\s+/', trim($listed[1] ?? '')))->toBe(FieldsetCommandFlags::valueFlags());
     });
 });

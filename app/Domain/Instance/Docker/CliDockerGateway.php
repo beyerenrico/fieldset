@@ -295,7 +295,7 @@ final readonly class CliDockerGateway implements DockerGateway
     {
         $outcome = $this->runner->run($command, [...array_fill_keys(self::CLEARED_ENV, false), 'COMPOSE_DISABLE_ENV_FILE' => '1', ...$env], $input, $timeout, $stdoutFile);
         if (! $outcome->started) {
-            throw new DockerUnavailable('The docker CLI could not be started.', 'The fsa image ships the Docker CLI; check that the ops container runs the published image.');
+            throw new DockerUnavailable('The docker CLI could not be started.', 'The fieldset image ships the Docker CLI; check that the ops container runs the published image.');
         }
         foreach (self::UNREACHABLE as $needle) {
             if (! $outcome->successful() && str_contains($outcome->stderr, $needle)) {

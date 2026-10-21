@@ -90,7 +90,7 @@ final readonly class ConfigRollout
             try {
                 $this->docker->pullImage($image);
             } catch (DockerCommandFailed $e) {
-                throw new InstanceException("Cannot pull {$image}.", ExitCode::PreflightFailed, 'image_unavailable', 'Check the network and FSA_REGISTRY, then run the command again; nothing was changed.', true, ['image' => $image, 'stderr' => $e->outcome->stderrTail(3)], $e);
+                throw new InstanceException("Cannot pull {$image}.", ExitCode::PreflightFailed, 'image_unavailable', 'Check the network and FIELDSET_REGISTRY, then run the command again; nothing was changed.', true, ['image' => $image, 'stderr' => $e->outcome->stderrTail(3)], $e);
             }
             $pulled[] = $image;
         }
@@ -278,7 +278,7 @@ final readonly class ConfigRollout
                 'Services did not become healthy: '.($failing === [] ? 'the stack' : implode(', ', $failing)).'.',
                 ExitCode::HealthCheckFailed,
                 'services_unhealthy',
-                'Read `fsa logs <service>` for the cause.',
+                'Read `fieldset logs <service>` for the cause.',
                 true,
                 ['services' => $failing, 'logs' => $this->logs($project, $failing), 'docker' => $e->outcome->stderrTail(5)],
                 $e,

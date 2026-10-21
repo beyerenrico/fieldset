@@ -16,10 +16,10 @@ use App\Domain\Instance\State\InstanceState;
 use Closure;
 
 /**
- * Demo data on an instance (R29, R30, KTD25, ADR 0081), shared by `fsa install --demo` and `fsa demo`: the
+ * Demo data on an instance (R29, R30, KTD25, ADR 0081), shared by `fieldset install --demo` and `fieldset demo`: the
  * app-side seeder and password rotation run as socket-less one-offs, the password mode follows the instance's
  * reachability (DemoPasswords), and the state history records `demo_seeded` / `demo_passwords_rotated` with the mode
- * (never a password), so a repeated `fsa install --demo` knows the demo is there.
+ * (never a password), so a repeated `fieldset install --demo` knows the demo is there.
  *
  * `provide()` is the journaled sequence of both commands (phases `demo`, then `demo_rotate` when needed; both run again
  * on a resume, the one-offs being idempotent): an existing demo whose accounts still have `password` on an instance
@@ -35,7 +35,7 @@ final readonly class DemoData
     public function __construct(private AppCommands $app, private InstanceDirectory $directory) {}
 
     /**
-     * Whether the state history records demo data (installed with `--demo` or added by `fsa demo`) since the last reset,
+     * Whether the state history records demo data (installed with `--demo` or added by `fieldset demo`) since the last reset,
      * which recreated the database (ADR 0088).
      */
     public static function recorded(InstanceState $state): bool
@@ -73,7 +73,7 @@ final readonly class DemoData
 
         return $reissue
             ? [$credentials->withRotation($this->rotation($run, $project, $actorUid)), [['demo_passwords_reissued', 'The demo data was added by an earlier, interrupted attempt whose passwords were never shown: the demo accounts got new ones.', null]]]
-            : [$credentials, [['demo_passwords_not_shown', 'The demo data exists already; its passwords were shown once when it was added.', 'Run `fsa demo --rotate-passwords` for new ones.']]];
+            : [$credentials, [['demo_passwords_not_shown', 'The demo data exists already; its passwords were shown once when it was added.', 'Run `fieldset demo --rotate-passwords` for new ones.']]];
     }
 
     /** `--rotate-passwords`, or a rotation `provide()` needs: phase `demo_rotate`. */
@@ -128,7 +128,7 @@ final readonly class DemoData
         return $credentials instanceof DemoCredentials ? $credentials : throw new InstanceException("The {$name} phase returned no result.");
     }
 
-    /** @param  string|null  $mode  null when the demo existed before fsa recorded it */
+    /** @param  string|null  $mode  null when the demo existed before fieldset recorded it */
     private function record(string $event, ?string $mode): void
     {
         $this->directory->saveState($this->directory->state()->withHistoryEntry($event, ['passwords' => $mode]));
@@ -140,7 +140,7 @@ final readonly class DemoData
             "{$what}: `{$command}` failed: ".$result->errorMessage(),
             ExitCode::HealthCheckFailed,
             in_array($result->errorCode(), ['one_off_failed', 'one_off_timeout'], true) ? $result->errorCode() : 'demo_failed',
-            'Check that the instance runs (`fsa status`, `fsa logs app`), then run the command again.',
+            'Check that the instance runs (`fieldset status`, `fieldset logs app`), then run the command again.',
             true,
             ['code' => $result->errorCode(), 'output' => $result->output],
         );

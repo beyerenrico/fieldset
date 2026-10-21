@@ -19,7 +19,7 @@ final class DomainFixtures
     public const string EDGE_ADDRESS = '10.213.4.34';
 
     /** @param  array<string, string|int|bool|null>  $settings */
-    public static function state(array $settings = [], string $path = '/srv/fsa'): InstanceState
+    public static function state(array $settings = [], string $path = '/srv/fieldset'): InstanceState
     {
         return ComposeFixtures::state(['domain' => self::DOMAIN, 'edge_subnet' => self::SUBNET, ...$settings], $path)
             ->withMode('domain')

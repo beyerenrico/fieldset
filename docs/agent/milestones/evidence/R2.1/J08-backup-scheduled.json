@@ -1,0 +1,304 @@
+{
+    "retention": {
+        "schema_version": 1,
+        "command": "config",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": true,
+        "data": {
+            "key": "backup-retention",
+            "from": "7",
+            "to": "1",
+            "url": "http://localhost:8081",
+            "mode": "local",
+            "reverted": false,
+            "previous": {
+                "url": "http://localhost:8081",
+                "mode": "local"
+            },
+            "services": {
+                "recreated": [
+                    "backup"
+                ],
+                "added": [],
+                "removed": []
+            },
+            "checked": [
+                "/up",
+                "/admin/login",
+                "gotenberg /health"
+            ],
+            "impact": null,
+            "audited": true,
+            "next_commands": [
+                "<work>/fieldset-test-j08/fieldset status"
+            ]
+        },
+        "secrets": [],
+        "warnings": [],
+        "errors": []
+    },
+    "schedule": {
+        "schema_version": 1,
+        "command": "config",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": true,
+        "data": {
+            "key": "backup-schedule",
+            "from": "03:30",
+            "to": "14:30",
+            "url": "http://localhost:8081",
+            "mode": "local",
+            "reverted": false,
+            "previous": {
+                "url": "http://localhost:8081",
+                "mode": "local"
+            },
+            "services": {
+                "recreated": [
+                    "backup"
+                ],
+                "added": [],
+                "removed": []
+            },
+            "checked": [
+                "/up",
+                "/admin/login",
+                "gotenberg /health"
+            ],
+            "impact": null,
+            "audited": true,
+            "next_commands": [
+                "<work>/fieldset-test-j08/fieldset status"
+            ]
+        },
+        "secrets": [],
+        "warnings": [],
+        "errors": []
+    },
+    "skipped_run": {
+        "kind": "scheduled",
+        "started_at": "2026-10-21T12:30:00Z",
+        "encrypted": true,
+        "backup": null,
+        "status": "skipped",
+        "reason": "lock_held",
+        "message": "An operation holds the instance lock: fieldset-test-hold by fieldset (container f999a1ad4afb, since 2026-10-21T12:26:43Z).",
+        "finished_at": "2026-10-21T12:30:00Z",
+        "recorded": true
+    },
+    "status_while_locked": {
+        "last": {
+            "kind": "scheduled",
+            "started_at": "2026-10-21T12:30:00Z",
+            "encrypted": true,
+            "backup": null,
+            "status": "skipped",
+            "reason": "lock_held",
+            "message": "An operation holds the instance lock: fieldset-test-hold by fieldset (container f999a1ad4afb, since 2026-10-21T12:26:43Z).",
+            "finished_at": "2026-10-21T12:30:00Z",
+            "recorded": true
+        },
+        "last_success": {
+            "kind": "manual",
+            "started_at": "2026-10-21T12:25:27Z",
+            "encrypted": true,
+            "backup": "manual-20261021T122527Z",
+            "status": "succeeded",
+            "bytes": 512312,
+            "missing_files": 0,
+            "finished_at": "2026-10-21T12:25:27Z",
+            "recorded": true
+        },
+        "schedule": {
+            "time": "14:30",
+            "time_zone": "Europe/Berlin",
+            "retention": 1,
+            "next_run": "2026-10-22T12:30:00Z"
+        },
+        "encrypted": true,
+        "directory": "<work>/fieldset-test-j08/backups",
+        "backups": {
+            "count": 3,
+            "bytes": 1010891,
+            "newest": {
+                "name": "manual-20261021T122527Z",
+                "kind": "manual",
+                "created_at": "2026-10-21T12:25:27Z",
+                "bytes": 512312,
+                "encrypted": true,
+                "kept": false
+            }
+        },
+        "safety": [],
+        "partials": [],
+        "alerts": []
+    },
+    "scheduled_run": {
+        "kind": "scheduled",
+        "started_at": "2026-10-21T12:31:00Z",
+        "encrypted": true,
+        "backup": "scheduled-20261021T123100Z",
+        "status": "succeeded",
+        "bytes": 512312,
+        "missing_files": 0,
+        "free_bytes": 143915241472,
+        "pruned": [
+            "scheduled-20261001T033000Z"
+        ],
+        "finished_at": "2026-10-21T12:31:00Z",
+        "recorded": true
+    },
+    "backup_runs": [
+        "manual:succeeded:",
+        "manual:succeeded:",
+        "scheduled:skipped:lock_held",
+        "scheduled:succeeded:"
+    ],
+    "status_after": {
+        "last": {
+            "kind": "scheduled",
+            "started_at": "2026-10-21T12:31:00Z",
+            "encrypted": true,
+            "backup": "scheduled-20261021T123100Z",
+            "status": "succeeded",
+            "bytes": 512312,
+            "missing_files": 0,
+            "finished_at": "2026-10-21T12:31:00Z",
+            "recorded": true
+        },
+        "last_success": {
+            "kind": "scheduled",
+            "started_at": "2026-10-21T12:31:00Z",
+            "encrypted": true,
+            "backup": "scheduled-20261021T123100Z",
+            "status": "succeeded",
+            "bytes": 512312,
+            "missing_files": 0,
+            "finished_at": "2026-10-21T12:31:00Z",
+            "recorded": true
+        },
+        "schedule": {
+            "time": "14:30",
+            "time_zone": "Europe/Berlin",
+            "retention": 1,
+            "next_run": "2026-10-22T12:30:00Z"
+        },
+        "encrypted": true,
+        "directory": "<work>/fieldset-test-j08/backups",
+        "backups": {
+            "count": 3,
+            "bytes": 1523180,
+            "newest": {
+                "name": "scheduled-20261021T123100Z",
+                "kind": "scheduled",
+                "created_at": "2026-10-21T12:31:00Z",
+                "bytes": 512312,
+                "encrypted": true,
+                "kept": false
+            }
+        },
+        "safety": [],
+        "partials": [],
+        "alerts": []
+    },
+    "ledger": [
+        {
+            "kind": "service",
+            "status": "started",
+            "started_at": "2026-10-21T12:24:04Z",
+            "finished_at": "2026-10-21T12:24:04Z",
+            "encrypted": false,
+            "schedule": "03:30",
+            "time_zone": "Europe/Berlin",
+            "removed": [],
+            "recorded": true
+        },
+        {
+            "kind": "manual",
+            "started_at": "2026-10-21T12:24:44Z",
+            "encrypted": false,
+            "backup": "manual-20261021T122444Z",
+            "status": "succeeded",
+            "bytes": 498556,
+            "missing_files": 0,
+            "free_bytes": 143938338816,
+            "pruned": [],
+            "finished_at": "2026-10-21T12:24:44Z",
+            "recorded": true
+        },
+        {
+            "kind": "service",
+            "status": "started",
+            "started_at": "2026-10-21T12:24:50Z",
+            "finished_at": "2026-10-21T12:24:50Z",
+            "encrypted": true,
+            "schedule": "03:30",
+            "time_zone": "Europe/Berlin",
+            "removed": [],
+            "recorded": true
+        },
+        {
+            "kind": "manual",
+            "started_at": "2026-10-21T12:25:27Z",
+            "encrypted": true,
+            "backup": "manual-20261021T122527Z",
+            "status": "succeeded",
+            "bytes": 512312,
+            "missing_files": 0,
+            "free_bytes": 143932993536,
+            "pruned": [],
+            "finished_at": "2026-10-21T12:25:27Z",
+            "recorded": true
+        },
+        {
+            "kind": "service",
+            "status": "started",
+            "started_at": "2026-10-21T12:25:33Z",
+            "finished_at": "2026-10-21T12:25:33Z",
+            "encrypted": true,
+            "schedule": "03:30",
+            "time_zone": "Europe/Berlin",
+            "removed": [],
+            "recorded": true
+        },
+        {
+            "kind": "service",
+            "status": "started",
+            "started_at": "2026-10-21T12:26:10Z",
+            "finished_at": "2026-10-21T12:26:10Z",
+            "encrypted": true,
+            "schedule": "14:30",
+            "time_zone": "Europe/Berlin",
+            "removed": [],
+            "recorded": true
+        },
+        {
+            "kind": "scheduled",
+            "started_at": "2026-10-21T12:30:00Z",
+            "encrypted": true,
+            "backup": null,
+            "status": "skipped",
+            "reason": "lock_held",
+            "message": "An operation holds the instance lock: fieldset-test-hold by fieldset (container f999a1ad4afb, since 2026-10-21T12:26:43Z).",
+            "finished_at": "2026-10-21T12:30:00Z",
+            "recorded": true
+        },
+        {
+            "kind": "scheduled",
+            "started_at": "2026-10-21T12:31:00Z",
+            "encrypted": true,
+            "backup": "scheduled-20261021T123100Z",
+            "status": "succeeded",
+            "bytes": 512312,
+            "missing_files": 0,
+            "free_bytes": 143915241472,
+            "pruned": [
+                "scheduled-20261001T033000Z"
+            ],
+            "finished_at": "2026-10-21T12:31:00Z",
+            "recorded": true
+        }
+    ]
+}

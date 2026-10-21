@@ -20,10 +20,10 @@ use Throwable;
  * migrations, `foreign` (the client sessions requests still hold after the gate rose) and `size` (the live database
  * and the storage volume, for the space check) (UpgradeSessions). Runs as a socket-less one-off of the app service.
  */
-#[Description('The upgrade child\'s session, other sessions, sizes and the index check, for fsa upgrade')]
+#[Description('The upgrade child\'s session, other sessions, sizes and the index check, for fieldset upgrade')]
 #[Signature('instance:upgrade-db
         {action : activity, terminate, foreign, size or invalid-indexes}
-        {--application-name= : The child\'s session name (fsa_upgrade_<hex>)}
+        {--application-name= : The child\'s session name (fieldset_upgrade_<hex>)}
         {--json : Print one JSON document on stdout}')]
 final class UpgradeDatabaseCommand extends Command
 {

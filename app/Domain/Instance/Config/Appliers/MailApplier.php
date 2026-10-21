@@ -20,7 +20,7 @@ use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
 
 /**
- * `fsa config set mail smtp|capture` (R22, R25, KTD13, ADR 0054, ADR 0080).
+ * `fieldset config set mail smtp|capture` (R22, R25, KTD13, ADR 0054, ADR 0080).
  *
  * - `smtp`: the server from `--smtp-host` (required from capture mode), `--smtp-port`, `--smtp-encryption`
  *   `starttls|tls|none` (STARTTLS required, implicit TLS, or a plain relay: `smtp_plaintext_auth` warns when an account
@@ -104,7 +104,7 @@ final readonly class MailApplier implements SettingApplier, SettingHooks
     private function capture(InstanceState $state, MailOptions $options, ?SmtpCredentials $credentials): ConfigChange
     {
         if (! $options->isEmpty() || $options->testTo !== null || $credentials instanceof SmtpCredentials) {
-            throw new InvalidInput('`config set mail capture` takes no SMTP options.', 'invalid_flag', 'Run `fsa config set mail capture` alone; the SMTP settings and credentials are dropped.');
+            throw new InvalidInput('`config set mail capture` takes no SMTP options.', 'invalid_flag', 'Run `fieldset config set mail capture` alone; the SMTP settings and credentials are dropped.');
         }
         $after = $state->withSettings(['mail' => null, 'smtp_host' => null, 'smtp_port' => null, 'smtp_scheme' => null, 'mail_catcher' => null]);
 

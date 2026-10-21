@@ -20,7 +20,7 @@ use Tests\Support\Instance\TarBuilder;
 use Tests\Support\Instance\TemporaryInstance;
 
 /*
- * `fsa restore` on the ops side (R41, R64, R67, R68, AE8, KTD18, KTD25, KTD26, plan U17, ADR 0085), against the recording
+ * `fieldset restore` on the ops side (R41, R64, R67, R68, AE8, KTD18, KTD25, KTD26, plan U17, ADR 0085), against the recording
  * Docker gateway: the socket-less prepare step (the real BackupPreparer in-process), the space check, quiesce, the ledger,
  * the safety backup, the scratch database and the fresh volume, the finish one-off, the swap, the verification behind the
  * gate and the clean-up, and every way a restore is refused before it changes anything.
@@ -49,22 +49,22 @@ it('restores in place: prepare without network, quiesce, ledger, safety backup, 
     $smoke = array_values(array_filter($this->restore->config->callsSince($mark, 'runContainer'), static fn (array $call): bool => $call['spec']->entrypoint === 'curl' && in_array('@-', $call['spec']->command, true)));
 
     expect($code)->toBe(0, (string) json_encode($json))
-        ->and($json['data'])->toMatchArray(['backup' => 'manual-20261019T120000Z', 'format' => 'fsa', 'authenticated' => true, 'epoch' => 2, 'previous_epoch' => 1,
+        ->and($json['data'])->toMatchArray(['backup' => 'manual-20261019T120000Z', 'format' => 'fieldset', 'authenticated' => true, 'epoch' => 2, 'previous_epoch' => 1,
             'safety_backup' => 'safety-restore-20261019T120000Z', 'storage_volume' => $state->project().'_app-storage-r'.$id, 'left_behind' => []])
         ->and($prepare->network)->toBe('none')->and(json_encode($prepare))->not->toContain('docker.sock')
         ->and($prepare->volumes)->toContain($this->dir.'/backups/manual-20261019T120000Z:'.$this->dir.'/backups/manual-20261019T120000Z:ro')
         ->and($pgRestore->network)->toBe($state->project().'_default')
         // the verified copy in the scratch directory, never the backup a backups/ writer could change meanwhile (M12 gate)
-        ->and($pgRestore->command)->toBe(['--dbname=form_schema_restore_'.$id, '--no-owner', '--no-privileges', '--single-transaction', '--exit-on-error', '--', $this->dir.'/staging/restore-'.$id.'/set/database.dump'])
+        ->and($pgRestore->command)->toBe(['--dbname=fieldset_restore_'.$id, '--no-owner', '--no-privileges', '--single-transaction', '--exit-on-error', '--', $this->dir.'/staging/restore-'.$id.'/set/database.dump'])
         ->and(implode(' ', [...$pgRestore->volumes, ...$tar->volumes, ...$tar->command]))->not->toContain('/backups/')
-        ->and(array_keys($pgRestore->env))->toContain('PGPASSWORD')->and($pgRestore->env['PGDATABASE'])->toBe('form_schema_restore_'.$id)
+        ->and(array_keys($pgRestore->env))->toContain('PGPASSWORD')->and($pgRestore->env['PGDATABASE'])->toBe('fieldset_restore_'.$id)
         ->and($tar->network)->toBe('none')->and($tar->user)->toBe('33:33')
         ->and([$prepare->capabilities, $pgRestore->capabilities, $tar->capabilities])->toBe([[], [], []]) // M12 gate S6: no capability
         ->and([$prepare->readOnlyRoot, $pgRestore->readOnlyRoot, $tar->readOnlyRoot])->toBe([true, true, true])
         ->and($tar->volumes[0])->toBe($state->project().'_app-storage-r'.$id.':/var/www/html/storage/app')
-        ->and($finish['env'])->toContain('DB_DATABASE', 'FSA_BACKUP_DB_PASSWORD')->and($finish['command'])->toContain('--source=form_schema', '--backup=manual-20261019T120000Z')
+        ->and($finish['env'])->toContain('DB_DATABASE', 'FIELDSET_BACKUP_DB_PASSWORD')->and($finish['command'])->toContain('--source=fieldset', '--backup=manual-20261019T120000Z')
         ->and($this->restore->actions())->toBe(['drop', 'create', 'swap', 'drop'])
-        ->and($this->restore->databases)->toContain('form_schema')->not->toContain('form_schema_pre_restore_'.$id)->not->toContain('form_schema_restore_'.$id)
+        ->and($this->restore->databases)->toContain('fieldset')->not->toContain('fieldset_pre_restore_'.$id)->not->toContain('fieldset_restore_'.$id)
         ->and(InstanceSettings::of($state)->storageVolume())->toBe($state->project().'_app-storage-r'.$id)
         ->and($this->restore->instance->docker->called('createVolume')[0]['name'])->toBe($state->project().'_app-storage-r'.$id)
         // the fresh volume's name is cleared first (a leftover of an interrupted attempt), the replaced volume goes last
@@ -95,7 +95,7 @@ it('asks before replacing the instance (exit 6 without --yes) and changes nothin
     $this->restore->backup();
     $mark = $this->restore->config->mark();
 
-    [$code, $json] = $this->restore->instance->run('fsa:restore', ['backup' => 'manual-20261019T120000Z']);
+    [$code, $json] = $this->restore->instance->run('fieldset:restore', ['backup' => 'manual-20261019T120000Z']);
 
     expect($code)->toBe(6)->and($json['errors'][0]['code'])->toBe('confirmation_required')
         ->and($this->restore->config->methodsSince($mark))->not->toContain('composeStop');
@@ -131,7 +131,7 @@ it('restores an older backup in place: the upgrade child migrates the scratch da
     expect($code)->toBe(0, (string) json_encode($json))
         ->and($child)->toHaveCount(1)
         ->and($child[0]['env'])->toContain('DB_DATABASE', 'PGAPPNAME', 'PGOPTIONS')
-        ->and($child[0]['command'])->toContain('--application-name=fsa_upgrade_'.$id, '--from='.InstanceCommandFixture::VERSION)
+        ->and($child[0]['command'])->toContain('--application-name=fieldset_upgrade_'.$id, '--from='.InstanceCommandFixture::VERSION)
         ->and(array_search('upgrade_child', $phases, true))->toBeGreaterThan(array_search('restore_database', $phases, true))
         ->and(array_search('upgrade_child', $phases, true))->toBeLessThan(array_search('finish', $phases, true));
 });
@@ -144,7 +144,7 @@ it('goes back when the upgrade child cannot migrate an older backup (exit 5), th
     [$code, $json] = $this->restore->restore();
 
     expect($code)->toBe(5, (string) json_encode($json))->and($json['errors'][0]['code'])->toBe('upgrade_child_failed')
-        ->and($json['errors'][0]['hint'])->toContain('`install.sh --dir <new directory> --from-backup <backup>`')->not->toContain('fsa install --from-backup') // gate review DOC14
+        ->and($json['errors'][0]['hint'])->toContain('`install.sh --dir <new directory> --from-backup <backup>`')->not->toContain('fieldset install --from-backup') // gate review DOC14
         ->and($this->restore->actions())->not->toContain('swap')
         ->and(json_decode((string) file_get_contents($this->dir.'/runtime/runtime.json'), true)['gate']['raised'])->toBeFalse();
 });
@@ -152,7 +152,7 @@ it('goes back when the upgrade child cannot migrate an older backup (exit 5), th
 it('refuses a backup older than the release\'s oldest upgrade source (exit 7)', function (): void {
     $this->restore->backup('manual-20261019T120000Z');
     $manifest = $this->dir.'/backups/manual-20261019T120000Z/manifest.json';
-    BackupSetFixture::fsa(dirname($manifest), ['versions' => ['app' => '2.0.0-alpha.0', 'postgres' => '16.15'], ...$this->restore->manifest()], appKey: $this->restore->appKey());
+    BackupSetFixture::fieldset(dirname($manifest), ['versions' => ['app' => '2.0.0-alpha.0', 'postgres' => '16.15'], ...$this->restore->manifest()], appKey: $this->restore->appKey());
 
     [$code, $json] = $this->restore->restore();
 
@@ -199,20 +199,20 @@ it('restores an unauthenticated archive only with --accept-unauthenticated, as a
 
     expect($refused)->toBe(2)->and($refusedJson['errors'][0]['code'])->toBe('backup_unauthenticated')
         ->and($code)->toBe(0, (string) json_encode($json))
-        ->and(implode(' ', $create['options']))->toContain('--restricted-role=fsa_restore_')
-        ->and($create['env'])->toBe(['FSA_RESTORE_DB_PASSWORD'])
-        ->and($pgRestore->env['PGUSER'])->toStartWith('fsa_restore_')
+        ->and(implode(' ', $create['options']))->toContain('--restricted-role=fieldset_restore_')
+        ->and($create['env'])->toBe(['FIELDSET_RESTORE_DB_PASSWORD'])
+        ->and($pgRestore->env['PGUSER'])->toStartWith('fieldset_restore_')
         ->and(implode(' ', $pgRestore->command))->toMatch('#--use-list=\S+/staging/restore-[0-9a-f]{12}/restore\.list -- #') // review S1; never in backups/ (M12 gate S3)
         ->and($this->restore->actions())->toContain('adopt')
         ->and(array_search('audit', $this->restore->actions(), true))->toBeLessThan(array_search('adopt', $this->restore->actions(), true))
-        ->and(implode(' ', $this->restore->databaseCalls[array_search('audit', $this->restore->actions(), true)]['options']))->toContain('--reference=form_schema')
+        ->and(implode(' ', $this->restore->databaseCalls[array_search('audit', $this->restore->actions(), true)]['options']))->toContain('--reference=fieldset')
         ->and($json['data']['authenticated'])->toBeFalse()
         ->and(collect($json['warnings'])->pluck('code')->all())->toContain('backup_unauthenticated');
 });
 
 it('refuses a backup encrypted under an unknown APP key unless the key file supplies it, then keeps that key as a previous key', function (): void {
     $this->restore->backup(appKey: BackupSetFixture::OTHER_KEY);
-    $keyFile = sys_get_temp_dir().'/fsa-test-key-'.bin2hex(random_bytes(3));
+    $keyFile = sys_get_temp_dir().'/fieldset-test-key-'.bin2hex(random_bytes(3));
     file_put_contents($keyFile, BackupSetFixture::OTHER_KEY."\n");
 
     [$refused, $refusedJson] = $this->restore->restore();
@@ -267,7 +267,7 @@ it('lets uninstall back up and remove a restored storage volume like Compose\'s 
     $fresh = InstanceSettings::of($state)->storageVolume();
     $this->restore->instance->docker->withResource(new DockerResource(DockerResource::VOLUME, $state->project().'_pg-data', [Labels::INSTANCE => $state->uuid(), 'com.docker.compose.volume' => 'pg-data'])); // Compose made it at the install
 
-    [$code, $json] = $this->restore->instance->run('fsa:uninstall', ['--yes' => true, '--keep-backups' => true]);
+    [$code, $json] = $this->restore->instance->run('fieldset:uninstall', ['--yes' => true, '--keep-backups' => true]);
 
     expect($code)->toBe(0, (string) json_encode($json))
         ->and($json['data']['final_backup']['dir'])->toStartWith('backups/final-')
@@ -291,7 +291,7 @@ it('authenticates only with the current APP key or a key file, never with a prev
     $env = new EnvFiles($this->restore->instance->directory);
     $env->write('app', [...$env->read('app'), 'APP_PREVIOUS_KEYS' => BackupSetFixture::OTHER_KEY]);
     $this->restore->backup(appKey: BackupSetFixture::OTHER_KEY);
-    $keyFile = sys_get_temp_dir().'/fsa-test-key-'.bin2hex(random_bytes(3));
+    $keyFile = sys_get_temp_dir().'/fieldset-test-key-'.bin2hex(random_bytes(3));
     file_put_contents($keyFile, BackupSetFixture::OTHER_KEY."\n");
 
     [$previous, $previousJson] = $this->restore->restore();
@@ -309,7 +309,7 @@ it('refuses in place a backup another instance made and points to --from-backup:
     [$code, $json] = $this->restore->restore();
 
     expect($code)->toBe(2, (string) json_encode($json))->and($json['errors'][0]['code'])->toBe('backup_other_instance')
-        ->and($json['errors'][0]['hint'])->toContain('`install.sh --dir <new directory> --from-backup <backup>`')->not->toContain('fsa install --from-backup') // gate review DOC14
+        ->and($json['errors'][0]['hint'])->toContain('`install.sh --dir <new directory> --from-backup <backup>`')->not->toContain('fieldset install --from-backup') // gate review DOC14
         ->and($json['data']['backup_instance'])->toBe('00000000-0000-4000-8000-0000000000a3')
         ->and($this->restore->config->methodsSince($mark))->not->toContain('composeStop');
 });
@@ -341,7 +341,7 @@ it('takes a 1.0 backup in place only when the APP key in its env is one the inst
 
 it('restores the adopt backup in place through the upgrade child, trusted only as the set the adopt recorded (U19 R1, U18)', function (): void {
     $name = 'safety-adopt-20261019T120000Z';
-    $set = BackupSetFixture::legacy($this->dir.'/backups/'.$name, "APP_URL='http://localhost:8080'\n", "source=fsa adopt\napp_key_fingerprints=".KeyFingerprint::of($this->restore->appKey())."\n");
+    $set = BackupSetFixture::legacy($this->dir.'/backups/'.$name, "APP_URL='http://localhost:8080'\n", "source=fieldset adopt\napp_key_fingerprints=".KeyFingerprint::of($this->restore->appKey())."\n");
     $this->restore->migrations = array_slice(MigrationSet::image(base_path('database/migrations')), 0, -2); // 1.0 is older than the instance
     [$untrusted, $untrustedJson] = $this->restore->restore($name, ['--accept-unauthenticated' => true]);
     $directory = $this->restore->instance->directory;

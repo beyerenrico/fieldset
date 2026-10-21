@@ -15,7 +15,7 @@ use Closure;
 use RuntimeException;
 
 /**
- * A fresh instance directory (InstanceCommandFixture, nothing installed) whose Docker answers `fsa install --from-backup`
+ * A fresh instance directory (InstanceCommandFixture, nothing installed) whose Docker answers `fieldset install --from-backup`
  * (plan U17): the socket-less prepare container runs the real BackupPreparer in-process (fake age, pg_restore answers
  * from fixtures), `instance:restore-db` keeps an in-memory list of databases, pg_restore and tar succeed unless told
  * otherwise, `instance:restore-finish` answers like the app, and the smoke test's curls (internal and through the edge)
@@ -30,7 +30,7 @@ final class FromBackupFixture
     public string $outside;
 
     /** @var list<string> */
-    public array $databases = ['form_schema', 'postgres'];
+    public array $databases = ['fieldset', 'postgres'];
 
     /** @var list<array{action: string, options: list<string>}> */
     public array $databaseCalls = [];
@@ -53,7 +53,7 @@ final class FromBackupFixture
     {
         $this->instance = new InstanceCommandFixture;
         $this->instance->facts(['lanAddresses' => [self::HOST_ADDRESS]]);
-        $this->outside = sys_get_temp_dir().'/fsa-test-move-'.bin2hex(random_bytes(4));
+        $this->outside = sys_get_temp_dir().'/fieldset-test-move-'.bin2hex(random_bytes(4));
         mkdir($this->outside, 0700, true);
         app()->instance(AgeCli::class, new AgeCli(base_path('tests/Fixtures/bin/fake-age'), base_path('tests/Fixtures/bin/fake-age-keygen')));
         $run = $this->instance->docker->runResponder;
@@ -75,7 +75,7 @@ final class FromBackupFixture
     }
 
     /**
-     * A plain fsa backup outside the instance directory.
+     * A plain fieldset backup outside the instance directory.
      *
      * @param  array<string, mixed>  $settings  settings.json `settings`
      * @param  array<string, string>  $extra
@@ -83,7 +83,7 @@ final class FromBackupFixture
     /** @param  list<string>  $recipients  the backup's age recipients (settings.json) */
     public function backup(string $mode = 'local', array $settings = [], string $appKey = BackupSetFixture::APP_KEY, array $extra = [], string $name = 'manual-20261019T120000Z', array $recipients = []): string
     {
-        $dir = BackupSetFixture::fsa($this->outside.'/'.$name, appKey: $appKey, extra: $extra, settings: $settings);
+        $dir = BackupSetFixture::fieldset($this->outside.'/'.$name, appKey: $appKey, extra: $extra, settings: $settings);
         $document = json_decode((string) file_get_contents($dir.'/settings.json'), true);
         $document['mode'] = $mode;
         $document['recipients'] = $recipients;
@@ -107,7 +107,7 @@ final class FromBackupFixture
      */
     public function install(string $backup, array $flags = []): array
     {
-        return $this->instance->run('fsa:install', ['--from-backup' => $backup, ...$flags]);
+        return $this->instance->run('fieldset:install', ['--from-backup' => $backup, ...$flags]);
     }
 
     /** @return list<string> */
@@ -126,7 +126,7 @@ final class FromBackupFixture
 
     private function answerRun(ContainerSpec $spec): ?ProcessOutcome
     {
-        if (($spec->command[0] ?? null) === 'fsa' && ($spec->command[1] ?? null) === 'restore-prepare') {
+        if (($spec->command[0] ?? null) === 'fieldset' && ($spec->command[1] ?? null) === 'restore-prepare') {
             return $this->prepare($spec);
         }
         if ($spec->entrypoint === 'pg_restore') {

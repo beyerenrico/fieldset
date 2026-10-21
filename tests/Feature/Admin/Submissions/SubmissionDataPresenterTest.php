@@ -5,7 +5,7 @@ declare(strict_types=1);
 use App\Domain\Submissions\Admin\SubmissionDataPresenter;
 use App\Domain\Submissions\Admin\ValueFormatter;
 use App\Domain\Submissions\Models\Attachment;
-use FormSchema\Json\Json;
+use Fieldset\Json\Json;
 use Illuminate\Support\Str;
 
 /* M3-T09 view model of the inbox detail: every element type, layout flattening, decimal strings. */

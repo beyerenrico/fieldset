@@ -1,7 +1,7 @@
 {
   "formId": 42,
   "definition": {
-    "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+    "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
     "specVersion": "1.0.0",
     "key": "contract_form",
     "title": "Vertragsformular",

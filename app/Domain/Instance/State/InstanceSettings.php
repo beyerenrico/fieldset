@@ -19,9 +19,9 @@ final readonly class InstanceSettings
 
     public const int DEFAULT_SMTP_PORT = 587;
 
-    public const string DEFAULT_DATABASE = 'form_schema';
+    public const string DEFAULT_DATABASE = 'fieldset';
 
-    public const string DEFAULT_SENDER_NAME = 'form-schema-app';
+    public const string DEFAULT_SENDER_NAME = 'Fieldset';
 
     public const string DEFAULT_BACKUP_TIME = '03:30';
 
@@ -72,7 +72,7 @@ final readonly class InstanceSettings
     }
 
     /**
-     * SMTP delivers, and the catcher stays with the mail it captured until `fsa config set mail smtp --remove-catcher`
+     * SMTP delivers, and the catcher stays with the mail it captured until `fieldset config set mail smtp --remove-catcher`
      * (KTD13, ADR 0080): read-only, its SMTP port bound to the container's loopback so nothing reaches it any more.
      */
     public function keepsCatcher(): bool
@@ -189,8 +189,8 @@ final readonly class InstanceSettings
     }
 
     /**
-     * The proxy's container on that network, as resolved at install or by `config set trusted-proxy`: `fsa doctor` and
-     * `fsa status` re-resolve it to warn when its address moved, `config set trusted-proxy auto` follows it.
+     * The proxy's container on that network, as resolved at install or by `config set trusted-proxy`: `fieldset doctor` and
+     * `fieldset status` re-resolve it to warn when its address moved, `config set trusted-proxy auto` follows it.
      */
     public function proxyContainer(): ?string
     {
@@ -281,7 +281,7 @@ final readonly class InstanceSettings
         return $this->int('backup_retention', self::DEFAULT_BACKUP_RETENTION);
     }
 
-    /** The instance's time zone, recorded from the host at install (FSA_TZ); UTC when unknown. */
+    /** The instance's time zone, recorded from the host at install (FIELDSET_TZ); UTC when unknown. */
     public function timeZone(): string
     {
         return $this->string('time_zone') ?? 'UTC';
@@ -296,7 +296,7 @@ final readonly class InstanceSettings
         return $this->string('storage_volume');
     }
 
-    /** Whether outgoing webhooks wait (`fsa install --from-backup` until `fsa config set webhooks on`, ADR 0085). */
+    /** Whether outgoing webhooks wait (`fieldset install --from-backup` until `fieldset config set webhooks on`, ADR 0085). */
     public function webhooksPaused(): bool
     {
         return $this->state->setting('webhooks_paused') === true;
@@ -304,7 +304,7 @@ final readonly class InstanceSettings
 
     /**
      * The release manifest the app's daily update check reads (E15, plan U20, ADR 0089), recorded by
-     * `fsa config set update-check on` from the release URL of that moment; null while the check is off (the default).
+     * `fieldset config set update-check on` from the release URL of that moment; null while the check is off (the default).
      */
     public function updateManifestUrl(): ?string
     {

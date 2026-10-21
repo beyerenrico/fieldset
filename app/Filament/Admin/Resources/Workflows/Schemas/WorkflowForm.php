@@ -12,6 +12,7 @@ use App\Domain\Workflows\Triggers\ConditionEvaluator;
 use App\Filament\Admin\Resources\Workflows\Support\WorkflowOptions;
 use Closure;
 use Cron\CronExpression;
+use Fieldset\Json\Json;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -19,7 +20,6 @@ use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
-use FormSchema\Json\Json;
 
 /**
  * Workflow editor (§8.3): trigger with its configuration, JsonLogic conditions as raw JSON (validated by

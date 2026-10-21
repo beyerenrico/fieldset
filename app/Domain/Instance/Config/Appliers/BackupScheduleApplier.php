@@ -14,8 +14,8 @@ use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
 
 /**
- * `fsa config set backup-schedule <HH:MM|off>` (E13, R32, ADR 0084): the daily time of scheduled backups in the instance's
- * time zone, or `off`. The time zone is the host's (FSA_TZ), recorded at install; a change that finds none recorded
+ * `fieldset config set backup-schedule <HH:MM|off>` (E13, R32, ADR 0084): the daily time of scheduled backups in the instance's
+ * time zone, or `off`. The time zone is the host's (FIELDSET_TZ), recorded at install; a change that finds none recorded
  * records it now. Only the backup service is recreated (its env file changes); the change applies, verifies and
  * reverts like every key (ADR 0077, ADR 0078).
  */
@@ -27,7 +27,7 @@ final readonly class BackupScheduleApplier implements SettingApplier
     {
         $value = strtolower(trim($request->value));
         if ($value !== BackupSchedule::OFF && ! BackupSchedule::isTime($value)) {
-            throw new InvalidInput('The backup schedule must be a time of day as HH:MM (24 hours) or `off`.', 'invalid_value', 'For example `fsa config set backup-schedule 03:30`.');
+            throw new InvalidInput('The backup schedule must be a time of day as HH:MM (24 hours) or `off`.', 'invalid_value', 'For example `fieldset config set backup-schedule 03:30`.');
         }
 
         return new ConfigChange(self::KEY, $state, $state->withSetting('backup_schedule', $value), InstanceSettings::of($state)->backupSchedule(), $value);

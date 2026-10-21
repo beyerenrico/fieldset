@@ -12,15 +12,15 @@ use Tests\Support\Docker\TestImage;
 
 /*
  * Dogfooding (BUILD_PROMPT_V2 §11, §15.6; plan U22; ADR 0091): the existing E2E suite (Playwright project `desktop`, two
- * workers) against a local-mode `--demo` instance that install.sh and `fsa install` set up from the harness release.
- * The suite reaches the instance through E2E_TARGET=fsa, E2E_BASE_URL, E2E_COMPOSE_PROJECT (artisan in the instance's app container) and
+ * workers) against a local-mode `--demo` instance that install.sh and `fieldset install` set up from the harness release.
+ * The suite reaches the instance through E2E_TARGET=fieldset, E2E_BASE_URL, E2E_COMPOSE_PROJECT (artisan in the instance's app container) and
  * MAILPIT_URL/MAILPIT_AUTH (the instance's catcher behind its UI login). Specs that need dev-only services or settings
  * (Keycloak SSO, the SSO demo seed, open registration) skip themselves on an instance with a "dev stack only:" reason and
  * keep running on the dev stack (tests/e2e/support/target.ts). Playwright runs in its own working directory under the
  * harness workspace, so the specs' screenshots of earlier milestones' evidence never touch the checkout (LEARNINGS 159).
  *
- * Everything is named `fsa-test-dogfood…` and removed afterwards. Evidence: dogfood-e2e.json in the milestone of
- * FSA_EVIDENCE_MILESTONE (per spec file: passed, skipped with the reason, failed with the first error line).
+ * Everything is named `fieldset-test-dogfood…` and removed afterwards. Evidence: dogfood-e2e.json in the milestone of
+ * FIELDSET_EVIDENCE_MILESTONE (per spec file: passed, skipped with the reason, failed with the first error line).
  */
 
 /** Skip reasons a spec may give on an instance: the dev-only marker and the J4-only capture-banner spec. */
@@ -33,38 +33,38 @@ beforeAll(function (): void {
 
     try {
         [$harness, $release] = SharedHarness::get();
-        $GLOBALS['fsaDogfood'] = new InstanceJourney($harness, $release, $harness->directory.'/dogfood');
+        $GLOBALS['fieldsetDogfood'] = new InstanceJourney($harness, $release, $harness->directory.'/dogfood');
     } catch (Throwable $exception) {
-        $GLOBALS['fsaDogfoodError'] = $exception;
+        $GLOBALS['fieldsetDogfoodError'] = $exception;
     }
 });
 
 afterAll(function (): void {
-    if (isset($GLOBALS['fsaDogfood'])) {
-        InstanceJourney::cleanup($GLOBALS['fsaDogfood']->work.'/fsa-test-dogfood', $GLOBALS['fsaDogfoodUuid'] ?? null);
+    if (isset($GLOBALS['fieldsetDogfood'])) {
+        InstanceJourney::cleanup($GLOBALS['fieldsetDogfood']->work.'/fieldset-test-dogfood', $GLOBALS['fieldsetDogfoodUuid'] ?? null);
     }
-    unset($GLOBALS['fsaDogfood'], $GLOBALS['fsaDogfoodError'], $GLOBALS['fsaDogfoodUuid'], $GLOBALS['fsaDogfoodInstall']);
+    unset($GLOBALS['fieldsetDogfood'], $GLOBALS['fieldsetDogfoodError'], $GLOBALS['fieldsetDogfoodUuid'], $GLOBALS['fieldsetDogfoodInstall']);
 });
 
 beforeEach(function (): void {
     $reason = TestImage::dockerUnavailableReason();
     if ($reason !== null) {
-        expect(getenv('FSA_REQUIRE_DOCKER'))->not->toBe('1', $reason);
+        expect(getenv('FIELDSET_REQUIRE_DOCKER'))->not->toBe('1', $reason);
         $this->markTestSkipped($reason.' (install journeys need a Docker engine)');
     }
-    if (isset($GLOBALS['fsaDogfoodError'])) {
-        throw $GLOBALS['fsaDogfoodError'];
+    if (isset($GLOBALS['fieldsetDogfoodError'])) {
+        throw $GLOBALS['fieldsetDogfoodError'];
     }
-    $this->journey = $GLOBALS['fsaDogfood'];
-    $this->dir = $this->journey->work.'/fsa-test-dogfood';
+    $this->journey = $GLOBALS['fieldsetDogfood'];
+    $this->dir = $this->journey->work.'/fieldset-test-dogfood';
 });
 
 it('installs a local-mode demo instance from the harness release', function (): void {
     $flags = ['--org', 'Dogfood Org', '--owner-email', 'owner@example.test', '--locale', 'en', '--demo', '--secrets-file', $this->journey->work.'/owner-link.json', '--json'];
     $process = $this->journey->install($this->dir, $flags);
     $json = InstanceJourney::json($process);
-    $GLOBALS['fsaDogfoodUuid'] = InstanceJourney::uuid($this->dir);
-    $GLOBALS['fsaDogfoodInstall'] = $json['data'] ?? [];
+    $GLOBALS['fieldsetDogfoodUuid'] = InstanceJourney::uuid($this->dir);
+    $GLOBALS['fieldsetDogfoodInstall'] = $json['data'] ?? [];
 
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput()."\n".$process->getOutput())
         ->and($json['data']['mode'] ?? null)->toBe('local')
@@ -76,26 +76,26 @@ it('installs a local-mode demo instance from the harness release', function (): 
 it('passes the E2E suite against the instance, dev-only specs skipped with their reason', function (): void {
     $playwright = TestImage::repository().'/node_modules/.bin/playwright';
     if (! is_file($playwright)) {
-        expect(getenv('FSA_REQUIRE_PLAYWRIGHT'))->not->toBe('1', 'Playwright is not installed (npm ci)');
+        expect(getenv('FIELDSET_REQUIRE_PLAYWRIGHT'))->not->toBe('1', 'Playwright is not installed (npm ci)');
         $this->markTestSkipped('Playwright is not installed (npm ci).');
     }
-    $install = $GLOBALS['fsaDogfoodInstall'] ?? [];
+    $install = $GLOBALS['fieldsetDogfoodInstall'] ?? [];
     expect($install)->not->toBe([], 'the install did not finish');
     $report = $this->journey->work.'/e2e-report.json';
     $started = microtime(true);
     $process = new Process([$playwright, 'test', '--config='.TestImage::repository().'/playwright.config.ts', '--project=desktop', '--workers=2', '--reporter=json'],
         DogfoodReport::workingDirectory($this->journey->work.'/e2e'), [
             'PLAYWRIGHT_BROWSERS_PATH' => BudgetJourney::browsers(), 'PLAYWRIGHT_JSON_OUTPUT_NAME' => $report,
-            'E2E_TARGET' => 'fsa', 'E2E_BASE_URL' => $install['url'], 'E2E_COMPOSE_PROJECT' => $install['project'],
+            'E2E_TARGET' => 'fieldset', 'E2E_BASE_URL' => $install['url'], 'E2E_COMPOSE_PROJECT' => $install['project'],
             'MAILPIT_URL' => $install['mail']['catcher_url'], 'MAILPIT_AUTH' => DogfoodReport::catcherLogin($this->dir),
         ]);
     $process->setTimeout(3600);
     $process->run();
     $summary = DogfoodReport::summarize((string) @file_get_contents($report));
     $this->journey->evidence('dogfood-e2e.json', [
-        'target' => ['install' => 'install.sh --dir <work>/fsa-test-dogfood --version '.ReleaseHarness::version().' --org "Dogfood Org" --owner-email owner@example.test --locale en --demo --secrets-file <work>/owner-link.json --json',
+        'target' => ['install' => 'install.sh --dir <work>/fieldset-test-dogfood --version '.ReleaseHarness::version().' --org "Dogfood Org" --owner-email owner@example.test --locale en --demo --secrets-file <work>/owner-link.json --json',
             'url' => $install['url'], 'project' => $install['project'], 'catcher' => $install['mail']['catcher_url'], 'platform' => ReleaseHarness::platforms()[0]],
-        'command' => 'playwright test --project=desktop --workers=2 (E2E_TARGET=fsa, E2E_BASE_URL, E2E_COMPOSE_PROJECT, MAILPIT_URL, MAILPIT_AUTH set)',
+        'command' => 'playwright test --project=desktop --workers=2 (E2E_TARGET=fieldset, E2E_BASE_URL, E2E_COMPOSE_PROJECT, MAILPIT_URL, MAILPIT_AUTH set)',
         'exit_code' => $process->getExitCode(), 'seconds' => round(microtime(true) - $started, 1), ...$summary,
         'stderr' => array_slice(explode("\n", trim($process->getErrorOutput())), -10),
     ]);
@@ -110,8 +110,8 @@ it('passes the E2E suite against the instance, dev-only specs skipped with their
 });
 
 it('uninstalls without leaving anything labelled behind', function (): void {
-    $process = $this->journey->fsa($this->dir, ['uninstall', '--yes', '--json']);
+    $process = $this->journey->fieldset($this->dir, ['uninstall', '--yes', '--json']);
 
     expect($process->getExitCode())->toBe(0, $process->getErrorOutput().$process->getOutput())
-        ->and(InstanceJourney::labelled((string) $GLOBALS['fsaDogfoodUuid']))->toBe(['containers' => [], 'volumes' => [], 'networks' => []]);
+        ->and(InstanceJourney::labelled((string) $GLOBALS['fieldsetDogfoodUuid']))->toBe(['containers' => [], 'volumes' => [], 'networks' => []]);
 });

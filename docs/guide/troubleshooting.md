@@ -1,20 +1,20 @@
 # Troubleshooting
 
-For an instance installed with `install.sh` and managed with `fsa`. Start with the general checks, then find your
+For an instance installed with `install.sh` and managed with `fieldset`. Start with the general checks, then find your
 symptom below. The 1.0 guide for checkout installs is in the [archive](archive/1.0-troubleshooting.md).
 
 ## General checks
 
 ```sh
-fsa status            # health of every service, URL, mail, backups, an unfinished operation
-fsa doctor --post     # Docker, memory, disk, ports, DNS, clock, and every service healthy
-fsa logs app          # also queue, scheduler, postgres, redis, gotenberg, mailpit, backup, edge, tunnel
-fsa logs app --since 30m --tail 0
+fieldset status            # health of every service, URL, mail, backups, an unfinished operation
+fieldset doctor --post     # Docker, memory, disk, ports, DNS, clock, and every service healthy
+fieldset logs app          # also queue, scheduler, postgres, redis, gotenberg, mailpit, backup, edge, tunnel
+fieldset logs app --since 30m --tail 0
 ```
 
-Every `fsa` command exits with a documented code and, with `--json`, prints one JSON document; the
+Every `fieldset` command exits with a documented code and, with `--json`, prints one JSON document; the
 [agent guide](agent-guide.md#exit-codes-and-recovery) explains them. The most important rule: when a command stopped
-half-way, `fsa status` and every other command name the command that continues it (exit 9
+half-way, `fieldset status` and every other command name the command that continues it (exit 9
 `operation_unfinished`). Run exactly that command; do not repair by hand with `docker` commands.
 
 ## The install or a command fails before it starts
@@ -26,51 +26,51 @@ half-way, `fsa status` and every other command name the command that continues i
 | exit 3 `doctor_failed` | `data.checks` (or the human output) names the failed check and its fix: `ports` (a port is in use: pick another `--port`, or stop what uses 80/443), `dns` (the domain does not point to this host yet), `disk`, `memory`, `clock`, `registry` (images cannot be pulled), `path_sharing`. |
 | exit 3 `path_not_shared` | On Docker Desktop the instance directory is not shared with Docker. Use a directory under your home directory, or add its parent in Docker Desktop's file-sharing settings. |
 | exit 3 `verify_failed`, `manifest_signature_invalid` | The release manifest did not verify. Do not work around it: download again; if it persists, report it. |
-| exit 7 `project_conflict` | Another instance or a leftover uses the same Compose project. `fsa uninstall --orphans <uuid>` removes the leftovers of an instance whose directory is gone. |
-| exit 9 `instance_locked` | Another `fsa` command or a backup runs. Wait. |
+| exit 7 `project_conflict` | Another instance or a leftover uses the same Compose project. `fieldset uninstall --orphans <uuid>` removes the leftovers of an instance whose directory is gone. |
+| exit 9 `instance_locked` | Another `fieldset` command or a backup runs. Wait. |
 
 ## The site answers 503
 
 The maintenance gate is up: an upgrade, restore, rollback, reset or adopt is running or stopped half-way.
-`fsa status` shows `operation`. Let it finish, or run the command it names. After exit 8 (rollback failed) the
+`fieldset status` shows `operation`. Let it finish, or run the command it names. After exit 8 (rollback failed) the
 instance stays behind the gate on purpose: follow `errors[0].hint` of that result.
 
 ## No certificate in domain mode
 
-`fsa status` shows the URL, and `fsa logs edge` shows Caddy's attempts to get a certificate. Common causes: the DNS
+`fieldset status` shows the URL, and `fieldset logs edge` shows Caddy's attempts to get a certificate. Common causes: the DNS
 record does not point to this host (yet), port 80 or 443 is blocked by a firewall, or Let's Encrypt's rate limits
-after many attempts (use `fsa config set acme-ca staging` while testing). An instance moved with `--from-backup`
+after many attempts (use `fieldset config set acme-ca staging` while testing). An instance moved with `--from-backup`
 reports "certificate pending" until DNS points to it.
 
 ## Links point to the wrong host, or the dashboard looks broken behind a proxy
 
 In proxy mode the app trusts forwarded headers only from exactly one address: the proxy container (`traefik`,
-`caddy`) or the instance network's gateway (`port`). If the proxy was recreated with a new address, `fsa status` and
-`fsa doctor` warn `proxy_address_changed`; `fsa config set trusted-proxy auto` follows it. Give the proxy a fixed
-address on the shared network to avoid it. The instance's URL is `fsa config set url <origin>`.
+`caddy`) or the instance network's gateway (`port`). If the proxy was recreated with a new address, `fieldset status` and
+`fieldset doctor` warn `proxy_address_changed`; `fieldset config set trusted-proxy auto` follows it. Give the proxy a fixed
+address on the shared network to avoid it. The instance's URL is `fieldset config set url <origin>`.
 
 ## Mail is not delivered
 
 A new instance captures mail: everything lands in the mail catcher and the admin dashboard shows a "mail is captured"
-banner. That is intended until you configure SMTP: `fsa config set mail smtp …` (see
-[configuration](configuration.md#mail)). The catcher's address is in `fsa status` (`mail.catcher_url`); its login
-comes from `fsa config show --catcher-login --secrets-file <file>`.
+banner. That is intended until you configure SMTP: `fieldset config set mail smtp …` (see
+[configuration](configuration.md#mail)). The catcher's address is in `fieldset status` (`mail.catcher_url`); its login
+comes from `fieldset config show --catcher-login --secrets-file <file>`.
 
 With SMTP configured, a mail that does not arrive shows its error in the organization's mail log ("E-Mail-Protokoll").
-`fsa config set mail smtp` with the same settings sends a new test mail. Exit 5 `test_mail_failed` quotes the
+`fieldset config set mail smtp` with the same settings sends a new test mail. Exit 5 `test_mail_failed` quotes the
 server's answer: wrong login, a sender the server does not allow (`--from-address`), or STARTTLS required where the
 server offers none.
 
 ## PDFs are not created
 
-PDFs are rendered by the `gotenberg` service after a submission, in the queue. Check `fsa status` (gotenberg and queue
-healthy) and `fsa logs gotenberg` and `fsa logs queue`. The `/platform` health page shows Gotenberg and the queue too.
+PDFs are rendered by the `gotenberg` service after a submission, in the queue. Check `fieldset status` (gotenberg and queue
+healthy) and `fieldset logs gotenberg` and `fieldset logs queue`. The `/platform` health page shows Gotenberg and the queue too.
 
 ## The queue or the scheduler does not run
 
-`fsa status` shows `queue` and `scheduler`. Both stop on purpose while an operation holds the maintenance gate. If
-they stopped otherwise, `fsa logs queue` or `fsa logs scheduler` says why; `fsa doctor --post` fails while a service
-is unhealthy. Backups need the `backup` service; `fsa status` warns when it does not run.
+`fieldset status` shows `queue` and `scheduler`. Both stop on purpose while an operation holds the maintenance gate. If
+they stopped otherwise, `fieldset logs queue` or `fieldset logs scheduler` says why; `fieldset doctor --post` fails while a service
+is unhealthy. Backups need the `backup` service; `fieldset status` warns when it does not run.
 
 ## Field App
 
@@ -86,16 +86,16 @@ Ask the worker what the header shows:
 | Nothing, the app is just offline | No connection. On iPhone and iPad the app only syncs while it is open. | Open the app once online. |
 
 What an administrator can check: whether the submission already arrived in "Einreichungen"; server errors or rate
-limiting in `fsa logs app`; the queue, because the PDF and the customer email follow the sync. Do not use "Geräte
+limiting in `fieldset logs app`; the queue, because the PDF and the customer email follow the sync. Do not use "Geräte
 sperren" ("Revoke devices") to fix a stuck device: the device then deletes all local data, including unsent work.
 
 **The app does not offer to install, or offline mode does not work.** The app must be opened over HTTPS: a domain
-instance, `fsa config set phone-https local-ca` (the phone must trust the instance's CA first, see its trust page),
-or `fsa tunnel start`. On iPhone and iPad, install from Safari's share menu.
+instance, `fieldset config set phone-https local-ca` (the phone must trust the instance's CA first, see its trust page),
+or `fieldset tunnel start`. On iPhone and iPad, install from Safari's share menu.
 
 **The phone does not reach the local instance.** The phone must be in the same network as the computer, and the
-computer's firewall must allow the HTTPS port. `fsa status` shows `phone_https.lan_address`; if the computer's
-address changed, `fsa config set lan-address <IPv4>`.
+computer's firewall must allow the HTTPS port. `fieldset status` shows `phone_https.lan_address`; if the computer's
+address changed, `fieldset config set lan-address <IPv4>`.
 
 **"Die Formulare sind offline noch nicht verfügbar."** The device has not downloaded the forms yet; connect once.
 
@@ -113,12 +113,12 @@ back to "Aktiv".
 not active yet (run "Anmeldung testen", "Test sign-in").
 
 **Domain verification fails.** "Kein TXT-Eintrag gefunden" ("No TXT record found"): the record is missing, not yet
-visible (DNS caching), or was created as `_form-schema-app-verification.example.com.example.com` because the DNS
-provider appended the domain; then enter only `_form-schema-app-verification` as the name.
+visible (DNS caching), or was created as `_fieldset-verification.example.com.example.com` because the DNS
+provider appended the domain; then enter only `_fieldset-verification` as the name.
 
 **The provider reports an invalid redirect URI.** Register exactly the redirect URI shown on the SSO page
 (`https://<your server>/auth/sso/<id>/callback`). It follows the instance's URL: after
-`fsa config set domain` or `url`, register the new one.
+`fieldset config set domain` or `url`, register the new one.
 
 **Users come back with an error.** The login screen explains it; the codes are `sso_failed`, `sso_denied`,
 `account_inactive`, `not_member`, `domain_not_verified`, `email_unverified` and `provider_unavailable`.
@@ -138,7 +138,7 @@ two-factor code and can turn enforcement off.
 | Password reset | one email per user per minute |
 | API | 240 requests per minute per integration token, otherwise per user |
 | `/platform` login | 5 attempts per minute per IP |
-| `fsa login-link` | exit 9 `rate_limited`: wait a minute |
+| `fieldset login-link` | exit 9 `rate_limited`: wait a minute |
 
 The limits reset after a minute; waiting is the fix. Limits per IP need the real client IP: in proxy mode, see the
 proxy section above. Quick-tunnel visitors all share the tunnel's address.
@@ -146,7 +146,7 @@ proxy section above. Quick-tunnel visitors all share the tunnel's address.
 **Lost two-factor device.** Sign in with a recovery code, then set up two-factor authentication again.
 
 **Forgotten password, or the owner cannot sign in.** "Passwort vergessen?" on `/admin/login` (only once mail is
-delivered), or on the server: `fsa login-link <email>` issues a one-time sign-in link for an admin.
+delivered), or on the server: `fieldset login-link <email>` issues a one-time sign-in link for an admin.
 
 ## Audit log
 

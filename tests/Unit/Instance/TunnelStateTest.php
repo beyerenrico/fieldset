@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Domain\Instance\Console\FsaContext;
+use App\Domain\Instance\Console\FieldsetContext;
 use App\Domain\Instance\Docker\ComposeProject;
 use App\Domain\Instance\Docker\ContainerSpec;
 use App\Domain\Instance\Docker\Labels;
@@ -137,7 +137,7 @@ it('validates a LAN address and tells whether it is still the host\'s', function
         ->and(LanAddress::isCurrent('192.168.1.20', new HostFacts))->toBeNull();
 });
 
-it('starts the tunnel right after `fsa install --phone-https tunnel`, the install\'s command line confirming it', function (): void {
+it('starts the tunnel right after `fieldset install --phone-https tunnel`, the install\'s command line confirming it', function (): void {
     $fixture = new TunnelFixture(['--phone-https' => 'tunnel']);
     $install = $fixture->config->archivedJournal('install');
 
@@ -155,7 +155,7 @@ it('reports the tunnel in the install result and fails the install command when 
     $fresh->docker->respondToRun($fixture->instance->docker->runResponder);
     $fresh->docker->respondToComposeRun($fixture->instance->docker->composeRunResponder);
 
-    [$code, $json] = $fresh->run('fsa:install', InstanceCommandFixture::installFlags(['--phone-https' => 'tunnel']));
+    [$code, $json] = $fresh->run('fieldset:install', InstanceCommandFixture::installFlags(['--phone-https' => 'tunnel']));
 
     expect($code)->toBe(5)
         ->and($json['command'])->toBe('install')
@@ -194,7 +194,7 @@ it('announces the account check before it takes the lock, with its maximum durat
     $fixture = new TunnelFixture;
     $output = new BufferedOutput;
     $redactor = new SecretRedactor;
-    $context = new FsaContext(app(HostFacts::class), new ProgressReporter($output, true, $redactor), $redactor, true, true, $fixture->config->instance->directory);
+    $context = new FieldsetContext(app(HostFacts::class), new ProgressReporter($output, true, $redactor), $redactor, true, true, $fixture->config->instance->directory);
 
     app(TunnelOperation::class)->start($context, false, true, null, false);
 

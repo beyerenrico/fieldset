@@ -17,7 +17,7 @@ return [
     'problems' => [
         'heading' => 'Problems',
         'none' => 'No problems: backups, disk and updates are in order.',
-        'backup_failed' => 'The last backup failed (:reason). Read `fsa logs backup`, fix the cause, then back up again.',
+        'backup_failed' => 'The last backup failed (:reason). Read `fieldset logs backup`, fix the cause, then back up again.',
         'backup_service_failed' => 'The backup service cannot start (:reason): no scheduled backups run.',
         'backup_overdue' => 'No backup succeeded within two hours of the scheduled time: the backup service may not be running.',
         'backup_disk_space' => 'The last scheduled backup was skipped: not enough free disk space.',
@@ -33,7 +33,7 @@ return [
         'heading' => 'Version',
         'version' => 'Running version',
         'revision' => 'Revision',
-        'no_digests' => 'No image digests: this instance is not run by fsa.',
+        'no_digests' => 'No image digests: this instance is not run by fieldset.',
     ],
     'access' => [
         'heading' => 'Mode and URL',
@@ -43,7 +43,7 @@ return [
             'proxy' => 'Behind your reverse proxy',
             'domain' => 'Own domain with automatic HTTPS',
         ],
-        'not_fsa' => 'Not run by fsa',
+        'not_fieldset' => 'Not run by fieldset',
         'url' => 'Instance URL',
         'local_url' => 'Local URL',
         'tunnel' => 'Quick tunnel',
@@ -102,7 +102,7 @@ return [
         'current' => 'Version :version is up to date.',
     ],
     'backup_alert' => [
-        'subject' => 'Backup problem on your form-schema-app instance',
+        'subject' => 'Backup problem on your Fieldset instance',
         'greeting' => 'A backup needs your attention.',
         'command' => 'Command on the server: :command',
         'action' => 'Open the instance page',

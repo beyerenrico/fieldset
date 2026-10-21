@@ -21,7 +21,7 @@ use App\Domain\Instance\Output\InvalidInput;
  * The manifest bytes go to cosign on stdin and the same bytes are parsed, so the file cannot change between
  * verification and use. The bundle (and a harness key or test trusted root) are bind-mounted read-only: their
  * paths must be host paths, i.e. inside the instance directory, which the ops container sees at the same path.
- * `fsa install` (U5) and `fsa upgrade` (U18) call it.
+ * `fieldset install` (U5) and `fieldset upgrade` (U18) call it.
  */
 final readonly class ManifestVerifier
 {
@@ -30,7 +30,7 @@ final readonly class ManifestVerifier
     public const string MANIFEST = 'release-manifest.json';
 
     /** The hint of a manifest that does not verify (install.sh says the same; agent guide, exit 3; R51). */
-    public const string SIGNATURE_HINT = 'Install only releases published by the form-schema-app release workflow: never retry with another install.sh or release URL and never bypass this check. Only if the message shows that Sigstore (TUF, Rekor) could not be reached may the same command be run again later.';
+    public const string SIGNATURE_HINT = 'Install only releases published by the Fieldset release workflow: never retry with another install.sh or release URL and never bypass this check. Only if the message shows that Sigstore (TUF, Rekor) could not be reached may the same command be run again later.';
 
     public const string BUNDLE = 'release-manifest.json.sigstore.json';
 
@@ -55,7 +55,7 @@ final readonly class ManifestVerifier
         try {
             return ReleaseManifest::fromJson($json, $this->schema);
         } catch (ReleaseException $e) {
-            throw new InstanceException($e->getMessage(), ExitCode::PreflightFailed, 'manifest_invalid', 'The signed manifest does not match the format this fsa version reads.', false, [], $e);
+            throw new InstanceException($e->getMessage(), ExitCode::PreflightFailed, 'manifest_invalid', 'The signed manifest does not match the format this fieldset version reads.', false, [], $e);
         }
     }
 
@@ -85,11 +85,11 @@ final readonly class ManifestVerifier
         $outcome = $this->docker->runContainer($this->spec($bundlePath), $bytes, self::TIMEOUT);
         if (! $outcome->successful()) {
             throw new InstanceException(
-                $outcome->timedOut ? 'Verifying the release manifest timed out.' : 'The release manifest signature does not match the signer built into fsa: '.$outcome->stderrTail(3),
+                $outcome->timedOut ? 'Verifying the release manifest timed out.' : 'The release manifest signature does not match the signer built into fieldset: '.$outcome->stderrTail(3),
                 ExitCode::PreflightFailed,
                 'manifest_signature_invalid',
                 $this->trust->usesKey()
-                    ? 'The manifest was not signed with the FSA_TRUST_KEY key.'
+                    ? 'The manifest was not signed with the FIELDSET_TRUST_KEY key.'
                     : self::SIGNATURE_HINT,
                 $outcome->timedOut,
             );

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use App\Domain\Instance\Config\ConfigRequest;
 use App\Domain\Instance\Config\ConfigSetter;
-use App\Domain\Instance\Console\FsaContext;
+use App\Domain\Instance\Console\FieldsetContext;
 use App\Domain\Instance\Docker\DockerCommandFailed;
 use App\Domain\Instance\Docker\ProcessOutcome;
 use App\Domain\Instance\HostFacts;
@@ -29,11 +29,11 @@ beforeEach(function (): void {
 
 afterEach(fn () => TemporaryInstance::cleanup());
 
-function configContext(object $test, bool $yes = false): FsaContext
+function configContext(object $test, bool $yes = false): FieldsetContext
 {
     $redactor = new SecretRedactor;
 
-    return new FsaContext(app(HostFacts::class), new ProgressReporter($test->output, true, $redactor), $redactor, true, $yes, $test->config->instance->directory);
+    return new FieldsetContext(app(HostFacts::class), new ProgressReporter($test->output, true, $redactor), $redactor, true, $yes, $test->config->instance->directory);
 }
 
 it('asks in a terminal with the impact, and a declined question changes nothing (exit 9)', function (): void {

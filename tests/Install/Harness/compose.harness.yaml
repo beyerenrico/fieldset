@@ -1,11 +1,11 @@
 # Local release harness (plan KTD23, U7; ADR 0064, ADR 0067). Started and stopped only by
-# tests/Support/Docker/ReleaseHarness.php, which names the project fsa-test-harness-<run id> and sets the
-# FSA_HARNESS_* variables. No real registry or account is involved: images are built and mirrored into this
+# tests/Support/Docker/ReleaseHarness.php, which names the project fieldset-test-harness-<run id> and sets the
+# FIELDSET_HARNESS_* variables. No real registry or account is involved: images are built and mirrored into this
 # registry, and dist/ is served like GitHub Releases' download paths.
 #
 # Later units add their substitutes here (the fake tunnel), each behind a profile so a plain release run stays
 # small: Pebble with challtestsrv is the `acme` profile (U8, J2), Traefik the `proxy` profile (U9, J3).
-name: fsa-test-harness
+name: fieldset-test-harness
 
 services:
   # CNCF Distribution. Partial indexes are accepted (validation platforms: none), so third-party images keep
@@ -29,7 +29,7 @@ services:
     image: docker.io/library/caddy:2.11.7-alpine@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f
     command: ["caddy", "file-server", "--root", "/srv", "--listen", ":8080"]
     volumes:
-      - ${FSA_HARNESS_DIST:?set by ReleaseHarness}:/srv:ro
+      - ${FIELDSET_HARNESS_DIST:?set by ReleaseHarness}:/srv:ro
     ports:
       - "127.0.0.1::8080"
 
@@ -45,9 +45,9 @@ services:
       - caddy
       - reverse-proxy
       - --from
-      - ":${FSA_HARNESS_REGISTRY_PORT:-5000}"
+      - ":${FIELDSET_HARNESS_REGISTRY_PORT:-5000}"
       - --to
-      - "${FSA_HARNESS_REGISTRY_TARGET:-127.0.0.1:5000}"
+      - "${FIELDSET_HARNESS_REGISTRY_TARGET:-127.0.0.1:5000}"
 
   # ACME for domain mode (plan U8, J2; ADR 0064, ADR 0075), started by tests/Support/Docker/AcmeHarness.php.
   # challtestsrv is Pebble's DNS and answers every A query with the edge's address on the acme network (the journey
@@ -59,7 +59,7 @@ services:
     image: ghcr.io/letsencrypt/pebble-challtestsrv:2.10.1@sha256:12ce21884def456bcf9786542113949e1f19dc7738d2c70e156c2d0c38a1405b
     command:
       - -defaultIPv4
-      - "${FSA_HARNESS_EDGE_IP:-10.214.0.50}"
+      - "${FIELDSET_HARNESS_EDGE_IP:-10.214.0.50}"
       - -defaultIPv6
       - ""
       - -dnsserver
@@ -74,12 +74,12 @@ services:
       - ""
     networks:
       acme:
-        ipv4_address: "${FSA_HARNESS_DNS_IP:-10.214.0.10}"
+        ipv4_address: "${FIELDSET_HARNESS_DNS_IP:-10.214.0.10}"
 
   pebble:
     profiles: [acme]
     image: ghcr.io/letsencrypt/pebble:2.10.1@sha256:ddf230642b1a584f519f32e347de1b05a6e4c1f6c35c1863b33effeab5f78199
-    command: ["-config", "/harness/pebble-config.json", "-dnsserver", "${FSA_HARNESS_DNS_IP:-10.214.0.10}:8053"]
+    command: ["-config", "/harness/pebble-config.json", "-dnsserver", "${FIELDSET_HARNESS_DNS_IP:-10.214.0.10}:8053"]
     environment:
       PEBBLE_VA_NOSLEEP: "1"
       PEBBLE_WFE_NONCEREJECT: "0"
@@ -89,10 +89,10 @@ services:
       - "127.0.0.1::15000"
     networks:
       acme:
-        ipv4_address: "${FSA_HARNESS_PEBBLE_IP:-10.214.0.11}"
+        ipv4_address: "${FIELDSET_HARNESS_PEBBLE_IP:-10.214.0.11}"
 
   # Proxy mode's Traefik (J3, plan U9; version per ADR 0064): watches the engine for containers labelled
-  # traefik.enable=true and reaches them over the external network FSA_HARNESS_PROXY_NETWORK, which
+  # traefik.enable=true and reaches them over the external network FIELDSET_HARNESS_PROXY_NETWORK, which
   # ReleaseHarness::startProxy() creates. Nothing is published: journey clients sit on the same network. The
   # websecure entry point serves Traefik's default self-signed certificate.
   traefik:
@@ -101,7 +101,7 @@ services:
     command:
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
-      - --providers.docker.network=${FSA_HARNESS_PROXY_NETWORK:-fsa-test-proxy}
+      - --providers.docker.network=${FIELDSET_HARNESS_PROXY_NETWORK:-fieldset-test-proxy}
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
       - --ping=true
@@ -120,10 +120,10 @@ networks:
   acme:
     ipam:
       config:
-        - subnet: "${FSA_HARNESS_ACME_SUBNET:-10.214.0.0/24}"
+        - subnet: "${FIELDSET_HARNESS_ACME_SUBNET:-10.214.0.0/24}"
   proxy:
     external: true
-    name: ${FSA_HARNESS_PROXY_NETWORK:-fsa-test-proxy}
+    name: ${FIELDSET_HARNESS_PROXY_NETWORK:-fieldset-test-proxy}
 
 volumes:
   registry-data:

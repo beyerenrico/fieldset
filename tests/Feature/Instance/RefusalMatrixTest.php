@@ -28,7 +28,7 @@ it('refuses a drill while any operation is unfinished, before it creates a scrat
     $this->journal->begin('reset', posix_getuid(), ['demo' => false, 'no_backup' => false]);
     $mark = count($this->restore->instance->docker->calls);
 
-    [$code, $json] = $this->restore->instance->run('fsa:restore', ['backup' => 'manual-20261019T120000Z', '--drill' => true]);
+    [$code, $json] = $this->restore->instance->run('fieldset:restore', ['backup' => 'manual-20261019T120000Z', '--drill' => true]);
 
     expect($code)->toBe(9, (string) json_encode($json))->and($json['errors'][0]['code'])->toBe('operation_unfinished')
         ->and($json['data']['operation'])->toBe('reset')
@@ -43,13 +43,13 @@ it('reports another unfinished operation before the question of restore and rese
     [$code, $json] = $this->restore->instance->run($command, [...$parameters, ...($yes ? ['--yes' => true] : [])]);
 
     expect($code)->toBe(9, (string) json_encode($json))->and($json['errors'][0]['code'])->toBe('operation_unfinished')
-        ->and($json['data']['command'])->toBe('fsa restore manual-20261019T120000Z --yes')
+        ->and($json['data']['command'])->toBe('fieldset restore manual-20261019T120000Z --yes')
         ->and(array_slice($this->restore->instance->docker->calls, $mark))->toBe([]);
 })->with([
-    'restore of another backup' => ['fsa:restore', ['backup' => 'manual-20261019T150000Z'], false],
-    'restore of another backup, --yes' => ['fsa:restore', ['backup' => 'manual-20261019T150000Z'], true],
-    'reset' => ['fsa:reset', [], false],
-    'reset --yes' => ['fsa:reset', [], true],
+    'restore of another backup' => ['fieldset:restore', ['backup' => 'manual-20261019T150000Z'], false],
+    'restore of another backup, --yes' => ['fieldset:restore', ['backup' => 'manual-20261019T150000Z'], true],
+    'reset' => ['fieldset:reset', [], false],
+    'reset --yes' => ['fieldset:reset', [], true],
 ]);
 
 it('reports an unfinished operation before the rollback guard and the loss count, with and without --yes (C4b)', function (bool $yes): void {
@@ -58,7 +58,7 @@ it('reports an unfinished operation before the rollback guard and the loss count
     InterruptedRestore::journal($upgrade->restore, 'ledger');
     $mark = count($upgrade->instance->docker->calls);
 
-    [$code, $json] = $upgrade->instance->run('fsa:rollback', $yes ? ['--yes' => true] : []);
+    [$code, $json] = $upgrade->instance->run('fieldset:rollback', $yes ? ['--yes' => true] : []);
 
     expect($upgraded)->toBe(0)
         ->and($code)->toBe(9, (string) json_encode($json))->and($json['errors'][0]['code'])->toBe('operation_unfinished')
@@ -70,7 +70,7 @@ it('names the facts of the question in data when it exits 6: rollback versions, 
     $upgrade = new UpgradeFixture;
     $upgrade->upgrade();
 
-    [$code, $json] = $upgrade->instance->run('fsa:rollback');
+    [$code, $json] = $upgrade->instance->run('fieldset:rollback');
 
     expect($code)->toBe(6, (string) json_encode($json))->and($json['errors'][0]['code'])->toBe('confirmation_required')
         ->and($json['data'])->toMatchArray(['from' => UpgradeFixture::TARGET, 'to' => '2.0.0-alpha.1', 'safety_backup' => $upgrade->safetyBackups[0],
@@ -85,9 +85,9 @@ it('names the facts of the restore, reset and uninstall questions in data (O6)',
     expect($code)->toBe(6, (string) json_encode($json))->and($json['data'])->toMatchArray($data)
         ->and($json['data']['question'])->toBe(substr($json['errors'][0]['message'], strlen('Confirmation required: ')));
 })->with([
-    'restore' => ['fsa:restore', ['backup' => 'manual-20261019T120000Z'], ['backup' => 'manual-20261019T120000Z', 'safety_backup' => true]],
-    'restore --abandon' => ['fsa:restore', ['--abandon' => true], ['abandon' => true]],
-    'reset --no-backup' => ['fsa:reset', ['--no-backup' => true], ['demo' => false, 'no_backup' => true, 'safety_backup' => false]],
-    'uninstall --keep-backups' => ['fsa:uninstall', ['--keep-backups' => true], ['final_backup' => true, 'keeps_backups' => true, 'adopted_from' => null]],
-    'uninstall' => ['fsa:uninstall', [], ['final_backup' => false, 'keeps_backups' => false]],
+    'restore' => ['fieldset:restore', ['backup' => 'manual-20261019T120000Z'], ['backup' => 'manual-20261019T120000Z', 'safety_backup' => true]],
+    'restore --abandon' => ['fieldset:restore', ['--abandon' => true], ['abandon' => true]],
+    'reset --no-backup' => ['fieldset:reset', ['--no-backup' => true], ['demo' => false, 'no_backup' => true, 'safety_backup' => false]],
+    'uninstall --keep-backups' => ['fieldset:uninstall', ['--keep-backups' => true], ['final_backup' => true, 'keeps_backups' => true, 'adopted_from' => null]],
+    'uninstall' => ['fieldset:uninstall', [], ['final_backup' => false, 'keeps_backups' => false]],
 ]);

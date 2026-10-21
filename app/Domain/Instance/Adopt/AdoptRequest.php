@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Instance\Adopt;
 
-/** The inputs of `fsa adopt` (plan U19, ADR 0087): the 1.0 checkout, the release to adopt into, and `--drop-jobs`. */
+/** The inputs of `fieldset adopt` (plan U19, ADR 0087): the 1.0 checkout, the release to adopt into, and `--drop-jobs`. */
 final readonly class AdoptRequest
 {
     public function __construct(

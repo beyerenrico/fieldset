@@ -2,9 +2,9 @@
   "description": "$schema and source.registry use a scheme:rest pattern (meta-schema)",
   "tests": [
     {
-      "description": "$schema 'https://localhost/spec/form-definition/1.0/meta-schema.json'",
+      "description": "$schema 'https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json'",
       "definition": {
-        "$schema": "https://localhost/spec/form-definition/1.0/meta-schema.json",
+        "$schema": "https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json",
         "specVersion": "1.0.0",
         "key": "m",
         "title": "M",
@@ -27,9 +27,9 @@
       "valid": true
     },
     {
-      "description": "$schema 'urn:form-schema-app:bundled-templates'",
+      "description": "$schema 'urn:fieldset:bundled-templates'",
       "definition": {
-        "$schema": "urn:form-schema-app:bundled-templates",
+        "$schema": "urn:fieldset:bundled-templates",
         "specVersion": "1.0.0",
         "key": "m",
         "title": "M",

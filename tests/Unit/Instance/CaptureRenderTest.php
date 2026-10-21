@@ -11,7 +11,7 @@ use Tests\Support\Instance\DomainFixtures;
 
 /*
  * Plan U12 (KTD13; ADR 0080): what the renderer makes of the mail modes. Capture mode tells the app roles
- * (FSA_MAIL_CAPTURE, for the banner and the health check); SMTP with the catcher kept renders Mailpit read-only (its
+ * (FIELDSET_MAIL_CAPTURE, for the banner and the health check); SMTP with the catcher kept renders Mailpit read-only (its
  * SMTP listener on the container's loopback) and keeps its UI, behind the edge in domain mode; a removed catcher
  * leaves neither service, env nor `/_mail/` route.
  */

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use App\Domain\Forms\Builder\BlockCloner;
 use App\Domain\Forms\Builder\BuilderMapper;
-use FormSchema\Json\Json;
+use Fieldset\Json\Json;
 
 it('clones a section with fresh ids, suffixed keys and rewritten references', function (): void {
     $definition = Json::decode(json_encode(['specVersion' => '1.0.0', 'key' => 'k', 'title' => 'T', 'locale' => 'de-DE', 'pages' => [[

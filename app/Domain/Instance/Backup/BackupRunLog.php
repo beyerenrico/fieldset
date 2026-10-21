@@ -11,7 +11,7 @@ use Carbon\CarbonImmutable;
 /**
  * The backup run ledger, `backups/runs.log` (KTD15, ADR 0084): one JSON line per run, appended by the backup service and
  * its one-offs, never rewritten. It holds what the `backup_runs` table holds and also the runs the database could not
- * take (a failure while Postgres is down). The daemon computes its next run from it, `fsa status` reports from it
+ * take (a failure while Postgres is down). The daemon computes its next run from it, `fieldset status` reports from it
  * without a database, and BackupAlerts reads it like the table. Only the newest lines are read.
  */
 final readonly class BackupRunLog

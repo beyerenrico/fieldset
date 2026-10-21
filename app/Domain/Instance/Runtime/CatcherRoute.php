@@ -16,8 +16,8 @@ final class CatcherRoute
     public const string MAIL_PATH = '/_mail/';
 
     /** The app endpoint `forward_auth` calls for every catcher request. */
-    public const string AUTH_PATH = '/_fsa/catcher-auth';
+    public const string AUTH_PATH = '/_fieldset/catcher-auth';
 
     /** Path prefix the edge never forwards from outside (the auth endpoint lives below it). */
-    public const string INTERNAL_PREFIX = '/_fsa/';
+    public const string INTERNAL_PREFIX = '/_fieldset/';
 }

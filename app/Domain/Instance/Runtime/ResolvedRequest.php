@@ -13,7 +13,7 @@ use Illuminate\Http\Request;
  */
 final readonly class ResolvedRequest
 {
-    public const string ATTRIBUTE = 'fsa.runtime';
+    public const string ATTRIBUTE = 'fieldset.runtime';
 
     public function __construct(
         public string $root,

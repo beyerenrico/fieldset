@@ -17,7 +17,7 @@ return [
     'problems' => [
         'heading' => 'Probleme',
         'none' => 'Keine Probleme: Backups, Speicherplatz und Updates sind in Ordnung.',
-        'backup_failed' => 'Das letzte Backup ist fehlgeschlagen (:reason). Lesen Sie `fsa logs backup`, beheben Sie die Ursache und sichern Sie dann erneut.',
+        'backup_failed' => 'Das letzte Backup ist fehlgeschlagen (:reason). Lesen Sie `fieldset logs backup`, beheben Sie die Ursache und sichern Sie dann erneut.',
         'backup_service_failed' => 'Der Backup-Dienst kann nicht starten (:reason): Es laufen keine geplanten Backups.',
         'backup_overdue' => 'Innerhalb von zwei Stunden nach der geplanten Zeit ist kein Backup gelungen: Der Backup-Dienst läuft womöglich nicht.',
         'backup_disk_space' => 'Das letzte geplante Backup wurde übersprungen: zu wenig freier Speicherplatz.',
@@ -33,7 +33,7 @@ return [
         'heading' => 'Version',
         'version' => 'Laufende Version',
         'revision' => 'Revision',
-        'no_digests' => 'Keine Image-Digests: Diese Instanz wird nicht von fsa betrieben.',
+        'no_digests' => 'Keine Image-Digests: Diese Instanz wird nicht von fieldset betrieben.',
     ],
     'access' => [
         'heading' => 'Modus und URL',
@@ -43,7 +43,7 @@ return [
             'proxy' => 'Hinter Ihrem Reverse Proxy',
             'domain' => 'Eigene Domain mit automatischem HTTPS',
         ],
-        'not_fsa' => 'Nicht von fsa betrieben',
+        'not_fieldset' => 'Nicht von fieldset betrieben',
         'url' => 'Instanz-URL',
         'local_url' => 'Lokale URL',
         'tunnel' => 'Quick Tunnel',
@@ -102,7 +102,7 @@ return [
         'current' => 'Version :version ist aktuell.',
     ],
     'backup_alert' => [
-        'subject' => 'Backup-Problem auf Ihrer form-schema-app-Instanz',
+        'subject' => 'Backup-Problem auf Ihrer Fieldset-Instanz',
         'greeting' => 'Ein Backup braucht Ihre Aufmerksamkeit.',
         'command' => 'Befehl auf dem Server: :command',
         'action' => 'Instanzseite öffnen',

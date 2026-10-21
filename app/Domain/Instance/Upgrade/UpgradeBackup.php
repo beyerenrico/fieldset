@@ -70,7 +70,7 @@ final readonly class UpgradeBackup
     /**
      * The SHA-256 of the verified set's SHA256SUMS (the same bytes plain or inside the sealed age file): recorded with the
      * upgrade, so a rollback restores exactly that set, never another authenticated one under its name (M12 gate S4,
-     * as `fsa adopt` records its backup).
+     * as `fieldset adopt` records its backup).
      */
     public static function sums(PreparedBackup $backup): ?string
     {
@@ -82,7 +82,7 @@ final readonly class UpgradeBackup
         try {
             $this->source->discard($id);
         } catch (Throwable) {
-            // the upgrade's own clean-up tries again at the end; `fsa status` names one left behind
+            // the upgrade's own clean-up tries again at the end; `fieldset status` names one left behind
         }
     }
 
@@ -93,7 +93,7 @@ final readonly class UpgradeBackup
     {
         if ($sums !== null && ! hash_equals($sums, (string) self::sums($backup))) {
             throw new InvalidInput("The safety backup {$backup->name} is not the set the upgrade verified: its SHA256SUMS changed.", 'safety_backup_changed',
-                'Something replaced it in backups/. Restore a backup you trust with `fsa restore <backup>`; nothing was changed.', ['backup' => $backup->name]);
+                'Something replaced it in backups/. Restore a backup you trust with `fieldset restore <backup>`; nothing was changed.', ['backup' => $backup->name]);
         }
     }
 
@@ -110,7 +110,7 @@ final readonly class UpgradeBackup
             self::assertSame($intake['backup'], $sums);
         } catch (InstanceException $e) {
             throw new InstanceException("The safety backup {$backup} failed its verification: ".$e->getMessage(), ExitCode::AbortedUnchanged, 'safety_backup_unverified',
-                'Nothing was migrated; the previous version runs again. Check free space and `fsa logs backup`, then run `fsa upgrade` again.', true, ['reason' => $e->errorCode], $e);
+                'Nothing was migrated; the previous version runs again. Check free space and `fieldset logs backup`, then run `fieldset upgrade` again.', true, ['reason' => $e->errorCode], $e);
         }
 
         return $intake['backup'];

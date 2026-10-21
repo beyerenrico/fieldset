@@ -29,15 +29,15 @@ use App\Domain\Instance\State\RuntimeWriter;
 use Throwable;
 
 /**
- * `fsa upgrade` as the detached supervisor runs it (R33–R36, R62, R69, KTD5, KTD19, plan U18, ADR 0086), under the
+ * `fieldset upgrade` as the detached supervisor runs it (R33–R36, R62, R69, KTD5, KTD19, plan U18, ADR 0086), under the
  * instance lock with its journal (UpgradeJournal): release → doctor → pull (nothing changed: exit 2, 3, 7, 9, 10 or
  * a no-op) → quiesce → safety_backup (a failure: `revert`, exit 9, the previous services running) → migrate → start →
  * smoke (a failure: UpgradeRollback, exit 5, or exit 8 when that fails too) → commit → open (a failure: exit 4, reported
- * and finished by the next `fsa upgrade`, never rolled back).
+ * and finished by the next `fieldset upgrade`, never rolled back).
  *
  * A resumed run decides from the journal: a rollback that began is finished; a committed upgrade only opens; an upgrade
  * killed after its safety backup rolls back (exit 5 `upgrade_interrupted`); one killed while quiescing brings the
- * previous services back (exit 9). `fsa upgrade` without `--resume` takes over a committed journal too: the next call
+ * previous services back (exit 9). `fieldset upgrade` without `--resume` takes over a committed journal too: the next call
  * finishes opening. `--resume` without an open journal is exit 2 `nothing_to_resume` (never a new upgrade), and a resumed
  * run works with the target and flags its journal began with (M12 gate O3).
  */
@@ -66,12 +66,12 @@ final readonly class UpgradeOperation
         RestoreOperation::installed($this->directory);
         $open = $this->journal->current();
         if ($request->resume && ! $open instanceof JournalRecord) {
-            throw new InvalidInput('There is no interrupted upgrade to resume.', 'nothing_to_resume', 'Run `fsa upgrade` (with --to <version> for a specific release) to start one.');
+            throw new InvalidInput('There is no interrupted upgrade to resume.', 'nothing_to_resume', 'Run `fieldset upgrade` (with --to <version> for a specific release) to start one.');
         }
         $request = $request->resume && $open?->operation() === UpgradeJournal::OPERATION ? $request->resuming($open->context()) : $request;
 
         return $this->supervisor->run(
-            UpgradeJournal::OPERATION, $this->identity->holder('fsa', $request->actorUid),
+            UpgradeJournal::OPERATION, $this->identity->holder('fieldset', $request->actorUid),
             fn (OperationRun $run): CommandResult => $this->steps($run, $request, $facts, $progress),
             resume: true, context: $request->toContext(), progress: $progress,
             accepts: fn (JournalRecord $record): bool => $request->resume || UpgradeJournal::committed($record, $this->directory->state()),
@@ -89,7 +89,7 @@ final readonly class UpgradeOperation
         if (UpgradeJournal::committed($record, $state)) {
             return $this->opening($run, $state, $project);
         }
-        $interrupted = new InstanceException('An earlier run of this upgrade stopped before it committed.', ExitCode::RolledBack, 'upgrade_interrupted', 'Run `fsa upgrade` again.', true);
+        $interrupted = new InstanceException('An earlier run of this upgrade stopped before it committed.', ExitCode::RolledBack, 'upgrade_interrupted', 'Run `fieldset upgrade` again.', true);
         if (UpgradeJournal::pastSafetyBackup($record)) {
             return $this->rollback->rollback($run, $state, $project, $interrupted, $request->actorUid);
         }

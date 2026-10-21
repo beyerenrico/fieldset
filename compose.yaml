@@ -1,12 +1,12 @@
 # Production-like stack. Dev overrides (host ports, mailpit) live in compose.dev.yaml;
 # set COMPOSE_FILE=compose.yaml:compose.dev.yaml in .env for local development.
-name: form-schema-app
+name: fieldset
 
 x-app: &app
   build:
     context: .
     dockerfile: docker/app/Dockerfile
-  image: form-schema-app:local
+  image: fieldset:local
   env_file: .env
   environment:
     DB_CONNECTION: pgsql
@@ -66,8 +66,8 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: ${DB_DATABASE:-form_schema}
-      POSTGRES_USER: ${DB_USERNAME:-form_schema}
+      POSTGRES_DB: ${DB_DATABASE:-fieldset}
+      POSTGRES_USER: ${DB_USERNAME:-fieldset}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-secret}
     volumes:
       - pg-data:/var/lib/postgresql/data

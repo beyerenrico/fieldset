@@ -22,7 +22,7 @@ use Illuminate\Database\Seeder;
 
 /**
  * SSO demo data for development and E2E (M7, ADR 0036), against the Keycloak realm in
- * docker/keycloak/realm-form-schema.json (same provider uuids, client id and secret):
+ * docker/keycloak/realm-fieldset.json (same provider uuids, client id and secret):
  * - "SSO Demo GmbH": verified domain sso-demo.test, OIDC provider with JIT (Field Worker), the mapping
  *   groups=form-designers → Designer and enforced SSO with the break-glass Owner sso-owner@demo.test
  *   (password "password", confirmed TOTP with a fixed secret, see tests/e2e/support/totp.ts);
@@ -38,12 +38,12 @@ final class SsoDemoSeeder extends Seeder
     public const string SAML_PROVIDER_UUID = '3c7e9a1b-6d2f-4b8a-8e5c-1f4a7d9b2e60';
 
     /** The realm's issuer (KC_HOSTNAME in compose.dev.yaml); the containers reach it through the host gateway. */
-    public const string KEYCLOAK_REALM_URL = 'http://keycloak.localhost:8180/realms/form-schema';
+    public const string KEYCLOAK_REALM_URL = 'http://keycloak.localhost:8180/realms/fieldset';
 
-    public const string OIDC_CLIENT_ID = 'form-schema-app';
+    public const string OIDC_CLIENT_ID = 'fieldset';
 
     /** Development-only secret of the Keycloak dev realm (docker/keycloak). */
-    public const string OIDC_CLIENT_SECRET = 'form-schema-dev-oidc-secret';
+    public const string OIDC_CLIENT_SECRET = 'fieldset-dev-oidc-secret';
 
     public const string BREAK_GLASS_EMAIL = 'sso-owner@demo.test';
 

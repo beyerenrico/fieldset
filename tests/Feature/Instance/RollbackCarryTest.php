@@ -13,7 +13,7 @@ use Tests\Support\Instance\CarryFixture;
 use Tests\Support\Instance\RestoreDatabases;
 
 /*
- * R64 over a manual `fsa rollback` (plan U18, ADR 0086): the newer release exports its security state as a versioned
+ * R64 over a manual `fieldset rollback` (plan U18, ADR 0086): the newer release exports its security state as a versioned
  * document (`instance:security-export`), and the older release's `instance:restore-finish --reason=rolled_back` reads it
  * from stdin instead of a second database, materialised in a schema of the restored database for the unchanged carry and
  * sequence floors. The target is seeded as the pre-upgrade safety backup, the source changes the way the upgraded
@@ -24,7 +24,7 @@ const ROLLBACK_CARRY_PASSWORD = 'fedcba9876543210fedcba9876543210fedcba987654321
 
 beforeEach(function (): void {
     RestoreDatabases::target();
-    $this->role = RestoreDatabases::role('fsa_backup_rollback');
+    $this->role = RestoreDatabases::role('fieldset_backup_rollback');
     putenv(BackupRole::PASSWORD_ENV.'='.ROLLBACK_CARRY_PASSWORD);
 });
 
@@ -89,7 +89,7 @@ it('carries the security state from the newer release\'s export: revocations, er
         ->and($target->table('platform_admins')->pluck('user_id')->all())->toBe([$this->owner->id])
         ->and((int) $target->selectOne("SELECT last_value FROM pg_sequences WHERE sequencename = 'users_id_seq'")->last_value)->toBe(9000)
         ->and($target->table('activity_log')->where('event', 'instance.rolled_back')->count())->toBe(1)
-        ->and($target->select("SELECT nspname FROM pg_namespace WHERE nspname LIKE 'fsa_carry_%'"))->toBe([]);
+        ->and($target->select("SELECT nspname FROM pg_namespace WHERE nspname LIKE 'fieldset_carry_%'"))->toBe([]);
 });
 
 it('carries only audited changes when the upgraded database was itself restored after the safety backup', function (): void {

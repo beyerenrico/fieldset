@@ -14,12 +14,12 @@ use App\Domain\Instance\Output\ProgressReporter;
 /**
  * Who would be exposed by the quick tunnel or the local-CA edge (R29, R65, ADR 0081, ADR 0082), asked through the
  * read-only one-off `app:demo-passwords --check` (AppCommands::demoPasswordCheck()): accounts that still sign in with
- * the documented demo password `password`, split into demo accounts (fsa rotates them first) and others (fsa refuses
- * until their owners changed them), and the organizations besides the demo (`fsa tunnel start` asks for `--yes`).
+ * the documented demo password `password`, split into demo accounts (fieldset rotates them first) and others (fieldset refuses
+ * until their owners changed them), and the organizations besides the demo (`fieldset tunnel start` asks for `--yes`).
  */
 final readonly class ExposureCheck
 {
-    /** The progress phase (and `fsa tunnel start`'s journaled phase) of the check. */
+    /** The progress phase (and `fieldset tunnel start`'s journaled phase) of the check. */
     public const string PHASE = 'accounts';
 
     /**
@@ -52,7 +52,7 @@ final readonly class ExposureCheck
         $elapsed = (int) round((hrtime(true) - $started) / 1e9);
         $progress?->event(self::PHASE, $result->ok ? ProgressReporter::INFO : ProgressReporter::ERROR, ($result->ok ? 'Completed '.self::PHASE.' in ' : self::PHASE.' failed after ').OperationRun::duration($elapsed), ['elapsed_seconds' => $elapsed]);
         if (! $result->ok) {
-            throw new InstanceException('The accounts could not be checked: `app:demo-passwords --check` failed: '.$result->errorMessage(), ExitCode::HealthCheckFailed, 'account_check_failed', 'Check that the instance runs (`fsa status`, `fsa logs app`), then run the command again.', true, ['output' => $result->output]);
+            throw new InstanceException('The accounts could not be checked: `app:demo-passwords --check` failed: '.$result->errorMessage(), ExitCode::HealthCheckFailed, 'account_check_failed', 'Check that the instance runs (`fieldset status`, `fieldset logs app`), then run the command again.', true, ['output' => $result->output]);
         }
         $users = array_values(array_filter(is_array($result->data['users'] ?? null) ? $result->data['users'] : [], static fn (mixed $user): bool => is_array($user) && is_string($user['email'] ?? null)));
         $emails = static fn (bool $demo): array => array_values(array_map(static fn (array $user): string => $user['email'], array_filter($users, static fn (array $user): bool => (($user['demo'] ?? false) === true) === $demo)));
@@ -71,7 +71,7 @@ final readonly class ExposureCheck
     }
 
     /**
-     * Exit 3 while an account that is not a demo account signs in with `password`: fsa never changes a real user's
+     * Exit 3 while an account that is not a demo account signs in with `password`: fieldset never changes a real user's
      * password (ADR 0081), and the instance is about to become reachable beyond loopback.
      *
      * @throws InstanceException
@@ -86,7 +86,7 @@ final readonly class ExposureCheck
             count($this->otherDefaults)." account(s) still sign in with the demo password \"password\": {$what} would make them reachable beyond this machine.",
             ExitCode::PreflightFailed,
             'default_password_in_use',
-            'Change the password of '.implode(', ', array_slice($this->otherDefaults, 0, 10)).' (admin panel or the password reset), then run the command again. Demo accounts are rotated by `fsa demo --rotate-passwords`.',
+            'Change the password of '.implode(', ', array_slice($this->otherDefaults, 0, 10)).' (admin panel or the password reset), then run the command again. Demo accounts are rotated by `fieldset demo --rotate-passwords`.',
             false,
             ['users' => $this->otherDefaults],
         );

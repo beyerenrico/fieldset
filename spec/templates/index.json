@@ -1,5 +1,5 @@
 {
-  "registry": "urn:form-schema-app:bundled-templates",
+  "registry": "urn:fieldset:bundled-templates",
   "templates": [
     {
       "key": "service_report",

@@ -12,7 +12,7 @@ use Throwable;
 
 /**
  * Records that the backup service could not start (R39, ADR 0084), as a run of kind `service` with status `failed`, in
- * the ledger when the instance directory opens and in `backup_runs` when Postgres takes it: `fsa status` and `/platform`
+ * the ledger when the instance directory opens and in `backup_runs` when Postgres takes it: `fieldset status` and `/platform`
  * then name the reason (BackupAlerts `backup_service_failed`) instead of only missing backups. Docker restarts the
  * service, so the same failure again adds nothing; a later successful start supersedes it.
  */
@@ -21,7 +21,7 @@ final readonly class ServiceStartFailure
     public function __construct(private ConnectionInterface $db) {}
 
     /**
-     * @param  array<string, string>  $env  the service's environment (FSA_INSTANCE_ROOT, FSA_OWNER_UID, FSA_OWNER_GID)
+     * @param  array<string, string>  $env  the service's environment (FIELDSET_INSTANCE_ROOT, FIELDSET_OWNER_UID, FIELDSET_OWNER_GID)
      * @return bool whether a record was written
      */
     public function record(array $env, string $reason, string $message): bool
@@ -46,9 +46,9 @@ final readonly class ServiceStartFailure
         $id = static fn (string $key): ?int => preg_match('/^\d{1,10}$/D', $env[$key] ?? '') === 1 ? (int) $env[$key] : null;
 
         try {
-            $directory = InstanceDirectory::open(($env['FSA_INSTANCE_ROOT'] ?? '') !== '' ? $env['FSA_INSTANCE_ROOT'] : BackupConfig::INSTANCE_ROOT);
+            $directory = InstanceDirectory::open(($env['FIELDSET_INSTANCE_ROOT'] ?? '') !== '' ? $env['FIELDSET_INSTANCE_ROOT'] : BackupConfig::INSTANCE_ROOT);
 
-            return new BackupRunLog($directory, new BackupStore($directory, $id('FSA_OWNER_UID'), $id('FSA_OWNER_GID')));
+            return new BackupRunLog($directory, new BackupStore($directory, $id('FIELDSET_OWNER_UID'), $id('FIELDSET_OWNER_GID')));
         } catch (Throwable) {
             return null; // the table alone then
         }

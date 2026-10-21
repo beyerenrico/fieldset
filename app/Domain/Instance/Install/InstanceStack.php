@@ -53,7 +53,7 @@ final readonly class InstanceStack
         if (($app['APP_KEY'] ?? '') !== '' || ($app['DB_PASSWORD'] ?? '') !== '') {
             // Half a secret set: generating a new APP_KEY would make encrypted data unreadable, a new database
             // password would lock the app out of a database that keeps its first one.
-            throw new InvalidState('env/app.env holds only one of APP_KEY and DB_PASSWORD; fsa never generates them again.');
+            throw new InvalidState('env/app.env holds only one of APP_KEY and DB_PASSWORD; fieldset never generates them again.');
         }
         $secrets = InstanceSecrets::generate();
         foreach ([$secrets->appKey, $secrets->dbPassword, $secrets->valkeyPassword, $secrets->catcherPassword] as $value) {
@@ -69,7 +69,7 @@ final readonly class InstanceStack
     /**
      * @param  array<string, mixed>  $preflight  the doctor phase's data
      * @param  SmtpCredentials|null  $smtp  the account of `--smtp-username` (ADR 0080 amendment): rendered into the app
-     *                                      roles' env files only, as `fsa config set mail smtp` stores it
+     *                                      roles' env files only, as `fieldset config set mail smtp` stores it
      * @return array{project: string, services: list<string>}
      */
     public function writeState(array $preflight, HostFacts $facts, ?SmtpCredentials $smtp = null): array
@@ -158,7 +158,7 @@ final readonly class InstanceStack
                 'Services did not become healthy: '.implode(', ', $failing === [] ? ($services === [] ? ['the stack'] : $services) : $failing).'.',
                 ExitCode::HealthCheckFailed,
                 'services_unhealthy',
-                'Read the log lines in the output or `fsa logs <service>`, fix the cause, then run `fsa install` again with the same flags: it resumes here.',
+                'Read the log lines in the output or `fieldset logs <service>`, fix the cause, then run `fieldset install` again with the same flags: it resumes here.',
                 true,
                 ['services' => $failing, 'logs' => $this->logs($project, $failing), 'docker' => $e->outcome->stderrTail(5)],
                 $e,
@@ -179,7 +179,7 @@ final readonly class InstanceStack
         try {
             $this->docker->pullImage($image);
         } catch (DockerCommandFailed $e) {
-            throw new InstanceException("Cannot pull {$image}.", ExitCode::PreflightFailed, 'image_unavailable', 'Check the network and FSA_REGISTRY, then run `fsa install` again with the same flags: it resumes here.', true, ['image' => $image, 'stderr' => $e->outcome->stderrTail(3)], $e);
+            throw new InstanceException("Cannot pull {$image}.", ExitCode::PreflightFailed, 'image_unavailable', 'Check the network and FIELDSET_REGISTRY, then run `fieldset install` again with the same flags: it resumes here.', true, ['image' => $image, 'stderr' => $e->outcome->stderrTail(3)], $e);
         }
     }
 

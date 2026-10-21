@@ -86,7 +86,7 @@ it('serves the domain with automatic HTTPS (no tls or redirect override) and pro
 it('answers the internal auth path with 404 from outside', function (): void {
     $file = caddyfile(new EdgeSite('forms.example.com'));
 
-    expect(caddyBlock($file, "\thandle /_fsa/* {"))->toBe(["\thandle /_fsa/* {", "\t\trespond 404", "\t}"])
+    expect(caddyBlock($file, "\thandle /_fieldset/* {"))->toBe(["\thandle /_fieldset/* {", "\t\trespond 404", "\t}"])
         ->and(CatcherRoute::AUTH_PATH)->toStartWith(CatcherRoute::INTERNAL_PREFIX);
 });
 
@@ -96,7 +96,7 @@ it('puts /_mail/ behind forward_auth to the app, then Mailpit with the edge-inje
     expect($file)->toContain("\tredir /_mail /_mail/ 308")
         ->and(caddyBlock($file, "\t\tforward_auth app:8080 {"))->toBe([
             "\t\tforward_auth app:8080 {",
-            "\t\t\turi \"/_fsa/catcher-auth\"",
+            "\t\t\turi \"/_fieldset/catcher-auth\"",
             "\t\t\theader_up -Authorization",
             "\t\t\theader_up -Upgrade",
             "\t\t\theader_up -Connection",
@@ -108,7 +108,7 @@ it('puts /_mail/ behind forward_auth to the app, then Mailpit with the edge-inje
             "\t\treverse_proxy mailpit:8025 {",
             "\t\t\theader_up -Cookie",
             "\t\t\theader_up -X-XSRF-TOKEN",
-            "\t\t\theader_up Authorization \"{env.FSA_CATCHER_AUTHORIZATION}\"",
+            "\t\t\theader_up Authorization \"{env.FIELDSET_CATCHER_AUTHORIZATION}\"",
             "\t\t\tstream_timeout 5m",
             "\t\t}",
         ]);
@@ -134,7 +134,7 @@ it('leaves /_mail/ to the app when mail goes out over SMTP (no catcher)', functi
         ->not->toContain('forward_auth')
         ->not->toContain('mailpit')
         ->not->toContain(CaddyfileRenderer::AUTHORIZATION_ENV)
-        ->toContain("\thandle /_fsa/* {");
+        ->toContain("\thandle /_fieldset/* {");
 });
 
 it('adds a loopback-only health site for the container healthcheck', function (): void {
@@ -150,7 +150,7 @@ it('never writes the catcher password: only the env placeholder', function (): v
     $file = caddyfile(EdgeSite::fromSettings(InstanceSettings::of(DomainFixtures::state())));
 
     expect($file)->not->toContain(ComposeFixtures::CATCHER_PASSWORD)
-        ->not->toContain(base64_encode('fsa:'.ComposeFixtures::CATCHER_PASSWORD))
+        ->not->toContain(base64_encode('fieldset:'.ComposeFixtures::CATCHER_PASSWORD))
         ->toContain('{env.'.CaddyfileRenderer::AUTHORIZATION_ENV.'}');
 });
 
@@ -186,8 +186,8 @@ it('refuses values that could end a token or line, or reach substitution and pla
 })->with([
     'line break with a new site' => ['domain', "forms.example.com {\n}\nevil.example.com"],
     'closing quote' => ['domain', 'forms.example.com" {'],
-    'env substitution' => ['domain', '{$FSA_CATCHER_AUTHORIZATION}.example.com'],
-    'runtime placeholder' => ['email', '{env.FSA_CATCHER_AUTHORIZATION}@example.com'],
+    'env substitution' => ['domain', '{$FIELDSET_CATCHER_AUTHORIZATION}.example.com'],
+    'runtime placeholder' => ['email', '{env.FIELDSET_CATCHER_AUTHORIZATION}@example.com'],
     'backslash escape' => ['email', 'ops\\"@example.com'],
     'backtick token' => ['acme', 'https://ca.example.com/`dir`'],
     'carriage return' => ['acme', "https://ca.example.com/dir\r\nadmin :2019"],

@@ -17,7 +17,7 @@ use Tests\Support\Instance\InstanceCommandFixture;
 use Tests\Support\Instance\TemporaryInstance;
 
 /*
- * U5 / M9-T08: `fsa doctor` (R10, KTD2, ADR 0070, ADR 0072) with scripted Docker and probes: each check's pass,
+ * U5 / M9-T08: `fieldset doctor` (R10, KTD2, ADR 0070, ADR 0072) with scripted Docker and probes: each check's pass,
  * warn and fail, exit 3 for a failed preflight (10 for a too old Docker), and the ownership rule per runtime.
  */
 
@@ -46,7 +46,7 @@ function doctorState(InstanceCommandFixture $fixture, array $settings = [], stri
 it('passes on a healthy host and reports every check in order', function (): void {
     doctorState($this->fixture);
 
-    [$code, $json] = $this->fixture->run('fsa:doctor');
+    [$code, $json] = $this->fixture->run('fieldset:doctor');
 
     expect($code)->toBe(0, json_encode($json))
         ->and(array_column($json['data']['checks'], 'key'))->toBe(['docker', 'architecture', 'memory', 'disk', 'path_sharing', 'permissions', 'stale_files', 'dns', 'registry', 'clock', 'ports', 'proxy', 'lan_address'])
@@ -58,16 +58,16 @@ it('passes on a healthy host and reports every check in order', function (): voi
 
 it('fails with exit 3 and a permission hint when the shim is group-writable (KTD2)', function (): void {
     doctorState($this->fixture);
-    $shim = $this->fixture->directory->root.'/fsa';
+    $shim = $this->fixture->directory->root.'/fieldset';
     file_put_contents($shim, "#!/bin/sh\n");
     chmod($shim, 0770);
 
-    [$code, $json] = $this->fixture->run('fsa:doctor');
+    [$code, $json] = $this->fixture->run('fieldset:doctor');
 
     expect($code)->toBe(3)
         ->and($json['errors'][0]['code'])->toBe('doctor_failed')
         ->and(doctorChecks($json)['permissions']['status'])->toBe('fail')
-        ->and(doctorChecks($json)['permissions']['summary'])->toContain('fsa command is writable by group or others (mode 0770)')
+        ->and(doctorChecks($json)['permissions']['summary'])->toContain('fieldset command is writable by group or others (mode 0770)')
         ->and($json['errors'][0]['hint'])->toContain('chmod go-w '.$shim);
 });
 
@@ -76,7 +76,7 @@ it('checks ownership against the in-container owner UID of each runtime', functi
     $this->fixture->facts(['uid' => $hostUid, 'runtime' => $runtime, 'containerUid' => null]);
     $this->fixture->probes->stats[$this->fixture->directory->root] = ['uid' => $fileOwner, 'mode' => 0700];
 
-    [, $json] = $this->fixture->run('fsa:doctor');
+    [, $json] = $this->fixture->run('fieldset:doctor');
 
     expect(doctorChecks($json)['permissions']['status'])->toBe($passes ? 'ok' : 'fail');
 })->with([
@@ -90,7 +90,7 @@ it('checks ownership against the in-container owner UID of each runtime', functi
 it('exits 10 when Docker Engine is too old', function (): void {
     $this->fixture->docker->versions = new DockerVersions('29.9.0', '20.10.24', '5.6.0');
 
-    [$code, $json] = $this->fixture->run('fsa:doctor');
+    [$code, $json] = $this->fixture->run('fieldset:doctor');
 
     expect($code)->toBe(10)
         ->and($json['errors'][0]['code'])->toBe('docker_too_old')
@@ -100,7 +100,7 @@ it('exits 10 when Docker Engine is too old', function (): void {
 it('fails with exit 3, not "too old", when the Docker versions cannot be read', function (): void {
     $this->fixture->docker->failOn('versions', new InstanceException('Unexpected output from `docker version`.', errorCode: 'docker_output_invalid'));
 
-    [$code, $json] = $this->fixture->run('fsa:doctor');
+    [$code, $json] = $this->fixture->run('fieldset:doctor');
 
     expect($code)->toBe(3)->and($json['errors'][0]['code'])->toBe('doctor_failed');
 });
@@ -108,7 +108,7 @@ it('fails with exit 3, not "too old", when the Docker versions cannot be read', 
 it('exits 10 when the Docker engine is unreachable', function (): void {
     $this->fixture->docker->failOn('info', new DockerUnavailable('The Docker daemon is not reachable.'));
 
-    [$code, $json] = $this->fixture->run('fsa:doctor');
+    [$code, $json] = $this->fixture->run('fieldset:doctor');
 
     expect($code)->toBe(10)->and($json['errors'][0]['code'])->toBe('docker_unavailable');
 });
@@ -116,7 +116,7 @@ it('exits 10 when the Docker engine is unreachable', function (): void {
 it('fails below the memory floor, warns close to it and fails an unsupported architecture', function (int $mib, string $arch, string $key, string $status): void {
     $this->fixture->docker->info = new DockerInfo('29.9.0', 'Ubuntu', $arch, $mib * 1024 * 1024, 2);
 
-    [$code, $json] = $this->fixture->run('fsa:doctor');
+    [$code, $json] = $this->fixture->run('fieldset:doctor');
 
     expect(doctorChecks($json)[$key]['status'])->toBe($status)
         ->and($code)->toBe($status === 'fail' ? 3 : 0);
@@ -131,7 +131,7 @@ it('checks the platform DOCKER_DEFAULT_PLATFORM selects and warns that emulation
     $this->fixture->docker->info = new DockerInfo('29.9.0', 'Docker Desktop', $arch, 8 * 1024 ** 3, 4);
     $this->fixture->facts(['platform' => $selected]);
 
-    [$code, $json] = $this->fixture->run('fsa:doctor');
+    [$code, $json] = $this->fixture->run('fieldset:doctor');
     $check = doctorChecks($json)['architecture'];
 
     expect($code)->toBe(0, json_encode($json))
@@ -162,35 +162,35 @@ it('fails a selected platform the release does not ship and hints by what the en
 it('fails on a nearly full disk, warns on a small one and when it cannot tell', function (?float $gib, string $status): void {
     $this->fixture->probes->free = $gib === null ? null : $gib * 1024 ** 3;
 
-    [, $json] = $this->fixture->run('fsa:doctor');
+    [, $json] = $this->fixture->run('fieldset:doctor');
 
     expect(doctorChecks($json)['disk']['status'])->toBe($status);
 })->with([[2.0, 'fail'], [8.0, 'warn'], [null, 'warn']]);
 
 it('confirms path sharing when started by a launcher whose nonce it saw', function (): void {
-    $nonce = '.fsa-nonce-0123456789abcdef0123456789abcdef';
+    $nonce = '.fieldset-nonce-0123456789abcdef0123456789abcdef';
     touch($this->fixture->directory->root.'/'.$nonce);
     $this->fixture->facts(['nonce' => $nonce]);
 
-    [, $json] = $this->fixture->run('fsa:doctor');
+    [, $json] = $this->fixture->run('fieldset:doctor');
 
     expect(doctorChecks($json)['path_sharing']['status'])->toBe('ok');
 });
 
 it('removes stale nonce and hand-over files of interrupted runs, keeping its own and recent ones', function (): void {
     $root = $this->fixture->directory->root;
-    $own = '.fsa-nonce-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
-    $files = [$own => 7200, '.fsa-nonce-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' => 7200, '.fsa-open-url-cccccccccccccccccccccccccccccccc' => 7200, '.fsa-nonce-dddddddddddddddddddddddddddddddd' => 60];
+    $own = '.fieldset-nonce-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+    $files = [$own => 7200, '.fieldset-nonce-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' => 7200, '.fieldset-open-url-cccccccccccccccccccccccccccccccc' => 7200, '.fieldset-nonce-dddddddddddddddddddddddddddddddd' => 60];
     foreach ($files as $name => $age) {
         touch($root.'/'.$name, time() - $age);
     }
     $this->fixture->facts(['nonce' => $own]);
 
-    [, $json] = $this->fixture->run('fsa:doctor');
+    [, $json] = $this->fixture->run('fieldset:doctor');
 
-    expect(doctorChecks($json)['stale_files']['details']['removed'])->toBe(['.fsa-nonce-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', '.fsa-open-url-cccccccccccccccccccccccccccccccc'])
+    expect(doctorChecks($json)['stale_files']['details']['removed'])->toBe(['.fieldset-nonce-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', '.fieldset-open-url-cccccccccccccccccccccccccccccccc'])
         ->and(file_exists($root.'/'.$own))->toBeTrue()
-        ->and(file_exists($root.'/.fsa-nonce-dddddddddddddddddddddddddddddddd'))->toBeTrue();
+        ->and(file_exists($root.'/.fieldset-nonce-dddddddddddddddddddddddddddddddd'))->toBeTrue();
 });
 
 it('checks A and AAAA records of the domain separately (domain mode)', function (array $a, array $aaaa, array $host, string $status, string $text): void {
@@ -198,7 +198,7 @@ it('checks A and AAAA records of the domain separately (domain mode)', function 
     $this->fixture->probes->dns['forms.example.com'] = ['a' => $a, 'aaaa' => $aaaa];
     $this->fixture->facts(['lanAddresses' => $host]);
 
-    [, $json] = $this->fixture->run('fsa:doctor');
+    [, $json] = $this->fixture->run('fieldset:doctor');
     $dns = doctorChecks($json)['dns'];
 
     expect($dns['status'])->toBe($status)->and($dns['summary'])->toContain($text);
@@ -221,12 +221,12 @@ it('reaches the registries of missing images, reads the clock from them and skip
     $this->fixture->docker->images = [];
     $this->fixture->probes->registry = ['status' => 401, 'date' => $date];
     $state = $this->fixture->state()->withRelease('2.0.0-alpha.1', [
-        'app' => 'ghcr.io/beyerenrico/form-schema-app@sha256:'.str_repeat('a', 64),
+        'app' => 'ghcr.io/beyerenrico/fieldset@sha256:'.str_repeat('a', 64),
         'postgres' => '127.0.0.1:5000/library/postgres@sha256:'.str_repeat('b', 64),
     ]);
     $this->fixture->directory->saveState($state);
 
-    [, $json] = $this->fixture->run('fsa:doctor');
+    [, $json] = $this->fixture->run('fieldset:doctor');
 
     expect(doctorChecks($json)['registry']['details']['reachable'])->toBe(['ghcr.io'])
         ->and($this->fixture->probes->heads)->toBe(['https://ghcr.io/v2/'])
@@ -245,7 +245,7 @@ it('warns when a registry cannot be reached', function (): void {
         ->withRelease('2.0.0-alpha.1', ['app' => 'docker.io/library/app@sha256:'.str_repeat('a', 64)]);
     $this->fixture->directory->saveState($state);
 
-    [$code, $json] = $this->fixture->run('fsa:doctor');
+    [$code, $json] = $this->fixture->run('fieldset:doctor');
 
     expect($code)->toBe(0)
         ->and(doctorChecks($json)['registry']['status'])->toBe('warn')
@@ -254,15 +254,15 @@ it('warns when a registry cannot be reached', function (): void {
 });
 
 it('reports the ports of an installed instance as its own while it runs, and taken ones otherwise', function (): void {
-    $this->fixture->run('fsa:install', InstanceCommandFixture::installFlags());
+    $this->fixture->run('fieldset:install', InstanceCommandFixture::installFlags());
     $this->fixture->withRunningStack();
 
-    [$ownCode, $own] = $this->fixture->run('fsa:doctor', ['--post' => true]);
+    [$ownCode, $own] = $this->fixture->run('fieldset:doctor', ['--post' => true]);
     foreach (array_keys($this->fixture->docker->containers) as $id) {
         $this->fixture->docker->stopContainer((string) $id);
     }
     $this->fixture->takenPorts = [8080];
-    [$takenCode, $taken] = $this->fixture->run('fsa:doctor');
+    [$takenCode, $taken] = $this->fixture->run('fieldset:doctor');
 
     expect($ownCode)->toBe(0, json_encode($own))
         ->and(doctorChecks($own)['ports']['summary'])->toContain('served by this instance')
@@ -272,13 +272,13 @@ it('reports the ports of an installed instance as its own while it runs, and tak
 });
 
 it('treats the ports of its own running containers as served and probes only the others', function (): void {
-    $this->fixture->run('fsa:install', InstanceCommandFixture::installFlags());
+    $this->fixture->run('fieldset:install', InstanceCommandFixture::installFlags());
     $this->fixture->withRunningStack();
     $this->fixture->docker->stopContainer(str_repeat('1', 12)); // app stopped, mailpit (8025) still runs
     $this->fixture->takenPorts = [8025];
     $probes = count($this->fixture->runSpecs('true'));
 
-    [$code, $json] = $this->fixture->run('fsa:doctor');
+    [$code, $json] = $this->fixture->run('fieldset:doctor');
     $ports = doctorChecks($json)['ports'];
     $probed = array_map(static fn ($spec): string => $spec->ports[0], array_slice($this->fixture->runSpecs('true'), $probes));
 
@@ -290,11 +290,11 @@ it('treats the ports of its own running containers as served and probes only the
 });
 
 it('probes every port when the project\'s containers cannot be listed', function (): void {
-    $this->fixture->run('fsa:install', InstanceCommandFixture::installFlags());
+    $this->fixture->run('fieldset:install', InstanceCommandFixture::installFlags());
     $this->fixture->docker->failOn('composePs', new DockerCommandFailed('compose ps', new ProcessOutcome(1, '', 'no such file')));
     $this->fixture->takenPorts = [8025];
 
-    [$code, $json] = $this->fixture->run('fsa:doctor');
+    [$code, $json] = $this->fixture->run('fieldset:doctor');
 
     expect($code)->toBe(3)
         ->and(doctorChecks($json)['ports']['details'])->toBe(['ports' => ['app' => 8080, 'mail_ui' => 8025], 'taken' => [8025]]);
@@ -302,9 +302,9 @@ it('probes every port when the project\'s containers cannot be listed', function
 
 it('uses one details shape for the ports check when selecting and when verifying', function (): void {
     $this->fixture->takenPorts = [9000];
-    [, $selecting] = $this->fixture->run('fsa:install', InstanceCommandFixture::installFlags(['--port' => '9000']));
+    [, $selecting] = $this->fixture->run('fieldset:install', InstanceCommandFixture::installFlags(['--port' => '9000']));
     doctorState($this->fixture);
-    [, $verifying] = $this->fixture->run('fsa:doctor');
+    [, $verifying] = $this->fixture->run('fieldset:doctor');
 
     expect(doctorChecks($selecting)['ports']['details'])->toBe(['ports' => [], 'taken' => [9000]])
         ->and(array_keys(doctorChecks($verifying)['ports']['details']))->toBe(['ports', 'taken']);
@@ -312,9 +312,9 @@ it('uses one details shape for the ports check when selecting and when verifying
 
 it('skips the port check before an image is pinned, and fails --post for missing services', function (): void {
     $this->fixture->takenPorts = [8080];
-    [$beforeCode, $before] = $this->fixture->run('fsa:doctor');
-    $this->fixture->run('fsa:install', InstanceCommandFixture::installFlags());
-    [$postCode, $post] = $this->fixture->run('fsa:doctor', ['--post' => true]);
+    [$beforeCode, $before] = $this->fixture->run('fieldset:doctor');
+    $this->fixture->run('fieldset:install', InstanceCommandFixture::installFlags());
+    [$postCode, $post] = $this->fixture->run('fieldset:doctor', ['--post' => true]);
 
     expect($beforeCode)->toBe(0)
         ->and(doctorChecks($before)['ports']['status'])->toBe('skipped')
@@ -326,7 +326,7 @@ it('fails the ports check when a probe cannot run', function (): void {
     doctorState($this->fixture);
     $this->fixture->docker->respondToRun(fn () => new ProcessOutcome(125, '', 'docker: Error response from daemon: no such image'));
 
-    [$code, $json] = $this->fixture->run('fsa:doctor');
+    [$code, $json] = $this->fixture->run('fieldset:doctor');
 
     expect($code)->toBe(3)
         ->and(doctorChecks($json)['ports']['summary'])->toContain('Cannot probe port 8080')
@@ -337,7 +337,7 @@ it('warns about a taken port of an instance that is not installed yet', function
     doctorState($this->fixture);
     $this->fixture->takenPorts = [8025];
 
-    [$code, $json] = $this->fixture->run('fsa:doctor');
+    [$code, $json] = $this->fixture->run('fieldset:doctor');
 
     expect($code)->toBe(0)
         ->and(doctorChecks($json)['ports']['status'])->toBe('warn')
@@ -347,16 +347,16 @@ it('warns about a taken port of an instance that is not installed yet', function
 it('fails --post without services', function (): void {
     doctorState($this->fixture);
 
-    [$code, $json] = $this->fixture->run('fsa:doctor', ['--post' => true]);
+    [$code, $json] = $this->fixture->run('fieldset:doctor', ['--post' => true]);
 
     expect($code)->toBe(3)->and(doctorChecks($json)['services']['summary'])->toContain('no services');
 });
 
 it('fails when no loopback port near the default is free, and when Compose is too old', function (): void {
     $this->fixture->takenPorts = range(8080, 8099);
-    [$code, $json] = $this->fixture->run('fsa:install', InstanceCommandFixture::installFlags());
+    [$code, $json] = $this->fixture->run('fieldset:install', InstanceCommandFixture::installFlags());
     $this->fixture->docker->versions = new DockerVersions('29.9.0', '29.9.0', '2.20.0');
-    [$composeCode, $compose] = $this->fixture->run('fsa:doctor');
+    [$composeCode, $compose] = $this->fixture->run('fieldset:doctor');
 
     expect($code)->toBe(3)
         ->and(doctorChecks($json)['ports']['summary'])->toContain('No free loopback port found (tried 8080')

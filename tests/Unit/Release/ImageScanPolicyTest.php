@@ -21,7 +21,7 @@ function trivyExceptionFiles(): array
 it('keeps exception files only for third-party services of the release, never for the app image', function (): void {
     $services = array_map(fn (string $file): string => basename($file, '.trivyignore.yaml'), trivyExceptionFiles());
 
-    expect($services)->toEqualCanonicalizing(['caddy', 'cloudflared', 'gotenberg', 'postgres'])
+    expect($services)->toEqualCanonicalizing(['caddy', 'cloudflared', 'gotenberg', 'mailpit', 'postgres'])
         ->and(array_diff($services, ReleaseInputs::THIRD_PARTY_SERVICES))->toBe([])
         ->and(glob(base_path('distribution/trivy/*')))->toBe(trivyExceptionFiles())
         ->and(glob(base_path('distribution/trivy/.*ignore*')))->toBe([]);
@@ -82,6 +82,6 @@ it('scans the app image strictly and each third-party image with only its own ex
         ->and($release)->toContain('--no-progress "${exceptions[@]}" "$reference"')
         ->and(substr_count($release, '--ignorefile'))->toBe(2)
         ->and($release)->toContain('--severity CRITICAL,HIGH --ignore-unfixed --exit-code 1')
-        ->and($ci)->toContain("--ignore-unfixed --exit-code 1 --no-progress --ignorefile '' \\\n            form-schema-app:scan")
+        ->and($ci)->toContain("--ignore-unfixed --exit-code 1 --no-progress --ignorefile '' \\\n            fieldset:scan")
         ->and($ci)->not->toContain('trivyignore');
 });

@@ -6,7 +6,7 @@ use Tests\Support\Instance\ConfigFixture;
 use Tests\Support\Instance\TemporaryInstance;
 
 /*
- * `fsa config set webhooks on|paused` (plan U17, ADR 0085): the operator's confirmation after `fsa install --from-backup`
+ * `fieldset config set webhooks on|paused` (plan U17, ADR 0085): the operator's confirmation after `fieldset install --from-backup`
  * that the old server no longer delivers. Only runtime.json changes (the queue reads it per job); no service is
  * recreated, and `config show` reports the value.
  */

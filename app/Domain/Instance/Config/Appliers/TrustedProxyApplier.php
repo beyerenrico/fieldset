@@ -21,7 +21,7 @@ use App\Domain\Instance\State\InstanceSettings;
 use App\Domain\Instance\State\InstanceState;
 
 /**
- * `fsa config set trusted-proxy <container|address|auto>` (R17, R32, KTD10, ADR 0076, ADR 0077): the one address a
+ * `fieldset config set trusted-proxy <container|address|auto>` (R17, R32, KTD10, ADR 0076, ADR 0077): the one address a
  * proxy-mode app accepts X-Forwarded-* from, resolved through the Docker engine as at install, never by DNS name.
  *
  * - traefik, caddy: the named container (name, ID or its address on the shared network), or `auto`: the recorded

@@ -67,7 +67,7 @@ export interface ClearOptions {
 }
 
 /**
- * Empties every Dexie table, removes every `fsa.*` key but `fsa.settings` (local and session storage),
+ * Empties every Dexie table, removes every `fieldset.*` key but `fieldset.settings` (local and session storage),
  * forgets the signed-in user and keeps `meta.device` with the uuid only when asked to.
  */
 export async function clearLocalData(options: ClearOptions): Promise<void> {

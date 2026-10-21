@@ -23,8 +23,8 @@ use SensitiveParameter;
 use Throwable;
 
 /**
- * The backup `fsa adopt` takes of the stopped 1.0 install before it copies anything (KTD20 step 2, R46, plan U19, ADR 0087),
- * in the format of 1.0's `scripts/backup.sh`, which the 1.0 full-restore procedure, the restore drill and `fsa restore`
+ * The backup `fieldset adopt` takes of the stopped 1.0 install before it copies anything (KTD20 step 2, R46, plan U19, ADR 0087),
+ * in the format of 1.0's `scripts/backup.sh`, which the 1.0 full-restore procedure, the restore drill and `fieldset restore`
  * read (BackupSet::LEGACY): `backups/safety-adopt-<UTC>/` (R57: a safety backup, never pruned, 0700/0600) with
  *
  * - `database.dump`: `pg_dump --format=custom --no-owner --no-privileges`, run in a one-off of the manifest's Postgres
@@ -36,7 +36,7 @@ use Throwable;
  *   `backups/`, which is neither encrypted nor pruned here (ADR 0084: app keys reach backups only encrypted);
  * - `manifest.txt` (`key=value`: created_at, postgres, migrations, last_migration, row counts, storage, env, source,
  *   `app_key_fingerprints`, which name the keys the data needs, and `journal`, the adopt's journal ID) and
- *   `SHA256SUMS`, whose digest the adopt records: it makes exactly this set the instance's own for `fsa restore`.
+ *   `SHA256SUMS`, whose digest the adopt records: it makes exactly this set the instance's own for `fieldset restore`.
  *
  * The snapshot (counts and chain heads) is read right after the dump: 1.0's writers are stopped, so both see one state.
  * The `.partial` directory of a run killed earlier, and a complete set of the same journal (killed after the set was
@@ -150,7 +150,7 @@ final readonly class LegacyBackupWriter
             ...array_map(strval(...), $snapshot->counts),
             'storage' => $storage ? 'included' : 'skipped',
             'env' => 'included',
-            'source' => 'fsa adopt',
+            'source' => 'fieldset adopt',
             'version' => $legacy->version,
             'project' => $legacy->project,
             'app_key_fingerprints' => implode(',', $fingerprints),
@@ -168,7 +168,7 @@ final readonly class LegacyBackupWriter
      */
     private function env(#[SensitiveParameter] array $env): string
     {
-        $lines = "# Written by fsa adopt: the URL, sender and SMTP server of the 1.0 .env. The APP keys are not here: their\n"
+        $lines = "# Written by fieldset adopt: the URL, sender and SMTP server of the 1.0 .env. The APP keys are not here: their\n"
             ."# fingerprints are in manifest.txt; restore elsewhere with --app-key-file (the 1.0 .env's APP_KEY).\n";
         foreach (array_diff_key(array_intersect_key($env, array_flip(LegacyEnv::ALLOWED)), array_flip(self::KEYS)) as $key => $value) {
             $lines .= $key.'='.(str_contains($value, "'") ? '"'.str_replace(['\\', '"'], ['\\\\', '\\"'], $value).'"' : "'".$value."'")."\n";

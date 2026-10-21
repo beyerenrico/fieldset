@@ -55,7 +55,7 @@ final readonly class KeySetup
             throw new InvalidInput('The directory of --identity-out does not exist or is not writable.', 'invalid_identity_path');
         }
         if (file_exists($path) || is_link($path)) {
-            throw new InvalidInput("{$path} exists already; fsa never overwrites an identity.", 'identity_exists', 'Pass a new file name, or move the old identity away if you are sure it is not needed for older backups.');
+            throw new InvalidInput("{$path} exists already; fieldset never overwrites an identity.", 'identity_exists', 'Pass a new file name, or move the old identity away if you are sure it is not needed for older backups.');
         }
     }
 
@@ -109,7 +109,7 @@ final readonly class KeySetup
             $this->test($path, $passphrase, $pair['recipient']);
         } catch (Throwable $e) {
             @unlink($path);
-            throw new InstanceException('Writing or testing the backup identity failed: '.$e->getMessage(), ExitCode::PreflightFailed, 'identity_test_failed', 'Check that age works in the image (`fsa doctor`) and run the command again; nothing was changed.', true, [], $e);
+            throw new InstanceException('Writing or testing the backup identity failed: '.$e->getMessage(), ExitCode::PreflightFailed, 'identity_test_failed', 'Check that age works in the image (`fieldset doctor`) and run the command again; nothing was changed.', true, [], $e);
         }
 
         return $pair['recipient'];
@@ -119,7 +119,7 @@ final readonly class KeySetup
     private function test(string $path, #[SensitiveParameter] string $passphrase, string $recipient): void
     {
         $challenge = bin2hex(random_bytes(16));
-        $file = tempnam(sys_get_temp_dir(), 'fsa-age-test-');
+        $file = tempnam(sys_get_temp_dir(), 'fieldset-age-test-');
         if ($file === false) {
             throw new RuntimeException('No temporary file for the decrypt test.');
         }

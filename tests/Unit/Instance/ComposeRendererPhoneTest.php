@@ -50,13 +50,13 @@ it('renders the local-CA Caddyfile: internal CA, default_sni, port 80 only for t
     expect($caddyfile)->toContain("\tskip_install_trust\n")
         ->toContain("\tauto_https disable_redirects\n")
         ->toContain("\tdefault_sni \"192.168.1.20\"\n")
-        ->toContain("\t\tca local {\n\t\t\tname \"form-schema-app local CA\"\n")
-        ->toContain("\"https://192.168.1.20\" {\n\ttls internal\n\thandle /_fsa/* {\n\t\trespond 404\n\t}\n\thandle {\n\t\treverse_proxy app:8080 {\n\t\t\theader_up -X-Forwarded-Port\n")
+        ->toContain("\t\tca local {\n\t\t\tname \"Fieldset local CA\"\n")
+        ->toContain("\"https://192.168.1.20\" {\n\ttls internal\n\thandle /_fieldset/* {\n\t\trespond 404\n\t}\n\thandle {\n\t\treverse_proxy app:8080 {\n\t\t\theader_up -X-Forwarded-Port\n")
         ->toContain("\"http://\" {\n\t@phone_trust path /phone-trust /phone-trust/*\n\thandle @phone_trust {\n\t\treverse_proxy app:8080 {")
         ->toContain("\thandle {\n\t\tredir \"https://192.168.1.20{uri}\" 308\n\t}")
         ->toContain('http://:8081 {')
         ->not->toContain('acme_ca')
-        ->not->toContain('FSA_CATCHER_AUTHORIZATION');
+        ->not->toContain('FIELDSET_CATCHER_AUTHORIZATION');
 });
 
 it('refuses a local-CA address that is not IPv4 as a renderer bug (exit 1)', function (string $address): void {
@@ -115,17 +115,17 @@ it('needs the tunnel subnet for the quick tunnel', function (): void {
     expect(fn () => PhoneFixtures::render(PhoneFixtures::tunnel(['tunnel_subnet' => null])))->toThrow(InvalidState::class);
 });
 
-it('swaps in the fake tunnel image only in harness builds and only for an fsa-test image', function (): void {
-    putenv(HarnessTunnel::ENV.'=image=fsa-test-fake-tunnel:abc123;ttl=30');
+it('swaps in the fake tunnel image only in harness builds and only for a fieldset-test image', function (): void {
+    putenv(HarnessTunnel::ENV.'=image=fieldset-test-fake-tunnel:abc123;ttl=30');
 
-    expect(HarnessTunnel::image(null, BuildFlavor::Harness))->toBe('fsa-test-fake-tunnel:abc123')
+    expect(HarnessTunnel::image(null, BuildFlavor::Harness))->toBe('fieldset-test-fake-tunnel:abc123')
         ->and(HarnessTunnel::ttl(null, BuildFlavor::Harness))->toBe(30)
         ->and(HarnessTunnel::image(null, BuildFlavor::Production))->toBeNull()
         ->and(HarnessTunnel::ttl(null, BuildFlavor::Production))->toBeNull()
         ->and(PhoneFixtures::render(PhoneFixtures::tunnel())->service('tunnel')['image'])->toBe(ComposeFixtures::digests()['cloudflared'])
         ->and(HarnessTunnel::image('image=ghcr.io/evil/cloudflared:latest', BuildFlavor::Harness))->toBeNull()
-        ->and(HarnessTunnel::image('image=fsa-test-x:1;ttl=5', BuildFlavor::Harness))->toBeNull()
-        ->and(HarnessTunnel::image('image=fsa-test-x:1;colour=red', BuildFlavor::Harness))->toBeNull()
+        ->and(HarnessTunnel::image('image=fieldset-test-x:1;ttl=5', BuildFlavor::Harness))->toBeNull()
+        ->and(HarnessTunnel::image('image=fieldset-test-x:1;colour=red', BuildFlavor::Harness))->toBeNull()
         ->and(HarnessTunnel::ttl('ttl=99999', BuildFlavor::Harness))->toBeNull()
         ->and(HarnessTunnel::image('', BuildFlavor::Harness))->toBeNull();
 });

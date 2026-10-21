@@ -16,7 +16,7 @@ use JsonException;
  * only while the instance is reachable on loopback alone; random passwords, listed once, whenever it is reachable
  * beyond loopback. The reasons (`exposure`):
  *
- * - `domain_mode`, `proxy_mode`: the mode itself (proxy mode counts even behind an internal proxy: fsa cannot tell);
+ * - `domain_mode`, `proxy_mode`: the mode itself (proxy mode counts even behind an internal proxy: fieldset cannot tell);
  * - `local_ca`, `tunnel`: local mode with phone HTTPS (the `phone_https` setting, U14) or a tunnel recorded in the
  *   runtime file (`tunnel.hostname`, also once expired: the old host was public);
  * - `runtime_unreadable`: the runtime file exists but cannot be parsed, so a tunnel cannot be ruled out (fail safe).

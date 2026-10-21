@@ -14,7 +14,7 @@ use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 
 /**
- * The instance runtime file (plan U10, KTD11, ADR 0074): ok when current or not an `fsa` instance; warn while an
+ * The instance runtime file (plan U10, KTD11, ADR 0074): ok when current or not a `fieldset` instance; warn while an
  * unusable file leaves the last good value in force; fail when nothing good was read and APP_URL applies with the
  * gate counting as raised. Web requests are mostly gated in that last case, so the log carries the same warning.
  */

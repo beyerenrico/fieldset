@@ -14,24 +14,24 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 
 /**
- * `fsa uninstall` (§7, R44, R63, §13.3, ADR 0072, ADR 0073): removes every container, volume and network labelled
+ * `fieldset uninstall` (§7, R44, R63, §13.3, ADR 0072, ADR 0073): removes every container, volume and network labelled
  * with this instance's UUID, and the files of the instance directory. With --keep-backups it first quiesces the
  * instance and writes a final backup (`backups/final-<UTC>`, a 2.0 backup with the APP keys inside when encrypted or
- * beside it) into `backups/`, which stays and which `fsa install --from-backup` reads; without it the data and the
+ * beside it) into `backups/`, which stays and which `fieldset install --from-backup` reads; without it the data and the
  * backups are deleted. An adopted instance (plan U19, ADR 0087) gets that final
  * backup and keeps backups/ by default (`--no-backup` skips it), and the result reports the writes made since adopt and
  * how 1.0 comes back. `--orphans <uuid>` removes only the leftovers of another installation that install named for this
  * directory. Destructive: exit 6 without a terminal (or with --json) unless --yes.
  */
 #[Description('Remove the instance: its labelled containers, volumes and networks, and its directory')]
-#[Signature('fsa:uninstall
+#[Signature('fieldset:uninstall
         {--keep-backups : Write a final backup into backups/ first and keep that directory}
         {--no-backup : Write no final backup (an adopted instance gets one by default); with --keep-backups, backups/ stays without one}
-        {--orphans= : Remove only the leftovers of this other installation UUID, as fsa install names them}')]
-final class UninstallCommand extends FsaCommand
+        {--orphans= : Remove only the leftovers of this other installation UUID, as fieldset install names them}')]
+final class UninstallCommand extends FieldsetCommand
 {
     /** `data` names what goes and what stays (M12 gate O6). */
-    protected function confirmationPrompt(FsaContext $context): Confirmation
+    protected function confirmationPrompt(FieldsetContext $context): Confirmation
     {
         $orphans = $this->option('orphans');
         if (is_string($orphans) && $orphans !== '') {
@@ -68,7 +68,7 @@ final class UninstallCommand extends FsaCommand
      * When the instance holds certificates (its edge volume exists, ADR 0078), the prompt warns about the CA's
      * duplicate-certificate limit first (plan Risks, ADR 0075). If Docker cannot be asked, domain mode decides.
      */
-    private function certificateNotice(FsaContext $context): ?string
+    private function certificateNotice(FieldsetContext $context): ?string
     {
         try {
             return $this->laravel->make(Uninstaller::class)->certificateNotice();
@@ -84,7 +84,7 @@ final class UninstallCommand extends FsaCommand
         }
     }
 
-    protected function perform(FsaContext $context): CommandResult
+    protected function perform(FieldsetContext $context): CommandResult
     {
         $uninstaller = $this->laravel->make(Uninstaller::class);
         $orphans = $this->option('orphans');
@@ -98,7 +98,7 @@ final class UninstallCommand extends FsaCommand
      * The 1.0 checkout an adopted instance (or an unfinished adopt that stopped 1.0) came from (plan U19, ADR 0087), null
      * otherwise or when the state is unreadable.
      */
-    private function adoptedFrom(FsaContext $context): ?string
+    private function adoptedFrom(FieldsetContext $context): ?string
     {
         try {
             $directory = $context->directory();

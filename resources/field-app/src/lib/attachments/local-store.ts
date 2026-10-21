@@ -3,7 +3,7 @@
  * AttachmentRow (bytes as ArrayBuffer) and queued; the sync engine uploads it and records the
  * result. Bytes of uploaded attachments are pruned once their draft can no longer be edited.
  */
-import type { AttachmentUpload } from '@form-schema-app/form-schema-react';
+import type { AttachmentUpload } from '@fieldset/fieldset-react';
 import { db } from '../db/db.ts';
 import type { AttachmentRow, Scope } from '../db/schema.ts';
 import { currentScope } from '../db/scope.ts';

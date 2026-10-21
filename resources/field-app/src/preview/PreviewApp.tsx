@@ -1,5 +1,5 @@
-import type { JsonObject } from '@form-schema-app/form-schema-js';
-import { createMemoryAttachmentAdapter, FormRenderer } from '@form-schema-app/form-schema-react';
+import type { JsonObject } from '@fieldset/fieldset-js';
+import { createMemoryAttachmentAdapter, FormRenderer } from '@fieldset/fieldset-react';
 import { useEffect, useMemo, useState, type ReactElement } from 'react';
 import { PreviewErrorBoundary } from './PreviewErrorBoundary.tsx';
 import { parsePreviewMessage, PREVIEW_READY, type PreviewUpdate } from './protocol.ts';

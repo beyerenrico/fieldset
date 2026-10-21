@@ -10,6 +10,7 @@ use App\Domain\Instance\Docker\ProcessOutcome;
 use App\Domain\Instance\Install\InstallSmoke;
 use App\Domain\Instance\Operations\OperationJournal;
 use App\Domain\Instance\State\EnvFiles;
+use App\Domain\Instance\State\InstanceSecrets;
 use Illuminate\Support\Sleep;
 use Tests\Support\Instance\ConfigFixture;
 use Tests\Support\Instance\InstanceCommandFixture;
@@ -19,7 +20,7 @@ use Tests\Support\Instance\TemporaryInstance;
  * R11 (ADR 0072 amendment, ADR 0080 amendment): the install's smoke test renders a PDF through Gotenberg and sends a
  * test mail to the owner, into the catcher (then found there by its Message-ID through the catcher's API) or through
  * the SMTP server of --smtp-host; each failure is exit 4 with its own code and resumes at the smoke test. Also the
- * resume and repeat rules of the SMTP flags, and that `fsa config set` verifies without either check.
+ * resume and repeat rules of the SMTP flags, and that `fieldset config set` verifies without either check.
  */
 
 const SMOKE_SMTP_PASSWORD = 'smoke-smtp-secret-8d1f';
@@ -34,7 +35,7 @@ afterEach(fn () => TemporaryInstance::cleanup());
 /** @return array{0: int, 1: array<string, mixed>} */
 function smokeSmtpInstall(InstanceCommandFixture $fixture, array $flags = []): array
 {
-    return $fixture->run('fsa:install', InstanceCommandFixture::installFlags(['--smtp-host' => 'smtp.example.com', '--smtp-username' => 'relay', '--password-stdin' => true, ...$flags]));
+    return $fixture->run('fieldset:install', InstanceCommandFixture::installFlags(['--smtp-host' => 'smtp.example.com', '--smtp-username' => 'relay', '--password-stdin' => true, ...$flags]));
 }
 
 /** @return list<ContainerSpec> the smoke test's lookups of its test mail in the catcher */
@@ -44,11 +45,11 @@ function catcherLookups(InstanceCommandFixture $fixture): array
 }
 
 it('renders a PDF and finds its test mail in the catcher, the catcher login on stdin only (capture mode)', function (): void {
-    [$code, $json] = $this->fixture->run('fsa:install', InstanceCommandFixture::installFlags());
+    [$code, $json] = $this->fixture->run('fieldset:install', InstanceCommandFixture::installFlags());
 
     $state = $this->fixture->state();
     $lookups = array_values(array_filter($this->fixture->docker->called('runContainer'), static fn (array $call): bool => InstanceCommandFixture::catcherLookup($call['spec']) instanceof ProcessOutcome));
-    $password = substr(new EnvFiles($this->fixture->directory)->read('mailpit')['MP_UI_AUTH'], 4);
+    $password = substr(new EnvFiles($this->fixture->directory)->read('mailpit')['MP_UI_AUTH'], strlen(InstanceSecrets::CATCHER_USER.':'));
     $smoke = new OperationJournal($this->fixture->directory)->history()[0]->phaseData('smoke');
     expect($code)->toBe(0, json_encode($json))
         ->and($this->fixture->oneOffCalls('instance:pdf-test')[0]['command'])->toBe(['php', 'artisan', 'instance:pdf-test', '--json'])
@@ -57,7 +58,7 @@ it('renders a PDF and finds its test mail in the catcher, the catcher login on s
         ->and($lookups[0]['spec']->network)->toBe($state->project().'_default')
         ->and($lookups[0]['spec']->labels)->toBe(Labels::forInstance($state->uuid(), 'smoke'))
         ->and($lookups[0]['spec']->command)->toBe(['--fail', '--silent', '--show-error', '--max-time', '10', '--config', '-', 'http://mailpit:8025/api/v1/messages?limit=50'])
-        ->and($lookups[0]['input'])->toBe("user = \"fsa:{$password}\"\n")
+        ->and($lookups[0]['input'])->toBe("user = \"fieldset:{$password}\"\n")
         ->and(json_encode($lookups[0]['spec']))->not->toContain($password)
         ->and($smoke['checked'])->toContain('PDF through gotenberg (1834 bytes)', 'test mail through the mail catcher', 'test mail found in the mail catcher')
         ->and(json_encode($smoke))->not->toContain('owner@example.com');
@@ -67,10 +68,10 @@ it('fails the install with exit 4 pdf_render_failed when Gotenberg renders no PD
     $this->fixture->oneOffs['instance:pdf-test'] = InstanceCommandFixture::oneOffJson(['command' => 'instance:pdf-test', 'status' => 'failed',
         'errors' => [['code' => 'pdf_render_failed', 'message' => 'Gotenberg did not render the test PDF: connection refused', 'hint' => null, 'retryable' => true]]]);
 
-    [$code, $json] = $this->fixture->run('fsa:install', InstanceCommandFixture::installFlags());
+    [$code, $json] = $this->fixture->run('fieldset:install', InstanceCommandFixture::installFlags());
     $journal = new OperationJournal($this->fixture->directory)->current();
     unset($this->fixture->oneOffs['instance:pdf-test']);
-    [$resumed, $again] = $this->fixture->run('fsa:install', InstanceCommandFixture::installFlags());
+    [$resumed, $again] = $this->fixture->run('fieldset:install', InstanceCommandFixture::installFlags());
 
     expect($code)->toBe(4)
         ->and($json['errors'][0])->toMatchArray(['code' => 'pdf_render_failed', 'retryable' => true])
@@ -85,7 +86,7 @@ it('fails with exit 4 test_mail_not_captured when the catcher never lists the te
     Sleep::fake();
     $this->fixture->catcherOutcome = $answer;
 
-    [$code, $json] = $this->fixture->run('fsa:install', InstanceCommandFixture::installFlags());
+    [$code, $json] = $this->fixture->run('fieldset:install', InstanceCommandFixture::installFlags());
 
     expect($code)->toBe(4)
         ->and($json['errors'][0])->toMatchArray(['code' => 'test_mail_not_captured', 'retryable' => true])
@@ -118,7 +119,7 @@ it('fails the install with exit 4 test_mail_failed when the SMTP server refuses,
 
     expect($code)->toBe(4)
         ->and($json['errors'][0])->toMatchArray(['code' => 'test_mail_failed', 'message' => 'The test mail through smtp://smtp.example.com:587 was not accepted.', 'retryable' => true])
-        ->and($json['errors'][0]['hint'])->toContain('resumes at the smoke test')->toContain('fsa uninstall --yes')->toContain('fsa config set mail smtp')->toContain('forms@localhost')
+        ->and($json['errors'][0]['hint'])->toContain('resumes at the smoke test')->toContain('fieldset uninstall --yes')->toContain('fieldset config set mail smtp')->toContain('forms@localhost')
         ->and($json['data']['output'])->toContain('550 5.1.1 <<owner-email>>')
         ->and(json_encode($json))->not->toContain('owner@example.com')->not->toContain(SMOKE_SMTP_PASSWORD)
         ->and($journal?->lastStartedPhase())->toBe('smoke')
@@ -132,7 +133,7 @@ it('needs the SMTP password again on a resume before the state phase rendered it
     [$code] = smokeSmtpInstall($this->fixture);
     unset($this->fixture->docker->failures['composeConfig']);
 
-    [$without, $refused] = $this->fixture->run('fsa:install', InstanceCommandFixture::installFlags(['--smtp-host' => 'smtp.example.com']));
+    [$without, $refused] = $this->fixture->run('fieldset:install', InstanceCommandFixture::installFlags(['--smtp-host' => 'smtp.example.com']));
     [$with, $json] = smokeSmtpInstall($this->fixture);
 
     expect($code)->not->toBe(0)
@@ -169,7 +170,7 @@ it('changes nothing on a finished instance with the same SMTP flags and password
     $calls = count($this->fixture->docker->calls);
 
     [$sameCode, $same] = smokeSmtpInstall($this->fixture, ['--smtp-encryption' => 'starttls', '--smtp-port' => '587']);
-    [$bareCode] = $this->fixture->run('fsa:install', InstanceCommandFixture::installFlags());
+    [$bareCode] = $this->fixture->run('fieldset:install', InstanceCommandFixture::installFlags());
     app()->instance(SmtpInput::STDIN, fn (): string => 'rotated-secret');
     [$otherCode, $other] = smokeSmtpInstall($this->fixture, ['--smtp-host' => 'smtp2.example.com']);
 
@@ -180,23 +181,23 @@ it('changes nothing on a finished instance with the same SMTP flags and password
         ->and($otherCode)->toBe(2)
         ->and($other['errors'][0]['code'])->toBe('use_config_set')
         ->and($other['data']['flags'])->toBe([['flag' => '--smtp-host', 'key' => 'mail'], ['flag' => '--smtp-username', 'key' => 'mail']])
-        ->and($other['errors'][0]['hint'])->toContain('fsa config set mail smtp')
+        ->and($other['errors'][0]['hint'])->toContain('fieldset config set mail smtp')
         ->and(json_encode($other))->not->toContain('rotated-secret');
 });
 
 it('names config set mail when --smtp-host is added to an instance installed in capture mode', function (): void {
-    $this->fixture->run('fsa:install', InstanceCommandFixture::installFlags());
+    $this->fixture->run('fieldset:install', InstanceCommandFixture::installFlags());
 
-    [$code, $json] = $this->fixture->run('fsa:install', InstanceCommandFixture::installFlags(['--smtp-host' => 'smtp.example.com']));
+    [$code, $json] = $this->fixture->run('fieldset:install', InstanceCommandFixture::installFlags(['--smtp-host' => 'smtp.example.com']));
 
     expect($code)->toBe(2)
         ->and($json['errors'][0]['code'])->toBe('use_config_set')
         ->and($json['data']['flags'])->toBe([['flag' => '--smtp-host', 'key' => 'mail']])
         // M11 gate: the same command as the capture banner, sender included (forms@localhost is refused by most servers).
-        ->and($json['errors'][0]['hint'])->toContain('`fsa config set mail smtp --smtp-host <host> --smtp-username <user> --from-address <address> --password-stdin`');
+        ->and($json['errors'][0]['hint'])->toContain('`fieldset config set mail smtp --smtp-host <host> --smtp-username <user> --from-address <address> --password-stdin`');
 });
 
-it('verifies `fsa config set` without rendering a PDF or sending a mail (only the install smoke test does)', function (): void {
+it('verifies `fieldset config set` without rendering a PDF or sending a mail (only the install smoke test does)', function (): void {
     $config = new ConfigFixture;
     $mark = $config->mark();
 

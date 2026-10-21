@@ -73,7 +73,7 @@ final readonly class ResourceBudget
 
     /**
      * Postgres connections besides the FrankenPHP threads and the Horizon workers: Horizon's master and two supervisors,
-     * the scheduler (schedule:work, an overlapping schedule:run and the commands they start), `fsa` one-offs (a
+     * the scheduler (schedule:work, an overlapping schedule:run and the commands they start), `fieldset` one-offs (a
      * verification or status beside a command), and the backup service (its daemon and pg_dump, U16).
      */
     private const array PG_OTHER_CLIENTS = ['horizon_managers' => 3, 'scheduler' => 4, 'one_offs' => 2, 'backup' => 2];

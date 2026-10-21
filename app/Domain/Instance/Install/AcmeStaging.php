@@ -24,10 +24,10 @@ final class AcmeStaging
     }
 
     /**
-     * @param  string  $fsa  how to call fsa (`fsa`, or the instance's launcher path)
+     * @param  string  $fieldset  how to call fieldset (`fieldset`, or the instance's launcher path)
      * @return array{0: string, 1: string, 2: string}|null code, message, hint
      */
-    public static function warning(InstanceState $state, string $fsa = 'fsa'): ?array
+    public static function warning(InstanceState $state, string $fieldset = 'fieldset'): ?array
     {
         if (! self::active($state)) {
             return null;
@@ -37,12 +37,12 @@ final class AcmeStaging
         return [
             self::CODE,
             "The certificate for {$domain} comes from Let's Encrypt staging: browsers and phones do not trust it.",
-            'When the trial works, switch to production with `'.self::command($fsa).'`; the edge then orders a trusted certificate.',
+            'When the trial works, switch to production with `'.self::command($fieldset).'`; the edge then orders a trusted certificate.',
         ];
     }
 
-    public static function command(string $fsa = 'fsa'): string
+    public static function command(string $fieldset = 'fieldset'): string
     {
-        return "{$fsa} ".self::SWITCH_COMMAND;
+        return "{$fieldset} ".self::SWITCH_COMMAND;
     }
 }

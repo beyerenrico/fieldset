@@ -8,7 +8,7 @@ use RuntimeException;
 
 /**
  * The harness build of install.sh (ADR 0070): the release harness serves a copy whose single
- * `build=production` line reads `build=harness`, which accepts FSA_TRUST_KEY and plain-http release URLs. The
+ * `build=production` line reads `build=harness`, which accepts FIELDSET_TRUST_KEY and plain-http release URLs. The
  * checked-in distribution/install.sh is the production build, and the release workflow publishes it unchanged.
  */
 final class InstallScriptBuild

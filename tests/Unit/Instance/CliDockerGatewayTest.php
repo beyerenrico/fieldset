@@ -18,12 +18,12 @@ use Symfony\Component\Process\Process;
 use Tests\Support\Instance\ScriptedCommandRunner;
 use Tests\Support\Instance\TemporaryInstance;
 
-const COMPOSE_BASE = ['docker', 'compose', '--ansi', 'never', '--project-name', 'fsa-forms-ab12', '--file', '/srv/forms/compose.yaml', '--project-directory', '/srv/forms'];
+const COMPOSE_BASE = ['docker', 'compose', '--ansi', 'never', '--project-name', 'fieldset-forms-ab12', '--file', '/srv/forms/compose.yaml', '--project-directory', '/srv/forms'];
 
 beforeEach(function (): void {
     $this->runner = new ScriptedCommandRunner;
     $this->docker = new CliDockerGateway($this->runner);
-    $this->project = new ComposeProject('fsa-forms-ab12', '/srv/forms/compose.yaml', '/srv/forms');
+    $this->project = new ComposeProject('fieldset-forms-ab12', '/srv/forms/compose.yaml', '/srv/forms');
 });
 
 afterEach(fn () => TemporaryInstance::cleanup());
@@ -101,12 +101,12 @@ it('parses compose ps as NDJSON and as the older JSON array', function (string $
         ->and($containers[1]->running())->toBeFalse()
         ->and($containers[1]->health)->toBeNull();
 })->with([
-    'ndjson' => ['{"ID":"1","Name":"fsa-app-1","State":"running","Health":"healthy","Labels":"com.docker.compose.service=app,app.form-schema.instance=u"}'."\n".'{"ID":"2","Name":"fsa-queue-1","State":"exited","Health":"","Labels":"com.docker.compose.service=queue"}'],
-    'array' => ['[{"ID":"1","Name":"fsa-app-1","State":"running","Health":"healthy","Labels":"com.docker.compose.service=app"},{"ID":"2","Name":"fsa-queue-1","State":"exited","Health":"","Labels":"com.docker.compose.service=queue"}]'],
+    'ndjson' => ['{"ID":"1","Name":"fieldset-app-1","State":"running","Health":"healthy","Labels":"com.docker.compose.service=app,app.fieldset.instance=u"}'."\n".'{"ID":"2","Name":"fieldset-queue-1","State":"exited","Health":"","Labels":"com.docker.compose.service=queue"}'],
+    'array' => ['[{"ID":"1","Name":"fieldset-app-1","State":"running","Health":"healthy","Labels":"com.docker.compose.service=app"},{"ID":"2","Name":"fieldset-queue-1","State":"exited","Health":"","Labels":"com.docker.compose.service=queue"}]'],
 ]);
 
 it('returns the normalized compose model and reports an invalid file with its stderr', function (): void {
-    $this->runner->push(new ProcessOutcome(0, '{"name":"fsa-forms-ab12","services":{"app":{}}}'), new ProcessOutcome(15, '', "service \"app\" refers to undefined volume x\n"));
+    $this->runner->push(new ProcessOutcome(0, '{"name":"fieldset-forms-ab12","services":{"app":{}}}'), new ProcessOutcome(15, '', "service \"app\" refers to undefined volume x\n"));
 
     expect($this->docker->composeConfig($this->project)['services'])->toBe(['app' => []]);
 
@@ -142,19 +142,19 @@ it('pulls by digest and inspects images, answering null for unknown ones', funct
 
 it('inspects a container for its ID and start time', function (): void {
     $this->runner->push(
-        new ProcessOutcome(0, json_encode(['Id' => str_repeat('a', 64), 'Name' => '/fsa-ops', 'State' => ['Status' => 'running', 'Running' => true, 'StartedAt' => '2026-10-17T10:00:00.123456789Z', 'Health' => ['Status' => 'healthy']], 'Config' => ['Image' => 'app', 'Labels' => ['app.form-schema.role' => 'ops']]])),
+        new ProcessOutcome(0, json_encode(['Id' => str_repeat('a', 64), 'Name' => '/fieldset-ops', 'State' => ['Status' => 'running', 'Running' => true, 'StartedAt' => '2026-10-17T10:00:00.123456789Z', 'Health' => ['Status' => 'healthy']], 'Config' => ['Image' => 'app', 'Labels' => ['app.fieldset.role' => 'ops']]])),
         new ProcessOutcome(1, '', 'Error: No such container: gone'),
         new ProcessOutcome(1, '', 'Error response from daemon: something else'),
     );
 
-    $container = $this->docker->inspectContainer('fsa-ops');
+    $container = $this->docker->inspectContainer('fieldset-ops');
 
-    expect($this->runner->runs[0]['command'])->toBe(['docker', 'container', 'inspect', '--format', '{{json .}}', 'fsa-ops'])
+    expect($this->runner->runs[0]['command'])->toBe(['docker', 'container', 'inspect', '--format', '{{json .}}', 'fieldset-ops'])
         ->and($container?->id)->toBe(str_repeat('a', 64))
-        ->and($container?->name)->toBe('fsa-ops')
+        ->and($container?->name)->toBe('fieldset-ops')
         ->and($container?->startedAt)->toBe('2026-10-17T10:00:00.123456789Z')
         ->and($container?->health)->toBe('healthy')
-        ->and($container?->labels)->toBe(['app.form-schema.role' => 'ops'])
+        ->and($container?->labels)->toBe(['app.fieldset.role' => 'ops'])
         ->and($this->docker->inspectContainer('gone'))->toBeNull()
         ->and(fn () => $this->docker->inspectContainer('x'))->toThrow(DockerCommandFailed::class);
 });
@@ -214,24 +214,24 @@ it('inspects a network for its gateway and the addresses of attached containers 
 
 it('lists containers, volumes and networks by label', function (): void {
     $this->runner->push(
-        new ProcessOutcome(0, '{"ID":"'.str_repeat('b', 64).'","Names":"fsa-app-1","State":"running","Image":"app","Labels":"app.form-schema.instance=u1"}'),
-        new ProcessOutcome(0, '{"Name":"fsa_pgdata","Driver":"local","Labels":"app.form-schema.instance=u1,com.docker.compose.project=fsa"}'),
-        new ProcessOutcome(0, '{"ID":"n1","Name":"fsa_default","Labels":"app.form-schema.instance=u1"}'."\n"),
+        new ProcessOutcome(0, '{"ID":"'.str_repeat('b', 64).'","Names":"fieldset-app-1","State":"running","Image":"app","Labels":"app.fieldset.instance=u1"}'),
+        new ProcessOutcome(0, '{"Name":"fieldset_pgdata","Driver":"local","Labels":"app.fieldset.instance=u1,com.docker.compose.project=fieldset"}'),
+        new ProcessOutcome(0, '{"ID":"n1","Name":"fieldset_default","Labels":"app.fieldset.instance=u1"}'."\n"),
         new ProcessOutcome(0, ''),
     );
-    $labels = ['app.form-schema.instance' => 'u1', 'app.form-schema.role' => null];
+    $labels = ['app.fieldset.instance' => 'u1', 'app.fieldset.role' => null];
 
     $containers = $this->docker->containers($labels);
     $volumes = $this->docker->volumes($labels);
     $networks = $this->docker->networks($labels);
 
-    $filters = ['--filter', 'label=app.form-schema.instance=u1', '--filter', 'label=app.form-schema.role'];
+    $filters = ['--filter', 'label=app.fieldset.instance=u1', '--filter', 'label=app.fieldset.role'];
     expect($this->runner->runs[0]['command'])->toBe(['docker', 'container', 'ls', '--no-trunc', '--format', '{{json .}}', '--all', ...$filters])
         ->and($this->runner->runs[1]['command'])->toBe(['docker', 'volume', 'ls', '--format', '{{json .}}', ...$filters])
         ->and($this->runner->runs[2]['command'])->toBe(['docker', 'network', 'ls', '--no-trunc', '--format', '{{json .}}', ...$filters])
-        ->and($containers[0]->name)->toBe('fsa-app-1')
-        ->and($volumes)->toEqual([new DockerResource('volume', 'fsa_pgdata', ['app.form-schema.instance' => 'u1', 'com.docker.compose.project' => 'fsa'])])
-        ->and($networks[0]->name)->toBe('fsa_default')
+        ->and($containers[0]->name)->toBe('fieldset-app-1')
+        ->and($volumes)->toEqual([new DockerResource('volume', 'fieldset_pgdata', ['app.fieldset.instance' => 'u1', 'com.docker.compose.project' => 'fieldset'])])
+        ->and($networks[0]->name)->toBe('fieldset_default')
         ->and($this->docker->containers([], all: false))->toBe([])
         ->and($this->runner->lastCommand())->toBe(['docker', 'container', 'ls', '--no-trunc', '--format', '{{json .}}']);
 });
@@ -240,25 +240,25 @@ it('builds docker run from a container spec with environment values out of argv'
     $spec = new ContainerSpec(
         image: 'ghcr.io/x/app@sha256:'.str_repeat('1', 64),
         command: ['upgrade', '--supervise'],
-        labels: ['app.form-schema.instance' => 'u1'],
+        labels: ['app.fieldset.instance' => 'u1'],
         env: ['HOME' => '/tmp', 'SMOKE_TOKEN' => 'tok-secret'],
         volumes: ['/var/run/docker.sock:/var/run/docker.sock', '/srv/forms:/srv/forms'],
         ports: ['127.0.0.1:8080:80'],
-        network: 'fsa_default',
+        network: 'fieldset_default',
         user: '1000:1000',
-        entrypoint: '/usr/local/bin/fsa',
+        entrypoint: '/usr/local/bin/fieldset',
         workdir: '/srv/forms',
         groupAdd: ['998'],
     );
 
-    $this->docker->runContainer($spec->detachedAs('fsa-forms-ab12-supervisor', ['app.form-schema.role' => 'supervisor']), 'in', 30.0);
+    $this->docker->runContainer($spec->detachedAs('fieldset-forms-ab12-supervisor', ['app.fieldset.role' => 'supervisor']), 'in', 30.0);
 
     $run = $this->runner->runs[0];
     expect($run['command'])->toBe([
-        'docker', 'run', '--detach', '--interactive', '--rm', '--name', 'fsa-forms-ab12-supervisor', '--restart', 'no',
-        '--network', 'fsa_default', '--user', '1000:1000', '--entrypoint', '/usr/local/bin/fsa', '--workdir', '/srv/forms',
+        'docker', 'run', '--detach', '--interactive', '--rm', '--name', 'fieldset-forms-ab12-supervisor', '--restart', 'no',
+        '--network', 'fieldset_default', '--user', '1000:1000', '--entrypoint', '/usr/local/bin/fieldset', '--workdir', '/srv/forms',
         '--security-opt', 'no-new-privileges', // every container (M12 gate S6)
-        '--label', 'app.form-schema.instance=u1', '--label', 'app.form-schema.role=supervisor',
+        '--label', 'app.fieldset.instance=u1', '--label', 'app.fieldset.role=supervisor',
         '--volume', '/var/run/docker.sock:/var/run/docker.sock', '--volume', '/srv/forms:/srv/forms',
         '--publish', '127.0.0.1:8080:80', '--group-add', '998',
         '--env', 'HOME', '--env', 'SMOKE_TOKEN',
@@ -269,7 +269,7 @@ it('builds docker run from a container spec with environment values out of argv'
 });
 
 it('streams a docker run into a file with environment values out of argv (adopt, plan U19)', function (): void {
-    $spec = new ContainerSpec(image: 'postgres@sha256:'.str_repeat('2', 64), command: ['-h', '127.0.0.1', '--format=custom'], env: ['PGUSER' => 'form_schema'],
+    $spec = new ContainerSpec(image: 'postgres@sha256:'.str_repeat('2', 64), command: ['-h', '127.0.0.1', '--format=custom'], env: ['PGUSER' => 'fieldset'],
         network: 'container:abc123', user: '1000:1000', entrypoint: 'pg_dump');
 
     $outcome = $this->docker->runContainerToFile($spec, '/srv/forms/backups/x.partial/database.dump', 3600.0);
@@ -277,7 +277,7 @@ it('streams a docker run into a file with environment values out of argv (adopt,
     $run = $this->runner->runs[0];
     expect($run['command'])->toBe(['docker', 'run', '--rm', '--network', 'container:abc123', '--user', '1000:1000', '--entrypoint', 'pg_dump',
         '--security-opt', 'no-new-privileges', '--env', 'PGUSER', 'postgres@sha256:'.str_repeat('2', 64), '-h', '127.0.0.1', '--format=custom'])
-        ->and($run['env']['PGUSER'])->toBe('form_schema')
+        ->and($run['env']['PGUSER'])->toBe('fieldset')
         ->and($run['stdout_file'])->toBe('/srv/forms/backups/x.partial/database.dump')
         ->and($run['timeout'])->toBe(3600.0)
         ->and($outcome->successful())->toBeTrue();
@@ -325,8 +325,8 @@ it('removes single resources', function (Closure $call, array $args): void {
 })->with([
     'container' => [fn ($d) => $d->removeContainer('abc'), ['container', 'rm', '--force', 'abc']],
     'container gently' => [fn ($d) => $d->removeContainer('abc', false), ['container', 'rm', 'abc']],
-    'volume' => [fn ($d) => $d->removeVolume('fsa_pgdata'), ['volume', 'rm', 'fsa_pgdata']],
-    'network' => [fn ($d) => $d->removeNetwork('fsa_default'), ['network', 'rm', 'fsa_default']],
+    'volume' => [fn ($d) => $d->removeVolume('fieldset_pgdata'), ['volume', 'rm', 'fieldset_pgdata']],
+    'network' => [fn ($d) => $d->removeNetwork('fieldset_default'), ['network', 'rm', 'fieldset_default']],
 ]);
 
 it('reports client, daemon and Compose versions', function (): void {
@@ -425,7 +425,7 @@ it('reports a timeout while streaming to a file', function (): void {
 it('runs real processes without a shell, with timeouts and start failures', function (): void {
     $runner = new SymfonyCommandRunner;
 
-    $ok = $runner->run([PHP_BINARY, '-r', 'fwrite(STDERR, "e"); echo getenv("FSA_X"), "|", var_export(getenv("FSA_GONE"), true), "|", stream_get_contents(STDIN); exit(3);'], ['FSA_X' => 'a b$c', 'FSA_GONE' => false], 'in');
+    $ok = $runner->run([PHP_BINARY, '-r', 'fwrite(STDERR, "e"); echo getenv("FIELDSET_X"), "|", var_export(getenv("FIELDSET_GONE"), true), "|", stream_get_contents(STDIN); exit(3);'], ['FIELDSET_X' => 'a b$c', 'FIELDSET_GONE' => false], 'in');
     $slow = $runner->run([PHP_BINARY, '-r', 'sleep(5);'], [], null, 0.5);
     $missing = $runner->run(['/nonexistent/docker-'.bin2hex(random_bytes(3))]);
 
@@ -445,12 +445,12 @@ it('lets every docker and compose process inherit DOCKER_DEFAULT_PLATFORM from t
     $docker = $directory.'/docker';
     file_put_contents($docker, "#!/bin/sh\nprintf '%s=%s\\n' \"\$1\" \"\${DOCKER_DEFAULT_PLATFORM:-unset}\" >> \"\$PLATFORM_LOG\"\n");
     chmod($docker, 0755);
-    // A PHP CLI process started with the variable, as `fsa` (php artisan) is in the ops container; GPCS (php.ini
+    // A PHP CLI process started with the variable, as `fieldset` (php artisan) is in the ops container; GPCS (php.ini
     // production) leaves $_ENV empty, so the variable reaches the processes through the inherited environment.
     $script = <<<'PHP'
         require $argv[1].'/vendor/autoload.php';
         $gateway = new App\Domain\Instance\Docker\CliDockerGateway(new App\Domain\Instance\Docker\SymfonyCommandRunner, $argv[2]);
-        $project = new App\Domain\Instance\Docker\ComposeProject('fsa-forms-ab12', '/srv/forms/compose.yaml', '/srv/forms');
+        $project = new App\Domain\Instance\Docker\ComposeProject('fieldset-forms-ab12', '/srv/forms/compose.yaml', '/srv/forms');
         $image = 'app@sha256:'.str_repeat('a', 64);
         $gateway->pullImage($image);
         $gateway->composeUp($project);

@@ -1,4 +1,4 @@
-import { FormRenderer } from '@form-schema-app/form-schema-react';
+import { FormRenderer } from '@fieldset/fieldset-react';
 import { getRouteApi, useNavigate } from '@tanstack/react-router';
 import { useRef, useState, type ReactNode } from 'react';
 import { ReviewNote } from '../components/ReviewNote.tsx';

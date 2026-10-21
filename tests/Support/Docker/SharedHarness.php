@@ -9,8 +9,8 @@ use Throwable;
 /**
  * One release harness and one published harness release per test process (KTD23): the bootstrap journey and
  * J1/J12 share them, so the image is built, pushed and mirrored once, as ReleaseHarness::version()
- * (FSA_RELEASE_VERSION, default TEST_VERSION). Stopped at process shutdown (and its resources are all
- * `fsa-test-harness-*`); a failed start is remembered, so later files fail fast with the cause.
+ * (FIELDSET_RELEASE_VERSION, default TEST_VERSION). Stopped at process shutdown (and its resources are all
+ * `fieldset-test-harness-*`); a failed start is remembered, so later files fail fast with the cause.
  */
 final class SharedHarness
 {

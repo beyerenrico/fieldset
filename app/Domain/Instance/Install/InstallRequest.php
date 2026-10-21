@@ -11,7 +11,7 @@ use App\Domain\Instance\Output\InvalidInput;
 use Closure;
 
 /**
- * The inputs of `fsa install` (§7, R26): the flags given on the command line, validated, plus their defaults.
+ * The inputs of `fieldset install` (§7, R26): the flags given on the command line, validated, plus their defaults.
  * Only explicit flags count when comparing with an earlier run: an omitted flag never conflicts.
  *
  * - App flags (organization, owner, locale) are consumed by the `app_install` phase: corrections are accepted
@@ -57,7 +57,7 @@ final readonly class InstallRequest
         'demo' => '--demo', 'phone_https' => '--phone-https', 'lan_address' => '--lan-address', ...InstallMail::FLAGS,
     ];
 
-    /** Command option => request key (the fsa wrapper passes --version as --release, ADR 0072). */
+    /** Command option => request key (the fieldset wrapper passes --version as --release, ADR 0072). */
     private const array OPTIONS = [
         'org' => 'organization', 'owner-email' => 'owner_email', 'owner-name' => 'owner_name', 'locale' => 'locale',
         'release' => 'version', 'port' => 'port', 'domain' => 'domain', 'acme-email' => 'acme_email', 'acme-ca' => 'acme_ca',

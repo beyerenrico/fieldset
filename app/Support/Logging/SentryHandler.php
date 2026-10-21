@@ -18,7 +18,7 @@ use Throwable;
  */
 final class SentryHandler extends AbstractProcessingHandler
 {
-    public const string CLIENT = 'form-schema-app/1.0';
+    public const string CLIENT = 'fieldset/1.0';
 
     private static bool $sending = false;
 

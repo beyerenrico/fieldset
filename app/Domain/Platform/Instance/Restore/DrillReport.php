@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Throwable;
 
 /**
- * The checks of `fsa restore --drill` (R41, plan U17, ADR 0085; the 1.0 restore drill's checks) on the scratch database
+ * The checks of `fieldset restore --drill` (R41, plan U17, ADR 0085; the 1.0 restore drill's checks) on the scratch database
  * the backup was restored into: row counts of the main tables, the audit chains (epoch, heads, verified), the files the
  * database references against the storage archive's members, one document render (DrillRender), a decrypt sample with
  * the APP keys, and the migration set against this image's. Each check passes, warns or fails; the drill fails only

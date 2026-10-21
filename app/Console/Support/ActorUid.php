@@ -6,7 +6,7 @@ namespace App\Console\Support;
 
 use InvalidArgumentException;
 
-/** `--actor-uid`: the host UID of whoever ran the `fsa` command, recorded in audit entries (KTD21, KTD26). */
+/** `--actor-uid`: the host UID of whoever ran the `fieldset` command, recorded in audit entries (KTD21, KTD26). */
 final class ActorUid
 {
     /** @throws InvalidArgumentException for anything but a non-negative integer */

@@ -17,10 +17,10 @@ require_once __DIR__.'/../Platform/Support.php';
 /*
  * The opt-in update check (E15, R48, plan U20, ADR 0061, ADR 0089): off by default, and off it sends nothing at all. On,
  * the daily run reads only the release manifest URL from runtime.json, with no instance identifier, and the instance page
- * shows "update available" with the notes link (https only) and `fsa upgrade`.
+ * shows "update available" with the notes link (https only) and `fieldset upgrade`.
  */
 
-const UPDATE_CHECK_URL = 'https://github.com/beyerenrico/form-schema-app/releases/latest/download/release-manifest.json';
+const UPDATE_CHECK_URL = 'https://github.com/beyerenrico/fieldset/releases/latest/download/release-manifest.json';
 
 function updateCheckOn(string $url = UPDATE_CHECK_URL): void
 {
@@ -30,7 +30,7 @@ function updateCheckOn(string $url = UPDATE_CHECK_URL): void
 /** @param  array<string, mixed>  $manifest */
 function updateCheckManifest(array $manifest = []): string
 {
-    return (string) json_encode(['schema_version' => 1, 'version' => '2.1.0', 'channel' => 'stable', 'notes_url' => 'https://github.com/beyerenrico/form-schema-app/releases/tag/v2.1.0', ...$manifest]);
+    return (string) json_encode(['schema_version' => 1, 'version' => '2.1.0', 'channel' => 'stable', 'notes_url' => 'https://github.com/beyerenrico/fieldset/releases/tag/v2.1.0', ...$manifest]);
 }
 
 function updateCheckScheduled(): Event
@@ -62,7 +62,7 @@ it('sends nothing while the check is off: no runtime file, the check off, or a m
         ->and(Cache::get(UpdateCheck::CACHE_KEY))->toBeNull();
     Http::assertNothingSent();
 })->with([
-    'not an fsa instance' => [null],
+    'not a fieldset instance' => [null],
     'check off' => [['check' => false, 'manifest_url' => null]],
     'check off with a URL left' => [['check' => false, 'manifest_url' => UPDATE_CHECK_URL]],
     'check as a string' => [['check' => 'yes', 'manifest_url' => UPDATE_CHECK_URL]],
@@ -89,8 +89,8 @@ it('reads only the manifest URL once and shows update available with the notes l
     actingAsPlatformOperator(platformOperator());
     $this->get('/platform/instance')->assertOk()
         ->assertSee('data-instance-problem="update_available"', false)->assertSee(__('instance.problems.update_available', ['version' => '2.1.0']))
-        ->assertSee('data-instance-updates="available"', false)->assertSee('fsa upgrade')
-        ->assertSee('href="https://github.com/beyerenrico/form-schema-app/releases/tag/v2.1.0"', false);
+        ->assertSee('data-instance-updates="available"', false)->assertSee('fieldset upgrade')
+        ->assertSee('href="https://github.com/beyerenrico/fieldset/releases/tag/v2.1.0"', false);
     Http::assertSentCount(1); // the page itself never calls out
 });
 
@@ -140,11 +140,11 @@ it('records a failed check and keeps the newest release seen before', function (
 ]);
 
 it('reads a harness mirror over http when runtime.json names one', function (): void {
-    updateCheckOn('http://releases.fsa-test.internal:8080/latest/download/release-manifest.json');
-    Http::fake(['releases.fsa-test.internal:8080/*' => Http::response(updateCheckManifest())]);
+    updateCheckOn('http://releases.fieldset-test.internal:8080/latest/download/release-manifest.json');
+    Http::fake(['releases.fieldset-test.internal:8080/*' => Http::response(updateCheckManifest())]);
 
     expect(app(UpdateCheck::class)->run()?->latest)->toBe('2.1.0');
-    Http::assertSent(static fn (Request $request): bool => $request->url() === 'http://releases.fsa-test.internal:8080/latest/download/release-manifest.json');
+    Http::assertSent(static fn (Request $request): bool => $request->url() === 'http://releases.fieldset-test.internal:8080/latest/download/release-manifest.json');
 });
 
 it('ignores a stored status that does not look like one', function (mixed $stored): void {

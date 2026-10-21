@@ -17,7 +17,7 @@ use App\Domain\Forms\Import\Mapping\UnmappedField;
 use App\Domain\Forms\Import\Model\AcroField;
 use App\Domain\Forms\Import\Model\AcroFormDocument;
 use App\Domain\Forms\Support\BlankDefinition;
-use FormSchema\Json\Json;
+use Fieldset\Json\Json;
 use stdClass;
 
 /**

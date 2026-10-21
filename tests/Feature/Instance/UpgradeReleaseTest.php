@@ -12,7 +12,7 @@ use Tests\Support\Instance\UpgradeFixture;
 use Tests\Support\Release\ReleaseFixtures;
 
 /*
- * The target release of `fsa upgrade` (R33, R58, KTD19 step 1, plan U18, ADR 0086): downloaded from the release URL into
+ * The target release of `fieldset upgrade` (R33, R58, KTD19 step 1, plan U18, ADR 0086): downloaded from the release URL into
  * a fresh directory, verified with the pinned cosign image before anything uses it, stored under `releases/<version>/`
  * only then; every way it can fail ends before anything changes (exit 2, 3), and the child's launch failing rolls back.
  */
@@ -50,7 +50,7 @@ it('refuses an unusable --to or release URL, an unknown release and an unreachab
         ->and(is_dir($this->dir.'/releases/9.9.9'))->toBeFalse();
 })->with([
     'not a version' => [['--to' => 'latest-and-greatest'], null, null, 2, 'invalid_version'],
-    'plain http outside the harness' => [[], 'http://releases.test/form-schema-app', null, 2, 'insecure_release_url'],
+    'plain http outside the harness' => [[], 'http://releases.test/fieldset', null, 2, 'insecure_release_url'],
     'no such release' => [['--to' => '9.9.9'], null, null, 2, 'release_not_found'],
     'server error' => [[], null, 500, 3, 'release_unavailable'],
 ]);

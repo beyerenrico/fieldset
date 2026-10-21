@@ -17,7 +17,7 @@ final readonly class BackupManifest
 {
     public const string FILE = 'manifest.json';
 
-    public const string FORMAT = 'fsa-backup';
+    public const string FORMAT = 'fieldset-backup';
 
     public const string SCHEMA_VERSION = '1.0';
 
@@ -56,7 +56,7 @@ final readonly class BackupManifest
                 'missing_sample' => $storage['sample'], 'changed_while_archived' => $storage['changed'],
             ],
             'app_key_fingerprints' => $config->fingerprints,
-            'hmac' => ['algorithm' => 'hmac-sha256', 'file' => BackupChecksums::HMAC, 'key' => 'hkdf-sha256(APP_KEY, "form-schema-app backup hmac v1")'],
+            'hmac' => ['algorithm' => 'hmac-sha256', 'file' => BackupChecksums::HMAC, 'key' => 'hkdf-sha256(APP_KEY, "fieldset backup hmac v1")'],
             'encrypted' => $encrypted,
             'recipients' => $encrypted ? $config->recipients : [],
             'includes_secrets' => $secrets,

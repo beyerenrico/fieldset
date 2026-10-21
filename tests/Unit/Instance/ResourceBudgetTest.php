@@ -84,7 +84,7 @@ it('keeps small Postgres from multiplying its memory per query: no JIT, no paral
 
 it('allows more Postgres connections than every client of the stack can hold at once, with room to spare', function (string $size): void {
     $budget = ResourceBudget::forSize($size);
-    // FrankenPHP threads, Horizon (master, two supervisors, default and exports workers), scheduler, fsa one-offs, backup.
+    // FrankenPHP threads, Horizon (master, two supervisors, default and exports workers), scheduler, fieldset one-offs, backup.
     $clients = $budget->frankenphpThreads() + 3 + $budget->horizonProcesses() + $budget->horizonExportsProcesses() + 4 + 2 + 2;
 
     expect($budget->postgresClients())->toBe($clients)

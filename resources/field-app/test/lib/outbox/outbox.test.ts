@@ -125,7 +125,7 @@ describe('Background Sync wake-up (Chromium only)', () => {
         await vi.waitFor(() => {
             expect(register).toHaveBeenCalledWith(BACKGROUND_SYNC_TAG);
         });
-        expect(BACKGROUND_SYNC_TAG).toBe('fsa-outbox');
+        expect(BACKGROUND_SYNC_TAG).toBe('fieldset-outbox');
     });
 
     it('does nothing without a worker or SyncManager, and never throws', async () => {

@@ -7,7 +7,7 @@ namespace Database\Factories;
 use App\Domain\Documents\Designs\DesignSettings;
 use App\Domain\Documents\Models\Design;
 use App\Domain\Documents\Models\DesignVersion;
-use FormSchema\Json\Json;
+use Fieldset\Json\Json;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**

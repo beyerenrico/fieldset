@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace App\Domain\Instance\Docker;
 
 /**
- * Label keys of resources `fsa` creates (R63, KTD6). Our own keys use the `app.form-schema.*` prefix, because
+ * Label keys of resources `fieldset` creates (R63, KTD6). Our own keys use the `app.fieldset.*` prefix, because
  * Compose reserves `com.docker.compose.*`, which we only read.
  */
 final class Labels
 {
-    public const string INSTANCE = 'app.form-schema.instance';
+    public const string INSTANCE = 'app.fieldset.instance';
 
-    public const string ROLE = 'app.form-schema.role';
+    public const string ROLE = 'app.fieldset.role';
 
     public const string COMPOSE_PROJECT = 'com.docker.compose.project';
 

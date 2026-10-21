@@ -10,7 +10,7 @@ return [
     'login' => 'Zur Anmeldeseite',
     'recovery' => [
         'intro' => 'Fordern Sie auf dem Server, auf dem diese Instanz läuft, einen neuen Link an:',
-        'command' => 'fsa login-link <email>',
+        'command' => 'fieldset login-link <email>',
         'hint' => 'Ersetzen Sie <email> durch die E-Mail-Adresse Ihres Kontos. Jeder Link funktioniert nur einmal.',
     ],
     'states' => [
@@ -42,7 +42,7 @@ return [
     'mfa' => [
         'offer_title' => 'Ihr Passwort ist gesetzt',
         'offer_body' => 'Schützen Sie Ihr Konto mit Zwei-Faktor-Authentifizierung (MFA): Richten Sie auf dieser Seite eine Authenticator-App ein.',
-        'expired' => 'Der Anmeldelink ist abgelaufen. Fordern Sie mit fsa login-link <email> einen neuen an.',
+        'expired' => 'Der Anmeldelink ist abgelaufen. Fordern Sie mit fieldset login-link <email> einen neuen an.',
     ],
     'operator' => [
         'ready_title' => 'Ihr Passwort ist gesetzt',

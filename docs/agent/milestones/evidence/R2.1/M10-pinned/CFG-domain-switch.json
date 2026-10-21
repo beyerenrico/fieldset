@@ -1,0 +1,167 @@
+{
+    "command": "fieldset config set domain fieldset-test-cfg.test --acme-ca <pebble> --acme-ca-root-file <harness>/pebble-https-root.pem --yes --json",
+    "exit_code": 0,
+    "seconds": 62.7,
+    "stdout": {
+        "schema_version": 1,
+        "command": "config",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": true,
+        "data": {
+            "key": "domain",
+            "from": null,
+            "to": "fieldset-test-cfg.test",
+            "url": "https://fieldset-test-cfg.test",
+            "mode": "domain",
+            "reverted": false,
+            "previous": {
+                "url": "http://localhost:8081",
+                "mode": "local"
+            },
+            "services": {
+                "recreated": [
+                    "app",
+                    "queue",
+                    "scheduler",
+                    "mailpit"
+                ],
+                "added": [
+                    "edge"
+                ],
+                "removed": []
+            },
+            "checked": [
+                "/up",
+                "/admin/login",
+                "gotenberg /health",
+                "https://fieldset-test-cfg.test/up",
+                "http://fieldset-test-cfg.test → https"
+            ],
+            "impact": {
+                "known": true,
+                "sso_organizations": [
+                    {
+                        "organization": {
+                            "id": 2,
+                            "name": "Fieldset Test SSO Org",
+                            "slug": "fieldset-test-sso-org"
+                        },
+                        "provider": {
+                            "type": "saml",
+                            "name": "Fieldset Test IdP",
+                            "status": "draft"
+                        },
+                        "follows_url": [
+                            "entity_id",
+                            "acs_url"
+                        ]
+                    }
+                ],
+                "links": {
+                    "invitations": 0,
+                    "document_links": 0,
+                    "login_links": 1,
+                    "data_exports": 0
+                }
+            },
+            "audited": true,
+            "next_commands": [
+                "<work>/fieldset-test-cfg/fieldset login-link <owner-email>",
+                "<work>/fieldset-test-cfg/fieldset status"
+            ]
+        },
+        "secrets": [],
+        "warnings": [
+            {
+                "code": "url_changed",
+                "message": "The instance URL is now https://fieldset-test-cfg.test (was http://localhost:8081): installed home-screen apps, bookmarks and links already sent keep the old address.",
+                "hint": "Send new invitations or document links where needed."
+            },
+            {
+                "code": "sso_urls_changed",
+                "message": "Organizations with SSO must register the new URLs at their identity provider: Fieldset Test SSO Org.",
+                "hint": "Their admins find the new entity ID, ACS URL or redirect URI under SSO settings."
+            }
+        ],
+        "errors": []
+    },
+    "containers_before": {
+        "app": {
+            "id": "23786586506f",
+            "started": "2026-10-21T11:36:29.986070554Z"
+        },
+        "backup": {
+            "id": "e3d4b90a18bd",
+            "started": "2026-10-21T11:36:29.791077637Z"
+        },
+        "gotenberg": {
+            "id": "127605d70ae7",
+            "started": "2026-10-21T11:36:29.402816679Z"
+        },
+        "mailpit": {
+            "id": "85eeeee51ac4",
+            "started": "2026-10-21T11:36:29.278247679Z"
+        },
+        "postgres": {
+            "id": "2658a4effeb7",
+            "started": "2026-10-21T11:36:19.227717841Z"
+        },
+        "queue": {
+            "id": "b0af691b8209",
+            "started": "2026-10-21T11:36:30.166536638Z"
+        },
+        "redis": {
+            "id": "431ee83c48a7",
+            "started": "2026-10-21T11:36:19.340861424Z"
+        },
+        "scheduler": {
+            "id": "3389fbec9941",
+            "started": "2026-10-21T11:36:29.887035221Z"
+        }
+    },
+    "containers_after": {
+        "app": {
+            "id": "0754d8fe6c29",
+            "started": "2026-10-21T11:37:15.758730214Z"
+        },
+        "backup": {
+            "id": "e3d4b90a18bd",
+            "started": "2026-10-21T11:36:29.791077637Z"
+        },
+        "edge": {
+            "id": "4effc4302933",
+            "started": "2026-10-21T11:37:31.389780347Z"
+        },
+        "gotenberg": {
+            "id": "127605d70ae7",
+            "started": "2026-10-21T11:36:29.402816679Z"
+        },
+        "mailpit": {
+            "id": "af13bc0ca227",
+            "started": "2026-10-21T11:37:15.22284613Z"
+        },
+        "postgres": {
+            "id": "2658a4effeb7",
+            "started": "2026-10-21T11:36:19.227717841Z"
+        },
+        "queue": {
+            "id": "b7555a63d029",
+            "started": "2026-10-21T11:37:39.070654044Z"
+        },
+        "redis": {
+            "id": "431ee83c48a7",
+            "started": "2026-10-21T11:36:19.340861424Z"
+        },
+        "scheduler": {
+            "id": "a866eea06964",
+            "started": "2026-10-21T11:37:38.968343086Z"
+        }
+    },
+    "kept_running": [
+        "backup",
+        "gotenberg",
+        "postgres",
+        "redis"
+    ]
+}

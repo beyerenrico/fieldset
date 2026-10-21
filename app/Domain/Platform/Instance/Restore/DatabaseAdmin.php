@@ -25,7 +25,7 @@ use stdClass;
  * - drop: a scratch or set-aside database, never the live one (DB_DATABASE) and never postgres/template0/template1;
  * - list: databases with a prefix (leftovers of an interrupted restore or drill).
  *
- * Names come from fsa and pass RestoreConnections::NAME, so quoting them as identifiers is safe. Role passwords reach
+ * Names come from fieldset and pass RestoreConnections::NAME, so quoting them as identifiers is safe. Role passwords reach
  * Postgres only as a SCRAM verifier (BackupRole::scramVerifier), and a failing role statement is reported by its
  * SQLSTATE only.
  */
@@ -34,7 +34,7 @@ final readonly class DatabaseAdmin
     private const int RENAME_ATTEMPTS = 3;
 
     /** The only roles a restore creates, adopts from or drops (review: never the app's own user). */
-    public const string ROLE = '/^fsa_(?:restore|drill)_[a-z0-9_]{1,40}$/D';
+    public const string ROLE = '/^fieldset_(?:restore|drill)_[a-z0-9_]{1,40}$/D';
 
     /** The only databases a restore drops or renames: its scratch, put-aside and drill databases. */
     public const string DROPPABLE = '/(?:^|_)(?:pre_)?restore_/';
@@ -90,7 +90,7 @@ final readonly class DatabaseAdmin
             return ['database' => $database, 'owner' => $this->currentUser(), 'restricted' => false];
         }
         if ($password === null || $password === '') {
-            throw new RestoreRefused('password_missing', 'The restricted restore role needs a password (FSA_RESTORE_DB_PASSWORD).');
+            throw new RestoreRefused('password_missing', 'The restricted restore role needs a password (FIELDSET_RESTORE_DB_PASSWORD).');
         }
         $this->assertRestoreRole($role);
         $this->ensureRestrictedRole($role, $password);
@@ -214,7 +214,7 @@ final readonly class DatabaseAdmin
         if (! $this->exists($database) || ! $this->roleExists($role)) {
             throw new RestoreRefused('database_missing', "The database {$database} or the role {$role} does not exist.");
         }
-        $db = RestoreConnections::to($database, 'fsa_restore_adopt');
+        $db = RestoreConnections::to($database, 'fieldset_restore_adopt');
 
         try {
             $db->statement('SET search_path = pg_catalog');
@@ -222,7 +222,7 @@ final readonly class DatabaseAdmin
             $db->statement('DROP OWNED BY '.$role);
             $revoked = $this->revokeGrants($db);
         } finally {
-            RestoreConnections::close('fsa_restore_adopt');
+            RestoreConnections::close('fieldset_restore_adopt');
         }
         $settings = $this->resetSettings($database);
         $this->admin->statement('ALTER DATABASE '.$this->quote($database).' OWNER TO CURRENT_USER');
@@ -236,14 +236,14 @@ final readonly class DatabaseAdmin
     /** The superuser installs EXTENSIONS in the new database, so a restricted restore finds them installed (review S1). */
     private function installExtensions(string $database): void
     {
-        $db = RestoreConnections::to($database, 'fsa_restore_create');
+        $db = RestoreConnections::to($database, 'fieldset_restore_create');
 
         try {
             foreach (self::EXTENSIONS as $extension) {
                 $db->statement('CREATE EXTENSION IF NOT EXISTS '.$extension);
             }
         } finally {
-            RestoreConnections::close('fsa_restore_create');
+            RestoreConnections::close('fieldset_restore_create');
         }
     }
 
@@ -320,7 +320,7 @@ final readonly class DatabaseAdmin
     private function assertRestoreRole(string $role): void
     {
         if (preg_match(self::ROLE, $role) !== 1) {
-            throw new RestoreRefused('invalid_role', "{$role} is no role a restore creates (fsa_restore_… or fsa_drill_…).");
+            throw new RestoreRefused('invalid_role', "{$role} is no role a restore creates (fieldset_restore_… or fieldset_drill_…).");
         }
     }
 

@@ -16,11 +16,11 @@ use InvalidArgumentException;
 use Throwable;
 
 /**
- * The current release's security state as a versioned document (SecurityExport) for `fsa rollback` (R64, plan U18,
+ * The current release's security state as a versioned document (SecurityExport) for `fieldset rollback` (R64, plan U18,
  * ADR 0086): run as a socket-less one-off of the current image before the database is replaced, read by the previous
- * image's `instance:restore-finish`. Stdout carries one JSON document; fsa writes it only to a 0600 file.
+ * image's `instance:restore-finish`. Stdout carries one JSON document; fieldset writes it only to a 0600 file.
  */
-#[Description('Export the security state for fsa rollback (password hashes, MFA, access, sequences)')]
+#[Description('Export the security state for fieldset rollback (password hashes, MFA, access, sequences)')]
 #[Signature('instance:security-export
         {--since= : The safety backup\'s time (ISO 8601 with zone): audit entries after it are exported}
         {--json : Print one JSON document on stdout}')]

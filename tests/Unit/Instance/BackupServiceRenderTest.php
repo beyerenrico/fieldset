@@ -19,7 +19,7 @@ afterEach(fn () => TemporaryInstance::cleanup());
 it('renders the backup service hardened, without the socket, with its 128 MiB slot on small', function (): void {
     $service = ComposeFixtures::render()->service('backup');
 
-    expect($service['command'])->toBe(['fsa', 'backup-daemon'])
+    expect($service['command'])->toBe(['fieldset', 'backup-daemon'])
         ->and($service['user'])->toBe('0:0')
         ->and($service['cap_drop'])->toBe(['ALL'])
         ->and($service['cap_add'])->toBe(['CHOWN', 'DAC_OVERRIDE', 'DAC_READ_SEARCH', 'FOWNER'])
@@ -32,10 +32,10 @@ it('renders the backup service hardened, without the socket, with its 128 MiB sl
         ->and($service['stop_grace_period'])->toBe('30s')
         ->and($service['volumes'])->toBe([
             ['type' => 'volume', 'source' => 'app-storage', 'target' => '/var/www/html/storage/app', 'read_only' => true],
-            ['type' => 'bind', 'source' => './.fsa-instance', 'target' => '/fsa/instance/.fsa-instance', 'read_only' => true, 'bind' => ['create_host_path' => false]],
-            ['type' => 'bind', 'source' => './locks', 'target' => '/fsa/instance/locks', 'read_only' => false, 'bind' => ['create_host_path' => false]],
-            ['type' => 'bind', 'source' => './backups', 'target' => '/fsa/instance/backups', 'read_only' => false, 'bind' => ['create_host_path' => false]],
-            ['type' => 'bind', 'source' => './staging/backup', 'target' => '/fsa/instance/staging/backup', 'read_only' => false, 'bind' => ['create_host_path' => false]],
+            ['type' => 'bind', 'source' => './.fieldset-instance', 'target' => '/fieldset/instance/.fieldset-instance', 'read_only' => true, 'bind' => ['create_host_path' => false]],
+            ['type' => 'bind', 'source' => './locks', 'target' => '/fieldset/instance/locks', 'read_only' => false, 'bind' => ['create_host_path' => false]],
+            ['type' => 'bind', 'source' => './backups', 'target' => '/fieldset/instance/backups', 'read_only' => false, 'bind' => ['create_host_path' => false]],
+            ['type' => 'bind', 'source' => './staging/backup', 'target' => '/fieldset/instance/staging/backup', 'read_only' => false, 'bind' => ['create_host_path' => false]],
         ])
         ->and(json_encode($service))->not->toContain('docker.sock')
         ->and(ComposeFixtures::render()->environments['backup'])->toHaveKey('BACKUP_HMAC_KEY')->not->toHaveKey('APP_KEY');
@@ -63,9 +63,9 @@ it('creates backups/, locks/ and staging/backup/ for the owner and writes the po
         ->and(PortableSettings::KEYS)->toContain('backup_schedule')->toContain('time_zone');
 });
 
-it('keeps the backup service out of the stack file, which documents that backups need fsa', function (): void {
+it('keeps the backup service out of the stack file, which documents that backups need fieldset', function (): void {
     $stack = StackFile::render(ComposeFixtures::digests(), '2.0.0');
 
     expect(array_keys($stack->document['services']))->not->toContain('backup')
-        ->and($stack->yaml())->toContain('no backups through fsa');
+        ->and($stack->yaml())->toContain('no backups through fieldset');
 });

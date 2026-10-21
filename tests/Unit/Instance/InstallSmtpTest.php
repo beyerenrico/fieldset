@@ -5,7 +5,7 @@ declare(strict_types=1);
 use App\Domain\Instance\Compose\CaddyfileRenderer;
 use App\Domain\Instance\Compose\Services\EdgeService;
 use App\Domain\Instance\Compose\Services\MailpitService;
-use App\Domain\Instance\Console\FsaCommand;
+use App\Domain\Instance\Console\FieldsetCommand;
 use App\Domain\Instance\Console\SmtpInput;
 use App\Domain\Instance\Docker\ContainerInfo;
 use App\Domain\Instance\Docker\ContainerSpec;
@@ -22,7 +22,7 @@ use Tests\Support\Instance\InstanceCommandFixture;
 use Tests\Support\Instance\TemporaryInstance;
 
 /*
- * ADR 0080 amendment (§7, E8, R11, R22, R25, R50, AE9): `fsa install --smtp-*` installs straight into SMTP mode against
+ * ADR 0080 amendment (§7, E8, R11, R22, R25, R50, AE9): `fieldset install --smtp-*` installs straight into SMTP mode against
  * scripted Docker: no catcher and no catcher port, MAIL_* for app, queue and scheduler, the account only in their env
  * files, exit 2 for SMTP flags that do not fit, and the password nowhere else. The smoke test's mail, resume and repeat
  * rules: InstallSmokeTest. The real thing: tests/Install/Journeys/J04CaptureModeTest.php.
@@ -35,7 +35,7 @@ beforeEach(function (): void {
     $this->fixture = new InstanceCommandFixture;
     app()->instance(SmtpInput::STDIN, fn (): string => SMTP_INSTALL_PASSWORD."\n");
     $this->progress = new BufferedOutput;
-    app()->instance(FsaCommand::PROGRESS_OUTPUT, $this->progress);
+    app()->instance(FieldsetCommand::PROGRESS_OUTPUT, $this->progress);
 });
 
 afterEach(fn () => TemporaryInstance::cleanup());
@@ -43,7 +43,7 @@ afterEach(fn () => TemporaryInstance::cleanup());
 /** @return array{0: int, 1: array<string, mixed>} */
 function smtpInstall(InstanceCommandFixture $fixture, array $flags = []): array
 {
-    return $fixture->run('fsa:install', InstanceCommandFixture::installFlags([
+    return $fixture->run('fieldset:install', InstanceCommandFixture::installFlags([
         '--smtp-host' => 'smtp.example.com', '--smtp-username' => SMTP_INSTALL_USER, '--password-stdin' => true, '--from-address' => 'forms@example.com', ...$flags,
     ]));
 }
@@ -83,7 +83,7 @@ it('installs straight into SMTP mode: no catcher, MAIL_* for app, queue and sche
         expect($env->read($role))->toMatchArray([
             'MAIL_MAILER' => 'smtp', 'MAIL_HOST' => 'smtp.example.com', 'MAIL_PORT' => '587', 'MAIL_USERNAME' => SMTP_INSTALL_USER,
             'MAIL_PASSWORD' => SMTP_INSTALL_PASSWORD, 'MAIL_FROM_ADDRESS' => 'forms@example.com', 'MAIL_REQUIRE_TLS' => 'true',
-        ])->and($env->read($role))->not->toHaveKey('FSA_MAIL_CAPTURE')->not->toHaveKey('MAIL_SCHEME');
+        ])->and($env->read($role))->not->toHaveKey('FIELDSET_MAIL_CAPTURE')->not->toHaveKey('MAIL_SCHEME');
     }
 });
 
@@ -120,7 +120,7 @@ it('talks plain SMTP only with --smtp-encryption none and warns when an account 
 });
 
 it('installs without an account, and warns when mail would be sent from forms@localhost', function (): void {
-    [$code, $json] = $this->fixture->run('fsa:install', InstanceCommandFixture::installFlags(['--smtp-host' => 'relay.internal', '--smtp-port' => '25']));
+    [$code, $json] = $this->fixture->run('fieldset:install', InstanceCommandFixture::installFlags(['--smtp-host' => 'relay.internal', '--smtp-port' => '25']));
 
     $app = new EnvFiles($this->fixture->directory)->read('app');
     expect($code)->toBe(0, json_encode($json))
@@ -133,8 +133,8 @@ it('installs without an account, and warns when mail would be sent from forms@lo
 it('reports mail mode smtp in config show and status after such an install', function (): void {
     smtpInstall($this->fixture);
 
-    [$showCode, $show] = $this->fixture->run('fsa:config', ['action' => 'show']);
-    [$statusCode, $status] = $this->fixture->run('fsa:status');
+    [$showCode, $show] = $this->fixture->run('fieldset:config', ['action' => 'show']);
+    [$statusCode, $status] = $this->fixture->run('fieldset:status');
     $mail = $show['data']['settings']['mail'] ?? null;
     $key = collect($show['data']['keys'] ?? [])->firstWhere('key', 'mail');
 
@@ -151,20 +151,20 @@ it('switches an instance installed in SMTP mode to capture mode: the catcher app
     smtpInstall($this->fixture);
     $this->fixture->withRunningStack();
 
-    [$code, $json] = $this->fixture->run('fsa:config', ['action' => 'set', 'key' => 'mail', 'value' => 'capture']);
+    [$code, $json] = $this->fixture->run('fieldset:config', ['action' => 'set', 'key' => 'mail', 'value' => 'capture']);
 
     $env = new EnvFiles($this->fixture->directory);
     expect($code)->toBe(0, json_encode($json))
         ->and($json['data']['mail'])->toMatchArray(['mode' => 'capture', 'catcher' => 'active', 'catcher_url' => 'http://localhost:8025'])
         ->and(InstanceSettings::of($this->fixture->state())->mailUiPort())->toBe(8025)
         ->and(ComposeFile::services($this->fixture->directory))->toContain(MailpitService::NAME)
-        ->and($env->read('mailpit')['MP_UI_AUTH'] ?? '')->toMatch('/^fsa:[0-9a-f]{48}$/')
-        ->and($env->read('app'))->toMatchArray(['MAIL_HOST' => 'mailpit', 'FSA_MAIL_CAPTURE' => 'true'])
+        ->and($env->read('mailpit')['MP_UI_AUTH'] ?? '')->toMatch('/^fieldset:[0-9a-f]{48}$/')
+        ->and($env->read('app'))->toMatchArray(['MAIL_HOST' => 'mailpit', 'FIELDSET_MAIL_CAPTURE' => 'true'])
         ->and($env->read('app'))->not->toHaveKey('MAIL_PASSWORD');
 });
 
 it('refuses SMTP flags that do not fit with exit 2 before reading a password or touching Docker', function (array $flags, string $code, string $message): void {
-    [$exit, $json] = $this->fixture->run('fsa:install', InstanceCommandFixture::installFlags($flags));
+    [$exit, $json] = $this->fixture->run('fieldset:install', InstanceCommandFixture::installFlags($flags));
 
     expect($exit)->toBe(2, json_encode($json))
         ->and($json['errors'][0]['code'])->toBe($code)
@@ -195,7 +195,7 @@ it('refuses an empty password on stdin with exit 2 password_required', function 
 });
 
 it('refuses an SMTP password passed as a flag value with exit 2 and never echoes it (AE9)', function (): void {
-    [$exit, $json] = $this->fixture->run('fsa:install', InstanceCommandFixture::installFlags(['--smtp-host' => 'smtp.example.com', '--smtp-password' => SMTP_INSTALL_PASSWORD]));
+    [$exit, $json] = $this->fixture->run('fieldset:install', InstanceCommandFixture::installFlags(['--smtp-host' => 'smtp.example.com', '--smtp-password' => SMTP_INSTALL_PASSWORD]));
 
     expect($exit)->toBe(2)
         ->and($json['errors'][0]['code'])->toBe('secret_in_argument')

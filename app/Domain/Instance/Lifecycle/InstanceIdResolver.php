@@ -18,7 +18,7 @@ use App\Domain\Instance\State\InstanceState;
 use App\Domain\Instance\State\InvalidState;
 
 /**
- * Which installation an instance directory belongs to, for `fsa uninstall` (R44, R63, ADR 0072): the UUID from
+ * Which installation an instance directory belongs to, for `fieldset uninstall` (R44, R63, ADR 0072): the UUID from
  * the state; when that is missing or unreadable, from an install that stopped before writing it, the compose
  * file's labels, or the containers that ran from this directory (if they agree).
  *
@@ -80,7 +80,7 @@ final readonly class InstanceIdResolver
             'No installation ID could be determined (state, install journal and compose file are missing or unreadable, or containers of several installations ran from here), but labelled resources of this directory remain: '.implode(', ', $uuids).'.',
             ExitCode::Incompatible,
             'instance_id_unknown',
-            'Nothing was deleted. Restore state.json, or check each candidate (`docker ps -a --filter label='.Labels::INSTANCE.'=<uuid>`, `docker volume ls --filter label='.Labels::INSTANCE.'=<uuid>`) and remove its resources yourself, then run `fsa uninstall` again.',
+            'Nothing was deleted. Restore state.json, or check each candidate (`docker ps -a --filter label='.Labels::INSTANCE.'=<uuid>`, `docker volume ls --filter label='.Labels::INSTANCE.'=<uuid>`) and remove its resources yourself, then run `fieldset uninstall` again.',
             false,
             ['candidates' => $uuids, 'containers' => array_map(static fn (ContainerInfo $c): string => $c->name, $containers), 'volumes' => array_map(static fn (DockerResource $v): string => $v->name, $volumes)],
         );

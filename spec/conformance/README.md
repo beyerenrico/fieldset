@@ -1,6 +1,6 @@
-# Conformance suite — Form Schema Spec 1.0
+# Conformance suite — Fieldset Spec 1.0
 
-Both reference implementations (PHP `packages/form-schema-php`, TypeScript `packages/form-schema-js`)
+Both reference implementations (PHP `packages/fieldset-php`, TypeScript `packages/fieldset-js`)
 run **every** case here; CI fails on any difference. Cases are plain JSON so other tools can reuse them.
 
 | Folder | File shape | Assertion |

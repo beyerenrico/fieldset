@@ -11,7 +11,7 @@ use Closure;
 use Illuminate\Console\Command;
 
 /**
- * The SMTP flags of `fsa config set mail smtp` and `fsa install --smtp-*` as typed (R25, R50, ADR 0080): the options as
+ * The SMTP flags of `fieldset config set mail smtp` and `fieldset install --smtp-*` as typed (R25, R50, ADR 0080): the options as
  * MailOptions, the account as SmtpCredentials. The password comes only from stdin (`--password-stdin`: a hidden prompt
  * in a terminal, else the piped input) or a file (`--password-file`), never from a flag value (SecretFlagGuard exits 2
  * before the input is parsed). It is registered with the output redactor as soon as it is read.
@@ -22,7 +22,7 @@ use Illuminate\Console\Command;
 final readonly class SmtpInput
 {
     /** Container key of a closure that returns stdin (tests); the real stdin otherwise. */
-    public const string STDIN = 'fsa.stdin';
+    public const string STDIN = 'fieldset.stdin';
 
     /** Longest SMTP password read from stdin or a file (one more byte means it is too long). */
     public const int MAX_SECRET_BYTES = 4096;
@@ -36,7 +36,7 @@ final readonly class SmtpInput
      */
     public function __construct(private array $options, private Closure $stdin) {}
 
-    public static function fromCommand(Command $command, FsaContext $context): self
+    public static function fromCommand(Command $command, FieldsetContext $context): self
     {
         $laravel = $command->getLaravel();
         $reader = $laravel->bound(self::STDIN) ? $laravel->make(self::STDIN) : null;
@@ -107,7 +107,7 @@ final readonly class SmtpInput
      *
      * @throws InvalidInput
      */
-    public function credentials(FsaContext $context): ?SmtpCredentials
+    public function credentials(FieldsetContext $context): ?SmtpCredentials
     {
         $password = match ($this->passwordSource()) {
             'file' => $this->readFile((string) $this->value('password-file')),
@@ -133,7 +133,7 @@ final readonly class SmtpInput
         return $this->passwordFrom($content);
     }
 
-    private function readStdin(FsaContext $context): string
+    private function readStdin(FieldsetContext $context): string
     {
         if ($context->facts->launcher === 'install.sh' && $context->facts->tty !== true) {
             throw new InvalidInput(
@@ -154,7 +154,7 @@ final readonly class SmtpInput
         }
         $password = (string) preg_replace('/\r?\n\z/', '', $content);
         if ($password === '') {
-            throw new InvalidInput('No SMTP password arrived.', 'password_required', 'Pipe it on stdin (`printf %s "$PASS" | fsa … --password-stdin`) or pass --password-file=<path>.');
+            throw new InvalidInput('No SMTP password arrived.', 'password_required', 'Pipe it on stdin (`printf %s "$PASS" | fieldset … --password-stdin`) or pass --password-file=<path>.');
         }
 
         return $password;

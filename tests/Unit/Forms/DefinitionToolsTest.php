@@ -6,7 +6,7 @@ use App\Domain\Forms\Schema\DefinitionDiff;
 use App\Domain\Forms\Schema\DefinitionTools;
 use App\Domain\Forms\Schema\DiffEntry;
 use App\Domain\Forms\Schema\KeyRewriter;
-use FormSchema\Json\Json;
+use Fieldset\Json\Json;
 
 function nestedDefinition(): stdClass
 {

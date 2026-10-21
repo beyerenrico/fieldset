@@ -22,12 +22,12 @@ use App\Domain\Instance\State\RuntimeWriter;
 use Throwable;
 
 /**
- * The ways back of `fsa rollback` (plan U18, ADR 0086, review U18 A3, A8, A10, S1), journaled like a restore's (ADR 0085):
+ * The ways back of `fieldset rollback` (plan U18, ADR 0086, review U18 A3, A8, A10, S1), journaled like a restore's (ADR 0085):
  *
  * - `abort()` (phase `abort`): a failure before the swap. The scratch database, the fresh volume, the stage and the
  *   scratch directory go; the gate goes down and queue, scheduler and backup start again (the upgraded app never
  *   stopped). Exit 9 when the cause changed nothing (a drain timeout, requests in flight: R69), exit 5 otherwise; exit 4
- *   when the workers do not start again (the upgraded app keeps serving, `fsa rollback` finishes going back).
+ *   when the workers do not start again (the upgraded app keeps serving, `fieldset rollback` finishes going back).
  * - `returnTo()`: a failure from the swap until the gate went down, in steps a kill cannot repeat on a live instance:
  *   return_stop (writers stop) → return_database (the upgraded database renamed back, once: two journal notes) →
  *   return_files (the state before, and exactly the release files the swap replaced, from the swap's snapshot: never
@@ -229,8 +229,8 @@ final readonly class RollbackRecovery
 
         return CommandResult::failed('rollback', ExitCode::RollbackFailed, 'rollback_return_failed',
             'The rollback failed ('.$cause->getMessage().') and going back failed too ('.$failure->getMessage().'); the instance is stopped behind its gate.',
-            $where.' Read `fsa logs app`, then run `fsa rollback` again to continue going back.'.($path === null ? '' : " The data before the rollback is in the safety backup {$path}."), false,
-            ['names' => $names->toArray(), 'next' => 'fsa rollback', 'safety_backup' => $path,
+            $where.' Read `fieldset logs app`, then run `fieldset rollback` again to continue going back.'.($path === null ? '' : " The data before the rollback is in the safety backup {$path}."), false,
+            ['names' => $names->toArray(), 'next' => 'fieldset rollback', 'safety_backup' => $path,
                 'digests' => ['previous' => UpgradeJournal::strings($plan['digests'] ?? null), 'current' => UpgradeJournal::strings($before['digests'] ?? null)]],
             changed: true);
     }
@@ -258,7 +258,7 @@ final readonly class RollbackRecovery
     private function failed(Throwable $cause, string $summary, array $data): CommandResult
     {
         $code = $cause instanceof InstanceException ? $cause->errorCode : 'rollback_failed';
-        $hint = $cause instanceof InstanceException && $cause->hint !== null ? $cause->hint : 'Read `fsa logs app` and the output, fix the cause, then run `fsa rollback` again.';
+        $hint = $cause instanceof InstanceException && $cause->hint !== null ? $cause->hint : 'Read `fieldset logs app` and the output, fix the cause, then run `fieldset rollback` again.';
 
         return CommandResult::failed('rollback', ExitCode::RolledBack, $code, $summary.' Cause: '.$cause->getMessage(), $hint, true, [...($cause instanceof InstanceException ? $cause->data : []), ...$data], changed: true);
     }

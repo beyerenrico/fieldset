@@ -8,7 +8,7 @@ use App\Domain\Instance\InstanceException;
 use App\Domain\Instance\Output\ExitCode;
 
 /**
- * What a database held at one moment, as `fsa adopt` compares it (KTD20 step 5, plan U19, ADR 0087): the row counts of the
+ * What a database held at one moment, as `fieldset adopt` compares it (KTD20 step 5, plan U19, ADR 0087): the row counts of the
  * main tables (the restore drill's, plus every audit entry), the head of every audit hash chain (the sealed entry with the
  * highest sequence number per organization chain, as ChainHeads reads it) and the migration set's size and last name.
  * The copy must equal the 1.0 backup exactly; after adopt the same snapshot is the baseline uninstall counts the writes

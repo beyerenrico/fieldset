@@ -9,7 +9,7 @@ import type {
     AttachmentAdapter,
     AttachmentInfo,
     AttachmentUpload,
-} from '@form-schema-app/form-schema-react';
+} from '@fieldset/fieldset-react';
 import { downloadAttachment } from '../api/endpoints.ts';
 import type { AttachmentRecord } from '../api/types.ts';
 import type { AttachmentRow } from '../db/schema.ts';

@@ -1,5 +1,5 @@
 /** Response shapes of the Field App API (docs/api/field-app-v1.md). */
-import type { FormDefinition, JsonObject } from '@form-schema-app/form-schema-js';
+import type { FormDefinition, JsonObject } from '@fieldset/fieldset-js';
 
 export interface User {
     readonly id: number;

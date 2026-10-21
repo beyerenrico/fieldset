@@ -23,13 +23,13 @@ use Throwable;
 
 /**
  * KTD19 steps 9 and 10 (R57, plan U18, ADR 0086). `commit()` writes the state: the target's version and digests, the
- * previous release (version, digests and the compose file it ran with) for `fsa rollback`, and the history entry; from
+ * previous release (version, digests and the compose file it ran with) for `fieldset rollback`, and the history entry; from
  * here on nothing restores automatically. `open()` lowers the gate, starts queue, scheduler and backup (containers of
  * services the target no longer has go), removes the pre-upgrade and pre-rollback safety backups this one supersedes
  * (R57: they replace each other only after a commit), seals this one when encryption is on, keeps the release files of
- * the previous release (`operations/previous-release`, for `fsa rollback`) and removes the stage and the scratch
+ * the previous release (`operations/previous-release`, for `fieldset rollback`) and removes the stage and the scratch
  * directory. It repeats safely: a crash while opening is
- * finished by the next `fsa upgrade`; a failure is reported (exit 4), never rolled back.
+ * finished by the next `fieldset upgrade`; a failure is reported (exit 4), never rolled back.
  */
 final readonly class UpgradeFinish
 {
@@ -71,7 +71,7 @@ final readonly class UpgradeFinish
      * @param  array<string, mixed>  $backup  the journaled safety backup
      * @return array{removed_safety_backups: list<string>, sealed: bool, warnings: list<array{0: string, 1: string, 2: string|null}>}
      *
-     * @throws InstanceException exit 4 `open_failed` (the journal stays open; `fsa upgrade --resume` finishes)
+     * @throws InstanceException exit 4 `open_failed` (the journal stays open; `fieldset upgrade --resume` finishes)
      */
     public function open(InstanceState $state, ComposeProject $project, array $backup, string $id): array
     {
@@ -80,14 +80,14 @@ final readonly class UpgradeFinish
             $this->docker->composeUp($project, UpgradeQuiesce::WORKERS, self::WAIT_SECONDS, removeOrphans: true); // services the target dropped go
         } catch (DockerCommandFailed $e) {
             throw new InstanceException('The upgrade is committed and the app takes requests, but queue, scheduler or backup did not start.', ExitCode::HealthCheckFailed, 'open_failed',
-                'Read `fsa logs queue`, fix the cause, then run `fsa upgrade --resume` to finish opening (nothing is restored).', true, ['docker' => $e->outcome->stderrTail(5)], $e);
+                'Read `fieldset logs queue`, fix the cause, then run `fieldset upgrade --resume` to finish opening (nothing is restored).', true, ['docker' => $e->outcome->stderrTail(5)], $e);
         }
         $current = is_string($backup['backup'] ?? null) ? $backup['backup'] : null;
         $warnings = [];
         $removed = $this->seals->removeSuperseded([$current], $warnings); // pre-upgrade ones only (R57, M12 gate D1)
         $sealed = $this->seal($current, $warnings);
         UpgradeFiles::remove($this->directory->path(InstanceDirectory::OPERATIONS_DIR.'/upgrade-'.$id));
-        $this->files->promote(UpgradeJournal::filesBefore($id), ReleaseFiles::PREVIOUS); // the previous release's files, for fsa rollback
+        $this->files->promote(UpgradeJournal::filesBefore($id), ReleaseFiles::PREVIOUS); // the previous release's files, for fieldset rollback
         $this->discardScratch($id);
 
         return ['removed_safety_backups' => $removed, 'sealed' => $sealed, 'warnings' => $warnings];
@@ -114,7 +114,7 @@ final readonly class UpgradeFinish
         try {
             $this->source->discard($id);
         } catch (Throwable) {
-            // left for `fsa status` to report (restore_scratch_left)
+            // left for `fieldset status` to report (restore_scratch_left)
         }
     }
 }

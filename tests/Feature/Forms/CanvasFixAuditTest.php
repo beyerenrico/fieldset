@@ -10,7 +10,7 @@ use App\Domain\Forms\Models\Form;
 use App\Domain\Identity\Enums\SystemRole;
 use App\Domain\Identity\Tenancy\TenantContext;
 use App\Filament\Admin\Resources\Forms\Pages\CanvasBuilder;
-use FormSchema\Json\Json;
+use Fieldset\Json\Json;
 use Illuminate\Database\Eloquent\Collection;
 use Livewire\Livewire;
 

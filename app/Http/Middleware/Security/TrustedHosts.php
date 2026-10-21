@@ -18,7 +18,7 @@ use Carbon\CarbonImmutable;
  * a link to the recipient's own machine leaks nothing) and config('security.trusted_hosts')
  * (TRUSTED_HOSTS, comma-separated extra host names). Evaluated per request, after config is loaded.
  *
- * On an `fsa` instance (ADR 0074) the runtime hosts join them: instance URL, local URL, extra hosts and the
+ * On a `fieldset` instance (ADR 0074) the runtime hosts join them: instance URL, local URL, extra hosts and the
  * tunnel host, also once it has expired, so ResolveInstanceRuntime can answer it with 503 instead of a 400.
  */
 final class TrustedHosts

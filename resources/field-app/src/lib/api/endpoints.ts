@@ -1,5 +1,5 @@
 /** Typed functions for every contract endpoint. */
-import type { JsonObject } from '@form-schema-app/form-schema-js';
+import type { JsonObject } from '@fieldset/fieldset-js';
 import { apiRequest } from './client.ts';
 import { ApiError } from './errors.ts';
 import { rawRequest, type ApiResponse, type RequestOptions } from './http.ts';

@@ -9,7 +9,7 @@ use App\Domain\Documents\Designs\DesignSettings;
 use App\Domain\Documents\Models\Design;
 use App\Domain\Documents\Models\DesignVersion;
 use App\Domain\Identity\Models\User;
-use FormSchema\Json\Json;
+use Fieldset\Json\Json;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 

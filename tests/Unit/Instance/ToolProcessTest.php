@@ -24,7 +24,7 @@ it('reports the exit code, stdout and the tail of stderr', function (): void {
 it('streams stdout in chunks when asked and passes the environment on top of its own', function (): void {
     $chunks = '';
     $types = [];
-    $result = ToolProcess::run(['sh', '-c', 'printf "%s" "$FSA_TOOL_TEST"; seq 1 20000'], ['FSA_TOOL_TEST' => 'value:'], 10.0, static function (string $type, string $chunk) use (&$chunks, &$types): void {
+    $result = ToolProcess::run(['sh', '-c', 'printf "%s" "$FIELDSET_TOOL_TEST"; seq 1 20000'], ['FIELDSET_TOOL_TEST' => 'value:'], 10.0, static function (string $type, string $chunk) use (&$chunks, &$types): void {
         $chunks .= $chunk;
         $types[$type] = true;
     });
@@ -57,7 +57,7 @@ it('writes stdout into a file the caller created, and the caller reads back exac
 });
 
 it('reports a program that cannot start', function (): void {
-    $result = ToolProcess::run(['/nonexistent/fsa-tool'], [], 5.0);
+    $result = ToolProcess::run(['/nonexistent/fieldset-tool'], [], 5.0);
 
     expect($result->successful())->toBeFalse();
 });

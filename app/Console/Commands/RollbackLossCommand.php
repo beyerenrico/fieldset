@@ -14,10 +14,10 @@ use InvalidArgumentException;
 use Throwable;
 
 /**
- * What a manual `fsa rollback` would lose (R37, plan U18, ADR 0086): the rows written since its safety backup, counted
+ * What a manual `fieldset rollback` would lose (R37, plan U18, ADR 0086): the rows written since its safety backup, counted
  * in a socket-less one-off before the operator confirms. Counts only, never content.
  */
-#[Description('Count what was written since a time, for fsa rollback\'s warning')]
+#[Description('Count what was written since a time, for fieldset rollback\'s warning')]
 #[Signature('instance:rollback-loss
         {--since= : The safety backup\'s time (ISO 8601 with zone)}
         {--json : Print one JSON document on stdout}')]

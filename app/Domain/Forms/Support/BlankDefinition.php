@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Forms\Support;
 
+use Fieldset\Support\SpecPaths;
 use Illuminate\Support\Str;
 use stdClass;
 
@@ -13,7 +14,7 @@ final class BlankDefinition
     public static function make(string $key, string $title, string $locale): stdClass
     {
         $definition = new stdClass;
-        $definition->{'$schema'} = url('/spec/form-definition/1.0/meta-schema.json');
+        $definition->{'$schema'} = SpecPaths::META_SCHEMA_ID;
         $definition->specVersion = '1.0.0';
         $definition->key = $key;
         $definition->title = $title;

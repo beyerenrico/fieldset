@@ -1,0 +1,84 @@
+{
+    "command": "fieldset uninstall --yes --json",
+    "exit_code": 0,
+    "stdout": {
+        "schema_version": 1,
+        "command": "uninstall",
+        "status": "ok",
+        "exit_code": 0,
+        "changed": true,
+        "data": {
+            "uuid": "8d282399-fbef-416a-b51b-60eaa0712b6b",
+            "removed": {
+                "containers": [
+                    "fieldset-fieldset-test-j01-63eb-backup-1",
+                    "fieldset-fieldset-test-j01-63eb-mailpit-1",
+                    "fieldset-fieldset-test-j01-63eb-queue-1",
+                    "fieldset-fieldset-test-j01-63eb-scheduler-1",
+                    "fieldset-fieldset-test-j01-63eb-app-1",
+                    "fieldset-fieldset-test-j01-63eb-gotenberg-1",
+                    "fieldset-fieldset-test-j01-63eb-postgres-1",
+                    "fieldset-fieldset-test-j01-63eb-redis-1"
+                ],
+                "networks": [
+                    "fieldset-fieldset-test-j01-63eb_default",
+                    "fieldset-fieldset-test-j01-63eb_renderer"
+                ],
+                "volumes": [
+                    "fieldset-fieldset-test-j01-63eb_app-storage",
+                    "fieldset-fieldset-test-j01-63eb_mailpit-data",
+                    "fieldset-fieldset-test-j01-63eb_pg-data",
+                    "fieldset-fieldset-test-j01-63eb_valkey-data"
+                ]
+            },
+            "dir": "<work>/fieldset-test-j01",
+            "deleted_files": [
+                ".fieldset-instance",
+                "backups",
+                "compose.yaml",
+                "env",
+                "fieldset",
+                "operations",
+                "releases",
+                "runtime",
+                "staging",
+                "state.json"
+            ],
+            "kept": [],
+            "left_files": [],
+            "data_deleted": true,
+            "backups_deleted": true,
+            "final_backup": null
+        },
+        "secrets": [],
+        "warnings": [],
+        "errors": []
+    },
+    "labelled_before": {
+        "containers": [
+            "fieldset-fieldset-test-j01-63eb-backup-1",
+            "fieldset-fieldset-test-j01-63eb-mailpit-1",
+            "fieldset-fieldset-test-j01-63eb-queue-1",
+            "fieldset-fieldset-test-j01-63eb-scheduler-1",
+            "fieldset-fieldset-test-j01-63eb-app-1",
+            "fieldset-fieldset-test-j01-63eb-gotenberg-1",
+            "fieldset-fieldset-test-j01-63eb-postgres-1",
+            "fieldset-fieldset-test-j01-63eb-redis-1"
+        ],
+        "volumes": [
+            "fieldset-fieldset-test-j01-63eb_app-storage",
+            "fieldset-fieldset-test-j01-63eb_mailpit-data",
+            "fieldset-fieldset-test-j01-63eb_pg-data",
+            "fieldset-fieldset-test-j01-63eb_valkey-data"
+        ],
+        "networks": [
+            "fieldset-fieldset-test-j01-63eb_default",
+            "fieldset-fieldset-test-j01-63eb_renderer"
+        ]
+    },
+    "labelled_after": {
+        "containers": [],
+        "volumes": [],
+        "networks": []
+    }
+}

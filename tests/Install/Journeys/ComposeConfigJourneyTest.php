@@ -14,13 +14,13 @@ use Tests\Support\Instance\TemporaryInstance;
 /*
  * U3 / M9-T04: real `docker compose config` accepts the rendered project (plan U3 verification). Nothing is
  * started: `config` only parses and normalizes, so the journey must leave no container, volume or network.
- * Skips only when Docker is unreachable; FSA_REQUIRE_DOCKER=1 turns that skip into a failure.
+ * Skips only when Docker is unreachable; FIELDSET_REQUIRE_DOCKER=1 turns that skip into a failure.
  */
 
 beforeEach(function (): void {
     $reason = TestImage::dockerUnavailableReason();
     if ($reason !== null) {
-        expect(getenv('FSA_REQUIRE_DOCKER'))->not->toBe('1', $reason);
+        expect(getenv('FIELDSET_REQUIRE_DOCKER'))->not->toBe('1', $reason);
         $this->markTestSkipped($reason.' (install journeys need a Docker engine)');
     }
 });
@@ -37,7 +37,7 @@ function composeConfigOf(array $settings, ?InstanceState $given = null): array
     $state = $given ?? ComposeFixtures::state($settings, $directory->root);
     $secrets = ComposeFixtures::secrets()->withSmtpCredentials('mailer', ComposeFixtures::SMTP_PASSWORD);
     (new ComposeRenderer)->write($directory, $state, $secrets);
-    $project = 'fsa-test-'.bin2hex(random_bytes(4));
+    $project = 'fieldset-test-'.bin2hex(random_bytes(4));
 
     $process = new Process(
         ['docker', 'compose', '--project-name', $project, '--file', $directory->path('compose.yaml'), '--project-directory', $directory->root, 'config', '--format', 'json'],
@@ -111,11 +111,11 @@ it('is accepted by docker compose config in proxy mode, with only the app on the
 /** @return array{0: Process, 1: string} `docker compose config` of the stack file with only these variables */
 function stackConfig(array $variables): array
 {
-    $directory = sys_get_temp_dir().'/fsa-test-stack-'.bin2hex(random_bytes(4));
+    $directory = sys_get_temp_dir().'/fieldset-test-stack-'.bin2hex(random_bytes(4));
     mkdir($directory);
     StackFile::render(ComposeFixtures::digests(), '2.0.0')->writeTo($directory.'/'.StackFile::NAME);
-    $unset = array_fill_keys(['COMPOSE_FILE', 'COMPOSE_PROJECT_NAME', 'COMPOSE_PROFILES', 'APP_URL', 'APP_KEY', 'DB_PASSWORD', 'REDIS_PASSWORD', 'MAILPIT_UI_PASSWORD', 'FSA_REGISTRY', 'APP_PORT', 'MAIL_HOST'], false);
-    $process = new Process(['docker', 'compose', '--project-name', 'fsa-test-stack', '--file', $directory.'/'.StackFile::NAME, 'config', '--format', 'json'], $directory, [...$unset, ...$variables]);
+    $unset = array_fill_keys(['COMPOSE_FILE', 'COMPOSE_PROJECT_NAME', 'COMPOSE_PROFILES', 'APP_URL', 'APP_KEY', 'DB_PASSWORD', 'REDIS_PASSWORD', 'MAILPIT_UI_PASSWORD', 'FIELDSET_REGISTRY', 'APP_PORT', 'MAIL_HOST'], false);
+    $process = new Process(['docker', 'compose', '--project-name', 'fieldset-test-stack', '--file', $directory.'/'.StackFile::NAME, 'config', '--format', 'json'], $directory, [...$unset, ...$variables]);
     $process->setTimeout(120)->run();
     exec('rm -rf '.escapeshellarg($directory));
 
@@ -134,7 +134,7 @@ it('parses the stack file with Compose from environment variables alone and requ
         ->and($config['services']['postgres']['image'])->toBe($digests['postgres'])
         ->and($config['services']['app']['environment'])->toMatchArray(['APP_URL' => 'https://forms.example.com', 'APP_KEY' => 'base64:a2V5', 'DB_PASSWORD' => 'db1', 'MAIL_HOST' => 'smtp.example.com', 'MAIL_PORT' => '1025', 'TRUSTED_PROXIES' => '', 'RUN_MIGRATIONS' => 'true'])
         ->and($config['services']['redis']['environment']['VALKEY_EXTRA_FLAGS'])->toBe('--requirepass rd1')
-        ->and($config['services']['mailpit']['environment']['MP_UI_AUTH'])->toBe('fsa:mp1')
+        ->and($config['services']['mailpit']['environment']['MP_UI_AUTH'])->toBe('fieldset:mp1')
         ->and($config['services']['app']['ports'][0])->toMatchArray(['published' => '18090', 'host_ip' => '127.0.0.1'])
         ->and($config['services']['queue']['depends_on']['app']['condition'])->toBe('service_healthy')
         ->and($missing->getExitCode())->not->toBe(0)

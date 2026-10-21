@@ -14,7 +14,7 @@ use InvalidArgumentException;
 use Throwable;
 
 /**
- * What `fsa status` reports about backups (§7, R39, R57, ADR 0084), read from the instance directory alone (the run
+ * What `fieldset status` reports about backups (§7, R39, R57, ADR 0084), read from the instance directory alone (the run
  * ledger and `backups/`), so it answers while Postgres is down: the last run and the last success, the schedule and its
  * next run, encryption, how many backups take how much space, the retained safety backups with their age and size, and
  * the alerts (BackupAlerts) as `warn`: a failed run, a skip for disk space, scheduled runs skipped for more than 24 hours
@@ -73,12 +73,12 @@ final readonly class BackupStatus
     private static function warning(string $code, ?array $run): array
     {
         return match ($code) {
-            'backup_failed' => [$code, 'The last backup failed ('.($run['reason'] ?? 'unknown').'): '.($run['message'] ?? 'no message').'.', 'Read `fsa logs backup`, fix the cause, then run `fsa backup`.'],
-            'backup_disk_space' => [$code, 'The last scheduled backup was skipped: '.($run['message'] ?? 'not enough free disk space.'), 'Free space on the disk of the instance directory (old backups in backups/), then run `fsa backup`.'],
-            'backup_skipped' => [$code, 'Scheduled backups have been skipped for more than 24 hours because an operation held the instance lock.', 'Finish the unfinished operation (`fsa status` names it), then run `fsa backup`.'],
-            'backup_service_failed' => [$code, 'The backup service cannot start ('.($run['reason'] ?? 'unknown').'): '.($run['message'] ?? 'no message').'.', 'Read `fsa logs backup` and fix the cause; any `fsa config set` that changes a setting (e.g. `fsa config set backup-schedule <HH:MM>`) renders the service\'s configuration again.'],
+            'backup_failed' => [$code, 'The last backup failed ('.($run['reason'] ?? 'unknown').'): '.($run['message'] ?? 'no message').'.', 'Read `fieldset logs backup`, fix the cause, then run `fieldset backup`.'],
+            'backup_disk_space' => [$code, 'The last scheduled backup was skipped: '.($run['message'] ?? 'not enough free disk space.'), 'Free space on the disk of the instance directory (old backups in backups/), then run `fieldset backup`.'],
+            'backup_skipped' => [$code, 'Scheduled backups have been skipped for more than 24 hours because an operation held the instance lock.', 'Finish the unfinished operation (`fieldset status` names it), then run `fieldset backup`.'],
+            'backup_service_failed' => [$code, 'The backup service cannot start ('.($run['reason'] ?? 'unknown').'): '.($run['message'] ?? 'no message').'.', 'Read `fieldset logs backup` and fix the cause; any `fieldset config set` that changes a setting (e.g. `fieldset config set backup-schedule <HH:MM>`) renders the service\'s configuration again.'],
             'backup_files_missing' => [$code, 'The newest backup ('.($run['backup'] ?? 'unknown').') misses '.(int) ($run['missing_files'] ?? 0).' file(s) the database references; its manifest.json lists them.', 'Check the storage volume (files deleted by hand, a disk problem). Retention keeps the older backups while new ones miss more files.'],
-            default => [$code, 'No backup succeeded within '.BackupAlerts::OVERDUE_GRACE_HOURS.' hours of the scheduled slot: the backup service may not be running.', 'Check `fsa logs backup` and `fsa doctor --post`, then run `fsa backup`.'],
+            default => [$code, 'No backup succeeded within '.BackupAlerts::OVERDUE_GRACE_HOURS.' hours of the scheduled slot: the backup service may not be running.', 'Check `fieldset logs backup` and `fieldset doctor --post`, then run `fieldset backup`.'],
         };
     }
 

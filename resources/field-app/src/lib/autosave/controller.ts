@@ -4,7 +4,7 @@
  * sync engine sends them later. Pending edits are written when the page is hidden, frozen or
  * left. After `stop()`/`dispose()` nothing is written, scheduled or retried any more.
  */
-import type { JsonObject } from '@form-schema-app/form-schema-js';
+import type { JsonObject } from '@fieldset/fieldset-js';
 import { watchPage } from './page-events.ts';
 import { Timer } from './timer.ts';
 import type {

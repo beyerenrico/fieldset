@@ -14,23 +14,23 @@ use Illuminate\Console\Attributes\Signature;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * `fsa logs [service…]` (§7, R45): the services' logs with timestamps. Without --json they go to stdout as text;
+ * `fieldset logs [service…]` (§7, R45): the services' logs with timestamps. Without --json they go to stdout as text;
  * with --json under `data.logs`. Secret values of the instance's env files are replaced in both (R50).
  */
 #[Description('Show the logs of the instance services')]
-#[Signature('fsa:logs
+#[Signature('fieldset:logs
         {service?* : Services to show (default: all)}
         {--since= : Only lines since a time or duration, e.g. 10m or 2026-10-18T10:00:00}
         {--tail=200 : Last lines per service (0 = all)}')]
-final class LogsCommand extends FsaCommand
+final class LogsCommand extends FieldsetCommand
 {
-    protected function perform(FsaContext $context): CommandResult
+    protected function perform(FieldsetContext $context): CommandResult
     {
         $directory = $context->directory();
         $state = $directory->state();
         $known = ComposeFile::services($directory);
         if ($known === []) {
-            throw new InvalidInput('The instance has no services yet.', 'not_installed', 'Run `fsa install` first.');
+            throw new InvalidInput('The instance has no services yet.', 'not_installed', 'Run `fieldset install` first.');
         }
         $services = $this->services($known);
         [$since, $tail] = [$this->since(), $this->tail()];

@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Hash;
 use Throwable;
 
 /**
- * Which accounts still sign in with the demo password `password` (R29: `fsa tunnel start` and the local-CA edge
+ * Which accounts still sign in with the demo password `password` (R29: `fieldset tunnel start` and the local-CA edge
  * refuse while any user has it, ADR 0081). Every account with a known password is checked, demo or not; accounts
  * whose password nobody knows (an owner link or invitation not used yet, `password_known = false`) cannot match and
  * are skipped. Each check costs one password hash (BCRYPT_ROUNDS), so the time grows with the number of accounts.

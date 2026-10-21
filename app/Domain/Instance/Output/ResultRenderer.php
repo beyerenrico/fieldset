@@ -56,7 +56,7 @@ final readonly class ResultRenderer
 
     /**
      * Re-running install on a finished instance issues no link, so a dropped sign-in link is replaced through
-     * `fsa login-link` (with a writable --secrets-file this time).
+     * `fieldset login-link` (with a writable --secrets-file this time).
      */
     private function droppedHint(CommandResult $result): string
     {
@@ -65,14 +65,14 @@ final readonly class ResultRenderer
         }
         $email = $result->data['owner_email'] ?? $result->data['email'] ?? null;
 
-        return 'The sign-in link was not saved. Issue a new one with `fsa login-link '.(is_string($email) && $email !== '' ? $email : '<email>')
+        return 'The sign-in link was not saved. Issue a new one with `fieldset login-link '.(is_string($email) && $email !== '' ? $email : '<email>')
             .' --secrets-file <file>`, naming a file in an existing, writable directory.';
     }
 
     private function human(CommandResult $result, OutputInterface $output, ?string $secretsFile): void
     {
         $envelope = $result->toArray($this->redactor, $secretsFile);
-        $output->writeln(sprintf('fsa %s: %s%s', $result->command, $envelope['status'], $result->changed ? '' : ' (nothing changed)'));
+        $output->writeln(sprintf('fieldset %s: %s%s', $result->command, $envelope['status'], $result->changed ? '' : ' (nothing changed)'));
         foreach ($envelope['data'] as $key => $value) {
             $output->writeln(sprintf('  %s: %s', $key, is_scalar($value) || $value === null ? var_export($value, true) : json_encode($value, JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE)), OutputInterface::OUTPUT_RAW);
         }

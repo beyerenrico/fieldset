@@ -5,6 +5,7 @@
 # out. An expired entry stops suppressing, so the release scan fails again until the entry is reviewed.
 # release.yml scans this image with only this file (--ignorefile, --show-suppressed).
 # 4 high findings in usr/bin/caddy (Go 1.26.8 standard library, golang.org/x/net 0.59.0); 30 days (fixed upstream, waiting for a Caddy release). These are reachable.
+# 1 more high finding in usr/bin/caddy, CVE-2026-111943 (Go 1.26.8 stdlib, 2026-10-21); 30 days (fixed upstream, waiting for a Caddy release).
 
 vulnerabilities:
   - id: CVE-2026-78667
@@ -22,3 +23,8 @@ vulnerabilities:
       - usr/bin/caddy
     expired_at: 2026-11-17
     statement: "Go 1.26.8 standard library and golang.org/x/net 0.59.0 in caddy 2.11.7, the latest release; fixed in Go 1.26.9 / 1.27.2 and x/net 0.60.0, waiting for a Caddy release. Reachable: govulncheck (2026-10-18) finds call paths in Caddy, which terminates TLS and HTTP for the instance. Accepted only until the next Caddy release; upgrade the pin as soon as it ships."
+  - id: CVE-2026-111943
+    paths:
+      - usr/bin/caddy
+    expired_at: 2026-11-20
+    statement: "Go 1.26.8 standard library in caddy 2.11.7, the latest release (image 2026-10-06). Go crypto/x509 (CA distrust mitigation, published 2026-10-21) is fixed in Go 1.26.10 / 1.27.3 (fixed upstream, only the image release is missing: 30 days, ADR 0071). Waiting for a Caddy release. Reachability not analysed; Caddy terminates TLS for the instance, so treat it as reachable. Accepted only until the next Caddy release; upgrade the pin as soon as it ships."

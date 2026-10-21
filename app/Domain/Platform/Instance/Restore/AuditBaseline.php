@@ -17,9 +17,9 @@ use Symfony\Component\Console\Output\NullOutput;
  */
 final readonly class AuditBaseline
 {
-    public const string PREFIX = 'fsa_restore_ref_';
+    public const string PREFIX = 'fieldset_restore_ref_';
 
-    private const string CONNECTION = 'fsa_restore_audit_baseline';
+    private const string CONNECTION = 'fieldset_restore_audit_baseline';
 
     public function __construct(private Migrator $migrator) {}
 

@@ -20,7 +20,7 @@ use JsonException;
  * 0644, set explicitly whatever the umask. Readers ignore unknown keys (`schema_version`).
  *
  * Re-rendering from the state keeps the gate and the tunnel as they are: only the operation that raised the gate
- * lowers it (KTD5, U18), and only `fsa tunnel` (U14) changes the tunnel. A current file that exists but cannot be
+ * lowers it (KTD5, U18), and only `fieldset tunnel` (U14) changes the tunnel. A current file that exists but cannot be
  * parsed keeps the gate raised (operation `unknown`): it may be the record of a running upgrade, and lowering it
  * blind would let traffic in mid-operation; the app fails closed on such a file anyway (ADR 0074). A file that exists
  * but cannot be read is refused (UnsafePath), never overwritten blind (ADR 0078).
@@ -33,8 +33,8 @@ final readonly class RuntimeWriter
 
     public const string FILE = InstanceDirectory::RUNTIME_DIR.'/runtime.json';
 
-    /** Mount point in the containers; the app reads it from FSA_RUNTIME_PATH (config instance.runtime_path, U10). */
-    public const string CONTAINER_PATH = '/run/fsa-runtime';
+    /** Mount point in the containers; the app reads it from FIELDSET_RUNTIME_PATH (config instance.runtime_path, U10). */
+    public const string CONTAINER_PATH = '/run/fieldset-runtime';
 
     private const array LOWERED = ['raised' => false, 'operation' => null, 'since' => null, 'smoke_token' => null];
 
@@ -49,7 +49,7 @@ final readonly class RuntimeWriter
     public const string LOCAL_CA_ROOT = InstanceDirectory::RUNTIME_DIR.'/'.LocalCaRoot::FILE;
 
     /**
-     * Renders the runtime from the state, keeping the current gate and tunnel (only `fsa tunnel` changes the tunnel).
+     * Renders the runtime from the state, keeping the current gate and tunnel (only `fieldset tunnel` changes the tunnel).
      * Without the local CA in the state its root goes too: no trust page for a CA that is gone.
      */
     public function write(InstanceState $state): void
@@ -62,8 +62,8 @@ final readonly class RuntimeWriter
     }
 
     /**
-     * Records the quick tunnel `fsa tunnel start|renew` started (KTD12): hostname, expiry, cloudflared's fixed address
-     * and `--tunnel-admin`; null clears it (`fsa tunnel stop`, expiry cleanup). The gate stays as it is.
+     * Records the quick tunnel `fieldset tunnel start|renew` started (KTD12): hostname, expiry, cloudflared's fixed address
+     * and `--tunnel-admin`; null clears it (`fieldset tunnel stop`, expiry cleanup). The gate stays as it is.
      *
      * @param  array{hostname: string, expires_at: string, peer: string, admin: bool}|null  $tunnel
      */
@@ -92,7 +92,7 @@ final readonly class RuntimeWriter
 
     /**
      * Raises the gate for an operation: the app answers 503 to everything but its loopback healthcheck and requests
-     * carrying the returned smoke token from the internal network (header `X-Fsa-Smoke-Token`). A fresh token is
+     * carrying the returned smoke token from the internal network (header `X-Fieldset-Smoke-Token`). A fresh token is
      * generated unless the caller passes one. (Queue, scheduler and backup refusing to start behind a raised gate
      * arrives with U18; until then only the app is gated.)
      */
@@ -130,11 +130,11 @@ final readonly class RuntimeWriter
             'instance_url' => $settings->instanceUrl(),
             'local_url' => $settings->localUrl(),
             'extra_hosts' => $settings->extraHosts(),
-            // Written by `fsa tunnel start` (U14): the host must match ^[a-z0-9-]+\.trycloudflare\.com$, `peer` is
+            // Written by `fieldset tunnel start` (U14): the host must match ^[a-z0-9-]+\.trycloudflare\.com$, `peer` is
             // cloudflared's fixed address (the TCP peer of every tunnel request), `admin` opens /admin (--tunnel-admin).
             'tunnel' => $tunnel,
             'gate' => $gate,
-            // Outgoing webhooks wait after `fsa install --from-backup` until `fsa config set webhooks on` (ADR 0085).
+            // Outgoing webhooks wait after `fieldset install --from-backup` until `fieldset config set webhooks on` (ADR 0085).
             'webhooks' => ['paused' => $settings->webhooksPaused()],
             // For the /platform instance page and the opt-in update check (U20, ADR 0089): display data, no secret.
             'instance' => ['version' => $state->version(), 'mode' => $state->mode(), 'digests' => $state->digests(), 'catcher_url' => $settings->catcherUrl()],

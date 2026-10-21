@@ -1,0 +1,30 @@
+Trivy 0.76.0, DB updated 2026-10-21 07:13 UTC; release.yml settings: --severity CRITICAL,HIGH --ignore-unfixed --exit-code 1;
+app image without exceptions, third-party images with only distribution/trivy/<service>.trivyignore.yaml (ADR 0071).
+Rerun after the Go fix (branch sec-go-x509, ADR 0093). App image: fieldset-test-u1:latest (arm64, the image the install
+journeys ran) and the same Dockerfile built for linux/amd64 (fieldset-test-sec:amd64, removed after the scan).
+
+RESULT app linux/arm64 PASS
+RESULT app linux/amd64 PASS
+RESULT postgres linux/amd64 PASS
+RESULT postgres linux/arm64 PASS
+RESULT valkey linux/amd64 PASS
+RESULT valkey linux/arm64 PASS
+RESULT gotenberg linux/amd64 PASS
+RESULT gotenberg linux/arm64 PASS
+RESULT mailpit linux/amd64 PASS
+RESULT mailpit linux/arm64 PASS
+RESULT caddy linux/amd64 PASS
+RESULT caddy linux/arm64 PASS
+RESULT cloudflared linux/amd64 PASS
+RESULT cloudflared linux/arm64 PASS
+TRIVY_STATUS=0
+
+Go standard library in the app image's binaries (Trivy build info, both architectures):
+  age, age-keygen, age-plugin-batchpass, docker-compose, frankenphp: v1.27.3; docker (CLI 29.9.2): v1.26.10
+
+Suppressed CVE-2026-111943 findings (new dated entries, expire 2026-11-20), per platform:
+  postgres 1 (usr/local/bin/gosu), gotenberg 2 (usr/bin/gotenberg, usr/bin/pdfcpu), mailpit 1 (mailpit), caddy 1 (usr/bin/caddy)
+  cloudflared 2026.10.2: stdlib v1.27.3, no CVE-2026-111943; the libssl3t64 finding of 2026.10.1 (amd64) is gone;
+  CVE-2026-63209 (klauspost/compress) still suppressed until 2026-11-20.
+Older entries unchanged and not expired (2026-11-17 / 2026-11-20 / 2027-01-16).
+Full log: storage/agent-logs/sec-trivy-final.log (git-ignored).

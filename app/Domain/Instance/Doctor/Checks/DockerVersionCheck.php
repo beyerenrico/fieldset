@@ -9,7 +9,7 @@ use App\Domain\Instance\Doctor\DoctorCheck;
 use App\Domain\Instance\Doctor\DoctorContext;
 
 /**
- * Docker Engine and Compose versions (R10). Too old is exit 10 (§7). The floors are what fsa relies on: Engine 24
+ * Docker Engine and Compose versions (R10). Too old is exit 10 (§7). The floors are what fieldset relies on: Engine 24
  * (API 1.43, healthcheck start intervals, `docker run` with several networks later) and Compose 2.24 (`up --wait`
  * with `--wait-timeout`, top-level `name`). The Compose plugin ships in the image, so in practice only the engine
  * can be too old.
@@ -33,7 +33,7 @@ final readonly class DockerVersionCheck implements DoctorCheck
             return CheckResult::fail($this->key(), "Docker Engine {$versions->server} is older than ".self::MIN_ENGINE.'.', 'Upgrade Docker Engine (https://docs.docker.com/engine/install/), then run the command again.', [...$details, 'too_old' => true]);
         }
         if (version_compare($this->plain($versions->compose), self::MIN_COMPOSE, '<')) {
-            return CheckResult::fail($this->key(), "Docker Compose {$versions->compose} is older than ".self::MIN_COMPOSE.'.', 'Use the fsa command from the instance directory; it brings its own Compose.', [...$details, 'too_old' => true]);
+            return CheckResult::fail($this->key(), "Docker Compose {$versions->compose} is older than ".self::MIN_COMPOSE.'.', 'Use the fieldset command from the instance directory; it brings its own Compose.', [...$details, 'too_old' => true]);
         }
 
         return CheckResult::ok($this->key(), "Docker Engine {$versions->server}, Compose {$versions->compose}.", $details);

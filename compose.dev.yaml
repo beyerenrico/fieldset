@@ -5,7 +5,7 @@ services:
       - "${FORWARD_DB_PORT:-54329}:5432"
     # The parallel PHP suite drops hundreds of tables in one transaction per worker.
     command: ["postgres", "-c", "max_locks_per_transaction=256"]
-    # Test databases for the PHP suite and parallel agents (owned by `form_schema`): development only.
+    # Test databases for the PHP suite and parallel agents (owned by `fieldset`): development only.
     volumes:
       - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
   redis:
@@ -28,7 +28,7 @@ services:
       MAIL_PORT: 1025
       SSO_ALLOW_INSECURE_IDP: "true"
       SSO_DNS_DRIVER: config
-      SSO_DNS_RECORDS: '{"_form-schema-app-verification.sso-demo.test":["form-schema-app-verification=c0ffee0000000000000000000000000000550001"],"_form-schema-app-verification.saml-demo.test":["form-schema-app-verification=c0ffee0000000000000000000000000000550002"]}'
+      SSO_DNS_RECORDS: '{"_fieldset-verification.sso-demo.test":["fieldset-verification=c0ffee0000000000000000000000000000550001"],"_fieldset-verification.saml-demo.test":["fieldset-verification=c0ffee0000000000000000000000000000550002"]}'
     extra_hosts:
       - "keycloak.localhost:host-gateway"
   # Mail is queued (M3), so the worker and scheduler need the in-network Mailpit too.
@@ -38,7 +38,7 @@ services:
       MAIL_PORT: 1025
       SSO_ALLOW_INSECURE_IDP: "true"
       SSO_DNS_DRIVER: config
-      SSO_DNS_RECORDS: '{"_form-schema-app-verification.sso-demo.test":["form-schema-app-verification=c0ffee0000000000000000000000000000550001"],"_form-schema-app-verification.saml-demo.test":["form-schema-app-verification=c0ffee0000000000000000000000000000550002"]}'
+      SSO_DNS_RECORDS: '{"_fieldset-verification.sso-demo.test":["fieldset-verification=c0ffee0000000000000000000000000000550001"],"_fieldset-verification.saml-demo.test":["fieldset-verification=c0ffee0000000000000000000000000000550002"]}'
     extra_hosts:
       - "keycloak.localhost:host-gateway"
   scheduler:
@@ -47,7 +47,7 @@ services:
       MAIL_PORT: 1025
       SSO_ALLOW_INSECURE_IDP: "true"
       SSO_DNS_DRIVER: config
-      SSO_DNS_RECORDS: '{"_form-schema-app-verification.sso-demo.test":["form-schema-app-verification=c0ffee0000000000000000000000000000550001"],"_form-schema-app-verification.saml-demo.test":["form-schema-app-verification=c0ffee0000000000000000000000000000550002"]}'
+      SSO_DNS_RECORDS: '{"_fieldset-verification.sso-demo.test":["fieldset-verification=c0ffee0000000000000000000000000000550001"],"_fieldset-verification.saml-demo.test":["fieldset-verification=c0ffee0000000000000000000000000000550002"]}'
     extra_hosts:
       - "keycloak.localhost:host-gateway"
   # OIDC/SAML IdP for development and E2E (ADR 0036). Opt-in: COMPOSE_PROFILES=sso (set in the CI e2e job).

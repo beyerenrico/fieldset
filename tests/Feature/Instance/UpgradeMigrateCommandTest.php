@@ -19,7 +19,7 @@ use Tests\Support\Instance\RestoreDatabases;
 
 beforeEach(function (): void {
     $this->database = RestoreDatabases::target('um');
-    $this->migrations = sys_get_temp_dir().'/fsa-test-upgrade-migrations-'.bin2hex(random_bytes(4));
+    $this->migrations = sys_get_temp_dir().'/fieldset-test-upgrade-migrations-'.bin2hex(random_bytes(4));
     mkdir($this->migrations, 0700);
     app()->instance(UpgradeMigrator::PATH, $this->migrations);
     $this->sessions = [];
@@ -55,38 +55,38 @@ function upgradeMigration(string $directory, string $name, string $up): void
 }
 
 it('runs the pending migrations alone on the database with lock_timeout, and changes nothing the second time', function (): void {
-    upgradeMigration($this->migrations, '2099_01_01_000000_fsa_test_upgrade_probe', "DB::statement('CREATE TABLE fsa_upgrade_probe (lock_timeout text)'); DB::statement(\"INSERT INTO fsa_upgrade_probe SELECT current_setting('lock_timeout')\");");
+    upgradeMigration($this->migrations, '2099_01_01_000000_fieldset_test_upgrade_probe', "DB::statement('CREATE TABLE fieldset_upgrade_probe (lock_timeout text)'); DB::statement(\"INSERT INTO fieldset_upgrade_probe SELECT current_setting('lock_timeout')\");");
 
     [$code, $json] = upgradeArtisan('instance:upgrade-migrate', ['--wait-foreign' => '0', '--lock-timeout' => '7', '--from' => '2.0.0-rc.1']);
     [$again, $second] = upgradeArtisan('instance:upgrade-migrate', ['--wait-foreign' => '0']);
 
     expect($code)->toBe(0, (string) json_encode($json))
-        ->and($json['data'])->toMatchArray(['migrated' => ['2099_01_01_000000_fsa_test_upgrade_probe'], 'steps' => [], 'invalid_indexes' => [], 'lock_timeout' => '7s'])
+        ->and($json['data'])->toMatchArray(['migrated' => ['2099_01_01_000000_fieldset_test_upgrade_probe'], 'steps' => [], 'invalid_indexes' => [], 'lock_timeout' => '7s'])
         ->and($json['changed'])->toBeTrue()
-        ->and(DB::table('fsa_upgrade_probe')->value('lock_timeout'))->toBe('7s')
+        ->and(DB::table('fieldset_upgrade_probe')->value('lock_timeout'))->toBe('7s')
         ->and($again)->toBe(0)->and($second['data']['migrated'])->toBe([])->and($second['changed'])->toBeFalse();
 });
 
 it('refuses to migrate beside a foreign session, naming it, and migrates nothing', function (): void {
-    upgradeMigration($this->migrations, '2099_01_01_000000_fsa_test_upgrade_probe', "DB::statement('CREATE TABLE fsa_upgrade_probe (v int)');");
-    $this->sessions[] = upgradeSession($this->database, 'fsa-test-foreign');
+    upgradeMigration($this->migrations, '2099_01_01_000000_fieldset_test_upgrade_probe', "DB::statement('CREATE TABLE fieldset_upgrade_probe (v int)');");
+    $this->sessions[] = upgradeSession($this->database, 'fieldset-test-foreign');
 
     [$code, $json] = upgradeArtisan('instance:upgrade-migrate', ['--wait-foreign' => '0']);
 
     expect($code)->toBe(1)
         ->and($json['errors'][0]['code'])->toBe('foreign_connections')
-        ->and($json['errors'][0]['message'])->toContain('fsa-test-foreign')
-        ->and(DB::getSchemaBuilder()->hasTable('fsa_upgrade_probe'))->toBeFalse();
+        ->and($json['errors'][0]['message'])->toContain('fieldset-test-foreign')
+        ->and(DB::getSchemaBuilder()->hasTable('fieldset_upgrade_probe'))->toBeFalse();
 });
 
 it('reports a migration that fails, and an index a migration leaves invalid', function (string $case, string $error): void {
     if ($case === 'failing') {
-        upgradeMigration($this->migrations, '2099_01_01_000000_fsa_test_upgrade_broken', "DB::statement('SELECT * FROM fsa_no_such_table');");
+        upgradeMigration($this->migrations, '2099_01_01_000000_fieldset_test_upgrade_broken', "DB::statement('SELECT * FROM fieldset_no_such_table');");
     } else {
-        $session = upgradeSession($this->database, 'fsa-test-builder');
-        $session->exec('CREATE TABLE fsa_dupes (v int); INSERT INTO fsa_dupes VALUES (1), (1)');
+        $session = upgradeSession($this->database, 'fieldset-test-builder');
+        $session->exec('CREATE TABLE fieldset_dupes (v int); INSERT INTO fieldset_dupes VALUES (1), (1)');
         try {
-            $session->exec('CREATE UNIQUE INDEX CONCURRENTLY fsa_dupes_unique ON fsa_dupes (v)');
+            $session->exec('CREATE UNIQUE INDEX CONCURRENTLY fieldset_dupes_unique ON fieldset_dupes (v)');
         } catch (PDOException) {
             // the duplicate leaves the concurrently built index behind, invalid
         }
@@ -108,12 +108,12 @@ it('runs the version steps a release lists since the version the instance comes 
 
         public function name(): string
         {
-            return 'fsa-test-step';
+            return 'fieldset-test-step';
         }
 
         public function run(Connection $db): void
         {
-            $db->statement('CREATE TABLE IF NOT EXISTS fsa_upgrade_step (v int)');
+            $db->statement('CREATE TABLE IF NOT EXISTS fieldset_upgrade_step (v int)');
         }
     };
     app()->instance(VersionSteps::class, new VersionSteps([$step]));
@@ -121,8 +121,8 @@ it('runs the version steps a release lists since the version the instance comes 
     [$code, $json] = upgradeArtisan('instance:upgrade-migrate', ['--wait-foreign' => '0', ...($from === null ? [] : ['--from' => $from])]);
 
     expect($code)->toBe(0, (string) json_encode($json))
-        ->and($json['data']['steps'])->toBe($runs ? ['fsa-test-step'] : [])
-        ->and(DB::getSchemaBuilder()->hasTable('fsa_upgrade_step'))->toBe($runs);
+        ->and($json['data']['steps'])->toBe($runs ? ['fieldset-test-step'] : [])
+        ->and(DB::getSchemaBuilder()->hasTable('fieldset_upgrade_step'))->toBe($runs);
 })->with([['2.0.0', true], ['2.0.0-rc.1', true], ['2.0.1', false], ['2.1.0', false], [null, true]]);
 
 it('refuses a malformed --from or session name', function (array $options): void {
@@ -132,12 +132,12 @@ it('refuses a malformed --from or session name', function (array $options): void
 })->with([[['--from' => 'latest']], [['--application-name' => 'psql']], [['--wait-foreign' => 'soon']]]);
 
 it('reports the child\'s session by its name and terminates it', function (): void {
-    $child = upgradeSession($this->database, 'fsa_upgrade_0123456789ab');
+    $child = upgradeSession($this->database, 'fieldset_upgrade_0123456789ab');
 
-    [$code, $activity] = upgradeArtisan('instance:upgrade-db', ['action' => 'activity', '--application-name' => 'fsa_upgrade_0123456789ab']);
-    [, $terminated] = upgradeArtisan('instance:upgrade-db', ['action' => 'terminate', '--application-name' => 'fsa_upgrade_0123456789ab']);
+    [$code, $activity] = upgradeArtisan('instance:upgrade-db', ['action' => 'activity', '--application-name' => 'fieldset_upgrade_0123456789ab']);
+    [, $terminated] = upgradeArtisan('instance:upgrade-db', ['action' => 'terminate', '--application-name' => 'fieldset_upgrade_0123456789ab']);
     usleep(200_000);
-    [, $after] = upgradeArtisan('instance:upgrade-db', ['action' => 'activity', '--application-name' => 'fsa_upgrade_0123456789ab']);
+    [, $after] = upgradeArtisan('instance:upgrade-db', ['action' => 'activity', '--application-name' => 'fieldset_upgrade_0123456789ab']);
 
     expect($code)->toBe(0)
         ->and($activity['data']['backends'])->toHaveCount(1)
@@ -149,10 +149,10 @@ it('reports the child\'s session by its name and terminates it', function (): vo
 
 it('lists invalid indexes and refuses an unknown action or session name', function (): void {
     [$clean, $none] = upgradeArtisan('instance:upgrade-db', ['action' => 'invalid-indexes']);
-    $session = upgradeSession($this->database, 'fsa-test-builder');
-    $session->exec('CREATE TABLE fsa_dupes (v int); INSERT INTO fsa_dupes VALUES (1), (1)');
+    $session = upgradeSession($this->database, 'fieldset-test-builder');
+    $session->exec('CREATE TABLE fieldset_dupes (v int); INSERT INTO fieldset_dupes VALUES (1), (1)');
     try {
-        $session->exec('CREATE UNIQUE INDEX CONCURRENTLY fsa_dupes_unique ON fsa_dupes (v)');
+        $session->exec('CREATE UNIQUE INDEX CONCURRENTLY fieldset_dupes_unique ON fieldset_dupes (v)');
     } catch (PDOException) {
         // left invalid
     }
@@ -161,20 +161,20 @@ it('lists invalid indexes and refuses an unknown action or session name', functi
     [$badName] = upgradeArtisan('instance:upgrade-db', ['action' => 'terminate', '--application-name' => 'postgres']);
 
     expect($clean)->toBe(0)->and($none['data']['indexes'])->toBe([])
-        ->and($listed['data']['indexes'])->toBe(['fsa_dupes_unique'])
+        ->and($listed['data']['indexes'])->toBe(['fieldset_dupes_unique'])
         ->and($unknown)->toBe(1)->and($refused['errors'][0]['code'])->toBe('invalid_input')
         ->and($badName)->toBe(1);
 });
 
 it('lists the other client sessions of the database for the in-flight wait, without query texts (review U18 A1)', function (): void {
-    $session = upgradeSession($this->database, 'fsa-test-request');
+    $session = upgradeSession($this->database, 'fieldset-test-request');
     $session->exec('SELECT 1');
 
     [$code, $json] = upgradeArtisan('instance:upgrade-db', ['action' => 'foreign']);
     $names = array_column($json['data']['sessions'] ?? [], 'application_name');
 
     expect($code)->toBe(0, (string) json_encode($json))
-        ->and($names)->toContain('fsa-test-request')
+        ->and($names)->toContain('fieldset-test-request')
         ->and(array_keys($json['data']['sessions'][0]))->toBe(['pid', 'application_name', 'user', 'state']);
 });
 

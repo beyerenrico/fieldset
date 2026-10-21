@@ -48,7 +48,7 @@ final readonly class InFlightRequests
                 throw new InstanceException(
                     sprintf('%d database session(s) stayed open %d s after the gate rose: %s.', count($sessions), $waited, implode(', ', array_map($this->describe(...), $sessions))),
                     ExitCode::AbortedUnchanged, 'requests_in_flight',
-                    "A long request or another client (psql, a script) still uses the database. Let it finish or close it, then run `fsa {$operation}` again; nothing was changed.",
+                    "A long request or another client (psql, a script) still uses the database. Let it finish or close it, then run `fieldset {$operation}` again; nothing was changed.",
                     true, ['sessions' => $sessions],
                 );
             }
@@ -62,7 +62,7 @@ final readonly class InFlightRequests
         $outcome = OneOffResult::fromOutcome($this->docker->composeRun($project, ComposeRenderer::ONE_OFF_SERVICE, ['php', 'artisan', 'instance:upgrade-db', 'foreign', '--json'], timeout: 120.0));
         if (! $outcome->ok) {
             throw new InstanceException('Checking for requests still in flight failed: '.$outcome->errorMessage(), ExitCode::AbortedUnchanged, 'in_flight_check_failed',
-                "Read `fsa logs postgres`, then run `fsa {$operation}` again; nothing was changed.", true);
+                "Read `fieldset logs postgres`, then run `fieldset {$operation}` again; nothing was changed.", true);
         }
         $sessions = is_array($outcome->data['sessions'] ?? null) ? $outcome->data['sessions'] : [];
 

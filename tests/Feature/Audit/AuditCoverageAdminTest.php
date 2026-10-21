@@ -90,7 +90,7 @@ it('writes one entry per member and account action', function (): void {
 it('writes one entry per SSO provider, domain, mapping and enforcement change', function (): void {
     $owner = $this->s->owner;
     $owner->forceFill(['two_factor_secret' => encrypt('JBSWY3DPEHPK3PXP'), 'two_factor_confirmed_at' => now()])->save();
-    $config = ['flavor' => 'generic', 'issuer' => 'https://idp.acme.example/realms/acme/', 'client_id' => 'form-schema-app'];
+    $config = ['flavor' => 'generic', 'issuer' => 'https://idp.acme.example/realms/acme/', 'client_id' => 'fieldset'];
     $provider = null;
 
     expect(AuditTrail::of(function () use ($config, $owner, &$provider): void {

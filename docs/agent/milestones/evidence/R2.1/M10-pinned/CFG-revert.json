@@ -1,0 +1,51 @@
+{
+    "command": "fieldset config set domain fieldset-test-cfg-fail.test --acme-ca <pebble> --acme-ca-root-file <harness>/pebble-https-root.pem --yes --json (edge kept off the ACME network)",
+    "exit_code": 5,
+    "seconds": 266.4,
+    "stdout": {
+        "schema_version": 1,
+        "command": "config",
+        "status": "rolled_back",
+        "exit_code": 5,
+        "changed": false,
+        "data": {
+            "key": "domain",
+            "from": null,
+            "to": "fieldset-test-cfg-fail.test",
+            "url": "http://localhost:8081",
+            "mode": "local",
+            "reverted": true,
+            "resumed_revert": false,
+            "attempted": {
+                "url": "https://fieldset-test-cfg-fail.test",
+                "mode": "domain"
+            },
+            "failure": {
+                "output": "000\ncurl: (35) OpenSSL/3.0.22: error:0A000438:SSL routines::tlsv1 alert internal error",
+                "logs": "edge-1  | 2026-10-21T11:39:32.052956597Z {\"level\":\"info\",\"ts\":1792582772.0529132,\"logger\":\"http\",\"msg\":\"using ACME account\",\"account_id\":\"https://pebble:14000/my-account/6112aeb44ba992c8\",\"account_contact\":[]}\nedge-1  | 2026-10-21T11:39:32.062481430Z {\"level\":\"warn\",\"ts\":1792582772.0623584,\"logger\":\"http.acme_client\",\"msg\":\"HTTP request failed; retrying\",\"url\":\"https://pebble:14000/dir\",\"error\":\"performing request: Get \\\"https://pebble:14000/dir\\\": dial tcp: lookup pebble on 127.0.0.11:53: no such host\"}\nedge-1  | 2026-10-21T11:39:32.325326430Z {\"level\":\"warn\",\"ts\":1792582772.3251984,\"logger\":\"http.acme_client\",\"msg\":\"HTTP request failed; retrying\",\"url\":\"https://pebble:14000/dir\",\"error\":\"performing request: Get \\\"https://pebble:14000/dir\\\": dial tcp: lookup pebble on 127.0.0.11:53: no such host\"}\nedge-1  | 2026-10-21T11:39:32.584876930Z {\"level\":\"warn\",\"ts\":1792582772.5847344,\"logger\":\"http.acme_client\",\"msg\":\"HTTP request failed; retrying\",\"url\":\"https://pebble:14000/dir\",\"error\":\"performing request: Get \\\"https://pebble:14000/dir\\\": dial tcp: lookup pebble on 127.0.0.11:53: no such host\"}\nedge-1  | 2026-10-21T11:39:32.584907389Z {\"level\":\"error\",\"ts\":1792582772.584788,\"logger\":\"tls.obtain\",\"msg\":\"could not get certificate from issuer\",\"identifier\":\"fieldset-test-cfg-fail.test\",\"issuer\":\"pebble:14000-dir\",\"error\":\"[fieldset-test-cfg-fail.test] creating new order: provisioning client: performing request: Get \\\"https://pebble:14000/dir\\\": dial tcp: lookup pebble on 127.0.0.11:53: no such host (ca=https://pebble:14000/dir)\"}\nedge-1  | 2026-10-21T11:39:32.584910055Z {\"level\":\"error\",\"ts\":1792582772.5848002,\"logger\":\"tls.obtain\",\"msg\":\"will retry\",\"error\":\"[fieldset-test-cfg-fail.test] Obtain: [fieldset-test-cfg-fail.test] creating new order: provisioning client: performing request: Get \\\"https://pebble:14000/dir\\\": dial tcp: lookup pebble on 127.0.0.11:53: no such host (ca=https://pebble:14000/dir)\",\"attempt\":1,\"retrying_in\":60,\"elapsed\":0.532466209,\"max_duration\":2592000}\nedge-1  | 2026-10-21T11:40:32.596932847Z {\"level\":\"info\",\"ts\":1792582832.5945597,\"logger\":\"tls.obtain\",\"msg\":\"obtaining certificate\",\"identifier\":\"fieldset-test-cfg-fail.test\"}\nedge-1  | 2026-10-21T11:40:32.598500930Z {\"level\":\"info\",\"ts\":1792582832.5978656,\"logger\":\"http\",\"msg\":\"using ACME account\",\"account_id\":\"https://pebble:14000/my-account/6112aeb44ba992c8\",\"account_contact\":[]}\nedge-1  | 2026-10-21T11:40:32.612992847Z {\"level\":\"warn\",\"ts\":1792582832.612662,\"logger\":\"http.acme_client\",\"msg\":\"HTTP request failed; retrying\",\"url\":\"https://pebble:14000/dir\",\"error\":\"performing request: Get \\\"https://pebble:14000/dir\\\": dial tcp: lookup pebble on 127.0.0.11:53: no such host\"}\nedge-1  | 2026-10-21T11:40:32.883424958Z {\"level\":\"warn\",\"ts\":1792582832.8830805,\"logger\":\"http.acme_client\",\"msg\":\"HTTP request failed; retrying\",\"url\":\"https://pebble:14000/dir\",\"error\":\"performing request: Get \\\"https://pebble:14000/dir\\\": dial tcp: lookup pebble on 127.0.0.11:53: no such host\"}\nedge-1  | 2026-10-21T11:40:33.154768500Z {\"level\":\"warn\",\"ts\":1792582833.1544075,\"logger\":\"http.acme_client\",\"msg\":\"HTTP request failed; retrying\",\"url\":\"https://pebble:14000/dir\",\"error\":\"performing request: Get \\\"https://pebble:14000/dir\\\": dial tcp: lookup pebble on 127.0.0.11:53: no such host\"}\nedge-1  | 2026-10-21T11:40:33.154851208Z {\"level\":\"error\",\"ts\":1792582833.1546,\"logger\":\"tls.obtain\",\"msg\":\"could not get certificate from issuer\",\"identifier\":\"fieldset-test-cfg-fail.test\",\"issuer\":\"pebble:14000-dir\",\"error\":\"[fieldset-test-cfg-fail.test] creating new order: provisioning client: performing request: Get \\\"https://pebble:14000/dir\\\": dial tcp: lookup pebble on 127.0.0.11:53: no such host (ca=https://pebble:14000/dir)\"}\nedge-1  | 2026-10-21T11:40:33.154859541Z {\"level\":\"error\",\"ts\":1792582833.1546364,\"logger\":\"tls.obtain\",\"msg\":\"will retry\",\"error\":\"[fieldset-test-cfg-fail.test] Obtain: [fieldset-test-cfg-fail.test] creating new order: provisioning client: performing request: Get \\\"https://pebble:14000/dir\\\": dial tcp: lookup pebble on 127.0.0.11:53: no such host (ca=https://pebble:14000/dir)\",\"attempt\":2,\"retrying_in\":120,\"elapsed\":61.10163286,\"max_duration\":2592000}\nedge-1  | 2026-10-21T11:42:33.161206250Z {\"level\":\"info\",\"ts\":1792582953.16087,\"logger\":\"tls.obtain\",\"msg\":\"obtaining certificate\",\"identifier\":\"fieldset-test-cfg-fail.test\"}\nedge-1  | 2026-10-21T11:42:33.163020458Z {\"level\":\"info\",\"ts\":1792582953.162741,\"logger\":\"http\",\"msg\":\"using ACME account\",\"account_id\":\"https://pebble:14000/my-account/6112aeb44ba992c8\",\"account_contact\":[]}\nedge-1  | 2026-10-21T11:42:33.170366958Z {\"level\":\"warn\",\"ts\":1792582953.1702313,\"logger\":\"http.acme_client\",\"msg\":\"HTTP request failed; retrying\",\"url\":\"https://pebble:14000/dir\",\"error\":\"performing request: Get \\\"https://pebble:14000/dir\\\": dial tcp: lookup pebble on 127.0.0.11:53: no such host\"}\nedge-1  | 2026-10-21T11:42:33.433657250Z {\"level\":\"warn\",\"ts\":1792582953.4334474,\"logger\":\"http.acme_client\",\"msg\":\"HTTP request failed; retrying\",\"url\":\"https://pebble:14000/dir\",\"error\":\"performing request: Get \\\"https://pebble:14000/dir\\\": dial tcp: lookup pebble on 127.0.0.11:53: no such host\"}\nedge-1  | 2026-10-21T11:42:33.705322042Z {\"level\":\"warn\",\"ts\":1792582953.7049816,\"logger\":\"http.acme_client\",\"msg\":\"HTTP request failed; retrying\",\"url\":\"https://pebble:14000/dir\",\"error\":\"performing request: Get \\\"https://pebble:14000/dir\\\": dial tcp: lookup pebble on 127.0.0.11:53: no such host\"}\nedge-1  | 2026-10-21T11:42:33.705444208Z {\"level\":\"error\",\"ts\":1792582953.7052116,\"logger\":\"tls.obtain\",\"msg\":\"could not get certificate from issuer\",\"identifier\":\"fieldset-test-cfg-fail.test\",\"issuer\":\"pebble:14000-dir\",\"error\":\"[fieldset-test-cfg-fail.test] creating new order: provisioning client: performing request: Get \\\"https://pebble:14000/dir\\\": dial tcp: lookup pebble on 127.0.0.11:53: no such host (ca=https://pebble:14000/dir)\"}\nedge-1  | 2026-10-21T11:42:33.705456083Z {\"level\":\"error\",\"ts\":1792582953.7052712,\"logger\":\"tls.obtain\",\"msg\":\"will retry\",\"error\":\"[fieldset-test-cfg-fail.test] Obtain: [fieldset-test-cfg-fail.test] creating new order: provisioning client: performing request: Get \\\"https://pebble:14000/dir\\\": dial tcp: lookup pebble on 127.0.0.11:53: no such host (ca=https://pebble:14000/dir)\",\"attempt\":3,\"retrying_in\":120,\"elapsed\":181.650797165,\"max_duration\":2592000}\n"
+            },
+            "fix_first": "Check that fieldset-test-cfg-fail.test points at this host, that ports 80 and 443 reach it from the internet and that the ACME directory is reachable, then run the command again. Repeated attempts count against the CA's rate limits; --acme-staging is for trials.",
+            "command": "fieldset config set domain fieldset-test-cfg-fail.test --acme-ca https://pebble:14000/dir --acme-ca-root-file <the same file> --yes",
+            "options": {
+                "--acme-ca": "https://pebble:14000/dir",
+                "--acme-ca-root-file": "<the same file>",
+                "--yes": true
+            },
+            "next_commands": [
+                "<work>/fieldset-test-cfg/fieldset status"
+            ]
+        },
+        "secrets": [],
+        "warnings": [],
+        "errors": [
+            {
+                "code": "certificate_failed",
+                "message": "Changing domain failed, so the previous settings were restored: The edge got no certificate for fieldset-test-cfg-fail.test from https://pebble:14000/dir.",
+                "hint": "Check that fieldset-test-cfg-fail.test points at this host, that ports 80 and 443 reach it from the internet and that the ACME directory is reachable, then run the command again. Repeated attempts count against the CA's rate limits; --acme-staging is for trials.",
+                "retryable": false
+            }
+        ]
+    },
+    "state_mode": "local",
+    "local_up": 200
+}

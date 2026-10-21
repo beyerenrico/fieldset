@@ -24,11 +24,11 @@ it('pins every third-party service of the committed inputs by digest', function 
 
     expect(array_keys($inputs->images))->toBe(ReleaseInputs::THIRD_PARTY_SERVICES)
         ->and($inputs->appRegistry)->toBe('ghcr.io')
-        ->and($inputs->appRepository)->toBe('beyerenrico/form-schema-app')
+        ->and($inputs->appRepository)->toBe('beyerenrico/fieldset')
         ->and($inputs->images['postgres']->repository)->toBe('library/postgres')
         ->and($inputs->images['postgres']->tag)->toStartWith('16.')
         ->and($inputs->images['postgres']->tag)->toEndWith('-alpine')
-        ->and($inputs->notesUrl(ReleaseVersion::parse('2.0.0')))->toBe('https://github.com/beyerenrico/form-schema-app/releases/tag/v2.0.0');
+        ->and($inputs->notesUrl(ReleaseVersion::parse('2.0.0')))->toBe('https://github.com/beyerenrico/fieldset/releases/tag/v2.0.0');
 
     foreach ($inputs->images as $pin) {
         expect($pin->digest)->toMatch('/^sha256:[a-f0-9]{64}$/');
@@ -39,9 +39,9 @@ it('builds the app pin from the version and the pushed digest', function (): voi
     $digest = 'sha256:'.str_repeat('a', 64);
     $pin = ReleaseInputs::fromArray(releaseInputs())->appImage(ReleaseVersion::parse('2.0.0-rc.1'), $digest);
 
-    expect($pin->reference())->toBe("ghcr.io/beyerenrico/form-schema-app:2.0.0-rc.1@{$digest}")
-        ->and($pin->pullReference())->toBe("ghcr.io/beyerenrico/form-schema-app@{$digest}")
-        ->and($pin->pullReference('127.0.0.1:5000'))->toBe("127.0.0.1:5000/beyerenrico/form-schema-app@{$digest}");
+    expect($pin->reference())->toBe("ghcr.io/beyerenrico/fieldset:2.0.0-rc.1@{$digest}")
+        ->and($pin->pullReference())->toBe("ghcr.io/beyerenrico/fieldset@{$digest}")
+        ->and($pin->pullReference('127.0.0.1:5000'))->toBe("127.0.0.1:5000/beyerenrico/fieldset@{$digest}");
 });
 
 it('fails when a third-party service has no pin', function (): void {
@@ -62,8 +62,8 @@ it('rejects malformed inputs', function (array $overrides, string $message): voi
     expect(fn () => ReleaseInputs::fromArray(releaseInputs($overrides)))->toThrow(ReleaseException::class, $message);
 })->with([
     'schema version' => [['schema_version' => 2], 'schema_version must be 1'],
-    'app image with a tag' => [['app_image' => 'ghcr.io/beyerenrico/form-schema-app:latest'], 'app_image must be registry/repository'],
-    'app image without registry' => [['app_image' => 'form-schema-app'], 'app_image must be registry/repository'],
+    'app image with a tag' => [['app_image' => 'ghcr.io/beyerenrico/fieldset:latest'], 'app_image must be registry/repository'],
+    'app image without registry' => [['app_image' => 'fieldset'], 'app_image must be registry/repository'],
     'notes url over http' => [['notes_url' => 'http://example.com/{version}'], 'notes_url must be an https URL'],
     'notes url without version' => [['notes_url' => 'https://example.com/notes'], 'notes_url must be an https URL'],
     'missing upgrade source' => [['upgrades_from' => ''], '"upgrades_from" must be a non-empty string'],
