@@ -18,13 +18,14 @@ commit ("Move to main"); trademark pre-check done, "Go ahead" with Fieldset; old
 ## Next actions
 0. Green on 0f482fc2: CI run 39732478518 and the first `Install journeys` run 39732488129 (2 h 03 m). Nightly
    runs (02:17 UTC): fix a red one before anything else.
-1. `v2.1.0-rc.1` (d393ffa4) stays a draft (verify-public "cannot overwrite digest"). `v2.1.0-rc.2` pushed on 6376edb8
-   (merge of `maint-release-rc2`: pull check, stale builder inspector, e2e classic-builder 503; main CI 39813158091
-   green; QUESTIONS 77e); Release run 39819962977; local `v2.1.0` moved to 6376edb8. Post-publish checklist after it.
-   Before pushing `v2.1.0`: local arm64 journeys (human: "Skip for the rc", run before the final).
+1. `v2.1.0-rc.1` (d393ffa4) stays a draft (verify-public "cannot overwrite digest"). `v2.1.0-rc.2` on 6376edb8 (merge
+   of `maint-release-rc2`, QUESTIONS 77e): Release run 39819962977 failed J09 only (timing-dependent assertion; fix
+   merged to main as 2328d5f3, LEARNINGS 179). Next: rc.3 on main after green CI (human: "Yes, rc.3 when green"), move
+   local `v2.1.0` there. Before pushing `v2.1.0`: local arm64 journeys (human: "Skip for the rc", run before the final).
 2. Trivy exceptions expire 2026-11-17 (older gotenberg, caddy) and 2026-11-20 (CVE-2026-111943: postgres, gotenberg,
    mailpit, caddy; cloudflared CVE-2026-63209): refresh pins (Go ≥ 1.26.10 / 1.27.3) or renew them in a reviewed commit.
-3. QUESTIONS 77b (PDF fixture producer) open. Docs site: branch `maint-docs-site`, plan 2026-10-22-001; done: U1–U9, U11–U13 (U10 go-live open).
+3. QUESTIONS 77b (PDF fixture producer) open. Docs site: branch `maint-docs-site`, plan 2026-10-22-001; U1–U9, U11–U13 done,
+   code review fixed (bc2ab21b); U10 go-live needs the human settings (QUESTIONS 78).
 
 ## Gate results (R2.1.md, rerun after the Go fix)
 - Static, licenses clean; PHP 7404/7404; Vitest 615/111/622/246; conformance 391/392.
