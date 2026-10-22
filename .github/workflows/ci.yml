@@ -250,6 +250,10 @@ jobs:
       DB_DATABASE: fieldset_test
       DB_USERNAME: fieldset
       DB_PASSWORD: secret
+      # No Redis here: migrate and the export touch the cache (as in phpunit.xml).
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
