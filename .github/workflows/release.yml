@@ -1,9 +1,10 @@
 # Release workflow (BUILD_PROMPT_V2 §6.5, E14, E18; plan KTD22, U7; ADR 0060, ADR 0064, ADR 0067).
 #
-# A protected `v*` tag builds the multi-arch app image with SBOM and provenance, pushes it by digest, signs it
-# keylessly (recursive), builds the release manifest, signs it and install.sh in a job that runs no PHP or
-# Composer (the only other job with an OIDC token is the image build), scans every manifest image with
-# Trivy, tags the scanned digest, publishes the assets as a draft GitHub Release, pulls every digest without
+# A protected `v*` tag first runs the install journeys on the tagged commit (install-journeys.yml, about two
+# hours; ADR 0091 amendment 2026-10-22), then builds the multi-arch app image with SBOM and provenance, pushes it
+# by digest, signs it keylessly (recursive), builds the release manifest, signs it and install.sh in a job that
+# runs no PHP or Composer (the only other job with an OIDC token is the image build), scans every manifest image
+# with Trivy, tags the scanned digest, publishes the assets as a draft GitHub Release, pulls every digest without
 # credentials and only then publishes the release. Pre-release tags (-alpha, -beta, -rc) publish only their own
 # image tag and never move X.Y, X or latest. RELEASING.md describes the human steps around it.
 #
@@ -69,9 +70,17 @@ jobs:
             echo "image_tags=$(jq -r '.image_tags | join(" ")' <<< "$json")"
           } >> "$GITHUB_OUTPUT"
 
+  # Nothing is built, signed or published before every install journey passed on the tagged commit. The called
+  # workflow gets a read-only token: no environment, no secrets, no OIDC token.
+  journeys:
+    name: Install journeys
+    uses: ./.github/workflows/install-journeys.yml
+    permissions:
+      contents: read
+
   image:
     name: Build, push and sign the app image
-    needs: prepare
+    needs: [prepare, journeys]
     runs-on: ubuntu-latest
     environment: release
     permissions:

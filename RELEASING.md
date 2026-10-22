@@ -93,8 +93,11 @@ cannot do them.
 
 1. Make sure `main` holds the release: milestone gate passed, `CHANGELOG.md` updated (the version's entry with its
    date), and `distribution/install.sh` and `distribution/shim.sh` present. The workflow refuses to publish without
-   `install.sh` and `shim.sh` (it does not check the changelog). Before tagging, also run locally:
-   - the install journeys, J11 (the agent guide's doc-test) among them:
+   `install.sh` and `shim.sh` (it does not check the changelog). The `Install journeys` workflow should be green on
+   the release commit: it runs every night on `main`, or start it by hand (Actions → Install journeys → Run workflow).
+   The Release workflow runs the journeys again on amd64 and builds nothing until they pass. Before tagging, also run
+   locally:
+   - the install journeys on arm64 (Apple Silicon), J11 (the agent guide's doc-test) among them:
      `vendor/bin/pest --testsuite=Install` (see [the harness](#building-and-testing-a-release-locally-harness));
    - the guide checks in the fast suite (`tests/Unit/Docs`): every `fieldset` command, flag, environment variable and
      link the guides name exists (ADR 0042);
@@ -113,6 +116,7 @@ cannot do them.
    | Job | What it does |
    |---|---|
    | prepare | validates the tag (`release:version`) and computes the image tags |
+   | journeys | the whole Install suite on amd64 against the tagged commit (`install-journeys.yml`, about 2 h 10 m, ADR 0091); the image job waits for it, so a failed journey stops the release before anything is built |
    | image | buildx multi-arch build with `--sbom=true --provenance=mode=max`, pushed by digest only; `cosign sign --recursive` (keyless); verifies the identity |
    | manifest | `php artisan release:manifest --stack-file=dist/compose.stack.yaml` (every image by digest; also renders the stack file from the same pins and lists it as an asset) with production dependencies only (`composer install --no-dev --no-scripts --no-plugins`); refuses a harness build of `install.sh`; then the R39 check `php artisan release:check-pg-dump` (the app image's `pg_dump` major must not be below the manifest's Postgres major, run on both platforms, arm64 under QEMU, after a read-only GHCR login; ADR 0091); **no OIDC token** |
    | sign | runs no PHP or Composer: checks that the manifest's `images.app` digest is the one the image job pushed, that every file except the manifest and `compose.stack.yaml` equals the tagged commit's, and that every asset the manifest lists matches its checksum there. The manifest must list `install.sh`, `shim.sh` and `compose.stack.yaml`; every `image:` line of the stack file must be a manifest pin in the form `${FIELDSET_REGISTRY:-<registry>}/<repository>@<digest>`, and the stack file must not mount the Docker socket. Then `cosign sign-blob --bundle` for the manifest and `install.sh` (keyless) and writes `SHA256SUMS` |
