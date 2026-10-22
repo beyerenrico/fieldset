@@ -197,6 +197,10 @@ it('left 1.0\'s volumes untouched and stopped, and its backup restores in a dril
     $members->run();
     $files = $drillJson['data']['drill']['files'] ?? [];
     $loadOnly = array_filter((array) ($files['sample'] ?? []), static fn (mixed $file): bool => ! is_string($file) || ! str_starts_with($file, 'private/load-test/'));
+    // The load generator's renditions never had a file. The instance's copy holds the same rows as the backup (adopt backs
+    // up and copies the stopped 1.0), and nothing has written load rows into 2.0 yet. Real renditions do have files, and
+    // 1.0's queue may or may not have rendered the demo ones before it stopped (release run 39819962977: 10 of 44).
+    $loadRenditions = (int) V1Install::sql(j09Container((string) $GLOBALS['fieldsetJ09Uuid'], 'postgres'), "SELECT count(*) FROM renditions WHERE disk = 'local' AND path LIKE 'load-test/%';");
 
     expect(array_map(trim(...), explode("\n", trim($volumes->getOutput()))))->toEqualCanonicalizing([$this->v1->project.'_pg-data', $this->v1->project.'_app-storage'])
         ->and(array_unique(explode("\n", trim($state->getOutput()))))->toBe(['exited'])
@@ -208,7 +212,8 @@ it('left 1.0\'s volumes untouched and stopped, and its backup restores in a dril
         ->and($files['archive'] ?? null)->toBeTrue()
         ->and($drillJson['data']['storage']['files'] ?? 0)->toBeGreaterThanOrEqual(1)
         ->and($loadOnly)->toBe([])
-        ->and($files['missing'] ?? null)->toBe($drillJson['data']['drill']['counts']['renditions'] ?? -1)
+        ->and($loadRenditions)->toBeGreaterThan(0)
+        ->and($files['missing'] ?? null)->toBe($loadRenditions)
         ->and($files['referenced'] ?? 0)->toBeGreaterThanOrEqual($files['missing'] ?? PHP_INT_MAX) // the demo logo too, present (gate D8)
         ->and($drillJson['data']['drill']['render']['status'] ?? null)->toBe('rendered')
         ->and($drillJson['data']['drill']['audit']['intact'] ?? null)->toBeTrue();

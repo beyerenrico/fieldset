@@ -238,3 +238,6 @@
    `Cache::lock()->block()` is not fair: with two e2e workers one can starve the other. Specs open classic builder pages
    through `tests/e2e/support/classic-builder.ts`, which reloads like a user; find such failures by a "503" heading in
    the trace's error-context.md.
+179. A journey that compares a backup's missing files with all rendition rows races 1.0's queue: real renditions get
+   their PDF when the worker was fast enough. Count only the load generator's `load-test/` renditions, which never have
+   a file (J09, release run 39819962977: 34 missing of 44).
