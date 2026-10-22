@@ -396,3 +396,17 @@
   lighting controllers; EU/DE/UK none) and "Go ahead" with Fieldset; old form-schema-app dev resources deleted (77d).
 - CI run 39747027552 (docs-only commit) failed m7-sso: the worker's `/app/shell` fetch saved a stale session over the
   SSO start token discovery wrote. `app/shell` now runs without session middleware (ADR 0035 amendment, LEARNINGS 175).
+
+## 2026-10-22 Anonymous pull check (maint-release-anon-pull)
+- rc.1 release run 39769444878: journeys, image, sign, scan and the draft passed; `verify-public` failed every arm64
+  pull with "cannot overwrite digest". Anonymous manifest fetch of the app image returned 200, so the package is public.
+- Reproduced on local Docker 29.2.1 (classic store) with busybox by digest; a dind 29.9.2 (containerd store) does not
+  fail. Fix: remove each image after its pull; test runs the step with a classic-store docker stub (LEARNINGS 176).
+- Human: "Yes, rc.2 when CI green" (QUESTIONS 77e). Docs site brainstorm and plan written (not committed yet).
+- Branch CI 39796441261 failed one e2e (builder-v2 drag and drop: inspector stayed on the previous element). Trace:
+  one Livewire request carried `sync` (#[Json], skips render) and `inspect`; the inspector never re-rendered. Real
+  bug; human: "Fix first, then rc.2". Branch `maint-release-rc2`: the builder's wire sends one call at a time
+  (LEARNINGS 177); the docs site build continues on `maint-docs-site` (U1 done).
+- Re-run (attempt 2) of 39796441261 failed m4-versions rollback: the edit page was the classic builder's own 503 after
+  its 20 s slot wait (another worker held the render slot). Specs now open classic builder pages through a helper that
+  honours Retry-After (LEARNINGS 178); no assertion changed.

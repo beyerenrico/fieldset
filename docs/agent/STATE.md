@@ -1,4 +1,4 @@
-# State: 2026-10-22 — Fieldset 2.1.0 cut locally, CI green on GitHub, install journeys nightly + release gate
+# State: 2026-10-22 — Fieldset 2.1.0: rc.1 draft blocked by the pull check, fix on its way to rc.2
 v2 run complete (2.0.0, local tag `v2.0.0`, never published; `docs/agent/FINAL_REPORT_V2.md`).
 Rename to Fieldset (human decision, QUESTIONS 1/25; plan `docs/plans/2026-10-21-001-refactor-rename-to-fieldset-plan.md`,
 ADR 0092): U1–U8 done. Trivy fix for CVE-2026-111943 (human decision QUESTIONS 77a, ADR 0093) on branch `sec-go-x509`,
@@ -18,10 +18,12 @@ commit ("Move to main"); trademark pre-check done, "Go ahead" with Fieldset; old
 ## Next actions
 0. Green on 0f482fc2: CI run 39732478518 and the first `Install journeys` run 39732488129 (2 h 03 m). Nightly
    runs (02:17 UTC): fix a red one before anything else.
-1. `v2.1.0-rc.1` pushed (human: "You push v2.1.0-rc.1"; only that tag) on d393ffa4 (main CI 39763290483 green);
-   Release run 39769444878. `verify-public` fails while the GHCR package is private: the human makes it public
-   (irreversible), then re-run the failed jobs; post-publish checklist. Local `v2.1.0` re-created on d393ffa4; before
-   pushing it: local arm64 journeys (human: "Skip for the rc", run before the final).
+1. `v2.1.0-rc.1` (d393ffa4) stays a draft: its run 39769444878 failed `verify-public` on "cannot overwrite digest"
+   (package already public). Branch `maint-release-rc2` fixes the check and the builder's stale inspector (LEARNINGS
+   176/177); after green branch + main CI push `v2.1.0-rc.2` by name on the merge (QUESTIONS 77e), move local `v2.1.0`.
+   Before pushing `v2.1.0`: local arm64 journeys (human: "Skip for the rc", run before the final).
+   Docs site: requirements `docs/brainstorms/2026-10-22-docs-site-requirements.md`, plan
+   `docs/plans/2026-10-22-001-feat-docs-site-plan.md` (uncommitted, review findings pending).
 2. Trivy exceptions expire 2026-11-17 (older gotenberg, caddy) and 2026-11-20 (CVE-2026-111943: postgres, gotenberg,
    mailpit, caddy; cloudflared CVE-2026-63209): refresh pins (Go ≥ 1.26.10 / 1.27.3) or renew them in a reviewed commit.
 3. QUESTIONS 77b (PDF fixture producer) still open.
@@ -32,7 +34,6 @@ commit ("Move to main"); trademark pre-check done, "Go ahead" with Fieldset; old
   J1 amd64 5/5; J1 + J7 at 2.1.0 13/13.
 - Trivy green: app arm64 + amd64 without exceptions; every third-party image both platforms with its own file.
 - E2E dev stack 79 passed / 8 skipped (run 2; run 1 had the known m6-offline click flake).
-- No test Docker resources left.
 
 ## Pins now (ADR 0093)
 - golang 1.27.3-bookworm, FrankenPHP 1-php8.4-bookworm (built with Go 1.27.3), Docker CLI 29.9.2 (Go 1.26.10).
@@ -49,7 +50,6 @@ commit ("Move to main"); trademark pre-check done, "Go ahead" with Fieldset; old
 
 ## Known problems
 - E2E runs rewrite evidence PNGs: revert only PNGs (LEARNINGS 159). m6-offline click flake under load (QUESTIONS 76c).
-- Dev stack is Compose project `fieldset` (LEARNINGS 163); old `form-schema-app` volumes/images kept for the human.
 - The harness build fetches fonts from the network (Vite fonts plugin): a CDN timeout fails the build (LEARNINGS 166).
 
 ## Resume commands

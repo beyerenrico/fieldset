@@ -1,4 +1,5 @@
 import { test, expect } from './support/test';
+import { expectClassicBuilderPage } from './support/classic-builder';
 import { adminState } from './support/auth';
 
 // M2 demo: journey 2 with the live preview (the unsaved definition rendered by the Field App renderer)
@@ -24,6 +25,7 @@ test('designer previews an unsaved change in the phone frame, then publishes', a
   await expect(page.locator('[data-builder-root]')).toHaveAttribute('data-builder-ready', '', { timeout: 15_000 });
   await page.locator('[data-builder-toolbar="classic"]').click();
   await expect(page).toHaveURL(/\/forms\/\d+\/edit/, { timeout: 30_000 }); // the builder page is heavy (QUESTIONS #8)
+  await expectClassicBuilderPage(page);
 
   // Change the title without saving; the preview must show the unsaved state.
   await page.getByRole('tab', { name: /formulareinstellungen|form settings/i }).click();

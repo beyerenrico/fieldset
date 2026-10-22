@@ -14,6 +14,7 @@ import {
   setUpAuthenticator,
 } from './support/platform';
 import { test, expect, devices, type BrowserContext, type Page } from './support/test';
+import { expectClassicBuilderPage } from './support/classic-builder';
 
 // M8-T04 accessibility audit (BUILD_PROMPT §11: WCAG 2.2 AA for the Field App): axe-core (wcag2a, wcag2aa,
 // wcag21a, wcag21aa, wcag22aa) on every Field App screen, the key admin pages, Builder v2 and /platform.
@@ -300,6 +301,7 @@ test.describe('builders (designer)', () => {
     await newServiceReport(page, 'A11y Klassisch');
     await page.locator('[data-builder-toolbar="classic"]').click();
     await expect(page).toHaveURL(/\/forms\/\d+\/edit/, { timeout: 30_000 });
+    await expectClassicBuilderPage(page);
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     await expectAccessible(page, 'classic builder');
   });
