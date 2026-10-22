@@ -380,3 +380,13 @@
 - Verified on side branches, J9 7/7 locally. Merged into main 963c07c0: run 39685402735 green in every job (journeys
   148 passed, 7 skipped, 3 warnings, 2 h 10 m).
 
+
+## 2026-10-22 Classic-builder slot; install journeys out of push CI (ci-classic-builder-lock, ci-nightly-journeys)
+- Run 39700054160 failed two Dogfood specs that open the classic builder together (no HTTP answer); inferred OOM kill at
+  small's 384 MiB. ClassicBuilderSlot serializes renders, 503 after 20 s (ADR 0083 amendment). The re-run of the
+  unchanged commit passed (intermittent). Branch run 39715804524 green, journeys 148 passed / 7 skipped / 3 warnings.
+- The human asked whether the journeys must be in CI; decision "Nightly + release": install-journeys.yml (nightly,
+  dispatch, workflow_call), release.yml's image job needs it (ADR 0091 amendment). CI on push about 41 minutes.
+- Flakes on the branch, both fixed: the sync backoff test moved the fake clock before the engine scheduled its wake
+  (reproduced with a 200 ms delay); dev compose created app, queue and scheduler at once on a new volume (copy race).
+- Branch run 39728456302 green; merged into main (c82c31f0, 89abe7e2), pushed; journeys dispatched on main.

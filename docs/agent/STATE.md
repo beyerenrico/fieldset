@@ -1,4 +1,4 @@
-# State: 2026-10-22 — Fieldset 2.1.0 cut locally, repo renamed and main pushed, CI green on GitHub
+# State: 2026-10-22 — Fieldset 2.1.0 cut locally, CI green on GitHub, install journeys nightly + release gate
 v2 run complete (2.0.0, local tag `v2.0.0`, never published; `docs/agent/FINAL_REPORT_V2.md`).
 Rename to Fieldset (human decision, QUESTIONS 1/25; plan `docs/plans/2026-10-21-001-refactor-rename-to-fieldset-plan.md`,
 ADR 0092): U1–U8 done. Trivy fix for CVE-2026-111943 (human decision QUESTIONS 77a, ADR 0093) on branch `sec-go-x509`,
@@ -6,13 +6,17 @@ merged into `rename-fieldset`, which is merged `--no-ff` into `main`; local tags
 that merge commit. No tag pushed. Gate report `docs/agent/milestones/R2.1.md`, evidence `milestones/evidence/R2.1/`.
 
 GitHub repo renamed to `beyerenrico/fieldset` by the human; they pushed `main` (ff5646ba), then allowed the agent to
-push to get CI green ("you are allowed to push … make sure that the CI is green"; never tags, never force). Fixes, all on
-main: `ci-services` (d362fc1f: php-tests services + frontend build, SVG MFA QR code) and `ci-e2e-scheduler` (963c07c0:
-no `healthcheck: disable: true` on the scheduler for older Compose, harness release server on the default bridge,
-reveal-test timer leak, J9 starts the 1.0 tag's stack without `up --wait` on its disabled check, full Dogfood
-failures in the log). `v2.1.0` stays on ff5646ba; two fixes change app code in the image (QR backend, stack file).
+push to get CI green ("you are allowed to push … make sure that the CI is green"; never tags, never force). Fixes on
+main: `ci-services` (d362fc1f), `ci-e2e-scheduler` (963c07c0), `ci-classic-builder-lock` (c82c31f0: ClassicBuilderSlot,
+one classic-builder render at a time, ADR 0083 amendment; Dogfood records container deaths and a timeline) and
+`ci-nightly-journeys` (89abe7e2: human decision "Nightly + release", ADR 0091 amendment; sync backoff test and dev
+compose start-order flakes). Both branches green on GitHub before the merge (runs 39715804524 with journeys 148 passed /
+7 skipped / 3 warnings, and 39728456302). `v2.1.0` stays on ff5646ba; later fixes change app code in the image (QR
+backend, stack file, ClassicBuilderSlot).
 
 ## Next actions
+0. Confirm the `main` CI run after 89abe7e2 and the first `Install journeys` run on main (dispatched by hand) are
+   green; later nightly runs: fix a red one before anything else.
 1. Human: decide whether `v2.1.0` moves from ff5646ba to a green main commit (its stack file still disables the
    scheduler's healthcheck, which breaks `up --wait` with older Compose). Then trademark check, GHCR first publish, push
    only `v2.1.0` (or a `v2.1.0-…` pre-release) by name, delete old dev resources (QUESTIONS 77c/d, RELEASING.md).
@@ -34,6 +38,8 @@ failures in the log). `v2.1.0` stays on ff5646ba; two fixes change app code in t
 - cloudflared 2026.10.2; postgres 16.15-alpine, gotenberg 8.38.1, mailpit v1.31.6, caddy 2.11.7, valkey 8.1.10 unchanged.
 
 ## Decisions taken
+- Install journeys: `.github/workflows/install-journeys.yml` (nightly 02:17 UTC, workflow_dispatch, workflow_call),
+  not in `ci.yml`; `release.yml` job `journeys` gates `image` (a release takes about two hours longer).
 - No version file for 2.1.0: `release:version` takes the version as an argument, `release.json` has none.
 - Journeys write release evidence to `R<major>.<minor>` (`FIELDSET_EVIDENCE_MILESTONE=R2.1`); M10-pinned journeys
   still write into M10: copy to `R2.1/M10-pinned/` and restore M10 (R6). Emulated and `FIELDSET_RELEASE_VERSION` runs

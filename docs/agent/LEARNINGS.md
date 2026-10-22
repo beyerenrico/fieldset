@@ -218,3 +218,10 @@
    a Testable that got an error response cannot be called again.
 172. A page that ends in `chrome-error://chromewebdata/` got no HTTP answer at all (reset, refused): look for a server
    process that died (OOM kill at a container memory limit), not for an error page.
+173. A test that waits for a value the code writes mid-run, then moves fake time, races the code's work after that write
+   (the sync engine schedules its wake only when the run has ended). Await the run itself before moving the clock.
+   Reproduce such a race with a real-time delay in the suspect step (a setImmediate loop until `performance.now()` has
+   moved 200 ms), not a few yields: `vi.waitFor` polls every 50 ms, so short delays never show it.
+174. Containers created at the same moment on a new named volume race in Docker's copy of the image's files into it
+   ("failed to mkdir …/_data/<dir>: file exists"). Let one container create the volume first: `depends_on` (Compose
+   creates dependents after their dependency) or a one-off run before `up`.
