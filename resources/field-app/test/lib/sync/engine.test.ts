@@ -141,6 +141,10 @@ describe('backoff', () => {
         await vi.waitFor(async () => {
             expect(await db.outbox.get(SAVE_ID)).toMatchObject({ attempts: 1 });
         });
+        // The engine schedules its wake after the run has ended, which is after this row was written. Moving
+        // the clock before that (a slow runner) leaves no wake at all, so let the run end first: a run now
+        // queues behind it and sends nothing (not due yet).
+        expect(await runSync()).toMatchObject({ sent: 0 });
         const op = await db.outbox.get(SAVE_ID);
         const due = op?.nextAttemptAt ?? 0;
         expect(due - Date.now()).toBeGreaterThan(29_000);
