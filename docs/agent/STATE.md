@@ -11,15 +11,15 @@ main: `ci-services` (d362fc1f), `ci-e2e-scheduler` (963c07c0), `ci-classic-build
 one classic-builder render at a time, ADR 0083 amendment; Dogfood records container deaths and a timeline) and
 `ci-nightly-journeys` (89abe7e2: human decision "Nightly + release", ADR 0091 amendment; sync backoff test and dev
 compose start-order flakes). Both branches green on GitHub before the merge (runs 39715804524 with journeys 148 passed /
-7 skipped / 3 warnings, and 39728456302). `v2.1.0` stays on ff5646ba; later fixes change app code in the image (QR
-backend, stack file, ClassicBuilderSlot).
+7 skipped / 3 warnings, and 39728456302). `fix-shell-session-race`: `/app/shell` without session middleware (ADR 0035
+amendment; CI run 39747027552 lost the SSO start token). Human decisions 2026-10-22: move `v2.1.0` to a green main
+commit ("Move to main"); trademark pre-check done, "Go ahead" with Fieldset; old dev resources deleted (77d).
 
 ## Next actions
 0. Green on 0f482fc2: CI run 39732478518 and the first `Install journeys` run 39732488129 (2 h 03 m). Nightly
    runs (02:17 UTC): fix a red one before anything else.
-1. Human: decide whether `v2.1.0` moves from ff5646ba to a green main commit (its stack file still disables the
-   scheduler's healthcheck, which breaks `up --wait` with older Compose). Then trademark check, GHCR first publish, push
-   only `v2.1.0` (or a `v2.1.0-…` pre-release) by name, delete old dev resources (QUESTIONS 77c/d, RELEASING.md).
+1. Re-create the local annotated `v2.1.0` on the first green main commit after the fix (human: "Move to main"). Then
+   human: GHCR first publish, push only `v2.1.0` by name (RELEASING.md; the release runs the journeys first, ~2 h).
 2. Trivy exceptions expire 2026-11-17 (older gotenberg, caddy entries) and 2026-11-20 (CVE-2026-111943 entries for
    postgres, gotenberg, mailpit, caddy; cloudflared CVE-2026-63209). Before any later release: refresh the pins to
    images built with Go ≥ 1.26.10 / 1.27.3, or renew the entries in a reviewed commit.
