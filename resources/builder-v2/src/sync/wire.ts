@@ -82,8 +82,16 @@ function method(proxy: LivewireProxy, name: string): (...args: unknown[]) => Pro
 }
 
 export function createWire(proxy: LivewireProxy): BuilderWire {
-    const call = (name: string, ...args: unknown[]): Promise<unknown> =>
-        method(proxy, name)(...args);
+    // One Livewire call at a time. Livewire bundles calls made together into one request, and a
+    // #[Json] method (sync, save) skips the render of the whole request: an inspect() bundled with
+    // an autosave never re-rendered the inspector (CI run 39796441261). A failed call does not
+    // hold up the next one.
+    let queue: Promise<unknown> = Promise.resolve();
+    const call = (name: string, ...args: unknown[]): Promise<unknown> => {
+        const result = queue.then(() => method(proxy, name)(...args));
+        queue = result.catch(() => undefined);
+        return result;
+    };
     return {
         sync: async (definition, baseChecksum, force = false) =>
             parseSyncResult(await call('sync', definition, baseChecksum, force)),

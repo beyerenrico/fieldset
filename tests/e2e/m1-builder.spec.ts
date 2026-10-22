@@ -1,4 +1,5 @@
 import { test, expect } from './support/test';
+import { expectClassicBuilderPage } from './support/classic-builder';
 import { adminState } from './support/auth';
 
 // M1 demo (journey 2 without preview, which arrives in M2): the designer creates a form from the
@@ -26,6 +27,7 @@ test('designer builds a form from the service report template and publishes v1',
   await expect(page.locator('[data-builder-root]')).toHaveAttribute('data-builder-ready', '', { timeout: 15_000 });
   await page.locator('[data-builder-toolbar="classic"]').click();
   await expect(page).toHaveURL(/\/forms\/\d+\/edit/, { timeout: 30_000 }); // the builder page is heavy (QUESTIONS #8)
+  await expectClassicBuilderPage(page);
   await page.screenshot({ path: evidence('02-builder'), fullPage: true });
 
   await page

@@ -1,4 +1,5 @@
 import { test, expect, devices, type Page } from './support/test';
+import { gotoClassicBuilder } from './support/classic-builder';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -56,7 +57,7 @@ test.describe.serial('journey 5: versions and re-rendering', () => {
 
     test('publishes v2 with a renamed label and a new field', async ({ page }) => {
       test.setTimeout(120_000);
-      await page.goto(FORM_URL);
+      await gotoClassicBuilder(page, FORM_URL);
       // Add the new field first, then rename: block inputs are scoped to their builder item, which
       // may be collapsed (only expanded items render their inputs).
       await page.getByRole('button', { name: 'Elemente +' }).first().click();
@@ -132,7 +133,8 @@ test.describe.serial('journey 5: versions and re-rendering', () => {
     test.use({ storageState: adminState('designer') });
 
     test('rolling back to v1 creates v3', async ({ page }) => {
-      await page.goto(FORM_URL);
+      test.setTimeout(150_000); // the classic builder may answer 503 behind another worker's render
+      await gotoClassicBuilder(page, FORM_URL);
       const v1 = page.getByRole('row').filter({ has: page.getByRole('cell', { name: 'v1', exact: true }) });
       await v1.getByRole('button', { name: /auf diese version zurücksetzen|roll back/i }).click();
       const changelog = page.locator('textarea').filter({ visible: true });

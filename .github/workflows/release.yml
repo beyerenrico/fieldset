@@ -389,10 +389,14 @@ jobs:
           name: release-assets
           path: dist
       - name: Pull each manifest image for each platform without credentials
+        # The runner's classic image store keeps one image per digest reference: pulling the same digest for the next
+        # platform fails with "cannot overwrite digest" unless the previous image is removed first (rc.1 release run).
         run: |
           status=0
           while read -r reference platform; do
-            if ! docker pull --quiet --platform "$platform" "$reference"; then
+            if docker pull --quiet --platform "$platform" "$reference"; then
+              docker image rm --force "$reference" > /dev/null
+            else
               echo "::error::anonymous pull failed: ${reference} (${platform})"
               status=1
             fi
