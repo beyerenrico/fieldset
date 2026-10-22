@@ -234,3 +234,7 @@
 177. Livewire bundles calls made in the same tick into one request, and a `#[Json]` method skips the render of the whole
    request (SupportJson calls `skipRender()` on call): a render-needing call bundled with it never updates the DOM.
    Serialize the client's calls (one promise queue) or keep json methods out of shared requests.
+178. The classic builder answers 503 (Retry-After: 5) after waiting 20 s for the render slot (ClassicBuilderSlot), and
+   `Cache::lock()->block()` is not fair: with two e2e workers one can starve the other. Specs open classic builder pages
+   through `tests/e2e/support/classic-builder.ts`, which reloads like a user; find such failures by a "503" heading in
+   the trace's error-context.md.

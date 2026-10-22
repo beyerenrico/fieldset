@@ -407,3 +407,6 @@
   one Livewire request carried `sync` (#[Json], skips render) and `inspect`; the inspector never re-rendered. Real
   bug; human: "Fix first, then rc.2". Branch `maint-release-rc2`: the builder's wire sends one call at a time
   (LEARNINGS 177); the docs site build continues on `maint-docs-site` (U1 done).
+- Re-run (attempt 2) of 39796441261 failed m4-versions rollback: the edit page was the classic builder's own 503 after
+  its 20 s slot wait (another worker held the render slot). Specs now open classic builder pages through a helper that
+  honours Retry-After (LEARNINGS 178); no assertion changed.

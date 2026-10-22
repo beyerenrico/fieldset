@@ -9,6 +9,7 @@ import {
 } from './support/platform';
 import { ON_DEV_STACK } from './support/target';
 import { test, expect, type Locator, type Page } from './support/test';
+import { expectClassicBuilderPage } from './support/classic-builder';
 
 // M8-T03 verification (ADR 0040): every journey imports the guarded `test` (support/test.ts), which fails on
 // any CSP violation or uncaught page error. This spec proves the guard itself and covers the surfaces no
@@ -91,6 +92,7 @@ test.describe('designer', () => {
     const row = await newFormRow(page, `CSP Klassisch ${Date.now()}`);
     await row.getByRole('link', { name: /^\s*(classic|klassischer) (builder|editor)\s*$/i }).click();
     await expect(page).toHaveURL(/\/forms\/\d+\/edit/, { timeout: 30_000 });
+    await expectClassicBuilderPage(page);
     await expect(page.getByRole('tab', { name: /formulareinstellungen|form settings/i })).toBeVisible({ timeout: 30_000 });
   });
 });

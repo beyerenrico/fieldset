@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { test, expect, type Page } from './support/test';
+import { expectClassicBuilderPage } from './support/classic-builder';
 import { adminState } from './support/auth';
 import {
   createBlankCanvas,
@@ -192,6 +193,7 @@ test('a change survives the v1 ↔ v2 round trip', async ({ page }) => {
   await editSelected(page, { label: 'Rundreise', key: 'round_trip' });
   await page.locator('[data-builder-toolbar="classic"]').click();
   await expect(page).toHaveURL(/\/forms\/\d+\/edit/, { timeout: 30_000 });
+  await expectClassicBuilderPage(page);
   await expect(page.getByText('Rundreise').first()).toBeVisible();
   await page.goto(page.url().replace(/\/edit(\?.*)?$/, '/canvas'));
   await expect(root(page)).toHaveAttribute('data-builder-ready', '');
