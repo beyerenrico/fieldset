@@ -6,7 +6,8 @@ also offline; the server numbers each submission, renders a branded PDF and runs
 review followed by an email to the customer.
 
 These guides describe the current release. They are plain Markdown and work offline in a clone of the
-repository (ADR 0042).
+repository (ADR 0042, ADR 0094). Each release's guides are also published, with search and the interactive API
+reference, at [beyerenrico.github.io/fieldset](https://beyerenrico.github.io/fieldset/).
 
 ## For operators
 

@@ -5,6 +5,22 @@ All notable changes to this project are documented here. The format follows
 [Semantic Versioning](https://semver.org/) (0.x: the API and data model may still change).
 The Fieldset Spec has its own changelog in `spec/form-definition/1.0/CHANGELOG.md`.
 
+## Unreleased
+
+### Added
+- **Docs site** — `https://beyerenrico.github.io/fieldset/` with one copy of the guides per minor version (from 2.1),
+  search, a version switcher, the Field App API contract, an interactive OpenAPI reference that sends no requests, the
+  changelog, a home page and Fieldset Spec 1.0 with its meta-schema at the `$id` URL (ADR 0094). The `Docs` workflow
+  publishes a release's copy after its `Release` run succeeded, through the append-only `docs-site` branch; CI builds
+  the site on every run (`RELEASING.md`, "Docs site").
+- **Spec README** — states the meta-schema's SHA-256 and advises validators to bundle the schema rather than fetch
+  its `$id` (no semantic change).
+
+### Changed
+- **Documentation** — ADR 0094 supersedes ADR 0042's generator and hosting decision and keeps its writing rules.
+  Placeholders such as `<organization>`, which GitHub showed as nothing, are now code spans in the guides, and a guide
+  check rejects raw HTML tags outside code.
+
 ## 2.1.0 — 2026-10-22 (release candidate `v2.1.0-rc.2`)
 
 The product is renamed from form-schema-app to **Fieldset** before its first public release. Apart from the fixes

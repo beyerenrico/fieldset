@@ -4,7 +4,8 @@ Autonomous build, now at v2. Specs (never edit): `docs/agent/BUILD_PROMPT_V2.md`
 distribution; its CLI `fsa` is now `fieldset`) and `docs/agent/BUILD_PROMPT.md` (product spec for everything 2.0 does not
 change). Implementation plan: `docs/plans/2026-10-17-001-feat-docker-distribution-v2-plan.md`
 (units U1–U23, KTDs, test scenarios); the rename to Fieldset (2.1.0):
-`docs/plans/2026-10-21-001-refactor-rename-to-fieldset-plan.md`. No human is available: never ask, never wait. Decide per
+`docs/plans/2026-10-21-001-refactor-rename-to-fieldset-plan.md`; the docs site (ADR 0094):
+`docs/plans/2026-10-22-001-feat-docs-site-plan.md`. No human is available: never ask, never wait. Decide per
 spec §0/§15, record ADRs in `docs/adr/`, log human-review items in `docs/agent/QUESTIONS.md`.
 
 ## Restart protocol (every new session / after compaction) — BUILD_PROMPT_V2 §15.3
@@ -41,6 +42,10 @@ npm run -w resources/field-app build                     # Field App build
 npm run e2e                                              # Playwright (browsers in storage/playwright)
 vendor/bin/pest --testsuite=Install                      # install journeys (real Docker, names with fieldset-test-)
 vendor/bin/pest --testsuite=Install tests/Install/Journeys/DogfoodE2ETest.php   # E2E suite against a fieldset instance (ADR 0091)
+(cd docs/site && npm ci && npm test)                     # docs site: own package and lockfile (ADR 0094)
+API_VERSION=dev php artisan scramble:export --path=storage/agent-logs/openapi.json   # OpenAPI export for the site (migrated DB)
+node docs/site/scripts/build.mjs dev --out <empty dir> --export storage/agent-logs/openapi.json   # local site build, all checks
+node docs/site/scripts/build.mjs dev --out <empty dir> --stub-export   # same without a database (stub API reference)
 docker run --rm -v "$PWD:/mnt:ro" -w /mnt koalaman/shellcheck:v0.11.0 docker/app/entrypoint.sh docker/app/fieldset distribution/*.sh
 docker run --rm -i hadolint/hadolint:v2.15.1 hadolint - < docker/app/Dockerfile
 docker run --rm -v "$PWD:/repo:ro" -w /repo rhysd/actionlint:1.7.12 -color

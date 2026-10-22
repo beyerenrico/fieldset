@@ -33,8 +33,11 @@ export const CSP_META = `<meta http-equiv="Content-Security-Policy" content="${R
 const COPY_NAME = /^(dev|\d+\.\d+)$/;
 const SCREENSHOTS = 'screenshots/';
 
-// Strings the copy's pages must show as text (U2's text-only rule; U8 may wrap them in code spans, which keeps the
-// text). page: the page's path in its build without .html; build: 'copy' (default) or 'root'.
+// Strings the copy's pages must show as text (U2's text-only rule). The text is compared with the page's visible text,
+// which joins the text between tags, so a placeholder passes in both source forms: raw in prose, as tags at
+// v2.1.0-rc.1 render it (`Weiter mit &lt;organization&gt;`), and in a code span, as the guides write it from U8 on
+// (`Weiter mit <code>&lt;organization&gt;</code>`). A placeholder rendered as an element is no text and fails.
+// page: the page's path in its build without .html; build: 'copy' (default) or 'root'.
 const LITERAL = (page, text) => Object.freeze({ build: 'copy', page, text });
 export const DEFAULT_LITERALS = Object.freeze([
   LITERAL('field-app-guide', 'Weiter mit <organization>'),

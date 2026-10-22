@@ -377,3 +377,10 @@ Format: question · chosen option · impact · how to reverse.
    stays for the human to delete.
    Human answer "Fix first, then rc.2 (Recommended)" for the canvas builder's stale inspector found by that CI run: rc.2
    is tagged on the merge of `maint-release-rc2` (pull-check fix plus the builder fix).
+78. Docs site go-live settings (2026-10-22, plan `docs/plans/2026-10-22-001-feat-docs-site-plan.md` U10, ADR 0094,
+   `RELEASING.md` "Docs site"): repository settings the `Docs` workflow relies on, none of them made by the agent:
+   (a) Pages source "GitHub Actions"; (b) environment `github-pages` deploying from `main` only; (c) environment
+   `docs-store` (the job that writes `docs-site`) limited to `main`; (d) a branch ruleset for `docs-site` with
+   "Restrict deletions" and "Block force pushes" (the branch is the only copy of old builds). Optional: (e) turn off
+   the repository Wiki; (f) set the repository's About website to `https://beyerenrico.github.io/fieldset/`
+   · pending human review: approve each before go-live, or skip (e) and (f).

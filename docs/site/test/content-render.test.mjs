@@ -72,12 +72,24 @@ async function assertRendersAsText(pages) {
 }
 
 describe('the working tree', () => {
+  let pages;
   test('every staged page renders with resolved links and anchors and compiles as Vue', async () => {
-    const pages = await renderAll(stageWorkingTree());
+    pages = await renderAll(stageWorkingTree());
     const expected = ['index', 'changelog', 'field-app-api-v1', 'archive/1.0-install'];
     for (const page of expected) assert.ok(pages.has(page), page);
     assert.deepEqual(unresolvedLinks(pages), []);
     await assertRendersAsText(pages);
+  });
+
+  // U8 wrapped the tag's raw placeholders in code spans (the guide rule in tests/Unit/Docs/GuideReferencesTest.php).
+  test('its placeholders show literally, inside code spans', async () => {
+    const visible = async (page) => serverRender(pages.get(page).html);
+    const code = (text) => `<code>${text}</code>`;
+    assert.match(await visible('field-app-guide'), new RegExp(`Weiter mit ${code('&lt;organization&gt;')}`));
+    assert.match(await visible('field-app-guide'), new RegExp(`Continue with ${code('&lt;organization&gt;')}`));
+    assert.match(await visible('troubleshooting'), new RegExp(`Aufmerksamkeit: ${code('&lt;provider&gt;')}`));
+    assert.match(await visible('archive/1.0-troubleshooting'), new RegExp(`Aufmerksamkeit: ${code('&lt;provider&gt;')}`));
+    assert.match(await visible('field-app-api-v1'), new RegExp(`Continue with ${code('&lt;organization&gt;')}`));
   });
 });
 

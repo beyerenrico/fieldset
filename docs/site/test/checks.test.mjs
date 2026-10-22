@@ -144,6 +144,34 @@ describe('fragments', () => {
 });
 
 describe('literals', () => {
+  // The placeholders' pages as each source form renders them: raw in prose (v2.1.0-rc.1) and in code spans (U8).
+  const LITERAL_PAGES = {
+    plain: {
+      'dev/field-app-guide.html': '<p>Choose "Weiter mit &lt;organization&gt;" ("Continue with &lt;organization&gt;")</p>',
+      'dev/troubleshooting.html': '<p><strong>"Single Sign-on erfordert Ihre Aufmerksamkeit: &lt;provider&gt;"</strong></p>',
+      'dev/archive/1.0-troubleshooting.html': '<p>"Single Sign-on erfordert Ihre Aufmerksamkeit: &lt;provider&gt;"</p>',
+      'dev/field-app-api-v1.html': '<li>the client offers "Continue with &lt;organization&gt;" or</li>',
+    },
+    'code span': {
+      'dev/field-app-guide.html': '<p>Choose "Weiter mit <code>&lt;organization&gt;</code>" ("Continue with '
+        + '<code>&lt;organization&gt;</code>")</p>',
+      'dev/troubleshooting.html': '<p><strong>"Single Sign-on erfordert Ihre Aufmerksamkeit: '
+        + '<code>&lt;provider&gt;</code>"</strong></p>',
+      'dev/archive/1.0-troubleshooting.html': '<p>"Single Sign-on erfordert Ihre Aufmerksamkeit: '
+        + '<code>&lt;provider&gt;</code>"</p>',
+      'dev/field-app-api-v1.html': '<li>the client offers "Continue with <code>&lt;organization&gt;</code>" or</li>',
+    },
+  };
+  for (const [form, pages] of Object.entries(LITERAL_PAGES)) {
+    test(`every placeholder passes ${form === 'plain' ? 'as plain text' : 'inside a code span'}`, () => {
+      const { edit, run } = fixture();
+      for (const [file, body] of Object.entries(pages)) edit(file, () => page(body));
+      const result = run();
+      assert.deepEqual(only(result, 'literals'), []);
+      assert.equal(result.counts.literals, DEFAULT_LITERALS.length);
+    });
+  }
+
   test('a placeholder rendered as an element fails', () => {
     const { edit, run } = fixture();
     edit('dev/field-app-guide.html', (html) => html.replace('<code>&lt;organization&gt;</code>',

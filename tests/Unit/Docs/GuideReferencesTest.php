@@ -136,6 +136,59 @@ it('names no command of the former CLI fsa (renamed to fieldset in 2.1.0)', func
     expect($problems)->toBe([]);
 });
 
+/**
+ * Raw HTML tags and `<placeholder>` words outside code, as "file:line: …" problems (docs site plan U8).
+ *
+ * @param  array<string, string>  $files  path => contents
+ * @return list<string>
+ */
+function guideRawTagProblems(array $files): array
+{
+    $problems = [];
+    foreach ($files as $path => $markdown) {
+        foreach (GuideReferences::rawTags($markdown) as $tag) {
+            $problems[] = "{$path}:{$tag['line']}: {$tag['text']} is raw HTML outside code; GitHub drops it, put it in a code span";
+        }
+    }
+
+    return $problems;
+}
+
+it('shows no raw HTML tag or <placeholder> outside code spans and fenced blocks', function (): void {
+    expect(guideRawTagProblems(guideFiles()))->toBe([]);
+});
+
+it('names the file and line of a raw <placeholder> outside code', function (): void {
+    $guide = "# Sign in\n\nChoose \"Weiter mit <organization>\" (\"Continue with\n<organization>\").\n";
+
+    expect(guideRawTagProblems(['docs/guide/field-app-guide.md' => $guide]))->toBe([
+        'docs/guide/field-app-guide.md:3: <organization> is raw HTML outside code; GitHub drops it, put it in a code span',
+        'docs/guide/field-app-guide.md:4: <organization> is raw HTML outside code; GitHub drops it, put it in a code span',
+    ]);
+});
+
+it('finds raw tags, but not in code spans, fenced blocks or autolinks', function (): void {
+    $guide = implode("\n", [
+        'Choose "Weiter mit `<organization>`" or ``a `<b>` c``.',
+        '```sh',
+        'curl https://x/install.sh | sh -s -- --dir <dir>',
+        '```',
+        '   ~~~',
+        '   <div>',
+        '   ~~~',
+        'See <https://beyerenrico.github.io/fieldset/>, <mailto:a@example.com> and <a@example.com>; 1 < 2, a <= b.',
+        'A `span over',
+        'two <lines>` and <br>, </p>, <img src="x" />, <release tag> here.',
+    ]);
+
+    expect(GuideReferences::rawTags($guide))->toBe([
+        ['line' => 10, 'text' => '<br>'],
+        ['line' => 10, 'text' => '</p>'],
+        ['line' => 10, 'text' => '<img src="x" />'],
+        ['line' => 10, 'text' => '<release tag>'],
+    ]);
+});
+
 it('links only to files that exist', function (): void {
     $problems = [];
     foreach (guideFiles() as $path => $markdown) {
