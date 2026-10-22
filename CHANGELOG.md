@@ -38,6 +38,8 @@ removed, not aliased (ADR 0092).
 - **MFA set-up** — the QR code is always SVG, whether or not the PHP imagick extension is loaded.
 - **Field App SSO** — the service worker's background fetch of the app shell no longer starts a session, which could
   overwrite the SSO start token and fail the first central login with "The central login did not work" (ADR 0035).
+- **Canvas builder** — after a drop, the inspector could keep showing the previous element: an autosave sent in the
+  same Livewire request skipped the inspector's re-render. The builder now sends one call at a time.
 - **Release workflow** — the anonymous pull check removes each image before pulling the next platform of the same
   digest; the runner's classic image store refused it ("cannot overwrite digest"), so `v2.1.0-rc.1` stayed a draft.
 

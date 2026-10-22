@@ -19,8 +19,8 @@ commit ("Move to main"); trademark pre-check done, "Go ahead" with Fieldset; old
 0. Green on 0f482fc2: CI run 39732478518 and the first `Install journeys` run 39732488129 (2 h 03 m). Nightly
    runs (02:17 UTC): fix a red one before anything else.
 1. `v2.1.0-rc.1` (d393ffa4) stays a draft: its run 39769444878 failed `verify-public` on "cannot overwrite digest"
-   (package already public). Branch `maint-release-anon-pull` fixes the check; after green branch + main CI push
-   `v2.1.0-rc.2` by name on the merge (human, QUESTIONS 77e) and move local `v2.1.0` there; post-publish checklist.
+   (package already public). Branch `maint-release-rc2` fixes the check and the builder's stale inspector (LEARNINGS
+   176/177); after green branch + main CI push `v2.1.0-rc.2` by name on the merge (QUESTIONS 77e), move local `v2.1.0`.
    Before pushing `v2.1.0`: local arm64 journeys (human: "Skip for the rc", run before the final).
    Docs site: requirements `docs/brainstorms/2026-10-22-docs-site-requirements.md`, plan
    `docs/plans/2026-10-22-001-feat-docs-site-plan.md` (uncommitted, review findings pending).

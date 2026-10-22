@@ -34,6 +34,48 @@ describe('wire adapter', () => {
         });
     });
 
+    it('sends one Livewire call at a time, so a sync never shares a request with inspect', async () => {
+        // Livewire bundles calls made together into one request, and a #[Json] method (sync, save)
+        // skips the render of the whole request: an inspect() sent with it never re-rendered the
+        // inspector (CI run 39796441261).
+        const order: string[] = [];
+        let answerSync: (value: unknown) => void = () => undefined;
+        const proxy = {
+            sync: vi.fn(() => {
+                order.push('sync');
+                return new Promise((resolve) => {
+                    answerSync = resolve;
+                });
+            }),
+            inspect: vi.fn(() => {
+                order.push('inspect');
+                return Promise.resolve();
+            }),
+        };
+        const wire = createWire(proxy);
+        const synced = wire.sync('{}', 'c');
+        const inspected = wire.inspect('element', 'n1', '{}', '{}');
+        await new Promise((resolve) => setTimeout(resolve));
+        expect(order).toEqual(['sync']);
+
+        answerSync({ status: 'saved', checksum: 'a', lint: {}, savedAt: null });
+        await Promise.all([synced, inspected]);
+        expect(order).toEqual(['sync', 'inspect']);
+    });
+
+    it('sends the next call after a failed one', async () => {
+        const proxy = {
+            sync: vi.fn(() => Promise.reject(new Error('offline'))),
+            inspect: vi.fn(() => Promise.resolve()),
+        };
+        const wire = createWire(proxy);
+        const synced = wire.sync('{}', 'c');
+        const inspected = wire.inspect('settings', null, '{}', '{}');
+        await expect(synced).rejects.toThrow('offline');
+        await inspected;
+        expect(proxy.inspect).toHaveBeenCalledOnce();
+    });
+
     it('calls the Livewire methods with the contract arguments', async () => {
         const proxy = {
             sync: vi.fn(() =>

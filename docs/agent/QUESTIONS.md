@@ -375,3 +375,5 @@ Format: question · chosen option · impact · how to reverse.
    public; arm64 pulls hit "cannot overwrite digest"). Human answer "Yes, rc.2 when CI green (Recommended)": fix the
    check on main, push `v2.1.0-rc.2` by name on the fixed commit, move the local `v2.1.0` there; the rc.1 draft release
    stays for the human to delete.
+   Human answer "Fix first, then rc.2 (Recommended)" for the canvas builder's stale inspector found by that CI run: rc.2
+   is tagged on the merge of `maint-release-rc2` (pull-check fix plus the builder fix).

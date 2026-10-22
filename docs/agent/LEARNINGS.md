@@ -231,3 +231,6 @@
 176. Docker's classic image store keeps one image per digest reference: `docker pull --platform linux/arm64 repo@sha256:X`
    after the amd64 pull of the same index digest fails with "cannot overwrite digest". Remove the image between the
    pulls. The containerd image store (Docker 29 default in a fresh dind) allows it, so reproduce on the classic store.
+177. Livewire bundles calls made in the same tick into one request, and a `#[Json]` method skips the render of the whole
+   request (SupportJson calls `skipRender()` on call): a render-needing call bundled with it never updates the DOM.
+   Serialize the client's calls (one promise queue) or keep json methods out of shared requests.
