@@ -221,9 +221,12 @@ names.
   ```sh
   curl -fsSLO https://github.com/beyerenrico/fieldset/releases/download/v<ver>/release-manifest.json
   jq -r '.images[] | "\(.registry)/\(.repository)@\(.digest)"' release-manifest.json | while read -r ref; do
-    docker pull --platform linux/amd64 "$ref" && docker pull --platform linux/arm64 "$ref"
+    docker pull --platform linux/amd64 "$ref" && docker image rm "$ref" && docker pull --platform linux/arm64 "$ref"
   done
   ```
+
+  Remove the image between the two pulls: Docker's classic image store refuses a second platform of the same digest
+  ("cannot overwrite digest").
 
   Not yet verified.
 - [ ] **`cosign verify` with the pinned identity**, run from a machine outside CI:

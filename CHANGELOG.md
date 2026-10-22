@@ -5,7 +5,7 @@ All notable changes to this project are documented here. The format follows
 [Semantic Versioning](https://semver.org/) (0.x: the API and data model may still change).
 The Fieldset Spec has its own changelog in `spec/form-definition/1.0/CHANGELOG.md`.
 
-## 2.1.0 — 2026-10-22 (release candidate `v2.1.0-rc.1`)
+## 2.1.0 — 2026-10-22 (release candidate `v2.1.0-rc.2`)
 
 The product is renamed from form-schema-app to **Fieldset** before its first public release. Apart from the fixes
 below, nothing changes in behaviour. **Breaking for every pre-release user, with no compatibility path:** old names are
@@ -38,6 +38,8 @@ removed, not aliased (ADR 0092).
 - **MFA set-up** — the QR code is always SVG, whether or not the PHP imagick extension is loaded.
 - **Field App SSO** — the service worker's background fetch of the app shell no longer starts a session, which could
   overwrite the SSO start token and fail the first central login with "The central login did not work" (ADR 0035).
+- **Release workflow** — the anonymous pull check removes each image before pulling the next platform of the same
+  digest; the runner's classic image store refused it ("cannot overwrite digest"), so `v2.1.0-rc.1` stayed a draft.
 
 ### Security
 - **CVE-2026-111943** (Go `crypto/x509`, high) — the app image builds Compose and age with Go 1.27.3, uses a FrankenPHP

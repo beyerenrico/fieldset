@@ -371,3 +371,7 @@ Format: question · chosen option · impact · how to reverse.
    run them before the final v2.1.0. The repository was renamed by the human on 2026-10-21.
    **77d resolved (2026-10-22):** human answer "Delete all (Recommended)"; the old containers, volumes, images and
    networks of the `form-schema-app` project were removed.
+   **77e resolved (2026-10-22):** rc.1's release run 39769444878 failed only `verify-public` (the GHCR package was already
+   public; arm64 pulls hit "cannot overwrite digest"). Human answer "Yes, rc.2 when CI green (Recommended)": fix the
+   check on main, push `v2.1.0-rc.2` by name on the fixed commit, move the local `v2.1.0` there; the rc.1 draft release
+   stays for the human to delete.

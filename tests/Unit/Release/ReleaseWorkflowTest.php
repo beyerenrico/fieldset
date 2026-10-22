@@ -4,12 +4,18 @@ declare(strict_types=1);
 
 use App\Domain\Instance\Release\ReleaseVersion;
 use App\Domain\Instance\Release\SignerIdentity;
+use Illuminate\Support\Facades\File;
+use Symfony\Component\Process\Process;
 
 /*
  * Guards on .github/workflows/release.yml (KTD22, ADR 0060, ADR 0067) that actionlint does not check: the tag
  * trigger, no default token permissions, actions pinned by full commit SHA with a version comment, images pinned
  * by digest, and the signer identity install.sh will build in (U4).
  */
+
+afterEach(function (): void {
+    File::deleteDirectory(storage_path('framework/testing/verify-public'));
+});
 
 function releaseWorkflow(): string
 {
@@ -165,4 +171,55 @@ it('stops before the unsigned artifact when the app image\'s pg_dump is older th
         ->and($manifest)->toContain('docker/setup-qemu-action@')
         ->and($manifest)->toContain('packages: read')
         ->and($manifest)->not->toContain('packages: write');
+});
+
+/**
+ * Runs verify-public's pull loop against a manifest, with a docker stub that behaves like the classic image store: a
+ * digest reference holds one image, so pulling the same digest for a second platform fails until it is removed
+ * ("cannot overwrite digest", release run 39769444878).
+ *
+ * @param  list<string>  $images  repository names; one containing "missing" is refused by the registry
+ */
+function runVerifyPublic(array $images): Process
+{
+    preg_match('/run: \|\n(.*)\z/s', releaseJobs()['verify-public'], $run);
+    $dir = storage_path('framework/testing/verify-public');
+    File::deleteDirectory($dir);
+    File::ensureDirectoryExists("{$dir}/bin");
+    File::ensureDirectoryExists("{$dir}/dist");
+    File::put("{$dir}/pull.sh", (string) preg_replace('/^ {10}/m', '', $run[1] ?? ''));
+    File::put("{$dir}/dist/release-manifest.json", (string) json_encode([
+        'platforms' => ['linux/amd64', 'linux/arm64'],
+        'images' => array_map(fn (string $name): array => ['registry' => 'docker.io', 'repository' => $name, 'digest' => 'sha256:'.str_repeat('a', 64)], $images),
+    ]));
+    File::put("{$dir}/bin/docker", <<<'SH'
+        #!/usr/bin/env bash
+        ref="${*: -1}"
+        touch store
+        case "$1 $2" in
+          pull*) [[ "$ref" == *missing* ]] && exit 1
+                 grep -qxF "$ref" store && { echo "cannot overwrite digest" >&2; exit 1; }
+                 echo "$ref" >> store; echo "$*" >> pulls ;;
+          "image rm") grep -vxF "$ref" store > store.new || true; mv store.new store ;;
+          *) exit 2 ;;
+        esac
+        SH);
+    chmod("{$dir}/bin/docker", 0755);
+
+    return tap(new Process(['bash', '-e', '-o', 'pipefail', 'pull.sh'], $dir, ['PATH' => "{$dir}/bin:".getenv('PATH')]))->run();
+}
+
+it('pulls every manifest digest on every platform, removing each image before the next platform', function (): void {
+    $pull = runVerifyPublic(['library/postgres', 'valkey/valkey']);
+
+    expect($pull->getExitCode())->toBe(0, $pull->getErrorOutput())
+        ->and(substr_count((string) file_get_contents(storage_path('framework/testing/verify-public/pulls')), "\n"))->toBe(4);
+});
+
+it('reports every image that cannot be pulled anonymously and fails after trying the rest', function (): void {
+    $pull = runVerifyPublic(['library/missing', 'valkey/valkey']);
+
+    expect($pull->getExitCode())->toBe(1)
+        ->and($pull->getOutput())->toContain('::error::anonymous pull failed: docker.io/library/missing@sha256:')
+        ->and(substr_count((string) file_get_contents(storage_path('framework/testing/verify-public/pulls')), 'valkey/valkey@'))->toBe(2);
 });

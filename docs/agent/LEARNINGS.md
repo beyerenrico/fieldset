@@ -228,3 +228,6 @@
 175. Laravel sessions without locking (database driver) lose writes: a request that started before another one saved
    the session saves its stale copy afterwards. Background requests that need no session (the service worker's shell
    fetch) must not start one; find such races in a Playwright trace by comparing request start and end times.
+176. Docker's classic image store keeps one image per digest reference: `docker pull --platform linux/arm64 repo@sha256:X`
+   after the amd64 pull of the same index digest fails with "cannot overwrite digest". Remove the image between the
+   pulls. The containerd image store (Docker 29 default in a fresh dind) allows it, so reproduce on the classic store.

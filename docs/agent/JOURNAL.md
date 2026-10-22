@@ -396,3 +396,10 @@
   lighting controllers; EU/DE/UK none) and "Go ahead" with Fieldset; old form-schema-app dev resources deleted (77d).
 - CI run 39747027552 (docs-only commit) failed m7-sso: the worker's `/app/shell` fetch saved a stale session over the
   SSO start token discovery wrote. `app/shell` now runs without session middleware (ADR 0035 amendment, LEARNINGS 175).
+
+## 2026-10-22 Anonymous pull check (maint-release-anon-pull)
+- rc.1 release run 39769444878: journeys, image, sign, scan and the draft passed; `verify-public` failed every arm64
+  pull with "cannot overwrite digest". Anonymous manifest fetch of the app image returned 200, so the package is public.
+- Reproduced on local Docker 29.2.1 (classic store) with busybox by digest; a dind 29.9.2 (containerd store) does not
+  fail. Fix: remove each image after its pull; test runs the step with a classic-store docker stub (LEARNINGS 176).
+- Human: "Yes, rc.2 when CI green" (QUESTIONS 77e). Docs site brainstorm and plan written (not committed yet).
