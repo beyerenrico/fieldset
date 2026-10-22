@@ -18,12 +18,11 @@ commit ("Move to main"); trademark pre-check done, "Go ahead" with Fieldset; old
 ## Next actions
 0. Green on 0f482fc2: CI run 39732478518 and the first `Install journeys` run 39732488129 (2 h 03 m). Nightly
    runs (02:17 UTC): fix a red one before anything else.
-1. `v2.1.0-rc.1` (d393ffa4) stays a draft: its run 39769444878 failed `verify-public` on "cannot overwrite digest"
-   (package already public). Branch `maint-release-rc2` fixes the check and the builder's stale inspector (LEARNINGS
-   176/177); after green branch + main CI push `v2.1.0-rc.2` by name on the merge (QUESTIONS 77e), move local `v2.1.0`.
-   Before pushing `v2.1.0`: local arm64 journeys (human: "Skip for the rc", run before the final).
-   Docs site: requirements `docs/brainstorms/2026-10-22-docs-site-requirements.md`, plan
-   `docs/plans/2026-10-22-001-feat-docs-site-plan.md` (uncommitted, review findings pending).
+1. `v2.1.0-rc.1` (d393ffa4) stays a draft (verify-public "cannot overwrite digest"). `v2.1.0-rc.2` on 6376edb8 (merge
+   of `maint-release-rc2`, QUESTIONS 77e): Release run 39819962977 failed J09 only (timing-dependent assertion; fix on
+   `maint-j09-renditions`, LEARNINGS 179). Next: rc.3 on the fix after green CI (needs human approval); local `v2.1.0`
+   on 6376edb8. Before pushing `v2.1.0`: local arm64 journeys (human: "Skip for the rc", run before the final).
+   Docs site: branch `maint-docs-site` (plan `docs/plans/2026-10-22-001-feat-docs-site-plan.md`), U10 go-live open.
 2. Trivy exceptions expire 2026-11-17 (older gotenberg, caddy) and 2026-11-20 (CVE-2026-111943: postgres, gotenberg,
    mailpit, caddy; cloudflared CVE-2026-63209): refresh pins (Go ≥ 1.26.10 / 1.27.3) or renew them in a reviewed commit.
 3. QUESTIONS 77b (PDF fixture producer) still open.
