@@ -31,6 +31,25 @@ it('redacts a one-time sign-in link in the details', function (): void {
     expect($details)->not->toContain('abcdef0123456789abcdef0123456789')->toContain('drags:');
 });
 
+it('lists every result by start time with its offset, duration, worker and status for the CI log artifact', function (): void {
+    $json = (string) json_encode(['stats' => ['startTime' => '2026-10-22T00:42:03.700Z'], 'suites' => [[
+        'file' => 'm8-csp.spec.ts',
+        'specs' => [['title' => 'classic', 'tests' => [['status' => 'unexpected', 'results' => [
+            ['workerIndex' => 1, 'status' => 'failed', 'startTime' => '2026-10-22T00:43:00.000Z', 'duration' => 30500],
+            ['workerIndex' => 2, 'status' => 'passed', 'startTime' => '2026-10-22T00:43:40.000Z', 'duration' => 900],
+        ]]]]],
+        'suites' => [['title' => 'designer', 'specs' => [['title' => 'first', 'tests' => [['status' => 'expected', 'results' => [
+            ['workerIndex' => 0, 'status' => 'passed', 'startTime' => '2026-10-22T00:42:10.000Z', 'duration' => 1200],
+        ]]]]]]],
+    ]]]);
+
+    expect(DogfoodReport::timeline($json))->toBe([
+        '+6.3s 1.2s w0 passed m8-csp.spec.ts › designer › first',
+        '+56.3s 30.5s w1 failed m8-csp.spec.ts › classic',
+        '+96.3s 0.9s w2 passed m8-csp.spec.ts › classic',
+    ])->and(DogfoodReport::timeline(''))->toBe([]);
+});
+
 it('is empty for a report without failures or no report at all', function (): void {
     expect(DogfoodReport::failureDetails((string) json_encode(['suites' => []])))->toBe('')
         ->and(DogfoodReport::failureDetails(''))->toBe('');

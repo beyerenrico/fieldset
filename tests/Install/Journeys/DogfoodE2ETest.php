@@ -20,7 +20,9 @@ use Tests\Support\Docker\TestImage;
  * harness workspace, so the specs' screenshots of earlier milestones' evidence never touch the checkout (LEARNINGS 159).
  *
  * Everything is named `fieldset-test-dogfood…` and removed afterwards. Evidence: dogfood-e2e.json in the milestone of
- * FIELDSET_EVIDENCE_MILESTONE (per spec file: passed, skipped with the reason, failed with the first error line).
+ * FIELDSET_EVIDENCE_MILESTONE (per spec file: passed, skipped with the reason, failed with the first error line; the
+ * instance's containers that died or were OOM-killed during the suite). storage/agent-logs/dogfood-e2e-timeline.txt lists
+ * every result by start time and worker, so a CI failure shows what ran beside it.
  */
 
 /** Skip reasons a spec may give on an instance: the dev-only marker and the J4-only capture-banner spec. */
@@ -91,17 +93,21 @@ it('passes the E2E suite against the instance, dev-only specs skipped with their
         ]);
     $process->setTimeout(3600);
     $process->run();
+    // A container of the instance that died or was OOM-killed while the suite ran (none on a healthy run).
+    $events = InstanceJourney::events((int) $started, time(), ['type=container', 'label='.InstanceJourney::LABEL.'='.$GLOBALS['fieldsetDogfoodUuid'], 'event=die', 'event=oom'],
+        '{{.Action}} {{.Actor.Attributes.name}} exit={{index .Actor.Attributes "exitCode"}}');
+    file_put_contents(TestImage::logFile('dogfood-e2e-timeline.txt'), implode("\n", DogfoodReport::timeline((string) @file_get_contents($report)))."\n");
     $summary = DogfoodReport::summarize((string) @file_get_contents($report));
     $this->journey->evidence('dogfood-e2e.json', [
         'target' => ['install' => 'install.sh --dir <work>/fieldset-test-dogfood --version '.ReleaseHarness::version().' --org "Dogfood Org" --owner-email owner@example.test --locale en --demo --secrets-file <work>/owner-link.json --json',
             'url' => $install['url'], 'project' => $install['project'], 'catcher' => $install['mail']['catcher_url'], 'platform' => ReleaseHarness::platforms()[0]],
         'command' => 'playwright test --project=desktop --workers=2 (E2E_TARGET=fieldset, E2E_BASE_URL, E2E_COMPOSE_PROJECT, MAILPIT_URL, MAILPIT_AUTH set)',
         'exit_code' => $process->getExitCode(), 'seconds' => round(microtime(true) - $started, 1), ...$summary,
-        'stderr' => array_slice(explode("\n", trim($process->getErrorOutput())), -10),
+        'instance_events' => $events, 'stderr' => array_slice(explode("\n", trim($process->getErrorOutput())), -10),
     ]);
     $reasons = array_unique(array_column($summary['skipped'], 'reason'));
 
-    expect($summary['stats']['unexpected'] ?? null)->toBe(0, json_encode($summary['failed'], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)."\n".DogfoodReport::failureDetails((string) @file_get_contents($report)).$process->getErrorOutput())
+    expect($summary['stats']['unexpected'] ?? null)->toBe(0, json_encode($summary['failed'], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)."\n".DogfoodReport::failureDetails((string) @file_get_contents($report))."\ninstance container events: ".json_encode($events)."\n".$process->getErrorOutput())
         ->and($process->getExitCode())->toBe(0, $process->getErrorOutput())
         ->and($summary['stats']['expected'] ?? 0)->toBeGreaterThanOrEqual(60)
         ->and(array_filter($reasons, static fn (string $reason): bool => ! array_any(DOGFOOD_ALLOWED_SKIPS, static fn (string $pattern): bool => preg_match($pattern, $reason) === 1)))->toBe([])

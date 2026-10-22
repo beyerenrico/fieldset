@@ -235,3 +235,19 @@ J10 run if needed" is settled without a change. The measurement used the demo da
 J10 now runs a scheduled backup after its perf scripts, on the 1.0 test volume (database 1269 MiB): it succeeded in
 12 s (112 MiB, unencrypted), unreclaimable peak 77.7 MiB, `memory.peak` 128.3 MiB (page cache reclaimed at the limit,
 894 `max` events, no OOM kill). 77.7 + 30 MiB fits the 128 MiB slot, so the table above stands.
+
+## Amendment 2026-10-22: one classic-builder render at a time (CI install journeys)
+- **Why.** The app's 384 MiB slot holds one classic-builder render (353 MiB above); the shipped table said "one
+  classic-builder request, not concurrency, sets the app's peak", but nothing kept it at one. On GitHub's runner the
+  dogfooding journey (ADR 0091, two Playwright workers) failed exactly the two specs that open the classic builder at the
+  same time: both navigations ended in `chrome-error://chromewebdata/` (connection-level, no HTTP answer), every other
+  spec passed (run 39700054160). Inferred, not observed: the kernel killed FrankenPHP at its limit. Verified locally
+  (arm64, same suite and workers): the app sat at its limit for the whole run (`memory.peak` = `memory.max` = 384 MiB,
+  1,311 `max` events, no OOM kill), and the same two specs overlapped by about a second.
+- **Change.** `ClassicBuilderSlot`: EditForm takes a cache lock when it boots (the page and each of its Livewire
+  requests) and frees it when the request ends; another render waits up to `forms.classic_builder.render_wait` (20 s)
+  and then answers 503 with `Retry-After`, instead of taking the app down with every request it serves. Livewire's
+  persistent middleware cannot hold it: it runs on a stand-in request before the component renders. The canvas builder
+  is not affected. All sizes, since only `small` is measured.
+- **Diagnostics.** The dogfooding journey records the instance's container `die`/`oom` events in its evidence and
+  failure message, and writes a timeline of the results (start, duration, worker) to `storage/agent-logs`.

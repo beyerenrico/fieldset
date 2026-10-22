@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Support\Docker;
 
+use DateTimeImmutable;
 use RuntimeException;
 
 /**
  * Helpers for the dogfooding journey (plan U22, ADR 0091): Playwright's working directory, the instance's catcher login,
- * and a summary of Playwright's JSON report for the evidence (per spec file; skipped tests with their reason; failures
- * with their first error line).
+ * a summary of Playwright's JSON report for the evidence (per spec file; skipped tests with their reason; failures
+ * with their first error line), and a timeline of the results for the logs.
  */
 final class DogfoodReport
 {
@@ -93,6 +94,39 @@ final class DogfoodReport
     }
 
     /**
+     * Every result by start time: offset from the run's start, duration, worker, status and title. Written next to the
+     * logs, so a CI failure shows what ran beside it on the other worker. Titles and times only.
+     *
+     * @return list<string>
+     */
+    public static function timeline(string $json): array
+    {
+        $report = json_decode($json, true);
+        $start = self::seconds(data_get($report, 'stats.startTime'));
+        $rows = [];
+        $walk = static function (array $suite, array $path) use (&$walk, &$rows, $start): void {
+            foreach (is_array($suite['specs'] ?? null) ? $suite['specs'] : [] as $spec) {
+                foreach (is_array($spec['tests'] ?? null) ? $spec['tests'] : [] as $test) {
+                    foreach (is_array($test['results'] ?? null) ? $test['results'] : [] as $result) {
+                        $at = self::seconds(data_get($result, 'startTime')) - $start;
+                        $rows[] = [$at, sprintf('+%.1fs %.1fs w%d %s %s', $at, (float) data_get($result, 'duration', 0) / 1000, (int) data_get($result, 'workerIndex', -1),
+                            (string) data_get($result, 'status', '?'), implode(' › ', [...$path, (string) ($spec['title'] ?? '?')]))];
+                    }
+                }
+            }
+            foreach (is_array($suite['suites'] ?? null) ? $suite['suites'] : [] as $child) {
+                $walk($child, [...$path, (string) ($child['title'] ?? '?')]);
+            }
+        };
+        foreach (is_array($report) && is_array($report['suites'] ?? null) ? $report['suites'] : [] as $suite) {
+            $walk($suite, [(string) ($suite['file'] ?? $suite['title'] ?? '?')]);
+        }
+        usort($rows, static fn (array $a, array $b): int => $a[0] <=> $b[0]);
+
+        return array_column($rows, 1);
+    }
+
+    /**
      * @param  array<string, mixed>  $summary
      * @param  array<string, mixed>  $suite
      * @param  list<string>  $path  describe titles above this suite
@@ -138,6 +172,12 @@ final class DogfoodReport
         $clean = (string) preg_replace('/\e\[[0-9;]*m/', '', $message);
 
         return mb_substr(strtok($clean, "\n") ?: '', 0, 300);
+    }
+
+    /** Unix seconds with milliseconds of an ISO time from the report; 0 without one. */
+    private static function seconds(mixed $time): float
+    {
+        return is_string($time) && $time !== '' ? (float) new DateTimeImmutable($time)->format('U.v') : 0.0;
     }
 
     private static function directory(string $path): void

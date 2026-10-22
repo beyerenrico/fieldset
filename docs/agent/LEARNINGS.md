@@ -212,3 +212,9 @@
 170. Vitest/jsdom: a timer chain still pending when the test file ends fires after jsdom is torn down and fails the
    run with "document is not defined", though every test passed. Run such chains to the end under fake timers.
 
+171. Livewire persistent middleware runs on a stand-in request with an empty `$next`, before the component renders: it
+   cannot wrap a render (a lock, a timer). Hold such a resource in the component's `boot()` (before mount and every
+   update) and free it in `app()->terminating()`. `Livewire::test()` calls go through the HTTP kernel and terminate, and
+   a Testable that got an error response cannot be called again.
+172. A page that ends in `chrome-error://chromewebdata/` got no HTTP answer at all (reset, refused): look for a server
+   process that died (OOM kill at a container memory limit), not for an error page.

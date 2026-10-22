@@ -184,6 +184,7 @@ return [
         'import_not_json' => 'Die Datei enthält kein gültiges JSON.',
         'import_not_definition' => 'Die Datei enthält keine Formulardefinition.',
         'template_not_found' => 'Vorlage nicht gefunden.',
+        'classic_builder_busy' => 'Der klassische Builder lädt gerade ein anderes Formular. Bitte versuchen Sie es in einigen Sekunden erneut.',
     ],
     'import' => [
         'untitled' => 'Importiertes Formular',
