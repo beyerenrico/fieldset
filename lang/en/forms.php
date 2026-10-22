@@ -184,6 +184,7 @@ return [
         'import_not_json' => 'The file is not valid JSON.',
         'import_not_definition' => 'The file does not contain a form definition.',
         'template_not_found' => 'Template not found.',
+        'classic_builder_busy' => 'The classic builder is busy loading another form. Please try again in a few seconds.',
     ],
     'import' => [
         'untitled' => 'Imported form',

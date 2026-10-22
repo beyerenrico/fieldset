@@ -62,6 +62,12 @@ class EditForm extends EditRecord
 
     public bool $staleNotified = false;
 
+    /** Livewire calls this before mount and before every update: one classic render at a time (ClassicBuilderSlot). */
+    public function boot(ClassicBuilderSlot $slot): void
+    {
+        $slot->hold();
+    }
+
     public function form(Schema $schema): Schema
     {
         return FormEditorSchema::configure($schema);

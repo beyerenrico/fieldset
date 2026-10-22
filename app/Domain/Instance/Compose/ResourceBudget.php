@@ -17,14 +17,14 @@ use App\Domain\Instance\Output\ExitCode;
  * threads.
  *
  * `small` is measured (J10, ADR 0083: two pinned CPUs, the 1.0 test volume). Peak memory over runs 4–6 that reclaim
- * cannot free (anonymous plus shared, cgroup memory.stat): app 353 MiB (one classic-builder request), queue 369 with one default
- * Horizon worker (five PHP processes of about 57 MiB each at rest), scheduler 176 (schedule:work + schedule:run + one
- * command, CLI without OPcache), Gotenberg 275 for a 10-page PDF, Postgres 96–123 while loading data (its shared
- * buffers grow with the limit), Valkey 6, Mailpit 10, edge 17. Each slot holds its peak with about 30 MiB or more to
- * spare; beyond that Postgres only gains page cache, which speeds up reports, whereas a killed worker loses its job and
- * a killed Postgres backend sends the server into crash recovery (data safety before speed). The backup slot
- * (U16) keeps its estimate, and Mailpit keeps 48: amd64 Mailpit under emulation needs about 60 MiB plus its health
- * check (doubled limit, ADR 0070). `medium` and `large` are not measured; their scheduler slot carries the measured
+ * cannot free (anonymous plus shared, cgroup memory.stat): app 353 MiB (one classic-builder request, and
+ * ClassicBuilderSlot keeps it at one), queue 369 with one default Horizon worker (five PHP processes of about 57 MiB
+ * each at rest), scheduler 176 (schedule:work + schedule:run + one command, CLI without OPcache), Gotenberg 275 for
+ * a 10-page PDF, Postgres 96–123 while loading data (its shared buffers grow with the limit), Valkey 6, Mailpit 10,
+ * edge 17. Each slot holds its peak with about 30 MiB or more to spare; beyond that Postgres only gains page cache,
+ * which speeds up reports, whereas a killed worker loses its job and a killed Postgres backend sends the server into
+ * crash recovery (data safety before speed). The backup slot (U16) keeps its estimate, and Mailpit keeps 48: amd64
+ * Mailpit under emulation needs about 60 MiB plus its health check (doubled limit, ADR 0070). `medium` and `large` are not measured; their scheduler slot carries the measured
  * need, which does not grow with the size. Small Postgres also runs without JIT and parallel query, and with
  * connections for its clients plus a margin, not more (postgresSettings(), ADR 0083 amendment).
  */

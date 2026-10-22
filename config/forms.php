@@ -30,4 +30,9 @@ return [
         'low_confidence' => 0.6,
     ],
 
+    // One classic-builder render at a time (ADR 0083 amendment 2026-10-22): seconds a render waits for the one before it.
+    'classic_builder' => [
+        'render_wait' => 20,
+    ],
+
 ];
