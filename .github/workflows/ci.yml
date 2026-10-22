@@ -222,3 +222,157 @@ jobs:
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock:ro -v "$RUNNER_TEMP/trivy-cache:/root/.cache/trivy" \
             "$TRIVY_IMAGE" image --severity CRITICAL,HIGH --ignore-unfixed --exit-code 1 --no-progress --ignorefile '' \
             fieldset:scan
+
+  # --- Docs site (docs site plan U6, ADR 0094): the build the publish runs, and the drift guard ---
+
+  docs:
+    needs: lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    # The export reads a migrated database, as in php-tests.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: fieldset_test
+          POSTGRES_USER: fieldset
+          POSTGRES_PASSWORD: secret
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U fieldset" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: fieldset_test
+      DB_USERNAME: fieldset
+      DB_PASSWORD: secret
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          coverage: none
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: docs/site/package-lock.json
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      # The docs site is its own package; never the root `npm run build` (its fonts plugin fetches over the network,
+      # LEARNINGS 166). npm test also runs store's jq ordering program against the shared version vectors.
+      - run: npm ci
+        working-directory: docs/site
+      - run: npm test
+        working-directory: docs/site
+      - run: php artisan migrate --force
+      - name: Export the OpenAPI document of the working tree
+        run: API_VERSION=dev php artisan scramble:export --path="$RUNNER_TEMP/openapi.json"
+      - name: Build the site from the working tree (dev mode, real export)
+        run: |
+          set -euo pipefail
+          out="$(mktemp -d "$RUNNER_TEMP/docs-dev.XXXXXX")"
+          node docs/site/scripts/build.mjs dev --out "$out" --export "$RUNNER_TEMP/openapi.json"
+      # The drift guard runs on pushes to main and when the tooling or this workflow changed since the push's previous
+      # head or the pull request's base. A new branch (before is all zeros) or a base that cannot be fetched counts as
+      # changed. Event values reach the script only through env.
+      - name: Decide whether the drift guard runs
+        id: drift
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          BEFORE: ${{ github.event.before }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          runs() {
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "The drift guard runs: $1"
+            exit 0
+          }
+          if [ "$EVENT" = push ] && [ "$REF" = refs/heads/main ]; then
+            runs "push to main"
+          fi
+          case "$EVENT" in
+            push) base="$BEFORE" ;;
+            pull_request) base="$PR_BASE" ;;
+            *) runs "event $EVENT" ;;
+          esac
+          sha='^[0-9a-f]{40}$'
+          if ! [[ "$base" =~ $sha ]] || [[ "$base" =~ ^0+$ ]]; then
+            runs "no previous commit to compare with"
+          fi
+          if ! git fetch --no-tags --depth=1 origin "$base"; then
+            runs "the base commit $base cannot be fetched"
+          fi
+          changed="$(git diff --name-only --no-renames "$base" HEAD)"
+          if grep -qE '^(docs/site/|\.github/workflows/ci\.yml$)' <<< "$changed"; then
+            runs "docs/site/ or ci.yml changed since $base"
+          fi
+          echo "run=false" >> "$GITHUB_OUTPUT"
+          echo "The drift guard is skipped: nothing under docs/site/ and no ci.yml change since $base"
+      # Tags are frozen while the tooling changes (KTD "CI guards tooling drift"): build the newest published tag of
+      # every minor that docs-site lists, content only, with this commit's tooling. Without a docs-site branch nothing
+      # is published and the guard has nothing to build; a malformed versions.json or a listed tag that does not exist
+      # fails. Every tag is checked against the release tag pattern before any git command uses it.
+      - name: Drift guard, published tags built with the current tooling
+        if: steps.drift.outputs.run == 'true'
+        env:
+          LC_ALL: C
+        run: |
+          set -euo pipefail
+          status=0
+          git ls-remote --exit-code origin refs/heads/docs-site > /dev/null || status=$?
+          if [ "$status" -eq 2 ]; then
+            echo "::notice::No docs-site branch yet: nothing is published, the drift guard has nothing to build"
+            exit 0
+          elif [ "$status" -ne 0 ]; then
+            echo "::error::git ls-remote origin failed with exit status $status"
+            exit 1
+          fi
+          git fetch --no-tags --depth=1 origin +refs/heads/docs-site:refs/remotes/origin/docs-site
+          stored="$RUNNER_TEMP/docs-site-versions.json"
+          git show refs/remotes/origin/docs-site:versions.json > "$stored"
+          # The reader the site runs must accept the file (a rejected file means the switcher falls back to its baked
+          # values); it prints each listed copy's tag.
+          tags="$(node --input-type=module -e '
+            import { readFileSync } from "node:fs";
+            import { readVersions } from "./docs/site/lib/versions-reader.mjs";
+            const model = readVersions(readFileSync(process.argv[1], "utf8"), null);
+            if (model.fromBaked) {
+              console.error("::error::versions.json on docs-site is malformed (docs/site/lib/versions-reader.mjs rejects it)");
+              process.exit(1);
+            }
+            for (const { tag } of model.copies) console.log(tag);
+          ' "$stored")"
+          # ReleaseVersion::PATTERN (the VERSION regex of docs/site/lib/versions-reader.mjs) with the leading v, anchored,
+          # its (?: groups written as ERE groups; ReleaseWorkflowTest compares the two.
+          pattern='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((alpha|beta|rc)(\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?$'
+          mapfile -t listed <<< "$tags"
+          for tag in "${listed[@]}"; do
+            if ! [[ "$tag" =~ $pattern ]]; then
+              echo "::error::versions.json on docs-site lists $(printf '%q' "$tag"), which is not a release tag"
+              exit 1
+            fi
+          done
+          echo "docs-site lists: ${listed[*]}"
+          work="$(mktemp -d "$RUNNER_TEMP/docs-drift.XXXXXX")"
+          for tag in "${listed[@]}"; do
+            if ! git fetch --no-tags --depth=1 origin "refs/tags/$tag:refs/tags/$tag"; then
+              echo "::error::versions.json on docs-site lists $tag, which is not a tag of this repository"
+              exit 1
+            fi
+            src="$work/source-$tag"
+            git worktree add --detach "$src" "refs/tags/$tag^{commit}"
+            echo "::group::build.mjs check $tag"
+            node docs/site/scripts/build.mjs check --source "$src" --tag "$tag" --out "$work/out-$tag"
+            echo "::endgroup::"
+            git worktree remove --force "$src"
+            rm -rf "$work/out-$tag"
+          done
