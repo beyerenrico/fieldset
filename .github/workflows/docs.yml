@@ -37,9 +37,18 @@ on:
 
 permissions: {}
 
-# One publish at a time and never cancelled: store appends to docs-site, deploy replaces the whole site.
+# One publish at a time and never cancelled: store appends to docs-site, deploy replaces the whole site. Only a
+# dispatch and a Release run that resolve accepts share the group `docs-pages`; any other workflow_run (a failed
+# Release run, another repository's) gets a group of its own, so it never takes the pending slot from a real publish.
 concurrency:
-  group: docs-pages
+  group: >-
+    ${{ (github.event_name == 'workflow_dispatch'
+    || (github.event_name == 'workflow_run'
+    && github.event.workflow_run.conclusion == 'success'
+    && github.event.workflow_run.event == 'push'
+    && github.event.workflow_run.path == '.github/workflows/release.yml'
+    && github.event.workflow_run.head_repository.full_name == github.repository))
+    && 'docs-pages' || format('docs-skip-{0}', github.run_id) }}
   cancel-in-progress: false
 
 defaults:
@@ -251,6 +260,8 @@ jobs:
           echo "stored=$RUNNER_TEMP/stored-versions.json" >> "$GITHUB_OUTPUT"
       # Before any untrusted code runs, so the token in this step's env meets no process the build left behind. A
       # third queued run replaces a pending one (concurrency), so a release can miss its publish: dispatch it again.
+      # The release this run publishes counts as its minor's stored copy when store would accept it over the stored one
+      # (a copy tag of 2.1 or later, not older, not an rc over a final), so it never asks for an older release.
       - name: Warn about published releases newer than their stored copy (reconcile)
         continue-on-error: true
         env:
@@ -261,19 +272,32 @@ jobs:
           set -euo pipefail
           order() { jq -n --arg a "$1" --arg b "$2" -f docs/site/store/version-order.jq 2> /dev/null; }
           stored_tag() { [ "$STORED" = none ] || jq -r --arg m "$1" '.copies[] | select(.minor == $m) | .tag' "$STORED"; }
+          publishes_over() { # <stored tag or empty>: status 0 when store would accept TAG over it
+            [ -n "$1" ] || return 0
+            if [[ "$TAG" == *-rc.* && "$1" != *-rc.* ]]; then return 1; fi
+            [ "$(order "$TAG" "$1")" != -1 ]
+          }
+          tag_minor=''
+          if [[ "$TAG" =~ ^v([0-9]+\.[0-9]+)\. ]]; then
+            tag_minor="${BASH_REMATCH[1]}"
+            rank="$(order "$TAG" v2.1.0-rc.0)" || rank=-1 # alpha, beta and versions before 2.1 publish no copy
+            [ "$rank" != -1 ] || tag_minor=''
+          fi
           releases="$(gh release list --repo "$GITHUB_REPOSITORY" --exclude-drafts --limit 200 --json tagName --jq '.[].tagName')"
           while IFS= read -r release; do
             if [ -z "$release" ] || [ "$release" = "$TAG" ]; then continue; fi
             rank="$(order "$release" v2.1.0-rc.0)" || continue # alpha, beta and non-release tags get no copy
             [ "$rank" != -1 ] || continue # versions before 2.1 get no copy (R10)
             [[ "$release" =~ ^v([0-9]+\.[0-9]+)\. ]]
-            stored="$(stored_tag "${BASH_REMATCH[1]}")"
+            minor="${BASH_REMATCH[1]}"
+            stored="$(stored_tag "$minor")"
+            if [ "$minor" = "$tag_minor" ] && publishes_over "$stored"; then stored="$TAG"; fi
             if [ -z "$stored" ]; then
-              echo "::warning::$release is published, but ${BASH_REMATCH[1]} has no stored copy: dispatch publish $release"
+              echo "::warning::$release is published, but $minor has no stored copy: dispatch publish $release"
             elif [[ "$release" == *-rc.* && "$stored" != *-rc.* ]]; then
               continue # a pre-release never replaces a final copy (R21)
             elif [ "$(order "$release" "$stored")" = 1 ]; then
-              echo "::warning::$release is published, but ${BASH_REMATCH[1]} stores $stored: dispatch publish $release"
+              echo "::warning::$release is published, but $minor stores $stored: dispatch publish $release"
             fi
           done <<< "$releases"
       # The tag's code and PHP without a Composer install (KTD "The OpenAPI export runs inside the released app
@@ -424,6 +448,8 @@ jobs:
       pages: write
       id-token: write
     steps:
+      # A publish deploys its stored commit only while it is still the head of docs-site: a re-run of an old run's
+      # deploy, or one after a later publish or a revert, would roll Pages back.
       - name: Choose the commit to deploy
         id: commit
         env:
@@ -434,12 +460,21 @@ jobs:
           set -euo pipefail
           if [ "$EVENT" = workflow_dispatch ] && [ "$MODE" = redeploy ]; then
             echo "ref=refs/heads/docs-site" >> "$GITHUB_OUTPUT"
-          elif [[ "$STORED" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "ref=$STORED" >> "$GITHUB_OUTPUT"
-          else
+            exit 0
+          fi
+          if ! [[ "$STORED" =~ ^[0-9a-f]{40}$ ]]; then
             echo "::error::store reported no stored commit"
             exit 1
           fi
+          if ! head="$(git ls-remote --exit-code "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git" refs/heads/docs-site | cut -f1)"; then
+            echo "::error::cannot read the head of docs-site"
+            exit 1
+          fi
+          if [ "$head" != "$STORED" ]; then
+            echo "::error::docs-site is at $head, not at $STORED, the commit this run stored: deploying it would roll Pages back. Dispatch the workflow with mode=redeploy to deploy docs-site as it is"
+            exit 1
+          fi
+          echo "ref=$STORED" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ steps.commit.outputs.ref }}

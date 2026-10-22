@@ -88,6 +88,10 @@ it('gives the docs job a read-only token that its checkout does not keep, and no
         ->and($docs)->not->toContain('actions/cache');
 });
 
+it('bounds the docs job with a timeout', function (): void {
+    expect(WorkflowFiles::jobs(WorkflowFiles::text('.github/workflows/ci.yml'))['docs'])->toMatch('/^    timeout-minutes: [1-9]\d*$/m');
+});
+
 it('passes workflow values to the docs job\'s scripts only through env, and never runs the root build', function (): void {
     $docs = WorkflowFiles::jobs(WorkflowFiles::text('.github/workflows/ci.yml'))['docs'];
     $scripts = WorkflowFiles::runScripts($docs);

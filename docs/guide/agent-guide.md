@@ -7,6 +7,8 @@ host, Docker (Engine 24+ or Docker Desktop) and `curl`. You do not need the repo
 The same guide ships with every release as the asset `agent-guide.md` and lives in the repository at
 `docs/guide/agent-guide.md`. People who prefer prose read the [install guide](https://github.com/beyerenrico/fieldset/blob/main/docs/guide/install.md). Links to other
 guides point to the repository on GitHub, so they also work in the release asset.
+The docs site [beyerenrico.github.io/fieldset](https://beyerenrico.github.io/fieldset/) has one copy per minor version;
+`https://beyerenrico.github.io/fieldset/versions.json` lists them, so you can open the copy of the version you run.
 
 ## Contents
 

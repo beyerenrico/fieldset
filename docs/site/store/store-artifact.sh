@@ -3,9 +3,10 @@
 # KTDs "Jobs split by privilege; privileged jobs verify the untrusted build" and "An append-only storage branch").
 #
 # The privileged store job of .github/workflows/docs.yml runs this file and version-order.jq beside it from a sparse
-# checkout of main at the run's commit, never from the artifact. It runs only bash, git, jq, grep, cmp, find, cp and rm:
-# no npm, node, php, composer or docker. Every fact it trusts comes from its arguments (resolve's verified tag and
-# commit, the run's tooling commit) and from git; build's decision.json is never read for a decision.
+# checkout of main at the run's commit, never from the artifact. It runs only bash, git, jq and plain text tools
+# (grep, sed, tr, cmp, find, sort, cp, rm): no npm, node, php, composer or docker. Every fact it trusts comes from its
+# arguments (resolve's verified tag and commit, the run's tooling commit) and from git; build's decision.json is never
+# read for a decision.
 #
 #   store-artifact.sh --artifact <dir> --site <dir> --tag-repo <dir> --tag <vX.Y.Z[-rc.N]> --commit <sha>
 #                     --minor <X.Y> --tooling <sha>
@@ -21,11 +22,19 @@
 # versions.json only this minor's entry (exactly as this release states it) and `latest` (recomputed with
 # version-order.jq) change; root-owned entries and spec files appear exactly when the published minor is latest, and
 # every spec JSON file then equals the tag's file; every install.sh URL comes from the tag's staged Markdown or is this
-# release's own download URL; every api-reference.html carries the exact CSP before anything else and no inline
-# executable script; no page loads a script or stylesheet from another origin. It then replaces the copy (and, on a
-# root refresh, the root-owned entries; spec files are only added or updated), checks the staged change against the
-# same ownership classes and commits as github-actions[bot]. Pushing is the workflow's next step, which alone holds
-# the token. Exit status: 0 committed (or nothing changed), 1 rejected, 2 usage.
+# release's own download URL; every api-reference.html carries the exact CSP with nothing but whitespace and the
+# doctype, html, head and charset tags before it, and no inline executable script; no page names a script or
+# stylesheet from another origin. It then replaces the copy (and, on a root refresh, the root-owned entries; spec files
+# are only added or updated), checks the staged change against the same ownership classes and commits as
+# github-actions[bot]. Pushing is the workflow's next step, which alone holds the token. Exit status: 0 committed (or
+# nothing changed), 1 rejected, 2 usage.
+#
+# The HTML checks are text checks, not an HTML parser. They read each page as one line (a tag may span lines) and split
+# attributes as HTML does (a name inside another attribute's quoted value does not count). They catch drift in the
+# build and hold the paths, versions.json, the spec files and the reference page's CSP to the verified tag. They do not
+# limit what a compromised build can do on ordinary pages, where inline scripts are allowed and same-origin JS is not
+# compared with the tag: that rests on exact pins, npm ci from the lockfile, ignore-scripts and the audit gate (plan
+# risk "A compromised npm package in build").
 set -euo pipefail
 export LC_ALL=C
 
@@ -40,6 +49,13 @@ readonly NAME='[A-Za-z0-9_@~+-][A-Za-z0-9._@~+-]*'
 readonly URL_CHAR='[A-Za-z0-9._~:/?#@!&*+,;=%-]'
 readonly INSTALL_URL="${URL_CHAR}*//${URL_CHAR}*install\\.sh"
 readonly LOCAL_REF='^(/fieldset/|[A-Za-z0-9_~@+-]|\.\.?/)[A-Za-z0-9._~@+/-]*$'
+# The HTML text checks: the text before a page's first tag, that tag and the rest; the tags allowed before the reference
+# CSP (case-sensitive: the build writes them so); an attribute name and the rest; =value (quoted or not) and the rest.
+readonly FIRST_TAG='^([^<]*)(<[^>]*>)(.*)$'
+readonly HEAD_BEFORE_CSP='^<(!doctype html|html( lang="[A-Za-z-]+")?|head|meta charset="utf-8")>$'
+readonly ATTR_NAME_RE=$'^([^[:space:]/="\'<]+)(.*)$'
+readonly ATTR_VALUE_RE=$'^[[:space:]]*=[[:space:]]*("[^"]*"|\'[^\']*\'|[^[:space:]"\'=<`]+)(.*)$'
+readonly DOUBLE_QUOTED='^"([^"]*)"$'
 ORDER_JQ="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/version-order.jq"
 readonly ORDER_JQ
 
@@ -236,24 +252,75 @@ check_install_urls() {
 	done <<<"$found"
 }
 
-# api-reference.html: exactly one CSP meta, the exact literal, nothing but doctype/html/head/charset before it, and every
-# script either a JSON data block or loaded by src (R22: the CSP blocks requests and inline script from there on).
+# A page as one line: tabs, newlines, carriage returns and form feeds become spaces, so no tag spans lines.
+one_line() {
+	tr '\t\n\r\f' '    ' <"$1"
+}
+
+# Splits a start tag into ATTR_NAMES and ATTR_VALUES (each value as written, quotes kept; '' for a bare name) the way
+# HTML reads attributes, so a name inside another attribute's quoted value never counts. Status 1 when the tag does not
+# split: an unterminated quote, a quote or < in a name, or an = without a value.
+split_attributes() {
+	local rest=${1#<}
+	rest=${rest%>}
+	rest=${rest#"${rest%%[[:space:]/]*}"} # the element name
+	ATTR_NAMES=()
+	ATTR_VALUES=()
+	while :; do
+		rest=${rest#"${rest%%[![:space:]/]*}"}
+		[ -n "$rest" ] || return 0
+		[[ "$rest" =~ $ATTR_NAME_RE ]] || return 1
+		ATTR_NAMES+=("${BASH_REMATCH[1]}")
+		rest=${BASH_REMATCH[2]}
+		if [[ "$rest" =~ $ATTR_VALUE_RE ]]; then
+			ATTR_VALUES+=("${BASH_REMATCH[1]}")
+			rest=${BASH_REMATCH[2]}
+		elif [[ "$rest" =~ ^[[:space:]]*= ]]; then
+			return 1
+		else
+			ATTR_VALUES+=('')
+		fi
+	done
+}
+
+# ATTR_COUNT: how often the split tag names attribute $1; ATTR_VALUE: its first value. Callers set nocasematch, so
+# names match case-insensitively, as HTML does.
+find_attribute() {
+	local i
+	ATTR_COUNT=0
+	ATTR_VALUE=''
+	for ((i = 0; i < ${#ATTR_NAMES[@]}; i++)); do
+		[[ "${ATTR_NAMES[i]}" == "$1" ]] || continue
+		[ "$ATTR_COUNT" -gt 0 ] || ATTR_VALUE=${ATTR_VALUES[i]}
+		ATTR_COUNT=$((ATTR_COUNT + 1))
+	done
+}
+
+# api-reference.html: exactly one CSP meta, the exact literal, nothing but whitespace and doctype/html/head/charset
+# before it (text or any other tag there ends the head, and browsers ignore a CSP meta outside it), and every script
+# either a JSON data block or loaded by src (R22: the CSP blocks requests and inline script from there on).
 check_reference_page() {
-	local file=$1 html before tag rel=${1#"$ART"/}
-	html="$(<"$file")"
+	local file=$1 html before text tag rel=${1#"$ART"/}
+	html="$(one_line "$file")"
 	[ "$(grep -oiF 'Content-Security-Policy' <<<"$html" | wc -l)" -eq 1 ] || fail "$rel must have exactly one Content-Security-Policy"
 	[[ "$html" == *"$CSP_META"* ]] || fail "$rel does not carry the exact CSP literal $CSP_META"
 	before="${html%%"$CSP_META"*}"
+	while [[ "$before" =~ $FIRST_TAG ]]; do
+		text=${BASH_REMATCH[1]} tag=${BASH_REMATCH[2]} before=${BASH_REMATCH[3]}
+		[[ "$text" =~ ^[[:space:]]*$ ]] || fail "$rel has text before its CSP: $text"
+		[[ "$tag" =~ $HEAD_BEFORE_CSP ]] || fail "$rel has $tag before its CSP"
+	done
+	[[ "$before" =~ ^[[:space:]]*$ ]] || fail "$rel has text before its CSP: $before"
+	shopt -s nocasematch
 	while IFS= read -r tag; do
 		[ -n "$tag" ] || continue
-		[[ "$tag" =~ ^\<(\!doctype\ html|html(\ lang=\"[A-Za-z-]+\")?|head|meta\ charset=\"utf-8\")\>$ ]] ||
-			fail "$rel has $tag before its CSP"
-	done < <(grep -oiE '<[^>]*>' <<<"$before" || true)
-	while IFS= read -r tag; do
-		[ -n "$tag" ] || continue
-		[[ "$tag" =~ [[:space:]]src= || "$tag" =~ [[:space:]]type=\"application/json\" ]] ||
-			fail "$rel has an inline executable script: $tag"
-	done < <(grep -oiE '<script([[:space:]][^>]*)?>' <<<"$html" || true)
+		split_attributes "$tag" || fail "$rel has an unparseable script tag: $tag"
+		find_attribute src
+		[ "$ATTR_COUNT" -eq 0 ] || continue
+		find_attribute type
+		[[ "$ATTR_COUNT" -eq 1 && "$ATTR_VALUE" == '"application/json"' ]] || fail "$rel has an inline executable script: $tag"
+	done < <(grep -oiE '<script([[:space:]/][^>]*)?>' <<<"$html" || true)
+	shopt -u nocasematch
 }
 
 check_reference_pages() {
@@ -265,28 +332,33 @@ check_reference_pages() {
 	[ "$count" -ge 1 ] || fail "the $MINOR copy has no api-reference.html"
 }
 
-check_ref() { # <file> <tag> <attribute>: the attribute, written once as attr="…", points at this site
-	local where=${1#"$ART"/} before value after
-	[[ "$2" =~ ^(.*)[[:space:]]$3=\"([^\"]*)\"(.*)$ ]] || fail "$where has a $3 that is not written as $3=\"…\": $2"
-	before="${BASH_REMATCH[1]}" value="${BASH_REMATCH[2]}" after="${BASH_REMATCH[3]}"
-	[[ ! "$before$after" =~ [[:space:]]$3[[:space:]]*= ]] || fail "$where has a tag with two $3 attributes: $2"
-	[[ "$value" =~ $LOCAL_REF ]] || fail "$where loads $value from another origin: $2"
+check_ref() { # <page> <tag> <attribute>: the split tag names the attribute once, as attr="…", pointing at this site
+	local url
+	find_attribute "$3"
+	[ "$ATTR_COUNT" -le 1 ] || fail "$1 has a tag with two $3 attributes: $2"
+	[[ "$ATTR_VALUE" =~ $DOUBLE_QUOTED ]] || fail "$1 has a $3 that is not written as $3=\"…\": $2"
+	url=${BASH_REMATCH[1]}
+	[[ "$url" =~ $LOCAL_REF ]] || fail "$1 loads $url from another origin: $2"
 }
 
-# No page loads a script or stylesheet from another origin; no <base> re-points relative URLs. Tags and attribute
-# names match case-insensitively, as HTML does.
+# No page loads a script or stylesheet from another origin; no <base> re-points relative URLs. Each page is read as one
+# line, so a tag that spans lines is still found; tags and attribute names match case-insensitively, as HTML does.
 check_origins() {
-	local file tag quotes
+	local file page tag
 	shopt -s nocasematch
 	while IFS= read -r -d '' file; do
+		page=${file#"$ART"/}
 		while IFS= read -r tag; do
 			[ -n "$tag" ] || continue
-			quotes="${tag//[^\"]/}"
-			[[ "$tag" != \<base* ]] || fail "${file#"$ART"/} has a <base> element"
-			[[ "$tag" != *"'"* && $((${#quotes} % 2)) -eq 0 ]] || fail "${file#"$ART"/} has an unparseable tag: $tag"
-			if [[ "$tag" == \<script* && "$tag" =~ [[:space:]]src[[:space:]]*= ]]; then check_ref "$file" "$tag" src; fi
-			if [[ "$tag" == \<link* && "$tag" =~ stylesheet|preload|prefetch ]]; then check_ref "$file" "$tag" href; fi
-		done < <(grep -aoiE '<(script|link|base)([[:space:]][^>]*)?>' "$file" || true)
+			[[ "$tag" != \<base* ]] || fail "$page has a <base> element"
+			if [[ "$tag" == *"'"* ]] || ! split_attributes "$tag"; then fail "$page has an unparseable tag: $tag"; fi
+			if [[ "$tag" == \<script* ]]; then
+				find_attribute src
+				[ "$ATTR_COUNT" -eq 0 ] || check_ref "$page" "$tag" src
+			elif [[ "$tag" =~ stylesheet|preload|prefetch ]]; then
+				check_ref "$page" "$tag" href
+			fi
+		done < <(one_line "$file" | grep -aoiE '<(script|link|base)([[:space:]/][^>]*)?>' || true)
 	done < <(find "$ART" -type f -name '*.html' -print0)
 	shopt -u nocasematch
 	if grep -rlaiE --include='*.css' '@import[^;]*(//|:)' "$ART" >/dev/null; then

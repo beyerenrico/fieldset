@@ -55,6 +55,14 @@ it('commits nothing when a re-run stores the same files', function (): void {
         ->and($this->fixture->git('site', 'rev-parse', 'HEAD'))->toBe($head);
 });
 
+it('accepts tags that span lines when they point at this site', function (): void {
+    $this->fixture->edit('artifact/site/2.1/install.html', '</head>', "<script\n  type=\"module\"\n  src=\"/fieldset/2.1/assets/app.js\"></script><link\r\n\trel=\"stylesheet\" href=\"/fieldset/2.1/assets/style.css\" /></head>");
+    $this->fixture->edit('artifact/site/2.1/api-reference.html', '<script src=', "<script\nsrc=");
+    $store = $this->fixture->store();
+
+    expect($store->getExitCode())->toBe(0, $store->getErrorOutput());
+});
+
 it('changes only the copy and versions.json when the published minor is not latest', function (): void {
     docsStoreWithNewerMinor($this->fixture);
     $base = $this->fixture->git('site', 'rev-parse', 'HEAD');
@@ -88,6 +96,15 @@ it('rejects a tampered first publish and commits nothing', function (Closure $ta
     'a protocol-relative stylesheet' => [fn (DocsStoreFixture $f) => $f->edit('artifact/site/2.1/install.html', 'href="/fieldset/2.1/assets/style.css"', 'href="//evil.example/style.css"'), 'from another origin'],
     'an unquoted script source' => [fn (DocsStoreFixture $f) => $f->edit('artifact/site/2.1/install.html', '</head>', '<SCRIPT SRC=//evil.example/x.js></SCRIPT></head>'), 'not written as src='],
     'a base element' => [fn (DocsStoreFixture $f) => $f->edit('artifact/site/index.html', '</head>', '<base href="https://evil.example/"></head>'), 'has a <base> element'],
+    // The HTML checks read each page as one line and split attributes as HTML does.
+    'a cross-origin script split across lines' => [fn (DocsStoreFixture $f) => $f->edit('artifact/site/2.1/install.html', '</head>', "<script\nsrc=\"https://evil.example/x.js\"></script></head>"), 'from another origin'],
+    'a cross-origin stylesheet split across lines' => [fn (DocsStoreFixture $f) => $f->edit('artifact/site/2.1/install.html', '</head>', "<link\nrel=\"stylesheet\"\r\n\thref=\"https://evil.example/x.css\"></head>"), 'from another origin'],
+    'a script source after a slash' => [fn (DocsStoreFixture $f) => $f->edit('artifact/site/2.1/install.html', '</head>', '<script/src="https://evil.example/x.js"></script></head>'), 'from another origin'],
+    'an inline script split across lines after the CSP' => [fn (DocsStoreFixture $f) => $f->edit('artifact/site/2.1/api-reference.html', '</body>', "<script\n>fetch(\"/x\")</script></body>"), 'inline executable script'],
+    'the CSP inside a script split across lines' => [fn (DocsStoreFixture $f) => $f->edit('artifact/site/2.1/api-reference.html', DocsStoreFixture::CSP_META, "<script\n>".DocsStoreFixture::CSP_META.'</script>'), 'before its CSP'],
+    'text before the CSP' => [fn (DocsStoreFixture $f) => $f->edit('artifact/site/2.1/api-reference.html', '<meta charset="utf-8">', '<meta charset="utf-8">x'), 'text before its CSP'],
+    'a src only inside another attribute\'s value' => [fn (DocsStoreFixture $f) => $f->edit('artifact/site/2.1/api-reference.html', '</body>', '<script data-x=" src=x">fetch("/x")</script></body>'), 'inline executable script'],
+    'a JSON type only inside another attribute\'s value' => [fn (DocsStoreFixture $f) => $f->edit('artifact/site/2.1/api-reference.html', '</body>', '<script data-x=\' type="application/json"\'>fetch("/x")</script></body>'), 'inline executable script'],
     'a symlink' => [fn (DocsStoreFixture $f) => symlink('/etc/passwd', $f->dir.'/artifact/site/2.1/passwd.txt'), 'symlink or other non-regular file'],
     'a dot directory' => [fn (DocsStoreFixture $f) => $f->put('artifact/site/2.1/.git/config', 'x'), 'outside the allowed names'],
     'a latest that does not follow the rules' => [fn (DocsStoreFixture $f) => $f->edit('artifact/site/versions.json', '"latest": "2.1"', '"latest": "2.2"'), 'versions.json changes more than'],

@@ -88,11 +88,12 @@ function verdict(incoming, existing) {
   if (belowFirstMinor(incoming.parsed)) return skip('versions before 2.1 get no copy');
   if (!existing) return publish(`first copy of ${incoming.minor}`);
   if (!existing.prerelease && incoming.prerelease) return skip(`final copy exists: ${existing.version}`);
+  // A copy only moves forward, as the store job checks: a late 2.1.0 does not replace a stored 2.1.1-rc.1.
+  const order = compareVersions(incoming.version, existing.version);
+  if (order < 0) return skip(`older than the stored ${existing.version}`);
   if (existing.prerelease && !incoming.prerelease) {
     return publish(`${incoming.version} replaces the pre-release ${existing.version}`);
   }
-  const order = compareVersions(incoming.version, existing.version);
-  if (order < 0) return skip(`older than the stored ${existing.version}`);
   return publish(order === 0 ? `re-run of ${incoming.version}` : `${incoming.version} replaces ${existing.version}`);
 }
 

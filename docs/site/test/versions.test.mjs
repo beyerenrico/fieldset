@@ -142,10 +142,10 @@ describe('decision table', () => {
     assert.equal(final.refreshRoot, true);
   });
 
-  test('a final replaces an rc-only copy even when the rc belongs to a later patch', () => {
+  test('a final older than the stored rc skips, as the store job would refuse it', () => {
     const decision = decide(storeOf('v2.1.1-rc.1'), release('v2.1.0'));
-    assert.equal(decision.action, 'publish');
-    assert.deepEqual(decision.versions.copies, [entry('2.1', '2.1.0')]);
+    assert.equal(decision.action, 'skip');
+    assert.match(decision.reason, /older than the stored 2\.1\.1-rc\.1/);
   });
 
   test('copies are sorted newest first, whatever order the store holds', () => {

@@ -228,6 +228,7 @@ jobs:
   docs:
     needs: lint
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     permissions:
       contents: read
     defaults:

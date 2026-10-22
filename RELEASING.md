@@ -166,6 +166,21 @@ gh workflow run docs.yml --ref main -f tag=vX.Y.Z      # mode publish (the defau
 gh workflow run docs.yml --ref main -f mode=redeploy   # deploy docs-site as it is, nothing is built
 ```
 
+**Verify** a publish, or what is live:
+
+```sh
+gh run list --workflow docs.yml --limit 1                    # the newest Docs run and its id
+gh run watch <run id> --exit-status                          # follow it; non-zero when a job failed
+git ls-remote origin refs/heads/docs-site                    # the stored commit the deploy must match
+curl -fsSL https://beyerenrico.github.io/fieldset/versions.json | jq .   # the live copies and latest
+```
+
+Each copy is served at `https://beyerenrico.github.io/fieldset/<minor>/` (for example `/fieldset/2.1/`),
+`/fieldset/latest/` leads to the newest, and the spec is at its `$id`,
+`https://beyerenrico.github.io/fieldset/spec/form-definition/1.0/meta-schema.json`. A deploy whose stored commit is no
+longer the head of `docs-site` (a re-run after a later publish or a revert) fails on purpose; `mode=redeploy` deploys
+the head.
+
 **Root refresh.** The home page, `latest/` and the spec files change only when the publish is the newest version: the
 newest final, or the newest rc while no final exists. `versions.json` changes on every publish. A re-run of the newest
 tag refreshes the root, which is how home-page fixes go live: merge the fix to `main`, then dispatch the newest tag. The

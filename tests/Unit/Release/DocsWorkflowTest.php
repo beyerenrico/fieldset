@@ -10,7 +10,8 @@ use Tests\Support\Release\WorkflowFiles;
  * Guards on .github/workflows/docs.yml (docs site plan U7, KTDs "Publishing and trust") that actionlint does not check:
  * the triggers, the privilege split between the untrusted build and the jobs that verify it, the release proof in
  * resolve, values reaching scripts only through env, no persisted credentials or forced pushes, exact pins and no
- * cache. The store program it runs (docs/site/store/store-artifact.sh) has its behaviour tested in DocsStoreScriptTest.
+ * cache. The store program it runs (docs/site/store/store-artifact.sh) has its behaviour tested in DocsStoreScriptTest,
+ * the reconcile warning and deploy's choice of commit in DocsWorkflowStepsTest.
  */
 
 const DOCS_WORKFLOW = '.github/workflows/docs.yml';
@@ -50,6 +51,44 @@ function docsPrivilegedScripts(string $job, string $block): array
     $scripts = WorkflowFiles::runScripts($block);
 
     return $job === 'store' ? [...$scripts, WorkflowFiles::text(DOCS_STORE_SCRIPT)] : $scripts;
+}
+
+/**
+ * The workflow-level concurrency group of docs.yml for a run's `github` context. Reads the expression, which must keep
+ * the shape `${{ (<dispatch> || (<conditions joined by &&>)) && 'docs-pages' || format('docs-skip-{0}', github.run_id) }}`
+ * (null otherwise), and evaluates its `x == y` conditions.
+ */
+function docsConcurrencyGroup(array $github, ?string $workflow = null): ?string
+{
+    preg_match("/\nconcurrency:\n  group: >-\n((?:    .*\n)+)  cancel-in-progress: false\n/", $workflow ?? docsWorkflow(), $block);
+    $expression = (string) preg_replace('/\s+/', ' ', trim($block[1] ?? ''));
+    $shape = <<<'RE'
+        /^\$\{\{ \(([^()|&]+) \|\| \(([^()|]+)\)\) && 'docs-pages' \|\| format\('docs-skip-\{0\}', github\.run_id\) \}\}$/
+        RE;
+    if (preg_match($shape, $expression, $parts) !== 1) {
+        return null;
+    }
+    $value = fn (string $operand): mixed => preg_match("/^'([^']*)'$/", $operand, $literal) === 1 ? $literal[1] : data_get(['github' => $github], $operand);
+    $holds = function (string $condition) use ($value): bool {
+        $sides = array_map(trim(...), explode(' == ', $condition));
+
+        return count($sides) === 2 && $value($sides[0]) === $value($sides[1]);
+    };
+    $qualifies = $holds($parts[1]) || array_filter(explode(' && ', $parts[2]), fn (string $condition): bool => ! $holds($condition)) === [];
+
+    return $qualifies ? 'docs-pages' : 'docs-skip-'.$github['run_id'];
+}
+
+/** @return array<string, mixed> a workflow_run `github` context of a successful tag push of this repository's release.yml */
+function docsReleaseRun(array $run = [], int $runId = 7): array
+{
+    return [
+        'event_name' => 'workflow_run', 'repository' => 'beyerenrico/fieldset', 'run_id' => $runId,
+        'event' => ['workflow_run' => [
+            'conclusion' => 'success', 'event' => 'push', 'path' => '.github/workflows/release.yml',
+            'head_repository' => ['full_name' => 'beyerenrico/fieldset'], ...$run,
+        ]],
+    ];
 }
 
 /** @return list<string> the actions a job block uses, without their pins */
@@ -254,7 +293,33 @@ it('pins every action by SHA, uses no cache and serializes publishes without can
         ->and($workflow)->not->toContain('actions/cache')
         ->and($workflow)->not->toMatch('/^\s+cache(-dependency-path)?:/m')
         ->and($workflow)->toContain("          package-manager-cache: false\n")
-        ->and($workflow)->toContain("\nconcurrency:\n  group: docs-pages\n  cancel-in-progress: false\n");
+        ->and($workflow)->toContain("\n  cancel-in-progress: false\n")
+        ->and($workflow)->not->toContain('cancel-in-progress: true');
+});
+
+it('serializes the runs that can publish in docs-pages and gives every other run a group of its own', function (array $github, string $group): void {
+    expect(docsConcurrencyGroup($github))->toBe($group);
+})->with([
+    'a dispatch' => [['event_name' => 'workflow_dispatch', 'repository' => 'beyerenrico/fieldset', 'run_id' => 7], 'docs-pages'],
+    'a successful Release run' => [docsReleaseRun(), 'docs-pages'],
+    'a failed Release run' => [docsReleaseRun(['conclusion' => 'failure']), 'docs-skip-7'],
+    'a cancelled Release run' => [docsReleaseRun(['conclusion' => 'cancelled']), 'docs-skip-7'],
+    'a Release run of another repository' => [docsReleaseRun(['head_repository' => ['full_name' => 'evil/fieldset']]), 'docs-skip-7'],
+    'a Release run not started by a push' => [docsReleaseRun(['event' => 'workflow_dispatch']), 'docs-skip-7'],
+    'a run of another workflow called Release' => [docsReleaseRun(['path' => '.github/workflows/evil.yml']), 'docs-skip-7'],
+]);
+
+it('keeps the docs-pages conditions those of resolve and the other groups unique per run', function (): void {
+    preg_match('/^    if: >-\n((?: {6}.*\n)+)/m', docsJobs()['resolve'], $if);
+    preg_match_all("/github\.event\.workflow_run\.[\w.]+ == (?:'[^']*'|github\.repository)/", $if[1] ?? '', $resolve);
+    preg_match("/\nconcurrency:\n  group: >-\n((?:    .*\n)+)/", docsWorkflow(), $group);
+    preg_match_all("/github\.event\.workflow_run\.[\w.]+ == (?:'[^']*'|github\.repository)/", $group[1] ?? '', $concurrency);
+    $broken = str_replace("'docs-skip-{0}', github.run_id", "'docs-skip-{0}', github.workflow", docsWorkflow());
+
+    expect($resolve[0])->toHaveCount(4)
+        ->and($concurrency[0])->toEqualCanonicalizing($resolve[0])
+        ->and(docsConcurrencyGroup(docsReleaseRun(['conclusion' => 'failure'], 8)))->not->toBe(docsConcurrencyGroup(docsReleaseRun(['conclusion' => 'failure'], 9)))
+        ->and(docsConcurrencyGroup(docsReleaseRun(), $broken))->toBeNull();
 });
 
 it('fails the pin check for an action in docs.yml that is not pinned by SHA with its version', function (string $ref): void {
@@ -311,4 +376,15 @@ it('deploys only a stored commit without symlinks or submodules', function (): v
         ->and($check)->toBeLessThan((int) strpos($deploy, 'actions/upload-pages-artifact@'))
         ->and($deploy)->toContain('rm -rf site/.git')
         ->and($deploy)->toContain("        with:\n          path: site\n");
+});
+
+it('deploys a stored commit only while it is the head of docs-site', function (): void {
+    $choose = WorkflowFiles::runScripts(docsJobs()['deploy'])[0];
+    $head = (int) strpos($choose, 'git ls-remote --exit-code "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git" refs/heads/docs-site | cut -f1');
+    $compare = (int) strpos($choose, 'if [ "$head" != "$STORED" ]; then');
+
+    expect($head)->toBeGreaterThan(0)
+        ->and($compare)->toBeGreaterThan($head)
+        ->and($compare)->toBeLessThan((int) strpos($choose, 'echo "ref=$STORED" >> "$GITHUB_OUTPUT"'))
+        ->and(substr($choose, $compare, 400))->toContain('mode=redeploy');
 });
