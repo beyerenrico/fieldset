@@ -65,6 +65,12 @@ Route::withoutMiddleware([AddQueuedCookiesToResponse::class, StartSession::class
     });
 
 // Field App (React PWA) and the builder preview entry (BUILD_PROMPT §6.1).
+// The shell the service worker precaches (SHELL_URL, ADR 0035) is fetched in the background, also while the login page
+// runs SSO discovery: without a session, it cannot save a stale copy over the start token discovery wrote (database
+// driver, no locking). No sign-in, cookie, CSRF, locale or device middleware; the HTML is the same static page.
+Route::get('app/shell', [SpaController::class, 'app'])->name('field-app.shell')
+    ->withoutMiddleware([AddQueuedCookiesToResponse::class, StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class,
+        SetLocale::class, EndRevokedDeviceSession::class, EnforceImpersonationWindow::class]);
 Route::get('app/{path?}', [SpaController::class, 'app'])->where('path', '.*')->name('field-app');
 Route::get('form-preview/{path?}', [SpaController::class, 'preview'])->where('path', '.*')->name('form-preview');
 

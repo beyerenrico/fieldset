@@ -174,3 +174,13 @@ Versions, checked on the npm registry on 2026-10-17: dexie 4.4.6 (Apache-2.0), v
   - The header shows pending work only offline, or after 10 s pending with no sync running. Decisions show at once.
   - Only one banner shows at a time (reload > update > iOS warning > install), and install banners are hidden while filling.
   - Restored drafts start as "Saved on this device". "Storage full" is a typed error, announced once.
+
+## Amendment 2026-10-22: the shell has no session
+- **Why:** CI run 39747027552 failed an SSO sign-in in the Field App. The worker's background fetch of `/app/shell`
+  (34 ms) read the session before the login page's `POST /auth/sso/discover` saved the SSO start token, and saved it
+  back 3 ms later; the redirect found no start token (`start_missing`, shown as `sso_failed`). Sessions use the
+  database driver without locking, so the later write wins. A user who types fast or autofills can hit it on the first visit.
+- **Change:** `app/shell` is its own route (`field-app.shell`) without the session, cookie, CSRF, locale and device
+  middleware, like the phone trust page. It serves the same static page with the same CSP. Every other `/app/*` route keeps
+  the web group, so impersonation and device checks still run on navigations.
+- **Test:** `tests/Feature/Smoke/SpaRoutesTest.php` (no session and no cookie on the shell; a client route has a session).
