@@ -30,14 +30,18 @@ it('runs only for pushed v* tags, with no default token permissions', function (
         ->and(releaseWorkflow())->not->toContain('workflow_dispatch');
 });
 
-it('pins every action by full commit SHA with a version comment', function (string $workflow): void {
+it('pins every action by full commit SHA with a version comment', function (string $workflow, int $pinned): void {
     preg_match_all('/^\s+(?:-\s+)?uses:\s+(\S+)(.*)$/m', (string) file_get_contents(base_path($workflow)), $uses, PREG_SET_ORDER);
-    $release = $workflow === '.github/workflows/release.yml';
     $checked = 0;
 
     foreach ($uses as [$line, $action, $comment]) {
-        if (! $release && preg_match('/@v\d+$/', $action) === 1) {
+        if ($workflow === '.github/workflows/ci.yml' && preg_match('/@v\d+$/', $action) === 1) {
             continue; // jobs from before 2.0 keep their tags (plan U7: existing CI jobs unchanged)
+        }
+        if (str_starts_with($action, './')) {
+            expect($action)->toMatch('/^\.\/\.github\/workflows\/[\w-]+\.yml$/', $line); // a workflow of the same commit
+
+            continue;
         }
 
         $checked++;
@@ -45,8 +49,13 @@ it('pins every action by full commit SHA with a version comment', function (stri
             ->and($comment)->toMatch('/^ # v?\d+\.\d+\.\d+$/', $line);
     }
 
-    expect($checked)->toBeGreaterThan(5);
-})->with(['.github/workflows/release.yml', '.github/workflows/ci.yml']);
+    expect($checked)->toBeGreaterThanOrEqual($pinned);
+})->with([
+    'release' => ['.github/workflows/release.yml', 6],
+    // The install-journeys job and its five pinned actions moved to their own workflow (ADR 0091 amendment 2026-10-22).
+    'ci' => ['.github/workflows/ci.yml', 4],
+    'install journeys' => ['.github/workflows/install-journeys.yml', 5],
+]);
 
 it('pins every container image it runs by digest', function (string $workflow): void {
     preg_match_all('/docker\.io\/\S+|ghcr\.io\/sigstore\S+/', (string) file_get_contents(base_path($workflow)), $images);

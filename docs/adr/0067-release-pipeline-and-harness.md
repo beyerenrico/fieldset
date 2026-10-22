@@ -188,3 +188,7 @@ caches `storage/fsa-test-cache`.
   decision (QUESTIONS); the gate is not lowered here.
 - Unverified until a human publishes (ADR 0064): keyless signing in Actions, the `release` environment rules
   and GHCR anonymous pulls.
+
+## Amendment 2026-10-22: install journeys outside CI
+The `install-journeys` job no longer runs in `ci.yml` on pushes. It is its own workflow (nightly, on demand) and a
+required first job of the release workflow: ADR 0091, amendment 2026-10-22.

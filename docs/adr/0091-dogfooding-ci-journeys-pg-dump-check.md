@@ -65,3 +65,19 @@ on 18025 without a login, open registration, the SSO demo seed, Keycloak, and Ho
   stops the release before anything is signed or published.
 - The backup slot has 20 MiB less headroom at the 1.0 volume than with demo data (77.7 vs 59.6 MiB unreclaimable);
   a much larger database or encryption could move it. J10 measures it again on every run and reports the verdict.
+
+## Amendment 2026-10-22: the journeys leave CI on push; nightly, on demand and as a release gate
+- **Why.** On GitHub's runners the Install suite takes about 2 h 10 m; every other CI job is done in about 41 minutes
+  (run 39715804524). Every push to `main` waited for it, and a push during a run cancelled it. The human asked "is it
+  really necessary to have these install journeys be part of the CI? They really inflate the duration of these runs"
+  and chose "Nightly + release" over keeping them on every push or splitting them into parallel jobs. The release
+  workflow did not depend on the journeys at all, so a tag could publish what they never passed.
+- **Change.** The job moves unchanged (same steps, environment, timeout and artifact) from `ci.yml` into its own
+  workflow, `.github/workflows/install-journeys.yml`, triggered by `schedule` (02:17 UTC every night, on `main`),
+  `workflow_dispatch` (any branch) and `workflow_call`. `release.yml` calls it as job `journeys` on the tagged commit
+  with a read-only token (no environment, no secrets, no OIDC token), and `image` needs it: nothing is built, signed or
+  published before every journey passed. The milestone-branch triggers (`m9-`…`m13-`) are gone with the job.
+- **Consequences.** CI on push and pull request runs in about 41 minutes. An install regression shows up in the next
+  nightly run (or a manual one), not on the push that caused it; a release takes about two hours longer. The
+  `install-journey-logs` artifact is uploaded by the nightly, manual or release run. The release path through
+  `workflow_call` is checked by actionlint and `InstallJourneysJobTest` only, until the first tag is pushed.

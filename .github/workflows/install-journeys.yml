@@ -1,0 +1,79 @@
+# Install journeys (BUILD_PROMPT_V2 §11, plan U22; ADR 0091 and its amendment of 2026-10-22).
+#
+# The whole Install suite against real Docker and the local harness (KTD23), the dogfooding E2E run included. It takes
+# about 2 h 10 m on a GitHub runner, so pushes and pull requests run CI without it. It runs every night on main, on
+# demand (Actions → Install journeys → Run workflow, on any branch), and from the release workflow, which builds,
+# signs and publishes nothing before it passes on the tagged commit.
+
+name: Install journeys
+
+on:
+  schedule:
+    - cron: '17 2 * * *'
+  workflow_dispatch:
+  workflow_call:
+
+permissions: {}
+
+env:
+  PHP_VERSION: '8.4'
+  NODE_VERSION: '24'
+
+jobs:
+  # Every journey on amd64 (§11; arm64 runs locally), the dogfooding E2E run included (plan U22, ADR 0091): Playwright,
+  # its Chromium and poppler for J4, J6, J10 and the E2E suite, the v1.0.0 tag for J9's 1.0 install, a 2-CPU-pinnable
+  # runner for J10. FIELDSET_REQUIRE_DOCKER and FIELDSET_REQUIRE_PLAYWRIGHT turn a missing tool into a failure instead of
+  # a skip; only LocalPreReleaseTest skips (it builds a named pre-release, FIELDSET_PRERELEASE_VERSION, at a milestone
+  # gate).
+  install-journeys:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    permissions:
+      contents: read
+    env:
+      FIELDSET_REQUIRE_DOCKER: '1'
+      FIELDSET_REQUIRE_PLAYWRIGHT: '1'
+      FIELDSET_HARNESS_PLATFORMS: linux/amd64
+      FIELDSET_EVIDENCE_MILESTONE: M13
+      PLAYWRIGHT_BROWSERS_PATH: storage/playwright
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      # J9 builds 1.0.0 from the tag v1.0.0 (V1Install). Release tags are pushed by a human (RELEASING.md); until then
+      # the tag is created locally on the 1.0.0 release commit, which is in main's history.
+      - name: Provide the v1.0.0 tag for J9
+        run: |
+          if ! git rev-parse -q --verify refs/tags/v1.0.0 > /dev/null; then
+            git tag v1.0.0 70b97e5cc2fe8d6d668a9c9b2ade29a54dd288e0
+          fi
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          coverage: none
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      # m4-review and m4-versions compare PDFs with pdftotext/pdfinfo.
+      - run: sudo apt-get update && sudo apt-get install -y poppler-utils
+      # Mirrored third-party blobs and the harness build cache (ReleaseHarness); keyed on what they depend on.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: storage/fieldset-test-cache
+          key: fieldset-test-cache-${{ hashFiles('distribution/release.json', 'docker/app/Dockerfile', 'composer.lock', 'package-lock.json') }}
+          restore-keys: fieldset-test-cache-
+      - run: vendor/bin/pest --testsuite=Install
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: install-journey-logs
+          path: |
+            storage/agent-logs
+            docs/agent/milestones/evidence/M13
+          if-no-files-found: ignore

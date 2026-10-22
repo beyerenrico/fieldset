@@ -49,6 +49,15 @@ services:
   queue:
     <<: *app
     command: ["php", "artisan", "horizon"]
+    # Created after app and started once it is healthy (migrated): the app roles share app-storage, and Docker's
+    # first copy of the image's files into a new volume fails when several containers create it at once.
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      app:
+        condition: service_healthy
     networks: [default, renderer]
     healthcheck:
       test: ["CMD", "php", "artisan", "horizon:status"]
@@ -59,6 +68,14 @@ services:
   scheduler:
     <<: *app
     command: ["php", "artisan", "schedule:work"]
+    # After app, as queue.
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      app:
+        condition: service_healthy
     networks: [default]
     # No healthcheck: the image defines none. `healthcheck: disable: true` sets the test to NONE, which older
     # Compose releases (GitHub runners) treat as a check that never reports, failing `docker compose up --wait`.
