@@ -222,7 +222,7 @@ describe('publish', { skip: skipBuilds }, () => {
     assert.equal(decision.refreshRoot, true);
     assert.deepEqual(decision.allowedPaths, allowedPaths({ minor: '2.1', refreshRoot: true }));
     assert.deepEqual(entries(join(out, 'site')),
-      ['2.1', '404.html', 'assets', 'hashmap.json', 'index.html', 'latest', 'spec', 'versions.json']);
+      ['2.1', '404.html', 'assets', 'hashmap.json', 'index.html', 'latest', 'screenshots', 'spec', 'versions.json']);
     assert.deepEqual(filesBelow(join(out, 'site')).filter((file) => !allowedBy(decision.allowedPaths, file)), []);
     const metaSchema = `${SPEC_DIR}/meta-schema.json`;
     assert.ok(readFileSync(join(out, 'site', metaSchema)).equals(readFileSync(join(source, metaSchema))));

@@ -29,12 +29,21 @@ features:
     details: Signed Docker images, installed, configured, backed up and upgraded with the fieldset command-line tool.
   - title: An open format
     details: Form definitions follow the open Fieldset Spec (MIT), with PHP and JavaScript SDKs.
-# PLACEHOLDER (U9): English-UI screenshots under the Fieldset name, files in public/screenshots/. Each entry:
-#   - src: screenshots/forms-list.png
-#     alt: The forms list of the admin dashboard
-#     caption: Forms and their versions
-# The section stays hidden while the list is empty (theme/HomeMore.vue).
-screenshots: []
+# Under the features (theme/HomeMore.vue): files in public/screenshots/, captured from a fresh demo instance by
+# scripts/screenshots.mjs (U9). Every file there must be listed here, and every entry must exist (lib/checks.mjs).
+screenshots:
+  - src: screenshots/forms.png
+    alt: The forms list of the admin dashboard, with a published service report and three draft forms created from templates
+    caption: Forms, their status and published versions
+  - src: screenshots/builder.png
+    alt: The canvas builder with the service report open, the element palette on the left and the selected field's properties on the right
+    caption: The drag-and-drop canvas builder
+  - src: screenshots/field-app.png
+    alt: Two phone screens of the Field App, the list of forms and the first step of the service report being filled in
+    caption: The Field App on a phone
+  - src: screenshots/pdf.png
+    alt: The numbered PDF of a submitted service report, with the organization's logo and colors, open in the browser
+    caption: The branded, numbered PDF
 # Under the features (theme/HomeMore.vue).
 docs:
   - to: guides
