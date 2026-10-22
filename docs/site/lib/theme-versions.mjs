@@ -39,14 +39,18 @@ async function fetchVersionsText(fetchImpl) {
   }
 }
 
-// One fetch per page load, shared by the switcher and the notice; resolves to the reader's model and never rejects.
-export function createVersionsLoader(copy, fetchImpl = (...args) => globalThis.fetch(...args)) {
+// One fetch per page load, shared by every component of the page; resolves to the reader's model with baked as its
+// fallback and never rejects. The root (U4) passes the versions.json it was built with.
+export function createLoader(baked, fetchImpl = (...args) => globalThis.fetch(...args)) {
   let pending = null;
   return () => {
-    pending ??= fetchVersionsText(fetchImpl).then((text) => readVersions(text, bakedVersions(copy)));
+    pending ??= fetchVersionsText(fetchImpl).then((text) => readVersions(text, baked));
     return pending;
   };
 }
+
+// A copy's loader: its fallback is the copy alone.
+export const createVersionsLoader = (copy, fetchImpl) => createLoader(bakedVersions(copy), fetchImpl);
 
 const labelOf = (copy) => (isRelease(copy) ? copy.version : 'dev');
 

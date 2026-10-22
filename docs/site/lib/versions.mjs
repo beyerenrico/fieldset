@@ -4,7 +4,7 @@
 // file. The stored file comes from this writer, so anything malformed in it is an error, never silently overwritten.
 import { compareVersions, isMinor, parseTag, readCopy, SCHEMA } from './versions-reader.mjs';
 
-const FIRST_MINOR = [2, 1]; // R10: versions before 2.1 get no copy
+export const FIRST_MINOR = Object.freeze([2, 1]); // R10: versions before 2.1 get no copy
 const SHA = /^[0-9a-f]{40}$/;
 const DIGITS = /^[0-9]+$/;
 

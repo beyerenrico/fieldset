@@ -10,30 +10,15 @@
 // through the environment; buildCopy sets FIELDSET_DOCS_STAGE for the duration of one build. Static files of the copy
 // (U11's api-reference.html) go into <staged dir>/public/, VitePress's public dir for this srcDir.
 import { realpathSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { build } from 'vitepress';
 import { contentMarkdown } from '../../lib/markdown.mjs';
 import { copySidebar } from '../../lib/sidebar.mjs';
 import { SITE_ROOT, readSite } from '../../lib/stage.mjs';
+import { buildStaged, stagedImports, stageDirFromEnv, STAGE_ENV } from '../../lib/staged-build.mjs';
 
-export const STAGE_ENV = 'FIELDSET_DOCS_STAGE';
+export { STAGE_ENV };
 export const COPY_ROOT = fileURLToPath(new URL('..', import.meta.url));
 const CONFIG_FILE = fileURLToPath(import.meta.url);
-const BARE_IMPORT = /^(?![./\\\0]|[a-z][\w+.-]*:)/i;
-
-// The staged dir may lie outside docs/site (a tmp dir), where `vue/server-renderer` and the other bare imports of the
-// compiled pages cannot be found. They resolve as if this file imported them, so pages and theme share one Vue.
-function stagedImports(srcDir) {
-  return {
-    name: 'fieldset:staged-page-imports',
-    enforce: 'pre',
-    resolveId(source, importer, options) {
-      if (!importer?.startsWith(`${srcDir}/`) || !BARE_IMPORT.test(source)) return null;
-      return this.resolve(source, CONFIG_FILE, { ...options, skipSelf: true });
-    },
-  };
-}
 
 // Shiki has no grammar for these fences; they render as plain text instead of warning on every build.
 const LANGUAGE_ALIAS = { caddyfile: 'txt', cron: 'txt' };
@@ -83,23 +68,12 @@ export function copyConfig({ stageDir }) {
     description: `Fieldset documentation, ${label}: install, operate and integrate the self-hosted forms platform.`,
     markdown: { ...contentMarkdown(site), languageAlias: LANGUAGE_ALIAS },
     themeConfig: themeConfig(site),
-    vite: { plugins: [stagedImports(site.srcDir)] },
+    vite: { plugins: [stagedImports(site.srcDir, CONFIG_FILE)] },
   };
 }
 
-export async function buildCopy({ stageDir, outDir }) {
-  const previous = process.env[STAGE_ENV];
-  process.env[STAGE_ENV] = resolve(stageDir);
-  try {
-    await build(COPY_ROOT, { outDir: resolve(outDir) });
-  } finally {
-    if (previous === undefined) delete process.env[STAGE_ENV];
-    else process.env[STAGE_ENV] = previous;
-  }
-}
+export const buildCopy = ({ stageDir, outDir }) => buildStaged({ root: COPY_ROOT, stageDir, outDir });
 
 export default function config() {
-  const stageDir = process.env[STAGE_ENV];
-  if (!stageDir) throw new Error(`${STAGE_ENV} must name the staged dir (stageContent in lib/stage.mjs)`);
-  return copyConfig({ stageDir });
+  return copyConfig({ stageDir: stageDirFromEnv() });
 }
