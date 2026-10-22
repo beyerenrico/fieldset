@@ -15,8 +15,8 @@ compose start-order flakes). Both branches green on GitHub before the merge (run
 backend, stack file, ClassicBuilderSlot).
 
 ## Next actions
-0. Confirm the `main` CI run after 89abe7e2 and the first `Install journeys` run on main (dispatched by hand) are
-   green; later nightly runs: fix a red one before anything else.
+0. Green on 0f482fc2: CI run 39732478518 and the first `Install journeys` run 39732488129 (2 h 03 m). Nightly
+   runs (02:17 UTC): fix a red one before anything else.
 1. Human: decide whether `v2.1.0` moves from ff5646ba to a green main commit (its stack file still disables the
    scheduler's healthcheck, which breaks `up --wait` with older Compose). Then trademark check, GHCR first publish, push
    only `v2.1.0` (or a `v2.1.0-…` pre-release) by name, delete old dev resources (QUESTIONS 77c/d, RELEASING.md).
