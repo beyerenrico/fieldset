@@ -18,11 +18,12 @@ commit ("Move to main"); trademark pre-check done, "Go ahead" with Fieldset; old
 ## Next actions
 0. Green on 0f482fc2: CI run 39732478518 and the first `Install journeys` run 39732488129 (2 h 03 m). Nightly
    runs (02:17 UTC): fix a red one before anything else.
-1. Re-create the local annotated `v2.1.0` on the first green main commit after the fix (human: "Move to main"). Then
-   human: GHCR first publish, push only `v2.1.0` by name (RELEASING.md; the release runs the journeys first, ~2 h).
-2. Trivy exceptions expire 2026-11-17 (older gotenberg, caddy entries) and 2026-11-20 (CVE-2026-111943 entries for
-   postgres, gotenberg, mailpit, caddy; cloudflared CVE-2026-63209). Before any later release: refresh the pins to
-   images built with Go ≥ 1.26.10 / 1.27.3, or renew the entries in a reviewed commit.
+1. `v2.1.0-rc.1` pushed (human: "You push v2.1.0-rc.1"; only that tag) on d393ffa4 (main CI 39763290483 green);
+   Release run 39769444878. `verify-public` fails while the GHCR package is private: the human makes it public
+   (irreversible), then re-run the failed jobs; post-publish checklist. Local `v2.1.0` re-created on d393ffa4; before
+   pushing it: local arm64 journeys (human: "Skip for the rc", run before the final).
+2. Trivy exceptions expire 2026-11-17 (older gotenberg, caddy) and 2026-11-20 (CVE-2026-111943: postgres, gotenberg,
+   mailpit, caddy; cloudflared CVE-2026-63209): refresh pins (Go ≥ 1.26.10 / 1.27.3) or renew them in a reviewed commit.
 3. QUESTIONS 77b (PDF fixture producer) still open.
 
 ## Gate results (R2.1.md, rerun after the Go fix)

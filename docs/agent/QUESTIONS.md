@@ -362,3 +362,12 @@ Format: question · chosen option · impact · how to reverse.
    "Fix it, then release (Recommended)" ("New branch: update Go, Docker CLI, FrankenPHP and third-party image versions;
    dated exceptions only where no fixed image exists. Then rescan, rerun all journeys, merge and tag v2.1.0 locally.").
    Done on branch `sec-go-x509` (ADR 0093).
+   **77c resolved (2026-10-22), human answers:** move `v2.1.0` to green main ("Move to main (Recommended)"); trademark
+   pre-check (TMview and WIPO Global Brand Database, "FIELDSET": one live mark, USPTO class 9, LED drivers and lighting
+   controllers; France class 35 and Australia class 30 expired; nothing at EUIPO, DPMA, UKIPO; not legal advice), then
+   "Go ahead (Recommended)"; repository setup via the API ("You do it via gh"): environment `release` limited to `v*`
+   tags, tag ruleset "Release tags (v*)" (creation, update, deletion; admins bypass); first publish as a pre-release
+   pushed by the agent ("You push v2.1.0-rc.1 (Recommended)"); local arm64 journeys "Skip for the rc (Recommended)",
+   run them before the final v2.1.0. The repository was renamed by the human on 2026-10-21.
+   **77d resolved (2026-10-22):** human answer "Delete all (Recommended)"; the old containers, volumes, images and
+   networks of the `form-schema-app` project were removed.
