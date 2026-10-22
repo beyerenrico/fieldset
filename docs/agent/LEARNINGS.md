@@ -225,3 +225,6 @@
 174. Containers created at the same moment on a new named volume race in Docker's copy of the image's files into it
    ("failed to mkdir …/_data/<dir>: file exists"). Let one container create the volume first: `depends_on` (Compose
    creates dependents after their dependency) or a one-off run before `up`.
+175. Laravel sessions without locking (database driver) lose writes: a request that started before another one saved
+   the session saves its stale copy afterwards. Background requests that need no session (the service worker's shell
+   fetch) must not start one; find such races in a Playwright trace by comparing request start and end times.

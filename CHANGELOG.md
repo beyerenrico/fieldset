@@ -5,11 +5,11 @@ All notable changes to this project are documented here. The format follows
 [Semantic Versioning](https://semver.org/) (0.x: the API and data model may still change).
 The Fieldset Spec has its own changelog in `spec/form-definition/1.0/CHANGELOG.md`.
 
-## 2.1.0 — 2026-10-21 (tagged locally, not published)
+## 2.1.0 — 2026-10-22 (release candidate `v2.1.0-rc.1`)
 
-The product is renamed from form-schema-app to **Fieldset** before its first public release. Nothing else changes in
-behaviour. **Breaking for every pre-release user, with no compatibility path:** old names are removed, not aliased
-(ADR 0092).
+The product is renamed from form-schema-app to **Fieldset** before its first public release. Apart from the fixes
+below, nothing changes in behaviour. **Breaking for every pre-release user, with no compatibility path:** old names are
+removed, not aliased (ADR 0092).
 
 ### Changed
 - **Name** — product, repository `beyerenrico/fieldset`, image `ghcr.io/beyerenrico/fieldset`, signer identity
@@ -29,6 +29,15 @@ behaviour. **Breaking for every pre-release user, with no compatibility path:** 
   1.0 must be synced before switching.
 - **Upgrades** — `release.json` upgrades from `2.1.0-alpha.1`; 2.0 pre-release instances are not upgraded. A 1.0
   checkout is still adopted with `fieldset adopt` (its 1.0 project and database defaults are kept).
+
+### Fixed
+- **Stack file** — the scheduler has no disabled healthcheck any more, so `docker compose up --wait` on an instance
+  also passes with Compose before v5.
+- **Classic builder** — one render at a time per instance; a second waits up to 20 s, then gets a 503 instead of two
+  renders pushing the `small` app over its memory limit (ADR 0083).
+- **MFA set-up** — the QR code is always SVG, whether or not the PHP imagick extension is loaded.
+- **Field App SSO** — the service worker's background fetch of the app shell no longer starts a session, which could
+  overwrite the SSO start token and fail the first central login with "The central login did not work" (ADR 0035).
 
 ### Security
 - **CVE-2026-111943** (Go `crypto/x509`, high) — the app image builds Compose and age with Go 1.27.3, uses a FrankenPHP

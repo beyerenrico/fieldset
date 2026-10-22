@@ -390,3 +390,9 @@
 - Flakes on the branch, both fixed: the sync backoff test moved the fake clock before the engine scheduled its wake
   (reproduced with a 200 ms delay); dev compose created app, queue and scheduler at once on a new volume (copy race).
 - Branch run 39728456302 green; merged into main (c82c31f0, 89abe7e2), pushed; journeys dispatched on main.
+
+## 2026-10-22 Shell without a session (fix-shell-session-race); release prep
+- Human steps: v2.1.0 to move onto a green main commit; trademark pre-check (TMview + WIPO: one live US class 9 mark,
+  lighting controllers; EU/DE/UK none) and "Go ahead" with Fieldset; old form-schema-app dev resources deleted (77d).
+- CI run 39747027552 (docs-only commit) failed m7-sso: the worker's `/app/shell` fetch saved a stale session over the
+  SSO start token discovery wrote. `app/shell` now runs without session middleware (ADR 0035 amendment, LEARNINGS 175).
