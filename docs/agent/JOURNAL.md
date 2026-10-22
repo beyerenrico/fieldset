@@ -410,3 +410,8 @@
 - Re-run (attempt 2) of 39796441261 failed m4-versions rollback: the edit page was the classic builder's own 503 after
   its 20 s slot wait (another worker held the render slot). Specs now open classic builder pages through a helper that
   honours Retry-After (LEARNINGS 178); no assertion changed.
+
+## 2026-10-22 rc.2 journeys (maint-j09-renditions)
+- `v2.1.0-rc.2` pushed on 6376edb8 (main CI 39813158091 green). Release run 39819962977 failed J09 only (147 passed):
+  the drill missed 34 files of 44 renditions because 1.0's queue had rendered 10 demo PDFs. The journey now compares
+  missing files with the load generator's renditions (LEARNINGS 179). A new tag (rc.3) needs the human's approval.
