@@ -176,9 +176,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: shellcheck install.sh, the shim and the image scripts
+      - name: shellcheck install.sh, the shim, the image scripts and the docs store check
         run: |
-          files=(docker/app/entrypoint.sh docker/app/fieldset)
+          files=(docker/app/entrypoint.sh docker/app/fieldset docs/site/store/store-artifact.sh)
           if compgen -G 'distribution/*.sh' > /dev/null; then
             files+=(distribution/*.sh)
           fi

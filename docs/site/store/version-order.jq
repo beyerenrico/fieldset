@@ -1,5 +1,6 @@
 # Orders two docs copy tags for the privileged store job (docs site plan U5 and U7, KTD "Version rules decide every
-# publish"). store runs no repo code except this program, which it reads from main, never from the build artifact.
+# publish"). store runs no repo code except this program and store-artifact.sh beside it, which it reads from main,
+# never from the build artifact.
 #
 #   jq -n --arg a <tag> --arg b <tag> -f docs/site/store/version-order.jq
 #
