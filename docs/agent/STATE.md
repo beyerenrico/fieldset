@@ -1,9 +1,9 @@
-# State: 2026-10-23 — Fieldset 2.1.0-rc.4 published; docs site live with the 2.1 copy
+# State: 2026-10-23 — Fieldset 2.1.0 published (stable, Latest); docs site serves the final 2.1 copy
 v2 run complete (2.0.0, local tag `v2.0.0`, never published; `docs/agent/FINAL_REPORT_V2.md`).
 Rename to Fieldset (human decision, QUESTIONS 1/25; plans and brainstorms are local only, QUESTIONS 79;
-ADR 0092): U1–U8 done. Trivy fix for CVE-2026-111943 (human decision QUESTIONS 77a, ADR 0093) on branch `sec-go-x509`,
-merged into `rename-fieldset`, which is merged `--no-ff` into `main`; local tags `rename-done` and annotated `v2.1.0` on
-that merge commit. No tag pushed. Gate report `docs/agent/milestones/R2.1.md`, evidence `milestones/evidence/R2.1/`.
+ADR 0092): U1–U8 done; Trivy fix ADR 0093 (QUESTIONS 77a). Published tags, each human-approved and pushed by name:
+`v2.1.0-rc.1` to `rc.4` and `v2.1.0` (2c224db8). Local only: `v2.0.0`, `rename-done`, `mX-done`.
+Gate report `docs/agent/milestones/R2.1.md`, evidence `milestones/evidence/R2.1/`.
 
 GitHub repo renamed to `beyerenrico/fieldset` by the human; they pushed `main` (ff5646ba), then allowed the agent to
 push to get CI green ("you are allowed to push … make sure that the CI is green"; never tags, never force). Fixes on
@@ -17,15 +17,14 @@ commit ("Move to main"); trademark pre-check done, "Go ahead" with Fieldset; old
 
 ## Next actions
 0. Nightly `Install journeys` runs (02:17 UTC): fix a red one before anything else.
-1. `v2.1.0-rc.4` (209fe4a7, human: "Yes, rc.4 when green") published as a pre-release: Release run 39919806861 green;
-   post-publish checks from outside CI (cosign, anonymous access, docs) in `evidence/R2.1/postpublish-v2.1.0-rc.4.txt`.
-   rc.1 is a draft, rc.2 and rc.3 have no release (pull check, J09, Trivy). Final: local `v2.1.0` moves from 209fe4a7
-   to the merge of `maint-final-2.1.0` (QUESTIONS 80, docs only); local arm64 journeys on aa3f5c1f 151 passed /
-   7 skipped (1 h 45 m). Pushing `v2.1.0` needs human approval. Other post-publish checks need real accounts/devices.
+1. `v2.1.0` (2c224db8, human: "Go ahead") published as stable and Latest: Release run 39970942791 green; checks from
+   outside CI (cosign, SHA256SUMS, anonymous pulls, tags 2.1.0/2.1/2/latest, update feed, docs) in
+   `evidence/R2.1/postpublish-v2.1.0.txt`. rc.4 stays a pre-release, rc.1 a draft (QUESTIONS 77e); rc.2 and rc.3 have
+   no release. Remaining post-publish checks need real accounts/devices (RELEASING). Next tag needs human approval.
 2. Trivy exceptions expire 2026-11-17 (older gotenberg, caddy), 2026-11-20 (CVE-2026-111943: postgres, gotenberg,
    mailpit, caddy; cloudflared CVE-2026-63209) and 2026-11-22 (60 Chromium 156 fixes in gotenberg 8.38.1): refresh pins
    when upstream images ship (Go >= 1.26.10 / 1.27.3, Chromium 156) or renew them in a reviewed commit.
-3. QUESTIONS 77b (PDF fixture producer) open. Docs site live (ADR 0094; Docs run 39940103599, docs-site 5f908137).
+3. QUESTIONS 77b (PDF fixture producer) open. Docs site live (ADR 0094; Docs run 39994845764, docs-site 0cc99c88).
    Open human choices: Wiki off, About website (QUESTIONS 78 e/f).
 4. Next patch 2.1.x: query tuning (QUESTIONS 41/74/80): saved reports, explorer search, inbox, API in_review series.
 

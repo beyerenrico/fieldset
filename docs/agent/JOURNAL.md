@@ -436,3 +436,10 @@
   install guide (decision 41/74). Query tuning: human "After final, in 2.1.x".
 - Local arm64 Install journeys on aa3f5c1f (before the final, QUESTIONS 77c): 151 passed / 7 skipped, 1 h 45 m, no
   leftovers. Evidence in `R2.1/` (M10-pinned results copied to `R2.1/M10-pinned/`, M10 restored).
+
+## 2026-10-23 Fieldset 2.1.0 published (maint-state-final)
+- Main CI 39959490158 green on 2c224db8; human: "Go ahead". Local `v2.1.0` moved from 209fe4a7 to 2c224db8 and pushed
+  by name (admin bypass of the tag creation rule). Release run 39970942791 green end to end; GitHub release stable,
+  Latest, 9 assets.
+- Docs run 39994845764 replaced the 2.1 rc.4 copy with the final; no pre-release banner. cosign, SHA256SUMS, anonymous
+  pulls of all 7 digests x 2 platforms, stable tags and the update feed pass (`evidence/R2.1/postpublish-v2.1.0.txt`).
